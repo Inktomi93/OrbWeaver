@@ -29,6 +29,7 @@
 // hit is deliberately NOT an event — it fires on every dispatch and says nothing when normal.
 
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { env } from "#foundation/env";
 import { addSpanEvent, getLog } from "#foundation/observability";
 import { ProviderError } from "../../contract/index.ts";
@@ -46,8 +47,6 @@ type VllmEngine = (typeof VLLM_ENGINES)[number];
  *  inside this window after serving traffic, so the cache can't hand a request to a freshly-slept engine.
  *  It only bounds the wasted probes on a hot chat (one GET per engine per 10s). */
 const AWAKE_TTL_MS = 10_000;
-
-const realSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
 
 /** The launch-floor util fractions (the SAME source the serve argv reads, so the wake footprint can't drift
  *  from the actual allocation). */
@@ -80,7 +79,7 @@ function defaultDeps(): WakeGateDeps {
     isSleeping: getIsSleeping,
     reap: reapOrphanedFamily,
     queryGpu: queryGpuVram,
-    wakeAndAwait: (engine) => postWakeAndAwait(engine, { now: Date.now, sleep: realSleep }),
+    wakeAndAwait: (engine) => postWakeAndAwait(engine, { now: Date.now, sleep }),
     held: (repoRoot) => isHeld(fleetRunDir(repoRoot)),
     now: Date.now,
     // The live bug was INVISIBLE as well as broken — production never wired a logger, so a refused/attempted

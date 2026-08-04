@@ -12,7 +12,6 @@ import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Client } from "@libsql/client";
 import { createClient } from "@libsql/client";
-import { escapeRegExp } from "@orb/kit/strings";
 import { sql } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import { drizzle } from "drizzle-orm/libsql";
@@ -201,7 +200,7 @@ interface BackupGroup {
  * yields the single match or nothing, with no `null` branch for the type-aware lint to mis-read.
  */
 function collectBackupGroups(dir: string, base: string): Map<number, BackupGroup> {
-  const backupRe = new RegExp(`^${escapeRegExp(base)}\\.backup-(\\d+)(-wal|-shm)?$`, "g");
+  const backupRe = new RegExp(`^${RegExp.escape(base)}\\.backup-(\\d+)(-wal|-shm)?$`, "g");
   const groups = new Map<number, BackupGroup>();
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     if (!entry.isFile()) {

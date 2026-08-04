@@ -201,6 +201,10 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
 
   const ctx = buildRunContext(deps, row);
 
+  // NOT `AbortSignal.any([signal, …])` (Node-26 program §4.12, deliberate KEEP): `signal` is the WORKER's
+  // long-lived shutdown signal and this function runs once per dispatched ROW, so the link's lifetime is the
+  // point — the `finally` below removes the listener when the row settles. A composite signal cannot be
+  // un-linked, which would accumulate per-row dependents on a process-lifetime signal.
   const controller = new AbortController();
   const onIncomingAbort = (): void => controller.abort();
   if (signal.aborted) {

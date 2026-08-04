@@ -45,12 +45,6 @@ const SK_KEY_RE = /sk-[A-Za-z0-9_-]{16,}/g;
 // would redact legitimate content). Real provider keys are far longer; a 1–7 char "key" isn't one.
 const MIN_SCRUBBABLE_SECRET_LEN = 8;
 
-// Escape a literal for use inside a RegExp (the secrets are user-supplied endpoint credentials).
-const REGEXP_META_RE = /[.*+?^${}()|[\]\\]/g;
-function escapeRegExp(literal: string): string {
-  return literal.replace(REGEXP_META_RE, "\\$&");
-}
-
 /**
  * Build the OpenAI sampler slice in WIRE (snake_case) form. Each field is emitted ONLY when set on the
  * input (an unset knob is absent, never `null`/`0`). `max_tokens` (not `max_completion_tokens`) for the
@@ -211,7 +205,7 @@ export function redactSecretsFromText(text: string, secrets: readonly string[]):
   // Longest-first so a secret that is a substring of another is handled by the longer replacement first.
   const literals = [...new Set(secrets)].filter((s) => s.length >= MIN_SCRUBBABLE_SECRET_LEN).sort((a, b) => b.length - a.length);
   for (const secret of literals) {
-    scrubbed = scrubbed.replace(new RegExp(escapeRegExp(secret), "g"), REDACTED);
+    scrubbed = scrubbed.replace(new RegExp(RegExp.escape(secret), "g"), REDACTED);
   }
   scrubbed = scrubbed.replace(BEARER_TOKEN_RE, `Bearer ${REDACTED}`);
   scrubbed = scrubbed.replace(SK_KEY_RE, REDACTED);
