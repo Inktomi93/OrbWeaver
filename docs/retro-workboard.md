@@ -539,7 +539,51 @@ identity chrome for ANY row kind.
 > **And every lane's first job is to re-verify its row** — a correct refusal is a successful lane, and
 > tonight it was the majority outcome.
 
-### ⚑ LIVE MULTI-USER TEST — 2026-08-03 (first real two-human session; all three invisible from seeded single-user state)
+### ⚑ LIVE MULTI-USER TEST — 2026-08-03
+
+**✅ PERSONA MISATTRIBUTION — RENDER HALF FIXED (verified, uncommitted at session end).** Three changes:
+`message-list-surface` now reads `chatDetail.viewerUserId` / `viewerActivePersonaId` (server-resolved from
+the principal) instead of `resolveViewerActivePersonaId`/`resolveViewerUserId`, which scanned the roster and
+returned **the FIRST PRESENT HUMAN** — the host in any group room, so every viewer saw the host's identity as
+their own. Their own comment said it: *"No client auth/session concept exists yet … the correct proxy
+PRE-multi-human."* The proxy went stale when multi-human landed; `ChatDetail` already carried the real
+fields, whose header literally says *"so the client never has to find-and-match its own userId in
+participants."* · `resolveUserAttribution`'s legacy `activePersonaId` fallback is now scoped to
+`authorUserId === viewerUserId`, fail-closed on either unknown — that fallback is the VIEWER's persona, so
+applying it to another author's row renamed their message to yours · the no-persona floor is now
+**"Traveler"**, not `"You"` (owner ruling): users are forced to hold a persona (boot seeds `Traveler`), and
+`"You"` re-creates the exact collision that rename was minted to kill — `seeder/demo-chats.ts:52` records the
+MODEL being shown that identity and writing it into the prose. `resolveViewerUserId` deleted (knip-confirmed
+dead). 3 regression tests incl. the live repro. All three typecheck programs + chat suites + biome + knip +
+client build green.
+
+- [ ] **PERSONA-SEAT-BORN-NULL** (S — the REMAINING half) — invite-accept still doesn't bind the joiner's
+      persona, so new seats are born `activePersonaId = null` and their rows persist `personaId = null`.
+      **The parameter already exists and is threaded**: `joinChatParticipant`
+      (`chat/persistence/participant.ts:95-101`) takes `activePersonaId?: PersonaId | null` and defaults it
+      to null — the accept path simply passes nothing. Render is fixed, so those rows now read "Traveler"
+      rather than the host, but the SEAT is still wrong and the swap UI is the only way to set it.
+      **NOT a new picker** (owner ruling): `persona.setActivePersona` + `use-chat-persona` already exist and
+      default `targetUserId` to the caller — members can already swap; nothing binds a default at join.
+
+**⚙️ QWEN3-VL-8B-INSTRUCT — VENDOR-RECOMMENDED SAMPLING** (our `gen` engine, from the model's HF card):
+| | text generation | vision-language |
+| - | - | - |
+| temperature | **1.0** | 0.7 |
+| top_p | **1.0** | 0.8 |
+| top_k | **40** | 20 |
+| repetition_penalty | **1.0** | 1.0 |
+| presence_penalty | **2.0** | 1.5 |
+| max output | **32,768** | 16,384 |
+
+Greedy decoding **disabled** on both. Native context 256K (expandable to 1M); `flash_attention_2` recommended,
+especially with multiple images/video. **Two things to weigh before adopting wholesale:** the presence_penalty
+of 2.0 is unusually aggressive for long roleplay — it penalises any token that has appeared, which is exactly
+what recurring names/places do — and the VL arm's numbers differ enough that a chat carrying images arguably
+wants the VL row, not the text row. Per [[gen-settings-are-preset-owned]] these are a RECOMMENDATION for a
+preset, never feature-forced.
+
+ (first real two-human session; all three invisible from seeded single-user state)
 
 > **OWNER RULING, recorded because I got it wrong in the moment:** *"they use the same persona swap as they
 > do everywhere else — we aren't making group mode separate shit, defeats the purpose."* Group is NOT a

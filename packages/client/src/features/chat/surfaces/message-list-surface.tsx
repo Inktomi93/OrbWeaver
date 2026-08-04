@@ -34,7 +34,7 @@ import { resolveRowAttribution } from "../lib/attribution.ts";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
 import { resolveDraftAnchorPersona, resolveDraftCharacterIds } from "../lib/draft-commit.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
-import { buildParticipantsById, resolveViewerActivePersonaId, resolveViewerUserId } from "../lib/roster.ts";
+import { buildParticipantsById } from "../lib/roster.ts";
 import { synthGreetingRow } from "../lib/synth-greeting-row.ts";
 
 /** Initial per-row height guess (px) — rows re-measure themselves after mount (the seal's job). */
@@ -134,8 +134,12 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   // UNION this page's message-stamped ids — the half that carries a REMOVED character's portrait.
   const characterAvatarEntries: readonly CharacterAvatarEntry[] = [...chatDetail.characterAvatars, ...messagesPage.characterAvatars];
   const characterAvatarsById = buildCharacterAvatarMap(characterAvatarEntries);
-  const activePersonaId = resolveViewerActivePersonaId(chatDetail.participants);
-  const viewerUserId = resolveViewerUserId(chatDetail.participants);
+  // Server-resolved from the principal (ChatDetail's own header: "so the client never has to
+  // find-and-match its own userId in participants"). The roster-scan proxies these replaced returned the
+  // FIRST PRESENT HUMAN — the host in any group room — so every viewer saw the host's identity as their
+  // own, and a member's null-persona rows rendered under the HOST's name (live 2026-08-03).
+  const activePersonaId = chatDetail.viewerActivePersonaId;
+  const viewerUserId = chatDetail.viewerUserId;
   // The §4.8 lenient-wrap verdict (parity-plus P4): a GAME chat with `features.immersiveHtml` on wraps
   // naked/```html model HTML into implicit cards. Cross-domain read rides `trpc.rpg.getGame` DIRECTLY
   // (lockdown §12 — the rpg panel shares this exact cache key), non-suspending: until it settles the

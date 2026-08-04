@@ -5,7 +5,7 @@
 // viewing participant's active persona for legacy rows; everything else renders no chrome.
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -190,7 +190,26 @@ test("user row resolves the avatar HASH from the separate personaAvatarsById pro
   expect(result.avatarHash).toBe("hash_nate");
 });
 
-test("user row with a null personaId falls back to the viewing participant's active persona (legacy rows)", () => {
+test("user row with a null personaId falls back to the viewer's active persona — ONLY on the viewer's OWN row (legacy rows)", () => {
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Nate", description: "" }]]);
+  const viewer = castId<UserId>("user_viewer");
+  const result = resolveRowAttribution({
+    role: "user",
+    characterId: null,
+    personaId: null,
+    personaNamesById,
+    activePersonaId: NATE_PERSONA_ID,
+    authorUserId: viewer,
+    viewerUserId: viewer,
+  });
+  expect(result.name).toBe("Nate");
+});
+
+// THE MISATTRIBUTION REGRESSION (live 2026-08-03). `activePersonaId` is the VIEWER's persona. A member
+// joined with an unbound seat, so his rows persisted `personaId: null` — and the legacy fallback named
+// every one of them with the VIEWER's persona. Another human's words appeared under the host's name, in
+// the transcript AND in the prompt built from those rows.
+test("a DIFFERENT author's null-persona row never borrows the viewer's persona", () => {
   const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Nate", description: "" }]]);
   const result = resolveRowAttribution({
     role: "user",
@@ -198,19 +217,30 @@ test("user row with a null personaId falls back to the viewing participant's act
     personaId: null,
     personaNamesById,
     activePersonaId: NATE_PERSONA_ID,
+    authorUserId: castId<UserId>("user_someone_else"),
+    viewerUserId: castId<UserId>("user_viewer"),
   });
-  expect(result.name).toBe("Nate");
+  expect(result.name).not.toBe("Nate");
 });
 
-test("user row with NO persona selected labels 'You' (the viewer's own row is never bare)", () => {
+test("fail-closed: an UNKNOWN author (or unknown viewer) gets no fallback", () => {
+  const personaNamesById = new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Nate", description: "" }]]);
+  const result = resolveRowAttribution({ role: "user", characterId: null, personaId: null, personaNamesById, activePersonaId: NATE_PERSONA_ID });
+  expect(result.name).not.toBe("Nate");
+});
+
+test("user row with NO resolvable persona labels 'Traveler' — never 'You' (the collision that rename killed)", () => {
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
     personaId: null,
     personaNamesById: new Map<PersonaId, RowPersonaName>(), // nothing resolves — no persona exists
   });
-  expect(result.name).toBe("You");
-  expect(result.kind).toBe("persona"); // §A.8 KIND-READY — "You" is still the persona side
+  // Users are FORCED to hold a persona (boot seeds `Traveler`), so this is the unresolvable floor.
+  // "You" here re-creates the exact collision the Traveler rename was minted to kill — and the model is
+  // shown this identity and writes it into the prose (seeder/demo-chats.ts:52).
+  expect(result.name).toBe("Traveler");
+  expect(result.kind).toBe("persona"); // §A.8 KIND-READY — the fallback is still the persona side
   expect(result.avatarAssetId).toBeNull();
   expect(result.tokens).toBeNull();
 });

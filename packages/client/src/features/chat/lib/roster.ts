@@ -4,7 +4,7 @@
 // @orb/contracts/chat's own builders do that job directly (see message-list-surface.tsx).
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
 
 // Omit, not a same-key intersection — a known TS assignability footgun that gets harder to prove as
 // ParticipantView grows optional fields, silently losing the .filter narrow.
@@ -36,17 +36,6 @@ export function resolveViewerActivePersonaId(participants: readonly ParticipantV
   for (const participant of participants) {
     if (participant.kind === "human") {
       return participant.activePersonaId;
-    }
-  }
-  return null;
-}
-
-// The render-trust "own input" comparand. Null when no human is present is the fail-closed floor: with
-// no resolvable viewer, no message matches "own-authored", so everything stays untrusted.
-export function resolveViewerUserId(participants: readonly ParticipantView[]): UserId | null {
-  for (const participant of participants) {
-    if (participant.kind === "human") {
-      return participant.userId;
     }
   }
   return null;
