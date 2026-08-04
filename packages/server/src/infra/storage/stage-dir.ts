@@ -11,14 +11,13 @@ import { relative, sep } from "node:path";
 import type { StagedArchive, StagedEntry } from "./zip.ts";
 
 async function readNoFollow(path: string): Promise<Uint8Array> {
+  // `await using`: node's `FileHandle` carries `[Symbol.asyncDispose]` (= `close()`), so the fd is closed on
+  // every exit of this scope — and a close that throws while the READ also threw now surfaces as a
+  // SuppressedError carrying BOTH, instead of the finally's close error masking the real fault.
   // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (same exemption zip.ts's staging reader carries).
-  const handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
-  try {
-    const data = await handle.readFile();
-    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-  } finally {
-    await handle.close();
-  }
+  await using handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
+  const data = await handle.readFile();
+  return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
 }
 
 /**

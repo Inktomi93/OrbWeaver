@@ -282,19 +282,33 @@ export function pruneDbBackups(url: string): readonly string[] {
 }
 
 /**
+ * Suspend connection-level FK enforcement for a SCOPE — `await using _ = await fkEnforcementSuspended(db)`.
+ * The restore is the `[Symbol.asyncDispose]`, so the OFF→ON bracket is declarative and cannot be half-written:
+ * every exit of the scope (return, throw, or an early return added later) turns enforcement back ON, which is
+ * the invariant the two hand-written `finally`s below each re-spelled. This is a RESTORE, not a release — the
+ * pragma is connection state, not an acquired resource — but the shape is identical and `await using` is the
+ * only spelling that makes the pairing unforgettable. The ON/OFF literals live HERE, once: a caller cannot
+ * suspend FKs and restore something else.
+ */
+async function fkEnforcementSuspended(db: Db): Promise<AsyncDisposable> {
+  await db.run(sql`PRAGMA foreign_keys = OFF`);
+  return {
+    [Symbol.asyncDispose]: async (): Promise<void> => {
+      await db.run(sql`PRAGMA foreign_keys = ON`);
+    },
+  };
+}
+
+/**
  * Run drizzle migrations with FK enforcement toggled OFF on the CONNECTION for the duration. drizzle's
  * 12-step table rebuild DROPs + recreates tables; with FKs ON, a `DROP TABLE parent` silently
  * cascade-DELETEs a populated db. The in-FILE `PRAGMA foreign_keys=OFF` is a no-op (libSQL batches the
  * migration as one tx and ignores mid-tx toggles) — only the connection-level toggle works. Restored to
- * ON in `finally` so a failed migration still leaves enforcement on.
+ * ON at scope exit so a failed migration still leaves enforcement on.
  */
 export async function runMigrations(db: Db, migrationsFolder: string): Promise<void> {
-  await db.run(sql`PRAGMA foreign_keys = OFF`);
-  try {
-    await migrate(db, { migrationsFolder });
-  } finally {
-    await db.run(sql`PRAGMA foreign_keys = ON`);
-  }
+  await using _fkSuspended = await fkEnforcementSuspended(db);
+  await migrate(db, { migrationsFolder });
 }
 
 /**
@@ -400,28 +414,25 @@ const RESET_DROP_ORDER = ["trigger", "view", "index", "table"] as const;
 /**
  * Full pre-launch dev-db reset on the OPEN client (the ONE connection — no file-deletion race): drop
  * EVERY user object (tables/views/triggers/indexes, INCLUDING `__drizzle_migrations`) with FK enforcement
- * toggled OFF on the connection for the duration. Internal `sqlite_%` objects (autoindexes, sequence,
+ * toggled OFF on the connection for the duration (restored at scope exit — {@link fkEnforcementSuspended}).
+ * Internal `sqlite_%` objects (autoindexes, sequence,
  * stat tables) are managed by SQLite and left alone. Dropping `__drizzle_migrations` too means the very
  * next `runMigrations` re-applies the fresh baseline from a clean bookkeeping slate. Called ONLY by the
  * boot migrate step when {@link checkBaseline} reports `regenerated` and the db is not launched.
  */
 export async function resetDevDatabase(db: Db): Promise<void> {
-  await db.run(sql`PRAGMA foreign_keys = OFF`);
-  try {
-    const objects = await db.all<Record<string, unknown>>(
-      sql`SELECT type, name FROM sqlite_master
-          WHERE type IN ('trigger', 'view', 'index', 'table') AND name NOT LIKE 'sqlite_%'`,
-    );
-    // One DDL script over the ONE connection (libSQL `executeMultiple`) rather than a per-object
-    // round-trip loop — a single teardown, not an N+1 read path.
-    const script = RESET_DROP_ORDER.flatMap((kind) =>
-      objects.filter((o) => o["type"] === kind).map((o) => `DROP ${kind} IF EXISTS "${String(o["name"])}";`),
-    ).join("\n");
-    if (script.length > 0) {
-      await clientOf(db).executeMultiple(script);
-    }
-  } finally {
-    await db.run(sql`PRAGMA foreign_keys = ON`);
+  await using _fkSuspended = await fkEnforcementSuspended(db);
+  const objects = await db.all<Record<string, unknown>>(
+    sql`SELECT type, name FROM sqlite_master
+        WHERE type IN ('trigger', 'view', 'index', 'table') AND name NOT LIKE 'sqlite_%'`,
+  );
+  // One DDL script over the ONE connection (libSQL `executeMultiple`) rather than a per-object
+  // round-trip loop — a single teardown, not an N+1 read path.
+  const script = RESET_DROP_ORDER.flatMap((kind) =>
+    objects.filter((o) => o["type"] === kind).map((o) => `DROP ${kind} IF EXISTS "${String(o["name"])}";`),
+  ).join("\n");
+  if (script.length > 0) {
+    await clientOf(db).executeMultiple(script);
   }
 }
 

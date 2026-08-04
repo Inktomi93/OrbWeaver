@@ -33,15 +33,16 @@ export function createActiveTurns(): ActiveTurns {
     const entry: Entry = { controller: new AbortController(), ownerUserId };
     const set = entriesFor(chatId);
     set.add(entry);
-    return {
-      signal: entry.controller.signal,
-      release: (): void => {
-        set.delete(entry);
-        if (set.size === 0) {
-          byChat.delete(chatId);
-        }
-      },
+    // `release` is idempotent (a second call deletes an already-absent entry — a no-op), which is what lets
+    // `[Symbol.dispose]` ALIAS it rather than fork a second implementation: a `using` scope exit and a stray
+    // hand `release()` cannot disagree.
+    const release = (): void => {
+      set.delete(entry);
+      if (set.size === 0) {
+        byChat.delete(chatId);
+      }
     };
+    return { signal: entry.controller.signal, release, [Symbol.dispose]: release };
   };
 
   const abort = (chatId: ChatId, principalUserId: UserId): AbortResult => {

@@ -92,6 +92,32 @@ describe("Sandbox — lifecycle + hello-world", () => {
       b.dispose();
     }
   });
+
+  // `Sandbox implements Disposable` is what lets the NON-resident snippet path (`port.runSnippet`) be a `using`
+  // declaration instead of a hand-written finally. A resident sandbox is deliberately NOT scope-owned — its
+  // ownership belongs to the port's `runtimes` registry — so only the one-shot path takes this.
+  test("a `using` sandbox tears down at scope exit, on the throw path too", async () => {
+    let escaped: Sandbox | undefined;
+    const run = async (): Promise<void> => {
+      using sandbox = await Sandbox.create(makeSeams());
+      escaped = sandbox;
+      expect(sandbox.alive).toBe(true);
+      throw new Error("guest work faulted");
+    };
+    await expect(run()).rejects.toThrow("guest work faulted");
+    expect(escaped?.alive).toBe(false);
+  });
+
+  test("`[Symbol.dispose]` is teardown, and teardown stays re-entrant", async () => {
+    const sandbox = await Sandbox.create(makeSeams());
+    sandbox[Symbol.dispose]();
+    expect(sandbox.alive).toBe(false);
+    // A `using` scope exit landing after a hand `dispose()` (or the reverse) must not double-free the context —
+    // quickjs's `Lifetime.dispose` throws on a second call, so the `alive` guard inside teardown is load-bearing.
+    sandbox.dispose();
+    sandbox[Symbol.dispose]();
+    expect(sandbox.alive).toBe(false);
+  });
 });
 
 describe("Sandbox — injected-seam host round-trip + determinism", () => {

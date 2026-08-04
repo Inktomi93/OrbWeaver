@@ -4,7 +4,6 @@
 // atomic (temp → rename) but not fsynced — losing an entry on power loss is just a recompute.
 
 import { randomBytes } from "node:crypto";
-import type { FileHandle } from "node:fs/promises";
 import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import type { VariantKind } from "@orb/contracts/assets";
@@ -72,12 +71,12 @@ export function createVariantCache(rootDir: string): VariantCache {
       await mkdir(hashDir(ownerId, hash), { recursive: true });
       await mkdir(tmpDir, { recursive: true });
       const tmpPath = join(tmpDir, `${randomBytes(TMP_SUFFIX_BYTES).toString("hex")}.tmp`);
-      let handle: FileHandle | undefined;
-      try {
-        handle = await open(tmpPath, "w");
+      // EXPLICIT BLOCK, not a function-scoped `await using`: the write→CLOSE→publish order is load-bearing, and
+      // a function-scoped declaration would dispose (close) at the END — i.e. AFTER the rename — publishing the
+      // entry while the fd is still open. The block reproduces the old `finally`'s position exactly.
+      {
+        await using handle = await open(tmpPath, "w");
         await handle.writeFile(bytes); // fsync omitted: a lost cache entry is just a recompute.
-      } finally {
-        await handle?.close();
       }
       // Atomic publish (same filesystem → rename) so a concurrent reader never sees a torn file.
       await rename(tmpPath, dest);
