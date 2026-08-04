@@ -15,14 +15,14 @@ describe("applyNamesBehavior", () => {
       { role: "assistant" as const, content: "greeting", authorName: "Aria" },
       { role: "user" as const, content: "u1", authorName: "User" },
     ];
-    expect(applyNamesBehavior(h, "default", SPEAKERS, false)).toEqual([
+    expect(applyNamesBehavior(h, "default", SPEAKERS, { multiCharacter: false })).toEqual([
       { role: "assistant", content: "greeting" },
       { role: "user", content: "u1" },
     ]);
   });
 
   test('"default" prefixes a user turn authored under a since-switched persona', () => {
-    expect(applyNamesBehavior([{ role: "user", content: "hi", authorName: "Alt" }], "default", SPEAKERS, false)).toEqual([
+    expect(applyNamesBehavior([{ role: "user", content: "hi", authorName: "Alt" }], "default", SPEAKERS, { multiCharacter: false })).toEqual([
       { role: "user", content: "Alt: hi" },
     ]);
   });
@@ -36,7 +36,7 @@ describe("applyNamesBehavior", () => {
         ],
         "default",
         SPEAKERS,
-        true,
+        { multiCharacter: true },
       ),
     ).toEqual([
       { role: "assistant", content: "Aria: greeting" },
@@ -45,7 +45,7 @@ describe("applyNamesBehavior", () => {
   });
 
   test('"default" + multiCharacter does NOT prefix an unattributed assistant row', () => {
-    expect(applyNamesBehavior([{ role: "assistant", content: "x", authorName: null }], "default", SPEAKERS, true)).toEqual([
+    expect(applyNamesBehavior([{ role: "assistant", content: "x", authorName: null }], "default", SPEAKERS, { multiCharacter: true })).toEqual([
       { role: "assistant", content: "x" },
     ]);
   });
@@ -66,9 +66,21 @@ describe("applyNamesBehavior", () => {
     ]);
   });
 
-  test('"completion" sets the OpenAI-spec name field; content untouched', () => {
-    expect(applyNamesBehavior([{ role: "user", content: "u1", authorName: "Alt" }], "completion", SPEAKERS)).toEqual([
+  test('"completion" sets the OpenAI-spec name field when nothing downstream has to merge', () => {
+    // `mergesAdjacent: false` — a backend that tolerates adjacent same-role rows. The out-of-band field is
+    // the better shape there: the speaker never enters the content bytes.
+    expect(applyNamesBehavior([{ role: "user", content: "u1", authorName: "Alt" }], "completion", SPEAKERS, { mergesAdjacent: false })).toEqual([
       { role: "user", content: "u1", name: "Alt" },
+    ]);
+  });
+
+  test('"completion" INLINES the speaker when the strategy merges (ST pass 1: fold the name, then delete it)', () => {
+    // The default — the unset `roleHandlingFloor` clamps to `strict`, so this is what ships. A surviving
+    // `name` field would block `squashSameRole` and hand a strict provider the adjacent same-role pair it
+    // rejects; it also let a demoted instruction inherit the player's name after a merge. ST folds the name
+    // into content and deletes it before squashing for exactly this reason.
+    expect(applyNamesBehavior([{ role: "user", content: "u1", authorName: "Alt" }], "completion", SPEAKERS)).toEqual([
+      { role: "user", content: "Alt: u1", messageId: undefined },
     ]);
   });
 });
