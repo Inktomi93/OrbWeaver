@@ -68,6 +68,10 @@ function tc(api: ChatApi, over: Partial<RpgTurnContext> = {}): RpgTurnContext {
     // R1: `null` = the folded tools did NOT ride this turn (the post-commit round runs); a fold test overrides
     // it with the calls the character turn co-emitted.
     terminalToolCalls: null,
+    // The round's cancellation inputs: the owner it is scoped to, and the character turn's own signal (absent by
+    // default — on a real single-speaker turn it is already released before the round runs).
+    triggeredBy: castId<UserId>("user_host"),
+    signal: undefined,
     ...over,
   };
 }
@@ -191,6 +195,9 @@ interface ExtractionSpy {
   /** The user prompts the impl sent — so a §1.3 test can assert the RECENT STORY block (window arm) + the
    *  byte-compat `beat` arm shape. Captured on both routed arms (structured `userPrompt` / agent-sdk `prompt`). */
   readonly userPrompts: string[];
+  /** The cancellation signal each request carried (RPG-SIGNAL). `undefined` here would mean the round is
+   *  uncancelable at the LAST hop no matter what the flush believes — this is the only tier that can see it. */
+  readonly signals: (AbortSignal | undefined)[];
 }
 
 /** Build an rpg seam over the REAL chat wiring (off `app.chatRpgOps`) + real db, with a FAKE executor/connection
@@ -212,6 +219,7 @@ function recordChatTurn(spy: ExtractionSpy, req: Parameters<NonNullable<Paramete
     // `ownerConsented`, inherited, NOT a force-stamped `true`.
     ownerConsented: req.ownerConsented === true,
   });
+  spy.signals.push(req.signal);
   if (req.responseFormat !== undefined) {
     spy.schemas.push(req.responseFormat.schema);
     spy.strictFlags.push(req.responseFormat.strict);
@@ -283,6 +291,7 @@ function buildCannedRpgWithText(args: {
         spy.strictFlags.push(req.responseFormat.strict);
         spy.systemPrompts.push(req.inputs[0]?.systemPrompt ?? "");
         spy.userPrompts.push(req.inputs[0]?.userPrompt ?? "");
+        spy.signals.push(req.signal);
         return Promise.resolve({
           items: [{ text: cannedText, usage: { tokensIn: null, tokensOut: null, costUsd: null } }],
           model: "fake-chat-model",
@@ -334,7 +343,16 @@ function buildCannedRpgWithText(args: {
   });
 }
 
-const emptySpy = (): ExtractionSpy => ({ summarizeModels: [], chatTurns: [], wireTools: [], schemas: [], strictFlags: [], systemPrompts: [], userPrompts: [] });
+const emptySpy = (): ExtractionSpy => ({
+  summarizeModels: [],
+  chatTurns: [],
+  wireTools: [],
+  schemas: [],
+  strictFlags: [],
+  systemPrompts: [],
+  userPrompts: [],
+  signals: [],
+});
 
 test("CHEAP turn (tool-round arm) — a wire that CAN carry tools rides them, never the structured dispatcher", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "cheap-toolround");
@@ -421,6 +439,58 @@ test("R1: the ref enum reaches the agent-sdk chat arm too (portable — same sha
   const schema = spy.schemas[0] as { properties?: { party?: { items?: { properties?: { targetRef?: { enum?: string[] } } } } } };
   expect(Array.isArray(schema.properties?.party?.items?.properties?.targetRef?.enum)).toBe(true);
   expect(spy.systemPrompts[0]).toContain("Valid targetRef values");
+});
+
+// ── RPG-SIGNAL: the cancellation reaches the LAST HOP (the provider request) ──────────────────────────────
+// The flush tier proves the round is cancelable and writes nothing; only THIS tier can see whether the signal
+// actually made it onto the wire request. Without it the round would run to completion on the provider's clock
+// and bill in full, however promptly the flush afterwards refused to write — the "burning tokens" half of the
+// defect. Both routed arms are pinned because they build their requests independently.
+
+test("RPG-SIGNAL: the state round threads its cancellation onto the STRUCTURED dispatcher request", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "sig-structured");
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
+
+  // A `chat-completions` turn connection takes the `structured` dispatcher arm.
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
+
+  const signal = spy.signals[0];
+  expect(signal).toBeInstanceOf(AbortSignal); // NOT undefined — the socket is killable
+  expect(signal?.aborted).toBe(false); // a live, un-fired signal: the round ran normally
+});
+
+test("RPG-SIGNAL: the agent-sdk chat arm carries it too (the degrade is cancelable, not just the array wires)", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "sig-agentsdk");
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
+
+  expect(spy.signals[0]).toBeInstanceOf(AbortSignal);
+});
+
+test("RPG-SIGNAL: a round entered ALREADY CANCELLED makes ZERO provider calls (nothing is billed)", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "sig-preflight");
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
+
+  const turn = new AbortController();
+  turn.abort();
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions", { signal: turn.signal }));
+
+  // The whole point of the pre-flight gate: an abandoned turn costs nothing at all, on either arm.
+  expect(spy.summarizeModels).toEqual([]);
+  expect(spy.chatTurns).toEqual([]);
 });
 
 // ── D126: the structured-output SHAPE knob reaches the wire (the whole path: AppSettings → the request) ──

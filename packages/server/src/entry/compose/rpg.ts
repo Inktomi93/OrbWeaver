@@ -398,6 +398,12 @@ interface ExtractCtx {
   readonly systemPrompt: string;
   readonly userPrompt: string;
   readonly schema: Record<string, unknown>;
+  /** The round's cancellation, threaded onto the provider request so a Stop actually kills the socket instead of
+   *  letting a turn the user abandoned finish billing (`RpgStateRoundInput.signal`; minted by the flush barrier).
+   *  `undefined` on the two HOST doors (`resyncFromStory` / `populateFromCharacter`): those are verb-initiated,
+   *  and the tRPC request's signal is not threaded down to verbs on this tree — a doorway, not a gap in this
+   *  seam. The field is REQUIRED so a new arm cannot forget to answer the question. */
+  readonly signal: AbortSignal | undefined;
 }
 
 async function extractViaChat(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<string> {
@@ -416,6 +422,7 @@ async function extractViaChat(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<st
     // member-triggered turn on a non-consented sub already refused before commit, so no round ever fires.
     ownerConsented: ctx.ownerConsented,
     responseFormat: extractionResponseFormat(deps, ctx.schema),
+    signal: ctx.signal,
   });
   return result.reply;
 }
@@ -430,6 +437,7 @@ async function extractViaStructured(deps: RpgComposeDeps, ctx: ExtractCtx): Prom
     model: ctx.conn.model,
     inputs: [{ systemPrompt: ctx.systemPrompt, userPrompt: ctx.userPrompt }],
     responseFormat: extractionResponseFormat(deps, ctx.schema),
+    signal: ctx.signal,
   });
   return result.items.at(0)?.text ?? "";
 }
@@ -611,9 +619,15 @@ function refEnumerationLines(refs: ExtractionRefs, playerDisplayName: string | n
  *  tool-less, so persisting the round's calls on the variant would lie to the transcript reader). The per-item provider log is the v1
  *  record (`provider.structured-item`; the agent-sdk arm's `provider.turn`) — see spec §10.1a. */
 function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
-  return async ({ chatId, baseState, turnConnection, reconcile }) => {
+  return async ({ chatId, baseState, turnConnection, reconcile, signal }) => {
     const empty = { statePatch: {}, journal: [] };
     const conn = turnConnection.connection;
+    // CANCELLED BEFORE THE CALL — spend nothing, read nothing, return the empty delta (the same shape a failed
+    // extraction returns; a cancelled round is byte-identical to a non-writing turn).
+    if (isCancelled(signal)) {
+      logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: "structured extraction", preflight: true });
+      return empty;
+    }
     // R1 — the mis-target fix: constrain the response schema's ref fields to the ACTUAL per-call refs (the
     // semantic `player` token + roster/persona names + existing scene-cast + cast-actor keys + tracker keys)
     // so an invalid ref is UNREPRESENTABLE under a schema-enforcing backend, and ALSO enumerate them in the
@@ -627,6 +641,7 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
       systemPrompt: extractionSystem(config, refs, playerDisplayName, reconcile),
       userPrompt: buildExtractionUserPrompt(turnConnection.transcript, baseState, config),
       schema,
+      signal,
     };
     // The structured-output extraction can THROW at the backend (e.g. a backend that doesn't honor
     // `outputFormat: json_schema`). Errors-as-data for CANON (a failed extraction never corrupts state — return
@@ -636,6 +651,13 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     try {
       text = conn.api === "agent-sdk" ? await extractViaChat(deps, ctx) : await extractViaStructured(deps, ctx);
     } catch (err) {
+      // A CANCEL is not a FAILURE. Reading the signal (not the error's shape) is what keeps the two apart: the
+      // thrown value differs per backend, and misfiling a user's Stop as `rpg.extraction.failed` would put a
+      // normal cancellation in the same warn stream we use to diagnose broken extractions.
+      if (isCancelled(signal)) {
+        logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: "structured extraction", preflight: false });
+        return empty;
+      }
       logger.warn({ event: "rpg.extraction.failed", chatId, model: conn.model, api: conn.api, err }, "rpg structured extraction failed");
       return empty;
     }
@@ -805,6 +827,36 @@ function logToolRoundUsage(args: { readonly chatId: ChatId; readonly api: string
   );
 }
 
+/** Re-READ a signal's LIVE abort flag. Deliberately a call, not a bare `signal.aborted`: the checker models
+ *  `aborted` as a plain boolean and narrows it, so the SECOND read — the one inside the `catch`, which is the
+ *  read that actually decides cancelled-vs-failed — is reported as always-false dead code. In reality the flag
+ *  flips ASYNCHRONOUSLY while the model call is in flight. A call keeps the re-read honest instead of
+ *  suppressing a rule that is (reasonably) confused by a mutable getter. */
+function isCancelled(signal: AbortSignal): boolean {
+  return signal.aborted;
+}
+
+/** The CANCELLED-round line, one home for both in-turn vehicles (the caller aborted the turn while the round was
+ *  queued or in flight). `info`, not `warn`: a cancellation is a correct, user-initiated outcome, and filing it
+ *  beside `rpg.extraction.failed` / `rpg.toolround.failed` would poison the stream those warns exist to make
+ *  readable. It is not SILENT either — a round that spent tokens and wrote nothing must be visible, and
+ *  `preflight` says whether any spend happened at all (`true` = the abort beat the call, so nothing was billed).
+ *  The vehicle is named because the two arms bill on different provider trails. */
+function logCancelled(args: {
+  readonly chatId: ChatId;
+  readonly model: string;
+  readonly api: string;
+  readonly vehicle: string;
+  readonly preflight: boolean;
+}): void {
+  logger.info(
+    { event: "rpg.stateround.cancelled", chatId: args.chatId, model: args.model, api: args.api, vehicle: args.vehicle, preflight: args.preflight },
+    args.preflight
+      ? `rpg ${args.vehicle} cancelled before its model call — nothing billed, no state written`
+      : `rpg ${args.vehicle} cancelled in flight (the caller aborted the turn) — no state written`,
+  );
+}
+
 /** Parse structured-output text to a value, or `null` on non-JSON (the schema parse then fails → empty). */
 function safeJson(text: string): unknown {
   try {
@@ -912,12 +964,18 @@ function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameConfig): {
 function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
   const extract = buildRunExtraction(deps);
   return async (input) => {
-    const { chatId, baseState, turnConnection, reconcile } = input;
+    const { chatId, baseState, turnConnection, reconcile, signal } = input;
     const empty = { statePatch: {}, journal: [] };
     const conn = turnConnection.connection;
-    // agent-sdk has no wire tools[]; the shared-plane proof lets it ride the SAME structured extraction.
+    // agent-sdk has no wire tools[]; the shared-plane proof lets it ride the SAME structured extraction (which
+    // runs its own pre-flight cancel check, so the degrade inherits cancellation identically).
     if (conn.api === "agent-sdk") {
       return extract(input);
+    }
+    // CANCELLED BEFORE THE CALL — no ref resolve, no model call, no spend (the structured arm's posture).
+    if (isCancelled(signal)) {
+      logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: "cheap tool round", preflight: true });
+      return empty;
     }
     const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
     let calls: readonly RpgToolCall[];
@@ -935,11 +993,17 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
         // The character turn's enforced consent verdict, inherited (never force-stamped `true` — F1). Non-sub
         // backends ignore it; a max-pro-sub round only ever runs because the character turn already consented.
         ownerConsented: turnConnection.ownerConsented,
+        signal,
       });
       // The round's economics record — §10.1a's claim, made true on the vehicle that had no emitter.
       logToolRoundUsage({ chatId, api: conn.api, result });
       calls = result.toolCalls ?? [];
     } catch (err) {
+      // A CANCEL is not a FAILURE — read the signal, never the error's shape (see the structured arm's twin).
+      if (isCancelled(signal)) {
+        logCancelled({ chatId, model: conn.model, api: conn.api, vehicle: "cheap tool round", preflight: false });
+        return empty;
+      }
       logger.warn({ event: "rpg.toolround.failed", chatId, model: conn.model, api: conn.api, err }, "rpg cheap tool round failed");
       return empty;
     }
@@ -1202,6 +1266,9 @@ async function resyncViaStructured(
     systemPrompt: extractionSystem(config, refs, playerDisplayName, true),
     userPrompt,
     schema: constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs),
+    // A HOST DOOR has no cancellation to inherit: it is verb-initiated, and the tRPC request's signal is not
+    // threaded down to verbs on this tree. Stated, not defaulted — a future arm must answer the question.
+    signal: undefined,
   };
   let text: string;
   try {
@@ -1337,6 +1404,8 @@ function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopula
       systemPrompt: `${POPULATE_SYSTEM_HEADER}\n\n${composePopulateTeaching({ config: game?.config ?? rpgGameConfigSchema.parse({}), refs })}`,
       userPrompt: populateUserPrompt(corpus, targetRef),
       schema: constrainPopulateSchema(projectJsonSchema(rpgPopulateSchema), targetRef),
+      // A HOST DOOR has no cancellation to inherit — the resync's posture verbatim (see `resyncViaStructured`).
+      signal: undefined,
     };
     let text: string;
     try {
@@ -1441,6 +1510,21 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
       logger.warn(
         { event: "rpg.extraction.fold_build_failed", chatId: info.chatId, gameId: info.gameId, err: info.err },
         "rpg folded turn could not BUILD its tools — the turn ran tool-less; state falls to the post-commit round",
+      );
+    },
+    // OBSERVABILITY: the caller pressed Stop and this flush refused to write (the cancellation ruling). A
+    // deliberate, correct discard — `info`, not `warn` — but never SILENT: a cancelled round that threw away a
+    // finished extraction (`discardedStagedWrites`) is the expensive case and must be countable.
+    onStateRoundCancelled: (info) => {
+      logger.info(
+        {
+          event: "rpg.flush.cancelled",
+          chatId: info.chatId,
+          gameId: info.gameId,
+          turnId: info.turnId,
+          discardedStagedWrites: info.discardedStagedWrites,
+        },
+        "rpg flush CANCELLED (the caller aborted the turn) — no snapshot, no journal, no emits",
       );
     },
     onFlushDropped: (info) => {
