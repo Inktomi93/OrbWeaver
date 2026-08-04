@@ -539,6 +539,35 @@ identity chrome for ANY row kind.
 > **And every lane's first job is to re-verify its row** — a correct refusal is a successful lane, and
 > tonight it was the majority outcome.
 
+### ⚑ LIVE DOGFOOD BUGS — 2026-08-03 night (owner-reported, unverified by me — capture only)
+
+- [ ] **RPG-STAT-ENTRY-REVERTS** (M, correctness — owner-reported) — **manual stat entry in rpg-lite does
+      not commit.** Repro: type `20` into a stat, click into ANOTHER stat field, and the first reverts to
+      **1**. So hand-authored sheets cannot be filled in at all — the value is accepted visually and thrown
+      away on blur. Suspects, in order: the field is CONTROLLED off a value that never receives the edit
+      (so blur re-renders from the stale source); an autosave/draft mirror that commits on submit but not
+      on blur; or a min-clamp/coerce defaulting an intermediate empty/NaN to `1` mid-edit. Reverting to
+      exactly `1` rather than to the previous value points at a DEFAULT being re-applied, not a failed
+      save. Check the hand-door write seam ([[op-shaped-hand-door-write-seam]]: `writeHandState(derive)`
+      derives INSIDE the head resolve) before the component.
+- [ ] **DRAFT-PHASE ROW AVATAR** (S, cosmetic + transient) — a character's avatar is absent from message
+      rows while the chat is a DRAFT and appears once it commits. Draft context carries `cast` ids, not
+      participant views, so row attribution has no `avatarHash` to resolve; the header reads the draft cast
+      directly and shows it. Self-heals on commit. **Probably NOT related to the bare-hash 404s below** —
+      I had been bundling them and the owner's observation separates them.
+- [ ] **BARE-HASH ASSET 404s** (S, unroot-caused) — 8 requests to `/<sha256>` at the ROOT path, 404, both
+      users. `message-row-parts`' builders are CORRECT (`blobUrl`/`blobPortraitUrl`) — ruled out. Something
+      else passes a raw hash where a URL belongs.
+- [ ] **D44 VIOLATION — `data:` GRAIN TEXTURE** (S) — `packages/client/src/styles/globals.css:170` ships a
+      `url("data:image/svg+xml,…feTurbulence…")` noise texture. CSP (`img-src 'self' blob:`) blocks it, and
+      that is CORRECT: D44 forbids `data:` images and `assetsInlineLimit: 0` exists to prevent exactly this.
+      **Do NOT loosen img-src.** Wants a real SVG asset file or a CSS-only grain. Only fires under
+      `html[data-texture="grain"]`, so switching texture off is the workaround.
+- [ ] **CREDENTIAL STORAGE FAILS SILENTLY** (S) — `CREDENTIALS_KEY` unset ⇒ per-user creds off with NO
+      fallback, so "save API key" cannot persist and boot only WARNS ("env key present but credential
+      storage is disabled — seed skipped"). The app comes up healthy and the defect surfaces as a dead
+      button. Now set. Should be boot-fatal, or the credentials UI should refuse input it cannot keep.
+
 ### ⚑ LIVE MULTI-USER TEST — 2026-08-03
 
 **✅ PERSONA MISATTRIBUTION — RENDER HALF FIXED (verified, uncommitted at session end).** Three changes:
