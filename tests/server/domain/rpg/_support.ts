@@ -14,6 +14,7 @@ import type {
   CharacterHandle,
   CharacterId,
   ChatId,
+  ChatTurnId,
   Handle,
   MessageId,
   MessageVariantId,
@@ -180,6 +181,12 @@ export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnConte
     // R1: `null` = the folded tools did NOT ride this turn, so a `folded` game falls back to its post-commit
     // round. A fold test overrides it with the calls the character turn co-emitted (`[]` = a quiet beat).
     terminalToolCalls: null,
+    // The turn OWNER — the cancellation scope `cancelStateRounds` matches on (mirrors `activeTurns.abort`'s
+    // owner-only rule). Defaults to the harness's host user so a cancel test can name it without plumbing.
+    triggeredBy: castId<UserId>("user_host"),
+    // The character turn's own signal. `undefined` by default: on a real single-speaker turn it is already
+    // released by the time the round runs, so the barrier's OWN controller is the cancellation that matters.
+    signal: undefined,
     ...over,
   };
 }
@@ -297,6 +304,13 @@ export interface RpgFakes {
   /** The flush-barrier TIMEOUTS (the `onTimeout` recorder — assert the barrier released + logged a hung flush
    *  rather than deadlocking the turn). */
   readonly barrierTimeouts: { chatId: ChatId }[];
+  /** The flushes CANCELLED at the write boundary (`onStateRoundCancelled`) — the ONLY evidence a correct,
+   *  deliberate discard happened, so a cancel test asserts here as well as on the absent snapshot row. */
+  readonly stateRoundCancels: { chatId: ChatId; turnId: ChatTurnId; discardedStagedWrites: boolean }[];
+  /** Per post-commit round: was its OWN signal aborted by the time the round's body resumed (read AFTER
+   *  `stateRoundGate`)? The real vehicles hand that same signal to the provider, so `true` here is the proof the
+   *  cancellation reached the model call — not merely the write boundary one step later. */
+  readonly stateRoundSignalAborted: boolean[];
 }
 
 export interface RpgHarness {
@@ -367,6 +381,8 @@ export function makeRpgService(
     busEvents: [],
     flushDrops: [],
     barrierTimeouts: [],
+    stateRoundCancels: [],
+    stateRoundSignalAborted: [],
   };
 
   let narratorSeq = 1000;
@@ -395,6 +411,10 @@ export function makeRpgService(
     if (fakes.stateRoundGate !== undefined) {
       await fakes.stateRoundGate;
     }
+    // AFTER the gate: what the round's OWN signal reads once it is released. This is how a mid-round-cancel test
+    // proves the abort actually reached the vehicle (the real arms hand this same signal to the provider) rather
+    // than only being observed later at the write boundary.
+    fakes.stateRoundSignalAborted.push(input.signal.aborted);
     const extraction = fakes.extractions.shift();
     if (extraction === undefined) {
       return fakes.toolRoundDelta;
@@ -510,6 +530,9 @@ export function makeRpgService(
     },
     onFlushDropped: (info) => {
       fakes.flushDrops.push({ chatId: info.chatId, gameId: info.gameId, variantId: info.variantId, reason: info.reason });
+    },
+    onStateRoundCancelled: (info) => {
+      fakes.stateRoundCancels.push({ chatId: info.chatId, turnId: info.turnId, discardedStagedWrites: info.discardedStagedWrites });
     },
     onStateRoundPath: (info) => {
       fakes.stateRoundPaths.push({ chatId: info.chatId, mode: info.mode, path: info.path, fallbackReason: info.fallbackReason });

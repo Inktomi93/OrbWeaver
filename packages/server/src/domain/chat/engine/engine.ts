@@ -1237,6 +1237,12 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       ownerConsented,
       transcript: projectTurnRpgTranscript(canonAll, view, historyMacroNames),
       terminalToolCalls: result.terminalToolCalls,
+      // The round's cancellation inputs. `triggeredBy` is the OWNER it is scoped to (`cancelStateRounds` mirrors
+      // `activeTurns.abort`'s owner-only rule); `signal` is this turn's own registration signal, which covers
+      // ONLY the multi-speaker overlap window — the registration is released the moment this function returns,
+      // so rpg composes its own controller on top (see `ChatRpgOps.cancelStateRounds` for the full timeline).
+      triggeredBy: prep.triggeredBy,
+      signal: prep.signal,
     });
     await deps.emit({ type: "turnCompleted", chatId: prep.chatId, intent, messageId: view.id });
     // Fans chatsChanged to every present human member's live channel (chat-list recency); fired once here for

@@ -167,12 +167,42 @@ export type FlushBarrierOnTimeout = (info: { readonly chatId: ChatId }) => void;
  *  just-committed state, not stale state (the "one-beat-behind but GUARANTEED" contract). Bounded — a hung
  *  flush releases the barrier + logs, never a deadlocked turn. */
 export interface RpgFlushBarrier {
-  /** Record a chat's in-flight flush promise. Tracks the LATEST flush per chat; `awaitInFlight` races it against
-   *  the bound. A rejection is swallowed here (the flush's own error handling logs it — the barrier only GATES). */
-  readonly register: (chatId: ChatId, flush: Promise<void>) => void;
+  /** START a chat's flush under the barrier AND under its own cancellation scope, and record it in flight.
+   *  The barrier mints the round's `AbortSignal`, invokes `run(signal)` SYNCHRONOUSLY (the in-flight entry
+   *  therefore exists before `onTurnCompleted` yields — the race the barrier was built for), tracks the returned
+   *  promise until it settles, and returns it to the caller.
+   *
+   *  Scope and barrier are ONE lifetime by construction: a second registry keyed the same way could drift out of
+   *  sync with this one, and "which rounds are still running" is exactly the question both answer. A rejection is
+   *  swallowed for barrier purposes (the flush's own error handling logs it — the barrier gates on SETTLEMENT). */
+  readonly register: (entry: RpgFlushRegistration) => Promise<void>;
   /** Block until this chat's in-flight flush settles OR the bound elapses (whichever first). Resolves either
    *  way — never throws, never hangs past the bound. No in-flight flush ⇒ resolves immediately. */
   readonly awaitInFlight: (chatId: ChatId) => Promise<void>;
+  /** ABORT `ownerUserId`'s in-flight rounds on this chat; returns how many were signalled (0 = nothing of theirs
+   *  was running — the idempotent no-op). Owner-scoped in deliberate mirror of `activeTurns.abort`, so a host
+   *  cannot cancel a member's round (the rollback-theft defense applied to the state plane).
+   *
+   *  A cancelled round is NOT removed from the in-flight set — unlike `activeTurns.abort`, which deletes. The
+   *  barrier's job is to gate the next turn's assembly on SETTLEMENT, and a cancelled round still has to unwind
+   *  (and clear its staging) before the next gather may read; dropping it here would re-open the stale-read race
+   *  the barrier exists to close. */
+  readonly cancel: (chatId: ChatId, ownerUserId: UserId) => number;
+}
+
+/** One flush registration: which chat, whose turn it was (the cancellation owner — D19's `triggeredBy`), the
+ *  character turn's own signal to fold in, and the flush body itself, which receives the composed signal.
+ *  Non-exported: reachable only through {@link RpgFlushBarrier.register}'s signature — no consumer names it. */
+interface RpgFlushRegistration {
+  readonly chatId: ChatId;
+  /** The turn's `triggeredBy` — `cancel` signals only rounds matching the caller (see `cancel`). */
+  readonly ownerUserId: UserId;
+  /** The character turn's `activeTurns` signal, folded in so the MULTI-SPEAKER overlap window is covered too
+   *  (speaker 1's round is still inside the shared registration while speaker 2 generates). `undefined` for an
+   *  unregistered turn. */
+  readonly turnSignal: AbortSignal | undefined;
+  /** The flush body. Receives the barrier's composed signal; it is the round's ONLY cancellation input. */
+  readonly run: (signal: AbortSignal) => Promise<void>;
 }
 
 // ── the injected cross-feature ops (§0/§3 — wired at compose, W1b-integration/W1c) ───────────────────────
@@ -453,6 +483,13 @@ interface RpgStateRoundInput {
   readonly variantId: MessageVariantId;
   readonly baseState: RpgSnapshotState;
   readonly turnConnection: RpgTurnContext;
+  /** THE ROUND'S CANCELLATION. Minted by the flush barrier (`RpgFlushBarrier.register`) as the round's own
+   *  lifetime — NOT `turnConnection.signal`, which is released the instant the engine turn returns and would
+   *  cover only the multi-speaker overlap (the timeline is on `ChatRpgOps.cancelStateRounds`). Every arm that
+   *  can SPEND threads it onto the provider request; a round entered already-aborted makes no model call at all
+   *  and returns the empty delta — byte-identical to a non-writing turn, the file's standing errors-as-data
+   *  posture. `foldTurnToolCalls` ignores it (zero model calls: there is nothing to cancel). */
+  readonly signal: AbortSignal;
   /** RECONCILE beat (crunchy-cluster §1.3 reconcile cadence): this flush is the `reconcileEveryBeats`-th, so the
    *  round FORCES a full re-emission of the refreshable planes — the establish-when-unset machinery
    *  (`constrainExtractionSchema` scene/cast) is applied UNCONDITIONALLY and the prompt gains the reconcile
@@ -560,6 +597,12 @@ export interface RpgContext {
    *  visibility violation this program kills). Wired at compose to the `rpg.flush.dropped` warn log; a fake
    *  recorder asserts it fired in tests. Fire-and-forget (`void`) — a logging failure never breaks a turn. */
   readonly onFlushDropped: (info: FlushDropInfo) => void;
+  /** OBSERVABILITY: this flush was CANCELLED (the caller aborted the turn) and its staged writes were discarded
+   *  at the write boundary. The one trace of a deliberate, correct discard — a state round that fired, produced
+   *  applicable output, and wrote nothing is otherwise indistinguishable from the quiet-beat no-op, which is the
+   *  exact class of silence the rest of this contract's hooks exist to kill. Wired at compose to a log line; a
+   *  fake recorder asserts it in tests. Fire-and-forget (`void`). */
+  readonly onStateRoundCancelled: (info: StateRoundCancelInfo) => void;
   /** OBSERVABILITY: which STATE-ROUND PATH this flush resolved to (R1). The delivery model is now a fork, and
    *  a fork that resolves silently is a fork nobody can debug: a `folded` game that quietly fell back to the
    *  post-commit round still writes correct state, but it also silently pays the second call the fold exists to
@@ -601,6 +644,21 @@ interface StateRoundPathInfo {
    *  no-vehicle-at-all member of the axis can never appear on this line. */
   readonly path: Exclude<RpgDeliveryPath, "none">;
   readonly fallbackReason: RpgFoldFallbackReason | null;
+}
+
+/** The CANCELLED-round signal (the caller aborted the turn while its state round was in flight). Distinct from
+ *  {@link FlushDropInfo}: that one means the model's output was contract-INVALID and canon refused it; this one
+ *  means the output may have been perfectly good and the USER said stop. Conflating them would make a normal
+ *  cancellation read as a data-corruption warning in the trail.
+ *  Non-exported: reachable only through `RpgContext.onStateRoundCancelled`'s signature — no consumer names it. */
+interface StateRoundCancelInfo {
+  readonly chatId: ChatId;
+  readonly gameId: RpgGameId;
+  readonly turnId: ChatTurnId;
+  /** Did the round already produce writes that are now being discarded? `false` = it never got that far (the
+   *  common case — the abort landed during the model call), which is a cheaper, quieter event than throwing
+   *  away a finished extraction. */
+  readonly discardedStagedWrites: boolean;
 }
 
 /** The write-boundary drop signal (the F1 backstop refused a contract-invalid state at flush). Carries the id
