@@ -139,7 +139,14 @@ An exemption is a promise. This is how the promise is written.
    is `record(chatId: string, sessionId: string)` — a foreign `sessionId` sitting beside one of OUR
    `chatId`s, where a line marker would silently absolve both. Two-sidedness then applies to the NAME too: a
    marker naming a position that is not live is RED, exactly as a stale row is. Paid for by
-   `brand-in-name-position` (2026-08-03).
+   `brand-in-name-position` (2026-08-03). **This clause NAMES ITS ENFORCER for the shared
+   `@orb-gate-ignore` vocabulary: `gate-ignore-inventory`'s OVER-EXEMPT arm** — `pass.ts` counts what each
+   marker suppressed, and an UNPOSITIONED marker that absolved more than one finding is RED (2026-08-03; it
+   was prose-only until the §5 probe planted the counterfactual and watched one marker silently absolve
+   both tokens). Corollary, paid for at the same time: **a marker grammar that names positions requires
+   every gate it governs to EMIT positions.** While `no-loose-id-cast` reported node-anchored with no
+   `token`, §4.3a there was not merely unenforced but UNSATISFIABLE — you cannot ask an author to name a
+   position the report cannot express. A gate whose findings can CO-OCCUR on one line owes a `token`.
 3b. **THE RESOLVER THAT READS STACKED MARKERS IS BLOCK-SCOPED.** Markers accumulate for the next guarded
    node and then CLEAR. A file-scoped reader silently exempts the rest of the file from the first marker
    onward — the same rubber stamp as a bare marker, just slower to notice.
@@ -226,7 +233,13 @@ conformance mini-projects prove the matcher, this proves the EXEMPTION VOCABULAR
 6. one `mustPass` row **per declared limit**.
 
 Where a bare marker could cover two guarded things on one line, case 3 must also prove that ONE bare marker
-across TWO sites reds and names both. Precedents: `brand-in-name-position`, `nullable-column-inequality`.
+across TWO sites reds and names both. Precedents: `brand-in-name-position`, `nullable-column-inequality`,
+and — for the shared `@orb-gate-ignore` marker — `tests/tooling/gate-ignore-grammar.int.test.ts`, which is
+the probe MADE PERMANENT: it plants the six cases as `__g_` fixtures and runs the REAL gate corpus over the
+REAL workspace. **Prefer that shape.** A one-shot manual probe proves the day it ran; a committed one keeps
+proving. It is also the only substrate that can prove a CONSUMPTION verdict at all: conformance runs ONE
+gate standalone (`runGateStandalone`), so no SIBLING gate can ever consume a marker in a mini-project, and
+the stale / over-exempting arms are structurally unobservable there.
 
 **LITERAL-SHAPE BLINDNESS — the lying-proof class.** A reader that extracts a value via a narrow node check
 (only `StringLiteral`, a bare `Identifier.getText()`) returns undefined on `x as never`, `satisfies`,

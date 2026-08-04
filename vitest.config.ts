@@ -39,6 +39,9 @@ const inCI = process.env["CI"] !== undefined;
 const SERIAL_INT = [
   // 1. tree-writers + fixed-port boot
   "tests/tooling/check-gates.int.test.ts",
+  // Plants `__g_` fixtures at fixed real-tree paths AND reaps every `__g_*` on teardown — the same
+  // sentinel space check-gates.int owns, so the two MUST never run concurrently.
+  "tests/tooling/gate-ignore-grammar.int.test.ts",
   "tests/tooling/dependency-cruiser.int.test.ts",
   "tests/server/entry/lifecycle.int.test.ts",
   // 2. whole-tree scanners + heavy full-composition files (flaked on 5s timeout under fork contention)
