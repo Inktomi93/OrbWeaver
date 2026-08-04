@@ -59,7 +59,7 @@ function AttributeRow({
         <Badge tone="soft" size="sm" title="the machine name the sheet stores this value under — minted once, kept through renames">
           {attr.key}
         </Badge>
-        <Button intent="ghost" size="sm" className="!size-6 !p-0 shrink-0" onClick={onRemove} title={`Remove ${attr.label} from the vocabulary`}>
+        <Button intent="ghost" size="glyph-md" onClick={onRemove} title={`Remove ${attr.label} from the vocabulary`}>
           <Icon icon={Trash2} size="xs" />
         </Button>
       </Row>

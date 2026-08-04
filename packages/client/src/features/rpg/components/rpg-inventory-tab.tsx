@@ -153,7 +153,7 @@ function PackSection({
         <Kicker trailing={onRelease === undefined ? null : <RpgFieldLock field="the pack" onRelease={onRelease} />}>Pack — {items.length}</Kicker>
         {/* #37b — the compact-grid / list view knob (a display preference, session-local). */}
         {items.length === 0 ? null : (
-          <Button intent="ghost" size="sm" className="!size-6 !p-0" aria-label={toggleLabel} title={toggleLabel} onClick={onToggleView}>
+          <Button intent="ghost" size="glyph-md" aria-label={toggleLabel} title={toggleLabel} onClick={onToggleView}>
             <Icon icon={view === "grid" ? List : LayoutGrid} size="xs" />
           </Button>
         )}

@@ -36,7 +36,7 @@ function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; reado
   return (
     <Row gap="field" className="max-w-(--width-control-col) flex-wrap">
       {Object.entries(ITEM_ICON_CHOICES).map(([name, glyph]) => (
-        <Button key={name} intent="ghost" size="sm" className="!size-8 !p-0" title={`${itemName}: use the ${name} icon`} onClick={(): void => onPick(name)}>
+        <Button key={name} intent="ghost" size="glyph-lg" title={`${itemName}: use the ${name} icon`} onClick={(): void => onPick(name)}>
           <Icon icon={glyph} size="sm" />
         </Button>
       ))}
@@ -337,7 +337,7 @@ function PackListRow({ item, edit }: { readonly item: RpgInventoryItem; readonly
           confirmLabel="Drop"
           onConfirm={(): void => edit.onRemoveItem(item.id)}
           trigger={
-            <Button intent="ghost" size="sm" className="!size-5 !p-0 shrink-0" title={`Drop item: ${item.name}`}>
+            <Button intent="ghost" size="glyph-sm" title={`Drop item: ${item.name}`}>
               <Icon icon={Trash2} size="xs" />
             </Button>
           }

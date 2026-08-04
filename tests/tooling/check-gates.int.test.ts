@@ -764,7 +764,7 @@ function writeFixtures(): void {
     'export const G = <Section heading="Host Claude"><span>x</span></Section>;\n',
   );
   // ui-size-via-variant: a call-site SIZE utility (the F2 `size-auto` incident shape) on a JSX element
-  // imported from @orb/ui, at a path with no ALLOWLIST/DEBT_BASELINE row (budget 0 → fires).
+  // imported from @orb/ui, at a path with no ALLOWLIST row (the debt baseline is gone — terminal zero).
   fx(
     "packages/client/src/features/__g_uisize/components/__g_uisize.tsx",
     'import { Button } from "@orb/ui/button";\nexport const G = <Button className="size-auto">x</Button>;\n',
