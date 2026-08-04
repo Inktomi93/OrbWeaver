@@ -11,7 +11,7 @@
 // The chat bus emit, the per-member budget debit, and the per-turn host policy are not ChatContext ops —
 // they're injected as engine deps wired at the entry composition root.
 
-import type { AssembleContext, ChatBusEvent, MessageView, TurnAbortReason } from "@orb/contracts/chat";
+import type { AssembleContext, ChatBusEvent, ChatWarningCode, MessageView, TurnAbortReason } from "@orb/contracts/chat";
 import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 
@@ -30,6 +30,7 @@ import type { CharacterId, ChatId, ChatTurnId, MessageId, UserId } from "@orb/ki
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog, withRequestSpan } from "#foundation/observability";
+import type { WarningCode } from "#infra/providers";
 import type { ChatContext } from "../context.ts";
 import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
@@ -1506,7 +1507,9 @@ export function createTurnEngine(ctx: ChatContext, deps: EngineDeps): TurnEngine
 }
 
 /** Emit the domain `warning` events for the capability drops the pipeline flagged this turn (image parts,
- *  tools, structured output). Extracted so the generation lifecycle stays under the cognitive-complexity cap.
+ *  tools, structured output) PLUS the INFRA-originated runner warnings it carried up (resolve/wire drops the
+ *  runners raised, narrowed to chat's vocabulary at the compose bridge — D41's read end). Extracted so the
+ *  generation lifecycle stays under the cognitive-complexity cap.
  *  @internal exported for the drop-warning unit test — the structured-output flag has no engine INPUT path yet
  *  (no chat consumer sets `responseFormat`, 04 §3), so the emit branch is only reachable directly. */
 async function emitCapabilityDropWarnings(
@@ -1517,6 +1520,7 @@ async function emitCapabilityDropWarnings(
     readonly toolsUnsupported: boolean;
     readonly structuredOutputUnsupported: boolean;
     readonly guidedPlacedAsInjection: boolean;
+    readonly runnerWarnings: readonly WarningCode[];
   },
 ): Promise<void> {
   if (result.imageDropped) {
@@ -1533,4 +1537,51 @@ async function emitCapabilityDropWarnings(
   if (result.guidedPlacedAsInjection) {
     await emit({ type: "warning", chatId, code: "guided_placed_as_injection" });
   }
+  // The infra runners' own drops (D41 read end). Deduped upstream; independent of each other, so they fan
+  // concurrently — all awaited here, which is what keeps them BEFORE the turn's terminal bus event.
+  const runnerCodes = result.runnerWarnings.flatMap((code) => {
+    const chatCode = toChatWarningCode(code);
+    return chatCode === null ? [] : [chatCode];
+  });
+  await Promise.all(runnerCodes.map((code) => emit({ type: "warning", chatId, code })));
+}
+
+/** The infra→chat warning translation (D41 no-silent-degrade, the READ end). Chat OWNS its bus vocabulary, so
+ *  a foreign `WARNING_CODES` member is translated HERE, in the domain — the mirror of the IMAGE role's hop
+ *  (`entry/compose/imagery.ts` narrows infra→`ImageryWarning`; `verbs/generate-image.ts` re-maps
+ *  →`ChatWarningCode`). A code spelled identically in both tuples is a MATCH, never a re-spell.
+ *
+ *  TOTAL over the infra union by construction: the `assertNever` tail means a NEW `WARNING_CODES` member fails
+ *  `tsc` here until someone rules on it, so a runner drop can never go silently un-surfaced again — the exact
+ *  failure this seam was built to end (the runners produced these for months and nothing read them).
+ *
+ *  `null` is a DECLARED not-yet-surfaced, never a fallthrough: each of those codes needs its own
+ *  `CHAT_WARNING_CODES` member plus owner-authored user copy before it can toast, and several are per-turn
+ *  clamps whose toast-worthiness is a product call (board row INFRA-WARN-DEAF). Listing them one by one is what
+ *  keeps the `assertNever` honest — a `default: return null` would silently re-open the hole. */
+function toChatWarningCode(code: WarningCode): ChatWarningCode | null {
+  switch (code) {
+    case "custom_parameters_ignored":
+      return "custom_parameters_ignored";
+    // Not producible on the chat-turn path (it is the IMAGE runner's belt, which reaches the bus through
+    // `verbs/generate-image.ts`) — mapped rather than nulled because the two vocabularies agree on it.
+    case "image_edit_dropped":
+      return "image_edit_dropped";
+    case "sampling_knob_dropped":
+    case "effort_dropped":
+    case "adaptive_budget_dropped":
+    case "display_dropped":
+    case "verbosity_dropped":
+    case "dynamic_context_demoted":
+    case "reasoning_mandatory_clamp":
+    case "reasoning_budget_clamped":
+    case "tool_result_error_dropped":
+      return null;
+    default:
+      return assertNeverWarningCode(code);
+  }
+}
+
+function assertNeverWarningCode(code: never): never {
+  throw new Error(`toChatWarningCode: unhandled infra WarningCode ${JSON.stringify(code)}`);
 }

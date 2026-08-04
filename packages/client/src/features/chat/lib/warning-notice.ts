@@ -43,6 +43,8 @@ export function warningNotice(code: ChatWarningCode): string {
       return "The turn director model wasn't available — who speaks next was picked automatically instead.";
     case "guided_placed_as_injection":
       return "Your steering was added as an inline instruction — this preset has no Guided instruction marker to place it in.";
+    case "custom_parameters_ignored":
+      return "Your preset's custom parameters weren't sent — this connection doesn't accept them (they apply on a direct/BYOK connection).";
     default:
       return assertNeverCode(code);
   }

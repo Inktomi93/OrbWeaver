@@ -25,7 +25,7 @@ import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
-import type { HistoryRole, ToolCallInput, ToolChoice, WireTool } from "#infra/providers";
+import type { HistoryRole, ToolCallInput, ToolChoice, WarningCode, WireTool } from "#infra/providers";
 import type { MemoryConfig, MemoryRecallInputs } from "./memory.ts";
 import type { RequestTurnParams } from "./params.ts";
 import type { ChatDetail, ChatVariables } from "./views.ts";
@@ -192,11 +192,19 @@ export interface HistoryMacroNames {
   readonly personaNamesById: ReadonlyMap<PersonaId, RowPersonaName>;
 }
 
-/** A streamed chunk from a role turn: text/reasoning deltas, then one terminal final chunk carrying the
- *  generation economics. */
+/** A streamed chunk from a role turn: text/reasoning deltas, an out-of-band honest-degrade `warning`, then one
+ *  terminal final chunk carrying the generation economics.
+ *
+ *  The `warning` arm is the CHAT role's infra→domain warning hop (D41 no-silent-degrade). The runners raise
+ *  resolve/wire drops as infra `WARNING_CODES` on `ChatResult.events`; the compose bridge
+ *  (`createRunChatTurnBridge`) carries them here VERBATIM, in the infra vocabulary. Chat owns its own bus
+ *  vocabulary and translates at the engine (`toChatWarningCode`) — the mirror of the IMAGE role's hop, where
+ *  compose hands over a narrowed infra code and `verbs/generate-image.ts` re-maps it to a `ChatWarningCode`.
+ *  A code with no chat twin is dropped THERE, exhaustively and deliberately. */
 export type TurnStreamChunk =
   | { readonly kind: "text"; readonly text: string }
   | { readonly kind: "reasoning"; readonly text: string }
+  | { readonly kind: "warning"; readonly code: WarningCode }
   | { readonly kind: "final"; readonly economics: TurnEconomics };
 
 /** The post-generation economics a role turn reports, folded onto the variant. All optional: a runner that

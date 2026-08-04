@@ -104,6 +104,13 @@ export const CHAT_WARNING_CODES = [
   // the ChatInjection channel — instead of vanishing behind the config-editor's marker chip. Degraded-and-loud
   // (D41): emitted from the engine's capability-drop pass off the assembled `guidedPlacedAsInjection` flag.
   "guided_placed_as_injection",
+  // The preset's `customParameters` escape-hatch blob did NOT reach the wire: it is BYOK/custom-byo-only and
+  // OpenRouter's own knobs are the modeled sampling surface (the anti-sprawl design), so both OR chat runners
+  // drop it. The INFRA runner raises this as its own `WARNING_CODES` member; the compose bridge re-maps it onto
+  // this chat vocabulary — the same infra→chat hop the IMAGE role uses for `image_edit_dropped`
+  // (`entry/compose/imagery.ts` narrows, `chat/verbs/generate-image.ts` re-maps). Spelled IDENTICALLY in both
+  // tuples so the map is a MATCH, never a re-spell. Dropped-and-loud (D41), never silently swallowed.
+  "custom_parameters_ignored",
 ] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 
