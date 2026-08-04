@@ -2,6 +2,11 @@
 // manager) and provides them to the tree. Nothing imports this file; everything consumes via
 // providers/hooks.
 
+// FIRST import, before ANYTHING that constructs a Zod schema: opts Zod into jitless so its
+// `new Function` eval-probe never fires under our strict CSP. Zod memoizes that probe at the
+// first object-schema construction — which happens during THIS module's imports, not its body —
+// so configuring it below would be too late. See ./lib/zod-jitless.ts for the full diagnosis.
+import "./lib/zod-jitless.ts";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";

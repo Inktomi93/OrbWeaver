@@ -19,8 +19,8 @@
     "#*": "./src/*/index.ts"
   },
   "dependencies": {
-    "@orb/kit": "workspace:*",
     "@orb/contracts": "workspace:*",
+    "@orb/kit": "workspace:*",
     "@orb/ui": "workspace:*",
     "@tanstack/react-devtools": "catalog:",
     "@tanstack/react-form": "catalog:",
@@ -32,6 +32,7 @@
     "@trpc/tanstack-react-query": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "zod": "catalog:",
     "zustand": "catalog:"
   },
   "devDependencies": {
