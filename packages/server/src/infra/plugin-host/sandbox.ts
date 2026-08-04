@@ -100,7 +100,7 @@ interface ResidentState {
   readonly pending: Set<QuickJSDeferredPromise>;
 }
 
-export class Sandbox {
+export class Sandbox implements Disposable {
   private outstanding = 0;
   private readonly ctx: QuickJSContext;
   private readonly log: LogRing;
@@ -283,12 +283,8 @@ export class Sandbox {
       return { ok: false, error: { name: "Error", message: `plugin host: handler args exceed ${PLUGIN_INVOKE_ARGS_MAX_BYTES}-byte inbound cap` }, logs: [] };
     }
     return await this.runToSettlement(() => {
-      const argHandle = this.parseJsonToHandle(argsJson);
-      try {
-        return this.ctx.callFunction(handler, this.ctx.undefined, argHandle);
-      } finally {
-        argHandle.dispose();
-      }
+      using argHandle = this.parseJsonToHandle(argsJson);
+      return this.ctx.callFunction(handler, this.ctx.undefined, argHandle);
     });
   }
 
@@ -322,6 +318,14 @@ export class Sandbox {
     if (this.ctx.alive) {
       this.ctx.dispose();
     }
+  }
+
+  /** `Disposable` so a NON-resident sandbox (the snippet one-shot) can be a `using` declaration — the teardown
+   *  above is the only thing it does, and it is re-entrant (the drained sets are cleared, the ctx teardown is
+   *  `alive`-guarded). A RESIDENT sandbox is explicitly NOT scope-owned: `createInstance` hands ownership to the
+   *  `runtimes` registry and `PluginHostPort.dispose(instance)` frees it, so that path keeps the hand call. */
+  [Symbol.dispose](): void {
+    this.dispose();
   }
 }
 
@@ -378,18 +382,16 @@ export function boundHostFn(
           if (!ctx.alive) {
             return;
           }
-          const handle = ctx.newString(capResult(settled, capBytes, name));
+          using handle = ctx.newString(capResult(settled, capBytes, name));
           deferred.resolve(handle);
-          handle.dispose();
         },
         (reason: unknown) => {
           if (!ctx.alive) {
             return;
           }
           const message = reason instanceof Error ? reason.message : String(reason);
-          const handle = ctx.newError(message);
+          using handle = ctx.newError(message);
           deferred.reject(handle);
-          handle.dispose();
         },
       )
       .finally(() => clearTimeout(timer));
