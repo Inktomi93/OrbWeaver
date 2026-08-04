@@ -124,7 +124,7 @@ const F2_ATTRIBUTION_DIVERGENT = "group-per-speaker-nudge-abort";
 const W6_PREFIX_STABLE_DIVERGENT = "depth1-assistant-boundary-squash-abort";
 const DIVERGENT: ReadonlySet<string> = new Set([NEO_QUIRK_DIVERGENT, F2_ATTRIBUTION_DIVERGENT, W6_PREFIX_STABLE_DIVERGENT]);
 
-describe(`pipeline-breakpoint parity: orbweaver SHAPE vs neo — ${UNSKIP_WHEN}`, () => {
+describe("pipeline-breakpoint parity: orbweaver SHAPE vs neo", () => {
   for (const c of fixture.cases.filter((x) => !DIVERGENT.has(x.name))) {
     test(`${c.name}: assembled history + breakpoint byte-matches neo`, () => {
       const neo = req(reference.cases[c.name], c.name);
@@ -228,7 +228,7 @@ describe(`pipeline-breakpoint parity: orbweaver SHAPE vs neo — ${UNSKIP_WHEN}`
 //   turn 1 → usage.cacheWriteTokens > 0  &&  usage.cacheReadTokens === 0   (writes the prefix)
 //   turn 2 → usage.cacheReadTokens   > 0                                    (~5300 tokens read back)
 // Unskip + tag `live` when assembly + a real backend exist; assert against two consecutive real turns.
-// biome-ignore lint/suspicious/noSkippedTests: allow-skip: LIVE-only spec — needs a real backend + RUN_LIVE=1 (costs a model call). UN-SKIP CONDITION: assembly + a real Anthropic-keyed backend exist in CI; then tag `live` and assert the two consecutive real turns (UNSKIP_WHEN above).
+// biome-ignore lint/suspicious/noSkippedTests: allow-skip: LIVE-only — the ONE remaining blocker is COST, not build: a real Anthropic-keyed backend + RUN_LIVE=1. (The old reason also demanded "assembly", which landed — see UNSKIP_WHEN. A compound reason hides the half already satisfied.) UNSKIPPING IS NOT ENOUGH: the body below is a PLACEHOLDER asserting only `toHaveLength(2)`. The real expectation lives in the comment above (turn 1 cacheWrite>0 && cacheRead===0; turn 2 cacheRead>0, ~5300) and must be WRITTEN, or enabling this yields a green test that proves nothing.
 describe.skip(`LIVE cache-token deltas vs real Anthropic — ${UNSKIP_WHEN} (tag: live, RUN_LIVE=1)`, () => {
   test("turn 1 writes the prefix; turn 2 reads it back (~5300 tokens)", () => {
     const _shapes: ShapeCase[] = fixture.rollingPair.turns; // the two consecutive turns to run live
