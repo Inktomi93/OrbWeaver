@@ -1,7 +1,6 @@
 # SSE multiplex — ONE socket, typed room frames (SSE-1)
 
-**Status:** SPEC — **CLOSED — BUILT S0-S5, D118.
-THE MULTIPLEX PROPERLY, spec first."* This document is the blueprint; nothing here is implemented.
+**Status:** **CLOSED — BUILT S0-S5, D118.**
 **Scope:** the server transport stream layer (`packages/server/src/transport/trpc/**`), the client bus
 layer (`packages/client/src/data/bus/**` + the two feature stream hooks), the CT SSE stub, the e2e SSE
 instrument, and one new `initTRPC` option. Domain-side bus shapes are OUT of scope and unchanged.
