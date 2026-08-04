@@ -526,6 +526,17 @@ identity chrome for ANY row kind.
   (`95f4c00b`); `withUserMacros` has 7 consuming modules.
 - **HELD:** the `PROMPT_MACROS` phantom, and the barrel sweep (measured **56** `export *`, not 60).
 
+> **⚑ MEASURED ROW-ROT: of the 7 smalls dispatched 2026-08-03, FOUR were premise-wrong** (already fixed,
+> misdescribed, or — for EMBER — actively harmful to act on). Add the two the same day from other lanes
+> (CP-DROPPED-WARN grepped a symbol that never existed; the coverage-gap note contradicted the section
+> above it) and **six board rows misdirected six lanes in one evening.** Every one was written from a
+> GREP or from a document's own citation rather than a resolution-based check.
+> **THE RULE THIS BUYS: a board row states its EVIDENCE METHOD, or it is a lead, not a row.** A row
+> sourced from grep says so. A row sourced from `pnpm ast`/ast-grep says so, with the lens. A row copied
+> from another document's claim says THAT, and is treated as unverified until someone checks the tree.
+> **And every lane's first job is to re-verify its row** — a correct refusal is a successful lane, and
+> tonight it was the majority outcome.
+
 ### BOARD THESE — still-open, ranked by value-per-effort (paste-ready from the audit)
 
 - [ ] **PRESET-SLIDER-VERIFY** (S) — the preset program CLOSED without the re-verification its own crunch
@@ -575,9 +586,13 @@ identity chrome for ANY row kind.
       review's unconfirmed suspicion), nobody chased it. Reproduce and rule.
 - [ ] **CONTRACTS-BARREL** (S) — `packages/contracts/src/index.ts` still promises "re-exports added as
       modules land" after 41 modules landed with zero importers. Delete the sentence.
-- [ ] **CODEMOD-DOCS** (S) — `pnpm codemod` is cited by codemod-kit docs but absent from package.json.
-- [ ] **CODEMOD-PATHMAP** (S) — the moved-path cache lie survives in `moveFiles`/`deleteFiles`/`copyFile`
-      path VALIDATION (loud refusal today, but the asserts want the exact `getSourceFiles` map).
+- [x] ~~**CODEMOD-DOCS**~~ — **PREMISE WRONG (re-verified 08-03).** `package.json:19` already carries
+      `"codemod": "node scripts/codemods/codemod.ts"`, and that CLI exists and works (help/list/recipes/
+      recipe/search, wired to `codemod-kit.ts`). Somebody added it and the row was never updated.
+- [x] ~~**CODEMOD-PATHMAP**~~ — **PREMISE WRONG (re-verified 08-03).** All three of
+      `moveFiles`/`deleteFiles`/`copyFile` (`codemod-kit.ts:801-939`) validate via
+      `ctx.project.getSourceFile(absPath)` — a LIVE ts-morph lookup, not a stale cache — and `assert()`
+      loudly with actionable messages before touching anything. The cache-lie shape is not in current code.
 - [ ] **EDITSNAP-OK residual** (S) — `field-reachability.suite.ts:358` ignores `HandDoorResult.ok`.
 - [ ] **SSE-SPEC-STATUS** (S) — `docs/history/design/sse-multiplex-spec.md:3-4` has a corrupted status line.
 - [ ] **L8-INBOUND** (S) — foreign ST `mes:""` rows at import: refuse or strip. Named one-liner.
@@ -637,11 +652,15 @@ twice over, not once.
 - [ ] **MACRO-CAST-GUIDES-FORK** (S) — should user macros bind cast guides (appearance/outfit/thoughts)
       via `celBindings`? `macro-view.ts`'s cast projection still omits all three. If the answer is no, note
       the asymmetry in the file.
-- [ ] **EMBER-VOCAB-SWEEP** (S) — "ember" strays as a design-constant name in CT/spec prose; rename to the
-      accent/primary vocabulary.
-- [ ] **WORKLOADS-LABEL-RENAME** (S, trivial) — 3 files still cite the RETIRED
-      "[workloads.subscribe cross-feature]" precedent label (`rpg-choice-echo`, `use-rpg-mutations.ts:101`,
-      `chat-options-menu.ts:37`).
+- [x] ~~**EMBER-VOCAB-SWEEP**~~ — **PREMISE WRONG, and acting on it would have DONE HARM.** "ember" is the
+      deliberate house nickname for `--color-primary`/accent: a REAL token name in
+      `packages/ui/src/tokens/tokens.json:166` (`sky-ember`, `sky-ember-deep`) plus `chart-1`'s
+      `$description: "ember"`, used consistently across dozens of CTs. Sweeping it would have touched 20+
+      files AGAINST the codebase's own convention. The lane reported instead of guessing — correct call.
+- [x] ~~**WORKLOADS-LABEL-RENAME**~~ — **PREMISE WRONG (re-verified 08-03).** Zero hits for the retired
+      label across `packages/**`; all three cited files already say **"lockdown §12"**
+      (`chat-options-menu.tsx:37`, `rpg-choice-echo.tsx:7`, `use-rpg-mutations.ts:223`). It survives only
+      in history/audit docs — those are RECORDS of the finding, not the thing to fix.
 - [ ] **IMPORT-SETTINGS-WRITE-GUARD** (S, owner-taste) — `import-user-settings` bypasses the write-boundary
       guard (heals+warns at READ instead of refusing at WRITE); lift on want.
 
