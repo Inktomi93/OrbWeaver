@@ -71,8 +71,20 @@ export function castSectionVisible(participants: readonly ParticipantView[]): bo
 }
 
 /** The Members tab's overall floor gate (chats-section.tsx's members `when`): People needs a multi-human
- *  install with \>=2 humans, Cast needs \>=2 characters; either alone justifies the tab. */
-export function membersTabJustified(participants: readonly ParticipantView[], multiHumanCapable: boolean): boolean {
-  const peopleJustifies = multiHumanCapable && resolveHumanParticipants(participants).length >= PEOPLE_TAB_FLOOR;
+ *  install with \>=2 humans OR a HOST who can invite; Cast needs \>=2 characters; either alone justifies
+ *  the tab.
+ *
+ *  ⚠️ THE HOST ARM IS NOT COSMETIC — WITHOUT IT MULTI-HUMAN IS UNREACHABLE. "Invite people" lives ONLY
+ *  inside this tab (`committed-members-tab.tsx` → `members-panel.tsx`), so gating the tab purely on
+ *  \>=2 humans is a deadlock: you need a second human to see the tab, and the tab is the only way to
+ *  invite one. Found 2026-08-03 on the first real multi-user test — a fresh 1-human chat could never
+ *  invite anybody. The \>=2 floor was written as a DISPLAY rule ("don't show a People list of one")
+ *  and was silently doing duty as an ACCESS rule. `members-panel` even ships the copy for the state it
+ *  forbade: "No one else is here yet — share an invite."
+ *
+ *  Non-hosts keep the display floor: they cannot invite, so a one-person People list buys them nothing. */
+export function membersTabJustified(participants: readonly ParticipantView[], multiHumanCapable: boolean, isHost = false): boolean {
+  const humans = resolveHumanParticipants(participants).length;
+  const peopleJustifies = multiHumanCapable && (isHost || humans >= PEOPLE_TAB_FLOOR);
   return peopleJustifies || castSectionVisible(participants);
 }

@@ -61,16 +61,19 @@ function useCommittedIdentity(chatId: ChatId): CommittedIdentity {
   const participants = chat?.participants ?? [];
   const present = participants.filter((p) => p.leftSeq === null);
   const cast = filterCharacters(participants);
+  // Hoisted to a binding: the members gate below needs it, and an object-literal property is not in
+  // scope for its siblings.
+  const viewerIsHost = chat?.viewerIsHost === true;
   return {
     cast,
     participants: present,
-    viewerIsHost: chat?.viewerIsHost === true,
+    viewerIsHost,
     title: deriveChatTitle(
       chat?.title ?? null,
       cast.map((c) => c.displayName),
     ),
     memberCount: present.length,
-    membersJustified: membersTabJustified(participants, authConfig?.multiHumanCapable === true),
+    membersJustified: membersTabJustified(participants, authConfig?.multiHumanCapable === true, viewerIsHost),
   };
 }
 

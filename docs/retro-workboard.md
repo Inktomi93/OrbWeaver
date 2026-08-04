@@ -539,6 +539,47 @@ identity chrome for ANY row kind.
 > **And every lane's first job is to re-verify its row** — a correct refusal is a successful lane, and
 > tonight it was the majority outcome.
 
+### ⚑ LIVE MULTI-USER TEST — 2026-08-03 (first real two-human session; all three invisible from seeded single-user state)
+
+> **OWNER RULING, recorded because I got it wrong in the moment:** *"they use the same persona swap as they
+> do everywhere else — we aren't making group mode separate shit, defeats the purpose."* Group is NOT a
+> mode with its own controls; it is the SAME surfaces with permission/applicability differences
+> ([[no-separate-reduced-modes]]: ONE surface, three classes PHASE/PERMISSION/APPLICABILITY). Any row
+> below that reads like "add a group-chat X" is mis-specified — the answer is always "the existing X
+> applies to this seat."
+
+- [ ] **PERSONA-SEAT-NULL-BINDS-ANCHOR** (M, correctness — the serious one) — a member's messages are
+      attributed to the HOST. Repro on the tree: `chat_01kz5akk99fexbngd9jp00ypk9`, seq 4 + 8. Joe's seat
+      carries `active_persona_id = NULL` (he OWNS `persona_…` named "Joe"; it was simply never bound at
+      join), so his rows persist `persona_id = NULL`, and NULL resolves to the ANCHOR — which is the
+      host's persona. **Two reasons this is worse than a label bug:** it is in the PERSISTED rows, so a
+      re-render does not fix it; and the prompt is built from those rows, so the model was told the host
+      said everything the member said. Fix at the JOIN/seat boundary + resolution: bind the member's
+      persona on accept, and never fall back to the anchor for a seat the anchor's owner does not hold
+      (anchor fallback is right for the host's own unpinned turns, wrong for everyone else's).
+      **Owed with it: a migration/decision for rows already stamped NULL.**
+- [ ] **MEMBER-PERSONA-SWITCH** (S–M) — a member cannot change the persona they play in a room. Per the
+      ruling above this is NOT a new picker: the EXISTING persona-swap surface must apply to a member's
+      own seat, and the room must respond to the change (the swap is already the sanctioned control
+      everywhere else). Note the D122 constraint it must respect: playing a persona in a room consents
+      its PRESENTATION SURFACE to that room, gated on the owner's PRESENT membership.
+- [x] ✅ **MEMBERS-TAB-DEADLOCK — FIXED (uncommitted at session end).** "Invite people" lives only inside
+      the Members tab, and that tab was gated on `>=2 humans` — so you needed a second human to reach the
+      only affordance that could invite one. `membersTabJustified` gains a host arm
+      (`multiHumanCapable && (isHost || humans >= 2)`); non-hosts keep the display floor. 2 regression
+      tests pin the deadlock + the negative arms; all three typecheck programs + chat suites green.
+      **A DISPLAY rule was silently doing duty as an ACCESS rule** — `members-panel` even shipped the copy
+      for the state it forbade ("No one else is here yet — share an invite"), which could never render.
+- [x] ✅ **OWNER SEAT FIXED** — the first OIDC login provisioned as plain `user`: boot ensures the SEEDED
+      `owner` handle at role=owner, D17 permits exactly one, so the real identity lost the seat
+      ("owner policy matched but an owner already exists"). Fixed by pinning
+      `OWNER_HANDLES=inktomi93@gmail.com` (so boot re-asserts the REAL identity) + swapping the roles;
+      the seeded placeholder demoted to `admin`, not deleted (it owns seed rows). Survives restart.
+      **Any fresh install hits this** — the seed takes the owner seat before a human ever logs in.
+- [ ] **BARE-HASH ASSET 404s** (S, unroot-caused) — 8 requests to `/<sha256>` at the ROOT path, 404, both
+      users. The builders I traced are CORRECT (`blobUrl()` → `/api/blob/<hash>`, matching the registered
+      route), so something emits a raw hash where a URL belongs. Renders as missing images. Not chased.
+
 ### BOARD THESE — still-open, ranked by value-per-effort (paste-ready from the audit)
 
 - [ ] **PRESET-SLIDER-VERIFY** (S) — the preset program CLOSED without the re-verification its own crunch
