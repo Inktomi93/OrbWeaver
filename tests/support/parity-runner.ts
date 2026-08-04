@@ -111,16 +111,27 @@ export function loadReference(): Reference {
   return readJson<Reference>("neo-reference.json");
 }
 
-/** The unskip marker — the parity test greps for nothing; this is the human signal. */
-export const UNSKIP_WHEN = "UNSKIP when chat assembly lands (Phase 5 step 2 — wire runOrbweaverShape).";
+/**
+ * The unskip marker for the ONE still-skipped spec — the human signal; nothing greps it.
+ *
+ * CORRECTED 2026-08-03: this used to read "UNSKIP when chat assembly lands (Phase 5 step 2 — wire
+ * runOrbweaverShape)". **Assembly landed and `runOrbweaverShape` IS wired** (it calls `shape()` below;
+ * the SHAPE parity describe runs 18 green). The string bundled a BUILD condition with a COST condition,
+ * so satisfying the build half changed nothing visible and the marker went on advertising a blocker
+ * that no longer existed — it was even interpolated into the title of the PASSING describe.
+ * One blocker left, and it is a cost, not a build.
+ */
+export const UNSKIP_WHEN = "needs a real Anthropic-keyed backend + RUN_LIVE=1 (a live model call). Assembly: DONE.";
 
 /**
  * THE SEAM. orbweaver's chat assembly (SHAPE phase) plugs in here: given a ShapeCase, return the
  * ShapeResult by running the REAL orbweaver `shapeCompletionHistory`-equivalent over the case inputs.
  * The `.parity.test` then asserts `runOrbweaverShape(case)` deep-equals the captured neo reference.
  *
- * Until assembly lands this throws — the test is `describe.skip`'d, so it never runs. When you wire
- * it, import orbweaver's shaper and map case → its inputs here, then unskip the test.
+ * WIRED (2026-08-03 audit): this no longer throws and the test is NOT skipped — it calls the real
+ * `shape()` below and `pipeline-breakpoint.parity.test.ts` runs it green. The previous text here
+ * ("until assembly lands this throws — the test is `describe.skip`'d, so it never runs") was false on
+ * both clauses and survived because nobody re-reads a comment sitting next to working code.
  */
 // Parity CANON rows are user/assistant only (shape()'s canon input never carries system; only its
 // post-splice stages can). Loud on a bad fixture, never a silent coercion.
