@@ -5,7 +5,26 @@
 //   • "default"    — prefix only a user turn whose author differs from the active persona, and — in a
 //                    multi-character room — an assistant turn with its character's name. Solo → no prefix.
 //   • "content"    — always prefix `${author}: ${content}`.
-//   • "completion" — set the OpenAI-spec `name` field; content untouched.
+//   • "completion" — set the OpenAI-spec `name` field; content untouched. UNLESS the effective role-handling
+//                    strategy MERGES adjacent same-role rows, in which case the speaker is inlined like
+//                    "content" and no `name` field is emitted.
+//
+// WHY THAT EXCEPTION (SillyTavern `prompt-converters.js::mergeMessages`, pass 1): ST folds a message's own
+// `name` into its content as a `Name: ` prefix, then DELETES the name field — before the squash pass runs.
+// By the time it merges, no name field exists to interfere with anything.
+//
+// Ours kept it, and `squashSameRole` refuses to merge two rows carrying distinct names. Two consequences,
+// both live:
+//   • On a model whose `roleHandlingFloor` is `strict` (Anthropic hard-errors on adjacent same-role, and an
+//     UNSET floor clamps to strict — so this is the DEFAULT), a multi-speaker round emitted a request the
+//     provider rejects.
+//   • In a MULTI-HUMAN room, two people speaking back-to-back are adjacent `user` rows with distinct names,
+//     so they could never merge either. Inlining satisfies both requirements at once: the rows merge AND
+//     each speaker stays attributable inside the merged content.
+// The same surviving name also let a demoted instruction inherit the player's name after a merge — the
+// out-of-band twin of INJECT-NAMED-AS-PLAYER.
+//
+// Measured by the matrix in `tests/.../shape.test.ts`: before this, 12 of 84 cells failed, ALL `completion`.
 
 import type { NamesBehavior } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
@@ -15,6 +34,17 @@ import type { MessageRole } from "@orb/kit/message-role";
  *  (`turns.midConversationSystem`) — they are the operator/system channel, not a speaker, so every
  *  names mode passes them through untouched (no prefix, no completion `name`). */
 type WireRole = MessageRole;
+
+/** The two axes beyond mode/speakers, bundled so the signature stays inside the parameter budget. NOT
+ *  exported — it is this function's call shape, not a domain type, so it stays out of the contract home. */
+interface NamesOptions {
+  /** True when the history carries \>1 distinct authoring character. Absent/false → solo, byte-identical. */
+  readonly multiCharacter?: boolean;
+  /** Whether the effective role-handling strategy merges adjacent same-role rows. When it does, `completion`
+   *  inlines the speaker instead of emitting an out-of-band `name` — a surviving name blocks the merge and
+   *  the provider gets the adjacent same-role pair it rejects. Absent ⇒ true (the floor is `strict`). */
+  readonly mergesAdjacent?: boolean;
+}
 
 interface NamedRow {
   role: WireRole;
@@ -35,9 +65,9 @@ export function applyNamesBehavior(
   }[],
   mode: NamesBehavior,
   speakers: { user: string; assistant: string },
-  /** True when the history carries \>1 distinct authoring character. Absent/false → solo, byte-identical. */
-  multiCharacter = false,
+  opts: NamesOptions = {},
 ): NamedRow[] {
+  const { multiCharacter = false, mergesAdjacent = true } = opts;
   if (mode === "none") {
     return history.map((m) => ({ role: m.role, content: m.content, messageId: m.messageId }));
   }
@@ -62,7 +92,9 @@ export function applyNamesBehavior(
     if (mode === "content") {
       return { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId };
     }
-    return { role: m.role, content: m.content, name: author, messageId: m.messageId };
+    return mergesAdjacent
+      ? { role: m.role, content: `${author}: ${m.content}`, messageId: m.messageId }
+      : { role: m.role, content: m.content, name: author, messageId: m.messageId };
   });
 }
 

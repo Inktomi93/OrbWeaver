@@ -210,7 +210,7 @@ export function shape(input: ShapeInput): ShapeOutput {
     prose: input.prose,
   });
   const squashed = runSquash(injected);
-  const named = runSquash(applyNamesBehavior(injected, input.namesBehavior, input.speakers, multiCharacter));
+  const named = runSquash(applyNamesBehavior(injected, input.namesBehavior, input.speakers, { multiCharacter, mergesAdjacent: merges }));
 
   // 5. group/continuation nudge: a multi-speaker round's nudge rides as a trailing user message; a
   // force/auto/empty-opening round that would otherwise end on assistant gets CONTINUATION_NUDGE. Either
