@@ -79,37 +79,35 @@ function buildHostSurface(ctx: QuickJSContext, seams: HostSeams, log: LogRing, m
 
   ctx.setProp(surface, "version", ctx.newNumber(1));
 
-  const clock = ctx.newObject();
-  const nowFn = ctx.newFunction("nowEpochMs", () => ctx.newNumber(seams.nowEpochMs()));
+  // Every intermediate handle below is `using` (quickjs-emscripten's `Lifetime` IS a `Disposable` — it extends
+  // `UsingDisposable`, whose `[Symbol.dispose]` calls `.dispose()`), so the ownership discipline is declarative
+  // and holds through a mid-build throw. `setProp` DUPs the value into the target, so a handle freed at scope
+  // exit rather than immediately after its `setProp` is refcount-identical — only `surface` (the return) is
+  // hand-owned. Scope-exit order is REVERSE-declaration = inner-fn-before-its-object, exactly the order the
+  // hand-written disposals used.
+  using clock = ctx.newObject();
+  using nowFn = ctx.newFunction("nowEpochMs", () => ctx.newNumber(seams.nowEpochMs()));
   ctx.setProp(clock, "nowEpochMs", nowFn);
-  nowFn.dispose();
   ctx.setProp(surface, "clock", clock);
-  clock.dispose();
 
-  const random = ctx.newObject();
-  const nextFn = ctx.newFunction("next", () => ctx.newNumber(seams.nextRandom()));
+  using random = ctx.newObject();
+  using nextFn = ctx.newFunction("next", () => ctx.newNumber(seams.nextRandom()));
   ctx.setProp(random, "next", nextFn);
-  nextFn.dispose();
   ctx.setProp(surface, "random", random);
-  random.dispose();
 
-  const ids = ctx.newObject();
-  const mintFn = ctx.newFunction("mint", () => ctx.newString(seams.mintId()));
+  using ids = ctx.newObject();
+  using mintFn = ctx.newFunction("mint", () => ctx.newString(seams.mintId()));
   ctx.setProp(ids, "mint", mintFn);
-  mintFn.dispose();
   ctx.setProp(surface, "ids", ids);
-  ids.dispose();
 
-  const logObj = ctx.newObject();
+  using logObj = ctx.newObject();
   for (const level of LOG_LEVELS) {
-    const fn = ctx.newFunction(level, (msgHandle?: QuickJSHandle) => {
+    using fn = ctx.newFunction(level, (msgHandle?: QuickJSHandle) => {
       log.push(level, msgHandle === undefined ? "" : ctx.getString(msgHandle));
     });
     ctx.setProp(logObj, level, fn);
-    fn.dispose();
   }
   ctx.setProp(surface, "log", logObj);
-  logObj.dispose();
 
   if (membrane !== undefined) {
     attachMembrane(ctx, surface, membrane);
@@ -136,8 +134,8 @@ export function installRealm(ctx: QuickJSContext, seams: HostSeams, log: LogRing
   }
   stubResult.value.dispose();
 
-  const orb = ctx.newObject();
-  const hostFn = ctx.newFunction("host", (majorHandle?: QuickJSHandle) => {
+  using orb = ctx.newObject();
+  using hostFn = ctx.newFunction("host", (majorHandle?: QuickJSHandle) => {
     const major = majorHandle === undefined ? Number.NaN : ctx.getNumber(majorHandle);
     if (major !== 1) {
       // Throw the TYPED class (not a plain Error) so `.name` crosses the boundary as "HostVersionError" — a
@@ -147,7 +145,5 @@ export function installRealm(ctx: QuickJSContext, seams: HostSeams, log: LogRing
     return buildHostSurface(ctx, seams, log, membrane);
   });
   ctx.setProp(orb, "host", hostFn);
-  hostFn.dispose();
   ctx.setProp(ctx.global, "orb", orb);
-  orb.dispose();
 }

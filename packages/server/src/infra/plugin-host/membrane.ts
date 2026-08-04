@@ -146,15 +146,13 @@ export function attachMembrane(ctx: QuickJSContext, surface: QuickJSHandle, runt
 }
 
 function setGrants(ctx: QuickJSContext, surface: QuickJSHandle, grants: ReadonlySet<PluginCapability>): void {
-  const arr = ctx.newArray();
+  using arr = ctx.newArray();
   let i = 0;
   for (const grant of grants) {
-    const s = ctx.newString(grant);
+    using s = ctx.newString(grant);
     ctx.setProp(arr, i++, s);
-    s.dispose();
   }
   ctx.setProp(surface, "grants", arr);
-  arr.dispose();
 }
 
 /** Resolve a guest-supplied chat-handle arg against the ONE admitted token (opaque-handle enforcement). Throws
@@ -173,10 +171,10 @@ function resolveChat(runtime: MembraneRuntime, handleArg: unknown): InvocationCh
 }
 
 function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
-  const chat = ctx.newObject();
+  using chat = ctx.newObject();
 
   // current() — SYNC: return the admitted invocation chat's opaque token. Throws outside a chat scope.
-  const currentFn = ctx.newFunction("current", () => {
+  using currentFn = ctx.newFunction("current", () => {
     requireCapability(runtime, "chat.current");
     const token = runtime.currentToken();
     if (token === null) {
@@ -185,7 +183,6 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
     return ctx.newString(token);
   });
   ctx.setProp(chat, "current", currentFn);
-  currentFn.dispose();
 
   attachAsync(ctx, chat, {
     name: "listMessages",
@@ -267,7 +264,6 @@ function setChat(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneR
   });
 
   ctx.setProp(surface, "chat", chat);
-  chat.dispose();
 }
 
 /** Project the guest-supplied quick-reply choices to the JSON-safe `{label, sendText}[]` shape. Non-array input
@@ -303,7 +299,7 @@ function buildTurnHints(raw: unknown): { readonly speakerCharacterId?: string; r
  *  authority). The guest entry crosses as a JSON object; the authority-agnostic bridge maps it onto the shared
  *  lore writer under the installer. */
 function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
-  const worldInfo = ctx.newObject();
+  using worldInfo = ctx.newObject();
   attachAsync(ctx, worldInfo, {
     name: "upsertEntry",
     inFlight: runtime.inFlight,
@@ -319,7 +315,6 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     },
   });
   ctx.setProp(surface, "worldInfo", worldInfo);
-  worldInfo.dispose();
 }
 
 /** imagery.generatePicture — capability imagery.generate + host authority (02 §2: host-gated). Returns the
@@ -331,7 +326,7 @@ function setWorldInfo(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
  *  D17/automation_budgets SPEND-CEILING debit on this path — that ceiling is a deliberate P4b-tail deferral (the
  *  same unwired class as turn.trigger). Do not claim a spend ceiling this path does not enforce. */
 function setImagery(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
-  const imagery = ctx.newObject();
+  using imagery = ctx.newObject();
   attachAsync(ctx, imagery, {
     name: "generatePicture",
     inFlight: runtime.inFlight,
@@ -346,11 +341,10 @@ function setImagery(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     },
   });
   ctx.setProp(surface, "imagery", imagery);
-  imagery.dispose();
 }
 
 function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
-  const vars = ctx.newObject();
+  using vars = ctx.newObject();
   attachAsync(ctx, vars, {
     name: "get",
     inFlight: runtime.inFlight,
@@ -381,7 +375,6 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     },
   });
   ctx.setProp(surface, "variables", vars);
-  vars.dispose();
 }
 
 /** storage.get/set/delete/list — capability storage.kv. The plugin-PRIVATE KV (01 §2 / 02 §3): the bridge op
@@ -389,7 +382,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
  *  NEVER read another plugin's (or owner's) keys. Not host-authority gated (a plugin's own private store is not
  *  room state) — the grant alone suffices. The value/key-size + 256-key caps are enforced by the domain op. */
 function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
-  const storage = ctx.newObject();
+  using storage = ctx.newObject();
   attachAsync(ctx, storage, {
     name: "get",
     inFlight: runtime.inFlight,
@@ -430,7 +423,6 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     },
   });
   ctx.setProp(surface, "storage", storage);
-  storage.dispose();
 }
 
 /** notifications.post — capability notify. Post a durable participant notice (01 §2 / 03 §1.5): the guest supplies
@@ -442,7 +434,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
  *  arm's own `host|all_members` recipients — the arm gates the roster, not host authority). The message is
  *  host-capped by the domain op (200 chars, 03 §1.5). */
 function setNotifications(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
-  const notifications = ctx.newObject();
+  using notifications = ctx.newObject();
   attachAsync(ctx, notifications, {
     name: "post",
     inFlight: runtime.inFlight,
@@ -457,7 +449,6 @@ function setNotifications(ctx: QuickJSContext, surface: QuickJSHandle, runtime: 
     },
   });
   ctx.setProp(surface, "notifications", notifications);
-  notifications.dispose();
 }
 
 /** tools.register — SYNC, activation-time (03 §5). Captures the guest handler HANDLE for the resident-handler
@@ -465,36 +456,32 @@ function setNotifications(ctx: QuickJSContext, surface: QuickJSHandle, runtime: 
  *  (no tools.register grant) hits the capability throw here — the "no registration from a transient snippet"
  *  rule enforced through the SAME gate, no snippet-special path. */
 function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
-  const tools = ctx.newObject();
-  const registerFn = ctx.newFunction("register", (defHandle?: QuickJSHandle) => {
+  using tools = ctx.newObject();
+  using registerFn = ctx.newFunction("register", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "tools.register");
     if (defHandle === undefined) {
       throw new Error("plugin host: tools.register requires a definition object");
     }
-    const nameHandle = ctx.getProp(defHandle, "name");
-    const descHandle = ctx.getProp(defHandle, "description");
-    const paramsHandle = ctx.getProp(defHandle, "parameters");
-    const handler = ctx.getProp(defHandle, "handler"); // KEPT alive by the Sandbox (never disposed here)
-    try {
-      const name = ctx.dump(nameHandle) as unknown;
-      const description = ctx.dump(descHandle) as unknown;
-      const parameters = ctx.dump(paramsHandle) as unknown;
-      if (typeof name !== "string" || typeof description !== "string" || typeof parameters !== "object" || parameters === null) {
-        handler.dispose();
-        throw new Error("plugin host: tools.register definition must be { name, description, parameters, handler }");
-      }
-      runtime.collectTool({ name, description, parameters: parameters as Record<string, unknown> }, handler);
-    } finally {
-      nameHandle.dispose();
-      descHandle.dispose();
-      paramsHandle.dispose();
+    // The three METADATA handles are scope-owned (`using` — this is the try/finally that was here). `handler`
+    // is NOT: its ownership TRANSFERS to `collectTool` on the success path (the Sandbox keeps it alive for the
+    // instance lifetime) and is hand-disposed only on the reject path, so a `using` would double-free it —
+    // `Lifetime.dispose()` asserts alive and THROWS on a second call.
+    using nameHandle = ctx.getProp(defHandle, "name");
+    using descHandle = ctx.getProp(defHandle, "description");
+    using paramsHandle = ctx.getProp(defHandle, "parameters");
+    const handler = ctx.getProp(defHandle, "handler");
+    const name = ctx.dump(nameHandle) as unknown;
+    const description = ctx.dump(descHandle) as unknown;
+    const parameters = ctx.dump(paramsHandle) as unknown;
+    if (typeof name !== "string" || typeof description !== "string" || typeof parameters !== "object" || parameters === null) {
+      handler.dispose();
+      throw new Error("plugin host: tools.register definition must be { name, description, parameters, handler }");
     }
+    runtime.collectTool({ name, description, parameters: parameters as Record<string, unknown> }, handler);
     return ctx.undefined;
   });
   ctx.setProp(tools, "register", registerFn);
-  registerFn.dispose();
   ctx.setProp(surface, "tools", tools);
-  tools.dispose();
 }
 
 /** transforms.register — SYNC, activation-time (03 §6), the D50 PromptTransform mirror of tools.register.
@@ -504,33 +491,28 @@ function setTools(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membrane
  *  is NOT a guest input: the guest supplies no `order`, and the DOMAIN registrar assigns the band ABOVE the
  *  0–999 automation band at activation — the membrane cannot bypass it because it cannot express it. */
 function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
-  const transforms = ctx.newObject();
-  const registerFn = ctx.newFunction("register", (defHandle?: QuickJSHandle) => {
+  using transforms = ctx.newObject();
+  using registerFn = ctx.newFunction("register", (defHandle?: QuickJSHandle) => {
     requireCapability(runtime, "transforms.register");
     if (defHandle === undefined) {
       throw new Error("plugin host: transforms.register requires a definition object");
     }
-    const nameHandle = ctx.getProp(defHandle, "name");
-    const pointHandle = ctx.getProp(defHandle, "point");
-    const apply = ctx.getProp(defHandle, "apply"); // KEPT alive by the Sandbox (never disposed here on success)
-    try {
-      const name = ctx.dump(nameHandle) as unknown;
-      const point = ctx.dump(pointHandle) as unknown;
-      if (typeof name !== "string" || (point !== "user_input" && point !== "assembled_dynamic")) {
-        apply.dispose();
-        throw new Error("plugin host: transforms.register definition must be { name, point: 'user_input'|'assembled_dynamic', apply }");
-      }
-      runtime.collectTransform({ name, point }, apply);
-    } finally {
-      nameHandle.dispose();
-      pointHandle.dispose();
+    // Same split as `setTools`: the metadata handles are scope-owned; `apply`'s ownership TRANSFERS to
+    // `collectTransform` on success (hand-disposed only on the reject path), so it stays explicit.
+    using nameHandle = ctx.getProp(defHandle, "name");
+    using pointHandle = ctx.getProp(defHandle, "point");
+    const apply = ctx.getProp(defHandle, "apply");
+    const name = ctx.dump(nameHandle) as unknown;
+    const point = ctx.dump(pointHandle) as unknown;
+    if (typeof name !== "string" || (point !== "user_input" && point !== "assembled_dynamic")) {
+      apply.dispose();
+      throw new Error("plugin host: transforms.register definition must be { name, point: 'user_input'|'assembled_dynamic', apply }");
     }
+    runtime.collectTransform({ name, point }, apply);
     return ctx.undefined;
   });
   ctx.setProp(transforms, "register", registerFn);
-  registerFn.dispose();
   ctx.setProp(surface, "transforms", transforms);
-  transforms.dispose();
 }
 
 /** events.on — SYNC, activation-time (03 §2), the event-subscription mirror of tools.register. `on(type, handler)`:
@@ -542,8 +524,8 @@ function setTransforms(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Mem
  *  automation side — the membrane only collects, never bypasses those gates. INSTALLED plugins only (a snippet
  *  profile omits the grant → the same uniform capability throw, no snippet-special path). */
 function setEvents(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
-  const events = ctx.newObject();
-  const onFn = ctx.newFunction("on", (typeHandle?: QuickJSHandle, handlerHandle?: QuickJSHandle) => {
+  using events = ctx.newObject();
+  using onFn = ctx.newFunction("on", (typeHandle?: QuickJSHandle, handlerHandle?: QuickJSHandle) => {
     requireCapability(runtime, "events.on");
     if (typeHandle === undefined || handlerHandle === undefined) {
       throw new Error("plugin host: events.on requires (type, handler)");
@@ -554,13 +536,13 @@ function setEvents(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
     }
     // Retain the guest handler ACROSS activation (a resident subscriber) — a positional arg handle is
     // auto-disposed when this callback returns, so `dup()` it and transfer ownership to the Sandbox.
+    // `typeHandle`/`handlerHandle` are POSITIONAL ARGS: quickjs-emscripten disposes them itself when this
+    // callback returns, so they must NEVER be `using` (a double-free throws in `Lifetime.dispose`).
     runtime.collectEvent({ type: type as ChatTriggerType | DomainTriggerType }, handlerHandle.dup());
     return ctx.undefined;
   });
   ctx.setProp(events, "on", onFn);
-  onFn.dispose();
   ctx.setProp(surface, "events", events);
-  events.dispose();
 }
 
 /** net.fetch — capability net.fetch. The host performs the fetch through the AUDITED SSRF guard (`safeFetch`,
@@ -571,7 +553,7 @@ function setEvents(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membran
  *  the UTF-8-decoded, byte-capped response text); no live `Response` object crosses the marshalling boundary.
  *  Bounded by `safeFetch`'s own caps (PLUGIN_NET_MAX_BYTES body + the 5 s host deadline). */
 function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRuntime): void {
-  const net = ctx.newObject();
+  using net = ctx.newObject();
   attachAsync(ctx, net, {
     name: "fetch",
     inFlight: runtime.inFlight,
@@ -588,7 +570,6 @@ function setNet(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRu
     },
   });
   ctx.setProp(surface, "net", net);
-  net.dispose();
 }
 
 /** UTF-8 decoder for the net.fetch body (stateless without `{stream}`, so one shared instance is safe). */
@@ -633,14 +614,16 @@ function isStringRecord(value: unknown): value is Record<string, string> {
  *  promise — errors-as-data, never a host crash. */
 function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSpec): void {
   const { name, inFlight, pending, impl } = spec;
-  const fn = ctx.newFunction(name, (...argHandles) => {
+  using fn = ctx.newFunction(name, (...argHandles) => {
     const args = argHandles.map((handle) => ctx.dump(handle) as unknown);
+    // `deferred` is deliberately NOT `using`: its lifetime ESCAPES this scope (its `.handle` is the guest's
+    // promise and the Sandbox's `pending` drain owns teardown — 03 §3). Same for the positional `argHandles`,
+    // which quickjs-emscripten disposes itself.
     const deferred = ctx.newPromise();
 
     if (inFlight.count >= HOST_CALLS_IN_FLIGHT_MAX) {
-      const err = ctx.newError(`plugin host: too many concurrent host calls (>${HOST_CALLS_IN_FLIGHT_MAX})`);
+      using err = ctx.newError(`plugin host: too many concurrent host calls (>${HOST_CALLS_IN_FLIGHT_MAX})`);
       deferred.reject(err);
-      err.dispose();
       return deferred.handle;
     }
     inFlight.count += 1;
@@ -667,14 +650,12 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
           }
           const json = JSON.stringify(result ?? null);
           if (Buffer.byteLength(json, "utf8") > HOST_FN_RESULT_CAP_BYTES) {
-            const err = ctx.newError(`${name} host result exceeds ${HOST_FN_RESULT_CAP_BYTES}-byte cap`);
+            using err = ctx.newError(`${name} host result exceeds ${HOST_FN_RESULT_CAP_BYTES}-byte cap`);
             deferred.reject(err);
-            err.dispose();
             return;
           }
-          const handle = jsToHandle(ctx, result ?? null);
+          using handle = jsToHandle(ctx, result ?? null);
           deferred.resolve(handle);
-          handle.dispose();
         },
         (reason: unknown) => {
           if (!ctx.alive) {
@@ -684,9 +665,8 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
           // (`PluginCapabilityError`) must reach the guest with `e.name === "PluginCapabilityError"` so a plugin
           // feature-detects by type (01 §1.3), not by a message substring. Nameless/non-Error reasons fall back
           // to a plain `"Error"`.
-          const err = reason instanceof Error ? ctx.newError({ name: reason.name, message: reason.message }) : ctx.newError(String(reason));
+          using err = reason instanceof Error ? ctx.newError({ name: reason.name, message: reason.message }) : ctx.newError(String(reason));
           deferred.reject(err);
-          err.dispose();
         },
       )
       .finally(() => {
@@ -704,5 +684,4 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
     return deferred.handle;
   });
   ctx.setProp(target, name, fn);
-  fn.dispose();
 }

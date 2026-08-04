@@ -33,6 +33,55 @@ describe("createActiveTurns — registration + release", () => {
   });
 });
 
+// `using` is the spelling every turn verb uses (turn.ts ×5) — the release rides scope exit, so it fires on the
+// THROW path too. That is the whole point: a verb that faults mid-turn must not strand a phantom in-flight
+// registration (a stray one makes `abort` report `foreignInFlight` and refuse a legitimate caller).
+describe("createActiveTurns — the Disposable contract (`using`)", () => {
+  test("a `using` registration releases at scope exit", () => {
+    const reg = createActiveTurns();
+    const run = (): number => {
+      using _handle = reg.register(CHAT, ALICE);
+      return reg.countActive(CHAT);
+    };
+    expect(run()).toBe(1);
+    expect(reg.countActive(CHAT)).toBe(0);
+  });
+
+  test("a `using` registration releases when the scope THROWS", () => {
+    const reg = createActiveTurns();
+    const run = (): never => {
+      using _handle = reg.register(CHAT, ALICE);
+      throw new Error("turn faulted");
+    };
+    expect(run).toThrow("turn faulted");
+    expect(reg.countActive(CHAT)).toBe(0);
+  });
+
+  test("`[Symbol.dispose]` IS `release` — aliased, idempotent, and order-blind", () => {
+    const reg = createActiveTurns();
+    const handle = reg.register(CHAT, ALICE);
+    expect(handle[Symbol.dispose]).toBe(handle.release);
+    handle.release();
+    expect(reg.countActive(CHAT)).toBe(0);
+    // A second free (hand `release` then a `using` scope exit, or vice versa) must be inert — the alias would
+    // be unsafe if either spelling double-counted or threw.
+    handle[Symbol.dispose]();
+    handle.release();
+    expect(reg.countActive(CHAT)).toBe(0);
+  });
+
+  test("scope exit releases ONLY its own registration (a sibling turn stays in flight)", () => {
+    const reg = createActiveTurns();
+    const sibling = reg.register(CHAT, BOB);
+    {
+      using _mine = reg.register(CHAT, ALICE);
+      expect(reg.countActive(CHAT)).toBe(2);
+    }
+    expect(reg.countActive(CHAT)).toBe(1);
+    expect(sibling.signal.aborted).toBe(false);
+  });
+});
+
 describe("createActiveTurns — abort is owner-only", () => {
   test("abort signals the caller's own turns + clears them", () => {
     const reg = createActiveTurns();

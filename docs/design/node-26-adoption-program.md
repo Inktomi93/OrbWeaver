@@ -276,23 +276,52 @@ exists so 26's raw-key/context additions are N-A.
 ## §5 W5 — `using` / `await using` (the disposal wave)
 
 Toolchain: proven (§0) — native under node, transformed under tsx, typed after W1's lib delta. Biome's
-`useDisposables` is ALREADY enabled: enforcement precedes adoption, the ratchet is waiting.
+`useDisposables` is enabled but **INERT on this wave's surfaces** (measured at landing): the rule carries
+the `types` domain, and biome's type service does not resolve `Disposable`-ness across a package boundary
+into `node_modules` — scoped `biome check` on the plugin-host reported zero diagnostics both before and
+after adoption. It is a same-file ratchet, not the coverage the original text implied; the real enforcement
+here is the per-site reasoning below plus the suites.
 
 Server seams, in adoption order (the resource type gains `[Symbol.dispose]`/`[Symbol.asyncDispose]`,
 then call sites become `using` declarations):
 
-1. **QuickJS handles (plugin-host)** — `membrane.ts`/`sandbox.ts`/`port.ts`, dozens of
-   `.dispose()`-in-finally sites, the repo's documented UAF territory (`membrane-async-ctx-alive-guard`).
-   Wrap the handle acquisition seam once (`using h = scoped(ctx, …)` returning a Disposable wrapper) —
-   the ctx.alive guard stays; `using` replaces the try/finally scaffolding, not the liveness law.
+1. **QuickJS handles (plugin-host)** — `membrane.ts`/`sandbox.ts`/`port.ts` (+ `realm.ts`/`marshal.ts`,
+   which the original list missed and which carry the same shape), dozens of `.dispose()`-in-finally
+   sites, the repo's documented UAF territory (`membrane-async-ctx-alive-guard`). The ctx.alive guard
+   stays; `using` replaces the try/finally scaffolding, not the liveness law.
+   **CORRECTED at landing (W5 2026-08-03) — NO WRAPPER IS NEEDED.** The original text said to "wrap the
+   handle acquisition seam once (`using h = scoped(ctx, …)` returning a Disposable wrapper)". That is
+   dead: `quickjs-emscripten-core@0.32.0` already ships the protocol. `QuickJSHandle` =
+   `StaticJSValue | JSValue | JSValueConst`, all `Lifetime`, which `extends UsingDisposable`, whose
+   `[Symbol.dispose]()` calls `.dispose()` (`dist/index.d.ts:650-663`). So `using h = ctx.newObject()`
+   works directly, and a `scoped()` indirection would only put one more layer between a reader and the
+   liveness law. **The hazard the wrapper framing hid: `Lifetime.dispose()` calls `assertAlive()` and
+   THROWS on a second call** — so every handle with CONDITIONAL ownership must stay hand-managed
+   (the `handler`/`apply` that transfer to `collectTool`/`collectTransform`, the positional arg handles
+   quickjs-emscripten frees itself, and the escaping `deferred` in `attachAsync`). Adopting `using`
+   there "for consistency" ships a crash.
 2. **Lock handles** — `domain/chat/verbs/turn.ts:1390,1486,1632,2130,2334` (`handle.release()` in
-   finally ×5): `LockHandle` gains `[Symbol.dispose]` = release.
-3. **File handles / staging dirs** — `storage/variant-cache.ts:80`, `stage-dir.ts:20`, `cas.ts:164`.
-4. **PRAGMA toggles** (`db/client/index.ts:294-298,410-426`) — restore-not-dispose but same shape; a
-   small `pragmaScope(db, on, off)` Disposable makes the FK OFF→ON bracket declarative.
+   finally ×5): the type is `ActiveTurnHandle` (`domain/chat/contract/active-turns.ts`), not `LockHandle`;
+   it `extends Disposable` with `[Symbol.dispose]` ALIASED to the existing idempotent `release`, which
+   stays the named operation for non-scope-shaped callers.
+3. **File handles / staging dirs** — `storage/variant-cache.ts:80`, `stage-dir.ts:20`, `cas.ts:164`
+   (+ `cas.ts:97` `fsyncDir`). Node's `FileHandle` already carries `[Symbol.asyncDispose]`. **The two
+   atomic-write sites need an EXPLICIT BLOCK, not a function-scoped `await using`**: write→(fsync)→CLOSE
+   must complete BEFORE the `rename` publishes, and a function-scoped declaration disposes at the END —
+   after the rename and after the parent-dir fsync.
+4. **PRAGMA toggles** (`db/client/index.ts:294-298,410-426`) — restore-not-dispose but same shape.
+   Landed as `fkEnforcementSuspended(db): Promise<AsyncDisposable>` rather than a generic
+   `pragmaScope(db, on, off)`: both call sites are the identical FK bracket, and naming the invariant
+   puts the OFF/ON literal PAIR in one home (a caller cannot suspend FKs and restore something else).
 
 ui/client: **N-A, proven** — 2 try/finally blocks total, neither resource-shaped; browser cleanup runs
 through React effect-cleanup convention. No browser-gating question arises because there are no sites.
+
+**Two standing rules this wave paid for.** (a) DISPOSAL ORDER: `using` frees in REVERSE declaration order
+at scope exit, so a hand-written chain that freed in some other order is a behavior change — check it
+per site; here every hand chain already ran inner-handle-before-its-container, which IS reverse-
+declaration, so no site changed order. (b) A `using` binding is subject to `noUnusedLocals`; when the
+scope only wants the disposal (the PRAGMA bracket), the binding must be `_`-prefixed.
 
 ## §6 Temporal / luxon — the ONE external-blocker deferral
 

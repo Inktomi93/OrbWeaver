@@ -202,18 +202,17 @@ export function createPluginHost(seams: PluginHostSeamDeps): {
       // NEVER resident (no registry entry, no `invoke` reachable after). `events`/`tools`/`transforms`
       // registration is refused by the SAME capability gate (the snippet profile omits those grants).
       await getPluginQuickJS();
-      const sandbox = await Sandbox.create(hostSeams, {
+      // SCOPE-OWNED (`using`): a snippet sandbox is never resident, so its teardown IS "end of this call" — the
+      // Sandbox's `[Symbol.dispose]` is the `finally` that used to be here. It also now covers the previously
+      // UNCOVERED window between create and the `try` (`setInvocationChat` throwing leaked the whole context).
+      using sandbox = await Sandbox.create(hostSeams, {
         // A snippet has no manifest → no declared net hosts (its profile also omits net.fetch); `[]` fail-closes.
         membrane: { grants: new Set(input.grants), bridge: input.bridge, netHosts: [] },
         limits: { cpuDeadlineMs: SNIPPET_WALL_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
       });
       sandbox.setInvocationChat(input.chat);
-      try {
-        const outcome = await sandbox.evalGuest(input.code);
-        return outcome.ok ? { logLines: outcome.logs } : { logLines: outcome.logs, error: outcome.error?.message ?? "snippet failed" };
-      } finally {
-        sandbox.dispose();
-      }
+      const outcome = await sandbox.evalGuest(input.code);
+      return outcome.ok ? { logLines: outcome.logs } : { logLines: outcome.logs, error: outcome.error?.message ?? "snippet failed" };
     },
 
     readLog: (instance): readonly PluginLogLineOut[] => runtimes.get(instance)?.log ?? [],

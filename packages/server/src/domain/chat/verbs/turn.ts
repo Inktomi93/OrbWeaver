@@ -1349,8 +1349,10 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       return stripMessagesForViewer({ messages: [userView], aborted: false }, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
     }
 
-    // Registered before base so the abort signal threads into every round turn + the auto-mode chain.
-    const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
+    // Registered before base so the abort signal threads into every round turn + the auto-mode chain. SCOPE-OWNED
+    // (`using`): the registration is released at every exit of this verb — return, throw, or abort — which is
+    // what the hand-written `finally` did, plus the base-construction window it did not cover.
+    using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
       chatId,
       assembleContext,
@@ -1373,22 +1375,18 @@ function createSend(ctx: ChatContext, deps: TurnDeps, auto: AutoBehaviorDeps): C
       signal: handle.signal,
     };
 
-    try {
-      const round = await runAiRound(ctx, deps, {
-        base,
-        group,
-        room,
-        signal: handle.signal,
-        forcedIds: resolveMentionsVia(content, room.castNames),
-      });
-      // §3.6 RETURN PROJECTION: the assistant reply in `round.messages` carries the model's hidden spans; a
-      // NON-HOST member who ran this turn must not receive the truth bytes in the HTTP return (the bus + list
-      // reads already strip — this closes the mutation-return sibling). The host reads verbatim.
-      const outcome = await assembleSendResult(auto, { principal, chatId, userView, round, behavior: chatBehavior, signal: handle.signal });
-      return stripMessagesForViewer(outcome, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
-    } finally {
-      handle.release();
-    }
+    const round = await runAiRound(ctx, deps, {
+      base,
+      group,
+      room,
+      signal: handle.signal,
+      forcedIds: resolveMentionsVia(content, room.castNames),
+    });
+    // §3.6 RETURN PROJECTION: the assistant reply in `round.messages` carries the model's hidden spans; a
+    // NON-HOST member who ran this turn must not receive the truth bytes in the HTTP return (the bus + list
+    // reads already strip — this closes the mutation-return sibling). The host reads verbatim.
+    const outcome = await assembleSendResult(auto, { principal, chatId, userView, round, behavior: chatBehavior, signal: handle.signal });
+    return stripMessagesForViewer(outcome, membership, await reasoningHostOnlyFor(ctx, chatId, membership));
   };
 }
 
@@ -1447,7 +1445,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
       castCharForHostRow: joinedCastName(room.castNames),
     });
-    const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
+    using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
       chatId,
       assembleContext,
@@ -1465,26 +1463,22 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       ...recursePatch(membership.chat.metadata.toolRecurseLimit),
       signal: handle.signal,
     };
-    try {
-      const round = await driveRoundVia({
-        engine: deps.engine,
-        base,
-        group,
-        speakers: [target],
-        groupCharacterId: null,
-        castName: target.name,
-        // A FORCED single speaker rides the `asPerSpeaker`-coerced config — never the narrator arm, so
-        // there is no cast to name.
-        narratorMemberNames: [],
-      });
-      return {
-        messages: round.messages,
-        aborted: round.aborted,
-        ...(round.abortReason !== undefined ? { abortReason: round.abortReason } : {}),
-      };
-    } finally {
-      handle.release();
-    }
+    const round = await driveRoundVia({
+      engine: deps.engine,
+      base,
+      group,
+      speakers: [target],
+      groupCharacterId: null,
+      castName: target.name,
+      // A FORCED single speaker rides the `asPerSpeaker`-coerced config — never the narrator arm, so
+      // there is no cast to name.
+      narratorMemberNames: [],
+    });
+    return {
+      messages: round.messages,
+      aborted: round.aborted,
+      ...(round.abortReason !== undefined ? { abortReason: round.abortReason } : {}),
+    };
   };
 }
 
@@ -1618,19 +1612,15 @@ async function resolveTurnBase(
 }
 
 /** Runs one engine turn under an active-turns registration, threading the abort signal into the engine and
- *  releasing the handle in a `finally`. The outcome is §3.6-projected for the CALLER: a non-host member who
+ *  releasing the handle at scope exit (`using`). The outcome is §3.6-projected for the CALLER: a non-host member who
  *  ran the turn (swipe/continue/impersonate/generate) never receives the assistant reply's hidden spans in the
  *  return payload — the ONE tail all four verbs share, so the strip can't be forgotten per-verb. */
 async function runRegistered(ctx: ChatContext, deps: TurnDeps, viewer: { readonly role: string }, prep: Omit<TurnPrep, "signal">): Promise<TurnOutcome> {
-  const handle = deps.activeTurns.register(prep.chatId, prep.triggeredBy);
-  try {
-    const outcome = await deps.engine.runTurn({ ...prep, signal: handle.signal });
-    // P3 (§3.6): a member who ran a DECEPTION-active game turn also loses the reasoning channel in the return
-    // (resolved once via the injected rpg op; `false` for a host / non-deception chat).
-    return stripMessagesForViewer(outcome, viewer, await reasoningHostOnlyFor(ctx, prep.chatId, viewer));
-  } finally {
-    handle.release();
-  }
+  using handle = deps.activeTurns.register(prep.chatId, prep.triggeredBy);
+  const outcome = await deps.engine.runTurn({ ...prep, signal: handle.signal });
+  // P3 (§3.6): a member who ran a DECEPTION-active game turn also loses the reasoning channel in the return
+  // (resolved once via the injected rpg op; `false` for a host / non-deception chat).
+  return stripMessagesForViewer(outcome, viewer, await reasoningHostOnlyFor(ctx, prep.chatId, viewer));
 }
 
 /** The shape for an auxiliary turn voicing a known roster character. Returns undefined (⇒ ctx primary) when
@@ -2105,7 +2095,7 @@ async function runDeferredRound(
       // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
       castCharForHostRow: joinedCastName(room.castNames),
     });
-  const handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
+  using handle = deps.activeTurns.register(row.chatId, row.triggeredBy);
   const base: RoundBase = {
     chatId: row.chatId,
     assembleContext,
@@ -2124,11 +2114,7 @@ async function runDeferredRound(
     respondsToLatestUserTurn,
     signal: handle.signal,
   };
-  try {
-    await runAiRound(ctx, deps, { base, group, room, signal: handle.signal });
-  } finally {
-    handle.release();
-  }
+  await runAiRound(ctx, deps, { base, group, room, signal: handle.signal });
 }
 
 /** Process ONE queued row: CLAIM it atomically (the exactly-once serializer), then RUN it · DROP it on a
@@ -2298,7 +2284,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
         // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
         castCharForHostRow: joinedCastName(room.castNames),
       });
-    const handle = deps.activeTurns.register(chatId, identity.triggeredBy);
+    using handle = deps.activeTurns.register(chatId, identity.triggeredBy);
     const base: RoundBase = {
       chatId,
       assembleContext,
@@ -2321,18 +2307,14 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
       respondsToLatestUserTurn,
       signal: handle.signal,
     };
-    try {
-      return await runAiRound(ctx, deps, {
-        base,
-        group,
-        room,
-        signal: handle.signal,
-        chain: false,
-        ...(speakerCharacterId !== undefined ? { forcedIds: [speakerCharacterId] } : {}),
-      });
-    } finally {
-      handle.release();
-    }
+    return await runAiRound(ctx, deps, {
+      base,
+      group,
+      room,
+      signal: handle.signal,
+      chain: false,
+      ...(speakerCharacterId !== undefined ? { forcedIds: [speakerCharacterId] } : {}),
+    });
   };
 }
 

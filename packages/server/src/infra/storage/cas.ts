@@ -4,7 +4,6 @@
 
 import { randomBytes } from "node:crypto";
 import type { Dirent } from "node:fs";
-import type { FileHandle } from "node:fs/promises";
 import { mkdir, open, readdir, readFile, rename, rm, stat, utimes } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { isAssetHash } from "@orb/kit/assets";
@@ -95,16 +94,13 @@ async function* walkOwners(rootDir: string): AsyncGenerator<string> {
 
 // Best-effort: on Windows open() may EISDIR/EPERM — swallow, since the file fsync already happened.
 async function fsyncDir(dir: string): Promise<void> {
-  let handle: FileHandle | undefined;
   try {
-    handle = await open(dir, "r");
+    // `await using` INSIDE the try: the close rides scope exit and — like the open and the sync — its failure
+    // lands in this same catch, which is the best-effort posture the two hand-written swallows expressed.
+    await using handle = await open(dir, "r");
     await handle.sync();
   } catch {
-    // best-effort
-  } finally {
-    await handle?.close().catch(() => {
-      // best-effort
-    });
+    // best-effort (open / sync / close alike — a dir fsync is durability polish, never a write failure)
   }
 }
 
@@ -155,13 +151,13 @@ export function createCas(rootDir: string): Cas {
     await mkdir(dirname(dest), { recursive: true });
     await mkdir(tmpDir, { recursive: true });
     const tmpPath = join(tmpDir, `${randomBytes(TMP_SUFFIX_BYTES).toString("hex")}.tmp`);
-    let handle: FileHandle | undefined;
-    try {
-      handle = await open(tmpPath, "w");
+    // EXPLICIT BLOCK, not a function-scoped `await using`: write→fsync→CLOSE must all complete BEFORE the
+    // rename publishes the blob. A function-scoped declaration would close after the rename AND after the
+    // parent-dir fsync below, breaking the durability order this path exists to guarantee.
+    {
+      await using handle = await open(tmpPath, "w");
       await handle.writeFile(bytes);
       await handle.sync();
-    } finally {
-      await handle?.close();
     }
     await rename(tmpPath, dest);
     // rename() makes the blob appear atomically, but the parent dir entry isn't durable until fsynced too.
