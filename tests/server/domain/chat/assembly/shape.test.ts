@@ -527,6 +527,14 @@ const INSTRUCTION: ChatInjection = {
   content: "# Game state\nTrackers: HP",
 };
 
+/** The SAME instruction authored `role:"user"` — a host's post-history teach / author's note. It is the
+ *  identical instruction wearing a different WIRE LANE, and it must be attributed identically.
+ *
+ *  This arm exists because a fix that carved out `role:"user"` injections shipped and reintroduced the
+ *  reported bug for exactly this shape: the final turn arrived with TWO speaker labels, the second one
+ *  attributing the game rules to the player. The system-role arm alone could never have caught it. */
+const INSTRUCTION_AS_USER: ChatInjection = { ...INSTRUCTION, role: "user" };
+
 /** The marker that identifies the injection's bytes wherever they land (merged or standalone). */
 const INSTRUCTION_MARK = "# Game state";
 
@@ -599,20 +607,25 @@ describe("the roleHandling × namesBehavior matrix", () => {
     const canon = canonName === "solo" ? MATRIX_SOLO_CANON : GROUP_CANON;
     for (const roleHandling of ROLE_HANDLINGS) {
       for (const namesBehavior of NAMES_BEHAVIORS) {
-        const label = `${canonName} · roleHandling=${roleHandling} · names=${namesBehavior}`;
+        for (const [injLabel, injection] of [
+          ["system-injection", INSTRUCTION],
+          ["user-injection", INSTRUCTION_AS_USER],
+        ] as const) {
+          const label = `${canonName} · roleHandling=${roleHandling} · names=${namesBehavior} · ${injLabel}`;
 
-        test(`P1 MERGE — ${label}: no adjacent same-role rows survive`, () => {
-          const out = shapeCell({ canon, roleHandling, namesBehavior, injections: [INSTRUCTION] });
-          // The clamp floors to `strict` when no model floor is supplied, so EVERY cell here merges —
-          // including the `none` knob, which cannot go looser than the floor. If that ever changes, this
-          // assertion is the thing that should be revisited, not silently relaxed.
-          expect(adjacentSameRole(out.history), `adjacent same-role rows on the wire: ${adjacentSameRole(out.history).join(" · ")}`).toEqual([]);
-        });
+          test(`P1 MERGE — ${label}: no adjacent same-role rows survive`, () => {
+            const out = shapeCell({ canon, roleHandling, namesBehavior, injections: [injection] });
+            // The clamp floors to `strict` when no model floor is supplied, so EVERY cell here merges —
+            // including the `none` knob, which cannot go looser than the floor. If that ever changes, this
+            // assertion is the thing that should be revisited, not silently relaxed.
+            expect(adjacentSameRole(out.history), `adjacent same-role rows on the wire: ${adjacentSameRole(out.history).join(" · ")}`).toEqual([]);
+          });
 
-        test(`P2 ATTRIBUTION — ${label}: the injection carries no speaker`, () => {
-          const out = shapeCell({ canon, roleHandling, namesBehavior, injections: [INSTRUCTION] });
-          expect(instructionCarriesSpeaker(out.history)).toBeNull();
-        });
+          test(`P2 ATTRIBUTION — ${label}: the injection carries no speaker`, () => {
+            const out = shapeCell({ canon, roleHandling, namesBehavior, injections: [injection] });
+            expect(instructionCarriesSpeaker(out.history)).toBeNull();
+          });
+        }
       }
     }
   }

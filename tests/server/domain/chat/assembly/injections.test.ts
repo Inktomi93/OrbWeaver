@@ -62,18 +62,18 @@ describe("spliceInChatInjections", () => {
 
   test("depth-0 lands AFTER the tail (last thing the model reads)", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, content: "steer" })]);
-    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: steer]" });
+    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: steer]", speakerless: true });
   });
 
   test("depth-1 lands BEFORE the tail", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 1, content: "ooc" })]);
-    expect(out[HIST.length - 1]).toEqual({ role: "user", content: "[Note from user: ooc]" });
+    expect(out[HIST.length - 1]).toEqual({ role: "user", content: "[Note from user: ooc]", speakerless: true });
     expect(out.at(-1)).toEqual({ role: "user", content: "tail" });
   });
 
   test("over-deep depth clamps to history length (lands at the very top)", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 99, content: "deep" })]);
-    expect(out[0]).toEqual({ role: "user", content: "[Note from user: deep]" });
+    expect(out[0]).toEqual({ role: "user", content: "[Note from user: deep]", speakerless: true });
   });
 
   test("assistant @ depth 0 floors to depth 1 (no trailing-assistant prefill)", () => {
@@ -99,7 +99,7 @@ describe("spliceInChatInjections", () => {
 
   test("resolveContent is applied BEFORE framing", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, content: "RAW" })], (c) => c.toLowerCase());
-    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: raw]" });
+    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: raw]", speakerless: true });
   });
 
   test("squashSystemMessages: consecutive same-depth system notes merge into ONE framed row (blank-line join)", () => {
@@ -187,7 +187,7 @@ describe("spliceInChatInjections — allowMidConversationSystem (turns.midConver
 
   test("allowed: user injections keep their [Note from user:] framing (only the system axis changes)", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "user", content: "u" })], (c) => c, { allowMidConversationSystem: true });
-    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: u]" });
+    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from user: u]", speakerless: true });
   });
 
   test("the host's PROSE frames ride the SPLICE too — a demoted system injection wears the host's wording", () => {
