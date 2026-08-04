@@ -3,10 +3,11 @@
 // split decides whether a turn resumes a session (seed + tail) or runs the one-off flattened shape
 // (continue-mode / tool rows), and the tail join must match the backend comparator's user-run joiner.
 
-import type { PersonaId } from "@orb/kit/ids";
+import type { ChatId, ModelId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { TurnMessage } from "@orb/server/domain/chat";
-import { activePersonaIdFor, extractTrailingSystemRows, flattenAgentHistory, splitAgentHistory } from "@orb/server/entry/compose";
+import type { TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
+import { activePersonaIdFor, createRunChatTurnBridge, extractTrailingSystemRows, flattenAgentHistory, splitAgentHistory } from "@orb/server/entry/compose";
+import type { ChatEvent, ChatResult, OrSkinTierModels, WarningCode } from "@orb/server/infra/providers";
 import { AGENT_PROMPT_TAIL_JOINER } from "@orb/server/infra/providers";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
@@ -146,5 +147,102 @@ describe("activePersonaIdFor — the three-state trigger contract", () => {
   test("ABSENT (the trigger is unknown — a preview / a card display) keeps the documented fallback chain", () => {
     expect(activePersonaIdFor({ personaIds: [firstPresent], anchorPersonaId })).toBe(firstPresent);
     expect(activePersonaIdFor({ personaIds: [], anchorPersonaId })).toBeNull();
+  });
+});
+
+// The bridge's runner-WARNING carry (D41 no-silent-degrade, the READ end). The defect this pins: the bridge
+// consumed only `reply`/`economics` off the runner's `ChatResult`, so every warning the runners put on
+// `ChatResult.events` — `custom_parameters_ignored`, `tool_result_error_dropped`, every resolve-chat knob drop —
+// died at this seam. Producer coverage existed (two runner suites); the READ side had none.
+//
+// The bridge CARRIES infra codes verbatim (the chat-vocabulary narrowing is the domain's, at
+// `engine.ts` `toChatWarningCode`). Under test here: warnings become chunks at all, they land BEFORE the
+// terminal `final` (which ends the drain), a repeat collapses, and non-warning runner events never leak in.
+describe("createRunChatTurnBridge — the runner-warning carry", () => {
+  /** FABRICATION-OK: a minimal successful `ChatResult` — only `events` is under test. */
+  const baseResult = {
+    reply: "ok",
+    reasoning: "",
+    reasoningRedacted: false,
+    stopReason: null,
+    terminalReason: null,
+    finishReason: null,
+    ttftMs: null,
+    warmSpareClaimed: null,
+    durationApiMs: null,
+    apiErrorStatus: null,
+    numTurns: 1,
+    usage: {
+      model: "test-model",
+      tokensIn: 1,
+      tokensOut: 1,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+      cacheCreation5mTokens: null,
+      cacheCreation1hTokens: null,
+      reasoningTokens: null,
+      contextWindow: null,
+      maxOutputTokens: null,
+      webSearchRequests: 0,
+      costUsd: 0,
+      costDetails: null,
+      isByok: null,
+    },
+    rateLimit: null,
+  } as const;
+
+  const wireRequest: TurnRequest = {
+    // FABRICATION-OK: minimal ResolvedCredential/capability doubles — the bridge reads only `connection.api`.
+    connection: { api: "chat-completions", model: castId<ModelId>("test-model"), credential: {}, capability: {} } as unknown as TurnRequest["connection"],
+    chatId: castId<ChatId>("chat_bridgewarn"),
+    // FABRICATION-OK: the bridge reads only prompt.static + prompt.dynamic.
+    prompt: { static: "sys", dynamic: "" } as unknown as TurnRequest["prompt"],
+    history: [],
+    intent: {},
+    kind: "auto",
+    ownerConsented: false,
+    cacheBreakpointFromEnd: null,
+  };
+
+  /** Drive the real bridge over a leaf returning `events`, collecting every yielded chunk. */
+  async function chunksFor(events: readonly ChatEvent[]): Promise<TurnStreamChunk[]> {
+    const bridge = createRunChatTurnBridge({
+      runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...baseResult, events }),
+      getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
+    });
+    const out: TurnStreamChunk[] = [];
+    for await (const chunk of bridge(wireRequest)) {
+      out.push(chunk);
+    }
+    return out;
+  }
+
+  const warningEvent = (code: WarningCode): ChatEvent => ({ kind: "warning", at: 1000, code, message: `${code} happened` });
+
+  test("a runner warning rides as a `warning` chunk, BEFORE the terminal `final`", async () => {
+    const chunks = await chunksFor([warningEvent("custom_parameters_ignored")]);
+    expect(chunks.map((c) => c.kind)).toEqual(["warning", "final"]);
+    expect(chunks[0]).toEqual({ kind: "warning", code: "custom_parameters_ignored" });
+  });
+
+  test("a code with no chat twin still rides — the bridge carries, the DOMAIN decides what surfaces", async () => {
+    // `sampling_knob_dropped` is a declared `toChatWarningCode` null (it needs its own CHAT_WARNING_CODES
+    // member + owner-authored copy before it can toast — board row INFRA-WARN-DEAF), but that ruling belongs
+    // to the domain: filtering it here would put chat's vocabulary decision in the composition root.
+    const chunks = await chunksFor([warningEvent("sampling_knob_dropped")]);
+    expect(chunks.map((c) => c.kind)).toEqual(["warning", "final"]);
+  });
+
+  test("a repeated code yields ONE chunk (one degrade, one notice)", async () => {
+    const chunks = await chunksFor([warningEvent("custom_parameters_ignored"), warningEvent("custom_parameters_ignored")]);
+    expect(chunks.filter((c) => c.kind === "warning")).toHaveLength(1);
+  });
+
+  test("non-warning runner events (rate_limit, model_downgrade) never become chunks", async () => {
+    const chunks = await chunksFor([
+      { kind: "rate_limit", at: 1000, status: "ok", rateLimitType: undefined, resetsAt: undefined, utilization: undefined, isUsingOverage: undefined },
+      { kind: "model_downgrade", at: 1000, requested: "a", billed: ["b"] },
+    ]);
+    expect(chunks.map((c) => c.kind)).toEqual(["final"]);
   });
 });

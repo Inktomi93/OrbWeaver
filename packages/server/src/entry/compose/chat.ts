@@ -83,7 +83,7 @@ import { createCopyHandoffBooks } from "#domain/world-info";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { recordMemoryLog } from "#foundation/observability";
-import type { AgentSeedTurn, ChatDeltaEvent, ChatRequest, ChatResult, RoleClientsWithSignal } from "#infra/providers";
+import type { AgentSeedTurn, ChatDeltaEvent, ChatEvent, ChatRequest, ChatResult, RoleClientsWithSignal, WarningCode } from "#infra/providers";
 import { AGENT_PROMPT_TAIL_JOINER, createAgentToolServer } from "#infra/providers";
 import { createRegexApplyReplace } from "#kit/regex";
 import { createMemberBudget } from "../../transport/rate-limit.ts";
@@ -383,6 +383,23 @@ function buildChatToolOps(toolUse: ToolUseService, resolveHostPrincipal: (userId
   };
 }
 
+/** The runner's `ChatResult.events` → the domain stream's `warning` chunks (D41 no-silent-degrade, the READ
+ *  end). The bridge CARRIES the infra codes; it does not translate them — chat owns its bus vocabulary, so the
+ *  infra→`ChatWarningCode` narrowing lives in the domain (`engine.ts` `toChatWarningCode`), the mirror of the
+ *  IMAGE role's hop where compose hands the domain a narrowed infra code and
+ *  `domain/chat/verbs/generate-image.ts` does the re-map. Deduped here because one runner can repeat a code
+ *  within a single result; the pipeline dedupes again across recursion depths.
+ *  Extracted so the bridge body stays under the cognitive-complexity cap. */
+function warningChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
+  const seen = new Set<WarningCode>();
+  for (const event of events) {
+    if (event.kind === "warning") {
+      seen.add(event.code);
+    }
+  }
+  return [...seen].map((code) => ({ kind: "warning", code }));
+}
+
 /** The domain→infra turn bridge: maps a domain {@link TurnRequest} to the infra {@link ChatRequest} (the
  *  agent-sdk split + the chat-completions/responses passthrough spreads — customParameters/tools/toolChoice/
  *  responseFormat/cacheBreakpoint), runs it through the injected infra `runChatTurn`, and adapts its
@@ -474,6 +491,9 @@ export function createRunChatTurnBridge(deps: {
     void deps
       .runChatTurn(chatReq)
       .then((result) => {
+        // BEFORE the terminal `final` (which ends the drain): the turn's honest-degrade warnings. Without this
+        // the runner's `events` died at this seam and D41 held only in the logs, never in the product.
+        queue.push(...warningChunks(result.events));
         queue.push({
           kind: "final",
           economics: {
