@@ -35,6 +35,14 @@ export interface TrackBarProps {
   /** When the value is below this, the fill swaps to the destructive intent (never the sole signal —
    *  the text datum still reads value/max). */
   dangerBelow?: number;
+  /**
+   * The rail's WIDTH — a variant, because a custom-token width is opaque to tailwind-merge and a
+   * call-site `w-*` would resolve by stylesheet order (`ui-size-via-variant`). `full` spans the column
+   * (the magnitude reading). `swatch` is the fixed LEGEND pill: no magnitude, the bar stands only for
+   * its ramp colour beside the thing it names.
+   * @defaultValue "full"
+   */
+  width?: "full" | "swatch";
   className?: string;
 }
 
@@ -46,10 +54,19 @@ function clampFraction(value: number, max: number): number {
 }
 
 /** The decorative fill bar. `aria-hidden` — pair it with a text `value/max` readout (the datum). */
-export function TrackBar({ value, max = FULL_PERCENT, color = 1, accent = "ramp", customColor, dangerBelow, className }: TrackBarProps): ReactElement {
+export function TrackBar({
+  value,
+  max = FULL_PERCENT,
+  color = 1,
+  accent = "ramp",
+  customColor,
+  dangerBelow,
+  width = "full",
+  className,
+}: TrackBarProps): ReactElement {
   const danger = dangerBelow !== undefined && value < dangerBelow;
-  const slots = trackBarVariants({ danger, accent });
-  const width = `${clampFraction(value, max) * FULL_PERCENT}%`;
+  const slots = trackBarVariants({ danger, accent, width });
+  const fillWidth = `${clampFraction(value, max) * FULL_PERCENT}%`;
   const custom = !danger && customColor !== undefined && isSafeColor(customColor) ? customColor : undefined;
   const ramped = accent === "ramp" && !danger && custom === undefined;
   return (
@@ -59,7 +76,7 @@ export function TrackBar({ value, max = FULL_PERCENT, color = 1, accent = "ramp"
       <div
         className={cn(slots.fill(), ramped ? TRACK_FILL[color] : undefined)}
         data-slot="track-bar-fill"
-        style={custom === undefined ? { width } : { width, backgroundColor: custom }}
+        style={custom === undefined ? { width: fillWidth } : { width: fillWidth, backgroundColor: custom }}
       />
     </div>
   );

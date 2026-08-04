@@ -241,7 +241,7 @@ export function ConditionChips({
           <Icon icon={resolveConditionGlyph(cond.name)} size="xs" />
           {cond.name}
           {onRemove === undefined ? null : (
-            <Button intent="ghost" size="sm" className="!size-4 !p-0" onClick={(): void => onRemove(cond.name)} title={`Remove ${cond.name}`}>
+            <Button intent="ghost" size="glyph-xs" onClick={(): void => onRemove(cond.name)} title={`Remove ${cond.name}`}>
               <Icon icon={X} size="xs" />
             </Button>
           )}

@@ -34,3 +34,51 @@ test("dangerBelow swaps the fill to the destructive intent (never the sole signa
   const component = await mount(<TrackBar value={3} max={30} color={1} dangerBelow={10} />);
   await expect(component.locator("[data-slot=track-bar-fill]")).toHaveCSS("background-color", resolvedTokenColor("color.destructive"));
 });
+
+// The `width` variant. `swatch` replaces the tracker-definition row's retired `className="!w-block shrink-0"`
+// — an `!important` override of the base `w-full` that resolved by stylesheet order (`ui-size-via-variant`).
+// PARITY, not authoring: the retired class string is mounted BESIDE the variant (Tailwind scans `tests/`, so
+// it really compiles) and both boxes are read back computed. The width is checked against the DOCUMENT-
+// resolved `--spacing-block`, never a hardcoded 12px.
+test("width=swatch paints the SAME fixed box the retired `!w-block shrink-0` class did, resolved off --spacing-block", async ({ mount, page }) => {
+  await mount(
+    <div style={{ display: "flex", gap: 4, width: 400 }}>
+      <TrackBar value={1} max={1} color={1} className="!w-block shrink-0" />
+      <TrackBar value={1} max={1} color={1} width="swatch" />
+      <div style={{ flex: 1 }} />
+    </div>,
+  );
+  const bars = page.locator("[data-slot=track-bar]");
+  const measured = await bars.evaluateAll((els) => {
+    const probe = document.createElement("div");
+    probe.style.width = "var(--spacing-block)";
+    document.body.append(probe);
+    const block = probe.getBoundingClientRect().width;
+    probe.remove();
+    return {
+      block,
+      boxes: els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return { width: r.width, height: r.height, flexShrink: getComputedStyle(el).flexShrink };
+      }),
+    };
+  });
+  const [old, next] = measured.boxes;
+  expect(next?.width).toBeCloseTo(old?.width ?? 0, 1);
+  expect(next?.height).toBeCloseTo(old?.height ?? 0, 1);
+  // The token is the authority for the number, not a px literal.
+  expect(next?.width).toBeCloseTo(measured.block, 1);
+  // `shrink-0` rides the ARM now — the swatch keeps its width in a flex row with no call-site class.
+  expect(next?.flexShrink).toBe("0");
+});
+
+test("width defaults to full — the magnitude bar still spans its column", async ({ mount }) => {
+  const component = await mount(
+    <div style={{ width: 300 }}>
+      <TrackBar value={1} max={2} color={1} />
+    </div>,
+  );
+  const bar = component.locator("[data-slot=track-bar]");
+  const box = await bar.boundingBox();
+  expect(box?.width).toBeCloseTo(300, 0);
+});

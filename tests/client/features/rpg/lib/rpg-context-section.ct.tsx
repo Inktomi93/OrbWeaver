@@ -2578,3 +2578,100 @@ test("with no persona in this chat the option is DISABLED and says why (never hi
   await expect(component.getByRole("checkbox", { name: "Restamp my messages first" })).toBeDisabled();
   await expect(component.getByText("Pick a persona for this chat first — there's nothing to re-stamp to.")).toBeVisible();
 });
+
+// ── GLYPHFIX 08-03: the square glyph-button ramp, at the panel's own FLOOR ─────────────────────────────
+// 13 rpg icon buttons wore `className="!size-N !p-0"` — an `!important` override of Button's sealed `sm`
+// control height, which is how they escaped the `ui-size-via-variant` gate for a day. They now ride the
+// primitive's `glyph-*` size arms. The @orb/ui CT proves the arm's box in isolation; THIS proves the pixels
+// at the NARROWEST REAL HOST — the 272px docked context panel (`clamp(17rem, 30vw, 30rem)`'s floor), where
+// a control that lost its box would clip or collapse and a 720px story would hide it.
+test("GLYPHFIX: at the 272px panel floor the quest glyph buttons are SQUARE, token-sized and inside their row", async ({ mount, page }) => {
+  await stubTakeover(page);
+  const component = await mount(<RpgTakeoverFloorStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Quests" }).click();
+
+  const del = component.getByRole("button", { name: "Delete quest: Keep the bone key" });
+  await expect(del).toBeVisible();
+  const measured = await del.evaluate((el) => {
+    const probe = document.createElement("div");
+    probe.style.width = "var(--spacing-glyph-sm)";
+    el.ownerDocument.body.append(probe);
+    const token = probe.getBoundingClientRect().width;
+    probe.remove();
+    const box = el.getBoundingClientRect();
+    const row = (el.parentElement as HTMLElement).getBoundingClientRect();
+    const after = getComputedStyle(el, "::after");
+    return {
+      token,
+      width: box.width,
+      height: box.height,
+      overflowsRow: box.right > row.right + 1,
+      hit: Number.parseFloat(after.width),
+      shrink: getComputedStyle(el).flexShrink,
+    };
+  });
+  // The box is EXACTLY its token — resolved from the live document, never a hardcoded px.
+  expect(measured.token).toBeGreaterThan(0);
+  expect(measured.width).toBeCloseTo(measured.token, 1);
+  expect(measured.height).toBeCloseTo(measured.token, 1);
+  // …and it did not collapse or get squeezed out of the 272px row (the `shrink-0` the arm now owns).
+  expect(measured.shrink).toBe("0");
+  expect(measured.overflowsRow).toBe(false);
+  // The hit area still exceeds the visible box (the ::after the arm carries), even on this fine-pointer run.
+  expect(measured.hit).toBeGreaterThan(measured.height);
+});
+
+/** The default config's ONE tracker def re-shaped to a `meter` — the arm that renders the colour SWATCH
+ *  (`def.shape === "meter"`), which the default `text` def never mounts. */
+function meterTrackerConfig(): unknown {
+  const base = configView() as Record<string, unknown>;
+  const def = (base["trackers"] as readonly Record<string, unknown>[])[0] as Record<string, unknown>;
+  return { ...base, trackers: [{ ...def, shape: "meter", write: "delta", max: 30 }] };
+}
+
+test("GLYPHFIX: at the 272px floor the tracker-def row's SWATCH and its three glyph toggles all hold their boxes", async ({ mount, page }) => {
+  // The rest of the same debt, on the row the panel packs tightest: a TrackBar that was
+  // `className="!w-block shrink-0"` (now `width="swatch"`) and three `!size-6 !p-0` toggles (now
+  // `size="glyph-md"`), all in ONE 272px row beside an editable label. A collapsed swatch or a squeezed
+  // toggle is invisible to every static gate — this reads them back computed against their own tokens.
+  await stubTakeover(page, { config: meterTrackerConfig() });
+  const component = await mount(<RpgTakeoverFloorStory />);
+  await component.getByRole("tablist", { name: "Chat" }).getByRole("tab", { name: "Game" }).click();
+
+  const row = component.locator('[data-slot="rpg-tracker-row"]').first();
+  const swatch = row.locator('[data-slot="track-bar"]').first();
+  await expect(swatch).toBeAttached();
+  const measured = await swatch.evaluate((el) => {
+    const probe = document.createElement("div");
+    probe.style.width = "var(--spacing-block)";
+    el.ownerDocument.body.append(probe);
+    const token = probe.getBoundingClientRect().width;
+    probe.remove();
+    return { token, width: el.getBoundingClientRect().width, shrink: getComputedStyle(el).flexShrink };
+  });
+  expect(measured.token).toBeGreaterThan(0);
+  expect(measured.width).toBeCloseTo(measured.token, 1);
+  expect(measured.shrink).toBe("0");
+
+  // The three glyph-md toggles on the same row: square, at --spacing-glyph-md, inside the row's box.
+  const toggles = await Promise.all(
+    ["Show Trust as a band orb", "Lock Trust — the story can no longer write it", "Remove Trust"].map(async (name) =>
+      row.getByRole("button", { name }).evaluate((el) => {
+        const probe = document.createElement("div");
+        probe.style.width = "var(--spacing-glyph-md)";
+        el.ownerDocument.body.append(probe);
+        const token = probe.getBoundingClientRect().width;
+        probe.remove();
+        const box = el.getBoundingClientRect();
+        const band = (el.parentElement as HTMLElement).getBoundingClientRect();
+        return { token, width: box.width, height: box.height, overflows: box.right > band.right + 1 };
+      }),
+    ),
+  );
+  for (const t of toggles) {
+    expect(t.token).toBeGreaterThan(0);
+    expect(t.width).toBeCloseTo(t.token, 1);
+    expect(t.height).toBeCloseTo(t.token, 1);
+    expect(t.overflows).toBe(false);
+  }
+});

@@ -88,6 +88,10 @@
   --spacing-switch-thumb: 2rem;
   --spacing-checkbox: 1.125rem;
   --spacing-slider-thumb: 1.5rem;
+  --spacing-glyph-xs: 1rem;
+  --spacing-glyph-sm: 1.25rem;
+  --spacing-glyph-md: 1.5rem;
+  --spacing-glyph-lg: 2rem;
   --radius-inset: 0.25rem;
   --radius-base: 0.5rem;
   --radius-control: 0.375rem;
