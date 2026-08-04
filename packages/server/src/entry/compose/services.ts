@@ -547,6 +547,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // biome-ignore lint/complexity/useMaxParams: mirrors the injected `ChatRpgOps.onTurnCompleted` contract signature (positional delegate).
     onTurnCompleted: (chatId, messageId, variantId, turnId, turn) => rpgOps().onTurnCompleted(chatId, messageId, variantId, turnId, turn),
     onTurnAborted: (chatId, turnId, reason) => rpgOps().onTurnAborted(chatId, turnId, reason),
+    cancelStateRounds: (chatId, principalUserId) => rpgOps().cancelStateRounds(chatId, principalUserId),
     resolveGmSeatHolderKind: (chatId) => rpgOps().resolveGmSeatHolderKind(chatId),
     resolveReasoningHostOnly: (chatId) => rpgOps().resolveReasoningHostOnly(chatId),
     forkGame: (args) => rpgOps().forkGame(args),

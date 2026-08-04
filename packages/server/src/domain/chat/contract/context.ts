@@ -595,6 +595,18 @@ export interface RpgTurnContext {
    *  (a legitimate quiet beat, never an error). These calls were never executed, never recursed on, and are
    *  NOT on the committed variant's `toolCalls` — they exist only here. */
   readonly terminalToolCalls: readonly ToolCallInput[] | null;
+  /** WHO ran this turn (`prep.triggeredBy`, D19) — the OWNER the rpg state round's cancellation is scoped to.
+   *  Threaded because {@link ChatRpgOps.cancelStateRounds} mirrors `activeTurns.abort`'s owner-only semantics
+   *  (the rollback-theft defense): without an owner on the round, a member's Stop would cancel ANOTHER member's
+   *  in-flight state round, which is a multi-human bug that would read as a feature. */
+  readonly triggeredBy: UserId;
+  /** The character turn's own cancellation signal (`prep.signal`, off the `activeTurns` handle), or `undefined`
+   *  for an unregistered turn. The state round composes it with its OWN controller rather than relying on it
+   *  alone — see {@link ChatRpgOps.cancelStateRounds} for why the turn's signal is nearly useless here. It is
+   *  still threaded because it DOES cover one real window: in a MULTI-SPEAKER round every speaker shares one
+   *  registration, so speaker 1's in-flight state round is still reachable through this signal while speaker 2
+   *  generates. */
+  readonly signal: AbortSignal | undefined;
 }
 
 export interface ChatRpgOps {
@@ -654,6 +666,27 @@ export interface ChatRpgOps {
   readonly onTurnCompleted: (chatId: ChatId, messageId: MessageId, variantId: MessageVariantId, turnId: ChatTurnId, turn: RpgTurnContext) => Promise<void>;
   /** Turn abort/failure: CLEAR the turn's staged tool writes so a dead turn never flushes into the next turn. */
   readonly onTurnAborted: (chatId: ChatId, turnId: ChatTurnId, reason: TurnAbortReason) => Promise<void>;
+  /** CANCEL `principalUserId`'s in-flight rpg STATE ROUNDS on this chat; returns how many were signalled. Called by
+   *  the `abort` verb beside `activeTurns.abort` — and it has to be a SEPARATE reach, because the turn's own
+   *  AbortSignal cannot cover the round. The timeline, which is the whole reason this op exists:
+   *
+   *    1. the engine commits the reply, then fires the rpg round FIRE-AND-FORGET from inside the turn body
+   *       (`fireRpgTurnCompleted`, after `commitGeneration`);
+   *    2. `executeTurn` returns microseconds later and `runRegistered`'s `finally` calls `handle.release()`;
+   *    3. `release()` DELETES the entry from the `activeTurns` registry (`active-turns.ts`), so from that
+   *       instant `abort(chatId, user)` iterates a set the turn is no longer in and signals NOBODY;
+   *    4. the round then runs its model call for 0.8-2.9s (the measured window `flush-barrier.ts` documents)
+   *       with a controller nothing can reach.
+   *
+   *  So threading `prep.signal` alone would cancel only the multi-speaker overlap window (speaker 1's round
+   *  while speaker 2 generates under the same registration) — it would look correct and fix almost nothing.
+   *  The round therefore owns its OWN cancellation lifetime in rpg's flush barrier, and this op is the door.
+   *
+   *  OWNER-SCOPED, mirroring `activeTurns.abort` EXACTLY — same parameter name, same comparison against the
+   *  registration's owner (D19: the round's owner is the turn's `triggeredBy`; `principalUserId` is the caller
+   *  asking). The rollback-theft defense: a host cannot cancel a member's round. A no-round chat returns 0 (the
+   *  idempotent no-op); a non-game chat is byte-identical. Synchronous — cancelling is in-memory. */
+  readonly cancelStateRounds: (chatId: ChatId, principalUserId: UserId) => number;
   /** The GM seat holder's FK-derived KIND for the game rooted at this chat (agent-principal-design/05 §2 AP4a),
    *  or `null` = not a game / NULL AI-narrator seat / holder vanished. `setGroupConfig` reads it to SEAL the
    *  narrator+merged invariant (F5): a game whose GM seat is AGENT-held may not be flipped to `per-speaker`

@@ -12,7 +12,7 @@
 // ref key, not an orphan `cast:<name>` the panel never reads. (The pure applier F1-mint / F2-resolve units live
 // in `tools/apply.test.ts`.)
 
-import type { ChatId, ChatTurnId, Handle, RpgQuestId } from "@orb/kit/ids";
+import type { ChatId, ChatTurnId, Handle, RpgQuestId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import type { RpgRosterActor } from "../../../../../packages/server/src/domain/rpg/index.ts";
@@ -566,4 +566,145 @@ test("R1: a turn whose fold-mount failed lands its state via the fallback round 
   expect(h.fakes.foldBuildFailures).toHaveLength(1);
   expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the ford");
   expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "tool-round", fallbackReason: "no-terminal-channel" }]);
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// CANCELLATION (RPG-SIGNAL) — the state round is abortable, and an aborted round WRITES NOTHING.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// Why the cancel comes through rpg's OWN barrier and not the character turn's AbortSignal: the round is fired
+// fire-and-forget from inside the turn body AFTER `commitGeneration`, and `runRegistered`'s `finally` calls
+// `handle.release()` microseconds later — which DELETES the entry from `activeTurns`, so from that instant
+// `activeTurns.abort` walks a set the turn has left and signals nobody, while the round runs its 0.8-2.9s model
+// call. `cancelStateRounds` is the door that reaches it (full timeline: `ChatRpgOps.cancelStateRounds`).
+//
+// THE RULING these pin: a cancelled round is BYTE-IDENTICAL TO A NON-WRITING TURN — it refuses to write and
+// discards its staging; it never rolls back a write that already landed.
+
+const HOST_USER = castId<UserId>("user_host");
+
+/** Park until the state round has actually STARTED (it records its call before awaiting `stateRoundGate`). A
+ *  fixed number of microtask ticks would be a guess — the flush does several db awaits first — and the guess
+ *  passes or fails by machine speed. Barriering on the settled fact is what makes the cancel land MID-round. */
+function untilRoundStarted(calls: readonly unknown[]): Promise<void> {
+  const poll = (attemptsLeft: number): Promise<void> => {
+    if (calls.length > 0) {
+      return Promise.resolve();
+    }
+    if (attemptsLeft === 0) {
+      return Promise.reject(new Error("the state round never started — the cancel would not have been mid-round"));
+    }
+    return new Promise((resolve) => setTimeout(resolve, 5)).then(() => poll(attemptsLeft - 1));
+  };
+  return poll(400);
+}
+
+test("MID-ROUND cancel: the running round's own signal fires and the flush writes NOTHING", async () => {
+  const db = await freshDb();
+  // The round WOULD have written all three planes — so their absence is the cancel's doing, never an empty delta.
+  const toolRoundDelta = {
+    statePatch: { location: "the drowned chapel" },
+    journal: [{ type: "note", label: "", title: "A beat", content: "It happened." }],
+  };
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta });
+  await pinExtractionMode(h, chatId, "cheap");
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+  h.fakes.busEvents.length = 0;
+
+  let releaseRound = (): void => undefined;
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
+    releaseRound = resolve;
+  });
+  const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
+  await untilRoundStarted(h.fakes.toolRoundCalls); // the round is suspended with its model call outstanding
+
+  // THE ABORT — through the exact op the chat `abort` verb calls.
+  expect(h.chatOps.cancelStateRounds(chatId, HOST_USER)).toBe(1);
+  releaseRound();
+  await flush;
+
+  // 1. the cancellation REACHED THE VEHICLE — the real arms hand this same signal to the provider request, so
+  //    this is the difference between "cancelled the call" and "ignored the delta afterwards".
+  expect(h.fakes.stateRoundSignalAborted).toEqual([true]);
+  // 2. THE DURABLE OBSERVABLE: no snapshot, no journal, no bus emit — byte-identical to a non-writing turn,
+  //    even though the round handed back a delta that would have written all three.
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+  expect(await listJournalByVariant(db, variantId)).toEqual([]);
+  expect(h.fakes.busEvents).toEqual([]);
+  // 3. and the discard is VISIBLE — a correct cancel that vanished silently would be the same blind spot the
+  //    `onFlushDropped` backstop exists to close. `discardedStagedWrites` says a finished extraction was thrown
+  //    away (the expensive case), and it is NOT filed as a contract-invalid drop: a cancel is not a corruption.
+  expect(h.fakes.stateRoundCancels).toEqual([{ chatId, turnId: TURN, discardedStagedWrites: true }]);
+  expect(h.fakes.flushDrops).toEqual([]);
+});
+
+test("cancel is OWNER-SCOPED: another member's Stop leaves this round alone and the state still lands", async () => {
+  const db = await freshDb();
+  // The rollback-theft defense carried onto the state plane: `activeTurns.abort` is deliberately owner-only, so a
+  // blanket per-chat cancel here would let member B silently kill member A's in-flight round.
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta: { statePatch: { location: "the ford" }, journal: [] } });
+  await pinExtractionMode(h, chatId, "cheap");
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  let releaseRound = (): void => undefined;
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
+    releaseRound = resolve;
+  });
+  const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
+  await untilRoundStarted(h.fakes.toolRoundCalls);
+
+  expect(h.chatOps.cancelStateRounds(chatId, castId<UserId>("user_member"))).toBe(0); // not theirs to cancel
+  releaseRound();
+  await flush;
+
+  expect(h.fakes.stateRoundSignalAborted).toEqual([false]);
+  expect((await findSnapshotByVariant(db, variantId))?.location).toBe("the ford");
+  expect(h.fakes.stateRoundCancels).toEqual([]);
+});
+
+test("cancelled BEFORE the round starts: NO model call at all (nothing billed for an abandoned turn)", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta: { statePatch: { location: "never written" }, journal: [] } });
+  await pinExtractionMode(h, chatId, "cheap");
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  // The character turn's own signal is ALREADY aborted when the flush registers — the queued-behind-a-Stop case
+  // (a later speaker in a group round, where the shared registration IS still live). No read, no call, no write.
+  const turn = new AbortController();
+  turn.abort();
+  await h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection({ signal: turn.signal }));
+
+  expect(h.fakes.toolRoundCalls).toEqual([]); // the vehicle never fired — zero spend
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
+  expect(h.fakes.stateRoundCancels).toEqual([{ chatId, turnId: TURN, discardedStagedWrites: false }]);
+});
+
+test("a cancelled round still holds the FLUSH BARRIER until it unwinds (the stale-read race stays closed)", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta: { statePatch: { location: "discarded" }, journal: [] } });
+  await pinExtractionMode(h, chatId, "cheap");
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  let releaseRound = (): void => undefined;
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
+    releaseRound = resolve;
+  });
+  const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, turnConnection());
+  await untilRoundStarted(h.fakes.toolRoundCalls);
+  h.chatOps.cancelStateRounds(chatId, HOST_USER);
+
+  // The next turn's gather must NOT proceed merely because the round was cancelled — it is still unwinding (and
+  // clearing its staging). Dropping the entry at cancel time would re-open the race the barrier exists to close.
+  let released = false;
+  const wait = h.ctx.flushBarrier.awaitInFlight(chatId).then(() => {
+    released = true;
+  });
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(released).toBe(false);
+
+  releaseRound();
+  await flush;
+  await wait;
+  expect(released).toBe(true);
+  expect(await findSnapshotByVariant(db, variantId)).toBeUndefined();
 });
