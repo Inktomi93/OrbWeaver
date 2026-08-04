@@ -29,6 +29,9 @@ export function applyNamesBehavior(
     content: string;
     authorName?: string | null;
     messageId?: MessageId | undefined;
+    /** Set by the injection splice on a row that carries NO speaker — an instruction/operator injection
+     *  that had to take a participant wire role because the backend refuses mid-conversation system. */
+    speakerless?: true | undefined;
   }[],
   mode: NamesBehavior,
   speakers: { user: string; assistant: string },
@@ -39,9 +42,17 @@ export function applyNamesBehavior(
     return history.map((m) => ({ role: m.role, content: m.content, messageId: m.messageId }));
   }
   return history.map((m): NamedRow => {
-    // System rows carry no speaker — never label them (a `Name:` prefix or a completion `name` field
-    // would misattribute the system channel to a participant).
-    if (m.role === "system") {
+    // Rows that carry no speaker — never label them (a `Name:` prefix or a completion `name` field would
+    // misattribute the system channel to a participant). TWO ways to be speakerless: a real `system` row,
+    // or an injection the splice DEMOTED to a participant role because the backend cannot take
+    // mid-conversation system. Keying on the role alone missed the second — the demote happens upstream, so
+    // by the time this pass ran the row looked like an ordinary user turn and got the player's name
+    // (INJECT-NAMED-AS-PLAYER). The marker is the fix; the role check alone can never see it.
+    if (m.role === "system" || m.speakerless === true) {
+      // The marker is CONSUMED here, not forwarded: it exists to answer "may this row be labelled?", and
+      // that question is now answered. Forwarding it would let a later squash merge stamp it onto a row that
+      // contains the player's real text (the depth-1 re-frame merges the user tail INTO the injection), and
+      // a wire row carrying an internal assembly flag is a field no backend asked for.
       return { role: m.role, content: m.content, messageId: m.messageId };
     }
     const author = m.authorName ?? (m.role === "user" ? speakers.user : speakers.assistant);

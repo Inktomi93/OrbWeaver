@@ -79,12 +79,12 @@ describe("spliceInChatInjections", () => {
   test("assistant @ depth 0 floors to depth 1 (no trailing-assistant prefill)", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "assistant", content: "cont" })]);
     expect(out.at(-1)).toEqual({ role: "user", content: "tail" });
-    expect(out[HIST.length - 1]).toEqual({ role: "assistant", content: "cont" });
+    expect(out[HIST.length - 1]).toEqual({ role: "assistant", content: "cont", speakerless: true });
   });
 
   test("role=system + in_chat auto-converts to user with [Note from system: …] framing", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })]);
-    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from system: sys]" });
+    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from system: sys]", speakerless: true });
   });
 
   test("co-located injections splice by order ASC — LOWER order lands higher/top (ST parity)", () => {
@@ -110,7 +110,7 @@ describe("spliceInChatInjections", () => {
       { squashSystemMessages: true },
     );
     // Merge-BEFORE-convert: one `[Note from system: …]` bracket carrying both notes, not two.
-    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from system: sys-a\n\nsys-b]" });
+    expect(out.at(-1)).toEqual({ role: "user", content: "[Note from system: sys-a\n\nsys-b]", speakerless: true });
     expect(out.filter((m) => m.content.includes("[Note from system:"))).toHaveLength(1);
   });
 
@@ -162,18 +162,18 @@ describe("spliceInChatInjections", () => {
 describe("spliceInChatInjections — allowMidConversationSystem (turns.midConversationSystem)", () => {
   test("allowed: a depth-0 system injection delivers as a REAL system row (bare content, no note framing)", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { allowMidConversationSystem: true });
-    expect(out.at(-1)).toEqual({ role: "system", content: "sys" });
+    expect(out.at(-1)).toEqual({ role: "system", content: "sys", speakerless: true });
   });
 
   test("allowed: depth > 0 STILL demotes (the wire-tested channel is tail-only; never a mid-history system row)", () => {
     const out = spliceInChatInjections(HIST, [inj({ depth: 1, role: "system", content: "sys" })], (c) => c, { allowMidConversationSystem: true });
-    expect(out[HIST.length - 1]).toEqual({ role: "user", content: "[Note from system: sys]" });
+    expect(out[HIST.length - 1]).toEqual({ role: "user", content: "[Note from system: sys]", speakerless: true });
   });
 
   test("absent/false: the demote path is byte-identical to the pre-capability behavior (regression pin)", () => {
     const off = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })]);
     const explicitOff = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { allowMidConversationSystem: false });
-    expect(off.at(-1)).toEqual({ role: "user", content: "[Note from system: sys]" });
+    expect(off.at(-1)).toEqual({ role: "user", content: "[Note from system: sys]", speakerless: true });
     expect(explicitOff).toEqual(off);
   });
 
@@ -182,7 +182,7 @@ describe("spliceInChatInjections — allowMidConversationSystem (turns.midConver
       allowMidConversationSystem: true,
       squashSystemMessages: true,
     });
-    expect(out.at(-1)).toEqual({ role: "system", content: "a\n\nb" });
+    expect(out.at(-1)).toEqual({ role: "system", content: "a\n\nb", speakerless: true });
   });
 
   test("allowed: user injections keep their [Note from user:] framing (only the system axis changes)", () => {
@@ -195,6 +195,6 @@ describe("spliceInChatInjections — allowMidConversationSystem (turns.midConver
     // through `frameInjection`, so threading `prose` on the splice opts is what makes the seam ONE home.
     const prose: ProseOverrides = { "chat.injection.systemNote": { text: "<<system — {{note}}>>", baseVersion: 1 } };
     const out = spliceInChatInjections(HIST, [inj({ depth: 0, role: "system", content: "sys" })], (c) => c, { prose });
-    expect(out.at(-1)).toEqual({ role: "user", content: "<<system — sys>>" });
+    expect(out.at(-1)).toEqual({ role: "user", content: "<<system — sys>>", speakerless: true });
   });
 });
