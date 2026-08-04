@@ -88,7 +88,16 @@ export default defineConfig({
     // reporter console or blowing up CI/Agent logs. VLLM_DISABLED is pinned "true" so the suite is
     // ambient-env-proof: the env floor is a strict z.enum(["true","false"]) and a stray host/container
     // value (the dev-container once shipped "1") otherwise kills every server suite at module load.
-    env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", VLLM_DISABLED: "true" },
+    // ORB_ENV_NO_FILE pins the SAME ambient-proofing one level up: without it the env loader reads the repo
+    // `.env` and fills every key the test did not set, so a suite silently asserts against the OPERATOR'S
+    // DEPLOY CONFIG. Measured: a live box running `AUTH_MODE=oidc` + `OIDC_ISSUER` turned 3 correct tests red
+    // (auth-mode projection, the `/join/:token` 404, the fail-closed jwksAllowlist) with nothing wrong in the
+    // code, and `WIRE_CAPTURE=on` for a debugging session turned a 4th. A red that is not a regression trains
+    // everyone to discount reds, and it makes the battery's verdict differ between a clean checkout and a
+    // working machine. Tests now see ONLY what they set. The env loader's OWN tests are unaffected: their
+    // `reimportEnvIn` helper wipes `process.env` before re-importing, which clears this too, so they still
+    // exercise the real file-load + override arms against their crafted fixtures.
+    env: { CORPUS_AUTOINDEX: "false", LOG_LEVEL: "silent", ORB_ENV_NO_FILE: "1", VLLM_DISABLED: "true" },
 
     // Fork budget for the parallel lanes (inherited by every `extends:true` forked project — unit,
     // integration, contract). Pinned to ~14 workers on this 24-core shared dev box: the integration lane

@@ -36,9 +36,8 @@
     "editor.formatOnSave": false
   },
   "markdown.validate.enabled": true,
-  "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.enablePromptUseWorkspaceTsdk": true,
-  "typescript.preferences.importModuleSpecifier": "non-relative",
+  "js/ts.tsdk.promptToUseWorkspaceVersion": true,
+  "js/ts.preferences.importModuleSpecifier": "non-relative",
   "biome.lsp.bin": "node_modules/.bin/biome",
   "biome.lsp.watcher.kind": "recommended",
   "biome.lsp.watcher.pollingInterval": 10,

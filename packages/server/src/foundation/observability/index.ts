@@ -21,7 +21,9 @@ export {
   inspectChatState,
   integrityProbe,
   isWireCaptureEnabled,
+  recentTurnOutcomes,
   recentWireCaptures,
+  recordTurnOutcome,
   recordWireCapture,
   registerDebugRoutes,
   resetWireCaptures,
@@ -29,6 +31,8 @@ export {
   tokenMatches,
   type WireCapture,
   type WireCaptureFilter,
+  type WireOutcome,
+  type WireToolCall,
 } from "./debug/index.ts";
 export {
   bindRequestUser,

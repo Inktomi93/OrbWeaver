@@ -29,6 +29,30 @@
 // stays empty (never written) with the feature off. Test isolation: `resetWireCaptures()` clears the ring
 // between tests so a foreign run's bytes never bleed in.
 
+// ── THE OUTCOME ARM (added after a live session spent hours guessing) ────────────────────────────────────
+// The request ring alone cannot answer "what came back", so a prose-less turn, a tool-terminated turn and a
+// provider that returned nothing are indistinguishable after the fact — the operator ends up reading the
+// browser console aloud. `recordTurnOutcome` closes that: ONE call site in the engine, after the pipeline
+// resolves, covering EVERY backend and every chat turn without touching a runner. Deliberately NOT threaded
+// through the five per-surface `captureWire` sinks — those fire at SEND time (a streamed response completes
+// far later), so an outcome there would mean pre/post correlation in every runner for the same data the
+// engine already holds.
+//
+// METADATA ONLY — finish/stop reason, token counts, tool-call names + args, content/reasoning LENGTHS. Never
+// the reply text: the ring is a debug surface, and the canon row already holds the prose.
+//
+// GATING ASYMMETRY, stated because it is real: the request sink is compose-injected (env OR the `wireCapture`
+// force flag), while the outcome arm self-gates on `isWireCaptureEnabled()` — it has no compose seam to ride.
+// An int test that forces capture via the flag therefore records requests but NOT outcomes; set `WIRE_CAPTURE=on`
+// if a test needs both.
+//
+// ── SPILL TO DISK ───────────────────────────────────────────────────────────────────────────────────────
+// The ring is in-memory and 256 slots, so a restart or a busy hour erases exactly the evidence you went
+// looking for (it did). Both arms therefore ALSO append to a size-capped JSONL under `.cache/`, best-effort:
+// a spill failure never touches the request path. Off with the feature off, like everything else here.
+
+import { appendFile, mkdir, rename, stat } from "node:fs/promises";
+import { join } from "node:path";
 import type { ChatId } from "@orb/kit/ids";
 import { env } from "#foundation/env";
 
@@ -79,6 +103,7 @@ export function recordWireCapture(capture: WireCapture): void {
   ring[head] = capture;
   head = (head + 1) % WIRE_CAPTURE_RING_CAPACITY;
   size = Math.min(size + 1, WIRE_CAPTURE_RING_CAPACITY);
+  spill("request", capture);
 }
 
 const DEFAULT_READ_LIMIT = 50;
@@ -112,4 +137,117 @@ export function resetWireCaptures(): void {
   ring.fill(undefined);
   head = 0;
   size = 0;
+  outcomeRing.fill(undefined);
+  outcomeHead = 0;
+  outcomeSize = 0;
+}
+
+// ── OUTCOMES ────────────────────────────────────────────────────────────────────────────────────────────
+
+/** One tool call as it came back, for the debug read. `args` is the RAW argument string the model emitted —
+ *  not the parsed form — because the malformed cases are exactly the ones worth seeing, and those do not
+ *  parse. Truncated: a log surface, not a payload store. */
+export interface WireToolCall {
+  readonly name: string;
+  readonly args: string;
+}
+
+/** What the model actually returned for one turn. Lengths, not bodies (see the header). */
+export interface WireOutcome {
+  readonly chatId: ChatId;
+  readonly at: number;
+  readonly model: string | null;
+  /** The provider's own terminator — the single most diagnostic field, and the tell for a tool-only
+   *  completion on a folded turn (whose tool calls land no `ToolCallRecord`, so `toolCalls` reads 0). */
+  readonly finishReason: string | null;
+  readonly stopReason: string | null;
+  readonly contentChars: number;
+  readonly reasoningChars: number;
+  readonly tokensOut: number | null;
+  readonly maxOutputTokens: number | null;
+  readonly reasoningEffort: string | null;
+  readonly toolCalls: readonly WireToolCall[];
+}
+
+const outcomeRing: (WireOutcome | undefined)[] = new Array<WireOutcome | undefined>(WIRE_CAPTURE_RING_CAPACITY);
+let outcomeHead = 0;
+let outcomeSize = 0;
+
+/** Cap on one rendered tool-argument string. */
+const TOOL_ARGS_MAX = 2000;
+
+/** Record ONE turn outcome. Self-gated (see the header's gating-asymmetry note) so the engine can call it
+ *  unconditionally without a compose seam of its own. */
+export function recordTurnOutcome(outcome: WireOutcome): void {
+  if (!isWireCaptureEnabled()) {
+    return;
+  }
+  const bounded: WireOutcome = {
+    ...outcome,
+    toolCalls: outcome.toolCalls.map((call) => ({
+      name: call.name,
+      args: call.args.length > TOOL_ARGS_MAX ? `${call.args.slice(0, TOOL_ARGS_MAX)}…` : call.args,
+    })),
+  };
+  outcomeRing[outcomeHead] = bounded;
+  outcomeHead = (outcomeHead + 1) % WIRE_CAPTURE_RING_CAPACITY;
+  outcomeSize = Math.min(outcomeSize + 1, WIRE_CAPTURE_RING_CAPACITY);
+  spill("outcome", bounded);
+}
+
+/** Read recent outcomes, newest-first, optionally filtered by chatId. */
+export function recentTurnOutcomes(filter: { readonly chatId?: ChatId | undefined; readonly limit?: number | undefined } = {}): WireOutcome[] {
+  const limit = filter.limit ?? DEFAULT_READ_LIMIT;
+  const out: WireOutcome[] = [];
+  for (let i = 1; i <= outcomeSize; i += 1) {
+    const outcome = outcomeRing[(outcomeHead - i + WIRE_CAPTURE_RING_CAPACITY) % WIRE_CAPTURE_RING_CAPACITY];
+    if (outcome === undefined) {
+      continue;
+    }
+    if (filter.chatId !== undefined && outcome.chatId !== filter.chatId) {
+      continue;
+    }
+    out.push(outcome);
+    if (out.length >= limit) {
+      break;
+    }
+  }
+  return out;
+}
+
+// ── SPILL ───────────────────────────────────────────────────────────────────────────────────────────────
+
+const SPILL_DIR = ".cache/wire-capture";
+const SPILL_PATH = join(SPILL_DIR, "captures.jsonl");
+const SPILL_PREV_PATH = join(SPILL_DIR, "captures.prev.jsonl");
+/** Rotate past this (32 MiB); two generations are retained, so the on-disk ceiling is 64 MiB. */
+const SPILL_MAX_BYTES = 33_554_432;
+
+/** Serializes every append so concurrent turns cannot interleave a half-written line. Failures are swallowed
+ *  into the chain (never rethrown) — an unwritable `.cache/` must not fail a chat turn. */
+let spillChain: Promise<void> = Promise.resolve();
+
+/** Append one record as JSONL, rotating at the cap. Best-effort by construction. */
+function spill(kind: "request" | "outcome", record: WireCapture | WireOutcome): void {
+  let line: string;
+  try {
+    line = `${JSON.stringify({ kind, ...record })}\n`;
+  } catch {
+    return; // an unserializable body is not worth failing (or retrying) a turn over
+  }
+  spillChain = spillChain
+    .then(async () => {
+      await mkdir(SPILL_DIR, { recursive: true });
+      let bytes = 0;
+      try {
+        bytes = (await stat(SPILL_PATH)).size;
+      } catch {
+        bytes = 0; // first write of a fresh generation — nothing to rotate
+      }
+      if (bytes >= SPILL_MAX_BYTES) {
+        await rename(SPILL_PATH, SPILL_PREV_PATH);
+      }
+      await appendFile(SPILL_PATH, line, "utf8");
+    })
+    .catch(() => undefined);
 }

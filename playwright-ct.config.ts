@@ -58,7 +58,8 @@ export default defineConfig({
     ctPort: Number(process.env.CT_PORT ?? CT_PORT),
     ctViteConfig: {
       // CT applies its OWN @vitejs/plugin-react internally — adding a second one double-transforms.
-      plugins: [tailwindcss()],
+      // Cast: @tailwindcss/vite resolves vite@8 types; CT viteConfig expects vite@6 — structurally compatible.
+      plugins: [tailwindcss() as never],
       resolve: { dedupe: ["react", "react-dom"] },
       build: {
         rollupOptions: {

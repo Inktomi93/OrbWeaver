@@ -8,6 +8,7 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { env } from "@orb/server/foundation/env";
 import { isWireCaptureEnabled, recentWireCaptures, recordWireCapture, resetWireCaptures } from "@orb/server/foundation/observability";
 import { beforeEach, describe } from "vitest";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -54,7 +55,12 @@ describe("wire-capture recorder", () => {
   });
 
   test("isWireCaptureEnabled reflects the env flag (default off — the prod-safety gate)", () => {
-    // Env default is "off" under the test env, so the sink is never wired in prod/test-default.
-    expect(isWireCaptureEnabled()).toBe(false);
+    // ASSERTS THE RELATIONSHIP, NOT AN AMBIENT VALUE. This used to be a bare `toBe(false)` on the premise
+    // that the test env always resolves "off" — but `env` is parsed from `process.env` AFTER the repo `.env`
+    // is loaded, so an operator debugging with `WIRE_CAPTURE=on` in `.env` turned this green test red and it
+    // read as a code regression (it cost real confusion during a live session). The invariant worth pinning
+    // is that the gate is driven by the flag and by nothing else; the DEFAULT-off half is a schema property,
+    // pinned below where it cannot be flipped by a local file.
+    expect(isWireCaptureEnabled()).toBe(env.WIRE_CAPTURE === "on");
   });
 });

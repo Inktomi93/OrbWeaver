@@ -107,6 +107,13 @@ const UTF8_BOM = "﻿";
  *
  *  A missing or unreadable file is a silent no-op — the same tolerance dotenv's `quiet: true` gave. */
 function loadEnvFileWithOverride(override: boolean): void {
+  // ORB_ENV_NO_FILE — skip the file ENTIRELY (not merely the override direction). Set globally by
+  // vitest.config.ts: filling unset keys from a real `.env` makes a test assert against the operator's
+  // deploy config rather than the schema default, which produced reds that were not regressions (see that
+  // file's note). Distinct from ORB_ENV_NO_OVERRIDE below, which keeps the load and only flips precedence.
+  if (process.env["ORB_ENV_NO_FILE"] !== undefined) {
+    return;
+  }
   let raw: string;
   try {
     raw = readFileSync(resolve(process.cwd(), ENV_FILE), "utf8");

@@ -218,6 +218,18 @@ describe("foundation/env — the floor parse (defaults + transforms)", () => {
     vi.resetModules();
   });
 
+  // The PROD-SAFETY defaults for the debug/observability gates. Pinned HERE — against an empty env in an
+  // empty cwd — rather than in the wire-capture unit test, which reads the ambient `env` and therefore
+  // inherits whatever the repo `.env` says: an operator debugging with `WIRE_CAPTURE=on` turned that test
+  // red and it read as a code regression. A default flipped to "on" would ship capture into prod silently,
+  // so the guarantee belongs somewhere no local file can mask it.
+  test("the debug/observability gates default OFF (no local .env can mask this)", async () => {
+    const { env } = await reimportEnvWith({});
+    expect(env.WIRE_CAPTURE).toBe("off");
+    expect(env.RPG_TRACE).toBe("off");
+    expect(env.DEBUG_TOKEN).toBeUndefined();
+  });
+
   test("the zero-infra single-user default needs no SSO/secret vars", async () => {
     const { env } = await reimportEnvWith({});
     expect(env.AUTH_MODE).toBe("single-user");

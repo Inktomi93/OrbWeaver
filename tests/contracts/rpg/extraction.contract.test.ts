@@ -562,11 +562,24 @@ test("RV-9: the scene fragment teaches WHEN to move time + weather (the panel's 
   expect(teaching).toContain("KEEP TIME MOVING");
   expect(teaching).toContain("advance scene.timeOfDay");
   expect(teaching).toContain("never leave it parked");
-  expect(teaching).toContain("set scene.weather when the sky turns");
+  expect(teaching).toContain("whenever the story tells you what the sky is doing");
   // The enum + label split has to reach the PROSE too: a model that knows only "set weather" writes the
   // flavor into the type field, which the grammar then refuses.
   expect(teaching).toContain("scene.weather.type is one of clear/cloudy/rain/storm/snow/fog/wind/ash");
   expect(teaching).toContain("scene.weather.label");
+  // WEATHER IS THE WORLD'S WEATHER. Every enum member is an OUTDOOR condition, so an indoor scene has no
+  // legal value — and the old copy ("restate the current weather while it holds", "pick the CLOSEST one")
+  // pushed the model to write one anyway. Live result: `weather.type: "indoors"`, which failed the enum and
+  // (before salvage) discarded the WHOLE `update_scene` call — location, cast and recentEvent with it, so a
+  // castle-interior game never established a scene at all. The teaching must say the field is the sky, that
+  // indoors it is omitted, and that omitting beats forcing the nearest member.
+  // …and the trigger is WHAT THE STORY SAYS ABOUT THE SKY, not where the characters are standing: a blizzard
+  // closing in past a cabin window is the weather turning even though nobody went outside. An "outdoors only"
+  // rule would suppress that legitimate change, so the copy is pinned on the story-tells-you framing.
+  expect(teaching).toContain("WORLD'S weather");
+  expect(teaching).toContain("indoors or out");
+  expect(teaching).toContain("story says nothing about the sky");
+  expect(teaching).toContain("OMIT weather rather than forcing the nearest");
 });
 
 test("weather.type reaches the WIRE schema as an enum (the grammar binds it); weather.label stays free", () => {

@@ -424,6 +424,59 @@ function parseArgs(raw: string): unknown {
   }
 }
 
+/** One salvaged call: the args that DID parse once the invalid top-level fields were removed. */
+interface SalvagedArgs<T> {
+  readonly data: T;
+  /** Top-level field names dropped to make the rest parse — the observability payload. */
+  readonly dropped: readonly string[];
+}
+
+/**
+ * EXT-4a's drop-as-little-as-possible, applied to invalid VALUES (it previously covered only undeclared
+ * KEYS, via zod's strip mode). A whole-call drop for one bad optional field is the failure this closes:
+ * `update_scene` carries `location`, `timeOfDay`, `weather`, the present-cast patch, `plot` AND
+ * `recentEvent`, so a `weather.type` the closed enum cannot express used to discard the scene, the cast and
+ * the recent beat together — measured 12/12 on a live game, whose scene plane never established at all.
+ *
+ * Retry once with the offending TOP-LEVEL fields removed. Coarse on purpose: a nested issue
+ * (`presentUpsert.0.mood`) drops the whole `presentUpsert` array rather than surgically repairing an
+ * element — still saving every sibling field, with no schema introspection to drift out of date.
+ *
+ * REQUIRED fields need no special case: removing one cannot parse, so the retry fails and the call drops
+ * exactly as before. Salvage never invents a value and never widens what the schema accepts.
+ */
+function salvageArgs<T>(schema: z.ZodType<T>, args: unknown): SalvagedArgs<T> | null {
+  const first = schema.safeParse(args);
+  if (first.success) {
+    return { data: first.data, dropped: [] };
+  }
+  if (typeof args !== "object" || args === null || Array.isArray(args)) {
+    return null; // not an object — nothing to drop a field from
+  }
+  const offending = new Set<string>();
+  for (const issue of first.error.issues) {
+    const head = issue.path[0];
+    if (typeof head === "string") {
+      offending.add(head);
+    }
+  }
+  if (offending.size === 0) {
+    return null; // a root-level failure — the whole shape is wrong, not one field
+  }
+  const remainder: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(args)) {
+    if (!offending.has(key)) {
+      remainder[key] = value;
+    }
+  }
+  if (Object.keys(remainder).length === 0) {
+    return null; // nothing survived — that is a DROP, not a salvage (every field an all-optional schema
+    // would otherwise "rescue" into an empty no-op patch, reporting a write that never happened)
+  }
+  const second = schema.safeParse(remainder);
+  return second.success ? { data: second.data, dropped: [...offending].sort() } : null;
+}
+
 // The ARRAY-plane tool name → { schema, extraction field } — a MAP (keys are VALUES, the snake_case wire tool
 // names, not JS property identifiers, so useNamingConvention doesn't apply and no suppression is needed). The
 // `scene` plane is handled separately (single, last-wins, not an array). `no_changes`/unknown names are absent
@@ -451,9 +504,9 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
       continue;
     }
     if (call.name === "update_scene") {
-      const r = updateSceneArgsSchema.safeParse(args);
-      if (r.success) {
-        out.scene = r.data; // last-wins: one scene per turn
+      const salvaged = salvageArgs(updateSceneArgsSchema, args);
+      if (salvaged !== null) {
+        out.scene = salvaged.data; // last-wins: one scene per turn
       }
       continue;
     }
@@ -463,10 +516,10 @@ export function toolCallsToExtraction(calls: readonly RpgToolCall[]): RpgExtract
     if (arm === undefined) {
       continue;
     }
-    const r = arm.schema.safeParse(args);
-    if (r.success) {
+    const salvaged = salvageArgs(arm.schema, args);
+    if (salvaged !== null) {
       // The field names a specific plane array; the parsed data matches by the map's schema↔field pairing.
-      (out[arm.field] as unknown[]).push(r.data);
+      (out[arm.field] as unknown[]).push(salvaged.data);
     }
   }
   return out;
@@ -731,18 +784,97 @@ export function healedJournalTypes(extraction: RpgExtraction): readonly number[]
  * folded turn tell a MALFORMED beat apart from a legitimately QUIET one.
  */
 export function malformedToolCalls(calls: readonly RpgToolCall[]): readonly string[] {
-  const bad: string[] = [];
+  return malformedToolCallDetails(calls).map((detail) => detail.name);
+}
+
+/** One dropped call, with WHY. The tool NAME alone cannot be acted on: a `weather.type` that rejected
+ *  `"indoors"` and one that rejected `""` are the same log line but different bugs, and a whole class of
+ *  vocabulary defect (a closed enum the fiction cannot land inside) is invisible without the sent value.
+ *  `issues` is never empty — a non-JSON `arguments` payload carries its own single entry. */
+export interface RpgMalformedToolCall {
+  readonly name: string;
+  readonly issues: readonly string[];
+}
+
+/** Cap on a rendered offending value — a log line, not a payload dump. */
+const MALFORMED_VALUE_MAX = 80;
+
+/** The value the model actually SENT at an issue's path, rendered and truncated. Walks `args` rather than
+ *  reading zod's own `received` because that field is absent on several issue codes (and carries the parsed
+ *  form, not the wire form) — the wire form is the one that names a vocabulary gap. */
+function sentValueAtPath(root: unknown, path: readonly PropertyKey[]): string {
+  let node: unknown = root;
+  for (const segment of path) {
+    if (typeof node !== "object" || node === null) {
+      return "(absent)";
+    }
+    node = (node as Record<PropertyKey, unknown>)[segment];
+  }
+  if (node === undefined) {
+    return "(absent)"; // a required field the model omitted — distinct from one it sent wrong
+  }
+  const rendered = JSON.stringify(node);
+  return rendered.length > MALFORMED_VALUE_MAX ? `${rendered.slice(0, MALFORMED_VALUE_MAX)}…` : rendered;
+}
+
+/** {@link malformedToolCalls}' detail arm and its ONE loop — the names version is `.map`ped off this, so a
+ *  log and the drop set can never disagree (the same single-home rule the predicate itself documents). */
+export function malformedToolCallDetails(calls: readonly RpgToolCall[]): readonly RpgMalformedToolCall[] {
+  const bad: RpgMalformedToolCall[] = [];
   for (const call of calls) {
     const schema = call.name === "update_scene" ? updateSceneArgsSchema : TOOL_ROUND_ARRAY_ARMS.get(call.name)?.schema;
     if (schema === undefined) {
       continue; // `no_changes` / an unknown name — a no-op, never a malformed call
     }
     const args = parseArgs(call.arguments);
-    if (args === null || !schema.safeParse(args).success) {
-      bad.push(call.name);
+    if (args === null) {
+      bad.push({ name: call.name, issues: ["arguments: not valid JSON"] });
+      continue;
     }
+    const parsed = schema.safeParse(args);
+    if (parsed.success) {
+      continue;
+    }
+    // MIRRORS THE FOLD: a call the salvage rescued is NOT a drop — it applied, minus the offending fields
+    // (those are the `salvagedToolCallFields` class). Reporting it here would claim a loss that did not
+    // happen, which is the exact disagreement this predicate exists to prevent.
+    if (salvageArgs(schema, args) !== null) {
+      continue;
+    }
+    bad.push({
+      name: call.name,
+      issues: parsed.error.issues.map(
+        (issue) => `${issue.path.length > 0 ? issue.path.join(".") : "(root)"}: ${issue.message} — sent ${sentValueAtPath(args, issue.path)}`,
+      ),
+    });
   }
   return bad;
+}
+
+/** The SALVAGE predicate — the dotted `tool.field` paths a call kept applying WITHOUT, because their values
+ *  failed the schema. The third loss class beside DROPPED (whole call) and STRIPPED (undeclared key), and
+ *  the one that says "the model tried to write this and the vocabulary could not hold it" — the signal that
+ *  a closed enum has a hole in it. Mirrors {@link toolCallsToExtraction}'s salvage exactly. */
+export function salvagedToolCallFields(calls: readonly RpgToolCall[]): readonly string[] {
+  const out: string[] = [];
+  for (const call of calls) {
+    const schema = call.name === "update_scene" ? updateSceneArgsSchema : TOOL_ROUND_ARRAY_ARMS.get(call.name)?.schema;
+    if (schema === undefined) {
+      continue;
+    }
+    const args = parseArgs(call.arguments);
+    if (args === null) {
+      continue;
+    }
+    const salvaged = salvageArgs(schema, args);
+    if (salvaged === null) {
+      continue;
+    }
+    for (const field of salvaged.dropped) {
+      out.push(`${call.name}.${field}`);
+    }
+  }
+  return out;
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════

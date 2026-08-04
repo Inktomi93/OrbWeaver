@@ -120,10 +120,13 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
           "and let night follow evening; never jump backwards, and never leave it parked while hours of story pass.",
       );
       lines.push(
-        "WEATHER — set scene.weather when the sky turns, when the story steps outdoors, or when the season/place " +
-          "makes it obvious; restate the current weather while it holds, and change it as the storm breaks or clears. " +
-          `scene.weather.type is one of ${[...RPG_WEATHER_TYPES].join("/")} — pick the CLOSEST one; put the vivid ` +
-          `phrasing in scene.weather.label ("torrential sleet", "a thin grey drizzle"), which is what the reader sees.`,
+        "WEATHER — scene.weather is the WORLD'S weather: the sky, never the room. Set it whenever the story tells " +
+          "you what the sky is doing, indoors or out — a blizzard closing in past the cabin window counts as much as " +
+          "stepping outdoors into it. When the story says nothing about the sky, leave it alone: omitting keeps what " +
+          "is already there. A room's own atmosphere (torchlight, damp, a stifling hall) is NOT weather — that belongs " +
+          `in scene.location. scene.weather.type is one of ${[...RPG_WEATHER_TYPES].join("/")}; if none of them is ` +
+          "what the sky is actually doing, OMIT weather rather than forcing the nearest. Put the vivid phrasing in " +
+          `scene.weather.label ("torrential sleet", "a thin grey drizzle"), which is what the reader sees.`,
       );
       // §1.6 gap — the structured day counter, prompted ONLY when dateMode is structured (mode-aware fragment).
       if (ctx.config.dateMode === "structured") {
@@ -353,10 +356,14 @@ export function buildRpgToolDescriptions(ctx: ExtractionPromptContext): Readonly
       "update_scene",
       "The scene + who is present. Set location/timeOfDay/weather when they change — specifically whenever " +
         "the beat spends time (rest, travel, a cut to later), so the day actually moves, and whenever the " +
-        "weather turns; calendarDate/day as days " +
-        "pass; advance plot.act/title/actSummary as the story moves. weather.type is one of " +
-        `${[...RPG_WEATHER_TYPES].join("/")} — pick the closest; the vivid phrasing goes in weather.label ` +
-        '("torrential sleet"). presentUpsert: for EACH character on screen set mood (every demeanor shift — 1-3 ' +
+        "sky turns; calendarDate/day as days " +
+        "pass; advance plot.act/title/actSummary as the story moves. weather is the WORLD'S weather — the sky, " +
+        "never the room: set it whenever the story says what the sky is doing, indoors or out (a blizzard past the " +
+        "cabin window counts); when the story says nothing about the sky, omit it and it keeps, and a room's own " +
+        "atmosphere goes in location instead. weather.type is one of " +
+        `${[...RPG_WEATHER_TYPES].join("/")} — if none fits what the sky is doing, OMIT weather rather than ` +
+        'forcing the nearest; the vivid phrasing goes in weather.label ("torrential sleet"). ' +
+        "presentUpsert: for EACH character on screen set mood (every demeanor shift — 1-3 " +
         'words, "wary", "quietly furious", NEVER a sentence), appearance + outfit (when described), thoughts ' +
         "(their implied inner state), and relationship {kind,label}. " +
         "recentEvent: a one-line beat. EXAMPLE — a priest warms to you: `{timeOfDay:'evening', " +

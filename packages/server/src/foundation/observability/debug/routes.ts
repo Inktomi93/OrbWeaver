@@ -6,9 +6,11 @@
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
 import process from "node:process";
+import type { RenderPolicy } from "@orb/contracts/chat";
 import { DEFAULT_CHAT_MODEL_ID, DEFAULT_OR_CHAT_MODEL_ID } from "@orb/contracts/connection";
+import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler, Next } from "hono";
 import { APP_VERSION } from "#foundation/config";
@@ -16,8 +18,22 @@ import { env } from "#foundation/env";
 import { getAuditFailureSnapshot } from "../audit.ts";
 import { logRing, recentRequests } from "../logger.ts";
 import { getTraceByRequestId, recentTraces } from "../tracing.ts";
-import { characterListSummaries, chatListSummaries, inspectChatState, integrityProbe, tableCounts } from "./inspect/index.ts";
-import { recentWireCaptures } from "./wire-capture.ts";
+import {
+  appSettingRows,
+  characterDetailRow,
+  characterListSummaries,
+  characterPolicySweep,
+  chatConfigRow,
+  chatListSummaries,
+  inspectChatState,
+  integrityProbe,
+  personaRows,
+  presetRows,
+  rpgGameForChat,
+  tableCounts,
+  userSettingsRows,
+} from "./inspect/index.ts";
+import { recentTurnOutcomes, recentWireCaptures } from "./wire-capture.ts";
 
 const ERROR_LEVEL = 50; // pino numeric level for "error"
 const MAX_RING_READ = 2000;
@@ -154,6 +170,10 @@ export interface DebugRoutesOptions {
   rpgTrace?: RpgTraceInspector;
   /** The live multiplexed-socket counter (SSE-1). Absent ⇒ the /stream/sockets route is not registered. */
   sockets?: SocketInspector;
+  /** The resolved deployment config getter. Absent ⇒ `/config/app` still serves the RAW settings rows, and the
+   *  render-policy probes report the stored tri-states with a `null` resolved verdict rather than guessing a
+   *  floor — an absent answer beats a wrong one on the surface whose whole job is removing that inference. */
+  effectiveConfig?: () => EffectiveAppConfig;
   auth?: DebugAuthOptions | string;
 }
 
@@ -183,7 +203,7 @@ export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | unde
 
 /** Register the /api/_debug/* introspection routes on `app` behind the auth gate. */
 export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {}): void {
-  const { db, assets, rpgTrace, sockets, auth = env.DEBUG_TOKEN } = options;
+  const { db, assets, rpgTrace, sockets, effectiveConfig, auth = env.DEBUG_TOKEN } = options;
   app.use("/api/_debug/*", createDebugAuthMiddleware(auth));
 
   app.get("/api/_debug/info", (c) =>
@@ -236,6 +256,19 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     return c.json({ count: captures.length, captures });
   });
 
+  // The RESPONSE half of the same picture: what each turn actually returned (finish/stop reason, token counts,
+  // tool-call names + raw args, content/reasoning lengths). The request ring alone cannot tell a tool-only
+  // completion apart from a provider that returned nothing — this is what closes that. Metadata only, never
+  // reply text. Empty when capture is off.
+  app.get("/api/_debug/wire/outcomes", (c) => {
+    const chatId = c.req.query("chatId");
+    const outcomes = recentTurnOutcomes({
+      ...(chatId !== undefined ? { chatId: castId<ChatId>(chatId) } : {}),
+      limit: toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT),
+    });
+    return c.json({ count: outcomes.length, outcomes });
+  });
+
   app.get("/api/_debug/requests", (c) => {
     const userId = c.req.query("userId");
     const limit = toLimit(c.req.query("limit"), DEFAULT_LIST_LIMIT);
@@ -274,6 +307,70 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
     app.get("/api/_debug/db/characters", async (c) => {
       const characters = await characterListSummaries(db);
       return c.json({ count: characters.length, characters });
+    });
+
+    // ── CONFIG probes ──────────────────────────────────────────────────────────────────────────────────
+    // The stored settings planes, read from the ROW. These exist because the alternative was screenshotting
+    // the settings UI, which proves what the UI displays, not what the row holds — and the two have diverged.
+    // `deploymentFloor` is threaded into every render-policy answer so `trustHtml: null` ("inherit") resolves
+    // to a real verdict instead of leaving the reader to guess what it inherits.
+    const deploymentFloor = (): RenderPolicy | null => {
+      if (effectiveConfig === undefined) {
+        return null;
+      }
+      const cfg = effectiveConfig();
+      return { trustHtml: cfg.trustHtml, forbidExternalMedia: cfg.forbidExternalMedia };
+    };
+
+    app.get("/api/_debug/config/app", async (c) =>
+      c.json({
+        // The RESOLVED config the server actually runs on (null when the getter was not injected)…
+        effective: effectiveConfig === undefined ? null : effectiveConfig(),
+        // …and the raw override rows it was resolved FROM. Both, because a mismatch between them is a bug
+        // class of its own and one without the other cannot show it.
+        rows: await appSettingRows(db),
+      }),
+    );
+
+    app.get("/api/_debug/config/user", async (c) => {
+      const userId = c.req.query("userId");
+      const users = await userSettingsRows(db, userId === undefined ? undefined : castId<UserId>(userId));
+      return c.json({ count: users.length, users });
+    });
+
+    app.get("/api/_debug/config/chat/:id", async (c) => {
+      const chatId = castId<ChatId>(c.req.param("id"));
+      const room = await chatConfigRow(db, chatId);
+      if (room === null) {
+        return c.json({ error: "no such chat" }, NOT_FOUND);
+      }
+      // Room + game together: the two halves are always read as a pair, and a game-less room is a real,
+      // frequently-relevant answer (`rpg: null` ≠ "the probe failed").
+      return c.json({ room, rpg: await rpgGameForChat(db, chatId) });
+    });
+
+    app.get("/api/_debug/config/characters", async (c) => {
+      const rows = await characterPolicySweep(db, deploymentFloor());
+      return c.json({ count: rows.length, characters: rows });
+    });
+
+    app.get("/api/_debug/config/character/:id", async (c) => {
+      const detail = await characterDetailRow(db, castId<CharacterId>(c.req.param("id")), deploymentFloor());
+      return detail === null ? c.json({ error: "no such character" }, NOT_FOUND) : c.json(detail);
+    });
+
+    // Presets carry the section ORDER/depth and the gen settings (`maxOutputTokens`, reasoning effort) — the
+    // knobs a wire capture shows the EFFECT of without naming the source. `?ownerId=` narrows.
+    app.get("/api/_debug/config/presets", async (c) => {
+      const ownerId = c.req.query("ownerId");
+      const rows = await presetRows(db, ownerId === undefined ? undefined : castId<UserId>(ownerId));
+      return c.json({ count: rows.length, presets: rows });
+    });
+
+    app.get("/api/_debug/config/personas", async (c) => {
+      const ownerId = c.req.query("ownerId");
+      const rows = await personaRows(db, ownerId === undefined ? undefined : castId<UserId>(ownerId));
+      return c.json({ count: rows.length, personas: rows });
     });
   }
   if (assets !== undefined) {
