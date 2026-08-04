@@ -130,10 +130,12 @@ function writeFixtures(): void {
     `${D}/workloads/runners/__g_runner.ts`,
     "export const gRunner = async (ctx: { env: { op: () => Promise<void> } }): Promise<void> => {\n  await ctx.env.op();\n};\n",
   );
-  // gate-ignore-inventory: a @orb-gate-ignore comment naming a gate that isn't registered. The
-  // gate's name-capture regex is `[a-zA-Z0-9-]+` (no underscore), so the fake name is kebab-case,
-  // not the `__g_` sentinel form.
-  fx("packages/server/src/__g_ignoreinv.ts", "// @orb-gate-ignore g-no-such-gate\nexport const x = 1;\n");
+  // gate-ignore-inventory: a WELL-FORMED @orb-gate-ignore comment (carries its `: <reason>`, so the
+  // MALFORMED arm stays out of it) naming a gate that isn't registered — the UNREGISTERED arm, which is
+  // what this fixture is for. The gate's name-capture regex is `[a-zA-Z0-9-]+` (no underscore), so the
+  // fake name is kebab-case, not the `__g_` sentinel form. Every OTHER arm (malformed / stale /
+  // over-exempting) is driven on the real tree by tests/tooling/gate-ignore-grammar.int.test.ts.
+  fx("packages/server/src/__g_ignoreinv.ts", "// @orb-gate-ignore g-no-such-gate: fixture — names a gate that does not exist\nexport const x = 1;\n");
   // no-inline-union-redecl: an inline ≥3-member string-literal union alias.
   fx("packages/server/src/__g_union.ts", 'export type U = "a" | "b" | "c";\n');
   // no-handwritten-wire-json-schema: a hand-authored JSON-Schema literal on a wire `schema` field (the D79 seal).
