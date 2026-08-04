@@ -1489,12 +1489,24 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
 }
 
 /** `abort` — cancel the caller's in-flight turn(s) for the chat. Owner-only: a caller who owns none while
- *  another user's turn is in flight is refused `not_turn_owner`. A no-in-flight abort is an idempotent no-op. */
+ *  another user's turn is in flight is refused `not_turn_owner`. A no-in-flight abort is an idempotent no-op.
+ *
+ *  TWO REGISTRIES, deliberately. `activeTurns` holds the GENERATION, and its entry is released the moment the
+ *  engine turn returns — but the rpg STATE ROUND is fired fire-and-forget from inside that turn body and then
+ *  runs for another 0.8-2.9s with a model call of its own. By then `activeTurns.abort` iterates a set the turn
+ *  has already left and signals nobody, so a Stop would cancel the generation and let the state round bill on.
+ *  `cancelStateRounds` is the second reach that closes it (full timeline: `ChatRpgOps.cancelStateRounds`).
+ *
+ *  Both are OWNER-SCOPED the same way, and the refusal reads BOTH counts: a caller whose generation already
+ *  finished but whose state round is still running owns something abortable, so cancelling it must not be
+ *  mistaken for the `not_turn_owner` case. */
 function createAbort(ctx: ChatContext, deps: TurnDeps): ChatService["abort"] {
   return async ({ principal, chatId }: AbortParams): Promise<void> => {
     await requireParticipant(ctx, principal, chatId);
     const { aborted, foreignInFlight } = deps.activeTurns.abort(chatId, principal.userId);
-    if (aborted === 0 && foreignInFlight) {
+    const rpg = ctx.rpg; // narrowed via a local (the engine's `fireRpg*` precedent) — null = rpg is not wired
+    const stateRounds = rpg === null ? 0 : rpg.cancelStateRounds(chatId, principal.userId);
+    if (aborted === 0 && stateRounds === 0 && foreignInFlight) {
       throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: cannot abort a turn you do not own`);
     }
   };

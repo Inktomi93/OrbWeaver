@@ -1663,7 +1663,60 @@ describe("abort — owner-only (rollback-theft defense)", () => {
     const h = harness(db, names);
     await expect(h.turn.abort({ principal: principal(host), chatId })).resolves.toBeUndefined();
   });
+
+  // RPG-SIGNAL: `activeTurns` covers the GENERATION only — its entry is released the instant the engine turn
+  // returns, while the rpg state round the turn fired keeps running for another 0.8-2.9s with a model call of
+  // its own. `abort` therefore reaches a SECOND registry, owner-scoped the same way.
+  test("abort also cancels the caller's in-flight rpg STATE ROUNDS (the round outlives the turn's registration)", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const cancels: { chatId: ChatId; userId: UserId }[] = [];
+    const h = harness(db, names, { rpg: stateRoundCancellingRpg(cancels, 0) });
+    h.activeTurns.register(chatId, host);
+
+    await h.turn.abort({ principal: principal(host), chatId });
+
+    expect(cancels).toEqual([{ chatId, userId: host }]); // scoped to the CALLER, mirroring activeTurns.abort
+  });
+
+  // The exact case the second registry exists for: the generation has already finished (nothing in
+  // `activeTurns`) but the state round is still billing. That caller DOES own abortable work, so the
+  // owner-only refusal must not fire on them.
+  test("a caller whose only in-flight work is a STATE ROUND is not refused not_turn_owner", async () => {
+    const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+    const member = await seedUser(db, castId<Handle>("member"));
+    await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
+    const cancels: { chatId: ChatId; userId: UserId }[] = [];
+    // A FOREIGN turn is generating (which alone would refuse the member), and the member's own round is running.
+    const h = harness(db, names, { rpg: stateRoundCancellingRpg(cancels, 1) });
+    h.activeTurns.register(chatId, host);
+
+    await expect(h.turn.abort({ principal: principal(member), chatId })).resolves.toBeUndefined();
+
+    expect(cancels).toEqual([{ chatId, userId: member }]);
+  });
 });
+
+/** A `ctx.rpg` whose only live op is `cancelStateRounds` — it records the (chat, caller) it was asked about and
+ *  answers `cancelled` for how many of that caller's rounds it "signalled".
+ *  FABRICATION-OK: the abort path reaches only this op (the `macroDeclaringRpg` precedent). */
+function stateRoundCancellingRpg(record: { chatId: ChatId; userId: UserId }[], cancelled: number): NonNullable<ChatContext["rpg"]> {
+  // FABRICATION-OK: minimal ChatRpgOps stub — `abort` touches nothing else.
+  return {
+    resolvePresetOverride: () => Promise.resolve(null),
+    resolveUserMacros: () => Promise.resolve([]),
+    gatherTurnContext: () => Promise.resolve(null),
+    markDicePreRollEligible: () => undefined,
+    onUserCommit: () => Promise.resolve(),
+    onTurnCompleted: () => Promise.resolve(),
+    onTurnAborted: () => Promise.resolve(),
+    cancelStateRounds: (chatId: ChatId, userId: UserId): number => {
+      record.push({ chatId, userId });
+      return cancelled;
+    },
+    resolveGmSeatHolderKind: () => Promise.resolve(null),
+    resolveReasoningHostOnly: () => Promise.resolve(false),
+  } as unknown as NonNullable<ChatContext["rpg"]>;
+}
 
 describe("guided steer routing (chat.md §6, PD-63)", () => {
   test("send threads the guided steer into the assembled prompt (system-marker default; {{input}} spliced)", async () => {

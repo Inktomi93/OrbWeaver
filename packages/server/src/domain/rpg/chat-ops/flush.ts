@@ -17,6 +17,11 @@
 // A turn that staged NOTHING (no tools fired, extraction returned an empty delta) writes NO snapshot — the take
 // is `undefined` and the flush is a no-op (a byte-identical non-writing turn). Journal entries stamp the
 // committed `{variantId, sourceMessageId}` (§2.5 — abort-atomic, lineage-keyed).
+//
+// CANCELLATION (RPG-SIGNAL, 2026-08-03): the round is cancelable through `turn.signal`, minted by the flush
+// barrier (see `../flush-barrier.ts` for why the character turn's own signal cannot serve). THE INVARIANT: a
+// CANCELLED ROUND IS BYTE-IDENTICAL TO A NON-WRITING TURN — it refuses to write and discards its staging, and
+// it never rolls back a write that already landed. `flushTurn` below states the reasoning.
 
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { RpgExtractionMode, RpgFoldFallbackReason } from "@orb/contracts/rpg";
@@ -38,6 +43,10 @@ interface CompletedTurn {
   readonly messageId: MessageId;
   readonly variantId: MessageVariantId;
   readonly turnConnection: RpgTurnContext;
+  /** The round's cancellation, minted by the flush barrier (which is also this flush's in-flight registration —
+   *  `flush-barrier.ts` explains why the character turn's own signal cannot serve). Threaded onto every arm that
+   *  can SPEND, and re-read at the write boundary below. */
+  readonly signal: AbortSignal;
 }
 
 /** Stage a state DELTA (from the dedicated post-commit tool round, or from the folded turn's own calls) into
@@ -62,6 +71,7 @@ async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: Complete
     variantId: turn.variantId,
     baseState,
     turnConnection: turn.turnConnection,
+    signal: turn.signal,
     reconcile,
   });
   const hasStatePatch = Object.keys(delta.statePatch).length > 0;
@@ -75,6 +85,15 @@ async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: Complete
   for (const entry of delta.journal) {
     ctx.staging.stageJournal(turn.turnId, entry);
   }
+}
+
+/** Re-READ a signal's LIVE abort flag. Deliberately a call, not a bare `signal.aborted`: the checker models
+ *  `aborted` as a plain boolean and narrows it, so a second direct test after an earlier one is reported as
+ *  always-false dead code — while in reality the flag flips ASYNCHRONOUSLY, mid-round, which is the entire
+ *  point of re-reading it at the write boundary. Going through a call keeps the re-read honest instead of
+ *  suppressing the rule that is (reasonably) confused by a mutable getter. */
+function isCancelled(signal: AbortSignal): boolean {
+  return signal.aborted;
 }
 
 /** The DEDICATED post-commit round each mode falls back to — a mapped Record, so a new `RpgExtractionMode`
@@ -195,7 +214,29 @@ export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGame
   if (deriveTrackersReadOnly(mode, turn.turnConnection.connection.capability)) {
     return; // manual-steering: the resolved connection has no write path for this mode — no round, no failing call
   }
+  // CANCELLED BEFORE WE EVEN START (the caller pressed Stop while an earlier speaker's round was still queued):
+  // no reads, no round, no spend. Byte-identical to a non-writing turn.
+  if (isCancelled(turn.signal)) {
+    ctx.onStateRoundCancelled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, discardedStagedWrites: false });
+    return;
+  }
   await stageStateRound(ctx, game, turn, resolveStateRound(ctx, game, turn, mode));
+  // THE WRITE BOUNDARY, RE-READ (the cancellation ruling, RPG-SIGNAL 2026-08-03): REFUSE TO WRITE, NEVER ROLL
+  // BACK. A round that was cancelled while in flight discards whatever it staged and writes nothing — so a
+  // cancelled round is byte-identical to a non-writing turn, the same errors-as-data invariant a failed
+  // extraction already satisfies. Staging is cleared here for the same reason `onTurnAborted` clears it: a dead
+  // turn's writes must never leak into the next turn's bucket.
+  //
+  // The other direction — rolling back a flush that ALREADY landed its snapshot — is refused deliberately. rpg
+  // has no transaction spanning the snapshot row and its journal inserts, so an "undo" could only produce a
+  // snapshot with a truncated journal: a state strictly worse than either endpoint. Once `writeFlush` starts it
+  // runs to completion; a landed row is keyed to a variant that is COMMITTED and on screen (D124's turn-row
+  // arm), so it is not orphaned by the cancel.
+  if (isCancelled(turn.signal)) {
+    const staged = ctx.staging.take(turn.turnId) !== undefined;
+    ctx.onStateRoundCancelled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, discardedStagedWrites: staged });
+    return;
+  }
   const flush = ctx.staging.take(turn.turnId);
   if (flush === undefined) {
     return; // nothing staged — a byte-identical non-writing turn

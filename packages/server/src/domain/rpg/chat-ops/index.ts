@@ -69,8 +69,13 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
   // the next reminder off STALE state. The barrier register MUST be SYNCHRONOUS — before ANY await — or a
   // scripted immediate re-send beats the `findGameByChat` await, `awaitInFlight` sees no entry, and it
   // assembles stale (LIVE-CAUGHT: ex2 read empty while ex1's flush was in flight). So `runFlush` (which does
-  // the game lookup + flush INSIDE) is registered on the barrier as a promise on the very first synchronous
-  // line — the in-flight entry exists the instant `onTurnCompleted` is called, before it yields.
+  // the game lookup + flush INSIDE) is handed to the barrier, which invokes it SYNCHRONOUSLY — the in-flight
+  // entry exists the instant `onTurnCompleted` is called, before it yields.
+  //
+  // The barrier registration is ALSO the round's cancellation scope (it mints the signal `runFlush` receives and
+  // owns the owner-scoped `cancel` the chat `abort` verb reaches through). One registry, because "which rounds
+  // are in flight" is the same question both answer — see `flush-barrier.ts` for why the turn's own signal
+  // cannot serve here.
   // biome-ignore lint/complexity/useMaxParams: the signature is the injected `ChatRpgOps.onTurnCompleted` contract (chat's front door) — chat calls it positionally; it is not this impl's to reshape.
   function onTurnCompleted(
     chatId: ChatId,
@@ -79,7 +84,7 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     turnId: ChatRpgOnTurnCompletedTurnId,
     turn: RpgTurnContext,
   ): Promise<void> {
-    const runFlush = async (): Promise<void> => {
+    const runFlush = async (signal: AbortSignal): Promise<void> => {
       const game = await findEngagedGame(chatId); // disengaged (#40) ⇒ no state round, no snapshot write
       if (game === undefined) {
         return;
@@ -87,11 +92,9 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
       const mode: RpgExtractionMode = game.config.extractionMode;
       // `turn` is the character turn's already-resolved route + consent verdict — the state round rides it
       // (F1: no second `resolveRole`, no force-stamped consent; F2: the readonly gate reads this capability).
-      await flushTurn(ctx, game, mode, { turnId, messageId, variantId, turnConnection: turn });
+      await flushTurn(ctx, game, mode, { turnId, messageId, variantId, turnConnection: turn, signal });
     };
-    const flush = runFlush();
-    ctx.flushBarrier.register(chatId, flush); // synchronous — the entry exists before this fn yields
-    return flush;
+    return ctx.flushBarrier.register({ chatId, ownerUserId: turn.triggeredBy, turnSignal: turn.signal, run: runFlush });
   }
 
   return {
@@ -130,6 +133,13 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
       ctx.staging.clear(turnId);
       return Promise.resolve();
     },
+    // The caller pressed Stop: signal THEIR in-flight state rounds on this chat (owner-scoped, mirroring
+    // `activeTurns.abort`). Distinct from `onTurnAborted` above, which is fired by the ENGINE for a turn that
+    // died before committing and only clears staging — by the time a round is running, that turn has already
+    // committed and released its `activeTurns` registration, so nothing else can reach it. Returns the count so
+    // the verb can tell "cancelled the caller's own round" apart from "the caller owns nothing here".
+    // A non-game chat has no rounds and answers 0 (byte-identical).
+    cancelStateRounds: (chatId, principalUserId): number => ctx.flushBarrier.cancel(chatId, principalUserId),
     // No GM seat in lite (`gmUserId` is always NULL) — the seat-kind read is always null (full's seat resolve).
     resolveGmSeatHolderKind: (): ReturnType<ChatRpgOps["resolveGmSeatHolderKind"]> => Promise.resolve(null),
     // P3 (§3.6): is the game DECEPTION-ACTIVE (`config.features.deception || omniscience`)? Drives the member
