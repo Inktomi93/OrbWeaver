@@ -531,9 +531,41 @@ identity chrome for ANY row kind.
 - [ ] **PRESET-SLIDER-VERIFY** (S) — the preset program CLOSED without the re-verification its own crunch
       list demanded: *"Re-verify the slider deck on a vLLM/OR connection before closing the program"*
       (sonnet-5 exposes no sampling knobs, so the deck was never seen rendered).
-- [ ] **CP-DROPPED-WARN** (S) — `custom_parameters_dropped` was never built (zero hits): a BYO-style preset
-      pointed at OpenRouter **silently loses its blob**. New `WARNING_CODES` member + emit in both OR
-      runners — the D41 no-silent-degrade belt the removal blueprint specified.
+- [x] ~~**CP-DROPPED-WARN**~~ — **PREMISE WAS WRONG; the row grepped a symbol that never existed.** The code
+      is `custom_parameters_ignored`, not `custom_parameters_dropped`: declared at
+      `infra/providers/contract/resolve.ts:27`, emitted by `withCustomParametersDrop`
+      (`openrouter/runners/chat/shared.ts:343-357`), folded by BOTH OR chat runners
+      (`chat-completions.ts:288`, `responses.ts:476`), asserted by two tests. **It could not have been
+      missing at any point since the `warning-code-coverage` gate landed** — that gate REDs any
+      `WARNING_CODES` member with no emit site and an empty `deferred` map, so a zero-hit member is
+      structurally impossible on a green tree. Nobody need hand-verify this row again. It cost a lane its
+      opening. **Superseded by INFRA-WARN-DEAF, which is what it was actually pointing at.**
+- [ ] **INFRA-WARN-DEAF** (M — LANE LIVE) — **`ChatResult.events` has ZERO production readers, so all TEN
+      infra `WARNING_CODES` reach the logs and never a human.** `createRunChatTurnBridge`
+      (`entry/compose/chat.ts`) awaits the result and reads only reply/reasoning/usage/…, never `.events`;
+      `TurnStreamChunk` (`domain/chat/contract/results.ts:197`) is `text | reasoning | final` with no
+      warning arm; `ChatRequest.onEvent?` has zero wiring outside the backends. Receipt: `ast-grep '$X.events'`,
+      scannedFileCount **1994**, every hit a runner BUILDING the array or a test — no reader.
+      **D41's no-silent-degrade is satisfied in the type system and violated in the product.**
+      The surface itself WORKS and the IMAGE role proves it (`entry/compose/imagery.ts:43` guards the infra
+      code down, `chat/verbs/generate-image.ts:26` re-maps to a `ChatWarningCode`, rides the bus to
+      `apply-chat-bus-event.ts:47` → toast) — only the CHAT role's infra→domain hop is missing.
+      **`warning-code-coverage` is blind to this BY CONSTRUCTION: it ratchets the EMIT, never the READ** —
+      that limit belongs in the gate's header, and a reader-side arm is its own lane.
+      **Ruled:** build the pipe now with ONE passenger (the customParameters drop); **the residual NINE codes
+      are OWNER-GATED on copy** — each needs user-facing text, and several (`sampling_knob_dropped`,
+      `dynamic_context_demoted`) are arguably too noisy to toast every turn. That is a product call, not a
+      lane's. Side-eye owed after merge (new toast).
+- [ ] **STRUCTURED-ABORT-REASON-LEAK** (S) — **a cancelled `structured` call can be RE-RUN as a retry.**
+      `classifyTransportName` (`backends/kit/error-classify.ts:92-101`) regexes `/timeout|connection|network|overload/i`
+      over an error's name+message → `{kind:"server", retryable:true}`, and `retry.ts` re-runs on that. The
+      chat runners are protected — `turnAbortSignal` (`backends/kit/idle-timeout.ts:53-67`) deliberately
+      re-aborts its own controller instead of `AbortSignal.any`, with a comment naming this exact bug. **The
+      structured role is NOT:** `backends/openrouter/index.ts:279` passes `req.signal` straight to
+      `client.chat.send` with no flattening — and that is the arm rpg extraction rides. RPG-SIGNAL is
+      flattening at rpg's own seam, which covers rpg only; every other structured caller stays exposed.
+      **The general law worth pinning: `AbortSignal.any` propagates the source signal's `reason`, and a
+      reason that reaches `fetch` becomes the error your transport classifier sees.**
 - [ ] **REGX2** (M) — an owner BUILD RULING that got archived: regex bulk edit + pipeline debugger +
       per-script JSON door (NOT regex presets). Ruled 08-03 dawn, queued, never dispatched.
 - [ ] **RPG-ROUND-SIGNAL** (S) — the rpg state round is still UNCANCELABLE: no `AbortSignal` threaded into
@@ -625,11 +657,16 @@ two-method absence check, so it will not say "not found") · `SM7-STRICT-RESIDUE
 `response_format` builder" at a path that no longer exists — `backends/vllm/` was restructured away;
 re-locate and re-check).
 
-**⚑ COVERAGE GAP — one cheap lane owed:** the audit read `retro-workboard-2026-08-03.md` **lines 1–2130 of
-3515 (~61%)** and stopped where the budget forced a choice between finishing and VERIFYING what it already
-had; verification won, which was the right call. The remaining **39%** is the 08-02-and-earlier archeology
-(PRESET wave blocks, SSE S0–S5 seals, W-chunk seals, the earliest retro layers) — the same block class that
-produced most of the rows above, so expect a similar residue rate.
+**⚑ ~~COVERAGE GAP~~ — CLOSED, and this note was STALE AND SELF-CONTRADICTORY (corrected 2026-08-03).**
+It said the audit read only **lines 1–2130 of 3515 (~61%)** with 39% owed — but the TAIL section directly
+above it states ARCHIVE2 covered **exactly 2130–3515, 100% line-by-line**. Together that is the whole file.
+The bullet was describing the FIRST lane's coverage and was never updated when ARCHIVE2 filled it.
+**It cost a dispatch:** lane ARCHIVE-GAP was sent to read a range already read, caught the contradiction
+itself, and re-scoped to the more valuable job — a FINAL VERIFYING pass that re-checks ARCHIVE2's 10 rows
+against today's tree (several were asserted from the document's own citation rather than a fresh grep —
+T-11 says so explicitly), settles ARCHIVE2's flagged-unverified tail, and re-attempts the two REFUSED rows
+with two-method absence discipline. **The lesson: a board note that describes coverage must be rewritten
+when coverage changes, not left to be contradicted by the section above it.**
 
 - **⚠ LIVE SHELL-TIER CLS FINDING (do NOT re-board the old PERF P1 — it resurfaced):** the archive tail
   audit traced the archived "CLS 0.24, profile lane owed" row forward and found the defect is ALREADY
