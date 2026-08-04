@@ -264,7 +264,7 @@ first-class greppable fact. `assembleTrace` gains the `world_state` marker's inc
 
 ## 5. Consumption — `{{world_state}}` assembly
 
-- **The marker:** `world_state` joins `TEMPLATED_MARKERS` + `PROMPT_MACROS` (category `memory`) +
+- **The marker:** `world_state` joins `TEMPLATED_MARKERS` + `BUILTIN_MACRO_METADATA` (category `system`, alongside `memory`) +
   `DEFAULT_MARKER_TEMPLATES` (`Current state:\n{{world_state}}`) + a default section directly AFTER the
   `memory` marker, enabled by default — an empty value renders NOTHING (the memory marker's exact
   contract), so default-ON is inert until the first reconcile. The assembler's server-marker union
