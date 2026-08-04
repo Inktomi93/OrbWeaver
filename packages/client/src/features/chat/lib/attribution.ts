@@ -14,7 +14,7 @@
 import type { ParticipantView } from "@orb/contracts/chat";
 import { soleTrueSoloCharacter } from "@orb/contracts/chat";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
-import type { AssetId, CharacterId, PersonaId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { hueDistance, oklchHue } from "@orb/kit/safe-color";
@@ -53,8 +53,13 @@ const NARRATOR_ATTRIBUTION: RowAttribution = {
   hueSeed: "narrator",
   tokens: null,
 };
+// "Traveler", not "You" (owner ruling 2026-08-03). Users are FORCED to hold a persona — boot seeds
+// `Traveler` (entry/boot/seed-default-persona.ts) — so this branch is the unresolvable-persona floor, and
+// naming it "You" reintroduces the very collision that rename was minted to kill: the model is shown the
+// identity and writes it into the prose (seeder/demo-chats.ts:52 records exactly that happening). One
+// spelling, one L, matching the seeded persona.
 const DEFAULT_USER_ATTRIBUTION: RowAttribution = {
-  name: "You",
+  name: "Traveler",
   kind: "persona",
   avatarAssetId: null,
   avatarHash: null,
@@ -73,8 +78,18 @@ export interface ResolveRowAttributionInput {
   /** The assistant-row portrait floor: `characterId → avatarHash` covering every character the chat
    *  references (incl. one removed from the room). Used only when the live participant is absent. */
   readonly characterAvatarsById?: ReadonlyMap<CharacterId, string | null> | undefined;
-  /** Fallback for legacy rows with a null personaId; never the chat's anchorPersonaId pin. */
+  /** Fallback for LEGACY rows with a null personaId; never the chat's anchorPersonaId pin.
+   *
+   *  ⚠️ ONLY APPLIED TO THE VIEWER'S OWN ROWS (see `resolveUserAttribution`). It is the VIEWER's active
+   *  persona, so applying it to a row someone else authored renames THEIR message to YOURS. Live
+   *  2026-08-03: a member joined with an unbound seat (`activePersonaId` null → rows persist
+   *  `personaId` null), and every one of his turns rendered as the host. The row's `authorUserId` is
+   *  what makes the fallback safe — without it this is an identity bug, not a cosmetic one. */
   readonly activePersonaId?: PersonaId | null | undefined;
+  /** The row's author, and the viewer — the pair that decides whether the legacy `activePersonaId`
+   *  fallback may fire. Both null ⇒ no fallback (fail-closed: name nobody rather than name wrongly). */
+  readonly authorUserId?: UserId | null | undefined;
+  readonly viewerUserId?: UserId | null | undefined;
   /**
    * The room's output mode is NARRATOR (`group.output === "narrator"`) — every assistant row is one merged,
    * narrator-voiced turn, which is the SAME predicate `MessageRow.isNarratorVoiced` gates the in-body
@@ -102,7 +117,11 @@ export function resolveRowAttribution(input: ResolveRowAttributionInput): RowAtt
 }
 
 function resolveUserAttribution(input: ResolveRowAttributionInput): RowAttribution {
-  const personaId = input.personaId ?? input.activePersonaId ?? null;
+  // The legacy fallback fires ONLY on the viewer's own row. `activePersonaId` is the VIEWER's persona, so
+  // letting it cover another author's null-persona row renames their message to the viewer's identity —
+  // measured live 2026-08-03. Unknown author or unknown viewer ⇒ no fallback (fail closed).
+  const ownRow = input.authorUserId !== null && input.authorUserId !== undefined && input.authorUserId === input.viewerUserId;
+  const personaId = input.personaId ?? (ownRow ? (input.activePersonaId ?? null) : null);
   const persona = personaId === null ? undefined : input.personaNamesById?.get(personaId);
   if (persona === undefined) {
     return DEFAULT_USER_ATTRIBUTION;

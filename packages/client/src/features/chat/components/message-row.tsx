@@ -177,6 +177,8 @@ export function MessageRow({
   const enterClasses = useEnterMotion(enterMotion);
   const skin = MESSAGE_ROW_SKINS[chatStyle];
   const role = message.role;
+  // ONE binding for both the attribution ownership test and the render-policy own-input comparand.
+  const viewer = viewerUserId ?? null;
   const attribution = resolveRowAttribution({
     role,
     characterId: message.characterId,
@@ -187,13 +189,17 @@ export function MessageRow({
     personaAvatarsById,
     characterAvatarsById,
     activePersonaId,
+    // The pair that scopes the legacy activePersonaId fallback to the viewer's OWN row — without it a
+    // member's null-persona message renders under the viewer's persona (live 2026-08-03).
+    authorUserId: message.authorUserId,
+    viewerUserId: viewer,
     narratorRoom,
   });
   const render = resolveRowRenderPolicy({
     role,
     authorUserId: message.authorUserId,
     characterId: message.characterId,
-    viewerUserId: viewerUserId ?? null,
+    viewerUserId: viewer,
     participants,
     lenientHtmlCards,
     colorQuotedSpeech,
