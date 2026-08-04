@@ -30,8 +30,8 @@ export function RpgFieldLock({ field, onRelease }: RpgFieldLockProps): ReactElem
     <Button
       type="button"
       intent="ghost"
-      size="sm"
-      className="!size-5 !p-0 shrink-0 text-muted-foreground"
+      size="glyph-sm"
+      className="text-muted-foreground"
       aria-label={`Release ${field} to the model`}
       title={`${field} is pinned by hand — the story won't change it. Click to release it back to the model.`}
       onClick={onRelease}

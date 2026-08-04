@@ -80,9 +80,7 @@ function TrackerRow({
   return (
     <Stack gap="field" className={DEF_ROW_CLASS} data-slot="rpg-tracker-row">
       <Row gap="field" align="center">
-        {def.shape === "meter" ? (
-          <TrackBar value={1} max={1} {...trackColorProps(resolveTrackerColor(def.color, index))} className="!w-block shrink-0" />
-        ) : null}
+        {def.shape === "meter" ? <TrackBar value={1} max={1} {...trackColorProps(resolveTrackerColor(def.color, index))} width="swatch" /> : null}
         <TrackerValue
           ariaLabel={`Tracker ${index + 1} label`}
           display={def.label}
@@ -117,8 +115,7 @@ function TrackerRow({
         ) : null}
         <Button
           intent="ghost"
-          size="sm"
-          className="!size-6 !p-0 shrink-0"
+          size="glyph-md"
           onClick={(): void => patch({ pinned: !def.pinned })}
           // BAND vocabulary + Eye glyph, never "pin" (owner ruling 08-01): "pin" is the HAND-LOCK's word
           // (RpgFieldLock's "Pinned by hand"), and the band toggle even shared its Pin icon — two different
@@ -129,14 +126,13 @@ function TrackerRow({
         </Button>
         <Button
           intent="ghost"
-          size="sm"
-          className="!size-6 !p-0 shrink-0"
+          size="glyph-md"
           onClick={(): void => patch({ locked: !def.locked })}
           title={def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label} — the story can no longer write it`}
         >
           <Icon icon={def.locked ? Lock : LockOpen} size="xs" />
         </Button>
-        <Button intent="ghost" size="sm" className="!size-6 !p-0 shrink-0" onClick={(): void => onCommit({ ...def, key: "" })} title={`Remove ${def.label}`}>
+        <Button intent="ghost" size="glyph-md" onClick={(): void => onCommit({ ...def, key: "" })} title={`Remove ${def.label}`}>
           <Icon icon={Trash2} size="xs" />
         </Button>
       </Row>

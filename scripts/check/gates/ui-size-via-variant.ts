@@ -20,16 +20,46 @@
 // see `IMPORTANT_MODIFIER_RE`. It was the gate's one live escape hatch, and the escape is the worse form of
 // the incident (an `!important` override wins by force instead of by stylesheet order).
 //
-// Survivor mechanism (2026-08-01 founding sweep — 14 hits triaged): `ALLOWLIST` holds the SANCTIONED
-// files (reason-cited, both-ways stale ratchet); `DEBT_BASELINE` holds the incident-class debt under a
-// per-file count ratchet (over budget RED, under budget stale RED). It reached `{}` on 2026-08-01 and was
-// re-opened on 2026-08-02 by the `!` arm, which revealed 14 pre-existing rpg icon-button hits the gate had
-// never been able to see (the rows carry the reasoning).
+// Survivor mechanism: `ALLOWLIST` holds the SANCTIONED files only (reason-cited, both-ways stale ratchet).
+// There is NO debt baseline — the gate is at terminal zero on a FIXED tree, not a parked one.
+//   The DEBT_BASELINE ratchet is GONE (2026-08-03), together with its over-budget/stale-ratchet arms and
+//   the deferred-hit accumulation they needed (GATE-AUTHORING.md §4.8: "terminal state is `{}` + delete the
+//   baseline and its generator" — this one was inline, so there is no generator file). Its 14 rows were the
+//   `!important` icon-button debt the 2026-08-02 `!` arm exposed: 13 × `<Button intent="ghost" size="sm"
+//   className="!size-N !p-0">` at four scales plus one `!w-block` TrackBar, all in features/rpg. They were
+//   PAID, not re-ratcheted: Button grew the four-step `glyph-*` square-box ramp (packages/ui/src/primitives/
+//   button/variants.ts, on the new `--spacing-glyph-*` display tokens + the `inline` arm's hit-area ::after)
+//   and TrackBar grew a `width` variant (`full` | `swatch`). Geometry is pinned SITE-BY-SITE against the
+//   retired class strings by COMPUTED box in tests/ui/primitives/button/button.ct.tsx +
+//   tests/ui/charts/meter/track-bar.ct.tsx. Hits are now reported at visit time; a NEW hit is a variant to
+//   add, never a row to re-open.
 //
-// DECLARED BLIND SPOT (literal-shape): only a literal `className="…"` / `className={"…"}` /
-// no-substitution template is read — a computed/conditional className (cn(...), a template with
-// substitutions, a spread) is invisible to this gate, as is a dotted (`Ns.Member`) or
-// namespace-imported (`import * as UI`) tag. Same class as the other className gates.
+// ─── DECLARED LIMITS — READ THESE BEFORE YOU TRUST A ZERO FROM THIS GATE ────────────────────────────
+// Re-derived 2026-08-03 when the debt baseline reached terminal `{}` (GATE-AUTHORING.md §4.8: "when a
+// ratchet reaches zero, RE-DERIVE the matcher's blind spots before trusting the zero" — a rule this gate
+// itself paid for, having declared a FALSE terminal in 2026-08-01 while 14 `!`-modified hits sat invisible).
+// A green here means "zero of the SHAPES BELOW ARE EXCLUDED", never "zero size-via-className on the tree".
+//
+// LIMIT 1 — LITERAL-SHAPE (the reader's own honest limit). Only a literal `className="…"` /
+//   `className={"…"}` / no-substitution template is read. A COMPUTED className — `cn(…)`, a template WITH
+//   substitutions (`` `w-12 ${x}` ``), a spread — is structurally invisible, as is a dotted (`Ns.Member`)
+//   or namespace-imported (`import * as UI`) tag. Same class as the other className gates. This is not
+//   theoretical: the 2026-08-03 re-derivation found FOUR live in-scope hits hiding in exactly this shape
+//   (`features/preset/…/section-row.tsx` `<Text className={`w-12 …`}>`; `features/credentials/
+//   role-status-dot.tsx` `<Text className={`size-2 …`}>`; `components/face-strip.tsx` `<Button
+//   className={`min-h-control-md …`}>`; `features/chat/…/message-row-parts.tsx` `<Avatar className={cn(…
+//   "h-auto w-(--…)")}>`), plus the whole `TrackerValue` family, which forwards a caller's `!w-avatar-md`
+//   into an @orb/ui `Button` through a substituted template. Widening the reader is a real gate change
+//   whose landing owes those fixes (FIX-AT-LANDING); it was escalated rather than half-done.
+//
+// LIMIT 2 — THE `(--var)` HOLE, OWNED BY NEITHER GATE. Tailwind v4's CSS-VARIABLE SHORTHAND — `w-(--foo)`,
+//   `size-(--foo)`, `h-(--foo)` — is matched by NOTHING here (`SIZE_UTILITY_RE`'s value class is
+//   `[a-z0-9./]+`; a paren value never matches) AND is deliberately PASSED by the sibling gate
+//   `no-arbitrary-tw-values` (its `TOKEN_DRIVEN_RE` exempts `var(`/`--`/`calc(` bodies as token-driven).
+//   So it is a size utility on a sealed primitive that BOTH gates believe the other one holds — the exact
+//   shape that makes a rule look enforced while being unenforceable. Do NOT read this gate's green as
+//   covering it, and if you close it, close it HERE (the value is a box size, not an arbitrary literal —
+//   `no-arbitrary-tw-values` is right to pass it).
 import type { JsxOpeningElement, JsxSelfClosingElement, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
@@ -55,34 +85,6 @@ const ALLOWLIST: Record<string, string> = {
     "`w-auto` on the roster's sort Select — the same content-width-Select pattern as character-library-toolbar (deterministic: `auto` vs FIELD_CONTROL's `w-full` are both tailwind-merge-classifiable standard width utilities). Without it the trigger claims the whole 330px roster band for a three-word label.",
   "packages/client/src/features/rpg/components/rpg-hud.tsx":
     "`size-1.5` on a CHILDLESS Badge dot — Badge declares no h/w/size of its own (padding-sized), so there is no variant to fight; a features-tier surface can't paint a raw <span>, so the dot is a Badge sized at the call site (see the site comment).",
-};
-
-/** Incident-class DEBT under ratchet: file → the count of banned size tokens it may still carry. Over
- *  budget = RED; UNDER budget = stale RED (ratchet the row down / delete it).
- *
- *  The founding sweep's two rows (the `h-auto min-h-touch-target py-field` choice buttons in
- *  chat/message-choices-block + rpg/rpg-choice-echo) were PAID 2026-08-01 onto Button's `size="wrap"`, and
- *  the map was declared TERMINAL. That claim was false — terminal only because the gate could not SEE an
- *  `!important` size utility. Teaching the `!` arm (2026-08-02) surfaced 14 PRE-EXISTING hits of ONE shape,
- *  every one in features/rpg: `<Button intent="ghost" size="sm" className="!size-N !p-0">` wrapping an
- *  `<Icon size="xs">` — a square icon-only micro-button forcing its box below Button's `sm` control height
- *  at four scales (4/5/6/8), plus one `!w-block` on a TrackBar. Nothing NEW was written; the debt was always
- *  there, just invisible. Baselined rather than paid because the honest fix is ONE new Button size variant
- *  (a square glyph box, the `media`/`wrap` precedent) + a sweep of all 14 with COMPUTED-geometry proof —
- *  a UI change with its own review, not a gate-lane edit.
- *
- *  ZERO-GROW: these budgets may only shrink. A NEW hit is a variant to add, never a row to add or widen. */
-const DEBT_BASELINE: Record<string, number> = {
-  "packages/client/src/features/rpg/components/rpg-actor-trackers.tsx": 1,
-  "packages/client/src/features/rpg/components/rpg-beat-row.tsx": 1,
-  "packages/client/src/features/rpg/components/rpg-field-lock.tsx": 1,
-  // 3 × the `!size-6 !p-0` icon Button + the one `!w-block` TrackBar (a bar forced to a fixed track width).
-  "packages/client/src/features/rpg/components/rpg-game-tab.tsx": 4,
-  "packages/client/src/features/rpg/components/rpg-hint-map-editor.tsx": 1,
-  "packages/client/src/features/rpg/components/rpg-inventory-tab.tsx": 1,
-  "packages/client/src/features/rpg/components/rpg-pack-rows.tsx": 2,
-  "packages/client/src/features/rpg/components/rpg-quests-tab.tsx": 2,
-  "packages/client/src/features/rpg/components/rpg-stat-profile-editor.tsx": 1,
 };
 
 const MESSAGE =
@@ -215,17 +217,6 @@ function clientRel(path: string): string {
 const GATE_SELF = "scripts/check/gates/ui-size-via-variant.ts";
 const passSeenAllowlisted = new Set<string>();
 
-/** Over-budget arm (per-file, scope-independent — incremental-safe): a file's hits beyond its
- *  DEBT_BASELINE budget (0 for an unlisted file) are reported; in-document-order excess. */
-function reportOverBudget(ctx: GateRunCtx): void {
-  for (const [rel, hits] of passHitsByFile) {
-    const budget = DEBT_BASELINE[rel] ?? 0;
-    for (const hit of hits.slice(budget)) {
-      ctx.report(hit.node, { token: hit.token, offset: hit.offset });
-    }
-  }
-}
-
 /** ALLOWLIST stale arm: a sanctioned row with no scoped hit left this pass — either (A) the file still
  *  exists but was reworked onto a variant, or (B) the file is GONE (deleted/moved/renamed) and so was
  *  never visited at all. Both modes collapse to the same test: `passSeenAllowlisted` is only ever set
@@ -245,31 +236,6 @@ function reportStaleAllowlist(ctx: GateRunCtx): void {
   }
 }
 
-/** DEBT ratchet-down arm: a baseline row whose live count fell UNDER budget is stale — shrink or
- *  delete the row in DEBT_BASELINE (ui-size-via-variant.ts) so the debt can only go down. `live` already
- *  defaults to 0 for a file `passHitsByFile` never saw a hit in — including a file that no longer exists
- *  on the tree (mode B), which is exactly the "ratchet to 0" case this arm must catch. */
-function reportStaleBaseline(ctx: GateRunCtx): void {
-  for (const [rel, budget] of Object.entries(DEBT_BASELINE)) {
-    const live = passHitsByFile.get(rel)?.length ?? 0;
-    if (live < budget) {
-      ctx.report({
-        file: GATE_SELF,
-        line: 1,
-        column: 0,
-        message:
-          `DEBT_BASELINE row for "${rel}" budgets ${budget} but the live count is ${live} — ratchet the ` +
-          "row down (or delete it) in scripts/check/gates/ui-size-via-variant.ts.",
-      });
-    }
-  }
-}
-
-/** One deferred hit: the class-string node + the token/offset to anchor the finding on. Accumulated per
- *  file so the DEBT_BASELINE budget can be applied in finalize (only the EXCESS is reported). */
-type DeferredHit = { readonly node: Node; readonly token: string; readonly offset: number };
-const passHitsByFile = new Map<string, DeferredHit[]>();
-
 export const gate: GateDescriptor = {
   name: "ui-size-via-variant",
   docRow: "Core-Enforcement-Active-Gates.md (Layer 3) · ui-package-design.md",
@@ -282,9 +248,8 @@ export const gate: GateDescriptor = {
   begin: () => {
     uiImportCache.clear();
     passSeenAllowlisted.clear();
-    passHitsByFile.clear();
   },
-  visit: (node, sf, _ctx) => {
+  visit: (node, sf, ctx) => {
     const el = node as JsxOpeningElement | JsxSelfClosingElement;
     const tag = el.getTagNameNode();
     if (!Node.isIdentifier(tag)) {
@@ -306,21 +271,15 @@ export const gate: GateDescriptor = {
       passSeenAllowlisted.add(rel);
       return;
     }
-    const bucket = passHitsByFile.get(rel);
-    const deferred = hits.map((h) => ({ node: literal, token: h.token, offset: h.offset }));
-    if (bucket === undefined) {
-      passHitsByFile.set(rel, deferred);
-    } else {
-      bucket.push(...deferred);
+    for (const hit of hits) {
+      ctx.report(literal, { token: hit.token, offset: hit.offset });
     }
   },
   finalize: (ctx) => {
-    reportOverBudget(ctx);
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, STALE_ARM_ANCHOR)) {
-      return; // the stale arms are whole-tree claims — never fire below project scope or off the anchor (§4.5)
+      return; // the stale arm is a whole-tree claim — never fire below project scope or off the anchor (§4.5)
     }
     reportStaleAllowlist(ctx);
-    reportStaleBaseline(ctx);
   },
   mustFlag: [
     {
@@ -362,13 +321,13 @@ export const gate: GateDescriptor = {
     },
     {
       // Mode-(B) proof (GATE-AUTHORING.md §4.3b): a project that loads the real-tree anchor but NONE of
-      // the ALLOWLIST/DEBT_BASELINE paths — exactly what a deleted/renamed survivor looks like from this
-      // gate's vantage. Before the fix both stale arms were gated on the row's OWN file being loaded, so
-      // a project like this one (which never loads any exempted path) silently reported nothing —
-      // `tag-settings-row.tsx` rotted this way for a full day after F-11 deleted it.
+      // the ALLOWLIST paths — exactly what a deleted/renamed survivor looks like from this gate's vantage.
+      // Before the fix the stale arm was gated on the row's OWN file being loaded, so a project like this
+      // one (which never loads any exempted path) silently reported nothing — `tag-settings-row.tsx`
+      // rotted this way for a full day after F-11 deleted it.
       files: { [STALE_ARM_ANCHOR]: "export const x = 1;\n" },
       expect: { messageIncludes: "ALLOWLIST entry has NO scoped size utility" },
-      why: "the real-tree anchor loads but no ALLOWLIST/DEBT_BASELINE row's file does (the mode-B shape: gone from the tree) — every row must RED, not silently pass",
+      why: "the real-tree anchor loads but no ALLOWLIST row's file does (the mode-B shape: gone from the tree) — every row must RED, not silently pass",
     },
   ],
   mustPass: [

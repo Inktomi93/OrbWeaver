@@ -89,7 +89,7 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
           confirmLabel="Delete"
           onConfirm={(): void => edit.onDelete(beat.key)}
           trigger={
-            <Button intent="ghost" size="sm" className="!size-5 !p-0 shrink-0" title={`Delete entry: ${beat.title}`}>
+            <Button intent="ghost" size="glyph-sm" title={`Delete entry: ${beat.title}`}>
               <Icon icon={Trash2} size="xs" />
             </Button>
           }
