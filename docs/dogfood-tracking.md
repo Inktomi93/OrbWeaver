@@ -320,7 +320,28 @@ Check the owner before believing a duplicate.
 
 ---
 
-### CARD-TRUST-INVERTED — the tier mapping is inverted against D44 (M 🔴) ✓ **CONFIRMED — ORIGINAL DIAGNOSIS WAS RIGHT**
+### CARD-TRUST-INVERTED — the tier mapping was inverted against D44 (M ✅ FIXED `9f30b7045`)
+
+**Fixed.** `render-trust.ts` now owns the card tier (the one trust authority), granted by EITHER consent
+axis: a per-character `trustHtml` opt-in, OR the room's immersive-HTML switch. The rpg toggle is what makes
+the engine TEACH the model to emit `:::card` fences, so a room that asks for cards and then renders them
+inert is a toggle that lies — the host flipping it IS the consent (owner ruling). Non-rpg users are covered
+by the per-character axis, so neither audience is second-class.
+
+Tier A now renders through `InertCard`: the card frame, a "Plain view" badge, and the reason + remedy as
+VISIBLE TEXT (not a hover tooltip) — the twin of `MessageMedia`'s click-to-load gate. Previously it emitted
+bare unstyled HTML into the prose flow: the content never vanished, its IDENTITY did.
+
+Coverage: both tiers pinned in `message-content.ct.tsx` (30/30), 4 new resolver tests, and the CT stories
+now build their row policy through the REAL resolver — a hand-built literal could never disagree with the
+resolver it was meant to test, which is how this survived.
+
+**Verified:** `pnpm check` PASS · 30 CT · 13 render-trust · live on prod.
+
+*(the adjudication that produced the fix is kept below — it is the record of a wrong re-diagnosis being
+corrected against the law, and worth not repeating)*
+
+### CARD-TRUST-INVERTED — the adjudication (原 M 🔴) ✓ **ORIGINAL DIAGNOSIS WAS RIGHT**
 
 **Reporter:** investigation · **Adjudicated against D44 on 2026-08-04.** This entry was re-diagnosed mid-session
 as "not inverted, Tier-A is deliberate" and that re-diagnosis was **WRONG** — it reasoned from a code comment
@@ -424,7 +445,24 @@ external URLs, not degrade local content render.
 
 ---
 
-### INJECT-NAMED-AS-PLAYER — the rpg injection is delivered attributed to the PLAYER by name (M 🔴) ✓
+### INJECT-NAMED-AS-PLAYER — the rpg injection was delivered as the PLAYER's words (M ✅ FIXED `34bdc39f3`)
+
+**Fixed via the marker, exactly as this entry advised.** `spliceInChatInjections` marks a demoted row
+`speakerless`; `applyNamesBehavior` honours it and CONSUMES it (a wire row must not carry an internal
+assembly flag). A `role:"user"` injection is deliberately unmarked — that one IS authored in the user's voice.
+
+**Deliberately NOT changed — the merge.** Splitting the note out of the user turn was implemented and then
+reverted: it produces consecutive same-role rows, which is precisely what the squash exists to prevent and
+what strict backends reject (the entry's own Perplexity/`PROMPT_PLACEHOLDER` note). The owner ruling was
+"do not name-stamp the merged-in parts", not "do not merge". The existing regression pin
+("byte-identical demote — the note folds into the adjacent user tail") caught the overreach.
+
+**Verified:** `pnpm check` PASS · 258 assembly tests · end-to-end pin asserts exactly ONE speaker label in
+the turn under `namesBehavior:"content"`, and that no wire row leaks `speakerless`.
+
+*(original report below)*
+
+### INJECT-NAMED-AS-PLAYER — original report (M 🔴) ✓
 
 **Reporter:** owner (live), investigation · **Evidence:** wire capture, `chat_01kz6qesv6fk6bq1gmr8kc0wcf`
 
