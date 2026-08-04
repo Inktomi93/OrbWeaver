@@ -1554,7 +1554,14 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
   const scene = folded?.terminalTools?.find((t) => t.name === "update_scene");
   expect(scene?.description).toContain("timeOfDay");
   expect(scene?.description).toContain("spends time");
-  expect(scene?.description).toContain("weather turns");
+  expect(scene?.description).toContain("sky turns");
+  // …and that weather is the WORLD'S weather, omitted indoors. Every enum member is an outdoor condition, so
+  // an interior scene has no legal value; the old copy still pushed for one, and the resulting
+  // `weather.type: "indoors"` used to discard the entire `update_scene` call (location + cast + recentEvent
+  // with it). The tool DESCRIPTION carries this because a schema-enforcing backend reads it, not the prose.
+  expect(scene?.description).toContain("WORLD'S weather");
+  expect(scene?.description).toContain("indoors or out");
+  expect(scene?.description).toContain("when the story says nothing about the sky");
   // EXT-4b/4c — the new arms reach the WIRE tools too (the fold + the cheap round share this assembly, and the
   // structured schema is the same projection): the quest completion gesture is offered, and `journal[].type` is
   // marked required in the grammar even though the zod made it optional for the heal.

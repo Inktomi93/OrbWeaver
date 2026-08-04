@@ -200,13 +200,23 @@ test("with a renderContext, {{char}}/{{user}} resolve to real names before Markd
 });
 
 // ── P4 — the immersive html-card lifecycle chrome (parity-plus §4.7) ──────────────────────────────
+//
+// TIER MAPPING (D44 §12.2), and why these mount TRUSTED: Tier B — the sandboxed ImmersiveCard with the
+// card's own CSS — is the OPT-IN per-character trust tier. Tier A is the DEFAULT inert allowlist, which
+// forbids `<style>`, so a card cannot render as a card there.
+//
+// These tests mounted `untrusted` until 2026-08-04 because the client's mapping was INVERTED. The whole
+// card suite therefore exercised only the tier the inversion left working, and the trusted path — the one
+// every real character actually takes — had ZERO coverage. That gap is why a deployment with the global
+// `trustHtml` opt-in ON rendered zero cards without a single red test. Both tiers are pinned below now;
+// keep it that way.
 
 const LETTER_CARD_BODY = 'before\n:::card title="Zandik\'s letter"\n<div>secret page</div>\n:::\nafter';
 const TERMINAL_CARD_BODY = ':::card title="Terminal"\n<div>x</div>\n:::';
 const POSTER_CARD_BODY = ':::card title="Poster"\n<div>x</div>\n:::';
 
-test("an untrusted card fence renders the tierB ImmersiveCard chrome around a sandboxed iframe", async ({ mount }) => {
-  const component = await mount(<MessageContentSpansStory trust="untrusted" content={LETTER_CARD_BODY} />);
+test("a TRUSTED card fence renders the tierB ImmersiveCard chrome around a sandboxed iframe", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory trust="trusted" content={LETTER_CARD_BODY} />);
   const card = component.locator('[data-slot="immersive-card"]');
   await expect(card).toHaveCount(1);
   // The chrome: title label + the sandboxed frame (an iframe, never main-DOM HTML).
@@ -216,18 +226,50 @@ test("an untrusted card fence renders the tierB ImmersiveCard chrome around a sa
   await expect(component.locator("div", { hasText: "secret page" })).toHaveCount(0);
 });
 
+// ── The TIER-A (inert) card — the half that had no coverage at all ────────────────────────────────
+// An UNTRUSTED card gets the default inert tier: sanitized content, no sandbox, CSS discarded by law. The
+// requirement is that it REFUSES VISIBLY — the failure being fixed is that it used to render as bare
+// unstyled HTML in the prose flow, indistinguishable from the model writing plain text ("cards vanish").
+
+test("an UNTRUSTED card renders the inert frame — labelled, badged, and NOT the sandbox", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory trust="untrusted" content={LETTER_CARD_BODY} />);
+  const inert = component.locator('[data-slot="inert-card"]');
+  await expect(inert).toHaveCount(1);
+  // It still says a CARD is here, and which one — the identity that was being lost.
+  await expect(inert.locator('[data-slot="inert-card-title"]')).toContainText("Zandik's letter");
+  await expect(inert.locator('[data-slot="inert-card-badge"]')).toContainText("Plain view");
+  // No sandbox: tier A is main-DOM by definition.
+  await expect(component.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(0);
+  await expect(component.locator('[data-slot="immersive-card"]')).toHaveCount(0);
+  // The content is NOT withheld — tier A is safe by construction, so the body still reads.
+  await expect(inert.locator('[data-slot="inert-card-body"]')).toContainText("secret page");
+  // The prose around the card is untouched.
+  await expect(component.getByText("before")).toBeVisible();
+  await expect(component.getByText("after")).toBeVisible();
+});
+
+test("the inert card states the REMEDY as visible text, not a hover-only tooltip", async ({ mount }) => {
+  // The media gate has always said "External media — load from …?" in the open. This is its card twin:
+  // a touch user with no hover must be able to READ why the card is plain and what turns it on.
+  const component = await mount(<MessageContentSpansStory trust="untrusted" content={TERMINAL_CARD_BODY} />);
+  const hint = component.locator('[data-slot="inert-card-hint"]');
+  await expect(hint).toBeVisible();
+  await expect(hint).toContainText("rich HTML is off");
+  await expect(hint).toContainText("Trust HTML");
+});
+
 // The card sandbox is the SAME external-media axis as MessageMedia — a srcdoc frame inherits the document
 // CSP AND carries its own, so a `<img src="https://…">` inside a card needs both to allow it. These two pin
 // that the row's resolved verdict actually reaches the frame policy (it used to be a hardcoded literal).
 test("GUARDRAIL: with allowExternal=false the card's sandbox CSP admits no https: media", async ({ mount }) => {
-  const component = await mount(<MessageContentSpansStory trust="untrusted" allowExternal={false} content={TERMINAL_CARD_BODY} />);
+  const component = await mount(<MessageContentSpansStory trust="trusted" allowExternal={false} content={TERMINAL_CARD_BODY} />);
   const srcdoc = (await component.locator('iframe[data-slot="sandbox-frame"]').getAttribute("srcdoc")) ?? "";
   expect(srcdoc).toContain("img-src 'self';");
   expect(srcdoc).not.toContain("https:");
 });
 
 test("with allowExternal=true the card's sandbox CSP gains https: on img-src + media-src only", async ({ mount }) => {
-  const component = await mount(<MessageContentSpansStory trust="untrusted" allowExternal={true} content={TERMINAL_CARD_BODY} />);
+  const component = await mount(<MessageContentSpansStory trust="trusted" allowExternal={true} content={TERMINAL_CARD_BODY} />);
   const srcdoc = (await component.locator('iframe[data-slot="sandbox-frame"]').getAttribute("srcdoc")) ?? "";
   expect(srcdoc).toContain("img-src 'self' https:");
   expect(srcdoc).toContain("media-src 'self' https:");
@@ -236,7 +278,7 @@ test("with allowExternal=true the card's sandbox CSP gains https: on img-src + m
 });
 
 test("the VIEW-RAW toggle swaps the sandbox for the exact stored source (and back)", async ({ mount }) => {
-  const component = await mount(<MessageContentSpansStory trust="untrusted" content={TERMINAL_CARD_BODY} />);
+  const component = await mount(<MessageContentSpansStory trust="trusted" content={TERMINAL_CARD_BODY} />);
   const card = component.locator('[data-slot="immersive-card"]');
   await card.getByRole("button", { name: "View raw source" }).click();
   await expect(card.locator('[data-slot="immersive-card-raw"]')).toContainText("<div>x</div>");
@@ -246,7 +288,7 @@ test("the VIEW-RAW toggle swaps the sandbox for the exact stored source (and bac
 });
 
 test("the EXPAND affordance opens the lightbox dialog labelled by the card title", async ({ mount, page }) => {
-  const component = await mount(<MessageContentSpansStory trust="untrusted" content={POSTER_CARD_BODY} />);
+  const component = await mount(<MessageContentSpansStory trust="trusted" content={POSTER_CARD_BODY} />);
   await component.locator('[data-slot="immersive-card"]').getByRole("button", { name: "Expand card" }).click();
   const dialog = page.locator('[data-slot="dialog-popup"]');
   await expect(dialog).toBeVisible();
@@ -258,7 +300,7 @@ test("the EXPAND affordance opens the lightbox dialog labelled by the card title
 // untouched (the collapse is card chrome, not a message-level fold), and the sandbox attributes on the
 // re-shown frame are the SAME scripts-off, null-origin pair (the collapse must not re-open the boundary).
 test("a transcript card COLLAPSES to its title bar and re-shows the SAME scripts-off sandbox", async ({ mount }) => {
-  const component = await mount(<MessageContentSpansStory trust="untrusted" content={LETTER_CARD_BODY} />);
+  const component = await mount(<MessageContentSpansStory trust="trusted" content={LETTER_CARD_BODY} />);
   const card = component.locator('[data-slot="immersive-card"]');
 
   await card.getByRole("button", { name: "Collapse card" }).click();
@@ -282,11 +324,21 @@ test("a transcript card COLLAPSES to its title bar and re-shows the SAME scripts
 // body is final, so it renders as the card it was meant to be.
 test("an UNTERMINATED card in a stored body renders the card chrome, not raw fence syntax", async ({ mount }) => {
   const truncated = ':::card title="Ashfell Night Market"\n\n<div style="font-family: \'Courier New';
-  const component = await mount(<MessageContentSpansStory trust="untrusted" content={`Look:\n${truncated}`} />);
+  // Mounted TRUSTED so the assertion is about the EOF-close, not about the tier (D44 §12.2 — tier B is
+  // the opt-in tier; see the P4 header). The untrusted twin below pins that the same recovery happens on
+  // the inert tier, so a truncated card never regresses to raw fence syntax on EITHER path.
+  const component = await mount(<MessageContentSpansStory trust="trusted" content={`Look:\n${truncated}`} />);
   const card = component.locator('[data-slot="immersive-card"]');
   await expect(card).toHaveCount(1);
   await expect(card.locator('[data-slot="immersive-card-title"]')).toContainText("Ashfell Night Market");
   // The fence syntax itself never reaches the reader.
+  await expect(component.getByText(":::card", { exact: false })).toHaveCount(0);
+});
+
+test("an UNTERMINATED card on the INERT tier also recovers — framed, never raw fence syntax", async ({ mount }) => {
+  const truncated = ':::card title="Ashfell Night Market"\n\n<div style="font-family: \'Courier New';
+  const component = await mount(<MessageContentSpansStory trust="untrusted" content={`Look:\n${truncated}`} />);
+  await expect(component.locator('[data-slot="inert-card-title"]')).toContainText("Ashfell Night Market");
   await expect(component.getByText(":::card", { exact: false })).toHaveCount(0);
 });
 

@@ -813,18 +813,43 @@ interface WireRowFacts {
   readonly userAuthored: boolean;
 }
 
-const NO_FULL_CARDS: ReadonlySet<ContentSpan> = new Set([]);
-
 /** The M2 keep-last-X window: the LAST X card spans across the fitted history (document order, counted from
  *  the tail) ride the wire full; everything older stubs. Deterministic PER ASSEMBLY — the same history at a
  *  given turn always yields the same last-X set; a card entering the stub zone as newer cards arrive is a
- *  bounded one-time cache break per card, inherent to a sliding window (§3.5). */
-function resolveFullCards(tokenized: readonly { readonly spans: readonly ContentSpan[] }[], keepLastX: number): ReadonlySet<ContentSpan> {
-  if (keepLastX <= 0) {
-    return NO_FULL_CARDS;
+ *  bounded one-time cache break per card, inherent to a sliding window (§3.5).
+ *
+ *  A CARD IN A SYNTHETIC ROW IS INSTRUCTION, NOT CONTENT — it never stubs and never consumes the window.
+ *  A synthetic row is id-less by construction (a spliced injection or the regen/continue user turn; canon
+ *  rows always carry a `messageId` — the same discriminator `isUserAttachment` reads two functions down).
+ *  The rpg card-teach block embeds a literal `:::card` worked example, so under the old rule the default
+ *  `cardKeepLastX = 0` collapsed the model's own teaching example to `[card: Crossing sign]` before it was
+ *  ever sent: the one measured intervention that pins the opener's exact bytes, deleted by the wire seam on
+ *  every game. Worse at `keepLastX >= 1` — the example rides the tail, so it WON the window and stubbed the
+ *  model's real cards instead. Stored cards still obey the window; authored ones are not stored cards. */
+function resolveFullCards(
+  tokenized: readonly { readonly h: { readonly messageId?: MessageId | undefined }; readonly spans: readonly ContentSpan[] }[],
+  keepLastX: number,
+): ReadonlySet<ContentSpan> {
+  const full = new Set<ContentSpan>();
+  const canonCards: ContentSpan[] = [];
+  for (const { h, spans } of tokenized) {
+    for (const span of spans) {
+      if (span.kind !== "card") {
+        continue;
+      }
+      if (h.messageId === undefined) {
+        full.add(span); // authored this turn — instruction, exempt from the window
+      } else {
+        canonCards.push(span);
+      }
+    }
   }
-  const cards = tokenized.flatMap((t) => t.spans.filter((s) => s.kind === "card"));
-  return new Set(cards.slice(-keepLastX));
+  if (keepLastX > 0) {
+    for (const card of canonCards.slice(-keepLastX)) {
+      full.add(card);
+    }
+  }
+  return full;
 }
 
 type WirePartResult = ChatContentPart | { droppedAlt: string } | null;

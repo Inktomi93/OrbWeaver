@@ -134,3 +134,54 @@ test("colorQuotes OFF is carried through verbatim (the knob really reaches the r
   });
   expect(r.colorQuotes).toBe(false);
 });
+
+// ── The CARD TIER (D44 §12.2) — TWO independent consent axes ──────────────────────────────────────
+// tierB is the sandboxed ImmersiveCard (card CSS applied); tierA is the default inert allowlist, which
+// forbids `<style>` and therefore cannot render a card AS a card. The mapping was inverted until
+// 2026-08-04 — trusted rows were sent to tierA — so these pin the direction explicitly.
+
+test("an UNTRUSTED author in a non-game room gets tierA — the inert default", () => {
+  const r = resolveRowRenderPolicy({
+    role: "assistant",
+    authorUserId: null,
+    characterId: CHAR,
+    viewerUserId: VIEWER,
+    participants: participant({ trustHtml: false, forbidExternalMedia: false }),
+  });
+  expect(r.trust).toBe("untrusted");
+  expect(r.cardTier).toBe("tierA");
+});
+
+test("AXIS 1 — a per-character trustHtml opt-in grants tierB", () => {
+  const r = resolveRowRenderPolicy({
+    role: "assistant",
+    authorUserId: null,
+    characterId: CHAR,
+    viewerUserId: VIEWER,
+    participants: participant({ trustHtml: true, forbidExternalMedia: false }),
+  });
+  expect(r.cardTier).toBe("tierB");
+});
+
+test("AXIS 2 — the ROOM's immersive-HTML switch grants tierB even to an UNTRUSTED author", () => {
+  // Turning on immersive HTML is what makes the engine TEACH the model to emit `:::card` fences. A room
+  // that asks for cards and then renders them inert is a toggle that lies, so the host flipping it IS the
+  // consent — independent of whether the authoring character opted in.
+  const r = resolveRowRenderPolicy({
+    role: "assistant",
+    authorUserId: null,
+    characterId: CHAR,
+    viewerUserId: VIEWER,
+    participants: participant({ trustHtml: false, forbidExternalMedia: false }),
+    lenientHtmlCards: true,
+  });
+  expect(r.trust).toBe("untrusted");
+  expect(r.cardTier).toBe("tierB");
+});
+
+test("the card tier is a HOST decision — a fail-closed row with neither consent stays tierA", () => {
+  // No participant entry ⇒ SAFE_FLOOR ⇒ untrusted, and no room consent. Nothing the MODEL emits can move
+  // this: both axes are host-set config, never anything asserted in the message body.
+  const r = resolveRowRenderPolicy({ role: "assistant", authorUserId: null, characterId: CHAR, viewerUserId: VIEWER });
+  expect(r.cardTier).toBe("tierA");
+});

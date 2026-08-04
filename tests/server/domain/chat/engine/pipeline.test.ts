@@ -48,14 +48,23 @@ function ctxOf(over: Partial<AssembleContext> = {}): AssembleContext {
   };
 }
 
-const rowOf = (role: "user" | "assistant", content: string): MessageView =>
-  ({
+// CANON ROWS CARRY AN ID. `shape.ts` stamps `messageId: m.id` on every canon row it emits (both the
+// assistant and the user/narrator branch), and the wire seam now reads that presence to tell stored content
+// from content the assembly AUTHORED this turn (a spliced injection / the synthetic regen turn are id-less
+// by construction — see `resolveFullCards`). A fixture without an id therefore models a synthetic row, not a
+// canon one, and would silently opt every card in these tests out of the keep-last-X window.
+let nextRowId = 0;
+const rowOf = (role: "user" | "assistant", content: string): MessageView => {
+  nextRowId += 1;
+  return {
+    id: `message_fixture_${nextRowId}`,
     role,
     content,
     excludedFromPrompt: false,
     characterId: null,
     personaId: null,
-  }) as unknown as MessageView;
+  } as unknown as MessageView;
+};
 
 const userRow = (content: string): MessageView => rowOf("user", content);
 
@@ -1599,6 +1608,32 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
 
     const x2 = await runTurnPipeline(baseArgs({ canon, cardKeepLastX: 2 }).args);
     expect(textsOf(x2.request.history)).toEqual(["[card: c1]", cardBody(2), cardBody(3)]);
+  });
+
+  // A card the ASSEMBLY authored this turn is INSTRUCTION, not stored content: it must reach the model
+  // whole at every keep value, and must not consume the window. The live defect this pins: the rpg
+  // card-teach block embeds a literal `:::card` worked example, so at the default `cardKeepLastX = 0` the
+  // wire seam collapsed the model's own teaching example to `[card: …]` before sending it — deleting the
+  // one measured intervention that pins the opener's exact bytes, on every game. At keepLastX >= 1 it
+  // failed the other way: the example rides the tail, so it WON the window and stubbed the real cards.
+  test("a card in an INJECTED (id-less) row never stubs and never consumes the keep-last-X window", async () => {
+    const cardBody = (n: number): string => `:::card title="c${n}"\n<p>blob${n}</p>\n:::`;
+    const teach = `render one like this:\n${cardBody(9)}`;
+    const canon = [userRow(cardBody(1)), rowOf("assistant", cardBody(2))];
+    const injections: ChatInjection[] = [{ position: "in_chat", depth: 0, role: "system", content: teach }];
+    const textOf = (req: TurnRequest): string => historyText(req);
+
+    // X=0 — every STORED card stubs, and the authored example still rides whole.
+    const x0 = await runTurnPipeline(baseArgs({ canon, assembleContext: ctxOf({ chatInjections: injections }) }).args);
+    expect(textOf(x0.request)).toContain(cardBody(9));
+    expect(textOf(x0.request)).toContain("[card: c1]");
+    expect(textOf(x0.request)).toContain("[card: c2]");
+
+    // X=1 — the authored example does NOT eat the slot: the newest STORED card still rides whole.
+    const x1 = await runTurnPipeline(baseArgs({ canon, cardKeepLastX: 1, assembleContext: ctxOf({ chatInjections: injections }) }).args);
+    expect(textOf(x1.request)).toContain(cardBody(9));
+    expect(textOf(x1.request)).toContain(cardBody(2));
+    expect(textOf(x1.request)).toContain("[card: c1]");
   });
 
   test("an unknown-directive rides VERBATIM ({wire: full} — the transcript is honest)", async () => {

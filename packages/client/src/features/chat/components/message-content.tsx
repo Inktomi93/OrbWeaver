@@ -8,7 +8,7 @@
 import type { MessageContentBlock } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
-import { ImmersiveCard } from "@orb/ui/immersive-card";
+import { ImmersiveCard, InertCard } from "@orb/ui/immersive-card";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
@@ -28,6 +28,33 @@ function assertNever(value: never): never {
   throw new Error(`MessageContent: unhandled block ${JSON.stringify(value)}`);
 }
 
+/** The `html-card` arm, extracted so `renderBlock` stays inside the cognitive-complexity budget. */
+function renderCardBlock(block: Extract<MessageContentBlock, { kind: "html-card" }>, key: string, allowExternal: boolean): ReactElement {
+  if (block.trust === "tierB") {
+    return (
+      <ImmersiveCard
+        key={key}
+        html={block.html}
+        allowExternalMedia={allowExternal}
+        {...(block.css === undefined ? {} : { css: block.css })}
+        {...(block.title === undefined ? {} : { title: block.title })}
+        {...(block.origin === undefined ? {} : { origin: block.origin })}
+      />
+    );
+  }
+  // Tier A: the sanitized body inside the inert frame. No `authorName` is threaded yet — the row policy
+  // does not carry one, and InertCard degrades to "this character" rather than printing an empty name.
+  // Threading the real name is a follow-up worth doing (it makes the remedy one click more obvious), not a
+  // reason to hold the visibility fix.
+  return (
+    <InertCard key={key} {...(block.title === undefined ? {} : { title: block.title })}>
+      <Markdown trust="untrusted" mode="static">
+        {block.html}
+      </Markdown>
+    </InertCard>
+  );
+}
+
 // biome can't infer `z.infer` of the contracts discriminatedUnion (it reads `block` as `never` →
 // "unreachable case" on every arm); tsc resolves the union + the assertNever exhaustiveness correctly.
 // Same resolver gap as data/bus/apply-chat-bus-event.ts (which suppresses the identical rule).
@@ -45,27 +72,21 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "media":
       return <MessageMediaBlock key={key} block={block} allowExternal={allowExternal} />;
-    // tierA renders through the sanitized untrusted markdown seal with css discarded (Tier-A forbids
-    // <style>); tierB renders the ImmersiveCard chrome (§4.7 lifecycle: collapsed sandbox → expand
-    // lightbox → view-raw) around the sandboxed SandboxFrame (null-origin iframe + per-frame CSP).
-    // The row's external-media verdict rides along: the sandbox CSP is the SAME axis as MessageMedia's
-    // gate, so a card's <img src="https://…"> obeys the same setting the media block does.
+    // D44 §12.2, the TWO card tiers — see the `cardTrust` mapping in MessageSegment for which row gets which:
+    //   tierB = the OPT-IN trust tier — the ImmersiveCard chrome (§4.7 lifecycle: collapsed sandbox → expand
+    //           lightbox → view-raw) around the sandboxed SandboxFrame (null-origin iframe + per-frame CSP),
+    //           with the card's own CSS applied. The row's external-media verdict rides along: the sandbox
+    //           CSP is the SAME axis as MessageMedia's gate, so a card's <img src="https://…"> obeys the
+    //           same setting the media block does.
+    //   tierA = the DEFAULT inert tier — the sanitized allowlist in the main DOM. Tier A FORBIDS <style> and
+    //           inline style=, so `block.css` is not merely unused here, it is unusable by law.
+    // The inert arm is wrapped in InertCard rather than emitted bare: an unstyled card in the prose flow is
+    // indistinguishable from the model writing plain text, which is how this read as "cards vanish". The
+    // frame says a card is here, the badge says it is plain, and the hint says what turns it on — the same
+    // refuse-VISIBLY posture MessageMedia's click-to-load gate has always had.
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "html-card":
-      return block.trust === "tierB" ? (
-        <ImmersiveCard
-          key={key}
-          html={block.html}
-          allowExternalMedia={allowExternal}
-          {...(block.css === undefined ? {} : { css: block.css })}
-          {...(block.title === undefined ? {} : { title: block.title })}
-          {...(block.origin === undefined ? {} : { origin: block.origin })}
-        />
-      ) : (
-        <Markdown key={key} trust="untrusted" mode="static">
-          {block.html}
-        </Markdown>
-      );
+      return renderCardBlock(block, key, allowExternal);
     // The parity-plus §5.2-5.3 choice set — clickable send-affordances: a click sends the option as the
     // user's next turn through the room's choice-send capability (P5; provider-less mounts render the
     // same buttons disabled). The block contract is untouched.
@@ -84,12 +105,15 @@ interface MessageSegmentProps {
 }
 
 function MessageSegment({ text, render, keyPrefix }: MessageSegmentProps): ReactElement {
-  // §4.3 trust routing: ONE trust authority (`render-trust`) — an untrusted row's card renders in the
-  // tierB sandbox (the model-output default); a trusted row's card may render inline tierA. The compiler
-  // caches on the body + policy (§4.5 wiring-reality hygiene #1) so a chrome-only re-render never
-  // re-tokenizes — and, with the index+kind keys below stable for an unchanged body, never reloads a
+  // §4.3 trust routing: ONE trust authority (`render-trust`) resolves BOTH the markdown trust and the card
+  // TIER — this renderer only dispatches. The tier mapping was INVERTED here until 2026-08-04 (trusted rows
+  // were sent to tierA, whose allowlist forbids `<style>`, so every trusted card rendered as unstyled HTML
+  // and read as "cards vanished"); it now lives in the resolver where its two consent axes are documented
+  // together. Do not re-derive a tier from `render.trust` at a call site.
+  // The compiler caches on the body + policy (§4.5 wiring-reality hygiene #1) so a chrome-only re-render
+  // never re-tokenizes — and, with the index+kind keys below stable for an unchanged body, never reloads a
   // card's srcdoc.
-  const blocks = toContentBlocks(text, { cardTrust: render.trust === "trusted" ? "tierA" : "tierB", lenientHtml: render.lenientCards });
+  const blocks = toContentBlocks(text, { cardTrust: render.cardTier, lenientHtml: render.lenientCards });
   return <Stack gap="row">{blocks.map((block, index) => renderBlock(block, `${keyPrefix}${index}-${block.kind}`, render))}</Stack>;
 }
 

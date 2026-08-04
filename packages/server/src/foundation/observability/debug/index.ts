@@ -2,15 +2,32 @@
 // folded into observability). The route registrar + the two structural-injection ports `entry/` fills.
 
 export {
+  type AppSettingRow,
+  appSettingRows,
+  type CharacterDetailRow,
   type CharacterListRow,
+  type ChatConfigRow,
   type ChatInspection,
   type ChatListRow,
+  type ChatParticipantRow,
+  characterDetailRow,
   characterListSummaries,
+  characterPolicySweep,
+  chatConfigRow,
   chatListSummaries,
   type IntegrityReport,
   inspectChatState,
   integrityProbe,
+  type PersonaRow,
+  type PresetRow,
+  personaRows,
+  presetRows,
+  type RenderPolicyVerdict,
+  type RpgGameRow,
+  rpgGameForChat,
   tableCounts,
+  type UserSettingsRow,
+  userSettingsRows,
 } from "./inspect/index.ts";
 export {
   type AdminAuthChecker,
@@ -25,9 +42,13 @@ export {
 } from "./routes.ts";
 export {
   isWireCaptureEnabled,
+  recentTurnOutcomes,
   recentWireCaptures,
+  recordTurnOutcome,
   recordWireCapture,
   resetWireCaptures,
   type WireCapture,
   type WireCaptureFilter,
+  type WireOutcome,
+  type WireToolCall,
 } from "./wire-capture.ts";

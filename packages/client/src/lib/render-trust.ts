@@ -14,6 +14,9 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 
 type RenderTrust = "trusted" | "untrusted";
+/** The D44 §12.2 card render tiers. `tierA` = the DEFAULT inert sanitized allowlist in the main DOM;
+ *  `tierB` = the OPT-IN sandboxed `ImmersiveCard` mini-UI that may carry the card's own CSS. */
+type CardTier = "tierA" | "tierB";
 
 const SAFE_FLOOR: RenderPolicy = { trustHtml: false, forbidExternalMedia: true };
 
@@ -28,6 +31,19 @@ export interface RowRenderPolicy {
    *  read (the `lenientCards` precedent) rather than a parallel prop down four render helpers. Default ON —
    *  it matches the contract default, so a mount that threads no pref renders what the settings say. */
   readonly colorQuotes: boolean;
+  /** The CARD render tier (D44 §12.2), resolved HERE because it has TWO independent consent axes and this
+   *  file is the one trust authority — a second spelling elsewhere would be a second spelling of a security
+   *  verdict, the same reason `trust` itself lives here.
+   *
+   *  `tierB` (the sandboxed ImmersiveCard, card CSS applied) when EITHER consent is present:
+   *   1. the AUTHOR is trusted — the viewer's own input, or `renderPolicy.trustHtml` (the per-character
+   *      opt-in D44 names), or
+   *   2. the ROOM consented — a game chat with `features.immersiveHtml` ON (`lenientCards`). Turning that
+   *      switch on is what makes the engine TEACH the model to emit `:::card` fences; a room that asks for
+   *      cards and then refuses to render them is a toggle that lies. The host flipping it IS the consent.
+   *
+   *  `tierA` (the default inert allowlist — no `<style>`, no inline `style=`) otherwise. */
+  readonly cardTier: CardTier;
 }
 
 export interface ResolveRowRenderPolicyInput {
@@ -50,10 +66,14 @@ export function resolveRowRenderPolicy(input: ResolveRowRenderPolicyInput): RowR
   const isOwnUserMessage = role === "user" && authorUserId !== null && authorUserId === viewerUserId;
 
   const trust: RenderTrust = isOwnUserMessage || policy.trustHtml ? "trusted" : "untrusted";
+  const lenientCards = input.lenientHtmlCards === true;
   return {
     trust,
     allowExternal: !policy.forbidExternalMedia,
-    lenientCards: input.lenientHtmlCards === true,
+    lenientCards,
     colorQuotes: input.colorQuotedSpeech !== false,
+    // EITHER consent grants the sandboxed tier — see the field doc. Note both are HOST actions (a character
+    // opt-in, or the room's immersive-HTML switch); neither is anything the MODEL can assert about itself.
+    cardTier: trust === "trusted" || lenientCards ? "tierB" : "tierA",
   };
 }

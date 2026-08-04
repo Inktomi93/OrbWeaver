@@ -35,11 +35,12 @@ import type {
   HomeTileContribution,
   MessageRenderContext,
   MessageToolsRenderer,
+  RowRenderPolicy,
   SlashCommandContribution,
   SlashCommandMountProps,
   ToolRenderer,
 } from "@orb/client/lib";
-import { bindNotify, createContributorRegistry } from "@orb/client/lib";
+import { bindNotify, createContributorRegistry, resolveRowRenderPolicy } from "@orb/client/lib";
 import type { ActiveChatHandle, ChatHandle } from "@orb/client/state";
 import {
   addDraftCharacter,
@@ -469,6 +470,50 @@ export interface MessageContentSpansStoryProps {
   readonly participants?: readonly ParticipantView[];
   /** The NARRATOR grammar gate on the plain-`Name:` span split. */
   readonly narratorVoiced?: boolean;
+  /** The ROOM's immersive-HTML consent (a game chat with `features.immersiveHtml` ON). Independent of
+   *  `trust`: either axis grants the tier-B card sandbox, so this mounts the room-consent half. */
+  readonly lenientHtmlCards?: boolean;
+}
+
+/** Build the row policy through the REAL resolver rather than a literal.
+ *
+ *  A hand-built `RowRenderPolicy` here is how the card-tier inversion survived: the stories asserted
+ *  whatever tier the literal named, so they could never disagree with `resolveRowRenderPolicy`. Feeding a
+ *  synthetic participant through the actual resolver means a CT mount exercises the same security verdict
+ *  production does — the same reason `speakerThemes` above runs the real `speakerThemesByName` producer. */
+function storyParticipant(characterId: CharacterId, trustHtml: boolean, allowExternal: boolean): ParticipantView {
+  return {
+    id: castId("participant_story_author"),
+    chatId: castId("chat_story"),
+    kind: "character",
+    userId: null,
+    characterId,
+    role: "member",
+    activePersonaId: null,
+    talkativeness: 1,
+    disabled: false,
+    joinedAt: 0,
+    joinSeq: 0,
+    leftSeq: null,
+    joinHistoryVisibility: "full",
+    displayName: "Story author",
+    handle: null,
+    avatarAssetId: null,
+    avatarHash: null,
+    renderPolicy: { trustHtml, forbidExternalMedia: !allowExternal },
+  };
+}
+
+function storyRenderPolicy(trust: "trusted" | "untrusted", allowExternal: boolean, lenientHtmlCards: boolean): RowRenderPolicy {
+  const characterId = castId<CharacterId>("char_story_author");
+  return resolveRowRenderPolicy({
+    role: "assistant",
+    authorUserId: null,
+    characterId,
+    viewerUserId: null,
+    participants: new Map([[characterId, storyParticipant(characterId, trust === "trusted", allowExternal)]]),
+    lenientHtmlCards,
+  });
 }
 
 /** The bare `<MessageContent>` — mounts the #21 `<speaker>`-span split + per-span `<ThemeScope>`
@@ -483,6 +528,7 @@ export function MessageContentSpansStory({
   allowExternal = false,
   participants,
   narratorVoiced = false,
+  lenientHtmlCards = false,
 }: MessageContentSpansStoryProps): ReactElement {
   const renderContext: MessageRenderContext | undefined =
     characterName === undefined && userName === undefined
@@ -503,7 +549,7 @@ export function MessageContentSpansStory({
   return (
     <MessageContent
       content={content}
-      render={{ trust, allowExternal, lenientCards: false, colorQuotes: true }}
+      render={storyRenderPolicy(trust, allowExternal, lenientHtmlCards)}
       renderContext={renderContext}
       speakerThemes={speakerThemes}
       narratorVoiced={narratorVoiced}
@@ -529,7 +575,7 @@ function MessageContentChoicesStoryInner({ mode }: { readonly mode: "live" | "bu
   return (
     <>
       <ChoiceSendContext value={value}>
-        <MessageContent content={CHOICES_BODY} render={{ trust: "untrusted", allowExternal: false, lenientCards: false, colorQuotes: true }} />
+        <MessageContent content={CHOICES_BODY} render={storyRenderPolicy("untrusted", false, false)} />
       </ChoiceSendContext>
       <p data-testid="sent-choices">{sent.join("|")}</p>
     </>
@@ -553,7 +599,7 @@ function ChoiceProviderStoryInner(): ReactElement {
   return (
     <div>
       <ChoiceSendProvider handle={handle}>
-        <MessageContent content={CHOICES_BODY} render={{ trust: "untrusted", allowExternal: false, lenientCards: false, colorQuotes: true }} />
+        <MessageContent content={CHOICES_BODY} render={storyRenderPolicy("untrusted", false, false)} />
       </ChoiceSendProvider>
       <Composer handle={handle} scopeKey={COMPOSER_CHAT_ID} />
     </div>

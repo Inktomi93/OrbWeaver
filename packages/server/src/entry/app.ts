@@ -265,6 +265,10 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // The multiplexed-socket counter (SSE-1 §12) — the starvation regression pin. Injected as data because
     // foundation sits BELOW transport in the tier list and may not import it.
     sockets: { liveSocketCount: (userId) => deps.sockets.liveSocketCount(userId === undefined ? undefined : castId<UserId>(userId)) },
+    // The SAME live read every other consumer above uses — so the /config probes report the deployment tier
+    // the server is actually running on, and a character's `trustHtml: null` ("inherit") resolves to a real
+    // verdict instead of leaving the reader to infer what it inherits.
+    effectiveConfig: () => deps.services.settings.getEffectiveConfig(),
     auth: { expectedToken: env.DEBUG_TOKEN, adminAuth: { isAdmin: deps.seam.isAdmin } },
   });
 

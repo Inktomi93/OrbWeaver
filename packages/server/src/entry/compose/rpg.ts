@@ -48,11 +48,12 @@ import {
   constrainPopulateSchema,
   gameTrackerWriteKeys,
   healedJournalTypes,
-  malformedToolCalls,
+  malformedToolCallDetails,
   RPG_NO_CHANGES_TOOL,
   rpgExtractionSchema,
   rpgGameConfigSchema,
   rpgPopulateSchema,
+  salvagedToolCallFields,
   salvageExtraction,
   salvagePopulate,
   strippedToolCallKeys,
@@ -766,11 +767,32 @@ function logToolCallLosses(args: {
   readonly events?: { readonly unparseable: string; readonly stripped: string } | undefined;
 }): void {
   const events = args.events ?? { unparseable: "rpg.extraction.unparseable", stripped: "rpg.extraction.stripped" };
-  const dropped = malformedToolCalls(args.calls);
-  if (dropped.length > 0) {
+  // The DETAIL arm, not the names one: a tool name alone is unactionable (12 identical `update_scene` drops
+  // cost a live session hours before a schema probe found the offending field). `droppedIssues` carries the
+  // failing path, the expectation, and the value the model actually sent.
+  const droppedDetails = malformedToolCallDetails(args.calls);
+  if (droppedDetails.length > 0) {
     logger.warn(
-      { event: events.unparseable, chatId: args.chatId, model: args.model, api: args.api, droppedTools: dropped },
+      {
+        event: events.unparseable,
+        chatId: args.chatId,
+        model: args.model,
+        api: args.api,
+        droppedTools: droppedDetails.map((detail) => detail.name),
+        droppedIssues: droppedDetails.flatMap((detail) => detail.issues.map((issue) => `${detail.name}.${issue}`)),
+      },
       `rpg ${args.vehicle}: tool call(s) with unusable args — DROPPED (every other call this turn still applies)`,
+    );
+  }
+  // The THIRD loss class (EXT-4a salvage): fields whose VALUES the schema rejected, dropped so the rest of
+  // the call could apply. Distinct from STRIPPED (a key the schema never declared) — this one means the model
+  // tried to write something real and the vocabulary had no room for it, which is how a closed enum with a
+  // hole in it announces itself (`update_scene.weather` on an indoor scene).
+  const salvaged = salvagedToolCallFields(args.calls);
+  if (salvaged.length > 0) {
+    logger.warn(
+      { event: events.unparseable, chatId: args.chatId, model: args.model, api: args.api, salvagedFields: salvaged },
+      `rpg ${args.vehicle}: field(s) with unusable values DROPPED — the rest of the call applied (a closed vocabulary may be missing a member)`,
     );
   }
   logStrippedKeys({ ...args, event: events.stripped, stripped: strippedToolCallKeys(args.calls) });

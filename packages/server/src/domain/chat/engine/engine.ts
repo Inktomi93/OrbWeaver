@@ -29,7 +29,7 @@ import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { CharacterId, ChatId, ChatTurnId, MessageId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
-import { getLog, withRequestSpan } from "#foundation/observability";
+import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
 import type { WarningCode } from "#infra/providers";
 import type { ChatContext } from "../context.ts";
 import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
@@ -1023,10 +1023,54 @@ function abortReasonFor(err: unknown, signal: AbortSignal | undefined): TurnAbor
  * slots are gone (D124 — hand state is a message-less `rpg_snapshots` row), and `postNarratorMessage` itself
  * now refuses a blank post. Empty canon content is uniformly a defect, wherever it is written.
  */
-function assertGeneratedContent(content: string): void {
-  if (content.trim().length === 0) {
-    throw new ChatOperationError(CHAT_OP_CODES.emptyGeneration, "the model returned no text — nothing was written (the previous reply is unchanged)");
+/** The RESPONSE half of wire capture (`/api/_debug/wire/outcomes`). Called BEFORE the empty-generation guard
+ *  so a REFUSED turn still leaves the record that explains it — the case the request-only ring could never
+ *  answer. Self-gated inside the recorder (no-op with capture off); metadata + tool-call args, never prose. */
+function captureTurnOutcome(prep: TurnPrep, result: Awaited<ReturnType<typeof runTurnPipeline>>, at: number): void {
+  const economics = result.economics;
+  recordTurnOutcome({
+    chatId: prep.chatId,
+    at,
+    model: economics?.model ?? null,
+    finishReason: economics?.finishReason ?? null,
+    stopReason: economics?.stopReason ?? null,
+    contentChars: result.content.length,
+    reasoningChars: result.reasoning?.length ?? 0,
+    tokensOut: economics?.tokensOut ?? null,
+    maxOutputTokens: economics?.maxOutputTokens ?? null,
+    reasoningEffort: economics?.reasoningEffort ?? null,
+    toolCalls: result.toolRecords.map((record) => ({ name: record.name, args: record.arguments })),
+  });
+}
+
+function assertGeneratedContent(result: Awaited<ReturnType<typeof runTurnPipeline>>, chatId: ChatId): void {
+  if (result.content.trim().length > 0) {
+    return;
   }
+  // OBSERVABILITY, before the throw. `ChatOperationError` surfaces to the client through tRPC and lands in NO
+  // server log, so a refusal used to leave zero trace: no finish reason, no tool count, nothing to tell a
+  // tool-only completion apart from a provider that returned nothing at all. Diagnosing one meant asking the
+  // operator what they saw in the browser. These are exactly the fields that discriminate the causes.
+  //
+  // `toolRecords` is 0 on a FOLDED rpg turn by construction (its terminal tools deliberately land no
+  // `ToolCallRecord` — the character turn is tool-less on the variant), so read `finishReason` as the tell
+  // there: a tool-terminated turn with empty prose is the VER-1b tool-only completion.
+  const economics = result.economics;
+  getLog().warn(
+    {
+      event: "chat.generation.empty",
+      chatId,
+      finishReason: economics?.finishReason ?? null,
+      stopReason: economics?.stopReason ?? null,
+      toolRecords: result.toolRecords.length,
+      reasoningChars: result.reasoning?.length ?? 0,
+      tokensOut: economics?.tokensOut ?? null,
+      maxOutputTokens: economics?.maxOutputTokens ?? null,
+      reasoningEffort: economics?.reasoningEffort ?? null,
+    },
+    "chat: the model produced no prose — turn REFUSED, nothing written (VER-1b empty-generation guard)",
+  );
+  throw new ChatOperationError(CHAT_OP_CODES.emptyGeneration, "the model returned no text — nothing was written (the previous reply is unchanged)");
 }
 
 /** This turn's cascade depth (automation-design/03 §4): a human turn is 0; an automation/plugin-initiated turn
@@ -1194,11 +1238,12 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       },
     });
     const genFinishedAt = ctx.now();
+    captureTurnOutcome(prep, result, genFinishedAt);
     await emitCapabilityDropWarnings(deps.emit, prep.chatId, result);
     // VER-1b — refuse a prose-less generation BEFORE any canon write (see `assertGeneratedContent`). Placed
     // after the drop warnings on purpose: those name WHY the prose is missing (tools dropped, image dropped),
     // and everything below this line is about a reply that does not exist.
-    assertGeneratedContent(result.content);
+    assertGeneratedContent(result, prep.chatId);
     // A display affordance only, distinct from turnCompleted (fires after persist below).
     if (result.reasoning !== null) {
       await deps.emit({ type: "reasoningStreamDone", chatId: prep.chatId });
