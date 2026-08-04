@@ -352,7 +352,9 @@ export const REGISTRY: readonly StageDef[] = [
   {
     name: "quality:cpd",
     group: "quality",
-    tiers: ["full"],
+    // PROMOTED to the push tier 2026-08-03: measured 0.86s. It sat in `full` for historical reasons,
+    // not cost — and a duplication ratchet that only runs in a tier nobody invokes is not a ratchet.
+    tiers: ["push", "full"],
     argv: ["pnpm", "cpd"],
     classify: asViolations,
   },
@@ -366,7 +368,10 @@ export const REGISTRY: readonly StageDef[] = [
   {
     name: "tests:parity",
     group: "tests",
-    tiers: ["full"],
+    // PROMOTED to the push tier 2026-08-03: measured 1.65s (ONE file, 18 tests). The `full`-only
+    // placement implied an expensive cross-repo suite; it is not one. Parity is a LOCKED PRINCIPLE
+    // (Core-Laws §0.7 — "parity is proven, not assumed"), so it belongs where it actually gates.
+    tiers: ["push", "full"],
     argv: ["pnpm", "test:parity"],
     classify: asViolations,
   },

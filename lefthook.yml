@@ -99,9 +99,23 @@ post-checkout:
 
 pre-push:
   commands:
-    # The ONE push-tier command (V3 repoint): static + tests:node (`pnpm test` = vitest projects + the CT
-    # suite, merged 2026-07-17) + e2e-smoke, with the unified summary + max-severity exit. Replaces the
-    # 4-command piped pipe — verify runs ALL stages and reports ALL failures, then exits max-severity.
+    # The ONE push-tier command (V3 repoint): static + deps:orphan-ratchet + tests:node (`pnpm test` =
+    # the 4 vitest RUNTIME projects + the CT suite, merged 2026-07-17) + e2e-smoke + `quality:cpd` +
+    # `tests:parity`, with the unified summary + max-severity exit. Replaces the 4-command piped pipe —
+    # verify runs ALL stages and reports ALL failures, then exits max-severity.
+    #
+    # cpd + parity PROMOTED here 2026-08-03 (measured 0.86s and 1.65s): they sat in `full` for historical
+    # reasons, not cost, and a tier nobody invokes gates nothing. Parity in particular is a LOCKED
+    # PRINCIPLE (Core-Laws §0.7 — "parity is proven, not assumed").
+    #
+    # STILL NOT at push, both deliberately:
+    #   • `quality:mutation-gate` — its config carries `"break": null`, so Stryker exits 0 whatever the
+    #     mutation score. It CANNOT fail. Adding it would cost minutes for zero signal; it belongs here
+    #     the day someone calibrates `break` from a measured run (its own config comment says so).
+    #   • the full `browser:e2e` — the 2026-07-12 anti-rot ruling: the `@smoke` SUBSET gates every push,
+    #     the full suite stays manual (`pnpm e2e`). Changing that is an owner call, not a drift.
+    # Anything else claiming a different tier list is folklore — `scripts/verify/registry.ts` is the
+    # authority, and `pnpm verify --list` prints every stage with its tier.
     verify:push:
       run: pnpm verify --push
       env:
