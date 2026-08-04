@@ -182,7 +182,7 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
   // the cached prefix once squashed → re-frame it to a user operator note instead.
   const boundaryLen = opts.prefixBoundaryLen;
   const stableTailRole = boundaryLen !== undefined && boundaryLen >= 1 ? history[boundaryLen - 1]?.role : undefined;
-  const result: (T | { role: WireRole; content: string })[] = [...history];
+  const result: (T | { role: WireRole; content: string; speakerless?: true })[] = [...history];
   for (const { inj, depth } of spliceList) {
     // A depth-1 assistant injection sits immediately above the volatile tail — adjacent to the last stable
     // canon row. When that row is also assistant, keeping the injection assistant-role would fold it into
@@ -194,7 +194,15 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
       continue;
     }
     const insertAt = result.length - depth;
-    result.splice(insertAt, 0, { role: effectiveRole, content: framed });
+    // SPEAKERLESS — the marker that survives the demote. An injection authored as system or assistant is
+    // the operator/instruction channel; when the backend cannot carry mid-conversation system it must take
+    // the `user` wire role, but it is STILL not the player talking. Without this marker the downstream
+    // name-stamp saw a bare `user` row and prefixed it with the player's name, delivering the game state,
+    // the card teach and the steering license as if the PLAYER had written them (INJECT-NAMED-AS-PLAYER).
+    // `names.ts` already refuses to label a real `system` row for exactly this reason — the demote is what
+    // put the row out of that guard's reach, so the marker restores it.
+    // A `role:"user"` injection is deliberately NOT marked: that one IS authored as the user's own voice.
+    result.splice(insertAt, 0, { role: effectiveRole, content: framed, ...(inj.role === "user" ? {} : { speakerless: true as const }) });
   }
   return result;
 }

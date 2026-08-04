@@ -429,3 +429,46 @@ describe("shape — midConversationSystem gates the depth-0 system-injection del
     expect(out.history.at(-1)).toEqual({ role: "system", content: "GM note" });
   });
 });
+
+// ── INJECT-NAMED-AS-PLAYER — the end-to-end pin ───────────────────────────────────────────────────
+// The reported live wire (chat_01kz6qesv6fk6bq1gmr8kc0wcf, OpenRouter/Sonnet — no mid-conversation
+// system): the rpg instruction channel arrived as `Nate: [Note from system: # Game state …]`, i.e. the
+// game state, card teach and steering license delivered as if the PLAYER had written them. Measured then:
+// final user message 3,037 chars, 2× `Nate:` labels.
+//
+// `namesBehavior: "content"` is the mode that always prefixes, so it is the sharpest probe: under it the
+// player's own turn MUST be labelled and the injected instruction MUST NOT be.
+describe("INJECT-NAMED-AS-PLAYER — a demoted system injection is never labelled as a participant", () => {
+  const gameState = "# Game state\nTrackers: HP (physical health)";
+
+  test('namesBehavior "content": the demoted note carries NO speaker label, the player\'s turn still does', () => {
+    const out = shape(
+      soloInput({
+        namesBehavior: "content",
+        injections: [inChat({ depth: 0, role: "system", content: gameState })],
+      }),
+    );
+    const tail = out.history.at(-1);
+    // The note demoted onto the user tail (the wire requires it — this backend takes no mid-conversation
+    // system) and merged with the player's turn, which is the correct and cache-stable shape …
+    expect(tail?.role).toBe("user");
+    expect(tail?.content).toContain(gameState);
+    // … but the instruction is NOT stamped with the player's name. This is the whole defect: exactly ONE
+    // speaker label in the turn — the player's own words — never a second one introducing the game rules.
+    // (Live, with the real speaker name, this read `Nate:` TWICE in one 3,037-char user message.)
+    const labels = tail?.content.match(new RegExp(`${SPEAKERS.user}:`, "gu")) ?? [];
+    expect(labels).toHaveLength(1);
+    // And the label that IS present belongs to the player's text, not to the note.
+    expect(tail?.content).toContain(`${SPEAKERS.user}: u2 volatile`);
+    expect(tail?.content).not.toMatch(new RegExp(`${SPEAKERS.user}:\\s*\\[Note from system`, "u"));
+  });
+
+  test("the marker is INTERNAL — no wire row leaks a `speakerless` field", () => {
+    const out = shape(soloInput({ namesBehavior: "content", injections: [inChat({ depth: 0, role: "system", content: gameState })] }));
+    // It answers "may this row be labelled?" inside the pipeline and is consumed at the names pass; a
+    // backend must never receive an internal assembly flag.
+    for (const row of out.history) {
+      expect(row).not.toHaveProperty("speakerless");
+    }
+  });
+});
