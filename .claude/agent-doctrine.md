@@ -198,9 +198,15 @@ don't write memory yourself.
   **CORRECTED 2026-08-03 — the old reason given here was FALSE and had propagated for weeks:** it is not
   that `pnpm verify --push` skips CTs. It does NOT. `tests:node` (push + full tiers) runs `pnpm test`,
   which is `vitest run --project …` **`&&` `pnpm test:ct --retries=2`** — ONE behavioral lane since the
-  2026-07-17 merge, stated in `scripts/verify/registry.ts:304`'s own comment. `pnpm check` (static) runs
-  no tests at all; `verify --push` runs all of them and takes ~16-17 min. **Read the registry, not the
-  folklore** — and if a doc tells you which stages a tier runs, verify it against `registry.ts` first.
+  2026-07-17 merge, stated in `scripts/verify/registry.ts:304`'s own comment.
+  **The precise ladder, from the registry (which is the only authority — every stage, tier and argv is
+  data in that one file):** `pnpm check` = the 14 STATIC stages, NO runtime tests — but note it DOES run
+  `types:testd`, so the `.test-d.ts` type lane rides the static bar, not the battery. `verify --push`
+  adds `deps:orphan-ratchet` + `tests:node` (unit · integration · integration-serial · contract · CT) +
+  `e2e-smoke`; ~16-17 min, so BACKGROUND it. `--full` adds `quality:cpd`, the full `e2e`, `tests:parity`
+  and `quality:mutation-gate`. Manual-only: `e2e-live`, `mutation-report`, `coverage`.
+  So `--push` is **every vitest RUNTIME lane plus CT plus smoke e2e** — not "everything", and not
+  "no CTs". Both of those were in circulation; check `registry.ts` before repeating either.
 - **A landed change to a shared READ or a11y ATTRIBUTE must SWEEP every test that asserts the old one.**
   Three sightings of one class in one night: `aria-current`→`aria-pressed` left two stale CTs green-
   looking and red-running; a component reading a NEW field of an existing stub shape (`chatDetail.group`)

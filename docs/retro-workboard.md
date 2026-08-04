@@ -878,9 +878,11 @@ Items this audit could not prove either way from the tree. **None were dropped.*
 **Verification instruments**
 
 - `pnpm check` = STATIC only (~90-220s, in the pre-commit hook). `pnpm test` = the battery (~10 min,
-  vitest ~9,800 + CT). `pnpm verify --push` = check + tests:node + e2e-smoke — and **`tests:node` IS the whole battery,
-  CTs included** (`pnpm test` = vitest projects && `pnpm test:ct --retries=2`; receipt at
-  `scripts/verify/registry.ts:304`). ~16-17 min; BACKGROUND it, never foreground with a timeout. READ
+  vitest ~9,800 + CT). `pnpm verify --push` = the 14 static stages + `deps:orphan-ratchet` + `tests:node` + `e2e-smoke`,
+  and **`tests:node` carries the CTs** (`pnpm test` = the 4 vitest runtime projects && `pnpm test:ct
+  --retries=2`; receipt: `scripts/verify/registry.ts:304`). NOT at push: `quality:cpd`, the full `e2e`,
+  `tests:parity`, `quality:mutation-gate` — those are `--full`. And `types:testd` rides the STATIC bar,
+  not the battery. ~16-17 min; BACKGROUND it, never foreground with a timeout. READ
   `reports/` instead of re-running.
 - snap is STUDIED IN FULL in `side-eye.md`: `--eval` takes a BARE arrow (an arrow-IIFE double-invokes);
   `--jsclick` for list rows; `--isolated`/`--dirty` beat dev-stack HMR; `--goto`/`__orb.nav` for SPA
