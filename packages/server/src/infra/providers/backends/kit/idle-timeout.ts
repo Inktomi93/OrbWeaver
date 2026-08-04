@@ -51,6 +51,13 @@ export function turnAbortSignal(external?: AbortSignal, idleMs: number = IDLE_TI
   };
 
   // Fold the caller's cancel into our controller so the composed signal fires on either cause.
+  // NOT `AbortSignal.any([external, controller.signal])` (Node-26 program §4.12, deliberate KEEP): `.any`
+  // PROPAGATES the source signal's `reason`, and this signal is handed straight to `fetch`, so the caller's
+  // abort reason would become the thrown error the provider taxonomy classifies. `classifyTransportName`
+  // decides `aborted` vs retryable-`server` by regex over the error's NAME+MESSAGE — a chat-domain abort
+  // reason whose text happens to contain "timeout"/"connection"/"network" would classify a CANCELLED turn as
+  // a retryable fault and re-run it. Re-aborting our own controller flattens every cause to a plain
+  // AbortError, which keeps the provider classifier independent of the chat domain's abort vocabulary.
   if (external !== undefined) {
     if (external.aborted) {
       controller.abort();

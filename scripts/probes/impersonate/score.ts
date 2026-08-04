@@ -17,7 +17,6 @@
 // receive clean acts on.
 
 import { cleanPerSpeakerReply } from "@orb/kit/speaker-label";
-import { escapeRegExp } from "@orb/kit/strings";
 
 /** Third-person narration verbs — a character NAME immediately followed by one of these is the model
  *  narrating that character's actions/dialogue, which the nudge explicitly forbids. */
@@ -71,12 +70,12 @@ const FIRST_PERSON_RE = /\b(?:I|I'm|I'll|I've|I'd|me|my|mine|myself)\b/;
 
 /** A `Name:` speaker label at the start of any line (markdown emphasis tolerated) — the ST `wrongName` tell. */
 function lineLabelRe(name: string): RegExp {
-  return new RegExp(`(?:^|\\n)[ \\t>]*(?:\\*\\*|\\*|__|_)?${escapeRegExp(name)}(?:\\*\\*|\\*|__|_)?[ \\t]*:`);
+  return new RegExp(`(?:^|\\n)[ \\t>]*(?:\\*\\*|\\*|__|_)?${RegExp.escape(name)}(?:\\*\\*|\\*|__|_)?[ \\t]*:`);
 }
 
 /** `Name … <narration verb>` within one clause — the model writing that character's actions or dialogue. */
 function narrationRe(name: string): RegExp {
-  return new RegExp(`\\b${escapeRegExp(name)}\\b[^.!?\\n]{0,40}?\\b(?:${NARRATION_VERBS})\\b`);
+  return new RegExp(`\\b${RegExp.escape(name)}\\b[^.!?\\n]{0,40}?\\b(?:${NARRATION_VERBS})\\b`);
 }
 
 export interface BleedFlags {
