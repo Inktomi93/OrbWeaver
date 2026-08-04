@@ -144,7 +144,11 @@ function isAbortError(error: unknown): boolean {
 }
 
 /** Bridge the caller's signal onto the fresh controller the SDK query takes — an ALREADY-aborted caller
- *  aborts it immediately (an `addEventListener` alone would never fire and the turn would run on). */
+ *  aborts it immediately (an `addEventListener` alone would never fire and the turn would run on).
+ *
+ *  NOT `AbortSignal.any` (Node-26 program §4.12, deliberate KEEP): the SDK's `options.abortController` field
+ *  takes an AbortController INSTANCE, not a signal, so there is nothing for a composite signal to be handed
+ *  to. The same forward is spelled inline in `verify-auth`/`summarize`/`agent-runner` for the same reason. */
 function linkAbort(signal: AbortSignal | undefined): AbortController {
   const controller = new AbortController();
   if (signal === undefined) {

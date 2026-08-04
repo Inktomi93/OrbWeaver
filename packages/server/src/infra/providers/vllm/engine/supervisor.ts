@@ -7,6 +7,7 @@
 import { execFile } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
+import { setTimeout as sleepFor } from "node:timers/promises";
 import { env } from "#foundation/env";
 import { getLog } from "#foundation/observability";
 import { registerVllmEngineController } from "./engine-control.ts";
@@ -236,8 +237,6 @@ async function probeEngine(engine: VllmEngine, sleepMode: boolean): Promise<Prob
   }
 }
 
-const realSleep = (ms: number): Promise<void> => new Promise((r) => setTimeout(r, ms));
-
 /** The default detached-spawn trigger: run the front-door verb `engines.sh start` (reconcile → VRAM
  *  pre-check → setsid-detached boot + pidfile). Idempotent, so concurrent triggers from N adopters collapse
  *  to one spawn. Fire-and-forget — the supervisor's own health-poll watches for the engine to come up; the
@@ -279,7 +278,7 @@ export function startVllmEngines(opts: {
 }): () => void {
   const { repoRoot, now } = opts;
   const triggerSpawn = opts.triggerSpawn ?? realTriggerSpawn;
-  const sleep = opts.sleep ?? realSleep;
+  const sleep = opts.sleep ?? sleepFor;
   const sleepMode = opts.sleepMode ?? env.VLLM_SLEEP_MODE;
   const isSleepHeld = opts.sleepHeld ?? ((): boolean => false);
   const manages = opts.manages ?? true;
