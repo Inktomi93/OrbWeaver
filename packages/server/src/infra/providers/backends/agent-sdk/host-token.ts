@@ -92,6 +92,10 @@ function needsRefresh(oauth: ClaudeAiOauth, now: number): boolean {
 }
 
 async function requestRefresh(refreshToken: string, deps: ResolvedHostTokenDeps): Promise<OAuthTokenResponse | null> {
+  // NOT `AbortSignal.timeout(REFRESH_TIMEOUT_MS)` (Node-26 program §4.12, deliberate KEEP): a token refresh
+  // fires on a background path and must never hold the event loop open at shutdown. `AbortSignal.timeout`
+  // has no `unref` — a DECLARED platform limitation, so the manual unref'd timer stays (the `egress.ts`
+  // deadline is the same archetype).
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), REFRESH_TIMEOUT_MS);
   timer.unref();

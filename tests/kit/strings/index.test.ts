@@ -1,25 +1,11 @@
-import { escapeRegExp, formatBytes } from "@orb/kit/strings";
+import { formatBytes } from "@orb/kit/strings";
 import { expect, test } from "../../support/fixtures.ts";
 
-test("escapeRegExp prefixes each regex metacharacter with a backslash", () => {
-  const metachars = [".", "*", "+", "?", "^", "$", "{", "}", "(", ")", "|", "[", "]", "\\"];
-  for (const ch of metachars) {
-    expect(escapeRegExp(ch)).toBe(`\\${ch}`);
-  }
-});
-
-test("escapeRegExp leaves plain text untouched", () => {
-  expect(escapeRegExp("Alice")).toBe("Alice");
-  expect(escapeRegExp("")).toBe("");
-});
-
-test("an escaped string matches its literal source inside a RegExp", () => {
-  const literal = "a.b(c)*";
-  const re = new RegExp(escapeRegExp(literal));
-  expect(re.test(literal)).toBe(true);
-  // Without escaping the metachars would make this a non-literal pattern that misses the source.
-  expect(re.test("axbyc")).toBe(false);
-});
+// The three `escapeRegExp` tests died with the function (Node-26 program §4.7 — `RegExp.escape` owns
+// the job now). They are NOT re-pointed at the platform: asserting V8's escape output would be a
+// tautology test, and the literal-match invariant they guarded is exercised where it MATTERS — the
+// consumers' own suites (`tests/kit/speaker-label/*`, `tests/kit/world-info/*`, the openai-compat
+// credential scrub), which run real names/keys/secrets through the built regexes.
 
 // `formatBytes` — the ONE human byte-size formatter (promoted from `@orb/ui/file-dropzone` +
 // `features/databank` when the per-chat document rack became its third consumer). The boundaries are what

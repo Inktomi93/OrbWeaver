@@ -30,6 +30,7 @@ import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import { REPO_ROOT } from "./_kit/artifacts.ts";
 import { print, printResult } from "./_kit/result.ts";
@@ -90,7 +91,7 @@ async function waitForReady(baseUrl: string, deadlineMs: number): Promise<void> 
     } catch {
       // not listening yet — keep waiting
     }
-    await new Promise((r) => setTimeout(r, POLL_MS));
+    await sleep(POLL_MS);
   }
   throw new Error(`probe-fire: server didn't come up within ${deadlineMs}ms`);
 }
@@ -207,7 +208,7 @@ async function main(): Promise<void> {
 
   // The processor seals a trace when the ROOT span ends (after the response is written) —
   // a brief settle guarantees it's in the ring before we pull it.
-  await new Promise((r) => setTimeout(r, SETTLE_MS));
+  await sleep(SETTLE_MS);
 
   let rendered = 0;
   for (const rid of requestIds) {

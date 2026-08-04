@@ -1,12 +1,11 @@
-// String primitives shared across layers. The canonical home for `escapeRegExp` — neo triplicated it
-// (`shared/_kit/speaker-label.ts`, `shared/world-info/wi-keyword-match.ts`,
-// `server/domain/chat/engine/select-speakers.ts`), all byte-identical; this is the ONE copy the others
-// import from.
-
-/** Escape a string for literal use inside a RegExp (a character name may carry regex metachars). */
-export function escapeRegExp(s: string): string {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+// String primitives shared across layers.
+//
+// `escapeRegExp` used to live here (neo triplicated it; this was the one copy). It was DELETED
+// 2026-08-03 for the platform's `RegExp.escape` (Node-26 program §4.7) — browser-baseline, so kit
+// stays isomorphic. Verified before the swap: `RegExp.escape` escapes a strict SUPERSET of our set
+// (ours: `$()*+.?[\]^{|}`; the platform adds control/whitespace, `/`, the other punctuators, and a
+// leading alnum as `\xHH`), so every consumer regex is byte-different and match-identical. Never
+// re-mint one — the ESCAPE-MINT gate arm exists for exactly that.
 
 // ── byte sizes ───────────────────────────────────────────────────────────────────────────────────────
 // The ONE human byte-size formatter. It had two byte-identical spellings (`@orb/ui/file-dropzone`'s cap
