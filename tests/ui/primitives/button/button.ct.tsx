@@ -247,6 +247,149 @@ test("every converted call site paints the SAME box on the inline arm as it did 
   }
 });
 
+// ─── the `glyph-*` ramp ────────────────────────────────────────────────────────────────────────────
+// The square icon-only micro-button. It replaces 13 sites of `<Button intent="ghost" size="sm"
+// className="!size-N !p-0">` at four scales — an `!important` escape from the sealed `sm` control height
+// (and, for a day, from the `ui-size-via-variant` gate, which read `size-6`, not `!size-6`). Two receipts
+// are owed and both are COMPUTED, never a hardcoded px: (1) each step's box equals its own
+// `--spacing-glyph-*` token, resolved out of the live document; (2) each converted site paints the SAME box
+// on the arm as it did on the class string it retired. `done ≠ rendered`.
+const GLYPH_STEPS = [
+  { size: "glyph-xs", token: "--spacing-glyph-xs", retired: "!size-4 !p-0" },
+  { size: "glyph-sm", token: "--spacing-glyph-sm", retired: "!size-5 !p-0 shrink-0" },
+  { size: "glyph-md", token: "--spacing-glyph-md", retired: "!size-6 !p-0 shrink-0" },
+  { size: "glyph-lg", token: "--spacing-glyph-lg", retired: "!size-8 !p-0" },
+] as const;
+
+test("every glyph step is a SQUARE box equal to its own --spacing-glyph token, with no padding", async ({ mount, page }) => {
+  await mount(
+    <div style={{ display: "flex", gap: 4 }}>
+      {GLYPH_STEPS.map((s) => (
+        <Button aria-label={s.size} intent="ghost" key={s.size} size={s.size}>
+          <span data-testid={`glyph-${s.size}`} />
+        </Button>
+      ))}
+    </div>,
+  );
+  const measured = await Promise.all(
+    GLYPH_STEPS.map(async (step) =>
+      page.getByTestId(`glyph-${step.size}`).evaluate((child, token) => {
+        const el = child.parentElement as HTMLElement;
+        const probe = document.createElement("div");
+        probe.style.width = `var(${token})`;
+        document.body.append(probe);
+        const expected = probe.getBoundingClientRect().width;
+        probe.remove();
+        const box = el.getBoundingClientRect();
+        const s = getComputedStyle(el);
+        return { width: box.width, height: box.height, expected, padding: `${s.paddingTop} ${s.paddingRight} ${s.paddingBottom} ${s.paddingLeft}` };
+      }, step.token),
+    ),
+  );
+  for (const [i, step] of GLYPH_STEPS.entries()) {
+    const m = measured[i] ?? { width: 0, height: 0, expected: 0, padding: "" };
+    // The token is real (a typo'd var() would resolve to 0 and silently pass a "square" assertion).
+    expect(m.expected, `${step.size}: ${step.token} must resolve to a real width`).toBeGreaterThan(0);
+    expect(m.width, `${step.size}: box width == ${step.token}`).toBeCloseTo(m.expected, 1);
+    expect(m.height, `${step.size}: box height == ${step.token}`).toBeCloseTo(m.expected, 1);
+    expect(m.padding, `${step.size}: a glyph box has no padding`).toBe("0px 0px 0px 0px");
+  }
+});
+
+test("the glyph ramp is strictly ascending (xs < sm < md < lg)", async ({ mount, page }) => {
+  await mount(
+    <div style={{ display: "flex", gap: 4 }}>
+      {GLYPH_STEPS.map((s) => (
+        <Button aria-label={s.size} intent="ghost" key={s.size} size={s.size} />
+      ))}
+    </div>,
+  );
+  const widths = await Promise.all(GLYPH_STEPS.map(async (s) => (await page.getByRole("button", { name: s.size }).boundingBox())?.width ?? 0));
+  // Consecutive pairs, so every assertion is unconditional (no `if (i > 0)` guard around an expect).
+  const pairs = GLYPH_STEPS.slice(1).map((step, i) => ({ step, prev: widths[i] ?? 0, next: widths[i + 1] ?? 0 }));
+  for (const pair of pairs) {
+    expect(pair.next, `${pair.step.size} must be wider than the step below it`).toBeGreaterThan(pair.prev);
+  }
+});
+
+// SITE-BY-SITE PARITY (the `inline` arm's precedent below): the retired `!important` class string mounted
+// beside the arm that replaced it. Tailwind scans `tests/` (playwright/index.css `@source "../tests"`), so
+// the bang classes really compile and this compares two PAINTED boxes, not two strings — the only receipt
+// that catches a silent geometry shift on 13 live rpg surfaces.
+test("every converted glyph site paints the SAME box on the arm as it did on its !important classes", async ({ mount, page }) => {
+  await mount(
+    <div style={{ width: 240 }}>
+      {GLYPH_STEPS.map((s, i) => (
+        <div key={s.size} style={{ display: "flex" }}>
+          <Button className={s.retired} intent="ghost" size="sm">
+            <span data-testid={`old-glyph-${i}`} style={{ display: "block", height: 12, width: 12 }} />
+          </Button>
+          <Button intent="ghost" size={s.size}>
+            <span data-testid={`new-glyph-${i}`} style={{ display: "block", height: 12, width: 12 }} />
+          </Button>
+        </div>
+      ))}
+    </div>,
+  );
+  const read = (testId: string): Promise<Record<string, string>> =>
+    page.getByTestId(testId).evaluate((child) => {
+      const el = child.parentElement as HTMLElement;
+      const s = getComputedStyle(el);
+      const box = el.getBoundingClientRect();
+      return {
+        width: box.width.toFixed(1),
+        height: box.height.toFixed(1),
+        padding: `${s.paddingTop} ${s.paddingRight} ${s.paddingBottom} ${s.paddingLeft}`,
+        borderRadius: s.borderTopLeftRadius,
+        alignItems: s.alignItems,
+        justifyContent: s.justifyContent,
+      };
+    });
+  const measured = await Promise.all(GLYPH_STEPS.map(async (_step, i) => Promise.all([read(`old-glyph-${i}`), read(`new-glyph-${i}`)])));
+  for (const [i, step] of GLYPH_STEPS.entries()) {
+    const [before, after] = measured[i] ?? [{}, {}];
+    expect(after, `${step.size} must be geometry-identical to \`${step.retired}\``).toEqual(before);
+  }
+});
+
+// The glyph box is a POINTER-INDEPENDENT display size and sits BELOW the tap floor at three of its four
+// steps — exactly the `inline` arm's situation, so it carries the same hit-area ::after. Before this arm the
+// 13 converted sites had no hit area at all beyond their 16–24px box.
+test.describe("coarse pointer — the glyph hit area", () => {
+  test.use({ hasTouch: true });
+
+  test("every glyph step carries a ≥44px square ::after hit area while its own box stays sub-control", async ({ mount, page }) => {
+    await mount(
+      <div style={{ display: "flex", gap: 4 }}>
+        {GLYPH_STEPS.map((s) => (
+          <Button aria-label={s.size} intent="ghost" key={s.size} size={s.size} />
+        ))}
+      </div>,
+    );
+    const measured = await Promise.all(
+      GLYPH_STEPS.map(async (step) => {
+        const control = page.getByRole("button", { name: step.size });
+        const [box, hit] = await Promise.all([
+          control.boundingBox(),
+          control.evaluate((el) => {
+            const s = getComputedStyle(el, "::after");
+            return { height: Number.parseFloat(s.height), width: Number.parseFloat(s.width), position: s.position };
+          }),
+        ]);
+        return { box, hit };
+      }),
+    );
+    for (const [i, step] of GLYPH_STEPS.entries()) {
+      const m = measured[i];
+      expect(m?.hit.position, `${step.size}: the hit area must be absolutely positioned (layout-neutral)`).toBe("absolute");
+      expect(m?.hit.height, `${step.size}: hit height`).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+      expect(m?.hit.width, `${step.size}: hit width`).toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+      // LAYOUT-NEUTRAL: the pseudo expands past the visible box, never resizes it.
+      expect(m?.box?.height ?? 0, `${step.size}: the visible box stays the glyph size`).toBeLessThan(TOUCH_FLOOR_PX);
+    }
+  });
+});
+
 // The CTA's gradient-border ring (globals.css `[data-slot="button"][data-cta]::after`) pairs a
 // --color-primary head with a --color-sheen FOOT. That foot used to be a bare white literal sitting
 // beside its token-derived half — invisible to every theme (and a no-op gloss on a light one). The

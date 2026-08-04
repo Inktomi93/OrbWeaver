@@ -102,12 +102,25 @@ export const trackBarVariants = tv({
   slots: {
     // The empty track: a faint neutral rail (the mockup's --track-bg ≈ the input overlay tone). Height
     // rides the `field` spacing intent (0.375rem = the 6px §3.2 bar; the Meter track precedent above).
-    root: "relative h-field w-full overflow-hidden rounded-full bg-input",
+    // WIDTH is the `width` variant's, not the base's — see below.
+    root: "relative h-field overflow-hidden rounded-full bg-input",
     // The fill width is data (inline style) — its COLOR is a ramp token; danger swaps to the intent.
     fill: "h-full rounded-full",
   },
   variants: {
     danger: { true: { fill: "bg-destructive" } },
+    // WIDTH is a variant, never a call-site class. `full` is the magnitude bar (the rail spans its column
+    // and the fill fraction IS the reading). `swatch` is the LEGEND form: a fixed `block`-wide pill at
+    // value===max, used where the bar carries no magnitude at all and stands only for its ramp COLOR — the
+    // tracker-DEFINITION row, which says "this tracker renders as a meter, in this hue". That site spelled
+    // it `className="!w-block shrink-0"`, an `!important` override of the base `w-full`: a custom-token
+    // width is opaque to tailwind-merge (`twMerge("w-full","w-block")` keeps BOTH), so it resolved by
+    // stylesheet order and the `!` was there to force the coin flip (`ui-size-via-variant`, the Button
+    // `glyph-*` twin). `shrink-0` rides the arm because a fixed swatch that shrinks is not a swatch.
+    width: {
+      full: { root: "w-full" },
+      swatch: { root: "w-block shrink-0" },
+    },
     // `accent` swaps the CATEGORICAL ramp for a SEMANTIC intent, for a bar whose magnitude belongs to a
     // named zone rather than to a user-defined pool. The preset budget readout is the case: its bars
     // inherit the rack's steel-blue setup / warm-amber zone accent, and the ramp's step 1 (vitality
@@ -120,7 +133,7 @@ export const trackBarVariants = tv({
       warning: { fill: "bg-warning/55" },
     },
   },
-  defaultVariants: { accent: "ramp" },
+  defaultVariants: { accent: "ramp", width: "full" },
 });
 
 /** The stacked composition rail (SegmentBar) — the SAME rail geometry as the TrackBar (one `field`-tall

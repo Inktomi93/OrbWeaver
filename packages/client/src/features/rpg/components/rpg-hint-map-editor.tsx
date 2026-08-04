@@ -57,8 +57,7 @@ export function RpgHintMapEditor({ kicker, emptyLine, labelNoun, addPlaceholder,
           />
           <Button
             intent="ghost"
-            size="sm"
-            className="!size-6 !p-0 shrink-0"
+            size="glyph-md"
             onClick={(): void => {
               const { [label]: _removed, ...rest } = hints;
               onCommit(rest);
