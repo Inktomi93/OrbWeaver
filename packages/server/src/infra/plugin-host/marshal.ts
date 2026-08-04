@@ -37,9 +37,11 @@ export function jsToHandle(ctx: QuickJSContext, value: unknown): QuickJSHandle {
 function arrayToHandle(ctx: QuickJSContext, value: readonly unknown[]): QuickJSHandle {
   const arr = ctx.newArray();
   for (let i = 0; i < value.length; i++) {
-    const child = jsToHandle(ctx, value[i]);
+    // Per-iteration `using`: the child is freed at the end of THIS iteration, exactly where the hand-written
+    // `child.dispose()` sat, and a throw from a deeply-nested `setProp` no longer strands it. `arr` stays
+    // hand-owned — it is the return.
+    using child = jsToHandle(ctx, value[i]);
     ctx.setProp(arr, i, child);
-    child.dispose();
   }
   return arr;
 }
@@ -50,9 +52,8 @@ function objectToHandle(ctx: QuickJSContext, value: Record<string, unknown>): Qu
     if (child === undefined) {
       continue; // JSON drops undefined-valued keys — mirror it (never a `null` where the source had a hole).
     }
-    const childHandle = jsToHandle(ctx, child);
+    using childHandle = jsToHandle(ctx, child);
     ctx.setProp(obj, key, childHandle);
-    childHandle.dispose();
   }
   return obj;
 }
