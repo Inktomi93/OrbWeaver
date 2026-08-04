@@ -194,15 +194,17 @@ export function spliceInChatInjections<T extends { role: WireRole; content: stri
       continue;
     }
     const insertAt = result.length - depth;
-    // SPEAKERLESS — the marker that survives the demote. An injection authored as system or assistant is
-    // the operator/instruction channel; when the backend cannot carry mid-conversation system it must take
-    // the `user` wire role, but it is STILL not the player talking. Without this marker the downstream
-    // name-stamp saw a bare `user` row and prefixed it with the player's name, delivering the game state,
-    // the card teach and the steering license as if the PLAYER had written them (INJECT-NAMED-AS-PLAYER).
-    // `names.ts` already refuses to label a real `system` row for exactly this reason — the demote is what
-    // put the row out of that guard's reach, so the marker restores it.
-    // A `role:"user"` injection is deliberately NOT marked: that one IS authored as the user's own voice.
-    result.splice(insertAt, 0, { role: effectiveRole, content: framed, ...(inj.role === "user" ? {} : { speakerless: true as const }) });
+    // EVERY spliced injection is speakerless — there is no role that makes one a participant utterance.
+    // A `ChatInjection.role` is WIRE PLACEMENT (which lane the backend can carry it in), never authorship:
+    // the same instruction rides `system` on a capable model and `user` on one that refuses mid-conversation
+    // system, and it is the same instruction either way. The `[Note from user: …]` frame says so in the
+    // prompt itself.
+    //
+    // An earlier pass carved out `role:"user"` injections on the theory that those are "authored in the
+    // user's voice". That was wrong and it reintroduced the exact reported bug for a host's post-history
+    // teach: the final user turn arrived as `Nate: <the player's words>` + `Nate: [Note from user: <the
+    // instruction>]` — two speaker labels, the second one attributing the game rules to the player.
+    result.splice(insertAt, 0, { role: effectiveRole, content: framed, speakerless: true as const });
   }
   return result;
 }

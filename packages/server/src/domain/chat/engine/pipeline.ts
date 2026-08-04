@@ -446,7 +446,18 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     groupNudge: args.groupNudge ?? null,
     // roleHandling is the preset's user-intent knob (per-turn override wins via the fold); SHAPE clamps it
     // against the model's roleHandlingFloor.
-    assistantPrefill: args.connection.capability.turns?.assistantPrefill === true,
+    // PREFILL IS SUPPRESSED BY TOOLS (ST `addAssistantPrefix`'s `hasAnyTools` shape). A prefill deliberately
+    // ends the prompt on an assistant row for the model to continue; wire tools ask it to STOP and emit a
+    // call. Shipping both tells the model to do two incompatible things with the same turn end, and ST
+    // refuses the combination outright rather than find out what a given provider does with it.
+    //
+    // Not hypothetical here: `capability.turns.assistantPrefill` is true for `anthropic/claude-opus-4-5` and
+    // `claude-haiku-4-5` (pinned in tests/.../catalog/turns.test.ts), and a FOLDED rpg game attaches 6
+    // terminal tools to the character turn — so those two models shipped prefill+tools together on every
+    // game turn. The Sonnet-5 path this was investigated on has prefill false, which is why it never
+    // surfaced. Both tool channels count: `attachedToolNames` (the executed/recursed set) and
+    // `terminalTools` (the R1 folded set, attached `tool_choice:"auto"` and never recursed).
+    assistantPrefill: args.connection.capability.turns?.assistantPrefill === true && !turnCarriesTools(args),
     // midConversationSystem gates the depth-0 system-injection delivery: a declaring model gets a REAL
     // system wire row; the TURNS_FLOOR default demotes to the visible `[Note from system: …]` user note.
     midConversationSystem: args.connection.capability.turns?.midConversationSystem === true,
@@ -519,6 +530,15 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     guidedPlacedAsInjection: ctx.guidedPlacedAsInjection === true,
     runnerWarnings: loop.warnings,
   };
+}
+
+/** Whether THIS turn ships wire tools — either channel. ST's `hasAnyTools` in our vocabulary; read by the
+ *  prefill gate above, which must not end the prompt on an assistant row while the model is also being asked
+ *  to emit a tool call. Deliberately does NOT consult `capability.tools`: an attached-but-unsupported set is
+ *  dropped downstream, and a prefill suppressed on a turn that then runs tool-less is a strictly safer miss
+ *  than a prefill shipped alongside tools that DO ride. */
+function turnCarriesTools(args: RunTurnPipelineArgs): boolean {
+  return (args.attachedToolNames.length > 0 && args.tools !== null) || (args.terminalTools?.length ?? 0) > 0;
 }
 
 // Tools ride only when names were gather-contributed AND the ops are wired AND capability.tools declares
