@@ -888,6 +888,39 @@ Items this audit could not prove either way from the tree. **None were dropped.*
 - Chrome MCP (claude-in-chrome) for live pairing with the owner: CDP hover survives screenshots, zoom
   regions, in-page counter probes — the tool for "I see it but can't shoot it".
 
+**⚑ WHAT THE 2026-08-03 EVENING TAUGHT THE ORCHESTRATOR (read this before dispatching anything)**
+
+- **A LANE'S COLD CHECK OUTRANKS YOUR WARM ONE.** Main is the only tree that accumulates state across
+  dozens of edits; a fresh worktree always compiles cold. When a lane reports a red your own check calls
+  green, **believe the lane and go looking.** Two did exactly that tonight and were right both times.
+  (`incremental` is now OFF, which kills this specific instance — the asymmetry of trust remains.)
+- **A BOARD ROW STATES ITS EVIDENCE METHOD OR IT IS A LEAD, NOT A ROW.** Measured: **six rows misdirected
+  six lanes in one evening**, and a re-verification pass found a **~50% defect rate TWICE** — once on the
+  original grep pass, and again on the section the board presented as *"100% covered, verified."* Rows
+  written from a grep, or copied from another document's citation, are unverified by construction. Say
+  which they are.
+- **BRIEF EVERY LANE TO RE-VERIFY ITS PREMISE FIRST, AND SAY THAT A CORRECT REFUSAL IS A SUCCESS.**
+  Tonight refusal was the MAJORITY outcome and the highest-value one: 4 of 7 smalls refused; one lane
+  refused its row and found a defect ten times bigger; one refused the brief's mechanism and found the
+  obvious fix would have been a no-op that looked correct; one refused to accept a law that was prose.
+- **TWO AGENTS AGREEING IS NOT CORROBORATION** when both read the same artifact from the same place —
+  their agreement is correlated, not independent. Two lanes agreed "biome is broken in worktrees"; the
+  owner challenged it, and a two-second probe showed the config was simply malformed.
+- **A ✅ WITH A PROSE TAIL OVERSTATES COMPLETION.** The `@orb-gate-ignore` debt sat as a prose bullet
+  under a ✅ LANDED item with no checkbox — so the board's own visual state said done while a real debt
+  remained. Same shape the HISTORY-GRADUATION rule names (four graduated docs, every survivor a prose
+  tail). **A remainder belongs in a checkbox, never in a paragraph.** An audit of the other ✅ items for
+  this shape is OWED and has never been run.
+- **MIS-SCOPED ROWS LET A LANE REPORT DONE TRUTHFULLY AT 1%.** `DOCLAW-RPG-REFS` scoped a tree-wide
+  problem (4,066 refs / 1,151 files) to one file that is ~1% of it. Check a row's true blast radius
+  before dispatching, or the tick is a lie nobody told.
+- **PUT THE HAZARD IN THE BRIEF, NOT JUST THE TASK.** Every lane that avoided a trap tonight avoided one
+  the brief named (the `AbortSignal.any` reason-propagation bug, the narrowest-real-host rule, the
+  three typecheck programs). Every trap that bit was one no brief mentioned.
+- **Mechanics:** backticks inside a `git commit -m "..."` are COMMAND-SUBSTITUTED by bash and silently
+  eat the word — always use a single-quoted heredoc (`-m "$(cat <<'EOF' … EOF)"`). And a `PreToolUse`
+  hook returning `defer` KILLS subagents (they have nobody to prompt); pass-through must be `allow`.
+
 **Owner cadence**
 
 - He answers question-tool batches fast and almost always takes the mantra-marked arm — pose ALL

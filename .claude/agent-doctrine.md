@@ -235,6 +235,52 @@ don't write memory yourself.
   violation is genuinely out of your lane's scope (sibling territory, owner-call territory), that's
   a SendMessage fork with your default — not a silent allowlist row.
 
+## YOUR INSTRUMENTS LIE (accreted 2026-08-03 evening — five sightings in one day)
+
+**The green you are reading may be the tool failing open.** Every one of these was found the same way:
+a result that disagreed with something someone could see, chased instead of explained away.
+
+- **`biome.json` is STRICT JSON. A `//` comment anywhere is a parse error — and biome does NOT fail
+  loudly, it falls back to BUILT-IN DEFAULTS** (tabs, 80 cols, every rule on, `node_modules` walked). It
+  ran that way for ~9 hours. Tells: phantom TAB indentation diffs on files nobody touched; rules firing
+  that the repo has off; absurd file counts (73,518 vs the healthy 4,564). **Probe: `npx biome check
+  <one-known-clean-file>` — clean config prints `Checked 1 file`, broken prints a `parse` diagnostic
+  naming `biome.json`.** Two lanes misdiagnosed this as "biome is broken in worktrees"; it is not, and
+  worktrees are fine.
+- **`incremental` is OFF repo-wide (`ad49d9cf2`) because it produced a FALSE GREEN.** A change to a root
+  ambient `.d.ts` did not invalidate per-package state: warm `pnpm typecheck` exit 0 / 0 errors, cold
+  exit 1 / 3 errors, same tree. It merged a build-breaking commit behind three green receipts. If you
+  ever see advice about clearing `tsbuildinfo`, it is stale — there is none. **Do not turn `incremental`
+  back on without re-running the proof written into `tsconfig.base.json`.**
+- **A gate that ratchets a PRODUCER proves nothing about a READER.** `warning-code-coverage` REDs a
+  declared-but-never-emitted warning code — and was green for months while `ChatResult.events` had
+  **zero production readers** and ten codes died inside infra. When a coverage gate is green, ask
+  separately who CONSUMES the value. This is a class, not one gate.
+- **A law that lives only in prose is a wish** (constitution §2.3). `GATE-AUTHORING` §4.3a required
+  position-named markers; nothing enforced it, and one unpositioned marker silently absolved BOTH
+  guarded things on a line. Found by trying to PROVE the clause, not by reading it.
+- **A doc's §-lists are snapshots that were never re-swept.** Four premises in one program doc died on
+  contact in one evening (an inert `.npmrc` setting, a coupled-site list short by three, a consumer list
+  short by four, a wrapper that already existed upstream). **Re-derive before building; truth-repair the
+  doc in the same commit.**
+
+## ABSENCE CLAIMS — the discipline that failed twice today
+
+**A negative result is only as good as the pattern that produced it.** Both failures below returned a
+confident zero and neither search had actually run.
+
+- `find . -name "*.tsbuildinfo"` → zero. The real filename is **`tsbuildinfo.json`**, under
+  `packages/*/node_modules/.cache/`. Both arms of an A/B then read the same stale cache, so the
+  experiment was structurally incapable of returning anything but the wrong answer.
+- **A bare JSX-attribute pattern is unmatchable in ast-grep and returns a silent zero.** Both
+  `-p 'absoluteStrokeWidth'` and `-p 'absoluteStrokeWidth={$V}'` returned 0 at `scannedFileCount=99`
+  against a file that provably contains it. **Only a full-element pattern matches.** For name-presence,
+  `pnpm ast ident <name>` is the correct instrument.
+
+**So: an absence claim needs TWO independent methods, a non-zero `scannedFileCount`, AND a positive
+control** — run the same pattern against something you KNOW matches. If the control returns zero, your
+instrument is broken, not the tree.
+
 ## Verify-before-building laws (accreted 2026-08-03 night — each cost a lane iteration)
 - **A ledger clause's cited SEAM/mechanism is a HYPOTHESIS**: before building to a D-entry's
   letter, cross-check it against the spec section it summarizes and the tree (a clause named a
