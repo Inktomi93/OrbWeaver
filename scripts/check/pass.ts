@@ -142,10 +142,13 @@ export function findGateIgnoreMarkers(text: string): readonly { readonly index: 
   return out;
 }
 
-/** Which markers actually SUPPRESSED something in this run, keyed `<repo-rel file>:<1-based line>`.
- *  §4.4's two-sidedness: a marker nobody consumed guards no live violation and is a loaded gun, so
- *  `gate-ignore-inventory` reds it. Module state, reset per `runPass` (conformance runs many passes). */
-const gateIgnoreUses = new Set<string>();
+/** How many findings each marker actually SUPPRESSED in this run, keyed `<repo-rel file>:<1-based line>`.
+ *  §4.4's two-sidedness needs the ZERO case: a marker nobody consumed guards no live violation and is a
+ *  loaded gun, so `gate-ignore-inventory` reds it. §4.3a needs the >1 case: an UNPOSITIONED marker that
+ *  absolved two guarded things is the over-exemption the `(<position>)` grammar exists to prevent, so the
+ *  count — not a boolean — is what the inventory gate must read. Module state, reset per `runPass`
+ *  (conformance runs many passes). */
+const gateIgnoreUses = new Map<string, number>();
 /** Did a node-anchored suppression happen during the `finalize` phase? The inventory gate's stale sweep
  *  runs in `finalize`, so a gate that first reports there would be judged before it ever spoke. No gate
  *  does today (finalize arms use the Finding overload, which bypasses suppression entirely) — this is the
@@ -153,8 +156,10 @@ const gateIgnoreUses = new Set<string>();
 let gateIgnoreLateUse = false;
 let currentPhase: ToolError["phase"] = "begin";
 
-export function gateIgnoreUsed(file: string, line: number): boolean {
-  return gateIgnoreUses.has(`${file}:${line}`);
+/** How many findings the marker at `<file>:<line>` suppressed this run. `0` = stale (§4.4); `>1` from an
+ *  UNPOSITIONED marker = over-exemption (§4.3a). */
+export function gateIgnoreUseCount(file: string, line: number): number {
+  return gateIgnoreUses.get(`${file}:${line}`) ?? 0;
 }
 
 /** True when a suppression landed after the stale sweep's phase — the sweep's soundness premise broke. */
@@ -220,7 +225,8 @@ function makeGateRun(gate: GateDescriptor, ctxBase: Omit<GateRunCtx, "report">):
     const file = repoRel(ctxBase.root, node.getSourceFile().getFilePath());
     const suppressedAt = findGateIgnore(node, gate.name, atToken?.token);
     if (suppressedAt !== undefined) {
-      gateIgnoreUses.add(`${file}:${suppressedAt}`);
+      const key = `${file}:${suppressedAt}`;
+      gateIgnoreUses.set(key, (gateIgnoreUses.get(key) ?? 0) + 1);
       gateIgnoreLateUse ||= currentPhase === "finalize";
       return;
     }
