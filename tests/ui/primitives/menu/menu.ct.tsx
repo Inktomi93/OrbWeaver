@@ -12,9 +12,15 @@ import {
   MenuSubmenuRoot,
   MenuSubmenuTrigger,
   MenuTrigger,
+  MenuViewport,
 } from "@orb/ui/menu";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { MenuHandleHarness } from "./menu-handle.fixtures.tsx";
+
+// Enough rows that the natural popup height exceeds any CT viewport — the shape that exposes a popup
+// ignoring Base UI's `--available-height`.
+const LONG_MENU_ITEMS = Array.from({ length: 60 }, (_unused, index) => `Item ${index + 1}`);
 
 test("opens on trigger click and lists items", async ({ mount, page }) => {
   await mount(
@@ -238,6 +244,71 @@ test("a link item renders an anchor with its href", async ({ mount, page }) => {
   await expect(link).toHaveAttribute("href", "/settings");
   const tagName = await link.evaluate((el) => el.tagName);
   expect(tagName).toBe("A");
+});
+
+// A long menu must stay INSIDE the viewport. Base UI's Positioner publishes `--available-height`
+// (anchor → viewport edge); a popup that doesn't consume it renders at full content height and its
+// tail is unreachable — no scroll, because the popup itself has no overflow. Source-level review
+// cannot see this: only the rendered box says whether the last row can be reached.
+test("a long menu clamps to the available height and scrolls instead of running off-screen", async ({ mount, page }) => {
+  await mount(
+    <Menu>
+      <MenuTrigger>Actions</MenuTrigger>
+      <MenuPopup>
+        {LONG_MENU_ITEMS.map((label) => (
+          <MenuItem key={label}>{label}</MenuItem>
+        ))}
+      </MenuPopup>
+    </Menu>,
+  );
+  await page.getByRole("button", { name: "Actions" }).click();
+  const popup = page.getByRole("menu");
+  await expect(popup).toBeVisible();
+
+  const viewportHeight = page.viewportSize()?.height ?? 0;
+  expect(viewportHeight).toBeGreaterThan(0);
+  const box = await popup.boundingBox();
+  expect(box).not.toBeNull();
+  // Fits on screen, top and bottom.
+  expect(box?.height ?? 0).toBeLessThanOrEqual(viewportHeight);
+  expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewportHeight + 1);
+  // And the content that no longer fits is REACHABLE — the popup is its own scroller.
+  const scroll = await popup.evaluate((el) => ({ client: el.clientHeight, content: el.scrollHeight }));
+  expect(scroll.content).toBeGreaterThan(scroll.client);
+  await popup.evaluate((el) => {
+    el.scrollTop = el.scrollHeight;
+  });
+  await expect(page.getByRole("menuitem", { name: "Item 60" })).toBeInViewport();
+});
+
+// The detached handle — one menu, opened from a control that is not its trigger, with the payload
+// routed from the (hidden) anchor trigger into the Root's render-function children.
+test("opens imperatively via a detached handle and routes the trigger payload to content", async ({ mount, page }) => {
+  await mount(<MenuHandleHarness />);
+  await expect(page.getByRole("menu")).toBeHidden();
+  await page.getByRole("button", { name: "Open remotely" }).click();
+  await expect(page.getByRole("menu")).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: "Reached content" })).toBeVisible();
+});
+
+// The OPTIONAL multi-trigger transition container (Base UI Menu.Viewport). Wrapping the items in it
+// must not disturb the menu's own semantics — the items stay menuitems under the same menu role.
+test("MenuViewport wraps the items without changing the menu's semantics", async ({ mount, page }) => {
+  await mount(
+    <Menu>
+      <MenuTrigger>Actions</MenuTrigger>
+      <MenuPopup>
+        <MenuViewport>
+          <MenuItem>Rename</MenuItem>
+          <MenuItem>Delete</MenuItem>
+        </MenuViewport>
+      </MenuPopup>
+    </Menu>,
+  );
+  await page.getByRole("button", { name: "Actions" }).click();
+  await expect(page.getByRole("menu")).toBeVisible();
+  await expect(page.locator('[data-slot="menu-viewport"]')).toBeVisible();
+  await expect(page.getByRole("menuitem")).toHaveCount(2);
 });
 
 test("the backdrop appears while the menu is open and hides when it closes", async ({ mount, page }) => {

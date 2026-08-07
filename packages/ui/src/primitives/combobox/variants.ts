@@ -38,6 +38,10 @@ export const comboboxVariants = tv({
     popup: [POPUP_SURFACE, "w-(--anchor-width)", OVERLAY_MOTION.anchoredPopup],
     arrow: OVERLAY_ARROW,
     list: "flex flex-col gap-field",
+    // Grouped suggestions — same spellings as the autocomplete seal's group/groupLabel, since the two
+    // listbox popups must not drift into two different grouped looks.
+    group: "flex flex-col gap-field",
+    groupLabel: "px-block py-field text-label leading-label font-semibold text-muted-foreground",
     item: ITEM_ROW,
     empty: "px-block py-field text-body leading-body text-muted-foreground",
     // Visually collapsed; must stay mounted — never hidden/display:none the Status element.

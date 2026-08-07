@@ -4,8 +4,19 @@ import { Field } from "@orb/ui/field";
 import { Textarea } from "@orb/ui/textarea";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
+import { ValueChangeDetailsStory } from "./textarea.fixtures.tsx";
 
 const NON_EMPTY = /.+/u;
+
+// `onValueChange` is Field.Control's native change arm: (value, eventDetails). The eventDetails
+// object is what makes `cancel()` / `allowPropagation()` reachable, and it is exactly what a
+// hand-spelled `(value: string) => void` seal signature silently deletes.
+test("onValueChange delivers Base UI's eventDetails alongside the value", async ({ mount, page }) => {
+  await mount(<ValueChangeDetailsStory />);
+  await expect(page.getByTestId("details-readout")).toHaveText("no-change-yet");
+  await page.getByRole("textbox").fill("hello");
+  await expect(page.getByTestId("details-readout")).toHaveText("hello|none|cancellable");
+});
 
 test("inside a <Field>, the label associates with the textarea (Field.Control registration)", async ({ mount, page }) => {
   await mount(
