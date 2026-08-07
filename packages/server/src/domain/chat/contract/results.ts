@@ -295,7 +295,9 @@ export interface TurnPrep {
    *  never spend the model's attention on state tools. Absent ⇒ byte-identical to today. */
   readonly terminalTools?: readonly WireTool[] | undefined;
   /** The M2 card wire knob a game turn's gather contributed (parity-plus §3.5) — threaded to
-   *  `runTurnPipeline.cardKeepLastX`. Absent/0 ⇒ every history card collapses to its stub (the default). */
+   *  `runTurnPipeline.cardKeepLastX`. ABSENT ≠ ZERO: absent ⇒ NO window (a chat with no rpg game contributes
+   *  nothing, so every stored card rides the wire whole); `0` ⇒ keep none, every history card collapses to its
+   *  stub (an rpg game's own default); `n` ⇒ the newest n ride whole. */
   readonly cardKeepLastX?: number | undefined;
   /** rpg-design/05 §6 slot-adjacency verdict: is this turn (re)generating the assistant slot that DIRECTLY
    *  responds to the latest user message? The engine marks the turn dice-eligible (`ctx.rpg.markDicePreRollEligible`)
