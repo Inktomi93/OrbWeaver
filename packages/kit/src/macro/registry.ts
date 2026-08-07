@@ -460,24 +460,69 @@ function charField(read: (ctx: MacroContext) => string | undefined): MacroHandle
   };
 }
 
+/** The delivered-args → recorded `args` text join. `::` is the canonical arg separator the parser splits on,
+ *  so the record round-trips what was written; no args ⇒ the field is omitted entirely. */
+const FREEZE_ARG_SEPARATOR = "::";
+
+/** Consume the next entry of a replayed freeze record, or `undefined` to draw fresh. Positional: the entry at
+ *  the cursor must match this call's name AND args, else the record no longer describes this text and the
+ *  replay is abandoned for the remainder of the pass (parking the cursor past the end) rather than
+ *  mis-pairing a later occurrence's value onto this one. */
+function takeFrozenMacro(ctx: MacroContext, name: string, args: string | undefined): string | undefined {
+  const frozen = ctx.frozenMacros;
+  if (frozen === undefined) {
+    return;
+  }
+  const at = ctx.__freezeCursor ?? 0;
+  const entry = frozen[at];
+  if (entry === undefined || entry.name !== name || entry.args !== args) {
+    ctx.__freezeCursor = frozen.length;
+    return;
+  }
+  ctx.__freezeCursor = at + 1;
+  return entry.value;
+}
+
+/** Wrap ONE volatile handler with the freeze ledger (D129-F): replay a prior record's value when the context
+ *  carries one (the handler is skipped, so no draw is consumed), and record the effective occurrence onto the
+ *  context's sink. Inert — one extra closure frame and two absent-field checks — on every context that
+ *  supplies neither, which is every live render. */
+function ledgerVolatile(name: string, handler: MacroHandler): MacroHandler {
+  return (args, ctx, children) => {
+    const argText = args.length > 0 ? args.join(FREEZE_ARG_SEPARATOR) : undefined;
+    const replayed = takeFrozenMacro(ctx, name, argText);
+    const value = replayed ?? handler(args, ctx, children);
+    ctx.macroFreezes?.push(argText === undefined ? { name, value } : { name, args: argText, value });
+    return value;
+  };
+}
+
 // The NONDETERMINISTIC macros ({{random}}/{{pick}}/{{roll}} + the clock family) whose value can't be
 // recovered from stored content, so they FREEZE at commit. Shared by `createDefaultRegistry` (live
 // render) and `createVolatileOnlyRegistry` (the freeze pass) so the two can't drift on which names freeze.
 // NOTE: var-mutation + conversation-context macros are ALSO `volatile` but deliberately excluded here —
 // freezing them would execute a side-effect against an ephemeral env or bake stale context.
+//
+// EVERY name here registers through {@link ledgerVolatile}, so the record/replay mode is a property of THIS
+// one axis (D129-F: "one engine, two modes") rather than a forked registry — a second freeze factory would
+// leave the WAVE-MU per-turn freeze registry (built from `createVolatileOnlyRegistry` in
+// `assembly/user-macros`) silently record-less on exactly the turns that author user macros.
 function registerVolatileMacros(registry: SimpleMacroRegistry): void {
   const vol = { volatile: true } as const;
-  registry.register("random", randomHandler, vol);
-  registry.register("pick", pickHandler, vol);
+  const reg = (name: string, handler: MacroHandler): void => {
+    registry.register(name, ledgerVolatile(name, handler), vol);
+  };
+  reg("random", randomHandler);
+  reg("pick", pickHandler);
   // Locale-independent clock formats. Zone = ctx.timezone (browser) → server-local fallback. Volatile —
   // every render is a different "now" → static-half occurrences bust the cached prefix.
-  registry.register("time", (_args, ctx) => nowInZone(ctx).toFormat("HH:mm:ss"), vol);
-  registry.register("date", (_args, ctx) => nowInZone(ctx).toFormat("yyyy-MM-dd"), vol);
-  registry.register("weekday", (_args, ctx) => nowInZone(ctx).toFormat("cccc"), vol); // "Monday" …
-  registry.register("isodate", (_args, ctx) => nowInZone(ctx).toISODate() ?? "", vol);
-  registry.register("isotime", (_args, ctx) => nowInZone(ctx).toISO() ?? "", vol);
-  registry.register("datetimeformat", dateTimeFormat, vol);
-  registry.register("roll", rollHandler, vol);
+  reg("time", (_args, ctx) => nowInZone(ctx).toFormat("HH:mm:ss"));
+  reg("date", (_args, ctx) => nowInZone(ctx).toFormat("yyyy-MM-dd"));
+  reg("weekday", (_args, ctx) => nowInZone(ctx).toFormat("cccc")); // "Monday" …
+  reg("isodate", (_args, ctx) => nowInZone(ctx).toISODate() ?? "");
+  reg("isotime", (_args, ctx) => nowInZone(ctx).toISO() ?? "");
+  reg("datetimeformat", dateTimeFormat);
+  reg("roll", rollHandler);
 }
 
 /** The 8 rpg* data-fed macros (rpg-design/06 §1): `[registered lowercase name, RpgGatherMacros value key]`.
