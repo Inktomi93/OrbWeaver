@@ -81,10 +81,27 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   `monotonic-tests.ts:20`'s error strings (tsx is shed — sweep `pnpm tsx` across scripts/) ·
   stale `SettingRow` prose at `structured-output-section.tsx:29`, `knob-row.tsx:200`,
   `tokens.json:585` ($description; forces tokens:build).
-- **⛔ NEXT (owner-ordered): the DOGFOOD DOC, worked and verified IN FULL** — every open row in
-  `docs/dogfood-tracking.md` fixed or adjudicated, every FIXED row re-verified properly. THEN back
-  to this board. Program-closure obligations riding into that phase: the full `pnpm test` battery
-  at quiesce + the standing-law side-eye over the program's rendered surfaces.
+- **THE DOGFOOD CAMPAIGN (owner-ordered, LIVE overnight 08-07→08-08):** five lanes dispatched;
+  **2 MERGED + torn down** as of the mid-night mark: **DOG-VERIFY** (`4ef249f8f` — every owed
+  ✅-row test written: drain deadline, wire-outcomes asymmetry, emptygen warn, tooldrop names,
+  the SCENE property test + declared failing-pin awaiting `indoors`, env isolation) ·
+  **STATLAS** (`92808239b` + `81a29d75c` — the ST message-shaping atlas with MEASURED §2, plus
+  SEVEN rig defects fixed sweep-proven: the wipe-by-design, the INVERTED names-behavior enum, a
+  nonexistent settings key dead on both arms, the ORB arm reading ST-truncated chats — 44 files
+  were ONE payload. Parity now real: 42 compared / 0 unpaired; tools fixtures differ only at
+  rows [0],[1],[24]). **Battery green pre-campaign: 10,165 vitest + 2,430 CT.** Stack UP
+  (server :8788, vite :5173 via localhost), engines adopted.
+  **LIVE: DOG-ENGINE** (EMPTYGEN — idle-timeout hypothesis FALSIFIED source-pinned, tool-only
+  root cause stands, ruled RECOVER arm in build + `indoors` vocab + card tail) ·
+  **DOG-PERSONA-SMALLS** (item 1 DONE red-first: `TurnTrigger` union + the server-side own-row
+  guard — NULL-seat anchor contamination dead at both ends; items 2–10 + the parity fixture +
+  STATLAS's two routed flags: the `{{user}}` dual-resolution probe (F1) and the names.ts header
+  lie (F2)) · **DOG-DEBUG** (item 1 DONE: `ShapeTrace.rows` + the MERGED-arm pin that makes the
+  INJECT class visible; item 2 ruled ARM A — rpg-owned call record, D112 mechanism preserved,
+  builds after item 3's RPG_TRACE port).
+  Owed at campaign close: side-eye over all rendered changes (ALL findings fixed, standing law) ·
+  final battery at quiesce · the halt-lift adjudication. THEN this board's queue (owner word:
+  REGX2 → MOBILE → BOARD-THESE by value → smalls).
 
 ## ═══ INITIATIVES ═══
 
