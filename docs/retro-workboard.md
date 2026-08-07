@@ -130,8 +130,23 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   with a back row — config + databank are the deviations to remove; resolvePanelMode
   shell-store.ts:372 + per-section CTs at the mobile frame). Owner rulings all executed; push word
   still owed on \~50 commits.
-- **NEXT (owner-authorized chain): this board's queue** — REGX2 (dispatching) → MOBILE one-shell
-  rule → BOARD-THESE by value-per-effort → the lifted smalls. Owner-taste rows stay parked.
+- **✅ MOBILE MERGED (2026-08-07, merge on `f8bb4a9a9`, consolidated `pnpm check` 14/14; worktree
+  HELD pending side-eye).** The one-shell rule is a SHELL rule keyed on a section's list declaration
+  (`list` + `selection` are ONE union arm — tsc enforces no silent sit-outs). **PREMISE CORRECTED:**
+  the board said config+databank were the only deviations; measured at 320px ALL SEVEN list-bearing
+  sections landed on the welcome card with the roster at x=-320 — chats' mobile landing CHANGED
+  (launcher → chat list, the rule's letter). **FORK RULED (lane default, accepted):** roster is the
+  default screen; the topbar list toggle still drops to a section's own no-selection CONTENT
+  (`openOverlayPanel:"none"`) so the corpus/analytics dashboards stay reachable and the toggle is
+  never dead. **Side-eye OWED (dispatched), carrying the lane's two copy flags:** config's pushed
+  frame reads "Configuration" (no topbar header slot for the member name); corpus/analytics
+  "Back to the dashboard" buttons now land on the roster. Red-first: 7/92 failed against old source,
+  all through user-visible affordances. Lesson minted: \[\[fixed-panel-auto-insets-desktop-fallback]].
+- **QUEUE DISPATCHED (2026-08-07, owner word "4 open lanes", canon-identity stays parked absent his
+  call):** ABORT-LEAK (structured abort-reason retry) · WIRE-SINK (tool-round captureWire) ·
+  TEMPLATE-CENSUS (dual templating + note framings, census-first) · SMALLS-BATCH (the six one-liners).
+  HAND-EDIT-VS-FLUSH waits for a freed slot; PRESET-SLIDER-VERIFY the orchestrator drives live.
+- **NEXT (owner-authorized chain):** BOARD-THESE remainder → the lifted smalls. Owner-taste rows parked.
 
 ## ═══ STATE (2026-08-07 late — superseded; kept one cycle for the receipts trail) ═══
 
