@@ -396,6 +396,36 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   (~10 section definitions) is an owner call, not improvised for a vocabulary defect a label fixes.
   Same principle as the two forks ruled earlier: **the symptom is the finding; the prescription is a
   proposal.**
+- **✅ THE IDENTITY FAN-OUT'S F-C HALF LANDED (FANOUT-2, `c197ce01b`, check 14/14).** The volatile
+  freeze keeps a record at BOTH hops and the record is PROVEN sufficient — the lane built the replay
+  arm because "a record you cannot reproduce from is an untested claim", and its red-first named the
+  bytes that used to vanish (`expected null to be "I roll {{roll::1d1}} then pick {{pick::north}}"`).
+  It also ran a POSITIVE CONTROL on the tests that were green BEFORE (planted a NULL-convention
+  violation, watched 2 arms red) — a green-before test that cannot bite is not a test.
+  **My brief's shape was wrong and the receipt killed it:** `assembly/user-macros.ts:67` builds ONE
+  per-turn freeze registry reused by BOTH hops, so a sink captured IN the registry would have pooled
+  one row's macro draws onto another's — recording is a CONTEXT capability
+  (\[\[per-turn-engine-per-call-sink-goes-on-context]]). Kit OWNS `MacroFreeze` (§0.2 — the engine
+  emits the shape); the NULL convention is enforced at the ONE writer; the replay arm ships
+  committed-not-wired citing D129-G with its divergence semantics stated (positional; a mismatch
+  parks the cursor so everything after draws FRESH — mis-pairing would FABRICATE provenance).
+  **First reader landed** on the host-gated `VariantWireView` per my ruling, with an addendum in the
+  security doc recording that the host-plane classification's premise was CHECKED and HELD.
+- **✅ SMALLS-3 LANDED (`b407a084a`)** — 4/4 with a copy deviation worth keeping: my brief said the
+  built-in preset's error should say "duplicate it to attach any" and **Duplicate does not exist for
+  system rows** (`preset-library-row.tsx:138` gives no actions, hence no kebab); the real path is
+  copy-on-write, and the shipped copy says THAT. Naming a nonexistent command would have been the
+  X-19 defect one screen over. Also: the gameless-chat 404 fixed at the CALLER after reading the
+  verb's contract (`resolveMember`'s NOT_FOUND is a DELIBERATE leak-free collapse — a non-member and
+  a no-game chat get the same error so a foreigner learns nothing); gating on the room's own pointer
+  kills the retry too. Two accessible names now tell the truth (the current persona is named for its
+  STATE, the sheet's inbox is a real heading). The sheet finally marks read — the `useEffect` its own
+  comment had been describing for weeks. Lesson: \[\[recreating-a-deleted-test-path-is-a-coupled-site]].
+  - [ ] **NO UNREAD INDICATOR ON THE PHONE outside the You sheet** (S–M, registry-shaped, owner call)
+    — an invite is invisible until you open the overflow for an unrelated reason. `ChromeEntry`
+    (`#state`) has NO badge axis, and the You tab belongs to app-shell's rail — features cannot
+    import each other, so notifications cannot reach it. Needs a new badge/attention capability on
+    `ChromeEntry` + a rail consumer. Evidence: lane census, source-pinned.
 - **⚑ SECOND LIVE EXPOSURE, SAME CLASS, NEIGHBOURING SURFACE (lane RPGFORK, in build).** Sweeping
   the sibling's defect-generator into `rpg/chat-ops/fork-game.ts` found a REAL leak — and a new
   sub-class: **it lives INSIDE A JSON BLOB (`rpg_games.config`), where a table-level allow-list is
