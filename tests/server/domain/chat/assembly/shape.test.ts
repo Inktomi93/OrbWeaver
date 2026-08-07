@@ -18,6 +18,10 @@ import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = castId<CharacterId>("character_aria");
 const KAI = castId<CharacterId>("character_kai");
+/** The room's SYNTHETIC group card — a real `characters` row named "Group" that narrator turns are authored
+ *  by (`__group__<chatId>`). It resolves through the cast producer like any member, which is exactly why
+ *  every "is this a narrator row?" inference used to succeed at naming the wrong thing. */
+const GROUP_ID = castId<CharacterId>("character_group");
 const SPEAKERS = { user: "User", assistant: "Aria" };
 
 // A clean 3-row solo canon (asst greeting, user, asst tip) — the prior tip is the last stable message.
@@ -783,11 +787,14 @@ describe("toShapeCanon — the null-persona-stamp guard (a row never borrows a s
   let nextSeq = 0;
   const userRow = (authorUserId: UserId, personaId: PersonaId | null, content: string): MessageView => {
     nextSeq += 1;
-    // FABRICATION-OK: slim MessageView double — toShapeCanon reads only role/content/seq/personaId/authorUserId/excludedFromPrompt/id, all real here.
+    // FABRICATION-OK: slim MessageView double — toShapeCanon reads only role/kind/content/seq/personaId/authorUserId/excludedFromPrompt/id, all real here.
     return {
       id: castId<MessageId>(`message_null_stamp_${nextSeq}`),
       seq: nextSeq,
       role: "user",
+      // A real row always declares one (NOT NULL, default `standard`) — the double must not omit a column the
+      // prompt-policy dispatch reads, or it tests a shape the read seam cannot produce.
+      kind: "standard",
       content,
       authorUserId,
       characterId: null,
@@ -943,5 +950,132 @@ describe("shape — the delivered-row trace", () => {
     );
 
     expect(out.stages.delivered.map((row) => row.source)).toEqual(["canon", "canon", "assembled"]);
+  });
+});
+
+// ── THE ROW-PURPOSE DISPATCHES (D129 §G — the SHAPE half of the fan-out) ────────────────────────────────
+//
+// Each test here fails the moment a site goes back to inferring purpose from role × attribution × the room's
+// dial. Before this landed: `MESSAGE_KIND_POLICY.comment.prompt === "never"` was enforced by nothing (a
+// comment row shipped to the model), the `<speaker>` strip ran on EVERY assistant row on the theory that
+// tag-absence is the same claim as "not narrator", and the name-stamp put ONE identity's label on a
+// multi-speaker narrator block.
+
+const KIND_CTX: AssembleContext =
+  // FABRICATION-OK: slim AssembleContext double — this path reads only character/cast/castCharacterIds/recentMessages/promptConfig.
+  {
+    character: { name: "Aria", description: "" },
+    cast: [{ name: "Group", description: "" }],
+    castCharacterIds: [GROUP_ID],
+    recentMessages: [],
+    promptConfig: DEFAULT_PROMPT_CONFIG,
+    triggerUserId: null,
+  } as unknown as AssembleContext;
+
+const KIND_NAMES: HistoryMacroNames = {
+  characterNamesById: new Map<CharacterId, RowCharacterName>([[GROUP_ID, { name: "Group" }]]),
+  personaNamesById: new Map<PersonaId, RowPersonaName>(),
+};
+
+let kindSeq = 0;
+/** A canon row that DECLARES its purpose — the only axis these tests vary. */
+function kindRow(over: Partial<MessageView> & { readonly kind: MessageView["kind"] }): MessageView {
+  kindSeq += 1;
+  // FABRICATION-OK: slim MessageView double — toShapeCanon reads role/kind/content/seq/ids/excludedFromPrompt only.
+  return {
+    id: castId<MessageId>(`message_kind_${kindSeq}`),
+    seq: kindSeq,
+    role: "assistant",
+    content: "body",
+    authorUserId: null,
+    characterId: GROUP_ID,
+    personaId: null,
+    excludedFromPrompt: false,
+    ...over,
+  } as unknown as MessageView;
+}
+
+describe("toShapeCanon — the PROMPT-POLICY dispatch (kind decides admission, not a truthiness guess)", () => {
+  test("a `comment` row NEVER reaches the wire; `standard` and `narrator` both do", () => {
+    const canon = [
+      kindRow({ kind: "standard", content: "in character" }),
+      kindRow({ kind: "comment", content: "OOC: brb, dog" }),
+      kindRow({ kind: "narrator", content: "the door opens" }),
+    ];
+    const rows = toShapeCanon(canon, KIND_CTX, KIND_NAMES, null);
+    expect(rows.map((r) => r.content)).toEqual(["in character", "the door opens"]);
+  });
+
+  test("the drop survives to the DELIVERED wire — a comment is not merely unlabelled, it is absent", () => {
+    const out = shape(
+      soloInput({
+        canon: toShapeCanon(
+          [kindRow({ kind: "standard", content: "in character" }), kindRow({ kind: "comment", content: "OOC: brb, dog" })],
+          KIND_CTX,
+          KIND_NAMES,
+          null,
+        ),
+        appendUserTurn: null,
+        namesBehavior: "content",
+      }),
+    );
+    expect(out.history.some((r) => r.content.includes("OOC"))).toBe(false);
+  });
+
+  test("kind rides onto the delivered-row TRACE, so a host can see WHY a row shipped the way it did", () => {
+    const out = shape(
+      soloInput({
+        canon: toShapeCanon([kindRow({ kind: "narrator", content: "the door opens" })], KIND_CTX, KIND_NAMES, null),
+        appendUserTurn: null,
+      }),
+    );
+    // The canon row declares narrator; the continuation nudge assembly appends declares nothing (no slot).
+    expect(out.stages.delivered.map((r) => r.kind)).toEqual(["narrator", undefined]);
+  });
+});
+
+describe("the `<speaker>` strip is GATED ON KIND, not applied blind to every assistant row", () => {
+  const tagged = "<speaker>Kai</speaker> I'm here.";
+
+  test("a NARRATOR row's tags convert to the plain `NAME:` attribution the wire speaks", () => {
+    const rows = toShapeCanon([kindRow({ kind: "narrator", content: tagged })], KIND_CTX, KIND_NAMES, null);
+    expect(rows[0]?.content).toBe("Kai: I'm here.");
+  });
+
+  test("a STANDARD row's identical bytes are left ALONE — an author's own `<speaker>` prose is not attribution", () => {
+    const rows = toShapeCanon([kindRow({ kind: "standard", content: tagged })], KIND_CTX, KIND_NAMES, null);
+    expect(rows[0]?.content).toBe(tagged);
+  });
+});
+
+describe("applyNamesBehavior — the LABEL policy is the row's kind (a narrator block is never one identity's line)", () => {
+  const narratorBody = "Kai: I'm here.\nThe lamp gutters.";
+
+  for (const namesBehavior of ["content", "completion", "default"] as const) {
+    test(`names=${namesBehavior}: a narrator row takes NO row-level speaker label`, () => {
+      const out = shape(
+        soloInput({
+          canon: toShapeCanon([kindRow({ kind: "narrator", content: narratorBody })], KIND_CTX, KIND_NAMES, null),
+          appendUserTurn: null,
+          namesBehavior,
+        }),
+      );
+      const row = out.history.find((r) => r.role === "assistant");
+      // The body rides verbatim: no "Group: " (the synthetic card's name), no "Aria: " (the turn's assistant
+      // fallback once that card does not resolve), and no out-of-band completion `name` either.
+      expect(row?.content).toBe(narratorBody);
+      expect(row?.name).toBeUndefined();
+    });
+  }
+
+  test("a STANDARD row in the same room still takes its label (the policy narrows, it does not disable)", () => {
+    const out = shape(
+      soloInput({
+        canon: toShapeCanon([kindRow({ kind: "standard", content: "one voice" })], KIND_CTX, KIND_NAMES, null),
+        appendUserTurn: null,
+        namesBehavior: "content",
+      }),
+    );
+    expect(out.history.find((r) => r.role === "assistant")?.content).toBe("Group: one voice");
   });
 });

@@ -14,6 +14,7 @@ function row(seq: number, content: string): MsgRow {
   return {
     seq,
     role: "assistant",
+    kind: "standard",
     characterId: aria,
     authorUserId: null,
     personaId: null,

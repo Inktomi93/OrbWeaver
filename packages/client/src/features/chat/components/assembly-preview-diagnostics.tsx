@@ -273,7 +273,13 @@ function numberWireRows(rows: readonly ShapeTraceRow[]): readonly NumberedWireRo
 /** One delivered row: `<n>. <role> · <speaker>` leads (the stable identity, §13.10 N3) and the volatile
  *  provenance + size trail it. */
 function WireRowLine({ row }: { readonly row: NumberedWireRow }): ReactElement {
-  const voice = row.name === undefined ? row.role : `${row.role} · ${row.name}`;
+  // The row's DECLARED purpose (D129) rides in the IDENTITY half of the line, beside role and voice — it is
+  // the third axis of "what is this row", and the one that explains a row the other two make look anomalous
+  // (a narrator row carries no speaker label, and an unlabelled assistant row is otherwise indistinguishable
+  // from a bug). Omitted for `standard` — the default is not information — and absent entirely on an
+  // `assembled` row, which has no slot to declare anything.
+  const purpose = row.kind === undefined || row.kind === "standard" ? "" : ` · ${row.kind}`;
+  const voice = row.name === undefined ? `${row.role}${purpose}` : `${row.role} · ${row.name}${purpose}`;
   return (
     <Row align="baseline" data-slot="wire-row-trace" gap="block" justify="between" role="listitem">
       <Text voice="datum">{`${row.ordinal}. ${voice}`}</Text>

@@ -70,6 +70,7 @@ import type {
   CharacterNameEntry,
   HandoffOffer,
   JoinHistoryVisibility,
+  MessageKind,
   MessageView,
   ParticipantView,
   PersonaNameEntry,
@@ -217,8 +218,9 @@ export interface MessageRowStoryProps {
   /** WIREBTN — the server-resolved room-HOST bit (`ChatDetail.viewerIsHost`). Gates the kebab's
    *  "View wire trace…" item; default false = the member plane every other row story drives. */
   readonly viewerIsHost?: boolean;
-  /** The room's group grammar is NARRATOR — gates the plain-`Name:` speaker-span split. */
-  readonly narratorRoom?: boolean;
+  /** The row's DECLARED purpose (`MessageView.kind`, D129) — `narrator` gates the plain-`Name:` speaker-span
+   *  split AND the narrator attribution. Omitted ⇒ `standard`, the ordinary row every other story drives. */
+  readonly messageKind?: MessageKind;
 }
 
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
@@ -245,7 +247,7 @@ export function MessageRowStory({
   reasoning = null,
   showLLMReasoningIcon,
   viewerIsHost = false,
-  narratorRoom,
+  messageKind = "standard",
 }: MessageRowStoryProps): ReactElement {
   const participantsMap =
     participants === undefined
@@ -285,6 +287,7 @@ export function MessageRowStory({
           <MessageRow
             message={makeMessageView({
               role: messageRole,
+              kind: messageKind,
               content,
               characterId,
               personaId,
@@ -308,7 +311,6 @@ export function MessageRowStory({
             activePersonaId={activePersonaId}
             anchorPersonaId={anchorPersonaId}
             viewerIsHost={viewerIsHost}
-            narratorRoom={narratorRoom}
             toolRenderers={NO_TOOL_RENDERERS}
           />
         </MessageThreadAnchor>
@@ -336,12 +338,12 @@ export interface NarratorTranscriptStoryProps {
  *  (no single author ⇒ `characterId: null`) above that character's own per-speaker row. The CT reads the
  *  resolved `--color-dialogue` off both paths and requires them equal — the one-hash-input pin.
  *
- *  ONLY THE NARRATOR ROW IS `narratorRoom` (fixed 2026-08-03). The flag is a property of the ROOM's output
- *  mode, and in a narrator room EVERY assistant row is the merged narrator — so a per-speaker row simply
- *  does not exist there. Passing the flag to both rows was harmless only while it changed nothing but the
- *  span grammar; now that it also routes attribution (a narrator row is the Narrator whatever producer id
- *  the write stamped on it — side-eye 2026-08-03 P1), the comparand row has to be what it depicts: the same
- *  character's row in a PER-SPEAKER room. */
+ *  ONLY THE NARRATOR ROW DECLARES `kind: "narrator"` (fixed 2026-08-03; re-expressed on the kind axis
+ *  2026-08-07, D129). It used to be the ROOM's `narratorRoom` flag, and passing it to both rows was harmless
+ *  only while it changed nothing but the span grammar; once it also routed attribution (a narrator row is the
+ *  Narrator whatever producer id the write stamped on it — side-eye 2026-08-03 P1) the comparand row had to be
+ *  what it depicts. On the kind axis the comparand is exact and needs no room at all: a `standard` row and a
+ *  `narrator` row, side by side, which is a pair the ROOM flag could not even express. */
 export function NarratorTranscriptStory({
   participants,
   narratorContent,
@@ -371,8 +373,12 @@ export function NarratorTranscriptStory({
       <MessageThreadAnchor>
         <div data-testid="narrator-row">
           <MessageRow
-            message={makeMessageView({ role: "assistant", content: narratorContent, characterId: narratorProducer === undefined ? null : narratorProducer.id })}
-            narratorRoom={true}
+            message={makeMessageView({
+              role: "assistant",
+              kind: "narrator",
+              content: narratorContent,
+              characterId: narratorProducer === undefined ? null : narratorProducer.id,
+            })}
             {...rowProps}
           />
         </div>

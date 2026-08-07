@@ -542,6 +542,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
       {
         seq: 1,
         role: "assistant",
+        kind: "standard",
         characterId: aria,
         authorUserId: null,
         personaId: null,
@@ -550,6 +551,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
       {
         seq: 2,
         role: "assistant",
+        kind: "standard",
         characterId: aria,
         authorUserId: null,
         personaId: null,

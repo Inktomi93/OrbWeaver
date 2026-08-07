@@ -6,7 +6,8 @@
 // per-chat dedup oracle (pre-fetched once, updated mid-loop). Each chat commits as ONE db.batch —
 // db.transaction() is BANNED (the :memory: trap) — so a kill mid-import leaves zero rows, healed by dedup.
 
-import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
+import type { BulkImportChatInput, BulkImportChatsResult, MessageKind } from "@orb/contracts/chat";
+import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characters, chatInjections, chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
@@ -150,25 +151,44 @@ interface MessageStatementsArgs {
   readonly narratorCharacterId: CharacterId | null;
 }
 
-/** WHO voices this slot: the room's synthetic narrator identity (`narrator: true` — the `output:"narrator"`
- *  grammar), else the message's own `characterId` (a per-speaker group transcript names its speaker per
- *  turn), else the run's primary (the single-voice ST transcript — the pre-roster behavior, unchanged). A
- *  `user` slot is never character-attributed. A named id is already proven seated by
+/** Is this slot the room's narrator voice? ONE reading of the declared kind (D129), shared by the attribution
+ *  router and the mint gate below so the two can never disagree about which rows made the mint necessary. */
+function isNarratorSlot(message: BulkImportChatInput["messages"][number]): boolean {
+  return message.role === "assistant" && message.kind === "narrator";
+}
+
+/** WHO voices this slot: the room's synthetic narrator identity (a `narrator`-kind slot — the
+ *  `output:"narrator"` grammar), else the message's own `characterId` (a per-speaker group transcript names its
+ *  speaker per turn), else the run's primary (the single-voice ST transcript — the pre-roster behavior,
+ *  unchanged). A `user` slot is never character-attributed. A named id is already proven seated by
  *  {@link assertSeatedSpeakers}; `narratorCharacterId` is null exactly when no slot asked for it. */
 function slotCharacterId(message: BulkImportChatInput["messages"][number], primary: CharacterId, narratorCharacterId: CharacterId | null): CharacterId | null {
   if (message.role !== "assistant") {
     return null;
   }
-  if (message.narrator === true && narratorCharacterId !== null) {
+  if (isNarratorSlot(message) && narratorCharacterId !== null) {
     return narratorCharacterId;
   }
   return message.characterId ?? primary;
 }
 
+/** The slot's stored PURPOSE. The DB column defaults to `standard`, but the value is written EXPLICITLY here:
+ *  an import is a WRITER like any other (D129's writer belt), and a writer that leaves the column to its
+ *  default is a writer whose intent nobody can read at the call site. `narrator` additionally implies the
+ *  synthetic attribution above, which is why one field now carries what a separate boolean flag used to.
+ *
+ *  The role gate is the same belt {@link isNarratorSlot} applies: `messages_kind_shape` CHECKs
+ *  `narrator ⇒ assistant` (D129(C)), and a caller-supplied input that got that pair wrong would otherwise abort
+ *  the whole batch at the db rather than landing an honestly-defaulted row. */
+function slotKind(message: BulkImportChatInput["messages"][number]): MessageKind {
+  const declared = message.kind ?? DEFAULT_MESSAGE_KIND;
+  return declared === "narrator" && !isNarratorSlot(message) ? DEFAULT_MESSAGE_KIND : declared;
+}
+
 /** Does this chat carry any narrator-voiced slot? Gates the once-per-chat mint so a plain ST import never
  *  touches the synthetic-character namespace at all (byte-identical: no mint, no extra row, no query). */
 function hasNarratorSlot(ci: BulkImportChatInput): boolean {
-  return ci.messages.some((m) => m.role === "assistant" && m.narrator === true);
+  return ci.messages.some(isNarratorSlot);
 }
 
 /** Statements for ONE imported message: slot (pointer null) → its variant pool → set the pointer. */
@@ -186,6 +206,7 @@ function messageStatements(args: MessageStatementsArgs): {
         chatId,
         seq,
         role: message.role,
+        kind: slotKind(message),
         authorUserId: isUser ? args.ownerId : null,
         characterId: slotCharacterId(message, args.characterId, args.narratorCharacterId),
         personaId: isUser ? message.personaId : null,
