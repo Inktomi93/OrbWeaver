@@ -23,6 +23,7 @@ covered exactly one field (`lite.steeringNote`), written before three more host-
 | `config.userMacros[].body` / `.args` | WAVE MU added game-authored macros after the strip list was written | **YES** |
 | `config.features.relationshipHints` | M1 added the gloss map; never classified | **YES** |
 | `config.features.journalTypeHints` | R4c added its sibling map; never classified | **YES** |
+| `rpg_snapshots.recentEvents` beyond the beat window | classified COPIED on a CLASS argument that did not survive a driven counterexample (see "the retracted call") | **YES** |
 
 ## THE GENERALIZATION THIS LANE ADDS: a table-level allow-list is blind inside a JSON column
 
@@ -117,7 +118,8 @@ identity), `id`/`gameId` remap, timestamps stamp.
 ### `rpg_snapshots` (18)
 
 `id` `gameId` `messageId` `variantId` `asOfMessageId` remapped (the D124 two-arm re-key, pre-existing).
-`recentEvents` is MEMBER-PROJECTED (the hidden-span belt, pre-existing). Every other state column is COPIED —
+**`recentEvents` is MEMBER-PROJECTED by TWO belts: the beat WINDOW (host-plane — see the retracted call above)
+and then the hidden-span strip.** Every other state column is COPIED —
 `getTrackerView` projects the resolved-current snapshot whole: `clock`/`calendarDate`/`location`/`weather` as
 `ambient`, `presentCharacters` as `cast`, `actorState` as `actors` (identity + volatile), `trackerValues`,
 `quests`, `plot`, and `fieldLocks` as `lockedPaths`. `committed` is an internal commit-lifecycle bit with no
@@ -137,19 +139,63 @@ member-readable. Only RESTORE is host-gated, and that is authority over room sta
 flagged checkpoint labels as a prime suspect; the gate matrix cleared them — which is the value of deriving the
 matrix instead of guessing from names.)
 
-## Two judgement calls, stated so they can be checked
+## THE RETRACTED CALL — a class argument is not a field argument (verifier counterexample, 2026-08-07)
 
-1. **A WRITE gate is not a read-secrecy boundary.** Two classes of rpg data are reachable in the source room only
-   by a host: journal entries on a NON-SELECTED variant lineage (`selectVariant` is author-or-host, and an
-   assistant slot's `authorUserId` is null, so only the host can flip it) and old snapshots behind a checkpoint
-   (`restoreCheckpoint` is host-gated). Both gates exist because the action CHANGES what the whole room sees —
-   they are authority over room state, not secrecy. The content behind them is model narrative of the same class
-   the member reads in-lineage, and the fork's own canon already carries those variants. Classified COPIED.
-2. **`recentEvents` beyond `recentBeatsKeepLast` is copied.** The durable beat log's only caller-facing reader is
-   the keepLast slice, served IDENTICALLY to host and member (`buildTrackerView` is principal-free), so the tail
-   is technically reachable only by flipping a host-gated knob. It still copies: the same distillation class is
-   served to every member unbounded and unfloored by the member-gated `listJournal`, so slicing the fork's log
-   would be strip-theater with real continuity loss. The hidden-span belt on it is retained.
+**This lane's first pass classified `recentEvents` COPIED and was WRONG.** The rationale was: "the durable beat
+log's tail is technically host-only, but the same distillation class is served to every member unbounded by
+`listJournal`, so slicing it would be strip-theater." A verifier drove the counterexample and it does not
+survive.
+
+**The counterexample.** Host sets `recentBeatsKeepLast: 2`; the head snapshot holds 5 beats. The member-gated
+`buildTrackerView` returns `["beat-4","beat-5"]` and nothing else — `tracker-view.ts` slices by `keepLast`, and
+`keepLast` is writable ONLY through the host-gated `updateConfig`. So beats 1-3 have **no member-gated reader in
+the source room**. A non-host forks, carries all 5, becomes HOST, widens the knob, and reads what was
+unreadable. The sharper arm: `recentBeatsKeepLast: 0` means ZERO beats are readable by any member, and the
+ENTIRE log crossed.
+
+**Why the original reasoning failed, stated so the shape is recognizable next time.** The law is about BYTES
+BEHIND A GATE, and the retracted argument answered a different question — whether bytes *of that kind* are
+available elsewhere. `listJournal` serves journal ROWS; those are not these bytes. A "same class of content"
+defence can be true and irrelevant simultaneously, and it reads as rigorous because it cites a real
+member-gated surface. **A COPIED verdict must name the member-gated reader OF THAT FIELD, not of its genre.**
+
+**Two aggravators the verifier named.** The beat log is append-only across the WHOLE game, so a fork whose
+`slotIdMap` holds a single slot still carries beats distilled from turns below a D16-clamped member's history
+floor — precisely the leak class `verbs/fork.ts` cites as its reason for making `promptSnapshot` host-plane.
+
+**The fix:** `stripBeatsForForker` now slices to `keepLastBeats(log, SOURCE keepLast)` before the hidden-span
+belt, so a non-host forker carries exactly the window the source room served them. `keepLastBeats` is EXPORTED
+from `tracker-view.ts` rather than re-spelled — it is the definition of "which beats a member can read", and a
+second copy of that slice could drift from the panel and silently widen the boundary.
+
+**Note the asymmetry this creates, and keep it:** `recentBeatsKeepLast` the KNOB copies (it is a prose-free
+scalar) while the DATA it gated does not. A host-only scalar is still a gate over member-visible bytes, and
+carrying the gate is not the same as carrying what it hid.
+
+### Does the D16 floor bite further? No — decided, with the reason
+
+1. The window strip already fires for **every** clamped forker: `readsHidden === false` is the superset
+   condition (a clamped forker is necessarily a non-host — `verbs/fork.ts` F2).
+2. The window IS what the source's own member-gated read served that person, floor or no floor —
+   `getTrackerView` resolves the current snapshot with **no `resolveHistoryFloorSeq` anywhere in its path**
+   (verified: the rpg snapshot resolution has no floor resolver at all).
+3. Flooring the fork harder would make it carry LESS than the panel showed the same human, and would leave the
+   real question open in the SOURCE, where every member still reads it.
+
+So the residual is reported, not stripped: **`getTrackerView` is not floor-clamped**, so a clamped member's beat
+window may quote turns below their own floor. That is a source-side member-visibility question (the D16 plane),
+not a fork laundering defect, and fixing it at the fork alone would hide it.
+
+## The judgement call that held
+
+**A WRITE gate is not a read-secrecy boundary.** Two classes of rpg data are reachable in the source room only by
+a host: journal entries on a NON-SELECTED variant lineage (`selectVariant` is author-or-host, and an assistant
+slot's `authorUserId` is null, so only the host can flip it) and old snapshots behind a checkpoint
+(`restoreCheckpoint` is host-gated). Both gates exist because the action CHANGES what the whole room sees — they
+are authority over room state, not secrecy. The content behind them is model narrative of the same class the
+member reads in-lineage, and the fork's own canon already carries those variants. Classified COPIED. (Note this
+is NOT the retracted argument above: here the gate itself is a write, so there is no withheld read to launder —
+the member could always see these bytes, on the lineage the room was showing.)
 
 ## The fix, and both ratchets probed
 
@@ -161,6 +207,9 @@ matrix instead of guessing from names.)
 | behavioral (column census) | same planted column | `EVERY rpg column is classified` RED — the live `getTableColumns(rpgSnapshots)` set no longer matched |
 | behavioral (config census) | same planted field | `EVERY rpg_games.config FIELD is classified` RED — read off the live `rpgGameConfigSchema.shape` |
 | behavioral (the leak itself) | reverted the four config strips to verbatim copy | one assertion named all four: `expected [ 'lite.steeringNote', 'userMacros', 'features.relationshipHints', 'features.journalTypeHints' ] to deeply equal []` |
+| behavioral (the beat window) | a keepLast-2 source with a 5-beat log, driven RED before the fix | `expected [ 'beat-1' … 'beat-5' ] to deeply equal [ 'beat-4', 'beat-5' ]` |
+| behavioral (the sharp arm) | a keepLast-0 source with the same log | `expected [ 'beat-1' … 'beat-5' ] to deeply equal []` |
+| behavioral (the host arm) | the same source, `readsHidden: true` | all five beats carry — green BEFORE and AFTER the fix, so the window strip is proven non-vacuous and host-neutral |
 | behavioral (the DROP arm) | a fully-populated source game | `no COPIED column is silently dropped` — per-column comparison across all four row planes, the failure mode that lost `chats.userMacroValues` on the chat fork |
 
 ## Not fixed here — reported
@@ -169,7 +218,10 @@ matrix instead of guessing from names.)
    "whole 6-table vertical", which is what made the omission invisible to a sweep — the header is truth-repaired
    in this commit; the copy decision is a product call, boarded. Not a leak: the rows are MEMBER-readable by
    design (`listTurnToolCalls` is `resolveMember`), so copying them would be safe.
-2. **`listJournal` applies NO hidden-span strip in the SOURCE room.** The fork's `content` strip is a
+2. **`getTrackerView` is not D16-floor-clamped** — a clamped member's beat window (and the resolved snapshot
+   generally) may quote turns below their own history floor. Source-side member-visibility question, surfaced by
+   the beat-window counterexample; see "Does the D16 floor bite further?" above for why the fork is not its fix.
+3. **`listJournal` applies NO hidden-span strip in the SOURCE room.** The fork's `content` strip is a
    defense-in-depth belt the source itself does not have, so if a model ever puts a `<lie>` in a journal entry
    the member read serves it raw. Ruled territory on rpg's side (rpg-design §1.6 recommendation A keeps tracker
    prose surface-only at the source), but it is the D129 class — hidden means hidden in every derived plane —
@@ -177,13 +229,15 @@ matrix instead of guessing from names.)
 
 ## Verification
 
-Floors run in-lane (scoped, per §L): `biome check` on both touched files (clean) · `eslint` on `fork-game.ts`
-(clean; the test file is outside eslint's config scope) · all three typecheck programs — graph `tsconfig.json`,
-per-package `pnpm typecheck`, `tsconfig.tests-dom.json` (all exit 0) · `pnpm check:structure`
-(`single-pass: clean`). Suites: `rpg/chat-ops/fork-game.int.test.ts` 17/17 · plus the fork/authority-touching
-neighbours `rpg/chat-ops/handoff-heal.int.test.ts`, `rpg/chat-ops/index.int.test.ts`,
-`rpg/authority.suite.int.test.ts`, the whole `rpg/verbs/**` tree, and `chat/verbs/fork.int.test.ts` — 190/190
-across 30 files.
+Floors run in-lane (scoped, per §L), re-run whole after the beat-window fix leg: `biome check` on the three
+touched files (clean) · `eslint` on `fork-game.ts` + `tracker-view.ts` (clean; the test file is outside eslint's
+config scope) · all three typecheck programs — graph `tsconfig.json`, per-package `pnpm typecheck`,
+`tsconfig.tests-dom.json` (all exit 0) · `pnpm check:structure` (`single-pass: clean`) · `pnpm check:docs`
+(clean) · whole-tree `npx knip --cache` exit 0, which is the arm that matters for the newly EXPORTED
+`keepLastBeats` (a real consumer, not a false orphan). Suites:
+`rpg/chat-ops/fork-game.int.test.ts` **20/20** · plus the whole `rpg/chat-ops/**` tree,
+`rpg/authority.suite.int.test.ts`, the whole `rpg/verbs/**` tree, and `chat/verbs/fork.int.test.ts` —
+**259/259 across 34 files**.
 
 ## Ready-to-paste ledger entry (DRAFT — not minted)
 
@@ -214,6 +268,16 @@ against `Core-Path-Registry.md` before pasting). Amends D110 §3.6 and extends t
   serves is member-readable and copies verbatim, which cleared checkpoint labels, sheets, and the whole snapshot
   state plane. **A WRITE gate is not a read-secrecy boundary** (`selectVariant`'s author-or-host gate and
   `restoreCheckpoint`'s host gate make data host-reachable-only, but they gate an action that changes what the
-  room sees — the content behind them stays COPIED). Findings record:
-  `docs/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md`.
+  room sees — the content behind them stays COPIED). **A COPIED verdict must name the member-gated reader OF
+  THAT FIELD, never of its genre:** `rpg_snapshots.recentEvents` was first classified COPIED because the same
+  distillation CLASS is served unbounded by the member-gated `listJournal` — a true statement about different
+  bytes. The log is append-only across the whole game and its only member-gated reader slices it by the
+  HOST-writable `recentBeatsKeepLast` (`keepLast: 0` ⇒ the member reads NONE), so a non-host forker now carries
+  `keepLastBeats(log, SOURCE keepLast)` and nothing more, via the SAME exported helper the panel uses (one home
+  — a re-spelled slice could drift and silently widen the boundary). **The knob copies; the data it gated does
+  not** — a host-only SCALAR is still a gate over member-visible bytes, and the scalar carve-out never licenses
+  carrying what the scalar hid. The D16 floor needs no further clamp HERE (`readsHidden === false` already
+  covers every clamped forker, and the window is what the source's own unclamped `getTrackerView` served them);
+  that `getTrackerView` is unclamped at all is a source-side member-visibility question, recorded separately.
+  Findings record: `docs/reviews/security/2026-08-07-rpg-fork-host-plane-strip.md`.
 ```

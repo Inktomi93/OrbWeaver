@@ -689,6 +689,107 @@ test("§3.6 config: the MEMBER-readable config fields survive the strip (it is a
   expect(forkConfig).toEqual(carried);
 });
 
+/** Seed a source game whose head snapshot holds FIVE beats under a host-set `recentBeatsKeepLast` window. The
+ *  member-gated `buildTrackerView` slices to the last `keepLast` (`tracker-view.ts::keepLastBeats`), and
+ *  `keepLast` is writable ONLY through the host-gated `updateConfig` — so every beat OUTSIDE the window has no
+ *  member-gated reader in the source room at all. */
+async function seedBeatWindowGame(
+  db: Db,
+  key: string,
+  keepLast: number,
+): Promise<{ chatId: ChatId; gameId: RpgGameId; messageId: MessageId; variantId: MessageVariantId }> {
+  const gm = await seedUser(db, castId<Handle>(key));
+  const chatId = await seedChat(db, `src_beats_${key}`);
+  const gameId = castId<RpgGameId>(`rpg_game_beats_${key}`);
+  const base = liteConfig();
+  await insertGame(db, {
+    id: gameId,
+    chatId,
+    mode: "lite",
+    status: "active",
+    sessionNumber: 1,
+    gmUserId: gm,
+    gmPresetId: null,
+    config: { ...base, features: { ...base.features, recentBeatsKeepLast: keepLast } },
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "beat one" });
+  await insertSnapshot(db, {
+    id: castId<RpgSnapshotId>(`rpg_snapshot_beats_${key}`),
+    gameId,
+    messageId,
+    variantId,
+    ...emptyState(),
+    // The append-only durable log spans the WHOLE game: the first three beats are distilled from turns that a
+    // late-joining, D16-clamped member never read, and the window never showed them either.
+    recentEvents: ["beat-1", "beat-2", "beat-3", "beat-4", "beat-5"],
+    committed: 1,
+    createdAt: FROZEN_AT,
+  });
+  return { chatId, gameId, messageId, variantId };
+}
+
+test("§3.6 beats: a NON-HOST forker carries ONLY the source's member-visible beat window, not the whole log", async () => {
+  const db = await freshDb();
+  const src = await seedBeatWindowGame(db, "win2", 2);
+  const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "win2", src);
+
+  const h = makeRpgService(db);
+  await h.chatOps.forkGame({
+    sourceChatId: src.chatId,
+    newChatId: forkChatId,
+    slotIdMap,
+    variantIdMap,
+    forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
+  });
+
+  const fg = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
+  // EXACTLY the window `buildTrackerView` served that member in the source. The forker is HOST of the copy and
+  // may widen `recentBeatsKeepLast` at will — so anything carried beyond the window IS the leak.
+  expect((await listSnapshots(db, fg))[0]?.recentEvents).toEqual(["beat-4", "beat-5"]);
+  // The SOURCE keeps its whole durable log (a fork copies, never truncates the room it forked from).
+  expect((await listSnapshots(db, src.gameId))[0]?.recentEvents).toHaveLength(5);
+});
+
+test("§3.6 beats: `recentBeatsKeepLast: 0` means the member read NO beats — the fork carries none", async () => {
+  const db = await freshDb();
+  const src = await seedBeatWindowGame(db, "win0", 0);
+  const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "win0", src);
+
+  const h = makeRpgService(db);
+  await h.chatOps.forkGame({
+    sourceChatId: src.chatId,
+    newChatId: forkChatId,
+    slotIdMap,
+    variantIdMap,
+    forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
+  });
+
+  const fg = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
+  // The sharp arm: keepLast 0 drops the whole "Recent beats" block for every member, so the ENTIRE log is
+  // host-plane and none of it may cross.
+  expect((await listSnapshots(db, fg))[0]?.recentEvents).toEqual([]);
+});
+
+test("§3.6 beats: a HOST forker carries the WHOLE durable log (the window never gated them)", async () => {
+  const db = await freshDb();
+  const src = await seedBeatWindowGame(db, "winhost", 2);
+  const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "winhost", src);
+
+  const h = makeRpgService(db);
+  await h.chatOps.forkGame({
+    sourceChatId: src.chatId,
+    newChatId: forkChatId,
+    slotIdMap,
+    variantIdMap,
+    forker: { userId: castId<UserId>("user_winhost"), readsHidden: true },
+  });
+
+  const fg = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
+  expect((await listSnapshots(db, fg))[0]?.recentEvents).toEqual(["beat-1", "beat-2", "beat-3", "beat-4", "beat-5"]);
+});
+
 test("EVERY rpg column is classified — a new column lands in its fork*Values or the copy takes it blind", () => {
   // Read off the LIVE drizzle tables, so a schema addition reds here even if the `tsc` ratchet in fork-game.ts
   // were worked around (a cast, a widened type). Two-sided: a dropped column reds too.
