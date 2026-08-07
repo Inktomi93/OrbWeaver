@@ -228,12 +228,36 @@ handle/description/tags, or it is looser than intended. The matcher was not read
 
 ## Stumbled-on, outside the targets
 
-- **U1 — [HIGH, UNATTRIBUTED] a game chat present in the DB is absent from `chat.listChats` and the
-  roster.** At 16:26 `chat.listChats` returned 7 rows and "Seeded game — d20" rendered (measured). By
-  16:52 it returns 6 and the game is gone, while `/api/_debug/db/chats` still lists it (13 chats;
-  `archived:false, temporary:false, star:false`). A fresh `__orb.seed.game({profile:'d20'})` chat also
-  failed to appear. **Three lanes were hitting the shared box and the server's list query was not read —
-  NOT attributable. Wants its own investigation lane, on a quiet box.**
+- **U1 — RESOLVED BY THE ORCHESTRATOR: NOT A DEFECT. It is the AUTHFIX merge landing mid-review.**
+  The lane reported: at 16:26 `chat.listChats` returned 7 rows with "Seeded game — d20" rendering
+  (measured); by 16:52 it returned 6 and the game was gone, while `/api/_debug/db/chats` still listed it
+  (13 chats, `archived:false`). It correctly refused to attribute it. **The counts name the cause** —
+  probe copy of `users ⋈ chat_participants`:
+
+  ```
+  inktomi93@gmail.com | owner | 6
+  owner               | user  | 7   ← the D135 twin
+  ```
+
+  7 → 6 is exactly **twin → real owner**. AUTHFIX (D135) merged inside that window, and its whole effect
+  is that the `via:"fallback"` arm stops resolving as the twin and starts resolving as the real owner —
+  so the twin's 7 chats, the seeded game among them, left the caller's list. `/api/_debug/db/chats` still
+  showed all 13 because those routes are **principal-blind** (the AUTHFIX-2 property DEBUGGATE is fixing),
+  which is why the two instruments disagreed. Predicted in advance by the AUTHFIX lane: *"the 7 chats
+  hosted by the twin stay with the twin and become unreachable."*
+
+  **The real lesson is an ORCHESTRATION error, not a product one:** side-eye was released to drive main's
+  live dev stack (vite serves `packages/client` from MAIN's tree, never a lane worktree) at the same
+  moment three lanes were merging into main. Its own report carries the fingerprint — *"the live
+  injection run was lost to a mid-eval HMR reload from a concurrent lane."* The board already holds
+  *"any gate result taken during a merge window is void"*; **a live browser drive is a whole-tree
+  instrument and gets the same quiet-hours rule.** Geometry, contrast and touch-floor findings are
+  merge-independent and stand; anything reading server state across the run is suspect by construction.
+
+  **No residual — owner ruled it a non-issue:** the demo chats are seeded for every new user, so the
+  twin's copies regenerate under the real owner on their own. No migration, no reseed step, nothing to
+  decide. (An earlier draft of this line proposed reassigning `chat_participants` rows; that was the
+  orchestrator inventing work the seeder already does.)
 - **U2 — dead Tailwind classes on code-block rendering.** `snap --deadcss`: ten `before:*` line-number
   classes (×30 each) + `text-[var(--sdm-c,inherit)]` (×26), none in `packages/**` source —
   Streamdown-emitted, so the scanner never compiles them and code-block line numbers don't render.
