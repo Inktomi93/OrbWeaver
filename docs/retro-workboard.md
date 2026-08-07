@@ -278,17 +278,23 @@ workspace has three slots and no library-level tool slot, and minting one is a s
   knobs come back only WITH the prompt-build history leg, if that is ever built. REC (a)
   ACCEPT-AND-RENAME stands.
 
-### I-5 · BRAND BURN-DOWN — the gate is live, the debt is named
+### I-5 · BRAND BURN-DOWN — ✅ CLOSED 2026-08-03 (verified against the tree 2026-08-07)
 
 **Landed:** gate #176 `brand-in-name-position` (`35014699`) — positions DERIVED from `kit/ids`, zero
 hardcoded paths, blindness tripwire, two-sided markers, position-NAMED escape
-(`@foreign-id-ok(<position>): reason` — because one line can carry ours + theirs), the six-case
-real-tree probe. 28 permanent foreign-wire markers planted at landing (agent-sdk `sessionId` name
-collision · local-light HF `modelId` · plugin wire DTOs).
-**OPEN:** the arm-A baseline ratchet is ACTIVE and shrink-only. **Receipt:
-`scripts/check/gates/brand-in-name-position.baseline.json` = 169 files / 374 sites.** Terminal state is
-`{}` + delete both the baseline and its generator. Burn it down in named lanes when the owner wants
-them; `sessionId`→`sdkSessionId` is a dissolving candidate.
+(`@foreign-id-ok(<position>): reason`), the six-case real-tree probe. 28 permanent foreign-wire markers
+planted at landing (agent-sdk `sessionId` name collision · local-light HF `modelId` · plugin wire DTOs).
+
+**✅ THE TRANSITION IS COMPLETE.** The gate's own header states it: the landing baseline (169 files /
+374 sites) was **burned to `{}` on 2026-08-03** and the baseline + its generator were DELETED per the
+declared terminal state. `scripts/check/gates/brand-in-name-position.baseline.json` does not exist; the
+gate is a pure ratchet. **The board carried this as a live L-sized initiative for four days** — a row
+written from the LANDING receipt and never re-checked against the tree, quoted as remaining work on
+2026-08-07 before the owner challenged it. The evidence-method law, earning its keep again: a row that
+cites a count owes a re-read before anyone plans around it.
+
+**Residual, small and real:** `sessionId`→`sdkSessionId` remains a dissolving candidate among the 28
+markers — a rename, not a burn-down.
 
 ### I-6 · PORTABILITY — R0-R5 landed; R6 is the honest scope-out
 
