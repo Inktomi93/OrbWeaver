@@ -10,6 +10,7 @@
 // The trailing CONVERGENCE block assembles the kit into the mockup-v2 block regions and screenshots them
 // (reports/snaps/tracker-kit-*.png) — the structure/density/hierarchy receipt against the committed mockup.
 import { AddRow, AmbientStrip, BeatLine, CastCard, GoalLine, HintEditor, MeterRow, StatCell, TrackerChip } from "@orb/client/components";
+import { RPG_WEATHER_TYPES } from "@orb/contracts/rpg";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -430,7 +431,7 @@ test("AmbientStrip Time: the closed 6-label PICKER (never free text, never a res
   await expect(page.getByRole("group", { name: "Time of day" })).toHaveCount(0);
 });
 
-test("AmbientStrip Weather: the closed 8-state PICKER commits a canonical type (off-vocab unconstructable)", async ({ mount, page }) => {
+test("AmbientStrip Weather: the closed PICKER commits a canonical type (off-vocab unconstructable)", async ({ mount, page }) => {
   let captured: [string, string] = ["", ""];
   await mount(
     <AmbientStrip
@@ -445,8 +446,11 @@ test("AmbientStrip Weather: the closed 8-state PICKER commits a canonical type (
   await expect(rest).toContainText("rain");
   await rest.click();
   const group = page.getByRole("group", { name: "Weather" });
-  // The eight states, and NO free-text input — a host can no longer hand-write an off-vocab sky.
-  await expect(group.getByRole("button")).toHaveCount(8);
+  // Every vocabulary member and NO free-text input — a host can no longer hand-write an off-vocab
+  // sky. Count DERIVED from the imported tuple (the hardcoded "8" broke the day `indoors` widened
+  // the vocab — a closed-picker pin must track the vocabulary it pins).
+  await expect(group.getByRole("button")).toHaveCount(RPG_WEATHER_TYPES.length);
+  await expect(group.getByRole("button", { name: "indoors", exact: true })).toBeVisible();
   await expect(page.getByRole("textbox", { name: "Weather value" })).toHaveCount(0);
   await group.getByRole("button", { name: "storm", exact: true }).click();
   expect(captured).toEqual(["weather", "storm"]);
