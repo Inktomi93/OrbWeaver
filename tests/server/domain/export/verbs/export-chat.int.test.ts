@@ -4,6 +4,7 @@
 // the parentChatId → main_chat round-trip (note_prompt is one-way now — the room author's-note override was
 // retired 2026-08-01); the txt format.
 
+import type { MessageKind } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, messages, messageVariants, personas } from "@orb/db";
@@ -78,6 +79,8 @@ async function seedSlot(args: {
   characterId?: CharacterId;
   personaId?: PersonaId;
   authorUserId?: UserId;
+  /** The row's declared PURPOSE (D129). Omitted ⇒ the column default, `standard`. */
+  kind?: MessageKind;
 }): Promise<void> {
   const messageId = castId<MessageId>(`message_${args.key}`);
   await db.insert(messages).values({
@@ -85,6 +88,7 @@ async function seedSlot(args: {
     chatId: args.chatId,
     seq: args.seq,
     role: args.role,
+    ...(args.kind === undefined ? {} : { kind: args.kind }),
     characterId: (args.characterId ?? null) as never,
     personaId: args.personaId ?? null,
     authorUserId: args.authorUserId ?? null,
@@ -284,6 +288,29 @@ describe("exportChat — the D26/D28 assembly", () => {
     expect((JSON.parse(lines[3] ?? "") as Record<string, unknown>)["name"]).toBe("Cara");
     const txt = await createExportChat(ctx)({ principal: principal(host), chatId, format: "txt" });
     expect(txt?.text).toBe("User: hey all\n\nBran: Bran speaks\n\nCara: Cara speaks\n");
+  });
+});
+
+// D129: a row's PURPOSE is a stored fact, so the export has to carry it — otherwise every export→import
+// round trip (including the demo pack the seeder ships) has to re-derive "is this the narrator?" from the
+// exported speaker NAME, which is the inference the axis retires.
+describe("exportChat — the declared KIND rides out with the row", () => {
+  test("a narrator canon row exports ST's `extra.type: narrator`; an ordinary row's line is unchanged", async () => {
+    const { ctx } = makeHarness(db);
+    const host = await seedUser(db, { handle: castId<Handle>("host") });
+    const group = await seedCharacter(db, { ownerId: host, name: "Group", handle: castId<CharacterHandle>("group") });
+    const chatId = await seedChatRow("kind");
+    await seedMember(chatId, "h", { userId: host, role: "host" });
+    await seedMember(chatId, "c", { characterId: group });
+    await seedSlot({ chatId, key: "ku1", seq: 1, role: "user", variantContents: ["hi"] });
+    await seedSlot({ chatId, key: "kn1", seq: 2, role: "assistant", variantContents: ["the door opens"], characterId: group, kind: "narrator" });
+
+    const out = await createExportChat(ctx)({ principal: principal(host), chatId });
+    const lines = (out?.text ?? "").trim().split("\n");
+    const userLine = JSON.parse(lines[1] ?? "") as { extra: Record<string, unknown> };
+    const narratorLine = JSON.parse(lines[2] ?? "") as { extra: Record<string, unknown> };
+    expect(narratorLine.extra["type"]).toBe("narrator");
+    expect(userLine.extra["type"]).toBeUndefined();
   });
 });
 

@@ -18,7 +18,7 @@ import type { RegexScriptRow } from "#regex";
 import type { WorldInfoScope } from "#world-info";
 import type { MacroFreezeRecord, UserMacroDraws } from "./messages.ts";
 import type { RoomOverrides } from "./metadata.ts";
-import type { SpeakerRef } from "./participants.ts";
+import type { MessageKind, SpeakerRef } from "./participants.ts";
 import { messageRoleSchema } from "./participants.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -277,6 +277,12 @@ export interface ShapeTraceRow {
    *  in-content `Name:` stamp's author. ABSENT ⇒ the row is unlabelled (a system note, a nudge). */
   name?: string;
   source: ShapeRowSource;
+  /** The DECLARED purpose (`messages.kind`) of the canon row(s) that became this delivered row — the row-PURPOSE
+   *  axis a host reading the trace otherwise has to infer from role × attribution, which is the inference D129
+   *  retires. ABSENT ⇒ no canon row contributed one: an `assembled` row (a spliced injection, the nudge, the
+   *  synthetic user turn) has no slot and therefore no declared purpose. A `merged` row reports the FIRST
+   *  contributor that carried one — the same head-identity rule {@link ShapeTraceRow.name} follows. */
+  kind?: MessageKind;
   /** The delivered content's LENGTH in characters. A size, not a sample. */
   chars: number;
 }

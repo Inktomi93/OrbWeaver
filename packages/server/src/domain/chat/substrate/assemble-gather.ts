@@ -97,6 +97,8 @@ async function gatherDatabank(
 interface CanonRow {
   readonly seq: number;
   readonly role: MsgRow["role"];
+  /** The row's declared purpose (D129) — carried because these rows ARE the recall window's `MsgRow`s. */
+  readonly kind: MsgRow["kind"];
   readonly characterId: CharacterId | null;
   readonly authorUserId: UserId | null;
   readonly personaId: PersonaId | null;
@@ -330,6 +332,8 @@ export async function gatherAssembleContext(
     .map((m) => ({
       seq: m.seq,
       role: m.role,
+      // The declared purpose rides into the recall window's rows (D129) — same `MsgRow` the memory build uses.
+      kind: m.kind,
       characterId: m.characterId,
       authorUserId: m.authorUserId,
       personaId: m.personaId,

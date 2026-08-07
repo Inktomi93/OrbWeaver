@@ -11,7 +11,7 @@
 // `__group__${chatId}` for solo/merged/narrator / a per-witnessing cast char under scoped; NO `''` sentinel,
 // NO NULL — §4). The canonical retrieval-mode axis DERIVES `MemoryRetrievalMode` (no inline union re-spell).
 
-import type { BackfillPassResult, MemoryBackfillResult } from "@orb/contracts/chat";
+import type { BackfillPassResult, MemoryBackfillResult, MessageKind } from "@orb/contracts/chat";
 import type { MemoryRetrievalMode } from "@orb/contracts/search";
 import type { CharacterId, ChatDigestId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -72,6 +72,11 @@ export interface MemoryScope {
 export interface MsgRow {
   readonly seq: number;
   readonly role: MessageRole;
+  /** The row's DECLARED purpose (D129) — the transcript LABEL dispatches on it (`speakerLabel`), so a narrator
+   *  recap is labelled as the narrator even after its synthetic authoring card is deleted and its `characterId`
+   *  SET-NULLs. Deliberately NOT folded into {@link blockHash}: kind is immutable per row (no writer re-stamps
+   *  one), so folding it would only change every stored hash for nothing. */
+  readonly kind: MessageKind;
   readonly characterId: CharacterId | null;
   readonly authorUserId: UserId | null;
   readonly personaId: PersonaId | null;

@@ -13,6 +13,8 @@
 //
 // Round-trip drift guard: buildChatJsonl(parseChatJsonl(buildChatJsonl(p))) === buildChatJsonl(p).
 
+import type { MessageKind } from "@orb/contracts/chat";
+import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { MessageRole } from "@orb/kit/message-role";
 import { epochToMs, isoToMs } from "@orb/kit/time";
 import { z } from "zod";
@@ -61,6 +63,11 @@ export interface ParsedAgentAuthor {
  *  foreign install has no matching agent, so the label stays provenance-only and no local agent is fabricated. */
 export interface ParsedChatMessage {
   readonly role: MessageRole;
+  /** The row's DECLARED PURPOSE (D129) — carried through the interchange so an orbweaver export→import round
+   *  trip restores what a row IS, not just what it looked like. REQUIRED (not defaulted at the type level) so
+   *  every producer states its answer out loud; the wire spelling is `extra.type` and the default is
+   *  {@link DEFAULT_MESSAGE_KIND} — see `kindOf`/`extraTypeFor`. */
+  readonly kind: MessageKind;
   readonly speakerName: string | null;
   readonly content: string;
   readonly sendDate: number | null;
@@ -126,6 +133,10 @@ const rawExtraSchema = z
     token_count: z.unknown(),
     reasoning: z.unknown(),
     time_to_first_token: z.unknown(),
+    // The row-PURPOSE marker (D129). ST's own `extra.type` slot, whose vocabulary we intersect rather than
+    // extend — `narrator` is ST's spelling for a narrator-voiced line, and an unrecognised value is not our
+    // business (it falls through to the default, never a fabricated kind).
+    type: z.unknown(),
   })
   .partial()
   .loose();
@@ -366,6 +377,35 @@ function roleOf(m: RawMessage): MessageRole {
   return m.is_user === true ? "user" : "assistant";
 }
 
+/** ST's `extra.type` value for a narrator-voiced line — SOURCE-PINNED to SillyTavern
+ *  `public/scripts/system-messages.js` `system_message_types.NARRATOR = 'narrator'`, the key ST's own group
+ *  and prompt code tests (`openai.js` l.589/603, `group-chats.js` l.1138/1208). Our narrator kind and ST's
+ *  narrator marker mean the same thing, so the interchange uses ST's spelling rather than minting a private
+ *  `orb_kind` sidecar. */
+const ST_NARRATOR_TYPE = "narrator";
+
+/** The row's DECLARED PURPOSE off the line (D129). ONLY the narrator marker is recognised — a plain ST
+ *  transcript declares no purpose, and the explicit answer for it is `DEFAULT_MESSAGE_KIND` (`standard`).
+ *
+ *  DELIBERATELY NOT MAPPED: `is_system: true` → `comment`. The design's §R4 proposes it, and it is a real
+ *  candidate (ST's `is_system` is a visibility filter, which is close to our OOC-comment semantic), but
+ *  `is_system` already decides the ROLE here (`roleOf`) and feeds `classifyChat`'s `all_empty_msgs` bucket —
+ *  re-pointing it at the purpose axis moves an imported row's wire role, not just its label, and that is a
+ *  behavior change the `comment` writer's own lane should own (there is no `comment` writer yet, D41).
+ *  Until then an ST system row keeps landing exactly as it does today.
+ *
+ *  ROLE-GATED, and that gate is a real belt rather than defensive noise: the db CHECK `messages_kind_shape`
+ *  enforces `kind='narrator' ⇒ role='assistant'` (D129(C)), and this parses a FOREIGN file — a hand-edited or
+ *  foreign-tool export carrying the marker on a user/system line would otherwise abort the whole import at the
+ *  write. The honest degrade is the default kind on a row we keep, never a refused transcript. */
+function kindOf(m: RawMessage, role: MessageRole): MessageKind {
+  if (role !== "assistant") {
+    return DEFAULT_MESSAGE_KIND;
+  }
+  const e = asTyped(m.extra, rawExtraSchema);
+  return str(e?.type) === ST_NARRATOR_TYPE ? "narrator" : DEFAULT_MESSAGE_KIND;
+}
+
 // Fewer than this many SURVIVING swipes ⇒ no real alternates (the lone generation lives on the message's
 // primary variant, not a redundant one-element pool).
 const MIN_REAL_SWIPES = 2;
@@ -490,8 +530,10 @@ function parseMessageLine(line: string): ParsedChatMessage | null {
   }
   const { content, activeVariantIdx } = primary;
   const agentAuthor = parseAgentAuthor(parsed.agent_author);
+  const role = roleOf(parsed);
   return {
-    role: roleOf(parsed),
+    role,
+    kind: kindOf(parsed, role),
     speakerName: nullIfEmpty(str(parsed.name)),
     content,
     sendDate: parseStDate(parsed.send_date),
@@ -569,6 +611,27 @@ export function parseChatJsonl(text: string, opts: { readonly fileName: string; 
  * arrays only when a message carries `>1` variant. `speakerName` is emitted as the per-line `name` (group
  * fidelity). PURE.
  */
+/** The `extra.type` fragment for a row's declared kind — the BUILD half of {@link kindOf}, total over
+ *  `MessageKind` so a fourth member cannot ship without deciding whether it round-trips (spine §5.5). An empty
+ *  fragment means "this kind has no interchange marker", which is the honest state for `standard` (the
+ *  default; a marker would be noise on every line) and for `comment` (no ST spelling — a LOSSY export edge,
+ *  and per D116's one-way-honest posture it is named here rather than silently faked as something else). */
+function extraTypeFor(kind: MessageKind): { readonly type?: string } {
+  switch (kind) {
+    case "narrator":
+      return { type: ST_NARRATOR_TYPE };
+    case "standard":
+    case "comment":
+      return {};
+    default:
+      return assertNeverMessageKind(kind);
+  }
+}
+
+function assertNeverMessageKind(kind: never): never {
+  throw new Error(`buildChatJsonl: unhandled MessageKind ${JSON.stringify(kind)}`);
+}
+
 export function buildChatJsonl(chat: ParsedChat): string {
   const header = {
     user_name: chat.userName,
@@ -598,6 +661,12 @@ export function buildChatJsonl(chat: ParsedChat): string {
         api: m.provider,
         token_count: m.tokensOut,
         ...(m.reasoning !== null ? { reasoning: m.reasoning } : {}),
+        // The row's DECLARED purpose (D129), in ST's own `extra.type` vocabulary. Emitted ONLY for a narrator
+        // row, so every standard row's line stays BYTE-IDENTICAL to what this serde built before the kind axis
+        // existed (which is what keeps the round-trip drift guard and the ST golden corpus honest). `comment`
+        // has no ST spelling and no writer yet — when it gains one it declares its wire form HERE, in the one
+        // place both directions live, rather than as a second marker somewhere else.
+        ...extraTypeFor(m.kind),
       },
       gen_started: m.genStarted,
       gen_finished: m.genFinished,

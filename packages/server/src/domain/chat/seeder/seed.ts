@@ -21,7 +21,7 @@ import { getLog } from "#foundation/observability";
 import type { ParsedChat, ParsedChatMessage } from "#kit/serde/chat";
 import { parseChatJsonl } from "#kit/serde/chat";
 import type { DemoChat, DemoChatSeeder, DemoChatSeederDeps, SeededChatDressing } from "../contract/seeder.ts";
-import { DEMO_CHAT_NARRATOR_NAME, DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "./demo-chats.ts";
+import { DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "./demo-chats.ts";
 
 /** The per-example dedup oracle written to `chats.importHash`. Stable across releases (keyed by the slug,
  *  never by the transcript bytes) so re-generating a transcript does not resurrect a deleted example. */
@@ -50,14 +50,20 @@ interface Seat {
  *  which is why this is chat's own small mapping rather than a reach into import's (a sideways import, and
  *  a different set of concerns).
  *
- *  Attribution: a user slot carries none; a narrator slot flags {@link BulkImportMessageInput.narrator} so
- *  the write op resolves it through the SAME synthetic-identity minter a live narrator round uses; any other
- *  assistant slot resolves its exported speaker NAME against the seats. An unrecognised name degrades to the
- *  primary rather than throwing — the pack was seeded moments ago so it cannot happen in practice, and an
- *  install whose card was renamed should still get its examples. */
+ *  Attribution: a user slot carries none; a `narrator`-KIND slot carries its declaration through
+ *  {@link BulkImportMessageInput.kind}, so the write op resolves it through the SAME synthetic-identity minter
+ *  a live narrator round uses; any other assistant slot resolves its exported speaker NAME against the seats.
+ *  An unrecognised name degrades to the primary rather than throwing — the pack was seeded moments ago so it
+ *  cannot happen in practice, and an install whose card was renamed should still get its examples.
+ *
+ *  The narrator arm used to match the exported speaker NAME against the synthetic card's name ("Group"). That
+ *  was the pack's copy of the inference D129 retires: rename the synthetic card, or ship a pack from an
+ *  install where a real cast member is called Group, and the routing silently changes. The pack now DECLARES
+ *  it (`extra.type: "narrator"`, ST's own marker), which is what our export verb emits today. */
 function toMessageInput(m: ParsedChatMessage, seatsByName: ReadonlyMap<string, CharacterId>, createdAt: number): BulkImportMessageInput {
   const base = {
     role: m.role,
+    kind: m.kind,
     createdAt,
     personaId: null,
     selectedIdx: 0,
@@ -79,8 +85,8 @@ function toMessageInput(m: ParsedChatMessage, seatsByName: ReadonlyMap<string, C
   if (m.role !== "assistant") {
     return base;
   }
-  if (m.speakerName === DEMO_CHAT_NARRATOR_NAME) {
-    return { ...base, narrator: true };
+  if (m.kind === "narrator") {
+    return base;
   }
   const characterId = m.speakerName === null ? undefined : seatsByName.get(m.speakerName);
   return characterId === undefined ? base : { ...base, characterId };

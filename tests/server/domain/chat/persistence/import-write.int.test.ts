@@ -362,7 +362,9 @@ describe("createBulkImportChats", () => {
     const op = createBulkImportChats(importCtx(db, owner.id, spy));
 
     const base = chatInput("Narrator.jsonl");
-    const narratorSlot = { ...(base.messages[0] as (typeof base.messages)[number]), narrator: true };
+    // The slot DECLARES its purpose (D129) — one field carries both "what this row is" and, from it, the
+    // synthetic-identity attribution routing that a separate `narrator: true` flag used to carry alone.
+    const narratorSlot = { ...(base.messages[0] as (typeof base.messages)[number]), kind: "narrator" as const };
     await op({
       ownerId: owner.id,
       characterId: primary.id,
@@ -376,6 +378,10 @@ describe("createBulkImportChats", () => {
     const narratorId = spy.byChat.get(chatId ?? "");
     const slots = await db.select().from(messages);
     expect(slots.filter((s) => s.role === "assistant").map((s) => s.characterId)).toEqual([narratorId, narratorId]);
+    // …and the declaration is STORED, not just consumed for routing: the imported rows are narrator canon, so
+    // every downstream plane (prompt label policy, memory label, render chrome, re-export) reads it directly.
+    expect(slots.filter((s) => s.role === "assistant").map((s) => s.kind)).toEqual(["narrator", "narrator"]);
+    expect(slots.filter((s) => s.role === "user").map((s) => s.kind)).toEqual(["standard"]);
     // The synthetic identity is a memory/authorship bucket, NOT a seat: the roster is unchanged.
     const seats = await db.select().from(chatParticipants);
     expect(seats.filter((r) => r.kind === "character").map((r) => r.characterId)).toEqual([primary.id]);

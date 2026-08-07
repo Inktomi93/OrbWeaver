@@ -85,6 +85,29 @@ describe("applyNamesBehavior", () => {
   });
 });
 
+// D129: WHETHER a canon row may be labelled is its declared KIND's answer; the mode only decides HOW.
+// Three planes reach the same guard — a real `system` row, a demoted (`speakerless`) injection, and now the
+// row's own purpose — and the kind arm is the only one that can see a CANON row.
+describe("applyNamesBehavior — the label policy is the row's declared KIND", () => {
+  const narratorBody = "Kai: hi.\nThe lamp gutters.";
+  const narrator = [{ role: "assistant" as const, content: narratorBody, authorName: "Group", kind: "narrator" as const }];
+
+  test("a narrator row is never labelled, in any mode — its body carries its own speakers", () => {
+    for (const mode of ["content", "completion", "default"] as const) {
+      expect(applyNamesBehavior(narrator, mode, SPEAKERS, { multiCharacter: true })).toEqual([{ role: "assistant", content: narratorBody }]);
+    }
+  });
+
+  test("the SAME row declared standard takes the label — the dispatch narrows by purpose, not by content", () => {
+    const standard = [{ ...narrator[0], role: "assistant" as const, content: "one voice", kind: "standard" as const, authorName: "Group" }];
+    expect(applyNamesBehavior(standard, "content", SPEAKERS, { multiCharacter: true })).toEqual([{ role: "assistant", content: "Group: one voice" }]);
+  });
+
+  test("a row with NO declared kind (a synthetic turn SHAPE built) takes the standard answer", () => {
+    expect(applyNamesBehavior([{ role: "user", content: "u1", authorName: "Alt" }], "content", SPEAKERS)).toEqual([{ role: "user", content: "Alt: u1" }]);
+  });
+});
+
 describe("applyNamesBehavior — system rows are the operator channel, never labeled", () => {
   const h = [{ role: "system" as const, content: "GM note" }];
   test("every mode passes a system row through untouched (no prefix, no completion name)", () => {
