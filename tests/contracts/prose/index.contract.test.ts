@@ -4,10 +4,13 @@
 // half-registered id impossible rather than merely discouraged.
 import { createHash } from "node:crypto";
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "@orb/contracts/imagery";
-import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, PRESET_GUIDED_SLOT_IDS } from "@orb/contracts/preset";
+import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, PRESET_GUIDED_SLOT_IDS, TEMPLATE_DEFS } from "@orb/contracts/preset";
 import type { ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
 import {
+  composeProse,
+  isPresetProseSlotId,
   legacyProseOverrides,
+  PRESET_PROSE_SLOT_IDS,
   PROSE_HOMES,
   PROSE_MACRO_MODES,
   PROSE_SLOT_IDS,
@@ -272,12 +275,16 @@ test("discovery's three system prompts resolve, unset, to the exact bytes they h
   }
 });
 
-test("every S1b slot's stored override wins, and the whole cohort ships home=user / macros=none", () => {
+test("every S1b slot's stored override wins, and the whole cohort ships an editable home / macros=none", () => {
   const ids = [...S1B_FROZEN_RENDERS.map((r) => r.id), ...(Object.keys(DISCOVERY_FROZEN_DEFAULTS) as ProseSlotId[])];
   for (const id of ids) {
     const overrides: ProseOverrides = { [id]: { text: `host copy for ${id}`, baseVersion: PROSE_SLOTS[id].version } };
     expect(resolveProse(id, overrides), id).toStrictEqual({ text: `host copy for ${id}`, source: "override", stale: false });
-    expect(PROSE_SLOTS[id].home, id).toBe("user");
+    // Was `toBe("user")` for the whole cohort until the 2026-08-07 ruling split the two injection frames off
+    // to the PRESET home. The invariant this row actually guards is "a host can reach these bytes SOMEWHERE",
+    // and the per-home membership is pinned exactly by the two derivation tests below — asserting `user` here
+    // as well only re-spelled one of them, wrongly.
+    expect(PROSE_SLOTS[id].home === "user" || isPresetProseSlotId(id), id).toBe(true);
     // The framing slots carry a `{{name}}`/`{{note}}` PRE-SUBSTITUTION token, not a macro: the caller splices
     // it, the engine never runs. `none` is what makes that honest (and keeps any other `{{…}}` literal).
     expect(PROSE_SLOTS[id].macros, id).toBe("none");
@@ -335,5 +342,56 @@ test("no editable slot id NESTS inside another — the settings key-partition wo
   // throw at composition-root init — a white screen at boot. Keep ids sibling-shaped.
   for (const id of USER_PROSE_SLOT_IDS) {
     expect(USER_PROSE_SLOT_IDS.filter((other) => other.startsWith(`${id}.`))).toStrictEqual([]);
+  }
+});
+
+// ── The PRESET-homed framings (owner ruling 2026-08-07) ─────────────────────────────────────────────
+test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stored in `promptConfig.prose`', () => {
+  // The mirror of the USER derivation above, excluding the same class for the same reason: the eleven
+  // guided/format slots are `home:"preset"` too, but their override storage is the pre-PROSE-1
+  // `guidedActions.*.prompt` / `formatStrings.*` field (§4.6), so giving them a `prose` key as well would be
+  // the two-doors defect with the resolver reading only one of them.
+  const legacyAdapted = new Set<ProseSlotId>([...Object.values(PRESET_GUIDED_SLOT_IDS), ...Object.values(PRESET_FORMAT_SLOT_IDS)]);
+  const expected = PROSE_SLOT_IDS.filter((id) => PROSE_SLOTS[id].home === "preset" && !legacyAdapted.has(id));
+  expect(PRESET_PROSE_SLOT_IDS).toStrictEqual(expected);
+  expect(PRESET_PROSE_SLOT_IDS).toStrictEqual(["chat.injection.systemNote", "chat.injection.userNote", "chat.assembly.continuationNudge"]);
+});
+
+test("every preset-homed prose slot has a Templates-tab row, and every prose-armed row is one of them", () => {
+  // THE TWO-SIDED COVERAGE the `TemplateDefId` prose arm cannot express in the type system (`#preset` cannot
+  // import `#prose`, which is where `home` lives). Left-to-right catches a slot authored with no editor — the
+  // "authored but unreachable" class PROSE-1 exists to kill. Right-to-left catches a row pointing at a slot
+  // that is user-homed or legacy-adapted, i.e. an editor writing bytes the resolver would never read.
+  const framingRows = TEMPLATE_DEFS.filter((def) => isPresetProseSlotId(def.id));
+  expect(framingRows.map((def) => def.id).toSorted()).toStrictEqual([...PRESET_PROSE_SLOT_IDS].toSorted());
+  // A framing row ghosts ITS OWN slot: its id IS its storage key, so a `defaultSlot` pointing elsewhere would
+  // print one template's bytes as the placeholder over another template's field. Collected then asserted once
+  // — an `expect` inside the filter's branch is a conditional expectation that can vacuously pass.
+  expect(framingRows.filter((def) => def.defaultSlot !== def.id).map((def) => def.id)).toStrictEqual([]);
+});
+
+test("composeProse merges the homes and DROPS a key stored in the wrong one (no cascade)", () => {
+  const userBlob: ProseOverrides = {
+    "chat.arbiter.system": { text: "user-tier arbiter", baseVersion: 1 },
+    // The stale key a RE-HOME leaves behind: written while the frame was user-homed, inert ever since. It
+    // must not win, and it must not throw — pre-launch NO-LEGACY means nothing migrated it away.
+    "chat.injection.userNote": { text: "STALE user-tier frame", baseVersion: 1 },
+  };
+  const presetBlob: ProseOverrides = {
+    "chat.injection.userNote": { text: "((preset frame: {{note}}))", baseVersion: 1 },
+    // The mirror case: an app-tier slot key sitting in a preset blob resolves from neither storage.
+    "chat.compaction.system": { text: "WRONG HOME", baseVersion: 1 },
+  };
+  const composed = composeProse({ user: userBlob, preset: presetBlob });
+  expect(resolveProseText("chat.injection.userNote", composed, { note: "hi" })).toBe("((preset frame: hi))");
+  expect(resolveProseText("chat.arbiter.system", composed)).toBe("user-tier arbiter");
+  expect(resolveProseText("chat.compaction.system", composed)).toBe(PROSE_SLOTS["chat.compaction.system"].text);
+});
+
+test("composeProse over empty/absent sources is byte-identical to the shipped defaults", () => {
+  for (const source of [composeProse({}), composeProse({ user: {}, preset: undefined })]) {
+    for (const id of PROSE_SLOT_IDS) {
+      expect(resolveProse(id, source).source, id).toBe("default");
+    }
   }
 });

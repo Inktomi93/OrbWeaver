@@ -244,9 +244,63 @@ test("item 10 — the template drill's DELIVERY labels and controls each share o
   expect(roleControl.top).toBe(depthControl.top);
 });
 
+// ── THE TURN-WIRE FRAMINGS (owner ruling 2026-08-07) ─────────────────────────────────────────────────
+// The owner's complaint, verbatim: the note framings were "not exposed in our presets template tab". They
+// were `UserSettings.prose` rows (a different tab entirely) and, for the continuation cue, a `const` in
+// `assembly/shape.ts`. These pins are the SEEING half — a green resolver test cannot tell you the row is
+// reachable, and "reachable" is the whole defect.
+
+test("the three turn-wire framings are ROWS in this tab, ghosting their shipped bytes", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  // Registry-derived exactly like the G5/G9 pins above: nothing in `actions-view.tsx` names these.
+  await expect(probe.getByRole("button", { name: "System-note frame", exact: true })).toBeVisible();
+  await expect(probe.getByRole("button", { name: "User-note frame", exact: true })).toBeVisible();
+  await expect(probe.getByRole("button", { name: "Continuation cue", exact: true })).toBeVisible();
+
+  // The GHOST is the shipped default, byte-for-byte — which is also what the wire ships until the host
+  // types. A framing that ghosted the wrong bytes would promise a behavior the assembler does not have.
+  await probe.getByRole("button", { name: "Edit User-note frame" }).click();
+  await expect(probe.getByPlaceholder("[Note from user: {{note}}]")).toBeVisible();
+  await probe.getByRole("button", { name: "Back to actions" }).click();
+  await probe.getByRole("button", { name: "Edit Continuation cue" }).click();
+  await expect(probe.getByPlaceholder("[Continue the conversation.]")).toBeVisible();
+});
+
+test("a framing drill-in is TEXT-ONLY and offers its own {{note}} token, never arrangement vocabulary", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  await probe.getByRole("button", { name: "Edit System-note frame" }).click();
+  await expect(probe.getByRole("button", { name: "Back to actions" })).toBeVisible();
+  // A framing declares no role/depth: where it lands is the WIRE's shape, not an author's choice.
+  await expect(probe.getByRole("combobox", { name: "Role" })).toHaveCount(0);
+  await expect(probe.getByRole("textbox", { name: "At depth" })).toHaveCount(0);
+  // Its one token IS its payload carrier — the reference chip rides the same capability list every other
+  // template's does.
+  await expect(probe.getByText("{{note}}", { exact: true })).toBeVisible();
+});
+
+test("editing a framing writes a VERSION-STAMPED override through the save boundary; clearing it removes the key", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  const framing = probe.getByLabel("saved framing");
+  await expect(framing).toContainText("framing=—");
+
+  await probe.getByRole("button", { name: "Edit User-note frame" }).click();
+  const body = probe.getByRole("textbox", { name: "Template" });
+  await body.fill("((the table says: {{note}}))");
+  await body.blur();
+  // The stored record, not just the text: an edit stamps the CURRENT slot version, which is what makes the
+  // §4.4 staleness signal mean anything later.
+  await expect(framing).toContainText("framing=((the table says: {{note}}))@v1");
+
+  // CLEARING IS THE RESET (the storage semantic everywhere in this schema): the key must actually go, or the
+  // slot resolves to empty bytes instead of falling back to the shipped frame.
+  await body.fill("");
+  await body.blur();
+  await expect(framing).toContainText("framing=unset");
+});
+
 test("the shared DeliveryCluster writes the guided action's own role+depth through the boundary", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
-  const state = probe.locator("output");
+  const state = probe.getByLabel("saved delivery");
 
   await probe.getByRole("button", { name: "Edit Impersonate", exact: true }).click();
   const depth = probe.getByRole("textbox", { name: "At depth" });

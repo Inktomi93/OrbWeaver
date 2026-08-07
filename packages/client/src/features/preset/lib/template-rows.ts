@@ -11,13 +11,18 @@
 // shape). Nothing here enumerates templates — it maps over whatever the registry holds.
 
 import type { GuidedActionKind, PromptConfig, TemplateDef, TemplateDefId, TemplateKind } from "@orb/contracts/preset";
-import { GUIDED_ACTION_KINDS, PRESET_PROSE_SLOTS, TEMPLATE_DEFS, TEMPLATE_KINDS } from "@orb/contracts/preset";
+import { GUIDED_ACTION_KINDS, TEMPLATE_DEFS, TEMPLATE_KINDS } from "@orb/contracts/preset";
+import type { ProseSlotId } from "@orb/contracts/prose";
+import { isPresetProseSlotId, PROSE_SLOTS } from "@orb/contracts/prose";
 
 /** One registry row, resolved for the client: the def plus which slot shape it edits. */
 export interface TemplateRow {
   readonly def: TemplateDef;
   /** A guided action carries role/depth beside its prompt; a format string is a bare string. */
   readonly guidedKind: GuidedActionKind | undefined;
+  /** The THIRD form path (2026-08-07): a turn-wire framing, stored as `prose[<id>]` — a `{text, baseVersion}`
+   *  record rather than a bare string, so its write re-stamps the version the edit was authored against. */
+  readonly proseSlotId: ProseSlotId | undefined;
   /** The PROSE-1 default bytes this row ghosts. `""` where the slot ships none (`newChatMarker`: blank
    *  IS the shipped behavior, so there is nothing to ghost — the row says "off" instead of lying). */
   readonly factoryDefault: string;
@@ -55,7 +60,8 @@ function templateRow(def: TemplateDef): TemplateRow {
   return {
     def,
     guidedKind: isGuidedActionKind(def.id) ? def.id : undefined,
-    factoryDefault: slot === undefined ? "" : PRESET_PROSE_SLOTS[slot].text,
+    proseSlotId: isPresetProseSlotId(def.id) ? def.id : undefined,
+    factoryDefault: slot === undefined ? "" : PROSE_SLOTS[slot].text,
   };
 }
 
@@ -84,9 +90,36 @@ export function templateStoredText(config: PromptConfig, id: string): string {
     return "";
   }
   const defId = row.def.id;
-  // `TemplateDefId` has exactly two arms, so the guided predicate IS the split — the else branch is a
-  // `FormatStringKey` by narrowing rather than by a second assertion.
-  return isGuidedActionKind(defId) ? (config.guidedActions?.[defId].prompt ?? "") : (config.formatStrings?.[defId] ?? "");
+  // `TemplateDefId` has three arms, each with its own predicate — the last one narrows to `FormatStringKey`
+  // by elimination rather than by an assertion.
+  if (isGuidedActionKind(defId)) {
+    return config.guidedActions?.[defId].prompt ?? "";
+  }
+  if (isPresetProseSlotId(defId)) {
+    return config.prose[defId]?.text ?? "";
+  }
+  return config.formatStrings?.[defId] ?? "";
+}
+
+/** The next whole `prose` record after editing ONE framing template. The preset form's values are a
+ *  `PromptConfig`, and a slot id contains DOTS — which TanStack Form reads as a value PATH — so a framing row
+ *  cannot be bound with an `AppField` on a `prose.<id>.text` name; it writes the record wholesale at the
+ *  single-segment path `prose`, the same way the delivery cluster writes role/depth. Storage keeps the
+ *  canonical slot-id key (an id is the key a host's override is stored under — never a dashed alias here,
+ *  where the value IS the stored blob).
+ *
+ *  A blank/whitespace field DELETES the key: empty means "the shipped default rides", the storage semantic
+ *  everywhere in this schema, and leaving `{text:""}` behind would resolve to empty bytes instead. A non-empty
+ *  edit stamps the CURRENT slot version — any save re-stamps, which is what "keep mine" means (§4.4). */
+export function proseTemplatePatch(config: PromptConfig, id: ProseSlotId, value: string): PromptConfig["prose"] {
+  const next = { ...config.prose };
+  const trimmed = value.trim();
+  if (trimmed === "") {
+    delete next[id];
+    return next;
+  }
+  next[id] = { text: trimmed, baseVersion: PROSE_SLOTS[id].version };
+  return next;
 }
 
 /** Default / Customized — the state chip's derivation, shared by the row and the drill-in. EMPTY IS THE

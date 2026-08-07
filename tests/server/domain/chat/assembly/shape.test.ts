@@ -6,6 +6,7 @@ import type { AssembleContext, ChatInjection, MessageView } from "@orb/contracts
 import type { RoleHandling } from "@orb/contracts/connection";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { proseOverridesSchema } from "@orb/contracts/prose";
 import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -314,6 +315,20 @@ describe("shape — W5 assistantPrefill gates the trailing-user invariant", () =
 
   test("assistantPrefill=false (default floor): a trailing-assistant history gets the CONTINUATION_NUDGE (ends on user)", () => {
     const out = shape(trailingAssistantInput(false));
+    expect(out.history.at(-1)).toEqual({ role: "user", content: "[Continue the conversation.]" });
+  });
+
+  // Owner ruling 2026-08-07: the cue is a PRESET-homed PROSE-1 slot, not a `const` in shape.ts. Parsed from
+  // an untyped literal so this compiles against the pre-ruling source too — there the schema strips the
+  // unknown key, the hardcoded sentence ships, and the assertion fails for the reason it exists to catch.
+  test("the continuation cue is host-authorable: a preset override replaces the shipped sentence", () => {
+    const prose = proseOverridesSchema.parse({ "chat.assembly.continuationNudge": { text: "[Your move.]", baseVersion: 1 } });
+    const out = shape(soloInput({ canon: SOLO_CANON, appendUserTurn: null, prose }));
+    expect(out.history.at(-1)).toEqual({ role: "user", content: "[Your move.]" });
+  });
+
+  test("an absent cue override delivers the shipped sentence, byte-identical", () => {
+    const out = shape(soloInput({ canon: SOLO_CANON, appendUserTurn: null, prose: {} }));
     expect(out.history.at(-1)).toEqual({ role: "user", content: "[Continue the conversation.]" });
   });
 

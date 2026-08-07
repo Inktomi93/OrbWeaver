@@ -6,7 +6,8 @@ import type { CharacterCard } from "@orb/contracts/character";
 import { cardDepthPromptSchema } from "@orb/contracts/character";
 import type { ChatInjection, RoomOverrides } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
-import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { PromptConfig } from "@orb/contracts/preset";
+import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptConfigSchema } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
@@ -93,6 +94,7 @@ interface InputOver {
   hostTierRegexScripts?: RegexScriptRow[];
   roomOverrides?: RoomOverrides;
   mutedSpeakerKeys?: ReadonlySet<string>;
+  promptConfig?: PromptConfig;
 }
 function inputOf(chatId: ChatId, ownerId: UserId, castIds: CharacterId[], over: InputOver = {}): Parameters<typeof buildAssembleContext>[1] {
   return {
@@ -100,7 +102,7 @@ function inputOf(chatId: ChatId, ownerId: UserId, castIds: CharacterId[], over: 
     ownerId,
     castCharacterIds: castIds,
     personaIds: [],
-    promptConfig: DEFAULT_PROMPT_CONFIG,
+    promptConfig: over.promptConfig ?? DEFAULT_PROMPT_CONFIG,
     personas: { anchor: null, active: null },
     recentMessages: over.recentMessages ?? [],
     userInjections: over.userInjections ?? [],
@@ -526,6 +528,35 @@ describe("buildAssembleContext — character depthPrompt (Character's Note @ Dep
     // depth 2 → inserted 2 slots from the tail (index length-2 = 3 in the original 5-msg history).
     expect(spliced).toHaveLength(6);
     expect(spliced.findIndex((m) => m.content.includes("Aria stays cryptic."))).toBe(3);
+  });
+
+  // ── the note FRAMINGS are PRESET-homed (owner ruling 2026-08-07) ────────────────────────────────────
+  // The frames used to be `UserSettings.prose` rows and reached assembly through `resolveChatProse` alone.
+  // They now live in `promptConfig.prose` and reach it through `composeProse`, so the proof has to run the
+  // WHOLE hop — a preset blob in, the delivered wire row out — not the framing function in isolation.
+  //
+  // The config is built through `promptConfigSchema.parse` of an untyped literal ON PURPOSE: that is the tier
+  // that also compiles against the pre-ruling source, where the schema has no `prose` key and strips it. On
+  // that source these assertions fail because the shipped frame ships — a real defect proof, not a type error.
+  test("a preset's `prose` override reaches the DELIVERED note frame; an absent one is byte-identical", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardWithNote("Aria", { prompt: "Keep it terse.", depth: 1, role: "system" }));
+    const promptConfig = promptConfigSchema.parse({
+      ...DEFAULT_PROMPT_CONFIG,
+      prose: { "chat.injection.systemNote": { text: "<<table rule — {{note}}>>", baseVersion: 1 } },
+    });
+
+    const built = await buildAssembleContext(ctx, inputOf(chatId, host, [charId], { promptConfig }));
+    const history = [1, 2, 3].map((n) => ({ role: "user" as const, content: `m${n}` }));
+    const framed = spliceInChatInjections(history, built.chatInjections, undefined, { prose: built.prose });
+    expect(framed.map((r) => r.content)).toContain("<<table rule — Keep it terse.>>");
+
+    // Same room, same note, DEFAULT preset: the shipped frame, byte-for-byte.
+    const plain = await buildAssembleContext(ctx, inputOf(chatId, host, [charId]));
+    const plainFramed = spliceInChatInjections(history, plain.chatInjections, undefined, { prose: plain.prose });
+    expect(plainFramed.map((r) => r.content)).toContain("[Note from system: Keep it terse.]");
   });
 
   test("D66-B: assistant@depth-0 is ACCEPTED at the WRITE boundary; safety moved to the SHAPE delivery gate", () => {
@@ -1215,12 +1246,23 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
   // The host's prose must reach the DOWNSTREAM stages too (the merged co-speaker headings in the BUILD walk,
   // the note frames in the SHAPE splice, the round nudge in the driver) — all of which read it off the ONE
   // immutable ctx rather than re-resolving the host. This pins the carry + the system-block frame together.
-  test("the resolved host prose is CARRIED on the ctx, and already frames the system-block injections", async () => {
+  test("the resolved host prose is CARRIED on the ctx, and a user-tier note-frame key is INERT (the 2026-08-07 re-home)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     const charId = await seedCharacter(db, host, "aria");
-    const prose = { "chat.injection.userNote": { text: "((table note: {{note}}))", baseVersion: 1 } };
-    const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardOf("Aria")), resolveChatProse: () => Promise.resolve(prose) });
+    // The user blob carries BOTH: a genuinely user-homed slot, and the note frame that USED to live here. The
+    // frame moved to `promptConfig.prose` (owner ruling 2026-08-07), and `composeProse` keeps every key only
+    // from the storage its slot actually homes in — so the stale key is dropped rather than silently winning
+    // from a home the resolver no longer reads. Pre-launch NO-LEGACY: nothing migrated it, so "inert" is the
+    // behavior an owner who edited it before the ruling will see.
+    const proseFromSettings = {
+      "chat.assembly.anchorIdentity": { text: "The one you answer to is", baseVersion: 1 },
+      "chat.injection.userNote": { text: "((stale user-tier frame: {{note}}))", baseVersion: 1 },
+    };
+    const ctx = makeChatContext(db, {
+      getCard: () => Promise.resolve(cardOf("Aria")),
+      resolveChatProse: () => Promise.resolve(proseFromSettings),
+    });
 
     const out = await buildAssembleContext(
       ctx,
@@ -1230,9 +1272,10 @@ describe("buildAssembleContext — the BOTH-PERSONAS context rule on a swap (FIN
       }),
     );
 
-    expect(out.prose).toStrictEqual(prose);
+    // Carried: the user-homed slot. Dropped: the re-homed one.
+    expect(out.prose).toStrictEqual({ "chat.assembly.anchorIdentity": { text: "The one you answer to is", baseVersion: 1 } });
     const framed = (out.chatInjections ?? []).find((i) => i.position === "in_prompt");
-    expect(framed?.content).toBe("((table note: keep it short))");
+    expect(framed?.content).toBe("[Note from user: keep it short]");
   });
 
   test("swap with anchor descriptionPosition='none': the anchor is NOT injected in either role", async () => {
