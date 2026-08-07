@@ -1702,6 +1702,18 @@ Items this audit could not prove either way from the tree. **None were dropped.*
   multi-chunk verifiers this day; the refutations came from driving PRODUCTION shapes and from
   attacking the lane's own flagged judgement calls. **Nine passes, six refutations — every one a
   defect that was already merged, gate-green and believed done.**
+- **NEVER PIPE `git merge` — I DID IT AND IT COST A CHECK.** `git merge … | tail -1` SWALLOWED a
+  conflict, `pnpm check` then ran against a tree full of conflict markers, and the verdict came back
+  **exit 2 (TOOL-ERROR)** with tsc reporting `TS1185: Merge conflict marker encountered` — a red
+  that looks like a code defect and isn't. The board already carried the no-chain law from two
+  earlier burns; the pipe is the same law's other half. **Merge BARE, read the whole output,
+  THEN check.** Recovery when it happens: `git merge --abort` (never `reset --hard` with
+  uncommitted work), then send the LANE to merge main into its branch and resolve.
+- **A FENCE THAT HOLDS IN INTENT STILL COLLIDES IN LINES.** I fenced two lanes onto the same file
+  by RESPONSIBILITY (one owns the layout, one owns an aria-label string) and they still conflicted,
+  because adjacent edits in one file are a git problem, not an ownership problem. When two lanes
+  must touch one file, either sequence them or expect the resolve — and give the second lane the
+  first's exact change in the resolve brief.
 - **LOAD + INSTRUMENT COLLISIONS ARE ORCHESTRATION BUGS, not bad luck:** fix-leg floors count as
   gate-heavy lanes for the stagger cap · the battery's behavioral phase gets the box (an EMFILE
   killed one at 5 vite instances / 161 test processes) · NO whole-tree instrument runs while a
