@@ -106,7 +106,17 @@ export function composeProse(sources: Readonly<Partial<Record<ProseHome, ProseOv
 export function resolveProse(id: ProseSlotId, overrides: ProseOverrides): ProseResolution {
   const slot = PROSE_SLOTS[id];
   const override = overrides[id];
-  if (override === undefined) {
+  // A BLANK override is treated as ABSENT — the same self-healing posture as `proseOverridesSchema`'s per-key
+  // `.catch(undefined)`, applied to the one malformed shape a *valid* record can still carry. `{text:""}`
+  // parses fine, so nothing upstream refuses it, and it can arrive from an imported preset file, a direct
+  // API write, or a blob predating a normalizer; resolving it literally means EMPTY BYTES reach the wire —
+  // a note frame that deletes the injection it was supposed to wrap, and a continuation cue that appends an
+  // empty user row. Healed at the READ rather than refused at the WRITE for the reason `promptConfigWrite
+  // Schema`'s own header gives: a read-side refusal would fail a whole preset to load over one empty string,
+  // and "blank means the shipped default rides" is already this schema's storage semantic everywhere else
+  // (`formatStrings`, `guidedActions`, the settings editor's clear-to-reset). The editors additionally DROP
+  // the key on save (`normalizePresetProse` / `proseSlotPatch`), so this is the belt, not the only guard.
+  if (override === undefined || override.text.trim() === "") {
     return { text: slot.text, source: "default", stale: false };
   }
   return { text: override.text, source: "override", stale: override.baseVersion < slot.version };
@@ -149,6 +159,38 @@ export function resolveProseText(id: ProseSlotId, overrides: ProseOverrides, tok
     out = out.replace(tokenRe(name), () => value);
   }
   return out;
+}
+
+/** One prose field's derived footer state — Default/Customized plus the two WARN-NEVER-BLOCK signals every
+ *  prose editor owes its author (§4.4 staleness, §6.3 the required-macro/token lint).
+ *
+ *  It lives in `contracts` because TWO client features render it — the Prose settings section (chat) and the
+ *  preset Templates drill-in (preset) — and a client feature may not import another (the five-tier law, D70).
+ *  It is a pure derivation over a slot def plus two strings, so `contracts` is the home the cake gives it;
+ *  the alternative was a second copy, which is how the two editors would drift into warning differently about
+ *  the same slot. */
+export interface ProseFooterState {
+  readonly isDefault: boolean;
+  /** The shipped default moved on since this override was authored (§4.4). */
+  readonly stale: boolean;
+  /** Declared `requiredMacros`/`requiredTokens` this text has dropped. A WARN — never a save block. */
+  readonly missing: readonly string[];
+}
+
+/** `value` is the LIVE field text; `stored` is the persisted override (for the version the edit was authored
+ *  against). A field the host has emptied reads as Default whatever is still stored — the next save clears it,
+ *  and the placeholder already shows what will take over. */
+export function proseFooterState(id: ProseSlotId, value: string, stored: ProseOverride | undefined): ProseFooterState {
+  const slot = PROSE_SLOTS[id];
+  const trimmed = value.trim();
+  const isDefault = trimmed.length === 0;
+  return {
+    isDefault,
+    stale: !isDefault && stored !== undefined && stored.text === trimmed && stored.baseVersion < slot.version,
+    // A required macro/token is only meaningful against text the host actually wrote — the shipped default
+    // carries them all by construction.
+    missing: isDefault ? [] : [...slot.requiredMacros, ...slot.requiredTokens].filter((token) => !trimmed.includes(token)),
+  };
 }
 
 /** Build a one-key override record from a legacy bare-string field, for the adapted slots (§4.6). */

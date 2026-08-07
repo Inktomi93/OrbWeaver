@@ -17,8 +17,8 @@
 // against an older slot version offers "Use the new default" (clears) or "Keep mine" (re-stamps
 // `baseVersion` through a ONE-key patch — any ordinary edit re-stamps too, so this is the no-edit path).
 
-import type { ProseOverride, ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
-import { PROSE_SLOTS, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
+import type { ProseFooterState, ProseOverride, ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
+import { PROSE_SLOTS, proseFooterState, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
@@ -30,8 +30,7 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import type { ProseFooterState } from "../lib/prose-settings-model.ts";
-import { PROSE_SETTINGS_SUBCATEGORY, projectProseForm, proseFieldName, proseFooterState, proseSlotPatch, toProsePatch } from "../lib/prose-settings-model.ts";
+import { PROSE_SETTINGS_SUBCATEGORY, projectProseForm, proseFieldName, proseSlotPatch, toProsePatch } from "../lib/prose-settings-model.ts";
 
 /** The form bag + the patch shape as LOCAL aliases off the model's own return types (D120: an exported
  *  patch/form alias is `no-inline-types` RED — the shape has ONE home, the function that builds it). */
