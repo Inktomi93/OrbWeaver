@@ -218,7 +218,11 @@ export function AppShell(): ReactElement {
                           <Button
                             intent="secondary"
                             size="sm"
-                            aria-label="Command menu"
+                            // WCAG 2.5.3 Label in Name (UI-Primitives-and-Reuse §13.10): the button READS
+                            // "⌘K jump", so "jump" must be in the name — "Command menu" alone made the one
+                            // word on the button unspeakable. Both vocabularies are carried, stable-first,
+                            // so `getByRole("button", { name: "Command menu" })` still resolves it.
+                            aria-label="Jump to… — the command menu"
                             onClick={(): void => {
                               if (commandModalId !== undefined) {
                                 openModal(commandModalId);
