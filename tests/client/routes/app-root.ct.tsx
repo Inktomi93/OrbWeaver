@@ -20,7 +20,10 @@ import { makeCharacterSummary } from "../features/character/fixtures.ts";
 import { HomePageStory } from "./_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade" });
-const LIST_TOGGLE_RE = /^(?:Show|Hide) list panel$/u;
+// Spans BOTH vocabularies — desktop names the frame region, the phone names the screen a tap lands on
+// (side-eye 2026-08-07 finding 4). A desktop-only matcher would make the `toHaveCount(0)` below pass for
+// the wrong reason the day this assertion is driven at a phone width.
+const LIST_TOGGLE_RE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
 /** Any close/dismiss affordance — the forced first-run gate must offer NONE. */
 const CLOSE_AFFORDANCE_RE = /close/iu;
 

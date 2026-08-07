@@ -74,6 +74,26 @@ test("a favorited row states 'favorited' ONCE; the default crown keeps its own n
   await expect(component.getByRole("img", { name: "Your default" })).toBeVisible();
 });
 
+// ── The select target's NAME is state-aware (side-eye 2026-08-07 P3a / §13.10 N3+N4) ────────────────
+// A fixed `Switch to X` made a screen reader announce "Switch to Traveler, current true" on the persona you
+// are ALREADY playing as: a verb offering a no-op, contradicted by its own `aria-current` one word later.
+// Both arms keep the persona's NAME leading, so a name-scoped lookup survives the state change.
+
+test("the CURRENT persona's row is named for its STATE, never for a switch that would do nothing", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowDenseStory />);
+  const current = component.getByRole("button", { name: "Traveler — current persona" });
+  await expect(current).toHaveAttribute("aria-current", "true");
+  // …and the verb it would have offered is gone, not merely re-worded around.
+  await expect(component.getByRole("button", { name: "Switch to Traveler" })).toHaveCount(0);
+});
+
+test("a NON-current row keeps the verb — the name only changes where the act is a no-op", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowStory />);
+  const target = component.getByRole("button", { name: "Switch to Nova" });
+  await expect(target).toBeAttached();
+  await expect(target).not.toHaveAttribute("aria-current", "true");
+});
+
 test("the 'set current' target is a real native <button>, not a role=button div", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowStory />);
   const setCurrent = component.getByRole("button", { name: "Switch to Nova" });
@@ -183,4 +203,85 @@ test("at 320px the persona's whole name still renders — no ellipsis on a 8-cha
   // it, so the assertion is scrollWidth vs clientWidth on the element that carries the ellipsis.
   const clipped = await nameText.evaluate((el: HTMLElement) => el.scrollWidth > el.clientWidth + 1);
   expect(clipped).toBe(false);
+});
+
+// ── THE COARSE COLLAPSE (side-eye 2026-08-07 finding 3 — the founding instance) ──────────────────────
+// EVERY FENCE ABOVE IS A FINE-POINTER FENCE, and that is exactly why the phone defect survived them. At a
+// coarse pointer two things change that no fine-pointer CT can see: `ROW_REVEAL` pins the action cluster
+// permanently ON, and every icon button grows to the 44-48px touch floor. MEASURED on the shipped tree at
+// 320: the cluster charged 102px and the NAME lane was left 38px — "Traveler" rendered "T.." and the
+// subtitle "Your …". The two secondary verbs now stand down into the kebab, which at coarse is the
+// cluster's only control.
+//
+// `hasTouch: true` is what flips `matchMedia("(pointer: coarse)")` in chromium (the
+// tests/ui/touch-target-floor.suite.ct.tsx precedent); `page.emulateMedia` has no `pointer` feature and
+// CANNOT drive this. The first assertion in each case PROVES the emulation landed before any geometry is
+// trusted — a fine-pointer viewport renders a layout no phone produces.
+
+const PHONE_WIDTHS = [320, 375] as const;
+
+test.describe("coarse pointer", () => {
+  test.use({ hasTouch: true });
+
+  for (const width of PHONE_WIDTHS) {
+    test(`@${width}: the reveal cluster collapses to ONE control and the name lane gets the width back`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<PersonaPanelRowDenseStory width={width} />);
+      const name = component.locator('[data-slot="persona-row-name"]');
+      const markers = component.locator('[data-slot="persona-row-markers"]');
+      await expect(name).toBeVisible();
+
+      // ONE control in the trailing cell — the kebab. The two collapsed verbs are not rendered controls
+      // here at all (`display:none`, so they are out of the a11y tree too, not merely invisible).
+      await expect(component.getByRole("button", { name: "Unfavorite" })).toHaveCount(0);
+      await expect(component.getByRole("button", { name: "Actions for Traveler" })).toBeVisible();
+
+      // GEOMETRY, not classes: the cluster is now about one touch box wide instead of three.
+      const [nameWidth, rowWidth, markerWidth] = await name.evaluate((el: HTMLElement): readonly [number, number, number] => {
+        const row = el.parentElement as HTMLElement;
+        const cluster = row.querySelector('[data-slot="persona-row-markers"]') as HTMLElement;
+        return [el.getBoundingClientRect().width, row.getBoundingClientRect().width, cluster.getBoundingClientRect().width];
+      });
+      // MEASURED at 320: 38/272 ≈ 0.14 before. The floor is a FRACTION so it survives a token retune, and
+      // it is set below the measured value rather than at it — this fences the collapse, not the pixel.
+      expect(nameWidth / rowWidth).toBeGreaterThan(0.35);
+      // …and the cluster is at most one touch target wide (48px coarse + the cell's own gap tolerance).
+      expect(markerWidth).toBeLessThan(60);
+      await expect(markers).toBeVisible();
+    });
+
+    test(`@${width}: the collapsed verbs are REACHABLE — the kebab is the one door, and it is not doubled`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<PersonaPanelRowDenseStory width={width} />);
+
+      await component.getByRole("button", { name: "Actions for Traveler" }).click();
+      // The menu portals to the body — page-scoped locators.
+      const menu = page.getByRole("menu");
+      await expect(menu).toBeVisible();
+      // The seed persona is favorited AND already the default, so the menu carries Unfavorite (its state
+      // verb) and NOT "Set as default" (whose verb only exists while the state is false — the row's own
+      // 2026-08-03 ruling, unchanged by the collapse).
+      await expect(menu.getByRole("menuitem", { name: "Unfavorite" })).toBeVisible();
+      await expect(menu.getByRole("menuitem", { name: "Set as default" })).toHaveCount(0);
+      // ONE telling: the inline control and its menu twin are never both live.
+      await expect(component.getByRole("button", { name: "Unfavorite" })).toHaveCount(0);
+    });
+  }
+});
+
+// The fine-pointer arm keeps BOTH inline verbs and hides their menu twins — the collapse is a coarse-only
+// arrangement, and the desktop row is byte-identical to what the fences above measure.
+test("a fine pointer keeps the inline verbs and drops their menu twins — exactly one telling per pointer", async ({ mount, page }) => {
+  const component = await mount(<PersonaPanelRowDenseStory />);
+
+  await expect(component.getByRole("button", { name: "Unfavorite" })).toBeAttached();
+  // The fine-pointer cluster is deliberately INERT at rest (`pointer-fine:pointer-events-none` — a click
+  // in that strip means "switch to this persona", never "unfavorite"), so the kebab is only hit-testable
+  // once the row is hovered. That IS the shipped interaction; hovering is the real user path to it.
+  await component.locator('[data-slot="persona-row-name"]').hover();
+  await component.getByRole("button", { name: "Actions for Traveler" }).click();
+  const menu = page.getByRole("menu");
+  await expect(menu).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: "Export" })).toBeVisible();
+  await expect(menu.getByRole("menuitem", { name: "Unfavorite" })).toHaveCount(0);
 });

@@ -9,7 +9,7 @@ import type { GuidedActionKind, GuidedImpersonatePerson } from "@orb/contracts/p
 import { DEFAULT_GUIDED_ACTIONS } from "@orb/contracts/preset";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ChatId } from "@orb/kit/ids";
-import type { MacroContext, MacroRegistry, ProcessMacroOptions, RowMacroStamps } from "@orb/kit/macro";
+import type { MacroContext, MacroFreeze, MacroRegistry, ProcessMacroOptions, RowMacroStamps } from "@orb/kit/macro";
 import { createMacroContext, createVolatileOnlyRegistry, globalMacroRegistry, processMacros, resolveRowMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { RenderMacrosOptions } from "../contract/assembly-macros.ts";
@@ -61,6 +61,9 @@ interface MacroExtras {
   /** The injectable PRNG seam for `{{random}}`/`{{roll}}`/`{{pick}}`. Absent ⇒ kit ambient. */
   random?: (() => number) | undefined;
   onWarn?: ((msg: string, err?: unknown) => void) | undefined;
+  /** The commit-time VOLATILE-FREEZE sink (D129-F) — the caller's array; each volatile occurrence this pass
+   *  bakes is pushed in document order. Absent ⇒ no recording (every non-freeze render). */
+  freezes?: MacroFreeze[] | undefined;
 }
 
 /** The ONE AssembleContext → `ProcessMacroOptions` mapping, shared by `renderMacros` and
@@ -112,6 +115,8 @@ function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null |
   setIf(opts, "model", extras.model);
   setIf(opts, "chatId", extras.chatId);
   setIf(opts, "onWarn", extras.onWarn);
+  // The freeze ledger rides the same per-render context the op-log does (kit's `MacroContext.macroFreezes`).
+  setIf(opts, "macroFreezes", extras.freezes);
   // Thread the same per-assembly op-log by reference so mutation handlers record this turn's ops onto it.
   setIf(opts, "opLog", ctx.opLog);
   return opts;
@@ -132,15 +137,29 @@ export function renderMacros(text: string, ctx: AssembleContext, persona: Assemb
  * and bake the value in; identity macros (`{{char}}/{{user}}/{{persona}}`) pass through raw so they stay
  * resolved-at-read. Exact inverse of `renderHistoryMacros`' names-only pass. Applied to a user turn's
  * composer text at send, before the row is persisted.
+ *
+ * The freeze is byte-DESTRUCTIVE (D51's one-post-transform-text rule), so pass `args.freezes` — the caller's
+ * array — to receive the RECORD of what it baked (D129-F). Paired with the pre-freeze `text` stored as
+ * `message_variants.raw_content`, that record is what makes the row re-derivable: replaying it reproduces
+ * these exact bytes, and re-running with fresh draws is a deliberate re-roll instead of data loss. Omitting
+ * the sink is byte-identical (the record is pure provenance; `content` is unaffected either way).
  */
 export function freezeVolatileMacros(
   text: string,
   ctx: AssembleContext,
-  args?: { readonly random?: (() => number) | undefined; readonly registry?: MacroRegistry | undefined },
+  args?: {
+    readonly random?: (() => number) | undefined;
+    readonly registry?: MacroRegistry | undefined;
+    readonly freezes?: MacroFreeze[] | undefined;
+  },
 ): string {
   // The per-turn FREEZE registry (WAVE MU — volatile-only + user macros) when supplied; absent ⇒ the
   // process `VOLATILE_ONLY_REGISTRY` (byte-identical — user-macro tokens pass through verbatim).
-  return processMacros(text, macroOptionsFor(ctx, ctx.activePersona, { random: args?.random }), args?.registry ?? VOLATILE_ONLY_REGISTRY);
+  return processMacros(
+    text,
+    macroOptionsFor(ctx, ctx.activePersona, { random: args?.random, freezes: args?.freezes }),
+    args?.registry ?? VOLATILE_ONLY_REGISTRY,
+  );
 }
 
 /**

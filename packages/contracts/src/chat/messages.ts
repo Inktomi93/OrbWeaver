@@ -6,7 +6,7 @@
 
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import type { VarOp } from "@orb/kit/macro";
+import type { MacroFreeze, VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { MessageKind } from "./participants.ts";
@@ -92,15 +92,16 @@ export const userMacroDrawsSchema = z.record(z.string(), z.record(z.string(), z.
 export type UserMacroDraws = z.infer<typeof userMacroDrawsSchema>;
 
 /** ONE volatile-macro occurrence frozen into a stored body — the read-parse boundary for
- *  `message_variants.macro_freezes`. `name` is the macro as authored (`roll`/`random`/`pick`/the clock
- *  family), `args` its raw argument text when it took one (`{{roll:2d6}}` ⇒ `"2d6"`), `value` the string the
- *  freeze substituted. Occurrence-ordered, so a replay walks it positionally exactly as the freeze wrote it. */
+ *  `message_variants.macro_freezes`. `name` is the REGISTERED macro name (`roll`/`random`/`pick`/the clock
+ *  family), `args` its delivered argument text when it took one (`{{roll::2d6}}` ⇒ `"2d6"`), `value` the
+ *  string the freeze substituted. Occurrence-ordered, so a replay walks it positionally exactly as the freeze
+ *  wrote it. `satisfies z.ZodType<MacroFreeze>` keeps this schema pinned to the kit {@link MacroFreeze} the
+ *  macro engine EMITS — change the kit shape and this stops compiling (the {@link varOpSchema} arrangement). */
 export const macroFreezeSchema = z.object({
   name: z.string(),
   args: z.string().optional(),
   value: z.string(),
-});
-export type MacroFreeze = z.infer<typeof macroFreezeSchema>;
+}) satisfies z.ZodType<MacroFreeze>;
 
 /** The per-variant VOLATILE-FREEZE record (stickler 2026-08-08 §3 — the `macroDraws` idiom generalized).
  *

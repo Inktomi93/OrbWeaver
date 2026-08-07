@@ -628,3 +628,56 @@ test("FACEFILT: no chats means NO strip at all — the picker tile never becomes
   await expect(component.getByRole("button", { name: OVERFLOW_TILE, exact: true })).toHaveCount(0);
   await expect(component.getByText("Filter by character", { exact: true })).toHaveCount(0);
 });
+
+// ── THE COARSE COLLAPSE ON THE ROSTER (side-eye 2026-08-07 finding 6) ────────────────────────────────
+// At a coarse pointer `ROW_REVEAL` pins the row's star toggle permanently ON and the touch floor grows it
+// to 48px, so EVERY row of the 320px roster spent ~96px on an unpressed star plus the kebab while
+// "Example — The Ashen Spire" got 62px of 296 and truncated to ~10 characters. The kebab already carries
+// Star for both pointers (the mirror-parity ruling in chat-list-row-menu.tsx), so the inline toggle stands
+// down at coarse and the kebab is the one door. The title-line ★ MARKER stays — the state never leaves the
+// row, only the affordance moves, which is the half a naive collapse gets wrong.
+//
+// `hasTouch: true` is what flips `matchMedia("(pointer: coarse)")` in chromium; the first assertion proves
+// the emulation landed before any geometry is trusted.
+
+const PHONE_WIDTHS = [320, 375] as const;
+
+// Hoisted (a regex literal in a test body is a per-call recompile — biome `useTopLevelRegex`).
+const PINNED_ROW_RE = /A pinned thread/u;
+const STAR_TOGGLE_RE = /^(?:Star|Unstar) /u;
+const UNSTAR_TOGGLE_RE = /^Unstar /u;
+const ROW_KEBAB_RE = /^Chat actions for/u;
+
+test.describe("coarse roster", () => {
+  test.use({ hasTouch: true });
+
+  for (const width of PHONE_WIDTHS) {
+    test(`@${width}: the inline star stands down, the kebab stays, and the title gets the width back`, async ({ mount, page }) => {
+      await routeTrpc(page, { "chat.listChats": [STARRED, ADVENTURE], "character.list": CHARACTERS });
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+
+      const component = await mount(<ChatListSurfaceStory width={width} />);
+      const row = component.getByRole("button", { name: PINNED_ROW_RE }).first();
+      await expect(row).toBeVisible();
+
+      // The star TOGGLE is gone from the coarse row entirely (`display:none` ⇒ out of the a11y tree too).
+      await expect(component.getByRole("button", { name: STAR_TOGGLE_RE })).toHaveCount(0);
+      // …but the STATE is still on the row: the title-line marker survives the collapse.
+      await expect(component.getByRole("img", { name: "Starred" }).first()).toBeVisible();
+      // …and the verb is one tap away in the kebab, which is still there.
+      const kebab = component.getByRole("button", { name: ROW_KEBAB_RE }).first();
+      await expect(kebab).toBeVisible();
+      await kebab.click();
+      await expect(page.getByRole("menuitem", { name: "Unstar" })).toBeVisible();
+    });
+  }
+});
+
+// The fine-pointer roster is untouched: the toggle is the affordance, the marker swaps out from under it
+// on hover, and nothing about the desktop row moved.
+test("a fine pointer keeps the inline star toggle on the roster row", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [STARRED, ADVENTURE], "character.list": CHARACTERS });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByRole("button", { name: UNSTAR_TOGGLE_RE }).first()).toBeAttached();
+});

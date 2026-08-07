@@ -33,8 +33,13 @@ import {
 const MAX_MOBILE_TAB_BUTTONS = 4;
 
 /** The three PANEL affordances, by accessible name — present iff the active section HAS that panel. */
-const LIST_TOGGLE_RE = /^(?:Show|Hide) list panel$/u;
-const CONTEXT_TOGGLE_RE = /^(?:Show|Hide) detail panel$/u;
+// The lead/trail toggles speak TWO vocabularies (side-eye 2026-08-07 finding 4, §14): the desktop names the
+// frame REGION it hides, the phone names the SCREEN a tap lands on ("Show Chats list"/"Show Chats overview";
+// "Show details"/"Hide details"). Same control, same wiring, same reachability — so these matchers, which
+// exist to FIND the control regardless of its state, span both arms. A regex covering only the desktop
+// spelling would make every mobile `toHaveCount(0)` below pass for the wrong reason.
+const LIST_TOGGLE_RE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
+const CONTEXT_TOGGLE_RE = /^(?:Show|Hide) (?:detail panel|details)$/u;
 const FOCUS_TOGGLE_RE = /focus mode$/u;
 
 // Below the shell's `@media (max-width: 48rem)` breakpoint (768px) — the bottom-bar layout (L6/J12).
@@ -380,8 +385,10 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Switch theme" })).toBeVisible();
   await expect(page.getByText("Playing as")).toBeVisible();
-  // …and it is the CURRENT persona's row that says it (the row is the identity's ONE home, P2).
-  await expect(page.getByRole("button", { name: `Switch to ${SHEET_PERSONA.name}` })).toHaveAttribute("aria-current", "true");
+  // …and it is the CURRENT persona's row that says it (the row is the identity's ONE home, P2). The row's
+  // select target is STATE-AWARE (side-eye 2026-08-07 P3a): on the persona you are already playing as it is
+  // named for the state, not for a switch that would be a no-op — "Switch to X, current true" was the defect.
+  await expect(page.getByRole("button", { name: `${SHEET_PERSONA.name} — current persona` })).toHaveAttribute("aria-current", "true");
   await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Refinery" })).toBeVisible();
   // The sheet's own container is RENDERED (the close assertion below is then about a real disappearance).
@@ -1311,7 +1318,8 @@ test("MOBILE: the full-screen sheet gets the same elevation + inert content", as
   const shell = await mount(<AppShellStory />);
   const panel = page.locator('.shell-panel[data-panel-side="list"]');
 
-  await shell.getByRole("button", { name: "Show list panel" }).click();
+  // The phone vocabulary (finding 4): the lead control names the SCREEN it opens, not the frame region.
+  await shell.getByRole("button", { name: LIST_TOGGLE_RE }).click();
   await expect(panel).toHaveAttribute("data-panel-mode", "overlay");
   await expect.poll(() => boxShadowOf(panel), { intervals: [20, 50, 100] }).not.toBe("none");
   await expect(page.locator(".shell-content")).toHaveAttribute("inert", "");
@@ -1396,12 +1404,14 @@ test("ONE-SHELL @320: the topbar toggle drops the roster screen to the section's
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
 
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
-  await shell.getByRole("button", { name: "Hide list panel" }).click();
+  // AND THE PHONE NAMES THE DESTINATION (finding 4, §14): "Hide list panel" describes a frame region a
+  // phone does not have; these two labels are the section's two SCREENS, which is what the tap swaps.
+  await shell.getByRole("button", { name: "Show Corpus overview" }).click();
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(page.getByText("corpus content pane")).toBeVisible();
   await expect(page.locator(".shell-content")).not.toHaveAttribute("inert", "");
 
-  await shell.getByRole("button", { name: "Show list panel" }).click();
+  await shell.getByRole("button", { name: "Show Corpus list" }).click();
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
   await expect(page.getByText("corpus list pane")).toBeVisible();
 });

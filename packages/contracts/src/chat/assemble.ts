@@ -16,7 +16,7 @@ import type { GenerationType, PromptConfig, UserIntent } from "#preset";
 import type { ProseOverrides } from "#prose-slot";
 import type { RegexScriptRow } from "#regex";
 import type { WorldInfoScope } from "#world-info";
-import type { UserMacroDraws } from "./messages.ts";
+import type { MacroFreezeRecord, UserMacroDraws } from "./messages.ts";
 import type { RoomOverrides } from "./metadata.ts";
 import type { MessageKind, SpeakerRef } from "./participants.ts";
 import { messageRoleSchema } from "./participants.ts";
@@ -389,6 +389,10 @@ export type SentPrompt = z.infer<typeof sentPromptSchema>;
  *    slots below a clamped member's D16 floor. Same rationale that makes `previewAssembly`/`peekPrompt`/
  *    `previewSection` host-gated; the producing verb gates identically (`requireHost`, matrix `host`).
  *  • `params`/`macroDraws` are the host's own generation knobs + the frozen per-turn random draws.
+ *  • `rawContent`/`macroFreezes` are the D129-F freeze provenance — the pre-transform authored text and the
+ *    volatile occurrences the commit baked. HOST-PLANE, and THIS view is the only surface that serves them
+ *    (never `MessageView`): the receive transforms exist partly to STRIP content, so pre-strip bytes reaching
+ *    a member would re-open the D110 §3.6 class. `rawContent: null` ⇔ byte-identical to the row's `content`.
  *
  * A null `prompt` is HONEST ABSENCE, never an error: a user/system row never generated, and a variant
  * committed by a verbatim/greeting seed carries none. The raw PROVIDER envelopes are NOT here — those live
@@ -399,6 +403,8 @@ export interface VariantWireView {
   prompt: SentPrompt | null;
   params: UserIntent | null;
   macroDraws: UserMacroDraws | null;
+  rawContent: string | null;
+  macroFreezes: MacroFreezeRecord | null;
 }
 
 /** The immutable per-turn context (RESOLVE + GATHER produce it; BUILD + SHAPE take it + a speaker). Most
