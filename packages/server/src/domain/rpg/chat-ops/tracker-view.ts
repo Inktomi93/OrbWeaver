@@ -39,8 +39,13 @@ import { currentSnapshotState, snapshotStateBeforeSlot } from "../snapshot-edit.
 const TRACKER_ORB_MAX = 6;
 
 /** Slice the durable append-only `recentEvents` log to the last N for the reminder (P3 fold — `keepLast === 0`
- *  drops the block; the durable log is untouched, the journal keeps the full record). */
-function keepLastBeats(beats: readonly string[], keepLast: number): readonly string[] {
+ *  drops the block; the durable log is untouched, the journal keeps the full record).
+ *
+ *  EXPORTED for ONE other consumer: the member→host fork's beat strip (`fork-game.ts::stripBeatsForForker`).
+ *  This function IS the definition of "which beats a member can read", and `keepLast` is writable only through
+ *  the host-gated `updateConfig` — so the fork must carry exactly this window for a non-host forker, and a
+ *  re-spelled slice over there could drift from the panel and silently widen what crosses the boundary. */
+export function keepLastBeats(beats: readonly string[], keepLast: number): readonly string[] {
   return keepLast <= 0 ? [] : beats.slice(-keepLast);
 }
 

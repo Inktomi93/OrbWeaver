@@ -49,7 +49,11 @@
 //     only on the GM console off `getConfigView` and consumed only into the PROMPT — the `steeringNote` class);
 //   • a FOREIGN `gmPresetId` → null (a preset the forker cannot read — else `resolvePresetOverride` would feed
 //     the source host's private preset into the forker's own turns, the [[injected-op-caller-gate]] class);
-//   • hidden-span prose in snapshot `recentEvents` + journal `content` (the defense-in-depth belt — §1.6
+//   • snapshot `recentEvents` → THE SOURCE'S MEMBER-VISIBLE WINDOW, `keepLastBeats(log, source keepLast)`
+//     (the log is append-only across the whole game, but the only member-gated reader slices it by the
+//     host-writable `recentBeatsKeepLast` — so every older beat is host-plane, and `keepLast: 0` means the
+//     member read NONE. See {@link stripBeatsForForker} for the full argument and the retracted rationale);
+//   • hidden-span prose in the surviving beats + journal `content` (the defense-in-depth belt — §1.6
 //     recommendation A keeps tracker prose surface-only at the SOURCE, so under A there is nothing to strip;
 //     this belt keeps the fork member-safe even if a model ignored the surface-only clause — the SAME
 //     `stripHiddenSpans` the fork body-copy already applies, `verbs/fork.ts::copyVariantStmt`).
@@ -57,7 +61,17 @@
 // `reconcileEveryBeats`/`deception`/`omniscience`/`hiddenContentReveal`/`recentBeatsKeepLast`/
 // `immersiveHtmlInteractive`/`cardKeepLastX`): no authored prose is representable in an enum or a bounded
 // number, and blanking them would silently re-tune the fork's own game for zero secrecy gain (the
-// `reasoningEffort`/`maxOutputTokens` carve-out `verbs/fork.ts` makes on the same law).
+// `reasoningEffort`/`maxOutputTokens` carve-out `verbs/fork.ts` makes on the same law). NOTE the asymmetry
+// `recentBeatsKeepLast` earns: the KNOB copies (it is a scalar), while the DATA it gated does not — a
+// host-only scalar is still a gate over member-visible bytes, and carrying it is not carrying what it hid.
+//
+// WHY THE D16 FLOOR DOES NOT BITE FURTHER HERE: the window strip already fires for every clamped forker
+// (`readsHidden === false` is the superset — a clamped forker is necessarily a non-host, `verbs/fork.ts` F2),
+// and the window IS what the source's own member-gated read served that person, floor or no floor:
+// `getTrackerView` resolves the current snapshot with NO `resolveHistoryFloorSeq` anywhere in its path.
+// Flooring the fork harder would make it carry LESS than the panel showed the same human, and would leave
+// the actual question — whether an unclamped tracker view may quote pre-floor turns at all — open in the
+// SOURCE, where every member still reads it. That is a member-visibility question, not a fork strip.
 // A `readsHidden` forker (the source host) copies verbatim — they already read every secret.
 
 import type { RpgGameConfig, RpgGameFeatures } from "@orb/contracts/rpg";
@@ -73,6 +87,7 @@ import { findGameByChat } from "../persistence/games.ts";
 import { listAllJournal } from "../persistence/journal.ts";
 import { listSheets } from "../persistence/sheets.ts";
 import { listSnapshots } from "../persistence/snapshots.ts";
+import { keepLastBeats } from "./tracker-view.ts";
 
 /** The `rpg_games.config` blob's per-FIELD classification for a non-host forker (identity for a host forker).
  *  EXHAUSTIVE LITERAL, deliberately not a spread: the table-level `Required<…$inferInsert>` ratchet sees one
@@ -134,15 +149,27 @@ function stripFeaturesForForker(features: RpgGameFeatures): RpgGameFeatures {
   };
 }
 
-/** The defense-in-depth belt: strip hidden-class spans from tracker prose for a non-host forker (identity when
- *  nothing is hidden / the forker is the host). `recentEvents` is a `string[]` beat window; each entry is a
- *  stored body fragment the extractor may have quoted, so each runs the SAME `stripHiddenSpans` the body copy
- *  applies. */
-function stripBeatsForForker(beats: readonly string[] | null, readsHidden: boolean): readonly string[] | null {
+/** The `recentEvents` strip for a non-host forker — TWO belts, in this order (identity for a host forker):
+ *
+ *  1. THE WINDOW (the host-plane arm, and the load-bearing one). `rpg_snapshots.recentEvents` is an APPEND-ONLY
+ *     durable log spanning the whole game, but the only member-gated reader of it is `getTrackerView`, which
+ *     serves `keepLastBeats(log, recentBeatsKeepLast)` — and `recentBeatsKeepLast` is writable ONLY through the
+ *     host-gated `updateConfig`. So every beat outside that window has NO member-gated reader in the source
+ *     room, and the forker becomes HOST of the copy and may widen the knob at will. `keepLast: 0` is the sharp
+ *     arm: the member read ZERO beats, so nothing may cross. The slice uses the SOURCE game's knob, because
+ *     that is the value that governed what this forker could actually read. This clause was MISSING until
+ *     2026-08-07 and the whole log crossed; the rationale that hid it ("beats are the same distillation class
+ *     `listJournal` serves unbounded") is a CLASS argument, and the law is about BYTES behind a gate — the
+ *     journal's rows are not these bytes. It also bounds the D16 arm: the log spans turns below a clamped
+ *     member's history floor, and the window is what they were actually shown.
+ *  2. THE HIDDEN-SPAN BELT (defense in depth). Each surviving entry is a stored body fragment the extractor may
+ *     have quoted, so each runs the SAME `stripHiddenSpans` the body copy applies (§1.6 recommendation A keeps
+ *     tracker prose surface-only at the SOURCE, so under A there is nothing here to strip). */
+function stripBeatsForForker(beats: readonly string[] | null, keepLast: number, readsHidden: boolean): readonly string[] | null {
   if (readsHidden || beats === null) {
     return beats;
   }
-  return beats.map((b) => stripHiddenSpans(b).content);
+  return keepLastBeats(beats, keepLast).map((b) => stripHiddenSpans(b).content);
 }
 
 /** The shared re-key inputs every per-plane copy closes over: the fork's new game id, the id maps, the strip
@@ -153,6 +180,10 @@ interface CloneCtx {
   readonly slotIdMap: ReadonlyMap<MessageId, MessageId>;
   readonly variantIdMap: ReadonlyMap<MessageVariantId, MessageVariantId>;
   readonly readsHidden: boolean;
+  /** The SOURCE game's `features.recentBeatsKeepLast` — the beat window the source room actually served this
+   *  forker (see {@link stripBeatsForForker}). Read off the source config, never the stripped copy: it is the
+   *  knob that governed their READ, and only a host could ever have changed it. */
+  readonly recentBeatsKeepLast: number;
   readonly now: number;
 }
 
@@ -226,7 +257,7 @@ function forkSnapshotValues(
     variantId: keys.variantId,
     asOfMessageId: keys.asOfMessageId,
     // ── MEMBER-PROJECTED ────────────────────────────────────────────────────────────────────────────────
-    recentEvents: stripBeatsForForker(snap.recentEvents, cc.readsHidden),
+    recentEvents: stripBeatsForForker(snap.recentEvents, cc.recentBeatsKeepLast, cc.readsHidden),
     // ── COPIED ──────────────────────────────────────────────────────────────────────────────────────────
     clock: snap.clock,
     calendarDate: snap.calendarDate,
@@ -377,7 +408,17 @@ export async function forkGame(ctx: RpgContext, args: ForkGameArgs): Promise<For
     updatedAt: now,
   };
 
-  const cc: CloneCtx = { ctx, newGameId, slotIdMap, variantIdMap, readsHidden: forker.readsHidden, now };
+  const cc: CloneCtx = {
+    ctx,
+    newGameId,
+    slotIdMap,
+    variantIdMap,
+    readsHidden: forker.readsHidden,
+    // The SOURCE's window, off the UNSTRIPPED source config (the strip copies the knob through unchanged, so
+    // the two agree today — but the source is the one that means "what this forker was shown").
+    recentBeatsKeepLast: source.config.features.recentBeatsKeepLast,
+    now,
+  };
   const snapshotsCopy = cloneSnapshots(cc, snapshots);
   // INSERT ORDER — the FK chain: the game row FIRST; snapshots BEFORE the checkpoints whose RESTRICT FK points
   // at them. Everything else keys the game row only.
