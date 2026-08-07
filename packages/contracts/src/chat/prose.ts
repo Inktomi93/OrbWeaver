@@ -246,4 +246,26 @@ export const CHAT_PROSE_SLOTS = {
     title: "User-note frame",
     fires: "Every user-role injection — author's note, host steering, a prefix-adjacent re-framed injection.",
   },
+  "chat.recovery.narrativeContinuation": {
+    id: "chat.recovery.narrativeContinuation",
+    home: "user",
+    version: 1,
+    // The ONE ask of the recovery pass (dogfood EMPTYGEN-REASONING, owner ruling 2026-08-07 — RECOVER, do not
+    // discard). A reasoning turn on a tool-attached game can conclude that its tool calls discharged the beat
+    // and emit ZERO prose; the state writes are good, the reply is missing, and the turn used to be thrown
+    // away whole. The recovery pass re-runs the SAME turn with the tools removed and this line as the trailing
+    // user row, so the model writes the narrative it skipped.
+    //
+    // Two things it must say and one it must not. It must name that the state is ALREADY RECORDED (or the
+    // model narrates the bookkeeping it just did — "I updated your HP" — which is the exact prose this feature
+    // exists to avoid), and it must ask for the beat itself. It must NOT re-issue the turn's original
+    // instructions: the whole prompt is still in front of the model, so repeating them earns a re-run of the
+    // reasoning that produced no prose the first time. Short, on purpose.
+    text: "[The state changes for this beat are already recorded — do not describe them or mention updating anything. Now write the scene itself: continue the story from where it stands, in your usual voice.]",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Prose-less turn recovery ask",
+    fires: "A completion that produced tool calls and no prose — the recovery pass that rescues the turn instead of discarding it.",
+  },
 } as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;

@@ -29,6 +29,38 @@ export function clampRoleHandling(floor: RoleHandling | undefined, knob: RoleHan
   return (Object.keys(ROLE_HANDLING_RANK) as RoleHandling[]).find((k) => ROLE_HANDLING_RANK[k] === winner) as RoleHandling;
 }
 
+/** The separator merged rows are joined with. Matches ST's SERVER-side `mergeMessages` (`'\n\n'`), not its
+ *  client pass — see the `INJECT-NAMED-AS-PLAYER` note in `dogfood-tracking.md`. */
+const MERGE_SEPARATOR = "\n\n";
+
+/**
+ * The adjacency RUNS the squash forms over `history`: one entry per DELIVERED row, listing the INPUT INDICES
+ * that fold into it. Empty/whitespace-only inputs are dropped and appear in no run, so `Σ run.length` can be
+ * less than `history.length`.
+ *
+ * This is the ONE home of the adjacency rule — {@link squashSameRole} is exactly this plus the content join.
+ * It is exported because SHAPE's content-free row trace (`ShapeTrace.rows`) has to answer "which inputs became
+ * THIS delivered row" to report a merged row's provenance honestly: a squash that folds an injected row into
+ * an adjacent canon turn is precisely the INJECT-NAMED-AS-PLAYER shape, and re-deriving the rule at the trace
+ * would be a second home free to drift from the wire it claims to describe.
+ */
+export function squashRuns<T extends { role: MessageRole; content: string; name?: string }>(history: readonly T[]): readonly (readonly number[])[] {
+  const runs: number[][] = [];
+  history.forEach((msg, index) => {
+    if (msg.content.trim().length === 0) {
+      return;
+    }
+    const openRun = runs.at(-1);
+    const head = openRun === undefined ? undefined : history[openRun[0] ?? -1];
+    if (openRun !== undefined && head !== undefined && head.role === msg.role && !distinctCompletionName(head, msg)) {
+      openRun.push(index);
+      return;
+    }
+    runs.push([index]);
+  });
+  return runs;
+}
+
 /** Squash adjacent same-role messages into one by concatenating content with a blank-line separator.
  *  Drops empty/whitespace-only items before squashing. The first row of a same-role run keeps its extra
  *  fields; merged-in rows contribute only their content. Two adjacent rows carrying distinct completion
@@ -36,16 +68,13 @@ export function clampRoleHandling(floor: RoleHandling | undefined, knob: RoleHan
  *  other — a system row never folds into a user/assistant neighbor. */
 export function squashSameRole<T extends { role: MessageRole; content: string; name?: string }>(history: readonly T[]): T[] {
   const result: T[] = [];
-  for (const msg of history) {
-    if (msg.content.trim().length === 0) {
+  for (const run of squashRuns(history)) {
+    const rows = run.flatMap((index) => history[index] ?? []);
+    const head = rows[0];
+    if (head === undefined) {
       continue;
     }
-    const last = result.at(-1);
-    if (last !== undefined && last.role === msg.role && !distinctCompletionName(last, msg)) {
-      result[result.length - 1] = { ...last, content: `${last.content}\n\n${msg.content}` };
-      continue;
-    }
-    result.push(msg);
+    result.push(rows.length === 1 ? head : { ...head, content: rows.map((row) => row.content).join(MERGE_SEPARATOR) });
   }
   return result;
 }

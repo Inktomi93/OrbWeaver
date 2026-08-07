@@ -39,6 +39,8 @@ import type { DatabankIngest } from "#domain/databank";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createCopyPresetToUser, PresetNotFoundError } from "#domain/preset";
+import type { RpgTraceRecorder } from "#domain/rpg";
+import { createRpgTraceRecorder } from "#domain/rpg";
 import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
 import type { SettingsContext, SettingsServiceDeps } from "#domain/settings";
@@ -49,6 +51,7 @@ import type { ToolUseService } from "#domain/tool-use";
 import type { WorkloadContributions } from "#domain/workloads";
 import { createImportStandaloneLorebook } from "#domain/world-info";
 import type { EnginesPosture } from "#foundation/env";
+import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import { isWireCaptureEnabled, logAudit, recordWireCapture } from "#foundation/observability";
 import { createPasswordHasher } from "#infra/auth";
@@ -218,6 +221,10 @@ export interface ServicesResult {
    *  test drives a turn's flush (`onTurnCompleted`) through the REAL compose graph (the [compose-stub-goes-stale]
    *  antidote). Not on the transport `Services` bundle (chat's turn lifecycle is its only production caller). */
   readonly rpgChatOps: RpgComposeResult["chatOps"];
+  /** R-OBS — the rpg flight recorder's READ half, or `undefined` when tracing is off. `lifecycle.ts` hands it
+   *  to `createApp`, which registers `/api/_debug/rpg/traces` only when it is present (the route's own
+   *  `rpgTrace === undefined ⇒ not registered` contract, `foundation/observability/debug/routes.ts`). */
+  readonly rpgTrace: RpgTraceRecorder | undefined;
   /** The ONE tool-use registry (rpg's 7 state tools registered into it) — surfaced so the composed-real int
    *  test drives a CHEAP tool turn through the REAL registered handlers (`resolveTools` + `executeToolCalls`),
    *  proving the compose tool-registration is live. Not on the transport `Services` bundle. */
@@ -607,9 +614,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── rpg (the rpg seam) — the LITE vertical. Built AFTER chat (its `rpgChatOps` are rpg's cross-feature deps);
   // its `ChatRpgOps` are bound back onto the forward-ref holder above so chat's turn hooks reach the live rpg
   // service. Registers rpg's 7 state tools into the ONE tool registry (the imagery precedent).
+  // R-OBS — the rpg flight recorder. Built ONLY when tracing is enabled, and `undefined` otherwise: the emit
+  // sites guard with `deps.trace?.(…)`, so an untraced deployment never even constructs an event object and
+  // its turns are byte-identical. The explicit `rpgTrace` dep wins over the env so an int test / the drive kit
+  // never depends on the ambient environment (the `wireCapture` precedent, and the [[ENV-BLEEDS-INTO-TESTS]]
+  // lesson: a test that reads the operator's `.env` is a test that passes on the wrong machine).
+  const rpgTrace = (deps.rpgTrace ?? env.RPG_TRACE === "on") ? createRpgTraceRecorder({ now }) : undefined;
   const rpgCompose = buildRpg({
     db,
     now,
+    ...(rpgTrace === undefined ? {} : { trace: rpgTrace.sink }),
     rpgChatOps: chatCompose.rpgChatOps,
     connection,
     executor,
@@ -849,6 +863,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     personaSeeder,
     demoChatSeeder,
     rpgChatOps: rpgCompose.chatOps,
+    rpgTrace,
     toolUse,
     chatRpgOps: chatCompose.rpgChatOps,
   };

@@ -21,6 +21,7 @@ export {
   inspectChatState,
   integrityProbe,
   isWireCaptureEnabled,
+  type RpgTraceInspector,
   recentTurnOutcomes,
   recentWireCaptures,
   recordTurnOutcome,
