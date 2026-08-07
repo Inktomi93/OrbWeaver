@@ -106,7 +106,9 @@ function ownerRowSessions(): SessionsService {
     },
     loadUserById: (userId: UserId) => {
       const row = [...rows.values()].find((r) => r.id === userId);
-      return Promise.resolve(row === undefined ? null : { role: row.role, handle: row.handle, externalId: null });
+      // `enabled: true` is the ENABLED row — D135 clause G gates the fallback arm on it, so a double that
+      // omitted it would be asserting the gate against a shape the resolver can no longer return.
+      return Promise.resolve(row === undefined ? null : { role: row.role, handle: row.handle, externalId: null, enabled: true });
     },
   });
 }
