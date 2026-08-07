@@ -18,14 +18,22 @@
 // HOST-PLANE by D129-F and never appear on `MessageView`, so there is no member-visible read to assert through.
 
 import type { MacroFreezeRecord } from "@orb/contracts/chat";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messageVariants } from "@orb/db";
-import type { MessageVariantId } from "@orb/kit/ids";
+import { batchMany } from "@orb/db/kit";
+import type { MessageId, MessageVariantId } from "@orb/kit/ids";
 import { createVolatileOnlyRegistry, processMacros } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
+import { setVariantContentStatement } from "../../../../../packages/server/src/domain/chat/persistence/canon-write.ts";
+import { createEdit } from "../../../../../packages/server/src/domain/chat/verbs/edit.ts";
 import { scenario, tape } from "../../../../support/chat/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedMessage } from "../_support.ts";
+
+/** The FOREIGN-half fake the edit bundle needs — DEFAULT config only (the `edit.int.test` stub). */
+const foreignInputsStub: Parameters<typeof createEdit>[1]["resolveForeignInputs"] = () =>
+  Promise.resolve({ promptConfig: DEFAULT_PROMPT_CONFIG, personas: { anchor: null, active: null }, scanDepth: 6, injectionTokenBudget: 0 });
 
 /** The persisted provenance triple for one variant, read from the host-plane columns. */
 async function readProvenance(
@@ -133,6 +141,64 @@ test("a greeting with no volatiles is not rewritten and gains no provenance", as
   expect(stored.content).toBe("I greet {{user}}");
   expect(stored.rawContent).toBeNull();
   expect(stored.macroFreezes).toBeNull();
+});
+
+// ── THE PROVENANCE IS ABOUT THIS BODY — a later content write invalidates it ─────────────────────────
+// The storage rule is one-directional: `raw_content` is stored non-null ONLY when it differs from `content`.
+// A hand edit writes the OTHER side of that relation, so unless the edit clears the pair it can (a) leave a
+// non-null raw that equals the content — the one shape the rule forbids — and (b) leave a freeze record
+// describing a bake the new bytes no longer contain, which `loadVariantWire` would serve to a host as fact.
+
+test("EDITING the body back onto its own raw clears the provenance — never a non-null raw equal to content", async () => {
+  const scn = await scenario.chat(tape().reply("ok"), { characters: ["aria"] });
+  await scn.send("I roll {{roll::1d1}}");
+
+  const userRow = (await scn.loadCanon()).find((m) => m.role === "user");
+  const beforeEdit = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));
+  expect(beforeEdit.rawContent).toBe("I roll {{roll::1d1}}");
+
+  const edit = createEdit(scn.ctx, { emit: () => Promise.resolve(), resolveForeignInputs: foreignInputsStub });
+  // The exact convergence the finding drove: the host types the raw text back in.
+  await edit.editMessage({ principal: scn.principal(), chatId: scn.chatId, messageId: userRow?.id ?? ("x" as MessageId), content: "I roll {{roll::1d1}}" });
+
+  const afterEdit = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));
+  expect(afterEdit.content).toBe("I roll {{roll::1d1}}");
+  expect(afterEdit.rawContent).toBeNull();
+  // And the record goes with it: the edited body is AUTHORED, so no bake describes it.
+  expect(afterEdit.macroFreezes).toBeNull();
+});
+
+test("an edit to UNRELATED text also drops the record — a bake that is no longer in the body is not provenance", async () => {
+  const scn = await scenario.chat(tape().reply("ok"), { characters: ["aria"] });
+  await scn.send("I roll {{roll::1d1}}");
+
+  const userRow = (await scn.loadCanon()).find((m) => m.role === "user");
+  const edit = createEdit(scn.ctx, { emit: () => Promise.resolve(), resolveForeignInputs: foreignInputsStub });
+  await edit.editMessage({ principal: scn.principal(), chatId: scn.chatId, messageId: userRow?.id ?? ("x" as MessageId), content: "actually I hold still" });
+
+  const after = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));
+  expect(after.content).toBe("actually I hold still");
+  expect(after.rawContent).toBeNull();
+  expect(after.macroFreezes).toBeNull();
+});
+
+test("the RESTORE path (continue undo/revert) clears it too — the snapshot it restores is not what the raw produced", async () => {
+  const scn = await scenario.chat(tape().reply("ok"), { characters: ["aria"] });
+  const greeting = await seedMessage(scn.db, scn.chatId, 1, {
+    role: "assistant",
+    characterId: scn.chars[0] ?? null,
+    content: "You rolled {{roll::1d1}}",
+  });
+  await scn.send("hello");
+  expect((await readProvenance(scn.db, greeting.variantId)).rawContent).toBe("You rolled {{roll::1d1}}");
+
+  // `setVariantContentStatement` is the undo/revert content swap; drive the builder the verbs drive.
+  await scn.db.batch(batchMany([setVariantContentStatement(scn.db, greeting.variantId, "a restored body", null)]));
+
+  const after = await readProvenance(scn.db, greeting.variantId);
+  expect(after.content).toBe("a restored body");
+  expect(after.rawContent).toBeNull();
+  expect(after.macroFreezes).toBeNull();
 });
 
 // ── REPRODUCIBILITY — what the record is FOR ─────────────────────────────────────────────────────────
