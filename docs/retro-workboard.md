@@ -399,12 +399,17 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     member-readable by explicit design, `listTurnToolCalls` is member-gated) — a data-loss + a
     doc-lie. Header truth-repaired in the lane's commit; whether the fork should KEEP the tool
     record is the product call. Evidence: lane sweep.
-  - [ ] **`listJournal` applies NO hidden-span strip in the SOURCE room** (M, belongs to the identity
-    work, NOT rpg-design) — a model-authored `<lie>` in a journal entry is served RAW to a member
-    read. **Judged against D129, minted today: hidden means hidden in EVERY DERIVED PLANE** — same
-    class as the digest orphan killed this afternoon, different surface. rpg-design §1.6 rec A keeps
-    tracker prose surface-only, which is why nobody swept it; that predates D129. Evidence: lane
-    sweep, source-pinned.
+  - [ ] **`listJournal` applies no hidden-span strip in the SOURCE room** (S to answer, then decide)
+    — **RE-FRAMED after an owner correction: this is a DECEPTION-MECHANIC question, NOT a D129 one.**
+    `<lie>` is a deliberate GM mechanic (`deception`/`omniscience`/`hiddenContentReveal` knobs + the
+    host-gated `revealHidden` verb) — D129's "hidden means hidden in every DERIVED plane" governs
+    digests/summaries/recall, where a SUMMARY OF hidden text can escape through a path that never
+    checked. It says nothing about the mechanic's own source-read model, which is designed.
+    **The one real question:** does a member's journal payload carry the RAW `<lie>` bytes with the
+    client stripping at render? If yes, a player reads the GM's hidden text from the network tab —
+    a mechanic defeat, fixable at the member projection. If the server already withholds, there is
+    nothing here. ANSWER IT BEFORE BUILDING ANYTHING. Evidence: lane flagged the absent strip
+    (source-pinned); the payload question is UNVERIFIED.
 - **✅ HAND-EDIT GRADUATED — CONFIRMED on the 4th leg after THREE refutations (`cea8437c0`).** The
   verifier re-drove all three prior refutations clean, plus N=3-with-a-gap, the production applier
   shapes with a mid-flight dismiss+delete+lock, element-level locks, and a **400-turn randomized
