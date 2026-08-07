@@ -20,8 +20,10 @@ const LAST_ACTION = '[data-testid="members-last-action"]';
 const HANDOFF_RE = /Hand off host…/u;
 const KICK_RE = /Kick…/u;
 const REMOVE_ARIA_RE = /Remove Aria from chat/u;
-const CHIP_50_RE = /Talkativeness: Aria — 50%/u;
-const CHIP_80_RE = /Talkativeness: Aria — 80%/u;
+// The chip's name carries the visible word "talks" (WCAG 2.5.3 — UI-Primitives-and-Reuse §13.10); the
+// stable `Talkativeness: <who>` identity still LEADS, which is why every other lookup here is unaffected.
+const CHIP_50_RE = /Talkativeness: Aria — talks 50%/u;
+const CHIP_80_RE = /Talkativeness: Aria — talks 80%/u;
 
 test("People + Cast render in one list with identity+state accessible names and chips", async ({ mount }) => {
   const component = await mount(<MembersPanelStory withPeople={true} />);
