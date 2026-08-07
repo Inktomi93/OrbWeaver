@@ -381,6 +381,68 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   not a freeze hop. Stickler §3's raw inventory wants both halves; only one landed. Same storage
   (`message_variants.raw_content`, NULL ⇔ byte-identical), same host-plane classification, different
   producer. Evidence: lane scope statement, source-pinned.
+- **✅ PHONE-COMP MERGED (`fe0c22b0e` + resolve `da033b9d3`, check 14/14).** The phone is now
+  COMPOSED, not compressed: three shared constants in `components/row-reveal.ts`
+  (`ROW_ACTION_INLINE` / `ROW_ACTION_OVERFLOW` / `ROW_REVEAL_SWAP_COARSE_KEEP`), CSS-ONLY by law
+  (axis 3 is media-query-only; `no-raw-matchmedia` bars a JS branch), so exactly ONE arm is in
+  layout AND in the a11y tree per pointer class. rpg HUD tabpanel **18px → >30% of the pane**;
+  persona name lane 14% → >35%; roster titles +44px; group-draft title prints the whole cast from
+  ONE `draftChatTitle` home; prose stops fading onto theme art (`mask-image:none` under
+  `data-has-bg-image`, pinned by a FRAMEBUFFER assertion with its own planted control). **One
+  refusal with a receipt:** the "146×88 monster CTA" was DEVICE px at DPR2 — 73×44 in CSS px, i.e.
+  exactly the D62 P1 coarse floor. Not oversized; the actionable half (96px of per-row affordances)
+  is fixed. **Flagged for side-eye, its one solo call:** dropping the band's vitals orbs at coarse
+  (argued as de-duplication — every orb's number is a Status row — and it is what makes Status
+  reachable at all; the alternative is a text summary, a second rendering that cannot be CSS-only).
+  Lessons: \[\[touch-floor-is-an-unbudgeted-width-tax]] · \[\[mask-is-paint-invisible-to-computed-style]].
+  **Merge-conflict post-mortem:** pure ADJACENCY — both lanes appended a file-local function at the
+  SAME offset, each extracted because biome's complexity cap bit at 16-17. The intent-fence held and
+  was irrelevant. The lane verified the real question rather than just resolving text (the coarse
+  collapse does NOT move the accessible name — the select target is a stretched absolute button at
+  every pointer class), and UPGRADED its own earlier re-ruling: the coarse row now carries a
+  state-aware NAME too, which is the words-for-the-current-persona the 08-03 ruling wanted, in the
+  one place a 320px row can afford them. **Its rule for the train: after a merge, re-run your WHOLE
+  surface, not just the conflicted files** — otherwise you check only the half git told you about.
+- **⚑ FRESH-LENS ROUND 3 (three chunks): RPGFORK ✅fix/❌one call · FANOUT-2 ✅+integrity gap ·
+  SMALLS-3 ✅+one untested arm. Three fix legs dispatched.**
+  **RPGFORK — a THIRD live leak, driven:** the lane classified `recentEvents` beyond
+  `recentBeatsKeepLast` as safe on a CLASS argument ("the same distillation is served unbounded by
+  `listJournal`"); the BYTES differ. With `keepLast:2` and 5 beats a member reads only the last two
+  in the SOURCE (`tracker-view.ts:233` slices by it; the knob is host-only via `updateConfig`) — the
+  fork carries ALL FIVE, the forker becomes HOST, widens the knob, and reads what was hidden. With
+  **`keepLast:0` the member reads NOTHING and the entire log rides across.** Aggravator: the log is
+  append-only across the WHOLE game, so beats distilled from turns below a D16-clamped member's
+  floor travel too — the exact class `fork.ts` cites for making `promptSnapshot` host-plane. Both
+  ratchets and the other two calls CONFIRMED (planted probes fired at BOTH granularities; the DROP
+  arm proved non-vacuous against three planted silent losses).
+  **FANOUT-2 — the invariant is true at its writer and FALSE in the DB:** `editMessage` writes the
+  other half of the pair without passing the enforcer, so editing a message back to its raw text
+  leaves `content === rawContent` with `raw_content` NON-NULL, and the new host-gated reader serves
+  that beside a freeze record describing a bake no longer in the body. Same for the continue
+  undo/revert statement. Cross-row contamination PROVEN prevented (3 greeting rows + a send draft,
+  each record holding only its own occurrences); replay proven non-fabricating across 5 cases.
+  **SMALLS-3 — CONFIRMED**, incl. the zero-query claim as a real NETWORK assertion and the
+  "couldn't read" arm proven non-vacuous. The verifier settled the mark-read LOOP question by
+  reading the installed react-query's source (`mutate` is `useCallback`-stable for the component's
+  lifetime) rather than trusting a poll that passes on its first sample. Gap: the DISENGAGED
+  (`engaged:false`) arm and the re-engage transition are source-verified only — test dispatched.
+- [ ] **PROVENANCE-PAIR GATE** (S–M, gate-authoring; requested by BOTH fix legs independently) —
+  `CLEARED_FREEZE_PROVENANCE` is a CONVENTION a new `.set()` can forget, and the same shape exists
+  wherever one column describes another. Rule: every `.set()` touching `message_variants.content`
+  must name the provenance pair. Founding evidence: three of nine writers were stale
+  (\[\[biconditional-is-a-claim-about-every-writer]]). Pairs with the two host-plane allow-list
+  ratchets — same "a convention is not an enforcer" family.
+- [ ] **`getTrackerView` IS NOT D16-FLOOR-CLAMPED** (M, source-side member visibility — NOT a fork
+  question) — a history-clamped member's beat window may quote turns BELOW their own floor. The
+  fork now serves the member's own window, so fixing it at the fork alone would HIDE this; it lives
+  in the D16 plane where every member still reads it. Evidence: RPGFORK leg 2, source-verified (no
+  `resolveHistoryFloorSeq` anywhere in the rpg snapshot read path).
+- [ ] **SIDE-EYE RULING OWED on two `JUDGMENT_DEFERRED` geometry sites** (from GATEFORGE's
+  `no-floorless-control-in-wrap`) — `rpg-pack-rows.tsx:39` (mapped `glyph-lg` icon grid in a
+  flex-wrap popover) and `rpg-actor-trackers.tsx:251` (per-condition `glyph-xs` ✕ inside mapped
+  chips). Both are coarse-pointer 44px-pseudo overlaps on wrapped pitch; both are RENDERED-GEOMETRY
+  judgments a gate lane cannot make, and both sit in PHONE-COMP's rpg context panel. Options: boxed
+  `icon` size · a spacing floor · deliberate. The ledger row deletes with the ruling.
 - **⚑ ORCHESTRATOR LESSON (mine, 2026-08-07, third instance of one principle in a day):
   A SIDE-EYE SYMPTOM IS GOLD; ITS MECHANISM PRESCRIPTION MUST BE CHECKED AGAINST RECORDED RULINGS
   BEFORE I RELAY IT.** I forwarded "drop both panel toggles from the mobile topbar" verbatim; the
