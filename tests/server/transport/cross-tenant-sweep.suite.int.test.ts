@@ -916,6 +916,10 @@ const PROBES: readonly Probe[] = [
   { path: "rpg.getGame", call: (c, i) => c.rpg.getGame({ chatId: i.chatId }) },
   { path: "rpg.getTrackerView", call: (c, i) => c.rpg.getTrackerView({ chatId: i.chatId }) },
   { path: "rpg.listJournal", call: (c, i) => c.rpg.listJournal({ chatId: i.chatId }) },
+  // TOOLCALLS-INVISIBLE arm A — the recorded-turn window. MEMBER-gated (a tool call is not a GM secret), which
+  // makes the cross-tenant belt the ONLY thing between a stranger and A's game: `resolveMember` collapses a
+  // foreign chatId to leak-free NOT_FOUND exactly as its sibling reads do. PROBED, never EXEMPT.
+  { path: "rpg.listTurnToolCalls", call: (c, i) => c.rpg.listTurnToolCalls({ chatId: i.chatId }) },
   { path: "rpg.getConfigView", call: (c, i) => c.rpg.getConfigView({ chatId: i.chatId }) },
   // §3.6 host-reveal read — a foreign chatId must collapse to leak-free NOT_FOUND (host gate inside the verb).
   { path: "rpg.revealHidden", call: (c, i) => c.rpg.revealHidden({ chatId: i.chatId }) },

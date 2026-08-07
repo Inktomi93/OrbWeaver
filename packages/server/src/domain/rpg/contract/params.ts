@@ -328,6 +328,15 @@ export interface ListJournalParams {
   readonly offset?: number | undefined;
 }
 
+/** `listTurnToolCalls` — the window of recorded folded turns for a game (TOOLCALLS-INVISIBLE, arm A). No
+ *  `offset`: the client indexes the whole window by `variantId` to render per-row disclosures, so paging
+ *  BACKWARD through it would only ever produce a half-populated index. A deeper history raises `limit`. */
+export interface ListTurnToolCallsParams {
+  readonly principal: Principal;
+  readonly chatId: ChatId;
+  readonly limit?: number | undefined;
+}
+
 // ── chat-ops-layer shapes (W1b-integration) ─────────────────────────────────────────────────────────────
 // The gather's contribution + the reminder assembler's input — DOMAIN-INTERNAL feature types (§7.4 homes
 // feature types in contract/, never inline at the module). The gather result is structurally the chat-side

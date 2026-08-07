@@ -184,6 +184,10 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   rpg_journal: { scope: "parent", why: "scope derives through `rpg_games` to the room." },
   rpg_sheets: { scope: "parent", why: "scope derives through `rpg_games` to the room; `userId`/`characterId` are the sheet's SUBJECT, not the read scope." },
   rpg_snapshots: { scope: "parent", why: "scope derives through `rpg_games` to the room; empty anchor slots are snapshot FKs, never lost completions." },
+  rpg_turn_tool_calls: {
+    scope: "parent",
+    why: "scope derives through `rpg_games` to the room — the read verb resolves MEMBERSHIP (a tool call is the record of a turn everyone at the table watched, not a GM secret), so the predicate is the game's chat, never an ownerId.",
+  },
   sessions: {
     scope: "parent",
     why: "auth/BFF sessions — the single `userId` FK is the scope; reads are the session-resolution path, never a user-facing surface.",

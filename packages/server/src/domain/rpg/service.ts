@@ -15,7 +15,14 @@ import { createPatchActor } from "./verbs/patch-actor.ts";
 import { createPatchSheet } from "./verbs/patch-sheet.ts";
 import { createPromoteActor } from "./verbs/promote-actor.ts";
 import { createDeleteQuest, createUpsertQuest } from "./verbs/quest/index.ts";
-import { createGetConfigView, createGetGame, createGetTrackerView, createListJournal, createRevealHidden } from "./verbs/read/index.ts";
+import {
+  createGetConfigView,
+  createGetGame,
+  createGetTrackerView,
+  createListJournal,
+  createListTurnToolCalls,
+  createRevealHidden,
+} from "./verbs/read/index.ts";
 import { createRollDice } from "./verbs/roll-dice.ts";
 
 export function createRpgService(deps: RpgContextDeps): RpgService {
@@ -43,6 +50,7 @@ export function createRpgService(deps: RpgContextDeps): RpgService {
     ...createGetGame(ctx),
     ...createGetTrackerView(ctx),
     ...createListJournal(ctx),
+    ...createListTurnToolCalls(ctx),
     ...createGetConfigView(ctx),
     ...createRevealHidden(ctx),
   };

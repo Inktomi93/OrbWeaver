@@ -18,7 +18,18 @@
 // model entries stamp their producing `variantId` (CASCADE — a deleted swipe deletes its entries), hand
 // entries stamp NULL (every lineage); the READ projects the selected-variant chain (D46 derive-don't-stamp).
 
-import type { RpgActorEntry, RpgClockTime, RpgFieldLocks, RpgGameConfig, RpgPlot, RpgQuest, RpgSheet, RpgTrackerValues, RpgWeather } from "@orb/contracts/rpg";
+import type {
+  RpgActorEntry,
+  RpgClockTime,
+  RpgFieldLocks,
+  RpgGameConfig,
+  RpgPlot,
+  RpgQuest,
+  RpgRecordedToolCall,
+  RpgSheet,
+  RpgTrackerValues,
+  RpgWeather,
+} from "@orb/contracts/rpg";
 import { RPG_CHECKPOINT_TRIGGERS, RPG_GAME_MODES, RPG_GAME_STATUSES, RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
 import type {
   CharacterId,
@@ -31,6 +42,7 @@ import type {
   RpgJournalId,
   RpgSheetId,
   RpgSnapshotId,
+  RpgTurnToolCallsId,
   UserId,
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
@@ -266,6 +278,63 @@ export const rpgJournal = sqliteTable(
     index("rpg_journal_variant_idx").on(t.variantId),
     index("rpg_journal_source_message_idx").on(t.sourceMessageId),
     check("rpg_journal_type_check", sql.raw(`type in (${checkList(RPG_JOURNAL_TYPES)})`)),
+  ],
+);
+
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+// rpg_turn_tool_calls — WHAT THE MODEL DID on a folded turn (TOOLCALLS-INVISIBLE, arm A). ONE row per
+// producing VARIANT, holding that turn's whole call list as JSON.
+//
+// WHY AN RPG-OWNED TABLE AND NOT `message_variants.tool_calls`: that column is chat's, typed
+// `ToolCallRecord[]` and read by the transcript's existing tool renderer — exactly the right SHAPE, which is
+// what makes it the trap. D112 rules that chat "NEVER RESOLVES, EXECUTES, OR RECURSES on [terminal tools],
+// and never persists their calls as `ToolCallRecord`s — the co-emitted `tool_calls` are handed straight back
+// to the contributor". Filling chat's column from rpg would reverse that ruling while looking like
+// compliance, and would change what `MessageView.toolCalls` MEANS for every reader. The CONTRIBUTOR
+// recording its OWN calls is the clause working as written.
+//
+// ONE ROW PER TURN, NOT PER CALL: a turn's calls are one atomic thing (they are folded together, they fail
+// together, they are read together), and the per-variant unique is what makes a swipe surface its own calls
+// with no visibility bit to maintain — the `rpg_snapshots` variant-keying, one plane over.
+//
+// CASCADE on the variant, like `rpg_journal`'s model entries: a record whose swipe died is unreachable
+// forever, so keeping it is a leak rather than history.
+// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+export const rpgTurnToolCalls = sqliteTable(
+  "rpg_turn_tool_calls",
+  {
+    id: text("id").$type<RpgTurnToolCallsId>().primaryKey(),
+    gameId: text("game_id")
+      .$type<RpgGameId>()
+      .notNull()
+      .references(() => rpgGames.id, { onDelete: "cascade" }),
+    // The assistant SLOT these calls rode. CASCADE with the slot (the calls describe that turn and nothing
+    // else); mirrors `rpg_snapshots.message_id` rather than the journal's SET NULL, because unlike a journal
+    // entry this row has no meaning once its turn is gone.
+    messageId: text("message_id")
+      .$type<MessageId>()
+      .notNull()
+      .references(() => messages.id, { onDelete: "cascade" }),
+    // The producing variant — UNIQUE (one record per swipe) and CASCADE.
+    variantId: text("variant_id")
+      .$type<MessageVariantId>()
+      .notNull()
+      .references(() => messageVariants.id, { onDelete: "cascade" }),
+    // The turn's calls: name + args VERBATIM + the fold's per-call verdict. The shape is `contracts/rpg`'s
+    // (`RpgRecordedToolCall`), produced by the ONE `recordToolCalls` projection the warn and the flight
+    // recorder also read — so the row, the log and the ring cannot disagree about what was lost.
+    calls: text("calls", { mode: "json" }).$type<readonly RpgRecordedToolCall[]>().notNull(),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    // One record per variant — the swipe-rewind key.
+    uniqueIndex("rpg_turn_tool_calls_variant_unique").on(t.variantId),
+    // The read is per-GAME, newest first (the transcript window).
+    index("rpg_turn_tool_calls_game_idx").on(t.gameId),
+    // The message CASCADE parent — a message delete must find its records, and `messageId` leads nothing
+    // else here (`fk-columns-indexed` gate).
+    index("rpg_turn_tool_calls_message_idx").on(t.messageId),
   ],
 );
 
