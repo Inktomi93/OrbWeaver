@@ -66,8 +66,8 @@ interface CanonVariantInput {
    *  identical draw. Absent/null ⇒ the turn drew nothing. */
   readonly macroDraws?: UserMacroDraws | null | undefined;
   /** The pre-freeze / pre-regex authored text this variant's `content` was transformed FROM (the composer
-   *  draft, the raw model output). Absent/null ⇒ no transform changed bytes, i.e. raw ≡ content — the common
-   *  case, and the reason this is written only when it differs. HOST-PLANE (never on `MessageView`). */
+   *  draft, the raw model output). Hand it over unconditionally — the writer stores it only when it actually
+   *  differs (rule 1 below), which is what keeps the common case free. HOST-PLANE (never on `MessageView`). */
   readonly rawContent?: string | null | undefined;
   /** The volatile-macro occurrences this commit froze into `content` (the roll/random/clock family), in
    *  occurrence order. Absent/null ⇒ nothing froze. Paired with `rawContent`, it makes the variant's macro
@@ -154,11 +154,29 @@ function variantEconomics(v: CanonVariantInput): VariantEconomics {
   };
 }
 
-/** The freeze-provenance NULL CONVENTION (D129-F), enforced at the ONE writer rather than trusted to every
- *  caller: `raw_content` is NULL ⇔ byte-identical to `content` (so the overwhelming common case — a body no
- *  persist-time transform touched — costs zero bytes and no reader has to compare), and `macro_freezes` is
- *  NULL ⇔ nothing froze (never `[]`, matching the `toolCalls`/`macroDraws` null discipline). A caller that
- *  hands over a raw equal to the content, or an empty record, cannot violate the convention from here. */
+// ── THE FREEZE-PROVENANCE RULE (D129-F) ──────────────────────────────────────────────────────────────
+// Stated precisely, because the first draft of it overclaimed and the DB could violate it (verifier finding,
+// 2026-08-07). `rawContent`/`macroFreezes` describe how THIS variant's CURRENT `content` came to be, so:
+//
+//   1. FORWARD (an invariant, enforced here, true of every row): `raw_content` is stored NON-NULL only when
+//      it DIFFERS from `content`, and `macro_freezes` non-null only when it is non-empty. No redundant copy
+//      of a body ever hits the DB, and no reader has to compare to find out whether the raw says anything.
+//   2. NULL means "no distinct pre-transform text is served for this row" — NOT "the authored text was
+//      byte-identical". Three ways to get there and only the first is identity: nothing transformed the body;
+//      a later content write invalidated the provenance (below); or `verbs/fork.ts`'s host-plane allow-list
+//      STRIPPED it on a member→host copy (deliberate — pre-strip bytes must not travel).
+//
+// The reverse reading ("NULL ⇔ byte-identical") is NOT claimed. It was, and it was false: the fork strip and
+// the content-writers below both produce honest NULLs over a body whose authored text differed.
+//
+// WHY A CONTENT WRITE INVALIDATES: after a hand edit or a continue undo/revert, the stored body is no longer
+// the thing this raw + record produced — the record would describe a bake that is not in these bytes, and
+// `loadVariantWire` would serve a host that lie. Re-resolving from a pre-edit raw would also resurrect text
+// the human deleted (D130's removal reasoning). So a content write that is not the freeze itself CLEARS both
+// columns: the edited body is authored, not transformed, and honest absence beats stale provenance.
+
+/** Normalize the freeze-provenance pair to rule 1 above. A caller that hands over a raw equal to the content,
+ *  or an empty record, cannot violate the invariant from here. */
 function freezeProvenanceColumns(
   content: string,
   rawContent: string | null | undefined,
@@ -169,6 +187,12 @@ function freezeProvenanceColumns(
     macroFreezes: macroFreezes === null || macroFreezes === undefined || macroFreezes.length === 0 ? null : macroFreezes,
   };
 }
+
+/** The columns a NON-FREEZE content write sets to keep rule 1 true (see the block above): the replaced body's
+ *  provenance is dropped rather than left describing bytes that are gone. Spread into every `.set()` that
+ *  writes `content` and is not {@link freezeVariantContentStatement} — which is what makes the invariant a
+ *  property of the writer set rather than a hope about callers. */
+const CLEARED_FREEZE_PROVENANCE = { rawContent: null, macroFreezes: null } as const;
 
 /** Map a variant payload → the `message_variants` insert columns. */
 function variantColumns(args: {
@@ -334,6 +358,9 @@ export function continueVariantStatements(
           toolCalls: params.variant.toolCalls ?? null,
           // A continue replays the slot's frozen draws (threaded via the prep) — re-stamp the identical record.
           macroDraws: params.variant.macroDraws ?? null,
+          // The merged body is not what this variant's freeze produced (a frozen greeting is continuable), so
+          // its provenance is dropped rather than left describing a bake these bytes no longer contain.
+          ...CLEARED_FREEZE_PROVENANCE,
           preContinueContent: params.preContinueContent,
           preContinueReasoning: params.preContinueReasoning,
           lastContinuationContent: params.lastContinuationContent,
@@ -376,9 +403,16 @@ export function freezeVariantContentStatement(
 
 /** Set a variant's `content`/`reasoning` directly (the `undoContinue`/`revertContinue` restore — a
  *  pointer-free content swap from the `preContinue*`/`lastContinuation*` snapshot). The economics/snapshot
- *  columns are untouched so a restore is reversible by its twin. */
+ *  columns are untouched so a restore is reversible by its twin — but the freeze provenance is NOT, because
+ *  the snapshot it restores is a continue-era body this variant's raw never produced. (The continue that
+ *  created those snapshots already cleared it; this keeps the pair honest if the order ever changes.) */
 export function setVariantContentStatement(db: Db, variantId: MessageVariantId, content: string, reasoning: string | null): BatchStmt {
-  return batchStmt(db.update(messageVariants).set({ content, reasoning }).where(eq(messageVariants.id, variantId)));
+  return batchStmt(
+    db
+      .update(messageVariants)
+      .set({ content, reasoning, ...CLEARED_FREEZE_PROVENANCE })
+      .where(eq(messageVariants.id, variantId)),
+  );
 }
 
 /** Merge a base + a continuation text/reasoning (continue/revert): null only when both are null, else the
@@ -391,7 +425,12 @@ export function combineReasoning(base: string | null, addition: string | null): 
 }
 
 /** Edit the selected variant's content in place (`editMessage`; the edit mutates the variant, never
- *  doubles content) and stamp `messages.editedAt`. Two statements (variant + slot). */
+ *  doubles content) and stamp `messages.editedAt`. Two statements (variant + slot).
+ *
+ *  The edited body is AUTHORED, not transformed, so the freeze provenance is cleared: keeping it would leave a
+ *  `macro_freezes` record describing a bake the new bytes may not contain, and — in the case that first
+ *  exposed this — an edit that types the raw text back in would leave `raw_content` non-null and equal to
+ *  `content`, which is the one shape rule 1 forbids. */
 export function editMessageContentStatements(
   db: Db,
   params: {
@@ -402,7 +441,12 @@ export function editMessageContentStatements(
   },
 ): BatchStmt[] {
   return [
-    batchStmt(db.update(messageVariants).set({ content: params.content }).where(eq(messageVariants.id, params.variantId))),
+    batchStmt(
+      db
+        .update(messageVariants)
+        .set({ content: params.content, ...CLEARED_FREEZE_PROVENANCE })
+        .where(eq(messageVariants.id, params.variantId)),
+    ),
     batchStmt(db.update(messages).set({ editedAt: params.editedAt }).where(eq(messages.id, params.messageId))),
   ];
 }
