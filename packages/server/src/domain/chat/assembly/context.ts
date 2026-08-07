@@ -286,6 +286,9 @@ interface BuildAssembleContextInput {
   readonly personaIds: readonly PersonaId[];
   readonly promptConfig: PromptConfig;
   readonly personas: ResolvedPersonas;
+  /** The live human `personas.active` belongs to — carried onto the ctx for SHAPE's null-stamp guard
+   *  (`AssembleContext.triggerUserId`). Absent (drain/auto/preview/hand-built) ⇒ null ⇒ fail closed. */
+  readonly triggerUserId?: UserId | null | undefined;
   readonly roomOverrides?: RoomOverrides | undefined;
   readonly recentMessages: readonly string[];
   readonly lastMessage?: string | undefined;
@@ -391,6 +394,9 @@ function buildBaseContext(
     // never collapse to the literal "User"; a SET anchor never follows a mid-chat swap.
     pinnedPersona: input.personas.anchor ?? input.personas.active,
     activePersona: input.personas.active,
+    // WHOSE `{{user}}` this is — SHAPE's null-stamp guard (see `AssembleContext.triggerUserId`). Absent ⇒ null
+    // ⇒ fail closed (no null-stamped row borrows the name).
+    triggerUserId: input.triggerUserId ?? null,
     speaker: { kind: "single", character },
     recentMessages: [...input.recentMessages],
     variableValues: input.variableValues,

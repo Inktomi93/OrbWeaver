@@ -111,6 +111,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       tokenHash: hash,
       userId: joiner,
       participantId: castId<ChatParticipantId>("chat_participant_j"),
+      activePersonaId: null,
       now: FROZEN_AT,
     });
     expect(result?.chatId).toBe(chatId);
@@ -129,6 +130,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       tokenHash: hash,
       userId: a,
       participantId: castId<ChatParticipantId>("chat_participant_a"),
+      activePersonaId: null,
       now: FROZEN_AT,
     });
     expect(first).toBeDefined();
@@ -136,6 +138,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       tokenHash: hash,
       userId: b,
       participantId: castId<ChatParticipantId>("chat_participant_b"),
+      activePersonaId: null,
       now: FROZEN_AT,
     });
     expect(second).toBeUndefined();
@@ -150,6 +153,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       tokenHash: hash,
       userId: joiner,
       participantId: castId<ChatParticipantId>("chat_participant_j"),
+      activePersonaId: null,
       now: FROZEN_AT,
     });
     expect(result).toBeUndefined();
@@ -165,6 +169,7 @@ describe("persistence/invites — the atomic redeem (the chokepoint)", () => {
       tokenHash: hash,
       userId: member,
       participantId: castId<ChatParticipantId>("chat_participant_dup"),
+      activePersonaId: null,
       now: FROZEN_AT,
     });
     expect(result).toBeUndefined();
@@ -198,6 +203,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
       inviteId,
       userId: target,
       participantId: castId<ChatParticipantId>("chat_participant_t"),
+      activePersonaId: null,
       now: FROZEN_AT,
     });
     expect(result?.chatId).toBe(chatId);
@@ -216,6 +222,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
       inviteId,
       userId: anyone,
       participantId: castId<ChatParticipantId>("chat_participant_x"),
+      activePersonaId: null,
       now: FROZEN_AT,
     });
     expect(result).toBeUndefined();
@@ -233,6 +240,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
       inviteId,
       userId: attacker,
       participantId: castId<ChatParticipantId>("chat_participant_a"),
+      activePersonaId: null,
       now: FROZEN_AT,
     });
     expect(result).toBeUndefined();
@@ -250,6 +258,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
       inviteId,
       userId: target,
       participantId: castId<ChatParticipantId>("chat_participant_t"),
+      activePersonaId: null,
       now: FROZEN_AT,
     });
     expect(result).toBeUndefined();
@@ -265,6 +274,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
       inviteId,
       userId: target,
       participantId: castId<ChatParticipantId>("chat_participant_dup"),
+      activePersonaId: null,
       now: FROZEN_AT,
     });
     expect(result).toBeUndefined();
@@ -280,6 +290,7 @@ describe("persistence/invites — the atomic accept-by-id (token-free sibling)",
       inviteId,
       userId: target,
       participantId: castId<ChatParticipantId>("chat_participant_t"),
+      activePersonaId: null,
       now: FROZEN_AT,
     });
     expect(first).toBeDefined();

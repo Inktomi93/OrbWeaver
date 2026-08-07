@@ -11,6 +11,9 @@
 // `resolveHost`; a member gets a leak-free FORBIDDEN). The panel's `canEditShared`/`isHost` gates mirror the
 // shared-plane arm so a member never SEES a control that would refuse.
 
+import { actorRefKey } from "@orb/contracts/rpg";
+import type { CharacterId, UserId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -39,10 +42,84 @@ function handDoorRefusal(data: HandDoorVerdict): string | null {
   return data.ok ? null : `That change wasn't applied — ${data.reason}`;
 }
 
+/** The tracker aggregate this write repaints — taken off the proc so a reshape breaks here rather than
+ *  drifting into a hand-spelled twin. */
+type TrackerView = inferOutput<Trpc["rpg"]["getTrackerView"]>;
+
+/**
+ * The actor-ref key for a ref taken off the WIRE INPUT rather than off a view.
+ *
+ * `actorRefKey` (`\@orb/contracts/rpg`) stays the ONE projection — this only re-brands the ids on the way in.
+ * The ref is `rpgActorRefSchema`, whose id fields are TRANSFORM-backed TypeIDs, and the CLIENT's tsc program
+ * infers those through `inferInput` as `unknown` (the graph program resolves them fine — the two programs
+ * genuinely disagree here). The values ARE the ids; `castId` is the house runtime no-op for saying so, and
+ * `String()` is what makes that honest rather than an `as`-through-`unknown`. A total switch, so a fourth
+ * actor kind fails to compile here exactly as it does in `actorRefKey`.
+ */
+function wireActorRefKey(ref: inferInput<Trpc["rpg"]["patchSheet"]>["actorRef"]): string {
+  if (ref.kind === "character") {
+    return actorRefKey({ kind: "character", characterId: castId<CharacterId>(String(ref.characterId)) });
+  }
+  if (ref.kind === "user") {
+    return actorRefKey({ kind: "user", userId: castId<UserId>(String(ref.userId)) });
+  }
+  return actorRefKey({ kind: "cast", castKey: ref.castKey });
+}
+
+/**
+ * RPG-STAT-ENTRY-REVERTS — apply a sheet patch to the cached tracker view, in place, for the ONE actor it names.
+ *
+ * The defect: an attribute cell is a controlled input reading `actor.sheet.attributes[key] ?? range.min`. On
+ * blur it fires the write AND leaves edit mode in the same tick, so it re-rendered from the still-STALE server
+ * read — a typed `20` visibly snapped back to `1` (the range floor, for a key the sheet does not carry yet),
+ * and a hand-authored sheet could not be filled in at all. `invalidates` repairs that a round-trip later,
+ * which is exactly one round-trip too late to be believed.
+ *
+ * EVERY sheet field, not just `attributes`: `className`/`flavor`/`level`/the tracker exceptions are the same
+ * click-to-edit gesture against the same stale read, so covering one would leave the defect alive under the
+ * others. Attributes MERGE (the patch names only the touched key); everything else REPLACES. A patch naming
+ * nothing rewrites nothing.
+ */
+function applySheetPatch(old: TrackerView | undefined, vars: inferInput<Trpc["rpg"]["patchSheet"]>): TrackerView | undefined {
+  if (old === undefined) {
+    return old;
+  }
+  const key = wireActorRefKey(vars.actorRef);
+  return {
+    ...old,
+    actors: old.actors.map((actor) => (actorRefKey(actor.actorRef) === key ? { ...actor, sheet: mergeSheet(actor.sheet, vars.patch) } : actor)),
+  };
+}
+
+/** The sheet merge itself — every field OMITTED-means-unchanged (an MA-4 patch), attributes MERGED key-wise
+ *  and the scalars replaced. Lifted out of the `map` callback so neither half carries the other's branches. */
+function mergeSheet(
+  sheet: TrackerView["actors"][number]["sheet"],
+  patch: inferInput<Trpc["rpg"]["patchSheet"]>["patch"],
+): TrackerView["actors"][number]["sheet"] {
+  const { className, attributes, flavor, level, trackerGrants, trackerRevokes } = patch;
+  return {
+    ...sheet,
+    ...(className === undefined ? {} : { className }),
+    ...(flavor === undefined ? {} : { flavor }),
+    ...(level === undefined ? {} : { level }),
+    ...(trackerGrants === undefined ? {} : { trackerGrants }),
+    ...(trackerRevokes === undefined ? {} : { trackerRevokes }),
+    ...(attributes === undefined ? {} : { attributes: { ...sheet.attributes, ...attributes } }),
+  };
+}
+
 /** `rpg.patchSheet` — the per-actor identity sheet write (Sheet tab attribute grid). Host any actor; a
- *  member their OWN `user` ref (the server gate). Repaints the tracker view (sheet feeds Status/Sheet). */
-export const usePatchSheet = createEntityMutation<inferInput<Trpc["rpg"]["patchSheet"]>, unknown>({
+ *  member their OWN `user` ref (the server gate). Repaints the tracker view (sheet feeds Status/Sheet) —
+ *  OPTIMISTICALLY first (see {@link applySheetPatch}), then from the server on settle. `readKey` is a query
+ *  KEY, not a `queryFilter`: the factory's 4-phase recipe snapshots and restores exactly that entry, so a
+ *  refused write rolls the cell back instead of stranding the typed value. */
+export const usePatchSheet = createEntityMutation<inferInput<Trpc["rpg"]["patchSheet"]>, unknown, TrackerView>({
   options: (trpc) => trpc.rpg.patchSheet.mutationOptions(),
+  optimistic: {
+    readKey: (trpc, vars) => trpc.rpg.getTrackerView.queryKey({ chatId: vars.chatId }),
+    update: applySheetPatch,
+  },
   invalidates: (trpc, vars) => [trpc.rpg.getTrackerView.queryFilter({ chatId: vars.chatId })],
   errorToast: "Couldn't save the sheet.",
 });

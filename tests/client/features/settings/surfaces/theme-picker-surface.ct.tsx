@@ -175,3 +175,39 @@ test("Delete does not destroy immediately — it opens an AlertDialog confirm (F
   // false-pass if the mutation fires later, which the still-open confirm makes impossible.
   expect(trpc.count("settings.removeTheme")).toBe(0);
 });
+
+// MOBILE-THEME-SELECTOR — the wrap fence.
+//
+// THE REPRODUCTION IS LIVE, NOT HERE, and this comment is the honest record of why. Measured at a 320px
+// viewport against the running stack (`pnpm snap / --viewport 320x800`, theme modal opened via `__orb`): the
+// band above the list — the `Themes` label plus `Reset to Hearth` plus `New theme` — was one NON-WRAPPING row
+// inside the dialog's inset, padded, `size="md"`-capped content box, and the primary was sheared to a ~10px
+// orange sliver against that edge. The LIST rows fit at the same width, which is what rules out the dialog's
+// max-width as the cause (so option 1, "use a wider dialog", would have moved the symptom, not fixed it).
+//
+// A CT CANNOT REPRODUCE THAT CLIP, and pretending otherwise would be worse than not testing it: the CT mount
+// root is CONTENT-SIZED, so an over-wide row simply widens its own container and neither `boundingBox`
+// containment nor `scrollWidth > clientWidth` ever fires. Both were written, run against the pre-fix source at
+// 240px and 320px, and both PASSED — i.e. they would have shipped as tests that agree with the bug.
+//
+// So this asserts the RESOLVED property that actually decides the outcome — `flex-wrap` on the band — rather
+// than a geometry consequence this host cannot produce. It fails the moment someone removes the wrap, which is
+// the regression worth fencing; the live shot is the evidence that the wrap is what the pixels needed.
+test("the theme band is a WRAPPING row — the resolved property the 320px clip turned on", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ThemePickerStory />);
+
+  const primary = component.getByRole("button", { name: "New theme" });
+  await expect(primary).toBeVisible();
+  await expect(component.getByRole("button", { name: "Reset to Hearth" })).toBeVisible();
+
+  // The band = the nearest ancestor of the primary that also carries the "Themes" label.
+  const wrap = await primary.evaluate((el: HTMLElement): string => {
+    let band: HTMLElement | null = el.parentElement;
+    while (band !== null && band.textContent?.includes("Themes") !== true) {
+      band = band.parentElement;
+    }
+    return band === null ? "no-band" : getComputedStyle(band).flexWrap;
+  });
+  expect(wrap).toBe("wrap");
+});

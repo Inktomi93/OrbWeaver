@@ -11,7 +11,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { ContentSpan } from "@orb/kit/content";
 import { tokenizeContent } from "@orb/kit/content";
-import type { CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { getLog } from "@orb/server/foundation/observability";
@@ -38,11 +38,18 @@ const CONNECTION: ResolvedConnection = {
   capability: CAPABILITY,
 };
 
+// The fixture's ONE human — the turn's trigger AND the author of every user row below, which is what a real
+// send produces (`persistUserMessage` stamps `authorUserId: principal.userId` on every user row; the import
+// path stamps the owner). SHAPE's null-stamp guard reads exactly that pair, so a fixture that omits either
+// side models a room nobody wrote in and would floor rows the real turn attributes.
+const FIXTURE_HUMAN = castId<UserId>("user_fixture_human");
+
 function ctxOf(over: Partial<AssembleContext> = {}): AssembleContext {
   return {
     character: { name: "Aria", description: "a bold knight" },
     promptConfig: DEFAULT_PROMPT_CONFIG,
     activePersona: { name: "Alex", description: "the user" },
+    triggerUserId: FIXTURE_HUMAN,
     recentMessages: [],
     ...over,
   };
@@ -63,6 +70,7 @@ const rowOf = (role: "user" | "assistant", content: string): MessageView => {
     excludedFromPrompt: false,
     characterId: null,
     personaId: null,
+    authorUserId: role === "user" ? FIXTURE_HUMAN : null,
   } as unknown as MessageView;
 };
 
@@ -613,6 +621,7 @@ const userRowWithPersona = (content: string, personaId: PersonaId): MessageView 
     excludedFromPrompt: false,
     characterId: null,
     personaId,
+    authorUserId: FIXTURE_HUMAN,
   }) as unknown as MessageView;
 
 /** Flatten every wire history row's text parts into one string (the assembled prompt the model sees). */
@@ -910,6 +919,9 @@ describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
     expect(historyText(result.request)).toContain("Mara: hi there");
   });
 
+  // Still true, and now for a STATED reason: the row is the TRIGGER'S OWN (`authorUserId === triggerUserId`),
+  // which is the only case SHAPE's null-stamp guard lets borrow `speakers.user`. A null-stamp row authored by
+  // someone else takes the unresolvable floor instead — pinned in `assembly/shape.test.ts`.
   test("a null-stamp user row still falls back to the active persona (byte-identical to pre-F4)", async () => {
     const { args } = baseArgs({
       connection: {

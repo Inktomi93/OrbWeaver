@@ -29,6 +29,7 @@ import { chats } from "@orb/db";
 import type { CharacterId, Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroStamps } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { eq } from "drizzle-orm";
 import { resolveMessageRenderContext } from "../../../../packages/client/src/features/chat/lib/message-render-context.ts";
 import { renderMessageForDisplay } from "../../../../packages/client/src/lib/message-render.ts";
@@ -378,7 +379,7 @@ test("S2 group: a past Aria line keeps {{char}} = Aria even as Kai is the curren
 
 // ═══ SAD paths ═══════════════════════════════════════════════════════════════════════════════════════════
 
-test("SAD null persona + NO anchor → {{user}} floors to 'User' on both homes", async () => {
+test("SAD null persona + NO anchor → {{user}} floors to the ONE unresolved-persona name on both homes", async () => {
   const db = await freshDb();
   const { scene, chars } = await seedScene(db, {
     key: "sadnp",
@@ -392,7 +393,10 @@ test("SAD null persona + NO anchor → {{user}} floors to 'User' on both homes",
     characterId: chars["Aria"] ?? null,
     personaId: null,
   });
-  expect([out.server, out.client]).toStrictEqual(["User is here", "User is here"]);
+  // The PARITY is the point and it still holds; only the literal moved. Both homes now floor to the ONE
+  // unresolved-persona name (`DEFAULT_PERSONA_NAME`) — before, the SERVER macro layer said "User" and the
+  // CLIENT row attribution said "Traveler", and a single measured payload carried both spellings.
+  expect([out.server, out.client]).toStrictEqual([`${DEFAULT_PERSONA_NAME} is here`, `${DEFAULT_PERSONA_NAME} is here`]);
 });
 
 test("SAD deleted persona (stamped id absent from the store) → the anchor fallback, no id leak", async () => {

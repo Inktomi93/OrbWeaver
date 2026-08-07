@@ -16,6 +16,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, Handle, PersonaId, PresetId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { resolvePersonaDescriptionPlacement } from "@orb/kit/persona";
+import { activePersonaIdFor } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { createActiveTurns } from "../../../../../packages/server/src/domain/chat/active-turns.ts";
@@ -1039,9 +1040,9 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       return row === undefined ? null : { name: row.name, description: row.description, placement: resolvePersonaDescriptionPlacement(row.metadata) };
     };
     return {
-      resolveForeignInputs: async ({ anchorPersonaId, personaIds, triggerPersonaId }) => ({
+      resolveForeignInputs: async ({ anchorPersonaId, personaIds, trigger }) => ({
         promptConfig: DEFAULT_PROMPT_CONFIG,
-        personas: { anchor: await load(anchorPersonaId), active: await load(triggerPersonaId ?? personaIds.at(0) ?? null) },
+        personas: { anchor: await load(anchorPersonaId), active: await load(activePersonaIdFor({ trigger, personaIds, anchorPersonaId })) },
         globalRegexScripts: [],
         scanDepth: 6,
         injectionTokenBudget: 0,
@@ -1356,10 +1357,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // Mirrors the composition root's binding rule EXACTLY (compose/chat.ts `resolveForeignInputs`), so the
     // assertion is on the real resolution, not on a stub that agrees by construction.
     const deps = makeDeps({
-      resolveForeignInputs: ({ personaIds, triggerPersonaId }) =>
+      resolveForeignInputs: ({ personaIds, trigger }) =>
         Promise.resolve({
           promptConfig: DEFAULT_PROMPT_CONFIG,
-          personas: { anchor: null, active: byId[triggerPersonaId ?? personaIds.at(0) ?? ""] ?? null },
+          personas: { anchor: null, active: byId[activePersonaIdFor({ trigger, personaIds, anchorPersonaId: null }) ?? ""] ?? null },
           globalRegexScripts: [],
           scanDepth: 6,
           injectionTokenBudget: 0,

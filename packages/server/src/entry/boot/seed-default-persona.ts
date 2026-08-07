@@ -20,6 +20,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { CreatePersonaInput } from "@orb/contracts/persona";
 import { errorMessage } from "@orb/kit/error-message";
 import type { AssetId, PersonaId, UserId } from "@orb/kit/ids";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { getLog } from "#foundation/observability";
 
 /** The authored default persona — a neutral, editable starting `{{user}}`. Deliberately generic (the user
@@ -36,7 +37,7 @@ import { getLog } from "#foundation/observability";
  *  reaches this constant again. (There is no separate "first-run complete" flag — `personaWizardSeen` was
  *  deleted as dead in D107; this latch IS the first-run signal.) */
 const DEFAULT_PERSONA: Omit<CreatePersonaInput, "avatarAssetId"> = {
-  name: "Traveler",
+  name: DEFAULT_PERSONA_NAME,
   title: "Your default persona",
   description:
     "This is you — the person on the other side of the conversation. Edit this description to tell characters who you are: your name, how you speak, what you're like, whatever you want them to react to. Until you do, you're simply {{user}}: curious, present, and here to see where the story goes.",

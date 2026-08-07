@@ -18,6 +18,7 @@
 // `ctx.characterNamesById`/`ctx.personaNamesById` are that producer's OUTPUT.
 
 import type { CharacterId, PersonaId } from "#ids";
+import { DEFAULT_PERSONA_NAME } from "#persona";
 import { processMacros } from "./engine.ts";
 import { createNamesOnlyRegistry } from "./registry.ts";
 
@@ -72,7 +73,7 @@ export interface RowMacroNameContext {
 // mirrors the codebase's existing "unknown character" convention elsewhere.
 const UNKNOWN_CHARACTER_NAME = "Character";
 // The ultimate `{{user}}`/`{{persona}}`-name floor (matches every existing consumer).
-const UNKNOWN_PERSONA_NAME = "User";
+const UNKNOWN_PERSONA_NAME = DEFAULT_PERSONA_NAME;
 
 /** `{{char}}` for a HUMAN-authored / narrator row (`characterId === null`): the joined CAST in a
  *  multi-character room (== `{{group}}`), the one character in solo, else the caller's
