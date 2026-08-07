@@ -1545,6 +1545,43 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       expect(wire.prompt).toBeNull();
       expect(wire.params).toBeNull();
       expect(wire.macroDraws).toBeNull();
+      // D129-F: a body no persist-time transform touched carries no provenance either (the NULL convention).
+      expect(wire.rawContent).toBeNull();
+      expect(wire.macroFreezes).toBeNull();
+    });
+
+    // D129-F: the freeze provenance is HOST-PLANE and THIS view is its only reader — the refusal arms above
+    // (member → not_host, stranger → NOT_FOUND, cross-chat → NOT_FOUND) are therefore the whole gate for it.
+    test("the HOST reads the freeze provenance — the pre-transform raw + the record of what the commit baked", async () => {
+      const host = await seedUser(db, castId<Handle>("host"));
+      const chatId = await seedRoom("wire_freeze", host);
+      const m = await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "I roll 17" });
+      await db
+        .update(messageVariants)
+        .set({ rawContent: 'I roll {{roll::d20}} <lie truth="pre-strip bytes"/>', macroFreezes: [{ name: "roll", args: "d20", value: "17" }] })
+        .where(eq(messageVariants.id, castId(m.variantId)));
+
+      const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
+      const wire = await getVariantWire({ principal: principal(host), chatId, variantId: castId(m.variantId) });
+
+      expect(wire.rawContent).toBe('I roll {{roll::d20}} <lie truth="pre-strip bytes"/>');
+      expect(wire.macroFreezes).toEqual([{ name: "roll", args: "d20", value: "17" }]);
+    });
+
+    test("a MALFORMED freeze record degrades to null at the read seam (the macroDraws/variableDelta discipline)", async () => {
+      const host = await seedUser(db, castId<Handle>("host"));
+      const chatId = await seedRoom("wire_bad_freeze", host);
+      const m = await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "x" });
+      const garbage = { roll: 9 } as never; // FABRICATION-OK: deliberate invalid-input probe of the parse seam.
+      await db
+        .update(messageVariants)
+        .set({ macroFreezes: garbage })
+        .where(eq(messageVariants.id, castId(m.variantId)));
+
+      const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
+      const wire = await getVariantWire({ principal: principal(host), chatId, variantId: castId(m.variantId) });
+
+      expect(wire.macroFreezes).toBeNull();
     });
 
     test("a MALFORMED snapshot blob degrades to null at the read seam (never a throw, never a raw cast)", async () => {

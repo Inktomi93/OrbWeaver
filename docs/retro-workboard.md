@@ -289,6 +289,20 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   legacy image/image_swipes/file — ST's own `migrateMediaToArray` is the receipt); the seeder's
   duplicate drop-filter dissolved (one home). Live send path untouched (all four parser consumers
   are import-side, owner asked + receipted).
+- **⚑ CT-VITE-8 SPIKE: RED, ruled by the owner on the evidence (2026-08-07) — and the outcome is a
+  PIN, not just a revert.** Vite 8 under `@playwright/experimental-ct-core` **mounts nothing**: 674
+  tests produced results, **670 reached retry2**, failing from the very first spec, and the earliest
+  failure's `test-failed-1.png` is a BLANK MOUNT — the harness-mounts-nothing signature, not
+  timeouts or flakes. It retro-explains the two ~65-min runs (every test burning its full timeout
+  three times). Owner ruled after ~4h: stop the A/B, revert, and **"lock ct to whatever version it
+  uses."** So the override flips from an UPGRADE to an explicit PIN at the bundled version (measured
+  6.4.3, re-verified after the revert install) carrying its reason + the re-test trigger (a
+  playwright bump) — a version that was an accident of transitive resolution becomes a STATED
+  decision. `build.rollupOptions` STAYS (correct for the bundled vite); the tsconfig note stays
+  factually intact. **The prize is NOT claimed:** one-vite-in-the-tree would have killed
+  \[\[worktree-ct-runner-resolution]]'s two-versions trap AND let ct-config join the type program —
+  both stay OPEN. Verdict written durably to `docs/reviews/misc/` (a verdict that lives only in a
+  report dies with the transcript — that lesson cost a ceremony lane today).
 - **⚑ VITE-MAX dispatched (owner word):** the gap list's safe slice — CT-vite spike + rolldownOptions
   together · esbuild-override re-derivation · `--configLoader native` · `future` warns ·
   license-JSON · three measure-then-adopt rows. HELD deliberately: lightningcss transformer ·
@@ -361,6 +375,100 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
   `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
   question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- [ ] **RAW INVENTORY, THE OTHER HALF: assistant rows' pre-regex model output** (M, from FANOUT-2's
+  correct scope-out) — the freeze hops now record `rawContent`/`macroFreezes` for AUTHORED text, but
+  an assistant row's raw model output (pre AI\_OUTPUT-regex / pre-postProcess) is the RECEIVE path,
+  not a freeze hop. Stickler §3's raw inventory wants both halves; only one landed. Same storage
+  (`message_variants.raw_content`, NULL ⇔ byte-identical), same host-plane classification, different
+  producer. Evidence: lane scope statement, source-pinned.
+- **⚑ ORCHESTRATOR LESSON (mine, 2026-08-07, third instance of one principle in a day):
+  A SIDE-EYE SYMPTOM IS GOLD; ITS MECHANISM PRESCRIPTION MUST BE CHECKED AGAINST RECORDED RULINGS
+  BEFORE I RELAY IT.** I forwarded "drop both panel toggles from the mobile topbar" verbatim; the
+  lane found it would REVERSE the owner-ruled 2026-08-03 mobile one-shell rule (stated verbatim in
+  `panel-resolve.ts:55-57` AND `use-shell-layout.ts:145-147`) — `resolvePanelMode` pins list=docked
+  on mobile for all seven list-bearing sections with nothing selected, so that toggle is the ONLY
+  mobile door to a section's no-selection CONTENT; analytics' and corpus's dashboards would become
+  unreachable. The lane ALSO killed the finding's stated mechanism using side-eye's OWN receipt
+  (`t11-hidelist-320.png`: the lead control re-renders as "Show list panel" — one more tap returns
+  the roster, so it is an ugly dead-end, not a trap). **Surviving symptom: the §14 half only** —
+  "list panel"/"detail panel" is desktop geometry vocabulary with no phone referent. RULED: keep
+  both toggles, RE-VOICE to name the DESTINATION. The registry-shaped replacement-door change
+  (~10 section definitions) is an owner call, not improvised for a vocabulary defect a label fixes.
+  Same principle as the two forks ruled earlier: **the symptom is the finding; the prescription is a
+  proposal.**
+- **✅ THE IDENTITY FAN-OUT'S F-C HALF LANDED (FANOUT-2, `c197ce01b`, check 14/14).** The volatile
+  freeze keeps a record at BOTH hops and the record is PROVEN sufficient — the lane built the replay
+  arm because "a record you cannot reproduce from is an untested claim", and its red-first named the
+  bytes that used to vanish (`expected null to be "I roll {{roll::1d1}} then pick {{pick::north}}"`).
+  It also ran a POSITIVE CONTROL on the tests that were green BEFORE (planted a NULL-convention
+  violation, watched 2 arms red) — a green-before test that cannot bite is not a test.
+  **My brief's shape was wrong and the receipt killed it:** `assembly/user-macros.ts:67` builds ONE
+  per-turn freeze registry reused by BOTH hops, so a sink captured IN the registry would have pooled
+  one row's macro draws onto another's — recording is a CONTEXT capability
+  (\[\[per-turn-engine-per-call-sink-goes-on-context]]). Kit OWNS `MacroFreeze` (§0.2 — the engine
+  emits the shape); the NULL convention is enforced at the ONE writer; the replay arm ships
+  committed-not-wired citing D129-G with its divergence semantics stated (positional; a mismatch
+  parks the cursor so everything after draws FRESH — mis-pairing would FABRICATE provenance).
+  **First reader landed** on the host-gated `VariantWireView` per my ruling, with an addendum in the
+  security doc recording that the host-plane classification's premise was CHECKED and HELD.
+- **✅ SMALLS-3 LANDED (`b407a084a`)** — 4/4 with a copy deviation worth keeping: my brief said the
+  built-in preset's error should say "duplicate it to attach any" and **Duplicate does not exist for
+  system rows** (`preset-library-row.tsx:138` gives no actions, hence no kebab); the real path is
+  copy-on-write, and the shipped copy says THAT. Naming a nonexistent command would have been the
+  X-19 defect one screen over. Also: the gameless-chat 404 fixed at the CALLER after reading the
+  verb's contract (`resolveMember`'s NOT_FOUND is a DELIBERATE leak-free collapse — a non-member and
+  a no-game chat get the same error so a foreigner learns nothing); gating on the room's own pointer
+  kills the retry too. Two accessible names now tell the truth (the current persona is named for its
+  STATE, the sheet's inbox is a real heading). The sheet finally marks read — the `useEffect` its own
+  comment had been describing for weeks. Lesson: \[\[recreating-a-deleted-test-path-is-a-coupled-site]].
+  - [ ] **NO UNREAD INDICATOR ON THE PHONE outside the You sheet** (S–M, registry-shaped, owner call)
+    — an invite is invisible until you open the overflow for an unrelated reason. `ChromeEntry`
+    (`#state`) has NO badge axis, and the You tab belongs to app-shell's rail — features cannot
+    import each other, so notifications cannot reach it. Needs a new badge/attention capability on
+    `ChromeEntry` + a rail consumer. Evidence: lane census, source-pinned.
+- **⚑ SECOND LIVE EXPOSURE, SAME CLASS, NEIGHBOURING SURFACE (lane RPGFORK, in build).** Sweeping
+  the sibling's defect-generator into `rpg/chat-ops/fork-game.ts` found a REAL leak — and a new
+  sub-class: **it lives INSIDE A JSON BLOB (`rpg_games.config`), where a table-level allow-list is
+  structurally BLIND.** The four row planes are clean; the leak is (1) `config.userMacros[].body`
+  /`.args` — the member-gated `getUserMacroPicks` DELIBERATELY projects game macros as
+  name+description+inputs only ("the BODY and declared `args` are prompt content and are
+  deliberately withheld", chat-lifecycle.ts:294), and the only caller-facing reader of the bodies is
+  host-gated `getConfigView`; (2) `config.features.relationshipHints` + `journalTypeHints` —
+  host-authored steering PROSE with no member-gated reader. Both LIVE (the GM console writes them).
+  Exactly the class `steeringNote` is already stripped for; the strip list simply never re-swept
+  when WAVE MU and the hint maps landed. LOW severity (abandoned/solo room; GM steering prose, not
+  player data). **FIX = TWO RATCHETS:** five per-plane `Required<$inferInsert>` builders PLUS
+  `stripConfigForForker` rebuilt as an exhaustive `RpgGameConfig`/`RpgGameFeatures` object literal
+  (no spread) — the column ratchet cannot see a new config SUB-FIELD. Whole-value drop over
+  field-nulling (a body-less macro expanding to `""` is worse than an absent one); scalars stay
+  COPIED per the sibling's own carve-out (stripping them would silently re-tune the fork's game for
+  zero secrecy gain). **THE LESSON, generalized:** an allow-list covers COLUMNS; a JSON column needs
+  its OWN exhaustive literal.
+  - [ ] **`rpg_turn_tool_calls` is uncopied by `forkGame`** (S, product call) — the file header
+    claims it "clones its whole 6-table vertical" and it clones five. Not a leak (the rows are
+    member-readable by explicit design, `listTurnToolCalls` is member-gated) — a data-loss + a
+    doc-lie. Header truth-repaired in the lane's commit; whether the fork should KEEP the tool
+    record is the product call. Evidence: lane sweep.
+  - [ ] **§3.6 MEMBER-STRIP COVERAGE GAP: `listJournal` serves raw model-authored prose** (S–M;
+    orchestrator-verified, read the mechanic first). **NOT a D129 question** (that governs DERIVED
+    planes — a summary OF hidden text escaping a path that never checked). This is a coverage gap in
+    §3.6's OWN trust boundary. THE MECHANIC (read it before touching this): `lie` is one of two
+    `HIDDEN_TAGS` registrants (`lie`→"Deception", `ofilter`→"Unperceived"; fields
+    character/type/truth/reason) — the player sees the deceptive SURFACE, the truth rides hidden,
+    **the live wire keeps it verbatim so the character lies CONSISTENTLY**, the host reads unstripped
+    for the reveal eye / standing-lie inventory, summaries strip it with the trade named out loud
+    ("a digest is a durable, MEMBER-PEEKABLE artifact"), and an UNTERMINATED `<lie` deliberately
+    stays visible (D51: a malformed tag is a visible model error, not a secret).
+    **THE GAP:** §3.6 homes the byte-selection verdict ONCE (`viewerReadsHidden`,
+    `chat/substrate/member-visibility.ts`) *precisely so surfaces cannot drift* — consumed by the
+    page read (`read.ts:748`), the turn return, the bus replay, `resolve-viewer-visibility`. The
+    JOURNAL is a FOURTH member-facing surface carrying model-authored prose and never adopted it:
+    `rpg/verbs/read/list-journal.ts:16` is `resolveMember` + `content: r.content`, no projection.
+    Reachability depends on whether the model emits hidden tags into `add_journal_entry` prose (a
+    teach/grammar question — CHECK IT), but the fix is defense-in-depth either way.
+    **Architectural note for whoever takes it:** the strip machinery lives in CHAT; rpg reaches it
+    only via an injected op (one-directional flow) — do NOT re-derive `role === "host"` in rpg, the
+    verdict has one home by design. Evidence: orchestrator-read, file:line above.
 - **✅ HAND-EDIT GRADUATED — CONFIRMED on the 4th leg after THREE refutations (`cea8437c0`).** The
   verifier re-drove all three prior refutations clean, plus N=3-with-a-gap, the production applier
   shapes with a mid-flight dismiss+delete+lock, element-level locks, and a **400-turn randomized
@@ -494,6 +602,15 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   seed under the seeding account. Nothing to fix; the row died before the lane spent a minute on it.
   **Instrument lesson:** `/api/_debug/db/*` counts are GLOBAL (no tenant) while every UI number
   beside them is viewer-scoped — never read the difference as dedup.
+- **⚑ OPS NOTE 4 (lane-authored, self-reported after it damaged a sibling):
+  A LANE MUST NEVER `pkill` BY PROCESS NAME ON A SHARED BOX.** A bare
+  `pkill -f headless_shell` to stop one lane's own CT suite killed EVERY playwright browser on the
+  machine, including a sibling's live scoped run (2026-08-07 ~14:13). Kill your OWN pgid, or scope
+  the pattern to your own invocation (`pkill -f "playwright test -c playwright-ct.config.ts"` is
+  still too broad when siblings run the same config). **The orchestrator's duty when it happens:
+  warn every lane that could be mid-run so nobody diagnoses a phantom** — a mass CT failure with no
+  cause is exactly what a real defect looks like. Self-reported immediately with the correct form
+  named, which is why it cost minutes; that is the behaviour to keep.
 - **⚑ OPS NOTE 3 (the reaper — encoded after it killed a run TWICE):** a tool-managed background
   task can be REAPED BY YOUR OWN POLLING — a foreground poll that hits its 600s timeout converts
   into a NEW background task and the manager evicts the OLDEST, which is the long run you were
@@ -1569,6 +1686,37 @@ Items this audit could not prove either way from the tree. **None were dropped.*
   session (idle-timeout, Menu.ScrollUpArrow, per-chat connection, field-control-33, RUNTIME-VARS).
   Keep briefing the refusal right explicitly; keep marking which brief claims are VERIFIED vs
   RELAYED.
+
+**⚑ WHAT 2026-08-07 TAUGHT THE ORCHESTRATOR (the identity-spine + fork-security + phone day)**
+
+- **A SIDE-EYE SYMPTOM IS GOLD; ITS MECHANISM PRESCRIPTION IS A PROPOSAL.** Check any structural
+  prescription against the D-ledger AND the touched files' headers BEFORE relaying it. I forwarded
+  "drop both panel toggles from the phone" verbatim; the lane found it would reverse an owner-ruled
+  law stated in two headers, and killed the finding's stated mechanism with the reviewer's OWN
+  screenshot. Three forks this day turned on one principle: **a prescription is satisfied when its
+  SYMPTOM is dead — do not reverse a recorded ruling to satisfy the letter afterward.**
+- **WHEN A RULING'S PREMISE DIES, RE-RULE — DO NOT DEFEND IT.** I preserved a row's 32% name lane
+  because a cluster "reserves the words"; at `pointer: coarse` those words are `display:none`, so
+  the premise was false on the surface in question. A ruling holds where its premise holds.
+- **BATCH THE FRESH LENS BY CHUNK, AND BRIEF IT TO ATTACK THE CLAIM, NOT RE-RUN THE SUITE.** Three
+  multi-chunk verifiers this day; the refutations came from driving PRODUCTION shapes and from
+  attacking the lane's own flagged judgement calls. **Nine passes, six refutations — every one a
+  defect that was already merged, gate-green and believed done.**
+- **LOAD + INSTRUMENT COLLISIONS ARE ORCHESTRATION BUGS, not bad luck:** fix-leg floors count as
+  gate-heavy lanes for the stagger cap · the battery's behavioral phase gets the box (an EMFILE
+  killed one at 5 vite instances / 161 test processes) · NO whole-tree instrument runs while a
+  verifier is live on main (its in-tree probes red-flag your battery) · never pipe the harness
+  (`| tail` cost a run) · never merge while a check is mid-flight — it then measures a tree that no
+  longer exists.
+- **WHEN A LANE DAMAGES A SIBLING, THE ORCHESTRATOR'S JOB IS TO WARN EVERY MID-RUN LANE** — a mass
+  failure with no cause is indistinguishable from a real defect, and the phantom costs more than the
+  accident did.
+- **BRIEF EVERY LANE THAT A CORRECT REFUSAL IS A SUCCESS — it produced SIX premise-kills, THREE of
+  them against briefs I wrote.** The lanes that beat their briefs did it by reading a contract the
+  brief never mentioned (a leak-free NOT_FOUND; a shared per-turn registry; a nonexistent Duplicate
+  command). Put the WHY in the brief and they can tell you when the why is wrong.
+- **Lane deliverables that are TEXT go in `docs/…`, not in a report** — `reports/` is ephemera and a
+  D-entry that lived only there had to be re-derived from the tree weeks later.
 
 **Owner cadence**
 
