@@ -9,8 +9,11 @@
 > lifts. Rulings banked 2026-08-07: **EMPTYGEN-REASONING = arm 1, RECOVER-don't-discard**
 > (question-tool). Overnight-ladder defaults (logged, reversible): **weather vocab gains `indoors`**
 > (the exact token the model sent; `dusk` stays excluded per the standing taste ruling) ·
-> **existing `persona_id = NULL` rows are ACCEPTED** (Traveler floor) — retroactive repair is an
-> irreversible-class owner call, parked for morning.
+> **existing `persona_id = NULL` rows are ACCEPTED** — RATIFIED by the owner 2026-08-08 (question-tool);
+> no retroactive repair, the Traveler floor + fail-closed guard are the permanent posture. ALSO RULED
+> 2026-08-08: **card images — teach truth-repair arm** (cards are self-contained markup+CSS; the teach
+> no longer invites data: URIs the CSP eats — landed in reminder.ts, 43/43; the trust-gated image
+> doorway via a self-CSP card-frame route is boarded owner-timed).
 
 **Severity:** (M) correctness/behavior · (S) cosmetic/recoverable · (L) tooling/design gap
 **Status:** 🔴 open · 🟡 partial · ✅ fixed
@@ -574,15 +577,16 @@ The frame policy (`ui/content/sandbox-frame/srcdoc.ts`) at `allowExternalMedia=f
 resolves to the EMBEDDER's origin even through the frame's opaque origin, so same-origin `/api/blob/<hash>`
 card images and inline `<style>` both work. The flag adds `https:` to `img-src`/`media-src` and touches
 nothing else. The reported symptom is best explained by **CARD-TRUST-INVERTED**, which this entry itself names
-as a dependency ("cards don't reach `ImmersiveCard` at all until [it] is fixed") and which shipped in
+as a dependency ("cards don't reach `ImmersiveCard` at all until \[it] is fixed") and which shipped in
 `9f30b7045`.
 
 **Why the existing coverage could not have told us:** the two pre-existing CTs read the CSP STRING off the
 `srcdoc` attribute and never look inside the frame — a card that ships a perfect policy and paints NOTHING
 passes both. `done ≠ rendered`. **Two new CTs reach THROUGH the iframe** (`message-content.ct.tsx`, 32 pass):
-inline-only content is visible with external media BLOCKED and occupies real geometry (`boundingBox().height
-> 0`, not a zero-height ghost), and a card mixing local text with an external `<img>` keeps its local half —
-the exact "don't degrade local content" property this entry asks for.
+inline-only content is visible with external media BLOCKED and occupies real geometry (\`boundingBox().height
+
+> 0`, not a zero-height ghost), and a card mixing local text with an external `<img>\` keeps its local half —
+> the exact "don't degrade local content" property this entry asks for.
 
 **Deliberately NOT changed — two directives, each with a reason:**
 
@@ -737,7 +741,7 @@ supersedes the separator claim above. There are TWO separate passes with DIFFERE
 `squashSystemMessages` (`openai.js:3862`) joins with `'\n'`; the server `mergeMessages` (`:823`, joining at
 `:891`) uses `'\n\n'`. **Our `\n\n` matches ST's server merge** — the separator is not the defect.
 
-> [!NOTE]
+> \[!NOTE]
 > AMENDED — this two-pass reading is incomplete; the FIX above (the `speakerless` marker) is unaffected.
 > For a Claude request there is a THIRD pass, `convertClaudeMessages` (`prompt-converters.js:197`, sole call
 > site `chat-completions.js:233`), which runs ALWAYS and merges same-role rows again by concatenating
@@ -973,8 +977,8 @@ Three arms were put up; the ruling is **arm A**:
   rpg-panel affordance. This does not touch D112's mechanism — the clause's own text says the calls are
   *"handed straight back to the contributor"*, and the CONTRIBUTOR recording its own is the law working, not
   the law reversed. chat still never learns, resolves, or persists. Satisfies the owner's literal ask (names
-  + args). §13.10 naming applies; CT against a real folded turn's calls; applicability-gated, not a
-  separate mode (`[[no-separate-reduced-modes]]`).
+  - args). §13.10 naming applies; CT against a real folded turn's calls; applicability-gated, not a
+    separate mode (`[[no-separate-reduced-modes]]`).
 - **B — snapshot-DIFF "what this turn changed".** Zero new persistence: the flush already writes a
   clone-forward snapshot keyed to `variantId`/`messageId` and journal entries stamped with both
   (`domain/rpg/chat-ops/flush.ts::writeFlush`), so per-turn change is derivable by diffing adjacent
@@ -1491,6 +1495,7 @@ transform AXIS and a discovery TONE word, and every `guidelines` hit is the pres
 There is no fixed five-variable set to reference from a template.
 
 What the cited evidence actually is:
+
 - `chat/substrate/runtime-variables.ts` is the **`{{setvar}}` fold** — the deterministic replay of each message's
   `variable_delta`. Its keys are whatever the story wrote, not a fixed vocabulary.
 - `assemble-gather.ts`'s `mergedVariables` is `resolveChoiceVariables(promptConfig.variables, …)` ⊕ that fold —
@@ -1684,6 +1689,7 @@ assembly + `verbs/read.int` + the chat router + the engine pipeline · all three
 closes edit mode instead of a round-trip later.
 
 **Two corrections to the advice, both load-bearing:**
+
 1. `readKey` takes a query **KEY**, not a `queryFilter` (the factory snapshots and restores exactly that entry so
    a rejected write rolls the cell back) — the snippet said `queryFilter`.
 2. The tracker view has **no `old.actor`** — it is `old.actors[]`, keyed by `actorRefKey(actorRef)`. The update
@@ -1859,9 +1865,9 @@ forever, which is how this class recurs. Option 1 removes the divergence by cons
 **Verified:** the 3 failures below pass with the operator's live `AUTH_MODE=oidc` still armed —
 `tests/server/foundation` 139 pass, `tests/server/entry/app.test.ts` 20/20.
 
-**Gate/test to write:** ✅ `tests/server/foundation/env/index.test.ts` — "ORB_ENV_NO_FILE skips the .env load
+**Gate/test to write:** ✅ `tests/server/foundation/env/index.test.ts` — "ORB\_ENV\_NO\_FILE skips the .env load
 ENTIRELY — a real file's values never reach env, even unset keys" (pins the MECHANISM directly, a real `.env`
-file that would otherwise fill several keys) + "ORB_ENV_NO_FILE is what `pnpm test` actually runs under…"
+file that would otherwise fill several keys) + "ORB\_ENV\_NO\_FILE is what `pnpm test` actually runs under…"
 (asserts the real `vitest.config.ts` global `env:` block, so a future revert of that block goes red here). A
 mechanical "no test reads an operator var" sweep is not definable — any test may legally read `env.<X>`, that
 is what the module is for; the honest, load-bearing arm is that the gate making the operator's ambient env
@@ -2087,7 +2093,7 @@ Option 2 is more operator-friendly.
 **Reproduced at 320px before touching anything** (`pnpm snap / --viewport 320x800` + `__orb.nav.openModal('theme')`,
 polled to settled): the theme LIST rows render fine at that width — what is sheared is the band above them. The
 `Themes` label + `Reset to Hearth` + `New theme` sit in one non-wrapping `Row justify-between`, and the primary
-was reduced to a ~10px orange sliver against the dialog edge. That is the reported "clipped and shrunken".
+was reduced to a \~10px orange sliver against the dialog edge. That is the reported "clipped and shrunken".
 
 **So the row's stated root cause (`DialogPopup size="md"`'s max-width) is wrong** — widening the dialog (option 1)
 would have moved the symptom without touching the rigidity, and the list proves the width itself is adequate.

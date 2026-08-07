@@ -2,7 +2,7 @@
 
 > **THIS IS THE WORKING DOC** (owner-stated). Not law, not a deliverable — the durable state an
 > orchestrator resumes from cold. Authority for LAW = `docs/architecture/core/**`; the D-ledger
-> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D126**) wins on ANY
+> (`Core-Path-Registry.md` / `Core-Laws-and-Precedents.md`, current through **D128**) wins on ANY
 > conflict. `docs/architecture/proposed/**` is pre-rollback REBUILD REFERENCE — never cite its status
 > as current.
 >
@@ -89,7 +89,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   SEVEN rig defects fixed sweep-proven: the wipe-by-design, the INVERTED names-behavior enum, a
   nonexistent settings key dead on both arms, the ORB arm reading ST-truncated chats — 44 files
   were ONE payload. Parity now real: 42 compared / 0 unpaired; tools fixtures differ only at
-  rows [0],[1],[24]). **Battery green pre-campaign: 10,165 vitest + 2,430 CT.** Stack UP
+  rows \[0],\[1],\[24]). **Battery green pre-campaign: 10,165 vitest + 2,430 CT.** Stack UP
   (server :8788, vite :5173 via localhost), engines adopted.
   **LIVE: DOG-ENGINE** (EMPTYGEN — idle-timeout hypothesis FALSIFIED source-pinned, tool-only
   root cause stands, ruled RECOVER arm in build + `indoors` vocab + card tail) ·
@@ -98,7 +98,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   STATLAS's two routed flags: the `{{user}}` dual-resolution probe (F1) and the names.ts header
   lie (F2)) · **DOG-DEBUG** (item 1 DONE: `ShapeTrace.rows` + the MERGED-arm pin that makes the
   INJECT class visible; item 2 ruled ARM A — rpg-owned call record, D112 mechanism preserved,
-  builds after item 3's RPG_TRACE port).
+  builds after item 3's RPG\_TRACE port).
   Owed at campaign close: side-eye over all rendered changes (ALL findings fixed, standing law) ·
   final battery at quiesce · the halt-lift adjudication. THEN this board's queue (owner word:
   REGX2 → MOBILE → BOARD-THESE by value → smalls).
@@ -417,6 +417,13 @@ identity chrome for ANY row kind.
   not a defect; recorded so no lane re-derives it. The ONLY live lever is the shared
   `routing.roleDefaults` settings row. Also: ENGINE's receipt probe left spec-owned debris —
   `chat_01kzdrdy92exvvmcvx39gefvgc` + character `dogeng-warden-*` — delete at will) · the
+  **trust-gated card images doorway** (owner musing 08-08, mechanism pinned: srcdoc iframes INHERIT
+  the parent CSP, so per-character trust alone cannot unlock `data:` images today — the door is an
+  `src=`-routed card-frame document carrying its OWN CSP headers (per-trust `img-src`), which also
+  subsumes the app-blobs-only arm. Costs: a server route serving model HTML (own security
+  treatment) + the theme-injection plumbing moves off the srcdoc computed-style mechanism
+  (\[\[theme-fidelity-null-origin-surfaces]]). Design fork, owner-timed; the teach truth-repair
+  stands correct for today's tree either way) · the
   **narrowest-mount row gate** (side-eye 08-08, the class that produced both P1s + half the P2s:
   a `Row` with a `shrink-0` trailing cluster sized in a wide context and never re-measured at its
   production width — persona row 358px, theme band 256px, model-roles hint, menu gutter. The
@@ -743,20 +750,13 @@ when coverage changes, not left to be contradicted by the section above it.**
     unsent draft, deliberately. Persistence-design fork, not a bug.
 15. **The held-back rail merge** — characters + chats into ONE glyph. He considered it, went with A+B,
     and A+B CONVERGES toward it, so it stays a cheap rail-level edit whenever he feels it.
-16. **The tool-guard hard floor** (lifted from the archived 08-03 block, still open): the guard's
-    pass-through `allow` BYPASSES the auto-mode classifier — probe-proven that `sudo rm -rf /etc`-class
-    shapes would run unprompted. Two honest arms: (a) narrow the allow to a curated safe-verb set and
-    defer the rest to the classifier, or (b) keep the blanket allow + give the guard a hard floor
-    (sudo · network-pipe-to-shell · `rm -rf` outside safe targets · bare `sqlite3` on the live db).
-    The tree currently sits at neither.
-17. **D127 mint-or-strike** (drafted, unminted): THE COMPILER OWNS MEMOIZATION + THE UNCOMPILED CT
-    LANE — (a) manual useMemo/useCallback/React.memo banned (gate live, typed exemption rows);
-    (b) CT runs NO compiler pass BY RULING (a CT red the compiler would mask is a REAL defect; the
-    takeDiscard loop is the founding receipt). Declared limit: compiler-only defects land on e2e.
-18. **D-entry for the surface-manifest law** (BUGATES flag): "a third-party surface we build on gets a
-    committed manifest with per-element dispositions; a bump is un-landable until the delta is ruled."
-    Mint wording + number, or fold into D127's ceremony batch.
-19. Taste tail: Meteocons artwork fork (\~8 icons, MIT) · grimstone theme (parked) · chat-options
+16. ✅ **The tool-guard hard floor — RULED 2026-08-08 (question-tool): LEAVE AS-IS.** The owner accepts
+    the classifier bypass; the floor is his own attention on an overnight-full-auto box. Recorded so
+    nobody re-poses it.
+17. ✅ **D127 + D128 MINTED 2026-08-08** (question-tool, "mint both"): compiler-owns-memoization +
+    the uncompiled CT lane; the third-party surface-manifest law (founding instance @base-ui/react).
+    Ledger + ranges + enumeration updated; next free D129.
+18. Taste tail: Meteocons artwork fork (\~8 icons, MIT) · grimstone theme (parked) · chat-options
     placement (D111 clause OPEN, breaks nothing) · persona=character design pass
     (\[\[persona-pin-prompt-resolution]]).
 
