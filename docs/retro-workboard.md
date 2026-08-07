@@ -85,6 +85,26 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - **⚑ IN FLIGHT (two agents):** lane **NARRATOR-LIVE** (`a04f9f8075274896e`) + a 4-chunk **VERIFIER** (`a5efc87558f12b959`) over the day's un-graduated merges (FANOUT-1's seven dispatch sites incl. the 33-line shipped-asset patch · GATEFORGE's four gates, false-positive hunt included · the RPGFORK + FANOUT-2 fix legs). Nothing else is running. Original NARRATOR-LIVE note: lane **NARRATOR-LIVE** — a dogfood-shaped LIVE drive of group narrator mode (hosted +
   local vLLM arms) answering "does it demonstrably work end-to-end now that the fan-out changed what the
   model sees?" Verdict → `docs/reviews/misc/2026-08-07-narrator-live-drive.md`.
+- **⚑ LIVE-DRIVE FINDING (NARRATOR-LIVE, mid-run): TWO PRINCIPALS DISAGREE ABOUT THE SAME USER, and
+  the capability surface and the actual turn silently pick DIFFERENT MODELS.** The `via:"fallback"`
+  auth seam (`entry/auth/seam.ts:113-122`, this dev stack's path) stamps `role:"owner"` on the REQUEST
+  principal UNCONDITIONALLY; `createHostPrincipalResolver` (:147) reads the DB row and gets
+  `role:"user"`. Measured consequence: `resolveChatCapability` reports `agent-sdk / max-pro-sub /
+  claude-opus-4-8` while the TURN resolves `vllm / Qwen3-VL-8B` (`ROLE_SELECTORS.chat`'s
+  `isOwner ? max-pro-sub : vllm`). Pinning `roleDefaults.chat` then DISABLES the composer ("no working
+  connection") and `previewContextFit` 403s `requires owner privilege`. **Seeding half:** the reseed's
+  `ensureUser("owner")` minted a SECOND user (handle `"owner"`, role `user`, `01kzeme26t…`) distinct
+  from the real owner row (`01kzemdyvvfv…`, role `owner`) — and the dev db dropped + reseeded TODAY on
+  the identity baseline regen, so whether this is new-as-of-that-reseed is an open question the lane
+  answers. **Invisible without a live drive**; no test asserts the two principals agree. Owner call on
+  the fix (identity-mutation adjacent → security-executor). Lane refused BOTH unblock paths
+  (`admin.setRole` = identity mutation; adding an OpenRouter credential = spends the owner's money and
+  handles his key) and ships the hosted arm as NOT COVERED with this as the stated reason.
+- **⚑ NARRATOR MODE, LOCAL ARM: GREEN so far** — an 8B local model (Qwen3-VL) emitted
+  `<speaker>Charlotte</speaker>` / `<speaker>JFC</speaker>` markers unprompted, the renderer split into
+  three ThemeScope spans, both Charlotte spans share one tint and JFC's differs, and the trace carries
+  `kind=narrator`. The nudge holds on a small local model — the compliance worry was the reason for the
+  drive.
 - **NOT PUSHED:** ~72 commits ahead of `ab55c112e`. The push word is the owner's, fresh, per push.
 - **LEDGER:** through **D132**. **D133 + D134 drafted-not-minted** in
   `docs/reviews/security/2026-08-07-{fork,rpg-fork}-host-plane-strip.md` — batch at the next ceremony.
