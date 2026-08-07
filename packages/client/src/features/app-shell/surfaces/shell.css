@@ -746,6 +746,13 @@
   .shell-rail .shell-rail-button[data-active]::after {
     content: none;
   }
+  /* HOSTS the current section without BEING it (the You tab over a `mobile:"sheet"` section). Deliberately
+   * WEAKER than `data-active`'s full primary: it is a "your place is behind this door" hint, not a claim of
+   * currency — and it carries no `aria-current`, because a tab that is not the page may not say it is
+   * (side-eye leg-4: readers heard "You, current page" on five sections). */
+  .shell-rail .shell-rail-button[data-contains-current]:not([data-active]) {
+    color: var(--color-foreground);
+  }
   .shell-rail-button-label {
     display: block;
   }
@@ -805,6 +812,24 @@
   .shell-scrim {
     inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-inset-bottom));
   }
+  /* THE FRAME THAT IS NOT THE SCREEN DOES NOT PAINT (side-eye leg-4 P2). A phone is not a narrow desktop:
+   * the roster covers the content column, but CONTENT was still `display: flex; visibility: visible;
+   * opacity: 1` underneath at 100% overlap (measured 149,341px² of it), and the landing's orange New-CTA
+   * `::after` glow punched THROUGH the roster as a smear between character rows. `inert` had already made
+   * the keyboard agree with the pointer; this makes the PIXELS agree too, and skips a whole render tree's
+   * paint while it is at it. Keyed on the shell's own `data-list-mode`, so it is exactly the arm the
+   * ONE-SHELL rule resolves — never a second guess at what "mobile" means. */
+  .shell-grid[data-list-mode="docked"] .shell-content {
+    display: none;
+  }
+
+  /* ONE NAME PER SCREEN (side-eye leg-4 P3). In this same arm the topbar prints the section's own name, so
+   * the LIST band's unscoped title repeats it ~50px lower — measured on Characters, "Characters" twice.
+   * A SCOPED band ("CHATS · Sera") names a swapped pane, which is a different fact, so it survives. */
+  .shell-grid[data-list-mode="docked"] .shell-panel[data-panel-side="list"] [data-slot="list-pane-title"]:not([data-scoped]) {
+    display: none;
+  }
+
   /* Mobile blur kill-switch — backdrop-filter is too costly on small/low-power devices.
    * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts */
   html[data-blur-panels] .shell-panel,

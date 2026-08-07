@@ -42,6 +42,9 @@ export function YouSheet(): ReactElement {
   const entries = useChromeRegistry().list();
   const footerEntries = entries.filter((e) => e.zone === "rail.end");
   const overflowSections = entries.filter((e) => e.zone === "rail.nav" && e.mobile === "sheet");
+  // …and the TOPBAR widgets a phone's row cannot afford (the notifications inbox). They declare the same
+  // `mobile: "sheet"` curation the overflow sections do, and render their own sheet lens here.
+  const overflowChrome = entries.filter((e) => e.zone === "topbar.trail" && e.mobile === "sheet");
   // The ⌘K chip is desktop-shaped and sheds from the phone topbar (its row budget, side-eye P1) — so its
   // modal lands HERE, as a named row, DERIVED from the same `topbar.trail` trigger placement the chip reads.
   // Nothing is hardcoded and nothing becomes unreachable: the sheet is where every other overflow lives.
@@ -64,6 +67,10 @@ export function YouSheet(): ReactElement {
           <SheetChromeEntry key={entry.id} entry={entry} />
         ))}
       </Stack>
+
+      {overflowChrome.map((entry) => (
+        <SheetChromeEntry entry={entry} key={entry.id} />
+      ))}
 
       {overflowSections.length === 0 ? null : (
         <Stack gap="row">

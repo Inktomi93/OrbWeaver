@@ -78,12 +78,19 @@ test("the n/m counter speaks the datum voice — mono, tabular figures (the digi
   expect(type.numeric).toContain("tabular-nums");
 });
 
-test("the left chevron is disabled when idx 0 has no earlier sibling (gate stays off, variantCount === 1)", async ({ mount }) => {
+test("a SINGLE variant renders no pager at all — no counter, no dead back-step (gate stays off, variantCount === 1)", async ({ mount }) => {
   // No routeTrpc call at all — `variantCount === 1` means `useVariantHistory`'s gate never fires the
   // query (§13.1 useGatedQuery/skipToken), so an unhandled network request would prove a leak if this
-  // gate ever loosened.
+  // gate ever loosened. THAT mechanism is what this test has always guarded and still does.
+  //
+  // What changed (side-eye leg-4 P3): it used to assert the back-step rendered DISABLED. A pager that
+  // counts "1 / 1" between two arrows the user cannot move is an affordance lying about itself, so at one
+  // variant the strip is only the live verb — the right chevron, which at the tip generates.
   const component = await mount(<SwipeStripStory message={atIdx0Of1} />);
-  await expect(component.getByRole("button", { name: "Previous variant" })).toBeDisabled();
+  await expect(component.getByRole("button", { name: "Previous variant" })).toHaveCount(0);
+  await expect(component.getByText("1 / 1")).toHaveCount(0);
+  // …and the one affordance that CAN act is still there.
+  await expect(component.getByRole("button", { name: "Next variant" })).toBeEnabled();
 });
 
 test("COLD LOAD step-BACK: the left chevron reaches an earlier variant this mount has never rendered", async ({ mount, page }) => {

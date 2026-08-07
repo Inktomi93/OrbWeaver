@@ -16,3 +16,13 @@ test("a rail.end widget renders its body('sheet') lens; an overflow section beco
   await expect(sheet.getByText("More")).toBeVisible();
   await expect(sheet.getByText("Fake overflow section")).toBeVisible();
 });
+
+// ── THE PHONE'S OVERFLOW INCLUDES THE TOPBAR'S OWN WIDGETS (side-eye leg-4 P2) ───────────────────────
+// The notifications inbox is a 48px control in a 320px row whose job is to say where you are, so it
+// declares `mobile: "sheet"` — the SAME curation the overflow sections have always declared — and renders
+// its own sheet lens here. The seam, not the bell, is what this pins: a `topbar.trail` widget curated for
+// the sheet reaches the sheet, and reaches it in its SHEET presentation.
+test('a topbar.trail widget curated `mobile:"sheet"` projects into the sheet, in its sheet lens', async ({ mount }) => {
+  const sheet = await mount(<YouSheetProjectionStory />);
+  await expect(sheet.getByTestId("trail-sheet-lens")).toHaveText("trail:sheet");
+});

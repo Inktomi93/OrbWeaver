@@ -45,7 +45,12 @@ export interface ChromeEntry {
    *  section-registry.ts (kills rail-slots.ts's duplicate tuple). No consumer this wave. */
   readonly group?: SectionGroup;
   readonly order?: number;
-  /** Rail entries only — the mobile-tab-vs-You-sheet decision. No consumer this wave. */
+  /** The entry's PHONE FATE. On the rail it is the tab-vs-You-sheet decision and it is REQUIRED (the
+   *  `chrome-registry-completeness` gate); on `topbar.trail` it is OPTIONAL and defaults to "stay on the
+   *  row" — declaring `"sheet"` moves the widget off a 320px topbar into the You sheet, which renders its
+   *  `body("sheet")` lens (the notifications inbox, 2026-08-07: a 48px control was competing with the one
+   *  thing that says where you are). The axis is chrome-wide; it used to be rail-only, back when the sheet
+   *  projected nothing from this zone. */
   readonly mobile?: MobileCuration;
   /** Capability gate, called UNCONDITIONALLY per entry — the registry list is frozen at the door
    *  (contentBySection precedent), so hooks-over-a-stable-list is legal. `false` ⇒ render NOTHING (no
