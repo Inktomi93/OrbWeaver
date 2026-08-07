@@ -28,8 +28,8 @@ import { CHAT_PROSE_SLOTS } from "#chat";
 import { DISCOVERY_PROSE_SLOTS } from "#discovery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_PROSE_SLOTS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
 import { PRESET_PROSE_SLOTS } from "#preset";
-import type { ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
-import { PROSE_SLOT_IDS, proseOverrideFromLegacy } from "#prose-slot";
+import type { ProseHome, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
+import { isProseSlotId, PROSE_SLOT_IDS, proseOverrideFromLegacy } from "#prose-slot";
 
 export * from "#prose-slot";
 
@@ -58,6 +58,48 @@ const LEGACY_ADAPTED_USER_SLOT_IDS: ReadonlySet<ProseSlotId> = new Set<ProseSlot
 export const USER_PROSE_SLOT_IDS: readonly ProseSlotId[] = PROSE_SLOT_IDS.filter(
   (id) => PROSE_SLOTS[id].home === "user" && !LEGACY_ADAPTED_USER_SLOT_IDS.has(id),
 );
+
+/** The preset-home slots whose override is the pre-PROSE-1 `promptConfig.guidedActions.*.prompt` /
+ *  `formatStrings.*` field (§4.6 again — adapted, never re-homed). They are edited in the preset Templates
+ *  tab through those fields, so the `promptConfig.prose` blob must not offer them a second door. */
+const LEGACY_ADAPTED_PRESET_SLOT_IDS: ReadonlySet<ProseSlotId> = new Set<ProseSlotId>(Object.keys(PRESET_PROSE_SLOTS) as ProseSlotId[]);
+
+/** The slots a host edits as `promptConfig.prose` — every `home:"preset"` slot that is NOT one of the
+ *  legacy-adapted preset fields. DERIVED for the same reason `USER_PROSE_SLOT_IDS` is: a new preset-home slot
+ *  reaches its editor the commit it lands. `templateGroups` (client) walks this to build the framing rows. */
+export const PRESET_PROSE_SLOT_IDS: readonly ProseSlotId[] = PROSE_SLOT_IDS.filter(
+  (id) => PROSE_SLOTS[id].home === "preset" && !LEGACY_ADAPTED_PRESET_SLOT_IDS.has(id),
+);
+
+const PRESET_PROSE_SLOT_ID_SET: ReadonlySet<ProseSlotId> = new Set(PRESET_PROSE_SLOT_IDS);
+export function isPresetProseSlotId(id: string): id is ProseSlotId {
+  return PRESET_PROSE_SLOT_ID_SET.has(id as ProseSlotId);
+}
+
+/** Merge the per-home override blobs into the ONE home-agnostic bag `resolveProse` reads.
+ *
+ *  Each source is FILTERED TO THE SLOTS THAT ACTUALLY HOME THERE, which is what makes this a merge and not a
+ *  cascade (§3.1): a key can only survive from its own storage, so two homes carrying the same id cannot
+ *  produce a precedence question — the wrong one is dropped, never "loses". That also means a stale key left
+ *  in a blob by a RE-HOME (the two injection frames moved user → preset on 2026-08-07) is inert rather than
+ *  quietly authoritative from the storage it no longer belongs to.
+ *
+ *  Absent/`{}` sources contribute nothing, so a caller that threads none of them gets the shipped defaults
+ *  byte-for-byte — the default-identity discipline, unchanged. */
+export function composeProse(sources: Readonly<Partial<Record<ProseHome, ProseOverrides | undefined>>>): ProseOverrides {
+  const out: Record<string, ProseOverride | undefined> = {};
+  for (const [home, overrides] of Object.entries(sources)) {
+    if (overrides === undefined) {
+      continue;
+    }
+    for (const [id, override] of Object.entries(overrides)) {
+      if (override !== undefined && isProseSlotId(id) && PROSE_SLOTS[id].home === home) {
+        out[id] = override;
+      }
+    }
+  }
+  return out;
+}
 
 /** Host edit BEATS shipped default, two rungs, no cascade (PROSE-1 §4.3). The ONE place the precedence rule
  *  lives — every home's resolver funnels here so precedence and staleness can never drift apart. */

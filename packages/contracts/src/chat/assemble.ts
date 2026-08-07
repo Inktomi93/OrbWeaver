@@ -426,9 +426,11 @@ export interface AssembleContext {
   /** The identity of the per-speaker turn's active character — drives the `cardScope: "scoped"` egocentric
    *  history fold. Absent (merged / narrator / solo) ⇒ no fold. */
   activeSpeakerCharacterId?: CharacterId | null | undefined;
-  /** The ROOM HOST's model-facing prose overrides (PROSE-1 §4.3), resolved once at
-   *  `buildAssembleContext` off the chatId. The BUILD walk + SHAPE splice read the frames they compose
-   *  (the merged co-speaker headings, the two injection note frames, the group round nudge) through it.
+  /** The turn's model-facing prose overrides (PROSE-1 §4.3) — the ROOM HOST's user-tier blob and the
+   *  resolved PRESET's blob, composed by home at `buildAssembleContext` (`composeProse`; disjoint by the
+   *  one-home law, so this stays a two-rung resolution and never a cascade). The BUILD walk + SHAPE splice
+   *  read the frames they compose (the merged co-speaker headings, the two injection note frames, the group
+   *  round nudge, the continuation cue) through it.
    *  Absent ⇒ `{}` ⇒ every frame is its shipped default, byte-identical — which is what keeps the ~50
    *  hand-built assemble contexts (tests, previews) honest without threading anything. */
   prose?: ProseOverrides | undefined;
