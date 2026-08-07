@@ -21,15 +21,12 @@ const READER_SCOPE_RE = /(?:^|\/)packages\/(?:server|client)\/src\//u;
 
 /** Axes whose reader is another lane's NAMED in-flight work — the bus-coverage DEFERRED idiom, self-cleaning
  *  in both directions (missing RED above · stale RED below the moment the reader lands). */
-const DEFERRED: ExemptionTable<ExemptionRow> = {
-  prompt: {
-    why:
-      "the prompt-plane consumers (assembly's comment prompt:'never' filter + the narrator system-channel " +
-      "dispatch) are FANOUT-1's live wiring in domain/chat/assembly/shape.ts (fenced from this gate's landing " +
-      "lane, 2026-08-07). ENDS: the commit a production `.prompt` read lands — the STALE arm forces this row's " +
-      "deletion then.",
-  },
-};
+//  EMPTY BY ITS OWN STALE ARM: the `prompt` row lived here for exactly one merge window. FANOUT-1's wiring
+//  landed (`entersPrompt` in domain/chat/assembly/shape.ts + compaction's kind filter), and at the next
+//  check this gate RED'd on its OWN deferral — naming the stale row and this file — rather than letting the
+//  exemption rot silently. Worked example for the next author: state the ENDS condition, and the arm below
+//  collects on it.
+const DEFERRED: ExemptionTable<ExemptionRow> = {};
 
 const MESSAGE =
   `a ${RECORD} axis with NO production reader — a policy cell nobody reads is law with no enforcer (the ` +
