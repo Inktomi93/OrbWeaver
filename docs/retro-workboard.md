@@ -558,6 +558,15 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   seed under the seeding account. Nothing to fix; the row died before the lane spent a minute on it.
   **Instrument lesson:** `/api/_debug/db/*` counts are GLOBAL (no tenant) while every UI number
   beside them is viewer-scoped — never read the difference as dedup.
+- **⚑ OPS NOTE 4 (lane-authored, self-reported after it damaged a sibling):
+  A LANE MUST NEVER `pkill` BY PROCESS NAME ON A SHARED BOX.** A bare
+  `pkill -f headless_shell` to stop one lane's own CT suite killed EVERY playwright browser on the
+  machine, including a sibling's live scoped run (2026-08-07 ~14:13). Kill your OWN pgid, or scope
+  the pattern to your own invocation (`pkill -f "playwright test -c playwright-ct.config.ts"` is
+  still too broad when siblings run the same config). **The orchestrator's duty when it happens:
+  warn every lane that could be mid-run so nobody diagnoses a phantom** — a mass CT failure with no
+  cause is exactly what a real defect looks like. Self-reported immediately with the correct form
+  named, which is why it cost minutes; that is the behaviour to keep.
 - **⚑ OPS NOTE 3 (the reaper — encoded after it killed a run TWICE):** a tool-managed background
   task can be REAPED BY YOUR OWN POLLING — a foreground poll that hits its 600s timeout converts
   into a NEW background task and the manager evicts the OLDEST, which is the long run you were
