@@ -76,6 +76,7 @@ export const PROSE_SLOT_IDS = [
   "chat.memory.consolidationLead",
   // ── per-USER: the group-round FRAMING prose (the S1b inline stragglers) ──
   "chat.group.alsoPresent",
+  "chat.group.castMember",
   "chat.group.scenarioHeading",
   "chat.group.exampleHeading",
   "chat.group.roundNudge",
