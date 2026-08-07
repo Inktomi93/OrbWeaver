@@ -559,11 +559,13 @@ identity chrome for ANY row kind.
   **(a) The injection note-framings are HARDCODED prose** — `[Note from system: …]` / the demote
   wrapper vocabulary in `assembly/injections.ts` is not exposed anywhere an owner can edit (not in
   the preset template tab). PROSE-1 class (\[\[prose-is-user-editable]]): these become host-editable
-  data with versioned defaults. **(b) TWO TEMPLATING SYSTEMS need unification** — one in presets,
-  one in settings (owner-sighted); locate both, map their vocabularies, one engine per D-law
-  (engine-vs-data: the macro engine is kit; the TEMPLATES are the data — two template stores is the
-  two-homes smell). Evidence method: owner sighting, unverified counts — a lane's first job is the
-  census. **(c) LEAD, not a row** — cards may stub differently when adjacent to/inside `[ ]`
+  data with versioned defaults. **(b) TWO TEMPLATING SYSTEMS — DIRECTION RULED (owner, 2026-08-07):
+  templates have ONE home and it is PRESETS** ("not scattered between that and settings or hiding
+  in code"). One engine per D-law stands (the macro engine is kit; TEMPLATES are the data). The
+  census still decides the migration shape + what in the settings arm is genuinely NOT a template
+  (per-user knobs that only look template-ish stay, with reasons); lane TEMPLATE-CENSUS's report is
+  the unification spec draft, relayed to the lane mid-run. Evidence method: owner sighting,
+  unverified counts — the census is the lane's first job. **(c) LEAD, not a row** — cards may stub differently when adjacent to/inside `[ ]`
   bracket framing (the demote-wrapper class); possibly already dead with the CARD-KEEP fixes.
   Repro before believing: drive a card inside a bracket-framed injection through the tokenizer.
 
