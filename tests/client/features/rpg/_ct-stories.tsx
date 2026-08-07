@@ -10,7 +10,7 @@
 // `makeRpgContextTabs` is injected the cross-domain read channel `{ trpc, queryClient }` at the door — the
 // story mirrors that door assembly with the CT's own singletons.
 
-import { useGatedQuery, useTRPC } from "@orb/client/data";
+import { useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
 import type { ChatContextState, ContextRegionDef, ContextTabDef } from "@orb/client/lib";
 import { bindNotify, createContributorRegistry } from "@orb/client/lib";
@@ -25,6 +25,7 @@ import { useEffect, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator.tsx";
 import { RpgCardLightbox } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards.tsx";
+import { useUpdateConfig } from "../../../../packages/client/src/features/rpg/hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "../../../../packages/client/src/features/rpg/lib/archived-cards.ts";
 import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 import { CHAT_ID, makeMessageView } from "../chat/fixtures.ts";
@@ -255,14 +256,23 @@ export function TurnToolCallsOtherVariantStory(): ReactElement {
 /** The SETTLE SENTINEL for the gated-read stories: it reads the SAME `chat.getChat` the disclosure's gate
  *  reads and paints the verdict, so a CT can barrier on a RENDERED settled state instead of on a node-side
  *  request count. Without it "no request was made" is unfalsifiable — it is also true one millisecond after
- *  mount, before the gate has decided anything. */
+ *  mount, before the gate has decided anything.
+ *
+ *  THREE arms, not two, because the gate's two negative arms are DIFFERENT FACTS: an absent pointer (not a
+ *  game at all) and a present pointer with `engaged:false` (#40's OFF arm — a game that exists and is
+ *  preserved). `isRpgEngaged` collapses them deliberately, which is exactly why the sentinel must not: a CT
+ *  barriering on one must not silently pass on the other. */
 function RoomKindSentinel({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const detail = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   if (detail.data === undefined) {
     return <p data-testid="room-kind">…</p>;
   }
-  return <p data-testid="room-kind">{isRpgEngaged(detail.data.rpg ?? null) ? "game" : "plain"}</p>;
+  const pointer = detail.data.rpg ?? null;
+  if (pointer === null) {
+    return <p data-testid="room-kind">plain</p>;
+  }
+  return <p data-testid="room-kind">{isRpgEngaged(pointer) ? "game" : "off"}</p>;
 }
 
 /** The recorded variant's row in a room that is NOT a live game — the gate's negative arm. `listTurnToolCalls`
@@ -274,6 +284,45 @@ export function TurnToolCallsNonGameStory(): ReactElement {
       <div style={{ width: 480 }}>
         <RoomKindSentinel chatId={CHAT_ID} />
         <RenderFooterContribution message={TOOL_CALLS_MESSAGE} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The disclosure beside a REAL re-engage door — for #40's OFF arm and the transition out of it.
+ *
+ *  The button drives the PRODUCTION mutation (`rpg.updateConfig` with `patch.engaged`, the one config write
+ *  door), so the repaint is that hook's own `invalidates` recipe naming `chat.getChat` — the pointer MIRROR
+ *  the takeover gate reads. Nothing here hand-rolls a cache write: if that recipe ever stopped listing
+ *  `chat.getChat`, this story would stop restoring and the CT would say so. */
+function EngagementFrame(): ReactElement {
+  const trpc = useTRPC();
+  const invalidation = useInvalidation();
+  const updateConfig = useUpdateConfig({ trpc, invalidation });
+  return (
+    <>
+      <button
+        onClick={(): void => {
+          updateConfig.mutate({ chatId: CHAT_ID, patch: { engaged: true } });
+        }}
+        type="button"
+      >
+        engage the game
+      </button>
+      <RoomKindSentinel chatId={CHAT_ID} />
+      <RenderFooterContribution message={TOOL_CALLS_MESSAGE} />
+    </>
+  );
+}
+
+/** The recorded variant's row in a room whose game is PRESENT but toggled OFF (`engaged:false`), plus the
+ *  door back. This is the arm the `isRpgEngaged` ruling exists for: the OFF state must gate identically to
+ *  no-game everywhere, and re-engaging must bring the surface back with no reload. */
+export function TurnToolCallsEngagementStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 480 }}>
+        <EngagementFrame />
       </div>
     </CtDataProviders>
   );
