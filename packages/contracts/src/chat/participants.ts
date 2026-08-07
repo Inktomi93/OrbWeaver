@@ -72,7 +72,7 @@ export const messageRoleSchema = z.enum(MESSAGE_ROLES);
 // scoping, the attribution chrome and the host-owned mint. Kind is purpose; attribution remains voice.
 export const MESSAGE_KINDS = ["standard", "narrator", "comment"] as const;
 export type MessageKind = (typeof MESSAGE_KINDS)[number];
-/** @public schema twin of {@link MESSAGE_KINDS}, which drives the `messages.kind` enum + CHECK. */
+/** Schema twin of {@link MESSAGE_KINDS}, which drives the `messages.kind` enum + CHECK. */
 export const messageKindSchema = z.enum(MESSAGE_KINDS);
 
 /** The DB/wire default: every writer that does not deliberately declare a purpose mints `standard`. One home
