@@ -1,7 +1,14 @@
-# Orbweaver Golden Tests — SillyTavern Provider Parity
+# ST-Goldens — SillyTavern Provider Wire-Parity Probe
 
-> **This README is the brain of this test suite.** We compact often. Read it fully before
+> **This README is the brain of this rig.** We compact often. Read it fully before
 > touching anything. It captures architecture, findings, gotchas, and what to do next.
+
+**Home: `scripts/probes/st-goldens/` — this is a PROBE HARNESS, not a test** (re-homed from
+`tests/goldens/` on 2026-08-06). It boots a third-party app, drives a real browser, and writes JSON
+captures for a human to read; it asserts nothing and no runner executes it. `tests/` is the sacred
+1:1 mirror of `packages/` (every file there must prefix-swap to a source module), and living there
+cost NINE quarantine carve-outs across the gate harness, two gates, two membership verifiers, biome,
+tsconfig, and knip. `scripts/probes/` is where manual harnesses live (see `../rpg-extraction/`).
 
 ---
 
@@ -41,18 +48,28 @@ we don't care about).
 ## Architecture
 
 ```
-tests/goldens/
-  fixtures/<id>.json          # test case: provider, character, messages, model
-  generate-goldens.ts         # runner: boots ST, sets config, intercepts, captures
-  output/<id>.json            # captured ST payload (gitignored)
+scripts/probes/st-goldens/
   README.md                   # this file — the brain
-  sillytavern-runtime/        # ST install (gitignored, managed separately)
+  build-fixtures.ts           # writes ST V2 character PNGs + demo chats INTO the runtime
+  write-v2-png.cjs            # the V2 tEXt-chunk PNG writer build-fixtures.ts loads
+  generate-goldens.ts         # ST arm: boots ST, sets config, intercepts, captures
+  capture-orbweaver.ts        # ORB arm: replays the fixture through our real turn engine
+  compare-runner.ts           # diffs the two captures, structurally
+  run-demo-goldens.sh         # 16-combo post-processing/squash/prefill sweep
+  run-demo-complex.sh         # depth-injection + per-model tool-calling sweep
+  fixtures/<id>.json          # test case: provider, character, messages, model (GITIGNORED — emitted)
+  output/<id>.json            # captured ST payload (GITIGNORED)
+  orbweaver-output/<model>_<id>.json  # captured Orbweaver payload (GITIGNORED)
+  sillytavern-runtime/        # ST install (GITIGNORED, ~500MB, managed separately)
     data/default-user/
       settings.json           # ← patched before each run
       secrets.json            # ← patched with fake keys per provider
       characters/<name>.json  # ← written fresh from fixture
       chats/<name>/           # ← written fresh from fixture
 ```
+
+**Every script anchors its paths to `import.meta.dirname` (the `.sh` pair to `$BASH_SOURCE`)** — none
+is cwd-relative, so you can run any of them by absolute path from anywhere.
 
 ### How ST routing works
 
@@ -140,14 +157,26 @@ siliconflow, workers_ai, minimax
 # Kill any leftover ST processes
 fuser -k 8001/tcp 2>/dev/null; true
 
-# Generate a specific fixture's golden
-node --experimental-strip-types tests/goldens/generate-goldens.ts basic_turn
+# 0. Seed the ST runtime with our demo characters + chats (idempotent; re-run between fixtures)
+node scripts/probes/st-goldens/build-fixtures.ts
 
-# Generate all fixtures (TODO: add loop runner)
+# 1. ST arm — capture what SillyTavern sends for one fixture
+node scripts/probes/st-goldens/generate-goldens.ts basic_turn
+
+# 2. ORB arm — capture what we send for every claude fixture on disk
+node scripts/probes/st-goldens/capture-orbweaver.ts
+
+# 3. Diff them
+node scripts/probes/st-goldens/compare-runner.ts
+
+# …or run a whole sweep (writes its own fixtures, then does all four steps):
+scripts/probes/st-goldens/run-demo-goldens.sh
+scripts/probes/st-goldens/run-demo-complex.sh
 ```
 
 **Requirements:**
-- Node 26 (`node --experimental-strip-types`) — no tsx, no ts-node
+- Node 26 — bare `node file.ts` strips types natively. **No tsx** (shed from this repo), no ts-node,
+  and no `--experimental-strip-types` flag (it is the default now).
 - Playwright chromium (`pnpm playwright install chromium` if not installed)
 - ST runtime in `sillytavern-runtime/` with `node_modules/` installed
 
@@ -254,18 +283,38 @@ marker-guarded) so OpenRouter traffic also routes to the mock server.
 - [x] **`serviceWorkers: 'block'`** — handled. Still good practice in Playwright, even though we use a backend mock server now.
 - [x] **Character activation confirmed working** — Yes, the Playwright `el.click()` triggers the character activation properly.
 - [x] **ST-side capture** — Successfully intercepts and outputs to `output/<id>.json`.
-- [ ] **Orbweaver-side capture** — same fixture → POST to Orbweaver → capture payload.
-- [ ] **Comparison runner** — diff ST output vs Orbweaver output per fixture.
+- [x] **Orbweaver-side capture** — BUILT: `capture-orbweaver.ts` drives the REAL turn engine
+      (`driveRound`) behind a wire-capturing OpenRouter backend and writes
+      `orbweaver-output/<model>_<id>.json`. It does NOT POST to a running server — it replays
+      in-process against a `freshDb()`, so no stack has to be up.
+- [x] **Comparison runner** — BUILT: `compare-runner.ts` normalizes ST's Anthropic-shaped tools +
+      leading fake-user message to our OpenAI shape, then diffs key-sorted structure with `content`
+      blanked (prose differs by construction; SHAPE + ordering is the parity claim).
 - [ ] **Multi-turn fixture** — N user/assistant pairs.
 - [ ] **System prompt fixture** — verify where it lands in the messages array.
-- [ ] **Wire into node:test** — proper assertions on payload shape, not just capture.
+- [ ] **Wire into node:test** — proper assertions on payload shape, not just capture. NOTE: if this
+      ever lands, the assertions belong in `tests/` under a real mirror path; the CAPTURE harness
+      stays here (it boots a foreign app and cannot be a runner-executed test).
 - [ ] **Clock freezing** — use `page.clock.setFixedTime()` (NOT `freeze()`) before `goto()` to make `send_date` timestamps in ST deterministic across runs.
 
 ---
 
-## Ignored Paths (add to .gitignore if not already)
+## Ignored Paths
+
+Already in `.gitignore` (all four — the runtime AND everything the rig generates; only the scripts +
+this README are tracked):
 
 ```
-tests/goldens/sillytavern-runtime/
-tests/goldens/output/
+/scripts/probes/st-goldens/sillytavern-runtime/
+/scripts/probes/st-goldens/fixtures/
+/scripts/probes/st-goldens/output/
+/scripts/probes/st-goldens/orbweaver-output/
 ```
+
+A gitignore is not enough on its own — two instruments glob the filesystem directly and each needs
+its own fence for the runtime. Both are in place and are the ONLY quarantine this rig still owes:
+
+- `scripts/ts-workspace.ts` — `searchGlobs` sweeps `scripts/**/*.ts`; a negated glob keeps the
+  runtime's ~4,300 `.ts` files out of the ts-morph search project.
+- `tsconfig.json` — its `exclude` names the runtime, because a specified `exclude` replaces tsc's
+  default `node_modules` skip and ST ships four root `.d.ts` files (one declares browser globals).

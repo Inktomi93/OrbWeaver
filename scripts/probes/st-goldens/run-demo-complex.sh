@@ -1,13 +1,14 @@
 #!/bin/bash
 set -e
 
-FIXTURES_DIR="tests/goldens/fixtures"
+RIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FIXTURES_DIR="$RIG_DIR/fixtures"
 mkdir -p "$FIXTURES_DIR"
-rm -rf tests/goldens/output tests/goldens/orbweaver-output
-mkdir -p tests/goldens/output tests/goldens/orbweaver-output
+rm -rf "$RIG_DIR/output" "$RIG_DIR/orbweaver-output"
+mkdir -p "$RIG_DIR/output" "$RIG_DIR/orbweaver-output"
 
 echo "Resetting ST fixtures..."
-npx tsx tests/goldens/build-fixtures.ts
+node "$RIG_DIR/build-fixtures.ts"
 
 id_depth="ashen_spire_claude_depth_injection"
 cat << JSON > "$FIXTURES_DIR/${id_depth}.json"
@@ -81,13 +82,13 @@ for MODEL in "${MODELS[@]}"; do
 JSON
 
   echo "Resetting ST fixtures before test..."
-  npx tsx tests/goldens/build-fixtures.ts
+  node "$RIG_DIR/build-fixtures.ts"
 
   echo "Running Tool Calling test for ${MODEL}..."
-  node --experimental-strip-types tests/goldens/generate-goldens.ts "${id_tools}" || true
+  node "$RIG_DIR/generate-goldens.ts" "${id_tools}" || true
 done
 
 echo "Running capture-orbweaver.ts to generate Orbweaver golden payloads..."
-npx tsx tests/goldens/capture-orbweaver.ts
+node "$RIG_DIR/capture-orbweaver.ts"
 echo "Running compare-runner.ts to compare ST and Orbweaver outputs..."
-npx tsx tests/goldens/compare-runner.ts
+node "$RIG_DIR/compare-runner.ts"

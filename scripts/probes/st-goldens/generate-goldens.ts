@@ -4,15 +4,15 @@
  *
  * Boots SillyTavern headless, writes character/chat fixtures to disk, intercepts
  * the outbound LLM call via page.route() (no separate mock server process), and
- * captures the exact request payload ST sends into tests/goldens/output/<id>.json.
+ * captures the exact request payload ST sends into scripts/probes/st-goldens/output/<id>.json.
  *
  * SCOPE: Chat completion ONLY. We never test text completion — Orbweaver doesn't do it.
  *
  * Usage:
- *   node --experimental-strip-types tests/goldens/generate-goldens.ts [fixture_id]
+ *   node scripts/probes/st-goldens/generate-goldens.ts [fixture_id]
  *
- * Fixtures: tests/goldens/fixtures/<id>.json
- * Output:   tests/goldens/output/<id>.json
+ * Fixtures: scripts/probes/st-goldens/fixtures/<id>.json
+ * Output:   scripts/probes/st-goldens/output/<id>.json
  */
 
 import { spawn } from "node:child_process";
@@ -512,7 +512,6 @@ async function main(): Promise<void> {
     if (fixture.commands && fixture.commands.length > 0) {
       console.log(`[Golden] Executing ${fixture.commands.length} setup commands...`);
       for (const cmd of fixture.commands) {
-        // biome-ignore lint/performance/noAwaitInLoops: Execution order is critical
         await page.fill("#send_textarea", cmd);
         await page.click("#send_but");
         // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: Wait for command
@@ -541,7 +540,6 @@ async function main(): Promise<void> {
     // ── 8. Wait for intercept to fire ────────────────────────────────────
     const deadline = Date.now() + 15_000;
     while (capturedPayload === null && Date.now() < deadline) {
-      // biome-ignore lint/performance/noAwaitInLoops: Polling
       await new Promise((r) => setTimeout(r, 200));
     }
 
@@ -588,7 +586,6 @@ async function waitForPort(port: number, timeoutMs: number): Promise<void> {
     try {
       const ctrl = new AbortController();
       const timer = setTimeout(() => ctrl.abort(), 500);
-      // biome-ignore lint/performance/noAwaitInLoops: Retry mechanism requires sequential await
       await fetch(`http://127.0.0.1:${port}/`, { signal: ctrl.signal });
       clearTimeout(timer);
       console.log(`[Golden] ST ready on port ${port}`);

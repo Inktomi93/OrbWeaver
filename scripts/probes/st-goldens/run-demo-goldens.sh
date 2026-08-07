@@ -1,10 +1,11 @@
 #!/bin/bash
 set -e
 
-FIXTURES_DIR="tests/goldens/fixtures"
+RIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+FIXTURES_DIR="$RIG_DIR/fixtures"
 mkdir -p "$FIXTURES_DIR"
-rm -rf tests/goldens/output tests/goldens/orbweaver-output
-mkdir -p tests/goldens/output tests/goldens/orbweaver-output
+rm -rf "$RIG_DIR/output" "$RIG_DIR/orbweaver-output"
+mkdir -p "$RIG_DIR/output" "$RIG_DIR/orbweaver-output"
 
 # Base configuration
 nb=0
@@ -50,13 +51,13 @@ for mode in "" "strict" "merge" "semi"; do
 JSON
 
       echo "Resetting ST fixtures before test..."
-      npx tsx tests/goldens/build-fixtures.ts
+      node "$RIG_DIR/build-fixtures.ts"
 
       echo "Running $id..."
-      node --experimental-strip-types tests/goldens/generate-goldens.ts "${id}" || true
+      node "$RIG_DIR/generate-goldens.ts" "${id}" || true
     done
   done
 done
 
 echo "Running capture-orbweaver.ts to generate Orbweaver golden payloads..."
-npx tsx tests/goldens/capture-orbweaver.ts
+node "$RIG_DIR/capture-orbweaver.ts"
