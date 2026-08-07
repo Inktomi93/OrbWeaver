@@ -2761,6 +2761,52 @@ test("R1 end-to-end: a game turn that mounts NO terminal tools hands the flush a
   expect(flushes).toEqual([null]);
 });
 
+// ── M2 keep-last-X: ABSENT ≠ ZERO, proved at the TURN seam ───────────────────────────────────────
+// `cardKeepLastX` is contributed ONLY by an rpg game's GATHER, so a chat with no game contributes nothing.
+// The verb used to floor that absence to `0` (`rpg?.cardKeepLastX ?? 0`) — the rpg default — which handed
+// every NON-game chat the strictest setting of a feature it never opted into: an immersive-character card in
+// its history collapsed to `[card: title]` on every single turn, with no knob anywhere to turn it off.
+// `pipeline.test.ts` pins the window ARITHMETIC at the engine seam; these two pin that the ABSENCE (and a
+// game's explicit `0`) actually survive gather → BuiltTurnContext → TurnPrep → runTurnPipeline on a REAL turn,
+// which is the hop that was floored and which no engine-level test can see.
+
+const CARD_FENCE = ':::card title="Terminal"\n<div style="color:red">multi-KB html blob</div>\n:::';
+
+/** Each wire history row flattened to its text (adjacent text parts merge, so a card row is one part). */
+function historyTexts(request: unknown): string[] {
+  const { history } = request as { history: readonly { content: readonly { type: string; text?: string }[] }[] };
+  return history.map((m) => m.content.map((p) => (p.type === "text" ? (p.text ?? "") : "")).join(""));
+}
+
+test("M2: a chat with NO rpg game contributes no window — a stored card rides the wire WHOLE", async () => {
+  const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+  await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: `look:\n${CARD_FENCE}` });
+  const requests: unknown[] = [];
+  const h = harness(db, names, { onChatRequest: (req) => requests.push(req) });
+
+  await h.turn.generate({ principal: principal(host), chatId });
+
+  const texts = historyTexts(requests[0]);
+  expect(texts.some((t) => t.includes("multi-KB html blob"))).toBe(true);
+  expect(texts.some((t) => t.includes("[card: Terminal]"))).toBe(false);
+});
+
+test("M2: a GAME turn's explicit cardKeepLastX:0 still stubs every stored card (the rpg default is unchanged)", async () => {
+  const { host, chatId, names } = await seedRoom("natural", ["aria"]);
+  await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: `look:\n${CARD_FENCE}` });
+  const requests: unknown[] = [];
+  const { rpg } = foldedRpg();
+  // A plain (non-folded) game whose gather contributes the rpg default — the arm that must NOT change.
+  const gameRpg = { ...rpg, gatherTurnContext: () => Promise.resolve({ macros: {}, injections: [], tools: [], cardKeepLastX: 0 }) };
+  const h = harness(db, names, { rpg: gameRpg as NonNullable<ChatContext["rpg"]>, onChatRequest: (req) => requests.push(req) });
+
+  await h.turn.generate({ principal: principal(host), chatId });
+
+  const texts = historyTexts(requests[0]);
+  expect(texts.some((t) => t.includes("[card: Terminal]"))).toBe(true);
+  expect(texts.some((t) => t.includes("multi-KB html blob"))).toBe(false);
+});
+
 // S1 (w4-my-lane) — the rpg post-turn register must precede the CLIENT-VISIBLE `turnCompleted` emit. The
 // barrier entry is registered SYNCHRONOUSLY inside `onTurnCompleted` (rpg/chat-ops/index.ts), so "the fire
 // happens before the emit" IS the no-stale-gather window: a scripted re-send riding the bus can only run

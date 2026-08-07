@@ -108,9 +108,10 @@ interface RunTurnPipelineArgs {
    *  (byte-identical). Closures — rides `TurnPrep`, never the serializable `AssembleContext`. */
   readonly macroRegistry?: MacroRegistry | undefined;
   /** The M2 keep-last-X card knob (parity-plus §3.5): the X most-recent card spans in the fitted history
-   *  ride the wire FULL; every older card collapses to the deterministic `[card: title]` stub. Absent/0 =
-   *  immediate total collapse (the argued cache/budget-honest default). Wired from the game config by the
-   *  P4 wave; the mechanism is feature-agnostic. */
+   *  ride the wire FULL; every older card collapses to the deterministic `[card: title]` stub. ABSENT ≠ ZERO:
+   *  absent ⇒ NO window (nothing contributed one — see {@link resolveFullCards}); `0` ⇒ immediate total
+   *  collapse (the cache/budget-honest rpg default). Wired from the game config; the mechanism is
+   *  feature-agnostic. */
   readonly cardKeepLastX?: number | undefined;
 }
 
