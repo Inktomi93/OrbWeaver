@@ -411,6 +411,13 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     gray sentence + ~600px black; one row + an unlabeled orange dot as the only active signal) —
     the \[\[empty-states-are-load-bearing]] class + a meaning-by-color-alone a11y miss. Evidence:
     side-eye rendered receipts.
+  - [ ] **SNAP --mobile SIZE/ORIENTATION PRESETS** (S, instrument; owner-ordered 2026-08-07) —
+    extend `snap --mobile` to take device sizes and orientations (e.g. `--mobile 320`, `--mobile
+    375x812`, `--mobile 430 --landscape`, sensible named presets), ALL arms carrying the full
+    touch/coarse emulation — so side-eye drives one sanctioned flag instead of hand-rolling
+    chrome-devtools emulate calls per frame. The point: `--viewport` renders a FINE-pointer layout
+    no phone produces (\[\[mobile-verify-needs-coarse-pointer]]); every mobile geometry claim should
+    ride the coarse arm by default. Pairs with the DESIGN-AUDIT --mobile row below.
   - [ ] **DESIGN-AUDIT --mobile** (S, instrument) — no coarse-pointer mode, no overlapping-hit-target
     rule; it scored 0 P1 on a frame carrying the topbar P1. Evidence: side-eye instrument note. 3 done (graduation
   prose-tail rule · editSnapshot `.ok` assert · ST blank-`mes` strip at parse), **3 REFUSED premise-
