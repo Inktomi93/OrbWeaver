@@ -322,6 +322,14 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
   `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
   question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- **⚑ OPS NOTE 2 (load, encoded after a battery died of it):** the round-2 battery's vitest+CT came
+  back **10,364 / 0 failed** but `e2e-smoke` DIED ON BOOT — vite FSWatcher **EMFILE** (fd/inotify
+  exhaustion) at load ~53 with 161 test processes: the battery shared the box with VITE-MAX's full
+  CT run + two fix legs' CT floors + the live stack. LAW EXTENSION: **fix-leg floors and
+  whole-CT-suite verdicts COUNT as gate-heavy lanes for the ~3 stagger cap, and the battery's
+  behavioral phase gets the box** — no whole-CT lane dispatches while a battery runs. Recovery
+  shape: the vitest/CT green STANDS as the receipt; rerun ONLY `pnpm e2e:smoke` on a drained box
+  (load watcher armed), push on the composite.
 - **⚑ OPS NOTE (collision class, encoded):** a RESUMED VERIFIER runs on MAIN's tree and may plant
   probe suites in `tests/` mid-attack — a whole-tree check/battery launched while one is live sweeps
   its probes up as reds (`zzverifier-probe*` tripped biome + 2 gates; battery killed + relaunched
