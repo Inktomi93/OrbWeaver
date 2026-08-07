@@ -19,7 +19,8 @@
 //     `characters.id` (live identity). No `chats.characterVersionId`.
 //
 // Enum columns DERIVE their one canonical tuple (never re-spelled): `messages.role` /
-// `chat_injections.role` ← `MESSAGE_ROLES` (@orb/kit/message-role, D32); `chat_participants.kind` ←
+// `chat_injections.role` ← `MESSAGE_ROLES` (@orb/kit/message-role, D32); `messages.kind` ← `MESSAGE_KINDS`
+// (the row-PURPOSE axis — @orb/contracts/chat; orthogonal to role, see the table header); `chat_participants.kind` ←
 // `PARTICIPANT_KINDS` (`human`/`character` only post-rollback, 2026-07-25 purge — the DDL's `agent`/`observer`
 // kind-shape CHECK arms below are dormant rebuild doorways, not live tuple members; PD-17 tracks the graft),
 // `.role` ← `PARTICIPANT_ROLES`, `joinHistoryVisibility` ←
@@ -42,11 +43,12 @@ import type {
   ChatInjection as ChatInjectionWire,
   ChatMetadata,
   HandoffOffer,
+  MacroFreezeRecord,
   StandaloneVariableDelta,
   ToolCallRecord,
   UserMacroDraws,
 } from "@orb/contracts/chat";
-import { CHAT_BUS_EVENT_TYPES, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, PARTICIPANT_KINDS, TURN_INITIATORS } from "@orb/contracts/chat";
+import { CHAT_BUS_EVENT_TYPES, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, MESSAGE_KINDS, PARTICIPANT_KINDS, TURN_INITIATORS } from "@orb/contracts/chat";
 // PARTICIPANT_ROLES is one-homed in @orb/contracts/identity (the can() resource-role axis; PD-59).
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { UserIntent, UserMacroValues } from "@orb/contracts/preset";
@@ -195,9 +197,15 @@ export const chats = sqliteTable(
 //                        a userId-backed principal, D60; round.ts stamps `persist.authorUserId`), never both;
 //                        personaId NULL. A character round leaves `characterId` = the speaker; an agent round
 //                        leaves `characterId` NULL + `authorUserId` = the agent's user id.
-//   • role='system'    — NO current writer mints a system SLOT (the narrator/`postNarratorMessage` op is
-//                        unbuilt; `role='system'` today lives only in prompt-assembly injections, never a
-//                        canon row). Attribution therefore unconstrained-by-writer here.
+//   • role='system'    — NO current writer mints a system SLOT: `role='system'` lives only in prompt-assembly
+//                        injections, never a canon row. Attribution therefore unconstrained-by-writer here.
+//                        (TRUTH-REPAIR 2026-08-07: this line used to justify itself with "the narrator/
+//                        `postNarratorMessage` op is unbuilt". That op IS built — `verbs/post-narrator-message.ts`
+//                        — and it mints an ASSISTANT slot voiced by the synthetic group character, so it never
+//                        was the reason. The claim about system slots is unaffected and still holds.)
+// THE PURPOSE AXIS is `kind` (MESSAGE_KINDS), NOT this table's role/attribution pattern: the born kind per
+// writer is `standard` everywhere except `postNarratorMessage` and the engine's narrator-round commit, which
+// declare `narrator`. The fork/edit copies carry the source row's kind verbatim, like every other slot column.
 // STRUCTURAL arms of this shape are BORN-WHOLE as `messages_attribution_shape` (the `chat_participants`
 // kind-shape CHECK is the idiom precedent): characterId ⇒ assistant · personaId ⇒ user · never
 // characterId AND authorUserId together. These hold across every writer AND survive the SET-NULL
@@ -227,6 +235,14 @@ export const messages = sqliteTable(
     // The role axis — derives MESSAGE_ROLES (@orb/kit/message-role, D32). The `enum` option is type-only;
     // the CHECK below is the SQL-level guard.
     role: text("role", { enum: MESSAGE_ROLES }).notNull(),
+    // THE PURPOSE AXIS (D26 rider; stickler 2026-08-08 canon-message-identity) — derives MESSAGE_KINDS
+    // (@orb/contracts/chat). ORTHOGONAL to `role` and to attribution: a narrator row is kind='narrator' AND
+    // role='assistant'. It exists because purpose used to be INFERRED from columns designed to degrade — the
+    // attribution FKs are all `onDelete: 'set null'`, so deleting the synthetic group character silently
+    // reclassified every narrator row as standard — and from the room's CURRENT `GroupConfig.output` dial,
+    // which re-classified history the moment it moved. DEFAULT 'standard': every existing writer stays
+    // byte-identical and the pre-launch baseline needs no backfill. Never a lookup key ⇒ no index.
+    kind: text("kind", { enum: MESSAGE_KINDS }).notNull().default("standard"),
     // ── Attribution (SLOT-level — a swipe never re-voices). All nullable per role. ──
     // The human who SENT a user message (server-stamped). Plain `UserId` brand (users.id is a plain
     // nanoid, not a TypeID). SET NULL on user hard-delete — the authored line survives for other members.
@@ -274,7 +290,15 @@ export const messages = sqliteTable(
     index("messages_persona_idx").on(t.personaId),
     index("messages_selected_variant_idx").on(t.selectedVariantId),
     check("messages_role_check", sql.raw(`role in (${checkList(MESSAGE_ROLES)})`)),
+    check("messages_kind_check", sql.raw(`kind in (${checkList(MESSAGE_KINDS)})`)),
     check("messages_initiator_check", sql.raw(`initiator in (${checkList(TURN_INITIATORS)})`)),
+    // The one STRUCTURAL kind arm: a narrator row is an assistant-voiced row in canon (the wire may map it to
+    // a `system` row on a capable model — that is a SHAPE-time projection, never a stored fact, so canon
+    // stays provider-independent). `standard`/`comment` are unconstrained here beyond the attribution shape
+    // below: a comment can be authored by a human, an agent or the narrator identity. Like every CHECK on
+    // this table it must never abort an FK SET-NULL cascade — it reads `kind`/`role`, neither of which any
+    // cascade touches, so it cannot.
+    check("messages_kind_shape", sql.raw("(kind <> 'narrator' OR role = 'assistant')")),
     // The STRUCTURAL attribution shape (see the table header) — born-whole, the `chat_participants`
     // kind-shape CHECK idiom. characterId only voices an assistant; personaId only authors a user line; a
     // slot is never both a character voice AND an agent-user voice. All-NULL is always legal (the SET-NULL
@@ -305,6 +329,23 @@ export const messageVariants = sqliteTable(
     idx: integer("idx").notNull(),
     // The generation text (notNull; a streaming-in-progress variant starts as "").
     content: text("content").notNull(),
+    // ── RAW + FREEZE PROVENANCE (stickler 2026-08-08 §3 — the re-resolution substrate). ──
+    // `content` above stays the ONE canonical post-transform text every consumer reads (D51) — these two
+    // columns are pure provenance and change no existing behavior. `rawContent` is the pre-freeze,
+    // pre-regex authored text (the composer draft / the raw model output before the AI_OUTPUT regex,
+    // postProcess and the per-speaker clean); NULL ⇔ byte-identical to `content`, which is the overwhelming
+    // common case, so it is written only when a transform actually changed bytes.
+    // TRUST BOUNDARY (binding): both columns are HOST-PLANE. The receive transforms exist partly to STRIP
+    // content (a host regex can remove hidden material), so serving pre-strip bytes to a member re-opens the
+    // D110 §3.6 class — they ride the already host-gated variant wire view ONLY, never `MessageView`.
+    rawContent: text("raw_content"),
+    // The volatile-freeze RECORD: the ordered `{name, args?, value}` occurrences a commit baked into
+    // `content` ({{roll}}/{{random}}/{{pick}}/the clock family). Written in the SAME batch as the variant
+    // (the `macroDraws` discipline). Nullable JSON, parsed at the read seam with `macroFreezeRecordSchema`
+    // (never cast); absent/null ⇒ nothing froze. Raw + record together make a variant's macro spans
+    // re-derivable byte-exactly — which is what makes an intentional re-roll, a re-resolution against new
+    // context, and a fix for the greeting-swipe gap possible at all.
+    macroFreezes: text("macro_freezes", { mode: "json" }).$type<MacroFreezeRecord>(),
     reasoning: text("reasoning"),
     model: text("model"),
     provider: text("provider"),

@@ -89,6 +89,7 @@ const messageViewSelection = {
   chatId: messages.chatId,
   seq: messages.seq,
   role: messages.role,
+  kind: messages.kind,
   authorUserId: messages.authorUserId,
   characterId: messages.characterId,
   personaId: messages.personaId,

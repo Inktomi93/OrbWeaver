@@ -1,6 +1,7 @@
 // @orb/contracts/chat — the front-door for the chat wire contracts. The shapes are split across sibling
 // modules by concern (D15's directory-module law: internals flat, this index re-exports, consumer-invisible):
 //   • participants.ts   — participant kinds + drive/identity axes + the AI-speaker ref + `messageRoleSchema`
+//                         + the MESSAGE-KIND axis (`MESSAGE_KINDS` / `MESSAGE_KIND_POLICY` — row PURPOSE)
 //   • assemble.ts       — the ASSEMBLE family (slim projections, `AssembleContext`, traces, injections)
 //   • messages.ts       — the D26 message/variant wire (`messageSlotSchema`, `MessageView`, tool/var records)
 //   • producers.ts      — the member-gated id→name / id→avatar producer maps
@@ -101,6 +102,8 @@ export {
 export type { ContentClassPolicy } from "./content-classes.ts";
 export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 export type {
+  MacroFreeze,
+  MacroFreezeRecord,
   MessageSlot,
   MessageView,
   ReattributeScope,
@@ -109,6 +112,8 @@ export type {
   UserMacroDraws,
 } from "./messages.ts";
 export {
+  macroFreezeRecordSchema,
+  macroFreezeSchema,
   messageSlotSchema,
   reattributeScopeSchema,
   standaloneVariableDeltaSchema,
@@ -141,11 +146,16 @@ export {
   openingPolicySchema,
   roomOverridesSchema,
 } from "./metadata.ts";
-export type { ParticipantKind, SpeakerRef } from "./participants.ts";
+export type { MessageKind, MessageKindPolicy, ParticipantKind, SpeakerRef } from "./participants.ts";
 export {
   AI_DRIVEN_KINDS,
+  DEFAULT_MESSAGE_KIND,
   isAiDriven,
   isUserBacked,
+  MEMORY_INGEST_KINDS,
+  MESSAGE_KIND_POLICY,
+  MESSAGE_KINDS,
+  messageKindSchema,
   messageRoleSchema,
   PARTICIPANT_KINDS,
   participantKindSchema,

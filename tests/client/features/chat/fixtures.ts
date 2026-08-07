@@ -53,6 +53,7 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
     chatId: CHAT_ID,
     seq: 1,
     role: "assistant",
+    kind: "standard",
     authorUserId: null,
     characterId: null,
     personaId: null,

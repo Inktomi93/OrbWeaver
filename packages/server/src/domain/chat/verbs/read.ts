@@ -327,12 +327,9 @@ async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView
  *
  *  A preview has no TRIGGERING human (no turn is running), so `{{user}}` for the prompt-config sections binds
  *  to the HOST's own active persona (the `human` trigger) — the preview already resolves everything else under
- *  the host (`runAsUserId`, the connection, the preset). Without it the resolver fell back to `personaIds[0]`,
- *  the presence-order-arbitrary first present human, so a multi-human room's preview could show ANOTHER
- *  member's persona as `{{user}}` — nondeterministic (join order) and a cross-member read on the host's
- *  instrument. A host with no active persona still falls back to `personaIds[0]` (the resolver's own arm — the
- *  key is OMITTED rather than passed null, since an explicit null now means "deliberately no triggering human,
- *  bind the ANCHOR", a turn-path semantic a preview must not inherit). */
+ *  the host (`runAsUserId`, the connection, the preset). A host with NO active persona takes the `none` arm ⇒
+ *  the chat ANCHOR. Both arms are deterministic and host-scoped; neither can surface another member's persona
+ *  on the host's own instrument, which the retired `personaIds[0]` fallback could (2026-08-07). */
 async function resolvePreviewInputs(
   ctx: ChatContext,
   deps: ReadDeps,
@@ -367,15 +364,13 @@ async function resolvePreviewInputs(
     runAsUserId: hostUserId,
     model: connection.model,
     anchorPersonaId,
-    personaIds,
     presentHumanUserIds: presentHumanUserIdsOf(roster),
-    // OMITTED (not a `none` trigger) when the host holds no chat persona: `none` means "deliberately no
-    // triggering human ⇒ bind to the ANCHOR", which is a TURN semantic (drain/auto), and a `human` trigger
-    // carrying a null persona would floor `{{user}}` to the unresolved-persona name. A preview's trigger is
-    // merely UNKNOWN, so it
-    // keeps the documented fallback chain (host persona, else `personaIds[0]`) — byte-identical to every
-    // preview before the contract split.
-    ...(hostPersonaId !== null ? { trigger: { kind: "human", userId: hostUserId, personaId: hostPersonaId } as const } : {}),
+    // The host's own persona drives a preview's `{{user}}` — the preview already resolves everything else
+    // under the host. When the host holds NO chat persona the arm is `none` ⇒ the chat ANCHOR: the
+    // chat-invariant identity, deterministic, and the host's own room-level choice. It used to omit the key
+    // and inherit the `personaIds[0]` fallback, which could render ANOTHER member's persona as `{{user}}` on
+    // the host's instrument, and re-ordered itself whenever someone joined (that fallback is retired).
+    trigger: hostPersonaId !== null ? { kind: "human", userId: hostUserId, personaId: hostPersonaId } : { kind: "none" },
     ...(opts.presetOverride !== undefined ? { presetOverride: opts.presetOverride } : {}),
   });
   const gameUserMacros = ctx.rpg === null ? [] : await ctx.rpg.resolveUserMacros(chatId);
@@ -724,8 +719,11 @@ async function resolveAnchorPersona(
     runAsUserId: args.hostUserId,
     model: "",
     anchorPersonaId: args.anchorPersonaId,
-    personaIds: args.anchorPersonaId !== null ? [args.anchorPersonaId] : [],
     presentHumanUserIds: args.presentHumanUserIds,
+    // A card DISPLAY has no triggering human at all — the `none` arm, which binds the active persona to the
+    // anchor. Only `personas.anchor` is read here, so this is byte-identical to the retired absent arm (whose
+    // `personaIds[0]` was the anchor id by construction — it is the only id in the list).
+    trigger: { kind: "none" },
   });
   return foreign.personas.anchor;
 }

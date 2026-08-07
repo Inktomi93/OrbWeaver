@@ -17,9 +17,9 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { chats, personas } from "@orb/db";
+import { chats, personaBooks, personas, worldBooks, worldEntries } from "@orb/db";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, MessageId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
@@ -130,8 +130,8 @@ function harness(
     onEmit?: (event: ChatBusEvent) => void;
     /** Override the resolved `PromptConfig` (the F1 injection_trigger pin drives trigger-gated sections). */
     promptConfig?: PromptConfig;
-    /** Capture the `personaIds` `loadRoom` resolved for the round (the PD-70 presence-gating pin). */
-    onForeignInputs?: (args: { readonly personaIds: readonly PersonaId[] }) => void;
+    /** Capture the args `loadRoom` resolved into the FOREIGN read for the round. */
+    onForeignInputs?: (args: { readonly presentHumanUserIds: readonly UserId[] }) => void;
     /** Override server-derived presence (default = everyone online; a cast-gating test marks a member away). */
     readPresence?: ChatContext["readPresence"];
     /** Override the resolved connection's credential `source` (default `vllm`; the drain drop-path pins
@@ -561,34 +561,66 @@ describe("send — presence cast-gating (PD-70)", () => {
     return { host, member, chatId, hostPersona, memberPersona, names: { [cid]: "aria" } };
   }
 
-  test("an OFFLINE human's persona drops from the round; the host's (and cast) survive", async () => {
+  /** Attach a keyless (always-on) persona-scoped world book whose entry carries a unique marker, so the
+   *  round's WI pool decides whether that marker reaches the wire. */
+  async function seedPersonaLore(owner: UserId, personaId: PersonaId, key: string, content: string): Promise<void> {
+    const bookId = castId<WorldBookId>(`world_book_${key}`);
+    await db.insert(worldBooks).values({ id: bookId, ownerId: owner, name: key, createdAt: FROZEN_AT });
+    await db.insert(worldEntries).values({
+      id: castId<WorldEntryId>(`world_entry_${key}`),
+      worldBookId: bookId,
+      title: key,
+      content,
+      keys: null,
+      enabled: true,
+      priority: 0,
+      ignoreBudget: false,
+      metadata: null,
+      createdAt: FROZEN_AT,
+    });
+    await db.insert(personaBooks).values({ personaId, worldBookId: bookId, createdAt: FROZEN_AT });
+  }
+
+  // These two used to observe the `personaIds` list on the FOREIGN op's ARGS. That list stopped reaching the
+  // op when the `personaIds[0]` absent-trigger fallback was retired (2026-08-07) — it was the fallback's only
+  // reader — so the pin now asserts the CONSEQUENCE the presence filter exists for: which persona BOOKS join
+  // the round's world-info pool. Stronger than the old shape (it proves the gate's effect on the wire, not
+  // that a list was handed to a function that ignored it).
+  test("an OFFLINE human's persona-book lore drops from the round; the host's survives", async () => {
     const room = await seedTwoHumanRoom();
-    const seen: (readonly PersonaId[])[] = [];
+    await seedPersonaLore(room.host, room.hostPersona, "hostlore", "HOST-POV-LORE");
+    await seedPersonaLore(room.member, room.memberPersona, "memberlore", "MEMBER-POV-LORE");
+    let wire = "";
     const h = harness(db, room.names, {
-      onForeignInputs: ({ personaIds }) => seen.push(personaIds),
+      onChatRequest: (req) => {
+        wire = JSON.stringify(req);
+      },
       // The member is away (no live SSE); the host is driving the turn.
       readPresence: (userId) => Promise.resolve({ userId, online: userId !== room.member, lastSeenAt: null }),
     });
 
     await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
 
-    expect(seen).toHaveLength(1);
-    expect(seen[0]).toContain(room.hostPersona);
-    expect(seen[0]).not.toContain(room.memberPersona);
+    expect(wire).toContain("HOST-POV-LORE");
+    expect(wire).not.toContain("MEMBER-POV-LORE");
   });
 
-  test("when BOTH humans are online, both personas are present (no drop)", async () => {
+  test("when BOTH humans are online, both persona books join the pool (no drop)", async () => {
     const room = await seedTwoHumanRoom();
-    const seen: (readonly PersonaId[])[] = [];
+    await seedPersonaLore(room.host, room.hostPersona, "hostlore", "HOST-POV-LORE");
+    await seedPersonaLore(room.member, room.memberPersona, "memberlore", "MEMBER-POV-LORE");
+    let wire = "";
     const h = harness(db, room.names, {
-      onForeignInputs: ({ personaIds }) => seen.push(personaIds),
+      onChatRequest: (req) => {
+        wire = JSON.stringify(req);
+      },
       readPresence: (userId) => Promise.resolve({ userId, online: true, lastSeenAt: null }),
     });
 
     await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
 
-    expect(seen).toHaveLength(1);
-    expect(seen[0]).toEqual(expect.arrayContaining([room.hostPersona, room.memberPersona]));
+    expect(wire).toContain("HOST-POV-LORE");
+    expect(wire).toContain("MEMBER-POV-LORE");
   });
 });
 

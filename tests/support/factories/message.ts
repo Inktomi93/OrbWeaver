@@ -38,6 +38,7 @@ export function makeMessage(overrides: Partial<MessageRow> = {}): MessageRow {
     chatId: castId<ChatId>(ids.next("chat")),
     seq: 1,
     role: "assistant",
+    kind: "standard",
     authorUserId: null,
     characterId: null,
     personaId: null,

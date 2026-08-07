@@ -1,5 +1,5 @@
 import type { MessageSlot, MessageView, UserMacroDraws } from "@orb/contracts/chat";
-import { messageSlotSchema, reattributeScopeSchema, toolCallRecordSchema, userMacroDrawsSchema } from "@orb/contracts/chat";
+import { macroFreezeRecordSchema, messageSlotSchema, reattributeScopeSchema, toolCallRecordSchema, userMacroDrawsSchema } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
@@ -20,6 +20,7 @@ test("messageSlotSchema round-trips a valid slot", () => {
     chatId: SAMPLE_CHAT_ID,
     seq: 4,
     role: "assistant",
+    kind: "standard",
     authorUserId: null,
     characterId: SAMPLE_CHARACTER_ID,
     personaId: null,
@@ -37,6 +38,7 @@ test("a content field is STRIPPED from the slot at the boundary (D26 — slot ha
     chatId: SAMPLE_CHAT_ID,
     seq: 0,
     role: "user" as const,
+    kind: "standard" as const,
     authorUserId: SAMPLE_USER_ID,
     characterId: null,
     personaId: SAMPLE_PERSONA_ID,
@@ -65,6 +67,7 @@ test("an injected secret field is stripped from a chat payload at the schema bou
     chatId: SAMPLE_CHAT_ID,
     seq: 1,
     role: "assistant" as const,
+    kind: "standard" as const,
     authorUserId: null,
     characterId: SAMPLE_CHARACTER_ID,
     personaId: null,
@@ -86,6 +89,7 @@ test("MessageView is the slot joined with its selected variant (content + econom
     chatId: SAMPLE_CHAT_ID,
     seq: 2,
     role: "assistant",
+    kind: "standard",
     authorUserId: null,
     characterId: SAMPLE_CHARACTER_ID,
     personaId: null,
@@ -185,6 +189,37 @@ test("reattributeScopeSchema discriminates the explicit id set from the server-r
 
 test("the mine arm STRIPS a smuggled messageIds — a bulk restamp can never carry a foreign row list", () => {
   expect(reattributeScopeSchema.parse({ kind: "mine", messageIds: [SAMPLE_MESSAGE_ID] })).toEqual({ kind: "mine" });
+});
+
+// ── macroFreezeRecordSchema — the read-seam parse for `message_variants.macro_freezes` (stickler §3) ──
+// The volatile freeze ({{roll}}/{{random}}/{{pick}}/the clock family) is byte-DESTRUCTIVE: it bakes drawn
+// values into the stored text. Until this record it left no trace, so a swipe could not replay a roll and the
+// documented greeting-swipe gap was unfixable. The record is what makes a variant's macro spans re-derivable.
+
+test("macroFreezeRecordSchema round-trips ordered occurrences; `args` is optional; order is preserved", () => {
+  const record = [
+    { name: "roll", args: "2d6", value: "9" },
+    { name: "time", value: "14:03:22" },
+    { name: "roll", args: "2d6", value: "4" },
+  ];
+  const parsed = macroFreezeRecordSchema.parse(record);
+  expect(parsed).toEqual(record);
+  // Two occurrences of the SAME macro are two ENTRIES, never a dedup: a replay walks the list positionally,
+  // so collapsing them would re-substitute the first roll's value into the second span.
+  expect(parsed.map((f) => f.value)).toEqual(["9", "14:03:22", "4"]);
+  // Nothing froze ⇒ the empty record (the column is NULL in that case; both mean the same to a reader).
+  expect(macroFreezeRecordSchema.parse([])).toEqual([]);
+});
+
+test("macroFreezeRecordSchema refuses a non-string frozen value (the record holds the SUBSTITUTED text)", () => {
+  // `value` is what the freeze actually wrote into the body — always the substituted string, never a numeric
+  // or structured pre-render form, because a replay re-substitutes those exact bytes.
+  expect(macroFreezeRecordSchema.safeParse([{ name: "roll", value: 9 }]).success).toBe(false);
+  expect(macroFreezeRecordSchema.safeParse([{ name: "roll", args: 6, value: "9" }]).success).toBe(false);
+  // An entry with no macro NAME cannot be replayed against anything.
+  expect(macroFreezeRecordSchema.safeParse([{ value: "9" }]).success).toBe(false);
+  // The blob is an ordered LIST, not the keyed map `macroDraws` uses — position IS the key here.
+  expect(macroFreezeRecordSchema.safeParse({ roll: "9" }).success).toBe(false);
 });
 
 test("userMacroDrawsSchema refuses a non-string leaf (the draw is always the DRAWN string, never a pool/bool)", () => {
