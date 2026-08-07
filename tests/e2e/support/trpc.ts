@@ -16,7 +16,7 @@
 
 import process from "node:process";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
-import { SINGLE_USER } from "./modes.ts";
+import { E2E_DEBUG_TOKEN, SINGLE_USER } from "./modes.ts";
 
 // The vite front door (the specs' baseURL). Every consumer of this module is a single-user-project spec, so
 // the default is SINGLE_USER.baseUrl — derived, never a literal: the project moved off the dev ports (a
@@ -25,6 +25,24 @@ import { SINGLE_USER } from "./modes.ts";
 const BASE_URL = process.env["E2E_BASE_URL"] ?? SINGLE_USER.baseUrl;
 
 const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));
+
+/**
+ * The `/api/_debug/*` credential — the ONE header helper for every debug witness below, so a route added
+ * later cannot quietly go back to an un-credentialed `fetch`.
+ *
+ * Until AUTHFIX-2 (2026-08-07) these reads sent NOTHING: the debug gate's admin arm admitted the
+ * un-credentialed owner fallback, and this file's own comment recorded the dependency ("the debug gate's
+ * admin tier passes under single-user AUTH_MODE"). That was a live hole on any reachable box — provider
+ * request bodies included — so the gate now requires a credential and the harness carries the token its
+ * stack booted with (`modes.ts::E2E_DEBUG_TOKEN`, threaded into every mode's `webServerEnv`).
+ *
+ * `DEBUG_TOKEN` from the runner's own env wins: that is the `E2E_ALLOW_DEV_TARGET=1` path, where the stack
+ * is the operator's dev instance running its own `.env` token rather than ours.
+ */
+// biome-ignore lint/style/noProcessEnv: e2e node support reads its env directly, exactly as BASE_URL above does (its sanctioned peer).
+const DEBUG_TOKEN = process.env["DEBUG_TOKEN"] ?? E2E_DEBUG_TOKEN;
+
+const debugHeaders = (): Record<string, string> => ({ "x-debug-token": DEBUG_TOKEN });
 
 /** A tRPC batch GET query — returns the single procedure's `result.data`. Throws on a non-2xx or error env. */
 export async function trpcQuery<T>(procedure: string, input: unknown): Promise<T> {
@@ -248,12 +266,12 @@ export interface WireCapture {
   readonly body: Record<string, unknown>;
 }
 
-/** Read the captured provider wire bodies for a chat (host-gated /api/_debug/wire/captures; the debug gate's
- *  admin tier passes under single-user AUTH_MODE). Newest-first. The capture seam must be ENABLED
- *  (WIRE_CAPTURE=on) for this to be non-empty. */
+/** Read the captured provider wire bodies for a chat (host-gated /api/_debug/wire/captures — presents the
+ *  operator token, see `debugHeaders`). Newest-first. The capture seam must be ENABLED (WIRE_CAPTURE=on) for
+ *  this to be non-empty. */
 export async function fetchWireCaptures(chatId: ChatId, backend?: string): Promise<readonly WireCapture[]> {
   const query = new URLSearchParams({ chatId, ...(backend !== undefined ? { backend } : {}) });
-  const res = await fetch(`${BASE_URL}/api/_debug/wire/captures?${query.toString()}`);
+  const res = await fetch(`${BASE_URL}/api/_debug/wire/captures?${query.toString()}`, { headers: debugHeaders() });
   if (!res.ok) {
     throw new Error(`e2e wire-captures read failed (${res.status})`);
   }
@@ -994,7 +1012,7 @@ export interface ChatDbInspection {
 /** Read the DB inspection for a chat (`/api/_debug/db/chat/:id`, host-gated debug route). The independent DB
  *  witness that the turn's rows + bus events landed (distinct from the tRPC read path). */
 export async function inspectChatDb(chatId: ChatId): Promise<ChatDbInspection> {
-  const res = await fetch(`${BASE_URL}/api/_debug/db/chat/${chatId}`);
+  const res = await fetch(`${BASE_URL}/api/_debug/db/chat/${chatId}`, { headers: debugHeaders() });
   if (!res.ok) {
     throw new Error(`e2e db/chat read failed (${res.status})`);
   }
@@ -1004,7 +1022,7 @@ export async function inspectChatDb(chatId: ChatId): Promise<ChatDbInspection> {
 /** The debug error ring (`/api/_debug/errors`) — a non-empty list under a "successful" action is the
  *  invisible-bug class this repo exists to kill (observability-harness-verify-landings). */
 export async function fetchDebugErrors(): Promise<readonly unknown[]> {
-  const res = await fetch(`${BASE_URL}/api/_debug/errors`);
+  const res = await fetch(`${BASE_URL}/api/_debug/errors`, { headers: debugHeaders() });
   if (!res.ok) {
     throw new Error(`e2e debug/errors read failed (${res.status})`);
   }

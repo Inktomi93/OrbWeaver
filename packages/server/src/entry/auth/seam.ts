@@ -193,6 +193,26 @@ export function createHostPrincipalResolver(sessions: SessionsService): (userId:
   };
 }
 
+/**
+ * Which `Principal.via` provenances count as a CREDENTIAL at the debug gate (AUTHFIX-2, closed 2026-08-07).
+ *
+ * A POSITIVE allow-list, deliberately not a `via === "fallback"` negative check: the mapped `Record` is
+ * exhaustive over the union, so a fourth provenance added later is a `tsc` ERROR here rather than silently
+ * defaulting to ADMITTED. Fail-closed by construction beats fail-closed by vigilance (spine §5.5).
+ *
+ * `fallback` is `false` because that arm is precisely the caller who presented NOTHING: `infra/auth.resolve`
+ * mints it whenever `ownerFallbackAllowed` says the ORIGIN is trusted — unconditionally under `single-user`,
+ * and under an SSO mode on nothing but the client-supplied `Host` header. An origin is not a credential.
+ */
+const DEBUG_GATE_CREDENTIALED = {
+  /** A session cookie that `sessions.validate` accepted (peppered-hash lookup, fails closed on a forgery). */
+  cookie: true,
+  /** A verified SSO identity — a signed JWT, or a raw header from a TCP peer inside the trusted-proxy allowlist. */
+  header: true,
+  /** The un-credentialed origin-gated owner fallback. NOT a credential — see above. */
+  fallback: false,
+} as const satisfies Record<Principal["via"], boolean>;
+
 /** Construct the auth seam. Parses the auth config ONCE (production) and returns the per-request resolver. */
 export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
   const config = deps.config ?? authConfigFromEnv();
@@ -222,25 +242,28 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
 
   /**
    * The debug-gate admin verdict — its ONE consumer is `createDebugAuthMiddleware`'s `adminAuth` arm
-   * (`entry/app.ts`), which SHORT-CIRCUITS the `DEBUG_TOKEN` check when this returns true.
+   * (`entry/app.ts`), which SHORT-CIRCUITS the `DEBUG_TOKEN` check when this returns true. TWO conditions,
+   * both required: the caller PRESENTED a credential (`DEBUG_GATE_CREDENTIALED`), and that credential's
+   * principal satisfies `can(p,'admin',global)` — i.e. `role` is `owner` or `admin` (D17).
    *
-   * ⚠ OPEN FINDING (AUTHFIX-2, 2026-08-07 — documented, deliberately NOT fixed here; see
-   * `docs/architecture/core/Core-Audits-and-Debt.md`): this returns true for the UN-CREDENTIALED
-   * `via:"fallback"` principal, so `/api/_debug/*` serves with no cookie and no token to any request that
-   * satisfies `ownerFallbackAllowed` — unconditionally under `single-user`, and under an SSO mode on nothing
-   * but a client-supplied `Host` header. Those routes are principal-BLIND whole-db reads (the
-   * `@owner-scope-ok` note in `debug/inspect/config.ts` states the assumption this violates). The gate is
-   * the entire boundary. The one-line fix is `principal.via === "fallback" → false`; it is BLOCKED on a
-   * coupled site — `tests/e2e/support/trpc.ts` reads these routes with a bare `fetch` and NO token, and no
-   * e2e mode sets `DEBUG_TOKEN` (`tests/e2e/support/modes.ts`), so the harness would have to carry the token
-   * first. Do NOT "simplify" this away without landing that half.
+   * THE CREDENTIAL CONDITION IS LOAD-BEARING, NOT BELT-AND-BRACES (AUTHFIX-2, closed 2026-08-07). Without
+   * it this returned `true` for the un-credentialed `via:"fallback"` principal, and since the arm runs
+   * BEFORE the token check, `/api/_debug/*` served with no cookie and no `DEBUG_TOKEN` — unconditionally
+   * under `single-user`, and under an SSO mode to anyone who could reach the port and send
+   * `Host: 127.0.0.1`. Note what that means for the token: because the admin arm short-circuits the
+   * `expectedToken === undefined` → 404 branch too, UNSETTING `DEBUG_TOKEN` did not close it either.
+   * Behind the gate sit principal-blind whole-db reads whose `@owner-scope-ok` exemption
+   * (`foundation/observability/debug/inspect/config.ts`) rests entirely on this verdict.
+   *
+   * The enforcer is `tests/server/entry/debug-gate.suite.test.ts` — every AUTH_MODE × Host × token state,
+   * asserted through the REAL registrar. Do not weaken this without turning that suite red first.
    *
    * Never throws — a transport/db error resolves to `false` so a misbehaving seam can't open the gate.
    */
   async function isAdmin(headers: Headers): Promise<boolean> {
     try {
       const { principal } = await resolvePrincipal(headers);
-      if (principal === null) {
+      if (principal === null || !DEBUG_GATE_CREDENTIALED[principal.via]) {
         return false;
       }
       requireAdmin(principal);

@@ -46,6 +46,25 @@ export interface ModeProject {
 const SESSION_SECRET = "orbweaver-e2e-multimode-session-secret-insecure";
 const CREDENTIALS_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
+/**
+ * The `/api/_debug/*` credential every mode stack boots with — the harness's ONLY way onto that surface
+ * since AUTHFIX-2 (2026-08-07).
+ *
+ * Before that fix the debug gate's admin arm admitted the UN-CREDENTIALED owner fallback, so the debug
+ * witnesses (`fetchWireCaptures` / `inspectChatDb` / `fetchDebugErrors` in `trpc.ts`) worked with a bare
+ * `fetch` and no header. That convenience WAS the hole — on a real box it served provider request bodies to
+ * anyone who could reach the port — so the harness now presents the operator token like any other client.
+ * Set here (webServerEnv) and read there (`trpc.ts::debugHeaders`); the two must not drift, which is why
+ * this is one exported constant rather than two literals.
+ *
+ * Dev-only and deliberately non-secret, exactly like SESSION_SECRET/CREDENTIALS_KEY above — these stacks are
+ * throwaway (`E2E_HARNESS=on`, isolated DB + ports). Under `E2E_ALLOW_DEV_TARGET=1` the project boots the
+ * operator's dev stack VERBATIM, whose checked-in `.env` supplies its own `DEBUG_TOKEN` and wins (that path
+ * omits `ORB_ENV_NO_OVERRIDE`): export `DEBUG_TOKEN=<that value>` in the runner's shell for the debug
+ * witnesses to read there.
+ */
+export const E2E_DEBUG_TOKEN = "orbweaver-e2e-debug-token-insecure";
+
 /** The seeded local-mode credentials (owner via reset, member via createUser) — shared by the seed step and
  *  the specs' `loginLocal(...)` calls. Same handles the dev `multi-user-fixture.sh` uses. */
 export const LOCAL_OWNER = { handle: "owner", password: "owner-dev-pass" } as const;
@@ -75,6 +94,7 @@ export const SINGLE_USER: ModeProject = {
     CREDENTIALS_KEY,
     LOCAL_INITIAL_PASSWORD: "orbweaver-dev-password",
     WIRE_CAPTURE: "on",
+    DEBUG_TOKEN: E2E_DEBUG_TOKEN,
     E2E_HARNESS: "on",
     // The dev-target escape hatch boots/reuses the dev stack VERBATIM (its own .env-driven DB) — pinning
     // ports or a DB there would defeat the point of asking for the operator's stack.
@@ -121,6 +141,7 @@ const LOCAL: ModeProject = {
     CREDENTIALS_KEY,
     LOCAL_INITIAL_PASSWORD: LOCAL_OWNER.password,
     WIRE_CAPTURE: "on",
+    DEBUG_TOKEN: E2E_DEBUG_TOKEN,
     E2E_HARNESS: "on",
     PORT: LOCAL_BACKEND_PORT,
     VITE_PORT: LOCAL_VITE_PORT,
@@ -163,6 +184,7 @@ const FORWARD_HEADER: ModeProject = {
     // request literal, so this only needs to be non-empty to pass the "no trusted key source" gate).
     FORWARD_AUTH_VERIFY_JWT: "true",
     FORWARD_AUTH_JWKS_ALLOWLIST: "idp.e2e.local",
+    DEBUG_TOKEN: E2E_DEBUG_TOKEN,
     E2E_HARNESS: "on",
     PORT: FWD_BACKEND_PORT,
     VITE_PORT: FWD_VITE_PORT,

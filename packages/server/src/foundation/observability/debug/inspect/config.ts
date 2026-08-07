@@ -307,12 +307,23 @@ function renderPolicyVerdict(stored: { trustHtml: boolean | null; forbidExternal
 }
 
 /** One character's full row + its resolved render policy. `null` when the id does not exist. */
-// @owner-scope-ok: un-principal HOST read (D20). Every caller is `/api/_debug/*`, which is gated by the
-// admin-session cookie or DEBUG_TOKEN before any handler runs (`createDebugAuthMiddleware`) — there is no
-// per-user principal at this seam to scope BY, and the whole point of the probe is to answer "what does this
-// row actually hold" for an operator debugging their own deployment. The exemption ENDS the moment this
-// surface gains a non-admin caller: if `/api/_debug` ever admits a per-user principal, this read must take an
-// ownerId and filter on it, because it would then be a cross-tenant read of arbitrary caller-supplied ids.
+// @owner-scope-ok: un-principal HOST read (D20). Every caller is `/api/_debug/*`, and the ADMITTED SET
+// there is exactly two things: a holder of the `DEBUG_TOKEN` operator secret (a box-level credential, not a
+// principal at all), or a SESSION whose principal satisfies `can(p,'admin',global)` — i.e. `role` is
+// `owner` OR `admin` (D17). Both are box administrators; per D17 an `admin` already holds
+// `admin.resetPassword`/`setEnabled`/`setRole` and can assume any account at will, so filtering these reads
+// by the caller's own ownerId would raise the confidentiality bar by zero while breaking the probe's actual
+// job — answering "what does this row hold" about OTHER users' rows for an operator debugging their
+// deployment. There is no per-user principal at this seam to scope BY, and adding one would be a boundary
+// that looks like a control without being one.
+//
+// THIS EXEMPTION IS ENFORCED, NOT ASSERTED (constitution §2.3 — a prose-only boundary is a wish). Its whole
+// premise is "the gate ran first", and until AUTHFIX-2 (2026-08-07) that premise was FALSE: the gate's admin
+// arm admitted the un-credentialed owner fallback, so these reads served anyone who could reach the port.
+// The enforcer is now `tests/server/entry/debug-gate.suite.test.ts` — every AUTH_MODE × Host × token state,
+// driven through the real registrar. The exemption ENDS if the admitted set ever widens below admin: a
+// non-admin per-user principal here makes this a cross-tenant read of arbitrary caller-supplied ids, and
+// then these reads must take an ownerId and filter on it. Turn that suite red before widening anything.
 export async function characterDetailRow(db: Db, characterId: CharacterId, deployment: RenderPolicy | null): Promise<CharacterDetailRow | null> {
   const rows = await db.select().from(characters).where(eq(characters.id, characterId)).limit(1);
   const r = rows[0];
