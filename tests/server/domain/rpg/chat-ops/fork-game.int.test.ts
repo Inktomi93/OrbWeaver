@@ -16,12 +16,15 @@
 //   • host forker copies verbatim (they already read the secrets — no strip);
 //   • non-game source ⇒ cloned:false, no pointer (the fork stays plain).
 
+import type { UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { isDeceptionActive } from "@orb/contracts/rpg";
+import type { RpgGameConfig } from "@orb/contracts/rpg";
+import { isDeceptionActive, rpgGameConfigSchema, rpgGameFeaturesSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
-import { messageVariants, presets } from "@orb/db";
+import { messageVariants, presets, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type { ChatId, Handle, MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { getTableColumns } from "drizzle-orm";
 import { insertCheckpoint, listCheckpoints } from "../../../../../packages/server/src/domain/rpg/persistence/checkpoints.ts";
 import { findGameByChat, insertGame, updateGame } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
 import { insertJournalEntry, listAllJournal } from "../../../../../packages/server/src/domain/rpg/persistence/journal.ts";
@@ -33,7 +36,7 @@ import {
   writeHandSnapshot,
 } from "../../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../../support/db.ts";
-import { emptyState, expect, FROZEN_AT, liteConfig, makeRpgService, seedChat, seedMessage, seedUser, test } from "../_support.ts";
+import { actorWithWallet, emptyState, expect, FROZEN_AT, liteConfig, makeRpgService, quest, seedChat, seedMessage, seedUser, test } from "../_support.ts";
 
 /** A hidden-span `<lie …/>` the strip must remove. `stripHiddenSpans` deletes the whole self-closing tag, so
  *  the `truth` attr's secret never survives into a non-host forker's copy. */
@@ -529,6 +532,350 @@ test("a fork of a DISENGAGED game is born disengaged (the pointer mirrors the cl
 
   expect(h.fakes.pointers[0]?.engaged).toBe(false);
   expect((await findGameByChat(db, forkChatId))?.config.engaged).toBe(false);
+});
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE PER-COLUMN / PER-CONFIG-FIELD CLASSIFICATION + THE UNCLASSIFIED-FIELD TRIPWIRES (lane RPGFORK,
+// 2026-08-07 — the rpg twin of `chat/verbs/fork.ts`'s inversion).
+//
+// THE LAW (fork-game.ts): a column readable ONLY through a HOST-GATED surface does not survive the member→host
+// fork. rpg's host-only READ surface is exactly `getConfigView` + `revealHidden`; `getGame`/`getTrackerView`/
+// `listJournal`/`listCheckpoints`/`listTurnToolCalls` are all `resolveMember`, so every column those five serve
+// is already member-readable and copies verbatim.
+//
+// TWO RATCHETS, because the leak lived at two granularities. The five `fork*Values` builders are typed
+// `Required<…$inferInsert>` so a new COLUMN fails `tsc`; but `rpg_games.config` is ONE column holding a dozen
+// independently-gated FIELDS, and a table-level allow-list is structurally blind inside it — which is exactly
+// how three host-plane config fields rode the copy (`userMacros` bodies + the two hint maps, added after the
+// `steeringNote` strip list was written and never re-swept). `stripConfigForForker` is therefore an exhaustive
+// literal, and the two shape censuses below are its behavioral twin.
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════
+
+/** A game macro whose BODY is a GM secret. The member-gated picks pane (`chat.getUserMacroPicks`) projects
+ *  name+description+inputs and deliberately WITHHOLDS body/args as prompt content, so a member never reads
+ *  this string in the source room — `rpg.getConfigView` (host) is its only caller-facing reader. */
+const SECRET_MACRO: UserMacroSpec = {
+  name: "gm_twist",
+  description: "the act-3 turn",
+  args: [],
+  body: "GM SECRET: the innkeeper is the assassin's brother",
+  inputs: [],
+  strict: false,
+};
+
+/** The two host-authored steering GLOSS maps — `getConfigView`-only, consumed only into the assembled prompt. */
+const RELATIONSHIP_HINTS = { vassal: "GM SECRET: she obeys but will betray him" };
+const JOURNAL_TYPE_HINTS = { omen: "GM SECRET: every omen names the traitor" };
+
+/** Every HOST-PLANE field of `rpg_games.config`, paired with the value that proves it did NOT survive a
+ *  non-host fork. Accumulated (never a per-field `expect`) so one run names the WHOLE leak set — a per-field
+ *  assertion stops at the first and hides the rest of a multi-field regression. */
+function configLeaks(config: RpgGameConfig): string[] {
+  const leaked: string[] = [];
+  if (config.lite.steeringNote !== "") {
+    leaked.push("lite.steeringNote");
+  }
+  if (config.userMacros.length > 0) {
+    leaked.push("userMacros");
+  }
+  if (Object.keys(config.features.relationshipHints).length > 0) {
+    leaked.push("features.relationshipHints");
+  }
+  if (Object.keys(config.features.journalTypeHints).length > 0) {
+    leaked.push("features.journalTypeHints");
+  }
+  return leaked;
+}
+
+/** Seed a source game whose config carries EVERY host-plane field populated with a distinctive secret. */
+async function seedHostPlaneConfigGame(db: Db, key: string): Promise<{ chatId: ChatId; gameId: RpgGameId; messageId: MessageId; variantId: MessageVariantId }> {
+  const gm = await seedUser(db, castId<Handle>(key));
+  const chatId = await seedChat(db, `src_cfg_${key}`);
+  const gameId = castId<RpgGameId>(`rpg_game_cfg_${key}`);
+  const base = liteConfig();
+  await insertGame(db, {
+    id: gameId,
+    chatId,
+    mode: "lite",
+    status: "active",
+    sessionNumber: 1,
+    gmUserId: gm,
+    gmPresetId: null,
+    config: {
+      ...base,
+      lite: { steeringNote: "GM SECRET: Mara betrays the party in act 3" },
+      userMacros: [SECRET_MACRO],
+      features: { ...base.features, relationshipHints: RELATIONSHIP_HINTS, journalTypeHints: JOURNAL_TYPE_HINTS },
+    },
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "beat one" });
+  return { chatId, gameId, messageId, variantId };
+}
+
+test("§3.6 config: EVERY host-plane config field is stripped for a NON-HOST forker (the leak set is empty)", async () => {
+  const db = await freshDb();
+  const src = await seedHostPlaneConfigGame(db, "cfggm");
+  const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "cfg", src);
+
+  const h = makeRpgService(db);
+  await h.chatOps.forkGame({
+    sourceChatId: src.chatId,
+    newChatId: forkChatId,
+    slotIdMap,
+    variantIdMap,
+    forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
+  });
+
+  const forkConfig = (await findGameByChat(db, forkChatId))?.config as RpgGameConfig;
+  // ONE assertion names EVERY field that crossed the member→host boundary. Before the strips landed this read
+  // `[ 'userMacros', 'features.relationshipHints', 'features.journalTypeHints' ]`.
+  expect(configLeaks(forkConfig)).toEqual([]);
+  // …and the secret BYTES are gone, not merely the containers (a shape-only assertion would pass on a
+  // half-strip that kept the macro and blanked its name).
+  expect(JSON.stringify(forkConfig)).not.toContain("GM SECRET");
+
+  // The SOURCE is untouched — a fork copies, never mutates (and never "fixes" the host's own room).
+  const srcConfig = (await findGameByChat(db, src.chatId))?.config as RpgGameConfig;
+  expect(configLeaks(srcConfig)).toEqual(["lite.steeringNote", "userMacros", "features.relationshipHints", "features.journalTypeHints"]);
+});
+
+test("§3.6 config: a HOST forker carries every host-plane config field verbatim (they already read it all)", async () => {
+  const db = await freshDb();
+  const src = await seedHostPlaneConfigGame(db, "cfghost");
+  const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "cfgh", src);
+
+  const h = makeRpgService(db);
+  await h.chatOps.forkGame({
+    sourceChatId: src.chatId,
+    newChatId: forkChatId,
+    slotIdMap,
+    variantIdMap,
+    forker: { userId: castId<UserId>("user_cfghost"), readsHidden: true },
+  });
+
+  const forkConfig = (await findGameByChat(db, forkChatId))?.config as RpgGameConfig;
+  expect(forkConfig.lite.steeringNote).toBe("GM SECRET: Mara betrays the party in act 3");
+  expect(forkConfig.userMacros).toEqual([SECRET_MACRO]);
+  expect(forkConfig.features.relationshipHints).toEqual(RELATIONSHIP_HINTS);
+  expect(forkConfig.features.journalTypeHints).toEqual(JOURNAL_TYPE_HINTS);
+});
+
+test("§3.6 config: the MEMBER-readable config fields survive the strip (it is a strip, not a reset)", async () => {
+  const db = await freshDb();
+  const src = await seedHostPlaneConfigGame(db, "cfgkeep");
+  const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "cfgk", src);
+
+  const h = makeRpgService(db);
+  await h.chatOps.forkGame({
+    sourceChatId: src.chatId,
+    newChatId: forkChatId,
+    slotIdMap,
+    variantIdMap,
+    forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
+  });
+
+  const srcConfig = (await findGameByChat(db, src.chatId))?.config as RpgGameConfig;
+  const forkConfig = (await findGameByChat(db, forkChatId))?.config as RpgGameConfig;
+  // Everything a member reads through `getGame`/`getTrackerView` — plus the prose-free host-only scalars,
+  // whose strip would silently re-tune the fork's own game for zero secrecy gain.
+  const carried = {
+    ...srcConfig,
+    lite: { steeringNote: "" },
+    userMacros: [],
+    features: { ...srcConfig.features, relationshipHints: {}, journalTypeHints: {} },
+  };
+  expect(forkConfig).toEqual(carried);
+});
+
+test("EVERY rpg column is classified — a new column lands in its fork*Values or the copy takes it blind", () => {
+  // Read off the LIVE drizzle tables, so a schema addition reds here even if the `tsc` ratchet in fork-game.ts
+  // were worked around (a cast, a widened type). Two-sided: a dropped column reds too.
+  expect(Object.keys(getTableColumns(rpgGames)).sort()).toEqual(
+    ["id", "chatId", "mode", "status", "sessionNumber", "gmUserId", "gmPresetId", "config", "createdAt", "updatedAt"].sort(),
+  );
+  expect(Object.keys(getTableColumns(rpgSheets)).sort()).toEqual(["id", "gameId", "characterId", "userId", "sheet", "createdAt", "updatedAt"].sort());
+  expect(Object.keys(getTableColumns(rpgSnapshots)).sort()).toEqual(
+    [
+      "id",
+      "gameId",
+      "messageId",
+      "variantId",
+      "asOfMessageId",
+      "clock",
+      "calendarDate",
+      "location",
+      "weather",
+      "presentCharacters",
+      "recentEvents",
+      "actorState",
+      "trackerValues",
+      "quests",
+      "plot",
+      "fieldLocks",
+      "committed",
+      "createdAt",
+    ].sort(),
+  );
+  expect(Object.keys(getTableColumns(rpgJournal)).sort()).toEqual(
+    ["id", "gameId", "type", "label", "title", "content", "variantId", "sourceMessageId", "createdAt"].sort(),
+  );
+  expect(Object.keys(getTableColumns(rpgCheckpoints)).sort()).toEqual(["id", "gameId", "snapshotId", "label", "trigger", "createdAt"].sort());
+});
+
+/** The DROPPED arm of the allow-list's own failure mode (the class that lost `chats.userMacroValues` on the
+ *  chat fork): a builder that simply omits a COPIED column type-checks fine and silently nulls real data. This
+ *  census populates EVERY nullable column of the four row planes with a distinctive value and compares the copy
+ *  field-by-field, ACCUMULATING offenders so one run names the whole regression. */
+function droppedColumns(src: Record<string, unknown>, copy: Record<string, unknown>, copied: readonly string[]): string[] {
+  return copied.filter((column) => JSON.stringify(copy[column]) !== JSON.stringify(src[column]));
+}
+
+test("no COPIED column is silently dropped — every populated row-plane column survives the fork", async () => {
+  const db = await freshDb();
+  const gm = await seedUser(db, castId<Handle>("censusgm"));
+  const chatId = await seedChat(db, "src_census");
+  const gameId = castId<RpgGameId>("rpg_game_census");
+  await insertGame(db, {
+    id: gameId,
+    chatId,
+    mode: "lite",
+    status: "active",
+    sessionNumber: 7, // NOT the born default — a dropped counter would read 1 and look plausible.
+    gmUserId: gm,
+    gmPresetId: null,
+    config: liteConfig(),
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "beat one" });
+  // EVERY nullable snapshot column populated distinctively (a null-vs-value copy bug is otherwise invisible).
+  const snapshotId = castId<RpgSnapshotId>("rpg_snapshot_census");
+  await insertSnapshot(db, {
+    id: snapshotId,
+    gameId,
+    messageId,
+    variantId,
+    asOfMessageId: null,
+    clock: { day: 4, hour: 21, minute: 30 },
+    calendarDate: "3rd of Frostmoon",
+    location: "the drowned chapel",
+    weather: { type: "rain", label: "torrential sleet" },
+    presentCharacters: ["cast:mara"],
+    recentEvents: ["the bell rang twice"],
+    actorState: [actorWithWallet("mara", 12, 3)],
+    trackerValues: { morale: { value: 4, items: null, max: 10 } },
+    quests: [quest("ford", { name: "Cross the ford" })],
+    plot: { act: 2, title: "The reckoning", acts: [{ title: "Arrival", summary: "s1" }] },
+    fieldLocks: { "ambient.location": true },
+    committed: 1,
+    createdAt: FROZEN_AT,
+  });
+  await insertJournalEntry(db, {
+    id: castId("rpg_journal_census"),
+    gameId,
+    type: "custom",
+    label: "omen", // the R4c free gloss — born "" on the built-ins, so a drop hides behind the default
+    title: "The bell",
+    content: "It rang twice.",
+    variantId,
+    sourceMessageId: messageId,
+    createdAt: FROZEN_AT,
+  });
+  await upsertSheet(db, {
+    id: castId("rpg_sheet_census"),
+    gameId,
+    characterId: null,
+    userId: gm,
+    sheet: { className: "Warden", attributes: { grit: 3 }, flavor: "scarred", level: 5, trackerGrants: ["bound_will"], trackerRevokes: ["morale"] },
+    now: FROZEN_AT,
+  });
+  await insertCheckpoint(db, { id: castId("rpg_checkpoint_census"), gameId, snapshotId, label: "the ford", trigger: "manual", createdAt: FROZEN_AT });
+
+  const { forkChatId, slotIdMap, variantIdMap } = await seedForkTarget(db, "census", { messageId, variantId });
+  const h = makeRpgService(db);
+  await h.chatOps.forkGame({
+    sourceChatId: chatId,
+    newChatId: forkChatId,
+    slotIdMap,
+    variantIdMap,
+    forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
+  });
+
+  const srcGame = await findGameByChat(db, chatId);
+  const forkGame = await findGameByChat(db, forkChatId);
+  const fg = forkGame?.id as RpgGameId;
+  // rpg_games — `gmUserId` is deliberately nulled (lite is seatless) and `gmPresetId`/`config` have their own
+  // gates, so the COPIED set is what is left.
+  expect(droppedColumns({ ...srcGame }, { ...forkGame }, ["mode", "status", "sessionNumber"])).toEqual([]);
+  // rpg_snapshots — every state column but the hidden-span-belted `recentEvents` (proven by its own test).
+  const srcSnap = (await listSnapshots(db, gameId))[0];
+  const forkSnap = (await listSnapshots(db, fg))[0];
+  expect(
+    droppedColumns({ ...srcSnap }, { ...forkSnap }, [
+      "clock",
+      "calendarDate",
+      "location",
+      "weather",
+      "presentCharacters",
+      "actorState",
+      "trackerValues",
+      "quests",
+      "plot",
+      "fieldLocks",
+      "committed",
+    ]),
+  ).toEqual([]);
+  // rpg_journal — `content` runs the belt (its own test); the other three are member-readable via listJournal.
+  const srcJournal = (await listAllJournal(db, gameId))[0];
+  const forkJournal = (await listAllJournal(db, fg))[0];
+  expect(droppedColumns({ ...srcJournal }, { ...forkJournal }, ["type", "label", "title"])).toEqual([]);
+  // rpg_sheets — the whole sheet blob is member-projected by getTrackerView, so it copies whole.
+  const srcSheet = (await listSheets(db, gameId))[0];
+  const forkSheet = (await listSheets(db, fg))[0];
+  expect(droppedColumns({ ...srcSheet }, { ...forkSheet }, ["characterId", "userId", "sheet"])).toEqual([]);
+  // rpg_checkpoints — label + trigger are on the member-gated listCheckpoints row.
+  const srcCp = (await listCheckpoints(db, gameId))[0];
+  const forkCp = (await listCheckpoints(db, fg))[0];
+  expect(droppedColumns({ ...srcCp }, { ...forkCp }, ["label", "trigger"])).toEqual([]);
+});
+
+test("EVERY rpg_games.config FIELD is classified — the ratchet the table-level allow-list cannot see", () => {
+  // `config` is ONE column: `Required<typeof rpgGames.$inferInsert>` proves the column is named and proves
+  // NOTHING about what is inside it. This census is the blob's own tripwire, read off the LIVE zod shapes, so
+  // a new field must be classified in `stripConfigForForker`/`stripFeaturesForForker` before it can ship.
+  expect(Object.keys(rpgGameConfigSchema.shape).sort()).toEqual(
+    [
+      "engaged",
+      "statProfile",
+      "trackers",
+      "lite",
+      "extractionMode",
+      "extractionContext",
+      "extractionWindowTokens",
+      "reconcileEveryBeats",
+      "dateMode",
+      "features",
+      "userMacros",
+    ].sort(),
+  );
+  expect(Object.keys(rpgGameFeaturesSchema.shape).sort()).toEqual(
+    [
+      "relationshipHints",
+      "journalTypeHints",
+      "deception",
+      "omniscience",
+      "hiddenContentReveal",
+      "recentBeatsKeepLast",
+      "immersiveHtml",
+      "immersiveHtmlInteractive",
+      "cardKeepLastX",
+      "cyoa",
+      "cyoaChoiceBehavior",
+      "plotProgression",
+    ].sort(),
+  );
 });
 
 test("a NON-GAME source is a no-op (cloned:false), no pointer — the fork stays plain", async () => {

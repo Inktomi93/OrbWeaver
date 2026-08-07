@@ -1,6 +1,11 @@
 // domain/rpg/chat-ops/fork-game — `ChatRpgOps.forkGame` (fork-clones-the-game §3.2). Chat calls this AFTER its
-// atomic fork batch commits; rpg clones its whole 6-table vertical from the source game onto the fork through the
+// atomic fork batch commits; rpg clones FIVE of its six tables from the source game onto the fork through the
 // fork's id maps, in ONE `db.batch`, then writes the fork's `metadata.rpg` pointer LAST.
+//
+// THE SIXTH TABLE IS NOT COPIED: `rpg_turn_tool_calls` has no clone arm here (this header claimed a "whole
+// 6-table vertical" until 2026-08-07, which is what made the omission invisible to a sweep). Not a leak — the
+// rows are MEMBER-readable by design (`listTurnToolCalls` is `resolveMember`: "what the model DID on a turn you
+// watched"), so copying them would be safe; the fork simply loses its tool record. A product call, boarded.
 //
 // ONE-DIRECTIONAL FLOW: chat OWNS the `forkGame` shape (its front door); rpg SATISFIES it and reaches NO chat
 // table — it receives the fork's id maps + the forker's posture as DATA and re-keys its own rows. The pointer
@@ -13,39 +18,120 @@
 // failure after the batch leaves rows-but-no-pointer (the client shows a plain chat, healable — never a dangle).
 //
 // THE SECURITY CORE — host secrets never launder across the member→host transition (§3.6 applied to game data).
-// A NON-`readsHidden` forker was a plain member of the source room and never had host-plane access to its
-// secrets; forking makes them HOST of the copy, so the clone STRIPS:
+//
+// THE CLASSIFICATION LAW (one line, so a future column/config field is decidable without re-deriving §3.6):
+// A COLUMN READABLE ONLY THROUGH A HOST-GATED SURFACE DOES NOT SURVIVE THE MEMBER→HOST FORK. A non-host forker
+// becomes HOST of the copy, so anything the source room withheld from them as a member must not be recoverable
+// through the fork's own host reads. Everything a MEMBER could already read there copies verbatim — the fork
+// grants them nothing new. rpg's gate matrix, read off the verbs (rpg has no `ownerId`; authority is chat-FK
+// derived, D18/D20): the HOST-only reads are `getConfigView` + `revealHidden`, and NOTHING ELSE — `getGame`,
+// `getTrackerView`, `listJournal`, `listCheckpoints`, `listTurnToolCalls` are all `resolveMember`.
+//
+// THE ENFORCEMENT IS THE SHAPE, NOT THE LIST — two ratchets, because the leak lives at two granularities:
+//   • per-PLANE: the five `fork*Values` builders name EVERY column and return `Required<typeof X.$inferInsert>`,
+//     so a column added to any rpg table is a MISSING PROPERTY and fails `tsc` until its author classifies it.
+//     The predecessor spread `...row` and subtracted a hand-maintained strip list, which defaults a NEW column
+//     to COPIED — backwards at a trust boundary (`verbs/fork.ts` was inverted the same way, 2026-08-07).
+//   • per-CONFIG-FIELD: `rpg_games.config` is ONE column holding a dozen independently-gated fields, so a
+//     table-level allow-list is blind inside it. `stripConfigForForker` therefore builds an EXHAUSTIVE
+//     `RpgGameConfig`/`RpgGameFeatures` literal (no spread) — a new config field fails `tsc` here too. That
+//     blindness is what let three host-plane fields ride: the strip list was written for `steeringNote` and
+//     never re-swept when the two hint maps and WAVE MU's `userMacros` landed.
+//
+// What a NON-`readsHidden` forker's clone strips (each with the surface that proves it host-only):
 //   • `config.lite.steeringNote` → "" (a host-only GM directive `RpgConfigView` never serves to members);
+//   • `config.userMacros` → [] (the member-gated `chat.getUserMacroPicks` projects game macros as
+//     name+description+inputs ONLY — the BODY and `args` are prompt content it deliberately withholds, and a
+//     macro declaring no inputs is not projected at all; `getConfigView` is their only caller-facing reader.
+//     Dropped WHOLE, the `steeringNote` precedent: a body-less macro that silently expands to "" is worse
+//     than an absent one);
+//   • `config.features.relationshipHints` + `journalTypeHints` → {} (host-authored steering PROSE, rendered
+//     only on the GM console off `getConfigView` and consumed only into the PROMPT — the `steeringNote` class);
 //   • a FOREIGN `gmPresetId` → null (a preset the forker cannot read — else `resolvePresetOverride` would feed
 //     the source host's private preset into the forker's own turns, the [[injected-op-caller-gate]] class);
 //   • hidden-span prose in snapshot `recentEvents` + journal `content` (the defense-in-depth belt — §1.6
 //     recommendation A keeps tracker prose surface-only at the SOURCE, so under A there is nothing to strip;
 //     this belt keeps the fork member-safe even if a model ignored the surface-only clause — the SAME
 //     `stripHiddenSpans` the fork body-copy already applies, `verbs/fork.ts::copyVariantStmt`).
+// The remaining host-only config fields are SCALARS and COPY (`extractionContext`/`extractionWindowTokens`/
+// `reconcileEveryBeats`/`deception`/`omniscience`/`hiddenContentReveal`/`recentBeatsKeepLast`/
+// `immersiveHtmlInteractive`/`cardKeepLastX`): no authored prose is representable in an enum or a bounded
+// number, and blanking them would silently re-tune the fork's own game for zero secrecy gain (the
+// `reasoningEffort`/`maxOutputTokens` carve-out `verbs/fork.ts` makes on the same law).
 // A `readsHidden` forker (the source host) copies verbatim — they already read every secret.
 
-import type { RpgGameConfig } from "@orb/contracts/rpg";
+import type { RpgGameConfig, RpgGameFeatures } from "@orb/contracts/rpg";
 import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { stripHiddenSpans } from "@orb/kit/content";
 import type { MessageId, MessageVariantId, PresetId, RpgGameId, RpgSnapshotId, UserId } from "@orb/kit/ids";
 import type { ForkGameArgs, ForkGameResult } from "../../chat/index.ts";
-import type { RpgCheckpointRow, RpgContext, RpgGameRow, RpgJournalRow, RpgSheetRow, RpgSnapshotRow } from "../contract/service.ts";
+import type { RpgCheckpointRow, RpgContext, RpgJournalRow, RpgSheetRow, RpgSnapshotRow } from "../contract/service.ts";
 import { listCheckpoints } from "../persistence/checkpoints.ts";
 import { findGameByChat } from "../persistence/games.ts";
 import { listAllJournal } from "../persistence/journal.ts";
 import { listSheets } from "../persistence/sheets.ts";
 import { listSnapshots } from "../persistence/snapshots.ts";
 
-/** Strip the host-only `steeringNote` from a cloned config for a non-host forker (identity for a host forker).
- *  Everything else (statProfile, features, extraction knobs, userMacros) is play-style — member-visible by
- *  design, so it carries. Returns a fresh object (never mutates the parsed source row's config). */
+/** The `rpg_games.config` blob's per-FIELD classification for a non-host forker (identity for a host forker).
+ *  EXHAUSTIVE LITERAL, deliberately not a spread: the table-level `Required<…$inferInsert>` ratchet sees one
+ *  `config` column and cannot tell that a dozen independently-gated fields live inside it, so this literal is
+ *  the ratchet for the blob — a new `RpgGameConfig` field is a missing property and fails `tsc` until its
+ *  author decides whether a member could read it. Returns a fresh object (never mutates the parsed source row). */
 function stripConfigForForker(config: RpgGameConfig, readsHidden: boolean): RpgGameConfig {
   if (readsHidden) {
     return config;
   }
-  return { ...config, lite: { ...config.lite, steeringNote: "" } };
+  return {
+    // ── COPIED — member-readable in the source room, so the fork grants nothing new ──────────────────────
+    // `engaged` rides `ChatRpgPointer` onto every viewer's `ChatDetail`; `statProfile`/`dateMode` are
+    // `getGame`'s `publicConfig`; `trackers` IS `getTrackerView`'s `trackerDefs` (whole, hints included);
+    // `extractionMode` is on `getGame`. The three extraction-DEPTH knobs are host-only but scalar (an enum and
+    // two bounded numbers — no authored prose is representable, and blanking them re-tunes the fork's own game).
+    engaged: config.engaged,
+    statProfile: config.statProfile,
+    trackers: config.trackers,
+    extractionMode: config.extractionMode,
+    extractionContext: config.extractionContext,
+    extractionWindowTokens: config.extractionWindowTokens,
+    reconcileEveryBeats: config.reconcileEveryBeats,
+    dateMode: config.dateMode,
+    // ── HOST-PLANE — served ONLY behind `getConfigView`'s `resolveHost` ──────────────────────────────────
+    // The GM directive. Blanked, never removed: `lite` is a required sub-object and the note has a "" default.
+    lite: { steeringNote: "" },
+    // WAVE MU: the game's authored macros. The picks pane (`chat.getUserMacroPicks`, member-gated) projects
+    // name+description+inputs and WITHHOLDS the body/args as prompt content — so the bodies have no
+    // member-gated reader at all, and an input-less macro has no member-visible existence. Dropped WHOLE.
+    userMacros: [],
+    features: stripFeaturesForForker(config.features),
+  };
+}
+
+/** The `features` sub-blob's per-field classification for a non-host forker — the same exhaustive-literal
+ *  ratchet one level down (a new feature knob fails `tsc` here). Only the two HINT MAPS are host-plane: they
+ *  are host-authored steering PROSE (label → gloss) whose only caller-facing reader is `getConfigView` and
+ *  whose only consumer is the assembled PROMPT (the reminder's actor line, the delta block, the extraction
+ *  ask) — the `steeringNote` class exactly. Every other knob is a boolean/number/enum: member-visible on
+ *  `getGame`'s `publicConfig` (`immersiveHtml`/`cyoa`/`cyoaChoiceBehavior`/`plotProgression`) or host-only but
+ *  prose-free, where a strip would change the fork's mechanics and disclose nothing. */
+function stripFeaturesForForker(features: RpgGameFeatures): RpgGameFeatures {
+  return {
+    // ── HOST-PLANE ──────────────────────────────────────────────────────────────────────────────────────
+    relationshipHints: {},
+    journalTypeHints: {},
+    // ── COPIED ──────────────────────────────────────────────────────────────────────────────────────────
+    deception: features.deception,
+    omniscience: features.omniscience,
+    hiddenContentReveal: features.hiddenContentReveal,
+    recentBeatsKeepLast: features.recentBeatsKeepLast,
+    immersiveHtml: features.immersiveHtml,
+    immersiveHtmlInteractive: features.immersiveHtmlInteractive,
+    cardKeepLastX: features.cardKeepLastX,
+    cyoa: features.cyoa,
+    cyoaChoiceBehavior: features.cyoaChoiceBehavior,
+    plotProgression: features.plotProgression,
+  };
 }
 
 /** The defense-in-depth belt: strip hidden-class spans from tracker prose for a non-host forker (identity when
@@ -70,13 +156,26 @@ interface CloneCtx {
   readonly now: number;
 }
 
-/** rpg_sheets — copy ALL rows verbatim (owner ratified: a fork copies all sheets). New id + new gameId; actor
- *  identity (characterId XOR userId) carries — a dropped seat's sheet is invisible-but-preserved, and a
- *  re-invite finds it waiting. Sheet data is member-visible identity (no host secret), so no strip. */
+/** rpg_sheets — copy ALL rows (owner ratified: a fork copies all sheets). EVERY column is COPIED: a sheet is
+ *  per-actor IDENTITY data and `getTrackerView` (member-gated) projects each roster actor's whole sheet —
+ *  className, attributes, flavor, level, grants, revokes. A sheet whose actor is NOT on the roster is projected
+ *  nowhere, in the source AND in the fork, so it stays invisible-but-preserved either side of the copy (a
+ *  re-invite finds it waiting). Only the keys move: fresh id, the fork's gameId; actor identity (characterId
+ *  XOR userId) carries, and the timestamps stamp the copy. */
+function forkSheetValues(cc: CloneCtx, s: RpgSheetRow): Required<typeof rpgSheets.$inferInsert> {
+  return {
+    id: cc.ctx.ids.sheet(),
+    gameId: cc.newGameId,
+    characterId: s.characterId,
+    userId: s.userId,
+    sheet: s.sheet,
+    createdAt: cc.now,
+    updatedAt: cc.now,
+  };
+}
+
 function cloneSheets(cc: CloneCtx, sheets: readonly RpgSheetRow[]): BatchStmt[] {
-  return sheets.map((s) =>
-    batchStmt(cc.ctx.db.insert(rpgSheets).values({ ...s, id: cc.ctx.ids.sheet(), gameId: cc.newGameId, createdAt: cc.now, updatedAt: cc.now })),
-  );
+  return sheets.map((s) => batchStmt(cc.ctx.db.insert(rpgSheets).values(forkSheetValues(cc, s))));
 }
 
 /** rpg_snapshots — the D124 two arms, each with its own horizon rule:
@@ -100,20 +199,48 @@ function cloneSnapshots(cc: CloneCtx, snapshots: readonly RpgSnapshotRow[]): { s
     }
     const newSnapshotId = cc.ctx.ids.snapshot();
     snapshotIdMap.set(snap.id, newSnapshotId);
-    stmts.push(
-      batchStmt(
-        cc.ctx.db.insert(rpgSnapshots).values({
-          ...snap,
-          ...keys,
-          id: newSnapshotId,
-          gameId: cc.newGameId,
-          recentEvents: stripBeatsForForker(snap.recentEvents, cc.readsHidden),
-          createdAt: cc.now,
-        }),
-      ),
-    );
+    stmts.push(batchStmt(cc.ctx.db.insert(rpgSnapshots).values(forkSnapshotValues(cc, snap, keys, newSnapshotId))));
   }
   return { stmts, snapshotIdMap };
+}
+
+/** ONE cloned snapshot's columns. EVERY state column is COPIED: `getTrackerView` is MEMBER-gated and projects
+ *  the resolved-current snapshot WHOLE — ambient (clock/calendarDate/location/weather), `presentCharacters` as
+ *  `cast`, `actorState` (identity + volatile) as `actors`, `trackerValues`, `quests`, `plot`, and `fieldLocks`
+ *  as `lockedPaths`. `committed` is an internal commit-lifecycle bit with no caller-facing reader at all (the
+ *  `metadata` precedent one domain over: a server-internal field whose drop would only desync the copy).
+ *  `recentEvents` is the one MEMBER-PROJECTED column — the hidden-span belt; its host-only tail beyond
+ *  `recentBeatsKeepLast` still copies, because the same distillation class is served to every member unbounded
+ *  and unfloored by the member-gated `listJournal`. The keys arrive pre-resolved from {@link forkSnapshotKeys}. */
+function forkSnapshotValues(
+  cc: CloneCtx,
+  snap: RpgSnapshotRow,
+  keys: Pick<RpgSnapshotRow, "messageId" | "variantId" | "asOfMessageId">,
+  newSnapshotId: RpgSnapshotId,
+): Required<typeof rpgSnapshots.$inferInsert> {
+  return {
+    // ── REMAPPED ────────────────────────────────────────────────────────────────────────────────────────
+    id: newSnapshotId,
+    gameId: cc.newGameId,
+    messageId: keys.messageId,
+    variantId: keys.variantId,
+    asOfMessageId: keys.asOfMessageId,
+    // ── MEMBER-PROJECTED ────────────────────────────────────────────────────────────────────────────────
+    recentEvents: stripBeatsForForker(snap.recentEvents, cc.readsHidden),
+    // ── COPIED ──────────────────────────────────────────────────────────────────────────────────────────
+    clock: snap.clock,
+    calendarDate: snap.calendarDate,
+    location: snap.location,
+    weather: snap.weather,
+    presentCharacters: snap.presentCharacters,
+    actorState: snap.actorState,
+    trackerValues: snap.trackerValues,
+    quests: snap.quests,
+    plot: snap.plot,
+    fieldLocks: snap.fieldLocks,
+    committed: snap.committed,
+    createdAt: cc.now,
+  };
 }
 
 /** The re-keyed ARM columns for one cloned snapshot, or `null` when the row does not survive the fork. The
@@ -145,21 +272,35 @@ function cloneJournal(cc: CloneCtx, journal: readonly RpgJournalRow[]): BatchStm
       newVariantId = mapped;
     }
     const newSourceMessageId = j.sourceMessageId !== null ? (cc.slotIdMap.get(j.sourceMessageId) ?? null) : null;
-    stmts.push(
-      batchStmt(
-        cc.ctx.db.insert(rpgJournal).values({
-          ...j,
-          id: cc.ctx.ids.journal(),
-          gameId: cc.newGameId,
-          variantId: newVariantId,
-          sourceMessageId: newSourceMessageId,
-          content: cc.readsHidden ? j.content : stripHiddenSpans(j.content).content,
-          createdAt: cc.now,
-        }),
-      ),
-    );
+    stmts.push(batchStmt(cc.ctx.db.insert(rpgJournal).values(forkJournalValues(cc, j, newVariantId, newSourceMessageId))));
   }
   return stmts;
+}
+
+/** ONE cloned journal entry's columns. `type`/`label`/`title`/`content` are all COPIED — `listJournal` is
+ *  MEMBER-gated and serves exactly those four, so the archive is already member-readable in the source room.
+ *  `content` additionally runs the hidden-span BELT (member-projected) for a non-host forker; `title` does not,
+ *  because the source's own member read serves it unstripped and the fork must not be the only place a title
+ *  differs. Entries on a NON-SELECTED lineage copy too: the fork's canon already carries those variants, and
+ *  their unreachability in the source is a WRITE gate (`selectVariant` is author-or-host — an authority over
+ *  what the room shows), not a read-secrecy boundary. */
+function forkJournalValues(
+  cc: CloneCtx,
+  j: RpgJournalRow,
+  newVariantId: MessageVariantId | null,
+  newSourceMessageId: MessageId | null,
+): Required<typeof rpgJournal.$inferInsert> {
+  return {
+    id: cc.ctx.ids.journal(),
+    gameId: cc.newGameId,
+    variantId: newVariantId,
+    sourceMessageId: newSourceMessageId,
+    content: cc.readsHidden ? j.content : stripHiddenSpans(j.content).content,
+    type: j.type,
+    label: j.label,
+    title: j.title,
+    createdAt: cc.now,
+  };
 }
 
 /** rpg_checkpoints — copy iff its snapshot was copied (re-key snapshotId through the snapshot-id map). The
@@ -171,13 +312,23 @@ function cloneCheckpoints(cc: CloneCtx, checkpoints: readonly RpgCheckpointRow[]
     if (newSnapshotId === undefined) {
       continue; // its snapshot was past the horizon — the checkpoint has no target in the fork.
     }
-    stmts.push(
-      batchStmt(
-        cc.ctx.db.insert(rpgCheckpoints).values({ ...c, id: cc.ctx.ids.checkpoint(), gameId: cc.newGameId, snapshotId: newSnapshotId, createdAt: cc.now }),
-      ),
-    );
+    stmts.push(batchStmt(cc.ctx.db.insert(rpgCheckpoints).values(forkCheckpointValues(cc, c, newSnapshotId))));
   }
   return stmts;
+}
+
+/** ONE cloned checkpoint's columns. `label` + `trigger` are COPIED: `listCheckpoints` is MEMBER-gated and
+ *  returns the ROW, so a host-authored bookmark label is already member-readable in the source (only the
+ *  RESTORE is host-gated, and that is an authority over room state, not a read gate). */
+function forkCheckpointValues(cc: CloneCtx, c: RpgCheckpointRow, newSnapshotId: RpgSnapshotId): Required<typeof rpgCheckpoints.$inferInsert> {
+  return {
+    id: cc.ctx.ids.checkpoint(),
+    gameId: cc.newGameId,
+    snapshotId: newSnapshotId,
+    label: c.label,
+    trigger: c.trigger,
+    createdAt: cc.now,
+  };
 }
 
 /** Clone the source chat's game onto the fork (§3.2). No-op (`cloned:false`) for a non-game source: the fork
@@ -206,14 +357,22 @@ export async function forkGame(ctx: RpgContext, args: ForkGameArgs): Promise<For
   // forker's own turns would resolve the source host's private preset (the cross-tenant read the strip closes).
   const gmPresetId = await resolveForkGmPreset(ctx, source.gmPresetId, forker.userId);
   const config = stripConfigForForker(source.config, forker.readsHidden);
-  const gameRow: RpgGameRow = {
-    ...source,
+  const gameRow: Required<typeof rpgGames.$inferInsert> = {
+    // ── REMAPPED ────────────────────────────────────────────────────────────────────────────────────────
     id: newGameId,
     chatId: newChatId,
+    // ── HOST-PLANE / RE-RESOLVED — the two seat knobs ───────────────────────────────────────────────────
     // Lite is seatless (`gmUserId` always NULL); carry-if-forker-is-holder is a full-mode concern (deferred).
     gmUserId: null,
     gmPresetId,
+    // The blob carries its OWN per-field classification (see {@link stripConfigForForker}).
     config,
+    // ── COPIED ──────────────────────────────────────────────────────────────────────────────────────────
+    // `mode` + `status` are both on `getGame` (member-gated). `sessionNumber` is born 1 and never written
+    // again in lite; its only reader is the owner-gated `/api/_debug` inspector — a counter, no authored bytes.
+    mode: source.mode,
+    status: source.status,
+    sessionNumber: source.sessionNumber,
     createdAt: now,
     updatedAt: now,
   };

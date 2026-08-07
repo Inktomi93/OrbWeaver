@@ -81,6 +81,8 @@ export function PersonaPanelRow({
     }
   };
 
+  const selectLabel = selectTargetLabel(persona.name, isCurrent);
+
   const onToggleFavorite = (): void => {
     update.mutate({ personaId: persona.id, input: { starred: !persona.starred } });
   };
@@ -109,9 +111,11 @@ export function PersonaPanelRow({
         gap="row"
         padding="field"
       >
+        {/* `aria-current` STAYS beside the state-aware name (see `selectLabel`) — it is what makes this row
+            findable as "the one" among same-shaped siblings. */}
         <Button
           aria-current={isCurrent ? "true" : undefined}
-          aria-label={`Switch to ${persona.name}`}
+          aria-label={selectLabel}
           className="absolute inset-0 rounded-control"
           intent="ghost"
           onClick={onSetCurrent}
@@ -251,8 +255,12 @@ export function PersonaPanelRow({
                 that ruling reserved words for the current persona, but `ROW_REVEAL_SWAP` computes
                 `display:none` at coarse, so the words never rendered on a phone — the ruling stands where
                 its premise holds (fine pointer) and the coarse row states "current" through the selected
-                tint + the stretched button's `aria-current`. Spending the reclaimed 50px on a kicker the
-                row cannot afford would just re-buy the truncation this collapse exists to end. */}
+                tint plus the stretched button's `aria-current` AND its state-aware NAME
+                (`selectTargetLabel` — "Traveler — current persona"), which is the words in the place a
+                320px row can actually afford them. Spending the reclaimed 50px on a second kicker would
+                just re-buy the truncation this collapse exists to end. The collapse does not move the
+                name: it touches only the trailing cluster, and the select target is the stretched Button
+                either way, at every pointer class. */}
             <Row align="center" className={ROW_ACTION_INLINE} gap="field" justify="end">
               <IconAction
                 {...(persona.starred ? { className: "text-destructive" } : {})}
@@ -362,6 +370,17 @@ function PersonaRowMenu({
       </MenuItem>
     </RowActionsMenu>
   );
+}
+
+/** The stretched select target's accessible name — STATE-AWARE (side-eye 2026-08-07 P3a).
+ *
+ *  A fixed `Switch to X` made a screen reader announce "Switch to Traveler, current true" on the persona you
+ *  are ALREADY playing as: a verb offering an act that is a no-op, contradicted by its own `aria-current` one
+ *  word later. §13.10 N4 names a control by what activating it DOES, and on the current row there is nothing
+ *  to do; N3 keeps the STABLE identity — the persona's name — leading in BOTH arms, so a name-scoped lookup
+ *  survives the Current pick moving. File-local: this is the row's own naming rule, not a shared vocabulary. */
+function selectTargetLabel(name: string, isCurrent: boolean): string {
+  return isCurrent ? `${name} — current persona` : `Switch to ${name}`;
 }
 
 /** The ONE delete-confirm body — both confirms (the kebab's and the editor's) render it. */

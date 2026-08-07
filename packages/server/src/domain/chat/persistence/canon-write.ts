@@ -154,6 +154,22 @@ function variantEconomics(v: CanonVariantInput): VariantEconomics {
   };
 }
 
+/** The freeze-provenance NULL CONVENTION (D129-F), enforced at the ONE writer rather than trusted to every
+ *  caller: `raw_content` is NULL ⇔ byte-identical to `content` (so the overwhelming common case — a body no
+ *  persist-time transform touched — costs zero bytes and no reader has to compare), and `macro_freezes` is
+ *  NULL ⇔ nothing froze (never `[]`, matching the `toolCalls`/`macroDraws` null discipline). A caller that
+ *  hands over a raw equal to the content, or an empty record, cannot violate the convention from here. */
+function freezeProvenanceColumns(
+  content: string,
+  rawContent: string | null | undefined,
+  macroFreezes: MacroFreezeRecord | null | undefined,
+): { rawContent: string | null; macroFreezes: MacroFreezeRecord | null } {
+  return {
+    rawContent: rawContent === null || rawContent === undefined || rawContent === content ? null : rawContent,
+    macroFreezes: macroFreezes === null || macroFreezes === undefined || macroFreezes.length === 0 ? null : macroFreezes,
+  };
+}
+
 /** Map a variant payload → the `message_variants` insert columns. */
 function variantColumns(args: {
   readonly variantId: MessageVariantId;
@@ -176,8 +192,7 @@ function variantColumns(args: {
     macroDraws: args.variant.macroDraws ?? null,
     // Raw + freeze provenance — null unless a persist-time transform actually changed bytes / a volatile
     // macro actually froze (the columns' own contract; see schema/chat.ts).
-    rawContent: args.variant.rawContent ?? null,
-    macroFreezes: args.variant.macroFreezes ?? null,
+    ...freezeProvenanceColumns(args.variant.content, args.variant.rawContent, args.variant.macroFreezes),
     createdAt: args.now,
   };
 }
@@ -327,6 +342,36 @@ export function continueVariantStatements(
         .where(eq(messageVariants.id, params.variantId)),
     ),
   ];
+}
+
+/**
+ * The COMMIT-TIME VOLATILE FREEZE applied to an ALREADY-PERSISTED variant (D129-F) — today the greeting
+ * first-user-turn bake (`freezeGreetingVolatiles`). Distinct from {@link setVariantContentStatement} (the
+ * continue undo/redo content swap) because a freeze is not a content edit: it rewrites `content` AND records
+ * the provenance that makes the rewrite reversible — the pre-freeze body in `raw_content` and the occurrences
+ * it baked in `macro_freezes`, through the same NULL convention every fresh insert obeys. `reasoning` and the
+ * economics columns are untouched: nothing generated here.
+ */
+export function freezeVariantContentStatement(
+  db: Db,
+  params: {
+    readonly variantId: MessageVariantId;
+    /** The post-freeze body (what every consumer now reads). */
+    readonly content: string;
+    /** The body as it stood BEFORE this bake. */
+    readonly rawContent: string;
+    readonly macroFreezes: MacroFreezeRecord;
+  },
+): BatchStmt {
+  return batchStmt(
+    db
+      .update(messageVariants)
+      .set({
+        content: params.content,
+        ...freezeProvenanceColumns(params.content, params.rawContent, params.macroFreezes),
+      })
+      .where(eq(messageVariants.id, params.variantId)),
+  );
 }
 
 /** Set a variant's `content`/`reasoning` directly (the `undoContinue`/`revertContinue` restore — a

@@ -385,8 +385,10 @@ test("mobile: the You tab opens the sheet; an overflow section routes and closes
   await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Switch theme" })).toBeVisible();
   await expect(page.getByText("Playing as")).toBeVisible();
-  // …and it is the CURRENT persona's row that says it (the row is the identity's ONE home, P2).
-  await expect(page.getByRole("button", { name: `Switch to ${SHEET_PERSONA.name}` })).toHaveAttribute("aria-current", "true");
+  // …and it is the CURRENT persona's row that says it (the row is the identity's ONE home, P2). The row's
+  // select target is STATE-AWARE (side-eye 2026-08-07 P3a): on the persona you are already playing as it is
+  // named for the state, not for a switch that would be a no-op — "Switch to X, current true" was the defect.
+  await expect(page.getByRole("button", { name: `${SHEET_PERSONA.name} — current persona` })).toHaveAttribute("aria-current", "true");
   await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Refinery" })).toBeVisible();
   // The sheet's own container is RENDERED (the close assertion below is then about a real disappearance).
