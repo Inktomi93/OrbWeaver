@@ -203,6 +203,15 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   fix · zod stage D in full · the §-refs carve-out · cast guides threaded · settings write-guard
   lift · tag cliff ACCEPTED · strict default KEPT · orphan-transcript import REJECT (owner override
   of the characterless rec). Rows annotated in place; buildables dispatched as lane RULED-BATCH.
+- [ ] **STACK-MODES (owner order 2026-08-07: "no clean way to launch in debug or production mode"; lane
+  dispatched).** The debug handoff doc's §1 IS the indictment: prod = a hand-rolled setsid/nohup
+  incantation with two silent cwd traps, pid-hunting via ss, manual drain-watch; debug = hand-editing
+  `.env` and stripping it after. Build: `pnpm stack` gains `dev|prod` modes + an orthogonal `--debug`
+  flag (env OVERLAY at spawn, never .env mutation); stop/restart watches the bounded drain; instance-
+  IDENTITY verification (\[\[health-check-validates-the-port-not-your-process]]); adopt-in-place;
+  status never prints the token. Handoff doc §1-2 repointed in the same commit. Verified by argv/env
+  snapshots + pure-logic units — the first real `stack up prod` is the owner's live check
+  (\[\[never-run-engine-launcher-live]]).
 - [ ] **DRAFT-PHASE UX (owner dogfood, 2026-08-07, verbatim: "character backgrounds and avatars also
   dont show up until the first message... the whole 'draft' mode is sloppy as fuck and makes for bad
   ux").** Two-part row, lane DRAFT-POLISH dispatched: (1) FIX — backgrounds/avatars render from
