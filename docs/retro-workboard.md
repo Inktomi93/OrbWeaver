@@ -55,7 +55,56 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   --retries=2` — ONE behavioral lane since 2026-07-17, stated in `scripts/verify/registry.ts:304`), but
   because a LANE is banned from running the whole battery. A CT nobody names is a CT that lane nobody ran.
 
-## ═══ STATE (2026-08-03, after the tsx migration + the guard fix) ═══
+## ═══ STATE (2026-08-07 — the BASE UI 1.7 PROGRAM is live; 5 lanes dispatched) ═══
+
+- **main @ `4e1a3f8ea`**, tree clean. A push landed since the last board write (`origin/main =
+  4ecb3110d`, server-verified); local is 3 ahead. **⛔ DEV HALT (dogfood doc) still governs feature
+  work** — the Base UI program is foundation/enforcement work the owner ordered, not new features.
+- ✅ **THE GEMINI DIRTY TREE — AUDITED HUNK-BY-HUNK AND BANKED** (owner's Aug-4–6 work with Gemini,
+  ~42 files). Landed as three hook-green commits after the full battery (10,154 vitest + 2,390 CT):
+  `d732be317` (Base UI 1.6→1.7 + blur/dirty/touched plumbing + SettingRow→Field, setting-row primitive
+  DELETED with manifest ledger + doc repoint) · `8db32e86a` (node-26 BodyInit copies + the card-tier
+  TEST-PIN inversion — see below) · `4e1a3f8ea` (the ST-parity goldens rig, quarantined; the 48-page
+  Base UI 1.7 docs mirror at `docs/vendor/base-ui/`).
+  **Two Gemini defects caught by the audit:** (1) the debug sweep's `cardTier` was RE-inverted against
+  `render-trust.ts:77` — reverted; root cause was (2) **`config.int.test.ts` at HEAD pinned the
+  PRE-fix inverted mapping** ("sandbox the untrusted") — `9f30b7045` fixed the code, missed the pins,
+  HEAD's battery was RED there, and the stale pins taught Gemini to re-invert the fixed code. Six
+  assertions corrected to the renderer's law (trusted ⇒ tierB immersive) + a polarity comment citing
+  the CARD-TRUST adjudication. Instruments-lie, test-pin flavor.
+  **Also fixed at landing:** input.tsx hand-wrapper reverted (1.7 Input has NATIVE onValueChange);
+  textarea rides Field.Control's native arm; autocomplete/combobox eventDetails typed by DERIVATION
+  (`Parameters<>` off the Root prop — the pattern that makes drift impossible); wire-capture `as any`
+  → `TURNS_FLOOR` spread; README de-goldened; all scratch debris deleted.
+- **LANE ROSTER — 5 LIVE (dispatched 2026-08-07, the Base UI 1.7 program):**
+  **UI17** (executor) — full 1.7 surface alignment across every `@base-ui` import in packages/ui
+  (derive-not-respell sweep · anatomy ledger in `ui-package-design.md` · Toolbar Group/Link/Input ·
+  Combobox grouping parity · className+style function-form RULING drafted for the owner).
+  **NAVFORM** (executor) — the form id/name navigability program (owner's ask): the ~26 bare inputs,
+  Field.Control registration class, the SettingRow id-prop amputation (9 consumers), the ZERO
+  console-warning CT receipt. Owns `field.tsx` + client forms; UI17 stays out.
+  **BUGATES** (executor) — the Base UI enforcement system: surface-manifest bump tripwire (installed
+  type surface vs committed manifest — a version bump cannot land unadjudicated) + the gates
+  (derives-not-respells · anatomy-completeness reading the ledger · render-prop · state-data-attrs ·
+  portal-container · event-signature · field-control). Lands LAST on the sibling-fixed tree.
+  **⚑ namespace-imports gate: PREMISE DIED** — the 1.7 docs' own Canonical-Types tables sanction the
+  flat aliases; release notes carry NO namespace break; crunch §7 overstated. Owner may still rule
+  namespace style as taste → that ruling mints the gate, not the lane.
+  **CARDKEEP** (executor) — cardKeepLastX Option A (owner-ruled): thread ABSENT (no rpg game ⇒ NO
+  card window) from `turn.ts:590` end-to-end; the pipeline half landed in `8db32e86a`.
+  **GOLDHOME** (executor) — goldens rig → `scripts/probes/st-goldens/`, dissolving its NINE
+  carve-outs; type-drift fixed so the graph program owns the scripts. The 504MB ignored-runtime `mv`
+  is the ORCHESTRATOR'S at merge (merge → mv → consolidated check → teardown; ruled mid-run).
+- **Docs mirror:** `docs/vendor/base-ui/` = verbatim 48-page 1.7.0 snapshot (INDEX.md; outside the
+  docs-format glob by construction). Read IN FULL by 4 reader agents + orchestrator (handbook law);
+  reports informed every brief. Re-fetch on bump — the manifest gate will force the adjudication.
+- **Owner forks OPEN from the program:** (1) className/style function-form — keep string-only as seal
+  law (REC) or support functions; UI17 drafts, owner ratifies. (2) namespace-imports style ruling
+  (above). (3) context-menu: our shim (member-row `onContextMenu` → click the Menu trigger) lacks
+  pointer-position anchoring + long-press vs real `ContextMenu.Root` — UI17 reports effort; owner
+  decides build/keep-shim.
+
+## ═══ STATE (2026-08-03, after the tsx migration + the guard fix — HISTORICAL, superseded above) ═══
 
 - **main @ `fe8f677f8`**, tree clean, **17 commits past origin** (`origin/main = f8cb5e948`,
   SERVER-VERIFIED via `git ls-remote`, not the console summary). Gates **183**. D-ledger through
