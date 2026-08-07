@@ -3,7 +3,7 @@
 // Order: scope-to-speaker → splice in_chat by depth → name-stamp → squash same-role → continuation nudge.
 // Name-stamp runs before the final squash so adjacent distinct-character rows keep every speaker's label.
 
-import type { AssembleContext, ChatInjection, GroupConfig, MessageView } from "@orb/contracts/chat";
+import type { AssembleContext, ChatInjection, GroupConfig, MessageView, ShapeRowSource, ShapeTraceRow } from "@orb/contracts/chat";
 import type { RoleHandling } from "@orb/contracts/connection";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -15,7 +15,7 @@ import { applyPromptHistoryRegex } from "./history-regex.ts";
 import { spliceInChatInjections } from "./injections.ts";
 import { renderHistoryMacros } from "./macros.ts";
 import { applyNamesBehavior } from "./names.ts";
-import { clampRoleHandling, squashSameRole } from "./role-squash.ts";
+import { clampRoleHandling, squashRuns, squashSameRole } from "./role-squash.ts";
 import { hasMultipleCharacters } from "./speaker-stamp.ts";
 
 /** The CANON wire-history role axis (derive-don't-respell the non-system subset; canon rows are never
@@ -94,6 +94,10 @@ interface ShapeOutput {
     injected: (CanonRow | { role: DeliveredRole; content: string })[];
     squashed: (CanonRow | { role: DeliveredRole; content: string })[];
     named: WireRow[];
+    /** The FINAL stage's content-free projection: `history` as order + role + voice + provenance + size.
+     *  The only stage snapshot that is already wire-shaped, because it is the one a host READS
+     *  (`ShapeTrace.rows` via `assembly/trace`); the others exist for counts + the differential oracle. */
+    delivered: readonly ShapeTraceRow[];
   };
 }
 
@@ -167,6 +171,89 @@ export function computeHistoryBreakpoint(
   return offsetFromEnd;
 }
 
+/** What ONE pre-squash row contributes to the delivered-row trace: where its bytes came from, and whose voice
+ *  it is in. The VOICE is read here rather than off the delivered row because the name-stamp INLINES the
+ *  speaker into content on every mode but `completion` — by the time a row is delivered, `name` is usually
+ *  gone and the author is only recoverable from the pre-name row. File-local: a builder input, not a domain
+ *  type (the wire shape is `@orb/contracts/chat`'s `ShapeTraceRow`). */
+interface RowFacts {
+  readonly source: ShapeRowSource;
+  readonly name?: string;
+}
+
+/** Collapse a delivered row's contributing rows into one fact. Uniform provenance ⇒ that arm; MIXED ⇒
+ *  `merged`, never the head's arm — a squash that folded an injected note into an adjacent canon turn is the
+ *  INJECT-NAMED-AS-PLAYER shape, and reporting it as `canon` would hide exactly the row worth seeing. The
+ *  voice is the first contributor that carries one (the merge keeps the head's identity). */
+function mergeRowFacts(parts: readonly RowFacts[]): RowFacts {
+  const source = collapseSources(parts);
+  const name = parts.find((part) => part.name !== undefined)?.name;
+  return name === undefined ? { source } : { source, name };
+}
+
+function collapseSources(parts: readonly RowFacts[]): ShapeRowSource {
+  const first = parts[0];
+  if (first === undefined) {
+    return "assembled";
+  }
+  return parts.every((part) => part.source === first.source) ? first.source : "merged";
+}
+
+/** The pre-squash row facts the delivered trace reads, index-aligned with the name-stamp's 1:1 output.
+ *  PROVENANCE off `messageId` (present ⇒ a stored message, absent ⇒ assembly made it this turn — the same
+ *  discriminator `resolveFullCards` reads); VOICE off the PRE-name row's `authorName`, because the name-stamp
+ *  inlines the speaker into content on every mode but `completion`, so the delivered row usually has no `name`
+ *  left to read. */
+function preSquashRowFacts(namedInput: readonly WireRow[], injected: readonly (CanonRow | { role: DeliveredRole; content: string })[]): RowFacts[] {
+  return namedInput.map((row, index): RowFacts => {
+    const origin = injected[index];
+    const authorName = origin !== undefined && "authorName" in origin ? (origin.authorName ?? undefined) : undefined;
+    const source: ShapeRowSource = row.messageId === undefined ? "assembled" : "canon";
+    const name = row.name ?? authorName;
+    return name === undefined ? { source } : { source, name };
+  });
+}
+
+/** The SAME grouping `runSquash` applies, as INPUT INDICES per delivered row — the delivered-row trace needs
+ *  "which inputs became this row" to report a merged row's provenance. ONE rule, two readers
+ *  (`role-squash::squashRuns` is what `squashSameRole` is built on), so the trace cannot drift from the wire.
+ *  `merges === false` is the pass-through arm: empties drop, nothing groups. */
+function squashRunsFor<T extends { role: DeliveredRole; content: string; name?: string }>(rows: readonly T[], merges: boolean): readonly (readonly number[])[] {
+  return merges ? squashRuns(rows) : rows.flatMap((row, index) => (row.content.trim().length > 0 ? [[index]] : []));
+}
+
+/** Project the DELIVERED wire history onto the content-free `ShapeTrace.rows` — the block-order/role/voice
+ *  datum a host previously reconstructed by hand from wire captures. Walks the same TWO squash passes SHAPE
+ *  ran (name-stamp squash, then the nudge-tail squash), as index runs, so each delivered row's facts are the
+ *  union of the rows that actually became it — which is what makes a `merged` verdict provable rather than
+ *  guessed. */
+function traceDeliveredRows(args: {
+  readonly injected: readonly (CanonRow | { role: DeliveredRole; content: string })[];
+  readonly namedInput: readonly WireRow[];
+  readonly named: readonly WireRow[];
+  readonly history: readonly WireRow[];
+  /** The appended group/continuation nudge, or `null` when the history needed no tail. */
+  readonly tailUser: string | null;
+  readonly merges: boolean;
+}): ShapeTraceRow[] {
+  const preSquash = preSquashRowFacts(args.namedInput, args.injected);
+  const namedFacts = squashRunsFor(args.namedInput, args.merges).map((run) => mergeRowFacts(run.flatMap((index) => preSquash[index] ?? [])));
+  // The nudge is assembly's own row, so it enters the second pass with `assembled` provenance of its own.
+  const stage: readonly RowFacts[] = args.tailUser === null ? namedFacts : [...namedFacts, { source: "assembled" }];
+  const historyRuns =
+    args.tailUser === null
+      ? args.named.map((_, index) => [index])
+      : squashRunsFor([...args.named, { role: "user" as const, content: args.tailUser }], args.merges);
+  return historyRuns.flatMap((run, index): ShapeTraceRow[] => {
+    const row = args.history[index];
+    if (row === undefined) {
+      return [];
+    }
+    const facts = mergeRowFacts(run.flatMap((source) => stage[source] ?? []));
+    return [{ role: row.role, ...(facts.name === undefined ? {} : { name: facts.name }), source: facts.source, chars: row.content.length }];
+  });
+}
+
 /** The SHAPE transform. Pure given its input. Group behaviors are all data-driven (roster size,
  *  resolved scoped target, multi-speaker nudge) so a solo roster-of-1 chat ships an unmodified history. */
 export function shape(input: ShapeInput): ShapeOutput {
@@ -210,7 +297,8 @@ export function shape(input: ShapeInput): ShapeOutput {
     prose: input.prose,
   });
   const squashed = runSquash(injected);
-  const named = runSquash(applyNamesBehavior(injected, input.namesBehavior, input.speakers, { multiCharacter, mergesAdjacent: merges }));
+  const namedInput = applyNamesBehavior(injected, input.namesBehavior, input.speakers, { multiCharacter, mergesAdjacent: merges });
+  const named = runSquash(namedInput);
 
   // 5. group/continuation nudge: a multi-speaker round's nudge rides as a trailing user message; a
   // force/auto/empty-opening round that would otherwise end on assistant gets CONTINUATION_NUDGE. Either
@@ -235,10 +323,13 @@ export function shape(input: ShapeInput): ShapeOutput {
           merges,
         });
 
+  // The content-free DELIVERED-row trace (`ShapeTrace.rows`) — order, role, voice, provenance, size.
+  const delivered = traceDeliveredRows({ injected, namedInput, named, history, tailUser, merges });
+
   return {
     history,
     cacheBreakpointFromEnd,
-    stages: { multiCharacter, withTail, injected, squashed, named },
+    stages: { multiCharacter, withTail, injected, squashed, named, delivered },
   };
 }
 

@@ -27,6 +27,7 @@ export {
   recordWireCapture,
   registerDebugRoutes,
   resetWireCaptures,
+  type RpgTraceInspector,
   tableCounts,
   tokenMatches,
   type WireCapture,

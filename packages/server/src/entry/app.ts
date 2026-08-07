@@ -20,6 +20,7 @@ import { bodyLimit } from "hono/body-limit";
 import type { ExportService } from "#domain/export";
 
 import { env } from "#foundation/env";
+import type { RpgTraceInspector } from "#foundation/observability";
 import { observability, observabilityErrorHandler, registerDebugRoutes } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
@@ -104,6 +105,10 @@ export interface AppDeps {
   readonly presence: PresenceRegistry;
   /** The multiplexed-socket cells (SSE-1) — read by the `stream` router and the /api/_debug counter. */
   readonly sockets: SocketRegistry;
+  /** R-OBS — the rpg flight recorder's read half, present ONLY when tracing is enabled (`RPG_TRACE=on` / the
+   *  `rpgTrace` compose dep). Absent ⇒ `/api/_debug/rpg/traces` is not registered at all, which is the route's
+   *  own contract: tracing off means the door does not exist rather than answering an empty ring. */
+  readonly rpgTrace?: RpgTraceInspector;
 
   /** The single assets handle serves the blob owner-gate + the upload `store` + the import avatar-store + the
    *  BYO pose byte-ingest. */
@@ -269,6 +274,9 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // the server is actually running on, and a character's `trustHtml: null` ("inherit") resolves to a real
     // verdict instead of leaving the reader to infer what it inherits.
     effectiveConfig: () => deps.services.settings.getEffectiveConfig(),
+    // R-OBS: registered only when the recorder exists (tracing on) — spread, so an untraced boot passes the
+    // key at all rather than an `undefined` the route's `!== undefined` check would still have to read.
+    ...(deps.rpgTrace === undefined ? {} : { rpgTrace: deps.rpgTrace }),
     auth: { expectedToken: env.DEBUG_TOKEN, adminAuth: { isAdmin: deps.seam.isAdmin } },
   });
 

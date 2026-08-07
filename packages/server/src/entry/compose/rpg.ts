@@ -82,6 +82,8 @@ import type {
   RpgRunToolRound,
   RpgService,
   RpgStateDelta,
+  RpgTraceSink,
+  RpgTraceToolCall,
 } from "#domain/rpg";
 import {
   actorCarrier,
@@ -144,6 +146,11 @@ function extractionResponseFormat(deps: RpgComposeDeps, schema: Record<string, u
 export interface RpgComposeDeps {
   readonly db: Db;
   readonly now: () => number;
+  /** R-OBS — the rpg flight-recorder sink (`domain/rpg/trace.ts`), wired by `createServices` ONLY when tracing
+   *  is enabled (`RPG_TRACE=on`, or the `rpgTrace` compose dep an int test forces). ABSENT is the default and
+   *  the point: every emit site guards with `deps.trace?.(…)`, and an optional CALL short-circuits its
+   *  ARGUMENT, so a traced-off turn never even builds an event object and is byte-identical. */
+  readonly trace?: RpgTraceSink;
   /** chat's rpg-facing ops (getMembership/postNarratorMessage/setRpgPointer/resolveRpgRoster) — off chat's
    *  compose result (chat composes first). rpg closes over these; chat learns nothing rpg-shaped. */
   readonly rpgChatOps: ChatComposeResult["rpgChatOps"];
@@ -1086,19 +1093,46 @@ const FOLDED_RECONCILE_NOTE =
 function buildFoldedTurnBuilder(deps: RpgComposeDeps): RpgContext["buildFoldedTurn"] {
   return async ({ chatId, baseState, reconcile }) => {
     const { refs, config } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
-    return {
-      tools: buildToolRoundWireTools(cacheStableExtractionRefs(refs, config.trackers), config),
-      reconcileNote: reconcile ? FOLDED_RECONCILE_NOTE : null,
-    };
+    const tools = buildToolRoundWireTools(cacheStableExtractionRefs(refs, config.trackers), config);
+    // R-OBS: what this turn was even ABLE to write. The optional CALL short-circuits its argument, so the
+    // event object is never built when tracing is off (`domain/rpg/contract/trace` header).
+    deps.trace?.({ phase: "mount", chatId, toolNames: tools.map((tool) => tool.name) });
+    return { tools, reconcileNote: reconcile ? FOLDED_RECONCILE_NOTE : null };
   };
+}
+
+/** R-OBS: project one vehicle's tool calls onto the flight-recorder's per-call verdicts. Reads the SAME two
+ *  loss lenses `logToolCallLosses` logs from (`malformedToolCallDetails` / `salvagedToolCallFields`), so the
+ *  trace and the warn can never disagree about what was lost — the file's standing ONE-home rule for the loss
+ *  vocabulary. Only called behind a `deps.trace !== undefined` guard, so it costs nothing when tracing is off.
+ *
+ *  `arguments` rides VERBATIM (the raw JSON string the model sent): the calls worth tracing are exactly the
+ *  ones that did not parse, and a parsed-only capture would erase the evidence. */
+function toTraceCalls(calls: readonly RpgToolCall[]): readonly RpgTraceToolCall[] {
+  const droppedIssues = new Map(malformedToolCallDetails(calls).map((detail) => [detail.name, detail.issues]));
+  const salvaged = salvagedToolCallFields(calls);
+  return calls.map((call): RpgTraceToolCall => {
+    const dropped = droppedIssues.get(call.name);
+    if (dropped !== undefined) {
+      return { name: call.name, args: call.arguments, verdict: "dropped", issues: dropped };
+    }
+    // `salvagedToolCallFields` already renders `<tool>.<field>`, so the prefix is the join key.
+    const fields = salvaged.filter((field) => field.startsWith(`${call.name}.`));
+    return fields.length > 0
+      ? { name: call.name, args: call.arguments, verdict: "salvaged", issues: fields }
+      : { name: call.name, args: call.arguments, verdict: "applied", issues: [] };
+  });
 }
 
 /** Build the `foldTurnToolCalls` op (R1 — the flush's half). ZERO model calls: the character turn already paid
  *  for these calls. Folds them through the SAME path the dedicated tool round folds its own calls through, so
  *  an equivalent set of calls produces a byte-identical delta on either delivery shape. */
 function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolCalls"] {
-  return async ({ chatId, baseState, turnConnection, toolCalls }) => {
+  return async ({ chatId, turnId, baseState, turnConnection, toolCalls }) => {
     const conn = turnConnection.connection;
+    // R-OBS: what the model CALLED and what survived the schema — the folded turn's tool traffic is otherwise
+    // server-internal by D112 design, so this ring is the only place it is legible after the fact.
+    deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "folded extraction", calls: toTraceCalls(toolCalls) });
     // A malformed arg NEVER fails the turn (the narrative is already committed) — `toolCallsToExtraction` drops
     // it, and this names what was dropped so the loss is diagnosable instead of silent (D109-7 totality).
     logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls: toolCalls, vehicle: "folded extraction" });
@@ -1507,7 +1541,12 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     resolveCardCorpus: deps.rpgChatOps.resolveCardCorpus,
     runPopulateExtraction: buildRunPopulateExtraction(deps),
     // The feature-root rpg bus emit (§4.9) — a verb/flush calls it after its durable write; fire-and-forget.
-    emitBus: publishRpgEvent,
+    // R-OBS taps it in passing: what the turn ANNOUNCED to the live panel is the other half of "did the write
+    // reach the user", beside what it wrote. Untraced, this is `publishRpgEvent` verbatim.
+    emitBus: (event) => {
+      deps.trace?.({ phase: "bus", chatId: event.chatId, type: event.type });
+      publishRpgEvent(event);
+    },
     // The dice CSPRNG (bake-once, server-authoritative — a client seed is never honored, §4.4).
     randomInt: (max) => randomInt(max),
     // OBSERVABILITY: the flush write-boundary DROP hook (the F1 backstop refusing a contract-invalid state).
@@ -1517,6 +1556,9 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     // to the post-commit round still writes correct state — and silently pays the second call the fold exists
     // to delete. `warn` on a fallback (something to look at), `debug` when the knob got what it asked for.
     onStateRoundPath: (info) => {
+      // R-OBS: the delivery FORK, per turn. A `folded` game quietly paying the second call forever is the
+      // failure this event exists to make visible, and the ring is where it becomes queryable per chat.
+      deps.trace?.({ phase: "flush", chatId: info.chatId, turnId: info.turnId, path: info.path, fallbackReason: info.fallbackReason });
       const line = { event: "rpg.extraction.path", chatId: info.chatId, gameId: info.gameId, mode: info.mode, path: info.path };
       if (info.fallbackReason !== null) {
         logger.warn({ ...line, fallbackReason: info.fallbackReason }, "rpg folded turn could not mount its tools — fell back to the post-commit state round");

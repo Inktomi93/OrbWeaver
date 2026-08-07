@@ -728,6 +728,75 @@ This blocked root-causing `EMPTYGEN-REASONING` below.
 carries `finishReason`. **The user-facing half is untouched:** nothing in the transcript or the RPG panel
 shows what fired, so during normal play the majority of what a folded turn does is still invisible.
 
+**As of 2026-08-07 the folded turn's calls are ALSO in the rpg flight recorder** — `RPG_TRACE=on` →
+`GET /api/_debug/rpg/traces?turnId=…` returns the per-call names, the args verbatim, and an
+`applied`/`salvaged`/`dropped` verdict per call (see `RPG-TRACE-DEAD`). Still an operator surface, not a
+user one — but the DATA now exists in a queryable, per-turn, correlatable form, which is what the user-facing
+build reads from.
+
+#### ⚖️ RULING FORK — recorded 2026-08-07, adjudicated on the ladder
+
+The obvious fix (persist the folded calls as `ToolCallRecord`s so the existing `message-tool-calls.tsx`
+renders them) is a DIRECT reversal of D112's TERMINAL-tools law. Verbatim,
+`domain/chat/contract/context.ts:517-522`:
+
+> TERMINAL tools the contributor mounts on THIS turn (the R1 folded-extraction seam). STRUCTURAL — these are
+> plain `WireTool`s; chat never learns what they mean. They differ from `tools` (registry names) in exactly
+> one way, and it is the whole point: chat attaches them with `tool_choice:"auto"`, **NEVER RESOLVES,
+> EXECUTES, OR RECURSES on them, and never persists their calls as `ToolCallRecord`s** — the co-emitted
+> `tool_calls` are handed straight back to the contributor on `RpgTurnContext.terminalToolCalls`.
+
+Three arms were put up; the ruling is **arm A**:
+
+- **A — RPG-OWNED per-variant call record. ✅ RULED, BUILD IT.** rpg persists the calls IT folded, in an
+  rpg-owned row keyed by `variantId`, read through an rpg verb and surfaced as a collapsed row disclosure /
+  rpg-panel affordance. This does not touch D112's mechanism — the clause's own text says the calls are
+  *"handed straight back to the contributor"*, and the CONTRIBUTOR recording its own is the law working, not
+  the law reversed. chat still never learns, resolves, or persists. Satisfies the owner's literal ask (names
+  + args). §13.10 naming applies; CT against a real folded turn's calls; applicability-gated, not a
+  separate mode (`[[no-separate-reduced-modes]]`).
+- **B — snapshot-DIFF "what this turn changed".** Zero new persistence: the flush already writes a
+  clone-forward snapshot keyed to `variantId`/`messageId` and journal entries stamped with both
+  (`domain/rpg/chat-ops/flush.ts::writeFlush`), so per-turn change is derivable by diffing adjacent
+  snapshots. **NOTED as an owner-taste follow-up, not built and never a substitute for A** — it may well be
+  the better product surface long-term (state changes read better than tool jargon), but it is not what was
+  asked for, and shipping it as if it were would be quiet non-compliance.
+- **C — reverse the ruling.** REFUSED. Cheapest by far and reuses the whole renderer; nobody in the lane has
+  standing to reverse a recorded owner law.
+
+**⚠️ NOT reachable by writing `message_variants.toolCalls`.** That column is typed
+`readonly ToolCallRecord[]` and is exactly the right SHAPE, which makes it the trap: it is CHAT's column,
+read by the existing `message-tool-calls.tsx`, so filling it from rpg is arm C wearing arm A's clothes — it
+changes what `MessageView.toolCalls` MEANS for every reader. Arm A needs rpg-owned storage.
+
+#### Arm A — the build (designed 2026-08-07, NOT built; boarded as a follow-up)
+
+Scope is honestly half-day-plus — a `[[new-domain-coupled-sites]]`-class change — which is why it was
+designed rather than rushed at the tail of a lane. The blueprint:
+
+1. **Storage (rpg-owned).** A `rpg_turn_tool_calls` row per folded turn, keyed by `variantId` (the
+   swipe-correct key — `[[rpg-state-anchor-slots]]`: the snapshot + journal already key there, so a swipe
+   surfaces the SELECTED variant's calls with no extra work) + `messageId` + `gameId`. Payload = the same
+   projection the flight recorder already builds: name · args verbatim · `applied`/`salvaged`/`dropped`
+   verdict · issue paths. Pre-launch ⇒ SQUASH into `0000_baseline.sql`, never an incremental migration.
+2. **Write site — exactly one.** `buildFoldTurnToolCalls` (`entry/compose/rpg.ts`) already computes the
+   verdicts for its own warn and, since this commit, for the trace: `toTraceCalls` is the projection to
+   reuse, so the log, the ring and the durable row cannot disagree about what was lost.
+3. **Read.** An rpg verb (`listTurnToolCalls({ chatId, variantId })`), participant-gated through rpg's own
+   `guard.ts` — NOT host-only: this is what the model did in a room you are IN. New tRPC proc ⇒ it owes a
+   `PROBED`/`EXEMPT` classification row (`[[new-router-needs-sweep-classification]]`).
+4. **Surface.** A collapsed-by-default disclosure on the message row, APPLICABILITY-gated (present when the
+   variant has calls; absent otherwise) — not a mode and not a setting, per `[[no-separate-reduced-modes]]`.
+   §13.10 naming: the trigger's accessible name leads with stable identity (`Tool calls on this turn — N`),
+   volatile detail suffixed. A `dropped` call must READ as dropped on the row: this is the surface where
+   `SCENE-DROPPED` would have been visible to the owner in the moment instead of after 12 occurrences.
+5. **Proof.** A CT mounting a real folded turn's calls (applied + salvaged + dropped in one row, since the
+   mixed case is the one worth seeing), plus the persistence + verb tests, plus a composed-real int test
+   asserting the write rides the SAME projection as the warn.
+
+Until it lands, the data is reachable by an operator at `/api/_debug/rpg/traces?turnId=…` with
+`RPG_TRACE=on`.
+
 *(original report below)*
 
 ### TOOLCALLS-INVISIBLE — original report (M 🔴) ✓
@@ -1126,7 +1195,54 @@ No code change needed if keys match — pure preset template edit.
 
 ---
 
-### RPG-TRACE-DEAD — `RPG_TRACE` is scaffolding only (S 🔴) ✓
+### RPG-TRACE-DEAD — `RPG_TRACE` is scaffolding only (S ✅ FIXED — R-OBS ported + wired end to end)
+
+**The shell now has a recorder behind it.** `domain/rpg/trace.ts` (the bounded per-process ring) +
+`domain/rpg/contract/trace.ts` (the event shapes), ported from `legacy-main:43d5169fd` hunk-by-hunk and
+RE-CUT to today's tree; `createServices` mints ONE when tracing is on and threads its `sink` through
+`RpgComposeDeps.trace`; `lifecycle.ts` hands the read half to `createApp`, which registers
+`/api/_debug/rpg/traces` only when it exists (the route's own pre-existing contract).
+
+**Four phases, chosen for today's failure classes rather than the legacy tree's:**
+
+| phase | answers | carries |
+| - | - | - |
+| `mount` | what the turn was ABLE to write | the terminal tool names (R1) |
+| `tool` | what the model CALLED and what survived the schema | args VERBATIM + a per-call `applied`/`salvaged`/`dropped` verdict + the failing paths |
+| `flush` | which delivery vehicle actually ran | `path` + `fallbackReason` (R1) |
+| `bus` | what reached the live panel | the event type |
+
+The legacy `staging`/`domain-event` phases were DROPPED (their boundary no longer decides anything —
+today's flush is one `writeFlush` with its own backstop) and `flush` replaces them. The `tool` phase gained
+the verdict + raw args specifically because of `SCENE-DROPPED`/`TOOLDROP-BLIND` above: a trace that recorded
+only successes would have been blind to all 12 of those drops.
+
+`mount`/`tool`/`flush` join on one `ChatTurnId` — the `?turnId=` filter the route already exposed. A
+`mount`/`bus` event carries none and is EXCLUDED from a turn-filtered read rather than silently matched
+(pinned, because "show me this turn" quietly answering with another turn's evidence is worse than nothing).
+
+**OFF is byte-identical**, not merely cheap: every emit site is `deps.trace?.(…)` and an optional CALL
+short-circuits its ARGUMENT, so an untraced turn never constructs an event object. Pinned by an untraced
+composed-real turn landing identical state.
+
+⚠️ **Brief-premise correction:** it is `RPG_TRACE=on`, **not** `RPG_TRACE=true` — the env schema is
+`z.enum(["on","off"])`, so `true` fails the parse at boot. The env default-off pin
+(`tests/server/foundation/env/index.test.ts`) is unchanged and green.
+
+**Verified:** `pnpm typecheck` · `typecheck:graph` · `typecheck:tests-dom` all 0 · `check:structure` PASS ·
+`check-gates.int` 3/3 · knip 0 · depcruise 0 (2,772 modules) · 730 tests over rpg + observability + env +
+compose + app, incl. the composed-real "a folded turn records its mount, its calls, its flush path and its
+bus emits" (real db, real chat ops, real fold — the recorder sees a real dropped call with its raw args) and
+a route-level test driving the REAL recorder end to end (the stub-only coverage was the original gap).
+
+**Gate/test to write:** none owed — the two-sided arm is covered (route absent when unwired / 200 with real
+content when wired) and the `feature-structure` allowlist row for `rpg/trace.ts` came back WITH the file
+(that row was one of the four the gate's own stale-arm catch deleted in the purge — the two-sided rule
+working in both directions).
+
+*(original report below)*
+
+### RPG-TRACE-DEAD — original report (S 🔴) ✓
 
 **Reporter:** investigation · **Scout:** 303 files scanned
 
@@ -1154,20 +1270,54 @@ Sequence: prompt debug view first (immediate diagnostic value), trace system sec
 
 ---
 
-### RPG-NO-PROMPT-DEBUG — no prompt order/depth debug view (L 🔴)
+### RPG-NO-PROMPT-DEBUG — no prompt order/depth debug view (L ✅ FIXED — the delivered wire rows)
 
-**Reporter:** owner ask · **Status:** `chat.previewAssembly` / `chat.getShapeTrace` mapping in progress
+**⚠️ ROW TRUTH-REPAIRED 2026-08-07. "No prompt debug view" was STALE and mis-aimed a lane.** A host-gated
+prompt debug panel already existed and already leveraged both verbs:
 
-#### What's broken
+- `client/features/chat/components/assembly-preview-panel.tsx` — the CONTEXT panel's **Preview** tab
+  (`useSuspenseQueries` over `chat.previewAssembly` + `chat.getShapeTrace`, both `requireHost`).
+- `client/features/chat/components/assembly-preview-diagnostics.tsx` — the collapsed **Diagnostics** drawer:
+  the BUILD trace (static/dynamic section ORDER, world-info activated, per-field override sources), the
+  in-history injections **with role @ depth**, and the SHAPE trace.
+- 13 CTs already covering it.
 
-Block order currently reconstructed by hand from wire captures.
+**The real gap was narrower and sharper: the ORDERED DELIVERED WIRE ROWS.** `ShapeTrace` is content-free by
+design (PD-132) and projected **stage COUNTS only** (`10 → 11 → 9 → 9`) — so the one thing a host could not
+see was *which* row is which, in what order, in whose voice. That is exactly what was being reconstructed by
+hand from wire captures.
 
-#### Advice
+#### The fix
 
-`chat.previewAssembly` and `chat.getShapeTrace` appear to already exist — confirm what they return
-and build a dev-only panel off them rather than a new assembly path.
+`ShapeTrace.rows` — a content-free ordered projection of the DELIVERED wire history, one entry per row:
+`role` · `name` (the speaker, when the row carries one) · `source` · `chars`. Rendered in the existing
+Diagnostics drawer as `Wire rows — N delivered`, each line `<n>. <role> · <speaker>` with
+`<provenance> · <n> chars`. No new verb, no new route, no new panel mount — it rides the reads and the host
+gate that already existed.
 
-**Effort:** M
+Two calls worth knowing:
+
+- **The non-canon arm is `assembled`, not "injected".** The id-less rows are not all injections: the
+  group/continuation nudge and the synthetic user turn a regen/continue appends are id-less too. Naming the
+  arm after one of its three producers would be a surface that lies about the other two.
+- **There is a third arm, `merged`, and it is the point.** The squash keeps the FIRST row's extras, so an
+  injection folded into the player's canon turn would otherwise have reported as plain `canon` — hiding the
+  exact row worth seeing. `assembly/role-squash.ts` now exports `squashRuns` (the adjacency rule, ONE home —
+  `squashSameRole` is that plus the content join) and SHAPE walks the same runs, so a mixed row reports
+  `merged` provably rather than by guess.
+
+**This is the lens `INJECT-NAMED-AS-PLAYER` lived behind.** A demoted system note delivered in the player's
+voice is invisible in a stage count; here it is a `user` row wearing the player's name with `assembled` (or
+`merged`) provenance. Pinned by name in `tests/server/domain/chat/assembly/shape.test.ts`.
+
+Note the rows are **pre-FIT** (SHAPE runs before the context trim) — the surface says so rather than
+implying the window kept them all.
+
+**Verified:** RED-first (2 failing / 13 passing against unmodified source) → 15/15 CT
+(`tests/client/features/chat/components/assembly-preview-panel.ct.tsx`) · 5 new SHAPE tests · 674 tests over
+assembly + `verbs/read.int` + the chat router + the engine pipeline · all three typecheck programs 0.
+
+**Effort:** was M — the panel existed; the projection was S.
 
 ---
 

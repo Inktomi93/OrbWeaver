@@ -12,7 +12,7 @@ import { serve } from "@hono/node-server";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { createDb, preCloseHousekeeping } from "@orb/db";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { ChatId, ChatTurnId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Configuration } from "openid-client";
 import { discovery } from "openid-client";
@@ -396,6 +396,22 @@ export function createLifecycle(): Lifecycle {
       rateLimit: createRateLimitGate({ db, now, resolveRateLimits: () => built.services.settings.getEffectiveConfig().rateLimits }),
       presence: built.presence,
       sockets: built.sockets,
+      // R-OBS: the flight recorder's READ half, present only when `createServices` built one (tracing on).
+      // The foundation port speaks RAW query strings (it may not import a kit brand into its filter), so the
+      // brand is applied HERE, at the entry seam — exactly what `app.ts` already does for the socket counter's
+      // `userId`. Foundation still learns no rpg type: `recent` returns `object[]`.
+      ...(built.rpgTrace === undefined
+        ? {}
+        : {
+            rpgTrace: {
+              recent: (filter: { chatId?: ChatId; turnId?: string; limit?: number }): readonly object[] =>
+                built.rpgTrace?.recent({
+                  ...(filter.chatId === undefined ? {} : { chatId: filter.chatId }),
+                  ...(filter.turnId === undefined ? {} : { turnId: castId<ChatTurnId>(filter.turnId) }),
+                  ...(filter.limit === undefined ? {} : { limit: filter.limit }),
+                }) ?? [],
+            },
+          }),
       assets: built.assets,
       cas: createCas(env.ASSETS_DIR),
       character: built.services.character,
