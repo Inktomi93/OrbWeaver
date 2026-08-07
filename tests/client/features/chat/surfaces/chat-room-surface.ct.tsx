@@ -734,3 +734,43 @@ test("COMMITTED: the SAME card resolves the SAME room accent through the roster 
   await expect(bubble).toBeVisible();
   expect(await renderedAccent(bubble)).toBe(CARD_ACCENT);
 });
+
+// ── THE CAST STRIP SERVES BOTH PHASES (side-eye P2, 2026-08-06) ───────────────────────────────────
+// The strip existed only for a COMMITTED chat, so a group DRAFT — a room that already knows its whole
+// founding cast — showed no cast at all above the transcript. Same strip, same >1 floor; the phase only
+// decides where the seats come from. The SOLO arm is the discriminator: a fix that mounts the strip
+// unconditionally passes the group case and wrongly paints a one-character room.
+
+const CAST_CHIP = '[data-slot="cast-chip"]';
+/** The add-member door's accessible name, in both phases ("Add a character"). */
+const ADD_MEMBER_RE = /^Add a character$/u;
+
+test("a GROUP DRAFT shows the cast strip — both founding characters, before any message exists", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    ...DRAFT_IDENTITY_STUB,
+    "chat.listMessages": () => makeMessagesPage([]),
+    "character.get": (input: unknown): unknown =>
+      (input as { readonly characterId: CharacterId }).characterId === "char_ct_panel_added"
+        ? { id: castId<CharacterId>("char_ct_panel_added"), name: "Bryn", avatarHash: null, greetings: ["Well met, wanderer."] }
+        : { id: castId<CharacterId>("char_ct_room"), name: "Aria", avatarHash: null, greetings: ["Greetings, traveller."] },
+  });
+
+  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
+  await expect(component.getByText("Greetings, traveller.")).toBeVisible();
+
+  // SOLO draft — one character is below the strip's own >1 floor, exactly as in a committed solo room.
+  await expect(component.getByLabel("Cast")).toHaveCount(0);
+
+  // A second founding character lands mid-draft (the roster panel's own act) — the strip appears with BOTH.
+  await component.getByTestId("add-panel-character").click();
+  await expect(component.getByText("Well met, wanderer.")).toBeVisible();
+
+  const strip = component.getByLabel("Cast");
+  await expect(strip).toBeVisible();
+  await expect(strip.locator(CAST_CHIP)).toHaveCount(2);
+  await expect(strip).toContainText("Aria");
+  await expect(strip).toContainText("Bryn");
+  // The viewer is always host of their own draft, so the add-member door rides the strip in both phases.
+  await expect(strip.getByRole("button", { name: ADD_MEMBER_RE })).toBeVisible();
+});
