@@ -79,12 +79,17 @@ export function spawnerForPort(port: number): StackSpawner | undefined {
 export const STACK_MODES = ["dev", "prod"] as const;
 export type StackMode = (typeof STACK_MODES)[number];
 
-export const STACK_VERBS = ["up", "down", "restart", "status", "logs"] as const;
+export const STACK_VERBS = ["up", "down", "restart", "status", "logs", "up-fg", "_leader"] as const;
 export type StackVerb = (typeof STACK_VERBS)[number];
 
 /** `start`/`stop` are the ORIGINAL spellings and stay first-class forever: playwright's webServer
  *  (`stack.sh start-fg`), snap-stage's boot/teardown and multi-user-fixture.sh all call them by name.
- *  `up`/`down` are the owner-facing spelling added with modes. */
+ *  `up`/`down` are the owner-facing spelling added with modes.
+ *
+ *  `up-fg` (`start-fg`) and `_leader` are DEV-ONLY internals — the Playwright webServer entrypoint and
+ *  the setsid re-exec target. They live in this table because `stack.sh` classifies EVERY invocation
+ *  through this one parser (see `formatDispatch`); a verb the parser does not know must exit 2, and
+ *  these two are known-and-dev-only rather than unknown. */
 const VERB_ALIASES: Readonly<Record<string, StackVerb>> = {
   up: "up",
   start: "up",
@@ -94,6 +99,25 @@ const VERB_ALIASES: Readonly<Record<string, StackVerb>> = {
   "force-restart": "restart",
   status: "status",
   logs: "logs",
+  "start-fg": "up-fg",
+  _leader: "_leader",
+};
+
+/** The dev-only verbs: they have no prod implementation at all (prod has no vite to foreground and no
+ *  setsid leader — the supervisor detaches the server itself). */
+const DEV_ONLY_VERBS: ReadonlySet<StackVerb> = new Set<StackVerb>(["up-fg", "_leader"]);
+
+/** The `stack.sh` case-label each verb maps back to. The shell no longer classifies anything itself —
+ *  it asks this parser and switches on the answer, so there is exactly ONE grammar and the tests that
+ *  pin `parseStackArgv` pin the shell's behavior too. */
+const VERB_TO_SHELL_LABEL: Readonly<Record<StackVerb, string>> = {
+  up: "start",
+  down: "stop",
+  restart: "restart",
+  status: "status",
+  logs: "logs",
+  "up-fg": "start-fg",
+  _leader: "_leader",
 };
 
 export interface StackInvocation {
@@ -134,8 +158,43 @@ export function parseStackArgv(argv: readonly string[]): StackParse {
   if (build && mode !== "prod") {
     return { ok: false, error: "--build is prod-only: dev mode serves the client through the vite dev server, which needs no bundle" };
   }
+  if (mode === "prod" && DEV_ONLY_VERBS.has(verb)) {
+    return {
+      ok: false,
+      error: `'${rawVerb ?? ""}' is dev-only: prod has no foreground vite to own and no setsid leader (the prod supervisor detaches the server itself)`,
+    };
+  }
+  if (force && mode === "prod") {
+    // The dev `--force` NUKES the port holders AND the detached vLLM fleet, ignoring ownership. Prod has
+    // no such verb by design — its whole safety story is that it only ever signals an instance whose
+    // IDENTITY it proved. Silently dropping the flag would be the same class of defect as falling
+    // through to dev: the operator asked for something destructive and would get something else.
+    return {
+      ok: false,
+      error: "--force is dev-only: the prod supervisor never kills a process it cannot prove is its own. Stop the port holder yourself, then `stack up prod`",
+    };
+  }
   return { ok: true, invocation: { verb, mode, debug, build, force, rest } };
 }
+
+/** The shell contract: `stack.sh` execs `stack-prod.ts classify -- "$@"` and switches on these lines
+ *  instead of re-implementing the grammar in bash. `rest` is emitted one line per argument so a value
+ *  containing spaces survives; every line is `key=value` and the reader splits on the FIRST `=`. */
+export function formatDispatch(invocation: StackInvocation): string {
+  return [
+    `verb=${VERB_TO_SHELL_LABEL[invocation.verb]}`,
+    `mode=${invocation.mode}`,
+    `debug=${invocation.debug ? "1" : ""}`,
+    `build=${invocation.build ? "1" : ""}`,
+    `force=${invocation.force ? "1" : ""}`,
+    ...invocation.rest.map((arg) => `rest=${arg}`),
+    "",
+  ].join("\n");
+}
+
+/** The usage line — one home, printed by the shell's `*)` arm AND by every parser refusal. */
+export const STACK_USAGE =
+  "usage: stack.sh {up|start|start-fg|down|stop|restart [--force]|force-restart|status|logs [server|client] [n]} [dev|prod] [--debug] [--build]";
 
 type TailParse =
   | { readonly ok: true; readonly mode: StackMode; readonly debug: boolean; readonly build: boolean; readonly force: boolean; readonly rest: readonly string[] }
@@ -191,6 +250,11 @@ export interface DebugConflict {
   readonly wanted: string;
 }
 
+/** The `wanted` placeholder for a DEBUG_TOKEN conflict. A conflict message names the file value and the
+ *  wanted value; for the token the wanted value is a SECRET, so it is described, never printed
+ *  ([[credential-display-response-echo-leak]]). */
+const TOKEN_WANTED = "<a minted token — never printed>";
+
 export type DebugArming =
   | { readonly kind: "armed"; readonly overlay: Readonly<Record<string, string>>; readonly token: string; readonly notes: readonly string[] }
   | { readonly kind: "refused"; readonly conflicts: readonly DebugConflict[] };
@@ -211,13 +275,19 @@ export function resolveDebugArming(opts: { readonly fileEnv: Readonly<Record<str
   let token = opts.token;
 
   const fileToken = opts.fileEnv["DEBUG_TOKEN"];
-  if (fileToken !== undefined && fileToken.length > 0) {
+  if (fileToken === undefined) {
+    overlay["DEBUG_TOKEN"] = token;
+  } else if (fileToken.length > 0) {
     // A token in the file wins by precedence, so ADOPT it as the effective token rather than arming a
     // second one the server would ignore. Never echoed — only its source is reported.
     token = fileToken;
     notes.push("DEBUG_TOKEN: already declared in .env — using that token (the file wins over any overlay).");
   } else {
-    overlay["DEBUG_TOKEN"] = token;
+    // A bare `DEBUG_TOKEN=` line parses to the EMPTY STRING, not to absence — and `loadEnvFileWithOverride`
+    // overrides on `value !== undefined`, so that empty value beats our overlay and the schema's
+    // `.min(1).optional()` then leaves the surface OFF. Treating empty as absence is precisely the silent
+    // placebo this refusal exists to prevent, so an empty file value is a CONFLICT like any other.
+    conflicts.push({ key: "DEBUG_TOKEN", fileValue: "", wanted: TOKEN_WANTED });
   }
 
   for (const [key, wanted] of Object.entries(DEBUG_ON_VALUES)) {
@@ -359,6 +429,35 @@ export function parseProdRecord(text: string): ProdRecord | null {
     repoRoot: typeof r.repoRoot === "string" ? r.repoRoot : "",
     logPath: typeof r.logPath === "string" ? r.logPath : "",
   };
+}
+
+/** What a launcher does when the atomic `wx` create of the spawn lock FAILED — i.e. somebody else holds
+ *  it. `retake` = the file vanished between the failed create and our read (a racing release), so try the
+ *  create again. `refuse` = a live launcher owns the window; this `up` is a no-op. `break-stale` = the
+ *  holder pid is dead, so the lock is a crashed launcher's leftover and gets removed loudly.
+ *
+ *  The window this protects: the adopt/refuse decision and the spawn are separate syscalls, so two
+ *  `up prod` runs can both read "port free" and both spawn. The loser dies on EADDRINUSE — but only
+ *  after clobbering the winner's pidfile. Same class the engines launcher paid for with a duplicate
+ *  vLLM fleet (scripts/dev/engines.ts `acquireBootLock`). */
+export type SpawnLockAction = "retake" | "refuse" | "break-stale";
+
+export function decideSpawnLock(holder: number | null, holderAlive: boolean): SpawnLockAction {
+  if (holder === null || Number.isNaN(holder)) {
+    return "retake";
+  }
+  return holderAlive ? "refuse" : "break-stale";
+}
+
+/** May THIS launcher delete the pidfile after its own spawn failed?
+ *
+ *  ONLY when the record on disk is still the one it wrote. Two overlapping `up prod` runs race: the
+ *  loser's child dies on EADDRINUSE, and an UNCONDITIONAL unlink on that failure path would delete the
+ *  WINNER's record — after which `down prod` reads no record, classifies the live instance as `foreign`,
+ *  and REFUSES to stop the very server this tool started. (The spawn window is also locked; this guard
+ *  is the second belt, for a lock broken as stale or a crash between spawn and write.) */
+export function mayRemovePidfile(record: ProdRecord | null, myChildPid: number): boolean {
+  return record !== null && record.pid === myChildPid;
 }
 
 // ── Instance identity ────────────────────────────────────────────────────────────────────────────────

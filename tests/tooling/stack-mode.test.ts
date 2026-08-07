@@ -18,9 +18,13 @@ import {
   classifyDrainTail,
   classifyInstance,
   DEBUG_ENV_KEYS,
+  debugConflictMessage,
   debugPostureText,
   decideDown,
+  decideSpawnLock,
   decideUp,
+  formatDispatch,
+  mayRemovePidfile,
   parseListenerPid,
   parseProcStartTicks,
   parseProdRecord,
@@ -104,6 +108,85 @@ test("a .env that already declares the SAME armed value is adopted, not re-armed
 test("a CONFLICTING .env value REFUSES — --debug must never be a silent placebo", () => {
   const arming = resolveDebugArming({ fileEnv: { WIRE_CAPTURE: "off" }, token: "tok" });
   expect(arming).toEqual({ kind: "refused", conflicts: [{ key: "WIRE_CAPTURE", fileValue: "off", wanted: "on" }] });
+});
+
+test("an EMPTY .env value is a conflict, not absence — the exact placebo the refusal exists for", () => {
+  // A bare `DEBUG_TOKEN=` line parses to "", not undefined, and `loadEnvFileWithOverride` overrides on
+  // `value !== undefined` — so the empty file value BEATS the overlay, and the schema's `.min(1)`
+  // then leaves the surface off. Treating "" as absence reported "armed" over a dead surface.
+  const arming = resolveDebugArming({ fileEnv: { DEBUG_TOKEN: "" }, token: "s3cr3t-token-value" });
+  expect(arming.kind).toBe("refused");
+  if (arming.kind !== "refused") {
+    return;
+  }
+  expect(arming.conflicts).toHaveLength(1);
+  expect(arming.conflicts[0]?.key).toBe("DEBUG_TOKEN");
+  expect(arming.conflicts[0]?.fileValue).toBe("");
+  // The message names the file value and the line to delete, and must NOT echo the minted token.
+  const message = debugConflictMessage(arming.conflicts);
+  expect(message).toContain("DEBUG_TOKEN");
+  expect(message).not.toContain("s3cr3t-token-value");
+});
+
+test("an empty WIRE_CAPTURE/RPG_TRACE value is a conflict too", () => {
+  const arming = resolveDebugArming({ fileEnv: { WIRE_CAPTURE: "", RPG_TRACE: "" }, token: "tok" });
+  expect(arming.kind).toBe("refused");
+});
+
+// ── the shell dispatch contract ──────────────────────────────────────────────────────────────────────
+
+test("--force and the dev-only verbs are REFUSED in prod, never silently dropped", () => {
+  // `--force` reaches stack.sh's do_force_restart, which SIGKILLs the port holders AND the detached vLLM
+  // fleet ignoring ownership. Prod's whole safety story is that it only signals what it can prove is its
+  // own, so there is no prod force. Dropping the flag quietly would be the same defect class as the
+  // shell falling through to dev.
+  expect(parseStackArgv(["restart", "prod", "--force"])).toEqual({ ok: false, error: expect.stringContaining("--force is dev-only") });
+  expect(parseStackArgv(["start-fg", "prod"])).toEqual({ ok: false, error: expect.stringContaining("dev-only") });
+  // …and both stay legal in dev.
+  expect(parseStackArgv(["restart", "--force"])).toMatchObject({ ok: true, invocation: { force: true, mode: "dev" } });
+  expect(parseStackArgv(["start-fg"])).toMatchObject({ ok: true, invocation: { verb: "up-fg", mode: "dev" } });
+});
+
+test("formatDispatch emits the shell contract, one line per rest argument", () => {
+  const parsed = parseStackArgv(["logs", "server", "80"]);
+  expect(parsed.ok).toBe(true);
+  if (!parsed.ok) {
+    return;
+  }
+  expect(formatDispatch(parsed.invocation)).toBe("verb=logs\nmode=dev\ndebug=\nbuild=\nforce=\nrest=server\nrest=80\n");
+});
+
+test("formatDispatch maps every verb back to a stack.sh case label", () => {
+  const label = (argv: readonly string[]): string => {
+    const parsed = parseStackArgv(argv);
+    return parsed.ok ? (formatDispatch(parsed.invocation).split("\n")[0] ?? "") : "PARSE-FAILED";
+  };
+  expect(label(["up"])).toBe("verb=start");
+  expect(label(["down"])).toBe("verb=stop");
+  expect(label(["force-restart"])).toBe("verb=restart");
+  expect(label(["start-fg"])).toBe("verb=start-fg");
+  expect(label(["_leader"])).toBe("verb=_leader");
+});
+
+// ── pidfile ownership on a failed spawn ──────────────────────────────────────────────────────────────
+
+test("the spawn lock refuses a LIVE holder, breaks a dead one, and retakes a vanished one", () => {
+  // The window: adopt/refuse and spawn are separate syscalls, so two `up prod` can both read "port free"
+  // and both spawn; the loser dies on EADDRINUSE after clobbering the winner's record.
+  expect(decideSpawnLock(4242, true)).toBe("refuse");
+  expect(decideSpawnLock(4242, false)).toBe("break-stale");
+  expect(decideSpawnLock(null, false)).toBe("retake");
+  // A garbage lock file reads as NaN — treat it as "retake", never as a live holder that blocks forever.
+  expect(decideSpawnLock(Number.NaN, false)).toBe("retake");
+});
+
+test("a failed spawn may only delete a pidfile that is still ITS OWN", () => {
+  // Two overlapping `up prod`: the loser's child dies on EADDRINUSE. An unconditional unlink on that
+  // path deleted the WINNER's record — after which `down prod` reads no record, classifies the live
+  // server as foreign, and refuses to stop the instance this tool started.
+  expect(mayRemovePidfile(RECORD, RECORD.pid)).toBe(true);
+  expect(mayRemovePidfile(RECORD, 9999)).toBe(false);
+  expect(mayRemovePidfile(null, 4242)).toBe(false);
 });
 
 test("the debug posture is read off the gate's STATUS CODE — a 200 is not proof of a token", () => {
