@@ -938,6 +938,26 @@ const PROBES: readonly Probe[] = [
   },
   { path: "regex.removeScript", call: (c, i) => c.regex.removeScript({ scriptId: i.regexScriptId }) },
   { path: "regex.duplicateScript", call: (c, i) => c.regex.duplicateScript({ scriptId: i.regexScriptId }) },
+  // The REGX2 BULK arm — PROBED SILENTLY (the router's own classification): the owner id is in the WHERE
+  // (`setScriptsEnabledBulk`/`removeScriptsBulk`) or every id is gated through `loadOwnedScriptsByIds`
+  // (`bulkSetScriptsGlobal`), so a foreign id is DROPPED rather than thrown on. The leak-free verdict here is
+  // therefore a marker-free `{affected}` resolve — the count is identical for "you don't own it" and "it's
+  // already gone", so the list can never be probed for membership. The TEETH are the post-sweep integrity
+  // re-read: a dropped owner belt writes A's row and returns the same benign count, so the re-read asserts
+  // A's `enabled` flag, A's row's survival, and A's (empty) global tier below.
+  {
+    path: "regex.bulkSetEnabled",
+    call: (c, i) => c.regex.bulkSetEnabled({ scriptIds: [i.regexScriptId], enabled: false }),
+  },
+  {
+    path: "regex.bulkSetGlobal",
+    call: (c, i) => c.regex.bulkSetGlobal({ scriptIds: [i.regexScriptId], global: true }),
+  },
+  { path: "regex.bulkRemove", call: (c, i) => c.regex.bulkRemove({ scriptIds: [i.regexScriptId] }) },
+  // The single-entity EXPORT door — owner-gated by `loadOwnedScript`; a foreign/absent id collapses to `null`
+  // inside the verb and the router turns that into NOT_FOUND (the `worldInfo.exportBook` posture). A resolved
+  // file would carry A's script NAME verbatim, so a dropped belt leaks here loudly.
+  { path: "regex.exportScript", call: (c, i) => c.regex.exportScript({ scriptId: i.regexScriptId }) },
   { path: "regex.attachGlobal", call: (c, i) => c.regex.attachGlobal({ scriptId: i.regexScriptId }) },
   { path: "regex.detachGlobal", call: (c, i) => c.regex.detachGlobal({ scriptId: i.regexScriptId }) },
   {
@@ -1005,6 +1025,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "worldInfo.listBooksWithUsage": "self-scoped: the caller's own books; the junction counts are keyed to those ids, so a foreign book contributes nothing",
   "worldInfo.listGlobal": "self-scoped: the caller's globally-attached books",
   "regex.createScript": "self-scoped: mints the caller's own row, no foreign id",
+  "regex.importScriptFile":
+    "self-scoped: takes file TEXT and no id — the portable file carries no owner and no id, so the minted row (and its optional global attachment) can only ever land under the caller's own userId",
   "regex.listScripts": "self-scoped",
   "regex.listGlobal": "self-scoped: the caller's globally-attached scripts",
   "tag.createTag": "self-scoped",
@@ -1323,9 +1345,11 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     const rpgCheckpointId = await owner.rpg.createCheckpoint({ chatId, label: MARK.rpgCheckpoint });
 
     // A regex library script owned by A — its `name` is the leak marker, so a broken owner belt on any
-    // scriptId-taking verb (get/update/remove/duplicate/attach-global) leaks it back to the stranger.
+    // scriptId-taking verb (get/update/remove/duplicate/attach-global/export) leaks it back to the stranger.
+    // `enabled` is stated rather than defaulted, and the script is deliberately NOT globally attached: both are
+    // the post-sweep integrity baseline for the REGX2 bulk arm (the flags a silent write-IDOR would move).
     const regexScript = await owner.regex.createScript({
-      input: { name: MARK.regexScript, findRegex: "a", replaceString: "b", placement: ["AI_OUTPUT"] },
+      input: { name: MARK.regexScript, enabled: true, findRegex: "a", replaceString: "b", placement: ["AI_OUTPUT"] },
     });
     const regexScriptId = regexScript.id;
 
@@ -1409,7 +1433,16 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(rpgJournalStill.map((j) => j.title)).toContain(MARK.rpgJournal); // entry survived deleteJournalEntry
     const rpgCheckpointsStill = await ownerCaller.rpg.listCheckpoints({ chatId: ids.chatId });
     expect(rpgCheckpointsStill.map((cp) => cp.label)).toContain(MARK.rpgCheckpoint); // checkpoint survived (stranger never reached it)
+    // regex: the row SURVIVED (a leaked `removeScript`/`bulkRemove` would make this read throw NOT_FOUND) and its
+    // FLAGS are unmoved — the bulk arm answers the same benign `{affected}` count whether it wrote A's row or
+    // dropped the id, so the flags are the only evidence a silent write-IDOR leaves. `enabled` is A's seeded value
+    // (true) against the stranger's `bulkSetEnabled({enabled:false})`; A's global tier is empty against
+    // `bulkSetGlobal({global:true})` + the single `attachGlobal` probe — `global_regex_scripts` has no owner
+    // column (its scope IS the script's ownership), so a dropped belt parks A's script in A's own global tier.
     const regexScriptStill = await ownerCaller.regex.getScript({ scriptId: ids.regexScriptId });
-    expect(regexScriptStill.name).toBe(MARK.regexScript); // untouched by the stranger's update/remove/attach probes
+    expect(regexScriptStill.name).toBe(MARK.regexScript); // untouched by the stranger's update/remove/attach/bulkRemove probes
+    expect(regexScriptStill.enabled).toBe(true); // untouched by the stranger's regex.bulkSetEnabled probe
+    const regexGlobalStill = await ownerCaller.regex.listGlobal();
+    expect(regexGlobalStill.map((s) => s.id)).not.toContain(ids.regexScriptId); // no stranger attachGlobal/bulkSetGlobal reached A's tier
   });
 });
