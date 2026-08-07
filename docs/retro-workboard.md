@@ -226,14 +226,31 @@ the merged result. D-1 `listGlobal` minted. Its rendered check caught a real def
 `ListRow.subtitleLead`. **Owner CLOSED the section-vs-collection fork: Arm A (own rail section)
 stands** — demotion stays a one-file edit if he ever wants it.
 
-**OPEN — S2 (the live lane):** the per-chat rack (D-2 sources threaded — `scope.ts` already runs the
-three junction queries and DISCARDS the answer) · the rack after Injections per D-4 · **the D85 host
-visibility toggle — the original workboard item, still unbuilt** · the `listActiveForChat` freshness
-row.
-**Receipt of not-done:** `packages/server/src/domain/databank/verbs/` holds attach · create-from-text ·
-gather-retrieval · get · list · list-active-for-chat · list-attachments · reindex · remove · rename ·
-scrape · upload — and NO visibility/hidden setter, while `packages/contracts/src/databank/index.ts:96`
-already specs the D85 override.
+**OPEN — S2:** the per-chat rack (D-2 sources threaded — `scope.ts` already runs the three junction
+queries and DISCARDS the answer) · the rack after Injections per D-4 · the `listActiveForChat`
+freshness row.
+
+✅ **THE D85 HOST VISIBILITY TOGGLE IS BUILT, END TO END — the row that called it "still unbuilt" was
+WRONG and cost lane DATABANK-S2 its opening (premise-killed 2026-08-07, corroborated on main before
+acceptance).** D85 homes the override in **CHAT, not databank**: verbatim, *"the chat's config owns it
+(the fault-isolated `chats.metadata` sub-blob precedent, like `roomOverrides`)"*, and D91's close-out
+already recorded it BUILT. Live receipts: write verb `chat/verbs/roster.ts:241`
+`createSetChatDocumentVisibility` (`requireHost()` gate · strict `chatDocumentVisibilitySchema` parse ·
+metadata-merge write · `chatUpdated` emit · audit logs `hiddenCount` ONLY, never doc ids — deliberate
+anti-oracle) · enforcement `databank/persistence/scope.ts:76` `resolveChatHiddenDocumentIds` + `:152`
+subtracting hidden from the union · contract `contracts/src/databank/index.ts:97-115` +
+`contracts/src/chat/metadata.ts:200` · client `use-chat-document-mutations.ts:53` →
+`chat-documents-section.tsx:53`. Orchestrator-verified: `pnpm ast refs
+createSetChatDocumentVisibility` = ONE declaration.
+
+**⚑ THE LESSON — AN ABSENCE RECEIPT MUST BE SCOPED TO WHERE THE LAW PUTS THE THING.** The row's
+"receipt of not-done" enumerated `databank/verbs/` and found no visibility setter. **That absence was
+REAL and proved NOTHING**, because D85 never put the setter there. An exhaustive listing of the wrong
+directory reads exactly like proof. This is the evidence-method law's sharpest edge yet: a row citing
+an absence owes not just its method but its SCOPE — and the scope is decided by the law, not by the
+domain whose name is in the feature's title. **The lane was briefed to re-verify first and refused
+correctly; the residual S2 job it kept is the better one** (the D110 drift sweep for a derived reader
+plane that ignores the hidden verdict, plus whether the trust boundary is actually TESTED).
 **OPEN — S3:** unbuilt. D-7's real home tile still owed. Spec: `docs/design/databank-surface-spec.md`.
 
 ### I-3 · CONFIG WORKSPACE — ✅ the rail + the MOBILE tail are DONE; presets-into-rail is owner-timed
