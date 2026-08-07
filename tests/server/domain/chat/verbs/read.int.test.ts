@@ -1141,6 +1141,36 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(departedCards.map((p) => p.label)).not.toContain("Departed (persona)");
   });
 
+  // The POSITIVE half of the ruling, at the integration tier. The test above is four `not.toContain`s, which
+  // a resolver that returned `active: null` unconditionally would also satisfy — so on its own it proves the
+  // bystander is gone without proving anything BOUND. `activePersonaIdFor`'s unit pins cover the pure
+  // function; this covers the wired preview: a personaless host's trigger-less read takes the `none` arm and
+  // resolves the chat ANCHOR, which is the identity that REPLACED the retired presence-order pick.
+  test("a personaless host's preview binds the chat ANCHOR — the identity that replaced the bystander pick", async () => {
+    const host = await seedUser(db, castId<Handle>("anchor_host"));
+    const chatId = await seedRoom("anchorbind", host);
+    const guest = await seedUser(db, castId<Handle>("anchor_guest"));
+    const guestPersona = await seedPersona(db, guest, "Bystander", { description: "the first human who happened to join" });
+    await seedParticipant(db, { chatId, key: "anchor_guest", userId: guest, role: "member", activePersonaId: guestPersona });
+    // The HOST holds no seat persona (so the preview cannot take the `human` arm) but the ROOM has an anchor.
+    const anchorPersona = await seedPersona(db, host, "Anchor", { description: "the identity this room is about" });
+    await db.update(chatsTable).set({ anchorPersonaId: anchorPersona }).where(eq(chatsTable.id, chatId));
+
+    const read = createRead(makeChatContext(db), makeDeps(personaResolvingDeps()));
+    const preview = await read.previewAssembly({ principal: principal(host), chatId });
+
+    const prompt = `${preview.prompt.static}\n${preview.prompt.dynamic}`;
+    // The discriminating read is the ACTIVE binding, not the anchor's card contribution — the anchor arm is
+    // resolved separately and would appear either way. `{{user}}` in the prompt-config sections is bound by
+    // the TRIGGER arm alone, so this one string separates all three candidate behaviours: "Anchor" = the
+    // ruled `none`→anchor arm; "Bystander" = the retired `personaIds[0]` fallback; the kit floor "Traveler" =
+    // an active that resolved to nothing (which is what a test of only `not.toContain`s cannot tell apart).
+    expect(prompt).toContain("roleplay with Anchor");
+    expect(prompt).not.toContain("roleplay with Bystander");
+    expect(prompt).not.toContain("roleplay with Traveler");
+    expect(prompt).not.toContain("the first human who happened to join");
+  });
+
   test("getActivePresetConfig returns the resolved PromptConfig", async () => {
     const me = await seedUser(db, castId<Handle>("me"));
     const chatId = await seedRoom("room", me);
@@ -1344,14 +1374,17 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
   test("a preview binds {{user}} to the HOST's own persona, never the presence-order-first human's", async () => {
     // `resolvePreviewInputs` used to pass only `personaIds` (roster order), so the composition root's
     // `triggerPersonaId ?? personaIds.at(0)` fell through to whoever joined first — a host's own preview
-    // could render ANOTHER member's persona as {{user}}, and the answer changed with join order.
+    // could render ANOTHER member's persona as {{user}}, and the answer changed with join order. That
+    // fallback is now RETIRED outright (2026-08-07) rather than merely out-ranked, so the join order this
+    // room seeds is no longer an input to anything — it is kept because a REGRESSION would re-introduce
+    // exactly this shape, and this room is the one that would catch it.
     const host = await seedUser(db, castId<Handle>("pp_host"));
     const other = await seedUser(db, castId<Handle>("pp_other"));
     const hostPersonaId = await seedPersona(db, host, "pp_host_persona");
     const otherPersonaId = await seedPersona(db, other, "pp_other_persona");
     const chatId = await seedChat(db, "pp");
     const charId = await seedCharacter(db, host, "pp_char");
-    // The OTHER human joined FIRST — so `personaIds[0]` is theirs.
+    // The OTHER human joined FIRST — the seat order the retired fallback would have picked from.
     await seedParticipant(db, { chatId, key: "pp_a_other", userId: other, role: "member", joinSeq: 1, activePersonaId: otherPersonaId });
     await seedParticipant(db, { chatId, key: "pp_b_host", userId: host, role: "host", joinSeq: 2, activePersonaId: hostPersonaId });
     await seedParticipant(db, { chatId, key: "pp_c_char", characterId: charId });

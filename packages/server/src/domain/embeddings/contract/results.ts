@@ -21,6 +21,13 @@ export interface PurgeMemoryVectorsResult {
   readonly digests: number;
 }
 
+/** Rows deleted by the chat-memory shrink prune — blocks that no longer exist in canon (and, for digests,
+ *  the consolidations that folded them). Zero on every ordinary build; non-zero exactly when the ingest set
+ *  shrank, which makes it the observability signal for a leak that used to be silent. */
+export interface PruneMemoryBlocksResult {
+  readonly rowsDeleted: number;
+}
+
 /** databank-design/05 §2.4 — rows deleted by the reindex-shrink prune (shrunk tail + retired-space rows). */
 export interface PruneDocumentChunksResult {
   readonly rowsDeleted: number;

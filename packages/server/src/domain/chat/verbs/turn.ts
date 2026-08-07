@@ -571,7 +571,6 @@ async function buildTurnContext(
       runAsUserId: args.runAsUserId,
       model: args.model,
       castCharacterIds: args.castCharacterIds,
-
       mutedSpeakerKeys: args.mutedSpeakerKeys,
       personaIds: args.personaIds,
       // SHAPE's null-stamp guard needs the identity behind `speakers.user`: a canon row with NO persona stamp
