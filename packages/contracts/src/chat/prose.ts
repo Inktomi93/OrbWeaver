@@ -157,6 +157,23 @@ export const CHAT_PROSE_SLOTS = {
     title: "Merged co-speaker heading",
     fires: 'A `cardScope:"merged"` group turn, once per other present roster member.',
   },
+  "chat.group.castMember": {
+    id: "chat.group.castMember",
+    home: "user",
+    version: 1,
+    // The NARRATOR twin of `alsoPresent`, and a separate slot rather than a re-version of it for one reason:
+    // the two frames say opposite things. On a per-speaker merged turn the other members ARE bystanders —
+    // the model voices one of them and must not drift into the rest. On a NARRATOR turn the same cards are
+    // the voices this single call is being asked to speak, so framing them as "also present" contradicts the
+    // round's own nudge ("voicing the present characters (…)"). Re-versioning `alsoPresent` would also have
+    // invalidated every host's existing merged override for a change that does not concern merged turns.
+    text: "[Cast — {{name}}]",
+    macros: "none",
+    requiredMacros: ["{{name}}"],
+    requiredTokens: [],
+    title: "Narrator cast-member heading",
+    fires: "A narrator round, once per cast member whose card rides beside the primary.",
+  },
   "chat.group.scenarioHeading": {
     id: "chat.group.scenarioHeading",
     home: "user",

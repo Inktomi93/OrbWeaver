@@ -2047,3 +2047,76 @@ describe("spanToWirePart — CONTENT_CLASS_POLICY binding", () => {
     expect(fullPart).toEqual({ type: "text", text: cardSpan.raw });
   });
 });
+
+// NARRATOR ASSEMBLY — what an `output:"narrator"` round actually SENDS. A narrator round is ONE call voicing
+// the WHOLE cast, authored by the synthetic group character, which by construction is NOT in `castMembers`.
+// These pin the two facts a live drive (2026-08-07, docs/reviews/misc/2026-08-07-narrator-live-drive.md)
+// found MISSING from the wire: the co-speakers' CARDS never reached the model (the system row named the
+// primary 7x and the co-speaker 0x), and `{{char}}` bound to the primary alone, so the shipped main-prompt
+// framing opened "write <primary>'s perspective only" on a turn voicing everybody. Asserted on
+// `request.prompt.static` — the bytes the model receives — never on the shaping API, so the pin is a defect
+// proof and not a signature check.
+describe("runTurnPipeline — narrator round assembly", () => {
+  const groupChar = castId<CharacterId>("char_group_synthetic");
+  const charlotte = { name: "Charlotte", description: "a tired archivist" };
+  const jfc = { name: "JFC", description: "a foul-mouthed mechanic" };
+
+  /** The one immutable round ctx a narrator turn is built off: both present members, primary first. */
+  function narratorCtx(): AssembleContext {
+    return ctxOf({
+      character: charlotte,
+      cast: [charlotte, jfc],
+      castMembers: [
+        { kind: "character", characterId: castId<CharacterId>("char_charlotte") },
+        { kind: "character", characterId: castId<CharacterId>("char_jfc") },
+      ],
+    });
+  }
+
+  /** The prep `engine/round.ts` builds for a narrator round: the SYNTHETIC group character speaks, the
+   *  joined-cast name is the label, and the scope is merged (narrator has no scoped arm). */
+  const narratorShape = {
+    output: "narrator",
+    cardScope: "merged",
+    scopedTargetId: null,
+    speakerName: "Charlotte, JFC",
+    speakerRef: { kind: "character", characterId: groupChar },
+  } as const;
+
+  test("every present member's CARD reaches the model, not just the primary's", async () => {
+    const { args } = baseArgs({ assembleContext: narratorCtx(), shape: narratorShape });
+    const result = await runTurnPipeline(args);
+    const system = result.request.prompt.static;
+    expect(system).toContain(charlotte.description);
+    // The defect: the co-speaker's card was never assembled, so the model was asked to voice a character
+    // it had never been shown.
+    expect(system).toContain(jfc.description);
+    // …under the NARRATOR frame, not the per-speaker bystander frame: this call is voicing JFC, so calling
+    // them "also present" would contradict the round's own nudge (PROSE slot `chat.group.castMember`).
+    expect(system).toContain("[Cast — JFC]");
+    expect(system).not.toContain("[Also present — JFC]");
+  });
+
+  test("`{{char}}` binds to the WHOLE cast, so the shipped framing stops naming one member", async () => {
+    const { args } = baseArgs({ assembleContext: narratorCtx(), shape: narratorShape });
+    const result = await runTurnPipeline(args);
+    // DEFAULT_MARKER_TEMPLATES.main_prompt opens "You are {{char}} in an immersive, ongoing roleplay".
+    expect(result.request.prompt.static).toContain("You are Charlotte, JFC in an immersive");
+  });
+
+  test("a PER-SPEAKER round is untouched — the speaker's own card is primary, the other is a co-speaker", async () => {
+    const { args } = baseArgs({
+      assembleContext: narratorCtx(),
+      shape: {
+        output: "per-speaker",
+        cardScope: "merged",
+        scopedTargetId: null,
+        speakerName: "JFC",
+        speakerRef: { kind: "character", characterId: castId<CharacterId>("char_jfc") },
+      },
+    });
+    const system = (await runTurnPipeline(args)).request.prompt.static;
+    expect(system).toContain("You are JFC in an immersive");
+    expect(system).toContain("[Also present — Charlotte]");
+  });
+});

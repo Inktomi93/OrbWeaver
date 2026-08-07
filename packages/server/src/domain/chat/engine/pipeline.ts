@@ -408,12 +408,14 @@ async function applyDynamicTransform(args: RunTurnPipelineArgs, built: Assembled
 /** Executes one single-speaker turn: BUILD → SHAPE → FIT → REQUEST → REDUCE. Pure orchestration of
  *  injected ops; persists nothing. */
 export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPipelineResult> {
-  // Per-speaker card-section shape: picks this speaker's card + co-speakers off the immutable ctx;
-  // absent falls back to the single-speaker core, byte-identical.
+  // Card-section shape: picks this turn's card(s) + co-speakers off the immutable ctx — the named speaker's
+  // under `per-speaker`, the WHOLE cast's under `narrator`. Absent falls back to the single-speaker core,
+  // byte-identical.
   const ctx =
     args.shape !== undefined
       ? shapeContextForSpeaker(args.assembleContext, {
           ref: args.shape.speakerRef,
+          output: args.shape.output,
           cardScope: args.shape.cardScope,
         })
       : args.assembleContext;

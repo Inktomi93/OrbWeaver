@@ -304,6 +304,7 @@ describe("assemblePrompt — merged co-speaker scenario (F6: single emission)", 
     });
     const ctx = shapeContextForSpeaker(base, {
       ref: { kind: "character", characterId: castId<CharacterId>("character_aria") },
+      output: "per-speaker",
       cardScope: "merged",
     });
     const out = assemblePrompt(DEFAULT_PROMPT_CONFIG, ctx);
