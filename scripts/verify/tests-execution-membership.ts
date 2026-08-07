@@ -49,6 +49,11 @@ function enumerateTestFiles(root: string): readonly string[] {
     for (const entry of readdirSync(join(root, "tests", relDir), { withFileTypes: true })) {
       const rel = relDir.length === 0 ? entry.name : `${relDir}/${entry.name}`;
       if (entry.isDirectory()) {
+        // Skip node_modules inside test fixtures (e.g. sillytavern-runtime's captured runtime) —
+        // third-party packages have their own test files that are not ours to execute.
+        if (entry.name === "node_modules") {
+          continue;
+        }
         walk(rel);
       } else if (RUNNER_SUFFIXES.some((s) => entry.name.endsWith(s))) {
         out.push(`tests/${rel}`);

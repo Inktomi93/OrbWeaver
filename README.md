@@ -3,10 +3,10 @@
 The ground-up remake of **neo-tavern** — a self-hosted, agent-native AI roleplay chat platform
 (SillyTavern-class, without SillyTavern's structural sins).
 
-**Status: planning / sketching.** No code yet. The remake exists because neo-tavern's architecture
-was sound but accreted junk-drawer cross-cutting code, fragmented concepts across stores, and an
-inherited-pattern frontend. Orbweaver keeps what worked (the per-feature template) and rebuilds the
-rest so the **file structure is self-documenting** and the **boundaries are physics, not lint**.
+**Status: active development.** The rebuild IS the live line (`main`); the pre-rollback code survives
+as the `legacy-main` branch, reference-only. Orbweaver keeps what worked from neo-tavern (the
+per-feature template) and rebuilds the rest so the **file structure is self-documenting** and the
+**boundaries are physics, not lint**. The live working doc is `docs/retro-workboard.md`.
 
 ## Read first
 

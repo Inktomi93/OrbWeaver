@@ -37,7 +37,7 @@ const config: KnipConfig = {
     ".": {
       // Every scripts/ tool is directly runnable (tsx); gate files are DYNAMICALLY discovered by
       // the check harness loader, so they must be entries or knip calls the whole gate corpus dead.
-      entry: ["scripts/**/*.ts", "playwright/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}"],
+      entry: ["scripts/**/*.ts", "playwright/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}", "tests/goldens/*.ts"],
       project: ["scripts/**/*.ts", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
       // verify-run.int.test.ts asserts missing-binary handling with a deliberately fake binary name.
       // ss/ps are system binaries scripts/probes/_kit/snap-stage.ts shells out to for port/process probing.
@@ -47,6 +47,9 @@ const config: KnipConfig = {
       // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.cjs (node_modules/ts7/bin/tsc) —
       // invisible to import analysis.
       ignoreDependencies: ["pino-pretty", "ts7"],
+      // generate-goldens.ts imports three virtual browser-context scripts that exist only in the sillytavern
+      // captured runtime (not resolvable by static analysis — @ts-expect-error tags already document this).
+      ignoreUnresolved: ["./scripts/openai.js", "./scripts/extensions.js", "./scripts/tool-calling.js"],
     },
     "packages/kit": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },
     "packages/contracts": { entry: ["src/**/index.ts!"], project: ["src/**/*.ts!"] },

@@ -113,6 +113,8 @@ Two behavioural changes worth knowing while operating:
 TOK=$(grep '^DEBUG_TOKEN=' .env | cut -d= -f2-)
 curl -s -H "x-debug-token: $TOK" "http://127.0.0.1:8788/api/_debug/wire/outcomes?limit=5" -o /tmp/out.json
 curl -s -H "x-debug-token: $TOK" "http://127.0.0.1:8788/api/_debug/wire/captures?limit=5" -o /tmp/req.json
+# To see domain-level settings (presets, trustHtml) BEFORE they compile into the wire payload:
+# curl -s -H "x-debug-token: $TOK" "http://127.0.0.1:8788/api/_debug/config/chat/<ID>" -o /tmp/chat-config.json
 grep -aE "chat.generation.empty|rpg.extraction" .cache/stack/prod.log | tail -20
 ```
 
@@ -139,13 +141,21 @@ when done.
 | route | what it gives |
 | - | - |
 | `/api/_debug/info` | pid, uptime, nodeEnv, providers |
-| `/api/_debug/wire/captures?limit=N` | **the outbound provider request bodies** — the money endpoint |
-| `/api/_debug/db/chats?limit=N` | chat list (id, messageCount, updatedAt) |
+| `/api/_debug/wire/captures?limit=N` | **outbound provider request bodies** — literal network wire payload |
+| `/api/_debug/wire/outcomes?limit=N` | **what came back** — token counts, tool calls, finish reasons |
+| `/api/_debug/config/app` | loaded models, supported params, prices (resolved + raw settings rows) |
+| `/api/_debug/config/presets` | `PresetRow`s including full config blob (markers, guidedActions, limits) |
+| `/api/_debug/config/chat/:id` | **room config + rpgGame** — full settings payload for the chat |
+| `/api/_debug/config/characters` | character sweep — **EXPOSES `renderPolicy`** (tierA/tierB verdicts) |
+| `/api/_debug/config/character/:id` | full character row with render policy and prompts |
 | `/api/_debug/db/chat/:id` | chat row, participants, messages (**selected variant only**), recentEvents |
-| `/api/_debug/db/characters?limit=N` | id/name/handle only — **does NOT expose `renderPolicy`** |
 | `/api/_debug/logs`, `/errors`, `/requests`, `/traces` | observability rings |
 | `/api/_debug/db/stats`, `/db/integrity`, `/db/assets` | db probes |
 | `/api/_debug/rpg/traces` | **404 always** — see finding #7 |
+
+### Do not look for presets/settings in the wire capture
+The ring at `wire/captures` logs the **literal wire payload** (e.g. Anthropic/OpenRouter API shape). By the time the request hits the wire, Orbweaver has already compiled settings, presets, and character overrides into raw `messages`, system prompts, and sampling parameters.
+**If you need to see a preset, guided action, or trust tier, query the `/api/_debug/config/*` endpoints.** The wire capture will only show you the result.
 
 ### Reading a capture
 

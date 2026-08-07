@@ -664,6 +664,32 @@
           }
         }
       }
+    },
+    {
+      "includes": ["tests/goldens/**"],
+      "linter": {
+        "rules": {
+          "complexity": {
+            "noExcessiveCognitiveComplexity": "off",
+            "useMaxParams": "off"
+          },
+          "nursery": {
+            "useExplicitReturnType": "off",
+            "noFloatingPromises": "off"
+          },
+          "performance": {
+            "noAwaitInLoops": "off"
+          },
+          "style": {
+            "noNonNullAssertion": "off"
+          },
+          "suspicious": {
+            "useAwait": "off",
+            "noEmptyBlockStatements": "off",
+            "noShadow": "off"
+          }
+        }
+      }
     }
   ],
   "css": {

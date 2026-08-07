@@ -68,10 +68,20 @@ export function getWorkspace(opts: WorkspaceOptions): Project {
       skipAddingFilesFromTsConfig: true,
     });
     project.addSourceFilesAtPaths([...(opts.globs ?? searchGlobs(opts.root))]);
+    for (const sf of project.getSourceFiles()) {
+      if (sf.getFilePath().includes("/tests/goldens/sillytavern-runtime/")) {
+        project.removeSourceFile(sf);
+      }
+    }
     return project;
   }
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   project.addSourceFilesAtPaths([...(opts.globs ?? harnessGlobs(opts.root))]);
+  for (const sf of project.getSourceFiles()) {
+    if (sf.getFilePath().includes("/tests/goldens/sillytavern-runtime/")) {
+      project.removeSourceFile(sf);
+    }
+  }
   return project;
 }
 
