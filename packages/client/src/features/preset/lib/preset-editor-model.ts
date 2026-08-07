@@ -62,6 +62,26 @@ function normalizeParams(params: UserIntent): UserIntent {
   return next;
 }
 
+/** The framing overrides, normalized for persistence: each text TRIMMED, and a blank one DROPPED.
+ *
+ *  This is the whole trim boundary for `promptConfig.prose`, and it is here rather than in the keystroke
+ *  handler on purpose: the drill-in's textarea is CONTROLLED, so trimming per keystroke fed the trimmed
+ *  string straight back into the field and made the editor untypeable (no spaces, no newlines — see
+ *  `proseTemplateDraft`). A trim at SAVE gets the same stored bytes with none of that.
+ *
+ *  Dropping the blank is what makes "clear the field" mean RESET: an absent key resolves to the slot's
+ *  shipped default, while a stored `{text:""}` would resolve to empty bytes — a note frame that deletes the
+ *  injection it was supposed to wrap. (`resolveProse` heals that shape too, for blobs that never came
+ *  through this editor; this is the half that keeps our own writes clean.) */
+function normalizePresetProse(prose: PromptConfig["prose"]): PromptConfig["prose"] {
+  return Object.fromEntries(
+    Object.entries(prose).flatMap(([id, override]) => {
+      const text = override?.text.trim() ?? "";
+      return override === undefined || text === "" ? [] : [[id, { ...override, text }]];
+    }),
+  );
+}
+
 /** Normalize the edited `PromptConfig` for persistence: strips all-default blocks back to unset, and
  *  re-anchors `schemaVersion` to the server's (a version bump is a lift concern, never a form edit). */
 export function mergeOnSubmit(edited: PromptConfig, server: PromptConfig): PromptConfig {
@@ -71,10 +91,7 @@ export function mergeOnSubmit(edited: PromptConfig, server: PromptConfig): Promp
     params: normalizeParams(edited.params),
     variables: edited.variables,
     userMacros: edited.userMacros,
-    // The framing overrides ride the EDITED value verbatim: the drill-in already deletes a slot's key when the
-    // field is cleared, so an empty record IS "every framing on its shipped default" and needs no
-    // strip-back-to-unset arm (`prose` is `.prefault({})`, never optional).
-    prose: edited.prose,
+    prose: normalizePresetProse(edited.prose),
   };
   assignIfDefined(next, "customParameters", server.customParameters);
   assignIfDefined(next, "namesBehavior", edited.namesBehavior);

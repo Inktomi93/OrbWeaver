@@ -14,8 +14,8 @@
 // the user's CLICK, so `fires` is a descriptive gloss and never a control.
 
 import type { PromptConfig, TemplateCapability } from "@orb/contracts/preset";
-import type { ProseSlotId } from "@orb/contracts/prose";
-import { PROSE_SLOTS } from "@orb/contracts/prose";
+import type { ProseFooterState, ProseSlotId } from "@orb/contracts/prose";
+import { PROSE_SLOTS, proseFooterState } from "@orb/contracts/prose";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
@@ -31,7 +31,7 @@ import type { AppFormInstance } from "#forms";
 import { useFocusOnSwap } from "#lib";
 import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model.ts";
 import type { TemplateRow } from "../lib/template-rows.ts";
-import { proseTemplatePatch } from "../lib/template-rows.ts";
+import { proseTemplateDraft } from "../lib/template-rows.ts";
 import { DeliveryCluster } from "./delivery-cluster.tsx";
 import { PresetMacroSuggestions } from "./preset-macro-suggestions.tsx";
 
@@ -134,7 +134,11 @@ function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: 
  *
  *  NO MACRO PLANE (the MACU-2 posture, `prose-settings-section.tsx`): these slots are `macros:"none"`, so the
  *  only tokens that DO anything are the slot's own pre-substitution ones. Offering the preset macro catalogue
- *  here would promise a resolution that never runs. */
+ *  here would promise a resolution that never runs.
+ *
+ *  THE FIELD IS CONTROLLED, SO THE DRAFT IS VERBATIM. `proseTemplateDraft` stores exactly what was typed;
+ *  trimming here fed the trimmed string back per keystroke and made the editor untypeable (no spaces, no
+ *  newlines). The trim + drop-the-blank happen once, at the save boundary (`mergeOnSubmit`). */
 function ProseTemplateBody({
   form,
   slotId,
@@ -154,18 +158,50 @@ function ProseTemplateBody({
   return (
     <form.Subscribe selector={(state): string => state.values.prose[slotId]?.text ?? ""}>
       {(value): ReactElement => (
-        <MacroTextarea
-          aria-label={label}
-          onChange={(next): void => {
-            form.setFieldValue("prose", proseTemplatePatch(form.state.values, slotId, next));
-          }}
-          placeholder={placeholder}
-          rows={4}
-          suggestions={suggestions}
-          value={value}
-        />
+        <Stack gap="field">
+          <MacroTextarea
+            aria-label={label}
+            onChange={(next): void => {
+              form.setFieldValue("prose", proseTemplateDraft(form.state.values, slotId, next));
+            }}
+            placeholder={placeholder}
+            rows={4}
+            suggestions={suggestions}
+            value={value}
+          />
+          <ProseFooter footer={proseFooterState(slotId, value, form.state.values.prose[slotId])} />
+        </Stack>
       )}
     </form.Subscribe>
+  );
+}
+
+/** The framing field's WARN-NEVER-BLOCK footer (§6.3 / §4.4) — the same two signals the Prose settings cards
+ *  carry, off the same shared `proseFooterState`. A framing's `{{note}}` is its PAYLOAD carrier: an override
+ *  that drops it renders the wrapper with the injection's content gone, which is the one mistake an author
+ *  cannot see in the field itself. It stays a warning, not a refusal — that is the ruled posture for prose
+ *  `requiredMacros` (`contracts/prose-slot`: "a lint in the editor — never a block"), deliberately unlike
+ *  `FORMAT_STRING_CARRIER_TOKENS`, whose write-refusal is a separate owner ruling about format strings. */
+function ProseFooter({ footer }: { readonly footer: ProseFooterState }): ReactElement | null {
+  if (footer.isDefault) {
+    return <Text voice="gloss">Using the built-in wording</Text>;
+  }
+  if (footer.missing.length === 0 && !footer.stale) {
+    return null;
+  }
+  return (
+    <Row align="center" gap="field">
+      {footer.missing.map((token) => (
+        <Badge intent="warning" key={token} size="sm" tone="soft">
+          Missing {token}
+        </Badge>
+      ))}
+      {footer.stale ? (
+        <Badge intent="warning" size="sm" tone="soft">
+          The built-in wording was updated
+        </Badge>
+      ) : null}
+    </Row>
   );
 }
 
