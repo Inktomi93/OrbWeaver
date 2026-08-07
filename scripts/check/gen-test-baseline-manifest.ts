@@ -12,7 +12,8 @@
 // of `testFiles`. A `deletions` entry whose file has RETURNED to the tree is itself flagged stale by the
 // gate (delete the entry). Re-running this script never discards `deletions` — only editing the manifest
 // by hand does.
-import { existsSync, globSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 
@@ -21,9 +22,15 @@ interface DeletionEntry {
 }
 
 const root = process.cwd();
-const files = globSync(["tests/**/*.test.ts", "tests/**/*.test.tsx", "tests/**/*.ct.tsx", "tests/**/*.spec.ts"], {
-  cwd: root,
-})
+// TRACKED files only (git ls-files), never a raw disk glob: a gitignored vendored tree under tests/
+// (the ST-parity runtime, 2026-08-07) once leaked ~49 of its OWN node_modules specs into the committed
+// manifest — green on the one machine that had the dir, phantom-RED in every worktree. The repo's
+// definition of "a real spec" is "a tracked file with a runner suffix". Consequence: a brand-new spec
+// must be `git add`ed before a regen can fold it into the floor (it was never gated while untracked).
+const SPEC_SUFFIX = /\.(test\.tsx?|ct\.tsx|spec\.ts)$/u;
+const files = execFileSync("git", ["ls-files", "-z", "--", "tests"], { cwd: root, encoding: "utf-8" })
+  .split("\0")
+  .filter((f) => SPEC_SUFFIX.test(f))
   .map((f) => f.replaceAll("\\", "/"))
   .sort();
 
