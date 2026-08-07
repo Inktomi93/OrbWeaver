@@ -1,11 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import { DEFAULT_CHARACTER_CARDS } from "../../../packages/server/src/domain/character/seeder/cards.ts";
+import { RIG_DIR, SEED_CHATS_DIR, ST_RUNTIME_DIR } from "./rig-paths.ts";
 
-const stCharsDir = path.resolve(import.meta.dirname, "sillytavern-runtime/data/default-user/characters");
-const stChatsDir = path.resolve(import.meta.dirname, "sillytavern-runtime/data/default-user/chats");
-const demoChatsDir = path.resolve(import.meta.dirname, "../../../packages/server/src/entry/boot/seed-assets/demo-chats");
-const avatarsDir = path.resolve(import.meta.dirname, "../../../packages/server/src/entry/boot/seed-assets/avatars");
+const stCharsDir = path.join(ST_RUNTIME_DIR, "data/default-user/characters");
+const stChatsDir = path.join(ST_RUNTIME_DIR, "data/default-user/chats");
+const demoChatsDir = SEED_CHATS_DIR;
+const avatarsDir = path.resolve(RIG_DIR, "../../../packages/server/src/entry/boot/seed-assets/avatars");
 
 fs.mkdirSync(stCharsDir, { recursive: true });
 fs.mkdirSync(stChatsDir, { recursive: true });
