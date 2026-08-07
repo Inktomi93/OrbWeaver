@@ -74,6 +74,26 @@ test("a favorited row states 'favorited' ONCE; the default crown keeps its own n
   await expect(component.getByRole("img", { name: "Your default" })).toBeVisible();
 });
 
+// ── The select target's NAME is state-aware (side-eye 2026-08-07 P3a / §13.10 N3+N4) ────────────────
+// A fixed `Switch to X` made a screen reader announce "Switch to Traveler, current true" on the persona you
+// are ALREADY playing as: a verb offering a no-op, contradicted by its own `aria-current` one word later.
+// Both arms keep the persona's NAME leading, so a name-scoped lookup survives the state change.
+
+test("the CURRENT persona's row is named for its STATE, never for a switch that would do nothing", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowDenseStory />);
+  const current = component.getByRole("button", { name: "Traveler — current persona" });
+  await expect(current).toHaveAttribute("aria-current", "true");
+  // …and the verb it would have offered is gone, not merely re-worded around.
+  await expect(component.getByRole("button", { name: "Switch to Traveler" })).toHaveCount(0);
+});
+
+test("a NON-current row keeps the verb — the name only changes where the act is a no-op", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowStory />);
+  const target = component.getByRole("button", { name: "Switch to Nova" });
+  await expect(target).toBeAttached();
+  await expect(target).not.toHaveAttribute("aria-current", "true");
+});
+
 test("the 'set current' target is a real native <button>, not a role=button div", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowStory />);
   const setCurrent = component.getByRole("button", { name: "Switch to Nova" });
