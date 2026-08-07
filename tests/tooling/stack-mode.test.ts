@@ -24,8 +24,10 @@ import {
   decideSpawnLock,
   decideUp,
   formatDispatch,
+  lockHolderText,
   mayRemovePidfile,
   parseListenerPid,
+  parseLockHolder,
   parseProcStartTicks,
   parseProdRecord,
   parseStackArgv,
@@ -173,11 +175,44 @@ test("formatDispatch maps every verb back to a stack.sh case label", () => {
 test("the spawn lock refuses a LIVE holder, breaks a dead one, and retakes a vanished one", () => {
   // The window: adopt/refuse and spawn are separate syscalls, so two `up prod` can both read "port free"
   // and both spawn; the loser dies on EADDRINUSE after clobbering the winner's record.
-  expect(decideSpawnLock(4242, true)).toBe("refuse");
-  expect(decideSpawnLock(4242, false)).toBe("break-stale");
-  expect(decideSpawnLock(null, false)).toBe("retake");
-  // A garbage lock file reads as NaN — treat it as "retake", never as a live holder that blocks forever.
-  expect(decideSpawnLock(Number.NaN, false)).toBe("retake");
+  expect(decideSpawnLock({ kind: "pid", pid: 4242 }, true)).toBe("refuse");
+  expect(decideSpawnLock({ kind: "pid", pid: 4242 }, false)).toBe("break-stale");
+  expect(decideSpawnLock({ kind: "vanished" }, false)).toBe("retake");
+});
+
+test("an EMPTY lock file is stale, and 0 is never treated as a pid — the permanent-wedge shape", () => {
+  // A crash or a short write between the `wx` create and the write leaves an empty lock file. The old
+  // code did `Number("")` → 0 and probed it — but `process.kill(0, 0)` signals the caller's own process
+  // GROUP and ALWAYS succeeds, so an empty file read as "a live launcher (pid 0) holds the lock" and
+  // every later `up prod` no-opped forever until a human deleted the file.
+  for (const raw of ["", "   ", "\n"]) {
+    const holder = parseLockHolder(raw);
+    expect(holder.kind).toBe("unparseable");
+    // `holderAlive: true` on purpose — even a "live" verdict must not save an unparseable holder.
+    expect(decideSpawnLock(holder, true)).toBe("break-stale");
+  }
+  expect(parseLockHolder("0").kind).toBe("unparseable");
+  // Negative values are process GROUPS in kill(2), and a fraction is not a pid at all.
+  expect(parseLockHolder("-1").kind).toBe("unparseable");
+  expect(parseLockHolder("1.5").kind).toBe("unparseable");
+});
+
+test("a NON-NUMERIC lock file breaks stale rather than retaking a file that still exists", () => {
+  // The second wedge: `retake` left the file in place, so the retry's `wx` failed again and the
+  // two-attempt loop gave up with "another launcher won the race" — the lock was never removed.
+  const holder = parseLockHolder("garbage");
+  expect(holder).toEqual({ kind: "unparseable", raw: "garbage" });
+  expect(decideSpawnLock(holder, false)).toBe("break-stale");
+  expect(decideSpawnLock(holder, true)).toBe("break-stale");
+});
+
+test("a real pid parses, and every holder shape has operator-facing text", () => {
+  expect(parseLockHolder("4242")).toEqual({ kind: "pid", pid: 4242 });
+  expect(parseLockHolder(" 4242\n")).toEqual({ kind: "pid", pid: 4242 });
+  expect(parseLockHolder(null)).toEqual({ kind: "vanished" });
+  expect(lockHolderText({ kind: "pid", pid: 7 })).toContain("pid 7");
+  expect(lockHolderText({ kind: "unparseable", raw: "" })).toContain("unparseable");
+  expect(lockHolderText({ kind: "vanished" })).toContain("vanished");
 });
 
 test("a failed spawn may only delete a pidfile that is still ITS OWN", () => {

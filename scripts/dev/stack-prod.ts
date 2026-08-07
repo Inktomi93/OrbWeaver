@@ -32,6 +32,8 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { parseEnv } from "node:util";
+import type { SpawnLockOpts } from "./_kit/spawn-lock.ts";
+import { acquireSpawnLock, releaseSpawnLock } from "./_kit/spawn-lock.ts";
 import type { DebugPosture, InstanceClassification, ObservedInstance, ProdRecord, StackInvocation } from "./_kit/stack-mode.ts";
 import {
   buildProdSpawnPlan,
@@ -44,7 +46,6 @@ import {
   debugConflictMessage,
   debugPostureText,
   decideDown,
-  decideSpawnLock,
   decideUp,
   formatDispatch,
   mayRemovePidfile,
@@ -67,8 +68,6 @@ const PROBE_TIMEOUT_MS = 2000;
 const TOKEN_BYTES = 24;
 const EXIT_REFUSED = 1;
 const EXIT_MISUSE = 3;
-// Two takes: one for the clean case, one after breaking a lock whose holder is dead.
-const LOCK_TAKE_ATTEMPTS = 2;
 // process.argv is [node, script, verb, ...] — the operator's own argv starts here.
 const ARGV_AFTER_VERB = 3;
 const MS_PER_SECOND = 1000;
@@ -310,66 +309,11 @@ function armDebug(invocation: StackInvocation, fileEnv: Readonly<Record<string, 
 }
 
 // ── the spawn-window lock ────────────────────────────────────────────────────────────────────────────
+// The mechanics live in `_kit/spawn-lock.ts` (importable, so a test can prove a stale lock is actually
+// unlinked); the decisions are `parseLockHolder` / `decideSpawnLock` in `_kit/stack-mode.ts`.
 
-/** The adopt/refuse decision and the spawn are SEPARATE syscalls, so two `up prod` runs can both read
- *  "port free" and both spawn. The loser then dies on EADDRINUSE — but only after its `writeFileSync`
- *  clobbered the winner's record. `wx` is the atomic take (the same shape `scripts/dev/engines.ts` uses
- *  for its adopt window, which paid for this exact class with a duplicate vLLM fleet). A lock whose
- *  holder pid is dead is a crashed launcher's leftover and is broken loudly. */
-function acquireSpawnLock(): boolean {
-  mkdirSync(runDir(), { recursive: true });
-  for (let attempt = 0; attempt < LOCK_TAKE_ATTEMPTS; attempt += 1) {
-    if (takeSpawnLock()) {
-      return true;
-    }
-    if (!handleHeldSpawnLock()) {
-      return false;
-    }
-  }
-  log("could not take the spawn lock after breaking a stale one — another launcher won the race; no-op.");
-  return false;
-}
-
-/** The atomic take. `wx` fails if the file exists — that failure IS the mutual exclusion. */
-function takeSpawnLock(): boolean {
-  try {
-    writeFileSync(LOCK_PATH(), `${process.pid}\n`, { flag: "wx" });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-/** Someone holds the lock. Returns true to retry the take, false to give up (a live holder owns it). */
-function handleHeldSpawnLock(): boolean {
-  let holder: number | null = null;
-  try {
-    holder = Number(readFileSync(LOCK_PATH(), "utf8").trim());
-  } catch {
-    holder = null; // vanished between the failed create and the read — a racing release
-  }
-  const action = decideSpawnLock(holder, holder !== null && processAlive(holder));
-  if (action === "refuse") {
-    log(`another launcher (pid ${holder ?? "?"}) is mid-spawn — this up is a no-op. Re-run when it finishes, or check \`stack status prod\`.`);
-    return false;
-  }
-  if (action === "break-stale") {
-    log(`breaking a stale spawn lock (holder pid ${holder ?? "?"} is dead).`);
-    try {
-      unlinkSync(LOCK_PATH());
-    } catch {
-      // lost the break race to another launcher — the retry's `wx` decides
-    }
-  }
-  return true;
-}
-
-function releaseSpawnLock(): void {
-  try {
-    unlinkSync(LOCK_PATH());
-  } catch {
-    // already gone
-  }
+function withSpawnLock(): SpawnLockOpts {
+  return { lockPath: LOCK_PATH(), selfPid: process.pid, isAlive: processAlive, log };
 }
 
 // ── verbs ────────────────────────────────────────────────────────────────────────────────────────────
@@ -416,14 +360,14 @@ async function doUp(invocation: StackInvocation): Promise<number> {
 }
 
 async function spawnProd(port: number, debug: boolean, overlay: Readonly<Record<string, string>> | undefined): Promise<number> {
-  if (!acquireSpawnLock()) {
+  if (!acquireSpawnLock(withSpawnLock())) {
     result(`mode=prod status=spawn-locked port=${port}`);
     return EXIT_REFUSED;
   }
   try {
     return await spawnProdLocked(port, debug, overlay);
   } finally {
-    releaseSpawnLock();
+    releaseSpawnLock(LOCK_PATH());
   }
 }
 
