@@ -90,12 +90,17 @@ export function classifyHttpStatus(status: number | undefined): ErrorClassificat
  * caller can decide on the `unknown` floor.
  */
 export function classifyTransportName(name: string, message: string): ErrorClassification | null {
+  // ABORT WINS, and it is tested FIRST (belt to `abort-flatten.ts`'s braces): an error NAMED an abort is a
+  // cancellation whatever its message says, so it can never be retried. Order matters — the transient regex
+  // reads the MESSAGE too, and an abort whose message contains "connection"/"timeout" (the whole
+  // STRUCTURED-ABORT-REASON-LEAK class) would otherwise be re-run as a transient fault. Nothing legitimately
+  // transient is named `*Abort*`.
+  if (ABORT_NAME_RE.test(name)) {
+    return { kind: "aborted", retryable: false };
+  }
   const haystack = `${name} ${message}`;
   if (TRANSIENT_TRANSPORT_RE.test(haystack)) {
     return { kind: "server", retryable: true };
-  }
-  if (ABORT_NAME_RE.test(name)) {
-    return { kind: "aborted", retryable: false };
   }
   return null;
 }

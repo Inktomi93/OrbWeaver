@@ -2,11 +2,30 @@
 // and backendForSource (the non-chat axis), plus the fail-closed registry/role lookups. The runner key
 // is infra-internal and never leaves providers; this is its only test surface.
 
+import type { ModelId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { getTraceByRequestId, initTracing, withRequestSpan } from "@orb/server/foundation/observability";
-import type { BackendKey, BackendRegistry, CredentialSource, EmbedRequest, ProviderBackend } from "@orb/server/infra/providers";
-import { backendForSource, createEmbedRole, deriveRunner, ProviderError, requireBackend, requireRoleImpl } from "@orb/server/infra/providers";
+import type {
+  BackendKey,
+  BackendRegistry,
+  CredentialSource,
+  EmbedRequest,
+  ProviderBackend,
+  StructuredRequest,
+  SummarizeResult,
+} from "@orb/server/infra/providers";
+import {
+  backendForSource,
+  createEmbedRole,
+  createStructuredRole,
+  deriveRunner,
+  ProviderError,
+  requireBackend,
+  requireRoleImpl,
+} from "@orb/server/infra/providers";
+import { providerErrorFromHttp } from "@orb/server/infra/providers/backends/kit";
 import { describe } from "vitest";
-import { makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
+import { makeOpenRouterCredential, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // The agent-sdk×vllm rejection message (loopback skin retired) — hoisted for the callback-regex lint.
@@ -133,5 +152,105 @@ describe("runRole — the provider-call seam opens a provider.<role> span", () =
     expect(providerSpan?.attributes["provider.source"]).toBe("vllm");
     // THE PIN: the ring's provider total is no longer structurally 0.
     expect(trace.totals.providerDurationMs).toBeGreaterThan(0);
+  });
+});
+
+// ── runRole — the caller's abort REASON never reaches the backend (STRUCTURED-ABORT-REASON-LEAK) ──────
+// The defect: a role dispatcher handed `req.signal` to the backend UNCHANGED, so the caller's abort reason
+// travelled to `fetch` and — per the fetch spec, which undici implements — became the value the request
+// promise REJECTS with. `classifyTransportName` reads name+message for /timeout|connection|network|overload/,
+// so a cancellation whose reason merely CONTAINED one of those words came back `{kind:"server",
+// retryable:true}` and was RE-RUN (our own `retry.ts` on the chat runners; the OpenRouter SDK's default
+// `retryConfig.retryConnectionErrors` on the batch roles) — a cancelled call, re-billed.
+//
+// Asserted through the REAL `structured` dispatcher (the arm the rpg extraction rides) and through the
+// classifier the transport path actually calls — never through the flattening helper itself, which would
+// only prove the helper works.
+const HOSTILE_ABORT_REASON = new Error("connection timeout waiting for the user");
+
+/** A structured backend that behaves like `fetch`: it rejects with the signal's `reason` on abort, and
+ *  records the signal it was handed so the test can inspect what crossed the seam. */
+function abortObservingBackend(seen: { signal?: AbortSignal | undefined }): ProviderBackend {
+  return {
+    key: "openrouter",
+    structured: (req: StructuredRequest): Promise<SummarizeResult> =>
+      new Promise<SummarizeResult>((_resolve, reject): void => {
+        seen.signal = req.signal;
+        // `fetch`'s abort algorithm, exactly: reject with the signal's REASON — immediately if it is
+        // already aborted, else on the abort event.
+        if (req.signal?.aborted === true) {
+          reject(req.signal.reason);
+          return;
+        }
+        req.signal?.addEventListener("abort", (): void => reject(req.signal?.reason), { once: true });
+      }),
+  };
+}
+
+function structuredReq(signal: AbortSignal): StructuredRequest {
+  return {
+    credential: makeOpenRouterCredential(),
+    model: castId<ModelId>("m"),
+    signal,
+    inputs: [{ systemPrompt: "", userPrompt: "x" }],
+    responseFormat: { name: "x", schema: { type: "object" } },
+  };
+}
+
+describe("runRole — the caller's abort reason is flattened before it reaches a backend", () => {
+  test("a cancelled STRUCTURED call classifies as aborted+non-retryable even when the caller's reason says 'connection timeout'", async () => {
+    const caller = new AbortController();
+    const seen: { signal?: AbortSignal | undefined } = {};
+    const role = createStructuredRole({ backends: new Map<BackendKey, ProviderBackend>([["openrouter", abortObservingBackend(seen)]]) });
+
+    const pending = role(structuredReq(caller.signal));
+    // Let the dispatcher reach the backend before cancelling (the backend attaches its listener on entry).
+    await Promise.resolve();
+    caller.abort(HOSTILE_ABORT_REASON);
+    const thrown: unknown = await pending.then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+
+    // THE PIN, asserted FIRST because it is the defect: the verdict the transport path reaches.
+    // `{kind:"server", retryable:true}` here is a cancelled call being re-run (and re-billed).
+    const classified = providerErrorFromHttp(thrown, "openrouter structured");
+    expect(classified.kind).toBe("aborted");
+    expect(classified.retryable).toBe(false);
+
+    // The mechanism underneath: the wire saw OUR signal, whose reason is a plain AbortError — never the
+    // caller's sentence.
+    expect(seen.signal).toBeInstanceOf(AbortSignal);
+    expect(seen.signal).not.toBe(caller.signal);
+    expect(seen.signal?.aborted).toBe(true);
+    expect(thrown).not.toBe(HOSTILE_ABORT_REASON);
+    expect(Error.isError(thrown) ? thrown.name : "").toBe("AbortError");
+  });
+
+  test("cancellation still PROPAGATES (the flattening drops the reason, never the cancel)", async () => {
+    const caller = new AbortController();
+    const seen: { signal?: AbortSignal | undefined } = {};
+    const role = createStructuredRole({ backends: new Map<BackendKey, ProviderBackend>([["openrouter", abortObservingBackend(seen)]]) });
+
+    const pending = role(structuredReq(caller.signal));
+    await Promise.resolve();
+    expect(seen.signal?.aborted).toBe(false);
+    caller.abort();
+    await pending.catch(() => undefined);
+    expect(seen.signal?.aborted).toBe(true);
+  });
+
+  test("a caller who cancels BEFORE the dispatch hands the backend an already-aborted signal", async () => {
+    const caller = new AbortController();
+    caller.abort(HOSTILE_ABORT_REASON);
+    const seen: { signal?: AbortSignal | undefined } = {};
+    const role = createStructuredRole({ backends: new Map<BackendKey, ProviderBackend>([["openrouter", abortObservingBackend(seen)]]) });
+
+    const thrown: unknown = await role(structuredReq(caller.signal)).then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+    expect(Error.isError(thrown) ? thrown.name : "").toBe("AbortError");
+    expect(thrown).not.toBe(HOSTILE_ABORT_REASON);
   });
 });

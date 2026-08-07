@@ -53,9 +53,13 @@
 // `classifyTransportName` (`backends/kit/error-classify.ts`) decides `aborted` vs retryable-`server` by regex
 // over an error's name+message, so an abort reason whose text contains "timeout"/"connection"/"network" would
 // classify a CANCELLED round as a retryable fault and `retry.ts` would RE-RUN it — the opposite of cancelling.
-// The chat runners are already protected because they re-wrap through `turnAbortSignal`; the `structured` role
-// (which the rpg extraction rides) passes `req.signal` straight through, so flattening HERE is what covers both
-// arms. Re-aborting our own controller with no argument makes every cause a plain AbortError.
+// Re-aborting our own controller with no argument makes every cause a plain AbortError.
+// TRUTH-REPAIR 2026-08-06 (STRUCTURED-ABORT-REASON-LEAK): this header used to say the `structured` role passes
+// `req.signal` straight through, "so flattening HERE is what covers both arms". That is no longer true — every
+// role dispatch now flattens at the ONE provider seam (`infra/providers/roles/dispatch.ts::runRole`, law in
+// `backends/kit/abort-flatten.ts`), so no caller depends on this fold for classifier safety. The fold STAYS
+// regardless: this controller is the round's own cancellation SCOPE (it must exist for `cancel`), the fold is
+// how a turn abort reaches it, and flattening at both ends is free.
 //
 // ASSUMES(single-replica): the map is process-local, same posture as the staging accumulator + the chat-turn
 // lock. A multi-replica deploy would need a shared barrier (a doorway, not built).

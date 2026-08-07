@@ -6,6 +6,11 @@
 // STARTS — so a legitimately long generation that streams for >N ms is aborted mid-stream even though the
 // socket is healthy. Resetting the window on every received chunk means only a genuine stall (no bytes for
 // the whole window) trips the abort. Pure timers + AbortController — no clock read, so it stays gate-clean.
+//
+// The caller-signal fold lives in `./abort-flatten.ts` (the reason-flattening law's one home) — this file
+// composes it with the idle timer; it does not re-implement it.
+
+import { foldAbortInto } from "./abort-flatten.ts";
 
 /** Max time a streaming HTTP call may go WITHOUT a received chunk before the socket is treated as stalled
  *  and aborted. NOT a whole-turn deadline: a healthy long stream resets the window on every chunk. Long
@@ -25,16 +30,20 @@ export interface IdleAbort {
 /**
  * Compose an external (caller-cancel) signal with a ROLLING idle timeout (default {@link IDLE_TIMEOUT_MS}).
  * The window is armed immediately (covers the connection-open / first-token phase, where a stall is just as
- * fatal as one mid-stream); `reset()` restarts it per chunk; `dispose()` clears it on settle. The caller's
- * cancel is folded in so the composed signal fires on either cause.
+ * fatal as one mid-stream); `reset()` restarts it per chunk; `dispose()` clears it on settle (which also
+ * detaches from the caller's signal). The caller's cancel is folded in — REASON-FLATTENED, never
+ * `AbortSignal.any` (`./abort-flatten.ts`) — so the composed signal fires on either cause.
  */
 export function turnAbortSignal(external?: AbortSignal, idleMs: number = IDLE_TIMEOUT_MS): IdleAbort {
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let settled = false;
+  // Assigned before any caller can reach `dispose` (the fold is two statements below, no await between).
+  let detachExternal: () => void = (): void => undefined;
 
   const dispose = (): void => {
     settled = true;
+    detachExternal();
     if (timer !== undefined) {
       clearTimeout(timer);
       timer = undefined;
@@ -50,21 +59,13 @@ export function turnAbortSignal(external?: AbortSignal, idleMs: number = IDLE_TI
     timer = setTimeout((): void => controller.abort(), idleMs);
   };
 
-  // Fold the caller's cancel into our controller so the composed signal fires on either cause.
-  // NOT `AbortSignal.any([external, controller.signal])` (Node-26 program §4.12, deliberate KEEP): `.any`
-  // PROPAGATES the source signal's `reason`, and this signal is handed straight to `fetch`, so the caller's
-  // abort reason would become the thrown error the provider taxonomy classifies. `classifyTransportName`
-  // decides `aborted` vs retryable-`server` by regex over the error's NAME+MESSAGE — a chat-domain abort
-  // reason whose text happens to contain "timeout"/"connection"/"network" would classify a CANCELLED turn as
-  // a retryable fault and re-run it. Re-aborting our own controller flattens every cause to a plain
-  // AbortError, which keeps the provider classifier independent of the chat domain's abort vocabulary.
-  if (external !== undefined) {
-    if (external.aborted) {
-      controller.abort();
-    } else {
-      external.addEventListener("abort", (): void => controller.abort(), { once: true });
-    }
-  }
+  // Fold the caller's cancel into our controller so the composed signal fires on either cause — through
+  // `foldAbortInto`, which is the ONE home of the reason-flattening law (`./abort-flatten.ts` states the bug
+  // in full: `AbortSignal.any` propagates the source `reason`, this signal goes straight to `fetch`, and a
+  // caller reason containing "timeout"/"connection"/"network" makes `classifyTransportName` read a CANCELLED
+  // turn as a retryable fault and re-run it). Node-26 program §4.12's "don't adopt `.any` here" KEEP stands;
+  // it is now enforced by there being no local composition to get wrong.
+  detachExternal = foldAbortInto(controller, external);
   // Stop the idle timer once aborted (caller cancel or our own stall trip) so a settled turn leaves no
   // dangling timer.
   controller.signal.addEventListener("abort", dispose, { once: true });
