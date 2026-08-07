@@ -35,8 +35,10 @@ import { AgentModelHealError, ConnectionRoutingError } from "@orb/server/domain/
 import type { RpgTraceEvent, RpgTraceSink } from "@orb/server/domain/rpg";
 import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
 import type { ServicesResult } from "@orb/server/entry/compose";
-import { logger } from "@orb/server/foundation/observability";
+import { logger, recentWireCaptures, recordWireCapture, resetWireCaptures } from "@orb/server/foundation/observability";
 import type { ChatResult } from "@orb/server/infra/providers";
+import { createVllmChat } from "@orb/server/infra/providers/vllm";
+import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
 import type { RpgTurnContext, RpgTurnTranscriptMessage } from "../../../../packages/server/src/domain/chat/index.ts";
@@ -261,6 +263,10 @@ function buildCannedRpgWithText(args: {
   /** R-OBS — the rpg flight-recorder sink. Omitted ⇒ untraced, which is what every other pin here drives (and
    *  is itself the zero-cost/byte-identical claim: those pins pass unchanged with no sink wired). */
   readonly trace?: RpgTraceSink;
+  /** Replace the fake chat arm with a REAL infra chat surface. The WIRE-CAPTURE landing pin drives the ACTUAL
+   *  vllm surface (real `buildBody` + the real `captureWire` sink → the real ring) through this seam, because
+   *  a fake executor can never prove the round's request reaches the debug read. Wins over `chatThrows`. */
+  readonly chatArm?: NonNullable<Parameters<typeof buildRpg>[0]["executor"]["runChatTurn"]>;
 }): ReturnType<typeof buildRpg> {
   const { app, db, api, spy, cannedText, cannedToolCalls, structuredThrows, chatThrows, capability } = args;
   return buildRpg({
@@ -308,7 +314,8 @@ function buildCannedRpgWithText(args: {
       // A `chatThrows` harness REPLACES the arm outright (rather than branching inside it) so the recording
       // arm below stays byte-identical to what every existing pin exercises.
       runChatTurn:
-        chatThrows !== undefined
+        args.chatArm ??
+        (chatThrows !== undefined
           ? (): Promise<ChatResult> => Promise.reject(chatThrows)
           : (req) => {
               recordChatTurn(spy, req);
@@ -331,7 +338,7 @@ function buildCannedRpgWithText(args: {
                 durationApiMs: 310,
                 finishReason: "stop",
               } as unknown as ChatResult);
-            },
+            }),
     },
     resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
     // The fork preset-ownership gate is unreached on the extraction path; a benign stub.
@@ -386,6 +393,89 @@ test("CHEAP turn (tool-round arm) — a wire that CAN carry tools rides them, ne
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.ambient?.location).toBe("the obsidian tower");
   expect(view.recentBeats).toContain("arrived at the tower");
+});
+
+// ── WIRE-SINK: the state round's request is READABLE at /api/_debug/wire/captures?chatId= ────────────────
+// The observability LANDING pin (not a unit): the dedicated tool round is the ONE vehicle that puts the state
+// tools on a request of its OWN (the folded turn rides the character turn's, which is captured), and it used
+// to build that request WITHOUT a `chatId`. The sink fired — the capture just landed ANONYMOUS, so the debug
+// read's only correlation key (chatId) dropped it and a whole debugging campaign saw the character turns and
+// nothing of the round that actually wrote the state. Measured on the live spill before the fix:
+//   `chat-completions | vllm | NO-CHATID | tool_choice:required | [update_scene …]`.
+// So this drives the REAL vllm surface (real `buildBody` + the real `captureWire` sink → the real ring) and
+// asserts through `recentWireCaptures({ chatId })` — the exact function the HTTP route calls. A fake executor
+// cannot prove any of this; only the real surface + the real ring can.
+
+/** A {@link VllmEngineClient} that answers the tool round with a canned openai-compat SSE carrying ONE
+ *  `update_scene` call — so the round folds for real and the capture is not a request into a void. */
+function toolRoundEngineClient(): VllmEngineClient {
+  const args = JSON.stringify({ location: "the obsidian tower", recentEvent: "arrived at the tower" });
+  const canned =
+    `data: {"choices":[{"index":0,"delta":{"tool_calls":[{"index":0,"id":"call_1","type":"function","function":{"name":"update_scene","arguments":${JSON.stringify(args)}}}]}}]}\n` +
+    `data: {"choices":[{"index":0,"delta":{},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":3,"completion_tokens":1}}\n` +
+    "data: [DONE]\n";
+  return {
+    enginePost: (): Promise<never> => Promise.reject(new Error("chat must stream")),
+    engineStream: (): Promise<ReadableStream<Uint8Array>> =>
+      Promise.resolve(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(canned));
+            controller.close();
+          },
+        }),
+      ),
+    baseUrl: () => "http://127.0.0.1:0",
+  };
+}
+
+/** The tool NAMES on a captured openai-compat body (`tools[].function.name`). */
+function capturedToolNames(body: Record<string, unknown>): string[] {
+  const tools = (body["tools"] as readonly { function?: { name?: string } }[] | undefined) ?? [];
+  return tools.map((t) => t.function?.name ?? "");
+}
+
+test("WIRE-SINK: the dedicated tool round's request lands in the wire ring UNDER ITS chatId (the debug read's key)", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "wire-toolround");
+  resetWireCaptures();
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy,
+    cannedText: "{}",
+    // The REAL surface, wired with the REAL ring sink exactly as `createServices` wires it when capture is on.
+    chatArm: createVllmChat({
+      client: toolRoundEngineClient(),
+      now: () => FROZEN_AT,
+      // The sink `createServices` injects, verbatim in shape: the boundary hands the entry, the sink stamps
+      // `at` from the injected clock and forwards to the process ring.
+      captureWire: (entry) => recordWireCapture({ ...entry, at: FROZEN_AT }),
+    }),
+  });
+
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
+
+  // THE LANDING: the host read (`GET /api/_debug/wire/captures?chatId=…` calls exactly this) sees the round.
+  const captures = recentWireCaptures({ chatId });
+  expect(captures).toHaveLength(1);
+  // `.at(0)` (not `[0]`): biome's type service reads an index access on a `WireCapture[]` as non-nullish and
+  // then flags the honest `?? {}` fallback as unreachable, while tsc (noUncheckedIndexedAccess) requires it.
+  const capture = captures.at(0);
+  expect(capture?.backend).toBe("vllm");
+  expect(capture?.api).toBe("chat-completions");
+  // …and what it sees IS the tool round: the state tool set + the `required` forcing, on the real wire body.
+  const body = capture?.body ?? {};
+  expect(capturedToolNames(body)).toContain("update_scene");
+  expect(body["tool_choice"]).toBe("required");
+  // The round genuinely ran through the real surface (the fold landed) — the capture is not of a dead call.
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient?.location).toBe("the obsidian tower");
+  resetWireCaptures();
 });
 
 test("CHEAP turn (agent-sdk degrade) — a wire with no `tools[]` runs ONE structured CHAT call instead", async ({ app, db }) => {
