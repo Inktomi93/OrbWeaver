@@ -66,7 +66,9 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   (20/20 dead, one fix-regression caught and killed same-night with its CT measure fence), and the
   closing battery on ONE tree: **10,224 vitest + 2,464 CT, 0 failed, 0 flaky.** Gates **190**.
   D-ledger through **D128** (D127 compiler-owns-memoization + D128 the surface-manifest law, minted
-  on the owner's word 2026-08-08; next free D129). Owner ruling queue: EMPTY — all eight
+  on the owner's word 2026-08-08) — since extended to **D132** by the I-9 ceremony batch
+  (D129 canon-message-identity · D130 hand-edit/turn-write rebase · D131 the handoff property offer
+  \[AMENDS D64] · D132 templates-home-on-presets); **next free D133**. Owner ruling queue: EMPTY — all eight
   question-tool rulings executed and receipted.
 - **Campaign smalls minted this dawn (join the smalls list):** the EmptyState structural fence
   (its `@container` root collapses to width-0 under any shrink-to-fit wrapper — a `w-full` floor on
@@ -822,13 +824,31 @@ Recast-is-story is NOT the answer; the design derives from the pin concept.
 scope-no-color (pre-existing; the likely next "still not colored" report). `GhostMessageRow` has NO
 identity chrome for ANY row kind.
 
-### I-9 · CEREMONY + DOC GRADUATION — 2 of 3 done; HCOPY's D-entry is the survivor
+### I-9 · CEREMONY + DOC GRADUATION — CLOSED (the backlog is minted; next free D133)
 
+- ✅ **D129–D132 MINTED (ceremony batch, 2026-08-07)** — the four laws the last two weeks earned:
+  **D129** canon message identity (kind is DECLARED · kind never decides the canon role · hidden means
+  hidden in every DERIVED plane · the absent trigger is unrepresentable · the fan-out is COMMITTED,
+  not yet built) · **D130** the hand-edit/turn-write REBASE reconciliation (locks arbitrate, carried
+  data can never resurrect a removal, both losing arms loud) with the tombstone + regen-vs-later-flush
+  residuals recorded AS DECLARED LIMITS · **D131** the handoff PROPERTY OFFER (AMENDS D64 — the drop
+  is the default and the decline path; copy-then-swap crash contract; idempotent by provenance;
+  avatars re-owned; personas never copied) · **D132** templates have ONE home and it is PRESETS (the
+  prose slot registry; turn-wire prose → preset, no-preset-in-scope prose stays per-user, which
+  PRESERVES D107's imagery ruling; a source `const` is not a home). Both range headers + the master
+  enumeration updated; `check:docs` clean, `check:structure` 190/190 incl. `d-citation-integrity`.
+- ✅ **REFUSED, with reasons (a refusal is an outcome):** the BUGATES surface-manifest flag — **already
+  minted as D128**, same founding instance and same counts (39/292/269), so the board's "owner call,
+  unminted" line at the 08-07-late STATE block is stale, not a gap. And
+  **CONSOLIDATION-LANDS-WITH-ITS-FENCE** stays a board row, not a D-entry: its founding instance (the
+  founding-cast fence) is OWED, and the house rule is that a law waits for its enforcer
+  (D41's no-code-without-an-emit-site, D72's mint-migrate-SEAL).
 - ✅ **D125 MINTED** — the fifth regex leg (`PROMPT_HISTORY`, amends D121-E), from HISTLEG's report.
   Both range headers + the master enumeration updated (which was itself behind: D123/D124 had never
-  been appended to `Core-Laws-and-Precedents.md:62` — backfilled in the same edit). **Next free: D126**
-  (allocated to STRUCTOUT). HCOPY's handoff-copy D-entry (amends D64) is STILL unminted and rolls to
-  the next ceremony batch alongside any REGPAR / R2WI deltas — that is the initiative's one survivor.
+  been appended to `Core-Laws-and-Precedents.md:62` — backfilled in the same edit).
+  **HCOPY's D-entry, the initiative's long-running survivor, is D131** — its lane report did not
+  survive as a file (`reports/` holds only its README), so the entry was re-derived from the built
+  tree (`substrate/handoff-copy.ts` + `character/contract/handoff-copy.ts` + the swap batch).
 - ✅ **Graduation move DONE (08-03):** the 36/36-ACCOUNTED preset-execution crunch list graduated to
   `docs/history/reviews/misc/`; its three inbound refs repointed. (The board's "that dir is EMPTY"
   claim was stale — it already held six graduated reviews.)
@@ -1334,7 +1354,8 @@ when coverage changes, not left to be contradicted by the section above it.**
     nobody re-poses it.
 17. ✅ **D127 + D128 MINTED 2026-08-08** (question-tool, "mint both"): compiler-owns-memoization +
     the uncompiled CT lane; the third-party surface-manifest law (founding instance @base-ui/react).
-    Ledger + ranges + enumeration updated; next free D129.
+    Ledger + ranges + enumeration updated. (Superseded by the I-9 ceremony batch: D129–D132 minted,
+    next free **D133**.)
 18. Taste tail: Meteocons artwork fork (\~8 icons, MIT) · grimstone theme (parked) · chat-options
     placement (D111 clause OPEN, breaks nothing) · persona=character design pass
     (\[\[persona-pin-prompt-resolution]]).
