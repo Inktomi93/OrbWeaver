@@ -8,7 +8,16 @@
 // the auxiliary single-speaker turns swipe/continueTurn(+undo/revert)/impersonate/generate. Every generating
 // verb threads the active-turns abort signal into the engine and its `guided` steer into GATHER→BUILD.
 
-import type { AssembleContext, ChatBusEvent, ChatInjection, GroupConfig, MessageView, SpeakerRef, UserMacroDraws } from "@orb/contracts/chat";
+import type {
+  AssembleContext,
+  ChatBusEvent,
+  ChatInjection,
+  GroupConfig,
+  MacroFreezeRecord,
+  MessageView,
+  SpeakerRef,
+  UserMacroDraws,
+} from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType, GuidedImpersonatePerson, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
@@ -16,7 +25,7 @@ import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset
 import { legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
-import type { MacroRegistry } from "@orb/kit/macro";
+import type { MacroFreeze, MacroRegistry } from "@orb/kit/macro";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
@@ -61,6 +70,7 @@ import { requireHost, requireParticipant } from "../guard.ts";
 import {
   buildCommittedMessageView,
   combineReasoning,
+  freezeVariantContentStatement,
   insertCanonMessageStatements,
   insertMessageAssetStatements,
   setVariantContentStatement,
@@ -90,6 +100,10 @@ import { driveRoundVia, resolveMentionsVia, resolveTurnIdentityVia, runAutoModeV
  *  inputs (`memoryRecall`) `gatherMemory` stages for the engine's per-speaker witnessed re-run (D6). */
 interface SendRegexSink {
   sendUserText?: string;
+  /** The SEND bake's VOLATILE-FREEZE record (D129-F): which `{{roll}}`/`{{random}}`/clock occurrences the
+   *  freeze resolved out of the composer draft, and to what. Persisted on the user row's variant beside the
+   *  pre-freeze draft so the bake stops being lossy. Absent ⇒ nothing froze. */
+  sendMacroFreezes?: MacroFreezeRecord;
   memoryRecall?: MemoryRecallInputs | null;
 }
 
@@ -625,6 +639,12 @@ async function persistUserMessage(
     readonly hostUserId: UserId;
     /** Ownership-verified attachment ids (the caller ran the trust boundary). Empty ⇒ a plain message. */
     readonly attachmentAssetIds: readonly AssetId[];
+    /** The composer draft as AUTHORED — before the volatile freeze, the `user_input` prompt transform, the
+     *  USER_INPUT regex and the attachment-ref compose (D129-F). Collapses to NULL at the writer when it is
+     *  byte-identical to `content`, which is the common case. */
+    readonly rawContent: string;
+    /** What the SEND freeze baked out of that draft, in occurrence order. Empty ⇒ nothing froze ⇒ NULL. */
+    readonly macroFreezes: MacroFreezeRecord;
   },
 ): Promise<MessageView> {
   const now = ctx.now();
@@ -638,7 +658,7 @@ async function persistUserMessage(
       authorUserId: args.authorUserId,
       personaId: args.personaId,
       now,
-      variant: { content: args.content },
+      variant: { content: args.content, rawContent: args.rawContent, macroFreezes: args.macroFreezes },
     };
     const statements = insertCanonMessageStatements(ctx.db, params);
     // Attachment rows ride the same atomic batch, keyed on this attempt's messageId so a retry re-links correctly.
@@ -981,6 +1001,11 @@ async function deferIfHostOffline(
  * Freezes the selected variant of each pre-first-turn greeting row; idempotent (a frozen row emits no write
  * on a repeat pass), so it's also safe under the concurrent-send retry. A later swipe to an unfrozen
  * alternate is not re-frozen — there is no subsequent "first turn" to catch it.
+ *
+ * D129-F: the bake now carries its provenance. Each rewritten variant stores the PRE-freeze greeting body in
+ * `raw_content` and the occurrences it resolved in `macro_freezes`, so the destroyed bytes and the drawn
+ * values both survive — which is what makes a later freeze-at-selection (the documented greeting-swipe gap)
+ * and a swipe re-resolution possible at all.
  */
 async function freezeGreetingVolatiles(
   ctx: ChatContext,
@@ -994,8 +1019,17 @@ async function freezeGreetingVolatiles(
     }
     // WAVE MU: pass the turn's freeze registry so a greeting embedding a user macro bakes with the turn's
     // bindings/draws; null ⇒ the process `VOLATILE_ONLY_REGISTRY` (byte-identical — user tokens pass through).
-    const frozen = freezeVolatileMacros(m.content, assembleContext, { random: deps.prng, ...(freezeRegistry !== null ? { registry: freezeRegistry } : {}) });
-    return frozen === m.content ? [] : [setVariantContentStatement(ctx.db, m.selectedVariantId, frozen, m.reasoning)];
+    // The sink is per-ROW (never per-registry): the per-turn freeze registry is shared by every greeting here
+    // and by the send bake, so one pooled sink would attribute another row's draws to this variant.
+    const freezes: MacroFreeze[] = [];
+    const frozen = freezeVolatileMacros(m.content, assembleContext, {
+      random: deps.prng,
+      freezes,
+      ...(freezeRegistry !== null ? { registry: freezeRegistry } : {}),
+    });
+    return frozen === m.content
+      ? []
+      : [freezeVariantContentStatement(ctx.db, { variantId: m.selectedVariantId, content: frozen, rawContent: m.content, macroFreezes: freezes })];
   });
   if (stmts.length > 0) {
     await ctx.db.batch(batchMany(stmts));
@@ -1306,6 +1340,11 @@ async function commitUserTurn(
   const userView = await persistUserMessage(ctx, deps.emit, {
     chatId,
     content: composeBodyWithAttachments(sendOut.sendUserText ?? content, attachments),
+    // D129-F provenance: `content` above is the draft after the freeze, the `user_input` transform, the
+    // USER_INPUT regex and the attachment compose; `rawContent` is what the human actually typed. The writer
+    // collapses it to NULL whenever none of those legs changed a byte.
+    rawContent: content,
+    macroFreezes: sendOut.sendMacroFreezes ?? [],
     authorUserId: principal.userId,
     // An omitted personaId stamps the acting participant's active persona; an explicit id (or null) wins.
     // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
