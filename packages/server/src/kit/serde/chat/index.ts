@@ -422,7 +422,9 @@ function parseJson(line: string): unknown {
   }
 }
 
-/** Parse ONE message line → a `ParsedChatMessage`, or null for a corrupt line (skipped, not fatal). */
+/** Parse ONE message line → a `ParsedChatMessage`, or null for a corrupt line (skipped, not fatal). A
+ *  message with no rendered `mes` AND no surviving swipe (blank narrator post, pre-D124 debris) is
+ *  equally unrepresentable at the write boundary — skipped the same way, not minted as an empty row. */
 function parseMessageLine(line: string): ParsedChatMessage | null {
   const parsed = asTyped(parseJson(line), rawMessageSchema);
   if (parsed === null) {
@@ -434,11 +436,15 @@ function parseMessageLine(line: string): ParsedChatMessage | null {
   const sid = parsed.swipe_id;
   const rawActive = typeof sid === "number" && sid >= 0 && sid < swipes.length ? sid : null;
   const { variants, activeVariantIdx } = buildVariants(swipes, parsed.swipe_info, rawActive);
+  const content = str(parsed.mes);
+  if (content.trim().length === 0 && variants.length === 0) {
+    return null;
+  }
   const agentAuthor = parseAgentAuthor(parsed.agent_author);
   return {
     role: roleOf(parsed),
     speakerName: nullIfEmpty(str(parsed.name)),
-    content: str(parsed.mes),
+    content,
     sendDate: parseStDate(parsed.send_date),
     model: ex.model,
     provider: ex.provider,

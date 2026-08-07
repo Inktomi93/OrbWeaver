@@ -155,6 +155,13 @@ describe("parseChatJsonl", () => {
     expect(parsed?.messages).toHaveLength(1);
     expect(parsed?.messages[0]?.content).toBe("survived");
   });
+
+  test("a blank `mes` with no surviving swipe (pre-D124 debris) is stripped, not minted as an empty row", () => {
+    const text = `${header()}\n${line({ mes: "" })}\n${line({ mes: "survived" })}`;
+    const parsed = parseChatJsonl(text, { fileName: "m.jsonl", charDirName: "A" });
+    expect(parsed?.messages).toHaveLength(1);
+    expect(parsed?.messages[0]?.content).toBe("survived");
+  });
 });
 
 // ── build ────────────────────────────────────────────────────────────────────────────────────────────────
