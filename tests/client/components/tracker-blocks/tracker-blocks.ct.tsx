@@ -16,6 +16,9 @@ import { Text } from "@orb/ui/text";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { ReactElement } from "react";
 
+/** WCAG 2.2 SC 2.5.8's minimum target size. Named once so the ambient chip pin reads as the criterion it is. */
+const MIN_TARGET_PX = 24;
+
 // ── MeterRow ──────────────────────────────────────────────────────────────────────────────────────
 
 test("MeterRow read-only: renders label + value/max as the text datum (no edit field)", async ({ mount, page }) => {
@@ -502,6 +505,56 @@ test("AmbientStrip: an UNSET field offers no clear (a control that can do nothin
   await component.getByRole("button", { name: "Time value" }).click();
   await expect(page.getByRole("group", { name: "Time of day" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Clear time" })).toHaveCount(0);
+});
+
+// EVERY CHIP COMMITS A DESTRUCTIVE WRITE to shared game state with no visible undo, so its hit target has to
+// be BOTH big enough and its OWN. The chips were `size="inline"` — the display-at-rest arm, which wears no
+// control box and carries its touch floor in an OVERFLOWING ::after. Measured at the 320px context column
+// that produced 13px-tall boxes with 28px hit areas on an ~18px row pitch, so the areas COLLIDED and the row
+// below won: `elementFromPoint` 10px under `clear` returned `snow`, under `storm` returned `indoors`. Aiming
+// at one sky and committing another is worse than a small target, and a boundingBox assertion cannot see it —
+// so this pins the pixel that actually receives the click.
+test("AmbientStrip: every vocabulary chip owns its hit area — ≥24px and no collision with the row below", async ({ mount, page }) => {
+  const noop = (): void => undefined;
+  await mount(
+    // The NARROWEST real mount (the panel's 320px context column), where the vocabulary wraps to three rows —
+    // a single-row width cannot expose a vertical collision.
+    <div style={{ overflow: "visible", width: 320 }}>
+      <AmbientStrip date="day 3" location="The Rusted Lantern" onEditField={noop} timeOfDay="dawn" weather="rain" />
+    </div>,
+  );
+  await page.getByRole("button", { name: "Weather value" }).click();
+  await expect(page.getByRole("group", { name: "Weather" })).toBeVisible();
+
+  const chips = await page.locator('[role="group"][aria-label="Weather"] button').evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const box = node.getBoundingClientRect();
+      const cx = box.left + box.width / 2;
+      const own = (dy: number): boolean => document.elementFromPoint(cx, box.top + box.height / 2 + dy)?.closest("button") === node;
+      return { label: (node.textContent ?? "").trim(), height: box.height, width: box.width, ownsUp: own(-10), ownsDown: own(10) };
+    }),
+  );
+
+  expect(chips.length).toBe(RPG_WEATHER_TYPES.length);
+  for (const chip of chips) {
+    // WCAG 2.2 SC 2.5.8 — and the spacing exception does not apply, the chips sit ~5px apart.
+    expect(chip.height, `${chip.label} is under the 24px target floor`).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    expect(chip.width, `${chip.label} is under the 24px target floor`).toBeGreaterThanOrEqual(MIN_TARGET_PX);
+    // …and 10px either side of its centre still belongs to IT, not to a neighbour in the wrapped grid.
+    expect(chip.ownsUp, `10px above ${chip.label} belongs to another control`).toBe(true);
+    expect(chip.ownsDown, `10px below ${chip.label} belongs to another control`).toBe(true);
+  }
+});
+
+test("AmbientStrip: the selected member is ANNOUNCED, not just drawn", async ({ mount, page }) => {
+  const noop = (): void => undefined;
+  await mount(<AmbientStrip location="The Rusted Lantern" onEditField={noop} weather="rain" />);
+  await page.getByRole("button", { name: "Weather value" }).click();
+
+  const group = page.getByRole("group", { name: "Weather" });
+  // Selection used to be a border and nothing else — a reader could not tell which sky is current.
+  await expect(group.getByRole("button", { name: "rain", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(group.getByRole("button", { name: "storm", exact: true })).toHaveAttribute("aria-pressed", "false");
 });
 
 test("AmbientStrip: Escape still closes the picker from the row the Clear control sits on", async ({ mount, page }) => {

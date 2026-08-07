@@ -20,7 +20,7 @@
 
 import { RPG_WEATHER_TYPES, TIME_OF_DAY } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
-import { Icon, MapPin } from "@orb/ui/icons";
+import { Icon, MapPin, X } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -119,8 +119,25 @@ function AmbientVocabPicker({
             key={label}
             type="button"
             intent={label === value ? "secondary" : "ghost"}
-            size="inline"
-            className="px-field"
+            // A CONTROL SIZE, not `inline` (side-eye 2026-08-07 P2 + the hit-geometry probe that finding
+            // provoked). `inline` is the DISPLAY-AT-REST arm — a datum standing in for prose — and it wears
+            // no control box, carrying its touch floor in an OVERFLOWING `::after` instead. In a WRAPPING
+            // grid that pseudo is actively harmful: measured at the 320px context column, each chip's box
+            // was 13px tall while its hit area was 28px, so on a ~18px row pitch the areas OVERLAPPED and
+            // the row BELOW won hit-testing — `elementFromPoint` 10px under `clear`'s centre returned
+            // `snow`, under `storm` returned `indoors`, and under five others returned "Clear weather".
+            // Aiming at one sky and committing a different one is a destructive write to SHARED game state
+            // with no visible undo, which is worse than the small target that was reported. A control size
+            // fixes both: the box IS the target (≥32px fine / 44px coarse, over WCAG 2.5.8's 24px) and
+            // nothing overflows to collide. The height must come from the size axis — it is the sole owner
+            // of the box, and a call-site height is both a `ui-size-via-variant` violation and unresolvable
+            // against the sealed control token.
+            size="sm"
+            // The SELECTED member, announced and not merely drawn (side-eye P3): selection was a border
+            // only, so a screen reader could not tell which sky is the current one. `aria-pressed` over
+            // `radio` semantics because these are buttons that COMMIT on activation and close the picker —
+            // a radiogroup would promise arrow-key roving selection that does not exist here.
+            aria-pressed={label === value}
             onClick={(): void => {
               if (label !== value) {
                 onPick(label);
@@ -142,19 +159,24 @@ function AmbientVocabPicker({
           the same row as the `clear` sky would be a reading a user cannot disambiguate.
           `basis-full` puts it on its OWN line at every width rather than in line with the members: a verb
           rendered as the tenth chip of a nine-member closed set is the set's arity misread, and a separator
-          that only works when the row does not wrap is no separator at the 320px context column. */}
+          that only works when the row does not wrap is no separator at the 320px context column.
+          THE RULE + THE GLYPH are the cold reading (side-eye 2026-08-07, its only taste note here): the
+          structure already says "not a member", but the control was styled identically to the chips and
+          landed directly under a wrapped `indoors`, so the EYE still grouped it as a tenth one. A hairline
+          above it closes the set visually, and the ✕ makes it read as a verb before the words are read. */}
       {value === "" ? null : (
         <Button
           type="button"
           intent="ghost"
-          size="inline"
-          className="basis-full px-field text-left"
+          size="sm"
+          className="mt-field basis-full justify-start border-border border-t pt-field"
           aria-label={`Clear ${fieldLabel.toLowerCase()}`}
           onClick={(): void => {
             onPick(null);
             setOpen(false);
           }}
         >
+          <Icon icon={X} size="xs" />
           <Text as="span" size="micro" tone="muted">
             {`Clear ${fieldLabel.toLowerCase()}`}
           </Text>
