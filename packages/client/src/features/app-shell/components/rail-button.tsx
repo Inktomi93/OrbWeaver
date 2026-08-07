@@ -36,7 +36,15 @@ export interface RailButtonProps {
   readonly mobileOnly?: boolean;
 }
 
-export function RailButton({ label, icon, active = false, containsCurrent = false, onClick, mobile = "sheet", mobileOnly = false }: RailButtonProps): ReactElement {
+export function RailButton({
+  label,
+  icon,
+  active = false,
+  containsCurrent = false,
+  onClick,
+  mobile = "sheet",
+  mobileOnly = false,
+}: RailButtonProps): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger
