@@ -325,7 +325,13 @@ function RpgHudCell({
       layout="stacked"
       value={tab.id}
       id={cellDomId(tab.id)}
-      aria-label={tab.label}
+      // THE LOCK IS IN THE NAME (side-eye 2026-08-06 ARIA). The glyph said "locked" to the eye and `title`
+      // carried the reason, but Base UI emits `aria-disabled="false"` on this cell (it is genuinely not
+      // disabled — see the block comment above), so AT heard "Map, tab" and nothing else: a lock a screen
+      // reader cannot perceive. `title` is only the DESCRIPTION, which many readers announce late, after a
+      // verbosity setting, or not at all. The visible caption ("Map") stays the prefix of the accessible
+      // name, so WCAG 2.5.3 Label-in-Name still holds and "click Map" still resolves.
+      aria-label={locked ? `${tab.label} — locked` : tab.label}
       data-crown={tab.crown}
       className={`relative min-w-0 data-active:bg-primary/10 data-active:text-primary ${CELL_EDGE_CLASSES[edge]} ${CELL_OWNERSHIP_CLASSES[ownership]}`}
       {...(tab.disabledReason !== null ? { title: tab.disabledReason } : {})}

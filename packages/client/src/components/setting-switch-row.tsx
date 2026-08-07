@@ -23,40 +23,55 @@ interface SettingRowControlProps {
   readonly onChange: (next: boolean) => void;
   readonly onBlur?: () => void;
   /** Inapplicable-right-now (never hidden — the row still states what it would do). Pair it with
-   *  `disabledReason`: `SettingCheckboxRow` renders that note in the row's description, which is the ONLY
-   *  thing that turns a dead control into an honest one. */
+   *  `disabledReason`: BOTH arms render that note in the row's description, which is the ONLY thing that
+   *  turns a dead control into an honest one. */
   readonly disabled?: boolean;
   readonly disabledReason?: ReactNode;
 }
 
+// The DESCRIPTION half of the inapplicable-state contract, shared by both arms (side-eye 2026-08-06 P2 — the
+// switch arm accepted `disabled`/`disabledReason` in this shared props type and then destructured neither,
+// so the first call site to reach for them would have got a fully live switch with no note and no compile
+// error. No live call site passes them yet, which is exactly why it had to be fixed rather than found later:
+// a prop a component ADVERTISES and silently drops is a trap, and the honest arms are "honour it" or "make
+// it unrepresentable" — honour it, because an inapplicable on/off knob is the same shape as an inapplicable
+// checkbox and `Switch` takes `disabled` natively.)
+//
+// The reason rides the DESCRIPTION slot (the old `SettingRow` had a dedicated one). That keeps it both
+// visible and in `aria-describedby` — Base UI's `Field.Description` registers its id there — so a dead
+// control still states why. `as="span"` is load-bearing: `Field.Description` renders a `<p>`, and the
+// default `<Text>` is also a `<p>`, so the nested default trips React's DOM-nesting validation and puts a
+// paragraph inside a paragraph. `block` restores the own-line break the `<p>` was providing.
+function describeRow(description: ReactNode, disabledReason: ReactNode): { readonly description?: ReactNode } {
+  if (description === undefined && disabledReason === undefined) {
+    return {};
+  }
+  return {
+    description: (
+      <>
+        {description}
+        {disabledReason !== undefined && (
+          <Text as="span" className="block" tone="muted">
+            {disabledReason}
+          </Text>
+        )}
+      </>
+    ),
+  };
+}
+
 /** One label-left / switch-right settings row (the on/off-effect shape). */
-export function SettingSwitchRow({ label, description, checked, onChange, onBlur }: SettingRowControlProps): ReactElement {
+export function SettingSwitchRow({ label, description, checked, onChange, onBlur, disabled, disabledReason }: SettingRowControlProps): ReactElement {
   return (
-    <Field label={label} orientation="horizontal" {...(description === undefined ? {} : { description })}>
-      <Switch checked={checked} onCheckedChange={onChange} {...(onBlur === undefined ? {} : { onBlur })} />
+    <Field label={label} orientation="horizontal" {...describeRow(description, disabledReason)}>
+      <Switch checked={checked} onCheckedChange={onChange} {...(onBlur === undefined ? {} : { onBlur })} {...(disabled === undefined ? {} : { disabled })} />
     </Field>
   );
 }
 
 export function SettingCheckboxRow({ label, description, checked, onChange, onBlur, disabled, disabledReason }: SettingRowControlProps): ReactElement {
-  // The reason rides the DESCRIPTION slot (the old `SettingRow` had a dedicated one). That keeps it both
-  // visible and in `aria-describedby` — Base UI's `Field.Description` registers its id there — so a dead
-  // control still states why. `as="span"` is load-bearing: `Field.Description` renders a `<p>`, and the
-  // default `<Text>` is also a `<p>`, so the nested default trips React's DOM-nesting validation and puts a
-  // paragraph inside a paragraph. `block` restores the own-line break the `<p>` was providing.
-  const combinedDescription = (
-    <>
-      {description}
-      {disabledReason !== undefined && (
-        <Text as="span" className="block" tone="muted">
-          {disabledReason}
-        </Text>
-      )}
-    </>
-  );
-
   return (
-    <Field label={label} orientation="horizontal" {...(description === undefined && disabledReason === undefined ? {} : { description: combinedDescription })}>
+    <Field label={label} orientation="horizontal" {...describeRow(description, disabledReason)}>
       <Checkbox
         checked={checked}
         onCheckedChange={(next): void => onChange(next === true)}

@@ -464,6 +464,41 @@ test("list: a running row renders its DURABLE progress with no live event at all
   await expect(bar).toHaveAttribute("aria-valuenow", "72");
 });
 
+// CATEGORY ≠ STATUS (side-eye 2026-08-06 P3). The `Bulk` chip wore the WARNING colour next to a green
+// "Succeeded", so one row told two stories: a healthy run that looked half-alarmed. The run's MODE is a
+// category — it takes the neutral tone the sibling queue-state chips already use — and colour on this row
+// stays reserved for the status badge that owns it.
+test("list: the Bulk badge is a NEUTRAL category chip, never a warning beside a green status", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "workloads.list": () => [workloadRow({ status: "succeeded", mode: "bulk", result: { embedded: 12, skipped: 0 } })],
+    "sessions.me": () => USER_VIEWER,
+  });
+  await routeWorkloadStream(page, []);
+  await mount(<WorkloadsJobsSectionStory />);
+
+  const row = page.locator('[data-slot="workload-row"]');
+  const bulk = row.locator('[data-slot="badge"]').filter({ hasText: "Bulk" });
+  const status = row.locator('[data-slot="workload-status"] [data-slot="badge"]');
+  await expect(bulk).toBeVisible();
+  await expect(status).toHaveText("Succeeded");
+  // The two chips must not share the warning skin — asserted as resolved colour, not a class name.
+  const [bulkColor, statusColor] = await Promise.all([
+    bulk.evaluate((el: HTMLElement): string => getComputedStyle(el).backgroundColor),
+    status.evaluate((el: HTMLElement): string => getComputedStyle(el).backgroundColor),
+  ]);
+  expect(bulkColor).not.toBe(statusColor);
+  // …and it is the same neutral skin the queue-state chips wear (one vocabulary for "this is a category").
+  const neutral = await page.evaluate((): string => {
+    const probe = document.createElement("span");
+    probe.className = "bg-muted";
+    document.body.append(probe);
+    const color = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    return color;
+  });
+  expect(bulkColor).toBe(neutral);
+});
+
 // A row whose stored params no longer parse used to VANISH from this list. It is now visibly broken here.
 test("list: a POISON row is visible, flagged, and retryable", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {

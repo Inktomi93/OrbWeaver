@@ -167,6 +167,47 @@ test("validate/validationMode flow through — internal validation drives data-i
   await expect(input).toHaveAttribute("data-invalid", "");
 });
 
+// ── The description-less horizontal row's baseline (side-eye 2026-08-06 P2) ────────────────────────
+// `items-start` is right only when a column is genuinely multi-line: a description wraps under the label
+// and the control must hold the first line. With neither a description nor an error the two boxes are
+// single-line and unequal height (a `label` text step vs a `control-md` box), and top-alignment sheared
+// every such settings row — the label rode the control's TOP edge, ~8px above its centre.
+//
+// Asserted as GEOMETRY (centre lines, not a class): the fix is a visual claim, and a class assertion would
+// survive a variant that resolves to something else.
+test("a horizontal row with NO description centres its label against the control", async ({ mount, page }) => {
+  await mount(
+    <Field label="Avatar size" orientation="horizontal">
+      <Switch />
+    </Field>,
+  );
+  const offset = await page.locator('[data-slot="field-root"]').evaluate((root: HTMLElement): number => {
+    const label = root.querySelector('[data-slot="field-label"]') as HTMLElement;
+    const control = root.querySelector('[data-slot="field-control-col"]') as HTMLElement;
+    const labelBox = label.getBoundingClientRect();
+    const controlBox = control.getBoundingClientRect();
+    return Math.abs(labelBox.top + labelBox.height / 2 - (controlBox.top + controlBox.height / 2));
+  });
+  expect(offset).toBeLessThan(1.5);
+});
+
+test("a horizontal row WITH a description keeps the control on the first line", async ({ mount, page }) => {
+  await mount(
+    <Field description="Bubble tints each message; flat is full-width; document is a centered manuscript column." label="Chat display" orientation="horizontal">
+      <Switch />
+    </Field>,
+  );
+  // The label BLOCK is now two lines tall; the control must sit at its top, not float to its middle.
+  const tops = await page.locator('[data-slot="field-root"]').evaluate((root: HTMLElement): readonly [number, number, number] => {
+    const block = root.querySelector('[data-slot="field-label-block"]') as HTMLElement;
+    const control = root.querySelector('[data-slot="field-control-col"]') as HTMLElement;
+    return [block.getBoundingClientRect().top, control.getBoundingClientRect().top, block.getBoundingClientRect().height];
+  });
+  const [blockTop, controlTop, blockHeight] = tops;
+  expect(blockHeight).toBeGreaterThan(24); // genuinely multi-line, or the test proves nothing
+  expect(Math.abs(controlTop - blockTop)).toBeLessThan(1.5);
+});
+
 test("FieldValidity exposes the raw validity state as a render-prop", async ({ mount, page }) => {
   // The render-prop itself is defined in the fixture, not inline here — Playwright CT proxies
   // inline children-callback props back to Node (event-style), it does not render their JSX

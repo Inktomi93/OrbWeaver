@@ -62,7 +62,9 @@ export function ImportLibrarySection(): ReactElement {
       {state.status === "running" ? (
         <>
           <BundleWorkloadTracker workloadId={state.workloadId} onProgress={track.onProgress} onSucceeded={track.onSucceeded} onFailed={track.onFailed} />
-          <Progress value={state.progress.pct} label={state.progress.label ?? "Importing your library…"} />
+          {/* `showValue` like every other live workload bar (`workload-row.tsx` — side-eye 2026-08-06 P3):
+              the same run, watched from two panes, printed its percentage in one of them and not the other. */}
+          <Progress showValue={true} value={state.progress.pct} label={state.progress.label ?? "Importing your library…"} />
         </>
       ) : null}
       {state.status === "error" ? (

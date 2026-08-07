@@ -169,7 +169,12 @@ function ShapeTraceSummary({ trace }: { readonly trace: ShapeTrace }): ReactElem
   return (
     <Section heading={<Kicker>Shape (wire history)</Kicker>}>
       <Stack gap="field">
-        <Text voice="gloss">How the canon shaped into the next turn's wire history — row counts only, no content.</Text>
+        {/* `prose` (variants.ts §the reading-length modifier): these two drawer glosses are SENTENCES, and
+            the bare `gloss` step sets them at 10.5px on tight leading — the wall that modifier exists for.
+            First consumer in features/chat (side-eye 2026-08-06 P3). */}
+        <Text prose={true} voice="gloss">
+          How the canon shaped into the next turn's wire history — row counts only, no content.
+        </Text>
         <TraceLine label="Stages (tail → inject → squash → name)" value={`${withTail} → ${injected} → ${squashed} → ${named}`} />
         <TraceLine label="Same-role merges" value={String(trace.squashMerges)} />
         <TraceLine label="Cache breakpoint" value={breakpoint} />
@@ -191,6 +196,22 @@ const ROW_SOURCE_LABEL: Record<ShapeRowSource, string> = {
   merged: "merged",
 };
 
+/** Does this arm wear a BADGE? (side-eye 2026-08-06 P2 — the anomalous row had no more visual weight than
+ *  the twenty ordinary ones around it, in the readout whose entire job is to make the odd row findable.)
+ *  `canon` is the expected arm and stays quiet type; the two arms that mean "assembly did something to this
+ *  row" get the `Badge intent="info"` weight `ShapeTraceSummary` already uses for a noteworthy shape fact.
+ *  A mapped-type Record, so a widened axis fails `tsc` here too. */
+const ROW_SOURCE_BADGED: Record<ShapeRowSource, boolean> = {
+  canon: false,
+  assembled: true,
+  merged: true,
+};
+
+/** The provenance VOCABULARY, defined where it is read. Three bare words in a trailing gloss ("canon",
+ *  "assembled", "merged") are unreadable to anyone who has not read `SHAPE_ROW_SOURCES`' doc comment —
+ *  which is everyone using the panel. Kept to one clause each; the contract carries the full definition. */
+const ROW_SOURCE_GLOSS = "canon = a stored message · assembled = built for this turn and stored nowhere · merged = adjacent same-role rows squashed into one";
+
 /**
  * The DELIVERED WIRE ROWS, in order — RPG-NO-PROMPT-DEBUG's answer. Every other readout on this tab answers
  * "how much" or "what fired"; this one answers "in what ORDER, and in whose VOICE", which a host previously
@@ -211,10 +232,22 @@ function WireRows({ rows }: { readonly rows: readonly ShapeTraceRow[] }): ReactE
         <Text>This turn delivers no history rows.</Text>
       ) : (
         <Stack gap="field">
-          <Text voice="gloss">The order the model receives, before the context fit trims the oldest turns. Roles and speakers only — no content.</Text>
-          {/* A long chat delivers a long list: the drawer scrolls it rather than pushing the rest of the
-              diagnostics off the panel (the game-state excerpt's precedent on the tab above). */}
-          <Stack className="max-h-64 overflow-y-auto" gap="row">
+          <Text prose={true} voice="gloss">
+            The order the model receives, before the context fit trims the oldest turns. Roles and speakers only — no content.
+          </Text>
+          <Text prose={true} voice="gloss">
+            {ROW_SOURCE_GLOSS}
+          </Text>
+          {/* NO INNER SCROLLER (side-eye 2026-08-06 P2). It used to cap at `max-h-64`, which showed 7 of 24
+              rows with no scrollbar, no fade and no count — the tail was undiscoverable, in the readout whose
+              entire subject is the ORDER of the whole list. The cap existed to stop a long list pushing the
+              rest of the diagnostics off the panel; this is the LAST section of the drawer, so there is
+              nothing below it to push, and the drawer already lives inside the panel's own scroller.
+              A real LIST, not 24 loose paragraphs: `role="list"`/`role="listitem"` is what makes a screen
+              reader say "list, 24 items … 1 of 24" instead of reading an unbounded run of text (the ordinal
+              is on screen for the same reason, for sighted readers). Roles rather than a raw `<ol>`, because
+              a feature composes @orb/ui primitives and never paints a raw intrinsic. */}
+          <Stack gap="row" role="list">
             {numberWireRows(rows).map((row) => (
               <WireRowLine key={row.ordinal} row={row} />
             ))}
@@ -242,9 +275,18 @@ function numberWireRows(rows: readonly ShapeTraceRow[]): readonly NumberedWireRo
 function WireRowLine({ row }: { readonly row: NumberedWireRow }): ReactElement {
   const voice = row.name === undefined ? row.role : `${row.role} · ${row.name}`;
   return (
-    <Row align="baseline" data-slot="wire-row-trace" gap="block" justify="between">
+    <Row align="baseline" data-slot="wire-row-trace" gap="block" justify="between" role="listitem">
       <Text voice="datum">{`${row.ordinal}. ${voice}`}</Text>
-      <Text className="shrink-0" voice="gloss">{`${ROW_SOURCE_LABEL[row.source]} · ${formatChars(row.chars)} chars`}</Text>
+      <Row align="baseline" className="shrink-0" gap="field">
+        {ROW_SOURCE_BADGED[row.source] ? (
+          <Badge intent="info" size="sm">
+            {ROW_SOURCE_LABEL[row.source]}
+          </Badge>
+        ) : (
+          <Text voice="gloss">{ROW_SOURCE_LABEL[row.source]}</Text>
+        )}
+        <Text voice="gloss">{`${formatChars(row.chars)} chars`}</Text>
+      </Row>
     </Row>
   );
 }

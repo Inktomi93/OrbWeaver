@@ -8,6 +8,7 @@ export type { ContainerProps } from "./container.tsx";
 export { Container } from "./container.tsx";
 export type { GridProps } from "./grid.tsx";
 export { Grid } from "./grid.tsx";
+export { Layer } from "./layer.tsx";
 export type { RowProps } from "./row.tsx";
 export { Row } from "./row.tsx";
 export type { SectionProps } from "./section.tsx";

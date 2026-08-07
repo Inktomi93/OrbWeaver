@@ -412,6 +412,60 @@ test("the diagnostics drawer lists the DELIVERED wire rows in order, with role �
   await expect(rows.nth(0)).toContainText("canon");
 });
 
+// ── side-eye 2026-08-06 (the wire readout's legibility) ─────────────────────────────────────────────
+test("the readout is a real LIST, defines its provenance words, and badges only the non-canon arms", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => PREVIEW_ASSEMBLY_DATA,
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+  const component = await mount(<AssemblyPreviewPanelStory />);
+  await component.getByRole("button", { name: RE_DIAGNOSTICS }).click();
+  await expect(component.getByText("Wire rows — 5 delivered")).toBeVisible();
+
+  // ARIA: 24 rows announced as 48 loose paragraphs, with no "1 of 24" and no way to page by item. A list
+  // role is what makes the ORDER — the whole subject of this readout — perceptible without sight.
+  const list = component.locator('[role="list"]:has([data-slot=wire-row-trace])');
+  const rows = component.locator("[data-slot=wire-row-trace]");
+  await expect(list).toHaveCount(1);
+  await expect(list.getByRole("listitem")).toHaveCount(5);
+
+  // The VOCABULARY, defined where it is read: three bare words meant nothing to anyone who had not read
+  // `SHAPE_ROW_SOURCES`' doc comment.
+  await expect(component.getByText("canon = a stored message", { exact: false })).toBeVisible();
+
+  // WEIGHT on the anomalies only: `canon` is the expected arm and stays plain type; the two arms that mean
+  // "assembly did something to this row" wear the Badge the ShapeTrace summary already uses.
+  // The fixture's 5 rows are canon · canon · assembled · merged · assembled ⇒ exactly 3 badged.
+  const badges = component.locator("[data-slot=wire-row-trace]").locator("[data-slot=badge]");
+  await expect(badges).toHaveCount(3);
+  await expect(badges).toHaveText(["assembled", "merged", "assembled"]);
+  // …and NEITHER canon row wears one — the quiet arm is the point.
+  await expect(rows.nth(0).locator("[data-slot=badge]")).toHaveCount(0);
+  await expect(rows.nth(1).locator("[data-slot=badge]")).toHaveCount(0);
+});
+
+// The nested 256px scroller hid 17 of 24 rows behind no scrollbar, no fade and no count. It is the LAST
+// section of the drawer, so the cap bought nothing — the drawer already lives in the panel's own scroller.
+test("the wire readout has NO inner scroller — every delivered row is reachable by scrolling the panel", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => PREVIEW_ASSEMBLY_DATA,
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+  const component = await mount(<AssemblyPreviewPanelStory />);
+  await component.getByRole("button", { name: RE_DIAGNOSTICS }).click();
+  await expect(component.getByText("Wire rows — 5 delivered")).toBeVisible();
+
+  const clipped = await component
+    .locator("[data-slot=wire-row-trace]")
+    .first()
+    .evaluate((row: HTMLElement): boolean => {
+      const list = row.parentElement as HTMLElement;
+      const style = getComputedStyle(list);
+      return style.overflowY !== "visible" && list.scrollHeight > list.clientHeight + 1;
+    });
+  expect(clipped).toBe(false);
+});
+
 test("no delivered rows ⇒ the drawer says so rather than rendering an empty block", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.previewAssembly": () => PREVIEW_ASSEMBLY_DATA,
