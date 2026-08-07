@@ -739,6 +739,13 @@ async function runSendAuthorTransforms(
     text = await ctx.promptTransforms("user_input", input.chatId, text, base.variableValues ?? {});
   }
   if (hostScripts.length > 0) {
+    // `{{char}}` HERE IS THE ROOM'S, NOT A SPEAKER'S — and that is correct, not a divergence to repair.
+    // The other three placements are ROUND-scoped and agree with each other on the round's voice
+    // (`PROMPT_HISTORY` + `AI_OUTPUT`/`REASONING`, all off the SHAPED ctx — see `engine/pipeline`
+    // applyReceiveTransforms). This leg runs at SEND, inside the build of the very ctx a round is later
+    // shaped from: arbitration has not run, no speaker exists yet, and on a multi-speaker round the text
+    // being transformed feeds EVERY speaker's prompt. Binding it to one of them would be a guess. The base
+    // ctx's primary is the only identity that exists at this point in the turn.
     const sendMacroCtx = buildTurnMacroContext({
       assembleCtx: base,
       model: input.model,

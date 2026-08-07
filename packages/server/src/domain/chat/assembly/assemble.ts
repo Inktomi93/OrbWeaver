@@ -6,6 +6,15 @@
 // as `in_chat` injections after the conversation. `{{user}}` resolves differently by section origin:
 // card-derived sections use the pinned ("anchor") persona; user-authored sections use the active persona.
 //
+// THE SAME ORIGIN SPLIT GOVERNS `{{char}}`, and it is an INVARIANT this file can be read against:
+// **every `pinnedPersona` render binds against a `{kind:"single"}` speaker** — `env.cardCtx` for the primary
+// member's fields ({@link cardOwnerCtx}), `renderMemberField`'s per-member sub-ctx for a co-speaker's. Card
+// text is written BY a character's author ABOUT that character, so `{{char}}` in it means "me" regardless of
+// what the turn is voicing. Every `activePersona` render is preset/host/user-authored and keeps the TURN's
+// speaker arm, which is where `{{char}}`-as-joined-cast belongs (the main-prompt framing "You are {{char}}").
+// The invariant was violated once, in exactly one direction: co-speakers were rebound and the primary was
+// not, so a narrator round leaked the joined cast into the primary's own description.
+//
 // The system-block chat injections arrive already macro-resolved + role-framed from context.ts; this walk
 // emits them verbatim. `in_chat` injections are the SHAPE splice's job.
 //
@@ -89,11 +98,35 @@ interface BuildEnv {
   /** The per-turn user-macro registry (WAVE MU) every section render + volatile-scan reads; the process
    *  `globalMacroRegistry` when the turn authored no user macros (byte-identical). */
   readonly registry: MacroRegistry;
+  /** The ctx every CARD-DERIVED render binds against — see {@link cardOwnerCtx}. Identical to `ctx` by
+   *  REFERENCE on every non-narrator turn, so nothing outside a cast round can change bytes. */
+  readonly cardCtx: AssembleContext;
   /** The MERGED card section's per-roster-member split, keyed by section id — recorded during the render
    *  (only the render knows which bytes are whose) and read back by the budget walk, so the Preview tab can
    *  say what EACH member in the room costs instead of one opaque "cards" total. Empty for every other
    *  section: they have exactly one contributor. */
   readonly memberBlocks: Map<string, readonly { name: string; text: string }[]>;
+}
+
+/**
+ * The ctx a CARD-DERIVED render binds `{{char}}` against: the card's OWN owner, never the turn's speaker arm.
+ *
+ * A card's description/personality/scenario/examples/systemPrompt is written BY that character's author ABOUT
+ * that character — `{{char}}` inside it means "me". That is already true for co-speakers, whose fields render
+ * through {@link renderMemberField}'s `{kind:"single", character: member}` sub-ctx; the PRIMARY member's
+ * fields had no such rebind, so the narrator arm's `{kind:"cast"}` speaker leaked the joined cast into them
+ * ("Charlotte, JFC is a tired archivist" for a card that reads `{{char}} is a tired archivist`). The
+ * asymmetry was the defect: one member of the same merged section rendered under a different rule than the
+ * rest of it.
+ *
+ * PRESET/HOST-authored text is NOT card-derived and keeps the turn's arm — the main-prompt framing
+ * (`You are {{char}}`) is precisely where `{{char}}`-as-cast is the point. The split follows the persona axis this file
+ * already routes on: a `pinnedPersona` render is card-derived, an `activePersona` render is user/preset-authored.
+ *
+ * Returned BY REFERENCE unless the arm is `cast`, so every solo and per-speaker turn is byte-identical.
+ */
+function cardOwnerCtx(ctx: AssembleContext): AssembleContext {
+  return ctx.speaker?.kind === "cast" ? { ...ctx, speaker: { kind: "single", character: ctx.character } } : ctx;
 }
 
 /** A room/card override "counts" only with non-whitespace content — blank means "inherit." */
@@ -244,12 +277,12 @@ function renderOverridable(
   cardField: "systemPrompt" | "postHistoryInstructions",
   roomOverride: string | null | undefined,
 ): { text: string; merged: boolean } {
-  const { ctx, originals, registry } = env;
+  const { ctx, cardCtx, originals, registry } = env;
   const cardOverride = ctx.character[cardField];
   const preset = originals.renderedById.get(section.id) ?? renderMacros(templateFor(section), ctx, ctx.activePersona, { registry });
   const afterCard =
     overrideSet(cardOverride) && section.forbidCharacterOverride !== true
-      ? renderMacros(cardOverride, ctx, ctx.pinnedPersona, { original: preset, registry })
+      ? renderMacros(cardOverride, cardCtx, ctx.pinnedPersona, { original: preset, registry })
       : preset;
   const fallback = resolveScopeFallback(cardField, ctx, afterCard, registry);
   if (overrideSet(roomOverride) && section.forbidRoomOverride !== true) {
@@ -285,7 +318,7 @@ function renderScenarioMarker(section: TemplatedMarkerSection, env: BuildEnv): s
   const room = ctx.roomOverrides?.scenario;
   // Active speaker's effective scenario only — co-speakers' scenarios are emitted once by the
   // char_description co-block; merging them here too would double-emit.
-  const value = renderMacros(templateFor(section), ctx, ctx.pinnedPersona, { registry: env.registry });
+  const value = renderMacros(templateFor(section), env.cardCtx, ctx.pinnedPersona, { registry: env.registry });
   if (value.trim().length === 0) {
     return "";
   }
@@ -341,7 +374,7 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
       // The MERGED card section — the one section whose text belongs to several roster members at once, so it
       // records a per-member split (`env.memberBlocks`) the budget attributes by NAME. The joined string is
       // byte-identical to the pre-split render.
-      const active = renderMacros(templateFor(section), ctx, ctx.pinnedPersona, { registry: env.registry });
+      const active = renderMacros(templateFor(section), env.cardCtx, ctx.pinnedPersona, { registry: env.registry });
       const blocks = renderCoSpeakerBlocks(ctx, env.registry);
       if (blocks.length > 0) {
         recordMergedCacheBuster(trace);
@@ -354,11 +387,11 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
     }
     case "char_personality":
       return ctx.character.personality !== null && ctx.character.personality !== ""
-        ? renderMacros(templateFor(section), ctx, ctx.pinnedPersona, { registry: env.registry })
+        ? renderMacros(templateFor(section), env.cardCtx, ctx.pinnedPersona, { registry: env.registry })
         : "";
     case "dialogue_examples":
       return ctx.character.exampleMessages !== null && ctx.character.exampleMessages !== ""
-        ? renderMacros(templateFor(section), ctx, ctx.pinnedPersona, { registry: env.registry })
+        ? renderMacros(templateFor(section), env.cardCtx, ctx.pinnedPersona, { registry: env.registry })
         : "";
     case "persona":
       // Emits ONLY when the active persona's description placement is in_prompt (else it rode an
@@ -743,7 +776,15 @@ function assembleWithSlices(
     slices: [],
   };
   const pivotIndex = config.sections.findIndex((s) => s.type === "marker" && s.marker === "chat_history");
-  const env: BuildEnv = { ctx, trace, originals: computeOriginals(config, ctx, registry), pivotIndex, registry, memberBlocks: new Map() };
+  const env: BuildEnv = {
+    ctx,
+    cardCtx: cardOwnerCtx(ctx),
+    trace,
+    originals: computeOriginals(config, ctx, registry),
+    pivotIndex,
+    registry,
+    memberBlocks: new Map(),
+  };
 
   const pivotSection = pivotIndex >= 0 ? config.sections[pivotIndex] : undefined;
   // Send history unless a chat_history marker is explicitly present AND disabled.
@@ -814,6 +855,7 @@ export function previewSection(
   const previewCtx: AssembleContext = { ...ctx, variableValues: { ...(ctx.variableValues ?? {}) } };
   const env: BuildEnv = {
     ctx: previewCtx,
+    cardCtx: cardOwnerCtx(previewCtx),
     trace,
     originals: computeOriginals(config, previewCtx, registry),
     pivotIndex: -1,

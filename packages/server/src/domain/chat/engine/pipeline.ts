@@ -290,8 +290,18 @@ function promptHistoryEnv(ctx: AssembleContext, args: RunTurnPipelineArgs): Prom
 function applyReceiveTransforms(
   reduced: { content: string; reasoning: string | null },
   args: RunTurnPipelineArgs,
+  // THE ROUND'S SHAPED CTX, not `args.assembleContext` — the identity a host regex script's `{{char}}`
+  // resolves against. `PROMPT_HISTORY` (see `promptHistoryEnv`) has always used the shaped ctx, so a script
+  // library that spelled `{{char}}` got the SPEAKING character on the prompt leg and the room's PRIMARY on
+  // the reply leg: on a merged round voiced by Bran, one turn's `{{char}}` meant Bran going out and Aria
+  // coming back. Both legs transform ONE round, the round's speaker is available to both, and the receive
+  // path already knows the reply belongs to the speaker (`cleanPerSpeakerContent` strips `args.shape.
+  // speakerName`), so the speaker is the only defensible answer for both.
+  //   `USER_INPUT` is the deliberate exception and stays on the unshaped base ctx: it runs at SEND inside
+  // `assembly/context` runSendAuthorTransforms, strictly BEFORE arbitration picks anyone, so there is no
+  // round for it to be scoped to. Its `{{char}}` is the room's, and that is not a divergence to repair.
+  ctx: AssembleContext,
 ): { content: string; reasoning: string | null } {
-  const ctx = args.assembleContext;
   const cfg = ctx.promptConfig;
   let content = reduced.content;
   let reasoning = reduced.reasoning;
@@ -514,7 +524,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const structured = attachResponseFormat(args, terminal.request);
   const loop = await runRecurseLoop({ args, request: structured.request, set: attach.set });
   // RECEIVE, applied once over the depth-cumulative text (prose flows across recursion depths into one variant).
-  const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args);
+  const received = applyReceiveTransforms({ content: loop.content, reasoning: loop.reasoning }, args, ctx);
   return {
     request: structured.request,
     content: received.content,

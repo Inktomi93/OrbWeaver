@@ -32,10 +32,17 @@ import { makeChatContext, scriptedRoleTurn, seedCharacter, seedChat, seedMessage
 const HOST = castId<UserId>("user_host");
 const ARIA = castId<CharacterId>("character_aria");
 
+const GROUP_CHAR = castId<CharacterId>("character_group");
+
+// The ctx MUST carry a real `cast`/`castMembers` or this whole suite is vacuous for the card-shape
+// (`shapeContextForSpeaker` returns the ctx UNTOUCHED when either is absent, so every posture would take
+// the same early return and the arms under test would never run). A roster of ONE is the D16 subject.
 const ASSEMBLE_CTX: AssembleContext = {
   character: { name: "Aria", description: "a bold knight" },
   promptConfig: DEFAULT_PROMPT_CONFIG,
   activePersona: { name: "Nate", description: "the user" },
+  cast: [{ name: "Aria", description: "a bold knight" }],
+  castMembers: [{ kind: "character", characterId: ARIA }],
   recentMessages: [],
 };
 
@@ -45,6 +52,24 @@ const GROUP_OF_ONE: GroupConfig = {
   output: "per-speaker",
   speakerTags: true,
   cardScope: "scoped",
+};
+
+/** Posture C — the NARRATOR arm at cast=1. Its round is authored by the synthetic group character and its
+ *  card shape takes a different branch entirely (`{kind:"cast"}` speaker + whole-cast co-speakers), so it is
+ *  the posture most able to break D16 — and the one the suite could not see before, because the shared ctx
+ *  carried no cast at all. `speakerTags` rides ON (its narrator default) to pin the config-carrying room. */
+//  Spelled out rather than spread from the default: the narrator arm is `z.strictObject` and OMITS
+//  `cardScope` by construction (narrator ⇒ merged is unrepresentable, not merely unwritten).
+const NARRATOR_OF_ONE: GroupConfig = {
+  output: "narrator",
+  policy: DEFAULT_GROUP_CONFIG.policy,
+  speakerTags: true,
+  groupNudge: DEFAULT_GROUP_CONFIG.groupNudge,
+  autoMode: DEFAULT_GROUP_CONFIG.autoMode,
+  autoModeMaxTurns: DEFAULT_GROUP_CONFIG.autoModeMaxTurns,
+  autoModeDelayMs: DEFAULT_GROUP_CONFIG.autoModeDelayMs,
+  allowSelfResponses: DEFAULT_GROUP_CONFIG.allowSelfResponses,
+  memberCardVisibility: DEFAULT_GROUP_CONFIG.memberCardVisibility,
 };
 
 function realEngine(database: Db, requests: TurnRequest[]): TurnEngine {
@@ -103,9 +128,15 @@ async function runPosture(
     },
     group,
     speakers: [{ ref: { kind: "character", characterId: ARIA }, name: "Aria" }],
-    groupCharacterId: null,
+    // A narrator round is authored by the synthetic group character (`roundSpeakers` THROWS on a null here);
+    // every other posture ignores it. `castName` is the joined present cast, which at cast=1 IS "Aria" — the
+    // same label the per-speaker postures stamp, which is exactly what makes the byte comparison meaningful.
+    groupCharacterId: group.output === "narrator" ? GROUP_CHAR : null,
     castName: "Aria",
-    narratorMemberNames: [],
+    // The nudge's own cast-of-one guard: `narratorMemberNames.length <= 1` ⇒ no narrator nudge at all, the
+    // twin of `multi` for the per-speaker fence. Passing the REAL one-member list drives that guard instead
+    // of dodging it with `[]`.
+    narratorMemberNames: ["Aria"],
   });
   expect(outcome.aborted).toBe(false);
   expect(requests).toHaveLength(1);
@@ -142,6 +173,9 @@ async function makePosture(group: GroupConfig): Promise<ReturnType<typeof runPos
   const database = await freshDb();
   await seedUser(database, castId<Handle>("host"));
   await seedCharacter(database, HOST, "aria");
+  // The narrator posture commits its row under the synthetic group character — a real FK, so it needs a real
+  // row. Seeded for EVERY posture so the db shape (and therefore every minted id) stays identical across them.
+  await seedCharacter(database, HOST, "group");
   const chatId = await seedPosture(database, "c");
   return runPosture(database, chatId, group);
 }
@@ -166,6 +200,22 @@ describe("D16 solo ≡ group-of-one (the byte-identical property)", () => {
     // The name-stamp is fenced by hasMultipleCharacters (distinct authors), not by the room's config —
     // one authoring character ⇒ no `Aria:` prefix anywhere in the delivered transcript.
     expect(historyText(req)).not.toContain("Aria:");
+  });
+
+  // The NARRATOR arm at cast=1. Added 2026-08-07 after a verifier found this suite VACUOUS for the card
+  // shape: the shared ctx carried no `cast`/`castMembers`, so both postures took `shapeContextForSpeaker`'s
+  // absent-cast early return and 3/3 green proved nothing about the arm. It now carries a real roster of one
+  // and drives the branch that most plausibly breaks D16 — a whole-cast speaker arm and whole-cast card merge.
+  test("the NARRATOR arm is byte-identical at cast=1 too (the whole-cast shape degrades to the solo one)", async () => {
+    const solo = await makePosture(DEFAULT_GROUP_CONFIG);
+    const narrator = await makePosture(NARRATOR_OF_ONE);
+
+    // The headline, for the arm that has its own speaker shape: same wire product as the untouched solo room.
+    expect(wireBytes(narrator.req)).toBe(wireBytes(solo.req));
+    // Non-vacuous: the cast-of-one card actually rendered, and neither cast-of-one fence fired.
+    expect(narrator.req.prompt.static).toContain("a bold knight");
+    expect(historyText(narrator.req)).not.toContain("Continue the scene, voicing the present characters");
+    expect(narrator.req.prompt.static).not.toContain("[Cast — Aria]");
   });
 
   test("the persisted canon row is identical across postures (role/author/content)", async () => {
