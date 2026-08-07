@@ -2354,3 +2354,20 @@ export function ChatStreamingSectionStory(): ReactElement {
     </CtDataProviders>
   );
 }
+
+/** The Chats TOPBAR identity over an ACTIVE PRE-SEND DRAFT — the real `ChatsTopbarHeader` reading the real
+ *  `#state` handle (`startNewChat`, the exact action the new-chat picker fires), so the CT exercises the
+ *  production draft arm rather than `DraftChatHeader` in isolation. `characterIds` threads the founding
+ *  cast so one story covers the solo and group arms; the `.ct.tsx` stubs `character.get` per id. */
+export function ChatsTopbarDraftStory({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
+  useEffect(() => {
+    startNewChat({ characterIds });
+  }, [characterIds]);
+  return (
+    <CtDataProviders>
+      <div>
+        <ChatsTopbarHeader />
+      </div>
+    </CtDataProviders>
+  );
+}

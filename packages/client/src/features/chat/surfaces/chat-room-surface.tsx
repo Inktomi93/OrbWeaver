@@ -18,7 +18,7 @@ import { useFocusOnMount } from "#lib";
 import type { ActiveChatHandle, ChatHandle } from "#state";
 import { committedChat, isCommitted, migrateComposerDraft, resolveDraftCharacterIds, useDraftConfig } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
-import { ChatCastBar } from "../components/chat-cast-bar.tsx";
+import { ChatCastBar, DraftCastBar } from "../components/chat-cast-bar.tsx";
 import { ChoiceSendProvider } from "../components/choice-send-provider.tsx";
 import { Composer } from "../components/composer.tsx";
 import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
@@ -153,7 +153,11 @@ export function ChatRoomSurface({
           `<Surface>` is display:contents, so nothing in this pane's height chain moves. */}
       <Surface tier="instrument">
         <Stack aria-label={roomLabel} className="h-full px-block pb-block outline-none" gap="block" ref={surfaceRef} role="group" tabIndex={-1}>
-          {isCommitted(handle) ? <ChatCastBar chatId={handle.id} /> : null}
+          {/* The cast strip serves BOTH phases (side-eye P2): a group draft already knows its whole
+              founding cast, and hiding it until the first send left the second character discoverable
+              only by scrolling to their greeting. Same strip, same floor — the phase only decides where
+              the seats come from. */}
+          {isCommitted(handle) ? <ChatCastBar chatId={handle.id} /> : <DraftCastBar draftKey={scopeKey} characterIds={draftCharacterIds} />}
           {/* Zero flank contributions ⇒ the thread renders alone (today's exact layout, no visual
            *  change); ≥1 ⇒ a flank column appears beside it (§17 M8). The `Container` + `@max-lg`
            *  (a CONTAINER query on the chat-content region's own inline size, never the viewport —
