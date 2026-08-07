@@ -7,6 +7,7 @@
 // wire contract, so they are declared here rather than in `contracts` (no other reader exists).
 import fs from "node:fs";
 import path from "node:path";
+import process from "node:process";
 import type { AssembleContext } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ResolvedConnection, RoleHandling } from "@orb/contracts/connection";
@@ -34,13 +35,7 @@ import {
 } from "../../../tests/server/domain/chat/_support.ts";
 import { freshDb } from "../../../tests/support/db.ts";
 
-// Rig-relative, never cwd-relative: this probe is run by absolute path from anywhere (and by the
-// sibling run-demo-*.sh, which cd's nowhere). generate-goldens.ts uses the same import.meta.dirname anchor.
-const RIG_DIR = path.resolve(import.meta.dirname);
-const FIXTURES_DIR = path.join(RIG_DIR, "fixtures");
-const ST_RUNTIME_DIR = path.join(RIG_DIR, "sillytavern-runtime");
-const ST_CHATS_DIR = path.join(ST_RUNTIME_DIR, "data/default-user/chats/Sabine Veyra");
-const OUTPUT_DIR = path.join(RIG_DIR, "orbweaver-output");
+import { FIXTURES_DIR, ORB_OUTPUT_DIR, SEED_CHATS_DIR, ST_RUNTIME_DIR } from "./rig-paths.ts";
 
 /** The rig's own fixture file shape (`fixtures/<id>.json`), as emitted by the two run-demo-*.sh scripts. */
 type GoldenFixture = {
@@ -52,20 +47,35 @@ type GoldenFixture = {
   readonly messages?: readonly { readonly role: string; readonly content: string }[];
   /** `parameters` is a JSON-Schema object — the shape `WireTool.parameters` requires. */
   readonly tools?: readonly { readonly name: string; readonly description: string; readonly parameters: Record<string, unknown> }[];
-  /** Raw ST `oai_settings` overrides — snake_case, ST's vocabulary, never ours. */
+  /** Raw ST `oai_settings` overrides — snake_case, ST's vocabulary, never ours. Every key the two
+   *  run-demo-*.sh scripts can emit is declared; a key declared here but not read below is a silently
+   *  ignored fixture axis, which is exactly how the names/force-name sweeps produced 44 identical captures. */
   readonly settings?: {
     // biome-ignore lint/style/useNamingConvention: verbatim ST `oai_settings` keys — renaming breaks the fixture read.
     readonly custom_prompt_post_processing?: string;
+    /** The sweeps' other spelling for the same ST setting — both are read. */
+    // biome-ignore lint/style/useNamingConvention: verbatim ST `oai_settings` keys — renaming breaks the fixture read.
+    readonly prompt_post_processing?: string;
     // biome-ignore lint/style/useNamingConvention: verbatim ST `oai_settings` keys — renaming breaks the fixture read.
     readonly squash_system_messages?: boolean;
     // biome-ignore lint/style/useNamingConvention: verbatim ST `oai_settings` keys — renaming breaks the fixture read.
+    readonly assistant_prefill?: string;
+    /** ST's own key. `character_names_behavior` is the rig's older alias; both are read. */
+    // biome-ignore lint/style/useNamingConvention: verbatim ST `oai_settings` keys — renaming breaks the fixture read.
+    readonly names_behavior?: number;
+    // biome-ignore lint/style/useNamingConvention: verbatim ST `oai_settings` keys — renaming breaks the fixture read.
     readonly character_names_behavior?: number;
+    // biome-ignore lint/style/useNamingConvention: verbatim ST `power_user` key — renaming breaks the fixture read.
+    readonly always_force_name2?: boolean;
   };
 };
 
-/** One line of an ST `.jsonl` chat log (only the fields this rig replays). */
+/** One line of an ST `.jsonl` chat log (only the fields this rig replays). `name` is load-bearing: among
+ *  non-user rows it is the ONLY author discriminator ST has, so dropping it makes every multi-character
+ *  room replay as a single speaker — and the name-stamp behaviours are exactly what the sweeps vary. */
 type StChatLine = {
   readonly mes?: string;
+  readonly name?: string;
   // biome-ignore lint/style/useNamingConvention: verbatim ST `.jsonl` chat-log keys.
   readonly is_system?: boolean;
   // biome-ignore lint/style/useNamingConvention: verbatim ST `.jsonl` chat-log keys.
@@ -97,12 +107,16 @@ function readJson<T>(file: string): T {
 }
 
 async function loadSTChat(db: Awaited<ReturnType<typeof freshDb>>, chatId: ChatId, chatFileName: string, host: UserId, aria: CharacterId) {
-  const chatFile = path.join(ST_CHATS_DIR, `${chatFileName}.jsonl`);
+  const chatFile = path.join(SEED_CHATS_DIR, `${chatFileName}.jsonl`);
   const lines = fs
     .readFileSync(chatFile, "utf-8")
     .split("\n")
     .filter((l) => l.trim().length > 0);
 
+  // One character row per distinct assistant `name`. ST's demo chats are multi-character (the ashen-spire
+  // seed carries three), and collapsing them onto one id erases the distinct-speaker signal that every
+  // names-behaviour except `none` is defined by.
+  const byName = new Map<string, CharacterId>();
   let seq = 1;
   // skip header line (idx 0)
   for (const line of lines.slice(1)) {
@@ -111,17 +125,29 @@ async function loadSTChat(db: Awaited<ReturnType<typeof freshDb>>, chatId: ChatI
       continue;
     }
 
-    let role: MessageRole = "assistant";
-    if (data.is_system) {
-      role = "system";
-    } else if (data.is_user) {
-      role = "user";
+    // `is_system: true` rows are UI-only in ST — filtered out of the prompt entirely (public/script.js
+    // `coreChat`), so replaying them as system rows would put content on our wire that ST never sends.
+    if (data.is_system === true) {
+      continue;
+    }
+    const role: MessageRole = data.is_user === true ? "user" : "assistant";
+
+    let characterId: CharacterId | null = null;
+    if (role === "assistant") {
+      const name = data.name ?? "";
+      if (name.length === 0) {
+        characterId = aria;
+      } else {
+        const existing = byName.get(name);
+        characterId = existing ?? (await seedCharacter(db, host, name));
+        byName.set(name, characterId);
+      }
     }
 
     await seedMessage(db, chatId, seq++, {
       role,
       authorUserId: role === "user" ? host : null,
-      characterId: role === "assistant" ? aria : null,
+      characterId,
       content: data.mes,
     });
   }
@@ -197,25 +223,32 @@ async function runCapture() {
       }
     }
 
+    // The sweeps emit the mode under either spelling; reading only one silently defaulted 18 fixtures.
+    const postProcessing = fixture.settings?.custom_prompt_post_processing ?? fixture.settings?.prompt_post_processing;
     let roleHandling: RoleHandling = "merge";
     let namesBehavior: NamesBehavior = "default";
-    if (fixture.settings?.custom_prompt_post_processing === "strict" || fixture.settings?.custom_prompt_post_processing === "strict_tools") {
+    if (postProcessing === "strict" || postProcessing === "strict_tools") {
       roleHandling = "strict";
-    } else if (fixture.settings?.custom_prompt_post_processing === "semi") {
+    } else if (postProcessing === "semi" || postProcessing === "semi_tools") {
       roleHandling = "semi-strict";
-    } else if (fixture.settings?.custom_prompt_post_processing === "none") {
+    } else if (postProcessing === "none" || postProcessing === "") {
       roleHandling = "none";
     }
 
     const squashSystemMessages = fixture.settings?.squash_system_messages;
 
-    // ST's `character_names_behavior` is a NUMERIC enum on its side; ours is a string union.
-    if (fixture.settings?.character_names_behavior !== undefined) {
-      const mapping: Readonly<Record<number, NamesBehavior>> = { 0: "none", 1: "default", 2: "content", 3: "completion" };
-      namesBehavior = mapping[fixture.settings.character_names_behavior] ?? "default";
+    // ST's `character_names_behavior` (openai.js:204-209) is a NUMERIC enum; ours is a string union. The
+    // values are NOT positional — NONE is -1 and COMPLETION sorts before CONTENT.
+    const namesMapping: Readonly<Record<number, NamesBehavior>> = { [-1]: "none", 0: "default", 1: "completion", 2: "content" };
+    const stNames = fixture.settings?.names_behavior ?? fixture.settings?.character_names_behavior;
+    if (stNames !== undefined) {
+      namesBehavior = namesMapping[stNames] ?? "default";
     } else if (roleHandling === "strict") {
       namesBehavior = "none"; // ST's strict post-processing implicitly drops names
     }
+    // `always_force_name2` is deliberately NOT mapped: it is Text-Completion-only on ST's side (its own
+    // JSDoc at script.js:4211, sole prompt consumer at :5022 behind `!isInstruct`), and zero occurrences
+    // exist in openai.js or prompt-converters.js. This rig is chat-completion only, so the key is inert.
 
     const promptConfig: PromptConfig = { ...DEFAULT_PROMPT_CONFIG, namesBehavior };
 
@@ -305,13 +338,20 @@ async function runCapture() {
           castName: "Sabine Veyra",
           narratorMemberNames: [],
         });
-      } catch {
-        // Ignored
+      } catch (err) {
+        // A throw here still leaves a usable capture when the wire was already built, so it is not fatal —
+        // but swallowing it silently is how a fixture that captured NOTHING looks the same as one that
+        // matched. Say which happened.
+        console.warn(`[Orb] ${fixtureFile} @ ${modelId}: driveRound threw — ${err instanceof Error ? err.message : String(err)}`);
       }
 
+      if (wireSink.body === undefined) {
+        console.error(`[Orb] ✗ ${fixtureFile} @ ${modelId}: NO wire captured — no file written.`);
+        process.exitCode = 1;
+      }
       if (wireSink.body) {
         const parsedModel = modelId.replace(/[^a-zA-Z0-9]/g, "-");
-        const outPath = path.join(OUTPUT_DIR, `${parsedModel}_${fixtureFile}`);
+        const outPath = path.join(ORB_OUTPUT_DIR, `${parsedModel}_${fixtureFile}`);
         fs.writeFileSync(outPath, JSON.stringify(wireSink.body, null, 2));
       }
     } // End model loop

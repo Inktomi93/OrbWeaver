@@ -21,17 +21,32 @@ Every claim below carries one of three tiers. Do not promote a tier when citing 
 | SOURCE-PINNED | read out of the ST runtime's own source at a cited line | the runtime tree under `sillytavern-runtime/` |
 | unverified | stated mechanism not proven by either | the named next probe |
 
-Corpus state at mining time (2026-08-07), MEASURED by directory listing:
+Corpus state, MEASURED by directory listing:
 
-| arm | files | what is present |
+| arm | at first mining (08-06 captures) | after the 08-07 re-sweep |
 | - | - | - |
-| `output/` (ST) | 10 | 9 `ashen_spire_claude_<model>_tools`, 1 `custom_squash_claude_strict` — all mtime 2026-08-06 07:10 |
-| `orbweaver-output/` (ORB) | 46 | full 16-combo + 8 name-behavior + tools matrix + depth-injection + 2 basic |
-| `fixtures/` | 48 | inputs for both arms |
+| `output/` (ST) | 10 — the tools matrix + one strict | 42 |
+| `orbweaver-output/` (ORB) | 46 files but only **1** distinct payload | 46 files, **10** distinct payloads |
+| `fixtures/` | 48 | 48 |
 
-The ST arm holds NO 16-combo and NO depth-injection capture — see §Limits. So §Wire identity's mode table is
-SOURCE-PINNED, and the ST↔ORB byte delta rests on the one fixture where both arms carry real conversation
-content (`custom_squash_claude_strict`).
+The first mining ran against a corpus whose ST arm had been destroyed by the sweeps' own `rm -rf` and whose
+ORB arm was 44 copies of one capture. Seven rig defects were then fixed and both arms regenerated, so the
+16-combo mode table below is MEASURED rather than source-pinned. Both states are recorded because the gap
+between them is the substance of §Limits.
+
+### Provenance: the rig's README is not a source
+
+`scripts/probes/st-goldens/README.md` describes itself as "the brain of this rig". Treat its factual claims
+as UNVERIFIED. Measured against disk, several were already false when this atlas was written: it asserts a
+corpus the sweeps' own `rm -rf` had destroyed, and its "Known Issues" checklist state does not track the
+scripts. Nothing in this atlas is sourced from it — every claim here came from the captures, the ST
+runtime's source, or our source. Where you need a rig fact, read the script.
+
+Every MEASURED claim in this doc was re-derived a second time, from scratch, after first drafting (13 claims:
+corpus counts, capture mtimes, the 44-way md5, the model/`top_p` table, both merge-separator byte streams,
+the two-block splice, the `is_system` absences with a positive control, name/system field absence, the
+fixture key census, seed-vs-runtime line counts, the ORB role chain, the `{{user}}` split, and the
+`anthropic-beta` tools element). All 13 reproduced.
 
 ## Storage identity — the `.jsonl` line schema
 
@@ -54,10 +69,10 @@ plus optional `swipes`/`swipe_id`/`swipe_info`, `gen_started`/`gen_finished`, `f
 
 | field | type | what it identifies |
 | - | - | - |
-| `is_user` | bool | THE role axis. `role = is_user ? 'user' : 'assistant'` — SOURCE-PINNED `public/scripts/openai.js:570` |
-| `is_system` | bool \| absent | **NOT the wire `system` role.** `true` = UI-only row, EXCLUDED from the prompt |
+| `is_user` | bool | THE role axis for a chat row. `role = is_user ? 'user' : 'assistant'` — SOURCE-PINNED `public/scripts/openai.js:570` |
+| `is_system` | bool \| absent | a PROMPT-VISIBILITY flag, not a role. `true` = filtered out of the prompt entirely |
 | `name` | string | the sole author discriminator among non-user rows (group members all share `is_user:false, is_system:false`) |
-| `extra.type` | string | `NARRATOR` here is what actually produces a wire `system` role |
+| `extra.type` | string | `NARRATOR` is what promotes a chat row to a wire `system` role |
 | `force_avatar` | string \| absent | persona-avatar override; a NAME-STAMP TRIGGER under `names_behavior: DEFAULT` |
 | `extra[Symbol.for('ignore')]` | flag | row skipped entirely, without changing message count |
 | `send_date` | string | two formats coexist in one corpus: ISO (`2026-08-05T17:29:21.464Z`) and ST-local (`August 3, 2026 2:34am`) |
@@ -65,24 +80,55 @@ plus optional `swipes`/`swipe_id`/`swipe_info`, `gen_started`/`gen_finished`, `f
 | `gen_started` / `gen_finished` | epoch-ms int OR ISO string | both spellings MEASURED in one corpus (`hana-bench` ints, `custom-squash` ISO) |
 | `extra.api` / `extra.model` / `extra.token_count` | string/string/int | provenance of a generated row |
 
-### The three traps
+### Where a wire `system` role actually comes from — three independent prongs
 
-1. **`is_system: true` means "never sent", not "role: system".** SOURCE-PINNED `public/script.js:4437`:
-   ```js
-   const coreChat = chat.filter(x => !x.is_system || (canUseTools && Array.isArray(x.extra?.tool_invocations)));
-   ```
-   MEASURED confirmation: `custom-squash.jsonl` stores two `is_system:true` rows
-   (`[System context: the setting is a dark fantasy world.]`,
-   `[Out of place system injection: a storm approaches.]`); a grep of the `custom_squash_claude_strict` ST
-   payload finds ZERO hits for either string. The only escape hatch is a tool-invocation row with tools on.
+ST sends plenty of `role: "system"`. None of it is "the `is_system` flag". Read all three prongs before
+concluding anything about a captured system message; the two-part compression ("`is_system` isn't the
+system role, NARRATOR is") is misleading because it omits prong 1, which is the bulk of the traffic.
 
-2. **The wire `system` role comes from `extra.type === NARRATOR`, not from `is_system`.** SOURCE-PINNED
-   `openai.js:581-583`. `/sys` writes `extra.type = system_message_types.NARRATOR` with
-   `name` defaulting to `"System"` (`scripts/slash-commands.js:5843`, `:6021-6035`).
+**Prong 1 — PROMPT MACHINERY, the common case. Nothing to do with chat rows.** The main prompt, world-info
+before/after, character description/personality/scenario, persona description, the group nudge, the
+author's note and every prompt-manager entry are constructed AS `role: 'system'` objects. SOURCE-PINNED
+`openai.js:1367-1375`, `:1400`, `:1417`, `:1425`, `PromptManager.js:624`, and the `Message` default at
+`openai.js:3452`. A user who has "watched SillyTavern send system messages" is almost always watching this.
 
-3. **`is_system` may be ABSENT, not false.** MEASURED: one `custom-squash` row (a freshly generated
-   assistant reply) has no `is_system` key at all. Any reader must treat absent as falsy, not as a schema
-   violation.
+**Prong 2 — a CHAT ROW promoted by `extra.type === NARRATOR`.** SOURCE-PINNED `openai.js:581-583`, under
+ST's own comment `// 100% legal way to send a message as system`:
+```js
+if (chat[j].extra?.type === system_message_types.NARRATOR) {
+    role = 'system';
+}
+```
+This is the `/sys` path. `sendNarratorMessage` (`scripts/slash-commands.js:6018-6041`) writes
+`extra.type = system_message_types.NARRATOR`, `name` defaulting to `"System"`, and — critically —
+**`is_system: false` for any message with visible text** (`is_system` is set only when the message is
+bias-only: `const isSystem = bias && !removeMacros(text).length`). So a normal `/sys` row survives prong 3's
+filter and reaches the wire as `system`.
+
+**Prong 3 — the `is_system: true` STORAGE flag, which is a VISIBILITY filter, not a role.** SOURCE-PINNED
+`public/script.js:4437`:
+```js
+const coreChat = chat.filter(x => !x.is_system || (canUseTools && Array.isArray(x.extra?.tool_invocations)));
+```
+A row flagged `is_system: true` never enters prompt assembly at all — it cannot become ANY role. The one
+escape hatch is a tool-invocation row while tools are enabled. MEASURED confirmation: `custom-squash.jsonl`
+stores two `is_system:true` rows (`[System context: the setting is a dark fantasy world.]`,
+`[Out of place system injection: a storm approaches.]`); a grep of the `custom_squash_claude_strict` ST
+payload finds ZERO hits for either string.
+
+Prongs 2 and 3 are disjoint by construction: narrator rows carry `is_system: false`, which is exactly why
+they survive.
+
+### Two more storage traps
+
+1. **`is_system` may be ABSENT, not false.** MEASURED: one `custom-squash` row (a freshly generated
+   assistant reply) has no `is_system` key at all. Treat absent as falsy, not as a schema violation.
+
+2. **A NARRATOR row sets `force_avatar`, which is otherwise a name-stamp trigger.**
+   `slash-commands.js:6030` writes `force_avatar: system_avatar`. Under `names_behavior: DEFAULT` that
+   would stamp `System: ` into the content — except the DEFAULT clause carries an explicit
+   `extra?.type !== system_message_types.NARRATOR` exclusion (`openai.js:591`). Remove that exclusion and
+   every `/sys` line acquires a speaker label.
 
 ## Wire identity — the two-stage Claude pipeline
 
@@ -90,11 +136,38 @@ For a Claude request there are TWO shaping passes, and reading only the first is
 
 | stage | function | when it runs | separator when it merges |
 | - | - | - | - |
-| 1 CLIENT squash | `ChatCompletion.squashSystemMessages` (`openai.js:3829`) | only if `squash_system_messages` | `'\n'` (single) |
-| 2 SERVER post-process | `postProcessPrompt` → `mergeMessages` (`prompt-converters.js:85`, `:823`) | per `custom_prompt_post_processing` mode | `'\n\n'` (`:892`) |
+| 1 CLIENT squash | `ChatCompletion.squashSystemMessages` (`openai.js:3829`) | only if `squash_system_messages` (`openai.js:1599-1601`) | `'\n'` (single) |
+| 2 SERVER post-process | `postProcessPrompt` → `mergeMessages` (`prompt-converters.js:85`, `:823`) | per `custom_prompt_post_processing` | `'\n\n'` (`:892`) |
 | 3 SERVER Claude convert | `convertClaudeMessages` (`prompt-converters.js:197`) | **ALWAYS, for every Claude request** | NONE — content BLOCK ARRAYS concatenate (`:349`) |
 
 Stage 3 is the one the dogfood ledger's ST reading stops short of — see §Reconciliation.
+
+**Stage 2 is dispatch-independent, and that is the non-obvious part.** It does NOT live in
+`sendClaudeRequest`; it lives in the shared `router.post('/generate')` handler at
+`chat-completions.js:2161-2167`, which runs BEFORE the `switch (request.body.chat_completion_source)` that
+dispatches to `sendClaudeRequest` (`:2175`). Reading only `sendClaudeRequest` (`:213-419`) makes it look
+like Claude has no post-processing at all — it has exactly one application, the user's chosen mode.
+
+RECEIPT — every call site of `postProcessPrompt`, enumerated structurally, `scannedFileCount=432`,
+`skippedFileCount=0` (the ST runtime is gitignored, so `--no-ignore hidden --no-ignore vcs --no-ignore
+parent` is mandatory or the scan silently returns nothing):
+
+```bash
+ast-grep run -p 'postProcessPrompt($$$)' -l js --no-ignore hidden --no-ignore vcs --no-ignore parent \
+  --inspect summary <runtime>/src <runtime>/public
+```
+
+| site | mode | reaches Claude |
+| - | - | - |
+| `chat-completions.js:2164` (`/generate` router, pre-switch) | the user's `custom_prompt_post_processing` | YES — the only one |
+| `:1076` (`sendDeepSeekRequest`) | forced `SEMI_TOOLS` | no |
+| `:1583` (`sendMinimaxRequest`) | forced `MERGE_TOOLS` | no |
+| `:2339` (Perplexity branch) | forced `STRICT` | no |
+| `:2890` (`/process` router) | caller-supplied; a preview/token-count endpoint, not a generation path | no |
+
+There is no fourth shaping pass on the Claude path: `convertClaudeMessages` has exactly ONE call site
+(`chat-completions.js:233`) and `squashSystemMessages` exactly one (`openai.js:1600`), both enumerated by
+the same scan at the same coverage.
 
 ### Mode table (SOURCE-PINNED, `prompt-converters.js:85-105` + `:15-26`)
 
@@ -166,6 +239,55 @@ on all 10 ST captures.
 
 `use_sysprompt` DEFAULTS TO FALSE (SOURCE-PINNED `openai.js:484`). MEASURED: no `system` key on any of the
 10 ST payloads — the character card rides as the first `user` message's first text block.
+
+### The 16-combo matrix — MEASURED (re-sweep 2026-08-07)
+
+Fixture family `ashen_spire_claude_<mode>_squash<bool>_<prefill>`, chat `ashen-spire` (65-line seed,
+multi-character), `names_behavior: 0`, provider `claude`, model `claude-3-5-sonnet-20240620`.
+
+**The headline: the mode does NOT change the message count. All 16 combos emit exactly 24 messages in
+strict `user>assistant` alternation.** What the mode changes is the BLOCK structure inside those messages —
+which is invisible to a message-count diff and was invisible to the old content-masking comparator.
+
+| mode | squash | prefill | messages | total content blocks |
+| - | - | - | - | - |
+| none | false | no | 24 | 52 |
+| none | false | yes | 24 | 53 |
+| none | true | no | 24 | 49 |
+| none | true | yes | 24 | 50 |
+| merge | false/true | no | 24 | 24 |
+| merge | false/true | yes | 24 | 25 |
+| semi | false/true | no | 24 | 24 |
+| semi | false/true | yes | 24 | 25 |
+| strict | false/true | no | 24 | 25 |
+| strict | false/true | yes | 24 | 26 |
+
+Readings, each with its mechanism:
+
+- **`none` = stage 2 is a genuine no-op.** Every prompt entry stays its own message into stage 3, which
+  merges same-role by concatenating BLOCK ARRAYS — so 52 blocks across 24 messages. `merge`/`semi` collapse
+  each message to exactly ONE block, because stage 2 already string-joined everything with `\n\n`.
+- **`squash_system_messages` is only observable under `none`** (52→49 blocks; three system entries folded
+  client-side with `'\n'`). Under `merge`/`semi`/`strict` it is INERT — stage 2 re-merges the same rows
+  anyway, so the combos are byte-identical across the squash axis. Half the 16-combo matrix is degenerate.
+- **`assistant_prefill` adds a BLOCK, never a message** — +1 block in every mode, message count unchanged,
+  and the final message stays `assistant`. Measured tail: block[-1] is exactly
+  `"This is a prefill response:"`, appended as a sibling block to the last assistant turn. Direct evidence
+  of stage-3's separator-free block concatenation (`prompt-converters.js:336-342` then `:346-353`).
+- **`strict` differs from `merge`/`semi` by exactly one block**, and it is NOT the placeholder splice.
+  `PROMPT_PLACEHOLDER` (`"Let's get started."`) appears ZERO times in all 16 captures — its guard conditions
+  (`:939-945`) are never met here, because `mergedMessages[1]` is already a user row. The extra block is a
+  second, differently-cased chat-start marker: `strict` carries BOTH `[Start a new chat]` and
+  `[Start a new Chat]`, while `none`/`merge`/`semi` carry only `[Start a new Chat]`.
+  unverified: which prompt-manager entry the lowercase marker is. Candidate: the `newChat` entry, which is
+  named in `squashSystemMessages`'s `excludeList` (`openai.js:3830`). Next probe: dump
+  `chatCompletion.messages.collection` identifiers before stage 2 for one strict and one merge run.
+- **No conversation turn carries a speaker label under `names_behavior: 0`.** Every `Name: ` prefix in
+  every capture lives inside message[0], in the card's example-dialogue blocks — those are the
+  `example_user`/`example_assistant` prefixes (`prompt-converters.js:850-859`), i.e. card content, not
+  per-turn stamping. This matches the source table: DEFAULT stamps only in a group chat or on a
+  `force_avatar` row, and this fixture is neither.
+- `system` param absent in all 16 (`use_sysprompt` defaults false).
 
 ### Measured: `custom_squash_claude_strict` (mode `strict`, squash off, no prefill)
 
@@ -287,11 +409,17 @@ and the ST-side card on disk also still holds `{{user}}` raw (so nothing was pre
 The ORB capture sets `activePersona: { name: fixture.user?.name ?? "Traveler" }`
 (`capture-orbweaver.ts:267`), and ST's arm resolved the same token to `Traveler` throughout.
 
-unverified: which resolution path drops `activePersona`. Every `renderMacros` call in
-`assembly/{assemble,context,macros}.ts` threads `ctx.activePersona`, so the divergent value most likely
-enters where the character description is rendered outside that context. Next probe: log the
-`macroOptionsFor` persona argument at the card-description render site for one `driveRound`, and compare it
-to the preamble's.
+The literal `"User"` has exactly ONE producer in our tree: `assembly/macros.ts:73`,
+`user: persona?.name ?? "User"` inside `macroOptionsFor`. So the card description is being macro-rendered
+with a null/undefined persona while the preamble is rendered with the real one.
+
+unverified: WHICH render site passes the null. Every `renderMacros` call in
+`assembly/{assemble,context,macros}.ts` threads `ctx.activePersona` explicitly, so the null most likely
+arrives because `activePersona` is absent from the context at that point rather than because a call site
+omits the argument. Note the ORB capture builds a PARTIAL context (`capture-orbweaver.ts:254-269`, an
+`as unknown as AssembleContext` narrowing cast), so a probe artifact is not excluded. Next probe, which
+settles both: log the `persona` argument of `macroOptionsFor` for one `driveRound` on a REAL turn (not the
+rig), and compare the card-description render against the preamble render.
 
 This is the exact class [[identity-macro-chat-owned]] warns about (Ruling B — domains THREAD the value).
 
@@ -328,23 +456,59 @@ flattens blocks to a string erases the distinction.
 
 ## Limits
 
-### What the corpus cannot answer
+### Corpus state after the 2026-08-07 re-sweep
+
+The gaps below were the state BEFORE the re-sweep. All seven rig defects were fixed and both arms
+regenerated; this table is the current state, and the §Gaps table after it is retained because it records
+what each defect cost.
+
+| arm | before | after | note |
+| - | - | - | - |
+| `output/` (ST) | 10 | 42 | the 10 pre-existing captures SURVIVED the two new sweeps — R1 fixed and proven |
+| `orbweaver-output/` (ORB) | 46 files / **1** distinct payload | 46 files / **10** distinct payloads | R3 fixed: the arm now varies with the fixture |
+| ORB messages replayed | 3 | 25 | it was reading the ST-truncated runtime chat; it now reads the seed |
+| depth-injection ST golden | never existed | exists, 25 messages, carries the author's-note text | R2 fixed |
+| mislabelled goldens | 4, silent | 4, LOUD (`✗ MODEL MISMATCH`, non-zero exit) | R7 fixed |
+
+Comparator verdict over the fresh corpus: **42 compared · 42 with differences · 0 unpaired.** The
+differences are the deliberate set from §The delta map plus two new findings below — and critically, in the
+tools fixtures only messages `[0]`, `[1]` and `[24]` differ at all: messages `[2]`–`[23]` are identical on
+every identity axis (role, block count, join counts, label, length). That per-message parity result was
+unobtainable before, because the old comparator masked all content and the ORB arm only had 3 messages.
+
+**F3 — the ORB arm never appends the fixture's pending user turn.** MEASURED, tools fixtures: ST message
+`[24]` is `"What is the weather in Eldoria?"` (the fixture's `messages` entry, sent as the turn being
+answered); ours is `"[Continue the conversation.]"` (our `CONTINUATION_NUDGE`). `capture-orbweaver.ts` loads
+`fixture.chatFile` OR `fixture.messages` (`:186-198`), never both, so a fixture carrying a chat file AND a
+pending turn drops the turn. This is a RIG gap, not a shaping divergence — but it means the final-turn
+comparison in every tools fixture is meaningless until fixed.
+
+**F4 — a 12-character unexplained delta on message `[1]`.** MEASURED: ST 3600 chars, ORB 3588, on the first
+assistant (greeting) message, with identical 90-character tails. Every other matched message is
+byte-length-identical. unverified: the leading bytes differ; a greeting-selection or leading-whitespace
+difference are both live candidates. Next probe: diff the first 200 characters of message `[1]` on both arms.
+
+### What the corpus could not answer BEFORE the re-sweep
 
 | gap | cause | consequence |
 | - | - | - |
-| no ST capture for any of the 16 combos | both sweep shells open with `rm -rf "$RIG_DIR/output" "$RIG_DIR/orbweaver-output"`; the ST arm is per-fixture, so only the LAST sweep's ids survive | §Wire identity's mode table is SOURCE-PINNED, not measured |
+| no ST capture for any of the 16 combos | both sweep shells opened with `rm -rf "$RIG_DIR/output" "$RIG_DIR/orbweaver-output"`; the ST arm is per-fixture, so only the LAST sweep's ids survived | the mode table could only be source-pinned — now measured |
 | no ST capture for depth-injection | `run-demo-complex.sh` WRITES the `ashen_spire_claude_depth_injection` fixture but never calls `generate-goldens.ts` on it | author's-note depth placement is entirely unmeasured |
-| all 44 `ashen_spire*` ORB captures are byte-identical | MEASURED: one md5 across all 44 with `tools`/`tool_choice` removed | the ORB arm proves NOTHING about our mode sensitivity |
+| all 44 `ashen_spire*` ORB captures are byte-identical | MEASURED: 44 files, ONE distinct md5, with `tools`/`tool_choice` removed | the ORB arm proves NOTHING about our mode sensitivity |
 | 4 of 9 tools captures are the wrong model | ST silently reverted the model setting | the per-model matrix measured 2 distinct models, not 9 |
 | group / multi-character attribution | `capture-orbweaver.ts`'s `StChatLine` type reads only `mes`/`is_system`/`is_user` — `name` is never read | our replay cannot exercise the multi-speaker name-stamp path at all, which is the path `names.ts` exists for |
 
 **Why the 44 are identical** (MEASURED chain, not inference): the sweep shells run `capture-orbweaver.ts`
 LAST, after the whole ST loop. `capture-orbweaver.ts` reads its chat from the ST RUNTIME directory, not from
-the seed. By then ST has rewritten `Sabine Veyra/ashen-spire.jsonl` down to a single greeting row — the file
-on disk today is 2 lines against a 65-line seed at
-`packages/server/src/entry/boot/seed-assets/demo-chats/ashen-spire.jsonl`. With a one-message history there
-is nothing to merge, no adjacent same-role run, and no system row to squash, so every mode emits the same
-three rows. The ORB arm is measuring a truncated chat.
+the seed. By then ST has rewritten `Sabine Veyra/ashen-spire.jsonl` down to a header plus ONE greeting row,
+against a 65-line seed at `packages/server/src/entry/boot/seed-assets/demo-chats/ashen-spire.jsonl`. With a
+one-message history there is nothing to merge, no adjacent same-role run, and no system row to squash, so
+every mode emits the same three rows. The ORB arm is measuring a truncated chat.
+
+> [!WARNING]
+> Do not cite the pre-re-sweep ORB corpus as evidence about our shaping. Its 46 files survived the wipe in
+> FILE COUNT only — 44 of them are the same capture under 44 names. Any statement of the form "our wire does
+> X under mode Y" sourced from it is unfounded.
 
 ### Rig defects found while mining
 
@@ -353,9 +517,9 @@ three rows. The ORB arm is measuring a truncated chat.
 | R1 | wipe-by-design: `rm -rf output orbweaver-output` at the top of both sweeps — any sweep destroys the previous sweep's arm | `run-demo-goldens.sh:7`, `run-demo-complex.sh:7` |
 | R2 | `run-demo-complex.sh` builds the depth-injection fixture, never captures it | `run-demo-complex.sh`, no `generate-goldens.ts "${id_depth}"` call |
 | R3 | ORB arm reads the ST-mutated runtime chat, after ST has rewritten it | `capture-orbweaver.ts:99-102` `ST_CHATS_DIR`; sweeps call it last |
-| R4 | fixture key mismatch: the sweeps write `names_behavior`, `capture-orbweaver.ts` reads `character_names_behavior` — the setting is ALWAYS ignored on our arm | `run-demo-goldens.sh` fixture heredoc vs `capture-orbweaver.ts:213` |
-| R5 | fixture key mismatch: 18 fixtures carry `prompt_post_processing`, `capture-orbweaver.ts` reads only `custom_prompt_post_processing` — those 18 fall back to `merge` | MEASURED key census over `fixtures/*.json`: 27 `custom_prompt_post_processing`, 18 `prompt_post_processing` |
-| R6 | `always_force_name2` is written into 31 fixtures and read by nothing on our arm | `capture-orbweaver.ts:56-64` `settings` type |
+| R4 | fixture key mismatch: the sweeps write `names_behavior`, `capture-orbweaver.ts` read `character_names_behavior` — the setting was ALWAYS ignored on our arm. Its mapping was also wrong: `{0:"none",1:"default",2:"content",3:"completion"}` against ST's real enum `NONE:-1, DEFAULT:0, COMPLETION:1, CONTENT:2` (`openai.js:204-209`), so every value was mis-mapped | `run-demo-goldens.sh` fixture heredoc vs `capture-orbweaver.ts:213` |
+| R5 | fixture key mismatch: 18 fixtures carry `prompt_post_processing`, which is not an ST setting name at all. `capture-orbweaver.ts` read only `custom_prompt_post_processing`, so those 18 fell back to `merge` on our arm — and `generate-goldens.ts:160` `Object.assign`s the fixture settings straight into `oai_settings`, so ST also received a key it never reads. The axis was dead on BOTH arms | MEASURED key census over `fixtures/*.json`: 27 `custom_prompt_post_processing`, 18 `prompt_post_processing` |
+| R6 | `always_force_name2` is written into 31 fixtures and is INERT on BOTH arms — it is a Text-Completion-only setting (see below), so the axis tests nothing | `script.js:4211` JSDoc, sole prompt consumer `:5022` |
 | R7 | no assertion that `payload.model` equals the requested model — 4 mislabelled goldens shipped silently | §Per-model tools matrix |
 
 ### Comparator masking — the specific upgrade this analysis justifies
@@ -374,12 +538,46 @@ structure-only, and it is blind to exactly the classes this atlas proves carry i
 It also compares only `messages` and `tools` — never `system`, sampling params, `tool_choice`, or headers,
 all of which carry per-model shaping decisions (§Per-model tools matrix).
 
-### What a future capture run must add
+### `always_force_name2` is inert for chat completion — the absence proof
 
-1. Stop the wipe (R1) so the arms accumulate; re-capture the 16 combos WITHOUT losing the tools matrix.
-2. Capture the depth-injection fixture on the ST arm (R2).
-3. Re-seed the runtime chat immediately BEFORE the ORB arm, or read the seed directly (R3).
-4. Align the fixture setting keys across the sweeps and `capture-orbweaver.ts` (R4, R5, R6).
-5. Assert `payload.model === fixture.model` (R7).
-6. Read `name` in `StChatLine` so multi-speaker rooms replay.
-7. Add a two-arm capture for `single` and `semi_tools` — neither mode is in the fixture set at all.
+ST's own JSDoc calls it "Text Completion, non-Instruct only" (`script.js:4211`), and its single
+prompt-shaping consumer is `script.js:5022`, `if (!isInstruct && force_name2 && …)`, inside the
+text-completion prompt builder. The chat-completion path never reads it.
+
+RECEIPT, and the instrument failure worth recording. The obvious lens is WRONG:
+
+```bash
+ast-grep run -p 'always_force_name2' -l js <runtime>/public/script.js --inspect summary
+#  -> scannedFileCount=1, ZERO matches — on a file that provably contains it at :4549
+```
+
+A bare-identifier pattern does not match a `property_identifier` inside a member expression
+(`power_user.always_force_name2`), so it returns a clean, confident, wrong zero. The validated lens is a
+kind rule covering both node kinds:
+
+```yaml
+rule:
+  any:
+    - {kind: identifier, regex: "force_name2$"}
+    - {kind: property_identifier, regex: "force_name2$"}
+```
+
+Controls run before the claim: known-POSITIVE (`script.js`) → 1 hit at `:4549`; known-NEGATIVE (a
+nonexistent symbol) → 0. Against `openai.js`, `prompt-converters.js`, and `chat-completions.js` — the whole
+chat-completion path — the validated rule returns ZERO. That is the absence claim.
+
+### What a future capture run must still add
+
+R1–R7 are fixed and the corpus is regenerated. What remains:
+
+1. Append the fixture's pending user turn when a `chatFile` is also present (F3) — the tools matrix's final
+   turn is currently incomparable.
+2. Resolve the 12-character message-`[1]` delta (F4).
+3. Add fixtures for `single` and `semi_tools` — neither mode is exercised at all.
+4. Replace the 4 dead legacy models in the tools matrix with models ST still lists, so the matrix measures
+   nine models instead of two. The `✗ MODEL MISMATCH` assert now names them on every run.
+5. Give `always_force_name2` a real axis or drop it: it is Text-Completion-only, so its 31 fixtures test
+   nothing (see above).
+6. Drop the `squash_system_messages` axis for every mode except `none` — MEASURED inert elsewhere, so eight
+   of the sixteen combos are duplicate captures.
+7. Settle whether the `{{user}}` split (F1) is a product defect or a rig artifact, on a real turn.

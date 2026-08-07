@@ -558,6 +558,16 @@ supersedes the separator claim above. There are TWO separate passes with DIFFERE
 `squashSystemMessages` (`openai.js:3862`) joins with `'\n'`; the server `mergeMessages` (`:823`, joining at
 `:891`) uses `'\n\n'`. **Our `\n\n` matches ST's server merge** — the separator is not the defect.
 
+> [!NOTE]
+> AMENDED — this two-pass reading is incomplete; the FIX above (the `speakerless` marker) is unaffected.
+> For a Claude request there is a THIRD pass, `convertClaudeMessages` (`prompt-converters.js:197`, sole call
+> site `chat-completions.js:233`), which runs ALWAYS and merges same-role rows again by concatenating
+> content BLOCK ARRAYS with **no separator at all** (`:349`). So "our `\n\n` matches ST" is true of stage 2
+> and says nothing about the final Claude wire, where the join is structural rather than textual (measured:
+> golden `custom_squash_claude_strict` carries the card and `"Hello!"` as two adjacent un-joined text blocks
+> in one user message). Full three-stage model, mode table, and receipts:
+> `docs/design/st-message-shaping-atlas.md` §Wire identity.
+
 Eight modes, one function, four booleans (`postProcessPrompt:79-102`, `PROMPT_PROCESSING_TYPE:15`):
 
 | mode | strict | placeholders | single | tools |
