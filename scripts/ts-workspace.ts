@@ -49,6 +49,14 @@ export function searchGlobs(root: string): readonly string[] {
   return [
     ...harnessGlobs(root),
     `${root}/scripts/**/*.ts`,
+    // The ONE fence in this file: `scripts/**/*.ts` above would otherwise sweep the ST-parity probe's
+    // captured SillyTavern install (scripts/probes/st-goldens/sillytavern-runtime/ — gitignored, ~4,300
+    // `.ts` files, nearly all third-party `node_modules` declarations). It is a foreign app we do not
+    // own; loading it costs a multi-second parse for zero signal and floods whole-project lenses with
+    // findings in code nobody here can fix. Fenced by GLOB, not by a parse-then-removeSourceFile loop
+    // (which is what this cost before 2026-08-06) — negated globs DO work in ts-morph, verified against
+    // a planted file: 261 files → 260, runtime hits 1 → 0.
+    `!${root}/scripts/probes/st-goldens/sillytavern-runtime/**`,
     `${root}/packages/*/*.ts`,
     `${root}/packages/*/src/**/*.mts`,
     `${root}/tests/**/*.mts`,
@@ -68,20 +76,10 @@ export function getWorkspace(opts: WorkspaceOptions): Project {
       skipAddingFilesFromTsConfig: true,
     });
     project.addSourceFilesAtPaths([...(opts.globs ?? searchGlobs(opts.root))]);
-    for (const sf of project.getSourceFiles()) {
-      if (sf.getFilePath().includes("/tests/goldens/sillytavern-runtime/")) {
-        project.removeSourceFile(sf);
-      }
-    }
     return project;
   }
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   project.addSourceFilesAtPaths([...(opts.globs ?? harnessGlobs(opts.root))]);
-  for (const sf of project.getSourceFiles()) {
-    if (sf.getFilePath().includes("/tests/goldens/sillytavern-runtime/")) {
-      project.removeSourceFile(sf);
-    }
-  }
   return project;
 }
 

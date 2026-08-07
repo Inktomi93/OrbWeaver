@@ -23,6 +23,15 @@ interface DeletionEntry {
 const root = process.cwd();
 const files = globSync(["tests/**/*.test.ts", "tests/**/*.test.tsx", "tests/**/*.ct.tsx", "tests/**/*.spec.ts"], {
   cwd: root,
+  // A vendored/captured third-party tree under tests/ ships its OWN specs — never ours to protect, and
+  // baselining them makes the gate hostage to a foreign install's presence. (The ST-parity rig's captured
+  // SillyTavern runtime put 49 `@jimp`/`comment-parser`/`openai` specs into this floor before it moved
+  // out to scripts/probes/st-goldens; the same trap awaits any future vendored fixture.) Mirrors
+  // scripts/verify/tests-execution-membership.ts's identical skip.
+  // NOTE — node's `globSync` hands `exclude` a repo-relative PATH STRING, never a Dirent: an
+  // `(f) => f.name === "node_modules"` predicate is `undefined === "node_modules"`, i.e. a silent
+  // no-op that excludes nothing. Verified with a planted `tests/**/node_modules/**/*.test.ts`.
+  exclude: (p) => p.split("/").includes("node_modules"),
 })
   .map((f) => f.replaceAll("\\", "/"))
   .sort();

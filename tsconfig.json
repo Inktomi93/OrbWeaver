@@ -128,9 +128,12 @@
     // bridges + `as unknown as` casts in every spec (the DomEl/DomRow pattern). The tree lives in
     // tsconfig.tests-dom.json (dom + node — its specs are node harness code driving a browser).
     "tests/e2e",
-    // Direct-run golden capture/compare scripts — not type-checked by any per-package tsconfig, and they
-    // have accumulated API drift against the live codebase (fixture types, connection shape changes, etc.).
-    // They're operational scripts run manually, not part of the enforced type graph.
-    "tests/goldens"
+    // The ST-parity probe's captured SillyTavern install (gitignored; `scripts/probes/st-goldens/README.md`).
+    // This aggregator `include`s all of `scripts`, and a specified `exclude` REPLACES tsc's default
+    // `["node_modules", …]` — so without this line the foreign app's four root `.d.ts` files join the
+    // program, and `public/global.d.ts` declares ST's browser globals into OUR global scope. Verified by
+    // planting a file: closure hits go 1 → 0. The rig's own five scripts DO typecheck here (2026-08-06);
+    // this excludes the third-party runtime beneath them, never our code.
+    "scripts/probes/st-goldens/sillytavern-runtime"
   ]
 }
