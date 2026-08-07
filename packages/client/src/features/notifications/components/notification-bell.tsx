@@ -18,6 +18,7 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
+import type { ChromePresentation } from "#state";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { Trpc } from "#data";
@@ -51,8 +52,16 @@ function rowCopy(payload: NotificationEvent): string {
   return handler(payload);
 }
 
+export interface NotificationBellProps {
+  /** Which lens renders the inbox (`ChromePresentation`). `"bar"` = the topbar's badged bell + popover;
+   *  `"sheet"` = the mobile You-sheet's INLINE section — a phone's overflow home is a scrolling drawer, so
+   *  the inbox is a titled block in it rather than a popover anchored to a control that is not there.
+   *  @defaultValue "bar" */
+  readonly presentation?: ChromePresentation;
+}
+
 /** The unread-badged bell + inbox popover. Mount only while the deployment is multi-human capable. */
-export function NotificationBell(): ReactElement {
+export function NotificationBell({ presentation = "bar" }: NotificationBellProps = {}): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { items, unreadCount } = useInbox();
@@ -119,6 +128,40 @@ export function NotificationBell(): ReactElement {
   };
 
   const bellLabel = unreadCount === 0 ? "Notifications" : `Notifications (${unreadCount} unread)`;
+  const inbox = (
+    <Stack gap="row" className="min-w-64">
+      {items.length === 0 ? (
+        <Text tone="muted">No notifications.</Text>
+      ) : (
+        items.map((item) => (
+          <InboxRow
+            key={item.id}
+            item={item}
+            onAccept={(): void => void onAccept(item)}
+            onAcceptHandoff={(): void => void onAcceptHandoff(item)}
+            onDecline={(): void => void onDecline(item)}
+            onDismiss={(): void => dismiss.mutate({ notificationId: item.id })}
+          />
+        ))
+      )}
+    </Stack>
+  );
+
+  if (presentation === "sheet") {
+    // THE PHONE'S INBOX IS A BLOCK, NOT A POPOVER (side-eye leg-4 P2 + the topbar budget). On a 320px row
+    // the bell was a 48px control competing with the one thing that says where you are — and the sheet is
+    // already this app's phone-overflow home. Rendered OPEN: there is nothing to anchor to and nothing to
+    // reveal, so the rows just are. Opening the sheet is the "you looked" moment the badge measures, so
+    // the same markAllRead the popover fires on open fires here on mount.
+    return (
+      <Stack gap="row" data-testid={testId("notificationsInbox")}>
+        {/* `voice`, not four internal axes — the section's NAME is exactly what the kicker voice is for
+            (density-pass-spec §2.3; the gate exists to keep features off the type axes). */}
+        <Text voice="kicker">{bellLabel}</Text>
+        {inbox}
+      </Stack>
+    );
+  }
 
   return (
     <Popover open={open} onOpenChange={onOpenChange}>
@@ -127,7 +170,10 @@ export function NotificationBell(): ReactElement {
           render={
             <PopoverTrigger
               render={
-                <Button intent="ghost" size="sm" aria-label={bellLabel}>
+                // The TOPBAR's icon-button shape, not a bare `size="sm"`: at coarse this row's controls
+                // are 48×48 and the bell was rendering 40×44 beside three of them (side-eye leg-4 P3 —
+                // one control under the touch floor its neighbours all clear).
+                <Button intent="ghost" size="icon" className="shell-topbar-icon-btn" aria-label={bellLabel}>
                   <Icon icon={Bell} size="sm" />
                   {unreadCount > 0 ? (
                     <Badge intent="primary" size="sm" aria-hidden={true}>
@@ -142,22 +188,7 @@ export function NotificationBell(): ReactElement {
         <TooltipPopup side="bottom">Notifications</TooltipPopup>
       </Tooltip>
       <PopoverPopup aria-label="Notifications" data-testid={testId("notificationsInbox")}>
-        <Stack gap="row" className="min-w-64">
-          {items.length === 0 ? (
-            <Text tone="muted">No notifications.</Text>
-          ) : (
-            items.map((item) => (
-              <InboxRow
-                key={item.id}
-                item={item}
-                onAccept={(): void => void onAccept(item)}
-                onAcceptHandoff={(): void => void onAcceptHandoff(item)}
-                onDecline={(): void => void onDecline(item)}
-                onDismiss={(): void => dismiss.mutate({ notificationId: item.id })}
-              />
-            ))
-          )}
-        </Stack>
+        {inbox}
       </PopoverPopup>
     </Popover>
   );

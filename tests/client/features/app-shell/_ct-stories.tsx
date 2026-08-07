@@ -293,6 +293,19 @@ export function RailStory(): ReactElement {
   );
 }
 
+/** The Rail standing in a `mobile:"sheet"` OVERFLOW section (corpus) — the state where the You tab is the
+ *  section's only door on the bar. It may HINT that (`data-contains-current`); it may not claim to BE the
+ *  page (side-eye leg-4 P2: readers heard "You, current page" on five sections). */
+export function RailOverflowSectionStory(): ReactElement {
+  return (
+    <CtFakeSectionRegistry>
+      <CtStandInChromeRegistry>
+        <Rail activeSection="corpus" onSelectSection={(): void => undefined} onOpenModal={(): void => undefined} />
+      </CtStandInChromeRegistry>
+    </CtFakeSectionRegistry>
+  );
+}
+
 /** The Rail with the BRAND cell ACTIVE (home-section-spec §4.1) — the glyph is home's rail affordance, so
  *  it must carry `aria-current="page"` when home is the active section, exactly as any rail button does. */
 export function RailBrandActiveStory(): ReactElement {
@@ -355,6 +368,14 @@ export function YouSheetProjectionStory(): ReactElement {
       zone: "rail.end",
       mobile: "sheet",
       behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="sheet-lens">lens:{presentation}</div> },
+    },
+    {
+      // A TOPBAR widget curated off the phone row — the notifications inbox's shape (side-eye leg-4 P2).
+      id: "fake-trail-overflow",
+      label: "Fake trail widget",
+      zone: "topbar.trail",
+      mobile: "sheet",
+      behavior: { kind: "widget", body: (presentation): ReactElement => <div data-testid="trail-sheet-lens">trail:{presentation}</div> },
     },
     {
       id: "fake-overflow",

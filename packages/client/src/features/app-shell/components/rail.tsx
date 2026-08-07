@@ -176,18 +176,27 @@ export function Rail({ activeSection, onSelectSection, onOpenModal }: RailProps)
         ))}
       </div>
 
-      {/* THE YOU TAB CARRIES `aria-current` FOR ITS SECTIONS (side-eye F-15). Standing in a
+      {/* THE YOU TAB HINTS AT — NEVER CLAIMS — ITS SECTIONS' CURRENCY. Standing in a
           `mobile:"sheet"` section (Corpus · World Info · Presets · Refinery · Analytics), the mobile bar
           marked NOTHING current: the section's own rail button DOES carry `aria-current="page"` + the amber
           skin, but it is `display:none` on the bar (it is the desktop rail's copy), and the four visible
           tabs are all other sections. So a screen-reader user got a nav landmark with zero current markers
           and a sighted user saw four unlit tabs while standing in a fifth place (Nielsen #1).
           The You tab is that section's REPRESENTATIVE on the bar — its sheet is the only door to it — so
-          it wears the state. Derived from the active section's OWN curation, never a hardcoded id list: a
-          section that flips to `mobile:"tab"` stops feeding this the same day it starts feeding the bar. */}
+          it wears the VISUAL state. Derived from the active section's OWN curation, never a hardcoded id
+          list: a section that flips to `mobile:"tab"` stops feeding this the same day it starts feeding
+          the bar.
+
+          ⚑ MECHANISM SUPERSEDED, F-15's SYMPTOM KEPT (side-eye leg-4 P2). F-15 closed the "nothing is
+          current" gap by giving this tab `aria-current="page"` — and that made a reader hear "You, current
+          page" on five sections it is not (corpus · presets · analytics · refinery · databank). A tab that
+          is not the page may not say it is. The gap F-15 found is now closed by a TRUER mechanism that did
+          not exist then: the mobile topbar prints the active section's own name, and the leg-2 DOM-order
+          fix makes it read BEFORE this nav — so "where am I" is answered in words, by the thing that
+          actually knows. What survives here is the sighted hint (`data-contains-current`). */}
       {youModal === undefined ? null : (
         <RailButton
-          active={activeIsSheetSection}
+          containsCurrent={activeIsSheetSection}
           icon={youModal.trigger.icon}
           label={youModal.trigger.label}
           mobile="tab"

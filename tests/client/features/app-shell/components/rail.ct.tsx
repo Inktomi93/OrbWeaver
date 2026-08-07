@@ -3,7 +3,7 @@
 // the buttons are keyboard-focusable in order.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { RailBrandActiveStory, RailBrandNavStory, RailStory } from "../_ct-stories.tsx";
+import { RailBrandActiveStory, RailBrandNavStory, RailOverflowSectionStory, RailStory } from "../_ct-stories.tsx";
 
 test("renders every section + footer action as a named button; active = aria-current", async ({ mount }) => {
   const rail = await mount(<RailStory />);
@@ -89,4 +89,31 @@ test("rail buttons are keyboard-focusable", async ({ mount }) => {
   const chats = rail.getByRole("button", { name: "Chats" });
   await chats.focus();
   await expect(chats).toBeFocused();
+});
+
+// ── A TAB THAT IS NOT THE PAGE DOES NOT SAY IT IS (side-eye leg-4 P2) ────────────────────────────────
+// Standing in a `mobile:"sheet"` section, the You tab used to carry `aria-current="page"` — so a reader
+// heard "You, current page" while looking at the Corpus roster (five sections: corpus · presets ·
+// analytics · refinery · databank). The sighted HINT survives; the claim does not. Where-am-I for those
+// sections is answered by the topbar, which names the section and reads before this nav on a phone.
+// The You tab is `mobileOnly` — `display:none` on the desktop icon column — so this reads it where it
+// exists: the bottom bar. (Mobile geometry needs the coarse pointer; the tab's own reflow rules are keyed
+// off the shell's one viewport @media, and `hasTouch` is what makes Chromium report `pointer: coarse`.)
+test.describe("the mobile bottom bar", () => {
+  test.use({ viewport: { width: 320, height: 800 }, hasTouch: true });
+
+  test("the You tab HINTS at an overflow section without claiming to be the current page", async ({ mount }) => {
+    const rail = await mount(<RailOverflowSectionStory />);
+    const you = rail.getByRole("button", { name: "You", exact: true });
+
+    await expect(you).toBeVisible();
+    await expect(you).not.toHaveAttribute("aria-current", "page");
+    // …and the visual hint is still there, so the bar does not read as five unlit tabs in a fifth place.
+    await expect(you).toHaveAttribute("data-contains-current", "");
+  });
+});
+
+test("a section's OWN tab still claims the page when it is the one you are standing in", async ({ mount }) => {
+  const rail = await mount(<RailStory />);
+  await expect(rail.getByRole("button", { name: "Chats", exact: true })).toHaveAttribute("aria-current", "page");
 });

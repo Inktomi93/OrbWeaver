@@ -139,6 +139,9 @@ const NO_METADATA_VISIBLE: MessageMetadataVisibility = {
   showGenerationCost: false,
 };
 
+/** An avatar in ONE of the row's two width-gated slots: the wide `gutter` beside the bubble, or the narrow
+ *  `inline` slot in the name row. Both are always in the DOM and the row's `@container` query shows one —
+ *  see the `inlineAvatar` note in `MessageRow` for why the gutter cannot survive a phone-width column. */
 export function MessageRow({
   message,
   chatStyle,
@@ -256,6 +259,14 @@ export function MessageRow({
   const weldedAvatar = avatarTreatment === "sticky-portrait" ? avatarNode : null;
   const leadingAvatar = weldedAvatar !== null || role === "user" ? null : avatarNode;
   const trailingAvatar = weldedAvatar !== null || role !== "user" ? null : avatarNode;
+  // THE GUTTER COSTS LESS ON A PHONE (side-eye leg-4 P2 — "stop treating a phone as a narrow desktop").
+  // Measured beside the bubble at 320px: the avatar column took 76px, one paragraph ran 22 CHARACTERS over
+  // 12 lines, and the speaker name wrapped to two lines in an 88px box. This row is its own `@container`
+  // now, so at a phone-width column the portrait steps down and the gap tightens — the reading measure
+  // gets the difference back, and the row's ANATOMY is untouched (§B.1: the avatar is a SIBLING of the
+  // content column, never a descendant of the name row — a law with its own pins, not mine to reverse).
+  // ⚑ The review asked for the gutter to FOLD INTO the name row, which §B.1 forbids; the fork is reported
+  // rather than taken, with this as the anatomy-preserving half.
 
   // §6c/M8 message-footer: absent for a pre-commit draft-greeting row (no `surfaceContributors` passed).
   const footerContributions = resolveMessageFooter(surfaceContributors, message);
@@ -272,10 +283,10 @@ export function MessageRow({
         data-slot="message-row"
         data-role={role}
         data-kind={attribution.kind}
-        className={cn("group", skin.outer(role), enterClasses)}
+        className={cn("group @container", skin.outer(role), enterClasses)}
       >
         {selecting ? <Checkbox aria-label="Select message" checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} /> : null}
-        <Row align="start" gap="row" data-slot="message-row-body">
+        <Row align="start" className="@max-md:gap-field @max-md:*:data-[slot=avatar-root]:size-6" gap="row" data-slot="message-row-body">
           {leadingAvatar}
           <Stack gap="row" data-slot="message-content-column" className="min-w-0 flex-1">
             <Row justify="between" align="center" gap="field" data-slot="message-name-row" className={skin.chromeBacking}>
