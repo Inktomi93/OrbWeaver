@@ -28,6 +28,13 @@ const READER_SCOPE_RE = /(?:^|\/)packages\/(?:server|client)\/src\//u;
 //  collects on it.
 const DEFERRED: ExemptionTable<ExemptionRow> = {};
 
+// The STALE and ORPHAN arms (judgeAxis's `hasReader && deferred` branch, and the orphan-row loop in `run`)
+// both key off THIS real DEFERRED map, which mustFlag/mustPass fixtures cannot inject into (conformance.ts
+// only supplies `files`, never module state — see scripts/check/conformance.ts). With DEFERRED empty they
+// are currently unexercisable by self-proof without planting a fake key that would misfire as a real ORPHAN
+// finding against the live repo tree. Left unproven on purpose rather than faked: the next lane that adds a
+// genuine DEFERRED row owes both arms a mustFlag example at that point (GATE-AUTHORING.md §4.4a/§4.5).
+
 const MESSAGE =
   `a ${RECORD} axis with NO production reader — a policy cell nobody reads is law with no enforcer (the ` +
   "comment prompt:'never' cell was unenforced while assembly shipped comments to the wire). Wire the reader " +
@@ -168,19 +175,10 @@ export const gate: GateDescriptor = {
         [HOME]:
           "export interface MessageKindPolicy {\n  readonly prompt: 'conversation' | 'never';\n  readonly wire: 'carry' | 'drop';\n}\n" +
           "export const MESSAGE_KIND_POLICY = { standard: { prompt: 'conversation', wire: 'carry' } };\n",
-      },
-      expect: { count: 1, messageIncludes: "NO production reader" },
-      why: "the founding disease one axis over: a NEW multi-arm axis (`wire`) with no reader and no DEFERRED row is RED at birth (`prompt` rides its live DEFERRED row, so exactly ONE finding)",
-    },
-    {
-      files: {
-        [HOME]:
-          "export interface MessageKindPolicy {\n  readonly prompt: 'conversation' | 'never';\n}\n" +
-          "export const MESSAGE_KIND_POLICY = { standard: { prompt: 'conversation' } };\n",
         "packages/server/src/domain/chat/assembly/shape.ts": "export const p = MESSAGE_KIND_POLICY.standard.prompt;\n",
       },
-      expect: { count: 1, messageIncludes: "now HAS a production reader" },
-      why: "the STALE arm — the live DEFERRED `prompt` row while a production `.prompt` read exists is a rotting exemption",
+      expect: { count: 1, messageIncludes: "NO production reader" },
+      why: "the founding disease one axis over: a NEW multi-arm axis (`wire`) with no reader and no DEFERRED row is RED at birth — `prompt` has a direct production reader right here, so it does NOT also fire, proving exactly one finding",
     },
     {
       files: {
@@ -194,19 +192,19 @@ export const gate: GateDescriptor = {
     {
       files: {
         [HOME]:
-          "export interface MessageKindPolicy {\n  readonly prompt: 'conversation' | 'never';\n  readonly memory: 'ingest' | 'exclude';\n  readonly reading: 'show';\n}\n" +
-          "export const MESSAGE_KIND_POLICY = { standard: { prompt: 'conversation', memory: 'ingest', reading: 'show' } };\n" +
+          "export interface MessageKindPolicy {\n  readonly memory: 'ingest' | 'exclude';\n  readonly reading: 'show';\n}\n" +
+          "export const MESSAGE_KIND_POLICY = { standard: { memory: 'ingest', reading: 'show' } };\n" +
           "export const MEMORY_INGEST_KINDS = ['standard'].filter(() => MESSAGE_KIND_POLICY.standard.memory === 'ingest');\n",
         "packages/server/src/domain/chat/memory/persistence/queries.ts":
           "import { MEMORY_INGEST_KINDS } from '@orb/contracts/chat';\nexport const k = MEMORY_INGEST_KINDS;\n",
       },
-      why: "the healthy shape: `memory` is read through its imported home-file carrier (MEMORY_INGEST_KINDS), `reading` is a single-LITERAL axis (vacuously exempt until it widens — the declared-limit row), and reader-less `prompt` rides its DEFERRED row",
+      why: "the healthy shape: `memory` is read through its imported home-file carrier (MEMORY_INGEST_KINDS), `reading` is a single-LITERAL axis (vacuously exempt until it widens — the declared-limit row)",
     },
     {
       files: {
         [HOME]:
-          "export interface MessageKindPolicy {\n  readonly prompt: 'conversation' | 'never';\n  readonly memory: 'ingest' | 'exclude';\n}\n" +
-          "export const MESSAGE_KIND_POLICY = { standard: { prompt: 'conversation', memory: 'ingest' } };\n",
+          "export interface MessageKindPolicy {\n  readonly memory: 'ingest' | 'exclude';\n}\n" +
+          "export const MESSAGE_KIND_POLICY = { standard: { memory: 'ingest' } };\n",
         "packages/server/src/domain/chat/memory/persistence/queries.ts": "export const m = MESSAGE_KIND_POLICY.standard.memory;\n",
       },
       why: "a DIRECT record read in a behavior tier satisfies the axis without any carrier",
