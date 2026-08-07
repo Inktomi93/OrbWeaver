@@ -137,6 +137,19 @@ function devCspMirror(): Plugin {
 // auto-chunks). The heavy seals with large deps — @orb/ui/stat-figure (ECharts) and @orb/ui/code-editor
 // (CodeMirror) — are `React.lazy`'d at their client call sites (character-provenance-section.tsx,
 // theme-editor.tsx), each getting its own chunk instead of riding the entry bundle (P1, rollup audit).
+//
+// ── HOW TO PROFILE THIS BUILD (nothing is wired permanently — it is one flag) ──────────────────────
+//   pnpm --filter @orb/client build -- --profile     # or: vite build --configLoader native --profile
+// Writes `packages/client/vite-profile-0.cpuprofile` (~25 MB, gitignored); upload it to
+// https://www.speedscope.app/. Same flag works on the dev server (`vite --profile`, then `p` then `q`).
+//
+// READ IT INSTEAD OF `[PLUGIN_TIMINGS]`, NOT BESIDE IT — they measure different things and they
+// DISAGREE. Rolldown's end-of-build PLUGIN_TIMINGS block blames `vite-plugin-checker` for ~93% of the
+// build; the CPU profile shows checker consuming essentially no main-thread time, because PLUGIN_TIMINGS
+// counts WALL time inside a hook (checker's tsc/eslint run out-of-process, so that is waiting, not work).
+// The real CPU is the React Compiler: measured 2026-08-07, ~72% of a 74.6s profiled build sits in
+// babel-plugin-react-compiler + @babel/{traverse,parser,types,generator}, plus ~12% GC. Rolldown itself
+// is 0.6%. So build time here is the Compiler's price (a D54 decision), not a bundler problem.
 export default defineConfig({
   resolve: {
     // pnpm can hoist devtools' peer deps under their own node_modules → TWO React instances →
@@ -194,11 +207,41 @@ export default defineConfig({
     // no-ops there harmlessly; they need no explicit exclude.
     exclude: ["@orb/ui"],
   },
+  // Opt in to the next-major deprecation warnings (config/shared-options.md#future) so a vite major
+  // lands as a warning in our dev log instead of a hard break. These are WARNINGS ONLY — nothing here
+  // changes what gets built.
+  //
+  // This is `future: "warn"` (the shorthand that enables ALL of them) MINUS exactly one key, and the
+  // exception is the whole reason it is spelled out. Measured on a cold dev boot 2026-08-07, vite 8.1.2
+  // trips `removeServerWarmupRequest` AGAINST ITSELF: its own HTML middleware calls the deprecated
+  // `server.warmupRequest` (`preTransformRequest`, vite/dist/node/chunks/node.js:24698) rather than
+  // `environment.warmupRequest`. Nothing first-party is involved — we never call it (swept packages/,
+  // scripts/, tests/: zero hits), and it is NOT `orb:dev-csp-mirror`, which only uses `configureServer`
+  // + `server.middlewares`. Left on, it prints a warning with a stack on EVERY dev start that no one
+  // here can act on, and a channel that always cries wolf is a channel developers filter out — which
+  // would cost us the one warning that IS ours. So it is off, and every OTHER deprecation stays loud.
+  //
+  // RE-CHECK ON ANY VITE BUMP: if upstream migrates `preTransformRequest`, delete this object and go
+  // back to the self-updating `future: "warn"` shorthand. Enumerating rots — vite's docs say the list
+  // "may be updated, added, or removed at any time" — so this enumeration is a debt with a payoff date,
+  // not a preference. Verified: with this object a cold dev boot + a full build emit ZERO `[vite future]`
+  // lines.
+  future: {
+    removePluginHookHandleHotUpdate: "warn",
+    removePluginHookSsrArgument: "warn",
+    removeServerModuleGraph: "warn",
+    removeServerReloadModule: "warn",
+    removeServerPluginContainer: "warn",
+    removeServerHot: "warn",
+    removeServerTransformRequest: "warn",
+    removeSsrLoadModule: "warn",
+  },
   build: {
-    // Fully es2025 (rides esbuild 0.28.1 — the pnpm-workspace override exists precisely because
-    // 0.25.x rejects the es2025 target). cssTarget follows the same es2025 baseline (runtime CSS-target
-    // validation happens once there's CSS to transform — the build short-circuits at the missing entry
-    // today).
+    // Fully es2025. NOTE (corrected 2026-08-07): this is lowered by OXC/Rolldown, NOT esbuild — vite 8
+    // treats esbuild as an optional peer it only lazily imports for `cssMinify: "esbuild"` and the
+    // deprecated `transformWithEsbuild`. The old comment here claimed the target rode a pnpm-workspace
+    // `esbuild@^0.25.0 → 0.28.1` override "because 0.25.x rejects es2025"; that override has been
+    // REMOVED and this build is green without it. cssTarget follows the same es2025 baseline.
     target: "es2025",
     cssTarget: "es2025",
     // es2025 browsers ship native modulepreload — drop the polyfill.
@@ -210,8 +253,13 @@ export default defineConfig({
     // 'hidden' — sourcemaps for our own debugging, NOT referenced from the shipped bundle (D21
     // privacy: don't expose source layout to clients).
     sourcemap: "hidden",
-    // Emit the dependency-license file (AGPL hygiene).
-    license: true,
+    // Emit the dependency-license artifact (AGPL hygiene). `{ fileName }` ending in `.json` gets the
+    // RAW JSON metadata ({name, version, identifier, text}[]) instead of the `true` form's rendered
+    // `.vite/license.md` — the licence set is an input to attribution tooling and audits, not prose to
+    // read, and a bare markdown blob would have to be re-parsed to answer "which SPDX identifiers ship".
+    // Same location as the `true` default (`.vite/` under outDir), so the SPA registrar's dist layout
+    // is unchanged.
+    license: { fileName: ".vite/license.json" },
     // Skip the per-build gzip-size calc (build speed; we don't gate on it).
     reportCompressedSize: false,
     // Vite generates index.html and Hono serves it as-is → no manifest needed. REVISIT if Hono ever

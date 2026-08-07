@@ -106,3 +106,8 @@ scratch/
 /scripts/probes/st-goldens/output/
 /scripts/probes/st-goldens/orbweaver-output/
 /scripts/probes/st-goldens/debug-st.png
+
+# vite --profile output (`vite build --profile` / `vite --profile`) — a ~25 MB V8 CPU profile written
+# to the invoking package root, for speedscope.app. An instrument's output, never an artifact we keep;
+# how to read one is documented in packages/client/vite.config.ts's header.
+*.cpuprofile
