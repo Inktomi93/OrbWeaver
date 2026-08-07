@@ -289,6 +289,20 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   legacy image/image_swipes/file — ST's own `migrateMediaToArray` is the receipt); the seeder's
   duplicate drop-filter dissolved (one home). Live send path untouched (all four parser consumers
   are import-side, owner asked + receipted).
+- **⚑ CT-VITE-8 SPIKE: RED, ruled by the owner on the evidence (2026-08-07) — and the outcome is a
+  PIN, not just a revert.** Vite 8 under `@playwright/experimental-ct-core` **mounts nothing**: 674
+  tests produced results, **670 reached retry2**, failing from the very first spec, and the earliest
+  failure's `test-failed-1.png` is a BLANK MOUNT — the harness-mounts-nothing signature, not
+  timeouts or flakes. It retro-explains the two ~65-min runs (every test burning its full timeout
+  three times). Owner ruled after ~4h: stop the A/B, revert, and **"lock ct to whatever version it
+  uses."** So the override flips from an UPGRADE to an explicit PIN at the bundled version (measured
+  6.4.3, re-verified after the revert install) carrying its reason + the re-test trigger (a
+  playwright bump) — a version that was an accident of transitive resolution becomes a STATED
+  decision. `build.rollupOptions` STAYS (correct for the bundled vite); the tsconfig note stays
+  factually intact. **The prize is NOT claimed:** one-vite-in-the-tree would have killed
+  \[\[worktree-ct-runner-resolution]]'s two-versions trap AND let ct-config join the type program —
+  both stay OPEN. Verdict written durably to `docs/reviews/misc/` (a verdict that lives only in a
+  report dies with the transcript — that lesson cost a ceremony lane today).
 - **⚑ VITE-MAX dispatched (owner word):** the gap list's safe slice — CT-vite spike + rolldownOptions
   together · esbuild-override re-derivation · `--configLoader native` · `future` warns ·
   license-JSON · three measure-then-adopt rows. HELD deliberately: lightningcss transformer ·
