@@ -93,7 +93,14 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     (so reattribute/swipe/re-render can re-resolve macros — surpassing ST) · reasoning + its
     provenance · stats · debug · multi-human + persona merging with speaker attribution · narrator
     group-mode speaker splitting/coloring · the mid-conversation system channel newer Opus models
-    support · exhaustive lock-in tests. Deliverable = a stickler file in docs/reviews/stickler/,
+    support · exhaustive lock-in tests; **SCOPE EXTENDED (owner, second message, verbatim intent):** the memory
+    system (NOT summarization) + compaction handling interplay · future agents IN and OUTSIDE the
+    roster (out-of-band speakers REACTING to room content) · swipe-variance storage for normal AND
+    rpg — replayable/deterministic/clean, the messages/message\_variants above-and-beyond bar · canon
+    must be PROVIDER-INDEPENDENT (shaping is a projection, never feedback into storage — no ST
+    sprawling divergent chat-log versions) · group membership HISTORY (has-been vs is-currently) ·
+    persona unification (human players' personas · the pinned ANCHOR in multi-human · pinned-vs-active
+    in single-player/character chats) — all unified pre-launch. Deliverable = a stickler file in docs/reviews/stickler/,
     recommendation-grade, NOT a build. The lineage-view + kind-axis board rows above feed it.
 - **NEXT (owner-authorized chain): this board's queue** — REGX2 (dispatching) → MOBILE one-shell
   rule → BOARD-THESE by value-per-effort → the lifted smalls. Owner-taste rows stay parked.
