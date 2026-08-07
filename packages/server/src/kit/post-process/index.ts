@@ -3,7 +3,8 @@
 // AI_OUTPUT regex pass; the ASSEMBLE transform (collapseNewlines) runs on a rendered system half. Kept
 // pure so the ASSEMBLE transform never busts the static-cache prefix.
 
-import type { PromptConfig } from "@orb/contracts/preset";
+import type { AssemblePostProcessFlag, PromptConfig, ReceivePostProcessFlag } from "@orb/contracts/preset";
+import { ASSEMBLE_POST_PROCESS_ORDER, RECEIVE_POST_PROCESS_ORDER } from "@orb/contracts/preset";
 
 // Hoisted regex literals (biome `useTopLevelRegex`) — these run on every reply, so they compile ONCE.
 const THREE_PLUS_NEWLINES = /\n{3,}/gu;
@@ -57,29 +58,48 @@ export function collapseToSingleLine(text: string): string {
   return line.replace(TRAILING_WHITESPACE, "");
 }
 
-/** Apply the configured RECEIVE-context transforms to a reply, in order. single-line runs FIRST (the most
+/** Each switch's transform, keyed by the flag it rides. Mapped Records over the two lane tuples, so a flag
+ *  that joins a lane in `@orb/contracts/preset` fails `tsc` HERE until it has a transform — the axis and its
+ *  implementation cannot drift apart. */
+const RECEIVE_TRANSFORMS: Readonly<Record<ReceivePostProcessFlag, (text: string) => string>> = {
+  singleLine: collapseToSingleLine,
+  dropIncompleteSentence,
+  trimTrailingWhitespace,
+};
+
+const ASSEMBLE_TRANSFORMS: Readonly<Record<AssemblePostProcessFlag, (text: string) => string>> = {
+  collapseNewlines,
+};
+
+/** Apply the configured RECEIVE-context transforms to a reply, IN THE DECLARED ORDER — the sequence is read
+ *  off `RECEIVE_POST_PROCESS_ORDER` rather than spelled as an if-chain here, because the preset editor's
+ *  Transforms readout prints that same tuple and a hand-kept second copy of this order is exactly what
+ *  drifted (the readout printed the three switches in reverse). single-line is FIRST in that tuple (the most
  *  aggressive cut), so the later sentence/whitespace trims operate on the already-reduced line. */
 export function applyReceivePostProcess(reply: string, cfg: PostProcessConfig | undefined): string {
   if (cfg === undefined) {
     return reply;
   }
   let out = reply;
-  if (cfg.singleLine) {
-    out = collapseToSingleLine(out);
-  }
-  if (cfg.dropIncompleteSentence) {
-    out = dropIncompleteSentence(out);
-  }
-  if (cfg.trimTrailingWhitespace) {
-    out = trimTrailingWhitespace(out);
+  for (const flag of RECEIVE_POST_PROCESS_ORDER) {
+    if (cfg[flag]) {
+      out = RECEIVE_TRANSFORMS[flag](out);
+    }
   }
   return out;
 }
 
-/** Apply the configured ASSEMBLE-context transforms to a rendered prompt half. */
+/** Apply the configured ASSEMBLE-context transforms to a rendered prompt half — same declared-order contract
+ *  as the receive side. `collapseNewlines` lives on THIS lane and only this one: it never runs on a reply. */
 export function applyAssemblePostProcess(text: string, cfg: PostProcessConfig | undefined): string {
   if (cfg === undefined) {
     return text;
   }
-  return cfg.collapseNewlines ? collapseNewlines(text) : text;
+  let out = text;
+  for (const flag of ASSEMBLE_POST_PROCESS_ORDER) {
+    if (cfg[flag]) {
+      out = ASSEMBLE_TRANSFORMS[flag](out);
+    }
+  }
+  return out;
 }

@@ -2,7 +2,9 @@
 // the swipe-safety CONTRACT lives here as pointer walks over the D26 variant model:
 //   • parse-on-read — every JSON column re-validated through its `@orb/contracts/rpg` schema; a corrupt row
 //     is a typed `RpgStateCorruptError`, never a silent default (the constitution's no-swallow rule).
-//   • resolveSnapshotForTurn — the HEAD ladder (the ladder head → committed → any).
+//   • resolveSnapshotForTurn — the HEAD ladder (the ladder head → committed → any). `resolveSnapshotHead` is
+//     its full form: the same walk plus WHICH arm answered and at what seq, because "is this row at the ladder's
+//     TIP" is a different question from "which row is head" — see its doc for the two callers that need it.
 //   • resolveSnapshotBeforeSlot — the state as of the slot BEFORE a turn: its WRITE base always (VER-1a — a
 //     reroll's new variant never inherits its own slot's rejected variant) AND its READ base on a REGEN
 //     (VER-1b — the reminder/delta a reroll is generated against must not describe the abandoned variant).
@@ -47,7 +49,7 @@ import { and, count, desc, eq, isNull, lt, ne, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { RpgStateCorruptError } from "../contract/errors.ts";
 import type { HandSnapshotTarget, SnapshotGameRef, TurnSnapshotTarget } from "../contract/params.ts";
-import type { NewRpgSnapshot, RpgSnapshotRow, WriteStagedSnapshotResult } from "../contract/service.ts";
+import type { NewRpgSnapshot, ResolvedSnapshotHead, RpgSnapshotRow, WriteStagedSnapshotResult } from "../contract/service.ts";
 import { snapshotRowToState } from "../contract/service.ts";
 
 const LIMIT_ONE = 1;
@@ -298,11 +300,28 @@ async function latestSnapshot(db: Db, gameId: RpgGameId, excludeMessageId?: Mess
  *  This is the HEAD, never a turn's write BASE: a turn that is about to produce a NEW variant on a slot must
  *  resolve {@link resolveSnapshotBeforeSlot} instead, or it re-applies its own slot's abandoned variant. */
 export async function resolveSnapshotForTurn(db: Db, game: SnapshotGameRef): Promise<RpgSnapshotRow | undefined> {
+  return (await resolveSnapshotHead(db, game))?.row;
+}
+
+/** The head WITH its ladder provenance — {@link resolveSnapshotForTurn}'s full form, and the one home for the
+ *  walk (the bare reader above is a thin arm of it, so the two can never disagree about which row is head).
+ *
+ *  WHY the provenance is public (`ResolvedSnapshotHead`): "which row is head" and "is that row at the ladder's
+ *  TIP" are different questions, and two callers need the second. The hand door asks it to decide whether an
+ *  UNCOMMITTED turn row may be edited IN PLACE — during an in-flight flush the tail slot has no snapshot yet
+ *  (that IS in-flight), the `turn` rung comes back empty, and the `fallback` walk answers with an OLDER slot's
+ *  still-uncommitted draft; editing THAT in place writes onto a row the next flush strictly outranks, and the
+ *  edit is gone. The flush asks it to find a hand row shadowing the row it just wrote, and must know the seq so
+ *  it folds into a hand row at its OWN slot only. */
+export async function resolveSnapshotHead(db: Db, game: SnapshotGameRef): Promise<ResolvedSnapshotHead | undefined> {
   const head = laterRung(await turnRung(db, game.chatId), await handRung(db, game.id));
   if (head !== undefined) {
-    return head.row;
+    return { row: head.row, arm: head.pos.hand ? "hand" : "turn", seq: head.pos.seq };
   }
-  return latestSnapshot(db, game.id);
+  const row = await latestSnapshot(db, game.id);
+  // NO_SEQ, not the row's own position: the fallback walk is game-wide and deliberately position-blind (it
+  // answers "any state at all" when the ladder is empty), so claiming a rung for it would be a fiction.
+  return row === undefined ? undefined : { row, arm: "fallback", seq: NO_SEQ };
 }
 
 /** The EXTRACTION BASE for a turn writing onto `messageId` — the state as of the slot BEFORE this turn
@@ -485,6 +504,23 @@ export function writeRestoredSnapshot(db: Db, base: RpgSnapshotRow, target: Hand
 /** Lock in the state the user was seeing: set `committed=1` on one variant's snapshot (`onUserCommit`). */
 export async function commitSnapshotForVariant(db: Db, variantId: MessageVariantId): Promise<void> {
   await db.update(rpgSnapshots).set({ committed: COMMITTED }).where(eq(rpgSnapshots.variantId, variantId));
+}
+
+/** The seq of the chat's LAST VISIBLE ASSISTANT SLOT, or `undefined` on a chat with none — "which beat is the
+ *  story currently on". The flush's fold asks it to tell its two shapes apart: a flush whose slot IS that beat
+ *  was raced by a concurrent writer (reconcile, or say so out loud), while a flush for an EARLIER slot is a
+ *  REGEN of an old message whose row is legitimately superseded by the beats after it — folding that turn's
+ *  writes into the current head would inject an old beat's consequences into the present, and shouting about it
+ *  would be noise about the normal case. Same visibility predicate as {@link turnRung}'s slot walk, minus the
+ *  snapshot join (the fold's question is about the STORY's position, not about whether a row exists there). */
+export async function findLatestAssistantSlotSeq(db: Db, chatId: ChatId): Promise<number | undefined> {
+  const rows = await db
+    .select({ seq: messages.seq })
+    .from(messages)
+    .where(and(eq(messages.chatId, chatId), eq(messages.role, "assistant"), eq(messages.excludedFromPrompt, false)))
+    .orderBy(desc(messages.seq))
+    .limit(LIMIT_ONE);
+  return rows[0]?.seq;
 }
 
 /** The `seq` of a message (the just-committed user message — `onUserCommit`), or `undefined` if it vanished

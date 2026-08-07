@@ -2,6 +2,7 @@
 // are exactly what an ST preset blob carries (the D68-A import mapping tests below).
 import type { GuidedActionKind, PromptConfig } from "@orb/contracts/preset";
 import {
+  ASSEMBLE_POST_PROCESS_ORDER,
   buildPresetFile,
   CONFIG_LIFTS,
   customParametersSchema,
@@ -15,14 +16,17 @@ import {
   guidedActionConfigSchema,
   guidedActionsSchema,
   importStChatCompletionPreset,
-  PRESET_PROSE_SLOTS,
   PRESET_SCHEMA_KIND,
   PROMPT_CONFIG_SCHEMA_VERSION,
+  PROMPT_LANE_STEPS,
   parsePresetFile,
   parsePromptConfig,
+  pipelineStepKey,
   promptConfigSchema,
   promptConfigWriteSchema,
   QUALITY_LEVELS,
+  RECEIVE_POST_PROCESS_ORDER,
+  REPLY_LANE_STEPS,
   SIDE_GEN_POSTURES,
   TEMPLATE_DEF_BY_ID,
   TEMPLATE_DEFS,
@@ -33,6 +37,7 @@ import {
   userMacroSchema,
   userMacroValuesSchema,
 } from "@orb/contracts/preset";
+import { PRESET_PROSE_SLOT_IDS, PROSE_SLOTS } from "@orb/contracts/prose";
 import { expect, test } from "../../support/fixtures.ts";
 
 // Sample values named so the test isn't littered with bare magic numbers (noMagicNumbers).
@@ -698,7 +703,11 @@ test("TEMPLATE_DEFS covers every guided kind + every ACTION-shaped format string
   const covered: string[] = TEMPLATE_DEFS.map((def) => def.id);
   // The module's tsc guard proves NOTHING IS MISSING; this proves nothing EXTRA and nothing DOUBLED — a
   // duplicate row would silently render two Actions rows for one slot.
-  const expected = [...GUIDED_ACTION_KINDS, ...Object.keys(DEFAULT_FORMAT_STRINGS).filter((key) => key !== "wiFormat")];
+  // Three arms since the 2026-08-07 ruling (the turn-wire FRAMINGS joined the tab): guided kinds · the
+  // ACTION-shaped format strings · `PRESET_PROSE_SLOT_IDS`. The framings' own two-sided coverage lives in
+  // `tests/contracts/prose` (it needs `home`, which is `#prose` data); what THIS row still owns is the
+  // no-extra / no-duplicate half over the whole table.
+  const expected = [...GUIDED_ACTION_KINDS, ...Object.keys(DEFAULT_FORMAT_STRINGS).filter((key) => key !== "wiFormat"), ...PRESET_PROSE_SLOT_IDS];
   expect([...covered].sort()).toStrictEqual([...expected].sort());
   expect(new Set(covered).size).toBe(covered.length);
   // `wiFormat` frames world-info ENTRIES and is edited in the WI marker's body — a row here would mint the
@@ -707,8 +716,10 @@ test("TEMPLATE_DEFS covers every guided kind + every ACTION-shaped format string
 });
 
 test("every TemplateDef points at a REAL prose slot, and its kind is a declared TEMPLATE_KIND", () => {
-  // A typo'd slot id would ghost nothing in that template's drill-in, silently.
-  const unresolvedSlots = TEMPLATE_DEFS.filter((def) => def.defaultSlot !== undefined && PRESET_PROSE_SLOTS[def.defaultSlot] === undefined);
+  // A typo'd slot id would ghost nothing in that template's drill-in, silently. `defaultSlot` widened to the
+  // whole `ProseSlotId` union with the framing rows, so the resolution target is the COMPOSED registry — a
+  // guided row still points into `PRESET_PROSE_SLOTS`, a framing row into its own `chat.*` table row.
+  const unresolvedSlots = TEMPLATE_DEFS.filter((def) => def.defaultSlot !== undefined && PROSE_SLOTS[def.defaultSlot] === undefined);
   expect(unresolvedSlots).toStrictEqual([]);
   // `newChatMarker` is the ONE def allowed to carry no slot: it ships blank, and a PROSE-1 slot is authored
   // bytes. Any other slot-less def would be a default nobody can see.
@@ -792,4 +803,44 @@ test("a NUDGE missing its recommended macros is NOT refused (a lint, never a blo
     formatStrings: { impersonateNudge: "Write as me." },
   });
   expect(result.success).toBe(true);
+});
+
+// ── THE PIPELINE ORDER DECLARATION ────────────────────────────────────────────────────────────────
+// The order is declared ONCE (here in contracts) and consumed twice: the server's post-process executors
+// iterate the flag tuples, and the preset editor's Transforms readout renders the lanes. These pin the two
+// ways the declaration can go wrong on its OWN terms; that it matches the ENGINE's interleaving is pinned
+// where the engine runs (`tests/server/domain/chat/engine/pipeline.test.ts` — the RECEIVE ORDER test).
+
+test("the two lane tuples PARTITION postProcess: every switch is declared on exactly one lane", () => {
+  const declared = [...RECEIVE_POST_PROCESS_ORDER, ...ASSEMBLE_POST_PROCESS_ORDER];
+  // The schema's own key set, read off the shape — a switch added to `postProcess` and to neither tuple
+  // would run NOWHERE while its readout row went missing, and nothing else in the tree would notice.
+  const flags = Object.keys(promptConfigSchema.shape.postProcess.unwrap().shape);
+  expect([...declared].sort()).toEqual([...flags].sort());
+});
+
+test("no step appears twice in a lane, and the two lanes share no step", () => {
+  const prompt = PROMPT_LANE_STEPS.map(pipelineStepKey);
+  const reply = REPLY_LANE_STEPS.map(pipelineStepKey);
+  expect(new Set(prompt).size).toBe(prompt.length);
+  expect(new Set(reply).size).toBe(reply.length);
+  expect(prompt.filter((key) => reply.includes(key))).toEqual([]);
+});
+
+test("collapseNewlines is on the ASSEMBLE lane and NOT on the reply lane (it never runs on a reply)", () => {
+  // The exact untruth the hand-numbered readout printed: an assemble transform listed as reply step 5.
+  expect(PROMPT_LANE_STEPS.map(pipelineStepKey)).toContain("post-process:collapseNewlines");
+  expect(REPLY_LANE_STEPS.map(pipelineStepKey)).not.toContain("post-process:collapseNewlines");
+});
+
+test("the REASONING leg is declared AFTER the whole post-process block, and DISPLAY last", () => {
+  const reply = REPLY_LANE_STEPS.map(pipelineStepKey);
+  const reasoningAt = reply.indexOf("regex:REASONING");
+  for (const flag of RECEIVE_POST_PROCESS_ORDER) {
+    expect(reply.indexOf(`post-process:${flag}`)).toBeLessThan(reasoningAt);
+  }
+  // …and the AI_OUTPUT pass before it — the pair the readout had inverted before this one.
+  expect(reply.indexOf("regex:AI_OUTPUT")).toBeLessThan(reasoningAt);
+  // DISPLAY is LAST: it changes what you read and never touches the wire.
+  expect(reply.at(-1)).toBe("regex:DISPLAY");
 });

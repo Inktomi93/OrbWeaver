@@ -13,7 +13,7 @@ import { Row } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { isCommitted, useActiveChatHandle, useActiveDraftSeed } from "#state";
+import { isCommitted, useActiveChatHandle, useActiveDraftFoundingCast, useActiveDraftSeed } from "#state";
 import { ChatHeaderSurface, DraftChatHeader } from "./chat-header.tsx";
 
 /** Is the COMMITTED room ephemeral? A plain `useQuery` off the same `getChat` the room already reads —
@@ -50,7 +50,11 @@ export function ChatsTopbarHeader(): ReactElement | null {
   const handle = useActiveChatHandle();
   const draftSeed = useActiveDraftSeed();
   const activeChatId = isCommitted(handle) ? handle.id : null;
-  const draftCharacterIds = handle.kind === "draft" ? (draftSeed?.characterIds ?? []) : [];
+  // The FULL founding cast (seed ∪ the panel's pre-send additions), not the seed alone: a character added
+  // mid-draft belongs in the room's identity immediately, exactly as it belongs in the greeting preview
+  // (the same class of gap that CT pins for `DraftGreetingThread`). Seed-only left a panel-added member
+  // out of the topbar until the first send.
+  const draftCharacterIds = useActiveDraftFoundingCast();
   if (activeChatId !== null) {
     return <CommittedTopbarHeader chatId={activeChatId} />;
   }

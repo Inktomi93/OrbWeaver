@@ -162,6 +162,34 @@ describe("parseChatJsonl", () => {
     expect(parsed?.messages).toHaveLength(1);
     expect(parsed?.messages[0]?.content).toBe("survived");
   });
+
+  test("a blank `mes` with ONE real swipe promotes the lone take to the primary — never dropped text", () => {
+    const text = `${header()}\n${line({ mes: "", swipes: ["", "the lone take"] })}`;
+    const parsed = parseChatJsonl(text, { fileName: "m.jsonl", charDirName: "A" });
+    expect(parsed?.messages).toHaveLength(1);
+    expect(parsed?.messages[0]?.content).toBe("the lone take");
+    expect(parsed?.messages[0]?.variants).toHaveLength(0);
+  });
+
+  test("a text-empty row carrying a media attachment is KEPT — the attachment is the message (any era's spelling)", () => {
+    const modern = `${header()}\n${line({ mes: "", extra: { media: [{ type: "image", url: "user/images/a.png" }] } })}`;
+    const legacy = `${header()}\n${line({ mes: "", extra: { image: "user/images/b.png" } })}`;
+    for (const text of [modern, legacy]) {
+      const parsed = parseChatJsonl(text, { fileName: "m.jsonl", charDirName: "A" });
+      expect(parsed?.messages).toHaveLength(1);
+      expect(parsed?.messages[0]?.content).toBe("");
+      expect(parsed?.messages[0]?.metadata).not.toBeNull();
+    }
+  });
+
+  test("a blank `mes` with a real swipe pool promotes the ACTIVE surviving swipe — never an empty canon row", () => {
+    const text = `${header()}\n${line({ mes: "", swipes: ["take one", "take two"], swipe_id: 1 })}`;
+    const parsed = parseChatJsonl(text, { fileName: "m.jsonl", charDirName: "A" });
+    expect(parsed?.messages).toHaveLength(1);
+    expect(parsed?.messages[0]?.content).toBe("take two");
+    expect(parsed?.messages[0]?.variants).toHaveLength(2);
+    expect(parsed?.messages[0]?.activeVariantIdx).toBe(1);
+  });
 });
 
 // ── build ────────────────────────────────────────────────────────────────────────────────────────────────

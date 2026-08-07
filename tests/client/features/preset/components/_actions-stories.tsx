@@ -15,6 +15,7 @@ import { Toaster, ToastProvider } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ActionsView } from "../../../../../packages/client/src/features/preset/components/actions-view.tsx";
+import { mergeOnSubmit } from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_actionsstoryy");
 
@@ -28,11 +29,24 @@ const SERVER_VALUES: PromptConfig = {
 
 const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
 
-function ActionsBody({ session, saved }: { readonly session: AutosaveSession<PromptConfig>; readonly saved: string }): ReactElement {
+function ActionsBody({
+  session,
+  saved,
+  savedFraming,
+}: {
+  readonly session: AutosaveSession<PromptConfig>;
+  readonly saved: string;
+  readonly savedFraming: string;
+}): ReactElement {
   const form = session.form as AppFormInstance<PromptConfig>;
   return (
     <>
-      <output>{`saved=${saved}`}</output>
+      {/* Both spies carry an accessible NAME: a second bare `<output>` turned every `locator("output")` in
+          the CT into a strict-mode violation. Name them and each assertion says which half it reads. */}
+      <output aria-label="saved delivery">{`saved=${saved}`}</output>
+      {/* The framing rows write a RECORD (`prose[<slot id>]`), not a string field, so the save spy has to
+          echo that half separately or an edit could "save" into nothing and still read green. */}
+      <output aria-label="saved framing">{`framing=${savedFraming}`}</output>
       <ActionsView
         form={form}
         onSelectSection={(): void => {
@@ -45,15 +59,26 @@ function ActionsBody({ session, saved }: { readonly session: AutosaveSession<Pro
 
 export function ActionsStory(): ReactElement {
   const [saved, setSaved] = useState("—");
+  const [savedFraming, setSavedFraming] = useState("—");
   const save = (values: PromptConfig): Promise<void> => {
-    const impersonate = values.guidedActions?.impersonate;
+    // THROUGH `mergeOnSubmit`, exactly as `use-preset-autosave` does before it hits the wire. The spy read
+    // the RAW form values until 2026-08-07 and that made it lie about the two things this surface most needs
+    // proven: the framing trim and the drop-the-blank both happen at SUBMIT, not at the keystroke, so a spy
+    // reading pre-normalization bytes cannot see either.
+    const persisted = mergeOnSubmit(values, SERVER_VALUES);
+    const impersonate = persisted.guidedActions?.impersonate;
     setSaved(`${impersonate?.role ?? "?"}@${String(impersonate?.depth ?? "tail")}`);
+    // The whole record, not just the text: a framing edit that forgot to stamp `baseVersion` would still
+    // round-trip a string, and the staleness signal is the entire point of storing one. `|` delimits the text
+    // so a CT can assert an exact edge (a trailing space is invisible in a substring match otherwise).
+    const frame = persisted.prose["chat.injection.userNote"];
+    setSavedFraming(frame === undefined ? "unset" : `|${frame.text}|@v${String(frame.baseVersion)}`);
     return Promise.resolve();
   };
   return (
     <ToastProvider>
       <StoryForm entityId={STORY_PRESET} save={save} serverValues={SERVER_VALUES}>
-        {(session): ReactElement => <ActionsBody saved={saved} session={session} />}
+        {(session): ReactElement => <ActionsBody saved={saved} savedFraming={savedFraming} session={session} />}
       </StoryForm>
       <Toaster />
     </ToastProvider>

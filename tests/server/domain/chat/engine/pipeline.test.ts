@@ -6,7 +6,7 @@ import { CONTENT_CLASS_POLICY, contentSpansToBlocks } from "@orb/contracts/chat"
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
-import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, pipelineStepKey, RECEIVE_POST_PROCESS_ORDER, REPLY_LANE_STEPS } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { regexScriptSchema } from "@orb/contracts/regex";
 import type { ContentSpan } from "@orb/kit/content";
@@ -1008,7 +1008,7 @@ describe("runTurnPipeline — immutability", () => {
 
 // ── RECEIVE (D53 step 2): <think>-demux → AI_OUTPUT regex → post-process → REASONING regex ─────────────────
 /** A host-tier regex script (fully defaulted via the parse seam) for a single placement. */
-function script(label: string, find: string, replace: string, placement: "AI_OUTPUT" | "REASONING"): RegexScriptRow {
+function script(label: string, find: string, replace: string, placement: "AI_OUTPUT" | "DISPLAY" | "REASONING"): RegexScriptRow {
   return regexScriptSchema.parse({
     // D121-E: a row id is a real `regex_script_…` TypeID; the readable label rides on `name`.
     id: mintTypeId(ID_PREFIX.regexScript),
@@ -1098,6 +1098,67 @@ describe("runTurnPipeline — RECEIVE regex + post-process", () => {
     // AI_OUTPUT pass, the marker WAS rewritten, and the fragment the rewrite created was then dropped.
     expect(result.content).toBe("Kept.");
     // REASONING proves the reasoning pass ran on the DEMUXED channel — a token only present in it.
+    expect(result.reasoning).toBe("ponder refined");
+  });
+
+  // ── THE DECLARATION vs THE ENGINE ────────────────────────────────────────────────────────────────
+  // `REPLY_LANE_STEPS` (@orb/contracts/preset) is what the preset editor's Transforms readout RENDERS —
+  // it replaced nine hand-numbered rows that had drifted into four untruths at once. A declaration of
+  // someone else's order is worth exactly as much as the test that binds it to that order, so this one
+  // OBSERVES the engine and compares the observation to the declaration; neither side is hardcoded here.
+  //
+  // WHAT IS OBSERVABLE, and what is not: the regex passes are observable through the INJECTED watchdog
+  // (`applyRegexReplace` sees every compiled pattern, in call order), and post-process-after-AI_OUTPUT is
+  // observable in the content (the test above). The post-process block's position relative to the
+  // REASONING pass is NOT observable by construction — they operate on different channels and can never
+  // interact — so it is held by the source order plus the contracts-side lane pins, and this test says so
+  // rather than faking a proof of it.
+  test("DECLARATION vs ENGINE: the declared reply lane's server-side legs fire in the declared order", async () => {
+    const fired: string[] = [];
+    const { args } = baseArgs({
+      // A patterned watchdog: it records which leg is running (by the script's own pattern) and then does
+      // the real replace, so the turn's output stays honest while the ORDER is captured.
+      applyRegexReplace: (text, regex, replacer) => {
+        fired.push(regex.source);
+        return text.replace(regex, replacer);
+      },
+      runChatTurn: finalTurn("<think>ponder RAW</think>SEED"),
+      assembleContext: ctxOf({
+        hostTierRegexScripts: [
+          script("ai", "SEED", "Kept. frag", "AI_OUTPUT"),
+          script("re", "RAW", "refined", "REASONING"),
+          // A DISPLAY script is attached too: the reply-side lane declares it LAST and CLIENT-side, so the
+          // server must never fire it. A leg that ran here would be the readout's claim made false the
+          // other way round — "never touches the wire" is the whole point of that row.
+          script("disp", "Kept", "SHOWN", "DISPLAY"),
+        ],
+        promptConfig: cfgWith({
+          postProcess: { collapseNewlines: false, trimTrailingWhitespace: false, dropIncompleteSentence: true, singleLine: false },
+          reasoningParse: { autoParse: true, prefix: "<think>", suffix: "</think>" },
+        }),
+      }),
+    });
+
+    const result = await runTurnPipeline(args);
+
+    // The DECLARED order of the server-side regex legs — read off the tuple, never spelled here.
+    const declaredLegs = REPLY_LANE_STEPS.filter((step) => step.kind === "regex" && step.placement !== "DISPLAY").map(pipelineStepKey);
+    // The OBSERVED order, named by the pattern each leg's script carries (a Map — the keys are regex
+    // sources, not identifiers, and an object literal of them is a naming-convention violation).
+    const legOfPattern = new Map([
+      ["SEED", "regex:AI_OUTPUT"],
+      ["RAW", "regex:REASONING"],
+    ]);
+    expect(fired.map((source) => legOfPattern.get(source) ?? `regex:UNKNOWN(${source})`)).toEqual(declaredLegs);
+    // The DISPLAY leg is declared last AND client-side: it must not have fired, and the content proves it.
+    expect(fired).not.toContain("Kept");
+    expect(result.content).toBe("Kept.");
+    // post-process ran AFTER the AI_OUTPUT pass (the fragment its rewrite created is gone), which is the
+    // one ordering the declaration asserts between a regex leg and the switch block that IS observable.
+    const declaredReply = REPLY_LANE_STEPS.map(pipelineStepKey);
+    for (const flag of RECEIVE_POST_PROCESS_ORDER) {
+      expect(declaredReply.indexOf(`post-process:${flag}`)).toBeGreaterThan(declaredReply.indexOf("regex:AI_OUTPUT"));
+    }
     expect(result.reasoning).toBe("ponder refined");
   });
 

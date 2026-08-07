@@ -86,20 +86,11 @@ function toMessageInput(m: ParsedChatMessage, seatsByName: ReadonlyMap<string, C
   return characterId === undefined ? base : { ...base, characterId };
 }
 
-/** Is this parsed row an rpg STATE-ANCHOR slot rather than a line of the conversation?
- *
- *  Every rpg hand write clone-forwards a snapshot, and a snapshot is FK'd to a message variant — so the game
- *  door posts a CONTENT-LESS narrator row to anchor it (the state-anchor law: an empty slot is a snapshot FK,
- *  never a lost completion). Live, those rows render as the delta line their state produces. In an ST-flavoured
- *  transcript there is nowhere for that state to go, so they export as `"mes": ""` — and the rpg flagship,
- *  whose session is set up through those very doors, exported EIGHT of them ahead of its first user turn.
- *  Seeded verbatim they are eight blank bubbles opening the pack's showcase example. The seeded copy takes its
- *  game state from the manifest replay, not from these, so dropping them loses nothing and is the ONLY place
- *  that can decide it: the transcript is immutable by law, and `parseChatJsonl` is the shared import parser
- *  (a real user's import keeps their empty rows — that is their history, not our fixture). */
-function isStateAnchorSlot(m: ParsedChatMessage): boolean {
-  return m.role === "assistant" && m.content.trim() === "";
-}
+// State-anchor exports (`"mes": ""` narrator rows — the state-anchor law: an empty slot is a snapshot FK,
+// never a lost completion) are stripped by `parseChatJsonl` itself since the blank-row strip landed: a row
+// with no rendered text anywhere is unrepresentable at the write boundary for EVERY consumer, so the
+// seeder's own drop-filter became a second decision home and was deleted. The seeded copy's game state
+// rides the manifest replay, not those rows — nothing is lost.
 
 /** The whole bulk-write input for one example: the parsed transcript + the manifest's roster/metadata.
  *
@@ -116,7 +107,7 @@ function toChatInput(args: {
 }): BulkImportChatInput {
   const { demo, parsed, seats, anchorPersonaId, now } = args;
   const seatsByName = new Map(seats.map((s) => [s.name, s.characterId]));
-  const spoken = parsed.messages.filter((m) => !isStateAnchorSlot(m));
+  const spoken = parsed.messages;
   const sendDates = spoken.flatMap((m) => (m.sendDate !== null ? [m.sendDate] : []));
   const createdAt = parsed.createDate ?? sendDates[0] ?? now;
   return {

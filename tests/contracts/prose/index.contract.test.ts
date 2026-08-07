@@ -4,14 +4,19 @@
 // half-registered id impossible rather than merely discouraged.
 import { createHash } from "node:crypto";
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "@orb/contracts/imagery";
-import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, PRESET_GUIDED_SLOT_IDS } from "@orb/contracts/preset";
-import type { ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
+import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, PRESET_GUIDED_SLOT_IDS, TEMPLATE_DEFS } from "@orb/contracts/preset";
+import type { ProseOverride, ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
 import {
+  composeProse,
+  isPresetProseSlotId,
+  isProseSlotId,
   legacyProseOverrides,
+  PRESET_PROSE_SLOT_IDS,
   PROSE_HOMES,
   PROSE_MACRO_MODES,
   PROSE_SLOT_IDS,
   PROSE_SLOTS,
+  proseFooterState,
   resolveProse,
   resolveProseText,
   USER_PROSE_SLOT_IDS,
@@ -272,12 +277,16 @@ test("discovery's three system prompts resolve, unset, to the exact bytes they h
   }
 });
 
-test("every S1b slot's stored override wins, and the whole cohort ships home=user / macros=none", () => {
+test("every S1b slot's stored override wins, and the whole cohort ships an editable home / macros=none", () => {
   const ids = [...S1B_FROZEN_RENDERS.map((r) => r.id), ...(Object.keys(DISCOVERY_FROZEN_DEFAULTS) as ProseSlotId[])];
   for (const id of ids) {
     const overrides: ProseOverrides = { [id]: { text: `host copy for ${id}`, baseVersion: PROSE_SLOTS[id].version } };
     expect(resolveProse(id, overrides), id).toStrictEqual({ text: `host copy for ${id}`, source: "override", stale: false });
-    expect(PROSE_SLOTS[id].home, id).toBe("user");
+    // Was `toBe("user")` for the whole cohort until the 2026-08-07 ruling split the two injection frames off
+    // to the PRESET home. The invariant this row actually guards is "a host can reach these bytes SOMEWHERE",
+    // and the per-home membership is pinned exactly by the two derivation tests below — asserting `user` here
+    // as well only re-spelled one of them, wrongly.
+    expect(PROSE_SLOTS[id].home === "user" || isPresetProseSlotId(id), id).toBe(true);
     // The framing slots carry a `{{name}}`/`{{note}}` PRE-SUBSTITUTION token, not a macro: the caller splices
     // it, the engine never runs. `none` is what makes that honest (and keeps any other `{{…}}` literal).
     expect(PROSE_SLOTS[id].macros, id).toBe("none");
@@ -335,5 +344,122 @@ test("no editable slot id NESTS inside another — the settings key-partition wo
   // throw at composition-root init — a white screen at boot. Keep ids sibling-shaped.
   for (const id of USER_PROSE_SLOT_IDS) {
     expect(USER_PROSE_SLOT_IDS.filter((other) => other.startsWith(`${id}.`))).toStrictEqual([]);
+  }
+});
+
+// ── The PRESET-homed framings (owner ruling 2026-08-07) ─────────────────────────────────────────────
+test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stored in `promptConfig.prose`', () => {
+  // The mirror of the USER derivation above, excluding the same class for the same reason: the eleven
+  // guided/format slots are `home:"preset"` too, but their override storage is the pre-PROSE-1
+  // `guidedActions.*.prompt` / `formatStrings.*` field (§4.6), so giving them a `prose` key as well would be
+  // the two-doors defect with the resolver reading only one of them.
+  const legacyAdapted = new Set<ProseSlotId>([...Object.values(PRESET_GUIDED_SLOT_IDS), ...Object.values(PRESET_FORMAT_SLOT_IDS)]);
+  const expected = PROSE_SLOT_IDS.filter((id) => PROSE_SLOTS[id].home === "preset" && !legacyAdapted.has(id));
+  expect(PRESET_PROSE_SLOT_IDS).toStrictEqual(expected);
+  expect(PRESET_PROSE_SLOT_IDS).toStrictEqual(["chat.injection.systemNote", "chat.injection.userNote", "chat.assembly.continuationNudge"]);
+});
+
+test("every preset-homed prose slot has a Templates-tab row, and every prose-armed row is one of them", () => {
+  // THE TWO-SIDED COVERAGE the `TemplateDefId` prose arm cannot express in the type system (`#preset` cannot
+  // import `#prose`, which is where `home` lives).
+  //
+  // The right-to-left arm filters by `isProseSlotId`, NOT `isPresetProseSlotId` — that distinction is the
+  // whole arm. Filtering by the PRESET predicate would EXCLUDE the very row this is meant to catch (a def
+  // pointing at a user-homed or legacy-adapted slot simply falls out of the collection and the assertion
+  // passes vacuously). Widening to "is a prose slot id at all" makes a mis-homed row show up on the left of
+  // the comparison, where it fails. Verified by planting one: a row id of `chat.arbiter.system` (user-homed)
+  // is caught here, and was NOT caught by the earlier `isPresetProseSlotId` spelling.
+  const framingRows = TEMPLATE_DEFS.filter((def) => isProseSlotId(def.id));
+  expect(framingRows.map((def) => def.id).toSorted()).toStrictEqual([...PRESET_PROSE_SLOT_IDS].toSorted());
+  // …and every one of them really is preset-homed and prose-stored (the same fact stated as the property,
+  // so a failure names the home rather than just a set difference).
+  expect(framingRows.filter((def) => !isPresetProseSlotId(def.id)).map((def) => def.id)).toStrictEqual([]);
+  // A framing row ghosts ITS OWN slot: its id IS its storage key, so a `defaultSlot` pointing elsewhere would
+  // print one template's bytes as the placeholder over another template's field. Collected then asserted once
+  // — an `expect` inside the filter's branch is a conditional expectation that can vacuously pass.
+  expect(framingRows.filter((def) => def.defaultSlot !== def.id).map((def) => def.id)).toStrictEqual([]);
+});
+
+test("composeProse merges the homes and DROPS a key stored in the wrong one (no cascade)", () => {
+  const userBlob: ProseOverrides = {
+    "chat.arbiter.system": { text: "user-tier arbiter", baseVersion: 1 },
+    // The stale key a RE-HOME leaves behind: written while the frame was user-homed, inert ever since. It
+    // must not win, and it must not throw — pre-launch NO-LEGACY means nothing migrated it away.
+    "chat.injection.userNote": { text: "STALE user-tier frame", baseVersion: 1 },
+  };
+  const presetBlob: ProseOverrides = {
+    "chat.injection.userNote": { text: "((preset frame: {{note}}))", baseVersion: 1 },
+    // The mirror case: an app-tier slot key sitting in a preset blob resolves from neither storage.
+    "chat.compaction.system": { text: "WRONG HOME", baseVersion: 1 },
+  };
+  const composed = composeProse({ user: userBlob, preset: presetBlob });
+  expect(resolveProseText("chat.injection.userNote", composed, { note: "hi" })).toBe("((preset frame: hi))");
+  expect(resolveProseText("chat.arbiter.system", composed)).toBe("user-tier arbiter");
+  expect(resolveProseText("chat.compaction.system", composed)).toBe(PROSE_SLOTS["chat.compaction.system"].text);
+});
+
+// ── A BLANK override is ABSENT (the empty-bytes hole) ───────────────────────────────────────────────
+// `{text:""}` PARSES — `proseOverrideSchema` has no min length — so it can reach the resolver from an
+// imported preset file, a direct API write, or a blob written before the editors normalized. Resolving it
+// literally puts EMPTY BYTES on the wire: `frameInjection` returns the frame with the injection's content
+// gone, and the continuation cue appends an empty user row. The editors drop the key on save; this is the
+// read-side heal that covers everything that never came through an editor.
+test("a blank / whitespace-only override resolves to the shipped default, not to empty bytes", () => {
+  for (const text of ["", "   ", "\n\t "]) {
+    const blank: ProseOverrides = { "chat.injection.userNote": { text, baseVersion: 1 } };
+    expect(resolveProse("chat.injection.userNote", blank).source, JSON.stringify(text)).toBe("default");
+    // The rendered proof, at the seam that matters: the note's own content still reaches the wire.
+    expect(resolveProseText("chat.injection.userNote", blank, { note: "keep it short" })).toBe("[Note from user: keep it short]");
+  }
+});
+
+test("a blank override never reports STALE either — it is not an authored edit to keep or replace", () => {
+  // Reporting stale on a blank would offer a host "keep mine" over bytes that are not theirs and do not run.
+  expect(resolveProse("chat.injection.userNote", { "chat.injection.userNote": { text: "  ", baseVersion: 0 } })).toStrictEqual({
+    text: PROSE_SLOTS["chat.injection.userNote"].text,
+    source: "default",
+    stale: false,
+  });
+});
+
+// ── The shared editor FOOTER (moved here from `features/chat/lib/prose-settings-model` on 2026-08-07) ──
+// Two client features render it (the Prose settings cards and the preset Templates drill-in) and a feature
+// may not import another (D70), so the derivation lives in contracts and its tests live with it.
+test("the footer reads Default while the field is empty, whatever is still stored (the next save clears it)", () => {
+  const stored: ProseOverride = { text: "an override about to be cleared", baseVersion: 1 };
+  expect(proseFooterState("chat.arbiter.system", "", stored)).toEqual({ isDefault: true, stale: false, missing: [] });
+});
+
+test("the required-token lint bites only text the host actually wrote, and names the missing token", () => {
+  expect(proseFooterState("chat.group.roundNudge", "Write the next reply.", undefined).missing).toEqual(["{{name}}"]);
+  expect(proseFooterState("chat.group.roundNudge", "[Write the next reply only as {{name}}.]", undefined).missing).toEqual([]);
+  // The shipped default carries every required token by construction, so an empty field never lints.
+  expect(proseFooterState("chat.group.roundNudge", "", undefined).missing).toEqual([]);
+});
+
+test("a framing override that drops {{note}} LINTS — the token is the payload carrier, and it is a warn", () => {
+  // The preset drill-in's whole reason for carrying this footer: dropping `{{note}}` renders the wrapper with
+  // the injection's content GONE, and nothing in the field itself shows it. Warn, never block (§6.3) — the
+  // deliberate contrast with `FORMAT_STRING_CARRIER_TOKENS`, which refuses at the write boundary.
+  expect(proseFooterState("chat.injection.userNote", "((the table says something))", undefined).missing).toEqual(["{{note}}"]);
+  expect(proseFooterState("chat.injection.userNote", "((the table says: {{note}}))", undefined).missing).toEqual([]);
+});
+
+test("stale = the shipped default moved on since this override was authored, and only while it is unedited", () => {
+  // Every slot ships at version 1 today, so `baseVersion: 0` is the only way to express "authored against an
+  // older version" until a default is first revised — which is exactly the state a real `baseVersion: 1`
+  // override lands in the day a slot bumps to 2.
+  const older: ProseOverride = { text: "my own director prompt", baseVersion: 0 };
+  expect(proseFooterState("chat.arbiter.system", older.text, older).stale).toBe(true);
+  // Mid-edit the pending save re-stamps the version, so the chip must not linger over unsaved text.
+  expect(proseFooterState("chat.arbiter.system", `${older.text} plus a thought`, older).stale).toBe(false);
+  expect(proseFooterState("chat.arbiter.system", older.text, { text: older.text, baseVersion: PROSE_SLOTS["chat.arbiter.system"].version }).stale).toBe(false);
+});
+
+test("composeProse over empty/absent sources is byte-identical to the shipped defaults", () => {
+  for (const source of [composeProse({}), composeProse({ user: {}, preset: undefined })]) {
+    for (const id of PROSE_SLOT_IDS) {
+      expect(resolveProse(id, source).source, id).toBe("default");
+    }
   }
 });

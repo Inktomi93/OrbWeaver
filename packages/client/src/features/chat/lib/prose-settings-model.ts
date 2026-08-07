@@ -48,27 +48,7 @@ export function toProsePatch(values: Record<string, string>): Record<string, Pro
   return Object.fromEntries(USER_PROSE_SLOT_IDS.map((id) => [id, proseSlotPatch(id, values[proseFieldName(id)] ?? "")]));
 }
 
-/** One card's derived footer state — the guided-actions `guidedFooterState` shape, generalized over a slot.
- *  `stale` is §4.4's signal: the shipped default moved on since this override was authored. The lints are
- *  WARN-only by law (§6.3) — nothing here blocks a save. */
-export interface ProseFooterState {
-  readonly isDefault: boolean;
-  readonly stale: boolean;
-  readonly missing: readonly string[];
-}
-
-/** `value` is the LIVE field text; `stored` is the persisted override (for the version the edit was authored
- *  against). A field the host has emptied reads as Default, whatever is still stored — the next save clears
- *  it, and the placeholder already shows what will take over. */
-export function proseFooterState(id: ProseSlotId, value: string, stored: ProseOverride | undefined): ProseFooterState {
-  const slot = PROSE_SLOTS[id];
-  const trimmed = value.trim();
-  const isDefault = trimmed.length === 0;
-  return {
-    isDefault,
-    stale: !isDefault && stored !== undefined && stored.text === trimmed && stored.baseVersion < slot.version,
-    // A required macro/token is only meaningful against text the host actually wrote — the shipped default
-    // carries them all by construction.
-    missing: isDefault ? [] : [...slot.requiredMacros, ...slot.requiredTokens].filter((token) => !trimmed.includes(token)),
-  };
-}
+// The per-card footer derivation (Default/Customized + the stale and required-macro warnings) MOVED to
+// `@orb/contracts/prose` (`proseFooterState`) on 2026-08-07: the preset Templates drill-in renders the same
+// footer for the preset-homed framing slots, and a client feature may not import another feature (D70's
+// five-tier law). One derivation, two editors, no drift.

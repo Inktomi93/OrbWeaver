@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
-# ── dev-stack supervisor (server + client vite) ──────────────────────────────
+# ── stack supervisor — DEV mode (server + client vite); PROD routes to stack-prod.ts ─────────────────
+#
+# MODE-AWARE ENTRY (see the MODE + --debug dispatch block below for the grammar):
+#
+#   pnpm stack up|down|restart|status [dev|prod] [--debug]
+#     dev  (default)  this file — watched server + vite + engines posture, exactly as before
+#     prod            scripts/dev/stack-prod.ts — detached production server, no vite, no build step
+#     --debug         arms DEBUG_TOKEN/WIRE_CAPTURE/RPG_TRACE as a spawn env OVERLAY (never edits .env)
+#
+# `up`/`down` are aliases for `start`/`stop`; the original spellings stay first-class (playwright's
+# webServer, snap-stage and multi-user-fixture.sh call them by name). Everything below documents DEV mode.
 #
 #   bash scripts/dev/stack.sh start          boot the whole dev stack, detached
 #   bash scripts/dev/stack.sh start-fg       same stack, FOREGROUND (no setsid/
@@ -89,6 +99,65 @@ READINESS_TIMEOUT="${READINESS_TIMEOUT:-240}"
 # SIGKILLing the detached fleet. Match scripts/dev/engines.ts launch ports.
 FLEET_PORTS=(8701 8702 8703)
 mkdir -p "$RUN_DIR"
+
+# ── MODE + --debug dispatch (mode-aware stack control) ───────────────────────
+#
+#   pnpm stack up|down|restart|status [dev|prod] [--debug]
+#
+# MODE is positional and OPTIONAL and defaults to `dev`, so every pre-mode call site parses to exactly
+# what it always did: playwright's webServer (`stack.sh start-fg`), snap-stage's start/stop, and
+# multi-user-fixture.sh are untouched. `up`/`down` are aliases of `start`/`stop`, which stay first-class
+# forever — those three callers spell them by name.
+#
+# PROD routes the WHOLE invocation to scripts/dev/stack-prod.ts and never returns. That supervisor owns
+# the production lifecycle (identity-verified adopt/stop, bounded drain watch, client-dist preflight);
+# nothing below this block runs in prod mode, because prod has no vite, no engines management, and no
+# dev env pins.
+#
+# --debug is ORTHOGONAL to mode: it arms DEBUG_TOKEN/WIRE_CAPTURE/RPG_TRACE as a PROCESS ENV OVERLAY on
+# the stack we are about to spawn. It NEVER edits `.env` (the workflow this replaces did, and left the
+# operator to remember to strip the lines afterwards). The overlay is computed by the same TS resolver
+# prod uses — including its refusal when `.env` already pins one of those keys to a conflicting value,
+# which would make the flag a silent no-op (foundation/env loads `.env` with override:true).
+ORIG_ARGV=("$@")
+STACK_VERB="${1:-status}"
+case "$STACK_VERB" in
+  up) STACK_VERB=start ;;
+  down) STACK_VERB=stop ;;
+esac
+[ "$#" -gt 0 ] && shift
+STACK_MODE=dev
+case "${1:-}" in
+  dev | prod)
+    STACK_MODE="$1"
+    shift
+    ;;
+esac
+STACK_DEBUG=""
+STACK_REST=()
+for arg in "$@"; do
+  if [ "$arg" = "--debug" ]; then
+    STACK_DEBUG=1
+  else
+    STACK_REST+=("$arg")
+  fi
+done
+
+if [ "$STACK_MODE" = prod ]; then
+  exec node "$REPO/scripts/dev/stack-prod.ts" "${ORIG_ARGV[@]}"
+fi
+
+if [ -n "$STACK_DEBUG" ]; then
+  # One resolver, two modes: `debug-env` prints `KEY=value` lines (or exits non-zero with the .env
+  # conflict refusal on stderr). Read with `read`, never `eval` — a token must not reach the shell parser.
+  DEBUG_OVERLAY="$(node "$REPO/scripts/dev/stack-prod.ts" debug-env)" || exit 1
+  while IFS='=' read -r dk dv; do
+    [ -n "$dk" ] && export "$dk=$dv"
+  done <<<"$DEBUG_OVERLAY"
+  echo "stack: --debug armed the /api/_debug surface for this stack (env overlay; .env untouched)."
+fi
+
+set -- "$STACK_VERB" ${STACK_REST[@]+"${STACK_REST[@]}"}
 
 # ── env pins (host export wins; `:=` only fills the gap) ─────────────────────
 PIN_VARS=(VLLM_DISABLED AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD DEV_SEED)
@@ -473,7 +542,7 @@ case "${1:-status}" in
   status) do_status ;;
   logs) shift; do_logs "$@" ;;
   *)
-    echo "usage: stack.sh {start|start-fg|stop|restart [--force]|force-restart|status|logs [server|client] [n]}"
+    echo "usage: stack.sh {up|start|start-fg|down|stop|restart [--force]|force-restart|status|logs [server|client] [n]} [dev|prod] [--debug]"
     exit 2
     ;;
 esac

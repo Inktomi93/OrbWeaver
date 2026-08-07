@@ -74,15 +74,18 @@ export const PROSE_SLOT_IDS = [
   "chat.memory.digestSystem",
   "chat.memory.consolidationSystem",
   "chat.memory.consolidationLead",
-  // ── per-USER: the group-round + injection FRAMING prose (the S1b inline stragglers) ──
+  // ── per-USER: the group-round FRAMING prose (the S1b inline stragglers) ──
   "chat.group.alsoPresent",
   "chat.group.scenarioHeading",
   "chat.group.exampleHeading",
   "chat.group.roundNudge",
   "chat.group.narratorNudge",
   "chat.group.speakerTags",
+  // ── per-PRESET: the turn-wire FRAMINGS (owner ruling 2026-08-07 — "templates need to have one home in
+  //    presets"). Authored in the preset Templates tab, stored in `promptConfig.prose`. ──
   "chat.injection.systemNote",
   "chat.injection.userNote",
+  "chat.assembly.continuationNudge",
   // ── per-USER: the prose-less-completion recovery ask (dogfood EMPTYGEN-REASONING) ──
   "chat.recovery.narrativeContinuation",
   // ── per-USER: the automation quiet-pick prompts (census 91) ──
