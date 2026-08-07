@@ -15,7 +15,13 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { TurnToolCallsDisclosureStory, TurnToolCallsNonGameStory, TurnToolCallsOtherVariantStory, TurnToolCallsUserRowStory } from "../_ct-stories.tsx";
+import {
+  TurnToolCallsDisclosureStory,
+  TurnToolCallsEngagementStory,
+  TurnToolCallsNonGameStory,
+  TurnToolCallsOtherVariantStory,
+  TurnToolCallsUserRowStory,
+} from "../_ct-stories.tsx";
 
 /** The room's `ChatDetail` as a LIVE game — the gate the hook reads before it asks for any record
  *  (`isRpgEngaged`, the one client predicate). Every story below is a game room unless it says otherwise;
@@ -133,6 +139,62 @@ test("a room with NO live game NEVER asks for the record — no request, and the
   // ONESHOT-OK: settled by the barrier above — the gated query would have been issued during the same commit
   // that painted "plain", so this is a read of finished state, not a mid-flight sample.
   expect(trpc.count("rpg.listTurnToolCalls")).toBe(0);
+});
+
+// The OTHER negative arm, and the one the predicate choice was MADE for. `contracts/rpg/pointer.ts` rules
+// that every client gate reads `isRpgEngaged` and "the OFF arm must gate identically everywhere" — so a game
+// toggled OFF (present pointer, `engaged:false`) must be as silent as no game at all, and re-engaging must
+// bring the surface back on the same commit. A raw `rpg !== null` check would pass the test above and fail
+// both of these.
+
+test("a game toggled OFF asks for nothing either — the OFF arm gates identically to no game", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "chat.getChat": (): { readonly rpg: { readonly gameId: string; readonly engaged: boolean } } => ({
+      rpg: { gameId: "rpg_game_ct", engaged: false },
+    }),
+    "rpg.listTurnToolCalls": () => RECORDED_TURN,
+  });
+
+  const component = await mount(<TurnToolCallsEngagementStory />);
+
+  // `off`, not `plain`: the sentinel distinguishes the two negative arms, so this barrier cannot be met by
+  // an absent pointer. The game EXISTS here — it is switched off.
+  await expect(component.getByTestId("room-kind")).toHaveText("off");
+  await expect(component.locator("[data-slot=turn-tool-calls]")).toHaveCount(0);
+  // ONESHOT-OK: settled by the barrier above — the gated query would have been issued during the same commit
+  // that painted `off`. A read of finished state, not a mid-flight sample.
+  expect(trpc.count("rpg.listTurnToolCalls")).toBe(0);
+});
+
+test("re-engaging the game brings the record back with no reload", async ({ mount, page }) => {
+  // The pointer MIRROR flips server-side on the config write; the stub mirrors that. Keyed off the write
+  // itself (the `Decline` test's pattern), never a call counter.
+  let engaged = false;
+  await routeTrpc(page, {
+    "chat.getChat": (): { readonly rpg: { readonly gameId: string; readonly engaged: boolean } } => ({
+      rpg: { gameId: "rpg_game_ct", engaged },
+    }),
+    "rpg.updateConfig": (): null => {
+      engaged = true;
+      return null;
+    },
+    "rpg.getConfigView": (): null => null,
+    "rpg.getTrackerView": (): null => null,
+    "rpg.listTurnToolCalls": () => RECORDED_TURN,
+  });
+
+  const component = await mount(<TurnToolCallsEngagementStory />);
+
+  await expect(component.getByTestId("room-kind")).toHaveText("off");
+  await expect(component.getByRole("button", { name: RE_TRIGGER })).toHaveCount(0);
+
+  // The REAL door: `rpg.updateConfig` with `patch.engaged`, whose own `invalidates` recipe names
+  // `chat.getChat`. Nothing in the story writes the cache by hand.
+  await component.getByRole("button", { name: "engage the game" }).click();
+
+  await expect(component.getByTestId("room-kind")).toHaveText("game");
+  // …and the disclosure is back — the gate re-armed the query and the record landed, no remount, no reload.
+  await expect(component.getByRole("button", { name: RE_TRIGGER })).toBeVisible();
 });
 
 test("a room with NO records renders no disclosure at all (a non-game chat is untouched)", async ({ mount, page }) => {
