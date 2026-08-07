@@ -1,7 +1,8 @@
 // @orb/contracts/chat/roster — the unified-roster wire (D16/D22/D80): the participant roster read-model, the
 // seat-knob one-home vocabulary + the roster-member spec, the membership-gated level-clamped member card
 // (D22), invites + the membership chokepoint, the resolved per-participant render policy (D44 §12.0), the
-// join-history visibility clamp + its resolved `HistoryFloorSeq` brand, and true-solo composition. The
+// join-history visibility clamp + its resolved `HistoryFloorSeq` brand, and the phase-independent
+// carried-appearance cast (the true-solo composition both takeovers gate on). The
 // LIFECYCLE logic is `domain/chat`; these are just the wire shapes.
 
 import type { AssetId, CharacterId, ChatId, ChatInviteId, ChatParticipantId, Handle, PersonaId, UserId } from "@orb/kit/ids";
@@ -9,7 +10,8 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { ParticipantRole } from "#identity";
 import { PARTICIPANT_ROLES } from "#identity";
-import type { ThemeBackground, ThemeOverride } from "#theme";
+import type { CardEmbeddableTheme, ThemeBackground, ThemeOverride } from "#theme";
+import { cardEmbeddableSubset } from "#theme";
 import type { MemberCardVisibility } from "./metadata.ts";
 import type { ParticipantKind } from "./participants.ts";
 
@@ -193,52 +195,84 @@ export interface ParticipantView {
   themeOverride?: ThemeOverride | null;
   /** BG-C — the RAW per-character carried BACKGROUND source (`character.backgroundOverride`, the
    *  `themeOverride` twin), threaded unmerged. `null` = no card background for a character seat, always
-   *  `null` for a human seat. In a TRUE-SOLO room (see {@link soleTrueSoloCharacter}) the sole
+   *  `null` for a human seat. In a TRUE-SOLO room (see {@link CarriedAppearanceCast}) the sole
    *  character's carried background takes over the app-root background layer, BELOW the chat-set override;
    *  any other composition leaves it INERT (the viewer's own appearance wins). Resolution lives client-side
    *  in the app-shell background resolver. */
   backgroundOverride?: ThemeBackground | null;
 }
 
-/** BG-C true-solo composition — the ONE derivation of "exactly one human and exactly one character, no
- *  other seat", count-derived (never an `isGroup` branch). Returns the sole character's {@link ParticipantView}
- *  when the room is true-solo, else `undefined`. The shared home so the per-speaker THEME takeover
- *  (`resolveRoomTheme`, client attribution) and the CARD-CARRIED arm of the background takeover can never
- *  drift to two spellings of the same rule. */
-const SOLO_COUNT = 1;
-const TRUE_SOLO_SEATS = 2;
-export function soleTrueSoloCharacter(participants: readonly ParticipantView[] | undefined): ParticipantView | undefined {
-  if (participants === undefined) {
-    return;
-  }
-  let characterCount = 0;
-  let soleCharacter: ParticipantView | undefined;
-  for (const participant of participants) {
-    if (participant.kind !== "human") {
-      characterCount += 1;
-      soleCharacter = participant;
-    }
-  }
-  const trueSolo = isSingleHumanRoom(participants) && characterCount === SOLO_COUNT && participants.length === TRUE_SOLO_SEATS;
-  return trueSolo ? soleCharacter : undefined;
+/** One character seat's carried APPEARANCE — the card-authored look a room may take over (the theme half,
+ *  D44 §12.1, and the background half, BG-C). Deliberately the MINIMAL projection: it is the most a
+ *  pre-send DRAFT can honestly produce, since a draft has no `chat_participants` row to read. */
+export interface CarriedAppearanceMember {
+  readonly displayName: string;
+  readonly themeOverride: ThemeOverride | null;
+  readonly backgroundOverride: ThemeBackground | null;
 }
 
-/** BG-C composition, WIDENED (owner ruling 2026-08-03): "this room holds no OTHER human seat" — exactly one
- *  human, any number of characters. THE gate on the carried-appearance takeover. The 07-18 ruling spelled the
- *  gate as true-solo, which ALSO excluded a single-human GROUP room — a composition its own stated rationale
- *  ("a host writing it never forces another human's viewport") does not reach: there is no second viewport.
- *  The predicate now matches the rationale exactly; a room with two humans is still, and permanently, INERT. */
-export function isSingleHumanRoom(participants: readonly ParticipantView[] | undefined): boolean {
-  if (participants === undefined) {
-    return false;
-  }
+/**
+ * The room COMPOSITION the carried-appearance rules read — human seats counted, character seats carried.
+ *
+ * ONE shape for BOTH chat phases, and that is the point. The takeover rules used to be spelled over
+ * `ParticipantView[]`, which only a COMMITTED chat has, so the whole carried look (background + room theme)
+ * was silently gated on a server row existing: a brand-new chat wore the viewer's default chrome until its
+ * first message landed and then re-skinned itself (owner dogfood 2026-08-06 — "backgrounds and avatars
+ * don't show up until the first message"). A committed room projects this off its roster
+ * ({@link carriedCastFromParticipants}); a draft projects it off its founding CARDS plus the viewer's own
+ * single seat. The rules below read only this shape, so the two phases cannot resolve a card's look
+ * differently.
+ */
+export interface CarriedAppearanceCast {
+  /** Human seats on the roster. Counted as the pre-cast `isSingleHumanRoom` counted them — every `human`
+   *  row, `leftSeq` NOT consulted. A pre-send draft has exactly one: the viewer (an invite can only land
+   *  once the chat exists). */
+  readonly humanCount: number;
+  readonly characters: readonly CarriedAppearanceMember[];
+}
+
+const SOLO_COUNT = 1;
+
+/** The COMMITTED-room projection: a `getChat` roster → the composition the takeover rules read. */
+export function carriedCastFromParticipants(participants: readonly ParticipantView[] | undefined): CarriedAppearanceCast {
+  const characters: CarriedAppearanceMember[] = [];
   let humanCount = 0;
-  for (const participant of participants) {
+  for (const participant of participants ?? []) {
     if (participant.kind === "human") {
       humanCount += 1;
+      continue;
     }
+    characters.push({
+      displayName: participant.displayName,
+      themeOverride: participant.themeOverride ?? null,
+      backgroundOverride: participant.backgroundOverride ?? null,
+    });
   }
-  return humanCount === SOLO_COUNT;
+  return { humanCount, characters };
+}
+
+/** BG-C true-solo composition — the ONE derivation of "exactly one human and exactly one character, no
+ *  other seat", count-derived (never an `isGroup` branch). The shared gate, so the room THEME takeover and
+ *  the CARD-CARRIED arm of the background takeover can never drift to two spellings of the same rule. */
+function soleCarriedCharacter(cast: CarriedAppearanceCast): CarriedAppearanceMember | undefined {
+  return cast.humanCount === SOLO_COUNT && cast.characters.length === SOLO_COUNT ? cast.characters[0] : undefined;
+}
+
+/** "This room holds no OTHER human seat" — exactly one human, any number of characters (owner ruling
+ *  2026-08-03, WIDENING the 07-18 true-solo spelling). THE gate on the carried-appearance takeover: the
+ *  stated rationale ("a host writing it never forces another human's viewport") does not reach a
+ *  single-human GROUP room, because there is no second viewport. Two humans stays permanently INERT. */
+function isSingleHumanCast(cast: CarriedAppearanceCast): boolean {
+  return cast.humanCount === SOLO_COUNT;
+}
+
+/** THE room-THEME takeover (D44 §12.1), ONE home for both chat phases: in a true-solo room the sole
+ *  character's authored theme wins at the chat root; any other composition keeps the viewer's own theme
+ *  (`undefined`). What rides is the CARD-EMBEDDABLE subset only — a card supplies the room's LOOK, never
+ *  the viewer's ergonomics (TD §3). */
+export function resolveCarriedTheme(cast: CarriedAppearanceCast): CardEmbeddableTheme | undefined {
+  const override = soleCarriedCharacter(cast)?.themeOverride;
+  return override === null || override === undefined ? undefined : cardEmbeddableSubset(override);
 }
 
 /** The resolved carried background + WHERE it came from. The provenance arm is not decoration: the chat
@@ -251,30 +285,42 @@ export interface CarriedBackground {
   readonly characterName: string | null;
 }
 
-/** THE carried-background cascade (BG-C), ONE home for the app-shell paint AND the panel echo.
- *  `undefined` ⇒ nothing is carried and the viewer's own appearance wins.
+/** THE carried-background cascade (BG-C), ONE home for the app-shell paint AND the panel echo — over the
+ *  phase-independent {@link CarriedAppearanceCast}, so a draft resolves it identically to the committed
+ *  room it becomes. `undefined` ⇒ nothing is carried and the viewer's own appearance wins.
  *
- *  Gate: {@link isSingleHumanRoom} — in a room with any OTHER human the carried source is INERT for everyone.
+ *  Gate: {@link isSingleHumanCast} — in a room with any OTHER human the carried source is INERT for everyone.
  *  Cascade inside the gate: the host's CHAT-SET source (any single-human composition) over the sole
- *  character's CARD-CARRIED source. The card arm stays {@link soleTrueSoloCharacter}-only BY RULING: with two
+ *  character's CARD-CARRIED source. The card arm stays {@link soleCarriedCharacter}-only BY RULING: with two
  *  cards in the room there is no non-arbitrary pick among their backgrounds, so a group room paints only what
- *  its host explicitly chose. An absent / `kind:"none"` source at either level falls through. */
-export function resolveCarriedBackground(
-  participants: readonly ParticipantView[] | undefined,
+ *  its host explicitly chose. An absent / `kind:"none"` source at either level falls through. (A draft has no
+ *  chat-set source at all — that column is written only by a post-creation chat verb — so its cascade is the
+ *  card arm alone.) */
+export function resolveCarriedBackgroundForCast(
+  cast: CarriedAppearanceCast,
   chatBackground: ThemeBackground | null | undefined,
 ): CarriedBackground | undefined {
-  if (!isSingleHumanRoom(participants)) {
+  if (!isSingleHumanCast(cast)) {
     return;
   }
   if (chatBackground && chatBackground.kind !== "none") {
     return { source: chatBackground, arm: "chat-set", characterName: null };
   }
-  const sole = soleTrueSoloCharacter(participants);
+  const sole = soleCarriedCharacter(cast);
   const cardCarried = sole?.backgroundOverride;
   if (sole === undefined || !cardCarried || cardCarried.kind === "none") {
     return;
   }
   return { source: cardCarried, arm: "card-carried", characterName: sole.displayName };
+}
+
+/** The COMMITTED-roster front door onto {@link resolveCarriedBackgroundForCast} (the chat-set arm's only
+ *  caller shape — a chat background exists only once the chat does). */
+export function resolveCarriedBackground(
+  participants: readonly ParticipantView[] | undefined,
+  chatBackground: ThemeBackground | null | undefined,
+): CarriedBackground | undefined {
+  return resolveCarriedBackgroundForCast(carriedCastFromParticipants(participants), chatBackground);
 }
 
 /** The membership-gated, level-clamped PUBLIC card projection (D22 — Part III §11). Fields above the
