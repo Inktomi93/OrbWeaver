@@ -31,6 +31,8 @@ export const selectCollectionMemberFromList = configSelection.selectFromList;
 export const clearCollectionSelection = configSelection.clear;
 /** Reactive: the selected (kind, member) pair, or `null` for the welcome. */
 export const useCollectionSelection = configSelection.useSelection;
+/** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule. */
+export const configSectionSelection = configSelection.selection;
 
 /** The cross-section deep-link intent: "take me to this library". Replaces `openSettingsTo("tags"|"regex")`
  *  at every call site the R1 migration killed — the ids left `SettingsCategoryId`, so tsc enumerated them.

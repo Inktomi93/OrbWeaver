@@ -8,6 +8,7 @@
 import { Library } from "@orb/ui/icons";
 import { defineContextTabs, VOID_STATE } from "#lib";
 import type { SectionDefinition } from "#state";
+import { corpusSectionSelection } from "#state";
 import { CorpusListAnchor } from "../anchors/corpus-list-anchor.tsx";
 import { CorpusArchetypesTab } from "../components/corpus-archetypes-tab.tsx";
 import { CorpusCompareTab } from "../components/corpus-compare-tab.tsx";
@@ -38,6 +39,8 @@ export const corpusSection: SectionDefinition = {
   // The LIST chrome-band content (§4 N1/N2): "CORPUS" title + distilled count. No create action —
   // corpus is browse-shaped (§2), so the band carries title + count only (P2 trivially met).
   listHeader: () => <CorpusListHeader />,
+  // How the SHELL reads "is a dossier open?" — the mobile ONE-SHELL rule's input + its back affordance.
+  selection: corpusSectionSelection,
   content: () => <CorpusContent />,
   // Five owner-scoped analytics tabs, always available: Archetypes / Visuals / Map / Similarity / Compare.
   context: defineContextTabs<void>({

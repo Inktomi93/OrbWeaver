@@ -6,7 +6,7 @@
 
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Icon, PanelLeftClose, PanelLeftOpen } from "@orb/ui/icons";
+import { ChevronLeft, Icon, PanelLeftClose, PanelLeftOpen } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
@@ -23,6 +23,13 @@ export interface ShellTopbarProps {
    *  L-b) — a reachable toggle onto a surface that does not exist is the "looks unbuilt" defect. */
   readonly listAvailable: boolean;
   readonly onToggleList: () => void;
+  /** THE MOBILE ONE-SHELL RULE's back affordance (owner-ruled 2026-08-03): non-null only when a phone has
+   *  a member pushed over a list-bearing section's roster. It REPLACES the list toggle in the lead slot —
+   *  one door back, not two (the mock's frame 3 draws exactly one lead control), and the toggle's own job
+   *  (float the list over the detail) is what "back" now does properly. */
+  readonly onBack?: (() => void) | null;
+  /** The back affordance's accessible name — the glyph carries no text (§13.10). `"Back to Chats"`. */
+  readonly backLabel?: string;
 }
 
 export interface TopbarIconButtonProps {
@@ -59,19 +66,36 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick }: To
   );
 }
 
-export function ShellTopbar({ title, header, trail, listMode, listAvailable, onToggleList }: ShellTopbarProps): ReactElement {
+/** The lead slot's ONE control: the mobile back affordance where it exists, else the list toggle where the
+ *  section has a list, else nothing. Back WINS over the toggle — both would be doors to the same roster, and
+ *  the mock's pushed-detail frame draws exactly one lead control. */
+function leadControl({ listMode, listAvailable, onToggleList, onBack, backLabel }: ShellTopbarProps): ReactNode {
+  if (onBack !== undefined && onBack !== null) {
+    // Same vocabulary as the LIST band's own back (components/list-pane-header.tsx): a ghost icon button
+    // wearing ChevronLeft, named by where it goes.
+    return <TopbarIconButton label={backLabel ?? "Back"} icon={ChevronLeft} onClick={onBack} />;
+  }
+  if (!listAvailable) {
+    return null;
+  }
+  const listCollapsed = listMode === "collapsed";
+  return (
+    <TopbarIconButton
+      label={listCollapsed ? "Show list panel" : "Hide list panel"}
+      icon={listCollapsed ? PanelLeftOpen : PanelLeftClose}
+      expanded={!listCollapsed}
+      onClick={onToggleList}
+    />
+  );
+}
+
+export function ShellTopbar(props: ShellTopbarProps): ReactElement {
+  const { title, header, trail, listMode } = props;
   const listCollapsed = listMode === "collapsed";
   return (
     <header className="shell-topbar">
       <div className="shell-topbar-lead">
-        {listAvailable ? (
-          <TopbarIconButton
-            label={listCollapsed ? "Show list panel" : "Hide list panel"}
-            icon={listCollapsed ? PanelLeftOpen : PanelLeftClose}
-            expanded={!listCollapsed}
-            onClick={onToggleList}
-          />
-        ) : null}
+        {leadControl(props)}
         {header ??
           (listCollapsed ? (
             <Text size="title" weight="semibold">

@@ -12,7 +12,7 @@
 
 import { SlidersHorizontal } from "@orb/ui/icons";
 import type { SectionDefinition } from "#state";
-import { selectPresetFromList } from "#state";
+import { presetSectionSelection, selectPresetFromList } from "#state";
 import { PresetLibraryAnchor } from "../anchors/preset-library-anchor.tsx";
 import { PresetContent } from "../components/preset-content.tsx";
 import { PresetListHeader } from "../components/preset-list-header.tsx";
@@ -38,6 +38,8 @@ export const presetsSection: SectionDefinition = {
   ),
   // The LIST chrome-band content (D66 A1/A2 — the L4 sweep): "PRESETS" + count + the create verbs.
   listHeader: () => <PresetListHeader />,
+  // How the SHELL reads "is a preset open?" — the mobile ONE-SHELL rule's input + its back affordance.
+  selection: presetSectionSelection,
   content: () => <PresetContent />,
   // ONE readout, projected by the active editor view (§7) — read-only + navigation-only. The BAND names
   // that projection (crunch item 11): a pane whose content swaps per view cannot be titled "Details".

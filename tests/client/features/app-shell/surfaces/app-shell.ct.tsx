@@ -10,12 +10,20 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
+import type { SectionId } from "../../../../../packages/client/src/state/shell-store.ts";
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/shell-store.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterSummary } from "../../character/fixtures.ts";
 import { makeChatSummary } from "../../chat/fixtures.ts";
 import { ShellCascadeFixture } from "../_cascade-fixtures.tsx";
-import { AppShellDropGuardStory, AppShellOnSectionStory, AppShellStory, AppShellWidthProbeStory, ModalScrollStory } from "../_ct-stories.tsx";
+import {
+  AppShellDropGuardStory,
+  AppShellMobileRuleStory,
+  AppShellOnSectionStory,
+  AppShellStory,
+  AppShellWidthProbeStory,
+  ModalScrollStory,
+} from "../_ct-stories.tsx";
 
 /** The thumb-reach budget (L6/J12): rendered mobile-bar buttons (`mobile: "tab"` sections + "You") must
  *  never exceed this — a def flipping to `mobile: "tab"` must not silently balloon the bar. */
@@ -321,11 +329,14 @@ test("mobile: the bottom bar is the curated four; overflow + footer affordances 
   expect(tabCount).toBeLessThanOrEqual(MAX_MOBILE_TAB_BUTTONS);
 });
 
-test("mobile: you land on CONTENT — the list panel is collapsed, not an open sheet", async ({ mount, page }) => {
+// SUPERSEDED IN PART — read this with the ONE-SHELL block at the foot of this file. The original ruling
+// here was "mobile lands on CONTENT, not a menu", and for a section with NO list pane (this story's `chats`
+// slot injects content + context only) that still holds and is what this pins. The owner's 2026-08-03
+// ruling REVERSED it for a section that DECLARES a list: there, the roster is the screen. Both statements
+// live because they are about different sections, and the shell decides from the declaration alone.
+test("mobile: a section with no LIST pane lands on CONTENT — the list track is collapsed, not an open sheet", async ({ mount, page }) => {
   await page.setViewportSize(MOBILE);
   await mount(<AppShellStory />);
-  // Mobile resolves the list to a closed sheet (collapsed), never the persisted desktop dock — the
-  // correct landing is CONTENT (chats pane visible), not a menu.
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(page.getByText("chats content pane")).toBeVisible();
@@ -528,8 +539,9 @@ test("resolvePanel: a docked-default panel is docked >64rem, CLOSED (collapsed) 
   await expect(page.locator(".shell-scrim")).toHaveAttribute("data-visible", "false");
 
   await page.setViewportSize(MOBILE);
-  // Mobile regime takes precedence over narrow — the panel is never "docked", it's a collapsed sheet
-  // by default (openOverlayPanel === null), unaffected by the auto-overlay derivation.
+  // Mobile regime takes precedence over narrow. For THIS story's chats slot — which declares no list —
+  // the panel is a collapsed sheet by default, unaffected by the auto-overlay derivation. (A section that
+  // DOES declare a list resolves `docked` here since the ONE-SHELL rule; that arm is pinned at the foot.)
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
 });
 
@@ -1300,4 +1312,113 @@ test("MOBILE: the full-screen sheet gets the same elevation + inert content", as
   await expect(panel).toHaveAttribute("data-panel-mode", "overlay");
   await expect.poll(() => boxShadowOf(panel), { intervals: [20, 50, 100] }).not.toBe("none");
   await expect(page.locator(".shell-content")).toHaveAttribute("inert", "");
+});
+
+// ── THE MOBILE ONE-SHELL RULE (owner-ruled 2026-08-03) ───────────────────────────────────────────────
+// "On mobile, a list-bearing section with NO selection shows its LIST as the screen; selecting pushes to
+// CONTENT with a back row" — applied by the SHELL to every section that declares a list, so there are no
+// per-section exceptions to keep in step. What it replaced, MEASURED on the live stack at 320px before
+// this landed: all seven list-bearing sections (chats · characters · corpus · config · databank · presets ·
+// analytics) landed on their welcome card with the roster translated fully off-screen (list panel box
+// x = -320), reachable only through a panel toggle — the phone user met a teaching card instead of the
+// rows they came for, in every section.
+//
+// Driven at 320px — the narrowest real mount, which is the whole point of the rule — over each section's
+// REAL selection seam (the story injects list/content bodies; `CtFakeSectionRegistry` passes the real
+// `SectionDefinition.selection` through), so a section is covered by its own store, not a double.
+
+const MOBILE_NARROW = { width: 320, height: 800 };
+
+/** Every list-bearing section the story can drive, with the rail label the back affordance derives from. */
+const ONE_SHELL_SECTIONS: readonly { readonly id: SectionId; readonly label: string }[] = [
+  { id: "chats", label: "Chats" },
+  { id: "characters", label: "Characters" },
+  { id: "corpus", label: "Corpus" },
+  { id: "config", label: "Configuration" },
+  { id: "databank", label: "Databank" },
+];
+
+for (const { id, label } of ONE_SHELL_SECTIONS) {
+  test(`ONE-SHELL @320: ${id} shows its ROSTER as the screen with nothing selected, PUSHES to content on a selection, and comes BACK`, async ({
+    mount,
+    page,
+  }) => {
+    await page.setViewportSize(MOBILE_NARROW);
+    const shell = await mount(<AppShellMobileRuleStory section={id} />);
+    const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+    const main = page.locator(".shell-content");
+
+    // 1) NOTHING SELECTED ⇒ the roster IS the screen: in flow (`docked`), the full viewport wide, and
+    //    starting at the left edge — not a sheet translated off-screen, and no scrim (nothing floats).
+    await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+    await expect(page.getByText(`${id} list pane`)).toBeVisible();
+    await expect.poll(async () => (await listPanel.boundingBox())?.x ?? -9999, { intervals: [20, 50, 100] }).toBe(0);
+    // Sub-pixel: a `100dvw` pane measures 319.99997 at a 320px viewport in Chromium.
+    expect((await listPanel.boundingBox())?.width ?? 0).toBeCloseTo(MOBILE_NARROW.width, 1);
+    await expect(page.locator(".shell-scrim")).toHaveAttribute("data-visible", "false");
+    // The content column is covered by a full-viewport pane, so the keyboard must not reach behind it.
+    await expect(main).toHaveAttribute("inert", "");
+    // No way BACK from the screen you are already on.
+    await expect(page.getByRole("button", { name: `Back to ${label}` })).toHaveCount(0);
+
+    // 2) A SELECTION PUSHES: CONTENT takes the screen, the roster leaves it, and the topbar carries the
+    //    one door back — the list TOGGLE gives way to it (one door, not two).
+    await shell.getByRole("button", { name: "open a member" }).click();
+    await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+    await expect(page.getByText(`${id} content pane`)).toBeVisible();
+    await expect(main).not.toHaveAttribute("inert", "");
+    const back = shell.getByRole("button", { name: `Back to ${label}` });
+    await expect(back).toBeVisible();
+    await expect(shell.getByRole("button", { name: LIST_TOGGLE_RE })).toHaveCount(0);
+
+    // 3) BACK pops the detail: the section's own selection is cleared through its declared seam, so the
+    //    roster is the screen again — the same state a fresh landing has.
+    await back.click();
+    await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+    await expect(page.getByText(`${id} list pane`)).toBeVisible();
+    await expect(page.getByRole("button", { name: `Back to ${label}` })).toHaveCount(0);
+  });
+}
+
+// The escape hatch, and the reason the lead control is never dead in the no-selection arm: a section's
+// no-selection CONTENT is a real surface for some sections (the corpus + analytics dashboards, the config
+// welcome), so "hide the list" has to still mean it — and bring the roster back.
+test("ONE-SHELL @320: the topbar toggle drops the roster screen to the section's own no-selection CONTENT, and restores it", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE_NARROW);
+  const shell = await mount(<AppShellMobileRuleStory section="corpus" />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await shell.getByRole("button", { name: "Hide list panel" }).click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(page.getByText("corpus content pane")).toBeVisible();
+  await expect(page.locator(".shell-content")).not.toHaveAttribute("inert", "");
+
+  await shell.getByRole("button", { name: "Show list panel" }).click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(page.getByText("corpus list pane")).toBeVisible();
+});
+
+// The rule is MOBILE-shaped applicability of ONE surface, not a mobile mode: at desktop widths the same
+// section, the same seam and the same registry resolve exactly as before — a docked LIST beside CONTENT,
+// and no back affordance anywhere (the LIST band's own back is the picker⇄projection swap, not this).
+test("ONE-SHELL: the rule is applicability, not a mode — at 1280px the config roster stays a docked pane beside CONTENT with no back row", async ({
+  mount,
+  page,
+}) => {
+  await page.setViewportSize(WIDE);
+  const shell = await mount(<AppShellMobileRuleStory section="config" />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(page.getByText("config content pane")).toBeVisible();
+  const box = await listPanel.boundingBox();
+  expect(box?.width ?? 0).toBeGreaterThan(0);
+  expect(box?.width ?? WIDE.width).toBeLessThan(WIDE.width);
+  await expect(page.locator(".shell-content")).not.toHaveAttribute("inert", "");
+
+  await shell.getByRole("button", { name: "open a member" }).click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+  await expect(page.getByRole("button", { name: "Back to Configuration" })).toHaveCount(0);
+  await expect(shell.getByRole("button", { name: LIST_TOGGLE_RE })).toBeVisible();
 });

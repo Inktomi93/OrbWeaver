@@ -97,6 +97,7 @@ import type {
   SectionDefinition,
   SectionId,
   SectionRegistry,
+  SectionSelection,
   SettingsCategoryId,
   SettingsPaneDefinition,
   SettingsPaneRegistry,
@@ -428,11 +429,24 @@ export interface CtFakeSection {
   readonly list?: ReactNode;
   readonly content?: ReactNode;
   readonly context?: ReactNode;
+  /** The section's SELECTION seam for the story (`SectionSelection` — the mobile ONE-SHELL rule's input).
+   *  Absent ⇒ the section's REAL seam when it has one, else a never-selected stand-in: a story that injects
+   *  a `list` still has to answer "is anything open?", because the shell's rule is not optional. */
+  readonly selection?: SectionSelection;
 }
+
+/** The stand-in seam for a story-injected list over a section that owns no real selection store: nothing is
+ *  ever selected, so the LIST is the mobile screen and there is no back affordance. Module-scope (a fresh
+ *  object per render would re-subscribe every commit). */
+const CT_NEVER_SELECTED: SectionSelection = {
+  subscribe: () => (): void => undefined,
+  hasSelection: () => false,
+  clear: (): void => undefined,
+};
 
 function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDefinition {
   const real = REAL[id];
-  return {
+  const base = {
     id,
     rail: real.rail,
     // The section's declared PANEL CAPABILITY is shell anatomy, not story content — carry it through so a
@@ -440,11 +454,16 @@ function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDef
     ...(real.panels === undefined ? {} : { panels: real.panels }),
     panelDefaults: real.panelDefaults,
     placeholder: real.placeholder,
-    ...(slot?.list !== undefined ? { list: (): ReactNode => slot.list } : {}),
     // A non-injected section renders its real placeholder (the planned arm) — the old "unwired ⇒ fallback".
     content: slot?.content !== undefined ? (): ReactNode => slot.content : { planned: "ct" },
-    context: slot?.context !== undefined ? { kind: "single", body: (): ReactNode => slot.context } : { kind: "none" },
+    context: slot?.context !== undefined ? { kind: "single" as const, body: (): ReactNode => slot.context } : { kind: "none" as const },
   };
+  if (slot?.list === undefined) {
+    return base;
+  }
+  // `list` and `selection` are ONE arm of the definition union (section-registry.ts) — the fake honours that
+  // instead of casting around it, so a story exercises the same shell rule production does.
+  return { ...base, list: (): ReactNode => slot.list, selection: slot.selection ?? real.selection ?? CT_NEVER_SELECTED };
 }
 
 /** The shell-isolation registry — real rail/placeholder, story-injected list/content per section. */

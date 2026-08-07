@@ -12,8 +12,9 @@
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { withViewTransition } from "#lib";
 import type { ChatHandle } from "./chat-handle.ts";
-import { committedChat, draftChat, isCommitted, landingChat } from "./chat-handle.ts";
+import { committedChat, draftChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
 import { createGatedStore } from "./create-gated-store.ts";
+import type { SectionSelection } from "./section-registry.ts";
 import { openModal, setOpenOverlayPanel } from "./shell-store.ts";
 
 /** The founding-roster seed a draft chat carries until its first send calls `chat.startChat`. All
@@ -135,6 +136,16 @@ export function selectChatFromList(chatId: ChatId): void {
   selectChat(chatId);
   setOpenOverlayPanel(null);
 }
+
+/** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule.
+ *  A chat's "selection" is the HANDLE: landing is nothing-open, and a DRAFT counts as open (an unsent room
+ *  is still the room you are in — popping back to the roster from it must be the user's own act). `clear`
+ *  is `goToLanding`, so back-from-a-room lands in the same state every other route to the landing does. */
+export const chatSectionSelection: SectionSelection = {
+  subscribe: (onStoreChange: () => void): (() => void) => useActiveChatStore.subscribe(onStoreChange),
+  hasSelection: (): boolean => !isLanding(useActiveChatStore.getState().handle),
+  clear: goToLanding,
+};
 
 /** After a host deletes the chat CONTENT is currently showing, return to landing so the room never
  *  points at a dropped chat — a no-op if the deleted chat isn't the active one. */
