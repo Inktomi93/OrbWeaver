@@ -47,6 +47,15 @@ describe("classifyTransportName — the no-status fallback", () => {
     });
   });
 
+  test("ABORT WINS over the transient MESSAGE patterns (a cancellation is never re-run)", () => {
+    // STRUCTURED-ABORT-REASON-LEAK's second belt: the transient regex reads the message too, so an abort
+    // whose message carries "connection"/"timeout" (a caller's abort reason, an SDK's wrapped socket text)
+    // must not classify as a retryable server fault — retrying it re-runs, and re-bills, a cancelled call.
+    for (const message of ["connection timeout waiting for the user", "network closed", "overloaded"]) {
+      expect(classifyTransportName("AbortError", message)).toEqual({ kind: "aborted", retryable: false });
+    }
+  });
+
   test("nothing matched → null (caller decides the unknown floor)", () => {
     expect(classifyTransportName("WeirdError", "no idea")).toBeNull();
   });
