@@ -11,17 +11,8 @@
           "from": "./header/AccordionHeader.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "disabled",
-            "hidden",
-            "index",
-            "open",
-            "orientation",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'h3', AccordionHeaderState>"
-          ],
+          "state": ["disabled", "hidden", "index", "open", "orientation", "value"],
+          "inherits": ["BaseUIComponentProps<'h3', AccordionHeaderState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -29,25 +20,12 @@
           "kind": "part",
           "symbol": "AccordionItem",
           "from": "./item/AccordionItem.js",
-          "props": [
-            "disabled",
-            "onOpenChange",
-            "value"
-          ],
+          "props": ["disabled", "onOpenChange", "value"],
           "handlers": {
             "onOpenChange": 2
           },
-          "state": [
-            "disabled",
-            "hidden",
-            "index",
-            "open",
-            "orientation",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', AccordionItemState>"
-          ],
+          "state": ["disabled", "hidden", "index", "open", "orientation", "value"],
+          "inherits": ["BaseUIComponentProps<'div', AccordionItemState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -55,24 +33,10 @@
           "kind": "part",
           "symbol": "AccordionPanel",
           "from": "./panel/AccordionPanel.js",
-          "props": [
-            "hiddenUntilFound",
-            "keepMounted"
-          ],
+          "props": ["hiddenUntilFound", "keepMounted"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "hidden",
-            "index",
-            "open",
-            "orientation",
-            "transitionStatus",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', AccordionPanelState>",
-            "BaseUIComponentProps<'div', AccordionRoot.State<Value>>"
-          ],
+          "state": ["disabled", "hidden", "index", "open", "orientation", "transitionStatus", "value"],
+          "inherits": ["BaseUIComponentProps<'div', AccordionPanelState>", "BaseUIComponentProps<'div', AccordionRoot.State<Value>>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -80,28 +44,12 @@
           "kind": "part",
           "symbol": "AccordionRoot",
           "from": "./root/AccordionRoot.js",
-          "props": [
-            "defaultValue",
-            "disabled",
-            "hiddenUntilFound",
-            "keepMounted",
-            "loopFocus",
-            "multiple",
-            "onValueChange",
-            "orientation",
-            "value"
-          ],
+          "props": ["defaultValue", "disabled", "hiddenUntilFound", "keepMounted", "loopFocus", "multiple", "onValueChange", "orientation", "value"],
           "handlers": {
             "onValueChange": 2
           },
-          "state": [
-            "disabled",
-            "orientation",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', AccordionRoot.State<Value>>"
-          ],
+          "state": ["disabled", "orientation", "value"],
+          "inherits": ["BaseUIComponentProps<'div', AccordionRoot.State<Value>>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -111,18 +59,8 @@
           "from": "./trigger/AccordionTrigger.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "disabled",
-            "hidden",
-            "index",
-            "open",
-            "orientation",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', AccordionTriggerState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled", "hidden", "index", "open", "orientation", "value"],
+          "inherits": ["BaseUIComponentProps<'button', AccordionTriggerState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         }
@@ -136,17 +74,10 @@
           "kind": "part",
           "symbol": "DialogBackdrop",
           "from": "../dialog/backdrop/DialogBackdrop.js",
-          "props": [
-            "forceRender"
-          ],
+          "props": ["forceRender"],
           "handlers": {},
-          "state": [
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', DialogBackdropState>"
-          ],
+          "state": ["open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', DialogBackdropState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -156,13 +87,8 @@
           "from": "../dialog/close/DialogClose.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "disabled"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', DialogCloseState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled"],
+          "inherits": ["BaseUIComponentProps<'button', DialogCloseState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -184,9 +110,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'p', DialogDescriptionState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'p', DialogDescriptionState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -205,23 +129,13 @@
           "kind": "part",
           "symbol": "DialogPopup",
           "from": "../dialog/popup/DialogPopup.js",
-          "props": [
-            "finalFocus",
-            "initialFocus"
-          ],
+          "props": ["finalFocus", "initialFocus"],
           "handlers": {
             "finalFocus": 1,
             "initialFocus": 1
           },
-          "state": [
-            "nested",
-            "nestedDialogOpen",
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', DialogPopupState>"
-          ],
+          "state": ["nested", "nestedDialogOpen", "open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', DialogPopupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -229,15 +143,10 @@
           "kind": "part",
           "symbol": "DialogPortal",
           "from": "../dialog/portal/DialogPortal.js",
-          "props": [
-            "container",
-            "keepMounted"
-          ],
+          "props": ["container", "keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', DialogPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', DialogPortalState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -245,17 +154,7 @@
           "kind": "part",
           "symbol": "AlertDialogRoot",
           "from": "./root/AlertDialogRoot.js",
-          "props": [
-            "actionsRef",
-            "children",
-            "defaultOpen",
-            "defaultTriggerId",
-            "handle",
-            "onOpenChange",
-            "onOpenChangeComplete",
-            "open",
-            "triggerId"
-          ],
+          "props": ["actionsRef", "children", "defaultOpen", "defaultTriggerId", "handle", "onOpenChange", "onOpenChangeComplete", "open", "triggerId"],
           "handlers": {
             "onOpenChange": 2,
             "onOpenChangeComplete": 1
@@ -272,9 +171,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'h2', DialogTitleState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'h2', DialogTitleState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -282,20 +179,10 @@
           "kind": "part",
           "symbol": "AlertDialogTrigger",
           "from": "./trigger/AlertDialogTrigger.js",
-          "props": [
-            "handle",
-            "id",
-            "payload"
-          ],
+          "props": ["handle", "id", "payload"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', DialogTriggerState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled", "open"],
+          "inherits": ["BaseUIComponentProps<'button', DialogTriggerState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -305,15 +192,8 @@
           "from": "../dialog/viewport/DialogViewport.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "nested",
-            "nestedDialogOpen",
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', DialogViewportState>"
-          ],
+          "state": ["nested", "nestedDialogOpen", "open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', DialogViewportState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -329,15 +209,8 @@
           "from": "../combobox/arrow/ComboboxArrow.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "open",
-            "side",
-            "uncentered"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxArrowState>"
-          ],
+          "state": ["align", "open", "side", "uncentered"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxArrowState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -347,13 +220,8 @@
           "from": "../combobox/backdrop/ComboboxBackdrop.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxBackdropState>"
-          ],
+          "state": ["open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxBackdropState>"],
           "disposition": "sealed-away",
           "why": "A suggestion popup is non-modal by design — it must not dim or `aria-hidden` the form it sits in (the `inline` arm exists for when even an overlay is too much; a backdrop is the opposite direction). Ends if the seal ever gains a modal arm. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -361,21 +229,10 @@
           "kind": "part",
           "symbol": "ComboboxClear",
           "from": "../combobox/clear/ComboboxClear.js",
-          "props": [
-            "disabled",
-            "keepMounted"
-          ],
+          "props": ["disabled", "keepMounted"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "open",
-            "transitionStatus",
-            "visible"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', ComboboxClearState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled", "open", "transitionStatus", "visible"],
+          "inherits": ["BaseUIComponentProps<'button', ComboboxClearState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -383,9 +240,7 @@
           "kind": "part",
           "symbol": "ComboboxCollection",
           "from": "../combobox/collection/ComboboxCollection.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {
             "children": 2
           },
@@ -401,9 +256,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxEmptyState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxEmptyState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -411,14 +264,10 @@
           "kind": "part",
           "symbol": "ComboboxGroup",
           "from": "../combobox/group/ComboboxGroup.js",
-          "props": [
-            "items"
-          ],
+          "props": ["items"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxGroupState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxGroupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -429,9 +278,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxGroupLabelState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxGroupLabelState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -442,9 +289,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'span', ComboboxIconState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'span', ComboboxIconState>"],
           "disposition": "sealed-away",
           "why": "Pairs with `Trigger` (the chevron inside it); meaningless without one. Ends with `Autocomplete.Trigger`'s row. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -452,25 +297,10 @@
           "kind": "part",
           "symbol": "ComboboxInput",
           "from": "../combobox/input/ComboboxInput.js",
-          "props": [
-            "disabled"
-          ],
+          "props": ["disabled"],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "listEmpty",
-            "open",
-            "popupSide",
-            "readOnly",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'input', ComboboxInputState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "listEmpty", "open", "popupSide", "readOnly", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'input', ComboboxInputState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -480,21 +310,8 @@
           "from": "./input-group/AutocompleteInputGroup.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "listEmpty",
-            "open",
-            "popupSide",
-            "readOnly",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', AutocompleteInputGroupState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "listEmpty", "open", "popupSide", "readOnly", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'div', AutocompleteInputGroupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -502,22 +319,10 @@
           "kind": "part",
           "symbol": "AutocompleteItem",
           "from": "./item/AutocompleteItem.js",
-          "props": [
-            "children",
-            "disabled",
-            "index",
-            "onClick",
-            "value"
-          ],
+          "props": ["children", "disabled", "index", "onClick", "value"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "highlighted"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', AutocompleteItemState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["disabled", "highlighted"],
+          "inherits": ["BaseUIComponentProps<'div', AutocompleteItemState>", "NonNativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -525,18 +330,12 @@
           "kind": "part",
           "symbol": "ComboboxList",
           "from": "../combobox/list/ComboboxList.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {
             "children": 2
           },
-          "state": [
-            "empty"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxListState>"
-          ],
+          "state": ["empty"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxListState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -544,25 +343,13 @@
           "kind": "part",
           "symbol": "ComboboxPopup",
           "from": "../combobox/popup/ComboboxPopup.js",
-          "props": [
-            "finalFocus",
-            "initialFocus"
-          ],
+          "props": ["finalFocus", "initialFocus"],
           "handlers": {
             "finalFocus": 1,
             "initialFocus": 1
           },
-          "state": [
-            "align",
-            "anchorHidden",
-            "empty",
-            "open",
-            "side",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxPopupState>"
-          ],
+          "state": ["align", "anchorHidden", "empty", "open", "side", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxPopupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -570,15 +357,10 @@
           "kind": "part",
           "symbol": "ComboboxPortal",
           "from": "../combobox/portal/ComboboxPortal.js",
-          "props": [
-            "container",
-            "keepMounted"
-          ],
+          "props": ["container", "keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxPortalState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -603,16 +385,8 @@
           "handlers": {
             "anchor": 0
           },
-          "state": [
-            "align",
-            "anchorHidden",
-            "empty",
-            "open",
-            "side"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxPositionerState>"
-          ],
+          "state": ["align", "anchorHidden", "empty", "open", "side"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxPositionerState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -676,9 +450,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxRowState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxRowState>"],
           "disposition": "sealed-away",
           "why": "Grid/column item layout. This seal's items are plain display strings (one line each), so a row wrapper has nothing to lay out. Ends when the popup gains multi-column items. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -686,16 +458,10 @@
           "kind": "part",
           "symbol": "AutocompleteSeparator",
           "from": "./separator/AutocompleteSeparator.js",
-          "props": [
-            "orientation"
-          ],
+          "props": ["orientation"],
           "handlers": {},
-          "state": [
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', AutocompleteSeparatorState>"
-          ],
+          "state": ["orientation"],
+          "inherits": ["BaseUIComponentProps<'div', AutocompleteSeparatorState>"],
           "disposition": "sealed-away",
           "why": "Group boundaries here are the `GroupLabel` headers, and the Combobox seal renders groups IDENTICALLY on purpose (the two listbox popups must not drift into two looks). `Select` does add a rule because its grouped popup is a dense single-line row list with no header spacing. Re-implemented per-component in 1.7 (#5399). Ends if a review rules the header boundary too weak — then it is ONE decision across all three seals, not a per-seal patch. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -706,9 +472,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxStatusState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxStatusState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -716,25 +480,10 @@
           "kind": "part",
           "symbol": "AutocompleteTrigger",
           "from": "./trigger/AutocompleteTrigger.js",
-          "props": [
-            "disabled"
-          ],
+          "props": ["disabled"],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "listEmpty",
-            "open",
-            "popupSide",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', AutocompleteTriggerState>",
-            "NativeButtonProps"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "listEmpty", "open", "popupSide", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'button', AutocompleteTriggerState>", "NativeButtonProps"],
           "disposition": "sealed-away",
           "why": "This seal opens on focus/typing, not on a chevron press — a trigger button beside a text input reads as a Select and invites the wrong primitive (R4). Pick `Select` for a button-opened fixed list. Ends if the open-on-press interaction is ever wanted here. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -764,9 +513,7 @@
           "kind": "part",
           "symbol": "AutocompleteValue",
           "from": "./value/AutocompleteValue.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {
             "children": 1
           },
@@ -785,16 +532,10 @@
           "kind": "part",
           "symbol": "AvatarFallback",
           "from": "./fallback/AvatarFallback.js",
-          "props": [
-            "delay"
-          ],
+          "props": ["delay"],
           "handlers": {},
-          "state": [
-            "imageLoadingStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', AvatarFallbackState>"
-          ],
+          "state": ["imageLoadingStatus"],
+          "inherits": ["BaseUIComponentProps<'span', AvatarFallbackState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -802,19 +543,12 @@
           "kind": "part",
           "symbol": "AvatarImage",
           "from": "./image/AvatarImage.js",
-          "props": [
-            "onLoadingStatusChange"
-          ],
+          "props": ["onLoadingStatusChange"],
           "handlers": {
             "onLoadingStatusChange": 1
           },
-          "state": [
-            "imageLoadingStatus",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'img', AvatarImageState, React.ComponentPropsWithRef<'img'>>"
-          ],
+          "state": ["imageLoadingStatus", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'img', AvatarImageState, React.ComponentPropsWithRef<'img'>>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -824,12 +558,8 @@
           "from": "./root/AvatarRoot.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "imageLoadingStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', AvatarRootState>"
-          ],
+          "state": ["imageLoadingStatus"],
+          "inherits": ["BaseUIComponentProps<'span', AvatarRootState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -843,17 +573,10 @@
           "kind": "part",
           "symbol": "Button",
           "from": "./Button.js",
-          "props": [
-            "focusableWhenDisabled"
-          ],
+          "props": ["focusableWhenDisabled"],
           "handlers": {},
-          "state": [
-            "disabled"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', ButtonState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled"],
+          "inherits": ["BaseUIComponentProps<'button', ButtonState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         }
@@ -867,26 +590,10 @@
           "kind": "part",
           "symbol": "CheckboxIndicator",
           "from": "./indicator/CheckboxIndicator.js",
-          "props": [
-            "keepMounted"
-          ],
+          "props": ["keepMounted"],
           "handlers": {},
-          "state": [
-            "checked",
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "indeterminate",
-            "readOnly",
-            "required",
-            "touched",
-            "transitionStatus",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', CheckboxIndicatorState>"
-          ],
+          "state": ["checked", "dirty", "disabled", "filled", "focused", "indeterminate", "readOnly", "required", "touched", "transitionStatus", "valid"],
+          "inherits": ["BaseUIComponentProps<'span', CheckboxIndicatorState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -913,22 +620,8 @@
           "handlers": {
             "onCheckedChange": 2
           },
-          "state": [
-            "checked",
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "indeterminate",
-            "readOnly",
-            "required",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', CheckboxRootState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["checked", "dirty", "disabled", "filled", "focused", "indeterminate", "readOnly", "required", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'span', CheckboxRootState>", "NonNativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         }
@@ -942,27 +635,12 @@
           "kind": "part",
           "symbol": "CheckboxGroup",
           "from": "./CheckboxGroup.js",
-          "props": [
-            "allValues",
-            "defaultValue",
-            "disabled",
-            "onValueChange",
-            "value"
-          ],
+          "props": ["allValues", "defaultValue", "disabled", "onValueChange", "value"],
           "handlers": {
             "onValueChange": 2
           },
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', CheckboxGroupState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'div', CheckboxGroupState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         }
@@ -976,19 +654,10 @@
           "kind": "part",
           "symbol": "CollapsiblePanel",
           "from": "./panel/CollapsiblePanel.js",
-          "props": [
-            "hiddenUntilFound",
-            "keepMounted"
-          ],
+          "props": ["hiddenUntilFound", "keepMounted"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', CollapsiblePanelState>"
-          ],
+          "state": ["disabled", "open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', CollapsiblePanelState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -996,23 +665,12 @@
           "kind": "part",
           "symbol": "CollapsibleRoot",
           "from": "./root/CollapsibleRoot.js",
-          "props": [
-            "defaultOpen",
-            "disabled",
-            "onOpenChange",
-            "open"
-          ],
+          "props": ["defaultOpen", "disabled", "onOpenChange", "open"],
           "handlers": {
             "onOpenChange": 2
           },
-          "state": [
-            "disabled",
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', CollapsibleRootState>"
-          ],
+          "state": ["disabled", "open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', CollapsibleRootState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1022,15 +680,8 @@
           "from": "./trigger/CollapsibleTrigger.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "disabled",
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', CollapsibleTriggerState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled", "open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'button', CollapsibleTriggerState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         }
@@ -1046,15 +697,8 @@
           "from": "./arrow/ComboboxArrow.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "open",
-            "side",
-            "uncentered"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxArrowState>"
-          ],
+          "state": ["align", "open", "side", "uncentered"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxArrowState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1064,13 +708,8 @@
           "from": "./backdrop/ComboboxBackdrop.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxBackdropState>"
-          ],
+          "state": ["open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxBackdropState>"],
           "disposition": "sealed-away",
           "why": "A suggestion popup is non-modal by design — it must not dim or `aria-hidden` the form it sits in (the `inline` arm exists for when even an overlay is too much; a backdrop is the opposite direction). Ends if the seal ever gains a modal arm. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -1080,12 +719,8 @@
           "from": "./chip/ComboboxChip.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "disabled"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxChipState>"
-          ],
+          "state": ["disabled"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxChipState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1095,13 +730,8 @@
           "from": "./chip-remove/ComboboxChipRemove.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "disabled"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', ComboboxChipRemoveState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled"],
+          "inherits": ["BaseUIComponentProps<'button', ComboboxChipRemoveState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1112,9 +742,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxChipsState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxChipsState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1122,21 +750,10 @@
           "kind": "part",
           "symbol": "ComboboxClear",
           "from": "./clear/ComboboxClear.js",
-          "props": [
-            "disabled",
-            "keepMounted"
-          ],
+          "props": ["disabled", "keepMounted"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "open",
-            "transitionStatus",
-            "visible"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', ComboboxClearState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled", "open", "transitionStatus", "visible"],
+          "inherits": ["BaseUIComponentProps<'button', ComboboxClearState>", "NativeButtonProps"],
           "disposition": "sealed-away",
           "why": "The per-chip `ChipRemove` (exposed) is the removal affordance; a clear-all button that silently drops N committed chips has no undo at this seam. Ends when it can be added WITH a confirmation story, not as a bare part. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -1144,9 +761,7 @@
           "kind": "part",
           "symbol": "ComboboxCollection",
           "from": "./collection/ComboboxCollection.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {
             "children": 2
           },
@@ -1162,9 +777,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxEmptyState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxEmptyState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1172,14 +785,10 @@
           "kind": "part",
           "symbol": "ComboboxGroup",
           "from": "./group/ComboboxGroup.js",
-          "props": [
-            "items"
-          ],
+          "props": ["items"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxGroupState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxGroupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1190,9 +799,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxGroupLabelState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxGroupLabelState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1203,9 +810,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'span', ComboboxIconState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'span', ComboboxIconState>"],
           "disposition": "sealed-away",
           "why": "Pairs with `Trigger`; meaningless without one. Ends with `Combobox.Trigger`'s row. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -1213,25 +818,10 @@
           "kind": "part",
           "symbol": "ComboboxInput",
           "from": "./input/ComboboxInput.js",
-          "props": [
-            "disabled"
-          ],
+          "props": ["disabled"],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "listEmpty",
-            "open",
-            "popupSide",
-            "readOnly",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'input', ComboboxInputState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "listEmpty", "open", "popupSide", "readOnly", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'input', ComboboxInputState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1241,22 +831,8 @@
           "from": "./input-group/ComboboxInputGroup.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "listEmpty",
-            "open",
-            "placeholder",
-            "popupSide",
-            "readOnly",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxInputGroup.State>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "listEmpty", "open", "placeholder", "popupSide", "readOnly", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxInputGroup.State>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1264,23 +840,10 @@
           "kind": "part",
           "symbol": "ComboboxItem",
           "from": "./item/ComboboxItem.js",
-          "props": [
-            "children",
-            "disabled",
-            "index",
-            "onClick",
-            "value"
-          ],
+          "props": ["children", "disabled", "index", "onClick", "value"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "highlighted",
-            "selected"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxItemState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["disabled", "highlighted", "selected"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxItemState>", "NonNativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1288,18 +851,10 @@
           "kind": "part",
           "symbol": "ComboboxItemIndicator",
           "from": "./item-indicator/ComboboxItemIndicator.js",
-          "props": [
-            "children",
-            "keepMounted"
-          ],
+          "props": ["children", "keepMounted"],
           "handlers": {},
-          "state": [
-            "selected",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', ComboboxItemIndicatorState>"
-          ],
+          "state": ["selected", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'span', ComboboxItemIndicatorState>"],
           "disposition": "sealed-away",
           "why": "Selection is shown as CHIPS in the input, which is the stronger signal and always visible; a check mark in the list would state the same fact twice. Ends if the chips display is dropped. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -1309,17 +864,8 @@
           "from": "./label/ComboboxLabel.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxLabelState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxLabelState>"],
           "disposition": "sealed-away",
           "why": "Labeling is `<Field>`'s job repo-wide (the settings/forms migration) or `aria-label`; a second label mechanism inside the seal is a second home for the same concept. Ends if `<Field>` stops owning labeling. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -1327,18 +873,12 @@
           "kind": "part",
           "symbol": "ComboboxList",
           "from": "./list/ComboboxList.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {
             "children": 2
           },
-          "state": [
-            "empty"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxListState>"
-          ],
+          "state": ["empty"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxListState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1346,25 +886,13 @@
           "kind": "part",
           "symbol": "ComboboxPopup",
           "from": "./popup/ComboboxPopup.js",
-          "props": [
-            "finalFocus",
-            "initialFocus"
-          ],
+          "props": ["finalFocus", "initialFocus"],
           "handlers": {
             "finalFocus": 1,
             "initialFocus": 1
           },
-          "state": [
-            "align",
-            "anchorHidden",
-            "empty",
-            "open",
-            "side",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxPopupState>"
-          ],
+          "state": ["align", "anchorHidden", "empty", "open", "side", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxPopupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1372,15 +900,10 @@
           "kind": "part",
           "symbol": "ComboboxPortal",
           "from": "./portal/ComboboxPortal.js",
-          "props": [
-            "container",
-            "keepMounted"
-          ],
+          "props": ["container", "keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxPortalState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1405,16 +928,8 @@
           "handlers": {
             "anchor": 0
           },
-          "state": [
-            "align",
-            "anchorHidden",
-            "empty",
-            "open",
-            "side"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxPositionerState>"
-          ],
+          "state": ["align", "anchorHidden", "empty", "open", "side"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxPositionerState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1485,9 +1000,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxRowState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxRowState>"],
           "disposition": "sealed-away",
           "why": "Grid/column item layout. This seal's items are plain display strings (one line each), so a row wrapper has nothing to lay out. Ends when the popup gains multi-column items. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -1495,16 +1008,10 @@
           "kind": "part",
           "symbol": "ComboboxSeparator",
           "from": "./separator/ComboboxSeparator.js",
-          "props": [
-            "orientation"
-          ],
+          "props": ["orientation"],
           "handlers": {},
-          "state": [
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxSeparatorState>"
-          ],
+          "state": ["orientation"],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxSeparatorState>"],
           "disposition": "sealed-away",
           "why": "Group boundaries here are the `GroupLabel` headers, and the Combobox seal renders groups IDENTICALLY on purpose (the two listbox popups must not drift into two looks). `Select` does add a rule because its grouped popup is a dense single-line row list with no header spacing. Re-implemented per-component in 1.7 (#5399). Ends if a review rules the header boundary too weak — then it is ONE decision across all three seals, not a per-seal patch. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -1515,9 +1022,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ComboboxStatusState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ComboboxStatusState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -1525,26 +1030,10 @@
           "kind": "part",
           "symbol": "ComboboxTrigger",
           "from": "./trigger/ComboboxTrigger.js",
-          "props": [
-            "disabled"
-          ],
+          "props": ["disabled"],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "listEmpty",
-            "open",
-            "placeholder",
-            "popupSide",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', ComboboxTriggerState>",
-            "NativeButtonProps"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "listEmpty", "open", "placeholder", "popupSide", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'button', ComboboxTriggerState>", "NativeButtonProps"],
           "disposition": "sealed-away",
           "why": "Same as Autocomplete's: this is a chips-and-typing surface, not a button-opened list. Ends with `Autocomplete.Trigger`'s row. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -1574,10 +1063,7 @@
           "kind": "part",
           "symbol": "ComboboxValue",
           "from": "./value/ComboboxValue.js",
-          "props": [
-            "children",
-            "placeholder"
-          ],
+          "props": ["children", "placeholder"],
           "handlers": {
             "children": 1
           },
@@ -1598,15 +1084,8 @@
           "from": "../menu/arrow/MenuArrow.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "open",
-            "side",
-            "uncentered"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuArrowState>"
-          ],
+          "state": ["align", "open", "side", "uncentered"],
+          "inherits": ["BaseUIComponentProps<'div', MenuArrowState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1616,13 +1095,8 @@
           "from": "../menu/backdrop/MenuBackdrop.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuBackdropState>"
-          ],
+          "state": ["open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', MenuBackdropState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1630,28 +1104,12 @@
           "kind": "part",
           "symbol": "MenuCheckboxItem",
           "from": "../menu/checkbox-item/MenuCheckboxItem.js",
-          "props": [
-            "checked",
-            "closeOnClick",
-            "defaultChecked",
-            "disabled",
-            "id",
-            "label",
-            "onCheckedChange",
-            "onClick"
-          ],
+          "props": ["checked", "closeOnClick", "defaultChecked", "disabled", "id", "label", "onCheckedChange", "onClick"],
           "handlers": {
             "onCheckedChange": 2
           },
-          "state": [
-            "checked",
-            "disabled",
-            "highlighted"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuCheckboxItemState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["checked", "disabled", "highlighted"],
+          "inherits": ["BaseUIComponentProps<'div', MenuCheckboxItemState>", "NonNativeButtonProps"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1659,19 +1117,10 @@
           "kind": "part",
           "symbol": "MenuCheckboxItemIndicator",
           "from": "../menu/checkbox-item-indicator/MenuCheckboxItemIndicator.js",
-          "props": [
-            "keepMounted"
-          ],
+          "props": ["keepMounted"],
           "handlers": {},
-          "state": [
-            "checked",
-            "disabled",
-            "highlighted",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', MenuCheckboxItemIndicatorState>"
-          ],
+          "state": ["checked", "disabled", "highlighted", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'span', MenuCheckboxItemIndicatorState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1679,14 +1128,10 @@
           "kind": "part",
           "symbol": "MenuGroup",
           "from": "../menu/group/MenuGroup.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuGroupState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', MenuGroupState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1697,9 +1142,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuGroupLabelState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', MenuGroupLabelState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1707,22 +1150,10 @@
           "kind": "part",
           "symbol": "MenuItem",
           "from": "../menu/item/MenuItem.js",
-          "props": [
-            "closeOnClick",
-            "disabled",
-            "id",
-            "label",
-            "onClick"
-          ],
+          "props": ["closeOnClick", "disabled", "id", "label", "onClick"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "highlighted"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuItemState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["disabled", "highlighted"],
+          "inherits": ["BaseUIComponentProps<'div', MenuItemState>", "NonNativeButtonProps"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1730,18 +1161,10 @@
           "kind": "part",
           "symbol": "MenuLinkItem",
           "from": "../menu/link-item/MenuLinkItem.js",
-          "props": [
-            "closeOnClick",
-            "id",
-            "label"
-          ],
+          "props": ["closeOnClick", "id", "label"],
           "handlers": {},
-          "state": [
-            "highlighted"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'a', MenuLinkItemState, React.ComponentPropsWithRef<'a'>>"
-          ],
+          "state": ["highlighted"],
+          "inherits": ["BaseUIComponentProps<'a', MenuLinkItemState, React.ComponentPropsWithRef<'a'>>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1749,25 +1172,12 @@
           "kind": "part",
           "symbol": "MenuPopup",
           "from": "../menu/popup/MenuPopup.js",
-          "props": [
-            "children",
-            "finalFocus",
-            "id"
-          ],
+          "props": ["children", "finalFocus", "id"],
           "handlers": {
             "finalFocus": 1
           },
-          "state": [
-            "align",
-            "instant",
-            "nested",
-            "open",
-            "side",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuPopupState>"
-          ],
+          "state": ["align", "instant", "nested", "open", "side", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', MenuPopupState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1775,15 +1185,10 @@
           "kind": "part",
           "symbol": "MenuPortal",
           "from": "../menu/portal/MenuPortal.js",
-          "props": [
-            "container",
-            "keepMounted"
-          ],
+          "props": ["container", "keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', MenuPortalState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1808,17 +1213,8 @@
           "handlers": {
             "anchor": 0
           },
-          "state": [
-            "align",
-            "anchorHidden",
-            "instant",
-            "nested",
-            "open",
-            "side"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuPositionerState>"
-          ],
+          "state": ["align", "anchorHidden", "instant", "nested", "open", "side"],
+          "inherits": ["BaseUIComponentProps<'div', MenuPositionerState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1826,22 +1222,12 @@
           "kind": "part",
           "symbol": "MenuRadioGroup",
           "from": "../menu/radio-group/MenuRadioGroup.js",
-          "props": [
-            "children",
-            "defaultValue",
-            "disabled",
-            "onValueChange",
-            "value"
-          ],
+          "props": ["children", "defaultValue", "disabled", "onValueChange", "value"],
           "handlers": {
             "onValueChange": 2
           },
-          "state": [
-            "disabled"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuRadioGroupState>"
-          ],
+          "state": ["disabled"],
+          "inherits": ["BaseUIComponentProps<'div', MenuRadioGroupState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1849,24 +1235,10 @@
           "kind": "part",
           "symbol": "MenuRadioItem",
           "from": "../menu/radio-item/MenuRadioItem.js",
-          "props": [
-            "closeOnClick",
-            "disabled",
-            "id",
-            "label",
-            "onClick",
-            "value"
-          ],
+          "props": ["closeOnClick", "disabled", "id", "label", "onClick", "value"],
           "handlers": {},
-          "state": [
-            "checked",
-            "disabled",
-            "highlighted"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuRadioItemState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["checked", "disabled", "highlighted"],
+          "inherits": ["BaseUIComponentProps<'div', MenuRadioItemState>", "NonNativeButtonProps"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1874,19 +1246,10 @@
           "kind": "part",
           "symbol": "MenuRadioItemIndicator",
           "from": "../menu/radio-item-indicator/MenuRadioItemIndicator.js",
-          "props": [
-            "keepMounted"
-          ],
+          "props": ["keepMounted"],
           "handlers": {},
-          "state": [
-            "checked",
-            "disabled",
-            "highlighted",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', MenuRadioItemIndicatorState>"
-          ],
+          "state": ["checked", "disabled", "highlighted", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'span', MenuRadioItemIndicatorState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1894,17 +1257,12 @@
           "kind": "part",
           "symbol": "ContextMenuRoot",
           "from": "./root/ContextMenuRoot.js",
-          "props": [
-            "children",
-            "onOpenChange"
-          ],
+          "props": ["children", "onOpenChange"],
           "handlers": {
             "onOpenChange": 2
           },
           "state": [],
-          "inherits": [
-            "Menu.Root.Props"
-          ],
+          "inherits": ["Menu.Root.Props"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1912,16 +1270,10 @@
           "kind": "part",
           "symbol": "Separator",
           "from": "../separator/Separator.js",
-          "props": [
-            "orientation"
-          ],
+          "props": ["orientation"],
           "handlers": {},
-          "state": [
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SeparatorState>"
-          ],
+          "state": ["orientation"],
+          "inherits": ["BaseUIComponentProps<'div', SeparatorState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1955,25 +1307,10 @@
           "kind": "part",
           "symbol": "MenuSubmenuTrigger",
           "from": "../menu/submenu-trigger/MenuSubmenuTrigger.js",
-          "props": [
-            "closeDelay",
-            "delay",
-            "disabled",
-            "id",
-            "label",
-            "onClick",
-            "openOnHover"
-          ],
+          "props": ["closeDelay", "delay", "disabled", "id", "label", "onClick", "openOnHover"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "highlighted",
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuSubmenuTriggerState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["disabled", "highlighted", "open"],
+          "inherits": ["BaseUIComponentProps<'div', MenuSubmenuTriggerState>", "NonNativeButtonProps"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -1983,12 +1320,8 @@
           "from": "./trigger/ContextMenuTrigger.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ContextMenuTriggerState>"
-          ],
+          "state": ["open"],
+          "inherits": ["BaseUIComponentProps<'div', ContextMenuTriggerState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         }
@@ -2002,11 +1335,7 @@
           "kind": "part",
           "symbol": "CSPProvider",
           "from": "./CSPProvider.js",
-          "props": [
-            "children",
-            "disableStyleElements",
-            "nonce"
-          ],
+          "props": ["children", "disableStyleElements", "nonce"],
           "handlers": {},
           "state": [],
           "inherits": [],
@@ -2023,17 +1352,10 @@
           "kind": "part",
           "symbol": "DialogBackdrop",
           "from": "./backdrop/DialogBackdrop.js",
-          "props": [
-            "forceRender"
-          ],
+          "props": ["forceRender"],
           "handlers": {},
-          "state": [
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', DialogBackdropState>"
-          ],
+          "state": ["open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', DialogBackdropState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2043,13 +1365,8 @@
           "from": "./close/DialogClose.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "disabled"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', DialogCloseState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled"],
+          "inherits": ["BaseUIComponentProps<'button', DialogCloseState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2071,9 +1388,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'p', DialogDescriptionState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'p', DialogDescriptionState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2092,23 +1407,13 @@
           "kind": "part",
           "symbol": "DialogPopup",
           "from": "./popup/DialogPopup.js",
-          "props": [
-            "finalFocus",
-            "initialFocus"
-          ],
+          "props": ["finalFocus", "initialFocus"],
           "handlers": {
             "finalFocus": 1,
             "initialFocus": 1
           },
-          "state": [
-            "nested",
-            "nestedDialogOpen",
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', DialogPopupState>"
-          ],
+          "state": ["nested", "nestedDialogOpen", "open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', DialogPopupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2116,15 +1421,10 @@
           "kind": "part",
           "symbol": "DialogPortal",
           "from": "./portal/DialogPortal.js",
-          "props": [
-            "container",
-            "keepMounted"
-          ],
+          "props": ["container", "keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', DialogPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', DialogPortalState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2161,9 +1461,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'h2', DialogTitleState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'h2', DialogTitleState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2171,20 +1469,10 @@
           "kind": "part",
           "symbol": "DialogTrigger",
           "from": "./trigger/DialogTrigger.js",
-          "props": [
-            "handle",
-            "id",
-            "payload"
-          ],
+          "props": ["handle", "id", "payload"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', DialogTriggerState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled", "open"],
+          "inherits": ["BaseUIComponentProps<'button', DialogTriggerState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2194,15 +1482,8 @@
           "from": "./viewport/DialogViewport.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "nested",
-            "nestedDialogOpen",
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', DialogViewportState>"
-          ],
+          "state": ["nested", "nestedDialogOpen", "open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', DialogViewportState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -2216,17 +1497,10 @@
           "kind": "part",
           "symbol": "DrawerBackdrop",
           "from": "./backdrop/DrawerBackdrop.js",
-          "props": [
-            "forceRender"
-          ],
+          "props": ["forceRender"],
           "handlers": {},
-          "state": [
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', DrawerBackdropState>"
-          ],
+          "state": ["open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', DrawerBackdropState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2236,13 +1510,8 @@
           "from": "./close/DrawerClose.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "disabled"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', DrawerCloseState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled"],
+          "inherits": ["BaseUIComponentProps<'button', DrawerCloseState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2253,9 +1522,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', DrawerContentState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', DrawerContentState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2277,9 +1544,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'p', DrawerDescriptionState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'p', DrawerDescriptionState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2300,12 +1565,8 @@
           "from": "./indent/DrawerIndent.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "active"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', DrawerIndentState>"
-          ],
+          "state": ["active"],
+          "inherits": ["BaseUIComponentProps<'div', DrawerIndentState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2315,12 +1576,8 @@
           "from": "./indent-background/DrawerIndentBackground.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "active"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', DrawerIndentBackgroundState>"
-          ],
+          "state": ["active"],
+          "inherits": ["BaseUIComponentProps<'div', DrawerIndentBackgroundState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2328,27 +1585,13 @@
           "kind": "part",
           "symbol": "DrawerPopup",
           "from": "./popup/DrawerPopup.js",
-          "props": [
-            "finalFocus",
-            "initialFocus"
-          ],
+          "props": ["finalFocus", "initialFocus"],
           "handlers": {
             "finalFocus": 1,
             "initialFocus": 1
           },
-          "state": [
-            "expanded",
-            "nested",
-            "nestedDrawerOpen",
-            "nestedDrawerSwiping",
-            "open",
-            "swipeDirection",
-            "swiping",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', DrawerPopupState>"
-          ],
+          "state": ["expanded", "nested", "nestedDrawerOpen", "nestedDrawerSwiping", "open", "swipeDirection", "swiping", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', DrawerPopupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2356,15 +1599,10 @@
           "kind": "part",
           "symbol": "DrawerPortal",
           "from": "./portal/DrawerPortal.js",
-          "props": [
-            "container",
-            "keepMounted"
-          ],
+          "props": ["container", "keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', DrawerPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', DrawerPortalState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2372,9 +1610,7 @@
           "kind": "part",
           "symbol": "DrawerProvider",
           "from": "./provider/DrawerProvider.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {},
           "state": [],
           "inherits": [],
@@ -2418,20 +1654,10 @@
           "kind": "part",
           "symbol": "DrawerSwipeArea",
           "from": "./swipe-area/DrawerSwipeArea.js",
-          "props": [
-            "disabled",
-            "swipeDirection"
-          ],
+          "props": ["disabled", "swipeDirection"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "open",
-            "swipeDirection",
-            "swiping"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', DrawerSwipeAreaState>"
-          ],
+          "state": ["disabled", "open", "swipeDirection", "swiping"],
+          "inherits": ["BaseUIComponentProps<'div', DrawerSwipeAreaState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2442,9 +1668,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'h2', DrawerTitleState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'h2', DrawerTitleState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2452,20 +1676,10 @@
           "kind": "part",
           "symbol": "DrawerTrigger",
           "from": "./trigger/DrawerTrigger.js",
-          "props": [
-            "handle",
-            "id",
-            "payload"
-          ],
+          "props": ["handle", "id", "payload"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', DrawerTriggerState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled", "open"],
+          "inherits": ["BaseUIComponentProps<'button', DrawerTriggerState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2475,15 +1689,8 @@
           "from": "./viewport/DrawerViewport.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "nested",
-            "nestedDialogOpen",
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', DrawerViewportState>"
-          ],
+          "state": ["nested", "nestedDialogOpen", "open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', DrawerViewportState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2491,9 +1698,7 @@
           "kind": "part",
           "symbol": "DrawerVirtualKeyboardProvider",
           "from": "./virtual-keyboard-provider/DrawerVirtualKeyboardProvider.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {},
           "state": [],
           "inherits": [],
@@ -2510,24 +1715,12 @@
           "kind": "part",
           "symbol": "FieldControl",
           "from": "./control/FieldControl.js",
-          "props": [
-            "defaultValue",
-            "onValueChange"
-          ],
+          "props": ["defaultValue", "onValueChange"],
           "handlers": {
             "onValueChange": 2
           },
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'input', FieldControlState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'input', FieldControlState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2537,17 +1730,8 @@
           "from": "./description/FieldDescription.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'p', FieldDescriptionState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'p', FieldDescriptionState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2555,22 +1739,10 @@
           "kind": "part",
           "symbol": "FieldError",
           "from": "./error/FieldError.js",
-          "props": [
-            "match"
-          ],
+          "props": ["match"],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "touched",
-            "transitionStatus",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', FieldErrorState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "touched", "transitionStatus", "valid"],
+          "inherits": ["BaseUIComponentProps<'div', FieldErrorState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2578,21 +1750,10 @@
           "kind": "part",
           "symbol": "FieldItem",
           "from": "./item/FieldItem.js",
-          "props": [
-            "disabled"
-          ],
+          "props": ["disabled"],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', FieldItemState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'div', FieldItemState>"],
           "disposition": "sealed-away",
           "why": "`Item` is the multi-control-per-field grouping we have no surface for. Ends when a field needs to own more than one control. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -2600,21 +1761,10 @@
           "kind": "part",
           "symbol": "FieldLabel",
           "from": "./label/FieldLabel.js",
-          "props": [
-            "nativeLabel"
-          ],
+          "props": ["nativeLabel"],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'label', FieldLabelState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'label', FieldLabelState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2622,31 +1772,12 @@
           "kind": "part",
           "symbol": "FieldRoot",
           "from": "./root/FieldRoot.js",
-          "props": [
-            "actionsRef",
-            "dirty",
-            "disabled",
-            "invalid",
-            "name",
-            "touched",
-            "validate",
-            "validationDebounceTime",
-            "validationMode"
-          ],
+          "props": ["actionsRef", "dirty", "disabled", "invalid", "name", "touched", "validate", "validationDebounceTime", "validationMode"],
           "handlers": {
             "validate": 2
           },
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', FieldRootState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'div', FieldRootState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2654,20 +1785,11 @@
           "kind": "part",
           "symbol": "FieldValidity",
           "from": "./validity/FieldValidity.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {
             "children": 1
           },
-          "state": [
-            "error",
-            "errors",
-            "initialValue",
-            "transitionStatus",
-            "validity",
-            "value"
-          ],
+          "state": ["error", "errors", "initialValue", "transitionStatus", "validity", "value"],
           "inherits": [],
           "disposition": "exposed",
           "why": ""
@@ -2695,12 +1817,8 @@
           "from": "./legend/FieldsetLegend.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "disabled"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', FieldsetLegendState>"
-          ],
+          "state": ["disabled"],
+          "inherits": ["BaseUIComponentProps<'div', FieldsetLegendState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2710,12 +1828,8 @@
           "from": "./root/FieldsetRoot.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "disabled"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'fieldset', FieldsetRootState>"
-          ],
+          "state": ["disabled"],
+          "inherits": ["BaseUIComponentProps<'fieldset', FieldsetRootState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -2729,19 +1843,12 @@
           "kind": "part",
           "symbol": "Form",
           "from": "./Form.js",
-          "props": [
-            "actionsRef",
-            "errors",
-            "onFormSubmit",
-            "validationMode"
-          ],
+          "props": ["actionsRef", "errors", "onFormSubmit", "validationMode"],
           "handlers": {
             "onFormSubmit": 2
           },
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'form', FormState, React.ComponentPropsWithRef<'form'>>"
-          ],
+          "inherits": ["BaseUIComponentProps<'form', FormState, React.ComponentPropsWithRef<'form'>>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         }
@@ -2755,18 +1862,12 @@
           "kind": "part",
           "symbol": "Input",
           "from": "./Input.js",
-          "props": [
-            "defaultValue",
-            "onValueChange",
-            "value"
-          ],
+          "props": ["defaultValue", "onValueChange", "value"],
           "handlers": {
             "onValueChange": 2
           },
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'input', InputState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'input', InputState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -2782,15 +1883,8 @@
           "from": "./arrow/MenuArrow.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "open",
-            "side",
-            "uncentered"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuArrowState>"
-          ],
+          "state": ["align", "open", "side", "uncentered"],
+          "inherits": ["BaseUIComponentProps<'div', MenuArrowState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2800,13 +1894,8 @@
           "from": "./backdrop/MenuBackdrop.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuBackdropState>"
-          ],
+          "state": ["open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', MenuBackdropState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2814,28 +1903,12 @@
           "kind": "part",
           "symbol": "MenuCheckboxItem",
           "from": "./checkbox-item/MenuCheckboxItem.js",
-          "props": [
-            "checked",
-            "closeOnClick",
-            "defaultChecked",
-            "disabled",
-            "id",
-            "label",
-            "onCheckedChange",
-            "onClick"
-          ],
+          "props": ["checked", "closeOnClick", "defaultChecked", "disabled", "id", "label", "onCheckedChange", "onClick"],
           "handlers": {
             "onCheckedChange": 2
           },
-          "state": [
-            "checked",
-            "disabled",
-            "highlighted"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuCheckboxItemState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["checked", "disabled", "highlighted"],
+          "inherits": ["BaseUIComponentProps<'div', MenuCheckboxItemState>", "NonNativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2843,19 +1916,10 @@
           "kind": "part",
           "symbol": "MenuCheckboxItemIndicator",
           "from": "./checkbox-item-indicator/MenuCheckboxItemIndicator.js",
-          "props": [
-            "keepMounted"
-          ],
+          "props": ["keepMounted"],
           "handlers": {},
-          "state": [
-            "checked",
-            "disabled",
-            "highlighted",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', MenuCheckboxItemIndicatorState>"
-          ],
+          "state": ["checked", "disabled", "highlighted", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'span', MenuCheckboxItemIndicatorState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2874,14 +1938,10 @@
           "kind": "part",
           "symbol": "MenuGroup",
           "from": "./group/MenuGroup.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuGroupState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', MenuGroupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2892,9 +1952,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuGroupLabelState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', MenuGroupLabelState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2913,22 +1971,10 @@
           "kind": "part",
           "symbol": "MenuItem",
           "from": "./item/MenuItem.js",
-          "props": [
-            "closeOnClick",
-            "disabled",
-            "id",
-            "label",
-            "onClick"
-          ],
+          "props": ["closeOnClick", "disabled", "id", "label", "onClick"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "highlighted"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuItemState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["disabled", "highlighted"],
+          "inherits": ["BaseUIComponentProps<'div', MenuItemState>", "NonNativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2936,18 +1982,10 @@
           "kind": "part",
           "symbol": "MenuLinkItem",
           "from": "./link-item/MenuLinkItem.js",
-          "props": [
-            "closeOnClick",
-            "id",
-            "label"
-          ],
+          "props": ["closeOnClick", "id", "label"],
           "handlers": {},
-          "state": [
-            "highlighted"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'a', MenuLinkItemState, React.ComponentPropsWithRef<'a'>>"
-          ],
+          "state": ["highlighted"],
+          "inherits": ["BaseUIComponentProps<'a', MenuLinkItemState, React.ComponentPropsWithRef<'a'>>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2955,25 +1993,12 @@
           "kind": "part",
           "symbol": "MenuPopup",
           "from": "./popup/MenuPopup.js",
-          "props": [
-            "children",
-            "finalFocus",
-            "id"
-          ],
+          "props": ["children", "finalFocus", "id"],
           "handlers": {
             "finalFocus": 1
           },
-          "state": [
-            "align",
-            "instant",
-            "nested",
-            "open",
-            "side",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuPopupState>"
-          ],
+          "state": ["align", "instant", "nested", "open", "side", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', MenuPopupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -2981,15 +2006,10 @@
           "kind": "part",
           "symbol": "MenuPortal",
           "from": "./portal/MenuPortal.js",
-          "props": [
-            "container",
-            "keepMounted"
-          ],
+          "props": ["container", "keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', MenuPortalState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3014,17 +2034,8 @@
           "handlers": {
             "anchor": 0
           },
-          "state": [
-            "align",
-            "anchorHidden",
-            "instant",
-            "nested",
-            "open",
-            "side"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuPositionerState>"
-          ],
+          "state": ["align", "anchorHidden", "instant", "nested", "open", "side"],
+          "inherits": ["BaseUIComponentProps<'div', MenuPositionerState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3032,22 +2043,12 @@
           "kind": "part",
           "symbol": "MenuRadioGroup",
           "from": "./radio-group/MenuRadioGroup.js",
-          "props": [
-            "children",
-            "defaultValue",
-            "disabled",
-            "onValueChange",
-            "value"
-          ],
+          "props": ["children", "defaultValue", "disabled", "onValueChange", "value"],
           "handlers": {
             "onValueChange": 2
           },
-          "state": [
-            "disabled"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuRadioGroupState>"
-          ],
+          "state": ["disabled"],
+          "inherits": ["BaseUIComponentProps<'div', MenuRadioGroupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3055,24 +2056,10 @@
           "kind": "part",
           "symbol": "MenuRadioItem",
           "from": "./radio-item/MenuRadioItem.js",
-          "props": [
-            "closeOnClick",
-            "disabled",
-            "id",
-            "label",
-            "onClick",
-            "value"
-          ],
+          "props": ["closeOnClick", "disabled", "id", "label", "onClick", "value"],
           "handlers": {},
-          "state": [
-            "checked",
-            "disabled",
-            "highlighted"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuRadioItemState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["checked", "disabled", "highlighted"],
+          "inherits": ["BaseUIComponentProps<'div', MenuRadioItemState>", "NonNativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3080,19 +2067,10 @@
           "kind": "part",
           "symbol": "MenuRadioItemIndicator",
           "from": "./radio-item-indicator/MenuRadioItemIndicator.js",
-          "props": [
-            "keepMounted"
-          ],
+          "props": ["keepMounted"],
           "handlers": {},
-          "state": [
-            "checked",
-            "disabled",
-            "highlighted",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', MenuRadioItemIndicatorState>"
-          ],
+          "state": ["checked", "disabled", "highlighted", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'span', MenuRadioItemIndicatorState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3130,16 +2108,10 @@
           "kind": "part",
           "symbol": "Separator",
           "from": "../separator/Separator.js",
-          "props": [
-            "orientation"
-          ],
+          "props": ["orientation"],
           "handlers": {},
-          "state": [
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SeparatorState>"
-          ],
+          "state": ["orientation"],
+          "inherits": ["BaseUIComponentProps<'div', SeparatorState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3173,25 +2145,10 @@
           "kind": "part",
           "symbol": "MenuSubmenuTrigger",
           "from": "./submenu-trigger/MenuSubmenuTrigger.js",
-          "props": [
-            "closeDelay",
-            "delay",
-            "disabled",
-            "id",
-            "label",
-            "onClick",
-            "openOnHover"
-          ],
+          "props": ["closeDelay", "delay", "disabled", "id", "label", "onClick", "openOnHover"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "highlighted",
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuSubmenuTriggerState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["disabled", "highlighted", "open"],
+          "inherits": ["BaseUIComponentProps<'div', MenuSubmenuTriggerState>", "NonNativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3199,24 +2156,10 @@
           "kind": "part",
           "symbol": "MenuTrigger",
           "from": "./trigger/MenuTrigger.js",
-          "props": [
-            "children",
-            "closeDelay",
-            "delay",
-            "disabled",
-            "handle",
-            "openOnHover",
-            "payload"
-          ],
+          "props": ["children", "closeDelay", "delay", "disabled", "handle", "openOnHover", "payload"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', MenuTriggerState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled", "open"],
+          "inherits": ["BaseUIComponentProps<'button', MenuTriggerState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3224,18 +2167,10 @@
           "kind": "part",
           "symbol": "MenuViewport",
           "from": "./viewport/MenuViewport.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {},
-          "state": [
-            "activationDirection",
-            "instant",
-            "transitioning"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenuViewportState>"
-          ],
+          "state": ["activationDirection", "instant", "transitioning"],
+          "inherits": ["BaseUIComponentProps<'div', MenuViewportState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -3249,21 +2184,10 @@
           "kind": "part",
           "symbol": "Menubar",
           "from": "./Menubar.js",
-          "props": [
-            "disabled",
-            "loopFocus",
-            "modal",
-            "orientation"
-          ],
+          "props": ["disabled", "loopFocus", "modal", "orientation"],
           "handlers": {},
-          "state": [
-            "hasSubmenuOpen",
-            "modal",
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', MenubarState>"
-          ],
+          "state": ["hasSubmenuOpen", "modal", "orientation"],
+          "inherits": ["BaseUIComponentProps<'div', MenubarState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         }
@@ -3280,9 +2204,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', MeterIndicatorState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', MeterIndicatorState>"],
           "disposition": "sealed-away",
           "why": "THE §10 hybrid: `MeterIndicator` hardcodes `width:%` (linear only), so the arc/bipolar geometry is hand-drawn SVG riding as `Meter.Root`'s children. Using the native pair would forbid two of the three kinds. Ends if Base UI's indicator stops hardcoding the linear geometry. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -3293,9 +2215,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'span', MeterLabelState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'span', MeterLabelState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3303,22 +2223,12 @@
           "kind": "part",
           "symbol": "MeterRoot",
           "from": "./root/MeterRoot.js",
-          "props": [
-            "'aria-valuetext'",
-            "format",
-            "getAriaValueText",
-            "locale",
-            "max",
-            "min",
-            "value"
-          ],
+          "props": ["'aria-valuetext'", "format", "getAriaValueText", "locale", "max", "min", "value"],
           "handlers": {
             "getAriaValueText": 2
           },
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', MeterRootState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', MeterRootState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3329,9 +2239,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', MeterTrackState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', MeterTrackState>"],
           "disposition": "sealed-away",
           "why": "THE §10 hybrid: `MeterIndicator` hardcodes `width:%` (linear only), so the arc/bipolar geometry is hand-drawn SVG riding as `Meter.Root`'s children. Using the native pair would forbid two of the three kinds. Ends if Base UI's indicator stops hardcoding the linear geometry. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -3339,16 +2247,12 @@
           "kind": "part",
           "symbol": "MeterValue",
           "from": "./value/MeterValue.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {
             "children": 2
           },
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'span', MeterValueState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'span', MeterValueState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -3364,15 +2268,8 @@
           "from": "./arrow/NavigationMenuArrow.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "open",
-            "side",
-            "uncentered"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', NavigationMenuArrowState>"
-          ],
+          "state": ["align", "open", "side", "uncentered"],
+          "inherits": ["BaseUIComponentProps<'div', NavigationMenuArrowState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3382,13 +2279,8 @@
           "from": "./backdrop/NavigationMenuBackdrop.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', NavigationMenuBackdropState>"
-          ],
+          "state": ["open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', NavigationMenuBackdropState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3396,18 +2288,10 @@
           "kind": "part",
           "symbol": "NavigationMenuContent",
           "from": "./content/NavigationMenuContent.js",
-          "props": [
-            "keepMounted"
-          ],
+          "props": ["keepMounted"],
           "handlers": {},
-          "state": [
-            "activationDirection",
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', NavigationMenuContentState>"
-          ],
+          "state": ["activationDirection", "open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', NavigationMenuContentState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3417,12 +2301,8 @@
           "from": "./icon/NavigationMenuIcon.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', NavigationMenuIconState>"
-          ],
+          "state": ["open"],
+          "inherits": ["BaseUIComponentProps<'span', NavigationMenuIconState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3430,14 +2310,10 @@
           "kind": "part",
           "symbol": "NavigationMenuItem",
           "from": "./item/NavigationMenuItem.js",
-          "props": [
-            "value"
-          ],
+          "props": ["value"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'li', NavigationMenuItemState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'li', NavigationMenuItemState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3445,17 +2321,10 @@
           "kind": "part",
           "symbol": "NavigationMenuLink",
           "from": "./link/NavigationMenuLink.js",
-          "props": [
-            "active",
-            "closeOnClick"
-          ],
+          "props": ["active", "closeOnClick"],
           "handlers": {},
-          "state": [
-            "active"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'a', NavigationMenuLinkState, React.ComponentPropsWithRef<'a'>>"
-          ],
+          "state": ["active"],
+          "inherits": ["BaseUIComponentProps<'a', NavigationMenuLinkState, React.ComponentPropsWithRef<'a'>>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3465,12 +2334,8 @@
           "from": "./list/NavigationMenuList.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'ul', NavigationMenuListState>"
-          ],
+          "state": ["open"],
+          "inherits": ["BaseUIComponentProps<'ul', NavigationMenuListState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3480,16 +2345,8 @@
           "from": "./popup/NavigationMenuPopup.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "anchorHidden",
-            "open",
-            "side",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'nav', NavigationMenuPopupState>"
-          ],
+          "state": ["align", "anchorHidden", "open", "side", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'nav', NavigationMenuPopupState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3497,15 +2354,10 @@
           "kind": "part",
           "symbol": "NavigationMenuPortal",
           "from": "./portal/NavigationMenuPortal.js",
-          "props": [
-            "container",
-            "keepMounted"
-          ],
+          "props": ["container", "keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', NavigationMenuPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', NavigationMenuPortalState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3530,16 +2382,8 @@
           "handlers": {
             "anchor": 0
           },
-          "state": [
-            "align",
-            "anchorHidden",
-            "instant",
-            "open",
-            "side"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', NavigationMenuPositionerState>"
-          ],
+          "state": ["align", "anchorHidden", "instant", "open", "side"],
+          "inherits": ["BaseUIComponentProps<'div', NavigationMenuPositionerState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3547,27 +2391,13 @@
           "kind": "part",
           "symbol": "NavigationMenuRoot",
           "from": "./root/NavigationMenuRoot.js",
-          "props": [
-            "actionsRef",
-            "closeDelay",
-            "defaultValue",
-            "delay",
-            "onOpenChangeComplete",
-            "onValueChange",
-            "orientation",
-            "value"
-          ],
+          "props": ["actionsRef", "closeDelay", "defaultValue", "delay", "onOpenChangeComplete", "onValueChange", "orientation", "value"],
           "handlers": {
             "onOpenChangeComplete": 1,
             "onValueChange": 2
           },
-          "state": [
-            "nested",
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'nav', NavigationMenuRootState>"
-          ],
+          "state": ["nested", "open"],
+          "inherits": ["BaseUIComponentProps<'nav', NavigationMenuRootState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3577,13 +2407,8 @@
           "from": "./trigger/NavigationMenuTrigger.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', NavigationMenuTriggerState>",
-            "NativeButtonProps"
-          ],
+          "state": ["open"],
+          "inherits": ["BaseUIComponentProps<'button', NavigationMenuTriggerState>", "NativeButtonProps"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3594,9 +2419,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', NavigationMenuViewportState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', NavigationMenuViewportState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         }
@@ -3612,23 +2435,8 @@
           "from": "./decrement/NumberFieldDecrement.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "inputValue",
-            "readOnly",
-            "required",
-            "scrubbing",
-            "touched",
-            "valid",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', NumberFieldDecrementState>",
-            "NativeButtonProps"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "inputValue", "readOnly", "required", "scrubbing", "touched", "valid", "value"],
+          "inherits": ["BaseUIComponentProps<'button', NumberFieldDecrementState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3638,22 +2446,8 @@
           "from": "./group/NumberFieldGroup.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "inputValue",
-            "readOnly",
-            "required",
-            "scrubbing",
-            "touched",
-            "valid",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', NumberFieldGroupState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "inputValue", "readOnly", "required", "scrubbing", "touched", "valid", "value"],
+          "inherits": ["BaseUIComponentProps<'div', NumberFieldGroupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3663,23 +2457,8 @@
           "from": "./increment/NumberFieldIncrement.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "inputValue",
-            "readOnly",
-            "required",
-            "scrubbing",
-            "touched",
-            "valid",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', NumberFieldIncrementState>",
-            "NativeButtonProps"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "inputValue", "readOnly", "required", "scrubbing", "touched", "valid", "value"],
+          "inherits": ["BaseUIComponentProps<'button', NumberFieldIncrementState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3687,26 +2466,10 @@
           "kind": "part",
           "symbol": "NumberFieldInput",
           "from": "./input/NumberFieldInput.js",
-          "props": [
-            "'aria-roledescription'"
-          ],
+          "props": ["'aria-roledescription'"],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "inputValue",
-            "readOnly",
-            "required",
-            "scrubbing",
-            "touched",
-            "valid",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'input', NumberFieldInputState, React.ComponentPropsWithRef<'input'>>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "inputValue", "readOnly", "required", "scrubbing", "touched", "valid", "value"],
+          "inherits": ["BaseUIComponentProps<'input', NumberFieldInputState, React.ComponentPropsWithRef<'input'>>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3741,22 +2504,8 @@
             "onValueChange": 2,
             "onValueCommitted": 2
           },
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "inputValue",
-            "readOnly",
-            "required",
-            "scrubbing",
-            "touched",
-            "valid",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', NumberFieldRootState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "inputValue", "readOnly", "required", "scrubbing", "touched", "valid", "value"],
+          "inherits": ["BaseUIComponentProps<'div', NumberFieldRootState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3764,28 +2513,10 @@
           "kind": "part",
           "symbol": "NumberFieldScrubArea",
           "from": "./scrub-area/NumberFieldScrubArea.js",
-          "props": [
-            "direction",
-            "pixelSensitivity",
-            "teleportDistance"
-          ],
+          "props": ["direction", "pixelSensitivity", "teleportDistance"],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "inputValue",
-            "readOnly",
-            "required",
-            "scrubbing",
-            "touched",
-            "valid",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', NumberFieldScrubAreaState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "inputValue", "readOnly", "required", "scrubbing", "touched", "valid", "value"],
+          "inherits": ["BaseUIComponentProps<'span', NumberFieldScrubAreaState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3795,22 +2526,8 @@
           "from": "./scrub-area-cursor/NumberFieldScrubAreaCursor.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "inputValue",
-            "readOnly",
-            "required",
-            "scrubbing",
-            "touched",
-            "valid",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', NumberFieldScrubAreaCursorState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "inputValue", "readOnly", "required", "scrubbing", "touched", "valid", "value"],
+          "inherits": ["BaseUIComponentProps<'span', NumberFieldScrubAreaCursorState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -3826,23 +2543,8 @@
           "from": "./input/OTPFieldInput.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "complete",
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "index",
-            "length",
-            "readOnly",
-            "required",
-            "touched",
-            "valid",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'input', OTPFieldInputState, React.ComponentPropsWithRef<'input'>>"
-          ],
+          "state": ["complete", "dirty", "disabled", "filled", "focused", "index", "length", "readOnly", "required", "touched", "valid", "value"],
+          "inherits": ["BaseUIComponentProps<'input', OTPFieldInputState, React.ComponentPropsWithRef<'input'>>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3876,22 +2578,8 @@
             "onValueComplete": 2,
             "onValueInvalid": 2
           },
-          "state": [
-            "complete",
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "length",
-            "readOnly",
-            "required",
-            "touched",
-            "valid",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', OTPFieldRootState>"
-          ],
+          "state": ["complete", "dirty", "disabled", "filled", "focused", "length", "readOnly", "required", "touched", "valid", "value"],
+          "inherits": ["BaseUIComponentProps<'div', OTPFieldRootState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -3899,16 +2587,10 @@
           "kind": "part",
           "symbol": "Separator",
           "from": "../separator/Separator.js",
-          "props": [
-            "orientation"
-          ],
+          "props": ["orientation"],
           "handlers": {},
-          "state": [
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SeparatorState>"
-          ],
+          "state": ["orientation"],
+          "inherits": ["BaseUIComponentProps<'div', SeparatorState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         }
@@ -3924,15 +2606,8 @@
           "from": "./arrow/PopoverArrow.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "open",
-            "side",
-            "uncentered"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', PopoverArrowState>"
-          ],
+          "state": ["align", "open", "side", "uncentered"],
+          "inherits": ["BaseUIComponentProps<'div', PopoverArrowState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3942,13 +2617,8 @@
           "from": "./backdrop/PopoverBackdrop.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', PopoverBackdropState>"
-          ],
+          "state": ["open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', PopoverBackdropState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3959,10 +2629,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'button', PopoverCloseState>",
-            "NativeButtonProps"
-          ],
+          "inherits": ["BaseUIComponentProps<'button', PopoverCloseState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -3984,9 +2651,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'p', PopoverDescriptionState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'p', PopoverDescriptionState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4005,24 +2670,13 @@
           "kind": "part",
           "symbol": "PopoverPopup",
           "from": "./popup/PopoverPopup.js",
-          "props": [
-            "finalFocus",
-            "initialFocus"
-          ],
+          "props": ["finalFocus", "initialFocus"],
           "handlers": {
             "finalFocus": 1,
             "initialFocus": 1
           },
-          "state": [
-            "align",
-            "instant",
-            "open",
-            "side",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', PopoverPopupState>"
-          ],
+          "state": ["align", "instant", "open", "side", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', PopoverPopupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4030,15 +2684,10 @@
           "kind": "part",
           "symbol": "PopoverPortal",
           "from": "./portal/PopoverPortal.js",
-          "props": [
-            "container",
-            "keepMounted"
-          ],
+          "props": ["container", "keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', PopoverPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', PopoverPortalState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4063,16 +2712,8 @@
           "handlers": {
             "anchor": 0
           },
-          "state": [
-            "align",
-            "anchorHidden",
-            "instant",
-            "open",
-            "side"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', PopoverPositionerState>"
-          ],
+          "state": ["align", "anchorHidden", "instant", "open", "side"],
+          "inherits": ["BaseUIComponentProps<'div', PopoverPositionerState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4108,9 +2749,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', PopoverTitleState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6', PopoverTitleState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4118,24 +2757,10 @@
           "kind": "part",
           "symbol": "PopoverTrigger",
           "from": "./trigger/PopoverTrigger.js",
-          "props": [
-            "closeDelay",
-            "delay",
-            "handle",
-            "id",
-            "nativeButton",
-            "openOnHover",
-            "payload"
-          ],
+          "props": ["closeDelay", "delay", "handle", "id", "nativeButton", "openOnHover", "payload"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', PopoverTriggerState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled", "open"],
+          "inherits": ["BaseUIComponentProps<'button', PopoverTriggerState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4143,18 +2768,10 @@
           "kind": "part",
           "symbol": "PopoverViewport",
           "from": "./viewport/PopoverViewport.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {},
-          "state": [
-            "activationDirection",
-            "instant",
-            "transitioning"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', PopoverViewportState>"
-          ],
+          "state": ["activationDirection", "instant", "transitioning"],
+          "inherits": ["BaseUIComponentProps<'div', PopoverViewportState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -4170,15 +2787,8 @@
           "from": "./arrow/PreviewCardArrow.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "open",
-            "side",
-            "uncentered"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', PreviewCardArrowState>"
-          ],
+          "state": ["align", "open", "side", "uncentered"],
+          "inherits": ["BaseUIComponentProps<'div', PreviewCardArrowState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -4188,13 +2798,8 @@
           "from": "./backdrop/PreviewCardBackdrop.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', PreviewCardBackdropState>"
-          ],
+          "state": ["open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', PreviewCardBackdropState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -4226,16 +2831,8 @@
           "from": "./popup/PreviewCardPopup.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "instant",
-            "open",
-            "side",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', PreviewCardPopupState>"
-          ],
+          "state": ["align", "instant", "open", "side", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', PreviewCardPopupState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -4243,15 +2840,10 @@
           "kind": "part",
           "symbol": "PreviewCardPortal",
           "from": "./portal/PreviewCardPortal.js",
-          "props": [
-            "container",
-            "keepMounted"
-          ],
+          "props": ["container", "keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', PreviewCardPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', PreviewCardPortalState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -4276,16 +2868,8 @@
           "handlers": {
             "anchor": 0
           },
-          "state": [
-            "align",
-            "anchorHidden",
-            "instant",
-            "open",
-            "side"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', PreviewCardPositionerState>"
-          ],
+          "state": ["align", "anchorHidden", "instant", "open", "side"],
+          "inherits": ["BaseUIComponentProps<'div', PreviewCardPositionerState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -4293,17 +2877,7 @@
           "kind": "part",
           "symbol": "PreviewCardRoot",
           "from": "./root/PreviewCardRoot.js",
-          "props": [
-            "actionsRef",
-            "children",
-            "defaultOpen",
-            "defaultTriggerId",
-            "handle",
-            "onOpenChange",
-            "onOpenChangeComplete",
-            "open",
-            "triggerId"
-          ],
+          "props": ["actionsRef", "children", "defaultOpen", "defaultTriggerId", "handle", "onOpenChange", "onOpenChangeComplete", "open", "triggerId"],
           "handlers": {
             "onOpenChange": 2,
             "onOpenChangeComplete": 1
@@ -4317,19 +2891,10 @@
           "kind": "part",
           "symbol": "PreviewCardTrigger",
           "from": "./trigger/PreviewCardTrigger.js",
-          "props": [
-            "closeDelay",
-            "delay",
-            "handle",
-            "payload"
-          ],
+          "props": ["closeDelay", "delay", "handle", "payload"],
           "handlers": {},
-          "state": [
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'a', PreviewCardTriggerState, React.ComponentPropsWithRef<'a'>>"
-          ],
+          "state": ["open"],
+          "inherits": ["BaseUIComponentProps<'a', PreviewCardTriggerState, React.ComponentPropsWithRef<'a'>>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         },
@@ -4337,18 +2902,10 @@
           "kind": "part",
           "symbol": "PreviewCardViewport",
           "from": "./viewport/PreviewCardViewport.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {},
-          "state": [
-            "activationDirection",
-            "instant",
-            "transitioning"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', PreviewCardViewportState>"
-          ],
+          "state": ["activationDirection", "instant", "transitioning"],
+          "inherits": ["BaseUIComponentProps<'div', PreviewCardViewportState>"],
           "disposition": "n-a",
           "why": "no @orb/ui seal wraps this component — there is no seal for the part to appear in. Ends when a seal is added: regenerate and the parts arrive `unresolved` for adjudication."
         }
@@ -4364,12 +2921,8 @@
           "from": "./indicator/ProgressIndicator.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "status"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ProgressIndicatorState>"
-          ],
+          "state": ["status"],
+          "inherits": ["BaseUIComponentProps<'div', ProgressIndicatorState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4379,12 +2932,8 @@
           "from": "./label/ProgressLabel.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "status"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', ProgressLabelState>"
-          ],
+          "state": ["status"],
+          "inherits": ["BaseUIComponentProps<'span', ProgressLabelState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4392,24 +2941,12 @@
           "kind": "part",
           "symbol": "ProgressRoot",
           "from": "./root/ProgressRoot.js",
-          "props": [
-            "'aria-valuetext'",
-            "format",
-            "getAriaValueText",
-            "locale",
-            "max",
-            "min",
-            "value"
-          ],
+          "props": ["'aria-valuetext'", "format", "getAriaValueText", "locale", "max", "min", "value"],
           "handlers": {
             "getAriaValueText": 2
           },
-          "state": [
-            "status"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ProgressRootState>"
-          ],
+          "state": ["status"],
+          "inherits": ["BaseUIComponentProps<'div', ProgressRootState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4430,12 +2967,8 @@
           "from": "./track/ProgressTrack.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "status"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ProgressTrackState>"
-          ],
+          "state": ["status"],
+          "inherits": ["BaseUIComponentProps<'div', ProgressTrackState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4443,18 +2976,12 @@
           "kind": "part",
           "symbol": "ProgressValue",
           "from": "./value/ProgressValue.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {
             "children": 2
           },
-          "state": [
-            "status"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', ProgressValueState>"
-          ],
+          "state": ["status"],
+          "inherits": ["BaseUIComponentProps<'span', ProgressValueState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -4468,25 +2995,10 @@
           "kind": "part",
           "symbol": "RadioIndicator",
           "from": "./indicator/RadioIndicator.js",
-          "props": [
-            "keepMounted"
-          ],
+          "props": ["keepMounted"],
           "handlers": {},
-          "state": [
-            "checked",
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "readOnly",
-            "required",
-            "touched",
-            "transitionStatus",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', RadioIndicatorState>"
-          ],
+          "state": ["checked", "dirty", "disabled", "filled", "focused", "readOnly", "required", "touched", "transitionStatus", "valid"],
+          "inherits": ["BaseUIComponentProps<'span', RadioIndicatorState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4494,29 +3006,10 @@
           "kind": "part",
           "symbol": "RadioRoot",
           "from": "./root/RadioRoot.js",
-          "props": [
-            "disabled",
-            "inputRef",
-            "readOnly",
-            "required",
-            "value"
-          ],
+          "props": ["disabled", "inputRef", "readOnly", "required", "value"],
           "handlers": {},
-          "state": [
-            "checked",
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "readOnly",
-            "required",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', RadioRootState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["checked", "dirty", "disabled", "filled", "focused", "readOnly", "required", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'span', RadioRootState>", "NonNativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         }
@@ -4530,33 +3023,12 @@
           "kind": "part",
           "symbol": "RadioGroup",
           "from": "./RadioGroup.js",
-          "props": [
-            "defaultValue",
-            "disabled",
-            "form",
-            "inputRef",
-            "name",
-            "onValueChange",
-            "readOnly",
-            "required",
-            "value"
-          ],
+          "props": ["defaultValue", "disabled", "form", "inputRef", "name", "onValueChange", "readOnly", "required", "value"],
           "handlers": {
             "onValueChange": 2
           },
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "readOnly",
-            "required",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', RadioGroupState>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "readOnly", "required", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'div', RadioGroupState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -4572,19 +3044,8 @@
           "from": "./content/ScrollAreaContent.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "cornerHidden",
-            "hasOverflowX",
-            "hasOverflowY",
-            "overflowXEnd",
-            "overflowXStart",
-            "overflowYEnd",
-            "overflowYStart",
-            "scrolling"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ScrollAreaContentState>"
-          ],
+          "state": ["cornerHidden", "hasOverflowX", "hasOverflowY", "overflowXEnd", "overflowXStart", "overflowYEnd", "overflowYStart", "scrolling"],
+          "inherits": ["BaseUIComponentProps<'div', ScrollAreaContentState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4595,9 +3056,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ScrollAreaCornerState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ScrollAreaCornerState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4605,23 +3064,10 @@
           "kind": "part",
           "symbol": "ScrollAreaRoot",
           "from": "./root/ScrollAreaRoot.js",
-          "props": [
-            "overflowEdgeThreshold"
-          ],
+          "props": ["overflowEdgeThreshold"],
           "handlers": {},
-          "state": [
-            "cornerHidden",
-            "hasOverflowX",
-            "hasOverflowY",
-            "overflowXEnd",
-            "overflowXStart",
-            "overflowYEnd",
-            "overflowYStart",
-            "scrolling"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ScrollAreaRootState>"
-          ],
+          "state": ["cornerHidden", "hasOverflowX", "hasOverflowY", "overflowXEnd", "overflowXStart", "overflowYEnd", "overflowYStart", "scrolling"],
+          "inherits": ["BaseUIComponentProps<'div', ScrollAreaRootState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4629,10 +3075,7 @@
           "kind": "part",
           "symbol": "ScrollAreaScrollbar",
           "from": "./scrollbar/ScrollAreaScrollbar.js",
-          "props": [
-            "keepMounted",
-            "orientation"
-          ],
+          "props": ["keepMounted", "orientation"],
           "handlers": {},
           "state": [
             "cornerHidden",
@@ -4646,9 +3089,7 @@
             "overflowYStart",
             "scrolling"
           ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ScrollAreaScrollbarState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ScrollAreaScrollbarState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4658,13 +3099,8 @@
           "from": "./thumb/ScrollAreaThumb.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "orientation",
-            "scrolling"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ScrollAreaThumbState>"
-          ],
+          "state": ["orientation", "scrolling"],
+          "inherits": ["BaseUIComponentProps<'div', ScrollAreaThumbState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4674,19 +3110,8 @@
           "from": "./viewport/ScrollAreaViewport.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "cornerHidden",
-            "hasOverflowX",
-            "hasOverflowY",
-            "overflowXEnd",
-            "overflowXStart",
-            "overflowYEnd",
-            "overflowYStart",
-            "scrolling"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ScrollAreaViewportState>"
-          ],
+          "state": ["cornerHidden", "hasOverflowX", "hasOverflowY", "overflowXEnd", "overflowXStart", "overflowYEnd", "overflowYStart", "scrolling"],
+          "inherits": ["BaseUIComponentProps<'div', ScrollAreaViewportState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -4702,15 +3127,8 @@
           "from": "./arrow/SelectArrow.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "open",
-            "side",
-            "uncentered"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectArrowState>"
-          ],
+          "state": ["align", "open", "side", "uncentered"],
+          "inherits": ["BaseUIComponentProps<'div', SelectArrowState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4720,13 +3138,8 @@
           "from": "./backdrop/SelectBackdrop.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectBackdropState>"
-          ],
+          "state": ["open", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', SelectBackdropState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4737,9 +3150,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectGroupState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SelectGroupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4750,9 +3161,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectGroupLabelState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SelectGroupLabelState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4762,12 +3171,8 @@
           "from": "./icon/SelectIcon.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', SelectIconState>"
-          ],
+          "state": ["open"],
+          "inherits": ["BaseUIComponentProps<'span', SelectIconState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4775,22 +3180,10 @@
           "kind": "part",
           "symbol": "SelectItem",
           "from": "./item/SelectItem.js",
-          "props": [
-            "children",
-            "disabled",
-            "label",
-            "value"
-          ],
+          "props": ["children", "disabled", "label", "value"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "highlighted",
-            "selected"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectItemState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["disabled", "highlighted", "selected"],
+          "inherits": ["BaseUIComponentProps<'div', SelectItemState>", "NonNativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4798,18 +3191,10 @@
           "kind": "part",
           "symbol": "SelectItemIndicator",
           "from": "./item-indicator/SelectItemIndicator.js",
-          "props": [
-            "children",
-            "keepMounted"
-          ],
+          "props": ["children", "keepMounted"],
           "handlers": {},
-          "state": [
-            "selected",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', SelectItemIndicatorState>"
-          ],
+          "state": ["selected", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'span', SelectItemIndicatorState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4820,9 +3205,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectItemTextState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SelectItemTextState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4832,17 +3215,8 @@
           "from": "./label/SelectLabel.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectLabel.State>"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'div', SelectLabel.State>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4853,9 +3227,7 @@
           "props": [],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectListState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SelectListState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4863,22 +3235,12 @@
           "kind": "part",
           "symbol": "SelectPopup",
           "from": "./popup/SelectPopup.js",
-          "props": [
-            "children",
-            "finalFocus"
-          ],
+          "props": ["children", "finalFocus"],
           "handlers": {
             "finalFocus": 1
           },
-          "state": [
-            "align",
-            "open",
-            "side",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectPopupState>"
-          ],
+          "state": ["align", "open", "side", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', SelectPopupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4886,14 +3248,10 @@
           "kind": "part",
           "symbol": "SelectPortal",
           "from": "./portal/SelectPortal.js",
-          "props": [
-            "container"
-          ],
+          "props": ["container"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SelectPortalState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4919,15 +3277,8 @@
           "handlers": {
             "anchor": 0
           },
-          "state": [
-            "align",
-            "anchorHidden",
-            "open",
-            "side"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectPositionerState>"
-          ],
+          "state": ["align", "anchorHidden", "open", "side"],
+          "inherits": ["BaseUIComponentProps<'div', SelectPositionerState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4978,14 +3329,10 @@
           "kind": "part",
           "symbol": "SelectScrollDownArrow",
           "from": "./scroll-down-arrow/SelectScrollDownArrow.js",
-          "props": [
-            "keepMounted"
-          ],
+          "props": ["keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectScrollDownArrowState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SelectScrollDownArrowState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -4993,14 +3340,10 @@
           "kind": "part",
           "symbol": "SelectScrollUpArrow",
           "from": "./scroll-up-arrow/SelectScrollUpArrow.js",
-          "props": [
-            "keepMounted"
-          ],
+          "props": ["keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectScrollUpArrowState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SelectScrollUpArrowState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5008,16 +3351,10 @@
           "kind": "part",
           "symbol": "SelectSeparator",
           "from": "./separator/SelectSeparator.js",
-          "props": [
-            "orientation"
-          ],
+          "props": ["orientation"],
           "handlers": {},
-          "state": [
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SelectSeparatorState>"
-          ],
+          "state": ["orientation"],
+          "inherits": ["BaseUIComponentProps<'div', SelectSeparatorState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5025,28 +3362,10 @@
           "kind": "part",
           "symbol": "SelectTrigger",
           "from": "./trigger/SelectTrigger.js",
-          "props": [
-            "children",
-            "disabled"
-          ],
+          "props": ["children", "disabled"],
           "handlers": {},
-          "state": [
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "open",
-            "placeholder",
-            "popupSide",
-            "readOnly",
-            "touched",
-            "valid",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', SelectTriggerState>",
-            "NativeButtonProps"
-          ],
+          "state": ["dirty", "disabled", "filled", "focused", "open", "placeholder", "popupSide", "readOnly", "touched", "valid", "value"],
+          "inherits": ["BaseUIComponentProps<'button', SelectTriggerState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5054,20 +3373,12 @@
           "kind": "part",
           "symbol": "SelectValue",
           "from": "./value/SelectValue.js",
-          "props": [
-            "children",
-            "placeholder"
-          ],
+          "props": ["children", "placeholder"],
           "handlers": {
             "children": 1
           },
-          "state": [
-            "placeholder",
-            "value"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', SelectValueState>"
-          ],
+          "state": ["placeholder", "value"],
+          "inherits": ["BaseUIComponentProps<'span', SelectValueState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -5081,16 +3392,10 @@
           "kind": "part",
           "symbol": "Separator",
           "from": "./Separator.js",
-          "props": [
-            "orientation"
-          ],
+          "props": ["orientation"],
           "handlers": {},
-          "state": [
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SeparatorState>"
-          ],
+          "state": ["orientation"],
+          "inherits": ["BaseUIComponentProps<'div', SeparatorState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -5122,9 +3427,7 @@
             "valid",
             "values"
           ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SliderControlState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SliderControlState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5150,9 +3453,7 @@
             "valid",
             "values"
           ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SliderIndicatorState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SliderIndicatorState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5178,9 +3479,7 @@
             "valid",
             "values"
           ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SliderLabel.State>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SliderLabel.State>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5227,9 +3526,7 @@
             "valid",
             "values"
           ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SliderRootState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SliderRootState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5237,18 +3534,7 @@
           "kind": "part",
           "symbol": "SliderThumb",
           "from": "./thumb/SliderThumb.js",
-          "props": [
-            "'aria-valuetext'",
-            "disabled",
-            "getAriaLabel",
-            "getAriaValueText",
-            "index",
-            "inputRef",
-            "onBlur",
-            "onFocus",
-            "onKeyDown",
-            "tabIndex"
-          ],
+          "props": ["'aria-valuetext'", "disabled", "getAriaLabel", "getAriaValueText", "index", "inputRef", "onBlur", "onFocus", "onKeyDown", "tabIndex"],
           "handlers": {
             "getAriaLabel": 1,
             "getAriaValueText": 3
@@ -5269,9 +3555,7 @@
             "valid",
             "values"
           ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SliderThumbState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SliderThumbState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5297,9 +3581,7 @@
             "valid",
             "values"
           ],
-          "inherits": [
-            "BaseUIComponentProps<'div', SliderTrackState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', SliderTrackState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5307,9 +3589,7 @@
           "kind": "part",
           "symbol": "SliderValue",
           "from": "./value/SliderValue.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {
             "children": 2
           },
@@ -5329,9 +3609,7 @@
             "valid",
             "values"
           ],
-          "inherits": [
-            "BaseUIComponentProps<'output', SliderValueState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'output', SliderValueState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -5362,21 +3640,8 @@
           "handlers": {
             "onCheckedChange": 2
           },
-          "state": [
-            "checked",
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "readOnly",
-            "required",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', SwitchRootState>",
-            "NonNativeButtonProps"
-          ],
+          "state": ["checked", "dirty", "disabled", "filled", "focused", "readOnly", "required", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'span', SwitchRootState>", "NonNativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5386,20 +3651,8 @@
           "from": "./thumb/SwitchThumb.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "checked",
-            "dirty",
-            "disabled",
-            "filled",
-            "focused",
-            "readOnly",
-            "required",
-            "touched",
-            "valid"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', SwitchThumbState>"
-          ],
+          "state": ["checked", "dirty", "disabled", "filled", "focused", "readOnly", "required", "touched", "valid"],
+          "inherits": ["BaseUIComponentProps<'span', SwitchThumbState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -5413,19 +3666,10 @@
           "kind": "part",
           "symbol": "TabsIndicator",
           "from": "./indicator/TabsIndicator.js",
-          "props": [
-            "renderBeforeHydration"
-          ],
+          "props": ["renderBeforeHydration"],
           "handlers": {},
-          "state": [
-            "activeTabPosition",
-            "activeTabSize",
-            "orientation",
-            "tabActivationDirection"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'span', TabsIndicatorState>"
-          ],
+          "state": ["activeTabPosition", "activeTabSize", "orientation", "tabActivationDirection"],
+          "inherits": ["BaseUIComponentProps<'span', TabsIndicatorState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5433,18 +3677,10 @@
           "kind": "part",
           "symbol": "TabsList",
           "from": "./list/TabsList.js",
-          "props": [
-            "activateOnFocus",
-            "loopFocus"
-          ],
+          "props": ["activateOnFocus", "loopFocus"],
           "handlers": {},
-          "state": [
-            "orientation",
-            "tabActivationDirection"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', TabsListState>"
-          ],
+          "state": ["orientation", "tabActivationDirection"],
+          "inherits": ["BaseUIComponentProps<'div', TabsListState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5452,20 +3688,10 @@
           "kind": "part",
           "symbol": "TabsPanel",
           "from": "./panel/TabsPanel.js",
-          "props": [
-            "keepMounted",
-            "value"
-          ],
+          "props": ["keepMounted", "value"],
           "handlers": {},
-          "state": [
-            "hidden",
-            "orientation",
-            "tabActivationDirection",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', TabsPanelState>"
-          ],
+          "state": ["hidden", "orientation", "tabActivationDirection", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', TabsPanelState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5473,22 +3699,12 @@
           "kind": "part",
           "symbol": "TabsRoot",
           "from": "./root/TabsRoot.js",
-          "props": [
-            "defaultValue",
-            "onValueChange",
-            "orientation",
-            "value"
-          ],
+          "props": ["defaultValue", "onValueChange", "orientation", "value"],
           "handlers": {
             "onValueChange": 2
           },
-          "state": [
-            "orientation",
-            "tabActivationDirection"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', TabsRootState>"
-          ],
+          "state": ["orientation", "tabActivationDirection"],
+          "inherits": ["BaseUIComponentProps<'div', TabsRootState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5496,21 +3712,10 @@
           "kind": "part",
           "symbol": "TabsTab",
           "from": "./tab/TabsTab.js",
-          "props": [
-            "disabled",
-            "value"
-          ],
+          "props": ["disabled", "value"],
           "handlers": {},
-          "state": [
-            "active",
-            "disabled",
-            "orientation",
-            "tabActivationDirection"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', TabsTabState>",
-            "NativeButtonProps"
-          ],
+          "state": ["active", "disabled", "orientation", "tabActivationDirection"],
+          "inherits": ["BaseUIComponentProps<'button', TabsTabState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         }
@@ -5526,13 +3731,8 @@
           "from": "./action/ToastAction.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "type"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', ToastActionState>",
-            "NativeButtonProps"
-          ],
+          "state": ["type"],
+          "inherits": ["BaseUIComponentProps<'button', ToastActionState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5542,14 +3742,8 @@
           "from": "./arrow/ToastArrow.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "side",
-            "uncentered"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ToastArrowState>"
-          ],
+          "state": ["align", "side", "uncentered"],
+          "inherits": ["BaseUIComponentProps<'div', ToastArrowState>"],
           "disposition": "sealed-away",
           "why": "Every toast shares ONE bottom-right stack (`Toaster` bundles Portal → Viewport); Positioner/Arrow are for per-toast ANCHORED placement, which that single-stack decision cuts. Ends if anchored per-toast placement becomes a product surface. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -5559,13 +3753,8 @@
           "from": "./close/ToastClose.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "type"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', ToastCloseState>",
-            "NativeButtonProps"
-          ],
+          "state": ["type"],
+          "inherits": ["BaseUIComponentProps<'button', ToastCloseState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5575,13 +3764,8 @@
           "from": "./content/ToastContent.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "behind",
-            "expanded"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ToastContentState>"
-          ],
+          "state": ["behind", "expanded"],
+          "inherits": ["BaseUIComponentProps<'div', ToastContentState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5602,12 +3786,8 @@
           "from": "./description/ToastDescription.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "type"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'p', ToastDescriptionState>"
-          ],
+          "state": ["type"],
+          "inherits": ["BaseUIComponentProps<'p', ToastDescriptionState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5615,14 +3795,10 @@
           "kind": "part",
           "symbol": "ToastPortal",
           "from": "./portal/ToastPortal.js",
-          "props": [
-            "container"
-          ],
+          "props": ["container"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', ToastPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', ToastPortalState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5646,14 +3822,8 @@
             "toast"
           ],
           "handlers": {},
-          "state": [
-            "align",
-            "anchorHidden",
-            "side"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ToastPositionerState>"
-          ],
+          "state": ["align", "anchorHidden", "side"],
+          "inherits": ["BaseUIComponentProps<'div', ToastPositionerState>"],
           "disposition": "sealed-away",
           "why": "Every toast shares ONE bottom-right stack (`Toaster` bundles Portal → Viewport); Positioner/Arrow are for per-toast ANCHORED placement, which that single-stack decision cuts. Ends if anchored per-toast placement becomes a product surface. (docs/architecture/core/ui-package-design.md §14)"
         },
@@ -5661,12 +3831,7 @@
           "kind": "part",
           "symbol": "ToastProvider",
           "from": "./provider/ToastProvider.js",
-          "props": [
-            "children",
-            "limit",
-            "timeout",
-            "toastManager"
-          ],
+          "props": ["children", "limit", "timeout", "toastManager"],
           "handlers": {},
           "state": [],
           "inherits": [],
@@ -5677,22 +3842,10 @@
           "kind": "part",
           "symbol": "ToastRoot",
           "from": "./root/ToastRoot.js",
-          "props": [
-            "swipeDirection",
-            "toast"
-          ],
+          "props": ["swipeDirection", "toast"],
           "handlers": {},
-          "state": [
-            "expanded",
-            "limited",
-            "swipeDirection",
-            "swiping",
-            "transitionStatus",
-            "type"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ToastRootState>"
-          ],
+          "state": ["expanded", "limited", "swipeDirection", "swiping", "transitionStatus", "type"],
+          "inherits": ["BaseUIComponentProps<'div', ToastRootState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5702,12 +3855,8 @@
           "from": "./title/ToastTitle.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "type"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'h2', ToastTitleState>"
-          ],
+          "state": ["type"],
+          "inherits": ["BaseUIComponentProps<'h2', ToastTitleState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5728,12 +3877,8 @@
           "from": "./viewport/ToastViewport.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "expanded"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ToastViewportState>"
-          ],
+          "state": ["expanded"],
+          "inherits": ["BaseUIComponentProps<'div', ToastViewportState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -5747,24 +3892,12 @@
           "kind": "part",
           "symbol": "Toggle",
           "from": "./Toggle.js",
-          "props": [
-            "defaultPressed",
-            "disabled",
-            "onPressedChange",
-            "pressed",
-            "value"
-          ],
+          "props": ["defaultPressed", "disabled", "onPressedChange", "pressed", "value"],
           "handlers": {
             "onPressedChange": 2
           },
-          "state": [
-            "disabled",
-            "pressed"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', ToggleState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled", "pressed"],
+          "inherits": ["BaseUIComponentProps<'button', ToggleState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         }
@@ -5778,26 +3911,12 @@
           "kind": "part",
           "symbol": "ToggleGroup",
           "from": "./ToggleGroup.js",
-          "props": [
-            "defaultValue",
-            "disabled",
-            "loopFocus",
-            "multiple",
-            "onValueChange",
-            "orientation",
-            "value"
-          ],
+          "props": ["defaultValue", "disabled", "loopFocus", "multiple", "onValueChange", "orientation", "value"],
           "handlers": {
             "onValueChange": 2
           },
-          "state": [
-            "disabled",
-            "multiple",
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ToggleGroupState>"
-          ],
+          "state": ["disabled", "multiple", "orientation"],
+          "inherits": ["BaseUIComponentProps<'div', ToggleGroupState>"],
           "disposition": "exposed",
           "why": ""
         }
@@ -5811,20 +3930,10 @@
           "kind": "part",
           "symbol": "ToolbarButton",
           "from": "./button/ToolbarButton.js",
-          "props": [
-            "disabled",
-            "focusableWhenDisabled"
-          ],
+          "props": ["disabled", "focusableWhenDisabled"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "focusable",
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', ToolbarButtonState>",
-            "NativeButtonProps"
-          ],
+          "state": ["disabled", "focusable", "orientation"],
+          "inherits": ["BaseUIComponentProps<'button', ToolbarButtonState>", "NativeButtonProps"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5832,17 +3941,10 @@
           "kind": "part",
           "symbol": "ToolbarGroup",
           "from": "./group/ToolbarGroup.js",
-          "props": [
-            "disabled"
-          ],
+          "props": ["disabled"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ToolbarGroupState>"
-          ],
+          "state": ["disabled", "orientation"],
+          "inherits": ["BaseUIComponentProps<'div', ToolbarGroupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5850,20 +3952,10 @@
           "kind": "part",
           "symbol": "ToolbarInput",
           "from": "./input/ToolbarInput.js",
-          "props": [
-            "defaultValue",
-            "disabled",
-            "focusableWhenDisabled"
-          ],
+          "props": ["defaultValue", "disabled", "focusableWhenDisabled"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "focusable",
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'input', ToolbarInputState>"
-          ],
+          "state": ["disabled", "focusable", "orientation"],
+          "inherits": ["BaseUIComponentProps<'input', ToolbarInputState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5873,12 +3965,8 @@
           "from": "./link/ToolbarLink.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'a', ToolbarLinkState, React.ComponentPropsWithRef<'a'>>"
-          ],
+          "state": ["orientation"],
+          "inherits": ["BaseUIComponentProps<'a', ToolbarLinkState, React.ComponentPropsWithRef<'a'>>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5897,19 +3985,10 @@
           "kind": "part",
           "symbol": "ToolbarRoot",
           "from": "./root/ToolbarRoot.js",
-          "props": [
-            "disabled",
-            "loopFocus",
-            "orientation"
-          ],
+          "props": ["disabled", "loopFocus", "orientation"],
           "handlers": {},
-          "state": [
-            "disabled",
-            "orientation"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', ToolbarRootState>"
-          ],
+          "state": ["disabled", "orientation"],
+          "inherits": ["BaseUIComponentProps<'div', ToolbarRootState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5917,14 +3996,10 @@
           "kind": "part",
           "symbol": "ToolbarSeparator",
           "from": "./separator/ToolbarSeparator.js",
-          "props": [
-            "orientation"
-          ],
+          "props": ["orientation"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "Separator.Props"
-          ],
+          "inherits": ["Separator.Props"],
           "disposition": "exposed",
           "why": ""
         }
@@ -5940,16 +4015,8 @@
           "from": "./arrow/TooltipArrow.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "instant",
-            "open",
-            "side",
-            "uncentered"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', TooltipArrowState>"
-          ],
+          "state": ["align", "instant", "open", "side", "uncentered"],
+          "inherits": ["BaseUIComponentProps<'div', TooltipArrowState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5981,16 +4048,8 @@
           "from": "./popup/TooltipPopup.js",
           "props": [],
           "handlers": {},
-          "state": [
-            "align",
-            "instant",
-            "open",
-            "side",
-            "transitionStatus"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', TooltipPopupState>"
-          ],
+          "state": ["align", "instant", "open", "side", "transitionStatus"],
+          "inherits": ["BaseUIComponentProps<'div', TooltipPopupState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -5998,15 +4057,10 @@
           "kind": "part",
           "symbol": "TooltipPortal",
           "from": "./portal/TooltipPortal.js",
-          "props": [
-            "container",
-            "keepMounted"
-          ],
+          "props": ["container", "keepMounted"],
           "handlers": {},
           "state": [],
-          "inherits": [
-            "BaseUIComponentProps<'div', TooltipPortalState>"
-          ],
+          "inherits": ["BaseUIComponentProps<'div', TooltipPortalState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -6031,16 +4085,8 @@
           "handlers": {
             "anchor": 0
           },
-          "state": [
-            "align",
-            "anchorHidden",
-            "instant",
-            "open",
-            "side"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', TooltipPositionerState>"
-          ],
+          "state": ["align", "anchorHidden", "instant", "open", "side"],
+          "inherits": ["BaseUIComponentProps<'div', TooltipPositionerState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -6048,12 +4094,7 @@
           "kind": "part",
           "symbol": "TooltipProvider",
           "from": "./provider/TooltipProvider.js",
-          "props": [
-            "children",
-            "closeDelay",
-            "delay",
-            "timeout"
-          ],
+          "props": ["children", "closeDelay", "delay", "timeout"],
           "handlers": {},
           "state": [],
           "inherits": [],
@@ -6091,21 +4132,10 @@
           "kind": "part",
           "symbol": "TooltipTrigger",
           "from": "./trigger/TooltipTrigger.js",
-          "props": [
-            "closeDelay",
-            "closeOnClick",
-            "delay",
-            "disabled",
-            "handle",
-            "payload"
-          ],
+          "props": ["closeDelay", "closeOnClick", "delay", "disabled", "handle", "payload"],
           "handlers": {},
-          "state": [
-            "open"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'button', TooltipTriggerState>"
-          ],
+          "state": ["open"],
+          "inherits": ["BaseUIComponentProps<'button', TooltipTriggerState>"],
           "disposition": "exposed",
           "why": ""
         },
@@ -6113,18 +4143,10 @@
           "kind": "part",
           "symbol": "TooltipViewport",
           "from": "./viewport/TooltipViewport.js",
-          "props": [
-            "children"
-          ],
+          "props": ["children"],
           "handlers": {},
-          "state": [
-            "activationDirection",
-            "instant",
-            "transitioning"
-          ],
-          "inherits": [
-            "BaseUIComponentProps<'div', TooltipViewportState>"
-          ],
+          "state": ["activationDirection", "instant", "transitioning"],
+          "inherits": ["BaseUIComponentProps<'div', TooltipViewportState>"],
           "disposition": "exposed",
           "why": ""
         }
