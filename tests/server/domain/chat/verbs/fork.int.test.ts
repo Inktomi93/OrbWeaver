@@ -13,7 +13,7 @@ import { characters, chatInjections, chats, messages, messageVariants } from "@o
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, getTableColumns } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatNotFoundError, ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import type { ChatContext, ForkGameArgs } from "../../../../../packages/server/src/domain/chat/index.ts";
@@ -65,6 +65,93 @@ function ownedCard(): (params: { readonly ownerId: UserId; readonly characterId:
     // FABRICATION-OK: minimal `CharacterCard` double (scenario.ts precedent).
     return { name: row.name, avatarAssetId: null } as unknown as CharacterCard;
   };
+}
+
+// ── THE PER-COLUMN FORK CLASSIFICATION (the census table its tests read) ────────────────────────────────
+/** What the fork copy must do with ONE `message_variants` column (see the census `describe` for the law):
+ *  `remapped` = a fresh id / a pointer through the fork's id maps, never equal to the source value ·
+ *  `member-projected` = prose the §3.6 strips transform for a non-host forker (the hidden-span body strip /
+ *  the P3 reasoning cut — the census seeds hidden-free bytes on a NON-deception game, where both strips are
+ *  identity, and the transforms themselves are proven by the dedicated §3.6 tests) · `host-plane` = readable
+ *  ONLY behind a host gate, so NULL for a non-host forker and verbatim for a host · `copied` = already
+ *  member-readable in the source room, so verbatim for every forker. */
+const FORK_COLUMN_CLASSES = ["remapped", "member-projected", "host-plane", "copied"] as const;
+type ForkColumnClass = (typeof FORK_COLUMN_CLASSES)[number];
+
+/** EVERY `message_variants` column, classified — the behavioral twin of `forkVariantValues`'s `tsc` ratchet.
+ *  `satisfies Record<keyof …$inferSelect, …>` makes a NEW column a compile error here too, and the census
+ *  test cross-checks it against the LIVE drizzle table so neither side can rot alone. */
+const FORK_COLUMN_CLASS = {
+  id: "remapped",
+  messageId: "remapped",
+  contextBoundaryMessageId: "remapped",
+  content: "member-projected",
+  preContinueContent: "member-projected",
+  lastContinuationContent: "member-projected",
+  reasoning: "member-projected",
+  preContinueReasoning: "member-projected",
+  lastContinuationReasoning: "member-projected",
+  // The host-gated variant-wire trio (`loadVariantWire`) + the two HOST-PLANE provenance columns.
+  promptSnapshot: "host-plane",
+  params: "host-plane",
+  macroDraws: "host-plane",
+  rawContent: "host-plane",
+  macroFreezes: "host-plane",
+  // On the member-visible `MessageView` (economics readout / tool chips / the cost key) …
+  idx: "copied",
+  model: "copied",
+  provider: "copied",
+  tokensIn: "copied",
+  tokensOut: "copied",
+  cacheReadTokens: "copied",
+  cacheWriteTokens: "copied",
+  costUsd: "copied",
+  contextWindow: "copied",
+  ttftMs: "copied",
+  finishReason: "copied",
+  stopReason: "copied",
+  terminalReason: "copied",
+  genStartedAt: "copied",
+  genFinishedAt: "copied",
+  generationId: "copied",
+  toolCalls: "copied",
+  createdAt: "copied",
+  // … and the off-view but prose-free / member-derivable rest: scalar knobs + diagnostics
+  // (`reasoningEffort`/`maxOutputTokens`/`apiErrorStatus`), the variable op-log whose fold a member reads
+  // unclamped through the member-gated `getVariables`, and the stats-only `reasoning_duration` sidecar.
+  reasoningEffort: "copied",
+  maxOutputTokens: "copied",
+  apiErrorStatus: "copied",
+  variableDelta: "copied",
+  metadata: "copied",
+} as const satisfies Record<keyof typeof messageVariants.$inferSelect, ForkColumnClass>;
+
+/** Compare a COPIED variant row against its source per {@link FORK_COLUMN_CLASS}, ACCUMULATING every offender
+ *  (a per-column `expect` stops at the first, hiding the rest of a multi-column regression). `leaked` =
+ *  host-plane bytes that crossed the boundary / a stale un-remapped id; `dropped` = a member-readable column
+ *  the copy lost. On the HOST arm every class but `remapped` must copy verbatim (a host already reads it all). */
+function censusMismatches(
+  src: typeof messageVariants.$inferSelect,
+  copy: typeof messageVariants.$inferSelect,
+  arm: "host" | "non-host",
+): { leaked: string[]; dropped: string[] } {
+  const leaked: string[] = [];
+  const dropped: string[] = [];
+  for (const [column, klass] of Object.entries(FORK_COLUMN_CLASS)) {
+    const key = column as keyof typeof messageVariants.$inferSelect;
+    if (klass === "remapped") {
+      if (copy[key] === src[key]) {
+        leaked.push(`${column} (stale source id)`);
+      }
+    } else if (klass === "host-plane" && arm === "non-host") {
+      if (copy[key] !== null) {
+        leaked.push(column);
+      }
+    } else if (JSON.stringify(copy[key]) !== JSON.stringify(src[key])) {
+      dropped.push(column);
+    }
+  }
+  return { leaked, dropped };
 }
 
 describe("forkChat — canon-mutator stats push (stats.md)", () => {
@@ -831,6 +918,142 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
         expect(copied.pre).toBe(`pre ${spill}`);
         expect(copied.cont).toBe(`cont ${spill}`);
       });
+    });
+  });
+
+  // THE PER-COLUMN CLASSIFICATION + THE UNCLASSIFIED-COLUMN TRIPWIRE (2026-08-07). The copy used to spread
+  // `...variant` and subtract a hand-maintained deny-list, so a column ADDED to `message_variants` defaulted to
+  // COPIED — backwards at a member→host boundary, and it had already let three columns through
+  // (`promptSnapshot`, retro-fitted; `rawContent`/`macroFreezes`, added by the identity spine and copied
+  // verbatim). `forkVariantValues` is now an ALLOW-LIST typed `Required<…$inferInsert>`, so a new column fails
+  // `tsc`; this table is the BEHAVIORAL twin of that ratchet — a new column must be classified HERE too, and the
+  // census below proves the running verb actually honors each class.
+  //
+  // THE LAW (fork.ts): a column readable ONLY through a HOST-GATED surface does not survive the member→host
+  // fork. `promptSnapshot`/`params`/`macroDraws` are the three fields `loadVariantWire` serves behind
+  // `chat.getVariantWire`'s `requireHost`; `rawContent`/`macroFreezes` are declared HOST-PLANE by their own
+  // contract. Everything else is already member-readable in the source room, so the fork grants nothing new.
+  describe("§3.6 the per-column fork classification (the unclassified-column tripwire)", () => {
+    test("EVERY message_variants column is classified — a new column lands here or the fork copies it blind", () => {
+      // Read off the live drizzle table, so a schema addition reds THIS test even if the `tsc` ratchet in
+      // fork.ts were worked around (a cast, a widened type). Two-sided: a dropped column reds too.
+      expect(Object.keys(getTableColumns(messageVariants)).sort()).toEqual(Object.keys(FORK_COLUMN_CLASS).sort());
+    });
+
+    /** Seed a room whose tail assistant variant has EVERY nullable column populated with a distinctive value,
+     *  so the census can tell "copied" from "silently null" per column. Body prose is deliberately hidden-free
+     *  and the game is non-deception, so the member-projected columns are identity here. */
+    async function seedFullyPopulatedRoom(key: string, human: UserId, role: ParticipantRole): Promise<ChatId> {
+      const charA = await seedCharacter(db, human, `${key}_char`);
+      const chatId = await seedChat(db, key);
+      await seedParticipant(db, { chatId, key: "h", userId: human, role });
+      await seedParticipant(db, { chatId, key: "c", characterId: charA });
+      const first = await seedMessage(db, chatId, 1, { role: "user", authorUserId: human, content: "opening" });
+      const m = await seedMessage(db, chatId, 2, { role: "assistant", characterId: charA, content: "He shrugs." });
+      await db
+        .update(messageVariants)
+        .set({
+          // FABRICATION-OK: an `AssembledPrompt` stand-in — the copy path reads no field of it, only its presence.
+          promptSnapshot: { static: "PRE-JOIN CANON", dynamic: "d", afterHistory: [], sendHistory: true, trace: {} } as never,
+          // The host-gated wire trio's other two members: the initiator's per-send knobs (note the
+          // `advanced.claudeEnv` escape hatch + the free-text compaction instructions) and the draw record.
+          params: { temperature: 0.7, compaction: { instructions: "HOST-ONLY compaction prose" }, advanced: { claudeEnv: { ["GM_KNOB"]: "host-secret" } } },
+          macroDraws: { gmPool: { pick: "the traitor is Z" } },
+          rawContent: 'He shrugs. {{roll:d20}} <lie truth="pre-strip bytes"/>',
+          macroFreezes: [{ name: "roll", args: "d20", value: "17" }],
+          reasoning: "thinking",
+          reasoningEffort: "high",
+          model: "m1",
+          provider: "p1",
+          tokensIn: 11,
+          tokensOut: 22,
+          cacheReadTokens: 33,
+          cacheWriteTokens: 44,
+          costUsd: 0.5,
+          contextWindow: 8192,
+          maxOutputTokens: 128,
+          ttftMs: 55,
+          finishReason: "stop",
+          stopReason: "end_turn",
+          terminalReason: "complete",
+          apiErrorStatus: 429,
+          genStartedAt: 1000,
+          genFinishedAt: 2000,
+          generationId: "gen-abc",
+          toolCalls: [{ toolCallId: "call_1", name: "roll", arguments: "{}", result: "{}", isError: false, durationMs: 5 }],
+          variableDelta: [{ op: "set", key: "k", value: "v" }],
+          // The ONE key anything reads off this blob (`substrate/stats-delta.ts::reasoningMsOf`) — snake_case
+          // because the sidecar's vocabulary is the ST import's, not ours.
+          metadata: { ["reasoning_duration"]: 1234 },
+          preContinueContent: "pre body",
+          lastContinuationContent: "cont body",
+          preContinueReasoning: "pre think",
+          lastContinuationReasoning: "cont think",
+          // The cross-slot fit-pass pointer — inside the copied range, so the fork must REMAP it.
+          contextBoundaryMessageId: castId(first.messageId),
+        })
+        .where(eq(messageVariants.id, castId(m.variantId)));
+      return chatId;
+    }
+
+    /** The WHOLE tail (seq 2) variant row of a chat — every column, so the census reads them all. */
+    async function tailVariantRow(chatId: ChatId): Promise<typeof messageVariants.$inferSelect | undefined> {
+      const [slot] = await db
+        .select()
+        .from(messages)
+        .where(and(eq(messages.chatId, chatId), eq(messages.seq, 2)));
+      if (slot === undefined) {
+        return;
+      }
+      const [variant] = await db.select().from(messageVariants).where(eq(messageVariants.messageId, slot.id));
+      return variant;
+    }
+
+    /** Fork as `forker` and return the source + copied tail variant rows. */
+    async function censusRows(
+      chatId: ChatId,
+      forker: UserId,
+    ): Promise<{ src: typeof messageVariants.$inferSelect; copy: typeof messageVariants.$inferSelect }> {
+      const src = await tailVariantRow(chatId);
+      const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
+      const { chat } = await fork.forkChat({ principal: principal(forker), chatId });
+      const copy = await tailVariantRow(castId(chat.id));
+      if (src === undefined || copy === undefined) {
+        throw new Error("census: the seeded tail variant did not survive the fork");
+      }
+      return { src, copy };
+    }
+
+    test("a NON-HOST (solo) forker's copy honors every class — host-plane columns NULL, the rest verbatim", async () => {
+      const member = await seedUser(db, castId<Handle>("census_member"));
+      // Sole present human, non-host (the host departed without a handoff) — the one live way a member reaches
+      // the fork, and the exact posture that turns them into HOST of the copy.
+      const chatId = await seedFullyPopulatedRoom("census_src", member, "member");
+
+      const { src, copy } = await censusRows(chatId, member);
+
+      const { leaked, dropped } = censusMismatches(src, copy, "non-host");
+      expect(leaked, "host-plane columns crossed the member→host fork boundary").toEqual([]);
+      expect(dropped, "member-readable columns were lost by the fork copy").toEqual([]);
+      // The boundary pointer remapped INTO the fork rather than degrading to null (a real copied slot exists).
+      expect(copy.contextBoundaryMessageId).not.toBeNull();
+      // Belt on the BYTES, independent of the classification table: none of the four host-plane secrets seeded
+      // above may appear ANYWHERE on the copied row, whatever column a future author parks them in.
+      const copiedBytes = JSON.stringify(copy);
+      for (const secret of ["host-secret", "the traitor is Z", "pre-strip bytes", "HOST-ONLY compaction prose"]) {
+        expect(copiedBytes, `a host-plane byte survived the fork: ${secret}`).not.toContain(secret);
+      }
+    });
+
+    test("a HOST forker's copy keeps every host-plane column verbatim (they already read every byte)", async () => {
+      const host = await seedUser(db, castId<Handle>("census_host"));
+      const chatId = await seedFullyPopulatedRoom("census_src2", host, "host");
+
+      const { src, copy } = await censusRows(chatId, host);
+
+      const { leaked, dropped } = censusMismatches(src, copy, "host");
+      expect(leaked, "a host forker's ids must still be remapped").toEqual([]);
+      expect(dropped, "a HOST fork must copy every non-remapped column verbatim — including the host plane").toEqual([]);
     });
   });
 
