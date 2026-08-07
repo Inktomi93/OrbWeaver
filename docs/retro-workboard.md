@@ -79,7 +79,14 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   injection BECAME that wire row" as an explicit per-row mapping in the Diagnostics drawer, the
   step past the `merged` badge (the stages data already exists in ShapeTrace). The next debug
   increment when wanted.
-- **NOT pushed to origin** — the push word is the owner's, fresh, per push. \~40 commits ahead.
+- **✅ PUSHED TO ORIGIN 2026-08-07 (owner word given): `4ecb3110d..292f65e08`** — 76 commits. Receipt:
+  full `verify --push` battery on `853ce611a` (10,281 tests, ONE red = the IDOR sweep's completeness
+  guard catching REGX2's five unclassified procs — the guard working as designed), the classification
+  fix via security-executor (4 PROBES + 1 EXEMPT, NO leak found, belt-break-proven flag asserts,
+  `292f65e08`), suite 2/2 green post-fix, pre-commit static 14/14. Push was `--no-verify` on that
+  composite receipt (owner word: don't re-sit the battery). Lane-brief lesson: REGX2's brief didn't
+  name \[\[new-router-needs-sweep-classification]] — a lane adding tRPC procs must be briefed to
+  classify them in the sweep, or the landing seam catches it at push time like tonight.
 - **✅ REGX2 MERGED + CLOSED (`3f17dd8b4`, consolidated check green, torn down)** — all three
   builds complete: bulk edit (3 batch verbs + the `bulkSelect` contribution field), the pipeline
   debugger (member-editor section over a pure model), the per-script JSON door (byte-equal to the
@@ -827,7 +834,8 @@ when coverage changes, not left to be contradicted by the section above it.**
 
 ## ═══ STANDING OWNER ITEMS (his word, nobody else's) ═══
 
-1. **THE PUSH WORD** — 101 commits armed; a fresh `verify --push` is owed first (see STATE).
+1. ✅ **THE PUSH WORD — GIVEN + EXECUTED 2026-08-07** (`4ecb3110d..292f65e08`, receipt in STATE). The
+   law stands for the NEXT push: fresh word, fresh battery.
 2. **The three nudge default texts** (I-8) — his veto, verbatim in NARCOLOR's report.
 3. **Structured-output nullable-union reshape** (I-1) — the A/B call.
 4. **Presets into the config rail** (I-3) — owner-timed, one array member forever.
@@ -935,8 +943,9 @@ Items this audit could not prove either way from the tree. **None were dropped.*
 
 - `pnpm check` = STATIC only (\~90-220s, in the pre-commit hook). `pnpm test` = the battery (\~10 min,
   vitest \~9,800 + CT). `pnpm verify --push` = the 14 static stages + `deps:orphan-ratchet` + `tests:node` + `e2e-smoke`,
-  and **`tests:node` carries the CTs** (`pnpm test` = the 4 vitest runtime projects && `pnpm test:ct --retries=2`; receipt: `scripts/verify/registry.ts:304`). NOT at push: `quality:cpd`, the full `e2e`,
-  `tests:parity`, `quality:mutation-gate` — those are `--full`. And `types:testd` rides the STATIC bar,
+  and **`tests:node` carries the CTs** (`pnpm test` = the 4 vitest runtime projects && `pnpm test:ct --retries=2`; receipt: `scripts/verify/registry.ts:304`). NOT at push: the full `e2e` + `quality:mutation-gate` (those are `--full`); `quality:cpd` +
+  `tests:parity` were PROMOTED INTO the push tier 2026-08-03 (sub-2s each — lefthook.yml's own
+  comment is the receipt; this line previously said otherwise and was stale). And `types:testd` rides the STATIC bar,
   not the battery. \~16-17 min; BACKGROUND it, never foreground with a timeout. READ
   `reports/` instead of re-running.
 - snap is STUDIED IN FULL in `side-eye.md`: `--eval` takes a BARE arrow (an arrow-IIFE double-invokes);
