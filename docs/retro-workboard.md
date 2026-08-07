@@ -69,6 +69,16 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   what it observes — find it when nearby) · the Connections `Protocol` sub-row needs a hierarchy
   signal (it rides Chat's tracks perfectly and thereby reads as a seventh top-level role — a
   hairline or inset).
+- **Small minted by REGX2's forks:** the `deriveRegexTierFlags` → `@orb/kit/regex` LIFT (beside
+  `skipsScript`, whose masks it mirrors; two consumers; \[\[axis-home-follows-reachability]]/D54 says
+  kit is likely its correct home) — the one-home move that unblocks bulk PLACEMENT editing, which
+  REGX2 deferred rather than mint a second derivation home. Also on record from REGX2 fork 1: the
+  lifecycle-portability `{ ruled }` cells for regex single-export/import are SUPERSEDED by the
+  owner's 08-03 REGX2 ruling — flipped to real DoorSpecs in that lane, headers truth-repaired.
+- **Owner idea boarded (08-08 morning): the assembly LINEAGE view** — "this canon row + this
+  injection BECAME that wire row" as an explicit per-row mapping in the Diagnostics drawer, the
+  step past the `merged` badge (the stages data already exists in ShapeTrace). The next debug
+  increment when wanted.
 - **NOT pushed to origin** — the push word is the owner's, fresh, per push. \~40 commits ahead.
 - **NEXT (owner-authorized chain): this board's queue** — REGX2 (dispatching) → MOBILE one-shell
   rule → BOARD-THESE by value-per-effort → the lifted smalls. Owner-taste rows stay parked.
