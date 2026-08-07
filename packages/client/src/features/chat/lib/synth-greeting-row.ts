@@ -37,6 +37,9 @@ export function synthGreetingRow(characterId: CharacterId, content: string, seq:
     chatId: DRAFT_CHAT_ID,
     seq,
     role: "assistant",
+    // A card greeting is ordinary story canon — the same kind the committed greeting seed writes, so the
+    // draft row and its persisted twin render through the identical chrome dispatch.
+    kind: "standard",
     authorUserId: null,
     characterId,
     personaId: null,

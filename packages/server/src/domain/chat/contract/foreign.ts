@@ -34,7 +34,8 @@ export type ChatBehaviorInputs = Pick<ChatSettings, "autoContinue" | "autoContin
 /** The resolved personas for a turn (the persona domain owns the read — FOREIGN). `anchor` is `{{user}}` for
  *  card-derived sections (the chat-open anchor — `chats.anchorPersonaId`); `active` is `{{user}}` for
  *  prompt-config / user-authored sections — the TRIGGERING human's persona (whose turn it is —
- *  the `trigger`), NOT `personaIds[0]` (the presence-order-arbitrary first present human). Either arm
+ *  the `trigger`), never a presence-order-arbitrary present human (the `personaIds[0]` fallback that used to
+ *  serve trigger-less reads is RETIRED — see {@link TurnTrigger}). Either arm
  *  is `null` when its pointer is unset OR its owner is not a present member (the roster consent gate —
  *  {@link ResolveForeignInputsOp}); a null anchor falls to `active` at `pinnedPersona`, which is exactly the
  *  HEAL heal-the-pointer semantics (a departed member's pin stops pinning, and is never copied). */
@@ -56,11 +57,18 @@ export interface ResolvedPersonas {
  *   • `{ kind: "human" }` — a live human drives this turn. `{{user}}` is THEIRS: `personaId` when their seat
  *     holds one, and the kit floor ("User") when it does not. **This arm never reaches the anchor** — a seat
  *     the anchor-holder does not hold must not be presented to the model wearing the anchor's identity.
- *   • `{ kind: "none" }` — DELIBERATELY no triggering human (a deferred drain / an automation turn):
- *     `{{user}}` binds to the chat ANCHOR, the chat-invariant identity (D51 rider), never a presence-order
- *     bystander.
- *   • absent/`undefined` — the trigger is UNKNOWN (a preview / a host instrument): the documented fallback
- *     chain, `personaIds[0]` then nothing.
+ *   • `{ kind: "none" }` — DELIBERATELY no triggering human (a deferred drain / an automation turn, and also
+ *     every trigger-less READ: a preview, a card display, a host instrument): `{{user}}` binds to the chat
+ *     ANCHOR, the chat-invariant identity (D51 rider), never a presence-order bystander.
+ *
+ * TWO ARMS, AND THE UNION IS REQUIRED — there is no absent/`undefined` third state (owner ruling,
+ * 2026-08-07). It used to exist, meaning "the trigger is UNKNOWN", and resolved through a `personaIds[0]`
+ * fallback: the first PRESENT human's persona, i.e. whoever happened to join first. That is
+ * nondeterministic (a join re-orders it), and on a host instrument it is a cross-member read — a multi-human
+ * room's preview could show ANOTHER member's persona as `{{user}}`. Retiring it means every caller states
+ * which arm it is in, and "I have no triggering human" now has exactly one spelling with one well-defined
+ * meaning. Making the field REQUIRED rather than throwing on absence is the enforcement-ladder call: the
+ * missing state becomes unrepresentable instead of loud (§2.2).
  */
 export type TurnTrigger = { readonly kind: "human"; readonly userId: UserId; readonly personaId: PersonaId | null } | { readonly kind: "none" };
 
@@ -120,7 +128,12 @@ export const DEFAULT_CHAT_BEHAVIOR: ChatBehaviorInputs = {
  * The thin composition-root dep that resolves {@link ForeignInputs} from chat-supplied KEYS. The keys are the
  * minimum the FOREIGN reads need under the FROZEN `runAsUserId` (D19 — the host, never the caller); the resolver
  * returns RESOLVED DATA, so it touches NO chat tables (entry.md invariant 1). `anchorPersonaId` is the chat-open
- * anchor (`chats.anchorPersonaId`); `personaIds` are the present humans' active persona ids.
+ * anchor (`chats.anchorPersonaId`).
+ *
+ * There is no `personaIds` (the room's present-human persona ids) here any more: the ONLY thing that read it
+ * was the retired `personaIds[0]` absent-trigger fallback. The resolver resolves exactly two ids — the anchor
+ * and the `trigger`-bound active — so passing the whole room's list was both dead and misleading about what
+ * the op could reach. Callers still compute the list for the chat-side GATHER, which is a different consumer.
  *
  * THE PERSONA READ IS ROSTER-GATED, and chat supplies the gate. Personas are single-owned
  * (`personas.ownerId`), but a room's assembly is a room-plane read under the frozen host — so the resolver
@@ -135,11 +148,10 @@ export type ResolveForeignInputsOp = (args: {
   readonly runAsUserId: UserId;
   readonly model: string;
   readonly anchorPersonaId: PersonaId | null;
-  readonly personaIds: readonly PersonaId[];
   /** The room's PRESENT human participants — the persona-read consent set (see above). Empty ⇒ no persona
    *  resolves (a hostless/stale room assembles with the kit floor rather than an unscoped read). */
   readonly presentHumanUserIds: readonly UserId[];
-  readonly trigger?: TurnTrigger | undefined;
+  readonly trigger: TurnTrigger;
   /** A feature-supplied GM-voice preset REDIRECT (rpg-design/02 §1.1 #1 — resolved by the caller's early
    *  `rpg.resolvePresetOverride` hop): when present, the resolver assembles THIS preset (owned-or-system under
    *  the host, else the normal default — the lenient-id rule) instead of the host's `UserSettings` default.

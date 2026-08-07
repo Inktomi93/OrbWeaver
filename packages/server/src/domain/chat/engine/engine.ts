@@ -12,7 +12,7 @@
 // they're injected as engine deps wired at the entry composition root.
 
 import type { AssembleContext, ChatBusEvent, ChatWarningCode, MessageView, TurnAbortReason } from "@orb/contracts/chat";
-import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import { buildCharacterNameMap, buildPersonaNameMap, DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 
 import type { ContinuePostfix, UserIntent } from "@orb/contracts/preset";
@@ -418,6 +418,12 @@ function buildCommitPlan(args: {
       chatId: prep.chatId,
       seq,
       role: persist.role,
+      // DECLARED purpose: a narrator round's one synthetic turn is born `kind:'narrator'` (the other narrator
+      // writer is `postNarratorMessage`). Everything else is born `standard`. This is what makes narrator-ness
+      // survive the two things that used to erase it — deleting the synthetic group character (its attribution
+      // FK SET-NULLs) and flipping the room's `output` dial, which retroactively re-classified history. The
+      // canon `role` is untouched (`assistant`): the wire mapping is a SHAPE-time dispatch, never storage.
+      kind: prep.shape?.output === "narrator" && persist.role === "assistant" ? ("narrator" as const) : DEFAULT_MESSAGE_KIND,
       characterId,
       authorUserId: persist.authorUserId ?? null,
       personaId: persist.personaId ?? null,

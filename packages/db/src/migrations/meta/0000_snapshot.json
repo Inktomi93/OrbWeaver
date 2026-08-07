@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "f99de575-cb20-4804-9b0f-e721803002ab",
+  "id": "e0c46350-c78d-4fc3-8730-a31ea6e7f83e",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -1917,6 +1917,20 @@
           "notNull": true,
           "autoincrement": false
         },
+        "raw_content": {
+          "name": "raw_content",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "macro_freezes": {
+          "name": "macro_freezes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
         "reasoning": {
           "name": "reasoning",
           "type": "text",
@@ -2203,6 +2217,14 @@
           "notNull": true,
           "autoincrement": false
         },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'standard'"
+        },
         "author_user_id": {
           "name": "author_user_id",
           "type": "text",
@@ -2352,9 +2374,17 @@
           "name": "messages_role_check",
           "value": "role in ('system', 'user', 'assistant')"
         },
+        "messages_kind_check": {
+          "name": "messages_kind_check",
+          "value": "kind in ('standard', 'narrator', 'comment')"
+        },
         "messages_initiator_check": {
           "name": "messages_initiator_check",
           "value": "initiator in ('human', 'automation', 'plugin')"
+        },
+        "messages_kind_shape": {
+          "name": "messages_kind_shape",
+          "value": "(kind <> 'narrator' OR role = 'assistant')"
         },
         "messages_attribution_shape": {
           "name": "messages_attribution_shape",

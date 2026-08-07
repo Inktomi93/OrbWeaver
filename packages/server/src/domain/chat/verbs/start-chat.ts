@@ -284,10 +284,13 @@ async function runGeneratedOpening(
     runAsUserId: hostUserId,
     model: connection.model,
     anchorPersonaId: args.anchorPersonaId,
-    personaIds,
     // A just-founded room's ONLY human seat is the founding host (`buildInitialRosterRows`), so the persona
     // consent set is exactly them — and the anchor the seed chain just resolved is theirs by construction.
     presentHumanUserIds: [hostUserId],
+    // The greeting/opening seed is not a human's turn — nobody is speaking yet — so `{{user}}` binds to the
+    // chat ANCHOR, which is the identity the founding chain just chose for this room. Byte-identical to the
+    // retired absent arm (its `personaIds[0]` was this same anchor id, the only entry in the list).
+    trigger: { kind: "none" },
   });
   const assembleContext = await gatherAssembleContext(
     ctx,
