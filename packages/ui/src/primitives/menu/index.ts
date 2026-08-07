@@ -1,3 +1,5 @@
+export type { MenuHandle } from "./handle.ts";
+export { createMenuHandle } from "./handle.ts";
 export type {
   MenuArrowProps,
   MenuBackdropProps,
@@ -10,6 +12,7 @@ export type {
   MenuRadioItemProps,
   MenuSeparatorProps,
   MenuSubmenuTriggerProps,
+  MenuViewportProps,
 } from "./menu.tsx";
 export {
   Menu,
@@ -27,4 +30,5 @@ export {
   MenuSubmenuRoot,
   MenuSubmenuTrigger,
   MenuTrigger,
+  MenuViewport,
 } from "./menu.tsx";

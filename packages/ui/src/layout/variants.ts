@@ -120,3 +120,23 @@ export const toolbarButtonVariants = tv({
 export const toolbarSeparatorVariants = tv({
   base: "w-px self-stretch bg-border",
 });
+
+// A Group is a LAYOUT + SEMANTICS box inside the strip (Base UI gives it the group role wiring and a
+// `disabled` that cascades to its items): tighter than the strip's own `gap-row` so a related cluster
+// reads as one unit against its neighbours.
+export const toolbarGroupVariants = tv({
+  base: "flex flex-row items-center gap-field data-disabled:opacity-50",
+});
+
+// The trailing metadata link ("Edited 51m ago"). Label type, muted until hover — it is a toolbar ITEM
+// (roving tabindex), so it carries the same focus ring as ToolbarButton, not a bare underline.
+export const toolbarLinkVariants = tv({
+  base: `inline-flex h-control-sm items-center rounded-control px-field text-label text-muted-foreground no-underline hover:text-foreground focus-visible:outline-none ${FOCUS_RING}`,
+});
+
+// Wears the shared field-control box so an input inside a toolbar matches every other text control.
+// Use ONE per horizontal toolbar and place it LAST — left/right arrows drive both the text caret and
+// the roving tabindex (Base UI's own usage guideline, components/toolbar.md §"Usage guidelines").
+export const toolbarInputVariants = tv({
+  base: `h-control-sm min-w-0 rounded-control border border-border bg-input px-field text-body text-foreground placeholder:text-muted-foreground focus-visible:outline-none ${DISABLED_STATE_NATIVE} ${FOCUS_RING}`,
+});

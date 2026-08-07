@@ -7,6 +7,7 @@ import type {
   PopoverRootProps as BaseRootProps,
   PopoverTitleProps as BaseTitleProps,
   PopoverTriggerProps as BaseTriggerProps,
+  PopoverViewportProps as BaseViewportProps,
 } from "@base-ui/react/popover";
 import { Popover as BasePopover } from "@base-ui/react/popover";
 import type { ReactElement } from "react";
@@ -61,6 +62,22 @@ export function PopoverPopup(props: PopoverPopupProps): ReactElement {
       </BasePopover.Positioner>
     </BasePopover.Portal>
   );
+}
+
+export interface PopoverViewportProps extends Omit<BaseViewportProps, "className"> {
+  className?: string;
+}
+
+/**
+ * OPTIONAL transition container — render it INSIDE `<PopoverPopup>`, wrapping the body, when ONE
+ * popover is opened by several triggers and the body changes per trigger (the `createPopoverHandle`
+ * shape). It keeps the outgoing content mounted during the swap so the change animates instead of
+ * snapping, and publishes `data-activation-direction`/`data-transitioning` to drive that animation.
+ * A single-trigger popover needs nothing here — its children are already the popup body.
+ */
+export function PopoverViewport(props: PopoverViewportProps): ReactElement {
+  const { className, ...rest } = props;
+  return <BasePopover.Viewport className={className} data-slot="popover-viewport" {...rest} />;
 }
 
 export interface PopoverArrowProps extends Omit<BaseArrowProps, "className"> {

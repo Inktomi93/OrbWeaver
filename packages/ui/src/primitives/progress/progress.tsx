@@ -5,10 +5,6 @@ import { progressVariants } from "./variants.ts";
 
 const slots = progressVariants();
 
-// The percentage scale + the default max, so the readout formatter has no bare literals.
-const PERCENT_SCALE = 100;
-const DEFAULT_MAX = 100;
-
 export interface ProgressProps extends Omit<BaseRootProps, "className"> {
   className?: string;
   trackClassName?: string;
@@ -26,11 +22,14 @@ export interface ProgressProps extends Omit<BaseRootProps, "className"> {
  */
 export function Progress(props: ProgressProps): ReactElement {
   const { className, trackClassName, label, showValue = false, formatValue, ...rest } = props;
-  const maxValue = rest.max ?? DEFAULT_MAX;
   const hasLabel = label !== undefined && label !== null;
-  const format =
-    formatValue ??
-    ((_formatted: string | null, value: number | null): ReactNode => (value === null ? null : `${Math.round((value / maxValue) * PERCENT_SCALE)}%`));
+  // The readout is Base UI's OWN formatted string, never re-derived. Base UI 1.7 (#5095) computes it
+  // from `valueToPercent(value, min, max)` clamped to 0–100 — the SAME number that drives the
+  // indicator's width — and runs it through Intl. A local `value / max` recompute disagreed with the
+  // rendered bar on any custom `min` (min=20/max=100/value=60 → bar 50%, label "60%") and on any
+  // out-of-range value (the bar clamps, the label did not). `value === null` is indeterminate: Base UI
+  // hands the formatter the literal "indeterminate" here, so the readout blanks off `value`, not text.
+  const format = formatValue ?? ((formatted: string | null, value: number | null): ReactNode => (value === null ? null : formatted));
 
   return (
     <BaseProgress.Root className={slots.root({ className })} data-slot="progress-root" {...rest}>
