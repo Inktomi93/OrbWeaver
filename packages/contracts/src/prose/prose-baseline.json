@@ -128,6 +128,10 @@
       "version": 1,
       "sha256": "fc7e041da8fd731f7d935a701b7b727db26b72a9ad4264f41c0acd17d35055aa"
     },
+    "chat.assembly.continuationNudge": {
+      "version": 1,
+      "sha256": "f06fb31f86e01bc72d20571d37ce2aec7f423c01b03ec47d40502572d09d7f06"
+    },
     "chat.recovery.narrativeContinuation": {
       "version": 1,
       "sha256": "2f50d1b107f24221389ce4920ed783cf7c0238abf63188cf00495d2d2b08ef3d"

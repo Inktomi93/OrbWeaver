@@ -3,11 +3,28 @@
 // director prompt, the compaction summarizer, and the memory digest/consolidation prompts. The server
 // substrate reads these through `resolveProse` — it authors none of them.
 //
-// HOME = per-USER, resolved against the ROOM HOST (owner ruling on PROSE-1 owner-decision 8, option (a)):
-// these are ROOM-level side generations, so a chat's memory corpus and its director stay internally
-// consistent no matter which member spoke. The threading seam is `ChatContext.resolveChatProse(chatId)`,
-// which resolves the present host exactly as `resolveChatPresetParams` does (`resolveChatHostUserId` →
-// `loadUserSettings(host).prose`); a hostless/stale room degrades to `{}` ⇒ the shipped defaults.
+// HOME — TWO of them, and the split is the point (the table is one home for the BYTES; `home` names the
+// STORAGE per row, PROSE-1 §3.1):
+//
+//   • per-USER, resolved against the ROOM HOST (owner ruling on PROSE-1 owner-decision 8, option (a)): the
+//     SIDE-GENERATION prompts — arbiter, compaction, memory digest/consolidation, the recovery ask, the
+//     anchor identity lead-in, the group-round framings. These are ROOM-level generations, so a chat's memory
+//     corpus and its director stay internally consistent no matter which member spoke. Threading seam:
+//     `ChatContext.resolveChatProse(chatId)`, which resolves the present host exactly as
+//     `resolveChatPresetParams` does (`resolveChatHostUserId` → `loadUserSettings(host).prose`); a
+//     hostless/stale room degrades to `{}` ⇒ the shipped defaults.
+//   • per-PRESET (owner ruling 2026-08-07, verbatim: "templates need to have one home in presets not
+//     scattered between that and settings or hiding in code"): the three TURN-WIRE FRAMINGS — the two
+//     injection note frames and the continuation cue. Storage `promptConfig.prose`; authored in the preset
+//     Templates tab beside every other template. Decision 8 is NOT reversed by this: it answers "WHICH user
+//     when a slot is user-homed", and these three are not side generations at all — they are wrappers spliced
+//     into the MAIN turn's prompt, i.e. §3.2's per-USER rationale ("a property of how YOU run the app, not of
+//     one preset") never covered them. Threading seam: `composeProse` at `assembly/context`, which merges the
+//     host's user blob with the resolved preset's blob FILTERED BY HOME, so a slot still resolves from exactly
+//     one storage and the no-cascade law holds.
+//
+// NO DATA MIGRATION for the two re-homed frames (pre-launch NO-LEGACY): a `UserSettings.prose` override
+// written against them before 2026-08-07 stops applying and is re-entered in the preset Templates tab.
 //
 // MACRO MODE = "none" for every row (PROSE-1 §6.1): a summarizer / arbiter / digest prompt runs over a
 // TRANSCRIPT, not a character context — there is no `{{char}}` binding at these seams, so a `{{…}}` in an
@@ -222,7 +239,7 @@ export const CHAT_PROSE_SLOTS = {
   },
   "chat.injection.systemNote": {
     id: "chat.injection.systemNote",
-    home: "user",
+    home: "preset",
     version: 1,
     // A system-authority injection the resolved model cannot take as a real system row demotes to a USER
     // row wearing this frame — the framing IS the demotion's honesty (the reader sees it is a system note).
@@ -235,7 +252,7 @@ export const CHAT_PROSE_SLOTS = {
   },
   "chat.injection.userNote": {
     id: "chat.injection.userNote",
-    home: "user",
+    home: "preset",
     version: 1,
     // A user-role injection is the OPERATOR speaking through the user channel, not an in-character turn —
     // the frame is what keeps the model from reading it as dialogue.
@@ -245,6 +262,22 @@ export const CHAT_PROSE_SLOTS = {
     requiredTokens: [],
     title: "User-note frame",
     fires: "Every user-role injection — author's note, host steering, a prefix-adjacent re-framed injection.",
+  },
+  "chat.assembly.continuationNudge": {
+    id: "chat.assembly.continuationNudge",
+    home: "preset",
+    version: 1,
+    // The trailing-user CUE for a turn the operator did not type into: a force/auto/empty-opening round whose
+    // canon ends on an assistant row. The delivered history must end on a user turn (a trailing assistant row
+    // is response prefill), so SHAPE appends this. It is the only sentence in the delivered prompt that no
+    // one — not the cast, not the operator — actually said, which is exactly why its wording is a preset's
+    // business: a terse table and a florid one want different words for "your move".
+    text: "[Continue the conversation.]",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Continuation cue",
+    fires: "A force/auto/empty-opening round with no user input whose history would otherwise end on the model's own reply.",
   },
   "chat.recovery.narrativeContinuation": {
     id: "chat.recovery.narrativeContinuation",
