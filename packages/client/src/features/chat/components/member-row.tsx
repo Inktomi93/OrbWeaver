@@ -247,7 +247,6 @@ function HandoffConfirm({
   readonly open: boolean;
   readonly setConfirm: (c: MemberRowConfirm | null) => void;
 }): ReactElement {
-  const offerId = useId();
   const [copyCast, setCopyCast] = useState(false);
   return (
     <ConfirmDialog
@@ -264,7 +263,6 @@ function HandoffConfirm({
       description={`${row.displayName} becomes the host once they accept. You stay in the chat as a member.`}
       body={
         <SettingCheckboxRow
-          id={offerId}
           label="Also give copies of your characters & worldbooks used in this room"
           description="They get their own point-in-time copies when they accept. You keep yours, and editing or deleting them later won't change this room."
           checked={copyCast}

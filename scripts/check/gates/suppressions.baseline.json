@@ -1,6 +1,5 @@
 {
   "packages/client/src/components/entry-list-editor.tsx": 1,
-  "packages/client/src/components/setting-switch-row.tsx": 1,
   "packages/client/src/components/tracker-blocks/tracker-value.tsx": 1,
   "packages/client/src/components/user-macro-editor-dialog.tsx": 3,
   "packages/client/src/data/bus/apply-chat-bus-event.ts": 5,

@@ -4,6 +4,16 @@
 // wiring so a bound field shrinks to its control; `field-error.ts` already homed the error policy the same
 // way. Consumed by EVERY bound field — the raw `useFieldContext(` door is sealed to this ONE home
 // (G28 `bound-field-via-hook`), so a new bound field cannot re-hand-roll the wiring.
+//
+// THE ONE DELIBERATE DEVIATION FROM THE BASE UI HANDBOOK (vendor/base-ui/handbook/forms.md, "TanStack
+// Form → Integrate components"). The handbook maps `invalid={!field.state.meta.isValid}` straight onto
+// `<Field.Root>`. We map `error` (which `@orb/ui/field` turns into `invalid`) from `touchedFieldError`
+// instead — the SAME errors, gated on `isTouched`. Reason: with raw `isValid`, a required field is invalid
+// from first paint, so every autosaving editor opens painted red on fields the user has not reached yet.
+// `dirty` and `touched` ARE forwarded verbatim as the handbook requires, so Base UI's own `data-dirty` /
+// `data-touched` remain honest — only the SHOW-THE-ERROR moment is ours. `MultiToggleField` documents the
+// one state a touch gate cannot reach (untouched-and-empty) and passes an explicit `error` to cover it.
+// Pinned by tests/client/forms/bound-fields/use-bound-field.ct.tsx (attributes read off the rendered DOM).
 
 import type { ReactNode } from "react";
 import { useFieldContext } from "../contexts.ts";
