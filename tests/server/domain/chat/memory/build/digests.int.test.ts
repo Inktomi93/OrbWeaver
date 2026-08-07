@@ -1,7 +1,7 @@
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, messages, messageVariants } from "@orb/db";
-import type { CharacterId, ChatDigestId, MessageVariantId } from "@orb/kit/ids";
+import type { CharacterId, ChatDigestId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId, type Handle } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
@@ -202,6 +202,50 @@ describe("memory/build/digests", () => {
     expect(counts.written).toBe(0);
     expect(counts.skipped).toBe(3); // 2 tier-0 + 1 tier-1, all unchanged
     expect(sum.calls).toHaveLength(callsAfterFirst); // the side-LLM is never re-spent
+  });
+
+  // ── THE SHRINK: blocks that VANISH must take their digests with them ────────────────────────────────
+  // The self-heal is content-hash keyed and therefore only ever heals a block that STILL EXISTS. Blocks are
+  // sliced by POSITION and stored keyed `(tier, blockIdx)`, so when the ingest set shrinks — a host hides a
+  // trailing span, so `loadCanonThroughSeq` returns fewer rows — the trailing block simply stops being
+  // produced. Nothing re-summarizes it (the surviving blocks' rows did not move, so no hash changed) and
+  // until this pass nothing deleted it: the digest summarized VERBATIM FROM the now-hidden rows stayed in
+  // `chat_digests`, and `loadDigestsForScope` returns every row for the scope regardless of whether its block
+  // still exists — so `{{memory}}` recall could still surface it. Hiding the rows was exactly the act meant
+  // to remove them. The consolidation that folded that block is the same defect one tier up.
+  test("hiding a trailing span PRUNES the digest built from it — and the consolidation that folded it", async () => {
+    const chatId = await seedChat(db, "shrink");
+    await seedTurns(db, chatId, aria, 4); // blockSize 2 → block 0 (seq 1-2), block 1 (seq 3-4)
+    const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 } as const;
+    const first = upsertingStore(db);
+    await generateDigests(makeChatContext(db, { summarize: fakeSummarize().fn, embeddingsStore: first.store }), {
+      scope: sharedScope(chatId),
+      config: cfg,
+    });
+    // Baseline: both tier-0 blocks digested + the tier-1 consolidation over them.
+    const seeded = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
+    expect(seeded.map((d) => `${d.tier}:${d.blockIdx}`).sort()).toEqual(["0:0", "0:1", "1:0"]);
+
+    // The host HIDES the trailing span (seq 3-4) — block 1's rows leave the ingest set entirely.
+    for (const seq of [3, 4]) {
+      // biome-ignore lint/performance/noAwaitInLoops: two ordered updates in a test seed.
+      await db.update(messages).set({ excludedFromPrompt: true }).where(eq(messages.id, castId<MessageId>(`message_${chatId}_${seq}`)));
+    }
+
+    const second = upsertingStore(db);
+    const sum = fakeSummarize();
+    await generateDigests(makeChatContext(db, { summarize: sum.fn, embeddingsStore: second.store }), { scope: sharedScope(chatId), config: cfg });
+
+    // Block 0's rows did not move, so the self-heal legitimately re-summarizes NOTHING…
+    expect(second.digests).toHaveLength(0);
+    // …and the rows derived from the hidden span are GONE: `0:1` (summarized from seq 3-4) and `1:0` (the
+    // consolidation that folded it — a parent whose group can no longer be complete).
+    const after = await db.select().from(chatDigests).where(eq(chatDigests.chatId, chatId));
+    expect(after.map((d) => `${d.tier}:${d.blockIdx}`).sort()).toEqual(["0:0"]);
+    // The pruned digest's SPEAKER join rows go with it (no orphan `chat_digest_speakers` pointing at nothing).
+    const speakers = await db.select().from(chatDigestSpeakers);
+    const liveIds = new Set(after.map((d) => d.id));
+    expect(speakers.every((s) => liveIds.has(s.digestId))).toBe(true);
   });
 
   test("mode 'off' is a no-op (D36 global disable)", async () => {

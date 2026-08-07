@@ -13,6 +13,7 @@ import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
 import { createEmbedAssets } from "./verbs/embed-assets.ts";
 import { createEmbedCorpus } from "./verbs/embed-corpus.ts";
 import { createPruneDocumentChunks } from "./verbs/prune-document-chunks.ts";
+import { createPruneMemoryBlocks } from "./verbs/prune-memory-blocks.ts";
 import { createPurgeDocumentVectors } from "./verbs/purge-document-vectors.ts";
 import { createPurgeMemoryVectors } from "./verbs/purge-memory-vectors.ts";
 import { createStore } from "./verbs/store.ts";
@@ -31,6 +32,7 @@ export function createEmbeddingsService(ctx: EmbeddingsContext): EmbeddingsServi
     }),
     purgeMemoryVectors: createPurgeMemoryVectors(ctx),
     pruneDocumentChunks: createPruneDocumentChunks(ctx),
+    pruneMemoryBlocks: createPruneMemoryBlocks(ctx),
     purgeDocumentVectors: createPurgeDocumentVectors(ctx),
     countDocumentChunks: createCountDocumentChunks(ctx),
   };

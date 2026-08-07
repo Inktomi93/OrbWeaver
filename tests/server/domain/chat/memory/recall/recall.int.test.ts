@@ -1,15 +1,18 @@
 import type { BlockKey } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
-import type { CharacterId, ChatId, Handle } from "@orb/kit/ids";
+import { messages } from "@orb/db";
+import type { CharacterId, ChatId, Handle, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import { generateDigests } from "../../../../../../packages/server/src/domain/chat/memory/build/digests.ts";
 import { loadWitnessHorizons } from "../../../../../../packages/server/src/domain/chat/memory/persistence/queries.ts";
 import { recallMemory } from "../../../../../../packages/server/src/domain/chat/memory/recall/recall.ts";
 import type { MemoryLogEntry } from "../../../../../../packages/server/src/domain/chat/memory/types.ts";
 import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../../_support.ts";
-import { fakeSearchDigests, GROUP_CHAR, seedDigest, seedSegment, sharedScope } from "../_support.ts";
+import { fakeEmbeddingsStore, fakeSearchDigests, fakeSummarize, GROUP_CHAR, seedDigest, seedSegment, seedTurns, sharedScope } from "../_support.ts";
 
 const aria = castId<CharacterId>("character_aria");
 const bram = castId<CharacterId>("character_bram");
@@ -56,6 +59,39 @@ describe("memory/recall — the 5 modes + the mode-switch union + witnessing", (
       config: { mode: "mixA" },
     });
     expect(out).toBe(joinBlocks(facet("[s0]", "a"), facet("[s1]", "b")));
+  });
+
+  // THE END-TO-END SHRINK PIN (stickler 2026-08-08 leg-2 refutation). The recall seam is where the defect was
+  // actually payable: hiding a trailing span removed those rows from the prompt AND from the ingest set, but
+  // the digest already summarized FROM them survived in `chat_digests` — blocks are keyed `(tier, blockIdx)`
+  // and the self-heal is content-hash keyed, so a block that VANISHES is unreachable by the heal. `{{memory}}`
+  // then re-surfaced the hidden content into the very prompt it had been held out of. The build's shrink
+  // reclaim closes it; this asserts the OUTCOME a host would actually see.
+  test("hiding a trailing span keeps its content out of {{memory}} recall (the block's digest is reclaimed)", async () => {
+    const chatId = await seedChat(db, "shrinkrecall");
+    await seedTurns(db, chatId, aria, 4); // blockSize 2 → block 0 (seq 1-2), block 1 (seq 3-4)
+    const cfg = { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 } as const;
+    const build = (): ReturnType<typeof makeChatContext> =>
+      makeChatContext(db, { summarize: fakeSummarize().fn, embeddingsStore: fakeEmbeddingsStore(db).store });
+
+    await generateDigests(build(), { scope: sharedScope(chatId), config: cfg });
+    const before = await recallMemory(makeChatContext(db), { scope: sharedScope(chatId), groupCharacterId: GROUP_CHAR, config: { mode: "mixA" } });
+    // Both blocks' digests are recallable — the fake summarizer numbers each call, so block 1's is "scene 2".
+    expect(before).toContain("scene 1");
+    expect(before).toContain("scene 2");
+
+    for (const seq of [3, 4]) {
+      // biome-ignore lint/performance/noAwaitInLoops: two ordered updates in a test seed.
+      await db
+        .update(messages)
+        .set({ excludedFromPrompt: true })
+        .where(eq(messages.id, castId<MessageId>(`message_${chatId}_${seq}`)));
+    }
+    await generateDigests(build(), { scope: sharedScope(chatId), config: cfg });
+
+    const after = await recallMemory(makeChatContext(db), { scope: sharedScope(chatId), groupCharacterId: GROUP_CHAR, config: { mode: "mixA" } });
+    expect(after).toContain("scene 1"); // the surviving block still recalls
+    expect(after).not.toContain("scene 2"); // …the hidden span's digest does not
   });
 
   test("mixC → delegates the cosine scan to ctx.searchDigests + formats the ranked keys", async () => {

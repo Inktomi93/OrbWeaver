@@ -890,6 +890,34 @@ export interface StoreSegmentParams {
 /** memory's digest/segment vector write — the one write path. */
 export type EmbeddingsStoreOp = (params: StoreDigestParams | StoreSegmentParams) => Promise<void>;
 
+/** memory's digest SHRINK reclaim — the blocks-that-no-longer-exist half of the build. `keepPerTier[k]` is
+ *  the surviving block COUNT at tier k; every stored row with `blockIdx >= keepPerTier[tier]` is beyond canon
+ *  and is deleted (its `chat_digest_speakers` rows cascade). */
+interface PruneDigestBlocksParams {
+  readonly lens: "digest";
+  readonly chatId: ChatId;
+  readonly scopedCharacterId: CharacterId;
+  readonly keepPerTier: readonly number[];
+}
+
+/** The segment twin: chat-wide and single-tier, so ONE ceiling and no scope bucket. */
+interface PruneSegmentBlocksParams {
+  readonly lens: "segment";
+  readonly chatId: ChatId;
+  readonly keepBlockCount: number;
+}
+
+/**
+ * memory's block-SHRINK reclaim → `embeddings.pruneMemoryBlocks`. The counterpart to
+ * {@link EmbeddingsStoreOp}, and it exists because the build's self-heal structurally cannot cover a shrink:
+ * blocks are sliced by POSITION and stored keyed `(tier, blockIdx)`, while the heal is CONTENT-HASH keyed —
+ * so it only ever re-summarizes a block that still EXISTS. When the ingest set shrinks (a host hides a
+ * trailing span, rows are deleted), the trailing block stops being produced, no surviving block's hash
+ * changes, and nothing re-summarizes anything — so the digest built FROM the removed rows would stay in the
+ * recall pool forever. The build STORES, then prunes. An ordinary pass prunes nothing.
+ */
+type EmbeddingsPruneBlocksOp = (params: PruneDigestBlocksParams | PruneSegmentBlocksParams) => Promise<void>;
+
 /** memory's chat-scoped recall. Returns ranked block identities; memory resolves them back to digest text. */
 type SearchDigestsOp = (query: MemoryQueryOptions) => Promise<readonly BlockKey[]>;
 
@@ -1024,6 +1052,7 @@ export interface ChatContext {
   readonly resolveConnectedPersona: ResolveConnectedPersonaOp;
   readonly verifyPersonaOwned: VerifyPersonaOwnedOp;
   readonly embeddingsStore: EmbeddingsStoreOp;
+  readonly embeddingsPruneBlocks: EmbeddingsPruneBlocksOp;
   readonly searchDigests: SearchDigestsOp;
   readonly searchCorpus: SearchCorpusOp;
   /** The databank slot GATHER op (DB6) — OPTIONAL; absent = the null-op byte-identical no-op. */
