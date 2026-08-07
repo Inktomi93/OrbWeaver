@@ -33,6 +33,21 @@ export function NotificationBellStory(): ReactElement {
   );
 }
 
+/** The SHEET lens — the phone's You-sheet inbox block (`ChromeEntry.mobile: "sheet"` renders `body("sheet")`
+ *  inline). 320px, the real phone column: this lens has no trigger and no popover, so its "you looked" moment
+ *  is the MOUNT, and its section name has to be findable as a heading in a long scrolling drawer. */
+export function NotificationBellSheetStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <div style={{ width: 320, padding: 16 }}>
+          <NotificationBell presentation="sheet" />
+        </div>
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
 /** The bell + the real toast surface — for the stream's typed `__subscriptionError` terminal-frame lane,
  *  whose whole visible consequence is a `notify.error` toast. */
 export function NotificationBellToastStory(): ReactElement {

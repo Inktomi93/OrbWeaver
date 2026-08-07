@@ -13,13 +13,13 @@ import type { NotificationEvent, NotificationType } from "@orb/contracts/notific
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Bell, Icon } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Row, Section, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
@@ -72,6 +72,24 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
   const decline = useDeclineInvite({ trpc, invalidation });
   const acceptHandoff = useAcceptHostHandoff({ trpc, invalidation });
   const [open, setOpen] = useState(false);
+
+  // THE SHEET LENS HAS NO "OPEN" EVENT — its rows just ARE, so its "you looked" moment is the mount (the
+  // popover's `onOpenChange` below is the bar lens's equivalent). This effect is what made the claim in the
+  // sheet branch's comment TRUE: it was written as if a mark-read fired there, and none did, so a phone
+  // user's unread count could never clear (side-eye 2026-08-07 P2).
+  //
+  // Keyed on the BOOLEAN, not the count: the read lands after mount, so `hasUnread` flips false→true once and
+  // the mutation fires once; the invalidated refetch then flips it back to false and the effect cannot re-arm
+  // while the same rows stay read. `markAllRead.mutate` is react-query's stable handle (the mutation OBJECT
+  // is a fresh identity every render and would loop).
+  const isSheet = presentation === "sheet";
+  const hasUnread = unreadCount > 0;
+  const markAllReadNow = markAllRead.mutate;
+  useEffect(() => {
+    if (isSheet && hasUnread) {
+      markAllReadNow(undefined);
+    }
+  }, [isSheet, hasUnread, markAllReadNow]);
 
   const onOpenChange = (next: boolean): void => {
     setOpen(next);
@@ -147,19 +165,23 @@ export function NotificationBell({ presentation = "bar" }: NotificationBellProps
     </Stack>
   );
 
-  if (presentation === "sheet") {
+  if (isSheet) {
     // THE PHONE'S INBOX IS A BLOCK, NOT A POPOVER (side-eye leg-4 P2 + the topbar budget). On a 320px row
     // the bell was a 48px control competing with the one thing that says where you are — and the sheet is
     // already this app's phone-overflow home. Rendered OPEN: there is nothing to anchor to and nothing to
-    // reveal, so the rows just are. Opening the sheet is the "you looked" moment the badge measures, so
-    // the same markAllRead the popover fires on open fires here on mount.
+    // reveal, so the rows just are. Opening the sheet is the "you looked" moment the badge measures, so the
+    // same markAllRead the popover fires on open fires here on mount (the effect above — this sentence used
+    // to describe code that did not exist).
+    //
+    // `Section kicker`, not a bare `<Text voice="kicker">` (side-eye 2026-08-07 P3b / §13.10 N7). The block's
+    // NAME was a `<span>`, so in a long overflow sheet the only way to find the inbox was to scroll past
+    // everything else looking for it — heading navigation could not reach it. `Section` renders exactly this
+    // voice on a real `<h3>` (`@orb/ui/layout` — "Still a real <h3>, so the document outline survives"), so
+    // the fix is the house primitive, not a hand-rolled role/aria-labelledby pair.
     return (
-      <Stack gap="row" data-testid={testId("notificationsInbox")}>
-        {/* `voice`, not four internal axes — the section's NAME is exactly what the kicker voice is for
-            (density-pass-spec §2.3; the gate exists to keep features off the type axes). */}
-        <Text voice="kicker">{bellLabel}</Text>
+      <Section data-testid={testId("notificationsInbox")} kicker={bellLabel}>
         {inbox}
-      </Stack>
+      </Section>
     );
   }
 

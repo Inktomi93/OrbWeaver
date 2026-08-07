@@ -10,13 +10,14 @@
 // `makeRpgContextTabs` is injected the cross-domain read channel `{ trpc, queryClient }` at the door — the
 // story mirrors that door assembly with the CT's own singletons.
 
-import { useTRPC } from "@orb/client/data";
+import { useGatedQuery, useTRPC } from "@orb/client/data";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
 import type { ChatContextState, ContextRegionDef, ContextTabDef } from "@orb/client/lib";
 import { bindNotify, createContributorRegistry } from "@orb/client/lib";
 import { selectChat, useSectionRegistry } from "@orb/client/state";
 import type { MessageView } from "@orb/contracts/chat";
-import type { MessageId, MessageVariantId } from "@orb/kit/ids";
+import { isRpgEngaged } from "@orb/contracts/rpg";
+import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
@@ -246,6 +247,33 @@ export function TurnToolCallsOtherVariantStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 480 }}>
         <RenderFooterContribution message={TOOL_CALLS_OTHER_VARIANT} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The SETTLE SENTINEL for the gated-read stories: it reads the SAME `chat.getChat` the disclosure's gate
+ *  reads and paints the verdict, so a CT can barrier on a RENDERED settled state instead of on a node-side
+ *  request count. Without it "no request was made" is unfalsifiable — it is also true one millisecond after
+ *  mount, before the gate has decided anything. */
+function RoomKindSentinel({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  const trpc = useTRPC();
+  const detail = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
+  if (detail.data === undefined) {
+    return <p data-testid="room-kind">…</p>;
+  }
+  return <p data-testid="room-kind">{isRpgEngaged(detail.data.rpg ?? null) ? "game" : "plain"}</p>;
+}
+
+/** The recorded variant's row in a room that is NOT a live game — the gate's negative arm. `listTurnToolCalls`
+ *  resolves through `resolveMember`, whose leak-free NOT_FOUND for a gameless chat is deliberate, so the
+ *  client must not ASK: every non-game committed room was logging that 404 (plus its retry) on open. */
+export function TurnToolCallsNonGameStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 480 }}>
+        <RoomKindSentinel chatId={CHAT_ID} />
+        <RenderFooterContribution message={TOOL_CALLS_MESSAGE} />
       </div>
     </CtDataProviders>
   );

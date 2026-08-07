@@ -115,13 +115,18 @@ interface ViewContentProps {
   readonly customParameterKeys: readonly string[];
   /** The Macros body's source attribution (`preset:<id>` in the browser). */
   readonly presetId: PresetId;
+  /** Can this preset hold regex ATTACHMENTS? `false` for the built-in default (null `ownerId`), whose
+   *  attachment read `ensurePresetOwned` refuses by construction. The SAME fact the CONTEXT readout takes
+   *  (`TransformsReadout.attachable`) — one fact, one answer, so the Transforms tab and the readout beside it
+   *  cannot say different things about the same eight pipeline stages (side-eye 2026-08-07 P2). */
+  readonly attachable: boolean;
   readonly onRevealSection?: (() => void) | undefined;
 }
 
 /** Render one VIEW's body. Params is the new deck; the other four are the landed bodies re-homed per the
  *  §3 map (Data and Transforms simply stack the leaves that used to be sub-tabs). */
 function viewContent(id: PresetEditorView["id"], props: ViewContentProps): ReactElement {
-  const { form, capability, capabilityError, effective, customParameterKeys, presetId, onRevealSection } = props;
+  const { form, capability, capabilityError, effective, customParameterKeys, presetId, attachable, onRevealSection } = props;
   switch (id) {
     case "params":
       return (
@@ -159,7 +164,7 @@ function viewContent(id: PresetEditorView["id"], props: ViewContentProps): React
               they sit above the prompt-side regex lanes and everything reply-side, in the same execution
               order the Transforms readout prints. */}
           <PresetStructureTabs capability={capability} form={form} tab="delivery" />
-          <RegexTab presetId={presetId} />
+          <RegexTab attachable={attachable} presetId={presetId} />
           <PresetStructureTabs form={form} tab="postProcess" />
           <PresetStructureTabs form={form} tab="templates" />
         </Stack>
@@ -301,7 +306,18 @@ function PresetEditorBody({
   // pure-query readout now, so no sibling shell region needs a live form handle.
   const boundForm = form as AppFormInstance<PromptConfig>;
 
-  const viewProps: ViewContentProps = { form: boundForm, capability, capabilityError, effective, customParameterKeys, presetId, onRevealSection };
+  // `attachable` is the NEGATION of the SAME `isSystemDefault` wire flag the header's Reset arm reads — the
+  // client never sniffs the built-in from its sentinel id (`domain/preset/constants.ts`: "Not cross-boundary").
+  const viewProps: ViewContentProps = {
+    form: boundForm,
+    capability,
+    capabilityError,
+    effective,
+    customParameterKeys,
+    presetId,
+    attachable: !isSystemDefault,
+    onRevealSection,
+  };
   // The ONE writer of the view axis; an unset store read resolves to the tuple's first view.
   const view = usePresetEditorView() ?? PRESET_EDITOR_VIEWS[0]?.id;
 

@@ -8,11 +8,21 @@
 //     hours because that reason existed nowhere a human could read it;
 //   • APPLICABILITY is keyed to the VARIANT, not the message: swiping to a variant with no record renders
 //     NOTHING (not an empty shell) — the swipe-correctness the variantId keying buys;
-//   • a USER row never mounts it at all (`when` refuses).
+//   • a USER row never mounts it at all (`when` refuses);
+//   • a room with NO LIVE GAME never ASKS — the read is gated on the chat's own rpg pointer, because
+//     `listTurnToolCalls` answers a deliberate leak-free NOT_FOUND for a gameless chat and every non-game
+//     committed room was printing that 404 (twice, with the retry) on open.
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { TurnToolCallsDisclosureStory, TurnToolCallsOtherVariantStory, TurnToolCallsUserRowStory } from "../_ct-stories.tsx";
+import { TurnToolCallsDisclosureStory, TurnToolCallsNonGameStory, TurnToolCallsOtherVariantStory, TurnToolCallsUserRowStory } from "../_ct-stories.tsx";
+
+/** The room's `ChatDetail` as a LIVE game — the gate the hook reads before it asks for any record
+ *  (`isRpgEngaged`, the one client predicate). Every story below is a game room unless it says otherwise;
+ *  without this stub the disclosure correctly never fetches and the whole file would assert nothing. */
+const GAME_ROOM = {
+  "chat.getChat": (): { readonly rpg: { readonly gameId: string; readonly engaged: boolean } } => ({ rpg: { gameId: "rpg_game_ct", engaged: true } }),
+};
 
 /** A REAL folded turn's call set, in the shape `recordToolCalls` produces — all three verdicts at once,
  *  because the mixed row is the one a user actually has to read. The `update_scene` drop is the live
@@ -46,7 +56,7 @@ const RE_COUNT_3 = /3/;
 const RE_EXPECTED_STRING = /Invalid input: expected string/;
 
 test("collapsed by default; opening it names each call and whether it landed", async ({ mount, page }) => {
-  await routeTrpc(page, { "rpg.listTurnToolCalls": () => RECORDED_TURN });
+  await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => RECORDED_TURN });
 
   const component = await mount(<TurnToolCallsDisclosureStory />);
 
@@ -68,7 +78,7 @@ test("collapsed by default; opening it names each call and whether it landed", a
 test("a DROPPED call says so, and its reason is VISIBLE TEXT (never a hover-only tooltip)", async ({ mount, page }) => {
   // The SCENE-DROPPED lesson: 12 identical silent drops cost a live session hours. The whole point of this
   // surface is that the reason reaches the person at the keyboard, on touch as well as on a mouse.
-  await routeTrpc(page, { "rpg.listTurnToolCalls": () => RECORDED_TURN });
+  await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => RECORDED_TURN });
 
   const component = await mount(<TurnToolCallsDisclosureStory />);
   await component.getByRole("button", { name: RE_TRIGGER }).click();
@@ -83,7 +93,7 @@ test("a DROPPED call says so, and its reason is VISIBLE TEXT (never a hover-only
 test("APPLICABILITY is per-VARIANT: the same slot swiped to an unrecorded variant renders nothing", async ({ mount, page }) => {
   // The swipe-correctness the `variantId` keying buys. A message-keyed record would wrongly show this
   // variant its sibling's calls; an absent record must render NOTHING, not an empty disclosure.
-  await routeTrpc(page, { "rpg.listTurnToolCalls": () => RECORDED_TURN });
+  await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => RECORDED_TURN });
 
   const component = await mount(<TurnToolCallsOtherVariantStory />);
 
@@ -92,17 +102,43 @@ test("APPLICABILITY is per-VARIANT: the same slot swiped to an unrecorded varian
 });
 
 test("a USER row never mounts it — `when` refuses before any lookup", async ({ mount, page }) => {
-  await routeTrpc(page, { "rpg.listTurnToolCalls": () => RECORDED_TURN });
+  await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => RECORDED_TURN });
 
   const component = await mount(<TurnToolCallsUserRowStory />);
 
   await expect(component.locator("[data-slot=turn-tool-calls]")).toHaveCount(0);
 });
 
+// ── The gate (side-eye 2026-08-07 P3) ────────────────────────────────────────────────────────────────
+// Every non-game committed chat printed `rpg.listTurnToolCalls ✗ game chat_… not found` on open, twice (the
+// initial request and one retry). The verb is innocent: its NOT_FOUND is the leak-free collapse
+// `domain/rpg/guard.ts` deliberately makes indistinguishable across "no such chat"/"not a game"/"not a
+// member", so a foreigner cannot probe a chat's game-ness. Asking is the defect.
+
+test("a room with NO live game NEVER asks for the record — no request, and therefore no retry", async ({ mount, page }) => {
+  // The record is stubbed as PRESENT: if the gate let the query through, this room would render a disclosure
+  // and the count would be non-zero. Nothing here is absent for want of data.
+  const trpc = await routeTrpc(page, {
+    "chat.getChat": () => ({ rpg: null }),
+    "rpg.listTurnToolCalls": () => RECORDED_TURN,
+  });
+
+  const component = await mount(<TurnToolCallsNonGameStory />);
+
+  // BARRIER on the RENDERED settled arm: the sentinel reads the same `chat.getChat` the gate reads, so
+  // "plain" means the browser has the detail and the gate has decided. Only then is an absence meaningful —
+  // before it, "no request yet" is true of every mount for a millisecond.
+  await expect(component.getByTestId("room-kind")).toHaveText("plain");
+  await expect(component.locator("[data-slot=turn-tool-calls]")).toHaveCount(0);
+  // ONESHOT-OK: settled by the barrier above — the gated query would have been issued during the same commit
+  // that painted "plain", so this is a read of finished state, not a mid-flight sample.
+  expect(trpc.count("rpg.listTurnToolCalls")).toBe(0);
+});
+
 test("a room with NO records renders no disclosure at all (a non-game chat is untouched)", async ({ mount, page }) => {
   // [[no-separate-reduced-modes]]: there is no flag and no "reduced" transcript — the surface is simply
   // absent where it does not apply.
-  await routeTrpc(page, { "rpg.listTurnToolCalls": () => [] });
+  await routeTrpc(page, { ...GAME_ROOM, "rpg.listTurnToolCalls": () => [] });
 
   const component = await mount(<TurnToolCallsDisclosureStory />);
 
