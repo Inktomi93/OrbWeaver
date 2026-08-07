@@ -5,7 +5,7 @@
 
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, pendingTurns } from "@orb/db";
-import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId, UserId } from "@orb/kit/ids";
+import type { ChatId, ChatInviteId, ChatParticipantId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, asc, count, desc, eq, gt, isNull, lt, or, sql } from "drizzle-orm";
 import { upsertMemberOnJoin } from "./participant.ts";
 import { loadMaxMessageSeq } from "./queries.ts";
@@ -51,6 +51,9 @@ export async function redeemInviteAtomic(
     readonly tokenHash: string;
     readonly userId: UserId;
     readonly participantId: ChatParticipantId;
+    /** The joiner's seed persona (the verb runs the same chain `startChat` runs for the host seat). `null` =
+     *  the joiner holds no persona — an honest floor, never the room's anchor. */
+    readonly activePersonaId: PersonaId | null;
     readonly now: number;
   },
 ): Promise<{ inviteId: ChatInviteId; chatId: ChatId; participant: typeof chatParticipants.$inferSelect } | undefined> {
@@ -82,6 +85,7 @@ export async function redeemInviteAtomic(
     participantId: params.participantId,
     chatId: invite.chatId,
     userId: params.userId,
+    activePersonaId: params.activePersonaId,
     joinSeq,
     now: params.now,
   });
@@ -102,6 +106,8 @@ export async function acceptInviteByIdAtomic(
     readonly inviteId: ChatInviteId;
     readonly userId: UserId;
     readonly participantId: ChatParticipantId;
+    /** The joiner's seed persona — see {@link redeemInviteAtomic}. */
+    readonly activePersonaId: PersonaId | null;
     readonly now: number;
   },
 ): Promise<{ inviteId: ChatInviteId; chatId: ChatId; participant: typeof chatParticipants.$inferSelect } | undefined> {
@@ -132,6 +138,7 @@ export async function acceptInviteByIdAtomic(
     participantId: params.participantId,
     chatId: invite.chatId,
     userId: params.userId,
+    activePersonaId: params.activePersonaId,
     joinSeq,
     now: params.now,
   });

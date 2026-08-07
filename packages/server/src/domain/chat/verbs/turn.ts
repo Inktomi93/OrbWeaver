@@ -28,7 +28,7 @@ import type { ArbiterCandidate, AutoModeResult, CastName } from "../contract/arb
 import type { TurnUserMacros } from "../contract/assembly-macros.ts";
 import type { ChatRpgGatherResult } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
-import type { ChatBehaviorInputs, ForeignInputs, ResolveForeignInputsOp } from "../contract/foreign.ts";
+import type { ChatBehaviorInputs, ForeignInputs, ResolveForeignInputsOp, TurnTrigger } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
 import type { MemoryConfig, MemoryRecallInputs } from "../contract/memory.ts";
 import type {
@@ -453,6 +453,14 @@ function rpgAssembleFields(rpg: ChatRpgGatherResult | null): {
   };
 }
 
+/** The {@link TurnTrigger} for a turn a LIVE human drives — their id plus their SEAT's persona, which is
+ *  `null` when the seat holds none (an invite-joined member, a user who owns no persona at all). That null
+ *  is the honest kit floor ("User"); it must never coalesce into the chat anchor, which would present a
+ *  member to the model wearing the HOST's identity (INVITE-JOIN-NULL-PERSONA). */
+function humanTrigger(userId: UserId, personaId: PersonaId | null): TurnTrigger {
+  return { kind: "human", userId, personaId };
+}
+
 /** Builds the one immutable assemble ctx for the round: resolves the foreign half from chat-supplied keys,
  *  then gathers the chat-internal half + builds the pure ctx. Returns the built ctx plus the resolved memory
  *  config so the caller threads the same resolution recall uses. */
@@ -474,9 +482,9 @@ async function buildTurnContext(
     /** The FOREIGN persona read's consent set — see {@link Room.presentHumanUserIds}. */
     readonly presentHumanUserIds: readonly UserId[];
     readonly anchorPersonaId: PersonaId | null;
-    /** The triggering human's active persona — binds prompt-config `{{user}}` to the speaker, not
-     *  `personaIds[0]` (the presence-order-arbitrary first human). */
-    readonly triggerPersonaId?: PersonaId | null | undefined;
+    /** WHO drives this turn ({@link TurnTrigger}) — binds prompt-config `{{user}}` to the speaker, not
+     *  `personaIds[0]` (the presence-order-arbitrary first human) and not the anchor. */
+    readonly trigger?: TurnTrigger | undefined;
     readonly pendingUserText?: string | undefined;
     /** rpg-design/05 §6 slot-adjacency: is this turn (re)generating the assistant slot that DIRECTLY responds
      *  to the latest user message (send / deferred-drain / swipe-of-that-slot)? Drives the rpg dice feed-forward
@@ -512,7 +520,7 @@ async function buildTurnContext(
     anchorPersonaId: args.anchorPersonaId,
     personaIds: args.personaIds,
     presentHumanUserIds: args.presentHumanUserIds,
-    triggerPersonaId: args.triggerPersonaId,
+    trigger: args.trigger,
     ...(presetOverride !== null ? { presetOverride } : {}),
   });
   // A game turn's GATHER (rpg-design/05 §1): the 8 rpg macros + the depth-0 reminder injection + the tool
@@ -566,6 +574,10 @@ async function buildTurnContext(
 
       mutedSpeakerKeys: args.mutedSpeakerKeys,
       personaIds: args.personaIds,
+      // SHAPE's null-stamp guard needs the identity behind `speakers.user`: a canon row with NO persona stamp
+      // may borrow this turn's `{{user}}` only when it is that human's OWN row (see `toShapeCanon`). `none`/
+      // absent ⇒ null ⇒ no row borrows it.
+      triggerUserId: args.trigger?.kind === "human" ? args.trigger.userId : null,
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       prng: deps.prng,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
@@ -1275,7 +1287,7 @@ async function commitUserTurn(
       presentHumanUserIds: room.presentHumanUserIds,
       anchorPersonaId: membership.chat.anchorPersonaId,
       // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back (mirrors the row-stamp expression below).
-      triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
+      trigger: humanTrigger(principal.userId, personaId !== undefined ? personaId : membership.activePersonaId),
       pendingUserText: content,
       // A send's AI response directly responds to the just-committed user message (rpg-design/05 §6): the
       // player's queued d20 feeds its first skill check. Always true for a send.
@@ -1444,7 +1456,7 @@ function createForceCharacterTurn(ctx: ChatContext, deps: TurnDeps): ChatService
       personaIds: room.personaIds,
       presentHumanUserIds: room.presentHumanUserIds,
       anchorPersonaId: membership.chat.anchorPersonaId,
-      triggerPersonaId: membership.activePersonaId,
+      trigger: humanTrigger(principal.userId, membership.activePersonaId),
       guided,
       // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
       castCharForHostRow: joinedCastName(room.castNames),
@@ -1559,9 +1571,9 @@ async function resolveTurnBase(
     readonly chatId: ChatId;
     readonly kind: TurnKind;
     readonly anchorPersonaId: PersonaId | null;
-    /** The triggering human's active persona — binds prompt-config `{{user}}` to the speaker, not
-     *  `personaIds[0]`. */
-    readonly triggerPersonaId?: PersonaId | null | undefined;
+    /** WHO drives this turn ({@link TurnTrigger}) — binds prompt-config `{{user}}` to the speaker, not
+     *  `personaIds[0]` and not the anchor. */
+    readonly trigger?: TurnTrigger | undefined;
     /** rpg-design/05 §6 slot-adjacency verdict (only `swipe` of the die-response passes true). Default false. */
     readonly respondsToLatestUserTurn?: boolean | undefined;
     /** The slot this turn REGENERATES (swipe only — `continue` extends the slot and reads through it). VER-1b. */
@@ -1602,7 +1614,7 @@ async function resolveTurnBase(
     personaIds: room.personaIds,
     presentHumanUserIds: room.presentHumanUserIds,
     anchorPersonaId: args.anchorPersonaId,
-    triggerPersonaId: args.triggerPersonaId,
+    trigger: args.trigger,
     ...(args.respondsToLatestUserTurn !== undefined ? { respondsToLatestUserTurn: args.respondsToLatestUserTurn } : {}),
     ...(args.regenSlotMessageId !== undefined ? { regenSlotMessageId: args.regenSlotMessageId } : {}),
     guided: args.guided,
@@ -1692,7 +1704,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       chatId,
       kind: "swipe",
       anchorPersonaId: membership.chat.anchorPersonaId,
-      triggerPersonaId: membership.activePersonaId,
+      trigger: humanTrigger(principal.userId, membership.activePersonaId),
       respondsToLatestUserTurn,
       // VER-1b: this turn REGENERATES `messageId` — the slot whose currently-selected variant is the one being
       // abandoned. The gather cuts the tracked state before it, exactly as the canon context is cut here.
@@ -1756,7 +1768,7 @@ function createContinueTurn(ctx: ChatContext, deps: TurnDeps): ChatService["cont
       chatId,
       kind: "continue",
       anchorPersonaId: membership.chat.anchorPersonaId,
-      triggerPersonaId: membership.activePersonaId,
+      trigger: humanTrigger(principal.userId, membership.activePersonaId),
       guided,
       // WAVE MU: a continue replays the slot's draw record so its extension prompt carries the same drawn values.
       ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
@@ -1876,7 +1888,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
       kind: "impersonate",
       anchorPersonaId: membership.chat.anchorPersonaId,
       // biome-ignore lint/nursery/useNullishCoalescing: `??` would coalesce an EXPLICIT null into the active persona — only an omitted (undefined) param falls back.
-      triggerPersonaId: personaId !== undefined ? personaId : membership.activePersonaId,
+      trigger: humanTrigger(principal.userId, personaId !== undefined ? personaId : membership.activePersonaId),
       guided,
     });
     // The non-persisting generation: same assemble ctx + impersonateNudge + steer a real turn builds, run
@@ -1953,7 +1965,7 @@ function createGenerate(ctx: ChatContext, deps: TurnDeps): ChatService["generate
       chatId,
       kind: "generate",
       anchorPersonaId: membership.chat.anchorPersonaId,
-      triggerPersonaId: membership.activePersonaId,
+      trigger: humanTrigger(principal.userId, membership.activePersonaId),
       guided,
     });
     // An EXPLICIT speaker must be a PRESENT cast member of THIS chat — never trust the branded id from the
@@ -2105,7 +2117,7 @@ async function runDeferredRound(
       presentHumanUserIds: room.presentHumanUserIds,
       anchorPersonaId: chat.anchorPersonaId,
       // No live triggering human at drain — {{user}} binds to the chat anchor, not a presence-order human.
-      triggerPersonaId: null,
+      trigger: { kind: "none" },
       // A deferred drain is the FIRST AI response to the offline-host's committed user send (rpg-design/05 §6) —
       // it directly responds to that user message, so its queued d20 still feeds (the die wasn't lost to the defer).
       respondsToLatestUserTurn: true,
@@ -2296,7 +2308,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
         presentHumanUserIds: room.presentHumanUserIds,
         anchorPersonaId: chat.anchorPersonaId,
         // No live triggering human — {{user}} binds to the chat anchor, not a presence-order human.
-        triggerPersonaId: null,
+        trigger: { kind: "none" },
         ...(guided !== undefined ? { guided } : {}),
         // The Ruling-B host `{{char}}` (joined cast / solo single) for the rpg steeringNote render (chat owns it).
         castCharForHostRow: joinedCastName(room.castNames),

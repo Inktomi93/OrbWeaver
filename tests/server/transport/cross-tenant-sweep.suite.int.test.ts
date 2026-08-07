@@ -1009,6 +1009,9 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "tag.pruneUnusedTags": "self-scoped: prunes the caller's own unused tags",
   "credentials.add": "self-scoped",
   "credentials.list": "self-scoped",
+  // Param-free and ROW-free: one boolean about the DEPLOYMENT's SecretBox (is a CREDENTIALS_KEY configured),
+  // identical for every authenticated caller. There is no tenant axis for a cross-tenant probe to cross.
+  "credentials.storageStatus": "no-tenant-axis: a deployment capability boolean, names no row and no owner",
   // The credential MUTATION verbs guard on storage-enabled FIRST — the `app` fixture's SecretBox is keyless
   // (no CREDENTIALS_KEY), so they reject BAD_REQUEST (`credentials_disabled`) before the ownership check can
   // run. The cross-tenant gate is unreachable in this harness; owner-scoping is covered by the credentials

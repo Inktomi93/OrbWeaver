@@ -353,6 +353,13 @@ function DraftGreetingThread({ draftKey, characterIds, chatStyle, seedAnchorPers
     defaultPersonaId: settings.config.seeds.defaultPersonaId,
   });
   const characterNamesById = buildCharacterNameMap(characters.map((c) => ({ id: c.data.id, name: c.data.name })));
+  // DRAFT-PHASE ROW AVATAR — verified root cause, and it is NOT a missing data thread. `resolveAssistantAttribution`
+  // takes a row's portrait from the live `participants` (a draft has none — nothing is seated yet) and falls back to
+  // `characterAvatarsById`, which this thread simply never passed: it built the NAME producer off the fetched cards
+  // and stopped there, so every draft greeting rendered its initials while the topbar — reading the SAME
+  // `character.get` payload two components away — showed the portrait. Self-healing on commit is the roster arriving,
+  // not a race. The hashes are already in hand; this is the producer that was missing, off the same query.
+  const characterAvatarsById = buildCharacterAvatarMap(characters.map((c) => ({ id: c.data.id, avatarHash: c.data.avatarHash })));
   const personaNamesById = buildPersonaNameMap(personas.map((p) => ({ id: p.id, name: p.name, description: p.description })));
   // The draft-greeting preview renders through the same display leg as a committed row, so a viewer's
   // DISPLAY script transforms the greeting they are about to pick too (one render path, one answer).
@@ -385,6 +392,7 @@ function DraftGreetingThread({ draftKey, characterIds, chatStyle, seedAnchorPers
           colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
           messageActions={messageAppearance.messageActions}
           characterNamesById={characterNamesById}
+          characterAvatarsById={characterAvatarsById}
           personaNamesById={personaNamesById}
           anchorPersonaId={anchorPersonaId}
           greeting={{ draftKey, characterId: character.id, variants: character.greetings.map((g) => (typeof g === "string" ? g : g.text)) }}

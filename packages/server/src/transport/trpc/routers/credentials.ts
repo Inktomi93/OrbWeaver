@@ -23,6 +23,11 @@ const customEndpointDraft = z.object({
 export const credentialsRouter = t.router({
   list: authedProcedure.query(({ ctx }) => ctx.services.credentials.list({ principal: ctx.auth })),
 
+  /** CREDENTIAL-STORAGE-SILENT-FAIL — "can this deployment keep a key at all?", asked BEFORE one is typed.
+   *  Param-free and row-free (a deployment capability, identical for every caller), so it is `authed` with no
+   *  owner scope to apply. */
+  storageStatus: authedProcedure.query(({ ctx }) => ctx.services.credentials.storageStatus()),
+
   add: authedProcedure
     .input(
       z.object({

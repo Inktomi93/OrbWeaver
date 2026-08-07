@@ -321,58 +321,84 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
             </form.AppField>
           </Stack>
 
-          {/* EXTRACTION DEPTH (§1.3) — the three knobs that decide how much EVIDENCE the state round reads.
+          {/* EXTRACTION DEPTH (§1.3) — the knobs that decide how much EVIDENCE the state round reads.
               Grouped under one kicker because they only make sense together: the context arm picks the shape,
               the token budget bounds the `window` arm (applicability-shown), and the cadence decides how often
-              a beat re-states everything instead of just what changed. */}
+              a beat re-states everything instead of just what changed.
+
+              EXTRACT-BUDGET-DEAD — the CONTEXT knobs are APPLICABILITY-omitted on the `folded` arm. Folded has
+              no separate extraction round: `buildFoldedTurnBuilder` mounts the tools onto the turn the model is
+              already writing and reads only `config.trackers`; `buildExtractionUserPrompt` (the only consumer
+              of `extractionContext`/`extractionWindowTokens`) has three callers and all three are non-folded.
+              So the two controls governed nothing while claiming to govern the fold's economics — copy that was
+              simply false. `reconcileEveryBeats` STAYS: it gates the `FOLDED_RECONCILE_NOTE` and works. */}
           <Stack gap="field">
             <Kicker>Extraction depth</Kicker>
-            <Text voice="gloss">
-              How much of the story the state pass reads before it updates the panel. It rides the turn's own transcript — no extra reads — so the cost is
-              prompt size, not model calls.
-            </Text>
-            <form.AppField name="extractionContext">
-              {(field): ReactElement => (
-                <Row gap="block" align="center">
-                  <ToggleGroup
-                    aria-label="Extraction context"
-                    value={[field.state.value]}
-                    onValueChange={(next): void => {
-                      const picked = asExtractionContext(next[0]);
-                      if (picked !== null) {
-                        field.handleChange(picked);
-                      }
-                    }}
-                  >
-                    {EXTRACTION_CONTEXT_OPTIONS.map((context) => (
-                      <Toggle key={context} value={context}>
-                        {context}
-                      </Toggle>
-                    ))}
-                  </ToggleGroup>
-                  <Text voice="gloss" className="min-w-0 flex-1">
-                    {EXTRACTION_CONTEXT_CONSEQUENCE[field.state.value]}
+            <form.AppField name="extractionMode">
+              {(modeField): ReactElement =>
+                modeField.state.value === "folded" ? (
+                  <Text voice="gloss">
+                    Folded delivery has no separate reading pass — the state calls ride the turn the model is already writing, so it sees exactly that turn's
+                    own context. There is no window to size. The cadence below still applies.
                   </Text>
-                </Row>
-              )}
+                ) : (
+                  <Text voice="gloss">
+                    How much of the story the state pass reads before it updates the panel. It rides the turn's own transcript — no extra reads — so the cost is
+                    prompt size, not model calls.
+                  </Text>
+                )
+              }
             </form.AppField>
-            {/* The window budget is the `window` arm's own knob — APPLICABILITY-shown, never a disabled twin. */}
-            <form.AppField name="extractionContext">
-              {(contextField): ReactElement | null =>
-                contextField.state.value === "window" ? (
-                  <form.AppField name="extractionWindowTokens">
-                    {(field): ReactElement => (
-                      <field.NumberField
-                        label="Window budget (tokens)"
-                        description={`How far back the recent arc reaches, sliced on whole messages. ${RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT} ≈ 10–16 typical beats. Range ${RPG_EXTRACTION_WINDOW_TOKENS_MIN}–${RPG_EXTRACTION_WINDOW_TOKENS_MAX}; raise it on a hosted model, keep it low on a small local one.`}
-                        placeholder={`${RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT} (default)`}
-                        min={RPG_EXTRACTION_WINDOW_TOKENS_MIN}
-                        max={RPG_EXTRACTION_WINDOW_TOKENS_MAX}
-                        step={512}
-                      />
-                    )}
-                  </form.AppField>
-                ) : null
+            <form.AppField name="extractionMode">
+              {(modeField): ReactElement | null =>
+                modeField.state.value === "folded" ? null : (
+                  <Stack gap="field">
+                    <form.AppField name="extractionContext">
+                      {(field): ReactElement => (
+                        <Row gap="block" align="center">
+                          <ToggleGroup
+                            aria-label="Extraction context"
+                            value={[field.state.value]}
+                            onValueChange={(next): void => {
+                              const picked = asExtractionContext(next[0]);
+                              if (picked !== null) {
+                                field.handleChange(picked);
+                              }
+                            }}
+                          >
+                            {EXTRACTION_CONTEXT_OPTIONS.map((context) => (
+                              <Toggle key={context} value={context}>
+                                {context}
+                              </Toggle>
+                            ))}
+                          </ToggleGroup>
+                          <Text voice="gloss" className="min-w-0 flex-1">
+                            {EXTRACTION_CONTEXT_CONSEQUENCE[field.state.value]}
+                          </Text>
+                        </Row>
+                      )}
+                    </form.AppField>
+                    {/* The window budget is the `window` arm's own knob — APPLICABILITY-shown, never a disabled twin. */}
+                    <form.AppField name="extractionContext">
+                      {(contextField): ReactElement | null =>
+                        contextField.state.value === "window" ? (
+                          <form.AppField name="extractionWindowTokens">
+                            {(field): ReactElement => (
+                              <field.NumberField
+                                label="Window budget (tokens)"
+                                description={`How far back the recent arc reaches, sliced on whole messages. ${RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT} ≈ 10–16 typical beats. Range ${RPG_EXTRACTION_WINDOW_TOKENS_MIN}–${RPG_EXTRACTION_WINDOW_TOKENS_MAX}; raise it on a hosted model, keep it low on a small local one.`}
+                                placeholder={`${RPG_EXTRACTION_WINDOW_TOKENS_DEFAULT} (default)`}
+                                min={RPG_EXTRACTION_WINDOW_TOKENS_MIN}
+                                max={RPG_EXTRACTION_WINDOW_TOKENS_MAX}
+                                step={512}
+                              />
+                            )}
+                          </form.AppField>
+                        ) : null
+                      }
+                    </form.AppField>
+                  </Stack>
+                )
               }
             </form.AppField>
             <form.AppField name="reconcileEveryBeats">

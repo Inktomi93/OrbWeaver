@@ -112,8 +112,17 @@ function ThemeManager(): ReactElement {
 
   return (
     <Stack gap="block">
-      <Row align="center" className="justify-between">
-        <Text voice="label">Themes</Text>
+      {/* MOBILE-THEME-SELECTOR — the band REFLOWS instead of assuming a minimum width. Measured at a 320px
+          viewport (`pnpm snap / --viewport 320x800`): this one row is `label + "Reset to Hearth" + "New
+          theme"`, which cannot fit, and with no wrap the primary was sheared to a ~10px orange sliver against
+          the dialog edge — the reported "clipped and shrunken" picker. It is NOT the dialog's `size="md"`
+          max-width (the list rows below it fit fine at the same width), so widening the dialog would have
+          moved the symptom without fixing the rigidity. `gap-row` keeps the two lines from touching once they
+          split; `min-w-0` lets the label shrink before anything is clipped. */}
+      <Row align="center" gap="row" className="flex-wrap justify-between">
+        <Text voice="label" className="min-w-0">
+          Themes
+        </Text>
         <Row gap="row">
           <Button intent="ghost" onClick={(): void => selectById(null)}>
             Reset to Hearth

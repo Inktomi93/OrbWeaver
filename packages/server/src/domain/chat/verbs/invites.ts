@@ -15,7 +15,7 @@ import type { ChatBusEvent, GroupConfig, InvitePreview, InviteView, ParticipantV
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
-import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
@@ -72,6 +72,18 @@ export function createInvites(ctx: ChatContext, deps: InviteDeps): InviteVerbs {
 
 /** A 256-bit CSPRNG invite token, base64url for a URL-safe `/join/:token`. */
 const TOKEN_BYTES = 32;
+
+/** THE SEAT'S PERSONA AT JOIN — the same seed chain `startChat` runs for the founding host row
+ *  (`start-chat.ts`: current persona, then default). Both join paths owe it: a seat born with
+ *  `activePersonaId = NULL` stamps `persona_id = NULL` on every message that member writes, and a row with no
+ *  identity of its own gets floored on both render surfaces — and, before the SHAPE guard, borrowed the
+ *  HOST's persona on the wire (INVITE-JOIN-NULL-PERSONA: the model was told the host said it).
+ *
+ *  `null` survives as an honest outcome for a user who holds no persona at all — it is the floor, never the
+ *  anchor. The joiner's OWN ids only; neither resolver reads the room. */
+async function resolveJoinerPersona(ctx: ChatContext, joinerUserId: UserId): Promise<PersonaId | null> {
+  return (await ctx.resolveCurrentPersona(joinerUserId)) ?? (await ctx.resolveDefaultPersona(joinerUserId));
+}
 
 /** A human-readable room-mode label for the invite preview (output × policy) — never the raw config. */
 function modeLabel(group: GroupConfig): string {
@@ -185,6 +197,7 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
       tokenHash,
       userId: principal.userId,
       participantId: ctx.newParticipantId(),
+      activePersonaId: await resolveJoinerPersona(ctx, principal.userId),
       now: at,
     });
 
@@ -247,6 +260,7 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
       inviteId,
       userId: principal.userId,
       participantId: ctx.newParticipantId(),
+      activePersonaId: await resolveJoinerPersona(ctx, principal.userId),
       now: at,
     });
 

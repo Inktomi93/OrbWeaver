@@ -3,6 +3,23 @@ import { isPlainObject } from "#guards";
 import { resolveInjectionPlacement } from "#injection";
 import type { MessageRole } from "#message-role";
 
+/**
+ * THE ONE SPELLING of the default `{{user}}` identity — "Traveler", not "You" (owner ruling 2026-08-03).
+ *
+ * It answers ONE question in four places that must never disagree: *what is this human called when we have
+ * no persona for them?* Boot seeds the auto-created default persona with it; the client's row attribution
+ * floors to it; the server's wire name-stamp floors to it; and the macro layer resolves `{{user}}` to it.
+ * They were four literals — two of them "User", two of them "Traveler" — and a single payload was measured
+ * saying BOTH ("roleplay with Traveler" and "alongside User", one prompt).
+ *
+ * Homed in `kit` because that is the LOWEST package that needs it (`macro/row-macros` renders a row's
+ * `{{user}}`); contracts/server/client all sit above it.
+ *
+ * A neutral NOUN, because a model will inevitably use it in the vocative — "You" collided with the display
+ * fallback and made "has a persona" and "has none" render identically.
+ */
+export const DEFAULT_PERSONA_NAME = "Traveler";
+
 // ── Persona description placement (ST persona_description_position, per-persona) ──────────────────
 // ST stores this on the persona DESCRIPTOR (power_user.persona_descriptions[avatar]) and hydrates
 // the active fields on persona switch (personas.js:907). We mirror that: placement lives on the

@@ -5,6 +5,7 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowMacroNameContext, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { expect, test } from "../../support/fixtures.ts";
 
 const ARIA_ID = castId<CharacterId>("character_aria");
@@ -38,9 +39,12 @@ test("resolveRowMacros: {{user}} falls back to fallbackPersonaName (the anchor) 
   expect(out).toBe("Zara waves");
 });
 
-test('resolveRowMacros: {{user}} falls back to the literal "User" when nothing resolves', () => {
+// The unresolved-`{{user}}` floor is ONE spelling across the macro layer, the SHAPE name-stamp and the
+// client's row attribution (`DEFAULT_PERSONA_NAME`, @orb/kit/persona). It was four literals — two "User",
+// two "Traveler" — and STATLAS measured a single payload saying BOTH.
+test("resolveRowMacros: {{user}} falls back to the ONE unresolved-persona name when nothing resolves", () => {
   const out = resolveRowMacros("{{user}} waves", { characterId: null, personaId: null }, ctx());
-  expect(out).toBe("User waves");
+  expect(out).toBe(`${DEFAULT_PERSONA_NAME} waves`);
 });
 
 // ── {{char}}: the ROW's own speaker wins over the turn's current speaker fallback ──

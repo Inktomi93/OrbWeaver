@@ -130,7 +130,7 @@ export interface ChatScenarioOptions {
    *  surface — `readPresence`, `resolveSeatDeco`, …). Applied AFTER the driver's own wiring. */
   readonly ctx?: Partial<ChatContext>;
   /** Override the FOREIGN resolver (preset/persona/settings). The default returns `personas`/`promptConfig`
-   *  verbatim; supply this to SPY on the chat-supplied keys (`triggerPersonaId`/`anchorPersonaId`/`personaIds`)
+   *  verbatim; supply this to SPY on the chat-supplied keys (`trigger`/`anchorPersonaId`/`personaIds`)
    *  or to resolve `active` per-triggerer, the way the real composition root does. */
   readonly resolveForeignInputs?: ResolveForeignInputsOp;
 }
