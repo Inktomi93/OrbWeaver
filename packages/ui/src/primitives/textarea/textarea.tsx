@@ -1,17 +1,22 @@
+import type { FieldControlProps as BaseFieldControlProps } from "@base-ui/react/field";
 import { Field as BaseField } from "@base-ui/react/field";
 import type { ComponentPropsWithRef, ReactElement } from "react";
 import { cn } from "#lib";
 import { textareaVariants } from "./variants.ts";
 
-export interface TextareaProps extends ComponentPropsWithRef<"textarea"> {
+// `onValueChange` is PICKED from Field.Control's own props, never re-spelled: hand-writing
+// `(value: string) => void` silently drops the second `Field.Control.ChangeEventDetails` argument
+// (reason / cancel() / allowPropagation()), and a Base UI minor that adds a change reason would
+// never reach this seal's callers. Same derive-never-respell rule as combobox/autocomplete.
+export interface TextareaProps extends ComponentPropsWithRef<"textarea">, Pick<BaseFieldControlProps, "onValueChange"> {
   className?: string;
-  /** Field.Control's native change arm — fires with the new value (the DOM `onChange` still works too). */
-  onValueChange?: (value: string) => void;
 }
 
 // Autosizes to its content via native CSS field-sizing: content. Rendered through Base UI
 // Field.Control so inside a <Field> it registers with the field context (label/aria/validity);
 // works standalone too — outside a Field.Root, Field.Control degrades to a plain control.
+// `onValueChange` is Field.Control's native change arm (value + eventDetails); the DOM `onChange`
+// still fires alongside it.
 export function Textarea({ className, rows, style, onValueChange, onChange, ...rest }: TextareaProps): ReactElement {
   // `field-sizing: content` makes the browser IGNORE `rows` for sizing (it collapses to the content
   // height), so a `rows={3}` field renders as a single line. Re-floor the height off `rows` as a

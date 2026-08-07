@@ -14,6 +14,7 @@ import type {
   MenuSubmenuRootProps as BaseSubmenuRootProps,
   MenuSubmenuTriggerProps as BaseSubmenuTriggerProps,
   MenuTriggerProps as BaseTriggerProps,
+  MenuViewportProps as BaseViewportProps,
 } from "@base-ui/react/menu";
 import { Menu as BaseMenu } from "@base-ui/react/menu";
 import type { ComponentProps, ReactElement } from "react";
@@ -27,13 +28,19 @@ const slots = menuVariants();
 // = --spacing-row (0.5rem); Base UI Positioner offsets are px numbers, not classes.
 const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
 
-/** Menu root — seals Base UI Menu (roving highlight, typeahead, dismiss come free). State-only. */
-export function Menu(props: BaseRootProps): ReactElement {
+/**
+ * Menu root — seals Base UI Menu (roving highlight, typeahead, dismiss come free). State-only.
+ * Generic over `Payload` like the popover/tooltip seals: a handle-driven menu reads the active
+ * trigger's payload through the render-function `children`, and a non-generic wrap would type that
+ * payload `unknown` at every call site.
+ */
+export function Menu<Payload = unknown>(props: BaseRootProps<Payload>): ReactElement {
   return <BaseMenu.Root {...props} />;
 }
 
-/** Opens the menu. Unstyled passthrough — compose your own control via `render`. */
-export function MenuTrigger(props: BaseTriggerProps): ReactElement {
+/** Opens the menu. Unstyled passthrough — compose your own control via `render`. Accepts `handle` +
+ *  `payload` (Base UI 1.x) to act as a DETACHED trigger for a handle-driven menu. */
+export function MenuTrigger<Payload = unknown>(props: BaseTriggerProps<Payload>): ReactElement {
   return <BaseMenu.Trigger {...props} />;
 }
 
@@ -62,6 +69,22 @@ export function MenuPopup(props: MenuPopupProps): ReactElement {
       </BaseMenu.Positioner>
     </BaseMenu.Portal>
   );
+}
+
+export interface MenuViewportProps extends Omit<BaseViewportProps, "className"> {
+  className?: string;
+}
+
+/**
+ * OPTIONAL transition container — render it INSIDE `<MenuPopup>`, wrapping the items, when ONE menu
+ * is opened by several triggers and its contents change per trigger. It keeps the outgoing items
+ * mounted through the swap so the change animates instead of snapping, and publishes
+ * `data-activation-direction`/`data-transitioning` for that animation. A single-trigger menu needs
+ * nothing here.
+ */
+export function MenuViewport(props: MenuViewportProps): ReactElement {
+  const { className, ...rest } = props;
+  return <BaseMenu.Viewport className={className} data-slot="menu-viewport" {...rest} />;
 }
 
 export interface MenuArrowProps extends Omit<BaseArrowProps, "className"> {

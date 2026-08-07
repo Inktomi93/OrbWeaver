@@ -5,6 +5,7 @@ import type {
   TooltipProviderProps as BaseProviderProps,
   TooltipRootProps as BaseRootProps,
   TooltipTriggerProps as BaseTriggerProps,
+  TooltipViewportProps as BaseViewportProps,
 } from "@base-ui/react/tooltip";
 import { Tooltip as BaseTooltip } from "@base-ui/react/tooltip";
 import type { ReactElement } from "react";
@@ -66,6 +67,21 @@ export function TooltipPopup(props: TooltipPopupProps): ReactElement {
       </BaseTooltip.Positioner>
     </BaseTooltip.Portal>
   );
+}
+
+export interface TooltipViewportProps extends Omit<BaseViewportProps, "className"> {
+  className?: string;
+}
+
+/**
+ * OPTIONAL transition container — render it INSIDE `<TooltipPopup>` when ONE tooltip serves several
+ * triggers (the `createTooltipHandle` shape) and the text changes as the pointer moves between them.
+ * Without it the label swaps instantly mid-flight; with it the swap animates and publishes
+ * `data-activation-direction`/`data-transitioning`. A per-trigger tooltip needs nothing here.
+ */
+export function TooltipViewport(props: TooltipViewportProps): ReactElement {
+  const { className, ...rest } = props;
+  return <BaseTooltip.Viewport className={className} data-slot="tooltip-viewport" {...rest} />;
 }
 
 export interface TooltipArrowProps extends Omit<BaseArrowProps, "className"> {

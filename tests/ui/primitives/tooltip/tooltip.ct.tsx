@@ -1,6 +1,27 @@
-import { Tooltip, TooltipArrow, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
+import { Tooltip, TooltipArrow, TooltipPopup, TooltipTrigger, TooltipViewport } from "@orb/ui/tooltip";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { TooltipHandleHarness } from "./tooltip-handle.fixtures.tsx";
+
+// The OPTIONAL multi-trigger transition container (Base UI Tooltip.Viewport). It must not break the
+// seal's own name/description wiring — the popup keeps role="tooltip" and the trigger keeps pointing
+// at it, with the label reachable through the extra wrapper.
+test("TooltipViewport wraps the label without breaking the describedby wiring", async ({ mount, page }) => {
+  await mount(
+    <Tooltip>
+      <TooltipTrigger delay={0}>Regenerate</TooltipTrigger>
+      <TooltipPopup>
+        <TooltipViewport>Regenerate the last reply</TooltipViewport>
+      </TooltipPopup>
+    </Tooltip>,
+  );
+  await page.getByRole("button", { name: "Regenerate" }).hover();
+  const popup = page.locator('[data-slot="tooltip-popup"]');
+  await expect(popup).toBeVisible();
+  await expect(popup).toHaveAttribute("role", "tooltip");
+  await expect(page.locator('[data-slot="tooltip-viewport"]')).toHaveText("Regenerate the last reply");
+  const describedBy = await page.getByRole("button", { name: "Regenerate" }).getAttribute("aria-describedby");
+  await expect(popup).toHaveAttribute("id", describedBy ?? "");
+});
 
 test("shows on hover and hides when the pointer leaves", async ({ mount, page }) => {
   await mount(

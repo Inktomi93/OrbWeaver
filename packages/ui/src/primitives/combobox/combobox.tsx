@@ -24,6 +24,14 @@ type ComboboxPassthrough = Pick<BaseRootProps<string, true>, "filter" | "autoHig
  *  originating Base UI event. */
 type ComboboxChangeDetails = Parameters<NonNullable<BaseRootProps<string, true>["onValueChange"]>>[1];
 
+/** A category of suggestions rendered under a `GroupLabel` header. Values stay plain strings. */
+export interface ComboboxGroup {
+  /** The category header text. */
+  label: string;
+  /** The suggestions in this category (the display strings themselves). */
+  items: readonly string[];
+}
+
 export interface ComboboxProps extends ComboboxPassthrough {
   /**
    * Candidate suggestions shown in the popup. Omit entirely for pure free-text chip entry — no
@@ -31,6 +39,12 @@ export interface ComboboxProps extends ComboboxPassthrough {
    * populate later.
    */
   items?: readonly string[];
+  /**
+   * Grouped suggestions — each group renders a `GroupLabel` header over its items, the same shape
+   * the Autocomplete seal takes. Chip values are still plain strings. Takes precedence over `items`
+   * when set; pass `[]` to keep the popup mounted for groups that populate later.
+   */
+  groups?: readonly ComboboxGroup[];
   /** The committed chip values. Controlled — pair with `onValueChange`. */
   value?: readonly string[];
   /** Uncontrolled initial chip values. */
@@ -65,10 +79,16 @@ export interface ComboboxProps extends ComboboxPassthrough {
   container?: PortalContainer;
 }
 
-/** Announces the live suggestion count to screen readers, same pattern as the autocomplete seal. */
+/**
+ * Announces the live suggestion count to screen readers, same pattern as the autocomplete seal.
+ * Grouped entries are flattened so the count is LEAF suggestions, never the number of headers.
+ */
 function ComboboxResultStatus(): ReactElement {
-  const filtered = BaseCombobox.useFilteredItems<string>();
-  const count = filtered.length;
+  const filtered = BaseCombobox.useFilteredItems<unknown>();
+  const count = filtered.reduce<number>((total, entry) => {
+    const nested = (entry as { items?: readonly unknown[] }).items;
+    return total + (Array.isArray(nested) ? nested.length : 1);
+  }, 0);
   return (
     <BaseCombobox.Status className={slots.status()} data-slot="combobox-status">
       {formatResultCount(count)}
@@ -86,6 +106,7 @@ function ComboboxResultStatus(): ReactElement {
  */
 export function Combobox({
   items,
+  groups,
   value: valueProp,
   defaultValue,
   onValueChange,
@@ -113,9 +134,11 @@ export function Combobox({
   // Avoids a re-render on every arrow-key move — only read at the moment Enter is pressed.
   const highlightedRef = useRef<string | undefined>(undefined);
 
-  const suggestionsEnabled = items !== undefined;
+  const suggestionsEnabled = items !== undefined || groups !== undefined;
   const atCap = maxItems !== undefined && value.length >= maxItems;
-  const rootItems = atCap ? [] : (items ?? []);
+  // At the cap the suggestion source empties in BOTH shapes — a grouped list must not keep offering
+  // headers over a list Base UI would refuse to select from.
+  const rootItems = atCap ? [] : (groups ?? items ?? []);
   const emptyContent: ReactNode = atCap ? `Maximum of ${maxItems} reached.` : emptyText;
 
   function applyValue(next: readonly string[], details?: ComboboxChangeDetails): void {
@@ -171,6 +194,25 @@ export function Combobox({
     commitDraft(inputValue);
   }
 
+  const renderItem = (item: string): ReactElement => (
+    <BaseCombobox.Item className={slots.item()} data-slot="combobox-item" key={item} value={item}>
+      {item}
+    </BaseCombobox.Item>
+  );
+  // Base UI's List child is a RENDER FUNCTION over whatever `items` shape the Root was given, so the
+  // grouped arm nests Group → GroupLabel → Collection (Collection re-enters the group's own leaves).
+  const listChild =
+    groups === undefined
+      ? renderItem
+      : (group: ComboboxGroup): ReactNode => (
+          <BaseCombobox.Group className={slots.group()} data-slot="combobox-group" items={group.items} key={group.label}>
+            <BaseCombobox.GroupLabel className={slots.groupLabel()} data-slot="combobox-group-label">
+              {group.label}
+            </BaseCombobox.GroupLabel>
+            <BaseCombobox.Collection>{renderItem}</BaseCombobox.Collection>
+          </BaseCombobox.Group>
+        );
+
   return (
     <BaseCombobox.Root
       disabled={disabled}
@@ -222,11 +264,7 @@ export function Combobox({
                 {emptyContent}
               </BaseCombobox.Empty>
               <BaseCombobox.List className={slots.list()} data-slot="combobox-list">
-                {(item: string): ReactNode => (
-                  <BaseCombobox.Item className={slots.item()} data-slot="combobox-item" key={item} value={item}>
-                    {item}
-                  </BaseCombobox.Item>
-                )}
+                {listChild}
               </BaseCombobox.List>
               <ComboboxResultStatus />
             </BaseCombobox.Popup>
