@@ -323,7 +323,7 @@ trust routing or render, not the model.
 **This doc teaches ACCESS, CONTROL and INVESTIGATION only. Actual issues do NOT go here.**
 
 Every finding from this investigation — and every dogfood bug — lives in
-[`docs/dogfood-tracking.md`](./dogfood-tracking.md), in that file's house format
+[`docs/history/dogfood-tracking-2026-08-08.md`](./dogfood-tracking.md), in that file's house format
 (severity / status / effort / reporter / scout-coverage, with `#### What's broken`,
 `#### Root cause`, `#### Evidence`, `#### Advice`).
 

@@ -56,7 +56,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 ## ═══ STATE (2026-08-08 dawn — DOGFOOD CAMPAIGN CLOSED; the queue below is live) ═══
 
 - **✅ THE DOGFOOD CAMPAIGN IS CLOSED — the full adjudication + halt-lift verdict live in
-  `docs/dogfood-tracking.md`'s header.** Nine merged work-streams, the side-eye pass + re-verify
+  `docs/history/dogfood-tracking-2026-08-08.md`'s header.** Nine merged work-streams, the side-eye pass + re-verify
   (20/20 dead, one fix-regression caught and killed same-night with its CT measure fence), and the
   closing battery on ONE tree: **10,224 vitest + 2,464 CT, 0 failed, 0 flaky.** Gates **190**.
   D-ledger through **D128** (D127 compiler-owns-memoization + D128 the surface-manifest law, minted
@@ -572,7 +572,7 @@ identity chrome for ANY row kind.
 > **And every lane's first job is to re-verify its row** — a correct refusal is a successful lane, and
 > tonight it was the majority outcome.
 
-### ⚑ LIVE DOGFOOD BUGS — see [`docs/dogfood-tracking.md`](../dogfood-tracking.md)
+### ⚑ LIVE DOGFOOD BUGS — see [`docs/history/dogfood-tracking-2026-08-08.md`](history/dogfood-tracking-2026-08-08.md)
 
 > **CAMPAIGN LIVE (2026-08-07, owner-ordered priority):** that doc is being worked and verified IN
 > FULL — every open row fixed or adjudicated, every fixed row's owed test written, verifier + side-eye
@@ -973,6 +973,29 @@ Items this audit could not prove either way from the tree. **None were dropped.*
 - **Mechanics:** backticks inside a `git commit -m "..."` are COMMAND-SUBSTITUTED by bash and silently
   eat the word — always use a single-quoted heredoc (`-m "$(cat <<'EOF' … EOF)"`). And a `PreToolUse`
   hook returning `defer` KILLS subagents (they have nobody to prompt); pass-through must be `allow`.
+
+**⚑ WHAT 2026-08-07→08 TAUGHT THE ORCHESTRATOR (the Base UI + dogfood double campaign)**
+
+- **Verify the agent-id↔lane mapping against the DISPATCH RESULTS before every SendMessage.** Two
+  misroutes in one night (both bounced correctly by the receiving lane — the briefing discipline
+  held, but the routing was mine). Keep the live roster in the compact snapshot.
+- **The no-chain law extends to VERIFY: never `merge && pnpm check` in one command.** A conflicted
+  merge under `&&` silently skips the check and the notification reads like a verify failure.
+  merge → separate verify → teardown, three calls, always.
+- **Warm-agent LEGS beat fresh spawns** (owner preference, cache economics): STATLAS's rig-fix
+  leg, DOG-DEBUG's arm-A leg, DOG-ENGINE's live-receipt leg — SendMessage resumes with full
+  context. Don't tear down a worktree whose lane might get a next leg.
+- **Board python edits: anchors DRIFT under format-md rewrap.** Grep the CURRENT text or use
+  line-ranges; never assert on remembered text — one format-only commit shipped under a
+  content-claiming message and needed a corrective.
+- **A fence/instrument claim needs a planted POSITIVE control before its zero is trusted** — four
+  lying instruments in one night (knip's dependency lens vs a bare probe file, globSync's
+  string-not-Dirent exclude, ast-grep's bare-identifier vs property\_identifier, a depth-capped
+  type reader). The probe that would have caught each was one planted file.
+- **A lane refusing the brief was the highest-value outcome again** — five premise-kills in one
+  session (idle-timeout, Menu.ScrollUpArrow, per-chat connection, field-control-33, RUNTIME-VARS).
+  Keep briefing the refusal right explicitly; keep marking which brief claims are VERIFIED vs
+  RELAYED.
 
 **Owner cadence**
 

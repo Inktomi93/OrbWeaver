@@ -313,3 +313,18 @@ instrument is broken, not the tree.
 - **Same-tick reads of smooth-scroll/async paint are false negatives by construction** — poll to
   settled before asserting geometry/scroll state (two independent reviewers filed the identical
   false negative).
+
+## Minted 2026-08-08 (the Base UI + dogfood double campaign)
+
+- **UI lanes: measure every Row/selection-bar/band at its NARROWEST real production mount before
+  READY.** Six receipts in one night (persona row 358px, theme band 256px, bulk bar 330px ×2,
+  model-roles hint, menu gutter): a `shrink-0` trailing cluster sized in a wide context is the
+  repo's most common rendered defect. A CT at the narrowest mount needs a FIXED-width container
+  (`overflow: visible`) — the content-sized mount root agrees with the bug.
+- **Any new walk-fence, exclude, or instrument in your floor requires a planted-POSITIVE-control
+  receipt** — create the thing the fence should catch, show it caught, rm it. A zero from an
+  unprobed instrument is not a result.
+- **When your work invalidates a sibling lane's premise mid-flight, SendMessage the orchestrator
+  immediately** — two premise-deaths this campaign (field-control-registration, ScrollUpArrow)
+  saved sibling lanes from building against dead specs because the finder spoke up before landing.
+

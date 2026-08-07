@@ -393,7 +393,7 @@ covered in §Limits.
 | trailing continuation nudge | `shape.ts:222-226` — a canon ending on `assistant` gets `CONTINUATION_NUDGE` so the request ends on user | `assembly/shape.ts:219-226` |
 | name-stamp BEFORE squash (ST does it before too, but deletes `name`) | `shape.ts:202-204` states the reason: adjacent distinct-character rows must keep every speaker's label inside a merged block | `assembly/shape.ts:213` |
 | `completion` mode inlines the speaker when the strategy merges | `assembly/names.ts` header — a surviving `name` blocks the merge and strict backends reject the adjacent same-role pair | `assembly/names.ts:9-27` |
-| demoted system rows marked `speakerless` | INJECT-NAMED-AS-PLAYER fix `34bdc39f3` | `docs/dogfood-tracking.md:456` |
+| demoted system rows marked `speakerless` | INJECT-NAMED-AS-PLAYER fix `34bdc39f3` | `docs/history/dogfood-tracking-2026-08-08.md:456` |
 
 ### Findings — divergences with no recorded ruling
 
