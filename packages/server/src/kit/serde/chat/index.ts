@@ -21,7 +21,7 @@ import { z } from "zod";
 
 /** RAG/analytics relevance class of a parsed chat (the `classify` output). Import EVERYTHING, but the
  *  memory-backfill (PD-78) enqueues over `real_conversation` chats ONLY. `greeting_only` = no user turn;
- *  `all_empty_msgs` = only system/blank lines; `header_only` = no message lines at all. */
+ *  `all_empty_msgs` = system-only rows (blank rows are stripped or swipe-promoted at parse); `header_only` = no message lines at all. */
 export const CHAT_BUCKETS = ["header_only", "all_empty_msgs", "greeting_only", "real_conversation"] as const;
 export type ChatBucket = (typeof CHAT_BUCKETS)[number];
 
@@ -399,7 +399,8 @@ function buildVariants(swipes: unknown[], swipeInfo: unknown, activeSwipeId: num
 }
 
 /** Classify a chat into the 4 buckets: import everything, but embed/analyze only `real_conversation`
- *  (PD-78). `greeting_only` = no user turn; `all_empty_msgs` = only system/blank; `header_only` = no lines. */
+ *  (PD-78). `greeting_only` = no user turn; `all_empty_msgs` = system-only rows (parseMessageLine never
+ *  emits a blank non-system row — stripped or swipe-promoted); `header_only` = no lines. */
 export function classifyChat(messages: readonly ParsedChatMessage[]): ChatBucket {
   if (messages.length === 0) {
     return "header_only";
@@ -423,8 +424,11 @@ function parseJson(line: string): unknown {
 }
 
 /** Parse ONE message line → a `ParsedChatMessage`, or null for a corrupt line (skipped, not fatal). A
- *  message with no rendered `mes` AND no surviving swipe (blank narrator post, pre-D124 debris) is
- *  equally unrepresentable at the write boundary — skipped the same way, not minted as an empty row. */
+ *  message with no rendered text ANYWHERE — blank `mes` and no non-empty swipe (a blank narrator post /
+ *  rpg state-anchor export / pre-D124 debris) — is unrepresentable at the write boundary and skipped, not
+ *  minted as an empty row. A blank `mes` whose swipe pool DOES carry text is a real generation whose
+ *  rendered copy lives in the pool: the active (else first) surviving swipe is PROMOTED to the primary
+ *  content — never an empty canon row, never dropped text. */
 function parseMessageLine(line: string): ParsedChatMessage | null {
   const parsed = asTyped(parseJson(line), rawMessageSchema);
   if (parsed === null) {
@@ -435,10 +439,23 @@ function parseMessageLine(line: string): ParsedChatMessage | null {
   // swipe_id is a position in the ORIGINAL swipes array; buildVariants remaps it onto the drop-filtered pool.
   const sid = parsed.swipe_id;
   const rawActive = typeof sid === "number" && sid >= 0 && sid < swipes.length ? sid : null;
-  const { variants, activeVariantIdx } = buildVariants(swipes, parsed.swipe_info, rawActive);
-  const content = str(parsed.mes);
-  if (content.trim().length === 0 && variants.length === 0) {
-    return null;
+  const { variants, activeVariantIdx: remappedActive } = buildVariants(swipes, parsed.swipe_info, rawActive);
+  let content = str(parsed.mes);
+  let activeVariantIdx = remappedActive;
+  if (content.trim().length === 0) {
+    const promoted = variants[remappedActive ?? 0];
+    if (promoted !== undefined) {
+      content = promoted.content;
+      activeVariantIdx = remappedActive ?? 0;
+    } else {
+      // Below MIN_REAL_SWIPES the pool is empty by design — the lone generation (if any) lives on the
+      // message's primary, so promote the first non-empty swipe directly; none anywhere ⇒ debris, skip.
+      const lone = swipes.map((s) => str(s)).find((s) => s.trim().length > 0);
+      if (lone === undefined) {
+        return null;
+      }
+      content = lone;
+    }
   }
   const agentAuthor = parseAgentAuthor(parsed.agent_author);
   return {
