@@ -203,3 +203,44 @@ test("a SOLO room's menu renders no members' group (the affordance appears only 
   await expect(page.getByText("Members' personas")).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: "Clear pin" })).toBeVisible();
 });
+
+// MEMBER-PERSONA-SWITCH. The reported symptom is "a member cannot change which persona they play once inside
+// a room". The switch is VIEWER-SCOPED and ungated by construction — it reads `viewerActivePersonaId` and
+// writes through `persona.setActivePersona`, whose verb defaults its target to the caller — but NOTHING
+// pinned that: every arm above mounts `viewerIsHost: true`, so the member seat had zero coverage and a gate
+// could have appeared on it silently, exactly as one appeared on the anchor. These are that pin.
+const MEMBER_CHAT = {
+  ...MULTI_HUMAN_CHAT,
+  viewerIsHost: false,
+  viewerUserId: "user_member",
+  viewerActivePersonaId: NOVA,
+};
+
+/** The member's stub — their own `persona.list`, their own settings, and the section's write. */
+function stubMember(page: Page, procs: Record<string, () => unknown> = {}): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "persona.list": () => PERSONAS,
+    "chat.getChat": () => MEMBER_CHAT,
+    "settings.getUserSettings": () => ({ userId: "user_member", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    ...procs,
+  });
+}
+
+test("a MEMBER sees the same Playing-as switch, and it fires for their own seat", async ({ mount, page }) => {
+  const trpc = await stubMember(page, { [UPDATE_PROC]: () => ({}) });
+  await mount(<PersonaThisChatStory />);
+
+  await switchToOrion(page);
+  await expect.poll(() => (trpc.lastInput(UPDATE_PROC) as { personaId?: PersonaId } | undefined)?.personaId, { intervals: [20, 50, 100] }).toBe(ORION);
+});
+
+test("a MEMBER gets no Re-pin control — the ANCHOR is the only host-gated thing in this section", async ({ mount, page }) => {
+  await stubMember(page);
+  await mount(<PersonaThisChatStory />);
+
+  // Present: the member's own switch, and the read-only anchor line.
+  await expect(page.getByRole("button", { name: "Nova" })).toBeVisible();
+  await expect(page.getByText("Card sees you as Zara")).toBeVisible();
+  // Absent: the host-only re-pin.
+  await expect(page.getByRole("button", { name: "Re-pin" })).toHaveCount(0);
+});

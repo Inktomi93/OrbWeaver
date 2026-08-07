@@ -7,6 +7,7 @@ import { DEFAULT_FORMAT_STRINGS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/pr
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroStamps } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { describe } from "vitest";
 import {
   buildTurnMacroContext,
@@ -53,8 +54,10 @@ describe("renderMacros", () => {
     expect(renderMacros("{{persona}}", ctx, persona)).toBe("a wandering scholar");
   });
 
-  test("{{user}} falls back to 'User' when no persona", () => {
-    expect(renderMacros("{{user}}", ctxOf(), null)).toBe("User");
+  // ONE spelling of the unresolved-persona floor across the macro layer, the SHAPE name-stamp and the
+  // client's row attribution (`DEFAULT_PERSONA_NAME`) — it was four literals, two of them disagreeing.
+  test("{{user}} falls back to the ONE unresolved-persona name when no persona", () => {
+    expect(renderMacros("{{user}}", ctxOf(), null)).toBe(DEFAULT_PERSONA_NAME);
   });
 
   test("{{scenario}} resolves room override > card", () => {
@@ -231,8 +234,8 @@ describe("renderHistoryMacros", () => {
     expect(renderHistoryMacros("{{user}} nods", NO_STAMPS, ctx, { producer: EMPTY_PRODUCER })).toBe("Nyx nods");
   });
 
-  test("{{user}} falls back to 'User' with a null personaId stamp AND no active persona", () => {
-    expect(renderHistoryMacros("{{user}} speaks", NO_STAMPS, ctxOf(), { producer: EMPTY_PRODUCER })).toBe("User speaks");
+  test("{{user}} falls back to the unresolved-persona name with a null personaId stamp AND no active persona", () => {
+    expect(renderHistoryMacros("{{user}} speaks", NO_STAMPS, ctxOf(), { producer: EMPTY_PRODUCER })).toBe(`${DEFAULT_PERSONA_NAME} speaks`);
   });
 
   test("{{persona}} resolves the row's own persona's DESCRIPTION (distinct from {{user}}'s name)", () => {

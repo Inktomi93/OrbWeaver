@@ -11,6 +11,7 @@ import { resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ChatId } from "@orb/kit/ids";
 import type { MacroContext, MacroRegistry, ProcessMacroOptions, RowMacroStamps } from "@orb/kit/macro";
 import { createMacroContext, createVolatileOnlyRegistry, globalMacroRegistry, processMacros, resolveRowMacros } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { RenderMacrosOptions } from "../contract/assembly-macros.ts";
 import type { HistoryMacroNames } from "../contract/results.ts";
 
@@ -70,7 +71,10 @@ function macroOptionsFor(ctx: AssembleContext, persona: AssemblePersona | null |
   const characterCast = characterCastNames(ctx, ctx.cast ?? [ctx.character]);
   const opts: ProcessMacroOptions = {
     char: charForSpeaker(ctx),
-    user: persona?.name ?? "User",
+    // The unresolved-`{{user}}` floor — ONE spelling with the row-macro floor, the SHAPE name-stamp and
+    // the client's row attribution. STATLAS measured a single payload saying "Traveler" in one section and
+    // "User" in another; those two came from HERE and from `macro/row-macros`, which disagreed by literal.
+    user: persona?.name ?? DEFAULT_PERSONA_NAME,
     persona: persona?.description ?? "",
     // {{scenario}} = the EFFECTIVE scenario (host room override > card > empty). `ctx.character.scenario`
     // stays intact so the section walk can still report which tier won (assemble.ts `scenario` marker).

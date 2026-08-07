@@ -16,3 +16,11 @@ export interface CredentialView {
   readonly createdAt: number;
   readonly updatedAt: number;
 }
+
+/** The DEPLOYMENT's credential-storage capability (`storageStatus`) — `false` when no `CREDENTIALS_KEY` is
+ *  configured, in which case every write verb refuses (`credentials_disabled`) and the UI must refuse the
+ *  INPUT rather than collect a live secret into a form that cannot keep it. An object, not a bare boolean, so
+ *  a future reason/remedy field is additive. */
+export interface CredentialStorageStatus {
+  readonly enabled: boolean;
+}

@@ -9,12 +9,17 @@
 import type { CredentialProvider, ProviderMetadata } from "@orb/contracts/credentials";
 import { Button } from "@orb/ui/button";
 import { DialogClose } from "@orb/ui/dialog";
+import { EmptyState } from "@orb/ui/empty-state";
+import { Icon, LockOpen } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
+import { Spinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { FormDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
+import { QueryBoundary } from "#data";
 import { useAddCredentialForm } from "../hooks/use-add-credential-form.ts";
 import { useAddCredential, useFetchModels } from "../hooks/use-connections-mutations.ts";
 import type { AddCredentialFormValues } from "../lib/add-credential-form-model.ts";
@@ -35,9 +40,47 @@ export function AddCredentialDialog({ open, onOpenChange, trpc, invalidation }: 
       open={open}
       title="Add a provider key"
     >
-      <AddCredentialFormBody trpc={trpc} invalidation={invalidation} onDone={(): void => onOpenChange(false)} />
+      <QueryBoundary fallback={<Spinner label="Checking key storage…" />}>
+        <AddCredentialGate trpc={trpc} invalidation={invalidation} onDone={(): void => onOpenChange(false)} />
+      </QueryBoundary>
     </FormDialog>
   );
+}
+
+/**
+ * CREDENTIAL-STORAGE-SILENT-FAIL — ASK BEFORE COLLECTING.
+ *
+ * Without a `CREDENTIALS_KEY` the deployment's SecretBox is disabled: boot only WARNs, the app comes up
+ * healthy, and this dialog looked entirely operational. `credentials.add` has always refused, but by then the
+ * user has already typed a live provider key into a form that cannot keep it — and the refusal reads as a
+ * transient failure rather than "this deployment was never configured to store keys".
+ *
+ * So the capability is READ FIRST and the INPUT is refused, not the save. The message names the operator
+ * action (`CREDENTIALS_KEY`, or `CREDENTIALS_KEY_AUTO` to have the server mint and persist one) because the
+ * person hitting this is very often the person who can fix it, and a refusal without the remedy just moves
+ * the dead end.
+ */
+function AddCredentialGate({
+  trpc,
+  invalidation,
+  onDone,
+}: {
+  readonly trpc: Trpc;
+  readonly invalidation: Invalidation;
+  readonly onDone: () => void;
+}): ReactElement {
+  const { data: storage } = useSuspenseQuery(trpc.credentials.storageStatus.queryOptions());
+  if (!storage.enabled) {
+    return (
+      <EmptyState
+        action={<DialogClose render={<Button intent="secondary">Close</Button>} />}
+        icon={<Icon icon={LockOpen} size="md" />}
+        title="Key storage is turned off on this server"
+        description="No encryption key is configured, so a provider key saved here could not be stored — nothing would be kept. Set CREDENTIALS_KEY in the server environment (or CREDENTIALS_KEY_AUTO to have the server generate and persist one), restart, and add the key then."
+      />
+    );
+  }
+  return <AddCredentialFormBody trpc={trpc} invalidation={invalidation} onDone={onDone} />;
 }
 
 /** Build the `custom_openai` metadata blob from the form values — the three transforms are parsed from

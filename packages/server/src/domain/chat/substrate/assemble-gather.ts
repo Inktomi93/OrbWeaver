@@ -268,6 +268,9 @@ export async function gatherAssembleContext(
     /** The muted-seat `speakerKey`s from `loadRoom` (character + agent) — the `castNotMuted` producer. */
     readonly mutedSpeakerKeys?: ReadonlySet<string> | undefined;
     readonly personaIds: readonly PersonaId[];
+    /** The live human driving this turn — the identity behind `speakers.user`, carried onto the built ctx for
+     *  SHAPE's null-stamp guard (`AssembleContext.triggerUserId`). Absent/null ⇒ fail closed. */
+    readonly triggerUserId?: UserId | null | undefined;
     readonly pendingUserText?: string | undefined;
     /** The one-turn typed steer — threaded to the BUILD, which resolves the action template once and
      *  delivers it via its placement. */
@@ -387,6 +390,8 @@ export async function gatherAssembleContext(
       personaIds,
       promptConfig: foreign.promptConfig,
       personas: foreign.personas,
+      // Threaded RAW — `buildAssembleContext` owns the `?? null` floor (one home for the fail-closed default).
+      triggerUserId: args.triggerUserId,
       recentMessages,
       // The user/WI injections + a game turn's depth-0 reminder injection(s) (05 §1) + the crew director's
       // guidance injection (chat-crew-design/04 §1); absent rpg/crew ⇒ unchanged.

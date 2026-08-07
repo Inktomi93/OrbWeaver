@@ -16,6 +16,7 @@
 // authored here: they home ONCE in `config.trackers` on the Game tab (the whole point of the unification),
 // so this surface reads defs and edits READINGS.
 
+import { blobUrl } from "@orb/contracts/assets";
 import type { RpgActorView, RpgStatProfile } from "@orb/contracts/rpg";
 import { rpgActorLockBase } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
@@ -241,7 +242,7 @@ function IdentityBlock({
 }): ReactElement {
   return (
     <Row gap="block" align="center" data-slot="rpg-character-identity">
-      <Avatar size="lg" shape="rounded" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: actor.avatar })}>
+      <Avatar size="lg" shape="rounded" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
         {actor.name.slice(0, 1).toUpperCase()}
       </Avatar>
       <Stack gap="field" className="min-w-0 flex-1">

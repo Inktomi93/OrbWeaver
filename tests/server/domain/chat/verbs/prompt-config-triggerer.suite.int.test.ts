@@ -1,23 +1,29 @@
 // Ruling: prompt-config `{{user}}` (the assemble ctx's ACTIVE persona) binds to the TRIGGERING human's
 // persona — whose turn drives the assemble — NOT `personaIds[0]` (the presence-order-arbitrary first present
-// human). The composition root resolves `active = loadPersona(triggerPersonaId ?? personaIds.at(0))`
-// (entry/compose/chat.ts); this proves the VERB half — each turn verb threads the triggering human's active
-// persona as `triggerPersonaId` into `resolveForeignInputs` — by spying on the FOREIGN resolver's args.
+// human) and NOT the chat anchor. The composition root dispatches over the `TurnTrigger` union
+// (entry/compose/chat.ts `activePersonaIdFor`); this proves the VERB half — each turn verb threads the
+// triggering human's identity + seat persona as `trigger` into `resolveForeignInputs` — by spying on the
+// FOREIGN resolver's args.
 
 import type { AssemblePersona } from "@orb/contracts/chat";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PersonaId } from "@orb/kit/ids";
-import type { ResolveForeignInputsOp } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
+import type { ResolveForeignInputsOp, TurnTrigger } from "../../../../../packages/server/src/domain/chat/contract/foreign.ts";
 import { scenario, tape } from "../../../../support/chat/index.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedPersona } from "../_support.ts";
 
 const PERSONA: AssemblePersona = { name: "P", description: "" };
 
-/** A FOREIGN resolver that records the `triggerPersonaId` every turn passes it. */
+/** The seat persona a `human` trigger carried; `undefined` for any non-human/absent trigger. */
+function triggerPersonaOf(trigger: TurnTrigger | undefined): PersonaId | null | undefined {
+  return trigger?.kind === "human" ? trigger.personaId : undefined;
+}
+
+/** A FOREIGN resolver that records the `trigger` every turn passes it. */
 function spyingForeign(sink: (id: PersonaId | null | undefined) => void): ResolveForeignInputsOp {
   return (args): ReturnType<ResolveForeignInputsOp> => {
-    sink(args.triggerPersonaId);
+    sink(triggerPersonaOf(args.trigger));
     return Promise.resolve({
       promptConfig: DEFAULT_PROMPT_CONFIG,
       personas: { anchor: PERSONA, active: PERSONA },
@@ -28,7 +34,7 @@ function spyingForeign(sink: (id: PersonaId | null | undefined) => void): Resolv
   };
 }
 
-test("send passes the sender's explicit personaId as triggerPersonaId (the active-persona subject)", async () => {
+test("send passes the sender's explicit personaId on the human trigger (the active-persona subject)", async () => {
   const seen: (PersonaId | null | undefined)[] = [];
   const scn = await scenario.chat(tape().reply("ok"), {
     characters: ["aria"],
@@ -52,7 +58,8 @@ test("an explicit null personaId on send threads null (the triggerer chose 'no p
 
   await scn.send("hi", { personaId: null });
 
-  // A deliberate null is preserved (the compose root then falls to `personaIds.at(0)`), never coalesced to
-  // the sender's membership persona at the verb.
+  // A deliberate null is preserved on the HUMAN arm — the trigger is still a live human, they just hold no
+  // persona, so `{{user}}` floors to "User". Never coalesced to the sender's membership persona at the verb,
+  // and (post INVITE-JOIN-NULL-PERSONA) never to the chat anchor at the resolver.
   expect(seen).toContain(null);
 });

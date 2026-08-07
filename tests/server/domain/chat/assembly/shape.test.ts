@@ -2,13 +2,17 @@
 // inv 1 + 7). The cross-repo byte-parity vs neo lives in the .parity.test; THIS pins the orbweaver-side
 // invariants directly: the 3 breakpoint-undefined cases, the offset/clamp/floor math, the neo-quirk →
 // undefined divergence, and the no-if(isGroup) solo-byte-identical contract.
-import type { ChatInjection } from "@orb/contracts/chat";
+import type { AssembleContext, ChatInjection, MessageView } from "@orb/contracts/chat";
 import type { RoleHandling } from "@orb/contracts/connection";
 import type { NamesBehavior } from "@orb/contracts/preset";
-import type { CharacterId, MessageId } from "@orb/kit/ids";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { describe } from "vitest";
-import { computeHistoryBreakpoint, shape } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
+import { computeHistoryBreakpoint, shape, toShapeCanon } from "../../../../../packages/server/src/domain/chat/assembly/shape.ts";
+import type { HistoryMacroNames } from "../../../../../packages/server/src/domain/chat/contract/results.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 const ARIA = castId<CharacterId>("character_aria");
@@ -743,6 +747,86 @@ describe("P5 MULTI-HUMAN — two people speaking back-to-back", () => {
     const rows = out.history.filter((r) => r.role === "user");
     expect(rows.map((r) => r.name)).toEqual(["Nate", "Joe"]);
     expect(rows.map((r) => r.content)).toEqual(["I open the door.", "I follow him in."]);
+  });
+});
+
+// INVITE-JOIN-NULL-PERSONA, the PROMPT half. An invite-joined member seated with `activePersonaId = NULL`
+// stamps `persona_id = NULL` on every row he writes; `toShapeCanon` returned `authorName: null` for those,
+// and `applyNamesBehavior` then falls back to `speakers.user` — this turn's `{{user}}`, which belongs to ONE
+// human. So the model was told the HOST said everything the member said. These rows are LEGACY (the migration
+// posture accepts them), so the guard has to hold at read time, not just at the seat.
+describe("toShapeCanon — the null-persona-stamp guard (a row never borrows a stranger's name)", () => {
+  const hostUser = castId<UserId>("user_host");
+  const memberUser = castId<UserId>("user_member");
+  const hostPersona = castId<PersonaId>("persona_host");
+
+  const macroNames: HistoryMacroNames = {
+    characterNamesById: new Map<CharacterId, RowCharacterName>(),
+    personaNamesById: new Map<PersonaId, RowPersonaName>([[hostPersona, { name: "Nate", description: "" }]]),
+  };
+
+  let nextSeq = 0;
+  const userRow = (authorUserId: UserId, personaId: PersonaId | null, content: string): MessageView => {
+    nextSeq += 1;
+    // FABRICATION-OK: slim MessageView double — toShapeCanon reads only role/content/seq/personaId/authorUserId/excludedFromPrompt/id, all real here.
+    return {
+      id: castId<MessageId>(`message_null_stamp_${nextSeq}`),
+      seq: nextSeq,
+      role: "user",
+      content,
+      authorUserId,
+      characterId: null,
+      personaId,
+      excludedFromPrompt: false,
+    } as unknown as MessageView;
+  };
+
+  /** A ctx just rich enough for `toShapeCanon`'s macro render — the host is the live trigger. */
+  const ctxFor = (triggerUserId: UserId | null): AssembleContext =>
+    // FABRICATION-OK: slim AssembleContext double — this call path reads only character/cast/castCharacterIds/recentMessages/promptConfig/triggerUserId.
+    ({
+      character: { name: "Aria", description: "" },
+      cast: [],
+      castCharacterIds: [],
+      recentMessages: [],
+      promptConfig: DEFAULT_PROMPT_CONFIG,
+      triggerUserId,
+    }) as unknown as AssembleContext;
+
+  test("a member's NULL-stamped row does NOT inherit the host's persona — it takes the unresolvable floor", () => {
+    const canon = [userRow(hostUser, hostPersona, "host line"), userRow(memberUser, null, "member line")];
+    const rows = toShapeCanon(canon, ctxFor(hostUser), macroNames, null);
+    expect(rows.map((r) => r.authorName)).toEqual(["Nate", DEFAULT_PERSONA_NAME]);
+  });
+
+  test("end-to-end on the wire: exactly ONE line is spoken as the host", () => {
+    const canon = [userRow(hostUser, hostPersona, "host line"), userRow(memberUser, null, "member line")];
+    const out = shape({
+      canon: toShapeCanon(canon, ctxFor(hostUser), macroNames, null),
+      appendUserTurn: null,
+      injections: [],
+      output: "per-speaker",
+      cardScope: "merged",
+      scopedTargetId: null,
+      namesBehavior: "content",
+      speakers: { user: "Nate", assistant: "Aria" },
+      groupNudge: null,
+      roleHandling: "none",
+      roleHandlingFloor: "none",
+    });
+    const userLines = out.history.filter((r) => r.role === "user").map((r) => r.content);
+    expect(userLines).toEqual(["Nate: host line", `${DEFAULT_PERSONA_NAME}: member line`]);
+    expect(userLines.filter((l) => l.startsWith("Nate: "))).toHaveLength(1);
+  });
+
+  test("the TRIGGER's own unstamped row still borrows this turn's {{user}} (byte-identical solo behavior)", () => {
+    const rows = toShapeCanon([userRow(hostUser, null, "host line")], ctxFor(hostUser), macroNames, null);
+    expect(rows[0]?.authorName).toBeNull();
+  });
+
+  test("an UNKNOWN trigger (drain / auto / preview / any hand-built ctx) fails CLOSED — nobody borrows", () => {
+    const rows = toShapeCanon([userRow(hostUser, null, "host line")], ctxFor(null), macroNames, null);
+    expect(rows[0]?.authorName).toBe(DEFAULT_PERSONA_NAME);
   });
 });
 

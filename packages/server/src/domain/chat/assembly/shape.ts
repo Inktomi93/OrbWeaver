@@ -7,7 +7,8 @@ import type { AssembleContext, ChatInjection, GroupConfig, MessageView, ShapeRow
 import type { RoleHandling } from "@orb/contracts/connection";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { CharacterId, MessageId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
 import type { PromptHistoryRegexEnv } from "../contract/regex.ts";
 import type { HistoryMacroNames } from "../contract/results.ts";
@@ -333,11 +334,36 @@ export function shape(input: ShapeInput): ShapeOutput {
   };
 }
 
-/** The wire authorName for a user/narrator row: the row's OWN stamped personaId resolved through the
- *  per-chat producer, not the current active persona. A null stamp or unresolvable id yields null, so
- *  `applyNamesBehavior` falls back to the active persona. */
-function userRowAuthorName(personaId: PersonaId | null, macroNames: HistoryMacroNames): string | null {
-  return personaId !== null ? (macroNames.personaNamesById.get(personaId)?.name ?? null) : null;
+/**
+ * The wire authorName for a user/narrator row: the row's OWN stamped personaId resolved through the per-chat
+ * producer, never the current active persona.
+ *
+ * THE NULL-STAMP GUARD. Returning `null` here makes `applyNamesBehavior` fall back to `speakers.user` — this
+ * turn's `{{user}}`, which belongs to ONE human. A row with no persona stamp authored by SOMEBODY ELSE would
+ * therefore reach the model wearing that human's name: the prompt half of INVITE-JOIN-NULL-PERSONA, where an
+ * invite-joined member seated with `activePersonaId = NULL` had every line he wrote attributed to the host.
+ * So a null-stamped row may borrow the turn's `{{user}}` ONLY when it is that same human's OWN row —
+ * the server twin of the client's render rule (`client/features/chat/lib/attribution.ts`
+ * `resolveUserAttribution`: the `authorUserId === viewerUserId` gate, "fail closed: name nobody rather than
+ * name wrongly"). Everyone else gets {@link UNRESOLVED_USER_NAME}, the same word the reader sees on screen.
+ *
+ * Fail-closed on purpose: an UNKNOWN author or an unknown trigger (a drain/auto turn, a preview, any
+ * hand-built ctx) takes the floor rather than the borrow. The one case that still borrows — the trigger's OWN
+ * unstamped row — is unchanged from before this guard, and is byte-identical in a solo personaless chat where
+ * `speakers.user` is already the "User" floor.
+ */
+function userRowAuthorName(
+  row: { readonly personaId: PersonaId | null; readonly authorUserId: UserId | null },
+  macroNames: HistoryMacroNames,
+  triggerUserId: UserId | null,
+): string | null {
+  const stamped = row.personaId === null ? undefined : macroNames.personaNamesById.get(row.personaId);
+  if (stamped !== undefined) {
+    return stamped.name;
+  }
+  // No usable identity of its own (never stamped, or stamped with a since-deleted persona).
+  const ownRow = row.authorUserId !== null && row.authorUserId === triggerUserId;
+  return ownRow ? null : DEFAULT_PERSONA_NAME;
 }
 
 /** Maps the loaded canon (`MessageView[]`) → SHAPE wire input rows: drops hidden + system rows and resolves
@@ -353,6 +379,38 @@ function compactionCoveredThroughSeq(ctx: AssembleContext): number {
     return 0;
   }
   return ctx.compactedThroughSeq ?? 0; // null/undefined ⇒ 0 (no exclusion)
+}
+
+/** One ASSISTANT canon row → its wire row.
+ *
+ *  A narrator row's inline `<speaker>NAME</speaker>` markers are kept in STORED canon (the renderer colors by
+ *  them) but must not ride into the prompt as raw XML: it wastes tokens AND trains the model to parrot the
+ *  syntax. They convert to the plain `NAME: ` attribution the transcript already speaks — the SAME form the
+ *  name-stamp uses. A body with no markers (every per-speaker / solo row) is returned unchanged, so this is a
+ *  byte-identical no-op everywhere else. */
+function assistantShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryMacroNames, nameById: ReadonlyMap<CharacterId, string>): CanonRow {
+  const authorName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
+  return {
+    role: "assistant",
+    content: renderHistoryMacros(speakerTagsToPlain(m.content), { characterId: m.characterId, personaId: m.personaId }, ctx, {
+      producer: macroNames,
+      speakerCharName: authorName ?? undefined,
+    }),
+    characterId: m.characterId,
+    authorName,
+    messageId: m.id,
+  };
+}
+
+/** One USER/narrator canon row → its wire row. `{{user}}`/`{{persona}}` resolve against the row's OWN stamped
+ *  personaId; the NAME-stamp falls back only under {@link userRowAuthorName}'s null-stamp guard. */
+function userShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryMacroNames): CanonRow {
+  return {
+    role: "user",
+    content: renderHistoryMacros(m.content, { characterId: m.characterId, personaId: m.personaId }, ctx, { producer: macroNames }),
+    authorName: userRowAuthorName(m, macroNames, ctx.triggerUserId ?? null),
+    messageId: m.id,
+  };
 }
 
 /**
@@ -379,40 +437,9 @@ export function toShapeCanon(
     }
   });
   const coveredThroughSeq = compactionCoveredThroughSeq(ctx);
-  const rows: CanonRow[] = [];
-  for (const m of canon) {
-    if (m.excludedFromPrompt || m.role === "system" || m.seq <= coveredThroughSeq) {
-      continue;
-    }
-    const stamps = { characterId: m.characterId, personaId: m.personaId };
-    if (m.role === "assistant") {
-      const authorName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
-      rows.push({
-        role: "assistant",
-        // A narrator row's inline `<speaker>NAME</speaker>` markers are kept in STORED canon (the renderer
-        // colors by them) but must not ride into the prompt as raw XML: it wastes tokens AND trains the
-        // model to parrot the syntax. They convert to the plain `NAME: ` attribution the transcript already
-        // speaks — the SAME form the name-stamp uses. A body with no markers (every per-speaker / solo row)
-        // is returned unchanged, so this is a byte-identical no-op everywhere else.
-        content: renderHistoryMacros(speakerTagsToPlain(m.content), stamps, ctx, {
-          producer: macroNames,
-          speakerCharName: authorName ?? undefined,
-        }),
-        characterId: m.characterId,
-        authorName,
-        messageId: m.id,
-      });
-    } else {
-      // User/narrator rows: {{user}}/{{persona}} resolve to this row's own stamped personaId, falling back
-      // to the active persona only when the stamp is null.
-      rows.push({
-        role: "user",
-        content: renderHistoryMacros(m.content, stamps, ctx, { producer: macroNames }),
-        authorName: userRowAuthorName(m.personaId, macroNames),
-        messageId: m.id,
-      });
-    }
-  }
+  const rows: CanonRow[] = canon
+    .filter((m) => !(m.excludedFromPrompt || m.role === "system" || m.seq <= coveredThroughSeq))
+    .map((m) => (m.role === "assistant" ? assistantShapeRow(m, ctx, macroNames, nameById) : userShapeRow(m, ctx, macroNames)));
   // MACROS FIRST, THEN REGEX (D121-E): every row above resolved its own stamps through
   // `renderHistoryMacros`; the leg rewrites that resolved text and returns copies — `rows` itself is what
   // gets discarded, and the `messages` rows it was read from were never touched.

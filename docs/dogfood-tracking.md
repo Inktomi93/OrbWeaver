@@ -22,7 +22,50 @@
 
 ## ═══ CRITICAL — Multi-User / Persona ═══
 
-### INVITE-JOIN-NULL-PERSONA — invite-link joiners seat with NULL persona (M 🔴) ✓
+### INVITE-JOIN-NULL-PERSONA — invite-link joiners seat with NULL persona (M ✅ FIXED, both halves)
+
+**BOTH halves fixed, and the "unverified serious half" was REAL.**
+
+**The seat (`chat/verbs/invites.ts`).** `redeemInvite` and `acceptInviteById` now run the SAME seed chain
+`startChat` runs for the founding host row — `resolveCurrentPersona ?? resolveDefaultPersona` — threaded through
+`redeemInviteAtomic`/`acceptInviteByIdAtomic` → `upsertMemberOnJoin`. A joiner who owns no persona at all still
+seats `null`; that is the honest floor, never the room's anchor.
+
+**The prompt (NULL-BINDS-ANCHOR) — CONFIRMED, and the mechanism was an ENCODING collision.**
+`entry/compose/chat.ts` `activePersonaIdFor` ended `return args.triggerPersonaId ?? args.anchorPersonaId`, and
+`turn.ts` passed `membership.activePersonaId` at all six LIVE-HUMAN sites. So "a live human whose seat holds no
+persona" was indistinguishable from the drain/auto contract's "deliberately no triggering human ⇒ bind to the
+ANCHOR" — and every invite-joined member's `{{user}}` (and SHAPE's `speakers.user`) resolved to the HOST's
+persona. The model was told the host said everything the member said.
+
+Fixed by giving the missing state a REAL ARM instead of a sentinel: `TurnTrigger` (`chat/contract/foreign.ts`)
+is now a discriminated union — `{kind:"human", userId, personaId|null}` · `{kind:"none"}` · absent — dispatched
+exhaustively (a fourth kind fails tsc). The `human` arm NEVER reaches the anchor. `kind:"none"` ⇒ ANCHOR is
+byte-faithful, so the D51 pin semantics are untouched.
+
+**Plus the LEGACY-row half the seat fix cannot reach.** A member's already-written `persona_id = NULL` row still
+borrowed `speakers.user` on a turn the HOST triggered. `assembly/shape.ts` `userRowAuthorName` now mirrors the
+CLIENT's own fail-closed rule (`features/chat/lib/attribution.ts` `resolveUserAttribution`): a null-stamped user
+row may borrow this turn's `{{user}}` ONLY when it is that human's OWN row (`authorUserId === ctx.triggerUserId`,
+a new field on `AssembleContext`); everyone else takes the unresolved-persona floor. Unknown author or unknown
+trigger ⇒ floor. So the accepted NULL rows assemble honestly without repair.
+
+**Migration: unchanged** — existing NULL rows are ACCEPTED (owner-ladder default). No backfill.
+
+**Tests:** 4 seating pins at the VERB (`tests/.../verbs/invites.int.test.ts`) — RED-FIRST verified (3 of the 4
+fail against the frozen HEAD source: `expected null to be 'persona_joiner_current'`); 5 `activePersonaIdFor` arms
+incl. "a human with NO seat persona floors to nothing — NEVER the anchor"; 4 `toShapeCanon` null-stamp guard pins
+incl. an end-to-end wire assertion that exactly ONE line is spoken as the host.
+
+⚠️ **Fixture correction worth knowing** (the CARD-KEEP-ZERO class, again): 19 existing fixtures built user rows
+with NO `authorUserId` and contexts with no trigger — a room nobody wrote in. Production always stamps both
+(`persistUserMessage` writes `principal.userId`; import writes the owner). The fixtures were fixed, not the
+guard. The existing pin *"a null-stamp user row still falls back to the active persona"* stays GREEN and is now
+true for a STATED reason: it is the trigger's OWN row.
+
+*(original report below)*
+
+### INVITE-JOIN-NULL-PERSONA — original report (M 🔴) ✓
 
 **Reporter:** NB (guest), owner · **Scout:** 237 .ts + 105 .tsx scanned
 
@@ -80,7 +123,36 @@ repair retroactively or accept that existing NULL rows render "Traveler" going f
 
 ---
 
-### MEMBER-PERSONA-SWITCH — member has no affordance to swap persona in-room (S 🔴) ✓
+### MEMBER-PERSONA-SWITCH — member has no affordance to swap persona in-room (S ⚪ NOT REPRODUCIBLE IN CODE) ✓
+
+**REFUSED WITH A RECEIPT: there is no gate to remove.** The row's advice was "find the gate in
+`persona-panel-surface.tsx` or its mount site and remove it". Swept, and every link in the chain is ungated:
+
+- `personaChrome` (`features/persona/lib/persona-chrome.tsx`) declares **no `useVisible`**, and `rail.tsx`
+  reads `entry.useVisible?.() ?? true` — so the chip renders for every viewer. Same entry projects into the
+  mobile "You" sheet via `mobile: "sheet"`.
+- `persona-panel-surface.tsx` contains **zero** `viewerIsHost`/`isHost` references (whole-file read).
+- `persona-this-chat-section.tsx` gates exactly ONE control on `chat.viewerIsHost` — the anchor **Re-pin**,
+  which is correctly host-only. The "Playing as" switch is ungated and viewer-scoped.
+
+**What WAS missing is coverage, and that is now closed.** Every pre-existing arm of that CT mounted
+`viewerIsHost: true`, so the member seat had none — a gate could have appeared on it silently, exactly as one
+exists on the anchor. Two arms added (`persona-this-chat-section.ct.tsx`): a MEMBER sees the Playing-as switch
+and it fires `persona.setActivePersona` for their own seat; a MEMBER gets no Re-pin. **Both pass on unmodified
+source** — which is the receipt that the client half was never the defect.
+
+**D122 is already enforced server-side, at the verb** (`domain/persona/verbs/set-active.ts`):
+`requireChatAuthorOrHost` → `requireAuthorOrHost` → `requireParticipant`, which loads the caller's **PRESENT**
+`chat_participants` row (`leftSeq IS NULL`) and 404s otherwise; and a non-null `personaId` must be owned by the
+TARGET. So "playing a persona consents its presentation surface, gated on the owner's PRESENT membership" holds
+by construction. No new enforcement was added — adding one would have been a second home for a live rule.
+
+**If the owner still sees this live**, the remaining candidates are OUTSIDE this row's stated scope: whether a
+member reaches the app shell at all on the deployment, or a stale client. Needs a live repro to go further.
+
+*(original report below)*
+
+### MEMBER-PERSONA-SWITCH — original report (S 🔴) ✓
 
 **Reporter:** owner · **Scout:** 850 files scanned (464 .tsx + 386 .ts)
 
@@ -1324,7 +1396,19 @@ own single issue, not a field path".
 
 ## ═══ RPG / Engine Gaps ═══
 
-### EXTRACT-BUDGET-DEAD — Extraction Depth + Window knobs dead under folded mode (M 🔴) ✓
+### EXTRACT-BUDGET-DEAD — Extraction Depth + Window knobs dead under folded mode (M ✅ FIXED — option 1)
+
+**Fixed, option 1.** `extractionContext` + `extractionWindowTokens` are APPLICABILITY-omitted when
+`extractionMode === "folded"` (`features/rpg/components/rpg-host-scalars.tsx`). **`reconcileEveryBeats` stays
+visible** — it gates `FOLDED_RECONCILE_NOTE` and works, exactly as the row insists.
+
+Re-verified on today's tree, not taken on faith: `buildFoldedTurnBuilder` (`entry/compose/rpg.ts`) reads
+`config.trackers` and nothing else, and `buildExtractionUserPrompt`'s callers (`buildRunExtraction`,
+`buildRunToolRound`, `buildRunResyncExtraction`) are all non-folded.
+
+The section's GLOSS swaps too rather than leaving a header over one control: on the folded arm it says the state
+calls ride the turn the model is already writing, so there is no window to size — an empty-looking section with
+false copy above it would have been the same lie in a smaller font.
 
 **Reporter:** investigation · **Scout:** 303 files scanned
 
@@ -1356,7 +1440,29 @@ Recommend option 1 immediately; option 2 as a future enhancement.
 
 ---
 
-### RUNTIME-VARS-DEAD — `runtimeVariables` UI controls are dead ends (M 🔴) ✓
+### RUNTIME-VARS-DEAD — `runtimeVariables` UI controls are dead ends (M ⚪ PREMISE FALSE ON THIS TREE) ✓
+
+**REFUSED WITH A RECEIPT — the row's premise does not hold on today's tree, so there is nothing to wire.**
+
+The row says *"Chat carries `prompt/tense/narration/length/guidelines`. UI allows setting them."* Those five
+names **do not exist anywhere in `packages/`** (literal sweep; the only `tense` hits are the greeting-studio's
+transform AXIS and a discovery TONE word, and every `guidelines` hit is the preset `rating-guidelines` section).
+There is no fixed five-variable set to reference from a template.
+
+What the cited evidence actually is:
+- `chat/substrate/runtime-variables.ts` is the **`{{setvar}}` fold** — the deterministic replay of each message's
+  `variable_delta`. Its keys are whatever the story wrote, not a fixed vocabulary.
+- `assemble-gather.ts`'s `mergedVariables` is `resolveChoiceVariables(promptConfig.variables, …)` ⊕ that fold —
+  i.e. the PRESET-DECLARED **ChoiceBlock** names, which a preset author picks.
+
+**And that plane is NOT unconsumed.** `{{getvar::X}}` is registered (`kit/src/macro/registry.ts:646`), and
+`kit/src/macro/evaluator.ts:125-134` additionally resolves a bare `{{NAME}}` straight out of `ctx.env`
+case-insensitively — *"this is what makes a ChoiceBlock variable named POV usable as `{{POV}}`"*. The room answers
+those knobs in the Picks pane (`chat.getVariablePicks`/`chat.setVariables`), and the preset section reads them.
+The infrastructure has consumers; what it has no consumer for is a five-name vocabulary that was never built.
+
+**Owed if the capability is still wanted:** an owner decision on whether those five are a REAL feature (a fixed
+per-chat prose-control set), which would be a new design, not a template edit.
 
 **Reporter:** investigation · **Scout:** 303 files scanned
 
@@ -1530,7 +1636,26 @@ assembly + `verbs/read.int` + the chat router + the engine pipeline · all three
 
 ## ═══ RPG / Stats ═══
 
-### RPG-STAT-ENTRY-REVERTS — manual stat values revert to 1 on blur (M 🔴) ✓
+### RPG-STAT-ENTRY-REVERTS — manual stat values revert to 1 on blur (M ✅ FIXED)
+
+**Fixed with an `optimistic` block on `usePatchSheet` through the house `createEntityMutation` factory** — no raw
+`onMutate`, exactly as advised. The cell re-renders from the CACHE on blur, so the write lands in the paint that
+closes edit mode instead of a round-trip later.
+
+**Two corrections to the advice, both load-bearing:**
+1. `readKey` takes a query **KEY**, not a `queryFilter` (the factory snapshots and restores exactly that entry so
+   a rejected write rolls the cell back) — the snippet said `queryFilter`.
+2. The tracker view has **no `old.actor`** — it is `old.actors[]`, keyed by `actorRefKey(actorRef)`. The update
+   maps the one named actor.
+
+**Widened deliberately:** the patch applies EVERY sheet field (`className`/`flavor`/`level`/`trackerGrants`/
+`trackerRevokes`, attributes MERGED key-wise), not just `attributes`. Those are the same click-to-edit gesture
+against the same stale read; covering one would have left the defect alive under the other four controls.
+
+**Gotcha for the next reader:** the client's tsc program infers `patchSheet`'s `actorRef` ids as `unknown`
+through `inferInput` (transform-backed TypeIDs; the graph program resolves them fine — the two programs
+genuinely disagree). `wireActorRefKey` re-brands via `castId(String(…))` and delegates to the ONE `actorRefKey`
+projection rather than growing a second key home.
 
 **Reporter:** owner · **Scout:** 306 files scanned
 
@@ -1778,7 +1903,10 @@ then, unset `WIRE_CAPTURE` before a battery run.
 
 ## ═══ Assets / UI ═══
 
-### BARE-HASH ASSET 404s — RPG actor avatars bypass `blobUrl()` (S 🔴) ✓
+### BARE-HASH ASSET 404s — RPG actor avatars bypass `blobUrl()` (S ✅ FIXED)
+
+**Fixed at both sites** — `rpg-character-detail.tsx` and `rpg-status-tab.tsx` now wrap `actor.avatar` through
+`blobUrl()` before it reaches `<Avatar src>`, the same pattern `message-row-parts.tsx` already uses.
 
 **Reporter:** owner, NB (guest) · **Scout:** 306 files scanned
 
@@ -1807,7 +1935,18 @@ as `message-row-parts` which already does this correctly. Two-line fix, two site
 
 ---
 
-### DRAFT-PHASE ROW AVATAR — avatar absent from message rows in draft state (S 🔴) ⚠
+### DRAFT-PHASE ROW AVATAR — avatar absent from message rows in draft state (S ✅ FIXED — root cause verified)
+
+**Root cause VERIFIED, and it is not quite what the row guessed.** It is not a missing data thread: the hashes
+were already in hand. `DraftGreetingThread` (`features/chat/surfaces/message-list-surface.tsx`) fetches each
+founding character with `trpc.character.get`, builds `characterNamesById` off that payload — and stops.
+`resolveAssistantAttribution` takes a row's portrait from the live `participants` (a draft has none: nothing is
+seated yet) and falls back to `characterAvatarsById`, which this thread never passed. So every draft greeting
+rendered initials while the topbar, reading the SAME `character.get` payload two components away, showed the
+portrait. "Self-heals on commit" is the roster arriving, not a race.
+
+**Fix:** build `characterAvatarsById` from the already-fetched cards and pass it — the producer that was
+missing, off the same query. One line + the prop.
 
 **Reporter:** owner · **Scout:** not dispatched
 
@@ -1830,7 +1969,12 @@ way the header does. May be a missing data thread in draft context.
 
 ---
 
-### D44-GRAIN-TEXTURE — `data:` SVG noise texture violates CSP (S 🔴)
+### D44-GRAIN-TEXTURE — `data:` SVG noise texture violates CSP (S ✅ FIXED)
+
+**Fixed as advised:** the turbulence SVG now lives at `packages/client/public/grain.svg` and `globals.css`
+references `url("/grain.svg")` — the house pattern (`index.html`'s `/favicon.svg`), no ESM asset import.
+`img-src 'self' blob:` is UNTOUCHED; the comment at the rule now says so, so the next reader does not "fix" the
+CSP instead.
 
 **Reporter:** owner · **Source:** `packages/client/src/styles/globals.css:170`
 
@@ -1860,7 +2004,24 @@ resources. But the `public/` path is simpler and already the established pattern
 
 ---
 
-### CREDENTIAL-STORAGE-SILENT-FAIL — `CREDENTIALS_KEY` unset silently disables key storage (S 🔴)
+### CREDENTIAL-STORAGE-SILENT-FAIL — `CREDENTIALS_KEY` unset silently disables key storage (S ✅ FIXED — option 2)
+
+**Fixed, option 2 (the operator-friendly arm): the UI refuses the INPUT, not the save.**
+
+`add` has always refused with a coded `credentials_disabled` — so the failure was honest but far too late: by
+then the user has handed a live provider key to a form that cannot keep it, and the refusal reads as a transient
+error rather than "this deployment was never configured to store keys".
+
+- **Server exposes the fact, honestly and minimally:** `credentials.storageStatus` (`{ enabled }`) — param-free
+  and row-free, a DEPLOYMENT capability identical for every authed caller, reading only `ctx.box.enabled`. No
+  secrets logic touched; the verb cannot encrypt or decrypt (its unit test proves that by giving it throwing
+  crypto arms and asserting a green result).
+- **UI asks before it collects:** `AddCredentialDialog` reads it and, when storage is off, renders the refusal —
+  a titled empty state naming the remedy (`CREDENTIALS_KEY`, or `CREDENTIALS_KEY_AUTO` to have the server mint
+  and persist one) with a Close action, INSTEAD of the key field.
+- A test pins the pairing: `storageStatus().enabled === false` is exactly when `add` throws `credentials_disabled`
+  — if those two ever drift, the UI either refuses on a deployment that would have saved fine, or collects a key
+  on one that cannot.
 
 **Reporter:** owner
 
@@ -1880,7 +2041,18 @@ Option 2 is more operator-friendly.
 
 ## ═══ Mobile UI ═══
 
-### MOBILE-THEME-SELECTOR — theme selector clipped by `DialogPopup size="md"` on mobile (S 🔴) ✓
+### MOBILE-THEME-SELECTOR — theme selector clipped on mobile (S ✅ FIXED — option 2, and the root cause was NOT the dialog)
+
+**Reproduced at 320px before touching anything** (`pnpm snap / --viewport 320x800` + `__orb.nav.openModal('theme')`,
+polled to settled): the theme LIST rows render fine at that width — what is sheared is the band above them. The
+`Themes` label + `Reset to Hearth` + `New theme` sit in one non-wrapping `Row justify-between`, and the primary
+was reduced to a ~10px orange sliver against the dialog edge. That is the reported "clipped and shrunken".
+
+**So the row's stated root cause (`DialogPopup size="md"`'s max-width) is wrong** — widening the dialog (option 1)
+would have moved the symptom without touching the rigidity, and the list proves the width itself is adequate.
+
+**Fixed with option 2, responsive reflow:** the band wraps (`flex-wrap` + `gap-row`, `min-w-0` on the label), so
+the two verbs drop to their own line instead of being clipped. Works at any viewport; no dialog size change.
 
 **Reporter:** JF (guest) · **Scout:** 306 files scanned
 

@@ -9,6 +9,7 @@
 import type { ParticipantView } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
@@ -408,9 +409,12 @@ test("a row's own characterId wins over another roster member also present", asy
   await expect(component.getByText("Bob nods.")).toBeVisible();
 });
 
-test("no roster/persona threaded: {{char}}/{{user}} resolve to the kit floor ('Character'/'User'), never left literal", async ({ mount }) => {
+// The `{{user}}` floor is the ONE unresolved-persona name (`DEFAULT_PERSONA_NAME`, @orb/kit/persona) — the
+// same word this row's own attribution renders and the server stamps on the wire. `{{char}}` keeps its own
+// "Character" literal: a nameless CHARACTER is a different question from a nameless human.
+test("no roster/persona threaded: {{char}}/{{user}} resolve to the kit floors, never left literal", async ({ mount }) => {
   const component = await mount(<MessageRowStory chatStyle="bubble" messageRole="assistant" content="{{char}} waves at {{user}}." characterId={ALICE_ID} />);
-  await expect(component.getByText("Character waves at User.")).toBeVisible();
+  await expect(component.getByText(`Character waves at ${DEFAULT_PERSONA_NAME}.`)).toBeVisible();
   await expect(component.getByText("{{char}}", { exact: false })).toHaveCount(0);
   await expect(component.getByText("{{user}}", { exact: false })).toHaveCount(0);
 });

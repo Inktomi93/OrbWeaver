@@ -17,6 +17,7 @@ import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { hueDistance, oklchHue } from "@orb/kit/safe-color";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { colorForCharacter } from "./speaker-color.ts";
@@ -53,13 +54,13 @@ const NARRATOR_ATTRIBUTION: RowAttribution = {
   hueSeed: "narrator",
   tokens: null,
 };
-// "Traveler", not "You" (owner ruling 2026-08-03). Users are FORCED to hold a persona — boot seeds
-// `Traveler` (entry/boot/seed-default-persona.ts) — so this branch is the unresolvable-persona floor, and
-// naming it "You" reintroduces the very collision that rename was minted to kill: the model is shown the
-// identity and writes it into the prose (seeder/demo-chats.ts:52 records exactly that happening). One
-// spelling, one L, matching the seeded persona.
+// The unresolvable-persona floor. Users are FORCED to hold a persona — boot seeds one — so this branch is the
+// floor, and naming it "You" reintroduces the very collision that rename was minted to kill: the model is
+// shown the identity and writes it into the prose (seeder/demo-chats.ts:52 records exactly that happening).
+// ONE spelling for every site that answers "what is this human called when we have no persona for
+// them?" — `DEFAULT_PERSONA_NAME` (@orb/kit/persona) is that home.
 const DEFAULT_USER_ATTRIBUTION: RowAttribution = {
-  name: "Traveler",
+  name: DEFAULT_PERSONA_NAME,
   kind: "persona",
   avatarAssetId: null,
   avatarHash: null,
