@@ -29,7 +29,11 @@ export interface SettingsPanePlaceholderProps {
 export function SettingsPanePlaceholder({ title, description }: SettingsPanePlaceholderProps): ReactElement {
   return (
     <Stack align="center" className="h-full justify-center" gap="block">
-      <EmptyState icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />
+      {/* w-full is load-bearing: EmptyState's root is a `@container` (inline-size containment), so under
+          this wrapper's shrink-to-fit centering it resolves to width 0 and the copy renders as a one-word-
+          per-line ribbon (side-eye re-verify, 2026-08-08). Full width restores the measure; EmptyState
+          centers its own contents. */}
+      <EmptyState className="w-full" icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />
       <Badge intent="neutral" size="sm">
         Not built yet
       </Badge>
