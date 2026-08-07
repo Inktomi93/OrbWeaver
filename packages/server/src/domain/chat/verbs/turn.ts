@@ -333,8 +333,10 @@ interface BuiltTurnContext {
    *  `null` ⇒ the turn drew nothing. */
   readonly userMacroDraws: UserMacroDraws | null;
   /** The M2 card wire knob a game turn's GATHER contributed (parity-plus §3.5) — threaded onto `TurnPrep` →
-   *  `runTurnPipeline.cardKeepLastX`. 0 for a non-game turn (byte-identical: every card stubs, the default). */
-  readonly cardKeepLastX: number;
+   *  `runTurnPipeline.cardKeepLastX`. ABSENT ≠ ZERO: `undefined` for a NON-GAME turn (no window — every stored
+   *  card rides the wire whole), `0` for a game whose host kept the rpg default (every card stubs). This used
+   *  to floor to `0`, which gave a chat with no game the strictest setting of a feature it never opted into. */
+  readonly cardKeepLastX: number | undefined;
 }
 
 /** The turn's driving {@link TurnKind} → the `injection_trigger` {@link GenerationType} gate. Exhaustive
@@ -587,7 +589,9 @@ async function buildTurnContext(
     attachedToolNames: rpg?.tools ?? [],
     terminalTools: rpg?.terminalTools,
     respondsToLatestUserTurn: args.respondsToLatestUserTurn ?? false,
-    cardKeepLastX: rpg?.cardKeepLastX ?? 0,
+    // NO `?? 0` — absence is the signal (see `BuiltTurnContext.cardKeepLastX`): only a game's gather contributes
+    // this, so a non-game turn must pass `undefined` (no window) rather than inherit the rpg default.
+    cardKeepLastX: rpg?.cardKeepLastX,
     ...userMacroFields(userMacros),
   };
 }
@@ -1528,8 +1532,9 @@ interface TurnBase {
   /** A game turn's gather-contributed TERMINAL tools (R1) — threaded onto each PERSISTING auxiliary prep
    *  (swipe/continue/generate); `undefined` for a non-game / non-folded turn. */
   readonly terminalTools: readonly WireTool[] | undefined;
-  /** The M2 card wire knob (parity-plus §3.5) — threaded onto each auxiliary prep. 0 for a non-game turn. */
-  readonly cardKeepLastX: number;
+  /** The M2 card wire knob (parity-plus §3.5) — threaded onto each auxiliary prep. `undefined` for a non-game
+   *  turn (no window — every stored card rides whole); a game contributes a number, `0` = every card stubs. */
+  readonly cardKeepLastX: number | undefined;
   /** rpg-design/05 §6 slot-adjacency: does this auxiliary turn's slot directly respond to the latest user
    *  message (only `swipe` of the die-response can — the rest are false)? Threaded onto the prep. */
   readonly respondsToLatestUserTurn: boolean;
