@@ -19,6 +19,13 @@
 //     the message plane: the old empty-body "state anchor" slot it used to mint was a non-message that every
 //     canon reader had to filter (render, export, digest, plugin, automation, counts), and the row class is
 //     now unspellable — `postNarratorMessage` refuses blank content.
+// THE THIRD DOOR IS THE FLUSH'S (HAND-EDIT-VS-FLUSH, 2026-08-07): `foldTurnWriteIntoHandHead` is what a turn's
+// flush calls at its own write boundary when a HAND ROW outranks the row it just wrote. It is not a fourth
+// mechanism — it is `writeHandState` again, deriving `applyLockedPatch(handState, turnColumns, handLocks)`
+// inside the same head resolve. The two writers can no longer erase each other: a mid-flight hand edit keeps
+// every field it locked (that is what the auto-lock above MEANS), and the turn keeps every plane the hand did
+// not claim. See that function for the loss it closes and why the ranking that caused it is nonetheless right.
+//
 // It also homes the two STATE READERS every other surface projects from — `currentSnapshotState` (the head) and
 // `snapshotStateBeforeSlot` (the state before a slot: the flush's write base + a regen turn's read base) — so
 // "which snapshot am I reasoning from, and what does a game with no rows read?" is answered in ONE place.
@@ -28,7 +35,7 @@ import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
 import type { HandEditLocks, HandEditResult, HandStateHead, HandStateWrite, RpgContext, RpgGameRow } from "./contract/service.ts";
 import { snapshotRowToState } from "./contract/service.ts";
-import { resolveSnapshotBeforeSlot, resolveSnapshotForTurn, updateSnapshotState, writeHandSnapshot } from "./persistence/snapshots.ts";
+import { resolveSnapshotBeforeSlot, resolveSnapshotHead, updateSnapshotState, writeHandSnapshot } from "./persistence/snapshots.ts";
 import { defaultSnapshotState } from "./substrate/default-state.ts";
 import { applyLockedPatch } from "./substrate/merge.ts";
 
@@ -36,9 +43,19 @@ import { applyLockedPatch } from "./substrate/merge.ts";
 const UNCOMMITTED = 0;
 
 /** The current resolved snapshot head, plus the ONE question the write tail asks of it: may this row be
- *  edited IN PLACE? `inPlace` is non-null ONLY for an UNCOMMITTED TURN row (this turn's own draft) — a
- *  committed row is a locked-in past, a HAND row is born committed, and a turnless game has no row at all;
- *  all three clone forward as a new hand row. */
+ *  edited IN PLACE? `inPlace` is non-null ONLY for an UNCOMMITTED TURN row that is the ladder's own TURN RUNG
+ *  (this turn's own draft) — a committed row is a locked-in past, a HAND row is born committed, and a turnless
+ *  game has no row at all; all three clone forward as a new hand row.
+ *
+ *  THE ARM CHECK IS THE FIX, NOT A BELT (HAND-EDIT-VS-FLUSH, 2026-08-07). "Uncommitted turn row" alone does
+ *  NOT mean "this turn's draft", and the gap is reachable in ordinary play: while a turn's post-commit state
+ *  round is in flight its slot has NO snapshot yet (that is what in-flight means), so the ladder's turn arm
+ *  comes back empty and the game-wide `fallback` walk answers with the PREVIOUS speaker's still-uncommitted
+ *  draft — a row at an EARLIER slot. Editing that in place put the host's edit on a row the in-flight flush's
+ *  own row then strictly outranked, and the edit vanished silently, auto-lock and all (a group round is the
+ *  live shape: two assistants speak back-to-back, so no `onUserCommit` has locked the first row in). Requiring
+ *  the `turn` ARM makes `inPlace` mean what its name says; the fallback case correctly clones forward instead,
+ *  where the hand row's ladder rung protects it. */
 async function resolveHead(
   ctx: RpgContext,
   game: RpgGameRow,
@@ -47,12 +64,13 @@ async function resolveHead(
   state: RpgSnapshotState;
   locks: RpgFieldLocks | null;
 }> {
-  const row = await resolveSnapshotForTurn(ctx.db, { id: game.id, chatId: game.chatId });
-  if (row === undefined) {
+  const head = await resolveSnapshotHead(ctx.db, { id: game.id, chatId: game.chatId });
+  if (head === undefined) {
     return { inPlace: null, state: defaultSnapshotState(), locks: null };
   }
+  const { row } = head;
   return {
-    inPlace: row.variantId !== null && row.committed === UNCOMMITTED ? { snapshotId: row.id, variantId: row.variantId } : null,
+    inPlace: head.arm === "turn" && row.variantId !== null && row.committed === UNCOMMITTED ? { snapshotId: row.id, variantId: row.variantId } : null,
     state: snapshotRowToState(row),
     locks: row.fieldLocks,
   };
@@ -144,6 +162,57 @@ export async function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: 
   const snapshotId = ctx.ids.snapshot();
   await writeHandSnapshot(ctx.db, nextState, nextLocks, { id: snapshotId, gameId: game.id, chatId: game.chatId, now: ctx.now() });
   return { ok: true, snapshotId };
+}
+
+/** FOLD a just-written turn flush's state into the HAND ROW that outranks it — the write-boundary half of the
+ *  HAND-EDIT-VS-FLUSH fix (2026-08-07). Returns `null` when there is nothing to reconcile (the ordinary flush),
+ *  otherwise the hand-arm write's result.
+ *
+ *  THE LOSS IT CLOSES. A turn's flush resolves its write base at flush START and its round then runs a 0.8-2.9s
+ *  model call (`flush-barrier.ts`). A host hand-editing the panel inside that window writes a HAND ROW stamped
+ *  at the flushing turn's own slot — and by D124 a hand row OUTRANKS the turn row at the same seq (you edited on
+ *  top of that beat). That ranking is right and stays: the human's decision wins. But the hand row was cloned
+ *  from a head that did not yet contain the turn's delta, so it shadowed the turn row's state ENTIRELY — the
+ *  round's writes on planes the human never touched became invisible the instant they landed, and stayed
+ *  invisible forever (every later base walk resolves the same hand row). One race, two victims; this is the
+ *  second one. The same shadowing is reachable without any race — a hand edit made at the tail slot before a
+ *  REGEN of that slot is excluded from the regen's base the same way — so the fold is not gated on timing.
+ *
+ *  THE ARBITER IS THE LOCK, and it is already law: `editSnapshot` auto-locks every field the hand touched
+ *  precisely so "a later model tool write can never overwrite it" (this file's header). So the reconciliation is
+ *  the ONE merge this domain already has — `applyLockedPatch(handState, turnColumns, handLocks)`, byte-identical
+ *  in grammar to what the staging accumulator does per tool write. The human keeps every field they claimed; the
+ *  turn keeps every field they did not.
+ *
+ *  IT RIDES `writeHandState`, WHICH IS WHY IT IS SAFE UNDER A SECOND EDIT. The fold derives INSIDE its own head
+ *  resolve, so a hand edit that landed between the caller's arm check and this write is the base it folds onto
+ *  (never a stale image), and one that lands after produces a strictly later rung that outranks the fold. The
+ *  residual is the same single-continuation window the hand door has always had (ASSUMES(single-replica), as
+ *  everywhere in this loop) — this adds no new one.
+ *
+ *  `slotSeq` is the flushing turn's own story position, and the fold is REFUSED for a hand row anywhere else:
+ *  a hand row stamped further down the story belongs to later history, and folding an older turn's state into it
+ *  would resurrect a past state into the present. */
+export async function foldTurnWriteIntoHandHead(
+  ctx: RpgContext,
+  game: RpgGameRow,
+  turnState: RpgSnapshotState,
+  slotSeq: number,
+): Promise<HandEditResult | null> {
+  const head = await resolveSnapshotHead(ctx.db, { id: game.id, chatId: game.chatId });
+  if (head === undefined || head.arm !== "hand" || head.seq !== slotSeq) {
+    return null; // nothing shadows this flush's row (the ordinary path), or what does is not this slot's
+  }
+  return writeHandState(ctx, game, (hand) => ({
+    ok: true,
+    // The turn's STATE COLUMNS as the patch — never the whole state object, whose `fieldLocks` key would merge
+    // the flush's (base-era) locks over the hand's freshly-minted ones and un-pin the very edit being protected.
+    state: applyLockedPatch(
+      hand.state as unknown as Record<string, unknown>,
+      toColumns(turnState) as unknown as Record<string, unknown>,
+      hand.locks,
+    ) as unknown as RpgSnapshotState,
+  }));
 }
 
 /** The current resolved snapshot state (a read the tracker view + the quest verbs project from). For a turnless
