@@ -359,6 +359,32 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
   `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
   question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- **✅ SIDE-EYE'S COMBINED SWEEP ADJUDICATED (2026-08-07): SHIP WITH FIXES, all findings routed,
+  two fix legs already merged + check 14/14.** Its own discipline first: it opened with FOUR
+  RETRACTIONS of in-run findings (sub-44px targets measured at the wrong pointer type — it nearly
+  filed a false P1; a "width-0" title matching a `display:none` sibling; a "dead" weather control
+  that was its own `--eval` firing post-settle; a missing `aria-pressed` its filter never looked
+  for). VERIFIED-GOOD and on the don't-touch list: the mobile back-button hit zone (25/25 samples,
+  48×48, real coarse pointer), the day-preserving time clear driven end-to-end on a live game, the
+  transforms readout's order truth, draft visuals on all four counts. **MERGED:** RULED-BATCH leg 3
+  (`92dc7d331`) — the chips' hit areas were COLLIDING (aiming at `clear` committed `snow`; a
+  destructive shared-state write, invisible to any boundingBox assertion — only `elementFromPoint`
+  at offsets sees it); `inline` was the wrong semantic (display-at-rest, not a control) so they take
+  a real control size; the readout stops laundering a permanent-and-correct 404 into a confident
+  "off" · DRAFT-POLISH leg 2 (`86a1736bc`) — a group draft now uses the SAME title derivation, seat
+  arithmetic and cast-strip home as the committed room, with the solo-draft control passing in BOTH
+  red-first states as the discriminator. **STILL RUNNING:** MOBILE leg 4 (six findings incl. the P1
+  mobile-draft title falling through to the section label).
+  **The sweep's own root-cause framing, endorsed as the mobile program's north star: "stop treating
+  a phone as a narrow desktop"** — six of nine findings share one cause (the mobile shell reuses the
+  desktop composition and lets it compress) and collapse together when the mobile branch becomes its
+  own composition.
+  **PREMISE-KILLED (owner, from the shape alone):** the "fresh-db double-seed" was per-USER seeding
+  across two accounts — receipt `{ownerA: 12, ownerB: 11}`, 12 distinct names, max 2 copies. The
+  lopsided 12-vs-11 is `Aldric Vane`, the `orb-seed-hero` player card minted by side-eye's OWN d20
+  seed under the seeding account. Nothing to fix; the row died before the lane spent a minute on it.
+  **Instrument lesson:** `/api/_debug/db/*` counts are GLOBAL (no tenant) while every UI number
+  beside them is viewer-scoped — never read the difference as dedup.
 - **⚑ OPS NOTE 3 (the reaper — encoded after it killed a run TWICE):** a tool-managed background
   task can be REAPED BY YOUR OWN POLLING — a foreground poll that hits its 600s timeout converts
   into a NEW background task and the manager evicts the OLDEST, which is the long run you were
@@ -420,6 +446,20 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     gray sentence + ~600px black; one row + an unlabeled orange dot as the only active signal) —
     the \[\[empty-states-are-load-bearing]] class + a meaning-by-color-alone a11y miss. Evidence:
     side-eye rendered receipts.
+  - [ ] **`AvatarStack` DISCARDS a caller's `aria-label`** (S, sealed-`@orb/ui` change → owner/side-eye
+    territory; found by DRAFT-POLISH leg 2's CT, deliberately NOT fixed in-lane) —
+    `avatar-stack.tsx:48-49` spreads `{...rest}` and THEN sets its own `aria-label={"N people"}`, so
+    a caller's label can never win. BOTH the committed header's `CastAvatars` and the draft's
+    `DraftCastAvatars` pass `"N characters"` and it has never applied: a screen reader hears
+    "2 people" in both phases. Fixing the primitive renames every avatar stack in the app — hence
+    the seal. The CT now asserts the TRUTH with the reason beside it (a pin on reality, not on the
+    wish). Evidence: driven in CT.
+  - [ ] **SOLO-DRAFT ROSTER CHIP parity** (S–M, blocked) — a solo COMMITTED chat has a roster chip
+    (opens `SoloRosterMenu`); a solo DRAFT has none, because a draft-shaped roster popover needs the
+    viewer's own seat and the only viewer read available (`useViewer`) SUSPENDS — which that header
+    is forbidden to do. The lane gated the chip on `draftMembersTabJustified` and SAID SO in the
+    header rather than invent a second roster surface or ship a chip opening a hidden tab. Unblocks
+    on a non-suspending viewer-seat read. Evidence: lane census, source-pinned.
   - [ ] **`size="inline"` HIT-AREA COLLISION SWEEP** (S, from RULED-BATCH leg 3) — the `inline`
     variant is the display-at-REST arm: it wears no control box and carries its touch floor in an
     OVERFLOWING `::after` (28px fine / 44px coarse). Safe for an isolated datum standing in for
