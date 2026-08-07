@@ -181,3 +181,58 @@ embeddings/search "ONE engine" → `Knowledge-Cluster.md`; AAD belt → `Spine-I
 - ~~**AGENTS-1/2/3 trim + merge**~~ — DONE 2026-07-03: trimmed to doctrine+index, then MERGED into ONE `core/AGENTS.md` (§1-8, domains.md folded in). Pain Ledger → `history/Pain-Ledger.md`; AST-scan → `history/Grounded-Intelligence-AST-Scan.md`; string-union dispatch → `Spine-TypeScript-and-Patterns.md`. Documentation-Law moved into `core/`.
 - Corpus-wide `pnpm format:docs` sweep → flip `check:docs` to blocking → add frontmatter to surviving docs.
 - ~~`tsdoc/syntax` cleanup → flip warn→error~~ — DONE 2026-07-03: 255 violations across 45 files cleaned, `tsdoc/syntax` is now `error` on server/kit/db/contracts.
+
+## OPEN SECURITY FINDINGS (verified against the tree; each names its exploit path and its blocker)
+
+### AUTHFIX-2 — the `/api/_debug/*` admin arm is opened by the UN-CREDENTIALED owner fallback
+
+**Status: OPEN, deliberately not fixed in the AUTHFIX lane (2026-08-07) — the fix is one line but is BLOCKED
+on an e2e coupled site. Severity HIGH wherever the origin port is reachable.**
+
+**The chain, all four links verified:**
+
+1. `foundation/observability/debug/routes.ts` → `createDebugAuthMiddleware`: the `adminAuth.isAdmin(headers)`
+   arm calls `next()` **before** the `expectedToken` check. Its own doc says the arm exists for "an admin
+   session COOKIE".
+2. `entry/app.ts` wires it in production: `auth: { expectedToken: env.DEBUG_TOKEN, adminAuth: { isAdmin:
+   deps.seam.isAdmin } }`.
+3. `entry/auth/seam.ts::isAdmin` calls `resolvePrincipal`, which honours ALL THREE paths — including the
+   origin-gated owner fallback. So the "admin cookie" convenience silently became "the owner fallback opens
+   the debug API".
+4. `ownerFallbackAllowed` returns `true` UNCONDITIONALLY under `AUTH_MODE=single-user`. Under an SSO mode it
+   is `isLocalOrigin`, which reads the **client-supplied `Host` header** (that file's own comment concedes it
+   is relying on a proxy to rewrite Host).
+
+**Exploit:** `curl -H 'Host: 127.0.0.1' http://<box>:<port>/api/_debug/db/chats` — no cookie, no
+`x-debug-token` — from any network position that can reach the origin port. Under `single-user` not even the
+Host header is needed. Reachable routes include `/db/chats`, `/db/chat/:id`, `/config/user`, `/errors` and —
+when `WIRE_CAPTURE=on`, as the live `.env` has it — `/wire/captures`, i.e. provider request bodies.
+
+**Why the blast radius is total rather than per-tenant:** these routes are principal-BLIND. They read the
+whole DB scoped only by caller-supplied query params; `debug/inspect/config.ts` carries the explicit marker
+`@owner-scope-ok: un-principal HOST read (D20) … if /api/_debug ever admits a per-user principal, this read
+must take an ownerId and filter on it`. The gate IS the entire boundary.
+
+**Not caused by, and not widened by, D135.** The fallback principal already carried `role:"owner"` (stamped);
+after D135 it carries `role:"owner"` (read). The gate consumes a boolean that was already `true`. D135 is in
+fact marginally tighter — an owner row below `owner` now closes the gate where it previously could not.
+
+**The fix + its blocker.** The one-liner is `principal.via === "fallback" → false` in `entry/auth/seam.ts::isAdmin`
+(restoring the arm's own documented "admin SESSION" intent; `DEBUG_TOKEN` remains the headless credential and
+`scripts/probes/*` already send it). It is blocked because `tests/e2e/support/trpc.ts` reads these routes with
+a bare `fetch` and no token — its comment states the dependency verbatim: *"the debug gate's admin tier passes
+under single-user AUTH\_MODE"* — and `tests/e2e/support/modes.ts` sets `DEBUG_TOKEN` in **none** of the three
+mode envs, so with the arm closed the gate would 404 ("debug API disabled") and take the whole e2e
+debug-witness surface (`fetchWireCaptures`/`inspectChatDb`/`fetchDebugErrors`) with it.
+
+**Two fix shapes, in preference order:**
+
+1. Thread `DEBUG_TOKEN` into the three e2e mode envs + one shared header helper in `tests/e2e/support/trpc.ts`,
+   THEN flip the `via` check. Clean, unconditional, no new semantics.
+2. Gate the flip on `expectedToken !== undefined` inside `createDebugAuthMiddleware` ("a token the operator
+   CONFIGURED may not be bypassed by an un-credentialed principal"). Closes it on the live box, leaves the
+   token-less e2e stacks working — but it is a conditional control, and it needs the `routes.test.ts`
+   conformance rows swept in the same commit.
+
+**Interim mitigation, no code:** set `IP_ALLOWLIST` (currently unset in the live `.env` — it 403s before any
+auth runs), or unset `DEBUG_TOKEN`/`WIRE_CAPTURE` when not actively debugging.

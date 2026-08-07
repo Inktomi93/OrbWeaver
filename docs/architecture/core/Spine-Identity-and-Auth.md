@@ -26,7 +26,7 @@ The numbered invariants (code comments cite these as "invariant #n"):
 4. **`MODE_RESOLVERS` is exhaustive** over `AuthConfig["mode"]` (mapped-type `Record` — a new `AUTH_MODES` member fails `tsc`).
 5. **JWKS / JWT verification fails closed.** Every reject path → `null` (→ fallback or 401), never a 500, never a fall-through to unsigned.
 6. **`can()` is the ONLY privilege-comparison site.** No `role === 'admin'` / `role === 'host'` compare outside `domain/admin/guard.ts`; chat feeds its loaded roster into `can(principal, action, {kind:'chat', roster})`.
-7. **`Principal.via === "fallback"` is the SAFE "this IS the owner" discriminator** — origin-gated, mints `role:"owner"` (D17), NOT `externalId === null`.
+7. **`Principal.via === "fallback"` is the SAFE "this IS the owner" discriminator** — origin-gated, NOT `externalId === null`. **It ADMITS the owner; it does not GRANT owner (D135, amending this clause's former "mints `role:"owner"`" wording).** The seam resolves WHICH row through `ownerHandles()` (resolution-tier policy — never verification's `DEFAULT_USER_HANDLE` placeholder) and reads `users.role` off it through the same `createHostPrincipalResolver` the frozen-host bridge uses. The security boundary is unchanged and is entirely `ownerFallbackAllowed`; what changed is that the role is READ, so the request Principal and the frozen-host Principal for one caller can no longer disagree.
 8. **Sessions: the raw cookie token is never stored** (peppered HMAC-SHA-256 `token_hash` is the validate lookup key); `sessions.validate` re-checks revoked/expired/`users.enabled` per request, so a disable/revoke kills a live cookie on its next request.
 9. **CSRF gates on `hasCsrfHeader`, keyed to the cookie path** (header/fallback auth is CSRF-immune by construction).
 
@@ -100,7 +100,7 @@ new evidence is noise; ADD to this list when a review re-flags something already
 
 The sanctioned `Principal`/credential construction + cookie sites — everything else consumes:
 
-- `entry/auth/seam.ts` — the mint (all three request paths: cookie via `sessions.validate` → header SSO upsert → origin-gated owner fallback) + the frozen-host bridge.
+- `entry/auth/seam.ts` — the mint (all three request paths: cookie via `sessions.validate` → header SSO upsert → origin-gated owner fallback) + the frozen-host bridge. **The fallback path and the frozen-host bridge are ONE function** (`createHostPrincipalResolver`, D135): both read `users.role`, so no path in this file invents a role. Its unknown-id `?? "user"` is a fail-closed degrade on an absent row, not a grant.
 - `entry/http/auth-routes.ts` — the `__Host-orb_session` cookie WRITE side (mints session tokens via `domain/sessions`; never re-implements resolution).
 - `entry/app.ts` — the SLIDE's `Set-Cookie` writer: the per-request auth middleware re-issues the SAME token `sessions.validate` just accepted with a fresh max-age. It never mints, and re-issuing a second copy read independently would silently log the caller out — the token it writes must be the one the seam authenticated.
 - `entry/boot/seed-owner.ts` — the one-time boot-only `role=owner` backfill for `OWNER_HANDLES` (the chicken-egg: no owner `Principal` exists at boot to call the guarded `admin.setRole`).
