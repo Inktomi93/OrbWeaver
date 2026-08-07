@@ -561,7 +561,9 @@ identity chrome for ANY row kind.
   the preset template tab). PROSE-1 class (\[\[prose-is-user-editable]]): these become host-editable
   data with versioned defaults. **(b) TWO TEMPLATING SYSTEMS — DIRECTION RULED (owner, 2026-08-07):
   templates have ONE home and it is PRESETS** ("not scattered between that and settings or hiding
-  in code"). One engine per D-law stands (the macro engine is kit; TEMPLATES are the data). The
+  in code"). And templates ≠ macros (owner correction, same day): a template is authorable prompt
+  TEXT — section templates, framings, wrappers — some of which may pass through substitution, but
+  the macro engine is not what's being unified and not the census's subject. The
   census still decides the migration shape + what in the settings arm is genuinely NOT a template
   (per-user knobs that only look template-ish stay, with reasons); lane TEMPLATE-CENSUS's report is
   the unification spec draft, relayed to the lane mid-run. Evidence method: owner sighting,
