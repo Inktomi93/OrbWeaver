@@ -666,7 +666,7 @@
       }
     },
     {
-      "includes": ["tests/goldens/**"],
+      "includes": ["scripts/probes/st-goldens/**"],
       "linter": {
         "rules": {
           "complexity": {
@@ -681,7 +681,9 @@
             "noAwaitInLoops": "off"
           },
           "style": {
-            "noNonNullAssertion": "off"
+            "noNonNullAssertion": "off",
+            "noMagicNumbers": "off",
+            "useNamingConvention": "error"
           },
           "suspicious": {
             "useAwait": "off",

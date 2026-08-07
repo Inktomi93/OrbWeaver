@@ -99,7 +99,9 @@ scratch/
 
 # st-parity goldens rig: the runtime AND everything generated (fixtures are emitted by
 # build-fixtures.ts + the run-demo scripts; outputs are captures). Only scripts + README are tracked.
-/tests/goldens/sillytavern-runtime/
-/tests/goldens/fixtures/
-/tests/goldens/output/
-/tests/goldens/orbweaver-output/
+# The runtime is ALSO fenced from the ts-morph search project by glob (scripts/ts-workspace.ts) — a
+# gitignore alone does not stop `addSourceFilesAtPaths`.
+/scripts/probes/st-goldens/sillytavern-runtime/
+/scripts/probes/st-goldens/fixtures/
+/scripts/probes/st-goldens/output/
+/scripts/probes/st-goldens/orbweaver-output/

@@ -32,15 +32,6 @@ export function getProject(root: string): Project {
   }
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   project.addSourceFilesAtPaths([`${root}/packages/*/src/**/*.ts`, `${root}/packages/*/src/**/*.tsx`, `${root}/tests/**/*.ts`, `${root}/tests/**/*.tsx`]);
-  // Exclude the sillytavern-runtime fixture entirely — it's a foreign captured runtime
-  // (third-party app + its own node_modules). Scanning it produces hundreds of phantom
-  // gate violations in code we don't own (brand-in-name-position, commented-code, etc.).
-  // Negative globs failed in ts-morph, so we remove them manually.
-  for (const sf of project.getSourceFiles()) {
-    if (sf.getFilePath().includes("/tests/goldens/sillytavern-runtime/")) {
-      project.removeSourceFile(sf);
-    }
-  }
   cached = project;
   return project;
 }

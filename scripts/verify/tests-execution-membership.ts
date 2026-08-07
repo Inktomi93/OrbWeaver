@@ -49,8 +49,9 @@ function enumerateTestFiles(root: string): readonly string[] {
     for (const entry of readdirSync(join(root, "tests", relDir), { withFileTypes: true })) {
       const rel = relDir.length === 0 ? entry.name : `${relDir}/${entry.name}`;
       if (entry.isDirectory()) {
-        // Skip node_modules inside test fixtures (e.g. sillytavern-runtime's captured runtime) —
-        // third-party packages have their own test files that are not ours to execute.
+        // Skip any node_modules under tests/ — a vendored/captured third-party tree ships its own
+        // test files, which are not ours to execute and would read as unrun escapees. Generic by
+        // design: the walk must not depend on WHICH fixture happens to carry a node_modules today.
         if (entry.name === "node_modules") {
           continue;
         }
