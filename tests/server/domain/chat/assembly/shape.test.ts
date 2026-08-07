@@ -829,3 +829,104 @@ describe("toShapeCanon — the null-persona-stamp guard (a row never borrows a s
     expect(rows[0]?.authorName).toBe(DEFAULT_PERSONA_NAME);
   });
 });
+
+// ── The DELIVERED-ROW TRACE (`stages.delivered` → `ShapeTrace.rows`) ────────────────────────────────────
+//
+// RPG-NO-PROMPT-DEBUG: the shape trace projected stage COUNTS only, so block order/role/voice was
+// reconstructed by hand from wire captures. These pin the projection itself — and specifically that a squash
+// which folds an assembled row into a canon turn reports `merged` rather than inheriting `canon`, which is the
+// only way the INJECT-NAMED-AS-PLAYER shape is visible on a debug surface.
+
+const MSG_GREETING = castId<MessageId>("message_greeting");
+const MSG_U1 = castId<MessageId>("message_u1");
+const MSG_TIP = castId<MessageId>("message_tip");
+
+/** SOLO_CANON with the message ids a real `toShapeCanon` load stamps — the provenance discriminator. */
+const STORED_CANON = [
+  { role: "assistant" as const, content: "greeting", authorName: "Aria", characterId: ARIA, messageId: MSG_GREETING },
+  { role: "user" as const, content: "u1", authorName: "Alex", messageId: MSG_U1 },
+  { role: "assistant" as const, content: "a1 tip", authorName: "Aria", characterId: ARIA, messageId: MSG_TIP },
+];
+
+describe("shape — the delivered-row trace", () => {
+  test("a clean send projects one row per delivered row, in order, with role + voice + size", () => {
+    const out = shape(soloInput({ canon: STORED_CANON }));
+
+    // The projection is index-aligned with the wire it describes — the invariant every reading of this
+    // surface rests on (row 3 in the panel IS wire row 3).
+    expect(out.stages.delivered).toHaveLength(out.history.length);
+    expect(out.stages.delivered.map((row) => row.chars)).toEqual(out.history.map((row) => row.content.length));
+    expect(out.stages.delivered.map((row) => row.role)).toEqual(out.history.map((row) => row.role));
+
+    expect(out.stages.delivered).toEqual([
+      { role: "assistant", name: "Aria", source: "canon", chars: "greeting".length },
+      // `chars` is the DELIVERED length: names=default inlined "Alex: " into this row, and the readout must
+      // report what rides the wire, not the stored body.
+      { role: "user", name: "Alex", source: "canon", chars: "Alex: u1".length },
+      { role: "assistant", name: "Aria", source: "canon", chars: "a1 tip".length },
+      // The synthetic turn a regen/continue appends is stored nowhere — `assembled`, not `canon`.
+      { role: "user", source: "assembled", chars: "u2 volatile".length },
+    ]);
+  });
+
+  test("INJECT-NAMED-AS-PLAYER's tell: a demoted system note folded into the player's turn reports MERGED", () => {
+    // The live shape from `dogfood-tracking.md`: a backend without mid-conversation system support demotes a
+    // depth-0 system injection to a user note, and the same-role squash folds it into the player's own turn.
+    // The delivered row is then ONE user row whose bytes are half the player's and half the game's — which a
+    // stage count cannot show and which reporting the head's `canon` provenance would actively hide.
+    const out = shape(
+      soloInput({
+        canon: STORED_CANON.slice(0, 2),
+        appendUserTurn: null,
+        injections: [inChat({ depth: 0, role: "system", content: "# Game state\nHP 24/30" })],
+      }),
+    );
+
+    const last = out.stages.delivered.at(-1);
+    expect(last?.role).toBe("user");
+    expect(last?.source).toBe("merged");
+    // …and it still wears the PLAYER's name, which is the defect this readout makes visible.
+    expect(last?.name).toBe("Alex");
+    // The wire agrees: one row, both bodies.
+    expect(out.history.at(-1)?.content).toContain("u1");
+    expect(out.history.at(-1)?.content).toContain("HP 24/30");
+  });
+
+  test("a capability-kept depth-0 system row stays its own UNNAMED row (no speaker to misattribute)", () => {
+    const out = shape(
+      soloInput({
+        canon: STORED_CANON.slice(0, 2),
+        appendUserTurn: null,
+        midConversationSystem: true,
+        injections: [inChat({ depth: 0, role: "system", content: "operator channel" })],
+      }),
+    );
+
+    const systemRow = out.stages.delivered.find((row) => row.role === "system");
+    expect(systemRow).toEqual({ role: "system", source: "assembled", chars: "operator channel".length });
+    // The player's turn is untouched beside it — no merge, so it stays plain canon.
+    expect(out.stages.delivered.find((row) => row.role === "user")?.source).toBe("canon");
+  });
+
+  test("the continuation nudge is reported as assembled, never as the last canon turn", () => {
+    // A canon ending on assistant gets `[Continue the conversation.]` appended; it is assembly's own row.
+    const out = shape(soloInput({ canon: STORED_CANON, appendUserTurn: null }));
+
+    expect(out.history.at(-1)?.content).toBe("[Continue the conversation.]");
+    expect(out.stages.delivered.at(-1)).toEqual({ role: "user", source: "assembled", chars: "[Continue the conversation.]".length });
+  });
+
+  test("under a NON-merging strategy every delivered row keeps its own provenance (nothing collapses)", () => {
+    const out = shape(
+      soloInput({
+        canon: STORED_CANON.slice(0, 2),
+        appendUserTurn: null,
+        roleHandling: "none",
+        roleHandlingFloor: "none",
+        injections: [inChat({ depth: 0, role: "user", content: "steer" })],
+      }),
+    );
+
+    expect(out.stages.delivered.map((row) => row.source)).toEqual(["canon", "canon", "assembled"]);
+  });
+});

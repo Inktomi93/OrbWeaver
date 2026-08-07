@@ -51,7 +51,10 @@ import {
 } from "../substrate/assembly-access.ts";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
- *  + the turn axes. */
+ *  + the turn axes. Stays UNEXPORTED (`no-inline-types`: an exported type belongs in `contract/`, and this is
+ *  a pipeline-internal argument shape, not a domain contract). The engine's prose-less RECOVERY pass names it
+ *  as `Parameters<typeof runTurnPipeline>[0]` — the same derive-from-the-function pattern `engine.ts` already
+ *  uses for the RESULT (`Awaited<ReturnType<typeof runTurnPipeline>>`), so there is exactly one definition. */
 interface RunTurnPipelineArgs {
   readonly runChatTurn: RunChatTurnOp;
   readonly applyRegexReplace: ApplyRegexReplaceOp;

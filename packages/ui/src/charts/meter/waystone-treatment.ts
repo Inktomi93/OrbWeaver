@@ -39,8 +39,10 @@ export const WAYSTONE_WEATHERS = WEATHER_TYPES;
 export type WaystoneWeather = WeatherType;
 
 /** The identity of a weather's air-layer stack (`none` = the unveiled sky IS the treatment, not a fallback) —
- *  one member per weather plus `none`, declared as the axis tuple so the union derives rather than re-spells. */
-const WAYSTONE_OVERLAY_KINDS = ["none", "clouds", "rain", "storm", "snow", "fog", "wind", "ash"] as const;
+ *  one member per weather plus `none`, declared as the axis tuple so the union derives rather than re-spells.
+ *  `indoors` is its own identity rather than `none`: the stone is not showing an unveiled sky there, it is
+ *  showing that no sky is legible from where the scene stands — and `data-weather` is the rendered read. */
+const WAYSTONE_OVERLAY_KINDS = ["none", "clouds", "rain", "storm", "snow", "fog", "wind", "ash", "indoors"] as const;
 export type WaystoneOverlayKind = (typeof WAYSTONE_OVERLAY_KINDS)[number];
 
 /** The sky disc's radial-gradient recipe — `cy` puts the light source low (a dawn/dusk glow at the horizon) or
@@ -272,7 +274,7 @@ export function waystoneStarOpacityAt(hour: number): number {
   return Number.parseFloat((a + (b - a) * t).toFixed(2));
 }
 
-// ─── The eight weathers (the DISCRETE axis) ───────────────────────────────────────────────────────
+// ─── The nine weathers (the DISCRETE axis) ────────────────────────────────────────────────────────
 const WEATHER_RECIPES: Readonly<Record<WaystoneWeather, WaystoneWeatherRecipe>> = {
   // `clear` means CLEAR: zero cloud slots (a lone 22%-opacity puff read as a smudge, not weather).
   clear: {
@@ -349,6 +351,21 @@ const WEATHER_RECIPES: Readonly<Record<WaystoneWeather, WaystoneWeatherRecipe>> 
     lightning: false,
     wash: { fill: "color-mix(in oklab, var(--color-sky-ash) 70%, var(--color-sky-ember-deep))", opacity: 0.3 },
     celestialOpacity: 0.3,
+  },
+  // `indoors` is the OCCLUSION member, not a ninth sky: the scene is enclosed and no sky is legible from it.
+  // So every AIR layer is absent (there is no air to read — clouds/particles/bands would be a claim about a
+  // sky nobody can see) and the wash is the heaviest in the table, dimming the hour's backdrop the way a wall
+  // does. The sun/moon is not erased outright — `0.1` leaves the faintest trace, because the hour is still
+  // TRUE indoors and the dial is still telling you what time it is; that is the one read the stone must not
+  // lose here. Deliberately NOT `celestialOpacity: 0` for that reason.
+  indoors: {
+    overlay: "indoors",
+    clouds: { count: 0, opacity: 0, drift: "slow", tone: "light" },
+    particles: null,
+    bands: null,
+    lightning: false,
+    wash: { fill: "color-mix(in oklab, var(--color-sky-cloud-dark) 60%, var(--color-sky-night))", opacity: 0.58 },
+    celestialOpacity: 0.1,
   },
 };
 

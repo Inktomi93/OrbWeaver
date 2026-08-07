@@ -177,7 +177,21 @@ const COMPACTION_VERBATIM_TAIL_MAX = 100;
 // ceiling (`capability.output.maxTokens.max`, which on a self-hosted vLLM equals the whole window). This is
 // the ONE fallback both the budget reserve (fitBudget) and every runner's wire `max_tokens` read, so the
 // two can never diverge: a reserve larger than the runner's real `max_tokens` starves history (amnesia);
-// smaller overflows the model (vLLM 400s). Users tune it per preset; the exact number isn't load-bearing.
+// smaller overflows the model (vLLM 400s). Users tune it per preset.
+//
+// ⚠ THE NUMBER IS LOAD-BEARING ON A REASONING WIRE. This comment used to end "the exact number isn't
+// load-bearing", which predates reasoning models and is now FALSE (dogfood MAXTOKENS-CAPS-THINKING). On every
+// current reasoning wire `max_completion_tokens` caps THINKING AND RESPONSE TEXT TOGETHER — it is not a
+// response-length knob there, it is the whole output budget. At a small value with a non-`none` effort the
+// model can spend the entire allowance deliberating and emit zero prose, which surfaces as VER-1b's
+// empty-generation refusal rather than as a truncation. The engine now NAMES that case in the error it throws
+// (`emptyGenerationMessage`, `domain/chat/engine/engine.ts`) instead of reporting the generic "no text", so a
+// host meets the lever rather than a mystery.
+//
+// A reasoning-aware DERIVED reserve (a floor scaled by effort) is the standing candidate fix and is
+// deliberately NOT built here: no length-cut specimen has been observed on this deployment — every recorded
+// failing turn was a tool-only completion, and the live presets run at 64000 — so a derived reserve would be
+// tuned against zero evidence. Build it when a `finishReason:"length"` empty turn is actually recorded.
 export const DEFAULT_MAX_OUTPUT_TOKENS = 2048;
 
 // ONE place per numeric bound — no split source between server/client (client accepts → server rejects).

@@ -11,7 +11,7 @@
 // rendered by the client `assembly-preview-panel`. The cross-boundary `ShapeTrace` lives in
 // `@orb/contracts/chat` (the wire home); THIS builder maps the internal SHAPE stages onto it.
 
-import type { ShapeBreakpointDecision, ShapeTrace } from "@orb/contracts/chat";
+import type { ShapeBreakpointDecision, ShapeTrace, ShapeTraceRow } from "@orb/contracts/chat";
 import type { MessageRole } from "@orb/kit/message-role";
 
 /** The content-free SHAPE stage shape `buildShapeTrace` reads (structurally compatible with shape()'s
@@ -26,6 +26,9 @@ interface ShapeStages {
   injected: readonly { role: MessageRole }[];
   squashed: readonly { role: MessageRole }[];
   named: readonly { role: MessageRole }[];
+  /** The FINAL delivered rows, already content-free (SHAPE projects them where the squash runs are in hand —
+   *  a merged row's provenance is only knowable there). Passed through verbatim. */
+  delivered: readonly ShapeTraceRow[];
 }
 
 /**
@@ -64,5 +67,6 @@ export function buildShapeTrace(stages: ShapeStages, cacheBreakpointFromEnd: num
     // Omit the field entirely when no breakpoint was placed (exactOptional — absent, never undefined-valued).
     ...(cacheBreakpointFromEnd !== undefined ? { cacheBreakpointFromEnd } : {}),
     breakpointDecision,
+    rows: stages.delivered,
   };
 }

@@ -247,6 +247,40 @@ export interface AssemblyBudgetPreview {
 export const SHAPE_BREAKPOINT_DECISIONS = ["placed", "no-stable-prefix", "in-prefix-injection-or-squash", "second-volatile-tail"] as const;
 export type ShapeBreakpointDecision = (typeof SHAPE_BREAKPOINT_DECISIONS)[number];
 
+/** WHERE one delivered wire row's bytes came from — the provenance axis of {@link ShapeTraceRow}. Declared
+ *  ONCE as a tuple and DERIVED (§5.5). Resolved from the SHAPE-internal `messageId` discriminator (a canon row
+ *  carries the id of the message it was loaded from; a spliced injection and a synthetic nudge are id-less by
+ *  construction — the same distinction `resolveFullCards` reads):
+ *   • `canon`     — every contributing row is a stored message;
+ *   • `assembled` — every contributing row was produced for THIS turn and is stored nowhere: a spliced
+ *                   `in_chat` injection, the group/continuation nudge, or the synthetic user turn a
+ *                   regen/continue appends. Deliberately NOT called "injected" — the nudge and the synthetic
+ *                   turn are not injections, and naming the arm after one of its three producers would be a
+ *                   surface that lies about the other two;
+ *   • `merged`    — the adjacent-same-role squash folded BOTH kinds into one delivered row. Its own arm rather
+ *                   than reporting as `canon`, because that fold is exactly the INJECT-NAMED-AS-PLAYER shape (a
+ *                   demoted system note absorbed into the player's turn) and calling it canon would hide it. */
+export const SHAPE_ROW_SOURCES = ["canon", "assembled", "merged"] as const;
+export type ShapeRowSource = (typeof SHAPE_ROW_SOURCES)[number];
+
+/** ONE DELIVERED WIRE ROW, content-FREE (`ShapeTrace.rows`) — the ordered projection of the history the model
+ *  actually receives. The stage COUNTS beside it say how many rows each stage held; this says WHICH rows, in
+ *  what order, in whose voice. Roles, speaker labels, provenance and a character COUNT only — never the bytes
+ *  (the same posture as the rest of {@link ShapeTrace}; the bytes are `AssemblyBudgetSlice.text`, where the
+ *  D22 host gate already governs them).
+ *
+ *  PRE-FIT by construction: SHAPE runs before the context fit, so a row here can still be trimmed by the
+ *  window (the fit's verdict is `AssemblyBudgetSlice.detail`'s "N turns · M dropped"). */
+export interface ShapeTraceRow {
+  role: MessageRole;
+  /** The speaker label this row carries — the `completion` names-behavior's out-of-band `name`, or the
+   *  in-content `Name:` stamp's author. ABSENT ⇒ the row is unlabelled (a system note, a nudge). */
+  name?: string;
+  source: ShapeRowSource;
+  /** The delivered content's LENGTH in characters. A size, not a sample. */
+  chars: number;
+}
+
 /** The content-free SHAPE-stage trace (`buildShapeTrace`) — the debug projection of how a turn's canon was
  *  shaped into the wire history, safe to show in the host/admin inspector: per-stage ROW COUNTS (never any
  *  content), the squash-merge count, and the cache-breakpoint decision. The SHAPE-phase companion to
@@ -267,6 +301,9 @@ export interface ShapeTrace {
    *  carries it, every other decision omits it). */
   cacheBreakpointFromEnd?: number;
   breakpointDecision: ShapeBreakpointDecision;
+  /** The DELIVERED wire history in order (post-nudge, pre-fit), one entry per row. The block-order/role datum
+   *  a host previously reconstructed by hand from wire captures. Empty ⇒ the turn delivers no history rows. */
+  rows: readonly ShapeTraceRow[];
 }
 
 /** The present-tense context-fit budget for a chat's CURRENT canon against the host's effective preset +

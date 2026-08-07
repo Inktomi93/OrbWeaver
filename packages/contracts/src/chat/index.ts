@@ -42,7 +42,9 @@ export type {
   SectionPreview,
   SentPrompt,
   ShapeBreakpointDecision,
+  ShapeRowSource,
   ShapeTrace,
+  ShapeTraceRow,
   VariantWireView,
 } from "./assemble.ts";
 export {
@@ -51,6 +53,7 @@ export {
   CHAT_INJECTION_POSITIONS,
   chatInjectionInputSchema,
   SHAPE_BREAKPOINT_DECISIONS,
+  SHAPE_ROW_SOURCES,
   sentPromptSchema,
 } from "./assemble.ts";
 // The two corpus-sweep workload results chat OWNS (the junk-drawer exit: a workload's result shape is

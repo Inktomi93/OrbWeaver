@@ -37,6 +37,10 @@ export type {
   RpgStagingStore,
   RpgStateDelta,
 } from "./contract/service.ts";
+// R-OBS — the rpg flight recorder's SHAPES: the compose mints ONE recorder when tracing is enabled and wires
+// its `sink` into the rpg compose deps; `/api/_debug/rpg/traces` reads its ring through the foundation
+// `RpgTraceInspector` port (which never learns an rpg type — the records serialize straight to JSON).
+export type { RpgTraceEvent, RpgTraceRecord, RpgTraceRecorder, RpgTraceSink, RpgTraceToolCall } from "./contract/trace.ts";
 // The per-chat flush barrier (the race fix): the compose mints it as a singleton, the gather awaits it.
 export { createRpgFlushBarrier } from "./flush-barrier.ts";
 // The game-row read (by chatId) compose's honest-arms + extraction wiring needs to reach the game's mode/config
@@ -63,3 +67,6 @@ export { buildRosterRefIndex, extractionToStateDelta, ghostTargetRefs, reachable
 // The 7 cheap-mode state tool defs (§4.5) — a factory closing over `RpgContext`; W1c-b registers them into the
 // ONE `toolUse` registry at compose (the imagery precedent).
 export { rpgToolDefinitions } from "./tools/index.ts";
+// The recorder RUNTIME (the bounded ring). Built only when tracing is on; unwired, the sink is `undefined`
+// and every emit site short-circuits, so an untraced turn is byte-identical.
+export { createRpgTraceRecorder } from "./trace.ts";

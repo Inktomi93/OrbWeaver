@@ -7,6 +7,9 @@
 //     this route is how an e2e/live check asserts it in one request.
 // Both are host-only behind the same debug gate, and both are exercised through a real Hono app + fetch.
 
+import type { ChatId, ChatTurnId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
+import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
 import type { RpgTraceInspector, SocketInspector } from "@orb/server/foundation/observability/debug";
 import { registerDebugRoutes } from "@orb/server/foundation/observability/debug";
 import { Hono } from "hono";
@@ -62,6 +65,42 @@ describe("/api/_debug/rpg/traces", () => {
   test("the route is absent when no inspector is wired (tracing off) — 404", async () => {
     const res = await appWith(undefined).fetch(authed("/api/_debug/rpg/traces"));
     expect(res.status).toBe(404);
+  });
+
+  test("the REAL recorder serves real events end to end — the shape a host actually reads", async () => {
+    // Every case above drives a STUB, which proves the route and proves nothing about the thing behind it.
+    // This one wires the actual ring (`domain/rpg/trace.ts`) exactly as `lifecycle.ts` does — including the
+    // brand cast the entry seam applies to the raw query string — so the route's JSON is the recorder's own.
+    // RPG-TRACE-DEAD was precisely a route with nothing behind it; that gap closes here.
+    const recorder = createRpgTraceRecorder({ now: () => 1_700_000_000_000 });
+    recorder.sink({ phase: "mount", chatId: castId<ChatId>("chat_live"), toolNames: ["update_scene"] });
+    recorder.sink({
+      phase: "tool",
+      chatId: castId<ChatId>("chat_live"),
+      turnId: castId<ChatTurnId>("chat_turn_live"),
+      vehicle: "folded extraction",
+      calls: [{ name: "update_scene", args: '{"weather":{"type":"indoors"}}', verdict: "dropped", issues: ["weather.type: Invalid option"] }],
+    });
+
+    const inspector: RpgTraceInspector = {
+      recent: (filter): readonly object[] =>
+        recorder.recent({
+          ...(filter.chatId === undefined ? {} : { chatId: castId<ChatId>(filter.chatId) }),
+          ...(filter.turnId === undefined ? {} : { turnId: castId<ChatTurnId>(filter.turnId) }),
+          ...(filter.limit === undefined ? {} : { limit: filter.limit }),
+        }),
+    };
+
+    const res = await appWith(inspector).fetch(authed("/api/_debug/rpg/traces?turnId=chat_turn_live"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { count: number; events: { seq: number; event: Record<string, unknown> }[] };
+    // The turn filter excluded the id-less mount, and the surviving record carries the raw args + the verdict
+    // — the two fields that turn "a tool was dropped" into "WHY it was dropped".
+    expect(body.count).toBe(1);
+    expect(body.events[0]?.event).toMatchObject({
+      phase: "tool",
+      calls: [{ name: "update_scene", verdict: "dropped", args: '{"weather":{"type":"indoors"}}' }],
+    });
   });
 });
 
