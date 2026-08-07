@@ -34,10 +34,14 @@ export type IdentityAccess = { readonly outcome: "allow"; readonly role: UserRol
  *  `enabled:false` (a disabled account, surfaced as 403). */
 export type ProvisionResult = { readonly outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole } | { readonly outcome: "denied" };
 
-/** `loadUserById` output: a bare row id's live principal-fields — the frozen-host → `Principal` bridge. Not
- *  a login path: no `enabled` gate rides this read. */
+/** `loadUserById` output: a bare row id's live principal-fields — the frozen-host → `Principal` bridge.
+ *  The read itself gates NOTHING; it REPORTS `enabled` and each caller decides (the auth seam's REQUEST arm
+ *  refuses a disabled row like the cookie/SSO arms do; the frozen-host bridge deliberately does not, so an
+ *  offline-or-disabled host's room keeps resolving its authority for the members still in it). */
 export interface UserPrincipalFields {
   role: UserRole;
   handle: Handle;
   externalId: ExternalId | null;
+  /** The row's live login state — a REPORT, not a gate. See the caller split above. */
+  enabled: boolean;
 }

@@ -2,12 +2,25 @@
 // (embed/rerank/imageEmbed/summarize) + their `*Model` provenance tags. Downstream never sees a credential
 // or picks a model — it calls `clients.embed(text)`. There is no vLLM-floor binder: a sync floor would
 // silently route workload roles to vLLM even when the user pinned OpenRouter.
+//
+// D135 clause G — THIS FILE MINTS NO PRINCIPAL AND STAMPS NO ROLE. It used to build one inline with a
+// literal `role:"owner"` over whatever `UserId` it was handed, which was fine while the only caller was
+// boot (the real owner) and became a forged elevation the moment `entry/compose/automation-plugin.ts`'s
+// `/autobg` arm bound a bundle for an automation rule's AUTHOR — any authenticated user who creates a chat
+// is its host (`automation/verbs/create-rule.ts` gates `requireChatHost`, a D18 ROOM role, not an app role),
+// so under forward-header/oidc/multi-user-local a non-owner reached `connection.resolveRole` wearing
+// `owner`. That is consumed, not cosmetic: `resolveRole` → `credentials.resolve` → `mintMaxProSub`, whose
+// gate keys on `principal.role`, and `SUMMARIZE_SOURCES` lets any user pin `roleDefaults.summarize.source`
+// to `max-pro-sub` — so the owner-only mint that calls itself "unconstructable except after requireOwner
+// passes" was constructable here. Only the credential firewall's summarize row (which happens to omit
+// `max-pro-sub`) stopped the call, and one policy row nobody wrote as a boundary is not a boundary.
+// The binder now RESOLVES the caller through the one row→`Principal` home (`entry/auth/seam.ts`), so its
+// principal reads `users.role` like every other path.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput, RerankDocument, RerankQuery, SummarizeInput } from "@orb/contracts/role-clients";
-import type { Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import type { ConnectionService } from "#domain/connection";
 import { env } from "#foundation/env";
 import type { ProviderExecutor, RoleClientsWithSignal, SummarizeCallOptions } from "#infra/providers";
@@ -20,24 +33,24 @@ const SUMMARIZER_CONTEXT_FALLBACK = env.VLLM_GEN_MAX_MODEL_LEN;
 export interface RoleClientsBinderDeps {
   readonly connection: Pick<ConnectionService, "resolveRole">;
   readonly executor: ProviderExecutor;
-}
-
-function ownerPrincipal(ownerId: UserId): Principal {
-  return {
-    userId: ownerId,
-    role: "owner",
-    handle: castId<Handle>(ownerId),
-    externalId: null,
-    via: "fallback",
-  };
+  /** THE row→`Principal` mint (`entry/auth/seam.ts::createHostPrincipalResolver`) — injected, never
+   *  re-implemented here, so this bundle's owner-gated resolutions read the SAME `users.role` the request
+   *  seam and the frozen-host bridge read (D135). A resolver is the dep, not a `Principal`, because the
+   *  caller's signature is a bare `UserId` (the automation author / the boot owner) and letting a caller
+   *  hand in a Principal would just move the forging one file up. */
+  readonly resolvePrincipal: (userId: UserId) => Promise<Principal>;
 }
 
 /**
  * Bind a `RoleClients` bundle for one user by resolving each derive-role's `{credential, model}` once via
  * `connection.resolveRole`, then binding a callable per role over the executor.
+ *
+ * The `ownerId` name is the CALLER's word for the bundle's subject, never an authority claim: what the four
+ * `resolveRole` calls see is whatever `deps.resolvePrincipal` reads off that user's row. One resolve per
+ * bundle, shared by all four roles — a per-role re-resolve would let one bundle straddle two verdicts.
  */
 export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerId: UserId): Promise<RoleClientsWithSignal> {
-  const principal = ownerPrincipal(ownerId);
+  const principal = await deps.resolvePrincipal(ownerId);
   const [embedConn, rerankConn, imageEmbedConn, summarizeConn] = await Promise.all([
     deps.connection.resolveRole({ role: "embed", principal }),
     deps.connection.resolveRole({ role: "rerank", principal }),

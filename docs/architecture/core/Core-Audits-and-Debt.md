@@ -1,7 +1,7 @@
 ---
 kind: reference
 status: active
-updated: 2026-07-13
+updated: 2026-08-07
 ---
 
 # Audits-and-Debt (live: Promotion / Relocation Debt Registry)
@@ -236,3 +236,26 @@ debug-witness surface (`fetchWireCaptures`/`inspectChatDb`/`fetchDebugErrors`) w
 
 **Interim mitigation, no code:** set `IP_ALLOWLIST` (currently unset in the live `.env` — it 403s before any
 auth runs), or unset `DEBUG_TOKEN`/`WIRE_CAPTURE` when not actively debugging.
+
+### SUMMARIZE-SUB — the stored `summarize` source list is WIDER than the firewall enforces (awaiting an owner ruling)
+
+**Status: OPEN, needs a PRODUCT call, deliberately not guessed (2026-08-07, found by the ROLECLIENTS lane).
+NOT a vulnerability — the enforcement is the STRICTER of the two, so nothing is admitted that shouldn't be.**
+
+`contracts/settings/index.ts::SUMMARIZE_SOURCES` accepts `openrouter | vllm | max-pro-sub`; the runtime
+credential firewall's `summarize` row (`infra/providers/roles/firewall.ts::ROLE_SOURCE_POLICY`) permits only
+`openrouter | vllm`. The comment above the contracts list claimed the two "mirror" each other — false, and
+truth-repaired in the same commit as D135 clause G. **User-visible symptom:** a user who picks the offered
+`max-pro-sub` summarizer stores a valid setting whose every summarize dispatch is refused with
+`ProviderError(kind:"forbidden")` — **including the box owner's**, since the firewall row omits the source for
+everyone, not just non-owners. So it is a dead option in the picker, not an owner-only one.
+
+**The call is which side moves**, and it is a product decision about what the app offers, not a security one:
+
+1. **Add the firewall row** (`summarize: [… , "max-pro-sub"]`) if summarization should be allowed to spend the
+   metered owner subscription. Note the sub is owner-gated at the mint, so a non-owner picking it would then
+   get a `requireOwner` refusal at resolve time instead — a different error, still a refusal.
+2. **Drop `max-pro-sub` from `SUMMARIZE_SOURCES`** if it should not. This is the smaller change; the per-field
+   `.catch(undefined)` self-heals any already-stored value back to the role default, so no migration.
+
+Until it is ruled, neither list may be cited as proof of the other's contents.

@@ -5,6 +5,16 @@
 // The `max-pro-sub` factory is the load-bearing gate: it is unconstructable except after `requireOwner`
 // passes — the guard runs inside the factory, so the cast can't be reached without the owner check.
 //
+// WHAT THAT GATE ACTUALLY ASSERTS (truth-repair 2026-08-07, D135 clause G): it decides on
+// `principal.role`, so it is exactly as strong as the PROVENANCE of the `Principal` handed to it — "an
+// owner asked" only if no upstream site can stamp `role:"owner"` on a `UserId` it merely received. That
+// premise was false for two months: `entry/compose/role-clients.ts` minted a synthetic owner over an
+// arbitrary id, and once `/autobg` bound a bundle for an automation rule's author, a non-owner reached this
+// factory wearing `owner` (settings let any user pin `roleDefaults.summarize.source` to `max-pro-sub`).
+// Only the credential firewall's summarize row stopped the resulting call. The premise now holds because
+// every `Principal` is row-derived (D135), and it is the ONLY thing making this gate mean what it says —
+// so a new synthetic-`Principal` site is a change to THIS gate, wherever it lives.
+//
 // The casts are object-literal → branded intersection (not `as unknown as`) — the brand's sanctioned escape
 // hatch, kept narrow and single-sited.
 
