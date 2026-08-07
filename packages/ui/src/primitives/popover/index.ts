@@ -5,6 +5,7 @@ export type {
   PopoverDescriptionProps,
   PopoverPopupProps,
   PopoverTitleProps,
+  PopoverViewportProps,
 } from "./popover.tsx";
 export {
   Popover,
@@ -14,4 +15,5 @@ export {
   PopoverPopup,
   PopoverTitle,
   PopoverTrigger,
+  PopoverViewport,
 } from "./popover.tsx";

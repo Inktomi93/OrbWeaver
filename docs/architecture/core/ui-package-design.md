@@ -400,3 +400,124 @@ doc-comment — factually, no theories.
 > reject); R2 is the per-seal completion checklist (below); R5 is grep-checkable (`extends Base…`);
 > R7 is CT-enforced. The `no-color-literals`/token gates + `no-inline-union-redecl` already catch the
 > styling/type classes machine-side.
+
+**R9 — DERIVE, NEVER RE-SPELL, any prop that shadows a Base UI prop name.** A sealed prop that reuses
+a Base UI prop's NAME must take its TYPE from Base UI — `extends` / `Pick<>` / `Omit<>` /
+`Parameters<NonNullable<BaseXProps["onYChange"]>>[N]` — never a hand-written signature. The failure
+mode is silent and permanent: hand-spelling `onValueChange?: (value: string) => void` drops the
+second `ChangeEventDetails` argument (`reason` · `cancel()` · `allowPropagation()` · `isCanceled`),
+so a caller can never veto a change, and a Base UI minor that adds a new change `reason` (1.7 added
+`input-press` and `cancel-open`) reaches a DERIVED seal for free and never reaches a re-spelled one.
+The derivation is also the reason the class of bug is FIXED rather than merely fixed-today. This
+applies to open/close arms too, including on COMPOSITE primitives that merely forward one
+(`ColorField.onOpenChange` derives from `Popover.Root`'s). It does NOT apply to a composite's own
+invented callback that forwards nothing (`ColorField.onValueChange` is a clamp-gated commit, not a
+passthrough) — say so inline where it is not obvious.
+
+## 14. The Base UI anatomy ledger (every part: exposed · sealed-away · n/a)
+
+**Standing law from the 1.7 alignment pass (2026-08-07).** Base UI is the foundation of every
+interactive surface, so `@orb/ui` carries ZERO accidental narrowness: every part Base UI ships is
+either reachable through the seal or sealed away here WITH A REASON. Rows are keyed on the verbatim
+`<Namespace>.<Part>` string from the component's own `index.parts.d.ts` export alias — the same key
+the machine half (the `baseui-anatomy` surface manifest + gate) joins on, so the two halves cannot
+drift. **A new part on a version bump is a ROW, not a shrug:** add it with a disposition, or the gate
+reds.
+
+Dispositions: **exposed** = reachable from a consumer (rendered by the seal, or exported as its own
+part) · **sealed-away** = deliberately not reachable, reason stated · **n/a** = not anatomy (a type
+alias, a hook, a handle factory covered elsewhere) or meaningless under a structural decision we made.
+
+`Accordion` · `AlertDialog` · `Avatar` · `Checkbox` · `Collapsible` · `Dialog` · `Drawer` ·
+`Fieldset` · `NumberField` · `ScrollArea` · `Select` · `Slider` · `Switch` · `Tabs` · `Menu` ·
+`Popover` · `Tooltip` · `Toolbar` expose their FULL part list; only their exceptions are tabled below.
+`Button` · `Input` · `Separator` · `Toggle` · `ToggleGroup` · `RadioGroup` are single-export
+components with no part list.
+
+| Part | Disposition | Why |
+| - | - | - |
+| `Autocomplete.Value` | sealed-away | The seal's value IS the input's text (`value`/`onValueChange` on the Root); a separate Value display element has nothing to show that the input isn't already showing. |
+| `Autocomplete.Trigger` | sealed-away | This seal opens on focus/typing, not on a chevron press — a trigger button beside a text input reads as a Select and invites the wrong primitive (R4). Pick `Select` for a button-opened fixed list. |
+| `Autocomplete.Icon` | sealed-away | Pairs with `Trigger` (the chevron inside it); meaningless without one. |
+| `Autocomplete.Backdrop` | sealed-away | A suggestion popup is non-modal by design — it must not dim or `aria-hidden` the form it sits in. The `inline` arm exists for the case where even an overlay is too much; a backdrop is the opposite direction. |
+| `Autocomplete.Row` | sealed-away | Grid/column item layout. This seal's items are plain display strings (one line each) — a row wrapper has nothing to lay out. |
+| `Autocomplete.Separator` | sealed-away | Group boundaries here are the `GroupLabel` headers, and the Combobox seal renders groups IDENTICALLY on purpose (the two listbox popups must not drift into two looks). `Select` does add a rule because its grouped popup is a dense single-line row list with no header spacing. Re-implemented per-component in 1.7 (#5399) — revisit as ONE decision across all three seals if a review rules the header boundary too weak. |
+| `Autocomplete.useFilter` | n/a | A filter FACTORY, reachable as the `filter` passthrough prop on the seal. |
+| `Combobox.Label` | sealed-away | Labeling is `<Field>`'s job repo-wide (the settings/forms migration) or `aria-label`; a second label mechanism inside the seal is a second home for the same concept. |
+| `Combobox.Trigger` / `Combobox.Icon` | sealed-away | Same as Autocomplete's: this is a chips-and-typing surface, not a button-opened list. |
+| `Combobox.Backdrop` | sealed-away | Same as Autocomplete's — non-modal by design. |
+| `Combobox.ItemIndicator` | sealed-away | Selection is shown as CHIPS in the input, which is the stronger signal and always visible; a check mark in the list would state the same fact twice. |
+| `Combobox.Clear` | sealed-away | The per-chip `ChipRemove` (exposed) is the removal affordance; a clear-all button that silently drops N committed chips has no undo at this seam. Add it WITH a confirmation story, not as a bare part. |
+| `Combobox.Row` / `Combobox.Separator` | sealed-away | Same reasons as the Autocomplete rows above. |
+| `Combobox.useFilter` | n/a | Reachable as the `filter` passthrough prop. |
+| `Meter.Track` / `Meter.Indicator` | sealed-away | THE §10 hybrid: `MeterIndicator` hardcodes `width:%` (linear only), so the arc/bipolar geometry is hand-drawn SVG riding as `Meter.Root`'s children. Using the native pair would forbid two of the three kinds. |
+| `Progress.Status` | n/a | A TYPE alias (`'indeterminate' \| 'progressing' \| 'complete'`), not a part; it surfaces as Base UI's own `data-*` on the root. |
+| `Toast.Positioner` / `Toast.Arrow` | sealed-away | Every toast shares ONE bottom-right stack (`Toaster` bundles Portal → Viewport); Positioner/Arrow are for per-toast ANCHORED placement, which that single-stack decision cuts. |
+| `Field.Control` | exposed (indirectly) | Not rendered by the `Field` seal itself — the CONTROLS render through it (`Textarea`, `Select`, `ColorField`, `FileDropzone`), which is what makes native registration work. The Field seal's own use of it is lane NAVFORM's territory. |
+| `Field.Item` / `Field.ValidityData` | sealed-away / n/a | `Item` is the multi-control-per-field grouping we have no surface for; `ValidityData` is a type. |
+| `ScrollArea.Scrollbar` keepMounted | sealed-away | Base UI's default is `keepMounted: false`, so a non-scrollable axis' scrollbar UNMOUNTS on its own — the seal mounting both orientations costs nothing. Reserving a permanent gutter is `scrollbar-gutter`'s job, not a mounted-but-hidden bar. |
+| `ContextMenu.*` | sealed-away | There is no context-menu seal in `packages/ui/src/primitives/`; right-click is shimmed at the call site onto the canonical `Menu`. **This shim is LOSSY — see §16.** |
+| `CheckboxGroup.*` | sealed-away | Multi-select bounded fields ride `<ToggleGroup multiple>` (one home for the shape). |
+| `Menubar.*` · `NavigationMenu.*` · `PreviewCard.*` · `OTPField.*` | sealed-away | No product surface: the app has one command bar (not a menubar), routes through TanStack Router links (not a navigation menu), no link-hover previews, and no one-time-code entry. Each becomes a real seal the day its surface exists — none is a "we couldn't". |
+| `@base-ui/react/floating-ui-react` | n/a | 1.7 removed `FloatingPortal`/`FloatingFocusManager`/`FloatingTree`/`FloatingNode`/`FloatingDelayGroup` + 4 hooks from the public surface. Verified zero imports in this tree; never re-add. |
+
+**Multi-trigger `Viewport` (Menu · Popover · Tooltip — plus Dialog/AlertDialog/Drawer, already wired):**
+exposed as an OPT-IN part (`MenuViewport`/`PopoverViewport`/`TooltipViewport`), not baked into the
+bundled anatomy. It is only meaningful when ONE popup serves several triggers and its content changes
+per trigger — the `createHandle` shape, which all six seals support — and forcing the wrapper on every
+popup would add a DOM layer and a transition contract that the single-trigger 99% never asked for.
+
+**Detached `createHandle` (one popup, N sources)** is exposed for all six popup seals — Dialog,
+AlertDialog, Drawer, Popover, Tooltip and (added in the 1.7 pass) **Menu**, whose seal was the lone
+gap. `Menu`/`MenuTrigger` are generic over `Payload` for the same reason Popover/Tooltip are: a
+non-generic wrap types the active trigger's payload `unknown` at every call site, which makes the
+render-function `children` arm unusable. Drawer's handle was already sealed; 1.7 only gave it its own
+`DrawerHandle` class in place of the dialog alias it used to re-export, which the seal picks up for
+free because it derives (`BaseDrawer.Handle<Payload>`).
+
+**`Avatar.Fallback` `delay` — verified across the bump, no action.** 1.6 gated on
+`useState(delay === undefined)` with NO default; 1.7 defaults `delay = 0` and gates on
+`useState(delay === 0)`. The seal's default (`fallbackDelay` omitted → `delay={undefined}`) shows the
+fallback on the first commit in BOTH versions, so nothing changed for the default. The only delta is
+for a site passing `fallbackDelay={0}` EXPLICITLY: 1.6 deferred one effect tick, 1.7 paints
+immediately — the documented fix, and imperceptible. The seal's `@defaultValue 0` doc-comment is now
+literally true rather than true-by-coincidence.
+
+## 15. `className` and `style` — the seal narrows one and passes the other (RATIFIED?)
+
+**Base UI documents BOTH props as `T | ((state) => T)`** (handbook `styling.md` §"CSS classes" /
+§"Style prop"). This package resolves them DIFFERENTLY, and the asymmetry is deliberate:
+
+- **`className` is narrowed to `string`** on every seal (`Omit<BaseXProps, "className"> & { className?: string }`).
+  A seal's job is to MERGE the caller's classes with its own `tv()` slot output through `cn()`
+  (tailwind-merge), and tailwind-merge resolves conflicts over class STRINGS — it cannot take a
+  function, and there is no state to call one with at the point the seal composes its slot. Accepting
+  the function form would mean either calling it with a state the seal doesn't have, or passing it
+  through un-merged so the caller's classes silently stop beating the seal's (the exact failure the
+  configured `tv` factory exists to prevent, §5). **The state-driven styling channel here is Base UI's
+  own DATA ATTRIBUTES** (`data-highlighted:`, `data-disabled:`, `group-data-[panel-open]:` …), which
+  are strictly more capable in this codebase: they compose with variants, survive the merge, and are
+  what the token gates can see.
+- **`style` is NOT narrowed** — measured, not assumed: `Omit<…, "className">` leaves
+  `style?: React.CSSProperties | ((state) => React.CSSProperties | undefined)` intact, and every seal
+  spreads `{...rest}` onto its Base part, so the function form works TODAY on every seal that spreads.
+  There is no merge layer on `style` for it to break, so there is nothing to narrow for.
+
+**Ruling (owner ratifies): keep the asymmetry.** `className: string` is SEAL LAW — a seal that widens
+it re-opens the merge hole. `style`'s native function form stays reachable. A caller who genuinely
+needs state-driven classes uses data attributes, or drops to the Base UI part directly inside its own
+primitive dir. Recorded because it looks like an oversight and is not.
+
+## 16. Known LOSSY seams (report, not rot)
+
+- **The context-menu shim.** `packages/client/src/features/chat/components/member-row.tsx` maps
+  `onContextMenu` → `preventDefault()` + a synthetic click on the row, opening the canonical `Menu`.
+  Two capabilities of real `ContextMenu.Root` are absent: (1) **pointer-position anchoring** — the
+  menu opens against the ROW, not where the user actually clicked; (2) **long-press** — on touch there
+  is no context-menu gesture at all, so the whole affordance is desktop-only. Base UI's own guidance
+  is that a context menu must only ever SUPPLEMENT a visible control (`components/context-menu.md`
+  §"Usage guidelines"), which this site satisfies — so the shim is a reduced enhancement, not a broken
+  requirement. A proper context-menu seal (a new `primitives/context-menu/` trio + the
+  package.json exports row) is a \~1-day build (Root/Trigger/Backdrop/Portal/
+  Positioner/Popup/Arrow/Item/LinkItem/Separator/Group/GroupLabel/Submenu\*/Checkbox\*/Radio\* — Menu's
+  part list plus a trigger AREA — reusing `menuVariants` wholesale) plus its CT. Owner decides.

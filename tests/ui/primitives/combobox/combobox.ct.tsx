@@ -9,6 +9,11 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { DerivedItemsStory } from "./combobox.fixtures.tsx";
 
 const TAGS = ["adventure", "mystery", "romance"];
+// The grouped shape — parity with the Autocomplete seal's `groups`, values still plain strings.
+const TAG_GROUPS = [
+  { label: "Genre", items: ["adventure", "mystery"] },
+  { label: "Mood", items: ["cozy", "grim"] },
+];
 const CHIP_SELECTOR = '[data-slot="combobox-chip"]';
 // Exact-text match: `hasText` substring-matches, and "adventure" itself contains "adv".
 const EXACT_ADV = /^adv$/u;
@@ -139,6 +144,36 @@ test("the Status live region announces the filtered result count", async ({ moun
   const status = page.locator('[data-slot="combobox-status"]');
   await expect(status).toHaveRole("status");
   await expect(status).toHaveText("1 result");
+});
+
+// Grouping parity with the Autocomplete seal: each group renders a GroupLabel header, and Base UI
+// wires the label↔group association so a screen reader hears "Genre, group" around its options.
+test("groups render labeled option groups and a leaf still commits as a chip", async ({ mount, page }) => {
+  await mount(<Combobox aria-label="Tag" groups={TAG_GROUPS} />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  const genre = page.getByRole("group", { name: "Genre" });
+  await expect(genre).toBeVisible();
+  await expect(genre.getByRole("option")).toHaveCount(2);
+  await expect(page.getByRole("group", { name: "Mood" })).toBeVisible();
+  await expect(page.locator('[data-slot="combobox-group-label"]').first()).toHaveText("Genre");
+
+  await page.getByRole("option", { name: "cozy" }).click();
+  await expect(page.locator(CHIP_SELECTOR, { hasText: "cozy" })).toBeVisible();
+});
+
+// Filtering must drop the whole group when none of its leaves match — an empty header left behind
+// is a heading over nothing.
+test("groups filter down to matching leaves and the Status counts LEAVES, not headers", async ({ mount, page }) => {
+  await mount(<Combobox aria-label="Tag" groups={TAG_GROUPS} />);
+  const input = page.getByRole("combobox");
+  await input.click();
+  await input.pressSequentially("co");
+  await expect(page.getByRole("option", { name: "cozy" })).toBeVisible();
+  await expect(page.getByRole("group", { name: "Genre" })).toHaveCount(0);
+  // One matching LEAF — a header-counting Status would say "2 results" (two groups survive filtering
+  // in the un-flattened count).
+  await expect(page.locator('[data-slot="combobox-status"]')).toHaveText("1 result");
 });
 
 test("disabled: the input is inert", async ({ mount, page }) => {

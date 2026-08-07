@@ -8,7 +8,13 @@ const itemBase =
 export const menuVariants = tv({
   slots: {
     positioner: "z-(--z-popover)",
-    popup: `rounded-card border border-border bg-popover p-field text-popover-foreground shadow-overlay ${OVERLAY_MOTION.anchoredPopup}`,
+    // `max-h-(--available-height)` + a scroller is the VIEWPORT CLAMP, not decoration: Base UI's
+    // Positioner publishes `--available-height` as the space left between the anchor and the viewport
+    // edge, and a popup that ignores it renders at its full content height and runs off-screen — the
+    // bottom rows become unreachable (no scroll: the popup itself has no overflow). Every long-list seal
+    // already gets this via `POPUP_SURFACE`; Menu spells its own surface, so it had neither the cap nor
+    // the scroller. Overscroll is contained so wheeling past the last item does not scroll the page.
+    popup: `max-h-(--available-height) overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-field text-popover-foreground shadow-overlay ${OVERLAY_MOTION.anchoredPopup}`,
     item: itemBase,
     checkboxItem: itemBase,
     radioItem: itemBase,

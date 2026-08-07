@@ -1,4 +1,5 @@
 import { Field as BaseField } from "@base-ui/react/field";
+import type { PopoverRootProps as BasePopoverRootProps } from "@base-ui/react/popover";
 import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
 import { cn, isSafeColor } from "#lib";
@@ -33,11 +34,21 @@ export function ColorSwatch({ value, label, className }: ColorSwatchProps): Reac
   );
 }
 
+/** The popover's change eventDetails (reason / cancel() / allowPropagation()), DERIVED from the Root
+ *  prop this seal forwards to — hand-spelling `(open: boolean) => void` here would drop the whole
+ *  object and with it a consumer's ability to veto a dismiss. */
+type ColorFieldOpenChangeDetails = Parameters<NonNullable<BasePopoverRootProps["onOpenChange"]>>[1];
+
 export interface ColorFieldProps {
-  /** The current color — any form the D44 clamp accepts (hex / rgb / hsl / oklch / a named color). */
+  /**
+   * The current color — any form the D44 clamp accepts (hex / rgb / hsl / oklch / a named color).
+   * NOTE `onValueChange` below is this composite's OWN commit callback (it fires only for a value that
+   * passes `isSafeColor`, and for the `""` clear), not a passthrough of any Base UI change arm — there
+   * is no eventDetails to preserve on it.
+   */
   value: string;
   onValueChange: (value: string) => void;
-  onOpenChange?: (open: boolean) => void;
+  onOpenChange?: (open: boolean, details: ColorFieldOpenChangeDetails) => void;
   disabled?: boolean;
   /** Busy state: swaps the swatch for a `<Spinner>` and inerts the trigger. Caller-driven, same shape as `Button.loading`. */
   loading?: boolean;
@@ -111,9 +122,9 @@ export function ColorField({
   const showError = draft.trim() !== "" && !isDraftValid;
   const nativeHex = NATIVE_HEX_RE.test(draft) ? draft : FALLBACK_NATIVE_HEX;
 
-  const handleOpenChange = (next: boolean): void => {
+  const handleOpenChange = (next: boolean, details: ColorFieldOpenChangeDetails): void => {
     setOpen(next);
-    onOpenChange?.(next);
+    onOpenChange?.(next, details);
     if (next) {
       // Re-seed from the last committed value — a draft left over from a prior open/cancel must never resurface.
       setDraft(value);

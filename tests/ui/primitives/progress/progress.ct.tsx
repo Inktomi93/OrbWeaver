@@ -31,6 +31,34 @@ test("indeterminate hides the value readout", async ({ mount, page }) => {
   await expect(page.locator('[data-slot="progress-value"]')).toBeEmpty();
 });
 
+// The readout and the bar must tell the SAME story. Base UI 1.7 normalizes the indicator to
+// (value − min) / (max − min); a seal that recomputes `value / max` for its label disagrees the
+// moment `min` is not 0 — the bar reads half full while the text claims 60%. Assert the rendered
+// width against the rendered text, so neither side can be checked in isolation and pass.
+test("with a custom min, the readout agrees with the indicator's rendered width", async ({ mount, page }) => {
+  await mount(<Progress label="Charge" max={100} min={20} showValue={true} value={60} />);
+  const track = page.locator('[data-slot="progress-track"]');
+  const indicator = page.locator('[data-slot="progress-indicator"]');
+  const trackWidth = (await track.boundingBox())?.width ?? 0;
+  const indicatorWidth = (await indicator.boundingBox())?.width ?? 0;
+  expect(trackWidth).toBeGreaterThan(0);
+  const renderedPercent = Math.round((indicatorWidth / trackWidth) * 100);
+  // (60 − 20) / (100 − 20) = 50%.
+  expect(renderedPercent).toBe(50);
+  await expect(page.locator('[data-slot="progress-value"]')).toHaveText(`${renderedPercent}%`);
+});
+
+// Out-of-range values clamp in the bar; the readout must clamp with it rather than print "150%".
+test("a value past max clamps the readout to the same 100% the bar shows", async ({ mount, page }) => {
+  await mount(<Progress label="Charge" showValue={true} value={150} />);
+  const track = page.locator('[data-slot="progress-track"]');
+  const indicator = page.locator('[data-slot="progress-indicator"]');
+  const trackWidth = (await track.boundingBox())?.width ?? 0;
+  const indicatorWidth = (await indicator.boundingBox())?.width ?? 0;
+  expect(Math.round((indicatorWidth / trackWidth) * 100)).toBe(100);
+  await expect(page.locator('[data-slot="progress-value"]')).toHaveText("100%");
+});
+
 test("an in-progress bar has no data-complete and wears the primary token", async ({ mount, page }) => {
   await mount(<Progress aria-label="Uploading" value={72} />);
   const indicator = page.locator('[data-slot="progress-indicator"]');
