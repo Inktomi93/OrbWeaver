@@ -124,6 +124,7 @@ export function TransformsReadoutStory(): ReactElement {
     <CtDataProviders>
       <div style={{ width: 380 }}>
         <TransformsReadout
+          attachable={true}
           config={{
             ...DEFAULT_PROMPT_CONFIG,
             postProcess: { collapseNewlines: true, trimTrailingWhitespace: true, dropIncompleteSentence: true, singleLine: true },
@@ -131,6 +132,19 @@ export function TransformsReadoutStory(): ReactElement {
           }}
           presetId={STORY_PRESET}
         />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The TRANSFORMS readout on the SYSTEM DEFAULT preset — the one every new user has selected. It carries a
+ *  null owner, so the attachment read refuses it by design; the readout must not fire that query at all and
+ *  must say "off" as a KNOWN fact rather than as the residue of a 404. */
+export function TransformsReadoutSystemDefaultStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <TransformsReadout attachable={false} config={DEFAULT_PROMPT_CONFIG} presetId={STORY_PRESET} />
       </div>
     </CtDataProviders>
   );

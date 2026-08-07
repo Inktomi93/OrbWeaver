@@ -12,8 +12,8 @@
 
 import { PROMPT_LANE_STEPS, pipelineStepKey, REPLY_LANE_STEPS } from "@orb/contracts/preset";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { routeTrpc } from "../../../../../support/ct/route-trpc.ts";
-import { TransformsReadoutStory } from "./_readout-stories.tsx";
+import { routeTrpc, trpcError } from "../../../../../support/ct/route-trpc.ts";
+import { TransformsReadoutStory, TransformsReadoutSystemDefaultStory } from "./_readout-stories.tsx";
 
 /** The readout resolves the preset's ATTACHED scripts; an empty set is enough (the pin is the ORDER, and
  *  every row renders regardless of its count — a stage with no scripts reads "off", never vanishes). */
@@ -66,4 +66,38 @@ test("Collapse blank lines is printed on the PROMPT lane only — it never runs 
   // ONE occurrence, and it sits above the reply lane's heading.
   expect(body.split("Collapse blank lines").length - 1).toBe(1);
   expect(body.indexOf("Collapse blank lines")).toBeLessThan(body.indexOf("Reply-side"));
+});
+
+// A COUNT IS A CLAIM. "off" used to be printed whenever the attachment read produced no data — including
+// when it FAILED — so the readout stated a fact it had not obtained. On the built-in default that failure is
+// permanent (a null-owner preset; `ensurePresetOwned` refuses it by construction), which is the preset every
+// new user has selected, so the confident wrong-mechanism answer was the one almost everyone saw.
+
+test("the built-in default fires NO attachment query and says off as a KNOWN fact", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, NO_ATTACHED_SCRIPTS);
+  const component = await mount(<TransformsReadoutSystemDefaultStory />);
+
+  // BARRIER on the SETTLED arm first: `off` is reachable here ONLY through the not-attachable branch — an
+  // in-flight read renders `…` and a failed one `couldn’t read` — so this row settling to `off` is proof the
+  // component reached its final state, which is what makes the absence read below meaningful.
+  const rows = page.locator("[data-pipeline-step^='regex:']");
+  await expect(rows.first()).toContainText("off");
+  await expect(component).not.toContainText("couldn’t read");
+  // ONESHOT-OK: the settled-state barrier above has already rendered; a query, had one been enabled, would
+  // have been sent during that mount. The count is a read of finished state, not a sample mid-flight.
+  expect(trpc.count("regex.listForPreset")).toBe(0);
+});
+
+test("a FAILED attachment read reads “couldn't read”, never “off”", async ({ mount, page }) => {
+  // The REAL failure this arm exists for: `regex.listForPreset` answering NOT_FOUND (the shape the built-in
+  // default produced by construction, and the shape any deleted/foreign preset produces).
+  await routeTrpc(page, { "regex.listForPreset": trpcError({ code: "NOT_FOUND", message: "not found" }) });
+  const component = await mount(<TransformsReadoutStory />);
+  await expect(component).toContainText("Prompt-side");
+
+  // Every regex stage says so; the non-regex steps still read their own config honestly.
+  const rows = page.locator("[data-pipeline-step^='regex:']");
+  await expect(rows.first()).toContainText("couldn’t read");
+  await expect(rows.last()).toContainText("couldn’t read");
+  await expect(component).toContainText("Single line");
 });

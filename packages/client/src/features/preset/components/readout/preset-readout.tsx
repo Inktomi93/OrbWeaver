@@ -173,7 +173,10 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
         />
       ) : null}
       {view === "data" ? <DataReadout config={config} /> : null}
-      {view === "transforms" ? <TransformsReadout config={config} presetId={presetId} /> : null}
+      {/* `attachable` is the SYSTEM-DEFAULT fact, read off the wire flag (never the sentinel id): that preset
+          has a null owner, so the attachment read refuses it by design and its regex stages are known-off
+          rather than unread. */}
+      {view === "transforms" ? <TransformsReadout attachable={preset.data?.isSystemDefault !== true} config={config} presetId={presetId} /> : null}
       {view === "params" ? (
         <>
           <EffectiveProfile contextWindow={capability.data?.capability.context.window} effective={effective.data ?? undefined} />
