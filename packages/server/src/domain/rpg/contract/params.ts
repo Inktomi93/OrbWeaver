@@ -73,6 +73,11 @@ export interface StagedTurnFlush {
   /** Every patch staged for this turn, in the order it was staged — the tools' mid-turn writes and/or the
    *  round's delta. Replayed in the same order by the fold, so the composition is identical to `state`'s. */
   readonly patches: readonly Record<string, unknown>[];
+  /** The BASE the accumulator was seeded from — the state every applier composed its patches against. The fold
+   *  needs it as the third input of its rebase: without it, "the round wrote this actor" and "the round merely
+   *  carried the whole plane forward" are indistinguishable, and the appliers emit WHOLE planes (see
+   *  `substrate/merge.ts::rebasePatchOntoHead`). */
+  readonly base: RpgSnapshotState;
 }
 
 /** A journal entry a tool staged mid-turn — flushed at commit stamped with the COMMITTED variant's id
