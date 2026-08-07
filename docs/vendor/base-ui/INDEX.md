@@ -12,7 +12,7 @@ surface instead of a half-remembered API. Layout mirrors the site:
   cross-cutting law; `forms.md` is the authority for the Field/Form/TanStack integration.
 - `components/` — one page per component, including components we deliberately do NOT wrap
   (checkbox-group · context-menu · otp-field · preview-card · menubar · navigation-menu — see
-  `docs/design/baseui-crunch.md` §8 for the opt-out reasons).
+  `docs/history/design/baseui-crunch.md` §8 for the opt-out reasons).
 - `utils/` — csp-provider · direction-provider · merge-props · use-render.
 
-Owner of the alignment program: `docs/design/baseui-crunch.md` (findings) + the retro workboard.
+Owner of the alignment program: `docs/history/design/baseui-crunch.md` (findings) + the retro workboard.

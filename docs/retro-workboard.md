@@ -55,7 +55,40 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   --retries=2` — ONE behavioral lane since 2026-07-17, stated in `scripts/verify/registry.ts:304`), but
   because a LANE is banned from running the whole battery. A CT nobody names is a CT that lane nobody ran.
 
-## ═══ STATE (2026-08-07 — the BASE UI 1.7 PROGRAM is live; 5 lanes dispatched) ═══
+## ═══ STATE (2026-08-07 late — BASE UI 1.7 PROGRAM CLOSED; NEXT = the dogfood doc, in full) ═══
+
+- **✅ THE BASE UI 1.7 PROGRAM IS CLOSED.** Six lanes dispatched, six merged, every consolidated
+  check green, all worktrees torn down: CARDKEEP (`9b591f09`) · GOLDHOME (`a2370065e`) · UI17
+  (`2b79689be`) · NAVFORM (`42cdd1b45`) · NAMECRAFT (`3a413f626`) · BUGATES (`8114fa43a`). Gates
+  **183 → 189**. The crunch doc GRADUATED to `docs/history/design/baseui-crunch.md` (both inbound
+  refs repointed) — every one of its 8 items adjudicated, its own wrong counts corrected in place.
+- **Headline receipts:** three lying seals fixed red-first (Menu/Popover ignored
+  `--available-height` — 1,918px popup in a 720px viewport; Progress read "150%"); the Chrome
+  id/name program resolved STRUCTURALLY (Base UI Input IS Field.Control — real-Chrome CDP audit,
+  0 issues on 4 surfaces with planted negative controls); accessible-name law minted (§13.10, 9
+  rules, 13-test CT over nine surfaces); the SURFACE MANIFEST (39 components / 292 exports / 269
+  parts with dispositions + handler arities) makes a Base UI bump UN-LANDABLE unadjudicated;
+  `cardKeepLastX` absent≠zero reachable end-to-end; goldens rig re-homed with 8 of 9 carve-outs
+  dissolved (+ a 10th, knip, found and fenced at landing with an import-carrying probe).
+- **OWNER RULINGS 2026-08-07 (question-tool, all four recommended arms):** (1) §15 RATIFIED —
+  `className` string-only seal law, `style` deliberately un-narrowed. (2) Type spelling: KEEP FLAT
+  aliases, namespace form allowed where cleaner; no spelling gate. (3) Context-menu: KEEP THE SHIM
+  (reduced enhancement; revisit on dogfood signal). (4) **EMPTYGEN-REASONING: arm 1 — RECOVER,
+  don't discard** (prose-less completion with parsed tool calls ⇒ apply state writes + short
+  continuation for narrative). That ruling is a dogfood-campaign input.
+- **Smalls minted by the program:** the manifest/generator FORMAT ping-pong risk (biome reformatted
+  the committed manifest at landing polish `62de12195`; the next `gen-baseui-surface` regen may
+  re-emit generator-format — teach the generator to emit biome-format, one small) · BUGATES flagged
+  a D-ledger entry for the manifest law (owner call, unminted) · `pnpm tsx` still named in
+  `monotonic-tests.ts:20`'s error strings (tsx is shed — sweep `pnpm tsx` across scripts/) ·
+  stale `SettingRow` prose at `structured-output-section.tsx:29`, `knob-row.tsx:200`,
+  `tokens.json:585` ($description; forces tokens:build).
+- **⛔ NEXT (owner-ordered): the DOGFOOD DOC, worked and verified IN FULL** — every open row in
+  `docs/dogfood-tracking.md` fixed or adjudicated, every FIXED row re-verified properly. THEN back
+  to this board. Program-closure obligations riding into that phase: the full `pnpm test` battery
+  at quiesce + the standing-law side-eye over the program's rendered surfaces.
+
+## ═══ STATE (2026-08-07 — the BASE UI 1.7 PROGRAM was live; superseded by the block above) ═══
 
 - **main @ `4e1a3f8ea`**, tree clean. A push landed since the last board write (`origin/main =
   4ecb3110d`, server-verified); local is 3 ahead. **⛔ DEV HALT (dogfood doc) still governs feature
