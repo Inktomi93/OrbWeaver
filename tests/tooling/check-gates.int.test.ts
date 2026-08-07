@@ -869,6 +869,14 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_floorless/components/__g_grid.tsx",
     'const ICONS = ["a", "b", "c"];\nexport function GGrid() {\n  return (\n    <div className="flex-wrap">\n      {ICONS.map((n) => (\n        <Button key={n} size="glyph-lg">{n}</Button>\n      ))}\n    </div>\n  );\n}\n',
   );
+  // freeze-provenance-write-pairing: the founding D129-F defect verbatim — a `message_variants` UPDATE that
+  // replaces `content` and leaves `rawContent`/`macroFreezes` attached, so the row keeps a freeze record
+  // describing bytes that are gone. The fixture writes a NEW file, so canon-write.ts's real (fixed) writers
+  // and the gate's own blindness tripwires keep judging the real tree untouched.
+  fx(
+    "packages/server/src/domain/chat/persistence/__g_freezeprov.ts",
+    'import { messageVariants } from "@orb/db";\nexport const gStmt = db.update(messageVariants).set({ content: "replaced" }).where(eq(messageVariants.id, id));\n',
+  );
   fx("scripts/check/gates/__g_nodescriptor.ts", "export const notAGateDescriptor = 1;\n");
 }
 
