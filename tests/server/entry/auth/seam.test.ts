@@ -1,18 +1,38 @@
 // entry/auth/seam — the ONE Principal construction site. These pin the three resolution paths + the
-// fail-closed gates (spine identity-auth-permission §1/§3, ledger D40/D17): cookie validates DIRECTLY via
-// sessions.validate (returns userId, no re-query); the owner-fallback mints role=owner via ensureUser; the
-// SSO header upserts via provisionIdentity and GATES on enabled; a stale cookie is ignored outside cookie
-// modes; CSRF is surfaced as a signal. The sessions service is stubbed so the test isolates the seam's
-// branching + Principal assembly (the row mechanics are tested in domain/sessions).
+// fail-closed gates (spine identity-auth-permission §1/§3, ledger D40/D17/D135): cookie validates DIRECTLY
+// via sessions.validate (returns userId, no re-query); the owner-fallback resolves the BOX OWNER'S ROW and
+// mints from it (D135 — the role verdict has ONE home, `users.role`); the SSO header upserts via
+// provisionIdentity and GATES on enabled; a stale cookie is ignored outside cookie modes; CSRF is surfaced
+// as a signal. The sessions service is stubbed so the test isolates the seam's branching + Principal
+// assembly (the row mechanics are tested in domain/sessions).
+//
+// D135's pin is the AGREEMENT pin: the request-fallback Principal and the frozen-host Principal for the SAME
+// caller must be equal. They were not — the fallback stamped `role:"owner"` on whatever row
+// `ensureUser(DEFAULT_USER_HANDLE)` returned, so a box whose `OWNER_HANDLES` differs from the
+// `DEFAULT_USER_HANDLE` placeholder minted a SECOND user at role `user` and called it owner. The capability
+// surface then read one principal and the turn read the other, and they picked different models.
 
+import type { UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
+import { ownerHandles } from "@orb/server/domain/sessions";
 import { createAuthSeam, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import type { AuthConfig } from "@orb/server/infra/auth";
+import { afterEach, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
+/** Verification's placeholder handle (`DEFAULT_USER_HANDLE`, whose schema default is this literal). */
 const OWNER_HANDLE = "owner";
+/** The REAL owner handle on a box that configured one — deliberately ≠ `OWNER_HANDLE`, which is the whole
+ *  shape of the D135 defect (the live box ran `OWNER_HANDLES=inktomi93@gmail.com` with the default
+ *  `DEFAULT_USER_HANDLE`, and grew a second-class twin at handle "owner"). */
+const REAL_OWNER_HANDLE = "owner@example.test";
+const OWNER_HANDLES_VAR = "OWNER_HANDLES";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 function baseConfig(overrides: Partial<AuthConfig>): AuthConfig {
   return {
@@ -54,28 +74,116 @@ const FALLBACK_UID = castId<UserId>("u_owner");
 const COOKIE_UID = castId<UserId>("u_cookie");
 const HEADER_UID = castId<UserId>("u_header");
 
-test("single-user fallback mints the OWNER (role=owner, via=fallback) via ensureUser", async () => {
-  const handles: string[] = [];
-  const seam = createAuthSeam({
-    config: baseConfig({ mode: "single-user" }),
-    sessions: stubSessions({
-      ensureUser: (handle: Handle) => {
-        handles.push(handle);
-        return Promise.resolve(FALLBACK_UID);
-      },
-    }),
+interface FakeUserRow {
+  readonly id: UserId;
+  readonly role: UserRole;
+  readonly handle: Handle;
+}
+
+interface FakeUsers {
+  readonly sessions: SessionsService;
+  /** Every handle `ensureUser` was called with, in order — the twin-minting receipt. */
+  readonly ensured: string[];
+  /** handle → row. A SECOND entry is a twin: two users where the box has one owner. */
+  readonly rows: Map<string, FakeUserRow>;
+}
+
+/**
+ * A `users` table faithful to the two verbs the fallback arm drives, so the seam's Principal assembly is
+ * tested against real row SEMANTICS instead of a fixed id. `ensureUser` derives the role the way the real
+ * verb does — `determineRole(handle, [])`, i.e. owner iff the handle is the configured owner (groups are
+ * always empty on this path) — so a handle outside `OWNER_HANDLES` is born `user` and is never repaired by
+ * this verb. `loadUserById` reads the row back. NOTHING here stamps a role: that is the point.
+ */
+function fakeUsers(): FakeUsers {
+  const rows = new Map<string, FakeUserRow>();
+  const ensured: string[] = [];
+  const sessions = stubSessions({
+    ensureUser: (handle: Handle) => {
+      ensured.push(handle);
+      const existing = rows.get(handle);
+      if (existing !== undefined) {
+        return Promise.resolve(existing.id);
+      }
+      const row: FakeUserRow = { id: castId<UserId>(`u_${handle}`), role: ownerHandles().includes(handle) ? "owner" : "user", handle };
+      rows.set(handle, row);
+      return Promise.resolve(row.id);
+    },
+    loadUserById: (userId: UserId) => {
+      const row = [...rows.values()].find((r) => r.id === userId);
+      return Promise.resolve(row === undefined ? null : { role: row.role, handle: row.handle, externalId: null });
+    },
   });
+  return { sessions, ensured, rows };
+}
+
+test("single-user fallback resolves the OWNER's row (role read, not stamped; via=fallback)", async () => {
+  // The COHERENT box: OWNER_HANDLES names the same handle verification stamps. Byte-identical to the
+  // pre-D135 behaviour — the fix must not move this case.
+  vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
+  const users = fakeUsers();
+  const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
 
   const { principal } = await seam.resolvePrincipal(new Headers());
 
   expect(principal).toEqual({
-    userId: FALLBACK_UID,
+    userId: castId<UserId>(`u_${OWNER_HANDLE}`),
     role: "owner",
     handle: OWNER_HANDLE,
     externalId: null,
     via: "fallback",
   });
-  expect(handles).toEqual([OWNER_HANDLE]); // ensureUser keyed on the fallback handle, no role derivation
+  expect(users.ensured).toEqual([OWNER_HANDLE]);
+});
+
+test("D135: the fallback Principal and the frozen-host Principal AGREE about the same caller", async () => {
+  // THE defect pin. `OWNER_HANDLES` names a real owner; `DEFAULT_USER_HANDLE` still stamps its "owner"
+  // placeholder. Pre-fix the seam ensured the PLACEHOLDER's row (born `user`) and stamped `role:"owner"` on
+  // it, while `createHostPrincipalResolver` read `users.role` off that same id and answered `"user"` — one
+  // caller, two principals, two different models.
+  vi.stubEnv(OWNER_HANDLES_VAR, REAL_OWNER_HANDLE);
+  const users = fakeUsers();
+  const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
+
+  const { principal } = await seam.resolvePrincipal(new Headers());
+  if (principal === null) {
+    throw new Error("the owner fallback must admit a principal");
+  }
+  const fromRow = await createHostPrincipalResolver(users.sessions)(principal.userId);
+
+  expect(principal).toEqual(fromRow);
+  expect(principal.role).toBe("owner");
+});
+
+test("D135: the fallback lands on the OWNER_HANDLES row and mints NO second-class twin", async () => {
+  vi.stubEnv(OWNER_HANDLES_VAR, REAL_OWNER_HANDLE);
+  const users = fakeUsers();
+  const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
+
+  const { principal } = await seam.resolvePrincipal(new Headers());
+
+  // WHO the owner is is resolution-tier policy, never verification's placeholder handle.
+  expect(users.ensured).toEqual([REAL_OWNER_HANDLE]);
+  expect(principal?.handle).toBe(REAL_OWNER_HANDLE);
+  // One box, one owner row — a second row here IS the live twin this fix retires.
+  expect([...users.rows.keys()]).toEqual([REAL_OWNER_HANDLE]);
+});
+
+test("D135: an owner row demoted below owner is REPORTED, not overridden (the fallback never grants)", async () => {
+  // Fail-closed control: the fallback ADMITS (origin gate), it does not GRANT. A pre-existing row at a lower
+  // role must reach the Principal as-is — the old code would have re-stamped `owner` over it.
+  vi.stubEnv(OWNER_HANDLES_VAR, REAL_OWNER_HANDLE);
+  const users = fakeUsers();
+  users.rows.set(REAL_OWNER_HANDLE, {
+    id: castId<UserId>(`u_${REAL_OWNER_HANDLE}`),
+    role: "user",
+    handle: castId<Handle>(REAL_OWNER_HANDLE),
+  });
+  const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
+
+  const { principal } = await seam.resolvePrincipal(new Headers());
+
+  expect(principal?.role).toBe("user");
 });
 
 test("a valid cookie resolves DIRECTLY via sessions.validate (userId carried, role re-read)", async () => {
@@ -218,10 +326,8 @@ test("a disabled SSO row is gated to null (disable takes effect next request, no
 });
 
 test("the CSRF header presence is surfaced as a signal (the ladder gates, not the seam)", async () => {
-  const seam = createAuthSeam({
-    config: baseConfig({ mode: "single-user" }),
-    sessions: stubSessions({ ensureUser: () => Promise.resolve(FALLBACK_UID) }),
-  });
+  vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
+  const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: fakeUsers().sessions });
 
   const withHeader = await seam.resolvePrincipal(new Headers({ "x-orb-csrf": "1" }));
   const without = await seam.resolvePrincipal(new Headers());
@@ -231,11 +337,29 @@ test("the CSRF header presence is surfaced as a signal (the ladder gates, not th
 });
 
 test("isAdmin is true for owner/admin, false otherwise, and never throws", async () => {
-  const ownerSeam = createAuthSeam({
-    config: baseConfig({ mode: "single-user" }),
-    sessions: stubSessions({ ensureUser: () => Promise.resolve(FALLBACK_UID) }),
-  });
+  // ⚠ The un-credentialed fallback arm here is an OPEN FINDING (AUTHFIX-2), not a design pin: `isAdmin`'s
+  // only consumer is the /api/_debug admin arm, which short-circuits the DEBUG_TOKEN check, and those routes
+  // are principal-blind whole-db reads. This asserts CURRENT behaviour so the fix is a deliberate, visible
+  // flip — it is NOT a claim that the behaviour is correct. See the `isAdmin` doc in `entry/auth/seam.ts`
+  // for the one-line fix and the e2e coupled site that blocks it.
+  vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
+  const ownerSeam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: fakeUsers().sessions });
   expect(await ownerSeam.isAdmin(new Headers())).toBe(true);
+
+  const adminSeam = createAuthSeam({
+    config: baseConfig({ mode: "local" }),
+    sessions: stubSessions({
+      validate: () =>
+        Promise.resolve({
+          userId: COOKIE_UID,
+          role: "admin",
+          handle: castId<Handle>("carol"),
+          externalId: null,
+          enabled: true,
+        }),
+    }),
+  });
+  expect(await adminSeam.isAdmin(new Headers({ cookie: "__Host-orb_session=t" }))).toBe(true);
 
   const userSeam = createAuthSeam({
     config: baseConfig({ mode: "local" }),
