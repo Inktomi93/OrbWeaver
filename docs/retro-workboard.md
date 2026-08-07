@@ -399,17 +399,26 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     member-readable by explicit design, `listTurnToolCalls` is member-gated) — a data-loss + a
     doc-lie. Header truth-repaired in the lane's commit; whether the fork should KEEP the tool
     record is the product call. Evidence: lane sweep.
-  - [ ] **`listJournal` applies no hidden-span strip in the SOURCE room** (S to answer, then decide)
-    — **RE-FRAMED after an owner correction: this is a DECEPTION-MECHANIC question, NOT a D129 one.**
-    `<lie>` is a deliberate GM mechanic (`deception`/`omniscience`/`hiddenContentReveal` knobs + the
-    host-gated `revealHidden` verb) — D129's "hidden means hidden in every DERIVED plane" governs
-    digests/summaries/recall, where a SUMMARY OF hidden text can escape through a path that never
-    checked. It says nothing about the mechanic's own source-read model, which is designed.
-    **The one real question:** does a member's journal payload carry the RAW `<lie>` bytes with the
-    client stripping at render? If yes, a player reads the GM's hidden text from the network tab —
-    a mechanic defeat, fixable at the member projection. If the server already withholds, there is
-    nothing here. ANSWER IT BEFORE BUILDING ANYTHING. Evidence: lane flagged the absent strip
-    (source-pinned); the payload question is UNVERIFIED.
+  - [ ] **§3.6 MEMBER-STRIP COVERAGE GAP: `listJournal` serves raw model-authored prose** (S–M;
+    orchestrator-verified, read the mechanic first). **NOT a D129 question** (that governs DERIVED
+    planes — a summary OF hidden text escaping a path that never checked). This is a coverage gap in
+    §3.6's OWN trust boundary. THE MECHANIC (read it before touching this): `lie` is one of two
+    `HIDDEN_TAGS` registrants (`lie`→"Deception", `ofilter`→"Unperceived"; fields
+    character/type/truth/reason) — the player sees the deceptive SURFACE, the truth rides hidden,
+    **the live wire keeps it verbatim so the character lies CONSISTENTLY**, the host reads unstripped
+    for the reveal eye / standing-lie inventory, summaries strip it with the trade named out loud
+    ("a digest is a durable, MEMBER-PEEKABLE artifact"), and an UNTERMINATED `<lie` deliberately
+    stays visible (D51: a malformed tag is a visible model error, not a secret).
+    **THE GAP:** §3.6 homes the byte-selection verdict ONCE (`viewerReadsHidden`,
+    `chat/substrate/member-visibility.ts`) *precisely so surfaces cannot drift* — consumed by the
+    page read (`read.ts:748`), the turn return, the bus replay, `resolve-viewer-visibility`. The
+    JOURNAL is a FOURTH member-facing surface carrying model-authored prose and never adopted it:
+    `rpg/verbs/read/list-journal.ts:16` is `resolveMember` + `content: r.content`, no projection.
+    Reachability depends on whether the model emits hidden tags into `add_journal_entry` prose (a
+    teach/grammar question — CHECK IT), but the fix is defense-in-depth either way.
+    **Architectural note for whoever takes it:** the strip machinery lives in CHAT; rpg reaches it
+    only via an injected op (one-directional flow) — do NOT re-derive `role === "host"` in rpg, the
+    verdict has one home by design. Evidence: orchestrator-read, file:line above.
 - **✅ HAND-EDIT GRADUATED — CONFIRMED on the 4th leg after THREE refutations (`cea8437c0`).** The
   verifier re-drove all three prior refutations clean, plus N=3-with-a-gap, the production applier
   shapes with a mid-flight dismiss+delete+lock, element-level locks, and a **400-turn randomized
