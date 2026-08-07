@@ -79,8 +79,6 @@ const UNSIZED_BOX_SPECIFIERS = new Set(["@orb/ui/layout", "@orb/ui/skeleton", "@
 const ALLOWLIST: Record<string, string> = {
   "packages/client/src/features/character/components/character-library-toolbar.tsx":
     "`w-auto` on Select — the measured 2026-08-01 F1 content-width ruling (see the site comment); `auto` vs FIELD_CONTROL's `w-full` are both STANDARD width utilities, so tailwind-merge classifies them and the override is deterministic (no stylesheet-order hazard).",
-  "packages/client/src/features/credentials/components/role-slot-row.tsx":
-    "`w-auto min-w-32` on Select — the same content-width-Select pattern as character-library-toolbar (deterministic: auto vs w-full are tailwind-merge-classifiable).",
   "packages/client/src/features/tag/components/tag-collection-rows.tsx":
     "`w-auto` on the roster's sort Select — the same content-width-Select pattern as character-library-toolbar (deterministic: `auto` vs FIELD_CONTROL's `w-full` are both tailwind-merge-classifiable standard width utilities). Without it the trigger claims the whole 330px roster band for a three-word label.",
   "packages/client/src/features/rpg/components/rpg-hud.tsx":

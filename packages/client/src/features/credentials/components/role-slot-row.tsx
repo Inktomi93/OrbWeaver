@@ -236,7 +236,16 @@ function AppDefaultDisplay({ isChat }: { readonly isChat: boolean }): ReactEleme
   const resolved = useQuery({ ...trpc.connection.resolveChatCapability.queryOptions(), enabled: isChat }).data;
   const named = !isChat || resolved === undefined ? null : `${SOURCE_LABELS[resolved.source]} · ${resolved.model} · ${CHAT_API_LABELS[resolved.api]}`;
   return (
-    <Text as="span" className="min-w-0 flex-1 truncate text-muted-foreground italic" data-slot="role-app-default" {...(named === null ? {} : { title: named })}>
+    // IT WRAPS (side-eye 2026-08-06 P3). `truncate` on the ONE informative hint in the pane cut it at
+    // "Uses the app default: Claude subscription (host) · cl…" — the model name, which is the entire reason
+    // the chat row resolves it, was the part that got eaten, and a `title` tooltip is not a reading of a
+    // value. Every other row's hint is three words and fits on one line either way, so nothing else moves.
+    <Text
+      as="span"
+      className="min-w-0 flex-1 break-words text-muted-foreground italic"
+      data-slot="role-app-default"
+      {...(named === null ? {} : { title: named })}
+    >
       {named === null ? "Uses the app default" : `Uses the app default: ${named}`}
     </Text>
   );
@@ -388,10 +397,18 @@ function staleIdWarning(
  *  what the store holds is on screen and one click fixes it. */
 function ChatSlotKnobs({ form }: { readonly form: ConnectionsForm }): ReactElement {
   return (
-    <Row gap="field" className="flex-col items-stretch @2xl:flex-row @2xl:items-center @2xl:ps-(--width-sidebar-sm)">
-      <Text as="span" voice="gloss">
-        Protocol
-      </Text>
+    // THE SUB-ROW RIDES THE SAME TRACKS AS ITS PARENT (side-eye 2026-08-06 P3). It used to inset by the
+    // label column and then spend the "Protocol" word out of the SOURCE column's width, so the protocol
+    // select sat ~40px right of the six source selects it belongs under — the one control on the pane that
+    // did not line up. The word now occupies a label block of the label column's own width and the select
+    // takes `SOURCE_COL`, so the two columns are literally the same tracks (`SlotLabel` above uses the same
+    // width token). Below @2xl everything stacks, exactly as the parent row does.
+    <Row gap="field" className="flex-col items-stretch @2xl:flex-row @2xl:items-center">
+      <Stack className="w-(--width-sidebar-sm) shrink-0">
+        <Text as="span" voice="gloss">
+          Protocol
+        </Text>
+      </Stack>
       <form.Subscribe selector={(state): string => state.values.chat.source}>
         {(source): ReactElement => {
           const legalApis = chatApisForSource(source);
@@ -411,7 +428,7 @@ function ChatSlotKnobs({ form }: { readonly form: ConnectionsForm }): ReactEleme
                 return (
                   <Select
                     aria-label="Chat protocol"
-                    className="w-auto min-w-32"
+                    className={SOURCE_COL}
                     items={items}
                     value={stored}
                     onValueChange={(value): void => field.handleChange(value as string)}

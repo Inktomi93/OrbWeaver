@@ -7,7 +7,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { ThemePickerStory } from "../_ct-stories.tsx";
+import { ThemePickerNarrowStory, ThemePickerStory } from "../_ct-stories.tsx";
 
 const NOW = 0;
 interface SeedView {
@@ -210,4 +210,40 @@ test("the theme band is a WRAPPING row — the resolved property the 320px clip 
     return band === null ? "no-band" : getComputedStyle(band).flexWrap;
   });
   expect(wrap).toBe("wrap");
+});
+
+// ── The other half of the same clip (side-eye 2026-08-06 P1) ───────────────────────────────────────
+// The comment above is now HALF true. Wrapping the outer band let the "Themes" label drop to its own line —
+// and left the two buttons in an inner, NON-wrapping Row: ~269px of unbreakable content in a ~206px box, so
+// the primary was still sheared against the dialog edge. The inner Row wraps too now, and `min-w-0` lets it
+// shrink rather than push the overflow onto its parent.
+//
+// AND A CT *CAN* REPRODUCE IT — the earlier finding ("a CT cannot reproduce that clip") was a property of
+// that story's CONTENT-SIZED mount, not of the harness. `ThemePickerNarrowStory` SETS the 206px box, so an
+// over-wide row genuinely overflows and `boundingBox` containment fires. Verified red-first against the
+// pre-fix source: this test failed, the `flex-wrap` test above passed.
+test("at the 206px dialog body both band buttons stay inside it — the inner row wraps", async ({ mount, page }) => {
+  await stub(page);
+  const component = await mount(<ThemePickerNarrowStory />);
+
+  // Page-scoped: the fixed-width box IS the mount root, and `component.getByTestId` searches DESCENDANTS.
+  const body = page.getByTestId("theme-dialog-body");
+  await expect(body).toBeVisible();
+  const bodyBox = await body.boundingBox();
+  expect(bodyBox).not.toBeNull();
+
+  const reset = component.getByRole("button", { name: "Reset to Hearth" });
+  const primary = component.getByRole("button", { name: "New theme" });
+  await expect(reset).toBeVisible();
+  await expect(primary).toBeVisible();
+  const boxes = await Promise.all([reset.boundingBox(), primary.boundingBox()]);
+
+  // Sub-pixel tolerance only — a sheared button overhangs by tens of px (measured 62.9px pre-fix), never
+  // by rounding.
+  for (const [index, box] of boxes.entries()) {
+    const label = index === 0 ? "Reset to Hearth" : "New theme";
+    expect(box, `${label} has no box`).not.toBeNull();
+    expect(box === null || bodyBox === null ? -1 : bodyBox.x + bodyBox.width - (box.x + box.width), `${label} overhangs the dialog body`).toBeGreaterThan(-1);
+    expect(box === null || bodyBox === null ? -1 : box.x - bodyBox.x, `${label} starts left of the dialog body`).toBeGreaterThan(-1);
+  }
 });

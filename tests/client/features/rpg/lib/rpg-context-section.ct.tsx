@@ -318,7 +318,7 @@ test("the takeover renders the 5 LIVE game tabs + the locked Map (in the Game st
   // never `aria-disabled` — see the RV-7 CT: it opens onto the body that states when maps arrive).
   const mapTab = gameStrip.getByRole("tab", { name: "Map" });
   await expect(mapTab).toBeVisible();
-  await expect(mapTab).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
+  await expect(mapTab).toHaveAttribute("title", "Maps unlock with the map arc");
   // The chat meta set sits in the "Chat" strip below (the bracket's bottom row) — plus the crown GM-console
   // "Game" tab (host-only, `strip:"meta"` — a member never sees it; this stub's viewer IS host).
   const metaStrip = component.getByRole("tablist", { name: "Chat" });
@@ -894,6 +894,29 @@ test("typing the game DEFAULT back into a character's ceiling CLEARS the overrid
     .toMatchObject({ ops: [{ op: "setTracker", key: "vitality", value: { max: null } }] });
 });
 
+// The microline is a DEPARTURE, not a presence (side-eye 2026-08-06 P3). The anti-drift rule clears an
+// override equal to the default at WRITE time — so the read treated "a stored max exists" as "it differs",
+// and any actor the story wrote a max onto without changing it printed `Vitality ceiling 30 — default: 30`
+// under its bar, once per meter per actor. A value equal to the default IS the default, however it got there.
+test("a stored ceiling EQUAL to the game default states nothing — the note is for divergence only", async ({ mount, page }) => {
+  const tracker = trackerView(false) as Record<string, unknown>;
+  const actors = (tracker["actors"] as Record<string, unknown>[]).map((a) => ({
+    ...a,
+    volatile: {
+      ...(a["volatile"] as Record<string, unknown>),
+      // max 30 === the def's default 30 (the shape a model write leaves behind).
+      trackerValues: { vitality: { value: 24, items: null, max: 30 }, resolve: { value: 7, items: null } },
+    },
+  }));
+  await stubTakeover(page, { tracker: { ...tracker, actors } });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+
+  // Barrier on the settled bar before asserting the ABSENCE beside it.
+  await expect(component.getByRole("button", { name: "Vitality max" }).first()).toBeVisible();
+  await expect(component.getByText("Vitality ceiling 30 — default: 30")).toHaveCount(0);
+});
+
 test("the Scene CHOICE echo renders the transcript's LIVE :::choices (info-blue; send-mode line) and a pick fires chat.send", async ({ mount, page }) => {
   // A cyoa game in `send` mode + a transcript whose LAST message is an assistant turn carrying a choices
   // fence — the echo's exact live condition (a later user reply would settle it → no echo).
@@ -1410,14 +1433,22 @@ test("RV-7: the locked Map tab opens onto its coming-soon body from BOTH the mou
   const mapTab = component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Map" });
   // NOT aria-disabled: the lock is a glyph + a reason, not a refusal the tab does not honour.
   await expect(mapTab).not.toHaveAttribute("aria-disabled", "true");
-  await expect(mapTab).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
+  await expect(mapTab).toHaveAttribute("title", "Maps unlock with the map arc");
+  // THE LOCK IS IN THE NAME (side-eye 2026-08-06 ARIA). `aria-disabled="false"` + a reason that lives only
+  // on `title` left the lock imperceptible to AT — the glyph is decorative and `title` is a DESCRIPTION many
+  // readers announce late or not at all. The visible caption stays the name's prefix (WCAG 2.5.3).
+  await expect(mapTab).toHaveAttribute("aria-label", "Map — locked");
+  // The live cells are unchanged — the suffix is the LOCK's, not every tab's.
+  await expect(component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Scene" })).toHaveAttribute("aria-label", "Scene");
 
   // MOUSE — a plain click (Playwright would refuse this outright on an aria-disabled control).
   await mapTab.click();
   const map = component.locator('[data-slot="rpg-map-tab"]');
   await expect(map).toBeVisible();
   await expect(map).toContainText("Maps unlock with the map arc");
-  await expect(map).toContainText("arrives with MA-3");
+  // NO TICKET ID anywhere in the locked body (side-eye 2026-08-06 P3): "arrives with MA-3" was the one line
+  // here addressed to the roadmap rather than the player. Asserted as an ABSENCE so the chip cannot return.
+  await expect(map).not.toContainText("MA-3");
 
   // KEYBOARD — leave and come back with Enter, so the path is proven independently of the click above.
   await component.getByRole("tablist", { name: "Game state" }).getByRole("tab", { name: "Scene" }).click();
@@ -1953,7 +1984,7 @@ test("HUD-1 §7.2: only the PHASE-LOCKED cell carries a `title` — a live cell'
   const component = await mount(<RpgTakeoverStory />);
   const rail = component.getByRole("tablist", { name: "Game state" });
   await expect(rail.getByRole("tab", { name: "Inventory" })).not.toHaveAttribute("title", ANY_TITLE);
-  await expect(rail.getByRole("tab", { name: "Map" })).toHaveAttribute("title", "Maps unlock with the map arc (MA-3)");
+  await expect(rail.getByRole("tab", { name: "Map" })).toHaveAttribute("title", "Maps unlock with the map arc");
 });
 
 test("HUD-1: the ACTIVE cell's caption takes the cell's accent state colour (the Text primitive must not win)", async ({ mount, page }) => {

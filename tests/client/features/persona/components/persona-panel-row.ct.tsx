@@ -4,7 +4,75 @@
 // also "set current" (the stopPropagation crutch is gone because the elements no longer nest).
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { PersonaPanelRowStory } from "../_ct-stories.tsx";
+import { PersonaPanelRowDenseStory, PersonaPanelRowStory } from "../_ct-stories.tsx";
+
+// ── The shared-cell width fence (side-eye 2026-08-06 P1) ────────────────────────────────────────────
+// The row's two trailing clusters — the rest-visible MARKERS and the hover-revealed ACTIONS — are never
+// both painted, but as flow siblings they both RESERVED width, so a 358px rail row spent 188px on a strip
+// that shows at most 114px of content and left the name column 58px. They now share one `<Layer>` cell.
+//
+// MEASURED, not asserted-by-class: the fix is a geometry claim, so the fence reads geometry. It shoots the
+// dense row at the PRODUCTION 358px width (the narrowest real host) with every marker lit.
+
+test("the name column keeps its share of the row — the markers and actions share one cell", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowDenseStory />);
+  const name = component.locator('[data-slot="persona-row-name"]');
+  await expect(name).toBeVisible();
+  const [nameWidth, rowWidth] = await name.evaluate((el: HTMLElement): readonly [number, number] => [
+    el.getBoundingClientRect().width,
+    (el.parentElement as HTMLElement).getBoundingClientRect().width,
+  ]);
+  // MEASURED: 58/358 ≈ 0.16 before, 140/358 ≈ 0.39 after. The floor is a FRACTION of the row so it survives
+  // a token retune of the row's padding or the avatar box, and it is set BELOW the measured value rather
+  // than at it — this fences the collapse, it does not pin the pixel.
+  expect(nameWidth / rowWidth).toBeGreaterThan(0.35);
+});
+
+// The ratio above is the mechanism; THIS is the symptom. The shipped row rendered the seed persona as
+// "Tra…" over "Your def…" — two truncations in a 358px panel with 188px reserved for a strip showing 114px.
+test("the dense row renders the persona's whole name and subtitle — neither is clipped", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowDenseStory />);
+  const name = component.locator('[data-slot="persona-row-name"]');
+  await expect(name).toBeVisible();
+  // `truncate` clips by overflow, so the tell is scrollWidth > clientWidth on the elements that carry the
+  // text — not the string, which is present in the DOM either way (which is exactly why a text assertion
+  // would have passed against the defect).
+  const clipped = await name.evaluate((el: HTMLElement): readonly string[] =>
+    Array.from(el.querySelectorAll<HTMLElement>(".truncate"))
+      .filter((node) => node.scrollWidth - node.clientWidth > 1)
+      .map((node) => node.textContent ?? ""),
+  );
+  expect(clipped).toEqual([]);
+});
+
+test("both trailing clusters occupy the same cell — the strip is as wide as the WIDER one, not their sum", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowDenseStory />);
+  const name = component.locator('[data-slot="persona-row-name"]');
+  await expect(name).toBeVisible();
+  // The two cluster Rows are the Layer's children; a shared cell means identical left edges (they are
+  // placed into ONE grid area). Side-by-side siblings — the defect — cannot produce that.
+  const overlaid = await name.evaluate((el: HTMLElement): boolean => {
+    const layer: HTMLElement | undefined = Array.from((el.parentElement as HTMLElement).children).find(
+      (child): boolean => getComputedStyle(child as HTMLElement).display === "grid",
+    ) as HTMLElement | undefined;
+    if (layer === undefined || layer.children.length !== 2) {
+      return false;
+    }
+    const [markers, actions] = Array.from(layer.children).map((child) => child.getBoundingClientRect());
+    return markers !== undefined && actions !== undefined && Math.abs(markers.left - actions.left) < 1 && Math.abs(markers.right - actions.right) < 1;
+  });
+  expect(overlaid).toBe(true);
+});
+
+// The a11y half of the same finding: at rest the row announced "Favorited" (the marker) AND "Unfavorite"
+// (the always-mounted reveal button) — one fact, twice. The marker is now ornament; the verb is the one
+// statement. The DEFAULT crown keeps its name, because its verb disappears exactly when the state is true.
+test("a favorited row states 'favorited' ONCE; the default crown keeps its own name", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowDenseStory />);
+  await expect(component.getByRole("button", { name: "Unfavorite" })).toBeAttached();
+  await expect(component.getByRole("img", { name: "Favorited" })).toHaveCount(0);
+  await expect(component.getByRole("img", { name: "Your default" })).toBeVisible();
+});
 
 test("the 'set current' target is a real native <button>, not a role=button div", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowStory />);

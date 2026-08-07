@@ -198,7 +198,12 @@ export function MenuSubmenuTrigger(props: MenuSubmenuTriggerProps): ReactElement
   return (
     <BaseMenu.SubmenuTrigger className={slots.submenuTrigger({ className })} data-slot="menu-submenu-trigger" {...rest}>
       {children}
-      <Icon className={slots.itemIndicator()} icon={ChevronRight} size="sm" />
+      {/* The chevron rides its own BOX, not a bare `<svg>`: `item`'s leading-gutter rule withdraws the
+          gutter from a row whose first ELEMENT child is an svg, and a text-only trigger's first element
+          child would otherwise be this trailing chevron — suppressing exactly the gutter it needs. */}
+      <span className={slots.submenuChevron()} data-slot="menu-submenu-chevron">
+        <Icon icon={ChevronRight} size="sm" />
+      </span>
     </BaseMenu.SubmenuTrigger>
   );
 }
