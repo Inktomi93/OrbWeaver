@@ -678,14 +678,18 @@ export function classifyDist(opts: { readonly distIndexMtimeMs: number | null; r
 // ── the /api/_debug arming probe ─────────────────────────────────────────────────────────────────────
 
 /** What an UNAUTHENTICATED `GET /api/_debug/info` tells us about the live instance's debug posture.
- *  `open` is not a defect: the gate's first arm is an admin-session check, and a single-user dev stack
- *  answers every caller as admin (`createDebugAuthMiddleware`, foundation/observability/debug/routes.ts). */
+ *
+ *  Since AUTHFIX-2 (2026-08-07) the expected answer from a plain dev stack is `token` (or `off`), NOT `open`.
+ *  The gate's first arm requires an admin SESSION — a validated cookie or a verified SSO identity — and this
+ *  probe deliberately presents neither. It used to read `open` on any single-user stack because that arm
+ *  admitted the un-credentialed owner fallback; that was the hole, not a feature. `open` now means a real
+ *  admin cookie rode the probe, which for this un-credentialed fetch means: investigate. */
 export type DebugPosture =
-  /** 404 — `DEBUG_TOKEN` unset and the caller is not admin: the whole surface is off. */
+  /** 404 — `DEBUG_TOKEN` unset and the caller presented no admin session: the whole surface is off. */
   | "off"
-  /** 401 — the token gate is ARMED and we did not present one. */
+  /** 401 — the token gate is ARMED and we did not present one. The normal answer for an armed stack. */
   | "token"
-  /** 200 — reachable without a token because the admin arm passed (dev single-user / an admin cookie). */
+  /** 200 — reachable with no credential at all. Post-AUTHFIX-2 this should be unreachable for this probe. */
   | "open"
   /** No answer at all. */
   | "unknown";
@@ -712,9 +716,9 @@ export function debugPostureText(posture: DebugPosture, tokenPath: string): stri
     case "token":
       return `ARMED (token gate) — token in ${tokenPath} (value never printed)`;
     case "open":
-      return "reachable WITHOUT a token — the admin arm passes (single-user auth or an admin cookie)";
+      return "⚠ reachable with NO credential — expected 401/404 since AUTHFIX-2; investigate the debug gate";
     case "off":
-      return "off (DEBUG_TOKEN unset — /api/_debug/* 404s)";
+      return "off (DEBUG_TOKEN unset and no admin session — /api/_debug/* 404s)";
     default:
       return "unknown (no live instance answering)";
   }

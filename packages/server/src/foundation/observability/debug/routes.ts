@@ -1,7 +1,14 @@
-// The /api/_debug surface: observability's read side. The two-tier auth gate (admin-cookie
+// The /api/_debug surface: observability's read side. The two-tier auth gate (admin-session
 // short-circuit → DEBUG_TOKEN fallback), the route registrar, and the structural-injection ports
 // (`AssetInspector`, `AdminAuthChecker`) whose impls entry/ supplies. The DB probes need no port — they
 // read @orb/db directly.
+//
+// THIS GATE IS THE ENTIRE BOUNDARY for every route below. The probes are deliberately principal-BLIND
+// whole-db reads (`@owner-scope-ok`, D20) — they take ids from QUERY PARAMS, never from auth — so whatever
+// this middleware admits reads the whole deployment. Two credentials pass and nothing else: an admin/owner
+// SESSION (`AdminAuthChecker`) or the `x-debug-token` operator secret. An un-credentialed caller must never
+// pass in any AUTH_MODE, with or without a configured token; that invariant's enforcer is
+// `tests/server/entry/debug-gate.suite.test.ts` (AUTHFIX-2 — it did not hold until 2026-08-07).
 
 import { Buffer } from "node:buffer";
 import { timingSafeEqual } from "node:crypto";
@@ -133,7 +140,13 @@ export interface AssetInspector {
 
 /** Admin-auth gate — structural-injection so foundation accepts the entry auth resolver without importing
  *  it. Consulted before the token check. `isAdmin` must never throw (a transport/db error resolves to
- *  `false` so a misbehaving seam can't open the gate). */
+ *  `false` so a misbehaving seam can't open the gate).
+ *
+ *  THE IMPLEMENTOR'S CONTRACT, and the one this port cannot check for itself: `true` means the caller
+ *  PRESENTED an admin credential. Because this arm short-circuits BOTH the token comparison and the
+ *  `expectedToken === undefined` → 404 branch, an impl that returns `true` for a merely-inferred principal
+ *  opens the entire surface unconditionally — which is exactly what the production impl did until
+ *  AUTHFIX-2 (`entry/auth/seam.ts::DEBUG_GATE_CREDENTIALED`). An ORIGIN is not a credential. */
 export interface AdminAuthChecker {
   isAdmin: (headers: Headers) => Promise<boolean>;
 }
@@ -157,7 +170,8 @@ export interface SocketInspector {
 /** Gate config. Tests construct the middleware directly; production wires it via `registerDebugRoutes`. */
 export interface DebugAuthOptions {
   expectedToken: string | undefined;
-  /** When set, an admin session cookie passes the gate without a token (token stays the headless fallback). */
+  /** When set, an admin SESSION passes the gate without a token (the token stays the headless fallback —
+   *  `scripts/probes/*` and the e2e harness use it). Read `AdminAuthChecker`'s contract before wiring one. */
   adminAuth?: AdminAuthChecker;
 }
 
