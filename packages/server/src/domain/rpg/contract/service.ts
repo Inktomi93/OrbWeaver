@@ -94,6 +94,28 @@ export type NewRpgSnapshot = typeof rpgSnapshots.$inferInsert;
  *  (substrate-not-a-type-home). */
 export type WriteStagedSnapshotResult = { readonly ok: true; readonly row: RpgSnapshotRow } | { readonly ok: false; readonly reason: string };
 
+/** WHICH arm of the D124 ladder produced a resolved head (`resolveSnapshotHead`, `persistence/snapshots.ts`).
+ *  `turn` = the last visible assistant slot's selected variant · `hand` = the newest message-less hand row ·
+ *  `fallback` = NEITHER rung existed and the game-wide latest-committed/latest-any walk answered instead.
+ *
+ *  The distinction is LOAD-BEARING, not diagnostic. A `fallback` row is not at the ladder's tip: it belongs to
+ *  whatever slot happened to sort last game-wide, which during an IN-FLIGHT FLUSH (the tail slot's snapshot
+ *  does not exist yet — that is what in-flight means) is an OLDER turn's still-uncommitted draft. A caller
+ *  deciding "may I edit this row IN PLACE?" must therefore ask which arm answered: only a `turn` rung is the
+ *  head the panel reads and the next base resolves. */
+const RPG_SNAPSHOT_HEAD_ARMS = ["turn", "hand", "fallback"] as const;
+type RpgSnapshotHeadArm = (typeof RPG_SNAPSHOT_HEAD_ARMS)[number];
+
+/** A resolved head plus its ladder provenance: the row, the arm that produced it, and the seq it sits at (the
+ *  ladder's first sort key). `seq` lets a caller ask "is this head at MY slot?" — the flush's post-write
+ *  reconciliation must fold into a hand row stamped at its OWN slot and never into one stamped further down
+ *  the story, which would resurrect an old turn's state into the present. */
+export interface ResolvedSnapshotHead {
+  readonly row: RpgSnapshotRow;
+  readonly arm: RpgSnapshotHeadArm;
+  readonly seq: number;
+}
+
 export type RpgSheetRow = typeof rpgSheets.$inferSelect;
 
 export type RpgJournalRow = typeof rpgJournal.$inferSelect;
