@@ -3,6 +3,14 @@
 > **⛔ DEV HALTED** — further feature work is blocked until this doc is cleared.
 > Issues sourced from: owner dogfood 2026-08-03 · NB multi-user report · JF multi-user report ·
 > RPG card-engine investigation 2026-08-04.
+>
+> **CAMPAIGN LIVE (2026-08-07, owner-ordered):** this doc is the active priority — every open row
+> fixed or adjudicated, every ✅ row's owed test written, verifier + side-eye passes before the halt
+> lifts. Rulings banked 2026-08-07: **EMPTYGEN-REASONING = arm 1, RECOVER-don't-discard**
+> (question-tool). Overnight-ladder defaults (logged, reversible): **weather vocab gains `indoors`**
+> (the exact token the model sent; `dusk` stays excluded per the standing taste ruling) ·
+> **existing `persona_id = NULL` rows are ACCEPTED** (Traveler floor) — retroactive repair is an
+> irreversible-class owner call, parked for morning.
 
 **Severity:** (M) correctness/behavior · (S) cosmetic/recoverable · (L) tooling/design gap
 **Status:** 🔴 open · 🟡 partial · ✅ fixed
@@ -730,7 +738,12 @@ the wire seam or the flush is where the data exists.
 
 ---
 
-### EMPTYGEN-REASONING — reasoning turns fail with "model returned no text" (M 🔴) ✓ ROOT-CAUSED
+### EMPTYGEN-REASONING — reasoning turns fail with "model returned no text" (M 🔴 → RULED) ✓ ROOT-CAUSED
+
+> **OWNER RULED 2026-08-07 (question-tool): option 1 — RECOVER rather than discard.** On a
+> prose-less completion whose tool calls parsed: apply the state writes, then issue a short
+> continuation for the narrative. Matches the observed tool-calls-land-last ordering. In build
+> (lane DOG-ENGINE); EMPTYGEN-UNLOGGED's warn already ships.
 
 **Reporter:** owner (live) · **Confirmed:** the rendered paragraph was **reasoning text**, not message body
 
@@ -1506,10 +1519,11 @@ is a workaround that fixes one dialog size but not the underlying layout rigidit
 
 | Bug | Fix | Commit |
 | - | - | - |
-| MEMBERS-TAB-DEADLOCK | `membersTabJustified` host arm; 2 tests | 🟡 `0c4f1755f` (uncommitted) |
-| PERSONA-MISATTRIBUTION render | Reads `chatDetail.viewerUserId/viewerActivePersonaId`; "Traveler" floor; 3 tests | 🟡 `d167e0ff0` (uncommitted) |
+| MEMBERS-TAB-DEADLOCK | `membersTabJustified` host arm; 2 tests | ✅ `0c4f1755f` |
+| PERSONA-MISATTRIBUTION render | Reads `chatDetail.viewerUserId/viewerActivePersonaId`; "Traveler" floor; 3 tests | ✅ `d167e0ff0` |
 | CSP eval violation (Zod) | Zod jitless before schema builds | ✅ `0993abf7f` |
 | OWNER SEAT | Pinned `OWNER_HANDLES`; swapped roles; seeded placeholder → admin | ✅ live |
+| CARD-KEEP adjacent: non-game chats un-stubbed | `cardKeepLastX` ABSENT ⇒ no window, threaded end-to-end (a non-rpg chat's immersive cards ride the wire whole — was silently the strictest setting) | ✅ lane CARDKEEP `9b591f09`, merged 2026-08-07 |
 
 ---
 
