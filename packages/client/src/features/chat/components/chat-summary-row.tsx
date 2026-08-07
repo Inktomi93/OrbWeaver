@@ -21,9 +21,10 @@ import { Avatar } from "@orb/ui/avatar";
 import { AvatarStack } from "@orb/ui/avatar-stack";
 import { Badge } from "@orb/ui/badge";
 import { Icon, Star, Swords } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement, ReactNode } from "react";
-import { ROW_REVEAL_SWAP, RowToggleAction } from "#components";
+import { ROW_ACTION_INLINE, ROW_REVEAL_SWAP_COARSE_KEEP, RowToggleAction } from "#components";
 import { cn, timeLib } from "#lib";
 import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
 import { chatRowActionName, chatSummaryRowView } from "../lib/chat-summary-row.ts";
@@ -118,7 +119,11 @@ function rowMarkers({
       {/* The GAME marker (rpg-design/05 §2.1 — `metadata.rpg` presence): the quiet twin of the star,
           labelled so the datum is TEXT for a screen reader, muted so it reads as a mark, not an action. */}
       {chat.isGame ? <Icon className="text-muted-foreground" icon={Swords} label="Game chat" size="sm" /> : null}
-      {chat.star ? <Icon className={cn("text-warning", interactive && ROW_REVEAL_SWAP) ?? ""} icon={Star} label="Starred" size="sm" /> : null}
+      {/* COARSE KEEPS THE MARKER (side-eye 2026-08-07 finding 6): the star TOGGLE collapses into the kebab
+          at a coarse pointer, so the plain `ROW_REVEAL_SWAP` would have hidden the marker while the control
+          carrying the same datum was also gone — a starred chat with no star anywhere on the row. The swap
+          is hover-only there; see `ROW_REVEAL_SWAP_COARSE_KEEP`. */}
+      {chat.star ? <Icon className={cn("text-warning", interactive && ROW_REVEAL_SWAP_COARSE_KEEP) ?? ""} icon={Star} label="Starred" size="sm" /> : null}
       {chat.archived ? (
         <Badge intent="neutral" size="sm" tone="soft">
           Archived
@@ -165,15 +170,24 @@ export function ChatSummaryRow({
                     control. It is always reveal-gated (`rest="never"`) because the title-line ★ marker is
                     what carries the pressed state at rest, and the two must never paint together. */}
                 {onToggleStar === undefined ? null : (
-                  <RowToggleAction
-                    icon={Star}
-                    labelOff={`Star ${rowName}`}
-                    labelOn={`Unstar ${rowName}`}
-                    onToggle={(): void => onToggleStar(!chat.star)}
-                    pressed={chat.star}
-                    pressedClassName="text-warning"
-                    rest="never"
-                  />
+                  // THE COARSE COLLAPSE (side-eye 2026-08-07 finding 6). `ROW_REVEAL` pins this toggle ON at a
+                  // coarse pointer, where it is a 44-48px touch box — so every row of the 320px roster spent
+                  // 96px on an EMPTY star plus the kebab and left "Example — The Ashen Spire" 62px of 296px.
+                  // The kebab already carries Star for both pointers (the mirror-parity ruling in
+                  // chat-list-row-menu.tsx), so this arm needs no coarse twin: the inline control simply
+                  // stands down and the menu is the one door. The title-line ★ marker above stays visible
+                  // there, so the STATE never leaves the row — only the affordance moves.
+                  <Row align="center" className={ROW_ACTION_INLINE}>
+                    <RowToggleAction
+                      icon={Star}
+                      labelOff={`Star ${rowName}`}
+                      labelOn={`Unstar ${rowName}`}
+                      onToggle={(): void => onToggleStar(!chat.star)}
+                      pressed={chat.star}
+                      pressedClassName="text-warning"
+                      rest="never"
+                    />
+                  </Row>
                 )}
                 {menu}
               </>
