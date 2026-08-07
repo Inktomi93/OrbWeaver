@@ -45,8 +45,10 @@ export function AvatarStack({ className, items, max = DEFAULT_MAX, size = "md", 
   return (
     // biome-ignore lint/a11y/useSemanticElements: <fieldset> is a form-grouping control (needs a <legend>) — semantically wrong for a decorative avatar cluster; role="group" has no native element equivalent here.
     <div
-      {...rest}
+      // The default accessible name sits BEFORE the spread ON PURPOSE (ui-accname-survives-spread): JSX
+      // later-wins, so a caller-passed aria-label ("N characters") beats this generic fallback.
       aria-label={`${count} ${count === 1 ? "person" : "people"}`}
+      {...rest}
       className={cn(slots.root(), className)}
       data-slot="avatar-stack-root"
       role="group"
