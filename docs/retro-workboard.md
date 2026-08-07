@@ -507,6 +507,18 @@ identity chrome for ANY row kind.
   accumulation (per-sweep dirs or drop the rm), then a full two-arm re-sweep upgrades the atlas §2
   from source-pinned to measured — the doc is structured for that drop-in). **UPGRADED to STATLAS leg 2 (owner word 2026-08-07): rig+comparator fixes + the re-sweep are IN BUILD, capture step held until the battery lands.**
 
+- **CRUNCH (owner-recalled 08-08, recorded so they stop being forgotten):**
+  **(a) The injection note-framings are HARDCODED prose** — `[Note from system: …]` / the demote
+  wrapper vocabulary in `assembly/injections.ts` is not exposed anywhere an owner can edit (not in
+  the preset template tab). PROSE-1 class (\[\[prose-is-user-editable]]): these become host-editable
+  data with versioned defaults. **(b) TWO TEMPLATING SYSTEMS need unification** — one in presets,
+  one in settings (owner-sighted); locate both, map their vocabularies, one engine per D-law
+  (engine-vs-data: the macro engine is kit; the TEMPLATES are the data — two template stores is the
+  two-homes smell). Evidence method: owner sighting, unverified counts — a lane's first job is the
+  census. **(c) LEAD, not a row** — cards may stub differently when adjacent to/inside `[ ]`
+  bracket framing (the demote-wrapper class); possibly already dead with the CARD-KEEP fixes.
+  Repro before believing: drive a card inside a bracket-framed injection through the tokenizer.
+
 ## ═══ ARCHIVE-RESCUED FOLLOW-UPS (owner ruling 2026-08-03: a named follow-up goes ON THE BOARD) ═══
 
 > **Why this section exists.** Lanes ended seal blocks with follow-ups they named but did not build; those
