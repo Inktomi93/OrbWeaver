@@ -506,6 +506,23 @@ export async function commitSnapshotForVariant(db: Db, variantId: MessageVariant
   await db.update(rpgSnapshots).set({ committed: COMMITTED }).where(eq(rpgSnapshots.variantId, variantId));
 }
 
+/** The seq of the chat's LAST VISIBLE ASSISTANT SLOT, or `undefined` on a chat with none — "which beat is the
+ *  story currently on". The flush's fold asks it to tell its two shapes apart: a flush whose slot IS that beat
+ *  was raced by a concurrent writer (reconcile, or say so out loud), while a flush for an EARLIER slot is a
+ *  REGEN of an old message whose row is legitimately superseded by the beats after it — folding that turn's
+ *  writes into the current head would inject an old beat's consequences into the present, and shouting about it
+ *  would be noise about the normal case. Same visibility predicate as {@link turnRung}'s slot walk, minus the
+ *  snapshot join (the fold's question is about the STORY's position, not about whether a row exists there). */
+export async function findLatestAssistantSlotSeq(db: Db, chatId: ChatId): Promise<number | undefined> {
+  const rows = await db
+    .select({ seq: messages.seq })
+    .from(messages)
+    .where(and(eq(messages.chatId, chatId), eq(messages.role, "assistant"), eq(messages.excludedFromPrompt, false)))
+    .orderBy(desc(messages.seq))
+    .limit(LIMIT_ONE);
+  return rows[0]?.seq;
+}
+
 /** The `seq` of a message (the just-committed user message — `onUserCommit`), or `undefined` if it vanished
  *  (a racing delete). Used to locate the assistant slot the user was replying to (the seq strictly below it). */
 export async function findMessageSeq(db: Db, messageId: MessageId): Promise<number | undefined> {

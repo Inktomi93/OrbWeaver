@@ -58,10 +58,21 @@ export interface HandSnapshotTarget extends SnapshotWriteBase {
 
 /** What the accumulator flushes for a completed turn: the effective composed state (base overlaid by every
  *  staged tool write, locks already honored) plus the staged journal entries to stamp with the committed
- *  variant. */
+ *  variant — AND the raw patches that produced the state, in stage order.
+ *
+ *  WHY THE PATCHES RIDE ALONG (HAND-EDIT-VS-FLUSH fix leg): `state` is `preSlotBase + writes`, and the base half
+ *  of it is STALE the moment a hand edit lands mid-flight. Replaying `state` onto the hand head therefore
+ *  re-asserts the stale base over the human's gesture — a mid-flight `dismissActor`/`deleteQuest` was UNDONE
+ *  that way (the removal verbs clear their locks by design, so nothing stopped the base's copy of the actor
+ *  from being re-inserted). The PATCHES are what the round actually wrote and nothing else, so replaying THEM
+ *  can never resurrect a datum the round never mentioned. The flush writes its row from `state` (a variant's
+ *  snapshot stays absolute, VER-1a); only the fold uses `patches`. */
 export interface StagedTurnFlush {
   readonly state: RpgSnapshotState;
   readonly journal: readonly StagedJournalEntry[];
+  /** Every patch staged for this turn, in the order it was staged — the tools' mid-turn writes and/or the
+   *  round's delta. Replayed in the same order by the fold, so the composition is identical to `state`'s. */
+  readonly patches: readonly Record<string, unknown>[];
 }
 
 /** A journal entry a tool staged mid-turn — flushed at commit stamped with the COMMITTED variant's id
