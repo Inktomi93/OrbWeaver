@@ -1687,6 +1687,37 @@ Items this audit could not prove either way from the tree. **None were dropped.*
   Keep briefing the refusal right explicitly; keep marking which brief claims are VERIFIED vs
   RELAYED.
 
+**⚑ WHAT 2026-08-07 TAUGHT THE ORCHESTRATOR (the identity-spine + fork-security + phone day)**
+
+- **A SIDE-EYE SYMPTOM IS GOLD; ITS MECHANISM PRESCRIPTION IS A PROPOSAL.** Check any structural
+  prescription against the D-ledger AND the touched files' headers BEFORE relaying it. I forwarded
+  "drop both panel toggles from the phone" verbatim; the lane found it would reverse an owner-ruled
+  law stated in two headers, and killed the finding's stated mechanism with the reviewer's OWN
+  screenshot. Three forks this day turned on one principle: **a prescription is satisfied when its
+  SYMPTOM is dead — do not reverse a recorded ruling to satisfy the letter afterward.**
+- **WHEN A RULING'S PREMISE DIES, RE-RULE — DO NOT DEFEND IT.** I preserved a row's 32% name lane
+  because a cluster "reserves the words"; at `pointer: coarse` those words are `display:none`, so
+  the premise was false on the surface in question. A ruling holds where its premise holds.
+- **BATCH THE FRESH LENS BY CHUNK, AND BRIEF IT TO ATTACK THE CLAIM, NOT RE-RUN THE SUITE.** Three
+  multi-chunk verifiers this day; the refutations came from driving PRODUCTION shapes and from
+  attacking the lane's own flagged judgement calls. **Nine passes, six refutations — every one a
+  defect that was already merged, gate-green and believed done.**
+- **LOAD + INSTRUMENT COLLISIONS ARE ORCHESTRATION BUGS, not bad luck:** fix-leg floors count as
+  gate-heavy lanes for the stagger cap · the battery's behavioral phase gets the box (an EMFILE
+  killed one at 5 vite instances / 161 test processes) · NO whole-tree instrument runs while a
+  verifier is live on main (its in-tree probes red-flag your battery) · never pipe the harness
+  (`| tail` cost a run) · never merge while a check is mid-flight — it then measures a tree that no
+  longer exists.
+- **WHEN A LANE DAMAGES A SIBLING, THE ORCHESTRATOR'S JOB IS TO WARN EVERY MID-RUN LANE** — a mass
+  failure with no cause is indistinguishable from a real defect, and the phantom costs more than the
+  accident did.
+- **BRIEF EVERY LANE THAT A CORRECT REFUSAL IS A SUCCESS — it produced SIX premise-kills, THREE of
+  them against briefs I wrote.** The lanes that beat their briefs did it by reading a contract the
+  brief never mentioned (a leak-free NOT_FOUND; a shared per-turn registry; a nonexistent Duplicate
+  command). Put the WHY in the brief and they can tell you when the why is wrong.
+- **Lane deliverables that are TEXT go in `docs/…`, not in a report** — `reports/` is ephemera and a
+  D-entry that lived only there had to be re-derived from the tree weeks later.
+
 **Owner cadence**
 
 - He answers question-tool batches fast and almost always takes the mantra-marked arm — pose ALL
