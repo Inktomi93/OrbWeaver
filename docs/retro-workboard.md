@@ -167,6 +167,24 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   Instrument lesson minted: \[\[mobile-verify-needs-coarse-pointer]] (snap --viewport = FINE pointer;
   design-audit returned 0 P1 on a frame with a P1 — no coarse mode, no overlap rule).
   Side-eye re-verify owed after leg 2 merges.
+- **✅ TEMPLATE-CENSUS MERGED (`269860bcf`, check 14/14; worktree HELD WARM — the (b) unification
+  build is promised to this lane, never a sibling).** The three turn-wire framings are preset-homed
+  editable templates: `chat.injection.systemNote` / `userNote` + `chat.assembly.continuationNudge`
+  (was a const in shape.ts). `promptConfig.prose` minted (= the unification's M1, done); the preset
+  tab's third form path proven on three live rows (M2's extension point); versioned defaults are
+  byte-identical to today's wire. `composeProse` merges DISJOINT home-filtered sets — never a
+  cascade; a stale user-tier key is inert. The decision-8 header carries BOTH rulings verbatim.
+  Red-first 3/259 at a parse tier that compiles against HEAD; CTs 14/14 + 122/122; all three
+  typecheck programs. **⚠ OWNER LOUD:** any override typed in Settings › Model-facing prose for the
+  two note frames since 08-05 STOPS APPLYING — re-enter under Preset › Templates › Format
+  ("System-note frame" / "User-note frame"). **Lane flag held for the owner:** `{{note}}` is a
+  payload carrier but its absence in an edited template only WARNS (never blocks) — posture was
+  ruled at ship; changing it is a policy call. M4 (the prose-coverage gate) remains the top
+  unification residual. Lesson minted: \[\[worktree-ct-runner-resolution]].
+- **⚑ EIGHT OWNER RULINGS BANKED (question-tool, 2026-08-07, two batches):** regex-reasoning display
+  fix · zod stage D in full · the §-refs carve-out · cast guides threaded · settings write-guard
+  lift · tag cliff ACCEPTED · strict default KEPT · orphan-transcript import REJECT (owner override
+  of the characterless rec). Rows annotated in place; buildables dispatched as lane RULED-BATCH.
 - **NEW ROWS from the two lanes + side-eye (each independently landable):**
   - [ ] **STRUCTURED-ROLE CORRELATION FORK** (owner/design) — the `structured` role is chatless by
     contract (`RoleRequestCommon` has no chatId; `WireCapture.chatId` documents "absent on a chatless
@@ -277,9 +295,9 @@ somethign we could swap to if we wanted or like a config thing etc. I dont want 
 The nullable-union arm is now **Settings › Admin › Structured output → "JSON-Schema shape"**, an
 AppSettings-tier knob (DB override wins) reaching `scrubWireSchema` on the real request. **Default
 unchanged.** Full receipts in the RECONCILIATION block at the foot of this file.
-**⚑ THE ONE OWNER ITEM LEFT ON I-1:** whether to make `strict-compatible` the DEFAULT. It is now a
-switch he can flip and live with for a while first — which is the point. Blanket-vs-capability already
-ruled: KEEP BLANKET.
+✅ **I-1's LAST ITEM RULED 2026-08-07 (question-tool): KEEP THE CURRENT DEFAULT** — the owner flips
+the knob when he's felt it (vLLM already pins strict at its own call site regardless). I-1 has NO
+open items. Blanket-vs-capability already ruled: KEEP BLANKET.
 
 ### I-2 · DATABANK — S1 + S2 shipped; S3 unstarted (lane DBFIX live on ingest concurrency)
 
@@ -447,9 +465,11 @@ USER-VISIBLE).
 **OPEN — R6:** the orb-native chat-bundle arm alongside jsonl. It was scoped out HONESTLY and is
 MACHINE-TRACKED: the ACCEPTED-LOSSY / DEFERRED rows each say "ends when R6 lands". O-6
 characterless-import rides it, and so does the standing owner question below.
-**⚑ OWNER ITEMS on this initiative:** the absent-character transcript import policy (refuse vs
-mint-placeholder — PORT recommends the "import as characterless chat" arm) · the JSON-card export
-format (PORT's recommended home: `?format=png|json` on the existing character door) · F9's design fork
+**⚑ OWNER ITEMS on this initiative:** ~~the absent-character transcript import policy~~ — **RULED
+2026-08-07 (question-tool, owner OVERRODE the characterless-chat rec): REJECT — "you shouldn't be
+able to import a transcript without having a character selected." A character must be selected at
+import; the characterless arm is dead, O-6's premise with it. R6 builds against this policy.** ·
+the JSON-card export format (PORT's recommended home: `?format=png|json` on the existing character door) · F9's design fork
 for the chat-anchored planes that are unportable by construction (rpg campaigns · injections · room
 overrides · re-links; plus automation\_rules / global\_variables / plugins, which have no arm at all).
 
@@ -747,8 +767,9 @@ identity chrome for ANY row kind.
   STRIPPED at `parseMessageLine` (silent tolerant-strip matches the parser's own corrupt-line posture;
   the module is zero-I/O so no warn is possible), D124-consistent. Test pins it; flagship fixture
   round-trip unregressed (not regenerated).
-- [ ] **REGEX-REASONING-FIDELITY** (S, owner-call) — REASONING prints at slot 4 but executes
-  post-postProcess. Unobservable today; flagged as an owner call that was never posed.
+- [ ] **REGEX-REASONING-FIDELITY — RULED 2026-08-07 (question-tool): fix the DISPLAY** — the
+  tester/debugger prints REASONING where it truly runs (post-postProcess); execution untouched
+  (instruments must not lie). Dispatched in the RULED-BATCH lane.
 - [ ] **FLAKE-WATCH** (S) — `code-editor.ct` CM6 75ms window + `drawer.ct:162` focus-trap (pre-existing at
   HEAD) have no durable home beyond a watch list.
 - [x] ✅ **HISTORY-GRADUATION RULE — DONE** (SMALLS-BATCH, `be28928f9`): the "check the paragraphs, not
@@ -793,17 +814,18 @@ twice over, not once.
   door for brand glyphs · the `fillRule=evenodd` probe to grow the fillable set.
 - [ ] **AGENT-1-PROGRAM** (L, owner-scoped) — agent-sdk first-class for rpg-lite, 5 named arms explicitly
   scoped-and-not-dispatched, ruled order 2→3→1→4.
-- [ ] **ZOD-STAGE-D-OWNER-GATE** (S–M) — the zod audit's stage D (stringbool / hostname /
-  strip-observability) was **never posed to the owner**; stages A and B both landed.
+- [ ] **ZOD-STAGE-D — RULED 2026-08-07 (question-tool): LAND IN FULL** (stringbool / hostname /
+  strip-observability), premise re-verified first per \[\[audit-lists-are-snapshots]]. Dispatched in
+  the RULED-BATCH lane.
 - [ ] **AMBIENT-NONE-AFFORDANCE** (S) — `ambient-strip.tsx`'s weather/timeOfDay CLOSED vocabs carry no
   "none"/unset member (`RPG_WEATHER_TYPES` / `TIME_OF_DAY`), so they cannot be cleared; location/date
   are free text and can. This is the UI gap behind the unreachable compact arm.
-- [ ] **DOCLAW-RPG-REFS-FORK** (S, decide-then-mechanical) — `compose/rpg.ts` now carries **41**
-  Documentation-Law §-vocab comment refs (up from the 33 first flagged) with no sweep and no carve-out
-  ruling. Pose it: sweep, or write the rationale.
-- [ ] **MACRO-CAST-GUIDES-FORK** (S) — should user macros bind cast guides (appearance/outfit/thoughts)
-  via `celBindings`? `macro-view.ts`'s cast projection still omits all three. If the answer is no, note
-  the asymmetry in the file.
+- [ ] **DOCLAW-RPG-REFS — RULED 2026-08-07 (question-tool): MINT THE CARVE-OUT** — comments citing
+  law by §/D-number are sanctioned house style; one paragraph in Documentation-Law, no sweep
+  (\~4,066 refs / 1,151 files of churn avoided). Orchestrator writes the law paragraph.
+- [ ] **MACRO-CAST-GUIDES — RULED 2026-08-07 (question-tool): THREAD THEM** — the cast projection
+  gains appearance/outfit/thoughts via the existing celBindings channel. Dispatched in the
+  RULED-BATCH lane.
 - [x] ~~**EMBER-VOCAB-SWEEP**~~ — **PREMISE WRONG, and acting on it would have DONE HARM.** "ember" is the
   deliberate house nickname for `--color-primary`/accent: a REAL token name in
   `packages/ui/src/tokens/tokens.json:166` (`sky-ember`, `sky-ember-deep`) plus `chart-1`'s
@@ -813,8 +835,9 @@ twice over, not once.
   label across `packages/**`; all three cited files already say **"lockdown §12"**
   (`chat-options-menu.tsx:37`, `rpg-choice-echo.tsx:7`, `use-rpg-mutations.ts:223`). It survives only
   in history/audit docs — those are RECORDS of the finding, not the thing to fix.
-- [ ] **IMPORT-SETTINGS-WRITE-GUARD** (S, owner-taste) — `import-user-settings` bypasses the write-boundary
-  guard (heals+warns at READ instead of refusing at WRITE); lift on want.
+- [ ] **IMPORT-SETTINGS-WRITE-GUARD — RULED 2026-08-07 (question-tool): LIFT INTO IMPORT** — the
+  import verb runs the same write-boundary validation as every settings writer; refuse loudly at
+  write; the heal-at-read arm becomes deletable. Dispatched in the RULED-BATCH lane.
 
 **⚑ ARCHIVE2's own UNVERIFIED tail** (flagged, not asserted — each is one targeted grep from a verdict):
 the six named UNREACHED side-eye items (waystone-compact · impersonate+1 · scene-lightbox · Status
@@ -928,9 +951,10 @@ when coverage changes, not left to be contradicted by the section above it.**
 2. **The three nudge default texts** (I-8) — his veto, verbatim in NARCOLOR's report.
 3. **Structured-output nullable-union reshape** (I-1) — the A/B call.
 4. **Presets into the config rail** (I-3) — owner-timed, one array member forever.
-5. ✅ **`tags.sortOrder`** — AUDITED + RULED KEEP-BUT-NARROW (I-4). **One question left for him:** the
-   drag arm caps at 30 items while the library is \~400 — manual order is unreachable for \~92% of tags yet
-   still decides character-card chip order. His call whether that cliff is right.
+5. ✅ **`tags.sortOrder`** — AUDITED + RULED KEEP-BUT-NARROW (I-4). **The cliff question RULED
+   2026-08-07 (question-tool): ACCEPT the ≤30 drag cap** — manual curation is a small-set affordance;
+   the retire-manual question folds into the Alphabetical/Most-Used sort-modes build when it lands.
+   Item CLOSED.
 6. **DRAFT-TRUST** — drafts run the untrusted floor (strip `<i>`/`<b>`), committed `trustHtml` renders
    them; needs a "what render policy would this card get" server seam. Architecture call.
 7. **AGENT-1** — agent-sdk FIRST-CLASS for rpg-lite. Plumbing is \~complete (terminal tools · stateful
