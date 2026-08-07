@@ -116,6 +116,27 @@ export interface ResolvedSnapshotHead {
   readonly seq: number;
 }
 
+/** What the flush's post-write reconciliation did (`foldTurnWriteIntoHandHead`). EVERY arm carries `headId` —
+ *  the snapshot that is head once the fold has run — because the `snapshotPatched` event must name the row the
+ *  panel will actually resolve, and on three of these four arms that is NOT the row the flush just wrote.
+ *
+ *  The arms are TOTAL by construction, which is the point: the previous shape returned `null` for "not folded"
+ *  and so could not tell "nothing was shadowing us" apart from "something erased us and we said nothing" — a
+ *  silent loss window the verifier drove (the user sends their next message mid-flight, then hand-edits).
+ *    • `head`      — the flush's own row is head. The ordinary flush; nothing to reconcile.
+ *    • `folded`    — a hand row outranked it and this turn's writes were replayed onto that row.
+ *    • `refused`   — the fold was attempted and the merged state failed the contract belt. Nothing was written;
+ *                    the turn's writes stay shadowed, and `reason` says why (LOGGED, never silent).
+ *    • `shadowed`  — something outranks the flush's row that is not foldable (a sibling variant selected by a
+ *                    mid-flight swipe, a concurrent later turn). The turn's writes are lost; `reason` says what
+ *                    won. Deliberately distinct from `refused`: one is a rejected merge, the other never had a
+ *                    merge to attempt. */
+export type TurnWriteFoldOutcome =
+  | { readonly kind: "head"; readonly headId: RpgSnapshotId }
+  | { readonly kind: "folded"; readonly headId: RpgSnapshotId }
+  | { readonly kind: "refused"; readonly headId: RpgSnapshotId; readonly reason: string }
+  | { readonly kind: "shadowed"; readonly headId: RpgSnapshotId; readonly reason: string };
+
 export type RpgSheetRow = typeof rpgSheets.$inferSelect;
 
 export type RpgJournalRow = typeof rpgJournal.$inferSelect;
