@@ -183,9 +183,18 @@ test("STARS ARE ATTENUATED BY THE DECK ABOVE THEM — a clear night is full of t
   expect(resolveWaystoneTreatment(12, "storm").starOpacity).toBe(0);
 });
 
+/** The DECKLESS pair — the two members that paint no cloud slots, and the only two, for OPPOSITE reasons:
+ *  `clear` is an unveiled sky (nothing up there), `indoors` is an occluded one (no sky to read at all). Every
+ *  other member is a state OF the sky and owes a deck. Named once so both invariants below carve the same
+ *  hole and neither can silently widen. */
+const DECKLESS_WEATHERS: readonly WaystoneWeather[] = ["clear", "indoors"];
+
 test("`clear` means CLEAR — zero cloud slots (a lone 22%-opacity puff read as a smudge, not weather)", () => {
   expect(waystoneWeatherRecipe("clear").clouds.count).toBe(0);
-  for (const weather of WAYSTONE_WEATHERS.filter((w) => w !== "clear")) {
+  // `indoors` is deckless too, and that is the POINT: painting a cloud deck on a scene that cannot see the
+  // sky would be the stone asserting weather nobody in the fiction can observe.
+  expect(waystoneWeatherRecipe("indoors").clouds.count).toBe(0);
+  for (const weather of WAYSTONE_WEATHERS.filter((w) => !DECKLESS_WEATHERS.includes(w))) {
     expect(waystoneWeatherRecipe(weather).clouds.count, `${weather} deck`).toBeGreaterThan(0);
   }
 });
@@ -214,7 +223,7 @@ test("the raw star ramp is lit through the night, dark through the day, and cont
 });
 
 // ── The discrete weather axis ───────────────────────────────────────────────────────────────────
-test("EXHAUSTIVE: all eight weather recipes carry every layer slot, and no two are the same stack", () => {
+test("EXHAUSTIVE: all nine weather recipes carry every layer slot, and no two are the same stack", () => {
   const seen = new Map<string, string>();
   for (const weather of WAYSTONE_WEATHERS) {
     const recipe = waystoneWeatherRecipe(weather);
@@ -230,12 +239,29 @@ test("EXHAUSTIVE: all eight weather recipes carry every layer slot, and no two a
   // Three INDEPENDENT signals per weather (deck · veil · overlay), so a 64px stone still reads "storm" vs
   // "rain" when individual drops are sub-pixel.
   expect(new Set(WAYSTONE_WEATHERS.map((w) => waystoneWeatherRecipe(w).celestialOpacity)).size).toBe(WAYSTONE_WEATHERS.length);
-  expect(new Set(WAYSTONE_WEATHERS.map((w) => JSON.stringify(waystoneWeatherRecipe(w).clouds))).size).toBe(WAYSTONE_WEATHERS.length);
+  // The DECK axis carries a distinct signature per member that HAS a deck. The deckless pair is excluded by
+  // construction (both are `count: 0` — an empty deck cannot be a signal), and they are held apart on the two
+  // remaining axes instead, asserted directly below. Widening this exclusion is how the 64px read dies, so it
+  // is pinned to exactly the two.
+  const decked = WAYSTONE_WEATHERS.filter((w) => !DECKLESS_WEATHERS.includes(w));
+  expect(new Set(decked.map((w) => JSON.stringify(waystoneWeatherRecipe(w).clouds))).size).toBe(decked.length);
   // `clear` is a real treatment (an unveiled sky), never a fallthrough.
   expect(waystoneWeatherRecipe("clear").overlay).toBe("none");
   expect(waystoneWeatherRecipe("clear").wash).toBeNull();
   expect(waystoneWeatherRecipe("clear").particles).toBeNull();
   expect(waystoneWeatherRecipe(null)).toEqual(waystoneWeatherRecipe("clear"));
+  // …and `indoors` is its OPPOSITE, not its twin: same empty deck, but the heaviest wash in the table and a
+  // celestial all but extinguished. That is the whole 64px read for the occlusion member, so it is asserted
+  // rather than left to the recipe-JSON distinctness above (which a one-character wash edit would satisfy).
+  const indoors = waystoneWeatherRecipe("indoors");
+  expect(indoors.overlay).toBe("indoors");
+  expect(indoors.particles).toBeNull();
+  expect(indoors.bands).toBeNull();
+  expect(indoors.celestialOpacity).toBeLessThan(waystoneWeatherRecipe("storm").celestialOpacity);
+  // The hour must still be READABLE indoors — the dial's primary job does not stop at a door.
+  expect(indoors.celestialOpacity).toBeGreaterThan(0);
+  const heaviest = Math.max(...WAYSTONE_WEATHERS.map((w) => waystoneWeatherRecipe(w).wash?.opacity ?? 0));
+  expect(indoors.wash?.opacity).toBe(heaviest);
 });
 
 test("the storm is the loudest cell on every air axis; the particle layers are animatable by construction", () => {

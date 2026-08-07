@@ -1526,3 +1526,170 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
     expect(types(h.events)).not.toContain("warning");
   });
 });
+
+// ── EMPTYGEN-REASONING: the prose-less RECOVERY pass (owner ruling 2026-08-07 — RECOVER, don't discard) ──
+//
+// THE FIELD DEFECT. A folded rpg turn attaches the extraction tools with `tool_choice:"auto"`. With reasoning
+// on, the model regularly decides those calls discharged the beat: it thinks, it calls the tools, it writes no
+// prose. VER-1b then refused the turn and the model's GOOD STATE WRITES were discarded with the missing reply.
+// The operator saw the reasoning stream stop dead, early, under "the model returned no text".
+//
+// These pin the recovery as a BEHAVIOR, through what the caller and the rpg consumer actually receive: a
+// committed reply, and pass 1's tool calls reaching the flush. Against the pre-fix engine every one of them
+// fails with `empty_generation` — the defect, not a compile error.
+describe("createTurnEngine — a prose-less completion with tool calls is RECOVERED, not discarded", () => {
+  /** A tools-capable connection: `coEmitsProseWithTools` is the terminal-tool attach gate, and it reads
+   *  exactly `capability.tools` present + not `silencesProse`. FABRICATION-OK, same shape as TEST_CAPABILITY. */
+  const toolConnection = (): ReturnType<typeof testConnection> => {
+    const base = testConnection();
+    return { ...base, capability: { ...base.capability, tools: { silencesProse: false } } as typeof base.capability };
+  };
+
+  const TERMINAL_TOOLS = [{ name: "update_scene", description: "the scene", parameters: { type: "object" as const } }];
+
+  /** Pass 1: tool calls + ZERO prose. Pass 2 (the recovery re-run): the narrative. The runner answers by
+   *  INVOCATION, which is also how these tests prove there were exactly two wire calls. */
+  function twoPassRunner(sink: TurnRequest[], secondPass: readonly TurnStreamChunk[]): ChatContext["runChatTurn"] {
+    let call = 0;
+    return (req: TurnRequest) => {
+      sink.push(req);
+      const first = call === 0;
+      call += 1;
+      return (async function* (): AsyncGenerator<TurnStreamChunk> {
+        await Promise.resolve();
+        if (first) {
+          yield {
+            kind: "final",
+            economics: {
+              content: "",
+              tokensIn: 3713,
+              tokensOut: 157,
+              model: "test-model",
+              finishReason: "tool",
+              stopReason: "tool_calls",
+              toolCalls: [{ toolCallId: "c1", name: "update_scene", arguments: '{"weather":"indoors"}' }],
+            },
+          };
+          return;
+        }
+        for (const chunk of secondPass) {
+          yield chunk;
+        }
+      })();
+    };
+  }
+
+  const NARRATIVE: readonly TurnStreamChunk[] = [
+    { kind: "text", text: "The hall settles" },
+    { kind: "final", economics: { content: "The hall settles around you.", tokensOut: 6, model: "test-model", finishReason: "stop" } },
+  ];
+
+  test("THE REPRO, RECOVERED: the turn COMMITS the recovery pass's prose instead of failing", async () => {
+    const chatId = await seedChat(db, "recover-commits");
+    const requests: TurnRequest[] = [];
+    const h = harness(db, { runChatTurn: twoPassRunner(requests, NARRATIVE) });
+
+    const outcome = await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: TERMINAL_TOOLS }));
+
+    // The turn SUCCEEDS and the reply is real canon — this is the whole ruling.
+    expect(outcome.aborted).toBe(false);
+    expect(outcome.messages[0]?.content).toBe("The hall settles around you.");
+    expect(await loadCanonHistory(db, chatId)).toHaveLength(1);
+    expect(types(h.events)).toContain("turnCompleted");
+    expect(types(h.events)).toContain("messageCommitted");
+  });
+
+  test("the state writes SURVIVE — pass 1's tool calls reach the rpg flush, alongside pass 2's prose", async () => {
+    const chatId = await seedChat(db, "recover-carries-calls");
+    const seen: unknown[] = [];
+    const rpg = {
+      onTurnCompleted: (_chatId: ChatId, _messageId: MessageId, _variantId: unknown, _turnId: unknown, turn: { terminalToolCalls: unknown }): Promise<void> => {
+        seen.push(turn.terminalToolCalls);
+        return Promise.resolve();
+      },
+      onTurnAborted: (): Promise<void> => Promise.resolve(),
+    } as unknown as NonNullable<ChatContext["rpg"]>;
+    const h = harness(db, { runChatTurn: twoPassRunner([], NARRATIVE), rpg });
+
+    await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: TERMINAL_TOOLS }));
+    // The flush is fire-and-forget on a detached root — let the task queue drain.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // The calls handed to rpg are PASS 1's. The recovery pass rode tool-less, so its own channel is null;
+    // returning that would silently drop the beat's state, which is the bug this feature exists to fix.
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toEqual([{ toolCallId: "c1", name: "update_scene", arguments: '{"weather":"indoors"}' }]);
+  });
+
+  test("the recovery pass rides TOOL-LESS and carries the continuation ask (never a second discharge)", async () => {
+    const chatId = await seedChat(db, "recover-shape");
+    const requests: TurnRequest[] = [];
+    const h = harness(db, { runChatTurn: twoPassRunner(requests, NARRATIVE) });
+
+    await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: TERMINAL_TOOLS }));
+
+    // Exactly two wire calls: the original and ONE recovery. Never a loop.
+    expect(requests).toHaveLength(2);
+    expect(requests[0]?.tools?.map((t) => t.name)).toEqual(["update_scene"]);
+    // Pass 2 attaches NO tools — re-attaching them invites the same discharge that produced no prose.
+    expect(requests[1]?.tools ?? []).toEqual([]);
+    // …and the ask is the trailing user row, so the model is told to write the beat it skipped.
+    const tail = requests[1]?.history.at(-1);
+    expect(tail?.role).toBe("user");
+    expect(JSON.stringify(tail?.content)).toContain("already recorded");
+  });
+
+  test("a recovery pass that ALSO writes no prose fails the turn — the guard still holds, and names the cause", async () => {
+    const chatId = await seedChat(db, "recover-fails");
+    // Pass 2 answers empty too. There is no third attempt.
+    const h = harness(db, { runChatTurn: twoPassRunner([], [{ kind: "final", economics: { content: "", model: "test-model", finishReason: "tool" } }]) });
+
+    await expect(h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: TERMINAL_TOOLS }))).rejects.toMatchObject({
+      code: "empty_generation",
+      // The generic "returned no text" is gone: the message names what the model actually did.
+      message: expect.stringContaining("tool calls and no story text") as unknown as string,
+    });
+    expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
+  });
+
+  test("NO tool calls ⇒ NO recovery: a genuinely empty completion still fails on ONE wire call", async () => {
+    const chatId = await seedChat(db, "recover-not-applicable");
+    const requests: TurnRequest[] = [];
+    // Terminal tools ride, the model calls NOTHING and writes nothing — a quiet beat with no reply. There is
+    // nothing to recover FROM, and retrying a provider that returned nothing is how a dead upstream doubles
+    // the spend.
+    const h = harness(db, {
+      runChatTurn: (req: TurnRequest) => {
+        requests.push(req);
+        return (async function* (): AsyncGenerator<TurnStreamChunk> {
+          await Promise.resolve();
+          yield { kind: "final", economics: { content: "", model: "test-model", finishReason: "stop", toolCalls: [] } };
+        })();
+      },
+    });
+
+    await expect(h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: TERMINAL_TOOLS }))).rejects.toMatchObject({
+      code: "empty_generation",
+    });
+    expect(requests).toHaveLength(1);
+  });
+
+  test("a LENGTH-cut empty turn names the budget and the lever, not 'no text' (the reasoning-wire trap)", async () => {
+    const chatId = await seedChat(db, "recover-length-cut");
+    // With reasoning on, `maxOutputTokens` caps thinking AND response together — the model can spend the whole
+    // budget deliberating and emit nothing. Not recoverable (no tool calls), but it must not present as the
+    // same failure as a provider returning nothing.
+    const h = harness(db, {
+      runChatTurn: () =>
+        (async function* (): AsyncGenerator<TurnStreamChunk> {
+          await Promise.resolve();
+          yield { kind: "final", economics: { content: "", model: "test-model", finishReason: "length", maxOutputTokens: 4096 } };
+        })(),
+    });
+
+    await expect(h.engine.runTurn(prepOf(chatId))).rejects.toMatchObject({
+      code: "empty_generation",
+      message: expect.stringContaining("output limit of 4096 tokens") as unknown as string,
+    });
+  });
+});
