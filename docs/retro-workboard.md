@@ -104,6 +104,40 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   own floors + `pnpm check` prove STRUCTURE, never LOGIC. Sequence is: lane floors green → merge →
   fresh-context lens at CHUNK granularity → THEN the row graduates. Batching lenses behind merges is
   allowed when load demands; skipping them is not.
+  ### ✅ GRADUATED (fresh lens reported; merges + consolidated `pnpm check` 14/14 PASS at `e73529d87`)
+  - [x] **NARRATOR-CAST** — verifier **REFUTED 3 of 6**, incl. a LIVE REGRESSION the merge introduced
+    (the PRIMARY member's own card had `{{char}}` bound to the joined cast). Fix leg `619a36ca5` closed
+    all five as a CLASS: the rule was already in the file — *a `pinnedPersona` render is card-derived*
+    (card text is written by an author ABOUT that character, so `{{char}}` means "me" whatever the turn
+    voices) — applied to co-speakers but not the primary. All five `pinnedPersona` sites now route
+    through `cardOwnerCtx`, which returns ctx **by reference** unless the arm is `cast`, so solo and
+    per-speaker turns stay byte-identical. Also: empty-cast `members` floored; the D16 belt made
+    non-vacuous (it tested no cast at all — 3/3 green verified nothing) with a `NARRATOR_OF_ONE`
+    posture proven to bite; **the "free bonus fix" claim RETRACTED** (the client↔server `{{char}}`
+    divergence is still open — `resolveRowMacros` consults `cast` only when `characterId === null`).
+    **⚑ BOARD CORRECTION:** the `PROMPT_HISTORY` vs `AI_OUTPUT` `{{char}}` split was **PRE-EXISTING**,
+    not new from this change — measured on a plain per-speaker round the change never touched. Resolved
+    anyway: the two round-transforms now agree on the speaker; `USER_INPUT` legitimately differs (it
+    runs at SEND before arbitration and feeds every speaker's prompt) and says so at the site.
+  - [x] **PROVGATE** — verifier **CONFIRMED** both receipts, then found an undeclared reach hole
+    (`onConflictDoUpdate({set})` — 20+ live call sites of that idiom). Leg 2 `e20795ada` closed all four
+    named shapes **plus two the lane had already DECLARED**, because it probed its assumption instead of
+    designing around it: the harness Project *does* resolve `@orb/db`, so table identity is now decided
+    **by binding, not spelling**. Clear-only UPDATE ruled LEGAL (it cannot produce a stale pair).
+    Conformance 8/6 → **15 mustFlag / 10 mustPass**; positive control planted PER SITE in the real
+    4,524-file workspace; every reached shape increments `writeSites` so the tripwire stays honest.
+    One limit remains and it is the real kind: `tests/**` outside `scanRoot`.
+  - [x] **MY OWN TWO PUSH-RED FIXES** — verifier **CONFIRMED both**. `messageKindSchema` genuinely has
+    production consumers (the ratchet's own predicate run against the live workspace says
+    `prodConsumed=true`). The CT accname flip was verified in real chromium AND given a better
+    justification than mine: the stack sits beside a chip reading **"Members — 3"**, so "2 people" was
+    actively contradictory — "2 characters" disambiguates the AI cast from the human seat count.
+  - [x] **SIDE-EYE-DAY** — report transcribed to `docs/reviews/side-eye/2026-08-07-days-merges-rendered.md`
+    (the lane's tool-guard blocked its own writes; **a deliverable that lives only in a transcript dies
+    with it**). Verdict SHIP WITH FIXES; P1/P2s dispatched as RENDERFIX. **Its U1 and U4 were both
+    FALSE ALARMS, resolved in the doc** — U4's "N people" stacks are roster rows that pass no label
+    (correct fallback); U1's vanishing chat was AUTHFIX landing mid-review (7→6 = twin→real owner).
+
   - [ ] **AUTHFIX** → the lens is a FRESH `security-executor`, NOT `verifier` — the diff is
     security-DOMINANT (identity/authz), and doctrine routes security review the same way it routes
     security implementation. Must attack: the agreement pin actually fails pre-fix, the fail-closed
