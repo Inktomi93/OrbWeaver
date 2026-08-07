@@ -41,12 +41,28 @@ export async function loadChatMeta(db: Db, chatId: ChatId): Promise<{ maxSeq: nu
  *      projection compaction applies. A digest is a durable artifact whose text lands in a shared prompt, so
  *      folding a `<lie>`'s covered truth into it re-opens the D110 §3.6 class. Cards collapse to their stub in
  *      the same pass, which the summarizer wanted anyway (it never ate the multi-KB blob).
+ *      A row that is ENTIRELY hidden-class projects to an EMPTY body and is DELIBERATELY KEPT rather than
+ *      dropped (decided 2026-08-07, on a review finding). It costs one labelled-but-empty line in the
+ *      summarizer input; dropping it would cost block-position STABILITY, which is far more expensive than
+ *      the noise: `blockIdx` is the storage key, so removing a row mid-history re-slices every block after it,
+ *      changing every downstream hash and re-summarizing the rest of the chat — and, now that a shrink is
+ *      reclaimed, pruning and rebuilding rows that were perfectly good. Compaction keeps the same shape for
+ *      the same reason, so the two planes also stay consistent. No leak either way: the bytes are gone.
  *   3. Rows whose KIND is not memory-ingestible are excluded, DERIVED from `MESSAGE_KIND_POLICY`
  *      (`MEMORY_INGEST_KINDS`) rather than re-spelled: `standard`/`narrator` are story canon (a narrator
  *      recap is precisely what a digest wants), an OOC `comment` is not story.
  *
- *  The staleness machinery needs no help with any of this: hiding a row or editing a body changes the block's
- *  content, so `blockHash` changes, so the block re-digests and the consolidation cascade re-derives. */
+ *  TRUTH-REPAIR (2026-08-07, a fresh-lens refutation of this comment's own prior claim). It used to say "the
+ *  staleness machinery needs no help with any of this: hiding a row changes the block's content, so
+ *  `blockHash` changes, so the block re-digests". That is true for a block that still EXISTS and FALSE for a
+ *  block that VANISHES — which is precisely what these exclusions do at the tail. Blocks are sliced by
+ *  POSITION and stored keyed `(tier, blockIdx)`; hide a trailing span and the trailing block stops being
+ *  produced, no surviving block's rows move, no hash changes, and the content-hash self-heal — which can only
+ *  ever re-summarize a block that still exists — never fires. The orphaned digest, summarized verbatim FROM
+ *  the rows just hidden, stayed in the pool and `{{memory}}` recall could still surface it. The shrink is
+ *  therefore reclaimed EXPLICITLY: `generateDigests`/`generateSegments` call `embeddingsPruneBlocks` with the
+ *  surviving per-tier block counts, which also cascades to the consolidation that folded a pruned block.
+ *  Content CHANGE is still the hash's job; block DISAPPEARANCE is the prune's. */
 export async function loadCanonThroughSeq(db: Db, chatId: ChatId, throughSeq: number): Promise<MsgRow[]> {
   const rows = await db
     .select({

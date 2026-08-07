@@ -95,6 +95,12 @@ export async function generateDigests(ctx: ChatContext, args: GenerateDigestsArg
   const canon = await loadCanonThroughSeq(ctx.db, chatId, cutoff);
   const allBlocks = sliceBlocks(canon, cfg.blockSize);
   const blocks = args.witnessing === undefined ? allBlocks : allBlocks.filter((b) => spanWitnessed(b.seqStart, b.seqEnd, args.witnessing ?? []));
+  // THE SHRINK RECLAIM, before anything reads the stored rows (see `blockCeilings`). It runs FIRST — not in
+  // the store-then-prune order its `pruneDocumentChunks` sibling uses — because the consolidation pass below
+  // reads the stored tier-k rows to build tier-(k+1): leaving an orphan in place for one more pass would fold
+  // the vanished block's summary INTO a fresh parent, laundering it back into the pool through a row whose
+  // hash is legitimately current. Nothing is re-stored by this call, so the build's no-op economy is intact.
+  await ctx.embeddingsPruneBlocks({ lens: "digest", chatId, scopedCharacterId, keepPerTier: blockCeilings(allBlocks.length, cfg.fanOut, cfg.maxTier) });
   const existing = await loadDigestHashes(ctx.db, chatId, scopedCharacterId);
 
   const counts = await buildTier0(ctx, args, { blocks, existing, macroNames });
@@ -111,6 +117,29 @@ export async function generateDigests(ctx: ChatContext, args: GenerateDigestsArg
   };
   logBuild(ctx, args.scope, { startedAt, counts: total });
   return { written: total.written, skipped: total.skipped };
+}
+
+/**
+ * The surviving block COUNT per tier (index = tier), for the shrink reclaim — every stored row at
+ * `blockIdx >= ceiling[tier]` indexes canon that no longer exists.
+ *
+ * Tier 0's ceiling is the block count itself, and it is deliberately `allBlocks.length` — the count BEFORE
+ * the witnessing filter. Witnessing decides which blocks get WRITTEN into a scoped bucket, not which block
+ * indices are legal, so a scoped bucket legitimately holds a sparse set (block 0 and block 2 with no block
+ * 1); pruning against the filtered count would delete a perfectly valid high-index digest every pass.
+ *
+ * Each tier above divides by `fanOut` — the SAME `floor(childIdx / fanOut)` grouping the consolidation writer
+ * uses, where a parent is written only over a COMPLETE group. That is what makes the upward CASCADE fall out
+ * for free: shrink tier 0 and every ceiling above it drops, so the consolidation that folded a pruned block
+ * is itself beyond its tier's ceiling and goes in the same DELETE. Length is `maxTier + 1` so the top
+ * configured tier has a ceiling; a tier beyond that is outside this pass's authority and is left alone.
+ */
+function blockCeilings(blockCount: number, fanOut: number, maxTier: number): number[] {
+  const ceilings: number[] = [blockCount];
+  for (let tier = 1; tier <= maxTier; tier += 1) {
+    ceilings.push(Math.floor((ceilings[tier - 1] ?? 0) / fanOut));
+  }
+  return ceilings;
 }
 
 /** The tier-0 pass: one digest per complete, aged-out, witnessed block. */

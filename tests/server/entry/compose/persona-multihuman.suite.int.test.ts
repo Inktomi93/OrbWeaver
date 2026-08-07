@@ -88,20 +88,44 @@ describe("multi-human persona resolution — the composed resolver (F1/F2)", () 
     expect(text).not.toContain("Hostina is my brother");
   });
 
-  test("a non-host member's active persona resolves for PROMPT {{user}} (never the 'User' kit floor)", async ({ db, services }) => {
-    // The host holds no chat persona, so the resolver's own fallback chain lands on the present member's
-    // active persona — the id the keyhole used to drop on the floor.
-    const room = await seedRoom(db, { hostActive: false, anchor: null });
+  test("a MEMBER-OWNED persona resolves for PROMPT {{user}} (never the kit floor) — via the anchor, not a bystander pick", async ({ db, services }) => {
+    // THE F1/F2 DEFECT THIS PINS is the owner-scoped persona KEYHOLE: a non-host member's persona used to
+    // resolve to nothing at all, so a room whose `{{user}}` was a member's identity addressed the model as
+    // the "User" floor. That capability is what must not regress — a member-owned persona must resolve.
+    //
+    // The BINDING PATH changed on 2026-08-07. This used to reach it with `hostActive: false, anchor: null`,
+    // where a personaless host's trigger-less peek fell through to `personaIds[0]` — the first PRESENT
+    // human — which is a presence-order-arbitrary bystander pick on the host's own instrument, and is
+    // retired. The member's persona now reaches a trigger-less read the way the design says it should: the
+    // host PINS it as the room's anchor (the sanctioned, deliberate act), and the `{kind:"none"}` arm binds
+    // the anchor. Same capability, stated intent instead of join order. (The per-turn path — a member's OWN
+    // turn binding their OWN seat persona — is the `human` arm, pinned in prompt-config-triggerer.suite.)
+    const room = await seedRoom(db, { hostActive: false, anchor: "member" });
 
     const text = await promptText(services, room.host, room.chatId);
 
     // The default `main_prompt` marker frames the roleplay "with {{user}}" — the PROMPT context.
     expect(text).toContain("roleplay with Zara");
     expect(text).not.toContain("roleplay with User");
+    expect(text).not.toContain("roleplay with Traveler");
     // Owner ruling: a present member's persona DESCRIPTION enters the shared prompt unconditionally (no
     // toggle) — it IS the feature (§A.1: the prompt context is the speaker's), and the room already consumes
     // member persona-book lore through the same assembly.
     expect(text).toContain("a wandering cartographer");
+  });
+
+  test("REFUSAL: with NO anchor and a personaless host, a trigger-less peek floors — it never picks a bystander", async ({ db, services }) => {
+    // The exact shape the retired `personaIds[0]` fallback used to serve: the host holds no seat persona and
+    // the room has no anchor, but a member happens to be present holding one. The honest answer is the kit
+    // floor — "this room has not been told whose story it is" — never "whoever joined first". Floor-vs-
+    // bystander is invisible to a `not.toContain` on the member's name alone, so both are asserted.
+    const room = await seedRoom(db, { hostActive: false, anchor: null });
+
+    const text = await promptText(services, room.host, room.chatId);
+
+    expect(text).toContain("roleplay with Traveler");
+    expect(text).not.toContain("roleplay with Zara");
+    expect(text).not.toContain("a wandering cartographer");
   });
 
   test("REFUSAL: a DEPARTED member's persona stops resolving — the anchor falls to the active persona (HEAL semantics)", async ({ db, services }) => {

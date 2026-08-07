@@ -16,10 +16,19 @@ import type {
   ImageEmbeddingId,
   UserId,
 } from "@orb/kit/ids";
-import type { ClearTableParams, CountDocumentChunksParams, EmbedPassParams, PruneDocumentChunksParams, StoreParams, WriteHubScoresParams } from "./params.ts";
+import type {
+  ClearTableParams,
+  CountDocumentChunksParams,
+  EmbedPassParams,
+  PruneDocumentChunksParams,
+  PruneMemoryBlocksParams,
+  StoreParams,
+  WriteHubScoresParams,
+} from "./params.ts";
 import type {
   BulkEmbedResult,
   PruneDocumentChunksResult,
+  PruneMemoryBlocksResult,
   PurgeDocumentVectorsResult,
   PurgeMemoryVectorsResult,
   StoreResult,
@@ -79,6 +88,11 @@ export interface EmbeddingsService {
    *  `model` differs from the active `roleClients.embedModel`. BULK-ONLY + skip-on-abort is the caller's
    *  guard (the memory-backfill runner), mirroring the embedCorpus/embedAssets purge. */
   readonly purgeMemoryVectors: () => Promise<PurgeMemoryVectorsResult>;
+  /** The chat-memory SHRINK seam: delete the digest/segment rows whose BLOCK no longer exists in canon (and,
+   *  for digests, the consolidations that folded them). Distinct from {@link purgeMemoryVectors}, which
+   *  reclaims a retired embed SPACE — this one reclaims blocks that canon itself dropped. memory calls it at
+   *  the end of every build pass; an ordinary pass deletes nothing. */
+  readonly pruneMemoryBlocks: (params: PruneMemoryBlocksParams) => Promise<PruneMemoryBlocksResult>;
   /** databank-design/05 §2.4 — the reindex-shrink seam. After the ingest upserts a document's current chunks,
    *  this deletes the strays (shrunk tail `chunkIdx >= keepCount` + retired-space `model != model`), scoped to
    *  the one document. databank never touches `document_chunks` directly (single-write-path invariant). */
