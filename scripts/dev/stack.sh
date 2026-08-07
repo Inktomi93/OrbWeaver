@@ -274,7 +274,13 @@ run_leader() {
   echo "stack: server healthy — booting client vite :$VITE_PORT (log $CLIENT_LOG)"
   # Explicit bin + exec (the dev.sh trick) — NOT `pnpm --filter @orb/client dev`: the pnpm
   # intermediary does not forward TERM to vite, so foreground teardown would orphan :5173.
-  (cd "$REPO/packages/client" && exec "$REPO/packages/client/node_modules/.bin/vite") >"$CLIENT_LOG" 2>&1 &
+  # `--configLoader native` duplicates @orb/client's own `dev` script flag ON PURPOSE: the loader
+  # choice is CLI-only BY CONSTRUCTION (it decides how vite.config.ts is loaded, so it cannot live
+  # inside that file), and this exec bypasses the package script entirely. Both vite entry points in
+  # this repo — the package scripts and this line — must carry it or dev and CI load the config two
+  # different ways. Node 26 executes the TS config directly; the default `bundle` loader would
+  # Rolldown-bundle it into node_modules/.vite-temp first.
+  (cd "$REPO/packages/client" && exec "$REPO/packages/client/node_modules/.bin/vite" --configLoader native) >"$CLIENT_LOG" 2>&1 &
   client_pid=$!
   # Hold the group open; if EITHER child dies, tear the other down (a half-up
   # stack is worse than a down one — the vite proxy would 502 or serve stale).
