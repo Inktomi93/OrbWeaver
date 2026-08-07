@@ -82,7 +82,24 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   RULED-BATCH legs 1-3 (pipeline order declared once; day/time nullability split) · WIRE-SINK ·
   ABORT-LEAK · SMALLS-BATCH · SMALLS-3 legs 1-2 · FORKSTRIP + RPGFORK (**two live host-plane
   exposures closed**) · GATEFORGE (four gates, **189 → 193**) · VITE-MAX (salvaged).
-- **⚑ IN FLIGHT (ONE agent) + THE DISPATCH QUEUE:** lane **GATEFIX** (`ae12ce29192c53e14`) is
+- **⚑ IN FLIGHT (2026-08-07 evening — FOUR lanes + the push battery).** The owner gave the push word
+  and said "fill up the four slots". `pnpm verify --push` is running DETACHED on main (pid 719532, log
+  `<scratchpad>/verify-push.log`, `.exit` file on completion) — **the push happens only if it is green**,
+  and per standing law the battery OWNS THE BOX: every lane was briefed to hold its gate/test floor until
+  the orchestrator messages it that the battery drained, and side-eye was told not to touch the browser
+  or the dev stack until then.
+  - **AUTHFIX** (`a8fdca35d02f673ff`, security-executor) — the two-principal divergence; the shape is
+    ONE home for the role verdict, both principals consume it. Mints **D135** if it mints.
+  - **NARRATOR-CAST** (`a7ceca7cb755472b2`, executor) — co-speaker cards never reach the model in
+    narrator mode; the `{kind:"cast"}` arm's zero producers is the tell. Briefed NOT to regress FANOUT-1.
+  - **DATABANK-S2** (`a6371e1852bf03245`, executor) — the D85 host visibility toggle, the original
+    workboard item. Mints **D136** if it mints. Told to SendMessage before any schema squash.
+  - **SIDE-EYE-DAY** (`adf8e74d1848e35ae`, side-eye) — the rendered lens on the day's merges
+    (PHONE-COMP's vitals-orbs call · the two `JUDGMENT_DEFERRED` geometry sites · MOBILE 1-4 ·
+    DRAFT-POLISH 1-2). Briefed with the prescription-vs-symptom law and the mobile one-shell ruling.
+  All four were briefed: re-verify your premise first, a correct refusal is a success, ONE commit,
+  durable text under `docs/` never `reports/`, back-channel mid-run. Scope-fenced off each other's dirs.
+- **Superseded IN-FLIGHT note (GATEFIX finished; merged `96d35ee80`, consolidated static check 14/14):** lane **GATEFIX** (`ae12ce29192c53e14`) was
   retargeting `message-kind-policy-coverage`'s conformance rows + the `__g_mkpc` fixture, which MY
   commit `5f2afa7fd` orphaned when it emptied the DEFERRED map (correctly) without updating the two
   coupled sites written against it. **`pnpm check` stayed GREEN through this** — the conformance suite
