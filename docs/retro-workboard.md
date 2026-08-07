@@ -87,6 +87,24 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   rendered defects self-caught at the real 330px mount — the bulk bar shipped as 2 verbs + kebab
   with a standing geometry pin; **the narrowest-mount gate candidate gains its 5th/6th receipts.**
   I-4's REGX2 row: CLOSED. Deferred honestly: bulk placement (waits on the kit-lift small).
+- **✅ THE CANON-IDENTITY STICKLER IS DONE — `docs/reviews/stickler/2026-08-08-canon-message-identity.md` (931 lines), read it IN FULL before acting on any of this.** Seed ADOPTED + 2 amendments (kind never
+  decides canon role — wire mapping is a SHAPE dispatch; the D55 synthetic group char stays). Core:
+  `MESSAGE_KINDS = standard|narrator|comment` + `MESSAGE_KIND_POLICY` + `messages.kind` + variant
+  `rawContent`/`macroFreezes` (host-plane only), one baseline regen, \~7 tsc-total dispatch sites.
+  **THREE CONFIRMED DEFECTS (fix regardless of the design):** **F-A** `loadCanonThroughSeq` has NO
+  `excludedFromPrompt` filter + no hidden-span strip — hidden rows RE-ENTER the prompt via
+  `{{memory}}` recall (compaction filters both; recall doesn't) · **F-B** narrator purpose rides
+  SET-NULL-degradable attribution + config inference, three ad-hoc spellings — purpose evaporates
+  on char delete/config flip · **F-C** the volatile freeze is record-less + byte-destructive
+  (pre-freeze raw discarded) — the greeting-swipe gap is unfixable until R2 lands.
+  **The hash question: NO new machinery needed** (blockHash folds the right axes;
+  consolidationHash cascades; only caveat = post-turn self-heal latency, correct at prompt time).
+  Provider-independent canon HOLDS today (verified both paths) — mint as law + the two-profile pin.
+  Membership present-predicate re-spelled \~27× → one-home presence.ts. Persona model: already ONE
+  model; NO D122 amendment; kill-the-`personaIds[0]`-fallback is an owner call.
+  **SIX OWNER CALLS queued in §18** (kind vocabulary · excludedFromPrompt-gates-memory ·
+  hidden-span digest strip · the personaIds\[0] fallback · narrator-as-system dormant · comment
+  chrome). Declared limits in §19.
 - **⚑ COMPACT-SAFETY SNAPSHOT (2026-08-08, \~93% context):** tree CLEAN at the REGX2 merge; repo
   `scratch/` holds the gitignored st-console-probe; ST runtime settings.json has
   `console_log_prompts: true` (deliberate debug aid). **IN-FLIGHT:** the CANON-IDENTITY STICKLER
