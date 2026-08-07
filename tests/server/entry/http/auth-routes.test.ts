@@ -48,7 +48,8 @@ function makeCtx(req: MockReq): MockCtx {
     for (const [k, v] of Object.entries(extra ?? {})) {
       headers.set(k, v);
     }
-    return new Response(body, { status, headers });
+    // Node 26 undici BodyInit requires Uint8Array<ArrayBuffer>, not Uint8Array<ArrayBufferLike>.
+    return new Response(body instanceof Uint8Array ? new Uint8Array(body) : body, { status, headers });
   };
   return {
     header: (name: string, value: string): void => {

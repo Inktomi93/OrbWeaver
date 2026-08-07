@@ -49,7 +49,9 @@ function makeCtx(principal: Principal | null, req: MockReq): MockCtx {
         status,
         headers: { "content-type": "application/json" },
       }),
-    body: (data: string | Uint8Array | null, status = 200): Response => new Response(data, { status }),
+    body: (data: string | Uint8Array | null, status = 200): Response =>
+      // Node 26 undici BodyInit requires Uint8Array<ArrayBuffer>, not Uint8Array<ArrayBufferLike>.
+      new Response(data instanceof Uint8Array ? new Uint8Array(data) : data, { status }),
     req: {
       param: (name: string): string => req.params?.[name] ?? "",
       query: (name: string): string | undefined => req.query?.[name],

@@ -74,7 +74,9 @@ function makeCtx(principal: Principal | null, opts: { readonly query?: Record<st
   return {
     get: (key): Principal | null => (key === "principal" ? principal : null),
     json: (b, status = 200): Response => new Response(JSON.stringify(b), { status, headers: { "content-type": "application/json" } }),
-    body: (data, status = 200): Response => new Response(data, { status }),
+    body: (data, status = 200): Response =>
+      // Node 26 undici BodyInit requires Uint8Array<ArrayBuffer>, not Uint8Array<ArrayBufferLike>.
+      new Response(data instanceof Uint8Array ? new Uint8Array(data) : data, { status }),
     req: {
       query: (name): string | undefined => opts.query?.[name],
       raw: opts.raw ?? new Request("http://t/api/import/bundle", { method: "POST" }),

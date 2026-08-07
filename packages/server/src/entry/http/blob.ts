@@ -128,7 +128,9 @@ async function serveVariant(
 }
 
 function serveBytes(bytes: Uint8Array, mime: string): Response {
-  return new Response(bytes, {
+  // Node 26 undici BodyInit requires Uint8Array<ArrayBuffer>, not Uint8Array<ArrayBufferLike>.
+  // new Uint8Array(bytes) copies into a concrete ArrayBuffer view — same pattern as egress.ts.
+  return new Response(new Uint8Array(bytes), {
     headers: {
       "Content-Type": mime,
       "Content-Length": String(bytes.byteLength),

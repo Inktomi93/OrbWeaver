@@ -232,7 +232,19 @@ describe("runTurnPipeline — request shaping + fit", () => {
   test("the `completion` names-behavior threads the author into the wire `name` field", async () => {
     // names.ts sets `name` only under "completion" (content untouched); the pipeline must thread it to the
     // TurnMessage wire `name`. The user row's author is the active persona ("Alex").
+    //
+    // The out-of-band field requires a NON-merging floor. Under a merging strategy (the unset floor clamps to
+    // `strict`) the speaker is inlined instead, because a surviving `name` blocks `squashSameRole` and hands
+    // a strict provider the adjacent same-role pair it rejects — and blocks two humans' back-to-back turns
+    // from merging at all. Both arms are pinned in shape.test.ts's matrix.
     const { args } = baseArgs({
+      connection: {
+        ...CONNECTION,
+        capability: {
+          ...CAPABILITY,
+          turns: { assistantPrefill: false, midConversationSystem: false, roleHandlingFloor: "none", explicitPromptCache: false },
+        },
+      },
       assembleContext: ctxOf({
         promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "completion" },
       }),
@@ -869,6 +881,13 @@ describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
     // Active persona is Alex; the row is authored under Mara (a since-switched persona). The wire `name` must
     // be Mara — the row's own author — not the current active (which would misattribute Mara's line to Alex).
     const { args } = baseArgs({
+      connection: {
+        ...CONNECTION,
+        capability: {
+          ...CAPABILITY,
+          turns: { assistantPrefill: false, midConversationSystem: false, roleHandlingFloor: "none", explicitPromptCache: false },
+        },
+      },
       assembleContext: ctxOf({
         promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "completion" },
       }),
@@ -893,6 +912,13 @@ describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
 
   test("a null-stamp user row still falls back to the active persona (byte-identical to pre-F4)", async () => {
     const { args } = baseArgs({
+      connection: {
+        ...CONNECTION,
+        capability: {
+          ...CAPABILITY,
+          turns: { assistantPrefill: false, midConversationSystem: false, roleHandlingFloor: "none", explicitPromptCache: false },
+        },
+      },
       assembleContext: ctxOf({
         promptConfig: { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "completion" },
       }),
@@ -1562,6 +1588,12 @@ describe("runTurnPipeline — the STATEFUL (agent-sdk) tool channel (MCP toolSer
 // wire vocabulary exists (`[[per-backend-wire-vocab-differs]]`: the COLLAPSE is wire-agnostic).
 
 describe("runTurnPipeline — the §3 content-class wire plane", () => {
+  // `cardKeepLastX: 0` is now stated EXPLICITLY on every stub assertion below. It used to be implicit: the
+  // pipeline read `args.cardKeepLastX ?? 0`, so an absent value (a chat with no rpg game — the ONLY producer
+  // of the field) silently became the window's strictest setting. That gave every non-rpg chat permanently
+  // stubbed cards with no knob to change it. Absent now means NO window; `0` means keep none, and these
+  // tests are about the `0` behaviour, so they say so.
+  const stub0 = { cardKeepLastX: 0 } as const;
   const lieTag = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';
   const cardFence = ':::card title="Terminal"\n<div style="color:red">multi-KB html blob</div>\n:::';
 
@@ -1574,8 +1606,8 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
 
   test("a card collapses to the deterministic stub ({wire: stub}) — zero html bytes on the wire, same bytes across assemblies", async () => {
     const body = `Look at this:\n${cardFence}\ndone.`;
-    const first = await runTurnPipeline(baseArgs({ canon: [userRow(body)] }).args);
-    const second = await runTurnPipeline(baseArgs({ canon: [userRow(body)] }).args);
+    const first = await runTurnPipeline(baseArgs({ canon: [userRow(body)], ...stub0 }).args);
+    const second = await runTurnPipeline(baseArgs({ canon: [userRow(body)], ...stub0 }).args);
     const part = first.request.history.at(-1)?.content;
     expect(part).toEqual([{ type: "text", text: "Look at this:\n[card: Terminal]\ndone." }]);
     expect(JSON.stringify(first.request.history)).not.toContain("multi-KB");
@@ -1588,9 +1620,21 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     // stream), so the RV-2 truncated-generation class — a card the model never closed — collapses to the
     // same deterministic stub instead of shipping its half-written markup on every subsequent turn.
     const truncated = ':::card title="Ashfell Night Market"\n<div style="font-family: multi-KB html blob';
-    const result = await runTurnPipeline(baseArgs({ canon: [userRow(`Look:\n${truncated}`)] }).args);
+    const result = await runTurnPipeline(baseArgs({ canon: [userRow(`Look:\n${truncated}`)], ...stub0 }).args);
     expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: "Look:\n[card: Ashfell Night Market]" }]);
     expect(JSON.stringify(result.request.history)).not.toContain("multi-KB");
+  });
+
+  test("NO rpg game (cardKeepLastX absent) ⇒ NO window: every card rides the wire WHOLE", async () => {
+    // The regression pin for a real defect: `cardKeepLastX` is contributed ONLY by an rpg game's gather, and
+    // the pipeline read it as `?? 0` — so an ordinary chat, which supplies nothing, silently inherited the
+    // window's STRICTEST setting. Every card in its history collapsed to `[card: title]` on every turn,
+    // permanently, with no knob anywhere to change it. A budget/cache tradeoff nobody opted into.
+    const body = `Look at this:\n${cardFence}\ndone.`;
+    const result = await runTurnPipeline(baseArgs({ canon: [userRow(body)] }).args);
+    expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: body }]);
+    // The html really is on the wire — the stub is absent, not merely relabelled.
+    expect(JSON.stringify(result.request.history)).toContain("multi-KB");
   });
 
   test("M2 keep-last-X: X=0 stubs every card; X=1 keeps only the NEWEST full; X=2 the newest two (counted from the tail)", async () => {
@@ -1600,7 +1644,7 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     const textsOf = (history: readonly TurnRequest["history"][number][]): string[] =>
       history.map((m) => m.content.map((p) => (p.type === "text" ? p.text : "")).join(""));
 
-    const x0 = await runTurnPipeline(baseArgs({ canon }).args);
+    const x0 = await runTurnPipeline(baseArgs({ canon, ...stub0 }).args);
     expect(textsOf(x0.request.history)).toEqual(["[card: c1]", "[card: c2]", "[card: c3]"]);
 
     const x1 = await runTurnPipeline(baseArgs({ canon, cardKeepLastX: 1 }).args);
@@ -1624,7 +1668,7 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     const textOf = (req: TurnRequest): string => historyText(req);
 
     // X=0 — every STORED card stubs, and the authored example still rides whole.
-    const x0 = await runTurnPipeline(baseArgs({ canon, assembleContext: ctxOf({ chatInjections: injections }) }).args);
+    const x0 = await runTurnPipeline(baseArgs({ canon, assembleContext: ctxOf({ chatInjections: injections }), ...stub0 }).args);
     expect(textOf(x0.request)).toContain(cardBody(9));
     expect(textOf(x0.request)).toContain("[card: c1]");
     expect(textOf(x0.request)).toContain("[card: c2]");
@@ -1663,7 +1707,7 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
   test("squash parity (§3.7): a `\\n\\n`-joined multi-body string tokenizes whole — the tag/fence survive the join", async () => {
     // SHAPE's squash joins bodies with `\n\n` BEFORE tokenization; emulate the joined body directly.
     const joined = `first reply ${lieTag}\n\n${cardFence}`;
-    const result = await runTurnPipeline(baseArgs({ canon: [userRow(joined)] }).args);
+    const result = await runTurnPipeline(baseArgs({ canon: [userRow(joined)], ...stub0 }).args);
     expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: `first reply ${lieTag}\n\n[card: Terminal]` }]);
   });
 
@@ -1691,7 +1735,7 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
     // The regex saw + rewrote the non-card text; the card bytes were visible to it (no pre-collapse).
     expect(processed).toContain("beta prose");
     expect(processed).toContain("multi-KB");
-    const result = await runTurnPipeline(baseArgs({ canon: [userRow(processed)] }).args);
+    const result = await runTurnPipeline(baseArgs({ canon: [userRow(processed)], ...stub0 }).args);
     // Downstream, the wire stubs the card and keeps the regex's effect on the surrounding prose.
     expect(result.request.history.at(-1)?.content).toEqual([{ type: "text", text: "beta prose\n[card: Terminal]" }]);
   });

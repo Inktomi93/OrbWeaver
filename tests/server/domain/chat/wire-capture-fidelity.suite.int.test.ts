@@ -22,6 +22,7 @@
 import type { AssembleContext, ChatBusEvent, ChatContentPart } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
+import { TURNS_FLOOR } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { CustomParameters, NamesBehavior, PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -163,6 +164,13 @@ async function driveRow(opts: {
   promptConfig: PromptConfig;
   intent: TurnRequest["intent"];
 }): Promise<Captured & { canon: readonly { role: string; content: string; model: string | null }[] }> {
+  const intent: TurnRequest["intent"] = {
+    ...opts.intent,
+    advanced: {
+      roleHandling: "none",
+      ...opts.intent.advanced,
+    },
+  };
   const database = await freshDb();
   await seedUser(database, castId<Handle>("host"));
   await seedCharacter(database, HOST, "aria");
@@ -180,7 +188,20 @@ async function driveRow(opts: {
   const wireSink: WireSink = {};
   const outcome = await driveRound({
     engine: realEngine(database, vllmSurface, requests, wireSink),
-    base: { chatId, assembleContext, connection: testConnection(), triggeredBy: HOST, runAsUserId: HOST, kind: "auto", intent: opts.intent },
+    base: {
+      chatId,
+      assembleContext,
+      connection: {
+        ...testConnection(),
+        // `turns` is optional on ModelCapability, so build the override on the exported floor rather
+        // than spreading a possibly-absent cell.
+        capability: { ...testConnection().capability, turns: { ...TURNS_FLOOR, roleHandlingFloor: "none" } },
+      },
+      triggeredBy: HOST,
+      runAsUserId: HOST,
+      kind: "auto",
+      intent,
+    },
     group: DEFAULT_GROUP_CONFIG,
     speakers: [{ ref: { kind: "character", characterId: ARIA }, name: "Aria" }],
     groupCharacterId: null,

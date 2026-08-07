@@ -55,7 +55,9 @@ function makeCtx(principal: Principal | null, form: FormData): MockCtx {
   return {
     get: (key: string): Principal | null => (key === "principal" ? principal : null),
     json: (body: unknown, status = 200): Response => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } }),
-    body: (data: string | Uint8Array | null, status = 200): Response => new Response(data, { status }),
+    body: (data: string | Uint8Array | null, status = 200): Response =>
+      // Node 26 undici BodyInit requires Uint8Array<ArrayBuffer>, not Uint8Array<ArrayBufferLike>.
+      new Response(data instanceof Uint8Array ? new Uint8Array(data) : data, { status }),
     req: { formData: (): Promise<FormData> => Promise.resolve(form) },
   };
 }
