@@ -16,7 +16,7 @@ import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { applyStatsDelta } from "@orb/server/domain/stats";
 import { createRunChatTurnBridge } from "@orb/server/entry/compose";
-import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
+import { getLog, initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import type { ChatRequest, ChatResult, OrSkinTierModels } from "@orb/server/infra/providers";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
@@ -1358,6 +1358,74 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
     expect(await lockExpiry(db, chatId)).toBeNull(); // the lock still released on the refusal path
   });
 
+  test("EMPTYGEN-UNLOGGED: the refusal is OBSERVABLE — a warn fires carrying the populated finishReason", async () => {
+    // Previously the refusal surfaced to the client only through tRPC and left NO server-side trace: no
+    // finishReason, no tool count — a tool-only completion and a provider that returned nothing were
+    // indistinguishable after the fact. `assertGeneratedContent` now warns BEFORE the throw.
+    const chatId = await seedChat(db, "empty-unlogged");
+    const h = harness(db, { runChatTurn: proseLessTurn });
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+    try {
+      await expect(h.engine.runTurn(prepOf(chatId))).rejects.toMatchObject({ code: "empty_generation" });
+      const call = warnSpy.mock.calls.find(([entry]) => (entry as { event?: string } | undefined)?.event === "chat.generation.empty");
+      expect(call).toBeDefined();
+      const [fields] = call ?? [];
+      expect(fields).toMatchObject({ event: "chat.generation.empty", chatId, finishReason: "tool", stopReason: "tool_calls", toolRecords: 0 });
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
+  // RECOVER-arm amendment (lane DOG-ENGINE, 2026-08-07). The pin above still holds EXACTLY as written, and
+  // that is worth stating: `proseLessTurn` carries `finishReason:"tool"` but NO tool calls and rides with no
+  // terminal tools, so it is the unrecoverable class — it must still refuse, and still warn.
+  //
+  // What changed is that a SECOND class now exists. This pins the two apart at the observability seam, because
+  // "the refusal is observable" is only half the guarantee once some refusals stop being refusals: a recovered
+  // turn must NOT log `chat.generation.empty` (that would report a failure that did not happen), and it must
+  // leave its own trace instead — otherwise the recovery, and its extra wire call, are invisible.
+  test("…and a RECOVERED turn logs the recovery instead of the refusal (the two classes stay apart)", async () => {
+    const chatId = await seedChat(db, "empty-recovered-log");
+    const toolCapable = testConnection();
+    const connection = { ...toolCapable, capability: { ...toolCapable.capability, tools: { silencesProse: false } } as typeof toolCapable.capability };
+    let call = 0;
+    const h = harness(db, {
+      runChatTurn: () => {
+        const first = call === 0;
+        call += 1;
+        return (async function* (): AsyncGenerator<TurnStreamChunk> {
+          await Promise.resolve();
+          yield first
+            ? {
+                kind: "final",
+                economics: {
+                  content: "",
+                  model: "test-model",
+                  finishReason: "tool",
+                  stopReason: "tool_calls",
+                  toolCalls: [{ toolCallId: "c1", name: "update_scene", arguments: "{}" }],
+                },
+              }
+            : { kind: "final", economics: { content: "The hall settles.", model: "test-model", finishReason: "stop" } };
+        })();
+      },
+    });
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+    try {
+      const outcome = await h.engine.runTurn(
+        prepOf(chatId, { connection, terminalTools: [{ name: "update_scene", description: "the scene", parameters: { type: "object" as const } }] }),
+      );
+      expect(outcome.messages[0]?.content).toBe("The hall settles.");
+      const events = warnSpy.mock.calls.map(([entry]) => (entry as { event?: string } | undefined)?.event);
+      expect(events).toContain("chat.generation.recovering");
+      // The turn did NOT fail, so the refusal warn must be absent — a recovered turn logging `empty` would
+      // read as a defect in every dashboard and every future investigation.
+      expect(events).not.toContain("chat.generation.empty");
+    } finally {
+      warnSpy.mockRestore();
+    }
+  });
+
   test("WHITESPACE-only content is the same defect (an invisible row either way)", async () => {
     const { chatId, messageId, variantId, characterId } = await seedSwipeTarget("empty-swipe-ws");
     const h = harness(db, {
@@ -1539,13 +1607,14 @@ describe("createTurnEngine — an infra runner warning reaches the chat bus (D41
 // fails with `empty_generation` — the defect, not a compile error.
 describe("createTurnEngine — a prose-less completion with tool calls is RECOVERED, not discarded", () => {
   /** A tools-capable connection: `coEmitsProseWithTools` is the terminal-tool attach gate, and it reads
-   *  exactly `capability.tools` present + not `silencesProse`. FABRICATION-OK, same shape as TEST_CAPABILITY. */
+   *  exactly `capability.tools` present + not `silencesProse`. */
   const toolConnection = (): ReturnType<typeof testConnection> => {
     const base = testConnection();
+    // FABRICATION-OK: `ModelCapability.tools` is a wide resolved cell, the gate reads two fields, TEST_CAPABILITY is built the same way
     return { ...base, capability: { ...base.capability, tools: { silencesProse: false } } as typeof base.capability };
   };
 
-  const TERMINAL_TOOLS = [{ name: "update_scene", description: "the scene", parameters: { type: "object" as const } }];
+  const terminalToolSet = [{ name: "update_scene", description: "the scene", parameters: { type: "object" as const } }];
 
   /** Pass 1: tool calls + ZERO prose. Pass 2 (the recovery re-run): the narrative. The runner answers by
    *  INVOCATION, which is also how these tests prove there were exactly two wire calls. */
@@ -1579,7 +1648,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
     };
   }
 
-  const NARRATIVE: readonly TurnStreamChunk[] = [
+  const narrativePass: readonly TurnStreamChunk[] = [
     { kind: "text", text: "The hall settles" },
     { kind: "final", economics: { content: "The hall settles around you.", tokensOut: 6, model: "test-model", finishReason: "stop" } },
   ];
@@ -1587,9 +1656,9 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
   test("THE REPRO, RECOVERED: the turn COMMITS the recovery pass's prose instead of failing", async () => {
     const chatId = await seedChat(db, "recover-commits");
     const requests: TurnRequest[] = [];
-    const h = harness(db, { runChatTurn: twoPassRunner(requests, NARRATIVE) });
+    const h = harness(db, { runChatTurn: twoPassRunner(requests, narrativePass) });
 
-    const outcome = await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: TERMINAL_TOOLS }));
+    const outcome = await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: terminalToolSet }));
 
     // The turn SUCCEEDS and the reply is real canon — this is the whole ruling.
     expect(outcome.aborted).toBe(false);
@@ -1602,16 +1671,18 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
   test("the state writes SURVIVE — pass 1's tool calls reach the rpg flush, alongside pass 2's prose", async () => {
     const chatId = await seedChat(db, "recover-carries-calls");
     const seen: unknown[] = [];
+    // FABRICATION-OK: a completed turn reaches only the two turn hooks (the `fireOrderRpg` precedent above); the assertion is on what `onTurnCompleted` is HANDED
     const rpg = {
-      onTurnCompleted: (_chatId: ChatId, _messageId: MessageId, _variantId: unknown, _turnId: unknown, turn: { terminalToolCalls: unknown }): Promise<void> => {
-        seen.push(turn.terminalToolCalls);
+      // Rest-typed: the hook takes five positional arguments and only the LAST is under test here.
+      onTurnCompleted: (...hookArgs: readonly unknown[]): Promise<void> => {
+        seen.push((hookArgs[4] as { terminalToolCalls: unknown }).terminalToolCalls);
         return Promise.resolve();
       },
       onTurnAborted: (): Promise<void> => Promise.resolve(),
     } as unknown as NonNullable<ChatContext["rpg"]>;
-    const h = harness(db, { runChatTurn: twoPassRunner([], NARRATIVE), rpg });
+    const h = harness(db, { runChatTurn: twoPassRunner([], narrativePass), rpg });
 
-    await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: TERMINAL_TOOLS }));
+    await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: terminalToolSet }));
     // The flush is fire-and-forget on a detached root — let the task queue drain.
     await new Promise((resolve) => setTimeout(resolve, 0));
 
@@ -1624,9 +1695,9 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
   test("the recovery pass rides TOOL-LESS and carries the continuation ask (never a second discharge)", async () => {
     const chatId = await seedChat(db, "recover-shape");
     const requests: TurnRequest[] = [];
-    const h = harness(db, { runChatTurn: twoPassRunner(requests, NARRATIVE) });
+    const h = harness(db, { runChatTurn: twoPassRunner(requests, narrativePass) });
 
-    await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: TERMINAL_TOOLS }));
+    await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: terminalToolSet }));
 
     // Exactly two wire calls: the original and ONE recovery. Never a loop.
     expect(requests).toHaveLength(2);
@@ -1644,11 +1715,11 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
     // Pass 2 answers empty too. There is no third attempt.
     const h = harness(db, { runChatTurn: twoPassRunner([], [{ kind: "final", economics: { content: "", model: "test-model", finishReason: "tool" } }]) });
 
-    await expect(h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: TERMINAL_TOOLS }))).rejects.toMatchObject({
-      code: "empty_generation",
-      // The generic "returned no text" is gone: the message names what the model actually did.
-      message: expect.stringContaining("tool calls and no story text") as unknown as string,
-    });
+    const err: unknown = await h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: terminalToolSet })).catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ChatOperationError);
+    expect(err).toMatchObject({ code: "empty_generation" });
+    // The generic "returned no text" is gone: the message names what the model actually did.
+    expect(err instanceof Error ? err.message : "").toContain("tool calls and no story text");
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
   });
 
@@ -1668,7 +1739,7 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
       },
     });
 
-    await expect(h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: TERMINAL_TOOLS }))).rejects.toMatchObject({
+    await expect(h.engine.runTurn(prepOf(chatId, { connection: toolConnection(), terminalTools: terminalToolSet }))).rejects.toMatchObject({
       code: "empty_generation",
     });
     expect(requests).toHaveLength(1);
@@ -1687,9 +1758,10 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
         })(),
     });
 
-    await expect(h.engine.runTurn(prepOf(chatId))).rejects.toMatchObject({
-      code: "empty_generation",
-      message: expect.stringContaining("output limit of 4096 tokens") as unknown as string,
-    });
+    const err: unknown = await h.engine.runTurn(prepOf(chatId)).catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: "empty_generation" });
+    // Names the budget AND the lever — a host told "no text" has no way to find the setting that fixes it.
+    expect(err instanceof Error ? err.message : "").toContain("output limit of 4096 tokens");
+    expect(err instanceof Error ? err.message : "").toContain("raise the preset's max output tokens");
   });
 });

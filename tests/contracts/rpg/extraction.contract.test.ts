@@ -16,10 +16,12 @@ import {
   EXTRACTION_PLANE_PROMPTS,
   gameTrackerWriteKeys,
   healedJournalTypes,
+  malformedToolCallDetails,
   malformedToolCalls,
   RPG_BASELINE_TOOL_DESCRIPTIONS,
   RPG_NO_CHANGES_TOOL,
   RPG_TOOL_ROUND_TOOL_NAMES,
+  RPG_WEATHER_TYPES,
   rpgExtractionSchema,
   rpgGameConfigSchema,
   rpgPopulateSchema,
@@ -781,6 +783,78 @@ test("R1: an all-good round reports nothing dropped (a quiet log on the happy pa
       { name: "add_journal_entry", arguments: JSON.stringify({ type: "event", label: "", title: "t", content: "c" }) },
     ]),
   ).toEqual([]);
+});
+
+// ── SCENE-DROPPED salvage (property test — dogfood-tracking.md) ─────────────────────────────────────────
+// "Every closed enum reachable from a tool arg can express what the reminder can RENDER" — for weather, the
+// reminder (`weatherLine`/`rpgWeatherText`) renders WHATEVER STRING the model wrote in the free `label` field
+// (label wins over type when present), so the render side is effectively unconstrained while the WRITE side
+// (`weather.type`) is a closed enum. The live incident was exactly this gap: the model needed to describe an
+// indoor scene (a state the fiction can render fine — it's just prose) and had no legal `type` to write.
+//
+// Written against `RPG_WEATHER_TYPES` AS IMPORTED (never a hardcoded member list) per the coordination note —
+// correct on both sides of the sibling DOG-ENGINE lane's concurrent `indoors` addition.
+
+test("SCENE-DROPPED property: every RPG_WEATHER_TYPES member (as imported) parses through the write schema", () => {
+  // The write ⊆ render direction always holds: whatever the closed enum can write, the reminder can render
+  // (rpgWeatherText/weatherLine just echoes the type string when no label is set — never a lookup that could
+  // miss a member). Pinned so an enum addition can never silently create an unrenderable type.
+  for (const type of RPG_WEATHER_TYPES) {
+    expect(updateSceneArgsSchema.safeParse({ weather: { type } }).success, `weather.type "${type}" must be writable`).toBe(true);
+  }
+});
+
+// ↓ WAS a declared `test.todo` FAILING-PIN (lane DOG-VERIFY): the reminder can render an indoor scene
+// trivially (it's prose, via `weather.label`/`scene.location`), but `RPG_WEATHER_TYPES` had no interior member,
+// so the literal token the model sent live ("indoors") was REJECTED at the write side. **FLIPPED TO LIVE by
+// lane DOG-ENGINE, 2026-08-07** — `indoors` is in the vocabulary and the render/write asymmetry is closed.
+// Kept (not deleted) because it is the crispest statement of what the defect actually WAS, and it is the
+// tripwire if the member is ever removed. Asserted against the enum AS IMPORTED, never a member list.
+test("SCENE-DROPPED property: the render side can express an indoor scene, and so can the write enum", () => {
+  expect(RPG_WEATHER_TYPES).toContain("indoors");
+  // Both directions, at the schema the model is actually bound by.
+  expect(updateSceneArgsSchema.safeParse({ weather: { type: "indoors" } }).success).toBe(true);
+});
+
+test("SCENE-DROPPED salvage: an invalid OPTIONAL field costs only that field, not the whole call", () => {
+  // The live shape: location/timeOfDay/recentEvent are all good; only `weather.type` is unwritable. The
+  // salvage retries with the offending top-level field (`weather`) removed, so everything else applies.
+  //
+  // ⚠️ The offending value was `"indoors"` when this was written — that is now a LEGAL member (DOG-ENGINE),
+  // so the value moved to one that is genuinely unnameable. The MECHANISM under test is unchanged and is the
+  // point: an invalid optional field must cost that field, never the call. Closing the vocabulary hole must
+  // not be allowed to quietly retire the salvage that made the hole survivable.
+  const calls = [
+    {
+      name: "update_scene",
+      arguments: JSON.stringify({ location: "Throne Room", timeOfDay: "afternoon", recentEvent: "Nate arrived", weather: { type: "sideways" } }),
+    },
+  ];
+  expect(malformedToolCallDetails(calls)).toEqual([]); // salvaged, not dropped — not a whole-call loss
+  expect([...salvagedToolCallFields(calls)]).toEqual(["update_scene.weather"]);
+  expect(toolCallsToExtraction(calls).scene).toEqual({ location: "Throne Room", timeOfDay: "afternoon", recentEvent: "Nate arrived" });
+});
+
+// ── malformedToolCallDetails (TOOLDROP-BLIND — the regression `malformedToolCalls` used to BE) ──────────
+// `malformedToolCalls` returned names only for a while, so a dropped `update_scene` was invisible as to WHY —
+// the exact live incident (12/12 `update_scene` drops) that cost hours before a hand probe found the field.
+
+test("TOOLDROP-BLIND: droppedIssues names the field, the reason, and the value the model SENT", () => {
+  // A required field missing entirely — salvage cannot rescue it (nothing survives dropping `targetRef`,
+  // which is a DROP not a salvage by the file's own rule), so this is a genuine whole-call loss.
+  const calls = [{ name: "update_party", arguments: JSON.stringify({ status: "wounded" }) }];
+  const details = malformedToolCallDetails(calls);
+  expect(details).toHaveLength(1);
+  expect(details[0]?.name).toBe("update_party");
+  expect(details[0]?.issues).toHaveLength(1);
+  expect(details[0]?.issues[0]).toContain("targetRef");
+  // …and `malformedToolCalls` is `.map`ped off exactly this — the two cannot drift.
+  expect([...malformedToolCalls(calls)]).toEqual(["update_party"]);
+});
+
+test("TOOLDROP-BLIND: non-JSON arguments carry their own single issue, not a field path", () => {
+  const details = malformedToolCallDetails([{ name: "update_party", arguments: "{not json" }]);
+  expect(details).toEqual([{ name: "update_party", issues: ["arguments: not valid JSON"] }]);
 });
 
 // ── strippedToolCallKeys (D112 (3) — the SILENT class the drop predicate can't see) ─────────────────────

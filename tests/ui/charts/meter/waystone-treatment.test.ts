@@ -260,8 +260,10 @@ test("EXHAUSTIVE: all nine weather recipes carry every layer slot, and no two ar
   expect(indoors.celestialOpacity).toBeLessThan(waystoneWeatherRecipe("storm").celestialOpacity);
   // The hour must still be READABLE indoors — the dial's primary job does not stop at a door.
   expect(indoors.celestialOpacity).toBeGreaterThan(0);
-  const heaviest = Math.max(...WAYSTONE_WEATHERS.map((w) => waystoneWeatherRecipe(w).wash?.opacity ?? 0));
-  expect(indoors.wash?.opacity).toBe(heaviest);
+  const washes = WAYSTONE_WEATHERS.map((w) => waystoneWeatherRecipe(w).wash).filter((wash) => wash !== null);
+  const heaviest = Math.max(...washes.map((wash) => wash.opacity));
+  expect(indoors.wash).not.toBeNull();
+  expect(indoors.wash === null ? 0 : indoors.wash.opacity).toBe(heaviest);
 });
 
 test("the storm is the loudest cell on every air axis; the particle layers are animatable by construction", () => {

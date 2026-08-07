@@ -35,8 +35,13 @@
 import { resolveProseText } from "@orb/contracts/prose";
 import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
-import type { RunTurnPipelineArgs, TurnPipelineResult } from "./pipeline.ts";
 import { runTurnPipeline } from "./pipeline.ts";
+
+// DERIVED from the function, never re-declared (`no-inline-types`: an exported type belongs in `contract/`,
+// and these are pipeline-internal shapes). `engine.ts` already names the result this way throughout, so this
+// is the file's established spelling rather than a second one.
+type RunTurnPipelineArgs = Parameters<typeof runTurnPipeline>[0];
+type TurnPipelineResult = Awaited<ReturnType<typeof runTurnPipeline>>;
 
 /** Did this completion produce tool calls and no narrative? The RECOVERABLE class, and the only one.
  *
@@ -47,26 +52,39 @@ import { runTurnPipeline } from "./pipeline.ts";
  *  Reads `terminalToolCalls`, NOT `toolRecords`: a folded turn deliberately lands no `ToolCallRecord` (the
  *  character turn is tool-less on the variant), so `toolRecords` is 0 here by construction and would gate
  *  recovery off on exactly the turns that need it. */
-export function isRecoverableProselessTurn(result: TurnPipelineResult): boolean {
+function isRecoverableProselessTurn(result: TurnPipelineResult): boolean {
   return result.content.trim().length === 0 && (result.terminalToolCalls?.length ?? 0) > 0;
 }
 
 /**
- * Re-run this turn for its narrative, tools removed. Returns the merged result on success, or `null` when the
- * recovery pass produced no prose either (the caller then fails the turn exactly as it would have).
+ * The turn's FINAL result: the first pass, or — when it is the recoverable prose-less class — a recovery pass
+ * re-run tool-less for the narrative, merged with pass 1's tool calls.
  *
- * The returned result is pass 2's in every respect a reader cares about — content, reasoning, economics, the
+ * TOTAL by design: the caller hands over the first pass and receives the result to persist, with no branch of
+ * its own. `executeTurn` is at the cognitive-complexity ceiling and the recovery decision is this module's to
+ * own, so the gate lives here rather than as an `if` up there.
+ *
+ * On every non-recoverable turn this returns `first` UNTOUCHED, having done nothing — no wire call, no log.
+ * When recovery runs but also comes back empty, it likewise returns `first`, so the caller's empty-generation
+ * guard fires exactly as it would have and reports the ORIGINAL completion's reasons.
+ *
+ * The recovered result is pass 2's in every respect a reader cares about — content, reasoning, economics, the
  * request that produced it — EXCEPT `terminalToolCalls`, which stays pass 1's. That single carry-over is the
  * whole point of the feature, and it is why this merges rather than simply returning pass 2.
  */
-export async function recoverProselessTurn(args: {
+export async function resolveTurnNarrative(args: {
   readonly chatId: ChatId;
   /** THIS turn's pipeline arguments — re-used verbatim but for the two overrides below. */
   readonly pipelineArgs: RunTurnPipelineArgs;
-  /** The refused first pass. Caller has already checked {@link isRecoverableProselessTurn}. */
+  /** The completed first pass. */
   readonly first: TurnPipelineResult;
-}): Promise<TurnPipelineResult | null> {
-  const { chatId, pipelineArgs, first } = args;
+  /** Records the recovery pass's own outcome (the wire-capture ring), so a doubled spend is never a mystery. */
+  readonly onRecoveryOutcome: (result: TurnPipelineResult) => void;
+}): Promise<TurnPipelineResult> {
+  const { chatId, pipelineArgs, first, onRecoveryOutcome } = args;
+  if (!isRecoverableProselessTurn(first)) {
+    return first;
+  }
   const ask = resolveProseText("chat.recovery.narrativeContinuation", pipelineArgs.assembleContext.prose ?? {});
   const log = getLog();
   log.warn(
@@ -90,6 +108,8 @@ export async function recoverProselessTurn(args: {
     appendUserTurn: appendAsk(pipelineArgs.appendUserTurn, ask),
   });
 
+  onRecoveryOutcome(recovery);
+
   if (recovery.content.trim().length === 0) {
     log.warn(
       {
@@ -100,7 +120,9 @@ export async function recoverProselessTurn(args: {
       },
       "chat: the recovery pass produced no prose either — turn REFUSED",
     );
-    return null;
+    // The FIRST pass, deliberately: the caller's guard then reports the reasons of the completion that
+    // actually discharged into tool calls, which is the diagnosable one. Pass 2 is the symptom, pass 1 is why.
+    return first;
   }
 
   log.info(

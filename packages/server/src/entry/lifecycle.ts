@@ -71,6 +71,53 @@ function connectionCloser(handle: ServerType): ConnectionCloser | null {
   return typeof candidate.closeIdleConnections === "function" && typeof candidate.closeAllConnections === "function" ? (candidate as ConnectionCloser) : null;
 }
 
+/** The minimal logger shape {@link drainHttpServer} needs — real `getLog()` in production, a spy in tests. */
+export interface DrainLog {
+  readonly warn: (fields: Record<string, unknown>, msg: string) => void;
+}
+
+/** Stop accepting, then drain — WITH A DEADLINE.
+ *
+ *  `server.close()` alone waits for every open connection to end, and an SSE stream never does: one browser
+ *  tab held a prod shutdown for ~6 minutes (measured), because the app's own live-update socket is exactly
+ *  the connection that never closes on its own. A client must not be able to hold a deploy hostage.
+ *
+ *  Idle keep-alive sockets are dropped immediately (they have no in-flight request to lose). Everything
+ *  still open at the deadline — SSE, and any genuinely long request — is force-closed so `close()` can
+ *  settle. The force is LOUD: a shutdown that had to cut connections says so, since that is the case where
+ *  a client saw a truncated stream.
+ *
+ *  Exported (not a `createLifecycle` closure) so the forced path is directly testable against a real open
+ *  socket, rather than only provable live (`DRAIN-UNBOUNDED`, dogfood-tracking.md). */
+export async function drainHttpServer(handle: ServerType, log: DrainLog, drainMs: number = SHUTDOWN_DRAIN_MS): Promise<void> {
+  const closed = new Promise<void>((resolve) => {
+    handle.close(() => {
+      resolve();
+    });
+  });
+  // `ServerType` is a union that includes the http2 servers, which do not carry the connection-closing
+  // pair — hence a capability probe rather than a cast. Absent (http2), the drain degrades to the old
+  // unbounded wait, which is honest: there is no supported way to force those sockets from here.
+  const closer = connectionCloser(handle);
+  // Keep-alive sockets sitting idle between requests: nothing in flight, drop them now rather than wait.
+  closer?.closeIdleConnections();
+  let timer: NodeJS.Timeout | undefined;
+  const deadline = new Promise<"forced">((resolve) => {
+    timer = setTimeout(() => {
+      resolve("forced");
+    }, drainMs);
+  });
+  const outcome = await Promise.race([closed.then(() => "drained" as const), deadline]);
+  if (outcome === "forced") {
+    log.warn({ drainMs }, "shutdown: drain deadline hit — force-closing remaining connections (long-lived streams do not end on their own)");
+    closer?.closeAllConnections();
+    await closed;
+  }
+  if (timer !== undefined) {
+    clearTimeout(timer);
+  }
+}
+
 /** The lifecycle handle `index.ts` drives: boot once, shut down once (idempotent). */
 export interface Lifecycle {
   readonly boot: () => Promise<void>;
@@ -384,48 +431,6 @@ export function createLifecycle(): Lifecycle {
     });
   }
 
-  /** Stop accepting, then drain — WITH A DEADLINE.
-   *
-   *  `server.close()` alone waits for every open connection to end, and an SSE stream never does: one browser
-   *  tab held a prod shutdown for ~6 minutes (measured), because the app's own live-update socket is exactly
-   *  the connection that never closes on its own. A client must not be able to hold a deploy hostage.
-   *
-   *  Idle keep-alive sockets are dropped immediately (they have no in-flight request to lose). Everything
-   *  still open at the deadline — SSE, and any genuinely long request — is force-closed so `close()` can
-   *  settle. The force is LOUD: a shutdown that had to cut connections says so, since that is the case where
-   *  a client saw a truncated stream. */
-  async function drainHttpServer(handle: NonNullable<typeof server>): Promise<void> {
-    const closed = new Promise<void>((resolve) => {
-      handle.close(() => {
-        resolve();
-      });
-    });
-    // `ServerType` is a union that includes the http2 servers, which do not carry the connection-closing
-    // pair — hence a capability probe rather than a cast. Absent (http2), the drain degrades to the old
-    // unbounded wait, which is honest: there is no supported way to force those sockets from here.
-    const closer = connectionCloser(handle);
-    // Keep-alive sockets sitting idle between requests: nothing in flight, drop them now rather than wait.
-    closer?.closeIdleConnections();
-    let timer: NodeJS.Timeout | undefined;
-    const deadline = new Promise<"forced">((resolve) => {
-      timer = setTimeout(() => {
-        resolve("forced");
-      }, SHUTDOWN_DRAIN_MS);
-    });
-    const outcome = await Promise.race([closed.then(() => "drained" as const), deadline]);
-    if (outcome === "forced") {
-      log.warn(
-        { drainMs: SHUTDOWN_DRAIN_MS },
-        "shutdown: drain deadline hit — force-closing remaining connections (long-lived streams do not end on their own)",
-      );
-      closer?.closeAllConnections();
-      await closed;
-    }
-    if (timer !== undefined) {
-      clearTimeout(timer);
-    }
-  }
-
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the graceful-drain teardown is a flat sequence of independent null-guarded stops (server, schedulers, worker, observer, vLLM, db) — one cohesive shutdown, splitting it hides the ordering.
   async function shutdown(): Promise<void> {
     if (isShuttingDown) {
@@ -435,7 +440,7 @@ export function createLifecycle(): Lifecycle {
     log.info("shutdown: draining");
 
     if (server !== null) {
-      await drainHttpServer(server);
+      await drainHttpServer(server, log);
       server = null;
     }
     if (stopScheduler !== null) {

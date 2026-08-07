@@ -62,9 +62,8 @@ import { projectRpgTranscript } from "../substrate/rpg-transcript.ts";
 import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime-variables.ts";
 import { assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import { debitTurnBudget } from "./budget.ts";
-import type { RunTurnPipelineArgs } from "./pipeline.ts";
 import { runTurnPipeline } from "./pipeline.ts";
-import { isRecoverableProselessTurn, recoverProselessTurn } from "./recover-narrative.ts";
+import { resolveTurnNarrative } from "./recover-narrative.ts";
 import { abortedOutcome, committedOutcome } from "./result.ts";
 import { assertMaxProSubConsent, resolveOwnerConsented } from "./turn-identity.ts";
 
@@ -1239,7 +1238,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     const pipelineArgs = {
       runChatTurn: ctx.runChatTurn,
       applyRegexReplace: ctx.applyRegexReplace,
-      resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
+      resolveImageUrl: (ref): Promise<string | null> => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       assembleContext: speakerAssembleContext,
       canon: scopeCanon(canonAll, persist, target),
       historyMacroNames,
@@ -1277,23 +1276,24 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
         turnId,
         signal: prep.signal,
       },
-      onDelta: (delta) => {
+      onDelta: (delta): void => {
         void deps.emit({ type: "delta", chatId: prep.chatId, slotSeq, delta });
       },
-    } satisfies RunTurnPipelineArgs;
+    } satisfies Parameters<typeof runTurnPipeline>[0];
     const firstPass = await runTurnPipeline(pipelineArgs);
     captureTurnOutcome(prep, firstPass, ctx.now());
     // RECOVER, do not discard (owner ruling 2026-08-07, dogfood EMPTYGEN-REASONING). A reasoning turn whose
     // tool calls landed but whose prose did not is not a failed turn — it is a turn missing its second half,
-    // and the half it HAS is the expensive one. Re-run once for the narrative, carrying the state writes
-    // forward. Byte-identical no-op on every other turn (the gate is prose-less AND terminal calls landed).
-    // Its own outcome is captured too, so `/api/_debug/wire/outcomes` shows BOTH passes rather than a
-    // mysterious doubled spend.
-    const recovered = isRecoverableProselessTurn(firstPass) ? await recoverProselessTurn({ chatId: prep.chatId, pipelineArgs, first: firstPass }) : null;
-    if (recovered !== null) {
-      captureTurnOutcome(prep, recovered, ctx.now());
-    }
-    const result = recovered ?? firstPass;
+    // and the half it HAS is the expensive one. `resolveTurnNarrative` re-runs it once for the narrative and
+    // carries the state writes forward; on every other turn it returns `firstPass` untouched, having made no
+    // wire call. TOTAL on purpose (no branch here): the recovery decision belongs to that module, and this
+    // function is at its complexity ceiling.
+    const result = await resolveTurnNarrative({
+      chatId: prep.chatId,
+      pipelineArgs,
+      first: firstPass,
+      onRecoveryOutcome: (recovered): void => captureTurnOutcome(prep, recovered, ctx.now()),
+    });
     const genFinishedAt = ctx.now();
     await emitCapabilityDropWarnings(deps.emit, prep.chatId, result);
     // VER-1b — refuse a prose-less generation BEFORE any canon write (see `assertGeneratedContent`). Placed
