@@ -7,11 +7,12 @@
 // the in-memory index it needs). The shape is read → plan → ONE batch: a lift that half-minted its rows
 // before failing to attach them would leave the library with orphan scripts and the card with none.
 
-import type { PortableRegexScript } from "@orb/contracts/regex";
+import type { PortableRegexScript, RegexScriptRow } from "@orb/contracts/regex";
 import { characterRegexScripts, globalRegexScripts, regexScripts } from "@orb/db";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany } from "@orb/db/kit";
 import { DomainOperationError } from "@orb/kit/errors";
+import type { UserId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { and, asc, eq } from "drizzle-orm";
 import { portableParseError } from "#kit/serde/lib";
@@ -19,6 +20,7 @@ import { buildRegexScriptFile, parseRegexScriptFile, REGEX_SCRIPT_SCHEMA_KIND } 
 import type {
   ExportCardScripts,
   ExportedRegexScriptFile,
+  ExportRegexScript,
   ExportRegexScripts,
   ImportCardScripts,
   ImportCardScriptsResult,
@@ -26,7 +28,7 @@ import type {
   RegexPortabilityContext,
 } from "../contract/portability.ts";
 import { findDuplicate, planCardLift, splitScript } from "../substrate/dedup.ts";
-import { listOwnedScripts, loadOwnedScriptsByIds, toRow } from "./queries.ts";
+import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from "./queries.ts";
 
 /**
  * The card LIFT (the `importLorebook` twin). Reads the owner's library + the carried references THIS owner
@@ -78,24 +80,54 @@ export function createExportCardScripts(ctx: Pick<RegexPortabilityContext, "db">
   };
 }
 
+/** ONE row → its portable file. THE single projection both export halves run through (REGX2): the bundle
+ *  streams it per owned script, the single-entity door calls it once, so a shared script and a restored one
+ *  can never diverge — which is the property D121-D's thin-arm clause exists to hold. */
+function toPortableFile(row: RegexScriptRow, isGlobal: boolean): ExportedRegexScriptFile {
+  const { id, name, enabled, ...behavior } = row;
+  const payload: PortableRegexScript = { name, enabled, ...behavior, global: isGlobal };
+  return { filename: `${slugifyHandle(name)}-${id}.json`, bytes: buildRegexScriptFile(payload) };
+}
+
+/** The owner's GLOBAL attachment ids. Owner-scoped through the join (never a bare table scan of a junction
+ *  the caller doesn't own) — `global_regex_scripts` carries no owner column of its own. A plain array, not a
+ *  Set: `persistence/` is queries-only, and a library-sized `includes` is not the reason to mint in-memory
+ *  state here. */
+async function ownedGlobalIds(ctx: Pick<RegexPortabilityContext, "db">, ownerId: UserId): Promise<readonly string[]> {
+  const rows = await ctx.db
+    .select({ id: globalRegexScripts.regexScriptId })
+    .from(globalRegexScripts)
+    .innerJoin(regexScripts, eq(globalRegexScripts.regexScriptId, regexScripts.id))
+    .where(eq(regexScripts.ownerId, ownerId));
+  return rows.map((r) => r.id);
+}
+
 /** The backup-bundle EXPORT half — one `regex/<slug>-<id>.json` per owned script. The GLOBAL attachment
  *  rides in the file (it is a property of the script); the other three scopes point at rows the bundle can't
  *  guarantee and are therefore not carried. */
 export function createExportRegexScripts(ctx: Pick<RegexPortabilityContext, "db">): ExportRegexScripts {
   return async ({ ownerId }): Promise<readonly ExportedRegexScriptFile[]> => {
     const records = await listOwnedScripts(ctx.db, ownerId);
-    // Owner-scoped through the join (never a bare table scan of a junction the caller doesn't own).
-    const globalRows = await ctx.db
-      .select({ id: globalRegexScripts.regexScriptId })
-      .from(globalRegexScripts)
-      .innerJoin(regexScripts, eq(globalRegexScripts.regexScriptId, regexScripts.id))
-      .where(eq(regexScripts.ownerId, ownerId));
-    const globalIds: readonly string[] = globalRows.map((r) => r.id);
+    const globalIds = await ownedGlobalIds(ctx, ownerId);
     return records.map((record): ExportedRegexScriptFile => {
-      const { id, name, enabled, ...behavior } = toRow(record);
-      const payload: PortableRegexScript = { name, enabled, ...behavior, global: globalIds.includes(id) };
-      return { filename: `${slugifyHandle(name)}-${id}.json`, bytes: buildRegexScriptFile(payload) };
+      const row = toRow(record);
+      return toPortableFile(row, globalIds.includes(row.id));
     });
+  };
+}
+
+/** The SINGLE-ENTITY export door (REGX2 · D121-D `kebab=Export`) — the same projection, one row. Owner-gated
+ *  by `loadOwnedScript`; a foreign/absent id answers `null` (leak-free: "not yours" and "doesn't exist" are
+ *  one answer, the `exportBook` posture). */
+export function createExportRegexScript(ctx: Pick<RegexPortabilityContext, "db">): ExportRegexScript {
+  return async ({ ownerId, scriptId }): Promise<ExportedRegexScriptFile | null> => {
+    const record = await loadOwnedScript(ctx.db, ownerId, scriptId);
+    if (record === undefined) {
+      return null;
+    }
+    const globalIds = await ownedGlobalIds(ctx, ownerId);
+    const row = toRow(record);
+    return toPortableFile(row, globalIds.includes(row.id));
   };
 }
 

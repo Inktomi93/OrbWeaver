@@ -9,6 +9,10 @@
 //   • `ExportRegexScripts` / `ImportRegexScript` — the backup-bundle descriptor's two halves (the `regex/`
 //     dir, one `*.json` per script). The GLOBAL attachment rides in the file (it is a property of the
 //     script); character/preset/chat attachments do NOT (they point at rows the bundle can't guarantee).
+//   • `ExportRegexScript` — the SINGLE-ENTITY export door (REGX2), a thin arm sharing the bundle half's own
+//     file projection. Its import twin is `ImportRegexScript` ITSELF, unwrapped: the bundle descriptor
+//     already parses exactly one `regex/*.json`, so the door reuses that verb rather than minting a second
+//     parse path (D121-D: "a single-entity door is a THIN ARM over the family's bundle verbs").
 //
 // THE DEDUP RULE (one home, both import paths): a candidate matches an existing owned row when its
 // BEHAVIOR BODY is content-equal (canonical JSON of the behavior blob) AND its name matches. Re-importing
@@ -64,6 +68,12 @@ export interface ExportedRegexScriptFile {
 
 /** Every script the owner owns, one portable file each (the descriptor streams them). */
 export type ExportRegexScripts = (args: { readonly ownerId: UserId }) => Promise<readonly ExportedRegexScriptFile[]>;
+
+/** ONE owned script as its portable file — the single-entity EXPORT door (REGX2 · D121-D `kebab=Export`).
+ *  A THIN ARM, not a second serialization path: it shares `toPortableFile` with {@link ExportRegexScripts}
+ *  above, so the file a user shares and the file a backup carries are the same bytes by construction.
+ *  A foreign/absent id answers `null` — "not yours" and "doesn't exist" are one answer. */
+export type ExportRegexScript = (args: { readonly ownerId: UserId; readonly scriptId: RegexScriptId }) => Promise<ExportedRegexScriptFile | null>;
 
 /** Import ONE `regex/*.json`. Dedups by the shared rule; `created:false` ⇒ it matched an existing row. */
 export type ImportRegexScript = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<{ readonly created: boolean }>;

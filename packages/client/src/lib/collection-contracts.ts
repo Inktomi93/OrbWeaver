@@ -15,6 +15,10 @@
 // group band IS a collection's band in this workspace, so `importFile` is a DATA field the host renders
 // (below); EXPORT stays per-member and therefore owner-rendered, inside the row's own kebab.
 //
+// BULK MODE follows the same split (REGX2): the MODE TOGGLE is band chrome and therefore a DATA field
+// (`bulkSelect`, below), while the selection BAR and the checkbox rows are the contribution's, because they
+// speak that library's own verbs. Host draws the door, owner decides what walks through it.
+//
 // ROOM-TIER BOUNDARY: every collection here is a USER-TIER library. Room-tier overrides (a per-chat preset
 // binding, per-chat injections) never ride this seam — they stay on the chat context panel's machinery.
 //
@@ -124,12 +128,32 @@ export interface CollectionContribution {
    *  contribution rendering its own import button inside the ROW area would be the second chrome grammar
    *  C-4 exists to forbid. Export stays the row's own kebab arm (owner-rendered, per-member).
    *
-   *  OPTIONAL, unlike `create`: a library you cannot ADD to is not a library, but a library with no
-   *  portable single-entity file genuinely has nothing to import (regex scripts travel inside the card
-   *  they belong to — `lifecycle-portability.ts`'s `{ ruled }` cells are the register of which is which).
+   *  OPTIONAL, unlike `create`: a library you cannot ADD to is not a library, but a library with no portable
+   *  single-entity file genuinely has nothing to import — `lifecycle-portability.ts`'s `LIFECYCLE_DOORS`
+   *  table is the register of which family is which, and its `{ ruled }` cells carry the reason. (It used to
+   *  say "regex scripts travel inside the card they belong to" as the example; that exemption ENDED with the
+   *  owner's REGX2 ruling, and regex now declares a real door pair.)
    *  `label` is the trigger's accessible name AND its tooltip; `accept` is the file-picker filter; `useRun`
    *  is a HOOK returning the runner for the same reason `create.useRun` is. */
   readonly importFile?: { readonly label: string; readonly accept: string; readonly useRun: () => (file: File) => void };
+  /** The optional BULK-SELECT mode, declared as DATA exactly like {@link create} and {@link importFile} — the
+   *  host draws a pressed-state ghost toggle in the group band and the CONTRIBUTION owns both the mode state
+   *  and everything the mode changes (checkbox rows, the `SelectionBar`, the batch verbs behind it).
+   *
+   *  WHY THE TOGGLE IS THE HOST'S AND THE BAR IS NOT: the group band IS this collection's chrome (C-4 — a
+   *  contribution drawing its own band-class control inside the ROW area is the second chrome grammar this
+   *  seam exists to forbid), so mode ENTRY belongs to the host, in one grammar, in one place, for every
+   *  collection. The selection bar is not band chrome: it is a per-selection surface that appears under the
+   *  rows and speaks the owner's own verbs (`character-bulk-bar` is the precedent), so it stays inside
+   *  `list`. The host never learns what the selection MEANS.
+   *
+   *  `useMode` is a HOOK for the same reason the other two runners are — a definition is a module-level
+   *  value, so the mode state has to be reachable through a hook the host calls unconditionally, once.
+   *  `active` drives `aria-pressed`; `label` is the trigger's accessible name AND its tooltip.
+   *
+   *  FOR THE NEXT ADOPTER (tag, world-info): nothing here is regex-specific. Declare the field, own a mode
+   *  flag, and render your own bar + checkbox rows inside `list` — the band half is already built. */
+  readonly bulkSelect?: { readonly label: string; readonly useMode: () => { readonly active: boolean; readonly toggle: () => void } };
   /** CONTENT for a selected member of this kind — the full editor, owner-rendered, mounted, no popups. */
   readonly detail: (view: CollectionDetailView) => ReactNode;
   /** CONTEXT for a selected member of this kind (see {@link CollectionContext}). */

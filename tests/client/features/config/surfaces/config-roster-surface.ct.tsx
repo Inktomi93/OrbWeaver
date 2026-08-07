@@ -20,6 +20,8 @@ const REGEX_BAND = /Regex scripts/;
 const WORLD_INFO_BAND = /World Info/;
 /** Any group-band IMPORT trigger — the D121-D band half, drawn only where a collection declares one. */
 const ANY_IMPORT_TRIGGER = /^Import/;
+/** Any group-band BULK-SELECT toggle (REGX2) — the same DATA-declared band grammar. */
+const ANY_BULK_TOGGLE = /^Select /;
 
 const TAG_COUNT = 400;
 
@@ -163,9 +165,13 @@ test("no selection renders the host WELCOME with a launcher card per collection"
 });
 
 // D121-D's lifecycle anatomy, landed on the group band: IMPORT is host chrome driven by the contribution's
-// `importFile` DATA, so it appears for exactly the collections that declare one. Tags and regex scripts do
-// not (their portable unit is the bundle / the card that carries them — lifecycle-portability.ts's `ruled`
-// cells), and the roster must not grow a dead trigger for them.
+// `importFile` DATA, so it appears for exactly the collections that declare one — and the register of which
+// is which is `lifecycle-portability.ts`'s `LIFECYCLE_DOORS` table, never a host string list.
+//
+// REGEX GAINED ITS DOOR (REGX2, owner ruling 2026-08-03): this test used to assert exactly ONE trigger and
+// said in words that regex scripts had none, "their portable unit being the card that carries them". That
+// was the `{ ruled }` cell's reasoning, and the owner's ruling ended it. TAGS still have none, which is what
+// keeps this test load-bearing: the band must not grow a dead trigger for a collection with no door.
 test("the group band draws IMPORT only for a collection that declares one", async ({ mount, page }) => {
   await stub(page);
   const workspace = await mount(<ConfigWorkspaceStory />);
@@ -173,7 +179,23 @@ test("the group band draws IMPORT only for a collection that declares one", asyn
 
   const roster = workspace.locator(ROSTER);
   await expect(roster.getByRole("button", { name: "Import a world-info book" })).toBeVisible();
-  await expect(roster.getByRole("button", { name: ANY_IMPORT_TRIGGER })).toHaveCount(1);
+  await expect(roster.getByRole("button", { name: "Import a regex script" })).toBeVisible();
+  await expect(roster.getByRole("button", { name: ANY_IMPORT_TRIGGER })).toHaveCount(2);
+});
+
+// The BULK-SELECT toggle is the same DATA-declared band grammar (REGX2). Only regex declares one today, and
+// the assertion is that the band draws it for exactly that collection — a toggle on a library with no bulk
+// verbs behind it would be a control that does nothing.
+test("the group band draws the BULK toggle only for a collection that declares one", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  const roster = workspace.locator(ROSTER);
+  const toggle = roster.getByRole("button", { name: "Select scripts" });
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveAttribute("aria-pressed", "false");
+  await expect(roster.getByRole("button", { name: ANY_BULK_TOGGLE })).toHaveCount(1);
 });
 
 test("selecting a member routes CONTENT to its owner's editor and CONTEXT to its owner's arm", async ({ mount, page }) => {

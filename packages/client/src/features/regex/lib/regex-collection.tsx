@@ -10,7 +10,7 @@ import { Code } from "@orb/ui/icons";
 import type { CollectionContribution } from "#lib";
 import { RegexCollectionRows } from "../components/regex-collection-rows.tsx";
 import { RegexContextBody } from "../components/regex-context-body.tsx";
-import { useCreateRegexMember, useRegexCount } from "../hooks/use-regex-collection.ts";
+import { useCreateRegexMember, useImportRegexMember, useRegexBulkMode, useRegexCount } from "../hooks/use-regex-collection.ts";
 import { RegexMemberSurface } from "../surfaces/regex-member-surface.tsx";
 import { REGEX_COLLECTION_ID } from "./regex-model.ts";
 
@@ -23,6 +23,11 @@ export const regexCollection: CollectionContribution = {
   emptyText: "No scripts yet.",
   useCount: useRegexCount,
   create: { label: "New script", useRun: useCreateRegexMember },
+  // The two REGX2 band affordances, declared as DATA the host renders in its own chrome grammar (C-4).
+  // `importFile` exists at all because the owner's REGX2 ruling ENDED the `{ ruled }` exemption that used to
+  // say a script only travels inside the card it belongs to — see `lifecycle-portability.ts`'s regex cells.
+  importFile: { label: "Import a regex script", accept: "application/json", useRun: useImportRegexMember },
+  bulkSelect: { label: "Select scripts", useMode: useRegexBulkMode },
   list: (view) => <RegexCollectionRows view={view} />,
   detail: (view) => <RegexMemberSurface memberId={view.memberId} />,
   // The band's title is the mock's own ("WHERE IT RUNS"), not the shell's neutral "Details".

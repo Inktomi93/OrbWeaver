@@ -15,7 +15,7 @@
 
 import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
-import { ChevronDown, ChevronRight, Icon, Plus, Search, Upload } from "@orb/ui/icons";
+import { ChevronDown, ChevronRight, Icon, ListChecks, Plus, Search, Upload } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
@@ -71,6 +71,7 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
             </Text>
           )}
         </Button>
+        <CollectionBulkTrigger collection={collection} />
         <CollectionImportTrigger collection={collection} />
         <Button aria-label={collection.create.label} intent="ghost" onClick={create} size="icon" title={collection.create.label} type="button">
           <Icon icon={Plus} size="sm" />
@@ -96,6 +97,30 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
           once expanded would read as a library the user has to open to learn is empty. */}
       {isEmpty ? <CollectionGroupEmpty collection={collection} onCreate={create} /> : null}
     </Stack>
+  );
+}
+
+/** The group band's BULK-SELECT toggle (REGX2) — rendered only for a collection that declares one, and
+ *  split into its own component for the same reason the import door is: whether a collection has a bulk mode
+ *  is a module-level BUILD fact, so the hook below it is called unconditionally.
+ *
+ *  It leads IMPORT (which leads CREATE): the band reads left-to-right as select · bring in · make new, with
+ *  the primary hard against the trailing edge. A pressed toggle, not a menu — the mode is binary and the
+ *  reader needs to see at a glance that the rows below have turned into checkboxes. */
+function CollectionBulkTrigger({ collection }: CollectionGroupProps): ReactNode {
+  const bulk = collection.bulkSelect;
+  if (bulk === undefined) {
+    return null;
+  }
+  return <CollectionBulkToggle bulk={bulk} />;
+}
+
+function CollectionBulkToggle({ bulk }: { readonly bulk: NonNullable<CollectionContribution["bulkSelect"]> }): ReactElement {
+  const mode = bulk.useMode();
+  return (
+    <Button aria-label={bulk.label} aria-pressed={mode.active} intent="ghost" onClick={mode.toggle} size="icon" title={bulk.label} type="button">
+      <Icon icon={ListChecks} size="sm" />
+    </Button>
   );
 }
 

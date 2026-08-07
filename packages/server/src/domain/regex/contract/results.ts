@@ -17,3 +17,11 @@ export interface DetachResult {
 export interface ReorderResult {
   readonly reordered: number;
 }
+
+/** Every BULK verb's answer (REGX2): how many of the requested scripts the operation actually changed.
+ *  It is NOT the requested count — a foreign id, an id another device already deleted, and an id that was
+ *  already in the requested state all fall out, and the caller's toast should say what happened rather than
+ *  what was asked. */
+export interface BulkResult {
+  readonly affected: number;
+}

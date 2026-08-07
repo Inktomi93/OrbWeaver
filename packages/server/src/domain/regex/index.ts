@@ -10,6 +10,7 @@ export type {
   ExportCardScripts,
   ExportedCardScripts,
   ExportedRegexScriptFile,
+  ExportRegexScript,
   ExportRegexScripts,
   ImportCardScripts,
   ImportCardScriptsArgs,
@@ -18,7 +19,7 @@ export type {
   RegexPortabilityContext,
 } from "./contract/portability.ts";
 export type { RegexResolveContext, ResolvedRegexSources, ResolveRegexSources, ResolveRegexSourcesArgs } from "./contract/resolve.ts";
-export type { DetachResult, RemoveResult, ReorderResult } from "./contract/results.ts";
+export type { BulkResult, DetachResult, RemoveResult, ReorderResult } from "./contract/results.ts";
 export type { ScriptRecord } from "./contract/rows.ts";
 export type { RegexService } from "./contract/service.ts";
 export type { CreateRegexScriptInput, PortableRegexScript, RegexScriptRow, UpdateRegexScriptInput } from "./contract/views.ts";

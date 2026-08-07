@@ -74,7 +74,7 @@ function RegexMemberEditorBody({ row, session }: { readonly row: RegexScriptRow;
           <AutosaveStatus caption="Synced across your devices." onRetry={session.retrySave} state={session.saveState} />
         </Row>
 
-        <RegexEditorFields form={session.form} />
+        <RegexEditorFields form={session.form} scriptId={row.id} />
 
         <Row justify="end">
           <Button intent="ghost" onClick={(): void => setDeleteOpen(true)} size="sm" type="button">

@@ -31,6 +31,7 @@ import { lazy, Suspense, useId } from "react";
 import type { AppFormInstance } from "#forms";
 import { REGEX_PLACEMENT_ITEMS } from "#lib";
 import { WHOLE_HISTORY_DEPTH } from "../lib/derive-tier-flags.ts";
+import { RegexPipelinePanel } from "./regex-pipeline-panel.tsx";
 import { RegexTestPanel } from "./regex-test-panel.tsx";
 
 // Lazy — CodeMirror is heavy and only this editor needs it.
@@ -90,7 +91,7 @@ type RegexEditorForm = Omit<AppFormInstance<CreateRegexScriptInput>, "reset">;
  *  DEPTH 0 IS THE NEWEST MESSAGE and counts backwards (the ST semantic, cited in `@orb/kit/regex`'s
  *  `RegexHistoryDepth`). "To" empty = no ceiling, which is Base UI's own null-is-empty shape rather than a
  *  sentinel number. */
-function HistoryDepthFields({ form }: RegexEditorFieldsProps): ReactElement {
+function HistoryDepthFields({ form }: Pick<RegexEditorFieldsProps, "form">): ReactElement {
   return (
     <form.AppField name="historyDepth">
       {(field): ReactElement => {
@@ -129,10 +130,14 @@ function HistoryDepthFields({ form }: RegexEditorFieldsProps): ReactElement {
 
 export interface RegexEditorFieldsProps {
   readonly form: RegexEditorForm;
+  /** The row id of the script being edited, or `null` when it has none yet — the PIPELINE panel needs it to
+   *  decide whether this script is already in the always-on tier or is appended after it. Nothing else here
+   *  reads it: every other field is bound through the form. */
+  readonly scriptId: string | null;
 }
 
 /** The regex-script field set — bound to one library row, rendered wherever the caller mounts it. */
-export function RegexEditorFields({ form }: RegexEditorFieldsProps): ReactElement {
+export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): ReactElement {
   const patternId = useId();
   return (
     <Stack gap="block">
@@ -253,7 +258,18 @@ export function RegexEditorFields({ form }: RegexEditorFieldsProps): ReactElemen
           The children param is deliberately UNANNOTATED: react-form infers `Subscribe`'s selected type
           from the selector, and annotating the child's parameter blocks that inference (TSelected falls
           back to the whole `FormState` and the call stops typechecking). */}
-      <form.Subscribe selector={(state): CreateRegexScriptInput => state.values}>{(values): ReactElement => <RegexTestPanel script={values} />}</form.Subscribe>
+      {/* TWO PANELS, TWO QUESTIONS (REGX2). "Try it" answers "what does this find/replace DO", with the run
+          gates neutralised so a switched-off draft still previews. "In the pipeline" answers "what will
+          ACTUALLY happen on this stream", honouring every gate and showing this script's place among the
+          always-on set. Do not unify them — whichever question lost would stop being answerable. */}
+      <form.Subscribe selector={(state): CreateRegexScriptInput => state.values}>
+        {(values): ReactElement => (
+          <>
+            <RegexTestPanel script={values} />
+            <RegexPipelinePanel script={values} scriptId={scriptId} />
+          </>
+        )}
+      </form.Subscribe>
     </Stack>
   );
 }
