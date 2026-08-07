@@ -386,4 +386,34 @@ describe("foundation/env — the .env load (override semantics + parser toleranc
     expect(env.DEFAULT_USER_HANDLE).toBe("owner");
     expect(env.PORT).toBe(9200);
   });
+
+  // ENV-BLEEDS-INTO-TESTS (dogfood-tracking.md) — the fix: `ORB_ENV_NO_FILE` skips the `.env` load ENTIRELY,
+  // not merely the override direction (that's `ORB_ENV_NO_OVERRIDE`, tested above — it still FILLS unset
+  // keys from the file). Before this, the test env didn't override an already-set var but DID fill an unset
+  // one, so any test asserting a schema DEFAULT silently asserted the operator's local `.env` instead — three
+  // false reds on a real dev machine, none of them regressions. `vitest.config.ts` sets this globally so the
+  // divergence can't recur per-test-author; this pins the mechanism itself, directly, with a REAL file that
+  // would otherwise fill several keys.
+  test("ORB_ENV_NO_FILE skips the .env load ENTIRELY — a real file's values never reach env, even unset keys", async () => {
+    const dir = dirWithEnvFile("DEFAULT_USER_HANDLE=from-dotfile\nOWNER_GROUP=admins\nPORT=9300\nAUTH_MODE=local\nSESSION_SECRET=x\n");
+    const { env } = await reimportEnvIn(dir, { ORB_ENV_NO_FILE: "1" }, { vitest: false });
+    // Every one of these would read the file's value without the gate (proven by the sibling override-OFF
+    // "still FILLS" test above, same fixture shape) — with the gate, the schema defaults stand untouched.
+    expect(env.DEFAULT_USER_HANDLE).toBe("owner");
+    expect(env.OWNER_GROUP).toBeUndefined();
+    expect(env.PORT).toBe(8788);
+    expect(env.AUTH_MODE).toBe("single-user");
+  });
+
+  test("ORB_ENV_NO_FILE is what `pnpm test` actually runs under — VITEST's own reimport (no explicit override) already proves the battery is env-independent", async () => {
+    // Every OTHER test in this file re-imports via `reimportEnvWith`/`reimportEnvIn` under `VITEST=1` with NO
+    // explicit `ORB_ENV_NO_FILE` override — it rides the SAME global `vitest.config.ts` `env:` block the real
+    // battery does. This is the honest arm for "the battery is env-independent": a mechanical "no test reads
+    // an operator var" sweep isn't definable (any test can legally read `env.<X>` — that's what the module
+    // is FOR); what IS definable and load-bearing is that the gate that makes it irrelevant is actually armed
+    // for every test process, which this asserts directly against the real global config rather than a
+    // per-file re-stub. A future test author who reverts `vitest.config.ts`'s `env:` block goes red HERE.
+    const config = (await import("../../../../vitest.config.ts")).default;
+    expect(config.test?.env?.["ORB_ENV_NO_FILE"]).toBe("1");
+  });
 });
