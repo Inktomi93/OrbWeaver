@@ -16,7 +16,7 @@ import { fileLoaded, repoRel } from "../pass.ts";
 
 /** The closed prompt-assembly seam list (PROSE-1 §7.1, adapted to the landed tree). Bare repo-relative
  *  prefixes — the §3 path-format law. */
-const SEAM_PREFIXES = [
+export const SEAM_PREFIXES = [
   "packages/server/src/domain/rpg/substrate/",
   "packages/server/src/domain/rpg/tools/",
   "packages/server/src/domain/chat/assembly/",
@@ -24,7 +24,7 @@ const SEAM_PREFIXES = [
   "packages/server/src/domain/imagery/substrate/",
   "packages/server/src/domain/imagery/tool/",
 ] as const;
-const SEAM_FILES = [
+export const SEAM_FILES = [
   "packages/server/src/entry/compose/rpg.ts",
   "packages/server/src/domain/chat/engine/smart-arbitrate.ts",
   "packages/server/src/domain/chat/verbs/compaction.ts",
