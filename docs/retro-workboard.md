@@ -359,6 +359,38 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
   `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
   question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- **⚑ THE HASH RULING IS CORRECTED — a recorded conclusion had a blind spot (spine verifier,
+  2026-08-07).** The stickler's §hash answer ("NO new machinery needed — blockHash folds the right
+  axes; consolidationHash cascades") and `memory/persistence/queries.ts:45-46`'s own comment
+  ("hiding a row changes the block's content, so blockHash changes, so the block re-digests") are
+  **true for blocks that still EXIST and false for blocks that VANISH.** F-A's filter SHRINKS the
+  ingest set; digest blocks are sliced by POSITION and keyed `(tier, blockIdx)`; a shrink that
+  removes a trailing block leaves that block's digest — summarized FROM the rows just hidden —
+  **alive in the `{{memory}}` recall pool forever**, plus the tier-1 consolidation that folded it.
+  DRIVEN: after hiding seq 3-4, pass 2 re-summarized ZERO blocks and `t0:b1` survived verbatim.
+  No per-block pruning exists anywhere (only whole-table wipes in `embeddings/persistence/clear.ts`).
+  Fix + comment truth-repair in CANON-1 leg 2: prune orphaned blocks AND cascade upward — the
+  owner's original "cascading upwards segments/arcs" question, now proven load-bearing.
+- **⚑ FORK'S STRIP LIST MISSED THE SPINE'S NEW COLUMN (dormant; lane FORKSTRIP →
+  security-executor).** `verbs/fork.ts:96-106` hand-strips host-plane fields because a non-host
+  forker BECOMES HOST of the copy (D110 §3.6) — `message_variants.raw_content` (schema header:
+  "HOST-PLANE … serving pre-strip bytes to a member re-opens the D110 §3.6 class") is copied
+  VERBATIM. Not exploitable today (no production writer sets it) and hot the moment the F-C
+  freeze-site lane lands. The lane's real job is the CLASS: a hand-maintained deny-list beside a
+  growing schema is the defect generator (second column to slip) — invert to an allow-list or gate
+  an unclassified column, and sweep every other hand-listed copy/export path.
+- **✅ SPINE VERIFIED GREEN ON EVERYTHING ELSE** (evidence produced, not trusted): the two CHECKs
+  BITE with positive controls (narrator+user/system rejected; `aside`/`''`/`NARRATOR` rejected;
+  updates rejected in BOTH directions) · NO CHECK aborts a SET-NULL cascade (driven by deleting the
+  character, the author AND the persona) · `loadCanonThroughSeq` really is the ONE ingest site
+  (two callers; recall reads only derived facets) · kind NEVER decides role (13 hits/6 files, no
+  dispatch reads it) · `personaIds` really was dead and both re-points are STRICTLY STRONGER
+  (wire-lore presence/absence, not arg observation) · live db migrated (schema read from a COPY:
+  `kind` + both CHECKs + `raw_content` + `macro_freezes`; histogram `{standard: 243}`) · 470 tests
+  / 22 files + 91 CT. Dormant residuals boarded: `MESSAGE_KIND_POLICY.prompt` has ZERO production
+  consumers (the comment-authoring lane owes `assembly/shape.ts` AND compaction, not just the
+  writer) · an ENTIRELY-hidden row ingests as an empty-content row rather than being dropped ·
+  `read.int:1113` proves only the negative half of the persona retirement.
 - **✅ SIDE-EYE'S COMBINED SWEEP ADJUDICATED (2026-08-07): SHIP WITH FIXES, all findings routed,
   two fix legs already merged + check 14/14.** Its own discipline first: it opened with FOUR
   RETRACTIONS of in-run findings (sub-44px targets measured at the wrong pointer type — it nearly
