@@ -291,6 +291,21 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   together · esbuild-override re-derivation · `--configLoader native` · `future` warns ·
   license-JSON · three measure-then-adopt rows. HELD deliberately: lightningcss transformer ·
   chunkImportMap · devtools · Environment API (N/A).
+- **✅ TEMPLATE-CENSUS: fresh-lens CONFIRMED on re-check (round 2) — ROW GRADUATED.** The typing
+  counterexample is dead on the finding instrument (interior + trailing whitespace and newlines
+  survive real keystrokes; trim proven on the production save path); blank overrides heal at read
+  with correct scope (whitespace-only heals, untrimmed real text rides verbatim); the `{{note}}`
+  warn renders on the drill-in warn-never-block; the once-vacuous contract arm now fails on THREE
+  planted control classes both directions. Verifier disclosures: its keystroke probes forked the
+  built-in preset — a `Default (edited)` row now exists in the dev db (harmless, owner-waved class);
+  and one stale-module-graph crash self-healed on retry (the zombie-vite TELL — a `?t=<old>` module
+  URL erroring on an export that `curl /@fs/` serves — recorded here as the diagnostic).
+  **HAND-EDIT: round-2 REFUTED (narrow) — leg 3 live:** CE2 + refusal arms + deep clone CONFIRMED;
+  CE1 survives in the PRODUCTION patch shape because `tools/apply.ts` authors presence planes
+  WHOLESALE (touch presence → whole `presentCharacters`+`actorState` arrays from the round's base)
+  — the fold must replay INTENT (`presentUpsert`/`presentRemove` re-run against the hand head), and
+  leg 3 audits every other composed-from-base plane for the same shape. The regen-swallow silent
+  loss got a DRIVEN receipt (probe5a) — the boarded row now cites it.
 - **⚑ FOUR MORE OWNER RULINGS (question-tool, 2026-08-07 afternoon):** (1) **CANON-IDENTITY: GO** —
   the build starts (serial spine: contracts+db+baseline squash → F-A → F-B → F-C → dispatch sites →
   lock-in tests; dev-db drop accepted). (2) **PUSH: battery-then-push** (in progress; battery
