@@ -31,7 +31,11 @@ test("weather.type is the CLOSED eight-state vocabulary — an off-vocab string 
   for (const off of ["overcast", "a light drizzle turning to sleet", "nightfall", ""]) {
     expect(rpgWeatherSchema.safeParse({ type: off }).success).toBe(false);
   }
-  expect([...RPG_WEATHER_TYPES]).toEqual(["clear", "cloudy", "rain", "storm", "snow", "fog", "wind", "ash"]);
+  expect([...RPG_WEATHER_TYPES]).toEqual(["clear", "cloudy", "rain", "storm", "snow", "fog", "wind", "ash", "indoors"]);
+  // The OCCLUSION member (owner ladder 2026-08-07, dogfood SCENE-DROPPED): the other eight can only describe a
+  // sky the scene can SEE, so an enclosed scene had no legal value and every indoor beat left a standing
+  // `salvagedFields:["update_scene.weather"]`. `"indoors"` is the exact token the live model reached for.
+  expect(rpgWeatherSchema.safeParse({ type: "indoors" }).success).toBe(true);
 });
 
 test("the weather axis has ONE home — the contract name IS the kit tuple (ui derives from the same object)", () => {

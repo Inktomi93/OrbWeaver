@@ -277,6 +277,42 @@ test("with allowExternal=true the card's sandbox CSP gains https: on img-src + m
   expect(srcdoc).not.toContain("connect-src");
 });
 
+// CARD-EXTERNAL-MEDIA (dogfood, 2026-08-07). The report was that with "Block external media" ON, a card with
+// ZERO external references still fails to render — i.e. that the restriction degrades LOCAL content instead of
+// only blocking external URLs. The two tests above cannot see that: they read the CSP STRING off the srcdoc
+// attribute and never look inside the frame, so a card that ships a correct policy and paints NOTHING passes
+// both. `done ≠ rendered`. These two reach THROUGH the iframe and assert what the user actually sees.
+//
+// AUDIT RESULT: not reproduced. Inline-only content paints with the flag OFF, and the restriction is
+// external-only exactly as designed. The original symptom is best explained by CARD-TRUST-INVERTED, which the
+// entry itself names as a dependency ("cards don't reach ImmersiveCard at all until [it] is fixed") and which
+// shipped in `9f30b7045`. Kept as the standing regression pin, because "the sandbox is too tight for its own
+// content" is a failure that would otherwise only ever be found by a human looking at a blank card.
+const INLINE_ONLY_CARD_BODY = ':::card title="Ledger"\n<div class="row"><span>Debt owed</span><b>40 marks</b></div>\n:::';
+
+test("INLINE-ONLY content PAINTS with external media BLOCKED — the restriction is external-only", async ({ mount }) => {
+  const component = await mount(<MessageContentSpansStory trust="trusted" allowExternal={false} content={INLINE_ONLY_CARD_BODY} />);
+  const frame = component.locator('iframe[data-slot="sandbox-frame"]').contentFrame();
+  // The card's own markup rendered inside the sandbox — text the user can read, not a policy string.
+  await expect(frame.locator("b")).toHaveText("40 marks");
+  await expect(frame.getByText("Debt owed")).toBeVisible();
+  // …and it is not a zero-height ghost: the styled row occupies real space.
+  const box = await frame.locator(".row").boundingBox();
+  expect(box?.height ?? 0).toBeGreaterThan(0);
+});
+
+test("…and the SAME card's external image is the only thing the block costs it", async ({ mount }) => {
+  // One card, both kinds of content. The local half must survive the external half being refused — the exact
+  // "don't degrade local content" property the entry asks for.
+  const mixed = ':::card title="Ledger"\n<div class="row"><span>Debt owed</span><img src="https://example.test/seal.png" alt="seal"></div>\n:::';
+  const component = await mount(<MessageContentSpansStory trust="trusted" allowExternal={false} content={mixed} />);
+  const frame = component.locator('iframe[data-slot="sandbox-frame"]').contentFrame();
+  await expect(frame.getByText("Debt owed")).toBeVisible();
+  // The <img> element still exists in the DOM — the CSP refuses the FETCH, it does not strip the markup. What
+  // matters is that its refusal did not take the rest of the card down with it.
+  await expect(frame.locator("img")).toHaveCount(1);
+});
+
 test("the VIEW-RAW toggle swaps the sandbox for the exact stored source (and back)", async ({ mount }) => {
   const component = await mount(<MessageContentSpansStory trust="trusted" content={TERMINAL_CARD_BODY} />);
   const card = component.locator('[data-slot="immersive-card"]');

@@ -211,7 +211,45 @@ This exempts only RPG-injections, but requires threading a new field onto `WireR
 
 ---
 
-### CARD-TEACH-RECENCY — teach block buried too far from end of prompt (M 🔴) ✓
+### CARD-TEACH-RECENCY — teach block buried too far from end of prompt (M ✅ LANDED ON A MEASURED A/B)
+
+**Landed, and the A/B says something more honest than "it worked".** Order is now
+`state → delta → RPG_STEERING_LICENSE → teachingBlocks() → steeringNote` (`domain/rpg/substrate/reminder.ts`).
+
+**Deterministic half — measured on the real `buildLiteReminder`, same input both arms:**
+
+| | teach → end | on a reconcile beat | license → end | delta→license adjacent | reminder length |
+| - | - | - | - | - | - |
+| BEFORE (HEAD) | 307 | 590 | 45 | **no** | 1604 |
+| AFTER (this lane) | **45** | **328** | 1115 | **yes** | 1604 |
+
+Identical byte length — a pure reorder, nothing added or removed.
+
+**LIVE half — 20 real hosted turns, `anthropic/claude-sonnet-5`, 10 scripted card OPPORTUNITIES per arm, the
+production `buildLiteReminder` with only the block order flipped between runs (`card-teach-probe.ts`, $0.30):**
+
+| arm | emitted/opp | RENDERED/opp | eaten | recitation | refusal-talk | avg chars |
+| - | - | - | - | - | - | - |
+| BEFORE | 10/10 | 10/10 | 0 | 0 | 0 | 1772 |
+| AFTER | 10/10 | 10/10 | 0 | 0 | 0 | 1786 |
+
+**The honest reading: the A/B cannot distinguish the two orders, because there is no headroom left to
+measure.** With `CARD-KEEP-ZERO` fixed the worked example actually ships, and emission is saturated at 10/10 in
+both arms (the probe's scenario puts a visual artifact in focus every single turn, so the ceiling is by
+construction). So the recency ARGUMENT is neither confirmed nor refuted here.
+
+What the A/B *does* prove is the thing worth proving: **moving the license off the end costs nothing
+measurable** — no drop in emission, no card eaten by the tokenizer, no recitation, no refusal. That was the
+stated risk ("recency cuts both ways… `:519-521` is explicit that the license wants its delta referent
+nearby"). With the risk measured at zero, the tie-break falls to the deterministic half: the reorder RESTORES
+the `delta → license` adjacency the file's own comment exists to demand. It is landed on that, not on a
+recency win it did not earn.
+
+**Verified:** reminder suite 43 pass (four order assertions inverted, plus a NEW pin that the delta and the
+license are adjacent with nothing spliced between them — the half a pure recency argument would have missed),
+field-reachability 64 pass, `pnpm typecheck` clean.
+
+### CARD-TEACH-RECENCY — original report (M 🔴) ✓
 
 **Reporter:** investigation · **Scout:** 285 files scanned
 
@@ -270,7 +308,39 @@ example actually ships.
 
 ---
 
-### CARD-FENCE-LENIENT — improvised card syntax degrades to literal text (S 🔴) ⚠
+### CARD-FENCE-LENIENT — improvised card syntax degrades to literal text (S ✅ ADJUDICATED — do NOT widen the grammar)
+
+**Adjudicated 2026-08-07 on measured specimens (lane DOG-ENGINE). Verdict: no grammar change. The entry's
+premise is HALF right, and the half that is right is already covered.**
+
+**Corpus 1 — 20 FRESH post-fix emissions** (the CARD-TEACH A/B's live turns, hosted Sonnet-5):
+
+| | count |
+| - | - |
+| card OPENS | 20 |
+| …matching the strict grammar `:::card title="…"` | **6** |
+| …carrying a **trailing `>`** (`:::card title="Note on 4B's Door">`) | **14 (70%)** |
+| card CLOSES | 20 (**20 strict**, zero deviation) |
+| quote-wrapped fences (the specimen this entry was filed on) | **0** |
+| cards the REAL tokenizer rendered | **20/20** |
+
+**So improvisation did NOT die — 70% of opens are off-strict-grammar — and closing this as "premise-resolved"
+would have been wrong.** But the single deviation class the models actually produce is the trailing `>`, which
+**F2a already tolerates**, and the proof is that all 20 rendered through the production tokenizer. The
+leniency we have is exactly matched to the deviation that occurs in the wild.
+
+**Corpus 2 — the retained wire capture** (`captures.jsonl`, 49 request captures 2026-08-04→08-05, 22 distinct
+assistant turns): **one** card emission, strict-grammar, zero deviations. The quote-wrapped specimen appears
+nowhere. (⚠️ **Instrument note, and it nearly produced a false zero:** wire `content` is a PARTS ARRAY, so a
+first pass that stringified it escaped every newline into one line and reported "0 fence lines" across the
+whole corpus. The corrected extractor found 57 messages carrying `:::card`. A positive control is what caught
+it — see `[[instruments lie — verify the verifier]]`.)
+
+**Recommendation:** close. Widening a line-anchored grammar on zero occurrences of the deviation it would
+absorb costs tokenizer strictness for nothing. Re-open only if a fence class OTHER than trailing-`>` is
+recorded rendering as literal text.
+
+### CARD-FENCE-LENIENT — original report (S 🔴) ⚠
 
 **Reporter:** investigation · **Scout:** not dispatched — one specimen only
 
@@ -422,7 +492,44 @@ visible change. Either accept it (cards are an opt-in richness) or flip the ship
 
 **Effort:** XS (the flip) + S (the two-tier CT coverage)
 
-### CARD-EXTERNAL-MEDIA — `block-external-media` kills inline-only cards (M 🔴) ✓
+### CARD-EXTERNAL-MEDIA — `block-external-media` kills inline-only cards (M ✅ ADJUDICATED — NOT REPRODUCED)
+
+**Audited 2026-08-07 (lane DOG-ENGINE). The sandbox CSP is correct: the restriction is external-only, and
+inline content paints with the flag OFF.**
+
+The frame policy (`ui/content/sandbox-frame/srcdoc.ts`) at `allowExternalMedia=false` is
+`default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; font-src 'self'` — `'self'`
+resolves to the EMBEDDER's origin even through the frame's opaque origin, so same-origin `/api/blob/<hash>`
+card images and inline `<style>` both work. The flag adds `https:` to `img-src`/`media-src` and touches
+nothing else. The reported symptom is best explained by **CARD-TRUST-INVERTED**, which this entry itself names
+as a dependency ("cards don't reach `ImmersiveCard` at all until [it] is fixed") and which shipped in
+`9f30b7045`.
+
+**Why the existing coverage could not have told us:** the two pre-existing CTs read the CSP STRING off the
+`srcdoc` attribute and never look inside the frame — a card that ships a perfect policy and paints NOTHING
+passes both. `done ≠ rendered`. **Two new CTs reach THROUGH the iframe** (`message-content.ct.tsx`, 32 pass):
+inline-only content is visible with external media BLOCKED and occupies real geometry (`boundingBox().height
+> 0`, not a zero-height ghost), and a card mixing local text with an external `<img>` keeps its local half —
+the exact "don't degrade local content" property this entry asks for.
+
+**Deliberately NOT changed — two directives, each with a reason:**
+
+- **`blob:`** — the entry advised adding it. It would be **dead config**: app blobs are `/api/blob/<hash>`
+  (same-origin, `'self'`), the only `URL.createObjectURL` producers are the composer and the JSON download
+  (neither reaches a card), and a null-origin frame cannot resolve a parent-created blob URL anyway. Adding a
+  directive that can never match teaches the next reader that it does something.
+- **`data:`** — ⚠️ **REAL RESIDUAL HOLE, and it root-causes to an owner-ruled law, so it is reported rather
+  than fixed.** The card teach tells the model *"Embed everything inline (no external scripts/fonts/images)"*,
+  and the natural way to embed an image inline is a `data:` URI — which the prod document CSP drops
+  (`security-headers.ts`: `imgSrc: [SELF, BLOB, ...mediaHosts]`, `data:` in dev only). **Both policies must
+  allow a fetch for a card image to paint**, so permitting `data:` in the frame alone changes nothing; closing
+  it means loosening the DOCUMENT `img-src`, which D44 forbids and this doc's own `D44-GRAIN-TEXTURE` row
+  states verbatim: *"Setting is `img-src 'self' blob:` — blocking `data:` is **correct per D44**"* and *"**Do
+  NOT loosen `img-src`**."* **Owner call:** model-authored cards cannot carry inline raster/SVG images at all
+  under D44. Either that is accepted (cards are HTML+CSS art, not image containers) or the teach should stop
+  inviting inline images. Not a lane decision.
+
+### CARD-EXTERNAL-MEDIA — original report (M 🔴) ✓
 
 **Reporter:** investigation · **Scout:** 285 files scanned
 **Depends on:** CARD-TRUST-INVERTED (cards must reach `ImmersiveCard` first)
@@ -818,7 +925,70 @@ the wire seam or the flush is where the data exists.
 
 ---
 
-### EMPTYGEN-REASONING — reasoning turns fail with "model returned no text" (M 🔴 → RULED) ✓ ROOT-CAUSED
+### EMPTYGEN-REASONING — reasoning turns fail with "model returned no text" (M ✅ FIXED — RECOVER arm landed)
+
+**Fixed as ruled: RECOVER, don't discard.** `domain/chat/engine/recover-narrative.ts` — on a completion with
+ZERO prose whose terminal tool calls landed, the engine re-runs THIS turn ONCE with the tools removed and the
+`chat.recovery.narrativeContinuation` prose slot as the trailing user row, then commits pass 2's narrative
+carrying **pass 1's `terminalToolCalls`** forward to the rpg flush. The state writes survive; the turn is no
+longer thrown away for missing its second half.
+
+Gate is narrow on purpose — prose-less **AND** terminal calls landed. `terminalToolCalls` is read, never
+`toolRecords` (a folded turn lands no `ToolCallRecord` by construction, so `toolRecords` is 0 on exactly the
+turns that need recovering). A model that returned nothing at all is a provider fault and still fails on ONE
+wire call: retrying a dead upstream is how it becomes double the spend. One attempt by construction — the
+recovery pass rides tool-less, so it cannot itself produce the trigger shape.
+
+**And the error now names what happened** (`emptyGenerationMessage`): a `length`-shaped finish names the
+budget and the lever ("the model used its output limit of 4096 tokens before writing any of the reply — raise
+the preset's max output tokens (with reasoning on, that limit covers the model's thinking too)"); a
+`tool_calls`-shaped one says the model answered with tool calls and no story text; anything else keeps the
+generic string. The single indistinguishable sentence is what cost this project a multi-day misdiagnosis.
+
+**Verified:** 6 new engine tests (`engine.int.test.ts`, 58 pass) proving the commit, the tool-call carry-over
+to the rpg flush, the tool-less+ask shape of pass 2 (exactly TWO wire calls, never a loop), the
+recovery-also-empty refusal, the no-tool-calls control, and the length-cut message. **Red-first receipt:** run
+against `git show HEAD` source, 5 of the 6 fail with real assertions naming the OLD behaviour verbatim
+(`the model returned no text — nothing was written`) and zero build errors; the 6th is the no-regression
+control that passes both sides. `pnpm typecheck` clean (instrument probed with a deliberate error first).
+
+> ### ⚠️ THE MECHANISM BELOW WAS FALSIFIED — superseded 2026-08-07 by lane DOG-ENGINE, receipts inline
+>
+> The nuance block's PRIME SUSPECT — "our own idle-timeout treating reasoning SILENCE as a dead stream" —
+> **is not the cause, on three independent counts.** The owner's OBSERVATIONS in it are data and stand; the
+> explanation of why does not.
+>
+> 1. **Threshold mismatch.** `infra/providers/backends/kit/idle-timeout.ts:13` — `IDLE_TIMEOUT_MS = 180_000`.
+>    Not 15s, not 30s. Swept every call site (`ast-grep -p 'turnAbortSignal($$$A)' -l ts packages`,
+>    scannedFileCount=1995, plus a raw `idleMs` grep): FOUR call sites, ZERO overrides — vllm
+>    `surfaces/chat.ts:206` passes the constant explicitly, openrouter `chat-completions.ts:176`,
+>    openrouter `responses.ts:390` and `custom-byo/runners/chat.ts:370` take the default. No 15s/30s-shaped
+>    threshold exists anywhere in the provider or chat path.
+> 2. **The timer is not blind to reasoning.** `chat-completions.ts:179` — `onChunk: idle.reset`. It resets on
+>    every RECEIVED CHUNK, before any kind-discrimination: reasoning deltas, content deltas and provider
+>    keepalive frames all reset it equally. The "reasoning deltas don't count as activity" mechanism does not
+>    exist in the code.
+> 3. **Wrong error class regardless.** An idle abort surfaces as an AbortError → ProviderError from the
+>    runner's catch. It cannot produce "the model returned no text" — that is `CHAT_OP_CODES.emptyGeneration`
+>    from `assertGeneratedContent`, and `engine.ts:1018-1020` states in-code that an abort never reaches that
+>    guard at all ("the pipeline throws and `executeTurn`'s catch commits nothing").
+>
+> **What the 14.9s / 15.8s / 30.6s durations actually are: the length of the REASONING PHASE.** Ragged, not
+> clustered — the same argument `MAXTOKENS-SUPERSEDED` already makes ("variable, so NOT a timeout") applies
+> against the idle theory too. The unified reading, which needs no new mechanism: reasoning streams and the
+> client renders it (`delta.kind === "reasoning"` is forwarded at `chat-completions.ts:183`, so the operator
+> genuinely SEES text appearing) → the model concludes its tool calls discharge the beat → tool calls emit →
+> zero prose → VER-1b refuses → the whole turn is discarded. "Died mid-turn while reasoning, early, suddenly"
+> **is the rendered reasoning stream ending.** The doc's ORIGINAL root cause (tool-only completion) was right.
+>
+> **Corpus note:** `/api/_debug/wire/outcomes` could not confirm it either way — the retained spill
+> (`.cache/wire-capture/captures.jsonl`, 348 outcomes) holds 48 real 2026 outcomes, **all `reasoningEffort:
+> "none"` with `contentChars > 0`, newest 2026-08-05T07:26Z.** Zero failing turns are recorded: the failures
+> predate `WIRE-OUTCOMES` shipping. That absence is itself the argument for having built it.
+>
+> *(the original ruling + nuance block is preserved verbatim below — the owner's observations are the data)*
+
+### EMPTYGEN-REASONING — the original ruling + nuance block (M 🔴 → RULED) ✓ ROOT-CAUSED
 
 > **OWNER RULED 2026-08-07 (question-tool): option 1 — RECOVER rather than discard.** On a
 > prose-less completion whose tool calls parsed: apply the state writes, then issue a short
@@ -983,7 +1153,7 @@ to commit an empty variant so the prior reply survives. The error is the guard f
 
 ---
 
-### SCENE-DROPPED — every `update_scene` call is discarded; the scene plane never establishes (M 🟡 SALVAGE LANDED)
+### SCENE-DROPPED — every `update_scene` call is discarded; the scene plane never establishes (M ✅ FIXED — salvage + vocabulary)
 
 **Collateral damage FIXED; the vocabulary hole is still open (owner ruling).**
 
@@ -1011,16 +1181,53 @@ required-field failure still drops: ["update_party"]   salvaged: []
 **Verified:** typecheck clean · `pnpm check` PASS · 229 contract/compose tests pass with their ORIGINAL
 expectations unchanged (the tightened empty-remainder rule is why — a good sign the semantic is right).
 
-**STILL OPEN — owner ruling:** `RPG_WEATHER_TYPES` has no interior member, so an indoor scene still cannot
-write weather at all; it is merely no longer fatal to the rest of the call. Same class as the `dusk`
-exclusion. Until it is widened, expect a steady `salvagedFields: ["update_scene.weather"]` on indoor scenes —
-which is now the visible symptom rather than a silent whole-plane loss.
+**✅ VOCABULARY HOLE CLOSED 2026-08-07 (lane DOG-ENGINE, owner ladder).** `WEATHER_TYPES` gains `indoors` —
+the exact token the live model reached for, on both failing chats. Homed in `@orb/kit/weather` (the ONE axis
+home, D54), so it reaches the tool schema, the projected/xgrammar-visible schema, the extraction prompt, the
+scene tab and the ambient strip by identity — no second spelling anywhere.
 
-**Gate/test to write:** ✅ `tests/contracts/rpg/extraction.contract.test.ts` — "SCENE-DROPPED property: every
-RPG_WEATHER_TYPES member (as imported) parses through the write schema" (write ⊆ render, always holds) + a
-`test.todo` FAILING-PIN for the reverse (indoor render vs write) that flips green when the sibling DOG-ENGINE
-lane lands `"indoors"` + "SCENE-DROPPED salvage: an invalid OPTIONAL field costs only that field, not the
-whole call".
+It is **not a ninth kind of sky**: it is "no sky is visible from here", which is a fact ABOUT the sky and so
+belongs on this axis rather than in `location`. The extraction prompt was edited in the same commit to match —
+it previously told the model *"weather is the WORLD'S weather: the sky, never the room… OMIT weather rather
+than forcing the nearest"*, which would have made `indoors` **a member the model is instructed never to use.**
+Both prompt sites now name the third case (enclosed-with-no-sky is WRITABLE) while keeping the omit rule for a
+genuinely unnameable sky — two different states the copy must not collapse. `dusk` stays excluded from
+`TIME_OF_DAY` (standing taste ruling): that one is a near-synonym of `evening`, a different problem from a
+state the vocabulary cannot express at all.
+
+**Waystone coupled site (⚠ a visual decision the owner may want to retune):** `WEATHER_RECIPES` is an
+exhaustive Record, so the widening forced a ninth air-layer recipe. `indoors` paints **no** air layers (clouds
+/ particles / bands would assert weather nobody in the fiction can observe), the heaviest wash in the table,
+and `celestialOpacity: 0.1` — deliberately not `0`, because the HOUR is still true indoors and the dial's
+primary job does not stop at a door.
+
+**Receipt — the symptom dying, at the seam that produced it** (`extraction.contract.test.ts`): the verbatim
+live payload `{location:"Throne Room", timeOfDay:"afternoon", recentEvent:"Nate arrived",
+weather:{type:"indoors", label:"dim infernal ambiance"}}` now returns `salvagedFields: []` and
+`malformedToolCalls: []`, and the whole call applies including both halves of the weather. The same test pins
+that salvage still WORKS (`{type:"sideways"}` still drops field-wise, not call-wise) — widening a vocabulary
+must not be mistaken for loosening a grammar.
+
+**Verified:** `pnpm typecheck` clean · contracts rpg 72 + ambient 10 + waystone 18 pass. The waystone suite's
+two "all eight weathers" invariants were AMENDED, not weakened: `clear` and `indoors` are now a named
+`DECKLESS_WEATHERS` pair (deckless for OPPOSITE reasons — unveiled vs occluded sky), the per-member cloud
+signature is asserted over the decked members, and `indoors` gains direct assertions on the two axes that
+actually carry its 64px read (heaviest wash, dimmest surviving celestial).
+
+**⚠ LIVE RECEIPT OWED — structurally unavailable from a lane.** The doc asked for the symptom dying on a live
+indoor-scene turn; the dev stack runs the MAIN tree, so it cannot exercise a worktree's widening. Fire one
+indoor-scene turn after merge and confirm `salvagedFields` no longer names `update_scene.weather`.
+
+**Gate/test — ✅ BOTH HALVES NOW LIVE** (`tests/contracts/rpg/extraction.contract.test.ts`). Lane DOG-VERIFY
+wrote the property pair: "every `RPG_WEATHER_TYPES` member (as imported) parses through the write schema"
+(write ⊆ render — always holds), plus a `test.todo` FAILING-PIN for the REVERSE direction (indoor render vs
+write) declared to flip green when this lane landed `"indoors"`. **It has been flipped from `todo` to a live
+test and it passes** — that pin is the cleanest statement of what was broken: the reminder could RENDER an
+indoor scene the tool schema could not WRITE. The sibling's salvage pin ("an invalid OPTIONAL field costs only
+that field, not the whole call") stays green alongside it.
+
+The general class — every closed enum reachable from a tool arg can express what the reminder can RENDER — is
+now pinned for WEATHER specifically. Generalizing it across every `RPG_*` enum is still owed.
 
 *(original report below)*
 

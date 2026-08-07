@@ -63,6 +63,7 @@ import { foldChain, runtimeVariablesUpdateStatement } from "../substrate/runtime
 import { assistantTurnDelta, canonMessageDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import { debitTurnBudget } from "./budget.ts";
 import { runTurnPipeline } from "./pipeline.ts";
+import { resolveTurnNarrative } from "./recover-narrative.ts";
 import { abortedOutcome, committedOutcome } from "./result.ts";
 import { assertMaxProSubConsent, resolveOwnerConsented } from "./turn-identity.ts";
 
@@ -1070,7 +1071,46 @@ function assertGeneratedContent(result: Awaited<ReturnType<typeof runTurnPipelin
     },
     "chat: the model produced no prose — turn REFUSED, nothing written (VER-1b empty-generation guard)",
   );
-  throw new ChatOperationError(CHAT_OP_CODES.emptyGeneration, "the model returned no text — nothing was written (the previous reply is unchanged)");
+  throw new ChatOperationError(CHAT_OP_CODES.emptyGeneration, emptyGenerationMessage(result));
+}
+
+/** The provider `finish_reason`/`stop_reason` spellings that mean "the output budget ran out". Free strings on
+ *  the wire (`TurnEconomics.finishReason` is provider-faithful by design), so this is a recognition list, not
+ *  a union — an unrecognized value falls through to the generic arm rather than being asserted about. */
+const BUDGET_FINISH_REASONS = new Set(["length", "max_tokens", "max_output_tokens", "MAX_TOKENS"]);
+/** …and the ones that mean "the model stopped in order to call tools". */
+const TOOL_FINISH_REASONS = new Set(["tool", "tool_calls", "tool_use", "function_call"]);
+
+/**
+ * WHAT HAPPENED, not "no text" (dogfood EMPTYGEN-REASONING). The single generic string cost this project a
+ * multi-day misdiagnosis: three distinct failures — a model that discharged the turn into tool calls, a model
+ * that spent its whole budget thinking, and a provider that returned nothing at all — presented to the operator
+ * as one indistinguishable sentence, and the server logged none of them. The observability half shipped first
+ * (the warn above); this is the half the person in the browser reads.
+ *
+ * Each arm names the cause AND the lever, because an error a user can act on is worth more than an accurate
+ * one they cannot. The turn-is-unchanged clause is kept on every arm — it is the reassurance that matters most
+ * at the moment of failure, and it was the one genuinely good thing about the old string.
+ */
+function emptyGenerationMessage(result: Awaited<ReturnType<typeof runTurnPipeline>>): string {
+  const unchanged = "nothing was written (the previous reply is unchanged)";
+  const finish = result.economics?.finishReason ?? "";
+  const stop = result.economics?.stopReason ?? "";
+  if (BUDGET_FINISH_REASONS.has(finish) || BUDGET_FINISH_REASONS.has(stop)) {
+    // On a reasoning wire `maxOutputTokens` caps THINKING AND RESPONSE TOGETHER, so a model at medium effort
+    // can spend the entire budget deliberating and emit no prose at all. Naming the number is the point: the
+    // fix is the preset's, and a user told "no text" has no way to find it.
+    const cap = result.economics?.maxOutputTokens;
+    const capText = cap === null || cap === undefined ? "its output limit" : `its output limit of ${String(cap)} tokens`;
+    return `the model used ${capText} before writing any of the reply — raise the preset's max output tokens (with reasoning on, that limit covers the model's thinking too), ${unchanged}`;
+  }
+  if (TOOL_FINISH_REASONS.has(finish) || TOOL_FINISH_REASONS.has(stop)) {
+    // Reached only when RECOVERY did not apply or did not rescue it: the folded path re-runs this turn for its
+    // narrative (`recover-narrative.ts`), so this arm now means the model called tools and then declined to
+    // narrate TWICE, or that tools rode on a path with no recovery channel.
+    return `the model answered with tool calls and no story text, ${unchanged}`;
+  }
+  return `the model returned no text — ${unchanged}`;
 }
 
 /** This turn's cascade depth (automation-design/03 §4): a human turn is 0; an automation/plugin-initiated turn
@@ -1192,10 +1232,13 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     const speakerAssembleContext = applyCompactionOverlay(await resolveSpeakerMemory(ctx, deps, prep), compactionOverlay);
     // The engine measures the wall-clock window around the role call and stamps it on the variant.
     const genStartedAt = ctx.now();
-    const result = await runTurnPipeline({
+    // Held as a named value, not inlined into the call: the prose-less RECOVERY pass re-runs THIS turn from
+    // exactly these arguments with two overrides (`recover-narrative.ts`), and a second hand-built literal
+    // would be a second definition of the turn, free to drift.
+    const pipelineArgs = {
       runChatTurn: ctx.runChatTurn,
       applyRegexReplace: ctx.applyRegexReplace,
-      resolveImageUrl: (ref) => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
+      resolveImageUrl: (ref): Promise<string | null> => ctx.resolveImageUrl({ ownerId: prep.runAsUserId, chatId: prep.chatId, ref }),
       assembleContext: speakerAssembleContext,
       canon: scopeCanon(canonAll, persist, target),
       historyMacroNames,
@@ -1233,12 +1276,25 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
         turnId,
         signal: prep.signal,
       },
-      onDelta: (delta) => {
+      onDelta: (delta): void => {
         void deps.emit({ type: "delta", chatId: prep.chatId, slotSeq, delta });
       },
+    } satisfies Parameters<typeof runTurnPipeline>[0];
+    const firstPass = await runTurnPipeline(pipelineArgs);
+    captureTurnOutcome(prep, firstPass, ctx.now());
+    // RECOVER, do not discard (owner ruling 2026-08-07, dogfood EMPTYGEN-REASONING). A reasoning turn whose
+    // tool calls landed but whose prose did not is not a failed turn — it is a turn missing its second half,
+    // and the half it HAS is the expensive one. `resolveTurnNarrative` re-runs it once for the narrative and
+    // carries the state writes forward; on every other turn it returns `firstPass` untouched, having made no
+    // wire call. TOTAL on purpose (no branch here): the recovery decision belongs to that module, and this
+    // function is at its complexity ceiling.
+    const result = await resolveTurnNarrative({
+      chatId: prep.chatId,
+      pipelineArgs,
+      first: firstPass,
+      onRecoveryOutcome: (recovered): void => captureTurnOutcome(prep, recovered, ctx.now()),
     });
     const genFinishedAt = ctx.now();
-    captureTurnOutcome(prep, result, genFinishedAt);
     await emitCapabilityDropWarnings(deps.emit, prep.chatId, result);
     // VER-1b — refuse a prose-less generation BEFORE any canon write (see `assertGeneratedContent`). Placed
     // after the drop warnings on purpose: those name WHY the prose is missing (tools dropped, image dropped),

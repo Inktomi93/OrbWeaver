@@ -660,7 +660,14 @@ test("the first-snapshot delta labels the born state as SCENE OPENS (not everyth
   expect(out).not.toContain("CHANGES SINCE LAST BEAT");
 });
 
-// ── P3 §3.3: the hidden-channel teaching blocks compose config-gated, before the license ──
+// ── P3 §3.3: the hidden-channel teaching blocks compose config-gated, AFTER the license ──
+//
+// The teaching blocks used to sit between the delta and the license. They moved to the tail on 2026-08-07
+// (dogfood CARD-TEACH-RECENCY) for two reasons that point the same way: the license wants the delta ADJACENT
+// (its "let the change land in the fiction" needs the referent), and the card teach was landing 244-1,031+
+// chars from the end of the prompt — the position models weight least — because the license, the steering
+// note and gather's reconcile note all stacked after it. The order is now
+// `state → delta → LICENSE → teach → steeringNote`.
 
 test("both hidden channels OFF ⇒ no teaching block (byte-identical to a pre-P3 reminder)", () => {
   const out = buildLiteReminder(input({ deception: false, omniscience: false }));
@@ -669,10 +676,10 @@ test("both hidden channels OFF ⇒ no teaching block (byte-identical to a pre-P3
   expect(out).not.toContain("<ofilter");
 });
 
-test("deception ON composes RPG_DECEPTION_TEACH before the license; omniscience OFF ⇒ no ofilter teach", () => {
+test("deception ON composes RPG_DECEPTION_TEACH after the license; omniscience OFF ⇒ no ofilter teach", () => {
   const out = buildLiteReminder(input({ deception: true, omniscience: false }));
   expect(out).toContain(RPG_DECEPTION_TEACH);
-  expect(out.indexOf(RPG_DECEPTION_TEACH)).toBeLessThan(out.indexOf(RPG_STEERING_LICENSE));
+  expect(out.indexOf(RPG_DECEPTION_TEACH)).toBeGreaterThan(out.indexOf(RPG_STEERING_LICENSE));
   expect(out).not.toContain(RPG_OFILTER_TEACH);
   // The teach shows the self-closing tag grammar the tokenizer recognizes.
   expect(out).toContain("<lie ");
@@ -685,7 +692,7 @@ test("omniscience ON composes RPG_OFILTER_TEACH; both ON compose both, in order"
 
   const both = buildLiteReminder(input({ deception: true, omniscience: true }));
   expect(both.indexOf(RPG_DECEPTION_TEACH)).toBeLessThan(both.indexOf(RPG_OFILTER_TEACH));
-  expect(both.indexOf(RPG_OFILTER_TEACH)).toBeLessThan(both.indexOf(RPG_STEERING_LICENSE));
+  expect(both.indexOf(RPG_STEERING_LICENSE)).toBeLessThan(both.indexOf(RPG_DECEPTION_TEACH));
 });
 
 test("the teaching tags are TOKENIZER-VALID self-closing spans the HIDDEN_TAGS registry recognizes", () => {
@@ -698,12 +705,31 @@ test("the teaching tags are TOKENIZER-VALID self-closing spans the HIDDEN_TAGS r
 
 // ── P4 — the card TEACHING block (parity-plus §3.3/§7.5 + M3) ────────────────────────────────────────────
 
-test("immersiveHtml ON composes the card teach AFTER state, BEFORE the license (§3.3 order)", () => {
+test("immersiveHtml ON composes the card teach AFTER the license — the RECENCY position (CARD-TEACH-RECENCY)", () => {
   const view = emptyView({ ambient: { location: "The Docks", calendarDate: null, clock: null, weather: null } });
   const out = buildLiteReminder(input({ view, features: features({ immersiveHtml: true }) }));
   expect(out).toContain(RPG_CARD_TEACH);
   expect(out.indexOf("# Game state")).toBeLessThan(out.indexOf(RPG_CARD_TEACH));
-  expect(out.indexOf(RPG_CARD_TEACH)).toBeLessThan(out.indexOf(RPG_STEERING_LICENSE));
+  expect(out.indexOf(RPG_STEERING_LICENSE)).toBeLessThan(out.indexOf(RPG_CARD_TEACH));
+  // The whole point of the move: teach is in the LAST stretch. With no steering note, it ends the reminder —
+  // so the model reads it immediately before the user turn. (`gather` may still append a reconcile note; that
+  // is one block, versus the license + note + reconcile that used to stack after it.)
+  expect(out.endsWith(RPG_CARD_TEACH)).toBe(true);
+});
+
+test("the delta and the license are ADJACENT — the referent the license's own comment asks for", () => {
+  // The teach used to be spliced BETWEEN them, which `reminder.ts:516-518` explicitly did not want ("rendered
+  // BETWEEN the absolute state and the license so the license's 'let the change land in the fiction' has its
+  // referent"). Restoring the adjacency is the second half of CARD-TEACH-RECENCY, and it is the half a pure
+  // recency argument would not have caught — so it is pinned separately.
+  const born: RpgSnapshotState = { ...emptyState(), location: "The Rusty Anchor" };
+  const out = buildLiteReminder(input({ curSnapshot: born, prevSnapshot: null, features: features({ immersiveHtml: true }) }));
+  const deltaEnd = out.indexOf("SCENE OPENS");
+  expect(deltaEnd).toBeGreaterThanOrEqual(0);
+  const licenseAt = out.indexOf(RPG_STEERING_LICENSE);
+  expect(licenseAt).toBeGreaterThan(deltaEnd);
+  // NOTHING between them: the text from the delta block's start to the license is the delta block itself.
+  expect(out.slice(deltaEnd, licenseAt)).not.toContain(RPG_CARD_TEACH);
 });
 
 test("BOTH card teach variants forbid nesting a directive inside the card (the live nested-closer failure class)", () => {
@@ -739,10 +765,10 @@ test("immersiveHtml OFF emits NO card teach (applicability — absent, not a stu
 
 // ── P5 — the CYOA teach (§5.4) + the plot Story line ────────────────────────────────────────────────────
 
-test("cyoa ON composes RPG_CYOA_TEACH before the license; OFF emits nothing (applicability)", () => {
+test("cyoa ON composes RPG_CYOA_TEACH after the license; OFF emits nothing (applicability)", () => {
   const on = buildLiteReminder(input({ features: features({ cyoa: true }) }));
   expect(on).toContain(RPG_CYOA_TEACH);
-  expect(on.indexOf(RPG_CYOA_TEACH)).toBeLessThan(on.indexOf(RPG_STEERING_LICENSE));
+  expect(on.indexOf(RPG_CYOA_TEACH)).toBeGreaterThan(on.indexOf(RPG_STEERING_LICENSE));
   const off = buildLiteReminder(input());
   expect(off).not.toContain(":::choices");
   expect(off).toBe(RPG_STEERING_LICENSE);

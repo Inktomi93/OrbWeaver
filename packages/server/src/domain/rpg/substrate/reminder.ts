@@ -525,12 +525,22 @@ export function buildLiteReminder(input: LiteReminderInput): string {
     blocks.push(delta);
   }
 
-  // The config-gated TEACHING blocks (parity-plus §3.3) — after the state/delta, before the license. P3 teaches
-  // the `<lie …/>`/`<ofilter …/>` grammar the `HIDDEN_TAGS` registry recognizes + server-strips; P4 teaches the
-  // `:::card` fence (the M3 sub-toggle picks the interactive vs static ask — the ask, never the render).
-  blocks.push(...teachingBlocks(input));
-
   blocks.push(RPG_STEERING_LICENSE);
+
+  // The config-gated TEACHING blocks (parity-plus §3.3) — after the license, LAST but for the steering note.
+  // P3 teaches the `<lie …/>`/`<ofilter …/>` grammar the `HIDDEN_TAGS` registry recognizes + server-strips;
+  // P4 teaches the `:::card` fence (the M3 sub-toggle picks the interactive vs static ask — the ask, never
+  // the render).
+  //
+  // ORDER, and why it moved (dogfood CARD-TEACH-RECENCY, 2026-08-07): teach used to sit between the delta and
+  // the license, which cost it TWICE. It broke the `delta → license` adjacency `:516-518` exists for — the
+  // license's "let the change land in the fiction" wants its referent next to it — and it buried the card
+  // teach 244-1,031+ chars from the end of the prompt (the license, the steering note, and the reconcile note
+  // `gather.ts` appends all stack after it), which is the recency position models weight least. Both
+  // complaints are satisfied by one move: the delta and the license are adjacent again, and teach lands in
+  // the last stretch before the user turn. Landed on a measured A/B, not on the argument — the argument cuts
+  // both ways (moving teach last also moves the license off the end).
+  blocks.push(...teachingBlocks(input));
 
   const note = renderSteeringNote(input.steeringNote, input.steerMacros);
   if (note !== "") {
