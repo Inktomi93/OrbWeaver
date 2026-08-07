@@ -147,16 +147,20 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   three ThemeScope spans, both Charlotte spans share one tint and JFC's differs, and the trace carries
   `kind=narrator`. The nudge holds on a small local model — the compliance worry was the reason for the
   drive.
-- **NOT PUSHED:** ~72 commits ahead of `ab55c112e`. The push word is the owner's, fresh, per push.
+- **NOT PUSHED: 84 commits** ahead of `ab55c112e` (counted 2026-08-07 at `96d35ee80`; the board carried
+  "~72" from an earlier point in the same session). The push word is the owner's, fresh, per push.
 - **LEDGER:** through **D132**. **D133 + D134 drafted-not-minted** in
   `docs/reviews/security/2026-08-07-{fork,rpg-fork}-host-plane-strip.md` — batch at the next ceremony.
   **D129(G) owes a wording amendment** (owner-ruled): it says the shape dispatch "replaces" the bare
   `role === "system"` drop; the tree needs BOTH gates (ST imports mint system-role canon rows that are
   `standard` kind; `CanonRow.role` is a two-arm union). Reasoning in-source at `entersPrompt`.
-- **WORKTREES:** `agent-a62e9f121c7999904` (TEMPLATE) held warm — it holds the PROMISED (b) templating
-  unification build, which goes to it and never a sibling (shared `promptConfig.prose` storage).
-  `agent-a05506306bb96c8c5` (STACK-MODES) is graduated and reapable. A stale
-  `.cache/snap-stage/c3757975c90e` worktree entry wants pruning.
+- **WORKTREES (re-listed 2026-08-07 at `96d35ee80`):** `agent-a62e9f121c7999904` (TEMPLATE) held warm
+  DELIBERATELY — it holds the PROMISED (b) templating unification build, which goes to it and never a
+  sibling (shared `promptConfig.prose` storage). **Four are merged and reapable:**
+  `agent-a05506306bb96c8c5` (STACK-MODES) · `agent-a0936c26e2fec102d` (GATEFORGE, at `f954bbcf0`) ·
+  `agent-a86cbb4c35dfb0279` (at `3d19fd66a`) · `agent-ae12ce29192c53e14` (GATEFIX, at `4b32485a8`,
+  merged as `96d35ee80`). Teardown owes `status --short` + `git show --stat` receipts FIRST per the
+  merge law. A stale `.cache/snap-stage/c3757975c90e` worktree entry wants pruning.
 - **GATES 193.** Battery last green at 10,364 vitest+CT (`853ce611a`, morning) — a fresh `verify --push`
   is owed before the next push.
 - **⚑ OWED BY THE OWNER (nothing is blocked on me):** the push word · the two `JUDGMENT_DEFERRED`
