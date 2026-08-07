@@ -921,3 +921,53 @@ test("a narrator row stamped with the synthetic GROUP producer still reads Narra
   // stamped. (`tokens: null` — no cast tint — is pinned on the pure resolver, attribution.test.ts.)
   await expect(narratorRow.getByText("I'll take this one.")).toBeVisible();
 });
+
+// ── THE PHONE'S READING COLUMN (side-eye leg-4 P2) ───────────────────────────────────────────────────
+// "stop treating a phone as a narrow desktop." Measured on a real room at 430px: the avatar gutter took
+// 76px, one paragraph ran 22 CHARACTERS over 12 lines (§2 wants 65–75ch) and the speaker name wrapped to
+// two lines. The row is its own `@container` now, so the gutter shrinks at a phone-width column and the
+// reading measure gets the difference.
+//
+// ⚑ WHAT THIS DOES NOT DO, and why: the review asked for the gutter to FOLD INTO the name row. §B.1 —
+// pinned three tests above — says the avatar is a SIBLING of the content column and NEVER a descendant of
+// the name row. Reversing a recorded anatomy law is the owner's call, not this lane's, so the fork is
+// reported and this is the anatomy-preserving half.
+
+const PHONE_COLUMN = 320;
+const DESKTOP_COLUMN = 720;
+
+test("at a phone-width column the avatar gutter shrinks and the reading measure grows", async ({ mount }) => {
+  const narrow = await mount(
+    <MessageRowStory chatStyle="bubble" characterId={ALICE_ID} messageRole="assistant" participants={[alice()]} width={PHONE_COLUMN} />,
+  );
+  // MEASURE THE GUTTER, not the column: in bubble style the column hugs its text (the `w-fit` pin two
+  // screens up), so a column-share assertion would measure the FIXTURE's sentence rather than the row's
+  // composition. The gutter is what this change moves.
+  const measured = await narrow.locator(CONTENT_COLUMN).evaluate((el: HTMLElement) => {
+    const row = el.closest('[data-slot="message-row-body"]') as HTMLElement;
+    const avatar = row.querySelector('[data-slot="avatar-root"]') as HTMLElement | null;
+    return {
+      gap: Number.parseFloat(getComputedStyle(row).columnGap),
+      row: (row.closest('[data-slot="message-row"]') as HTMLElement).getBoundingClientRect().width,
+      avatar: avatar === null ? 0 : avatar.getBoundingClientRect().width,
+    };
+  });
+  // The portrait still renders (a phone does not lose the character) …
+  expect(measured.avatar).toBeGreaterThan(0);
+  // … at the stepped-down size, and the gutter costs well under a tenth of the row (it was 76 of 320).
+  expect(measured.avatar).toBeLessThanOrEqual(24);
+  expect((measured.avatar + measured.gap) / measured.row).toBeLessThan(0.12);
+});
+
+test("at a desktop-width column the portrait keeps its full size — the step-down is a WIDTH answer, not a mode", async ({ mount }) => {
+  const wide = await mount(
+    <MessageRowStory chatStyle="bubble" characterId={ALICE_ID} messageRole="assistant" participants={[alice()]} width={DESKTOP_COLUMN} />,
+  );
+  const avatarWidth = await wide
+    .locator(AVATAR)
+    .first()
+    .evaluate((el: HTMLElement) => el.getBoundingClientRect().width);
+  // The `sm` avatar token is 32px; the narrow step is 24px. Asserting ">= 32" pins that the wide arm is
+  // untouched without hardcoding the narrow number on both sides.
+  expect(avatarWidth).toBeGreaterThanOrEqual(32);
+});

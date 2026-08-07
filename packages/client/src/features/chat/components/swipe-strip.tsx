@@ -78,16 +78,32 @@ export function SwipeStrip({ message }: SwipeStripProps): ReactElement {
 
   useSwipeKeyboardNav({ onPrev: goPrev, onNext: goNext });
 
+  // A PAGER NEEDS PAGES (side-eye leg-4 P3). With one variant the strip rendered "1 / 1" flanked by a
+  // disabled ‹ and a › — a counter that counts to one and an arrow that cannot move, which reads as a
+  // broken control rather than as "there is nothing to page through". The one thing that IS live here is
+  // the right chevron, which at the tip GENERATES rather than steps; so at a single variant the strip is
+  // just that verb. The counter and the back-step return the moment a second variant exists.
+  //
+  // ⚑ SUPERSEDES A PIN, NOT ITS MECHANISM: `swipe-strip.ct.tsx` asserted "the left chevron is DISABLED
+  // when variantCount === 1". Its real subject — `useVariantHistory`'s gate never firing a query at one
+  // variant — is untouched and still pinned; what changed is that the disabled affordance no longer
+  // renders at all, which is the affordance-lie the review filed.
+  const showPager = total > 1;
+
   return (
     <Row gap="field" align="center" data-slot="swipe-strip">
-      <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label="Previous variant" onClick={goPrev}>
-        <Icon icon={ChevronLeft} size="sm" />
-      </Button>
+      {showPager ? (
+        <Button intent="ghost" size="icon" disabled={!canStepBack} loading={busy && canStepBack} aria-label="Previous variant" onClick={goPrev}>
+          <Icon icon={ChevronLeft} size="sm" />
+        </Button>
+      ) : null}
       {/* The counter is a VALUE you read — the `datum` voice, whose tabular mono figures stop the count
           from nudging the chevrons sideways as it ticks (density-pass-spec.md §2.3). */}
-      <Text as="span" voice="datum">
-        {current} / {total}
-      </Text>
+      {showPager ? (
+        <Text as="span" voice="datum">
+          {current} / {total}
+        </Text>
+      ) : null}
       <Button intent="ghost" size="icon" loading={busy} aria-label="Next variant" onClick={goNext}>
         <Icon icon={ChevronRight} size="sm" />
       </Button>

@@ -175,6 +175,8 @@ interface CharacterStoryEntry {
 }
 
 export interface MessageRowStoryProps {
+  /** A FIXED mount width (px) — the row is its own `@container`, so this is what its composition reads. */
+  readonly width?: number;
   readonly chatStyle: ThemeChatStyle;
   // Named `messageRole` (not `role`) so the JSX prop at the CT call site isn't read as an ARIA role.
   readonly messageRole?: MessageRole;
@@ -221,6 +223,7 @@ export interface MessageRowStoryProps {
 /** One row in a chosen chatStyle — the variant-mechanism CT mounts this three times; also the
  *  #21 attribution-chrome CT's mount point (roster/producer maps are optional pass-throughs). */
 export function MessageRowStory({
+  width,
   chatStyle,
   messageRole = "assistant",
   content = "**Bold** and _italic_",
@@ -272,38 +275,43 @@ export function MessageRowStory({
     // The row now always renders <MessageActionsRow> (Edit/Hide/Delete/Fork/Copy), which reads the
     // data layer (`useTRPC`) even though these CTs never click a mutating action — the provider must
     // exist regardless (the swipe-strip.tsx precedent: any tRPC-reading leaf needs CtDataProviders).
+    //
+    // `width` is a FIXED container (the narrowest-mount rule): the row is its own `@container`, so its
+    // reading composition is a function of this box — a content-sized mount root agrees with the bug.
     <CtDataProviders>
-      <MessageThreadAnchor>
-        <MessageRow
-          message={makeMessageView({
-            role: messageRole,
-            content,
-            characterId,
-            personaId,
-            tokensOut: 128,
-            model: "ct/model-x",
-            toolCalls: toolCalls ?? [],
-            reasoning,
-          })}
-          chatStyle={chatStyle}
-          showLLMReasoningIcon={showLLMReasoningIcon}
-          metadataVisibility={metadataVisibility}
-          avatarSize={avatarSize}
-          avatarShape={avatarShape}
-          avatarAspect={avatarAspect}
-          avatarRing={avatarRing}
-          showInChatAvatars={showInChatAvatars}
-          participants={participantsMap}
-          characterNamesById={characterNamesById}
-          characterAvatarsById={characterAvatarsById}
-          personaNamesById={personaNamesById}
-          activePersonaId={activePersonaId}
-          anchorPersonaId={anchorPersonaId}
-          viewerIsHost={viewerIsHost}
-          narratorRoom={narratorRoom}
-          toolRenderers={NO_TOOL_RENDERERS}
-        />
-      </MessageThreadAnchor>
+      <div style={width === undefined ? undefined : { width }}>
+        <MessageThreadAnchor>
+          <MessageRow
+            message={makeMessageView({
+              role: messageRole,
+              content,
+              characterId,
+              personaId,
+              tokensOut: 128,
+              model: "ct/model-x",
+              toolCalls: toolCalls ?? [],
+              reasoning,
+            })}
+            chatStyle={chatStyle}
+            showLLMReasoningIcon={showLLMReasoningIcon}
+            metadataVisibility={metadataVisibility}
+            avatarSize={avatarSize}
+            avatarShape={avatarShape}
+            avatarAspect={avatarAspect}
+            avatarRing={avatarRing}
+            showInChatAvatars={showInChatAvatars}
+            participants={participantsMap}
+            characterNamesById={characterNamesById}
+            characterAvatarsById={characterAvatarsById}
+            personaNamesById={personaNamesById}
+            activePersonaId={activePersonaId}
+            anchorPersonaId={anchorPersonaId}
+            viewerIsHost={viewerIsHost}
+            narratorRoom={narratorRoom}
+            toolRenderers={NO_TOOL_RENDERERS}
+          />
+        </MessageThreadAnchor>
+      </div>
     </CtDataProviders>
   );
 }

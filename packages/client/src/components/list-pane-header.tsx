@@ -49,7 +49,21 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             <Icon icon={ChevronLeft} size="sm" />
           </Button>
         )}
-        <Heading className="truncate" level={2} size="micro" tone="muted" transform="caps" weight="semibold">
+        {/* `data-slot` + `data-scoped`: on a phone the ONE-SHELL rule makes this pane the screen and the
+            TOPBAR prints its name, so an UNSCOPED band title says the same word twice within 50px
+            (side-eye leg-4 P3 — measured on Characters). A SCOPED band ("CHATS · Sera") is a different
+            statement about a swapped pane, so it stays. shell.css sheds the duplicate; the decision lives
+            there because "is this pane the screen?" is the shell's fact, not this composite's. */}
+        <Heading
+          className="truncate"
+          data-scoped={accent === undefined ? undefined : "true"}
+          data-slot="list-pane-title"
+          level={2}
+          size="micro"
+          tone="muted"
+          transform="caps"
+          weight="semibold"
+        >
           {accent === undefined ? title : `${title} · `}
           {/* The entity half carries the foreground tone so the pane reads as "CHATS, scoped to HER";
               `caps` inherits from the heading, so the accent needs no transform of its own. */}
