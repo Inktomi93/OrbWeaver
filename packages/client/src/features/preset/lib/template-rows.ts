@@ -101,25 +101,25 @@ export function templateStoredText(config: PromptConfig, id: string): string {
   return config.formatStrings?.[defId] ?? "";
 }
 
-/** The next whole `prose` record after editing ONE framing template. The preset form's values are a
+/** The next whole `prose` record after ONE KEYSTROKE in a framing template. The preset form's values are a
  *  `PromptConfig`, and a slot id contains DOTS — which TanStack Form reads as a value PATH — so a framing row
  *  cannot be bound with an `AppField` on a `prose.<id>.text` name; it writes the record wholesale at the
  *  single-segment path `prose`, the same way the delivery cluster writes role/depth. Storage keeps the
  *  canonical slot-id key (an id is the key a host's override is stored under — never a dashed alias here,
  *  where the value IS the stored blob).
  *
- *  A blank/whitespace field DELETES the key: empty means "the shipped default rides", the storage semantic
- *  everywhere in this schema, and leaving `{text:""}` behind would resolve to empty bytes instead. A non-empty
- *  edit stamps the CURRENT slot version — any save re-stamps, which is what "keep mine" means (§4.4). */
-export function proseTemplatePatch(config: PromptConfig, id: ProseSlotId, value: string): PromptConfig["prose"] {
-  const next = { ...config.prose };
-  const trimmed = value.trim();
-  if (trimmed === "") {
-    delete next[id];
-    return next;
-  }
-  next[id] = { text: trimmed, baseVersion: PROSE_SLOTS[id].version };
-  return next;
+ *  THE TEXT IS STORED VERBATIM — no trim, no delete-on-blank. This is a DRAFT write feeding a CONTROLLED
+ *  textarea, so anything this function refuses to keep, React hands straight back to the field on the next
+ *  render: an earlier version trimmed here and the editor became untypeable — every space and newline the
+ *  author pressed was erased on the very next keystroke (`Note x` → `Notex`, `a⏎b` → `ab`), so multi-word
+ *  text could only arrive by PASTE. Normalization is a SAVE-boundary act and lives in
+ *  `preset-editor-model`'s `normalizePresetProse`, exactly where the empty-compaction strip already lives.
+ *  This is also how the `formatStrings` rows have always behaved (a plain `AppField` stores what you type);
+ *  the framing rows now match them instead of inventing a stricter keystroke.
+ *
+ *  `baseVersion` is stamped on every draft: any save re-stamps, which is what "keep mine" means (§4.4). */
+export function proseTemplateDraft(config: PromptConfig, id: ProseSlotId, value: string): PromptConfig["prose"] {
+  return { ...config.prose, [id]: { text: value, baseVersion: PROSE_SLOTS[id].version } };
 }
 
 /** Default / Customized — the state chip's derivation, shared by the row and the drill-in. EMPTY IS THE

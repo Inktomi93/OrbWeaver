@@ -3,15 +3,8 @@
 // the leaf-`null` clear contract (the bug class that makes "reset" not reset), the baseVersion stamp, and
 // the warn-never-block lint's honest scope.
 
-import type { ProseOverride } from "@orb/contracts/prose";
 import { PROSE_SLOTS, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
-import {
-  projectProseForm,
-  proseFieldName,
-  proseFooterState,
-  proseSlotPatch,
-  toProsePatch,
-} from "../../../../../packages/client/src/features/chat/lib/prose-settings-model.ts";
+import { projectProseForm, proseFieldName, proseSlotPatch, toProsePatch } from "../../../../../packages/client/src/features/chat/lib/prose-settings-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 // A user-home slot carrying a required pre-substitution token — the lint's subject.
@@ -62,25 +55,6 @@ test("the patch spells EVERY slot — an untouched slot rides as null, so cleari
   expect(patch[NUDGE]).toBeNull();
 });
 
-test("the footer reads Default while the field is empty, whatever is still stored (the next save clears it)", () => {
-  const stored: ProseOverride = { text: "an override about to be cleared", baseVersion: 1 };
-  expect(proseFooterState(ARBITER, "", stored)).toEqual({ isDefault: true, stale: false, missing: [] });
-});
-
-test("the required-token lint bites only text the host actually wrote, and names the missing token", () => {
-  expect(proseFooterState(NUDGE, "Write the next reply.", undefined).missing).toEqual(["{{name}}"]);
-  expect(proseFooterState(NUDGE, "[Write the next reply only as {{name}}.]", undefined).missing).toEqual([]);
-  // The shipped default carries every required token by construction, so an empty field never lints.
-  expect(proseFooterState(NUDGE, "", undefined).missing).toEqual([]);
-});
-
-test("stale = the shipped default moved on since this override was authored, and only while it is unedited", () => {
-  // Every slot ships at version 1 today, so `baseVersion: 0` is the only way to express "authored against an
-  // older version" until a default is first revised — which is exactly the state a real `baseVersion: 1`
-  // override lands in the day a slot bumps to 2.
-  const older: ProseOverride = { text: "my own director prompt", baseVersion: 0 };
-  expect(proseFooterState(ARBITER, older.text, older).stale).toBe(true);
-  // Mid-edit the pending save re-stamps the version, so the chip must not linger over unsaved text.
-  expect(proseFooterState(ARBITER, `${older.text} plus a thought`, older).stale).toBe(false);
-  expect(proseFooterState(ARBITER, older.text, { text: older.text, baseVersion: PROSE_SLOTS[ARBITER].version }).stale).toBe(false);
-});
+// The footer-state tests MOVED to `tests/contracts/prose/index.contract.test.ts` with `proseFooterState`
+// itself (2026-08-07): the preset Templates drill-in renders the same footer, so the derivation went down to
+// `@orb/contracts/prose` and its tests follow the source under the mirror rule.
