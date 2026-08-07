@@ -15,3 +15,5 @@ export const selectAnalyticsCharacter = analyticsSelection.select;
 export const clearAnalyticsSelection = analyticsSelection.clear;
 /** Reactive: the currently-drilled analytics character id (`null` = the dashboard). A primitive selector. */
 export const useSelectedAnalyticsCharacterId = analyticsSelection.usePrimaryId;
+/** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule. */
+export const analyticsSectionSelection = analyticsSelection.selection;

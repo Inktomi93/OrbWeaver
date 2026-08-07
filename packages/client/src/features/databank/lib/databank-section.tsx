@@ -30,6 +30,7 @@
 
 import { Database } from "@orb/ui/icons";
 import type { SectionDefinition } from "#state";
+import { databankSectionSelection } from "#state";
 import { DatabankLibraryAnchor } from "../anchors/databank-library-anchor.tsx";
 import { DatabankContextBody, DatabankContextHeader } from "../components/databank-context-body.tsx";
 import { DatabankListHeader } from "../components/databank-list-header.tsx";
@@ -52,6 +53,8 @@ export const databankSection: SectionDefinition = {
   ),
   // The LIST chrome-band content (D66 A1/A2): "DATABANK" + count + Add + the maintenance kebab.
   listHeader: () => <DatabankListHeader />,
+  // How the SHELL reads "is a document open?" — the mobile ONE-SHELL rule's input + its back affordance.
+  selection: databankSectionSelection,
   content: () => <DatabankDetailSurface />,
   // ONE activation body (the world-info posture): where the open document fires, plus the pointer to the
   // retrieval knobs. `empty` names what the pane WILL show — never the generic "Details / select something"

@@ -15,3 +15,5 @@ export const selectCorpusCharacter = corpusSelection.select;
 export const clearCorpusSelection = corpusSelection.clear;
 /** Reactive: the currently-drilled corpus character id (`null` = the overview home). A primitive selector. */
 export const useSelectedCorpusCharacterId = corpusSelection.usePrimaryId;
+/** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule. */
+export const corpusSectionSelection = corpusSelection.selection;

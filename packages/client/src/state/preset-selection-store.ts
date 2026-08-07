@@ -26,3 +26,5 @@ export const __dismissPresetSectionForTest = presetSelection.dismissSecondary;
 export const useSelectedPresetId = presetSelection.usePrimaryId;
 /** Reactive: the currently-selected rack section id (`null` = none). A primitive selector. */
 export const useSelectedPresetSectionId = presetSelection.useSecondaryId;
+/** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule. */
+export const presetSectionSelection = presetSelection.selection;

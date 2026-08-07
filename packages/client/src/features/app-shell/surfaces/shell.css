@@ -704,7 +704,9 @@
   .shell-rail .shell-rail-button[data-rail-mobile-only] {
     display: inline-flex;
   }
-  /* docked never resolves on mobile; matched only so a stray docked value can't fall through to the desktop grid-track rule. */
+  /* `docked` DOES resolve on mobile since the ONE-SHELL rule — for the LIST of a list-bearing section with
+   * nothing selected — and there it means "this pane IS the screen" (see the rule below). It is matched here
+   * too so a stray docked value on the CONTEXT pane can't fall through to the desktop grid-track rule. */
   .shell-panel[data-panel-mode="docked"],
   .shell-panel[data-panel-mode="overlay"],
   .shell-panel[data-panel-mode="collapsed"] {
@@ -732,6 +734,17 @@
   }
   .shell-panel[data-panel-side="context"][data-panel-mode="collapsed"] {
     transform: translateX(100%);
+  }
+  /* THE LIST AS THE SCREEN (the mobile ONE-SHELL rule, owner-ruled 2026-08-03). The insets are stated here
+   * and NOT inherited from the sheet rule above on purpose: the block's shared rule gives `position: fixed`
+   * but no `inset-inline`, so a fixed panel with auto insets falls back to its STATIC position — the
+   * desktop `grid-column: 2` of a grid that has one column here — and the roster rendered one full viewport
+   * off the right edge (measured: box.x = 320 at a 320px viewport, `data-panel-mode="docked"`, nothing on
+   * screen). No `box-shadow` and no scrim: this is not a float over content, it IS the content. */
+  .shell-panel[data-panel-side="list"][data-panel-mode="docked"] {
+    inset-inline: 0;
+    width: 100dvw;
+    transform: none;
   }
   .shell-scrim {
     inset-block: var(--dimension-chrome-row) calc(var(--rail-w) + env(safe-area-inset-bottom));

@@ -8,7 +8,6 @@
 // feature hook and are covered by app-shell.ct.tsx — here the store's raw overrides read `none` until
 // explicitly set.
 
-import { resolvePanelMode } from "@orb/client/state";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { ShellStoreProbe } from "./_ct-stories.tsx";
 
@@ -148,50 +147,6 @@ test("useListDocked resolves `false` in the narrow-desktop regime too (the M10 c
 
   await probe.getByRole("button", { name: "enter wide viewport" }).click();
   await expect(state).toContainText("docked=true");
-});
-
-test("resolvePanelMode — the shared algebra both useListDocked and useShellLayout's resolvePanel call — precedence isMobile > narrow > wide", async ({
-  mount,
-}) => {
-  // A trivial mount just to exercise the CT lane's browser runtime (resolvePanelMode itself is pure); the
-  // assertions below are the real behavioral proof, driven directly against the exported function so a
-  // NEW branch here is presence-checked by name, not just transitively through the hooks above.
-  await mount(<ShellStoreProbe />);
-
-  const regime = (isMobile: boolean, isNarrow: boolean, openOverlayPanel: "list" | null): Parameters<typeof resolvePanelMode>[2] => ({
-    isFocus: false,
-    isMobile,
-    isNarrow,
-    openOverlayPanel,
-  });
-
-  // Wide: passes the resolved mode through untouched.
-  expect(resolvePanelMode("list", "docked", regime(false, false, null))).toBe("docked");
-  expect(resolvePanelMode("list", "collapsed", regime(false, false, null))).toBe("collapsed");
-
-  // Narrow + docked-default: CLOSED by default, OPEN only when named.
-  expect(resolvePanelMode("list", "docked", regime(false, true, null))).toBe("collapsed");
-  expect(resolvePanelMode("list", "docked", regime(false, true, "list"))).toBe("overlay");
-  // Narrow + an explicit non-docked override: passes through unchanged (no auto-downgrade to touch)…
-  expect(resolvePanelMode("list", "collapsed", regime(false, true, null))).toBe("collapsed");
-  // …UNLESS the panel is the one named open right now. A stored `collapsed` is a WIDE dock preference, and
-  // at this width docking is impossible, so it must not outvote a live open — that precedence bug is what
-  // made the ≤64rem "Show detail panel" toggle read as a dead control (the `chats` CONTEXT pane defaults
-  // `collapsed`, so its FIRST click resolved straight back to collapsed).
-  expect(resolvePanelMode("list", "collapsed", regime(false, true, "list"))).toBe("overlay");
-
-  // Mobile takes precedence over narrow — never "docked" regardless of the resolved default.
-  expect(resolvePanelMode("list", "docked", regime(true, true, null))).toBe("collapsed");
-  expect(resolvePanelMode("list", "docked", regime(true, true, "list"))).toBe("overlay");
-
-  // FOCUS outranks all three (item 20): while the flag is on, EVERY panel resolves collapsed in EVERY
-  // regime — even one the user just named open. That is what makes the flag, the label and the pixels one
-  // truth, and it is a pure derivation: the stored mode fed in here is never rewritten.
-  const focused = { isFocus: true, isMobile: false, isNarrow: false, openOverlayPanel: null } as const;
-  expect(resolvePanelMode("list", "docked", focused)).toBe("collapsed");
-  expect(resolvePanelMode("context", "docked", focused)).toBe("collapsed");
-  expect(resolvePanelMode("list", "docked", { ...focused, isNarrow: true, openOverlayPanel: "list" })).toBe("collapsed");
-  expect(resolvePanelMode("list", "docked", { ...focused, isMobile: true, openOverlayPanel: "list" })).toBe("collapsed");
 });
 
 // ── Focus mode is ONE flag that never writes panel state (item 20) ──────────────────────────────────

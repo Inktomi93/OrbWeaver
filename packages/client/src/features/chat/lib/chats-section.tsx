@@ -20,7 +20,7 @@ import type {
 } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
-import { chatDeletedFromList, openModal, selectChatFromList } from "#state";
+import { chatDeletedFromList, chatSectionSelection, openModal, selectChatFromList } from "#state";
 import { ChatListAnchor } from "../anchors/chat-list-anchor.tsx";
 import { DraftAddMemberPopover } from "../components/add-member-popover.tsx";
 import { AssemblyPreviewPanel } from "../components/assembly-preview-panel.tsx";
@@ -127,6 +127,8 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     ),
     // The LIST chrome-band content (§4 N2): "CHATS" title + count + the ONE primary New action.
     listHeader: () => <ChatListHeader />,
+    // How the SHELL reads "is a room open?" — the mobile ONE-SHELL rule's input + its back affordance.
+    selection: chatSectionSelection,
     content: () => <ChatContent surfaceContributors={surfaces} toolRenderers={toolRenderers} />,
     // Topbar identity: committed roster header vs draft seed, resolved from #state/#data inside the body.
     header: () => <ChatsTopbarHeader />,

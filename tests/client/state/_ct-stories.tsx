@@ -99,6 +99,7 @@ import {
   useOpenOverlayPanel,
   usePanelOverride,
   usePresetEditorView,
+  useSectionListIsScreen,
   useSectionRegistry,
   useSelectedAnalyticsCharacterId,
   useSelectedCharacterFacetId,
@@ -122,7 +123,59 @@ import type { ReactElement } from "react";
 import { Fragment, useState } from "react";
 import { CtFakeSectionRegistry } from "../../support/ct/ct-data-providers.tsx";
 
+// ── section-list-projection: the #state answers to "is my LIST docked / is it the mobile SCREEN?" ──────
+// Mounted over the REAL config selection seam (`CtFakeSectionRegistry` passes `REAL[id].selection` through
+// whenever a story injects a `list`), so the projection is proven against the production store rather than
+// a double — and beside a section that declares NO list, which must never enter the list-as-screen arm.
+
+/** The projection probe: config (a list-bearing section, real seam) vs refinery (no list at all). */
+export function SectionListProjectionProbe(): ReactElement {
+  return (
+    <CtFakeSectionRegistry sections={{ config: { list: <p>config roster</p> } }}>
+      <SectionListProjectionBody />
+    </CtFakeSectionRegistry>
+  );
+}
+
+function SectionListProjectionBody(): ReactElement {
+  const configIsScreen = useSectionListIsScreen("config");
+  const refineryIsScreen = useSectionListIsScreen("refinery");
+  const configDocked = useListDocked("config", "docked");
+  return (
+    <div>
+      <output>{`config-screen=${configIsScreen} refinery-screen=${refineryIsScreen} config-docked=${configDocked}`}</output>
+      <button type="button" onClick={(): void => selectCollectionMember("tag", "tag-projection-probe")}>
+        open member
+      </button>
+      <button type="button" onClick={(): void => clearCollectionSelection()}>
+        clear member
+      </button>
+      <button type="button" onClick={(): void => setMobileViewport(true)}>
+        enter mobile viewport
+      </button>
+      <button type="button" onClick={(): void => setMobileViewport(false)}>
+        enter desktop viewport
+      </button>
+    </div>
+  );
+}
+
+/** The probe under a section registry — the provider must be ABOVE the hooks that read it, so the body is
+ *  its own component (a provider rendered by the same component that calls `useSectionRegistry` is not in
+ *  its own context, and the whole probe rendered nothing). */
 export function ShellStoreProbe(): ReactElement {
+  // The registry is load-bearing since the mobile ONE-SHELL rule: `useListDocked` reads the section's
+  // declared SELECTION seam (a list-bearing section with nothing open is `docked` on a phone), and that
+  // answer has ONE home — the registry. The fake's sections inject no `list`, so they declare no seam and
+  // this probe exercises the pre-existing algebra unchanged.
+  return (
+    <CtFakeSectionRegistry>
+      <ShellStoreProbeBody />
+    </CtFakeSectionRegistry>
+  );
+}
+
+function ShellStoreProbeBody(): ReactElement {
   const section = useActiveSection();
   // The ACTIVE section's raw overrides (undefined = unset ⇒ the feature default resolves it; the store
   // itself only holds the override). "none" stands in for an unset override in the probe's text output.
