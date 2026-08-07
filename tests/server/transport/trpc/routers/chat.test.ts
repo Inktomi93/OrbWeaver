@@ -795,6 +795,10 @@ describe("chat.getShapeTrace — the content-free SHAPE trace (PD-132, host-only
     squashMerges: 0,
     cacheBreakpointFromEnd: 1,
     breakpointDecision: "placed",
+    rows: [
+      { role: "user", name: "Alex", source: "canon", chars: 12 },
+      { role: "assistant", name: "Aria", source: "canon", chars: 40 },
+    ],
   };
 
   test("a thin pass-through: chatId + speakerCharacterId reach the verb with the resolved Principal", async () => {

@@ -272,7 +272,10 @@ test("CanonMessage mirrors MessageView (the canon rows every honesty spec reads)
 test("ContextFitPreview / ShapeTraceView mirror the assemble-layer reads", () => {
   pin<Subset<"ceilingEstimated">>(keys<ContextFitPreview, ContractContextFitPreview>());
   expectTypeOf<ContractContextFitPreview>().toExtend<ContextFitPreview>();
-  pin<Subset<"squashMerges" | "cacheBreakpointFromEnd" | "breakpointDecision">>(keys<ShapeTraceView, ShapeTrace>());
+  // `rows` (the DELIVERED wire-row projection) is deliberately outside the e2e view: the live harness asserts
+  // that the stage COUNTS move with the config, and mirroring a per-row list here would pin ordering facts the
+  // assembly suite already owns (`tests/server/domain/chat/assembly/shape.test.ts`, "the delivered-row trace").
+  pin<Subset<"squashMerges" | "cacheBreakpointFromEnd" | "breakpointDecision" | "rows">>(keys<ShapeTraceView, ShapeTrace>());
   pin<Complete>(keys<ShapeTraceView["stageCounts"], ShapeTrace["stageCounts"]>());
   expectTypeOf<ShapeTrace>().toExtend<ShapeTraceView>();
 });

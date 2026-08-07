@@ -637,6 +637,9 @@ interface FoldBuildFailedInfo {
 interface StateRoundPathInfo {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
+  /** The turn this flush belongs to — the correlation key the rpg flight recorder (R-OBS) joins a turn's
+   *  mount/tool/flush events on, and the one `/api/_debug/rpg/traces?turnId=` filters by. */
+  readonly turnId: ChatTurnId;
   readonly mode: RpgExtractionMode;
   /** `folded` = the character turn's own tool calls (ZERO extra model calls); `tool-round` = a dedicated
    *  post-commit model call (which, on an agent-sdk wire, that op emits as one structured-output call).
