@@ -1035,7 +1035,7 @@ describe("runTurnPipeline — immutability", () => {
 
 // ── RECEIVE (D53 step 2): <think>-demux → AI_OUTPUT regex → post-process → REASONING regex ─────────────────
 /** A host-tier regex script (fully defaulted via the parse seam) for a single placement. */
-function script(label: string, find: string, replace: string, placement: "AI_OUTPUT" | "DISPLAY" | "REASONING"): RegexScriptRow {
+function script(label: string, find: string, replace: string, placement: "AI_OUTPUT" | "DISPLAY" | "REASONING" | "PROMPT_HISTORY"): RegexScriptRow {
   return regexScriptSchema.parse({
     // D121-E: a row id is a real `regex_script_…` TypeID; the readable label rides on `name`.
     id: mintTypeId(ID_PREFIX.regexScript),
@@ -1043,6 +1043,9 @@ function script(label: string, find: string, replace: string, placement: "AI_OUT
     findRegex: find,
     replaceString: replace,
     placement: [placement],
+    // `historyDepth` is REQUIRED on (and only on) a PROMPT_HISTORY script — the schema's total pairing check.
+    // Unbounded (`max: null`) = every row, which is what a placement-comparison probe wants.
+    ...(placement === "PROMPT_HISTORY" ? { historyDepth: { min: 0, max: null } } : {}),
   });
 }
 
@@ -2058,8 +2061,13 @@ describe("spanToWirePart — CONTENT_CLASS_POLICY binding", () => {
 // proof and not a signature check.
 describe("runTurnPipeline — narrator round assembly", () => {
   const groupChar = castId<CharacterId>("char_group_synthetic");
-  const charlotte = { name: "Charlotte", description: "a tired archivist" };
-  const jfc = { name: "JFC", description: "a foul-mouthed mechanic" };
+  // BOTH descriptions carry `{{char}}` — ordinary card authoring, and the ONLY shape that catches the
+  // card-binding defect. A macro-free description renders identically whichever ctx it is bound against, so
+  // the first version of these pins was blind to a live regression: the primary's own card resolved `{{char}}`
+  // to the JOINED CAST ("Charlotte, JFC is a tired archivist") while co-speakers' cards resolved correctly,
+  // because only co-speakers were rebound to a single-character sub-ctx.
+  const charlotte = { name: "Charlotte", description: "{{char}} is a tired archivist" };
+  const jfc = { name: "JFC", description: "{{char}} is a foul-mouthed mechanic" };
 
   /** The one immutable round ctx a narrator turn is built off: both present members, primary first. */
   function narratorCtx(): AssembleContext {
@@ -2087,21 +2095,73 @@ describe("runTurnPipeline — narrator round assembly", () => {
     const { args } = baseArgs({ assembleContext: narratorCtx(), shape: narratorShape });
     const result = await runTurnPipeline(args);
     const system = result.request.prompt.static;
-    expect(system).toContain(charlotte.description);
     // The defect: the co-speaker's card was never assembled, so the model was asked to voice a character
     // it had never been shown.
-    expect(system).toContain(jfc.description);
+    expect(system).toContain("JFC is a foul-mouthed mechanic");
     // …under the NARRATOR frame, not the per-speaker bystander frame: this call is voicing JFC, so calling
     // them "also present" would contradict the round's own nudge (PROSE slot `chat.group.castMember`).
     expect(system).toContain("[Cast — JFC]");
     expect(system).not.toContain("[Also present — JFC]");
   });
 
-  test("`{{char}}` binds to the WHOLE cast, so the shipped framing stops naming one member", async () => {
+  test("EVERY member's card resolves `{{char}}` to ITSELF — the primary's no differently from a co-speaker's", async () => {
+    // The card-binding regression, at the seam it shipped through. A card's description is written ABOUT its
+    // own character, so `{{char}}` in it means "me" — for the PRIMARY exactly as much as for a co-speaker.
+    const { args } = baseArgs({ assembleContext: narratorCtx(), shape: narratorShape });
+    const system = (await runTurnPipeline(args)).request.prompt.static;
+    expect(system).toContain("Charlotte is a tired archivist");
+    expect(system).toContain("JFC is a foul-mouthed mechanic");
+    // The precise failure the first pass shipped: the joined cast leaking into the primary's own card.
+    expect(system).not.toContain("Charlotte, JFC is a tired archivist");
+  });
+
+  test("`{{char}}` binds to the WHOLE cast in the PRESET framing, which is the one place it should", async () => {
     const { args } = baseArgs({ assembleContext: narratorCtx(), shape: narratorShape });
     const result = await runTurnPipeline(args);
     // DEFAULT_MARKER_TEMPLATES.main_prompt opens "You are {{char}} in an immersive, ongoing roleplay".
+    // Preset-authored framing, not card-derived text — the split `cardOwnerCtx` draws.
     expect(result.request.prompt.static).toContain("You are Charlotte, JFC in an immersive");
+  });
+
+  test("an EMPTY-but-defined cast floors `{{char}}` to the primary instead of shipping an empty name", async () => {
+    // Reachable: `getCard` returning falsy for every seated id leaves `cast: []`/`castMembers: []` (both
+    // DEFINED, so the absent-cast early return does not fire) while a narrator round still runs. An unfloored
+    // members list joins to "" — "You are  in an immersive…".
+    const { args } = baseArgs({
+      assembleContext: ctxOf({ character: charlotte, cast: [], castMembers: [] }),
+      shape: narratorShape,
+    });
+    const system = (await runTurnPipeline(args)).request.prompt.static;
+    expect(system).toContain("You are Charlotte in an immersive");
+    expect(system).not.toContain("You are  in an immersive");
+  });
+
+  // THE ROUND-SCOPED REGEX PLACEMENTS AGREE ON `{{char}}`. `PROMPT_HISTORY` and `AI_OUTPUT`/`REASONING` are
+  // both transforms OF ONE ROUND — the prompt it sends and the reply it gets back — so a host script that
+  // writes `{{char}}` must mean the same character in both or the same library contradicts itself inside one
+  // turn. (`USER_INPUT` is the deliberate exception: it runs at SEND, before arbitration exists — see
+  // `assembly/context` runSendAuthorTransforms.) Driven on a PER-SPEAKER round whose speaker is NOT the
+  // primary, because that is the only shape where the two ctxs could disagree.
+  test("PROMPT_HISTORY and AI_OUTPUT resolve `{{char}}` to the SAME character (this round's voice)", async () => {
+    const { args } = baseArgs({
+      runChatTurn: finalTurn("OUT"),
+      canon: [userRow("TOKEN")],
+      assembleContext: ctxOf({
+        ...narratorCtx(),
+        hostTierRegexScripts: [script("h", "TOKEN", "<<{{char}}>>", "PROMPT_HISTORY"), script("a", "OUT", "<<{{char}}>>", "AI_OUTPUT")],
+      }),
+      shape: {
+        output: "per-speaker",
+        cardScope: "merged",
+        scopedTargetId: null,
+        speakerName: "JFC",
+        speakerRef: { kind: "character", characterId: castId<CharacterId>("char_jfc") },
+      },
+    });
+    const result = await runTurnPipeline(args);
+    const history = historyText(result.request);
+    expect(history).toContain("<<JFC>>");
+    expect(result.content).toBe("<<JFC>>");
   });
 
   test("a PER-SPEAKER round is untouched — the speaker's own card is primary, the other is a co-speaker", async () => {
@@ -2118,5 +2178,8 @@ describe("runTurnPipeline — narrator round assembly", () => {
     const system = (await runTurnPipeline(args)).request.prompt.static;
     expect(system).toContain("You are JFC in an immersive");
     expect(system).toContain("[Also present — Charlotte]");
+    // Card binding is unchanged on this arm: each card still says "me", and always did.
+    expect(system).toContain("JFC is a foul-mouthed mechanic");
+    expect(system).toContain("Charlotte is a tired archivist");
   });
 });

@@ -36,10 +36,16 @@ type CardScope = Extract<GroupConfig, { output: "per-speaker" }>["cardScope"];
  *  resolves to the joined cast rather than to whichever member happens to be primary. */
 function shapeContextForCast(ctx: AssembleContext, cast: readonly AssembleCharacter[]): AssembleContext {
   const active = cast[0] ?? ctx.character;
+  // An EMPTY-but-defined cast is reachable, so `members` needs the same floor `active` gets: `getCard` returning
+  // falsy for every seated id drops the whole roster (`assembly/context` buildAssembleContext) while a narrator
+  // round still fires (`verbs/turn` gates on `output === "narrator"` OR a speaker, never on roster size). An
+  // unfloored `members: []` joins to "" and ships "You are  in an immersive…" — `{{char}}` with no value at all.
+  // Flooring to `[active]` degrades to exactly the pre-cast-arm binding (the primary's name).
+  const members = cast.length > 0 ? [...cast] : [active];
   return {
     ...ctx,
     character: active,
-    speaker: { kind: "cast", members: [...cast], active },
+    speaker: { kind: "cast", members, active },
     coSpeakers: cast.slice(1),
   };
 }
