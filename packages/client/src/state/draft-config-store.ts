@@ -131,3 +131,23 @@ export function clearDraftConfig(draftKey: string): void {
 export function useDraftConfig(draftKey: string): DraftConfig {
   return useDraftConfigStore((s) => s.configs[draftKey] ?? EMPTY_DRAFT_CONFIG);
 }
+
+/** A draft's founding cast: the seed roster + pre-send additions from the panel, in that order — the SAME
+ *  union `resolveDraftCommit` writes to `chat.startChat`'s `characterIds`.
+ *
+ *  Homed in `#state` (not the chat feature) because it folds the two STATE shapes this tier owns — the
+ *  active chat's `DraftSeed` and this store's `addedCharacterIds` — and it has consumers in two features:
+ *  the chat room (greeting preview + the room-theme takeover) and the app-shell's carried-background
+ *  resolver, which cannot import `#features/chat`. One spelling, or a draft's cast means one thing to the
+ *  transcript and another to the chrome — which is exactly how the pre-send window drifted.
+ *
+ *  DEDUPED, first occurrence wins. There were THREE spellings of this union before (the commit bridge, the
+ *  greeting preview, and `useChatContextState`) and only the context panel's deduped, so a character
+ *  present in BOTH halves rendered one row in the Members tab, two greeting rows, and would have been
+ *  written to `startChat` twice — two participant rows for one character. The strict spelling wins. */
+export function resolveDraftCharacterIds(
+  seedCharacterIds: readonly CharacterId[] | undefined,
+  addedCharacterIds: readonly CharacterId[] | undefined,
+): CharacterId[] {
+  return [...new Set([...(seedCharacterIds ?? []), ...(addedCharacterIds ?? [])])];
+}

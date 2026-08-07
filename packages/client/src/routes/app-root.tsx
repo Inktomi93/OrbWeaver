@@ -13,7 +13,7 @@ import { useAuthConfig, useInvalidation, useOrbSocket, useRpgBus, useUserBus } f
 import { AppShell } from "#features/app-shell";
 import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
 import { FirstRunPersonaDialog } from "#features/persona";
-import { isCommitted, useActiveChatHandle, useActiveDraftSeed, useActiveSection, useSelectedCharacterId } from "#state";
+import { isCommitted, useActiveChatHandle, useActiveDraftFoundingCast, useActiveSection, useSelectedCharacterId } from "#state";
 
 export function AppRoot(): ReactElement {
   // Single-user renders none of the three multi-human surfaces (bell, the cast bar's humans row —
@@ -43,11 +43,12 @@ export function AppRoot(): ReactElement {
   });
 
   const handle = useActiveChatHandle();
-  const draftSeed = useActiveDraftSeed();
   const activeSection = useActiveSection();
   const selectedCharacterId = useSelectedCharacterId();
   const activeChatId = isCommitted(handle) ? handle.id : null;
-  const draftCharacterIds = handle.kind === "draft" ? (draftSeed?.characterIds ?? []) : [];
+  // The ONE founding-cast union — seed ∪ the panel's pre-send additions. A cast-less draft that gains its
+  // first character from the roster panel IS a "New chat draft" to announce, which a seed-only read missed.
+  const draftCharacterIds = useActiveDraftFoundingCast();
 
   // The per-game live event room (Context-Panel-Program §4.9), mounted here (never in a feature, which
   // could unmount and drop the freshness driver) and keyed to the active committed chat. `null` (a draft,

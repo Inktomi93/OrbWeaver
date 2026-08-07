@@ -8,6 +8,7 @@ import {
   createCollectionSurface,
   createEntityMutation,
   QueryBoundary,
+  useCarriedAppearanceCast,
   useColorQuotedSpeech,
   useDisplayScripts,
   useGatedQuery,
@@ -665,4 +666,38 @@ function PromptMacroSuggestionsProbe(): ReactElement {
       <output data-testid="macro-lead">{suggestions[0]?.name ?? ""}</output>
     </div>
   );
+}
+
+/** CarriedAppearanceCastStory — the ONE home of "whose card dresses this room", resolved for BOTH chat
+ *  phases: a COMMITTED chat's roster (`chat.getChat`) or a pre-send DRAFT's founding CARDS
+ *  (`character.get` per id). NON-suspense on purpose: appearance is decoration, so an unresolved read must
+ *  report `undefined` (the viewer's own chrome) rather than block or error the surface reading it.
+ *
+ *  The readout is the resolved COMPOSITION — the two counts every takeover rule gates on — plus the
+ *  carried names, so a partially-loaded draft cast (which must read as `pending`, never as a SMALLER cast
+ *  that would momentarily look true-solo) is distinguishable from a settled one. */
+export function CarriedAppearanceCastStory({
+  chatId,
+  draftCharacterIds,
+}: {
+  readonly chatId: ChatId | null;
+  readonly draftCharacterIds: readonly CharacterId[];
+}): ReactElement {
+  return (
+    <CtDataProviders>
+      <CarriedAppearanceCastReader chatId={chatId} draftCharacterIds={draftCharacterIds} />
+    </CtDataProviders>
+  );
+}
+
+function CarriedAppearanceCastReader({
+  chatId,
+  draftCharacterIds,
+}: {
+  readonly chatId: ChatId | null;
+  readonly draftCharacterIds: readonly CharacterId[];
+}): ReactElement {
+  const cast = useCarriedAppearanceCast(chatId, draftCharacterIds);
+  const readout = cast === undefined ? "pending" : `humans=${cast.humanCount} cards=${cast.characters.map((member) => member.displayName).join("+")}`;
+  return <output data-testid="carried-cast">{readout}</output>;
 }
