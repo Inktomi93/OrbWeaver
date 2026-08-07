@@ -848,7 +848,11 @@ interface WireRowFacts {
  *  model's real cards instead. Stored cards still obey the window; authored ones are not stored cards. */
 function resolveFullCards(
   tokenized: readonly { readonly h: { readonly messageId?: MessageId | undefined }; readonly spans: readonly ContentSpan[] }[],
-  keepLastX: number,
+  /** ABSENT ≠ ZERO. Contributed ONLY by an rpg game's gather, so a chat with no game supplies nothing —
+   *  `undefined` ⇒ NO window (every card rides whole); `0` ⇒ keep none (rpg's explicit default); `n` ⇒ last n.
+   *  This used to be `?? 0` at the call site, which silently gave every non-rpg chat the strictest setting of
+   *  a feature it never opted into: all its cards stubbed on every turn, with no knob to change it. */
+  keepLastX: number | undefined,
 ): ReadonlySet<ContentSpan> {
   const full = new Set<ContentSpan>();
   const canonCards: ContentSpan[] = [];
@@ -864,12 +868,19 @@ function resolveFullCards(
       }
     }
   }
-  if (keepLastX > 0) {
-    for (const card of canonCards.slice(-keepLastX)) {
-      full.add(card);
-    }
+  for (const card of windowed(canonCards, keepLastX)) {
+    full.add(card);
   }
   return full;
+}
+
+/** The stored-card slice the window keeps FULL. Absent window ⇒ all of them (a chat that never opted into
+ *  the rpg budget tradeoff); `0` ⇒ none; `n` ⇒ the newest n in document order. */
+function windowed(canonCards: readonly ContentSpan[], keepLastX: number | undefined): readonly ContentSpan[] {
+  if (keepLastX === undefined) {
+    return canonCards;
+  }
+  return keepLastX > 0 ? canonCards.slice(-keepLastX) : [];
 }
 
 type WirePartResult = ChatContentPart | { droppedAlt: string } | null;
@@ -977,7 +988,7 @@ async function buildWireHistory(
   // COMMITTED canon (the fitted history is stored rows, never the in-flight stream), so an unterminated
   // card closes at EOF and STUBS like any other card instead of riding the wire as a multi-KB raw blob.
   const tokenized = fittedHistory.map((h) => ({ h, spans: tokenizeContent(h.content, { committed: true }) }));
-  const env: WirePartsEnv = { visionOk, resolveImageUrl: args.resolveImageUrl, fullCards: resolveFullCards(tokenized, args.cardKeepLastX ?? 0) };
+  const env: WirePartsEnv = { visionOk, resolveImageUrl: args.resolveImageUrl, fullCards: resolveFullCards(tokenized, args.cardKeepLastX) };
   // The canon rows a SHAPE fold may have re-roled to `user` (`scopeToSpeaker` stamps another character's
   // assistant line as `Name: …`) — their images stay character-authored, so they never count as attachments.
   const assistantMessageIds = new Set(args.canon.filter((m) => m.role === "assistant").map((m) => m.id));

@@ -79,7 +79,9 @@ interface PrincipalEnv {
 }
 
 function serveDownload(body: Uint8Array | string, mime: string, filename: string): Response {
-  return new Response(body, {
+  // Node 26 undici BodyInit requires Uint8Array<ArrayBuffer>, not Uint8Array<ArrayBufferLike>.
+  // new Uint8Array(body) copies into a concrete ArrayBuffer view — same pattern as egress.ts.
+  return new Response(body instanceof Uint8Array ? new Uint8Array(body) : body, {
     headers: {
       "Content-Type": mime,
       "Content-Disposition": `attachment; filename="${filename}"`,
