@@ -6,6 +6,14 @@
 // (a fork grants no parent membership). Every copied row gets a fresh id, and the slot's `selectedVariantId`
 // pointer is remapped to the copied variant. The whole copy commits in one atomic `db.batch`.
 //
+// THE ROW COPIES ARE ALLOW-LISTS, KEPT TOTAL BY `tsc` (2026-08-07): `forkVariantValues`/`forkSlotValues` name
+// every `message_variants` / `messages` column and return `Required<…$inferInsert>`, so a column added to
+// either table is a MISSING PROPERTY and fails the build until its author classifies it. They replaced a
+// `...row` spread minus a hand-maintained deny-list — a shape that defaults a NEW column to COPIED, which is
+// backwards at a member→host trust boundary and had already let three columns through (`promptSnapshot`,
+// retro-fitted 2026-08-02; `rawContent`/`macroFreezes`, added by the identity spine). The classification law
+// lives on `forkVariantValues`: a column readable ONLY through a HOST-GATED surface does not survive the fork.
+//
 // Copied: the chat row's behavior (title/metadata/anchor/variables), the character roster the forker owns
 // (an owner forking their own chat keeps all), the canon (whole, even a dropped character's prior lines),
 // the injections. Reset: `parentChatId`/`forkedAt`/timestamps/`star`/`archived`; the host becomes the
@@ -64,10 +72,161 @@ type CharacterSeatRow = typeof chatParticipants.$inferSelect & {
   readonly characterId: CharacterId;
 };
 
+/** The per-forker copy verdict, resolved ONCE at the verb and threaded to every row projector.
+ *  `stripHidden` = the forker is a NON-HOST of the SOURCE room (§3.6 — they never held the host plane);
+ *  `stripReasoning` = that AND the source game is deception-active (P3). Both `false` for a host forker. */
+interface ForkCopyPosture {
+  readonly stripHidden: boolean;
+  readonly stripReasoning: boolean;
+}
+
+/** THE COPY IS AN ALLOW-LIST, AND `tsc` KEEPS IT TOTAL (2026-08-07 — the second column to slip past the old
+ *  deny-list). This function names EVERY `message_variants` column and is typed
+ *  `Required<…$inferInsert>`, so a column ADDED to the table is a MISSING PROPERTY here and fails `tsc` until
+ *  its author classifies it. The predecessor spread `...variant` and then subtracted a hand-maintained list of
+ *  host-plane fields; that shape defaults a NEW column to COPIED, which is exactly backwards at a
+ *  member→host trust boundary — `promptSnapshot` had to be retro-fitted once (RAWVIEW 2026-08-02), and
+ *  `rawContent`/`macroFreezes` rode in unclassified the moment the identity spine added them.
+ *
+ *  THE CLASSIFICATION LAW (one line, so a future column is decidable without re-deriving §3.6): a column
+ *  readable ONLY through a HOST-GATED surface does not survive the member→host fork. A non-host forker
+ *  becomes HOST of the copy, so anything the source room withheld from them as a member must not be
+ *  recoverable through the fork's own host reads. Everything a MEMBER could already read in the source room
+ *  copies verbatim — the fork grants them nothing new.
+ *
+ *  The four classes below are the whole vocabulary: REMAPPED (fresh id / id-map pointer) · MEMBER-PROJECTED
+ *  (body/reasoning prose the §3.6 strips transform) · HOST-PLANE (dropped for a non-host forker) · COPIED
+ *  (already member-readable in the source room). */
+function forkVariantValues(args: {
+  readonly variant: typeof messageVariants.$inferSelect;
+  readonly newId: MessageVariantId;
+  readonly newMessageId: MessageId;
+  readonly newBoundaryId: MessageId | null;
+  readonly posture: ForkCopyPosture;
+}): Required<typeof messageVariants.$inferInsert> {
+  const { variant, posture } = args;
+  // §3.6 strip for a non-host forker: the live `content` AND the continue-snapshot BODY twins
+  // (`preContinueContent`/`lastContinuationContent`) all carry body prose — undo/revert on the fork would
+  // otherwise reconstruct a lie's truth from the snapshot. `stripBody` is identity when nothing is hidden / the
+  // field is null.
+  const stripBody = (s: string | null): string | null => (posture.stripHidden && s !== null ? stripHiddenSpans(s).content : s);
+  // P3 §3.6: on a DECEPTION-active source, a non-host forker also loses the REASONING channel (the live
+  // `reasoning` + its continue-snapshot twins) — a deceptive model may spell a lie's truth in its thinking, and
+  // the forker becomes HOST of the copy, so an unstripped reasoning twin would launder that leak past the
+  // member→host transition. `nullReasoning` clears the field when the source game is deception-active.
+  const nullReasoning = (s: string | null): string | null => (posture.stripReasoning ? null : s);
+  // The HOST-PLANE arm of the member→host laundering boundary: `null` for a NON-HOST forker, verbatim for a
+  // host (who already reads every byte). `stripHidden` is the whole verdict — a host is never floor-clamped
+  // (`resolveHistoryFloorSeq` F2), so a clamped forker is necessarily a non-host and the one flag covers both
+  // the hidden-span leak and the D16 pre-floor-history leak.
+  const hostPlane = <T>(value: T): T | null => (posture.stripHidden ? null : value);
+  return {
+    // ── REMAPPED — identity + the cross-slot pointer ────────────────────────────────────────────────────
+    id: args.newId,
+    messageId: args.newMessageId,
+    // The fit-pass boundary references another slot. Remapped by the caller through the same slotIdMap; a
+    // boundary outside the copied range has no entry → null (never a stale cross-chat id).
+    contextBoundaryMessageId: args.newBoundaryId,
+    // ── MEMBER-PROJECTED — the prose channels the §3.6 strips transform for a non-host forker ───────────
+    content: stripBody(variant.content) ?? variant.content,
+    preContinueContent: stripBody(variant.preContinueContent),
+    lastContinuationContent: stripBody(variant.lastContinuationContent),
+    reasoning: nullReasoning(variant.reasoning),
+    preContinueReasoning: nullReasoning(variant.preContinueReasoning),
+    lastContinuationReasoning: nullReasoning(variant.lastContinuationReasoning),
+    // ── HOST-PLANE — served ONLY behind a host gate, so it must not cross the member→host transition ────
+    // `promptSnapshot` is the `AssembledPrompt` the turn actually SENT: the wire projection rides hidden spans
+    // VERBATIM (member-visibility.ts "WHO SEES WHAT"), so the blob re-materializes every `<lie>` truth the body
+    // strip above just removed, AND it embeds the whole assembled history including slots below a clamped
+    // member's D16 floor that the SLOT copy correctly withheld. `params` + `macroDraws` are its two
+    // co-passengers on the SAME host-gated reader (`loadVariantWire` selects exactly these three;
+    // `chat.getVariantWire` is `requireHost`): `params` is the initiator's per-send `UserIntent` (stop
+    // sequences, `compaction.instructions` prose, the `advanced.claudeEnv` escape hatch) and `macroDraws` is
+    // the turn's user-macro draw record over host-authored pools. None of the three has ANY member-gated
+    // reader, so a member-turned-host forker reading them through the fork's own inspector is the leak.
+    promptSnapshot: hostPlane(variant.promptSnapshot),
+    params: hostPlane(variant.params),
+    macroDraws: hostPlane(variant.macroDraws),
+    // `rawContent` is the PRE-transform authored text and `macroFreezes` the volatile-macro values baked out of
+    // it — both declared HOST-PLANE by their own contract (`schema/chat.ts`, `contracts/chat/messages.ts`:
+    // served only on the host-gated variant wire view, never on `MessageView`). The receive transforms exist
+    // partly to STRIP (a host regex can remove hidden material), so the raw is by definition PRE-strip bytes:
+    // copying it forward hands a non-host forker exactly what the strip removed. Dormant today (no production
+    // writer yet) — classified now so the freeze-site lane cannot land the leak.
+    rawContent: hostPlane(variant.rawContent),
+    macroFreezes: hostPlane(variant.macroFreezes),
+    // ── COPIED — every column a MEMBER could already read in the source room (the fork grants nothing new) ─
+    // Swipe position + the generation's identity/economics/diagnostics readout: `idx`, `model`, `provider`,
+    // the token/cost/timing set, and the finish/stop/terminal reasons all ride the member-visible `MessageView`
+    // (`generationId` too — the per-message cost key). `reasoningEffort`/`maxOutputTokens`/`apiErrorStatus` are
+    // off-view but are scalar knobs/diagnostics that carry no authored prose.
+    idx: variant.idx,
+    model: variant.model,
+    provider: variant.provider,
+    reasoningEffort: variant.reasoningEffort,
+    tokensIn: variant.tokensIn,
+    tokensOut: variant.tokensOut,
+    cacheReadTokens: variant.cacheReadTokens,
+    cacheWriteTokens: variant.cacheWriteTokens,
+    costUsd: variant.costUsd,
+    contextWindow: variant.contextWindow,
+    maxOutputTokens: variant.maxOutputTokens,
+    ttftMs: variant.ttftMs,
+    finishReason: variant.finishReason,
+    stopReason: variant.stopReason,
+    terminalReason: variant.terminalReason,
+    apiErrorStatus: variant.apiErrorStatus,
+    genStartedAt: variant.genStartedAt,
+    genFinishedAt: variant.genFinishedAt,
+    generationId: variant.generationId,
+    // `toolCalls` is on `MessageView` (the client's only tool read surface — members render the chips), so it
+    // is member-plane by construction. `variableDelta` is the runtime-variable op-log whose folded state a
+    // member already reads UNCLAMPED (`getVariables` is member-gated; the D79 ruling #8 baseline below leans on
+    // exactly that), and the fork's own fold depends on it. `metadata` is a server-internal economics sidecar —
+    // its ONLY reader is the stats delta's `reasoning_duration` (`substrate/stats-delta.ts`), it reaches no
+    // caller-facing payload, and dropping it would desync the fork's stats REBUILD from its live delta.
+    toolCalls: variant.toolCalls,
+    variableDelta: variant.variableDelta,
+    metadata: variant.metadata,
+    createdAt: variant.createdAt,
+  };
+}
+
+/** THE SLOT COPY, same allow-list discipline as {@link forkVariantValues} (`Required<…$inferInsert>` ⇒ a new
+ *  `messages` column fails `tsc` until classified). Every column here is COPIED: `messages` is a PURE SLOT
+ *  (D26 — identity + attribution + selection, zero content bytes), and each field is already member-readable
+ *  on `MessageView` (`seq`/`role`/`kind`/the three attribution stamps/`excludedFromPrompt`/the timestamps) or
+ *  is a slot-local turn-origin counter (`initiator`/`automationDepth`). The two exceptions are structural:
+ *  `chatId` re-homes to the fork, and `selectedVariantId` is born null to break the message↔variant circular
+ *  FK — the caller flips it to the copied variant after the variant inserts. */
+function forkSlotValues(args: {
+  readonly slot: typeof messages.$inferSelect;
+  readonly newId: MessageId;
+  readonly newChatId: ChatId;
+}): Required<typeof messages.$inferInsert> {
+  const { slot } = args;
+  return {
+    id: args.newId,
+    chatId: args.newChatId,
+    selectedVariantId: null,
+    seq: slot.seq,
+    role: slot.role,
+    kind: slot.kind,
+    authorUserId: slot.authorUserId,
+    characterId: slot.characterId,
+    personaId: slot.personaId,
+    excludedFromPrompt: slot.excludedFromPrompt,
+    initiator: slot.initiator,
+    automationDepth: slot.automationDepth,
+    createdAt: slot.createdAt,
+    editedAt: slot.editedAt,
+  };
+}
+
 /** Build the deep-copy statements (per slot: a fresh slot with a null pointer, then every variant, then
  *  the remapped `selectedVariantId` flip — FK-safe in that order). */
-/** Copy ONE variant into the fork: fresh id, remapped slot + boundary pointers, and (§3.6) a hidden-span
- *  strip when the forker is a non-host member of the source (identity when nothing is hidden). */
+/** Copy ONE variant into the fork: fresh id, remapped slot + boundary pointers, and the §3.6 member→host
+ *  projection ({@link forkVariantValues} owns the per-column classification). */
 function copyVariantStmt(
   db: Db,
   args: {
@@ -75,49 +234,12 @@ function copyVariantStmt(
     readonly newId: MessageVariantId;
     readonly newMessageId: MessageId;
     readonly slotIdMap: ReadonlyMap<MessageId, MessageId>;
-    readonly stripHidden: boolean;
-    readonly stripReasoning: boolean;
+    readonly posture: ForkCopyPosture;
   },
 ): BatchStmt {
-  const { variant, newId, newMessageId, slotIdMap, stripHidden, stripReasoning } = args;
-  // The fit-pass boundary references another slot (a cross-slot pointer). Remap it through the same slotIdMap;
-  // a boundary outside the copied range has no entry → null (never a stale cross-chat id).
+  const { variant, newId, newMessageId, slotIdMap, posture } = args;
   const newBoundaryId = variant.contextBoundaryMessageId !== null ? (slotIdMap.get(variant.contextBoundaryMessageId) ?? null) : null;
-  // §3.6 strip for a non-host forker: the live `content` AND the continue-snapshot BODY twins
-  // (`preContinueContent`/`lastContinuationContent`) all carry body prose — undo/revert on the fork would
-  // otherwise reconstruct a lie's truth from the snapshot. `stripBody` is identity when nothing is hidden / the
-  // field is null.
-  const stripBody = (s: string | null): string | null => (stripHidden && s !== null ? stripHiddenSpans(s).content : s);
-  // P3 §3.6: on a DECEPTION-active source, a non-host forker also loses the REASONING channel (the live
-  // `reasoning` + its continue-snapshot twins) — a deceptive model may spell a lie's truth in its thinking, and
-  // the forker becomes HOST of the copy, so an unstripped reasoning twin would launder that leak past the
-  // member→host transition. `nullReasoning` clears the field when the source game is deception-active.
-  const nullReasoning = (s: string | null): string | null => (stripReasoning ? null : s);
-  return batchStmt(
-    db.insert(messageVariants).values({
-      ...variant,
-      id: newId,
-      messageId: newMessageId,
-      content: stripBody(variant.content) ?? variant.content,
-      preContinueContent: stripBody(variant.preContinueContent),
-      lastContinuationContent: stripBody(variant.lastContinuationContent),
-      reasoning: nullReasoning(variant.reasoning),
-      preContinueReasoning: nullReasoning(variant.preContinueReasoning),
-      lastContinuationReasoning: nullReasoning(variant.lastContinuationReasoning),
-      // §3.6, the WIRE-ENVELOPE arm of the same member→host laundering boundary. `promptSnapshot` is the
-      // `AssembledPrompt` the turn actually SENT, and the wire projection rides hidden spans VERBATIM (the model
-      // always sees them — member-visibility.ts "WHO SEES WHAT"), so the blob re-materializes every `<lie>` truth
-      // the body strip above just removed. It also embeds the whole assembled HISTORY, including slots below a
-      // clamped member's D16 floor — which the SLOT copy correctly withheld. A non-host forker becomes HOST of the
-      // copy and reads it through the host-only wire inspector (`chat.getVariantWire`), so the blob must not
-      // survive the transition. `stripHidden` is the whole verdict: a host is never floor-clamped
-      // (`resolveHistoryFloorSeq` F2), so a clamped forker is necessarily a non-host and the one flag covers both
-      // leaks. A HOST forker keeps it verbatim (they already read every byte). It is the ONLY debug blob on the
-      // row — the `raw_request`/`raw_response` envelopes were write-never and are deleted.
-      promptSnapshot: stripHidden ? null : variant.promptSnapshot,
-      contextBoundaryMessageId: newBoundaryId,
-    }),
-  );
+  return batchStmt(db.insert(messageVariants).values(forkVariantValues({ variant, newId, newMessageId, newBoundaryId, posture })));
 }
 
 /** The canon copy's statements PLUS the id remaps it built — the maps are handed to `ChatRpgOps.forkGame` so
@@ -136,14 +258,11 @@ function buildCanonCopy(
     readonly newChatId: ChatId;
     readonly slots: (typeof messages.$inferSelect)[];
     readonly variants: (typeof messageVariants.$inferSelect)[];
-    /** §3.6 member-strip across the fork boundary: a NON-HOST forker never had host-plane access to the
-     *  source room's hidden-class spans, so the copied bodies must be stripped — else the forker (now HOST of
-     *  the copy) would read the GM-plane secrets verbatim via the fork's host `listMessages`, laundering the
-     *  member-strip through the member→host transition. A host forker copies verbatim (they already read it). */
-    readonly stripHidden: boolean;
-    /** P3 §3.6: on a DECEPTION-active source room, a non-host forker also loses the REASONING channel in the
-     *  copy (see `copyVariantStmt`). `false` for a host forker / a non-deception source. */
-    readonly stripReasoning: boolean;
+    /** The §3.6 member→host copy verdict for this forker — `forkVariantValues` owns what each class means
+     *  per column. `stripHidden` is set when the forker is a NON-HOST of the source: they never held the host
+     *  plane there, so copying it forward would launder it past the transition (they become HOST of the copy).
+     *  `stripReasoning` adds the P3 deception arm. Both `false` for a host forker (they already read it all). */
+    readonly posture: ForkCopyPosture;
   },
 ): CanonCopy {
   const db: Db = ctx.db;
@@ -156,23 +275,14 @@ function buildCanonCopy(
   for (const slot of args.slots) {
     const newId = ctx.newMessageId();
     slotIdMap.set(slot.id, newId);
-    slotInserts.push(
-      batchStmt(
-        db.insert(messages).values({
-          ...slot,
-          id: newId,
-          chatId: args.newChatId,
-          selectedVariantId: null,
-        }),
-      ),
-    );
+    slotInserts.push(batchStmt(db.insert(messages).values(forkSlotValues({ slot, newId, newChatId: args.newChatId }))));
   }
   for (const variant of args.variants) {
     const newId = ctx.newMessageVariantId();
     variantIdMap.set(variant.id, newId);
     const newMessageId = slotIdMap.get(variant.messageId);
     if (newMessageId !== undefined) {
-      variantInserts.push(copyVariantStmt(db, { variant, newId, newMessageId, slotIdMap, stripHidden: args.stripHidden, stripReasoning: args.stripReasoning }));
+      variantInserts.push(copyVariantStmt(db, { variant, newId, newMessageId, slotIdMap, posture: args.posture }));
     }
   }
   for (const slot of args.slots) {
@@ -537,7 +647,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       })),
     ];
 
-    const canonCopy = buildCanonCopy(ctx, { newChatId, slots, variants, stripHidden: forkerReadsHidden === false, stripReasoning });
+    const canonCopy = buildCanonCopy(ctx, { newChatId, slots, variants, posture: { stripHidden: forkerReadsHidden === false, stripReasoning } });
     const stmts: BatchStmt[] = [
       batchStmt(
         ctx.db.insert(chats).values({
