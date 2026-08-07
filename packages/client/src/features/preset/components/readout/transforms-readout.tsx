@@ -66,15 +66,45 @@ function stepLabel(step: PromptPipelineStep): string {
   return REASONING_LABEL[step.kind];
 }
 
-export function TransformsReadout({ config, presetId }: { readonly config: PromptConfig; readonly presetId: PresetId }): ReactElement {
+export function TransformsReadout({
+  config,
+  presetId,
+  attachable,
+}: {
+  readonly config: PromptConfig;
+  readonly presetId: PresetId;
+  /** Can this preset hold regex attachments at all? `false` for the SYSTEM DEFAULT, whose `ownerId` is null
+   *  by construction — `ensurePresetOwned` refuses it deliberately ("read-only by construction", that file's
+   *  own header), so `regex.listForPreset` answers NOT_FOUND for it and always will. Passed as a fact rather
+   *  than sniffed from the id: the client identifies the system default by the wire's `isSystemDefault`
+   *  flag, never by the sentinel literal (`domain/preset/constants.ts`: "Not cross-boundary"). */
+  readonly attachable: boolean;
+}): ReactElement {
   const trpc = useTRPC();
-  // The ATTACHED set, not a config projection (see the header). A pending/failed read shows every stage
-  // "off" rather than a wrong count — the readout's whole job is to be trustworthy about the order.
-  const attached = useQuery(trpc.regex.listForPreset.queryOptions({ presetId }));
+  // The ATTACHED set, not a config projection (see the header). NOT FIRED for a preset that cannot carry
+  // attachments: that query is a guaranteed NOT_FOUND, and the built-in default is the preset every new user
+  // has selected — a 404 per readout render, forever, to learn something already known.
+  const attached = useQuery({ ...trpc.regex.listForPreset.queryOptions({ presetId }), enabled: attachable });
   const scripts: readonly RegexScriptRow[] = attached.data ?? [];
   // ONE count for one pipeline stage: the ENABLED scripts that bite there. The tab's picker shows the same
   // rows' enabled state per script, so `2 on` here and two enabled rows there are the same fact.
+  //
+  // A COUNT IS A CLAIM, AND AN UNREAD COUNT IS NOT ONE. This used to answer "off" whenever `attached.data`
+  // was absent — which folded three different situations into one confident word: a real empty set, a read
+  // still in flight, and a read that FAILED. The first is a fact; the other two are the readout asserting
+  // something it does not know, on the one surface whose entire job is to be trustworthy (side-eye
+  // 2026-08-07 P2 — the same class this file's own leg killed in the ORDER). `off` is now said only when a
+  // count was actually obtained, or when the preset provably cannot carry one.
   const scriptState = (placement: RegexPlacement): string => {
+    if (!attachable) {
+      return "off";
+    }
+    if (attached.isError) {
+      return "couldn’t read";
+    }
+    if (attached.data === undefined) {
+      return "…";
+    }
     const count = scripts.filter((script) => script.enabled && script.placement.includes(placement)).length;
     return count === 0 ? "off" : `${String(count)} on`;
   };
