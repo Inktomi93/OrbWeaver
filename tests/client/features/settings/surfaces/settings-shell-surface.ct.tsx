@@ -148,6 +148,15 @@ test("switching to an unbuilt category shows ITS distinct teaching copy", async 
   // pointer in the pane's OWN copy (a generic placeholder cannot know one; the pane does).
   await expect(component.getByText("Not built yet", { exact: true })).toBeVisible();
   await expect(component.getByText("Jobs → Schedules", { exact: false })).toBeVisible();
+
+  // THE MEASURE, not just the content (side-eye re-verify 2026-08-08): EmptyState's root is a
+  // `@container` (inline-size containment) — re-parented under a shrink-to-fit centering wrapper it
+  // resolved to width 0 and rendered the copy as an 18-line one-word ribbon while this test's content
+  // assertions stayed GREEN. A rendered teaching description must be a paragraph, not a column.
+  const description = component.getByText("Scheduled and triggered actions across your library.");
+  const box = await description.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box?.width ?? 0).toBeGreaterThan(200);
 });
 
 // Task #37 — Connections is a REAL pane (the placeholder is GONE), while the last unbuilt APP category
