@@ -53,7 +53,27 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   (it does NOT: `tests:node` runs `pnpm test`, which is the vitest projects `&&` `pnpm test:ct --retries=2` — ONE behavioral lane since 2026-07-17, stated in `scripts/verify/registry.ts:304`), but
   because a LANE is banned from running the whole battery. A CT nobody names is a CT that lane nobody ran.
 
-## ═══ STATE (2026-08-07 late — BASE UI 1.7 PROGRAM CLOSED; NEXT = the dogfood doc, in full) ═══
+## ═══ STATE (2026-08-08 dawn — DOGFOOD CAMPAIGN CLOSED; the queue below is live) ═══
+
+- **✅ THE DOGFOOD CAMPAIGN IS CLOSED — the full adjudication + halt-lift verdict live in
+  `docs/dogfood-tracking.md`'s header.** Nine merged work-streams, the side-eye pass + re-verify
+  (20/20 dead, one fix-regression caught and killed same-night with its CT measure fence), and the
+  closing battery on ONE tree: **10,224 vitest + 2,464 CT, 0 failed, 0 flaky.** Gates **190**.
+  D-ledger through **D128** (D127 compiler-owns-memoization + D128 the surface-manifest law, minted
+  on the owner's word 2026-08-08; next free D129). Owner ruling queue: EMPTY — all eight
+  question-tool rulings executed and receipted.
+- **Campaign smalls minted this dawn (join the smalls list):** the EmptyState structural fence
+  (its `@container` root collapses to width-0 under any shrink-to-fit wrapper — a `w-full` floor on
+  the primitive or a rendered-measure gate; the placeholder CT carries the site fence already) ·
+  12× benign `ResizeObserver loop` notices in client.log on detail-panel open (a callback resizes
+  what it observes — find it when nearby) · the Connections `Protocol` sub-row needs a hierarchy
+  signal (it rides Chat's tracks perfectly and thereby reads as a seventh top-level role — a
+  hairline or inset).
+- **NOT pushed to origin** — the push word is the owner's, fresh, per push. \~40 commits ahead.
+- **NEXT (owner-authorized chain): this board's queue** — REGX2 (dispatching) → MOBILE one-shell
+  rule → BOARD-THESE by value-per-effort → the lifted smalls. Owner-taste rows stay parked.
+
+## ═══ STATE (2026-08-07 late — superseded; kept one cycle for the receipts trail) ═══
 
 - **✅ THE BASE UI 1.7 PROGRAM IS CLOSED.** Six lanes dispatched, six merged, every consolidated
   check green, all worktrees torn down: CARDKEEP (`9b591f09`) · GOLDHOME (`a2370065e`) · UI17

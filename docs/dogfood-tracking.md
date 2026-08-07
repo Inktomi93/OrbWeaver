@@ -4,6 +4,19 @@
 > Issues sourced from: owner dogfood 2026-08-03 · NB multi-user report · JF multi-user report ·
 > RPG card-engine investigation 2026-08-04.
 >
+> **✅ CAMPAIGN CLOSED (2026-08-08 dawn) — every row fixed or adjudicated, every receipt in this doc.**
+> Nine work-streams merged (DOG-VERIFY · STATLAS ×2 legs · DOG-ENGINE + its live receipt · DOG-DEBUG
+> ×2 legs · DOG-PERSONA-SMALLS · DOG-POLISH), the side-eye pass + its RE-VERIFY (20/20 findings dead;
+> the one fix-caused regression — the EmptyState @container collapse — fixed same-night with its CT
+> measure fence). **Closing battery, ONE tree: 10,224 vitest + 2,464 CT, 0 failed, 0 flaky.**
+> Owner rulings executed: EMPTYGEN arm-1 recover · indoors vocab · card-teach truth-repair ·
+> NULL-rows accepted · D127+D128 minted. **HALT-LIFT VERDICT: LIFT.** Every M-severity behavior row
+> is fixed with a red-first pin; what remains is owner-timed (below), not blocking. Remaining
+> owner-timed residue: the trust-gated card-image doorway · TOOLCALLS' populated-state live pixels
+> (needs a real folded turn — CT-proven otherwise) · the folded+hosted indoors exact-conditions arm
+> (blocked on the per-chat-connection phantom, boarded) · RUNTIME-VARS premise-false row kept for
+> the ChoiceBlock rename decision. The board carries the campaign smalls.
+>
 > **CAMPAIGN LIVE (2026-08-07, owner-ordered):** this doc is the active priority — every open row
 > fixed or adjudicated, every ✅ row's owed test written, verifier + side-eye passes before the halt
 > lifts. Rulings banked 2026-08-07: **EMPTYGEN-REASONING = arm 1, RECOVER-don't-discard**
@@ -2102,8 +2115,8 @@ would have moved the symptom without touching the rigidity, and the list proves 
 the two verbs drop to their own line instead of being clipped. Works at any viewport; no dialog size change.
 
 **REOPENED AND RE-CLOSED 2026-08-06 (side-eye DOG-POLISH P1-2).** The wrap went on the OUTER band only. That
-let the `Themes` label drop to its own line and left the two BUTTONS in an inner non-wrapping `Row` — ~269px of
-unbreakable content in the dialog's ~206px body, so the primary was still sheared against the edge. The inner
+let the `Themes` label drop to its own line and left the two BUTTONS in an inner non-wrapping `Row` — \~269px of
+unbreakable content in the dialog's \~206px body, so the primary was still sheared against the edge. The inner
 `Row` now carries `flex-wrap` + `min-w-0` too.
 
 The old CT for this row concluded "a CT cannot reproduce that clip". That was true of THAT story's mount
@@ -2156,17 +2169,17 @@ never `git stash`) and observed to fail.
 | - | - | - | - |
 | P1-1 | Persona row: the name block got 58px of 358px — MARKERS (114) + ACTIONS (74) reserved side by side | Both clusters share ONE `<Layer>` grid cell (new `@orb/ui/layout` primitive: `grid grid-cols-1 grid-rows-1 *:col-start-1 *:row-start-1`), so the strip reserves the WIDER, not the sum. Name block **58px → 140px** (0.16 → 0.39 of the row); "Traveler"/"the navigator" render whole. The paint-swap law is untouched — both children stay in flow, `no-hover-display-swap` still green. The reveal cluster is now inert at rest (`listRowVariants.float`'s precedent), because a cell it shares is a cell it COVERS. | `persona-panel-row.ct.tsx` (4 new, all red-first) · `tests/ui/layout/layer.ct.tsx` |
 | P1-1b | Duplicate facts: "Favorited" img beside the "Unfavorite" button | The heart marker is now `aria-hidden` ornament — the always-mounted verb names the state, so the row says it ONCE. **Crown NOT dropped — see FORK 1.** | `persona-panel-row.ct.tsx` "states 'favorited' ONCE" |
-| P1-2 | Theme band: 269px of buttons in a ~206px dialog body | Inner `Row` gets `flex-wrap` + `min-w-0` (the outer already had it) | `theme-picker-surface.ct.tsx` @206px, red-first (62.9px overhang) |
+| P1-2 | Theme band: 269px of buttons in a \~206px dialog body | Inner `Row` gets `flex-wrap` + `min-w-0` (the outer already had it) | `theme-picker-surface.ct.tsx` @206px, red-first (62.9px overhang) |
 | P2-3 | Wire-rows provenance was three undefined words, all equally quiet | A vocabulary gloss (`canon = a stored message · assembled = … · merged = …`) plus `Badge intent="info"` on the two non-canon arms — driven by a `Record<ShapeRowSource, boolean>`, so a widened axis fails `tsc` | `assembly-preview-panel.ct.tsx` "real LIST, defines its provenance words, badges only the non-canon arms" |
 | P2-4 | Nested 256px scroller hid 17 of 24 rows, no affordance | **Picked: drop the inner cap.** It is the LAST section of the drawer, so nothing is below it to push off, and the drawer already lives in the panel's scroller | same file, "has NO inner scroller" |
-| P2-5 | `Field` horizontal: `items-start` sheared every description-less row by ~8px | New `multiline` variant on `fieldVariants`; `items-center` when there is neither a description NOR an error (an error grows the control column the same way, so it takes the top-aligned arm) | `field.ct.tsx` ×2 (centre-line geometry + the description arm), red-first |
+| P2-5 | `Field` horizontal: `items-start` sheared every description-less row by \~8px | New `multiline` variant on `fieldVariants`; `items-center` when there is neither a description NOR an error (an error grows the control column the same way, so it takes the top-aligned arm) | `field.ct.tsx` ×2 (centre-line geometry + the description arm), red-first |
 | P2-6 | `SettingSwitchRow` accepted `disabled`/`disabledReason` and dropped both | **Picked: honour them.** One shared `describeRow` helper feeds both arms, so switch and checkbox cannot drift again. No live call site passes them yet — which is why it had to be closed rather than found later | new `tests/client/components/setting-switch-row.ct.tsx` (3) |
 | P2-7 | Two "Add key" primaries in one viewport | The header button renders only once there IS a list; the empty state owns the verb (and is now `intent="primary"` — it is the one CTA) | `connections-settings-surface.ct.tsx` "exactly ONE 'Add key'" |
 | P2-8 | Clamped menu popup gave no hint of its tail | **RECOMMENDED MECHANISM REFUTED — see REFUTATION 1.** Built instead from the popup's own paint: `local` cover gradients over `scroll` shadow gradients, so a shadow shows only on an edge with content past it. Pure CSS, no listener | `menu.ct.tsx` "carries the scroll cue", red-first |
 | P2-9 | Chat-options menu's ragged label column | Two causes, both in the seal: every command row reserves a leading glyph gutter (`::before` at `--spacing-glyph-xs`, withdrawn by `:has(>svg:first-child)`), and the submenu trigger dropped `justify-between` (it was spreading free space AROUND its label) — its chevron now rides `ms-auto` in its own box | `menu.ct.tsx` "LABEL starts on one column" (Range-measured on the text nodes), red-first |
 | P2-10 | "Saved" had two homes/wordings | **Picked: the bottom-left aggregate.** Model roles now reports through `SectionSaveStatus`; it renders inline only on `error` (D41). Consequence handled: a `surface`-mode pane's id is not in the SECTION registry, so `SettingsSaveFooter` takes a required `canJumpToSection` and omits "Show me" rather than shipping a button that silently no-ops | `connections-settings-surface.ct.tsx` "hosted: … reports into the aggregate" |
 | P3-11 | Two diagnostics glosses were 10.5px multi-sentence walls | First `features/chat` consumer of the `prose` reading-length modifier (`text/variants.ts:65-79`) | in the diagnostics source; covered by the drawer CTs |
-| P3-12 | Model roles: the ONE informative hint was truncated; Protocol sub-select ~40px off | Hint wraps (`break-words`, `truncate` gone); the Protocol sub-row rides the SAME tracks as its parent (label block at `--width-sidebar-sm`, select at `SOURCE_COL`) | `connections-settings-surface.ct.tsx` ×2 (wrap property + shared left edge) |
+| P3-12 | Model roles: the ONE informative hint was truncated; Protocol sub-select \~40px off | Hint wraps (`break-words`, `truncate` gone); the Protocol sub-row rides the SAME tracks as its parent (label block at `--width-sidebar-sm`, select at `SOURCE_COL`) | `connections-settings-surface.ct.tsx` ×2 (wrap property + shared left edge) |
 | P3-13 | RPG Map locked panel wore an `arrives with MA-3` ticket chip | Chip deleted; the arc id also left the tab's `title` reason — same reasoning, one string class | `rpg-context-section.ct.tsx` asserts the ABSENCE of "MA-3" |
 | P3-14 | `HP ceiling 20 — default: 20` repeated per bar per actor | The microline is a DEPARTURE, not a presence: it renders only when the stored max DIFFERS from the def's. The write-side anti-drift rule stays; the READ stopped depending on it | `rpg-context-section.ct.tsx` "a stored ceiling EQUAL to the game default states nothing" |
 | P3-15 | Automation pane was a dead end | A `Not built yet` chip on the shared placeholder (deliberately NOT the `action` slot — a status is not a next step, and using it would flip `empty-state-has-action` green over a dead end) plus a "meanwhile, Jobs → Schedules" pointer in the pane's OWN copy | `settings-shell-surface.ct.tsx` "unbuilt category" |
@@ -2216,7 +2229,7 @@ and names the state) and KEPT the crown's, because "Set as default" is rendered 
 FALSE — drop the crown and a default persona has no carrier for that fact at all, in either tree.
 
 **What I refused:** removing the crown, and removing either marker from LAYOUT. Both markers are the only
-thing a sighted reader sees at rest; deleting them buys ~40px and costs the rest state.
+thing a sighted reader sees at rest; deleting them buys \~40px and costs the rest state.
 
 **Consequence:** the name block lands at **0.39 of the row, not the ≥0.50 the brief's CT bar named.** 0.50
 is reachable only by deleting both marker glyphs. The CT fences the measured 0.39 (floor 0.35) plus the
