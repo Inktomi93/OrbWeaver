@@ -393,7 +393,7 @@ identity chrome for ANY row kind.
   **st-goldens re-sweep** (STATLAS found the rig's `rm -rf output` wipes the PRIOR sweep's arm by
   design — only 10 ST captures survive, the 16-combo ST arm was destroyed by the tools sweep; fix
   accumulation (per-sweep dirs or drop the rm), then a full two-arm re-sweep upgrades the atlas §2
-  from source-pinned to measured — the doc is structured for that drop-in).
+  from source-pinned to measured — the doc is structured for that drop-in). **UPGRADED to STATLAS leg 2 (owner word 2026-08-07): rig+comparator fixes + the re-sweep are IN BUILD, capture step held until the battery lands.**
 
 ## ═══ ARCHIVE-RESCUED FOLLOW-UPS (owner ruling 2026-08-03: a named follow-up goes ON THE BOARD) ═══
 
