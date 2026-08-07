@@ -221,7 +221,7 @@ fact marginally tighter — an owner row below `owner` now closes the gate where
 (restoring the arm's own documented "admin SESSION" intent; `DEBUG_TOKEN` remains the headless credential and
 `scripts/probes/*` already send it). It is blocked because `tests/e2e/support/trpc.ts` reads these routes with
 a bare `fetch` and no token — its comment states the dependency verbatim: *"the debug gate's admin tier passes
-under single-user AUTH_MODE"* — and `tests/e2e/support/modes.ts` sets `DEBUG_TOKEN` in **none** of the three
+under single-user AUTH\_MODE"* — and `tests/e2e/support/modes.ts` sets `DEBUG_TOKEN` in **none** of the three
 mode envs, so with the arm closed the gate would 404 ("debug API disabled") and take the whole e2e
 debug-witness surface (`fetchWireCaptures`/`inspectChatDb`/`fetchDebugErrors`) with it.
 
