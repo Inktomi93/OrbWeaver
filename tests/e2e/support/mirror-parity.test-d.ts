@@ -246,6 +246,10 @@ test("CanonMessage mirrors MessageView (the canon rows every honesty spec reads)
     Subset<
       | "chatId"
       | "authorUserId"
+      // The row-PURPOSE axis: chrome vocabulary the e2e honesty specs have no assertion for (they read
+      // content/economics/ordering). A spec that starts asserting narrator/comment chrome adds it to
+      // `CanonMessage` then, and this drift entry goes away.
+      | "kind"
       | "excludedFromPrompt"
       | "createdAt"
       | "editedAt"

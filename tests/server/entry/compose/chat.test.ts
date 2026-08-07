@@ -133,30 +133,36 @@ describe("extractTrailingSystemRows — the agent-sdk system-injection channel s
 describe("activePersonaIdFor — the TurnTrigger binding", () => {
   const anchorPersonaId = castId<PersonaId>("persona_anchor");
   const triggerId = castId<PersonaId>("persona_trigger");
-  const firstPresent = castId<PersonaId>("persona_first_present");
   const member = castId<UserId>("user_member");
 
   test("a human trigger binds to THAT human's persona — never the first present human", () => {
-    expect(activePersonaIdFor({ trigger: { kind: "human", userId: member, personaId: triggerId }, personaIds: [firstPresent], anchorPersonaId })).toBe(
-      triggerId,
-    );
+    expect(activePersonaIdFor({ trigger: { kind: "human", userId: member, personaId: triggerId }, anchorPersonaId })).toBe(triggerId);
   });
 
   test("a human with NO seat persona floors to nothing — NEVER the anchor (INVITE-JOIN-NULL-PERSONA)", () => {
-    expect(activePersonaIdFor({ trigger: { kind: "human", userId: member, personaId: null }, personaIds: [firstPresent], anchorPersonaId })).toBeNull();
+    expect(activePersonaIdFor({ trigger: { kind: "human", userId: member, personaId: null }, anchorPersonaId })).toBeNull();
   });
 
-  test("`none` (deferred drain / auto turn) binds to the ANCHOR, not a presence-order bystander", () => {
-    expect(activePersonaIdFor({ trigger: { kind: "none" }, personaIds: [firstPresent], anchorPersonaId })).toBe(anchorPersonaId);
+  test("`none` (deferred drain / auto turn / any trigger-less read) binds to the ANCHOR, not a bystander", () => {
+    expect(activePersonaIdFor({ trigger: { kind: "none" }, anchorPersonaId })).toBe(anchorPersonaId);
   });
 
   test("`none` with NO anchor is the honest nothing (the kit floor), never a bystander", () => {
-    expect(activePersonaIdFor({ trigger: { kind: "none" }, personaIds: [firstPresent], anchorPersonaId: null })).toBeNull();
+    expect(activePersonaIdFor({ trigger: { kind: "none" }, anchorPersonaId: null })).toBeNull();
   });
 
-  test("ABSENT (the trigger is unknown — a preview / a card display) keeps the documented fallback chain", () => {
-    expect(activePersonaIdFor({ personaIds: [firstPresent], anchorPersonaId })).toBe(firstPresent);
-    expect(activePersonaIdFor({ personaIds: [], anchorPersonaId })).toBeNull();
+  // 3. The RETIRED third state (owner ruling, 2026-08-07). There used to be an absent/`undefined` arm meaning
+  //    "the trigger is unknown" (previews, host instruments) that resolved to `personaIds[0]` — the FIRST
+  //    PRESENT human's persona, i.e. whoever joined first: nondeterministic across a join, and on a host
+  //    instrument a cross-member read (a multi-human room's preview could show another member's persona as
+  //    `{{user}}`). It is gone, and `trigger` is REQUIRED rather than merely thrown on: the binding cannot
+  //    be omitted, so "no triggering human" has exactly one spelling — `{kind:"none"}` ⇒ the anchor. The
+  //    room's `personaIds` list is no longer an input at all, which is why this function no longer takes it.
+  test("the retired absent arm is UNREPRESENTABLE — `trigger` is required and takes no persona list", () => {
+    // @ts-expect-error — omitting `trigger` no longer compiles (the retired `personaIds[0]` fallback).
+    expect(() => activePersonaIdFor({ anchorPersonaId })).toBeDefined();
+    // @ts-expect-error — the room's present-human persona ids are not an input to this binding any more.
+    expect(activePersonaIdFor({ trigger: { kind: "none" }, anchorPersonaId, personaIds: [anchorPersonaId] })).toBe(anchorPersonaId);
   });
 });
 

@@ -174,6 +174,60 @@ describe("createTurnEngine — turn origin stamping (automation-design/03 §4; �
   });
 });
 
+// The BORN-KIND belt for the engine commit (stickler 2026-08-08 canon-message-identity §R1). The engine is
+// one of exactly two writers that mint a non-default kind (`postNarratorMessage` is the other); everything
+// else is born `standard` by the DB default. The narrator arm is what makes a narrator row survive the two
+// things that used to erase its purpose — deleting the synthetic group character (attribution SET-NULLs) and
+// flipping the room's `output` dial (which retroactively re-classified history).
+describe("createTurnEngine — the born message KIND", () => {
+  /** Read the committed slot's declared purpose back out of the db (never off the returned view). */
+  async function kindOf(messageId: MessageId): Promise<string | undefined> {
+    const rows = await db.select({ kind: messages.kind }).from(messages).where(eq(messages.id, messageId));
+    expect(rows).toHaveLength(1);
+    return rows[0]?.kind;
+  }
+
+  test("an ordinary per-speaker turn is born kind='standard'", async () => {
+    const chatId = await seedChat(db, "kind-standard");
+    await seedUser(db, castId<Handle>("host"));
+    const aria = await seedCharacter(db, HOST, "aria_kind_std");
+    const h = harness(db);
+    const outcome = await h.engine.runTurn(
+      prepOf(chatId, {
+        speakerCharacterId: aria,
+        shape: { output: "per-speaker", cardScope: "merged", scopedTargetId: null, speakerName: "aria", speakerRef: { kind: "character", characterId: aria } },
+      }),
+    );
+    const messageId = outcome.messages[0]?.id;
+    expect(messageId).toBeDefined();
+    expect(messageId === undefined ? null : await kindOf(messageId)).toBe("standard");
+  });
+
+  test("a NARRATOR round's turn is born kind='narrator' while its canon role stays 'assistant'", async () => {
+    const chatId = await seedChat(db, "kind-narrator");
+    await seedUser(db, castId<Handle>("host"));
+    const group = await seedCharacter(db, HOST, "group_kind_nar");
+    const h = harness(db);
+    const outcome = await h.engine.runTurn(
+      prepOf(chatId, {
+        speakerCharacterId: group,
+        shape: {
+          output: "narrator",
+          cardScope: "merged",
+          scopedTargetId: null,
+          speakerName: "the room",
+          speakerRef: { kind: "character", characterId: group },
+        },
+      }),
+    );
+    const messageId = outcome.messages[0]?.id;
+    expect(messageId).toBeDefined();
+    expect(messageId === undefined ? null : await kindOf(messageId)).toBe("narrator");
+    // Kind never decides the canon role — any narrator→wire-`system` mapping is a SHAPE-time projection.
+    expect(outcome.messages[0]?.role).toBe("assistant");
+  });
+});
+
 describe("createTurnEngine — happy path", () => {
   test("commits the assistant turn + emits the lifecycle in order", async () => {
     const chatId = await seedChat(db, "a");

@@ -1040,9 +1040,9 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       return row === undefined ? null : { name: row.name, description: row.description, placement: resolvePersonaDescriptionPlacement(row.metadata) };
     };
     return {
-      resolveForeignInputs: async ({ anchorPersonaId, personaIds, trigger }) => ({
+      resolveForeignInputs: async ({ anchorPersonaId, trigger }) => ({
         promptConfig: DEFAULT_PROMPT_CONFIG,
-        personas: { anchor: await load(anchorPersonaId), active: await load(activePersonaIdFor({ trigger, personaIds, anchorPersonaId })) },
+        personas: { anchor: await load(anchorPersonaId), active: await load(activePersonaIdFor({ trigger, anchorPersonaId })) },
         globalRegexScripts: [],
         scanDepth: 6,
         injectionTokenBudget: 0,
@@ -1110,9 +1110,14 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     }
   });
 
-  test("a human who LEFT the room takes their persona out of the context with them (live membership)", async () => {
-    // Presence, not history, decides contribution: `loadRoster` is present-only, so a departed member's
-    // active persona stops being a `personaIds` candidate the moment their seat is leftSeq-stamped.
+  test("a host's PREVIEW never binds another member's persona — present OR departed (the retired personaIds[0] fallback)", async () => {
+    // This used to assert the opposite half of this very setup: with a personaless host the preview OMITTED
+    // its trigger, and the resolver fell back to `personaIds[0]` — the first PRESENT human's active persona —
+    // so the guest's persona rode the HOST's own instrument as `{{user}}`. A cross-member read whose value
+    // also re-ordered itself whenever somebody joined. Owner ruling 2026-08-07: that fallback is retired and
+    // a trigger-less read states `{kind:"none"}` ⇒ the chat ANCHOR. So the guest's persona is absent from the
+    // host's preview WHILE THEY ARE STILL PRESENT — that inversion is the ruling, and it is the first assert.
+    // The live-membership half this test has always guarded then still holds on the departed side.
     const host = await seedUser(db, castId<Handle>("left_host"));
     const chatId = await seedRoom("left", host);
     const guest = await seedUser(db, castId<Handle>("left_guest"));
@@ -1120,9 +1125,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     await seedParticipant(db, { chatId, key: "left_guest", userId: guest, role: "member", activePersonaId: guestPersona });
 
     const read = createRead(makeChatContext(db), makeDeps(personaResolvingDeps()));
-    // Present: the guest is the only human with an active persona, so they resolve as `active`.
     const present = await read.previewAssembly({ principal: principal(host), chatId });
-    expect(`${present.prompt.static}\n${present.prompt.dynamic}`).toContain("the guest who walked out");
+    expect(`${present.prompt.static}\n${present.prompt.dynamic}`).not.toContain("the guest who walked out");
+    const presentCards = present.budget.sources.find((s) => s.source === "cards")?.parts ?? [];
+    expect(presentCards.map((p) => p.label)).not.toContain("Departed (persona)");
 
     await db
       .update(chatParticipants)
@@ -1357,10 +1363,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // Mirrors the composition root's binding rule EXACTLY (compose/chat.ts `resolveForeignInputs`), so the
     // assertion is on the real resolution, not on a stub that agrees by construction.
     const deps = makeDeps({
-      resolveForeignInputs: ({ personaIds, trigger }) =>
+      resolveForeignInputs: ({ trigger }) =>
         Promise.resolve({
           promptConfig: DEFAULT_PROMPT_CONFIG,
-          personas: { anchor: null, active: byId[activePersonaIdFor({ trigger, personaIds, anchorPersonaId: null }) ?? ""] ?? null },
+          personas: { anchor: null, active: byId[activePersonaIdFor({ trigger, anchorPersonaId: null }) ?? ""] ?? null },
           globalRegexScripts: [],
           scanDepth: 6,
           injectionTokenBudget: 0,

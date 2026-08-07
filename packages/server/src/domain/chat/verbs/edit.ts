@@ -183,6 +183,7 @@ async function applyRunOnEditRegex(
     readonly roster: Awaited<ReturnType<typeof loadRoster>>;
     readonly hostUserId: UserId | null;
     readonly anchorPersonaId: PersonaId | null;
+    readonly editorUserId: UserId;
     readonly editorPersonaId: PersonaId | null;
     readonly content: string;
   },
@@ -200,10 +201,14 @@ async function applyRunOnEditRegex(
     runAsUserId: hostUserId,
     model,
     anchorPersonaId: args.anchorPersonaId,
-    personaIds,
     // The consent set for the persona read — the editor is a member of this room, so their own persona (and
     // a member-owned anchor) resolve exactly as they do on a turn.
     presentHumanUserIds: presentHumanUserIdsOf(args.roster),
+    // The EDITOR is the triggering human: a runOnEdit re-apply re-runs THEIR receive-tier leg on THEIR row,
+    // so `{{user}}` is theirs exactly as it was on the turn that authored it (a null seat persona floors,
+    // never borrows). Byte-identical to the retired `personaIds[0]` arm, which resolved to this same id
+    // because the list was built from this one persona.
+    trigger: { kind: "human", userId: args.editorUserId, personaId: args.editorPersonaId },
   });
   const scripts = resolveHostTierRegexScripts(
     await ctx.resolveRegexSources({ ownerId: hostUserId, presetId: foreign.presetId ?? null, characterIds: castCharacterIds, chatId }),
@@ -345,6 +350,7 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
       roster,
       hostUserId,
       anchorPersonaId: membership.chat.anchorPersonaId,
+      editorUserId: principal.userId,
       editorPersonaId: membership.activePersonaId,
       content: purified,
     });

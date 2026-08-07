@@ -142,22 +142,20 @@ function agentRowText(m: TurnMessage): string {
  *   • `none` (deferred drain / auto turn) → the chat ANCHOR. The anchor is the chat-invariant identity (D51
  *     rider); binding to `personaIds[0]` instead would address the prompt to a presence-order-arbitrary
  *     bystander, and falling to the kit floor would address "User" in a room whose `{{user}}` is well-defined.
- *   • ABSENT/undefined (the trigger is UNKNOWN — a host preview / a card display) → the fallback chain:
- *     the first present human's active persona, else nothing.
+ *
+ * THERE IS NO ABSENT ARM (owner ruling, 2026-08-07 — the `personaIds[0]` fallback is RETIRED). It used to
+ * exist for trigger-less contexts (previews, host instruments) and bound `{{user}}` to "whoever joined
+ * first" — presence-order-arbitrary, nondeterministic across a join, and on a host instrument a cross-member
+ * read. Every caller now states its arm, and `trigger` is REQUIRED rather than loud-at-runtime: a caller that
+ * genuinely has no triggering human passes `{kind:"none"}` (⇒ the anchor, the chat-invariant identity), which
+ * is what a preview wanted all along. The enforcement ladder prefers unrepresentable over thrown (§2.2).
  *
  * Returning an ID (not a resolved persona) is deliberate: the anchor arm then resolves through the SAME
  * roster read as every other arm, so `active === anchor` is byte-identical to the anchor projection and the
  * `sameProjectedPersona` dedup keeps holding.
  */
-export function activePersonaIdFor(args: {
-  readonly trigger?: TurnTrigger | undefined;
-  readonly personaIds: readonly PersonaId[];
-  readonly anchorPersonaId: PersonaId | null;
-}): PersonaId | null {
+export function activePersonaIdFor(args: { readonly trigger: TurnTrigger; readonly anchorPersonaId: PersonaId | null }): PersonaId | null {
   const trigger = args.trigger;
-  if (trigger === undefined) {
-    return args.personaIds.at(0) ?? null;
-  }
   switch (trigger.kind) {
     case "human":
       return trigger.personaId;
@@ -1090,7 +1088,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return input.connection.checkChatAvailability({ principal: await realHostPrincipal(runAsUserId), routableChat: routable });
     },
     resolveCreatorGroupDefaults: async (userId) => (await input.settings.loadUserSettings(userId)).groupDefaults,
-    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, personaIds, presentHumanUserIds, trigger, presetOverride }) => {
+    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, presentHumanUserIds, trigger, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
 
       // A feature-supplied GM-voice preset REDIRECT (rpg-design/02 §1.1 #1) wins over the host's default when it
@@ -1104,7 +1102,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // both violating FINAL-Persona §A.1 in exactly the multi-human room the D16/D18 spine exists for. The
       // persona domain's principal-less roster op resolves the room's ids in ONE gated read; chat supplies
       // the consent set (its PRESENT humans), so a departed member's persona resolves to nothing.
-      const activePersonaId = activePersonaIdFor({ trigger, personaIds, anchorPersonaId });
+      const activePersonaId = activePersonaIdFor({ trigger, anchorPersonaId });
       const roster = await input.resolvePersonasForRoster({
         personaIds: [anchorPersonaId, activePersonaId].flatMap((id) => (id === null ? [] : [id])),
         allowedOwnerIds: presentHumanUserIds,

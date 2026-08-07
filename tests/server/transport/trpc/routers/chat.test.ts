@@ -33,6 +33,7 @@ const MESSAGE: MessageView = {
   chatId: CHAT,
   seq: 1,
   role: "assistant",
+  kind: "standard",
   authorUserId: null,
   characterId: null,
   personaId: null,

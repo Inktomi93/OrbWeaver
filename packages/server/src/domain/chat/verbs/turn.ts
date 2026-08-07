@@ -482,9 +482,10 @@ async function buildTurnContext(
     /** The FOREIGN persona read's consent set — see {@link Room.presentHumanUserIds}. */
     readonly presentHumanUserIds: readonly UserId[];
     readonly anchorPersonaId: PersonaId | null;
-    /** WHO drives this turn ({@link TurnTrigger}) — binds prompt-config `{{user}}` to the speaker, not
-     *  `personaIds[0]` (the presence-order-arbitrary first human) and not the anchor. */
-    readonly trigger?: TurnTrigger | undefined;
+    /** WHO drives this turn ({@link TurnTrigger}) — binds prompt-config `{{user}}` to the speaker. REQUIRED
+     *  (the union's two arms are total; the absent/`personaIds[0]` third state was retired 2026-08-07): a
+     *  turn with no live triggering human states `{kind:"none"}` and binds the anchor. */
+    readonly trigger: TurnTrigger;
     readonly pendingUserText?: string | undefined;
     /** rpg-design/05 §6 slot-adjacency: is this turn (re)generating the assistant slot that DIRECTLY responds
      *  to the latest user message (send / deferred-drain / swipe-of-that-slot)? Drives the rpg dice feed-forward
@@ -518,7 +519,6 @@ async function buildTurnContext(
     runAsUserId: args.runAsUserId,
     model: args.model,
     anchorPersonaId: args.anchorPersonaId,
-    personaIds: args.personaIds,
     presentHumanUserIds: args.presentHumanUserIds,
     trigger: args.trigger,
     ...(presetOverride !== null ? { presetOverride } : {}),
@@ -575,9 +575,9 @@ async function buildTurnContext(
       mutedSpeakerKeys: args.mutedSpeakerKeys,
       personaIds: args.personaIds,
       // SHAPE's null-stamp guard needs the identity behind `speakers.user`: a canon row with NO persona stamp
-      // may borrow this turn's `{{user}}` only when it is that human's OWN row (see `toShapeCanon`). `none`/
-      // absent ⇒ null ⇒ no row borrows it.
-      triggerUserId: args.trigger?.kind === "human" ? args.trigger.userId : null,
+      // may borrow this turn's `{{user}}` only when it is that human's OWN row (see `toShapeCanon`). `none`
+      // ⇒ null ⇒ no row borrows it (the union has no third arm since 2026-08-07).
+      triggerUserId: args.trigger.kind === "human" ? args.trigger.userId : null,
       generationType: GENERATION_TYPE_FOR_KIND[args.kind],
       prng: deps.prng,
       ...(args.pendingUserText !== undefined ? { pendingUserText: args.pendingUserText } : {}),
@@ -1571,9 +1571,10 @@ async function resolveTurnBase(
     readonly chatId: ChatId;
     readonly kind: TurnKind;
     readonly anchorPersonaId: PersonaId | null;
-    /** WHO drives this turn ({@link TurnTrigger}) — binds prompt-config `{{user}}` to the speaker, not
-     *  `personaIds[0]` and not the anchor. */
-    readonly trigger?: TurnTrigger | undefined;
+    /** WHO drives this turn ({@link TurnTrigger}) — binds prompt-config `{{user}}` to the speaker. REQUIRED;
+     *  a turn with no live triggering human states `{kind:"none"}` (the retired absent arm bound
+     *  `personaIds[0]`, a presence-order-arbitrary bystander). */
+    readonly trigger: TurnTrigger;
     /** rpg-design/05 §6 slot-adjacency verdict (only `swipe` of the die-response passes true). Default false. */
     readonly respondsToLatestUserTurn?: boolean | undefined;
     /** The slot this turn REGENERATES (swipe only — `continue` extends the slot and reads through it). VER-1b. */
