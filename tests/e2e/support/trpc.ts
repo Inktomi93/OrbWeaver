@@ -688,7 +688,9 @@ export interface TrackerView {
   readonly ambient: {
     readonly location: string;
     readonly calendarDate: string | null;
-    readonly clock: { readonly day: number; readonly hour: number } | null;
+    // `hour` is separately nullable INSIDE a present clock: `day` is a calendar counter and `hour`/`minute`
+    // are a time of day, and a story (or a host clearing the time) can have one without the other.
+    readonly clock: { readonly day: number; readonly hour: number | null } | null;
     // `description` is spelled `| undefined` (not a bare `?:`) because the contract's optional carries
     // undefined explicitly and the repo typechecks under `exactOptionalPropertyTypes` — the parity pin
     // compares the two spellings.

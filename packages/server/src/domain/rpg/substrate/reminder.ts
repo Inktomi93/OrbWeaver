@@ -55,10 +55,10 @@ import type {
 import {
   attributeGloss,
   attributeReading,
+  clockTimeOfDay,
   RPG_CAST_GUIDE_FIELDS,
   rpgWeatherText,
   sortTrackers,
-  timeOfDayAtHour,
   trackerReading,
   trackerVocabulary,
 } from "@orb/contracts/rpg";
@@ -145,8 +145,16 @@ export function ambientLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dat
     parts.push(ambient.calendarDate);
   }
   if (ambient.clock !== null) {
-    const label = timeOfDayAtHour(ambient.clock.hour);
-    parts.push(dateMode === "structured" ? `day ${ambient.clock.day} · ${label}` : label);
+    // The two facts a clock carries are separately knowable: a story can be on `day 4` having said nothing
+    // about the hour (the host cleared the time, or only the day has ever been written). `structured` still
+    // owes the counter in that case; `narrated` has nothing to say and adds no segment.
+    const label = clockTimeOfDay(ambient.clock);
+    const structured = dateMode === "structured";
+    if (label !== null) {
+      parts.push(structured ? `day ${ambient.clock.day} · ${label}` : label);
+    } else if (structured) {
+      parts.push(`day ${ambient.clock.day}`);
+    }
   }
   if (ambient.weather !== null) {
     parts.push(weatherLine(ambient.weather));

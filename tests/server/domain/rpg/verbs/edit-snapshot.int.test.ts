@@ -157,6 +157,31 @@ describe("editSnapshot — the [merge-clear] transition contract, end to end", (
     expect((await service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId })).ambient).toBeNull();
   });
 
+  // THE TIME CLEAR IS NOT A CLOCK CLEAR. `clock` carries a calendar counter and a time of day, and the panel's
+  // "Clear time" means the second one. Nulling the plane took `day 3` with it — a fact no host-side door can
+  // restore — so the time clear writes the day it is standing on and nulls only `hour`/`minute`. This pins the
+  // WRITE BOUNDARY on that shape: `applyHandEdit` re-parses the MERGED state (D108), so a `hour: null` the
+  // contract did not allow would come back as a refusal, not a write.
+  test("the TIME clears while the DAY survives — `{clock:{day,hour:null,minute:null}}` is an accepted write", async () => {
+    const { chatId, game, service } = await seedGame();
+    expect(await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: AMBIENT_SET })).toStrictEqual({ ok: true });
+
+    const cleared = await service.editSnapshot({
+      principal: principal(castId<Handle>("host")),
+      chatId,
+      patch: { clock: { day: 3, hour: null, minute: null } },
+    });
+    expect(cleared).toStrictEqual({ ok: true });
+
+    const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
+    expect(snap?.clock).toStrictEqual({ day: 3, hour: null, minute: null });
+    // The reachable consequence, and the whole point: the ambient sub-view is still THERE (the scene has a
+    // when), the day counter is intact, and only the time is gone — the panel's Time field renders unset.
+    const ambient = (await service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId })).ambient;
+    expect(ambient?.clock?.day).toBe(3);
+    expect(ambient?.clock?.hour).toBeNull();
+  });
+
   test("`{}` is a NO-OP, not a reset — the leaf under it survives", async () => {
     const { chatId, game, service } = await seedGame();
     await service.editSnapshot({
