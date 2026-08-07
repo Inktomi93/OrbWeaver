@@ -306,6 +306,43 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   — the fold must replay INTENT (`presentUpsert`/`presentRemove` re-run against the hand head), and
   leg 3 audits every other composed-from-base plane for the same shape. The regen-swallow silent
   loss got a DRIVEN receipt (probe5a) — the boarded row now cites it.
+- **✅ PUSH 2 LANDED (`1fe76d08b..ab55c112e`) + THE FIVE-LANE TRAIN MERGED (consolidated check
+  14/14 on the final tree):** battery = **10,364 vitest+CT, 0 failed** + e2e-smoke 5/5 on the
+  drained box (the first smoke death was EMFILE — see OPS NOTE 2). Train, in order: **HAND-EDIT
+  leg 3** (`e54ae2665` — the fold REBASES base/patch/head; NO applier emits a real delta, so
+  carried data can never resurrect a removal; multiset semantics for flat arrays; its own unit
+  test caught its own set-vs-multiset bug) · **STACK-MODES fix** (`c0a26c0e8` — the shell
+  delegates EVERY classification to the one parser, exit 2 on unclassifiable; `restart --force
+  prod` now REFUSES with the reason; wx spawn lock + pid-guarded unlink; empty env values =
+  conflict; \[\[shell-fronting-parser-owes-dispatch-tests]] minted) · **RULED-BATCH fix**
+  (`6d97766ed` — day/time nullability SPLIT: Clear-time keeps the calendar; the silent midnight
+  assertion in sceneClock dead; 755 rpg tests green on the widening before any pin — evidence the
+  midnight was never intentional) · **CANON-1** (`dde07f52c` — THE IDENTITY SPINE: messages.kind +
+  MESSAGE_KIND_POLICY + variant rawContent/macroFreezes + ONE baseline; F-A red-first killed at
+  the one canon load; personaIds[0] UNREPRESENTABLE; two tests re-pointed from plumbing to
+  consequence; fan-out suite list + ~7 undispatched kind sites + F-C follow-on touch points in its
+  report) · **MOBILE leg 2** (`08b83e990` resolve + merge — the topbar budget kills the P1, all
+  six side-eye findings dead; TWO conflicts resolved lane-side, merged CT file 92/92).
+  **⚠ THE DEV DB DROPS AT THE NEXT STACK BOOT** (CANON-1's baseline; owner-accepted; restart is
+  the orchestrator's next act, announced).
+- [ ] **STAGE-SPAWNED ENGINES fence** (S) — the overnight fleet was spawned FROM A SNAP-STAGE
+  WORKTREE (embed's chat-template path was the tell), making it cwd-foreign: the next reconcile's
+  orphan sweep correctly reaped the two HEALTHY engines mid-service (engines-start.log receipt:
+  "reaped orphaned engine-family process(es): 345438, 348616"). The 08-03 fleet fix HELD (lock,
+  merge, detach all behaved); the defect is upstream — a stage stack must be adopt-only,
+  spawn-NEVER: hard-refuse engine spawn when cwd ≠ main repo root. Also recorded: `ensure` ends in
+  `exec tail -F` (a forever log-follow — a lingering ensure shell is the TAIL, killing it is safe).
+- [ ] **ST-MEDIA-IMPORT** (S–M, waits on the identity fan-out's media shape) — extend the bundle
+  collector's scan to read referenced image bytes (ST `user/images/`) → CAS ingest via the
+  avatar/card seam → content-image spans in the minted rows; `extra.files` → databank documents +
+  chat attach; bare-jsonl no-bytes → span degrades to alt (content-class law). Export projects
+  spans back to ST's extra.media. Parse-and-shove — nothing ST-shaped survives. Replaces the
+  orchestrator's metadata-limbo media-keep (verifier-refuted); the serde doc truth-repairs ride
+  this row too.
+- [ ] **DRAFT-HEADER AT PHONE WIDTH** (owner eyeball, from MOBILE's merge) — DRAFT-POLISH's
+  draft-header cluster work is invisible ≤480px content width BY DESIGN (the leg-2 container query
+  swaps the section cluster for the plain screen title on phones). If that cluster was meant to
+  show on a phone, it's a design conversation, not a merge defect. Both lanes' CTs pass together.
 - **⚑ FOUR MORE OWNER RULINGS (question-tool, 2026-08-07 afternoon):** (1) **CANON-IDENTITY: GO** —
   the build starts (serial spine: contracts+db+baseline squash → F-A → F-B → F-C → dispatch sites →
   lock-in tests; dev-db drop accepted). (2) **PUSH: battery-then-push** (in progress; battery
