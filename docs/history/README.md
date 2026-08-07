@@ -11,6 +11,11 @@ in it is landed or explicitly superseded/ruled-dead — verified against `docs/r
 `git log`, and the code. Partial = it stays where it lives. Moves only; nothing is ever deleted, and
 a moved file keeps its filename so its cites stay greppable.
 
+**Check the paragraphs, not just the tables:** a findings table is not the whole doc — live obligations
+also hide in prose tails (a "Process notes" bullet, a blueprint step, an INFO-rank row called out only in
+text). A doc with a clean findings table can still carry an unlanded obligation in its prose; the
+graduation check must read both before a move.
+
 **The one exception, and its shape:** the live board FILE never moves, but its ARCHEOLOGY does. When the
 board is rewritten current-state-only after an audit, the superseded blocks land here as
 `retro-workboard-<date>.md` (the first: `retro-workboard-2026-08-03.md`) with an audit header saying what
