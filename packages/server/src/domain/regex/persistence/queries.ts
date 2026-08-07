@@ -16,6 +16,7 @@ import type { RegexAttachmentRef, RegexScriptBehavior, RegexScriptRow } from "@o
 import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { characterRegexScripts, characters, chatRegexScripts, globalRegexScripts, presetRegexScripts, presets, regexScripts } from "@orb/db";
+import { batchMany } from "@orb/db/kit";
 import type { CharacterId, ChatId, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { ScriptRecord } from "../contract/rows.ts";
@@ -54,6 +55,70 @@ export async function loadOwnedScriptsByIds(db: Db, ownerId: UserId, scriptIds: 
 
 export async function listOwnedScripts(db: Db, ownerId: UserId): Promise<ScriptRecord[]> {
   return await db.select().from(regexScripts).where(eq(regexScripts.ownerId, ownerId)).orderBy(desc(regexScripts.createdAt));
+}
+
+// ── The BULK writes (REGX2 · the library's multi-select bar) ──────────────────────────────────────────
+// ONE owner-scoped statement per operation, each `.returning({id})` so the verb above audits and reports
+// the count it actually changed rather than the count it was asked for. A foreign / already-deleted id does
+// not match the WHERE and is silently dropped — the `applyScopeOrder` posture, and the leak-free one: a bulk
+// verb that threw on the first id the caller no longer owns would be an ownership oracle over a whole list.
+
+/** Flip `enabled` on many owned scripts. Returns the ids actually written. */
+export async function setScriptsEnabledBulk(db: Db, ownerId: UserId, scriptIds: readonly RegexScriptId[], enabled: boolean): Promise<RegexScriptId[]> {
+  if (scriptIds.length === 0) {
+    return [];
+  }
+  const updated = await db
+    .update(regexScripts)
+    .set({ enabled })
+    .where(and(eq(regexScripts.ownerId, ownerId), inArray(regexScripts.id, [...scriptIds])))
+    .returning({ id: regexScripts.id });
+  return updated.map((r) => r.id);
+}
+
+/** Delete many owned scripts. The DB CASCADE clears every junction row, exactly as the single verb's does. */
+export async function removeScriptsBulk(db: Db, ownerId: UserId, scriptIds: readonly RegexScriptId[]): Promise<RegexScriptId[]> {
+  if (scriptIds.length === 0) {
+    return [];
+  }
+  const deleted = await db
+    .delete(regexScripts)
+    .where(and(eq(regexScripts.ownerId, ownerId), inArray(regexScripts.id, [...scriptIds])))
+    .returning({ id: regexScripts.id });
+  return deleted.map((r) => r.id);
+}
+
+/** Clear the GLOBAL attachment of many scripts. Owner-gating is the CALLER's `loadOwnedScriptsByIds` filter —
+ *  `global_regex_scripts` has no owner column of its own (its scope is the script's), which is the same reason
+ *  the single `detachGlobal` gates on the SCRIPT and then deletes by junction PK. */
+export async function detachGlobalBulk(db: Db, scriptIds: readonly RegexScriptId[]): Promise<RegexScriptId[]> {
+  if (scriptIds.length === 0) {
+    return [];
+  }
+  const deleted = await db
+    .delete(globalRegexScripts)
+    .where(inArray(globalRegexScripts.regexScriptId, [...scriptIds]))
+    .returning({ id: globalRegexScripts.regexScriptId });
+  return deleted.map((r) => r.id);
+}
+
+/** Append many scripts to the END of the owner's global tier, in the order given. `position` runs from
+ *  `basePosition`, so the appended block keeps the caller's order and no EXISTING attachment is renumbered —
+ *  the single `attachGlobal`'s append rule, applied to a list. */
+export async function attachGlobalBulk(db: Db, scriptIds: readonly RegexScriptId[], basePosition: number, at: number): Promise<void> {
+  if (scriptIds.length === 0) {
+    return;
+  }
+  await db.batch(
+    batchMany(
+      scriptIds.map((regexScriptId, index) =>
+        db
+          .insert(globalRegexScripts)
+          .values({ regexScriptId, position: basePosition + index, createdAt: at })
+          .onConflictDoNothing(),
+      ),
+    ),
+  );
 }
 
 export async function listGlobalScripts(db: Db, ownerId: UserId): Promise<ScriptRecord[]> {

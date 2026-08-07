@@ -6,11 +6,14 @@
 
 import { RegexScriptPicker } from "@orb/client/components";
 import { QueryBoundary } from "@orb/client/data";
+import { __resetCollectionGroupOpen, clearCollectionSelection, exitRegexBulkMode } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { CollectionGroup } from "../../../../packages/client/src/features/config/components/collection-group.tsx";
 import { RegexContextBody } from "../../../../packages/client/src/features/regex/components/regex-context-body.tsx";
+import { regexCollection } from "../../../../packages/client/src/features/regex/lib/regex-collection.tsx";
 import { RegexMemberSurface } from "../../../../packages/client/src/features/regex/surfaces/regex-member-surface.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
@@ -25,6 +28,34 @@ export function RegexMemberStory({ memberId = "regex_script_stripooc" }: { reado
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
           <RegexMemberSurface memberId={memberId} />
         </QueryBoundary>
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The regex LIBRARY GROUP as the config host draws it (REGX2): the real `CollectionGroup` over the real
+ *  `regexCollection` door, so the band's own affordances (bulk-select toggle · import · create) and the
+ *  contribution's own rows (kebab · global switch · checkboxes · the selection bar) are exercised through the
+ *  production seam, not a double. 330px — the config roster's real column, where the row cluster's width has
+ *  to be paid for.
+ *
+ *  The `reset` button is determinism, not product: the disclosure store is device-local (localStorage) and
+ *  bulk mode is module state, so a CT that inherited another run's state would assert the wrong first frame. */
+export function RegexLibraryGroupStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <button
+        onClick={(): void => {
+          __resetCollectionGroupOpen();
+          clearCollectionSelection();
+          exitRegexBulkMode();
+        }}
+        type="button"
+      >
+        reset
+      </button>
+      <div style={{ overflow: "auto", width: 330 }}>
+        <CollectionGroup collection={regexCollection} />
       </div>
     </CtDataProviders>
   );

@@ -171,6 +171,16 @@ export {
   RECENT_MODELS_CAP,
   useRecentModels,
 } from "./recent-models-store.ts";
+export {
+  __readRegexBulkForTest,
+  clearRegexBulkSelection,
+  exitRegexBulkMode,
+  toggleRegexBulkMode,
+  toggleRegexScriptSelected,
+  useIsRegexScriptSelected,
+  useRegexBulkActive,
+  useRegexBulkSelectedIds,
+} from "./regex-bulk-store.ts";
 export type {
   RailEntry,
   RailZone,

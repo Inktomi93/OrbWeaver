@@ -177,13 +177,18 @@ const LIFECYCLE_DOORS: Record<PortableKind, LifecycleDoors> = {
     singleImport: { transport: "trpc", cite: "worldInfo.importFile" },
     chrome: "band+kebab",
   },
+  // RULING SUPERSEDED (owner, REGX2, 2026-08-03 — workboard I-4). Both halves used to be `{ ruled }` cells
+  // reading "O-2 class: scripts travel embedded in the CARD they belong to (the D121-E lift) and in the
+  // bundle. No evidenced demand for sharing one script standalone." / "same as export — the card IS the
+  // sharing unit for a script." The owner's REGX2 ruling IS that evidenced demand, so the exemption's end
+  // condition was met and the doors were built. The MECHANISM the old cells protected is preserved intact:
+  // both are THIN ARMS over the bundle descriptor's own verbs (`exportScript` shares `toPortableFile` with
+  // the descriptor's `exportAll`; `importScriptFile` IS `createImportRegexScript`, the descriptor's own
+  // per-file import), so the family still has exactly ONE serialization path.
   regex: {
-    singleExport: {
-      ruled:
-        "O-2 class: scripts travel embedded in the CARD they belong to (the D121-E lift) and in the bundle. No evidenced demand for sharing one script standalone.",
-    },
-    singleImport: { ruled: "same as export — the card IS the sharing unit for a script." },
-    chrome: "backup-pane",
+    singleExport: { transport: "trpc", cite: "regex.exportScript" },
+    singleImport: { transport: "trpc", cite: "regex.importScriptFile" },
+    chrome: "band+kebab",
   },
   databank: {
     singleExport: {

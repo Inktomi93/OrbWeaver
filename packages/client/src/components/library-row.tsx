@@ -28,7 +28,13 @@ export interface LibraryRowActions {
    *  whatever the row already SHOWS (its edit stamp), so the announced name matches the screen. Omit where
    *  names are unique. The delete-confirm keeps the bare name (a dialog carries its own context). */
   readonly qualifier?: string;
-  readonly onRename: () => void;
+  /** OPTIONAL — omit for an entity with no rename DIALOG. Absent ⇒ the menu renders no Rename item, the
+   *  exact `onDuplicate` shape below and the exact same argument. Minted for the regex script library: a
+   *  script's `name` is a bound field of the editor the row's own click MOUNTS (config-rail C-7 — the
+   *  library deliberately has no editor dialog), so a Rename item would be a SECOND write path for a field
+   *  one click away, opening a dialog over a workspace built to not need one. World-info books and presets
+   *  are unaffected — both pass it, because both carry a real details dialog. */
+  readonly onRename?: () => void;
   /** OPTIONAL — omit for an entity with no duplicate VERB. Absent ⇒ the menu renders no Duplicate item (and
    *  `inlineVerb:"duplicate"` has nothing to run, so it is ignored). Minted for databank documents: there is
    *  no server-side copy, and re-uploading the same bytes dedups on `importHash`, so a Duplicate item there
@@ -224,7 +230,7 @@ function LibraryRowActionsMenu({
         deleteDescription={deleteDescription}
         name={name}
         onDelete={onDelete}
-        onRename={onRename}
+        {...(onRename === undefined ? {} : { onRename })}
         {...(duplicate === undefined ? {} : { onDuplicate: duplicate })}
         {...(qualifier === undefined ? {} : { qualifier })}
         {...(menuItemsBefore === undefined ? {} : { menuItemsBefore })}
@@ -248,6 +254,9 @@ function LibraryRowMenu({
   menuItemsBefore,
   menuItemsAfter,
 }: Omit<LibraryRowActions, "inlineVerb">): ReactElement {
+  // Aliased for the same reason `duplicate` is below: under `exactOptionalPropertyTypes` a destructured
+  // optional is `T | undefined`, which is not assignable back into the optional property it came from.
+  const rename = onRename;
   return (
     <RowActionsMenu
       label={`Actions for ${actionSubject(name, qualifier)}`}
@@ -261,10 +270,12 @@ function LibraryRowMenu({
       }}
     >
       {menuItemsBefore}
-      <MenuItem onClick={onRename}>
-        <Icon icon={Pencil} size="sm" />
-        Rename
-      </MenuItem>
+      {rename === undefined ? null : (
+        <MenuItem onClick={rename}>
+          <Icon icon={Pencil} size="sm" />
+          Rename
+        </MenuItem>
+      )}
       {onDuplicate === undefined ? null : (
         <MenuItem onClick={onDuplicate}>
           <Icon icon={Copy} size="sm" />

@@ -42,7 +42,9 @@ function stub(page: Page): Promise<TrpcRecorder> {
 test("mounts the whole authored field set — no dialog, no lost field", async ({ mount, page }) => {
   await stub(page);
   const editor = await mount(<RegexMemberStory />);
-  await expect(editor.getByRole("heading", { name: "strip ooc" })).toBeVisible();
+  // `exact` since REGX2: the pipeline debugger below names each stage after its script, so the editor's own
+  // h2 and the subject's stage kicker ("1 · strip ooc this script…") both contain this name.
+  await expect(editor.getByRole("heading", { name: "strip ooc", exact: true })).toBeVisible();
   await expect(editor.getByRole("textbox", { name: "Name" })).toHaveValue("strip ooc");
   // `exact` because `getByText` is a case-insensitive SUBSTRING match and the Options group now carries
   // "Macros in the find pattern" — a second, deliberately explanatory label naming this very field.
@@ -51,7 +53,9 @@ test("mounts the whole authored field set — no dialog, no lost field", async (
   // it must still arrive, or the one field whose syntax a user can get wrong has no editor at all.
   await expect(page.locator(".cm-editor")).toBeVisible();
   await expect(editor.getByText("Replace with")).toBeVisible();
-  await expect(editor.getByText("Runs on")).toBeVisible();
+  // `exact` for the same reason as the heading above: the pipeline debugger's own gloss copy contains the
+  // substring "runs on", and `getByText` is a case-insensitive substring match.
+  await expect(editor.getByText("Runs on", { exact: true })).toBeVisible();
   await expect(editor.getByRole("switch", { name: "Enabled" })).toBeVisible();
   await expect(editor.getByRole("switch", { name: RUN_ON_EDIT })).toBeVisible();
 });

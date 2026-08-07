@@ -7,6 +7,13 @@
 //     updateScript, removeScript, duplicateScript, attachGlobal, detachGlobal, listGlobal,
 //     attachToCharacter, detachFromCharacter, listForCharacter, attachToPreset, detachFromPreset,
 //     listForPreset, applyScopeOrder. A foreign id collapses to `RegexNotFoundError` — never an oracle.
+//   • PROBED, SILENTLY (the REGX2 bulk arm + the export door): bulkSetEnabled, bulkSetGlobal, bulkRemove
+//     put `ownerId` in the WHERE / gate every id through `loadOwnedScriptsByIds`, and a foreign id is
+//     DROPPED rather than thrown on — the answer is the `affected` count, which is the same number for
+//     "you don't own it" and "it's already gone", so the list can never be probed for membership.
+//     `exportScript` collapses a foreign/absent id to `null` for the same reason (the `exportBook` posture).
+//   • PROBED by CONSTRUCTION: importScriptFile writes under `principal.userId` only — the portable file
+//     carries no owner and no id, so an imported script cannot land on, or reference, another owner's row.
 //   • PROBED, TWICE (the reverse rosters): listScriptUsage gates the SCRIPT on `principal.userId` and then
 //     filters each roster on its own side — `presets.ownerId`/`characters.ownerId` in the join, and the
 //     rooms through chat's injected membership filter. Owning the script does not name a foreign preset,
@@ -21,10 +28,19 @@
 import { createRegexScriptSchema, regexAttachScopeSchema, updateRegexScriptSchema } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
 
+/** One portable script file is a handful of fields; the cap only fences a hostile upload. */
+const MAX_SCRIPT_FILE_CHARS = 200_000;
+/** How many scripts one bulk gesture may name — far above any real selection, low enough to bound the
+ *  statement a single request can build. */
+const MAX_BULK_SCRIPTS = 500;
+const DEC = new TextDecoder();
+
 const scriptIdInput = z.object({ scriptId: brandedId<RegexScriptId>() });
+const scriptIdsInput = z.array(brandedId<RegexScriptId>()).max(MAX_BULK_SCRIPTS);
 
 export const regexRouter = t.router({
   listScripts: authedProcedure.query(({ ctx }) => ctx.services.regex.listScripts({ principal: ctx.auth })),
@@ -46,6 +62,39 @@ export const regexRouter = t.router({
   duplicateScript: authedProcedure
     .input(scriptIdInput)
     .mutation(({ ctx, input }) => ctx.services.regex.duplicateScript({ principal: ctx.auth, scriptId: input.scriptId })),
+
+  // ── The BULK arm (REGX2 — the library's multi-select bar) ───────────────────────────────────────────
+  // Three verbs, one id-list shape. `scriptIds` is capped so a hostile caller cannot turn one request into
+  // an unbounded statement; the cap is far above any real selection (the owner's library is ~34 globals).
+  bulkSetEnabled: authedProcedure
+    .input(z.object({ scriptIds: scriptIdsInput, enabled: z.boolean() }))
+    .mutation(({ ctx, input }) => ctx.services.regex.bulkSetScriptsEnabled({ principal: ctx.auth, scriptIds: input.scriptIds, enabled: input.enabled })),
+
+  bulkSetGlobal: authedProcedure
+    .input(z.object({ scriptIds: scriptIdsInput, global: z.boolean() }))
+    .mutation(({ ctx, input }) => ctx.services.regex.bulkSetScriptsGlobal({ principal: ctx.auth, scriptIds: input.scriptIds, global: input.global })),
+
+  bulkRemove: authedProcedure
+    .input(z.object({ scriptIds: scriptIdsInput }))
+    .mutation(({ ctx, input }) => ctx.services.regex.bulkRemoveScripts({ principal: ctx.auth, scriptIds: input.scriptIds })),
+
+  // ── The two SINGLE-ENTITY DOORS (REGX2 · D121-D `band=Import · kebab=Export`) ───────────────────────
+  // Both are thin arms over the backup bundle's own verbs (the `worldInfo.exportBook`/`importFile` shape),
+  // so a shared script and a restored one are the same bytes. The regex family's `lifecycle-portability`
+  // door cells cite exactly these two names.
+  exportScript: authedProcedure.input(scriptIdInput).query(async ({ ctx, input }) => {
+    const file = await ctx.services.regex.exportScript({ principal: ctx.auth, scriptId: input.scriptId });
+    if (file === null) {
+      throw new TRPCError({ code: "NOT_FOUND", message: "That regex script doesn't exist." });
+    }
+    return { filename: file.filename, fileText: DEC.decode(file.bytes) };
+  }),
+
+  // The refusal REASON is the serde's own (`DomainOperationError` → BAD_REQUEST with its message), so a file
+  // written by a newer orbweaver no longer reads as "not a valid file". The import dialog renders it.
+  importScriptFile: authedProcedure
+    .input(z.object({ fileText: z.string().max(MAX_SCRIPT_FILE_CHARS) }))
+    .mutation(({ ctx, input }) => ctx.services.regex.importScriptFile({ principal: ctx.auth, fileText: input.fileText })),
 
   // The REVERSE rosters (REGROSTER): which presets/characters/rooms attach ONE owned script. Owner-gated on
   // the script (`getScript`'s gate verbatim) AND filtered again per roster — the preset/character joins

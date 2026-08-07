@@ -11,12 +11,14 @@
 
 import type { RegexContext } from "./context.ts";
 import type { RegexService } from "./contract/service.ts";
+import { createExportRegexScript, createImportRegexScript } from "./persistence/portability-write.ts";
 import {
   createApplyScopeOrder,
   createAttachGlobal,
   createAttachToCharacter,
   createAttachToChat,
   createAttachToPreset,
+  createBulkSetGlobal,
   createDetachFromCharacter,
   createDetachFromChat,
   createDetachFromPreset,
@@ -28,9 +30,25 @@ import {
   createListRoomDisplayScripts,
   createListScriptUsage,
 } from "./verbs/attachments/index.ts";
-import { createCreate, createDuplicate, createGet, createList, createRemove, createUpdate } from "./verbs/scripts/index.ts";
+import {
+  createBulkRemove,
+  createBulkSetEnabled,
+  createCreate,
+  createDuplicate,
+  createGet,
+  createList,
+  createRemove,
+  createUpdate,
+} from "./verbs/scripts/index.ts";
+
+const ENC = new TextEncoder();
 
 export function createRegexService(ctx: RegexContext): RegexService {
+  // The two single-entity DOORS are the BUNDLE's own factories, principal-wrapped here and nowhere else
+  // (the world-info `exportBook`/`importFile` shape): the standalone factories stay `ownerId`-keyed for the
+  // portability registry, and this seam is the only place a Principal becomes an ownerId for them.
+  const exportScript = createExportRegexScript(ctx);
+  const importScript = createImportRegexScript(ctx);
   return {
     listScripts: createList(ctx),
     getScript: createGet(ctx),
@@ -39,6 +57,11 @@ export function createRegexService(ctx: RegexContext): RegexService {
     removeScript: createRemove(ctx),
     duplicateScript: createDuplicate(ctx),
     listScriptUsage: createListScriptUsage(ctx),
+    bulkSetScriptsEnabled: createBulkSetEnabled(ctx),
+    bulkSetScriptsGlobal: createBulkSetGlobal(ctx),
+    bulkRemoveScripts: createBulkRemove(ctx),
+    exportScript: ({ principal, scriptId }) => exportScript({ ownerId: principal.userId, scriptId }),
+    importScriptFile: ({ principal, fileText }) => importScript({ ownerId: principal.userId, bytes: ENC.encode(fileText) }),
     attachGlobal: createAttachGlobal(ctx),
     detachGlobal: createDetachGlobal(ctx),
     listGlobal: createListGlobal(ctx),

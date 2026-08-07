@@ -17,13 +17,18 @@ import type {
   AttachToCharacterParams,
   AttachToChatParams,
   AttachToPresetParams,
+  BulkRemoveScriptsParams,
+  BulkSetScriptsEnabledParams,
+  BulkSetScriptsGlobalParams,
   CreateScriptParams,
   DetachFromCharacterParams,
   DetachFromChatParams,
   DetachFromPresetParams,
   DetachGlobalParams,
   DuplicateScriptParams,
+  ExportScriptParams,
   GetScriptParams,
+  ImportScriptFileParams,
   ListForCharacterParams,
   ListForChatParams,
   ListForPresetParams,
@@ -34,8 +39,9 @@ import type {
   RemoveScriptParams,
   UpdateScriptParams,
 } from "./params.ts";
+import type { ExportedRegexScriptFile } from "./portability.ts";
 import type { ResolveVisibleRooms, RoomDisplayPolicy } from "./resolve.ts";
-import type { DetachResult, RemoveResult, ReorderResult } from "./results.ts";
+import type { BulkResult, DetachResult, RemoveResult, ReorderResult } from "./results.ts";
 import type { RegexScriptRow, RegexScriptUsage } from "./views.ts";
 
 /** DI bundle every regex verb closes over. Chat-scope guards are injected from chat itself. */
@@ -75,6 +81,24 @@ export interface RegexService {
   /** The REVERSE rosters — which presets/characters/rooms attach ONE owned script (the library context
    *  pane's "where does this already run"). Owner-gated on the script; rooms membership-scoped (D18). */
   readonly listScriptUsage: (params: ListScriptUsageParams) => Promise<RegexScriptUsage>;
+
+  /** The BULK arm (REGX2 — the library's multi-select bar). Each takes an id LIST, gates every id on the
+   *  caller's ownership, writes ONCE, audits ONCE with the count, and emits ONE `regexChanged`. Foreign /
+   *  already-gone ids fall out silently and the `affected` count is the honest answer (contract/results). */
+  readonly bulkSetScriptsEnabled: (params: BulkSetScriptsEnabledParams) => Promise<BulkResult>;
+  /** Attaching APPENDS the block at the end of the global tier in the caller's order — a bulk make-global
+   *  never renumbers the run order the owner already authored in the context pane. */
+  readonly bulkSetScriptsGlobal: (params: BulkSetScriptsGlobalParams) => Promise<BulkResult>;
+  readonly bulkRemoveScripts: (params: BulkRemoveScriptsParams) => Promise<BulkResult>;
+
+  /** The two SINGLE-ENTITY DOORS (REGX2 · D121-D `band=Import · kebab=Export`). Both are THIN ARMS over the
+   *  backup bundle's own verbs — `exportScript` shares the descriptor's file projection, `importScriptFile`
+   *  IS the descriptor's per-file import — so a shared script and a restored one can never diverge, and the
+   *  family can never grow a second serialization path. Export answers `null` for a foreign/absent id. */
+  readonly exportScript: (params: ExportScriptParams) => Promise<ExportedRegexScriptFile | null>;
+  /** Throws `DomainOperationError("regex_script_unparseable", …)` with the serde's own reason for a file this
+   *  build cannot read — the refusal reaches the user as words, never as "invalid file". */
+  readonly importScriptFile: (params: ImportScriptFileParams) => Promise<{ readonly created: boolean }>;
 
   /** Marks a script global (runs in every chat the owner hosts). Gate is plain script ownership. */
   readonly attachGlobal: (params: AttachGlobalParams) => Promise<void>;

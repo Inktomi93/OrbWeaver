@@ -20,6 +20,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import {
   createExportCardScripts,
+  createExportRegexScript,
   createExportRegexScripts,
   createImportCardScripts,
   createImportRegexScript,
@@ -255,5 +256,71 @@ describe("BUNDLE round-trip (the `regex` portable entity)", () => {
     // Idempotent by the SHARED dedup rule — the same one the card lift uses.
     expect(await importOne({ ownerId: target, bytes })).toEqual({ created: false });
     expect(await db.select().from(regexScripts).where(eq(regexScripts.ownerId, target))).toHaveLength(1);
+  });
+});
+
+// ── THE SINGLE-ENTITY DOOR (REGX2 · D121-D `band=Import · kebab=Export`) ─────────────────────────────
+//
+// The owner's REGX2 ruling ENDED the exemption that had kept regex bundle-only ("no evidenced demand for
+// sharing one script standalone" — `scripts/check/gates/lifecycle-portability.ts`). What the ruling did NOT
+// end is the law that table encodes: a single-entity door is a THIN ARM over the family's bundle verbs,
+// never a second serialization path. So the properties pinned here are structural, not cosmetic — the door's
+// bytes are the BUNDLE's bytes, and its import IS the bundle's import.
+
+describe("the single-script export door", () => {
+  test("hands back the SAME bytes the bundle carries for that script", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const scriptId = await seedScript(db, { ownerId: owner, id: "regex_script_x", name: "x", behavior: behavior({ findRegex: "x" }) });
+
+    const [bundled] = await createExportRegexScripts({ db })({ ownerId: owner });
+    const door = await createExportRegexScript({ db })({ ownerId: owner, scriptId });
+
+    expect(door).not.toBeNull();
+    // Filename AND bytes: a divergence in either is a second serialization path, which is exactly what the
+    // thin-arm clause forbids.
+    expect(door?.filename).toBe(bundled?.filename);
+    expect(door === null ? null : new TextDecoder().decode(door.bytes)).toBe(bundled === undefined ? null : new TextDecoder().decode(bundled.bytes));
+  });
+
+  test("carries the GLOBAL attachment, exactly as the bundle half does", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createRegexService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const scriptId = await seedScript(db, { ownerId: owner, id: "regex_script_g", name: "everywhere" });
+    await svc.attachGlobal({ principal: principal(owner), scriptId });
+
+    const door = await createExportRegexScript({ db })({ ownerId: owner, scriptId });
+    // The portable file is FLAT (`schemaKind`/`schemaVersion` beside the payload's own fields), and `global`
+    // is the one attachment that rides in it — a property OF the script, unlike the three FK-bound scopes.
+    expect(JSON.parse(new TextDecoder().decode(door?.bytes ?? new Uint8Array()))).toMatchObject({ name: "everywhere", global: true });
+  });
+
+  test("a FOREIGN or absent script is one answer: null", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
+
+    expect(await createExportRegexScript({ db })({ ownerId: owner, scriptId: theirs })).toBeNull();
+    expect(await createExportRegexScript({ db })({ ownerId: owner, scriptId: castId<RegexScriptId>("regex_script_nothere") })).toBeNull();
+  });
+
+  test("the exported file imports back through the BUNDLE's own verb — one round trip, two doors", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const scriptId = await seedScript(db, { ownerId: owner, id: "regex_script_x", name: "shared", behavior: behavior({ findRegex: "q" }) });
+    const file = await createExportRegexScript({ db })({ ownerId: owner, scriptId });
+    expect(file).not.toBeNull();
+
+    const target = await seedUser(db, { handle: castId<Handle>("target") });
+    const importOne = createImportRegexScript(ctxOf(db, "d"));
+    expect(await importOne({ ownerId: target, bytes: (file as NonNullable<typeof file>).bytes })).toEqual({ created: true });
+
+    const [landed] = await db.select().from(regexScripts).where(eq(regexScripts.ownerId, target));
+    expect(landed?.name).toBe("shared");
+    // …and the SAME dedup rule the bundle uses applies to a hand-shared file.
+    expect(await importOne({ ownerId: target, bytes: (file as NonNullable<typeof file>).bytes })).toEqual({ created: false });
   });
 });
