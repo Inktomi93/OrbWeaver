@@ -32,6 +32,7 @@ import {
   rpgEditJournalEntryInputSchema,
   rpgEditSnapshotInputSchema,
   rpgListJournalInputSchema,
+  rpgListTurnToolCallsInputSchema,
   rpgPatchActorInputSchema,
   rpgPatchSheetInputSchema,
   rpgPopulateFromCharacterInputSchema,
@@ -112,6 +113,10 @@ export const rpgRouter = t.router({
   getGame: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getGame({ principal: ctx.auth, ...input })),
   getTrackerView: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getTrackerView({ principal: ctx.auth, ...input })),
   listJournal: authedProcedure.input(rpgListJournalInputSchema).query(({ ctx, input }) => ctx.services.rpg.listJournal({ principal: ctx.auth, ...input })),
+  // WHAT THE MODEL DID (TOOLCALLS-INVISIBLE, arm A) — member-gated inside the verb, like every read above it.
+  listTurnToolCalls: authedProcedure
+    .input(rpgListTurnToolCallsInputSchema)
+    .query(({ ctx, input }) => ctx.services.rpg.listTurnToolCalls({ principal: ctx.auth, ...input })),
   getConfigView: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.getConfigView({ principal: ctx.auth, ...input })),
   // §3.6 HOST-reveal read — the eye + standing-lie inventory (host-gated; leak-free NOT_FOUND for a member INSIDE the verb).
   revealHidden: authedProcedure.input(rpgReadGameInputSchema).query(({ ctx, input }) => ctx.services.rpg.revealHidden({ principal: ctx.auth, ...input })),

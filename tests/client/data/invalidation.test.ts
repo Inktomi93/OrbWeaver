@@ -380,11 +380,12 @@ const RPG_EVENTS: Record<RpgBusEvent["type"], RpgBusEvent> = {
   sheetChanged: { type: "sheetChanged", chatId: CHAT_ID, sheetId: castId<RpgSheetId>("rpg_sheet_invalidationtest") },
   questChanged: { type: "questChanged", chatId: CHAT_ID },
   journalChanged: { type: "journalChanged", chatId: CHAT_ID },
+  turnToolCallsRecorded: { type: "turnToolCallsRecorded", chatId: CHAT_ID },
 };
 
 // The rpg reads any `RPG_BUS_FILTERS` entry can touch (one per read the map names). EXHAUSTIVE over
 // `RpgBusEvent["type"]`: a new member fails `tsc` HERE until it declares what it invalidates.
-const RPG_TRACKED_KEYS = ["game", "tracker", "config", "journal", "reveal"] as const;
+const RPG_TRACKED_KEYS = ["game", "tracker", "config", "journal", "reveal", "turnToolCalls"] as const;
 type RpgTrackedKey = (typeof RPG_TRACKED_KEYS)[number];
 const RPG_EXPECTED: Record<RpgBusEvent["type"], readonly RpgTrackedKey[]> = {
   gameChanged: ["game", "config", "reveal"],
@@ -392,6 +393,9 @@ const RPG_EXPECTED: Record<RpgBusEvent["type"], readonly RpgTrackedKey[]> = {
   sheetChanged: ["tracker"],
   questChanged: ["tracker"],
   journalChanged: ["journal"],
+  // TOOLCALLS-INVISIBLE arm A — its OWN driver, not `snapshotPatched`'s: a turn whose calls all dropped
+  // writes a record and NO snapshot, and that is exactly the turn the disclosure exists for.
+  turnToolCallsRecorded: ["turnToolCalls"],
 };
 
 describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
@@ -413,6 +417,7 @@ describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
         config: trpc.rpg.getConfigView.queryKey({ chatId: CHAT_ID }),
         journal: trpc.rpg.listJournal.queryKey({ chatId: CHAT_ID }),
         reveal: trpc.rpg.revealHidden.queryKey({ chatId: CHAT_ID }),
+        turnToolCalls: trpc.rpg.listTurnToolCalls.queryKey({ chatId: CHAT_ID }),
       };
       // Seed every tracked read so `isInvalidated` reflects the FILTER, not an absent cache entry (the chat/
       // user belt idiom — the read types are heterogeneous objects, so the sanctioned `[] as never` seed).
@@ -435,6 +440,7 @@ describe("invalidation — the RPG-bus half (invalidateRpg)", () => {
       trpc.rpg.getTrackerView.queryKey({ chatId: CHAT_ID }),
       trpc.rpg.getConfigView.queryKey({ chatId: CHAT_ID }),
       trpc.rpg.revealHidden.queryKey({ chatId: CHAT_ID }),
+      trpc.rpg.listTurnToolCalls.queryKey({ chatId: CHAT_ID }),
     ];
     for (const key of keys) {
       queryClient.setQueryData([...key], [] as never);

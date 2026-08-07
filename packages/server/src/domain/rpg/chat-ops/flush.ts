@@ -25,13 +25,14 @@
 
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { RpgExtractionMode, RpgFoldFallbackReason } from "@orb/contracts/rpg";
-import { rpgJournalTypeSchema } from "@orb/contracts/rpg";
+import { recordToolCalls, rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "../../chat/index.ts";
 import type { StagedTurnFlush } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow, RpgRunToolRound } from "../contract/service.ts";
 import { insertJournalEntry } from "../persistence/journal.ts";
 import { writeStagedSnapshot } from "../persistence/snapshots.ts";
+import { recordTurnToolCalls } from "../persistence/turn-tool-calls.ts";
 import { snapshotStateBeforeSlot } from "../snapshot-edit.ts";
 import { deriveTrackersReadOnly } from "../substrate/readonly-axis.ts";
 import { isReconcileBeat } from "./reconcile-cadence.ts";
@@ -238,9 +239,41 @@ export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGame
     ctx.onStateRoundCancelled({ chatId: game.chatId, gameId: game.id, turnId: turn.turnId, discardedStagedWrites: staged });
     return;
   }
+  // WHAT THE MODEL DID, recorded BEFORE the staged-nothing return (TOOLCALLS-INVISIBLE, arm A). Deliberately
+  // not inside `writeFlush`: a folded turn whose calls ALL dropped stages nothing and returns below, and that
+  // is precisely the turn a user most needs to see — "it called update_scene and the schema refused it" is
+  // the answer to "why did nothing happen", while a record gated on a successful write would show only the
+  // turns that already worked.
+  await recordFoldedTurnCalls(ctx, game, turn);
   const flush = ctx.staging.take(turn.turnId);
   if (flush === undefined) {
     return; // nothing staged — a byte-identical non-writing turn
   }
   await writeFlush(ctx, game, flush, turn);
+}
+
+/** Record this turn's folded tool calls, keyed to the committed variant. A NON-folded turn (every other
+ *  vehicle) has no co-emitted calls and records nothing — the dedicated round's calls are its own model call's,
+ *  not a description of the turn the user watched. A folded turn that called NOTHING also records nothing: a
+ *  quiet beat has no story, and an empty row would render an empty disclosure on every quiet turn.
+ *
+ *  The projection is `contracts/rpg`'s `recordToolCalls` — the SAME one the compose warn and the R-OBS ring
+ *  read, so the row, the log and the trace cannot disagree about what was lost. */
+async function recordFoldedTurnCalls(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn): Promise<void> {
+  const calls = turn.turnConnection.terminalToolCalls;
+  if (calls === null || calls === undefined || calls.length === 0) {
+    return;
+  }
+  await recordTurnToolCalls(ctx.db, {
+    id: ctx.ids.turnToolCalls(),
+    gameId: game.id,
+    messageId: turn.messageId,
+    variantId: turn.variantId,
+    calls: recordToolCalls(calls),
+    createdAt: ctx.now(),
+  });
+  // AFTER the durable write, like every other emit here. Its own event rather than `snapshotPatched`: a turn
+  // whose calls all dropped writes this record and NO snapshot, so riding the snapshot event would leave the
+  // failing turn's disclosure stale — exactly the turn the disclosure exists for.
+  ctx.emitBus({ type: "turnToolCallsRecorded", chatId: game.chatId });
 }

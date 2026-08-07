@@ -11,21 +11,22 @@
 // story mirrors that door assembly with the CT's own singletons.
 
 import { useTRPC } from "@orb/client/data";
-import { makeRpgContextTabs, makeRpgHudRegion } from "@orb/client/features/rpg";
+import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
 import type { ChatContextState, ContextRegionDef, ContextTabDef } from "@orb/client/lib";
 import { bindNotify, createContributorRegistry } from "@orb/client/lib";
 import { selectChat, useSectionRegistry } from "@orb/client/state";
-import type { MessageId } from "@orb/kit/ids";
+import type { MessageView } from "@orb/contracts/chat";
+import type { MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator.tsx";
 import { RpgCardLightbox } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards.tsx";
 import type { ArchivedCard } from "../../../../packages/client/src/features/rpg/lib/archived-cards.ts";
 import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
-import { CHAT_ID } from "../chat/fixtures.ts";
+import { CHAT_ID, makeMessageView } from "../chat/fixtures.ts";
 
 /** Mounts the chats section's CONTEXT through the real host, with BOTH rpg contributions merged in — the tab
  *  contributors AND the whole-pane HUD region claim — built here with the CT's own trpc/queryClient (the
@@ -197,4 +198,66 @@ export function RpgCardLightboxStory({ allowExternalMedia }: { readonly allowExt
     allowExternalMedia,
   };
   return <RpgCardLightbox cards={[card]} openKey={LIGHTBOX_CARD_KEY} onOpenChange={NOOP} />;
+}
+
+// ── The per-row "what this turn did" disclosure (TOOLCALLS-INVISIBLE, arm A) ────────────────────────────
+// Mounted through the REAL `message-footer` contribution the door registers, so the CT exercises the same
+// `when` → `body` path `main.tsx` wires rather than the component in isolation. The `.ct.tsx` stubs
+// `rpg.listTurnToolCalls` with a REAL folded turn's call set (applied + salvaged + dropped together — the
+// mixed row is the one worth proving).
+
+/** The message the disclosure hangs off — an assistant row whose selected variant is the recorded one. */
+const TOOL_CALLS_MESSAGE = makeMessageView({
+  id: castId<MessageId>("msg_ct_folded"),
+  selectedVariantId: castId<MessageVariantId>("mv_ct_folded"),
+});
+
+/** A SECOND swipe of the same slot — no record was written for it. Proves the applicability gate is keyed to
+ *  the VARIANT, not the message: swiping to an unrecorded variant must render nothing at all. */
+const TOOL_CALLS_OTHER_VARIANT = makeMessageView({
+  id: castId<MessageId>("msg_ct_folded"),
+  selectedVariantId: castId<MessageVariantId>("mv_ct_other"),
+});
+
+/** Renders the rpg `message-footer` contribution exactly as the row does: `when` first, then `body`.
+ *  Returns `ReactNode` (not `ReactElement`) because that is what a contribution's `body` returns — the row
+ *  mounts it the same way. */
+function RenderFooterContribution({ message }: { readonly message: MessageView }): ReactNode {
+  if (rpgTurnToolCallsSurface.anchor !== "message-footer") {
+    return null;
+  }
+  return rpgTurnToolCallsSurface.when?.({ message }) === false ? null : rpgTurnToolCallsSurface.body({ message });
+}
+
+/** The recorded variant's row. */
+export function TurnToolCallsDisclosureStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 480 }}>
+        <RenderFooterContribution message={TOOL_CALLS_MESSAGE} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The SAME slot swiped to a variant with no record — the applicability gate's negative arm. */
+export function TurnToolCallsOtherVariantStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 480 }}>
+        <RenderFooterContribution message={TOOL_CALLS_OTHER_VARIANT} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** A USER row — `when` refuses it outright (a user turn calls no tools). */
+export function TurnToolCallsUserRowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 480 }}>
+        <RenderFooterContribution message={makeMessageView({ role: "user", selectedVariantId: castId<MessageVariantId>("mv_ct_folded") })} />
+      </div>
+    </CtDataProviders>
+  );
 }

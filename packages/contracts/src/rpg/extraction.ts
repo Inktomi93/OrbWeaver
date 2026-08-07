@@ -878,6 +878,56 @@ export function salvagedToolCallFields(calls: readonly RpgToolCall[]): readonly 
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
+// THE RECORDED CALL — the ONE projection of "what the model called and what survived the schema"
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// THREE consumers read this and they may never disagree: the compose WARN (`logToolCallLosses`), the rpg
+// flight-recorder RING (R-OBS, `/api/_debug/rpg/traces`), and the DURABLE per-variant row the user-facing
+// disclosure reads (`rpg_turn_tool_calls`). Each previously would have had to re-derive the verdict from the
+// two loss lenses below, and three re-derivations of one rule is three chances for the surface to say
+// "applied" about a call the fold dropped. So the rule lives HERE, once, beside the lenses it composes.
+//
+// TOOLCALLS-INVISIBLE / D112: the folded turn's tool traffic is server-internal by design — chat never
+// resolves, executes or persists it — so a RECORD made by the CONTRIBUTOR is the only honest way the user
+// ever sees what a turn did. That is what this shape is for.
+
+/** What the fold DID with one call. Declared ONCE as a tuple and DERIVED (§5.5) — a new loss class fails
+ *  `tsc` at every reader instead of silently rendering as its neighbour. */
+export const RPG_TOOL_CALL_VERDICTS = ["applied", "salvaged", "dropped"] as const;
+export type RpgToolCallVerdict = (typeof RPG_TOOL_CALL_VERDICTS)[number];
+
+/** ONE model-emitted tool call as the record keeps it: the name, the args VERBATIM, and the fold's verdict.
+ *
+ *  `args` is the RAW JSON string the model sent, deliberately unparsed — the calls most worth showing are
+ *  exactly the ones that did not parse, so a parsed-only capture erases its own reason for existing
+ *  (`TOOLDROP-BLIND` is that failure, already paid for once). */
+export interface RpgRecordedToolCall {
+  readonly name: string;
+  readonly args: string;
+  readonly verdict: RpgToolCallVerdict;
+  /** WHY, for the two non-clean verdicts: the salvaged field paths (`update_scene.weather`) or the parse
+   *  issues with the value the model actually sent. EMPTY on `applied`. */
+  readonly issues: readonly string[];
+}
+
+/** Project a turn's tool calls onto their per-call verdicts, by composing the two loss lenses above — so the
+ *  record, the warn and the ring are the same derivation rather than three agreeing ones. */
+export function recordToolCalls(calls: readonly RpgToolCall[]): readonly RpgRecordedToolCall[] {
+  const droppedIssues = new Map(malformedToolCallDetails(calls).map((detail) => [detail.name, detail.issues]));
+  const salvaged = salvagedToolCallFields(calls);
+  return calls.map((call): RpgRecordedToolCall => {
+    const dropped = droppedIssues.get(call.name);
+    if (dropped !== undefined) {
+      return { name: call.name, args: call.arguments, verdict: "dropped", issues: dropped };
+    }
+    // `salvagedToolCallFields` already renders `<tool>.<field>`, so the tool name is the join key.
+    const fields = salvaged.filter((field) => field.startsWith(`${call.name}.`));
+    return fields.length > 0
+      ? { name: call.name, args: call.arguments, verdict: "salvaged", issues: fields }
+      : { name: call.name, args: call.arguments, verdict: "applied", issues: [] };
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
 // STRIP OBSERVABILITY — the SILENT-write hole at the arg boundary, closed (D112 (3))
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // THE DEFECT: every arg schema is a plain `z.object`, and zod v4 `z.object` is STRIP mode — a key the schema

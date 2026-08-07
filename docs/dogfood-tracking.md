@@ -900,7 +900,48 @@ This blocked root-causing `EMPTYGEN-REASONING` below.
 
 ---
 
-### TOOLCALLS-INVISIBLE — tool calls and their args are not visible anywhere to the user (M 🟡 PARTIAL)
+### TOOLCALLS-INVISIBLE — tool calls and their args are not visible anywhere to the user (M ✅ FIXED — arm A built)
+
+**The user-facing half now exists.** On a folded turn the row carries a collapsed disclosure —
+`Game actions on this turn — N` — listing each call by name with a verdict badge (`recorded` /
+`partly recorded` / `not recorded`) and, when something was lost, the failing field as **visible text**
+(never a hover tooltip: `SCENE-DROPPED` cost a live session hours precisely because that reason was
+nowhere a human could read it).
+
+**D112 is intact.** chat still never resolves, executes or persists a terminal tool's calls — the record is
+rpg's own (`rpg_turn_tool_calls`, one row per producing variant), written by the contributor the clause
+already hands the calls to. `message_variants.tool_calls` was NOT touched; it is the right shape and the
+wrong owner.
+
+Mechanics worth knowing:
+
+- **ONE projection, three readers.** `recordToolCalls` (`contracts/rpg/extraction.ts`) composes the two
+  existing loss lenses into the per-call verdict; the compose WARN, the R-OBS ring and the durable row all
+  call it, so the log, the trace and the surface cannot disagree about what was lost.
+- **Written BEFORE the staged-nothing return.** A turn whose calls ALL dropped writes no snapshot — and is
+  exactly the turn a user is asking "why did nothing happen?" about. A record gated on a successful write
+  would have shown only the turns that already worked.
+- **Its own bus member (`turnToolCallsRecorded`), not `snapshotPatched`.** Same reason: the all-dropped turn
+  emits no snapshot event, so riding it would leave the failing case stale until an unrelated later turn.
+- **Swipe-correct with no refetch.** Keyed by `variantId` (the `rpg_snapshots` keying one plane over); the
+  client indexes the window once and each row looks up its own `selectedVariantId`.
+- **Applicability, not a mode** (`[[no-separate-reduced-modes]]`): mounted through the chat `message-footer`
+  surface anchor — the seam's first real tenant — with `when` = assistant row and a `null` body when this
+  variant has no record. A non-game chat renders nothing; no flag, no branch.
+- **MEMBER-gated, deliberately.** Its host-only siblings (`getConfigView`/`revealHidden`) gate to keep
+  something FROM a member; a tool call is the record of a turn everyone at the table watched. The
+  cross-tenant belt therefore carries the whole load and the proc is classified **PROBED**.
+
+**Verified:** `pnpm typecheck` · `typecheck:graph` · `typecheck:tests-dom` all 0 · `check:structure` PASS
+(it caught four real gaps on the way — a re-spelled verdict union, a missing freshness driver, a missing
+table-scoping row, a missing verb mirror test; all fixed, none allowlisted) · `check:db-baseline` 218/218
+after the squashed regen · knip 0 · depcruise 0 (2,777 modules) · **1,075 vitest** across rpg + compose +
+contracts + transport (incl. the cross-tenant sweep with the new proc, and 4 composed-real turns: recorded /
+all-dropped / quiet / non-folded) · **20 CT** (5 new).
+
+*(original report below)*
+
+### TOOLCALLS-INVISIBLE — original report (M 🟡 PARTIAL)
 
 **Partially addressed:** tool calls + raw args are now readable server-side at
 `GET /api/_debug/wire/outcomes` (see `WIRE-OUTCOMES` below) — enough to DEBUG, since that surface also
@@ -927,7 +968,7 @@ renders them) is a DIRECT reversal of D112's TERMINAL-tools law. Verbatim,
 
 Three arms were put up; the ruling is **arm A**:
 
-- **A — RPG-OWNED per-variant call record. ✅ RULED, BUILD IT.** rpg persists the calls IT folded, in an
+- **A — RPG-OWNED per-variant call record. ✅ RULED, AND BUILT 2026-08-07 (see the row header).** rpg persists the calls IT folded, in an
   rpg-owned row keyed by `variantId`, read through an rpg verb and surfaced as a collapsed row disclosure /
   rpg-panel affordance. This does not touch D112's mechanism — the clause's own text says the calls are
   *"handed straight back to the contributor"*, and the CONTRIBUTOR recording its own is the law working, not
