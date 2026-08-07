@@ -42,6 +42,7 @@ export interface AutocompleteProps extends AutocompletePassthrough {
    * The candidate suggestions — display strings filtered against the input value automatically.
    * May be a render-derived array (fresh reference each render). Ignored when `groups` is provided.
    */
+  // @orb-gate-ignore baseui-derives-not-respells(items): Base UI's `items` is `readonly any[] | readonly Group<any>[]`; this seal is deliberately string-only (object-items and multi-select are the Combobox seal's job) and its `groups` prop owns the grouped arm. Ends if the seal ever accepts object items.
   items?: readonly string[];
   /**
    * Grouped suggestions — each group renders a `GroupLabel` header over its items. Values are
@@ -56,10 +57,12 @@ export interface AutocompleteProps extends AutocompletePassthrough {
   mode?: BaseRootProps<string>["mode"];
   placeholder?: string;
   /** Controlled input value — pair with `onValueChange`. */
+  // @orb-gate-ignore baseui-derives-not-respells(value): Base UI's `value` admits `null` (the cleared arm of its own value model); this seal's value IS the input's text, where the cleared state is `""`. Ends if the seal stops backing a text input.
   value?: string;
+  // @orb-gate-ignore baseui-derives-not-respells(defaultValue): the uncontrolled half of `value` above — same narrowing, same end condition.
   defaultValue?: string;
   onValueChange?: (value: string, details?: AutocompleteChangeDetails) => void;
-  disabled?: boolean;
+  disabled?: BaseRootProps<string>["disabled"];
   /** Rendered inside the popup when the filter matches nothing. */
   emptyText?: ReactNode;
   /** Accessible name for the input (there is no visible label — pair with `<Field>` for one). */
@@ -70,7 +73,7 @@ export interface AutocompleteProps extends AutocompletePassthrough {
   clearLabel?: string;
   /** Applied to the input (the in-flow element). */
   className?: string;
-  id?: string;
+  id?: BaseRootProps<string>["id"];
   /** Render an arrow pointing at the input inside the popup. @defaultValue false */
   arrow?: boolean;
   /** Placement side, forwarded to the explicit Positioner. @defaultValue "bottom" (Base UI default) */
@@ -95,7 +98,7 @@ export interface AutocompleteProps extends AutocompletePassthrough {
    * popup carries `data-empty` and collapses. The `arrow`/`side`/`align`/`sideOffset`/`container`/
    * `emptyText` positioning props have no meaning in this arm and are ignored. @defaultValue false
    */
-  inline?: boolean;
+  inline?: BaseRootProps<string>["inline"];
 }
 
 /**

@@ -676,6 +676,37 @@ function writeFixtures(): void {
   // this file — its stale-marker arm scans the shared project, tests/ included, so a literal marker here
   // would make this suite's own source a permanent violation (the __g_det / __g_fab self-reference dodge).
   fx("packages/ui/src/__g_legacyreact/__g_legacyreact.ts", 'import { cloneElement } from "react";\nexport const c = cloneElement;\n');
+  // ── the baseui-* family (docs/design/baseui-crunch.md item 4) ─────────────────────────────────────
+  // All five fixturable baseui gates read the COMMITTED surface manifest, which is present on the real
+  // tree — so a `__g_` seal that imports @base-ui/react as a value is enough to drive each of them.
+  // baseui-derives-not-respells: ARM A — a seal FORWARDING a re-declared Base UI handler one argument
+  // short (the eventDetails strip). The spread is what puts the prop in play (the forwarding test).
+  fx(
+    "packages/ui/src/primitives/__g_bderive/__g_bderive.tsx",
+    'import { Select as BaseSelect } from "@base-ui/react/select";\nexport interface GDeriveProps {\n  onValueChange?: (value: string) => void;\n}\nexport const GDerive = (p: GDeriveProps) => <BaseSelect.Root {...p} />;\n',
+  );
+  // baseui-render-prop-composition: the Radix `asChild` spelling on a Base UI part.
+  fx("packages/ui/src/primitives/__g_baschild/__g_baschild.tsx", "export const GAsChild = <Menu.Trigger asChild={true} />;\n");
+  // baseui-state-data-attributes: a React mirror of a part's OWN state key driving its className. The
+  // key must be one Base UI publishes for that part (`Popover.Popup` → open/side/align/instant/...).
+  fx(
+    "packages/ui/src/primitives/__g_bstate/__g_bstate.tsx",
+    'import { Popover as BasePopover } from "@base-ui/react/popover";\nimport { useState } from "react";\nexport const GState = () => {\n  const [open] = useState(false);\n  return <BasePopover.Popup className={open ? "a" : "b"} />;\n};\n',
+  );
+  // baseui-portal-container-seam: a portal-bearing seal that neither declares nor wires `container`.
+  fx(
+    "packages/ui/src/primitives/__g_bportal/__g_bportal.tsx",
+    'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface GPortalProps {\n  className?: string;\n}\nexport const GPortal = () => (\n  <BaseDialog.Portal>\n    <BaseDialog.Popup />\n  </BaseDialog.Portal>\n);\n',
+  );
+  // baseui-anatomy-completeness: its ARM B — a file that RENDERS a part the committed ledger rules
+  // `sealed-away`. (ARM A, "exposed but nobody renders it", is not fixturable from a source file: a
+  // `__g_` file can only ADD renders, and the finding would anchor on the manifest rather than a
+  // `__g_` path, so it would survive the probe-artifact strip.) `Combobox.Backdrop` is sealed away
+  // because a suggestion popup is non-modal by design — keep in sync with ui-package-design.md §14.
+  fx(
+    "packages/ui/src/primitives/__g_banatomy/__g_banatomy.tsx",
+    'import { Combobox as BaseCombobox } from "@base-ui/react/combobox";\nexport const GAnatomy = () => <BaseCombobox.Backdrop />;\n',
+  );
   // no-if-is-group: an isGroup boolean branch (solo is the degenerate group — D16).
   fx(`${D}/__g_isgroup/x.ts`, "export function f(isGroup: boolean): number {\n  if (isGroup) {\n    return 1;\n  }\n  return 0;\n}\n");
   // no-inline-optimistic-in-surface: optimistic-mutation plumbing in a surface file.
@@ -850,7 +881,14 @@ function writeFixtures(): void {
 // a throwaway `__g_` file can't add a member to the real union/interface/schema, and the STALE/ORPHAN arms
 // need a real registry edit. Its bite is proven by gate-conformance (per-arm mustFlag + STALE + the
 // paired-anchor tripwire mustFlag) + its live run on the real tree with the founding registry.
+// baseui-surface-manifest: it compares two ARTIFACTS — the installed `@base-ui/react` under
+// packages/ui/node_modules and the committed surface manifest — and neither is something a `__g_`
+// source file can perturb. Its bite is proven by six conformance mustFlag examples that materialize a
+// synthetic installed package + manifest into a real temp dir (a new part, a new prop, an `unresolved`
+// disposition, a reason-less `sealed-away`, the package missing entirely, and the reader's own
+// learned-nothing tripwire), plus its live run on the real tree at the founding 1.7.0 surface.
 const UNFIXTURABLE_GATES = new Set([
+  "baseui-surface-manifest",
   "warning-code-coverage",
   "verify-registry-parity",
   "enforcement-registry-parity",
