@@ -134,16 +134,45 @@ test("the name control enters inline rename — it does NOT fire 'set current'",
 // name column was the row's only shrinker (the marker cluster carried `shrink-0`). The floor is now the
 // name's own `min-w-1/2`, and the markers are what give.
 
-test("at the 320px You-sheet width the name column still keeps HALF the row", async ({ mount }) => {
+// THE 320px INVARIANT IS NON-OVERLAP, NOT A FRACTION (side-eye leg-4 P2, correcting leg 3). A `min-w-1/2`
+// floor on the name lane DID give it half — and squeezed the marker cluster to a 38px box whose contents
+// still laid out at their own width, painting 58px LEFTWARD through the name. A floor on one side of a
+// two-item row is a squeeze on the other. So the markers reserve what they need, the name shrinks and
+// truncates, and what the CT guards is that the two lanes never occupy the same pixels.
+test("at the 320px You-sheet width the name lane and the marker cluster never overlap", async ({ mount }) => {
   const component = await mount(<PersonaPanelRowDenseStory width={320} />);
   const name = component.locator('[data-slot="persona-row-name"]');
+  const markers = component.locator('[data-slot="persona-row-markers"]');
   await expect(name).toBeVisible();
-  const [nameWidth, rowWidth] = await name.evaluate((el: HTMLElement): readonly [number, number] => [
-    el.getBoundingClientRect().width,
-    (el.parentElement as HTMLElement).getBoundingClientRect().width,
-  ]);
-  // ≥50% of the row's CONTENT box; the row pads, so the fraction of the padded box sits just under it.
-  expect(nameWidth / rowWidth).toBeGreaterThan(0.45);
+  await expect(markers).toBeVisible();
+
+  const nameBox = await name.boundingBox();
+  const markerBox = await markers.boundingBox();
+  expect(nameBox).not.toBeNull();
+  expect(markerBox).not.toBeNull();
+  // The measured defect: markers box at 38px wide with its contents rendering at x=152, i.e. 58px of the
+  // name lane painted through. Boxes, not classes.
+  expect(nameBox?.x ?? 0).toBeLessThan(markerBox?.x ?? 0);
+  expect((nameBox?.x ?? 0) + (nameBox?.width ?? 0)).toBeLessThanOrEqual((markerBox?.x ?? 0) + 1);
+
+  // …and the name still gets a real share of the row. The floor is what the CURRENT composition affords
+  // with the "Playing as" words kept (measured 0.32); it is a fence against another collapse, not a target.
+  const rowWidth = await name.evaluate((el: HTMLElement) => (el.parentElement as HTMLElement).getBoundingClientRect().width);
+  expect((nameBox?.width ?? 0) / rowWidth).toBeGreaterThan(0.3);
+});
+
+// The row header claims the kicker truncates. It did not — `white-space: normal` wrapped "Playing as" to
+// two lines even at rest, which is part of what made the cluster wider and taller than the row budgeted
+// for. A claim in a header is a wish until something measures it.
+test("the 'Playing as' kicker renders on ONE line at 320px — the header's truncation claim is true", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowDenseStory width={320} />);
+  const kicker = component.getByText("Playing as", { exact: true });
+  await expect(kicker).toBeVisible();
+  const lines = await kicker.evaluate((el: HTMLElement) => {
+    const lineHeight = Number.parseFloat(getComputedStyle(el).lineHeight);
+    return el.getBoundingClientRect().height / (Number.isNaN(lineHeight) ? el.getBoundingClientRect().height : lineHeight);
+  });
+  expect(lines).toBeLessThan(1.5);
 });
 
 test("at 320px the persona's whole name still renders — no ellipsis on a 8-char name", async ({ mount }) => {

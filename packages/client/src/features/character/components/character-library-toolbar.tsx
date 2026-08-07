@@ -77,9 +77,12 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
         >
           Group
         </Toggle>
-        {/* Bulk mode joins the view controls now that the band owns the title row it used to sit in. */}
+        {/* Bulk mode joins the view controls now that the band owns the title row it used to sit in.
+            IT CARRIES ITS WORD (side-eye leg-4 P3): beside the text toggle "Group", a bare pencil read as
+            one phrase — "Group ✎" — which decodes as neither control. Two labelled toggles read as two. */}
         <Toggle aria-label="Select multiple" onPressedChange={(pressed): void => setBulkMode(pressed)} pressed={bulkMode} size="sm">
           <Icon icon={Pencil} size="sm" />
+          Select
         </Toggle>
       </Row>
     </Stack>

@@ -13,8 +13,14 @@ export const notificationsChrome: ChromeEntry = {
   id: "notifications-bell",
   label: "Notifications",
   zone: "topbar.trail",
+  // THE PHONE ROW IS NOT THE INBOX'S HOME (side-eye leg-4 P2, the topbar budget). At 320px a 48px bell sat
+  // beside three other controls and left the room's own name 25% of the row. `mobile: "sheet"` is the
+  // curation axis every rail entry already declares — consumed for `topbar.trail` now: the widget leaves
+  // the phone topbar and renders its `body("sheet")` lens INLINE in the You sheet, which is where every
+  // other phone-overflow affordance lives. Nothing becomes unreachable; the inbox gets more room, not less.
+  mobile: "sheet",
   useVisible: (): boolean => useAuthConfig().data?.multiHumanCapable === true,
-  // The `presentation` lens is ignored today — the bell renders identically in bar and sheet; a
-  // sheet-specific projection (if any) lands §E-5.
-  behavior: { kind: "widget", body: (_presentation): ReactElement => <NotificationBell /> },
+  // BOTH LENSES ARE REAL now: `"bar"` is the badged bell + popover, `"sheet"` is the inline inbox block
+  // the mobile You sheet renders (see `NotificationBell`).
+  behavior: { kind: "widget", body: (presentation): ReactElement => <NotificationBell presentation={presentation} /> },
 };

@@ -20,8 +20,14 @@ import type { MobileCuration } from "#state";
 export interface RailButtonProps {
   readonly label: string;
   readonly icon: LucideIcon;
-  /** Active (current section) — Ember tint + `aria-current`. Modal/footer triggers pass `false`. */
+  /** Active (current section) — Ember tint + `aria-current="page"`. Modal/footer triggers pass `false`. */
   readonly active?: boolean;
+  /** The tab HOSTS the current section without BEING it — the You tab while you stand in a section its
+   *  sheet is the only door to. A visual hint ONLY, deliberately: `aria-current="page"` on a tab that is
+   *  not the page is a lie a reader acts on ("You, current page" while looking at the Corpus roster —
+   *  side-eye leg-4). Where-am-I for those sections is answered by the TOPBAR, which names the section and
+   *  (since the mobile DOM-order fix) reads before this nav. @defaultValue false */
+  readonly containsCurrent?: boolean;
   readonly onClick: () => void;
   /** The entry's mobile fate — `"sheet"` entries are `display:none` on the mobile bar (folded into the
    *  You sheet); `"tab"` entries stay. Desktop shows every entry regardless. Defaults to `"sheet"`. */
@@ -30,7 +36,7 @@ export interface RailButtonProps {
   readonly mobileOnly?: boolean;
 }
 
-export function RailButton({ label, icon, active = false, onClick, mobile = "sheet", mobileOnly = false }: RailButtonProps): ReactElement {
+export function RailButton({ label, icon, active = false, containsCurrent = false, onClick, mobile = "sheet", mobileOnly = false }: RailButtonProps): ReactElement {
   return (
     <Tooltip>
       <TooltipTrigger
@@ -41,6 +47,7 @@ export function RailButton({ label, icon, active = false, onClick, mobile = "she
             aria-label={label}
             aria-current={active ? "page" : undefined}
             data-active={active ? "" : undefined}
+            data-contains-current={containsCurrent ? "" : undefined}
             data-mobile={mobile}
             data-rail-mobile-only={mobileOnly ? "" : undefined}
             className={`shell-rail-button ${FOCUS_RING_ON_SIDEBAR}`}

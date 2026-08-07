@@ -51,11 +51,15 @@ function dismissOverlays(layout: ShellLayout): void {
 /** Renders the `topbar.trail` zone's chrome widgets — the registry list is frozen at the door, so
  *  calling each entry's `useVisible` unconditionally, in a fixed loop, is legal (the `contentBySection`
  *  precedent). `false` ⇒ render NOTHING (no gap — preserves the bell's no-flash rule). */
-function TopbarTrailChrome(): ReactElement {
+function TopbarTrailChrome({ mobile }: { readonly mobile: boolean }): ReactElement {
   const chrome = useChromeRegistry();
   // The per-zone order is owned by assembleChrome (canonical `(order, id)` sort at the door), so this
   // consumer only filters — no re-sort.
-  const entries = chrome.list().filter((e) => e.zone === "topbar.trail");
+  //
+  // A phone drops the entries curated `mobile: "sheet"` (the You sheet projects them instead) — the same
+  // curation the rail has always obeyed, finally consumed for this zone. That is the topbar BUDGET: at
+  // 320px every trail control is 48px of a row whose job is to say where you are (side-eye leg-4 P2).
+  const entries = chrome.list().filter((e) => e.zone === "topbar.trail" && !(mobile && e.mobile === "sheet"));
   return (
     <>
       {entries.map((entry) => (
@@ -270,7 +274,7 @@ export function AppShell(): ReactElement {
                     trail={
                       <>
                         <CommandChip modalId={commandModalId} show={!layout.mobileViewport} />
-                        <TopbarTrailChrome />
+                        <TopbarTrailChrome mobile={layout.mobileViewport} />
                       </>
                     }
                     listAvailable={layout.listAvailable}

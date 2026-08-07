@@ -1542,6 +1542,57 @@ test.describe("the mobile topbar at 320px, coarse pointer", () => {
     await expect(page.getByRole("button", { name: "Jump to…" })).toBeVisible();
   });
 
+  // ── LEG 4 (side-eye's second pass): "stop treating a phone as a narrow desktop" ──────────────────
+  // Every pin below is a COMPOSITION claim, not a size tweak: the frame that is not the screen does not
+  // paint, the row that names the screen outranks the chrome around it, and a tab that is not the page
+  // does not say it is.
+
+  test("P2: the roster IS the screen — the CONTENT frame behind it does not paint at all", async ({ mount, page }) => {
+    await mount(<AppShellMobileRuleStory section="characters" />);
+    const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+    await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+
+    // MEASURED, not asserted by class: the content column used to sit under the roster at
+    // display:flex/visibility:visible/opacity:1 with 100% overlap (149,341px²), and the landing's orange
+    // CTA glow bled through the rows. `inert` had already fixed the keyboard; this is the paint.
+    const content = page.locator(".shell-content");
+    const shown = await content.evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { display: cs.display, box: el.getBoundingClientRect().width * el.getBoundingClientRect().height };
+    });
+    expect(shown.display).toBe("none");
+    expect(shown.box).toBe(0);
+
+    // …and it comes back the moment CONTENT is the screen (a selection pushes it).
+    await page.getByRole("button", { name: "open a member" }).click();
+    await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+    await expect.poll(async () => content.evaluate((el) => getComputedStyle(el).display), { intervals: [20, 50, 100] }).not.toBe("none");
+  });
+
+  test("P2: the title outranks the chrome — the room's name takes more of the row than any one control", async ({ mount, page }) => {
+    const shell = await mount(<AppShellMobileRuleStory section="chats" />);
+    await shell.getByRole("button", { name: "open a member" }).click();
+    const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
+    await expect(title).toBeVisible();
+
+    // MEASURE THE ROOM, NOT THE STRING. A short room name legitimately renders narrow (the Text is
+    // content-sized), so asserting the rendered title's width would pass or fail on the fixture's name
+    // rather than on the row's composition. The claim is about SPACE: what the lead has left after its one
+    // control is what any name gets, and that must out-rank any single piece of chrome beside it.
+    const leadWidth = (await page.locator(".shell-topbar-lead").boundingBox())?.width ?? 0;
+    const controls = await page
+      .locator(".shell-topbar button")
+      .evaluateAll((els) => els.filter((el) => el.checkVisibility()).map((el) => el.getBoundingClientRect().width));
+    const widestControl = Math.max(...controls, 0);
+    const roomForTheName = leadWidth - widestControl;
+    // The measured defect was 80px of 320 (25%) with four trailing controls out-ranking the one thing
+    // saying where you are. The floor is RELATIVE — a token retune of the tap target moves both sides.
+    expect(roomForTheName).toBeGreaterThan(widestControl);
+    expect(roomForTheName / MOBILE_NARROW.width).toBeGreaterThan(0.3);
+    // …and the name itself is really painted in it (never the 0px the leg-2 defect produced).
+    expect((await title.boundingBox())?.width ?? 0).toBeGreaterThan(0);
+  });
+
   test("P2: the pushed frame's topbar names the MEMBER; the roster frame names the section", async ({ mount, page }) => {
     const shell = await mount(<AppShellMobileRuleStory section="config" />);
     const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
@@ -1620,6 +1671,31 @@ function draftCardWithBackground(): unknown {
 }
 
 const BACKGROUND_LAYER = '[data-slot="theme-background-layer"]';
+
+// ── LEG-4 P1: A DRAFT'S MOBILE TOPBAR NAMES THE CHARACTER, NOT THE SECTION ─────────────────────────
+// Measured: `Back to Chats[12,7,34,34] · Chats[54,13,55,22]` — the pushed frame of a pre-send room said
+// "Chats" while the DESKTOP header beside it said "Hana Mizushima". Leg 2 wired only the committed arm, so
+// every draft fell through to the section label. Same story as the BG-C tests: a real draft, no chat row.
+test.describe("a pre-send draft at 320px", () => {
+  test.use({ viewport: { width: 320, height: 800 }, hasTouch: true });
+
+  test("P1: the topbar names the founding character, exactly as the desktop header does", async ({ mount, page }) => {
+    await routeTrpc(page, { "character.get": draftCardWithBackground });
+    await mount(<AppShellDraftBackgroundStory characterIds={[mintTypeId(ID_PREFIX.character)]} />);
+
+    const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
+    // "Aria" is the card `character.get` returns — the SAME read `DraftChatHeader` makes for its cluster.
+    await expect(title).toHaveText("Aria");
+  });
+
+  test("P1: a cast-less draft says what the desktop says — 'New chat', never the section label", async ({ mount, page }) => {
+    await routeTrpc(page, { "character.get": draftCardWithBackground });
+    await mount(<AppShellDraftBackgroundStory characterIds={[]} />);
+
+    const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
+    await expect(title).toHaveText("New chat");
+  });
+});
 
 test("BG-C draft: a SOLO founding card's background paints on the shell before any message exists", async ({ mount, page }) => {
   await routeTrpc(page, { "character.get": draftCardWithBackground });

@@ -70,21 +70,22 @@ function checkChromeEntry(def: ChromeDef, out: Violation[], seenIds: Map<string,
       message: `ChromeEntry "${def.name}" declares zone "${zone}", not one of CHROME_ZONES (rail.nav/rail.end/topbar.trail) — shell-chrome-unification.md §A.`,
     });
   }
-  // The mobile-curation axis is RAIL-ONLY: a rail.* widget must declare its mobile-tab-vs-You-sheet fate
-  // (`mobile: "tab"|"sheet"`), a topbar.* widget must NOT (there is no mobile bar for it). §D.
+  // The mobile-curation axis: a rail.* widget MUST declare its mobile-tab-vs-You-sheet fate
+  // (`mobile: "tab"|"sheet"`); a topbar.* widget MAY.
+  //
+  // ⚑ THE RAIL-ONLY HALF IS RETIRED (2026-08-07), and the premise is what died: this gate used to RED a
+  // topbar widget that declared `mobile`, reasoning "there is no mobile bar for it". There is now a mobile
+  // HOME for it — the You sheet projects `topbar.trail` widgets curated `"sheet"` in their own sheet lens
+  // (you-sheet.tsx), which is how the notifications inbox leaves a 320px topbar whose row is spent saying
+  // where you are (side-eye 2026-08-07 P2). A phone-fate declaration is chrome-wide vocabulary now.
+  // It stays OPTIONAL on topbar.*: the default (stay on the row) is the right one for a section's own
+  // controls, and forcing every trail widget to spell it would be ceremony, not a decision.
   const hasMobile = def.init.getProperty("mobile") !== undefined;
   if (zone?.startsWith("rail.") && !hasMobile) {
     out.push({
       file: rel(def.path),
       line: def.line,
       message: `ChromeEntry "${def.name}" is a rail widget (zone "${zone}") but declares no \`mobile\` — a rail.* widget's tab-vs-You-sheet fate is EXPLICIT (mobile: "tab"|"sheet") — shell-chrome-unification.md §D.`,
-    });
-  }
-  if (zone?.startsWith("topbar.") && hasMobile) {
-    out.push({
-      file: rel(def.path),
-      line: def.line,
-      message: `ChromeEntry "${def.name}" is a topbar widget (zone "${zone}") but declares \`mobile\` — mobile curation is a rail-only axis — shell-chrome-unification.md §D.`,
     });
   }
 }
@@ -120,8 +121,8 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   message:
-    "a chrome widget is dishonest: a ChromeEntry not co-located in a feature chrome file, a duplicate id across defs, a zone outside CHROME_ZONES, a rail.* widget missing `mobile`, or a topbar.* widget declaring `mobile` — shell-chrome-unification.md §A/§D.",
-  fix: "co-locate the definition at features/<owner>/lib/<id>-chrome.tsx; give every ChromeEntry a unique id; use a real CHROME_ZONES member; declare `mobile` on rail.* widgets only.",
+    "a chrome widget is dishonest: a ChromeEntry not co-located in a feature chrome file, a duplicate id across defs, a zone outside CHROME_ZONES, or a rail.* widget missing `mobile` — shell-chrome-unification.md §A/§D.",
+  fix: 'co-locate the definition at features/<owner>/lib/<id>-chrome.tsx; give every ChromeEntry a unique id; use a real CHROME_ZONES member; declare `mobile` on every rail.* widget (topbar.* may declare it too — the You sheet projects `"sheet"`-curated trail widgets).',
   run: (ctx) => {
     const out: Violation[] = [];
     const seenIds = new Map<string, Seen>();
@@ -169,15 +170,14 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "declares no `mobile`" },
       why: "a rail.* widget with no `mobile` — the rail-mobile-required arm (§D)",
     },
-    {
-      files:
-        "export const barChrome: ChromeEntry = { id: 'b', zone: 'topbar.trail', label: 'B', mobile: 'tab', behavior: { kind: 'widget', body: () => null } };\n",
-      at: "packages/client/src/features/x/lib/bar-chrome.tsx",
-      expect: { messageIncludes: "mobile curation is a rail-only axis" },
-      why: "a topbar.* widget declaring `mobile` — the topbar-no-mobile arm (§D)",
-    },
   ],
   mustPass: [
+    {
+      files:
+        "export const barChrome: ChromeEntry = { id: 'b', zone: 'topbar.trail', label: 'B', mobile: 'sheet', behavior: { kind: 'widget', body: () => null } };\n",
+      at: "packages/client/src/features/x/lib/bar-chrome.tsx",
+      why: "a topbar.* widget declaring `mobile` — LEGAL since the You sheet projects `sheet`-curated trail widgets in their own lens (the rail-only half retired 2026-08-07, §D)",
+    },
     {
       files: "export const xChrome: ChromeEntry = { id: 'x', zone: 'topbar.trail', label: 'X', behavior: { kind: 'widget', body: () => null } };\n",
       at: "packages/client/src/features/x/lib/x-chrome.tsx",
