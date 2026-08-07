@@ -333,8 +333,12 @@ export const messageVariants = sqliteTable(
     // `content` above stays the ONE canonical post-transform text every consumer reads (D51) — these two
     // columns are pure provenance and change no existing behavior. `rawContent` is the pre-freeze,
     // pre-regex authored text (the composer draft / the raw model output before the AI_OUTPUT regex,
-    // postProcess and the per-speaker clean); NULL ⇔ byte-identical to `content`, which is the overwhelming
-    // common case, so it is written only when a transform actually changed bytes.
+    // postProcess and the per-speaker clean). It is stored NON-NULL only when it DIFFERS from `content`, so a
+    // body no transform touched — the overwhelming common case — costs nothing. NULL therefore means "no
+    // distinct pre-transform text is served for this row", NOT "the authored text was identical": a content
+    // write that is not the freeze (a hand edit, a continue undo/revert) CLEARS this pair because the body it
+    // described is gone, and `verbs/fork.ts`'s host-plane strip nulls it on a member→host copy. The exact rule
+    // + why the reverse reading is not claimed: `domain/chat/persistence/canon-write.ts`.
     // TRUST BOUNDARY (binding): both columns are HOST-PLANE. The receive transforms exist partly to STRIP
     // content (a host regex can remove hidden material), so serving pre-strip bytes to a member re-opens the
     // D110 §3.6 class — they ride the already host-gated variant wire view ONLY, never `MessageView`.

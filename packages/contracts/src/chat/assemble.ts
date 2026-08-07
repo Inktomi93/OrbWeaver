@@ -386,7 +386,9 @@ export type SentPrompt = z.infer<typeof sentPromptSchema>;
  *  • `rawContent`/`macroFreezes` are the D129-F freeze provenance — the pre-transform authored text and the
  *    volatile occurrences the commit baked. HOST-PLANE, and THIS view is the only surface that serves them
  *    (never `MessageView`): the receive transforms exist partly to STRIP content, so pre-strip bytes reaching
- *    a member would re-open the D110 §3.6 class. `rawContent: null` ⇔ byte-identical to the row's `content`.
+ *    a member would re-open the D110 §3.6 class. `rawContent: null` means NO DISTINCT pre-transform text is
+ *    served here — nothing transformed the body, a later content write invalidated the provenance, or the
+ *    fork strip removed it — never "the authored text was identical" (the writer's rule, canon-write.ts).
  *
  * A null `prompt` is HONEST ABSENCE, never an error: a user/system row never generated, and a variant
  * committed by a verbatim/greeting seed carries none. The raw PROVIDER envelopes are NOT here — those live
