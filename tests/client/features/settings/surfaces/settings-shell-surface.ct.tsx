@@ -141,6 +141,13 @@ test("switching to an unbuilt category shows ITS distinct teaching copy", async 
   // Automation is still an unbuilt teaching placeholder — its distinct copy renders on switch.
   await component.getByRole("button", { name: "Automation" }).click();
   await expect(component.getByText("Scheduled and triggered actions across your library.")).toBeVisible();
+
+  // …AND IT SAYS SO (side-eye 2026-08-06 P3, [[empty-states-are-load-bearing]]). A title plus one sentence
+  // in an otherwise blank column is indistinguishable from a pane whose controls failed to render — the
+  // reader is left deciding whether the app is broken. Two additions: the status chip, and a "meanwhile"
+  // pointer in the pane's OWN copy (a generic placeholder cannot know one; the pane does).
+  await expect(component.getByText("Not built yet", { exact: true })).toBeVisible();
+  await expect(component.getByText("Jobs → Schedules", { exact: false })).toBeVisible();
 });
 
 // Task #37 — Connections is a REAL pane (the placeholder is GONE), while the last unbuilt APP category

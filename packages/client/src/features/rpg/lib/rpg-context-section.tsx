@@ -127,7 +127,9 @@ export function makeRpgContextTabs(deps: RpgContextTabsDeps): readonly ContextTa
       icon: MapIcon,
       strip: "game",
       when: isGameChat,
-      disabledReason: (): string => "Maps unlock with the map arc (MA-3)",
+      // No internal arc id in player-facing copy (side-eye 2026-08-06 P3 — the panel body's "arrives with
+      // MA-3" chip went for the same reason; a ticket number is a fact a player cannot use).
+      disabledReason: (): string => "Maps unlock with the map arc",
       body: (s): ReactNode => (isGameChat(s) ? <RpgMapTab /> : null),
     },
     {

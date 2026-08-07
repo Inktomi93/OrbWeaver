@@ -81,6 +81,33 @@ export function PersonaThisChatStory(): ReactElement {
   );
 }
 
+/** The DENSE row at the rail-foot panel's REAL width (side-eye 2026-08-06 P1). Every marker lit — current +
+ *  default + favorited — which is the state the shipped seed persona is in, and the state that made the row
+ *  reserve BOTH the marker strip and the action strip and truncate "Traveler" to "Tra…".
+ *
+ *  358px is the production host, not a story convenience: the rail-foot persona panel measures 358px, and the
+ *  defect is invisible at the 320px default story width for the same reason the theme-band clip was invisible
+ *  at the content-sized mount — a shortfall this narrow only shows once the box is the real one. The width is
+ *  SET on the container (the mount root is content-sized and would simply grow). */
+export function PersonaPanelRowDenseStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 358 }}>
+        <PersonaPanelRow
+          expanded={false}
+          isCurrent={true}
+          isDefault={true}
+          onDelete={(): void => undefined}
+          onSetCurrent={(): void => undefined}
+          onSetDefault={(): void => undefined}
+          onToggleExpand={(): void => undefined}
+          persona={{ ...PERSONA, name: "Traveler", starred: true }}
+        />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** `<PersonaPanelRow>` under the data layer — records which callback fired into a visible marker so the CT
  *  can assert control clicks are disjoint from the "set current" overlay. */
 export function PersonaPanelRowStory(): ReactElement {

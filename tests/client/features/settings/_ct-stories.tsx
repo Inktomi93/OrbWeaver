@@ -125,6 +125,23 @@ export function ThemePickerStory(): ReactElement {
   );
 }
 
+/** The picker in the NARROWEST REAL HOST — the `size="md"` settings dialog's inner content box at a 320px
+ *  viewport, measured live at ~206px. The prior CT for this defect concluded a CT could not reproduce the
+ *  clip; it was right about ITS mount, which was content-sized and simply grew to fit the over-wide band.
+ *  A FIXED width is what makes the overflow real, and `overflow: visible` is what keeps it MEASURABLE
+ *  (a hidden/clip container would swallow the very geometry the assertion reads). */
+export function ThemePickerNarrowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ width: 206, overflow: "visible" }} data-testid="theme-dialog-body">
+          <ThemePickerSurface />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
 /** The REAL appearance pane, driven through the shell — the ONLY way to mount it since SET-SEAMS stage 1
  *  made it a `{kind:"sections"}` skimmer with no surface of its own. `appearance` is the shell's default
  *  active category, so this lands on it cold, with the REAL door-ordered section registry, the shell's

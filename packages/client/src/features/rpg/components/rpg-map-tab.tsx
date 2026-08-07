@@ -6,9 +6,8 @@
 // not exist yet: what unlocks, what it grows out of (the waystone in the band above — the map arc's seed),
 // and when.
 
-import { Badge } from "@orb/ui/badge";
 import { Icon, MapIcon } from "@orb/ui/icons";
-import { Row, Stack } from "@orb/ui/layout";
+import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { Kicker } from "./rpg-kicker.tsx";
@@ -25,11 +24,10 @@ export function RpgMapTab(): ReactElement {
           The waystone above is the seed — when the arc lands, it opens into the region map here: the places the story has named, where you are, and the fog it
           hasn't cleared. Until then it keeps the sky.
         </Text>
-        <Row gap="field" align="center">
-          <Badge tone="soft" size="sm">
-            arrives with MA-3
-          </Badge>
-        </Row>
+        {/* NO TICKET-ID CHIP (side-eye 2026-08-06 P3). "arrives with MA-3" was the only line here written
+            for the people who write the roadmap rather than the people who play: the prose above already
+            says what unlocks it and what it grows out of, and an internal arc id adds a fact a player
+            cannot use, cannot look up, and cannot act on. */}
       </Stack>
     </Stack>
   );

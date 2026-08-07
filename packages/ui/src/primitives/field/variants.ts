@@ -22,6 +22,18 @@ export const fieldVariants = tv({
         controlCol: "w-(--width-control-col) @max-md:w-full @max-md:items-stretch",
       },
     },
+    // THE HORIZONTAL ROW'S CROSS-AXIS (side-eye 2026-08-06 P2). `items-start` is only right when one column
+    // is genuinely MULTI-LINE: a description wraps under the label and the control must hold the FIRST line
+    // rather than float to the middle of a two-line block. A row with neither a description nor an error is
+    // two SINGLE-line boxes of unequal height (a `label` text step vs a `control-md` box), and `items-start`
+    // pinned the label to the control's top edge — an ~8px baseline shear on every description-less settings
+    // row (Appearance → "Avatar size" / "Avatar shape" / "Avatar ring" were the reported ones).
+    //
+    // `multiline` is the honest axis rather than "hasDescription": the ERROR node grows the control column
+    // exactly the same way, so it takes the same arm. Below `@max-md` the row is stacked and `items-stretch`
+    // (declared on the horizontal arm) still wins — this only ever governs the side-by-side layout.
+    multiline: { true: {}, false: {} },
   },
-  defaultVariants: { orientation: "vertical" },
+  compoundVariants: [{ orientation: "horizontal", multiline: false, class: { root: "items-center" } }],
+  defaultVariants: { orientation: "vertical", multiline: false },
 });

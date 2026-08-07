@@ -123,7 +123,13 @@ function ThemeManager(): ReactElement {
         <Text voice="label" className="min-w-0">
           Themes
         </Text>
-        <Row gap="row">
+        {/* THE INNER ROW WRAPS TOO (side-eye 2026-08-06 P1). Making only the OUTER band wrap fixed half the
+            defect: at a 320px viewport the label drops to its own line, but the two buttons are then ~269px
+            of unbreakable content in a ~206px dialog body, so the primary was still sheared against the
+            dialog edge. `flex-wrap` lets them stack; `min-w-0` lets this box shrink below its content width
+            instead of forcing the overflow onto the parent. Measured at `--viewport 320x640`: both buttons
+            fully inside the dialog. */}
+        <Row className="min-w-0 flex-wrap" gap="row">
           <Button intent="ghost" onClick={(): void => selectById(null)}>
             Reset to Hearth
           </Button>
