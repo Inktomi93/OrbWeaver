@@ -119,29 +119,43 @@ mkdir -p "$RUN_DIR"
 # operator to remember to strip the lines afterwards). The overlay is computed by the same TS resolver
 # prod uses — including its refusal when `.env` already pins one of those keys to a conflicting value,
 # which would make the flag a silent no-op (foundation/env loads `.env` with override:true).
+# ONE GRAMMAR, AND THE SHELL DOES NOT OWN IT. Everything after this comment is decided by
+# `parseStackArgv` (scripts/dev/_kit/stack-mode.ts) via the `classify` verb — the same parser
+# tests/tooling/stack-mode.test.ts pins. The shell only switches on its answer.
+#
+# WHY (paid for by a driven counterexample, 2026-08-07): the first version of this block classified in
+# bash and accepted a mode ONLY in argument position 2. Everything it did not recognise FELL THROUGH TO
+# DEV — silently. `up --debug prod` armed debug on the DEV stack; `up --nope` ran dev with the flag
+# dropped on the floor; and `restart --force prod` reached `do_force_restart`, which SIGKILLs whatever
+# holds :8788/:5173 **and the entire detached vLLM fleet**, drops the pidfile, and boots DEV — a
+# destructive verb executed against the mode the operator did not ask for. Unit tests could not see any
+# of it, because the shell decided before the parser was ever called.
+#
+# So: nothing falls through. An unclassifiable invocation exits 2 with usage and touches nothing.
 ORIG_ARGV=("$@")
-STACK_VERB="${1:-status}"
-case "$STACK_VERB" in
-  up) STACK_VERB=start ;;
-  down) STACK_VERB=stop ;;
-esac
-[ "$#" -gt 0 ] && shift
+STACK_DISPATCH="$(node "$REPO/scripts/dev/stack-prod.ts" classify -- "$@")" || exit 2
+STACK_VERB=status
 STACK_MODE=dev
-case "${1:-}" in
-  dev | prod)
-    STACK_MODE="$1"
-    shift
-    ;;
-esac
 STACK_DEBUG=""
+STACK_FORCE=""
 STACK_REST=()
-for arg in "$@"; do
-  if [ "$arg" = "--debug" ]; then
-    STACK_DEBUG=1
-  else
-    STACK_REST+=("$arg")
-  fi
-done
+while IFS='=' read -r dkey dval; do
+  case "$dkey" in
+    verb) STACK_VERB="$dval" ;;
+    mode) STACK_MODE="$dval" ;;
+    debug) STACK_DEBUG="$dval" ;;
+    force) STACK_FORCE="$dval" ;;
+    rest) STACK_REST+=("$dval") ;;
+  esac
+done <<<"$STACK_DISPATCH"
+
+# Test seam (tests/tooling/stack-dispatch.int.test.ts): print the classification and stop, so the
+# dispatch can be driven without spawning a stack or execing the prod supervisor. Deliberately AFTER
+# classification and BEFORE any action — that is the surface under test.
+if [ -n "${STACK_DISPATCH_PROBE:-}" ]; then
+  echo "DISPATCH verb=$STACK_VERB mode=$STACK_MODE debug=${STACK_DEBUG:-0} force=${STACK_FORCE:-0} rest=${STACK_REST[*]-}"
+  exit 0
+fi
 
 if [ "$STACK_MODE" = prod ]; then
   exec node "$REPO/scripts/dev/stack-prod.ts" "${ORIG_ARGV[@]}"
@@ -157,7 +171,10 @@ if [ -n "$STACK_DEBUG" ]; then
   echo "stack: --debug armed the /api/_debug surface for this stack (env overlay; .env untouched)."
 fi
 
-set -- "$STACK_VERB" ${STACK_REST[@]+"${STACK_REST[@]}"}
+# Rebuild argv in the shape the case-dispatch below already understands. `--force` is re-attached as a
+# FLAG (never re-derived here) — the parser is what decided it, including that `force-restart` implies it
+# and that `--force` is refused outright in prod mode.
+set -- "$STACK_VERB" ${STACK_FORCE:+--force} ${STACK_REST[@]+"${STACK_REST[@]}"}
 
 # ── env pins (host export wins; `:=` only fills the gap) ─────────────────────
 PIN_VARS=(VLLM_DISABLED AUTH_MODE SESSION_SECRET CREDENTIALS_KEY LOCAL_INITIAL_PASSWORD DEV_SEED)

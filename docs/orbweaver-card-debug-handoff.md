@@ -47,6 +47,16 @@ pnpm stack logs prod 100
 Mode is positional and defaults to `dev`, so `pnpm stack up` is still the dev stack (watched server +
 vite) and behaves exactly as it always did. `up`/`down` are aliases for `start`/`stop`.
 
+**Nothing falls through to dev.** `stack.sh` classifies every invocation through the one parser
+(`parseStackArgv`) before it acts, so the mode may appear anywhere — `up --debug prod` is prod — and
+anything unclassifiable **exits 2 with usage and touches nothing**. Three refusals worth knowing:
+
+| you typed | what happens |
+| - | - |
+| `restart --force prod` | **refused.** `--force` is dev-only: it SIGKILLs whatever holds :8788/:5173 *and the whole detached vLLM fleet*, ignoring ownership. Prod only ever signals an instance whose identity it proved. Stop the port holder yourself, then `stack up prod`. |
+| `start-fg prod` / `_leader prod` | **refused** — dev-only internals (the Playwright webServer entry and the setsid re-exec target). Prod has no foreground vite and detaches its own server. |
+| `up --build` (dev) | **refused** — `--build` is prod-only; the vite dev server needs no bundle. |
+
 **Run from anywhere.** The supervisor derives the repo root from its own file location, so the two cwd
 traps that used to bite (`.env` and `CLIENT_DIST_DIR` are both cwd-relative) are closed by construction.
 
@@ -224,6 +234,10 @@ in the file **beats** the spawn env. So:
 - `.env` sets a **conflicting** value (e.g. `WIRE_CAPTURE=off`) → **`--debug` refuses**, naming the line
   to delete. Arming it would be a silent no-op, and a debug flag that silently does nothing is worse than
   no flag.
+- `.env` sets an **empty** value (a bare `DEBUG_TOKEN=` line) → **also refused.** That parses to `""`,
+  not to absence, and the loader overrides on `value !== undefined` — so the empty value wins and the
+  schema's `.min(1)` then leaves the surface off. Treating it as absence is exactly the placebo this
+  refusal exists for.
 
 **Migration note (2026-08-06):** the live `.env` still carries the hand-added
 `DEBUG_TOKEN` / `WIRE_CAPTURE=on` / `RPG_TRACE=on` block from the card-bug session, plus a
