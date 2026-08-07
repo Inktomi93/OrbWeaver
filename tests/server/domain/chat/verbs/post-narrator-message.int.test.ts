@@ -48,6 +48,11 @@ describe("postNarratorMessage", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.id).toBe(messageId);
     expect(rows[0]?.role).toBe("assistant");
+    // The DECLARED purpose (the born-kind belt). It is stamped rather than inferred later from
+    // "assistant + the synthetic group character" precisely because that attribution SET-NULLs on a
+    // character delete — the row would silently become a standard row and lose its narrator chrome,
+    // labelling and mapping. `role` stays `assistant`: kind never decides the canon role.
+    expect(rows[0]?.kind).toBe("narrator");
     expect(rows[0]?.characterId).toBe(groupChar);
     expect(rows[0]?.authorUserId).toBeNull();
     expect(rows[0]?.selectedVariantId).toBe(variantId);

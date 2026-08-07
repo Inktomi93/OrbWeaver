@@ -9,7 +9,7 @@
 // CASCADE on chat delete (all ten dependents vanish).
 
 import type { OpeningPolicy, ToolCallRecord } from "@orb/contracts/chat";
-import { DEFAULT_GROUP_CONFIG, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, PARTICIPANT_KINDS } from "@orb/contracts/chat";
+import { DEFAULT_GROUP_CONFIG, INVITE_STATUSES, JOIN_HISTORY_VISIBILITIES, MESSAGE_KINDS, PARTICIPANT_KINDS } from "@orb/contracts/chat";
 import { PARTICIPANT_ROLES } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import {
@@ -159,6 +159,85 @@ test("the initiator CHECK rejects an out-of-tuple value (messages_initiator_chec
     caught = err;
   }
   expect(caught).toBeDefined();
+});
+
+// ── messages.kind — the row-PURPOSE axis (stickler 2026-08-08 canon-message-identity) ────────────────
+// Three pins: the DEFAULT (every pre-existing writer keeps minting story canon with no code change and the
+// pre-launch baseline needs no backfill), the tuple CHECK, and the one structural shape arm.
+
+test("a slot is born kind='standard' — the DEFAULT no existing writer has to state", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, { id: "chat_kind_default" });
+  await db.insert(messages).values({ id: castId<MessageId>("message_kind_default"), chatId, seq: 1, role: "assistant" });
+  const row = (await db.select().from(messages).where(eq(messages.chatId, chatId)))[0];
+  expect(row?.kind).toBe("standard");
+});
+
+test("the kind CHECK rejects an out-of-tuple value (messages_kind_check)", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, { id: "chat_kind_check" });
+  let caught: unknown;
+  try {
+    // Cast past the TS enum to prove the DB-level CHECK (not the type) bites.
+    await db.insert(messages).values({ id: castId<MessageId>("message_bad_kind"), chatId, seq: 1, role: "assistant", kind: "aside" as "standard" });
+  } catch (err) {
+    caught = err;
+  }
+  expect(caught).toBeDefined();
+});
+
+test("the kind-shape CHECK: a narrator row is assistant-voiced in canon, and a narrator USER row is refused", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_kind_shape" });
+  const chatId = await seedChat(db, { id: "chat_kind_shape" });
+  const characterId = await seedCharacter(db, ownerId, "character_kind_shape");
+  await db.insert(messages).values({ id: castId<MessageId>("message_kind_narrator"), chatId, seq: 1, role: "assistant", kind: "narrator", characterId });
+  expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(1);
+  let caught: unknown;
+  try {
+    await db
+      .insert(messages)
+      .values({ id: castId<MessageId>("message_kind_bad_narrator"), chatId, seq: 2, role: "user", kind: "narrator", authorUserId: ownerId });
+  } catch (err) {
+    caught = err;
+  }
+  expect(caught).toBeDefined();
+});
+
+test("the kind-shape CHECK leaves `comment` free of a role constraint (a human, an agent or the narrator may make one)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_kind_comment" });
+  const chatId = await seedChat(db, { id: "chat_kind_comment" });
+  await db.insert(messages).values({ id: castId<MessageId>("message_kind_comment_u"), chatId, seq: 1, role: "user", kind: "comment", authorUserId: ownerId });
+  await db.insert(messages).values({ id: castId<MessageId>("message_kind_comment_a"), chatId, seq: 2, role: "assistant", kind: "comment" });
+  expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(2);
+});
+
+// ── message_variants: the raw + freeze provenance columns (stickler §3 / R2 storage) ──────────────────
+
+test("a variant's raw + freeze provenance round-trips; both are NULL when nothing transformed or froze", async () => {
+  const db = await freshDb();
+  const chatId = await seedChat(db, { id: "chat_raw_freeze" });
+  const { variantId } = await seedMessageWithVariant(db, {
+    chatId,
+    rawMsg: "message_raw_freeze",
+    rawVar: "variant_raw_freeze",
+    content: "I roll 7 and win",
+    seq: 1,
+  });
+  await db
+    .update(messageVariants)
+    .set({ rawContent: "I roll {{roll:d20}} and win", macroFreezes: [{ name: "roll", args: "d20", value: "7" }] })
+    .where(eq(messageVariants.id, variantId));
+  const row = (await db.select().from(messageVariants).where(eq(messageVariants.id, variantId)))[0];
+  expect(row?.rawContent).toBe("I roll {{roll:d20}} and win");
+  expect(row?.macroFreezes).toEqual([{ name: "roll", args: "d20", value: "7" }]);
+
+  const plain = await seedMessageWithVariant(db, { chatId, rawMsg: "message_no_freeze", rawVar: "variant_no_freeze", content: "just words", seq: 2 });
+  const untouched = (await db.select().from(messageVariants).where(eq(messageVariants.id, plain.variantId)))[0];
+  // NULL ⇔ raw is byte-identical to content / nothing froze — the common case, never a redundant copy.
+  expect(untouched?.rawContent).toBeNull();
+  expect(untouched?.macroFreezes).toBeNull();
 });
 
 // ── messages ↔ message_variants (D26) ────────────────────────────────────────
@@ -602,6 +681,7 @@ test("chat_invites status CHECK rejects an out-of-enum value", async () => {
 
 test("test-mirror: every chat enum column derives its canonical tuple", () => {
   expect([...messages.role.enumValues]).toEqual([...MESSAGE_ROLES]);
+  expect([...messages.kind.enumValues]).toEqual([...MESSAGE_KINDS]);
   expect([...chatInjections.role.enumValues]).toEqual([...MESSAGE_ROLES]);
   expect([...chatParticipants.kind.enumValues]).toEqual([...PARTICIPANT_KINDS]);
   expect([...chatParticipants.role.enumValues]).toEqual([...PARTICIPANT_ROLES]);

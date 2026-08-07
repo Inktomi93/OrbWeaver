@@ -47,6 +47,33 @@ describe("memory/persistence/queries", () => {
     expect(rows.map((r) => r.seq)).toEqual([1, 2]);
   });
 
+  // F-A (stickler 2026-08-08 §11): memory ingested EVERYTHING — no `excludedFromPrompt` filter and no
+  // hidden-span strip — so a row the host had HIDDEN from the prompt, and the covered truth of a `<lie>`,
+  // were digested and could re-enter the very prompt they were held out of via `{{memory}}` recall.
+  // Compaction has filtered both since it shipped (`verbs/compaction.ts` — the row filter + the
+  // `projectBodyForSummary` strip); the one canon LOAD memory builds from must agree with it. Owner ruling
+  // (2026-08-07): hidden means hidden EVERYWHERE derived.
+  test("loadCanonThroughSeq drops prompt-hidden rows and strips hidden-class spans (recall can never resurface them)", async () => {
+    const chatId = await seedChat(db, "hid");
+    await seedMessage(db, chatId, 1, { content: "the party enters the market" });
+    await seedMessage(db, chatId, 2, {
+      content: "the host's out-of-band note about the twist",
+      excludedFromPrompt: true,
+    });
+    await seedMessage(db, chatId, 3, {
+      content: 'she smiles <lie character="Zandik" type="location" truth="he is in the crypt" reason="the heist"/> and leaves',
+    });
+    const rows = await loadCanonThroughSeq(db, chatId, 3);
+    // The hidden ROW is gone from the ingest set entirely (the compaction row-filter's twin).
+    expect(rows.map((r) => r.seq)).toEqual([1, 3]);
+    const ingested = rows.map((r) => r.content).join("\n");
+    expect(ingested).not.toContain("out-of-band note");
+    // The hidden SPAN's covered truth never reaches a digest (the `projectBodyForSummary` strip's twin);
+    // the surrounding prose survives byte-identically.
+    expect(ingested).not.toContain("crypt");
+    expect(rows.at(-1)?.content).toBe("she smiles  and leaves");
+  });
+
   test("loadDigestHashes is scoped to one bucket (the shared group-char bucket excludes the scoped bucket)", async () => {
     const chatId = await seedChat(db, "d");
     await seedDigest(db, { chatId, tier: 0, blockIdx: 0, contentHash: "h00" });

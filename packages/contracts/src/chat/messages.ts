@@ -9,7 +9,8 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
-import { messageRoleSchema } from "./participants.ts";
+import type { MessageKind } from "./participants.ts";
+import { messageKindSchema, messageRoleSchema } from "./participants.ts";
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE MESSAGE / VARIANT WIRE CONTRACT (D26) — `messages` is a pure SLOT; ALL content/economics live on
@@ -28,6 +29,11 @@ export const messageSlotSchema = z.object({
   chatId: typeIdSchema(ID_PREFIX.chat),
   seq: z.number().int().min(SEQ_MIN),
   role: messageRoleSchema,
+  /** WHAT SORT OF ROW this is, DECLARED at mint ({@link messageKindSchema} — the axis + its policy live in
+   *  `participants.ts`). Orthogonal to `role` (the conversation plane) and to attribution (the voice): a
+   *  narrator row is `kind:'narrator'` AND `role:'assistant'`, and stays narrator after an identity delete
+   *  SET-NULLs its attribution or the room's output dial flips. Born `standard` unless a writer declares. */
+  kind: messageKindSchema,
   /** The human who SENT a user message (server-stamped). Null on assistant/system rows. */
   authorUserId: brandedId<UserId>().nullable(),
   /** The AI identity that VOICED an assistant message (keyed on `characters.id`). Null on user/system. */
@@ -85,6 +91,34 @@ export type StandaloneVariableDelta = z.infer<typeof standaloneVariableDeltaSche
 export const userMacroDrawsSchema = z.record(z.string(), z.record(z.string(), z.string()));
 export type UserMacroDraws = z.infer<typeof userMacroDrawsSchema>;
 
+/** ONE volatile-macro occurrence frozen into a stored body — the read-parse boundary for
+ *  `message_variants.macro_freezes`. `name` is the macro as authored (`roll`/`random`/`pick`/the clock
+ *  family), `args` its raw argument text when it took one (`{{roll:2d6}}` ⇒ `"2d6"`), `value` the string the
+ *  freeze substituted. Occurrence-ordered, so a replay walks it positionally exactly as the freeze wrote it. */
+export const macroFreezeSchema = z.object({
+  name: z.string(),
+  args: z.string().optional(),
+  value: z.string(),
+});
+export type MacroFreeze = z.infer<typeof macroFreezeSchema>;
+
+/** The per-variant VOLATILE-FREEZE record (stickler 2026-08-08 §3 — the `macroDraws` idiom generalized).
+ *
+ *  WHY IT EXISTS: a `{{roll}}`/`{{random}}`/clock macro FREEZES at commit — destructively baked into the
+ *  stored text (D51's one-post-transform-text rule) — and until this column it left NO record and NO
+ *  pre-freeze raw. So a swipe could never replay the roll, a re-attribution could never re-resolve the row,
+ *  and the documented greeting-swipe gap (a post-first-turn swipe to a never-frozen greeting variant) was
+ *  structurally unfixable. With `rawContent` + this record, every nondeterministic input to a variant's turn
+ *  is recorded per-variant (draws ∪ freezes ∪ params ∪ promptSnapshot): running the volatile registry over
+ *  the raw with these as frozen values reproduces `content`'s macro spans byte-exactly, and running it with
+ *  FRESH values is an intentional re-roll rather than data loss.
+ *
+ *  Absent/null ⇒ nothing froze (the common case). Parsed at the read seam, never cast — a malformed blob
+ *  degrades to null (the `parseChatMetadata` pattern). HOST-PLANE: it is served only on the host-gated
+ *  variant wire view beside `rawContent`, never on `MessageView`. */
+export const macroFreezeRecordSchema = z.array(macroFreezeSchema);
+export type MacroFreezeRecord = z.infer<typeof macroFreezeRecordSchema>;
+
 export const toolCallRecordSchema = z.object({
   // @orb-gate-ignore no-raw-id: PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (tool-use-design/03 §3 types it `string`).
   toolCallId: z.string(),
@@ -108,6 +142,10 @@ export interface MessageView {
   chatId: ChatId;
   seq: number;
   role: MessageRole;
+  /** The row's declared PURPOSE (see {@link messageSlotSchema}). Member-visible and safe — it is chrome
+   *  vocabulary, not content: the client renders narrator tint / speaker splitting / OOC treatment off THIS
+   *  field instead of re-deriving purpose from attribution + the room's current output mode. */
+  kind: MessageKind;
   authorUserId: UserId | null;
   characterId: CharacterId | null;
   personaId: PersonaId | null;

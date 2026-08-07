@@ -11,7 +11,8 @@
 // No `loadCanonHistory`-style read here: a fresh insert's `MessageView` is fully known from the stamped
 // inputs, so {@link buildCommittedMessageView} reconstructs it instead of a round-trip.
 
-import type { AssembledPrompt, MessageView, ToolCallRecord, TurnInitiator, UserMacroDraws } from "@orb/contracts/chat";
+import type { AssembledPrompt, MacroFreezeRecord, MessageKind, MessageView, ToolCallRecord, TurnInitiator, UserMacroDraws } from "@orb/contracts/chat";
+import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messageAssets, messages, messageVariants } from "@orb/db";
@@ -64,6 +65,14 @@ interface CanonVariantInput {
    *  registry build and immutable for the round. Persisted so a swipe/continue of this variant replays the
    *  identical draw. Absent/null ⇒ the turn drew nothing. */
   readonly macroDraws?: UserMacroDraws | null | undefined;
+  /** The pre-freeze / pre-regex authored text this variant's `content` was transformed FROM (the composer
+   *  draft, the raw model output). Absent/null ⇒ no transform changed bytes, i.e. raw ≡ content — the common
+   *  case, and the reason this is written only when it differs. HOST-PLANE (never on `MessageView`). */
+  readonly rawContent?: string | null | undefined;
+  /** The volatile-macro occurrences this commit froze into `content` (the roll/random/clock family), in
+   *  occurrence order. Absent/null ⇒ nothing froze. Paired with `rawContent`, it makes the variant's macro
+   *  spans re-derivable byte-exactly (and an intentional re-roll possible). HOST-PLANE. */
+  readonly macroFreezes?: MacroFreezeRecord | null | undefined;
 }
 
 /** The slot attribution (slot-level; a swipe never re-voices). All nullable per role. */
@@ -80,6 +89,9 @@ interface InsertCanonMessageParams extends CanonSlotAttribution {
   readonly chatId: ChatId;
   readonly seq: number;
   readonly role: MessageRole;
+  /** The row's declared PURPOSE. Absent ⇒ `standard` (the DB default), so every writer that does not
+   *  deliberately declare one stays byte-identical; only the narrator writers pass `'narrator'`. */
+  readonly kind?: MessageKind | undefined;
   readonly excludedFromPrompt?: boolean | undefined;
   /** The turn's origin (automation-design/03 §4) — stamped on the reply SLOT. Absent ⇒ the DB defaults
    *  (`'human'`/0), so every human/character writer stays byte-identical; only an automation-initiated
@@ -162,6 +174,10 @@ function variantColumns(args: {
     variableDelta: args.variant.variableDelta ?? null,
     toolCalls: args.variant.toolCalls ?? null,
     macroDraws: args.variant.macroDraws ?? null,
+    // Raw + freeze provenance — null unless a persist-time transform actually changed bytes / a volatile
+    // macro actually froze (the columns' own contract; see schema/chat.ts).
+    rawContent: args.variant.rawContent ?? null,
+    macroFreezes: args.variant.macroFreezes ?? null,
     createdAt: args.now,
   };
 }
@@ -179,6 +195,7 @@ export function insertCanonMessageStatements(db: Db, params: InsertCanonMessageP
         chatId: params.chatId,
         seq: params.seq,
         role: params.role,
+        kind: params.kind ?? DEFAULT_MESSAGE_KIND,
         authorUserId: params.authorUserId ?? null,
         characterId: params.characterId ?? null,
         personaId: params.personaId ?? null,
@@ -451,6 +468,7 @@ export function buildCommittedMessageView(params: InsertCanonMessageParams): Mes
     chatId: params.chatId,
     seq: params.seq,
     role: params.role,
+    kind: params.kind ?? DEFAULT_MESSAGE_KIND,
     authorUserId: params.authorUserId ?? null,
     characterId: params.characterId ?? null,
     personaId: params.personaId ?? null,

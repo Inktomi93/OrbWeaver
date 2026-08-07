@@ -4,7 +4,7 @@
 // (the persistence layer takes the clock as a PARAM; the schema's `unixepoch()` default would be
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
-import type { ChatBusEvent, JoinHistoryVisibility, ParticipantView } from "@orb/contracts/chat";
+import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, ParticipantView } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { ParticipantRole } from "@orb/contracts/identity";
@@ -190,6 +190,8 @@ export async function seedMessage(
   seq: number,
   overrides: {
     readonly role?: MessageRole;
+    /** The row's declared PURPOSE. Omitted ⇒ `standard`, the DB default every ordinary writer mints. */
+    readonly kind?: MessageKind;
     readonly characterId?: CharacterId | null;
     readonly authorUserId?: UserId | null;
     readonly personaId?: PersonaId | null;
@@ -213,6 +215,7 @@ export async function seedMessage(
     chatId,
     seq,
     role: overrides.role ?? "assistant",
+    kind: overrides.kind ?? "standard",
     characterId: overrides.characterId ?? null,
     authorUserId: overrides.authorUserId ?? null,
     personaId: overrides.personaId ?? null,
