@@ -59,6 +59,44 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   (it does NOT: `tests:node` runs `pnpm test`, which is the vitest projects `&&` `pnpm test:ct --retries=2` — ONE behavioral lane since 2026-07-17, stated in `scripts/verify/registry.ts:304`), but
   because a LANE is banned from running the whole battery. A CT nobody names is a CT that lane nobody ran.
 
+## ═══ COMPACT SNAPSHOT (2026-08-07 late — READ THIS FIRST) ═══
+
+**Tree:** main CLEAN, **~72 commits ahead of origin** (last push `ab55c112e`, morning). Gates **193**.
+D-ledger through **D132**; **D133 + D134 are DRAFTED, NOT MINTED** — texts live in
+`docs/reviews/security/2026-08-07-{fork,rpg-fork}-host-plane-strip.md`, batch them at the next ceremony.
+**D129(G) needs a wording amendment** (owner-ruled 2026-08-07): it says the shape dispatch "replaces"
+the bare `role === "system"` drop; the tree needs BOTH (ST imports mint system-role canon rows that are
+`standard` kind, and `CanonRow.role` is a two-arm union) — two planes, two gates, reasoning in-source at
+`entersPrompt`.
+
+**✅ THE CANON-IDENTITY BUILD IS COMPLETE AND VERIFIED** — spine (`dde07f52c`) + orphan-digest prune
+(`3d19fd66a`) + dispatch fan-out (`c9f33c9b4`) + freeze record & replay (`c197ce01b` + `16bb934a1`).
+Task #10 closed.
+
+**IN FLIGHT (one agent):** lane **NARRATOR-LIVE** (`a04f9f8075274896e`) — a dogfood-shaped LIVE drive of
+group narrator mode on the live stack (hosted + local vLLM arms), writing its verdict to
+`docs/reviews/misc/2026-08-07-narrator-live-drive.md`. It is NOT in a worktree; it drives main's stack.
+
+**WORKTREES:** two held warm — `agent-a62e9f121c7999904` (TEMPLATE, holds the promised (b) unification
+build) and `agent-a05506306bb96c8c5` (STACK-MODES, graduated — reapable). Plus a stale
+`.cache/snap-stage/c3757975c90e` entry worth pruning.
+
+**OWNER OWES / OPEN:** the push word (~72 commits) · the two `JUDGMENT_DEFERRED` geometry rulings for
+side-eye (`rpg-pack-rows.tsx:39`, `rpg-actor-trackers.tsx:251`) · PHONE-COMP's solo call (dropping the
+band's vitals orbs at coarse) wants a side-eye eye · the phone unread-indicator (registry-shaped) ·
+`{{note}}` warn-vs-block posture · the identity build's remaining doorways (comment authoring, the tail
+system slot).
+
+**STANDING OPS LAWS MINTED TODAY** (all in ORCHESTRATOR QUICK-ONBOARD + `.claude/agent-doctrine.md`):
+never pipe `git merge` or the harness · never merge mid-check · a gate result taken during a merge
+window is VOID · fix-leg floors count as gate-heavy lanes · no whole-tree instrument while a verifier is
+live on main · long runs go setsid-detached with an `.exit` file (a timed-out foreground poll evicts the
+oldest task) · never `pkill` by process name on a shared box · a fence that holds in INTENT still
+collides in LINES.
+
+**THE DAY'S NUMBER:** 12 fresh-lens passes, **8 refutations** — every one already merged, gate-green and
+believed done. Six premise-kills by lanes, three against briefs I wrote.
+
 ## ═══ STATE (2026-08-08 dawn — DOGFOOD CAMPAIGN CLOSED; the queue below is live) ═══
 
 - **✅ THE DOGFOOD CAMPAIGN IS CLOSED — the full adjudication + halt-lift verdict live in
