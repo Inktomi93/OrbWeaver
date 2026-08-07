@@ -24,7 +24,7 @@
 // render. The block never throws, never drops whole (the DEFENSIVE arm — never a parallel healing home).
 
 import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
-import { rpgWeatherText, timeOfDayAtHour, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
+import { clockTimeOfDay, rpgWeatherText, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
 import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../contract/delta.ts";
 
 /** The diff heading (§2.7) — a VERSIONED constant like the license, so a copy revision is a legible bump. */
@@ -276,11 +276,11 @@ function timeLines(prev: AmbientSlice, cur: AmbientSlice): readonly string[] {
   }
   // The time-of-day label — the intra-day arm (the hour's RANGE, not the raw hour: a within-band tick is
   // not a beat, and the boundaries are the contract's one home so prev/cur can never be named by two rules).
-  if (cur.clock !== null) {
-    const nextLabel = timeOfDayAtHour(cur.clock.hour);
-    if (prev.clock === null || timeOfDayAtHour(prev.clock.hour) !== nextLabel) {
-      out.push(`time → ${nextLabel}`);
-    }
+  // A clock with a day but NO time reads `null` and emits nothing: "the story stopped stating an hour" is
+  // not a transition to narrate, and `time → ?` would be a beat the story never had.
+  const nextLabel = clockTimeOfDay(cur.clock);
+  if (nextLabel !== null && clockTimeOfDay(prev.clock) !== nextLabel) {
+    out.push(`time → ${nextLabel}`);
   }
   return out;
 }

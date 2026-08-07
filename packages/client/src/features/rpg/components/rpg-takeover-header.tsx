@@ -27,7 +27,7 @@
 // crown-gold "N veiled" count, supplied by the band host off `rpg.revealHidden`) + the read-only pill.
 
 import type { RpgClockTime, RpgDateMode, RpgEffectiveDelivery, RpgTrackerOrb, RpgTrackerView } from "@orb/contracts/rpg";
-import { rpgWeatherText, timeOfDayAtHour } from "@orb/contracts/rpg";
+import { clockTimeOfDay, rpgWeatherText } from "@orb/contracts/rpg";
 import { Badge } from "@orb/ui/badge";
 import { Icon, Lock } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -49,23 +49,32 @@ const ORB_TAG_LEN = 3;
  *  modes (they drive the Waystone visual). Empty segments drop. */
 function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: RpgDateMode): string {
   const parts: string[] = [];
+  // A clock can carry a day with NO time (the story never stated an hour, or the host cleared it), so the
+  // label and the counter are pushed independently — a `day 4` scene must not lose its counter just because
+  // nobody has said whether it is morning.
+  const label = clockTimeOfDay(ambient.clock);
   if (dateMode === "narrated") {
     if (ambient.calendarDate !== null) {
       parts.push(ambient.calendarDate);
     }
-    if (ambient.clock !== null) {
-      parts.push(timeOfDayAtHour(ambient.clock.hour));
+    if (label !== null) {
+      parts.push(label);
     }
   } else if (ambient.clock !== null) {
-    parts.push(`day ${ambient.clock.day}`, timeOfDayAtHour(ambient.clock.hour));
+    parts.push(`day ${ambient.clock.day}`);
+    if (label !== null) {
+      parts.push(label);
+    }
   } else if (ambient.calendarDate !== null) {
     parts.push(ambient.calendarDate);
   }
   // The numeric hour the Waystone actually draws from (side-eye F17): the stone points at 21:40 while the
   // text said only "night", so the picture carried a datum the text didn't. TEXT IS THE DATUM — it has to be
-  // a superset of the decoration, never the other way round.
-  if (ambient.clock !== null) {
-    parts.push(clockTime(ambient.clock));
+  // a superset of the decoration, never the other way round. A time-less clock draws no hand, so there is no
+  // decoration to be a superset of and the reading is omitted rather than printed as `--:--`.
+  const reading = clockTime(ambient.clock);
+  if (reading !== null) {
+    parts.push(reading);
   }
   if (ambient.weather !== null) {
     // The model's own phrasing when it wrote one ("torrential sleet"), else the canonical type — the band
@@ -75,9 +84,23 @@ function whenLine(ambient: NonNullable<RpgTrackerView["ambient"]>, dateMode: Rpg
   return parts.join(" · ");
 }
 
-/** The stored clock as a plain 24h reading (`21:40`) — the same number the stone's hand points at. */
-function clockTime(clock: RpgClockTime): string {
-  return `${String(clock.hour).padStart(2, "0")}:${String(clock.minute).padStart(2, "0")}`;
+/** The stored clock as a plain 24h reading (`21:40`) — the same number the stone's hand points at, or `null`
+ *  when the clock carries a day but no time (the stone draws no hand either). */
+function clockTime(clock: RpgClockTime | null): string | null {
+  if (clock === null || clock.hour === null) {
+    return null;
+  }
+  return `${String(clock.hour).padStart(2, "0")}:${String(clock.minute ?? 0).padStart(2, "0")}`;
+}
+
+/** What the STONE is handed — the hour/minute pair, or `null` when there is no time to draw. A clock with a
+ *  day but no hour takes the Waystone's EXISTING time-less treatment rather than a substituted midnight,
+ *  which would paint a night sky over a story that never said it was night. */
+function stoneClockOf(clock: RpgClockTime | null): { readonly hour: number; readonly minute: number } | null {
+  if (clock === null || clock.hour === null) {
+    return null;
+  }
+  return { hour: clock.hour, minute: clock.minute ?? 0 };
 }
 
 /** ONE pinned tracker as a band SATELLITE, on the eligibility rule at the top of this file: a CEILINGED pool
@@ -147,7 +170,7 @@ export function RpgTakeoverHeader({
   freshnessPending,
   veiledCue,
 }: RpgTakeoverHeaderProps): ReactElement {
-  const clock = ambient?.clock ?? null;
+  const stoneClock = stoneClockOf(ambient?.clock ?? null);
   const when = ambient === null ? "" : whenLine(ambient, dateMode);
   const location = ambient?.location ?? "";
   const wallet = primaryWallet(actors, viewerUserId);
@@ -184,8 +207,8 @@ export function RpgTakeoverHeader({
   const stone = (
     <Waystone
       // The stone reads the HOUR continuously (its sky interpolates and its sun/moon walks a real arc);
-      // the `timeOfDayAtHour` label above is the TEXT half of the same datum, never a second source of truth.
-      clock={clock === null ? null : { hour: clock.hour, minute: clock.minute }}
+      // the `clockTimeOfDay` label above is the TEXT half of the same datum, never a second source of truth.
+      clock={stoneClock}
       // Already canonical: `weather.type` IS the Waystone's closed vocabulary (one axis, homed in
       // `@orb/kit/weather`) — there is no binning step left to get wrong.
       weather={ambient?.weather?.type ?? null}

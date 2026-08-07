@@ -346,9 +346,13 @@ function applyPlotPatch(current: RpgSnapshotState["plot"], patch: NonNullable<Up
   return { act, title: patch.title ?? base.title, acts };
 }
 
-/** The clock the scene args resolve to (§2.7 — `timeOfDay`/`day` onto the engine `{day,hour,minute}`). */
+/** The clock the scene args resolve to (§2.7 — `timeOfDay`/`day` onto the engine `{day,hour,minute}`).
+ *
+ *  The base for a story that has stated no `when` yet is `day 1` with NO TIME: `hour: null` rather than the
+ *  old `hour: 0`, which silently asserted MIDNIGHT for a model that named only a day. Naming a `day` and
+ *  naming a `timeOfDay` are separate assertions and each now writes only its own half. */
 function sceneClock(state: RpgSnapshotState, args: UpdateSceneArgs): RpgSnapshotState["clock"] {
-  const base = state.clock ?? { day: 1, hour: 0, minute: 0 };
+  const base = state.clock ?? { day: 1, hour: null, minute: null };
   return {
     day: args.day ?? base.day,
     hour: args.timeOfDay === undefined ? base.hour : TIME_OF_DAY_HOURS[args.timeOfDay],
