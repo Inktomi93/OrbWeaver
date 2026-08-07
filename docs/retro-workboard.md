@@ -85,6 +85,31 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - **⚑ IN FLIGHT (two agents):** lane **NARRATOR-LIVE** (`a04f9f8075274896e`) + a 4-chunk **VERIFIER** (`a5efc87558f12b959`) over the day's un-graduated merges (FANOUT-1's seven dispatch sites incl. the 33-line shipped-asset patch · GATEFORGE's four gates, false-positive hunt included · the RPGFORK + FANOUT-2 fix legs). Nothing else is running. Original NARRATOR-LIVE note: lane **NARRATOR-LIVE** — a dogfood-shaped LIVE drive of group narrator mode (hosted +
   local vLLM arms) answering "does it demonstrably work end-to-end now that the fan-out changed what the
   model sees?" Verdict → `docs/reviews/misc/2026-08-07-narrator-live-drive.md`.
+- **✅ NARRATOR MODE: WORKS on the local arm (verdict `docs/reviews/misc/2026-08-07-narrator-live-drive.md`).**
+  Two live vLLM rounds, Qwen3-VL-8B: the model honored the `<speaker>` nudge 2/2 with exact cast
+  spelling; the wire came back `"Charlotte: … JFC: … Charlotte: …"` with **no `Group:`/`Aria:`/outer
+  name** (FANOUT-1 holds, driven); the renderer made three theme spans with BOTH non-adjacent Charlotte
+  spans resolving one tint and JFC's another (per-character, not per-span-alternation); the trace
+  carries `kind=narrator`. **My brief named the wrong room** — Ashen Spire is `per-speaker × merged`;
+  the pack's only narrator room is "Example — Second Opinion". And the pack's narrator rows do NOT
+  declare their kind (every seeded row traces `standard`) — only driven rows carry it.
+  - [ ] **CO-SPEAKER CARDS NEVER REACH THE MODEL IN NARRATOR MODE** (M, substantive, source-verified)
+    — the system row counts `Charlotte`×7, `JFC`×**0**, `Also present`×**0**, and opens *"write
+    Charlotte's perspective only"*. Mechanism: the narrator round's speaker is the SYNTHETIC group
+    character, which by construction isn't in `castMembers`, so `shapeContextForSpeaker`
+    (`assembly/speaker-card.ts:24-27`) takes its `idx === -1` early return — and that line is the ONLY
+    writer of `coSpeakers` in the server. Corroborated: `AssembleContext.speaker`'s `{kind:"cast"}` arm
+    (doc-commented "narrator, `{{char}}` = the whole cast") has ZERO producers. **The round works IN
+    SPITE OF the assembly.** Most visible on a FRESH narrator room. Evidence: live drive + source.
+  - [ ] **Raw `<speaker>` markup leaks into the chat-list preview** (S) — `span[slot=list-row-subtitle]`,
+    screenshot in the review doc.
+  - [ ] **The `.env` OpenRouter key is INERT** (S, and it blocked the hosted arm) — `credentials.list`
+    is `[]` and `resolveOpenRouter` requires a STORED credential row; there is no env fallback. The
+    owner keeps a key in `.env` for testing and it does nothing. Decide: an env fallback for the
+    hosted testing arm, or document that the key must be entered in the UI once.
+  - **Divergence scope caveat the drive added:** it is the FALLBACK auth path, so a human OIDC owner is
+    fine — but EVERY automated drive (snap, e2e) silently runs local vLLM while the capability surface
+    claims Opus. `.env` documents the D17 single-owner collision with a 2026-08-03 comment: PRE-EXISTING.
 - **⚑ OWNER RULING (2026-08-07) ON THE PRINCIPAL DIVERGENCE: FIX IT PROPERLY, STOP HAND-PATCHING.**
   His words: it "has been doing it for a while, we just manually dealt with it before" — so this is
   PRE-EXISTING, not new from today's reseed, and the manual `setRole` workaround is retired. The want:
