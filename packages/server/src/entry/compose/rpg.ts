@@ -402,6 +402,13 @@ function buildExtractionUserPrompt(transcript: readonly RpgTurnTranscriptMessage
  *  or a force-stamped `true` (stickler F1). */
 interface ExtractCtx {
   readonly conn: ResolvedConnection;
+  /** The chat this round belongs to — threaded onto the provider request PURELY as the wire-capture
+   *  correlation key (`ChatRequest.chatId` → the `captureWire` sink → `/api/_debug/wire/captures?chatId=`).
+   *  A state round that omits it still lands in the ring, but ANONYMOUS: the operator's only filter is the
+   *  chatId, so an unstamped round is invisible exactly when a chat is being debugged (measured — the live
+   *  spill held a `tool_choice:"required"` state round with `chatId: undefined` beside the captured character
+   *  turns). REQUIRED, like `signal`, so a new arm cannot forget to answer the question. */
+  readonly chatId: ChatId;
   readonly ownerConsented: boolean;
   readonly systemPrompt: string;
   readonly userPrompt: string;
@@ -418,6 +425,7 @@ async function extractViaChat(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<st
   const orSkinTierModels = await deps.connection.getOrSkinTierModels();
   const result = await deps.executor.runChatTurn({
     api: "agent-sdk",
+    chatId: ctx.chatId,
     model: ctx.conn.model,
     credential: ctx.conn.credential,
     capability: ctx.conn.capability,
@@ -440,6 +448,11 @@ async function extractViaChat(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<st
  *  PRIMITIVE (owner ruling 2026-07-27: rpg extraction summarizes NOTHING; it rides `structured`, not
  *  `summarize`). Its firewall serves openrouter|vllm, same as before. */
 async function extractViaStructured(deps: RpgComposeDeps, ctx: ExtractCtx): Promise<string> {
+  // NO `chatId` here, and it is not an omission: the `structured` ROLE is chatless by contract (its request
+  // shape has no chatId, and its surfaces stamp the capture `chatId: undefined` — a role serves probes and
+  // batch work that belong to no chat). So this arm's capture is correlatable by backend + time only; the
+  // chatId key rides the two vehicles whose request shape carries one (`runChatTurn` — the tool round and
+  // the agent-sdk degrade above).
   const result = await deps.executor.structured({
     credential: ctx.conn.credential,
     model: ctx.conn.model,
@@ -645,6 +658,7 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     const schema = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs);
     const ctx: ExtractCtx = {
       conn,
+      chatId,
       ownerConsented: turnConnection.ownerConsented,
       systemPrompt: extractionSystem(config, refs, playerDisplayName, reconcile),
       userPrompt: buildExtractionUserPrompt(turnConnection.transcript, baseState, config),
@@ -1011,6 +1025,11 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
     try {
       const result = await deps.executor.runChatTurn({
         api: conn.api,
+        // The wire-capture correlation key (see `ExtractCtx.chatId`). Without it this round — the ONE vehicle
+        // that carries the state tools on its own request — records ANONYMOUSLY, so
+        // `/api/_debug/wire/captures?chatId=` shows the character turns and nothing of the round that actually
+        // wrote the state. Measured on the live spill before this landed.
+        chatId,
         model: conn.model,
         credential: conn.credential,
         capability: conn.capability,
@@ -1204,6 +1223,9 @@ async function resyncViaToolRound(
   try {
     const result = await deps.executor.runChatTurn({
       api,
+      // Same correlation key as the in-turn round (see `ExtractCtx.chatId`) — a host-clicked resync is exactly
+      // the moment an operator is reading the wire ring for that chat.
+      chatId,
       model: conn.model,
       credential: conn.credential,
       capability: conn.capability,
@@ -1294,6 +1316,7 @@ async function resyncViaStructured(
   const { chatId, conn, baseState, refs, playerDisplayName, config, userPrompt } = args;
   const ctx: ExtractCtx = {
     conn,
+    chatId,
     // The host funds + authorizes this call: consent is the HOST's own (the consenting human initiated it),
     // never a force-stamped inheritance from an unrelated turn. A max-pro-sub firewall still applies — a host
     // whose own consent belt refuses a metered sub simply refuses the resync.
@@ -1434,6 +1457,7 @@ function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopula
     const refs = populateRefs(targetRef);
     const ctx: ExtractCtx = {
       conn,
+      chatId,
       // The host funds + authorizes this call (the consenting human clicked the button) — the resync's posture.
       ownerConsented: true,
       systemPrompt: `${POPULATE_SYSTEM_HEADER}\n\n${composePopulateTeaching({ config: game?.config ?? rpgGameConfigSchema.parse({}), refs })}`,
