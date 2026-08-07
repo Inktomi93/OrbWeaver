@@ -220,6 +220,32 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   a report for the owner's design pass. Adjacent standing items it must census but NOT build:
   DRAFT-TRUST (item 6, architecture call) · unsent-draft reload persistence (item 14, design fork).
   Evidence: owner sighting, live.
+- **⚑ FRESH-LENS RESULTS (the new graduation law's first pass, 2026-08-07):**
+  **ABORT-LEAK: CONFIRMED** (defect reproduced end-to-end pre-fix against a real wedged server;
+  all 8 roles proven routed; dispose leak-free over 1000 calls; no real transient misclassified —
+  node's genuine timeout is `TimeoutError` via non-abort paths, all still retryable). Honest caveat:
+  today's only live abort reason was already safe by luck — the fix is defense-in-depth, correctly.
+  ROW GRADUATED. **TEMPLATE-CENSUS: REFUTED** — the framing drill-in trims on EVERY keystroke
+  (controlled textarea + per-change `.trim()`): spaces/newlines swallowed while typing; the CT
+  missed it because `fill()` is one event. + 4 secondaries (unguarded `{text:""}` resolves to empty
+  wire bytes · no `{{note}}` warn on the new surface · a vacuous contract-test arm whose comment
+  claims the other file's enforcement · stale injections.ts header). ALL routed to the warm lane
+  (fix leg live); storage/wire half of the merge HELD under everything thrown at it. Verifier
+  re-check owed after the fix leg. **Pending fresh lens:** HAND-EDIT-VS-FLUSH (merged, check
+  backgrounded, verifier next) · WIRE-SINK + SMALLS-BATCH (queued).
+- **✅ HAND-EDIT-VS-FLUSH MERGED (`5d9d5d10a`; consolidated check backgrounded; verifier owed).**
+  Both victims dead: the in-place door now demands the ladder's TURN rung (arm B), and `writeFlush`
+  folds its state into a shadowing hand row via `writeHandState(derive)` — merge inside the head
+  resolve, auto-locks the arbiter, second-edit race closed by construction (arm A). 6 new pins incl.
+  same-field→human-wins; red-first 3/3 through `getTrackerView`. **Owner-sighting verdict:**
+  pre-first-turn STATE editing was never broken (now pinned); the sighting was arm A mid-generation,
+  OR the F-C greeting-TEXT freeze (canon-identity's) if what was lost was message text.
+  **Deferred follow-up boarded:** `resolveSnapshotForTurn`'s turn arm is a single-slot probe, not a
+  walk — safe for the hand door now, degrade-to-fallback remains for other callers.
+- [ ] **DIAGNOSTICS-DISPATCH UNFLATTENED** (S, from the ABORT-LEAK verifier) — `providers/diagnostics.ts:47-74`
+  bypasses `runRole` (bare `requireRoleImpl`); catalog/credits callers DO pass signals, and the OR
+  SDK's default retry fires on `name==="TimeoutError"`. Unreachable-by-abort today; one flatten call
+  closes it. Evidence: verifier probe, BYPASS row demonstrated.
 - **NEW ROWS from the two lanes + side-eye (each independently landable):**
   - [ ] **STRUCTURED-ROLE CORRELATION FORK** (owner/design) — the `structured` role is chatless by
     contract (`RoleRequestCommon` has no chatId; `WireCapture.chatId` documents "absent on a chatless
