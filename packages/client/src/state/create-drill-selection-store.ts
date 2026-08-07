@@ -7,6 +7,7 @@
 // a `state/*-selection-store.ts` calling `createGatedStore(` directly (instead of this mint) is RED.
 
 import { createGatedStore } from "./create-gated-store.ts";
+import type { SectionSelection } from "./section-registry.ts";
 import { setOpenOverlayPanel } from "./shell-store.ts";
 
 interface DrillSelectionState<P extends string, S extends string> {
@@ -27,6 +28,11 @@ export interface PrimaryDrillStore<P extends string> {
   readonly clear: () => void;
   /** `select(id)` AND close any open LIST slide-over (viewport-unaware; a no-op when the LIST is docked). */
   readonly selectFromList: (id: P) => void;
+  /** The section-registry SEAM over this store (`SectionSelection`) — how the SHELL asks "is anything open
+   *  here?" for the mobile ONE-SHELL rule, and how its back affordance clears it. Published from the mint so
+   *  every drill-backed section gets it for free; a section whose `clear` carries extra intent (character's
+   *  view-transition + picker-focus reset) spreads this and overrides that one field. */
+  readonly selection: SectionSelection;
 }
 
 /** A drill store with a secondary sub-drill (facet/section/entry) + the CONTEXT `dismissSecondary` arm. */
@@ -62,6 +68,11 @@ export function createDrillSelectionStore<P extends string, S extends string>(
     dismissSecondary: (): void => {
       useSelectionStore.setState({ secondaryId: null }, false, `${name}/clear-secondary`);
       setOpenOverlayPanel(null);
+    },
+    selection: {
+      subscribe: (onStoreChange: () => void): (() => void) => useSelectionStore.subscribe(onStoreChange),
+      hasSelection: (): boolean => useSelectionStore.getState().primaryId !== null,
+      clear: (): void => useSelectionStore.setState({ primaryId: null, secondaryId: null }, false, `${name}/clear`),
     },
   };
 }

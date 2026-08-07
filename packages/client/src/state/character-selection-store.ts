@@ -7,6 +7,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { withViewTransition } from "#lib";
 import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
+import type { SectionSelection } from "./section-registry.ts";
 
 // The facet id is a card-content-local string (not a `@orb/kit/ids` entity id).
 const characterSelection = createDrillSelectionStore<CharacterId, string>("character-selection", { secondary: true });
@@ -54,3 +55,8 @@ export const clearCharacterFacet = characterSelection.clearSecondary;
 export const useSelectedCharacterId = characterSelection.usePrimaryId;
 /** Reactive: the currently-drilled facet id (`null` = the facet list is showing). A primitive selector. */
 export const useSelectedCharacterFacetId = characterSelection.useSecondaryId;
+/** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule.
+ *  `clear` is THIS module's, not the factory's: clearing from the shell's back affordance must fire the same
+ *  view-transition + picker-focus reset a clear from inside the section does, or the two doors out of a
+ *  character would behave differently. */
+export const characterSectionSelection: SectionSelection = { ...characterSelection.selection, clear: clearCharacterSelection };

@@ -23,6 +23,7 @@ import {
   useOpenModal,
   useOpenOverlayPanel,
   usePanelOverride,
+  useSectionListIsScreen,
   useSectionRegistry,
 } from "#state";
 import { useIsMobileViewport, useIsShellNarrowViewport } from "./use-is-mobile-viewport.ts";
@@ -49,6 +50,12 @@ export interface ShellLayout {
   readonly openModalId: ModalSlotId | null;
   /** True when either panel is floating in overlay mode — the dismiss scrim shows behind it. */
   readonly scrimVisible: boolean;
+  /** Is the CONTENT column unreachable right now — a scrim'd sheet is over it, OR (the ONE-SHELL rule) the
+   *  mobile LIST is the screen: `docked`, but on a phone that resolves to a fixed 100dvw pane painted OVER
+   *  this column rather than a track beside it. The roster carries no scrim (it is not a float over
+   *  something, it IS the screen), yet the content behind it must still go `inert`, so the keyboard agrees
+   *  with the pointer (item 22). ONE flag, so the shell renders the fact instead of re-deriving it. */
+  readonly contentInert: boolean;
   /** In an overlay regime (mobile OR narrow-desktop — neither can resolve a dock): flips `openOverlayPanel`
    *  ephemeral open/close. In the wide regime: flips the persisted override docked ⇄ collapsed. */
   readonly togglePanel: (panel: PanelName) => void;
@@ -60,6 +67,11 @@ export interface ShellLayout {
    *  the same one flip in every viewport (at ≤64rem this is what replaced a toggle whose label never
    *  changed and whose second click did nothing at all). */
   readonly toggleFocus: () => void;
+  /** THE MOBILE ONE-SHELL RULE (owner-ruled 2026-08-03), second half: on a phone, with a member OPEN in a
+   *  list-bearing section, CONTENT is the screen and this is the way BACK to the roster — clearing the
+   *  section's own selection through its declared seam. `null` in every other state (desktop, no list, or
+   *  nothing selected: the roster is already the screen and there is nowhere to go back to). */
+  readonly backToList: (() => void) | null;
 }
 
 export function useShellLayout(): ShellLayout {
@@ -97,13 +109,24 @@ export function useShellLayout(): ShellLayout {
   // a visible control whose click produced nothing. The wide regime is untouched.
   const isOverlayRegime = (): boolean => isMobile || isNarrow;
 
-  const listMode: PanelMode = listAvailable ? resolvePanelMode("list", listDefault, { isFocus: focusMode, isMobile, isNarrow, openOverlayPanel }) : "collapsed";
+  // The mobile ONE-SHELL rule's input, read through the section's OWN declared seam (`SectionSelection`) —
+  // one `useSyncExternalStore` in `#state`, so the hook identity never varies with the active section and
+  // the answer is synchronous on the first render (an effect-published mirror would flash the wrong screen
+  // on every section switch).
+  // Called UNCONDITIONALLY (a `listAvailable &&` short-circuit here would be a conditional hook).
+  const nothingSelected = useSectionListIsScreen(activeSection);
+  const listIsScreen = listAvailable && nothingSelected;
+
+  const listMode: PanelMode = listAvailable
+    ? resolvePanelMode("list", listDefault, { isFocus: focusMode, isMobile, isNarrow, openOverlayPanel, listIsScreen })
+    : "collapsed";
   const contextMode: PanelMode = contextAvailable
     ? resolvePanelMode("context", contextDefault, {
         isFocus: focusMode,
         isMobile,
         isNarrow,
         openOverlayPanel,
+        listIsScreen,
       })
     : "collapsed";
 
@@ -111,10 +134,21 @@ export function useShellLayout(): ShellLayout {
   const activeSectionLabel = activeDef.rail.label;
   const anyPanelAvailable = listAvailable || contextAvailable;
   const scrimVisible = listMode === "overlay" || contextMode === "overlay";
+  const contentInert = scrimVisible || (isMobile && listMode === "docked");
+
+  // Closing a panel in an overlay regime RELEASES the request (`null`) unless it is the LIST, which is the
+  // one panel with a regime DEFAULT to suppress: on mobile with nothing selected the roster is the screen,
+  // and "hide the list" has to mean it (that toggle is how a phone reaches a section's own no-selection
+  // CONTENT — the corpus/analytics dashboards). Dismissing the CONTEXT sheet must NOT take the roster
+  // behind it down with it, hence the asymmetry (see `OverlayPanelRequest`).
+  const closeRequestFor = (panel: PanelName): "none" | null => (panel === "list" ? "none" : null);
 
   const togglePanel = (panel: PanelName): void => {
     if (isOverlayRegime()) {
-      setOpenOverlayPanel(openOverlayPanel === panel ? null : panel);
+      // Reads the RESOLVED mode, not the raw request: on mobile the LIST can be showing as the screen with
+      // no request at all, and comparing the raw field would make that toggle a dead control.
+      const showing = (panel === "list" ? listMode : contextMode) !== "collapsed";
+      setOpenOverlayPanel(showing ? closeRequestFor(panel) : panel);
       return;
     }
     const current = panel === "list" ? listMode : contextMode;
@@ -124,7 +158,7 @@ export function useShellLayout(): ShellLayout {
   const collapsePanel = (panel: PanelName): void => {
     if (isOverlayRegime()) {
       if (openOverlayPanel === panel) {
-        setOpenOverlayPanel(null);
+        setOpenOverlayPanel(closeRequestFor(panel));
       }
       return;
     }
@@ -138,7 +172,20 @@ export function useShellLayout(): ShellLayout {
     setFocusMode(!focusMode);
   };
 
+  // The way BACK out of a pushed detail (mobile, list-bearing, something open): clear the section's own
+  // selection through the seam it declared, and RELEASE the overlay request so the roster is the screen
+  // again — the exact state a fresh landing has, with no second "which screen am I on" flag anywhere.
+  const selection = activeDef.selection;
+  const backToList =
+    isMobile && listAvailable && selection !== undefined && !nothingSelected
+      ? (): void => {
+          selection.clear();
+          setOpenOverlayPanel(null);
+        }
+      : null;
+
   return {
+    backToList,
     activeSection,
     activeSectionLabel,
     listMode,
@@ -149,6 +196,7 @@ export function useShellLayout(): ShellLayout {
     focusMode,
     openModalId,
     scrimVisible,
+    contentInert,
     togglePanel,
     collapsePanel,
     toggleFocus,

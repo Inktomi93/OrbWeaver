@@ -19,3 +19,5 @@ export const selectDocumentFromList = databankSelection.selectFromList;
 export const clearDocumentSelection = databankSelection.clear;
 /** Reactive: the currently-open document id (`null` = none). A primitive selector (no fresh object). */
 export const useSelectedDocumentId = databankSelection.usePrimaryId;
+/** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule. */
+export const databankSectionSelection = databankSelection.selection;

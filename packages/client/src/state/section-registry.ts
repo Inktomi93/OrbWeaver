@@ -8,7 +8,8 @@
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContextDefinition } from "#lib";
-import type { PanelMode, PanelName, SectionId } from "./shell-store.ts";
+import type { PanelMode, PanelName } from "./panel-resolve.ts";
+import type { SectionId } from "./shell-store.ts";
 
 // The rail's section groups, in divider order — the `--spacing-section` grouping: primary (everyday
 // collections) · authoring (create/refine) · insight (analyze). The ONE home for the group axis (state
@@ -70,11 +71,52 @@ export interface SectionPlaceholderCopy {
   readonly description: string;
 }
 
-/** A rail section as ONE definition. `context` is the NON-generic `ContextDefinition` (§6b) — a `tabs`
- *  host mints its own projection via `defineContextTabs<S>`, so `S` never crosses this seam. A section
- *  with neither a real `content` pane nor the DECLARED-PLANNED arm is the refinery bug — structurally
- *  impossible here. */
-export interface SectionDefinition {
+/** A section's LIST→CONTENT selection, as THE SHELL reads it — the input to the mobile ONE-SHELL rule
+ *  (owner-ruled 2026-08-03: "on mobile a list-bearing section with NO selection shows its LIST as the
+ *  screen; selecting pushes to CONTENT with a back row"). Before it, every section resolved its LIST to a
+ *  closed sheet on a phone and landed the user on a welcome card between them and the rows they came for.
+ *
+ *  Declared as a subscribe/snapshot PAIR, not a hook, on purpose: the shell reads the ACTIVE section's seam
+ *  inside `useShellLayout`, which resolves the panel modes for the whole frame and therefore sits ABOVE
+ *  every keyed boundary. One `useSyncExternalStore(selection.subscribe, selection.hasSelection)` call keeps
+ *  the HOOK IDENTITY constant while its arguments vary per section; a per-section hook would need a
+ *  `key`ed remount (the `SectionContextHost` idiom) that a layout resolve cannot have, or an effect-published
+ *  mirror — which lands one commit late and flashes the wrong screen on every section switch.
+ *
+ *  Every section that renders a `list` already owns exactly this pair (a `createDrillSelectionStore` /
+ *  `createKindedSelectionStore` mint, or `active-chat-store`'s landing handle) — the seam publishes it,
+ *  it does not invent a second selection home. */
+export interface SectionSelection {
+  /** Subscribe to the section's own selection store; returns the unsubscribe (zustand's own contract). */
+  readonly subscribe: (onStoreChange: () => void) => () => void;
+  /** Is a member open right now (CONTENT is showing it), as opposed to the section's welcome/overview? */
+  readonly hasSelection: () => boolean;
+  /** Clear it — what the shell's mobile BACK affordance fires: CONTENT pops, the LIST is the screen again. */
+  readonly clear: () => void;
+}
+
+/** The LIST-slot pair. `list` and `selection` are ONE decision — the shell cannot apply the mobile
+ *  list-as-screen rule to a list it cannot ask "is anything open?" — so tsc carries it: a `list` without a
+ *  `selection` does not type-check, and a section with no list may declare neither. That is what makes the
+ *  rule un-opt-out-able (a section must not be able to sit out the shell rule silently); `listHeader` rides
+ *  the same arm because a band with no list is a band over nothing. */
+interface SectionWithList {
+  readonly list: () => ReactNode;
+  /** Content for the LIST panel's `.shell-panel-header` chrome band (north-star §4 N2, D66 A1) — the
+   *  section title/count + the panel's ONE primary action. Definition-owned so the domain-agnostic shell
+   *  never names a feature; absent ⇒ the band renders empty-but-present (the P1 baseline horizon). */
+  readonly listHeader?: () => ReactNode;
+  readonly selection: SectionSelection;
+}
+interface SectionWithoutList {
+  readonly list?: never;
+  readonly listHeader?: never;
+  readonly selection?: never;
+}
+
+/** Everything a rail section declares that is INDEPENDENT of whether it has a LIST pane; the list slots
+ *  ride the `SectionWithList | SectionWithoutList` arm the exported alias intersects in. */
+interface SectionDefinitionBase {
   readonly id: SectionId;
   readonly rail: RailEntry;
   /** Which panels this section HAS at all (H3 / arm L-b). Absent ⇒ both, as today. */
@@ -82,14 +124,15 @@ export interface SectionDefinition {
   /** The boot-default panel modes; the persisted per-panel override wins thereafter. */
   readonly panelDefaults: Record<PanelName, PanelMode>;
   readonly placeholder: SectionPlaceholderCopy;
-  readonly list?: () => ReactNode;
-  /** Content for the LIST panel's `.shell-panel-header` chrome band (north-star §4 N2, D66 A1) — the
-   *  section title/count + the panel's ONE primary action. Definition-owned so the domain-agnostic shell
-   *  never names a feature; absent ⇒ the band renders empty-but-present (the P1 baseline horizon). */
-  readonly listHeader?: () => ReactNode;
   /** REQUIRED — a real content pane, or the DECLARED-PLANNED arm (`{ planned: "<reason>" }`). */
   readonly content: (() => ReactNode) | { readonly planned: string };
   readonly header?: () => ReactNode;
   /** REQUIRED — `{ kind: "none" }` is an explicit decision, never an absence. */
   readonly context: ContextDefinition;
 }
+
+/** A rail section as ONE definition. `context` is the NON-generic `ContextDefinition` (§6b) — a `tabs`
+ *  host mints its own projection via `defineContextTabs<S>`, so `S` never crosses this seam. A section
+ *  with neither a real `content` pane nor the DECLARED-PLANNED arm is the refinery bug — structurally
+ *  impossible here; so is a `list` with no `selection` (the mobile ONE-SHELL rule, see `SectionSelection`). */
+export type SectionDefinition = SectionDefinitionBase & (SectionWithList | SectionWithoutList);

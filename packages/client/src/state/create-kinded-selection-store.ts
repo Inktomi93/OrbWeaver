@@ -12,6 +12,7 @@
 // `state/*-selection-store.ts` calls THIS mint and never the raw door.
 
 import { createGatedStore } from "./create-gated-store.ts";
+import type { SectionSelection } from "./section-registry.ts";
 import { setOpenOverlayPanel } from "./shell-store.ts";
 
 /** A MIXED-KIND selection: which collection the member belongs to, and which member (review F-7). Both
@@ -32,6 +33,9 @@ export interface KindedDrillStore {
   readonly clear: () => void;
   /** `select` AND close any open LIST slide-over (viewport-unaware; a no-op when the LIST is docked). */
   readonly selectFromList: (kind: string, memberId: string) => void;
+  /** The section-registry SEAM over this store (`SectionSelection`) — the drill-store twin: how the SHELL
+   *  asks "is a member open here?" for the mobile ONE-SHELL rule, and how its back affordance clears it. */
+  readonly selection: SectionSelection;
 }
 
 interface KindedSelectionState {
@@ -49,6 +53,11 @@ export function createKindedSelectionStore(name: string): KindedDrillStore {
     selectFromList: (kind: string, memberId: string): void => {
       write(kind, memberId);
       setOpenOverlayPanel(null);
+    },
+    selection: {
+      subscribe: (onStoreChange: () => void): (() => void) => useSelectionStore.subscribe(onStoreChange),
+      hasSelection: (): boolean => useSelectionStore.getState().selection !== null,
+      clear: (): void => useSelectionStore.setState({ selection: null }, false, `${name}/clear`),
     },
   };
 }
