@@ -18,22 +18,29 @@
 // is `undefined` and the flush is a no-op (a byte-identical non-writing turn). Journal entries stamp the
 // committed `{variantId, sourceMessageId}` (§2.5 — abort-atomic, lineage-keyed).
 //
+// THE WRITE BASE IS READ AT FLUSH START AND THE ROUND TAKES 0.8-2.9s — so a HAND EDIT can land inside the
+// flight, and by D124 the hand row it writes OUTRANKS this slot's turn row (the human edited on top of that
+// beat). Left alone that shadowed the turn's writes on every plane, including ones the human never touched
+// (HAND-EDIT-VS-FLUSH, 2026-08-07). `writeFlush` therefore FOLDS its state into that hand row, arbitrated by
+// the auto-locks the edit stamped — the human keeps what they claimed, the turn keeps the rest. Neither writer
+// can erase the other any more; see `foldIntoShadowingHandRow` below and `snapshot-edit.ts`.
+//
 // CANCELLATION (RPG-SIGNAL, 2026-08-03): the round is cancelable through `turn.signal`, minted by the flush
 // barrier (see `../flush-barrier.ts` for why the character turn's own signal cannot serve). THE INVARIANT: a
 // CANCELLED ROUND IS BYTE-IDENTICAL TO A NON-WRITING TURN — it refuses to write and discards its staging, and
 // it never rolls back a write that already landed. `flushTurn` below states the reasoning.
 
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
-import type { RpgExtractionMode, RpgFoldFallbackReason } from "@orb/contracts/rpg";
+import type { RpgExtractionMode, RpgFoldFallbackReason, RpgSnapshotState } from "@orb/contracts/rpg";
 import { recordToolCalls, rpgJournalTypeSchema } from "@orb/contracts/rpg";
-import type { ChatTurnId, MessageId, MessageVariantId } from "@orb/kit/ids";
+import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "../../chat/index.ts";
 import type { StagedTurnFlush } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow, RpgRunToolRound } from "../contract/service.ts";
 import { insertJournalEntry } from "../persistence/journal.ts";
-import { writeStagedSnapshot } from "../persistence/snapshots.ts";
+import { findMessageSeq, writeStagedSnapshot } from "../persistence/snapshots.ts";
 import { recordTurnToolCalls } from "../persistence/turn-tool-calls.ts";
-import { snapshotStateBeforeSlot } from "../snapshot-edit.ts";
+import { foldTurnWriteIntoHandHead, snapshotStateBeforeSlot } from "../snapshot-edit.ts";
 import { deriveTrackersReadOnly } from "../substrate/readonly-axis.ts";
 import { isReconcileBeat } from "./reconcile-cadence.ts";
 
@@ -193,12 +200,59 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
     ),
   );
 
+  // HAND-EDIT-VS-FLUSH: a hand row may now OUTRANK the row we just wrote (the host edited the panel during
+  // the round's 0.8-2.9s flight). Fold this turn's state into it, locks-honored, BEFORE the emits — so the
+  // event names the row the panel will actually resolve. A durable write, hence its place here.
+  const headId = await foldIntoShadowingHandRow(ctx, game, turn, { patches: flush.patches, base: flush.base, snapshotId });
+
   // The tool/extraction flush wrote a clone-forward snapshot → the whole panel re-resolves (§4.9). A journal
   // flush additionally scopes the paged Journal. Emit AFTER the durable writes commit.
-  ctx.emitBus({ type: "snapshotPatched", chatId: game.chatId, snapshotId });
+  ctx.emitBus({ type: "snapshotPatched", chatId: game.chatId, snapshotId: headId });
   if (flush.journal.length > 0) {
     ctx.emitBus({ type: "journalChanged", chatId: game.chatId });
   }
+}
+
+/** Fold this flush's state into a HAND ROW that shadows it, and return the snapshot id that is now HEAD (the
+ *  fold's row when one landed, else the turn row's — the id the `snapshotPatched` event must carry, or the
+ *  panel would re-resolve against a row it cannot see).
+ *
+ *  WHY a flush must do this at all: by D124 a hand row stamped at this slot outranks this slot's turn row — the
+ *  human edited on top of that beat, and that ranking is CORRECT. But the hand row was cloned from a head that
+ *  predates this flush's delta, so left alone it shadows the turn's writes on every plane, including the ones
+ *  the human never touched. The fold is the merge this domain already has, arbitrated by the auto-locks the
+ *  hand edit stamped (`snapshot-edit.ts::foldTurnWriteIntoHandHead`).
+ *
+ *  A REFUSED fold is LOGGED, never silent — the same posture as the write-boundary drop above: the turn's state
+ *  stays shadowed (the pre-fix outcome), and the reason says so. */
+async function foldIntoShadowingHandRow(
+  ctx: RpgContext,
+  game: RpgGameRow,
+  turn: CompletedTurn,
+  /** What this flush just wrote — the PATCHES it composed and the row it landed on (grouped: the two travel
+   *  together and are meaningless apart). The patches, never the composed state: see the fold's own doc. */
+  written: { readonly patches: readonly Record<string, unknown>[]; readonly base: RpgSnapshotState; readonly snapshotId: RpgSnapshotId },
+): Promise<RpgSnapshotId> {
+  const seq = await findMessageSeq(ctx.db, turn.messageId);
+  if (seq === undefined) {
+    return written.snapshotId; // this turn's slot vanished (a racing delete) — there is no position to fold at
+  }
+  const outcome = await foldTurnWriteIntoHandHead(ctx, game, written, seq);
+  if (outcome.kind === "refused" || outcome.kind === "shadowed") {
+    // BOTH losing arms are LOUD. The `shadowed` arm is the one the verifier caught staying silent: the turn's
+    // writes were erased and nothing in the trail said so, which is the exact blind spot `onFlushDropped`
+    // exists to close (a round that produced applicable output and vanished). `refused` is the merge that was
+    // attempted and rejected by the contract belt. The reason distinguishes them at the log.
+    ctx.onFlushDropped({
+      chatId: game.chatId,
+      gameId: game.id,
+      variantId: turn.variantId,
+      reason: `hand-edit reconciliation ${outcome.kind}: ${outcome.reason}`,
+    });
+  }
+  // EVERY arm answers with the row that is actually head — including the two losing ones, where it is NOT the
+  // row this flush wrote. Emitting our own id there would point the panel at a row it cannot resolve.
+  return outcome.headId;
 }
 
 /** The turn-completion flush (§2.4-2.5). A `cheap` game runs its DEDICATED post-commit tool round

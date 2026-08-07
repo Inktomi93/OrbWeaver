@@ -1,6 +1,6 @@
 // The Prose settings SECTION (PROSE-1 S2) — the edit surface for every model-facing prose slot whose
 // override lives in `UserSettings.prose`: the chat side-generation prompts (arbiter · compaction · memory
-// digest/consolidation · the anchor-identity lead-in), the group/injection framing, the `/autobg` quiet
+// digest/consolidation · the anchor-identity lead-in), the group-round framing, the `/autobg` quiet
 // pick, discovery's three library-semantics prompts, and the imagery negative base. Registering `prose` in
 // `USER_SETTINGS_SECTIONS` and landing this surface is ONE commit by law (D107 arm B — the section tuple is
 // the editor's door, and a door with no writer is a dead switch).
@@ -17,8 +17,8 @@
 // against an older slot version offers "Use the new default" (clears) or "Keep mine" (re-stamps
 // `baseVersion` through a ONE-key patch — any ordinary edit re-stamps too, so this is the no-edit path).
 
-import type { ProseOverride, ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
-import { PROSE_SLOTS, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
+import type { ProseFooterState, ProseOverride, ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
+import { PROSE_SLOTS, proseFooterState, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
@@ -30,8 +30,7 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import type { ProseFooterState } from "../lib/prose-settings-model.ts";
-import { PROSE_SETTINGS_SUBCATEGORY, projectProseForm, proseFieldName, proseFooterState, proseSlotPatch, toProsePatch } from "../lib/prose-settings-model.ts";
+import { PROSE_SETTINGS_SUBCATEGORY, projectProseForm, proseFieldName, proseSlotPatch, toProsePatch } from "../lib/prose-settings-model.ts";
 
 /** The form bag + the patch shape as LOCAL aliases off the model's own return types (D120: an exported
  *  patch/form alias is `no-inline-types` RED — the shape has ONE home, the function that builds it). */
@@ -125,8 +124,9 @@ function ProseBody({ sectionId, session, stored, onKeepMine }: ProseBodyProps): 
     >
       <Stack gap="block">
         <Text voice="gloss">
-          The wording the app sends to a model on your behalf — summarizers, the memory writer, the group turn director, and the framing around injected notes.
-          Leave a field blank to use the built-in wording (shown as the placeholder). In a shared room, the host's wording is the one that runs.
+          The wording the app sends to a model on your behalf — summarizers, the memory writer, the group turn director, and the group-round nudges. Leave a
+          field blank to use the built-in wording (shown as the placeholder). In a shared room, the host's wording is the one that runs. The framings that wrap
+          a turn's own prompt — the note frames and the continuation cue — live with your preset's templates, not here.
         </Text>
         <Grid cols="auto" gap="field">
           {USER_PROSE_SLOT_IDS.map((id) => (

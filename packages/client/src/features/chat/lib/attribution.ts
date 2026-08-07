@@ -11,8 +11,8 @@
 // historical portrait to bare initials. The live participant still WINS when present (its avatarHash can
 // carry a per-chat override the character-level producer doesn't).
 
-import type { ParticipantView } from "@orb/contracts/chat";
-import { soleTrueSoloCharacter } from "@orb/contracts/chat";
+import type { CarriedAppearanceCast, ParticipantView } from "@orb/contracts/chat";
+import { resolveCarriedTheme } from "@orb/contracts/chat";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -183,15 +183,14 @@ function isMultiCharacterRoom(participants: ReadonlyMap<CharacterId, Participant
   return false;
 }
 
-/** In a true-solo room (exactly one human and one character, no other seat) the character's authored
+/** The room-theme takeover, typed for `<ThemeScope>`: in a true-solo room the character's authored
  *  themeOverride takes over the chat-root chrome; any other composition falls back to the viewer's own
- *  theme. The composition is NOT re-spelled here: `soleTrueSoloCharacter` (contracts/chat) is the ONE
- *  home its header already claims to be, shared with the card-carried arm of the background takeover.
- *  What rides is the CARD-EMBEDDABLE subset only — a card supplies the room's look, never the viewer's
- *  ergonomics (TD §3). */
-export function resolveRoomTheme(participants: readonly ParticipantView[] | undefined): ThemeScopeTokens | undefined {
-  const override = soleTrueSoloCharacter(participants)?.themeOverride;
-  return override === null || override === undefined ? undefined : cardEmbeddableSubset(override);
+ *  theme. Rule and composition are NOT re-spelled here — `resolveCarriedTheme` over the phase-independent
+ *  {@link CarriedAppearanceCast} (contracts/chat) is the ONE home, shared with the card-carried arm of the
+ *  background takeover, which is what lets a pre-send DRAFT wear its founding card's theme instead of
+ *  waiting for a roster to exist. This function is only the `@orb/ui` type adapter. */
+export function resolveRoomTheme(cast: CarriedAppearanceCast | undefined): ThemeScopeTokens | undefined {
+  return cast === undefined ? undefined : resolveCarriedTheme(cast);
 }
 
 /** THE ONE per-character tint resolution — the authored `themeOverride` when it carries anything, else the

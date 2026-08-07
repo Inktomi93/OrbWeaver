@@ -328,6 +328,11 @@ test("ActivePresetConfig mirrors PromptConfig (the FE-layer round-trip read)", (
       | "formatStrings"
       | "guidedActions"
       | "postProcess"
+      // The turn-wire framings (2026-08-07). Deliberately unmirrored: `ActivePresetConfig` is the SPEC-side
+      // read of "what will this chat assemble against", and no e2e spec drives a framing — the framings'
+      // proof is the CT (authoring) plus the assembly suites (delivery). A spec that starts asserting one
+      // adds the key here, exactly like every other row in this list.
+      | "prose"
       | "reasoningParse"
       | "regexScripts"
       | "userMacros"

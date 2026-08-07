@@ -47,6 +47,9 @@ function configOf(sections: PromptSection[]): PromptConfig {
     params: {},
     variables: [],
     userMacros: [],
+    // No framing overrides: every turn-wire framing resolves to its shipped bytes, which is what these
+    // assembly assertions have always been written against.
+    prose: {},
   };
 }
 

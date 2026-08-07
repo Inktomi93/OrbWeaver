@@ -169,6 +169,8 @@ export {
 export { CHAT_PROSE_SLOTS } from "./prose.ts";
 export type {
   AcceptInviteInput,
+  CarriedAppearanceCast,
+  CarriedAppearanceMember,
   CarriedBackground,
   CharacterMemberSpec,
   CreateInviteInput,
@@ -189,13 +191,13 @@ export type {
 } from "./roster.ts";
 export {
   acceptInviteSchema,
+  carriedCastFromParticipants,
   characterMemberSpecSchema,
   createInviteSchema,
   handoffOfferSchema,
   historyFloor,
   INVITE_STATUSES,
   inviteStatusSchema,
-  isSingleHumanRoom,
   JOIN_HISTORY_VISIBILITIES,
   joinHistoryVisibilitySchema,
   NO_HANDOFF_OFFER,
@@ -203,10 +205,11 @@ export {
   previewInviteSchema,
   redeemInviteSchema,
   resolveCarriedBackground,
+  resolveCarriedBackgroundForCast,
+  resolveCarriedTheme,
   resolveRenderPolicy,
   rosterMemberSpecSchema,
   seatKnobsSchema,
-  soleTrueSoloCharacter,
   TALKATIVENESS_DEFAULT,
   talkativenessSchema,
 } from "./roster.ts";

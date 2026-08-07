@@ -5,18 +5,18 @@
 // continue-on-empty uses a separate query on the same listMessages key MessageListSurface already
 // suspends on internally — one shared cache entry, not a second round-trip.
 
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement, ReactNode } from "react";
 import { Fragment, useRef, useState } from "react";
 import type { ChatBusDeps } from "#data";
-import { useGatedQuery, useTRPC } from "#data";
+import { useCarriedAppearanceCast, useGatedQuery, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { ActiveChatHandle, ChatHandle } from "#state";
-import { committedChat, isCommitted, migrateComposerDraft } from "#state";
+import { committedChat, isCommitted, migrateComposerDraft, resolveDraftCharacterIds, useDraftConfig } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
 import { ChatCastBar } from "../components/chat-cast-bar.tsx";
 import { ChoiceSendProvider } from "../components/choice-send-provider.tsx";
@@ -38,6 +38,10 @@ export interface ChatRoomSurfaceProps {
   readonly surfaceContributors: ContributorRegistry<ChatSurfaceContribution>;
   readonly toolRenderers: ContributorRegistry<ToolRenderer>;
 }
+
+/** The frozen "not a draft" cast ref — a stable identity so a committed room's appearance read never
+ *  re-keys on an array literal. */
+const NO_DRAFT_CAST: readonly CharacterId[] = Object.freeze([]);
 
 /** This room's stable composer-draft scope key — a committed chat's id, else the draft key (landing never
  *  mounts a room, so its "" branch is unreachable). */
@@ -93,10 +97,17 @@ export function ChatRoomSurface({
   };
 
   // Sole-character chrome takeover: in a true-solo room, that character's theme override wins at the
-  // chat root; multi-human/group keeps the viewer's own theme (undefined here).
+  // chat root; multi-human/group keeps the viewer's own theme (undefined here). Resolved from the
+  // phase-independent CAST, so a DRAFT wears its founding card's theme from the moment it is picked —
+  // it used to be gated on the committed roster, and the room re-skinned itself at the first send
+  // (owner dogfood 2026-08-06). The draft cast is the SAME union the commit will write and the greeting
+  // thread already previews.
   const roomChatId = isCommitted(handle) ? handle.id : null;
   const { data: roomChat } = useGatedQuery(roomChatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
-  const roomTheme = resolveRoomTheme(roomChat?.participants);
+  const draftConfig = useDraftConfig(handle.kind === "draft" ? handle.draftKey : "");
+  const draftCharacterIds = handle.kind === "draft" ? resolveDraftCharacterIds(draftSeed?.characterIds, draftConfig.addedCharacterIds) : NO_DRAFT_CAST;
+  const carriedCast = useCarriedAppearanceCast(roomChatId, draftCharacterIds);
+  const roomTheme = resolveRoomTheme(carriedCast);
   // Names the room's focus target (finding #2): the chat title, else "Chat room" (a draft or a not-yet-
   // resolved room). Without this explicit label the tabindex=-1 focus DIV's name falls to name-from-
   // content — concatenating the whole toolbar (Cast · Jump to latest · Attach · Send…) into one string.

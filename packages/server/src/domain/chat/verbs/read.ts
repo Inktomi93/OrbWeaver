@@ -43,6 +43,7 @@ import {
   GUIDED_ACTION_KINDS,
   TEMPLATE_DEFS,
 } from "@orb/contracts/preset";
+import { isPresetProseSlotId, resolveProseText } from "@orb/contracts/prose";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { projectBodyForPreview } from "@orb/kit/content";
@@ -1133,10 +1134,10 @@ function createPreviewSection(ctx: ChatContext, deps: ReadDeps): ChatService["pr
 }
 
 /** WHICH stored field a `TEMPLATE_DEFS` row edits, resolved to its EFFECTIVE bytes. The registry's id is
- *  `GuidedActionKind | FormatStringKey` and nothing else disambiguates them, so the split rides
- *  `GUIDED_ACTION_KINDS` — the same derivation the client's row model uses, never a second list of names.
- *  Blank/absent falls back to the shipped default on both arms, which is the storage semantic everywhere in
- *  this schema ("empty means the default rides"). */
+ *  `GuidedActionKind | FormatStringKey | ProseSlotId` and nothing else disambiguates them, so the split
+ *  rides `GUIDED_ACTION_KINDS` + `isPresetProseSlotId` — the same derivations the client's row model uses,
+ *  never a second list of names. Blank/absent falls back to the shipped default on every arm, which is the
+ *  storage semantic everywhere in this schema ("empty means the default rides"). */
 function isGuidedActionKind(id: TemplateDefId): id is GuidedActionKind {
   return (GUIDED_ACTION_KINDS as readonly string[]).includes(id);
 }
@@ -1144,6 +1145,11 @@ function isGuidedActionKind(id: TemplateDefId): id is GuidedActionKind {
 function actionTemplateText(config: PromptConfig, id: TemplateDefId): string {
   if (isGuidedActionKind(id)) {
     return (config.guidedActions?.[id] ?? DEFAULT_GUIDED_ACTIONS[id]).prompt;
+  }
+  // The framing rows (2026-08-07): stored in `promptConfig.prose`, resolved through the ONE PROSE-1 resolver
+  // so the readout can never disagree with what `assembly` actually ships.
+  if (isPresetProseSlotId(id)) {
+    return resolveProseText(id, config.prose);
   }
   const stored = config.formatStrings?.[id] ?? "";
   return stored.trim() === "" ? DEFAULT_FORMAT_STRINGS[id] : stored;

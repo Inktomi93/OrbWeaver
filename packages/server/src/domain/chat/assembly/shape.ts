@@ -7,6 +7,7 @@ import type { AssembleContext, ChatInjection, GroupConfig, MessageView, ShapeRow
 import type { RoleHandling } from "@orb/contracts/connection";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { speakerTagsToPlain } from "@orb/kit/speaker-label";
@@ -104,7 +105,13 @@ interface ShapeOutput {
 
 // Trailing-user cue for a turn with no real user input and no group nudge — the delivered history must
 // end on a user turn (a trailing assistant turn is response prefill; rejected when thinking is on).
-const CONTINUATION_NUDGE = "[Continue the conversation.]";
+//
+// PROSE-1 slot `chat.assembly.continuationNudge` (per-PRESET, owner ruling 2026-08-07): it is a sentence
+// that reaches the model, so it is authorable in the preset Templates tab rather than a `const` here. An
+// absent override resolves the shipped bytes, so the wire is byte-identical until a host edits it.
+function continuationNudge(prose: ProseOverrides | undefined): string {
+  return resolveProseText("chat.assembly.continuationNudge", prose ?? {});
+}
 
 /** Egocentric history for `cardScope: "scoped"`: fold every other character's assistant row to a
  *  user-role line attributed inline (`Name: …`), keeping only the target's own past lines as `assistant`. */
@@ -311,7 +318,7 @@ export function shape(input: ShapeInput): ShapeOutput {
   const lastNonSystem = named.findLast((r) => r.role !== "system");
   const endsOnAssistant = lastNonSystem === undefined || lastNonSystem.role === "assistant";
   const needsContinuation = endsOnAssistant && input.assistantPrefill !== true;
-  const tailUser = nudge ?? (needsContinuation ? CONTINUATION_NUDGE : null);
+  const tailUser = nudge ?? (needsContinuation ? continuationNudge(input.prose) : null);
   const history = tailUser !== null ? runSquash([...named, { role: "user", content: tailUser }]) : named;
 
   // Computed on the nudge-free stages (an appended tail is a second volatile tail → abort).

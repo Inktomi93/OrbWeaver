@@ -37,7 +37,7 @@ import type { AppFormInstance } from "#forms";
 import { selectPresetTemplate, useSelectedPresetTemplateId } from "#state";
 import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model.ts";
 import type { TemplateRow } from "../lib/template-rows.ts";
-import { isCustomized, TEMPLATE_KIND_LABEL, templateGroups, templateRowById } from "../lib/template-rows.ts";
+import { isCustomized, TEMPLATE_KIND_LABEL, templateGroups, templateRowById, templateStoredText } from "../lib/template-rows.ts";
 import { TemplateDrillIn } from "./template-drill-in.tsx";
 
 type PresetForm = AppFormInstance<PromptConfig>;
@@ -132,13 +132,13 @@ function TemplateListRow({
   /** This row is the SELECTED template — the readout echoes it (ListRow paints the ember bar + tint). */
   readonly selected: boolean;
 }): ReactElement {
-  const { def, guidedKind, factoryDefault } = row;
+  const { def, factoryDefault } = row;
   return (
-    <form.Subscribe
-      selector={(state): string | undefined =>
-        guidedKind === undefined ? state.values.formatStrings?.[def.id as "continueNudge"] : state.values.guidedActions?.[guidedKind].prompt
-      }
-    >
+    // WHICH FIELD holds this row's text is the row model's answer, not a second copy of the split here: the
+    // registry has three storage arms now (guided prompt · format string · `prose` slot) and spelling the
+    // ternary inline was already one home too many at two. `templateStoredText` reads "" for an unset slot,
+    // which `isCustomized` treats exactly as the old `undefined` did.
+    <form.Subscribe selector={(state): string => templateStoredText(state.values, def.id)}>
       {(value): ReactElement => {
         const customized = isCustomized(value, factoryDefault);
         return (

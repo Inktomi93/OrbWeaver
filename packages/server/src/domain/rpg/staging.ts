@@ -29,11 +29,20 @@ import type { StagedJournalEntry, StagedTurnFlush } from "./contract/params.ts";
 import type { RpgStagingStore } from "./contract/service.ts";
 import { applyLockedPatch } from "./substrate/merge.ts";
 
-/** One turn's in-flight accumulation: the effective snapshot state (base + every staged overlay) and the
- *  staged journal entries (flushed stamped with the committed variant at turn-end). Module-private. */
+/** One turn's in-flight accumulation: the effective snapshot state (base + every staged overlay), the staged
+ *  journal entries (flushed stamped with the committed variant at turn-end), and the raw PATCHES that produced
+ *  the state. Module-private.
+ *
+ *  The patch log is not bookkeeping: the flush's post-write fold replays it onto the hand head, and replaying
+ *  the composed STATE instead would re-assert this turn's now-stale base over a hand edit that landed mid-flight
+ *  (see `StagedTurnFlush.patches`). */
 interface TurnBucket {
   state: RpgSnapshotState;
   readonly journal: StagedJournalEntry[];
+  readonly patches: Record<string, unknown>[];
+  /** The seed base, kept verbatim — the state every staged patch was composed AGAINST. The fold rebases the
+   *  patches off it; without it a carried whole plane is indistinguishable from an authored one. */
+  readonly base: RpgSnapshotState;
 }
 
 /** Build the staging store (a compose-created singleton — one per server process). Deep-clones the seed base
@@ -52,7 +61,7 @@ export function createRpgStagingStore(): RpgStagingStore {
       if (existing) {
         return existing.state;
       }
-      const bucket: TurnBucket = { state: clone(base), journal: [] };
+      const bucket: TurnBucket = { state: clone(base), journal: [], patches: [], base: clone(base) };
       buckets.set(turnId, bucket);
       return bucket.state;
     },
@@ -64,6 +73,9 @@ export function createRpgStagingStore(): RpgStagingStore {
       if (!bucket) {
         throw new Error(`rpg staging: stage() before ensure() for turn ${turnId}`);
       }
+      // Recorded BEFORE the merge and DEEP-CLONED, for the same reason `ensure` clones its seed: the caller's
+      // patch object must not stay live in the log (a later mutation of it would rewrite history the fold replays).
+      bucket.patches.push(clone(patch));
       bucket.state = applyLockedPatch(bucket.state as unknown as Record<string, unknown>, patch, bucket.state.fieldLocks) as unknown as RpgSnapshotState;
       return bucket.state;
     },
@@ -80,7 +92,7 @@ export function createRpgStagingStore(): RpgStagingStore {
         return;
       }
       buckets.delete(turnId);
-      return { state: bucket.state, journal: bucket.journal };
+      return { state: bucket.state, journal: bucket.journal, patches: bucket.patches, base: bucket.base };
     },
     clear(turnId: ChatTurnId): void {
       buckets.delete(turnId);

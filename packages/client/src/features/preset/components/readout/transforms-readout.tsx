@@ -6,11 +6,26 @@
 // scripts, post-process switches and the inline-reasoning fallback as three unrelated groups, and nothing
 // says the display-only scripts run LAST and never touch the wire.
 //
+// THIS FILE OWNS NO ORDER (2026-08-07). It used to: nine `<StepRow index={n}>` rows, hand-numbered against
+// an engine the author read once. That list drifted into FOUR untruths at the same time — `REASONING`
+// printed before the post-process block (the engine runs it AFTER: `applyReceiveTransforms` is AI_OUTPUT →
+// post-process → per-speaker clean → REASONING), the three receive switches printed in exactly reverse
+// execution order, and `collapseNewlines` printed on the REPLY lane at all when it is an ASSEMBLE transform
+// the reply path never calls. An instrument whose whole claim is "this is the order" must not be a hand
+// copy of the order. Both lanes now render off `PROMPT_LANE_STEPS`/`REPLY_LANE_STEPS` in
+// `@orb/contracts/preset` — the same declaration the executors consume — and the numbers are positions in
+// THAT array, never authored here.
+//
+// What this file still owns is the COPY: `STEP_LABEL` is a total map over the step kinds, so a step added
+// to a lane fails `tsc` here rather than rendering a blank row, and every string is the label the control
+// that EDITS it carries (side-eye F-23 — the readout and the center were two namings of one pipeline).
+//
 // Counts come from the preset's ATTACHED scripts (D121-E: a preset's regex set is a reference list in
 // `preset_regex_scripts`, so this is a RESOLVE — `regex.listForPreset` — not a projection of the config
 // blob, which no longer carries scripts at all).
 
-import type { PromptConfig } from "@orb/contracts/preset";
+import type { PostProcessFlag, PromptConfig, PromptPipelineStep } from "@orb/contracts/preset";
+import { PROMPT_LANE_STEPS, pipelineStepKey, REPLY_LANE_STEPS } from "@orb/contracts/preset";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { PresetId } from "@orb/kit/ids";
 import type { RegexPlacement } from "@orb/kit/regex";
@@ -27,15 +42,29 @@ import { regexPlacementStep } from "#lib";
 // The readout and the center were two namings of one pipeline, so a reader could not carry a step from the
 // diagnosis ("which stage do I edit?") to the control that changes it.
 
-/** The prompt-side lane, in the order the assembler applies it. `SLASH_COMMAND` is GONE from the lane
- *  because it is gone from `REGEX_PLACEMENTS`: it had a chip, a label and this very step row, and ZERO
- *  execution legs — the readout was printing a stage the pipeline does not possess (D107 dead switch).
- *
- *  `PROMPT_HISTORY` is LAST on this lane and that is the datum: the send leg rewrites the draft before it
- *  is persisted, the world-info leg rewrites each entry as it is rendered, and only then does the history
- *  leg rewrite the assembled transcript on its way to the wire — the one prompt-side stage whose output
- *  never becomes canon. */
-const PROMPT_LANE: readonly RegexPlacement[] = ["USER_INPUT", "WORLD_INFO", "PROMPT_HISTORY"];
+/** Each post-process switch's name, VERBATIM from the `SwitchField` that edits it (side-eye F-23) — a total
+ *  map over the schema's own flag set, so a new switch fails `tsc` here instead of rendering nameless. */
+const POST_PROCESS_LABEL: Readonly<Record<PostProcessFlag, string>> = {
+  collapseNewlines: "Collapse blank lines",
+  trimTrailingWhitespace: "Trim trailing whitespace",
+  dropIncompleteSentence: "Drop a dangling sentence",
+  singleLine: "Single line",
+};
+
+/** The two non-regex, non-switch reply steps. `Native reasoning channel` is the GATE on the parse below it
+ *  (native is always preferred), which is why it leads the lane and why its state is a posture, not a knob. */
+const REASONING_LABEL = { "native-reasoning": "Native reasoning channel", "reasoning-parse": "Parse inline reasoning tags" } as const;
+
+/** What ONE step is called — dispatched on the step's own kind, never on its position. */
+function stepLabel(step: PromptPipelineStep): string {
+  if (step.kind === "regex") {
+    return regexPlacementStep(step.placement);
+  }
+  if (step.kind === "post-process") {
+    return POST_PROCESS_LABEL[step.flag];
+  }
+  return REASONING_LABEL[step.kind];
+}
 
 export function TransformsReadout({ config, presetId }: { readonly config: PromptConfig; readonly presetId: PresetId }): ReactElement {
   const trpc = useTRPC();
@@ -51,30 +80,31 @@ export function TransformsReadout({ config, presetId }: { readonly config: Promp
   };
   const post = config.postProcess;
   const parse = config.reasoningParse;
+  /** What a step SAYS about itself right now. `native-reasoning` is the one posture arm — it is not a knob
+   *  the preset owns, it is the rule the parse below it defers to. */
+  const stepState = (step: PromptPipelineStep): string => {
+    if (step.kind === "regex") {
+      return scriptState(step.placement);
+    }
+    if (step.kind === "post-process") {
+      return post?.[step.flag] === true ? "on" : "off";
+    }
+    if (step.kind === "reasoning-parse") {
+      return parse?.autoParse === true ? "on" : "off";
+    }
+    return "preferred";
+  };
   return (
     <Stack gap="section">
       <Section kicker="Prompt-side">
         <Stack gap="tight">
-          {PROMPT_LANE.map((placement, at) => (
-            <StepRow index={at + 1} key={placement} label={regexPlacementStep(placement)} state={scriptState(placement)} />
-          ))}
+          <Lane state={stepState} steps={PROMPT_LANE_STEPS} />
         </Stack>
       </Section>
 
       <Section kicker="Reply-side">
         <Stack gap="tight">
-          <StepRow index={1} label="Native reasoning channel" state="preferred" />
-          {/* The center's own SwitchField label, not a paraphrase of it. */}
-          <StepRow index={2} label="Parse inline reasoning tags" state={parse?.autoParse === true ? "on" : "off"} />
-          {/* AI_OUTPUT before REASONING — the order `engine/pipeline.ts` actually runs (the reply-text pass at
-              :281, the reasoning-channel pass at :296). The readout had them inverted, and the order IS the datum. */}
-          <StepRow index={3} label={regexPlacementStep("AI_OUTPUT")} state={scriptState("AI_OUTPUT")} />
-          <StepRow index={4} label={regexPlacementStep("REASONING")} state={scriptState("REASONING")} />
-          <StepRow index={5} label="Collapse blank lines" state={post?.collapseNewlines === true ? "on" : "off"} />
-          <StepRow index={6} label="Trim trailing whitespace" state={post?.trimTrailingWhitespace === true ? "on" : "off"} />
-          <StepRow index={7} label="Drop a dangling sentence" state={post?.dropIncompleteSentence === true ? "on" : "off"} />
-          <StepRow index={8} label="Single line" state={post?.singleLine === true ? "on" : "off"} />
-          <StepRow index={9} label={regexPlacementStep("DISPLAY")} state={scriptState("DISPLAY")} />
+          <Lane state={stepState} steps={REPLY_LANE_STEPS} />
         </Stack>
         <Text prose={true} voice="gloss">
           Execution order — display-only scripts change what you read and never touch the wire.
@@ -84,9 +114,33 @@ export function TransformsReadout({ config, presetId }: { readonly config: Promp
   );
 }
 
-function StepRow({ index, label, state }: { readonly index: number; readonly label: string; readonly state: string }): ReactElement {
+/** ONE lane, numbered by POSITION IN THE DECLARATION. The number is derived, never authored: a hand-written
+ *  index is the thing that drifted (see the header), and it can only ever be right by coincidence. */
+function Lane({ steps, state }: { readonly steps: readonly PromptPipelineStep[]; readonly state: (step: PromptPipelineStep) => string }): ReactElement {
   return (
-    <Row align="baseline" gap="field">
+    <>
+      {steps.map((step, at) => (
+        // The step's declared KEY rides the row: it is what a rendered-order pin reads back (the CT compares
+        // the DOM's sequence to the tuple's), so the claim "this is the order" is checkable from outside.
+        <StepRow index={at + 1} key={pipelineStepKey(step)} label={stepLabel(step)} state={state(step)} stepKey={pipelineStepKey(step)} />
+      ))}
+    </>
+  );
+}
+
+function StepRow({
+  index,
+  label,
+  state,
+  stepKey,
+}: {
+  readonly index: number;
+  readonly label: string;
+  readonly state: string;
+  readonly stepKey: string;
+}): ReactElement {
+  return (
+    <Row align="baseline" data-pipeline-step={stepKey} gap="field">
       <Text voice="gloss">{index}</Text>
       <Text className="min-w-0 flex-1 truncate" voice="label">
         {label}

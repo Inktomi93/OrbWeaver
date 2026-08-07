@@ -38,6 +38,12 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - **Merges** `--no-ff --no-verify` on branch-side hook-green receipts — BUT any branch certified
   BEFORE sibling merges landed gets a consolidated `pnpm check` on the merged result (caught reds
   three separate nights). Merge → SEPARATE verify call → THEN teardown, never chained. `git -C <ABSOLUTE-main-path>` on every merge/verify command.
+- **GRADUATION NEEDS THE FRESH LENS, not just the static check (owner catch 2026-08-07 — a whole
+  session of merges shipped without it):** every non-trivial merged work-stream gets a fresh-context
+  `verifier` pass (code lens) and/or `side-eye` (rendered lens) BEFORE its row is called done —
+  at CHUNK granularity, one per work-stream. The lane's own receipts + `pnpm check` prove structure,
+  never logic. Batch verifiers behind merges when load demands, but the row stays un-graduated
+  until the lens reports CONFIRMED.
 - **NEVER push to origin without a fresh per-push owner word.** Not overnight, not on a green battery,
   not "the word was banked yesterday".
 - **Overnight full-auto**: proceed through the queue, escalation ladder (stickler → ast/code → docs →
@@ -146,7 +152,230 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   call):** ABORT-LEAK (structured abort-reason retry) · WIRE-SINK (tool-round captureWire) ·
   TEMPLATE-CENSUS (dual templating + note framings, census-first) · SMALLS-BATCH (the six one-liners).
   HAND-EDIT-VS-FLUSH waits for a freed slot; PRESET-SLIDER-VERIFY the orchestrator drives live.
-- **✅ SMALLS-BATCH MERGED + TORN DOWN (`be28928f9`, consolidated check 14/14):** 3 done (graduation
+- **✅ WIRE-SINK MERGED + TORN DOWN (`09d63d289`, check 14/14):** the tool round WAS captured — but
+  ANONYMOUSLY (no `chatId`), so the `?chatId=` read filtered it (\[\[wire-capture-anonymous-not-missing]]).
+  `ExtractCtx.chatId` now REQUIRED (tsc fences future arms); three `runChatTurn` sites stamped
+  (dedicated round · `resyncViaToolRound` · `extractViaChat`). Landing test through the real ring,
+  red-first. **Residual boarded below:** the `structured` role is chatless BY CONTRACT.
+- **✅ ABORT-LEAK MERGED + TORN DOWN (`3fd54bb09`, check 14/14):** cancelled provider calls can never
+  classify retryable, on ANY role — fix at `runRole`, the one seam all eight cross. The row's
+  `retry.ts` mechanism was FALSE; the real vector was the vendor SDK's default retryConfig
+  (\[\[vendor-sdk-default-retry-surface]]). Row struck below with the correction.
+- **⚑ SIDE-EYE VERDICT ON MOBILE (2026-08-07): SHIP WITH FIXES — the one-shell rule HOLDS on all
+  seven sections; core algebra on the don't-touch list.** ALL findings routed to the warm MOBILE
+  lane (leg 2, dispatched; merges main into its branch first): [P1] ≤~345px the topbar trail takes
+  277/320px, crushing the lead to 10.7px — the back button's CENTER opens ⌘K, and it is the ONLY
+  exit from a chat (root-cause fix: a mobile topbar BUDGET — lead owns back+title, ⌘K/notifications
+  fold into overflow) · [P2] pushed topbar names the SECTION not the member (all sections but
+  chats) · [P2] two back doors with different destinations in corpus/analytics drills (one-door law)
+  · [P2] characters search clipped at 320 · [P2] corpus has TWO search inputs narrowing one list
+  (single-homing) · [P3] You-sheet persona row shreds · a11y: tab bar precedes topbar in DOM order.
+  Instrument lesson minted: \[\[mobile-verify-needs-coarse-pointer]] (snap --viewport = FINE pointer;
+  design-audit returned 0 P1 on a frame with a P1 — no coarse mode, no overlap rule).
+  Side-eye re-verify owed after leg 2 merges.
+- **✅ TEMPLATE-CENSUS MERGED (`269860bcf`, check 14/14; worktree HELD WARM — the (b) unification
+  build is promised to this lane, never a sibling).** The three turn-wire framings are preset-homed
+  editable templates: `chat.injection.systemNote` / `userNote` + `chat.assembly.continuationNudge`
+  (was a const in shape.ts). `promptConfig.prose` minted (= the unification's M1, done); the preset
+  tab's third form path proven on three live rows (M2's extension point); versioned defaults are
+  byte-identical to today's wire. `composeProse` merges DISJOINT home-filtered sets — never a
+  cascade; a stale user-tier key is inert. The decision-8 header carries BOTH rulings verbatim.
+  Red-first 3/259 at a parse tier that compiles against HEAD; CTs 14/14 + 122/122; all three
+  typecheck programs. **⚠ OWNER LOUD:** any override typed in Settings › Model-facing prose for the
+  two note frames since 08-05 STOPS APPLYING — re-enter under Preset › Templates › Format
+  ("System-note frame" / "User-note frame"). **Lane flag held for the owner:** `{{note}}` is a
+  payload carrier but its absence in an edited template only WARNS (never blocks) — posture was
+  ruled at ship; changing it is a policy call. M4 (the prose-coverage gate) remains the top
+  unification residual. Lesson minted: \[\[worktree-ct-runner-resolution]].
+- **⚑ RULED-BATCH re-verify (mid-run): two rulings were moot on the tree.** ZOD-STAGE-D was ALREADY
+  LANDED IN FULL (`3dd7c82c3`/`c21d78937`/`ca4469770` — envBool at all seven knobs, z.hostname on
+  plugin netHosts, strip-observability = strippedToolCallKeys; the ratchet gate REDs new
+  `z.enum(["true","false"])`) — receipt only. IMPORT-SETTINGS-WRITE-GUARD: **REFUSED premise-false**
+  — `routing` is fenced OUT of `PortableUserSettings` at the TYPE level (`SHARE_SAFE_SETTINGS_NAMESPACES`
+  drops it at parse; a crafted key is not even typeable), and heal-at-read keeps NON-import producers
+  BY DESIGN (model coherence undecidable at write). The lane lands a defense-in-depth pin instead
+  (crafted `routing.roleDefaults` in a backup cannot reach stored config). Item 1's home was wrong
+  too: the lying slot list is `preset/components/readout/transforms-readout.tsx`, and it carries
+  THREE MORE lies (collapse-blank-lines printed on a lane that never runs it; the three receive
+  switches printed in inverted order) — all four fixed by ONE derived declaration executor+readout
+  share.
+- **⚑ EIGHT OWNER RULINGS BANKED (question-tool, 2026-08-07, two batches):** regex-reasoning display
+  fix · zod stage D in full · the §-refs carve-out · cast guides threaded · settings write-guard
+  lift · tag cliff ACCEPTED · strict default KEPT · orphan-transcript import REJECT (owner override
+  of the characterless rec). Rows annotated in place; buildables dispatched as lane RULED-BATCH.
+- [ ] **STACK-MODES (owner order 2026-08-07: "no clean way to launch in debug or production mode"; lane
+  dispatched).** The debug handoff doc's §1 IS the indictment: prod = a hand-rolled setsid/nohup
+  incantation with two silent cwd traps, pid-hunting via ss, manual drain-watch; debug = hand-editing
+  `.env` and stripping it after. Build: `pnpm stack` gains `dev|prod` modes + an orthogonal `--debug`
+  flag (env OVERLAY at spawn, never .env mutation); stop/restart watches the bounded drain; instance-
+  IDENTITY verification (\[\[health-check-validates-the-port-not-your-process]]); adopt-in-place;
+  status never prints the token. Handoff doc §1-2 repointed in the same commit. Verified by argv/env
+  snapshots + pure-logic units — the first real `stack up prod` is the owner's live check
+  (\[\[never-run-engine-launcher-live]]).
+- [x] ✅ **DRAFT-PHASE UX — FIX MERGED + CENSUS DELIVERED (lane DRAFT-POLISH, `3046f070a`; verifier
+  owed).** THE FIX: both carried-look takeovers (BG-C background + D44 room theme) were spelled over
+  `ParticipantView[]` — a shape only a COMMITTED chat can produce, so the parameter TYPE was the
+  gate. Now a phase-independent `CarriedAppearanceCast` (contracts/chat/roster.ts) that both phases
+  project into; one `#data` primitive `use-carried-appearance`. Red-first at the CT tier (2 positive
+  arms fail on HEAD source, 4 discriminators pass both states); 146 CT green. Bonus one-home: the
+  founding-cast union had SIX spellings (two silently dropped `addedCharacterIds`) — now one deduped
+  home in `#state`; a mid-draft roster add shows in the topbar immediately. Header fork recorded:
+  THEME half overturned, TRUST half stands. **THE CENSUS (the owner's design-pass input — ranked):**
+  P1 **nav-away silently DISCARDS a composed draft** (greetings/injections/members unreachable —
+  worse than the reload item and NOT the same item; S retain-and-offer-back / L drafts-list —
+  OWNER) · P2 no assembly Preview pre-send while overrides are fully editable (M/L) · P3 no cast
+  bar on a multi-character draft — the literal "avatars don't show" for groups (S) · P4 group-draft
+  row tints are the id hash, re-tint at first send (M) · P5 skeleton flash on draft first paint
+  (S/M) · P6 draft header lacks the member-count chip (S) · P7 send-availability never pre-checks
+  on a draft (deliberate; OWNER taste) · P8 DRAFT-TRUST (standing 6) · P9 reload loss (standing
+  14). **Structural ruling candidate:** the feature handles draft gaps TWO ways — honest
+  disabled-with-reason (options menu, image gen — the §8 no-reduced-modes shape) vs silent absence
+  (cast bar, Preview) — the doctrine picks the first; P2/P3 are the two wrong-road sites.
+  Lesson minted: a rule's PARAMETER TYPE can be the gate ("only works after X exists" → check what
+  the resolver's signature structurally demands before hunting conditionals).
+  **Ops note:** the lane caught :5173 serving a STALE module graph (\[\[live-client-port-5173]]
+  class) — stack restarted by the orchestrator, fresh watcher verified serving current disk.
+- **⚑ FRESH-LENS RESULTS (the new graduation law's first pass, 2026-08-07):**
+  **ABORT-LEAK: CONFIRMED** (defect reproduced end-to-end pre-fix against a real wedged server;
+  all 8 roles proven routed; dispose leak-free over 1000 calls; no real transient misclassified —
+  node's genuine timeout is `TimeoutError` via non-abort paths, all still retryable). Honest caveat:
+  today's only live abort reason was already safe by luck — the fix is defense-in-depth, correctly.
+  ROW GRADUATED. **TEMPLATE-CENSUS: REFUTED** — the framing drill-in trims on EVERY keystroke
+  (controlled textarea + per-change `.trim()`): spaces/newlines swallowed while typing; the CT
+  missed it because `fill()` is one event. + 4 secondaries (unguarded `{text:""}` resolves to empty
+  wire bytes · no `{{note}}` warn on the new surface · a vacuous contract-test arm whose comment
+  claims the other file's enforcement · stale injections.ts header). ALL routed to the warm lane
+  (fix leg live); storage/wire half of the merge HELD under everything thrown at it. Verifier
+  re-check owed after the fix leg. **Pending fresh lens:** HAND-EDIT-VS-FLUSH (merged, check
+  backgrounded, verifier next) · WIRE-SINK + SMALLS-BATCH (queued).
+- **✅ HAND-EDIT-VS-FLUSH MERGED (`5d9d5d10a`; consolidated check backgrounded; verifier owed).**
+  Both victims dead: the in-place door now demands the ladder's TURN rung (arm B), and `writeFlush`
+  folds its state into a shadowing hand row via `writeHandState(derive)` — merge inside the head
+  resolve, auto-locks the arbiter, second-edit race closed by construction (arm A). 6 new pins incl.
+  same-field→human-wins; red-first 3/3 through `getTrackerView`. **Owner-sighting verdict:**
+  pre-first-turn STATE editing was never broken (now pinned); the sighting was arm A mid-generation,
+  OR the F-C greeting-TEXT freeze (canon-identity's) if what was lost was message text.
+  **Deferred follow-up boarded:** `resolveSnapshotForTurn`'s turn arm is a single-slot probe, not a
+  walk — safe for the hand door now, degrade-to-fallback remains for other callers.
+- [ ] **DIAGNOSTICS-DISPATCH UNFLATTENED** (S, from the ABORT-LEAK verifier) — `providers/diagnostics.ts:47-74`
+  bypasses `runRole` (bare `requireRoleImpl`); catalog/credits callers DO pass signals, and the OR
+  SDK's default retry fires on `name==="TimeoutError"`. Unreachable-by-abort today; one flatten call
+  closes it. Evidence: verifier probe, BYPASS row demonstrated.
+- **✅ FOUR MORE MERGES (2026-08-07 midday, consolidated checks green):** **RULED-BATCH**
+  (`0efd3276d` — the pipeline order declared ONCE in contracts and consumed by executor + readout,
+  four display lies dead red-first; cast guides reach CEL via `RPG_CAST_GUIDE_FIELDS`; ambient
+  clear with NO vocab widening — the "Clear weather" control lives outside the closed-vocab group;
+  2 refusals receipted: the write-guard premise was dead AND its pin already existed; zod stage D
+  already landed) · **TEMPLATE fix leg** (`46101da6e` — drill-in typeable, trim at the save
+  boundary, positive-control-proven; blank overrides heal at read; `proseFooterState` lifted to
+  contracts so both editors warn off ONE derivation; the vacuous test arm now catches its planted
+  control) · **STACK-MODES** (`3ecc6d05c` — `pnpm stack up|down|restart|status [dev|prod]
+  [--debug] [--build]`: env OVERLAY never .env mutation, --debug REFUSES on .env conflict naming
+  the line, instance identity beats the port (harness:true checked FIRST — e2e stacks un-adoptable,
+  un-killable), prod refuses a missing dist with the build command, spawner census as doc §1c +
+  `STACK_SPAWNERS` data. Premise kills: the 401-probe lie (`/api/_debug/info` is 200 unauthed on
+  single-user — pid in the body is the BEST identity source) and **RPG_TRACE IS NOT DEAD** (old
+  finding #7 stale; fully wired, doc repaired). OWNER ACTION OWED: delete the three debug lines +
+  `.env.bak-predebug-*` from the live `.env`; first real `pnpm stack up prod` is the owner's live
+  check) · **HAND-EDIT fix leg** (`6b37d67ea` — the fold replays the round's PATCHES (deep-cloned
+  accumulator log), nothing unnamed can resurrect — the dismissed-actor regression dead; fold
+  follows the head to ANY seq; total `TurnWriteFoldOutcome`, every losing arm fires
+  `onFlushDropped`; refusal arm drivable through REAL verbs; red-first 4/4→11/11).
+- **✅ ORCHESTRATOR serde fixes (`f99208480` + `ea847a671`, full hook both):** blank-`mes` swipe
+  text PROMOTES (active else first, lone take to the primary — never an empty canon row, never
+  dropped text); a text-empty row carrying MEDIA survives (all ST era spellings: media[]/files[]/
+  legacy image/image_swipes/file — ST's own `migrateMediaToArray` is the receipt); the seeder's
+  duplicate drop-filter dissolved (one home). Live send path untouched (all four parser consumers
+  are import-side, owner asked + receipted).
+- **⚑ VITE-MAX dispatched (owner word):** the gap list's safe slice — CT-vite spike + rolldownOptions
+  together · esbuild-override re-derivation · `--configLoader native` · `future` warns ·
+  license-JSON · three measure-then-adopt rows. HELD deliberately: lightningcss transformer ·
+  chunkImportMap · devtools · Environment API (N/A).
+- **✅ TEMPLATE-CENSUS: fresh-lens CONFIRMED on re-check (round 2) — ROW GRADUATED.** The typing
+  counterexample is dead on the finding instrument (interior + trailing whitespace and newlines
+  survive real keystrokes; trim proven on the production save path); blank overrides heal at read
+  with correct scope (whitespace-only heals, untrimmed real text rides verbatim); the `{{note}}`
+  warn renders on the drill-in warn-never-block; the once-vacuous contract arm now fails on THREE
+  planted control classes both directions. Verifier disclosures: its keystroke probes forked the
+  built-in preset — a `Default (edited)` row now exists in the dev db (harmless, owner-waved class);
+  and one stale-module-graph crash self-healed on retry (the zombie-vite TELL — a `?t=<old>` module
+  URL erroring on an export that `curl /@fs/` serves — recorded here as the diagnostic).
+  **HAND-EDIT: round-2 REFUTED (narrow) — leg 3 live:** CE2 + refusal arms + deep clone CONFIRMED;
+  CE1 survives in the PRODUCTION patch shape because `tools/apply.ts` authors presence planes
+  WHOLESALE (touch presence → whole `presentCharacters`+`actorState` arrays from the round's base)
+  — the fold must replay INTENT (`presentUpsert`/`presentRemove` re-run against the hand head), and
+  leg 3 audits every other composed-from-base plane for the same shape. The regen-swallow silent
+  loss got a DRIVEN receipt (probe5a) — the boarded row now cites it.
+- **⚑ FOUR MORE OWNER RULINGS (question-tool, 2026-08-07 afternoon):** (1) **CANON-IDENTITY: GO** —
+  the build starts (serial spine: contracts+db+baseline squash → F-A → F-B → F-C → dispatch sites →
+  lock-in tests; dev-db drop accepted). (2) **PUSH: battery-then-push** (in progress; battery
+  restarted after a verifier-probe collision, see ops note). (3) **DRAFT-MODE LAW: disabled-with-
+  reason** — every committed affordance EXISTS in draft, disabled with the reason stated where
+  inapplicable (\[\[no-separate-reduced-modes]] applied); P2 Preview + P3 cast bar build to this
+  shape. (4) **P1: retain + offer back** — the draftKey is retained per seed; returning to the same
+  character(s) offers Restore/Trash. Owner also asked (recorded as a law candidate):
+- [ ] **CONSOLIDATION-LANDS-WITH-ITS-FENCE (law candidate + founding instance)** — semantic
+  re-derivation (N textually-different spellings of one computation — the founding-cast union's six)
+  is the duplication class NO generic gate can catch (`no-inline-types` = shapes, `cpd` = textual
+  clones); the house answer is the PER-CONCEPT fence, but it's been ad-hoc. Candidate law: a lane
+  that consolidates spellings into a one-home lands the ts-morph fence banning re-derivation (by
+  structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
+  `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
+  question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- **⚑ OPS NOTE 2 (load, encoded after a battery died of it):** the round-2 battery's vitest+CT came
+  back **10,364 / 0 failed** but `e2e-smoke` DIED ON BOOT — vite FSWatcher **EMFILE** (fd/inotify
+  exhaustion) at load ~53 with 161 test processes: the battery shared the box with VITE-MAX's full
+  CT run + two fix legs' CT floors + the live stack. LAW EXTENSION: **fix-leg floors and
+  whole-CT-suite verdicts COUNT as gate-heavy lanes for the ~3 stagger cap, and the battery's
+  behavioral phase gets the box** — no whole-CT lane dispatches while a battery runs. Recovery
+  shape: the vitest/CT green STANDS as the receipt; rerun ONLY `pnpm e2e:smoke` on a drained box
+  (load watcher armed), push on the composite.
+- **⚑ OPS NOTE (collision class, encoded):** a RESUMED VERIFIER runs on MAIN's tree and may plant
+  probe suites in `tests/` mid-attack — a whole-tree check/battery launched while one is live sweeps
+  its probes up as reds (`zzverifier-probe*` tripped biome + 2 gates; battery killed + relaunched
+  after drain). LAW: no whole-tree instrument runs while a verifier is active on main; check the
+  roster first.
+- **NEW ROWS (from the fix legs + DRAFT-POLISH interim):**
+  - [ ] **REMOVAL-TOMBSTONE FORK** (owner-timed design, persona-pin family) — if the round's delta
+    names the exact datum the human removed mid-flight (~2s window), the delta wins: dismissal
+    CLEARS locks by design so the model may reintroduce later, and a cleared lock cannot express
+    "removed just now". The honest arbiter is RECENCY; a tombstone needs a lifetime rule only the
+    owner can set. Lane analysis on record; defensible as-is. Evidence: driven probes, fix leg.
+  - [ ] **REGEN-VS-LATER-FLUSH classification** (S) — the fold's regen guard classifies "a later
+    turn flushed while we were in flight" as a regen, silently; reachable only via lock-free
+    `generate` concurrency (the flush barrier covers sequential sends); needs ladder state that
+    doesn't exist today. Evidence: fix-leg self-flag.
+  - [ ] **SNAP-STAGE PORT BAND contention** (S, instrument) — the isolated-stage pair (8888/5273)
+    is a SINGLE shared band; two lanes wanting rendered stages collide (DRAFT-POLISH vs MOBILE's
+    stage, live sighting). Per-lane offsets or a stale-stage reaper. Evidence: live refusal.
+  - [ ] **DAY-FABRICATION residual** (S, owner-taste) — `ambientPatch`'s `?? 1` fabricates day 1
+    when a host picks a TIME on a never-dated game (`day` is required min(1); the model's
+    `sceneClock` does the same). Now unreachable from a clear (the RULED-BATCH fix leg split
+    day/time nullability). A host-editable day field dissolves it. Evidence: fix-leg census.
+  - [ ] **WIRE-SINK fence scope** (S) — `ChatRequest.chatId` is still OPTIONAL and the two direct
+    `runChatTurn` sites in rpg.ts build no ExtractCtx: a fourth arm added THERE compiles blind. The
+    landed fence covers the ExtractCtx paths only (verifier receipt). Widen on want.
+- **⚑ DRAFT-POLISH interim:** the owner's draft-visuals finding is root-caused + fix landing —
+  the carried look (BG-C + D44 takeover) was spelled over `ParticipantView[]`, a committed-only
+  shape; now a phase-independent `CarriedAppearanceCast` both phases project into. Red-first
+  proven. Header fork ruled: THEME half overturned (visuals key on membership), TRUST half stands
+  (DRAFT-TRUST remains the owner's architecture item).
+- **NEW ROWS from the two lanes + side-eye (each independently landable):**
+  - [ ] **STRUCTURED-ROLE CORRELATION FORK** (owner/design) — the `structured` role is chatless by
+    contract (`RoleRequestCommon` has no chatId; `WireCapture.chatId` documents "absent on a chatless
+    probe turn"), so non-agent-sdk rpg structured extraction is correlatable by backend+time only
+    (22+66 anonymous `summarize|vllm` rows in the live spill are this class). Making it correlatable
+    is a cross-role contract change — pose before building. Evidence: WIRE-SINK report, spill-scanned.
+  - [ ] **CORPUS MOBILE IA** (M, design-y) — six filter controls + TWO search boxes + a wrapping
+    five-tab row consume 55% of a 320px screen above ZERO results, and the empty message ("no
+    characters match — loosen the filters") lies when no filters are applied. The dual-search half
+    goes with MOBILE leg 2; the IA pass is its own row. Evidence: side-eye rendered receipts.
+  - [ ] **ANALYTICS/PRESETS EMPTY VOIDS** (S–M) — both read as UNBUILT at mobile (four tabs + one
+    gray sentence + ~600px black; one row + an unlabeled orange dot as the only active signal) —
+    the \[\[empty-states-are-load-bearing]] class + a meaning-by-color-alone a11y miss. Evidence:
+    side-eye rendered receipts.
+  - [ ] **DESIGN-AUDIT --mobile** (S, instrument) — no coarse-pointer mode, no overlapping-hit-target
+    rule; it scored 0 P1 on a frame carrying the topbar P1. Evidence: side-eye instrument note. 3 done (graduation
   prose-tail rule · editSnapshot `.ok` assert · ST blank-`mes` strip at parse), **3 REFUSED premise-
   false with receipts** (CONTRACTS-BARREL · SSE-SPEC-STATUS · PROMPT\_MACROS phantom — all three were
   grep-written rows; the evidence-method law earns its keep again). Rows struck in place below.
@@ -241,9 +470,9 @@ somethign we could swap to if we wanted or like a config thing etc. I dont want 
 The nullable-union arm is now **Settings › Admin › Structured output → "JSON-Schema shape"**, an
 AppSettings-tier knob (DB override wins) reaching `scrubWireSchema` on the real request. **Default
 unchanged.** Full receipts in the RECONCILIATION block at the foot of this file.
-**⚑ THE ONE OWNER ITEM LEFT ON I-1:** whether to make `strict-compatible` the DEFAULT. It is now a
-switch he can flip and live with for a while first — which is the point. Blanket-vs-capability already
-ruled: KEEP BLANKET.
+✅ **I-1's LAST ITEM RULED 2026-08-07 (question-tool): KEEP THE CURRENT DEFAULT** — the owner flips
+the knob when he's felt it (vLLM already pins strict at its own call site regardless). I-1 has NO
+open items. Blanket-vs-capability already ruled: KEEP BLANKET.
 
 ### I-2 · DATABANK — S1 + S2 shipped; S3 unstarted (lane DBFIX live on ingest concurrency)
 
@@ -411,9 +640,11 @@ USER-VISIBLE).
 **OPEN — R6:** the orb-native chat-bundle arm alongside jsonl. It was scoped out HONESTLY and is
 MACHINE-TRACKED: the ACCEPTED-LOSSY / DEFERRED rows each say "ends when R6 lands". O-6
 characterless-import rides it, and so does the standing owner question below.
-**⚑ OWNER ITEMS on this initiative:** the absent-character transcript import policy (refuse vs
-mint-placeholder — PORT recommends the "import as characterless chat" arm) · the JSON-card export
-format (PORT's recommended home: `?format=png|json` on the existing character door) · F9's design fork
+**⚑ OWNER ITEMS on this initiative:** ~~the absent-character transcript import policy~~ — **RULED
+2026-08-07 (question-tool, owner OVERRODE the characterless-chat rec): REJECT — "you shouldn't be
+able to import a transcript without having a character selected." A character must be selected at
+import; the characterless arm is dead, O-6's premise with it. R6 builds against this policy.** ·
+the JSON-card export format (PORT's recommended home: `?format=png|json` on the existing character door) · F9's design fork
 for the chat-anchored planes that are unportable by construction (rpg campaigns · injections · room
 overrides · re-links; plus automation\_rules / global\_variables / plugins, which have no arm at all).
 
@@ -668,7 +899,16 @@ identity chrome for ANY row kind.
   are OWNER-GATED on copy** — each needs user-facing text, and several (`sampling_knob_dropped`,
   `dynamic_context_demoted`) are arguably too noisy to toast every turn. That is a product call, not a
   lane's. Side-eye owed after merge (new toast).
-- [ ] **STRUCTURED-ABORT-REASON-LEAK** (S) — **a cancelled `structured` call can be RE-RUN as a retry.**
+- [x] ✅ **STRUCTURED-ABORT-REASON-LEAK — DONE** (ABORT-LEAK merged 2026-08-07, `3fd54bb09`,
+  consolidated check 14/14). Fix home = `roles/dispatch.ts::runRole` (the one seam all EIGHT roles
+  cross): `flattenAbortSignal` (`backends/kit/abort-flatten.ts`, the one-home of the re-abort-your-
+  own-controller law) + `classifyTransportName` tests the abort NAME before the transient regex.
+  `idle-timeout.ts` now composes the shared primitive. RPG-SIGNAL stays (it is the round's own
+  cancellation scope; its header's "covers both arms" claim truth-repaired). **MECHANISM CORRECTION
+  (the row below was wrong in the middle):** `retry.ts` never re-ran structured calls (chat-runner
+  callers only; nothing reads `ProviderError.retryable`) — the REAL re-run vector was
+  `@openrouter/sdk`'s DEFAULT `retryConfig` (\[\[vendor-sdk-default-retry-surface]]). Red-first 3/3
+  through the real dispatcher. Original row for the record: **a cancelled `structured` call can be RE-RUN as a retry.**
   `classifyTransportName` (`backends/kit/error-classify.ts:92-101`) regexes `/timeout|connection|network|overload/i`
   over an error's name+message → `{kind:"server", retryable:true}`, and `retry.ts` re-runs on that. The
   chat runners are protected — `turnAbortSignal` (`backends/kit/idle-timeout.ts:53-67`) deliberately
@@ -681,9 +921,19 @@ identity chrome for ANY row kind.
 - [ ] **REGX2** (M) — an owner BUILD RULING that got archived: regex bulk edit + pipeline debugger +
   per-script JSON door (NOT regex presets). Ruled 08-03 dawn, queued, never dispatched.
 - [x] ✅ **RPG-ROUND-SIGNAL — DONE** (merged `1b581127b`: the state round is cancelable with its own lifetime, and a cancelled round writes NOTHING).
-- [ ] **HAND-EDIT-VS-FLUSH** (M) — a hand `editSnapshot` during an in-flight turn can be clobbered by the
-  flush. **Two independent sightings** (the watch list's "seen once, unchased" + the actor-state
-  review's unconfirmed suspicion), nobody chased it. Reproduce and rule.
+- [ ] **HAND-EDIT-VS-FLUSH — REPRODUCED (lane live, fix ruled + building): ONE RACE, TWO VICTIMS.**
+  Deterministic repro on the real flush gate. The row's suspicion was HALF right: **Arm B**
+  (back-to-back assistant turns) — the hand edit IS clobbered: `resolveHead`'s in-place door fires
+  on a `latestSnapshot` FALLBACK row from an older slot (contract violation of its own "this turn's
+  own draft" doc). **Arm A** (single speaker, the common case) — INVERTED: the hand edit survives
+  and the TURN'S own write is silently lost forever (hand rung outranks the turn row at the same
+  seq, D124 by design; flush wrote from a base snapshotted at flush START). **RULED (orchestrator,
+  from recorded law):** (1) the in-place door only for true turn-rung rows; (2) field-level merge at
+  the flush's write boundary — post-`writeFlush` re-resolve, `applyLockedPatch(turnState, handState)`
+  honoring the hand row's auto-locks: manual-edit-wins on touched fields, the turn's writes survive
+  everywhere else. Last-write-wins was refused (contradicts the recorded manual-edit-wins law);
+  refuse-during-flight was refused (blocks the host mid-steer). Red-first pins owed on BOTH victims
+  + the same-field-conflict-resolves-to-human case.
 - [x] ~~**CONTRACTS-BARREL**~~ — **REFUSED, premise false (SMALLS-BATCH 2026-08-07):** the file is one
   line and already says "placeholder; unused — every consumer imports contracts modules directly". No
   such sentence exists; grep zero-hit.
@@ -702,8 +952,9 @@ identity chrome for ANY row kind.
   STRIPPED at `parseMessageLine` (silent tolerant-strip matches the parser's own corrupt-line posture;
   the module is zero-I/O so no warn is possible), D124-consistent. Test pins it; flagship fixture
   round-trip unregressed (not regenerated).
-- [ ] **REGEX-REASONING-FIDELITY** (S, owner-call) — REASONING prints at slot 4 but executes
-  post-postProcess. Unobservable today; flagged as an owner call that was never posed.
+- [ ] **REGEX-REASONING-FIDELITY — RULED 2026-08-07 (question-tool): fix the DISPLAY** — the
+  tester/debugger prints REASONING where it truly runs (post-postProcess); execution untouched
+  (instruments must not lie). Dispatched in the RULED-BATCH lane.
 - [ ] **FLAKE-WATCH** (S) — `code-editor.ct` CM6 75ms window + `drawer.ct:162` focus-trap (pre-existing at
   HEAD) have no durable home beyond a watch list.
 - [x] ✅ **HISTORY-GRADUATION RULE — DONE** (SMALLS-BATCH, `be28928f9`): the "check the paragraphs, not
@@ -748,17 +999,18 @@ twice over, not once.
   door for brand glyphs · the `fillRule=evenodd` probe to grow the fillable set.
 - [ ] **AGENT-1-PROGRAM** (L, owner-scoped) — agent-sdk first-class for rpg-lite, 5 named arms explicitly
   scoped-and-not-dispatched, ruled order 2→3→1→4.
-- [ ] **ZOD-STAGE-D-OWNER-GATE** (S–M) — the zod audit's stage D (stringbool / hostname /
-  strip-observability) was **never posed to the owner**; stages A and B both landed.
+- [ ] **ZOD-STAGE-D — RULED 2026-08-07 (question-tool): LAND IN FULL** (stringbool / hostname /
+  strip-observability), premise re-verified first per \[\[audit-lists-are-snapshots]]. Dispatched in
+  the RULED-BATCH lane.
 - [ ] **AMBIENT-NONE-AFFORDANCE** (S) — `ambient-strip.tsx`'s weather/timeOfDay CLOSED vocabs carry no
   "none"/unset member (`RPG_WEATHER_TYPES` / `TIME_OF_DAY`), so they cannot be cleared; location/date
   are free text and can. This is the UI gap behind the unreachable compact arm.
-- [ ] **DOCLAW-RPG-REFS-FORK** (S, decide-then-mechanical) — `compose/rpg.ts` now carries **41**
-  Documentation-Law §-vocab comment refs (up from the 33 first flagged) with no sweep and no carve-out
-  ruling. Pose it: sweep, or write the rationale.
-- [ ] **MACRO-CAST-GUIDES-FORK** (S) — should user macros bind cast guides (appearance/outfit/thoughts)
-  via `celBindings`? `macro-view.ts`'s cast projection still omits all three. If the answer is no, note
-  the asymmetry in the file.
+- [ ] **DOCLAW-RPG-REFS — RULED 2026-08-07 (question-tool): MINT THE CARVE-OUT** — comments citing
+  law by §/D-number are sanctioned house style; one paragraph in Documentation-Law, no sweep
+  (\~4,066 refs / 1,151 files of churn avoided). Orchestrator writes the law paragraph.
+- [ ] **MACRO-CAST-GUIDES — RULED 2026-08-07 (question-tool): THREAD THEM** — the cast projection
+  gains appearance/outfit/thoughts via the existing celBindings channel. Dispatched in the
+  RULED-BATCH lane.
 - [x] ~~**EMBER-VOCAB-SWEEP**~~ — **PREMISE WRONG, and acting on it would have DONE HARM.** "ember" is the
   deliberate house nickname for `--color-primary`/accent: a REAL token name in
   `packages/ui/src/tokens/tokens.json:166` (`sky-ember`, `sky-ember-deep`) plus `chart-1`'s
@@ -768,8 +1020,9 @@ twice over, not once.
   label across `packages/**`; all three cited files already say **"lockdown §12"**
   (`chat-options-menu.tsx:37`, `rpg-choice-echo.tsx:7`, `use-rpg-mutations.ts:223`). It survives only
   in history/audit docs — those are RECORDS of the finding, not the thing to fix.
-- [ ] **IMPORT-SETTINGS-WRITE-GUARD** (S, owner-taste) — `import-user-settings` bypasses the write-boundary
-  guard (heals+warns at READ instead of refusing at WRITE); lift on want.
+- [ ] **IMPORT-SETTINGS-WRITE-GUARD — RULED 2026-08-07 (question-tool): LIFT INTO IMPORT** — the
+  import verb runs the same write-boundary validation as every settings writer; refuse loudly at
+  write; the heal-at-read arm becomes deletable. Dispatched in the RULED-BATCH lane.
 
 **⚑ ARCHIVE2's own UNVERIFIED tail** (flagged, not asserted — each is one targeted grep from a verdict):
 the six named UNREACHED side-eye items (waystone-compact · impersonate+1 · scene-lightbox · Status
@@ -883,9 +1136,10 @@ when coverage changes, not left to be contradicted by the section above it.**
 2. **The three nudge default texts** (I-8) — his veto, verbatim in NARCOLOR's report.
 3. **Structured-output nullable-union reshape** (I-1) — the A/B call.
 4. **Presets into the config rail** (I-3) — owner-timed, one array member forever.
-5. ✅ **`tags.sortOrder`** — AUDITED + RULED KEEP-BUT-NARROW (I-4). **One question left for him:** the
-   drag arm caps at 30 items while the library is \~400 — manual order is unreachable for \~92% of tags yet
-   still decides character-card chip order. His call whether that cliff is right.
+5. ✅ **`tags.sortOrder`** — AUDITED + RULED KEEP-BUT-NARROW (I-4). **The cliff question RULED
+   2026-08-07 (question-tool): ACCEPT the ≤30 drag cap** — manual curation is a small-set affordance;
+   the retire-manual question folds into the Alphabetical/Most-Used sort-modes build when it lands.
+   Item CLOSED.
 6. **DRAFT-TRUST** — drafts run the untrusted floor (strip `<i>`/`<b>`), committed `trustHtml` renders
    them; needs a "what render policy would this card get" server seam. Architecture call.
 7. **AGENT-1** — agent-sdk FIRST-CLASS for rpg-lite. Plumbing is \~complete (terminal tools · stateful

@@ -14,9 +14,12 @@ import type { UserMacroDef, UserMacroInputValue } from "@orb/kit/macro";
 import { MACRO_ARG_TYPES, MACRO_NAME_RE, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
+import type { RegexPlacement } from "@orb/kit/regex";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#connection";
 import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEVELS } from "#connection";
+import type { ProseSlotId } from "#prose-slot";
+import { proseOverridesSchema } from "#prose-slot";
 import { defineVersionedConfig } from "#versioned-config";
 import { PRESET_PROSE_SLOTS } from "./prose.ts";
 
@@ -736,7 +739,12 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 // registration-cost shape), never a new editor. The client's old `GUIDED_ACTION_COPY` map is retired INTO
 // `label`/`fires` (G11) — one home for the copy.
 //
-// SCOPE (§6.6, deliberate): the ACTIONS-VIEW set only — `guidedActions` ∪ the ACTION-shaped `formatStrings`.
+// SCOPE (§6.6, WIDENED by the owner ruling of 2026-08-07 — "templates need to have one home in presets not
+// scattered between that and settings or hiding in code"): `guidedActions` ∪ the ACTION-shaped
+// `formatStrings` ∪ `PRESET_PROSE_SLOT_IDS` (the turn-wire framings, which used to be `UserSettings.prose`
+// rows and a `const` in `assembly/shape.ts`). The original §6.6 line read "the ACTIONS-VIEW set only" and was
+// scoped to things a USER ACTION fires; the ruling makes the tab the one home for authorable prompt TEXT,
+// which is a superset. A row's `kind` still says which it is.
 // `wiFormat` is NOT here: it frames world-info ENTRIES and is edited in the WI marker's body editor (§6.5
 // census), so a row would mint the second home the census exists to prevent. Marker templates
 // (scenario/personality/…) likewise keep their section home.
@@ -760,9 +768,17 @@ export type TemplateCapability =
    *  own"). The refusal set is `FORMAT_STRING_CARRIER_TOKENS`, above. */
   | { readonly kind: "tokens"; readonly tokens: readonly string[] };
 
-/** WHICH slot a def edits: a guided-action kind (`guidedActions.<kind>`) or a format-string key
- *  (`formatStrings.<key>`). Both vocabularies are derived, never re-spelled. */
-export type TemplateDefId = GuidedActionKind | FormatStringKey;
+/** WHICH slot a def edits — three storage arms, every vocabulary derived rather than re-spelled: a
+ *  guided-action kind (`guidedActions.<kind>.prompt`), a format-string key (`formatStrings.<key>`), or a
+ *  PROSE-1 slot id (`prose[<id>].text` — the 2026-08-07 framing rows). The id IS the storage key in all
+ *  three, which is what keeps "one enum member + one def row" true for the new arm too.
+ *
+ *  The prose arm is typed as the WHOLE `ProseSlotId` union because the `home` that narrows it to the
+ *  preset-owned subset is runtime data in `#prose`, and `#prose` imports THIS module (the `no-circular`
+ *  reason `#prose-slot` exists). The narrowing is enforced two-sidedly instead — every
+ *  `PRESET_PROSE_SLOT_IDS` member has a row and every prose-armed row is a member — by
+ *  `tests/contracts/prose/index.contract.test.ts`, which can import both. */
+export type TemplateDefId = GuidedActionKind | FormatStringKey | ProseSlotId;
 
 export interface TemplateDef {
   readonly id: TemplateDefId;
@@ -778,7 +794,7 @@ export interface TemplateDef {
    *  its editor ghosts nothing. A prose slot is authored bytes; an empty one is not a slot. Spelled
    *  `| undefined` (and written explicitly on that one row) so the property exists on EVERY def — a reader
    *  walking the table never has to narrow before asking for it. */
-  readonly defaultSlot?: keyof typeof PRESET_PROSE_SLOTS | undefined;
+  readonly defaultSlot?: ProseSlotId | undefined;
 }
 
 /** Every guided template delivers in-chat, so each carries role + depth; the token list is the editor's chip
@@ -872,6 +888,35 @@ export const TEMPLATE_DEFS = [
     // slot is authored bytes (no slot may ship empty text).
     defaultSlot: undefined,
   },
+  // ── THE TURN-WIRE FRAMINGS (owner ruling 2026-08-07) ──────────────────────────────────────────────────
+  // The three wrappers assembly puts AROUND content on the way to the model. They are `format`, not `nudge`:
+  // a nudge is prose fired by an ACTION with nothing to steer it; these fire on the shape of the WIRE (a
+  // demoted system row, an operator note, a history that would end on the model's own reply). Their id is a
+  // PROSE-1 slot id, so their storage is `prose[<id>].text` — the third form path.
+  {
+    id: "chat.injection.systemNote",
+    kind: "format",
+    label: "System-note frame",
+    fires: "A system-role injection the model can't take as a real system row",
+    caps: [{ kind: "tokens", tokens: ["{{note}}"] }],
+    defaultSlot: "chat.injection.systemNote",
+  },
+  {
+    id: "chat.injection.userNote",
+    kind: "format",
+    label: "User-note frame",
+    fires: "Every user-role injection — author's note, host steering, a re-framed injection",
+    caps: [{ kind: "tokens", tokens: ["{{note}}"] }],
+    defaultSlot: "chat.injection.userNote",
+  },
+  {
+    id: "chat.assembly.continuationNudge",
+    kind: "format",
+    label: "Continuation cue",
+    fires: "A turn you didn't type into, on a history that would otherwise end on the model's own reply",
+    caps: [],
+    defaultSlot: "chat.assembly.continuationNudge",
+  },
 ] as const satisfies readonly TemplateDef[];
 
 /** The ids the registry MUST cover: every guided kind + every ACTION-shaped format string. `wiFormat` is
@@ -885,13 +930,20 @@ void _templateDefsAreExhaustive;
 
 /** By-id lookup for the surfaces that render ONE template (a drill-in, a per-kind row) rather than walking
  *  the ordered table. TOTAL over `RegistryTemplateId` by construction — the guard above proves every id has
- *  a row, which is why the fold's assertion carries no runtime fallback (there is no missing case to handle). */
-export const TEMPLATE_DEF_BY_ID: Record<RegistryTemplateId, TemplateDef> = ((): { [K in RegistryTemplateId]: TemplateDef } => {
-  const out: Partial<Record<RegistryTemplateId, TemplateDef>> = {};
+ *  a row, which is why the fold's assertion carries no runtime fallback (there is no missing case to handle).
+ *  PARTIAL over `ProseSlotId` by TYPE only: the framing rows cover exactly `PRESET_PROSE_SLOT_IDS`, which is a
+ *  runtime narrowing tsc cannot express here, so that half's totality is the contract test's (see
+ *  `TemplateDefId`). */
+export const TEMPLATE_DEF_BY_ID: Record<RegistryTemplateId, TemplateDef> & Partial<Record<ProseSlotId, TemplateDef>> = ((): Record<
+  RegistryTemplateId,
+  TemplateDef
+> &
+  Partial<Record<ProseSlotId, TemplateDef>> => {
+  const out: Partial<Record<TemplateDefId, TemplateDef>> = {};
   for (const def of TEMPLATE_DEFS) {
     out[def.id] = def;
   }
-  return out as Record<RegistryTemplateId, TemplateDef>;
+  return out as Record<RegistryTemplateId, TemplateDef> & Partial<Record<ProseSlotId, TemplateDef>>;
 })();
 
 /** Default `/compact` steering (RP-tuned vs the SDK's generic coding-agent summary). */
@@ -1100,6 +1152,13 @@ export const promptConfigSchema = z.object({
   continuePostfix: z.enum(CONTINUE_POSTFIX_TYPES).optional(),
   formatStrings: formatStringsSchema.optional(),
   guidedActions: guidedActionsSchema.optional(),
+  // The per-PRESET PROSE-1 overrides (owner ruling 2026-08-07: templates have ONE home and it is presets).
+  // Keyed by slot id, holding the SAME `{text, baseVersion}` record every other home stores — which is why
+  // `resolveProse` needs no per-home arm. Additive + `.prefault({})`, so a pre-ruling blob parses unchanged
+  // and resolves every slot to its shipped default (the `variables`/`userMacros` precedent — no version bump).
+  // NOT a second door for the guided/format slots: those stay in their own fields (§4.6) and
+  // `PRESET_PROSE_SLOT_IDS` excludes them.
+  prose: proseOverridesSchema,
   postProcess: z
     .object({
       collapseNewlines: z.boolean().default(false),
@@ -1119,6 +1178,103 @@ export const promptConfigSchema = z.object({
     .optional(),
 });
 export type PromptConfig = z.infer<typeof promptConfigSchema>;
+
+// ── THE PIPELINE ORDER (the ONE declaration of what runs when) ─────────────────────────────────────
+// The order the prompt-side and reply-side transforms execute in is a FACT OF THE ENGINE, and it used to
+// live in two places that could not check each other: the executors (`domain/chat/engine/pipeline.ts`'s
+// `applyReceiveTransforms` + `@orb/server/kit/post-process`) and a hand-numbered list of rows in the
+// preset editor's Transforms readout. The list drifted, as a hand-numbered list of someone else's order
+// always does, and the readout printed FOUR untruths at once: `REASONING` before the post-process block
+// (the engine runs it after), the three receive switches in exactly reverse execution order, and
+// `collapseNewlines` on the reply lane at all — it is an ASSEMBLE transform (`applyAssemblePostProcess`,
+// on the rendered system halves) that the reply path never calls.
+//
+// So the order is DECLARED ONCE, here, and CONSUMED: `applyReceivePostProcess`/`applyAssemblePostProcess`
+// iterate the two flag tuples below (they no longer carry their own if-chains), and the readout renders
+// its rows off the lanes (it no longer carries slot numbers at all). It lives in `contracts` because it
+// is the one shape both the server executor and the client readout must agree on, and the cake gives them
+// no lower shared home that can see `postProcess`'s keys.
+//
+// WHAT IS DELIBERATELY NOT A STEP: the per-speaker reply clean (`cleanPerSpeakerContent`, which runs
+// between the post-process block and the `REASONING` pass). It is driven by the TURN's shape, not by a
+// preset switch, so a row for it in a preset editor would name a control that does not exist there. Its
+// absence does not make the printed order wrong — every step that IS printed keeps its true position.
+
+/** One post-process switch, by the side of the pipeline it runs on. */
+export type PostProcessFlag = keyof NonNullable<PromptConfig["postProcess"]>;
+
+/** WHICH LANE EACH SWITCH RUNS ON — a TOTAL map over the schema's own keys, so a new switch cannot enter
+ *  `postProcess` without answering the question `collapseNewlines` was silently answered wrong on (it sat
+ *  in the reply readout while the reply path never calls it), and a renamed one fails `tsc` here. */
+export const POST_PROCESS_LANE = {
+  singleLine: "receive",
+  dropIncompleteSentence: "receive",
+  trimTrailingWhitespace: "receive",
+  collapseNewlines: "assemble",
+} as const satisfies Readonly<Record<PostProcessFlag, "assemble" | "receive">>;
+
+type FlagsOnLane<L extends "assemble" | "receive"> = { [K in PostProcessFlag]: (typeof POST_PROCESS_LANE)[K] extends L ? K : never }[PostProcessFlag];
+export type ReceivePostProcessFlag = FlagsOnLane<"receive">;
+export type AssemblePostProcessFlag = FlagsOnLane<"assemble">;
+
+/** The RECEIVE switches in the order `applyReceivePostProcess` applies them — single-line FIRST (the most
+ *  aggressive cut), so the later sentence/whitespace trims operate on the already-reduced line. That the
+ *  tuple is COMPLETE (a receive-lane flag left out here would simply never run) is pinned at runtime by
+ *  `tests/contracts/preset/index.contract.test.ts` against the schema's own key set. */
+export const RECEIVE_POST_PROCESS_ORDER = [
+  "singleLine",
+  "dropIncompleteSentence",
+  "trimTrailingWhitespace",
+] as const satisfies readonly ReceivePostProcessFlag[];
+
+/** The ASSEMBLE switches, same contract on the prompt side (`applyAssemblePostProcess`). The split is the
+ *  point: a flag in this tuple runs on a rendered system half and NEVER on a reply. */
+export const ASSEMBLE_POST_PROCESS_ORDER = ["collapseNewlines"] as const satisfies readonly AssemblePostProcessFlag[];
+
+/** ONE step of a lane. `native-reasoning` and `reasoning-parse` are the reply's two reasoning-source arms
+ *  (native is always preferred; the inline `<think>` parse only fires when the reply carried no native
+ *  channel AND `autoParse` is on) — the parse is a real executor step and the native arm is the gate on it. */
+export type PromptPipelineStep =
+  | { readonly kind: "native-reasoning" }
+  | { readonly kind: "reasoning-parse" }
+  | { readonly kind: "regex"; readonly placement: RegexPlacement }
+  | { readonly kind: "post-process"; readonly flag: PostProcessFlag };
+
+/** A step's STABLE identity — the key a total label map is keyed by and the token an order pin compares.
+ *  Never a rendered string (the copy is the client's), and never an index (the index IS the drift). */
+export function pipelineStepKey(step: PromptPipelineStep): string {
+  if (step.kind === "regex") {
+    return `regex:${step.placement}`;
+  }
+  if (step.kind === "post-process") {
+    return `post-process:${step.flag}`;
+  }
+  return step.kind;
+}
+
+/** THE PROMPT-SIDE LANE. `USER_INPUT` rewrites the draft before it is persisted, `WORLD_INFO` rewrites each
+ *  entry as it is rendered, the ASSEMBLE collapse runs on the joined system halves at the end of BUILD, and
+ *  only then does `PROMPT_HISTORY` rewrite the assembled transcript on its way to the wire — the one
+ *  prompt-side stage whose output never becomes canon. */
+export const PROMPT_LANE_STEPS: readonly PromptPipelineStep[] = [
+  { kind: "regex", placement: "USER_INPUT" },
+  { kind: "regex", placement: "WORLD_INFO" },
+  ...ASSEMBLE_POST_PROCESS_ORDER.map((flag): PromptPipelineStep => ({ kind: "post-process", flag })),
+  { kind: "regex", placement: "PROMPT_HISTORY" },
+];
+
+/** THE REPLY-SIDE LANE, in the order `applyReceiveTransforms` runs it: the inline-reasoning demux, the
+ *  `AI_OUTPUT` pass over the content, the post-process block, then the `REASONING` pass over the demuxed
+ *  channel — and last, client-side, the `DISPLAY` pass, which changes what you read and never touches the
+ *  wire. Pinned against the live engine by `tests/server/domain/chat/engine/pipeline.test.ts`. */
+export const REPLY_LANE_STEPS: readonly PromptPipelineStep[] = [
+  { kind: "native-reasoning" },
+  { kind: "reasoning-parse" },
+  { kind: "regex", placement: "AI_OUTPUT" },
+  ...RECEIVE_POST_PROCESS_ORDER.map((flag): PromptPipelineStep => ({ kind: "post-process", flag })),
+  { kind: "regex", placement: "REASONING" },
+  { kind: "regex", placement: "DISPLAY" },
+];
 
 /** THE WRITE BOUNDARY (the `injectionDirectiveSchema` → wire-guard layering precedent, `@orb/kit/injection`):
  *  `promptConfigSchema` plus the guards that may REFUSE an author's edit. The transport create/update procs
@@ -1399,6 +1555,10 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
   userMacros: [],
   formatStrings: { ...DEFAULT_FORMAT_STRINGS },
   guidedActions: DEFAULT_GUIDED_ACTIONS,
+  // EMPTY, not the shipped framing bytes: an override record IS the "the host wrote this" signal, so seeding
+  // it would make every new preset read Customized and would freeze today's wording into stored data that a
+  // revised default could never reach (§4.4). Absent ⇒ the slot's own text, byte-identical.
+  prose: {},
 };
 
 export const promptConfigConfig = defineVersionedConfig({
