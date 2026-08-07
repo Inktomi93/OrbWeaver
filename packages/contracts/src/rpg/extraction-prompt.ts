@@ -124,8 +124,9 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
           "you what the sky is doing, indoors or out — a blizzard closing in past the cabin window counts as much as " +
           "stepping outdoors into it. When the story says nothing about the sky, leave it alone: omitting keeps what " +
           "is already there. A room's own atmosphere (torchlight, damp, a stifling hall) is NOT weather — that belongs " +
-          `in scene.location. scene.weather.type is one of ${[...RPG_WEATHER_TYPES].join("/")}; if none of them is ` +
-          "what the sky is actually doing, OMIT weather rather than forcing the nearest. Put the vivid phrasing in " +
+          `in scene.location. scene.weather.type is one of ${[...RPG_WEATHER_TYPES].join("/")}; use "indoors" when the ` +
+          "scene is enclosed and no sky is visible from it at all, and if none of them is what the sky is actually " +
+          "doing, OMIT weather rather than forcing the nearest. Put the vivid phrasing in " +
           `scene.weather.label ("torrential sleet", "a thin grey drizzle"), which is what the reader sees.`,
       );
       // §1.6 gap — the structured day counter, prompted ONLY when dateMode is structured (mode-aware fragment).
@@ -361,7 +362,8 @@ export function buildRpgToolDescriptions(ctx: ExtractionPromptContext): Readonly
         "never the room: set it whenever the story says what the sky is doing, indoors or out (a blizzard past the " +
         "cabin window counts); when the story says nothing about the sky, omit it and it keeps, and a room's own " +
         "atmosphere goes in location instead. weather.type is one of " +
-        `${[...RPG_WEATHER_TYPES].join("/")} — if none fits what the sky is doing, OMIT weather rather than ` +
+        `${[...RPG_WEATHER_TYPES].join("/")} — use "indoors" when the scene is enclosed with no sky visible from ` +
+        "it at all, and if none fits what the sky is doing, OMIT weather rather than " +
         'forcing the nearest; the vivid phrasing goes in weather.label ("torrential sleet"). ' +
         "presentUpsert: for EACH character on screen set mood (every demeanor shift — 1-3 " +
         'words, "wary", "quietly furious", NEVER a sentence), appearance + outfit (when described), thoughts ' +
