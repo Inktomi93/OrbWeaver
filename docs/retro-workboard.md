@@ -80,28 +80,23 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   step past the `merged` badge (the stages data already exists in ShapeTrace). The next debug
   increment when wanted.
 - **NOT pushed to origin** — the push word is the owner's, fresh, per push. \~40 commits ahead.
-- **⚑ COMPACT-SAFETY SNAPSHOT (2026-08-08 morning, \~91% context):** tree CLEAN at `b557262a0`
-  (working files: repo `scratch/` holds the gitignored st-console-probe; ST runtime settings.json
-  now has `console_log_prompts: true` — deliberate debug aid). **IN-FLIGHT LANES:** REGX2
-  (executor, worktree, all four forks ruled on defaults — bulk edit 3 verbs / member-editor
-  debugger / JSON door flipping the superseded portability cells; resume via SendMessage if
-  orphaned). **JUST ORDERED (owner, verbatim scope): the CANON MESSAGE IDENTITY stickler** — a
-  design investigation posing the typed per-row KIND axis idea against: our db schemas + contracts
-  - the ACTUAL db + the captured wire formats on disk (st-goldens output/ + orbweaver-output/ +
-    .cache/wire-capture spill + the atlas docs/design/st-message-shaping-atlas.md) + `proposed/` for
-    future-hedging so this is designed ONCE; must cover: raw-with-macros storage linked to canon
-    (so reattribute/swipe/re-render can re-resolve macros — surpassing ST) · reasoning + its
-    provenance · stats · debug · multi-human + persona merging with speaker attribution · narrator
-    group-mode speaker splitting/coloring · the mid-conversation system channel newer Opus models
-    support · exhaustive lock-in tests; **SCOPE EXTENDED (owner, second message, verbatim intent):** the memory
-    system (NOT summarization) + compaction handling interplay · future agents IN and OUTSIDE the
-    roster (out-of-band speakers REACTING to room content) · swipe-variance storage for normal AND
-    rpg — replayable/deterministic/clean, the messages/message\_variants above-and-beyond bar · canon
-    must be PROVIDER-INDEPENDENT (shaping is a projection, never feedback into storage — no ST
-    sprawling divergent chat-log versions) · group membership HISTORY (has-been vs is-currently) ·
-    persona unification (human players' personas · the pinned ANCHOR in multi-human · pinned-vs-active
-    in single-player/character chats) — all unified pre-launch. Deliverable = a stickler file in docs/reviews/stickler/,
-    recommendation-grade, NOT a build. The lineage-view + kind-axis board rows above feed it.
+- **✅ REGX2 MERGED + CLOSED (`3f17dd8b4`, consolidated check green, torn down)** — all three
+  builds complete: bulk edit (3 batch verbs + the `bulkSelect` contribution field), the pipeline
+  debugger (member-editor section over a pure model), the per-script JSON door (byte-equal to the
+  bundle arm, test-pinned; the superseded portability cells flipped, headers truth-repaired). Two
+  rendered defects self-caught at the real 330px mount — the bulk bar shipped as 2 verbs + kebab
+  with a standing geometry pin; **the narrowest-mount gate candidate gains its 5th/6th receipts.**
+  I-4's REGX2 row: CLOSED. Deferred honestly: bulk placement (waits on the kit-lift small).
+- **⚑ COMPACT-SAFETY SNAPSHOT (2026-08-08, \~93% context):** tree CLEAN at the REGX2 merge; repo
+  `scratch/` holds the gitignored st-console-probe; ST runtime settings.json has
+  `console_log_prompts: true` (deliberate debug aid). **IN-FLIGHT:** the CANON-IDENTITY STICKLER
+  (14 sections + the hash/reindex-cascade rider; writes
+  `docs/reviews/stickler/2026-08-08-canon-message-identity.md` FIRST — resume via SendMessage if
+  orphaned) · lane MOBILE dispatching next (the 08-03 owner-ruled ONE-SHELL rule: on mobile a
+  list-bearing section with no selection shows its LIST as the screen, selection pushes to CONTENT
+  with a back row — config + databank are the deviations to remove; resolvePanelMode
+  shell-store.ts:372 + per-section CTs at the mobile frame). Owner rulings all executed; push word
+  still owed on \~50 commits.
 - **NEXT (owner-authorized chain): this board's queue** — REGX2 (dispatching) → MOBILE one-shell
   rule → BOARD-THESE by value-per-effort → the lifted smalls. Owner-taste rows stay parked.
 
