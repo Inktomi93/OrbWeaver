@@ -123,6 +123,17 @@ interface BuildEnv {
  * (`You are {{char}}`) is precisely where `{{char}}`-as-cast is the point. The split follows the persona axis this file
  * already routes on: a `pinnedPersona` render is card-derived, an `activePersona` render is user/preset-authored.
  *
+ * WHAT THE TWO PERSONAS ARE (owner-stated, and the reason the axis is shaped this way — the WHICH-PERSONA
+ * half of the same split, where the rule above is the WHICH-TEXT half):
+ *   · `pinnedPersona` — the human a CARD's `{{user}}` references resolve to: the player who opened the chat,
+ *     or in a multi-human room whichever player the HOST anchored (`chats.anchorPersonaId`, host-only via
+ *     `setChatAnchorPersona`). Resolved once in `assembly/context.ts` as `personas.anchor ?? personas.active`,
+ *     so card text keeps naming the same person for everyone reading it, whoever is currently speaking.
+ *   · `activePersona` — the human a PRESET's or the composer's `{{user}}` resolves to: whoever is active NOW.
+ * Persona pinning is OWNER-SACRED (its concept and mechanics are not a lane's to redesign). `cardOwnerCtx`
+ * below rebinds only `speaker`; it must never touch either persona field, or a card starts addressing the
+ * wrong human.
+ *
  * Returned BY REFERENCE unless the arm is `cast`, so every solo and per-speaker turn is byte-identical.
  */
 function cardOwnerCtx(ctx: AssembleContext): AssembleContext {
