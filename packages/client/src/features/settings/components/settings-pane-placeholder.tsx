@@ -5,8 +5,10 @@
 // — features can't import app-shell); composed from @orb/ui only. Swapped for the real surface, pane by
 // pane, as each category's feature lane lands (the way Appearance already is real today).
 
+import { Badge } from "@orb/ui/badge";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, Sparkles } from "@orb/ui/icons";
+import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 
 export interface SettingsPanePlaceholderProps {
@@ -14,7 +16,23 @@ export interface SettingsPanePlaceholderProps {
   readonly description: string;
 }
 
-/** The teaching placeholder for an unbuilt settings category (its distinct copy from the nav registry). */
+/** The teaching placeholder for an unbuilt settings category (its distinct copy from the nav registry).
+ *
+ *  IT SAYS "NOT BUILT YET" IN WORDS (side-eye 2026-08-06 P3; [[empty-states-are-load-bearing]]). A pane
+ *  title and one sentence, centred in an otherwise blank column, is indistinguishable from a pane whose
+ *  controls FAILED to render — the reader is left deciding whether the app is broken or they are. The chip
+ *  is the missing half: nothing here is switched off, hidden or lost, the surface simply does not exist
+ *  yet. Deliberately NOT the EmptyState `action` slot — a status is not a next step, and dropping a
+ *  non-CTA into that slot would flip `empty-state-has-action` green over a dead end it still is (this
+ *  file's own ALLOWLIST reason: a generic placeholder has no pane-specific next step to offer; the
+ *  pane's OWN `description` is where a "meanwhile, X lives at Y" pointer belongs). */
 export function SettingsPanePlaceholder({ title, description }: SettingsPanePlaceholderProps): ReactElement {
-  return <EmptyState className="h-full justify-center" icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />;
+  return (
+    <Stack align="center" className="h-full justify-center" gap="block">
+      <EmptyState icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} />
+      <Badge intent="neutral" size="sm">
+        Not built yet
+      </Badge>
+    </Stack>
+  );
 }

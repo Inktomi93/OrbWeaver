@@ -97,7 +97,11 @@ function WorkloadRowBody({
         subtitle={subtitleParts.join(" · ")}
         actions={
           <Row align="center" gap="row">
-            {workload.mode === "bulk" ? <Badge intent="warning">Bulk</Badge> : null}
+            {/* NEUTRAL, not warning (side-eye 2026-08-06 P3): `bulk` is the run's CATEGORY, not its health,
+                and the amber sat beside a green "Succeeded" telling two stories about one row. The queue-state
+                badges below already speak this vocabulary — a category badge is neutral, and colour on this
+                row is reserved for the status badge that owns it. */}
+            {workload.mode === "bulk" ? <Badge intent="neutral">Bulk</Badge> : null}
             {workload.poison ? <Badge intent="danger">Unreadable</Badge> : null}
             <QueueStateBadges deferred={deferred} waiting={waiting} />
             <Row aria-live="polite" data-slot="workload-status">

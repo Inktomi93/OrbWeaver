@@ -24,7 +24,7 @@ import { useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
-import { AutosaveStatus } from "#forms";
+import { SectionSaveStatus } from "#forms";
 import { useFocusOnMount } from "#lib";
 import { settingsAnchorId } from "#state";
 import { AddCredentialDialog } from "../components/add-credential-dialog.tsx";
@@ -152,9 +152,16 @@ function ModelRolesBody({ session, persisted, isOwner, customCredentialId }: Mod
         {/* The pane may NOT read "Saved" while it is rendering a draft: a drifted pane whose session is
             otherwise idle is one armed debounce away from saving, so it reads "Saving…" — the ratified
             three-state vocabulary, no fourth state minted (D78 §6). Which rows are drafts, and what a turn
-            resolves meanwhile, is disclosed per row (RowSyncDisclosure). */}
+            resolves meanwhile, is disclosed per row (RowSyncDisclosure).
+            THROUGH THE SEAM, not a bare `<AutosaveStatus>` (side-eye 2026-08-06 P2): every other settings
+            pane says "Saved · Synced across your devices." once, bottom-left, in the shell's aggregate
+            footer, and this one said a bare "Saved" top-right — two homes and two wordings for one fact.
+            `SectionSaveStatus` REPORTS into the aggregate and renders inline only on `error`, so the failure
+            still surfaces where it happened (D41). */}
         <form.Subscribe selector={(state): boolean => routingFormDrifted(state.values, persisted)}>
-          {(drifted): ReactElement => <AutosaveStatus state={drifted && saveState === "saved" ? "saving" : saveState} onRetry={retrySave} />}
+          {(drifted): ReactElement | null => (
+            <SectionSaveStatus id={CONNECTIONS_SUBCATEGORY_IDS.roles} state={drifted && saveState === "saved" ? "saving" : saveState} onRetry={retrySave} />
+          )}
         </form.Subscribe>
       </Row>
       <FieldLayout orientation="horizontal">
@@ -256,10 +263,17 @@ function SavedKeysSection(): ReactElement {
           Your provider API keys. One key is active per provider; roles resolve their key from the active one for their source. Keys are encrypted and never
           shown again.
         </Text>
-        <Button intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
-          <Icon icon={Plus} size="sm" />
-          Add key
-        </Button>
+        {/* ONE "Add key" PER VIEWPORT (side-eye 2026-08-06 P2). With no keys yet the empty state below is
+            already the section's whole message AND its call to action, so a second primary in the header
+            said the same thing twice, 60px apart, and neither one was the obvious next click. The empty
+            state owns the verb while the list is empty; this header button is the home once there IS a
+            list (the empty state is gone by then). */}
+        {credentials.length === 0 ? null : (
+          <Button intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
+            <Icon icon={Plus} size="sm" />
+            Add key
+          </Button>
+        )}
       </Row>
 
       {hasOpenRouter ? <OpenRouterBalanceTile /> : null}
@@ -270,7 +284,9 @@ function SavedKeysSection(): ReactElement {
           title="No keys yet"
           description="Add a provider key so your roles can reach a model."
           action={
-            <Button intent="secondary" size="sm" onClick={(): void => setAddOpen(true)}>
+            // PRIMARY now that it is the section's only "Add key": the empty state IS the call to action.
+            <Button intent="primary" size="sm" onClick={(): void => setAddOpen(true)}>
+              <Icon icon={Plus} size="sm" />
               Add key
             </Button>
           }

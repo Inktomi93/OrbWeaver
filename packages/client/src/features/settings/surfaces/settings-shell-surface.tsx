@@ -237,9 +237,12 @@ export function SettingsShell(): ReactElement {
   };
 
   /** Jump to a REPORTING section by its contribution id — the aggregate footer's "take me to the failure"
-   *  (§3: the footer never retries, it only locates). */
+   *  (§3: the footer never retries, it only locates). A `surface`-mode pane may report a save status under
+   *  an id that is NOT a section contribution (Connections → Model roles), so the footer asks first and
+   *  omits its locator rather than offering a button that silently no-ops. */
+  const canJumpToSection = (sectionId: string): boolean => sectionRegistry.has(sectionId);
   const jumpToSection = (sectionId: string): void => {
-    if (!sectionRegistry.has(sectionId)) {
+    if (!canJumpToSection(sectionId)) {
       return;
     }
     const contribution = sectionRegistry.get(sectionId);
@@ -394,7 +397,7 @@ export function SettingsShell(): ReactElement {
                   <SettingsPane pane={activePane} />
                 </SaveStatusHostContext>
               </Stack>
-              <SettingsSaveFooter onJumpToSection={jumpToSection} />
+              <SettingsSaveFooter canJumpToSection={canJumpToSection} onJumpToSection={jumpToSection} />
             </Stack>
           </Row>
         </Stack>

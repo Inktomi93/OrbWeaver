@@ -18,7 +18,7 @@ import type { Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
-import { ConnectionsSettingsStory } from "../_ct-stories.tsx";
+import { ConnectionsSettingsHostedStory, ConnectionsSettingsStory } from "../_ct-stories.tsx";
 
 const SYNC_CHIP = '[data-slot="role-row-sync"]';
 const APP_DEFAULT = '[data-slot="role-app-default"]';
@@ -309,4 +309,62 @@ test("an unresolvable chat connection degrades to the bare line — never a fabr
   await mount(<ConnectionsSettingsStory />);
 
   await expect(page.locator(APP_DEFAULT).first()).toHaveText("Uses the app default");
+});
+
+// ── side-eye 2026-08-06 ────────────────────────────────────────────────────────────────────────────
+// P3: the resolved chat default is the ONE informative hint on this pane, and it was `truncate`d — in the
+// real settings modal it read "…Claude subscription (host) · cl…", eating the model name, which is the whole
+// reason the row resolves anything. The text is in the DOM either way (`truncate` clips by overflow), so the
+// assertion above cannot see it; this reads the RESOLVED property that decides whether it can clip at all.
+test("the resolved app-default hint WRAPS — it is the one line on this pane that must be readable in full", async ({ mount, page }) => {
+  await stubSettings(page, {});
+  await mount(<ConnectionsSettingsStory />);
+
+  const hint = page.locator(APP_DEFAULT).first();
+  await expect(hint).toBeVisible();
+  await expect(hint).not.toHaveCSS("white-space", "nowrap");
+  await expect(hint).not.toHaveCSS("text-overflow", "ellipsis");
+});
+
+// P3: the chat row's Protocol sub-select sat ~40px right of the six source selects it belongs under — the
+// one control on the pane that did not line up, because the sub-row inset by the label column and THEN spent
+// the word "Protocol" out of the source column's width.
+test("the chat row's Protocol select shares the SOURCE column's left edge", async ({ mount, page }) => {
+  await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "chat-completions" } });
+  await mount(<ConnectionsSettingsStory />);
+
+  const source = page.getByRole("combobox", { name: "Chat provider" });
+  const protocol = page.getByRole("combobox", { name: "Chat protocol" });
+  await expect(source).toBeVisible();
+  await expect(protocol).toBeVisible();
+  const [sourceBox, protocolBox] = await Promise.all([source.boundingBox(), protocol.boundingBox()]);
+  expect(sourceBox).not.toBeNull();
+  expect(protocolBox).not.toBeNull();
+  expect(sourceBox === null || protocolBox === null ? 999 : Math.abs(sourceBox.x - protocolBox.x)).toBeLessThan(1.5);
+});
+
+// P2: under an aggregate save-status HOST (how the settings shell mounts every pane) this one used to add a
+// SECOND home and a second wording for "Saved" — a bare chip top-right against the shell's one bottom-left
+// "Saved · Synced across your devices." It now REPORTS through the §3 seam: nothing inline at rest, and the
+// aggregate carries the state. The unhosted arm (every test above) is unchanged — a section with no host
+// still renders its own status, which is what the seam's degrade arm is for.
+test("hosted: Model roles reports into the aggregate instead of painting its own 'Saved'", async ({ mount, page }) => {
+  await stubSettings(page, { chat: { source: "openrouter", model: LIVE_MODEL, api: "chat-completions" } });
+  await mount(<ConnectionsSettingsHostedStory />);
+
+  // Barrier on a SETTLED rendered arm of the pane before reading the status seam.
+  await expect(page.getByRole("button", { name: "Chat model" })).toContainText("Claude Sonnet 5");
+  await expect(page.getByTestId("aggregate")).toHaveText("saved");
+  await expect(page.locator(AUTOSAVE_STATUS)).toHaveCount(0);
+});
+
+// P2: two "Add key" primaries in one viewport — the section header's and the empty state's — 60px apart,
+// neither obviously the next click. The empty state owns the verb while there is nothing to list.
+test("with no keys saved there is exactly ONE 'Add key' — the empty state's", async ({ mount, page }) => {
+  await stubSettings(page, {});
+  await mount(<ConnectionsSettingsStory />);
+
+  // EmptyState's title is a `<p>`, not a heading — barrier on the settled empty arm before the count.
+  await expect(page.getByText("No keys yet", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Add key" })).toHaveCount(1);
 });

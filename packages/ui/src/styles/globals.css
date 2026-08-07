@@ -143,6 +143,40 @@
   --fade-end-stop: var(--fade-edge-stop);
 }
 
+/* CLAMPED-MENU TAIL CUE (side-eye 2026-08-06 P2). A menu taller than `--available-height` clamps and
+ * scrolls (see menu/variants.ts `popup`), but the clamp is INVISIBLE: the last visible row ends flush at a
+ * clean border and reads as the last row, so the tail below it is undiscoverable without a stray wheel.
+ *
+ * The self-scrolling-box background recipe, NOT a mask: `mask-image` clips at the border box and would eat
+ * the popup's own `shadow-overlay` (the message-list scroller has no shadow, which is why it can mask). Two
+ * `local` cover gradients ride the CONTENT and sit exactly over two `scroll` shadow gradients pinned to the
+ * box — so a shadow shows only while content is actually scrolled past that edge, and a menu that fits
+ * shows neither. Pure CSS: no scroll listener, no per-menu state, and correct the instant the popup opens.
+ *
+ * Base UI's Menu has NO ScrollUpArrow/ScrollDownArrow part (verified against the installed @base-ui/react
+ * 1.7.0 `menu/index.parts.d.ts` — only Select publishes those), so the arrow anatomy Select uses is not
+ * available here; this is the same affordance built from the popup's own paint. */
+/* The two COVER gradients stay opaque across the shadow's own depth (60% of --spacing-block exceeds
+ * --spacing-tight), or a resting menu shows a ghost of the shadow it is there to hide. */
+[data-slot="menu-popup"] {
+  background-image:
+    linear-gradient(to bottom, var(--color-popover) 60%, transparent), linear-gradient(to top, var(--color-popover) 60%, transparent),
+    linear-gradient(to bottom, oklch(from var(--color-foreground) l c h / 0.35), transparent),
+    linear-gradient(to top, oklch(from var(--color-foreground) l c h / 0.35), transparent);
+  background-position: top, bottom, top, bottom;
+  background-repeat: no-repeat;
+  /* The shadow is drawn in the FOREGROUND ink, not black: on the dark popover a black scroll shadow is
+     invisible, and this has to read on every seed palette. Cover depth beats shadow depth with room to
+     spare (60% of --spacing-section = 14.4px vs --spacing-row = 8px), which is what keeps a resting menu
+     completely clean. Verified rendered, mid-scroll, in the CT browser — not inferred from the property. */
+  background-size:
+    100% var(--spacing-section),
+    100% var(--spacing-section),
+    100% var(--spacing-row),
+    100% var(--spacing-row);
+  background-attachment: local, local, scroll, scroll;
+}
+
 /* Spotlight hover-follow: media-grid.tsx writes pointer position into --x/--y on the hovered cell;
  * this paints a low-alpha radial spotlight there. pointer: fine only (no touch); reduced-motion
  * drops it entirely. */

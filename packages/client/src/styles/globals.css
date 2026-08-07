@@ -156,8 +156,9 @@ html[data-theme-colorization] .shell-grid {
 }
 
 /* appearance.surfaceTexture=grain — opt-in film-grain overlay on shell chrome + cards only, never
- * message-bubble (grain over scrolling prose hurts legibility). Static inline SVG noise tile, no
- * network, low opacity. */
+ * message-bubble (grain over scrolling prose hurts legibility). A static same-origin SVG noise tile
+ * (`public/grain.svg`), low opacity. NOT an inline `data:` URL — see the CSP note on the rule below,
+ * which is why this line no longer claims one. */
 html[data-texture="grain"] .shell-grid::after,
 html[data-texture="grain"] [data-slot="card-root"]::after {
   content: "";

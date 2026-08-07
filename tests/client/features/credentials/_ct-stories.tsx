@@ -3,6 +3,8 @@
 // precedent) — CredentialKeyRow is mounted by ConnectionsSettingsSurface itself, not exported standalone.
 
 import { useInvalidation, useTRPC } from "@orb/client/data";
+import { SaveStatusHostContext } from "@orb/client/forms";
+import { useAggregateSaveStatus } from "@orb/client/state";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
@@ -163,6 +165,33 @@ export function ConnectionsSettingsStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 960 }}>
         <ConnectionsPaneInner />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The pane as the SETTINGS SHELL actually mounts it — under an aggregate save-status HOST (side-eye
+ *  2026-08-06 P2). Model roles used to render its own bare "Saved" top-right while every other pane said
+ *  "Saved · Synced across your devices." bottom-left in the shell's one footer; it now reports through the
+ *  §3 seam instead, which means it renders NOTHING inline unless the save failed.
+ *
+ *  The aggregate is echoed into a marker rather than mounting the real footer: the footer is a
+ *  `features/settings` component with no front-door export, and reaching it by relative path would risk a
+ *  second module instance of the store it reads — the marker reads the same store through the alias the
+ *  pane itself uses, so there is exactly one. */
+function AggregateMarker(): ReactElement {
+  const aggregate = useAggregateSaveStatus();
+  return <p data-testid="aggregate">{aggregate ?? "none"}</p>;
+}
+
+export function ConnectionsSettingsHostedStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 900, overflow: "auto", width: 960 }}>
+        <SaveStatusHostContext value={true}>
+          <ConnectionsPaneInner />
+        </SaveStatusHostContext>
+        <AggregateMarker />
       </div>
     </CtDataProviders>
   );

@@ -62,9 +62,11 @@ export function Field({
 }: FieldProps): ReactElement {
   const ambient = use(FieldOrientationContext);
   const resolved = orientation ?? ambient;
-  const slots = fieldVariants({ orientation: resolved });
   const hasError = error !== undefined && error !== null;
   const hasDescription = description !== undefined && description !== null;
+  // A description or an error makes one column multi-line, which is the only case that wants a top-aligned
+  // horizontal row (see `multiline` in ./variants.ts).
+  const slots = fieldVariants({ orientation: resolved, multiline: hasDescription || hasError });
   const hasHint = hint !== undefined && hint !== null;
   // Derive the hint trigger's accessible name from the label so multiple hinted fields don't share one name.
   let hintAriaLabel = "More info";

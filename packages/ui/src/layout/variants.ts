@@ -45,6 +45,15 @@ export const rowVariants = tv({
   variants: { gap: GAP, align: ALIGN, justify: JUSTIFY, padding: PADDING },
 });
 
+// One-cell overlay stack (see layer.tsx). A single explicit `1fr`-free track that every child is placed
+// into by name, so the column sizes to the WIDEST child and each child stretches to it. No `gap` axis: one
+// cell has nothing to space, and no `align`/`justify` — each overlaid child brings its own (they are Rows
+// and Stacks). `col-start-1`/`row-start-1` are real utilities on purpose: the equivalent `[grid-area:1/1]`
+// would be an arbitrary property in a file features read from.
+export const layerVariants = tv({
+  base: "grid grid-cols-1 grid-rows-1 *:col-start-1 *:row-start-1",
+});
+
 // No external `py` — a Section pads its own content but leaves between-section spacing to the
 // container's `gap` (padding-as-margin double-counts against gap). Space sections via Stack/Grid gap.
 export const sectionVariants = tv({

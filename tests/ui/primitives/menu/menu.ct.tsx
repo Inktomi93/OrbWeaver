@@ -16,7 +16,7 @@ import {
 } from "@orb/ui/menu";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { MenuHandleHarness } from "./menu-handle.fixtures.tsx";
+import { MenuHandleHarness, MenuLabelColumnHarness } from "./menu-handle.fixtures.tsx";
 
 // Enough rows that the natural popup height exceeds any CT viewport — the shape that exposes a popup
 // ignoring Base UI's `--available-height`.
@@ -330,4 +330,59 @@ test("the backdrop appears while the menu is open and hides when it closes", asy
   await expect(backdrop).toHaveCSS("background-color", TOKENS["color.scrim"].value);
   await page.keyboard.press("Escape");
   await expect(backdrop).toBeHidden();
+});
+
+// ── The ragged label column (side-eye 2026-08-06 P2) ────────────────────────────────────────────────
+// One menu mixes iconed rows with bare-text rows, and the bare ones started their label a whole glyph
+// further left than the rest — the chat-options popup read as two misaligned columns. Two causes, both
+// fixed in the seal: command rows now reserve the leading glyph gutter, and the submenu trigger no longer
+// spreads its free space AROUND its label with `justify-between`.
+//
+// Measured on the TEXT ITSELF via a Range — the labels are bare text nodes with no element to locate, which
+// is exactly why the drift went unnoticed.
+test("every command row's LABEL starts on one column — icon-less rows and submenu triggers included", async ({ mount, page }) => {
+  await mount(<MenuLabelColumnHarness />);
+  await page.getByRole("button", { name: "Actions" }).click();
+  await expect(page.getByRole("menu")).toBeVisible();
+
+  const lefts = await page
+    .getByRole("menu")
+    .first()
+    .evaluate((menu: HTMLElement): readonly number[] =>
+      Array.from(menu.children).map((row): number => {
+        const text = Array.from(row.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() !== "");
+        if (text === undefined) {
+          return -1;
+        }
+        const range = document.createRange();
+        range.selectNodeContents(text);
+        return Math.round(range.getBoundingClientRect().left);
+      }),
+    );
+  expect(lefts).toHaveLength(4);
+  expect(lefts.every((left) => left > 0)).toBe(true);
+  expect(new Set(lefts).size, `label left edges drifted: ${lefts.join(", ")}`).toBe(1);
+});
+
+// A clamped popup used to end flush at a clean border with the tail undiscoverable (no scrollbar, no
+// arrows, no fade). Base UI's Menu publishes NO ScrollUpArrow/ScrollDownArrow part — only Select does — so
+// the cue is the popup's own paint: cover gradients that ride the CONTENT (`local`) over shadow gradients
+// pinned to the BOX (`scroll`), which is what makes a shadow appear only on an edge with content past it.
+test("a clamped popup carries the scroll cue — the covers ride the content, the shadows ride the box", async ({ mount, page }) => {
+  await mount(
+    <Menu>
+      <MenuTrigger>Actions</MenuTrigger>
+      <MenuPopup>
+        {LONG_MENU_ITEMS.map((label) => (
+          <MenuItem key={label}>{label}</MenuItem>
+        ))}
+      </MenuPopup>
+    </Menu>,
+  );
+  await page.getByRole("button", { name: "Actions" }).click();
+  const popup = page.locator('[data-slot="menu-popup"]');
+  await expect(popup).toBeVisible();
+  // The clamp itself (the precondition the cue exists for).
+  await expect.poll(() => popup.evaluate((el: HTMLElement): boolean => el.scrollHeight > el.clientHeight + 1)).toBe(true);
+  await expect(popup).toHaveCSS("background-attachment", "local, local, scroll, scroll");
 });
