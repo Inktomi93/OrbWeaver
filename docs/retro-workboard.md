@@ -138,22 +138,38 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     FALSE ALARMS, resolved in the doc** — U4's "N people" stacks are roster rows that pass no label
     (correct fallback); U1's vanishing chat was AUTHFIX landing mid-review (7→6 = twin→real owner).
 
-  - [ ] **AUTHFIX** → the lens is a FRESH `security-executor`, NOT `verifier` — the diff is
-    security-DOMINANT (identity/authz), and doctrine routes security review the same way it routes
-    security implementation. Must attack: the agreement pin actually fails pre-fix, the fail-closed
-    demotion arm, and whether `via:"fallback"` still reaches anything it shouldn't.
-  - [ ] **NARRATOR-CAST** → `verifier` (code lens). Must attack the D16 solo-byte-identical claim and
-    the `{{char}}` blast-radius table, which are ARGUMENTS the lane made, not receipts it took.
-    The new prose slot also adds a rendered card → **SIDE-EYE-DAY picks that up** (rendered lens).
-  - [ ] **PROVGATE** → `verifier`. Its historical positive control is unusually strong self-evidence,
-    but a gate that ratifies an already-correct tree is exactly the shape that can pass vacuously.
-  - [ ] **MY OWN TWO PUSH-RED FIXES (`10bff2dd4`) NEED THE LENS MOST, and they are the easiest to
-    skip because I wrote them.** I changed a CT assertion from `"2 people"` to `"2 characters"` to
-    make a red go green. That is the classic sin shape — **a verifier must confirm the assertion now
-    pins the CURE (the `accname-survives-spread` fix at `f954bbcf0` moved the default BEFORE the
-    spread) and not merely my convenience.** Same for deleting the `@public` tag on
-    `messageKindSchema`: confirm the export genuinely has production consumers.
-  - [x] **DATABANK-S2** — nothing to graduate; zero code landed. Its sweep WAS the verification.
+  ### ✅ AUTHFIX + DEBUGGATE GRADUATED (fresh security lens, 9/11 CONFIRMED; both merges are sound)
+  - [x] **AUTHFIX / ROLECLIENTS (D135)** — the role verdict IS single-homed (AST census: 9 Principal
+    sites, zero stray `owner`/`admin` stamps; the 3 surviving `role:"user"` floor stamps verified
+    floor-only by their consumer sets, not their comments). The pre-fix exploit (a non-owner rule author
+    reaching `mintMaxProSub` via `summarize.source=max-pro-sub`) CONFIRMED real and CONFIRMED closed;
+    containment stronger than stated (the minted credential carries no key + a second `ownerConsented`
+    gate). The `enabled` parity holds.
+  - [x] **DEBUGGATE (AUTHFIX-2)** — the un-credentialed bypass is gone in EVERY mode (the 43-red count
+    re-derived independently: 15 single-user + 27 SSO-local-origin + 1 = 43). `via` provenance sound for
+    cookie (256-bit CSPRNG, HMAC-peppered, hash-only, throws on unset pepper). No owner-inference reader
+    of `via` exists (swept all 3 node kinds — every reader is a CSRF gate on `via==="cookie"`). The
+    credential gate composes with the `enabled` gate with no gap.
+  - **⚑ FOUR FOLLOW-UPS → lane AUTHTAIL (`abad209e843199e43`, security-executor), all clearly-correct,
+    not blocking the owner:**
+    - [ ] **`admin.resetPassword` MISSING THE OWNER-IMMUTABILITY GUARD its 3 siblings carry** — under
+      `AUTH_MODE=local` this is admin → owner account takeover (reset owner's password, log in),
+      contradicting D17. PRE-EXISTING, out of both reviewed diffs. Red-first pin + the 3-line guard.
+      **This is the most serious thing the review found — worse than anything in the diffs it reviewed.**
+    - [ ] `seedOwner` re-promotes role but never re-enables → a disabled owner row bricks the box with no
+      in-app recovery (LOW: entry needs a raw write). Fix: `enabled: true` in the boot `.set({...})`.
+    - [ ] `DEBUG_GATE_CREDENTIALED.header`'s comment is FALSE (the raw-header arm is unreachable because
+      `isAdmin` passes no `peerIp`; only signed JWTs reach it). Amend + a standing note that threading
+      `peerIp` later is a security change.
+    - [ ] `stack-prod.ts::probeDebug` is permanently blind post-AUTHFIX-2 (sends no token, so `debug.pid`
+      is always null now) with a stale comment. Send the token when it wants the pid.
+  - **⚑ OWNER, operational (relayed from DEBUGGATE, standing):** rotate `DEBUG_TOKEN` (surface was open
+    an unknown window) · `IP_ALLOWLIST` still unset with `WIRE_CAPTURE=on`.
+
+  ### ✅ ALL DISPATCHED CHUNKS HAVE GRADUATED (2026-08-07 evening)
+  Every lens has reported. NARRATOR-CAST, PROVGATE, the two push-red fixes and SIDE-EYE-DAY are above;
+  AUTHFIX + DEBUGGATE graduated via the security lens (their four follow-ups are lane AUTHTAIL).
+  DATABANK-S2 landed zero code — its sweep WAS the verification. The graduation gate is currently EMPTY.
 - **Superseded IN-FLIGHT note (GATEFIX finished; merged `96d35ee80`, consolidated static check 14/14):** lane **GATEFIX** (`ae12ce29192c53e14`) was
   retargeting `message-kind-policy-coverage`'s conformance rows + the `__g_mkpc` fixture, which MY
   commit `5f2afa7fd` orphaned when it emptied the DEFERRED map (correctly) without updating the two
