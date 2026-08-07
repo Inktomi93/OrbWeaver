@@ -15,6 +15,12 @@
 // seam the server wires to its logger) is where an invalid or over-complex pattern surfaces, with the
 // executor's own message.
 //
+// THE TESTER NEUTRALISES THE RUN GATES; THE PIPELINE DEBUGGER HONOURS THEM. That difference is the point of
+// having both, not an inconsistency to unify: `previewRegexScript` answers "what does this find/replace DO"
+// and must not be silenced by the row being switched off or by its placement set (ST's test mode forces the
+// same three fields), while `regex-pipeline.ts` answers "what WILL actually happen on this leg" and would be
+// worthless if it ignored them. Both go through ONE engine call — `runInstrumentedRegex`, below.
+//
 // THE CLIENT/SERVER SPLIT IS REAL AND IS NOT HIDDEN (D75): the server wraps `applyReplace` in a
 // node:vm-sandboxed replace with a 50 ms watchdog; a browser has no such lever, so — exactly like the
 // DISPLAY tier it shares a process with — this preview runs UNWATCHED. That is why the sample is capped:
@@ -42,6 +48,10 @@ export const REGEX_PREVIEW_DEFAULT_SAMPLE = "*The goblin snarls and raises its c
 export const REGEX_PREVIEW_CHAR = "Aria";
 export const REGEX_PREVIEW_USER = "You";
 
+/** The macro context BOTH library-side previews resolve against — the single-script tester here and the
+ *  multi-script PIPELINE debugger (`regex-pipeline.ts`), which reaches it through `runInstrumentedRegex`
+ *  rather than importing it. One context, so two panels looking at the same script can never disagree about
+ *  what `{{char}}` was. */
 const PREVIEW_MACRO_CTX: ProcessMacroOptions = {
   char: REGEX_PREVIEW_CHAR,
   user: REGEX_PREVIEW_USER,
@@ -96,22 +106,32 @@ function probeOf(script: CreateRegexScriptInput): RegexScriptInput {
   };
 }
 
-/** Run one authored script over a sample through the production executor. Pure — safe to call in render. */
-export function previewRegexScript(script: CreateRegexScriptInput, sample: string): RegexPreview {
+/**
+ * THE INSTRUMENTED SINGLE-SCRIPT RUN — the one engine seam every library-side preview goes through.
+ *
+ * It runs the PRODUCTION executor over a one-script list and reads the effective flags + the real match
+ * count off the `applyReplace` seam (the same seam the server fills with its node:vm watchdog), so nothing
+ * here re-derives what the engine already decided. Both callers ride it: the tester below (with a probe that
+ * neutralises the run gates) and the PIPELINE debugger (`regex-pipeline.ts`, which honours them and runs
+ * many scripts in sequence). Two panels, one engine call shape.
+ *
+ * Pure — safe to call in render.
+ */
+export function runInstrumentedRegex(script: RegexScriptInput, text: string, placement: RegexPlacement): RegexPreview {
   let matchCount = 0;
   let flags: string | null = null;
   let error: string | null = null;
 
   const output = executeRegexScripts({
-    text: sample,
-    scripts: [probeOf(script)],
-    placement: PREVIEW_PLACEMENT,
+    text,
+    scripts: [script],
+    placement,
     ctx: PREVIEW_MACRO_CTX,
     // The server's watchdog seam, used here as an instrument: same call, same regex, same replacer — we
     // only read what passes through it.
-    applyReplace: (text: string, regex: RegExp, replacer: RegexReplacer): string => {
+    applyReplace: (subject: string, regex: RegExp, replacer: RegexReplacer): string => {
       flags = regex.flags;
-      return text.replace(regex, (substring: string, ...rest: unknown[]): string => {
+      return subject.replace(regex, (substring: string, ...rest: unknown[]): string => {
         matchCount += 1;
         return replacer(substring, ...rest);
       });
@@ -122,4 +142,10 @@ export function previewRegexScript(script: CreateRegexScriptInput, sample: strin
   });
 
   return { output, matchCount, flags, error };
+}
+
+/** Run one authored script over a sample through the production executor, with the three run gates
+ *  neutralised (see {@link probeOf}). Pure — safe to call in render. */
+export function previewRegexScript(script: CreateRegexScriptInput, sample: string): RegexPreview {
+  return runInstrumentedRegex(probeOf(script), sample, PREVIEW_PLACEMENT);
 }

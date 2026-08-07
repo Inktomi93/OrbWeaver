@@ -8,6 +8,7 @@ export { createAttachGlobal } from "./attach-global.ts";
 export { createAttachToCharacter } from "./attach-to-character.ts";
 export { createAttachToChat } from "./attach-to-chat.ts";
 export { createAttachToPreset } from "./attach-to-preset.ts";
+export { createBulkSetGlobal } from "./bulk-set-global.ts";
 export { createDetachFromCharacter } from "./detach-from-character.ts";
 export { createDetachFromChat } from "./detach-from-chat.ts";
 export { createDetachFromPreset } from "./detach-from-preset.ts";

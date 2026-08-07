@@ -234,9 +234,34 @@ junctions, 19 verbs, tRPC all-PROBED), 3 embed carriers DEAD on one baseline reg
   **Receipt the portability cross-link held:** `PORTABLE_KINDS` in
   `packages/contracts/src/portability/index.ts` carries `"regex"` — REGEX did NOT become the next PORT-F1.
 
-**OPEN — REGX2 (owner-ruled 08-03, dispatch when a slot frees):** bulk edit · the pipeline debugger ·
-the per-script JSON door. **NOT regex presets** — owner: "we made regex part of presets kinda" (the
-preset carrier already IS the named-set mechanism).
+✅ **REGX2 LANDED (2026-08-07)** — bulk edit · the pipeline debugger · the per-script JSON door. **NOT regex
+presets** (owner: "we made regex part of presets kinda" — the preset carrier already IS the named-set
+mechanism); no preset arm was built.
+· **BULK EDIT** — 3 batch verbs (`bulkSetScriptsEnabled` / `bulkSetScriptsGlobal` / `bulkRemoveScripts`),
+each ONE owner-scoped statement with ONE audit + ONE `regexChanged`; foreign ids DROPPED, never thrown on
+(the count is the same for "not yours" and "already gone", so a batch cannot probe ownership). Mode entry is
+a new `CollectionContribution.bulkSelect` DATA field the config band renders (C-4: band chrome is the host's,
+the bar and checkboxes are the owner's) — generalizes to tag/world-info, documented in the contract.
+· **PIPELINE DEBUGGER** — a second section in the member editor ("In the pipeline"), NOT a new pane: the
+workspace has three slots and no library-level tool slot, and minting one is a second chrome grammar. Sample
++ leg in, the global tier's ordered run out with per-stage before/after, the subject marked in place, and the
+executor's own skip reason named per script. It DOES honour the run gates — the tester one section up
+deliberately does not, and both headers say so, because unifying them destroys whichever question loses.
+· **JSON DOOR** — `regex.exportScript` / `regex.importScriptFile`, both THIN ARMS over the bundle
+descriptor's own verbs (export shares its file projection; import IS `createImportRegexScript`).
+**⚑ SUPERSEDED RULING, recorded:** `lifecycle-portability.ts`'s regex cells said "O-2 class… no evidenced
+demand for sharing one script standalone" and `collection-contracts.ts` cited them; the owner's REGX2 ruling
+IS that demand, so both flipped to real `DoorSpec`s + `chrome:"band+kebab"` and both headers were
+truth-repaired in the same commit.
+**DEFERRED with a reason — bulk PLACEMENT add/remove.** `withDerivedTierFlags` (the owner-ratified X-1/X-2
+finding) derives the tier flags + `historyDepth` from a placement set at ONE **client** write boundary, so a
+server bulk placement verb would be a second derivation home. It unblocks when `deriveRegexTierFlags` lifts
+into `@orb/kit/regex` beside the masks it mirrors — boarded separately.
+**Rendered receipt (done ≠ rendered):** the bulk bar was verified BROKEN twice at the real 330px roster
+column before it shipped — five inline verbs clipped "Run everywhere" mid-word and pushed two verbs AND the
+clear button off-screen; three verbs + a kebab still ran clear 22px past the edge. Shipped shape is two
+inline verbs + one kebab (global pair + Delete), with a standing geometry pin asserting every control's box
+inside the bar's.
 ✅ **TAGSORT AUDITED + RULED (2026-08-03) — KEEP BUT NARROW. The owner's premise targeted a surface
 that never read the column.** He challenged manual tag order with *"this is an overall global tag manager
 across our entire lib"* — and the evidence says the surface he meant, the character-library folder-grouping
