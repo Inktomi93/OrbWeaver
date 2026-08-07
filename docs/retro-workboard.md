@@ -417,6 +417,11 @@ identity chrome for ANY row kind.
   not a defect; recorded so no lane re-derives it. The ONLY live lever is the shared
   `routing.roleDefaults` settings row. Also: ENGINE's receipt probe left spec-owned debris —
   `chat_01kzdrdy92exvvmcvx39gefvgc` + character `dogeng-warden-*` — delete at will) · the
+  **narrowest-mount row gate** (side-eye 08-08, the class that produced both P1s + half the P2s:
+  a `Row` with a `shrink-0` trailing cluster sized in a wide context and never re-measured at its
+  production width — persona row 358px, theme band 256px, model-roles hint, menu gutter. The
+  candidate rule: any such row owes a CT at its narrowest real mount asserting the leading text
+  block ≥50%. Gate-shaped; report-then-decide per ASTLENS precedent) · the
   **st-goldens re-sweep** (STATLAS found the rig's `rm -rf output` wipes the PRIOR sweep's arm by
   design — only 10 ST captures survive, the 16-combo ST arm was destroyed by the tools sweep; fix
   accumulation (per-sweep dirs or drop the rm), then a full two-arm re-sweep upgrades the atlas §2
