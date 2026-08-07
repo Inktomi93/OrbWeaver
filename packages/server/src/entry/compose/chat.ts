@@ -46,6 +46,7 @@ import type {
   TurnMessage,
   TurnRequest,
   TurnStreamChunk,
+  TurnTrigger,
 } from "#domain/chat";
 import {
   applyStandaloneVariableOps,
@@ -130,17 +131,17 @@ function agentRowText(m: TurnMessage): string {
  * for bridge tests only — not a composition surface.
  */
 /**
- * THE THREE-STATE TRIGGER BINDING — which persona id prompt-config `{{user}}` (the assemble ctx's ACTIVE
- * persona) resolves against, per `ResolveForeignInputsOp` / Chat-Macro-Resolution §3–§4. PURE; exported for
- * its unit pin only (the `extractTrailingSystemRows` precedent — not a composition surface).
+ * THE TRIGGER BINDING — which persona id prompt-config `{{user}}` (the assemble ctx's ACTIVE persona)
+ * resolves against, dispatched exhaustively over {@link TurnTrigger} (Chat-Macro-Resolution §3–§4; the
+ * union's own doc carries the arm semantics). PURE; exported for its unit pin only (the
+ * `extractTrailingSystemRows` precedent — not a composition surface).
  *
- *   • an ID (a human triggered this turn)  → THAT human's persona ("who's speaking right now", §A.1).
- *   • EXPLICIT null (deferred drain / auto turn — no live triggering human) → the chat ANCHOR. The anchor is
- *     the chat-invariant identity (D51 rider); binding to `personaIds[0]` instead would address the prompt to
- *     a presence-order-arbitrary bystander, and falling to the kit floor would address "User" in a room whose
- *     `{{user}}` is well-defined. The drain/auto call sites have documented exactly this since they were
- *     written (`turn.ts` — "the user macro binds to the chat anchor, not a presence-order human"); the resolver
- *     coalesced their null away with `??` and did neither.
+ *   • `human`  → THAT human's persona ("who's speaking right now", §A.1), and `null` when their seat holds
+ *     none — the kit floor, NEVER the anchor. Borrowing the anchor here is INVITE-JOIN-NULL-PERSONA: it
+ *     hands a member the host's identity on the wire.
+ *   • `none` (deferred drain / auto turn) → the chat ANCHOR. The anchor is the chat-invariant identity (D51
+ *     rider); binding to `personaIds[0]` instead would address the prompt to a presence-order-arbitrary
+ *     bystander, and falling to the kit floor would address "User" in a room whose `{{user}}` is well-defined.
  *   • ABSENT/undefined (the trigger is UNKNOWN — a host preview / a card display) → the fallback chain:
  *     the first present human's active persona, else nothing.
  *
@@ -149,14 +150,26 @@ function agentRowText(m: TurnMessage): string {
  * `sameProjectedPersona` dedup keeps holding.
  */
 export function activePersonaIdFor(args: {
-  readonly triggerPersonaId?: PersonaId | null | undefined;
+  readonly trigger?: TurnTrigger | undefined;
   readonly personaIds: readonly PersonaId[];
   readonly anchorPersonaId: PersonaId | null;
 }): PersonaId | null {
-  if (args.triggerPersonaId === undefined) {
+  const trigger = args.trigger;
+  if (trigger === undefined) {
     return args.personaIds.at(0) ?? null;
   }
-  return args.triggerPersonaId ?? args.anchorPersonaId;
+  switch (trigger.kind) {
+    case "human":
+      return trigger.personaId;
+    case "none":
+      return args.anchorPersonaId;
+    default:
+      return assertNeverTrigger(trigger);
+  }
+}
+
+function assertNeverTrigger(trigger: never): never {
+  throw new Error(`activePersonaIdFor: unhandled TurnTrigger ${JSON.stringify(trigger)}`);
 }
 
 export function extractTrailingSystemRows(history: readonly TurnMessage[]): { rows: readonly TurnMessage[]; systemText: string | null } {
@@ -1077,7 +1090,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return input.connection.checkChatAvailability({ principal: await realHostPrincipal(runAsUserId), routableChat: routable });
     },
     resolveCreatorGroupDefaults: async (userId) => (await input.settings.loadUserSettings(userId)).groupDefaults,
-    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, personaIds, presentHumanUserIds, triggerPersonaId, presetOverride }) => {
+    resolveForeignInputs: async ({ runAsUserId, anchorPersonaId, personaIds, presentHumanUserIds, trigger, presetOverride }) => {
       const us = await input.settings.loadUserSettings(runAsUserId);
 
       // A feature-supplied GM-voice preset REDIRECT (rpg-design/02 §1.1 #1) wins over the host's default when it
@@ -1091,7 +1104,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       // both violating FINAL-Persona §A.1 in exactly the multi-human room the D16/D18 spine exists for. The
       // persona domain's principal-less roster op resolves the room's ids in ONE gated read; chat supplies
       // the consent set (its PRESENT humans), so a departed member's persona resolves to nothing.
-      const activePersonaId = activePersonaIdFor({ triggerPersonaId, personaIds, anchorPersonaId });
+      const activePersonaId = activePersonaIdFor({ trigger, personaIds, anchorPersonaId });
       const roster = await input.resolvePersonasForRoster({
         personaIds: [anchorPersonaId, activePersonaId].flatMap((id) => (id === null ? [] : [id])),
         allowedOwnerIds: presentHumanUserIds,

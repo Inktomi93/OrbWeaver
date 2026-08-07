@@ -142,6 +142,30 @@ function asCanonRole(role: Role): "user" | "assistant" {
   return role;
 }
 
+/**
+ * Drop INTERNAL-ONLY assembly markers from a PRE-NAMING stage before the neo diff.
+ *
+ * `speakerless` (INJECT-NAMED-AS-PLAYER, `34bdc39f3`) is set by `spliceInChatInjections` on an injection the
+ * splice DEMOTED to a participant role, and CONSUMED by `applyNamesBehavior` — a wire row must never carry
+ * it. It is bookkeeping between two of our own stages, and neo has no equivalent, so a capture taken from neo
+ * structurally cannot contain it: leaving it in made three parity cases red the moment that fix landed, and
+ * would keep doing so for every future internal marker.
+ *
+ * BAKING IT INTO THE NEO REFERENCE WAS THE OTHER ARM AND IS WRONG: the reference is a record of what NEO
+ * produced. Editing it to carry an orbweaver-internal flag turns the oracle into a mirror of the thing it is
+ * supposed to check.
+ *
+ * Applied ONLY to the pre-naming stages. `named`/`history` are deliberately left RAW, so if the marker ever
+ * survives the naming pass — the exact regression the INJECT fix exists to prevent — it still diverges from
+ * the reference and REDs. This normalization removes a false red; it does not remove a true one.
+ */
+function withoutInternalMarkers(rows: readonly Msg[]): Msg[] {
+  return rows.map((row) => {
+    const { speakerless: _speakerless, ...rest } = row as Msg & { speakerless?: true };
+    return rest;
+  });
+}
+
 export function runOrbweaverShape(c: ShapeCase): ShapeResult {
   const out = shape({
     // Preserve EXACT key presence from the fixture (a user row carries authorName but NO characterId;
@@ -176,9 +200,11 @@ export function runOrbweaverShape(c: ShapeCase): ShapeResult {
   const targetIdx = offset === undefined ? null : out.history.length - 1 - offset;
   return {
     multiCharacter: out.stages.multiCharacter,
-    withTail: out.stages.withTail,
-    injected: out.stages.injected,
-    squashed: out.stages.squashed,
+    // PRE-NAMING stages: internal markers normalized away (see `withoutInternalMarkers`).
+    withTail: withoutInternalMarkers(out.stages.withTail),
+    injected: withoutInternalMarkers(out.stages.injected),
+    squashed: withoutInternalMarkers(out.stages.squashed),
+    // DELIVERED stages: RAW. A marker surviving the naming pass must still diverge from neo and RED.
     named: out.stages.named,
     history: out.history,
     cacheBreakpointFromEnd: offset ?? null,

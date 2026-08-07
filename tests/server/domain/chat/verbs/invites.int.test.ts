@@ -19,7 +19,7 @@ import { createInvites } from "../../../../../packages/server/src/domain/chat/ve
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: number;
@@ -242,6 +242,80 @@ describe("redeemInvite — THE participant-insert chokepoint", () => {
     const joiner = await seedUser(db, castId<Handle>("joiner"));
     const invites = createInvites(makeChatContext(db), makeDeps());
     await expect(invites.redeemInvite({ principal: principal(joiner), input: { token: "nope" } })).rejects.toBeInstanceOf(DomainNotFoundError);
+  });
+});
+
+// INVITE-JOIN-NULL-PERSONA. Both join paths seated the member with `activePersonaId = NULL`, so every message
+// they wrote persisted `persona_id = NULL` — floored to the unresolvable-persona name on both render surfaces,
+// and (before the SHAPE guard) handed the HOST's persona on the wire. The seat now runs the SAME seed chain
+// `startChat` runs for the founding host row: current persona, then default. Proved through the VERB, because
+// the resolvers live on `ChatContext` and the persistence layer only stores what it is handed.
+describe("redeem/accept — the joiner's seat is born with their persona", () => {
+  test("redeemInvite seats the joiner's CURRENT persona", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedInvite(chatId, "tok");
+    const current = await seedPersona(db, joiner, "joiner_current");
+    const fallback = await seedPersona(db, joiner, "joiner_default");
+    const invites = createInvites(
+      makeChatContext(db, {
+        resolveCurrentPersona: () => Promise.resolve(current),
+        resolveDefaultPersona: () => Promise.resolve(fallback),
+      }),
+      makeDeps(),
+    );
+
+    await invites.redeemInvite({ principal: principal(joiner), input: { token: "tok" } });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
+    expect(row?.activePersonaId).toBe(current);
+  });
+
+  test("redeemInvite falls to the joiner's DEFAULT persona when they hold no current one", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    await seedInvite(chatId, "tok");
+    const fallback = await seedPersona(db, joiner, "joiner_default");
+    const invites = createInvites(makeChatContext(db, { resolveDefaultPersona: () => Promise.resolve(fallback) }), makeDeps());
+
+    await invites.redeemInvite({ principal: principal(joiner), input: { token: "tok" } });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
+    expect(row?.activePersonaId).toBe(fallback);
+  });
+
+  test("acceptInvite (the token-free by-id path) seats it too — the sibling that also had to be fixed", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
+    const chatId = await seedChat(db, "a");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
+    const inviteId = await seedInvite(chatId, "tok", { invitedUserId: joiner });
+    const current = await seedPersona(db, joiner, "joiner_current");
+    const invites = createInvites(makeChatContext(db, { resolveCurrentPersona: () => Promise.resolve(current) }), makeDeps());
+
+    await invites.acceptInvite({ principal: principal(joiner), inviteId });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
+    expect(row?.activePersonaId).toBe(current);
+  });
+
+  test("a joiner who holds NO persona at all still seats — null is the honest floor, never the room's anchor", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const joiner = await seedUser(db, castId<Handle>("joiner"));
+    const chatId = await seedChat(db, "a");
+    const anchor = await seedPersona(db, host, "host_anchor");
+    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host", activePersonaId: anchor });
+    await seedInvite(chatId, "tok");
+    const invites = createInvites(makeChatContext(db), makeDeps());
+
+    await invites.redeemInvite({ principal: principal(joiner), input: { token: "tok" } });
+
+    const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
+    expect(row?.activePersonaId).toBeNull();
   });
 });
 

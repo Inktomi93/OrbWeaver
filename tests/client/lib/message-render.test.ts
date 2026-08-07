@@ -8,6 +8,7 @@ import { renderMessageForDisplay } from "@orb/client/lib";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -32,12 +33,15 @@ describe("renderMessageForDisplay", () => {
     expect(renderMessageForDisplay("{{char}} nods at {{user}}.", CTX, KIRA, ALEX)).toBe("Kira of the Vale nods at Alex.");
   });
 
-  test("no producer entry + no ctx default floors to kit's own literal ('Character'/'User')", () => {
+  // The `{{user}}` floor is the ONE unresolved-persona name (`DEFAULT_PERSONA_NAME`, @orb/kit/persona) —
+  // the same word the row attribution renders and the server stamps on the wire. `{{char}}` keeps its own
+  // "Character" literal: a nameless CHARACTER is a different question from a nameless human.
+  test("no producer entry + no ctx default floors to kit's own literals", () => {
     const bareCtx = {
       characterNamesById: new Map<CharacterId, RowCharacterName>(),
       personaNamesById: new Map<PersonaId, RowPersonaName>(),
     };
-    expect(renderMessageForDisplay("{{char}} greets {{user}}.", bareCtx)).toBe("Character greets User.");
+    expect(renderMessageForDisplay("{{char}} greets {{user}}.", bareCtx)).toBe(`Character greets ${DEFAULT_PERSONA_NAME}.`);
   });
 
   test("runs markdownOnly display scripts; the engine skips promptOnly on DISPLAY", () => {

@@ -24,7 +24,7 @@ import type {
   SetActiveParams,
   TestHealthParams,
 } from "./params.ts";
-import type { CredentialView } from "./views.ts";
+import type { CredentialStorageStatus, CredentialView } from "./views.ts";
 
 /** The args the injected `/models` fetch op takes (infra/network's `fetchOpenAiModels` shape, declared
  *  here so the domain never imports the infra arg type). */
@@ -77,6 +77,11 @@ export interface CredentialsService {
   readonly setActive: (params: SetActiveParams) => Promise<CredentialView>;
   readonly remove: (params: RemoveCredentialParams) => Promise<void>;
   readonly list: (params: ListCredentialsParams) => Promise<CredentialView[]>;
+  /** Is per-user credential STORAGE configured on this deployment (CREDENTIAL-STORAGE-SILENT-FAIL)? The READ
+   *  half of the `credentials_disabled` refusal every write verb already carries — asked BEFORE a secret is
+   *  typed, so the UI can refuse the input instead of collecting a key it cannot keep. Param-free: the answer
+   *  is a property of the deployment, identical for every caller, and names no row. */
+  readonly storageStatus: () => Promise<CredentialStorageStatus>;
 
   // Health
   readonly testHealth: (params: TestHealthParams) => Promise<CredentialHealth>;

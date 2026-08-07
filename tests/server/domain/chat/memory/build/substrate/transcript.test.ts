@@ -1,6 +1,7 @@
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { describe } from "vitest";
 import {
   blockHash,
@@ -164,7 +165,11 @@ describe("memory/build/substrate/transcript", () => {
 
   test("renderTranscript with an empty producer floors every macro (no raw id leak on {{user}})", () => {
     const rows = [row(1, { characterId: null, authorUserId: alex, personaId: mara, content: "{{user}}" })];
-    expect(renderTranscript(rows, EMPTY_CTX)).toBe("User: User"); // label + body both floor to "User"
+    // TWO different floors, deliberately: the LABEL is the transcript's ROLE prefix (`USER_LABEL` — "who is
+    // speaking on this line", the twin of "Aria:"), while the BODY's `{{user}}` is the unresolved-PERSONA
+    // name (`DEFAULT_PERSONA_NAME`). They used to be the same literal by coincidence; they are not the same
+    // question, and the identity floor now has ONE spelling everywhere it means "this human's name".
+    expect(renderTranscript(rows, EMPTY_CTX)).toBe(`User: ${DEFAULT_PERSONA_NAME}`);
   });
 
   test("blockSpeakerIds returns distinct character ids in first-seen order", () => {

@@ -182,6 +182,10 @@ async function driveRow(opts: {
     character: { name: "Aria", description: "a bold knight" },
     promptConfig: opts.promptConfig,
     activePersona: { name: "Alex", description: "the user" },
+    // The host drives this round AND authored the seeded user row — SHAPE's null-stamp guard reads that pair,
+    // and the solo `default`-names fingerprint below (no prefix, no `name` field) is only honest when the row
+    // is the trigger's OWN. Omitting it would floor the row to the unresolvable-persona name.
+    triggerUserId: HOST,
     recentMessages: [],
   };
   const requests: TurnRequest[] = [];

@@ -4,7 +4,7 @@
 // projections (`AssembleCharacter`/`AssemblePersona`/`AssembleWorldEntry`) are re-homed HERE (not imported
 // from `contracts/character`/`persona`) so `chat` avoids a `chat → character`/`persona` DAG edge.
 
-import type { CharacterId, ChatInjectionId, MessageId, MessageVariantId, WorldEntryId } from "@orb/kit/ids";
+import type { CharacterId, ChatInjectionId, MessageId, MessageVariantId, UserId, WorldEntryId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { InjectionPlacement } from "@orb/kit/injection";
 import type { VarOp } from "@orb/kit/macro";
@@ -403,6 +403,14 @@ export interface AssembleContext {
   pinnedPersona?: AssemblePersona | null;
   /** `{{user}}` in USER-authored sections — the speaking participant's active persona. */
   activePersona?: AssemblePersona | null;
+  /** WHOSE persona {@link AssembleContext.activePersona} is — the live human driving this turn. It exists for
+   *  ONE rule, in SHAPE: a canon user row carrying NO persona stamp may borrow this turn's `{{user}}` name
+   *  only when the row is that same human's OWN row; every other null-stamped row floors to the
+   *  unresolvable-persona name instead of wearing a stranger's identity on the wire. This is the server twin
+   *  of the client's fail-closed render rule (`client/features/chat/lib/attribution.ts` `resolveUserAttribution`
+   *  — the `authorUserId === viewerUserId` gate). Null/absent (a drain/auto turn, a preview, any hand-built
+   *  ctx) ⇒ NO row borrows it, which is the fail-closed side. */
+  triggerUserId?: UserId | null | undefined;
   /** Whether the `persona` marker should emit the active persona's description (false ⇒ it rode an
    *  injection; marker stays silent to avoid double-inject). Absent ⇒ true. */
   personaMarkerActive?: boolean;

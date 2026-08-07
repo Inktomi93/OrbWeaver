@@ -49,6 +49,7 @@ import { projectBodyForPreview } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
+import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
@@ -324,7 +325,7 @@ async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView
  *  NOT_FOUND). The cast is reordered to put `speakerCharacterId` primary when supplied.
  *
  *  A preview has no TRIGGERING human (no turn is running), so `{{user}}` for the prompt-config sections binds
- *  to the HOST's own active persona (`triggerPersonaId`) — the preview already resolves everything else under
+ *  to the HOST's own active persona (the `human` trigger) — the preview already resolves everything else under
  *  the host (`runAsUserId`, the connection, the preset). Without it the resolver fell back to `personaIds[0]`,
  *  the presence-order-arbitrary first present human, so a multi-human room's preview could show ANOTHER
  *  member's persona as `{{user}}` — nondeterministic (join order) and a cross-member read on the host's
@@ -367,11 +368,13 @@ async function resolvePreviewInputs(
     anchorPersonaId,
     personaIds,
     presentHumanUserIds: presentHumanUserIdsOf(roster),
-    // OMITTED (not an explicit null) when the host holds no chat persona: the three-state trigger contract
-    // reads an explicit null as "deliberately no triggering human ⇒ bind to the ANCHOR", which is a TURN
-    // semantic (drain/auto). A preview's trigger is merely UNKNOWN, so it keeps the documented fallback
-    // chain (host persona, else `personaIds[0]`) — byte-identical to every preview before the contract split.
-    ...(hostPersonaId !== null ? { triggerPersonaId: hostPersonaId } : {}),
+    // OMITTED (not a `none` trigger) when the host holds no chat persona: `none` means "deliberately no
+    // triggering human ⇒ bind to the ANCHOR", which is a TURN semantic (drain/auto), and a `human` trigger
+    // carrying a null persona would floor `{{user}}` to the unresolved-persona name. A preview's trigger is
+    // merely UNKNOWN, so it
+    // keeps the documented fallback chain (host persona, else `personaIds[0]`) — byte-identical to every
+    // preview before the contract split.
+    ...(hostPersonaId !== null ? { trigger: { kind: "human", userId: hostUserId, personaId: hostPersonaId } as const } : {}),
     ...(opts.presetOverride !== undefined ? { presetOverride: opts.presetOverride } : {}),
   });
   const gameUserMacros = ctx.rpg === null ? [] : await ctx.rpg.resolveUserMacros(chatId);
@@ -463,6 +466,10 @@ async function buildPreviewContext(
       model: inputs.model,
       castCharacterIds: inputs.castCharacterIds,
       personaIds: inputs.personaIds,
+      // A preview is assembled AS the host, so the host is who `speakers.user` speaks for — SHAPE's
+      // null-stamp guard needs that identity or the preview would floor the host's own unstamped rows
+      // while the real turn borrows for them.
+      triggerUserId: inputs.hostUserId,
       ...rpgFields,
       ...(opts.guided !== undefined ? { guided: opts.guided } : {}),
       // The preview render registry (WAVE MU) — absent ⇒ the pure build's singleton fallback (byte-identical).
@@ -833,7 +840,7 @@ async function shapeNextTurn(
     cardScope: "merged",
     scopedTargetId: null,
     namesBehavior: assembleContext.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
-    speakers: { user: assembleContext.activePersona?.name ?? "User", assistant: assembleContext.character.name },
+    speakers: { user: assembleContext.activePersona?.name ?? DEFAULT_PERSONA_NAME, assistant: assembleContext.character.name },
     groupNudge: null,
     assistantPrefill: turns?.assistantPrefill === true,
     midConversationSystem: turns?.midConversationSystem === true,
@@ -1171,7 +1178,7 @@ function createPreviewActionTemplates(ctx: ChatContext, deps: ReadDeps): ChatSer
     return {
       // The bindings this render actually USED — read off the same resolved ctx, so the readout's gloss can
       // NAME the resolution ("`{{user}}` → Alex") instead of claiming one happened.
-      identity: { user: assembleContext.activePersona?.name ?? "User", char: assembleContext.character.name },
+      identity: { user: assembleContext.activePersona?.name ?? DEFAULT_PERSONA_NAME, char: assembleContext.character.name },
       templates: TEMPLATE_DEFS.map((def) => ({
         id: def.id,
         resolved: previewActionText(assembleContext, actionTemplateText(config, def.id), {

@@ -167,7 +167,12 @@ html[data-texture="grain"] [data-slot="card-root"]::after {
   pointer-events: none;
   opacity: 0.04;
   mix-blend-mode: soft-light;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* A `public/` PATH, never an inline `data:` URL: the CSP is `img-src 'self' blob:` and blocking `data:`
+     is D44 working as designed — the inline form threw a console CSP violation on every load under this
+     texture and the grain never painted. `public/` string paths are the house pattern for a static asset
+     (index.html's `/favicon.svg`); this repo has zero ESM asset imports, so `?url` is not it. Do NOT widen
+     `img-src` to make the inline form work. */
+  background-image: url("/grain.svg");
 }
 /* The card slot needs a positioning context for its ::after. */
 html[data-texture="grain"] [data-slot="card-root"] {

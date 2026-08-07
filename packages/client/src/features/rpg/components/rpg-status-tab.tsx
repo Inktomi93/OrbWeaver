@@ -17,6 +17,7 @@
 // the roster card and the takeover write through the same overlays, so a value edited in one place is the
 // same write in the other.
 
+import { blobUrl } from "@orb/contracts/assets";
 import type { RpgActorOp, RpgActorRef, RpgActorView } from "@orb/contracts/rpg";
 import { resolveTrackerMaxOverride, rpgActorLockBase, trackerNumber } from "@orb/contracts/rpg";
 import { Avatar } from "@orb/ui/avatar";
@@ -166,7 +167,7 @@ function RpgStatusCard({ actor, edit, onOpen }: RpgStatusCardProps): ReactElemen
             title={`Open ${actor.name}'s sheet`}
             className="min-w-0 px-field font-medium"
           >
-            <Avatar size="md" shape="rounded" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: actor.avatar })}>
+            <Avatar size="md" shape="rounded" alt={actor.name} hueSeed={actor.name} {...(actor.avatar === undefined ? {} : { src: blobUrl(actor.avatar) })}>
               {actor.name.slice(0, 1).toUpperCase()}
             </Avatar>
             <Text as="span" voice="label" className="truncate">

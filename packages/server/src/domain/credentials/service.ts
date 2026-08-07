@@ -17,6 +17,7 @@ import { createProbeKeyDecrypt } from "./verbs/probe-key-decrypt.ts";
 import { createRemove } from "./verbs/remove.ts";
 import { createResolve } from "./verbs/resolve.ts";
 import { createSetActive } from "./verbs/set-active.ts";
+import { createStorageStatus } from "./verbs/storage-status.ts";
 import { createTestHealth } from "./verbs/test-health.ts";
 
 export function createCredentialsService(ctx: CredentialContext): CredentialsService {
@@ -27,6 +28,7 @@ export function createCredentialsService(ctx: CredentialContext): CredentialsSer
     setActive: createSetActive(ctx),
     remove: createRemove(ctx),
     list: createList(ctx),
+    storageStatus: createStorageStatus(ctx),
     testHealth: createTestHealth(ctx),
     markRevoked: createMarkRevoked(ctx),
     markRevokedByUser: createMarkRevokedByUser(ctx),
