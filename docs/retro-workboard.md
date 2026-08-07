@@ -743,6 +743,34 @@ identity chrome for ANY row kind.
   `docs/history/reviews/misc/`; its three inbound refs repointed. (The board's "that dir is EMPTY"
   claim was stale — it already held six graduated reviews.)
 
+### I-11 · CONTAINERIZE-THEN-TEST — owner-sequenced AFTER this board drains
+
+**Owner intent (2026-08-07):** the Dockerfile gets modernized once the workboard is done, and only
+then does the live-safety testing happen. Sequencing is deliberate and correct: **the container IS
+the mitigation**, so testing the current posture measures something about to be replaced.
+
+**The fact that frames it:** orbweaver is NOT containerized — Caddy runs in Docker and
+reverse-proxies `orbweaver.inktomi.tech` → `host.docker.internal:8788`, but the app is bare node on
+the HOST as the owner's user. Reach of any file-write/traversal bug = the whole home directory
+(repo, `.env`, backups, `~/.ssh`, the vLLM fleet). Containerizing turns that into a scratch volume.
+
+**Design already ruled (do not re-derive):** test a prod-shaped CLONE on an offset port with a db
+copy (the STACK-MODES prod launcher makes this cheap), never live prod — so destructive findings
+can be CONFIRMED · the agent gets its own bridge network with a firewall egress allowlist to exactly
+the target ip:port, no DNS (pinned `/etc/hosts`), no repo mount, time-bounded, kill-switched · **the
+cage needs POSITIVE CONTROLS BOTH WAYS before any result is trusted** — prove it cannot reach the
+LAN/vLLM ports/docker socket AND that it CAN reach the target, else "no findings, stayed in bounds"
+is unfalsifiable (the four-lying-instruments law applied to the fence) · ALL of it routes to
+`security-executor`, never the main session, never Fable.
+
+**Known debt to burn BEFORE hunting (so findings are news, not debt):** the un-containerized app ·
+`DEBUG_TOKEN`/`WIRE_CAPTURE` armed in the live `.env` (standing owner action) · the debug gate's
+admin arm PRECEDES the token check — 200 unauthenticated under single-user; whether OIDC changes
+that must be PROVEN, not assumed · secrets readable at repo root · the 1GB Caddy request body as an
+upload surface · the origin IP is public (A records unproxied — Cloudflare DNS-only) · the h3/UDP-443
+launch item. Cheapest first step when the time comes: a read-only perimeter inventory (what listens,
+what Caddy exposes, real response headers, whether `/api/_debug` answers from outside, TLS/h3 state).
+
 ### I-10 · LAUNCH-DAY — three things that only matter on the day
 
 - **REGIME-2 LANDMINE:** `structure:db-baseline` is regime-1-SHAPED (it generates from `{}` vs `0000`
