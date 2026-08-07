@@ -38,6 +38,12 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - **Merges** `--no-ff --no-verify` on branch-side hook-green receipts — BUT any branch certified
   BEFORE sibling merges landed gets a consolidated `pnpm check` on the merged result (caught reds
   three separate nights). Merge → SEPARATE verify call → THEN teardown, never chained. `git -C <ABSOLUTE-main-path>` on every merge/verify command.
+- **GRADUATION NEEDS THE FRESH LENS, not just the static check (owner catch 2026-08-07 — a whole
+  session of merges shipped without it):** every non-trivial merged work-stream gets a fresh-context
+  `verifier` pass (code lens) and/or `side-eye` (rendered lens) BEFORE its row is called done —
+  at CHUNK granularity, one per work-stream. The lane's own receipts + `pnpm check` prove structure,
+  never logic. Batch verifiers behind merges when load demands, but the row stays un-graduated
+  until the lens reports CONFIRMED.
 - **NEVER push to origin without a fresh per-push owner word.** Not overnight, not on a green battery,
   not "the word was banked yesterday".
 - **Overnight full-auto**: proceed through the queue, escalation ladder (stickler → ast/code → docs →
