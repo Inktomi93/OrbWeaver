@@ -184,10 +184,75 @@ embeddings/search "ONE engine" → `Knowledge-Cluster.md`; AAD belt → `Spine-I
 
 ## OPEN SECURITY FINDINGS (verified against the tree; each names its exploit path and its blocker)
 
-### AUTHFIX-2 — the `/api/_debug/*` admin arm is opened by the UN-CREDENTIALED owner fallback
+### AUTHFIX-2 — the `/api/_debug/*` admin arm was opened by the UN-CREDENTIALED owner fallback
 
-**Status: OPEN, deliberately not fixed in the AUTHFIX lane (2026-08-07) — the fix is one line but is BLOCKED
-on an e2e coupled site. Severity HIGH wherever the origin port is reachable.**
+**Status: CLOSED 2026-08-07 (DEBUGGATE lane), including the e2e coupled site that blocked the first attempt.
+Was HIGH wherever the origin port was reachable. Kept in full because the finding's SHAPE recurs.**
+
+**What landed.** `entry/auth/seam.ts::isAdmin` now requires TWO conditions, not one: the caller presented a
+CREDENTIAL, and that credential's principal satisfies `can(p,'admin',global)`. The credential test is
+`DEBUG_GATE_CREDENTIALED`, a positive allow-list `satisfies Record<Principal["via"], boolean>` —
+`cookie:true`, `header:true`, `fallback:false`. Deliberately not a `via === "fallback"` negative check: the
+mapped Record is exhaustive, so a fourth `via` member is a **tsc error** at the allow-list rather than a
+silent default-to-admitted. (Verified by planting a 4th member: `TS2741` at `seam.ts`, plus `TS7053` on the
+index. Fail-closed by construction beats fail-closed by vigilance.)
+
+The gate itself was NOT changed — the admin-arm-then-token order stands, and fix shape (ii) (making the
+bypass conditional on `expectedToken !== undefined`) was rejected: it leaves a bypass that exists whenever no
+token is configured, i.e. a conditional control rather than no bypass.
+
+**The e2e blocker, resolved:** `E2E_DEBUG_TOKEN` (`tests/e2e/support/modes.ts`) is threaded into all three
+mode `webServerEnv`s and read by one `debugHeaders()` helper in `tests/e2e/support/trpc.ts`, which now
+credentials all three witnesses (`fetchWireCaptures` / `inspectChatDb` / `fetchDebugErrors`).
+
+**Enforcers (the finding's real lesson — the exemption behind this gate was prose-only, constitution §2.3):**
+
+- `tests/server/entry/debug-gate.suite.test.ts` — the admission invariant across every AUTH\_MODE × Host ×
+  token-state, through the REAL seam and the REAL registrar, asserting refusals by **body** (a bare status
+  cannot tell the gate's 404 from an unregistered route). 43 of its rows failed on the pre-fix source with
+  "expected 200"; 67 pass after. Positive controls (admin cookie, owner cookie, signed-JWT SSO admin,
+  operator token) prove the instrument can still observe a 200.
+- `tests/e2e/smoke.spec.ts` — a `@smoke` (push-tier) pin on a REAL BOOTED STACK: un-credentialed
+  `/api/_debug/info` → 401, with-token → 200. **This is the only assertion in the tree that proves the gate
+  end-to-end**, and it doubles as the proof that `E2E_DEBUG_TOKEN` actually reaches the server. Needed
+  because the debug-witness consumers are all `@live`-gated and never run on push.
+
+**Two corrections to this entry's original write-up, both material:**
+
+1. **The published interim mitigation "unset `DEBUG_TOKEN`" was FALSE and has been removed.** The admin arm
+   short-circuits the `expectedToken === undefined` → 404 branch as well as the token comparison, so unsetting
+   the token disabled nothing. Proof from the tree rather than theory: the e2e harness set `DEBUG_TOKEN` in
+   none of its three modes and its debug reads worked. Only `IP_ALLOWLIST` ever mitigated. A published
+   mitigation that does not mitigate is worse than none — it is what the operator reaches for first.
+2. **The admitted set is owner OR admin, not owner-only** — `requireAdmin` → `can(p,'admin',global)` →
+   `ROLES_FOR_GLOBAL_ACTION.admin = ["owner","admin"]` (D17).
+
+**A fourth witness nobody read as one:** `tests/tooling/stack-mode.test.ts` carried a comment reading
+"MEASURED against the live stack 2026-08-06: an unauthenticated GET /api/\_debug/info returned 200". The hole
+was observed on the live box a day before it was filed, and recorded as a *probe-design* lesson (don't infer
+posture from a boolean) rather than as a security defect. **A surprising measurement filed under the wrong
+heading is a finding in hiding.**
+
+**Scoping the principal-blind reads — assessed and deliberately NOT done.** The `@owner-scope-ok` marker in
+`foundation/observability/debug/inspect/config.ts` said the exemption ends "if `/api/_debug` ever admits a
+per-user principal". Post-fix the admitted set is a box-level `DEBUG_TOKEN` holder or an owner/admin session.
+Per D17 an `admin` already holds `admin.resetPassword`/`setEnabled`/`setRole` and can assume any account at
+will, so filtering these reads by the caller's own `ownerId` would raise the confidentiality bar by **zero**
+while breaking the probe's actual job — an operator reading OTHER users' rows is the host plane (D20). It
+would be a boundary that looks like a control without being one. The marker's real lack was an ENFORCER, not
+a filter; it has been rewritten to name the suite above and the exact admitted set. **The exemption still ends
+if the admitted set ever widens BELOW admin** — turn that suite red before widening anything.
+
+**Known degradation (accepted):** `scripts/dev/stack-prod.ts::probeDebug` used a 200 from an un-credentialed
+`/api/_debug/info` as "the STRONGEST instance identity available" (the serving process's own `pid`). On an
+armed stack that probe now gets 401, so identity falls back to the `ss` socket table via
+`debug.pid ?? listenerPid(port)`. Degrades, does not break. The `DebugPosture` doc comments in
+`scripts/dev/_kit/stack-mode.ts` were truth-repaired in the same commit: `open` is now an alarm, not the
+normal dev posture.
+
+---
+
+**The original finding, preserved.**
 
 **The chain, all four links verified:**
 
@@ -225,14 +290,18 @@ under single-user AUTH\_MODE"* — and `tests/e2e/support/modes.ts` sets `DEBUG_
 mode envs, so with the arm closed the gate would 404 ("debug API disabled") and take the whole e2e
 debug-witness surface (`fetchWireCaptures`/`inspectChatDb`/`fetchDebugErrors`) with it.
 
-**Two fix shapes, in preference order:**
+**Two fix shapes, in preference order:** — RESOLVED: (1) was taken, (2) rejected as a conditional control.
 
 1. Thread `DEBUG_TOKEN` into the three e2e mode envs + one shared header helper in `tests/e2e/support/trpc.ts`,
    THEN flip the `via` check. Clean, unconditional, no new semantics.
 2. Gate the flip on `expectedToken !== undefined` inside `createDebugAuthMiddleware` ("a token the operator
    CONFIGURED may not be bypassed by an un-credentialed principal"). Closes it on the live box, leaves the
    token-less e2e stacks working — but it is a conditional control, and it needs the `routes.test.ts`
-   conformance rows swept in the same commit.
+   conformance rows swept in the same commit. (`routes.test.ts` needed no sweep under shape (1): it drives the
+   middleware with a MOCKED `isAdmin`, so the seam's verdict change is invisible to it — all 13 rows stayed green.)
 
-**Interim mitigation, no code:** set `IP_ALLOWLIST` (currently unset in the live `.env` — it 403s before any
-auth runs), or unset `DEBUG_TOKEN`/`WIRE_CAPTURE` when not actively debugging.
+**Interim mitigation (superseded by the fix; kept for the correction it carries):** `IP_ALLOWLIST` was the
+only one that worked — it 403s before any auth runs. This entry also advised "unset `DEBUG_TOKEN`", which was
+**wrong**: the admin arm short-circuits the `expectedToken === undefined` → 404 branch too, so unsetting the
+token left the surface open. Unsetting `WIRE_CAPTURE` narrowed the blast radius (no provider bodies) but did
+not close the surface.

@@ -14,7 +14,7 @@
 //     section is the default CONTENT+LIST on `/`, so the list panel is present from first paint.
 
 import { expect, test } from "@playwright/test";
-import { SINGLE_USER } from "./support/modes.ts";
+import { E2E_DEBUG_TOKEN, SINGLE_USER } from "./support/modes.ts";
 
 // The backend origin — healthz is server-only (not proxied through vite), so it is hit on the single-user
 // project's OWN backend port (derived from modes.ts, never a literal: this lane moved off the dev :8788, and
@@ -31,6 +31,31 @@ test("the health endpoint reports ok", { tag: "@smoke" }, async ({ request }) =>
   const res = await request.get(HEALTHZ_URL);
   expect(res.ok()).toBe(true);
   expect(await res.json()).toMatchObject({ status: "ok" });
+});
+
+// AUTHFIX-2 — the ONLY assertion in the tree that proves the /api/_debug gate on a REAL BOOTED STACK, and
+// the reason it lives in `@smoke` (the pre-push tier) rather than beside the unit suite: the unit suite
+// (`tests/server/entry/debug-gate.suite.test.ts`) proves the seam+gate composition, but nothing there boots a
+// server, so nothing there can catch a wiring, proxy or env-threading regression. Both halves matter:
+//
+//   • NO TOKEN → 401. This is the hole itself. Until 2026-08-07 the gate's admin arm admitted the
+//     un-credentialed owner fallback, so this exact request returned 200 — under `single-user`
+//     unconditionally, and under an SSO mode to anyone who could reach the port with `Host: 127.0.0.1`.
+//     Behind it: whole-db reads and (with WIRE_CAPTURE=on, as this stack runs) provider request BODIES.
+//   • WITH TOKEN → 200. The positive control, and simultaneously the proof that `E2E_DEBUG_TOKEN` really
+//     reached the server through `modes.ts::webServerEnv` — which is what every `@live` spec's debug witness
+//     (`fetchWireCaptures`/`inspectChatDb`/`fetchDebugErrors`) now depends on. Those specs are `@live`-gated
+//     and never run on push, so without THIS test the threading could rot silently for weeks.
+//
+// A 200 on the first half is not a flake to retry — it is the hole, reopened.
+test("the /api/_debug gate refuses an un-credentialed caller and admits the operator token", {
+  tag: "@smoke",
+}, async ({ request }) => {
+  const unauthenticated = await request.get("/api/_debug/info");
+  expect(unauthenticated.status(), "an un-credentialed /api/_debug read must NEVER be served").toBe(401);
+
+  const authorized = await request.get("/api/_debug/info", { headers: { "x-debug-token": E2E_DEBUG_TOKEN } });
+  expect(authorized.ok(), "the operator token must still open the debug surface").toBe(true);
 });
 
 test("single-user mode: an owner-scoped tRPC query succeeds with no login", {
