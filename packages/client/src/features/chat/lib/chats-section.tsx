@@ -34,7 +34,7 @@ import { CommittedSettingsTab, DraftSettingsTab } from "../components/settings-c
 import { useChatContextState } from "../hooks/use-chat-context-state.ts";
 import { ChatListSurface } from "../surfaces/chat-list-surface.tsx";
 import { useChatsSelectionTitle } from "./chats-selection-title.ts";
-import { castSectionVisible, membersTabJustified, resolveIsGroupChat } from "./roster.ts";
+import { castSectionVisible, draftMembersTabJustified, membersTabJustified, resolveIsGroupChat } from "./roster.ts";
 
 const GROUP_FLOOR = 2;
 
@@ -59,7 +59,7 @@ const CHAT_CONTEXT_TABS: readonly (ContextTabDef<ChatContextState> & { readonly 
     id: "members",
     label: "Members",
     icon: Users,
-    when: (s) => (s.phase === "committed" ? membersTabJustified(s.participants, s.multiHumanCapable, s.isHost) : s.cast.length >= GROUP_FLOOR),
+    when: (s) => (s.phase === "committed" ? membersTabJustified(s.participants, s.multiHumanCapable, s.isHost) : draftMembersTabJustified(s.cast)),
     body: (s) => (s.phase === "committed" ? <CommittedMembersTab {...toMembersTabProps(s)} /> : <DraftMembersTabBody draftKey={s.draftKey} cast={s.cast} />),
   },
   // Overrides + Injections + Group + Background + Tool-use consolidated into ONE "This chat" tab
