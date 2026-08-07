@@ -176,12 +176,11 @@ test("a GROUP DRAFT names its WHOLE cast and carries the seat count (not just ca
   await expect(component.getByRole("button", { name: MEMBERS_CHIP_RE })).toHaveAccessibleName("Members — 3");
   // And the avatars are a STACK, not one portrait (the committed group's cluster).
   //
-  // The asserted name is "2 people", NOT the "2 characters" this call site passes: `AvatarStack` spreads
-  // `{...rest}` BEFORE setting its own `aria-label`, so a caller's label is silently overridden. That is a
-  // pre-existing @orb/ui defect the COMMITTED header shares verbatim (`CastAvatars` passes the same dead
-  // prop) — reported, not smuggled into this lane, because changing the primitive renames every stack in
-  // the app. This asserts what a screen reader ACTUALLY hears today.
-  await expect(component.locator('[data-slot="avatar-stack-root"]')).toHaveAccessibleName("2 people");
+  // "2 characters" is the CALLER's label winning, as it should: the `accname-survives-spread` gate landing
+  // (`f954bbcf0`) moved `AvatarStack`'s generic "N people" default BEFORE its `{...rest}` spread, so a
+  // caller-passed `aria-label` now beats the fallback. This assertion previously pinned the pre-fix
+  // silently-overridden "2 people" and flipped the day the primitive was fixed — it now pins the CURE.
+  await expect(component.locator('[data-slot="avatar-stack-root"]')).toHaveAccessibleName("2 characters");
   await expect(component.locator('[data-slot="avatar-stack-item"]')).toHaveCount(2);
 });
 
