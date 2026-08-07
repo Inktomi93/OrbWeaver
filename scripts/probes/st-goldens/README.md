@@ -1,7 +1,9 @@
 # ST-Goldens — SillyTavern Provider Wire-Parity Probe
 
-> **This README is the brain of this rig.** We compact often. Read it fully before
-> touching anything. It captures architecture, findings, gotchas, and what to do next.
+> **This README describes the HARNESS. It is not a source, and several of its factual claims have been
+> measured false.** For anything about what ST or we actually put on the wire, read
+> `docs/design/st-message-shaping-atlas.md` — every claim there carries a MEASURED or SOURCE-PINNED
+> receipt. When this file and a script disagree, the script wins.
 
 **Home: `scripts/probes/st-goldens/` — this is a PROBE HARNESS, not a test** (re-homed from
 `tests/goldens/` on 2026-08-06). It boots a third-party app, drives a real browser, and writes JSON
@@ -49,12 +51,13 @@ we don't care about).
 
 ```
 scripts/probes/st-goldens/
-  README.md                   # this file — the brain
+  README.md                   # this file — harness notes only
+  rig-paths.ts                # the ONE path home; ST_GOLDENS_DATA_ROOT overrides the data root
   build-fixtures.ts           # writes ST V2 character PNGs + demo chats INTO the runtime
   write-v2-png.cjs            # the V2 tEXt-chunk PNG writer build-fixtures.ts loads
   generate-goldens.ts         # ST arm: boots ST, sets config, intercepts, captures
   capture-orbweaver.ts        # ORB arm: replays the fixture through our real turn engine
-  compare-runner.ts           # diffs the two captures, structurally
+  compare-runner.ts           # diffs the two captures: structure AND identity-bearing bytes
   run-demo-goldens.sh         # 16-combo post-processing/squash/prefill sweep
   run-demo-complex.sh         # depth-injection + per-model tool-calling sweep
   fixtures/<id>.json          # test case: provider, character, messages, model (GITIGNORED — emitted)
@@ -68,8 +71,17 @@ scripts/probes/st-goldens/
       chats/<name>/           # ← written fresh from fixture
 ```
 
-**Every script anchors its paths to `import.meta.dirname` (the `.sh` pair to `$BASH_SOURCE`)** — none
-is cwd-relative, so you can run any of them by absolute path from anywhere.
+**Every script takes its paths from `rig-paths.ts`** — never cwd-relative, so you can run any of them by
+absolute path from anywhere. The CODE root is `import.meta.dirname`; the DATA root (`fixtures/`, `output/`,
+`orbweaver-output/`, `sillytavern-runtime/`) defaults to the same place but is overridable via
+`ST_GOLDENS_DATA_ROOT`. That override exists because the data is gitignored — it lives in exactly one
+checkout, while the scripts live in every worktree, so without it a lane cannot run the rig it just edited.
+
+**The sweeps ACCUMULATE; they must never wipe.** The ST arm writes one file per fixture id and the ORB arm
+sweeps every fixture on disk, so a `rm -rf output orbweaver-output` at the top of one sweep destroys the
+other sweep's arm. That is not hypothetical: it is how the 16-combo ST captures were lost while their ORB
+counterparts survived in file-count only, as 44 copies of a single capture. Ids are the filenames, so a
+re-run overwrites exactly its own outputs.
 
 ### How ST routing works
 
@@ -290,8 +302,16 @@ marker-guarded) so OpenRouter traffic also routes to the mock server.
 - [x] **Comparison runner** — BUILT: `compare-runner.ts` normalizes ST's Anthropic-shaped tools +
       leading fake-user message to our OpenAI shape, then diffs key-sorted structure with `content`
       blanked (prose differs by construction; SHAPE + ordering is the parity claim).
+- [x] **Sweep accumulation** — the destructive `rm -rf` is gone from both sweep shells.
+- [x] **Depth-injection ST capture** — `run-demo-complex.sh` wrote that fixture but never captured it.
+- [x] **Fixture-key alignment** — the sweeps' `names_behavior` / `prompt_post_processing` spellings are now
+      the ones the ORB arm reads, and the ST names-behavior enum mapping was inverted (fixed).
+- [x] **Model-mismatch assert** — ST silently reverts a model it no longer lists; the capture now fails loud
+      instead of writing a golden labelled with a model it never sent.
 - [ ] **Multi-turn fixture** — N user/assistant pairs.
-- [ ] **System prompt fixture** — verify where it lands in the messages array.
+- [ ] **System prompt fixture** — verify where it lands in the messages array. Note `use_sysprompt` defaults
+      FALSE (`openai.js:484`), so by default ST sends NO `system` param at all on the Claude path.
+- [ ] **`single` and `semi_tools` modes** — no fixture exercises either.
 - [ ] **Wire into node:test** — proper assertions on payload shape, not just capture. NOTE: if this
       ever lands, the assertions belong in `tests/` under a real mirror path; the CAPTURE harness
       stays here (it boots a foreign app and cannot be a runner-executed test).

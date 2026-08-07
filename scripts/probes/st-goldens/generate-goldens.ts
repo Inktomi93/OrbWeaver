@@ -21,6 +21,7 @@ import http from "node:http";
 import path from "node:path";
 import process from "node:process";
 import { chromium } from "@playwright/test";
+import { FIXTURES_DIR, ST_OUTPUT_DIR, ST_RUNTIME_DIR } from "./rig-paths.ts";
 
 const ST_LOG_REGEX = /listen|error|Error|EADD/i;
 
@@ -86,13 +87,12 @@ function stStringHash(str: string, seed = 0): number {
   return 4_294_967_296 * (2_097_151 & h2) + (h1 >>> 0);
 }
 
-const GOLDEN_DIR = path.resolve(import.meta.dirname);
 const ST_PORT = 8001;
 
 async function main(): Promise<void> {
   const fixtureId = process.argv[2] ?? "basic_turn";
-  const stPath = path.resolve(GOLDEN_DIR, "sillytavern-runtime");
-  const fixturePath = path.resolve(GOLDEN_DIR, `fixtures/${fixtureId}.json`);
+  const stPath = ST_RUNTIME_DIR;
+  const fixturePath = path.join(FIXTURES_DIR, `${fixtureId}.json`);
 
   if (!fs.existsSync(fixturePath)) {
     console.error(`[Golden] Fixture not found: ${fixturePath}`);
@@ -546,9 +546,8 @@ async function main(): Promise<void> {
     await browser.close();
 
     // ── 9. Write output ──────────────────────────────────────────────────
-    const outDir = path.resolve(GOLDEN_DIR, "output");
-    fs.mkdirSync(outDir, { recursive: true });
-    const outPath = path.join(outDir, `${fixtureId}.json`);
+    fs.mkdirSync(ST_OUTPUT_DIR, { recursive: true });
+    const outPath = path.join(ST_OUTPUT_DIR, `${fixtureId}.json`);
 
     if (capturedPayload === null) {
       console.error("[Golden] ✗ No LLM request was intercepted. Generate() may not have found a character, or the proxy URL was not used.");
@@ -573,6 +572,18 @@ async function main(): Promise<void> {
       // biome-ignore lint/suspicious/noExplicitAny: Quick prop check
       const msgCount = (capturedPayload as any)?.messages?.length ?? "?";
       console.log(`[Golden] ✓ Captured payload: ${msgCount} messages → ${outPath}`);
+
+      // ST silently reverts a model it no longer lists, so the capture is then labelled with a model it
+      // never sent. Four goldens shipped that way and were read as a per-model matrix. Loud, not fatal —
+      // the capture is still real data about the model ST actually used.
+      // biome-ignore lint/suspicious/noExplicitAny: Quick prop check
+      const sentModel = (capturedPayload as any)?.model;
+      if (fixture.model !== undefined && sentModel !== undefined && sentModel !== fixture.model) {
+        console.error(
+          `[Golden] ✗ MODEL MISMATCH: fixture asked for "${fixture.model}", ST sent "${sentModel}". This golden does NOT measure the requested model.`,
+        );
+        process.exitCode = 1;
+      }
     }
   } finally {
     st.kill();
