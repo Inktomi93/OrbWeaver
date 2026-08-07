@@ -9,7 +9,7 @@ import { speakerKey } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import { legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
+import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { GUIDED_GAME_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
@@ -705,10 +705,13 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   const castMembers: SpeakerRef[] = present.map((p): SpeakerRef => ({ kind: "character", characterId: p.characterId }));
   const character: AssembleCharacter = cast[0] ?? { name: "Assistant", description: "" };
 
-  // The room host's app-tier prose overrides (PROSE-1 S1) — resolved from the chatId, not threaded through
-  // the input literal, so the ~50 hand-built assemble inputs stay honest: a caller cannot forget it, and a
-  // hostless room degrades to `{}` ⇒ the shipped defaults.
-  const prose = await ctx.resolveChatProse(input.chatId);
+  // The turn's PROSE bag — the two homes composed into one home-agnostic record (PROSE-1 §3.1 stays intact:
+  // `composeProse` keeps each key only from the storage that slot actually homes in, so this is a merge of
+  // disjoint sets, never a cascade). USER = the room host's app-tier overrides, resolved from the chatId
+  // rather than the input literal so the ~50 hand-built assemble inputs stay honest (a caller cannot forget
+  // it, and a hostless room degrades to `{}`). PRESET = the resolved preset's own blob, which is where the
+  // turn-wire FRAMINGS live since the 2026-08-07 ruling. Both absent ⇒ the shipped defaults, byte-identical.
+  const prose = composeProse({ user: await ctx.resolveChatProse(input.chatId), preset: input.promptConfig.prose });
 
   // ── GATHER — the 4-scope WI pool (memory/recall/vars are engine-supplied inputs). ──
   const pool = await loadWorldInfoPool(ctx.db, {

@@ -15,7 +15,6 @@ import {
   guidedActionConfigSchema,
   guidedActionsSchema,
   importStChatCompletionPreset,
-  PRESET_PROSE_SLOTS,
   PRESET_SCHEMA_KIND,
   PROMPT_CONFIG_SCHEMA_VERSION,
   parsePresetFile,
@@ -33,6 +32,7 @@ import {
   userMacroSchema,
   userMacroValuesSchema,
 } from "@orb/contracts/preset";
+import { PRESET_PROSE_SLOT_IDS, PROSE_SLOTS } from "@orb/contracts/prose";
 import { expect, test } from "../../support/fixtures.ts";
 
 // Sample values named so the test isn't littered with bare magic numbers (noMagicNumbers).
@@ -698,7 +698,11 @@ test("TEMPLATE_DEFS covers every guided kind + every ACTION-shaped format string
   const covered: string[] = TEMPLATE_DEFS.map((def) => def.id);
   // The module's tsc guard proves NOTHING IS MISSING; this proves nothing EXTRA and nothing DOUBLED — a
   // duplicate row would silently render two Actions rows for one slot.
-  const expected = [...GUIDED_ACTION_KINDS, ...Object.keys(DEFAULT_FORMAT_STRINGS).filter((key) => key !== "wiFormat")];
+  // Three arms since the 2026-08-07 ruling (the turn-wire FRAMINGS joined the tab): guided kinds · the
+  // ACTION-shaped format strings · `PRESET_PROSE_SLOT_IDS`. The framings' own two-sided coverage lives in
+  // `tests/contracts/prose` (it needs `home`, which is `#prose` data); what THIS row still owns is the
+  // no-extra / no-duplicate half over the whole table.
+  const expected = [...GUIDED_ACTION_KINDS, ...Object.keys(DEFAULT_FORMAT_STRINGS).filter((key) => key !== "wiFormat"), ...PRESET_PROSE_SLOT_IDS];
   expect([...covered].sort()).toStrictEqual([...expected].sort());
   expect(new Set(covered).size).toBe(covered.length);
   // `wiFormat` frames world-info ENTRIES and is edited in the WI marker's body — a row here would mint the
@@ -707,8 +711,10 @@ test("TEMPLATE_DEFS covers every guided kind + every ACTION-shaped format string
 });
 
 test("every TemplateDef points at a REAL prose slot, and its kind is a declared TEMPLATE_KIND", () => {
-  // A typo'd slot id would ghost nothing in that template's drill-in, silently.
-  const unresolvedSlots = TEMPLATE_DEFS.filter((def) => def.defaultSlot !== undefined && PRESET_PROSE_SLOTS[def.defaultSlot] === undefined);
+  // A typo'd slot id would ghost nothing in that template's drill-in, silently. `defaultSlot` widened to the
+  // whole `ProseSlotId` union with the framing rows, so the resolution target is the COMPOSED registry — a
+  // guided row still points into `PRESET_PROSE_SLOTS`, a framing row into its own `chat.*` table row.
+  const unresolvedSlots = TEMPLATE_DEFS.filter((def) => def.defaultSlot !== undefined && PROSE_SLOTS[def.defaultSlot] === undefined);
   expect(unresolvedSlots).toStrictEqual([]);
   // `newChatMarker` is the ONE def allowed to carry no slot: it ships blank, and a PROSE-1 slot is authored
   // bytes. Any other slot-less def would be a default nobody can see.

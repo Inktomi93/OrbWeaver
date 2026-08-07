@@ -71,6 +71,10 @@ export function mergeOnSubmit(edited: PromptConfig, server: PromptConfig): Promp
     params: normalizeParams(edited.params),
     variables: edited.variables,
     userMacros: edited.userMacros,
+    // The framing overrides ride the EDITED value verbatim: the drill-in already deletes a slot's key when the
+    // field is cleared, so an empty record IS "every framing on its shipped default" and needs no
+    // strip-back-to-unset arm (`prose` is `.prefault({})`, never optional).
+    prose: edited.prose,
   };
   assignIfDefined(next, "customParameters", server.customParameters);
   assignIfDefined(next, "namesBehavior", edited.namesBehavior);

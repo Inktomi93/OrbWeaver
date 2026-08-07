@@ -14,12 +14,16 @@
 // the user's CLICK, so `fires` is a descriptive gloss and never a control.
 
 import type { PromptConfig, TemplateCapability } from "@orb/contracts/preset";
+import type { ProseSlotId } from "@orb/contracts/prose";
+import { PROSE_SLOTS } from "@orb/contracts/prose";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { AlertTriangle, ArrowLeft, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import type { MacroSuggestion } from "@orb/ui/macro-textarea";
+import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
@@ -27,6 +31,7 @@ import type { AppFormInstance } from "#forms";
 import { useFocusOnSwap } from "#lib";
 import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model.ts";
 import type { TemplateRow } from "../lib/template-rows.ts";
+import { proseTemplatePatch } from "../lib/template-rows.ts";
 import { DeliveryCluster } from "./delivery-cluster.tsx";
 import { PresetMacroSuggestions } from "./preset-macro-suggestions.tsx";
 
@@ -95,9 +100,12 @@ export function TemplateDrillIn({ form, row, onBack }: TemplateDrillInProps): Re
  *  already says "Template", so a third label on the textarea was the same word at three levels. The
  *  accessible name moves to `aria-label` — the datum reaches AT, the eye stops reading it twice. */
 function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: TemplateRow }): ReactElement {
-  const { def, guidedKind, factoryDefault } = row;
+  const { def, guidedKind, proseSlotId, factoryDefault } = row;
   const placeholder = factoryDefault === "" ? "Blank — nothing is emitted until you write something here." : factoryDefault;
   const label = "Template";
+  if (proseSlotId !== undefined) {
+    return <ProseTemplateBody form={form} label={label} placeholder={placeholder} slotId={proseSlotId} />;
+  }
   return (
     <PresetMacroSuggestions form={form}>
       {(suggestions): ReactElement =>
@@ -112,6 +120,52 @@ function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: 
         )
       }
     </PresetMacroSuggestions>
+  );
+}
+
+/** The FRAMING body (the third form path, 2026-08-07) — a `promptConfig.prose` slot rather than a
+ *  `formatStrings`/`guidedActions` field.
+ *
+ *  NOT a `form.AppField`, and that is forced rather than chosen: a slot id contains DOTS and TanStack reads a
+ *  field `name` as a value PATH, so `prose.chat.injection.userNote.text` would address four levels of object
+ *  that do not exist. It writes the whole record at the single-segment path instead — the same
+ *  `Subscribe` + `setFieldValue` shape `DeliveryFields` below already uses, so this stays in the file's
+ *  grammar.
+ *
+ *  NO MACRO PLANE (the MACU-2 posture, `prose-settings-section.tsx`): these slots are `macros:"none"`, so the
+ *  only tokens that DO anything are the slot's own pre-substitution ones. Offering the preset macro catalogue
+ *  here would promise a resolution that never runs. */
+function ProseTemplateBody({
+  form,
+  slotId,
+  label,
+  placeholder,
+}: {
+  readonly form: PresetForm;
+  readonly slotId: ProseSlotId;
+  readonly label: string;
+  readonly placeholder: string;
+}): ReactElement {
+  const suggestions: readonly MacroSuggestion[] = PROSE_SLOTS[slotId].requiredMacros.map((macro) => ({
+    name: macro.replaceAll(/[{}]/gu, ""),
+    category: "slot",
+    description: "Replaced with this slot's own value when the prompt is built.",
+  }));
+  return (
+    <form.Subscribe selector={(state): string => state.values.prose[slotId]?.text ?? ""}>
+      {(value): ReactElement => (
+        <MacroTextarea
+          aria-label={label}
+          onChange={(next): void => {
+            form.setFieldValue("prose", proseTemplatePatch(form.state.values, slotId, next));
+          }}
+          placeholder={placeholder}
+          rows={4}
+          suggestions={suggestions}
+          value={value}
+        />
+      )}
+    </form.Subscribe>
   );
 }
 

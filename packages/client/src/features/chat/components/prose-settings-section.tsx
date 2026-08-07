@@ -1,6 +1,6 @@
 // The Prose settings SECTION (PROSE-1 S2) — the edit surface for every model-facing prose slot whose
 // override lives in `UserSettings.prose`: the chat side-generation prompts (arbiter · compaction · memory
-// digest/consolidation · the anchor-identity lead-in), the group/injection framing, the `/autobg` quiet
+// digest/consolidation · the anchor-identity lead-in), the group-round framing, the `/autobg` quiet
 // pick, discovery's three library-semantics prompts, and the imagery negative base. Registering `prose` in
 // `USER_SETTINGS_SECTIONS` and landing this surface is ONE commit by law (D107 arm B — the section tuple is
 // the editor's door, and a door with no writer is a dead switch).
@@ -125,8 +125,9 @@ function ProseBody({ sectionId, session, stored, onKeepMine }: ProseBodyProps): 
     >
       <Stack gap="block">
         <Text voice="gloss">
-          The wording the app sends to a model on your behalf — summarizers, the memory writer, the group turn director, and the framing around injected notes.
-          Leave a field blank to use the built-in wording (shown as the placeholder). In a shared room, the host's wording is the one that runs.
+          The wording the app sends to a model on your behalf — summarizers, the memory writer, the group turn director, and the group-round nudges. Leave a
+          field blank to use the built-in wording (shown as the placeholder). In a shared room, the host's wording is the one that runs. The framings that wrap
+          a turn's own prompt — the note frames and the continuation cue — live with your preset's templates, not here.
         </Text>
         <Grid cols="auto" gap="field">
           {USER_PROSE_SLOT_IDS.map((id) => (
