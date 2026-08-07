@@ -183,7 +183,24 @@ html[data-texture="grain"] [data-slot="card-root"] {
 /* Chat-thread edge-fade: dissolves softly at a scrolled edge via mask-image rather than hard-clipping.
  * Each edge fades ONLY while content actually lies beyond it — data-fade-top/-bottom are toggled by
  * the MessageList primitive (@orb/ui) on scroll/resize, so a short unscrolled thread renders its
- * first/last rows fully opaque instead of half-faded against nothing. */
+ * first/last rows fully opaque instead of half-faded against nothing.
+ *
+ * IT DISSOLVES INTO THE BACKDROP, SO IT ONLY RUNS WHERE THERE IS ONE (side-eye 2026-08-07 finding 5).
+ * A mask fades EVERY pixel of the subtree at the same rate — the row's card AND the body prose painted on
+ * it. Over the flat page background that is a dissolve into the colour the reader is already looking at.
+ * Over a background PHOTO the card dissolves and the prose lands on the ART: measured at 320px on an art
+ * theme, 1.29–3.34:1 across the top band, with the first row clearing AA only at y≈128. There is no colour
+ * to dissolve INTO on an art theme, and every alternative treatment is the same physics — any occlusion of
+ * the text collapses its contrast against whatever is behind it — so the honest answer is that the effect
+ * does not apply there. `mask-image: none` under the shell's own `data-has-bg-image` flag, the same
+ * declarative ancestor signal `message-row-backing.ts` reads for its legibility scrims.
+ *
+ * The header of `features/chat/lib/message-row-variants.ts` has warned about exactly this since the
+ * echo/whisper feather was built ("not literal `mask-image` (that would also fade the text painted on
+ * top)") — the scroller did it anyway. NOTE FOR ANY FUTURE AUDIT: this defect is INVISIBLE to
+ * `elementFromPoint` + `getComputedStyle`, which report the fully-opaque cream card for every faded row,
+ * and therefore to design-audit and to snap's css-resolve path. It was found by sampling pixels and it is
+ * pinned by sampling pixels (tests/client/features/chat/message-list-edge-fade.ct.tsx). */
 [data-slot="message-list-scroll"] {
   --fade-top-stop: 0%;
   --fade-bottom-stop: 0%;
@@ -195,6 +212,12 @@ html[data-texture="grain"] [data-slot="card-root"] {
 }
 [data-slot="message-list-scroll"][data-fade-bottom] {
   --fade-bottom-stop: var(--fade-edge-stop);
+}
+/* The art arm: no backdrop to dissolve into ⇒ no dissolve. Written LAST so it wins over both edge rules
+   above regardless of their specificity, and scoped to the scroller (the fade's only consumer). */
+[data-has-bg-image] [data-slot="message-list-scroll"] {
+  -webkit-mask-image: none;
+  mask-image: none;
 }
 
 /* Hairline avatar border: keeps an avatar from dissolving into a blurred/photo background.

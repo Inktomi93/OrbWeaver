@@ -26,7 +26,7 @@ import { useAuthConfig, useTRPC } from "#data";
 import type { ChatContextTabId } from "#lib";
 import { testId } from "#lib";
 import { setContextTab, setPanelMode } from "#state";
-import { deriveChatTitle } from "../lib/chat-summary-row.ts";
+import { deriveChatTitle, draftChatTitle } from "../lib/chat-summary-row.ts";
 import { draftMembersTabJustified, filterCharacters, membersTabJustified } from "../lib/roster.ts";
 import { AddMemberPopover } from "./add-member-popover.tsx";
 
@@ -286,11 +286,10 @@ export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactEl
     name: r.data?.name ?? "",
     avatarHash: r.data?.avatarHash ?? null,
   }));
-  // Names that have not landed yet are DROPPED, never joined as empty strings (which would render
-  // "Hana Mizushima, " mid-load). An all-unresolved cast falls to the draft's own "New chat" copy —
-  // `deriveChatTitle`'s "Untitled chat" is the committed room's word for a room that exists.
-  const names = cast.map((c) => c.name.trim()).filter((name) => name.length > 0);
-  const title = names.length > 0 ? deriveChatTitle(null, names) : "New chat";
+  // `draftChatTitle` (lib/chat-summary-row.ts) owns the whole rule — the cast join, the un-landed-name drop
+  // and the "New chat" fallback — because the MOBILE topbar prints the same statement and had invented its
+  // own (side-eye 2026-08-07 finding 1: it read `cast[0]` and titled a three-hander after one person).
+  const title = draftChatTitle(cast.map((c) => c.name));
   return (
     <Row gap="row" align="center" className="min-w-0">
       <ChatIdentityCluster avatars={<DraftCastAvatars cast={cast} />} title={title} />

@@ -24,9 +24,11 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator, Page } from "@playwright/test";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { MessageListReplaySeedStory, MessageListStoppingStory, MessageListSurfaceStory } from "../_ct-stories.tsx";
+import { MessageListEdgeFadeStory } from "../_edge-fade-stories.tsx";
 import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 // The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
@@ -542,4 +544,84 @@ test("the context-boundary divider's label speaks the kicker voice (a region nam
   expect(type.size).toBe(type.micro);
   expect(type.transform).toBe("uppercase");
   expect(type.weight).toBe("600");
+});
+
+// ── THE EDGE FADE MUST NOT FADE PROSE ONTO THE ART (side-eye 2026-08-07 finding 5) ───────────────────
+// `[data-slot="message-list-scroll"]`'s `mask-image` fades EVERY pixel of the subtree at the same rate —
+// the row's opaque card AND the body prose painted on it. Over the flat page background that is a dissolve
+// into the colour the reader is already looking at; over a background PHOTO the card dissolves and the
+// prose lands on the ART, measured at 1.29–3.34:1 across the top band with the first row clearing AA only
+// at y≈128. The rule is inert under the shell's `data-has-bg-image` flag now.
+//
+// WHY THIS IS A PIXEL ASSERTION AND NOT A COMPUTED-STYLE ONE — the finding's most reusable half: a mask is
+// PAINT. `elementFromPoint` + `getComputedStyle` report the fully-opaque cream card for every faded row, so
+// design-audit and snap's css-resolve path are both structurally blind to it. Only sampling the framebuffer
+// sees it, so that is what this does: screenshot a 1px clip, decode it in the page, read the channel.
+//
+// ITS OWN POSITIVE CONTROL: the second case mounts the SAME story with the art flag OFF, where the mask is
+// still live, and REQUIRES the bleed-through to be detected. A green from an unprobed instrument is not a
+// result — if the control ever stops seeing the defect, the first case's green means nothing.
+
+const FADE_SCROLLER = '[data-slot="message-list-scroll"]';
+
+// The story's own two colours, restated here rather than imported: playwright-ct rewrites a `.ct.tsx`'s
+// named imports from a story module into generated component consts, so a MIXED import (a component AND a
+// constant) fails to parse — `_edge-fade-stories.tsx` may export components only. Kept in lockstep by the
+// control case below, which fails the moment the story's backdrop stops being what this expects.
+/** The row card the story paints — an opaque cream. */
+const CARD_RGB = { b: 227, g: 239, r: 245 } as const;
+
+/** One framebuffer pixel at page coordinates, decoded in-browser (no image dependency in the runner). */
+async function samplePixel(page: Page, x: number, y: number): Promise<{ readonly r: number; readonly g: number; readonly b: number }> {
+  const clip = await page.screenshot({ clip: { height: 1, width: 1, x, y } });
+  const dataUrl = `data:image/png;base64,${clip.toString("base64")}`;
+  return await page.evaluate(async (url: string) => {
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const ctx = canvas.getContext("2d");
+    if (ctx === null) {
+      throw new Error("no 2d context");
+    }
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, 1, 1).data;
+    return { b: data[2] ?? 0, g: data[1] ?? 0, r: data[0] ?? 0 };
+  }, dataUrl);
+}
+
+/** Scroll the thread off its top edge so `data-fade-top` arms, then sample INSIDE the fade band. */
+async function sampleTopBandPixel(page: Page, scroller: Locator): Promise<{ readonly r: number; readonly g: number; readonly b: number }> {
+  await scroller.evaluate((el: HTMLElement) => {
+    el.scrollTop = 200;
+  });
+  await expect(scroller).toHaveAttribute("data-fade-top", "");
+  const box = await scroller.boundingBox();
+  expect(box).not.toBeNull();
+  // 8px below the top edge: deep inside the 10% (~40px) band, where the mask's alpha is ~0.2.
+  return await samplePixel(page, Math.round((box?.x ?? 0) + (box?.width ?? 0) / 2), Math.round((box?.y ?? 0) + 8));
+}
+
+test("EDGE FADE: over an art backdrop the thread's top band paints the CARD, not the art behind it", async ({ mount, page }) => {
+  const component = await mount(<MessageListEdgeFadeStory artBackdrop={true} />);
+  const pixel = await sampleTopBandPixel(page, component.locator(FADE_SCROLLER));
+
+  // The backdrop is pure green; the card is cream. A dissolved card reads green-dominant. This asserts the
+  // sampled pixel IS the card — within a generous tolerance, because this fences "does the art show
+  // through", not the card's exact hue.
+  expect(Math.abs(pixel.r - CARD_RGB.r)).toBeLessThan(24);
+  expect(Math.abs(pixel.g - CARD_RGB.g)).toBeLessThan(24);
+  expect(Math.abs(pixel.b - CARD_RGB.b)).toBeLessThan(24);
+});
+
+test("EDGE FADE CONTROL: the same probe DOES see the dissolve where the fade is still live", async ({ mount, page }) => {
+  // No art flag ⇒ the mask runs, and the row's card blends toward the backdrop. This is the planted
+  // positive control for the assertion above — it proves the instrument can see the defect at all.
+  const component = await mount(<MessageListEdgeFadeStory artBackdrop={false} />);
+  const pixel = await sampleTopBandPixel(page, component.locator(FADE_SCROLLER));
+
+  // Green pulls far away from the cream card's blue channel long before it reaches the backdrop.
+  expect(pixel.b).toBeLessThan(CARD_RGB.b - 24);
 });

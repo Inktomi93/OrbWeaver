@@ -101,8 +101,9 @@ export {
 } from "./content-blocks.ts";
 export type { ContentClassPolicy } from "./content-classes.ts";
 export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
+// `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it
+// from `@orb/kit/macro`; contracts owns only the persisted/wire ARRAY (`MacroFreezeRecord`) + its parse seam.
 export type {
-  MacroFreeze,
   MacroFreezeRecord,
   MessageSlot,
   MessageView,

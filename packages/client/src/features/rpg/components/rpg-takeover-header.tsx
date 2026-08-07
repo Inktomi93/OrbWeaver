@@ -194,14 +194,22 @@ export function RpgTakeoverHeader({
     </>
   );
 
+  // THE SATELLITE ROW IS FINE-POINTER CHROME (side-eye 2026-08-07 finding 2). MEASURED on the live stack at
+  // 320×568: the claimed pane is 464px tall, this row alone is 100 of it, and the whole HUD column left the
+  // active tabpanel EIGHTEEN pixels against a 558px body — Status, Inventory, Scene, Quests and Journal were
+  // all unreadable and the weather picker painted its chips entirely outside the visible strip. The band is
+  // the GLANCE and the tab bodies are the READING (this file's own §2 framing): on a phone there is no room
+  // for both, and the READING is what the pane is for. The orbs' numbers are not lost — every one of them is
+  // a tracker row in Status, which the reclaimed height is what makes reachable. `pointer-coarse`, not a
+  // width query: the constraint is the phone's vertical budget, which a container query cannot see.
   const satellites =
     trackerOrbs.length === 0 && wallet === null ? null : (
-      <>
+      <Row gap="block" align="start" className="flex-wrap pointer-coarse:hidden" data-slot="rpg-band-satellites">
         {trackerOrbs.map((orb, i) => (
           <Satellite key={orb.key} orb={orb} ordinal={i} />
         ))}
         {wallet === null ? null : <CoinFigure amount={wallet.amount} label={wallet.name} showCaption={true} />}
-      </>
+      </Row>
     );
 
   const stone = (
@@ -258,11 +266,7 @@ export function RpgTakeoverHeader({
         </Stack>
       </Row>
 
-      {satellites === null ? null : (
-        <Row gap="block" align="start" className="flex-wrap">
-          {satellites}
-        </Row>
-      )}
+      {satellites}
     </Stack>
   );
 }

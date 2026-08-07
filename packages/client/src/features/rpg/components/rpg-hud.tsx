@@ -163,7 +163,11 @@ function RpgHudBand({ echo }: { readonly echo: string | null }): ReactElement | 
         <RpgHeaderBand chatId={chatId} />
       </QueryBoundary>
       {echo === null ? null : (
-        <Text as="span" voice="kicker" aria-hidden={true} data-slot="rpg-hud-echo" className="truncate">
+        /* COARSE DROPS THE ECHO (side-eye 2026-08-07 finding 2): it is `aria-hidden` decoration for a reader
+           whose eye is 870px from the rail that changed — a distance a 320px column does not have, where the
+           owning rail is a thumb's width from the band. On a phone that line is a whole text row of the 464px
+           the pane has to spend, and the pane's job is the tab body. */
+        <Text as="span" voice="kicker" aria-hidden={true} data-slot="rpg-hud-echo" className="truncate pointer-coarse:hidden">
           {echo}
         </Text>
       )}
@@ -226,8 +230,16 @@ const CROWN_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = 
  *  word whole. A short rail (the admin rail's 3-4 cells) never wraps: it already fits.
  *
  *  The threshold is the `xs` step and not something tighter because the clipping starts THERE, not only at
- *  the floor: measured in CT at a 320px pane, "Inventory" wants 48px of caption inside a 36px cell. */
-const RAIL_WRAP_CLASS = "@max-xs:grid-flow-row @max-xs:grid-cols-3";
+ *  the floor: measured in CT at a 320px pane, "Inventory" wants 48px of caption inside a 36px cell.
+ *
+ *  AND THE WRAP IS A FINE-POINTER ANSWER (side-eye 2026-08-07 finding 2). Two rows of three costs a second
+ *  55px band, which a desktop pane in a narrow dock can afford and a phone cannot: MEASURED at 320×568, the
+ *  claimed pane is 464px, this rail took 105 of it, and the active tabpanel was left EIGHTEEN pixels against
+ *  a 558px body. At a coarse pointer the rail stays ONE row and SCROLLS instead — cells at their content
+ *  width (`auto-cols-max`, so no caption clips), the row scrollable horizontally, which is the phone tab-strip
+ *  idiom and costs 50px instead of 105. Base UI's roving focus is unchanged, and the browser scrolls a
+ *  focused cell into view, so the keyboard reaches every tab either way. */
+const RAIL_WRAP_CLASS = "pointer-fine:@max-xs:grid-flow-row pointer-fine:@max-xs:grid-cols-3 pointer-coarse:auto-cols-max pointer-coarse:overflow-x-auto";
 const RAIL_WRAP_MIN_CELLS = 5;
 
 /** One rail: its OWN labelled a11y group + roving-focus row, cells as equal columns so the rail reads as a

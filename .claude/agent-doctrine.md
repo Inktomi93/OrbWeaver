@@ -328,3 +328,60 @@ instrument is broken, not the tree.
   immediately** — two premise-deaths this campaign (field-control-registration, ScrollUpArrow)
   saved sibling lanes from building against dead specs because the finder spoke up before landing.
 
+
+## Minted 2026-08-07 (the identity-spine + fork-security + phone-composition day)
+
+**Shared-box hygiene — a lane can damage a sibling from inside its own worktree.**
+
+- **NEVER `pkill` BY PROCESS NAME.** A bare `pkill -f headless_shell` to stop your own CT suite
+  kills EVERY playwright browser on the machine, including a sibling's live run. Kill your own
+  PGID, or scope to your own invocation — and note that even `pkill -f "playwright test -c
+  playwright-ct.config.ts"` is too broad when siblings run the same config. If you do hit a
+  sibling, SendMessage the orchestrator IMMEDIATELY with the timestamp: a mass CT failure with no
+  cause is exactly what a real defect looks like, and the next lane will burn hours on the phantom.
+- **Probe/harness files live in the session scratchpad, NEVER in the repo tree.** In-tree probes
+  get swept up by any whole-tree instrument a sibling runs — five `zz*` specs red-flagged a full
+  battery and cost a relaunch.
+- **Anything over ~10 minutes launches OUTSIDE the task manager** (`setsid nohup … </dev/null &
+  disown`) with its exit code landed in a `.exit` file, and you poll by READING the log. A
+  foreground poll that hits its timeout becomes a background task and EVICTS THE OLDEST one — which
+  is the long run you were watching. Two hour-long runs died at ~93% this way, looking exactly like
+  a crash near the end.
+
+**Read the contract before you fix the symptom.**
+
+- The best fixes this day came from reading something the brief never mentioned: a NOT_FOUND that
+  looked like noise was a **deliberate leak-free collapse** (a non-member and a no-game chat get
+  the identical error so a foreigner learns nothing) — so the fix belonged at the caller, not the
+  verb. A brief's "build a record-emitting mode beside X" died on line 67 of an unmentioned file
+  (ONE per-turn registry serves BOTH hops, so a sink in its closure pools one row's data onto
+  another's). **A file header, a guard's comment, or a schema note routinely contains the ruling
+  your brief is about to violate.**
+- **A prescription that names an affordance is a claim about the product — check it.** A brief said
+  an error should tell users to "duplicate it"; Duplicate does not exist for that row class. Shipping
+  it would have been a new defect one screen over. Deviate with the receipt.
+
+**Proof discipline.**
+
+- **A green-before test needs a PLANTED POSITIVE CONTROL before you trust it.** Plant the violation
+  the assertion should catch, watch it red, restore. A green test that cannot fail is not evidence.
+- **Demote your own pin honestly.** If a test passes pre-fix, it is a FENCE (a regression guard),
+  not a defect proof — relabel it and name the pin that actually proves the defect. One lane did
+  this three legs running; that is the behaviour, not a weakness.
+- **Hit areas need `elementFromPoint` at offsets from the centre, never a bounding box.** A
+  variant carrying its touch floor in an overflowing `::after` collides with the row below and a
+  box assertion sees nothing — measured: aiming at one control committed another.
+- **Mobile geometry needs REAL coarse-pointer emulation.** A narrow viewport renders a fine-pointer
+  layout no phone produces; a reviewer nearly filed a false P1 on tap targets that the app sizes
+  correctly at `pointer: coarse`.
+- **Verify a fix at the seam the DEFECT was reported at**, not only at the unit. A fold fix passed
+  its unit pin three times while the production applier shape kept resurrecting data.
+
+**Deliverables.**
+
+- **Authored text goes in a FILE, not in your report.** A D-entry that lived only in a lane's report
+  had to be re-derived from the tree weeks later — `reports/` is ephemera. Write specs, drafted
+  ledger entries, per-column classifications and owner-facing copy to `docs/…` and CITE the path.
+- **Re-creating a test file at a previously-deleted path is a coupled site** — the test-baseline
+  `deletions` ledger keeps a record that becomes a lie AND pre-authorizes the next delete. Only
+  `check:structure` sees it.

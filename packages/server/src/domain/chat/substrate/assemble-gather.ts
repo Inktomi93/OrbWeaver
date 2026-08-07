@@ -14,7 +14,7 @@
 // memoryConfig (settings/preset/persona reads chat must not perform).
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { AssembleContext, ChatInjection, MessageView } from "@orb/contracts/chat";
+import type { AssembleContext, ChatInjection, MacroFreezeRecord, MessageView } from "@orb/contracts/chat";
 import type { GenerationType } from "@orb/contracts/preset";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry } from "@orb/kit/macro";
@@ -35,6 +35,9 @@ import { resolveChoiceVariables } from "./variables.ts";
  *  here so the verb persists that. Threaded straight through to the pure core. */
 interface SendRegexSink {
   sendUserText?: string;
+  /** The SEND bake's VOLATILE-FREEZE record (D129-F) — written by the pure core beside `sendUserText` so the
+   *  verb persists it on the same variant. Absent ⇒ nothing froze. */
+  sendMacroFreezes?: MacroFreezeRecord;
   /** The round-level recall inputs for the engine's per-speaker witnessed re-run (D6) — written by
    *  `gatherMemory` (NOT the pure core, which never touches it). `null` ⇒ no character to key on. */
   memoryRecall?: MemoryRecallInputs | null;

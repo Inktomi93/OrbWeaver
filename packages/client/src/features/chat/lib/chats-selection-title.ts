@@ -7,16 +7,19 @@
 // SECTION — while the desktop header beside it read "Hana Mizushima". The committed arm was the only one
 // wired, so every pre-send room fell through to the label):
 //   · COMMITTED — the `chat.getChat` row's title.
-//   · DRAFT — the founding cast's first name, else the word "New chat".
+//   · DRAFT — the founding cast's names, else the word "New chat".
 // The draft rule is `DraftChatHeader`'s OWN rule, deliberately: the desktop cluster and the mobile title are
 // the same statement at two widths, so they resolve it the same way rather than each inventing a name.
+//
+// AND NOW THAT IS TRUE (side-eye 2026-08-07 finding 1). The claim above shipped while this file read
+// `cast[0]?.data?.name` — one participant — so a group draft the desktop titled "Aldric Vane, Sabine Veyra,
+// Niko" read "Aldric Vane" on the phone. Both surfaces call `draftChatTitle` now; the sameness is a shared
+// function, not a comment.
 
 import { useQueries } from "@tanstack/react-query";
 import { useGatedQuery, useTRPC } from "#data";
 import { isCommitted, isLanding, useActiveChatHandle, useActiveChatId, useActiveDraftFoundingCast } from "#state";
-
-/** What `DraftChatHeader` calls a cast-less draft — one word, one home for the two surfaces that print it. */
-const NEW_CHAT_TITLE = "New chat";
+import { draftChatTitle } from "./chat-summary-row.ts";
 
 export function useChatsSelectionTitle(): string | null {
   const trpc = useTRPC();
@@ -34,6 +37,5 @@ export function useChatsSelectionTitle(): string | null {
     const title = data?.title ?? "";
     return title.length === 0 ? null : title;
   }
-  const first = cast[0]?.data?.name.trim() ?? "";
-  return first.length === 0 ? NEW_CHAT_TITLE : first;
+  return draftChatTitle(cast.map((seat) => seat.data?.name ?? ""));
 }

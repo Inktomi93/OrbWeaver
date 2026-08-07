@@ -79,8 +79,8 @@ transform) · **HOST-PLANE** (dropped for a non-host forker) · **COPIED** (alre
 | `promptSnapshot` | **host-plane** | the sent `AssembledPrompt`: hidden spans verbatim + the whole assembled history incl. slots below a clamped member's D16 floor |
 | `params` | **host-plane** (NEW) | host-gated wire trio; `stop`/`logitBias`/`compaction.instructions` prose + the `advanced.claudeEnv` escape hatch; NO member-gated reader |
 | `macroDraws` | **host-plane** (NEW) | host-gated wire trio; draw values over host-authored macro pools |
-| `rawContent` | **host-plane** (NEW) | PRE-transform text — receive transforms exist partly to STRIP, so the raw is by definition pre-strip bytes; contract-declared host-plane |
-| `macroFreezes` | **host-plane** (NEW) | the volatile values baked out of that raw; contract-declared host-plane |
+| `rawContent` | **host-plane** (NEW) | PRE-transform text — receive transforms exist partly to STRIP, so the raw is by definition pre-strip bytes; contract-declared host-plane. Reader landed 2026-08-07 — see the addendum |
+| `macroFreezes` | **host-plane** (NEW) | the volatile values baked out of that raw; contract-declared host-plane. Reader landed 2026-08-07 — see the addendum |
 | `idx` | copied | swipe position, on `MessageView` |
 | `model` `provider` | copied | on `MessageView` |
 | `tokensIn` `tokensOut` `cacheReadTokens` `cacheWriteTokens` `costUsd` `contextWindow` | copied | economics readout, on `MessageView` |
@@ -135,6 +135,29 @@ itself against the LIVE drizzle table, so neither side can rot alone.
 3. **NON-SECURITY: `chats.userMacroValues` is not carried by the fork.** The `chats` insert names its
    fields, and this (newer) column is absent — so a fork silently loses the room's per-chat user-macro input
    picks. That is the data-loss failure mode of an allow-list; it wants a product decision, not a strip.
+
+## Addendum (2026-08-07, lane FANOUT-2) — the first READER lands under this doc's declared gap
+
+This lane's ratchet forces a re-decision when a new COLUMN appears, never when a new READER appears for an
+existing one. That gap is now exercised for the first time, and the premise is recorded rather than assumed.
+
+`rawContent` and `macroFreezes` were classified **host-plane** above while they had NO reader at all — the
+classification rested on "their only reader WOULD be host-gated". Lane FANOUT-2 landed the freeze-site writes
+(D129-F) and, with them, the first reader: both columns are now served on `VariantWireView`
+(`@orb/contracts/chat/assemble.ts`) via `loadVariantWire`, i.e. `chat.getVariantWire` — the pre-existing
+`requireHost` surface this doc already treats as the host-gated wire trio's home (`promptSnapshot`/`params`/
+`macroDraws`). Checked and held:
+
+- The reader is the SAME gate, not a new one: no verb, route, or matrix row was added or relaxed.
+- No member-gated path was created. Neither column is on `MessageView`, and D129-F states the prohibition.
+- `verbs/fork.ts`'s allow-list is UNTOUCHED — both columns are still stripped on the member→host copy, and
+  the `Required<…$inferInsert>` ratchet plus the census test are unchanged.
+- `macroFreezes` is parsed at the read seam (`macroFreezeRecordSchema.safeParse`, malformed ⇒ null), matching
+  the `macroDraws`/`variableDelta` degrade discipline; `rawContent` is a plain column with nothing to parse.
+
+So the classification's premise is now a fact instead of a hypothetical, and it strengthened rather than
+strained. **The gap itself remains open:** the next reader for an already-classified host-plane column is
+still unforced by any ratchet, and is still owed this kind of explicit re-check.
 
 ## Verification
 

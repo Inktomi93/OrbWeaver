@@ -16,7 +16,7 @@ import type { Page } from "@playwright/test";
 import type { OrbSocketRecorder } from "../../../../support/ct/route-orb-socket.ts";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { NotificationBellStory, NotificationBellToastStory } from "../_ct-stories.tsx";
+import { NotificationBellSheetStory, NotificationBellStory, NotificationBellToastStory } from "../_ct-stories.tsx";
 
 /** One inbox row in the wire shape (`InboxView` — domain/notifications/contract/views.ts). */
 function inviteRow(overrides: Record<string, unknown> = {}): Record<string, unknown> {
@@ -201,6 +201,57 @@ test("a typed roomFailed frame surfaces as a toast (it is NOT an arrival)", asyn
   const toast = page.locator('[data-slot="toast-root"]');
   await expect(toast).toContainText("the inbox stream failed");
   await expect(toast).toHaveAttribute("data-type", "error");
+});
+
+// ── The SHEET lens (side-eye 2026-08-07) ─────────────────────────────────────────────────────────────
+// The phone renders the inbox INLINE in the You sheet — no trigger, no popover, so there is no `onOpenChange`
+// to hang "you looked" on. The component's own comment claimed "the same markAllRead the popover fires on
+// open fires here on mount" and NOTHING fired: a phone user's unread count could never clear. And the block's
+// name was a `<span>`, so in a long overflow sheet the inbox was unreachable by heading navigation.
+
+test("the sheet lens marks the inbox read ON MOUNT — the phone has no 'open' event to hang it on", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
+  });
+  await routeInboxStream(page, []);
+
+  const component = await mount(<NotificationBellSheetStory />);
+
+  // The rows are just THERE (nothing to open) — the settled barrier for the mount-time write below.
+  await expect(component.getByText("nate invited you to a chat")).toBeVisible();
+  await expect.poll(() => trpc.count("notifications.markAllRead"), { intervals: [20, 50, 100] }).toBe(1);
+  // …and it stays ONE: the effect is keyed on the unread BOOLEAN, so it cannot re-arm per render.
+  await expect.poll(() => trpc.count("notifications.markAllRead"), { intervals: [50, 100, 200] }).toBe(1);
+});
+
+test("an ALREADY-READ inbox writes nothing on mount", async ({ mount, page }) => {
+  const trpc = await routeTrpc(page, {
+    "notifications.list": () => ({ items: [inviteRow({ readAt: 1_750_000_000_000 })], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 0 }),
+  });
+  await routeInboxStream(page, []);
+
+  const component = await mount(<NotificationBellSheetStory />);
+
+  await expect(component.getByText("nate invited you to a chat")).toBeVisible();
+  // ONESHOT-OK: the row rendering IS the landed read; the effect runs in that same commit, so a write it was
+  // going to make has already been made. A settled read of a negative.
+  expect(trpc.count("notifications.markAllRead")).toBe(0);
+});
+
+test("the sheet block's name is a real HEADING, not a styled span", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "notifications.list": () => ({ items: [inviteRow()], nextCursor: null }),
+    "notifications.markAllRead": () => ({ markedCount: 1 }),
+  });
+  await routeInboxStream(page, []);
+
+  const component = await mount(<NotificationBellSheetStory />);
+
+  // §13.10 N7: a section title that is only a styled Text is invisible to the reading skeleton. The name
+  // carries the unread count with the STABLE word leading (N3), so this lookup survives the count changing.
+  await expect(component.getByRole("heading", { name: "Notifications" })).toBeVisible();
 });
 
 /** A handoff-nominated inbox row (the two-party host handoff, step 1's delivery). */

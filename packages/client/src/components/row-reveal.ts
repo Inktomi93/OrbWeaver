@@ -31,3 +31,42 @@ export const ROW_REVEAL =
  *  shift). `pointer-coarse:hidden` stays `display` on purpose: a media state is not hover-variable, so it
  *  cannot oscillate, and at coarse the always-visible cluster means the marker's box would be dead air. */
 export const ROW_REVEAL_SWAP = "group-hover/row:invisible group-focus-within/row:invisible pointer-coarse:hidden";
+
+/** ROW_REVEAL_SWAP's COARSE-COLLAPSE twin — the marker that must SURVIVE a coarse pointer.
+ *
+ *  `ROW_REVEAL_SWAP`'s `pointer-coarse:hidden` rests on one premise: at coarse the reveal cluster is
+ *  permanently visible, so the control that carries the same datum is on screen and the marker's box would
+ *  be dead air. `ROW_ACTION_INLINE` (below) DELETES that premise for the rows it collapses — their state
+ *  toggle stands down at coarse and the datum moves into the overflow menu, which is closed. A row that
+ *  keeps `ROW_REVEAL_SWAP` there paints NEITHER: measured on the 320px chats roster, a starred chat showed
+ *  no star at all. So a collapsing row's marker swaps on hover ONLY, and coarse keeps it permanently. */
+export const ROW_REVEAL_SWAP_COARSE_KEEP = "group-hover/row:invisible group-focus-within/row:invisible";
+
+// ── THE COARSE COLLAPSE (side-eye 2026-08-07) ────────────────────────────────────────────────────────
+// THE RULE: at `pointer: coarse`, a row's SECONDARY affordances collapse into its ONE overflow control.
+//
+// WHY it is a rule and not a taste: at coarse every icon button is 44-48px by token construction (D62 P1,
+// the touch floor) while the row is 320px wide. Measured on the shipped tree at 320: the persona row spent
+// 102px of a 272px rail on Unfavorite + kebab and left the NAME 38px ("Traveler" rendered "T.."); the chats
+// roster spent 96px of 296px on a permanently-visible empty star + kebab and left
+// "Example — The Ashen Spire" 62px. Both clusters exist because `ROW_REVEAL` turns hover-revealed controls
+// permanently ON at coarse — the affordance is right, the BUDGET is not. The row's kebab is already the
+// ruled home for a low-frequency row verb (§12.2), so the collapse costs one tap and buys back ~50-100px
+// of the only column a phone reader is actually reading.
+//
+// CSS-ONLY, BY LAW: pointer/hover are axis-3 CAPABILITY (UI-Architecture §4b) — media-query-only, never a
+// JS branch (`no-raw-matchmedia` keeps `matchMedia` inside app-shell). So the overflow menu carries the
+// verb's MenuItem at ALL times and the two arms gate each other by display: exactly ONE of the pair is in
+// the DOM's layout — and in the a11y tree, since `hidden` is `display:none` — for any given pointer class.
+// That is what keeps this from becoming the double-telling the persona row's own header bans.
+
+/** The INLINE arm of a collapsing pair: a secondary row control that stands down at `pointer: coarse`,
+ *  where its twin `MenuItem` (wearing {@link ROW_ACTION_OVERFLOW}) is the one door. Goes on the control —
+ *  or on a `<Row>` wrapping the several controls that collapse together. */
+export const ROW_ACTION_INLINE = "pointer-coarse:hidden";
+
+/** The OVERFLOW arm: the menu item that exists ONLY at `pointer: coarse`, standing in for the inline
+ *  control that stood down. Omit it where the menu ALREADY carries the verb for both pointers (the chats
+ *  row's kebab keeps its Star item at every width by mirror-parity ruling — adding a coarse-only twin
+ *  there would put the item in the menu twice). */
+export const ROW_ACTION_OVERFLOW = "pointer-fine:hidden";

@@ -3,7 +3,7 @@
 // {{time}}/{{date}}/…) against the turn's pinned clock/PRNG and re-emits IDENTITY + everything else verbatim,
 // so a committed row's volatile VALUE is baked once while its {{user}}/{{char}} stay raw/per-view.
 
-import type { ProcessMacroOptions } from "@orb/kit/macro";
+import type { MacroFreeze, ProcessMacroOptions } from "@orb/kit/macro";
 import { createVolatileOnlyRegistry, processMacros } from "@orb/kit/macro";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -82,4 +82,75 @@ test("a frozen row's identity resolves the same regardless of a live clock/PRNG"
   // A SECOND freeze with a DIFFERENT PRNG would have re-rolled a raw {{roll}} — but the baked value is a
   // literal now, so re-processing is a byte-identical no-op on the frozen digits.
   expect(processMacros(frozen, opts({ random: () => 0.99 }), REGISTRY)).toBe(frozen);
+});
+
+// ── THE FREEZE LEDGER (D129-F) — record + positional replay over the SAME volatile axis ──────────
+// The freeze is byte-destructive, so it records WHAT it resolved (`ctx.macroFreezes`) and can REPLAY a prior
+// record (`ctx.frozenMacros`) instead of drawing. Both are context capabilities of the one shared volatile
+// axis (`registerVolatileMacros`), not a second registry — the per-turn freeze registry is shared by every
+// freeze call in a turn, so a registry-captured sink would pool one row's draws onto another's.
+
+test("the freeze RECORDS each volatile occurrence in document order with its args + resolved value", () => {
+  const macroFreezes: MacroFreeze[] = [];
+  const out = processMacros("{{user}} rolled {{roll:d20}} at {{time}}, picking {{pick::a::b::c}}", opts({ macroFreezes }), REGISTRY);
+
+  expect(out).toBe("{{user}} rolled 11 at 03:04:05, picking b");
+  expect(macroFreezes).toEqual([
+    { name: "roll", args: "d20", value: "11" },
+    { name: "time", value: "03:04:05" },
+    { name: "pick", args: "a::b::c", value: "b" },
+  ]);
+});
+
+test("a pass-through macro contributes NOTHING to the record — the ledger tracks the freeze axis, not `volatile`", () => {
+  const macroFreezes: MacroFreeze[] = [];
+  processMacros("{{user}} {{input}} {{rpgSceneState}} {{setvar::x::5}}", opts({ macroFreezes, idleDuration: "8 minutes" }), REGISTRY);
+  expect(macroFreezes).toEqual([]);
+});
+
+test("a NESTED volatile call records inner-first, and the outer's `args` are the RESOLVED text replay matches on", () => {
+  const macroFreezes: MacroFreeze[] = [];
+  // Args resolve eagerly, so the inner {{roll}} fires before its host {{pick}} — document order, the same
+  // invariant the user-macro draw sequence rests on (determinism-through-nesting).
+  const out = processMacros("{{pick::{{roll:d20}}::b}}", opts({ macroFreezes }), REGISTRY);
+  expect(out).toBe("b");
+  expect(macroFreezes).toEqual([
+    { name: "roll", args: "d20", value: "11" },
+    { name: "pick", args: "11::b", value: "b" },
+  ]);
+});
+
+test("REPLAY: a prior record reproduces the frozen bytes exactly, with NO draw and NO clock read", () => {
+  const macroFreezes: MacroFreeze[] = [];
+  const source = "rolled {{roll:d20}} at {{time}}";
+  const frozen = processMacros(source, opts({ macroFreezes }), REGISTRY);
+
+  // A different PRNG *and* a different clock: a fresh pass would produce different bytes on both macros.
+  const replayed = processMacros(source, opts({ frozenMacros: macroFreezes, random: () => 0.99, nowMs: 0 }), REGISTRY);
+  expect(replayed).toBe(frozen);
+  expect(processMacros(source, opts({ random: () => 0.99, nowMs: 0 }), REGISTRY)).not.toBe(frozen);
+});
+
+test("REPLAY emits a self-contained record (frozen ∪ fresh) so a swipe-of-a-swipe reads ONE record", () => {
+  const first: MacroFreeze[] = [];
+  processMacros("rolled {{roll:d20}}", opts({ macroFreezes: first }), REGISTRY);
+
+  const second: MacroFreeze[] = [];
+  processMacros("rolled {{roll:d20}}", opts({ macroFreezes: second, frozenMacros: first, random: () => 0.99 }), REGISTRY);
+  expect(second).toEqual(first);
+});
+
+test("REPLAY is POSITIONAL: a divergence abandons the replay rather than mis-pairing later values", () => {
+  const record: MacroFreeze[] = [
+    { name: "roll", args: "d20", value: "3" },
+    { name: "roll", args: "d20", value: "4" },
+  ];
+  // The raw was EDITED — a `{{pick}}` now sits where the first `{{roll}}` was. Pairing "3" onto the pick (or
+  // sliding "4" onto the surviving roll) would fabricate provenance, so everything from the mismatch draws fresh.
+  const out = processMacros("{{pick::a::b::c}} then {{roll:d20}}", opts({ frozenMacros: record }), REGISTRY);
+  expect(out).toBe("b then 11");
+});
+
+test("a context with NO ledger fields is byte-identical to the pre-ledger freeze (the live-render path)", () => {
+  expect(processMacros("{{user}} rolled {{roll:d20}} at {{time}}", opts(), REGISTRY)).toBe("{{user}} rolled 11 at 03:04:05");
 });
