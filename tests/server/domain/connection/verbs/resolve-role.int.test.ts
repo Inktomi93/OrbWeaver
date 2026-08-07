@@ -84,19 +84,12 @@ describe("resolveRole — honors roleDefaults (PD-9)", () => {
     expect(conn.credential.source).toBe("vllm");
   });
 
-  test("a summarize override to max-pro-sub resolves via agent-sdk (the sub as a selectable summarizer)", async () => {
-    const h = makeConnHarness(await freshDb());
-    h.setRoleDefaults({ summarize: { source: "max-pro-sub", model: "claude-sonnet-5" } });
-    const svc = createConnectionService(h.ctx);
-
-    const conn = await svc.resolveRole({ role: "summarize", principal: principal(castId<UserId>("user_1")) });
-
-    // The sub summarize pairs with agent-sdk (the only coherent api for max-pro-sub) and heals its model
-    // through the curated agent-sdk heal — like the chat role.
-    expect(conn.api).toBe("agent-sdk");
-    expect(conn.model).toBe("claude-sonnet-5");
-    expect(conn.credential.source).toBe("max-pro-sub");
-  });
+  // "summarize override to max-pro-sub" was deleted here (2026-08-07): the owner ruled the metered sub
+  // dead for summarize (SUMMARIZE-SUB debt entry). The scenario constructed its role default by bypassing
+  // zod (`h.setRoleDefaults`) — unreachable via any real write path now that the contract enum rejects it,
+  // and the firewall already denied it at dispatch, so the deleted test only ever proved half a dead path.
+  // The resolver stays source-agnostic on purpose (see resolve-role.ts) — the denial lives in the contract
+  // enum + firewall, not here.
 
   test("an incoherent (api, source) selection throws ConnectionRoutingError", async () => {
     const h = makeConnHarness(await freshDb());

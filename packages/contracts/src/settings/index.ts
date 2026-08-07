@@ -362,15 +362,12 @@ export function parseAppSettings(raw: unknown): AppSettings {
 // credential firewall (`infra/providers/roles/firewall.ts::ROLE_SOURCE_POLICY` — contracts can't import
 // server-side policy, so these lists are hand-kept). Per-field `.catch(undefined)` self-heals a stale source.
 //
-// THEY DO NOT MIRROR IT TODAY, and the earlier claim that they did was false (2026-08-07). `INFERENCE_SOURCES`
-// and `GENERATE_IMAGE_SOURCES` match their firewall rows; `SUMMARIZE_SOURCES` offers `max-pro-sub`, which the
-// firewall's `summarize` row does not permit for ANYONE — a user (including the owner) who picks it gets a
-// stored setting whose every summarize dispatch is refused with `ProviderError(kind:"forbidden")`. Whether
-// summarize SHOULD reach the metered owner sub (add the firewall row) or should not (drop it from this list)
-// is a product call, deliberately left open rather than guessed; until it is ruled, this list is WIDER than
-// the enforcement and neither side may be cited as the other's proof.
+// They currently agree with their firewall rows, but only because both sides are kept in sync by hand —
+// this is not enforced by construction. `SUMMARIZE_SOURCES` excludes `max-pro-sub` (owner ruling, 2026-08-07):
+// batch roles like summarize don't spend the owner's metered subscription, so the source is not offered here
+// and the firewall's `summarize` row does not permit it either. If either list changes, check the other.
 export const INFERENCE_SOURCES = ["openrouter", "vllm", "local-light"] as const;
-export const SUMMARIZE_SOURCES = ["openrouter", "vllm", "max-pro-sub"] as const;
+export const SUMMARIZE_SOURCES = ["openrouter", "vllm"] as const;
 // The generateImage role's permitted sources — mirrors ROLE_SOURCE_POLICY.generateImage
 export const GENERATE_IMAGE_SOURCES = ["openrouter"] as const;
 

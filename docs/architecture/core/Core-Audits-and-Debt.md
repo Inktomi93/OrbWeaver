@@ -306,9 +306,15 @@ only one that worked — it 403s before any auth runs. This entry also advised "
 token left the surface open. Unsetting `WIRE_CAPTURE` narrowed the blast radius (no provider bodies) but did
 not close the surface.
 
-### SUMMARIZE-SUB — the stored `summarize` source list is WIDER than the firewall enforces (awaiting an owner ruling)
+### SUMMARIZE-SUB — the stored `summarize` source list is WIDER than the firewall enforces (RESOLVED)
 
-**Status: OPEN, needs a PRODUCT call, deliberately not guessed (2026-08-07, found by the ROLECLIENTS lane).
+**Status: RESOLVED (owner ruling, 2026-08-07: "drop `max-pro-sub` from `SUMMARIZE_SOURCES`; the 2026-07-27
+split stands — summarize does not run on the metered Claude subscription"). `contracts/settings/index.ts::SUMMARIZE_SOURCES`
+now reads `["openrouter", "vllm"]` and agrees with the firewall's `summarize` row again. The per-field
+`.catch(undefined)` self-heal meant no migration was needed for any already-stored value. Kept below as the
+resolved-debt record.**
+
+**Was OPEN, needing a PRODUCT call, deliberately not guessed (2026-08-07, found by the ROLECLIENTS lane).
 NOT a vulnerability — the enforcement is the STRICTER of the two, so nothing is admitted that shouldn't be.**
 
 `contracts/settings/index.ts::SUMMARIZE_SOURCES` accepts `openrouter | vllm | max-pro-sub`; the runtime
