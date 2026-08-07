@@ -266,3 +266,11 @@ export const rpgListJournalInputSchema = z.object({
   limit: z.number().int().min(1).optional(),
   offset: z.number().int().min(0).optional(),
 });
+
+/** `rpg.listTurnToolCalls` — the recorded-turn window (TOOLCALLS-INVISIBLE, arm A). No `offset`: the client
+ *  indexes the whole window by `variantId` to render per-row disclosures, so paging backward would only ever
+ *  half-populate that index (see `ListTurnToolCallsParams`). */
+export const rpgListTurnToolCallsInputSchema = z.object({
+  chatId: chatIdField,
+  limit: z.number().int().min(1).optional(),
+});

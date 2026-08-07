@@ -914,6 +914,21 @@ CREATE UNIQUE INDEX `rpg_snapshots_variant_unique` ON `rpg_snapshots` (`variant_
 CREATE INDEX `rpg_snapshots_game_idx` ON `rpg_snapshots` (`game_id`);--> statement-breakpoint
 CREATE INDEX `rpg_snapshots_message_idx` ON `rpg_snapshots` (`message_id`);--> statement-breakpoint
 CREATE INDEX `rpg_snapshots_as_of_message_idx` ON `rpg_snapshots` (`as_of_message_id`);--> statement-breakpoint
+CREATE TABLE `rpg_turn_tool_calls` (
+	`id` text PRIMARY KEY NOT NULL,
+	`game_id` text NOT NULL,
+	`message_id` text NOT NULL,
+	`variant_id` text NOT NULL,
+	`calls` text NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`game_id`) REFERENCES `rpg_games`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`message_id`) REFERENCES `messages`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`variant_id`) REFERENCES `message_variants`(`id`) ON UPDATE no action ON DELETE cascade
+);
+--> statement-breakpoint
+CREATE UNIQUE INDEX `rpg_turn_tool_calls_variant_unique` ON `rpg_turn_tool_calls` (`variant_id`);--> statement-breakpoint
+CREATE INDEX `rpg_turn_tool_calls_game_idx` ON `rpg_turn_tool_calls` (`game_id`);--> statement-breakpoint
+CREATE INDEX `rpg_turn_tool_calls_message_idx` ON `rpg_turn_tool_calls` (`message_id`);--> statement-breakpoint
 CREATE TABLE `session_entries` (
 	`id` text PRIMARY KEY NOT NULL,
 	`chat_id` text NOT NULL,

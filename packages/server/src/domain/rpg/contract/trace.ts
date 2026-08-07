@@ -24,24 +24,8 @@
 // recorder filters on either, and a consumer joins a turn's events by `turnId` and a chat's by `chatId` — the
 // two query keys the `/api/_debug/rpg/traces` route already exposes.
 
-import type { RpgBusEventType, RpgDeliveryPath, RpgFoldFallbackReason } from "@orb/contracts/rpg";
+import type { RpgBusEventType, RpgDeliveryPath, RpgFoldFallbackReason, RpgRecordedToolCall } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId } from "@orb/kit/ids";
-
-/** One tool call the model co-emitted, as the recorder sees it — the NAME, the args VERBATIM (opaque: the
- *  shapes are heterogeneous per tool and the malformed ones are the point, so they are captured before any
- *  parse), and what the extraction fold DID with it. */
-export interface RpgTraceToolCall {
-  readonly name: string;
-  /** The raw arguments the model sent. A string when the model emitted unparseable JSON — the exact case a
-   *  parsed-only capture would erase. */
-  readonly args: unknown;
-  /** `applied` — parsed clean · `salvaged` — an invalid field was dropped and the remainder applied (EXT-4a) ·
-   *  `dropped` — the call did not parse at all and wrote nothing. */
-  readonly verdict: "applied" | "salvaged" | "dropped";
-  /** WHICH fields lost, for the two non-clean verdicts: the salvaged field paths, or the parse issue. Empty on
-   *  `applied`. */
-  readonly issues: readonly string[];
-}
 
 /** The per-turn RPG trace event. Discriminated on `phase`; the recorder stamps `seq`/`at` at record time (the
  *  emitter never reads a clock — determinism). */
@@ -58,7 +42,7 @@ export type RpgTraceEvent =
       readonly phase: "tool";
       readonly chatId: ChatId;
       readonly turnId: ChatTurnId;
-      readonly calls: readonly RpgTraceToolCall[];
+      readonly calls: readonly RpgRecordedToolCall[];
       /** The vehicle that carried them — `folded extraction` / `tool round` / `structured extraction` (the
        *  compose logger's own `vehicle` vocabulary, passed through as a string so the recorder never becomes a
        *  second home for it). */

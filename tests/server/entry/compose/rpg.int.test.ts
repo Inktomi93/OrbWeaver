@@ -1240,6 +1240,94 @@ test("R-OBS composed-real: a folded turn records its mount, its calls, its flush
   expect(byTurn).not.toContain("mount");
 });
 
+test("TOOLCALLS arm A: a folded turn RECORDS what it called, keyed to the producing variant", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "toolcalls-record");
+  const rpgCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "She fords the river." });
+
+  await rpgCompose.chatOps.onTurnCompleted(
+    chatId,
+    messageId,
+    variantId,
+    TURN,
+    foldedTurn([
+      { name: "update_scene", args: { location: "the ford", recentEvent: "forded the river" } },
+      // Valid JSON, INVALID against its own schema — the SCENE-DROPPED class. This is the call the user most
+      // needs to see, and the reason a record gated on a successful write would be useless.
+      { name: "upsert_quest", args: { name: 42 } },
+    ]),
+  );
+
+  const recorded = await rpgCompose.service.listTurnToolCalls({ principal: hostPrincipal(hostId), chatId });
+  expect(recorded).toHaveLength(1);
+  expect(recorded[0]?.variantId).toBe(variantId);
+  expect(recorded[0]?.messageId).toBe(messageId);
+  expect(recorded[0]?.calls.map((c) => [c.name, c.verdict])).toEqual([
+    ["update_scene", "applied"],
+    ["upsert_quest", "dropped"],
+  ]);
+  // The args ride VERBATIM — the failing payload is the evidence, and a parsed-only record would erase it.
+  expect(recorded[0]?.calls[1]?.args).toBe(JSON.stringify({ name: 42 }));
+  expect(recorded[0]?.calls[1]?.issues.join(" ")).toContain("name");
+});
+
+test("TOOLCALLS arm A: a turn whose calls ALL dropped still records — that is the turn worth seeing", async ({ app, db }) => {
+  // The record is written BEFORE the staged-nothing return: this turn writes NO snapshot (nothing parsed),
+  // and a record gated on a successful flush would show the user nothing at all on precisely the turn where
+  // they are asking "why did nothing happen?".
+  const { chatId, hostId } = await seedHostGameChat(db, "toolcalls-all-dropped");
+  const rpgCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The prose is fine." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, {
+    ...tc("chat-completions"),
+    terminalToolCalls: [{ toolCallId: "c1", name: "upsert_quest", arguments: JSON.stringify({ name: 42 }) }],
+  });
+
+  const recorded = await rpgCompose.service.listTurnToolCalls({ principal: hostPrincipal(hostId), chatId });
+  expect(recorded[0]?.calls.map((c) => c.verdict)).toEqual(["dropped"]);
+});
+
+test("TOOLCALLS arm A: a QUIET beat records nothing (no empty disclosure on every silent turn)", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "toolcalls-quiet");
+  const rpgCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They walk on." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, foldedTurn([]));
+
+  expect(await rpgCompose.service.listTurnToolCalls({ principal: hostPrincipal(hostId), chatId })).toEqual([]);
+});
+
+test("TOOLCALLS arm A: a NON-folded (cheap) turn records nothing — the round's calls are not the turn's", async ({ app, db }) => {
+  // A dedicated post-commit round makes its OWN model call; those calls are not a description of the turn the
+  // user watched, so they must not appear on that turn's row.
+  const { chatId, hostId } = await seedHostGameChat(db, "toolcalls-cheap");
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: "{}",
+    cannedToolCalls: [{ name: "update_scene", arguments: JSON.stringify({ location: "the tower" }) }],
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive." });
+
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
+
+  // The state DID land (the round ran) — but no per-turn record exists.
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient?.location).toBe("the tower");
+  expect(await rpgCompose.service.listTurnToolCalls({ principal: hostPrincipal(hostId), chatId })).toEqual([]);
+});
+
 test("R-OBS: an UNTRACED game is byte-identical — the same turn lands the same state with no sink wired", async ({ app, db }) => {
   // The zero-cost claim, asserted rather than asserted-in-a-comment: the emit sites are `deps.trace?.(…)`, so
   // with no recorder the event objects are never even constructed and the turn behaves exactly as before.

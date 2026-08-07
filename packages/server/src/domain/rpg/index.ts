@@ -40,7 +40,7 @@ export type {
 // R-OBS — the rpg flight recorder's SHAPES: the compose mints ONE recorder when tracing is enabled and wires
 // its `sink` into the rpg compose deps; `/api/_debug/rpg/traces` reads its ring through the foundation
 // `RpgTraceInspector` port (which never learns an rpg type — the records serialize straight to JSON).
-export type { RpgTraceEvent, RpgTraceRecord, RpgTraceRecorder, RpgTraceSink, RpgTraceToolCall } from "./contract/trace.ts";
+export type { RpgTraceEvent, RpgTraceRecord, RpgTraceRecorder, RpgTraceSink } from "./contract/trace.ts";
 // The per-chat flush barrier (the race fix): the compose mints it as a singleton, the gather awaits it.
 export { createRpgFlushBarrier } from "./flush-barrier.ts";
 // The game-row read (by chatId) compose's honest-arms + extraction wiring needs to reach the game's mode/config

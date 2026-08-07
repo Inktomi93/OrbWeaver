@@ -421,7 +421,13 @@ test("R1 folded: the turn's OWN tool calls are folded — ZERO post-commit model
   const snap = await findSnapshotByVariant(db, variantId);
   expect(snap?.location).toBe("the ford");
   expect(snap?.gameId).toBe(gameId);
-  expect(h.fakes.busEvents).toEqual([{ type: "snapshotPatched", chatId, snapshotId: snap?.id }]);
+  // A FOLDED turn emits TWO events, in this order: the tool-call record lands first (it is written before the
+  // staged-nothing return, so a turn whose calls all dropped still announces one — TOOLCALLS-INVISIBLE arm A),
+  // then the snapshot.
+  expect(h.fakes.busEvents).toEqual([
+    { type: "turnToolCallsRecorded", chatId },
+    { type: "snapshotPatched", chatId, snapshotId: snap?.id },
+  ]);
   // The resolution is named, with no fallback (the knob got what it asked for).
   expect(h.fakes.stateRoundPaths).toEqual([{ chatId, mode: "folded", path: "folded", fallbackReason: null }]);
 });
