@@ -442,11 +442,63 @@ export function parseProdRecord(text: string): ProdRecord | null {
  *  vLLM fleet (scripts/dev/engines.ts `acquireBootLock`). */
 export type SpawnLockAction = "retake" | "refuse" | "break-stale";
 
-export function decideSpawnLock(holder: number | null, holderAlive: boolean): SpawnLockAction {
-  if (holder === null || Number.isNaN(holder)) {
-    return "retake";
+/** What the lock file's CONTENT turned out to be. Three outcomes, not two — conflating them is what
+ *  wedged the lock:
+ *    `vanished`    — the file disappeared between the failed `wx` create and our read (a racing release).
+ *    `unparseable` — empty, whitespace, non-numeric, or a non-positive / non-integer "pid". A crash or a
+ *                    short write between `wx` and the write leaves exactly this, and it is a REAL window.
+ *    `pid`         — a plausible process id we can actually probe.  */
+export type LockHolder =
+  | { readonly kind: "vanished" }
+  | { readonly kind: "unparseable"; readonly raw: string }
+  | { readonly kind: "pid"; readonly pid: number };
+
+/** Read the lock file's content into a `LockHolder`. `null` raw = the read threw (file gone).
+ *
+ *  THE TRAP THIS CLOSES: the old code did `Number(readFileSync(...).trim())` and fed the result straight
+ *  to a liveness probe. `Number("") === 0`, and **`process.kill(0, 0)` signals the caller's own process
+ *  GROUP, so it always succeeds** — an empty lock file therefore read as "a live launcher (pid 0) holds
+ *  the lock", and `up prod` became a permanent no-op until a human deleted the file. `0` is never a pid
+ *  here; neither is a negative number (that is a process GROUP in kill(2)) nor a fractional value. */
+export function parseLockHolder(raw: string | null): LockHolder {
+  if (raw === null) {
+    return { kind: "vanished" };
   }
-  return holderAlive ? "refuse" : "break-stale";
+  const trimmed = raw.trim();
+  const pid = Number(trimmed);
+  if (trimmed.length === 0 || !Number.isInteger(pid) || pid <= 0) {
+    return { kind: "unparseable", raw: trimmed };
+  }
+  return { kind: "pid", pid };
+}
+
+/** The action after the atomic `wx` create FAILED — somebody, or something, holds the lock.
+ *
+ *  An UNPARSEABLE holder is a STALE lock, never a live one: nobody can be waited on, so the only
+ *  non-wedging move is to break it loudly and retake. (It used to return `retake`, which left the file
+ *  in place — the retry's `wx` failed again and the loop gave up with "another launcher won the race",
+ *  so the lock was never removed and every later `up prod` no-opped too.) */
+export function decideSpawnLock(holder: LockHolder, holderAlive: boolean): SpawnLockAction {
+  switch (holder.kind) {
+    case "vanished":
+      return "retake";
+    case "unparseable":
+      return "break-stale";
+    default:
+      return holderAlive ? "refuse" : "break-stale";
+  }
+}
+
+/** How a holder is named in an operator-facing log line. */
+export function lockHolderText(holder: LockHolder): string {
+  switch (holder.kind) {
+    case "vanished":
+      return "none (the lock file vanished mid-read)";
+    case "unparseable":
+      return `unparseable content ${JSON.stringify(holder.raw)}`;
+    default:
+      return `pid ${holder.pid}`;
+  }
 }
 
 /** May THIS launcher delete the pidfile after its own spawn failed?
