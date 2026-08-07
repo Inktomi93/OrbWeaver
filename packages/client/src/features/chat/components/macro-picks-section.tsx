@@ -35,7 +35,6 @@ import { Select } from "@orb/ui/select";
 import { Heading, Text } from "@orb/ui/text";
 import { useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useId } from "react";
 import { SettingCheckboxRow } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useSetUserMacroValues, useSetVariables } from "../hooks/use-context-panel-mutations.ts";
@@ -137,7 +136,6 @@ function BooleanToggleControl({ input, value, onPick }: InputControlProps): Reac
  *  unsetting needs its own affordance rather than "uncheck everything". */
 function ArrayPickControl({ input, value, onPick }: InputControlProps): ReactElement {
   const label = input.label.length > 0 ? input.label : input.name;
-  const rowId = useId();
   const picked: readonly string[] = Array.isArray(value) ? value : [];
   const isSet = Array.isArray(value);
   // What the CURRENT state does at turn time — the set arm differs by kind (join vs draw), the unset arm is
@@ -156,7 +154,6 @@ function ArrayPickControl({ input, value, onPick }: InputControlProps): ReactEle
         {input.options.map((option) => (
           <SettingCheckboxRow
             key={option.value}
-            id={`${rowId}-${option.value}`}
             label={option.label}
             checked={picked.includes(option.value)}
             onChange={(checked): void => toggle(option.value, checked)}
@@ -233,7 +230,6 @@ function VariableSelectControl({ spec, value, onPick }: VariableControlProps): R
  *  splits again). `randomPick` draws one part of it per reply. Unchecking everything IS the unset arm (an
  *  empty string reads as unpicked), so there is no separate "Use default" affordance. */
 function VariableMultiControl({ spec, value, onPick }: VariableControlProps): ReactElement {
-  const rowId = useId();
   const picked = (value ?? "")
     .split(spec.separator)
     .map((part) => part.trim())
@@ -254,7 +250,6 @@ function VariableMultiControl({ spec, value, onPick }: VariableControlProps): Re
         {spec.options.map((option) => (
           <SettingCheckboxRow
             key={option.value}
-            id={`${rowId}-${option.value}`}
             label={option.label}
             checked={picked.includes(option.value)}
             onChange={(checked): void => toggle(option.value, checked)}
