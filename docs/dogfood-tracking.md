@@ -753,6 +753,39 @@ Three arms were put up; the ruling is **arm A**:
 - **C — reverse the ruling.** REFUSED. Cheapest by far and reuses the whole renderer; nobody in the lane has
   standing to reverse a recorded owner law.
 
+**⚠️ NOT reachable by writing `message_variants.toolCalls`.** That column is typed
+`readonly ToolCallRecord[]` and is exactly the right SHAPE, which makes it the trap: it is CHAT's column,
+read by the existing `message-tool-calls.tsx`, so filling it from rpg is arm C wearing arm A's clothes — it
+changes what `MessageView.toolCalls` MEANS for every reader. Arm A needs rpg-owned storage.
+
+#### Arm A — the build (designed 2026-08-07, NOT built; boarded as a follow-up)
+
+Scope is honestly half-day-plus — a `[[new-domain-coupled-sites]]`-class change — which is why it was
+designed rather than rushed at the tail of a lane. The blueprint:
+
+1. **Storage (rpg-owned).** A `rpg_turn_tool_calls` row per folded turn, keyed by `variantId` (the
+   swipe-correct key — `[[rpg-state-anchor-slots]]`: the snapshot + journal already key there, so a swipe
+   surfaces the SELECTED variant's calls with no extra work) + `messageId` + `gameId`. Payload = the same
+   projection the flight recorder already builds: name · args verbatim · `applied`/`salvaged`/`dropped`
+   verdict · issue paths. Pre-launch ⇒ SQUASH into `0000_baseline.sql`, never an incremental migration.
+2. **Write site — exactly one.** `buildFoldTurnToolCalls` (`entry/compose/rpg.ts`) already computes the
+   verdicts for its own warn and, since this commit, for the trace: `toTraceCalls` is the projection to
+   reuse, so the log, the ring and the durable row cannot disagree about what was lost.
+3. **Read.** An rpg verb (`listTurnToolCalls({ chatId, variantId })`), participant-gated through rpg's own
+   `guard.ts` — NOT host-only: this is what the model did in a room you are IN. New tRPC proc ⇒ it owes a
+   `PROBED`/`EXEMPT` classification row (`[[new-router-needs-sweep-classification]]`).
+4. **Surface.** A collapsed-by-default disclosure on the message row, APPLICABILITY-gated (present when the
+   variant has calls; absent otherwise) — not a mode and not a setting, per `[[no-separate-reduced-modes]]`.
+   §13.10 naming: the trigger's accessible name leads with stable identity (`Tool calls on this turn — N`),
+   volatile detail suffixed. A `dropped` call must READ as dropped on the row: this is the surface where
+   `SCENE-DROPPED` would have been visible to the owner in the moment instead of after 12 occurrences.
+5. **Proof.** A CT mounting a real folded turn's calls (applied + salvaged + dropped in one row, since the
+   mixed case is the one worth seeing), plus the persistence + verb tests, plus a composed-real int test
+   asserting the write rides the SAME projection as the warn.
+
+Until it lands, the data is reachable by an operator at `/api/_debug/rpg/traces?turnId=…` with
+`RPG_TRACE=on`.
+
 *(original report below)*
 
 ### TOOLCALLS-INVISIBLE — original report (M 🔴) ✓
