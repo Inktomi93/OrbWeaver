@@ -410,6 +410,13 @@ identity chrome for ANY row kind.
   **tool-round wire blindness** (DOG-ENGINE receipt find: `/api/_debug/wire/captures` cannot see the
   tool-round arm AT ALL — that provider call has no `captureWire` sink, so `update_scene` traffic
   never reaches the ring; one sink at the tool-round call site closes it) · the
+  **per-chat connection PHANTOM** (ENGINE, three-way confirmed: `resolve-chat.ts:9-13` declares
+  `providerRouting` DORMANT/RESERVED — no writer verb, no UI, and the overlay is doubly dead
+  (compose builds providerRouting-only; resolveChat forwards only api/source/model). Reads as a
+  capability, is unreachable end-to-end. Deferred-by-intent per its own comment — a feature row,
+  not a defect; recorded so no lane re-derives it. The ONLY live lever is the shared
+  `routing.roleDefaults` settings row. Also: ENGINE's receipt probe left spec-owned debris —
+  `chat_01kzdrdy92exvvmcvx39gefvgc` + character `dogeng-warden-*` — delete at will) · the
   **st-goldens re-sweep** (STATLAS found the rig's `rm -rf output` wipes the PRIOR sweep's arm by
   design — only 10 ST captures survive, the 16-combo ST arm was destroyed by the tools sweep; fix
   accumulation (per-sweep dirs or drop the rm), then a full two-arm re-sweep upgrades the atlas §2
