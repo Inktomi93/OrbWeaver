@@ -29,7 +29,7 @@ export type { RelationManagerItem, RelationManagerSectionProps } from "./relatio
 export { RelationManagerSection } from "./relation-manager-section.tsx";
 export type { RowActionsMenuProps, RowDestructiveAction } from "./row-actions-menu.tsx";
 export { RowActionsMenu } from "./row-actions-menu.tsx";
-export { ROW_REVEAL, ROW_REVEAL_SWAP } from "./row-reveal.ts";
+export { ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP, ROW_REVEAL_SWAP_COARSE_KEEP } from "./row-reveal.ts";
 export type { RowToggleActionFillProps, RowToggleActionProps } from "./row-toggle-action.tsx";
 export { RowToggleAction } from "./row-toggle-action.tsx";
 export { SettingCheckboxRow, SettingSwitchRow } from "./setting-switch-row.tsx";

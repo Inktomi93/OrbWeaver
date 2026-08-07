@@ -2728,3 +2728,89 @@ test("GLYPHFIX: at the 272px floor the tracker-def row's SWATCH and its three gl
     expect(t.overflows).toBe(false);
   }
 });
+
+// ── THE PHONE VERTICAL BUDGET (side-eye 2026-08-07 finding 2) ────────────────────────────────────────
+// MEASURED on the LIVE stack at 320×568 (iPhone SE, real touch emulation, the seeded d20 game): the claimed
+// CONTEXT pane is 464px tall and the HUD spent 446 of it on chrome — a 227px band (76px stone row + a 100px
+// satellite row + the selection echo) and a 105px game rail wrapped to two rows of three. The active
+// tabpanel was left EIGHTEEN pixels against a 558px body, a 31:1 ratio: Status, Inventory, Scene, Quests and
+// Journal were all unusable, and opening the weather picker painted its chips entirely outside the strip.
+//
+// The pane is composed for the phone now instead of hidden into it: the satellite orbs (whose numbers are
+// tracker rows in Status) and the `aria-hidden` selection echo stand down at a coarse pointer, and the six
+// game cells stay ONE scrollable row. This fences the BUDGET, not the pixel — the assertion is the share of
+// the pane the reading surface gets, so it survives a token retune of the band's padding.
+//
+// The heights are the PRODUCTION panes, not story convenience: 464 is what a 320×568 phone leaves after the
+// topbar and the mobile bar; 520 is the 375×667 equivalent. `hasTouch: true` is what flips
+// `matchMedia("(pointer: coarse)")` in chromium — `page.emulateMedia` has no `pointer` feature.
+
+const PHONE_PANES = [
+  { width: 320, height: 464 },
+  { width: 375, height: 520 },
+] as const;
+
+test.describe("coarse HUD budget", () => {
+  test.use({ hasTouch: true });
+
+  for (const pane of PHONE_PANES) {
+    test(`@${pane.width}: the tab body gets a real share of the pane — the chrome no longer eats it`, async ({ mount, page }) => {
+      await stubTakeover(page);
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+
+      const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
+      const band = component.locator('[data-slot="rpg-hud-band"]');
+      await expect(band).toBeVisible();
+
+      const measured = await band.evaluate((el: HTMLElement) => {
+        const paneEl = el.closest(".shell-panel") as HTMLElement;
+        const panel = paneEl.querySelector('[role="tabpanel"]:not([hidden])') as HTMLElement | null;
+        const rails = Array.from(paneEl.querySelectorAll<HTMLElement>('[data-slot="rpg-hud-rail"]'));
+        return {
+          pane: paneEl.getBoundingClientRect().height,
+          band: el.getBoundingClientRect().height,
+          panel: panel === null ? 0 : panel.getBoundingClientRect().height,
+          gameRail: rails[0] === undefined ? 0 : rails[0].getBoundingClientRect().height,
+        };
+      });
+
+      // MEASURED before: 18/464 ≈ 0.04. The floor is a FRACTION of the pane, set below the value the
+      // composition affords rather than at it — this fences the collapse, it does not pin the pixel.
+      expect(measured.panel / measured.pane).toBeGreaterThan(0.3);
+      // …and the band is no longer the majority shareholder of a phone pane (227/464 ≈ 0.49 before).
+      expect(measured.band / measured.pane).toBeLessThan(0.35);
+      // The game rail is ONE row of cells, not two: 105px of two-row wrap became ~50px of scrollable row.
+      expect(measured.gameRail).toBeLessThan(70);
+    });
+
+    test(`@${pane.width}: every game tab is still REACHABLE — the single row scrolls, it does not clip`, async ({ mount, page }) => {
+      await stubTakeover(page);
+      const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
+
+      // All six cells are present and each caption renders WHOLE — the `auto-cols-max` half of the fix.
+      // (Six is the declared game rail: Status · Inventory · Scene · Quests · Journal · Map.)
+      const cells = component.locator('[data-slot="rpg-hud-rail"]').first().getByRole("tab");
+      await expect(cells).toHaveCount(6);
+      const clipped = await component
+        .locator('[data-slot="rpg-hud-rail"]')
+        .first()
+        .evaluate((el: HTMLElement) =>
+          Array.from(el.querySelectorAll<HTMLElement>('[data-slot="rpg-hud-cell-caption"]'))
+            .filter((node) => node.scrollWidth - node.clientWidth > 1)
+            .map((node) => node.textContent ?? ""),
+        );
+      expect(clipped).toEqual([]);
+    });
+  }
+});
+
+// The fine-pointer pane is untouched: the band keeps its satellite orbs and its echo, because a desktop
+// dock has the vertical budget the phone does not. This is what makes the fix an ARRANGEMENT, not a
+// deletion — the same data, composed for the column it is in.
+test("a fine pointer keeps the band's satellites and its selection echo", async ({ mount, page }) => {
+  await stubTakeover(page);
+
+  const component = await mount(<RpgTakeoverStory height={720} width={360} />);
+  await expect(component.locator('[data-slot="rpg-band-satellites"]')).toBeVisible();
+  await expect(component.locator('[data-slot="rpg-hud-echo"]')).toBeVisible();
+});
