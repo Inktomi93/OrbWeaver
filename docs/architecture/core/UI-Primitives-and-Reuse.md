@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-07-13
+updated: 2026-08-07
 ---
 
 # UI-Primitives-and-Reuse
@@ -130,3 +130,74 @@ Codified after a full seal review found the same miss-class across agents: thin 
 **Deliberately NOT `@orb/ui` (adjudicated app-level — do not re-carve):** `resizable`/split panes (D54 dropped `react-resizable-panels`; the shell uses the §11.1 clamp-overlay — reopening it is a ledger decision) · `sheet` (folded into drawer side variants) · `label` (folded into `field`) · app-splash / route-error-fallback / dialog-state-gate (app-shell chrome) · **weave-glyph — RE-HOMED by D62 to `packages/client/src/lib/` (the cross-cutting display seam): features cannot import app-shell, and D62's empty-state decorations need the glyph across features; still NOT `@orb/ui` (brand, not a domain-agnostic primitive)** · proposal-diff, reasoning-block, swipe-strip, composer internals (feature components over the primitives) · CapabilityGrantList (no committed consumer/design yet — compose at feature level when one appears).
 
 **Primitive deltas land under the §13.7 contract + §13.8 rules — one governance home.** The D62 delta set (new `kbd`; `Text` `micro`/`caps`; decoupled `Avatar` size tokens `avatar-sm/md/lg`/`avatar-hero` + per-entity fallback hue; `Dialog` width variants `sm/md/lg/xl` + `full`; `EmptyState` `action`/`decoration` slots; `Skeleton` shimmer; `Button` `secondary` bordered + muted `ghost`) is BUILT — the code + `tokens.json` are the doc; the delta narrative is in `../history/ui-primitives-archaeology-record.md`. **`table` IS an `@orb/ui` primitive** (built + exported `./table`): a data/analytics consumer is anticipated, so it is NOT re-carved to feature level. `component-size-ui` stays DORMANT until that consumer lands and `table.tsx` naturally splits under the 450-line cap.
+
+### 13.10 Namecraft — the accessible-name & control-name contract (BINDING; CT `accessible-name-quality.suite.ct.tsx`)
+
+> **The thesis:** an agent — and a screen-reader user — drives this app through the accessibility tree, by
+> **role + accessible name**. A generated Base UI `id` is WIRING (label↔control association, `aria-describedby`)
+> and is **never a navigation target** — it is unstable across renders and carries no meaning. Therefore the
+> NAME is the whole navigation surface, and a name that is empty, ambiguous, unstable, or divergent from the
+> pixels makes a control unreachable no matter how well-formed its attributes are. `form-identity.suite.ct.tsx`
+> asks whether a control is IDENTIFIED; this § asks whether it is FINDABLE. Both are required.
+>
+> Homed HERE, beside §13.7 (the primitive/CT structural contract) and §13.8 (primitive authoring rules),
+> because naming is an AUTHORING rule that binds identically in `@orb/ui` and in `client/features` — the same
+> governance home §13.9's last paragraph already claims for primitive deltas. The shell's landmark geography
+> is `UI-Architecture-and-Layout.md` §4.1–4.2; this § governs what those landmarks are CALLED.
+
+**N1 — Name source, in priority order (ARIA's own rule #1).** A **visible text label** beats
+`aria-labelledby` beats `aria-label`. Reach for `aria-label` only when there is no visible label (an icon-only
+control) or when the visible text is too terse to stand alone. A redundant `aria-label` over adequate visible
+text is a liability: it silently overrides the pixels and drifts from them.
+
+**N2 — Label in Name (WCAG 2.5.3, AA — the §4a baseline).** When a control has BOTH visible text and an
+`aria-label`, every word on screen must appear in the name. A voice-control user says what they see; an agent
+matches on what it read. *Mechanically checked.* Two exclusions, both measured, both in the CT helper's header:
+container/landmark roles (their content is their children, not their label) and value-bearing roles
+(`combobox`/`textbox`/`slider`/`spinbutton` — their content is the current VALUE, so naming a `combobox`
+"Bubble" would be the defect). A transient status announced through `aria-describedby` is a DESCRIPTION, not a
+label, and is stripped before the comparison (the Members row's "responding" chip is the founding case).
+
+**N3 — Stable identity FIRST; volatile detail suffixed.** A name may carry live state or a value — and often
+must, because with an `aria-label` the visible content is NOT announced — but the STABLE part leads, after
+which everything volatile is suffixed behind a separator. `Talkativeness: Aria — talks 50%` ✅ /
+`50% — Aria's talkativeness` ❌. Rationale: `getByRole(role, { name })` is a SUBSTRING match, so a
+stable-prefixed name stays findable through every value change while a volatile-prefixed one does not.
+This is also why the tri-state tag chip's `Filter by <tag>: <state> — <what activating does>` is CORRECT and
+stays (`character-filter-chips.tsx` header): its identity leads, and a cycling control has no `aria-pressed`
+arm that could carry three states.
+
+**N4 — Action-oriented, sentence-case, no role words.** Name a control by what activating it DOES
+(`Chat with Aria Nightshade`, `Dismiss panel`), sentence-case, no trailing role noun — a `button` named
+"Save button" or a `textbox` named "Name field" announces the role twice. The role is already in the tree.
+
+**N5 — Unique within its scope.** Two same-role controls may share a name only when a NAMED ancestor
+(`listitem`/`row`/`group`/`region`/`dialog`) disambiguates them — an agent scopes into the row first. Two
+"Edit" buttons under the same scope are unresolvable. *Mechanically checked, scope-aware.* The house pattern
+is to parameterize by the subject (`Actions for ${name}`, `Star ${name}`), which the library rows already do.
+
+**N6 — Every landmark is named and distinguishable.** `nav`/`aside`/`region`/`search`/`form` carry an
+`aria-label`; `banner`/`contentinfo`/`main` are singletons and need one only when a twin exists. Two landmarks
+of one role never share a name. *Mechanically checked.* The shell is the reference: `navigation "Primary"`,
+`complementary "<Section> list"` / `"<Section> details"`, `main "<Section> content"`.
+
+**N7 — Heading structure is the reading skeleton.** A pane's headings descend without skipping; a section
+title that is only a styled `Text` is invisible to the tree — use a real heading when it names a region of
+content.
+
+**N8 — The `name` ATTRIBUTE is a DATA KEY, not a label.** On a bound field it is the TanStack field name,
+which `useBoundField` threads verbatim into `<Field name>` — it is the path into the form-state/config object,
+so renaming one is a data migration, never a naming cleanup. **House style: `camelCase` mirroring the config
+key** (`autoContinueRounds`, `depthPromptRole`), dotted for nesting (`chat.api`). Do not "improve" one to
+kebab-case, and do not rename one without migrating the config key, its zod schema, its persisted rows and
+every reader in the same commit.
+
+**N9 — Identity-shaped inputs carry the spec `autocomplete` token.** `username` · `current-password` ·
+`new-password` · `email` — and an explicit `off` where the field is identity-SHAPED but not the user's own
+identity (an invite handle, a persona name, an API-key label). `off` is a decision, not an omission.
+
+**Enforcement.** N2/N5/N6 plus "every interactive role has a non-empty name" are machine-checked by
+`tests/client/a11y/accessible-name-quality.suite.ct.tsx` over a growing roster of real feature stories;
+adding a surface there is how a new pane joins the contract. N1/N3/N4/N7/N8/N9 are REVIEW rules — a CT that
+tried to score whether a verb is the user's verb would be vacuous or wrong. The suite plants each defect class
+as its own negative control, so a silently-broken predicate cannot make every surface pass.
