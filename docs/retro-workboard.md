@@ -348,6 +348,10 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   - [ ] **SNAP-STAGE PORT BAND contention** (S, instrument) — the isolated-stage pair (8888/5273)
     is a SINGLE shared band; two lanes wanting rendered stages collide (DRAFT-POLISH vs MOBILE's
     stage, live sighting). Per-lane offsets or a stale-stage reaper. Evidence: live refusal.
+  - [ ] **DAY-FABRICATION residual** (S, owner-taste) — `ambientPatch`'s `?? 1` fabricates day 1
+    when a host picks a TIME on a never-dated game (`day` is required min(1); the model's
+    `sceneClock` does the same). Now unreachable from a clear (the RULED-BATCH fix leg split
+    day/time nullability). A host-editable day field dissolves it. Evidence: fix-leg census.
   - [ ] **WIRE-SINK fence scope** (S) — `ChatRequest.chatId` is still OPTIONAL and the two direct
     `runChatTurn` sites in rpg.ts build no ExtractCtx: a fourth arm added THERE compiles blind. The
     landed fence covers the ExtractCtx paths only (verifier receipt). Widen on want.
