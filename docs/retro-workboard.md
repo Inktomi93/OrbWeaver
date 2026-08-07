@@ -82,7 +82,24 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   RULED-BATCH legs 1-3 (pipeline order declared once; day/time nullability split) · WIRE-SINK ·
   ABORT-LEAK · SMALLS-BATCH · SMALLS-3 legs 1-2 · FORKSTRIP + RPGFORK (**two live host-plane
   exposures closed**) · GATEFORGE (four gates, **189 → 193**) · VITE-MAX (salvaged).
-- **⚑ IN FLIGHT (ONE agent) + THE DISPATCH QUEUE:** lane **GATEFIX** (`ae12ce29192c53e14`) is
+- **⚑ IN FLIGHT (2026-08-07 evening — FOUR lanes + the push battery).** The owner gave the push word
+  and said "fill up the four slots". `pnpm verify --push` is running DETACHED on main (pid 719532, log
+  `<scratchpad>/verify-push.log`, `.exit` file on completion) — **the push happens only if it is green**,
+  and per standing law the battery OWNS THE BOX: every lane was briefed to hold its gate/test floor until
+  the orchestrator messages it that the battery drained, and side-eye was told not to touch the browser
+  or the dev stack until then.
+  - **AUTHFIX** (`a8fdca35d02f673ff`, security-executor) — the two-principal divergence; the shape is
+    ONE home for the role verdict, both principals consume it. Mints **D135** if it mints.
+  - **NARRATOR-CAST** (`a7ceca7cb755472b2`, executor) — co-speaker cards never reach the model in
+    narrator mode; the `{kind:"cast"}` arm's zero producers is the tell. Briefed NOT to regress FANOUT-1.
+  - **DATABANK-S2** (`a6371e1852bf03245`, executor) — the D85 host visibility toggle, the original
+    workboard item. Mints **D136** if it mints. Told to SendMessage before any schema squash.
+  - **SIDE-EYE-DAY** (`adf8e74d1848e35ae`, side-eye) — the rendered lens on the day's merges
+    (PHONE-COMP's vitals-orbs call · the two `JUDGMENT_DEFERRED` geometry sites · MOBILE 1-4 ·
+    DRAFT-POLISH 1-2). Briefed with the prescription-vs-symptom law and the mobile one-shell ruling.
+  All four were briefed: re-verify your premise first, a correct refusal is a success, ONE commit,
+  durable text under `docs/` never `reports/`, back-channel mid-run. Scope-fenced off each other's dirs.
+- **Superseded IN-FLIGHT note (GATEFIX finished; merged `96d35ee80`, consolidated static check 14/14):** lane **GATEFIX** (`ae12ce29192c53e14`) was
   retargeting `message-kind-policy-coverage`'s conformance rows + the `__g_mkpc` fixture, which MY
   commit `5f2afa7fd` orphaned when it emptied the DEFERRED map (correctly) without updating the two
   coupled sites written against it. **`pnpm check` stayed GREEN through this** — the conformance suite
@@ -109,6 +126,22 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     writer of `coSpeakers` in the server. Corroborated: `AssembleContext.speaker`'s `{kind:"cast"}` arm
     (doc-commented "narrator, `{{char}}` = the whole cast") has ZERO producers. **The round works IN
     SPITE OF the assembly.** Most visible on a FRESH narrator room. Evidence: live drive + source.
+  - [ ] **THE PRESET MAIN-PROMPT MARKER CONTRADICTS ITSELF IN NARRATOR MODE** (M, owner-veto text —
+    found by lane NARRATOR-CAST, source-verified, deliberately NOT fixed by it). Once `{{char}}` binds
+    to the joined cast (the `{kind:"cast"}` arm), the DEFAULT preset main-prompt marker
+    (`contracts/src/preset/index.ts:995`) renders on a narrator turn as *"You are Charlotte, JFC … Stay
+    in character; write Charlotte, JFC's perspective only."* **The single-perspective clause is now
+    self-contradictory.** It is a PRESET-owned marker template (edited via a per-section `template`
+    override), NOT a prose slot — so making it mode-aware is PRESET territory, and doing it from inside
+    the assembler would be a second home for one authority. The lane correctly refused. **Owner call:**
+    a mode-aware default marker, or a documented narrator-preset the host selects.
+  - [ ] **NEW PROSE-1 SLOT SHIPPED — `chat.group.castMember`, default text OWNER-VETO MATERIAL** (lane
+    NARRATOR-CAST). Verbatim default: **`[Cast — {{name}}]`** · `home:"user"` · `version:1` ·
+    `macros:"none"` · `requiredMacros:["{{name}}"]` · title *"Narrator cast-member heading"*. **Why a
+    NEW slot and not a re-version of `chat.group.alsoPresent`:** a version bump invalidates every host's
+    existing merged override; selection by `ctx.speaker?.kind === "cast"` keeps per-speaker merged turns
+    BYTE-IDENTICAL. The problem it fixes: `[Also present — {{name}}]` frames a character the model is
+    being asked to VOICE as a bystander. **Joins the veto pile beside NARCOLOR's three nudge texts.**
   - [ ] **Raw `<speaker>` markup leaks into the chat-list preview** (S) — `span[slot=list-row-subtitle]`,
     screenshot in the review doc.
   - [ ] **The `.env` OpenRouter key is INERT** (S, and it blocked the hosted arm) — `credentials.list`
@@ -209,14 +242,62 @@ the merged result. D-1 `listGlobal` minted. Its rendered check caught a real def
 `ListRow.subtitleLead`. **Owner CLOSED the section-vs-collection fork: Arm A (own rail section)
 stands** — demotion stays a one-file edit if he ever wants it.
 
-**OPEN — S2 (the live lane):** the per-chat rack (D-2 sources threaded — `scope.ts` already runs the
-three junction queries and DISCARDS the answer) · the rack after Injections per D-4 · **the D85 host
-visibility toggle — the original workboard item, still unbuilt** · the `listActiveForChat` freshness
-row.
-**Receipt of not-done:** `packages/server/src/domain/databank/verbs/` holds attach · create-from-text ·
-gather-retrieval · get · list · list-active-for-chat · list-attachments · reindex · remove · rename ·
-scrape · upload — and NO visibility/hidden setter, while `packages/contracts/src/databank/index.ts:96`
-already specs the D85 override.
+**OPEN — S2:** the per-chat rack (D-2 sources threaded — `scope.ts` already runs the three junction
+queries and DISCARDS the answer) · the rack after Injections per D-4 · the `listActiveForChat`
+freshness row.
+
+✅ **THE D85 HOST VISIBILITY TOGGLE IS BUILT, END TO END — the row that called it "still unbuilt" was
+WRONG and cost lane DATABANK-S2 its opening (premise-killed 2026-08-07, corroborated on main before
+acceptance).** D85 homes the override in **CHAT, not databank**: verbatim, *"the chat's config owns it
+(the fault-isolated `chats.metadata` sub-blob precedent, like `roomOverrides`)"*, and D91's close-out
+already recorded it BUILT. Live receipts: write verb `chat/verbs/roster.ts:241`
+`createSetChatDocumentVisibility` (`requireHost()` gate · strict `chatDocumentVisibilitySchema` parse ·
+metadata-merge write · `chatUpdated` emit · audit logs `hiddenCount` ONLY, never doc ids — deliberate
+anti-oracle) · enforcement `databank/persistence/scope.ts:76` `resolveChatHiddenDocumentIds` + `:152`
+subtracting hidden from the union · contract `contracts/src/databank/index.ts:97-115` +
+`contracts/src/chat/metadata.ts:200` · client `use-chat-document-mutations.ts:53` →
+`chat-documents-section.tsx:53`. Orchestrator-verified: `pnpm ast refs
+createSetChatDocumentVisibility` = ONE declaration.
+
+**⚑ THE LESSON — AN ABSENCE RECEIPT MUST BE SCOPED TO WHERE THE LAW PUTS THE THING.** The row's
+"receipt of not-done" enumerated `databank/verbs/` and found no visibility setter. **That absence was
+REAL and proved NOTHING**, because D85 never put the setter there. An exhaustive listing of the wrong
+directory reads exactly like proof. This is the evidence-method law's sharpest edge yet: a row citing
+an absence owes not just its method but its SCOPE — and the scope is decided by the law, not by the
+domain whose name is in the feature's title. **The lane was briefed to re-verify first and refused
+correctly.**
+
+✅ **AND THE RESIDUAL SWEEP CAME BACK CLEAN — D85's ENFORCEMENT AND ITS TRUST BOUNDARY ARE BOTH SOUND
+(lane DATABANK-S2, zero commits, receipt-only — a successful lane).** No `docs/` deliverable; the
+receipts are here.
+- **D110 drift sweep: no leaking plane.** The vector (a plane reading the raw `chats.metadata`
+  sub-blob instead of `resolveChatHiddenDocumentIds`) **does not exist** — `$X.databankVisibility` 0
+  matches / ts scanned=3365, `$X["…"]` exactly 1 (the resolver itself), `$X?.…` 3 (all tests), tsx
+  swept non-zero, positive control `$X.hidden` returned 9 real hits, corroborated by literal ripgrep
+  agreeing on the same closed set. `resolveChatHiddenDocumentIds` has ONE declaration and two
+  consumers (retrieval `scope.ts:152`, panel `list-active-for-chat.ts:30`).
+- **All 11 document-table readers enumerated and classified:** retrieval honors it (single home) ·
+  the panel shows the host the union with flags but **OMITS hidden rows from a member's payload**, so
+  a name never leaks · unified `search()` hardcodes `{ownerId}` from the resolved principal ·
+  `get`/`list`/`listAttachments` are owner-scoped `fetchOwned` and correctly INERT to `hidden` (the
+  override is a per-chat RETRIEVAL switch, never an ownership hide) · portability export is
+  `ownerId`-keyed.
+- **Second auth layer found beyond the verb's `requireHost()`:** `chat/substrate/auth/matrix.ts:132`.
+- **Trust boundary already pinned — nothing to add without duplicating:** non-host refusal
+  (`roster.int.test.ts:190`) · malformed-id default-deny (`:196`) · set-semantics + sibling-blob
+  survival (`:148`,`:176`) · override-changes-what-a-reader-sees, four directions
+  (`scope.int.test.ts:37`) · corrupt-blob heals **fail-OPEN** (`:84`) · name-privacy asymmetry
+  (`list-active-for-chat.int.test.ts:43`) · 10 client CTs asserting the MUTATION INPUT incl. a 320px
+  eye-column geometry test.
+- **Architectural note so no future lane files it as missing:** the S1 library rail correctly has NO
+  visibility toggle — `hidden` is keyed by CHAT metadata and the rail is chat-less/owner-scoped, so
+  there is nothing there to toggle.
+- **Not covered (stated):** no floor run (zero diff; battery held the box) · no browser drive of the
+  affordance (a side-eye question, not a leak question; already CT-locked at 320px) ·
+  `tests/server/transport/cross-tenant-sweep.suite.int.test.ts`'s databank rows not audited in depth.
+- **Tool lesson banked to memory** (\[\[ast-grep-property-read-has-three-shapes]]): `$X.foo`,
+  `$X?.foo` and `$X["foo"]` are THREE different node kinds — a dot-only sweep reports a clean zero
+  with a legitimate scanned count while optional-chained readers sit in the tree.
 **OPEN — S3:** unbuilt. D-7's real home tile still owed. Spec: `docs/design/databank-surface-spec.md`.
 
 ### I-3 · CONFIG WORKSPACE — ✅ the rail + the MOBILE tail are DONE; presets-into-rail is owner-timed
