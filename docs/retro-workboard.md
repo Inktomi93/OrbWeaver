@@ -82,7 +82,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   RULED-BATCH legs 1-3 (pipeline order declared once; day/time nullability split) · WIRE-SINK ·
   ABORT-LEAK · SMALLS-BATCH · SMALLS-3 legs 1-2 · FORKSTRIP + RPGFORK (**two live host-plane
   exposures closed**) · GATEFORGE (four gates, **189 → 193**) · VITE-MAX (salvaged).
-- **⚑ IN FLIGHT:** lane **NARRATOR-LIVE** — a dogfood-shaped LIVE drive of group narrator mode (hosted +
+- **⚑ IN FLIGHT (two agents):** lane **NARRATOR-LIVE** (`a04f9f8075274896e`) + a 4-chunk **VERIFIER** (`a5efc87558f12b959`) over the day's un-graduated merges (FANOUT-1's seven dispatch sites incl. the 33-line shipped-asset patch · GATEFORGE's four gates, false-positive hunt included · the RPGFORK + FANOUT-2 fix legs). Nothing else is running. Original NARRATOR-LIVE note: lane **NARRATOR-LIVE** — a dogfood-shaped LIVE drive of group narrator mode (hosted +
   local vLLM arms) answering "does it demonstrably work end-to-end now that the fan-out changed what the
   model sees?" Verdict → `docs/reviews/misc/2026-08-07-narrator-live-drive.md`.
 - **NOT PUSHED:** ~72 commits ahead of `ab55c112e`. The push word is the owner's, fresh, per push.
