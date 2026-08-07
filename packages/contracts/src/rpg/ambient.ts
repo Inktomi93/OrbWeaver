@@ -14,12 +14,28 @@ import { z } from "zod";
 const HOUR_MAX = 23;
 const MINUTE_MAX = 59;
 
-/** The engine clock — `{day ≥ 1, hour 0-23, minute 0-59}`. Nullable at the storage layer; when present,
- *  fully populated. Lite sets it via the `TIME_OF_DAY` label; full's engine sets it directly. */
+/** The engine clock — `{day ≥ 1, hour 0-23 | null, minute 0-59 | null}`. The PLANE is nullable (null = the
+ *  story has stated no when at all, the born state); within a present plane the TIME is separately nullable,
+ *  and that is a distinction the surfaces need rather than a hedge.
+ *
+ *  WHY THE TIME IS NULLABLE INSIDE A PRESENT CLOCK (2026-08-07). `day` is a CALENDAR COUNTER and
+ *  `hour`/`minute` are a TIME OF DAY: two facts a story moves independently ("three days later" says nothing
+ *  about the hour). They shared one all-or-nothing nullability, so the only way to unset the time was to null
+ *  the whole plane — which took `day N` with it, and `day N` has no other host-side door to restore (the
+ *  Scene tab's Date field writes `calendarDate`, and `update_scene.day` is the MODEL's door). The panel's
+ *  "Clear time" did exactly that, and the next time-pick then resurrected the clock at a FABRICATED day 1 —
+ *  a phantom fact of exactly the class this plane's born-null posture exists to refuse.
+ *
+ *  `{day: 4, hour: null}` renders as the arm that already existed and is already designed: the Waystone's
+ *  `clock === null` treatment (the header passes it `null` when there is no time), the band's `day 4` with no
+ *  time segment, the reminder's `day 4` line. No new rendered state was invented for it.
+ *
+ *  Lite sets the time via the `TIME_OF_DAY` label; full's engine sets it directly. Reading the label back is
+ *  {@link clockTimeOfDay} — the ONE guard, so no consumer re-decides what "this clock has no time" means. */
 export const rpgClockTimeSchema = z.object({
   day: z.number().int().min(1),
-  hour: z.number().int().min(0).max(HOUR_MAX),
-  minute: z.number().int().min(0).max(MINUTE_MAX),
+  hour: z.number().int().min(0).max(HOUR_MAX).nullable(),
+  minute: z.number().int().min(0).max(MINUTE_MAX).nullable(),
 });
 export type RpgClockTime = z.infer<typeof rpgClockTimeSchema>;
 
@@ -116,6 +132,18 @@ const HOURS_IN_DAY = 24;
  *  can name the same clock differently). Wrap-aware by construction: the phase in force is the one with the
  *  LATEST start at or before the hour; before the day's first start, the last-starting phase is still running
  *  from yesterday. Order-independent — it reads the ranges, never the tuple's order. */
+/** The label a CLOCK reads as, or `null` when it carries a day but no time — the ONE guard every surface
+ *  calls instead of testing `clock.hour !== null` itself (the band, the reminder line, the delta's time
+ *  transition, the Scene tab's Time field and the macro/CEL scene view all ask this one question). A `null`
+ *  answer means "the story has not said what time it is", which every caller renders as absence, never as a
+ *  substituted midnight. */
+export function clockTimeOfDay(clock: RpgClockTime | null): TimeOfDay | null {
+  if (clock === null || clock.hour === null) {
+    return null;
+  }
+  return timeOfDayAtHour(clock.hour);
+}
+
 export function timeOfDayAtHour(hour: number): TimeOfDay {
   const h = ((hour % HOURS_IN_DAY) + HOURS_IN_DAY) % HOURS_IN_DAY;
   let current: TimeOfDay | null = null;
