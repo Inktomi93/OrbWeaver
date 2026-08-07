@@ -40,6 +40,9 @@ interface TurnBucket {
   state: RpgSnapshotState;
   readonly journal: StagedJournalEntry[];
   readonly patches: Record<string, unknown>[];
+  /** The seed base, kept verbatim — the state every staged patch was composed AGAINST. The fold rebases the
+   *  patches off it; without it a carried whole plane is indistinguishable from an authored one. */
+  readonly base: RpgSnapshotState;
 }
 
 /** Build the staging store (a compose-created singleton — one per server process). Deep-clones the seed base
@@ -58,7 +61,7 @@ export function createRpgStagingStore(): RpgStagingStore {
       if (existing) {
         return existing.state;
       }
-      const bucket: TurnBucket = { state: clone(base), journal: [], patches: [] };
+      const bucket: TurnBucket = { state: clone(base), journal: [], patches: [], base: clone(base) };
       buckets.set(turnId, bucket);
       return bucket.state;
     },
@@ -89,7 +92,7 @@ export function createRpgStagingStore(): RpgStagingStore {
         return;
       }
       buckets.delete(turnId);
-      return { state: bucket.state, journal: bucket.journal, patches: bucket.patches };
+      return { state: bucket.state, journal: bucket.journal, patches: bucket.patches, base: bucket.base };
     },
     clear(turnId: ChatTurnId): void {
       buckets.delete(turnId);

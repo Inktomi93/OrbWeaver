@@ -4,7 +4,7 @@
 // tool patch on a locked path is dropped.
 
 import { describe } from "vitest";
-import { applyLockedPatch } from "../../../../../packages/server/src/domain/rpg/substrate/merge.ts";
+import { applyLockedPatch, rebasePatchOntoHead } from "../../../../../packages/server/src/domain/rpg/substrate/merge.ts";
 import { actorWithWallet, expect, quest, questId, test } from "../_support.ts";
 
 describe("the [merge-clear] contract", () => {
@@ -201,5 +201,66 @@ describe("lock-honoring (manual-edit-wins)", () => {
     const items = out.inventory as { id: string; quantity: number }[];
     expect(items.find((i) => i.id === "sword")?.quantity).toBe(1); // locked survivor re-inserted
     expect(items.find((i) => i.id === "gold")?.quantity).toBe(0); // unlocked took the patch
+  });
+});
+
+describe("rebasePatchOntoHead — replaying an applier's patch onto a head it was not composed against", () => {
+  // Every applier in `tools/apply.ts` is a read-modify-write over the base it was handed, so a staged patch
+  // carries WHOLE planes. Replaying one onto a newer head must keep what the round meant and drop what it
+  // merely carried, or a hand removal made after the base was read is silently undone.
+
+  test("a CARRIED element the head no longer has is dropped (the resurrection class)", () => {
+    const base = { presentCharacters: ["cast:mara", "cast:ilya"] };
+    const patch = { presentCharacters: ["cast:mara", "cast:ilya"] }; // byte-identical carry
+    const head = { presentCharacters: ["cast:ilya"] }; // the host dismissed mara after the base was read
+    expect(rebasePatchOntoHead(patch, base, head)).toEqual({ presentCharacters: ["cast:ilya"] });
+  });
+
+  test("a genuine ADD still lands (absent from the round's base)", () => {
+    const base = { presentCharacters: ["cast:mara"] };
+    const patch = { presentCharacters: ["cast:mara", "cast:new"] };
+    const head = { presentCharacters: [] }; // mara dismissed meanwhile
+    expect(rebasePatchOntoHead(patch, base, head)).toEqual({ presentCharacters: ["cast:new"] });
+  });
+
+  test("a genuine REMOVE by the round is honored against the head too", () => {
+    const base = { presentCharacters: ["cast:mara", "cast:ilya"] };
+    const patch = { presentCharacters: ["cast:ilya"] }; // the round walked mara off-stage
+    const head = { presentCharacters: ["cast:mara", "cast:ilya", "cast:late"] };
+    expect(rebasePatchOntoHead(patch, base, head)).toEqual({ presentCharacters: ["cast:ilya", "cast:late"] });
+  });
+
+  test("a CHANGED keyed element wins even when the head dropped it (the boarded tombstone boundary)", () => {
+    const base = { actorState: [actorWithWallet("mara", 3, 2)] };
+    const patch = { actorState: [actorWithWallet("mara", 99, 2)] }; // a real write, not a carry
+    const head = { actorState: [] };
+    const out = rebasePatchOntoHead(patch, base, head)["actorState"] as { volatile: { wallet: { amount: number }[] } }[];
+    expect(out[0]?.volatile.wallet[0]?.amount).toBe(99);
+  });
+
+  test("flat arrays keep MULTISET semantics — a repeated beat is not deduped, and a trimmed head survives", () => {
+    // `applyUpdateScene` emits `[...state.recentEvents, beat]`. If the host trimmed the log mid-flight, the
+    // rebase must append only the NEW beat rather than restore the whole stale log — and identical beats
+    // (the model can narrate the same line twice) must not collapse.
+    const base = { recentEvents: ["a", "b"] };
+    const patch = { recentEvents: ["a", "b", "b"] }; // appended a second "b"
+    const head = { recentEvents: ["b"] }; // the host trimmed "a" away
+    expect(rebasePatchOntoHead(patch, base, head)).toEqual({ recentEvents: ["b", "b"] });
+  });
+
+  test("keyed quests: a carried quest the head deleted stays deleted, an authored one lands", () => {
+    const base = { quests: [quest("k1"), quest("k2")] };
+    const patch = { quests: [quest("k1"), quest("k2", { status: "completed" })] }; // k1 carried, k2 flipped
+    const head = { quests: [quest("k2")] }; // the host deleted k1 mid-flight
+    const out = rebasePatchOntoHead(patch, base, head)["quests"] as { id: string; status: string }[];
+    expect(out.map((q) => q.id)).toEqual([questId("k2")]);
+    expect(out[0]?.status).toBe("completed");
+  });
+
+  test("records and scalars pass through untouched (they are the lock grammar's business, not the rebase's)", () => {
+    const base = { trackerValues: { hp: 1 }, location: "ford", plot: { title: "old" } };
+    const patch = { trackerValues: { hp: 2 }, location: "chapel", plot: { title: "new" } };
+    const head = { trackerValues: {}, location: "", plot: null };
+    expect(rebasePatchOntoHead(patch, base, head)).toEqual(patch);
   });
 });
