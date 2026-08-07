@@ -212,14 +212,29 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   status never prints the token. Handoff doc §1-2 repointed in the same commit. Verified by argv/env
   snapshots + pure-logic units — the first real `stack up prod` is the owner's live check
   (\[\[never-run-engine-launcher-live]]).
-- [ ] **DRAFT-PHASE UX (owner dogfood, 2026-08-07, verbatim: "character backgrounds and avatars also
-  dont show up until the first message... the whole 'draft' mode is sloppy as fuck and makes for bad
-  ux").** Two-part row, lane DRAFT-POLISH dispatched: (1) FIX — backgrounds/avatars render from
-  character selection, never gated on the first message landing; (2) CENSUS — the whole draft-phase
-  lifecycle audited (everything visually or behaviorally different before first send), delivered as
-  a report for the owner's design pass. Adjacent standing items it must census but NOT build:
-  DRAFT-TRUST (item 6, architecture call) · unsent-draft reload persistence (item 14, design fork).
-  Evidence: owner sighting, live.
+- [x] ✅ **DRAFT-PHASE UX — FIX MERGED + CENSUS DELIVERED (lane DRAFT-POLISH, `3046f070a`; verifier
+  owed).** THE FIX: both carried-look takeovers (BG-C background + D44 room theme) were spelled over
+  `ParticipantView[]` — a shape only a COMMITTED chat can produce, so the parameter TYPE was the
+  gate. Now a phase-independent `CarriedAppearanceCast` (contracts/chat/roster.ts) that both phases
+  project into; one `#data` primitive `use-carried-appearance`. Red-first at the CT tier (2 positive
+  arms fail on HEAD source, 4 discriminators pass both states); 146 CT green. Bonus one-home: the
+  founding-cast union had SIX spellings (two silently dropped `addedCharacterIds`) — now one deduped
+  home in `#state`; a mid-draft roster add shows in the topbar immediately. Header fork recorded:
+  THEME half overturned, TRUST half stands. **THE CENSUS (the owner's design-pass input — ranked):**
+  P1 **nav-away silently DISCARDS a composed draft** (greetings/injections/members unreachable —
+  worse than the reload item and NOT the same item; S retain-and-offer-back / L drafts-list —
+  OWNER) · P2 no assembly Preview pre-send while overrides are fully editable (M/L) · P3 no cast
+  bar on a multi-character draft — the literal "avatars don't show" for groups (S) · P4 group-draft
+  row tints are the id hash, re-tint at first send (M) · P5 skeleton flash on draft first paint
+  (S/M) · P6 draft header lacks the member-count chip (S) · P7 send-availability never pre-checks
+  on a draft (deliberate; OWNER taste) · P8 DRAFT-TRUST (standing 6) · P9 reload loss (standing
+  14). **Structural ruling candidate:** the feature handles draft gaps TWO ways — honest
+  disabled-with-reason (options menu, image gen — the §8 no-reduced-modes shape) vs silent absence
+  (cast bar, Preview) — the doctrine picks the first; P2/P3 are the two wrong-road sites.
+  Lesson minted: a rule's PARAMETER TYPE can be the gate ("only works after X exists" → check what
+  the resolver's signature structurally demands before hunting conditionals).
+  **Ops note:** the lane caught :5173 serving a STALE module graph (\[\[live-client-port-5173]]
+  class) — stack restarted by the orchestrator, fresh watcher verified serving current disk.
 - **⚑ FRESH-LENS RESULTS (the new graduation law's first pass, 2026-08-07):**
   **ABORT-LEAK: CONFIRMED** (defect reproduced end-to-end pre-fix against a real wedged server;
   all 8 roles proven routed; dispose leak-free over 1000 calls; no real transient misclassified —
