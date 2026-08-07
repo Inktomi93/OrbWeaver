@@ -244,88 +244,89 @@ a new `CollectionContribution.bulkSelect` DATA field the config band renders (C-
 the bar and checkboxes are the owner's) — generalizes to tag/world-info, documented in the contract.
 · **PIPELINE DEBUGGER** — a second section in the member editor ("In the pipeline"), NOT a new pane: the
 workspace has three slots and no library-level tool slot, and minting one is a second chrome grammar. Sample
-+ leg in, the global tier's ordered run out with per-stage before/after, the subject marked in place, and the
-executor's own skip reason named per script. It DOES honour the run gates — the tester one section up
-deliberately does not, and both headers say so, because unifying them destroys whichever question loses.
-· **JSON DOOR** — `regex.exportScript` / `regex.importScriptFile`, both THIN ARMS over the bundle
-descriptor's own verbs (export shares its file projection; import IS `createImportRegexScript`).
-**⚑ SUPERSEDED RULING, recorded:** `lifecycle-portability.ts`'s regex cells said "O-2 class… no evidenced
-demand for sharing one script standalone" and `collection-contracts.ts` cited them; the owner's REGX2 ruling
-IS that demand, so both flipped to real `DoorSpec`s + `chrome:"band+kebab"` and both headers were
-truth-repaired in the same commit.
-**DEFERRED with a reason — bulk PLACEMENT add/remove.** `withDerivedTierFlags` (the owner-ratified X-1/X-2
-finding) derives the tier flags + `historyDepth` from a placement set at ONE **client** write boundary, so a
-server bulk placement verb would be a second derivation home. It unblocks when `deriveRegexTierFlags` lifts
-into `@orb/kit/regex` beside the masks it mirrors — boarded separately.
-**Rendered receipt (done ≠ rendered):** the bulk bar was verified BROKEN twice at the real 330px roster
-column before it shipped — five inline verbs clipped "Run everywhere" mid-word and pushed two verbs AND the
-clear button off-screen; three verbs + a kebab still ran clear 22px past the edge. Shipped shape is two
-inline verbs + one kebab (global pair + Delete), with a standing geometry pin asserting every control's box
-inside the bar's.
-✅ **TAGSORT AUDITED + RULED (2026-08-03) — KEEP BUT NARROW. The owner's premise targeted a surface
-that never read the column.** He challenged manual tag order with *"this is an overall global tag manager
-across our entire lib"* — and the evidence says the surface he meant, the character-library folder-grouping
-sidebar (`features/character/lib/character-list-view.ts:52-74` `groupByTag`), **does not read `sortOrder`
-at all**: `RowTag` does not even carry the field, and groups sort by `name.localeCompare`. Same for pending
-tag suggestions (`character/persistence/queries.ts:270`, name only). So the objection is resolved by
-evidence, not by deleting anything.
-**Every reader (AST-confirmed, both languages scanned non-zero, grep-corroborated, zero disagreement):**
-`tag/persistence/queries.ts:39` `listOwnedTags` (`ORDER BY sortOrder IS NULL, sortOrder, name`) →
-`tag.listTagsWithUsage` · `character/persistence/queries.ts:387` `canonicalTagsFor` → every character
-summary's `tags` array · `tag/verbs/export.ts:17` (round-trip only, not a distinct decision). **No `.tsx`
-reads it** except the write hook.
-**Surfaces that can actually SEE it:** ONE primary — the tag-management collection rows
-(`features/tag/components/tag-collection-rows.tsx:75-81`, drag → `useSetTagOrder`), and ONE passive echo —
-tag-CHIP order on character cards (`character-card.tsx:75` + dossier + quick-picks), which render the
-server's array order with no client re-sort.
-**RULED:** keep `sortOrder`, its write verb and the sortable rows as-is — a real, bounded, actively-used
-affordance. **Do NOT extend it anywhere else** (not into `groupByTag`, not into suggestions); those already
-made the better call. Removal would cost only alphabetical-instead-of-curated on those two surfaces —
-survivable, but a real regression on a purpose-built UI, for no gain.
-**⚑ THE ONE THING THAT NEEDS THE OWNER'S EYES — the 30-of-400 ratio.** The drag arm is capped at ≤30 items
-(`COLLECTION_LARGE_GROUP`, `collection-contracts.ts:39`); above that the same order renders in a read-only
-`VirtualList` with NO drag affordance. At his stated \~400-tag scale that means **manual ordering is
-unreachable for \~92% of the library, while still silently deciding chip order on every character card.**
-That is not a bug and the cliff was a deliberate owner-flagged fork — but it is worth his explicit ruling
-now that the numbers are on the table.
-**Audit limits (stated):** packages outside server/client not exhaustively enumerated (none found);
-non-TS consumers (raw SQL/seed outside `db/src/schema`) not searched.
-✅ **TAGDIG — the full tag-experience audit vs ST + neo (2026-08-03).** Report:
-`docs/reviews/misc/2026-08-03-tag-experience-audit.md` (gap register by theme, every `-l ts`/`-l tsx`
-sweep run in PAIRS with scanned-file counts; neo read via `git archive legacy-main` into scratchpad,
-never checked out; a false-negative self-corrected mid-audit — a bare-identifier pattern returned 0/0
-and looked like absence until `$X.folderType` found the real site).
-**Sort-by-most-used CONFIRMED CHEAP (S, zero server cost):** `listOwnedTagsWithUsage`
-(`domain/tag/persistence/queries.ts:288`) already returns `usage.total` in every payload the client
-renders — it is a client comparator + a mode `Select`, mirroring ST's `tag_sort_mode`.
-**RANKED WANTS:** (1) sort mode Alphabetical/Most-Used, default Most-Used — S · (2) **autocomplete on
-the tag-attach input** (`components/tag-picker-dialog.tsx` is a bare `Input` with NO suggestion list on
-BOTH neo and main) — S–M, the highest value-per-effort row: at \~400 tags it is what prevents
-duplicate-tag rot, and the data is already cached client-side · (3) tag EXCLUSION / three-state filter
-(ST has `toggleTagThreeState`/`FILTER_STATES.EXCLUDED`; **neither lineage ever built it**) — M, needs a
-new axis threaded through `LibraryFilters`/`filterByChips`. Past #3 is L and changes the browsing MODEL
-— separate owner decision, not a queued build.
-**WE ARE AHEAD OF ST in one place:** the pending-suggestion Accept/Reject review queue
-(`character-tag-suggestions.tsx` + `tag/verbs/list-pending-suggestions.ts`) plus the LLM auto-distill
-producer (`discovery/verbs/distill.ts`) — ST has no equivalent.
-**DELIBERATELY NOT COPIED (with reasons):** ST's DUAL tag lists (local organizing tags vs a separately
-authored "tags to embed" export field — a known confusion source in ST itself; our WYSIWYG
-accepted-tags-are-what-exports model is better) · a user-facing AND/OR toggle (ST hardcodes
-`const TAG_LOGIC_AND = true; // switch to false…` — config-via-source-edit; AND is the right default and
-per-tag exclusion covers the real "not this one" need).
-**⚑ OWNER TASTE CALLS:** standalone tag-only backup/restore button (REC skip) · import-time
-Ask/All/Existing/None vs our always-queue model (REC keep ours, it is strictly more capable — record as a
-deliberate divergence) · **whether Manual/`sortOrder` retires once Alphabetical/Most-Used ship**, given the
-≤30 cap already makes it near-unreachable at \~400 tags · folder OPEN (collapsible, cheap) vs CLOSED
-drilldown (navigation-model change) — REC build OPEN, defer CLOSED.
-**Not covered (stated):** anti-troll import cap, non-English locale completeness, mobile/touch behaviour.
-**OPEN smalls:** "Untitled chat" in the regex rosters (REGROSTER's naming question) · X-16 edited-ago
-needs a `RegexScriptRow` timestamp (contracts + db — verified absent) · REGPAR's F6 residual (REASONING
-prints slot 4 but executes post-postProcess — unobservable; strict-fidelity is an owner nit).
-**⚑ OWNER-RULED CLOSED (record):** prompt-EPHEMERALITY — min/max DEPTH is a PROMPT-leg concern; DISPLAY
-needs none of it because we own the viewport. The D121-E depth drop stays dead for display; the depth
-knobs come back only WITH the prompt-build history leg, if that is ever built. REC (a)
-ACCEPT-AND-RENAME stands.
+
+- leg in, the global tier's ordered run out with per-stage before/after, the subject marked in place, and the
+  executor's own skip reason named per script. It DOES honour the run gates — the tester one section up
+  deliberately does not, and both headers say so, because unifying them destroys whichever question loses.
+  · **JSON DOOR** — `regex.exportScript` / `regex.importScriptFile`, both THIN ARMS over the bundle
+  descriptor's own verbs (export shares its file projection; import IS `createImportRegexScript`).
+  **⚑ SUPERSEDED RULING, recorded:** `lifecycle-portability.ts`'s regex cells said "O-2 class… no evidenced
+  demand for sharing one script standalone" and `collection-contracts.ts` cited them; the owner's REGX2 ruling
+  IS that demand, so both flipped to real `DoorSpec`s + `chrome:"band+kebab"` and both headers were
+  truth-repaired in the same commit.
+  **DEFERRED with a reason — bulk PLACEMENT add/remove.** `withDerivedTierFlags` (the owner-ratified X-1/X-2
+  finding) derives the tier flags + `historyDepth` from a placement set at ONE **client** write boundary, so a
+  server bulk placement verb would be a second derivation home. It unblocks when `deriveRegexTierFlags` lifts
+  into `@orb/kit/regex` beside the masks it mirrors — boarded separately.
+  **Rendered receipt (done ≠ rendered):** the bulk bar was verified BROKEN twice at the real 330px roster
+  column before it shipped — five inline verbs clipped "Run everywhere" mid-word and pushed two verbs AND the
+  clear button off-screen; three verbs + a kebab still ran clear 22px past the edge. Shipped shape is two
+  inline verbs + one kebab (global pair + Delete), with a standing geometry pin asserting every control's box
+  inside the bar's.
+  ✅ **TAGSORT AUDITED + RULED (2026-08-03) — KEEP BUT NARROW. The owner's premise targeted a surface
+  that never read the column.** He challenged manual tag order with *"this is an overall global tag manager
+  across our entire lib"* — and the evidence says the surface he meant, the character-library folder-grouping
+  sidebar (`features/character/lib/character-list-view.ts:52-74` `groupByTag`), **does not read `sortOrder`
+  at all**: `RowTag` does not even carry the field, and groups sort by `name.localeCompare`. Same for pending
+  tag suggestions (`character/persistence/queries.ts:270`, name only). So the objection is resolved by
+  evidence, not by deleting anything.
+  **Every reader (AST-confirmed, both languages scanned non-zero, grep-corroborated, zero disagreement):**
+  `tag/persistence/queries.ts:39` `listOwnedTags` (`ORDER BY sortOrder IS NULL, sortOrder, name`) →
+  `tag.listTagsWithUsage` · `character/persistence/queries.ts:387` `canonicalTagsFor` → every character
+  summary's `tags` array · `tag/verbs/export.ts:17` (round-trip only, not a distinct decision). **No `.tsx`
+  reads it** except the write hook.
+  **Surfaces that can actually SEE it:** ONE primary — the tag-management collection rows
+  (`features/tag/components/tag-collection-rows.tsx:75-81`, drag → `useSetTagOrder`), and ONE passive echo —
+  tag-CHIP order on character cards (`character-card.tsx:75` + dossier + quick-picks), which render the
+  server's array order with no client re-sort.
+  **RULED:** keep `sortOrder`, its write verb and the sortable rows as-is — a real, bounded, actively-used
+  affordance. **Do NOT extend it anywhere else** (not into `groupByTag`, not into suggestions); those already
+  made the better call. Removal would cost only alphabetical-instead-of-curated on those two surfaces —
+  survivable, but a real regression on a purpose-built UI, for no gain.
+  **⚑ THE ONE THING THAT NEEDS THE OWNER'S EYES — the 30-of-400 ratio.** The drag arm is capped at ≤30 items
+  (`COLLECTION_LARGE_GROUP`, `collection-contracts.ts:39`); above that the same order renders in a read-only
+  `VirtualList` with NO drag affordance. At his stated \~400-tag scale that means **manual ordering is
+  unreachable for \~92% of the library, while still silently deciding chip order on every character card.**
+  That is not a bug and the cliff was a deliberate owner-flagged fork — but it is worth his explicit ruling
+  now that the numbers are on the table.
+  **Audit limits (stated):** packages outside server/client not exhaustively enumerated (none found);
+  non-TS consumers (raw SQL/seed outside `db/src/schema`) not searched.
+  ✅ **TAGDIG — the full tag-experience audit vs ST + neo (2026-08-03).** Report:
+  `docs/reviews/misc/2026-08-03-tag-experience-audit.md` (gap register by theme, every `-l ts`/`-l tsx`
+  sweep run in PAIRS with scanned-file counts; neo read via `git archive legacy-main` into scratchpad,
+  never checked out; a false-negative self-corrected mid-audit — a bare-identifier pattern returned 0/0
+  and looked like absence until `$X.folderType` found the real site).
+  **Sort-by-most-used CONFIRMED CHEAP (S, zero server cost):** `listOwnedTagsWithUsage`
+  (`domain/tag/persistence/queries.ts:288`) already returns `usage.total` in every payload the client
+  renders — it is a client comparator + a mode `Select`, mirroring ST's `tag_sort_mode`.
+  **RANKED WANTS:** (1) sort mode Alphabetical/Most-Used, default Most-Used — S · (2) **autocomplete on
+  the tag-attach input** (`components/tag-picker-dialog.tsx` is a bare `Input` with NO suggestion list on
+  BOTH neo and main) — S–M, the highest value-per-effort row: at \~400 tags it is what prevents
+  duplicate-tag rot, and the data is already cached client-side · (3) tag EXCLUSION / three-state filter
+  (ST has `toggleTagThreeState`/`FILTER_STATES.EXCLUDED`; **neither lineage ever built it**) — M, needs a
+  new axis threaded through `LibraryFilters`/`filterByChips`. Past #3 is L and changes the browsing MODEL
+  — separate owner decision, not a queued build.
+  **WE ARE AHEAD OF ST in one place:** the pending-suggestion Accept/Reject review queue
+  (`character-tag-suggestions.tsx` + `tag/verbs/list-pending-suggestions.ts`) plus the LLM auto-distill
+  producer (`discovery/verbs/distill.ts`) — ST has no equivalent.
+  **DELIBERATELY NOT COPIED (with reasons):** ST's DUAL tag lists (local organizing tags vs a separately
+  authored "tags to embed" export field — a known confusion source in ST itself; our WYSIWYG
+  accepted-tags-are-what-exports model is better) · a user-facing AND/OR toggle (ST hardcodes
+  `const TAG_LOGIC_AND = true; // switch to false…` — config-via-source-edit; AND is the right default and
+  per-tag exclusion covers the real "not this one" need).
+  **⚑ OWNER TASTE CALLS:** standalone tag-only backup/restore button (REC skip) · import-time
+  Ask/All/Existing/None vs our always-queue model (REC keep ours, it is strictly more capable — record as a
+  deliberate divergence) · **whether Manual/`sortOrder` retires once Alphabetical/Most-Used ship**, given the
+  ≤30 cap already makes it near-unreachable at \~400 tags · folder OPEN (collapsible, cheap) vs CLOSED
+  drilldown (navigation-model change) — REC build OPEN, defer CLOSED.
+  **Not covered (stated):** anti-troll import cap, non-English locale completeness, mobile/touch behaviour.
+  **OPEN smalls:** "Untitled chat" in the regex rosters (REGROSTER's naming question) · X-16 edited-ago
+  needs a `RegexScriptRow` timestamp (contracts + db — verified absent) · REGPAR's F6 residual (REASONING
+  prints slot 4 but executes post-postProcess — unobservable; strict-fidelity is an owner nit).
+  **⚑ OWNER-RULED CLOSED (record):** prompt-EPHEMERALITY — min/max DEPTH is a PROMPT-leg concern; DISPLAY
+  needs none of it because we own the viewport. The D121-E depth drop stays dead for display; the depth
+  knobs come back only WITH the prompt-build history leg, if that is ever built. REC (a)
+  ACCEPT-AND-RENAME stands.
 
 ### I-5 · BRAND BURN-DOWN — the gate is live, the debt is named
 
