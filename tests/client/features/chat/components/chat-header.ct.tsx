@@ -8,9 +8,12 @@
 // roster popover — the present seats + a host-only "Add a character" that converts the solo chat to a group.
 
 import type { ParticipantRole } from "@orb/contracts/identity";
+import type { CharacterId } from "@orb/kit/ids";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { ChatContextHeaderDraftStory, ChatHeaderStory } from "../_ct-stories.tsx";
+import { ChatContextHeaderDraftStory, ChatHeaderStory, ChatsTopbarDraftStory } from "../_ct-stories.tsx";
 import { makeMessagesPage } from "../fixtures.ts";
 
 const MEMBERS_CHIP_RE = /Members/;
@@ -136,4 +139,61 @@ test("the context band reduces to neutral chrome — no duplicated chat identity
   await expect(component.getByText("New chat")).toHaveCount(0);
   // The members chip is the topbar's (one home) — it must NOT appear in the context band.
   await expect(component.getByRole("button", { name: MEMBERS_CHIP_RE })).toHaveCount(0);
+});
+
+// ── THE DRAFT TOPBAR SAYS WHAT THE COMMITTED ONE SAYS (side-eye P2, 2026-08-06) ────────────────────
+// A group draft was titled after `cast[0]` alone and carried no seat count: "Hana Mizushima" for a
+// Hana + Kohaku room, with the second character discoverable only by scrolling to their greeting. §13
+// one-home — the draft and the committed room were saying different things about one concept. The title
+// now runs through the SAME `deriveChatTitle` the committed header uses, and the roster chip renders
+// wherever a draft HAS a Members tab to open (`draftMembersTabJustified`, the predicate that tab's own
+// `when` reads — so the chip can never be a door to a hidden tab).
+
+const HANA = mintTypeId(ID_PREFIX.character);
+const KOHAKU = mintTypeId(ID_PREFIX.character);
+
+/** `character.get`, keyed by id — the founding-CARD read the draft identity resolves from. */
+function routeDraftCards(page: Page): Promise<unknown> {
+  return routeTrpc(page, {
+    "character.get": (input: unknown): unknown => {
+      const { characterId } = input as { readonly characterId: CharacterId };
+      return characterId === KOHAKU
+        ? { id: KOHAKU, name: "Kohaku", avatarHash: null, greetings: [] }
+        : { id: HANA, name: "Hana Mizushima", avatarHash: null, greetings: [] };
+    },
+  });
+}
+
+test("a GROUP DRAFT names its WHOLE cast and carries the seat count (not just cast[0])", async ({ mount, page }) => {
+  await routeDraftCards(page);
+
+  const component = await mount(<ChatsTopbarDraftStory characterIds={[HANA, KOHAKU]} />);
+
+  // The title names both — the committed room's own `deriveChatTitle` join, not the first name alone.
+  await expect(component.getByText("Hana Mizushima, Kohaku")).toBeVisible();
+  // The seat count is the viewer + the founding cast — the SAME arithmetic the committed room's
+  // present-seat count produces for the room this draft becomes.
+  await expect(component.getByRole("button", { name: MEMBERS_CHIP_RE })).toHaveAccessibleName("Members — 3");
+  // And the avatars are a STACK, not one portrait (the committed group's cluster).
+  //
+  // The asserted name is "2 people", NOT the "2 characters" this call site passes: `AvatarStack` spreads
+  // `{...rest}` BEFORE setting its own `aria-label`, so a caller's label is silently overridden. That is a
+  // pre-existing @orb/ui defect the COMMITTED header shares verbatim (`CastAvatars` passes the same dead
+  // prop) — reported, not smuggled into this lane, because changing the primitive renames every stack in
+  // the app. This asserts what a screen reader ACTUALLY hears today.
+  await expect(component.locator('[data-slot="avatar-stack-root"]')).toHaveAccessibleName("2 people");
+  await expect(component.locator('[data-slot="avatar-stack-item"]')).toHaveCount(2);
+});
+
+test("a SOLO DRAFT keeps its single name and one portrait — the chip stays off its hidden Members tab", async ({ mount, page }) => {
+  await routeDraftCards(page);
+
+  const component = await mount(<ChatsTopbarDraftStory characterIds={[HANA]} />);
+
+  await expect(component.getByText("Hana Mizushima")).toBeVisible();
+  // Below the cast floor a draft has NO Members tab, so a chip here would open a tab the panel hides.
+  await expect(component.getByRole("button", { name: MEMBERS_CHIP_RE })).toHaveCount(0);
+  // One portrait, not a cluster — the solo shape, unchanged.
+  await expect(component.locator('[data-slot="avatar-stack-root"]')).toHaveCount(0);
+  await expect(component.locator('[data-slot="avatar-root"]')).toHaveCount(1);
 });

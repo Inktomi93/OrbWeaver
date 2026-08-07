@@ -27,7 +27,7 @@ import type { ChatContextTabId } from "#lib";
 import { testId } from "#lib";
 import { setContextTab, setPanelMode } from "#state";
 import { deriveChatTitle } from "../lib/chat-summary-row.ts";
-import { filterCharacters, membersTabJustified } from "../lib/roster.ts";
+import { draftMembersTabJustified, filterCharacters, membersTabJustified } from "../lib/roster.ts";
 import { AddMemberPopover } from "./add-member-popover.tsx";
 
 export interface ChatHeaderSurfaceProps {
@@ -108,6 +108,34 @@ export function ChatHeaderSurface({ chatId }: ChatHeaderSurfaceProps): ReactElem
   );
 }
 
+/** The roster CHIP itself — the `Users` glyph + the seat count, one spelling for both chat phases. Its
+ *  accessible name carries the count (the visible digit is `aria-hidden`, so the name is the only place a
+ *  screen reader learns the number). */
+function RosterChipButton({ count, onClick }: { readonly count: number; readonly onClick?: (() => void) | undefined }): ReactElement {
+  return (
+    <Button
+      type="button"
+      intent="ghost"
+      size="sm"
+      aria-label={`Members — ${count}`}
+      className="shell-chat-member-chip whitespace-nowrap"
+      {...(onClick === undefined ? {} : { onClick })}
+    >
+      <Icon icon={Users} size="sm" />
+      <Text as="span" size="micro" tone="muted" transform="caps" aria-hidden={true}>
+        {count}
+      </Text>
+    </Button>
+  );
+}
+
+/** Open the Members context tab — the roster chip's action in a GROUP room, both phases. Entry-only: it
+ *  never toggles closed (the collapse affordance is the context header's own control, D66 §2). */
+function openMembersTab(): void {
+  setContextTab("members" satisfies ChatContextTabId);
+  setPanelMode("context", "docked");
+}
+
 /** The topbar members entry — the ONE roster doorway (chat-header §2/§9, one home). It ALWAYS renders now
  *  (every chat has a roster). On a GROUP it opens the Members context tab (unchanged behavior). On a SOLO
  *  chat (no Members tab to open) it opens a compact roster popover: the present seats + the host-only
@@ -127,36 +155,15 @@ function ChatRosterEntry({
   readonly cast: readonly CharacterParticipant[];
   readonly viewerIsHost: boolean;
 }): ReactElement {
-  const label = `Members — ${memberCount}`;
-  const entryButton = (onClick?: () => void): ReactElement => (
-    <Button
-      type="button"
-      intent="ghost"
-      size="sm"
-      aria-label={label}
-      className="shell-chat-member-chip whitespace-nowrap"
-      {...(onClick === undefined ? {} : { onClick })}
-    >
-      <Icon icon={Users} size="sm" />
-      <Text as="span" size="micro" tone="muted" transform="caps" aria-hidden={true}>
-        {memberCount}
-      </Text>
-    </Button>
-  );
-
-  // GROUP: the entry opens the Members context tab (entry-only — never toggles closed; the collapse
-  // affordance is the context header's own control, D66 §2).
+  // GROUP: the entry opens the Members context tab.
   if (membersJustified) {
-    return entryButton(() => {
-      setContextTab("members" satisfies ChatContextTabId);
-      setPanelMode("context", "docked");
-    });
+    return <RosterChipButton count={memberCount} onClick={openMembersTab} />;
   }
 
   // SOLO: no Members tab exists, so the entry is a compact roster popover instead of a dead tab link.
   return (
     <Popover>
-      <PopoverTrigger render={entryButton()} />
+      <PopoverTrigger render={<RosterChipButton count={memberCount} />} />
       <PopoverPopup>
         <SoloRosterMenu chatId={chatId} participants={participants} cast={cast} viewerIsHost={viewerIsHost} />
       </PopoverPopup>
@@ -249,8 +256,27 @@ export interface DraftChatHeaderProps {
   readonly characterIds: readonly CharacterId[];
 }
 
-/** The draft identity (topbar LEAD + context band): seeded character avatar(s) + name. No options menu /
- *  no member chip — a draft has no chat-level actions yet. */
+/** A pre-send draft's human seats: the viewer, alone. Nobody can be invited into a chat that has no row
+ *  yet, so the count the chip shows is `1 + cast` — the same arithmetic the committed room's present-seat
+ *  count produces for the room this draft becomes (a solo draft and its committed twin both read 2). */
+const DRAFT_VIEWER_SEATS = 1;
+
+/**
+ * The draft identity (topbar LEAD): the founding cast's avatar(s), the room's title, and the roster chip.
+ *
+ * It says the SAME thing about the same concept as its committed twin (§13 one-home), which it did not
+ * before: a GROUP draft was titled after `cast[0]` alone and carried no seat count, so a Hana + Kohaku
+ * draft read "Hana Mizushima" and the second character was discoverable only by scrolling to their
+ * greeting (side-eye P2, 2026-08-06). The title now runs through the SAME `deriveChatTitle` the committed
+ * header uses — a draft carries no stored title, so it always resolves to the joined cast names.
+ *
+ * The chip renders only where a draft HAS a Members tab to open (`draftMembersTabJustified`, the shared
+ * predicate the tab's own `when` reads) — below that floor it would be a control that opens a tab the
+ * panel is hiding. A SOLO draft therefore still lacks the chip its committed twin shows; that residue is
+ * reported, not papered over with a second roster surface.
+ *
+ * No options menu: that lives in the topbar TRAIL (`chat-options-topbar.tsx`), which serves both phases.
+ */
 export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactElement {
   const trpc = useTRPC();
   const results = useQueries({
@@ -260,11 +286,15 @@ export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactEl
     name: r.data?.name ?? "",
     avatarHash: r.data?.avatarHash ?? null,
   }));
-  const first = cast[0]?.name.trim() ?? "";
-  const title = first.length > 0 ? first : "New chat";
+  // Names that have not landed yet are DROPPED, never joined as empty strings (which would render
+  // "Hana Mizushima, " mid-load). An all-unresolved cast falls to the draft's own "New chat" copy —
+  // `deriveChatTitle`'s "Untitled chat" is the committed room's word for a room that exists.
+  const names = cast.map((c) => c.name.trim()).filter((name) => name.length > 0);
+  const title = names.length > 0 ? deriveChatTitle(null, names) : "New chat";
   return (
     <Row gap="row" align="center" className="min-w-0">
       <ChatIdentityCluster avatars={<DraftCastAvatars cast={cast} />} title={title} />
+      {draftMembersTabJustified(characterIds) ? <RosterChipButton count={DRAFT_VIEWER_SEATS + characterIds.length} onClick={openMembersTab} /> : null}
     </Row>
   );
 }
