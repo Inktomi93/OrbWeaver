@@ -361,6 +361,35 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
   `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
   question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- **⚑ SECOND LIVE EXPOSURE, SAME CLASS, NEIGHBOURING SURFACE (lane RPGFORK, in build).** Sweeping
+  the sibling's defect-generator into `rpg/chat-ops/fork-game.ts` found a REAL leak — and a new
+  sub-class: **it lives INSIDE A JSON BLOB (`rpg_games.config`), where a table-level allow-list is
+  structurally BLIND.** The four row planes are clean; the leak is (1) `config.userMacros[].body`
+  /`.args` — the member-gated `getUserMacroPicks` DELIBERATELY projects game macros as
+  name+description+inputs only ("the BODY and declared `args` are prompt content and are
+  deliberately withheld", chat-lifecycle.ts:294), and the only caller-facing reader of the bodies is
+  host-gated `getConfigView`; (2) `config.features.relationshipHints` + `journalTypeHints` —
+  host-authored steering PROSE with no member-gated reader. Both LIVE (the GM console writes them).
+  Exactly the class `steeringNote` is already stripped for; the strip list simply never re-swept
+  when WAVE MU and the hint maps landed. LOW severity (abandoned/solo room; GM steering prose, not
+  player data). **FIX = TWO RATCHETS:** five per-plane `Required<$inferInsert>` builders PLUS
+  `stripConfigForForker` rebuilt as an exhaustive `RpgGameConfig`/`RpgGameFeatures` object literal
+  (no spread) — the column ratchet cannot see a new config SUB-FIELD. Whole-value drop over
+  field-nulling (a body-less macro expanding to `""` is worse than an absent one); scalars stay
+  COPIED per the sibling's own carve-out (stripping them would silently re-tune the fork's game for
+  zero secrecy gain). **THE LESSON, generalized:** an allow-list covers COLUMNS; a JSON column needs
+  its OWN exhaustive literal.
+  - [ ] **`rpg_turn_tool_calls` is uncopied by `forkGame`** (S, product call) — the file header
+    claims it "clones its whole 6-table vertical" and it clones five. Not a leak (the rows are
+    member-readable by explicit design, `listTurnToolCalls` is member-gated) — a data-loss + a
+    doc-lie. Header truth-repaired in the lane's commit; whether the fork should KEEP the tool
+    record is the product call. Evidence: lane sweep.
+  - [ ] **`listJournal` applies NO hidden-span strip in the SOURCE room** (M, belongs to the identity
+    work, NOT rpg-design) — a model-authored `<lie>` in a journal entry is served RAW to a member
+    read. **Judged against D129, minted today: hidden means hidden in EVERY DERIVED PLANE** — same
+    class as the digest orphan killed this afternoon, different surface. rpg-design §1.6 rec A keeps
+    tracker prose surface-only, which is why nobody swept it; that predates D129. Evidence: lane
+    sweep, source-pinned.
 - **✅ HAND-EDIT GRADUATED — CONFIRMED on the 4th leg after THREE refutations (`cea8437c0`).** The
   verifier re-drove all three prior refutations clean, plus N=3-with-a-gap, the production applier
   shapes with a mid-flight dismiss+delete+lock, element-level locks, and a **400-turn randomized
