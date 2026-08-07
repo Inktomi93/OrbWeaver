@@ -37,8 +37,12 @@ const config: KnipConfig = {
     ".": {
       // Every scripts/ tool is directly runnable (tsx); gate files are DYNAMICALLY discovered by
       // the check harness loader, so they must be entries or knip calls the whole gate corpus dead.
-      entry: ["scripts/**/*.ts", "playwright/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}"],
-      project: ["scripts/**/*.ts", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
+      // The ST-parity rig's CAPTURED RUNTIME (gitignored, 26k files) sits under scripts/probes/ — the
+      // negation is knip's fence. A planted bare .ts proved too weak to test this fence: knip's
+      // dependency lens only fires on a file that IMPORTS something (the runtime's own index.d.ts
+      // imports csrf-sync), so the fence's probe must plant an import, not an empty file.
+      entry: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "playwright/**/*.{ts,tsx}", "tests/support/**/*.{ts,tsx}"],
+      project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx}"],
       // verify-run.int.test.ts asserts missing-binary handling with a deliberately fake binary name.
       // ss/ps are system binaries scripts/probes/_kit/snap-stage.ts shells out to for port/process probing.
       ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "ss", "ps"],
