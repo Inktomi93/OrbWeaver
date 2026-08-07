@@ -278,24 +278,72 @@ test("a framing drill-in is TEXT-ONLY and offers its own {{note}} token, never a
   await expect(probe.getByText("{{note}}", { exact: true })).toBeVisible();
 });
 
-test("editing a framing writes a VERSION-STAMPED override through the save boundary; clearing it removes the key", async ({ mount }) => {
+// THE TYPING PIN (the defect `fill()` could not see, found by a verifier driving the live app). `fill()` sets
+// a controlled input's value in ONE event, so it sails past a per-keystroke transform: the drill-in trimmed
+// on every change and React handed the trimmed string straight back, which meant `Note x` typed out as
+// `Notex` and `a⏎b` as `ab`. An owner could only author multi-word text by PASTING. Any assertion about a
+// controlled field's editing behavior has to press real keys.
+test("a framing is TYPEABLE — real keystrokes keep interior spaces and newlines while the field is live", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  await probe.getByRole("button", { name: "Edit User-note frame" }).click();
+  const body = probe.getByRole("textbox", { name: "Template" });
+
+  await body.click();
+  await body.pressSequentially("The table says");
+  // The exact shape of the bug: the SPACE between two words, asserted mid-typing rather than after.
+  await expect(body).toHaveValue("The table says");
+  await body.press("Enter");
+  await body.pressSequentially("{{note}}");
+  await expect(body).toHaveValue("The table says\n{{note}}");
+
+  // …and a TRAILING space survives while the field is live: it is the character the author is about to type
+  // the next word after, and eating it is the same defect one keystroke earlier.
+  await body.pressSequentially(" ");
+  await expect(body).toHaveValue("The table says\n{{note}} ");
+});
+
+test("editing a framing writes a VERSION-STAMPED override at SAVE, trimmed at the edges only", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
   const framing = probe.getByLabel("saved framing");
   await expect(framing).toContainText("framing=—");
 
   await probe.getByRole("button", { name: "Edit User-note frame" }).click();
   const body = probe.getByRole("textbox", { name: "Template" });
-  await body.fill("((the table says: {{note}}))");
+  await body.click();
+  await body.pressSequentially("  ((the table says: {{note}})) ");
   await body.blur();
   // The stored record, not just the text: an edit stamps the CURRENT slot version, which is what makes the
-  // §4.4 staleness signal mean anything later.
-  await expect(framing).toContainText("framing=((the table says: {{note}}))@v1");
+  // §4.4 staleness signal mean anything later. The `|` delimiters make the trimmed EDGES assertable — the
+  // draft carried them, the persisted record must not.
+  await expect(framing).toContainText("framing=|((the table says: {{note}}))|@v1");
 
   // CLEARING IS THE RESET (the storage semantic everywhere in this schema): the key must actually go, or the
-  // slot resolves to empty bytes instead of falling back to the shipped frame.
-  await body.fill("");
+  // slot resolves to empty bytes instead of falling back to the shipped frame. Also the whitespace-only case:
+  // a field left holding spaces is a cleared field, not an override of blanks.
+  await body.fill("   ");
   await body.blur();
   await expect(framing).toContainText("framing=unset");
+});
+
+test("a framing that drops {{note}} WARNS in the drill-in — and never blocks the edit", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  await probe.getByRole("button", { name: "Edit User-note frame" }).click();
+  const body = probe.getByRole("textbox", { name: "Template" });
+  // An untouched field is on the built-in wording, so it cannot lint (the shipped default carries the token).
+  await expect(probe.getByText("Using the built-in wording")).toBeVisible();
+  await expect(probe.getByText("Missing {{note}}")).toHaveCount(0);
+
+  await body.click();
+  await body.pressSequentially("((the table says something))");
+  // `{{note}}` is the PAYLOAD carrier: without it the wrapper ships and the injection's content is gone.
+  await expect(probe.getByText("Missing {{note}}")).toBeVisible();
+  // WARN, NEVER BLOCK (§6.3): the text still reaches the save spy.
+  await body.blur();
+  await expect(probe.getByLabel("saved framing")).toContainText("framing=|((the table says something))|@v1");
+
+  // Putting the token back clears the warning — the lint tracks the live text, not the last save.
+  await body.fill("((the table says: {{note}}))");
+  await expect(probe.getByText("Missing {{note}}")).toHaveCount(0);
 });
 
 test("the shared DeliveryCluster writes the guided action's own role+depth through the boundary", async ({ mount }) => {

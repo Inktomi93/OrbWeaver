@@ -37,6 +37,35 @@ test("seedConfig preserves an existing server postProcess block verbatim", () =>
   expect(seedConfig(server).postProcess?.collapseNewlines).toBe(true);
 });
 
+// --- the framing overrides normalize at SUBMIT, never at the keystroke --------
+// The drill-in's textarea is CONTROLLED and its draft writes are verbatim (a trim in the keystroke handler
+// fed the trimmed string back into the field and made the editor untypeable — no spaces, no newlines). So the
+// trim + drop-the-blank live HERE, and these pin that they still happen.
+
+test("submit TRIMS a framing override's text — the draft's verbatim edges do not persist", () => {
+  const server = serverConfig();
+  const edited: PromptConfig = { ...seedConfig(server), prose: { "chat.injection.userNote": { text: "  ((the table says: {{note}}))\n ", baseVersion: 1 } } };
+  expect(mergeOnSubmit(edited, server).prose).toEqual({ "chat.injection.userNote": { text: "((the table says: {{note}}))", baseVersion: 1 } });
+});
+
+test("submit KEEPS interior whitespace and newlines — only the edges are trimmed", () => {
+  // The typed-text half of the same rule: a framing is prose, and a multi-line one is legitimate.
+  const server = serverConfig();
+  const authored = "((the table says:\n\n{{note}}\n— the table))";
+  const edited: PromptConfig = { ...seedConfig(server), prose: { "chat.injection.userNote": { text: authored, baseVersion: 1 } } };
+  expect(mergeOnSubmit(edited, server).prose["chat.injection.userNote"]?.text).toBe(authored);
+});
+
+test("submit DROPS a blank framing override — clearing the field is a real reset, not empty bytes", () => {
+  const server = serverConfig();
+  const edited: PromptConfig = {
+    ...seedConfig(server),
+    prose: { "chat.injection.userNote": { text: "   ", baseVersion: 1 }, "chat.assembly.continuationNudge": { text: "[Your move.]", baseVersion: 1 } },
+  };
+  // The blank key is gone entirely (a stored `{text:""}` resolves to empty bytes); its sibling survives.
+  expect(mergeOnSubmit(edited, server).prose).toEqual({ "chat.assembly.continuationNudge": { text: "[Your move.]", baseVersion: 1 } });
+});
+
 // --- mergeOnSubmit preserves server-only fields -------------------------------
 
 test("merge preserves server-only fields the params panel never edits", () => {

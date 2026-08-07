@@ -15,6 +15,7 @@ import { Toaster, ToastProvider } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ActionsView } from "../../../../../packages/client/src/features/preset/components/actions-view.tsx";
+import { mergeOnSubmit } from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_actionsstoryy");
 
@@ -60,12 +61,18 @@ export function ActionsStory(): ReactElement {
   const [saved, setSaved] = useState("—");
   const [savedFraming, setSavedFraming] = useState("—");
   const save = (values: PromptConfig): Promise<void> => {
-    const impersonate = values.guidedActions?.impersonate;
+    // THROUGH `mergeOnSubmit`, exactly as `use-preset-autosave` does before it hits the wire. The spy read
+    // the RAW form values until 2026-08-07 and that made it lie about the two things this surface most needs
+    // proven: the framing trim and the drop-the-blank both happen at SUBMIT, not at the keystroke, so a spy
+    // reading pre-normalization bytes cannot see either.
+    const persisted = mergeOnSubmit(values, SERVER_VALUES);
+    const impersonate = persisted.guidedActions?.impersonate;
     setSaved(`${impersonate?.role ?? "?"}@${String(impersonate?.depth ?? "tail")}`);
     // The whole record, not just the text: a framing edit that forgot to stamp `baseVersion` would still
-    // round-trip a string, and the staleness signal is the entire point of storing one.
-    const frame = values.prose["chat.injection.userNote"];
-    setSavedFraming(frame === undefined ? "unset" : `${frame.text}@v${String(frame.baseVersion)}`);
+    // round-trip a string, and the staleness signal is the entire point of storing one. `|` delimits the text
+    // so a CT can assert an exact edge (a trailing space is invisible in a substring match otherwise).
+    const frame = persisted.prose["chat.injection.userNote"];
+    setSavedFraming(frame === undefined ? "unset" : `|${frame.text}|@v${String(frame.baseVersion)}`);
     return Promise.resolve();
   };
   return (
