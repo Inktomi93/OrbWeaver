@@ -80,6 +80,21 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   step past the `merged` badge (the stages data already exists in ShapeTrace). The next debug
   increment when wanted.
 - **NOT pushed to origin** — the push word is the owner's, fresh, per push. \~40 commits ahead.
+- **⚑ COMPACT-SAFETY SNAPSHOT (2026-08-08 morning, \~91% context):** tree CLEAN at `b557262a0`
+  (working files: repo `scratch/` holds the gitignored st-console-probe; ST runtime settings.json
+  now has `console_log_prompts: true` — deliberate debug aid). **IN-FLIGHT LANES:** REGX2
+  (executor, worktree, all four forks ruled on defaults — bulk edit 3 verbs / member-editor
+  debugger / JSON door flipping the superseded portability cells; resume via SendMessage if
+  orphaned). **JUST ORDERED (owner, verbatim scope): the CANON MESSAGE IDENTITY stickler** — a
+  design investigation posing the typed per-row KIND axis idea against: our db schemas + contracts
+  - the ACTUAL db + the captured wire formats on disk (st-goldens output/ + orbweaver-output/ +
+    .cache/wire-capture spill + the atlas docs/design/st-message-shaping-atlas.md) + `proposed/` for
+    future-hedging so this is designed ONCE; must cover: raw-with-macros storage linked to canon
+    (so reattribute/swipe/re-render can re-resolve macros — surpassing ST) · reasoning + its
+    provenance · stats · debug · multi-human + persona merging with speaker attribution · narrator
+    group-mode speaker splitting/coloring · the mid-conversation system channel newer Opus models
+    support · exhaustive lock-in tests. Deliverable = a stickler file in docs/reviews/stickler/,
+    recommendation-grade, NOT a build. The lineage-view + kind-axis board rows above feed it.
 - **NEXT (owner-authorized chain): this board's queue** — REGX2 (dispatching) → MOBILE one-shell
   rule → BOARD-THESE by value-per-effort → the lifted smalls. Owner-taste rows stay parked.
 
