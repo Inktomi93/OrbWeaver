@@ -5,6 +5,7 @@
 // while custom SVG/div geometry (arc/bipolar/milestone) rides as its CHILDREN, not via `render` —
 // Meter.Root always appends a visually-hidden span into `children`, and replacing the root with an
 // `<svg>` would inject that span inside it (invalid).
+import type { MeterRootProps as BaseMeterRootProps } from "@base-ui/react/meter";
 import { Meter as BaseMeter } from "@base-ui/react/meter";
 import type { ReactElement, ReactNode } from "react";
 import { arcMeterVariants, bipolarMeterVariants, linearMeterVariants, meterVariants } from "./variants.ts";
@@ -12,11 +13,11 @@ import { arcMeterVariants, bipolarMeterVariants, linearMeterVariants, meterVaria
 export interface MeterProps {
   /** Presentation of the magnitude — same data, different dress. */
   kind: "linear" | "arc" | "bipolar";
-  value: number;
+  value: NonNullable<BaseMeterRootProps["value"]>;
   /** @defaultValue 100 */
-  max?: number;
+  max?: BaseMeterRootProps["max"];
   /** @defaultValue 0 (bipolar: `-max`) */
-  min?: number;
+  min?: BaseMeterRootProps["min"];
   /** Tick positions in value space (rendered on linear/bipolar; arc has no tick geometry). */
   milestones?: number[];
   /** When `value < dangerBelow` the fill swaps to the danger INTENT token. */
@@ -26,9 +27,9 @@ export interface MeterProps {
   /** Render the visible label + value readout row above the geometry. @defaultValue false */
   showValue?: boolean;
   formatValue?: (formattedValue: string, value: number) => ReactNode;
-  format?: Intl.NumberFormatOptions;
-  locale?: Intl.LocalesArgument;
-  getAriaValueText?: (formattedValue: string, value: number) => string;
+  format?: BaseMeterRootProps["format"];
+  locale?: BaseMeterRootProps["locale"];
+  getAriaValueText?: BaseMeterRootProps["getAriaValueText"];
   className?: string;
 }
 

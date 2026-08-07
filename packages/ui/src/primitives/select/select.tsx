@@ -82,6 +82,7 @@ export interface SelectProps<Value = string, Multiple extends boolean = false> e
    * The options — flat (`{ label, value }[]`) or grouped (`{ label, items }[]`). `Select.Value`
    * renders the selected option's label(s) automatically (comma-joined when `multiple`).
    */
+  // @orb-gate-ignore baseui-derives-not-respells(items): the Root prop is Omit'd above precisely so this can be NARROWER — Base UI accepts `Record<string, ReactNode>` / loose object arrays / its own Group shape, and the seal renders one closed union (`SelectOption[] | SelectOptionGroup[]`) so `renderItems` can be total. Ends if the seal stops rendering the items itself.
   items: SelectItems<Value>;
   placeholder?: ReactNode;
   /** Applied to the trigger (the in-flow element). */

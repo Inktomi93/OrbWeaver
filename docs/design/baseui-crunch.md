@@ -42,7 +42,28 @@ The structural gates for Base UI alignment are fully defined. We ran an AST prob
 *   `baseui-event-signature-preservation`: Bans custom change handlers that drop the `eventDetails` argument. **(Probe found 0 violations on main, 1 planted test caught)**.
 *   `baseui-namespace-imports`: Enforces the 1.7 namespace pattern (`Select.Root.Props`). **(Probe found 14 violations in `packages/ui/src/primitives` using the old flat types)**.
 
-**Status:** The AST probe proved these gates work perfectly and hook on any file importing from `@base-ui/react*`. The implementer must fix the 50 total violations listed above (the anatomy gaps, the Field.Control wrappers, and the namespace imports) before the gates can be safely merged.
+**Status — LANDED 2026-08-07 (lane BUGATES).** Six gates built, two premises died in verification. The
+`(N registered gates)` count and the Layer-3 rows live in
+[`Core-Enforcement-Active-Gates.md`](../architecture/core/Core-Enforcement-Active-Gates.md); the anatomy
+ledger's two halves are `scripts/check/gates/baseui-surface.manifest.json` (machine) and
+[`ui-package-design.md` §14](../architecture/core/ui-package-design.md) (human), joined on the verbatim
+`<Namespace>.<Part>` key.
+
+| Drafted gate | Outcome |
+| - | - |
+| `baseui-surface-manifest` (not in the original 7) | BUILT — the version-bump tripwire the other five key off: installed public surface vs a committed ledger of 39 components / 292 exports / 269 anatomy parts, each with its alias target, expanded prop names, handler arities, `<Part>State` keys, and a disposition |
+| `baseui-anatomy-completeness` | BUILT, ledger-driven (not a hardcoded part list). Landed at 0 after the 19 residual dispositions were ruled from §14 |
+| `baseui-derives-not-respells` | BUILT, two arms. ARM A (handlers, forwarded-only) landed at 2 REAL sites — `Textarea.onValueChange` and `ColorField.onValueChange` both dropped `Field.Control`'s eventDetails. ARM B (Root data props) landed at 19, all closed at landing by deriving or by a positioned `@orb-gate-ignore` with its reason |
+| `baseui-render-prop-composition` | BUILT at 0 — a ratchet. `cloneElement` deliberately left to `no-legacy-react-api` |
+| `baseui-state-data-attributes` | BUILT at 0 — an honest zero: the two candidate hits were both matcher false positives (`slots.value()`; a controlled prop in a tailwind-variants call) and both are written down as mustPass rows |
+| `baseui-portal-container-seam` | BUILT at 0 — all ten portal-bearing seals already declare AND thread `container` |
+| `baseui-event-signature-preservation` | NOT BUILT — subsumed by `baseui-derives-not-respells` ARM A, which catches strictly more (it also fires when the arity matches but the type is a hand copy). Two gates over one shape is maintenance without bite |
+| `baseui-field-control-registration` | NOT BUILT — PREMISE DEAD. Base UI's own `FieldControl` doc-comment says "You can omit this part and use any Base UI input component instead", and Base UI `Input` IS `Field.Control` underneath. The "33 violations" were ~all correct call sites using self-registering Base UI controls. Measured on the landed tree: 67 `<Field>` elements, **0** wrapping a raw intrinsic control — so even the narrow arm has an empty corpus, and `no-raw-interactive-intrinsics` already bans raw intrinsics in `features/**` |
+| `baseui-namespace-imports` | NOT BUILT — PREMISE DEAD. The vendored 1.7 docs' own Canonical-Types tables sanction the flat alias names ("Use Canonical when its namespace is already imported; otherwise use Alias"), and the release notes carry no namespace breaking change. §7 below overstates it. A house-taste ruling could still mint this gate later |
+
+Also corrected here: item 4's own probe counts. "3 anatomy violations" and "33 field-control violations"
+were both wrong — the anatomy question is 19 deliberate omissions (now ruled), and the field-control one
+does not exist. The measured populations are in each gate's file header.
 
 ## 5. Broken `className` Function Signature (Styling Best Practices)
 *   **The Context:** The Base UI documentation explicitly defines that components rendering HTML elements accept a `className` prop that can *either* be a string or a function receiving the component's state (e.g. `(state) => string`), enabling dynamic styling based on state.
