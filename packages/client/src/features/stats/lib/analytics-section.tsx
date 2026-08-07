@@ -20,6 +20,7 @@ import { AnalyticsModelsTab } from "../components/analytics-models-tab.tsx";
 import { AnalyticsPersonasTab } from "../components/analytics-personas-tab.tsx";
 import { AnalyticsTimeTab } from "../components/analytics-time-tab.tsx";
 import { AnalyticsListSurface } from "../surfaces/analytics-list-surface.tsx";
+import { useAnalyticsSelectionTitle } from "./analytics-selection-title.ts";
 
 /** The Analytics context-state projection: the leaderboard-drilled character (`null` = the overview
  *  dashboard). Always-present so the owner-scoped tabs stay unconditionally available; the `header` slot
@@ -46,6 +47,8 @@ export const analyticsSection: SectionDefinition = {
   listHeader: () => <AnalyticsListHeader />,
   // How the SHELL reads "is a character drilled?" — the mobile ONE-SHELL rule's input + back affordance.
   selection: analyticsSectionSelection,
+  // …and what it calls the drilled character in the pushed frame's topbar.
+  useSelectionTitle: useAnalyticsSelectionTitle,
   content: () => <AnalyticsContent />,
   // Three owner-scoped dimension tabs, always available: Models / Time / Personas. The `header` slot names
   // the drilled character (P4); the tabs ignore the state (owner-scoped).

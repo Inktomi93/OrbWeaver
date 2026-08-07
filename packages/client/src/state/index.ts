@@ -199,7 +199,7 @@ export type {
   SectionPlaceholderCopy,
   SectionSelection,
 } from "./section-registry.ts";
-export { RAIL_ZONES, SECTION_GROUPS } from "./section-registry.ts";
+export { NO_SELECTION_TITLE, RAIL_ZONES, SECTION_GROUPS } from "./section-registry.ts";
 export type { SectionRegistry } from "./section-registry-context.ts";
 export { useSectionRegistry } from "./section-registry-context.ts";
 export { SectionRegistryProvider } from "./section-registry-provider.tsx";

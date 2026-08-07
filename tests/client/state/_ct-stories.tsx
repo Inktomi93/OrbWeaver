@@ -9,7 +9,7 @@
 
 import type { ContributorRegistry } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
-import type { SettingsSectionContribution } from "@orb/client/state";
+import type { SectionDefinition, SettingsSectionContribution } from "@orb/client/state";
 import {
   __dismissPresetSectionForTest,
   __resetCollectionGroupOpen,
@@ -41,6 +41,7 @@ import {
   reportSectionSaveStatus,
   requestComposerFocus,
   revealContextPanel,
+  SECTION_IDS,
   SettingsSectionRegistryProvider,
   selectAnalyticsCharacter,
   selectCharacter,
@@ -121,7 +122,7 @@ import type { CharacterId, ChatId, PresetId, TagId, WorldEntryId } from "@orb/ki
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { Fragment, useState } from "react";
-import { CtFakeSectionRegistry } from "../../support/ct/ct-data-providers.tsx";
+import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from "../../support/ct/ct-data-providers.tsx";
 
 // ── section-list-projection: the #state answers to "is my LIST docked / is it the mobile SCREEN?" ──────
 // Mounted over the REAL config selection seam (`CtFakeSectionRegistry` passes `REAL[id].selection` through
@@ -141,9 +142,13 @@ function SectionListProjectionBody(): ReactElement {
   const configIsScreen = useSectionListIsScreen("config");
   const refineryIsScreen = useSectionListIsScreen("refinery");
   const configDocked = useListDocked("config", "docked");
+  const overlay = useOpenOverlayPanel();
   return (
     <div>
-      <output>{`config-screen=${configIsScreen} refinery-screen=${refineryIsScreen} config-docked=${configDocked}`}</output>
+      <output>{`config-screen=${configIsScreen} refinery-screen=${refineryIsScreen} config-docked=${configDocked} overlay=${overlay ?? "none"}`}</output>
+      <button type="button" onClick={(): void => setOpenOverlayPanel("list")}>
+        open list overlay
+      </button>
       <button type="button" onClick={(): void => selectCollectionMember("tag", "tag-projection-probe")}>
         open member
       </button>
@@ -158,6 +163,36 @@ function SectionListProjectionBody(): ReactElement {
       </button>
     </div>
   );
+}
+
+/** Walks the REAL section registry and renders each section's own `useSelectionTitle` answer — the
+ *  totality pin for the field: EVERY section declares one (a list-less section declares
+ *  `NO_SELECTION_TITLE`), so the shell can call it unconditionally, and none of the nine throws when its
+ *  own cache is cold. Each section gets its OWN keyed child, which is exactly how the shell calls it. */
+export function SectionTitleTotalityProbe(): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtRealSectionRegistry>
+        <SectionTitleRows />
+      </CtRealSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+function SectionTitleRows(): ReactElement {
+  const registry = useSectionRegistry();
+  return (
+    <div>
+      {SECTION_IDS.map((id) => (
+        <SectionTitleRow definition={registry.get(id)} key={id} />
+      ))}
+    </div>
+  );
+}
+
+function SectionTitleRow({ definition }: { readonly definition: SectionDefinition }): ReactElement {
+  const title = definition.useSelectionTitle();
+  return <output data-section={definition.id}>{`${definition.id}=${title ?? "none"}`}</output>;
 }
 
 /** The probe under a section registry — the provider must be ABOVE the hooks that read it, so the body is

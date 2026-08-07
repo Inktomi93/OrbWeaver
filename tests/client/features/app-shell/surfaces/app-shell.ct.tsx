@@ -1329,6 +1329,10 @@ test("MOBILE: the full-screen sheet gets the same elevation + inert content", as
 
 const MOBILE_NARROW = { width: 320, height: 800 };
 
+/** The coarse-pointer tap floor (`--spacing-touch-target` = 44px): the LEAD must always seat at least its
+ *  one control, so anything at or under this is the measured collapse. */
+const TOUCH_FLOOR_PX = 44;
+
 /** Every list-bearing section the story can drive, with the rail label the back affordance derives from. */
 const ONE_SHELL_SECTIONS: readonly { readonly id: SectionId; readonly label: string }[] = [
   { id: "chats", label: "Chats" },
@@ -1421,4 +1425,164 @@ test("ONE-SHELL: the rule is applicability, not a mode — at 1280px the config 
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
   await expect(page.getByRole("button", { name: "Back to Configuration" })).toHaveCount(0);
   await expect(shell.getByRole("button", { name: LIST_TOGGLE_RE })).toBeVisible();
+});
+
+// ── THE MOBILE TOPBAR BUDGET (side-eye P1) — a COARSE-POINTER frame, because the geometry depends on it ──
+// `--viewport 320x800` alone renders a FINE-pointer layout no phone produces (the touch floors are
+// `@media (pointer: coarse)`), so these run with `hasTouch` — Chromium then reports `pointer: coarse` and
+// the row is the one a thumb actually meets.
+//
+// What they pin, measured before the fix at 320px: the trail took 277 of 320px, `.shell-topbar-lead`
+// collapsed to 10.7px, and the back button's 48px box was overlapped by the ⌘K chip — every hit sample on
+// the back button (50%/75%/90% of its box) resolved to the command palette. Tapping the active bottom tab
+// does NOT clear a selection, so that button is the ONLY exit from an open chat.
+
+test.describe("the mobile topbar at 320px, coarse pointer", () => {
+  test.use({ viewport: MOBILE_NARROW, hasTouch: true });
+
+  /** Every point in `box` that a thumb might land on — the corners inside the padding, the centre, and the
+   *  three-quarter marks. Returns the `data-slot`/aria-label of whatever `elementFromPoint` resolves. */
+  function hitSamples(page: Page, selector: string): Promise<readonly string[]> {
+    return page.evaluate((sel) => {
+      const target = document.querySelector(sel);
+      if (target === null) {
+        return ["<no such element>"];
+      }
+      const box = target.getBoundingClientRect();
+      const fractions = [0.1, 0.25, 0.5, 0.75, 0.9];
+      return fractions.map((f) => {
+        const hit = document.elementFromPoint(box.left + box.width * f, box.top + box.height * f);
+        if (hit === null) {
+          return "<nothing>";
+        }
+        // The button itself, or anything inside it (its icon/svg), counts as the button.
+        const owner = hit.closest("button");
+        return owner === null ? `<not-a-button:${hit.tagName.toLowerCase()}>` : (owner.getAttribute("aria-label") ?? owner.textContent ?? "<unnamed>");
+      });
+    }, selector);
+  }
+
+  const backButtonSelector = '.shell-topbar button[aria-label="Back to Chats"]';
+
+  test("P1: every hit sample on the back button lands the BACK BUTTON — not the control beside it", async ({ mount, page }) => {
+    const shell = await mount(<AppShellMobileRuleStory section="chats" />);
+    await shell.getByRole("button", { name: "open a member" }).click();
+    const back = page.getByRole("button", { name: "Back to Chats" });
+    await expect(back).toBeVisible();
+
+    // POLLED TO SETTLED, not sampled on the first tick: the shell drives a real View Transition on a
+    // section/selection write, and WHILE one is running Chromium hit-tests against the ::view-transition
+    // pseudo-snapshots — `elementFromPoint` answers <html> for every point on the page, which would make
+    // this assertion a coin flip rather than a measurement (probed: the whole ancestor chain reads
+    // `pointer-events: auto` with real boxes, and only the hit test disagrees).
+    const expected = ["Back to Chats", "Back to Chats", "Back to Chats", "Back to Chats", "Back to Chats"].join(" | ");
+    await expect.poll(async () => (await hitSamples(page, backButtonSelector)).join(" | "), { intervals: [20, 50, 100, 200, 400] }).toBe(expected);
+
+    // …and the click actually returns to the roster (the affordance is reachable, not merely present).
+    await back.click();
+    await expect(page.locator('.shell-panel[data-panel-side="list"]')).toHaveAttribute("data-panel-mode", "docked");
+  });
+
+  test("P1: the lead keeps a real box and the title never measures 0 — the trail is what gives", async ({ mount, page }) => {
+    const shell = await mount(<AppShellMobileRuleStory section="chats" />);
+    await shell.getByRole("button", { name: "open a member" }).click();
+    await expect(page.getByRole("button", { name: "Back to Chats" })).toBeVisible();
+
+    const lead = page.locator(".shell-topbar-lead");
+    // SCOPED to the narrow arm on purpose: production's chat header carries its OWN `.shell-topbar-title`
+    // (the room's name inside the WIDE cluster), so a bare class selector measures the hidden one — it
+    // reads 0px wide and the assertion would pass against the wrong element (caught on the live stage).
+    const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
+    const leadBox = await lead.boundingBox();
+    const titleBox = await title.boundingBox();
+    // The measured defect was lead=10.7px and title w=0. The floor is the control's own tap target plus a
+    // readable name; assert BOXES, never attributes.
+    expect(leadBox?.width ?? 0).toBeGreaterThan(TOUCH_FLOOR_PX);
+    expect(titleBox?.width ?? 0).toBeGreaterThan(0);
+    // The lead + trail together fit the row — nothing is stacked on top of anything.
+    const trailBox = await page.locator(".shell-topbar-trail").boundingBox();
+    expect((leadBox?.x ?? 0) + (leadBox?.width ?? 0)).toBeLessThanOrEqual((trailBox?.x ?? 0) + 1);
+  });
+
+  // The other half of the budget, and a defect the first pass INTRODUCED (caught on the live stage, not in
+  // CT): letting the trail shrink with `min-width: 0` floored it at 26px while its icons kept their own
+  // `flex: none` tap targets — the chat kebab landed at x=324 on a 320px viewport, four pixels off-screen
+  // and unreachable. Every control's box must sit INSIDE the row's, which is the same geometry pin the
+  // regex bulk bar carries.
+  test("P1: every topbar control's box sits inside the viewport — nothing is pushed off the edge", async ({ mount, page }) => {
+    const shell = await mount(<AppShellMobileRuleStory section="chats" />);
+    await shell.getByRole("button", { name: "open a member" }).click();
+    await expect(page.getByRole("button", { name: "Back to Chats" })).toBeVisible();
+
+    const boxes = await page.locator(".shell-topbar button").evaluateAll((els) =>
+      els
+        .filter((el) => el.checkVisibility())
+        .map((el) => {
+          const r = el.getBoundingClientRect();
+          return { name: el.getAttribute("aria-label") ?? el.textContent ?? "?", left: r.left, right: r.right };
+        }),
+    );
+    expect(boxes.length).toBeGreaterThan(0);
+    for (const box of boxes) {
+      expect.soft(box.left, `${box.name} starts inside the row`).toBeGreaterThanOrEqual(0);
+      expect.soft(box.right, `${box.name} ends inside the row`).toBeLessThanOrEqual(MOBILE_NARROW.width);
+    }
+  });
+
+  test("P1: the desktop-shaped trail affordances shed on a phone and the command modal keeps a home in the You sheet", async ({ mount, page }) => {
+    const shell = await mount(<AppShellMobileRuleStory section="chats" />);
+    // ⌘K and focus mode are gone from the phone row (the budget) …
+    await expect(page.getByRole("button", { name: "Jump to… — the command menu" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: FOCUS_TOGGLE_RE })).toHaveCount(0);
+    // … and the command modal is still REACHABLE, as a named row in the You sheet.
+    await shell.getByRole("button", { name: "You", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Jump to…" })).toBeVisible();
+  });
+
+  test("P2: the pushed frame's topbar names the MEMBER; the roster frame names the section", async ({ mount, page }) => {
+    const shell = await mount(<AppShellMobileRuleStory section="config" />);
+    const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
+    await expect(title).toHaveText("Configuration");
+
+    await shell.getByRole("button", { name: "open a member" }).click();
+    await expect(title).toHaveText("Ashen Spire");
+    expect((await title.boundingBox())?.width ?? 0).toBeGreaterThan(0);
+  });
+
+  test("a11y: the bottom tab bar comes AFTER the topbar in DOM order on a phone (meaningful sequence)", async ({ mount, page }) => {
+    await mount(<AppShellMobileRuleStory section="chats" />);
+    const order = await page.evaluate(() => {
+      const grid = document.querySelector(".shell-grid");
+      if (grid === null) {
+        return [];
+      }
+      const regionOf = (el: Element): string => {
+        if (el.classList.contains("shell-rail")) {
+          return "rail";
+        }
+        return el.classList.contains("shell-main") ? "main" : "other";
+      };
+      return [...grid.children].map(regionOf);
+    });
+    expect(order.indexOf("main")).toBeLessThan(order.indexOf("rail"));
+  });
+});
+
+test("a11y: on the DESKTOP the rail still reads first — it is the leftmost column there", async ({ mount, page }) => {
+  await page.setViewportSize(WIDE);
+  await mount(<AppShellMobileRuleStory section="chats" />);
+  const order = await page.evaluate(() => {
+    const grid = document.querySelector(".shell-grid");
+    if (grid === null) {
+      return [];
+    }
+    const regionOf = (el: Element): string => {
+      if (el.classList.contains("shell-rail")) {
+        return "rail";
+      }
+      return el.classList.contains("shell-main") ? "main" : "other";
+    };
+    return [...grid.children].map(regionOf);
+  });
+  expect(order.indexOf("rail")).toBeLessThan(order.indexOf("main"));
 });

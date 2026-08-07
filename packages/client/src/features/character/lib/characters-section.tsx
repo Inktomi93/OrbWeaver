@@ -26,6 +26,7 @@ import { CharacterRelationsTab } from "../components/character-relations-tab.tsx
 import { CharactersListHeader } from "../components/characters-list-header.tsx";
 import { CharactersListPane } from "../components/characters-list-pane.tsx";
 import { useCharacterContextState } from "../hooks/use-character-context-state.ts";
+import { useCharactersSelectionTitle } from "./character-selection-title.ts";
 
 export function makeCharactersSection(
   detailContributors: ContributorRegistry<CharacterDetailContribution>,
@@ -50,6 +51,8 @@ export function makeCharactersSection(
     listHeader: () => <CharactersListHeader />,
     // How the SHELL reads "is someone open?" — the mobile ONE-SHELL rule's input + its back affordance.
     selection: characterSectionSelection,
+    // …and what it calls the open character in the pushed frame's topbar.
+    useSelectionTitle: useCharactersSelectionTitle,
     content: () => <CharacterContent detailContributors={detailContributors} />,
     // Three tabs: Field (drilled facet detail), Links (world books + personas), Options.
     context: defineContextTabs<CharacterContextState>({

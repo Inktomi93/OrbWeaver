@@ -24,7 +24,12 @@ export interface PrimaryDrillStore<P extends string> {
   readonly usePrimaryId: () => P | null;
   /** Drill into `id` (a LIST-row / result click) — CONTENT swaps to it; any sub-drill is cleared. */
   readonly select: (id: P) => void;
-  /** Clear the drill (back to the overview/welcome home) — both primary and secondary. */
+  /** Clear the drill (back to the overview/welcome home) — both primary and secondary, AND release any
+   *  open LIST slide-over. ONE DOOR BACK (side-eye P2): the shell's mobile back affordance and a surface's
+   *  own in-content "Back" both end here, so they cannot land the user in two different states — the
+   *  measured split was `corpus-dossier-surface`/`analytics-character-surface` calling `clear*Selection`
+   *  without the release while the shell's door called both. Viewport-unaware: the release is a no-op
+   *  wherever no slide-over is open. */
   readonly clear: () => void;
   /** `select(id)` AND close any open LIST slide-over (viewport-unaware; a no-op when the LIST is docked). */
   readonly selectFromList: (id: P) => void;
@@ -54,10 +59,17 @@ export function createDrillSelectionStore<P extends string, S extends string>(
   _options?: { readonly secondary: true },
 ): DrillSelectionStore<P, S> {
   const useSelectionStore = createGatedStore<DrillSelectionState<P, S>>(name, (): DrillSelectionState<P, S> => ({ primaryId: null, secondaryId: null }));
+  // The ONE clear (see `clear`'s contract): drop the drill AND release the slide-over request, so every
+  // "back" in the app — the shell's topbar door, a surface's own in-content Back, a delete's cleanup —
+  // lands in exactly one state.
+  const clearSelection = (): void => {
+    useSelectionStore.setState({ primaryId: null, secondaryId: null }, false, `${name}/clear`);
+    setOpenOverlayPanel(null);
+  };
   return {
     usePrimaryId: (): P | null => useSelectionStore((s) => s.primaryId),
     select: (id: P): void => useSelectionStore.setState({ primaryId: id, secondaryId: null }, false, `${name}/select`),
-    clear: (): void => useSelectionStore.setState({ primaryId: null, secondaryId: null }, false, `${name}/clear`),
+    clear: clearSelection,
     selectFromList: (id: P): void => {
       useSelectionStore.setState({ primaryId: id, secondaryId: null }, false, `${name}/select`);
       setOpenOverlayPanel(null);
@@ -72,7 +84,9 @@ export function createDrillSelectionStore<P extends string, S extends string>(
     selection: {
       subscribe: (onStoreChange: () => void): (() => void) => useSelectionStore.subscribe(onStoreChange),
       hasSelection: (): boolean => useSelectionStore.getState().primaryId !== null,
-      clear: (): void => useSelectionStore.setState({ primaryId: null, secondaryId: null }, false, `${name}/clear`),
+      // THE SAME function the store exports — one door, by construction rather than by two call sites
+      // agreeing to write the same pair.
+      clear: clearSelection,
     },
   };
 }

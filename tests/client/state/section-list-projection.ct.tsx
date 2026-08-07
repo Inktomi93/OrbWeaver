@@ -42,3 +42,24 @@ test("useListDocked agrees with the shell on mobile: the roster IS docked while 
   await probe.getByRole("button", { name: "enter desktop viewport" }).click();
   await expect(state).toContainText("config-docked=true");
 });
+
+// ── ONE DOOR BACK (side-eye P2), the rendered half ───────────────────────────────────────────────────
+// A section's `clear` — the SAME function the shell's mobile back affordance calls and the SAME one a
+// surface's in-content "Back" calls — must also RELEASE the slide-over request, or the two doors land the
+// user in two different states (measured: `clear*Selection` alone left an open LIST sheet request behind).
+// `null`, not `"none"`: the release restores the regime DEFAULT (on a phone, the roster as the screen);
+// `"none"` would suppress it.
+
+test("clearing a selection releases the LIST slide-over request — every back door lands in ONE state", async ({ mount }) => {
+  const probe = await mount(<SectionListProjectionProbe />);
+  const state = probe.locator("output");
+  await expect(state).toContainText("overlay=none");
+
+  await probe.getByRole("button", { name: "open list overlay" }).click();
+  await expect(state).toContainText("overlay=list");
+  await probe.getByRole("button", { name: "open member" }).click();
+
+  await probe.getByRole("button", { name: "clear member" }).click();
+  await expect(state).toContainText("config-screen=true");
+  await expect(state).toContainText("overlay=none");
+});

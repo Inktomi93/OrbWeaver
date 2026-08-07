@@ -17,6 +17,14 @@ export function useWorldInfoCount(): number | undefined {
   return useQuery(trpc.worldInfo.listBooksWithUsage.queryOptions()).data?.length;
 }
 
+/** The OPEN member's name for the mobile pushed frame's topbar (the `useMemberTitle` seam) — the SAME
+ *  cached list the census and the rows read, so this is a cache hit and never a second request. */
+export function useWorldInfoMemberTitle(memberId: string): string | undefined {
+  const trpc = useTRPC();
+  const rows = useQuery(trpc.worldInfo.listBooksWithUsage.queryOptions()).data;
+  return rows?.find((row) => row.id === memberId)?.name;
+}
+
 /** The create runner: mint an empty book, then OPEN it in CONTENT — the same create-then-edit motion the
  *  rail section's band primary had. */
 export function useCreateWorldInfoMember(): () => void {

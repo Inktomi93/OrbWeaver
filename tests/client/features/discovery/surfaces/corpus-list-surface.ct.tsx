@@ -100,27 +100,34 @@ test("switching to the Scenes target renders the per-chat evidence preview", asy
   await expect(component.getByText("She slips between the stalls.")).toBeVisible();
 });
 
-test("the browse catalog filter narrows the rows by the q param", async ({ mount, page }) => {
+// ── ONE SEARCH INPUT IN THIS PANE (side-eye P2) ──────────────────────────────────────────────────────
+// The browse view used to carry its OWN free-text box ("Filter the catalog", a substring `q`) four rows
+// under the omnibox — two inputs, both narrowing the same list, whose difference (substring vs semantic) is
+// invisible to the person typing. The omnibox is the truer home and the only one left; the browse view
+// keeps the FACET selects. This replaces the CT that pinned the deleted filter's `q` param.
+test("the pane offers exactly ONE free-text search — the omnibox; the browse view is facets only", async ({ mount, page }) => {
   await routeTrpc(page, {
     "discovery.characterFacets": { genres: [], tones: [] },
     "discovery.catalog": EMPTY_CATALOG,
-    "discovery.browseCharacters": (input: unknown) => {
-      const q = (input as { q?: string } | undefined)?.q;
-      const all = [ARIA_ROW, BOLT_ROW];
-      return q === undefined ? all : all.filter((r) => r.name.toLowerCase().includes(q.toLowerCase()));
-    },
+    "discovery.browseCharacters": [ARIA_ROW, BOLT_ROW],
     "search.suggest": [],
     "search.search": searchResponder,
   });
   const component = await mount(<CorpusListSurfaceStory />);
 
-  // Rest state = browse; both rows visible.
+  // Rest state = browse; the catalog rows are there …
   await expect(component.getByText("Aria Nightshade")).toBeVisible();
   await expect(component.getByText("Bolt")).toBeVisible();
 
-  await component.getByRole("textbox", { name: "Filter the catalog" }).fill("bolt");
-  await expect(component.getByText("Bolt")).toBeVisible();
-  await expect(component.getByText("Aria Nightshade")).toHaveCount(0);
+  // … and the pane's ONLY text input is the omnibox. The count is the assertion: a second box reappearing
+  // anywhere in this pane is the defect, whatever it is called.
+  await expect(component.getByRole("textbox", { name: "Filter the catalog" })).toHaveCount(0);
+  await expect(component.getByRole("combobox", { name: "Search your corpus" })).toBeVisible();
+  // Counted by the thing a person recognises as "a place to type": an input carrying a PLACEHOLDER. The
+  // facet Selects each render their own native input for form participation, so a bare `input` count reads
+  // 6 and proves nothing.
+  const typeable = await component.locator("input[placeholder]:not([placeholder=''])").count();
+  expect(typeable).toBe(1);
 });
 
 test("the Text target runs the lexical fields search and names the hits from the card list", async ({ mount, page }) => {

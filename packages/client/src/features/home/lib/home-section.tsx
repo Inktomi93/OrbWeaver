@@ -21,7 +21,7 @@
 import { Compass } from "@orb/ui/icons";
 import type { ContributorRegistry, HomeTileContribution } from "#lib";
 import type { SectionDefinition } from "#state";
-import { openModal } from "#state";
+import { NO_SELECTION_TITLE, openModal } from "#state";
 import { HomeSurface } from "../surfaces/home-surface.tsx";
 
 export function makeHomeSection(tiles: ContributorRegistry<HomeTileContribution>): SectionDefinition {
@@ -29,6 +29,8 @@ export function makeHomeSection(tiles: ContributorRegistry<HomeTileContribution>
     id: "home",
     rail: { label: "Home", icon: Compass, group: "primary", mobile: "tab", zone: "rail.brand" },
     panels: { list: "unavailable", context: "unavailable" },
+    // No member to name — the mobile topbar prints the section label (NO_SELECTION_TITLE).
+    useSelectionTitle: NO_SELECTION_TITLE,
     panelDefaults: { list: "collapsed", context: "collapsed" },
     placeholder: {
       title: "Home",
