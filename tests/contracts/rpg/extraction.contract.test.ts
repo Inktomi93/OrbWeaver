@@ -24,6 +24,7 @@ import {
   rpgGameConfigSchema,
   rpgPopulateSchema,
   rpgTrackerDefSchema,
+  salvagedToolCallFields,
   salvageExtraction,
   salvagePopulate,
   strippedToolCallKeys,
@@ -565,20 +566,25 @@ test("RV-9: the scene fragment teaches WHEN to move time + weather (the panel's 
   expect(teaching).toContain("whenever the story tells you what the sky is doing");
   // The enum + label split has to reach the PROSE too: a model that knows only "set weather" writes the
   // flavor into the type field, which the grammar then refuses.
-  expect(teaching).toContain("scene.weather.type is one of clear/cloudy/rain/storm/snow/fog/wind/ash");
+  expect(teaching).toContain("scene.weather.type is one of clear/cloudy/rain/storm/snow/fog/wind/ash/indoors");
   expect(teaching).toContain("scene.weather.label");
-  // WEATHER IS THE WORLD'S WEATHER. Every enum member is an OUTDOOR condition, so an indoor scene has no
-  // legal value — and the old copy ("restate the current weather while it holds", "pick the CLOSEST one")
-  // pushed the model to write one anyway. Live result: `weather.type: "indoors"`, which failed the enum and
-  // (before salvage) discarded the WHOLE `update_scene` call — location, cast and recentEvent with it, so a
-  // castle-interior game never established a scene at all. The teaching must say the field is the sky, that
-  // indoors it is omitted, and that omitting beats forcing the nearest member.
+  // WEATHER IS THE WORLD'S WEATHER. The eight SKY members can only describe a sky the scene can see, so an
+  // enclosed scene had no legal value — and the old copy ("restate the current weather while it holds", "pick
+  // the CLOSEST one") pushed the model to write one anyway. Live result: `weather.type: "indoors"`, which
+  // failed the enum and (before salvage) discarded the WHOLE `update_scene` call — location, cast and
+  // recentEvent with it, so a castle-interior game never established a scene at all.
   // …and the trigger is WHAT THE STORY SAYS ABOUT THE SKY, not where the characters are standing: a blizzard
   // closing in past a cabin window is the weather turning even though nobody went outside. An "outdoors only"
   // rule would suppress that legitimate change, so the copy is pinned on the story-tells-you framing.
+  //
+  // `indoors` is now a real member (owner ladder 2026-08-07), so the copy owes the model the THIRD case as
+  // well: enclosed-with-no-sky is WRITABLE, not omitted. The omit rule survives for the genuinely unnameable
+  // sky — the two are different states and the prompt must not collapse them, or the vocabulary and the
+  // instruction disagree and the member is one the model is told never to use.
   expect(teaching).toContain("WORLD'S weather");
   expect(teaching).toContain("indoors or out");
   expect(teaching).toContain("story says nothing about the sky");
+  expect(teaching).toContain('use "indoors" when the scene is enclosed and no sky is visible from it at all');
   expect(teaching).toContain("OMIT weather rather than forcing the nearest");
 });
 
@@ -590,11 +596,53 @@ test("weather.type reaches the WIRE schema as an enum (the grammar binds it); we
   const scene = (projected["properties"] as Record<string, Record<string, unknown>>)["scene"];
   const weather = (scene?.["properties"] as Record<string, Record<string, unknown>>)["weather"];
   const weatherProps = weather?.["properties"] as Record<string, Record<string, unknown>>;
-  expect(weatherProps["type"]?.["enum"]).toEqual(["clear", "cloudy", "rain", "storm", "snow", "fog", "wind", "ash"]);
+  expect(weatherProps["type"]?.["enum"]).toEqual(["clear", "cloudy", "rain", "storm", "snow", "fog", "wind", "ash", "indoors"]);
+  // The xgrammar-visible arm of the widening: `indoors` has to reach the PROJECTED schema, or the model is
+  // constrained away from the exact value the prompt now tells it to send ([[xgrammar-enforced-schema…]]).
+  expect(updateSceneArgsSchema.safeParse({ weather: { type: "indoors" } }).success).toBe(true);
   expect(weatherProps["label"]).toEqual({ type: "string", maxLength: 40 });
   // And the vocabulary binds at PARSE too (a folded tool round re-validates against the same schema).
   expect(updateSceneArgsSchema.safeParse({ weather: { type: "overcast" } }).success).toBe(false);
   expect(updateSceneArgsSchema.safeParse({ weather: { type: "cloudy", label: "low grey overcast" } }).success).toBe(true);
+});
+
+test("SCENE-DROPPED, THE SYMPTOM DYING: the exact live indoor payload now applies WHOLE, with nothing salvaged", () => {
+  // This is the payload that was failing in production, verbatim from the wire capture on the castle-interior
+  // chat: the model sent `weather.type: "indoors"`, the closed enum refused it, and the WHOLE `update_scene`
+  // call was discarded — location, cast and recentEvent with it, so the game never established a scene at all.
+  // EXT-4a's per-field salvage stopped that from being fatal but left a standing
+  // `salvagedFields: ["update_scene.weather"]` on every indoor beat: the loss was reduced, not closed.
+  //
+  // With `indoors` in the vocabulary the whole call lands and the salvage list is EMPTY. That empty list is the
+  // receipt — it is the difference between "the enum has a hole and we route around it" and "the model can say
+  // what it means". Asserted through the REAL fold (`toolCallsToExtraction`) and the REAL loss reporter, not
+  // through the schema alone, because the schema is not where the symptom was visible.
+  const calls = [
+    {
+      name: "update_scene",
+      arguments: JSON.stringify({
+        location: "Throne Room",
+        timeOfDay: "afternoon",
+        recentEvent: "Nate arrived",
+        weather: { type: "indoors", label: "dim infernal ambiance" },
+      }),
+    },
+  ];
+
+  expect(salvagedToolCallFields(calls)).toEqual([]);
+  expect(malformedToolCalls(calls)).toEqual([]);
+  const ex = toolCallsToExtraction(calls);
+  expect(ex.scene?.location).toBe("Throne Room");
+  expect(ex.scene?.recentEvent).toBe("Nate arrived");
+  // The weather the model MEANT, both halves: the canonical type it can now express, and the vivid phrasing
+  // that used to be the only place an indoor scene could put anything at all.
+  expect(ex.scene?.weather).toEqual({ type: "indoors", label: "dim infernal ambiance" });
+
+  // …and the salvage still WORKS — a genuinely unnameable value is still dropped field-wise, not call-wise.
+  // Widening the vocabulary must not be mistaken for loosening the grammar.
+  const bogus = [{ name: "update_scene", arguments: JSON.stringify({ location: "Throne Room", weather: { type: "sideways" } }) }];
+  expect(salvagedToolCallFields(bogus)).toEqual(["update_scene.weather"]);
+  expect(toolCallsToExtraction(bogus).scene?.location).toBe("Throne Room");
 });
 
 test("RV-9: the structured dateMode teaches WHEN the day counter ticks over (a night passed), not just that it exists", () => {

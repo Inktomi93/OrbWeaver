@@ -51,8 +51,10 @@ import {
 } from "../substrate/assembly-access.ts";
 
 /** What `runTurnPipeline` consumes — the immutable assemble ctx + the loaded canon + the resolved connection
- *  + the turn axes. */
-interface RunTurnPipelineArgs {
+ *  + the turn axes. EXPORTED so the engine's prose-less RECOVERY pass can re-run THIS turn from the SAME
+ *  argument object with two overrides (`recover-narrative.ts`) — a second hand-built args literal would be a
+ *  second turn definition, free to drift from this one. */
+export interface RunTurnPipelineArgs {
   readonly runChatTurn: RunChatTurnOp;
   readonly applyRegexReplace: ApplyRegexReplaceOp;
   /** Resolves a parsed message-image ref → a model-fetchable URL, or null to drop it. */
@@ -130,7 +132,7 @@ const EMPTY_HISTORY_MACRO_NAMES: HistoryMacroNames = {
 };
 
 /** The pipeline product the engine persists — the reduced generation + the request + the fit offset. */
-interface TurnPipelineResult {
+export interface TurnPipelineResult {
   readonly request: TurnRequest;
   readonly content: string;
   readonly reasoning: string | null;
