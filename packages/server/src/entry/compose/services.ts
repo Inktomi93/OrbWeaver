@@ -373,7 +373,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     },
   });
 
-  const bindRoleClients = (ownerId: UserId): Promise<RoleClientsWithSignal> => bindRoleClientsForUser({ connection, executor }, ownerId);
+  // D135 clause G — the binder's `Principal` is READ off `users.role` through the one row→Principal home,
+  // never stamped in the binder. The subject is not always the box owner: `/autobg` binds a bundle for an
+  // automation rule's AUTHOR (`automation-plugin.ts`), and a rule author only needs D18 ROOM host authority.
+  // Bound here rather than reusing `resolveHostPrincipal` (built ~150 lines below, at the chat seam) because
+  // the boot bundle on the next line needs it now; both are the same `createHostPrincipalResolver` closure.
+  const resolveRoleClientPrincipal = createHostPrincipalResolver(sessions);
+  const bindRoleClients = (ownerId: UserId): Promise<RoleClientsWithSignal> =>
+    bindRoleClientsForUser({ connection, executor, resolvePrincipal: resolveRoleClientPrincipal }, ownerId);
   const roleClients = await bindRoleClients(deps.ownerId);
 
   // Built before character so character's by-name card-tag attach port wires to the real tag verb.

@@ -9,6 +9,13 @@
 // Two DELIBERATELY SEPARATE principal resolvers reach this seam: the keystone's `resolveHostPrincipal` (chat's
 // own role-sensitive ops) is NOT threaded here; `resolveOwnerPrincipal` (world-info's — the author-ownership
 // gate) IS, and it drives every automation/plugin author→Principal resolution.
+//
+// `bindRoleClients` (the `/autobg` `summarizeQuiet` arm) is the THIRD author→Principal path and it now agrees:
+// it takes a bare `authorUserId` and the binder resolves it through the same `createHostPrincipalResolver`
+// (D135 clause G). It used to stamp `role:"owner"` inside `role-clients.ts`, which mattered precisely because
+// an author here is NOT the box owner — `automation/verbs/create-rule.ts` gates on `requireChatHost`, D18 ROOM
+// authority, so any authenticated user who creates a chat can author and enable a rule that fires this arm.
+// Every author→Principal edge in this file must stay a ROW READ; a `UserId` arriving here carries no authority.
 
 import { randomUUID } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";

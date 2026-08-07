@@ -32,7 +32,7 @@ import { startWorkloadScheduleScheduler } from "../transport/jobs/workload-sched
 import { startWorkloadsWorker } from "../transport/jobs/workloads-worker.ts";
 import { setChatOpenTap } from "../transport/trpc/index.ts";
 import { createApp } from "./app.ts";
-import { createAuthSeam } from "./auth/index.ts";
+import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
 import {
   reclaimLocksOnBoot,
   runBootMigrations,
@@ -194,7 +194,6 @@ export function createLifecycle(): Lifecycle {
     if (ownerId === undefined) {
       throw new Error("boot: seedOwner returned no owner id (OWNER_HANDLES resolved empty)");
     }
-    const ownerHandle = handles[0] ?? env.DEFAULT_USER_HANDLE;
 
     // The one GPU/vLLM-availability fact: probe the host once, then resolve the ENGINES_POSTURE (A.4). The
     // deprecated VLLM_DISABLED/STACK_ENGINES pair maps to a posture with a VISIBLE log. `off` OR no GPU ⇒
@@ -229,13 +228,12 @@ export function createLifecycle(): Lifecycle {
       log.error("boot: SecretBox decrypt-probe FAILED — healthz will report credentials_key_mismatch");
     }
 
-    const owner: Principal = {
-      userId: ownerId,
-      role: "owner",
-      handle: castId<Handle>(ownerHandle),
-      externalId: null,
-      via: "fallback",
-    };
+    // The boot-seed Principal (default preset/characters/persona + the env credential seed). D135: READ, not
+    // stamped — `seedOwner` has already written `role=owner` onto this exact row a few lines up, so reading
+    // it back is byte-identical on a healthy box AND removes the last synthetic role literal that could
+    // GRANT authority. On a box whose owner row is somehow below `owner`, the seed now runs at the row's
+    // honest role and fails closed rather than overriding the users table from memory.
+    const owner: Principal = await createHostPrincipalResolver(bootSessions)(ownerId);
 
     await seedCredentialFromEnv({
       credentials: built.services.credentials,

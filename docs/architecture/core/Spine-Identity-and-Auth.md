@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-08-03
+updated: 2026-08-07
 ---
 
 # Orbweaver — Spine: Identity, Auth, and Permission
@@ -20,14 +20,14 @@ Identity resolves ONCE at the edge into one immutable `Principal` (`@orb/contrac
 
 The numbered invariants (code comments cite these as "invariant #n"):
 
-1. **One mint.** `entry/auth/seam.ts` is the only module that mints a `Principal` FROM A REQUEST; entry-tier composition/lifecycle code mints synthetic Principals — never from a request, carrying an `owner` or `user` role (`entry/compose/role-clients.ts`, `entry/lifecycle.ts` boot-seed, `entry/compose/chat.ts` host-ops, `entry/compose/services.ts`) — and NO `domain/` code ever constructs one.
+1. **One mint.** `entry/auth/seam.ts` is the only module that mints a `Principal` FROM A REQUEST, and NO `domain/` code ever constructs one. Entry-tier composition/lifecycle code also builds Principals, and since D135 clause G they split two ways: **ROW-DERIVED** (`createHostPrincipalResolver` reads `users.role` — `entry/compose/services.ts`, `entry/compose/world-info.ts`, `entry/compose/role-clients.ts` via its injected resolver, `entry/lifecycle.ts`'s boot seed) and **the FAIL-CLOSED FLOOR** (a synthetic `role:"user"` for ops where the role is irrelevant — `entry/compose/chat.ts`'s non-role-sensitive host-ops, `entry/compose/imagery.ts`, `entry/compose/search-discovery.ts`). **No entry site stamps a role that GRANTS authority.** A new synthetic-Principal site must land in one of those two classes and say which; a third class is a defect.
 2. **Resolve once.** Everything below the seam reads `Principal.userId`; nothing re-resolves or re-queries identity.
 3. **`ResolvedIdentity` carries NO `userId` and NO `role`.** Infra must not know DB row ids; the seam adds them.
 4. **`MODE_RESOLVERS` is exhaustive** over `AuthConfig["mode"]` (mapped-type `Record` — a new `AUTH_MODES` member fails `tsc`).
 5. **JWKS / JWT verification fails closed.** Every reject path → `null` (→ fallback or 401), never a 500, never a fall-through to unsigned.
 6. **`can()` is the ONLY privilege-comparison site.** No `role === 'admin'` / `role === 'host'` compare outside `domain/admin/guard.ts`; chat feeds its loaded roster into `can(principal, action, {kind:'chat', roster})`.
 7. **`Principal.via === "fallback"` is the SAFE "this IS the owner" discriminator** — origin-gated, NOT `externalId === null`. **It ADMITS the owner; it does not GRANT owner (D135, amending this clause's former "mints `role:"owner"`" wording).** The seam resolves WHICH row through `ownerHandles()` (resolution-tier policy — never verification's `DEFAULT_USER_HANDLE` placeholder) and reads `users.role` off it through the same `createHostPrincipalResolver` the frozen-host bridge uses. The security boundary is unchanged and is entirely `ownerFallbackAllowed`; what changed is that the role is READ, so the request Principal and the frozen-host Principal for one caller can no longer disagree.
-8. **Sessions: the raw cookie token is never stored** (peppered HMAC-SHA-256 `token_hash` is the validate lookup key); `sessions.validate` re-checks revoked/expired/`users.enabled` per request, so a disable/revoke kills a live cookie on its next request.
+8. **Sessions: the raw cookie token is never stored** (peppered HMAC-SHA-256 `token_hash` is the validate lookup key); `sessions.validate` re-checks revoked/expired/`users.enabled` per request, so a disable/revoke kills a live cookie on its next request. **All THREE request arms gate on `enabled`, not just the cookie one** (D135 clause G): the SSO arm on `provisioned.enabled`, the owner fallback in its own resolver — because its row read (`loadUserById`) deliberately gates nothing so the frozen-host bridge can still resolve a disabled-or-offline host's authority. That bridge keeping NO gate is the intended divergence, not an oversight.
 9. **CSRF gates on `hasCsrfHeader`, keyed to the cookie path** (header/fallback auth is CSRF-immune by construction).
 
 ## 2. Permission = global-role × resource-role × capability
@@ -100,12 +100,12 @@ new evidence is noise; ADD to this list when a review re-flags something already
 
 The sanctioned `Principal`/credential construction + cookie sites — everything else consumes:
 
-- `entry/auth/seam.ts` — the mint (all three request paths: cookie via `sessions.validate` → header SSO upsert → origin-gated owner fallback) + the frozen-host bridge. **The fallback path and the frozen-host bridge are ONE function** (`createHostPrincipalResolver`, D135): both read `users.role`, so no path in this file invents a role. Its unknown-id `?? "user"` is a fail-closed degrade on an absent row, not a grant.
+- `entry/auth/seam.ts` — the mint (all three request paths: cookie via `sessions.validate` → header SSO upsert → origin-gated owner fallback) + the frozen-host bridge. **The fallback path and the frozen-host bridge share ONE row→`Principal` mapper** (D135): both read `users.role`, so no path in this file invents a role. They differ on ADMISSION only — the fallback arm adds the `enabled` gate its two sibling request arms apply (clause G); the bridge, which makes no admission decision, does not. The unknown-id `?? "user"` is a fail-closed degrade on an absent row, not a grant. **An un-credentialed `via:"fallback"` principal is not a debug-route curiosity: under `single-user` it is what reaches every owner- and admin-gated tRPC surface** (admin-gated = owner ∪ admin, `ROLES_FOR_GLOBAL_ACTION.admin`), so "who this arm admits" is the whole boundary and `ownerFallbackAllowed` is what defends it.
 - `entry/http/auth-routes.ts` — the `__Host-orb_session` cookie WRITE side (mints session tokens via `domain/sessions`; never re-implements resolution).
 - `entry/app.ts` — the SLIDE's `Set-Cookie` writer: the per-request auth middleware re-issues the SAME token `sessions.validate` just accepted with a fresh max-age. It never mints, and re-issuing a second copy read independently would silently log the caller out — the token it writes must be the one the seam authenticated.
 - `entry/boot/seed-owner.ts` — the one-time boot-only `role=owner` backfill for `OWNER_HANDLES` (the chicken-egg: no owner `Principal` exists at boot to call the guarded `admin.setRole`).
-- `entry/compose/role-clients.ts` — mints a synthetic owner `Principal` to bind the boot-time role-clients bundle.
-- `entry/lifecycle.ts` — mints a synthetic owner `Principal` for the boot-seed steps (default preset/characters/persona).
+- `entry/compose/role-clients.ts` — **constructs NO `Principal`** (D135 clause G, truth-repaired 2026-08-07: this line used to sanction a synthetic owner mint "to bind the **boot-time** bundle", and the code's reach was never boot-only). It takes the row→`Principal` resolver as a dep, because `entry/compose/automation-plugin.ts`'s `/autobg` arm binds a bundle for an automation rule's AUTHOR at request time, and a rule author holds only D18 ROOM host authority — the old `role:"owner"` stamp handed such an author the owner's verdict at `connection.resolveRole`, and downstream at the `mintMaxProSub` owner gate, which keys on `principal.role`.
+- `entry/lifecycle.ts` — the boot-seed `Principal` for default preset/characters/persona + the env credential seed. **Row-derived, not stamped** (clause G): `seedOwner` writes `role=owner` onto that row a few lines earlier and the Principal reads it back, so a box whose owner row is somehow below `owner` seeds at its honest role instead of overriding the table from memory.
 - `entry/compose/chat.ts` — the frozen-host bridge (`resolveHostPrincipal`/`hostPrincipal`) mints synthetic Principals for role-irrelevant and owner-gated host-ops when no request `Principal` exists.
 - `entry/compose/services.ts` — wires `createHostPrincipalResolver`, minting synthetic Principals for the same offline host-ops seam. (It does NOT wire agent-principal provisioning — that claim was purge residue, corrected 2026-08-03 with §4; the only `agent` identifiers here are agent-SDK backend config.)
 
