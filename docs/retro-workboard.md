@@ -411,6 +411,15 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     gray sentence + ~600px black; one row + an unlabeled orange dot as the only active signal) —
     the \[\[empty-states-are-load-bearing]] class + a meaning-by-color-alone a11y miss. Evidence:
     side-eye rendered receipts.
+  - [ ] **`size="inline"` HIT-AREA COLLISION SWEEP** (S, from RULED-BATCH leg 3) — the `inline`
+    variant is the display-at-REST arm: it wears no control box and carries its touch floor in an
+    OVERFLOWING `::after` (28px fine / 44px coarse). Safe for an isolated datum standing in for
+    prose; a **collision generator in any wrapping grid of controls** — the pseudo is taller than
+    the row pitch, so later-in-DOM wins and a click lands on the row BELOW (measured at 320px:
+    aiming at `clear` hit `snow`; `storm` hit `indoors`). No `boundingBox` assertion can see it —
+    only `elementFromPoint` at offsets from the centre. Sweep: `ast-grep` for `size="inline"` inside
+    a `flex-wrap` container; each hit is a judgement call (datum → keep, control → `size="sm"`).
+    Evidence: probed, not grepped — the ambient picker was the founding instance.
   - [ ] **SNAP --mobile SIZE/ORIENTATION PRESETS** (S, instrument; owner-ordered 2026-08-07) —
     extend `snap --mobile` to take device sizes and orientations (e.g. `--mobile 320`, `--mobile
     375x812`, `--mobile 430 --landscape`, sensible named presets), ALL arms carrying the full
