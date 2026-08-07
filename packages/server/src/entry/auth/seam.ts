@@ -4,8 +4,17 @@
 // `Principal.userId`, never re-resolves.
 //
 // Three paths: (1) cookie — `sessions.validate(token)` returns the userId directly, cookie-mode only;
-// (2) owner-fallback — origin-gated un-credentialed owner, mints role `owner` via `ensureUser`;
+// (2) owner-fallback — origin-gated un-credentialed owner, resolved to the BOX OWNER'S ROW (D135);
 // (3) SSO header — `infra/auth.resolve` verifies, then `provisionIdentity` upserts + gates on `enabled`.
+//
+// D135 — THE ROLE VERDICT HAS ONE HOME, `users.role`, AND NO PATH INVENTS A ROLE. All three request paths
+// and the frozen-host bridge read that column (`validate` / `createHostPrincipalResolver` /
+// `provisionIdentity`).
+// The fallback arm used to STAMP `role:"owner"` on whatever row `ensureUser(defaultHandle)` returned, so on
+// a box where `DEFAULT_USER_HANDLE` (verification's placeholder, default "owner") differs from
+// `OWNER_HANDLES` (the resolution tier's owner policy) it minted a SECOND user at role `user` and lied
+// `owner` about it — the request principal and the frozen-host principal then disagreed about the same
+// caller, and the capability surface and the actual turn silently picked different models.
 //
 // CSRF is a SIGNAL here, not a gate: the seam surfaces `csrfHeaderPresent` + `via`; the transport ladder
 // enforces it.
@@ -15,6 +24,7 @@ import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { requireAdmin } from "#domain/admin";
 import type { SessionsService } from "#domain/sessions";
+import { ownerHandles } from "#domain/sessions";
 import type { AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore } from "#infra/auth";
 import { authConfigFromEnv, hasCsrfHeader, resolve, SESSION_COOKIE_NAME } from "#infra/auth";
 
@@ -42,8 +52,9 @@ export interface SeamResult {
   readonly csrfHeaderPresent: boolean;
 }
 
-/** The constructed seam — bound at boot, called per request. `isAdmin` must never throw — a transport/db
- *  error resolves to `false` so a misbehaving seam can't open the debug gate. */
+/** The constructed seam — bound at boot, called per request. `isAdmin` is the DEBUG-GATE verdict only (and
+ *  carries an OPEN finding — read its doc before touching it); it must never throw — a transport/db error
+ *  resolves to `false` so a misbehaving seam can't open the debug gate. */
 export interface AuthSeam {
   readonly resolvePrincipal: (headers: Headers, req?: PerRequestSeamDeps) => Promise<SeamResult>;
   readonly isAdmin: (headers: Headers) => Promise<boolean>;
@@ -106,20 +117,36 @@ async function resolveCookiePrincipal(
   };
 }
 
+/**
+ * WHICH handle the owner fallback lands on. Verification stamps `config.defaultHandle`
+ * (`DEFAULT_USER_HANDLE`, whose schema default is the literal `"owner"`) on the `via:"fallback"` identity —
+ * but that is a PLACEHOLDER, not a verdict: infra deliberately does not read owner policy
+ * (`infra/auth/config.ts`, invariant #3). WHO the box owner is, is RESOLUTION-tier policy — `ownerHandles()`,
+ * the same predicate `determineRole` and the boot owner-seed read, exported from the sessions front door
+ * precisely "so entry's boot owner-seed and the login-derived role path can never fork" (D135: the fallback
+ * is a third consumer of that one predicate). D17 makes the list a singleton, so `[0]` is THE owner handle;
+ * an empty list (structurally unreachable — `ownerHandles()` self-defaults to `[DEFAULT_USER_HANDLE]`) keeps
+ * the verification handle so the arm can never resolve to nothing.
+ */
+function ownerHandleForFallback(verificationHandle: Handle): Handle {
+  return castId<Handle>(ownerHandles()[0] ?? verificationHandle);
+}
+
 /** Owner-fallback or SSO header path. `null` for an anonymous/disabled caller (→ transport 401). */
-async function resolveHeaderOrFallbackPrincipal(sessions: SessionsService, res: IdentityResolution): Promise<Principal | null> {
+async function resolveHeaderOrFallbackPrincipal(
+  sessions: SessionsService,
+  res: IdentityResolution,
+  resolvePrincipalFromRow: (userId: UserId) => Promise<Principal>,
+): Promise<Principal | null> {
   if (res.identity === null) {
     return null;
   }
   if (res.via === "fallback") {
-    const userId = await sessions.ensureUser(res.identity.handle);
-    return {
-      userId,
-      role: "owner",
-      handle: res.identity.handle,
-      externalId: res.identity.externalId,
-      via: "fallback",
-    };
+    // The fallback ADMITS the owner (the origin gate is the security boundary — `ownerFallbackAllowed`);
+    // it does not GRANT a role. Ensure the owner's row exists, then mint through the same row→Principal
+    // function the frozen-host bridge uses, so both principals for one user read one column (D135).
+    const userId = await sessions.ensureUser(ownerHandleForFallback(res.identity.handle));
+    return await resolvePrincipalFromRow(userId);
   }
   const provisioned = await sessions.provisionIdentity(res.identity);
   // Denied (allowlist gate refused) or disabled → anonymous → transport 401.
@@ -139,10 +166,19 @@ async function resolveHeaderOrFallbackPrincipal(sessions: SessionsService, res: 
 }
 
 /**
- * The frozen-host → `Principal` bridge, the second Principal-construction site this module owns. Chat's
- * cross-feature ops key on the frozen host `UserId` (host may be offline, no request Principal exists).
- * Role-sensitive ops re-read the host's real `users.role` live via `loadUserById` — a fabricated
- * `role:"user"` would fail-closed-deny the owner's own privileged turn; unknown id degrades to `"user"`.
+ * THE row → `Principal` mint: the second Principal-construction site this module owns, and (D135) the ONE
+ * place a role reaches a `Principal` from a `users` row. TWO consumers, deliberately the same function:
+ *   • the FROZEN-HOST bridge — chat's cross-feature ops key on the frozen host `UserId` (the host may be
+ *     offline, so no request Principal exists);
+ *   • the OWNER FALLBACK above — an un-credentialed origin-gated request, whose `via:"fallback"` this mint
+ *     already stamps.
+ * Sharing it is the fix, not a coincidence: when the fallback stamped its own `role:"owner"` while this read
+ * `users.role`, one caller had two principals that disagreed, and every owner-gated surface (max-pro-sub,
+ * `ROLE_SELECTORS.chat`) resolved differently depending on which one reached it.
+ *
+ * Role-sensitive ops re-read the real `users.role` live via `loadUserById` — a fabricated `role:"user"`
+ * would fail-closed-deny the owner's own privileged turn. An unknown id DEGRADES to `"user"`: that is
+ * fail-closed on a row that isn't there, never an invented grant.
  */
 export function createHostPrincipalResolver(sessions: SessionsService): (userId: UserId) => Promise<Principal> {
   return async (userId: UserId): Promise<Principal> => {
@@ -161,6 +197,8 @@ export function createHostPrincipalResolver(sessions: SessionsService): (userId:
 export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
   const config = deps.config ?? authConfigFromEnv();
   const isCookieMode = config.mode === "local" || config.mode === "oidc";
+  // Bound once: the owner-fallback arm and the frozen-host bridge mint from the SAME row reader (D135).
+  const resolvePrincipalFromRow = createHostPrincipalResolver(deps.sessions);
 
   async function resolvePrincipal(headers: Headers, req?: PerRequestSeamDeps): Promise<SeamResult> {
     const csrfHeaderPresent = hasCsrfHeader(headers);
@@ -178,10 +216,27 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       ...(deps.oidcStore !== undefined && { oidcStore: deps.oidcStore }),
       ...(req?.peerIp !== undefined && { peerIp: req.peerIp }),
     });
-    const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res);
+    const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res, resolvePrincipalFromRow);
     return { principal, csrfHeaderPresent };
   }
 
+  /**
+   * The debug-gate admin verdict — its ONE consumer is `createDebugAuthMiddleware`'s `adminAuth` arm
+   * (`entry/app.ts`), which SHORT-CIRCUITS the `DEBUG_TOKEN` check when this returns true.
+   *
+   * ⚠ OPEN FINDING (AUTHFIX-2, 2026-08-07 — documented, deliberately NOT fixed here; see
+   * `docs/architecture/core/Core-Audits-and-Debt.md`): this returns true for the UN-CREDENTIALED
+   * `via:"fallback"` principal, so `/api/_debug/*` serves with no cookie and no token to any request that
+   * satisfies `ownerFallbackAllowed` — unconditionally under `single-user`, and under an SSO mode on nothing
+   * but a client-supplied `Host` header. Those routes are principal-BLIND whole-db reads (the
+   * `@owner-scope-ok` note in `debug/inspect/config.ts` states the assumption this violates). The gate is
+   * the entire boundary. The one-line fix is `principal.via === "fallback" → false`; it is BLOCKED on a
+   * coupled site — `tests/e2e/support/trpc.ts` reads these routes with a bare `fetch` and NO token, and no
+   * e2e mode sets `DEBUG_TOKEN` (`tests/e2e/support/modes.ts`), so the harness would have to carry the token
+   * first. Do NOT "simplify" this away without landing that half.
+   *
+   * Never throws — a transport/db error resolves to `false` so a misbehaving seam can't open the gate.
+   */
   async function isAdmin(headers: Headers): Promise<boolean> {
     try {
       const { principal } = await resolvePrincipal(headers);
