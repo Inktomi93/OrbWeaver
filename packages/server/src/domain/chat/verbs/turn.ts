@@ -640,8 +640,8 @@ async function persistUserMessage(
     /** Ownership-verified attachment ids (the caller ran the trust boundary). Empty ⇒ a plain message. */
     readonly attachmentAssetIds: readonly AssetId[];
     /** The composer draft as AUTHORED — before the volatile freeze, the `user_input` prompt transform, the
-     *  USER_INPUT regex and the attachment-ref compose (D129-F). Collapses to NULL at the writer when it is
-     *  byte-identical to `content`, which is the common case. */
+     *  USER_INPUT regex and the attachment-ref compose (D129-F). Passed unconditionally; the writer stores it
+     *  only when one of those legs actually changed a byte. */
     readonly rawContent: string;
     /** What the SEND freeze baked out of that draft, in occurrence order. Empty ⇒ nothing froze ⇒ NULL. */
     readonly macroFreezes: MacroFreezeRecord;
