@@ -361,6 +361,21 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
   `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
   question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- **⚑ ORCHESTRATOR LESSON (mine, 2026-08-07, third instance of one principle in a day):
+  A SIDE-EYE SYMPTOM IS GOLD; ITS MECHANISM PRESCRIPTION MUST BE CHECKED AGAINST RECORDED RULINGS
+  BEFORE I RELAY IT.** I forwarded "drop both panel toggles from the mobile topbar" verbatim; the
+  lane found it would REVERSE the owner-ruled 2026-08-03 mobile one-shell rule (stated verbatim in
+  `panel-resolve.ts:55-57` AND `use-shell-layout.ts:145-147`) — `resolvePanelMode` pins list=docked
+  on mobile for all seven list-bearing sections with nothing selected, so that toggle is the ONLY
+  mobile door to a section's no-selection CONTENT; analytics' and corpus's dashboards would become
+  unreachable. The lane ALSO killed the finding's stated mechanism using side-eye's OWN receipt
+  (`t11-hidelist-320.png`: the lead control re-renders as "Show list panel" — one more tap returns
+  the roster, so it is an ugly dead-end, not a trap). **Surviving symptom: the §14 half only** —
+  "list panel"/"detail panel" is desktop geometry vocabulary with no phone referent. RULED: keep
+  both toggles, RE-VOICE to name the DESTINATION. The registry-shaped replacement-door change
+  (~10 section definitions) is an owner call, not improvised for a vocabulary defect a label fixes.
+  Same principle as the two forks ruled earlier: **the symptom is the finding; the prescription is a
+  proposal.**
 - **⚑ SECOND LIVE EXPOSURE, SAME CLASS, NEIGHBOURING SURFACE (lane RPGFORK, in build).** Sweeping
   the sibling's defect-generator into `rpg/chat-ops/fork-game.ts` found a REAL leak — and a new
   sub-class: **it lives INSIDE A JSON BLOB (`rpg_games.config`), where a table-level allow-list is
