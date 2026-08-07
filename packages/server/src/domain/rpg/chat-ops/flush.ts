@@ -31,7 +31,7 @@
 // it never rolls back a write that already landed. `flushTurn` below states the reasoning.
 
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
-import type { RpgExtractionMode, RpgFoldFallbackReason, RpgSnapshotState } from "@orb/contracts/rpg";
+import type { RpgExtractionMode, RpgFoldFallbackReason } from "@orb/contracts/rpg";
 import { recordToolCalls, rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "../../chat/index.ts";
@@ -203,7 +203,7 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
   // HAND-EDIT-VS-FLUSH: a hand row may now OUTRANK the row we just wrote (the host edited the panel during
   // the round's 0.8-2.9s flight). Fold this turn's state into it, locks-honored, BEFORE the emits — so the
   // event names the row the panel will actually resolve. A durable write, hence its place here.
-  const headId = await foldIntoShadowingHandRow(ctx, game, turn, { state: flush.state, snapshotId });
+  const headId = await foldIntoShadowingHandRow(ctx, game, turn, { patches: flush.patches, snapshotId });
 
   // The tool/extraction flush wrote a clone-forward snapshot → the whole panel re-resolves (§4.9). A journal
   // flush additionally scopes the paged Journal. Emit AFTER the durable writes commit.
@@ -229,28 +229,30 @@ async function foldIntoShadowingHandRow(
   ctx: RpgContext,
   game: RpgGameRow,
   turn: CompletedTurn,
-  /** What this flush just wrote — the state it landed and the row it landed on (grouped: the two travel
-   *  together and are meaningless apart). */
-  written: { readonly state: RpgSnapshotState; readonly snapshotId: RpgSnapshotId },
+  /** What this flush just wrote — the PATCHES it composed and the row it landed on (grouped: the two travel
+   *  together and are meaningless apart). The patches, never the composed state: see the fold's own doc. */
+  written: { readonly patches: readonly Record<string, unknown>[]; readonly snapshotId: RpgSnapshotId },
 ): Promise<RpgSnapshotId> {
   const seq = await findMessageSeq(ctx.db, turn.messageId);
   if (seq === undefined) {
     return written.snapshotId; // this turn's slot vanished (a racing delete) — there is no position to fold at
   }
-  const folded = await foldTurnWriteIntoHandHead(ctx, game, written.state, seq);
-  if (folded === null) {
-    return written.snapshotId; // nothing shadows this flush — the ordinary path
-  }
-  if (!folded.ok) {
+  const outcome = await foldTurnWriteIntoHandHead(ctx, game, written, seq);
+  if (outcome.kind === "refused" || outcome.kind === "shadowed") {
+    // BOTH losing arms are LOUD. The `shadowed` arm is the one the verifier caught staying silent: the turn's
+    // writes were erased and nothing in the trail said so, which is the exact blind spot `onFlushDropped`
+    // exists to close (a round that produced applicable output and vanished). `refused` is the merge that was
+    // attempted and rejected by the contract belt. The reason distinguishes them at the log.
     ctx.onFlushDropped({
       chatId: game.chatId,
       gameId: game.id,
       variantId: turn.variantId,
-      reason: `hand-edit reconciliation refused: ${folded.reason}`,
+      reason: `hand-edit reconciliation ${outcome.kind}: ${outcome.reason}`,
     });
-    return written.snapshotId;
   }
-  return folded.snapshotId;
+  // EVERY arm answers with the row that is actually head — including the two losing ones, where it is NOT the
+  // row this flush wrote. Emitting our own id there would point the panel at a row it cannot resolve.
+  return outcome.headId;
 }
 
 /** The turn-completion flush (§2.4-2.5). A `cheap` game runs its DEDICATED post-commit tool round
