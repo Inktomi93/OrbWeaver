@@ -37,7 +37,7 @@ import type { HandEditLocks, HandEditResult, HandStateHead, HandStateWrite, RpgC
 import { snapshotRowToState } from "./contract/service.ts";
 import { findLatestAssistantSlotSeq, resolveSnapshotBeforeSlot, resolveSnapshotHead, updateSnapshotState, writeHandSnapshot } from "./persistence/snapshots.ts";
 import { defaultSnapshotState } from "./substrate/default-state.ts";
-import { applyLockedPatch } from "./substrate/merge.ts";
+import { applyLockedPatch, rebasePatchOntoHead } from "./substrate/merge.ts";
 
 /** The `committed` column's draft value — an UNcommitted TURN row is the only in-place-editable head. */
 const UNCOMMITTED = 0;
@@ -212,7 +212,7 @@ export async function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: 
 export async function foldTurnWriteIntoHandHead(
   ctx: RpgContext,
   game: RpgGameRow,
-  written: { readonly patches: readonly Record<string, unknown>[]; readonly snapshotId: RpgSnapshotId },
+  written: { readonly patches: readonly Record<string, unknown>[]; readonly base: RpgSnapshotState; readonly snapshotId: RpgSnapshotId },
   slotSeq: number,
 ): Promise<TurnWriteFoldOutcome> {
   const head = await resolveSnapshotHead(ctx.db, { id: game.id, chatId: game.chatId });
@@ -227,17 +227,31 @@ export async function foldTurnWriteIntoHandHead(
     return { kind: "head", headId: head.row.id };
   }
   if (head.arm !== "hand") {
-    // Something that is not a hand row outranks us at the CURRENT beat: a sibling variant selected by a
-    // mid-flight swipe, or a concurrent later turn. There is no hand gesture to reconcile against and no
-    // defensible merge — but the turn's writes ARE lost, so the caller must say so.
+    // A non-hand row outranks us AT OUR OWN BEAT: a sibling variant selected by a mid-flight swipe, or the
+    // game-wide fallback answering. There is no hand gesture to reconcile against and no defensible merge —
+    // but the turn's writes ARE lost, so the caller says so.
+    //
+    // TRUTH-REPAIR (leg 3): this comment used to also claim "a concurrent later turn". It does NOT reach here
+    // — the regen guard above returns first for any head past our beat, so a later turn that flushed while we
+    // were in flight is classified as a supersede and stays SILENT. The re-verifier DROVE that loss (speaker 2
+    // commits mid-flight, speaker 1's write gone, empty trail); it is the boarded REGEN-VS-LATER-FLUSH row,
+    // which needs ladder state that does not exist today. Naming it here so the next reader finds the row
+    // instead of trusting a comment that denied the case.
     return { kind: "shadowed", headId: head.row.id, reason: `the ${head.arm} row ${head.row.id} outranks this flush's row at seq ${head.seq}` };
   }
   const folded = await writeHandState(ctx, game, (hand) => {
     // Replayed in STAGE ORDER against the hand head's CURRENT locks — the identical composition the accumulator
     // performed over the pre-slot base, differing only in which state it starts from and whose locks arbitrate.
+    //
+    // REBASED FIRST (leg 3): every applier in `tools/apply.ts` composes WHOLE PLANES from the base it was
+    // handed, so a staged patch is not a delta — a round that merely mentions the scene carries every on-stage
+    // actor in it. Replaying that verbatim re-inserted an actor the host had dismissed mid-flight, silently,
+    // because the removal verbs release the very lock that would have stopped it. The rebase keeps what the
+    // round ADDED, CHANGED or REMOVED and drops what it merely CARRIED (`substrate/merge.ts`).
     let state = hand.state as unknown as Record<string, unknown>;
+    const base = written.base as unknown as Record<string, unknown>;
     for (const patch of written.patches) {
-      state = applyLockedPatch(state, patch, hand.locks);
+      state = applyLockedPatch(state, rebasePatchOntoHead(patch, base, state), hand.locks);
     }
     return { ok: true, state: state as unknown as RpgSnapshotState };
   });

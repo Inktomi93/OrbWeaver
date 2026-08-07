@@ -273,6 +273,73 @@ test("CE1: a mid-flight dismissActor is NOT undone by the fold (the round's own 
   expect(view.ambient?.weather?.type).toBe("fog"); // …while the round's own write is not sacrificed to save her
 });
 
+test("CE1 (PRODUCTION patch shape): a round that re-authors PRESENCE does not resurrect the dismissed actor", async () => {
+  const db = await freshDb();
+  // THE SHAPE THE APPLIER ACTUALLY EMITS. `tools/apply.ts::applyUpdateScene` calls `applyPresencePatch` the
+  // moment the model touches presence AT ALL, and that returns `presentCharacters` AND `actorState` as WHOLE
+  // ARRAYS composed from the round's own base. So a round that merely mentions the scene carries every on-stage
+  // actor in its "delta" — and the weather-only pins above never exercised that, which is why the first
+  // patch-replaying fix passed them while still resurrecting her here.
+  const { chatId, gameId, h } = await seedLiteGame(db, {});
+  await pinExtractionMode(h, chatId, "cheap");
+  await seedActorBeat(h, chatId);
+
+  h.fakes.toolRoundDelta = {
+    statePatch: {
+      presentCharacters: ["cast:mara"], // carried from the round's base, not authored
+      actorState: [actorWithWallet("mara", 3, 2)], // ditto — byte-identical to what the base already held
+      weather: { type: "fog", label: "nightfall mist" }, // the round's ONE genuine write
+    },
+    journal: [],
+  };
+  const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
+  let releaseRound = (): void => undefined;
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
+    releaseRound = resolve;
+  });
+  const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_p6"), turnConnection());
+  await untilRoundStarted(h.fakes.toolRoundCalls, 2);
+  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: "mara" } })).resolves.toEqual({ ok: true });
+  releaseRound();
+  await flush;
+
+  const head = await resolveSnapshotHead(db, { id: gameId, chatId });
+  expect(head?.row.actorState ?? []).toHaveLength(0); // the actor row stays gone
+  expect(head?.row.presentCharacters ?? []).toHaveLength(0); // …and so does the presence entry (no GHOST either)
+  expect(head?.row.weather?.type).toBe("fog"); // the round's real write still lands
+  expect(h.fakes.flushDrops).toEqual([]); // nothing was lost, so nothing is reported
+});
+
+test("the tombstone BOUNDARY: a round that genuinely CHANGES the dismissed actor still wins (boarded residual)", async () => {
+  const db = await freshDb();
+  // The fence on the rebase: it drops what the applier merely CARRIED, never what the round actually wrote.
+  // Here the round's actor entry DIFFERS from its base (the wallet moved), so it is a real model write against
+  // a lock the dismissal released — and by the recorded cleared-lock semantics it wins. That is the boarded
+  // tombstone row, pinned as the deliberate boundary rather than left as an accident.
+  const { chatId, gameId, h } = await seedLiteGame(db, {});
+  await pinExtractionMode(h, chatId, "cheap");
+  await seedActorBeat(h, chatId);
+
+  h.fakes.toolRoundDelta = {
+    statePatch: { presentCharacters: ["cast:mara"], actorState: [actorWithWallet("mara", 99, 2)] }, // 3 → 99: a real write
+    journal: [],
+  };
+  const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
+  let releaseRound = (): void => undefined;
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
+    releaseRound = resolve;
+  });
+  const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_tomb"), turnConnection());
+  await untilRoundStarted(h.fakes.toolRoundCalls, 2);
+  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: "mara" } })).resolves.toEqual({ ok: true });
+  releaseRound();
+  await flush;
+
+  const head = await resolveSnapshotHead(db, { id: gameId, chatId });
+  const mara = head?.row.actorState?.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "mara");
+  expect(mara?.volatile.wallet).toEqual([{ name: "gold", amount: 99 }]); // the round's genuine write survives
+});
+
 test("CE1: a mid-flight deleteQuest is NOT undone by the fold either (the same class, the other removal verb)", async () => {
   const db = await freshDb();
   const { chatId, gameId, h } = await seedLiteGame(db, {});

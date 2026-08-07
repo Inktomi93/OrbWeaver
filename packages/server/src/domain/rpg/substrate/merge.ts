@@ -249,3 +249,160 @@ function mergeAt(base: Record<string, unknown>, patch: Record<string, unknown>, 
 export function applyLockedPatch<T extends Record<string, unknown>>(base: T, patch: Record<string, unknown>, fieldLocks: RpgFieldLocks | null): T {
   return mergeAt(base, patch, fieldLocks, "") as T;
 }
+
+// ── REBASING A PATCH ONTO A DIFFERENT HEAD (HAND-EDIT-VS-FLUSH, leg 3) ───────────────────────────────────
+//
+// EVERY applier in `tools/apply.ts` is a READ-MODIFY-WRITE against the base it was handed, not an author of a
+// delta: `applyPresencePatch` emits `presentCharacters` AND `actorState` as WHOLE ARRAYS, `applyUpdateScene`
+// emits `[...state.recentEvents, beat]`, `applyUpsertQuest` emits the whole `quests` array, and party/inventory
+// map over the whole `actorState`. The registry note above says an unkeyed array wholesale-replacing is "exactly
+// right for a plane whose appliers always author it whole FROM THE TRUE BASE" — and that is the load-bearing
+// clause. At FOLD time the round's base is no longer true: a hand edit landed after it was read.
+//
+// So the flush's fold cannot replay a staged patch verbatim onto the hand head. A round that merely mentions the
+// scene carries every on-stage actor in its patch, and replaying that re-inserted an actor the host had just
+// DISMISSED — silently, because the removal verbs deliberately CLEAR their locks (the symmetric grammar), so
+// there was no pin left to stop it. Stripping the composed planes is not enough either: a partial array on an
+// `omissionRemoves` plane reads as "delete everything else".
+//
+// THE REBASE IS A THREE-WAY MERGE over the data the fold already holds — the round's BASE (what the applier
+// composed from), the round's PATCH (what it composed), and the HAND HEAD (what is true now):
+//   • what the round ADDED or CHANGED (differs from its base) is the round's real intent → it lands;
+//   • what the round REMOVED (in its base, absent from its patch) is also real intent → it is removed from the
+//     head too;
+//   • what the round merely CARRIED (byte-identical to its base) is NOT intent — it is an artifact of composing
+//     whole planes — so it never resurrects an element the head no longer has.
+// The residual is exactly the boarded tombstone row and no wider: if the round genuinely CHANGED the very datum
+// the human removed in the same window, that is a real write against a released lock and it wins.
+//
+// RECORDS AND SCALARS ARE NOT REBASED, deliberately. `trackerValues`, `plot` and `clock` are composed from base
+// too, but they are merged by the plain-object walk (never wholesale) and there is no remove-with-lock-release
+// gesture for them: every hand write to those planes AUTO-LOCKS the path it touched, and a lock already drops
+// the patch at that path. Arrays are the exposure precisely because `dismissActor`/`deleteQuest` are the two
+// gestures that release the pin they would otherwise be protected by.
+
+/** Structural equality over the plain-JSON snapshot planes (no classes, no cycles — these values are parsed
+ *  from JSON columns). Used only to tell an applier's CARRIED element from one it actually wrote. */
+function deepEqual(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((item, i) => deepEqual(item, b[i]));
+  }
+  if (isPlainObject(a) && isPlainObject(b)) {
+    const aKeys = Object.keys(a);
+    return aKeys.length === Object.keys(b).length && aKeys.every((key) => deepEqual(a[key], b[key]));
+  }
+  return false;
+}
+
+/** Rebase a KEYED array plane (`quests`, `actorState`, `inventory`, …) — elements correlate by their registry
+ *  key, which is unique within the plane, so the three sides can be compared element-wise. */
+function rebaseKeyedArray(patch: readonly unknown[], base: readonly unknown[], head: readonly unknown[], keyOf: ElementKeyResolver): unknown[] {
+  const patchKeys = new Set(patch.map(keyOf));
+  // What the round REMOVED: in its base, gone from its patch. Real intent — honor it against the head too.
+  const removed = new Set(base.map(keyOf).filter((key) => key !== undefined && !patchKeys.has(key)));
+  const result = head.filter((element) => !removed.has(keyOf(element)));
+  for (const element of patch) {
+    const key = keyOf(element);
+    const baseTwin = base.find((candidate) => keyOf(candidate) === key);
+    const at = result.findIndex((candidate) => keyOf(candidate) === key);
+    if (at !== -1) {
+      result[at] = element; // the head still has it — the round's version lands (a carry is identical anyway)
+      continue;
+    }
+    if (baseTwin !== undefined && deepEqual(element, baseTwin)) {
+      continue; // pure CARRY of something the head no longer has — the human removed it; do not resurrect
+    }
+    result.push(element); // a genuine add, or a genuine change to something the head dropped (tombstone residual)
+  }
+  return result;
+}
+
+/** A flat array element's bucket key for the multiset counts (`presentCharacters` holds `actorRefKey` strings;
+ *  a beat is its text). Non-strings are compared structurally so the helper is total. */
+function flatKey(element: unknown): string {
+  return typeof element === "string" ? element : JSON.stringify(element);
+}
+
+/** Count occurrences per element — MULTISET, not set: `recentEvents` may legitimately carry the same beat text
+ *  twice (a model can narrate a line again), and collapsing that would silently rewrite the story. */
+function counts(items: readonly unknown[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const item of items) {
+    const key = flatKey(item);
+    map.set(key, (map.get(key) ?? 0) + 1);
+  }
+  return map;
+}
+
+/** The multiset SURPLUS of `a` over `b` — how many extra copies of each element `a` carries. Used both ways:
+ *  base-over-patch is what the round REMOVED, patch-over-base is what it ADDED. */
+function surplus(a: Map<string, number>, b: Map<string, number>): Map<string, number> {
+  const out = new Map<string, number>();
+  for (const [key, n] of a) {
+    const extra = n - (b.get(key) ?? 0);
+    if (extra > 0) {
+      out.set(key, extra);
+    }
+  }
+  return out;
+}
+
+/** Take up to `budget[key]` copies of each element out of `items`, preserving order (multiset difference). */
+function withoutCopies(items: readonly unknown[], budget: Map<string, number>): unknown[] {
+  const left = new Map(budget);
+  const kept: unknown[] = [];
+  for (const element of items) {
+    const key = flatKey(element);
+    const remaining = left.get(key) ?? 0;
+    if (remaining > 0) {
+      left.set(key, remaining - 1);
+      continue;
+    }
+    kept.push(element);
+  }
+  return kept;
+}
+
+/** The elements of `items` that fall within `budget[key]` copies, in order — the mirror of {@link withoutCopies}. */
+function onlyCopies(items: readonly unknown[], budget: Map<string, number>): unknown[] {
+  const left = new Map(budget);
+  const taken: unknown[] = [];
+  for (const element of items) {
+    const key = flatKey(element);
+    const remaining = left.get(key) ?? 0;
+    if (remaining > 0) {
+      left.set(key, remaining - 1);
+      taken.push(element);
+    }
+  }
+  return taken;
+}
+
+/** Rebase an UNKEYED array plane by multiset difference: the round's ADDS are appended to the head and its
+ *  REMOVES are taken out of it, while everything it merely carried leaves the head's own contents alone. */
+function rebaseFlatArray(patch: readonly unknown[], base: readonly unknown[], head: readonly unknown[]): unknown[] {
+  const patchCounts = counts(patch);
+  const baseCounts = counts(base);
+  return [...withoutCopies(head, surplus(baseCounts, patchCounts)), ...onlyCopies(patch, surplus(patchCounts, baseCounts))];
+}
+
+/** Rebase a staged patch composed against `base` so it can be replayed onto `head` without re-asserting the
+ *  parts of `base` the applier merely carried. Top-level ARRAY planes only — see the block comment above for
+ *  why records and scalars are deliberately left to the lock grammar. */
+export function rebasePatchOntoHead(patch: Record<string, unknown>, base: Record<string, unknown>, head: Record<string, unknown>): Record<string, unknown> {
+  const rebased: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(patch)) {
+    const baseValue = base[key];
+    const headValue = head[key];
+    if (Array.isArray(value) && Array.isArray(baseValue) && Array.isArray(headValue)) {
+      const keyOf = KEYED_ARRAYS[lastSegment(key)]?.keyOf;
+      rebased[key] = keyOf === undefined ? rebaseFlatArray(value, baseValue, headValue) : rebaseKeyedArray(value, baseValue, headValue, keyOf);
+      continue;
+    }
+    rebased[key] = value;
+  }
+  return rebased;
+}

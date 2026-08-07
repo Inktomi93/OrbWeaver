@@ -31,7 +31,7 @@
 // it never rolls back a write that already landed. `flushTurn` below states the reasoning.
 
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
-import type { RpgExtractionMode, RpgFoldFallbackReason } from "@orb/contracts/rpg";
+import type { RpgExtractionMode, RpgFoldFallbackReason, RpgSnapshotState } from "@orb/contracts/rpg";
 import { recordToolCalls, rpgJournalTypeSchema } from "@orb/contracts/rpg";
 import type { ChatTurnId, MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
 import type { RpgTurnContext } from "../../chat/index.ts";
@@ -203,7 +203,7 @@ async function writeFlush(ctx: RpgContext, game: RpgGameRow, flush: StagedTurnFl
   // HAND-EDIT-VS-FLUSH: a hand row may now OUTRANK the row we just wrote (the host edited the panel during
   // the round's 0.8-2.9s flight). Fold this turn's state into it, locks-honored, BEFORE the emits — so the
   // event names the row the panel will actually resolve. A durable write, hence its place here.
-  const headId = await foldIntoShadowingHandRow(ctx, game, turn, { patches: flush.patches, snapshotId });
+  const headId = await foldIntoShadowingHandRow(ctx, game, turn, { patches: flush.patches, base: flush.base, snapshotId });
 
   // The tool/extraction flush wrote a clone-forward snapshot → the whole panel re-resolves (§4.9). A journal
   // flush additionally scopes the paged Journal. Emit AFTER the durable writes commit.
@@ -231,7 +231,7 @@ async function foldIntoShadowingHandRow(
   turn: CompletedTurn,
   /** What this flush just wrote — the PATCHES it composed and the row it landed on (grouped: the two travel
    *  together and are meaningless apart). The patches, never the composed state: see the fold's own doc. */
-  written: { readonly patches: readonly Record<string, unknown>[]; readonly snapshotId: RpgSnapshotId },
+  written: { readonly patches: readonly Record<string, unknown>[]; readonly base: RpgSnapshotState; readonly snapshotId: RpgSnapshotId },
 ): Promise<RpgSnapshotId> {
   const seq = await findMessageSeq(ctx.db, turn.messageId);
   if (seq === undefined) {
