@@ -11,6 +11,12 @@
 // `ensureUser(DEFAULT_USER_HANDLE)` returned, so a box whose `OWNER_HANDLES` differs from the
 // `DEFAULT_USER_HANDLE` placeholder minted a SECOND user at role `user` and called it owner. The capability
 // surface then read one principal and the turn read the other, and they picked different models.
+//
+// The D135 AMENDMENT block at the bottom pins the same uniformity claim on the OTHER column the three
+// request arms decide with: `enabled`. The fallback arm authenticates through `loadUserById`, which
+// documents itself as gating nothing, so the arm owns that gate — and the frozen-host bridge must keep NOT
+// owning it. An un-credentialed fallback principal is not a debug-route curiosity: under `single-user` it is
+// what reaches every owner- and admin-gated tRPC surface, so "who does this arm admit" is the whole boundary.
 
 import type { UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
@@ -78,6 +84,9 @@ interface FakeUserRow {
   readonly id: UserId;
   readonly role: UserRole;
   readonly handle: Handle;
+  /** The row's live login state. Every REQUEST arm refuses a disabled row (D135 amendment); the frozen-host
+   *  bridge deliberately does not. Defaults true on a row `ensureUser` mints. */
+  readonly enabled?: boolean;
 }
 
 interface FakeUsers {
@@ -111,7 +120,7 @@ function fakeUsers(): FakeUsers {
     },
     loadUserById: (userId: UserId) => {
       const row = [...rows.values()].find((r) => r.id === userId);
-      return Promise.resolve(row === undefined ? null : { role: row.role, handle: row.handle, externalId: null });
+      return Promise.resolve(row === undefined ? null : { role: row.role, handle: row.handle, externalId: null, enabled: row.enabled ?? true });
     },
   });
   return { sessions, ensured, rows };
@@ -183,6 +192,27 @@ test("D135: an owner row demoted below owner is REPORTED, not overridden (the fa
 
   const { principal } = await seam.resolvePrincipal(new Headers());
 
+  expect(principal?.role).toBe("user");
+});
+
+test("the empty-owner-handles guard is LOAD-BEARING: OWNER_HANDLES=',,' still resolves a handle", async () => {
+  // The comment on `ownerHandleForFallback` used to call this branch unreachable "because `ownerHandles()`
+  // self-defaults". It does not: `foundation/env`'s superRefine rejects only `> 1` handle after the
+  // empty-filter, and `",,"` parses to ZERO; `ownerHandles()`'s own self-default needs `raw.trim().length
+  // === 0`, and `",,".trim()` has length 2. So `[0]` is `undefined` and the `?? verificationHandle` fallback
+  // is the only thing keeping the arm from resolving to nothing. (A booted server never gets here —
+  // `entry/lifecycle.ts` throws on an empty owner list first — but a seam constructed outside that boot
+  // path, like this one, does.)
+  vi.stubEnv(OWNER_HANDLES_VAR, ",,");
+  expect(ownerHandles()).toEqual([]);
+  const users = fakeUsers();
+  const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
+
+  const { principal } = await seam.resolvePrincipal(new Headers());
+
+  expect(users.ensured).toEqual([OWNER_HANDLE]); // verification's handle, never `undefined`
+  expect(principal?.handle).toBe(OWNER_HANDLE);
+  // …and with no owner policy configured, that row is honestly `user` — the arm admits, it does not grant.
   expect(principal?.role).toBe("user");
 });
 
@@ -389,7 +419,8 @@ test("isAdmin is true for owner/admin, false otherwise, and never throws", async
 test("createHostPrincipalResolver mints the host Principal from the LIVE row (real role carried)", async () => {
   const resolve = createHostPrincipalResolver(
     stubSessions({
-      loadUserById: (userId) => Promise.resolve(userId === FALLBACK_UID ? { role: "owner", handle: castId<Handle>("owner"), externalId: null } : null),
+      loadUserById: (userId) =>
+        Promise.resolve(userId === FALLBACK_UID ? { role: "owner", handle: castId<Handle>("owner"), externalId: null, enabled: true } : null),
     }),
   );
 
@@ -409,4 +440,56 @@ test("createHostPrincipalResolver degrades an unknown id to role=user (fail-clos
   expect(principal.role).toBe("user");
   expect(principal.userId).toBe(COOKIE_UID);
   expect(principal.handle).toBe(COOKIE_UID); // the userId-as-handle degrade, never a throw
+});
+
+// ── The `enabled` parity of the THREE request arms (D135 amendment) ──────────────────────────────────────
+// The file header asserts all three request paths read one column for the ROLE verdict. They must also agree
+// on ADMISSION: `sessions.validate` re-checks `users.enabled` per request (invariant #8/D40) and the SSO arm
+// returns null on `!provisioned.enabled`. The fallback arm authenticates through `loadUserById`, a read that
+// deliberately gates NOTHING (the frozen-host bridge needs a disabled host's row to keep resolving), so the
+// gate has to live in the arm. Not reachable via `admin.setEnabled` (it refuses to disable an owner) — this
+// is the belt for a direct `users.enabled = 0` write.
+
+test("D135: a DISABLED owner row is refused by the fallback arm (parity with cookie + SSO)", async () => {
+  vi.stubEnv(OWNER_HANDLES_VAR, REAL_OWNER_HANDLE);
+  const users = fakeUsers();
+  users.rows.set(REAL_OWNER_HANDLE, {
+    id: castId<UserId>(`u_${REAL_OWNER_HANDLE}`),
+    role: "owner",
+    handle: castId<Handle>(REAL_OWNER_HANDLE),
+    enabled: false,
+  });
+  const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
+
+  const { principal } = await seam.resolvePrincipal(new Headers());
+
+  // Anonymous → transport 401. The origin gate admitted the request; the ROW refused it.
+  expect(principal).toBeNull();
+  // And the admin verdict that keys on this principal collapses with it.
+  expect(await seam.isAdmin(new Headers())).toBe(false);
+});
+
+test("D135: the frozen-host bridge still resolves a DISABLED row (the gate is the CALLER's)", async () => {
+  // The deliberate divergence: an offline-or-disabled host's room must keep answering "what is its
+  // authority" for the members still reading it. Collapsing these two into one gated read would break that.
+  const resolve = createHostPrincipalResolver(
+    stubSessions({
+      loadUserById: () => Promise.resolve({ role: "owner", handle: castId<Handle>("owner"), externalId: null, enabled: false }),
+    }),
+  );
+
+  expect((await resolve(FALLBACK_UID)).role).toBe("owner");
+});
+
+test("D135: an ENABLED fallback caller still deep-equals the frozen-host Principal (the agreement holds)", async () => {
+  vi.stubEnv(OWNER_HANDLES_VAR, REAL_OWNER_HANDLE);
+  const users = fakeUsers();
+  const seam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: users.sessions });
+
+  const { principal } = await seam.resolvePrincipal(new Headers());
+  if (principal === null) {
+    throw new Error("an enabled owner must be admitted");
+  }
+
+  expect(principal).toEqual(await createHostPrincipalResolver(users.sessions)(principal.userId));
 });

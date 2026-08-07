@@ -7,14 +7,23 @@
 // (2) owner-fallback — origin-gated un-credentialed owner, resolved to the BOX OWNER'S ROW (D135);
 // (3) SSO header — `infra/auth.resolve` verifies, then `provisionIdentity` upserts + gates on `enabled`.
 //
-// D135 — THE ROLE VERDICT HAS ONE HOME, `users.role`, AND NO PATH INVENTS A ROLE. All three request paths
-// and the frozen-host bridge read that column (`validate` / `createHostPrincipalResolver` /
-// `provisionIdentity`).
+// D135 — THE ROLE VERDICT HAS ONE HOME, `users.role`, AND NO PATH INVENTS A ROLE THAT GRANTS AUTHORITY. All
+// three request paths and the frozen-host bridge read that column (`validate` / `createHostPrincipalResolver`
+// / `provisionIdentity`).
 // The fallback arm used to STAMP `role:"owner"` on whatever row `ensureUser(defaultHandle)` returned, so on
 // a box where `DEFAULT_USER_HANDLE` (verification's placeholder, default "owner") differs from
 // `OWNER_HANDLES` (the resolution tier's owner policy) it minted a SECOND user at role `user` and lied
 // `owner` about it — the request principal and the frozen-host principal then disagreed about the same
 // caller, and the capability surface and the actual turn silently picked different models.
+//
+// THE CENSUS BEHIND THAT ABSOLUTE (re-derived 2026-08-07 over every `via:"fallback"` Principal literal in
+// `packages/server/src`, because an unqualified absolute is what the next cold agent trusts INSTEAD of
+// re-sweeping). Elevating stamps: NONE — `entry/compose/role-clients.ts` was the last one and now mints
+// through `createHostPrincipalResolver` (D135 clause G), and `entry/lifecycle.ts`'s boot-seed Principal
+// reads the row `seedOwner` just wrote. What remains is the FAIL-CLOSED FLOOR, `role:"user"` on synthetic
+// principals for role-IRRELEVANT ops — `entry/compose/chat.ts` (its role-SENSITIVE siblings use the
+// resolver), `entry/compose/imagery.ts`, `entry/compose/search-discovery.ts` — plus this file's own
+// unknown-id `?? "user"`. Inventing the floor DENIES; only inventing a grant is the defect (D135 clause E).
 //
 // CSRF is a SIGNAL here, not a gate: the seam surfaces `csrfHeaderPresent` + `via`; the transport ladder
 // enforces it.
@@ -23,7 +32,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { requireAdmin } from "#domain/admin";
-import type { SessionsService } from "#domain/sessions";
+import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
 import { ownerHandles } from "#domain/sessions";
 import type { AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore } from "#infra/auth";
 import { authConfigFromEnv, hasCsrfHeader, resolve, SESSION_COOKIE_NAME } from "#infra/auth";
@@ -124,9 +133,17 @@ async function resolveCookiePrincipal(
  * (`infra/auth/config.ts`, invariant #3). WHO the box owner is, is RESOLUTION-tier policy — `ownerHandles()`,
  * the same predicate `determineRole` and the boot owner-seed read, exported from the sessions front door
  * precisely "so entry's boot owner-seed and the login-derived role path can never fork" (D135: the fallback
- * is a third consumer of that one predicate). D17 makes the list a singleton, so `[0]` is THE owner handle;
- * an empty list (structurally unreachable — `ownerHandles()` self-defaults to `[DEFAULT_USER_HANDLE]`) keeps
- * the verification handle so the arm can never resolve to nothing.
+ * is a third consumer of that one predicate). D17 makes the list a singleton, so `[0]` is THE owner handle.
+ *
+ * THE `?? verificationHandle` GUARD IS LOAD-BEARING, NOT DECORATIVE — an earlier comment here called the
+ * empty list "structurally unreachable because `ownerHandles()` self-defaults", and that reason is FALSE:
+ * `OWNER_HANDLES=",,"` clears `foundation/env`'s superRefine (it rejects `> 1` handle after the empty-filter,
+ * and this parses to ZERO), and `ownerHandles()` returns `[]` because its self-default only fires on
+ * `raw.trim().length === 0` while `",,".trim()` has length 2 (`sessions/substrate/role-policy.ts`). `[0]` is
+ * then `undefined`. What actually keeps a BOOTED server off that branch is `entry/lifecycle.ts` throwing
+ * "seedOwner returned no owner id (OWNER_HANDLES resolved empty)" before it ever listens — so the guard is
+ * the only belt for a seam constructed OUTSIDE that boot path (unit tests, the int harness, any future
+ * embedder), and removing it would resolve the arm to nothing there.
  */
 function ownerHandleForFallback(verificationHandle: Handle): Handle {
   return castId<Handle>(ownerHandles()[0] ?? verificationHandle);
@@ -136,7 +153,7 @@ function ownerHandleForFallback(verificationHandle: Handle): Handle {
 async function resolveHeaderOrFallbackPrincipal(
   sessions: SessionsService,
   res: IdentityResolution,
-  resolvePrincipalFromRow: (userId: UserId) => Promise<Principal>,
+  resolveFallbackPrincipal: (userId: UserId) => Promise<Principal | null>,
 ): Promise<Principal | null> {
   if (res.identity === null) {
     return null;
@@ -144,9 +161,10 @@ async function resolveHeaderOrFallbackPrincipal(
   if (res.via === "fallback") {
     // The fallback ADMITS the owner (the origin gate is the security boundary — `ownerFallbackAllowed`);
     // it does not GRANT a role. Ensure the owner's row exists, then mint through the same row→Principal
-    // function the frozen-host bridge uses, so both principals for one user read one column (D135).
+    // mapper the frozen-host bridge uses, so both principals for one user read one column (D135) — plus the
+    // `enabled` gate every REQUEST arm applies (`null` ⇒ anonymous ⇒ transport 401).
     const userId = await sessions.ensureUser(ownerHandleForFallback(res.identity.handle));
-    return await resolvePrincipalFromRow(userId);
+    return await resolveFallbackPrincipal(userId);
   }
   const provisioned = await sessions.provisionIdentity(res.identity);
   // Denied (allowlist gate refused) or disabled → anonymous → transport 401.
@@ -166,30 +184,60 @@ async function resolveHeaderOrFallbackPrincipal(
 }
 
 /**
- * THE row → `Principal` mint: the second Principal-construction site this module owns, and (D135) the ONE
- * place a role reaches a `Principal` from a `users` row. TWO consumers, deliberately the same function:
- *   • the FROZEN-HOST bridge — chat's cross-feature ops key on the frozen host `UserId` (the host may be
- *     offline, so no request Principal exists);
- *   • the OWNER FALLBACK above — an un-credentialed origin-gated request, whose `via:"fallback"` this mint
- *     already stamps.
- * Sharing it is the fix, not a coincidence: when the fallback stamped its own `role:"owner"` while this read
- * `users.role`, one caller had two principals that disagreed, and every owner-gated surface (max-pro-sub,
- * `ROLE_SELECTORS.chat`) resolved differently depending on which one reached it.
+ * THE row-fields → `Principal` MAP: the second Principal-construction site this module owns, and (D135) the
+ * ONE place a role reaches a `Principal` from a `users` row. Pure — it decides nothing about admission, so
+ * both row-driven resolvers below can share one spelling while applying different gates.
  *
- * Role-sensitive ops re-read the real `users.role` live via `loadUserById` — a fabricated `role:"user"`
- * would fail-closed-deny the owner's own privileged turn. An unknown id DEGRADES to `"user"`: that is
- * fail-closed on a row that isn't there, never an invented grant.
+ * An unknown id (`null` fields) DEGRADES to `"user"`: that is fail-closed on a row that isn't there, never
+ * an invented grant. Role-sensitive ops need this read because a fabricated `role:"user"` would
+ * fail-closed-DENY the owner's own privileged turn.
  */
-export function createHostPrincipalResolver(sessions: SessionsService): (userId: UserId) => Promise<Principal> {
-  return async (userId: UserId): Promise<Principal> => {
+function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): Principal {
+  return {
+    userId,
+    role: fields?.role ?? "user",
+    handle: fields?.handle ?? castId<Handle>(userId),
+    externalId: fields?.externalId ?? null,
+    via: "fallback",
+  };
+}
+
+/**
+ * THE FROZEN-HOST bridge: chat's cross-feature ops key on the frozen host `UserId` (the host may be offline,
+ * so no request Principal exists) — and `entry/compose/role-clients.ts` binds a user's provider bundle
+ * through it (D135 clause G). Sharing the mapper with the request arm is the fix, not a coincidence: when
+ * the fallback stamped its own `role:"owner"` while this read `users.role`, one caller had two principals
+ * that disagreed, and every owner-gated surface (the `max-pro-sub` mint, `ROLE_SELECTORS.chat`) resolved
+ * differently depending on which one reached it.
+ *
+ * DELIBERATELY UN-GATED on `enabled`, unlike {@link createFallbackPrincipalResolver}: nobody is
+ * authenticating here, and a disabled (or merely offline) host's row must still answer "what is this room's
+ * authority" for the members still reading it. The gate is the CALLER's, and this caller's answer is no.
+ */
+export function createHostPrincipalResolver(sessions: Pick<SessionsService, "loadUserById">): (userId: UserId) => Promise<Principal> {
+  return async (userId: UserId): Promise<Principal> => principalFromRow(userId, await sessions.loadUserById(userId));
+}
+
+/**
+ * The OWNER-FALLBACK arm's resolver: the same mapper PLUS the `enabled` gate, because this one IS a request
+ * authentication. The other two request paths refuse a disabled row — `sessions.validate` re-checks
+ * `users.enabled` per request (invariant #8/D40) and the SSO arm returns `null` on `!provisioned.enabled` —
+ * so without this the file's "all three request paths agree" claim would be true of `role` and false of
+ * `enabled`, and a directly-written `users.enabled = 0` on the owner row would still admit an un-credentialed
+ * caller as owner. (`admin.setEnabled` refuses to disable an owner, so today only a raw DB write reaches it:
+ * this is depth, not a live hole.)
+ *
+ * `null` fields ⇒ deny: `ensureUser` just guaranteed the row, so its absence means the row vanished
+ * mid-request — anonymous is the fail-closed answer for a REQUEST (the bridge above, which has no admission
+ * decision to make, keeps degrading instead).
+ */
+function createFallbackPrincipalResolver(sessions: Pick<SessionsService, "loadUserById">): (userId: UserId) => Promise<Principal | null> {
+  return async (userId: UserId): Promise<Principal | null> => {
     const fields = await sessions.loadUserById(userId);
-    return {
-      userId,
-      role: fields?.role ?? "user",
-      handle: fields?.handle ?? castId<Handle>(userId),
-      externalId: fields?.externalId ?? null,
-      via: "fallback",
-    };
+    if (fields === null || !fields.enabled) {
+      return null;
+    }
+    return principalFromRow(userId, fields);
   };
 }
 
@@ -197,8 +245,9 @@ export function createHostPrincipalResolver(sessions: SessionsService): (userId:
 export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
   const config = deps.config ?? authConfigFromEnv();
   const isCookieMode = config.mode === "local" || config.mode === "oidc";
-  // Bound once: the owner-fallback arm and the frozen-host bridge mint from the SAME row reader (D135).
-  const resolvePrincipalFromRow = createHostPrincipalResolver(deps.sessions);
+  // Bound once: the owner-fallback arm and the frozen-host bridge map the SAME row fields (D135); this arm
+  // adds the request-path `enabled` gate its two sibling arms already apply.
+  const resolveFallbackPrincipal = createFallbackPrincipalResolver(deps.sessions);
 
   async function resolvePrincipal(headers: Headers, req?: PerRequestSeamDeps): Promise<SeamResult> {
     const csrfHeaderPresent = hasCsrfHeader(headers);
@@ -216,7 +265,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       ...(deps.oidcStore !== undefined && { oidcStore: deps.oidcStore }),
       ...(req?.peerIp !== undefined && { peerIp: req.peerIp }),
     });
-    const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res, resolvePrincipalFromRow);
+    const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res, resolveFallbackPrincipal);
     return { principal, csrfHeaderPresent };
   }
 
