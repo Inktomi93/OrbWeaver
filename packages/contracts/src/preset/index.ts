@@ -14,6 +14,7 @@ import type { UserMacroDef, UserMacroInputValue } from "@orb/kit/macro";
 import { MACRO_ARG_TYPES, MACRO_NAME_RE, USER_MACRO_INPUT_KINDS } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
+import type { RegexPlacement } from "@orb/kit/regex";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#connection";
 import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEVELS } from "#connection";
@@ -1177,6 +1178,103 @@ export const promptConfigSchema = z.object({
     .optional(),
 });
 export type PromptConfig = z.infer<typeof promptConfigSchema>;
+
+// ── THE PIPELINE ORDER (the ONE declaration of what runs when) ─────────────────────────────────────
+// The order the prompt-side and reply-side transforms execute in is a FACT OF THE ENGINE, and it used to
+// live in two places that could not check each other: the executors (`domain/chat/engine/pipeline.ts`'s
+// `applyReceiveTransforms` + `@orb/server/kit/post-process`) and a hand-numbered list of rows in the
+// preset editor's Transforms readout. The list drifted, as a hand-numbered list of someone else's order
+// always does, and the readout printed FOUR untruths at once: `REASONING` before the post-process block
+// (the engine runs it after), the three receive switches in exactly reverse execution order, and
+// `collapseNewlines` on the reply lane at all — it is an ASSEMBLE transform (`applyAssemblePostProcess`,
+// on the rendered system halves) that the reply path never calls.
+//
+// So the order is DECLARED ONCE, here, and CONSUMED: `applyReceivePostProcess`/`applyAssemblePostProcess`
+// iterate the two flag tuples below (they no longer carry their own if-chains), and the readout renders
+// its rows off the lanes (it no longer carries slot numbers at all). It lives in `contracts` because it
+// is the one shape both the server executor and the client readout must agree on, and the cake gives them
+// no lower shared home that can see `postProcess`'s keys.
+//
+// WHAT IS DELIBERATELY NOT A STEP: the per-speaker reply clean (`cleanPerSpeakerContent`, which runs
+// between the post-process block and the `REASONING` pass). It is driven by the TURN's shape, not by a
+// preset switch, so a row for it in a preset editor would name a control that does not exist there. Its
+// absence does not make the printed order wrong — every step that IS printed keeps its true position.
+
+/** One post-process switch, by the side of the pipeline it runs on. */
+export type PostProcessFlag = keyof NonNullable<PromptConfig["postProcess"]>;
+
+/** WHICH LANE EACH SWITCH RUNS ON — a TOTAL map over the schema's own keys, so a new switch cannot enter
+ *  `postProcess` without answering the question `collapseNewlines` was silently answered wrong on (it sat
+ *  in the reply readout while the reply path never calls it), and a renamed one fails `tsc` here. */
+export const POST_PROCESS_LANE = {
+  singleLine: "receive",
+  dropIncompleteSentence: "receive",
+  trimTrailingWhitespace: "receive",
+  collapseNewlines: "assemble",
+} as const satisfies Readonly<Record<PostProcessFlag, "assemble" | "receive">>;
+
+type FlagsOnLane<L extends "assemble" | "receive"> = { [K in PostProcessFlag]: (typeof POST_PROCESS_LANE)[K] extends L ? K : never }[PostProcessFlag];
+export type ReceivePostProcessFlag = FlagsOnLane<"receive">;
+export type AssemblePostProcessFlag = FlagsOnLane<"assemble">;
+
+/** The RECEIVE switches in the order `applyReceivePostProcess` applies them — single-line FIRST (the most
+ *  aggressive cut), so the later sentence/whitespace trims operate on the already-reduced line. That the
+ *  tuple is COMPLETE (a receive-lane flag left out here would simply never run) is pinned at runtime by
+ *  `tests/contracts/preset/index.contract.test.ts` against the schema's own key set. */
+export const RECEIVE_POST_PROCESS_ORDER = [
+  "singleLine",
+  "dropIncompleteSentence",
+  "trimTrailingWhitespace",
+] as const satisfies readonly ReceivePostProcessFlag[];
+
+/** The ASSEMBLE switches, same contract on the prompt side (`applyAssemblePostProcess`). The split is the
+ *  point: a flag in this tuple runs on a rendered system half and NEVER on a reply. */
+export const ASSEMBLE_POST_PROCESS_ORDER = ["collapseNewlines"] as const satisfies readonly AssemblePostProcessFlag[];
+
+/** ONE step of a lane. `native-reasoning` and `reasoning-parse` are the reply's two reasoning-source arms
+ *  (native is always preferred; the inline `<think>` parse only fires when the reply carried no native
+ *  channel AND `autoParse` is on) — the parse is a real executor step and the native arm is the gate on it. */
+export type PromptPipelineStep =
+  | { readonly kind: "native-reasoning" }
+  | { readonly kind: "reasoning-parse" }
+  | { readonly kind: "regex"; readonly placement: RegexPlacement }
+  | { readonly kind: "post-process"; readonly flag: PostProcessFlag };
+
+/** A step's STABLE identity — the key a total label map is keyed by and the token an order pin compares.
+ *  Never a rendered string (the copy is the client's), and never an index (the index IS the drift). */
+export function pipelineStepKey(step: PromptPipelineStep): string {
+  if (step.kind === "regex") {
+    return `regex:${step.placement}`;
+  }
+  if (step.kind === "post-process") {
+    return `post-process:${step.flag}`;
+  }
+  return step.kind;
+}
+
+/** THE PROMPT-SIDE LANE. `USER_INPUT` rewrites the draft before it is persisted, `WORLD_INFO` rewrites each
+ *  entry as it is rendered, the ASSEMBLE collapse runs on the joined system halves at the end of BUILD, and
+ *  only then does `PROMPT_HISTORY` rewrite the assembled transcript on its way to the wire — the one
+ *  prompt-side stage whose output never becomes canon. */
+export const PROMPT_LANE_STEPS: readonly PromptPipelineStep[] = [
+  { kind: "regex", placement: "USER_INPUT" },
+  { kind: "regex", placement: "WORLD_INFO" },
+  ...ASSEMBLE_POST_PROCESS_ORDER.map((flag): PromptPipelineStep => ({ kind: "post-process", flag })),
+  { kind: "regex", placement: "PROMPT_HISTORY" },
+];
+
+/** THE REPLY-SIDE LANE, in the order `applyReceiveTransforms` runs it: the inline-reasoning demux, the
+ *  `AI_OUTPUT` pass over the content, the post-process block, then the `REASONING` pass over the demuxed
+ *  channel — and last, client-side, the `DISPLAY` pass, which changes what you read and never touches the
+ *  wire. Pinned against the live engine by `tests/server/domain/chat/engine/pipeline.test.ts`. */
+export const REPLY_LANE_STEPS: readonly PromptPipelineStep[] = [
+  { kind: "native-reasoning" },
+  { kind: "reasoning-parse" },
+  { kind: "regex", placement: "AI_OUTPUT" },
+  ...RECEIVE_POST_PROCESS_ORDER.map((flag): PromptPipelineStep => ({ kind: "post-process", flag })),
+  { kind: "regex", placement: "REASONING" },
+  { kind: "regex", placement: "DISPLAY" },
+];
 
 /** THE WRITE BOUNDARY (the `injectionDirectiveSchema` → wire-guard layering precedent, `@orb/kit/injection`):
  *  `promptConfigSchema` plus the guards that may REFUSE an author's edit. The transport create/update procs

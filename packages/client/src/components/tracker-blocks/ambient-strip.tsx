@@ -4,6 +4,19 @@
 // (§12.4.1 — static text; input on click via TrackerValue); Time AND Weather are closed vocabularies, so
 // both are click-to-edit PICKERS (Tier-0 §12.3 — never free text, never a RESTING dropdown). Weather's
 // picker edits the eight-state `weather.type`; the model's free flavor `label` is band text, not a field.
+//
+// A CLOSED VOCAB STILL NEEDS A CLEAR (2026-08-07). The two free-text fields could always be emptied — a
+// picker could only ever swap one member for another, so a sky or an hour the story stopped having was
+// UNSETTABLE by hand while `location`/`date` were not. The clear is NOT a vocabulary member: `none`/`unset`
+// inside `RPG_WEATHER_TYPES` would teach the model (which writes this axis, and whose extraction prompt
+// enumerates the tuple verbatim) to emit it as a weather. It is the FIELD that is nullable — the snapshot
+// stores `weather`/`clock` born-null and the hand door already accepts the clear ("`clock`/`calendarDate`/
+// `weather`/`plot` clear to null", domain/rpg/verbs/edit-snapshot) — so the strip speaks the store's own
+// [merge-clear] vocabulary: `onEditField(field, null)` is the clear, a string is a set.
+//
+// The Clear control renders OUTSIDE the `role="group"` vocabulary row on purpose: that group is the closed
+// set, and a pin that derives its arity from the tuple (the weather CT counts `RPG_WEATHER_TYPES.length`
+// buttons in the group) must keep counting the vocabulary, not the vocabulary plus a verb.
 
 import { RPG_WEATHER_TYPES, TIME_OF_DAY } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
@@ -19,8 +32,10 @@ export interface AmbientStripProps {
   readonly date?: string;
   readonly timeOfDay?: string;
   readonly weather?: string;
-  /** Commit an ambient field — present ⇒ editable; absent ⇒ read-only. */
-  readonly onEditField?: (field: "location" | "date" | "timeOfDay" | "weather", next: string) => void;
+  /** Commit an ambient field — present ⇒ editable; absent ⇒ read-only. `null` is the CLEAR (the store's own
+   *  [merge-clear] vocabulary), which is how a closed-vocab field is unset without minting a vocabulary
+   *  member for "nothing"; a string is a set. */
+  readonly onEditField?: (field: "location" | "date" | "timeOfDay" | "weather", next: string | null) => void;
   /** Optional per-field lock indicator (§12.3 the-lock-consequence-is-visible) — the feature supplies a
    *  render (the pin + Release) for a field whose hand-edit auto-stamped a lock; `undefined` ⇒ no pin. The
    *  field→lock-path mapping is domain knowledge, so it lives in the caller (this shared block is agnostic). */
@@ -61,7 +76,8 @@ function AmbientVocabPicker({
   readonly vocab: readonly string[];
   readonly groupLabel: string;
   readonly fieldLabel: string;
-  readonly onPick: (label: string) => void;
+  /** `null` = the host cleared the field (see the module header); a member = the pick. */
+  readonly onPick: (label: string | null) => void;
 }): ReactElement {
   const [open, setOpen] = useState(false);
   if (!open) {
@@ -85,37 +101,65 @@ function AmbientVocabPicker({
     );
   }
   return (
+    // Escape rides the OUTER row so it still closes from the Clear control, which sits outside the closed
+    // vocabulary group (see the module header — the group's arity is a pinned datum).
     <Row
       gap="field"
       align="center"
       className="flex-wrap"
-      role="group"
-      aria-label={groupLabel}
       onKeyDown={(e): void => {
         if (e.key === "Escape") {
           setOpen(false);
         }
       }}
     >
-      {vocab.map((label) => (
+      <Row gap="field" align="center" className="flex-wrap" role="group" aria-label={groupLabel}>
+        {vocab.map((label) => (
+          <Button
+            key={label}
+            type="button"
+            intent={label === value ? "secondary" : "ghost"}
+            size="inline"
+            className="px-field"
+            onClick={(): void => {
+              if (label !== value) {
+                onPick(label);
+              }
+              setOpen(false);
+            }}
+          >
+            <Text as="span" size="micro">
+              {label}
+            </Text>
+          </Button>
+        ))}
+      </Row>
+      {/* Offered only when there IS something to clear — an already-empty field showing a clear is a control
+          that can do nothing, which is the affordance-lying class this whole strip is written against.
+          The label NAMES ITS FIELD, visibly and not just to a screen reader, for two reasons: both pickers
+          can be open at once (two buttons called "Clear" is the duplicate-accessible-name defect side-eye
+          X-1 found), and the weather vocabulary CONTAINS the member `clear` — a bare "Clear" verb sitting on
+          the same row as the `clear` sky would be a reading a user cannot disambiguate.
+          `basis-full` puts it on its OWN line at every width rather than in line with the members: a verb
+          rendered as the tenth chip of a nine-member closed set is the set's arity misread, and a separator
+          that only works when the row does not wrap is no separator at the 320px context column. */}
+      {value === "" ? null : (
         <Button
-          key={label}
           type="button"
-          intent={label === value ? "secondary" : "ghost"}
+          intent="ghost"
           size="inline"
-          className="px-field"
+          className="basis-full px-field text-left"
+          aria-label={`Clear ${fieldLabel.toLowerCase()}`}
           onClick={(): void => {
-            if (label !== value) {
-              onPick(label);
-            }
+            onPick(null);
             setOpen(false);
           }}
         >
-          <Text as="span" size="micro">
-            {label}
+          <Text as="span" size="micro" tone="muted">
+            {`Clear ${fieldLabel.toLowerCase()}`}
           </Text>
         </Button>
-      ))}
+      )}
     </Row>
   );
 }
@@ -130,7 +174,7 @@ function AmbientFieldControl({
   readonly fieldKey: AmbientField;
   readonly label: string;
   readonly value: string | undefined;
-  readonly onEditField: ((field: AmbientField, next: string) => void) | undefined;
+  readonly onEditField: ((field: AmbientField, next: string | null) => void) | undefined;
 }): ReactElement {
   if (onEditField === undefined) {
     return (

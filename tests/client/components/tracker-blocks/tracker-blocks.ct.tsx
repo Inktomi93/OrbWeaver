@@ -390,7 +390,7 @@ test("AmbientStrip read-only: renders set fields, omits unset ones", async ({ mo
 });
 
 test("AmbientStrip editable: all four fields are present (seedable) and commit fires with the key", async ({ mount, page }) => {
-  let captured: [string, string] = ["", ""];
+  let captured: [string, string | null] = ["", ""];
   await mount(
     <AmbientStrip
       location="The Rusted Lantern"
@@ -408,7 +408,7 @@ test("AmbientStrip editable: all four fields are present (seedable) and commit f
 });
 
 test("AmbientStrip Time: the closed 6-label PICKER (never free text, never a resting dropdown) commits a label", async ({ mount, page }) => {
-  let captured: [string, string] = ["", ""];
+  let captured: [string, string | null] = ["", ""];
   await mount(
     <AmbientStrip
       location="The Rusted Lantern"
@@ -432,7 +432,7 @@ test("AmbientStrip Time: the closed 6-label PICKER (never free text, never a res
 });
 
 test("AmbientStrip Weather: the closed PICKER commits a canonical type (off-vocab unconstructable)", async ({ mount, page }) => {
-  let captured: [string, string] = ["", ""];
+  let captured: [string, string | null] = ["", ""];
   await mount(
     <AmbientStrip
       location="The Rusted Lantern"
@@ -454,6 +454,62 @@ test("AmbientStrip Weather: the closed PICKER commits a canonical type (off-voca
   await expect(page.getByRole("textbox", { name: "Weather value" })).toHaveCount(0);
   await group.getByRole("button", { name: "storm", exact: true }).click();
   expect(captured).toEqual(["weather", "storm"]);
+  await expect(page.getByRole("group", { name: "Weather" })).toHaveCount(0);
+});
+
+// A closed vocabulary has no "nothing" member (minting one would teach the MODEL to write it), so a set
+// weather/time was unclearable by hand while the two free-text fields were not. The clear rides the FIELD's
+// nullability instead — `onEditField(field, null)`, the store's own [merge-clear] vocabulary.
+
+test("AmbientStrip Weather: a set sky can be CLEARED, and the clear is null (never a vocabulary member)", async ({ mount, page }) => {
+  let captured: [string, string | null] = ["", ""];
+  await mount(
+    <AmbientStrip
+      location="The Rusted Lantern"
+      weather="rain"
+      onEditField={(field, next): void => {
+        captured = [field, next];
+      }}
+    />,
+  );
+  await page.getByRole("button", { name: "Weather value" }).click();
+  // The Clear sits OUTSIDE the closed group, so the vocabulary count above still counts the vocabulary.
+  await expect(page.getByRole("group", { name: "Weather" }).getByRole("button")).toHaveCount(RPG_WEATHER_TYPES.length);
+  await page.getByRole("button", { name: "Clear weather" }).click();
+  expect(captured).toEqual(["weather", null]);
+  await expect(page.getByRole("group", { name: "Weather" })).toHaveCount(0);
+});
+
+test("AmbientStrip Time: a set hour clears to null through the same door", async ({ mount }) => {
+  let captured: [string, string | null] = ["", ""];
+  const component = await mount(
+    <AmbientStrip
+      location="The Rusted Lantern"
+      timeOfDay="dawn"
+      onEditField={(field, next): void => {
+        captured = [field, next];
+      }}
+    />,
+  );
+  await component.getByRole("button", { name: "Time value" }).click();
+  await component.getByRole("button", { name: "Clear time" }).click();
+  expect(captured).toEqual(["timeOfDay", null]);
+});
+
+test("AmbientStrip: an UNSET field offers no clear (a control that can do nothing is a lie)", async ({ mount, page }) => {
+  const noop = (): void => undefined;
+  const component = await mount(<AmbientStrip location="The Rusted Lantern" onEditField={noop} />);
+  await component.getByRole("button", { name: "Time value" }).click();
+  await expect(page.getByRole("group", { name: "Time of day" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Clear time" })).toHaveCount(0);
+});
+
+test("AmbientStrip: Escape still closes the picker from the row the Clear control sits on", async ({ mount, page }) => {
+  const noop = (): void => undefined;
+  const component = await mount(<AmbientStrip location="The Rusted Lantern" weather="rain" onEditField={noop} />);
+  await component.getByRole("button", { name: "Weather value" }).click();
+  await expect(page.getByRole("button", { name: "Clear weather" })).toBeVisible();
+  await page.getByRole("button", { name: "Clear weather" }).press("Escape");
   await expect(page.getByRole("group", { name: "Weather" })).toHaveCount(0);
 });
 

@@ -29,6 +29,7 @@ import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { PromptReadout } from "../../../../../../packages/client/src/features/preset/components/readout/prompt-readout.tsx";
+import { TransformsReadout } from "../../../../../../packages/client/src/features/preset/components/readout/transforms-readout.tsx";
 import { CtDataProviders } from "../../../../../support/ct/ct-data-providers.tsx";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_readoutbind");
@@ -111,6 +112,26 @@ export function PresetReadoutParamsBoundStory(): ReactElement {
   return (
     <CtDataProviders>
       <ReadoutFrame chatId={STORY_CHAT} view="params" />
+    </CtDataProviders>
+  );
+}
+
+/** The TRANSFORMS readout — the PIPELINE, both lanes, in execution order. Mounted directly (the binding is
+ *  noise here): the pin is that the printed order IS the declared one, with every switch turned ON so no row
+ *  can hide behind an "off" state. */
+export function TransformsReadoutStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <TransformsReadout
+          config={{
+            ...DEFAULT_PROMPT_CONFIG,
+            postProcess: { collapseNewlines: true, trimTrailingWhitespace: true, dropIncompleteSentence: true, singleLine: true },
+            reasoningParse: { autoParse: true, prefix: "<think>", suffix: "</think>" },
+          }}
+          presetId={STORY_PRESET}
+        />
+      </div>
     </CtDataProviders>
   );
 }
