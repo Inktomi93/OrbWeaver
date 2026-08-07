@@ -1702,6 +1702,12 @@ Items this audit could not prove either way from the tree. **None were dropped.*
   multi-chunk verifiers this day; the refutations came from driving PRODUCTION shapes and from
   attacking the lane's own flagged judgement calls. **Nine passes, six refutations — every one a
   defect that was already merged, gate-green and believed done.**
+- **ANY GATE RESULT TAKEN DURING A MERGE WINDOW IS VOID** (verifier-authored, after my conflicted
+  merge fooled its whole-tree check): it read `exit 2` / 4 red stages, traced every one to conflict
+  markers in a file whose `git show HEAD:` copy was clean, watched HEAD advance under it, and
+  re-ran on the settled tree — all green. **A verifier or lane that sees an impossible red should
+  check whether main is mid-merge BEFORE diagnosing.** Corollary for me: a merge window is a
+  quiet-hours window for every whole-tree instrument on the box.
 - **NEVER PIPE `git merge` — I DID IT AND IT COST A CHECK.** `git merge … | tail -1` SWALLOWED a
   conflict, `pnpm check` then ran against a tree full of conflict markers, and the verdict came back
   **exit 2 (TOOL-ERROR)** with tsc reporting `TS1185: Merge conflict marker encountered` — a red
