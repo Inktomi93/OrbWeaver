@@ -361,6 +361,24 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
   `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
   question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- **✅ HAND-EDIT GRADUATED — CONFIRMED on the 4th leg after THREE refutations (`cea8437c0`).** The
+  verifier re-drove all three prior refutations clean, plus N=3-with-a-gap, the production applier
+  shapes with a mid-flight dismiss+delete+lock, element-level locks, and a **400-turn randomized
+  replay-fidelity property: 0 mismatches — with a CONTROL under the old seed-base convention at
+  188/400.** The zero means something because the instrument discriminates. Pairing audit: one
+  producer, one consumer, `readonly StagedPatch[]` so no path reaches the fold base-less; all 6
+  stage sites verified; tool execution is sequential by construction so a captured base can't drift.
+  Cancel/abort untouched.
+  **Two accuracy caveats for the record (no code defect):** (a) the commit's "keyed planes were
+  immune" is FALSE — keyed `quests` resurrected under the old convention too; (b) **under TODAY's
+  wiring the multi-patch defect was reachable only through the TOOL-HANDLER seam, not the
+  cheap/folded round** — `gather.ts:194` returns `tools: []` in every mode (registry tools are never
+  attached; the fold rides `terminalTools`), so production stages exactly once per turn. The fix is
+  correct and future-proofs the seam; scope it honestly when citing it.
+  - [ ] **`stage` merges the UNCLONED patch into `bucket.state`** (S, pre-existing, not introduced) —
+    a caller that mutated its patch object AFTER staging would contaminate the live state and the
+    NEXT captured base (driven: `base1 === ["a","b","SNEAK"]`). No production caller retains its
+    patch; the recorded `patch` and captured bases ARE cloned. Evidence: verifier probe.
 - **✅ THE F-A ORPHAN IS DEAD (CANON-1 leg 2, `3d19fd66a`, check 14/14)** — `embeddings.pruneMemoryBlocks`
   (new verb on the `pruneDocumentChunks` idiom). **The upward cascade is CEILING ARITHMETIC, not new
   machinery**: a tier-(k+1) parent exists only over a COMPLETE fanOut group, so
