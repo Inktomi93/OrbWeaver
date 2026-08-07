@@ -361,6 +361,12 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
   `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
   question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- [ ] **RAW INVENTORY, THE OTHER HALF: assistant rows' pre-regex model output** (M, from FANOUT-2's
+  correct scope-out) — the freeze hops now record `rawContent`/`macroFreezes` for AUTHORED text, but
+  an assistant row's raw model output (pre AI\_OUTPUT-regex / pre-postProcess) is the RECEIVE path,
+  not a freeze hop. Stickler §3's raw inventory wants both halves; only one landed. Same storage
+  (`message_variants.raw_content`, NULL ⇔ byte-identical), same host-plane classification, different
+  producer. Evidence: lane scope statement, source-pinned.
 - **⚑ ORCHESTRATOR LESSON (mine, 2026-08-07, third instance of one principle in a day):
   A SIDE-EYE SYMPTOM IS GOLD; ITS MECHANISM PRESCRIPTION MUST BE CHECKED AGAINST RECORDED RULINGS
   BEFORE I RELAY IT.** I forwarded "drop both panel toggles from the mobile topbar" verbatim; the
