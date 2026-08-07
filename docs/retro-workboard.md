@@ -246,6 +246,57 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   bypasses `runRole` (bare `requireRoleImpl`); catalog/credits callers DO pass signals, and the OR
   SDK's default retry fires on `name==="TimeoutError"`. Unreachable-by-abort today; one flatten call
   closes it. Evidence: verifier probe, BYPASS row demonstrated.
+- **✅ FOUR MORE MERGES (2026-08-07 midday, consolidated checks green):** **RULED-BATCH**
+  (`0efd3276d` — the pipeline order declared ONCE in contracts and consumed by executor + readout,
+  four display lies dead red-first; cast guides reach CEL via `RPG_CAST_GUIDE_FIELDS`; ambient
+  clear with NO vocab widening — the "Clear weather" control lives outside the closed-vocab group;
+  2 refusals receipted: the write-guard premise was dead AND its pin already existed; zod stage D
+  already landed) · **TEMPLATE fix leg** (`46101da6e` — drill-in typeable, trim at the save
+  boundary, positive-control-proven; blank overrides heal at read; `proseFooterState` lifted to
+  contracts so both editors warn off ONE derivation; the vacuous test arm now catches its planted
+  control) · **STACK-MODES** (`3ecc6d05c` — `pnpm stack up|down|restart|status [dev|prod]
+  [--debug] [--build]`: env OVERLAY never .env mutation, --debug REFUSES on .env conflict naming
+  the line, instance identity beats the port (harness:true checked FIRST — e2e stacks un-adoptable,
+  un-killable), prod refuses a missing dist with the build command, spawner census as doc §1c +
+  `STACK_SPAWNERS` data. Premise kills: the 401-probe lie (`/api/_debug/info` is 200 unauthed on
+  single-user — pid in the body is the BEST identity source) and **RPG_TRACE IS NOT DEAD** (old
+  finding #7 stale; fully wired, doc repaired). OWNER ACTION OWED: delete the three debug lines +
+  `.env.bak-predebug-*` from the live `.env`; first real `pnpm stack up prod` is the owner's live
+  check) · **HAND-EDIT fix leg** (`6b37d67ea` — the fold replays the round's PATCHES (deep-cloned
+  accumulator log), nothing unnamed can resurrect — the dismissed-actor regression dead; fold
+  follows the head to ANY seq; total `TurnWriteFoldOutcome`, every losing arm fires
+  `onFlushDropped`; refusal arm drivable through REAL verbs; red-first 4/4→11/11).
+- **✅ ORCHESTRATOR serde fixes (`f99208480` + `ea847a671`, full hook both):** blank-`mes` swipe
+  text PROMOTES (active else first, lone take to the primary — never an empty canon row, never
+  dropped text); a text-empty row carrying MEDIA survives (all ST era spellings: media[]/files[]/
+  legacy image/image_swipes/file — ST's own `migrateMediaToArray` is the receipt); the seeder's
+  duplicate drop-filter dissolved (one home). Live send path untouched (all four parser consumers
+  are import-side, owner asked + receipted).
+- **⚑ VITE-MAX dispatched (owner word):** the gap list's safe slice — CT-vite spike + rolldownOptions
+  together · esbuild-override re-derivation · `--configLoader native` · `future` warns ·
+  license-JSON · three measure-then-adopt rows. HELD deliberately: lightningcss transformer ·
+  chunkImportMap · devtools · Environment API (N/A).
+- **NEW ROWS (from the fix legs + DRAFT-POLISH interim):**
+  - [ ] **REMOVAL-TOMBSTONE FORK** (owner-timed design, persona-pin family) — if the round's delta
+    names the exact datum the human removed mid-flight (~2s window), the delta wins: dismissal
+    CLEARS locks by design so the model may reintroduce later, and a cleared lock cannot express
+    "removed just now". The honest arbiter is RECENCY; a tombstone needs a lifetime rule only the
+    owner can set. Lane analysis on record; defensible as-is. Evidence: driven probes, fix leg.
+  - [ ] **REGEN-VS-LATER-FLUSH classification** (S) — the fold's regen guard classifies "a later
+    turn flushed while we were in flight" as a regen, silently; reachable only via lock-free
+    `generate` concurrency (the flush barrier covers sequential sends); needs ladder state that
+    doesn't exist today. Evidence: fix-leg self-flag.
+  - [ ] **SNAP-STAGE PORT BAND contention** (S, instrument) — the isolated-stage pair (8888/5273)
+    is a SINGLE shared band; two lanes wanting rendered stages collide (DRAFT-POLISH vs MOBILE's
+    stage, live sighting). Per-lane offsets or a stale-stage reaper. Evidence: live refusal.
+  - [ ] **WIRE-SINK fence scope** (S) — `ChatRequest.chatId` is still OPTIONAL and the two direct
+    `runChatTurn` sites in rpg.ts build no ExtractCtx: a fourth arm added THERE compiles blind. The
+    landed fence covers the ExtractCtx paths only (verifier receipt). Widen on want.
+- **⚑ DRAFT-POLISH interim:** the owner's draft-visuals finding is root-caused + fix landing —
+  the carried look (BG-C + D44 takeover) was spelled over `ParticipantView[]`, a committed-only
+  shape; now a phase-independent `CarriedAppearanceCast` both phases project into. Red-first
+  proven. Header fork ruled: THEME half overturned (visuals key on membership), TRUST half stands
+  (DRAFT-TRUST remains the owner's architecture item).
 - **NEW ROWS from the two lanes + side-eye (each independently landable):**
   - [ ] **STRUCTURED-ROLE CORRELATION FORK** (owner/design) — the `structured` role is chatless by
     contract (`RoleRequestCommon` has no chatId; `WireCapture.chatId` documents "absent on a chatless
