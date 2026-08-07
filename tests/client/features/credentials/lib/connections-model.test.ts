@@ -188,7 +188,7 @@ test("every source/model/protocol arm the pickers can produce round-trips throug
       embed: { source: "vllm", model: "" },
       rerank: { source: "local-light", model: "" },
       imageEmbed: { source: "openrouter", model: "clip-vit-large" },
-      summarize: { source: "max-pro-sub", model: "claude-haiku-4-5" },
+      summarize: { source: "vllm", model: "" },
       generateImage: { source: "openrouter", model: "black-forest-labs/flux-1.1-pro" },
     },
   ];
@@ -281,8 +281,8 @@ test("the inference-derive roles offer exactly the three inference tiers (schema
   }
 });
 
-test("summarize offers the two chat engines + the Claude sub; generateImage is openrouter-only", () => {
-  expect([...ROLE_SLOTS.summarize.sources].sort()).toEqual(["max-pro-sub", "openrouter", "vllm"].sort());
+test("summarize offers the two chat engines only (no metered sub); generateImage is openrouter-only", () => {
+  expect([...ROLE_SLOTS.summarize.sources].sort()).toEqual(["openrouter", "vllm"].sort());
   expect(ROLE_SLOTS.generateImage.sources).toEqual(["openrouter"]);
 });
 
