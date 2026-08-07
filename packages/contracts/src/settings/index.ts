@@ -358,8 +358,17 @@ export function parseAppSettings(raw: unknown): AppSettings {
 // UserSettings — the per-user tier. Namespaced; each section `.prefault({})`.
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-// The per-role source subsets mirror the runtime firewall (ROLE_SOURCE_POLICY) as defense-in-depth
-// (contracts can't import server-side policy). Per-field `.catch(undefined)` self-heals a stale source.
+// The per-role source subsets NARROW what a user may store, as defense-in-depth ahead of the runtime
+// credential firewall (`infra/providers/roles/firewall.ts::ROLE_SOURCE_POLICY` — contracts can't import
+// server-side policy, so these lists are hand-kept). Per-field `.catch(undefined)` self-heals a stale source.
+//
+// THEY DO NOT MIRROR IT TODAY, and the earlier claim that they did was false (2026-08-07). `INFERENCE_SOURCES`
+// and `GENERATE_IMAGE_SOURCES` match their firewall rows; `SUMMARIZE_SOURCES` offers `max-pro-sub`, which the
+// firewall's `summarize` row does not permit for ANYONE — a user (including the owner) who picks it gets a
+// stored setting whose every summarize dispatch is refused with `ProviderError(kind:"forbidden")`. Whether
+// summarize SHOULD reach the metered owner sub (add the firewall row) or should not (drop it from this list)
+// is a product call, deliberately left open rather than guessed; until it is ruled, this list is WIDER than
+// the enforcement and neither side may be cited as the other's proof.
 export const INFERENCE_SOURCES = ["openrouter", "vllm", "local-light"] as const;
 export const SUMMARIZE_SOURCES = ["openrouter", "vllm", "max-pro-sub"] as const;
 // The generateImage role's permitted sources — mirrors ROLE_SOURCE_POLICY.generateImage
