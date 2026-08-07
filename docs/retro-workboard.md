@@ -316,12 +316,31 @@ token-less e2e stacks working, but it is a conditional control with its own conf
 - **PROVGATE fix leg** (`aef2eeb481ade8589`) — closing all four reach shapes, not declaring them.
 - **SIDE-EYE-DAY** (`adf8e74d1848e35ae`) — the rendered lens on the day's merges.
 
-**BOARDED, NOT DISPATCHED (say it plainly — nobody is working these):**
-- [ ] **SUMMARIZE-MIRROR** — `SUMMARIZE_SOURCES` (`contracts/settings/index.ts:364`) offers
-  `max-pro-sub`; the runtime firewall's summarize row (`roles/firewall.ts:21`) does not; the comment at
-  `:361` claims they mirror. **Symptom: a dead UI option that 403s at dispatch FOR THE OWNER TOO.** The
-  false comment is being truth-repaired by ROLECLIENTS in-flight; **the capability question is an OWNER
-  call** — add the firewall row (summarize supports max-pro-sub) or drop the option (it doesn't).
+**⚑ OWNER RULINGS 2026-08-07 (question-tool batch) — routed:**
+- [x] **SUMMARIZE-SUB → DROP `max-pro-sub` from `SUMMARIZE_SOURCES`.** The 2026-07-27 split STANDS —
+  summarize and structured do NOT run on the metered Claude sub (batch roles don't spend the
+  subscription). The owner's "it should support it" was reconsidered once shown it contradicts his own
+  ruling; he ruled drop. Lane **SUMDROP** (`af296a5eaef3782f3`, mech) — one tuple edit + the comment
+  (the two lists agree again) + close the SUMMARIZE-SUB ledger entry. `.catch(undefined)` self-heals
+  stored values, no migration.
+- [x] **VITALS-ORB → KEEP THE DROP, FIX THE HEADER.** Vitals live only on Status/Inventory at coarse;
+  no new UI. Correct the rpg header's over-claim (the wallet is NOT a Status tracker row). Folded into
+  **RENDERFIX** (owns the rpg files).
+- [x] **BOTH `JUDGMENT_DEFERRED` GEOMETRY SITES → FIX BOTH to clear 44px, then DELETE the exemption
+  rows.** Site B (`rpg-actor-trackers.tsx:251`, destructive ✕): `pointer-coarse:min-h-touch-target` on
+  the Badge so the 44px hit area fits inside its own chip. Site A (`rpg-pack-rows.tsx:39`, icon picker):
+  `pointer-coarse:gap-block` so pitch = 44. Folded into **RENDERFIX**. The gate lands on a fixed tree,
+  so the two `no-floorless-control-in-wrap` exemption rows come OUT once the floor is cleared.
+- [ ] **POINTER-COARSE-IN-FEATURES → MINT THE GATE (token/shell only).** Axis 3 binds utility variants,
+  not just token sizing: `pointer-coarse:` literals are banned in feature files exactly as viewport
+  `@media` already is. Mint the gate AND sweep the existing violations (2 rpg files + the chat-feature
+  precedent `member-row.tsx`, `message-actions-reveal.ts`) into the token/shell layer.
+  **⚑ QUEUED behind RENDERFIX's merge** — it edits the same rpg files (adding `min-h-touch-target` /
+  `gap-block` `pointer-coarse:` utilities), so this lane sweeps a SETTLED tree and picks up RENDERFIX's
+  new literals in the same relocation. Do NOT dispatch until RENDERFIX merges. `no-media-queries-in-
+  features`'s `MEDIA_QUERY_RE` matches viewport widths only — this is a NEW gate, not an extension.
+
+**STILL BOARDED, NOT DISPATCHED:**
 - [ ] The preview fidelity gap — `verbs/read.ts` hardcodes `output:"per-speaker"` in three places, so a
   narrator room previews the wrong shape. Needs `GroupConfig` threaded into `PreviewInputs`.
 - [ ] `no-test-fabrication.baseline.json` is stale by ~15 rows tree-wide (deleted files, absorbed
