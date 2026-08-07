@@ -197,6 +197,14 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   fix · zod stage D in full · the §-refs carve-out · cast guides threaded · settings write-guard
   lift · tag cliff ACCEPTED · strict default KEPT · orphan-transcript import REJECT (owner override
   of the characterless rec). Rows annotated in place; buildables dispatched as lane RULED-BATCH.
+- [ ] **DRAFT-PHASE UX (owner dogfood, 2026-08-07, verbatim: "character backgrounds and avatars also
+  dont show up until the first message... the whole 'draft' mode is sloppy as fuck and makes for bad
+  ux").** Two-part row, lane DRAFT-POLISH dispatched: (1) FIX — backgrounds/avatars render from
+  character selection, never gated on the first message landing; (2) CENSUS — the whole draft-phase
+  lifecycle audited (everything visually or behaviorally different before first send), delivered as
+  a report for the owner's design pass. Adjacent standing items it must census but NOT build:
+  DRAFT-TRUST (item 6, architecture call) · unsent-draft reload persistence (item 14, design fork).
+  Evidence: owner sighting, live.
 - **NEW ROWS from the two lanes + side-eye (each independently landable):**
   - [ ] **STRUCTURED-ROLE CORRELATION FORK** (owner/design) — the `structured` role is chatless by
     contract (`RoleRequestCommon` has no chatId; `WireCapture.chatId` documents "absent on a chatless
