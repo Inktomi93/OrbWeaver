@@ -263,6 +263,38 @@ token may not be bypassed by an un-credentialed principal") — closes it on the
 token-less e2e stacks working, but it is a conditional control with its own conformance suite to sweep.
 **OWNER: this is the one live-posture item on the board that is a real hole rather than debt.**
 
+## ═══ ⚑ DISPATCH LEDGER (2026-08-07 evening) — what is RUNNING vs merely BOARDED ═══
+
+> **Why this section exists:** the orchestrator wrote *"routed to its own lane"* THREE times about
+> AUTHFIX-2 across three messages and never dispatched it — reporting an open unauthenticated hole as
+> handled while it sat unassigned. **A status claim owes its evidence the same way a board row does.**
+> Grep your own outbound text for "routed" / "boarded" / "queued" and verify each against the dispatch
+> results before repeating it. Doctrine block minted the same day.
+
+**RUNNING (5 — at the concurrency cap):**
+- **DEBUGGATE** (`aa32294c5e699ca9e`, security-executor) — AUTHFIX-2, the unauthenticated `/api/_debug/*`
+  hole. Briefed to fix shape (i) (thread `DEBUG_TOKEN` through the three e2e mode envs + a shared header
+  helper, THEN remove the bypass) — **NOT shape (ii)**, which leaves a conditional control and is the
+  partial. Also assessing whether the principal-blind whole-db reads get scoped now, per the route's own
+  `@owner-scope-ok` marker.
+- **ROLECLIENTS** (`a74116715bb5c2dea`, security-executor) — the second home for the role verdict.
+- **NARRATOR-CAST fix leg** (`a7ceca7cb755472b2`) — the primary-card `{{char}}` regression + 3 more.
+- **PROVGATE fix leg** (`aef2eeb481ade8589`) — closing all four reach shapes, not declaring them.
+- **SIDE-EYE-DAY** (`adf8e74d1848e35ae`) — the rendered lens on the day's merges.
+
+**BOARDED, NOT DISPATCHED (say it plainly — nobody is working these):**
+- [ ] **SUMMARIZE-MIRROR** — `SUMMARIZE_SOURCES` (`contracts/settings/index.ts:364`) offers
+  `max-pro-sub`; the runtime firewall's summarize row (`roles/firewall.ts:21`) does not; the comment at
+  `:361` claims they mirror. **Symptom: a dead UI option that 403s at dispatch FOR THE OWNER TOO.** The
+  false comment is being truth-repaired by ROLECLIENTS in-flight; **the capability question is an OWNER
+  call** — add the firewall row (summarize supports max-pro-sub) or drop the option (it doesn't).
+- [ ] The preview fidelity gap — `verbs/read.ts` hardcodes `output:"per-speaker"` in three places, so a
+  narrator room previews the wrong shape. Needs `GroupConfig` threaded into `PreviewInputs`.
+- [ ] `no-test-fabrication.baseline.json` is stale by ~15 rows tree-wide (deleted files, absorbed
+  shrinks). A regen is a legitimate one-line cleanup but belongs to whoever owns the tree, not a lane.
+- [ ] `fork.ts:154-155` stale comment — "no production writer yet" for the host-plane strip; `c197ce01b`
+  landed the writers. Comment only; the strip itself is correct and PROVGATE's gate passes it.
+
 ## ═══ INITIATIVES ═══
 
 ### I-1 · STRUCTURED OUTPUT — ✅ the four projector defects are CLOSED; one owner item remains
