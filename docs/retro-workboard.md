@@ -291,6 +291,27 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   together · esbuild-override re-derivation · `--configLoader native` · `future` warns ·
   license-JSON · three measure-then-adopt rows. HELD deliberately: lightningcss transformer ·
   chunkImportMap · devtools · Environment API (N/A).
+- **⚑ FOUR MORE OWNER RULINGS (question-tool, 2026-08-07 afternoon):** (1) **CANON-IDENTITY: GO** —
+  the build starts (serial spine: contracts+db+baseline squash → F-A → F-B → F-C → dispatch sites →
+  lock-in tests; dev-db drop accepted). (2) **PUSH: battery-then-push** (in progress; battery
+  restarted after a verifier-probe collision, see ops note). (3) **DRAFT-MODE LAW: disabled-with-
+  reason** — every committed affordance EXISTS in draft, disabled with the reason stated where
+  inapplicable (\[\[no-separate-reduced-modes]] applied); P2 Preview + P3 cast bar build to this
+  shape. (4) **P1: retain + offer back** — the draftKey is retained per seed; returning to the same
+  character(s) offers Restore/Trash. Owner also asked (recorded as a law candidate):
+- [ ] **CONSOLIDATION-LANDS-WITH-ITS-FENCE (law candidate + founding instance)** — semantic
+  re-derivation (N textually-different spellings of one computation — the founding-cast union's six)
+  is the duplication class NO generic gate can catch (`no-inline-types` = shapes, `cpd` = textual
+  clones); the house answer is the PER-CONCEPT fence, but it's been ad-hoc. Candidate law: a lane
+  that consolidates spellings into a one-home lands the ts-morph fence banning re-derivation (by
+  structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
+  `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
+  question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- **⚑ OPS NOTE (collision class, encoded):** a RESUMED VERIFIER runs on MAIN's tree and may plant
+  probe suites in `tests/` mid-attack — a whole-tree check/battery launched while one is live sweeps
+  its probes up as reds (`zzverifier-probe*` tripped biome + 2 gates; battery killed + relaunched
+  after drain). LAW: no whole-tree instrument runs while a verifier is active on main; check the
+  roster first.
 - **NEW ROWS (from the fix legs + DRAFT-POLISH interim):**
   - [ ] **REMOVAL-TOMBSTONE FORK** (owner-timed design, persona-pin family) — if the round's delta
     names the exact datum the human removed mid-flight (~2s window), the delta wins: dismissal
