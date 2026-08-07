@@ -16,7 +16,8 @@ packages:
 engineStrict: true
 
 # pnpm 11 gates packages with postinstall build scripts. Approve the ones we need:
-# esbuild powers tsx + vitest; lefthook fetches its hook-runner binary.
+# esbuild powers tsx, drizzle-kit and the CT harness's vite 6 (NOT vitest any more — vitest 4 rides
+# vite 8, which transforms with Oxc; corrected 2026-08-07); lefthook fetches its hook-runner binary.
 allowBuilds:
   esbuild: true
   lefthook: true
@@ -281,17 +282,40 @@ catalog:
   "@tanstack/react-router-devtools": ^1.167.0
   "@tanstack/devtools-vite": 0.8.1
 
-# Force vite/vitest's bundled esbuild (0.25.x — rejects the `es2025` target) up to 0.28.1, which
-# supports es2025, so the transform matches tsc's es2025 with no "Unrecognized target" warning. Scoped
-# to the 0.25.x line so the ancient @esbuild-kit 0.18.20 (a drizzle-kit transitive via its bundled
-# @esbuild-kit/esm-loader — NOT tsx, corrected 2026-08-03 by `pnpm why esbuild`) is left untouched.
+# There is deliberately NO `esbuild@^0.25.0` override here any more (dropped 2026-08-07). It existed to
+# force "vite/vitest's bundled esbuild" up to 0.28.1 so the es2025 target would not be rejected — and the
+# vite 8 / vitest 4 bump killed BOTH halves of that premise. Re-derived from source, not from the comment:
+# vite@8.1.2 does not DEPEND on esbuild at all (it is an OPTIONAL PEER, `^0.27.0 || ^0.28.0`) and only
+# lazily `import("esbuild")`s for `build.cssMinify === "esbuild"` and the deprecated `transformWithEsbuild`
+# — we use neither. `build.target: "es2025"` in packages/client/vite.config.ts is lowered by OXC/Rolldown,
+# so no esbuild version can reject it; vitest 4 rides that same vite 8. The only packages left asking for
+# the ^0.25 line were drizzle-kit (`^0.25.4`) and the CT harness's pinned vite 6 (`^0.25.0`) — neither has
+# anything to do with es2025, and forcing two packages three minors past their declared range for a reason
+# that no longer exists is a silent-breakage risk, not hygiene. Proven green without it on 2026-08-07:
+# `pnpm install`, all three typecheck programs, a vitest suite, a playwright CT spec, and a full
+# `pnpm --filter @orb/client build` (es2025 target, exit 0). Cost of removal: a third esbuild copy in the
+# store (0.25.12 beside 0.18.20 and tsx's 0.28.1) — disk, not correctness.
 overrides:
-  "esbuild@^0.25.0": 0.28.1
   # Force the single @vitejs/plugin-react up to the catalog's v6 (vite-8-compatible). @playwright/
   # experimental-ct-react pins a transitive v4.7.0 whose vite peer maxes at ^7 → unmet-peer warning
   # against our vite 8. v6 is the only line that peers vite ^8, so we dedupe both the client build and
   # the CT harness onto it. (Alex-approved 2026-07-02: accept the CT-harness major-bump to clear the peer.)
   "@vitejs/plugin-react": "catalog:"
+  # CT's vite is PINNED, not merely inherited. @playwright/experimental-ct-core depends on `vite: ^6`, so
+  # this tree deliberately carries TWO vite majors: 8 for the @orb/client build, 6 for the CT harness.
+  #
+  # We tried to collapse them (spike 2026-08-07, docs/reviews/misc/2026-08-07-ct-vite-8-spike.md) by
+  # overriding this same key to the catalog's vite 8. It BUILDS and then mounts NOTHING: 674 CT specs ran,
+  # 670 reached retry2, every one failing `mount()` with a 30s timeout against a blank page, starting at
+  # the very first spec. A/B'd on one file, same box, same load: vite 6 → 2 passed (27.9s); vite 8 → 2
+  # failed, blank mount. playwright-ct's `playwright:component-index` plugin is written against vite 6's
+  # build pipeline, and Rolldown's is not it.
+  #
+  # So the version is a STATED DECISION with a re-test trigger, not an accident of resolution: an exact
+  # pin means a `@playwright/experimental-ct-*` bump can never silently move CT's vite underneath us.
+  # RE-TEST CONDITION: on any playwright bump, check whether ct-core's vite range has moved to ^8 — if it
+  # has, re-run the WHOLE CT suite on it, and only then consider collapsing to one vite.
+  "@playwright/experimental-ct-core>vite": "6.4.3"
 
 # Supply-chain delay: refuse versions published < 1440 min (24h) ago — a just-published malicious
 # version is usually yanked within that window. (The Exclude was orphaned without this — the guard was
