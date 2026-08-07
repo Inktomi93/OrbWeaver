@@ -102,9 +102,17 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   Provider-independent canon HOLDS today (verified both paths) — mint as law + the two-profile pin.
   Membership present-predicate re-spelled \~27× → one-home presence.ts. Persona model: already ONE
   model; NO D122 amendment; kill-the-`personaIds[0]`-fallback is an owner call.
-  **SIX OWNER CALLS queued in §18** (kind vocabulary · excludedFromPrompt-gates-memory ·
-  hidden-span digest strip · the personaIds\[0] fallback · narrator-as-system dormant · comment
-  chrome). Declared limits in §19.
+  **✅ ALL SIX §18 OWNER CALLS RULED (question-tool, 2026-08-08):** (1) kind vocabulary = the
+  THREE as recommended (standard | narrator | comment; aside stays a doorway). (2) F-A fix:
+  `excludedFromPrompt` GATES MEMORY INGEST — hidden means hidden everywhere derived. (3)
+  hidden-span digests: SWEEP FIRST then fix at the producers evidence shows. (4) the
+  `personaIds[0]` fallback: RETIRED — absent trigger fails LOUD. (5) narrator-as-system door:
+  SKIPPED — owner's actual want is the TAIL system slot (memory/WI riding a non-user/assistant
+  role at the tail), which the EXISTING per-model toggle already covers; depth probing deferred,
+  owner's words: "that can wait". (6) comment authoring: DEFERRED — storage + render land,
+  agents/system write only; human chrome is a later wave. **The identity build is now fully
+  specced + fully ruled — ready to become lanes whenever the owner calls it.**
+  Declared limits in §19.
 - **⚑ COMPACT-SAFETY SNAPSHOT (2026-08-08, \~93% context):** tree CLEAN at the REGX2 merge; repo
   `scratch/` holds the gitignored st-console-probe; ST runtime settings.json has
   `console_log_prompts: true` (deliberate debug aid). **IN-FLIGHT:** the CANON-IDENTITY STICKLER
