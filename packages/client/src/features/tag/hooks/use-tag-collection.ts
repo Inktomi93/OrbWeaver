@@ -19,6 +19,14 @@ export function useTagCount(): number | undefined {
   return useQuery(trpc.tag.listTagsWithUsage.queryOptions()).data?.length;
 }
 
+/** The OPEN member's name for the mobile pushed frame's topbar (the `useMemberTitle` seam) — the SAME
+ *  cached list the census and the rows read, so this is a cache hit and never a second request. */
+export function useTagMemberTitle(memberId: string): string | undefined {
+  const trpc = useTRPC();
+  const rows = useQuery(trpc.tag.listTagsWithUsage.queryOptions()).data;
+  return rows?.find((row) => row.id === memberId)?.name;
+}
+
 /** The create runner: mint a tag, then OPEN it in CONTENT — a create that leaves the user looking at the
  *  thing they just made, which is the whole reason the editor is mounted rather than popped. */
 export function useCreateTagMember(): () => void {

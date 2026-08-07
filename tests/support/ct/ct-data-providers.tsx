@@ -433,6 +433,13 @@ export interface CtFakeSection {
    *  Absent ⇒ the section's REAL seam when it has one, else a never-selected stand-in: a story that injects
    *  a `list` still has to answer "is anything open?", because the shell's rule is not optional. */
   readonly selection?: SectionSelection;
+  /** The section-owned TOPBAR header cluster (`SectionDefinition.header`) — production's chats section
+   *  supplies avatars + name + a member chip here, and it is what fills the topbar's LEAD. A story that
+   *  measures the row needs it, or the lead is one control wide and the defect cannot appear. */
+  readonly header?: ReactNode;
+  /** The section's `useSelectionTitle` for the story — absent ⇒ the REAL one when the section has it, else
+   *  a `null` stand-in (the shell falls back to the section label). */
+  readonly selectionTitle?: () => string | null;
 }
 
 /** The stand-in seam for a story-injected list over a section that owns no real selection store: nothing is
@@ -457,12 +464,18 @@ function fakeSection(id: SectionId, slot: CtFakeSection | undefined): SectionDef
     // A non-injected section renders its real placeholder (the planned arm) — the old "unwired ⇒ fallback".
     content: slot?.content !== undefined ? (): ReactNode => slot.content : { planned: "ct" },
     context: slot?.context !== undefined ? { kind: "single" as const, body: (): ReactNode => slot.context } : { kind: "none" as const },
+    useSelectionTitle: slot?.selectionTitle ?? real.useSelectionTitle,
+    ...(slot?.header === undefined ? {} : { header: (): ReactNode => slot.header }),
   };
   if (slot?.list === undefined) {
     return base;
   }
   // `list` and `selection` are ONE arm of the definition union (section-registry.ts) — the fake honours that
   // instead of casting around it, so a story exercises the same shell rule production does.
+  // `list` + `selection` + `useSelectionTitle` are ONE arm of the definition union (section-registry.ts) —
+  // the fake honours all three instead of casting around them, so a story exercises the same shell rule
+  // production does. A story-injected list over a section with no real seam gets the never-selected
+  // stand-in, whose title is `null` (the shell then prints the section label).
   return { ...base, list: (): ReactNode => slot.list, selection: slot.selection ?? real.selection ?? CT_NEVER_SELECTED };
 }
 

@@ -50,6 +50,10 @@ export interface ShellLayout {
   readonly openModalId: ModalSlotId | null;
   /** True when either panel is floating in overlay mode — the dismiss scrim shows behind it. */
   readonly scrimVisible: boolean;
+  /** The shell's MOBILE regime, republished on the view-model so shell chrome can express APPLICABILITY
+   *  without a second matchMedia read (`no-raw-matchmedia` keeps those in `use-is-mobile-viewport.ts`).
+   *  It is not a "mobile mode": each consumer states WHY its affordance does not apply on a phone. */
+  readonly mobileViewport: boolean;
   /** Is the CONTENT column unreachable right now — a scrim'd sheet is over it, OR (the ONE-SHELL rule) the
    *  mobile LIST is the screen: `docked`, but on a phone that resolves to a fixed 100dvw pane painted OVER
    *  this column rather than a track beside it. The roster carries no scrim (it is not a float over
@@ -172,17 +176,13 @@ export function useShellLayout(): ShellLayout {
     setFocusMode(!focusMode);
   };
 
-  // The way BACK out of a pushed detail (mobile, list-bearing, something open): clear the section's own
-  // selection through the seam it declared, and RELEASE the overlay request so the roster is the screen
-  // again — the exact state a fresh landing has, with no second "which screen am I on" flag anywhere.
+  // The way BACK out of a pushed detail (mobile, list-bearing, something open): the section's own declared
+  // clear, WHICH IS THE SAME FUNCTION every other back in the app calls (it drops the selection and
+  // releases the slide-over request — see `createDrillSelectionStore`). The shell adds nothing on top: a
+  // second write here is how the topbar door and an in-content Back came to land in two different states
+  // (side-eye P2).
   const selection = activeDef.selection;
-  const backToList =
-    isMobile && listAvailable && selection !== undefined && !nothingSelected
-      ? (): void => {
-          selection.clear();
-          setOpenOverlayPanel(null);
-        }
-      : null;
+  const backToList = isMobile && listAvailable && selection !== undefined && !nothingSelected ? selection.clear : null;
 
   return {
     backToList,
@@ -197,6 +197,7 @@ export function useShellLayout(): ShellLayout {
     openModalId,
     scrimVisible,
     contentInert,
+    mobileViewport: isMobile,
     togglePanel,
     collapsePanel,
     toggleFocus,

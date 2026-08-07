@@ -19,6 +19,7 @@ import { CorpusMapTab } from "../components/corpus-map-tab.tsx";
 import { CorpusSimilarityTab } from "../components/corpus-similarity-tab.tsx";
 import { CorpusVisualsTab } from "../components/corpus-visuals-tab.tsx";
 import { CorpusListSurface } from "../surfaces/corpus-list-surface.tsx";
+import { useCorpusSelectionTitle } from "./corpus-selection-title.ts";
 
 export const corpusSection: SectionDefinition = {
   id: "corpus",
@@ -41,6 +42,8 @@ export const corpusSection: SectionDefinition = {
   listHeader: () => <CorpusListHeader />,
   // How the SHELL reads "is a dossier open?" — the mobile ONE-SHELL rule's input + its back affordance.
   selection: corpusSectionSelection,
+  // …and what it calls the open dossier in the pushed frame's topbar.
+  useSelectionTitle: useCorpusSelectionTitle,
   content: () => <CorpusContent />,
   // Five owner-scoped analytics tabs, always available: Archetypes / Visuals / Map / Similarity / Compare.
   context: defineContextTabs<void>({

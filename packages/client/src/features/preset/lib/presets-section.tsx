@@ -19,6 +19,7 @@ import { PresetListHeader } from "../components/preset-list-header.tsx";
 import { PresetReadout } from "../components/readout/preset-readout.tsx";
 import { PresetReadoutHeader } from "../components/readout/preset-readout-header.tsx";
 import { PresetLibrarySurface } from "../surfaces/preset-library-surface.tsx";
+import { usePresetSelectionTitle } from "./preset-selection-title.ts";
 
 export const presetsSection: SectionDefinition = {
   id: "presets",
@@ -40,6 +41,8 @@ export const presetsSection: SectionDefinition = {
   listHeader: () => <PresetListHeader />,
   // How the SHELL reads "is a preset open?" — the mobile ONE-SHELL rule's input + its back affordance.
   selection: presetSectionSelection,
+  // …and what it calls the open preset in the pushed frame's topbar.
+  useSelectionTitle: usePresetSelectionTitle,
   content: () => <PresetContent />,
   // ONE readout, projected by the active editor view (§7) — read-only + navigation-only. The BAND names
   // that projection (crunch item 11): a pane whose content swaps per view cannot be titled "Details".

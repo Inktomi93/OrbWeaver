@@ -37,6 +37,7 @@ import { DatabankListHeader } from "../components/databank-list-header.tsx";
 import { DatabankDetailSurface } from "../surfaces/databank-detail-surface.tsx";
 import { DatabankLibrarySurface } from "../surfaces/databank-library-surface.tsx";
 import { DATABANK_CONTEXT_EMPTY } from "./databank-copy.ts";
+import { useDatabankSelectionTitle } from "./databank-selection-title.ts";
 
 export const databankSection: SectionDefinition = {
   id: "databank",
@@ -55,6 +56,8 @@ export const databankSection: SectionDefinition = {
   listHeader: () => <DatabankListHeader />,
   // How the SHELL reads "is a document open?" — the mobile ONE-SHELL rule's input + its back affordance.
   selection: databankSectionSelection,
+  // …and what it calls the open document in the pushed frame's topbar.
+  useSelectionTitle: useDatabankSelectionTitle,
   content: () => <DatabankDetailSurface />,
   // ONE activation body (the world-info posture): where the open document fires, plus the pointer to the
   // retrieval knobs. `empty` names what the pane WILL show — never the generic "Details / select something"

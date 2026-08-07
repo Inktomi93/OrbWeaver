@@ -47,8 +47,13 @@ export function CharacterLibraryToolbar({ query, onQueryChange }: CharacterLibra
     <Stack gap="field">
       {/* The title + create MOVED to the LIST chrome band (`characters-list-header.tsx`, D66 A1/A2 — the
           A1/N2 gap this section was the last to carry). What stays is the pane's own view machinery. */}
-      <Row align="center" gap="field">
-        <Input aria-label="Search characters" className="flex-1" onValueChange={onQueryChange} placeholder="Search characters…" value={query} />
+      {/* WRAPS AT THE NARROWEST MOUNT (side-eye P2). Four controls in one row is a 320px pane's whole
+          width: measured, the search box came out 95px against the 119px its own placeholder needs and
+          rendered "Search chai". The search is the row's PRIMARY control, so it carries a real floor and
+          the three view controls wrap beneath it instead — no viewport query, no second layout: the row
+          simply reflows when the pane cannot seat it. */}
+      <Row align="center" className="flex-wrap" gap="field">
+        <Input aria-label="Search characters" className="min-w-40 flex-1" onValueChange={onQueryChange} placeholder="Search characters…" value={query} />
         {/* `w-auto` beats the trigger's own `w-full` (FIELD_CONTROL): as a flex sibling of a `flex-1` Input a
             100%-wide trigger claims the whole row and crushes the search box to its ~26px minimum (stickler
             2026-08-01 F1 — measured 298.5px trigger vs a 26px input). Content-sized, the sort takes only its

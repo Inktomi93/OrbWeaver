@@ -12,7 +12,7 @@
 import { Hash } from "@orb/ui/icons";
 import type { CollectionContribution } from "#lib";
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
-import { useCreateTagMember, useTagCount } from "../hooks/use-tag-collection.ts";
+import { useCreateTagMember, useTagCount, useTagMemberTitle } from "../hooks/use-tag-collection.ts";
 import { TagMemberSurface } from "../surfaces/tag-member-surface.tsx";
 import { TAG_COLLECTION_ID } from "./tags-model.ts";
 
@@ -24,6 +24,7 @@ export const tagCollection: CollectionContribution = {
   blurb: "Colour-coded labels for characters, chats, books, personas and presets.",
   emptyText: "No tags yet.",
   useCount: useTagCount,
+  useMemberTitle: useTagMemberTitle,
   create: { label: "New tag", useRun: useCreateTagMember },
   list: (view) => <TagCollectionRows view={view} />,
   detail: (view) => <TagMemberSurface memberId={view.memberId} />,
