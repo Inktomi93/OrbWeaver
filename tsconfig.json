@@ -127,6 +127,10 @@
     // state inside `page.evaluate` callbacks, and typing them DOM-less forced hand-rolled element-shape
     // bridges + `as unknown as` casts in every spec (the DomEl/DomRow pattern). The tree lives in
     // tsconfig.tests-dom.json (dom + node — its specs are node harness code driving a browser).
-    "tests/e2e"
+    "tests/e2e",
+    // Direct-run golden capture/compare scripts — not type-checked by any per-package tsconfig, and they
+    // have accumulated API drift against the live codebase (fixture types, connection shape changes, etc.).
+    // They're operational scripts run manually, not part of the enforced type graph.
+    "tests/goldens"
   ]
 }

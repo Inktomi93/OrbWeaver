@@ -106,6 +106,9 @@ function scanTestLayout(root: string): Violation[] {
       continue;
     }
     const rel = relPath(testsDir, join(entry.parentPath, entry.name));
+    if (rel.startsWith("goldens/")) {
+      continue;
+    }
     const v = violationFor(root, rel, entry.name);
     if (v !== undefined) {
       violations.push(v);

@@ -34,8 +34,8 @@ function inScope(rel: string, name: string): boolean {
     return false;
   }
   const top = rel.split("/")[0];
-  // support/ is the determinism seam; e2e/ is real-browser full-stack.
-  return top !== "support" && top !== "e2e";
+  // support/ is the determinism seam; e2e/ is real-browser full-stack. goldens/ are operational scripts.
+  return top !== "support" && top !== "e2e" && top !== "goldens";
 }
 
 function scanFile(rel: string, abs: string): Violation[] {

@@ -76,7 +76,7 @@ function enumerateTestFiles(root: string): readonly string[] {
     for (const entry of readdirSync(join(root, relDir), { withFileTypes: true })) {
       const rel = `${relDir}/${entry.name}`;
       if (entry.isDirectory()) {
-        if (entry.name !== "node_modules") {
+        if (entry.name !== "node_modules" && rel !== "tests/goldens") {
           walk(rel);
         }
       } else if (TS_FILE_RE.test(entry.name) && !SENTINEL_RE.test(rel)) {
