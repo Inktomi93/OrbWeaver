@@ -10,6 +10,7 @@ import type { ChatApi } from "@orb/contracts/connection";
 import type { CredentialSource } from "@orb/contracts/credentials";
 import type { SpanAttrs } from "#foundation/observability";
 import { span } from "#foundation/observability";
+import { flattenAbortSignal } from "../backends/kit/index.ts";
 import type { BackendKey, BackendRegistry, ProviderBackend } from "../contract/index.ts";
 import { ProviderError } from "../contract/index.ts";
 
@@ -155,8 +156,21 @@ export function requireBackend(registry: BackendRegistry, key: BackendKey, role:
  * The DIAGNOSTICS dispatch (`../diagnostics.ts`) deliberately stays on the bare `requireRoleImpl`: probes,
  * catalog fetches and credit reads are not inference, and folding them into `providerDurationMs` would make
  * "time this request spent generating" mean something else.
+ *
+ * IT IS ALSO WHERE THE CALLER'S ABORT SIGNAL IS FLATTENED (STRUCTURED-ABORT-REASON-LEAK, 2026-08-06). Every
+ * role request carries an optional caller `signal`, and handing it to a backend UNCHANGED lets the caller's
+ * abort REASON reach `fetch` and become the error text `classifyTransportName` reads — a cancellation whose
+ * reason merely contains "timeout"/"connection"/"network" classifies as a retryable `server` fault and gets
+ * RE-RUN (by `backends/kit/retry.ts` on the chat runners, and by the OpenRouter SDK's own default
+ * `retryConfig` on the batch roles). The streaming chat runners were already protected because they re-wrap
+ * through `turnAbortSignal`; the batch roles (`structured` — the rpg extraction's arm — plus summarize /
+ * embed / rerank / imageEmbed / generateImage) passed `req.signal` straight through. Flattening HERE, at the
+ * ONE seam every role dispatch crosses, covers all of them and makes the mistake unavailable to a FUTURE
+ * role: a dispatcher cannot forget a step it never performs. The full law lives in
+ * `backends/kit/abort-flatten.ts`. Cancellation semantics are unchanged (same instant, same propagation);
+ * only the reason — which was never the provider layer's to interpret — is dropped.
  */
-export function runRole<Req, Res>(args: {
+export function runRole<Req extends { readonly signal?: AbortSignal | undefined }, Res>(args: {
   readonly backend: ProviderBackend;
   readonly impl: ((req: Req) => Promise<Res>) | undefined;
   readonly role: string;
@@ -166,7 +180,15 @@ export function runRole<Req, Res>(args: {
 }): Promise<Res> {
   const { backend, role } = args;
   const run = requireRoleImpl(backend, args.impl, role);
-  return span(`provider.${role}`, () => run(args.req), { "provider.backend": backend.key, "provider.role": role, ...args.attrs });
+  const attrs: SpanAttrs = { "provider.backend": backend.key, "provider.role": role, ...args.attrs };
+  const external = args.req.signal;
+  if (external === undefined) {
+    return span(`provider.${role}`, () => run(args.req), attrs);
+  }
+  // Our own mirror of the caller's signal — the backend never sees the caller's reason.
+  const flat = flattenAbortSignal(external);
+  const req = { ...args.req, signal: flat.signal };
+  return span(`provider.${role}`, () => run(req), attrs).finally(flat.dispose);
 }
 
 /** Pull a role's impl off a resolved backend, or fail-closed: a backend that doesn't serve the

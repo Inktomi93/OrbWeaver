@@ -7,6 +7,9 @@
 // the OpenAI SSE reducer/mapper, the cache_control constants + placement primitive, the reasoning XOR
 // builders, the lenient wire parses, the HTTP error table, pre-commit retry, idle-abort, error sanitize.
 
+// ── Caller-signal flattening (the abort REASON never reaches the transport classifier) ─────────────
+export type { FlattenedAbort } from "./abort-flatten.ts";
+export { flattenAbortSignal, foldAbortInto } from "./abort-flatten.ts";
 // ── Outbound image → Anthropic Messages content block (MA-10; agent-sdk summarize) ────────
 export { toAnthImageBlock } from "./anth-image-block.ts";
 // ── Anthropic cache_control: constants, the model anchor, the routing pin, the placement primitive ──
