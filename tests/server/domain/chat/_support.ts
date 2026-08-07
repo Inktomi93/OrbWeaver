@@ -38,6 +38,7 @@ import { can } from "@orb/server/domain/admin";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
 import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
+import { pruneChatDigests, pruneChatSegments } from "../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
@@ -460,6 +461,17 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
       return rows[0]?.ownerId === ownerId;
     },
     embeddingsStore: notStubbed,
+    // Default = the REAL prune against the seeded vector tables (the `verifyPersonaOwned` precedent), not a
+    // stub: the shrink reclaim is a CORRECTNESS step of every build pass, so a memory test that fakes it
+    // would prove the build while silently exempting the half that deletes. It calls the same
+    // embeddings/persistence functions the composition root wires — the DELETE has one home.
+    embeddingsPruneBlocks: async (params) => {
+      if (params.lens === "digest") {
+        await pruneChatDigests(db, params.chatId, params.scopedCharacterId, params.keepPerTier);
+        return;
+      }
+      await pruneChatSegments(db, params.chatId, params.keepBlockCount);
+    },
     searchDigests: notStubbed,
     searchCorpus: notStubbed,
     log: () => undefined,

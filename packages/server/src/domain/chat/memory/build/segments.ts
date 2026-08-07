@@ -44,6 +44,11 @@ export async function generateSegments(ctx: ChatContext, args: GenerateSegmentsA
 
   const canon = await loadCanonThroughSeq(ctx.db, args.chatId, cutoff);
   const blocks = sliceBlocks(canon, cfg.blockSize);
+  // The SHRINK reclaim (the digest build's twin): the content-hash self-heal only reaches a block that still
+  // EXISTS, so a block that VANISHED when the ingest set shrank would otherwise keep its segment forever. A
+  // stale segment is not merely dead weight — it carries the `(seqStart, seqEnd)` span the recall witnessing
+  // filter resolves digest hits through, so it would map a live hit onto rows that are no longer ingested.
+  await ctx.embeddingsPruneBlocks({ lens: "segment", chatId: args.chatId, keepBlockCount: blocks.length });
   const existing = await loadSegmentHashes(ctx.db, args.chatId);
 
   let written = 0;

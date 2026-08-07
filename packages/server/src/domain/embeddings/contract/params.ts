@@ -148,6 +148,36 @@ export interface PruneDocumentChunksParams {
   readonly model: string;
 }
 
+/** `pruneMemoryBlocks` input — the chat-memory SHRINK seam (the {@link PruneDocumentChunksParams} idiom for
+ *  the two memory tables). memory's build STORES every current block then calls this to reclaim the blocks
+ *  that no longer exist: hiding a trailing span, deleting rows, or any other shrink of the ingest set stops
+ *  producing the trailing block, and the content-hash self-heal cannot reach a block that VANISHED — it only
+ *  re-summarizes blocks that still exist. Without the prune, the digest summarized FROM the removed rows
+ *  stayed in the recall pool.
+ *
+ *  Two arms mirroring the `store` op's own digest/segment split (same lens vocabulary, same reason: digests
+ *  are scope-keyed and tiered, segments are chat-wide and flat). The delete lives in embeddings — the table
+ *  owner — because chat never touches the vector tables directly (the single-write-path invariant, D20). */
+interface PruneDigestBlocksParams {
+  readonly lens: "digest";
+  readonly chatId: ChatId;
+  readonly scopedCharacterId: CharacterId;
+  /** The surviving block COUNT per tier (index = tier): every stored row with `blockIdx >= keepPerTier[tier]`
+   *  is beyond canon. The caller derives the whole array from ONE number (tier 0's block count) by the same
+   *  `floor(children / fanOut)` rule the consolidation writer uses, which is what makes the cascade upward
+   *  automatic: a parent that folded a pruned block is itself beyond its tier's ceiling. */
+  readonly keepPerTier: readonly number[];
+}
+
+interface PruneSegmentBlocksParams {
+  readonly lens: "segment";
+  readonly chatId: ChatId;
+  /** Segments are chat-wide and single-tier — one ceiling, no scope bucket. */
+  readonly keepBlockCount: number;
+}
+
+export type PruneMemoryBlocksParams = PruneDigestBlocksParams | PruneSegmentBlocksParams;
+
 /** The databank chunk-count read (the DocumentView `chunkCount`/`embeddedCount` derivation). embeddings owns
  *  `document_chunks`, so databank reaches this count through the injected op — never a direct table import. */
 export interface CountDocumentChunksParams {

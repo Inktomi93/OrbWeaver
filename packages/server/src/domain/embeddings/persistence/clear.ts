@@ -6,7 +6,7 @@
 
 import type { Db } from "@orb/db";
 import { characterEmbeddings, chatDigests, chatSegments, documentChunks, imageEmbeddings } from "@orb/db";
-import type { DocumentId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
 import { and, eq, gte, ne, or } from "drizzle-orm";
 import type { VectorTable } from "../contract/params.ts";
 
@@ -74,6 +74,46 @@ export async function purgeStaleVectors(db: Db, table: VectorTable, activeModel:
     default:
       return assertNever(table);
   }
+}
+
+/** The chat-memory SHRINK seam (stickler 2026-08-08 canon-message-identity, leg-2 refutation) — the
+ *  `pruneDocumentChunks` idiom for `chat_digests`. Memory's blocks are sliced by POSITION and stored keyed
+ *  `(tier, blockIdx)`, so when the ingest set shrinks (a host hides a trailing span, rows are deleted, a
+ *  compaction cutoff moves) the trailing block stops being produced — and the content-hash self-heal CANNOT
+ *  reach it, because that heal only ever re-summarizes a block that still EXISTS. Nothing else deletes it, so
+ *  a digest summarized verbatim FROM the removed rows stayed recallable. This is the delete that closes it.
+ *
+ *  `keepPerTier[k]` is the surviving block COUNT at tier k, so every row with `blockIdx >= keepPerTier[tier]`
+ *  is beyond canon and goes; a tier with no entry (beyond the configured ceiling) is left alone rather than
+ *  wiped, since it is out of this pass's authority. The upward CASCADE falls out of the counts the caller
+ *  derives: a tier-(k+1) parent exists only over a COMPLETE fanOut group, so a shrink at tier 0 lowers every
+ *  ceiling above it and the consolidation that folded a pruned block is pruned by the same DELETE.
+ *  `chat_digest_speakers` rows follow via their FK CASCADE — no orphan join rows.
+ *
+ *  Scope-keyed (`scopedCharacterId`), because a shrink is per-bucket: the witnessing filter means two buckets
+ *  legitimately hold different block sets. Returns the count deleted. Store-then-prune, like its sibling. */
+export async function pruneChatDigests(db: Db, chatId: ChatId, scopedCharacterId: CharacterId, keepPerTier: readonly number[]): Promise<number> {
+  if (keepPerTier.length === 0) {
+    return 0;
+  }
+  const beyondCanon = keepPerTier.map((keep, tier) => and(eq(chatDigests.tier, tier), gte(chatDigests.blockIdx, keep)));
+  const rows = await db
+    .delete(chatDigests)
+    .where(and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId), or(...beyondCanon)))
+    .returning({ id: chatDigests.id });
+  return rows.length;
+}
+
+/** The `chat_segments` twin of {@link pruneChatDigests}. Segments are single-tier and chat-wide (NOT
+ *  scope-keyed — `chat_segments` is `(chatId, blockIdx)`), so the shrink is one ceiling: every block beyond
+ *  `keepBlockCount` indexes canon rows that are no longer ingested. A stale segment is worse than dead
+ *  weight — it carries a `(seqStart, seqEnd)` span the recall witnessing filter resolves digests through. */
+export async function pruneChatSegments(db: Db, chatId: ChatId, keepBlockCount: number): Promise<number> {
+  const rows = await db
+    .delete(chatSegments)
+    .where(and(eq(chatSegments.chatId, chatId), gte(chatSegments.blockIdx, keepBlockCount)))
+    .returning({ id: chatSegments.id });
+  return rows.length;
 }
 
 /** databank-design/05 §2.4 — the reindex-shrink seam. After the ingest upserts a document's current chunks

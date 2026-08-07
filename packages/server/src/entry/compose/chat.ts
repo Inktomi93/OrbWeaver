@@ -1023,6 +1023,21 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
         dim: env.VLLM_EMBED_DIM,
       });
     },
+    // The SHRINK half of the same seam: memory stores every block that exists, then reclaims the ones that
+    // stopped existing. Straight pass-through of the two lens arms — the DELETE itself lives in embeddings
+    // (the one vector write path, D20), and chat never touches `chat_digests`/`chat_segments` directly.
+    embeddingsPruneBlocks: async (params) => {
+      if (params.lens === "digest") {
+        await input.embeddings.pruneMemoryBlocks({
+          lens: "digest",
+          chatId: params.chatId,
+          scopedCharacterId: params.scopedCharacterId,
+          keepPerTier: params.keepPerTier,
+        });
+        return;
+      }
+      await input.embeddings.pruneMemoryBlocks({ lens: "segment", chatId: params.chatId, keepBlockCount: params.keepBlockCount });
+    },
     // DB6: absent ⇒ the field stays unset ⇒ GATHER skips the databank branch (byte-identical no-op).
     ...(input.gatherDatabank !== undefined ? { gatherDatabank: input.gatherDatabank } : {}),
     searchDigests: (query) => input.search.digests(query).then((hits) => hits.map((h) => h.blockKey)),
