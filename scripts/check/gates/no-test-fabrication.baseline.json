@@ -15,7 +15,6 @@
   "tests/server/domain/character/persistence/queries.int.test.ts": 1,
   "tests/server/domain/character/substrate/card-merge.test.ts": 11,
   "tests/server/domain/chat/assembly/assemble.test.ts": 2,
-  "tests/server/domain/chat/assembly/speaker-card.test.ts": 2,
   "tests/server/domain/chat/engine/auto-mode.test.ts": 1,
   "tests/server/domain/chat/engine/engine.int.test.ts": 3,
   "tests/server/domain/chat/engine/pipeline.test.ts": 8,

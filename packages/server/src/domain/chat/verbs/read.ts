@@ -474,7 +474,12 @@ async function buildPreviewContext(
     inputs.foreign,
   );
   const primary = gathered.castMembers?.[0];
-  return primary === undefined ? gathered : shapeContextForSpeaker(gathered, { ref: primary, cardScope: "merged" });
+  // `output: "per-speaker"` is the preview's own pinned axis, the same one `shapeNextTurn` hardcodes below:
+  // a preview has no arbitrated round, so it renders the primary speaker's turn. A NARRATOR room therefore
+  // previews its per-speaker shape rather than its cast shape — a known preview-fidelity gap, not a turn-path
+  // one (the turn reads `TurnSpeakerShape.output`), and closing it means threading the room's group config
+  // into `PreviewInputs`.
+  return primary === undefined ? gathered : shapeContextForSpeaker(gathered, { ref: primary, output: "per-speaker", cardScope: "merged" });
 }
 
 /** `listChats` — the caller's chats (pure membership, host or member), newest-updated first. */

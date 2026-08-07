@@ -63,8 +63,9 @@ export function buildShapeTrace(...args: Parameters<typeof buildShapeTraceImpl>)
   return buildShapeTraceImpl(...args);
 }
 
-/** The per-speaker CARD-SECTION shape (the two-axis `shape(ctx, speaker)`): pick the active
- *  speaker's card + co-speakers off the immutable ctx (D60). The legal `engine/ → assembly/` bridge. */
+/** The per-turn CARD-SECTION shape (the three-axis `shape(ctx, speaker)`, output × cardScope × ref): pick the
+ *  active speaker's card + co-speakers off the immutable ctx under `per-speaker`, or the WHOLE cast's under
+ *  `narrator` (D60). The legal `engine/ → assembly/` bridge. */
 export function shapeContextForSpeaker(...args: Parameters<typeof shapeContextForSpeakerImpl>): ReturnType<typeof shapeContextForSpeakerImpl> {
   return shapeContextForSpeakerImpl(...args);
 }
