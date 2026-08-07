@@ -34,9 +34,26 @@ import { SceneCast, SceneKnownCharacters } from "./rpg-scene-cast.tsx";
 
 const RECENT_BEATS = 3;
 
+/** The CLEAR overlay for one ambient field — the [merge-clear] `null` where the leaf is nullable, and the
+ *  leaf's own empty value where it is not. `location` is a TOTAL string in the snapshot state (its empty
+ *  value is `""`), and the hand door REFUSES a `null` there rather than coercing it (edit-snapshot.ts gate 2),
+ *  so the two arms are not interchangeable. A TOTAL map keyed by the strip's own field vocabulary: a new
+ *  ambient field must state how it clears rather than silently inheriting the wrong arm. */
+const AMBIENT_CLEAR: Readonly<Record<"location" | "date" | "timeOfDay" | "weather", Partial<RpgSnapshotState>>> = {
+  location: { location: "" },
+  date: { calendarDate: null },
+  timeOfDay: { clock: null },
+  weather: { weather: null },
+};
+
 /** Build the `editSnapshot` overlay for one ambient field edit (§2.7 — timeOfDay steers the clock through
- *  the label→hour mapping). Returns `null` for an unknown timeOfDay label (no-op). */
-function ambientPatch(field: "location" | "date" | "timeOfDay" | "weather", next: string, currentDay: number): Partial<RpgSnapshotState> | null {
+ *  the label→hour mapping). `next === null` is the strip's CLEAR (a closed-vocab field has no "nothing"
+ *  member, so the clear rides the field's nullability — see the strip's header). Returns `null` for an
+ *  unknown timeOfDay label (no-op). */
+function ambientPatch(field: "location" | "date" | "timeOfDay" | "weather", next: string | null, currentDay: number): Partial<RpgSnapshotState> | null {
+  if (next === null) {
+    return AMBIENT_CLEAR[field];
+  }
   if (field === "location") {
     return { location: next };
   }
@@ -75,7 +92,7 @@ const AMBIENT_LOCK_PATH: Readonly<Record<"location" | "date" | "timeOfDay" | "we
  *  NOTE (#39 dual-homing): goals are NOT edited here — the Quests tab is the quest plane's ONE edit home;
  *  a Scene goal row NAVIGATES there (`revealContextPanel("rpg.quests")`), never a second editor. */
 interface SceneEditCallbacks {
-  readonly onEditAmbient?: (field: "location" | "date" | "timeOfDay" | "weather", next: string) => void;
+  readonly onEditAmbient?: (field: "location" | "date" | "timeOfDay" | "weather", next: string | null) => void;
   readonly castEdit?: SceneCastEdit;
   readonly onEditGameTracker?: (entry: RpgTrackerEntry, next: number) => void;
   /** Release a hand-lock path back to the model (§12.3). Present only for a host (same gate as the edits). */
@@ -167,7 +184,7 @@ function sectionLockPin(locked: ReadonlySet<string>, path: keyof typeof LOCK_PAT
 function ambientStripProps(
   ambient: RpgTrackerView["ambient"],
   locked: ReadonlySet<string>,
-  onEditAmbient: ((field: "location" | "date" | "timeOfDay" | "weather", next: string) => void) | undefined,
+  onEditAmbient: ((field: "location" | "date" | "timeOfDay" | "weather", next: string | null) => void) | undefined,
   onReleaseLock: ((path: string) => void) | undefined,
 ): Parameters<typeof AmbientStrip>[0] {
   return {
