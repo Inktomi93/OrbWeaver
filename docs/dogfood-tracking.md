@@ -688,7 +688,8 @@ folded turn by construction, so `finishReason` is the tell there.
 
 **Verified:** typecheck clean; engine + foundation suites 366 passed.
 
-**Gate/test to write:** assert the warn fires with a populated `finishReason` on a prose-less completion.
+**Gate/test to write:** ✅ `tests/server/domain/chat/engine/engine.int.test.ts` — "EMPTYGEN-UNLOGGED: the
+refusal is OBSERVABLE — a warn fires carrying the populated finishReason".
 
 *(original report below)*
 
@@ -936,8 +937,11 @@ write weather at all; it is merely no longer fatal to the rest of the call. Same
 exclusion. Until it is widened, expect a steady `salvagedFields: ["update_scene.weather"]` on indoor scenes —
 which is now the visible symptom rather than a silent whole-plane loss.
 
-**Gate/test to write:** a property test that every closed enum reachable from a tool arg can express what the
-reminder can RENDER (an indoor scene renders, so it must be writable).
+**Gate/test to write:** ✅ `tests/contracts/rpg/extraction.contract.test.ts` — "SCENE-DROPPED property: every
+RPG_WEATHER_TYPES member (as imported) parses through the write schema" (write ⊆ render, always holds) + a
+`test.todo` FAILING-PIN for the reverse (indoor render vs write) that flips green when the sibling DOG-ENGINE
+lane lands `"indoors"` + "SCENE-DROPPED salvage: an invalid OPTIONAL field costs only that field, not the
+whole call".
 
 *(original report below)*
 
@@ -1026,8 +1030,9 @@ update_scene.arguments: not valid JSON
 **Verified:** typecheck clean; `pnpm check` green; `tests/contracts/rpg/extraction.contract.test.ts` +
 `tests/server/entry/compose/rpg.int.test.ts` 125 passed (the names contract is unchanged).
 
-**Gate/test to write:** assert `droppedIssues` names the field for a known-bad arg — the regression that
-would silently return us to name-only logging.
+**Gate/test to write:** ✅ `tests/contracts/rpg/extraction.contract.test.ts` — "TOOLDROP-BLIND: droppedIssues
+names the field, the reason, and the value the model SENT" + "TOOLDROP-BLIND: non-JSON arguments carry their
+own single issue, not a field path".
 
 ---
 
@@ -1261,8 +1266,13 @@ stream released at the deadline instead of hanging:
 (An earlier attempt with a *synthetic* socket failed to reproduce — the server closed it before the
 deadline. The live SSE stream is what actually holds it.)
 
-**Gate/test to write:** the one that matters — open a long-lived stream, SIGTERM, assert shutdown completes
-within \~`SHUTDOWN_DRAIN_MS` + slack and that the warn fired. That is the untested half.
+**Gate/test to write:** ✅ `tests/server/entry/lifecycle.test.ts` — "a held-open stream (an in-flight
+response that never ends) is force-closed at the deadline, and the warn fires". `drainHttpServer` is now an
+exported function (`entry/lifecycle.ts`, `drainMs` param) so the test drives it directly against a real open
+socket instead of only being provable live. **The earlier synthetic-socket miss above is explained**: a raw
+socket that never SENDS a request is `closeIdleConnections()`'s idle case and gets dropped immediately — the
+reproduction needs a request actually IN FLIGHT (the server writes a response head + a chunk and never
+`.end()`s), which is what an SSE stream is and what the new test does.
 
 **Effort:** done (test owed)
 
@@ -1294,8 +1304,11 @@ seam. An int test forcing capture via the flag records requests but NOT outcomes
 **Verified:** typecheck clean; `pnpm check` green; engine + foundation 366 passed; both routes return 200
 live; spill file written.
 
-**Gate/test to write:** outcome recorded for a refused turn; spill rotation at the cap; the gating asymmetry
-pinned so it is a decision, not a surprise.
+**Gate/test to write:** ✅ `tests/server/foundation/observability/debug/wire-capture.suite.test.ts` —
+"with capture ON: an outcome is recorded for a REFUSED (zero-content) turn and reads back" + "GATING
+ASYMMETRY: with capture OFF, recordTurnOutcome self-gates to a no-op — recordWireCapture does NOT (compose
+decides)" + "spill rotates at the byte cap: exceeding it renames the current file before the next append"
+(mocked `node:fs/promises` — writing 32 MiB for real would be slow/brittle).
 
 ---
 
@@ -1313,8 +1326,13 @@ forever, which is how this class recurs. Option 1 removes the divergence by cons
 **Verified:** the 3 failures below pass with the operator's live `AUTH_MODE=oidc` still armed —
 `tests/server/foundation` 139 pass, `tests/server/entry/app.test.ts` 20/20.
 
-**Gate/test to write:** `tests/server/foundation/env/index.test.ts` now pins that the debug/observability
-gates default OFF; still owed is a check that no test reads an operator-supplied var.
+**Gate/test to write:** ✅ `tests/server/foundation/env/index.test.ts` — "ORB_ENV_NO_FILE skips the .env load
+ENTIRELY — a real file's values never reach env, even unset keys" (pins the MECHANISM directly, a real `.env`
+file that would otherwise fill several keys) + "ORB_ENV_NO_FILE is what `pnpm test` actually runs under…"
+(asserts the real `vitest.config.ts` global `env:` block, so a future revert of that block goes red here). A
+mechanical "no test reads an operator var" sweep is not definable — any test may legally read `env.<X>`, that
+is what the module is for; the honest, load-bearing arm is that the gate making the operator's ambient env
+irrelevant is actually armed for every test process, which these two pin directly.
 
 *(original report below)*
 
