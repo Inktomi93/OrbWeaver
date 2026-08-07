@@ -29,17 +29,22 @@
 //      is what "in flight" means) and degrades to the game-wide fallback, which hands the hand door an OLDER
 //      slot's uncommitted row.
 
-import type { ChatTurnId, Handle } from "@orb/kit/ids";
+import { messages } from "@orb/db";
+import type { ChatId, ChatTurnId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { findSnapshotByVariant } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
+import { eq } from "drizzle-orm";
+import { findSnapshotByVariant, resolveSnapshotHead } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../support/db.ts";
-import { expect, pinExtractionMode, principal, seedLiteGame, seedMessage, test, turnConnection } from "./_support.ts";
+import { actorWithWallet, addVariant, expect, pinExtractionMode, principal, quest, seedLiteGame, seedMessage, test, turnConnection } from "./_support.ts";
 
 const HOST = principal(castId<Handle>("host"));
 
 /** The round's delta — deliberately on a DIFFERENT ambient plane than the hand edit below, so "who won" is not
  *  a coin-flip on one field but a question of whether BOTH writers' work is present. */
 const ROUND_DELTA = { statePatch: { weather: { type: "fog", label: "nightfall mist" } }, journal: [] };
+
+/** The refused fold's reason must name the FIELD the contract belt rejected, not just that something failed. */
+const LOCATION_RE = /location/i;
 
 /** Park until the state round has actually STARTED (it records its call before awaiting the gate), so the hand
  *  edit provably lands MID-flight. A fixed tick count would be a guess that passes or fails by machine speed —
@@ -216,4 +221,177 @@ test("no flush in flight: the hand door still writes IN PLACE on the settled tur
   expect(row?.location).toBe("the ford");
   expect(row?.weather?.type).toBe("fog"); // the round's write is on the same row, untouched
   expect(row?.fieldLocks).toEqual({ location: true });
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// THE FOLD'S OWN VICTIMS — the fresh-context verifier's two driven counterexamples against the first fix.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════════════
+// Both are about WHAT the fold replays, and WHAT it says when it cannot.
+//   CE1 — folding the turn's COMPOSED STATE re-asserted its now-stale base over the human's gesture, and the
+//         REMOVAL verbs are where that bit: they deliberately CLEAR the locks of what they removed (the
+//         symmetric grammar), so nothing stopped the base's copy of a dismissed actor / deleted quest from
+//         being re-inserted. The fold now replays the round's PATCHES, so a datum the round never mentioned
+//         cannot be resurrected whatever its lock says.
+//   CE2 — a hand row landing at a LATER beat (the user sends their next message mid-flight, then steers) made
+//         the fold bail out SILENTLY, erasing the turn's writes with no trail. It now folds into the newer
+//         hand head, and every arm that still loses is LOUD.
+
+/** Seed a settled beat that mints an actor + their presence, then lock it in with the ordinary next send. */
+async function seedActorBeat(h: Awaited<ReturnType<typeof seedLiteGame>>["h"], chatId: ChatId): Promise<void> {
+  h.fakes.toolRoundDelta = { statePatch: { actorState: [actorWithWallet("mara", 3, 2)], presentCharacters: ["cast:mara"] }, journal: [] };
+  const beat = await seedMessage(h.ctx.db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_seed"), turnConnection());
+  const sent = await seedMessage(h.ctx.db, chatId, 2, { role: "user", content: "ok" });
+  await h.chatOps.onUserCommit(chatId, sent.messageId);
+}
+
+test("CE1: a mid-flight dismissActor is NOT undone by the fold (the round's own write still lands)", async () => {
+  const db = await freshDb();
+  const { chatId, gameId, h } = await seedLiteGame(db, {});
+  await pinExtractionMode(h, chatId, "cheap");
+  await seedActorBeat(h, chatId);
+
+  // The next beat's round writes only WEATHER — it never mentions the actor, so nothing it wrote can justify
+  // her return. Anything that brings her back came from the fold's own stale base.
+  h.fakes.toolRoundDelta = ROUND_DELTA;
+  const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
+  let releaseRound = (): void => undefined;
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
+    releaseRound = resolve;
+  });
+  const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_dismiss"), turnConnection());
+  await untilRoundStarted(h.fakes.toolRoundCalls, 2);
+  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: "mara" } })).resolves.toEqual({ ok: true });
+  releaseRound();
+  await flush;
+
+  const head = await resolveSnapshotHead(db, { id: gameId, chatId });
+  expect(head?.row.actorState ?? []).toHaveLength(0); // she STAYS dismissed
+  expect(head?.row.presentCharacters ?? []).toHaveLength(0); // and so does her presence
+  const view = await h.service.getTrackerView({ principal: HOST, chatId });
+  expect(view.actors.some((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "mara")).toBe(false);
+  expect(view.ambient?.weather?.type).toBe("fog"); // …while the round's own write is not sacrificed to save her
+});
+
+test("CE1: a mid-flight deleteQuest is NOT undone by the fold either (the same class, the other removal verb)", async () => {
+  const db = await freshDb();
+  const { chatId, gameId, h } = await seedLiteGame(db, {});
+  await pinExtractionMode(h, chatId, "cheap");
+  h.fakes.toolRoundDelta = { statePatch: { quests: [quest("k1")] }, journal: [] };
+  const first = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, first.messageId, first.variantId, castId<ChatTurnId>("chat_turn_q1"), turnConnection());
+  const sent = await seedMessage(db, chatId, 2, { role: "user", content: "ok" });
+  await h.chatOps.onUserCommit(chatId, sent.messageId);
+
+  h.fakes.toolRoundDelta = ROUND_DELTA;
+  const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
+  let releaseRound = (): void => undefined;
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
+    releaseRound = resolve;
+  });
+  const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_q2"), turnConnection());
+  await untilRoundStarted(h.fakes.toolRoundCalls, 2);
+  await h.service.deleteQuest({ principal: HOST, chatId, questId: castId("q_k1") }); // returns void, unlike the other hand doors
+  releaseRound();
+  await flush;
+
+  const head = await resolveSnapshotHead(db, { id: gameId, chatId });
+  expect(head?.row.quests ?? []).toHaveLength(0);
+  expect(head?.row.weather?.type).toBe("fog");
+});
+
+test("CE1 (no race at all): dismiss, then REGEN that slot — the reroll's fold must not resurrect her", async () => {
+  const db = await freshDb();
+  // A REGRESSION GUARD, not a defect proof — MEASURED green against the pre-fix source too, and the reason is
+  // worth keeping: a reroll of slot N bases on `beforeSlot(N)`, which excludes the very beat that minted the
+  // actor, so the stale base never carried her and there was nothing to resurrect. The race is what made the
+  // class bite (there the minting beat is BELOW the flushing slot and so IS in the base). This pins that the
+  // ordinary swipe gesture stays clean under the patch-replaying fold.
+  const { chatId, gameId, h } = await seedLiteGame(db, {});
+  await pinExtractionMode(h, chatId, "cheap");
+  h.fakes.toolRoundDelta = { statePatch: { actorState: [actorWithWallet("mara", 3, 2)], presentCharacters: ["cast:mara"] }, journal: [] };
+  const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_r1"), turnConnection());
+  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "cast", castKey: "mara" } })).resolves.toEqual({ ok: true });
+
+  // Reroll the SAME assistant slot: a new variant, selected — the swipe pointer moves with zero snapshot writes.
+  const rerolled = await addVariant(db, beat.messageId, 1, "b");
+  await db.update(messages).set({ selectedVariantId: rerolled }).where(eq(messages.id, beat.messageId));
+  h.fakes.toolRoundDelta = ROUND_DELTA;
+  await h.chatOps.onTurnCompleted(chatId, beat.messageId, rerolled, castId<ChatTurnId>("chat_turn_r1b"), turnConnection());
+
+  const head = await resolveSnapshotHead(db, { id: gameId, chatId });
+  expect(head?.row.actorState ?? []).toHaveLength(0);
+  expect(head?.row.presentCharacters ?? []).toHaveLength(0);
+  expect(head?.row.weather?.type).toBe("fog"); // the reroll's own extraction still lands
+});
+
+test("CE2: the user sends their NEXT message mid-flight, then steers — the turn's write survives, silent no more", async () => {
+  const db = await freshDb();
+  // The hand row lands one beat DOWN the story (its as-of stamp is the new tail), so it sits at a seq ABOVE the
+  // flushing slot. The first fix bailed out on that mismatch and said NOTHING, erasing the round's write with an
+  // empty trail. State planes are cumulative and the round's patches are the newest MODEL knowledge whatever
+  // beat produced them, so they are replayed onto the newer hand head — locks arbitrating exactly as ever.
+  const { chatId, gameId, h } = await seedLiteGame(db, { toolRoundDelta: ROUND_DELTA });
+  await pinExtractionMode(h, chatId, "cheap");
+  const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
+
+  let releaseRound = (): void => undefined;
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
+    releaseRound = resolve;
+  });
+  const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_ce2"), turnConnection());
+  await untilRoundStarted(h.fakes.toolRoundCalls, 1);
+  await seedMessage(db, chatId, 2, { role: "user", content: "I cross." }); // the next send, while the round is out
+  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the drowned chapel" } })).resolves.toEqual({ ok: true });
+  releaseRound();
+  await flush;
+
+  const view = await h.service.getTrackerView({ principal: HOST, chatId });
+  expect(view.ambient?.weather?.type).toBe("fog"); // the turn's write is no longer erased by the later hand row
+  expect(view.ambient?.location).toBe("the drowned chapel"); // and the human still holds the field they claimed
+  // Nothing was LOST, so nothing is reported — the loud arms are for real losses, not for every fold.
+  expect(h.fakes.flushDrops).toEqual([]);
+  // The event names the row that is actually head (the FOLD's row, never the turn row the flush wrote).
+  const head = await resolveSnapshotHead(db, { id: gameId, chatId });
+  const patched = h.fakes.busEvents.filter((e) => e.type === "snapshotPatched");
+  expect(patched.at(-1)).toEqual({ type: "snapshotPatched", chatId, snapshotId: head?.row.id });
+});
+
+test("the fold's REFUSAL arm fires onFlushDropped (a rejected merge is never silent)", async () => {
+  const db = await freshDb();
+  // Driving the contract belt through real verbs: the ACCUMULATOR honors the pre-slot BASE's locks while the
+  // FOLD honors the hand head's, so a RELEASED lock is what makes the same patch legal in one merge and poison
+  // in the other. `location` is non-nullable, so a `null` at it is refused rather than coerced.
+  //   1. a hand edit LOCKS `location`;
+  //   2. the next round's delta clears it — skipped by the accumulator (the base carries that lock), so the
+  //      flush itself writes a perfectly valid row;
+  //   3. mid-flight the host RELEASES the lock (empty patch + `releaseLocks` — the "let the model write this
+  //      again" gesture), so the fold replays that same `null` with no lock to stop it and the belt refuses.
+  const { chatId, h } = await seedLiteGame(db, { toolRoundDelta: { statePatch: { location: "the ford" }, journal: [] } });
+  await pinExtractionMode(h, chatId, "cheap");
+  const first = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, first.messageId, first.variantId, castId<ChatTurnId>("chat_turn_ref1"), turnConnection());
+  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the drowned chapel" } })).resolves.toEqual({ ok: true });
+  const sent = await seedMessage(db, chatId, 2, { role: "user", content: "ok" });
+  await h.chatOps.onUserCommit(chatId, sent.messageId);
+
+  h.fakes.toolRoundDelta = { statePatch: { location: null }, journal: [] };
+  const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
+  let releaseRound = (): void => undefined;
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
+    releaseRound = resolve;
+  });
+  const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_ref2"), turnConnection());
+  await untilRoundStarted(h.fakes.toolRoundCalls, 2);
+  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: {}, releaseLocks: ["location"] })).resolves.toEqual({ ok: true });
+  releaseRound();
+  await flush;
+
+  // The refusal was REPORTED with the field-level reason — the visibility bar every other drop here meets.
+  expect(h.fakes.flushDrops).toHaveLength(1);
+  expect(h.fakes.flushDrops[0]?.reason).toContain("refused");
+  expect(h.fakes.flushDrops[0]?.reason).toMatch(LOCATION_RE);
+  // Nothing poisoned: the head is still a readable, contract-valid state (the belt did its job).
+  await expect(h.service.getTrackerView({ principal: HOST, chatId })).resolves.toBeDefined();
 });
