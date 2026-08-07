@@ -16,7 +16,7 @@ import { castId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { applyStatsDelta } from "@orb/server/domain/stats";
 import { createRunChatTurnBridge } from "@orb/server/entry/compose";
-import { initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
+import { getLog, initTracing, recentTraces, withRequestSpan } from "@orb/server/foundation/observability";
 import type { ChatRequest, ChatResult, OrSkinTierModels } from "@orb/server/infra/providers";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
@@ -1356,6 +1356,24 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
 
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
     expect(await lockExpiry(db, chatId)).toBeNull(); // the lock still released on the refusal path
+  });
+
+  test("EMPTYGEN-UNLOGGED: the refusal is OBSERVABLE — a warn fires carrying the populated finishReason", async () => {
+    // Previously the refusal surfaced to the client only through tRPC and left NO server-side trace: no
+    // finishReason, no tool count — a tool-only completion and a provider that returned nothing were
+    // indistinguishable after the fact. `assertGeneratedContent` now warns BEFORE the throw.
+    const chatId = await seedChat(db, "empty-unlogged");
+    const h = harness(db, { runChatTurn: proseLessTurn });
+    const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
+    try {
+      await expect(h.engine.runTurn(prepOf(chatId))).rejects.toMatchObject({ code: "empty_generation" });
+      const call = warnSpy.mock.calls.find(([entry]) => (entry as { event?: string } | undefined)?.event === "chat.generation.empty");
+      expect(call).toBeDefined();
+      const [fields] = call ?? [];
+      expect(fields).toMatchObject({ event: "chat.generation.empty", chatId, finishReason: "tool", stopReason: "tool_calls", toolRecords: 0 });
+    } finally {
+      warnSpy.mockRestore();
+    }
   });
 
   test("WHITESPACE-only content is the same defect (an invisible row either way)", async () => {
