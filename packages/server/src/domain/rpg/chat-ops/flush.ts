@@ -261,7 +261,7 @@ export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGame
  *  read, so the row, the log and the trace cannot disagree about what was lost. */
 async function recordFoldedTurnCalls(ctx: RpgContext, game: RpgGameRow, turn: CompletedTurn): Promise<void> {
   const calls = turn.turnConnection.terminalToolCalls;
-  if (calls === null || calls === undefined || calls.length === 0) {
+  if (calls === null || calls.length === 0) {
     return;
   }
   await recordTurnToolCalls(ctx.db, {

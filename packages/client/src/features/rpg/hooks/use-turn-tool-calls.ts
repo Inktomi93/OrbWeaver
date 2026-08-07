@@ -16,8 +16,8 @@ import { useTRPC } from "#data";
  *  history would need both raised, which is the point of them being the same number. */
 const TURN_TOOL_CALLS_WINDOW = 50;
 
-/** The empty index, hoisted so a room with no records hands every row the SAME Map instance (a fresh `new
- *  Map()` per render would be a new identity on every render for every row). */
+/** The empty index, hoisted so a room with no records hands every row the SAME Map instance —
+ *  a fresh `new Map()` per render would be a new identity on every render for every row. */
 const EMPTY_INDEX: ReadonlyMap<MessageVariantId, readonly RpgRecordedToolCall[]> = new Map<MessageVariantId, readonly RpgRecordedToolCall[]>();
 
 /**
