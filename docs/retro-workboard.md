@@ -361,6 +361,41 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
   `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
   question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- **✅ THE F-A ORPHAN IS DEAD (CANON-1 leg 2, `3d19fd66a`, check 14/14)** — `embeddings.pruneMemoryBlocks`
+  (new verb on the `pruneDocumentChunks` idiom). **The upward cascade is CEILING ARITHMETIC, not new
+  machinery**: a tier-(k+1) parent exists only over a COMPLETE fanOut group, so
+  `ceiling[k+1] = floor(ceiling[k]/fanOut)` and the consolidation that folded a pruned block falls
+  beyond its own tier's ceiling in the SAME delete — the owner's "cascading upwards arcs" question,
+  one function. Two defended calls: the prune runs BEFORE the tier-0 build (store-then-prune
+  launders the orphan into a fresh parent whose hash is legitimately CURRENT, which the self-heal
+  then defends) and tier-0's ceiling is the PRE-filter block count (witnessing makes a scoped
+  bucket's block set legitimately sparse). Segments get the same treatment. Proven at BOTH seams:
+  pool-level, and `{{memory}}` recall itself returning the hidden text with the fix disabled.
+  Entirely-hidden rows KEEP their block slot — decided on block-position stability (`blockIdx` IS
+  the storage key). Swept two MORE tests asserting the retired persona fallback, unprompted.
+  Lesson: \[\[content-hash-self-heal-blind-to-disappearance]] — **the green self-heal test WAS the
+  camouflage** ("a second pass re-summarizes nothing" is exactly what the defect looks like).
+- **✅ FORKSTRIP LANDED (`58b5d06a6`) — and it was a LIVE exposure, not just the dormant column.**
+  Confirmed path: host leaves without handoff → the sole member forks (the solo arm sanctions it)
+  → becomes HOST of the copy → `chat.getVariantWire` hands them the departed host's per-send knobs
+  (`stop`, `logitBias`, `compaction.instructions` prose) + the macro draw record. LOW severity
+  (needs an abandoned room, no narrative/GM secret); `params.advanced.claudeEnv` is
+  REPRESENTABLE-NOT-OBSERVED. **Four columns newly stripped** (`params`, `macroDraws` — live;
+  `rawContent`, `macroFreezes` — dormant). **The class is now unmakeable:** the deny-list-over-spread
+  is gone, replaced by `Required<typeof X.$inferInsert>` allow-lists — a new column FAILS THE BUILD
+  until classified (proven both arms with planted probe columns + a behavioral tripwire). The rule,
+  stated once: **a column readable ONLY through a host-gated surface does not survive a member→host
+  fork.** Durable artifact: `docs/reviews/security/2026-08-07-fork-host-plane-strip.md` (38-column
+  table + verbatim exploit path + a ready-to-paste **D133** amending D110 §3.6 — NOT minted; batch it).
+  **Declared gap:** the ratchet forces re-decision on a new COLUMN, never on a new READER for an
+  existing one.
+  - [ ] **RPG FORK-GAME has the identical shape** (S–M, from FORKSTRIP) — `rpg/chat-ops/fork-game.ts`
+    spreads `...row` + hand-strips across FIVE planes (games/sheets/snapshots/journal/checkpoints).
+    Same defect generator, no known live leak; same `Required<…$inferInsert>` inversion, one function
+    per plane. Evidence: lane sweep.
+  - [ ] **FORK LOSES `chats.userMacroValues`** (S, product call) — the `chats` insert names its fields
+    and this newer column isn't among them, so a fork silently drops the room's per-chat macro picks.
+    The data-loss failure mode of an allow-list. Evidence: lane sweep.
 - **⚑ TWO FORKS RULED (orchestrator, 2026-08-07) — one principle: a prescription is satisfied when
   its underlying SYMPTOM is dead; do not reverse a recorded ruling to satisfy the prescription's
   LETTER after the symptom is gone.** MOBILE leg 4 refused both rather than silently reversing, and
