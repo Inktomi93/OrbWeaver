@@ -555,7 +555,8 @@
         "playwright*.config.ts",
         "tests/e2e/support/global-setup.ts",
         "tests/e2e/support/modes.ts",
-        "tests/e2e/support/fixture-provider.ts"
+        "tests/e2e/support/fixture-provider.ts",
+        "tests/tooling/stack-mode.test.ts"
       ],
       "linter": {
         "rules": {

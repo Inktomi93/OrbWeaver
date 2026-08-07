@@ -21,65 +21,133 @@ Note: global KISS/YAGNI is **suspended** in this repo — build maximal, not min
 
 | fact | value |
 | - | - |
-| start command | `NODE_ENV=production node packages/server/src/entry/index.ts` (= `pnpm start`) |
+| start command | `pnpm stack up prod` |
+| under it | `NODE_ENV=production node packages/server/src/entry/index.ts` (= `pnpm start`, foreground) |
 | port | `8788`, public at `https://orbweaver.inktomi.tech` |
-| supervisor | **none** — started detached, reparented to `systemd --user`. If you kill it, nothing restarts it. |
+| supervisor | `scripts/dev/stack-prod.ts` owns the lifecycle (spawn / identity-verified adopt / bounded-drain stop). There is still no *restart-on-crash* supervisor: if the process dies, nothing brings it back. |
+| pidfile | `.cache/stack/prod.json` — pid + pgid + port + /proc start-ticks + debug flag |
 | logs | `.cache/stack/prod.log` |
 | env | `.env` in repo root, read at boot via `node:util`'s `parseEnv` (dotenv was removed) |
-| server build step | **none** — node 26 runs `.ts` directly |
-| client | prebuilt at `packages/client/dist`. Server-only env changes need **no rebuild**, just a restart. |
+| server build step | **none** — node 26 runs `.ts` directly (tsx was shed) |
+| client | prebuilt at `packages/client/dist` (`vite build`). Server-only changes need **no rebuild**, just a restart. |
 | auth | `AUTH_MODE=oidc` |
 
-### Full rebuild + relaunch (production)
-
-Run **from the repo root** — `.env` and `CLIENT_DIST_DIR` are both cwd-relative.
+### The commands
 
 ```bash
-cd /home/inktomi/inktomi-stack/development/orbweaver
-
-# 1. Rebuild the client bundle — ONLY needed if CLIENT code changed.
-#    Server-only changes need no build: node 26 runs .ts directly.
-pnpm --filter @orb/client build
-
-# 2. Stop the running server gracefully.
-PID=$(ss -ltnp 2>/dev/null | grep :8788 | grep -oP 'pid=\K[0-9]+' | head -1)
-kill -TERM "$PID"
-# Drain is BOUNDED at 10s (SHUTDOWN_DRAIN_MS): open SSE streams are force-closed at the deadline.
-# Watch for "shutdown: complete":
-tail -f .cache/stack/prod.log
-
-# 3. Launch detached (survives the shell; there is no supervisor).
-setsid nohup env NODE_ENV=production node packages/server/src/entry/index.ts \
-  >> .cache/stack/prod.log 2>&1 < /dev/null & disown
-
-# 4. Verify — check BOTH, and confirm the pid is NEW.
-curl -s http://127.0.0.1:8788/healthz     # {"status":"ok","harness":false}
-ss -ltnp | grep 8788
+pnpm stack up prod                 # boot production, detached, verified by INSTANCE IDENTITY
+pnpm stack up prod --build         # …after rebuilding the client bundle (build runs FIRST, before any stop)
+pnpm stack up prod --debug         # …with the /api/_debug surface + wire capture armed (see §2)
+pnpm stack restart prod            # SIGTERM → watch the bounded drain → boot → verify the NEW instance
+pnpm stack down prod               # SIGTERM → watch the drain → confirm gone
+pnpm stack status prod             # mode, pid, uptime, port, debug posture, client-bundle freshness
+pnpm stack logs prod 100
 ```
 
-**Gotchas:**
+Mode is positional and defaults to `dev`, so `pnpm stack up` is still the dev stack (watched server +
+vite) and behaves exactly as it always did. `up`/`down` are aliases for `start`/`stop`.
 
-- `CLIENT_DIST_DIR` defaults to `./packages/client/dist` (`foundation/env/index.ts:184`). In production
-  `resolveSpaDistDir` **throws at boot** if `index.html` is missing (`entry/http/spa.ts:32`) — so a failed
-  or partial `vite build` means the server refuses to start. Check `prod.log` if boot dies.
-- There is **no root `build` script**. The only build in the tree is `@orb/client`'s `vite build`.
-- Launching from the wrong cwd silently loads no `.env` and looks for the bundle in the wrong place.
-- `pnpm start` runs the same command in the FOREGROUND — fine for a quick check, wrong for leaving it up.
+**Run from anywhere.** The supervisor derives the repo root from its own file location, so the two cwd
+traps that used to bite (`.env` and `CLIENT_DIST_DIR` are both cwd-relative) are closed by construction.
 
-**Restart procedure** (this is prod — it drops live SSE connections and disconnects any player):
+**What each verb guarantees:**
 
-```bash
-kill -TERM <pid>
-# graceful drain, bounded at 10s — a held-open SSE no longer stalls the restart.
-# watch for "shutdown: complete" in .cache/stack/prod.log
-setsid nohup env NODE_ENV=production node packages/server/src/entry/index.ts \
-  >> .cache/stack/prod.log 2>&1 < /dev/null & disown
-# then poll until healthy:
-curl -s http://127.0.0.1:8788/healthz    # {"status":"ok","harness":false}
-```
+- **`up` is idempotent.** On an already-running instance it *adopts in place* and reports — it never
+  spawns a second server. On a port held by anything it cannot prove is its own, it **refuses** and names
+  the likely owner (`:8788` is also the dev-stack port; see §1c).
+- **Identity, not health.** A health check validates the *port*, and a stale incumbent answers it. Every
+  adopt/stop decision matches the pidfile's pid **and /proc start-ticks** against the process actually
+  serving the port (or against `/api/_debug/info`'s self-reported `pid` when that surface answers).
+- **A harness stack is untouchable.** `/healthz` reports `harness:true` for a Playwright-owned stack
+  (`E2E_HARNESS=on`). `up` never adopts one and `down` never kills one out from under a running battery.
+- **The bundle is checked before anything is stopped.** Production boot *throws* without
+  `packages/client/dist/index.html` (`resolveSpaDistDir`, `entry/http/spa.ts:32`), so a missing bundle is
+  a refusal naming the build command, never a dead boot in a log file. A bundle *older* than
+  `packages/client/src` or `packages/ui/src` is a **WARN** only — server-only restarts legitimately keep
+  an older bundle, because node runs the server's `.ts` directly.
+- **The drain is watched, not eyeballed.** `down`/`restart` SIGTERM, then read `prod.log` for the
+  lifecycle's own `shutdown: complete` / `shutdown: drain deadline hit`, bounded by `SHUTDOWN_DRAIN_MS`
+  (10s) + 5s margin, then escalate to a group SIGKILL. `drain deadline hit` is expected during a deploy —
+  it means a long-lived SSE stream was force-closed and that client saw a truncated stream.
 
-Verify the NEW pid is listening (`ss -ltnp | grep 8788`) — a health check validates the *port*, not
-your process. A stale incumbent can answer for you.
+**Still true, and worth keeping in your head:**
+
+- There is **no root `build` script**. The only build in this repo is `@orb/client`'s `vite build`; the
+  server has no build step at all.
+- `pnpm start` runs the same server in the FOREGROUND — fine for a quick check, wrong for leaving it up.
+- Restarting prod drops live SSE connections and disconnects any player.
+
+---
+
+## 1b'. Vite, `--build`, and two words called "mode"
+
+**There are two unrelated "mode" vocabularies. They do not interact, and that is deliberate.**
+
+| | `pnpm stack …` mode | vite mode |
+| - | - | - |
+| values | `dev` \| `prod` | `development` (serve) \| `production` (build) |
+| what it selects | which SUPERVISOR runs (watched server + vite, or detached prod server) | which `.env.[mode]` files vite loads and what `import.meta.env.MODE` says |
+| set by | the positional arg | `vite`/`vite build` defaults; `--mode` overrides |
+
+We do **not** adopt vite's `.env.[mode]` convention, and the reason is that we do not use the mechanism it
+feeds. Vite's env files live in `envDir` (default = the vite **root**, i.e. `packages/client/`) and only
+surface variables through `import.meta.env` behind the `VITE_` prefix. A sweep of `packages/client/src` +
+`packages/ui/src` finds **zero** `import.meta.env.VITE_*` reads — the only uses are `import.meta.env.DEV`,
+which is a built-in constant driven by `NODE_ENV`, not by an env file. So there is nothing for a
+`.env.production` to configure, and adding one would create a second config surface competing with the
+repo-root `.env` that `foundation/env` owns. Runtime config is the server's job (`foundation/env`); the
+bundle is configuration-free by design.
+
+Related, and easy to get wrong: `VITE_PORT` / `VITE_API_TARGET` in `packages/client/vite.config.ts` are
+read from `process.env` **at config-evaluation time**, which is exactly what vite documents as the only
+env available there — `.env*` files are loaded *after* the config resolves. That is why the snap stage and
+the e2e projects can set them as real process env and have them take effect.
+
+**What `--build` runs:** `pnpm --filter @orb/client build` — the package's own `vite build` script, never a
+hand-rolled vite invocation. There is no other build in this repo.
+
+**Staleness is measured by mtime, not by a manifest.** `build.manifest` is deliberately `false` (see the
+comment in `vite.config.ts`: Hono serves `index.html` as-is, so there is nothing to read a manifest for;
+the documented revisit trigger is Hono injecting hashed asset tags server-side, which it does not do). The
+freshness check therefore compares `dist/index.html`'s mtime against the newest of
+`packages/client/src`, `packages/ui/src`, `packages/client/public` (copied verbatim into `dist`),
+`packages/client/index.html` (vite's build **entry**, part of the module graph) and
+`packages/client/vite.config.ts` (a config change requires a rebuild).
+
+**A rebuild soft-reloads every open tab, by design.** `emptyOutDir: true` deletes the previous build's
+hashed chunks, so a tab that was loaded before the deploy fails its next lazy chunk import. `main.tsx`
+listens for vite's `vite:preloadError` and reloads once (guarded by a `sessionStorage` flag against a
+reload loop). Expected during a `restart prod --build`; it is not a bug report.
+
+**`vite preview` exists (`pnpm --filter @orb/client preview`) but is NOT part of prod mode.** It serves
+`dist` on :4173 as a plain static server with no `/api` — useful only to answer "did the bundle build",
+never to check the app. Our production server serves the same `dist` *with* the API, which is the real
+check.
+
+---
+
+## 1c. Who else spawns a stack on this box
+
+Reference for reading `ss` output and for understanding why `stack up prod` refuses what it refuses. The
+machine-readable copy is `STACK_SPAWNERS` in `scripts/dev/_kit/stack-mode.ts` (status uses it to *name* a
+foreign port holder instead of printing a bare pid).
+
+| spawner | server | vite | how to tell it apart |
+| - | - | - | - |
+| dev stack (`pnpm stack up`) | 8788 | 5173 | `DEV_SEED=on`; pidfile `.cache/stack/stack.pgid` |
+| **prod stack** (`pnpm stack up prod`) | **8788** | — | `NODE_ENV=production`; pidfile `.cache/stack/prod.json`; no vite at all |
+| vLLM engine fleet | — | — | ports 8701/8702/8703; pidfile `.cache/stack/engines.pgid` |
+| multi-user fixture | 8790 | 5175 | `AUTH_MODE=local`; own `STACK_RUN_DIR` |
+| e2e single-user | 8796 | 5181 | `/healthz` → `harness:true`; booted `start-fg`, no pidfile |
+| e2e fixture provider | 8797 | — | a scripted BYO provider, not an orbweaver server |
+| e2e forward-header | 8798 | 5182 | `/healthz` → `harness:true` |
+| e2e local | 8799 | 5183 | `/healthz` → `harness:true` |
+| `snap --isolated` / `--dirty` stage | 8888 | 5273 | runs from `.cache/snap-stage/<sha>`; its own pidfile under that tree |
+| playwright-ct | — | 3100 | vite only — a CT run contains no orbweaver server |
+
+**Prod and dev deliberately share :8788** — two ways to serve one app on one box, and they must never run
+at once. That collision is a loud refusal, not a race. Everything else is on a distinct port, and the
+three e2e stacks additionally self-stamp as harnesses.
 
 ---
 
@@ -110,7 +178,7 @@ Two behavioural changes worth knowing while operating:
 ### The one-command triage for "the model did something weird"
 
 ```bash
-TOK=$(grep '^DEBUG_TOKEN=' .env | cut -d= -f2-)
+TOK=$(cat .cache/stack/debug-token)   # minted by `pnpm stack … --debug`; see §2
 curl -s -H "x-debug-token: $TOK" "http://127.0.0.1:8788/api/_debug/wire/outcomes?limit=5" -o /tmp/out.json
 curl -s -H "x-debug-token: $TOK" "http://127.0.0.1:8788/api/_debug/wire/captures?limit=5" -o /tmp/req.json
 # To see domain-level settings (presets, trustHtml) BEFORE they compile into the wire payload:
@@ -125,16 +193,48 @@ Outcome first (what came back), request second (what we sent), log third (what w
 ## 2. Debug surface — how to watch the wire
 
 `/api/_debug/*` is gated by `DEBUG_TOKEN` (sent as `x-debug-token`) or an admin cookie.
-**Currently armed in `.env`:**
 
-```
-DEBUG_TOKEN=<read it from .env — do not paste it into a chat window>
-WIRE_CAPTURE=on
-RPG_TRACE=on      # DEAD KNOB, see finding #7 — has no effect
+### Arming it: `--debug`, not an `.env` edit
+
+```bash
+pnpm stack restart prod --debug     # or: pnpm stack restart --debug   (dev mode)
+pnpm stack status prod              # reports the posture; never prints the token
 ```
 
-A backup of the pre-change `.env` is at `.env.bak-predebug-*`. Strip these three lines and restart
-when done.
+`--debug` is **orthogonal to mode** and arms every debug knob the env schema declares — `DEBUG_TOKEN`,
+`WIRE_CAPTURE=on`, `RPG_TRACE=on` — as a **process env overlay applied at spawn**. It does not write to
+`.env`, so there is nothing to remember to strip afterwards: relaunch without the flag and the surface is
+off. The overlay lives on the spawned server's env object only — your shell is not modified, so an e2e
+run or a `snap` you start later in the same terminal does not inherit a debug posture.
+
+**The token** is minted once (24 random bytes) and stored at `.cache/stack/debug-token`, mode `0600`. It
+is reused across launches, so a saved `curl` keeps working. Its **value is never printed** by any stack
+command — read it with `cat` when you need it.
+
+```bash
+TOK=$(cat .cache/stack/debug-token)
+```
+
+**Precedence, and why `--debug` can refuse.** `foundation/env` loads `.env` with `override:true` — a key
+in the file **beats** the spawn env. So:
+
+- `.env` is silent about a knob → the overlay arms it.
+- `.env` already sets the same value (e.g. `WIRE_CAPTURE=on`) → adopted, and the command says the file is
+  what armed it. A `DEBUG_TOKEN` in `.env` is used as *the* token.
+- `.env` sets a **conflicting** value (e.g. `WIRE_CAPTURE=off`) → **`--debug` refuses**, naming the line
+  to delete. Arming it would be a silent no-op, and a debug flag that silently does nothing is worse than
+  no flag.
+
+**Migration note (2026-08-06):** the live `.env` still carries the hand-added
+`DEBUG_TOKEN` / `WIRE_CAPTURE=on` / `RPG_TRACE=on` block from the card-bug session, plus a
+`.env.bak-predebug-*` backup. Delete those three lines (and the backup) once — after that `--debug`
+controls the surface per-launch and the file stays clean. Until then the file is what arms the surface,
+and `--debug` will tell you so.
+
+**`RPG_TRACE` is NOT a dead knob** (the old note here cited finding #7). It is wired end to end:
+`env.RPG_TRACE === "on"` → `entry/compose/services.ts:622` builds the recorder → `lifecycle.ts:403` →
+`app.ts:279` registers `/api/_debug/rpg/traces`. If that route 404s on an armed stack, that is a *new*
+bug, not the documented one.
 
 ### Endpoints (all need the header)
 
@@ -342,3 +442,47 @@ When you find something new: add it to the dogfood doc, not here.
 - `pnpm test` = vitest + CT. `pnpm verify --push` runs the whole battery, \~16–17 min — background it.
 - Tests live at **repo root** `tests/`, never under `packages/**`.
 - Work directly on `main`; no feature branches.
+
+---
+
+## Appendix A — DEMOTED: the manual incantations `pnpm stack … prod` replaces
+
+> **Do not use these.** They are kept only so you can recognise them in older notes, and as a break-glass
+> fallback if `scripts/dev/stack-prod.ts` is itself the thing that is broken. Every one of them has a
+> failure mode the supervisor now closes; those are named per block.
+
+### A.1 Manual production launch (replaced by `pnpm stack up prod`)
+
+```bash
+cd /home/inktomi/inktomi-stack/development/orbweaver   # MANDATORY: .env and CLIENT_DIST_DIR are cwd-relative
+setsid nohup env NODE_ENV=production node packages/server/src/entry/index.ts \
+  >> .cache/stack/prod.log 2>&1 < /dev/null & disown
+```
+
+Closed by the supervisor: the cwd trap (root is derived from the script's own location) · the dead boot on
+a missing `packages/client/dist/index.html` (checked first, reported as the build command) · no pidfile,
+so nothing could later prove which process was ours.
+
+### A.2 Manual stop / restart (replaced by `pnpm stack down|restart prod`)
+
+```bash
+PID=$(ss -ltnp 2>/dev/null | grep :8788 | grep -oP 'pid=\K[0-9]+' | head -1)
+kill -TERM "$PID"
+tail -f .cache/stack/prod.log     # eyeball for "shutdown: complete"; drain is bounded at 10s
+curl -s http://127.0.0.1:8788/healthz     # {"status":"ok","harness":false}
+ss -ltnp | grep 8788
+```
+
+Closed by the supervisor: pid-hunting through `ss | grep | grep -oP` (the pidfile + /proc start-ticks are
+the identity now) · the human drain-watch (the log is read to a verdict, bounded, then escalated) · and
+the trap this recipe's own footnote warned about — **a health check validates the PORT, not your
+process**, so this could kill or "verify" a stack that was never yours. It could also have SIGTERM'd an
+e2e harness stack mid-battery; `down` now refuses on `harness:true`.
+
+### A.3 Arming the debug surface by editing `.env` (replaced by `--debug`)
+
+The old procedure was: back up `.env`, hand-add `DEBUG_TOKEN=` / `WIRE_CAPTURE=on` / `RPG_TRACE=on`,
+restart, **and remember to strip the three lines afterwards**. The last step is the one that never
+happened — the block is still in the live `.env` as of 2026-08-06 (see §2's migration note). `--debug`
+arms the same knobs as a spawn-time env overlay, so there is nothing to strip and nothing to forget, and
+the posture cannot leak into a later e2e run or `snap` from the same shell.
