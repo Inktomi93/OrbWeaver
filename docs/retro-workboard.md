@@ -146,6 +146,24 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   call):** ABORT-LEAK (structured abort-reason retry) · WIRE-SINK (tool-round captureWire) ·
   TEMPLATE-CENSUS (dual templating + note framings, census-first) · SMALLS-BATCH (the six one-liners).
   HAND-EDIT-VS-FLUSH waits for a freed slot; PRESET-SLIDER-VERIFY the orchestrator drives live.
+- **✅ SMALLS-BATCH MERGED + TORN DOWN (`be28928f9`, consolidated check 14/14):** 3 done (graduation
+  prose-tail rule · editSnapshot `.ok` assert · ST blank-`mes` strip at parse), **3 REFUSED premise-
+  false with receipts** (CONTRACTS-BARREL · SSE-SPEC-STATUS · PROMPT\_MACROS phantom — all three were
+  grep-written rows; the evidence-method law earns its keep again). Rows struck in place below.
+- **⚑ TEMPLATE-CENSUS census landed (mid-run):** crunch (a) was STALE — the note framings became
+  PROSE-1 slots 08-05 (`chat.injection.systemNote`/`userNote`, edited in Settings › Model-facing
+  prose). Phase 2 is therefore a RE-HOME to presets per the owner's one-home ruling: lane mints
+  `promptConfig.prose` (the per-preset ProseOverrides storage the whole unification needs) + the
+  preset-tab third form path, takes CONTINUATION_NUDGE (`shape.ts:107`, the clearest still-hardcoded
+  framing) along, Settings stops offering the two migrated slots. Decision-8 header read accepted:
+  the two frames are in-prompt wrappers, not side generations — the other 13 chat.* slots STAY.
+  NO data migration (pre-launch NO-LEGACY): an override written in Settings since 08-05 stops
+  applying — owner flag rides the lane report. The lane's M1-M4 report = the unification spec draft;
+  the (b) build goes to THIS lane warm, never a sibling (shared `promptConfig.prose` storage).
+- [ ] **PROSE-COVERAGE GATE (M4, from the census)** — PROSE-1 §7/S5 specified a gate and it was never
+  built (`scripts/check/gates/` has only `macro-resolution-home.ts`); that absence is exactly how
+  CONTINUATION_NUDGE sat un-slotted through the whole campaign, and the hiding-in-code arm regrows
+  silently without it. Own lane after the unification. Evidence: census 2026-08-07, tree-verified.
 - **NEXT (owner-authorized chain):** BOARD-THESE remainder → the lifted smalls. Owner-taste rows parked.
 
 ## ═══ STATE (2026-08-07 late — superseded; kept one cycle for the receipts trail) ═══
@@ -666,8 +684,9 @@ identity chrome for ANY row kind.
 - [ ] **HAND-EDIT-VS-FLUSH** (M) — a hand `editSnapshot` during an in-flight turn can be clobbered by the
   flush. **Two independent sightings** (the watch list's "seen once, unchased" + the actor-state
   review's unconfirmed suspicion), nobody chased it. Reproduce and rule.
-- [ ] **CONTRACTS-BARREL** (S) — `packages/contracts/src/index.ts` still promises "re-exports added as
-  modules land" after 41 modules landed with zero importers. Delete the sentence.
+- [x] ~~**CONTRACTS-BARREL**~~ — **REFUSED, premise false (SMALLS-BATCH 2026-08-07):** the file is one
+  line and already says "placeholder; unused — every consumer imports contracts modules directly". No
+  such sentence exists; grep zero-hit.
 - [x] ~~**CODEMOD-DOCS**~~ — **PREMISE WRONG (re-verified 08-03).** `package.json:19` already carries
   `"codemod": "node scripts/codemods/codemod.ts"`, and that CLI exists and works (help/list/recipes/
   recipe/search, wired to `codemod-kit.ts`). Somebody added it and the row was never updated.
@@ -675,18 +694,24 @@ identity chrome for ANY row kind.
   `moveFiles`/`deleteFiles`/`copyFile` (`codemod-kit.ts:801-939`) validate via
   `ctx.project.getSourceFile(absPath)` — a LIVE ts-morph lookup, not a stale cache — and `assert()`
   loudly with actionable messages before touching anything. The cache-lie shape is not in current code.
-- [ ] **EDITSNAP-OK residual** (S) — `field-reachability.suite.ts:358` ignores `HandDoorResult.ok`.
-- [ ] **SSE-SPEC-STATUS** (S) — `docs/history/design/sse-multiplex-spec.md:3-4` has a corrupted status line.
-- [ ] **L8-INBOUND** (S) — foreign ST `mes:""` rows at import: refuse or strip. Named one-liner.
+- [x] ✅ **EDITSNAP-OK residual — DONE** (SMALLS-BATCH, `be28928f9`): the `handEdit` fixture now asserts
+  `HandDoorResult.ok`; suite 64/64.
+- [x] ~~**SSE-SPEC-STATUS**~~ — **REFUSED, premise false (SMALLS-BATCH):** lines 3-4 read cleanly
+  ("Status: CLOSED — BUILT S0-S5, D118"), byte-checked with `cat -A`. No corruption on the tree.
+- [x] ✅ **L8-INBOUND — DONE** (SMALLS-BATCH, `be28928f9`): blank-`mes`/no-surviving-swipe ST rows are
+  STRIPPED at `parseMessageLine` (silent tolerant-strip matches the parser's own corrupt-line posture;
+  the module is zero-I/O so no warn is possible), D124-consistent. Test pins it; flagship fixture
+  round-trip unregressed (not regenerated).
 - [ ] **REGEX-REASONING-FIDELITY** (S, owner-call) — REASONING prints at slot 4 but executes
   post-postProcess. Unobservable today; flagged as an owner call that was never posed.
 - [ ] **FLAKE-WATCH** (S) — `code-editor.ct` CM6 75ms window + `drawer.ct:162` focus-trap (pre-existing at
   HEAD) have no durable home beyond a watch list.
-- [ ] **HISTORY-GRADUATION RULE** (S) — `docs/history/README.md` says a doc graduates only when EVERY
-  finding is landed; **four moved docs carried live obligations anyway, and in every case the survivor
-  was a PROSE TAIL** (a "Process notes" bullet, a blueprint step 4, an INFO-rank F10, a corrupted
-  status line) — the graduation check reads findings TABLES, not the paragraphs around them. Add that line.
-- [ ] **PROMPT\_MACROS phantom** (S) — `proposed/world-state-clips-trackers-spec.md:267` names the deleted symbol.
+- [x] ✅ **HISTORY-GRADUATION RULE — DONE** (SMALLS-BATCH, `be28928f9`): the "check the paragraphs, not
+  just the tables" line is in `docs/history/README.md`.
+- [x] ~~**PROMPT\_MACROS phantom**~~ — **REFUSED, premise false (SMALLS-BATCH):** the cited spec line
+  (and whole file) never names the symbol; the symbol itself IS dead (two-method absence: `pnpm ast
+  refs` no-declaration + one historical comment hit at `client/src/lib/prompt-macros.ts:14`, which is a
+  record, not a reference). Nothing to annotate.
 - [ ] **BARREL ROOT-FIX** (M) — 56 `export * from` remain across `packages/*/src`.
 - [x] ✅ **TSX-SHEDDING MIGRATION — DONE 2026-08-03, all four stages** (receipts in STATE above; the row
   is kept for its rationale). Original text: (`docs/design/tsx-shedding-migration-spec.md`, adopted from the memoban
