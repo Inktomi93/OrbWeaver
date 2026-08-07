@@ -110,7 +110,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   `console_log_prompts: true` (deliberate debug aid). **IN-FLIGHT:** the CANON-IDENTITY STICKLER
   (14 sections + the hash/reindex-cascade rider; writes
   `docs/reviews/stickler/2026-08-08-canon-message-identity.md` FIRST — resume via SendMessage if
-  orphaned) · lane MOBILE dispatching next (the 08-03 owner-ruled ONE-SHELL rule: on mobile a
+  orphaned) · lane MOBILE DISPATCHED + LIVE (worktree present — resume via SendMessage by name/board if orphaned; the 08-03 owner-ruled ONE-SHELL rule: on mobile a
   list-bearing section with no selection shows its LIST as the screen, selection pushes to CONTENT
   with a back row — config + databank are the deviations to remove; resolvePanelMode
   shell-store.ts:372 + per-section CTs at the mobile frame). Owner rulings all executed; push word
