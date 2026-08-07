@@ -25,7 +25,7 @@
 
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import type { ChatTurnId } from "@orb/kit/ids";
-import type { StagedJournalEntry, StagedTurnFlush } from "./contract/params.ts";
+import type { StagedJournalEntry, StagedPatch, StagedTurnFlush } from "./contract/params.ts";
 import type { RpgStagingStore } from "./contract/service.ts";
 import { applyLockedPatch } from "./substrate/merge.ts";
 
@@ -39,10 +39,10 @@ import { applyLockedPatch } from "./substrate/merge.ts";
 interface TurnBucket {
   state: RpgSnapshotState;
   readonly journal: StagedJournalEntry[];
-  readonly patches: Record<string, unknown>[];
-  /** The seed base, kept verbatim — the state every staged patch was composed AGAINST. The fold rebases the
-   *  patches off it; without it a carried whole plane is indistinguishable from an authored one. */
-  readonly base: RpgSnapshotState;
+  /** Each staged write PAIRED with the state it was composed against (see {@link StagedPatch}). The fold
+   *  rebases off that pairing; a single seed base shared by every patch double-counts what an earlier patch in
+   *  the same turn already added. */
+  readonly patches: StagedPatch[];
 }
 
 /** Build the staging store (a compose-created singleton — one per server process). Deep-clones the seed base
@@ -61,7 +61,7 @@ export function createRpgStagingStore(): RpgStagingStore {
       if (existing) {
         return existing.state;
       }
-      const bucket: TurnBucket = { state: clone(base), journal: [], patches: [], base: clone(base) };
+      const bucket: TurnBucket = { state: clone(base), journal: [], patches: [] };
       buckets.set(turnId, bucket);
       return bucket.state;
     },
@@ -73,9 +73,11 @@ export function createRpgStagingStore(): RpgStagingStore {
       if (!bucket) {
         throw new Error(`rpg staging: stage() before ensure() for turn ${turnId}`);
       }
-      // Recorded BEFORE the merge and DEEP-CLONED, for the same reason `ensure` clones its seed: the caller's
-      // patch object must not stay live in the log (a later mutation of it would rewrite history the fold replays).
-      bucket.patches.push(clone(patch));
+      // Recorded BEFORE the merge and DEEP-CLONED, for the same reason `ensure` clones its seed: neither the
+      // caller's patch object nor the state handed out by the read-through may stay live in the log (a later
+      // mutation of either would rewrite the history the fold replays). `bucket.state` here is EXACTLY the
+      // state this patch's applier composed against — capturing it is what makes the entry self-describing.
+      bucket.patches.push({ patch: clone(patch), base: clone(bucket.state) });
       bucket.state = applyLockedPatch(bucket.state as unknown as Record<string, unknown>, patch, bucket.state.fieldLocks) as unknown as RpgSnapshotState;
       return bucket.state;
     },
@@ -92,7 +94,7 @@ export function createRpgStagingStore(): RpgStagingStore {
         return;
       }
       buckets.delete(turnId);
-      return { state: bucket.state, journal: bucket.journal, patches: bucket.patches, base: bucket.base };
+      return { state: bucket.state, journal: bucket.journal, patches: bucket.patches };
     },
     clear(turnId: ChatTurnId): void {
       buckets.delete(turnId);

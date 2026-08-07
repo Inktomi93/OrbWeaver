@@ -35,7 +35,19 @@ import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { findSnapshotByVariant, resolveSnapshotHead } from "../../../../packages/server/src/domain/rpg/persistence/snapshots.ts";
 import { freshDb } from "../../../support/db.ts";
-import { actorWithWallet, addVariant, expect, pinExtractionMode, principal, quest, seedLiteGame, seedMessage, test, turnConnection } from "./_support.ts";
+import {
+  actorWithWallet,
+  addVariant,
+  emptyState,
+  expect,
+  pinExtractionMode,
+  principal,
+  quest,
+  seedLiteGame,
+  seedMessage,
+  test,
+  turnConnection,
+} from "./_support.ts";
 
 const HOST = principal(castId<Handle>("host"));
 
@@ -338,6 +350,61 @@ test("the tombstone BOUNDARY: a round that genuinely CHANGES the dismissed actor
   const head = await resolveSnapshotHead(db, { id: gameId, chatId });
   const mara = head?.row.actorState?.find((a) => a.actorRef.kind === "cast" && a.actorRef.castKey === "mara");
   expect(mara?.volatile.wallet).toEqual([{ name: "gold", amount: 99 }]); // the round's genuine write survives
+});
+
+test("TWO staged writes on ONE flat plane: the fold duplicates nothing (beats and presence stay as narrated)", async () => {
+  const db = await freshDb();
+  // THE GAP EVERY EARLIER PIN LEFT OPEN: they all staged exactly ONE patch. A turn stages once per tool call,
+  // and each applier composes against the accumulator's CURRENT state — so patch 2 already contains patch 1's
+  // beat. Rebasing both against the turn's SEED re-scored that beat as a fresh ADD and appended it twice, and
+  // the same for a character walking on stage. Nothing downstream saves it: `applyPresencePatch`'s dedupe guard
+  // runs at WRITE time, and the folded state goes straight to the hand-row write.
+  //
+  // The two patches are staged directly (the tools' own seam — `ctx.staging.stage`, one call per tool), which
+  // is what a multi-tool turn does, and the round then adds nothing of its own.
+  const { chatId, gameId, h } = await seedLiteGame(db, {});
+  await pinExtractionMode(h, chatId, "cheap");
+
+  // A REAL first beat, so the opening line is genuinely in the persisted state the hand row will clone from.
+  // (A fabricated seed with no persisted counterpart would make the head legitimately lack it, and the pin
+  // would be asserting against a head that never had the beat — a different question entirely.)
+  h.fakes.toolRoundDelta = { statePatch: { recentEvents: ["opening beat"] }, journal: [] };
+  const first = await seedMessage(db, chatId, 1, { role: "assistant" });
+  await h.chatOps.onTurnCompleted(chatId, first.messageId, first.variantId, castId<ChatTurnId>("chat_turn_open"), turnConnection());
+  const sent = await seedMessage(db, chatId, 2, { role: "user", content: "ok" });
+  await h.chatOps.onUserCommit(chatId, sent.messageId);
+
+  h.fakes.toolRoundDelta = { statePatch: {}, journal: [] }; // the round adds nothing of its own this beat
+  const beat = await seedMessage(db, chatId, 3, { role: "assistant" });
+  const turnId = castId<ChatTurnId>("chat_turn_twopatch");
+
+  const seeded = h.ctx.staging.ensure(turnId, { ...emptyState(), recentEvents: ["opening beat"] });
+  expect(seeded.recentEvents).toEqual(["opening beat"]);
+  // Tool call 1 — composed against the seed, so it carries the opening beat plus its own.
+  h.ctx.staging.stage(turnId, { recentEvents: ["opening beat", "she drew her blade"], presentCharacters: ["cast:mari"] });
+  // Tool call 2 — composed against the state AFTER call 1, so it carries BOTH prior beats plus its own.
+  h.ctx.staging.stage(turnId, {
+    recentEvents: ["opening beat", "she drew her blade", "the door slammed"],
+    presentCharacters: ["cast:mari", "cast:kai"],
+  });
+
+  let releaseRound = (): void => undefined;
+  h.fakes.stateRoundGate = new Promise<void>((resolve) => {
+    releaseRound = resolve;
+  });
+  const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, turnId, turnConnection());
+  await untilRoundStarted(h.fakes.toolRoundCalls, 2);
+  // A hand edit on an UNRELATED field, so the fold runs but claims none of the planes under test.
+  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the docks" } })).resolves.toEqual({ ok: true });
+  releaseRound();
+  await flush;
+
+  const head = await resolveSnapshotHead(db, { id: gameId, chatId });
+  // EXACTLY what the accumulator composed — each beat once, in order. A beat narrated once must not be
+  // written twice: the panel and the reminder both read this list verbatim.
+  expect(head?.row.recentEvents).toEqual(["opening beat", "she drew her blade", "the door slammed"]);
+  expect(head?.row.presentCharacters).toEqual(["cast:mari", "cast:kai"]);
+  expect(head?.row.location).toBe("the docks"); // the human's field is untouched by any of it
 });
 
 test("CE1: a mid-flight deleteQuest is NOT undone by the fold either (the same class, the other removal verb)", async () => {
