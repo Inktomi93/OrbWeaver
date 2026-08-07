@@ -210,6 +210,27 @@ export type VarOp =
   | { readonly op: "dec"; readonly key: string }
   | { readonly op: "delete"; readonly key: string };
 
+/** ONE volatile-macro occurrence resolved by a COMMIT-TIME FREEZE pass (D129-F). The freeze is
+ *  byte-destructive by design — `{{roll}}`/`{{random}}`/`{{pick}}`/the clock family resolve once against the
+ *  turn's pinned clock + seeded PRNG and bake into the stored canon text (D51: one post-transform text
+ *  everywhere) — so without a record the drawn value is unrecoverable and a swipe can never reproduce the row.
+ *
+ *  `name` is the REGISTERED (lowercase) macro name, `args` the delivered argument text rejoined with `::`
+ *  (absent when the call took none), `value` the string the handler returned and the freeze substituted.
+ *  Occurrence-ordered: a replay walks the record POSITIONALLY, which is what makes reproduction byte-exact
+ *  without re-deriving anything.
+ *
+ *  Kit owns this shape (the engine EMITS it); `@orb/contracts/chat`'s `macroFreezeSchema` pins itself to it
+ *  with `satisfies z.ZodType<MacroFreeze>` and `message_variants.macro_freezes` stores the array — the same
+ *  one-home arrangement {@link VarOp} has. */
+export interface MacroFreeze {
+  readonly name: string;
+  // `| undefined` (not a bare optional): the contracts-side schema infers explicit-undefined optionals under
+  // exactOptionalPropertyTypes, and its output must be assignable HERE unmapped.
+  readonly args?: string | undefined;
+  readonly value: string;
+}
+
 /** One `{{setglobalvar}}` write collected during a render (D46, 02 §4). UNLIKE {@link VarOp}, globals are
  *  NOT variant-scoped — these are drained + upserted into the per-user `global_variables` plane at TURN
  *  COMMIT, last-write-wins; a swipe never rewinds a global. */
@@ -301,6 +322,28 @@ export interface MacroContext {
   // decvar/deletevar handlers push each op here in addition to applying it to `env`; absent ⇒
   // no recording (assembly-only re-renders, config-plane previews, tests).
   opLog?: VarOp[];
+  // The VOLATILE-FREEZE ledger (D129-F) — the {@link opLog} idiom applied to the freeze axis, and the reason
+  // recording is a CONTEXT capability rather than a second registry: the per-turn freeze registry is shared by
+  // every freeze call in a turn (the send draft AND each greeting), so a sink captured in the registry would
+  // pool their records together. Both fields are absent on every live render, which is what keeps the default
+  // registry byte-identical.
+  //   • `macroFreezes` — present ⇒ each volatile handler pushes its resolved occurrence here in document
+  //     order. The domain persists it as `message_variants.macro_freezes`.
+  //   • `frozenMacros` — **COMMITTED, NOT YET WIRED (D129-G).** The freeze-site WRITES are live; the swipe /
+  //     greeting-re-selection re-resolution this arm exists for is not built, so today its only callers are
+  //     tests. It ships with the record because a record you cannot reproduce FROM is an untested claim — the
+  //     round-trip pin (tests/kit/macro/registry.test.ts + the volatile-freeze-record suite) is what makes the
+  //     stored provenance a fact rather than an assertion. A future swipe caller inherits the semantics below.
+  //     A PRIOR record replayed POSITIONALLY: an entry whose name+args match the call being
+  //     evaluated supplies its value and the handler is NOT run (so the PRNG/clock is not consulted and the
+  //     bytes are reproduced exactly). The first MISMATCH abandons the replay for the rest of the pass — a
+  //     divergence means the record no longer describes this text, and mis-pairing values would be worse than
+  //     drawing fresh. Replayed values are recorded onto `macroFreezes` too (frozen ∪ fresh — the `frozenDraws`
+  //     discipline), so one pass always emits a self-contained record.
+  macroFreezes?: MacroFreeze[];
+  frozenMacros?: readonly MacroFreeze[] | undefined;
+  // Cursor into {@link frozenMacros}; parked at the record's end once a replay diverges. @internal.
+  __freezeCursor?: number;
   // Global-variable plane (D46, 02 §4) — a SEPARATE store from `env` (runtime vars): cross-chat,
   // single-owned, NOT variant-scoped. `globalVars` is the author's staged globals (a read cache the
   // domain fetches before render); `{{getglobalvar}}` reads it. `{{setglobalvar}}` collects writes onto
