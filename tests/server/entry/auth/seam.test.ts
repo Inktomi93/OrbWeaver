@@ -366,15 +366,23 @@ test("the CSRF header presence is surfaced as a signal (the ladder gates, not th
   expect(without.csrfHeaderPresent).toBe(false);
 });
 
-test("isAdmin is true for owner/admin, false otherwise, and never throws", async () => {
-  // ⚠ The un-credentialed fallback arm here is an OPEN FINDING (AUTHFIX-2), not a design pin: `isAdmin`'s
-  // only consumer is the /api/_debug admin arm, which short-circuits the DEBUG_TOKEN check, and those routes
-  // are principal-blind whole-db reads. This asserts CURRENT behaviour so the fix is a deliberate, visible
-  // flip — it is NOT a claim that the behaviour is correct. See the `isAdmin` doc in `entry/auth/seam.ts`
-  // for the one-line fix and the e2e coupled site that blocks it.
+test("isAdmin requires a CREDENTIAL as well as the admin role, and never throws", async () => {
+  // ⚠ DO NOT "RESTORE" THE OLD ASSERTION HERE. Until 2026-08-07 this test asserted
+  // `ownerSeam.isAdmin(new Headers()) === true` — i.e. it PINNED the AUTHFIX-2 hole as if it were behaviour.
+  // It was not: `isAdmin`'s only consumer is the /api/_debug admin arm, which short-circuits the DEBUG_TOKEN
+  // check (and the `expectedToken === undefined` → 404 branch with it), so that `true` meant a caller who
+  // presented NOTHING read principal-blind whole-db probes — wire captures included. The old comment even
+  // said "this is an open finding, not a design pin", which is exactly why a green test asserting it was the
+  // worst possible shape: the suite went green on the defect every run. Both halves are now required.
   vi.stubEnv(OWNER_HANDLES_VAR, OWNER_HANDLE);
+
+  // The un-credentialed owner FALLBACK: a real `role:"owner"` principal (so `requireAdmin` passes) that
+  // presented no cookie and no header. `via:"fallback"` is not a credential — the origin is not the caller.
   const ownerSeam = createAuthSeam({ config: baseConfig({ mode: "single-user" }), sessions: fakeUsers().sessions });
-  expect(await ownerSeam.isAdmin(new Headers())).toBe(true);
+  expect(await ownerSeam.isAdmin(new Headers())).toBe(false);
+  // …and the same principal still resolves for every OTHER surface: this closes the debug gate, not the
+  // single-user fallback (which is the only way into a single-user box at all).
+  expect((await ownerSeam.resolvePrincipal(new Headers())).principal?.role).toBe("owner");
 
   const adminSeam = createAuthSeam({
     config: baseConfig({ mode: "local" }),

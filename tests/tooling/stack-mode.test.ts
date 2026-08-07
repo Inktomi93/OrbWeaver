@@ -42,6 +42,8 @@ import { expect, test } from "../support/fixtures.ts";
 
 // Hoisted: the rule against per-call regex literals applies to test bodies too.
 const DRAIN_MS_RE = /const SHUTDOWN_DRAIN_MS = ([\d_]+);/u;
+/** An un-credentialed 200 from /api/_debug must print as an ALARM post-AUTHFIX-2, not as a dev posture. */
+const UNCREDENTIALED_ALARM = /NO credential|investigate/u;
 
 // ── argv ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -226,16 +228,23 @@ test("a failed spawn may only delete a pidfile that is still ITS OWN", () => {
 
 test("the debug posture is read off the gate's STATUS CODE — a 200 is not proof of a token", () => {
   // MEASURED against the live stack 2026-08-06: an unauthenticated GET /api/_debug/info returned 200,
-  // because the gate's FIRST arm is an admin check and a single-user stack answers every caller as admin.
+  // because the gate's FIRST arm is an admin check and a single-user stack answered every caller as admin.
   // A probe that read "401 ⇒ armed, else off" therefore reported `off` on a stack whose debug surface was
   // wide open. Three distinct postures, no boolean.
+  //
+  // POSTSCRIPT (AUTHFIX-2, 2026-08-07): that measured 200 was not merely a probe-design trap — it was an
+  // un-credentialed read of the whole debug surface, and it is now closed at the seam
+  // (`entry/auth/seam.ts::DEBUG_GATE_CREDENTIALED`). The three postures stay: `classifyDebugPosture` maps
+  // status codes and must keep an arm for a 200 precisely so the tooling can still SAY so if one ever comes
+  // back. What changed is the meaning — a 200 to this un-credentialed probe is now an alarm, not dev comfort.
   expect(classifyDebugPosture(404)).toBe("off");
   expect(classifyDebugPosture(401)).toBe("token");
   expect(classifyDebugPosture(200)).toBe("open");
   expect(classifyDebugPosture(null)).toBe("unknown");
   expect(debugPostureText("token", "/run/debug-token")).toContain("/run/debug-token");
-  // The token PATH may be printed; the token VALUE never is.
-  expect(debugPostureText("open", "/run/debug-token")).toContain("WITHOUT a token");
+  // An un-credentialed 200 must READ as a problem, not as a normal dev posture. (The token PATH is the only
+  // thing any arm prints — `debugPostureText` is never handed the VALUE, so there is nothing to leak here.)
+  expect(debugPostureText("open", "/run/debug-token")).toMatch(UNCREDENTIALED_ALARM);
 });
 
 // ── the prod spawn plan (argv + env SNAPSHOTS) ───────────────────────────────────────────────────────
