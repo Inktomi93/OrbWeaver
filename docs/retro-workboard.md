@@ -146,7 +146,43 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   call):** ABORT-LEAK (structured abort-reason retry) · WIRE-SINK (tool-round captureWire) ·
   TEMPLATE-CENSUS (dual templating + note framings, census-first) · SMALLS-BATCH (the six one-liners).
   HAND-EDIT-VS-FLUSH waits for a freed slot; PRESET-SLIDER-VERIFY the orchestrator drives live.
-- **✅ SMALLS-BATCH MERGED + TORN DOWN (`be28928f9`, consolidated check 14/14):** 3 done (graduation
+- **✅ WIRE-SINK MERGED + TORN DOWN (`09d63d289`, check 14/14):** the tool round WAS captured — but
+  ANONYMOUSLY (no `chatId`), so the `?chatId=` read filtered it (\[\[wire-capture-anonymous-not-missing]]).
+  `ExtractCtx.chatId` now REQUIRED (tsc fences future arms); three `runChatTurn` sites stamped
+  (dedicated round · `resyncViaToolRound` · `extractViaChat`). Landing test through the real ring,
+  red-first. **Residual boarded below:** the `structured` role is chatless BY CONTRACT.
+- **✅ ABORT-LEAK MERGED + TORN DOWN (`3fd54bb09`, check 14/14):** cancelled provider calls can never
+  classify retryable, on ANY role — fix at `runRole`, the one seam all eight cross. The row's
+  `retry.ts` mechanism was FALSE; the real vector was the vendor SDK's default retryConfig
+  (\[\[vendor-sdk-default-retry-surface]]). Row struck below with the correction.
+- **⚑ SIDE-EYE VERDICT ON MOBILE (2026-08-07): SHIP WITH FIXES — the one-shell rule HOLDS on all
+  seven sections; core algebra on the don't-touch list.** ALL findings routed to the warm MOBILE
+  lane (leg 2, dispatched; merges main into its branch first): [P1] ≤~345px the topbar trail takes
+  277/320px, crushing the lead to 10.7px — the back button's CENTER opens ⌘K, and it is the ONLY
+  exit from a chat (root-cause fix: a mobile topbar BUDGET — lead owns back+title, ⌘K/notifications
+  fold into overflow) · [P2] pushed topbar names the SECTION not the member (all sections but
+  chats) · [P2] two back doors with different destinations in corpus/analytics drills (one-door law)
+  · [P2] characters search clipped at 320 · [P2] corpus has TWO search inputs narrowing one list
+  (single-homing) · [P3] You-sheet persona row shreds · a11y: tab bar precedes topbar in DOM order.
+  Instrument lesson minted: \[\[mobile-verify-needs-coarse-pointer]] (snap --viewport = FINE pointer;
+  design-audit returned 0 P1 on a frame with a P1 — no coarse mode, no overlap rule).
+  Side-eye re-verify owed after leg 2 merges.
+- **NEW ROWS from the two lanes + side-eye (each independently landable):**
+  - [ ] **STRUCTURED-ROLE CORRELATION FORK** (owner/design) — the `structured` role is chatless by
+    contract (`RoleRequestCommon` has no chatId; `WireCapture.chatId` documents "absent on a chatless
+    probe turn"), so non-agent-sdk rpg structured extraction is correlatable by backend+time only
+    (22+66 anonymous `summarize|vllm` rows in the live spill are this class). Making it correlatable
+    is a cross-role contract change — pose before building. Evidence: WIRE-SINK report, spill-scanned.
+  - [ ] **CORPUS MOBILE IA** (M, design-y) — six filter controls + TWO search boxes + a wrapping
+    five-tab row consume 55% of a 320px screen above ZERO results, and the empty message ("no
+    characters match — loosen the filters") lies when no filters are applied. The dual-search half
+    goes with MOBILE leg 2; the IA pass is its own row. Evidence: side-eye rendered receipts.
+  - [ ] **ANALYTICS/PRESETS EMPTY VOIDS** (S–M) — both read as UNBUILT at mobile (four tabs + one
+    gray sentence + ~600px black; one row + an unlabeled orange dot as the only active signal) —
+    the \[\[empty-states-are-load-bearing]] class + a meaning-by-color-alone a11y miss. Evidence:
+    side-eye rendered receipts.
+  - [ ] **DESIGN-AUDIT --mobile** (S, instrument) — no coarse-pointer mode, no overlapping-hit-target
+    rule; it scored 0 P1 on a frame carrying the topbar P1. Evidence: side-eye instrument note. 3 done (graduation
   prose-tail rule · editSnapshot `.ok` assert · ST blank-`mes` strip at parse), **3 REFUSED premise-
   false with receipts** (CONTRACTS-BARREL · SSE-SPEC-STATUS · PROMPT\_MACROS phantom — all three were
   grep-written rows; the evidence-method law earns its keep again). Rows struck in place below.
@@ -668,7 +704,16 @@ identity chrome for ANY row kind.
   are OWNER-GATED on copy** — each needs user-facing text, and several (`sampling_knob_dropped`,
   `dynamic_context_demoted`) are arguably too noisy to toast every turn. That is a product call, not a
   lane's. Side-eye owed after merge (new toast).
-- [ ] **STRUCTURED-ABORT-REASON-LEAK** (S) — **a cancelled `structured` call can be RE-RUN as a retry.**
+- [x] ✅ **STRUCTURED-ABORT-REASON-LEAK — DONE** (ABORT-LEAK merged 2026-08-07, `3fd54bb09`,
+  consolidated check 14/14). Fix home = `roles/dispatch.ts::runRole` (the one seam all EIGHT roles
+  cross): `flattenAbortSignal` (`backends/kit/abort-flatten.ts`, the one-home of the re-abort-your-
+  own-controller law) + `classifyTransportName` tests the abort NAME before the transient regex.
+  `idle-timeout.ts` now composes the shared primitive. RPG-SIGNAL stays (it is the round's own
+  cancellation scope; its header's "covers both arms" claim truth-repaired). **MECHANISM CORRECTION
+  (the row below was wrong in the middle):** `retry.ts` never re-ran structured calls (chat-runner
+  callers only; nothing reads `ProviderError.retryable`) — the REAL re-run vector was
+  `@openrouter/sdk`'s DEFAULT `retryConfig` (\[\[vendor-sdk-default-retry-surface]]). Red-first 3/3
+  through the real dispatcher. Original row for the record: **a cancelled `structured` call can be RE-RUN as a retry.**
   `classifyTransportName` (`backends/kit/error-classify.ts:92-101`) regexes `/timeout|connection|network|overload/i`
   over an error's name+message → `{kind:"server", retryable:true}`, and `retry.ts` re-runs on that. The
   chat runners are protected — `turnAbortSignal` (`backends/kit/idle-timeout.ts:53-67`) deliberately
