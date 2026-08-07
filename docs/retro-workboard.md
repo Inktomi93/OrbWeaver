@@ -99,6 +99,27 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     DRAFT-POLISH 1-2). Briefed with the prescription-vs-symptom law and the mobile one-shell ruling.
   All four were briefed: re-verify your premise first, a correct refusal is a success, ONE commit,
   durable text under `docs/` never `reports/`, back-channel mid-run. Scope-fenced off each other's dirs.
+- **⚑ GRADUATION GATE — NOTHING BELOW IS "DONE" UNTIL ITS FRESH LENS REPORTS CONFIRMED (owner
+  re-flagged 2026-08-07: "don't forget about verifier or the proper graduation process").** The lane's
+  own floors + `pnpm check` prove STRUCTURE, never LOGIC. Sequence is: lane floors green → merge →
+  fresh-context lens at CHUNK granularity → THEN the row graduates. Batching lenses behind merges is
+  allowed when load demands; skipping them is not.
+  - [ ] **AUTHFIX** → the lens is a FRESH `security-executor`, NOT `verifier` — the diff is
+    security-DOMINANT (identity/authz), and doctrine routes security review the same way it routes
+    security implementation. Must attack: the agreement pin actually fails pre-fix, the fail-closed
+    demotion arm, and whether `via:"fallback"` still reaches anything it shouldn't.
+  - [ ] **NARRATOR-CAST** → `verifier` (code lens). Must attack the D16 solo-byte-identical claim and
+    the `{{char}}` blast-radius table, which are ARGUMENTS the lane made, not receipts it took.
+    The new prose slot also adds a rendered card → **SIDE-EYE-DAY picks that up** (rendered lens).
+  - [ ] **PROVGATE** → `verifier`. Its historical positive control is unusually strong self-evidence,
+    but a gate that ratifies an already-correct tree is exactly the shape that can pass vacuously.
+  - [ ] **MY OWN TWO PUSH-RED FIXES (`10bff2dd4`) NEED THE LENS MOST, and they are the easiest to
+    skip because I wrote them.** I changed a CT assertion from `"2 people"` to `"2 characters"` to
+    make a red go green. That is the classic sin shape — **a verifier must confirm the assertion now
+    pins the CURE (the `accname-survives-spread` fix at `f954bbcf0` moved the default BEFORE the
+    spread) and not merely my convenience.** Same for deleting the `@public` tag on
+    `messageKindSchema`: confirm the export genuinely has production consumers.
+  - [x] **DATABANK-S2** — nothing to graduate; zero code landed. Its sweep WAS the verification.
 - **Superseded IN-FLIGHT note (GATEFIX finished; merged `96d35ee80`, consolidated static check 14/14):** lane **GATEFIX** (`ae12ce29192c53e14`) was
   retargeting `message-kind-policy-coverage`'s conformance rows + the `__g_mkpc` fixture, which MY
   commit `5f2afa7fd` orphaned when it emptied the DEFERRED map (correctly) without updating the two
