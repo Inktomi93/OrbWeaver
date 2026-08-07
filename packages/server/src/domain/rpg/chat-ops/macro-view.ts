@@ -27,6 +27,7 @@
 // `{{rpgDelta}}` (the delta line glosses each reading).
 
 import type { RpgActorView, RpgDateMode, RpgQuestView, RpgSnapshotState, RpgStatProfile, RpgTrackerView } from "@orb/contracts/rpg";
+import { RPG_CAST_GUIDE_FIELDS } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
 import type { DeltaContext } from "../contract/delta.ts";
 import type { RpgMacroFeed } from "../contract/params.ts";
@@ -120,6 +121,7 @@ function rpgCelTree(view: RpgTrackerView, deltaText: string): CelValue {
       // The custom `label` is the reachable relationship for a custom kind; the bare kind otherwise. So an
       // `{{expr}}` predicate reads `c.relationship == "enemy"` OR a custom `c.relationship == "vassal"` uniformly.
       relationship: celRelationship(a),
+      ...celGuides(a),
     })),
     quests: view.quests.map((q) => ({
       name: q.name,
@@ -137,6 +139,23 @@ function rpgCelTree(view: RpgTrackerView, deltaText: string): CelValue {
     },
     delta: { text: deltaText },
   };
+}
+
+/** The three STANDING guides (RV-11) as CEL leaves, DERIVED from `RPG_CAST_GUIDE_FIELDS` — never re-spelled
+ *  here, so a fourth guide reaches `{{expr::rpg.cast…}}` the moment it joins the tuple (and a rename fails
+ *  `tsc` at the tuple's own `satisfies`, not silently at this projection).
+ *
+ *  They were the last WRITABLE cast fields no macro/CEL consumer could read: the extraction round is asked
+ *  for appearance + outfit + thoughts on every beat, the steering reminder prints them and the Scene tab's
+ *  `CastGuides` renders them, but a preset author's predicate could only see name/mood/relationship. The
+ *  optional leaves project as `""` (the data-only degrade the whole tree uses — an absent key errors a whole
+ *  expr chain, a "" reads as "the story hasn't written one"). */
+function celGuides(actor: RpgActorView): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const field of RPG_CAST_GUIDE_FIELDS) {
+    out[field] = actor.identity?.[field] ?? "";
+  }
+  return out;
 }
 
 /** The relationship value a `{{expr}}` predicate reads — the custom `label` (or "custom" if unlabelled) for a
