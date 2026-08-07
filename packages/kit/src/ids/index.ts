@@ -82,6 +82,7 @@ export const ID_PREFIX = {
   rpgSheet: "rpg_sheet",
   rpgJournal: "rpg_journal",
   rpgCheckpoint: "rpg_checkpoint",
+  rpgTurnToolCalls: "rpg_turn_tool_calls",
 } as const;
 
 // --- Identity / auth ---------------------------------------------------------
@@ -177,6 +178,9 @@ export type RpgSnapshotId = TypeIdOf<"rpg_snapshot">;
 export type RpgSheetId = TypeIdOf<"rpg_sheet">;
 export type RpgJournalId = TypeIdOf<"rpg_journal">;
 export type RpgCheckpointId = TypeIdOf<"rpg_checkpoint">;
+/** ONE folded turn's recorded tool calls (`rpg_turn_tool_calls`) — one row per producing variant, so a swipe
+ *  surfaces that swipe's own calls (the `rpg_snapshots` variant-keying, one plane over). */
+export type RpgTurnToolCallsId = TypeIdOf<"rpg_turn_tool_calls">;
 /** A quest's stable id — a PLAIN (prefix-less) branded nanoid, minted IN the snapshot blob (no table, no
  *  FK, no `ID_PREFIX` entry). The `no-raw-id` gate requires a brand even for the in-blob object id; a
  *  prefix-less brand is the type-safety-without-TypeID-machinery middle. Mint via `newId<RpgQuestId>()`. */

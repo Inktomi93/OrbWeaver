@@ -50,6 +50,7 @@ import {
   healedJournalTypes,
   malformedToolCallDetails,
   RPG_NO_CHANGES_TOOL,
+  recordToolCalls,
   rpgExtractionSchema,
   rpgGameConfigSchema,
   rpgPopulateSchema,
@@ -83,7 +84,6 @@ import type {
   RpgService,
   RpgStateDelta,
   RpgTraceSink,
-  RpgTraceToolCall,
 } from "#domain/rpg";
 import {
   actorCarrier,
@@ -1101,29 +1101,6 @@ function buildFoldedTurnBuilder(deps: RpgComposeDeps): RpgContext["buildFoldedTu
   };
 }
 
-/** R-OBS: project one vehicle's tool calls onto the flight-recorder's per-call verdicts. Reads the SAME two
- *  loss lenses `logToolCallLosses` logs from (`malformedToolCallDetails` / `salvagedToolCallFields`), so the
- *  trace and the warn can never disagree about what was lost — the file's standing ONE-home rule for the loss
- *  vocabulary. Only called behind a `deps.trace !== undefined` guard, so it costs nothing when tracing is off.
- *
- *  `arguments` rides VERBATIM (the raw JSON string the model sent): the calls worth tracing are exactly the
- *  ones that did not parse, and a parsed-only capture would erase the evidence. */
-function toTraceCalls(calls: readonly RpgToolCall[]): readonly RpgTraceToolCall[] {
-  const droppedIssues = new Map(malformedToolCallDetails(calls).map((detail) => [detail.name, detail.issues]));
-  const salvaged = salvagedToolCallFields(calls);
-  return calls.map((call): RpgTraceToolCall => {
-    const dropped = droppedIssues.get(call.name);
-    if (dropped !== undefined) {
-      return { name: call.name, args: call.arguments, verdict: "dropped", issues: dropped };
-    }
-    // `salvagedToolCallFields` already renders `<tool>.<field>`, so the prefix is the join key.
-    const fields = salvaged.filter((field) => field.startsWith(`${call.name}.`));
-    return fields.length > 0
-      ? { name: call.name, args: call.arguments, verdict: "salvaged", issues: fields }
-      : { name: call.name, args: call.arguments, verdict: "applied", issues: [] };
-  });
-}
-
 /** Build the `foldTurnToolCalls` op (R1 — the flush's half). ZERO model calls: the character turn already paid
  *  for these calls. Folds them through the SAME path the dedicated tool round folds its own calls through, so
  *  an equivalent set of calls produces a byte-identical delta on either delivery shape. */
@@ -1132,7 +1109,9 @@ function buildFoldTurnToolCalls(deps: RpgComposeDeps): RpgContext["foldTurnToolC
     const conn = turnConnection.connection;
     // R-OBS: what the model CALLED and what survived the schema — the folded turn's tool traffic is otherwise
     // server-internal by D112 design, so this ring is the only place it is legible after the fact.
-    deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "folded extraction", calls: toTraceCalls(toolCalls) });
+    // `recordToolCalls` is the ONE projection (`@orb/contracts/rpg`) — the durable per-variant row the user
+    // disclosure reads is written from the same call, so the ring, the warn and the row cannot disagree.
+    deps.trace?.({ phase: "tool", chatId, turnId, vehicle: "folded extraction", calls: recordToolCalls(toolCalls) });
     // A malformed arg NEVER fails the turn (the narrative is already committed) — `toolCallsToExtraction` drops
     // it, and this names what was dropped so the loss is diagnosable instead of silent (D109-7 totality).
     logToolCallLosses({ chatId, model: conn.model, api: conn.api, calls: toolCalls, vehicle: "folded extraction" });
@@ -1506,6 +1485,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
       sheet: minter(ID_PREFIX.rpgSheet),
       journal: minter(ID_PREFIX.rpgJournal),
       checkpoint: minter(ID_PREFIX.rpgCheckpoint),
+      turnToolCalls: minter(ID_PREFIX.rpgTurnToolCalls),
       // Quest + inventory-item ids are PLAIN strings minted inside the snapshot blob (no table, no FK — §4.1).
       quest: () => newId(),
       item: () => newId(),

@@ -66,7 +66,7 @@ import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
 import { refinerySection } from "#features/refinery";
 import { regexCollection } from "#features/regex";
-import { makeRpgContextTabs, makeRpgHudRegion } from "#features/rpg";
+import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "#features/rpg";
 import { appearancePane, automationPane, chatBehaviorPane, settingsModal, themeModal } from "#features/settings";
 import { analyticsSection } from "#features/stats";
 import { tagCollection } from "#features/tag";
@@ -173,9 +173,12 @@ const chatContextRegions = createContributorRegistry<ContextRegionDef<ChatContex
   makeRpgHudRegion({ trpc: trpcProxy, queryClient }),
 ]);
 
-// The chat-surface contributor seam (§6c/M8): EMPTY but typed — the door → factory → 3 anchors path is
-// compiled and exercised with zero contributions; rpg/crew append array members later.
-const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", []);
+// The chat-surface contributor seam (§6c/M8). Its FIRST tenant is rpg's per-row "what this turn did"
+// disclosure (TOOLCALLS-INVISIBLE, arm A): on the `folded` path the model emits its state writes alongside
+// its prose and D112 keeps that traffic server-internal, so without this the majority of what a turn DID was
+// invisible to the person who played it. rpg raises it; chat mounts it blind at `message-footer`; neither
+// imports the other.
+const chatSurfaceContributors = createContributorRegistry<ChatSurfaceContribution>("chat-surface", [rpgTurnToolCallsSurface]);
 
 // The per-tool-name renderer seam (§6c): EMPTY but typed — zero contributions ⇒ every persisted tool record
 // renders through the generic @orb/ui `ToolCallBlock` fallback, so today's transcript is byte-identical to a

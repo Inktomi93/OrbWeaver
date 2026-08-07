@@ -453,6 +453,7 @@ export function makeRpgService(
       sheet: () => mintTypeId(ID_PREFIX.rpgSheet),
       journal: () => mintTypeId(ID_PREFIX.rpgJournal),
       checkpoint: () => mintTypeId(ID_PREFIX.rpgCheckpoint),
+      turnToolCalls: () => mintTypeId(ID_PREFIX.rpgTurnToolCalls),
       quest: () => newId<RpgQuestId>(),
       // Deterministic hand-minted item ids (the `patchActor` add arm) — a test asserts on the id it will get.
       item: () => `item_hand_${handItemSeq++}`,

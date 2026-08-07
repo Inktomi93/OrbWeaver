@@ -31,8 +31,9 @@ import type {
   RpgSnapshotState,
   RpgToolCall,
   RpgTrackerView,
+  RpgTurnToolCallsView,
 } from "@orb/contracts/rpg";
-import type { Db, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots } from "@orb/db";
+import type { Db, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls } from "@orb/db";
 import type {
   CharacterHandle,
   CharacterId,
@@ -47,6 +48,7 @@ import type {
   RpgQuestId,
   RpgSheetId,
   RpgSnapshotId,
+  RpgTurnToolCallsId,
   UserId,
 } from "@orb/kit/ids";
 import type { WireTool } from "#infra/providers";
@@ -63,6 +65,7 @@ import type {
   EditSnapshotParams,
   ListCheckpointsParams,
   ListJournalParams,
+  ListTurnToolCallsParams,
   PatchActorParams,
   PatchSheetParams,
   PopulateFromCharacterParams,
@@ -98,6 +101,10 @@ export type NewRpgJournal = typeof rpgJournal.$inferInsert;
 
 export type RpgCheckpointRow = typeof rpgCheckpoints.$inferSelect;
 export type NewRpgCheckpoint = typeof rpgCheckpoints.$inferInsert;
+
+/** ONE folded turn's recorded tool calls (TOOLCALLS-INVISIBLE, arm A) — keyed to the producing variant. */
+export type RpgTurnToolCallsRow = typeof rpgTurnToolCalls.$inferSelect;
+export type NewRpgTurnToolCalls = typeof rpgTurnToolCalls.$inferInsert;
 
 /** One assistant slot's selected-variant body for the HOST-REVEAL read (§3.6): the slot id (the reveal eye
  *  keys per message) + the stored content the tokenizer scans for hidden spans. Chronological (`seq` asc) so
@@ -517,6 +524,8 @@ export interface RpgIdMints {
   readonly sheet: () => RpgSheetId;
   readonly journal: () => RpgJournalId;
   readonly checkpoint: () => RpgCheckpointId;
+  /** The per-variant folded-turn tool-call record (TOOLCALLS-INVISIBLE, arm A). */
+  readonly turnToolCalls: () => RpgTurnToolCallsId;
   readonly quest: () => RpgQuestId;
   /** An inventory item's blob-internal id (no table, no FK — the `quest` posture). The HAND door mints through
    *  here for the same reason the model path does (`applyUpdateInventory`'s injected `mintItemId`): a test
@@ -778,6 +787,10 @@ export interface RpgService {
   readonly getTrackerView: (params: ReadGameParams) => Promise<RpgTrackerView>;
   /** Member. The paged, lineage-projected journal. */
   readonly listJournal: (params: ListJournalParams) => Promise<readonly RpgJournalEntryView[]>;
+  /** Member. WHAT THE MODEL DID — the window of recorded folded turns, keyed by producing variant
+   *  (TOOLCALLS-INVISIBLE, arm A). Member-gated on purpose: a tool call is the mechanical record of a turn
+   *  everyone at the table watched, not a GM secret. */
+  readonly listTurnToolCalls: (params: ListTurnToolCallsParams) => Promise<readonly RpgTurnToolCallsView[]>;
   /** HOST. The Stats & Trackers editor surface (full profile + steeringNote + gmPresetId). */
   readonly getConfigView: (params: ReadGameParams) => Promise<RpgConfigView>;
   /** HOST (§3.6). The reveal "eye": the parsed hidden `<lie>`/`<ofilter>` content of the game's assistant

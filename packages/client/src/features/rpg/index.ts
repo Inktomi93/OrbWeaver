@@ -12,3 +12,6 @@
 export { makeRpgContextTabs } from "./lib/rpg-context-section.tsx";
 export type { RpgContextTabsDeps } from "./lib/rpg-game-chat.ts";
 export { makeRpgHudRegion } from "./lib/rpg-hud-region.tsx";
+// The per-row "what this turn did" disclosure (TOOLCALLS-INVISIBLE, arm A) — a `message-footer` surface
+// contribution the door appends to chat's surface registry. The seam's first real tenant.
+export { rpgTurnToolCallsSurface } from "./lib/turn-tool-calls-surface.tsx";

@@ -43,7 +43,16 @@ export type RpgBusEvent =
    *  refetches. Rides `snapshotPatched` semantics but is a distinct signal so a quests-only surface can scope. */
   | { type: "questChanged"; chatId: ChatId }
   /** A journal entry landed/changed (`addJournalEntry`-family or a staged flush) — the paged Journal refetches. */
-  | { type: "journalChanged"; chatId: ChatId; journalId?: RpgJournalId };
+  | { type: "journalChanged"; chatId: ChatId; journalId?: RpgJournalId }
+  /** A folded turn's tool-call RECORD landed (TOOLCALLS-INVISIBLE, arm A) — the per-row "what this turn did"
+   *  disclosure refetches.
+   *
+   *  ITS OWN MEMBER RATHER THAN RIDING `snapshotPatched`, and the reason is the whole point of the feature: a
+   *  turn whose calls ALL dropped writes a record and NO snapshot, so `snapshotPatched` never fires for it —
+   *  and that is precisely the turn a user is asking "why did nothing happen?" about. Keying the disclosure to
+   *  the snapshot event would leave the failing case stale until an unrelated later turn happened to write
+   *  state. This member fires on every recorded turn, both arms. */
+  | { type: "turnToolCallsRecorded"; chatId: ChatId };
 
 /** The producer-coverage belt (§4.9, coupled site): every `RpgBusEvent` discriminant, enumerated. The
  *  `satisfies readonly RpgBusEvent["type"][]` proves each member is a real event type (a typo fails tsc); the
@@ -56,6 +65,7 @@ export const RPG_BUS_EVENT_TYPES = [
   "sheetChanged",
   "questChanged",
   "journalChanged",
+  "turnToolCallsRecorded",
 ] as const satisfies readonly RpgBusEvent["type"][];
 export type RpgBusEventType = (typeof RPG_BUS_EVENT_TYPES)[number];
 

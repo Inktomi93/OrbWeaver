@@ -317,6 +317,9 @@ const RPG_BUS_FILTERS: RpgBusFilterMap = {
   // but the listJournal read still invalidates for parity + the future lite→full graduation). Path-level (all
   // pages) — the read is paged, so a page-keyed queryFilter would miss the other pages.
   journalChanged: (_e, trpc) => [trpc.rpg.listJournal.pathFilter()],
+  // A folded turn's tool-call record landed — the per-row "what this turn did" disclosure refetches
+  // (TOOLCALLS-INVISIBLE, arm A). Query-level (one chat): the read is chat-scoped and unpaged.
+  turnToolCallsRecorded: (e, trpc) => [trpc.rpg.listTurnToolCalls.queryFilter({ chatId: e.chatId })],
 };
 
 /** Every rpg filter, for the (re)connect gap-heal (the `use-rpg-bus.ts` blanket invalidate) — the game +
@@ -329,6 +332,7 @@ function allRpgGameFilters(trpc: Trpc, chatId: ChatId): readonly InvalidateFilte
     trpc.rpg.getConfigView.queryFilter({ chatId }),
     trpc.rpg.listJournal.pathFilter(),
     trpc.rpg.revealHidden.queryFilter({ chatId }),
+    trpc.rpg.listTurnToolCalls.queryFilter({ chatId }),
   ];
 }
 

@@ -4,11 +4,12 @@
 // widening the member type). The panel is swipe-consistent BY CONSTRUCTION — every tab reads the SAME
 // resolved-current snapshot, so a swipe re-resolves everything at once (the owner's ratification demand).
 
-import type { ChatId, MessageId, RpgGameId } from "@orb/kit/ids";
+import type { ChatId, MessageId, MessageVariantId, RpgGameId } from "@orb/kit/ids";
 import type { RpgActorIdentity, RpgActorRef, RpgActorVolatile } from "./actor.ts";
 import type { RpgClockTime, RpgWeather } from "./ambient.ts";
 import type { RpgDeliveryPath, RpgFoldFallbackReason, RpgGameConfig } from "./config.ts";
 import type { RpgGameMode, RpgGameStatus } from "./enums.ts";
+import type { RpgRecordedToolCall } from "./extraction.ts";
 import type { RpgPlot } from "./snapshot.ts";
 import type { RpgTrackerDef, RpgTrackerValue } from "./tracker.ts";
 
@@ -184,6 +185,21 @@ export interface RpgJournalEntryView {
   readonly label: string;
   readonly title: string;
   readonly content: string;
+  readonly createdAt: number;
+}
+
+/** `listTurnToolCalls` — ONE folded turn's recorded tool calls, keyed to the variant that produced them
+ *  (TOOLCALLS-INVISIBLE, arm A). The read is per-CHAT and returns a window of these rather than one query per
+ *  message: a transcript renders many rows, and a per-row query would be a query storm against a surface most
+ *  people never open.
+ *
+ *  SWIPE-CORRECT BY CONSTRUCTION: the client indexes by `variantId`, so a row shows the calls of the swipe it
+ *  is CURRENTLY showing — the same keying `rpg_snapshots`/`rpg_journal` use for the same reason. `messageId`
+ *  is the slot, for a client that wants to group without walking its own variant map. */
+export interface RpgTurnToolCallsView {
+  readonly variantId: MessageVariantId;
+  readonly messageId: MessageId;
+  readonly calls: readonly RpgRecordedToolCall[];
   readonly createdAt: number;
 }
 
