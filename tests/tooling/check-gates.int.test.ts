@@ -851,6 +851,29 @@ function writeFixtures(): void {
   // arm C needs a real doc whose §-anchor is missing. Both of those are proven by the gate's own conformance
   // mustFlag rows + its three live catches at mint. The fixture leaves the real corpus untouched, so the
   // baseline's stale-row arm keeps judging the REAL 16 tables.
+  // no-hardcoded-model-prose: a fresh ≥12-word model-facing teach authored at a SEAM (rpg substrate) — a
+  // new file has no baseline budget, so the slot-that-escaped-the-registry shape reds immediately.
+  fx(
+    "packages/server/src/domain/rpg/substrate/__g_prose.ts",
+    'export const G_TEACH =\n  "When the scene calls for it, teach the model to answer in the narrator voice and keep that voice steady.";\n',
+  );
+  // ui-accname-survives-spread: a caller-props rest spread followed by an accessible-name attribute — the
+  // avatar-stack clobber shape (the caller's aria-label can never win).
+  fx(
+    "packages/ui/src/primitives/__g_accn/__g_accn.tsx",
+    'export function GAccn({ x, ...rest }: { x?: number }) {\n  return <div {...rest} aria-label="always mine" />;\n}\n',
+  );
+  // no-floorless-control-in-wrap: ONE mapped floorless Button inside a flex-wrap container = N runtime
+  // siblings whose overflowing touch pseudos overlap across wrapped rows (the weather-picker geometry).
+  fx(
+    "packages/client/src/features/__g_floorless/components/__g_grid.tsx",
+    'const ICONS = ["a", "b", "c"];\nexport function GGrid() {\n  return (\n    <div className="flex-wrap">\n      {ICONS.map((n) => (\n        <Button key={n} size="glyph-lg">{n}</Button>\n      ))}\n    </div>\n  );\n}\n',
+  );
+  // message-kind-policy-coverage: the STALE arm — the DEFERRED `prompt` axis (FANOUT-1's wiring is in
+  // flight) gains a production read in server scope → "now HAS a production reader". Keep in sync with the
+  // DEFERRED map in message-kind-policy-coverage.ts (when the real assembly read lands and the row is
+  // deleted, retarget this fixture at a then-deferred axis or move the gate to UNFIXTURABLE_GATES).
+  fx("packages/server/src/domain/chat/__g_mkpc.ts", "export const gMkpc = MESSAGE_KIND_POLICY.standard.prompt;\n");
   fx("scripts/check/gates/__g_nodescriptor.ts", "export const notAGateDescriptor = 1;\n");
 }
 
