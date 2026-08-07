@@ -4,6 +4,7 @@
 // unchanged (byte-identical, D16); an off-cast PER-SPEAKER ref keeps the primary (never crashes).
 
 import type { AssembleCharacter, AssembleContext, SpeakerRef } from "@orb/contracts/chat";
+import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
@@ -19,7 +20,7 @@ function ctx(): AssembleContext {
   const cast = [card("Aria"), card("Bran")];
   return {
     character: cast[0] as AssembleCharacter, // primary (pre-shape)
-    promptConfig: {} as AssembleContext["promptConfig"],
+    promptConfig: DEFAULT_PROMPT_CONFIG,
     cast,
     castMembers: [charRef("aria"), charRef("bran")],
     recentMessages: [],
@@ -43,7 +44,7 @@ describe("shapeContextForSpeaker — per-speaker card selection", () => {
   test("a ctx with no castMembers (solo / hand-built) is returned UNCHANGED — byte-identical", () => {
     const solo: AssembleContext = {
       character: card("Solo"),
-      promptConfig: {} as AssembleContext["promptConfig"],
+      promptConfig: DEFAULT_PROMPT_CONFIG,
       recentMessages: [],
     };
     const out = shapeContextForSpeaker(solo, { ref: charRef("solo"), output: "per-speaker", cardScope: "merged" });
@@ -83,7 +84,7 @@ describe("shapeContextForSpeaker — narrator (the whole cast voices one turn)",
   test("a SOLO ctx narrator round is still byte-identical (the trivial cast, D16)", () => {
     const solo: AssembleContext = {
       character: card("Solo"),
-      promptConfig: {} as AssembleContext["promptConfig"],
+      promptConfig: DEFAULT_PROMPT_CONFIG,
       recentMessages: [],
     };
     const out = shapeContextForSpeaker(solo, { ref: charRef("group_synthetic"), output: "narrator", cardScope: "merged" });
