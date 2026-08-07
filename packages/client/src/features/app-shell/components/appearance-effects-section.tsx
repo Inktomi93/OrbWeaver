@@ -2,7 +2,7 @@
 // surface texture and the accent tint. Redesigned to the settings-row grammar (owner ruling: the old
 // ToggleGroup multi-select + a dangling "Enable" button read ugly). By value type (§13.8 R4): the
 // frosted-glass surfaces are INDEPENDENT on/off effects, so each is its own label-left / switch-right
-// `@orb/ui/setting-row` row (a toggle-group would imply exclusivity/segmentation, which is wrong here) —
+// `SettingSwitchRow` (a toggle-group would imply exclusivity/segmentation, which is wrong here) —
 // every switch toggles membership in the one `blurSurfaces` array field, so the autosave binding law is
 // intact (all state still flows through `form.AppField`). `blurStrength` stays a slider (a continuous
 // value); Prose shadow + accent tint join the same clean switch-row list.
@@ -21,7 +21,6 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useId } from "react";
 import { SettingSwitchRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
@@ -78,9 +77,6 @@ function EffectsFormBody({ sectionId }: { readonly sectionId: string }): ReactEl
 
 function EffectsBody({ sectionId, session }: { readonly sectionId: string; readonly session: AutosaveSession<EffectsForm> }): ReactElement {
   const { form, saveState, retrySave } = session;
-  const glassId = useId();
-  const shadowId = useId();
-  const tintId = useId();
   return (
     <Section
       className="@container"
@@ -105,7 +101,6 @@ function EffectsBody({ sectionId, session }: { readonly sectionId: string; reado
                   return (
                     <SettingSwitchRow
                       key={item.value}
-                      id={`${glassId}-${item.value}`}
                       label={item.label}
                       checked={field.state.value.includes(surface)}
                       onBlur={field.handleBlur}
@@ -132,7 +127,6 @@ function EffectsBody({ sectionId, session }: { readonly sectionId: string; reado
         <form.AppField name="shadowEffects">
           {(field): ReactElement => (
             <SettingSwitchRow
-              id={shadowId}
               label="Prose shadow"
               description="A subtle readability halo on message text."
               checked={field.state.value}
@@ -153,7 +147,6 @@ function EffectsBody({ sectionId, session }: { readonly sectionId: string; reado
         <form.AppField name="enableThemeColorization">
           {(field): ReactElement => (
             <SettingSwitchRow
-              id={tintId}
               label="Tint the UI with the accent color"
               description="Retints borders and hairlines across panels, dialogs, and the composer from your accent color."
               checked={field.state.value}

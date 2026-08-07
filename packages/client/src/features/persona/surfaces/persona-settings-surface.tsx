@@ -11,7 +11,7 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useId, useRef } from "react";
+import { useRef } from "react";
 import { SettingSwitchRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
@@ -51,13 +51,11 @@ function PersonaSettingsForm(): ReactElement {
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const setPrefs = useSetPersonaPrefs({ trpc, invalidation });
-  const notifyId = useId();
 
   return (
     <Stack gap="section">
       <Section heading={PERSONA_SUBCATEGORY_LABEL} id={settingsAnchorId("personas", PERSONA_SUBCATEGORY_IDS.personas)}>
         <SettingSwitchRow
-          id={notifyId}
           label="Notify me when my persona changes in a chat"
           checked={data.config.persona.showNotifications}
           onChange={(next): void => setPrefs.mutate({ section: "persona", patch: { showNotifications: next } })}

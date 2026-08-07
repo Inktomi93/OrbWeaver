@@ -2,17 +2,27 @@
 
 This document tracks findings from an exploratory spike (August 2026) regarding how Orbweaver integrates with Base UI, identifying where we are fighting the framework, missing out on its features, or triggering browser warnings.
 
+> **The spike predates the Base UI 1.7 upgrade (`d732be317`).** Items 1-4 were re-derived against the tree on 2026-08-07 (LANE NAVFORM) and each carries a `RE-DERIVED` line below with what survived and what died. Treat an unmarked item as un-re-verified.
+
 ## 1. SettingRow vs Field (Fighting the Framework and the ID System)
+
+> **RE-DERIVED 2026-08-07 — CLOSED.** `SettingRow` is gone; `SettingSwitchRow`/`SettingCheckboxRow` are thin `<Field orientation="horizontal">` wrappers. The vestigial `id` prop (accepted and silently dropped) and all nine call-site `useId()`s were removed in this lane. The "over 40 instances" count was of the pre-1.7 tree.
 The codebase currently maintains a parallel abstraction called `<SettingRow>` (and its wrappers `SettingSwitchRow`, `SettingCheckboxRow`). 
 *   **The Issue:** We have over **40 instances** across feature components (e.g., `appearance-effects-section.tsx`) manually generating random IDs (`const id = useId()`) and passing them down to both the row and the control to wire up a manual `<label htmlFor={id}>`. This completely bypasses Base UI's field context.
 *   **The Base UI Way:** Base UI's `<Field>` natively supports this exact layout via the `<FieldLayout orientation="horizontal">` context. We should delete `SettingRow` and migrate settings panes to use `<Field orientation="horizontal">` which automatically generates and inherits IDs, wires up `aria-describedby` for hints/descriptions, and eliminates the `useId()` boilerplate entirely.
 
 ## 2. The 26 "Missing Name" Warnings (Browser Autofill Issues)
+
+> **RE-DERIVED 2026-08-07 — RESOLVED BY THE 1.7 UPGRADE, and four premises here are wrong.** (a) The warning is **not a console message**: it is a CDP `Audits.issueAdded` `GenericIssue` with `errorType: "FormEmptyIdAndNameAttributesForInputError"`, so a console-scraping pin is vacuously green. (b) Only **real Chrome** emits it — Playwright's bundled chromium has no autofill agent and issues zero on a page real Chrome issues four on. (c) `aria-label` does **not** satisfy it; only a non-empty `id` or `name` does. (d) It fires **outside** a `<form>` too, and it does **not** fire for `type="color"`/`type="file"`. The 26 was a count of warnings on the surfaces the spike visited, not a code population (the JSX population is 48 `<Input>`/`<Textarea>`/raw-control sites). **Why it is resolved:** `@orb/ui`'s `<Input>` IS Base UI's `Input`, which IS `Field.Control`, which mints an `id` via `useLabelableId` with or without a `<Field.Root>` above it; `<Textarea>` renders through `Field.Control` too. Verified end to end: the four named surfaces' real rendered markup, audited in real Chrome over CDP, issue **zero** — with a strip-the-ids negative control on each proving the instrument was live. Pinned by `tests/client/forms/form-identity.suite.ct.tsx`.
+
 Chromium consistently logs a blue info warning: *"A form field element has neither an id nor a name attribute. This might prevent the browser from correctly autofilling the form."*
 *   **The Issue:** We have 26 instances across the app (like `PresetRenameDialog`, the main chat composer, and `CharacterCreateActions`) where a bare `<Input>` or `<Textarea>` is rendered inside a `<form>` without a `name` or `id` attribute. 
 *   **The Base UI Way:** Either wrap these standalone inputs in our `<Field>` component (which automatically provisions an ID and label wiring) or manually apply a `name="xyz"` attribute to silence the browser's autofill heuristics.
 
 ## 3. TanStack Form Integration (Missing State Sync & `onBlur` Plumbing)
+
+> **RE-DERIVED 2026-08-07 — CLOSED, now PROVEN.** Both halves were fixed in the 1.7 base but nothing pinned them. `useBoundField` forwards `dirty`/`touched`, and blur reaches every bound control — for the trigger-based ones (`Select`, `ColorField`) it necessarily rides `onOpenChange(false)`, not a DOM blur, because the trigger keeps focus while the popup is open. `tests/client/forms/bound-fields/use-bound-field.ct.tsx` reads `data-dirty`/`data-touched` off the rendered `<Field.Root>`; stripping the two flags reds 5 of its 6 tests. The one deliberate deviation from the handbook (error/`invalid` is touch-gated rather than raw `isValid`, so an autosaving editor does not open painted red) is documented in that hook's header.
+
 *   **The Context:** Unlike simple native forms, the app correctly uses `@tanstack/react-form` for complex validation. The Base UI documentation explicitly states that when using TanStack Form, you *should* use native HTML `<form>` tags with `form.handleSubmit()` rather than `@base-ui/react/form`. Our architecture correctly follows this via our `packages/client/src/forms/bound-fields` wrappers.
 *   **The Issue:** We have two critical gaps in how we synchronize state between TanStack Form and Base UI:
     1.  **Dropped State Flags:** `useBoundField.ts` extracts `field.name` and validation `error` from TanStack's `field.state.meta` to pass into `@orb/ui/field`, but it completely omits the `dirty` and `touched` states.
@@ -21,6 +31,8 @@ Chromium consistently logs a blue info warning: *"A form field element has neith
 *   **The Result:** Because `useBoundField` drops `dirty` and `touched`, and because `onBlur` never fires for many complex controls, Base UI cannot apply its `data-dirty` and `data-touched` DOM attributes. This permanently breaks any CSS that relies on these states (e.g., only showing an error style after a field has been touched).
 
 ## 4. The 7 Base UI Gates (Ready for Lock Down)
+
+> **RE-DERIVED 2026-08-07 — `baseui-field-control-registration`'s 33 violations are a FALSE POSITIVE; do not merge that gate as specified.** Base UI's own `FieldControl` source says it: *"You can omit this part and use any Base UI input component instead. For example, Input, Checkbox, or Select, among others, will work with Field out of the box."* `@orb/ui`'s `<Input>` literally forwards to `Field.Control`, and `<Textarea>` renders through it. A gate mandating a literal `<Field.Control>` under every `<Field.Root>` would RED 32 correct call sites and our own `Field` primitive. If the intent is "the control under a Field must REGISTER", the gate must accept the Base-UI-input arm — which is most of the tree. The other six rows in this item were not re-derived.
 The structural gates for Base UI alignment are fully defined. We ran an AST probe across the codebase (`packages/ui` and `packages/client`) which revealed exactly what needs to be fixed before these gates can be activated without debt suppression:
 *   `baseui-anatomy-completeness`: Ensures all required structural anatomy parts are rendered. **(Probe found 3 violations: Combobox missing Backdrop, Popover missing Viewport, Menu missing Viewport)**.
 *   `baseui-render-prop-composition`: Bans Radix-style `asChild` and enforces the `render` prop. **(Probe found 0 violations on main, 1 planted test caught)**.

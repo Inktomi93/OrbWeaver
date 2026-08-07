@@ -42,13 +42,7 @@ export function ExportLibrarySection(): ReactElement {
       <Fieldset>
         <FieldsetLegend>Include</FieldsetLegend>
         {EXPORTABLE_KINDS.map((kind) => (
-          <SettingCheckboxRow
-            key={kind}
-            id={`export-kind-${kind}`}
-            label={PORTABLE_KIND_LABELS[kind]}
-            checked={selected.has(kind)}
-            onChange={(next): void => toggle(kind, next)}
-          />
+          <SettingCheckboxRow key={kind} label={PORTABLE_KIND_LABELS[kind]} checked={selected.has(kind)} onChange={(next): void => toggle(kind, next)} />
         ))}
       </Fieldset>
       <Row justify="end">

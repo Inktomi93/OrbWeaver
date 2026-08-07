@@ -27,7 +27,7 @@ import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useId, useState } from "react";
+import { useState } from "react";
 import { AddRow, HintEditor, SettingCheckboxRow, TrackerValue } from "#components";
 import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
@@ -304,7 +304,6 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const restamp = useReattributePersona({ trpc, invalidation });
   const { data: chat } = useSuspenseQuery(trpc.chat.getChat.queryOptions({ chatId }));
   const [restampFirst, setRestampFirst] = useState(false);
-  const restampId = useId();
   const personaId = chat.viewerActivePersonaId;
   const canRestamp = personaId !== null;
   const busy = resync.isPending || restamp.isPending;
@@ -336,7 +335,6 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
         hand-locked fields are never overwritten.
       </Text>
       <SettingCheckboxRow
-        id={restampId}
         label="Restamp my messages first"
         description="Re-stamps every line you wrote in this chat to the persona you're playing now, then rebuilds — so the rebuilt state uses that name. Replies keep the names the story already wrote."
         checked={restampFirst && canRestamp}
