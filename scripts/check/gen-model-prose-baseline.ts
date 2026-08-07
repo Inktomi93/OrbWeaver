@@ -6,24 +6,11 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { modelProseSites } from "./gates/no-hardcoded-model-prose.ts";
+import { modelProseSites, SEAM_FILES, SEAM_PREFIXES } from "./gates/no-hardcoded-model-prose.ts";
 import { getProject } from "./harness.ts";
 
-const SEAM_PREFIXES = [
-  "packages/server/src/domain/rpg/substrate/",
-  "packages/server/src/domain/rpg/tools/",
-  "packages/server/src/domain/chat/assembly/",
-  "packages/server/src/domain/chat/memory/build/substrate/",
-  "packages/server/src/domain/imagery/substrate/",
-  "packages/server/src/domain/imagery/tool/",
-] as const;
-const SEAM_FILES = [
-  "packages/server/src/entry/compose/rpg.ts",
-  "packages/server/src/domain/chat/engine/smart-arbitrate.ts",
-  "packages/server/src/domain/chat/verbs/compaction.ts",
-  "packages/server/src/domain/automation/engine/arm-executors.ts",
-  "packages/contracts/src/rpg/extraction-prompt.ts",
-] as const;
+// The seam list is imported, not re-spelled — the gate is the single writer of the seam vocabulary
+// (GATE-AUTHORING.md §4.8); a seam-list edit in the gate alone must not silently desync the baseline.
 // The catalogs are OUT here exactly as they are in the gate's isSeam — preset/index.ts is both a legacy
 // catalog and inside no seam prefix, so no exclusion is needed beyond the seam list itself.
 

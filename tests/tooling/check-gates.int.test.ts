@@ -869,11 +869,6 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_floorless/components/__g_grid.tsx",
     'const ICONS = ["a", "b", "c"];\nexport function GGrid() {\n  return (\n    <div className="flex-wrap">\n      {ICONS.map((n) => (\n        <Button key={n} size="glyph-lg">{n}</Button>\n      ))}\n    </div>\n  );\n}\n',
   );
-  // message-kind-policy-coverage: the STALE arm — the DEFERRED `prompt` axis (FANOUT-1's wiring is in
-  // flight) gains a production read in server scope → "now HAS a production reader". Keep in sync with the
-  // DEFERRED map in message-kind-policy-coverage.ts (when the real assembly read lands and the row is
-  // deleted, retarget this fixture at a then-deferred axis or move the gate to UNFIXTURABLE_GATES).
-  fx("packages/server/src/domain/chat/__g_mkpc.ts", "export const gMkpc = MESSAGE_KIND_POLICY.standard.prompt;\n");
   fx("scripts/check/gates/__g_nodescriptor.ts", "export const notAGateDescriptor = 1;\n");
 }
 
@@ -904,6 +899,13 @@ function writeFixtures(): void {
 // a throwaway `__g_` file can't add a member to the real union/interface/schema, and the STALE/ORPHAN arms
 // need a real registry edit. Its bite is proven by gate-conformance (per-arm mustFlag + STALE + the
 // paired-anchor tripwire mustFlag) + its live run on the real tree with the founding registry.
+// message-kind-policy-coverage: every REAL MessageKindPolicy axis (prompt/memory/reading) now has either a
+// production reader or is single-LITERAL, and its DEFERRED map is empty — so on the real tree there is no
+// unread axis left for a `__g_` file to fake a MISSING finding against (the interface itself is a single-home
+// real file this fixture can't extend), and the STALE/ORPHAN arms need a live DEFERRED row that doesn't exist
+// (see the note beside DEFERRED in message-kind-policy-coverage.ts). Its bite is proven by gate-conformance's
+// mustFlag rows (a fresh unread axis, and mode B) + the founding catch when the `comment` row's
+// `prompt:"never"` cell shipped unenforced.
 // baseui-surface-manifest: it compares two ARTIFACTS — the installed `@base-ui/react` under
 // packages/ui/node_modules and the committed surface manifest — and neither is something a `__g_`
 // source file can perturb. Its bite is proven by six conformance mustFlag examples that materialize a
@@ -920,6 +922,7 @@ const UNFIXTURABLE_GATES = new Set([
   "rpg-bus-coverage",
   "bus-payload-allowlist",
   "knob-wire-coverage",
+  "message-kind-policy-coverage",
 ]);
 
 let registry = new Set<string>();
