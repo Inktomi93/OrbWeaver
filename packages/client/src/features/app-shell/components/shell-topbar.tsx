@@ -30,6 +30,16 @@ export interface ShellTopbarProps {
   readonly onBack?: (() => void) | null;
   /** The back affordance's accessible name — the glyph carries no text (§13.10). `"Back to Chats"`. */
   readonly backLabel?: string;
+  /** What the NARROW row calls this screen: the OPEN member's own name where the section resolves one
+   *  (`SectionDefinition.useSelectionTitle`), else the section label. CONTENT, not layout context — WHICH
+   *  identity shows is a width question the container query answers (`shell.css`), never a prop
+   *  (`no-layout-context-props`: the container model replaces `compact`/`isSheet`/`density` props).
+   *
+   *  Why the narrow row swaps at all (side-eye P1, measured at 320px): the section's rich `header` cluster
+   *  (avatars + member chip + badges) is desktop-shaped, and with the trail taking 277 of 320px the LEAD
+   *  collapsed to 10.7px — the back button's box overlapped the ⌘K chip and every hit sample on it opened
+   *  the command palette, with that button the ONLY exit from a chat. */
+  readonly screenTitle?: string;
 }
 
 export interface TopbarIconButtonProps {
@@ -89,22 +99,40 @@ function leadControl({ listMode, listAvailable, onToggleList, onBack, backLabel 
   );
 }
 
+/** The topbar's one title voice. A single component so the file carries ONE element with the `<Text>` type
+ *  axes (the density-tier A3 budget this file is baselined at), rendered from both identity arms. */
+function TopbarTitle({ className, children }: { readonly className?: string; readonly children: ReactNode }): ReactElement {
+  return (
+    <Text className={className} size="title" weight="semibold">
+      {children}
+    </Text>
+  );
+}
+
+/** The WIDE identity: the section's own header cluster where it supplies one, else the title while the list
+ *  pane is hidden. Both identity arms are always in the DOM; `shell.css`'s `@container shell-main` query
+ *  shows exactly one — the row's width is a container question, not a viewport prop (§4b axis 1). */
+function wideIdentity({ title, header, listMode }: ShellTopbarProps): ReactNode {
+  if (header !== undefined && header !== null) {
+    return header;
+  }
+  return listMode === "collapsed" ? <TopbarTitle>{title}</TopbarTitle> : null;
+}
+
 export function ShellTopbar(props: ShellTopbarProps): ReactElement {
-  const { title, header, trail, listMode } = props;
-  const listCollapsed = listMode === "collapsed";
   return (
     <header className="shell-topbar">
       <div className="shell-topbar-lead">
         {leadControl(props)}
-        {header ??
-          (listCollapsed ? (
-            <Text size="title" weight="semibold">
-              {title}
-            </Text>
-          ) : null)}
+        <div className="shell-topbar-identity" data-identity="wide">
+          {wideIdentity(props)}
+        </div>
+        <div className="shell-topbar-identity" data-identity="narrow">
+          <TopbarTitle className="shell-topbar-title truncate">{props.screenTitle ?? props.title}</TopbarTitle>
+        </div>
       </div>
 
-      <div className="shell-topbar-trail">{trail}</div>
+      <div className="shell-topbar-trail">{props.trail}</div>
     </header>
   );
 }

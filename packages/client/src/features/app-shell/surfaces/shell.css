@@ -560,6 +560,20 @@
   background: var(--color-border);
 }
 
+/* The two IDENTITY arms are both in the DOM; the container query BELOW shows exactly one (a WIDTH question
+ * belongs to the container, never to a `compact` prop — `no-layout-context-props`).
+ *
+ * DECLARED HERE, ABOVE that query, on purpose: these selectors and the query's are the same specificity
+ * (0,2,0), so source order decides. Declared after it, this `display: none` won the narrow arm back and the
+ * screen title measured 0px wide with its text present — the exact shape of the defect the query exists to
+ * fix, re-introduced by ordering alone. */
+.shell-topbar-identity {
+  display: contents;
+}
+.shell-topbar-identity[data-identity="narrow"] {
+  display: none;
+}
+
 /* The active chat's identity title in the topbar LEAD. It's the row's sole shrinker (min-w-0), so a
  * hard floor stops it collapsing to 0px when the avatar + member chip + trail claim the row — it always
  * shows a few chars + ellipsis rather than vanishing (the "graceful ellipsis, never 0 chars" floor). */
@@ -579,6 +593,39 @@
   .shell-topbar-jump-label {
     display: none;
   }
+
+  /* THE NARROW TOPBAR BUDGET (side-eye P1). At this width the row seats exactly: one lead control + one
+   * name + the trail's icons. So the section's rich header cluster (avatars, chips, badges — desktop
+   * anatomy) steps aside for the plain screen title, which is the OPEN member's own name. */
+  .shell-topbar-identity[data-identity="wide"] {
+    display: none;
+  }
+  .shell-topbar-identity[data-identity="narrow"] {
+    display: block;
+    min-width: 0;
+  }
+  /* The lead SHRINKS and its title truncates — and what protects it from collapsing under its own control
+   * is the TRAIL's floor below, not a floor of its own. Two measurements taught that, in order:
+   *   · `min-width: 0` + an UNSHRINKABLE trail (`flex: none`, 277px of ⌘K/focus/toggles) squeezed the lead
+   *     to 10.7px, and the back button's 48px box painted UNDER the trail — later in DOM, so it took every
+   *     click, and the ONLY exit from a chat opened the command palette instead (side-eye P1);
+   *   · `min-width: min-content` overcorrected: a truncating title is `white-space: nowrap`, whose
+   *     min-content is the FULL string, so the lead demanded 262px for the room's name and pushed the
+   *     trail's own icons to x=324 — the chat's options kebab sat 4px off a 320px screen.
+   * With the trail floored at its content and the desktop-shaped affordances shed, the lead always gets the
+   * remainder (measured 204px at 320px), which is far past its 44px control. */
+  .shell-topbar-lead {
+    min-width: 0;
+  }
+  /* …and here the TRAIL gives too — but only down to its OWN content. `min-width: 0` let it shrink past
+   * that, and its icons (each `flex: none`) overflowed the box: MEASURED on the live stage at 320px, the
+   * trail box came out 26px holding a 34px toggle plus the chat kebab at x=324 — four pixels PAST the
+   * viewport edge, so the room's own options menu was unreachable. `min-content` is the floor; what
+   * actually gives on a full row is the LEAD's title, which truncates (its own 6ch floor). */
+  .shell-topbar-trail {
+    flex: 0 1 auto;
+    min-width: min-content;
+  }
 }
 
 /* Tap-target floor for every topbar icon button (the lead list-panel toggle + the trail chrome icons):
@@ -588,9 +635,18 @@
   .shell-topbar-icon-btn {
     min-width: var(--spacing-touch-target);
     min-height: var(--spacing-touch-target);
-    flex: none;
   }
 }
+/* …and it NEVER shrinks, on any pointer. `flex: none` used to ride inside the coarse-pointer block, so on a
+ * fine pointer the lead's control was a shrinkable flex item: at 320px the row squeezed the LEAD to 10.7px
+ * while the button kept its own 48px box, which then overflowed under the trail — the trail is later in DOM,
+ * so it took the clicks, and every hit sample on the back button opened the command palette (side-eye P1,
+ * `reports/snaps/m-touch-chat-topbar-overlap.png`). The control is the row's fixed cost; the TITLE is the
+ * only thing allowed to give. */
+.shell-topbar-icon-btn {
+  flex: none;
+}
+
 .shell-content {
   flex: 1 1 auto;
   min-height: 0;

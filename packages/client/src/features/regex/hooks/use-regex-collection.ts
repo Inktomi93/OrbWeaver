@@ -16,6 +16,14 @@ export function useRegexCount(): number | undefined {
   return useQuery(trpc.regex.listScripts.queryOptions()).data?.length;
 }
 
+/** The OPEN member's name for the mobile pushed frame's topbar (the `useMemberTitle` seam) — the SAME
+ *  cached list the census and the rows read, so this is a cache hit and never a second request. */
+export function useRegexMemberTitle(memberId: string): string | undefined {
+  const trpc = useTRPC();
+  const rows = useQuery(trpc.regex.listScripts.queryOptions()).data;
+  return rows?.find((row) => row.id === memberId)?.name;
+}
+
 /** The create runner: mint a script from the schema defaults, then OPEN it in CONTENT — the same
  *  create-then-edit motion the settings pane had, minus the dialog stacked on a modal (C-7). */
 export function useCreateRegexMember(): () => void {

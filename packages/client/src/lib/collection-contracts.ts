@@ -109,6 +109,16 @@ export interface CollectionContribution {
   /** The group count for the band ("TAGS · 412") — a cache-first hook, same call discipline. It also drives
    *  the host's filter affordance at {@link COLLECTION_LARGE_GROUP}. */
   readonly useCount?: () => number | undefined;
+  /** The OPEN member's own name, for the mobile pushed frame's topbar title (the config section's
+   *  `useSelectionTitle` — side-eye P2: a pushed detail must name the MEMBER, not the section). A hook over
+   *  the member id, same call discipline as {@link useCount}: cache-first, non-suspending, `undefined`
+   *  while the read has not landed. Optional — a collection that omits it falls back to its own singular
+   *  `label`, which is honest ("Tag") rather than blank.
+   *
+   *  MUST be exactly ONE cache-first `useQuery` (like {@link useCount}): the host calls the OPEN member's
+   *  kind only, so a kind switch swaps WHICH implementation runs. Identical hook shapes make that a change
+   *  of query key rather than a change of hook set — the reason this can resolve without a keyed remount. */
+  readonly useMemberTitle?: (memberId: string) => string | undefined;
   /** The group's rows — OWNER-rendered (its own query, its own row anatomy under the §12.2 row-action
    *  grammar + G6), inside the host's group frame, and mounted ONLY while the group is expanded. */
   readonly list: (view: CollectionListView) => ReactNode;

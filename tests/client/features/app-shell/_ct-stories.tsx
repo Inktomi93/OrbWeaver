@@ -24,12 +24,14 @@ import { createContributorRegistry, defineContextRegion, defineContextTabs, VOID
 import type { ChromeEntry, SectionDefinition, SectionId } from "@orb/client/state";
 import {
   ChromeRegistryProvider,
+  NO_SELECTION_TITLE,
   selectCharacter,
   selectChat,
   selectCollectionMember,
   selectCorpusCharacter,
   selectDocumentFromList,
   startNewChat,
+  useSectionListIsScreen,
 } from "@orb/client/state";
 import type { CharacterId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -130,13 +132,46 @@ function openMemberIn(section: SectionId): void {
   selectCollectionMember("tag", "tag-ct-member");
 }
 
+/** The story's stand-in for a section's `useSelectionTitle`: the OPEN member's name, resolved REACTIVELY
+ *  from the same seam the shell reads (`useSectionListIsScreen` is `true` exactly while nothing is open), so
+ *  the CT can pin "the pushed topbar names the member, the roster topbar names the section" without a live
+ *  backend behind a real name query. Module scope — a fresh closure per render would remount the title. */
+const CT_MEMBER_TITLE = "Ashen Spire";
+// One named hook per section rather than a factory: a function that RETURNS a hook is banned
+// (`noComponentHookFactories`), and these are the exact shape a real section declares — a module-level
+// hook the shell calls inside its keyed title component.
+const useChatsStoryTitle = (): string | null => (useSectionListIsScreen("chats") ? null : CT_MEMBER_TITLE);
+const useCharactersStoryTitle = (): string | null => (useSectionListIsScreen("characters") ? null : CT_MEMBER_TITLE);
+const useCorpusStoryTitle = (): string | null => (useSectionListIsScreen("corpus") ? null : CT_MEMBER_TITLE);
+const useConfigStoryTitle = (): string | null => (useSectionListIsScreen("config") ? null : CT_MEMBER_TITLE);
+const useDatabankStoryTitle = (): string | null => (useSectionListIsScreen("databank") ? null : CT_MEMBER_TITLE);
+const STORY_TITLES: Partial<Record<SectionId, () => string | null>> = {
+  chats: useChatsStoryTitle,
+  characters: useCharactersStoryTitle,
+  corpus: useCorpusStoryTitle,
+  config: useConfigStoryTitle,
+  databank: useDatabankStoryTitle,
+};
+
 /** The shell on ONE list-bearing section at a mobile viewport, plus the one control the CT needs: the
- *  section's own open-a-member intent. Everything else — which screen shows, the back affordance, what the
- *  toggle does — is the shell's, which is the whole point of the rule. */
+ *  section's own open-a-member intent. Everything else — which screen shows, the back affordance, the topbar
+ *  budget, what the toggle does — is the shell's, which is the whole point of the rule. */
 export function AppShellMobileRuleStory({ section }: { readonly section: SectionId }): ReactElement {
   return (
     <CtDataProviders>
-      <CtFakeSectionRegistry sections={{ [section]: { list: <p>{section} list pane</p>, content: <p>{section} content pane</p> } }}>
+      <CtFakeSectionRegistry
+        sections={{
+          [section]: {
+            list: <p>{section} list pane</p>,
+            content: <p>{section} content pane</p>,
+            ...(STORY_TITLES[section] === undefined ? {} : { selectionTitle: STORY_TITLES[section] }),
+            // The section-owned topbar cluster, at the footprint the real chats header occupies (avatars +
+            // name + member chip ≈ 180px). Without it the lead is one control wide and the P1 row-budget
+            // measurement has nothing to squeeze — the defect only exists when the lead has a passenger.
+            header: <div style={{ width: 180 }}>{section} topbar header</div>,
+          },
+        }}
+      >
         <LandOn section={section} />
         <button type="button" onClick={(): void => openMemberIn(section)}>
           open a member
@@ -331,9 +366,14 @@ export function YouSheetProjectionStory(): ReactElement {
     },
   ]);
   return (
-    <ChromeRegistryProvider value={chrome}>
-      <YouSheet />
-    </ChromeRegistryProvider>
+    // The section registry wrapper supplies the REAL MODAL registry, which the sheet now reads to place the
+    // command modal's row (the ⌘K chip's mobile home — app-shell.tsx's budget). The story's own CHROME
+    // registry is nested INSIDE it so it still wins over the real one.
+    <CtFakeSectionRegistry>
+      <ChromeRegistryProvider value={chrome}>
+        <YouSheet />
+      </ChromeRegistryProvider>
+    </CtFakeSectionRegistry>
   );
 }
 
@@ -347,6 +387,7 @@ function fakeHeaderSection(context: SectionDefinition["context"]): SectionDefini
     placeholder: { title: "Chats", description: "Fake section for the header-channel CT." },
     content: { planned: "ct" },
     context,
+    useSelectionTitle: NO_SELECTION_TITLE,
   };
 }
 
@@ -541,6 +582,7 @@ function regionSection(regions: ContributorRegistry<ContextRegionDef<void>>): Se
     placeholder: { title: "Chats", description: "Fake section for the region-claim CT." },
     content: { planned: "ct" },
     context: defineContextTabs<void>({ useContextState: () => VOID_STATE, tabs: REGION_TABS, regions }),
+    useSelectionTitle: NO_SELECTION_TITLE,
   };
 }
 

@@ -4,11 +4,14 @@
 
 import { FlaskConical } from "@orb/ui/icons";
 import type { SectionDefinition } from "#state";
+import { NO_SELECTION_TITLE } from "#state";
 
 export const refinerySection: SectionDefinition = {
   id: "refinery",
   rail: { label: "Refinery", icon: FlaskConical, group: "authoring", mobile: "sheet" },
   panelDefaults: { list: "collapsed", context: "collapsed" },
+  // No member to name — the mobile topbar prints the section label (NO_SELECTION_TITLE).
+  useSelectionTitle: NO_SELECTION_TITLE,
   placeholder: {
     title: "Refinery",
     description: "Score → rewrite → analyze a character card without drifting from your original.",

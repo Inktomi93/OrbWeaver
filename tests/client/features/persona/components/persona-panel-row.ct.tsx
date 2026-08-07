@@ -127,3 +127,31 @@ test("the name control enters inline rename — it does NOT fire 'set current'",
   await expect(component.getByRole("textbox", { name: "Persona name" })).toBeVisible();
   await expect(component.getByTestId("fired")).toHaveText("none");
 });
+
+// ── THE SAME FENCE AT THE NARROWEST REAL MOUNT (side-eye P3) ─────────────────────────────────────────
+// This row also renders inside the mobile YOU SHEET, which is 320px wide — narrower than the 358px rail the
+// fence above measures. Measured there before the fix: the name read "Tr…" over "Your de…", because the
+// name column was the row's only shrinker (the marker cluster carried `shrink-0`). The floor is now the
+// name's own `min-w-1/2`, and the markers are what give.
+
+test("at the 320px You-sheet width the name column still keeps HALF the row", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowDenseStory width={320} />);
+  const name = component.locator('[data-slot="persona-row-name"]');
+  await expect(name).toBeVisible();
+  const [nameWidth, rowWidth] = await name.evaluate((el: HTMLElement): readonly [number, number] => [
+    el.getBoundingClientRect().width,
+    (el.parentElement as HTMLElement).getBoundingClientRect().width,
+  ]);
+  // ≥50% of the row's CONTENT box; the row pads, so the fraction of the padded box sits just under it.
+  expect(nameWidth / rowWidth).toBeGreaterThan(0.45);
+});
+
+test("at 320px the persona's whole name still renders — no ellipsis on a 8-char name", async ({ mount }) => {
+  const component = await mount(<PersonaPanelRowDenseStory width={320} />);
+  const nameText = component.getByText("Traveler", { exact: true });
+  await expect(nameText).toBeVisible();
+  // TRUNCATION IS A GEOMETRY FACT, not a text fact — `truncate` keeps the full string in the DOM and clips
+  // it, so the assertion is scrollWidth vs clientWidth on the element that carries the ellipsis.
+  const clipped = await nameText.evaluate((el: HTMLElement) => el.scrollWidth > el.clientWidth + 1);
+  expect(clipped).toBe(false);
+});

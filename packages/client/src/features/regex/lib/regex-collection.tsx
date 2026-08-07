@@ -10,7 +10,7 @@ import { Code } from "@orb/ui/icons";
 import type { CollectionContribution } from "#lib";
 import { RegexCollectionRows } from "../components/regex-collection-rows.tsx";
 import { RegexContextBody } from "../components/regex-context-body.tsx";
-import { useCreateRegexMember, useImportRegexMember, useRegexBulkMode, useRegexCount } from "../hooks/use-regex-collection.ts";
+import { useCreateRegexMember, useImportRegexMember, useRegexBulkMode, useRegexCount, useRegexMemberTitle } from "../hooks/use-regex-collection.ts";
 import { RegexMemberSurface } from "../surfaces/regex-member-surface.tsx";
 import { REGEX_COLLECTION_ID } from "./regex-model.ts";
 
@@ -22,6 +22,7 @@ export const regexCollection: CollectionContribution = {
   blurb: "Find/replace that runs on input, output, or both — everywhere, or only where you attach it.",
   emptyText: "No scripts yet.",
   useCount: useRegexCount,
+  useMemberTitle: useRegexMemberTitle,
   create: { label: "New script", useRun: useCreateRegexMember },
   // The two REGX2 band affordances, declared as DATA the host renders in its own chrome grammar (C-4).
   // `importFile` exists at all because the owner's REGX2 ruling ENDED the `{ ruled }` exemption that used to

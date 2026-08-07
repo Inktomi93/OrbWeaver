@@ -134,8 +134,13 @@ export function PersonaPanelRow({
         </FileTrigger>
 
         {/* `data-slot`: the name column's WIDTH is the thing the trailing clusters were starving, so it needs
-            a stable handle a CT can measure (persona-panel-row.ct.tsx, the 358px dense-row fence). */}
-        <Stack className="pointer-events-none relative min-w-0 flex-1" data-slot="persona-row-name">
+            a stable handle a CT can measure (persona-panel-row.ct.tsx, the 358px dense-row fence).
+            `min-w-1/2` is the FLOOR that fence needed at the NARROWEST real mount (side-eye P3): the same row
+            renders inside the mobile You sheet at 320px, where the avatar + the "Playing as" marker cluster
+            left the name 58px and it read "Tr…" over a "Your de…" title. The name is the row's subject, so
+            it keeps half the row and the MARKERS give — they are a kicker and two glyphs, and the glyphs
+            never truncate. */}
+        <Stack className="pointer-events-none relative min-w-1/2 flex-1" data-slot="persona-row-name">
           {editingName ? (
             <Input
               aria-label="Persona name"
@@ -189,7 +194,10 @@ export function PersonaPanelRow({
             the box they share changed. */}
         {/* `relative`: the stretched select-Button above is `absolute`, so a STATIC sibling would paint
             under it and every control in here would be unreachable. */}
-        <Layer className="relative shrink-0">
+        {/* `min-w-0` beside the name's `min-w-1/2` floor: the marker cluster is what GIVES at 320px, so its
+            own box must be allowed to shrink (the kicker truncates; the glyphs are `shrink-0` themselves and
+            never do). `shrink-0` here is what made the name the only shrinker on a phone-width row. */}
+        <Layer className="relative min-w-0 shrink">
           <Row align="center" className={cn("pointer-events-none", ROW_REVEAL_SWAP) ?? ""} gap="field" justify="end">
             {/* THE ROW IS THE ONE HOME FOR "PLAYING AS" (side-eye 2026-08-03 P2) — the band above the roster
                 used to render the current persona a second time, with a different anatomy, 40px away. Words,

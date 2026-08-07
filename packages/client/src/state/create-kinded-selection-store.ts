@@ -30,6 +30,8 @@ export interface KindedDrillStore {
    *  identity — a primitive-shaped selector, no fresh object per render. */
   readonly useSelection: () => KindedSelection | null;
   readonly select: (kind: string, memberId: string) => void;
+  /** Clear the selection — back to the section's welcome home, AND release any open LIST slide-over (the
+   *  drill-store twin: ONE DOOR BACK, side-eye P2). */
   readonly clear: () => void;
   /** `select` AND close any open LIST slide-over (viewport-unaware; a no-op when the LIST is docked). */
   readonly selectFromList: (kind: string, memberId: string) => void;
@@ -46,10 +48,15 @@ interface KindedSelectionState {
 export function createKindedSelectionStore(name: string): KindedDrillStore {
   const useSelectionStore = createGatedStore<KindedSelectionState>(name, (): KindedSelectionState => ({ selection: null }));
   const write = (kind: string, memberId: string): void => useSelectionStore.setState({ selection: { kind, memberId } }, false, `${name}/select`);
+  // The ONE clear — see `clear`'s contract (the drill-store twin).
+  const clearSelection = (): void => {
+    useSelectionStore.setState({ selection: null }, false, `${name}/clear`);
+    setOpenOverlayPanel(null);
+  };
   return {
     useSelection: (): KindedSelection | null => useSelectionStore((s) => s.selection),
     select: write,
-    clear: (): void => useSelectionStore.setState({ selection: null }, false, `${name}/clear`),
+    clear: clearSelection,
     selectFromList: (kind: string, memberId: string): void => {
       write(kind, memberId);
       setOpenOverlayPanel(null);
@@ -57,7 +64,8 @@ export function createKindedSelectionStore(name: string): KindedDrillStore {
     selection: {
       subscribe: (onStoreChange: () => void): (() => void) => useSelectionStore.subscribe(onStoreChange),
       hasSelection: (): boolean => useSelectionStore.getState().selection !== null,
-      clear: (): void => useSelectionStore.setState({ selection: null }, false, `${name}/clear`),
+      // THE SAME function the store exports — one door, by construction.
+      clear: clearSelection,
     },
   };
 }
