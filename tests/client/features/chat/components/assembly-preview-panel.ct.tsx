@@ -91,12 +91,24 @@ const PREVIEW_ASSEMBLY_DATA = {
   budget: PLAIN_BUDGET,
 };
 
+// The DELIVERED wire rows, in order — the projection that makes the INJECT-NAMED-AS-PLAYER class visible: row
+// 3 is an `assembled` steering block delivered under `role: user` with the PLAYER's name on it, which no stage
+// COUNT could ever show. Row 4 is `merged` — a canon turn a same-role squash folded an assembled row into.
+const SHAPE_TRACE_ROWS = [
+  { role: "user" as const, name: "Alex", source: "canon" as const, chars: 128 },
+  { role: "assistant" as const, name: "Aria", source: "canon" as const, chars: 640 },
+  { role: "user" as const, name: "Alex", source: "assembled" as const, chars: 3037 },
+  { role: "user" as const, name: "Alex", source: "merged" as const, chars: 212 },
+  { role: "system" as const, source: "assembled" as const, chars: 96 },
+];
+
 const SHAPE_TRACE_DATA = {
   multiCharacter: false,
   stageCounts: { withTail: 10, injected: 11, squashed: 9, named: 9 },
   squashMerges: 2,
   cacheBreakpointFromEnd: 3,
   breakpointDecision: "placed" as const,
+  rows: SHAPE_TRACE_ROWS,
 };
 
 // Regex literals hoisted to module scope (biome `useTopLevelRegex`).
@@ -109,6 +121,7 @@ const RE_SYSTEM = /System/;
 const RE_CARDS_COUNT = /1,208/;
 const RE_DIAGNOSTICS = /Diagnostics/;
 const RE_WINDOW_UNPUBLISHED = /context window isn.t published/;
+const RE_WIRE_ROW_1 = /1\. user · Alex/;
 
 /** The label→count pairs every source row must render (the accessible datum beside each bar segment). */
 const SOURCE_ROWS: readonly (readonly [string, string])[] = [
@@ -363,6 +376,53 @@ test("the diagnostics drawer still carries the BUILD + SHAPE traces (collapsed b
   await expect(component.getByText("we_dragon")).toBeVisible();
   await expect(component.getByText("always")).toBeVisible();
   await expect(component.getByText("Memory")).toHaveCount(0); // memoryIncluded:false → not an active flag badge.
+});
+
+test("the diagnostics drawer lists the DELIVERED wire rows in order, with role · speaker · provenance", async ({ mount, page }) => {
+  // RPG-NO-PROMPT-DEBUG: block order was reconstructed by hand from wire captures because the shape trace
+  // projected stage COUNTS only. These rows are the order/role/voice datum, content-free.
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => PREVIEW_ASSEMBLY_DATA,
+    "chat.getShapeTrace": () => SHAPE_TRACE_DATA,
+  });
+
+  const component = await mount(<AssemblyPreviewPanelStory />);
+
+  // Collapsed by default — the drawer is a diagnostic, not the tab's headline.
+  await expect(component.getByText(RE_WIRE_ROW_1)).toHaveCount(0);
+  await component.getByRole("button", { name: RE_DIAGNOSTICS }).click();
+
+  await expect(component.getByText("Wire rows — 5 delivered")).toBeVisible();
+
+  // The ORDER is the datum: each row leads with its position, then role, then the speaker label it carries.
+  const rows = component.locator("[data-slot=wire-row-trace]");
+  await expect(rows).toHaveCount(5);
+  await expect(rows.nth(0)).toContainText("1. user · Alex");
+  await expect(rows.nth(1)).toContainText("2. assistant · Aria");
+  await expect(rows.nth(4)).toContainText("5. system");
+
+  // The INJECT-NAMED-AS-PLAYER tell, made visible: a row in the PLAYER's voice that is not the player's turn.
+  await expect(rows.nth(2)).toContainText("3. user · Alex");
+  await expect(rows.nth(2)).toContainText("assembled");
+  await expect(rows.nth(2)).toContainText("3,037 chars");
+
+  // A squash that folded an assembled row into a canon turn reports as MERGED — never silently as canon.
+  await expect(rows.nth(3)).toContainText("merged");
+  // A canon row says so, so "assembled" is a positive claim rather than the absence of a badge.
+  await expect(rows.nth(0)).toContainText("canon");
+});
+
+test("no delivered rows ⇒ the drawer says so rather than rendering an empty block", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "chat.previewAssembly": () => PREVIEW_ASSEMBLY_DATA,
+    "chat.getShapeTrace": () => ({ ...SHAPE_TRACE_DATA, rows: [] }),
+  });
+
+  const component = await mount(<AssemblyPreviewPanelStory />);
+  await component.getByRole("button", { name: RE_DIAGNOSTICS }).click();
+
+  await expect(component.getByText("Wire rows — 0 delivered")).toBeVisible();
+  await expect(component.getByText("This turn delivers no history rows.")).toBeVisible();
 });
 
 test("error surface renders when either read fails", async ({ mount, page }) => {

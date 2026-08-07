@@ -138,6 +138,7 @@ function resolveStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTur
   ctx.onStateRoundPath({
     chatId: game.chatId,
     gameId: game.id,
+    turnId: turn.turnId,
     mode,
     path: calls === null ? POST_COMMIT_PATH[mode] : "folded",
     fallbackReason: foldFallbackReason(turn, mode, calls),

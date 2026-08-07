@@ -65,7 +65,12 @@ const STALE_DOMAIN_FILE =
  *    `flush-barrier.ts` (the per-chat in-flight-flush BARRIER singleton — an in-memory Map the post-turn flush
  *    registers into + the next turn's gather awaits, so a fast re-send reads the just-committed state, not stale
  *    state; the `staging.ts`/`bus.ts` in-memory-singleton precedent; the dedicated state round made the flush a
- *    real 0.8-2.9s call, so the race is real — rpg-design/05 §4.6 delivery-model amendment).
+ *    real 0.8-2.9s call, so the race is real — rpg-design/05 §4.6 delivery-model amendment),
+ *    `trace.ts` (R-OBS — the per-process rpg FLIGHT RECORDER: a bounded in-memory ring the composition root
+ *    mints ONE of when `RPG_TRACE=on`, whose `sink` the compose emit sites write through and whose `recent`
+ *    the host-only `/api/_debug/rpg/traces` route reads; the `staging.ts`/`bus.ts` in-memory-singleton
+ *    precedent exactly. RE-ADDED 2026-08-07 with the file: this row was one of the four deleted by the stale-arm
+ *    catch below, which is the two-sided rule working — the permission died with its code and comes back with it).
  *  - stats: `reconcile-in-flight.ts` (the per-USER single-flight gate for the awaited `stats.reconcile` verb —
  *    an in-memory Set the verb claims/releases around the rebuild, so a second concurrent recompute is refused
  *    with CONFLICT instead of racing the first over the same rollup rows; the `chat/active-turns.ts`
@@ -76,7 +81,7 @@ const STALE_DOMAIN_FILE =
 // justification for a file that does not exist is not history, it is a permission waiting for a namesake.
 const DOMAIN_SPECIFIC_ALLOWED_ROOT_FILES: Readonly<Record<string, readonly string[]>> = {
   chat: ["bus.ts", "active-turns.ts"],
-  rpg: ["bus.ts", "staging.ts", "snapshot-edit.ts", "flush-barrier.ts", "game-mint.ts"],
+  rpg: ["bus.ts", "staging.ts", "snapshot-edit.ts", "flush-barrier.ts", "game-mint.ts", "trace.ts"],
   preset: ["constants.ts", "seed.ts"],
   settings: ["constants.ts", "seed-themes.ts"],
   stats: ["reconcile-in-flight.ts"],

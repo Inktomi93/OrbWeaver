@@ -32,6 +32,8 @@ import { characters, messages, messageVariants, presets } from "@orb/db";
 import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, PresetId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { AgentModelHealError, ConnectionRoutingError } from "@orb/server/domain/connection";
+import type { RpgTraceEvent, RpgTraceSink } from "@orb/server/domain/rpg";
+import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import type { ChatResult } from "@orb/server/infra/providers";
@@ -256,11 +258,15 @@ function buildCannedRpgWithText(args: {
   /** The deployment's structured-output wire shape (D126) — the AppSettings knob the real composition root
    *  feeds off `getEffectiveConfig()`. Omitted ⇒ the shipped floor, so every existing pin drives the default. */
   readonly structuredOutputShape?: StructuredOutputShape;
+  /** R-OBS — the rpg flight-recorder sink. Omitted ⇒ untraced, which is what every other pin here drives (and
+   *  is itself the zero-cost/byte-identical claim: those pins pass unchanged with no sink wired). */
+  readonly trace?: RpgTraceSink;
 }): ReturnType<typeof buildRpg> {
   const { app, db, api, spy, cannedText, cannedToolCalls, structuredThrows, chatThrows, capability } = args;
   return buildRpg({
     db,
     now: () => FROZEN_AT,
+    ...(args.trace === undefined ? {} : { trace: args.trace }),
     rpgChatOps: app.chatRpgOps,
     connection: {
       // The READ-side `trackersReadOnly` pill resolves the ROOM connection via `resolveChat` (the F1 seam — the
@@ -1161,6 +1167,100 @@ test("R1 composed-real: the character turn's own tool calls land state — and N
   expect(view.recentBeats).toContain("forded the river");
   const journal = await rpgCompose.service.listJournal({ principal: hostPrincipal(hostId), chatId, limit: 50 });
   expect(journal.map((j) => j.title)).toContain("The Ford");
+});
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// R-OBS — the rpg FLIGHT RECORDER, composed-real. `RPG_TRACE` was scaffolding only (dogfood-tracking
+// RPG-TRACE-DEAD: env declared, route skipped, inspector never implemented). These drive a real folded turn
+// through the real compose graph with a real recorder wired and assert the ring holds what a host would need:
+// what the turn MOUNTED, what the model CALLED (args verbatim + the schema's verdict), which delivery PATH the
+// flush took, and what it ANNOUNCED — all joinable on one `turnId`, which is the query key the route exposes.
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+
+test("R-OBS composed-real: a folded turn records its mount, its calls, its flush path and its bus emits", async ({ app, db }) => {
+  const recorder = createRpgTraceRecorder({ now: () => FROZEN_AT });
+  const { chatId, hostId } = await seedHostGameChat(db, "robs-fold");
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy: emptySpy(),
+    cannedText: JSON.stringify(CANNED_EXTRACTION),
+    trace: recorder.sink,
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "She fords the river." });
+
+  // The MOUNT half runs at GATHER — the same entry point the engine drives to attach the terminal tools.
+  await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
+  await rpgCompose.chatOps.onTurnCompleted(
+    chatId,
+    messageId,
+    variantId,
+    TURN,
+    foldedTurn([
+      { name: "update_scene", args: { location: "the ford", recentEvent: "forded the river" } },
+      // Valid JSON, INVALID against its own schema: the drop class this recorder was re-lit for
+      // (SCENE-DROPPED cost a live session hours because the trail carried names without reasons).
+      { name: "upsert_quest", args: { name: 42 } },
+    ]),
+  );
+
+  const events = recorder.recent({ chatId }).map((record) => record.event);
+
+  // 1. WHAT THE TURN COULD WRITE.
+  const mount = events.find((event): event is Extract<RpgTraceEvent, { phase: "mount" }> => event.phase === "mount");
+  expect(mount?.toolNames).toContain("update_scene");
+
+  // 2. WHAT THE MODEL CALLED — args VERBATIM, and the per-call verdict beside them.
+  const tool = events.find((event): event is Extract<RpgTraceEvent, { phase: "tool" }> => event.phase === "tool");
+  expect(tool?.vehicle).toBe("folded extraction");
+  expect(tool?.turnId).toBe(TURN);
+  expect(tool?.calls.map((call) => [call.name, call.verdict])).toEqual([
+    ["update_scene", "applied"],
+    ["upsert_quest", "dropped"],
+  ]);
+  // The raw string the model sent survives — a parsed-only capture erases exactly the failing case.
+  expect(tool?.calls[1]?.args).toBe(JSON.stringify({ name: 42 }));
+  expect(tool?.calls[1]?.issues.join(" ")).toContain("name");
+
+  // 3. WHICH VEHICLE ACTUALLY RAN (a `folded` game silently paying for a second call is the R1 failure).
+  const flush = events.find((event): event is Extract<RpgTraceEvent, { phase: "flush" }> => event.phase === "flush");
+  expect(flush).toMatchObject({ turnId: TURN, path: "folded", fallbackReason: null });
+
+  // 4. WHAT REACHED THE PANEL.
+  expect(events.filter((event) => event.phase === "bus").length).toBeGreaterThan(0);
+
+  // …and the whole turn is joinable on ONE key — the route's `?turnId=` filter. The mount has none (it runs
+  // before the turn resolves one), so it is correctly EXCLUDED rather than silently matched.
+  const byTurn = recorder.recent({ turnId: TURN }).map((record) => record.event.phase);
+  expect(byTurn).toContain("tool");
+  expect(byTurn).toContain("flush");
+  expect(byTurn).not.toContain("mount");
+});
+
+test("R-OBS: an UNTRACED game is byte-identical — the same turn lands the same state with no sink wired", async ({ app, db }) => {
+  // The zero-cost claim, asserted rather than asserted-in-a-comment: the emit sites are `deps.trace?.(…)`, so
+  // with no recorder the event objects are never even constructed and the turn behaves exactly as before.
+  const { chatId, hostId } = await seedHostGameChat(db, "robs-untraced");
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpg(app, db, "chat-completions", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "She fords the river." });
+
+  await rpgCompose.chatOps.onTurnCompleted(
+    chatId,
+    messageId,
+    variantId,
+    TURN,
+    foldedTurn([{ name: "update_scene", args: { location: "the ford", recentEvent: "forded the river" } }]),
+  );
+
+  expect(spy.chatTurns).toEqual([]);
+  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  expect(view.ambient?.location).toBe("the ford");
 });
 
 test("R1 composed-real: the same calls, folded vs a tool ROUND, produce the SAME state", async ({ app, db }) => {
