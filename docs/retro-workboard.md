@@ -85,6 +85,15 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - **⚑ IN FLIGHT (two agents):** lane **NARRATOR-LIVE** (`a04f9f8075274896e`) + a 4-chunk **VERIFIER** (`a5efc87558f12b959`) over the day's un-graduated merges (FANOUT-1's seven dispatch sites incl. the 33-line shipped-asset patch · GATEFORGE's four gates, false-positive hunt included · the RPGFORK + FANOUT-2 fix legs). Nothing else is running. Original NARRATOR-LIVE note: lane **NARRATOR-LIVE** — a dogfood-shaped LIVE drive of group narrator mode (hosted +
   local vLLM arms) answering "does it demonstrably work end-to-end now that the fan-out changed what the
   model sees?" Verdict → `docs/reviews/misc/2026-08-07-narrator-live-drive.md`.
+- **⚑ OWNER RULING (2026-08-07) ON THE PRINCIPAL DIVERGENCE: FIX IT PROPERLY, STOP HAND-PATCHING.**
+  His words: it "has been doing it for a while, we just manually dealt with it before" — so this is
+  PRE-EXISTING, not new from today's reseed, and the manual `setRole` workaround is retired. The want:
+  when the fallback path admits you, **it goes through like normal** — you land as a REAL owner and the
+  turn resolves the owner's model, instead of a second-class twin the capability surface lies about.
+  Lane AUTHFIX dispatched to security-executor. The shape to build toward: **the role verdict has ONE
+  home and both principals consume it** — the same discipline `viewerReadsHidden` follows (D110 homes
+  the byte-selection verdict once so surfaces cannot drift). A seam that STAMPS a role while a resolver
+  READS one is two homes for one verdict.
 - **⚑ LIVE-DRIVE FINDING (NARRATOR-LIVE, mid-run): TWO PRINCIPALS DISAGREE ABOUT THE SAME USER, and
   the capability surface and the actual turn silently pick DIFFERENT MODELS.** The `via:"fallback"`
   auth seam (`entry/auth/seam.ts:113-122`, this dev stack's path) stamps `role:"owner"` on the REQUEST
