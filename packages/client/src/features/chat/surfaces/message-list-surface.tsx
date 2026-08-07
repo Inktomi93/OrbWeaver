@@ -21,7 +21,7 @@ import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useDisplayScr
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { useFocusOnMount } from "#lib";
 import type { ChatHandle, DraftSeed } from "#state";
-import { isCommitted, isLiveTurnPhase, useDraftConfig, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
+import { isCommitted, isLiveTurnPhase, resolveDraftCharacterIds, useDraftConfig, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
 import { MessageRow } from "../components/message-row.tsx";
@@ -32,7 +32,7 @@ import { useMessageAppearance } from "../hooks/use-message-appearance.ts";
 import { lastUserRowIndex, messageItemKey, useMessageItems, useNewArrivalKeys } from "../hooks/use-message-items.ts";
 import { resolveRowAttribution } from "../lib/attribution.ts";
 import { resolveContextBoundaryMessageId } from "../lib/context-boundary.ts";
-import { resolveDraftAnchorPersona, resolveDraftCharacterIds } from "../lib/draft-commit.ts";
+import { resolveDraftAnchorPersona } from "../lib/draft-commit.ts";
 import type { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { buildParticipantsById } from "../lib/roster.ts";
 import { synthGreetingRow } from "../lib/synth-greeting-row.ts";
@@ -326,9 +326,21 @@ interface DraftGreetingThreadProps {
  *  does, so it must also be fed the same MACRO producers: the founding cards supply `{{char}}`, and the
  *  viewer's owned personas + the predicted anchor (`resolveDraftAnchorPersona`) supply `{{user}}`/
  *  `{{persona}}` — otherwise the greeting reads "User" before send and the persona's name after, for one
- *  unchanged string. Only the SERVER-resolved half stays absent (no `participants`): render trust and a
- *  character's authored theme are resolved at roster-build time (`RenderPolicy` — "never re-resolved
- *  client-side"), so a draft honestly renders at the untrusted floor with the deterministic hash tint. */
+ *  unchanged string.
+ *
+ *  ⚠️ THIS COMMENT'S OLD CLAUSE WAS HALF WRONG, and the half that was wrong shipped a real defect (owner
+ *  dogfood 2026-08-06). It read: "render trust AND a character's authored theme are resolved at
+ *  roster-build time … so a draft honestly renders at the untrusted floor with the deterministic hash
+ *  tint." The TRUST half stands and is deliberate — `RenderPolicy` is a server verdict and a client must
+ *  never fabricate one, so a draft still renders at the untrusted floor (the standing DRAFT-TRUST item).
+ *  The THEME half was not a policy at all, just a consequence of the room chrome being wired to the
+ *  roster: a card's `themeOverride`/`backgroundOverride` is card DATA the client already holds off
+ *  `character.get`, it is clamped at the DOM boundary by `clampThemeTokens` exactly as the committed path
+ *  is, and gating it on a chat row is what made a new room re-skin itself at the first send. The ROOM-level
+ *  takeover (theme + background) is now resolved from the phase-independent `CarriedAppearanceCast`.
+ *  What is still absent here is only the PER-ROW `participants` plane, so a draft row keeps its
+ *  deterministic hash tint — in a solo room the room scope makes that invisible; in a GROUP draft the
+ *  per-speaker tints still differ from the committed room's. That divergence is unfixed and censused. */
 function DraftGreetingThread({ draftKey, characterIds, chatStyle, seedAnchorPersonaId }: DraftGreetingThreadProps): ReactElement {
   const trpc = useTRPC();
   const draftConfig = useDraftConfig(draftKey);

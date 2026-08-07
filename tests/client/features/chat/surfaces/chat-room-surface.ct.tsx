@@ -640,3 +640,97 @@ test("LIVE: stripping data-surface-tier off the room moves the transcript island
   expect(after, "the tier map is INERT in this room — nothing under it actually resolves the tier").not.toBe(before);
   expect(after).toBe(await resolveTokenPx(island, "--spacing-block"));
 });
+
+// ── THE ROOM-THEME TAKEOVER REACHES THE DRAFT PHASE (owner dogfood 2026-08-06) ────────────────────
+// "the whole 'draft' mode is sloppy as fuck." One measured half of it: the sole-character chrome takeover
+// resolved off `chat.getChat`'s roster, which a draft has none of, so a room started with a themed card
+// wore the viewer's default chrome and re-skinned itself at the first send. It now resolves off the
+// phase-independent `CarriedAppearanceCast` — the founding CARDS before commit, the roster after — so
+// both arms below must land the SAME token from the SAME card.
+//
+// Asserted through the RENDERED custom property (the room's `<ThemeScope>` is what paints), never the
+// resolver's return: `--color-primary` is what `accent` clamps to, and it is inherited by everything in
+// the room. The GROUP arm is the discriminator — a fix that takes over from "any card in the cast" passes
+// the solo arm and fails it.
+const CARD_ACCENT = "oklch(0.62 0.21 305)";
+const CARD_THEME = { accent: CARD_ACCENT, speaker: CARD_ACCENT };
+
+/** The room's rendered accent — read off the transcript's own bubble, so a takeover that never reached
+ *  the DOM (or landed on a detached scope) fails. */
+function renderedAccent(root: Locator): Promise<string> {
+  return root.evaluate((node) => getComputedStyle(node).getPropertyValue("--color-primary").trim());
+}
+
+test("DRAFT: the founding card's theme takes over the room chrome with no chat row at all", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    ...DRAFT_IDENTITY_STUB,
+    "chat.listMessages": () => makeMessagesPage([]),
+    "character.get": () => ({
+      id: castId<CharacterId>("char_ct_room"),
+      name: "Aria",
+      greetings: ["Greetings, traveller."],
+      themeOverride: CARD_THEME,
+      backgroundOverride: null,
+    }),
+  });
+
+  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
+
+  const bubble = component.locator(BUBBLE).first();
+  await expect(bubble).toBeVisible();
+  expect(await renderedAccent(bubble)).toBe(CARD_ACCENT);
+});
+
+test("DRAFT: a GROUP founding cast keeps the viewer's own chrome (no arbitrary pick among cards)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    ...DRAFT_IDENTITY_STUB,
+    "chat.listMessages": () => makeMessagesPage([]),
+    "character.get": (input: unknown): unknown =>
+      (input as { readonly characterId: CharacterId }).characterId === "char_ct_panel_added"
+        ? { id: castId<CharacterId>("char_ct_panel_added"), name: "Bryn", greetings: ["Well met, wanderer."], themeOverride: null, backgroundOverride: null }
+        : { id: castId<CharacterId>("char_ct_room"), name: "Aria", greetings: ["Greetings, traveller."], themeOverride: CARD_THEME, backgroundOverride: null },
+  });
+
+  const component = await mount(<ChatRoomSurfaceStory committed={false} />);
+  await expect(component.locator(BUBBLE).first()).toBeVisible();
+
+  // A second founding character lands mid-draft (the roster panel's own act) — the takeover must drop.
+  await component.getByTestId("add-panel-character").click();
+  await expect(component.getByText("Well met, wanderer.")).toBeVisible();
+  expect(await renderedAccent(component.locator(BUBBLE).first())).not.toBe(CARD_ACCENT);
+});
+
+test("COMMITTED: the SAME card resolves the SAME room accent through the roster (one rule, both phases)", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    ...PREVIEW_FIT_STUB,
+    "chat.listMessages": () => makeMessagesPage(CANON),
+    "chat.getChat": () => ({
+      participants: [
+        { id: "cp_human", kind: "human", characterId: null, displayName: "Alex", leftSeq: null, avatarHash: null, role: "host" },
+        {
+          id: "cp_aria",
+          kind: "character",
+          characterId: "char_ct_room",
+          displayName: "Aria",
+          leftSeq: null,
+          avatarHash: null,
+          role: "member",
+          themeOverride: CARD_THEME,
+        },
+      ],
+      anchorPersonaId: null,
+      macroNames: makeMacroNameProducer(),
+      personaAvatars: [],
+      characterAvatars: [],
+      group: DEFAULT_GROUP_CONFIG,
+    }),
+  });
+
+  const component = await mount(<ChatRoomSurfaceStory committed={true} />);
+
+  const bubble = component.locator(BUBBLE).first();
+  await expect(bubble).toBeVisible();
+  expect(await renderedAccent(bubble)).toBe(CARD_ACCENT);
+});

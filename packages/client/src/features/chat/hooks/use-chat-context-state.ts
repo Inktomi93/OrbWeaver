@@ -6,7 +6,7 @@
 import { useSuspenseQueries } from "@tanstack/react-query";
 import { useAuthConfig, useTRPC } from "#data";
 import type { ChatContextState } from "#lib";
-import { isCommitted, useActiveChatHandle, useActiveDraftSeed, useDraftConfig } from "#state";
+import { isCommitted, resolveDraftCharacterIds, useActiveChatHandle, useActiveDraftSeed, useDraftConfig } from "#state";
 
 export function useChatContextState(): ChatContextState | null {
   const handle = useActiveChatHandle();
@@ -37,7 +37,9 @@ export function useChatContextState(): ChatContextState | null {
     };
   }
   if (handle.kind === "draft") {
-    const cast = [...new Set([...(draftSeed?.characterIds ?? []), ...(draftConfig.addedCharacterIds ?? [])])];
+    // The ONE founding-cast union (`#state`), not a local re-spelling — the panel's cast must be the cast
+    // the transcript previews, the chrome dresses from, and the commit writes.
+    const cast = resolveDraftCharacterIds(draftSeed?.characterIds, draftConfig.addedCharacterIds);
     return { phase: "draft", draftKey: handle.draftKey, cast };
   }
   return null;

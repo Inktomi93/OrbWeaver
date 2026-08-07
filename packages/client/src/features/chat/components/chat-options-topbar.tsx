@@ -8,7 +8,7 @@ import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { isCommitted, isLanding, useActiveChatHandle, useActiveDraftSeed, useDraftConfig } from "#state";
+import { isCommitted, isLanding, resolveDraftCharacterIds, useActiveChatHandle, useActiveDraftSeed, useDraftConfig } from "#state";
 import { filterCharacters } from "../lib/roster.ts";
 import { ChatOptionsMenu } from "./chat-options-menu.tsx";
 
@@ -35,7 +35,9 @@ function DraftChatOptionsMenu({ draftKey }: { readonly draftKey: string }): Reac
   const trpc = useTRPC();
   const draftSeed = useActiveDraftSeed();
   const draftConfig = useDraftConfig(draftKey);
-  const characterIds: readonly CharacterId[] = [...new Set([...(draftSeed?.characterIds ?? []), ...(draftConfig.addedCharacterIds ?? [])])];
+  // The ONE founding-cast union (`#state`) — never a local re-spelling; the ⋯ menu's cast is the cast the
+  // transcript previews and the commit writes.
+  const characterIds: readonly CharacterId[] = resolveDraftCharacterIds(draftSeed?.characterIds, draftConfig.addedCharacterIds);
   const results = useQueries({ queries: characterIds.map((characterId) => trpc.character.get.queryOptions({ characterId })) });
   const characters = results.flatMap((r) => (r.data === undefined ? [] : [{ characterId: r.data.id, name: r.data.name }]));
   return <ChatOptionsMenu committed={false} draftKey={draftKey} title={draftSeed?.title ?? null} characters={characters} />;
