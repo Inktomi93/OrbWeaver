@@ -154,6 +154,16 @@ function resolveScopeFallback(field: MemberField, ctx: AssembleContext, activeVa
   return { value, merged: true };
 }
 
+/** WHICH frame opens a co-speaker's card block — the ONE thing that differs between the two turns that merge
+ *  other members' cards, and it differs because the two say opposite things. A per-speaker merged turn voices
+ *  ONE member, so the rest are bystanders ("[Also present — X]"). A NARRATOR turn (`speaker.kind === "cast"`)
+ *  is one generation voicing the whole cast, so the same cards are its VOICES — framing them as bystanders
+ *  contradicts the round's own nudge. Keyed on the speaker arm, never on a `cardScope`/`isGroup` re-derive:
+ *  the arm is what the SHAPE already decided. */
+function memberHeadingSlot(ctx: AssembleContext): ProseSlotId {
+  return ctx.speaker?.kind === "cast" ? "chat.group.castMember" : "chat.group.alsoPresent";
+}
+
 /** ONE present roster member's merged card block, or "" when they contribute nothing. */
 function renderCoSpeakerBlock(member: AssembleCharacter, ctx: AssembleContext, registry: MacroRegistry): string {
   const head = [renderMemberField("description", member, ctx, registry), renderMemberField("personality", member, ctx, registry)]
@@ -166,7 +176,7 @@ function renderCoSpeakerBlock(member: AssembleCharacter, ctx: AssembleContext, r
   // substitution token; the card text beneath each is data, never authorable. Absent overrides ⇒ the
   // shipped frames.
   const heading = (id: ProseSlotId): string => resolveProseText(id, ctx.prose ?? {}, { name: member.name });
-  const parts = [`${heading("chat.group.alsoPresent")}\n${head}`];
+  const parts = [`${heading(memberHeadingSlot(ctx))}\n${head}`];
   const scenario = renderMemberField("scenario", member, ctx, registry);
   const examples = renderMemberField("exampleMessages", member, ctx, registry);
   if (scenario.trim().length > 0) {

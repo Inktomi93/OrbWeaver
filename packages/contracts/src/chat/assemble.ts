@@ -433,9 +433,16 @@ export interface AssembleContext {
    *  these lists). Absent ⇒ falls back to the full CHARACTER cast (the macro layer re-derives it). */
   castNotMuted?: AssembleCharacter[];
   /** Who is generating: `single` (per-speaker, `{{char}}` = that character) vs `cast` (narrator, `{{char}}`
-   *  = the whole cast). Solo is always `single`. */
+   *  = the whole cast, joined). Solo is always `single`. PRODUCED by the card shape
+   *  (`assembly/speaker-card`), which dispatches on the round's `output` axis — a narrator round's authoring
+   *  speaker is the SYNTHETIC group character and is deliberately NOT in `castMembers`, so this arm can never
+   *  be derived from the ref. `active` is the member whose card fills the character section (the primary);
+   *  the rest ride as `coSpeakers`. */
   speaker?: { kind: "single"; character: AssembleCharacter } | { kind: "cast"; members: AssembleCharacter[]; active: AssembleCharacter };
-  /** Other present cast whose cards merge into THIS turn's character section (`cardScope: "merged"`). */
+  /** Other present cast whose cards merge into THIS turn's character section — the OTHER members under
+   *  `cardScope: "merged"`, and every non-primary member under a NARRATOR round (one call voices them all, so
+   *  it needs them all). The frame each block opens with differs by arm (`assembly/assemble` memberHeadingSlot):
+   *  a merged turn's co-speakers are bystanders, a narrator turn's are its voices. */
   coSpeakers?: AssembleCharacter[] | undefined;
   /** The identity of the per-speaker turn's active character — drives the `cardScope: "scoped"` egocentric
    *  history fold. Absent (merged / narrator / solo) ⇒ no fold. */
