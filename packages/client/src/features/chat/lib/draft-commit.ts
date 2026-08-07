@@ -11,7 +11,7 @@
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { ChatHandle, DraftConfig, DraftRosterOverride, DraftSeed } from "#state";
-import { EMPTY_DRAFT_CONFIG, readDraftConfig } from "#state";
+import { EMPTY_DRAFT_CONFIG, readDraftConfig, resolveDraftCharacterIds } from "#state";
 
 /** The `chat.startChat` draft carry-params (each optional/sparse — absent ⇒ the server default). Mirrors
  *  the wire schema's optional fields; `characterIds` is the resolved founding cast (seed ∪ added). */
@@ -35,17 +35,6 @@ export interface DraftCommit {
   readonly draftKey: string | null;
   readonly characterIds: CharacterId[];
   readonly carry: DraftCarry;
-}
-
-/** The draft's founding cast: the seed roster + pre-send additions from the panel, in that order — the
- *  SAME union `resolveDraftCommit` writes to `chat.startChat`'s `characterIds`, so a panel-added
- *  character's pre-commit greeting preview (`DraftGreetingThread`) shows exactly the cast the commit
- *  will create (no "appears only after commit" gap). */
-export function resolveDraftCharacterIds(
-  seedCharacterIds: readonly CharacterId[] | undefined,
-  addedCharacterIds: readonly CharacterId[] | undefined,
-): CharacterId[] {
-  return [...(seedCharacterIds ?? []), ...(addedCharacterIds ?? [])];
 }
 
 /** Read the active draft's config + seed into the `startChat` commit shape. Non-reactive (a commit-time

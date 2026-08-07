@@ -5,6 +5,7 @@
 // viewing participant's active persona for legacy rows; everything else renders no chrome.
 
 import type { ParticipantView } from "@orb/contracts/chat";
+import { carriedCastFromParticipants } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
@@ -342,13 +343,31 @@ test("Layer 2: resolveRoomTheme applies the sole character's override only in a 
   });
   const bob = makeParticipant({ characterId: BOB_ID, displayName: "Bob" });
   // Exactly one human + one character → takeover.
-  expect(resolveRoomTheme([human, alice])).toEqual(HEARTH_TOKENS);
+  expect(resolveRoomTheme(carriedCastFromParticipants([human, alice]))).toEqual(HEARTH_TOKENS);
   // A second character (group) → no takeover.
-  expect(resolveRoomTheme([human, alice, bob])).toBeUndefined();
+  expect(resolveRoomTheme(carriedCastFromParticipants([human, alice, bob]))).toBeUndefined();
   // A second human → no takeover (each human keeps their own theme).
   const human2 = makeParticipant({ kind: "human", characterId: null, displayName: "Sam" });
-  expect(resolveRoomTheme([human, human2, alice])).toBeUndefined();
+  expect(resolveRoomTheme(carriedCastFromParticipants([human, human2, alice]))).toBeUndefined();
+  // No cast at all (landing, or a read that has not settled) → the viewer's own theme.
   expect(resolveRoomTheme(undefined)).toBeUndefined();
+});
+
+// DRAFT PARITY (owner dogfood 2026-08-06): the takeover reads a `CarriedAppearanceCast`, not a roster, so
+// a chat that has no server row yet wears its founding card's theme immediately. Before this, the room
+// theme was gated on the committed roster and the whole room re-skinned itself at the first send.
+test("Layer 2: a pre-send DRAFT's founding card takes over the room theme with no roster at all", () => {
+  const soloDraft = { humanCount: 1, characters: [{ displayName: "Alice", themeOverride: HEARTH_TOKENS, backgroundOverride: null }] };
+  expect(resolveRoomTheme(soloDraft)).toEqual(HEARTH_TOKENS);
+  // A GROUP draft keeps the viewer's theme — the same no-arbitrary-pick refusal a committed group makes.
+  const groupDraft = {
+    humanCount: 1,
+    characters: [
+      { displayName: "Alice", themeOverride: HEARTH_TOKENS, backgroundOverride: null },
+      { displayName: "Bob", themeOverride: null, backgroundOverride: null },
+    ],
+  };
+  expect(resolveRoomTheme(groupDraft)).toBeUndefined();
 });
 
 test("Layer 3 spans: speakerThemesByName maps a character's NAME to its override, else its ID-seeded hash", () => {
@@ -394,7 +413,7 @@ test("resolveRoomTheme carries the card's LOOK and strips the viewer-sacred half
     displayName: "Alice",
     themeOverride: { ...HEARTH_TOKENS, density: "compact" },
   });
-  expect(resolveRoomTheme([human, alice])).toEqual(HEARTH_TOKENS);
+  expect(resolveRoomTheme(carriedCastFromParticipants([human, alice]))).toEqual(HEARTH_TOKENS);
 });
 
 test("speakerThemesByName strips the same half — and a card carrying ONLY a sacred key is omitted", () => {

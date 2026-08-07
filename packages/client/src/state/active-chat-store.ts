@@ -14,6 +14,7 @@ import { withViewTransition } from "#lib";
 import type { ChatHandle } from "./chat-handle.ts";
 import { committedChat, draftChat, isCommitted, isLanding, landingChat } from "./chat-handle.ts";
 import { createGatedStore } from "./create-gated-store.ts";
+import { resolveDraftCharacterIds, useDraftConfig } from "./draft-config-store.ts";
 import type { SectionSelection } from "./section-registry.ts";
 import { openModal, setOpenOverlayPanel } from "./shell-store.ts";
 
@@ -52,6 +53,9 @@ function nextSessionKey(): string {
 }
 
 const INITIAL_SESSION_KEY = nextSessionKey();
+
+/** The frozen "no draft cast" ref — a stable identity for every non-draft render (selector-stability floor). */
+const NO_FOUNDING_CAST: readonly CharacterId[] = Object.freeze([]);
 
 const useActiveChatStore = createGatedStore<ActiveChatState>(
   "active-chat",
@@ -167,6 +171,18 @@ export function useActiveChatHandle(): ChatHandle {
  *  the returned id. */
 export function useActiveChatId(): ChatId | null {
   return useActiveChatStore((s) => (isCommitted(s.handle) ? s.handle.id : null));
+}
+
+/** The ACTIVE draft's founding cast (seed roster ∪ the panel's pre-send additions), or empty when the
+ *  active chat is landing/committed. The store-driven twin of the handle-driven read the room surface does
+ *  from its own props — this one is for surfaces OUTSIDE the room that must dress a draft before it exists
+ *  (the app-shell's carried background). Empty array is the frozen module ref, so a non-draft subscriber
+ *  never re-renders on identity churn. */
+export function useActiveDraftFoundingCast(): readonly CharacterId[] {
+  const handle = useActiveChatStore((s) => s.handle);
+  const seed = useActiveChatStore((s) => s.draftSeed);
+  const config = useDraftConfig(handle.kind === "draft" ? handle.draftKey : "");
+  return handle.kind === "draft" ? resolveDraftCharacterIds(seed?.characterIds, config.addedCharacterIds) : NO_FOUNDING_CAST;
 }
 
 /** The seed the new-chat picker was opened with (`openNewChatPicker`), or undefined for a plain open. */
