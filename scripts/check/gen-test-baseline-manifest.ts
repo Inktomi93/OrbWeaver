@@ -27,6 +27,9 @@ const root = process.cwd();
 // manifest — green on the one machine that had the dir, phantom-RED in every worktree. The repo's
 // definition of "a real spec" is "a tracked file with a runner suffix". Consequence: a brand-new spec
 // must be `git add`ed before a regen can fold it into the floor (it was never gated while untracked).
+// (Two lanes fixed this concurrently; the losing arm — fs.globSync + an exclude predicate — carried its
+// own trap worth keeping: node's globSync hands `exclude` a PATH STRING, never a Dirent, so an
+// `(f) => f.name === "node_modules"` predicate is a silent no-op. ls-files sidesteps the class.)
 const SPEC_SUFFIX = /\.(test\.tsx?|ct\.tsx|spec\.ts)$/u;
 const files = execFileSync("git", ["ls-files", "-z", "--", "tests"], { cwd: root, encoding: "utf-8" })
   .split("\0")
