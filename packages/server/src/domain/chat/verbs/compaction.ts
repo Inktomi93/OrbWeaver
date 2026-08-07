@@ -20,6 +20,7 @@
 // not the resolved speaker name — richer per-speaker labeling is a later refinement.
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
+import { MESSAGE_KIND_POLICY } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
@@ -150,8 +151,13 @@ function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): (arg
     // the seq range so it can't be recompacted), but the SUMMARIZED transcript excludes prompt-hidden rows
     // (`excludedFromPrompt`): the marker stands in for prompt-eligible history and is member-peekable, so it must
     // never fold a hidden row's content into itself (a cross-member leak sink). Identical on the full-span read.
+    // The marker stands in for PROMPT-ELIGIBLE history, so the same two planes the shape dispatch reads gate it:
+    // the host's `excludedFromPrompt` hide AND the row's declared PURPOSE (D129 — `prompt:"never"`, i.e. an OOC
+    // `comment`, is not prompt material, so folding one into a durable member-peekable marker would smuggle a
+    // row into the very prompt its policy holds it out of). Read from `MESSAGE_KIND_POLICY` rather than a
+    // hardcoded kind list: one home, and a fourth kind is a policy-row decision, not a sweep of this file.
     const coveredThroughSeq = capped.at(-1)?.seq;
-    const window = capped.filter((m) => !m.excludedFromPrompt);
+    const window = capped.filter((m) => !m.excludedFromPrompt && MESSAGE_KIND_POLICY[m.kind].prompt !== "never");
     if (coveredThroughSeq === undefined) {
       // Nothing new to compact — the marker is already current (idempotent no-op; the coverage point unchanged).
       return { summary: chat.compactSummary ?? "", compactedAtSeq: fromSeq, updated: false };

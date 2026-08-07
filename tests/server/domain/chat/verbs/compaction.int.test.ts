@@ -177,6 +177,24 @@ describe("runCompaction — the injected core (chained-marker math)", () => {
     expect(text).not.toContain("SECRET-HIDDEN-LINE");
   });
 
+  // D129: the marker stands in for PROMPT-ELIGIBLE history, so the row-PURPOSE policy gates it exactly like
+  // the host's hide does. A `comment` is `prompt:"never"` — folding one into a durable, member-peekable marker
+  // would smuggle into the prompt the very row the policy holds out of it. Read off `MESSAGE_KIND_POLICY`, so
+  // this is the policy record's enforcement, not a second kind list.
+  test("a `comment`-kind row is EXCLUDED from the marker but still advances the checkpoint", async () => {
+    const { host, chatId } = await seedRoom();
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "visible-canon" });
+    await seedMessage(db, chatId, 2, { role: "assistant", kind: "comment", content: "OOC-SIDEBAR-LINE" });
+    const compaction = compactionWith("MARKER");
+
+    const result = await compaction.runCompaction({ chatId, connection: CONNECTION, ownerId: OWNER });
+
+    expect(result.compactedAtSeq).toBe(2);
+    const text = quietCalls.at(-1)?.userText ?? "";
+    expect(text).toContain("visible-canon");
+    expect(text).not.toContain("OOC-SIDEBAR-LINE");
+  });
+
   test("§3.5 summary plane: a card collapses to the STUB and a hidden tag's truth NEVER reaches the summarizer transcript", async () => {
     const { host, chatId } = await seedRoom();
     const lieTag = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';

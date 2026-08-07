@@ -68,6 +68,9 @@ export async function loadCanonThroughSeq(db: Db, chatId: ChatId, throughSeq: nu
     .select({
       seq: messages.seq,
       role: messages.role,
+      // The DECLARED purpose rides into the build: the transcript labeller dispatches on it rather than
+      // inferring "narrator" from an attribution that is designed to degrade (D129(A)).
+      kind: messages.kind,
       characterId: messages.characterId,
       authorUserId: messages.authorUserId,
       personaId: messages.personaId,

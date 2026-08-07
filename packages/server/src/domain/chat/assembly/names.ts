@@ -6,6 +6,9 @@
 // reason the pass sits here at all: the label is applied by the ASSEMBLY, at a step no USER_INPUT/AI_OUTPUT
 // regex can reach, so a `Name:` prefix on the wire is un-forgeable by chat content.)
 //
+// The MODE decides HOW a labellable row is labelled; the row's DECLARED KIND decides WHETHER it may be
+// labelled at all (`mayBeLabelled`, D129) — two questions, two dispatches, and the kind one runs first.
+//
 //   • "none"       — strip names entirely.
 //   • "default"    — prefix only a user turn whose author differs from the active persona, and — in a
 //                    multi-character room — an assistant turn with its character's name. Solo → no prefix.
@@ -31,6 +34,7 @@
 //
 // Measured by the matrix in `tests/.../shape.test.ts`: before this, 12 of 84 cells failed, ALL `completion`.
 
+import type { MessageKind } from "@orb/contracts/chat";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import type { MessageId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -58,12 +62,51 @@ interface NamedRow {
   messageId?: MessageId | undefined;
 }
 
+/**
+ * THE LABEL POLICY, BY DECLARED KIND (D129(G)) — may a canon row of this purpose take a speaker label at all?
+ * Total over `MessageKind` with an `assertNever` tail (spine §5.5). `undefined` is the SYNTHETIC row (the
+ * appended user turn, a nudge — never a canon row) and takes the `standard` answer.
+ *
+ *   • `standard`  — yes: the mode decides (this is every row today's behavior covers).
+ *   • `narrator`  — NO. A narrator row is ONE generation voicing the whole cast, and its body already carries
+ *     each speaker's own `NAME:` attribution (converted from the stored `<speaker>` tags at `toShapeCanon`).
+ *     A row-level prefix on top of that is a SECOND, WRONG label: it names the whole multi-speaker block after
+ *     one identity — the synthetic `__group__` card ("Group"), or, once that card's name does not resolve
+ *     through the cast producer, the turn's `speakers.assistant` fallback, i.e. some cast member gets credited
+ *     with everyone else's lines. That is the assistant-side twin of INJECT-NAMED-AS-PLAYER, and `default`
+ *     mode only escaped it by accident (a narrator room's rows all share one characterId, so the
+ *     `multiCharacter` gate happened to be false); `content` and `completion` mislabelled every narrator row.
+ *   • `comment`   — NO, and it is unreachable: `MESSAGE_KIND_POLICY.comment.prompt === "never"`, so the shape
+ *     dispatch dropped the row before this pass. Answered anyway, because an unlabelled OOC row is the right
+ *     answer if a future delivery path ever carries one, and totality is what makes a fourth kind a tsc error.
+ */
+function mayBeLabelled(kind: MessageKind | undefined): boolean {
+  switch (kind) {
+    case undefined:
+    case "standard":
+      return true;
+    case "narrator":
+    case "comment":
+      return false;
+    default:
+      return assertNeverMessageKind(kind);
+  }
+}
+
+function assertNeverMessageKind(kind: never): never {
+  throw new Error(`applyNamesBehavior: unhandled MessageKind ${JSON.stringify(kind)}`);
+}
+
 export function applyNamesBehavior(
   history: readonly {
     role: WireRole;
     content: string;
     authorName?: string | null;
     messageId?: MessageId | undefined;
+    /** The canon row's DECLARED purpose (D129) — the label policy's dispatch key. Absent on a synthetic row
+     *  SHAPE built for this turn (no slot, no declared purpose) and on a spliced injection (which the
+     *  `speakerless` marker already covers). */
+    kind?: MessageKind | undefined;
     /** Set by the injection splice on a row that carries NO speaker — an instruction/operator injection
      *  that had to take a participant wire role because the backend refuses mid-conversation system. */
     speakerless?: true | undefined;
@@ -83,7 +126,11 @@ export function applyNamesBehavior(
     // mid-conversation system. Keying on the role alone missed the second — the demote happens upstream, so
     // by the time this pass ran the row looked like an ordinary user turn and got the player's name
     // (INJECT-NAMED-AS-PLAYER). The marker is the fix; the role check alone can never see it.
-    if (m.role === "system" || m.speakerless === true) {
+    // THREE ways to be unlabellable, and they are three different planes: a real `system` wire ROW, a
+    // DEMOTED injection (the `speakerless` marker — assembly-internal, spliced rows have no slot and so can
+    // never carry a kind), and now the row's own declared PURPOSE (`mayBeLabelled`). The kind arm is the one
+    // that answers for CANON rows, which is the half neither of the other two could ever see.
+    if (m.role === "system" || m.speakerless === true || !mayBeLabelled(m.kind)) {
       // The marker is CONSUMED here, not forwarded: it exists to answer "may this row be labelled?", and
       // that question is now answered. Forwarding it would let a later squash merge stamp it onto a row that
       // contains the player's real text (the depth-1 re-frame merges the user tail INTO the injection), and

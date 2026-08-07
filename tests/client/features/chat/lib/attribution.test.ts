@@ -5,13 +5,18 @@
 // viewing participant's active persona for legacy rows; everything else renders no chrome.
 
 import type { ParticipantView } from "@orb/contracts/chat";
-import { carriedCastFromParticipants } from "@orb/contracts/chat";
+import { carriedCastFromParticipants, MESSAGE_KINDS } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { initialsFor } from "@orb/kit/initials";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { resolveRowMacros } from "@orb/kit/macro";
-import { resolveRoomTheme, resolveRowAttribution, speakerThemesByName } from "../../../../../packages/client/src/features/chat/lib/attribution.ts";
+import {
+  isNarratorVoiced,
+  resolveRoomTheme,
+  resolveRowAttribution,
+  speakerThemesByName,
+} from "../../../../../packages/client/src/features/chat/lib/attribution.ts";
 import { colorForCharacter } from "../../../../../packages/client/src/features/chat/lib/speaker-color.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeParticipant } from "./_support.ts";
@@ -435,7 +440,7 @@ test("speakerThemesByName strips the same half — and a card carrying ONLY a sa
 
 const GROUP_PRODUCER_ID = castId<CharacterId>("char_group_room1");
 
-test("a narrator room's assistant row is the NARRATOR, even though its stamped producer resolves a name", () => {
+test("a NARRATOR-KIND assistant row is the NARRATOR, even though its stamped producer resolves a name", () => {
   const participants = new Map([
     [ALICE_ID, makeParticipant({ displayName: "Alice" })],
     [BOB_ID, makeParticipant({ characterId: BOB_ID, displayName: "Bob" })],
@@ -452,14 +457,17 @@ test("a narrator room's assistant row is the NARRATOR, even though its stamped p
     personaId: null,
     participants,
     characterNamesById,
-    narratorRoom: true,
+    kind: "narrator",
   });
   expect(result.name).toBe("Narrator");
   // No tint: a narrator is not a cast member, so it never mints a per-speaker colour.
   expect(result.tokens).toBeNull();
 });
 
-test("the SAME row in a non-narrator room still resolves its stamped producer (the branch is mode-gated, not id-gated)", () => {
+// D129: the axis is the ROW's declared purpose, not the room's dial — so the SAME stamped producer id, in the
+// SAME room, resolves differently per row. That is the whole point: flipping `group.output` cannot re-classify
+// history any more, and a `standard` row stamped with the synthetic card is still that card.
+test("the SAME row declared STANDARD still resolves its stamped producer (the branch is kind-gated, not id-gated)", () => {
   const characterNamesById = new Map<CharacterId, RowCharacterName>([[GROUP_PRODUCER_ID, { name: "Group" }]]);
   const result = resolveRowAttribution({
     role: "assistant",
@@ -471,15 +479,22 @@ test("the SAME row in a non-narrator room still resolves its stamped producer (t
   expect(result.name).toBe("Group");
 });
 
-test("a narrator room's USER rows are untouched", () => {
+test("a USER row is untouched by the kind arm (purpose gates the assistant plane only)", () => {
   const result = resolveRowAttribution({
     role: "user",
     characterId: null,
     personaId: NATE_PERSONA_ID,
     personaNamesById: new Map<PersonaId, RowPersonaName>([[NATE_PERSONA_ID, { name: "Nate", description: "" }]]),
-    narratorRoom: true,
+    kind: "narrator",
   });
   expect(result.name).toBe("Nate");
+});
+
+test("isNarratorVoiced is TOTAL over the kind axis — only `narrator` opens the span grammar", () => {
+  // The chrome dispatch's own pin: a fourth kind is a tsc error at the switch, and this asserts the three
+  // ruled answers plus the no-slot (draft-greeting) row, which must read as the ordinary arm.
+  expect(MESSAGE_KINDS.filter((k) => isNarratorVoiced(k))).toEqual(["narrator"]);
+  expect(isNarratorVoiced(undefined)).toBe(false);
 });
 
 // ── Dialogue-hue de-collision (side-eye 2026-08-03 P2) ────────────────────────────────────────────────

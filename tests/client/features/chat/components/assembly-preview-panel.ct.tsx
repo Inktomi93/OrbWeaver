@@ -95,8 +95,11 @@ const PREVIEW_ASSEMBLY_DATA = {
 // 3 is an `assembled` steering block delivered under `role: user` with the PLAYER's name on it, which no stage
 // COUNT could ever show. Row 4 is `merged` — a canon turn a same-role squash folded an assembled row into.
 const SHAPE_TRACE_ROWS = [
-  { role: "user" as const, name: "Nate", source: "canon" as const, chars: 128 },
-  { role: "assistant" as const, name: "Aria", source: "canon" as const, chars: 640 },
+  // A `standard` canon row states its kind; the readout must NOT print it — the default is not information.
+  { role: "user" as const, name: "Nate", source: "canon" as const, kind: "standard" as const, chars: 128 },
+  // A NARRATOR canon row (D129): declared purpose, and — by the label policy — deliberately NO speaker label.
+  // Without the purpose on the line this row reads as a bare "assistant", indistinguishable from a defect.
+  { role: "assistant" as const, source: "canon" as const, kind: "narrator" as const, chars: 640 },
   { role: "user" as const, name: "Nate", source: "assembled" as const, chars: 3037 },
   { role: "user" as const, name: "Nate", source: "merged" as const, chars: 212 },
   { role: "system" as const, source: "assembled" as const, chars: 96 },
@@ -398,7 +401,10 @@ test("the diagnostics drawer lists the DELIVERED wire rows in order, with role �
   const rows = component.locator("[data-slot=wire-row-trace]");
   await expect(rows).toHaveCount(5);
   await expect(rows.nth(0)).toContainText("1. user · Nate");
-  await expect(rows.nth(1)).toContainText("2. assistant · Aria");
+  // The narrator row reads its DECLARED purpose where a speaker label would otherwise sit — and the
+  // `standard` row above it prints none, so the axis only shows up when it says something.
+  await expect(rows.nth(1)).toContainText("2. assistant · narrator");
+  await expect(rows.nth(0)).not.toContainText("standard");
   await expect(rows.nth(4)).toContainText("5. system");
 
   // The INJECT-NAMED-AS-PLAYER tell, made visible: a row in the PLAYER's voice that is not the player's turn.

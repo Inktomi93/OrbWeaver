@@ -922,6 +922,29 @@ test("a narrator row stamped with the synthetic GROUP producer still reads Narra
   await expect(narratorRow.getByText("I'll take this one.")).toBeVisible();
 });
 
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+// PURPOSE IS PER-ROW (D129). The chrome used to key on the ROOM's `group.output` dial, so every assistant
+// row in a room got the same answer — flip the dial and all of history re-classified, and there was no way
+// to render a narrator row beside an ordinary one at all. This mounts exactly that pair, with the SAME
+// stamped producer on both, and only the declared kind differing: one reads Narrator, the other reads the
+// card it was written under.
+// ─────────────────────────────────────────────────────────────────────────────────────────────────────
+test("two rows, one producer, different DECLARED kinds: narrator reads Narrator, standard reads its card", async ({ mount }) => {
+  const component = await mount(
+    <NarratorTranscriptStory
+      participants={[alice(), bob()]}
+      narratorContent={NARRATOR_CAST_BODY}
+      narratorProducer={GROUP_PRODUCER}
+      ownRowCharacterId={GROUP_PRODUCER.id}
+      ownRowContent="Just prose."
+    />,
+  );
+  await expect(component.getByTestId("narrator-row").locator(ATTRIBUTION)).toContainText("Narrator");
+  await expect(component.getByTestId("own-row").locator(ATTRIBUTION)).toContainText("Group");
+  // The span grammar follows the same declaration: only the narrator body splits its speakers.
+  await expect(component.getByTestId("narrator-row").locator(THEME_SCOPE).filter({ hasText: "I'll take this one." }).last()).toBeVisible();
+});
+
 // ── THE PHONE'S READING COLUMN (side-eye leg-4 P2) ───────────────────────────────────────────────────
 // "stop treating a phone as a narrow desktop." Measured on a real room at 430px: the avatar gutter took
 // 76px, one paragraph ran 22 CHARACTERS over 12 lines (§2 wants 65–75ch) and the speaker name wrapped to

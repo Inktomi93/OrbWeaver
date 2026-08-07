@@ -24,6 +24,7 @@ function row(seq: number, over: Partial<MsgRow> = {}): MsgRow {
   return {
     seq,
     role: "assistant",
+    kind: "standard",
     characterId: aria,
     authorUserId: null,
     personaId: null,
@@ -61,6 +62,33 @@ describe("memory/build/substrate/transcript", () => {
     expect(speakerLabel(row(1, { characterId: cole }), ctx)).toBe(cole); // unknown → id fallback
     expect(speakerLabel(row(1, { characterId: null, authorUserId: nate }), ctx)).toBe("User");
     expect(speakerLabel(row(1, { characterId: null, authorUserId: null, role: "system" }), ctx)).toBe("System");
+  });
+
+  // D129: the summarizer sees a row's DECLARED purpose, not an inference over stamps that are designed to
+  // degrade. Two live defects this closes: (1) a narrator recap is authored by the synthetic group card, so it
+  // reached the summarizer labelled `Group:` — the card's literal name; (2) once that card is deleted its FK
+  // SET-NULLs and the row fell through to "Narrator" by accident, i.e. the label depended on whether an
+  // unrelated character still existed. The label is summarizer input only — `blockHash` folds ids, so no
+  // stored digest moves.
+  test("a NARRATOR-kind row labels as the narrator — not as the synthetic card that authored it", () => {
+    const ctx = macroCtx({ chars: [[aria, "Aria"]] });
+    const group = castId<CharacterId>("character_group");
+    const ctxWithGroup = macroCtx({
+      chars: [
+        [aria, "Aria"],
+        [group, "Group"],
+      ],
+    });
+    expect(speakerLabel(row(1, { kind: "narrator", characterId: group }), ctxWithGroup)).toBe("Narrator");
+    // …and it survives the deletion of that card (the attribution degrades; the purpose does not).
+    expect(speakerLabel(row(1, { kind: "narrator", characterId: null }), ctx)).toBe("Narrator");
+  });
+
+  test("an attribution-LESS standard row no longer claims to be the narrator", () => {
+    // It used to: any all-NULL assistant row (an ST import, a row whose card was deleted) was labelled
+    // "Narrator" by the role fallback, telling the summarizer a narrator said it. Narrator is declared now.
+    const ctx = macroCtx({ chars: [[aria, "Aria"]] });
+    expect(speakerLabel(row(1, { characterId: null, authorUserId: null }), ctx)).toBe("Character");
   });
 
   test("renderTranscript renders Label: body lines oldest→newest", () => {

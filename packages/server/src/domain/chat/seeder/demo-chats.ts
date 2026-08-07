@@ -709,6 +709,10 @@ export const DEMO_CHATS: readonly DemoChat[] = [
 /** The exported speaker NAME a narrator-voiced slot carries — the synthetic group card's name
  *  (`domain/character/substrate/group-character.ts` `buildGroupCard()`). The transcripts are produced by our
  *  own export verb, which resolves an assistant slot's name off its authoring character row, so a narrator
- *  turn always exports under this exact name. Recognised here so the seeder can route those slots back to a
- *  freshly minted synthetic identity instead of mis-attributing them to a roster card. */
+ *  turn always exports under this exact name.
+ *
+ *  IT NO LONGER ROUTES ANYTHING (D129). The seeder used to recognise this name to send those slots to a freshly
+ *  minted synthetic identity; the pack DECLARES its narrator rows now (`extra.type`), so the name is back to
+ *  being what it always was — a display string — and survives only as the pack's own vocabulary, used by the
+ *  asset-shape test to tell narrator lines from cast lines in the raw JSONL. */
 export const DEMO_CHAT_NARRATOR_NAME = "Group";

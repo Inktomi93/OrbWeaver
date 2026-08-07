@@ -109,6 +109,9 @@ async function loadParsedMessages(
     const selected = variants.find((v) => v.id === m.selectedVariantId) ?? variants[0];
     return {
       role: m.role,
+      // The DECLARED purpose rides out verbatim (D129) — the serde emits it as ST's `extra.type`, so a
+      // narrator row re-imports as a narrator row instead of being re-derived from its exported speaker NAME.
+      kind: m.kind,
       speakerName: resolveSpeakerName(m, names, fallback),
       content: selected?.content ?? "",
       sendDate: m.createdAt,

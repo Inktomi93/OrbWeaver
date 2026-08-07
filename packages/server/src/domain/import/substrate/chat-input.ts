@@ -69,11 +69,14 @@ function buildVariantColumns(m: ParsedChatMessage): {
   return { variants: alternates, selectedIdx: mesIdx };
 }
 
-/** A user turn credits the pre-resolved chat persona; other roles carry no persona. */
+/** A user turn credits the pre-resolved chat persona; other roles carry no persona. The parsed row's DECLARED
+ *  kind (D129) rides through unchanged — the serde already resolved it (`extra.type`, defaulting to `standard`
+ *  for a plain ST transcript), and re-deriving it here would be a second, divergeable answer. */
 function toMessageInput(m: ParsedChatMessage, createdAt: number, chatPersonaId: PersonaId | null): BulkImportMessageInput {
   const { variants, selectedIdx } = buildVariantColumns(m);
   return {
     role: m.role,
+    kind: m.kind,
     createdAt,
     personaId: m.role === "user" ? chatPersonaId : null,
     variants,
