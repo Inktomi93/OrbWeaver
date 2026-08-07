@@ -423,12 +423,56 @@ function parseJson(line: string): unknown {
   }
 }
 
-/** Parse ONE message line → a `ParsedChatMessage`, or null for a corrupt line (skipped, not fatal). A
- *  message with no rendered text ANYWHERE — blank `mes` and no non-empty swipe (a blank narrator post /
- *  rpg state-anchor export / pre-D124 debris) — is unrepresentable at the write boundary and skipped, not
- *  minted as an empty row. A blank `mes` whose swipe pool DOES carry text is a real generation whose
- *  rendered copy lives in the pool: the active (else first) surviving swipe is PROMOTED to the primary
- *  content — never an empty canon row, never dropped text. */
+// ST attachment spellings across export eras: modern `extra.media[]` / `extra.files[]`, which ST's own
+// `migrateMediaToArray` builds FROM the legacy `image` / `image_swipes` / `file` / `video` keys — an export
+// on disk can carry any era's spelling, so the debris test must know them all. A text-empty row that
+// carries media is a VALID message (an image post), never debris.
+const MEDIA_EXTRA_KEYS = ["media", "files", "image_swipes", "image", "file", "video"] as const;
+function carriesMedia(extra: Record<string, unknown> | null): boolean {
+  if (extra === null) {
+    return false;
+  }
+  return MEDIA_EXTRA_KEYS.some((k) => {
+    const v = extra[k];
+    if (Array.isArray(v)) {
+      return v.length > 0;
+    }
+    if (typeof v === "string") {
+      return v.trim().length > 0;
+    }
+    return v !== null && typeof v === "object";
+  });
+}
+
+/** Resolve a message's PRIMARY content when `mes` is blank: promote the active (else first) surviving
+ *  swipe (a real generation whose rendered copy lives in the pool — never an empty canon row), else the
+ *  lone below-MIN_REAL_SWIPES take, else keep a media-bearing row with empty content (the attachment IS
+ *  the message). No text and no media anywhere ⇒ null: a blank narrator post / rpg state-anchor export /
+ *  pre-D124 debris is unrepresentable at the write boundary and skipped, not minted as an empty row. */
+function resolvePrimary(args: {
+  readonly mes: string;
+  readonly variants: readonly ParsedVariant[];
+  readonly remappedActive: number | null;
+  readonly swipes: readonly unknown[];
+  readonly extra: unknown;
+}): { content: string; activeVariantIdx: number | null } | null {
+  const { mes, variants, remappedActive, swipes, extra } = args;
+  if (mes.trim().length > 0) {
+    return { content: mes, activeVariantIdx: remappedActive };
+  }
+  const promoted = variants[remappedActive ?? 0];
+  if (promoted !== undefined) {
+    return { content: promoted.content, activeVariantIdx: remappedActive ?? 0 };
+  }
+  const lone = swipes.map((s) => str(s)).find((s) => s.trim().length > 0);
+  if (lone !== undefined) {
+    return { content: lone, activeVariantIdx: remappedActive };
+  }
+  return carriesMedia(asObj(extra)) ? { content: "", activeVariantIdx: remappedActive } : null;
+}
+
+/** Parse ONE message line → a `ParsedChatMessage`, or null for a corrupt line (skipped, not fatal) or a
+ *  no-text-no-media debris row (see `resolvePrimary`). */
 function parseMessageLine(line: string): ParsedChatMessage | null {
   const parsed = asTyped(parseJson(line), rawMessageSchema);
   if (parsed === null) {
@@ -440,23 +484,11 @@ function parseMessageLine(line: string): ParsedChatMessage | null {
   const sid = parsed.swipe_id;
   const rawActive = typeof sid === "number" && sid >= 0 && sid < swipes.length ? sid : null;
   const { variants, activeVariantIdx: remappedActive } = buildVariants(swipes, parsed.swipe_info, rawActive);
-  let content = str(parsed.mes);
-  let activeVariantIdx = remappedActive;
-  if (content.trim().length === 0) {
-    const promoted = variants[remappedActive ?? 0];
-    if (promoted !== undefined) {
-      content = promoted.content;
-      activeVariantIdx = remappedActive ?? 0;
-    } else {
-      // Below MIN_REAL_SWIPES the pool is empty by design — the lone generation (if any) lives on the
-      // message's primary, so promote the first non-empty swipe directly; none anywhere ⇒ debris, skip.
-      const lone = swipes.map((s) => str(s)).find((s) => s.trim().length > 0);
-      if (lone === undefined) {
-        return null;
-      }
-      content = lone;
-    }
+  const primary = resolvePrimary({ mes: str(parsed.mes), variants, remappedActive, swipes, extra: parsed.extra });
+  if (primary === null) {
+    return null;
   }
+  const { content, activeVariantIdx } = primary;
   const agentAuthor = parseAgentAuthor(parsed.agent_author);
   return {
     role: roleOf(parsed),
