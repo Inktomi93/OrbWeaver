@@ -11,6 +11,11 @@ const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
 
 const slots = autocompleteVariants();
 
+/** Base UI's change eventDetails (reason/cancel/allowPropagation), derived from the Root prop so the
+ *  seal can never drift from it. Optional at our seam: the inline-select shortcut synthesizes a change
+ *  with no originating Base UI event. */
+type AutocompleteChangeDetails = Parameters<NonNullable<BaseRootProps<string>["onValueChange"]>>[1];
+
 /** A category of suggestions rendered under a `GroupLabel` header. Values stay plain strings. */
 export interface AutocompleteGroup {
   /** The category header text. */
@@ -53,7 +58,7 @@ export interface AutocompleteProps extends AutocompletePassthrough {
   /** Controlled input value — pair with `onValueChange`. */
   value?: string;
   defaultValue?: string;
-  onValueChange?: (value: string) => void;
+  onValueChange?: (value: string, details?: AutocompleteChangeDetails) => void;
   disabled?: boolean;
   /** Rendered inside the popup when the filter matches nothing. */
   emptyText?: ReactNode;
@@ -217,7 +222,7 @@ export function Autocomplete({
     </>
   );
 
-  const onValueChangeProp = (next: string): void => onValueChange?.(next);
+  const onValueChangeProp = (next: string, details: AutocompleteChangeDetails): void => onValueChange?.(next, details);
 
   return groups === undefined ? (
     <BaseAutocomplete.Root

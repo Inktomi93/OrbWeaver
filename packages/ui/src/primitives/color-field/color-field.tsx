@@ -37,6 +37,7 @@ export interface ColorFieldProps {
   /** The current color — any form the D44 clamp accepts (hex / rgb / hsl / oklch / a named color). */
   value: string;
   onValueChange: (value: string) => void;
+  onOpenChange?: (open: boolean) => void;
   disabled?: boolean;
   /** Busy state: swaps the swatch for a `<Spinner>` and inerts the trigger. Caller-driven, same shape as `Button.loading`. */
   loading?: boolean;
@@ -90,6 +91,7 @@ const FALLBACK_NATIVE_HEX = "#000000";
 export function ColorField({
   value,
   onValueChange,
+  onOpenChange,
   disabled = false,
   loading = false,
   success = false,
@@ -111,6 +113,7 @@ export function ColorField({
 
   const handleOpenChange = (next: boolean): void => {
     setOpen(next);
+    onOpenChange?.(next);
     if (next) {
       // Re-seed from the last committed value — a draft left over from a prior open/cancel must never resurface.
       setDraft(value);

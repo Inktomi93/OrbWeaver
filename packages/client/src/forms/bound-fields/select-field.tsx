@@ -32,6 +32,11 @@ export function SelectField(props: SelectFieldProps): ReactElement {
         onValueChange={(value): void => {
           field.handleChange(value as string);
         }}
+        onOpenChange={(open): void => {
+          if (!open) {
+            field.handleBlur();
+          }
+        }}
       />
     </Field>
   );

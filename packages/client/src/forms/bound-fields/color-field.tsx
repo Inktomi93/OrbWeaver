@@ -40,6 +40,11 @@ export function BoundColorField(props: BoundColorFieldProps): ReactElement {
           onValueChange={(next): void => {
             field.handleChange(next);
           }}
+          onOpenChange={(open): void => {
+            if (!open) {
+              field.handleBlur();
+            }
+          }}
           resetLabel={INHERIT_LABEL}
           value={value}
           {...(typeof props.label === "string" ? { "aria-label": props.label } : {})}

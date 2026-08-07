@@ -29,6 +29,8 @@ interface BoundField<T> {
     readonly error: string | null;
     readonly disabled: boolean;
     readonly name: string;
+    readonly dirty: boolean;
+    readonly touched: boolean;
   };
 }
 
@@ -45,6 +47,8 @@ export function useBoundField<T>(shell: BoundFieldShellProps): BoundField<T> {
       error,
       disabled: shell.disabled ?? false,
       name: field.name,
+      dirty: field.state.meta.isDirty,
+      touched: field.state.meta.isTouched,
     },
   };
 }

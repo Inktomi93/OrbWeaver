@@ -69,7 +69,15 @@ export function AvatarUploadField(props: AvatarUploadFieldProps): ReactElement {
         <Avatar size="lg" fallbackDelay={0} {...(previewHash === null ? {} : { src: blobUrl(previewHash) })}>
           <Icon icon={CircleUser} size="lg" />
         </Avatar>
-        <FileDropzone accept="image/*" maxSizeBytes={maxBytes} loading={loading} success={success} disabled={disabled} onFilesSelected={handleFilesSelected} />
+        <FileDropzone
+          accept="image/*"
+          maxSizeBytes={maxBytes}
+          loading={loading}
+          success={success}
+          disabled={disabled}
+          onFilesSelected={handleFilesSelected}
+          onBlur={field.handleBlur}
+        />
       </Row>
     </Field>
   );

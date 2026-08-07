@@ -150,7 +150,7 @@ catalog:
   # --- ui (@orb/ui — the sealed satellites; versions verified against the registry 2026-07-02,
   #     deltas vs the docs recorded in proposed/ui-package-design.md §3) ---
   # Base UI v1 stable — the headless primitive (D42). NOT the dead rc-era @base-ui-components/react.
-  "@base-ui/react": ^1.6.0
+  "@base-ui/react": ^1.7.0
   # tailwind-variants: variants + slots + merge — subsumes cva/clsx (D54). DELTA vs D54: v3
   # externalized tailwind-merge to a PEER (>=3) — it rides inside @orb/ui's seal, never the client.
   tailwind-variants: ^3.2.2

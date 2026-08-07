@@ -37,6 +37,7 @@ export function MultiToggleField(props: MultiToggleFieldProps): ReactElement {
         onValueChange={(next): void => {
           field.handleChange(next);
         }}
+        onBlur={field.handleBlur}
         disabled={props.disabled ?? false}
         aria-label={props.label}
       >
