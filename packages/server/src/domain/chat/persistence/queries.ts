@@ -15,6 +15,7 @@ import type {
 } from "@orb/contracts/chat";
 import {
   handoffOfferSchema,
+  macroFreezeRecordSchema,
   NO_HANDOFF_OFFER,
   sentPromptSchema,
   standaloneVariableDeltasSchema,
@@ -777,6 +778,8 @@ export async function loadVariantWire(db: Db, chatId: ChatId, variantId: Message
       promptSnapshot: messageVariants.promptSnapshot,
       params: messageVariants.params,
       macroDraws: messageVariants.macroDraws,
+      rawContent: messageVariants.rawContent,
+      macroFreezes: messageVariants.macroFreezes,
     })
     .from(messageVariants)
     .innerJoin(messages, eq(messages.id, messageVariants.messageId))
@@ -787,11 +790,17 @@ export async function loadVariantWire(db: Db, chatId: ChatId, variantId: Message
     return;
   }
   const draws = userMacroDrawsSchema.safeParse(row.macroDraws);
+  // D129-F: the freeze provenance rides THIS host-gated view and no other. `rawContent` is a plain column (no
+  // parse seam to degrade); the record parses like every other JSON blob here — malformed ⇒ null, so the
+  // inspector honestly reports "nothing captured" rather than throwing.
+  const freezes = macroFreezeRecordSchema.safeParse(row.macroFreezes);
   return {
     variantId: row.variantId,
     prompt: sentPromptSchema.safeParse(row.promptSnapshot).data ?? null,
     params: userIntentSchema.safeParse(row.params).data ?? null,
     macroDraws: draws.success ? draws.data : null,
+    rawContent: row.rawContent,
+    macroFreezes: freezes.success ? freezes.data : null,
   };
 }
 

@@ -45,6 +45,7 @@ export type {
   MacroEnv,
   MacroFlagKey,
   MacroFlags,
+  MacroFreeze,
   MacroHandler,
   MacroListSpec,
   MacroMetadata,

@@ -4,7 +4,16 @@
 // persisted user row are the same post-regex text.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { AssembleCharacter, AssembleContext, AssemblePersona, AssembleWorldEntry, ChatInjection, RoomOverrides, SpeakerRef } from "@orb/contracts/chat";
+import type {
+  AssembleCharacter,
+  AssembleContext,
+  AssemblePersona,
+  AssembleWorldEntry,
+  ChatInjection,
+  MacroFreezeRecord,
+  RoomOverrides,
+  SpeakerRef,
+} from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS } from "@orb/contracts/preset";
@@ -13,7 +22,7 @@ import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contr
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import { GUIDED_GAME_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
-import type { MacroContext, MacroRegistry } from "@orb/kit/macro";
+import type { MacroContext, MacroFreeze, MacroRegistry } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
@@ -347,6 +356,10 @@ interface BuildAssembleContextInput {
  *  the SEND verb persists the exact same text the WI haystack saw. */
 interface SendRegexResult {
   sendUserText?: string;
+  /** The VOLATILE-FREEZE record (D129-F) of what the SEND bake resolved out of the composer draft, in
+   *  occurrence order. Written only when something actually froze (absent ⇒ the draft carried no volatile
+   *  macro — the common case, and the reason `macro_freezes` stays NULL for it). */
+  sendMacroFreezes?: MacroFreezeRecord;
 }
 
 function hasMarker(config: PromptConfig, marker: string): boolean {
@@ -694,6 +707,64 @@ function authorsNoteCandidates(
     : { candidates: member.candidates };
 }
 
+/**
+ * The SEND leg's AUTHOR-SIDE transform chain, in its one ruled order (D51): volatile FREEZE → the D50
+ * `user_input` PromptTransform → the USER_INPUT regex. Returns the post-transform draft, which is the ONE
+ * text both the WI keyword haystack and the persisted row see — they cannot diverge because there is only
+ * one value.
+ *
+ * The freeze is byte-destructive, so it RECORDS what it resolved (D129-F) and the record travels back on the
+ * sink for the verb to persist beside the row. The pre-freeze draft itself does NOT travel: the verb already
+ * holds it (it is what it passed as `pendingUserText`), and shipping a second copy would invite the two to
+ * drift. `freezes.length === 0` leaves the sink field absent, which is what makes `macro_freezes` NULL for
+ * the overwhelming common case.
+ */
+async function runSendAuthorTransforms(
+  ctx: ChatContext,
+  args: {
+    readonly draft: string;
+    readonly input: BuildAssembleContextInput;
+    readonly base: AssembleContext;
+    readonly hostScripts: readonly RegexScriptRow[];
+    readonly out: SendRegexResult | undefined;
+  },
+): Promise<string> {
+  const { draft, input, base, hostScripts, out } = args;
+  const freezes: MacroFreeze[] = [];
+  let text = freezeVolatileMacros(draft, base, { random: input.prng, registry: input.freezeMacroRegistry, freezes });
+  // The D50 `user_input` PromptTransform point (automation-design/04 §1.2 / §6): AFTER the macro pass,
+  // BEFORE the USER_INPUT regex. Rewrites the draft the WI haystack + the persisted row both see (author-
+  // side transform order — D51). Null op / zero registrants ⇒ byte-identical.
+  if (ctx.promptTransforms !== null) {
+    text = await ctx.promptTransforms("user_input", input.chatId, text, base.variableValues ?? {});
+  }
+  if (hostScripts.length > 0) {
+    const sendMacroCtx = buildTurnMacroContext({
+      assembleCtx: base,
+      model: input.model,
+      chatId: input.chatId,
+      input: text,
+      onWarn: onMacroWarn,
+      registry: input.macroRegistry,
+    });
+    text = executeRegexScripts({
+      text,
+      scripts: hostScripts,
+      placement: "USER_INPUT",
+      ctx: sendMacroCtx,
+      applyReplace: ctx.applyRegexReplace,
+      onScriptFailure: onHostRegexFailure("USER_INPUT"),
+    });
+  }
+  if (out !== undefined) {
+    out.sendUserText = text;
+    if (freezes.length > 0) {
+      out.sendMacroFreezes = freezes;
+    }
+  }
+  return text;
+}
+
 /** Produces the immutable per-turn AssembleContext SHAPE consumes per speaker; never mutated after return. */
 export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembleContextInput, out?: SendRegexResult): Promise<AssembleContext> {
   const cards = await Promise.all(input.castCharacterIds.map((characterId) => ctx.getCard({ ownerId: input.ownerId, characterId })));
@@ -731,36 +802,8 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   const hostScripts: readonly RegexScriptRow[] = input.hostTierRegexScripts ?? [];
   let pendingText = input.pendingUserText;
   if (input.pendingUserText !== undefined) {
-    let frozen = freezeVolatileMacros(input.pendingUserText, base, { random: input.prng, registry: input.freezeMacroRegistry });
-    // The D50 `user_input` PromptTransform point (automation-design/04 §1.2 / §6): AFTER the macro pass,
-    // BEFORE the USER_INPUT regex. Rewrites the draft the WI haystack + the persisted row both see (author-
-    // side transform order — D51). Null op / zero registrants ⇒ byte-identical.
-    if (ctx.promptTransforms !== null) {
-      frozen = await ctx.promptTransforms("user_input", input.chatId, frozen, base.variableValues ?? {});
-    }
-    if (hostScripts.length > 0) {
-      const sendMacroCtx = buildTurnMacroContext({
-        assembleCtx: base,
-        model: input.model,
-        chatId: input.chatId,
-        input: frozen,
-        onWarn: onMacroWarn,
-        registry: input.macroRegistry,
-      });
-      frozen = executeRegexScripts({
-        text: frozen,
-        scripts: hostScripts,
-        placement: "USER_INPUT",
-        ctx: sendMacroCtx,
-        applyReplace: ctx.applyRegexReplace,
-        onScriptFailure: onHostRegexFailure("USER_INPUT"),
-      });
-    }
-    pendingText = frozen;
-    base.currentInput = frozen;
-    if (out !== undefined) {
-      out.sendUserText = frozen;
-    }
+    pendingText = await runSendAuthorTransforms(ctx, { draft: input.pendingUserText, input, base, hostScripts, out });
+    base.currentInput = pendingText;
   }
 
   // BUILD — WI to injections (render once + keyword match), unified into one list, one budget pass.
