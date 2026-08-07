@@ -490,6 +490,28 @@ test("EDITSNAP-OK: an APPLIED hand write stays silent — `ok:true` is not an oc
   await expect(component.getByTestId("rpg-notified")).toHaveText("");
 });
 
+// THE TIME CLEAR KEEPS THE DAY. `clock` fuses a calendar counter with a time of day, so the first cut of
+// "Clear time" wrote `{clock: null}` and took `day 3` with it — off the band, out of the steering reminder's
+// structured line and out of `{{expr::rpg.scene.day}}` — with no host-side door to put it back (the Date
+// field writes `calendarDate`; `update_scene.day` is the MODEL's door). The receipt has to be the PAYLOAD:
+// the panel repaints identically either way, so a mutation COUNT would have passed on the destructive write.
+test("Clear time nulls the TIME and keeps the day counter (the clock's two facts move independently)", async ({ mount, page }) => {
+  const trpc = await stubTakeover(page);
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Scene" }).click();
+
+  const strip = component.locator('[data-slot="ambient-strip"]');
+  // The stub's clock is `day 3 · 21:00`, so the Time field rests on its derived label.
+  const rest = strip.getByRole("button", { name: "Time value" });
+  await expect(rest).toContainText("night");
+  await rest.click();
+  await component.getByRole("button", { name: "Clear time" }).click();
+
+  await expect.poll(() => trpc.count("rpg.editSnapshot"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  // ONESHOT-OK: the poll settled the recorder, so this reads a frozen payload, not a race.
+  expect(trpc.lastInput("rpg.editSnapshot")).toMatchObject({ patch: { clock: { day: 3, hour: null, minute: null } } });
+});
+
 // RV-11 — the Scene cast card reads the standing guides. The extraction round wrote appearance/outfit/thoughts
 // on every beat into a plane NOTHING projected; this proves the panel end of the wire (the reminder is the
 // model end) and that an unwritten guide contributes no line at all.

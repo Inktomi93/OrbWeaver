@@ -12,7 +12,7 @@
 // are a log (read-only by nature).
 
 import type { RpgActorOp, RpgActorRef, RpgSnapshotState, RpgTrackerEntry, RpgTrackerView } from "@orb/contracts/rpg";
-import { RPG_TRACKER_VALUE_EMPTY, RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS, timeOfDayAtHour, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
+import { clockTimeOfDay, RPG_TRACKER_VALUE_EMPTY, RPG_WEATHER_TYPES, TIME_OF_DAY_HOURS, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
 import { Button } from "@orb/ui/button";
 import { Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
@@ -38,13 +38,30 @@ const RECENT_BEATS = 3;
  *  leaf's own empty value where it is not. `location` is a TOTAL string in the snapshot state (its empty
  *  value is `""`), and the hand door REFUSES a `null` there rather than coercing it (edit-snapshot.ts gate 2),
  *  so the two arms are not interchangeable. A TOTAL map keyed by the strip's own field vocabulary: a new
- *  ambient field must state how it clears rather than silently inheriting the wrong arm. */
-const AMBIENT_CLEAR: Readonly<Record<"location" | "date" | "timeOfDay" | "weather", Partial<RpgSnapshotState>>> = {
+ *  ambient field must state how it clears rather than silently inheriting the wrong arm.
+ *
+ *  `timeOfDay` IS NOT IN THIS MAP, and that is the point: its clear is the only one that needs a value the
+ *  host is CARRYING (see {@link clearTimePatch}). Clearing the whole `clock` plane would take `day N` with
+ *  it — a fact with no other host-side door to restore — so the field-scoped clears that CAN be constants
+ *  live here and the one that cannot is built per call rather than smuggled in as `{clock: null}`. */
+const AMBIENT_CLEAR: Readonly<Record<"location" | "date" | "weather", Partial<RpgSnapshotState>>> = {
   location: { location: "" },
   date: { calendarDate: null },
-  timeOfDay: { clock: null },
   weather: { weather: null },
 };
+
+/** THE DAY-PRESERVING TIME CLEAR. `clock` fuses two facts a story moves independently — a CALENDAR counter
+ *  (`day`) and a TIME OF DAY (`hour`/`minute`) — so "clear the time" must clear the time and nothing else.
+ *
+ *  It used to write `{clock: null}`, which destroyed the day counter: `day 4` vanished from the band, from
+ *  the steering reminder's structured line and from `{{expr::rpg.scene.day}}`, and the next time-pick
+ *  resurrected the clock at a FABRICATED `day 1` (the rebuild's `?? 1`). Nothing in the panel could put the
+ *  day back — the Date field writes `calendarDate`, and `update_scene.day` is the MODEL's door, not the
+ *  host's. `hour`/`minute` are separately nullable for exactly this (`@orb/contracts/rpg` `ambient.ts`), so
+ *  the clear keeps the day it is standing on and nulls only the time. */
+function clearTimePatch(currentDay: number): Partial<RpgSnapshotState> {
+  return { clock: { day: currentDay, hour: null, minute: null } };
+}
 
 /** Build the `editSnapshot` overlay for one ambient field edit (§2.7 — timeOfDay steers the clock through
  *  the label→hour mapping). `next === null` is the strip's CLEAR (a closed-vocab field has no "nothing"
@@ -52,7 +69,7 @@ const AMBIENT_CLEAR: Readonly<Record<"location" | "date" | "timeOfDay" | "weathe
  *  unknown timeOfDay label (no-op). */
 function ambientPatch(field: "location" | "date" | "timeOfDay" | "weather", next: string | null, currentDay: number): Partial<RpgSnapshotState> | null {
   if (next === null) {
-    return AMBIENT_CLEAR[field];
+    return field === "timeOfDay" ? clearTimePatch(currentDay) : AMBIENT_CLEAR[field];
   }
   if (field === "location") {
     return { location: next };
@@ -187,10 +204,13 @@ function ambientStripProps(
   onEditAmbient: ((field: "location" | "date" | "timeOfDay" | "weather", next: string | null) => void) | undefined,
   onReleaseLock: ((path: string) => void) | undefined,
 ): Parameters<typeof AmbientStrip>[0] {
+  // A clock with a day but NO time reads `null` and the Time field renders unset ("—"), which is exactly
+  // what the host asked for when they cleared it — the day it kept is the band's business, not this field's.
+  const timeLabel = ambient === null ? null : clockTimeOfDay(ambient.clock);
   return {
     ...(ambient !== null && ambient.location !== "" ? { location: ambient.location } : {}),
     ...(ambient !== null && ambient.calendarDate !== null ? { date: ambient.calendarDate } : {}),
-    ...(ambient !== null && ambient.clock !== null ? { timeOfDay: timeOfDayAtHour(ambient.clock.hour) } : {}),
+    ...(timeLabel === null ? {} : { timeOfDay: timeLabel }),
     ...(ambient !== null && ambient.weather !== null ? { weather: ambient.weather.type } : {}),
     ...(onEditAmbient === undefined ? {} : { onEditField: onEditAmbient }),
     // The pin + Release on a hand-locked ambient field (§12.3) — host-only (rides `onReleaseLock`).
