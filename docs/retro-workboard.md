@@ -359,6 +359,15 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
   `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
   question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- **⚑ OPS NOTE 3 (the reaper — encoded after it killed a run TWICE):** a tool-managed background
+  task can be REAPED BY YOUR OWN POLLING — a foreground poll that hits its 600s timeout converts
+  into a NEW background task and the manager evicts the OLDEST, which is the long run you were
+  watching. VITE-MAX's cold-cache CT verdict died at 1181/1211 then 1126/1211 with
+  `[ELIFECYCLE] Command failed` and no report — indistinguishable from a crash near the end, and
+  neither load nor flakes. LAW: anything over \~10 min launches OUTSIDE the task manager
+  (`setsid nohup … </dev/null & disown`) with its exit code landed in a `.exit` file; poll by
+  READING the log, never by blocking on the task. Corollary: don't stack background tasks while a
+  long one matters — each is eviction pressure. \[\[polling-reaps-your-own-background-task]].
 - **⚑ OPS NOTE 2 (load, encoded after a battery died of it):** the round-2 battery's vitest+CT came
   back **10,364 / 0 failed** but `e2e-smoke` DIED ON BOOT — vite FSWatcher **EMFILE** (fd/inotify
   exhaustion) at load ~53 with 161 test processes: the battery shared the box with VITE-MAX's full
