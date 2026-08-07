@@ -3513,3 +3513,559 @@ the ONLY dead switch) · ST impersonate anatomy recon · PNG drop + CSP trust to
 
 **Pre-retro pushed history:** see `git log` — D22 member viewer, impersonate/guided saga,
 crunchy-cluster, parity-plus (D109/D110).
+
+
+---
+
+# APPENDED 2026-08-07 — superseded STATE + reconciliation blocks moved off the live board
+
+> Moved intact when the live board was reconciled to CURRENT-STATE-ONLY (owner order:
+> remove conflicting/stale state claims). Receipts only; the live board carries what still breathes.
+
+## ═══ STATE (2026-08-07 — the BASE UI 1.7 PROGRAM was live; superseded by the block above) ═══
+
+- **main @ `4e1a3f8ea`**, tree clean. A push landed since the last board write (`origin/main =
+  4ecb3110d`, server-verified); local is 3 ahead. **⛔ DEV HALT (dogfood doc) still governs feature
+  work** — the Base UI program is foundation/enforcement work the owner ordered, not new features.
+- ✅ **THE GEMINI DIRTY TREE — AUDITED HUNK-BY-HUNK AND BANKED** (owner's Aug-4–6 work with Gemini,
+  ~42 files). Landed as three hook-green commits after the full battery (10,154 vitest + 2,390 CT):
+  `d732be317` (Base UI 1.6→1.7 + blur/dirty/touched plumbing + SettingRow→Field, setting-row primitive
+  DELETED with manifest ledger + doc repoint) · `8db32e86a` (node-26 BodyInit copies + the card-tier
+  TEST-PIN inversion — see below) · `4e1a3f8ea` (the ST-parity goldens rig, quarantined; the 48-page
+  Base UI 1.7 docs mirror at `docs/vendor/base-ui/`).
+  **Two Gemini defects caught by the audit:** (1) the debug sweep's `cardTier` was RE-inverted against
+  `render-trust.ts:77` — reverted; root cause was (2) **`config.int.test.ts` at HEAD pinned the
+  PRE-fix inverted mapping** ("sandbox the untrusted") — `9f30b7045` fixed the code, missed the pins,
+  HEAD's battery was RED there, and the stale pins taught Gemini to re-invert the fixed code. Six
+  assertions corrected to the renderer's law (trusted ⇒ tierB immersive) + a polarity comment citing
+  the CARD-TRUST adjudication. Instruments-lie, test-pin flavor.
+  **Also fixed at landing:** input.tsx hand-wrapper reverted (1.7 Input has NATIVE onValueChange);
+  textarea rides Field.Control's native arm; autocomplete/combobox eventDetails typed by DERIVATION
+  (`Parameters<>` off the Root prop — the pattern that makes drift impossible); wire-capture `as any`
+  → `TURNS_FLOOR` spread; README de-goldened; all scratch debris deleted.
+- **LANE ROSTER — 5 LIVE (dispatched 2026-08-07, the Base UI 1.7 program):**
+  **UI17** (executor) — full 1.7 surface alignment across every `@base-ui` import in packages/ui
+  (derive-not-respell sweep · anatomy ledger in `ui-package-design.md` · Toolbar Group/Link/Input ·
+  Combobox grouping parity · className+style function-form RULING drafted for the owner).
+  **NAVFORM** (executor) — the form id/name navigability program (owner's ask): the ~26 bare inputs,
+  Field.Control registration class, the SettingRow id-prop amputation (9 consumers), the ZERO
+  console-warning CT receipt. Owns `field.tsx` + client forms; UI17 stays out.
+  **BUGATES** (executor) — the Base UI enforcement system: surface-manifest bump tripwire (installed
+  type surface vs committed manifest — a version bump cannot land unadjudicated) + the gates
+  (derives-not-respells · anatomy-completeness reading the ledger · render-prop · state-data-attrs ·
+  portal-container · event-signature · field-control). Lands LAST on the sibling-fixed tree.
+  **⚑ namespace-imports gate: PREMISE DIED** — the 1.7 docs' own Canonical-Types tables sanction the
+  flat aliases; release notes carry NO namespace break; crunch §7 overstated. Owner may still rule
+  namespace style as taste → that ruling mints the gate, not the lane.
+  **CARDKEEP** (executor) — cardKeepLastX Option A (owner-ruled): thread ABSENT (no rpg game ⇒ NO
+  card window) from `turn.ts:590` end-to-end; the pipeline half landed in `8db32e86a`.
+  **GOLDHOME** (executor) — goldens rig → `scripts/probes/st-goldens/`, dissolving its NINE
+  carve-outs; type-drift fixed so the graph program owns the scripts. The 504MB ignored-runtime `mv`
+  is the ORCHESTRATOR'S at merge (merge → mv → consolidated check → teardown; ruled mid-run).
+- **Docs mirror:** `docs/vendor/base-ui/` = verbatim 48-page 1.7.0 snapshot (INDEX.md; outside the
+  docs-format glob by construction). Read IN FULL by 4 reader agents + orchestrator (handbook law);
+  reports informed every brief. Re-fetch on bump — the manifest gate will force the adjudication.
+- **Owner forks OPEN from the program:** (1) className/style function-form — keep string-only as seal
+  law (REC) or support functions; UI17 drafts, owner ratifies. (2) namespace-imports style ruling
+  (above). (3) context-menu: our shim (member-row `onContextMenu` → click the Menu trigger) lacks
+  pointer-position anchoring + long-press vs real `ContextMenu.Root` — UI17 reports effort; owner
+  decides build/keep-shim.
+
+## ═══ STATE (2026-08-03, after the tsx migration + the guard fix — HISTORICAL, superseded above) ═══
+
+- **main @ `fe8f677f8`**, tree clean, **17 commits past origin** (`origin/main = f8cb5e948`,
+  SERVER-VERIFIED via `git ls-remote`, not the console summary). Gates **183**. D-ledger through
+  **D126**; **D127 DRAFTED, UNMINTED** (compiler-owns-memoization + uncompiled-CT; text in the MEMOBAN
+  block below). **NO LANES LIVE, no second session.**
+- ✅ **NODE-26 W1 + W2 BOTH MERGED, consolidated `pnpm check` 14/14 on the merged tree, worktrees torn
+  down.** W1 `7b283c874` (§1 — `esnext.disposable` across all four programs, `platform.d.ts` proven in
+  **all 8** TS programs by `--listFilesOnly`, `engines` in the six packages). W2 `725f0ba85` (§2 —
+  undici 8, the dispatcher tripwire). **Each lane's real value was a defect it found on the way:**
+  - **W1: `.npmrc engine-strict=true` is INERT on pnpm 11** — four probe arms with a control; pnpm 10.6+
+    moved settings into `pnpm-workspace.yaml` (`engineStrict: true`). The wave whose whole point is
+    "the floor is declarative-only, make it bite" would have shipped a SECOND no-op. Doc truth-repaired.
+  - **W1: `scripts/verify/selection.ts` routed root ambient `.d.ts` to the GRAPH program only** — so
+    `types:packages` was SKIPPED entirely on an ambient edit, and the graph carries `@types/node`, which
+    independently declares `Disposable`/`getOrInsert`/`isError`. Measured: the probe showed **1** error
+    under the graph vs **6** per-package. A graph-only route masks 5 of 6. Both root ambient files now
+    route everywhere (`ROOT_AMBIENT_DTS`) — **this changes `reset.d.ts`'s behavior too, deliberately.**
+    Neither `tsconfig-routing-parity` (filters `.d.ts` out) nor `tests-type-membership` (enumerates
+    `tests/**` only) can catch this class.
+  - **W2: undici 8 MOVED the global slot** `Symbol.for("undici.globalDispatcher.1")` → `.2`, and node's
+    bundled 8.7 still populates `.1` as a legacy alias **nothing reads**. Both egress int suites
+    hardcoded `.1` for teardown, so the bump turned their restore into a **no-op leaking the installed
+    firewall into every later test in the worker** — probe-proven (`getGlobalDispatcher() === firewall`
+    after "restore"). Fixed at landing via the public `get/setGlobalDispatcher`.
+  - **W2 RED proof, the strongest receipt of the night:** it broke the contract the way real skew would
+    (flipped the npm copy's slot in `node_modules`), and the two suites failed **differently** —
+    tripwire names the dispatcher contract, `egress.int` says `expected 'TypeError: fetch failed' to
+    contain 'SSRF_BLOCKED'` while *actually dialing private addresses*. That contrast IS the tripwire's
+    justification (isolating CONTRACT from POLICY), and it replaced the doc's overstated
+    "nothing tests this". Also: `^8.10.0` was refused by `minimumReleaseAge: 1440` — pinned `^8.9.0`
+    rather than weakening the control; the caret floats when it matures.
+- ⚠️ **`biome.json` WAS UNPARSEABLE FOR ~9 HOURS — fixed `8a76894a5`.** Comments between array elements
+  in `files.includes` (added by tsx-shedding stage 2, `896e3d221`) are a hard parse error: **biome.json
+  is strict JSON here, not JSONC.** Biome does not fail loudly — it falls back to **built-in defaults**
+  (tabs, 80 cols, every rule on, `node_modules` walked): **73,518 files / 16,835 errors**, healthy is
+  **4,564**. **It had been hiding 14 real diagnostics**, every one in code touched during the blind window: a
+  trailing comma making `tsconfig.json` unparseable, an import after a statement in `pdf.ts`,
+  method-style signatures in `platform.d.ts`, a bare `process` global in the new dispatcher test.
+  **Probe for next time:** `npx biome check <one-known-clean-file>` — clean config prints `Checked 1
+  file`, broken config prints a `parse` diagnostic naming `biome.json`. Two seconds.
+  **⚑ THE "BIOME IS BROKEN IN WORKTREES" THEORY IS DEAD — and it was mine to kill sooner.** Both lanes
+  reported it, I believed them, and I wrote it into three fresh lane briefs. The owner challenged it
+  ("we've been using biome fine in worktrees for like a week") and was right. **Nested-root is a
+  downstream SYMPTOM of the parse failure**: broken config → defaults → the defaults have no `!.claude`
+  → biome walks into `.claude/worktrees/*` → finds each worktree's own `biome.json` → nested-root error.
+  **Measured with the fixed config, both directions:** from main, worktree paths are correctly IGNORED;
+  with cwd INSIDE a live lane worktree, `Checked 1 file`, **exit 0**. Retracted to all three lanes.
+  **The lesson worth more than the bug: two independent agents agreeing is NOT corroboration** when
+  both are looking at the same broken artifact — their agreement is correlated, not independent. Test
+  the two-second claim. (Use `env -C <dir> <cmd>` to test a cwd-sensitive claim; never `cd`.)
+- **LANE ROSTER — EMPTY** (both merged and torn down). Historical dispatch record:
+  **W2-UNDICI** (security-executor) — node-26 program §2: bump catalog undici 7.28 → ^8.10, mint
+  `tests/server/infra/network/dispatcher-contract.int.test.ts` as the cross-copy tripwire. Owns the
+  undici catalog entry, `pnpm-lock.yaml`, root `package.json` devDependencies, `egress.ts` if forced.
+  **W1-TOOLCHAIN** (executor) — node-26 program §1: `esnext.disposable` lib delta across all four
+  programs, a root `platform.d.ts` for the V8 14.6 surfaces TS has not shipped, `.npmrc`
+  `engine-strict=true` + `engines` in the six workspace packages, the Spine §8 ADOPT/AVOID table.
+  Explicitly told to stay OUT of root `package.json` (W2's).
+- ✅ **TSX-SHEDDING: COMPLETE — all four stages, one sitting** (`2001aec5` · `896e3d22` · `e2bed75c` ·
+  `e899498a`). `start` = `node …/entry/index.ts`; dev = `node --watch --watch-preserve-output`; all ~38
+  tooling scripts on node; `tsx` dropped from `@orb/ui` (knip flagged it — the migration reporting its
+  own completion). **9,092 imports across 3,171 files** now carry extensions.
+  **ENFORCEMENT PROVEN:** `nodenext` makes a missing extension **TS2835, a compile error** —
+  demonstrated by reverting one import. That closes the gap where green ≠ bootable.
+  **RESOLUTION SPLIT (deviates from the spec, deliberately):** nodenext where NODE runs
+  (server/kit/contracts/db, per-package); **bundler for ui/client AND for the tsconfig.json /
+  tests-dom AGGREGATORS** — they pull browser code in TRANSITIVELY, and node-strict resolution made tsc
+  pick different third-party declarations than the ones that ship (echarts resolved two ways).
+  **LIVE PROOF:** server 200 · vite 200 · **engines RE-ADOPTED (identical pids)** · traces landing ·
+  e2e-smoke 5/5. `pnpm check` 14/14; battery 9,931 vitest + 2,384 CT, 0 failed.
+- ⚠️ **THREE PRE-EXISTING DEFECTS the migration surfaced** (each worth more than the swap):
+  1. **`domain/chat/memory/build/**` + its test mirror were INVISIBLE to biome** — 13 files never linted
+     or formatted, because `biome.json` copied `.gitignore`'s `build/` exclusion WITHOUT its negations.
+     They held 45 extensionless imports the sweep could not see. **Any biome-driven sweep has been
+     skipping that subsystem** — including the Node-26 program's §4.2 sort sites.
+  2. **A stale `tsbuildinfo.json` described a tree purged 2026-07-22** — `check:structure` reported 6
+     PHANTOM violations naming `domain/hub` (which does not exist) under node while clean under tsx.
+     Not a runtime bug: changing runtime changed which cache was read. **A surprising gate result
+     deserves a cache-clear before a theory** — I nearly reverted a working stage on a false premise.
+  3. `tokens.build.ts` **emitted** an extensionless import — the GENERATOR was fixed, not just its
+     artifact, and the round-trip verified.
+- ✅ **TWO PUSHES LANDED** (both on an explicit word, both server-verified): the 176-commit era, then 26
+  commits. **Never push without a FRESH word.**
+- **PreToolUse GUARD LIVE** (`.claude/hooks/tool-guard.mjs`) — rewrites piped harness commands, denies a
+  few destructive shapes, fails open, logs to `reports/tool-guard/decisions.jsonl`, kill switch
+  `ORB_TOOL_GUARD=off`. It has already corrected the orchestrator mid-session (bare `npx vitest`,
+  `git add -A`, `--no-verify`).
+- **NODE 21→26 PROGRAM READ IN FULL** (`docs/design/node-26-adoption-program.md`). Verified against the
+  tree: `engines.ts:99` sleep ✓ · `digests.ts:255,260` sort sites ✓ · **all six workspace packages carry
+  NO `engines` field** ✓ (the `>=26` floor is declarative-only). **STALE CLAIM — §7.4 says ONE `.mjs`
+  outside the nets; there are 17** under `scripts/probes/` (two created today by my own lanes).
+  **⚑ HIGHEST-RISK ITEM IN THAT DOC (§2), jump it to the front:** the SSRF egress firewall works by
+  installing a dispatcher into undici and trusting node's global `fetch` to route through it — a
+  CROSS-COPY shared-symbol contract, with npm undici pinned at **7.28** while node 26.5 bundles **8.7**,
+  and the pin's own comment claims it tracks the bundled major. **Nothing tests that contract.** If a
+  bump breaks it the firewall silently stops governing `fetch` and nothing goes red.
+
+- **⚠️ SUBAGENTS DIE ON A PERMISSION DEFER — root-caused 2026-08-03, FIXED.** Seven lanes across five
+  dispatches "completed" after a one-line preamble at a suspiciously consistent **~42k tokens**. It read
+  as transient API failure. It was not: `settings deferred Bash · resume with -p --resume` — the command
+  was not in `.claude/settings.json` `permissions.allow`, the permission flow asked, and **a subagent has
+  nobody to ask**, so it stops silently. Trigger was the new PreToolUse guard returning `defer` for the
+  ~87% it does not object to; `defer` = "fall through to the normal permission flow", and that flow has
+  no one to prompt. **The guard denied nothing (189 decisions, 0 denies) and was still the cause.**
+  **FIX (owner chose option 2):** allowlist expanded **34 → 72** — read-only inspection (`wc`/`ls`/`cat`/
+  `find`/`sed -n`/`python3 -c`), structural search (`ast-grep`/`pnpm ast`), git read-only + the lane's own
+  `add`/`commit`/`merge`/`-C`, and the toolchain (`node`/`npx`/`pnpm exec`/`pnpm verify`/`e2e:smoke`).
+  **DELIBERATELY EXCLUDED: `git push`, `reset`, `stash`, `restore`, `checkout`.**
+  **The tell for next time:** several lanes stopping at a CONSISTENT token count right after their first
+  Bash call. Consistency is the signal — a real transient is ragged. Check
+  `reports/tool-guard/decisions.jsonl`: all-`defer`/zero-deny exonerates the guard's RULES while still
+  being the cause, because defer ≠ allow.
+  **✅ SECOND ARM LANDED (`fe8f677f8`) — every subagent is BRIEFED ONCE, on its first Bash call.** A
+  `BRIEFING` block (what the guard rewrites / denies / asks / warns on) is attached as
+  `additionalContext`, marker-file keyed by `agent_id` under `reports/tool-guard/briefed/`, so it costs
+  one paragraph per lane and never repeats. It carries the owner's instruction verbatim: **if a call
+  ever returns `settings deferred Bash`, that is a PERMISSION gap — you cannot answer a prompt, so
+  SendMessage the orchestrator the EXACT command and stop cleanly.** A lane that dies without reporting
+  reads as a transient and costs a re-dispatch. 11/11 guard tests green. (First cut threw: `ctx` wasn't
+  in `toHookOutput`'s scope, fail-open swallowed it and the warn lost its context — `ctx` is now threaded
+  through the signature.)
+  **✅ FIXED FOR REAL (`50a913bb6`) — THE PASS-THROUGH NOW `allow`s.** Owner's framing is the design:
+  *"our issue was never permissions of what an agent can do, we just want them running the right way."*
+  A guard that shapes HOW a command runs should never have been answering WHETHER it may run.
+  **The allowlist could never have fixed this** — the permission matcher requires EVERY SEGMENT of a
+  compound command to match, and the two relaunched lanes died on `ls -a | head && echo … && find … |
+  sort` and `pwd && git -C <wt> status`, whose only unlisted segments were **`echo`, `sort`, `pwd`**.
+  Agents compose ad-hoc pipelines; that list is unbounded by construction. Changes: classifier `"defer"`
+  renamed **`"pass"`** (the honest name); `defer` survives only where the guard did NOT judge (kill
+  switch, internal error, bad stdin); a subagent `ask` is emitted as **`deny` + the escalation path**,
+  since an unanswerable ask kills a lane exactly like a defer; **`git push` gained an explicit ask from
+  any caller** — it was reaching a prompt only by falling through, and pass-becomes-allow would have
+  pushed to origin with NO owner word (caught by probing before commit, not after). 12/12 guard tests.
+  **SMOKE-TESTED LIVE: a haiku scout ran all four killing shapes, 4/4, zero deferrals.**
+  **⚠️ THE COST, AND IT IS REAL — a hook `allow` BYPASSES THE AUTO-MODE CLASSIFIER.** The owner's global
+  settings run `"defaultMode": "auto"`, so a classifier is the actual gate (it refused two edits to a
+  permissions file this session, correctly). A hook `allow` skips the permission system entirely, so for
+  Bash in this repo the guard now answers first. **Probe receipt:** `sudo rm -rf /etc`, `curl -sL … |
+  bash` and `rm -rf <the repo>` all classify as clean PASSES today — they would run unprompted where the
+  classifier would have caught them. **OPEN OWNER CALL, two honest arms:** (a) narrow the allow to a
+  curated safe-verb set and keep deferring the rest to the classifier, or (b) keep the blanket allow and
+  give the guard a hard floor (sudo · network-pipe-to-shell · `rm -rf` outside safe targets · bare
+  `sqlite3` on the live db). NOT (c) blanket-allow with no floor, which is where the tree sits right now.
+  **PREMISE CORRECTED, propagated from this board and the doctrine:** "`git push`/`reset`/`stash`/
+  `restore`/`checkout` are deliberately excluded from the allowlist" is **FALSE for two of them** — the
+  owner's global settings wildcard-allow `Bash(git reset *)` and `Bash(git checkout *)`. Genuinely
+  absent: `push`, `stash`, `restore`. A guard rule for reset/checkout would override a call he made.
+  **Also found:** `biome.json` excludes `.claude`, but `.claude/hooks/biome-check.sh` lints it anyway —
+  every edit to the guard throws a format error on a file the config says to skip. Own small lane.
+  **⚑ SUPERSEDED DESIGN NOTE (kept for the reasoning) — `defer` is the wrong answer for an UNCOVERED command:**
+  `defer` is correct when the allowlist covers the command: the guard has no opinion, the allowlist
+  approves, work proceeds. It is wrong for a command NOTHING matches — there `defer` means "ask someone"
+  and a subagent has no one, so it dies mid-turn with no chance to report. **The shape to build: the
+  guard reads `.claude/settings.json` `permissions.allow` itself; when the caller is a subagent AND no
+  rule matches, return `deny` with a teaching reason** naming the command and instructing SendMessage.
+  That turns a silent unrecoverable death into an actionable event while auto-approving nothing.
+  **Deliberately NOT built same-session** — it gates every Bash call in the repo and the matcher must be
+  tested against the real allowlist's glob semantics (`Bash(pnpm check *)` etc.); a wrong matcher denies
+  everything. Own lane, fresh context.
+- **NEXT UP (node-26 program, `docs/design/node-26-adoption-program.md`):** W2-UNDICI (the untested SSRF
+  dispatcher contract + the 7.28→8.x pin drift — **highest risk in the doc**) · W1-TOOLCHAIN (lib delta +
+  `platform.d.ts` + the engines wall; **all six packages carry NO `engines` field**) · then W3/W4/W5, §8
+  gate LAST. Also queued: convert the **17** `.mjs` probes to `.ts` (§7.4 undercounts this as one file) —
+  `.mjs` escapes every type program and sweep, and its only reason (bare-node runnability) died with the
+  tsx migration.
+
+
+## ═══ ▶▶▶ RECONCILIATION (post-audit, 08-03 — landed AFTER the board rewrite's base) ═══
+
+The audit wrote SCHEMA / DBANK2 / SWEEP as *dispatched*. Since then:
+- ✅ **SCHEMA MERGED (`c92b7aeb`)** — one `scrubWireSchema` engine + FOUR wire modes
+  (hosted-common · anthropic-format · guided-decoding [KEEPS bounds, the xgrammar lever] ·
+  strict-compatible [all-required + anyOf-null, BUILT and OFF behind `EXTRACTION_STRICT_WIRE`]).
+  Absorbed THREE drifted hand-rolled walkers — vLLM's wasn't position-aware, so a field NAMED
+  `title`/`default` was being deleted from the guided wire (live bug, found by absorption).
+  `parallel_tool_calls:false` + a loud extra-call warn. **Refusals READ on both roles.**
+  **RESYNC IS A TOOL ROUND**; FOLDED PROVEN UNTOUCHED (4 named pins + 49 tests unmodified).
+- ✅ **DBANK2 MERGED (`2b4c2d24`)** — the per-chat rack + **the D85 visibility toggle (the
+  board's oldest unbuilt item)**; D-2 sources threaded; hide writes the FULL set; `formatBytes`
+  promoted to `@orb/kit/strings`. Databank tail: D-3 arm (a) · S6 character rack · D-7 tile.
+- ✅ **HISTLEG MERGED (`537a475e`, merge `fc35b0d9`)** — the FIFTH regex leg `PROMPT_HISTORY` is
+  live: transforms the assembled history at prompt-build time and never reaches canon, with
+  `historyDepth {min,max|null}` scoped to that leg alone (contracts-checked in BOTH directions,
+  because `placement` is a SET and no discriminated arm can say "this field exists only here").
+  **D125 MINTED** from its text. Consolidated `pnpm check` on the merged result: **14/14 PASS**.
+  795 node tests / 143 CT green; ephemerality pinned at the SHARED source all four planes read
+  (`message_variants.content`, D26) plus the mutation route — not four verb-level round-trips.
+  **Deviation ACCEPTED:** the leg runs before the token FIT, not after — which is ST's own order
+  (`script.js:4475-4501` precedes `getMaxPromptTokens()`) and the better arm, because stripping
+  before the fit is what makes "strip it from the prompt" actually buy context back.
+  **⚑ TWO FORKS IT RAISED, both boarded not built:** (1) ST derives a ROLE scope from the
+  placement; our persist-time legs can't, so `PROMPT_HISTORY` hits ALL history rows — a role axis
+  is a later two-member split, deliberately not a silent difference. (2) The card lift
+  accept-and-DROPS an imported card's flat `minDepth`/`maxDepth` rather than mapping them onto
+  `historyDepth` (ST scopes them on placements meaning something else here) — **the only place
+  ST's stored depth data is currently discarded**; re-scoping is one chip in the editor.
+- ✅ **GATES3 MERGED (`c0b6e347`)** — **gates 176 → 179**, every live violation FIXED not baselined:
+  `nullable-column-inequality` (nullability DERIVED from the schema every run; reads BOTH `ne`
+  operands — the live defect had the nullable column on the RIGHT), `no-nul-bytes-in-source` (17 raw
+  NULs across 10 tracked files; `dangling-refs.ts` had been diffing as `Bin` since it was written, so
+  a 26KB rewrite reviewed as literally nothing), `wire-schema-vocab-one-home` (vocabulary read off the
+  engine's own keyword arrays, so a new keyword arms the gate in the same commit). **Real data bug
+  found and fixed:** `loadSwipeStatRows` used `ne(messageVariants.id, messages.selectedVariantId)` —
+  nullable by D26 (SET NULL on variant delete) — so a slot with a NULL pointer had **all** its variants
+  dropped from the delete-messages delta. Red-proved at HEAD; the verb had ZERO coverage before.
+  Arm-3 shipped BOTH gate and contract pin (a gate can't evaluate zod; a pin can't see a fourth backend
+  re-inventing the walk — disjoint halves). Consolidated `pnpm check`: 14/14.
+  **Its three flags:** (1) my brief's `sed -i 's/\x00//g'` remedy was WRONG — all 17 NULs are composite-key
+  SEPARATORS, deleting them collides `a`+`bc` with `ab`+`c`; escaped to the two-char sequence `\u0000` instead (byte-identical at runtime). (2)
+  `GATE-AUTHORING.md` did NOT carry the marker laws I claimed — **fixed on main**: §4.3a position-named
+  markers, §4.3b block-scoped stacked-marker resolver, §5 the six-case real-tree probe. (3) `default`
+  rides the hosted wire and neither vendor doc lists it — allowlisted rather than relitigate an
+  owner-landed call; probe it if a hosted 400 ever names it.
+- ✅ **STRUCTOUT MERGED (`ffd3b4b4`) — I-1's owner fork is CLOSED, and D126 is MINTED.** The
+  nullable-union arm is now a runtime-switchable capability: **Settings › Admin › Structured output →
+  "JSON-Schema shape" (As projected / Strict-compatible)** → `AppSettings.structuredOutputShape` →
+  `EffectiveAppConfig` → a thunk on `RpgComposeDeps` → `scrubWireSchema(schema, "strict-compatible")`
+  + `strict:true` on the real request. **The default is UNCHANGED — the switch was built, not thrown.**
+  A string union (`STRUCTURED_OUTPUT_SHAPES`) dispatched through a mapped `Record`, so a third shape
+  fails tsc rather than falling through. Consolidated `pnpm check` on the merged result: 14/14.
+  **The per-connection fork was REJECTED with a reason, not a preference:** the per-wire keyword subset
+  is already decided per backend at the request-build site (D93), and `runner`/`family` are sealed
+  inside infra — a per-vendor shape knob in `domain/connection` would put wire vocabulary in a domain
+  forbidden to know it.
+  **Premise correction:** the brief (and this board) called it an env flag. It was NOT env — a
+  hardcoded `const EXTRACTION_STRICT_WIRE: boolean = false` in `entry/compose/rpg.ts`. Deader than
+  described: a redeploy, not a restart.
+  **It minted D126 itself, correctly** — the `d-citation-integrity` gate REDs on any `D126` citation
+  without an anchor (11 violations), so "cite now, mint later" could not ship gate-green. Merge
+  conflict with my D125 mint resolved as a union; ranges now read D106–D126, next free **D127**.
+  **Its rendered check caught a real defect:** the `Select` trigger is a fixed 200px and the first
+  labels rendered `"As projected — opti…"` — the selected value unreadable. Labels shortened, the
+  teaching moved to always-visible copy (`SettingRow.hint` is a HOVER-ONLY tooltip — a keyboard or
+  touch admin would never have seen it), and a `scrollWidth ≤ clientWidth` assertion added so it
+  cannot regress. **Fourth coupled site discovered:** a settings-section addition also needs
+  `tests/support/ct/ct-data-providers.tsx`'s `realSettingsSections`, or every pane CT lies.
+- 🔨 **SPANGATE DISPATCHED (`a40e2b5d8df6e2282`)** — the owner asked whether OBSCLOSE's class should be
+  a gate or just discipline. **Gate**: the class recurred FIVE times (SM4 fixed one; OBSCLOSE found
+  four more of the identical shape in the same file). Arm A = untraced fire-and-forget (work that never
+  opens a DETACHED root span). **Arm B is the one that matters** = inside a detached-root span callback,
+  a `catch` that does not rethrow — the shape that seals `status:"ok"` on every failure, i.e. a green dashboard
+  over failing work. Tractable because `withRequestSpan` has only 15 call sites across 5 files.
+  **⚠️ MECHANISM CORRECTED MID-RUN (my brief was wrong):** `root: true` is NOT a call-site argument —
+  it is baked INSIDE `withRequestSpan` (`foundation/observability/tracing.ts:318`) and no call site
+  passes it. I inherited that phrasing from a prior lane's report and repeated it unchecked; the lane
+  applied the doctrine's "a brief's cited mechanism is a HYPOTHESIS" law and re-derived it from source.
+  The gate keys on **an EXPORTED function of `tracing.ts` that calls OTel `startActiveSpan` with
+  `root:true`** — which survives wrapper renames, cannot be defeated by a second wrapper, and gives the
+  §4.6 blindness tripwire a real hook (strip the detach → derivation empty → RED, probed live).
+  **A SIXTH instance found:** `fireRpgUserCommit` in `domain/chat/verbs/turn.ts` — a DB snapshot-commit
+  plus a dice consume, entirely untraced, in a DIFFERENT file. Tally is now SM4 (1) + OBSCLOSE (4) +
+  SPANGATE (1). The class demonstrably survives discipline.
+  **Declared limit to carry when it lands:** a gate can prove a span is OPENED and that errors REACH
+  it; it cannot prove the span is meaningful, named right, or correlated to the work. Floor, not
+  ceiling.
+- ✅ **DBFIX MERGED (`e9e76f35`) — the D117 contradiction is RESOLVED, and the mechanism was arm (a).**
+  D117's lane machinery was INNOCENT and proven so: `databank-ingest` already declared
+  `lane:"interactive"`, `workloads.lane` is stamped, the worker really does run one poll loop per lane.
+  **The refusal was ADMISSION, not execution** — the `workloads_mode_active_singular` partial unique
+  index over `(kind, owner_id, source)`, where `source` was a fixed enum and every databank row carried
+  the `none` sentinel, so the lock read "one user, one databank-ingest at a time". SQL receipt from the
+  red-first run: `UNIQUE constraint failed: workloads.kind, workloads.owner_id, workloads.source`.
+  **Both symptoms were ONE root cause:** the producers insert the `documents` row and THEN enqueue
+  (the enqueue crosses a domain boundary through an injected op, so it structurally cannot join the
+  batch) — the CONFLICT rejected the mutation AFTER the document existed, leaving a chunk-less row with
+  no workload that derives to `indexing` → "Queued" forever. The 3-of-7 parked documents were the same
+  refusal seen from the other end. **No claim/reap/heartbeat bug exists.**
+  **The fix:** `workloads.source` → **`admission_key`** (free TEXT) and the owning domain declares its
+  own concurrency unit via `WorkloadContribution.admissionKey` — ingest keys on `documentId`, reindex on
+  scope, index on its embed source. That also deleted the queue's LAST piece of domain knowledge
+  (`resolveWorkloadSource`'s `kind === "index"` switch), which is D117's own inversion finally landing.
+  Plus: one guarded `queue-ingest` seam for all four producers (errors-as-data — canon survives, the
+  audit row records which arm ran), `stalled` as a rendered LIST phase clocked off the query's
+  `dataUpdatedAt` (a mount snapshot would freeze), and actionable CONFLICT copy.
+  **⚠️ DB BASELINE WAS SQUASHED** (pre-launch rule) — see the STACK note in STANDING FACTS.
+  **Its flags:** (1) my "zero buttons" premise was STALE and named the wrong file — that was the
+  *databank* `add-document-dialog`, already fixed by the 08-03 sweep and CT-asserted; the undecided
+  component was chat's `add-chat-document-dialog` picker, which now has a real 5-test CT (no waiver).
+  (2) `pnpm test:ct` is a WHOLE-TREE run that collides with the lane ban — **doctrine corrected** to
+  `rm -rf playwright/.cache && npx playwright test -c … <paths>`.
+  **Follow-up `b99357e7`:** the merged tree went RED on `types:packages` — three unbranded `DocumentId`
+  literals in the new CT. The lane's floor ran `typecheck:graph` + `tests-dom` but NOT the per-package
+  `pnpm typecheck`, which is the only stage that sees `tests/client/**` from `packages/client`'s
+  tsconfig. Fixed with `castId<DocumentId>`; **lane floors should name `pnpm typecheck` explicitly.**
+- ✅ **SPANGATE MERGED (`898eef25`) — gate #180 `detached-work-traced`.** ONE gate, TWO arms, live-green
+  on a FIXED tree. Arm A = fire-and-forget work under no detached root; **Arm B = a `catch` that does
+  not rethrow INSIDE an opener callback** — the shape that seals `status:"ok"` on failure, i.e. a green
+  dashboard over failing work. One gate not two, argued: same derived opener set, same marker resolver,
+  same stale/malformed arms — **and A2 is reachable BY "fixing" A1 wrongly** (move the discard inside the
+  callback), so one producer must judge both. Consolidated `pnpm check`: 14/14.
+  **A SIXTH instance of the class, in a THIRD file:** `fireRpgUserCommit` (`domain/chat/verbs/turn.ts`)
+  — a DB snapshot-commit plus a queued-dice consume, under no span at all. Tally: SM4 (1) → OBSCLOSE (4)
+  → SPANGATE (1). **The class survived one fix, a four-instance sweep of its own file, AND normal
+  review.** That is the sentence that justifies the gate.
+  **BOTH of my brief's premises died** (recorded so neither propagates): (1) `root:true` is baked INSIDE
+  `withRequestSpan` (`tracing.ts:318`) and no call site passes it — vocabulary derived from the mechanism
+  instead (*an exported fn of tracing.ts calling `startActiveSpan` with `root:true`*), which survives
+  wrapper renames and gives §4.6 a real hook, probed live. (2) "15 call sites across 5 files" was wrong:
+  `pnpm ast callers` → **32 hits in 12 files, 7 production**; the observability index/tracing pair are
+  the declaration + re-export, not call sites.
+  **Fixed, not parked:** `turn.ts` + both `search-discovery.ts` reindex enqueues open their own roots.
+  **Permanently marked** with position + reason + end condition: egress teardowns ×5, local-light
+  eviction dispose, the engine's inner warning-emit catch, and the rate-limit per-request GC — that last
+  one because a detached root per request would push one bucket per request through a **500-entry ring
+  and evict the real traces.**
+  **⚠️ DECLARED LIMITS (the gate's green is a FLOOR, not a ceiling) — verbatim:** *it can prove a root
+  span is OPENED and that errors REACH it; it CANNOT prove the span is MEANINGFUL — that its name,
+  request id, or attributes correlate to the work it wraps. A wrong-but-present span passes.* Also: only
+  DISCARDING handlers count · bare `void work()` is out (an unhandled rejection is loud) · statement
+  position only · an absorbed promise assigned to a variable is out · "traced" is satisfied by ANY opener
+  in the statement (proving it wraps THE work needs types) · Arm B reads only a SYNTACTIC `throw`, so a
+  rethrow routed through a helper is invisible · `scanRoot` is `packages/server/src/**` only.
+- ✅ **TAGUX MERGED (`fb3cf32a`)** — all THREE audit wants in one lane. Consolidated `pnpm check`: 14/14.
+  **(1) Sort mode** Most-used (default) / A–Z / Manual, pure client comparator over `usage.total` — zero
+  server change. **Manual NOT retired** and is now the ONLY arm offering drag handles (dragging a DERIVED
+  order would write a `sortOrder` the screen never reflects — the right call). **(2) Suggest-existing
+  picker**: `tag-picker-dialog.tsx` is an `@orb/ui/autocomplete` ranked most-used-first; a CASE-ONLY match
+  submits the LIBRARY's spelling so "Fantasy" cannot drift "fantasy"; attached tags never offered; confirm
+  reads `Create "fantsy"` vs `Apply`; three distinct always-visible empty states. **(3) Exclusion**: chips
+  cycle off → include → exclude → off, new axis at `lib/tag-filter-state.ts` (one tuple + `Exclude`-derived
+  active type + THREE total Records, so a fourth member is three tsc errors); `off` stored as ABSENCE;
+  `character-library` persist v2 with a migrate reading the old `string[]` as `include`.
+  6 red-first assertions run against OLD source (6 failed / 23 passed) before the fix. 79 CT + 12 unit.
+  **Sort preference persists device-local** (`state/tag-library-store.ts`, registered in
+  `persistence-boundary`'s `DEVICE_LOCAL_REGISTRY`) — a browse posture, not something that should follow a
+  user to another machine or ride the synced settings blob on every dropdown change. Its OWN store, because
+  `character-library` is the character list's prefs and folding another workspace's pane in would make that
+  store's name and registry rationale a lie.
+  **⚠️ A BRIEF PREMISE DIED:** "already cached client-side, zero new fetches" was FALSE for the
+  character-library callers — `listTagsWithUsage` has exactly two consumers, both inside `features/tag`,
+  and nothing prefetches it app-wide. The picker now does `useQuery({…, enabled: open})` on the SAME key:
+  cache hit when the roster is mounted, one fetch otherwise, shared thereafter. No new endpoint, no new key.
+  **@orb/ui DEFECT FOUND + FIXED IN THE PRIMITIVE:** with nothing to suggest, Base UI opened an EMPTY popup
+  that (a) intercepted the pointer on the very Create button beneath it and (b) removed the whole host
+  dialog — title, description, Cancel, Confirm — from the A11Y TREE while open. Added an `open`/
+  `onOpenChange` passthrough to `packages/ui/src/primitives/autocomplete/autocomplete.tsx`; the picker
+  pre-filters with `mode="none"` and declines to open an empty popup. **Durable:** any autocomplete inside a
+  `FormDialog` needs the controlled-open arm, and any CT asserting a footer button after typing must barrier
+  on the popup being CLOSED.
+  **⚑ OWNER TASTE (open):** the default flip means the ≤30 drag UI is no longer what you land on — you pick
+  "Manual order" to get handles. Honest reading of "default Most-Used", but it puts manual one click further
+  away, which bears on the still-open **"retire `sortOrder`?"** call. Side-eye is judging whether manual
+  reads as REMOVED.
+  **⚑ GATE BUG FOUND (not TAGUX's, left untouched):** `ui-size-via-variant`'s ALLOWLIST still carries
+  `features/tag/components/tag-settings-row.tsx`, a file that NO LONGER EXISTS (F-11 moved it) — and the
+  gate did NOT fire. Its own two-sided contract says a stale row is RED, so **its stale arm appears not to
+  check for a missing file.** That is the exact loaded-gun class the marker laws exist to prevent; worth a
+  small lane.
+- 🔨 **SIDE-EYE DISPATCHED on TAGUX** (`a7c895dddb90ded5f`) — judged at the owner's REAL ~400-tag scale, not
+  fixture scale; re-verifying the autocomplete a11y fix independently.
+- 🔨 **ASTLENS DISPATCHED** (`a56651b299a85551c`) — a RESOLUTION-based `pnpm ast` lens for **aliases that
+  resolve to `string` without narrowing** ("an alias must NARROW or BRAND; if it does neither it is a lie
+  with a nice name"). Template literals and `Branded` are legitimate and OUT of scope; the target is
+  `type X = string` and its TRANSITIVE chains across import/re-export hops, which are invisible to every
+  syntactic tool we own. **Lens first, gate decision after seeing the real corpus** (report-then-decide —
+  a gate built against an imagined corpus is how you get eleven false reds). Sweep confirmed no existing
+  gate covers it: `no-inline-types` is placement, `contract-derives-not-respells` is object-shape
+  re-spelling, `no-inline-union-redecl` is unions, `brand-in-name-position` declares alias-typed positions
+  out of reach — **none inspect an alias's RHS for `string`**, and `ast.ts`'s existing `aliases` lens is
+  IMPORT aliasing, a different concept.
+- ✅ **I-5 BRAND BURN-DOWN — CLOSED (`93eb9537` + fix `8f0c458a`).** 169 files/374 sites → **`{}`**;
+  baseline AND generator DELETED; the ratchet machinery removed; live bite re-proven with no budget left
+  to hide behind (plant `chatId: string` → RED; `rm` → green). 9 checkpoint commits, 549 files, 738 vitest
+  + 285 CT. `retypeIdAnnotations` closed 359 retypes; a lane-written MULTI-BRAND single-diagnostics-pass
+  variant closed **2,538 fixture casts in one typecheck each** (the stock helper is O(brands × whole-project
+  typechecks)). ~140 sites hand-judged. **`CharacterHandle` minted** — `characters.handle` branded
+  type-only, `0000_baseline.sql` UNTOUCHED (no squash after all). Misnomers renamed OUT of the vocabulary
+  rather than falsely branded (`stagedHandle`, `busInvalidate: ChatId | "user"`, form drafts as
+  `Handle | ""` after `no-fake-disabled-id` correctly refused `castId<Handle>("")` sentinels).
+  **⚠️ THE ZERO'S MEASURED LIMITS (do not read it as "no stringy ids remain"):** the **suffix class = 66
+  live bare-string positions** the EXACT matcher can never see (`hostUserId`, `targetUserId`,
+  `parentChatId`, `avatarAssetId`, `defaultPresetId`, `anchorPersonaId`, `ownerHandle`, `gmHandle`) — ~10
+  spellings cover most, so a curated compound-name arm is a plausible follow-up. **Alias class = 0.**
+  Variables/returns out of scope by design.
+  **The red it shipped, and the rule it bought:** the merged tree failed `types:tests-dom` with **170
+  errors in 20 e2e specs** — the lane branded the e2e SUPPORT signatures but ran only `typecheck` +
+  `typecheck:graph`. **`tsconfig.json`'s program does not include `tests/e2e/*.spec.ts` AT ALL**, so the
+  graph program is structurally incapable of seeing a spec. Fixed at the PRODUCER SEAMS (branding
+  `startChat`/`ensureCharacter` returns + the wire mirrors, type-only so the e2e carve-out holds) rather
+  than 170 casts. **Doctrine now requires naming all THREE typecheck programs** (there is no
+  `typecheck:testd` — the `.test-d` lane runs through vitest; name the file).
+- ✅ **ASTLENS MERGED (`5f764a7b`) — `pnpm ast stringy` ships, and it argued AGAINST its own gate.**
+  The cut is ONE checker call (`decl.getType().isString()`) and needs **no allowlist** — template
+  literals, `string & {brand}`, literal unions, `string | null`, `T extends string` and containers all
+  fall out of the compiler's own flags, probe-measured before building. **Corpus: 1 hit in `packages/`
+  (`RestartVllmEngineResult`) + 1 in `scripts/` (`LocKey`, dev-tooling, leave). ZERO transitive chains** —
+  credible only because a planted 3-hop cross-package chain (through a RENAMING re-export) was reported
+  with its full resolution chain while brand/template/union probes beside it stayed silent.
+  **RECOMMENDATION TAKEN — NO GATE**, and the reason is load-bearing: **`scripts/check/pass.ts` builds
+  the PURE-AST workspace** (`getWorkspace({root})` — no tsconfig, no `@orb/*` resolution), so a gate
+  calling `ctx.checker()` there gets a checker over an UNRESOLVED project and would report the one direct
+  hit while silently missing every chain it exists to find. Green, confident, blind. If ever wanted:
+  push tier beside `deps:orphan-ratchet`, folded into that typed pass. **Corollary:**
+  `brand-in-name-position` is syntactic BY NECESSITY, not laziness. `RestartVllmEngineResult` deleted on
+  main (`01139227`). Known limit: the CLI's `resolveScope` only accepts `packages/*`, so the `scripts/`
+  finding is unreachable from the verb — a cross-lens change, not taken.
+- ✅ **STALEARM MERGED (`d67868da`) — it WAS a class: 5 gates, 18 dead rows.** The anti-pattern is one
+  line: `if (!fileLoaded(ctx, rel) …) continue` — **the row's own presence gating its own staleness
+  check**, so a DELETED file's row is never examined and can never red. Fixed uniformly by gating the
+  sweep on a separate permanent ANCHOR and making every per-row check an unconditional `!seen.has(rel)`,
+  which unifies mode (A) *no longer violates* and mode (B) *file is gone* into one test.
+  **Fixed + rows deleted:** `ui-size-via-variant` (1 — `tag-settings-row.tsx`), `dialog-via-composite`
+  (3 — party→roster rework), `empty-state-has-action` (**14** — the rpg-client flattening),
+  `no-arbitrary-tw-values` + `motion-token-purity` (mechanism fixed pre-emptively, rows still live).
+  11 gates were ALREADY correct (unconditional `seen` / explicit `sf === undefined` / separate anchor);
+  ~165 carry no path-keyed table. Each fix ships a `mustFlag` reproducing a deleted survivor.
+  **`GATE-AUTHORING.md` gains §4a** naming both modes — the gap that let a careful author implement half
+  the contract and believe they were done.
+- **LANE ROSTER: EMPTY** (see STATE). Everything below this line is a HISTORICAL reconciliation of the
+  08-03 burn-down; do not read it as a live roster.
+  **Also present and NOT MINE:** `wt/memo-ban-investigation` — the owner's SECOND session. Do not touch.
+  **NEXT, in order:** side-eye findings fixed (ALL of them, standing law) → quiesce → full `pnpm test`
+  battery (the CT proof — `verify --push` runs none) → fresh `pnpm verify --push` → board PUSH-READY and
+  ASK FOR THE WORD. ~150 commits past origin; last PUSH-READY was declared at 85.
+- **KILLED (owner word):** the first brand lane (mech-executor tier) — zero commits, one untracked
+  codemod script, nothing lost. Replaced by BRAND-F above.
+- **LIVE RED ON MAIN (routed to DBFIX):** `tests/tooling/chat-component-presence.test.ts` —
+  `add-chat-document-dialog` landed with no CT and no waiver, so ratchet #18 is red and would block
+  `verify --push`. Preference stated: the REAL CT, because SWEEP found that dialog's upload arm shipped
+  with ZERO buttons — exactly what a CT catches and a waiver does not.
+- **OWNER RULINGS (dawn):** databank KEEPS its rail section (fork closed) · tag manual reorder
+  NOT lifted (premise challenged: `tags.sortOrder` exists but a global manager may not want it
+  — TAGSORT audit queued, do not delete blind) · prompt-ephemerality **now BUILDING** via
+  HISTLEG (supersedes the accept-and-rename REC) · regex extras = bulk edit + debugger +
+  per-script JSON door, **NOT presets** ("we made regex part of presets kinda").
+- **PUSH-READY IS STALE** (declared at 85; HEAD is 101+ past origin) — a fresh `verify --push`
+  is owed at quiesce before asking for the word.
+
+### SWEEP SEALED (`d2b73def`) — 6 defects found-and-fixed + the REAL mock-vs-rendered pass
+Fixed: the config CONTEXT pane said one fact TWICE (NIGHTFIX's new header re-printed the body's
+title — it REBUILT the F-12 defect registry-contracts.ts names verbatim) · both CONTEXT bands
+painted a different voice than the LIST band on the same 48px horizon · databank's band said
+generic "Details" colliding with CONTENT's own group · a databank readout row spread 1392px in
+a 1440px pane · the picker's ordered slice carried NO RANK numbers · **the Add-a-document
+upload arm had ZERO buttons — Esc/backdrop was the only exit**. All red-first, 150 CT green.
+MOCK-VS-RENDERED done properly: 18 frame pairs (`reports/snaps/mvr-*`) with per-element delta
+tables classified rendered-wrong / mock-stale-sanctioned / deliberate-with-cite.
+**⚑ NEW OWNER FORK — mobile config lands on the WELCOME, not the roster** (the mock says "the
+roster IS the screen"): `resolvePanelMode` makes mobile never dock a LIST *shell-wide*, so the
+fix is either a shell-law change (every section) or config rendering its roster into CONTENT
+on mobile (two homes for one roster). Lane did NOT improvise. REC: config-local.
+**FLAGGED, not fixed:** SwitchField anatomy differs CONTENT vs CONTEXT (shared forms-tier
+component — own lane) · COLLECTION_WINDOW_MAX_HEIGHT is a fixed cap where a pane-relative one
+belongs (~485px dead at 1080) · **`databank.createFromText` CONFLICTs while another ingest
+runs** (a second document is refused server-side; client shows a generic toast — workloads
+lane) · **documents can park in `Queued` forever** (3 of 7 in the seed; the 5-min stall hint
+fires on DETAIL but the LIST row says nothing) · character-opening inline `<code>` renders
+with UNGENERATED classes (the Streamdown-root-seal class) · listScriptUsage still 3× per batch
+· an inherited app-shell CT red (proven pre-existing at HEAD).
+
+**⚑ MOBILE-ROSTER FORK — OWNER RULED (08-03): NEITHER offered arm; the CONSISTENT rule.**
+Owner: "what would be the cleanest most consistent option? do it properly without making a
+singular exception." The finding was mis-framed as config-vs-shell — the truth is chats and
+characters ALREADY do the right thing on mobile (list is the screen → tap → container-queried
+PUSH-detail with a back row, the SE-A arm), and config + databank are the DEVIATIONS. RULED:
+**one shell rule — on mobile, a list-bearing section with NO selection shows its LIST as the
+screen; selecting pushes to CONTENT with a back row** — applied by the shell to every section
+that declares a list. That REMOVES two exceptions instead of minting a third, and it is what
+`mobile.html` was drawing. Lane MOBILE queued: resolvePanelMode (shell-store.ts:372) + the
+push-detail seam + per-section CTs at the mobile frame (config · databank · chats · characters
+· corpus regression) + the mock frame re-compared.
+
+**▶ MEMOBAN SESSION — MERGED (08-03, `wt/memo-ban-investigation`; worktree KEPT on owner's word).**
+Merged by the orchestrator on the owner's say-so; consolidated `pnpm check` on the merged tree **14/14**,
+full `pnpm test` battery **GREEN on the merged tree — 9,920 vitest / 2,384 CT / 0 failed / 0 flaky**
+(the number that mattered: this work's whole hazard was that deleting manual memo UN-HIDES CT failures,
+and static cannot see that class. Their session fixed every one it exposed, incl. the `takeDiscard`
+save-loop).
+Gate count is now **183** (STATE block corrected).
+Four waves + audits, all hook-green: useContext→use() ×10 · web-api + YMNNAE eslint families
+(3 rejected rules carry the 25/25-LEGIT-SEAM triage receipt in the config header) · 52-site
+manual-memo burn-down (3 exemptions: the 2 denylist-skipped seals + fuzzy-search value-keying;
+exposed + FIXED the autosave takeDiscard save-loop — CT caught it BECAUSE CT is uncompiled) ·
+the React-modernization gate trio no-manual-memo/no-use-context/no-legacy-react-api (180→183,
+§4a stale arms, the compiler-denylist tripwire at the REAL pnpm path) · installed-surface audits
+(tsconfig/vite/vitest/depcruise/stryker) that killed two dead Vitest-4 keys, closed the
+root-configs-in-no-program hole (+ selection.ts routing), landed detectProcessBuiltinModuleCalls,
+and put gate TOOL ERRORS into check-structure.json + check:show.
+
+**D127 DRAFT — for the owner to mint (or strike):** THE COMPILER OWNS MEMOIZATION + THE UNCOMPILED
+CT LANE. (a) Manual useMemo/useCallback/React.memo is BANNED from the react import (gate
+no-manual-memo); exemptions are typed rows with end conditions — the two compiler-denylist seals
+(message-list, media-grid; the gate's tripwire reds when @tanstack/react-virtual is delisted) and
+fuzzy-search's value-keyed deps. (b) CT runs NO compiler pass BY RULING — correctness must hold
+without the compiler; a CT red the compiler would mask is a REAL DEFECT (the takeDiscard loop is
+the founding receipt). DECLARED LIMIT: compiler-only defects (bail-out behavior shifts, altered
+effect timing) are caught only by e2e/dev-stack; remedy if it ever bites = a targeted compiled-CT
+project ALONGSIDE, never a swap.
+
+**BOARDED (new, each own-lane):** (1) pass.ts `@orb-gate-ignore` requires NO reason — the house
+marker is one-sided for all 183 gates; tighten hasGateIgnore + sweep the tree (Wave-3 receipt:
+six-case probe case 4 fails by §4.3's letter). (2) CT-on-our-vite spike: pnpm override
+`@playwright/experimental-ct-core>vite: ^8.1.2` + CT battery; green = one vite + ct-config joins
+the type program; red = revert (also rehearses the ct-react-culled contingency — vitest browser
+mode is OFF the table, owner: chromium bug). (3) tsx-shedding migration (quiet window): biome
+useImportExtensions --write (fixes to .ts + index expansion, probe-verified) → node runs server →
+nodenext on the node-side programs; ui/client stay bundler (vite is their resolver — settled).

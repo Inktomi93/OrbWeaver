@@ -744,6 +744,22 @@ the wire seam or the flush is where the data exists.
 > prose-less completion whose tool calls parsed: apply the state writes, then issue a short
 > continuation for the narrative. Matches the observed tool-calls-land-last ordering. In build
 > (lane DOG-ENGINE); EMPTYGEN-UNLOGGED's warn already ships.
+>
+> **⚠ OWNER NUANCE (2026-08-07): the live failures were MID-TURN deaths — "failing turns mid turn
+> while the model was reasoning and it would just all of a sudden end" — on BOTH Gemini and Sonnet 5,
+> EARLY in the turn, and NOT the length cap ("wasn't max tokens… we even set max output really
+> high").** So the mid-turn class is neither tool-only (no tools called yet) nor budget exhaustion.
+> **PRIME SUSPECT, unproven: our own idle-timeout treating reasoning SILENCE as a dead stream.** The
+> recorded failure durations — 14.9s / 15.8s / 30.6s — cluster at 15s/30s-shaped thresholds, and a
+> model whose reasoning deltas are hidden/sparse on the wire (provider-dependent — exactly what
+> varies between Gemini/Sonnet skins) produces exactly that: wire silence during thinking → idle
+> timer fires → sudden early death. DIAGNOSIS FIRST for lane DOG-ENGINE: read
+> `backends/kit/idle-timeout.ts` (does the timer count reasoning deltas as activity? what are its
+> thresholds?), correlate `/api/_debug/wire/outcomes` finishReason/duration on the failing turns,
+> and only then fix per class: idle-blind-to-reasoning ⇒ reasoning deltas (and provider keepalives)
+> reset the timer + a generous reasoning-phase floor; `tool_calls`-shaped ⇒ the ruled RECOVER path;
+> a TRUE `length` cut ⇒ the reasoning-aware reserve. Every arm replaces the generic "returned no
+> text" with an error naming what actually happened.
 
 **Reporter:** owner (live) · **Confirmed:** the rendered paragraph was **reasoning text**, not message body
 
