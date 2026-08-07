@@ -385,3 +385,16 @@ instrument is broken, not the tree.
 - **Re-creating a test file at a previously-deleted path is a coupled site** — the test-baseline
   `deletions` ledger keeps a record that becomes a lie AND pre-authorizes the next delete. Only
   `check:structure` sees it.
+
+## Minted 2026-08-07 (late) — two more from the identity day
+
+- **Deleting an exemption row is a COUPLED-SITE edit.** A gate's `DEFERRED`/allowlist entry has
+  siblings written against it — its own `mustFlag`/`mustPass` conformance rows and any planted
+  fixture. Removing the row (even when the gate itself TELLS you to) orphans them, and
+  `pnpm check` will not notice: the conformance suite is a **vitest** test, not a structure gate.
+  Delete the row, retarget the proofs, run BOTH `check:structure` and the two tooling suites.
+- **A live drive finds what tests structurally cannot: what the MODEL RECEIVES.** Every test asserts
+  what the code does. Driving one narrator round showed the system prompt naming one character seven
+  times, the co-speaker **zero** times, and opening "write X's perspective only" — the feature worked
+  only because the model inferred a character it was never given. No unit or CT can see that; it is
+  not a wrong value, it is an absent one, in a prompt nobody asserts on.

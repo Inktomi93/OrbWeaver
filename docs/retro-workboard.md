@@ -82,7 +82,15 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   RULED-BATCH legs 1-3 (pipeline order declared once; day/time nullability split) · WIRE-SINK ·
   ABORT-LEAK · SMALLS-BATCH · SMALLS-3 legs 1-2 · FORKSTRIP + RPGFORK (**two live host-plane
   exposures closed**) · GATEFORGE (four gates, **189 → 193**) · VITE-MAX (salvaged).
-- **⚑ IN FLIGHT (two agents):** lane **NARRATOR-LIVE** (`a04f9f8075274896e`) + a 4-chunk **VERIFIER** (`a5efc87558f12b959`) over the day's un-graduated merges (FANOUT-1's seven dispatch sites incl. the 33-line shipped-asset patch · GATEFORGE's four gates, false-positive hunt included · the RPGFORK + FANOUT-2 fix legs). Nothing else is running. Original NARRATOR-LIVE note: lane **NARRATOR-LIVE** — a dogfood-shaped LIVE drive of group narrator mode (hosted +
+- **⚑ IN FLIGHT (ONE agent) + THE DISPATCH QUEUE:** lane **GATEFIX** (`ae12ce29192c53e14`) is
+  retargeting `message-kind-policy-coverage`'s conformance rows + the `__g_mkpc` fixture, which MY
+  commit `5f2afa7fd` orphaned when it emptied the DEFERRED map (correctly) without updating the two
+  coupled sites written against it. **`pnpm check` stayed GREEN through this** — the conformance suite
+  is a VITEST test, not a structure gate, so the static/battery split hid it
+  (\[\[check-is-static-battery-is-separate]] biting for real). **DISPATCH NEXT, none started:**
+  AUTHFIX (the principal divergence, security-executor) · the narrator co-speaker-cards defect ·
+  side-eye on the day's rendered merges (PHONE-COMP's vitals-orbs call + the two JUDGMENT_DEFERRED
+  geometry sites). Superseded note (both finished, verdicts boarded above): NARRATOR-LIVE + the 4-chunk verifier were lane **NARRATOR-LIVE** (`a04f9f8075274896e`) + a 4-chunk **VERIFIER** (`a5efc87558f12b959`) over the day's un-graduated merges (FANOUT-1's seven dispatch sites incl. the 33-line shipped-asset patch · GATEFORGE's four gates, false-positive hunt included · the RPGFORK + FANOUT-2 fix legs). Nothing else is running. Original NARRATOR-LIVE note: lane **NARRATOR-LIVE** — a dogfood-shaped LIVE drive of group narrator mode (hosted +
   local vLLM arms) answering "does it demonstrably work end-to-end now that the fan-out changed what the
   model sees?" Verdict → `docs/reviews/misc/2026-08-07-narrator-live-drive.md`.
 - **✅ NARRATOR MODE: WORKS on the local arm (verdict `docs/reviews/misc/2026-08-07-narrator-live-drive.md`).**
@@ -115,7 +123,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   PRE-EXISTING, not new from today's reseed, and the manual `setRole` workaround is retired. The want:
   when the fallback path admits you, **it goes through like normal** — you land as a REAL owner and the
   turn resolves the owner's model, instead of a second-class twin the capability surface lies about.
-  Lane AUTHFIX dispatched to security-executor. The shape to build toward: **the role verdict has ONE
+  **NOT YET DISPATCHED — the next orchestrator dispatches AUTHFIX to security-executor** (an earlier version of this line claimed it was dispatched; it was not. Correcting my own false claim.) The shape to build toward: **the role verdict has ONE
   home and both principals consume it** — the same discipline `viewerReadsHidden` follows (D110 homes
   the byte-selection verdict once so surfaces cannot drift). A seam that STAMPS a role while a resolver
   READS one is two homes for one verdict.
