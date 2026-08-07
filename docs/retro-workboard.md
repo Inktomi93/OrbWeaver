@@ -181,6 +181,18 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   payload carrier but its absence in an edited template only WARNS (never blocks) — posture was
   ruled at ship; changing it is a policy call. M4 (the prose-coverage gate) remains the top
   unification residual. Lesson minted: \[\[worktree-ct-runner-resolution]].
+- **⚑ RULED-BATCH re-verify (mid-run): two rulings were moot on the tree.** ZOD-STAGE-D was ALREADY
+  LANDED IN FULL (`3dd7c82c3`/`c21d78937`/`ca4469770` — envBool at all seven knobs, z.hostname on
+  plugin netHosts, strip-observability = strippedToolCallKeys; the ratchet gate REDs new
+  `z.enum(["true","false"])`) — receipt only. IMPORT-SETTINGS-WRITE-GUARD: **REFUSED premise-false**
+  — `routing` is fenced OUT of `PortableUserSettings` at the TYPE level (`SHARE_SAFE_SETTINGS_NAMESPACES`
+  drops it at parse; a crafted key is not even typeable), and heal-at-read keeps NON-import producers
+  BY DESIGN (model coherence undecidable at write). The lane lands a defense-in-depth pin instead
+  (crafted `routing.roleDefaults` in a backup cannot reach stored config). Item 1's home was wrong
+  too: the lying slot list is `preset/components/readout/transforms-readout.tsx`, and it carries
+  THREE MORE lies (collapse-blank-lines printed on a lane that never runs it; the three receive
+  switches printed in inverted order) — all four fixed by ONE derived declaration executor+readout
+  share.
 - **⚑ EIGHT OWNER RULINGS BANKED (question-tool, 2026-08-07, two batches):** regex-reasoning display
   fix · zod stage D in full · the §-refs carve-out · cast guides threaded · settings write-guard
   lift · tag cliff ACCEPTED · strict default KEPT · orphan-transcript import REJECT (owner override
@@ -746,9 +758,19 @@ identity chrome for ANY row kind.
 - [ ] **REGX2** (M) — an owner BUILD RULING that got archived: regex bulk edit + pipeline debugger +
   per-script JSON door (NOT regex presets). Ruled 08-03 dawn, queued, never dispatched.
 - [x] ✅ **RPG-ROUND-SIGNAL — DONE** (merged `1b581127b`: the state round is cancelable with its own lifetime, and a cancelled round writes NOTHING).
-- [ ] **HAND-EDIT-VS-FLUSH** (M) — a hand `editSnapshot` during an in-flight turn can be clobbered by the
-  flush. **Two independent sightings** (the watch list's "seen once, unchased" + the actor-state
-  review's unconfirmed suspicion), nobody chased it. Reproduce and rule.
+- [ ] **HAND-EDIT-VS-FLUSH — REPRODUCED (lane live, fix ruled + building): ONE RACE, TWO VICTIMS.**
+  Deterministic repro on the real flush gate. The row's suspicion was HALF right: **Arm B**
+  (back-to-back assistant turns) — the hand edit IS clobbered: `resolveHead`'s in-place door fires
+  on a `latestSnapshot` FALLBACK row from an older slot (contract violation of its own "this turn's
+  own draft" doc). **Arm A** (single speaker, the common case) — INVERTED: the hand edit survives
+  and the TURN'S own write is silently lost forever (hand rung outranks the turn row at the same
+  seq, D124 by design; flush wrote from a base snapshotted at flush START). **RULED (orchestrator,
+  from recorded law):** (1) the in-place door only for true turn-rung rows; (2) field-level merge at
+  the flush's write boundary — post-`writeFlush` re-resolve, `applyLockedPatch(turnState, handState)`
+  honoring the hand row's auto-locks: manual-edit-wins on touched fields, the turn's writes survive
+  everywhere else. Last-write-wins was refused (contradicts the recorded manual-edit-wins law);
+  refuse-during-flight was refused (blocks the host mid-steer). Red-first pins owed on BOTH victims
+  + the same-field-conflict-resolves-to-human case.
 - [x] ~~**CONTRACTS-BARREL**~~ — **REFUSED, premise false (SMALLS-BATCH 2026-08-07):** the file is one
   line and already says "placeholder; unused — every consumer imports contracts modules directly". No
   such sentence exists; grep zero-hit.
