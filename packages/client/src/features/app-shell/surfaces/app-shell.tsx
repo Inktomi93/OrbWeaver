@@ -279,6 +279,8 @@ export function AppShell(): ReactElement {
                     }
                     listAvailable={layout.listAvailable}
                     listMode={layout.listMode}
+                    // The phone arm's VOCABULARY switch, not a behaviour switch — see `leadControl`.
+                    mobile={layout.mobileViewport}
                     onToggleList={(): void => layout.togglePanel("list")}
                     // The mobile ONE-SHELL rule's back row. The label is DERIVED from the section's own rail
                     // label ("Back to Configuration", the mock's own words), so it cannot drift per section and

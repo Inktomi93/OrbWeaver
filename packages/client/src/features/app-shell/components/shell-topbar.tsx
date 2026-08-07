@@ -22,6 +22,11 @@ export interface ShellTopbarProps {
   /** Does the active section HAVE a LIST pane? `false` ⇒ NO toggle renders (home-section-spec §4.4 / arm
    *  L-b) — a reachable toggle onto a surface that does not exist is the "looks unbuilt" defect. */
   readonly listAvailable: boolean;
+  /** The shell's MOBILE regime (`ShellLayout.mobileViewport`) — the lead control's VOCABULARY axis and
+   *  nothing else. On a phone there is no "panel": the toggle swaps which of the section's two SCREENS is
+   *  showing, so it is named for where a tap LANDS (§14). The control, its wiring and its ruled reachability
+   *  are identical in both regimes (see `leadControl`). */
+  readonly mobile?: boolean;
   readonly onToggleList: () => void;
   /** THE MOBILE ONE-SHELL RULE's back affordance (owner-ruled 2026-08-03): non-null only when a phone has
    *  a member pushed over a list-bearing section's roster. It REPLACES the list toggle in the lead slot —
@@ -78,8 +83,22 @@ export function TopbarIconButton({ label, icon, pressed, expanded, onClick }: To
 
 /** The lead slot's ONE control: the mobile back affordance where it exists, else the list toggle where the
  *  section has a list, else nothing. Back WINS over the toggle — both would be doors to the same roster, and
- *  the mock's pushed-detail frame draws exactly one lead control. */
-function leadControl({ listMode, listAvailable, onToggleList, onBack, backLabel }: ShellTopbarProps): ReactNode {
+ *  the mock's pushed-detail frame draws exactly one lead control.
+ *
+ *  THE PHONE SPEAKS SCREENS, THE DESKTOP SPEAKS PANELS (side-eye 2026-08-07 finding 4, §14). "Hide list
+ *  panel" names a frame REGION, which a phone does not have: at ≤48rem `resolvePanelMode` pins the LIST
+ *  `docked` with nothing selected, i.e. the roster IS the screen, and this control swaps it for the section's
+ *  no-selection CONTENT. So the mobile arm names the DESTINATION of the tap.
+ *
+ *  WHAT THIS DELIBERATELY DOES NOT DO — drop the control on mobile. The review that raised the vocabulary
+ *  defect also asked for the toggle's removal, on the premise that it strands the user; side-eye's OWN
+ *  receipt (reports/side-eye-reverify/t11-hidelist-320.png) shows the lead control re-rendered as the
+ *  inverse label one tap away, so it does not. And removing it would reverse the 2026-08-03 owner-ruled
+ *  mobile one-shell rule stated verbatim in `state/panel-resolve.ts` and `hooks/use-shell-layout.ts`: with
+ *  the list pinned `docked` for all seven list-bearing sections, this toggle is the ONLY phone door to a
+ *  section's no-selection CONTENT (the corpus/analytics dashboards). Orchestrator-ruled 2026-08-07: keep the
+ *  mechanism, fix the words. */
+function leadControl({ listMode, listAvailable, mobile, title, onToggleList, onBack, backLabel }: ShellTopbarProps): ReactNode {
   if (onBack !== undefined && onBack !== null) {
     // Same vocabulary as the LIST band's own back (components/list-pane-header.tsx): a ghost icon button
     // wearing ChevronLeft, named by where it goes.
@@ -91,12 +110,23 @@ function leadControl({ listMode, listAvailable, onToggleList, onBack, backLabel 
   const listCollapsed = listMode === "collapsed";
   return (
     <TopbarIconButton
-      label={listCollapsed ? "Show list panel" : "Hide list panel"}
+      label={listToggleLabel(mobile === true, listCollapsed, title)}
       icon={listCollapsed ? PanelLeftOpen : PanelLeftClose}
       expanded={!listCollapsed}
       onClick={onToggleList}
     />
   );
+}
+
+/** The list toggle's accessible name, per regime. DESKTOP keeps the frame vocabulary, which is correct
+ *  there — the panel is a visible region of a three-track shell and "hide it" is literally what happens.
+ *  MOBILE names the SCREEN a tap lands on: both arms lead with "Show" because on a phone neither state is
+ *  a reduction of the other — they are the section's two full-width screens, its roster and its overview. */
+function listToggleLabel(mobile: boolean, listCollapsed: boolean, title: string): string {
+  if (!mobile) {
+    return listCollapsed ? "Show list panel" : "Hide list panel";
+  }
+  return listCollapsed ? `Show ${title} list` : `Show ${title} overview`;
 }
 
 /** The topbar's one title voice. A single component so the file carries ONE element with the `<Text>` type

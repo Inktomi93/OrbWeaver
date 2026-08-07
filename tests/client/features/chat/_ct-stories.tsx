@@ -137,6 +137,7 @@ import { SwipeStrip } from "../../../../packages/client/src/features/chat/compon
 import { AttachmentUrlContext } from "../../../../packages/client/src/features/chat/hooks/attachment-url-context.tsx";
 import { ChoiceSendContext } from "../../../../packages/client/src/features/chat/hooks/choice-send-context.tsx";
 import { speakerThemesByName } from "../../../../packages/client/src/features/chat/lib/attribution.ts";
+import { useChatsSelectionTitle } from "../../../../packages/client/src/features/chat/lib/chats-selection-title.ts";
 import type { MemberCastRow, MemberPersonRow } from "../../../../packages/client/src/features/chat/lib/member-rows.ts";
 import { CtChatContributorSectionRegistry, CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, makeMessageView } from "./fixtures.ts";
@@ -2378,4 +2379,24 @@ export function ChatsTopbarDraftStory({ characterIds }: { readonly characterIds:
       </div>
     </CtDataProviders>
   );
+}
+
+/** The MOBILE topbar's SCREEN TITLE over the SAME active pre-send draft — `useChatsSelectionTitle`, which
+ *  the shell calls through `SectionDefinition.useSelectionTitle`, printed as bare text. Paired with
+ *  `ChatsTopbarDraftStory` on purpose: the two surfaces are one statement at two widths, and this is what
+ *  lets a CT put their answers side by side. */
+export function ChatsSelectionTitleDraftStory({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
+  useEffect(() => {
+    startNewChat({ characterIds });
+  }, [characterIds]);
+  return (
+    <CtDataProviders>
+      <ChatsSelectionTitleProbe />
+    </CtDataProviders>
+  );
+}
+
+function ChatsSelectionTitleProbe(): ReactElement {
+  const title = useChatsSelectionTitle();
+  return <p data-testid="selection-title">{title ?? "(null)"}</p>;
 }

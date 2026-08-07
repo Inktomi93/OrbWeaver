@@ -73,13 +73,13 @@ function RpgTakeoverInner({ width, height }: { readonly width: number; readonly 
 
 /** The rpg takeover via the real host + the real self-contained rpg contributor, over the stubbed network.
  *  The `.ct.tsx` sets the routeTrpc stubs (`chat.getChat` with the rpg pointer, `rpg.getGame`, `getTrackerView`). */
-export function RpgTakeoverStory(): ReactElement {
+export function RpgTakeoverStory({ width = 320, height = 640 }: { readonly width?: number; readonly height?: number } = {}): ReactElement {
   useEffect(() => {
     selectChat(CHAT_ID);
   }, []);
   return (
     <CtDataProviders>
-      <RpgTakeoverHarness width={320} height={640} />
+      <RpgTakeoverHarness width={width} height={height} />
     </CtDataProviders>
   );
 }

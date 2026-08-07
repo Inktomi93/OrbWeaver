@@ -20,6 +20,26 @@ export function deriveChatTitle(title: string | null, participantNames: readonly
   return participantNames.length > 0 ? participantNames.join(", ") : "Untitled chat";
 }
 
+/** What a cast-less draft is called — one word, one home for every surface that prints a pre-send room. */
+const NEW_CHAT_TITLE = "New chat";
+
+/** The DRAFT room's display title, from its founding cast's names — the pre-send half of
+ *  {@link deriveChatTitle}, and the ONE home for it (side-eye 2026-08-07 finding 1).
+ *
+ *  It existed TWICE: `DraftChatHeader` (the desktop cluster) joined the whole cast, `useChatsSelectionTitle`
+ *  (the mobile topbar) read `cast[0]?.data?.name` — so a three-character draft read "Aldric Vane, Sabine
+ *  Veyra, Niko" at one width and "Aldric Vane" at the other, re-introducing on the phone exactly what
+ *  86a1736bc fixed on the desktop. `chats-selection-title.ts`'s own header already CLAIMED they resolve it
+ *  the same way; a claim in a header is a wish until one function is the answer.
+ *
+ *  Names that have not landed yet are DROPPED, never joined as empty strings (which would render
+ *  "Aldric Vane, " mid-load). An all-unresolved cast falls to the draft's own copy — `deriveChatTitle`'s
+ *  "Untitled chat" is the COMMITTED room's word for a room that already exists. */
+export function draftChatTitle(castNames: readonly string[]): string {
+  const resolved = castNames.map((name) => name.trim()).filter((name) => name.length > 0);
+  return resolved.length > 0 ? deriveChatTitle(null, resolved) : NEW_CHAT_TITLE;
+}
+
 /** One resolved character SEAT for the row's leading slot — the name backs the avatar's initials fallback
  *  and its accessible label; `hash` is the CAS portrait key (null = this seat has no portrait). */
 export interface ChatRowPortrait {

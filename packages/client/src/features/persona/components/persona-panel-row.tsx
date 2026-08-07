@@ -19,7 +19,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu } from "#components";
+import { ConfirmDialog, ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset } from "#data";
 import { cn, downloadTextFile, notify } from "#lib";
@@ -245,37 +245,45 @@ export function PersonaPanelRow({
             gap="field"
             justify="end"
           >
-            <IconAction
-              {...(persona.starred ? { className: "text-destructive" } : {})}
-              icon={Heart}
-              label={persona.starred ? "Unfavorite" : "Favorite"}
-              onClick={onToggleFavorite}
+            {/* THE COARSE COLLAPSE (side-eye 2026-08-07 finding 3 — the founding instance of the rule; see
+                `#components/row-reveal.ts`). At a coarse pointer `ROW_REVEAL` pins this whole cluster ON and
+                every icon button is 44-48px by touch-floor construction, so these two verbs plus the kebab
+                charged 102px of a 272px rail row and the NAME lane was left 38px: "Traveler" rendered "T..".
+                They stand down here and ride the kebab instead (their `pointer-fine:hidden` twins below), so
+                the coarse cluster is ONE control and the name gets the ~50px back.
+                THIS ALSO RE-RULES the 2026-08-03 "PLAYING AS in words" premise, deliberately and narrowly:
+                that ruling reserved words for the current persona, but `ROW_REVEAL_SWAP` computes
+                `display:none` at coarse, so the words never rendered on a phone — the ruling stands where
+                its premise holds (fine pointer) and the coarse row states "current" through the selected
+                tint plus the stretched button's `aria-current` AND its state-aware NAME
+                (`selectTargetLabel` — "Traveler — current persona"), which is the words in the place a
+                320px row can actually afford them. Spending the reclaimed 50px on a second kicker would
+                just re-buy the truncation this collapse exists to end. The collapse does not move the
+                name: it touches only the trailing cluster, and the select target is the stretched Button
+                either way, at every pointer class. */}
+            <Row align="center" className={ROW_ACTION_INLINE} gap="field" justify="end">
+              <IconAction
+                {...(persona.starred ? { className: "text-destructive" } : {})}
+                icon={Heart}
+                label={persona.starred ? "Unfavorite" : "Favorite"}
+                onClick={onToggleFavorite}
+              />
+              {/* ONE FACT, ONE PLACE (side-eye 2026-08-03 P2). "Your default" used to be said three times on
+                  one row: the crown MARKER at rest, this control's label, and — on the seeded persona — the
+                  subtitle. The reveal cluster is for VERBS; a disabled button whose name is a STATE is neither
+                  a verb nor a state a reader can act on, and it was the third telling. The crown marker (in the
+                  a11y tree, tooltipped) keeps the state; the verb only exists while it is available. */}
+              {isDefault ? null : <IconAction icon={Star} label="Set as default" onClick={onSetDefault} />}
+            </Row>
+            <PersonaRowMenu
+              isDefault={isDefault}
+              name={persona.name}
+              onDelete={onDelete}
+              onExport={onExport}
+              onSetDefault={onSetDefault}
+              onToggleFavorite={onToggleFavorite}
+              starred={persona.starred}
             />
-            {/* ONE FACT, ONE PLACE (side-eye 2026-08-03 P2). "Your default" used to be said three times on
-                one row: the crown MARKER at rest, this control's label, and — on the seeded persona — the
-                subtitle. The reveal cluster is for VERBS; a disabled button whose name is a STATE is neither
-                a verb nor a state a reader can act on, and it was the third telling. The crown marker (in the
-                a11y tree, tooltipped) keeps the state; the verb only exists while it is available. */}
-            {isDefault ? null : <IconAction icon={Star} label="Set as default" onClick={onSetDefault} />}
-            {/* §12.2 caps the trailing cluster at three: state · state · kebab. Export and Delete both ride
-                the kebab, which is also the ruled lifecycle home for a low-frequency row verb. */}
-            <RowActionsMenu
-              destructive={{
-                title: "Delete this persona?",
-                description: deleteCopy(persona.name),
-                onConfirm: onDelete,
-              }}
-              label={`Actions for ${persona.name}`}
-            >
-              <MenuItem
-                onClick={(): void => {
-                  void onExport();
-                }}
-              >
-                <Icon icon={Download} size="sm" />
-                Export
-              </MenuItem>
-            </RowActionsMenu>
           </Row>
         </Layer>
 
@@ -304,6 +312,63 @@ export function PersonaPanelRow({
         </CollapsiblePanel>
       </Collapsible>
     </Stack>
+  );
+}
+
+/**
+ * The row's kebab — §12.2 caps the trailing cluster at three (state · state · kebab), and Export + Delete
+ * ride here because this is the ruled lifecycle home for a low-frequency row verb.
+ *
+ * AT A COARSE POINTER IT IS THE CLUSTER'S ONLY CONTROL, so it also carries the two collapsed verbs
+ * (`ROW_ACTION_OVERFLOW` = `pointer-fine:hidden`). Exactly ONE of each pair is in layout — and, since
+ * `hidden` is `display:none`, in the a11y tree — for a given pointer class, so the collapse can never
+ * become the double-telling this row's own rulings ban.
+ */
+function PersonaRowMenu({
+  isDefault,
+  name,
+  onDelete,
+  onExport,
+  onSetDefault,
+  onToggleFavorite,
+  starred,
+}: {
+  readonly isDefault: boolean;
+  readonly name: string;
+  readonly onDelete: () => void;
+  readonly onExport: () => Promise<void>;
+  readonly onSetDefault: () => void;
+  readonly onToggleFavorite: () => void;
+  readonly starred: boolean;
+}): ReactElement {
+  return (
+    <RowActionsMenu
+      destructive={{
+        title: "Delete this persona?",
+        description: deleteCopy(name),
+        onConfirm: onDelete,
+      }}
+      label={`Actions for ${name}`}
+    >
+      <MenuItem className={ROW_ACTION_OVERFLOW} onClick={onToggleFavorite}>
+        <Icon icon={Heart} size="sm" />
+        {starred ? "Unfavorite" : "Favorite"}
+      </MenuItem>
+      {isDefault ? null : (
+        <MenuItem className={ROW_ACTION_OVERFLOW} onClick={onSetDefault}>
+          <Icon icon={Star} size="sm" />
+          Set as default
+        </MenuItem>
+      )}
+      <MenuItem
+        onClick={(): void => {
+          void onExport();
+        }}
+      >
+        <Icon icon={Download} size="sm" />
+        Export
+      </MenuItem>
+    </RowActionsMenu>
   );
 }
 
