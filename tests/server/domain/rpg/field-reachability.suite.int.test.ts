@@ -355,7 +355,8 @@ async function openGame(opts: { carrier: Carrier; trackers?: readonly RpgTracker
       await h.chatOps.onTurnCompleted(chatId, messageId, variantId, castId<ChatTurnId>(`chat_turn_${seq}`), turnConnection());
     },
     handEdit: async (patch: Record<string, unknown>): Promise<void> => {
-      await h.service.editSnapshot({ principal: HOST, chatId, patch, lockPaths: [] });
+      const result = await h.service.editSnapshot({ principal: HOST, chatId, patch, lockPaths: [] });
+      expect(result.ok).toBe(true);
     },
     handActorOps: async (ops: readonly RpgActorOp[]): Promise<void> => {
       await h.service.patchActor({ principal: HOST, chatId, targetRef: opts.carrier.actorRef, ops, autoLock: false });
