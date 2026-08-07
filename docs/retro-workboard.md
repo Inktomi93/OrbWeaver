@@ -407,6 +407,9 @@ identity chrome for ANY row kind.
   the **CT-on-our-vite spike** (pnpm override `@playwright/experimental-ct-core>vite: ^8.1.2`; green =
   one vite + ct-config joins the type program; red = revert) · the **surface-manifest FORMAT ping-pong**
   (teach `gen-baseui-surface.ts` to emit biome-format so a regen can't fight `62de12195`) · the
+  **tool-round wire blindness** (DOG-ENGINE receipt find: `/api/_debug/wire/captures` cannot see the
+  tool-round arm AT ALL — that provider call has no `captureWire` sink, so `update_scene` traffic
+  never reaches the ring; one sink at the tool-round call site closes it) · the
   **st-goldens re-sweep** (STATLAS found the rig's `rm -rf output` wipes the PRIOR sweep's arm by
   design — only 10 ST captures survive, the 16-combo ST arm was destroyed by the tools sweep; fix
   accumulation (per-sweep dirs or drop the rm), then a full two-arm re-sweep upgrades the atlas §2
