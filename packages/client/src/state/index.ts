@@ -7,6 +7,7 @@
 export type { DraftSeed } from "./active-chat-store.ts";
 export {
   chatDeletedFromList,
+  chatSectionSelection,
   clearNewChatPreset,
   commitDraft,
   goToLanding,
@@ -21,6 +22,7 @@ export {
   useNewChatPreset,
 } from "./active-chat-store.ts";
 export {
+  analyticsSectionSelection,
   clearAnalyticsSelection,
   selectAnalyticsCharacter,
   useSelectedAnalyticsCharacterId,
@@ -47,6 +49,7 @@ export {
   useTagFilter,
 } from "./character-library-store.ts";
 export {
+  characterSectionSelection,
   clearCharacterFacet,
   clearCharacterSelection,
   listProjectionOwnsFocus,
@@ -86,6 +89,7 @@ export { requestComposerFocus, useComposerFocusRequest } from "./composer-focus-
 export { __resetCollectionGroupOpen, openCollectionGroup, toggleCollectionGroup, useCollectionGroupOpen } from "./config-group-open-store.ts";
 export {
   clearCollectionSelection,
+  configSectionSelection,
   goToCollection,
   selectCollectionMember,
   selectCollectionMemberFromList,
@@ -93,6 +97,7 @@ export {
 } from "./config-selection-store.ts";
 export {
   clearCorpusSelection,
+  corpusSectionSelection,
   selectCorpusCharacter,
   useSelectedCorpusCharacterId,
 } from "./corpus-selection-store.ts";
@@ -106,7 +111,7 @@ export type { KindedDrillStore, KindedSelection } from "./create-kinded-selectio
 export { createKindedSelectionStore } from "./create-kinded-selection-store.ts";
 export type { PersistedStoreOptions } from "./create-persisted-store.ts";
 export { createPersistedStore } from "./create-persisted-store.ts";
-export { clearDocumentSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";
+export { clearDocumentSelection, databankSectionSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";
 export type { DraftConfig, DraftRosterOverride } from "./draft-config-store.ts";
 export {
   addDraftCharacter,
@@ -152,11 +157,14 @@ export { MODAL_TRIGGER_PLACEMENTS } from "./modal-registry.ts";
 export type { ModalRegistry } from "./modal-registry-context.ts";
 export { useModalRegistry } from "./modal-registry-context.ts";
 export { ModalRegistryProvider } from "./modal-registry-provider.tsx";
+export type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
+export { PANEL_MODES, resolvePanelMode } from "./panel-resolve.ts";
 export { setPresetEditorView, usePresetEditorView } from "./preset-editor-view-store.ts";
 export {
   __dismissPresetSectionForTest,
   __resetPresetSection,
   __resetPresetSelection,
+  presetSectionSelection,
   selectPreset,
   selectPresetFromList,
   selectPresetSection,
@@ -181,6 +189,7 @@ export {
   useRegexBulkActive,
   useRegexBulkSelectedIds,
 } from "./regex-bulk-store.ts";
+export { useListDocked, useSectionListIsScreen } from "./section-list-projection.ts";
 export type {
   RailEntry,
   RailZone,
@@ -188,6 +197,7 @@ export type {
   SectionGroup,
   SectionPanelAvailability,
   SectionPlaceholderCopy,
+  SectionSelection,
 } from "./section-registry.ts";
 export { RAIL_ZONES, SECTION_GROUPS } from "./section-registry.ts";
 export type { SectionRegistry } from "./section-registry-context.ts";
@@ -227,20 +237,12 @@ export {
 export type { SettingsSectionRegistry } from "./settings-section-registry-context.ts";
 export { useSettingsSectionRegistry, useSettingsSections } from "./settings-section-registry-context.ts";
 export { SettingsSectionRegistryProvider } from "./settings-section-registry-provider.tsx";
-export type {
-  ModalSlotId,
-  PanelMode,
-  PanelName,
-  SectionId,
-  SettingsCategoryId,
-} from "./shell-store.ts";
+export type { ModalSlotId, SectionId, SettingsCategoryId } from "./shell-store.ts";
 export {
   closeModal,
   MODAL_SLOT_IDS,
   openModal,
   openSettingsTo,
-  PANEL_MODES,
-  resolvePanelMode,
   revealContextPanel,
   SECTION_IDS,
   SETTINGS_CATEGORY_IDS,
@@ -254,7 +256,7 @@ export {
   useActiveSection,
   useContextTab,
   useFocusMode,
-  useListDocked,
+  useMobileViewport,
   useNarrowViewport,
   useOpenModal,
   useOpenOverlayPanel,

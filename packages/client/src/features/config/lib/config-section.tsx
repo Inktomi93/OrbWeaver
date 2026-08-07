@@ -20,6 +20,7 @@ import { Package } from "@orb/ui/icons";
 import { ListPaneHeader } from "#components";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
 import type { SectionDefinition } from "#state";
+import { configSectionSelection } from "#state";
 import { ConfigContextBody, ConfigContextHeader } from "../components/config-context-body.tsx";
 import { ConfigContentSurface } from "../surfaces/config-content-surface.tsx";
 import { ConfigRosterSurface } from "../surfaces/config-roster-surface.tsx";
@@ -39,6 +40,8 @@ export function makeConfigSection(collections: ContributorRegistry<CollectionCon
     // name is that collection's own `create.label`. A band-level "New ▾" would make the user pick a KIND
     // from a menu before reaching the group they are already looking at.
     listHeader: () => <ListPaneHeader title="Configuration" />,
+    // How the SHELL reads "is a member open?" — the mobile ONE-SHELL rule's input + its back affordance.
+    selection: configSectionSelection,
     content: () => <ConfigContentSurface collections={collections} />,
     context: {
       kind: "single",

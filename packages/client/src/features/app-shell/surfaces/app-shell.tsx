@@ -245,6 +245,11 @@ export function AppShell(): ReactElement {
                 listAvailable={layout.listAvailable}
                 listMode={layout.listMode}
                 onToggleList={(): void => layout.togglePanel("list")}
+                // The mobile ONE-SHELL rule's back row. The label is DERIVED from the section's own rail
+                // label ("Back to Configuration", the mock's own words), so it cannot drift per section and
+                // no section authors a second vocabulary for it.
+                onBack={layout.backToList}
+                backLabel={`Back to ${layout.activeSectionLabel}`}
               />
               {/* A11y (side-eye R3): the scroll container is tabbable, so name it from the active section's
                   visible label — the `main` landmark otherwise announces as an unnamed region.
@@ -254,7 +259,15 @@ export function AppShell(): ReactElement {
                   to agree (the house Dialog/Drawer inert their background for exactly this reason). Scoped
                   to the CONTENT column, not the whole frame, because the sheet's own close control is the
                   topbar toggle ABOVE the scrim: inerting the frame would strand the user in it. */}
-              <main className="shell-content" ref={mainRef} tabIndex={-1} aria-label={`${layout.activeSectionLabel} content`} inert={layout.scrimVisible}>
+              <main
+                className="shell-content"
+                ref={mainRef}
+                tabIndex={-1}
+                aria-label={`${layout.activeSectionLabel} content`}
+                // …and the SAME rule for the mobile LIST-as-screen, which carries no scrim but is still a
+                // full-viewport pane over this column (`contentInert` folds both — one flag, one truth).
+                inert={layout.contentInert}
+              >
                 <SectionContent activeSection={layout.activeSection} contentBySection={contentBySection} fallback={contentFallback} focusAnchorRef={mainRef} />
               </main>
             </div>

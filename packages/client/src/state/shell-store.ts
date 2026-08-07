@@ -30,6 +30,8 @@
 import { isPlainObject } from "@orb/kit/guards";
 import { withViewTransition } from "#lib";
 import { createPersistedStore } from "./create-persisted-store.ts";
+import type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.ts";
+import { PANEL_MODES } from "./panel-resolve.ts";
 
 /** The rail's navigable sections. `home` leads: it is the landing section (its rail affordance is the
  *  brand glyph, `rail.brand` — home-section-spec §4.1), and the tuple order IS the rail/mobile-bar order.
@@ -80,13 +82,6 @@ export type SettingsCategoryId = (typeof SETTINGS_CATEGORY_IDS)[number];
 // three panes were not yet hosts, and it made "can a section land here?" a second fact that drifted from
 // the pane vocabulary.
 
-/** A panel's 3-state model: docked (in-flow) · overlay (floats over) · collapsed (zero width). */
-export const PANEL_MODES = ["docked", "overlay", "collapsed"] as const;
-export type PanelMode = (typeof PANEL_MODES)[number];
-
-/** The two collapsible side panels (rail is fixed, content is fluid — neither is a panel). */
-export type PanelName = "list" | "context";
-
 /** One section's panel overrides — a sparse map; an absent (section, panel) resolves to the section
  *  registry's `panelDefaults`. */
 type SectionPanels = Partial<Record<PanelName, PanelMode>>;
@@ -99,9 +94,10 @@ interface ShellState {
   /** Opaque "open this tab" request the active content's context surface interprets. Transient. */
   readonly contextTab: string | null;
   /** Which side panel is open as a slide-over — mobile sheet OR narrow-desktop auto-overlay; `null` = no
-   *  slide-over open (content or the section's docked default shows instead). Device-state, transient,
-   *  and reset on section change. */
-  readonly openOverlayPanel: PanelName | null;
+   *  request, so the regime's default shows (content, the section's docked default, or — on mobile with
+   *  nothing selected — the LIST as the screen); `"none"` = the user closed it explicitly. Device-state,
+   *  transient, and reset on section change. */
+  readonly openOverlayPanel: OverlayPanelRequest;
   /** Focus mode — the shell's ONE presentation flag for "hide every side panel and read". A pure regime
    *  input (`resolvePanelMode`), never a panel write: the label, the icon and the resolved modes all read
    *  THIS, so they cannot disagree. Transient (never persisted), cleared on section change. */
@@ -304,14 +300,16 @@ export function closeModal(): void {
   useShellStore.setState({ openModal: null, settingsCategory: null, settingsSubcategory: null }, false, "shell/closeModal");
 }
 
-/** Open/close a panel's slide-over (mobile sheet OR narrow-desktop auto-overlay). `null` closes (back to
- *  content/dock); a `PanelName` opens that panel and closes the other (one slide-over at a time).
+/** Open/close a panel's slide-over (mobile sheet OR narrow-desktop auto-overlay). A `PanelName` opens that
+ *  panel and closes the other (one slide-over at a time); `"none"` is the user's explicit close; `null`
+ *  RELEASES the request back to the regime default (what a selection write / section change lands, and what
+ *  makes the mobile LIST-as-screen the default again once a selection clears).
  *
- *  OPENING one leaves focus mode (a reveal, file header); CLOSING leaves the flag alone — `null` is fired
- *  by flows that are not about focus at all (chat selection, drill close) and must never pop the panels
- *  back open behind the user. */
-export function setOpenOverlayPanel(panel: PanelName | null): void {
-  const focusMode = panel === null && useShellStore.getState().focusMode;
+ *  OPENING one leaves focus mode (a reveal, file header); CLOSING/releasing leaves the flag alone — the
+ *  non-panel arms are fired by flows that are not about focus at all (chat selection, drill close) and must
+ *  never pop the panels back open behind the user. */
+export function setOpenOverlayPanel(panel: OverlayPanelRequest): void {
+  const focusMode = panel !== "list" && panel !== "context" && useShellStore.getState().focusMode;
   useShellStore.setState({ openOverlayPanel: panel, focusMode }, false, "shell/setOpenOverlayPanel");
 }
 
@@ -338,72 +336,6 @@ export function usePanelOverride(section: SectionId, panel: PanelName): PanelMod
   return useShellStore((s) => s.panelOverrides[section]?.[panel]);
 }
 
-/** The ONE mode-resolution algebra — both `useShellLayout`'s `resolvePanel` (feature-tier hook, reads the
- *  section registry for `panelDefaults`) and `useListDocked` below (this tier) call this SAME function so
- *  they can never drift (the M10 correction: a hand-copied mirror read only `mobileViewport` and
- *  disagreed with `resolvePanel` in the 48–64rem regime). Precedence isFocus → isMobile → narrow → wide.
- *
- *  FOCUS WINS OVER EVERYTHING (item 20): focus mode is "no side panel is showing", in every regime, with
- *  ZERO writes to `panelOverrides` — which is what makes the flag, the label and the pixels one truth and
- *  leaves the pre-focus layout intact for the exit (the untouched override map IS the saved state).
- *  Then, as before: mobile never resolves "docked" (a transient sheet, open only when `openOverlayPanel` names it); a
- *  narrow-desktop `docked` DEFAULT auto-downgrades to a CLOSED slide-over (`collapsed`), opening to
- *  `overlay` only when `openOverlayPanel` names it (§4.1: overlay is zero-width closed by default, slides
- *  over on demand); wide resolves the raw override-or-default untouched.
- *
- *  BEING NAMED BY `openOverlayPanel` WINS OVER A STORED `collapsed` in the narrow regime (2026-08-01 fix).
- *  It read as a dead control: `chats` defaults its CONTEXT pane `collapsed`, so at ≤64rem the toggle wrote a
- *  `docked` override that this function immediately re-collapsed — the user's click produced no pixel, and
- *  only a SECOND click (now on a `docked` default) reached the overlay arm. A persisted collapse is a WIDE
- *  dock preference; it cannot outvote a live "open it now" in a regime where docking is impossible. */
-export function resolvePanelMode(
-  panel: PanelName,
-  resolved: PanelMode,
-  regime: {
-    readonly isFocus: boolean;
-    readonly isMobile: boolean;
-    readonly isNarrow: boolean;
-    readonly openOverlayPanel: PanelName | null;
-  },
-): PanelMode {
-  if (regime.isFocus) {
-    return "collapsed";
-  }
-  if (regime.isMobile) {
-    return regime.openOverlayPanel === panel ? "overlay" : "collapsed";
-  }
-  if (regime.isNarrow) {
-    if (regime.openOverlayPanel === panel) {
-      return "overlay";
-    }
-    return resolved === "docked" ? "collapsed" : resolved;
-  }
-  return resolved;
-}
-
-/** Is a section's LIST panel currently docked — the narrow #state projection a section body reads instead of
- *  `useShellLayout` (client-features-no-cross bars a feature from importing the app-shell hook, so this tier
- *  is the ONLY legal way for a feature to ask). Routes through the SAME `resolvePanelMode` algebra
- *  `useShellLayout` uses, so the two can never disagree (the M10 correction bug: `showRecents` broke in the
- *  48–64rem regime when this read only `mobileViewport`).
- *
- *  LIVENESS (swept 2026-08-01): ZERO feature consumers today. Its one caller was the chat landing's
- *  `showRecents` — "when the Chats LIST is docked it already IS the recents finder, so don't duplicate it" —
- *  and H2 (`3f54a4d3`) retired the landing's recents entirely (home tiles own them now). KEPT, not deleted:
- *  the superseded thing was that ONE de-duplication, not this projection. It is the seam's only sanctioned
- *  answer to "is my list pane visible", and the alternative — a feature recomposing it from
- *  `usePanelOverride` + the viewport reads — is exactly the hand-copied mirror that produced the M10 bug.
- *  Its CTs (tests/client/state/shell-store.ct.tsx) pin the shared algebra, so it cannot rot silently. */
-export function useListDocked(section: SectionId, ownDefault: PanelMode): boolean {
-  const isFocus = useShellStore((s) => s.focusMode);
-  const isMobile = useShellStore((s) => s.mobileViewport);
-  const isNarrow = useShellStore((s) => s.narrowViewport);
-  const openOverlayPanel = useShellStore((s) => s.openOverlayPanel);
-  const override = usePanelOverride(section, "list");
-  const resolved = override ?? ownDefault;
-  return resolvePanelMode("list", resolved, { isFocus, isMobile, isNarrow, openOverlayPanel }) === "docked";
-}
-
 /** Focus mode — the ONE flag the topbar's label/icon/pressed state and the panel resolve both read. */
 export function useFocusMode(): boolean {
   return useShellStore((s) => s.focusMode);
@@ -413,6 +345,12 @@ export function useFocusMode(): boolean {
  *  that needs to branch on it directly (mirrors `mobileViewport`'s narrow read). */
 export function useNarrowViewport(): boolean {
   return useShellStore((s) => s.narrowViewport);
+}
+
+/** The shell's published MOBILE regime — the `useNarrowViewport` twin, for a `#state` projection that must
+ *  branch on it without importing app-shell's matchMedia hook (`no-raw-matchmedia`). */
+export function useMobileViewport(): boolean {
+  return useShellStore((s) => s.mobileViewport);
 }
 
 export function useOpenModal(): ModalSlotId | null {
@@ -425,8 +363,8 @@ export function useContextTab(): string | null {
 }
 
 /** Which side panel is open as a slide-over — mobile sheet OR narrow-desktop auto-overlay (`null` = no
- *  slide-over open). */
-export function useOpenOverlayPanel(): PanelName | null {
+ *  request, the regime default shows; `"none"` = closed by the user). */
+export function useOpenOverlayPanel(): OverlayPanelRequest {
   return useShellStore((s) => s.openOverlayPanel);
 }
 

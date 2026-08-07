@@ -16,6 +16,7 @@ import type { ReactNode } from "react";
 import type { CharacterChatsProjectionView, CharacterContextState, CharacterDetailContribution, ContributorRegistry } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
+import { characterSectionSelection } from "#state";
 import { CharacterLibraryAnchor } from "../anchors/character-library-anchor.tsx";
 import { CharacterActionsMenu } from "../components/character-actions-menu.tsx";
 import { CharacterContent } from "../components/character-content.tsx";
@@ -47,6 +48,8 @@ export function makeCharactersSection(
     ),
     // The band swaps with the pane (D9): `CHARACTERS` + create, or `‹ CHATS · <name>` + New chat.
     listHeader: () => <CharactersListHeader />,
+    // How the SHELL reads "is someone open?" — the mobile ONE-SHELL rule's input + its back affordance.
+    selection: characterSectionSelection,
     content: () => <CharacterContent detailContributors={detailContributors} />,
     // Three tabs: Field (drilled facet detail), Links (world books + personas), Options.
     context: defineContextTabs<CharacterContextState>({

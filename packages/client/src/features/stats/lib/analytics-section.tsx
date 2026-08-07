@@ -11,7 +11,7 @@ import { ChartColumn } from "@orb/ui/icons";
 import type { AnalyticsContextState } from "#lib";
 import { defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
-import { useSelectedAnalyticsCharacterId } from "#state";
+import { analyticsSectionSelection, useSelectedAnalyticsCharacterId } from "#state";
 import { AnalyticsListAnchor } from "../anchors/analytics-list-anchor.tsx";
 import { AnalyticsContent } from "../components/analytics-content.tsx";
 import { AnalyticsContextHeader } from "../components/analytics-context-header.tsx";
@@ -44,6 +44,8 @@ export const analyticsSection: SectionDefinition = {
   // The LIST chrome-band content (§4 N1/N2, §6.3): "ANALYTICS" title + leaderboard count. Read-only ⇒ no
   // create action (A2 — the band is a census, not an addition).
   listHeader: () => <AnalyticsListHeader />,
+  // How the SHELL reads "is a character drilled?" — the mobile ONE-SHELL rule's input + back affordance.
+  selection: analyticsSectionSelection,
   content: () => <AnalyticsContent />,
   // Three owner-scoped dimension tabs, always available: Models / Time / Personas. The `header` slot names
   // the drilled character (P4); the tabs ignore the state (owner-scoped).

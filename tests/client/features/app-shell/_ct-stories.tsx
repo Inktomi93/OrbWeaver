@@ -22,7 +22,8 @@ import { AppShell, YouSheet } from "@orb/client/features/app-shell";
 import type { ContextRegionDef, ContextRegionView, ContextTabDef, ContributorRegistry, ResolvedContextTab } from "@orb/client/lib";
 import { createContributorRegistry, defineContextRegion, defineContextTabs, VOID_STATE } from "@orb/client/lib";
 import type { ChromeEntry, SectionDefinition, SectionId } from "@orb/client/state";
-import { ChromeRegistryProvider } from "@orb/client/state";
+import { ChromeRegistryProvider, selectCharacter, selectChat, selectCollectionMember, selectCorpusCharacter, selectDocumentFromList } from "@orb/client/state";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import { Crown, Drama, Eye, Flag, FlaskConical, Gauge, MessagesSquare, Settings, Users } from "@orb/ui/icons";
 import type { ReactElement, ReactNode } from "react";
@@ -85,6 +86,52 @@ export function AppShellStory(): ReactElement {
         <LandOn section="chats" />
         {/* The real "You" bottom-sheet body arrives via the modal registry (CtFakeSectionRegistry nests
             the real modal registry), so the mobile CT exercises the real sheet, not a placeholder. */}
+        <AppShell />
+      </CtFakeSectionRegistry>
+    </CtDataProviders>
+  );
+}
+
+// ── THE MOBILE ONE-SHELL RULE (owner-ruled 2026-08-03) ───────────────────────────────────────────────
+// One story per list-bearing section, mounted through the REAL shell over the REAL selection seam that
+// section's definition declares (`CtFakeSectionRegistry` passes `REAL[id].selection` through whenever a
+// story injects a `list`) — so the CT exercises the production store, the production `resolvePanelMode`
+// arm and the production back affordance, with stand-in list/content bodies the way every other app-shell
+// CT does. "Open a member" is fired through each section's OWN intent, never a store handle: that is the
+// same call its rows make.
+
+/** Fires the section's real "a member is now open" intent — the LIST-row act, without the row's data. */
+function openMemberIn(section: SectionId): void {
+  if (section === "chats") {
+    selectChat(mintTypeId(ID_PREFIX.chat));
+    return;
+  }
+  if (section === "characters") {
+    selectCharacter(mintTypeId(ID_PREFIX.character));
+    return;
+  }
+  if (section === "corpus") {
+    selectCorpusCharacter(mintTypeId(ID_PREFIX.character));
+    return;
+  }
+  if (section === "databank") {
+    selectDocumentFromList(mintTypeId(ID_PREFIX.document));
+    return;
+  }
+  selectCollectionMember("tag", "tag-ct-member");
+}
+
+/** The shell on ONE list-bearing section at a mobile viewport, plus the one control the CT needs: the
+ *  section's own open-a-member intent. Everything else — which screen shows, the back affordance, what the
+ *  toggle does — is the shell's, which is the whole point of the rule. */
+export function AppShellMobileRuleStory({ section }: { readonly section: SectionId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <CtFakeSectionRegistry sections={{ [section]: { list: <p>{section} list pane</p>, content: <p>{section} content pane</p> } }}>
+        <LandOn section={section} />
+        <button type="button" onClick={(): void => openMemberIn(section)}>
+          open a member
+        </button>
         <AppShell />
       </CtFakeSectionRegistry>
     </CtDataProviders>
