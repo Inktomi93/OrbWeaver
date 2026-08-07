@@ -17,7 +17,6 @@ import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useId } from "react";
 import { SettingSwitchRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
@@ -61,14 +60,12 @@ function MemorySettingsBody({ sectionId }: { readonly sectionId: string }): Reac
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
   const setEnabled = useSetMemoryEnabled({ trpc, invalidation });
-  const toggleId = useId();
   useReportSaveStatus(sectionId, saveStateOf(setEnabled.isPending, setEnabled.error !== null));
 
   return (
     <Section divider={true} heading={MEMORY_SETTINGS_SUBCATEGORY.label} id={settingsAnchorId("chat-behavior", MEMORY_SETTINGS_SUBCATEGORY.id)}>
       <Stack gap="field">
         <SettingSwitchRow
-          id={toggleId}
           label="Remember earlier in long chats"
           description="When on, the assistant recalls digests of earlier messages once a chat outgrows the recent window — so it stays consistent across a long thread."
           checked={data.config.memory.enabled}
