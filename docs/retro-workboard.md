@@ -225,6 +225,44 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - **THE DAY'S NUMBER:** 12 fresh-lens passes, **8 refutations** — every one already merged, gate-green
   and believed done. Six premise-kills by lanes, three against briefs the orchestrator wrote.
 
+## ═══ ⚑ AUTHFIX-2 — AN OPEN UNAUTHENTICATED HOLE, FOUND 2026-08-07, NOT FIXED ═══
+
+**Severity HIGH on any box whose origin port is reachable. Found by lane AUTHFIX while fixing something
+else; deliberately NOT fixed, with reasons. Full write-up + exploit path + two costed fix shapes:
+`docs/architecture/core/Core-Audits-and-Debt.md`.**
+
+The chain, four links, all verified as code:
+1. `foundation/observability/debug/routes.ts:184-201` `createDebugAuthMiddleware` — the `adminAuth.isAdmin(headers)`
+   arm calls `next()` **BEFORE** the `expectedToken` check. Its own doc says the arm is for "an admin
+   session COOKIE".
+2. `entry/app.ts:280` wires it in PRODUCTION with `adminAuth: { isAdmin: deps.seam.isAdmin }`.
+3. `seam.isAdmin` → `resolvePrincipal`, which honours ALL THREE paths **including the owner fallback**.
+4. `ownerFallbackAllowed` returns `true` UNCONDITIONALLY under `single-user` ⇒ **`/api/_debug/*` 200s to
+   any un-credentialed request with no `DEBUG_TOKEN`.** Under `oidc` the gate is `isLocalOrigin`, which
+   reads the **client-supplied `Host` header** — `curl -H 'Host: 127.0.0.1' …` satisfies it from any
+   network position that can reach the port. `IP_ALLOWLIST` is NOT set in the live `.env`.
+
+**What is behind it:** principal-BLIND whole-db reads — `/db/chats`, `/db/chat/:id`, `/config/user`,
+`/wire/captures` — and `WIRE_CAPTURE=on` in the live `.env` means provider request BODIES.
+`debug/inspect/config.ts:310-315` carries the marker stating the very assumption this violates.
+
+**The AUTHFIX merge neither opens nor widens this** (lane's claim, independently re-checked by the
+graduation security lens): the routes are principal-blind, so the gate consumes a BOOLEAN that was
+already `true` — twin-role-owner before, real-owner after, identical reach.
+
+**Why it was not fixed in-lane:** the one-line fix (`principal.via === "fallback" → false` in `isAdmin`)
+was written and then REVERTED, because `tests/e2e/support/trpc.ts:251-252` documents the dependency
+verbatim and **no e2e mode sets `DEBUG_TOKEN`** — closing the admin arm 404s the whole e2e debug-witness
+surface, including `e2e-smoke` in `--push`. Shipping a known-red e2e or a guessed harness edit is worse
+than a precise finding. **Correct call.**
+
+**Two fix shapes, lane leans (i) and so do I:** (i) thread `DEBUG_TOKEN` into the three e2e mode envs +
+a shared header helper in `tests/e2e/support/trpc.ts`, then flip the `via` check — the clean one; or
+(ii) gate the flip on `expectedToken !== undefined` inside `createDebugAuthMiddleware` ("a configured
+token may not be bypassed by an un-credentialed principal") — closes it on the live box, leaves
+token-less e2e stacks working, but it is a conditional control with its own conformance suite to sweep.
+**OWNER: this is the one live-posture item on the board that is a real hole rather than debt.**
+
 ## ═══ INITIATIVES ═══
 
 ### I-1 · STRUCTURED OUTPUT — ✅ the four projector defects are CLOSED; one owner item remains
