@@ -361,6 +361,28 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   structural signature) IN THE SAME COMMIT. Founding instance owed: the founding-cast fence (no
   `addedCharacterIds` read outside `draft-config-store`) — rides the DRAFT-2 lane. Evidence: owner
   question 2026-08-07; gate-authoring hub's carrier-fence doctrine.
+- **⚑ TWO FORKS RULED (orchestrator, 2026-08-07) — one principle: a prescription is satisfied when
+  its underlying SYMPTOM is dead; do not reverse a recorded ruling to satisfy the prescription's
+  LETTER after the symptom is gone.** MOBILE leg 4 refused both rather than silently reversing, and
+  what it shipped IS the ruling: (1) **§B.1 PRESERVED** (the avatar stays a sibling of the content
+  column, never nested in the name row) — side-eye wanted the speaker header stacked; the lane built
+  it, broke 12 pins incl. that law, and backed out. Decided by its own measurement: **§2's 65-75ch
+  is UNREACHABLE at 320 in ANY composition** (65ch ≈ 490px at 15px), so the fold buys ~9% of the
+  viewport for an anatomy law — bad trade. The gutter step-down (76 → 30px) is the reachable win; at
+  430 the bubble's own clamp binds instead. (2) **The 08-03 persona ruling PRESERVED** — the name
+  lane gets 32%, not the prescribed "half", because the marker cluster reserves "PLAYING AS" in
+  WORDS ("a colour is not a statement"). The actual defect (the 38px OVERLAP) is dead and CT-pinned
+  and the kicker now truncates as its header always claimed; reclaiming the other 18% would trade a
+  recorded law for a symptom that no longer exists. **Both are one-line reversals if the owner
+  disagrees.** Owed (the lane's transcript was lost before it could): write the 65ch-unreachable
+  measurement + the not-taken-half reasoning into the two component headers.
+- **⚑ A GATE WAS EDITED, CORRECTLY (MOBILE leg 4)** — `chrome-registry-completeness` RED'd a
+  `topbar.trail` widget declaring `mobile` on the premise "mobile curation is a rail-only axis —
+  there is no mobile bar for it." The You sheet now projects `"sheet"`-curated trail widgets, so the
+  premise DIED and the axis generalised: still REQUIRED on `rail.*`, now OPTIONAL on `topbar.*`.
+  The whole coupled set moved with it (check · message · `fix` string · the retired mustFail
+  replaced by a mustPass · `ChromeEntry.mobile`'s contract comment · conformance green). That is the
+  standard for editing a gate: the premise died, the enforcer generalised, the proof moved.
 - **⚑ THE HASH RULING IS CORRECTED — a recorded conclusion had a blind spot (spine verifier,
   2026-08-07).** The stickler's §hash answer ("NO new machinery needed — blockHash folds the right
   axes; consolidationHash cascades") and `memory/persistence/queries.ts:45-46`'s own comment
