@@ -50,7 +50,11 @@ export function TalkativenessPopover({
             intent="ghost"
             size="sm"
             tabIndex={-1}
-            aria-label={`Talkativeness: ${row.displayName} — ${Math.round(row.talkativeness * PERCENT)}%`}
+            // WCAG 2.5.3 Label in Name (UI-Primitives-and-Reuse §13.10): the chip READS "Talks 50%", so
+            // "talks" has to be IN the name or a voice-control user saying what they see misses it. The
+            // stable identity still leads (`Talkativeness: <who>`) and the live percent stays suffixed, so
+            // a role+name lookup on the stable prefix survives every value change.
+            aria-label={`Talkativeness: ${row.displayName} — talks ${Math.round(row.talkativeness * PERCENT)}%`}
           >
             {/* Labeled value — a bare "50%" fails the cold read (Context-Panel-Program §1 ride-along):
                 the "Talks" label names WHAT the number is; the percent stays mono for column alignment. */}
