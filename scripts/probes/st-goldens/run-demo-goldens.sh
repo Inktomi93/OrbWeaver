@@ -2,10 +2,14 @@
 set -e
 
 RIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FIXTURES_DIR="$RIG_DIR/fixtures"
-mkdir -p "$FIXTURES_DIR"
-rm -rf "$RIG_DIR/output" "$RIG_DIR/orbweaver-output"
-mkdir -p "$RIG_DIR/output" "$RIG_DIR/orbweaver-output"
+# The DATA root may live in another checkout (see rig-paths.ts); the scripts and the corpus separate.
+DATA_ROOT="${ST_GOLDENS_DATA_ROOT:-$RIG_DIR}"
+FIXTURES_DIR="$DATA_ROOT/fixtures"
+# NEVER wipe the capture dirs. The ST arm writes one file per fixture and the ORB arm sweeps every fixture
+# on disk, so a wipe here destroys the OTHER sweep's arm entirely — it is how the 16-combo ST captures were
+# lost while their file-count-equal ORB counterparts survived as 44 copies of one capture. Ids are the
+# filenames, so a re-run overwrites exactly its own outputs and nothing else.
+mkdir -p "$FIXTURES_DIR" "$DATA_ROOT/output" "$DATA_ROOT/orbweaver-output"
 
 # Base configuration
 nb=0

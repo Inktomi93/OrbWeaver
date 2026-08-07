@@ -2,10 +2,12 @@
 set -e
 
 RIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FIXTURES_DIR="$RIG_DIR/fixtures"
-mkdir -p "$FIXTURES_DIR"
-rm -rf "$RIG_DIR/output" "$RIG_DIR/orbweaver-output"
-mkdir -p "$RIG_DIR/output" "$RIG_DIR/orbweaver-output"
+# The DATA root may live in another checkout (see rig-paths.ts); the scripts and the corpus separate.
+DATA_ROOT="${ST_GOLDENS_DATA_ROOT:-$RIG_DIR}"
+FIXTURES_DIR="$DATA_ROOT/fixtures"
+# NEVER wipe the capture dirs — see the note in run-demo-goldens.sh. A wipe here destroys the other
+# sweep's arm, which is exactly how this corpus lost its 16-combo ST captures.
+mkdir -p "$FIXTURES_DIR" "$DATA_ROOT/output" "$DATA_ROOT/orbweaver-output"
 
 echo "Resetting ST fixtures..."
 node "$RIG_DIR/build-fixtures.ts"
@@ -37,6 +39,11 @@ cat << JSON > "$FIXTURES_DIR/${id_depth}.json"
   ]
 }
 JSON
+
+# The depth-injection fixture was written but never captured — its ST arm has never existed.
+echo "Running $id_depth..."
+node "$RIG_DIR/build-fixtures.ts"
+node "$RIG_DIR/generate-goldens.ts" "${id_depth}" || true
 
 MODELS=("claude-instant-1.2" "claude-2.0" "claude-2.1" "claude-3-haiku-20240307" "claude-3-sonnet-20240229" "claude-3-opus-20240229" "claude-3-5-sonnet-20240620" "claude-3-5-sonnet-20241022" "claude-3-5-haiku-20241022")
 
