@@ -33,6 +33,7 @@
 import type { RpgFieldLocks, RpgSnapshotState } from "@orb/contracts/rpg";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { MessageId, MessageVariantId, RpgSnapshotId } from "@orb/kit/ids";
+import type { StagedPatch } from "./contract/params.ts";
 import type { HandEditLocks, HandEditResult, HandStateHead, HandStateWrite, RpgContext, RpgGameRow, TurnWriteFoldOutcome } from "./contract/service.ts";
 import { snapshotRowToState } from "./contract/service.ts";
 import { findLatestAssistantSlotSeq, resolveSnapshotBeforeSlot, resolveSnapshotHead, updateSnapshotState, writeHandSnapshot } from "./persistence/snapshots.ts";
@@ -212,7 +213,7 @@ export async function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: 
 export async function foldTurnWriteIntoHandHead(
   ctx: RpgContext,
   game: RpgGameRow,
-  written: { readonly patches: readonly Record<string, unknown>[]; readonly base: RpgSnapshotState; readonly snapshotId: RpgSnapshotId },
+  written: { readonly patches: readonly StagedPatch[]; readonly snapshotId: RpgSnapshotId },
   slotSeq: number,
 ): Promise<TurnWriteFoldOutcome> {
   const head = await resolveSnapshotHead(ctx.db, { id: game.id, chatId: game.chatId });
@@ -248,10 +249,17 @@ export async function foldTurnWriteIntoHandHead(
     // actor in it. Replaying that verbatim re-inserted an actor the host had dismissed mid-flight, silently,
     // because the removal verbs release the very lock that would have stopped it. The rebase keeps what the
     // round ADDED, CHANGED or REMOVED and drops what it merely CARRIED (`substrate/merge.ts`).
+    //
+    // EACH ENTRY AGAINST ITS OWN BASE (leg 4): a turn stages once per tool call, and patch N was composed
+    // against `seed + patches[0..N-1]`. Measuring every patch against the SEED re-scored an element patch 1
+    // had already added as a fresh ADD for patch 2 and appended it a second time — two `update_scene` calls
+    // wrote the opening beat twice and put a character on stage twice. The pairing is carried by the
+    // accumulator (`StagedPatch`), so the invariant is local: patch N's diff is measured against the state
+    // patch N actually saw.
     let state = hand.state as unknown as Record<string, unknown>;
-    const base = written.base as unknown as Record<string, unknown>;
-    for (const patch of written.patches) {
-      state = applyLockedPatch(state, rebasePatchOntoHead(patch, base, state), hand.locks);
+    for (const staged of written.patches) {
+      const stagedBase = staged.base as unknown as Record<string, unknown>;
+      state = applyLockedPatch(state, rebasePatchOntoHead(staged.patch, stagedBase, state), hand.locks);
     }
     return { ok: true, state: state as unknown as RpgSnapshotState };
   });

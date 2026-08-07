@@ -70,13 +70,28 @@ export interface HandSnapshotTarget extends SnapshotWriteBase {
 export interface StagedTurnFlush {
   readonly state: RpgSnapshotState;
   readonly journal: readonly StagedJournalEntry[];
-  /** Every patch staged for this turn, in the order it was staged — the tools' mid-turn writes and/or the
-   *  round's delta. Replayed in the same order by the fold, so the composition is identical to `state`'s. */
-  readonly patches: readonly Record<string, unknown>[];
-  /** The BASE the accumulator was seeded from — the state every applier composed its patches against. The fold
-   *  needs it as the third input of its rebase: without it, "the round wrote this actor" and "the round merely
-   *  carried the whole plane forward" are indistinguishable, and the appliers emit WHOLE planes (see
-   *  `substrate/merge.ts::rebasePatchOntoHead`). */
+  /** Every write staged for this turn, in the order it was staged — the tools' mid-turn writes and/or the
+   *  round's delta — each carrying the state it was composed against. Replayed in the same order by the fold,
+   *  so the composition is identical to `state`'s. */
+  readonly patches: readonly StagedPatch[];
+}
+
+/** ONE staged write, PAIRED WITH THE STATE IT WAS COMPOSED AGAINST — the unit the flush's fold rebases.
+ *
+ *  WHY THE PAIR IS THE UNIT, and not a patch list plus one seed base: a turn stages once per tool call, and
+ *  patch N is composed by its applier against `seed + patches[0..N-1]`, NOT against the seed. Rebasing every
+ *  patch against the seed re-scores an element an earlier patch already added as a fresh ADD and appends it
+ *  again — two `update_scene` calls in one turn wrote the first beat twice and put a character on stage twice
+ *  (`recentEvents`/`presentCharacters`, the flat planes; keyed planes are immune because correlate-by-key
+ *  replacement is idempotent). Nothing downstream dedupes: `applyPresencePatch`'s `includes` guard runs at
+ *  WRITE time, and this state goes straight to `writeHandSnapshot`.
+ *
+ *  The base is CAPTURED at stage time rather than reconstructed at fold time. Replaying the accumulator's own
+ *  merge would be exact today, but it would be a SECOND place that has to compose patches the same way — and
+ *  the divergence would be invisible (a silently duplicated beat, not a crash). The accumulator already holds
+ *  the state each applier saw; recording it makes each entry self-describing and the invariant local. */
+export interface StagedPatch {
+  readonly patch: Record<string, unknown>;
   readonly base: RpgSnapshotState;
 }
 

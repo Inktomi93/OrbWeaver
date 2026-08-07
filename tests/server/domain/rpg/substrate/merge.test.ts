@@ -257,6 +257,26 @@ describe("rebasePatchOntoHead — replaying an applier's patch onto a head it wa
     expect(out[0]?.status).toBe("completed");
   });
 
+  test("SEQUENTIAL patches each rebase against THEIR OWN base — no element is counted as added twice", () => {
+    // THE CALLING CONVENTION this engine requires — measured GREEN against the pre-fix source, because the
+    // leg-4 defect was in the fold's CALL (it passed the turn's seed for every patch), never in this function.
+    // Pinned here anyway, and stated as the contract it is: patch 2 of a turn is composed against the state
+    // AFTER patch 1, so it already carries patch 1's beat, and handing this function the seed instead re-scores
+    // that beat as a fresh ADD and appends it twice. The integration pin in `hand-edit-vs-flush.suite` is the
+    // defect proof; this one is what stops a future caller from reintroducing it.
+    const seed: Record<string, unknown> = { recentEvents: ["opening beat"], presentCharacters: [] };
+    const p1 = { recentEvents: ["opening beat", "she drew her blade"], presentCharacters: ["cast:mari"] };
+    const afterP1 = { recentEvents: p1.recentEvents, presentCharacters: p1.presentCharacters };
+    const p2 = { recentEvents: ["opening beat", "she drew her blade", "the door slammed"], presentCharacters: ["cast:mari", "cast:kai"] };
+
+    let head: Record<string, unknown> = { ...seed };
+    head = applyLockedPatch(head, rebasePatchOntoHead(p1, seed, head), null);
+    head = applyLockedPatch(head, rebasePatchOntoHead(p2, afterP1, head), null);
+
+    expect(head["recentEvents"]).toEqual(["opening beat", "she drew her blade", "the door slammed"]);
+    expect(head["presentCharacters"]).toEqual(["cast:mari", "cast:kai"]);
+  });
+
   test("records and scalars pass through untouched (they are the lock grammar's business, not the rebase's)", () => {
     const base = { trackerValues: { hp: 1 }, location: "ford", plot: { title: "old" } };
     const patch = { trackerValues: { hp: 2 }, location: "chapel", plot: { title: "new" } };
