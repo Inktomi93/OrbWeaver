@@ -14,7 +14,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { ChromeEntry } from "#state";
-import { closeModal, openModal, setActiveSection, useActiveSection, useChromeRegistry } from "#state";
+import { closeModal, openModal, setActiveSection, useActiveSection, useChromeRegistry, useModalRegistry } from "#state";
 
 /** One `rail.end` chrome entry, projected into the sheet. A component (not a bare map body) so `useVisible`
  *  is a top-level hook over the door-frozen list (the rail's `RailChromeEntry` precedent). A widget renders
@@ -42,10 +42,24 @@ export function YouSheet(): ReactElement {
   const entries = useChromeRegistry().list();
   const footerEntries = entries.filter((e) => e.zone === "rail.end");
   const overflowSections = entries.filter((e) => e.zone === "rail.nav" && e.mobile === "sheet");
+  // The ⌘K chip is desktop-shaped and sheds from the phone topbar (its row budget, side-eye P1) — so its
+  // modal lands HERE, as a named row, DERIVED from the same `topbar.trail` trigger placement the chip reads.
+  // Nothing is hardcoded and nothing becomes unreachable: the sheet is where every other overflow lives.
+  const commandModal = useModalRegistry()
+    .list()
+    .find((m) => m.trigger.placement === "topbar.trail");
 
   return (
     <Stack gap="section">
       <Stack gap="row" aria-label="Account and settings" role="group">
+        {commandModal === undefined ? null : (
+          <ListRow
+            clickable={true}
+            leading={<Icon icon={commandModal.trigger.icon} size="sm" />}
+            onClick={(): void => openModal(commandModal.id)}
+            title={commandModal.trigger.label}
+          />
+        )}
         {footerEntries.map((entry) => (
           <SheetChromeEntry key={entry.id} entry={entry} />
         ))}

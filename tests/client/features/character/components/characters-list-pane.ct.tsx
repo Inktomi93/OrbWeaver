@@ -285,3 +285,30 @@ test("the identity gloss is RECENCY only — the rows below it are the census", 
   // Not "2 chats · last …": the count is the editor hero's job (CONTENT tier, no list under it).
   await expect(component.getByText(CENSUS_GLOSS)).toHaveCount(0);
 });
+
+// ── THE PICKER'S VIEW CONTROLS SURVIVE 320px (side-eye P2) ───────────────────────────────────────────
+// Four controls shared one row — search + sort + Group + the bulk pencil — and at this pane's real 320px
+// width the search box came out 95px against the 119px its own placeholder needs, rendering "Search chai".
+// The search is the row's PRIMARY control, so it now carries a floor and the view controls wrap beneath it.
+// The need is MEASURED from the input's own font rather than pinned at a number, so a type-scale retune
+// cannot quietly re-open the defect.
+
+test("the search input fits its own placeholder at the pane's 320px width", async ({ mount, page }) => {
+  await routeTrpc(page, { "character.list": CHARACTER_PAGE, "settings.getUserSettings": SETTINGS, "chat.listChats": [] });
+  const component = await mount(<CharactersListPaneStory />);
+  const search = component.getByRole("textbox", { name: "Search characters" });
+  await expect(search).toBeVisible();
+
+  const measured = await search.evaluate((el: HTMLInputElement) => {
+    const style = getComputedStyle(el);
+    const ctx = document.createElement("canvas").getContext("2d");
+    if (ctx === null) {
+      return { box: 0, needed: 0 };
+    }
+    ctx.font = [style.fontStyle, style.fontWeight, style.fontSize, style.fontFamily].join(" ");
+    const inner = el.clientWidth - Number.parseFloat(style.paddingLeft) - Number.parseFloat(style.paddingRight);
+    return { box: inner, needed: ctx.measureText(el.placeholder).width };
+  });
+  expect(measured.needed).toBeGreaterThan(0);
+  expect(measured.box).toBeGreaterThanOrEqual(measured.needed);
+});

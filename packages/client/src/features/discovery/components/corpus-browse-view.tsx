@@ -1,20 +1,25 @@
 // The corpus BROWSE view (the omnibox's rest state) — a facet filter bar over the owner's distilled
 // catalog. genre/tone come from `discovery.characterFacets` and the tag axis from `discovery.catalog`'s
-// top tags (each value carries its card count); `sort` orders the result (recent/name) and the free-text
-// `q` is a catalog substring filter (distinct from the omnibox's semantic search). All five drive
+// top tags (each value carries its card count) and `sort` orders the result (recent/name). All four drive
 // `discovery.browseCharacters`; each row selects a character into the dossier CONTENT. facets are
 // suspense-read (stable); the filtered rows are a plain query so a filter change re-fetches without
 // re-suspending the whole panel.
+//
+// ONE SEARCH INPUT IN THIS PANE (side-eye P2). This view used to carry its OWN free-text box ("Filter the
+// catalog", a substring `q`) four rows under the omnibox — two inputs, both narrowing the same list, whose
+// difference (substring vs semantic) is invisible to the person typing. The omnibox is the truer home: it
+// is the pane's PRIMARY control, it carries suggestions, and it searches the whole corpus rather than one
+// distilled catalog. So the second box is gone; free text is the omnibox's, FACETS are this view's. The
+// `q` param on `browseCharacters` survives server-side for a future caller — no client sends it today.
 
 import { Icon, Library } from "@orb/ui/icons";
-import { Input } from "@orb/ui/input";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useDeferredValue, useState } from "react";
+import { useState } from "react";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import { testId } from "#lib";
 import { selectCorpusCharacter } from "#state";
@@ -40,17 +45,12 @@ export function CorpusBrowseView(): ReactElement {
   const [tone, setTone] = useState(ANY_VALUE);
   const [tag, setTag] = useState(ANY_VALUE);
   const [sort, setSort] = useState(ANY_VALUE);
-  const [q, setQ] = useState("");
-  const deferredQ = useDeferredValue(q);
-
-  const trimmedQ = deferredQ.trim();
   const rows = useQuery(
     trpc.discovery.browseCharacters.queryOptions({
       ...(genre === ANY_VALUE ? {} : { genre }),
       ...(tone === ANY_VALUE ? {} : { tone }),
       ...(tag === ANY_VALUE ? {} : { tag }),
       ...(sort === ANY_VALUE ? {} : { sort: sort as "recent" | "name" }),
-      ...(trimmedQ === "" ? {} : { q: trimmedQ }),
     }),
   );
 
@@ -69,7 +69,6 @@ export function CorpusBrowseView(): ReactElement {
         <ParamSelect label="Tag" value={tag} items={tagItems} onValueChange={setTag} />
         <ParamSelect label="Sort" value={sort} items={SORT_ITEMS} onValueChange={setSort} />
       </Row>
-      <Input aria-label="Filter the catalog" onValueChange={setQ} placeholder="Filter by name or tag…" value={q} />
       <BrowseRows error={rows.error} isPending={rows.isPending} onRetry={rows.refetch} rows={rows.data ?? []} />
     </Stack>
   );

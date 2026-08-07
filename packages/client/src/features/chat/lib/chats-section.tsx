@@ -33,6 +33,7 @@ import { DraftMembersTabBody } from "../components/draft-context-tabs.tsx";
 import { CommittedSettingsTab, DraftSettingsTab } from "../components/settings-context-tab.tsx";
 import { useChatContextState } from "../hooks/use-chat-context-state.ts";
 import { ChatListSurface } from "../surfaces/chat-list-surface.tsx";
+import { useChatsSelectionTitle } from "./chats-selection-title.ts";
 import { castSectionVisible, membersTabJustified, resolveIsGroupChat } from "./roster.ts";
 
 const GROUP_FLOOR = 2;
@@ -129,6 +130,8 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     listHeader: () => <ChatListHeader />,
     // How the SHELL reads "is a room open?" — the mobile ONE-SHELL rule's input + its back affordance.
     selection: chatSectionSelection,
+    // …and what it calls the open room in the pushed frame's topbar.
+    useSelectionTitle: useChatsSelectionTitle,
     content: () => <ChatContent surfaceContributors={surfaces} toolRenderers={toolRenderers} />,
     // Topbar identity: committed roster header vs draft seed, resolved from #state/#data inside the body.
     header: () => <ChatsTopbarHeader />,

@@ -12,7 +12,7 @@ import { Tooltip, TooltipPopup, TooltipProvider, TooltipTrigger } from "@orb/ui/
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { preload } from "react-dom";
-import type { ChromeEntry, SectionId } from "#state";
+import type { ChromeEntry, ModalSlotId, SectionId } from "#state";
 import { closeModal, openModal, setActiveSection, useChromeRegistry, useModalRegistry, useSectionRegistry } from "#state";
 import { RegionAnchor } from "../anchors/region-anchor.tsx";
 import { CustomThemeStyle } from "../components/custom-theme-style.tsx";
@@ -22,6 +22,7 @@ import { Rail } from "../components/rail.tsx";
 import { SectionContent } from "../components/section-content.tsx";
 import { SectionContextHeader, SectionContextHost } from "../components/section-context-host.tsx";
 import { SectionPlaceholder } from "../components/section-placeholder.tsx";
+import { SectionTopbarTitle } from "../components/section-topbar-title.tsx";
 import { ShellTopbar } from "../components/shell-topbar.tsx";
 import { ThemeBackgroundLayer } from "../components/theme-background-layer.tsx";
 import { ThemeBackgroundVideoLayer } from "../components/theme-background-video-layer.tsx";
@@ -72,6 +73,57 @@ function TrailWidget({ entry }: { readonly entry: ChromeEntry }): ReactNode {
     return null;
   }
   return entry.behavior.body("bar");
+}
+
+/** The rail in the DOM slot its REGIME paints it in (side-eye a11y rec · WCAG 1.3.2 meaningful sequence).
+ *  On the desktop it is the leftmost column and must read FIRST; on a phone the SAME rail is the bottom tab
+ *  bar, and hearing global navigation before "where am I" is exactly backwards. ONE definition, rendered
+ *  from one of two slots — a component rather than a variable so each slot is a literal JSX branch. */
+function RailSlot({ show, activeSection }: { readonly show: boolean; readonly activeSection: SectionId }): ReactNode {
+  if (!show) {
+    return null;
+  }
+  return <Rail activeSection={activeSection} onSelectSection={setActiveSection} onOpenModal={openModal} />;
+}
+
+/** The ⌘K chip — DESKTOP-SHAPED (side-eye P1's budget): a phone has no ⌘K key, and at 320px this chip plus
+ *  its divider was ~60px of a row that had none to give. Nothing is lost: the You sheet carries the same
+ *  command modal as a named row (you-sheet.tsx), which is where every other overflow affordance lives. */
+function CommandChip({ modalId, show }: { readonly modalId: ModalSlotId | undefined; readonly show: boolean }): ReactNode {
+  if (!show) {
+    return null;
+  }
+  return (
+    <>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button
+              intent="secondary"
+              size="sm"
+              // WCAG 2.5.3 Label in Name (UI-Primitives-and-Reuse §13.10): the button READS "⌘K jump", so
+              // "jump" must be in the name — "Command menu" alone made the one word on the button
+              // unspeakable. Both vocabularies are carried, stable-first, so
+              // `getByRole("button", { name: "Command menu" })` still resolves it.
+              aria-label="Jump to… — the command menu"
+              onClick={(): void => {
+                if (modalId !== undefined) {
+                  openModal(modalId);
+                }
+              }}
+            >
+              <Kbd>⌘K</Kbd>
+              <Text as="span" size="micro" tone="muted" className="shell-topbar-jump-label">
+                jump
+              </Text>
+            </Button>
+          }
+        />
+        <TooltipPopup side="bottom">Jump to…</TooltipPopup>
+      </Tooltip>
+      <div className="shell-topbar-divider" aria-hidden="true" />
+    </>
+  );
 }
 
 export function AppShell(): ReactElement {
@@ -200,57 +252,38 @@ export function AppShell(): ReactElement {
             style={shellVars}
           >
             <CustomThemeStyle css={theme?.css ?? null} />
-            <Rail activeSection={layout.activeSection} onSelectSection={setActiveSection} onOpenModal={openModal} />
+            <RailSlot activeSection={layout.activeSection} show={!layout.mobileViewport} />
 
             <PanelChrome panel="list" label={`${layout.activeSectionLabel} list`} header={activeDef.listHeader?.()} mode={layout.listMode}>
               <RegionAnchor region="list">{listContent}</RegionAnchor>
             </PanelChrome>
 
             <div className="shell-main">
-              <ShellTopbar
-                title={layout.activeSectionLabel}
-                header={activeDef.header?.()}
-                trail={
-                  <>
-                    <Tooltip>
-                      <TooltipTrigger
-                        render={
-                          <Button
-                            intent="secondary"
-                            size="sm"
-                            // WCAG 2.5.3 Label in Name (UI-Primitives-and-Reuse §13.10): the button READS
-                            // "⌘K jump", so "jump" must be in the name — "Command menu" alone made the one
-                            // word on the button unspeakable. Both vocabularies are carried, stable-first,
-                            // so `getByRole("button", { name: "Command menu" })` still resolves it.
-                            aria-label="Jump to… — the command menu"
-                            onClick={(): void => {
-                              if (commandModalId !== undefined) {
-                                openModal(commandModalId);
-                              }
-                            }}
-                          >
-                            <Kbd>⌘K</Kbd>
-                            <Text as="span" size="micro" tone="muted" className="shell-topbar-jump-label">
-                              jump
-                            </Text>
-                          </Button>
-                        }
-                      />
-                      <TooltipPopup side="bottom">Jump to…</TooltipPopup>
-                    </Tooltip>
-                    <div className="shell-topbar-divider" aria-hidden="true" />
-                    <TopbarTrailChrome />
-                  </>
-                }
-                listAvailable={layout.listAvailable}
-                listMode={layout.listMode}
-                onToggleList={(): void => layout.togglePanel("list")}
-                // The mobile ONE-SHELL rule's back row. The label is DERIVED from the section's own rail
-                // label ("Back to Configuration", the mock's own words), so it cannot drift per section and
-                // no section authors a second vocabulary for it.
-                onBack={layout.backToList}
-                backLabel={`Back to ${layout.activeSectionLabel}`}
-              />
+              {/* KEYED on the active section: `useSelectionTitle` is a per-section hook, so the component
+                  that calls it must remount when the section does (the SectionContextHost idiom). */}
+              <SectionTopbarTitle key={layout.activeSection} definition={activeDef} fallback={layout.activeSectionLabel}>
+                {(compactTitle): ReactElement => (
+                  <ShellTopbar
+                    screenTitle={compactTitle}
+                    title={layout.activeSectionLabel}
+                    header={activeDef.header?.()}
+                    trail={
+                      <>
+                        <CommandChip modalId={commandModalId} show={!layout.mobileViewport} />
+                        <TopbarTrailChrome />
+                      </>
+                    }
+                    listAvailable={layout.listAvailable}
+                    listMode={layout.listMode}
+                    onToggleList={(): void => layout.togglePanel("list")}
+                    // The mobile ONE-SHELL rule's back row. The label is DERIVED from the section's own rail
+                    // label ("Back to Configuration", the mock's own words), so it cannot drift per section and
+                    // no section authors a second vocabulary for it.
+                    onBack={layout.backToList}
+                    backLabel={`Back to ${layout.activeSectionLabel}`}
+                  />
+                )}
+              </SectionTopbarTitle>
               {/* A11y (side-eye R3): the scroll container is tabbable, so name it from the active section's
                   visible label — the `main` landmark otherwise announces as an unnamed region.
                   INERT BEHIND AN OPEN SHEET (item 22): whenever the scrim is up it already swallows every
@@ -275,6 +308,8 @@ export function AppShell(): ReactElement {
             <PanelChrome panel="context" label={`${layout.activeSectionLabel} details`} header={contextPane.header} mode={layout.contextMode}>
               {contextPane.body}
             </PanelChrome>
+
+            <RailSlot activeSection={layout.activeSection} show={layout.mobileViewport} />
 
             {/* Stays mounted and fades via data-visible so it fades WITH the panel instead of hard-cutting on close. */}
             <button

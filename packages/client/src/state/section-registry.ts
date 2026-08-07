@@ -114,6 +114,11 @@ interface SectionWithoutList {
   readonly selection?: never;
 }
 
+/** The `useSelectionTitle` a section with nothing to name declares — the shell then prints the section
+ *  label. A shared module-level hook so the field can be REQUIRED (see it on `SectionDefinitionBase`): the
+ *  shell calls it unconditionally, which is what keeps the hook at the top level. */
+export const NO_SELECTION_TITLE = (): null => null;
+
 /** Everything a rail section declares that is INDEPENDENT of whether it has a LIST pane; the list slots
  *  ride the `SectionWithList | SectionWithoutList` arm the exported alias intersects in. */
 interface SectionDefinitionBase {
@@ -129,6 +134,16 @@ interface SectionDefinitionBase {
   readonly header?: () => ReactNode;
   /** REQUIRED — `{ kind: "none" }` is an explicit decision, never an absence. */
   readonly context: ContextDefinition;
+  /** What the MOBILE topbar calls the current screen — the OPEN member's own name (side-eye P2: every
+   *  section but chats named the SECTION over a member, because only chats supplied a topbar `header`).
+   *  A hook, called by the shell inside a component KEYED on the active section, so it may read the
+   *  section's own cache; `null` = nothing open, or the name has not landed yet — the shell then prints the
+   *  section label, never a blank bar.
+   *
+   *  REQUIRED on EVERY section, including the ones with no list: `{@link NO_SELECTION_TITLE}` is the answer
+   *  "I have no member to name", and spelling it is what lets the shell call this hook unconditionally
+   *  (an optional field means a conditional hook call — `useHookAtTopLevel`, and it is right). */
+  readonly useSelectionTitle: () => string | null;
 }
 
 /** A rail section as ONE definition. `context` is the NON-generic `ContextDefinition` (§6b) — a `tabs`

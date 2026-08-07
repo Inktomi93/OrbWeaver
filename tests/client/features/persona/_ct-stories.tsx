@@ -89,10 +89,12 @@ export function PersonaThisChatStory(): ReactElement {
  *  defect is invisible at the 320px default story width for the same reason the theme-band clip was invisible
  *  at the content-sized mount — a shortfall this narrow only shows once the box is the real one. The width is
  *  SET on the container (the mount root is content-sized and would simply grow). */
-export function PersonaPanelRowDenseStory(): ReactElement {
+export function PersonaPanelRowDenseStory({ width = 358 }: { readonly width?: number } = {}): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ width: 358 }}>
+      {/* A FIXED-width container (the narrowest-mount rule): a content-sized mount root agrees with the
+          bug. 358px is the desktop rail row; 320 is the same row inside the mobile You sheet. */}
+      <div style={{ width }}>
         <PersonaPanelRow
           expanded={false}
           isCurrent={true}

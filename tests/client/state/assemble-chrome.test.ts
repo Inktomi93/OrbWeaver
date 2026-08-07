@@ -4,7 +4,7 @@
 // zone-validation throws, and the canonical `(order, id)` per-zone order.
 
 import type { ChromeEntry, ChromeZone, ModalDefinition, SectionDefinition } from "@orb/client/state";
-import { assembleChrome } from "@orb/client/state";
+import { assembleChrome, NO_SELECTION_TITLE } from "@orb/client/state";
 import { Command } from "@orb/ui/icons";
 import { describe } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
@@ -16,6 +16,9 @@ function section(id: SectionDefinition["id"], mobile: SectionDefinition["rail"][
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: { title: id, description: id },
     content: { planned: "test" },
+    // Every section answers "what do I call the current screen?" — nothing to name here (see
+    // `NO_SELECTION_TITLE`), which is what keeps the shell's call unconditional.
+    useSelectionTitle: NO_SELECTION_TITLE,
     context: { kind: "none" },
   };
 }

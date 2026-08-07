@@ -25,6 +25,7 @@ import { ConfigContextBody, ConfigContextHeader } from "../components/config-con
 import { ConfigContentSurface } from "../surfaces/config-content-surface.tsx";
 import { ConfigRosterSurface } from "../surfaces/config-roster-surface.tsx";
 import { CONFIG_CONTEXT_EMPTY } from "./config-copy.ts";
+import { useConfigSelectionTitle } from "./config-selection-title.ts";
 
 export function makeConfigSection(collections: ContributorRegistry<CollectionContribution>): SectionDefinition {
   return {
@@ -42,6 +43,8 @@ export function makeConfigSection(collections: ContributorRegistry<CollectionCon
     listHeader: () => <ListPaneHeader title="Configuration" />,
     // How the SHELL reads "is a member open?" — the mobile ONE-SHELL rule's input + its back affordance.
     selection: configSectionSelection,
+    // …and what it calls the open member in the pushed frame's topbar (kinded — see the factory).
+    useSelectionTitle: (): string | null => useConfigSelectionTitle(collections),
     content: () => <ConfigContentSurface collections={collections} />,
     context: {
       kind: "single",
