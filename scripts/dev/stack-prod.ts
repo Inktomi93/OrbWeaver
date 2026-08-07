@@ -44,13 +44,17 @@ import {
   debugConflictMessage,
   debugPostureText,
   decideDown,
+  decideSpawnLock,
   decideUp,
+  formatDispatch,
+  mayRemovePidfile,
   parseListenerPid,
   parseProcStartTicks,
   parseProdRecord,
   parseStackArgv,
   resolveDebugArming,
   SERVER_ENTRY_REL,
+  STACK_USAGE,
   serializeProdRecord,
   spawnerForPort,
 } from "./_kit/stack-mode.ts";
@@ -63,6 +67,10 @@ const PROBE_TIMEOUT_MS = 2000;
 const TOKEN_BYTES = 24;
 const EXIT_REFUSED = 1;
 const EXIT_MISUSE = 3;
+// Two takes: one for the clean case, one after breaking a lock whose holder is dead.
+const LOCK_TAKE_ATTEMPTS = 2;
+// process.argv is [node, script, verb, ...] — the operator's own argv starts here.
+const ARGV_AFTER_VERB = 3;
 const MS_PER_SECOND = 1000;
 const SECONDS_PER_HOUR = 3600;
 const SECONDS_PER_MINUTE = 60;
@@ -94,6 +102,7 @@ function runDir(): string {
 const PIDFILE = (): string => join(runDir(), "prod.json");
 const LOG_PATH = (): string => join(runDir(), "prod.log");
 const TOKEN_PATH = (): string => join(runDir(), "debug-token");
+const LOCK_PATH = (): string => join(runDir(), "prod.spawn.lock");
 
 function log(msg: string): void {
   process.stdout.write(`stack[prod]: ${msg}\n`);
@@ -300,6 +309,69 @@ function armDebug(invocation: StackInvocation, fileEnv: Readonly<Record<string, 
   return arming.overlay;
 }
 
+// ── the spawn-window lock ────────────────────────────────────────────────────────────────────────────
+
+/** The adopt/refuse decision and the spawn are SEPARATE syscalls, so two `up prod` runs can both read
+ *  "port free" and both spawn. The loser then dies on EADDRINUSE — but only after its `writeFileSync`
+ *  clobbered the winner's record. `wx` is the atomic take (the same shape `scripts/dev/engines.ts` uses
+ *  for its adopt window, which paid for this exact class with a duplicate vLLM fleet). A lock whose
+ *  holder pid is dead is a crashed launcher's leftover and is broken loudly. */
+function acquireSpawnLock(): boolean {
+  mkdirSync(runDir(), { recursive: true });
+  for (let attempt = 0; attempt < LOCK_TAKE_ATTEMPTS; attempt += 1) {
+    if (takeSpawnLock()) {
+      return true;
+    }
+    if (!handleHeldSpawnLock()) {
+      return false;
+    }
+  }
+  log("could not take the spawn lock after breaking a stale one — another launcher won the race; no-op.");
+  return false;
+}
+
+/** The atomic take. `wx` fails if the file exists — that failure IS the mutual exclusion. */
+function takeSpawnLock(): boolean {
+  try {
+    writeFileSync(LOCK_PATH(), `${process.pid}\n`, { flag: "wx" });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Someone holds the lock. Returns true to retry the take, false to give up (a live holder owns it). */
+function handleHeldSpawnLock(): boolean {
+  let holder: number | null = null;
+  try {
+    holder = Number(readFileSync(LOCK_PATH(), "utf8").trim());
+  } catch {
+    holder = null; // vanished between the failed create and the read — a racing release
+  }
+  const action = decideSpawnLock(holder, holder !== null && processAlive(holder));
+  if (action === "refuse") {
+    log(`another launcher (pid ${holder ?? "?"}) is mid-spawn — this up is a no-op. Re-run when it finishes, or check \`stack status prod\`.`);
+    return false;
+  }
+  if (action === "break-stale") {
+    log(`breaking a stale spawn lock (holder pid ${holder ?? "?"} is dead).`);
+    try {
+      unlinkSync(LOCK_PATH());
+    } catch {
+      // lost the break race to another launcher — the retry's `wx` decides
+    }
+  }
+  return true;
+}
+
+function releaseSpawnLock(): void {
+  try {
+    unlinkSync(LOCK_PATH());
+  } catch {
+    // already gone
+  }
+}
+
 // ── verbs ────────────────────────────────────────────────────────────────────────────────────────────
 
 async function doUp(invocation: StackInvocation): Promise<number> {
@@ -344,6 +416,19 @@ async function doUp(invocation: StackInvocation): Promise<number> {
 }
 
 async function spawnProd(port: number, debug: boolean, overlay: Readonly<Record<string, string>> | undefined): Promise<number> {
+  if (!acquireSpawnLock()) {
+    result(`mode=prod status=spawn-locked port=${port}`);
+    return EXIT_REFUSED;
+  }
+  try {
+    return await spawnProdLocked(port, debug, overlay);
+  } finally {
+    releaseSpawnLock();
+  }
+}
+
+/** The spawn itself, running under the spawn lock — see `acquireSpawnLock`. */
+async function spawnProdLocked(port: number, debug: boolean, overlay: Readonly<Record<string, string>> | undefined): Promise<number> {
   mkdirSync(runDir(), { recursive: true });
   const plan = buildProdSpawnPlan({
     repoRoot: REPO_ROOT,
@@ -388,7 +473,14 @@ async function spawnProd(port: number, debug: boolean, overlay: Readonly<Record<
     if (!processAlive(pid)) {
       log("the server EXITED during boot — last log lines:");
       process.stdout.write(tailLog(BOOT_FAILURE_LOG_LINES));
-      unlinkSync(PIDFILE());
+      // GUARDED, never unconditional: only clear the record if it is still OURS. An overlapping `up`
+      // whose child died on EADDRINUSE would otherwise delete the winner's pidfile, and `down prod`
+      // would then refuse to stop the instance this tool started.
+      if (mayRemovePidfile(readRecord(), pid)) {
+        removePidfile();
+      } else {
+        log("another launcher's record is on disk — leaving its pidfile intact.");
+      }
       result(`mode=prod status=boot-failed log=${plan.logPath}`);
       return EXIT_REFUSED;
     }
@@ -569,13 +661,34 @@ function doDebugEnv(): number {
   return 0;
 }
 
+/** `classify` — the internal verb `scripts/dev/stack.sh` calls FIRST, for EVERY invocation, before it
+ *  does anything at all. The shell used to re-implement the grammar in bash and only look for a mode in
+ *  argument position 2; anything it did not recognise fell through to DEV. That is how
+ *  `restart --force prod` became "SIGKILL the port holders AND the detached vLLM fleet, then boot dev" —
+ *  a destructive verb aimed at the wrong mode. Now there is ONE grammar (`parseStackArgv`, the one the
+ *  unit tests pin), the shell switches on its output, and anything unclassifiable exits 2 with usage. */
+function doClassify(argv: readonly string[]): number {
+  const parsed = parseStackArgv(argv);
+  if (!parsed.ok) {
+    process.stderr.write(`stack: ${parsed.error}\n${STACK_USAGE}\n`);
+    return EXIT_MISUSE;
+  }
+  process.stdout.write(formatDispatch(parsed.invocation));
+  return 0;
+}
+
 async function main(): Promise<number> {
   if (process.argv[2] === "debug-env") {
     return doDebugEnv();
   }
+  if (process.argv[2] === "classify") {
+    // `--` separates our verb from the operator's argv, so an operator arg named `classify` is inert.
+    const sep = process.argv.indexOf("--", ARGV_AFTER_VERB);
+    return doClassify(sep === -1 ? process.argv.slice(ARGV_AFTER_VERB) : process.argv.slice(sep + 1));
+  }
   const parsed = parseStackArgv(process.argv.slice(2));
   if (!parsed.ok) {
-    process.stderr.write(`stack[prod]: ${parsed.error}\n`);
+    process.stderr.write(`stack[prod]: ${parsed.error}\n${STACK_USAGE}\n`);
     return EXIT_MISUSE;
   }
   const invocation = parsed.invocation;
