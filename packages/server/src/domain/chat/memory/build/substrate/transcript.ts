@@ -22,6 +22,11 @@ import type { BlockSpan, MsgRow } from "../../types.ts";
 const USER_LABEL = "User";
 const NARRATOR_LABEL = "Narrator";
 const SYSTEM_LABEL = "System";
+/** The unnameable-character floor — the same literal `resolveRowMacros` floors an unresolvable `{{char}}` to
+ *  (`@orb/kit/macro` row-macros `UNKNOWN_CHARACTER_NAME`, which is file-private there). Kept as a sibling of
+ *  the role labels above rather than reached for across the package seam: these four are the TRANSCRIPT's own
+ *  label vocabulary, and this one is only ever the last resort. */
+const CHARACTER_LABEL = "Character";
 
 /** The zero-name producer (a hand-built/preview/backfill probe with no loaded producer) — every row floors to
  *  its id-string label + the atom's own literal `{{char}}`/`{{user}}` floors ("Character"/"User"). Byte-
@@ -31,10 +36,20 @@ export const EMPTY_MACRO_NAMES: RowMacroNameContext = {
   personaNamesById: new Map<PersonaId, RowPersonaName>(),
 };
 
-/** The display label for a message's speaker in a transcript: a character's resolved name (live identity —
- *  D28; falls back to the id when the name map lacks it), else a human/system/narrator role label. NAMES are
- *  used for the SUMMARIZER input only — never for the hash (the hash uses stable ids — see {@link blockHash}). */
+/** The display label for a message's speaker in a transcript: the DECLARED narrator label first, then a
+ *  character's resolved name (live identity — D28; falls back to the id when the name map lacks it), else a
+ *  human/system role label. NAMES are used for the SUMMARIZER input only — never for the hash (the hash uses
+ *  stable ids — see {@link blockHash}), so this dispatch moves no stored hash and re-digests nothing.
+ *
+ *  THE KIND ARM LEADS, and it is a real fix rather than a re-spelling (D129): a narrator row is authored by the
+ *  room's synthetic group card, whose name is the literal string **"Group"** (`buildGroupCard`, a
+ *  never-rendered memory bucket), so every narrator recap reached the summarizer labelled `Group:` — and once
+ *  that card is deleted its `characterId` SET-NULLs and the row fell through to `NARRATOR_LABEL` by ACCIDENT,
+ *  i.e. the label changed because an unrelated card was deleted. Declared purpose answers both. */
 export function speakerLabel(row: MsgRow, macroNames: RowMacroNameContext): string {
+  if (row.kind === "narrator") {
+    return NARRATOR_LABEL;
+  }
   if (row.characterId !== null) {
     return macroNames.characterNamesById.get(row.characterId)?.name ?? row.characterId;
   }
@@ -45,7 +60,12 @@ export function speakerLabel(row: MsgRow, macroNames: RowMacroNameContext): stri
     // The HASH is unaffected (blockHash folds the stable userId — rename-robust either way); this is label-only.
     return USER_LABEL;
   }
-  return row.role === "system" ? SYSTEM_LABEL : NARRATOR_LABEL;
+  // The attribution-LESS floor. It used to answer `NARRATOR_LABEL` here, which was the third ad-hoc spelling of
+  // "is this a narrator row?" and the least defensible: it fired for any assistant row whose stamps were all
+  // NULL — an ST-imported line, a row whose authoring card was deleted — and told the summarizer a narrator
+  // said it. Narrator is DECLARED now (the arm at the top); an unattributed assistant row is just a character
+  // this install can no longer name, so it takes the same floor `{{char}}` resolution does.
+  return row.role === "system" ? SYSTEM_LABEL : CHARACTER_LABEL;
 }
 
 /** Render a block's transcript for the summarizer — `Label: body` per line, oldest→newest. The label is the

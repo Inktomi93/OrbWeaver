@@ -3,7 +3,17 @@
 // Order: scope-to-speaker → splice in_chat by depth → name-stamp → squash same-role → continuation nudge.
 // Name-stamp runs before the final squash so adjacent distinct-character rows keep every speaker's label.
 
-import type { AssembleContext, ChatInjection, GroupConfig, MessageView, ShapeRowSource, ShapeTraceRow } from "@orb/contracts/chat";
+import type {
+  AssembleContext,
+  ChatInjection,
+  GroupConfig,
+  MessageKind,
+  MessageKindPolicy,
+  MessageView,
+  ShapeRowSource,
+  ShapeTraceRow,
+} from "@orb/contracts/chat";
+import { MESSAGE_KIND_POLICY } from "@orb/contracts/chat";
 import type { RoleHandling } from "@orb/contracts/connection";
 import type { NamesBehavior } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -30,13 +40,18 @@ type DeliveredRole = WireRole | "system";
 
 /** One loaded canon row SHAPE consumes (from `persistence/queries.loadCanonHistory`, already sanitized).
  *  `authorName` = the stored authoring name (persona on user rows, character on assistant rows);
- *  `characterId` = the authoring character (identity attribution — drives the distinct-speaker gate). */
+ *  `characterId` = the authoring character (identity attribution — drives the distinct-speaker gate);
+ *  `kind` = the row's DECLARED purpose (D129), which is what the label policy and the trace dispatch on —
+ *  never re-derived here from role × attribution. Optional because a synthetic row SHAPE builds itself (the
+ *  appended user turn, an egocentric fold's rewritten line) is not a canon row and declares no purpose;
+ *  absent reads as `standard` at every dispatch. */
 interface CanonRow {
   role: WireRole;
   content: string;
   authorName?: string | null;
   characterId?: CharacterId | null;
   messageId?: MessageId | undefined;
+  kind?: MessageKind | undefined;
 }
 
 /** A name-stamped wire row (the SHAPE output row). */
@@ -123,6 +138,9 @@ function scopeHistoryToTarget(canon: readonly CanonRow[], targetId: CharacterId)
         role: "user",
         content: name.length > 0 ? `${name}: ${m.content}` : m.content,
         messageId: m.messageId,
+        // Purpose survives the fold: the WIRE role changed, the row did not stop being what it is (D129's
+        // three orthogonal axes — the fold moves DELIVERY, never PURPOSE).
+        kind: m.kind,
       };
     }
     return m;
@@ -187,6 +205,8 @@ export function computeHistoryBreakpoint(
 interface RowFacts {
   readonly source: ShapeRowSource;
   readonly name?: string;
+  /** The contributing canon row's DECLARED purpose; absent for an assembled row (no slot, no purpose). */
+  readonly kind?: MessageKind;
 }
 
 /** Collapse a delivered row's contributing rows into one fact. Uniform provenance ⇒ that arm; MIXED ⇒
@@ -196,7 +216,12 @@ interface RowFacts {
 function mergeRowFacts(parts: readonly RowFacts[]): RowFacts {
   const source = collapseSources(parts);
   const name = parts.find((part) => part.name !== undefined)?.name;
-  return name === undefined ? { source } : { source, name };
+  const kind = parts.find((part) => part.kind !== undefined)?.kind;
+  return {
+    source,
+    ...(name === undefined ? {} : { name }),
+    ...(kind === undefined ? {} : { kind }),
+  };
 }
 
 function collapseSources(parts: readonly RowFacts[]): ShapeRowSource {
@@ -218,7 +243,14 @@ function preSquashRowFacts(namedInput: readonly WireRow[], injected: readonly (C
     const authorName = origin !== undefined && "authorName" in origin ? (origin.authorName ?? undefined) : undefined;
     const source: ShapeRowSource = row.messageId === undefined ? "assembled" : "canon";
     const name = row.name ?? authorName;
-    return name === undefined ? { source } : { source, name };
+    // PURPOSE off the same pre-name origin row the voice comes from — a canon row declares one, a spliced
+    // injection/nudge does not (and `assembled` is the arm that says so).
+    const kind = origin !== undefined && "kind" in origin ? origin.kind : undefined;
+    return {
+      source,
+      ...(name === undefined ? {} : { name }),
+      ...(kind === undefined ? {} : { kind }),
+    };
   });
 }
 
@@ -258,7 +290,15 @@ function traceDeliveredRows(args: {
       return [];
     }
     const facts = mergeRowFacts(run.flatMap((source) => stage[source] ?? []));
-    return [{ role: row.role, ...(facts.name === undefined ? {} : { name: facts.name }), source: facts.source, chars: row.content.length }];
+    return [
+      {
+        role: row.role,
+        ...(facts.name === undefined ? {} : { name: facts.name }),
+        source: facts.source,
+        ...(facts.kind === undefined ? {} : { kind: facts.kind }),
+        chars: row.content.length,
+      },
+    ];
   });
 }
 
@@ -390,22 +430,31 @@ function compactionCoveredThroughSeq(ctx: AssembleContext): number {
 
 /** One ASSISTANT canon row → its wire row.
  *
- *  A narrator row's inline `<speaker>NAME</speaker>` markers are kept in STORED canon (the renderer colors by
+ *  A NARRATOR row's inline `<speaker>NAME</speaker>` markers are kept in STORED canon (the renderer colors by
  *  them) but must not ride into the prompt as raw XML: it wastes tokens AND trains the model to parrot the
  *  syntax. They convert to the plain `NAME: ` attribution the transcript already speaks — the SAME form the
- *  name-stamp uses. A body with no markers (every per-speaker / solo row) is returned unchanged, so this is a
- *  byte-identical no-op everywhere else. */
+ *  name-stamp uses.
+ *
+ *  THE STRIP IS GATED ON THE DECLARED KIND (D129), not applied to every assistant row and left to be a no-op
+ *  on the ones that carry no markers. Tag-ABSENCE is not the same claim as "this row is not narrator-voiced":
+ *  a standard row whose author typed `<speaker>` into their own prose was silently re-written by an
+ *  attribution transform that had no business reading it, and "is this a narrator row?" had three ad-hoc
+ *  spellings (here, the client's `narratorVoiced` inference, memory's label fallback) that could disagree.
+ *  One field read, one answer. Byte-identical for every real narrator row, which is the only row the strip
+ *  was ever for. */
 function assistantShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryMacroNames, nameById: ReadonlyMap<CharacterId, string>): CanonRow {
   const authorName = m.characterId !== null ? (nameById.get(m.characterId) ?? null) : null;
+  const body = m.kind === "narrator" ? speakerTagsToPlain(m.content) : m.content;
   return {
     role: "assistant",
-    content: renderHistoryMacros(speakerTagsToPlain(m.content), { characterId: m.characterId, personaId: m.personaId }, ctx, {
+    content: renderHistoryMacros(body, { characterId: m.characterId, personaId: m.personaId }, ctx, {
       producer: macroNames,
       speakerCharName: authorName ?? undefined,
     }),
     characterId: m.characterId,
     authorName,
     messageId: m.id,
+    kind: m.kind,
   };
 }
 
@@ -417,7 +466,49 @@ function userShapeRow(m: MessageView, ctx: AssembleContext, macroNames: HistoryM
     content: renderHistoryMacros(m.content, { characterId: m.characterId, personaId: m.personaId }, ctx, { producer: macroNames }),
     authorName: userRowAuthorName(m, macroNames, ctx.triggerUserId ?? null),
     messageId: m.id,
+    kind: m.kind,
   };
+}
+
+/**
+ * THE PROMPT-POLICY DISPATCH (D129(G)) — does a row of this DECLARED purpose enter the assembled prompt at
+ * all? Total over `MESSAGE_KIND_POLICY[kind].prompt` with an `assertNever` tail (spine §5.5), so a fourth kind
+ * cannot build until it declares what the prompt does with it. Until this landed, `comment: {prompt:"never"}`
+ * was a policy row nothing enforced — the record described a behavior no code performed.
+ *
+ *   • `conversation`   — an ordinary history row.
+ *   • `system-channel` — ALSO delivered today, assistant-voiced and byte-identically to `conversation`. The
+ *     narrator→wire-`system` mapping this arm names is a SHAPE-time dispatch on kind × a per-model capability
+ *     that no live wire probe has set yet (D129(B): the mapping is COMMITTED, not built; the capability fact
+ *     is never a model-name guess, D69). The arm exists so the mapping lands HERE when the probe does — it
+ *     never means "drop the row", which is why this is a policy read and not a truthiness test.
+ *   • `never`          — not prompt material (an OOC `comment`): dropped.
+ *
+ * The `role === "system"` drop above is a SEPARATE, still-live gate on the ROLE plane, deliberately NOT folded
+ * into this one. D32 keeps `system` the injection plane, but an ST import mints system-ROLE canon rows
+ * (`kit/serde/chat::roleOf` — `is_system:true`), and those rows are `standard`-kind, so the purpose policy
+ * would now admit them into a wire history whose `CanonRow.role` is a two-arm `user|assistant` union. Two
+ * planes, two gates; collapsing them would ship ST's assembly-dropped rows into every prompt.
+ */
+function entersPrompt(kind: MessageKind): boolean {
+  // The local is ANNOTATED rather than inferred: biome's type service cannot see through the cross-package
+  // `Readonly<Record<MessageKind, …>>` index and narrows the switch subject to `never`, which makes it call
+  // every arm below unreachable (`noUnnecessaryConditions`). tsc is fine either way; the annotation is what
+  // keeps both readers agreeing, and it is the same shape the policy record declares.
+  const policy: MessageKindPolicy["prompt"] = MESSAGE_KIND_POLICY[kind].prompt;
+  switch (policy) {
+    case "conversation":
+    case "system-channel":
+      return true;
+    case "never":
+      return false;
+    default:
+      return assertNeverPromptPolicy(policy);
+  }
+}
+
+function assertNeverPromptPolicy(policy: never): never {
+  throw new Error(`toShapeCanon: unhandled MESSAGE_KIND_POLICY prompt arm ${JSON.stringify(policy)}`);
 }
 
 /**
@@ -445,7 +536,7 @@ export function toShapeCanon(
   });
   const coveredThroughSeq = compactionCoveredThroughSeq(ctx);
   const rows: CanonRow[] = canon
-    .filter((m) => !(m.excludedFromPrompt || m.role === "system" || m.seq <= coveredThroughSeq))
+    .filter((m) => !(m.excludedFromPrompt || m.role === "system" || m.seq <= coveredThroughSeq) && entersPrompt(m.kind))
     .map((m) => (m.role === "assistant" ? assistantShapeRow(m, ctx, macroNames, nameById) : userShapeRow(m, ctx, macroNames)));
   // MACROS FIRST, THEN REGEX (D121-E): every row above resolved its own stamps through
   // `renderHistoryMacros`; the leg rewrites that resolved text and returns copies — `rows` itself is what

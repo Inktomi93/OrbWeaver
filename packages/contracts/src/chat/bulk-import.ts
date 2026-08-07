@@ -7,6 +7,7 @@
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { ChatMetadata } from "./metadata.ts";
+import type { MessageKind } from "./participants.ts";
 
 /** One resolved variant (swipe) row for a bulk-imported message (D26 — the SELECTED variant carries the
  *  rendered content). `idx` is 0-based within the slot's pool; the economics subset is what an ST import
@@ -41,13 +42,20 @@ export interface BulkImportMessageInput {
    *  every seat, so an unrostered or foreign id is refused, never silently seated. Ignored on a `user` slot
    *  (attribution there is `authorUserId` + `personaId`). */
   readonly characterId?: CharacterId | null;
-  /** This assistant slot is voiced by the room's SYNTHETIC group identity — the `output:"narrator"` grammar,
-   *  where one message voices the whole cast and is authored by the per-room `__group__<chatId>` character
-   *  rather than any roster card (`domain/chat/verbs/turn.ts` mints it the same way for a live narrator
-   *  round). The id cannot be supplied by the caller — it is keyed by a chatId the write op mints — so the
-   *  intent rides as this flag and the op resolves it through the SAME injected minter the turn verb uses.
-   *  Wins over {@link characterId} when both are set. Absent/false ⇒ ordinary card attribution. */
-  readonly narrator?: boolean;
+  /** The slot's DECLARED PURPOSE (`messages.kind`, D129) — carried through the import boundary rather than
+   *  re-derived on the far side, because purpose is a per-row fact and every inference for it (role ×
+   *  attribution × the room's dial) degrades. ABSENT ⇒ `DEFAULT_MESSAGE_KIND` (`standard`): a plain ST
+   *  transcript declares no purpose, and saying so here is the explicit default D129(G) asks for.
+   *
+   *  `narrator` ALSO routes attribution: the row is voiced by the room's SYNTHETIC group identity — the
+   *  `output:"narrator"` grammar, where one message voices the whole cast and is authored by the per-room
+   *  `__group__<chatId>` character rather than any roster card (`domain/chat/verbs/turn.ts` mints it the same
+   *  way for a live narrator round). That id cannot be supplied by the caller — it is keyed by a chatId the
+   *  write op mints — so the DECLARATION is what rides, and the op resolves the identity through the SAME
+   *  injected minter the turn verb uses. It wins over {@link characterId} when both are set. (This field
+   *  replaced a `narrator?: boolean` flag: two spellings of one axis is exactly the overload D129 unwinds,
+   *  and the flag could not carry `comment` at all.) Ignored on a `user` slot for attribution purposes. */
+  readonly kind?: MessageKind;
 }
 
 /** One resolved chat to bulk-import into an existing character. The SUPERSET shape — every field

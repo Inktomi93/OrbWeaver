@@ -5,7 +5,7 @@
 // never re-renders the list. A draft has no committed chatId; `DraftGreetingThread` renders each
 // founding character's greeting as a normal, editable `MessageRow` instead of an empty state.
 
-import type { CharacterAvatarEntry, ChatMacroNameProducer, ContextFitPreview, PersonaAvatarEntry } from "@orb/contracts/chat";
+import type { CharacterAvatarEntry, ChatMacroNameProducer, ContextFitPreview, MessageKind, PersonaAvatarEntry } from "@orb/contracts/chat";
 import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaAvatarMap, buildPersonaNameMap } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
@@ -155,7 +155,12 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   // The live turn's voiced speaker, resolved through the SAME resolveRowAttribution the settled row
   // uses, so the ghost's immersive decoration matches what the canonical row will show once it settles.
   const ghostSpeakerCharacterId = useTurnSpeakerCharacterId(chatId);
-  const narratorRoom = chatDetail.group.output === "narrator";
+  // THE ONE PLACE THE ROOM DIAL IS STILL THE HONEST SOURCE (D129): the GHOST is an in-flight turn with no
+  // committed row, so there is no declared kind to read — the kind this round WILL be born with is exactly
+  // what the dial says. Every settled row reads its own `message.kind` instead. The ghost must resolve
+  // through the SAME narrator branch the settled row will, or the streaming row labels "Group" for the
+  // length of the turn and then swaps to "Narrator" when it commits.
+  const ghostKind: MessageKind = chatDetail.group.output === "narrator" ? "narrator" : "standard";
   const ghostAttribution = resolveRowAttribution({
     role: "assistant",
     characterId: ghostSpeakerCharacterId,
@@ -163,9 +168,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
     participants,
     characterNamesById,
     characterAvatarsById,
-    // The ghost must resolve through the SAME narrator branch the settled row will, or the streaming row
-    // labels "Group" for the length of the turn and then swaps to "Narrator" when it commits.
-    narratorRoom,
+    kind: ghostKind,
   });
   const items = useMessageItems(messages, chatId);
   // Only rows that genuinely arrived this render get an enter transition — a windowed row remounts on
@@ -254,7 +257,6 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         autoFixMarkdown={messageAppearance.autoFixMarkdown}
         displayScripts={displayScripts}
         colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
-        narratorRoom={narratorRoom}
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
         metadataVisibility={messageAppearance.metadataVisibility}
         viewerIsHost={chatDetail.viewerIsHost === true}

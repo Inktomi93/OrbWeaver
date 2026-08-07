@@ -4,6 +4,9 @@
 // never go bare — a viewer's own row always labels as "You". A null characterId in a multi-character
 // room is a neutral "Narrator", never participants[0] (which would misattribute a merged turn).
 //
+// A row that DECLARES `kind:"narrator"` (D129) resolves to the narrator ahead of every stamp-based branch —
+// `isNarratorVoiced` below is the ONE home for that question on the client, replacing the room-dial inference.
+//
 // Transcript-integrity floor: a character REMOVED from the room keeps its historical rows in the
 // transcript ("their messages stay" — the removal-confirm promise), but its `ParticipantView` is gone.
 // The name still resolves (`characterNamesById` covers every referenced id, removed or not); the AVATAR
@@ -11,7 +14,7 @@
 // historical portrait to bare initials. The live participant still WINS when present (its avatarHash can
 // carry a per-chat override the character-level producer doesn't).
 
-import type { CarriedAppearanceCast, ParticipantView } from "@orb/contracts/chat";
+import type { CarriedAppearanceCast, MessageKind, ParticipantView } from "@orb/contracts/chat";
 import { resolveCarriedTheme } from "@orb/contracts/chat";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
@@ -92,19 +95,59 @@ export interface ResolveRowAttributionInput {
   readonly authorUserId?: UserId | null | undefined;
   readonly viewerUserId?: UserId | null | undefined;
   /**
-   * The room's output mode is NARRATOR (`group.output === "narrator"`) — every assistant row is one merged,
-   * narrator-voiced turn, which is the SAME predicate `MessageRow.isNarratorVoiced` gates the in-body
-   * speaker-span grammar on.
+   * The row's DECLARED purpose (`MessageView.kind`, D129) — `narrator` is what makes an assistant row resolve
+   * to {@link NARRATOR_ATTRIBUTION} instead of its stamped card.
    *
-   * It exists because `NARRATOR_ATTRIBUTION` was UNREACHABLE in exactly the room it was written for
-   * (side-eye 2026-08-03 P1). A narrator turn is persisted against the room's SYNTHETIC group character
+   * That answer HAS to lead: a narrator turn is persisted against the room's SYNTHETIC group character
    * (`domain/character/substrate/group-character.ts` — handle `__group__<chatId>`, card name **"Group"**, a
    * never-rendered memory bucket by its own header), and that id is a real `characters` row, so it rides the
-   * chat's `characterNames` producer like any cast member. The `characterId === null` branch below therefore
-   * never fired: every row resolved a name — "Group" — and an id-hashed magenta tint, and the reader was
-   * shown a fake cast member in a room that has none.
+   * chat's `characterNames` producer like any cast member. Without a leading arm every branch below succeeds
+   * and the reader is shown a fake cast member — "Group", in an id-hashed magenta — in a room that has none
+   * (side-eye 2026-08-03 P1).
+   *
+   * IT REPLACED `narratorRoom` (the room's CURRENT `group.output === "narrator"` dial). A per-room dial cannot
+   * answer a per-row question: flip a room narrator→per-speaker and every historical narrator row instantly
+   * re-classified as an ordinary card turn, tint and all. Absent ⇒ `standard` (a pre-commit draft row that has
+   * no server slot yet), which is the same answer the dial gave for a non-narrator room.
    */
-  readonly narratorRoom?: boolean | undefined;
+  readonly kind?: MessageKind | undefined;
+}
+
+/**
+ * THE CLIENT RENDER-CHROME DISPATCH over the row-PURPOSE axis (D129(G)) — one home, read by BOTH chrome
+ * consumers: the row-level attribution above, and the in-body speaker-span grammar (`MessageRow` →
+ * `MessageContent.narratorVoiced`). Total over `MessageKind` with an `assertNever` tail (spine §5.5), so a
+ * fourth kind cannot build until someone rules on how it renders.
+ *
+ *   • `narrator` — YES. A narrator row is the only place ONE body carries more than one speaker, so it is the
+ *     only place the plain-`Name:` span grammar may fire and the only row that labels as the narrator.
+ *   • `standard` — no. A user row's leading `Alice:` is that member's own prose, and letting it attribute
+ *     would be a display-tier forge of the label the SHAPE name-stamp owns; an assistant row is its card.
+ *   • `comment`  — no. An OOC comment is one voice (its own). It has no writer yet (D41), so this is the
+ *     answer that keeps the dispatch total, not a chrome design — a comment renders as an ordinary row until
+ *     the lane that mints its writer designs its treatment.
+ *
+ * `undefined` is a row with no server slot yet (a pre-commit draft greeting) — `standard`, same as before.
+ * It is deliberately NOT the ROLE that gates this any more: the old predicate was
+ * `narratorRoom && role === "assistant"` — an inference over the room's CURRENT output dial that
+ * mis-classified every historical row the moment the dial moved, and that could not survive the synthetic
+ * card being deleted.
+ */
+export function isNarratorVoiced(kind: MessageKind | undefined): boolean {
+  switch (kind) {
+    case "narrator":
+      return true;
+    case undefined:
+    case "standard":
+    case "comment":
+      return false;
+    default:
+      return assertNeverMessageKind(kind);
+  }
+}
+
+function assertNeverMessageKind(kind: never): never {
+  throw new Error(`isNarratorVoiced: unhandled MessageKind ${JSON.stringify(kind)}`);
 }
 
 export function resolveRowAttribution(input: ResolveRowAttributionInput): RowAttribution {
@@ -139,9 +182,9 @@ function resolveUserAttribution(input: ResolveRowAttributionInput): RowAttributi
 }
 
 function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttribution {
-  // A narrator room's assistant row IS the narrator, whatever producer id the write stamped on it — see
-  // `narratorRoom`. This has to lead: the stamped id resolves to a name, so every branch below it succeeds.
-  if (input.narratorRoom === true) {
+  // A row that DECLARES itself narrator IS the narrator, whatever producer id the write stamped on it — see
+  // `kind`. This has to lead: the stamped id resolves to a name, so every branch below it succeeds.
+  if (isNarratorVoiced(input.kind)) {
     return NARRATOR_ATTRIBUTION;
   }
   if (input.characterId === null) {

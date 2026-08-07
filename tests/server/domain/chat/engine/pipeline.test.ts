@@ -66,6 +66,9 @@ const rowOf = (role: "user" | "assistant", content: string): MessageView => {
   return {
     id: `message_fixture_${nextRowId}`,
     role,
+    // A real row always DECLARES its purpose (`messages.kind`, NOT NULL default `standard`); a double that
+    // omits it models a row the read seam cannot produce (D129).
+    kind: "standard",
     content,
     excludedFromPrompt: false,
     characterId: null,
@@ -456,7 +459,16 @@ describe("runTurnPipeline — compaction shrinkage (covered turns fall out of hi
   // toShapeCanon; a full factory would carry irrelevant canon fields.
   const seqRow = (seq: number, role: "user" | "assistant", content: string): MessageView =>
     // FABRICATION-OK: slim MessageView double — toShapeCanon reads only role/content/seq/excludedFromPrompt/id.
-    ({ role, content, seq, excludedFromPrompt: false, characterId: null, personaId: null, id: castId<MessageId>(`m${seq}`) }) as unknown as MessageView;
+    ({
+      role,
+      kind: "standard",
+      content,
+      seq,
+      excludedFromPrompt: false,
+      characterId: null,
+      personaId: null,
+      id: castId<MessageId>(`m${seq}`),
+    }) as unknown as MessageView;
   const canonRows = [
     seqRow(1, "user", "COVERED-USER-ONE"),
     seqRow(2, "assistant", "COVERED-ASSISTANT-TWO"),
@@ -496,11 +508,16 @@ describe("runTurnPipeline — compaction shrinkage (covered turns fall out of hi
 // Re-feeding that XML into every later prompt burns tokens AND teaches the model to parrot the syntax, so
 // the shaped history converts them to the plain `NAME: ` attribution the transcript already speaks. The
 // conversion lives in `toShapeCanon` — the ONE funnel the turn pipeline and the host shape-trace share.
+//
+// AMENDED 2026-08-07 (D129): the conversion is gated on the row's DECLARED `kind:"narrator"`, not run blind
+// over every assistant row. These fixtures therefore declare what they are — which is also what they always
+// depicted (the describe block's own subject is narrator rows).
 describe("runTurnPipeline — <speaker> markers convert to plain attribution in the prompt history", () => {
-  const markerRow = (seq: number, content: string): MessageView =>
-    // FABRICATION-OK: slim MessageView double — toShapeCanon reads only role/content/seq/excludedFromPrompt/id.
+  const markerRow = (seq: number, content: string, kind: MessageView["kind"] = "narrator"): MessageView =>
+    // FABRICATION-OK: slim MessageView double — toShapeCanon reads only role/kind/content/seq/excludedFromPrompt/id.
     ({
       role: "assistant",
+      kind,
       content,
       seq,
       excludedFromPrompt: false,
@@ -523,6 +540,14 @@ describe("runTurnPipeline — <speaker> markers convert to plain attribution in 
     const canon = [markerRow(1, "Hold the line.")];
     const { args } = baseArgs({ canon });
     expect(historyText((await runTurnPipeline(args)).request)).toContain("Hold the line.");
+  });
+
+  test("a STANDARD row's identical bytes ride the wire untouched — the strip is the narrator's, not everyone's", async () => {
+    // Tag-ABSENCE used to stand in for "not a narrator row", so this transform ran on every assistant row and
+    // silently rewrote an author's own `<speaker>` prose. Purpose is declared now, so the blind pass is gone.
+    const canon = [markerRow(1, "<speaker>Aria</speaker>Hold the line.", "standard")];
+    const { args } = baseArgs({ canon });
+    expect(historyText((await runTurnPipeline(args)).request)).toContain("<speaker>Aria</speaker>Hold the line.");
   });
 });
 
@@ -608,6 +633,7 @@ const KAI = castId<CharacterId>("char_kai");
 const assistantRow = (content: string, characterId: CharacterId): MessageView =>
   ({
     role: "assistant",
+    kind: "standard",
     content,
     excludedFromPrompt: false,
     characterId,
@@ -617,6 +643,7 @@ const assistantRow = (content: string, characterId: CharacterId): MessageView =>
 const userRowWithPersona = (content: string, personaId: PersonaId): MessageView =>
   ({
     role: "user",
+    kind: "standard",
     content,
     excludedFromPrompt: false,
     characterId: null,

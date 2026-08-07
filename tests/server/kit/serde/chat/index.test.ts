@@ -199,6 +199,7 @@ const BUILD_DATE = Date.UTC(2025, 7, 27, 18, 36); // August 27, 2025 6:36pm UTC 
 function pmsg(over: Partial<ParsedChatMessage> = {}): ParsedChatMessage {
   return {
     role: "assistant",
+    kind: "standard",
     speakerName: "Aria",
     content: "hello",
     sendDate: BUILD_DATE,
@@ -343,6 +344,40 @@ describe("agent_author provenance (PD-17)", () => {
     const badLine = JSON.stringify({ is_user: false, mes: "hi", agent_author: { name: "", source_kind: "buddy" } });
     const parsed = parseChatJsonl(`${header()}\n${badLine}`, { fileName: "x.jsonl", charDirName: "Aria" });
     expect(parsed?.messages[0]?.agentAuthor).toBeUndefined();
+  });
+});
+
+// D129: a row's PURPOSE is a declared fact, so it has to survive the interchange — otherwise an export/import
+// round trip silently re-classifies a narrator row as an ordinary card turn (which is what the pack the seeder
+// ships used to rely on a NAME match to avoid).
+describe("message KIND rides the interchange as ST's own `extra.type`", () => {
+  test("a narrator row emits `extra.type: narrator`; a standard row's line is byte-identical to before the axis", () => {
+    const narratorLine = JSON.parse(buildChatJsonl(pchat([pmsg({ kind: "narrator" })])).split("\n")[1] ?? "") as { extra: Record<string, unknown> };
+    expect(narratorLine.extra["type"]).toBe("narrator");
+    const standardLine = JSON.parse(buildChatJsonl(pchat([pmsg()])).split("\n")[1] ?? "") as { extra: Record<string, unknown> };
+    expect(standardLine.extra["type"]).toBeUndefined();
+  });
+
+  test("round-trips: build → parse → build carries the declared kind intact", () => {
+    const source = pchat([pmsg({ kind: "narrator" })]);
+    const reparsed = parseChatJsonl(buildChatJsonl(source), { fileName: "x.jsonl", charDirName: "Aria" });
+    expect(reparsed?.messages[0]?.kind).toBe("narrator");
+    expect(buildChatJsonl(reparsed as ParsedChat)).toBe(buildChatJsonl(source));
+  });
+
+  test("a plain ST transcript declares nothing and parses as `standard` — the explicit default", () => {
+    const rawLine = JSON.stringify({ is_user: false, mes: "hi", extra: { model: "m1" } });
+    const parsed = parseChatJsonl(`${header()}\n${rawLine}`, { fileName: "x.jsonl", charDirName: "Aria" });
+    expect(parsed?.messages[0]?.kind).toBe("standard");
+  });
+
+  test("the marker on a NON-assistant line degrades to the default (the db CHECKs narrator ⇒ assistant)", () => {
+    // A hand-edited or foreign export could carry it anywhere; landing an illegal pair would abort the whole
+    // import at the write, so the parse floors it and keeps the row.
+    const rawLine = JSON.stringify({ is_user: true, mes: "hi", extra: { type: "narrator" } });
+    const parsed = parseChatJsonl(`${header()}\n${rawLine}`, { fileName: "x.jsonl", charDirName: "Aria" });
+    expect(parsed?.messages[0]?.role).toBe("user");
+    expect(parsed?.messages[0]?.kind).toBe("standard");
   });
 });
 

@@ -15,6 +15,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
+import { messages as messagesTable } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { DEMO_CHAT_NARRATOR_NAME, DEMO_CHAT_PACK_VERSION, DEMO_CHATS } from "@orb/server/domain/chat";
@@ -152,6 +153,33 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
     expect([...new Set(attributed)].sort()).toEqual(["Charlotte", "JFC"]);
     // And the SAME bytes with no cast names stay one flat span (the grammar is roster-anchored, not greedy).
     expect(narratorBodies.every((body) => parseSpeakerSpans(body).length === 1)).toBe(true);
+  });
+
+  // D129: the pack DECLARES which rows are narrator (`extra.type`, ST's own marker) instead of the seeder
+  // recognising the synthetic card's display NAME. This drives the whole serde→import→canon chain: parse →
+  // `BulkImportMessageInput.kind` → the `messages.kind` stamp + the synthetic-identity attribution routing.
+  test("the shipped pack DECLARES its narrator rows, and they land as narrator CANON", async ({ db, app }) => {
+    const { readFile } = await import("node:fs/promises");
+    const { fileURLToPath } = await import("node:url");
+    const dir = fileURLToPath(new URL("../../../../packages/server/src/entry/boot/seed-assets/demo-chats/", import.meta.url));
+    const rows = (await readFile(`${dir}second-opinion.jsonl`, "utf8"))
+      .split("\n")
+      .filter((l) => l.trim() !== "")
+      .map((l) => JSON.parse(l) as Record<string, unknown>);
+    // The declaration and the exported NAME agree on the shipped bytes — which is what makes the switch to
+    // reading the declaration a no-op for this pack, and what a regenerated pack must keep true.
+    const declared = rows.filter((m) => (m["extra"] as Record<string, unknown> | undefined)?.["type"] === "narrator");
+    const namedGroup = rows.filter((m) => m["name"] === DEMO_CHAT_NARRATOR_NAME);
+    expect(declared.length).toBe(namedGroup.length);
+    expect(declared.length).toBeGreaterThan(0);
+
+    await virginBoot(db, app);
+    const canon = await db.select({ kind: messagesTable.kind, characterId: messagesTable.characterId, role: messagesTable.role }).from(messagesTable);
+    const narratorRows = canon.filter((m) => m.kind === "narrator");
+    // Every declared row became a narrator-KIND canon row (the pack seeds one room per slug, and only the
+    // narrator example carries them), authored by a real synthetic identity, at assistant role (the CHECK).
+    expect(narratorRows.length).toBeGreaterThanOrEqual(declared.length);
+    expect(narratorRows.every((m) => m.role === "assistant" && m.characterId !== null)).toBe(true);
   });
 
   test("no BLANK row lands inside a seeded conversation (the transcript's exported state-anchor slots)", async ({ db, app, services }) => {
