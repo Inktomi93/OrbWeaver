@@ -70,7 +70,6 @@
     "./selection-bar": "./src/primitives/selection-bar/index.ts",
     "./separator": "./src/primitives/separator/index.ts",
     "./series-row": "./src/primitives/series-row/index.ts",
-    "./setting-row": "./src/primitives/setting-row/index.ts",
     "./skeleton": "./src/primitives/skeleton/index.ts",
     "./slider": "./src/primitives/slider/index.ts",
     "./sortable": "./src/primitives/sortable/index.ts",

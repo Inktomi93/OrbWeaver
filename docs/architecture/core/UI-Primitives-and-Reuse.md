@@ -49,7 +49,7 @@ updated: 2026-07-13
 | global client state | one gated Zustand store | exported `set`/`getState`, >10 fields |
 | an editor draft | `createEntityDraftStore` | a bespoke persist store |
 | an entity list row (chats, presets, books, docs) | `@orb/ui/list-row` (leading · title/subtitle · trailing actions · selected) | a `Card interactive` or hand-rolled row |
-| a settings row | `@orb/ui/setting-row` | hand-rolled label+control Stacks |
+| a settings row | `@orb/ui/field` with `orientation="horizontal"` (Base UI field context wires label/description/ids — the old `setting-row` seal died in the 1.7 migration) | hand-rolled label+control Stacks, manual `useId()` label pairing |
 | bulk-select mode chrome | `@orb/ui/selection-bar` | a bespoke count+actions footer |
 | an editor's save/dirty bar | `@orb/ui/save-bar` | a bespoke sticky footer |
 | the ⌘K palette / any picker-with-search | `@orb/ui/command` (cmdk seal) | a hand-rolled filtered list |

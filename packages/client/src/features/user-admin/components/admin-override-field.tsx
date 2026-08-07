@@ -16,15 +16,14 @@
 // section.
 
 import { Button } from "@orb/ui/button";
+import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
 import type { SelectItems } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
-import { SettingRow } from "@orb/ui/setting-row";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { useId } from "react";
 
 /** The numeric row's floor formatter — the SAME default `Intl.NumberFormat` Base UI's NumberField formats
  *  its visible value with (locale + options both defaulted), so the floor sentence reads in the same
@@ -72,16 +71,14 @@ export interface AdminOverrideFieldProps {
  *  out-of-range value to `min`/`max` on blur; the section's own clamp still runs (it also rounds the
  *  integer-only knobs), so the write path is unchanged. */
 export function AdminOverrideField({ label, hint, value, onChange, overridden, floorValue, min, max, step, disabled }: AdminOverrideFieldProps): ReactElement {
-  const id = useId();
   return (
-    <SettingRow
-      id={id}
+    <Field
       label={label}
       description={floorDescription(overridden, floorValue === null ? null : NUMERIC_FLOOR_FORMAT.format(floorValue))}
+      orientation="horizontal"
       {...(hint === undefined ? {} : { hint })}
     >
       <NumberField
-        id={id}
         value={value === "" ? null : Number(value)}
         onValueChange={(next): void => onChange(next === null ? "" : String(next))}
         {...(min === undefined ? {} : { min })}
@@ -89,7 +86,7 @@ export function AdminOverrideField({ label, hint, value, onChange, overridden, f
         {...(step === undefined ? {} : { step })}
         {...(disabled === true ? { disabled: true } : {})}
       />
-    </SettingRow>
+    </Field>
   );
 }
 
@@ -107,11 +104,10 @@ export interface AdminOverrideSwitchProps {
 
 /** A boolean AppSettings-override row (immediate-write; a toggle is one value, no draft/save). */
 export function AdminOverrideSwitch({ label, hint, value, overridden, floorLabel, onSet, disabled }: AdminOverrideSwitchProps): ReactElement {
-  const id = useId();
   return (
-    <SettingRow id={id} label={label} description={floorDescription(overridden, floorLabel)} {...(hint === undefined ? {} : { hint })}>
-      <Switch id={id} checked={value} onCheckedChange={onSet} {...(disabled === true ? { disabled: true } : {})} />
-    </SettingRow>
+    <Field label={label} description={floorDescription(overridden, floorLabel)} orientation="horizontal" {...(hint === undefined ? {} : { hint })}>
+      <Switch checked={value} onCheckedChange={onSet} {...(disabled === true ? { disabled: true } : {})} />
+    </Field>
   );
 }
 
@@ -129,9 +125,8 @@ export interface AdminOverrideSelectProps {
 /** An enum AppSettings-override row (immediate-write). Base UI's Select can emit `null`; ignore it (the
  *  control never clears to null — clear is the section reset). */
 export function AdminOverrideSelect({ label, hint, value, items, overridden, floorLabel, onSet, disabled }: AdminOverrideSelectProps): ReactElement {
-  const id = useId();
   return (
-    <SettingRow id={id} label={label} description={floorDescription(overridden, floorLabel)} {...(hint === undefined ? {} : { hint })}>
+    <Field label={label} description={floorDescription(overridden, floorLabel)} orientation="horizontal" {...(hint === undefined ? {} : { hint })}>
       <Select
         aria-label={label}
         items={items}
@@ -143,7 +138,7 @@ export function AdminOverrideSelect({ label, hint, value, items, overridden, flo
         }}
         {...(disabled === true ? { disabled: true } : {})}
       />
-    </SettingRow>
+    </Field>
   );
 }
 

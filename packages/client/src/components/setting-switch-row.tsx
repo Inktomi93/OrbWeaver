@@ -6,8 +6,9 @@
 // component boundary.
 
 import { Checkbox } from "@orb/ui/checkbox";
-import { SettingRow } from "@orb/ui/setting-row";
+import { Field } from "@orb/ui/field";
 import { Switch } from "@orb/ui/switch";
+import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 
 interface SettingRowControlProps {
@@ -25,29 +26,30 @@ interface SettingRowControlProps {
 }
 
 /** One label-left / switch-right settings row (the on/off-effect shape). */
-export function SettingSwitchRow({ id, label, description, checked, onChange, onBlur }: SettingRowControlProps): ReactElement {
+export function SettingSwitchRow({ label, description, checked, onChange, onBlur }: SettingRowControlProps): ReactElement {
   return (
-    <SettingRow id={id} label={label} {...(description === undefined ? {} : { description })}>
-      {/* a11y: SettingRow renders the associated `<label htmlFor={id}>` — the shared id is the real label
-          wiring, invisible at this control. */}
-      <Switch id={id} checked={checked} onCheckedChange={onChange} {...(onBlur === undefined ? {} : { onBlur })} />
-    </SettingRow>
+    <Field label={label} orientation="horizontal" {...(description === undefined ? {} : { description })}>
+      <Switch checked={checked} onCheckedChange={onChange} {...(onBlur === undefined ? {} : { onBlur })} />
+    </Field>
   );
 }
 
-/** The checkbox sibling (the multi-pick-from-a-set shape, e.g. "which kinds to include"). */
-export function SettingCheckboxRow({ id, label, description, checked, onChange, onBlur, disabled, disabledReason }: SettingRowControlProps): ReactElement {
+export function SettingCheckboxRow({ label, description, checked, onChange, onBlur, disabled, disabledReason }: SettingRowControlProps): ReactElement {
+  const combinedDescription = (
+    <>
+      {description}
+      {disabledReason !== undefined && <Text tone="muted">{disabledReason}</Text>}
+    </>
+  );
+
   return (
-    <SettingRow id={id} label={label} {...(description === undefined ? {} : { description })} {...(disabledReason === undefined ? {} : { disabledReason })}>
-      {/* a11y: SettingRow renders the associated `<label htmlFor={id}>` — the shared id is the real label
-          wiring, invisible at this control. */}
+    <Field label={label} orientation="horizontal" {...(description === undefined && disabledReason === undefined ? {} : { description: combinedDescription })}>
       <Checkbox
-        id={id}
         checked={checked}
         onCheckedChange={(next): void => onChange(next === true)}
         {...(onBlur === undefined ? {} : { onBlur })}
         {...(disabled === undefined ? {} : { disabled })}
       />
-    </SettingRow>
+    </Field>
   );
 }

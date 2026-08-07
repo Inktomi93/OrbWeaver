@@ -19,6 +19,11 @@ const COMMIT_KEYS = new Set(["Enter", ","]);
 // Forwarded straight to Base UI Root, mirrors the autocomplete seal.
 type ComboboxPassthrough = Pick<BaseRootProps<string, true>, "filter" | "autoHighlight" | "limit">;
 
+/** Base UI's change eventDetails (reason/cancel/allowPropagation), derived from the Root prop so the
+ *  seal can never drift from it. Optional at our seam: free-text commits synthesize a change with no
+ *  originating Base UI event. */
+type ComboboxChangeDetails = Parameters<NonNullable<BaseRootProps<string, true>["onValueChange"]>>[1];
+
 export interface ComboboxProps extends ComboboxPassthrough {
   /**
    * Candidate suggestions shown in the popup. Omit entirely for pure free-text chip entry — no
@@ -30,7 +35,7 @@ export interface ComboboxProps extends ComboboxPassthrough {
   value?: readonly string[];
   /** Uncontrolled initial chip values. */
   defaultValue?: readonly string[];
-  onValueChange?: (next: string[]) => void;
+  onValueChange?: (next: string[], details?: ComboboxChangeDetails) => void;
   /**
    * Caps the number of chips. Once reached, further suggestion selections AND free-text commits
    * are silently rejected (existing chips stay removable) and the popup reports the cap instead of
@@ -113,12 +118,12 @@ export function Combobox({
   const rootItems = atCap ? [] : (items ?? []);
   const emptyContent: ReactNode = atCap ? `Maximum of ${maxItems} reached.` : emptyText;
 
-  function applyValue(next: readonly string[]): void {
+  function applyValue(next: readonly string[], details?: ComboboxChangeDetails): void {
     const nextArray = [...next];
     if (!isControlled) {
       setInternalValue(nextArray);
     }
-    onValueChange?.(nextArray);
+    onValueChange?.(nextArray, details);
   }
 
   /** Trims + dedupes typed text into one or more new chips (splitting on comma), capped. */
@@ -147,11 +152,11 @@ export function Combobox({
 
   /** The funnel for Base UI's own selection/removal path (suggestion click, keyboard-select, chip
    * remove button) — enforces `maxItems` on growth; removals always pass through. */
-  function handleRootValueChange(next: string[]): void {
+  function handleRootValueChange(next: string[], details?: ComboboxChangeDetails): void {
     if (maxItems !== undefined && next.length > value.length && next.length > maxItems) {
       return;
     }
-    applyValue(next);
+    applyValue(next, details);
   }
 
   function handleInputKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
