@@ -19,6 +19,7 @@ import { notificationsRouter } from "./routers/notifications.ts";
 import { personaRouter } from "./routers/persona.ts";
 import { pluginRouter } from "./routers/plugin.ts";
 import { presetRouter } from "./routers/preset.ts";
+import { refineryRouter } from "./routers/refinery.ts";
 import { regexRouter } from "./routers/regex.ts";
 import { rpgRouter } from "./routers/rpg.ts";
 import { searchRouter } from "./routers/search.ts";
@@ -78,6 +79,7 @@ export const appRouter = t.router({
   persona: personaRouter,
   plugin: pluginRouter,
   preset: presetRouter,
+  refinery: refineryRouter,
   rpg: rpgRouter,
 
   search: searchRouter,

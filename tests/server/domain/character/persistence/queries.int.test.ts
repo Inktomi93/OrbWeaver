@@ -8,7 +8,7 @@ import type { CharacterListCursor } from "@orb/contracts/character";
 import { characters, characterTags, tags } from "@orb/db";
 import type { CharacterHandle, CharacterId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { describe } from "vitest";
 import {
   canonicalTagsFor,
@@ -831,4 +831,47 @@ describe("canonicalTagsFor — the accepted-junction db-layer consumer read", ()
     // An empty id set is an empty map (no query).
     expect((await canonicalTagsFor(db, [])).size).toBe(0);
   });
+});
+
+// ── the refinery-signals FIELD-LEVEL heal (security pass §1 gap 2; landed WITH the score tightening) ──
+// The pass MEASURED the pre-fix parser deleting the whole object on any analysis drift
+// (`{score: 8, analysis: {tone: "dark"}}` → null — the stamped score wiped, silently). These pins hold
+// the fix: each arm heals ALONE, and only a non-object collapses the whole read.
+
+test("a drifted analysis arm heals to null WITHOUT wiping the stamped score (field-level heal)", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const id = await seedRawCharacter(db, { id: "character_heal_a", ownerId: owner, handle: castId<CharacterHandle>("heal-a") });
+  // The exact measured pre-fix loss shape, planted as RAW COLUMN BYTES (no typed-value fabrication —
+  // the corrupt state is exactly what a legacy row holds): a valid score beside an opaque analysis blob.
+  await db.run(sql`UPDATE characters SET refinery = ${JSON.stringify({ score: 8, analysis: { tone: "dark" } })} WHERE id = ${id}`);
+  const row = await loadOwnedCharacterRow(db, owner, id);
+  if (row === undefined) {
+    throw new Error("expected the owned row");
+  }
+  expect(cardOf(row).refinery).toEqual({ score: 8, analysis: null });
+});
+
+test("an out-of-range score heals ALONE (the 1-10 tightening never costs the analysis arm) and a non-object collapses whole", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const id = await seedRawCharacter(db, { id: "character_heal_b", ownerId: owner, handle: castId<CharacterHandle>("heal-b") });
+  const analysis = { preserved: [], lost: [], gained: [], soulScore: 7, soulAssessment: "kept", verdict: "ACCEPT", issues: [], recommendations: [] };
+  await db.run(sql`UPDATE characters SET refinery = ${JSON.stringify({ score: 87, analysis })} WHERE id = ${id}`);
+  const rowA = await loadOwnedCharacterRow(db, owner, id);
+  if (rowA === undefined) {
+    throw new Error("expected the owned row");
+  }
+  // 87 is the pre-tightening scale — it heals to null; the typed analysis SURVIVES.
+  expect(cardOf(rowA).refinery).toEqual({ score: null, analysis });
+
+  // A JSON-VALID non-object (a bare string) — the outer `.nullable().catch(null)` arm's real subject.
+  // (Non-JSON bytes never reach the parse seam at all: drizzle's own `{mode:"json"}` row mapper throws
+  // on them first, so that state is the driver layer's jurisdiction, not the heal's.)
+  await db.run(sql`UPDATE characters SET refinery = '"not-an-object"' WHERE id = ${id}`);
+  const rowB = await loadOwnedCharacterRow(db, owner, id);
+  if (rowB === undefined) {
+    throw new Error("expected the owned row");
+  }
+  expect(cardOf(rowB).refinery).toBeNull();
 });

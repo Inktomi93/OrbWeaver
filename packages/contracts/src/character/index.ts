@@ -66,8 +66,11 @@ export type CardDepthPrompt = z.infer<typeof cardDepthPromptSchema>;
 // Import direction is one-way BY LAW: `#refinery` never imports `#character` (its header states why).
 // The read seam's whole-object `.catch(null)` (character persistence) heals any pre-tightening loose
 // blob to null — the pre-launch bargain, no migration mechanics.
+// `score` holds the pipeline's 1-10 rubric (a score run's `overallScore`) — tightened IN THE SAME CHANGE
+// as the read seam's field-level heal split (security pass §1 gap 2's ordering condition: tightening
+// under the old whole-object catch would have wiped BOTH halves on any legacy out-of-range value).
 export const refinerySignalsSchema = z.object({
-  score: z.number().nullable(),
+  score: z.number().min(1).max(10).nullable(),
   analysis: refineryAnalyzePayloadSchema.nullable(),
 });
 export type RefinerySignals = z.infer<typeof refinerySignalsSchema>;

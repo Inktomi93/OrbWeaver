@@ -97,6 +97,10 @@ export const refineryRuns = sqliteTable(
     // Provider-reported usage; null when the backend reports none (stats parity, study §5.2).
     promptTokens: integer("prompt_tokens"),
     outputTokens: integer("output_tokens"),
+    // The keys the strip-mode payload parse silently REMOVED — dotted paths, never content (the
+    // strip-and-itemize posture, security pass §1 gap 5 / belt 6: an invented key must appear in the run
+    // record instead of vanishing into a success). Always a list; `[]` = shape-clean.
+    strippedKeys: text("stripped_keys", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [

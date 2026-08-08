@@ -1,0 +1,225 @@
+// domain/refinery/substrate/refine-prompt — PURE prompt assembly (zero I/O). The extension's prompt
+// discipline carried as design (study §1.2): system slot / mode instructions / card sections / context
+// (score results; analyze feedback when refining) / guidance — CONCATENATED, never token-spliced.
+//
+// BELT 5 BY CONSTRUCTION (design §9.4, coordinator-approved): NOTHING here touches the macro engine and
+// nothing downstream of `summarize` does either — the card's own `{{char}}`/`{{user}}` bytes reach the
+// model VERBATIM as inert text (the distill precedent), and a rewritten field round-trips back into the
+// card with its macros intact. `neutralizeMacros` here would ZWSP-corrupt applied rewrites (the model
+// echoes the split braces; `applyFields` writes them into canon; the card's macros die at chat time).
+// The substrate test pins BOTH drift directions: a seeded `{{char}}` reaches the assembled prompt
+// unresolved AND un-neutralized. Do not "harden" this file with either without re-reading the ruling.
+//
+// ANTI-DRIFT: `buildAnalyzePrompt` takes the session's ORIGINAL card as its comparison anchor — never a
+// previous rewrite (a steered rewrite must not bootstrap itself across iterations). The rewrite stage
+// works on the WORKING card (original overlaid with the latest rewrite) so iteration converges, while
+// analyze always judges against the start-of-session snapshot.
+
+import type { CharacterCard } from "@orb/contracts/character";
+import type { ProseSlotId } from "@orb/contracts/prose";
+import { resolveProseText } from "@orb/contracts/prose";
+import type {
+  RefinableField,
+  RefineryAnalyzeMode,
+  RefineryAnalyzePayload,
+  RefineryRewriteMode,
+  RefineryRewritePayload,
+  RefineryScoreMode,
+  RefineryScorePayload,
+  RefinerySelection,
+} from "@orb/contracts/refinery";
+import { REFINABLE_FIELDS } from "@orb/contracts/refinery";
+import type { AnalyzePromptArgs, RewritePromptArgs, ScorePromptArgs, StagePrompts } from "../contract/prompts.ts";
+
+// ── (stage, mode) → slot id — exhaustive mapped Records (spine §7.5; a new mode member fails tsc) ───────
+
+const SCORE_MODE_SLOTS: Record<RefineryScoreMode, ProseSlotId> = {
+  full: "refinery.score.mode.full",
+  quick: "refinery.score.mode.quick",
+};
+const REWRITE_MODE_SLOTS: Record<RefineryRewriteMode, ProseSlotId> = {
+  conservative: "refinery.rewrite.mode.conservative",
+  balanced: "refinery.rewrite.mode.balanced",
+  expansive: "refinery.rewrite.mode.expansive",
+};
+const ANALYZE_MODE_SLOTS: Record<RefineryAnalyzeMode, ProseSlotId> = {
+  full: "refinery.analyze.mode.full",
+  iteration: "refinery.analyze.mode.iteration",
+  quick: "refinery.analyze.mode.quick",
+};
+
+/** Which greetings a selection names: absent indexes ⇒ every greeting (contracts law). */
+function selectedGreetingIndexes(card: CharacterCard, selection: RefinerySelection): number[] {
+  if (!selection.fields.includes("greetings")) {
+    return [];
+  }
+  const all = card.greetings.map((_, i) => i);
+  const named = selection.greetingIndexes;
+  return named === undefined ? all : named.filter((i) => i < card.greetings.length);
+}
+
+/** One field's prose out of the card, or null when the card has none to offer. */
+function fieldTextOf(card: CharacterCard, field: Exclude<RefinableField, "greetings">): string | null {
+  switch (field) {
+    case "description":
+      return card.description;
+    case "personality":
+      return card.personality;
+    case "scenario":
+      return card.scenario;
+    case "exampleMessages":
+      return card.exampleMessages;
+    case "systemPrompt":
+      return card.systemPrompt;
+    case "postHistoryInstructions":
+      return card.postHistoryInstructions;
+    case "depthPrompt":
+      return card.depthPrompt?.prompt ?? null;
+    case "creatorNotes":
+      return card.creatorNotes;
+    default:
+      return assertNeverField(field);
+  }
+}
+
+function assertNeverField(field: never): never {
+  throw new Error(`unreachable refinable field: ${String(field)}`);
+}
+
+/** The SELECTED card fields as `## field` sections (greetings per index: `## greetings[i]`) — the shape
+ *  the system slots teach the model to echo back as `field`/`greetingIndex`. Card bytes VERBATIM (header). */
+export function buildCardSections(card: CharacterCard, selection: RefinerySelection): string {
+  const parts: string[] = [`Name: ${card.name}`];
+  for (const field of selection.fields) {
+    if (field === "greetings") {
+      for (const i of selectedGreetingIndexes(card, selection)) {
+        const text = card.greetings[i]?.text;
+        if (text !== undefined && text.length > 0) {
+          parts.push(`## greetings[${i}]\n${text}`);
+        }
+      }
+      continue;
+    }
+    const text = fieldTextOf(card, field);
+    if (text !== null && text.length > 0) {
+      parts.push(`## ${field}\n${text}`);
+    }
+  }
+  return parts.join("\n\n");
+}
+
+/** The WORKING card — the original overlaid with a rewrite payload's fields (greetings per index). The
+ *  rewrite stage reads this so a refinement round refines the latest rewrite; `applyFields` uses the
+ *  same overlay against the LIVE card with the accept-intersected entries. */
+export function overlayRewrite(card: CharacterCard, rewrite: RefineryRewritePayload): CharacterCard {
+  let out: CharacterCard = card;
+  for (const entry of rewrite.fields) {
+    if (entry.field === "greetings") {
+      if (entry.greetingIndex === undefined || entry.greetingIndex >= out.greetings.length) {
+        continue; // unaddressable — the apply belt itemizes these; the prompt overlay just skips.
+      }
+      const greetings = out.greetings.map((g, i) => (i === entry.greetingIndex ? { ...g, text: entry.text } : g));
+      out = { ...out, greetings };
+      continue;
+    }
+    out = overlayField(out, entry.field, entry.text);
+  }
+  return out;
+}
+
+function overlayField(card: CharacterCard, field: Exclude<RefinableField, "greetings">, text: string): CharacterCard {
+  switch (field) {
+    case "description":
+      return { ...card, description: text };
+    case "personality":
+      return { ...card, personality: text };
+    case "scenario":
+      return { ...card, scenario: text };
+    case "exampleMessages":
+      return { ...card, exampleMessages: text };
+    case "systemPrompt":
+      return { ...card, systemPrompt: text };
+    case "postHistoryInstructions":
+      return { ...card, postHistoryInstructions: text };
+    case "depthPrompt":
+      // A card with NO note has no directive to hang one on — the belt drops the entry at apply; the
+      // overlay mirrors that by leaving the card untouched.
+      return card.depthPrompt === null ? card : { ...card, depthPrompt: { ...card.depthPrompt, prompt: text } };
+    case "creatorNotes":
+      return { ...card, creatorNotes: text };
+    default:
+      return assertNeverField(field);
+  }
+}
+
+/** A session's born selection — every refinable field the card actually populates (study §5.3). */
+export function defaultSelectionOf(card: CharacterCard): RefinerySelection {
+  const fields = REFINABLE_FIELDS.filter((field) => {
+    if (field === "greetings") {
+      return card.greetings.some((g) => g.text.length > 0);
+    }
+    const text = fieldTextOf(card, field);
+    return text !== null && text.length > 0;
+  });
+  return { fields };
+}
+
+/** Render a score payload as rewrite-context text (per-field critique + priorities) — OUR OWN prior
+ *  output, not card bytes; rendered compactly so the rewrite grounds on it. */
+function renderScoreContext(score: RefineryScorePayload): string {
+  const lines = score.fieldScores.map((f) => {
+    const target = f.greetingIndex === undefined ? f.field : `${f.field}[${f.greetingIndex}]`;
+    return `- ${target} (${f.score}/10): weaknesses: ${f.weaknesses} | suggestions: ${f.suggestions}`;
+  });
+  return [`Score results (overall ${score.overallScore}/10):`, ...lines, `Priority improvements: ${score.priorityImprovements.join("; ")}`].join("\n");
+}
+
+/** Render analyze feedback as refinement-context text (issues + recommendations + the verdict). */
+function renderAnalyzeFeedback(analyze: RefineryAnalyzePayload): string {
+  return [
+    `Previous analysis verdict: ${analyze.verdict} (soul ${analyze.soulScore}/10).`,
+    analyze.issues.length > 0 ? `Issues to address:\n${analyze.issues.map((i) => `- ${i}`).join("\n")}` : "",
+    analyze.recommendations.length > 0 ? `Recommendations:\n${analyze.recommendations.map((r) => `- ${r}`).join("\n")}` : "",
+  ]
+    .filter((s) => s.length > 0)
+    .join("\n");
+}
+
+const GUIDANCE_HEADER = "User guidance (apply to every stage):";
+const SECTION_JOIN = "\n\n---\n\n";
+
+export function buildScorePrompt({ card, selection, mode, guidance, overrides }: ScorePromptArgs): StagePrompts {
+  const parts = [resolveProseText(SCORE_MODE_SLOTS[mode], overrides), buildCardSections(card, selection)];
+  if (guidance !== null && guidance.length > 0) {
+    parts.push(`${GUIDANCE_HEADER}\n${guidance}`);
+  }
+  return { system: resolveProseText("refinery.score.system", overrides), user: parts.join(SECTION_JOIN) };
+}
+
+export function buildRewritePrompt({ card, selection, mode, guidance, overrides, score, analyzeFeedback }: RewritePromptArgs): StagePrompts {
+  const parts = [resolveProseText(REWRITE_MODE_SLOTS[mode], overrides), buildCardSections(card, selection)];
+  if (score !== null) {
+    parts.push(renderScoreContext(score));
+  }
+  if (analyzeFeedback !== null) {
+    parts.push(renderAnalyzeFeedback(analyzeFeedback));
+  }
+  if (guidance !== null && guidance.length > 0) {
+    parts.push(`${GUIDANCE_HEADER}\n${guidance}`);
+  }
+  const systemSlot: ProseSlotId = analyzeFeedback === null ? "refinery.rewrite.system" : "refinery.refine.system";
+  return { system: resolveProseText(systemSlot, overrides), user: parts.join(SECTION_JOIN) };
+}
+
+export function buildAnalyzePrompt({ originalCard, selection, mode, guidance, overrides, rewrite }: AnalyzePromptArgs): StagePrompts {
+  const rewritten = overlayRewrite(originalCard, rewrite);
+  const parts = [
+    resolveProseText(ANALYZE_MODE_SLOTS[mode], overrides),
+    `# ORIGINAL\n\n${buildCardSections(originalCard, selection)}`,
+    `# REWRITTEN\n\n${buildCardSections(rewritten, selection)}`,
+  ];
+  if (guidance !== null && guidance.length > 0) {
+    parts.push(`${GUIDANCE_HEADER}\n${guidance}`);
+  }
+  return { system: resolveProseText("refinery.analyze.system", overrides), user: parts.join(SECTION_JOIN) };
+}

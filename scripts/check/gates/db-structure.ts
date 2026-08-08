@@ -40,9 +40,9 @@ const BASELINE_RIDER_PRODUCERS: Readonly<Record<string, string>> = {
   // entry only across W0→W1a (schema/rpg.ts landed in W0, before the domain dir).
   // roster-preset removed 2026-07-17 — the producer domain now EXISTS (RP1 leaf + verbs), so the normal
   // producer-mirror applies (Tier-1-DB.md producer-names-the-schema).
-  // refinery R0 (2026-08-08): the sessions/runs DDL rides the baseline squash; the producer domain is R1,
-  // gated behind the mandatory security-executor pass (docs/design/refinery-r0.md §7). R1 removes this row.
-  refinery: "packages/server/src/domain/refinery",
+  // refinery removed 2026-08-08 (same day it landed) — R1 built `packages/server/src/domain/refinery/`
+  // (the producer domain now EXISTS), so the normal producer-mirror applies. It rode this entry only
+  // across R0→R1, while the engine sat behind the mandatory security pass (docs/design/refinery-r0.md).
 };
 
 function findBarrel(ctx: CheckContext): SourceFile | undefined {

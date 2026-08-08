@@ -19,6 +19,7 @@ import type { NotificationsService } from "#domain/notifications";
 import type { PersonaService } from "#domain/persona";
 import type { PluginService } from "#domain/plugin";
 import type { PresetService } from "#domain/preset";
+import type { RefineryService } from "#domain/refinery";
 import type { RegexService } from "#domain/regex";
 import type { RpgService } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
@@ -51,6 +52,7 @@ export interface Services {
   readonly persona: PersonaService;
   readonly plugin: PluginService;
   readonly preset: PresetService;
+  readonly refinery: RefineryService;
   /** The rpg (lite-rpg) verb surface — carried for the W2 `rpg` router; no transport consumer until then. */
   readonly rpg: RpgService;
   readonly search: SearchService;

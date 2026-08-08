@@ -285,6 +285,8 @@ const RUN_META = {
   model: "vetted-model",
   promptTokens: 512,
   outputTokens: 256,
+  // The strip-and-itemize record (R1 belt 6): dotted paths only, never content; [] = shape-clean.
+  strippedKeys: [],
   createdAt: CREATED_AT,
 };
 

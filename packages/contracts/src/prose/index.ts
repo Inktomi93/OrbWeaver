@@ -30,6 +30,7 @@ import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_PROSE_SLOTS, IMAGERY_TEMPLATE_SLOT_ID
 import { PRESET_PROSE_SLOTS } from "#preset";
 import type { ProseHome, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
 import { isProseSlotId, PROSE_SLOT_IDS, proseOverBy, proseOverrideFromLegacy, resolveProseFrom, spliceProseTokens } from "#prose-slot";
+import { REFINERY_PROSE_SLOTS } from "#refinery";
 import { RPG_PROSE_SLOTS } from "#rpg";
 
 export type { ProseHome, ProseMacroMode, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
@@ -58,6 +59,7 @@ export const PROSE_SLOTS: Record<ProseSlotId, ProseSlotDef> = {
   ...CHAT_PROSE_SLOTS,
   ...AUTOMATION_PROSE_SLOTS,
   ...DISCOVERY_PROSE_SLOTS,
+  ...REFINERY_PROSE_SLOTS,
   ...RPG_PROSE_SLOTS,
 };
 

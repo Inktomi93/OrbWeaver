@@ -171,3 +171,39 @@ test("an avatar that cannot be re-owned lands the copy FACELESS rather than borr
 
   expect((await db.select().from(characters).where(eq(characters.ownerId, nominee.id)))[0]?.avatarAssetId).toBeNull();
 });
+
+test("the refinery signals do NOT cross the owner boundary — the copy clears them (§3.D ruling)", async () => {
+  const db = await freshDb();
+  const oldHost = await seedUser(db, { handle: castId("refhost") });
+  const nominee = await seedUser(db, { handle: castId("refnominee") });
+  const source = await seedCard(db, oldHost.id, "refina");
+  // The old host's private critique lands on the SOURCE row (what R1's analyze stamp produces).
+  await db
+    .update(characters)
+    .set({
+      refinery: {
+        score: 7,
+        analysis: {
+          preserved: [],
+          lost: [],
+          gained: [],
+          soulScore: 7,
+          soulAssessment: "private judgement",
+          verdict: "ACCEPT",
+          issues: [],
+          recommendations: [],
+        },
+      },
+    })
+    .where(eq(characters.id, source));
+
+  await copier(db)({ fromOwnerId: oldHost.id, toOwnerId: nominee.id, chatId: CHAT, characterIds: [source] });
+
+  // The copy is CLEAN (derived data the new owner regenerates in one run; every other cross-boundary
+  // path clears it — serde nulls the card wire; only same-owner duplicate carries it)…
+  const copy = (await db.select().from(characters).where(eq(characters.ownerId, nominee.id)))[0];
+  expect(copy?.refinery).toBeNull();
+  // …and the SOURCE keeps its signals (the clear is on the copy, never a mutation of the gift).
+  const kept = (await db.select().from(characters).where(eq(characters.id, source)))[0];
+  expect(kept?.refinery?.score).toBe(7);
+});

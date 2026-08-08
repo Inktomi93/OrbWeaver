@@ -96,6 +96,7 @@ import { createDomainEventBus } from "./event-bus.ts";
 import { buildImagery } from "./imagery.ts";
 import { minter } from "./minter.ts";
 import { buildPortabilityRunner } from "./portability-runner.ts";
+import { buildRefinery } from "./refinery.ts";
 import { buildRegex } from "./regex.ts";
 import { bindRoleClientsForUser } from "./role-clients.ts";
 import type { RpgComposeResult } from "./rpg.ts";
@@ -478,6 +479,17 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // PD-139(a): bind the embed-model-change → bulk purge+reindex enqueue now that `workloads` exists.
   enqueueEmbedReindex = searchDiscovery.enqueueEmbedReindex;
 
+  // ── the refinery seam (R1) — the card-refinery pipeline over the summarize rung. Needs `character`
+  // (the four injected ops) + the caller-scoped preset/prose resolvers; nothing composes on top of it.
+  const refinery = buildRefinery({
+    db,
+    now,
+    roleClients,
+    character,
+    resolveUserPresetParams,
+    loadUserSettings: settings.loadUserSettings,
+  });
+
   // ── the regex script LIBRARY (D121-E). Built before admin/chat: admin's export service needs its card
   // RE-EMBED op and chat's context needs its four-scope RESOLVE op.
   const regexCompose = buildRegex({ db, now, audit });
@@ -775,6 +787,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     persona,
     plugin,
     preset,
+    refinery,
     regex: regexCompose.regex,
     rpg,
     search,

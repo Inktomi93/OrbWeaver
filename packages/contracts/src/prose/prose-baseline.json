@@ -164,6 +164,54 @@
       "version": 1,
       "sha256": "a94274f42c496bab9d39977350a37e4eb72269e09559f656016472c3d0490280"
     },
+    "refinery.score.system": {
+      "version": 1,
+      "sha256": "467d7d95cab3fd8c6e3bf54113bd328a9749061b32b7f358788b759ecac8d2b6"
+    },
+    "refinery.rewrite.system": {
+      "version": 1,
+      "sha256": "e2ed89170021179663084310f10db6ad9ce5438718a6fee08653f5985b450135"
+    },
+    "refinery.refine.system": {
+      "version": 1,
+      "sha256": "15748afa7c8bda7d5ba42fd4246feb4c0aec0ec375124f5e34226548ae09ee47"
+    },
+    "refinery.analyze.system": {
+      "version": 1,
+      "sha256": "7d73838e248e60f5ed2ecd8a019ffd55b17b87625d3d407ffd969486407aa70a"
+    },
+    "refinery.score.mode.full": {
+      "version": 1,
+      "sha256": "c781f76244b13af5cf02e9f9d5af273488544abfa7ae1b57c73f1ce92b62cd26"
+    },
+    "refinery.score.mode.quick": {
+      "version": 1,
+      "sha256": "fb5a9aa7b680adf6ad4a9d0f0c88a56f5b0a4d58b51ca1219a854c35fed52d80"
+    },
+    "refinery.rewrite.mode.conservative": {
+      "version": 1,
+      "sha256": "5fd01e5757f07a31c8d489b50515f5d50c5bbcfb86b4f27b6c21c17bc824f78c"
+    },
+    "refinery.rewrite.mode.balanced": {
+      "version": 1,
+      "sha256": "9dd557dbc367e8f2dc9abb62f8973e6e298574ddae2bac3c1a9b08d30e369ab0"
+    },
+    "refinery.rewrite.mode.expansive": {
+      "version": 1,
+      "sha256": "68f314f078619ce46e16fc9a4300f77121569624ceded5c7d31104d3220a6595"
+    },
+    "refinery.analyze.mode.full": {
+      "version": 1,
+      "sha256": "1fcfe0aa0d0c229b252cf712ebcf6dfecc4786aba3fb795548261334a75ec48d"
+    },
+    "refinery.analyze.mode.iteration": {
+      "version": 1,
+      "sha256": "e1fd80adb89f86bf2188af5fdec33647a2d4ae9ca10909678c782b7495c546bd"
+    },
+    "refinery.analyze.mode.quick": {
+      "version": 1,
+      "sha256": "a0204dea1db08883a7105cee558b45a0ee5a6a29aade7222274f6ea4148c6548"
+    },
     "rpg.reminder.steeringLicense": {
       "version": 1,
       "sha256": "922650fc654a91000faedef2c6cf30ace94c5cbb7155d7cb0e01e6532fcc74e2"

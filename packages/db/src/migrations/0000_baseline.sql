@@ -776,6 +776,7 @@ CREATE TABLE `refinery_runs` (
 	`model` text NOT NULL,
 	`prompt_tokens` integer,
 	`output_tokens` integer,
+	`stripped_keys` text DEFAULT '[]' NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`session_id`) REFERENCES `refinery_sessions`(`id`) ON UPDATE no action ON DELETE cascade,
 	CONSTRAINT "refinery_runs_stage_check" CHECK(stage in ('score', 'rewrite', 'analyze'))
