@@ -15,6 +15,14 @@
 // rewrote their real `routing.roleDefaults`). `E2E_ALLOW_DEV_TARGET=1` restores exactly that old shape for a
 // deliberate, supervised drive against the running dev stack, and waives the guard with it.
 //
+// AMBIENT-ENV ISOLATION (`ORB_ENV_NO_FILE=1` on every isolated project): a harness stack must see ONLY what
+// this file gives it. The weaker `ORB_ENV_NO_OVERRIDE` this replaces flipped only PRECEDENCE — every key the
+// harness did NOT set was still filled from the operator's checked-in `.env`, so the suite silently ran
+// against their deploy config (`OWNER_HANDLES` redefining the box owner is what reddened e2e-smoke on
+// 2026-08-08; `WIRE_CAPTURE`/`RPG_TRACE` leaked the same way). This is the SAME hatch, for the same measured
+// reason, that `vitest.config.ts` applies to the node lanes. The `E2E_ALLOW_DEV_TARGET=1` drive deliberately
+// omits it — that path WANTS the operator's stack + `.env`, verbatim.
+//
 // The secrets here are DEV-ONLY deterministic literals (insecure by design — never a real deploy), matching
 // `scripts/dev/stack.sh` / `multi-user-fixture.sh`. `SESSION_SECRET` is ≥32 chars (the local-mode
 // superRefine) and `LOCAL_INITIAL_PASSWORD` ≥8 (the owner seed).
@@ -65,9 +73,37 @@ const CREDENTIALS_KEY = "0123456789abcdef0123456789abcdef0123456789abcdef0123456
  */
 export const E2E_DEBUG_TOKEN = "orbweaver-e2e-debug-token-insecure";
 
+/**
+ * The BOX OWNER's handle on every harness stack — pinned into each mode's `OWNER_HANDLES` below, and the
+ * handle the local fixture resets a password for.
+ *
+ * WHY IT IS PINNED (the 2026-08-08 e2e-smoke red): `ORB_ENV_NO_FILE`/`ORB_ENV_NO_OVERRIDE` aside, the server
+ * resolves WHO the owner is from `OWNER_HANDLES` (else `[DEFAULT_USER_HANDLE]` = "owner"). The operator's
+ * checked-in dev `.env` sets `OWNER_HANDLES=<their email>`, and the old `ORB_ENV_NO_OVERRIDE` hatch only
+ * flipped PRECEDENCE — a key the harness never set was still FILLED from that file. So the harness stacks
+ * booted with the operator's owner identity: `global-setup`'s multi-user seed could not find handle "owner"
+ * (`multi-user-seed: owner "owner" not found …`, which aborts the whole run in globalSetup) and
+ * `auth-smoke.forward.spec.ts`'s owner case would resolve role=user. It stayed hidden for days only because
+ * the pre-D135 owner fallback
+ * minted a TWIN row at `DEFAULT_USER_HANDLE` on exactly such a box (`04a96f459`) — the seed had been finding
+ * that bug's artifact, and the first fresh DB after the fix turned the latent gap red.
+ *
+ * Identity is part of a mode project's fixture contract, exactly like its DB/assets/ports — so it is
+ * DECLARED here, never inherited from whatever box the suite runs on.
+ */
+const HARNESS_OWNER_HANDLE = "owner";
+
+// THE THROWAWAY STATE ROOT MOVED WITH THAT PIN: `.cache/e2e-<mode>/` → `.cache/e2e/<mode>/` (2026-08-08).
+// A harness DB seeded BEFORE the pin holds the operator's handle at `role='owner'`, and D17's
+// `users_single_owner_unique` partial index makes a second owner row UNREPRESENTABLE — so boot's
+// `seedOwner("owner")` dies with `UNIQUE constraint failed: users.role` on any stale harness DB (measured
+// against this box's `.cache/e2e-local/orb.db`). A fresh path retires that state on every box at once,
+// instead of leaving a manual `rm -rf` standing between this fix and the next green run. The old
+// `.cache/e2e-*` dirs are inert leftovers — delete at leisure.
+
 /** The seeded local-mode credentials (owner via reset, member via createUser) — shared by the seed step and
  *  the specs' `loginLocal(...)` calls. Same handles the dev `multi-user-fixture.sh` uses. */
-export const LOCAL_OWNER = { handle: "owner", password: "owner-dev-pass" } as const;
+export const LOCAL_OWNER = { handle: HARNESS_OWNER_HANDLE, password: "owner-dev-pass" } as const;
 export const LOCAL_MEMBER = { handle: "member", password: "member-dev-pass" } as const;
 
 // ── single-user (the default lane; the existing 22 specs) — ISOLATED ports 8796/5181 + its own DB/assets
@@ -104,11 +140,10 @@ export const SINGLE_USER: ModeProject = {
           PORT: SINGLE_BACKEND_PORT,
           VITE_PORT: SINGLE_VITE_PORT,
           VITE_API_TARGET: `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
-          DATABASE_URL: "file:./.cache/e2e-single/orb.db",
-          ASSETS_DIR: "./.cache/e2e-single/assets",
-          // The checked-in dev `.env` loads with override:true; flip to override:false so THIS project's
-          // DATABASE_URL/ports win (the same escape hatch the local/forward projects use).
-          ORB_ENV_NO_OVERRIDE: "1",
+          DATABASE_URL: "file:./.cache/e2e/single/orb.db",
+          ASSETS_DIR: "./.cache/e2e/single/assets",
+          OWNER_HANDLES: HARNESS_OWNER_HANDLE,
+          ORB_ENV_NO_FILE: "1",
         }),
   },
   seedMultiUser: false,
@@ -146,8 +181,8 @@ const LOCAL: ModeProject = {
     PORT: LOCAL_BACKEND_PORT,
     VITE_PORT: LOCAL_VITE_PORT,
     VITE_API_TARGET: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
-    DATABASE_URL: "file:./.cache/e2e-local/orb.db",
-    ASSETS_DIR: "./.cache/e2e-local/assets",
+    DATABASE_URL: "file:./.cache/e2e/local/orb.db",
+    ASSETS_DIR: "./.cache/e2e/local/assets",
     // The reasoning-strip spec's scripted BYO provider (support/fixture-provider.ts) is a loopback endpoint the
     // custom-byo runner reaches via a raw fetch → the global egress firewall. Allowlist loopback so the box can
     // reach its OWN configured backend (127.0.0.1); the operator legitimately trusts loopback egress on a test
@@ -157,9 +192,8 @@ const LOCAL: ModeProject = {
     // per-IP login throttle (10/min) 429s partway through a serial run. Raise it for the isolated test stack
     // (the throttle itself is proven in auth-routes' own tests; here it is noise on a single-tenant loopback).
     RATE_LIMIT_LOGIN: "1000",
-    // The dev stack's checked-in `.env` loads with override:true; flip to override:false so this project's
-    // exported AUTH_MODE/DATABASE_URL win (the multi-user-fixture escape hatch).
-    ORB_ENV_NO_OVERRIDE: "1",
+    OWNER_HANDLES: HARNESS_OWNER_HANDLE,
+    ORB_ENV_NO_FILE: "1",
   },
   seedMultiUser: true,
 };
@@ -189,9 +223,11 @@ const FORWARD_HEADER: ModeProject = {
     PORT: FWD_BACKEND_PORT,
     VITE_PORT: FWD_VITE_PORT,
     VITE_API_TARGET: `http://127.0.0.1:${FWD_BACKEND_PORT}`,
-    DATABASE_URL: "file:./.cache/e2e-forward/orb.db",
-    ASSETS_DIR: "./.cache/e2e-forward/assets",
-    ORB_ENV_NO_OVERRIDE: "1",
+    DATABASE_URL: "file:./.cache/e2e/forward/orb.db",
+    ASSETS_DIR: "./.cache/e2e/forward/assets",
+    // The owner case in auth-smoke.forward.spec.ts asserts THIS handle resolves role=owner.
+    OWNER_HANDLES: HARNESS_OWNER_HANDLE,
+    ORB_ENV_NO_FILE: "1",
   },
   seedMultiUser: false,
 };
