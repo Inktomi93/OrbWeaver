@@ -651,12 +651,21 @@ security lens.
   SAME section — the cap ruling stands per tonight's word ("leave as-is"); recorded that the reuse-
   MoveControls question is narrower than the original 30-of-400 framing if ever revisited.
 - ✅ W4-BURNDOWN consolidated check on merged main: **PASS all stages** (verifier lens still running).
-- **⚑ OWNER DIRECTIVE (2026-08-08 night): CARD-REFINERY PORT STUDY.** Stickler `ad52e90d372a0b670`
-  (read-only, code-recon standards) exploring `/home/inktomi/inktomi-stack/development/neo-tavern/references/card-refinery`
-  vs orb's contracts + db schemas + card render pipeline → deliverable
-  `docs/reviews/stickler/2026-08-08-card-refinery-port-study.md` (feature inventory · capability map ·
-  PORT/IMPROVE/EXCEEDED/SKIP matrix · orb-shaped designs · sequencing w/ owner forks flagged). Owner
-  also authorized a post-queue verification sweep (side-eye on a few merged pieces).
+- **✅ CARD-REFINERY PORT STUDY DELIVERED** → `docs/reviews/stickler/2026-08-08-card-refinery-port-study.md`.
+  HEADLINE: orb PRE-BUILT the scaffold with zero producers — `refinerySignalsSchema` + `characters.refinery`
+  column + 2 shipped null-guarded readouts + sealed-unused `DiffView`/`CompareBlocks` + the PLANNED
+  refinery section (D70 founding member). The 18k ST extension → **~3.5-5k orb-native LOC**; ~10k of
+  accidental ST-sandbox machinery dies on orb's rails (JSON-schema subsystem → projectJsonSchema+
+  runStructuredTurn 0 lines; generation plumbing → providers 0; PNG writer → kit 0; IndexedDB → SQLite).
+  5 PORT rows (P1 engine ~500-700 · P2 sessions · P3 field selection · P4 per-field apply ~75 ·
+  P5 surface 1.5-2.5k) + 4 IMPROVE (incl. an orb-native batch score sweep the extension never had) +
+  9 ALREADY-EXCEEDED + 7 SKIP. Sequencing R0-R4. **OWNER FORKS F1-F7 flagged w/ recs** (F1 new
+  domain/refinery rec'd · F2 summarize-role v1 w/ `refine`-role escalation path · F3 fixed typed
+  payloads · F4 stage-mode enums · F5 card-fields-only v1). **Security-executor pass MANDATORY pre-R1**
+  (untrusted card → LLM → write-back). Prior law honored: refinery is design-first-when-scheduled
+  (BUILD-QUEUE:414), D62 rules the surface anatomy. BUILD AWAITS THE OWNER'S WORD — parked to the pile
+  as the study's output. (+2 observations: "Distill it in the Refinery" copy error
+  `corpus-dossier-surface.tsx:69`; transient sibling probe debris, gone.)
 - ✅ **W4-BURNDOWN MERGED `92fbdbca6`** (79 files: withResolvers ×8 incl. the ref-capture the brief
   missed · toSorted 94/115 type-checker-decided · DEFERRED + SPREAD-SORT arms LIVE, spread-sort
   syntactic w/ measured 14/21 recall + 100% precision, misses = mustPass declared limits). Conflict
