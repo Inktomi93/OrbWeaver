@@ -92,6 +92,9 @@ export const MODE_POLICY: Readonly<Record<RpgGameMode, RpgModePolicy>> = {
 /** The ENGINE-axis names — the boolean gates a verb reads via `requireModeCapability`. Excludes `tools`
  *  (a tuple), `prompt`/`requireToolCapable` (non-boolean strategy axes). Derived so a new boolean axis is
  *  covered without a re-spell. */
+/** @public locked shape — the derived key-union over `RpgModePolicy`'s boolean engine axes; every current
+ *  `requireModeCapability` call site reads a specific axis literal, not this union. It is the full-mode
+ *  surface a generic/iterating capability consumer would key off (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RpgModeCapabilityAxis = {
   [K in keyof RpgModePolicy]: RpgModePolicy[K] extends boolean ? K : never;
 }[keyof RpgModePolicy];

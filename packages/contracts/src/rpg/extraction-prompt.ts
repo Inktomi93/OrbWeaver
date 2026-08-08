@@ -349,6 +349,8 @@ export const RPG_BASELINE_TOOL_DESCRIPTIONS: ReadonlyMap<string, string> = build
  *  the FULL richness of the narration" instruction that lifted per-turn field coverage. Composed onto the
  *  write-surface prompts (the tool round + the structured extraction), never onto the character turn's own
  *  narration prompt (which must never be asked to carry bookkeeping it might narrate back). */
+/** @public owner-deferred decision 6 (wire-or-delete) — left dead-but-present by ruling 2026-08-08; see
+ *  docs/design/prose-1-rpg-extraction-followon.md. */
 export const RPG_STATE_TRACKING_GUIDE =
   "BE THOROUGH — the panel should reflect the FULL richness of what you narrated. Each turn record ALL that " +
   "changed: any on-screen character (mood on every demeanor shift, appearance + outfit when described, thoughts " +
