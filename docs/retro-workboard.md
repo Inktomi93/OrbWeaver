@@ -533,6 +533,24 @@ security lens.
   empty-slot chrome. **Rendered re-verify BATCHES with the FORGE#1 + PROSE-GEOMETRY preset-surface
   lens** (one side-eye over the whole preset/config fix train). Freed slot HELD (barrel-amputation +
   capability-gate follow-up both want a quiet/uncontested tree).
+- **⚑ FOLLOW-UP CAPTURE (owner caught it 2026-08-08: closed lanes had attached follow-ups I relayed
+  but never BOARDED — the "looked handled" class). Dropped rows now boarded:**
+  - **guided-prompt cap** — `guidedActionSchema.prompt` is uncapped `z.string()` reaching BOTH DB and the
+    model WIRE (`preset/index.ts:333`, the lone authored-text field with no ceiling; siblings prose 4000
+    / format 10000 / section 100000). PROSE-GEOMETRY gave it `maxRows` (geometry) but REFUSED to invent
+    a schema cap (would refuse text the wire accepts). Recon rec: a shared `MAX_INJECTION_TEMPLATE_LENGTH`
+    (=10000) referenced by formatStrings + guidedActions + the UI maxLength. Owner-decision row (in the
+    tag-contract options doc; now a board row too).
+  - **databank pagination live-drive** — DBANK-HOME proved reach+geometry via a keyset-contract stub, NOT
+    a live SQL keyset under a real shell with a >100-doc bank. Cheap verification-completeness add.
+  - **recordChatTurn spy widened** — EXTRACTION's `tests/server/entry/compose/rpg.int.test.ts` now
+    captures `systemPrompt.static` on EVERY api (was agent-sdk only) — the cheap tool round's system
+    prompt (the 2nd write surface) is now assertable; any sibling lane touching that spy inherits the
+    extra entries. Heads-up, not an action.
+  - **paged-list `.find(` sweep** — DBANK-HOME's lesson: a list surface that gains pagination silently
+    breaks every sibling that resolved an entity by `.find()` over its list page (the context-body
+    "not-in-list ⇒ deleted" bug it fixed in-lane). A tree-sweep for OTHER paged surfaces with the same
+    shape is an un-run follow-up. Durable lesson banked to memory.
 - **⚑ BENCHED-SET RE-POSE (owner: "investigate each in code+docs, options, mark the forward-thinking /
   do-it-right-once arm, then repose all"):** 4 read-only recon lanes writing options docs —
   INV persona/nudge/{{note}} (`a15d52ec2e1d40fb0`) · INV config-rail/dup/json-card (`acbfc1319e411ad29`) ·
