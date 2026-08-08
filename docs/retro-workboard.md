@@ -94,19 +94,44 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   lanes both mint. Lane briefs name their exact playwright CT files (a CT nobody names is a CT
   nobody ran).
 
-## ═══ LIVE STATE (2026-08-08, evening) ═══
+## ═══ LIVE STATE (2026-08-08, LATE — compact boundary \~91%) ═══
 
-- **main `1f62fadb5`**, \~170 ahead of origin, tree clean. **Gates 197.** **⚑ FRESH BATTERY RUN
-  2026-08-08 evening (verify --push, detached, exit read): 17/19 — `tests:node` (whole vitest+CT)
-  GREEN.** Two push-tier-only reds, both root-caused + fix lanes live: (1) orphan-ratchet —
-  `RefineryFieldScore` (contracts/refinery/index.ts:204), R1 export whose consumer is unbuilt R2 →
-  `@public` tag in the C2/C8 lane; (2) e2e-smoke — multi-user-seed owner-handle failure. **The auth
-  merges are EXONERATED** (security lane, cold-reproduced): harness stacks inherit `OWNER_HANDLES`
-  from the repo `.env` (ORB\_ENV\_NO\_OVERRIDE flips precedence only for keys the harness SETS); the
-  seed had lived off the pre-D135 twin-mint bug's artifact (last passing DB minted its twin 4 min
-  before `04a96f459` removed the class). Fix: pin `OWNER_HANDLES=owner` in e2e envs + state-root
-  move `.cache/e2e-<mode>/` → `.cache/e2e/<mode>/` (dodges stale-DB D17 unique-owner collision).
-  Re-certify battery after the fix train merges; the conditional push word spends on that green.
+- **⚑ PUSHED 2026-08-08: `d34a6702c..c635798d3 main → main`** (229 commits, hook skipped on the
+  in-session green battery, `hooksPath=/dev/null`). The whole morning's train is on origin: C1
+  persona **D137** (merged `425ca37e1`, the biggest — cast producer + card-face, sacred gate held
+  byte-untouched all 3 legs), the full C-pile, refinery R0-R2 + the crowning-feature design corpus,
+  group-engine, OR-F5, caps, e2e-seed-fix, config-IA thinking doc. Battery was FULL green (19/19
+  incl. tests:node 743s + e2e-smoke). **Standing law resets: next push needs FRESH word + FRESH
+  battery.** Origin = `c635798d3` at push; **tree since has UNCOMMITTED import fixes (below).**
+- **⚑ UNCOMMITTED ON THE TREE (held per owner word until the ST-folder import confirms working):**
+  `packages/server/src/entry/http/import-tree.ts` — (1) tree-import total cap **256 MiB → 1 GiB**
+  (owner: whole-ST-profile import; single-owner self-host, memory-DoS is a multi-user concern); (2)
+  **the real import bug** — `orbOnlyDirNames`'s ST\_SHARED\_DIRS omitted `themes/`+`assets/`, orb
+  bundle dirs whose NAMES collide with a real ST profile's `themes/`/`assets/` dirs → EVERY real ST
+  folder (always has `themes/`) tripped the both-markers ambiguity reject (400). Now excluded.
+  `tests/server/entry/import/sniff-tree-layout.test.ts` — ORB\_ONLY corrected + regression case (11/11
+  green). **⚑ DEV STACK RESTARTED** (node --watch did NOT reload the import-tree change — the 400s
+  persisted against stale code until `pnpm stack restart dev` at pgid 1243245). Owner re-importing
+  the 782M ST default-user folder now; MORE fixes may surface on real data (commit all import fixes
+  together once it lands).
+- **⚑ CONFIG IA — junk-drawer diagnosis boarded** (`docs/design/config-ia-the-junk-drawer-problem.md`,
+  committed `c635798d3`): Config is a home defined by EXCLUSION (violates one-home-per-concept at the
+  meta level); tags are a FACET not a destination (leave the rail; editor → in-place popover;
+  bird's-eye → Corpus); the "can it fill CONTEXT?" + "thing vs facet" sorting tests; regex/world-info
+  \= open (run the tests). Owner design-thinking, no build.
+- **⚑ FLEET LIVE:** gen swarm awake on :8703 (Qwen3-VL-8B, TP across both cards), embed+rerank
+  healthy — clears **D5** (engines-fleet-fix live verification). Dev stack :8788/:5173 up.
+- **⚑ REFINERY = CROWNING FEATURE:** authority doc `docs/design/refinery-schema-renderer.md` (968L,
+  committed) is the R3/SF program spec — renderer dissolves structurally (closed LIFTABLE subset →
+  total widget mapping, no raw-JSON floor), P1 pre-launch contract fixes (emptying arm, schema-embed
+  provenance, duration\_ms/usage cols, {{shape}} splice), git-state model (apply is terminal), tri-axis
+  revert, save-as-copy, OG-test steal ledger. §19 supersession map EXECUTED (`addb13faa`). R3 build
+  brief assembles from it + the 3 published mock artifacts (surface/deltas/accept-ergonomics; deltas
+  ruled A/A/A, accept = per-block Keep/Discard verbs).
+- **⚑ NO AGENTS LIVE** (owner halted dispatching for usage). Everything above done by the orchestrator
+  hands-on. C1 D137 fresh-lens graduation OWED-HELD (task #14). Prior battery-reds context (kept for
+  history): the 2026-08-08 evening 17/19 run's two reds (orphan-ratchet `RefineryFieldScore`→@public;
+  e2e-seed OWNER\_HANDLES) both fixed + graduated pre-push.
 - **Merged today, this train:** FORGE#4 CONTAINERIZE (`fd4ae9119`, check PASS) · REFINERY R0
   (`b7ca6d55a`, check PASS) · AUTH BOOT-FENCE + spec repair + shim⇔firewall pin (`06a706551`,
   check RUNNING — read `<scratchpad>/sec-leg-check.exit`).
