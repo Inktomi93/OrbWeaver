@@ -25,8 +25,9 @@ import type { Trpc } from "#data";
  *  filtered, so their rows are always `hidden: false`. */
 type ActiveDocument = inferOutput<Trpc["databank"]["listActiveForChat"]>[number];
 
-/** One row of the CALLER'S OWN bank (`databank.list`) — the picker's candidate pool. */
-type BankDocument = inferOutput<Trpc["databank"]["list"]>[number];
+/** One row of the CALLER'S OWN bank (`databank.list`) — the picker's candidate pool. The verb is paged, so
+ *  the row type comes off the page's `items`, never the page itself. */
+type BankDocument = inferOutput<Trpc["databank"]["list"]>["items"][number];
 
 /**
  * The WHOLE excluded-document set after flipping ONE row's visibility — the payload

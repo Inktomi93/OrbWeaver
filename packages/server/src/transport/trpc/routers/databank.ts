@@ -8,7 +8,7 @@
 // leak-free BAD_REQUEST (`ScrapeFailedError`). The chat GATHER op + the search.documents lens are later waves
 // (DB5/DB6). The character-scope attach/detach verbs are DB8 (owner-gated on BOTH sides).
 
-import { docOriginSchema, reindexModeSchema, reindexScopeSchema } from "@orb/contracts/databank";
+import { docOriginSchema, documentListCursorSchema, reindexModeSchema, reindexScopeSchema } from "@orb/contracts/databank";
 import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -42,12 +42,17 @@ export const databankRouter = t.router({
       ctx.services.databank.get({ principal: ctx.auth, id: input.id, ...(input.includeText !== undefined ? { includeText: input.includeText } : {}) }),
     ),
 
+  // Keyset-paged. `cursor` rides as ONE field because tRPC's `infiniteQueryOptions` threads exactly one
+  // `cursor` input through as the page param, overwriting it wholesale per next-page fetch (the
+  // `character.list` shape); `origin`/`limit` are separate top-level inputs, so changing either resets the
+  // infinite query's pages rather than mixing keysets. `.nullish()` on the cursor because the client seeds
+  // the first page with `initialCursor: null`.
   list: authedProcedure
     .input(
       z.object({
         origin: docOriginSchema.optional(),
         limit: z.number().int().min(LIMIT_MIN).max(LIMIT_MAX).optional(),
-        offset: z.number().int().min(0).optional(),
+        cursor: documentListCursorSchema.nullish(),
       }),
     )
     .query(({ ctx, input }) =>
@@ -55,7 +60,7 @@ export const databankRouter = t.router({
         principal: ctx.auth,
         ...(input.origin !== undefined ? { origin: input.origin } : {}),
         ...(input.limit !== undefined ? { limit: input.limit } : {}),
-        ...(input.offset !== undefined ? { offset: input.offset } : {}),
+        ...(input.cursor !== undefined && input.cursor !== null ? { cursor: input.cursor } : {}),
       }),
     ),
 

@@ -3,7 +3,7 @@
 // shape owned by `@orb/contracts/databank`; consumers (the workload runner, the ingest subsystem) import it
 // from there directly — one home, no re-export.
 
-import type { DocumentView, IngestOutcome } from "@orb/contracts/databank";
+import type { DocumentListCursor, DocumentView, IngestOutcome } from "@orb/contracts/databank";
 import type { DocumentId, WorkloadId } from "@orb/kit/ids";
 
 /** The enqueue's two arms as `substrate/queue-ingest` reports them, plus the audit metadata each producer
@@ -21,6 +21,15 @@ export interface UploadResult {
   readonly outcome: "created" | "duplicate";
   readonly ingest: IngestOutcome;
   readonly warning?: "empty-extraction";
+}
+
+/** One page of `list`. `nextCursor` is the last row's `(updatedAt, id)` when a FULL page came back (more may
+ *  remain below it), else `null` — the bank is exhausted, which is what the library pane's "Load more"
+ *  disappears on. The `ListCharactersResult` / `ListInboxResult` page shape, so the client's paged-collection
+ *  machine consumes all three identically. */
+export interface ListDocumentsResult {
+  readonly items: readonly DocumentView[];
+  readonly nextCursor: DocumentListCursor | null;
 }
 
 /** The `{{databank}}` gather op's return (DB6, databank-design/07 §2). Never empty — an empty retrieval /

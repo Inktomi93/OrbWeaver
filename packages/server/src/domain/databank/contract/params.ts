@@ -3,7 +3,7 @@
 // read. The chat-attach authority is the injected `ensureChatHost` op (D18 — databank never reads the chat
 // roster itself). The `reindex` scope/mode axis derives from `@orb/contracts/databank` (one home).
 
-import type { DocOrigin, ReindexMode, ReindexScope } from "@orb/contracts/databank";
+import type { DocOrigin, DocumentListCursor, ReindexMode, ReindexScope } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, ChatId, DocumentId } from "@orb/kit/ids";
 
@@ -72,7 +72,10 @@ export interface GetDocumentParams extends DatabankActorParams {
 export interface ListDocumentsParams extends DatabankActorParams {
   readonly origin?: DocOrigin;
   readonly limit?: number;
-  readonly offset?: number;
+  /** The previous page's `nextCursor` (the boundary row's `(updatedAt, id)`) — absent = the first page.
+   *  KEYSET, never an offset: the list's head moves whenever an ingest bumps a row's `updatedAt`, and an
+   *  offset would re-serve or skip rows underneath that (the `character.list` cursor precedent). */
+  readonly cursor?: DocumentListCursor;
 }
 
 export interface RenameDocumentParams extends DatabankActorParams {

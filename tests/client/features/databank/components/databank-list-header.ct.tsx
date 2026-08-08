@@ -5,7 +5,7 @@
 import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DatabankListHeaderStory } from "../_ct-stories.tsx";
-import { READY_DOC, stubDatabank } from "../fixtures.ts";
+import { pagedBank, READY_DOC, stubDatabank } from "../fixtures.ts";
 
 test("the maintenance kebab fires the owner-wide sweep, and re-extract waits for a confirm (D-6)", async ({ mount, page }) => {
   const trpc = await stubDatabank(page);
@@ -30,7 +30,7 @@ test("a page filled to the server's own limit reads 100+, never a count it did n
     ...READY_DOC,
     id: `document_${String(i + 1).padStart(20, "0")}`,
   }));
-  await stubDatabank(page, { "databank.list": () => page100 });
+  await stubDatabank(page, { "databank.list": pagedBank(page100) });
   const band = await mount(<DatabankListHeaderStory />);
 
   await expect(band.getByText(`${DATABANK_LIST_DEFAULT_LIMIT}+`, { exact: true })).toBeVisible();
