@@ -728,6 +728,53 @@ test("Escape closes an open narrow-overlay panel without writing panelOverrides"
   expect(after).toEqual(before);
 });
 
+// …and the CONTEXT side of the same guarantee (side-eye re-verify 2026-08-06). The list arm above was the
+// one the original finding named, so only it was ever driven; the chat Details sheet is the pane a phone
+// user actually meets, and "the Close button works but Escape does not" is a claim only this drive can
+// settle. Same regime, same dismiss, opposite panel.
+test("Escape closes an open CONTEXT overlay too — the same dismiss the band's Close fires", async ({ mount, page }) => {
+  await page.setViewportSize(NARROW_DESKTOP);
+  const shell = await mount(<AppShellStory />);
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+
+  await shell.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+
+  await page.keyboard.press("Escape");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+});
+
+// …and from INSIDE the sheet, which is where a keyboard user actually is after opening it: the shell's
+// listener is on `document`, so a keydown raised on the panel's own content has to bubble all the way out.
+test("Escape closes a CONTEXT overlay when focus is INSIDE the sheet, not on the toggle that opened it", async ({ mount, page }) => {
+  await page.setViewportSize(NARROW_DESKTOP);
+  const shell = await mount(<AppShellStory />);
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+
+  await shell.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+
+  // The band's own dismiss is the one control the sheet always has — focus it, then press Escape.
+  await contextPanel.getByRole("button", { name: OVERLAY_CLOSE_RE }).focus();
+  await page.keyboard.press("Escape");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+});
+
+// …and on a PHONE, where the sheet is the whole screen, the content column behind it is `inert`, and the
+// scrim it "floats over" has no reachable pixel — the arm where Escape is the only keyboard exit there is.
+test("MOBILE: Escape closes the full-screen CONTEXT sheet", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellStory />);
+  const contextPanel = page.locator('.shell-panel[data-panel-side="context"]');
+
+  await shell.getByRole("button", { name: CONTEXT_TOGGLE_RE }).click();
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "overlay");
+
+  await page.keyboard.press("Escape");
+  await expect(contextPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await expect(page.locator(".shell-content")).not.toHaveAttribute("inert", "");
+});
+
 // The mobile "You" sheet is itself the modal registry's `you` slot (Drawer) AND its overflow rows open
 // on top of a curated bottom-tab bar rather than the rail — a modal here doesn't visually cover its own
 // trigger the way the desktop rail's Settings button sits behind the panel scrim, so this is the reachable

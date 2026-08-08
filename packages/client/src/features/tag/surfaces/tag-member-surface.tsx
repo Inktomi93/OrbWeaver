@@ -132,7 +132,8 @@ function TagColorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; rea
   // values paint, so a cleared colour and a colour set to something the current theme happens to swallow
   // looked identical: two 32px swatches and no words. The VALUE goes under the picker as text — the cheap
   // honest readout — rather than a preview surface, which would be a second place for the chip to be drawn
-  // wrong. `tagColorLabel` is the one home, shared with the roster row's screen-reader datum.
+  // wrong. `tagColorLabel` is the one home; the roster row spends it on a hover tooltip only (a row is a
+  // scan line — a per-row spoken disclaimer is what the re-verify caught this fix regressing into).
   return (
     <Row align="start" className="*:w-auto" gap="block">
       <Field label="Background" name="tag-color">

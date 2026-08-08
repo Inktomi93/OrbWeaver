@@ -865,6 +865,15 @@
     ) {
     display: none;
   }
+  /* …and the CHILDLESS case the rule above cannot reach (side-eye re-verify 2026-08-06). Refinery declares
+   * NO `listHeader` at all, so its band has zero children — no identity slot for the `:has()` chain to
+   * anchor on — and it kept painting 48px of nothing. This is the CONTEXT side's own long-standing rule
+   * (the `:empty` collapse at the top of this file) finally spelled for the LIST band. Two rules, not one:
+   * `:empty` is kids:[] and cannot see a present-but-unpainted cluster, while the chain above cannot see an
+   * absent one. */
+  .shell-grid[data-list-mode="docked"] .shell-panel[data-panel-side="list"] .shell-panel-header:empty {
+    display: none;
+  }
 
   /* Mobile blur kill-switch — backdrop-filter is too costly on small/low-power devices.
    * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts */
