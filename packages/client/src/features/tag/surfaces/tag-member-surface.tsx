@@ -143,29 +143,28 @@ function TagColorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; rea
   // tooltip still spends `tagColorLabel`'s keyed form.
   return (
     <Row align="start" className="*:w-auto" gap="block">
-      <Field
-        description={
-          <Text as="span" voice="datum">
-            {tagColorValueLabel(tag.color)}
-          </Text>
-        }
-        label="Background"
-        name="tag-color"
-      >
+      <Field description={<TagColorReadout value={tag.color} />} label="Background" name="tag-color">
         <ColorField onValueChange={(value): void => patchStyle({ color: value === "" ? null : value })} value={tag.color ?? ""} />
       </Field>
-      <Field
-        description={
-          <Text as="span" voice="datum">
-            {tagColorValueLabel(tag.color2)}
-          </Text>
-        }
-        label="Text"
-        name="tag-color2"
-      >
+      <Field description={<TagColorReadout value={tag.color2} />} label="Text" name="tag-color2">
         <ColorField onValueChange={(value): void => patchStyle({ color2: value === "" ? null : value })} value={tag.color2 ?? ""} />
       </Field>
     </Row>
+  );
+}
+
+/** The colour slot's readout — and its VOICE follows what the words ARE (side-eye 2026-08-08 P3).
+ *
+ *  Both states rode `voice="datum"`, which is the MONO tabular value voice: right for `#3366aa` (that is a
+ *  value, and mono is what makes a column of hexes readable), wrong for "Not set — uses the theme default",
+ *  which is a SENTENCE. Prose set in tabular mono reads as machine output — the one voice that says "this
+ *  string is data" applied to the one string that is explanation. The unset arm takes `gloss`, the quiet
+ *  explanatory sans voice the rest of the editor's descriptions already speak. */
+function TagColorReadout({ value }: { readonly value: string | null }): ReactElement {
+  return (
+    <Text as="span" voice={value === null ? "gloss" : "datum"}>
+      {tagColorValueLabel(value)}
+    </Text>
   );
 }
 

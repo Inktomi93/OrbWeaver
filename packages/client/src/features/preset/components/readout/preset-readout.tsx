@@ -109,11 +109,16 @@ function ActiveProfile({
         {isSystemDefault ? <Text voice="gloss">The built-in preset runs generation until you activate one of your own.</Text> : null}
       </Section>
       {/* The resolve's ERROR rides alongside its data (F-02): absent+no-error is PENDING, absent+error is a
-          routing failure. Handing only the data over would make the panel state one as the other. */}
+          settled failure. Handing only the data over would make the panel state one as the other — and the
+          ERROR OBJECT goes down whole (2026-08-08), because the band discriminates on tRPC's structured
+          `data.code` to decide which cause it is entitled to name. `refetch` makes its Retry a real re-read. */}
       <EffectiveProfile
         contextWindow={capability.data?.capability.context.window}
         effective={effective.data ?? undefined}
-        error={effective.error === null ? null : effective.error.message}
+        error={effective.error}
+        onRetry={(): void => {
+          void effective.refetch();
+        }}
       />
       <CapabilityCard capability={capability.data?.capability} model={effective.data?.model} />
     </Stack>
@@ -188,7 +193,10 @@ function OpenPresetReadout({ presetId }: { readonly presetId: PresetId }): React
           <EffectiveProfile
             contextWindow={capability.data?.capability.context.window}
             effective={effective.data ?? undefined}
-            error={effective.error === null ? null : effective.error.message}
+            error={effective.error}
+            onRetry={(): void => {
+              void effective.refetch();
+            }}
           />
           <CapabilityCard capability={capability.data?.capability} model={effective.data?.model} />
           <QualityMapping effective={effective.data ?? undefined} quality={config.params.quality} />

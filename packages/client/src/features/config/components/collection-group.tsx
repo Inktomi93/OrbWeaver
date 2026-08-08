@@ -50,16 +50,31 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
   const isEmpty = count === 0;
   return (
     <Stack gap="tight" data-slot="collection-group" data-collection={collection.id}>
-      <Row align="center" gap="tight">
+      <Row align="center" data-slot="collection-band" gap="tight">
         {/* A ZERO-MEMBER GROUP HAS NOTHING TO DISCLOSE (side-eye 2026-08-06 P2), so it renders no chevron and
             no body: the old band kept a live toggle whose panel opened onto nothing, one row above the empty
             card that had already said so. The identity cluster stays — same glyph, same kicker, same
             horizon — it just stops pretending to be a door. */}
         {isEmpty ? (
           <Row align="center" className="min-w-0 flex-1 px-field" gap="tight">
+            {/* THE DISCLOSURE GUTTER IS RESERVED, NOT RECLAIMED (side-eye 2026-08-08 P3). Dropping the
+                chevron also dropped its 16px box and the 4px joint, so a zero-member band's glyph started
+                20px left of every sibling's and the roster's left edge became data-dependent — a ragged
+                column that reads as a rendering bug, not as a stood-down door. The spacer is the SAME
+                `Icon` at the SAME size, merely `invisible` (visibility:hidden keeps the box, drops the
+                paint, and the glyph is already decorative/aria-hidden), so the gutter cannot drift from the
+                chevron it stands in for the way a re-spelled width would. */}
+            <Icon className="invisible" icon={ChevronRight} size="sm" />
             <Icon icon={collection.icon} size="sm" />
             <Text as="span" voice="kicker" className="truncate">
               {collection.label}
+            </Text>
+            {/* AND IT SAYS ZERO (same finding). Every other band carries its count, so the one band with
+                nothing in it was also the one band that declined to say how much — leaving "empty" and
+                "the count hasn't loaded" indistinguishable at exactly the moment the number is the point.
+                `isEmpty` IS `count === 0`, so the datum is known here by construction. */}
+            <Text as="span" voice="datum">
+              {count}
             </Text>
           </Row>
         ) : (
@@ -234,7 +249,12 @@ function CollectionGroupEmpty({ collection, onCreate }: CollectionGroupProps & {
       <Text className="text-center" voice="gloss">
         {collection.emptyText}
       </Text>
-      <Button intent="ghost" onClick={onCreate} size="sm" type="button">
+      {/* SECONDARY, NOT GHOST (side-eye 2026-08-08 P3, the same finding class the landing CTAs took). A
+          ghost button is muted text with a hover fill and nothing else — sitting directly under a `gloss`
+          sentence inside a dashed card, "New book" read as the second line of the copy rather than as the
+          next step. `secondary` gives it the border+foreground chrome that says "this is a control" at
+          rest, which is the whole job of the one affordance in an empty state. */}
+      <Button intent="secondary" onClick={onCreate} size="sm" type="button">
         {collection.create.label}
       </Button>
     </Stack>

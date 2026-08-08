@@ -11,6 +11,7 @@
 // panels that own a list.
 
 import type { ModelCapability } from "@orb/contracts/connection";
+import { Button } from "@orb/ui/button";
 import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -19,6 +20,7 @@ import { SkeletonRows } from "#data";
 import type { EffectiveProfileRow } from "../../lib/effective-knobs.ts";
 import { knobLabel, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
 import { formatCount } from "../../lib/format-count.ts";
+import { resolveFailureCopy, resolveFailureMessage } from "../../lib/resolve-failure.ts";
 
 /** ONE number format across the whole readout (side-eye F-29): a cluster printed `1,500` beside `8192`
  *  because two producers formatted independently. EVERY integer groups (`2048` → `2,048`) — this comment
@@ -51,8 +53,14 @@ export function DatumRow({ label, value, suffix }: DatumRowProps): ReactElement 
   );
 }
 
-/** One placeholder bar per row the settled profile will fill (the funnel's knobs + the window row) — enough
- *  to hold the panel's height so the readout does not jump when the resolve lands. */
+/** One placeholder ROW per row the settled profile will fill (the funnel's knobs + the window row) — enough
+ *  to hold the panel's height so the readout does not jump when the resolve lands.
+ *
+ *  It rides `shape="datum"`, not the default `line` (side-eye 2026-08-08 P2). A skeleton that does not
+ *  shape-match its settled state is a skeleton doing the opposite of its stated job: four `control-lg` bars
+ *  measured 233px against an 89px settled panel, so every landing resolve COLLAPSED the readout by ~144px —
+ *  the jump the placeholder is here to prevent. The `datum` arm is `DatumRow`'s own anatomy (a label bar and
+ *  a value bar on one text-height line, stacked on `tight`), so pending and settled are the same box. */
 const PENDING_ROWS = 4;
 
 /** The resolved generation profile — the funnel's OWN output (§4.3), never a client re-derivation.
@@ -65,16 +73,31 @@ const PENDING_ROWS = 4;
  *  open of the CONTEXT panel flashed that line at users who have one connected, and on a routing failure it
  *  stood there permanently naming the wrong cause. The two REACHABLE arms are now rendered as themselves: a
  *  shape-matched skeleton that asserts nothing while `error === null`, and the server's own message when the
- *  read has failed — named as the routing problem it is, exactly as the deck's gate names it. */
+ *  read has failed.
+ *
+ *  WHICH CAUSE THAT FAILURE NAMES IS NOW DERIVED, NOT ASSERTED (side-eye 2026-08-08 P2 — the SECOND
+ *  wrong-confident-cause on this panel). The F-02 fix above replaced a false "missing connection" claim with
+ *  an unconditional "this is a routing problem", printed over a RAW TRANSPORT STRING: a preset deleted in
+ *  another tab (`NOT_FOUND`), a 500 and a dropped socket all got told they had a routing fault. The verdict
+ *  is kept VERBATIM for the error that earns it and withheld otherwise — see `lib/resolve-failure.ts`, which
+ *  states the fork and the code map. A `Retry` sits under the band because a transient read failure must not
+ *  be a dead end (UI-Arch §4.3 rule 1, the `QueryErrorState` grammar). */
 export function EffectiveProfile({
   effective,
   error,
+  onRetry,
   contextWindow,
 }: {
   readonly effective: EffectiveProfileRow | undefined;
-  /** The resolve's own failure message — `null` while the read is still PENDING. With `effective`
-   *  undefined those two are exhaustive (see above); a settled-successful read always carries a profile. */
-  readonly error: string | null;
+  /** The resolve's THROWN error — `null` while the read is still PENDING. With `effective` undefined those
+   *  two are exhaustive (see above); a settled-successful read always carries a profile.
+   *
+   *  It is the error OBJECT, not a pre-extracted message: the band discriminates on the structured
+   *  `data.code` tRPC puts there, and a caller that flattened it to `.message` first would take that choice
+   *  away from the one place that owns the words. */
+  readonly error: unknown;
+  /** Refetches the failed resolve. Wired to the query's own `refetch`, so Retry actually re-reads. */
+  readonly onRetry: () => void;
   /** The model's context window — the ONE row the funnel deliberately does not resolve (`maxContextTokens`
    *  is our history soft-cap, not a wire knob), and which the mock nonetheless prints because it IS part of
    *  what the next turn will do. It came from the capability read, exactly as the deck's own ghost does
@@ -82,28 +105,18 @@ export function EffectiveProfile({
   readonly contextWindow?: number | undefined;
 }): ReactElement {
   if (effective === undefined) {
+    if (error === null) {
+      return (
+        <Section kicker="Effective generation">
+          {/* The ONE placeholder-row home (`SkeletonRows`) — never a hand-assembled stack of `Skeleton`s and
+              never a spinner flash (UIP-309). It carries its own `aria-busy`. */}
+          <SkeletonRows count={PENDING_ROWS} shape="datum" />
+        </Section>
+      );
+    }
     return (
       <Section kicker="Effective generation">
-        {error === null ? (
-          // The ONE placeholder-row home (`SkeletonRows`) — never a hand-assembled stack of `Skeleton`s and
-          // never a spinner flash (UIP-309). It carries its own `aria-busy`.
-          <SkeletonRows count={PENDING_ROWS} />
-        ) : (
-          <Row align="start" className="rounded-base border border-warning bg-warning/10 text-warning" gap="field" padding="row">
-            <Icon icon={AlertTriangle} size="sm" />
-            <Stack gap="tight">
-              <Text prose={true} voice="label">
-                Your chat model couldn't be resolved, so what the next turn will send can't be shown.
-              </Text>
-              <Text prose={true} voice="gloss">
-                {error}
-              </Text>
-              <Text prose={true} voice="gloss">
-                This is a routing problem, not a missing connection — fix it under Settings → Connections → Model roles.
-              </Text>
-            </Stack>
-          </Row>
-        )}
+        <EffectiveProfileFailure error={error} onRetry={onRetry} />
       </Section>
     );
   }
@@ -134,6 +147,37 @@ export function EffectiveProfile({
           : ` · ${String(effective.stale.length)} stored knob${effective.stale.length === 1 ? "" : "s"} this model ignores — clear them in the deck`}
       </Text>
     </Section>
+  );
+}
+
+/** The failure band: what failed, the server's own words, what to do, and a Retry. `role="alert"` so AT
+ *  announces the state rather than leaving a silently-swapped region (the `RpgErrorState` grammar); the
+ *  cause it names comes from `lib/resolve-failure.ts`, never from this file's opinion. */
+function EffectiveProfileFailure({ error, onRetry }: { readonly error: unknown; readonly onRetry: () => void }): ReactElement {
+  const copy = resolveFailureCopy(error);
+  const message = resolveFailureMessage(error);
+  return (
+    <Row align="start" className="rounded-base border border-warning bg-warning/10 text-warning" gap="field" padding="row" role="alert">
+      <Icon icon={AlertTriangle} size="sm" />
+      <Stack gap="tight">
+        <Text prose={true} voice="label">
+          {copy.headline}
+        </Text>
+        {message === null ? null : (
+          <Text prose={true} voice="gloss">
+            {message}
+          </Text>
+        )}
+        <Text prose={true} voice="gloss">
+          {copy.guidance}
+        </Text>
+        {/* `self-start` — a `Stack` stretches its children, and a full-width Retry inside a warning band
+            reads as the band's own primary action rather than as the recovery for the line above it. */}
+        <Button className="self-start" intent="secondary" onClick={onRetry} size="sm" type="button">
+          Retry
+        </Button>
+      </Stack>
+    </Row>
   );
 }
 

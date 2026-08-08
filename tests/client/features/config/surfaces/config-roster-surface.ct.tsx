@@ -355,6 +355,43 @@ test("a zero-member group keeps its band and says so, with its own create verb",
   await expect(roster.getByRole("button", { expanded: false })).toHaveCount(2);
 });
 
+// …AND ITS BAND STILL LINES UP WITH ITS SIBLINGS (side-eye 2026-08-08 P3). Standing the disclosure down also
+// dropped the chevron's 16px box and the 4px joint, so a zero-member band's glyph started 20px left of every
+// populated sibling's and the roster's left edge became data-dependent. The pin is the rendered X of the
+// COLLECTION GLYPH in each band — the empty group's against a populated sibling's — because a reserved gutter
+// is a geometric fact and an `invisible` class is not. `svg` index 1 in both bands: 0 is the chevron (real on
+// a populated band, `invisible` on the empty one), 1 is the collection's own glyph.
+test("a zero-member band RESERVES the disclosure gutter — its glyph aligns with its populated siblings'", async ({ mount, page }) => {
+  await stub(page, []);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  const roster = workspace.locator(ROSTER);
+  const glyphOf = (collection: string): Locator => roster.locator(`[data-collection="${collection}"] [data-slot="collection-band"] svg`).nth(1);
+  const emptyGlyph = glyphOf("tags");
+  const populatedGlyph = glyphOf("worldInfo");
+  await expect(emptyGlyph).toBeVisible();
+  await expect(populatedGlyph).toBeVisible();
+
+  const [emptyBox, populatedBox] = await Promise.all([emptyGlyph.boundingBox(), populatedGlyph.boundingBox()]);
+  if (emptyBox === null || populatedBox === null) {
+    throw new Error("a collection band did not render its glyph");
+  }
+  expect(Math.abs(emptyBox.x - populatedBox.x), "the zero-member band's glyph shares the siblings' left edge").toBeLessThanOrEqual(1);
+});
+
+// …AND IT SAYS ZERO (same finding). Every populated band carries its count, so the one band with nothing in it
+// was also the one band that declined to say how much — leaving "this library is empty" and "the count has not
+// loaded yet" indistinguishable at the exact moment the number is the point.
+test("a zero-member band renders its count", async ({ mount, page }) => {
+  await stub(page, []);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  const band = workspace.locator(ROSTER).locator('[data-collection="tags"] [data-slot="collection-band"]');
+  await expect(band.getByText("0", { exact: true })).toBeVisible();
+});
+
 // …AND IT IS A CARD, NOT A ROW (side-eye 2026-08-08). The copy and the create verb sat side-by-side on one
 // line inside the dashed box, which at the roster's real width read as a broken table row rather than as the
 // house empty-state grammar (copy, then the next step BELOW it, centered). The assertion is the two boxes'
@@ -377,6 +414,39 @@ test("the zero-member slot is a centered CARD — the verb sits below its copy, 
   }
   expect(verbBox.y, "the create verb starts below the copy's last line").toBeGreaterThanOrEqual(copyBox.y + copyBox.height);
   expect(Math.abs(copyBox.x + copyBox.width / 2 - (verbBox.x + verbBox.width / 2)), "copy and verb share one centre line").toBeLessThanOrEqual(1);
+});
+
+// …AND IT WEARS BUTTON CHROME AT REST (side-eye 2026-08-08 P3, the landing-CTA finding class). The verb was
+// `intent="ghost"` — muted text with a hover fill and nothing else — sitting directly beneath a `gloss`
+// sentence inside a dashed card, so it read as the copy's second line rather than as the next step. The pin is
+// the RENDERED chrome: a border with real width, and foreground ink rather than the muted tone the sentence
+// above it uses. Both are computed values; a `ghost` button satisfies neither.
+test("the zero-member slot's create verb reads as a BUTTON at rest, not as prose", async ({ mount, page }) => {
+  await stub(page, []);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  const group = workspace.locator(ROSTER).locator('[data-collection="tags"]');
+  const verb = group.getByRole("button", { name: "New tag" }).last();
+  await expect(verb).toBeVisible();
+
+  const chrome = await verb.evaluate((el) => {
+    const probe = document.createElement("div");
+    document.body.append(probe);
+    const resolve = (token: string): string => {
+      probe.style.color = `var(${token})`;
+      return getComputedStyle(probe).color;
+    };
+    const tokens = { foreground: resolve("--color-foreground"), muted: resolve("--color-muted-foreground") };
+    probe.remove();
+    const style = getComputedStyle(el);
+    return { borderWidth: Number.parseFloat(style.borderTopWidth), borderStyle: style.borderTopStyle, color: style.color, ...tokens };
+  });
+  expect(chrome.borderWidth, "the verb draws a real border at rest").toBeGreaterThan(0);
+  expect(chrome.borderStyle).not.toBe("none");
+  // Guard the vacuous case, then pin the ink: foreground, not the muted tone a ghost button wears.
+  expect(chrome.foreground).not.toBe(chrome.muted);
+  expect(chrome.color).toBe(chrome.foreground);
 });
 
 // The band's KICKER at the pane it actually lives in (side-eye 2026-08-06 P3). "REGEX SCRIPTS" is the
