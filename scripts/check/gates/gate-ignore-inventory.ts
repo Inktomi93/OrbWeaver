@@ -5,25 +5,29 @@
 // but suppressed NOTHING this run — a loaded gun: the next violation written there inherits an exemption
 // nobody granted it) · OVER-EXEMPT (§4.3a: one UNPOSITIONED marker absolved MORE THAN ONE guarded thing —
 // the `record(chatId: string, sessionId: string)` shape, where a line-scoped marker silently absolves the
-// sibling nobody reasoned about; name the position instead). DECLARED LIMITS: a marker naming a DORMANT
-// gate reds as STALE (a dormant gate suppresses nothing, so the marker protects nothing); markers inside
-// STRING LITERALS are skipped (gate fixtures spell them); scanRoot is `packages/` + `tests/` ONLY, so all
-// of `scripts/` — including this gate's own prose and pass.ts's grammar comment — is out; the OVER-EXEMPT
-// arm is NOT conformance-provable (conformance runs ONE gate standalone, so no sibling gate can ever
-// consume a marker in a mini-project) and is proven instead by the real-tree six-case probe in
-// tests/tooling/gate-ignore-grammar.int.test.ts. Registered
+// sibling nobody reasoned about; name the position instead). scanRoot is the workspace's WHOLE
+// marker-bearing surface — `packages/` + `tests/` + `scripts/check/gates/` (since 2026-08-08): the
+// suppressor has no scanRoot of its own, so a marker in the gate corpus is LIVE vocabulary for every
+// wide-scanRoot gate and must be audited like any other. What makes the corpus scannable is pass.ts's
+// MENTION FENCE (docs/design/gate-ignore-mention-fence.md): a marker IS a `//` comment that BEGINS with
+// the vocabulary, so grammar quotations in gate prose/JSDoc and spellings inside string/template/regex
+// literals are MENTIONS — skipped by the scanner and inert to the suppressor alike. DECLARED LIMITS: a
+// marker naming a DORMANT gate reds as STALE (a dormant gate suppresses nothing, so the marker protects
+// nothing); scripts/ OUTSIDE the gates dir stays out of BOTH ledgers (harnessGlobs never loads those
+// files, so no gate can visit them — a marker there is inert-by-construction, the workspace's pinned
+// boundary, not this gate's choice); the OVER-EXEMPT arm is NOT conformance-provable (conformance runs
+// ONE gate standalone, so no sibling gate can ever consume a marker in a mini-project) and is proven
+// instead by the real-tree probe in tests/tooling/gate-ignore-grammar.int.test.ts (both roots). Registered
 // names come from each gate file's FILENAME, not a `name:` literal scan — the loader hard-enforces
 // `descriptor.name === filename`, so the filename is the only source that cannot drift (a gate file can
 // contain other `name:` literals in its own internal config, e.g. no-parallel-section-map.ts's `SectionId`
-// vocab entry, which a first-match literal regex would misidentify). The GRAMMAR is not re-spelled here:
-// it is imported from pass.ts, the suppressor itself, so the auditor cannot drift from the thing it
-// audits. Self-hosts its gates-dir read (fsBacked — mirrors enforcement-registry-parity.ts), never
-// importing loader.ts, so no import cycle. Both blindness tripwires and the STALE arm self-guard on the
-// real-tree ANCHOR (§4.5).
+// vocab entry, which a first-match literal regex would misidentify). The GRAMMAR and its fence are not
+// re-spelled here: both are imported from pass.ts, the suppressor itself, so the auditor cannot drift
+// from the thing it audits. Self-hosts its gates-dir read (fsBacked — mirrors
+// enforcement-registry-parity.ts), never importing loader.ts, so no import cycle. Both blindness
+// tripwires and the STALE arm self-guard on the real-tree ANCHOR (§4.5).
 import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import type { SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 import { findGateIgnoreMarkers, gateIgnoreSuppressedInFinalize, gateIgnoreUseCount } from "../pass.ts";
 
@@ -51,15 +55,6 @@ const MSG_NO_GATES = `blindness tripwire: no gate names could be derived from ${
 const MSG_LATE_SUPPRESSION =
   "soundness tripwire: a gate suppressed a node-anchored finding during the `finalize` phase, but this gate's STALE sweep also runs in `finalize` — a marker consumed after the sweep would be reported stale by mistake. Move that gate's report to `run`, or give this sweep a later hook. See scripts/check/pass.ts.";
 
-/** Kinds whose text can legally CONTAIN a marker spelling without it being a marker (gate fixtures,
- *  doc strings). A match starting inside one of these spans is prose about the vocabulary, not a use. */
-const LITERAL_KINDS: ReadonlySet<SyntaxKind> = new Set([
-  SyntaxKind.StringLiteral,
-  SyntaxKind.NoSubstitutionTemplateLiteral,
-  SyntaxKind.TemplateExpression,
-  SyntaxKind.JsxText,
-]);
-
 /** Every registered gate's name, derived from its FILENAME (basename minus .ts) — the loader
  *  hard-enforces descriptor.name === filename, so the filename is the truth (fsBacked — this gate's
  *  own read of the gates dir, never importing the loader). */
@@ -75,16 +70,6 @@ function discoverGateNames(gatesDir: string): ReadonlySet<string> {
     names.add(entry.replace(TS_EXT_RE, ""));
   }
   return names;
-}
-
-function literalSpans(sf: SourceFile): readonly (readonly [number, number])[] {
-  const spans: [number, number][] = [];
-  sf.forEachDescendant((node) => {
-    if (LITERAL_KINDS.has(node.getKind())) {
-      spans.push([node.getStart(), node.getEnd()]);
-    }
-  });
-  return spans;
 }
 
 function relPath(root: string, abs: string): string {
@@ -106,19 +91,16 @@ export const gate: GateDescriptor = {
   fsBacked: true,
   message: MESSAGE,
   fix: FIX,
-  // `scripts/check/gates/` is deliberately OUT: gate prose and gate fixtures spell the marker literally.
-  scanRoot: (p) => p.startsWith("packages/") || p.startsWith("tests/"),
+  // The workspace's whole marker-bearing surface, gate corpus included — pass.ts's mention fence is what
+  // keeps the corpus's own grammar prose/fixtures from self-flagging (see the header).
+  scanRoot: (p) => p.startsWith("packages/") || p.startsWith("tests/") || p.startsWith("scripts/check/gates/"),
   begin: () => {
     pending = [];
   },
   visitFile: (sf, ctx) => {
     const registered = discoverGateNames(join(ctx.root, GATES_DIR_REL));
     const file = relPath(ctx.root, sf.getFilePath());
-    const spans = literalSpans(sf);
-    for (const { index, marker } of findGateIgnoreMarkers(sf.getFullText())) {
-      if (spans.some(([start, end]) => index >= start && index < end)) {
-        continue;
-      }
+    for (const { index, marker } of findGateIgnoreMarkers(sf)) {
       const { line } = sf.getLineAndColumnAtPos(index);
       if (marker.malformed) {
         // @finding-overload-ok: the finding IS a COMMENT, not a node — `index` is a text offset from the marker scanner, so there is nothing for hasGateIgnore to read a marker off; and the marker gate must never be marker-suppressible (a bare marker could otherwise absolve the report that indicts it)
@@ -219,6 +201,23 @@ export const gate: GateDescriptor = {
       expect: { messageIncludes: "STALE" },
       why: "DECLARED LIMIT, written down: a marker naming a DORMANT gate reds as STALE, not as unregistered — the file exists (so discovery registers it) but `runPass` never runs it, so it can suppress nothing and the marker protects nothing",
     },
+    {
+      files: {
+        "scripts/check/gates/real-gate.ts": '// @orb-gate-ignore real-gate\nexport const gate = { name: "real-gate" };\n',
+        "packages/ui/src/x/x.ts": "export const x = 1;\n",
+      },
+      expect: { messageIncludes: "MALFORMED" },
+      why: "the gate corpus is IN scanRoot since 2026-08-08 (pass.ts's mention fence made it scannable): a REAL bare marker at a comment-opener inside a gate file is exactly as red there as anywhere. Before the fence this exact example was a mustPass documenting the old scripts-out limit — the closed gap, written down as its own proof",
+    },
+    {
+      files: {
+        "scripts/check/pass.ts": "export const anchor = 1;\n",
+        "scripts/check/gates/real-gate.ts": 'export const gate = { name: "real-gate" };\n',
+        "packages/ui/src/x/x.ts": "export const x = 1; // @orb-gate-ignore real-gate: written trailing, after code on the same line\n",
+      },
+      expect: { messageIncludes: "STALE" },
+      why: "a TRAILING marker opens a real comment (an attempted marker, NOT a mention) but sits in no node's LEADING trivia, so the suppressor can never honour it — the mention fence must keep it VISIBLE so the stale arm reds the attempt instead of letting it sit there looking like protection",
+    },
   ],
   mustPass: [
     {
@@ -266,10 +265,20 @@ export const gate: GateDescriptor = {
     {
       files: {
         "scripts/check/pass.ts": "export const anchor = 1;\n",
-        "scripts/check/gates/real-gate.ts": '// @orb-gate-ignore real-gate\nexport const gate = { name: "real-gate" };\n',
+        "scripts/check/gates/real-gate.ts":
+          '// suppression works here: `// @orb-gate-ignore real-gate(someProp): <reason>` names its position\nexport const gate = { name: "real-gate" };\n',
         "packages/ui/src/x/x.ts": "export const x = 1;\n",
       },
-      why: "DECLARED LIMIT: scanRoot is `packages/` + `tests/` ONLY, so ALL of `scripts/` is out — the gate corpus and pass.ts spell the marker in their own prose (this row plants a BARE marker, the loudest arm, inside the gates dir and requires silence). Scanning scripts/ would make the vocabulary's own documentation self-flag",
+      why: "the founding false-positive shape (12 live sites at fence-design time): a gate doc-comment QUOTING the grammar — the spelling sits mid-comment behind a backtick, NOT at a comment opener, so it is a MENTION and stays silent even though it names a real registered gate, a position, and a reason",
+    },
+    {
+      files: {
+        "scripts/check/pass.ts": "export const anchor = 1;\n",
+        "scripts/check/gates/real-gate.ts":
+          '/** The escape hatch is the shared `// @orb-gate-ignore real-gate(prop): <why + end condition>` marker. */\nexport const gate = { name: "real-gate" };\n',
+        "packages/ui/src/x/x.ts": "export const x = 1;\n",
+      },
+      why: "a JSDoc BLOCK comment quoting the grammar is a mention too — the inner slashes sit inside the block, never at a line-comment opener (the platform-spellings.ts:392 shape), so the fence keeps it silent",
     },
   ],
 };
