@@ -423,11 +423,16 @@ line).
   explicitness smalls (low-urgency). Not a real queue item until the browser ships.
 
 **BUILT — rotted status lines, struck (do NOT re-chase; receipts from the reconcile):**
-- **parity-plus program** (`parity-plus-program-spec.md`) — the BIG one: features 1-5,7 all
-  declared+exported+live (`RpgRelationship`/`setRelationship` `actor.ts:128,149,295`; `level`
-  `rpg.ts:35`; `CONTENT_CLASS_POLICY` `content-classes.ts:44-51`); D110 "foundation-landed 2026-07-27".
-  Only §6 plot-progression + §12A macro-parity DEPTH not independently confirmed (a finer scout pass if
-  ever wanted — no evidence of a gap).
+- **parity-plus program** (`parity-plus-program-spec.md`) — the BIG one: **ALL 7 features BUILT**
+  (declared+exported+live). 1-5,7: `RpgRelationship`/`setRelationship` `actor.ts:128,149,295` · `level`
+  `rpg.ts:35` · `CONTENT_CLASS_POLICY` `content-classes.ts:44-51`; D110 "foundation-landed 2026-07-27".
+  **§6 plot-progression CONFIRMED (orchestrator re-checked 2026-08-08 — the scout missed it: symbols
+  home in `@orb/kit/guided`, not `domain/rpg`):** `RPG_PLOT_STEERS`/`RPG_PLOT_STEER_KINDS`
+  (`kit/guided/index.ts:84,116` — **6 kinds vs the specced 5**, `advance` added), delivered via M5's
+  guided-wand re-homing (`composer-utility-menu.tsx:199-211` `PlotSteersSubmenu` → `onSteer`), PLUS a
+  structured act-rail plot DATA plane the marinara floor lacked (`plot-edit.ts`, `plot.acts`/`plot.act`
+  + `plotProgression` host toggle). Only §12A macro-parity DEPTH un-probed (a "how thorough" question,
+  not a gap — no evidence of missing machinery).
 - **lite+guided substrate** (`lite-plus-guided-substrate-spec.md`) — BUILT (quests folded into
   `rpg_snapshots` JSON, `rpg_quests` deleted, journal variant-aware — `rpg.ts:170,13-18`).
 - **density pass** (`density-pass-spec.md`) — BUILT (gate `density-tier.ts` minted + self-cites the
