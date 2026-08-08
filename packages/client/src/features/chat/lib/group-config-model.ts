@@ -1,10 +1,12 @@
 // The pure group-config model — the wire<->flat mapping for the Group tab's autosave form, zero
 // react/forms/ui imports. GroupConfig is a discriminated union on output (narrator has no per-speaker
 // cardScope); the form edits a flat superset projection, and fromGroupConfigForm rebuilds the whole
-// object onto the correct arm since the narrator arm is strict and rejects cardScope.
+// object onto the correct arm since the narrator arm is strict and rejects cardScope. BOTH arms are strict,
+// so the rebuild may carry no stray key: the flat projection is exactly the editable knobs, with no opaque
+// passthrough field (the synthetic group character is resolved by HANDLE server-side and never rode this
+// form — that retired key died 2026-08-08).
 
 import type { GroupConfig, GroupPolicy, MemberCardVisibility } from "@orb/contracts/chat";
-import type { CharacterId } from "@orb/kit/ids";
 
 type GroupOutput = GroupConfig["output"];
 
@@ -23,8 +25,6 @@ export interface GroupConfigFormValues {
   readonly autoModeDelayMs: number;
   readonly allowSelfResponses: boolean;
   readonly memberCardVisibility: MemberCardVisibility;
-  /** Server-minted, non-editable passthrough carried so the whole-object rebuild re-attaches it. */
-  readonly groupCharacterId?: CharacterId;
 }
 
 export function defaultSpeakerTags(output: GroupOutput): boolean {
@@ -43,7 +43,6 @@ export function toGroupConfigForm(config: GroupConfig): GroupConfigFormValues {
     autoModeDelayMs: config.autoModeDelayMs,
     allowSelfResponses: config.allowSelfResponses,
     memberCardVisibility: config.memberCardVisibility,
-    ...(config.groupCharacterId === undefined ? {} : { groupCharacterId: config.groupCharacterId }),
   };
 }
 
@@ -57,7 +56,6 @@ export function fromGroupConfigForm(values: GroupConfigFormValues): GroupConfig 
     autoModeDelayMs: values.autoModeDelayMs,
     allowSelfResponses: values.allowSelfResponses,
     memberCardVisibility: values.memberCardVisibility,
-    ...(values.groupCharacterId === undefined ? {} : { groupCharacterId: values.groupCharacterId }),
   } as const;
   return values.output === "narrator"
     ? { output: "narrator", ...shared }

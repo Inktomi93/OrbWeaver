@@ -7,6 +7,7 @@ import {
   openingPolicySchema,
   roomOverridesSchema,
 } from "@orb/contracts/chat";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
 // ═══ groupConfigSchema — memberCardVisibility default sheet (D22) ════════════════
@@ -34,6 +35,24 @@ test("groupConfig narrator arm defaults memberCardVisibility AND rejects a stray
     cardScope: "scoped",
   });
   expect(withStray.success).toBe(false);
+});
+
+// BOTH arms are enforcers (F6): the per-speaker arm was the one non-strict object in the file, so a typo'd
+// knob silently stripped-and-healed on a `setGroupConfig` write while the narrator arm three lines up
+// refused it. Same posture now — a stray key is REFUSED at every write boundary.
+test("groupConfig per-speaker arm is strict too — a typo'd knob is REFUSED, never silently stripped", () => {
+  expect(groupConfigSchema.safeParse({ output: "per-speaker", policy: "natural", cardscope: "scoped" }).success).toBe(false);
+  expect(groupConfigSchema.safeParse({ output: "per-speaker", policy: "natural", speakerTags: true }).success).toBe(true);
+});
+
+// RETIRED KEY (2026-08-08): `groupCharacterId` was a dead switch — declared on both arms, no writer, no
+// reader — that rode the portability bundle carrying a foreign CharacterId. GONE from the contract, so both
+// strict arms refuse it at every WRITE boundary; a STORED blob still carrying one is stripped at the domain
+// read seam (see the domain metadata contract test) rather than losing the room's mode.
+test("groupConfigSchema REJECTS the retired groupCharacterId key on BOTH arms", () => {
+  const id = mintTypeId(ID_PREFIX.character);
+  expect(groupConfigSchema.safeParse({ output: "narrator", policy: "list", groupCharacterId: id }).success).toBe(false);
+  expect(groupConfigSchema.safeParse({ output: "per-speaker", policy: "list", groupCharacterId: id }).success).toBe(false);
 });
 
 test("DEFAULT_GROUP_CONFIG is per-speaker × merged, auto-mode off", () => {

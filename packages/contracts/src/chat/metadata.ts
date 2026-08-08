@@ -5,7 +5,6 @@
 // settings KV. ONE HOME here so the `db` `$type` and the server parser derive, never re-spell.
 
 import { GUIDED_GAME_STEER_KINDS } from "@orb/kit/guided";
-import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { OpenRouterProviderRouting } from "#connection";
 import type { ChatDocumentVisibility } from "#databank";
@@ -61,10 +60,14 @@ export const memberCardVisibilitySchema = z.enum(MEMBER_CARD_VISIBILITY_LEVELS);
 export const GROUP_POLICIES = ["natural", "list", "pooled", "manual", "smart"] as const;
 export type GroupPolicy = (typeof GROUP_POLICIES)[number];
 /** Arbitration policy (WHO speaks each round). `@mention` is NOT a policy value — it is a hard override
- *  applied BEFORE the policy. `smart` (side-LLM) falls back to `natural` until wired. */
+ *  applied BEFORE the policy (and in a NARRATOR room it COERCES the round to per-speaker for the named
+ *  character, like the other two forced doors). `smart` is LIVE: the side-LLM turn director
+ *  (`domain/chat/engine/smart-arbitrate`) picks the one next speaker, roster-validated; `natural` is its
+ *  DEGRADE arm — a thrown/garbled/off-roster reply falls back to the weighted math and says so out loud
+ *  (`smart_arbitration_degraded`, D41). A NARRATOR round never buys that director call (see the arm below). */
 export const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural");
 
-// Auto-mode (opt-in AI→AI chaining) — MUST live on BOTH union arms (the narrator arm is strict).
+// Auto-mode (opt-in AI→AI chaining) — MUST live on BOTH union arms (both arms are strict).
 // Defaults make the OFF path byte-identical (no timer / no auto-turn / no scheduling).
 const AUTO_MODE_MAX_TURNS_MIN = 1;
 const AUTO_MODE_MAX_TURNS_MAX = 20;
@@ -91,13 +94,16 @@ const autoModeFields = {
   allowSelfResponses: z.boolean().catch(false).default(false),
 } as const;
 
-// The synthetic group character's identity id (Part III §10) — narrator turns are AUTHORED by it (a real
-// id, never NULL). Optional KEY (absent until minted); on BOTH arms (the narrator arm is strict).
-const groupCharacterIdField = {
-  groupCharacterId: typeIdSchema(ID_PREFIX.character).optional(),
-} as const;
+// RETIRED KEY — `groupCharacterId` (owner ruling 2026-08-08, the D107 dead-switch class): the synthetic
+// group character (Part III §10) is resolved by HANDLE (`__group__<chatId>`, a find-or-mint), so this key
+// never had a writer OR a reader — a dead switch that nevertheless travelled VERBATIM in the portability
+// bundle, where a foreign `CharacterId` resolves to nothing on the target box (the D136(C) class). Both arms
+// now REFUSE it (strictObject) at every write boundary. A STORED blob still carrying one is not debris the
+// way a retired `authorsNote` is: healing the group sub-blob to absent would silently revert a narrator room
+// to the per-speaker default, so the retired key is STRIPPED at the read seam instead
+// (`domain/chat/contract/metadata.ts`). Pre-launch, no migration.
 
-// `memberCardVisibility` (D22) — host-set, default `sheet`; on BOTH arms (narrator is strict).
+// `memberCardVisibility` (D22) — host-set, default `sheet`; on BOTH arms (both arms are strict).
 const memberCardVisibilityField = {
   memberCardVisibility: memberCardVisibilitySchema.catch("sheet").default("sheet"),
 } as const;
@@ -109,21 +115,30 @@ const memberCardVisibilityField = {
 export const groupConfigSchema = z.discriminatedUnion("output", [
   z.strictObject({
     output: z.literal("narrator"),
+    /** PER-SPEAKER-ONLY IN EFFECT, retained deliberately: a narrator round voices the whole cast in ONE
+     *  generation authored by the synthetic group character, so it consumes no arbitrated speaker. The field
+     *  STAYS on this arm so flipping output narrator→per-speaker→narrator round-trips the host's choice
+     *  instead of resetting it to `natural`. What it must NOT do is BUY anything: the turn verb
+     *  short-circuits the `smart` side-LLM director here (no model call, no `smart_arbitration_degraded`
+     *  warning about a verdict nothing reads). Nor does it gate the ROUND: a narrator room narrates every
+     *  send, `manual` included (the cast turn is the room's output, not a scheduled speaker) — the one thing
+     *  it still governs here is the auto-chain's cheap deterministic continue/stop probe, so `manual` ends a
+     *  narrator chain after the first beat. */
     policy: groupPolicySchema,
     speakerTags: z.boolean().catch(true).default(true),
     groupNudge: z.boolean().catch(true).default(true),
     ...autoModeFields,
-    ...groupCharacterIdField,
     ...memberCardVisibilityField,
   }),
-  z.object({
+  // `z.strictObject` on THIS arm too (F6): both arms are enforcers, so a typo'd knob on a `setGroupConfig`
+  // write is refused loudly instead of stripped-and-healed into a silently-wrong room.
+  z.strictObject({
     output: z.literal("per-speaker"),
     policy: groupPolicySchema,
     cardScope: z.enum(["merged", "scoped"]).catch("merged").default("merged"),
     speakerTags: z.boolean().catch(false).default(false),
     groupNudge: z.boolean().catch(true).default(true),
     ...autoModeFields,
-    ...groupCharacterIdField,
     ...memberCardVisibilityField,
   }),
 ]);
@@ -145,7 +160,6 @@ export const DEFAULT_GROUP_CONFIG: GroupConfig = {
   autoModeDelayMs: AUTO_MODE_DELAY_MS_DEFAULT,
   allowSelfResponses: false,
   memberCardVisibility: "sheet",
-  // groupCharacterId omitted — a clean optional key, absent until the synthetic group character is minted.
 };
 
 // ── Opening policy (HOW a new room opens — the start-chat union) ──

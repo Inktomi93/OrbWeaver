@@ -309,10 +309,10 @@ test("GroupConfigView mirrors BOTH GroupConfig arms (the narrator arm omits `car
   // The narrator arm OMITS `cardScope` (narrator ⇒ merged is unrepresentable), so the mirror's optional
   // `cardScope` is a phantom key against THAT arm alone — it is real on the per-speaker arm below.
   pin<{
-    readonly unmirrored: "groupCharacterId";
+    readonly unmirrored: never;
     readonly phantom: "cardScope";
   }>(keys<GroupConfigView, Extract<GroupConfig, { output: "narrator" }>>());
-  pin<Subset<"groupCharacterId">>(keys<GroupConfigView, Extract<GroupConfig, { output: "per-speaker" }>>());
+  pin<Complete>(keys<GroupConfigView, Extract<GroupConfig, { output: "per-speaker" }>>());
   expectTypeOf<GroupConfig>().toExtend<GroupConfigView>();
 });
 
