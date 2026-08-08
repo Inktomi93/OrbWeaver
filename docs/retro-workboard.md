@@ -533,6 +533,23 @@ security lens.
   empty-slot chrome. **Rendered re-verify BATCHES with the FORGE#1 + PROSE-GEOMETRY preset-surface
   lens** (one side-eye over the whole preset/config fix train). Freed slot HELD (barrel-amputation +
   capability-gate follow-up both want a quiet/uncontested tree).
+- **✅ FORGE #1 (Actions-tab IA) MERGED `dcaf87bc1`** — per-kind delivery-truth readout (derived from
+  LIVE assembly: nudges ride appendUserTurn not the marker), 6 collapsed bands + tab filter over 41
+  extract rows, fork-eject fixed (drill id → store axis), human row labels, chip off rows; red-first
+  ×2 + perf measured 87ms→0 long tasks + rendered snaps. Its MAX_FORMAT_STRING_LENGTH page-error was
+  STALE HMR (exported at preset/index.ts:44; dev vite lagged the PROSE-GEO merge). **Batched
+  preset/config side-eye `a528c629d6a4aa017`** covers FORGE#1 + POLISH + PROSE-GEOMETRY (the deferred
+  preset-surface lens). **2 forge findings boarded:** (a) snap-isolated can't boot post-D135 without
+  OWNER_HANDLES+CREDENTIALS_KEY in its env — a snap-stage propagation gap (tooling row); (b) the Prompt
+  view's section drill has the SAME fork-eject class (local drill state) — the store-axis fix applies,
+  out-of-scope follow-up.
+- **✅ FORGE #3 (persona/character design) DELIVERED** `docs/design/persona-character-kind-substrate.md`.
+  Phase D = kind-poly CAST (`CAST_KINDS`+`CAST_KIND_POLICY`, mirrors the message-identity collapse but
+  needs NO stored column — cast kind is the stamp id-space); Phase C = `@orb/contracts/card-face`
+  4-field substrate (wire limits measured identical; reference-equality one-home test). Sacred contract
+  proven untouched (frozen HistoryMacroNames types). 3 premise-kills, 5 owner forks w/ defaults,
+  8 rejected alternatives incl. reading-B's D131/D133 collision. **OWNER: read + rule the 5 forks;
+  build lane (w/ stickler+security review) follows.** Reading-B stays dead.
 - **⚑ GAP-AUDIT DELIVERED (owner catch — real): `docs/reviews/misc/2026-08-08-followup-gap-audit.md`.**
   132 agent reports read whole (2-pass: marker-grep + full report-tail), 222 noise files skipped;
   board coverage HIGH (most flags boarded/minted/banked/fixed-by-a-later-lane, incl. a cluster of
