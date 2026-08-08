@@ -315,3 +315,6 @@ means the detectors found nothing; only your driven, screenshotted pass can say 
 - **The design-audit probe's haul needs human triage**: one run produced 30 findings, ALL false
   positives (Base UI 1×1 spans, devtools chrome, computed left-rules) while missing every real P1 on
   the page. Treat its output as candidate leads, never as findings.
+
+## Code-recon evidence standards (apply to your DOM + AST probes too)
+Read the "Code recon — evidence standards" section of `.claude/agent-doctrine.md` and apply it to every structural claim you make: `-l ts` ≠ `-l tsx` (run both), `$X.foo`/`$X?.foo`/`$X["foo"]` are three node kinds, `ast-grep` exit 1 = no-match OR couldn't-search (print `scannedFileCount` before any "it's not there"), a partial read locates but never concludes, and every claim carries its `path:line` receipt. A rendered "it's fine" needs a measured receipt exactly as a structural "it's absent" needs a scanned-count.
