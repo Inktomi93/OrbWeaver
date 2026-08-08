@@ -52,3 +52,15 @@ export function postureRegistersBackend(posture: EnginesPosture): boolean {
 export function postureManages(posture: EnginesPosture): boolean {
   return posture === "adopt-or-start";
 }
+
+/** The one boot fact `entry/lifecycle` derives from posture × the local-GPU probe: is the vLLM family
+ *  effectively unavailable on this box? `off` ⇒ always. The MANAGING posture spawns engines on THIS host,
+ *  so it requires a local GPU; `adopt-only` is a passive consumer of engines that may live ELSEWHERE
+ *  (VLLM_ENGINE_HOST — profile-2/D2, docs/design/containerize-prod-image-spec.md §3.6), so a GPU-less box
+ *  still registers the backend and probes/adopts. */
+export function effectiveVllmDisabled(posture: EnginesPosture, gpuPresent: boolean): boolean {
+  if (!postureRegistersBackend(posture)) {
+    return true;
+  }
+  return postureManages(posture) && !gpuPresent;
+}
