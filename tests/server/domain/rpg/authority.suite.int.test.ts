@@ -185,6 +185,29 @@ describe("patchSheet — a member may write their OWN user row, never a foreign 
       }),
     ).rejects.toThrow(DomainNotFoundError);
   });
+
+  // …AND the row gate is not the whole gate. `assertOwnUserRef` answers WHOSE ROW; the two tracker-exception
+  // lists are host-plane FIELDS inside a row a member may otherwise write, so they carry their own floor with
+  // its own sentence (behavior + no-write proven in `verbs/patch-sheet.int.test.ts`).
+  test("the tracker EXCEPTIONS carry a per-FIELD host floor with its own refusal sentence", async () => {
+    const { chatId, h } = await seedGameWithRoster();
+    const member = principal(castId<Handle>("member"));
+    await expect(
+      h.service.patchSheet({ principal: member, chatId, actorRef: { kind: "user", userId: member.userId }, patch: { trackerGrants: ["bound_will"] } }),
+    ).rejects.toThrow(new DomainForbiddenError("host authority required to grant or revoke a tracker exception"));
+    await expect(
+      h.service.patchSheet({ principal: member, chatId, actorRef: { kind: "user", userId: member.userId }, patch: { trackerRevokes: ["mana"] } }),
+    ).rejects.toThrow(new DomainForbiddenError("host authority required to grant or revoke a tracker exception"));
+    // The host holds the plane on the member's own row.
+    await expect(
+      h.service.patchSheet({
+        principal: principal(castId<Handle>("host")),
+        chatId,
+        actorRef: { kind: "user", userId: member.userId },
+        patch: { trackerGrants: ["bound_will"], trackerRevokes: [] },
+      }),
+    ).resolves.toBeUndefined();
+  });
 });
 
 describe("cross-tenant IDOR — a host may NOT reach another game's by-id rows (leak-free)", () => {
