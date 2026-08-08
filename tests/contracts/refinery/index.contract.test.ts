@@ -23,6 +23,9 @@ import {
   refinerySessionSummarySchema,
   refineryStageConfigSchema,
 } from "@orb/contracts/refinery";
+// The PRODUCTION estimator the contract's token cap is measured by — imported so the fixtures below assert
+// their own token count instead of assuming it (a fixture that is not really at-cap proves nothing).
+import { estimateTokens } from "@orb/kit/tokens";
 import { expect, test } from "../../support/fixtures.ts";
 
 // The 1-10 rubric's probe values + the card TEXT_MAX twin (contracts/character caps text fields at
@@ -36,7 +39,15 @@ const UPDATED_AT = 1_700_100_000_000;
 // The model-authored-payload ceilings (security pass 2026-08-08 — docs/reviews/security/
 // 2026-08-08-refinery-r0-security-pass.md gap 1). The constants are unexported in the contract, so every
 // one is pinned BEHAVIORALLY at-cap/over-cap, the REWRITE_TEXT_MAX precedent above.
-const PROSE_MAX = 4000;
+//
+// CRITIQUE PROSE IS DUAL-BOUND (owner ruling 2026-08-08 — "we are thinking in chars but it needs to be
+// tokens ... I have cards that are like 4k"): a 4 000-TOKEN product cap measured by the ONE production
+// estimator (`@orb/kit/tokens`), plus a derived CHAR backstop. Both are pinned behaviorally here.
+const CRITIQUE_TOKEN_MAX = 4000;
+// 4 × the token cap. QuadChars charges a printable-ASCII run 1 token per 4 chars and every other codepoint
+// 1 token, so 4 is the MOST chars a token can ever buy — which makes this the exact char envelope of the
+// token cap (it rejects nothing the token cap accepts) rather than an independent number.
+const CRITIQUE_CHAR_BACKSTOP = CRITIQUE_TOKEN_MAX * 4;
 const NOTE_MAX = 500;
 const LIST_MAX = 50;
 const ENTRIES_MAX = 108;
@@ -158,15 +169,72 @@ test("the card contract accepts an at-cap description (the cap twin holds on bot
 // CANON (`characters.refinery.analysis`) and ships on every card read, and every payload lands in an
 // append-only run row. Unbounded strings/arrays were a store-and-serve amplification path with no belt.
 
-test("score payload prose caps at the model-facing prose ceiling (summary + per-field critique)", () => {
-  const atCap = { ...SCORE_PAYLOAD, summary: "x".repeat(PROSE_MAX) };
-  expect(refineryScorePayloadSchema.safeParse(atCap).success).toBe(true);
-  expect(refineryScorePayloadSchema.safeParse({ ...SCORE_PAYLOAD, summary: "x".repeat(PROSE_MAX + 1) }).success).toBe(false);
+// The densest legal critique: pure printable ASCII buys the full 4 chars per token, so an at-cap
+// 4 000-token blob is 16 000 characters — FOUR TIMES what the superseded char cap allowed.
+const ASCII_AT_TOKEN_CAP = "x".repeat(CRITIQUE_CHAR_BACKSTOP);
+const ASCII_OVER_TOKEN_CAP = "x".repeat(CRITIQUE_CHAR_BACKSTOP + 4);
+// The other end of the estimator: every non-ASCII codepoint costs a WHOLE token, so CJK hits the token cap
+// at 1 char per token — the case the char backstop alone can never catch, and the reason a token belt exists.
+const CJK_AT_TOKEN_CAP = "你".repeat(CRITIQUE_TOKEN_MAX);
+const CJK_OVER_TOKEN_CAP = "你".repeat(CRITIQUE_TOKEN_MAX + 1);
+
+// The refusal must speak the unit the product caps in — a char-flavoured message here would mean the cap
+// regressed to the superseded ceiling even if the boundary happened to land in the same place.
+const NAMES_TOKENS = /token/i;
+const tokenIssue = (result: { success: boolean; error?: { issues: readonly { message: string }[] } }): boolean =>
+  result.error?.issues.some((issue) => NAMES_TOKENS.test(issue.message)) ?? false;
+
+test("the fixtures really sit where they claim (the estimator, not an assumption)", () => {
+  expect(estimateTokens(ASCII_AT_TOKEN_CAP)).toBe(CRITIQUE_TOKEN_MAX);
+  expect(estimateTokens(ASCII_OVER_TOKEN_CAP)).toBe(CRITIQUE_TOKEN_MAX + 1);
+  expect(estimateTokens(CJK_AT_TOKEN_CAP)).toBe(CRITIQUE_TOKEN_MAX);
+  expect(estimateTokens(CJK_OVER_TOKEN_CAP)).toBe(CRITIQUE_TOKEN_MAX + 1);
+  // The derivation the char backstop IS: 4 chars is the most one token can ever buy under QuadChars, so a
+  // token-legal string is always within 4 × the budget. A backstop below this would reject legal prose.
+  expect(CJK_AT_TOKEN_CAP.length).toBeLessThanOrEqual(CRITIQUE_CHAR_BACKSTOP);
+  expect(ASCII_AT_TOKEN_CAP.length).toBe(CRITIQUE_CHAR_BACKSTOP);
+});
+
+test("critique prose caps in TOKENS — an at-cap 4 000-token critique is accepted (summary + per-field)", () => {
+  expect(refineryScorePayloadSchema.safeParse({ ...SCORE_PAYLOAD, summary: ASCII_AT_TOKEN_CAP }).success).toBe(true);
+  expect(refineryScorePayloadSchema.safeParse({ ...SCORE_PAYLOAD, summary: CJK_AT_TOKEN_CAP }).success).toBe(true);
+  const atCapCritique = {
+    ...SCORE_PAYLOAD,
+    fieldScores: [{ field: "description", score: 7, strengths: ASCII_AT_TOKEN_CAP, weaknesses: CJK_AT_TOKEN_CAP, suggestions: "" }],
+  };
+  expect(refineryScorePayloadSchema.safeParse(atCapCritique).success).toBe(true);
+});
+
+test("one token over cap is refused, and the refusal NAMES TOKENS (the unit the product caps in)", () => {
+  const overAscii = refineryScorePayloadSchema.safeParse({ ...SCORE_PAYLOAD, summary: ASCII_OVER_TOKEN_CAP });
+  expect(overAscii.success).toBe(false);
+  expect(tokenIssue(overAscii)).toBe(true);
+  // The CJK arm is the one the char backstop is structurally blind to: 4 001 chars is far under 16 000, so
+  // ONLY the token belt can refuse it.
+  const overCjk = refineryScorePayloadSchema.safeParse({ ...SCORE_PAYLOAD, summary: CJK_OVER_TOKEN_CAP });
+  expect(overCjk.success).toBe(false);
+  expect(tokenIssue(overCjk)).toBe(true);
+  expect(CJK_OVER_TOKEN_CAP.length).toBeLessThan(CRITIQUE_CHAR_BACKSTOP);
   const overCritique = {
     ...SCORE_PAYLOAD,
-    fieldScores: [{ field: "description", score: 7, strengths: "x".repeat(PROSE_MAX + 1), weaknesses: "", suggestions: "" }],
+    fieldScores: [{ field: "description", score: 7, strengths: ASCII_OVER_TOKEN_CAP, weaknesses: "", suggestions: "" }],
   };
   expect(refineryScorePayloadSchema.safeParse(overCritique).success).toBe(false);
+});
+
+// FENCE, not a defect proof: an oversized blob was already refused by the superseded char cap. What this
+// pins is the SHORT-CIRCUIT ARM of the token refinement. zod string checks are non-aborting, so the refine
+// runs even on a blob `.max()` already refused — the guard answers on `.length` alone so the O(n) estimator
+// never walks it (a naive `.refine(estimateTokens)` would make the byte ceiling a CPU amplifier: 40 MB
+// measures ~1.9 s of pointless tokenizing). The arm cannot be timed deterministically, so what is asserted
+// is its SEMANTICS: it must yield a REFUSAL that still names tokens. An inverted guard
+// (`length > BACKSTOP || estimateTokens(...) <= MAX`) short-circuits to ACCEPT instead, and that is the
+// realistic way this gets broken — it would go green on every other test in this file.
+test("an over-backstop blob is refused BY THE TOKEN BELT (the short-circuit refuses, never accepts)", () => {
+  const absurdBlob = "x".repeat(40_000_000);
+  const result = refineryScorePayloadSchema.safeParse({ ...SCORE_PAYLOAD, summary: absurdBlob });
+  expect(result.success).toBe(false);
+  expect(tokenIssue(result)).toBe(true);
 });
 
 test("score payload list bounds hold (per-item length, item count, entry count)", () => {
@@ -179,8 +247,13 @@ test("score payload list bounds hold (per-item length, item count, entry count)"
 });
 
 test("analyze payload — the CANON-STAMPED payload — is bounded on every string and every list", () => {
-  expect(refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, soulAssessment: "x".repeat(PROSE_MAX) }).success).toBe(true);
-  expect(refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, soulAssessment: "x".repeat(PROSE_MAX + 1) }).success).toBe(false);
+  // `soulAssessment` is critique prose, so it carries the same TOKEN cap (and refuses in tokens).
+  expect(refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, soulAssessment: ASCII_AT_TOKEN_CAP }).success).toBe(true);
+  const over = refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, soulAssessment: ASCII_OVER_TOKEN_CAP });
+  expect(over.success).toBe(false);
+  expect(tokenIssue(over)).toBe(true);
+  // The six bullet lists are NOT critique prose — they stay short-label CHAR-capped, deliberately untouched.
+  expect(refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, preserved: ["x".repeat(NOTE_MAX)] }).success).toBe(true);
   expect(refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, preserved: ["x".repeat(NOTE_MAX + 1)] }).success).toBe(false);
   expect(refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, issues: Array.from({ length: LIST_MAX + 1 }, () => "x") }).success).toBe(false);
   // The whole point of the belt: a 2 MB summary from a steered model never reaches `characters.refinery`.
