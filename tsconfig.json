@@ -49,6 +49,10 @@
     "tests",
     "reset.d.ts",
     "platform.d.ts",
+    // AGGREGATOR-ONLY (not in tsconfig.base.json): the `*.css` shorthand for browser asset side-effect
+    // imports this program pulls in TRANSITIVELY (ui/src/markdown/math.ts's katex CSS). Never enters a
+    // per-package program, so no collision with ui's css-modules.d.ts / client's vite/client.
+    "aggregator-assets.d.ts",
     "vitest.config.ts",
     "vitest.stryker.config.ts",
     "playwright.config.ts",
