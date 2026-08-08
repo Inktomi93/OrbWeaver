@@ -91,8 +91,10 @@ function runExample(gate: GateDescriptor, ex: GateExample): readonly Finding[] {
   return gate.fsBacked === true ? runFsBackedExample(gate, ex) : runGateStandalone(gate, inMemoryExampleProject(ex, gate), VROOT);
 }
 
-/** Did the findings satisfy a mustFlag example's precision expectations (count/line/messageIncludes)?
- *  `messageIncludes` matches against the gate's `message` (or a finding's own override). */
+/** Did the findings satisfy a mustFlag example's precision expectations (count/line/token/messageIncludes)?
+ *  `messageIncludes` matches against the gate's `message` (or a finding's own override); `token` matches the
+ *  finding's own `token`, which is the ONLY precision a multi-arm token-emitting gate has (every arm's
+ *  needle would match the one group message). */
 function matchesExpect(findings: readonly Finding[], ex: GateExample, gateMessage: string): boolean {
   if (findings.length === 0) {
     return false;
@@ -105,6 +107,9 @@ function matchesExpect(findings: readonly Finding[], ex: GateExample, gateMessag
     return false;
   }
   if (exp.line !== undefined && !findings.some((f) => f.line === exp.line)) {
+    return false;
+  }
+  if (exp.token !== undefined && !findings.some((f) => f.token === exp.token)) {
     return false;
   }
   if (exp.messageIncludes !== undefined) {
@@ -143,6 +148,9 @@ function describeExpect(ex: GateExample): string {
   }
   if (exp.line !== undefined) {
     parts.push(`line=${exp.line}`);
+  }
+  if (exp.token !== undefined) {
+    parts.push(`token="${exp.token}"`);
   }
   if (exp.messageIncludes !== undefined) {
     parts.push(`message⊇"${exp.messageIncludes}"`);
