@@ -14,10 +14,12 @@ import {
   REFINERY_STAGE_PAYLOADS,
   REFINERY_STAGES,
   refineryAnalyzePayloadSchema,
+  refineryGuidanceSchema,
   refineryRewritePayloadSchema,
   refineryRunSchema,
   refineryScorePayloadSchema,
   refinerySelectionSchema,
+  refinerySessionNameSchema,
   refinerySessionSummarySchema,
   refineryStageConfigSchema,
 } from "@orb/contracts/refinery";
@@ -30,6 +32,19 @@ const SCORE_ABOVE_MAX = 11;
 const CARD_TEXT_MAX = 100_000;
 const CREATED_AT = 1_700_000_000_000;
 const UPDATED_AT = 1_700_100_000_000;
+
+// The model-authored-payload ceilings (security pass 2026-08-08 — docs/reviews/security/
+// 2026-08-08-refinery-r0-security-pass.md gap 1). The constants are unexported in the contract, so every
+// one is pinned BEHAVIORALLY at-cap/over-cap, the REWRITE_TEXT_MAX precedent above.
+const PROSE_MAX = 4000;
+const NOTE_MAX = 500;
+const LIST_MAX = 50;
+const ENTRIES_MAX = 108;
+const GREETING_INDEX_MAX = 99;
+const GUIDANCE_MAX = 4000;
+const SESSION_NAME_MAX = 200;
+// The card ceiling the two greeting-addressed caps are twins of (characterCardSchema.greetings).
+const CARD_GREETINGS_MAX = 100;
 
 // Canonical typeid suffix (valid crockford base32) — deterministic fixtures, no minting in tests.
 const SESSION_ID = "refinery_session_01h455vb4pex5vsknk084sn02q";
@@ -138,6 +153,103 @@ test("the card contract accepts an at-cap description (the cap twin holds on bot
   expect(characterCardSchema.safeParse({ ...card, description: "x".repeat(CARD_TEXT_MAX + 1) }).success).toBe(false);
 });
 
+// ── Model-authored payload ceilings (security pass gap 1) ───────────────────────────────────────────────
+// A card is UNTRUSTED text and a steered model authors these payloads; the analyze payload is STAMPED INTO
+// CANON (`characters.refinery.analysis`) and ships on every card read, and every payload lands in an
+// append-only run row. Unbounded strings/arrays were a store-and-serve amplification path with no belt.
+
+test("score payload prose caps at the model-facing prose ceiling (summary + per-field critique)", () => {
+  const atCap = { ...SCORE_PAYLOAD, summary: "x".repeat(PROSE_MAX) };
+  expect(refineryScorePayloadSchema.safeParse(atCap).success).toBe(true);
+  expect(refineryScorePayloadSchema.safeParse({ ...SCORE_PAYLOAD, summary: "x".repeat(PROSE_MAX + 1) }).success).toBe(false);
+  const overCritique = {
+    ...SCORE_PAYLOAD,
+    fieldScores: [{ field: "description", score: 7, strengths: "x".repeat(PROSE_MAX + 1), weaknesses: "", suggestions: "" }],
+  };
+  expect(refineryScorePayloadSchema.safeParse(overCritique).success).toBe(false);
+});
+
+test("score payload list bounds hold (per-item length, item count, entry count)", () => {
+  expect(refineryScorePayloadSchema.safeParse({ ...SCORE_PAYLOAD, priorityImprovements: ["x".repeat(NOTE_MAX)] }).success).toBe(true);
+  expect(refineryScorePayloadSchema.safeParse({ ...SCORE_PAYLOAD, priorityImprovements: ["x".repeat(NOTE_MAX + 1)] }).success).toBe(false);
+  expect(refineryScorePayloadSchema.safeParse({ ...SCORE_PAYLOAD, priorityImprovements: Array.from({ length: LIST_MAX + 1 }, () => "x") }).success).toBe(false);
+  const entry = { field: "description", score: 7, strengths: "", weaknesses: "", suggestions: "" };
+  expect(refineryScorePayloadSchema.safeParse({ ...SCORE_PAYLOAD, fieldScores: Array.from({ length: ENTRIES_MAX }, () => entry) }).success).toBe(true);
+  expect(refineryScorePayloadSchema.safeParse({ ...SCORE_PAYLOAD, fieldScores: Array.from({ length: ENTRIES_MAX + 1 }, () => entry) }).success).toBe(false);
+});
+
+test("analyze payload — the CANON-STAMPED payload — is bounded on every string and every list", () => {
+  expect(refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, soulAssessment: "x".repeat(PROSE_MAX) }).success).toBe(true);
+  expect(refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, soulAssessment: "x".repeat(PROSE_MAX + 1) }).success).toBe(false);
+  expect(refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, preserved: ["x".repeat(NOTE_MAX + 1)] }).success).toBe(false);
+  expect(refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, issues: Array.from({ length: LIST_MAX + 1 }, () => "x") }).success).toBe(false);
+  // The whole point of the belt: a 2 MB summary from a steered model never reaches `characters.refinery`.
+  expect(refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, soulAssessment: "x".repeat(2_000_000) }).success).toBe(false);
+});
+
+test("rewrite payload caps its ENTRY COUNT, not just each text (the apply-blast-radius bound)", () => {
+  const entry = { field: "description", text: "x" };
+  expect(refineryRewritePayloadSchema.safeParse({ fields: Array.from({ length: ENTRIES_MAX }, () => entry) }).success).toBe(true);
+  expect(refineryRewritePayloadSchema.safeParse({ fields: Array.from({ length: ENTRIES_MAX + 1 }, () => entry) }).success).toBe(false);
+});
+
+test("greetingIndex is bounded by the card's own greetings ceiling (payload entries + selection)", () => {
+  const at = { fields: [{ field: "greetings", greetingIndex: GREETING_INDEX_MAX, text: "hi" }] };
+  const over = { fields: [{ field: "greetings", greetingIndex: GREETING_INDEX_MAX + 1, text: "hi" }] };
+  expect(refineryRewritePayloadSchema.safeParse(at).success).toBe(true);
+  expect(refineryRewritePayloadSchema.safeParse(over).success).toBe(false);
+  const score = {
+    ...SCORE_PAYLOAD,
+    fieldScores: [{ field: "greetings", greetingIndex: GREETING_INDEX_MAX + 1, score: 7, strengths: "", weaknesses: "", suggestions: "" }],
+  };
+  expect(refineryScorePayloadSchema.safeParse(score).success).toBe(false);
+  expect(refinerySelectionSchema.safeParse({ fields: ["greetings"], greetingIndexes: [GREETING_INDEX_MAX + 1] }).success).toBe(false);
+});
+
+// The behavioral twin of the greeting caps: an index of GREETING_INDEX_MAX is exactly the last slot the
+// CARD can hold, so the payload can address every real greeting and no phantom one. Both constants are
+// unexported on their own sides — this pin is what makes a future card-side change red here.
+test("the greeting index ceiling is the card's greetings ceiling minus one", () => {
+  const card = {
+    name: "T",
+    description: null,
+    personality: null,
+    scenario: null,
+    exampleMessages: null,
+    systemPrompt: null,
+    postHistoryInstructions: null,
+    depthPrompt: null,
+    creatorNotes: null,
+    creator: null,
+    cardVersion: null,
+    nickname: null,
+    source: null,
+    creationDate: null,
+    modificationDate: null,
+    extensions: null,
+    residualData: null,
+    avatarAssetId: null,
+    refinery: null,
+  };
+  expect(characterCardSchema.safeParse({ ...card, greetings: Array.from({ length: CARD_GREETINGS_MAX }, () => ({ text: "g" })) }).success).toBe(true);
+  expect(characterCardSchema.safeParse({ ...card, greetings: Array.from({ length: CARD_GREETINGS_MAX + 1 }, () => ({ text: "g" })) }).success).toBe(false);
+  expect(GREETING_INDEX_MAX).toBe(CARD_GREETINGS_MAX - 1);
+  expect(ENTRIES_MAX).toBe(REFINABLE_FIELDS.length - 1 + CARD_GREETINGS_MAX);
+});
+
+// ── Host-authored free text that reaches a model (security pass gap 4) ──────────────────────────────────
+
+test("session guidance caps at the model-facing prose ceiling", () => {
+  expect(refineryGuidanceSchema.safeParse("keep her mean").success).toBe(true);
+  expect(refineryGuidanceSchema.safeParse("x".repeat(GUIDANCE_MAX)).success).toBe(true);
+  expect(refineryGuidanceSchema.safeParse("x".repeat(GUIDANCE_MAX + 1)).success).toBe(false);
+});
+
+test("session name is bounded (the roster row's label, host-authored)", () => {
+  expect(refinerySessionNameSchema.safeParse("x".repeat(SESSION_NAME_MAX)).success).toBe(true);
+  expect(refinerySessionNameSchema.safeParse("x".repeat(SESSION_NAME_MAX + 1)).success).toBe(false);
+});
+
 // ── Selection ───────────────────────────────────────────────────────────────────────────────────────────
 
 test("selection enforces unique fields + unique non-negative greeting indexes", () => {
@@ -145,6 +257,10 @@ test("selection enforces unique fields + unique non-negative greeting indexes", 
   expect(refinerySelectionSchema.safeParse({ fields: ["description", "description"] }).success).toBe(false);
   expect(refinerySelectionSchema.safeParse({ fields: ["greetings"], greetingIndexes: [1, 1] }).success).toBe(false);
   expect(refinerySelectionSchema.safeParse({ fields: ["greetings"], greetingIndexes: [-1] }).success).toBe(false);
+  // The selection is bounded too — it is stored AND it drives how much card text rides the stage prompt.
+  expect(
+    refinerySelectionSchema.safeParse({ fields: ["greetings"], greetingIndexes: Array.from({ length: CARD_GREETINGS_MAX + 1 }, (_, i) => i) }).success,
+  ).toBe(false);
 });
 
 // ── The cross-namespace pin (the reason this test file exists in this shape) ────────────────────────────
