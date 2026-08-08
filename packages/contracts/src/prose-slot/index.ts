@@ -9,8 +9,13 @@
 import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 
-/** Which storage owns a slot's override. Exactly one per slot — never a cascade (PROSE-1 §3.1). */
-export const PROSE_HOMES = ["game", "preset", "user"] as const;
+/** Which storage owns a slot's override. Exactly one per slot — never a cascade (PROSE-1 §3.1).
+ *
+ *  TWO storages, not three: the per-GAME home (`rpg_games.config.prose`) was RETIRED by the owner ruling of
+ *  2026-08-08 ("we are putting everything in presets") and the whole rpg cohort re-homed to `preset`. A member
+ *  with no slot is dead vocabulary that invites the next author to re-open the storage this ruling closed, so
+ *  it is deleted rather than parked (NO-LEGACY). */
+export const PROSE_HOMES = ["preset", "user"] as const;
 export type ProseHome = (typeof PROSE_HOMES)[number];
 
 /** The macro power a slot's text resolves under (PROSE-1 §6.1). `names-only` = the `{{user}}`/`{{char}}`
@@ -99,8 +104,9 @@ export const PROSE_SLOT_IDS = [
   "discovery.compare.system",
   "discovery.ask.system",
   "discovery.distill.system",
-  // ── per-GAME: the steering-reminder TEACHES (census 1-7) — home `rpg_games.config.prose`, resolved off
-  //    `LiteReminderInput.prose` in `domain/rpg/substrate/reminder.ts`. `names-only` macro mode (§6.1): a host
+  // ── per-PRESET: the game-turn steering-reminder TEACHES (census 1-7) — stored in `promptConfig.prose`,
+  //    authored in the preset Templates tab, and threaded to `LiteReminderInput.prose` by chat's rpg gather
+  //    args (`domain/rpg/substrate/reminder.ts` resolves them). `names-only` macro mode (§6.1): a host
   //    override's `{{user}}`/`{{char}}` resolve through the identity-only registry, the default resolves
   //    byte-identically (it carries no macro). ──
   "rpg.reminder.steeringLicense",
@@ -110,7 +116,7 @@ export const PROSE_SLOT_IDS = [
   "rpg.card.askStatic",
   "rpg.card.example",
   "rpg.reminder.cyoaTeach",
-  // ── per-GAME: the cast/offstage HEADERS (census 8 + the offstage sibling) and the delta-block headings
+  // ── per-PRESET: the cast/offstage HEADERS (census 8 + the offstage sibling) and the delta-block headings
   //    (census 9-10) — `macros:"none"`: a header/heading has no character context to substitute, so its bytes
   //    ship verbatim (owner decision 5 ruled the delta headings prose/voice, in scope). The cast header is a
   //    DUAL-surface vocabulary — the reminder AND the `{{rpgCast}}`/`{{rpgSceneState}}` macro feed both resolve

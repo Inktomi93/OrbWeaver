@@ -7,7 +7,6 @@
 
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroSchema } from "#preset";
-import { proseOverridesSchema } from "#prose-slot";
 import { RPG_CYOA_CHOICE_BEHAVIORS } from "./enums.ts";
 import { RPG_PROFILE_FREEFORM, rpgStatProfileSchema } from "./profile.ts";
 import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker.ts";
@@ -231,12 +230,10 @@ export const rpgGameConfigSchema = z.object({
   // Additive defaulted — a pre-MU blob self-heals to [] at the parse seam. Registered with source
   // `{kind:"game", id:<chatId>}` by the macro-feed threading (kit `registerUserMacros`).
   userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).default([]),
-  // PROSE-1 (§4.2) — the per-GAME model-facing prose OVERRIDES: `slotId → { text, baseVersion }` for the
-  // steering-reminder teaches/headings a host has re-authored (census 1-10). Additive defaulted, self-healing
-  // at the parse seam like every sibling (a pre-PROSE-1 blob parses to `{}` — no version stamp, the rpg-config
-  // posture). An ABSENT override resolves to the shipped slot default, so a game that never edits prose is
-  // byte-identical to a pre-migration one (`resolveProse`, `@orb/contracts/prose`). `updateConfig`'s `patch.prose`
-  // is the ONLY write door; the reminder threads it as `LiteReminderInput.prose`.
-  prose: proseOverridesSchema,
+  // NO `prose` FIELD (owner ruling 2026-08-08, "we are putting everything in presets"). The steering-reminder
+  // teach/heading OVERRIDES live in the PRESET's `promptConfig.prose` and are authored in the Templates tab;
+  // a game turn assembles its `gmPresetId`, so a table's own copy rides that preset. The one-merge-long
+  // `config.prose` spine is deleted, not deprecated — a second storage for one concept is the defect the
+  // ruling closes, and pre-launch NO-LEGACY means no shim reads the old key.
 });
 export type RpgGameConfig = z.infer<typeof rpgGameConfigSchema>;

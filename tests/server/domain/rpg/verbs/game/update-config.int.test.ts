@@ -2,7 +2,7 @@
 // mutability matrix (add / referenced-remove refused). Mutations asserted at the ROW (assert-the-mutation-fired).
 
 import { userMacroSchema } from "@orb/contracts/preset";
-import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrackerDefSchema } from "@orb/contracts/rpg";
+import { RPG_PROFILE_D20, RPG_PROFILE_FREEFORM, rpgTrackerDefSchema, rpgUpdateConfigInputSchema } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -80,22 +80,23 @@ describe("updateConfig — knobs + profile mutability", () => {
     expect((await findGameByChat(db, chatId))?.config.userMacros).toEqual([]);
   });
 
-  test("PROSE-1: the per-GAME prose overrides write through this door, whole-record replace + keep-on-omit", async () => {
+  test("PROSE-1 re-home: this door has NO prose arm, and a wire-level `prose` patch writes nothing", async () => {
+    // Owner ruling 2026-08-08 ("we are putting everything in presets"): the teach/heading overrides are
+    // `promptConfig.prose`. This verb kept a `patch.prose` arm for one merge. The pin is the WIRE-tier refusal,
+    // not just the type: a client that still sends the old key (a stale build, a hand-rolled call) must leave no
+    // trace on the game row — a second storage that quietly accepts writes nobody reads is exactly the defect
+    // the ruling closes, and it would read as "the host's edit vanished" in the product.
     const { chatId, h } = await seedLiteGame(db);
-    expect((await findGameByChat(db, chatId))?.config.prose).toEqual({}); // born empty (the schema default)
+    const parsed = rpgUpdateConfigInputSchema.parse({
+      chatId,
+      patch: { steeringNote: "z", prose: { "rpg.reminder.steeringLicense": { text: "our table's own license", baseVersion: 1 } } },
+    });
+    expect(Object.hasOwn(parsed.patch ?? {}, "prose")).toBe(false);
 
-    const prose = { "rpg.reminder.steeringLicense": { text: "our table's own license", baseVersion: 1 } } as const;
-    await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { prose } });
-    expect((await findGameByChat(db, chatId))?.config.prose).toEqual(prose);
-
-    // Keep-on-omit — the [versioned-config-lift-drops-overrides] trap: an unrelated edit must not wipe the
-    // host's re-authored teach (the exact silent-reset class `mergeConfig` threads every field to close).
-    await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { steeringNote: "z" } });
-    expect((await findGameByChat(db, chatId))?.config.prose).toEqual(prose);
-
-    // A passed record REPLACES the whole set (the `userMacros`/`trackers` semantics) — including back to none.
-    await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { prose: {} } });
-    expect((await findGameByChat(db, chatId))?.config.prose).toEqual({});
+    await h.service.updateConfig({ principal: principal(castId<Handle>("host")), ...parsed });
+    const config: Record<string, unknown> = (await findGameByChat(db, chatId))?.config ?? {};
+    expect(Object.hasOwn(config, "prose")).toBe(false);
+    expect((await findGameByChat(db, chatId))?.config.lite.steeringNote).toBe("z"); // the real arms still write
   });
 
   test("R4c: the custom-journal-type hints are keep-on-omit like every sibling knob", async () => {

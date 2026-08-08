@@ -120,9 +120,9 @@ export function createRpgChatOps(ctx: RpgContext): ChatRpgOps {
     // is chat's authoritative `{{user}}`/`{{char}}` binding, threaded so the reminder renders the host
     // steeringNote's identity macros (rpg splices, never re-derives). `args.regenSlotMessageId` is chat's
     // swipe/reroll target — the turn's state reads resolve as of BEFORE that slot so a reroll is never told the
-    // abandoned variant's beats (VER-1b). `null` for a non-game chat (byte-identical).
-    gatherTurnContext: (args: GatherTurnContextArgs): Promise<ChatRpgGatherResult | null> =>
-      gatherTurnContext(ctx, args.chatId, args.steerIdentity, args.regenSlotMessageId),
+    // abandoned variant's beats (VER-1b). `args.prose` is the turn PRESET's `promptConfig.prose` — the
+    // model-facing teach/heading overrides, resolved chat-side (rpg reads no preset). `null` for a non-game chat.
+    gatherTurnContext: (args: GatherTurnContextArgs): Promise<ChatRpgGatherResult | null> => gatherTurnContext(ctx, args),
     // Lite has no d20 checks to feed a die into — a no-op (full's staging eligibility set).
     markDicePreRollEligible: (): void => undefined,
     onUserCommit,

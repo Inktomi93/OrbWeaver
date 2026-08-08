@@ -744,7 +744,9 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 // `formatStrings` ∪ `PRESET_PROSE_SLOT_IDS` (the turn-wire framings, which used to be `UserSettings.prose`
 // rows and a `const` in `assembly/shape.ts`). The original §6.6 line read "the ACTIONS-VIEW set only" and was
 // scoped to things a USER ACTION fires; the ruling makes the tab the one home for authorable prompt TEXT,
-// which is a superset. A row's `kind` still says which it is.
+// which is a superset. A row's `kind` still says which it is. WIDENED AGAIN 2026-08-08 by the same ruling read
+// to its end ("we are putting everything in presets"): the eleven rpg steering-reminder teaches re-homed here
+// from `rpg_games.config.prose`, so the set is now every `PRESET_PROSE_SLOT_ID` whatever domain authored it.
 // `wiFormat` is NOT here: it frames world-info ENTRIES and is edited in the WI marker's body editor (§6.5
 // census), so a row would mint the second home the census exists to prevent. Marker templates
 // (scenario/personality/…) likewise keep their section home.
@@ -753,7 +755,13 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 // PROSE-1 slot's `title`/`fires` (per-SLOT copy — those two kinds SHARE one slot, so slot copy cannot name a
 // row). `defaultSlot` is the one pointer between them: the ghost/placeholder bytes always come from PROSE-1.
 
-export const TEMPLATE_KINDS = ["steer", "voice", "studio", "format", "nudge"] as const satisfies readonly string[];
+// `teach` (added 2026-08-08 with the rpg re-home) is the sixth kind and the only one that does NOT fire on a user
+// action: a teach is standing copy the GAME TURN's steering reminder composes — it teaches the model an output
+// grammar (`<lie …/>`, `:::card`, `:::choices`) or labels a block of tracked state. It is its own kind rather
+// than more `format` rows because a group kicker is what tells a preset author "these eleven only do anything on
+// a game turn"; folding them into Format would put game vocabulary under the New-chat marker with nothing on
+// screen saying so.
+export const TEMPLATE_KINDS = ["steer", "voice", "studio", "format", "nudge", "teach"] as const satisfies readonly string[];
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
 /** One declared capability of a template — the EXTENSIBLE axis. A template needing a genuinely new field
@@ -916,6 +924,104 @@ export const TEMPLATE_DEFS = [
     fires: "A turn you didn't type into, on a history that would otherwise end on the model's own reply",
     caps: [],
     defaultSlot: "chat.assembly.continuationNudge",
+  },
+  // ── THE GAME-TURN TEACHES (owner ruling 2026-08-08, "we are putting everything in presets") ────────────────
+  // The eleven slots the rpg steering reminder composes. They were `rpg_games.config.prose` for one merge; the
+  // ruling re-homed them to `promptConfig.prose`, which is what puts them here — a preset-homed prose slot with
+  // no row is a slot no host can reach, and the two-sided coverage test in `tests/contracts/prose/` REDs on it.
+  // Each row's `fires` states its GATE, because most of these are conditional on a per-game feature knob: the
+  // copy is authored on the preset, the FIRING is still the game's.
+  // The seven `names-only` teaches declare `{{user}}`/`{{char}}` as token vocabulary — the identity registry
+  // really does resolve them in an override (`resolveTeach`), so the chips are a true statement, not decoration.
+  {
+    id: "rpg.reminder.steeringLicense",
+    kind: "teach",
+    label: "Steering license",
+    fires: "Every game turn — licenses the tracked values to shape the fiction",
+    caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
+    defaultSlot: "rpg.reminder.steeringLicense",
+  },
+  {
+    id: "rpg.reminder.deceptionTeach",
+    kind: "teach",
+    label: "Deception teach",
+    fires: "A game turn with Deception on — teaches the hidden <lie …/> tag",
+    caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
+    defaultSlot: "rpg.reminder.deceptionTeach",
+  },
+  {
+    id: "rpg.reminder.omniscienceTeach",
+    kind: "teach",
+    label: "Perception teach",
+    fires: "A game turn with Perception filter on — teaches the hidden <ofilter …/> tag",
+    caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
+    defaultSlot: "rpg.reminder.omniscienceTeach",
+  },
+  {
+    id: "rpg.card.askInteractive",
+    kind: "teach",
+    label: "Interactive card",
+    fires: "A game turn with immersive cards on and interactivity allowed",
+    caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
+    defaultSlot: "rpg.card.askInteractive",
+  },
+  {
+    id: "rpg.card.askStatic",
+    kind: "teach",
+    label: "Static card",
+    fires: "A game turn with immersive cards on and interactivity off",
+    caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
+    defaultSlot: "rpg.card.askStatic",
+  },
+  {
+    id: "rpg.card.example",
+    kind: "teach",
+    label: "Card example",
+    fires: "Appended to whichever card teach is running",
+    caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
+    defaultSlot: "rpg.card.example",
+  },
+  {
+    id: "rpg.reminder.cyoaTeach",
+    kind: "teach",
+    label: "Choices teach",
+    fires: "A game turn with CYOA on — teaches the standing :::choices fence",
+    caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
+    defaultSlot: "rpg.reminder.cyoaTeach",
+  },
+  // The four `macros:"none"` labels — no token vocabulary, because a header has no character context to
+  // substitute and a `{{…}}` in an override would ship as literal braces.
+  {
+    id: "rpg.reminder.castHeader",
+    kind: "teach",
+    label: "Present header",
+    fires: "Heads the present cast, whenever a scene member carries a standing guide",
+    caps: [],
+    defaultSlot: "rpg.reminder.castHeader",
+  },
+  {
+    id: "rpg.reminder.offstageHeader",
+    kind: "teach",
+    label: "Offstage header",
+    fires: "Heads the established characters who are not in this scene",
+    caps: [],
+    defaultSlot: "rpg.reminder.offstageHeader",
+  },
+  {
+    id: "rpg.delta.changesHeading",
+    kind: "teach",
+    label: "Changes heading",
+    fires: "Heads the what-changed block, on a game turn where tracked state moved",
+    caps: [],
+    defaultSlot: "rpg.delta.changesHeading",
+  },
+  {
+    id: "rpg.delta.sceneOpensHeading",
+    kind: "teach",
+    label: "Scene opens",
+    fires: "Heads the first beat's state — an opening, not a diff",
+    caps: [],
+    defaultSlot: "rpg.delta.sceneOpensHeading",
   },
 ] as const satisfies readonly TemplateDef[];
 
