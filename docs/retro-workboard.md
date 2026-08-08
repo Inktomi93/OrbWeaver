@@ -119,7 +119,13 @@ Ranked by consequence within each category. Every item carries its receipt state
   lifecycle-portability row owed · prose homed `user` = no fork strip. **⚑ R1 DISPATCHED to the
   warm forge lane** (rebase-main-first; §4 belts carried in its design; handoff-copy `refinery`
   carry defaults to CLEAR — owner may override; deletes both pre-producer gate rows; post-R1
-  graduation = verifier + security review of the live untrusted flow). **OWNER (small):** ratify
+  graduation = verifier + security review of the live untrusted flow). **⚑ BELT-5 DEVIATION RULED
+  (orchestrator, mid-run):** `neutralizeMacros` on refinery text would CORRUPT canon (ZWSP'd braces
+  ride rewrite→applyFields→card, killing the card's own {{char}} at chat time) —
+  satisfaction-by-construction APPROVED instead (no macro engine in the domain, concatenation not
+  splice, all 12 slots macros:"none"), pinned by a both-directions substrate test (card {{char}}
+  reaches the prompt VERBATIM: unresolved AND un-neutralized) + a two-method zero-engine-imports
+  receipt. Named attack target for the post-R1 security re-review (design §9.10). **OWNER (small):** ratify
   the handoff-copy CLEAR default · the two judgment caps (`ENTRIES_MAX=108`, `PROSE_MAX=4000` — how
   much critique a model may write).
 - **A2 · CONTAINERIZE → merged `fd4ae9119`, check PASS; ✅ SECURITY §8 REVIEW LANDED (8/9 hold);
@@ -148,7 +154,16 @@ Ranked by consequence within each category. Every item carries its receipt state
   the live-infra steps:** `docker build` both targets (+`docker inspect` the healthcheck),
   container runs, fleet-in-namespace, read-only shakeout, sibling-vllm cap_drop probe, the pentest
   cage (§4/Fork F), deploy posture (C13).
-- **A3 · PRESET-FOLLOWUP → MERGED `57215749a` (lane `d92bf5b21`); GRADUATION VERIFIER RUNNING.**
+- **A3 · PRESET-FOLLOWUP → MERGED `57215749a`; verifier 3/4 CONFIRMED, **claim-2a REFUTED — FIX LEG
+  on the warm lane.** The drill store has NO production reset (2 call sites of
+  `closePresetSectionDrill`, scanned=987): **B-2 live regression** (Delivers-via chip lands in the
+  WRONG section's editor when drilled — its contract CT green only because it never drills first) ·
+  B-1 view-switch persists the drill · B-3 cross-preset leak (section ids are DEFAULT literal
+  collisions by the norm) · `clear()` side-effect dismisses the mobile overlay panel. Fix-leg
+  constraints: fork KEEPS drill · chip lands on rack w/ target current · view-return = rack ·
+  no cross-preset leak; + 4 minors (unknown-typed prop, headline over-claim P3, false fixture
+  prose, retry-CT focus-heal false-pass path). Graduates on the fix leg + re-verify. Original
+  landing detail:
   Shipped 3/4: B1 CapabilityGate wired to shared `failureCause` (verdict verbatim ONLY on
   BAD_REQUEST; error threads WHOLE so `data.code` survives; red-first CT bite-proven) · B2 Prompt
   section-drill on a store axis (mirrors FORGE#1; red-first: old source ejected, new survives the
