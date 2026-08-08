@@ -152,11 +152,11 @@ export function ingestStallHint(doc: Pick<DocumentView, "charCount" | "chunkCoun
   return `Still ${word} — Reindex can restart a stuck job.`;
 }
 
-/** The library-row subtitle: provenance · size · chunk count (e.g. "Upload · 24.5 KB · 12 chunks"). A
- *  document with no chunks yet reads "0 chunks" — the `Queued` chip carries the in-flight signal. */
+/** The library-row subtitle: provenance · size · passage count (e.g. "Upload · 24.5 KB · 12 passages"). A
+ *  document with no passages yet reads "0 passages" — the `Queued` chip carries the in-flight signal. */
 export function documentSubtitle(doc: DocumentView): string {
-  const chunks = doc.chunkCount === 1 ? "1 chunk" : `${doc.chunkCount} chunks`;
-  return `${originLabel(doc.origin)} · ${formatBytes(doc.byteSize)} · ${chunks}`;
+  const passages = doc.chunkCount === 1 ? "1 passage" : `${doc.chunkCount} passages`;
+  return `${originLabel(doc.origin)} · ${formatBytes(doc.byteSize)} · ${passages}`;
 }
 
 // ── The bank-wide ingest health (the HOME tile, D-7) ────────────────────────────────────────────────
@@ -240,6 +240,14 @@ function groupThousands(value: number): string {
  *  side the two numbers teach what a passage IS and what "indexed" costs. And a capped page says `100+`,
  *  because `databank.list` returns a PAGE: reporting its length as the bank's size is a census the client
  *  never took (P2-d). */
+/** A page-bounded count rendered `"100+"` once it hits the page's own limit, plain otherwise (P2-d). ONE home
+ *  for the "`total >= limit` ⇒ capped" reading so every surface reading the same capped `databank.list` page
+ *  — the tile's health line, the library header's live count — says the same thing about it; two spellings
+ *  would drift the moment one of them rounds differently. */
+export function cappedCount(total: number, limit: number): string {
+  return total >= limit ? `${total}+` : `${total}`;
+}
+
 function documentCount(health: BankHealth): string {
   if (health.capped) {
     return `${health.total}+ documents`;
