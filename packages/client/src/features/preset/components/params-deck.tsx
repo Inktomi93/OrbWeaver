@@ -47,6 +47,7 @@ import {
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { qualityDeckGloss } from "../lib/effective-knobs.ts";
 import { THINKING_DISPLAY_ITEMS, thinkingDisplayLabel } from "../lib/preset-nav.ts";
+import type { ReadFailure } from "../lib/resolve-failure.ts";
 import { CapabilityGate } from "./capability-gate.tsx";
 import { KnobRow } from "./knob-row.tsx";
 import { ParamsLimits } from "./params-limits.tsx";
@@ -70,8 +71,9 @@ export interface ParamsDeckProps {
   /** The capability read's THROWN error object — `null` while the read is still PENDING. Passed WHOLE (not a
    *  flattened `.message`) so the gate discriminates the cause on `data.code`: only a routing refusal earns
    *  the routing verdict (side-eye F-02 + the 2026-08-08 earned-cause fix), and a pending read is not a state
-   *  at all, so the gate must print neither over the other. */
-  readonly capabilityError: unknown;
+   *  at all, so the gate must print neither over the other. `ReadFailure | null`, never `unknown`: an
+   *  `undefined` leaking in would select the gate's FAILED arm under a read that never failed. */
+  readonly capabilityError: ReadFailure | null;
 }
 
 /** The staleness row's vocabulary (§4.2): every knob the effective read can report as STORED-BUT-DROPPED,

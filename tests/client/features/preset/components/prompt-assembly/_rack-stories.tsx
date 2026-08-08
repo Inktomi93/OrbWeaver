@@ -13,7 +13,7 @@
 
 import type { AppFormInstance, AutosaveSession } from "@orb/client/forms";
 import { createAutosaveEntityForm } from "@orb/client/forms";
-import { closePresetSectionDrill } from "@orb/client/state";
+import { closePresetSectionDrill, retargetPresetSectionDrill } from "@orb/client/state";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
@@ -79,7 +79,7 @@ function RackBody({ session, savedCount }: { readonly session: AutosaveSession<P
           <output>{`ids=${sections.map((s) => s.id).join(",")} savedCount=${savedCount} on=${sections.filter((s) => s.enabled).length} splice=${spliceState(sections)} trig=${triggerState(sections)}`}</output>
         )}
       </form.Subscribe>
-      <PresetStructureTabs form={form} tab="prompt" />
+      <PresetStructureTabs form={form} presetId={STORY_PRESET} tab="prompt" />
     </>
   );
 }
@@ -100,7 +100,7 @@ export function MainPromptStory(): ReactElement {
         save={(): Promise<void> => Promise.resolve()}
         serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections: [...MAIN_PROMPT_SECTIONS] }}
       >
-        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} tab="prompt" />}
+        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} tab="prompt" />}
       </StoryForm>
       <Toaster />
     </ToastProvider>
@@ -119,19 +119,28 @@ const FORK_SECTIONS: PromptSection[] = [
 /** The FORK-RETARGET seam for the PROMPT view (§5.2), isolated exactly as the Actions story isolates it: the
  *  production `PresetForm` is keyed `entityId={presetId}`, and the built-in's copy-on-write retarget swaps
  *  that id mid-edit — remounting the whole keyed session. The fork carries the SAME config (same section
- *  ids), so a drill homed on the section id must re-anchor; a LOCAL drill id is lost and dumps the author on
- *  the rack. The trigger + the entity echo are test chrome around the REAL view. */
+ *  ids), so the drill must re-anchor onto the copy; a LOCAL drill id is lost and dumps the author on the rack.
+ *
+ *  The button fires the retarget PAIR production fires, in production's order — `use-preset-autosave.ts`'s
+ *  `retarget` does `selectPreset(to)` (which is what swaps the surface's `presetId` prop, modelled here by
+ *  the `entity` state) AND `retargetPresetSectionDrill(to)`. Both halves belong to the simulation: the drill
+ *  store is SCOPED by preset, so an id swap alone is (correctly) indistinguishable from the user opening a
+ *  different preset — carrying the drill is an explicit act, and this is the seam that performs it. */
 export function SectionForkStory(): ReactElement {
   const [entity, setEntity] = useState<PresetId>(STORY_PRESET);
   useFreshSectionDrill();
+  const forkRetarget = (): void => {
+    setEntity(FORKED_PRESET);
+    retargetPresetSectionDrill(FORKED_PRESET);
+  };
   return (
     <ToastProvider>
-      <button onClick={(): void => setEntity(FORKED_PRESET)} type="button">
+      <button onClick={forkRetarget} type="button">
         simulate fork retarget
       </button>
       <output>{`entity=${entity}`}</output>
       <StoryForm entityId={entity} save={(): Promise<void> => Promise.resolve()} serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections: [...FORK_SECTIONS] }}>
-        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} tab="prompt" />}
+        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} presetId={entity} tab="prompt" />}
       </StoryForm>
       <Toaster />
     </ToastProvider>

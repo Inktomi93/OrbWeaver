@@ -117,10 +117,23 @@ import {
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 
-export function CtDataProviders({ children }: { readonly children: ReactNode }): ReactElement {
+export function CtDataProviders({
+  children,
+  refetchOnWindowFocus = true,
+}: {
+  readonly children: ReactNode;
+  /** Opt OUT of react-query's `refetchOnWindowFocus` (v5 default: `true`).
+   *
+   *  Needed by any story whose pin is "THIS interaction issued the re-read": an errored query is stale, so a
+   *  focus event landing between the failure barrier and the assertion re-reads on its own and HEALS the
+   *  panel — a false pass that never touches the affordance under test (graduation verifier, 2026-08-08).
+   *  Defaulted to today's behaviour so this is purely additive: no existing story changes, and a story that
+   *  wants determinism asks for it. */
+  readonly refetchOnWindowFocus?: boolean;
+}): ReactElement {
   const queryClient = new QueryClient({
     defaultOptions: {
-      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY },
+      queries: { retry: false, staleTime: Number.POSITIVE_INFINITY, refetchOnWindowFocus },
       mutations: { retry: false },
     },
   });

@@ -43,8 +43,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-// `Download` is GONE with the header Export door (O-16★ — one home, the list-row kebab); `Container` is
-// lane B's shared content-column ruling.
+// `Download` is GONE with the header Export door (O-16★ — one home, the list-row kebab); `Container` is lane B's shared content-column ruling.
 import { Icon, RotateCcw, Zap } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
 import { Tabs, TabsIndicator, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
@@ -72,6 +71,7 @@ import { resolvedForLabel } from "../lib/effective-knobs.ts";
 import { seedConfig, validatePresetProse } from "../lib/preset-editor-model.ts";
 import type { PresetEditorView } from "../lib/preset-nav.ts";
 import { openSectionInPrompt, PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
+import type { ReadFailure } from "../lib/resolve-failure.ts";
 
 /** ONE string for the reset door's accessible name AND its hover tooltip (the O-3 icon-door anatomy). */
 const RESET_LABEL = "Reset to starter arrangement";
@@ -115,7 +115,7 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
 interface ViewContentProps {
   readonly form: AppFormInstance<PromptConfig>;
   readonly capability: ModelCapability | undefined;
-  readonly capabilityError: unknown;
+  readonly capabilityError: ReadFailure | null;
   /** The funnel projected for this preset (§4.3) — undefined while unavailable. */
   readonly effective: EffectiveProfileRow | undefined;
   /** The server-only BYOK passthrough's keys (D7's presence row) — it never enters the form values. */
@@ -142,7 +142,7 @@ function viewContent(id: PresetEditorView["id"], props: ViewContentProps): React
     case "prompt":
       // No `capability` here any more: the one cluster that read it (Collapsing's floor line) moved to
       // Transforms with the rest of the wire-shaping tail (O-17★).
-      return <PresetStructureTabs form={form} onRevealSection={onRevealSection} tab="prompt" />;
+      return <PresetStructureTabs form={form} onRevealSection={onRevealSection} presetId={presetId} tab="prompt" />;
     case "actions":
       return (
         <ActionsView
@@ -170,10 +170,10 @@ function viewContent(id: PresetEditorView["id"], props: ViewContentProps): React
           {/* DELIVERY + COLLAPSING lead the view (crunch-list O-17★): they shape the OUTGOING wire, so
               they sit above the prompt-side regex lanes and everything reply-side, in the same execution
               order the Transforms readout prints. */}
-          <PresetStructureTabs capability={capability} form={form} tab="delivery" />
+          <PresetStructureTabs capability={capability} form={form} presetId={presetId} tab="delivery" />
           <RegexTab attachable={attachable} presetId={presetId} />
-          <PresetStructureTabs form={form} tab="postProcess" />
-          <PresetStructureTabs form={form} tab="templates" />
+          <PresetStructureTabs form={form} presetId={presetId} tab="postProcess" />
+          <PresetStructureTabs form={form} presetId={presetId} tab="templates" />
         </Stack>
       );
   }
@@ -216,9 +216,9 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   const onActivate = (): void => {
     setDefault.mutate({ section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : presetId } });
   };
-  // isError ≠ no-model (side-eye F-02): a FAILED read must not render as "connect a chat model" to someone who
-  // has one. The ERROR OBJECT goes down WHOLE (2026-08-08), not a flattened `.message`, so the gate can
-  // discriminate the cause on `data.code` (the routing verdict is EARNED, not asserted). `null` = PENDING.
+  // isError ≠ no-model (F-02): a FAILED read must not render as "connect a chat model" to someone who has one.
+  // The ERROR goes down WHOLE (2026-08-08) so the gate discriminates on `data.code` — the routing verdict is
+  // EARNED, never asserted. `null` = PENDING.
   const capabilityError = capabilityQuery.error;
 
   return (
@@ -269,7 +269,7 @@ interface PresetEditorBodyProps {
   readonly onActivate: () => void;
   readonly capability: ModelCapability | undefined;
   /** The capability read's thrown error object, `null` while it is still PENDING (§F-02). */
-  readonly capabilityError: unknown;
+  readonly capabilityError: ReadFailure | null;
   readonly effective: EffectiveProfileRow | undefined;
   readonly customParameterKeys: readonly string[];
   readonly reset: ReturnType<typeof useResetPreset>;

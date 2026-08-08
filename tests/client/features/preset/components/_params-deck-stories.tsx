@@ -15,6 +15,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { ParamsDeck } from "../../../../../packages/client/src/features/preset/components/params-deck.tsx";
+import type { ReadFailure } from "../../../../../packages/client/src/features/preset/lib/resolve-failure.ts";
 import { makeModelCapability } from "../../../../support/factories/resolved-connection.ts";
 
 const STORY_PRESET = "preset_deckstoryaaaa";
@@ -105,6 +106,14 @@ export function ParamsDeckPendingCapabilityStory(): ReactElement {
   return <DeckHarness capability={null} effective={undefined} params={{}} />;
 }
 
+/** A thrown read shaped the way the tRPC CLIENT hands one to a caller: the message plus the structured
+ *  `data.code` the server's DomainError→code mapper produced (the `ReadFailure` shape the band's prop takes —
+ *  `useQuery().error` is a `TRPCClientErrorLike`, a structural interface, not an `Error` subtype tsc accepts).
+ *  The gate discriminates on that code, so the stories below differ ONLY in it. */
+function readError(code: string | undefined, message: string): ReadFailure {
+  return code === undefined ? { message } : { message, data: { code } };
+}
+
 /** The deck whose capability read FAILED with the ROUTING refusal `assertCoherent` throws — a `BAD_REQUEST`,
  *  which is the ONE code that EARNS the "routing problem, not a missing connection" verdict (side-eye F-02).
  *  The server's own reason is quoted verbatim. */
@@ -112,26 +121,38 @@ export function ParamsDeckCapabilityErrorStory(): ReactElement {
   return (
     <DeckHarness
       capability={null}
-      capabilityError={{ message: "400 incoherent routing (agent-sdk × local-light)", data: { code: "BAD_REQUEST" } }}
+      capabilityError={readError("BAD_REQUEST", "400 incoherent routing (agent-sdk × local-light)")}
       effective={undefined}
       params={{}}
     />
   );
 }
 
-/** The deck whose capability read FAILED with a MISSING PRECONDITION (`PRECONDITION_FAILED`) — a missing
- *  credential is the archetype. The old gate printed "this is a routing problem, NOT a missing connection"
- *  over exactly this, which is the F-02 verdict INVERTED (2026-08-08): the failure IS a missing precondition.
- *  The verdict must now be WITHHELD, and the server's own reason shown. */
-export function ParamsDeckCapabilityMissingCredentialStory(): ReactElement {
+/** The deck whose capability read failed with a NON-ROUTING code — here `PRECONDITION_FAILED`, standing for
+ *  the whole class the gate must not editorialise over. What is reachable at THIS verb is a settings/user
+ *  read failing or a 500: `connection.resolveChatCapability` is deliberately CREDENTIAL-FREE (it reads the
+ *  static descriptor as authoritative — `domain/connection/verbs/resolve-role.ts`), so the "missing
+ *  credential" this arm was first written around cannot occur here at all.
+ *
+ *  The pin is the CLASS, not the code: the old gate asserted "this is a routing problem, NOT a missing
+ *  connection" over every failure alike, so an error that names no routing fault got told what its cause was
+ *  — the exact wrong-confident-cause defect `lib/resolve-failure.ts` was minted to kill. Both the verdict and
+ *  the HEADLINE must fall back to naming the READ. */
+export function ParamsDeckCapabilityNonRoutingStory(): ReactElement {
   return (
     <DeckHarness
       capability={null}
-      capabilityError={{ message: "no chat credential is configured for this source", data: { code: "PRECONDITION_FAILED" } }}
+      capabilityError={readError("PRECONDITION_FAILED", "the routing settings could not be read")}
       effective={undefined}
       params={{}}
     />
   );
+}
+
+/** The deck whose capability read failed with NO tRPC `data` at all — a dropped socket / a 500. The band knows
+ *  the read failed and nothing more, so it may name no cause in EITHER line. */
+export function ParamsDeckCapabilityTransportFailureStory(): ReactElement {
+  return <DeckHarness capability={null} capabilityError={readError(undefined, "Failed to fetch")} effective={undefined} params={{}} />;
 }
 
 /** The deck carrying a server-only `customParameters` blob — D7's read-only presence row in ADVANCED. */
@@ -146,9 +167,9 @@ interface DeckHarnessProps {
    *  which is exactly the mistake that made the gate story render a model's knobs. */
   readonly capability?: Parameters<typeof ParamsDeck>[0]["capability"] | null;
   readonly customParameterKeys?: readonly string[];
-  /** The capability read's THROWN error object — passed WHOLE so the gate reads `data.code` (side-eye F-02 +
-   *  the 2026-08-08 earned-cause fix). `null` = PENDING. */
-  readonly capabilityError?: unknown;
+  /** The capability read's THROWN error — passed WHOLE so the gate reads `data.code` (side-eye F-02 + the
+   *  2026-08-08 earned-cause fix). `null` = PENDING. */
+  readonly capabilityError?: ReadFailure | null;
 }
 
 /** The shared harness: the REAL deck under the REAL autosave boundary, with the last-saved params KEY SET

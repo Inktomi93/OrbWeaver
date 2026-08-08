@@ -146,6 +146,11 @@ function updatesAgainst(trpc: TrpcRecorder, presetId: PresetId): UpdateCall[] {
 // battery, "element(s) not found" on that first assertion), and (b) ticking the bus off the count could
 // invalidate an IN-FLIGHT query, which yields no second call at all. The FAILURE ARM is a SETTLED, durable
 // render — waiting for it is a real browser-side barrier for both hazards, with no timeout anywhere.
+/** The headline of the gate's ROUTING arm — the one failure that has EARNED naming the chat model as the
+ *  cause. Both fixtures below therefore throw `BAD_REQUEST`, the code a real routing refusal carries
+ *  (`DomainOperationError` → `transport/trpc/error-mapping.ts`): these two tests are ABOUT the routing fault
+ *  they name, and an unstamped throw is an `INTERNAL_SERVER_ERROR`, whose honest arm names only the READ.
+ *  They passed unstamped while the gate asserted this sentence over every code alike (2026-08-08). */
 const CAPABILITY_FAILURE_RE = /Your chat model couldn't be resolved/;
 const ROUTING_FAULT_MESSAGE = "no chat connection configured";
 const CAPABILITY = makeResolvedChatCapability({
@@ -174,7 +179,7 @@ test("capability freshness — a settingsChanged tick swaps the failed-capabilit
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    "connection.resolveChatCapability": () => (resolves++ === 0 ? trpcError({ message: ROUTING_FAULT_MESSAGE }) : CAPABILITY),
+    "connection.resolveChatCapability": () => (resolves++ === 0 ? trpcError({ code: "BAD_REQUEST", message: ROUTING_FAULT_MESSAGE }) : CAPABILITY),
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
   const component = await mount(<PresetEditorCapabilityFreshnessStory />);
@@ -264,7 +269,7 @@ test("PENDING — a FAILED read says nothing until it settles, then states the r
     "preset.get": () => PRESET_A_DETAIL,
     "preset.list": () => [PRESET_A_DETAIL],
     "settings.getUserSettings": () => SETTINGS_VIEW,
-    "connection.resolveChatCapability": () => trpcError({ message: ROUTING_FAULT_MESSAGE }),
+    "connection.resolveChatCapability": () => trpcError({ code: "BAD_REQUEST", message: ROUTING_FAULT_MESSAGE }),
     "preset.resolveEffective": () => EFFECTIVE_FLOOR,
   });
   await holdCapability(page);
@@ -954,6 +959,82 @@ test("O-13 — the Delivers-via chip OPENS the Guided instruction row in the Pro
   await expect(component.getByRole("tab", { name: "Prompt" })).toHaveAttribute("aria-selected", "true");
   // …and the row it named is the SELECTED one (ListRow paints `aria-current` on the selection).
   await expect(component.getByRole("button", { name: "Guided instruction", exact: true })).toHaveAttribute("aria-current", "true");
+});
+
+// ── THE SECTION DRILL'S LIFECYCLE (graduation verifier, 2026-08-08) ───────────────────────────────────
+// Moving the drill from local component state onto a store fixed the fork-eject — and, with no reset story,
+// bought three defects the local state never had, because a `useState` died on unmount and a store does not.
+// All three are properties of the WHOLE surface (view axis, selection axis and drill axis are three stores),
+// so nothing below the surface can see them. The door test above stayed green throughout the regression
+// only because it never drilled first — which is exactly what the first pin does.
+
+test("the Delivers-via chip lands on the RACK even when a DIFFERENT section is already drilled", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  // Drill into "Main" — the state the door test never established.
+  await component.getByRole("tab", { name: "Prompt" }).click();
+  await component.getByRole("button", { name: "Edit Main", exact: true }).click();
+  await expect(component.getByRole("button", { name: "Back to rack" })).toBeVisible();
+
+  // Now take the cross-link from Actions, naming a DIFFERENT section.
+  await component.getByRole("tab", { name: "Actions" }).click();
+  await component.getByRole("button", { name: DELIVERS_VIA_RE }).click();
+
+  // THE REGRESSION: the door painted the still-drilled "Main" EDITOR, so it named one section and opened
+  // another — and the row it selected was never rendered at all. The rack must be standing.
+  await expect(component.getByRole("button", { name: "Back to rack" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Guided instruction", exact: true })).toHaveAttribute("aria-current", "true");
+});
+
+test("leaving the Prompt view while drilled and returning lands on the RACK, not back inside the editor", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+
+  await component.getByRole("tab", { name: "Prompt" }).click();
+  await component.getByRole("button", { name: "Edit Main", exact: true }).click();
+  await expect(component.getByRole("button", { name: "Back to rack" })).toBeVisible();
+
+  // Away and back — the old local drill state died with the unmount; the store's did not.
+  await component.getByRole("tab", { name: "Params" }).click();
+  await component.getByRole("tab", { name: "Prompt" }).click();
+
+  await expect(component.getByRole("button", { name: "Back to rack" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Main", exact: true })).toBeVisible();
+});
+
+test("a drill in preset A does not leak into preset B — the section ids are the SAME literals", async ({ mount, page }) => {
+  // The leak's whole mechanism: rack section ids are `DEFAULT_PROMPT_CONFIG` literals, so A and B carry the
+  // byte-identical "main". An unscoped drill therefore RESOLVED in B and opened B directly inside its own
+  // "Main" editor — a preset the user had just opened for the first time, already drilled.
+  await routeTrpc(page, {
+    "preset.get": (input: unknown) => ((input as { id?: string }).id === PRESET_B ? PRESET_B_DETAIL : PRESET_A_DETAIL),
+    "preset.list": () => [PRESET_A_DETAIL, PRESET_B_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+    "preset.update": () => ({}),
+  });
+  const component = await mount(<PresetEditorSwitchStory />);
+
+  await component.getByRole("tab", { name: "Prompt" }).click();
+  await component.getByRole("button", { name: "Edit Main", exact: true }).click();
+  await expect(component.getByRole("button", { name: "Back to rack" })).toBeVisible();
+
+  // Open B (the rail's prop change) — B is a different preset, so its rack is what opens.
+  await component.getByRole("button", { name: "switch to B" }).click();
+  await expect(component.getByText("Preset B")).toBeVisible();
+  await expect(component.getByRole("button", { name: "Back to rack" })).toHaveCount(0);
+  await expect(component.getByRole("button", { name: "Main", exact: true })).toBeVisible();
 });
 
 // ── O-16★: EXPORT HAS ONE HOME, AND IT IS THE LIST ROW ────────────────────────────────────────────────

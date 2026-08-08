@@ -167,16 +167,19 @@ export type { OverlayPanelRequest, PanelMode, PanelName } from "./panel-resolve.
 export { PANEL_MODES, resolvePanelMode } from "./panel-resolve.ts";
 export { setPresetEditorView, usePresetEditorView } from "./preset-editor-view-store.ts";
 export {
+  closePresetSectionDrill,
+  drillPresetSection,
+  retargetPresetSectionDrill,
+  useDrilledPresetSectionId,
+} from "./preset-section-drill-store.ts";
+export {
   __dismissPresetSectionForTest,
   __resetPresetSection,
   __resetPresetSelection,
-  closePresetSectionDrill,
-  drillPresetSection,
   presetSectionSelection,
   selectPreset,
   selectPresetFromList,
   selectPresetSection,
-  useDrilledPresetSectionId,
   useSelectedPresetId,
   useSelectedPresetSectionId,
 } from "./preset-selection-store.ts";

@@ -23,6 +23,23 @@
 // The code is read off `error.data.code`, the structured field, never message text (the `invite-dialog` /
 // `rpg-error-state` discrimination precedent).
 
+/** A THROWN read, as a failure band's prop takes it: the message it may quote plus the structured code it
+ *  discriminates on. Deliberately structural rather than `Error` — `useQuery().error` is a
+ *  `TRPCClientErrorLike`, which is an interface with no `name`, so it is NOT assignable to `Error` (measured:
+ *  `tsc` TS2322) even though the runtime value is one. And deliberately not `unknown`: a band whose FAILED
+ *  arm is selected by `error !== null` must not accept the `undefined` an unlanded read hands up, or a read
+ *  that never failed renders a permanent failure (graduation verifier, 2026-08-08).
+ *
+ *  The reader functions below still take `unknown` — they are the defensive boundary, and a `catch` value
+ *  genuinely is unknown. This type is what a COMPONENT PROP should be. */
+export interface ReadFailure {
+  readonly message: string;
+  /** `| undefined` is LOAD-BEARING under `exactOptionalPropertyTypes` (this repo's setting): tRPC types this
+   *  as `Maybe<Shape>` = `Shape | null | undefined`, and an optional marker alone forbids an EXPLICIT
+   *  `undefined`, so the real client error would not assign (measured: `tsc` TS2322). */
+  readonly data?: { readonly code?: string | undefined } | null | undefined;
+}
+
 /** The three causes the failure band can distinguish — `unknown` is the honest arm, not a fallback hole.
  *  Homed as a tuple so the union DERIVES rather than re-spells it (§5.5; `no-inline-union-redecl`). */
 const RESOLVE_FAILURE_CAUSES = ["not-found", "routing", "unknown"] as const;

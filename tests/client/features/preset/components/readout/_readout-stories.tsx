@@ -149,6 +149,19 @@ export function PresetReadoutParamsBoundStory(): ReactElement {
   );
 }
 
+/** {@link PresetReadoutParamsBoundStory} with FOCUS-REFETCH OFF — for the pin that Retry itself issues the
+ *  re-read. An errored query is stale, so react-query's `refetchOnWindowFocus` (v5 default `true`) would heal
+ *  the panel on any focus event between the failure barrier and the assertion, passing the test without the
+ *  affordance ever working. Its own story rather than a flag on the shared one: every OTHER readout pin
+ *  should keep production's default. */
+export function PresetReadoutRetryStory(): ReactElement {
+  return (
+    <CtDataProviders refetchOnWindowFocus={false}>
+      <ReadoutFrame chatId={STORY_CHAT} view="params" />
+    </CtDataProviders>
+  );
+}
+
 // ── The EFFECTIVE-GENERATION panel's THREE ARMS, mounted PROP-DIRECT ────────────────────────────────────
 // `EffectiveProfile` is a pure projection of `(effective, error)`, so each arm is a SETTLED rendered state
 // with nothing in flight — the only shape that can pin the PENDING arm honestly. The obvious alternative

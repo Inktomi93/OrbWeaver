@@ -52,7 +52,7 @@ function MacroPlaneStory({ children }: { readonly children: (form: AppFormInstan
 
 /** The Prompt view — drill into the literal section and its BODY is a prompt-text field. */
 export function SectionBodyCompletionStory(): ReactElement {
-  return <MacroPlaneStory>{(form): ReactElement => <PresetStructureTabs form={form} tab="prompt" />}</MacroPlaneStory>;
+  return <MacroPlaneStory>{(form): ReactElement => <PresetStructureTabs form={form} presetId={STORY_PRESET} tab="prompt" />}</MacroPlaneStory>;
 }
 
 /** The Actions view — a guided template's editor is the same kind of field, one view over. */
