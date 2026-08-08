@@ -277,7 +277,7 @@ Absence receipts (each: ast-grep sweep scannedFileCount=2029 + literal grep, bot
 
 | # | Thing | Why skip |
 | - | - | - |
-| S1 | NL→JSON-schema generation UI | Died with E3: payload shapes are code-owned contracts. Custom RUBRIC text still lands via prose overrides + per-run guidance. (Fork F3 if the owner disagrees.) |
+| S1 | NL→JSON-schema generation UI | ~~Died with E3~~ **OWNER-OVERRIDDEN 2026-08-08 → PORT-AND-IMPROVE, maximal** — full design: [`2026-08-08-card-refinery-nl-schema-design.md`](2026-08-08-card-refinery-nl-schema-design.md) (rides `liftJsonSchema`/`projectJsonSchema`/`runStructuredTurn`/the D126 knob — the engine tier is already built). |
 | S2 | Assistant prefill / disable-thinking user toggles | Backend-internal wire concerns in orb (providers/agent-sdk own them; customParameters is BYOK-only law). Not refinery settings. |
 | S3 | `maxTokensOverride` setting | The posture-ladder (floor ← preset params) already governs side-gen budgets. |
 | S4 | Token-count debounce/cache subsystem | Sync QuadChars estimate + denorm (E-class: already exceeded). |
@@ -396,9 +396,10 @@ Recommended order (each stage independently green):
   (the extension ran on the user's active API). If that proves weak, the orb-shaped fix is a per-run
   connection/preset pick or a new `refine` member of `PROVIDER_ROLES` — a closed-set coupled change
   (D109-4), not a v1 requirement. Do NOT sniff "current settings" — that concept doesn't exist in orb.
-- **F3 · Payload shapes** — REC: fixed typed contracts (S1). User customization = prose-slot overrides +
-  per-run guidance. ST-parity user-authored schemas would resurrect the whole E3 subsystem for a
-  flexibility the typed UI can't render anyway.
+- **F3 · Payload shapes** — REC: fixed typed contracts remain the DEFAULT. **AMENDED 2026-08-08 (owner):
+  user-authored schemas return as the sanctioned EXTENSION arm** — NL→schema design in
+  [`2026-08-08-card-refinery-nl-schema-design.md`](2026-08-08-card-refinery-nl-schema-design.md) §4.3
+  (custom score/analyze schemas must include the well-known core; custom rewrite payloads stay excluded v1).
 - **F4 · Preset multiplicity** — REC: a per-stage `mode` enum (rewrite: conservative/balanced/expansive;
   score: full/quick; analyze: full/iteration/quick) mapped to shipped prompt variants — the extension's 8
   builtins ARE these modes (`defaults.ts:55-233`). A user preset-CRUD registry is a fork only if the owner
