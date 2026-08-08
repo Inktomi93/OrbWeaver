@@ -35,13 +35,16 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   initiatives to CLOSED; the original three-cap came from "six ate our usage too fast" — five is the
   tested ceiling, six is not). **ONE COMMIT per lane**, terse
   message drafted in seconds; receipts go in the final report, never the commit message.
-- **Merges FAST-FORWARD to main (owner ruling 2026-08-08, supersedes --no-ff):** REBASE the lane's
-  single commit onto CURRENT main in its worktree (`git -C <wt> rebase main`), resolve any conflict
-  THERE (never on main), then `git -C <main> merge --ff-only <branch>`. Linear history, no merge
-  commits, conflicts caught in the worktree not half-baked on main (which cost two delta-patch
-  recoveries + several conflict resolutions on 2026-08-08). Still: any branch certified BEFORE sibling
-  merges landed gets a consolidated `pnpm check` on the FF'd result; verify → teardown, never chained;
-  `git -C <ABSOLUTE-main-path>` on every command. The rebase changes the lane's SHA — track the new tip.
+- **Worktrees carry the LATEST LOCAL commit (owner intent 2026-08-08 — CURRENCY, not merge-strategy):**
+  origin is 156 behind (unpushed), so a stale-based worktree misses everything. TWO guarantees: (1)
+  SPAWN — `.claude/settings.local.json` `worktree.baseRef: "head"` branches from local HEAD (not
+  `fresh`=origin); raw `git worktree add -b` also uses HEAD. Both verified correct 2026-08-08 — keep
+  `head`. (2) RUN-TIME DRIFT — before merging, REBASE the lane's single commit onto CURRENT main in its
+  worktree (`git -C <wt> rebase main`, resolve conflict THERE), then `git -C <main> merge --ff-only`
+  (rebase rewrites the SHA — track the new tip). The ff-only is just the clean result; currency is the
+  point. Still: any branch certified before sibling merges gets a consolidated `pnpm check` on the
+  result; verify → teardown, never chained; `git -C <ABSOLUTE-main>` on every command; prune dead
+  worktrees (an unpushed session left 9 at 200-327 behind, all long-merged).
 - **GRADUATION NEEDS THE FRESH LENS, not just the static check (owner catch 2026-08-07 — a whole
   session of merges shipped without it):** every non-trivial merged work-stream gets a fresh-context
   `verifier` pass (code lens) and/or `side-eye` (rendered lens) BEFORE its row is called done —
@@ -64,6 +67,29 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   because a LANE is banned from running the whole battery. A CT nobody names is a CT that lane nobody ran.
 
 ## ═══ STATE (2026-08-07 — the identity build landed; the queue below is live) ═══
+
+- **⚑ COMPACT BOUNDARY SNAPSHOT (2026-08-08 late, main `94394e611`, 157 ahead of origin, tree clean):**
+  - **LIVE lanes:** FORGE #4 Docker build (`a063356b2ad358a65`, worktree agent-forge-docker) · REFINERY
+    R0 forge (`a91b702e2d9ae545c`, agent-refinery-r0) · preset/config batched side-eye
+    (`a528c629d6a4aa017`) · FORGE#2 verifier CONFIRMED (done) · smallbatch3 MERGED. Only 2 worktrees on
+    disk (forge-docker, refinery-r0). smallbatch3-check running.
+  - **DELIVERED, awaiting OWNER ruling (no build without his word):** persona/character design
+    (`persona-character-kind-substrate.md`, 5 forks) · `{{note}}` block-vs-warn (intent found: inherited
+    default, `note-token-intent-history.md`) · containerize SPEC done (`containerize-prod-image-spec.md`,
+    2-profile; BUILD in flight via forge#4; the image BUILD+cage is owner's live step + security review)
+    · batch-2 benched items un-posed (JSON-card=client-submenu-only · guided-cap=shared MAX const ·
+    duplication=trim-landing-keep-newbook · nudge texts=ship-verbatim · tag calls · D62 deltas · refinery
+    F-N forks) — all in `docs/design/parked-options-*.md` w/ recommendations.
+  - **QUEUED behind the preset side-eye** (avoid surface collision): capability-gate→resolve-failure.ts ·
+    Prompt-view section-drill fork-eject (FORGE#1 flagged).
+  - **PUSH:** conditional word granted for THIS train — after preset side-eye + fix legs + a FRESH
+    battery greens. Held tonight otherwise. E2E_LIVE owed on the push window.
+  - **MERGE discipline:** rebase-onto-main-then-`--ff-only` (currency); read EVERY consolidated check
+    exit (a slip let a lint error ride main tonight — caught by a `.exit` sweep). Board commits
+    `git -c core.hooksPath=/dev/null`.
+  - **Gap-audit (owner-ordered) DONE:** high coverage, 6 gaps — 2 "P1 regressions" were already fixed
+    by later lanes; the real deliverable was the EmptyState w-full fence (merged). `read each agent
+    transcript's LAST message` is the durable audit method (banked).
 
 > The 08-08-dawn and 08-07-late STATE blocks, with every lane seal, merge sha and verifier verdict from
 > this session, moved INTACT to [`docs/history/retro-workboard-2026-08-07.md`](history/retro-workboard-2026-08-07.md).
