@@ -40,7 +40,21 @@ export { IDLE_TIMEOUT_MS, turnAbortSignal } from "./idle-timeout.ts";
 export type { ImageToPng, NormalizedImageBytes, NormalizeImageBytes } from "./image-normalize.ts";
 export { createImageNormalizer, passthroughImageNormalizer } from "./image-normalize.ts";
 // ── The shared OpenAI-compatible request/stream seam ───────────────────────────────────────────────
-export * from "./openai-compat/index.ts";
+export type { MapTurnContext, OpenAiSamplingInput, StreamDelta, StreamReduceOptions } from "./openai-compat/index.ts";
+export {
+  applyIncludeExclude,
+  buildOpenAiSamplingFields,
+  mapChatCompletionToTurnResult,
+  parseOpenAiSse,
+  rawResponseFormat,
+  rawToolCallDeltas,
+  rawToolChoice,
+  rawWireTools,
+  redactHeaders,
+  redactSecretsFromText,
+  reduceChatCompletionStream,
+  secretHeaderValues,
+} from "./openai-compat/index.ts";
 // ── The shared `provider.*` structured-log sink (hoisted from agent-sdk; per-call `backend` tag) ─────
 export type {
   ProviderCacheLog,
