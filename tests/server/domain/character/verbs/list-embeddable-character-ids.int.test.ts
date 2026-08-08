@@ -35,7 +35,7 @@ describe("listEmbeddableCharacterIds", () => {
     const ids = await svc.listEmbeddableCharacterIds();
 
     // Both owners' real cards, synthetic excluded — the un-principal sweep universe.
-    expect([...ids].sort()).toEqual([aliceCard.id, bobCard.id].sort());
+    expect(ids.toSorted()).toEqual([aliceCard.id, bobCard.id].sort());
   });
 
   test("an empty library enumerates to an empty universe", async () => {

@@ -60,7 +60,7 @@ test("test-mirror: every CRED_PROVIDERS member is accepted by the provider colum
   );
 
   const rows = await db.select().from(userCredentials);
-  expect(rows.map((r) => r.provider).sort()).toEqual([...CRED_PROVIDERS].sort());
+  expect(rows.map((r) => r.provider).sort()).toEqual(CRED_PROVIDERS.toSorted());
 });
 
 test("the provider CHECK rejects an off-enum value", async () => {

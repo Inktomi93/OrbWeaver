@@ -262,7 +262,7 @@ test("queryMacros prefix match returns the get* family, name-sorted", () => {
   expect(names).toContain("getvar");
   expect(names).toContain("get");
   // stable name-sorted
-  expect([...names]).toEqual([...names].sort((a, b) => a.localeCompare(b)));
+  expect([...names]).toEqual(names.toSorted((a, b) => a.localeCompare(b)));
 });
 
 test("queryMacros filters by category", () => {

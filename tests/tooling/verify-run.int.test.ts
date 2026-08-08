@@ -336,7 +336,7 @@ test("ct view: a source with NO mirror on disk contributes nothing (no mirror, n
 test("ct view: a tokens file SWEEPS both trees (the light-dark()/computed-style incident class)", () => {
   const sel = resolveSelection({ kind: "changed", paths: ["packages/ui/src/tokens/semantic.ts"] });
   expect(sel.ct.mode).toBe("sweep");
-  expect([...sel.ct.targets].sort()).toEqual(["tests/client", "tests/ui"]);
+  expect(sel.ct.targets.toSorted()).toEqual(["tests/client", "tests/ui"]);
 });
 
 test("ct view: a client state/ file SWEEPS tests/client only (the section-registry incident class)", () => {

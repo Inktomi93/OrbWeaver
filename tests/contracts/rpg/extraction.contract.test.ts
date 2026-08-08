@@ -984,7 +984,7 @@ test("POPULATE constraint pins inventory.targetRef to the ONE character and REQU
   };
   expect(constrained.properties.inventory.items.properties.targetRef.enum).toEqual(["Mara"]);
   expect(constrained.required).toContain("sheet");
-  expect([...(constrained.properties.sheet.required ?? [])].sort()).toEqual(["level", "title"]);
+  expect((constrained.properties.sheet.required ?? []).toSorted()).toEqual(["level", "title"]);
   // …and the input projection is untouched (the cached schema also feeds other wires).
   const projected = projectJsonSchema(rpgPopulateSchema) as { required?: string[] };
   expect(projected.required ?? []).not.toContain("sheet");

@@ -79,5 +79,5 @@ test("openingPolicySchema round-trips its members", () => {
 test("openingPolicySchema is cardinality-locked (an added member must be a deliberate test edit)", () => {
   // Round-trip + reject alone catch a removed/renamed member but NOT an accidentally-added 5th policy
   // (additive drift). Pin the exact member set so a new opening policy fails here until intended.
-  expect([...openingPolicySchema.options].sort()).toEqual(["first-message", "generate", "greet-all", "none"].sort());
+  expect(openingPolicySchema.options.toSorted()).toEqual(["first-message", "generate", "greet-all", "none"].sort());
 });

@@ -45,7 +45,7 @@ const KIND_SEEN: Record<AssetKind, true> = {
   plugin: true,
 };
 test("AssetKind has no member beyond the tuple (exhaustive over the ASSET_KINDS roster)", () => {
-  expect(Object.keys(KIND_SEEN).sort()).toEqual([...ASSET_KINDS].sort());
+  expect(Object.keys(KIND_SEEN).sort()).toEqual(ASSET_KINDS.toSorted());
 });
 
 // ── The `/blob/<hash>` route contract (D21 PIN) ──────────────────────────────
@@ -114,7 +114,7 @@ test("variantKindSchema round-trips every valid kind and rejects non-members", (
 
 const VARIANT_KIND_SEEN: Record<VariantKind, true> = { icon: true, portrait: true, banner: true };
 test("VariantKind has no member beyond the tuple (exhaustive over VARIANT_KINDS)", () => {
-  expect(Object.keys(VARIANT_KIND_SEEN).sort()).toEqual([...VARIANT_KINDS].sort());
+  expect(Object.keys(VARIANT_KIND_SEEN).sort()).toEqual(VARIANT_KINDS.toSorted());
 });
 
 test("blobPortraitUrl composes the portrait variant route, distinct from the plain blobUrl", () => {

@@ -121,7 +121,7 @@ export async function runImageEmbed(client: OrImageEmbedClient, req: ImageEmbedR
       message: `${embedErrorPrefix(req.model)}: image-embed response carried no vectors`,
     });
   }
-  const ordered = [...response.data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+  const ordered = response.data.toSorted((a, b) => (a.index ?? 0) - (b.index ?? 0));
   const vectors = ordered.map((entry) => toFloat32(entry.embedding));
   return { vectors, model: response.model };
 }

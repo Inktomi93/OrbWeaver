@@ -741,7 +741,8 @@ function writeFixtures(): void {
   fx(`${D}/__g_rawclock/x.ts`, `export const t = ${["Date", "now"].join(".")}();\n`);
   // platform-spellings (node-26 program §8): a hand-rolled `new Promise(setTimeout)` sleep — the ARM SLEEP
   // shape W4.1 burned down. A packages/** path (scanRoot is `packages/`), outside client/ui so the browser
-  // carve-out does not exempt it. The other two arms (DEFERRED, ESCAPE-MINT) are proven by conformance.
+  // carve-out does not exempt it. The other three arms (DEFERRED→withResolvers and SPREAD-SORT, both landed
+  // by the W4.5/W4.2 burn-down; ESCAPE-MINT) are proven by conformance.
   fx(`${D}/hub/__g_platspell.ts`, "export const nap = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));\n");
   // no-raw-container-widths: a raw content-width utility on a container element.
   fx("packages/client/src/features/__g_containerw/components/__g_c.tsx", 'export const C = () => <div className="w-[600px]" />;\n');

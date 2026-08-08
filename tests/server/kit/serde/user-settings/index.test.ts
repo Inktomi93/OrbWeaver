@@ -57,7 +57,7 @@ describe("the secrets fence (R3 — a settings export MUST be safe to share)", (
     const carried = wire["settings"] as Record<string, unknown>;
 
     // Only the allowlisted namespaces travel — routing/seeds/profile/onboarding/etc. are absent by construction.
-    expect(Object.keys(carried).sort()).toEqual([...SHARE_SAFE_SETTINGS_NAMESPACES].sort());
+    expect(Object.keys(carried).sort()).toEqual(SHARE_SAFE_SETTINGS_NAMESPACES.toSorted());
     expect(carried["routing"]).toBeUndefined();
     expect(carried["seeds"]).toBeUndefined();
 
@@ -76,7 +76,7 @@ describe("the secrets fence (R3 — a settings export MUST be safe to share)", (
   test("projectShareSafe never surfaces a fenced key at the type OR the value level", () => {
     const safe: PortableUserSettings = projectShareSafe(settingsWithSecrets());
     // `routing`/`seeds` are not keys of PortableUserSettings — this also fails `tsc` if the fence regresses.
-    expect(Object.keys(safe).sort()).toEqual([...SHARE_SAFE_SETTINGS_NAMESPACES].sort());
+    expect(Object.keys(safe).sort()).toEqual(SHARE_SAFE_SETTINGS_NAMESPACES.toSorted());
   });
 });
 

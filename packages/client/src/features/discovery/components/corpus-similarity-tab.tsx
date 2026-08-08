@@ -159,7 +159,7 @@ function NearestPairsList({
     return <Muted>No similarity edges at this threshold.</Muted>;
   }
   const nameById = new Map(nodes.map((node) => [node.characterId, node.name]));
-  const ranked = [...edges].sort((a, b) => b.similarity - a.similarity);
+  const ranked = edges.toSorted((a, b) => b.similarity - a.similarity);
   return (
     <Stack gap="row">
       {ranked.map((edge) => (

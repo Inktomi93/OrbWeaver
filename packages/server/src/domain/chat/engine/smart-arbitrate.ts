@@ -157,7 +157,7 @@ function includesWholeWord(haystack: string, needle: string): boolean {
  *  claimed whole-word; the impl was a bare substring). Null ⇒ no eligible name matched (→ caller falls back). */
 function matchEligible(reply: string, eligible: readonly { ref: SpeakerRef; name: string }[]): SpeakerRef | null {
   const haystack = reply.toLowerCase();
-  const byLongest = [...eligible].sort((a, b) => b.name.length - a.name.length);
+  const byLongest = eligible.toSorted((a, b) => b.name.length - a.name.length);
   for (const member of byLongest) {
     if (includesWholeWord(haystack, member.name.toLowerCase())) {
       return member.ref;

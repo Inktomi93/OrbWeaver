@@ -33,7 +33,7 @@ test("THEME_SCOPE_EMIT_VARS matches what clampThemeTokens ACTUALLY emits when ev
     borderColor: "oklch(0.3 0.01 60)",
     density: "compact",
   });
-  expect(Object.keys(vars).sort()).toEqual([...THEME_SCOPE_EMIT_VARS].sort());
+  expect(Object.keys(vars).sort()).toEqual(THEME_SCOPE_EMIT_VARS.toSorted());
   // colorScheme is a struct axis (rides `color-scheme`, not a `--*` var) — it must NEVER appear in the
   // emit surface, or it would fail the round-trip-to-a-real-token assertion below.
   expect("colorScheme" in vars).toBe(false);

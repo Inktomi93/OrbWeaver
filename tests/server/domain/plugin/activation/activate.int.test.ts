@@ -77,7 +77,7 @@ test("collected registrations are handed to the registrar; disable unregisters e
   expect(rec.registered).toEqual(["t1", "t2", "x1"]);
 
   await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: false });
-  expect([...rec.unregistered].sort((a, b) => a.localeCompare(b))).toEqual(["t1", "t2", "x1"]);
+  expect(rec.unregistered.toSorted((a, b) => a.localeCompare(b))).toEqual(["t1", "t2", "x1"]);
 });
 
 test("the manifest netHosts allowlist is forwarded to createInstance (net.fetch SSRF wall wiring)", async () => {

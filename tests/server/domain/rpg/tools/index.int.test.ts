@@ -29,7 +29,7 @@ function exec(chatId: ChatId, turnId: ChatTurnId | null): ToolExecutionContext {
 test("the factory returns the 7 lite tool defs — member-floor, builtin, projectable args", async ({ db }) => {
   const { h } = await seedLiteGame(db);
   const defs = rpgToolDefinitions(h.ctx);
-  expect(defs.map((d) => d.name).sort()).toEqual([...RPG_LITE_TOOL_NAMES].sort());
+  expect(defs.map((d) => d.name).sort()).toEqual(RPG_LITE_TOOL_NAMES.toSorted());
   for (const def of defs) {
     expect(def.capability).toBeNull();
     expect(def.source).toBe("builtin");

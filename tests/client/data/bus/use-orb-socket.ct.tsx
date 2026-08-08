@@ -115,7 +115,7 @@ test("TWO rooms cost ONE connect, and each room's frames reach only its own cons
   await expect(page.getByTestId("rpg-events")).toHaveText("gameChanged");
   // THE claim: adding the second room added zero connections.
   expect(socket.connects()).toBe(1);
-  expect([...socket.attachedChannels()].sort()).toEqual([`rpg:${GAME_CHAT}`, "user"]);
+  expect(socket.attachedChannels().toSorted()).toEqual([`rpg:${GAME_CHAT}`, "user"]);
 });
 
 test("a frame for a room nobody joined is dropped, not fanned out", async ({ mount, page }) => {

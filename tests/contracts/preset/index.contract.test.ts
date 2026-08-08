@@ -51,6 +51,16 @@ const SCHEMA_VERSION_V4 = 4;
 const SCHEMA_VERSION_V5 = 5;
 const SCHEMA_VERSION_V6 = 6;
 
+/** Code-unit order — the DEFAULT `toSorted()` ordering, spelled explicitly because `useArraySortCompare`
+ *  (rightly) refuses a comparator-less sort on an annotated array. Both sides of a set-equality assertion
+ *  sort through it, so the ordering only has to be TOTAL and identical, never locale-aware. */
+function byCodeUnit(a: string, b: string): number {
+  if (a < b) {
+    return -1;
+  }
+  return a > b ? 1 : 0;
+}
+
 test("promptConfigSchema accepts DEFAULT_PROMPT_CONFIG and parsePromptConfig round-trips it", () => {
   expect(promptConfigSchema.parse(DEFAULT_PROMPT_CONFIG)).toEqual(DEFAULT_PROMPT_CONFIG);
   expect(parsePromptConfig(DEFAULT_PROMPT_CONFIG)).toEqual(DEFAULT_PROMPT_CONFIG);
@@ -708,7 +718,7 @@ test("TEMPLATE_DEFS covers every guided kind + every ACTION-shaped format string
   // `tests/contracts/prose` (it needs `home`, which is `#prose` data); what THIS row still owns is the
   // no-extra / no-duplicate half over the whole table.
   const expected = [...GUIDED_ACTION_KINDS, ...Object.keys(DEFAULT_FORMAT_STRINGS).filter((key) => key !== "wiFormat"), ...PRESET_PROSE_SLOT_IDS];
-  expect([...covered].sort()).toStrictEqual([...expected].sort());
+  expect(covered.toSorted(byCodeUnit)).toStrictEqual(expected.toSorted(byCodeUnit));
   expect(new Set(covered).size).toBe(covered.length);
   // `wiFormat` frames world-info ENTRIES and is edited in the WI marker's body — a row here would mint the
   // second home the §6.5 census exists to prevent.
@@ -816,7 +826,7 @@ test("the two lane tuples PARTITION postProcess: every switch is declared on exa
   // The schema's own key set, read off the shape — a switch added to `postProcess` and to neither tuple
   // would run NOWHERE while its readout row went missing, and nothing else in the tree would notice.
   const flags = Object.keys(promptConfigSchema.shape.postProcess.unwrap().shape);
-  expect([...declared].sort()).toEqual([...flags].sort());
+  expect(declared.toSorted()).toEqual(flags.toSorted());
 });
 
 test("no step appears twice in a lane, and the two lanes share no step", () => {

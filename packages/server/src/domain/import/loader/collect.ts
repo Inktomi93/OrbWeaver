@@ -52,7 +52,7 @@ function group(state: CollectState, handle: CharacterHandle): Group {
 async function listDir(fs: ImportFsPort, dir: string): Promise<{ name: string; kind: string }[]> {
   const ents = await fs.readdir(dir);
   const capped = ents.length > MAX_DIR_ENTRIES ? ents.slice(0, MAX_DIR_ENTRIES) : ents;
-  return [...capped].sort((a, b) => a.name.localeCompare(b.name));
+  return capped.toSorted((a, b) => a.name.localeCompare(b.name));
 }
 
 // Numeric suffix instead of silently overwriting the first card on a slug collision. THE seam where a
