@@ -32,11 +32,14 @@ updated: 2026-08-08
    pnpm@11.15.1`. The only build artifact is the client bundle (`vite build` → `packages/client/dist`,
    `packages/client/package.json` `build`). So "build" = install deps + `pnpm --filter @orb/client build`;
    the server ships as source `.ts` + its workspace deps (`kit`/`contracts`/`db`) as source.
-2. **The local vLLM engine base URL is hardcoded to `127.0.0.1`.** `infra/network/egress.ts:81-83`
-   (`internalBackendHostPorts` → `127.0.0.1:${VLLM_*_PORT}`). Inside a container `127.0.0.1` is the
-   container, not the host — **a containerized app cannot reach the host's loopback GPU engines** without
-   a code change. Containerized ⇒ `ENGINES_POSTURE=off` (cloud/OpenRouter/agent-sdk models only). This is
-   fork D, and it is the reason the owner's GPU box may stay bare-host while the *image* targets everyone.
+2. **The vLLM engine base URL is hardcoded to `127.0.0.1` — and that hardcode is the LEVER, not a wall.**
+   `engineBaseUrl` builds `http://127.0.0.1:${PORTS[engine]}` at ONE site
+   (`infra/providers/vllm/engine/engine-url.ts:17-20`), and the egress firewall's internal-backend bypass
+   hardcodes the same `127.0.0.1:${VLLM_*_PORT}` (`infra/network/egress.ts:81-83`). The correct deployment
+   **co-deploys vLLM as a sibling container** (owner: "it uses the vllm container image … the vllm would be
+   in the image with it"), so the engine IS reachable — only the *address* changes. Making the host component
+   configurable is the small code change that unlocks it (see §3.6 + Fork D). This is why the image can serve
+   GPU inference for everyone, not just cloud-only deployers.
 
 ## 1. The four auth modes (the enumeration)
 
@@ -203,6 +206,52 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
 | oidc | `OIDC_ISSUER/CLIENT_ID/CLIENT_SECRET/REDIRECT_URIS`, `SESSION_SECRET` | origin-gated (Host header) | YES (cookie + callback proto) | works out of the box behind TLS proxy; owner via `OWNER_GROUP` |
 | forward-header | none hard-fatal; signed path needs a JWKS source | signed: n/a; unsigned: TCP-peer gate | recommended | prefer SIGNED; unsigned needs `FORWARD_AUTH_TRUSTED_PROXIES=<proxy-ip>/32` |
 
+### 3.6 Engine posture in a co-deployed container (GPU inference)
+
+vLLM ships as a **sibling service in the same compose deployment / network** (the vllm container image runs
+the engine; the app container adopts it). The engine is reachable — the only questions are the address, the
+egress hop, GPU passthrough, and the posture. Three address shapes:
+
+- **(a) shared network namespace / same pod** (`network_mode: "service:vllm"`, or a k8s pod): both containers
+  see ONE loopback, so `http://127.0.0.1:<port>` **literally still works** with zero code change on the URL —
+  the current hardcode is correct in this shape. (But see the GPU-gate code change below, which still bites.)
+- **(b) separate compose services on one network** (RECOMMENDED — how the owner runs it): the app calls the
+  vllm **service name**, `http://vllm:<port>`. This needs the host component to be env-configurable.
+- **(c) external engine URL:** a vLLM/OpenAI-compatible endpoint elsewhere — same env lever as (b).
+
+**What must become configurable (exact sites):**
+1. **`infra/providers/vllm/engine/engine-url.ts:17-20`** — `engineBaseUrl` hardcodes `http://127.0.0.1:`.
+   Introduce `VLLM_ENGINE_HOST` (env, default `127.0.0.1`) and build `http://${VLLM_ENGINE_HOST}:${PORTS[e]}`.
+   Host-only keeps the three existing per-engine port vars (`VLLM_*_PORT`) intact. This is the ONE URL the app
+   calls engines on (client, wake-gate, fleet-control all resolve through it — `engine/index.ts:30`).
+2. **`infra/network/egress.ts:81-83`** — `internalBackendHostPorts` hardcodes `127.0.0.1:${port}`. It MUST
+   read the same `VLLM_ENGINE_HOST` so the internal-backend firewall bypass stays host:port-scoped
+   (least-privilege) for the sibling. Otherwise: shape (b)'s `http://vllm:<port>` resolves to a private
+   container IP and the egress DNS-lookup gate **BLOCKS it** (`egress.ts:118-124`), because the bypass only
+   matches `127.0.0.1:<port>`. Fallback without the code change: set `EGRESS_ALLOWLIST=vllm` (host-keyed,
+   any-port — looser than the port-scoped bypass). Recommend the code change over the allowlist.
+
+**The GPU-detect gate — a SECOND required code change for shapes (a)/(b), independent of the URL.**
+`entry/lifecycle.ts:201-203` computes `vllmDisabled = !(postureRegistersBackend(posture) && gpuPresent)`,
+where `gpuPresent = detectGpu()` execs `nvidia-smi -L` **on the app container** (`vllm/engine/gpu.ts:7`). In
+a co-deployed layout the GPU is passed to the vllm SIBLING, so the app container sees no GPU →
+`gpuPresent=false` → **the vLLM backend is not registered even under `adopt-only`**, and the app silently
+runs cloud-only. The fix: gate `gpuPresent` on `postureManages(posture)` (i.e. only `adopt-or-start`, the
+posture that SPAWNS engines locally and genuinely needs a local GPU). A passive `adopt-only` consumer of a
+remote/sibling engine must not require a local GPU. Without this change the co-deployed arm needs the ugly
+workaround of installing `nvidia-smi` + exposing the GPU to the app container too.
+
+**Posture:** the app runs **`ENGINES_POSTURE=adopt-only`** (`foundation/env/posture.ts` — passive consumer;
+never spawns, never manages auto-sleep). `adopt-or-start` is wrong here: it would try to spawn engines the
+slim app image has no vLLM binary for. The vllm container owns the engine lifecycle.
+
+**GPU passthrough (deployment/runtime requirement):** the **vllm** service needs device reservations —
+compose `deploy.resources.reservations.devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]` (or
+`--gpus all` under `docker run`) — plus the NVIDIA Container Toolkit on the host. The **app** container needs
+NO GPU. The vllm container must bind on the service-reachable interface (`--host 0.0.0.0`) for shape (b), not
+loopback — that is the vllm container image's own launch config, not the app's `build-argv` (the app doesn't
+spawn it under `adopt-only`).
+
 ## 4. The container trust model — debug-gate / `isLocalOrigin` / owner-fallback posture (AUTHFIX-2)
 
 This is the section the "designing for everyone" contract lives or dies on.
@@ -287,8 +336,22 @@ and per-IP rate limits see the REAL client IP — provided Caddy sets XFF (defau
     volumes: [ orbweaver_data:/app/data ]   # sqlite + CAS + variants
     networks: { inktomi-net: {} }
     healthcheck: { test: node -e "...healthz...", interval: 30s, timeout: 5s, retries: 3 }
-    depends_on: { caddy: ... }
+    depends_on: { caddy: ..., vllm: { condition: service_healthy } }
+    # engine posture (Fork D1): VLLM_ENGINE_HOST=vllm, ENGINES_POSTURE=adopt-only in the env_file
   ```
+- **Co-deployed vLLM sibling (Fork D1):**
+  ```yaml
+  vllm:
+    image: <vllm-container-image>          # binds --host 0.0.0.0 so `vllm:<port>` is reachable
+    expose: ["8703","8701","8702"]         # gen / embed / rerank (VLLM_*_PORT)
+    networks: { inktomi-net: {} }
+    deploy:
+      resources:
+        reservations:
+          devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
+    healthcheck: { test: curl -f http://127.0.0.1:8703/health, ... }
+  ```
+  Requires the NVIDIA Container Toolkit on the host. The app container needs no GPU.
 - **Repoint Caddy off `host.docker.internal`:** in `caddy/conf/Caddyfile:385` change
   `reverse_proxy host.docker.internal:8788` → `reverse_proxy orbweaver:8788` (service DNS on the shared
   network). Keep `flush_interval -1` and the 1800s read/write timeouts (D118 single multiplexed SSE socket —
@@ -322,14 +385,19 @@ and per-IP rate limits see the REAL client IP — provided Caddy sets XFF (defau
   - **C2: keep raw-LAN owner.** Publish `8788` to the LAN interface only and accept that anyone who can reach
     that port + forge a private `Host` is owner (LAN-scoped exposure). Only if the owner wants it.
 
-- **Fork D — GPU engines with a containerized app.** The local vLLM base URL is hardcoded `127.0.0.1`
-  (`egress.ts:81-83`), so a container cannot reach host loopback engines. Arms:
-  - **D1 (recommended for the shipped image): `ENGINES_POSTURE=off`** — cloud/OpenRouter/agent-sdk models
-    only. This is what "designing for everyone" wants (most deployers have no GPU). `detectGpu()` +
-    posture already degrade cleanly to no-supervisor (`lifecycle.ts:198-204`).
-  - **D2 (owner's GPU box): stay bare-host** for the app so it keeps loopback engine access, OR make the
-    engine base URL configurable off `127.0.0.1` (a code change, out of this design's scope) and run engines
-    as sibling containers / on `host.docker.internal`. Owner decides whether the GPU box containerizes at all.
+- **Fork D — engine deployment shape.** vLLM co-deploys as a sibling container; the hardcoded `127.0.0.1`
+  (`engine-url.ts:17-20`, `egress.ts:81-83`) is the lever. Two small code changes gate the recommended arm
+  (both in §3.6): make `VLLM_ENGINE_HOST` configurable at those two sites, and gate `detectGpu()` on
+  `postureManages` so a GPU-less app container still registers a remote engine under `adopt-only`. Three arms:
+  - **D1 (RECOMMENDED — matches how the owner runs it): co-deployed vLLM container.** Separate compose
+    services on one network; app calls `http://vllm:<port>` with `ENGINES_POSTURE=adopt-only`,
+    `VLLM_ENGINE_HOST=vllm`; GPU reserved to the vllm service. Full local GPU inference for the owner's box.
+    (Shape (a), shared network namespace, is a sub-variant that keeps `127.0.0.1` and skips the URL change but
+    still needs the GPU-gate change.)
+  - **D2: external engine URL.** Point `VLLM_ENGINE_HOST` (+ `EGRESS_ALLOWLIST`) at a vLLM/OpenAI-compatible
+    endpoint elsewhere. Same lever, no co-located GPU.
+  - **D3: engines-off (CPU-only deployer).** `ENGINES_POSTURE=off` — cloud/OpenRouter/agent-sdk models only.
+    The right default for a stranger with no GPU; degrades cleanly to no-supervisor (`lifecycle.ts:198-204`).
 
 - **Fork E — production dependency pruning for a source-run TS workspace.** The server runs `.ts` source and
   imports workspace packages as source, so a naive `--prod` install can drop something node needs at runtime,
