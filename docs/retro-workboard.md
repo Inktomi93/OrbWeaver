@@ -394,6 +394,17 @@ security lens.
   new literals in the same relocation. Do NOT dispatch until RENDERFIX merges. `no-media-queries-in-
   features`'s `MEDIA_QUERY_RE` matches viewport widths only — this is a NEW gate, not an extension.
 
+**⚑ ROSTER at `134`-ahead:** WRITE lanes: `PROBES-TYPING` (a98737bc) · `PORT-R6` (acf450ce) ·
+`PTRGATE` (a989027e, now also relocating an 8th literal at persona-panel-row:183). READ lens:
+`AUTHTAIL security graduation` (a1eecb1d, verifying the reset-password takeover guard). **2 write slots
+open but FENCE-BLOCKED, not idle:** glyph sweep (#13) + the D132(G) prose-coverage gate wait for PTRGATE
+(rpg-client + gate-registry) · rpg-prose teaches (#17) waits for PORT-R6 (rpg persistence) · node-26 §8
+gate + STATLAS wait for PROBES-TYPING (scripts/probes). They burst as those three free their zones.
+- ✅ **TEMPLATE-UNIFY merged** (`6d7867401`, check 14/14) — row 49 slotted; (b) unification COMPLETE.
+- ✅ **SMALLS-SERVER merged** (`58b1f9ce7`, check 14/14) — narrator room previews its CAST shape now
+  (GroupConfig threaded into PreviewInputs, per-speaker byte-unchanged, red-first: narrator RED on old
+  tree). Item 2 (import-guard) premise-dead. `prose-1-spec.md` §2.6 row-49 override-✗ truth-repaired.
+
 **⚑ OVERNIGHT PROGRESS (2026-08-07, `128`-ahead) — merges + premise-kills:**
 - ✅ **RENDERFIX MERGED** (`6807f5eb4`, consolidated check 14/14 after a post-merge biome fixup on a new
   CT-stories file). 5 side-eye findings fixed red-first + 314 CT; both geometry sites cleared
