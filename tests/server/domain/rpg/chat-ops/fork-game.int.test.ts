@@ -71,9 +71,6 @@ async function seedSourceGame(
     ...liteConfig(),
     lite: { steeringNote: "GM SECRET: Mara betrays the party in act 3" },
     features: { ...liteConfig().features, deception: opts.deception ?? false },
-    // PROSE-1 — a host's re-authored teach: the steeringNote class (host-plane prose, prompt-only consumer),
-    // so a non-host fork blanks it to {} exactly as it blanks the steeringNote.
-    prose: { "rpg.reminder.steeringLicense": { text: "GM SECRET IN THE LICENSE", baseVersion: 1 } },
   };
   await insertGame(db, {
     id: gameId,
@@ -171,9 +168,9 @@ test("a NON-HOST forker's copy carries NO host secrets: steeringNote stripped, f
   expect(forkGame).toBeDefined();
   // STRIP 1 — steeringNote wiped (the host-only GM directive never launders into the member's new host view).
   expect(forkGame?.config.lite.steeringNote).toBe("");
-  // STRIP 1b — the host's re-authored prose (PROSE-1, the steeringNote class) is blanked to {} for the same
-  // reason: it is host-plane, prompt-only-consumed copy the forker never read the bytes of.
-  expect(forkGame?.config.prose).toEqual({});
+  // NO STRIP 1b any more — the host's re-authored teach copy left this blob entirely (owner ruling 2026-08-08:
+  // PRESET-homed). The guarantee it used to give is now STRIP 2's: the copy lives in the GM preset, and a preset
+  // the forker cannot read is nulled below, so a non-host fork still cannot resolve the host's re-authored bytes.
   // STRIP 2 — the FOREIGN gmPresetId nulled (a preset the forker can't read never rides into their turns).
   expect(forkGame?.gmPresetId).toBeNull();
   // Non-secret play-style carries (deception feature bit survives — it is member-visible mechanics).
@@ -965,7 +962,6 @@ test("EVERY rpg_games.config FIELD is classified — the ratchet the table-level
       "dateMode",
       "features",
       "userMacros",
-      "prose",
     ].sort(),
   );
   expect(Object.keys(rpgGameFeaturesSchema.shape).sort()).toEqual(

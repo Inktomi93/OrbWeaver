@@ -85,14 +85,13 @@ test("the P5 play-style knobs self-heal to their defaults on a pre-P5 blob", () 
   expect(features.plotProgression).toBe(true);
 });
 
-// PROSE-1 (§4.2): the per-GAME prose overrides are ADDITIVE defaulted — a pre-PROSE-1 blob self-heals to `{}`
-// (so every teach/heading resolves its shipped default, byte-identical), a valid override parses, and a
-// retired/unknown slot key is stripped at the seam rather than failing the whole blob (the `proseOverrides
-// Schema` preprocess). This is the storage half of the default-identity discipline.
-test("prose self-heals to {} on a pre-PROSE-1 blob, accepts a valid override, and strips an unknown slot key", () => {
-  expect(rpgGameConfigSchema.parse({}).prose).toEqual({});
-  const withProse = rpgGameConfigSchema.parse({ prose: { "rpg.reminder.steeringLicense": { text: "my license", baseVersion: 1 } } });
-  expect(withProse.prose).toEqual({ "rpg.reminder.steeringLicense": { text: "my license", baseVersion: 1 } });
-  // A key that is not a slot id (a retired slot, a typo) must not make the whole config unparseable.
-  expect(rpgGameConfigSchema.parse({ prose: { "rpg.reminder.retiredTeach": { text: "x", baseVersion: 1 } } }).prose).toEqual({});
+// PROSE-1, as re-homed by the owner ruling of 2026-08-08 ("we are putting everything in presets"): the game
+// config has NO prose plane. The teach/heading overrides are `promptConfig.prose` and the rpg reminder receives
+// them through chat's gather args. A stray `prose` key on a stored blob — one written during the single merge
+// the field existed — must be INERT: zod strips unknown keys, so it neither survives nor fails the parse. That
+// is what makes deleting the field a clean NO-LEGACY delete rather than a migration.
+test("the game config carries no prose plane, and a stale stored `prose` key is stripped rather than fatal", () => {
+  const parsed: Record<string, unknown> = rpgGameConfigSchema.parse({ prose: { "rpg.reminder.steeringLicense": { text: "my license", baseVersion: 1 } } });
+  expect(Object.hasOwn(parsed, "prose")).toBe(false);
+  expect(Object.hasOwn(rpgGameConfigSchema.parse({}), "prose")).toBe(false);
 });

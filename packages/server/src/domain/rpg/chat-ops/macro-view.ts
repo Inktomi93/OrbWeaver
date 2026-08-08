@@ -42,8 +42,8 @@ function onStage(view: RpgTrackerView): readonly RpgActorView[] {
 
 /** The shared render context the `{{rpgCast}}`/`{{rpgSceneState}}` string builders thread — bundled into ONE
  *  object so each builder stays under the param cap. `statProfile` + `relationshipHints` come from the game
- *  config; `prose` is `config.prose`, threaded so the cast header resolves the SAME host override the reminder's
- *  `Present:` header does (the two-surfaces-one-vocabulary law — `castHeader`'s doc). */
+ *  config; `prose` is the turn PRESET's `promptConfig.prose` (threaded through the gather), so the cast header
+ *  resolves the SAME host override the reminder's `Present:` header does (two surfaces, one vocabulary). */
 interface CastRenderCtx {
   readonly statProfile: RpgStatProfile;
   readonly relationshipHints: Readonly<Record<string, string>>;
@@ -198,7 +198,7 @@ export function buildRpgMacroFeed(args: {
   // The §2.7 delta line, reachable as a macro so a preset can place it (and as `rpg.delta.text` for `{{expr}}`).
   // null (no-change / non-game-empty) ⇒ "" — the byte-stable quiet-turn signal (never a "no changes" line).
   const deltaText = buildDeltaBlock(args.prevSnapshot, args.curSnapshot, args.deltaContext) ?? "";
-  // PROSE-1 — the cast-header override rides the SAME `config.prose` the delta headings do (threaded on
+  // PROSE-1 — the cast-header override rides the SAME preset prose the delta headings do (threaded on
   // `deltaContext`), so both macro surfaces resolve it without a second feed input.
   const castCtx: CastRenderCtx = {
     statProfile: args.statProfile,

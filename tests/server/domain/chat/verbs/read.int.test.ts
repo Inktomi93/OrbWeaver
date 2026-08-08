@@ -1077,7 +1077,27 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const rpg = { gatherTurnContext, resolveUserMacros: () => Promise.resolve([]) } as unknown as NonNullable<ChatContext["rpg"]>;
     const ctx = makeChatContext(db, { rpg });
 
-    const { budget } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
+    // PROSE-1 re-home (owner ruling 2026-08-08): the reminder's teach/heading overrides are the PRESET's
+    // `promptConfig.prose`, and CHAT is what resolves them — rpg has no preset reach. This preset carries one
+    // re-authored teach plus a key belonging to a USER-homed slot, so the assertion below proves both halves of
+    // the threading: the preset key arrives, and `composeProse` drops the key that homes elsewhere (no cascade).
+    const deps = makeDeps({
+      resolveForeignInputs: () =>
+        Promise.resolve({
+          promptConfig: {
+            ...DEFAULT_PROMPT_CONFIG,
+            prose: {
+              "rpg.reminder.steeringLicense": { text: "our table's own license", baseVersion: 1 },
+              "chat.arbiter.system": { text: "WRONG HOME", baseVersion: 1 },
+            },
+          },
+          personas: { anchor: null, active: null },
+          globalRegexScripts: [],
+          scanDepth: 6,
+          injectionTokenBudget: 0,
+        }),
+    });
+    const { budget } = await createRead(ctx, deps).previewAssembly({ principal: principal(me), chatId });
 
     const gameState = budget.sources.find((s) => s.source === "game-state");
     expect(gameState?.text).toBe("## Game state\nroster: Mara (VIT 24/30)");
@@ -1090,6 +1110,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
         pendingUserText: undefined,
         respondsToLatestUserTurn: false,
         steerIdentity: expect.objectContaining({ char: expect.any(String) }),
+        // The preset's teach reaches rpg; the user-homed key in the same blob does not.
+        prose: { "rpg.reminder.steeringLicense": { text: "our table's own license", baseVersion: 1 } },
       }),
     );
   });

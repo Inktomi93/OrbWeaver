@@ -132,9 +132,12 @@ function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: 
  *  `Subscribe` + `setFieldValue` shape `DeliveryFields` below already uses, so this stays in the file's
  *  grammar.
  *
- *  NO MACRO PLANE (the MACU-2 posture, `prose-settings-section.tsx`): these slots are `macros:"none"`, so the
- *  only tokens that DO anything are the slot's own pre-substitution ones. Offering the preset macro catalogue
- *  here would promise a resolution that never runs.
+ *  NO MACRO PLANE (the MACU-2 posture, `prose-settings-section.tsx`). The framings are `macros:"none"`, so the
+ *  only tokens that DO anything are the slot's own pre-substitution ones. The rpg teaches that joined this arm
+ *  on 2026-08-08 are `macros:"names-only"` — a strictly SMALLER vocabulary than the preset catalogue (the
+ *  identity registry, `{{user}}`/`{{char}}`, and nothing else). Either way the catalogue would promise a
+ *  resolution that never runs; the honest vocabulary is the def's own `tokens` capability, rendered as chips
+ *  by `TokenVocabulary` below.
  *
  *  THE FIELD IS CONTROLLED, SO THE DRAFT IS VERBATIM. `proseTemplateDraft` stores exactly what was typed;
  *  trimming here fed the trimmed string back per keystroke and made the editor untypeable (no spaces, no

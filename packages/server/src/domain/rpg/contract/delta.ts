@@ -18,7 +18,7 @@ export interface DeltaContext {
   /** Per-custom-relationship-kind steering HINTS (M1 — `label → gloss`) so a custom relationship delta line
    *  renders `vassal (sworn to serve but resentful)`. Empty ⇒ bare labels. */
   readonly relationshipHints: Readonly<Record<string, string>>;
-  /** PROSE-1 (§4.3) — the game's model-facing prose overrides (`config.prose`), so the two delta HEADINGS
+  /** PROSE-1 (§4.3) — the turn PRESET's model-facing prose overrides (`promptConfig.prose`), so the two delta HEADINGS
    *  (`rpg.delta.changesHeading` / `rpg.delta.sceneOpensHeading`) resolve a host override. Optional: absent/`{}`
    *  ⇒ each heading resolves to its shipped default, byte-identical to the pre-PROSE-1 constant. */
   readonly prose?: ProseOverrides;
