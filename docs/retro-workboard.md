@@ -647,6 +647,24 @@ security lens.
   law — the doc truth-repair stands). FINAL MICRO-LEG in flight (2 one-liners: narrow transition-all
   so the ring is instant; delete the viewport outline-none landmine; + restate the residual comment
   structurally). Closes on that landing.
+- **✅ EXTRACTION MERGED `5192c517b`** (21 files, +1893) — PROSE-1's rpg program is now COMPLETE minus
+  row-27 (owner-deferred) + a populate-round follow-on census (post-dates e0b9816d, no rows yet;
+  extraction-prompt.ts 30→3, compose/rpg.ts 16→8 residual baselines are THAT, not census misses).
+  40 slots, token-splice (NO ProseSlotDef widening — §4.5's arm was resolveProseText's splice all
+  along), precedence relocated #prose→#prose-slot (one home), `resolveChatPresetProse` op w/ the
+  two-invocation-class law documented at the seam. Byte-identity: 10-axis probe diff BYTE-IDENTICAL,
+  red-first at rendered bytes, 4419 tests + 127 CT green branch-side. **Verifier `a84fb07e7b52cf25f`
+  IN FLIGHT** (independent byte-identity repro, one-home check, class-law trace, op trust boundary).
+- **✅ CONFIG-FIX MERGED `5a7e2a060`** (34 files; 2049 CT · 870 unit · structure clean after fixing 7
+  self-caught violations, none allowlisted). All 4 P1s + P2/P3 tail; TWO REFUSALS accepted as
+  design-law-correct ("New book" ×2 is the DRAWN mock + a ratifying CT — parked beside the
+  landing-cards OWNER item as one duplication ruling; X-7's destination preserved in EmptyState
+  action). Mobile fix = a SIBLING reveal intent (revealContextPanelBesideContent), not a fold
+  architecture. **Side-eye re-verify IN FLIGHT** (`a745bb9c0eab275f4`, the original sweeper).
+  3 lessons banked to memory (self-occluding reveals · dnd-kit frozen plugin closures ·
+  ListRow.leading aria-hidden).
+- **⏳ DATABANK S3 dispatched** (`afee5836975cedc36`) — the D-7 home tile per
+  docs/design/databank-surface-spec.md; premise-re-verify first (3 prior databank premise-kills).
 - **✅ SMALLS-1 MERGED `208abac21`** (10 files): gate-ignore now LIVE on platform-spellings (node
   overload + arm tokens + the `expect.token` conformance widening — probe matrix incl. SKIPPED-on-
   marker, dead-position still-RED, malformed still-RED; caught its own module-cache instrument lie) ·
