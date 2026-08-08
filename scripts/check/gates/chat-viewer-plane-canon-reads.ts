@@ -83,7 +83,10 @@ const ALLOWLIST: ReadonlyMap<string, string> = new Map([
 const MESSAGE =
   "a VIEWER-PLANE chat verb (matrix authority other than host/non-chat-scoped) reaches a ROOM-PLANE floorless " +
   "canon reader. Those readers return canon CONTENT with no history floor, so the caller silently hands a " +
-  "`from-join` member the pre-join transcript every other read path withholds (D16 — substrate/auth/clamp.ts).";
+  "`from-join` member the pre-join transcript every other read path withholds (D16 — substrate/auth/clamp.ts). " +
+  "The finding's token is the `<verb>:<reader>` pair — the same key ALLOWLIST is written in, and the position " +
+  "an `@orb-gate-ignore chat-viewer-plane-canon-reads(<verb>:<reader>): <reason>` names (§4.3a: one body can " +
+  "reach two banned readers). Prefer the typed ALLOWLIST row: it carries its reason AND is ratcheted.";
 const FIX =
   "use a floor-taking read (`loadMessagesPage`/`loadStreamReplay`/`loadMessageSlots` with the " +
   "`historyFloorSeq` the guard already stamped on the membership), or clamp the result in the same body via " +
@@ -200,6 +203,10 @@ function reachFrom(root: Node, locals: ReadonlyMap<string, Node>): Reach {
 
 // ── the pass ───────────────────────────────────────────────────────────────────────────────────────────
 
+/** THE SANCTIONED Finding overload (GATE-AUTHORING §1): all three FAIL-LOUD arms are genuinely file-level —
+ *  a matrix that cannot be read, a reader name that exists nowhere, a verb with no discoverable factory.
+ *  None has an offending NODE to anchor on or hang a marker off, and a blindness alarm must not be
+ *  suppressible anyway. Anchored on the matrix file, which is the fact every one of them is about. */
 function fileLevel(ctx: GateRunCtx, message: string): void {
   ctx.report({ file: "packages/server/src/domain/chat/substrate/auth/matrix.ts", line: 0, column: 0, message });
 }
@@ -217,16 +224,11 @@ function discoverVerbImpls(files: readonly SourceFile[]): VerbImpl[] {
   return out;
 }
 
-function reportReaderCall(ctx: GateRunCtx, call: Node, at: { readonly verb: string; readonly reader: string; readonly authority: string }): void {
-  const sf = call.getSourceFile();
-  const { line, column } = sf.getLineAndColumnAtPos(call.getStart());
-  ctx.report({
-    file: sf.getFilePath().replace(`${ctx.root}/`, ""),
-    line,
-    column,
-    token: at.reader,
-    message: `${at.verb} (matrix authority "${at.authority}", viewer plane) calls the floorless room-plane reader ${at.reader}(). ${MESSAGE} See packages/server/src/domain/chat/substrate/auth/clamp.ts.`,
-  });
+/** The SOURCE arm — NODE-anchored (GATE-AUTHORING §1) so `@orb-gate-ignore` works on it; until 2026-08-08
+ *  this rode the explicit-`Finding` overload, which bypasses `hasGateIgnore`, so every marker was inert.
+ *  The verb+authority prose folded into MESSAGE; the token is the `<verb>:<reader>` ALLOWLIST key. */
+function reportReaderCall(ctx: GateRunCtx, call: Node, at: { readonly verb: string; readonly reader: string }): void {
+  ctx.report(call, { token: `${at.verb}:${at.reader}`, offset: 0 });
 }
 
 function isViewerPlane(authority: string | undefined): boolean {
@@ -247,7 +249,7 @@ function checkReaderRot(ctx: GateRunCtx, files: readonly SourceFile[]): void {
 }
 
 /** Judge ONE viewer-plane verb implementation; returns the allowlist keys it consumed. */
-function checkImpl(ctx: GateRunCtx, impl: VerbImpl, authority: string, locals: ReadonlyMap<string, Node>): readonly string[] {
+function checkImpl(ctx: GateRunCtx, impl: VerbImpl, locals: ReadonlyMap<string, Node>): readonly string[] {
   const { readerCalls, clamped } = reachFrom(impl.node, locals);
   if (clamped) {
     return []; // structural discharge: the body applies the one per-event verdict before egress
@@ -259,7 +261,7 @@ function checkImpl(ctx: GateRunCtx, impl: VerbImpl, authority: string, locals: R
     if (ALLOWLIST.has(key)) {
       used.push(key);
     } else {
-      reportReaderCall(ctx, call, { verb: impl.verb, reader, authority });
+      reportReaderCall(ctx, call, { verb: impl.verb, reader });
     }
   }
   return used;
@@ -322,7 +324,7 @@ export const gate: GateDescriptor = {
       covered.add(impl.verb);
       const locals = localsByFile.get(impl.file) ?? localFunctions(impl.file);
       localsByFile.set(impl.file, locals);
-      for (const key of checkImpl(ctx, impl, authority, locals)) {
+      for (const key of checkImpl(ctx, impl, locals)) {
         usedAllowlist.add(key);
       }
     }
@@ -340,7 +342,7 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/verbs/read.ts":
           'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nfunction createListMessages(): ChatService["listMessages"] {\n  return async () => await loadCanonHistory();\n}\nexport const x = createListMessages;\n',
       },
-      expect: { messageIncludes: "viewer plane" },
+      expect: { count: 1, token: "listMessages:loadCanonHistory" },
       why: "a `member`-classified verb calling the floorless loadCanonHistory — the exact shape D16 says must be RED",
     },
     {
@@ -352,7 +354,7 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/chat/verbs/edit.ts":
           'import { loadCanonHistory } from "../persistence/queries";\nimport type { ChatService } from "../contract/service";\nasync function gather(): Promise<number[]> {\n  return await loadCanonHistory();\n}\nfunction createEditMessage(): ChatService["editMessage"] {\n  return async () => await gather();\n}\nexport const x = createEditMessage;\n',
       },
-      expect: { messageIncludes: "floorless room-plane reader" },
+      expect: { count: 1, token: "editMessage:loadCanonHistory" },
       why: "the read hidden behind a module-local helper — laundering it through one hop must not launder it past the gate",
     },
     {

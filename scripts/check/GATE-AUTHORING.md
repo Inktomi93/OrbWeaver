@@ -69,6 +69,28 @@ from). A gate that reports node-anchored findings through the Finding overload s
 suppressible ⇒ the NODE overload; reserve the Finding overload for genuinely file-level findings and for
 stale/ratchet arms (which anchor on the gate file itself).
 
+**THIS CLAUSE NAMES ITS ENFORCER: `finding-overload-provenance`** (2026-08-08). It was prose-only until
+then, and prose-only cost three closing sweeps: each matched report CALL SITES by regex and each one missed
+members, because the finding record is routinely built two or three functions away from `ctx.report`. The
+gate matches the FINDING LITERAL by SHAPE (`file` + `line` + `column`/`message`) wherever it is built, and
+its worse-than-silent failure mode is what makes it load-bearing: an author who writes the CORRECT
+`@orb-gate-ignore` on such a finding gets a DOUBLE red — the gate fires anyway, and `gate-ignore-inventory`
+reds the marker as stale. Two escapes, both two-sided: `// @finding-overload-ok: <reason>` at the literal
+for a PERMANENTLY non-suppressible arm (a blindness tripwire, a stale/ratchet arm, a ledger verdict — a
+malformed, stale, or over-exempting marker is itself RED), and the shrink-only
+`finding-overload-provenance.baseline.json` for the pre-existing tail (52 literals across 24 gates at mint;
+terminal state `{}` + delete the baseline and its generator). **A deliberately NON-suppressible node-anchored
+arm is legitimate and takes the marker, not a conversion** — `baseui-derives-not-respells` ARM A ("hard, no
+exemption") and `schema-banned-shapes` (a ledger verdict's only escape is contesting the D-cite) are the
+worked precedents.
+
+**AND THE PHASE MATTERS: a node-anchored report must not happen in `finalize`.** `gate-ignore-inventory`'s
+STALE sweep also runs in `finalize`, and gates finalize in load (filename) order — so a marker consumed
+after the sweep read its count is reported stale by mistake, which is the same author-hostile double-red.
+Reconcile in `run` instead (every gate's `run` precedes every `finalize`, and `run` is still after the whole
+walk, so accumulated state is complete); `no-inline-union-redecl`'s arm B is the worked example, and
+`pass.ts`'s `gateIgnoreSuppressedInFinalize` tripwire REDs the day one slips through.
+
 ## 2. The COMPLETE coupled-sites list
 
 Arming a gate touches these. Miss one and either `enforcement-registry-parity`, `check-gates.int`, or
