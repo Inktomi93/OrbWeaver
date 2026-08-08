@@ -11,16 +11,20 @@
 // panels that own a list.
 
 import type { ModelCapability } from "@orb/contracts/connection";
+import { AlertTriangle, Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { SkeletonRows } from "#data";
 import type { EffectiveProfileRow } from "../../lib/effective-knobs.ts";
 import { knobLabel, provenanceSuffix, resolvedForLabel } from "../../lib/effective-knobs.ts";
 import { formatCount } from "../../lib/format-count.ts";
 
 /** ONE number format across the whole readout (side-eye F-29): a cluster printed `1,500` beside `8192`
- *  because two producers formatted independently. Integers ≥ 10 000 group; a fraction prints as authored
- *  (a temperature is not a magnitude you group). A non-number passes through untouched. */
+ *  because two producers formatted independently. EVERY integer groups (`2048` → `2,048`) — this comment
+ *  used to claim a `≥ 10 000` threshold that `formatCount` has never had, and a CT written to the prose
+ *  rather than the code found it. A fraction prints as authored (a temperature is not a magnitude you
+ *  group); a non-number passes through untouched. */
 function formatKnobValue(value: number | string | undefined): string {
   if (typeof value !== "number") {
     return String(value);
@@ -47,14 +51,30 @@ export function DatumRow({ label, value, suffix }: DatumRowProps): ReactElement 
   );
 }
 
-/** The resolved generation profile — the funnel's OWN output (§4.3), never a client re-derivation. An
- *  absent read is stated as the condition that causes it (no chat model resolves) rather than an empty
- *  cluster the eye reads as "nothing set". */
+/** One placeholder bar per row the settled profile will fill (the funnel's knobs + the window row) — enough
+ *  to hold the panel's height so the readout does not jump when the resolve lands. */
+const PENDING_ROWS = 4;
+
+/** The resolved generation profile — the funnel's OWN output (§4.3), never a client re-derivation.
+ *
+ *  PENDING IS NOT AN EMPTY STATE (the F-02 class, applied here 2026-08-07 — the same fix `CapabilityGate`
+ *  took). `preset.resolveEffective` returns a REQUIRED `EffectivePreset` and resolves against whatever chat
+ *  model the caller has, THROWING when routing is broken — so an absent profile is a read that has not
+ *  LANDED or one that FAILED, and there is no settled "you have no chat model" arm for this component to
+ *  render. It used to print "Connect a chat model in Connections…" on every absent read, which meant every
+ *  open of the CONTEXT panel flashed that line at users who have one connected, and on a routing failure it
+ *  stood there permanently naming the wrong cause. The two REACHABLE arms are now rendered as themselves: a
+ *  shape-matched skeleton that asserts nothing while `error === null`, and the server's own message when the
+ *  read has failed — named as the routing problem it is, exactly as the deck's gate names it. */
 export function EffectiveProfile({
   effective,
+  error,
   contextWindow,
 }: {
   readonly effective: EffectiveProfileRow | undefined;
+  /** The resolve's own failure message — `null` while the read is still PENDING. With `effective`
+   *  undefined those two are exhaustive (see above); a settled-successful read always carries a profile. */
+  readonly error: string | null;
   /** The model's context window — the ONE row the funnel deliberately does not resolve (`maxContextTokens`
    *  is our history soft-cap, not a wire knob), and which the mock nonetheless prints because it IS part of
    *  what the next turn will do. It came from the capability read, exactly as the deck's own ghost does
@@ -64,7 +84,26 @@ export function EffectiveProfile({
   if (effective === undefined) {
     return (
       <Section kicker="Effective generation">
-        <Text voice="gloss">Connect a chat model in Connections and this shows exactly what the next turn will send.</Text>
+        {error === null ? (
+          // The ONE placeholder-row home (`SkeletonRows`) — never a hand-assembled stack of `Skeleton`s and
+          // never a spinner flash (UIP-309). It carries its own `aria-busy`.
+          <SkeletonRows count={PENDING_ROWS} />
+        ) : (
+          <Row align="start" className="rounded-base border border-warning bg-warning/10 text-warning" gap="field" padding="row">
+            <Icon icon={AlertTriangle} size="sm" />
+            <Stack gap="tight">
+              <Text prose={true} voice="label">
+                Your chat model couldn't be resolved, so what the next turn will send can't be shown.
+              </Text>
+              <Text prose={true} voice="gloss">
+                {error}
+              </Text>
+              <Text prose={true} voice="gloss">
+                This is a routing problem, not a missing connection — fix it under Settings → Connections → Model roles.
+              </Text>
+            </Stack>
+          </Row>
+        )}
       </Section>
     );
   }
