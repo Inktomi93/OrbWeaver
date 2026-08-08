@@ -58,12 +58,12 @@ test("a FRESH in-flight row still reads Queued — the stall verdict is a frozen
   await expect(list.getByText("Indexing", { exact: true })).toBeVisible();
 });
 
-test("the row subtitle is the scent: provenance · size · chunks", async ({ mount, page }) => {
+test("the row subtitle is the scent: provenance · size · passages", async ({ mount, page }) => {
   await stubDatabank(page);
   const list = await mount(<DatabankLibraryStory />);
 
-  await expect(list.getByText("Upload · 24.5 KB · 12 chunks")).toBeVisible();
-  await expect(list.getByText("Wiki · 91.7 KB · 39 chunks")).toBeVisible();
+  await expect(list.getByText("Upload · 24.5 KB · 12 passages")).toBeVisible();
+  await expect(list.getByText("Wiki · 91.7 KB · 39 passages")).toBeVisible();
 });
 
 test("Everywhere is the row's ONE state toggle: aria-pressed carries the state, from ONE listGlobal read", async ({ mount, page }) => {
