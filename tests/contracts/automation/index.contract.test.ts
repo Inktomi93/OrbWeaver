@@ -115,8 +115,8 @@ const DOMAIN_SEEN: Record<DomainTriggerType, true> = {
 };
 
 test("the trigger unions have no member beyond their tuples", () => {
-  expect(Object.keys(CHAT_SEEN).sort()).toEqual([...CHAT_TRIGGER_TYPES].sort());
-  expect(Object.keys(DOMAIN_SEEN).sort()).toEqual([...DOMAIN_TRIGGER_TYPES].sort());
+  expect(Object.keys(CHAT_SEEN).sort()).toEqual(CHAT_TRIGGER_TYPES.toSorted());
+  expect(Object.keys(DOMAIN_SEEN).sort()).toEqual(DOMAIN_TRIGGER_TYPES.toSorted());
 });
 
 // ── the action union + liveness (A4 — 03 / 01 §1) ────────────────────────────────────────────────

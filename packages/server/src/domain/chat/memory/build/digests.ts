@@ -286,7 +286,7 @@ async function writeConsolidations(
     if (group.length < cfg.fanOut) {
       continue; // incomplete group — defer until it fills
     }
-    const ordered = [...group].sort((a, b) => a.blockIdx - b.blockIdx);
+    const ordered = group.toSorted((a, b) => a.blockIdx - b.blockIdx);
     const parentHash = consolidationHash(
       `${scope.scopedCharacterId}:${parentTier}:${parentBlockIdx}`,
       ordered.map((c) => c.contentHash),

@@ -106,7 +106,7 @@ export function createCorpus(ctx: SearchContext): SearchService["corpus"] {
     const ranked =
       params.mode === "mixC"
         ? await applyRerank(text, candidates, ctx.roleClients.rerank, candidates.length)
-        : [...candidates].sort(
+        : candidates.toSorted(
             compareCslsBy(
               (c) => c.distance,
               (c) => c.hubScore,

@@ -45,7 +45,7 @@ describe("listImageAssetIds", () => {
 
     const ids = await svc.listImageAssetIds();
 
-    expect([...ids].sort()).toEqual([aliceAvatar.assetId, bobAvatar.assetId].sort());
+    expect(ids.toSorted()).toEqual([aliceAvatar.assetId, bobAvatar.assetId].sort());
   });
 
   test("an empty store enumerates to an empty universe", async () => {

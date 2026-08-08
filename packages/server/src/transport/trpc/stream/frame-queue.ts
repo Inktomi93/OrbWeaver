@@ -185,9 +185,9 @@ export function createFrameQueue(opts: FrameQueueOptions): FrameQueue {
   /** Park until `bump()` — the ONE await in the drain loop. Declared outside it so the resolver capture is
    *  not a closure over a loop variable. */
   function nextTick(): Promise<void> {
-    return new Promise<void>((resolve) => {
-      wake = resolve;
-    });
+    const { promise, resolve } = Promise.withResolvers<void>();
+    wake = resolve;
+    return promise;
   }
 
   // Drains while the queue is open, and keeps draining after `close()` until the buffer empties — a socket

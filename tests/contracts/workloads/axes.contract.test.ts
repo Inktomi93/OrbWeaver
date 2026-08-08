@@ -119,7 +119,7 @@ const KIND_SEEN: Record<WorkloadKind, true> = {
   "databank-reindex": true,
 };
 test("WorkloadKind has no member beyond the tuple", () => {
-  expect(Object.keys(KIND_SEEN).sort()).toEqual([...WORKLOAD_KINDS].sort());
+  expect(Object.keys(KIND_SEEN).sort()).toEqual(WORKLOAD_KINDS.toSorted());
 });
 
 const STATUS_SEEN: Record<WorkloadStatus, true> = {
@@ -133,7 +133,7 @@ const STATUS_SEEN: Record<WorkloadStatus, true> = {
   worker_died: true,
 };
 test("WorkloadStatus has no member beyond the tuple", () => {
-  expect(Object.keys(STATUS_SEEN).sort()).toEqual([...WORKLOAD_STATUSES].sort());
+  expect(Object.keys(STATUS_SEEN).sort()).toEqual(WORKLOAD_STATUSES.toSorted());
 });
 
 // ── The EXECUTION axes (lane + resume) — the tuples `@orb/db`'s `workloads.lane` column/CHECK and the
@@ -149,7 +149,7 @@ test("WORKLOAD_RESUME_POLICIES is exactly [idempotent-restart, checkpointed, non
 
 const LANE_SEEN: Record<WorkloadLane, true> = { interactive: true, sweep: true };
 test("WorkloadLane has no member beyond the tuple", () => {
-  expect(Object.keys(LANE_SEEN).sort()).toEqual([...WORKLOAD_LANES].sort());
+  expect(Object.keys(LANE_SEEN).sort()).toEqual(WORKLOAD_LANES.toSorted());
 });
 
 const RESUME_SEEN: Record<WorkloadResumePolicy, true> = {
@@ -158,7 +158,7 @@ const RESUME_SEEN: Record<WorkloadResumePolicy, true> = {
   none: true,
 };
 test("WorkloadResumePolicy has no member beyond the tuple", () => {
-  expect(Object.keys(RESUME_SEEN).sort()).toEqual([...WORKLOAD_RESUME_POLICIES].sort());
+  expect(Object.keys(RESUME_SEEN).sort()).toEqual(WORKLOAD_RESUME_POLICIES.toSorted());
 });
 
 // ── The WorkloadMode axis + the per-kind MODE POLICY map (WORKLOAD_KIND_MODES) — the ONE declarative home ─

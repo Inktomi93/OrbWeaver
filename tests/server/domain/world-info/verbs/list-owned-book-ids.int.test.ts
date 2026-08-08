@@ -29,7 +29,7 @@ describe("createListOwnedBookIds", () => {
 
     const ids = await createListOwnedBookIds({ db })({ ownerId: owner.id });
 
-    expect([...ids].sort()).toEqual(["world_book_mine_a", "world_book_mine_b"]);
+    expect(ids.toSorted()).toEqual(["world_book_mine_a", "world_book_mine_b"]);
   });
 
   test("an owner with no books enumerates empty (never every book on the box)", async () => {

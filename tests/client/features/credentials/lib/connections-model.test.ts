@@ -277,12 +277,12 @@ test("only the chat slot carries the chat knobs; only imageEmbed is optional", (
 test("the inference-derive roles offer exactly the three inference tiers (schema parity)", () => {
   const inferenceTiers = ["openrouter", "vllm", "local-light"];
   for (const role of ["embed", "rerank", "imageEmbed"] as const) {
-    expect([...ROLE_SLOTS[role].sources].sort()).toEqual([...inferenceTiers].sort());
+    expect(ROLE_SLOTS[role].sources.toSorted()).toEqual(inferenceTiers.toSorted());
   }
 });
 
 test("summarize offers the two chat engines only (no metered sub); generateImage is openrouter-only", () => {
-  expect([...ROLE_SLOTS.summarize.sources].sort()).toEqual(["openrouter", "vllm"].sort());
+  expect(ROLE_SLOTS.summarize.sources.toSorted()).toEqual(["openrouter", "vllm"].sort());
   expect(ROLE_SLOTS.generateImage.sources).toEqual(["openrouter"]);
 });
 

@@ -28,7 +28,7 @@ const RELATION_SEEN: Record<DuplicateRelation, true> = {
 };
 
 test("the relation union has no member beyond the tuple (exhaustive over duplicate|forked)", () => {
-  expect(Object.keys(RELATION_SEEN).sort()).toEqual([...RELATIONS].sort());
+  expect(Object.keys(RELATION_SEEN).sort()).toEqual(RELATIONS.toSorted());
 });
 
 // ── The two workload params schemas discovery OWNS (the workloads junk-drawer exit: a kind's params schema

@@ -30,7 +30,7 @@ describe("the card-embeddable partition of ThemeOverride", () => {
   test("every override key is classified — the two halves are TOTAL and DISJOINT", () => {
     const byText = (a: string, b: string): number => a.localeCompare(b);
     const classified = [...CARD_EMBEDDABLE_THEME_KEYS, ...VIEWER_SACRED_THEME_KEYS];
-    expect([...classified].sort(byText)).toEqual(Object.keys(themeOverrideSchema.shape).sort(byText));
+    expect(classified.toSorted(byText)).toEqual(Object.keys(themeOverrideSchema.shape).sort(byText));
     expect(new Set(classified).size, "a key cannot sit on both planes").toBe(classified.length);
   });
 
@@ -48,7 +48,7 @@ describe("the card-embeddable partition of ThemeOverride", () => {
   test("the vocabulary shared with AppearanceSettings is exactly the deliberate set", () => {
     const appearanceKeys = new Set(Object.keys(DEFAULT_APPEARANCE_SETTINGS satisfies AppearanceSettings));
     const overlap = Object.keys(themeOverrideSchema.shape).filter((key) => appearanceKeys.has(key));
-    expect(overlap.sort()).toEqual([...DELIBERATE_VOCABULARY_OVERLAP].sort());
+    expect(overlap.sort()).toEqual(DELIBERATE_VOCABULARY_OVERLAP.toSorted());
   });
 });
 

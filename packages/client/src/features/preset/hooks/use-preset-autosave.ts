@@ -107,18 +107,18 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
   /** Ask, then write where the owner said. `sourceName` is the built-in's; `existing` is the convergence fork. */
   const saveWithChoice = async (targetId: PresetId, sourceName: string, existing: (typeof presets)[number], config: PromptConfig): Promise<void> => {
     // Park the chain — NOTHING is written until the owner answers (dismissal answers "keep editing").
-    const chosenName = await new Promise<string | null>((resolve) => {
-      answerRef.current = resolve;
-      setForkChoice({
+    const asked = Promise.withResolvers<string | null>();
+    answerRef.current = asked.resolve;
+    setForkChoice({
+      sourceName,
+      forkName: existing.name,
+      suggestedName: suggestForkName(
         sourceName,
-        forkName: existing.name,
-        suggestedName: suggestForkName(
-          sourceName,
-          presets.filter((p) => p.forkedFrom === targetId).length,
-          presets.map((p) => p.name),
-        ),
-      });
+        presets.filter((p) => p.forkedFrom === targetId).length,
+        presets.map((p) => p.name),
+      ),
     });
+    const chosenName = await asked.promise;
     if (chosenName === null) {
       // Keep editing: the edit lands DIRECTLY on the existing fork — no copy-on-write, so nothing is minted.
       await update.mutateAsync({ id: existing.id, config });

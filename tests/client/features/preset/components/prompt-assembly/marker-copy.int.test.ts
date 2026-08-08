@@ -18,5 +18,5 @@ test("every MarkerType has a copy entry with non-empty label/oneLiner/subtitle",
 });
 
 test("the registry has exactly one entry per marker — no extras", () => {
-  expect(Object.keys(MARKER_COPY).sort()).toEqual([...MARKER_TYPES].sort());
+  expect(Object.keys(MARKER_COPY).sort()).toEqual(MARKER_TYPES.toSorted());
 });

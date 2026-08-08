@@ -25,7 +25,7 @@ interface DeltaEntry {
 /** Fold seq-ordered per-message deltas into the runtime variable state (the `chats.runtime_variables` shape).
  *  Sorts by `seq` defensively (the query already orders, but a caller may splice an appended entry). */
 export function foldChain(entries: readonly DeltaEntry[]): Record<string, string> {
-  const ordered = [...entries].sort((a, b) => a.seq - b.seq);
+  const ordered = entries.toSorted((a, b) => a.seq - b.seq);
   return foldVarOps(ordered.map((e) => e.delta));
 }
 

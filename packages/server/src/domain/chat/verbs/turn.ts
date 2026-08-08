@@ -1860,17 +1860,19 @@ function createDeltaBridge(): DeltaBridge {
   const queue: string[] = [];
   let done = false;
   let wake: (() => void) | null = null;
-  // The "next arrival" promise — resolved by push/close, then re-armed. Single-slot: one consumer only.
-  let arrival = new Promise<void>((resolve) => {
+  /** Mint the next "arrival" barrier, parking its resolver in `wake`. Single-slot: one consumer only. */
+  const arm = (): Promise<void> => {
+    const { promise, resolve } = Promise.withResolvers<void>();
     wake = resolve;
-  });
+    return promise;
+  };
+  // The "next arrival" promise — resolved by push/close, then re-armed.
+  let arrival = arm();
   const signalArrival = (): void => {
     const w = wake;
     if (w !== null) {
       wake = null;
-      arrival = new Promise<void>((resolve) => {
-        wake = resolve;
-      });
+      arrival = arm();
       w();
     }
   };

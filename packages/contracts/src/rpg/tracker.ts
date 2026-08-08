@@ -181,7 +181,7 @@ export function resolveTrackerCarriers(def: RpgTrackerDef, carriers: readonly Rp
 /** The ONE tracker ordering: `sort` ascending, ties broken by `key` so the order is total + stable across
  *  reads (a set-order-dependent render is exactly the kind of drift the panel used to show). */
 export function sortTrackers(defs: readonly RpgTrackerDef[]): readonly RpgTrackerDef[] {
-  return [...defs].sort((a, b) => (a.sort !== b.sort ? a.sort - b.sort : a.key.localeCompare(b.key)));
+  return defs.toSorted((a, b) => (a.sort !== b.sort ? a.sort - b.sort : a.key.localeCompare(b.key)));
 }
 
 /** Every tracker ONE actor effectively carries, in `sort` then declaration order (the actor-side read — "what

@@ -20,7 +20,7 @@ function decoArgs(kind: BubbleDecorationArgs["kind"], avatarHash: string | null,
 }
 
 test("the skin table covers exactly the chatStyle vocabulary", () => {
-  expect(Object.keys(MESSAGE_ROW_SKINS).sort()).toEqual([...THEME_CHAT_STYLES].sort());
+  expect(Object.keys(MESSAGE_ROW_SKINS).sort()).toEqual(THEME_CHAT_STYLES.toSorted());
 });
 
 test("bubble skin paints role-specific bubble tokens + alignment", () => {
