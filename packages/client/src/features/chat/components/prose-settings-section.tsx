@@ -18,7 +18,7 @@
 // `baseVersion` through a ONE-key patch — any ordinary edit re-stamps too, so this is the no-edit path).
 
 import type { ProseFooterState, ProseOverride, ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
-import { PROSE_SLOTS, proseFooterState, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
+import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS, proseFooterState, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
@@ -30,7 +30,14 @@ import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, 
 import type { AutosaveSession } from "#forms";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
-import { PROSE_SETTINGS_SUBCATEGORY, projectProseForm, proseFieldName, proseSlotPatch, toProsePatch } from "../lib/prose-settings-model.ts";
+import {
+  PROSE_SETTINGS_SUBCATEGORY,
+  projectProseForm,
+  proseFieldName,
+  proseSlotPatch,
+  toProsePatch,
+  validateProseLengths,
+} from "../lib/prose-settings-model.ts";
 
 /** The form bag + the patch shape as LOCAL aliases off the model's own return types (D120: an exported
  *  patch/form alias is `no-inline-types` RED — the shape has ONE home, the function that builds it). */
@@ -47,7 +54,17 @@ const useUpdateProse = createEntityMutation<UpdateProseVars, unknown>({
   errorToast: "Couldn't save your prose overrides.",
 });
 
-const ProseAutosaveForm = createAutosaveEntityForm<ProseForm>({ defaultValues: projectProseForm({}) });
+// The validator REFUSES a write it cannot make survive (see `validateProseLengths`): an over-cap override
+// self-heals to absent on the way in, so saving it would delete the host's wording rather than reject it.
+// `isValid` is the seam the autosave factory's save driver AND its teardown flush both gate on.
+const ProseAutosaveForm = createAutosaveEntityForm<ProseForm>({
+  defaultValues: projectProseForm({}),
+  options: {
+    validators: {
+      onDynamic: ({ value }: { value: ProseForm }): { fields: Record<string, string> } | undefined => validateProseLengths(value),
+    },
+  },
+});
 
 /** One row per user, so a fixed entity key. */
 const PROSE_ENTITY_ID = "prose-settings";
@@ -156,12 +173,25 @@ function ProseCard({ form, id, stored, onKeepMine }: ProseCardProps): ReactEleme
     <Stack gap="field" padding="field" role="group" aria-label={slot.title} className="rounded-base border border-border bg-card">
       <form.AppField name={name}>
         {(field): ReactElement => (
-          <field.MacroField label={slot.title} description={slot.fires} suggestions={slotSuggestions(id)} placeholder={slot.text} rows={3} />
+          // THE CAP, off the contract constant (never a re-spelled 4000). Without it this field authored a
+          // value whose only possible fate was to VANISH: `proseOverridesSchema` heals an over-cap override
+          // to absent, so the write "succeeded" and the shipped default rode in place of the host's words.
+          // The attribute blocks typing and truncates a paste; an already-stored over-cap value is left
+          // rendered in full, and `validateProseLengths` refuses its save through this field's own error.
+          <field.MacroField
+            label={slot.title}
+            description={slot.fires}
+            suggestions={slotSuggestions(id)}
+            placeholder={slot.text}
+            rows={3}
+            maxLength={PROSE_MAX_CHARS}
+          />
         )}
       </form.AppField>
       <form.Subscribe selector={(state): string => state.values[name] ?? ""}>
         {(value): ReactElement => (
           <ProseCardFooter
+            length={value.length}
             footer={proseFooterState(id, value, stored)}
             onKeepMine={(): void => {
               onKeepMine(id, value);
@@ -176,14 +206,26 @@ function ProseCard({ form, id, stored, onKeepMine }: ProseCardProps): ReactEleme
 
 interface ProseCardFooterProps {
   readonly footer: ProseFooterState;
+  /** The RAW field length — the counter mirrors what the box holds, keystroke for keystroke. */
+  readonly length: number;
   readonly onUseDefault: () => void;
   readonly onKeepMine: () => void;
 }
 
 /** Default/Customized + the warn-never-block lints + the §4.4 stale pair. Both stale actions are one click
  *  and neither is automatic — a revised default never lands behind a host's back, and a host is never
- *  silently left on a stale copy. */
-function ProseCardFooter({ footer, onUseDefault, onKeepMine }: ProseCardFooterProps): ReactElement {
+ *  silently left on a stale copy.
+ *
+ *  Plus the length COUNTER, quiet until `PROSE_COUNTER_AT` of the cap (the shared `hint-editor` grammar), so
+ *  an author sees the ceiling coming rather than hitting a silent wall at `maxLength`.
+ *
+ *  NO over-cap badge here, deliberately — unlike the preset Templates drill-in, which carries one. That
+ *  surface writes `prose` as a whole record at one path (a slot id contains dots, which TanStack reads as a
+ *  value path), so it has no bound field to hang a validation error on and must state the block itself.
+ *  Here every card IS a bound `<Field>`, so `validateProseLengths` keys its message by field name and the
+ *  field renders it with the `aria-invalid`/`aria-describedby` wiring a hand-rolled badge cannot match.
+ *  Adding a badge as well would say one thing twice, one of them without the a11y. */
+function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCardFooterProps): ReactElement {
   return (
     <Stack gap="field">
       <Row gap="field" align="center">
@@ -192,6 +234,11 @@ function ProseCardFooter({ footer, onUseDefault, onKeepMine }: ProseCardFooterPr
           <Button intent="ghost" size="sm" onClick={onUseDefault}>
             Reset to built-in
           </Button>
+        )}
+        {length < PROSE_MAX_CHARS * PROSE_COUNTER_AT ? null : (
+          <Text voice="gloss" className="tabular-nums">
+            {length}/{PROSE_MAX_CHARS}
+          </Text>
         )}
       </Row>
       {footer.missing.length > 0 ? (

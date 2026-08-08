@@ -15,7 +15,7 @@
 
 import type { PromptConfig, TemplateCapability } from "@orb/contracts/preset";
 import type { ProseFooterState, ProseSlotId } from "@orb/contracts/prose";
-import { PROSE_SLOTS, proseFooterState } from "@orb/contracts/prose";
+import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS, proseFooterState } from "@orb/contracts/prose";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import type { MessageRole } from "@orb/kit/message-role";
 import { Badge } from "@orb/ui/badge";
@@ -164,6 +164,12 @@ function ProseTemplateBody({
         <Stack gap="field">
           <MacroTextarea
             aria-label={label}
+            // THE CAP, SOURCED FROM THE CONTRACT (never a re-spelled 4000). `proseOverridesSchema` heals an
+            // over-cap override to ABSENT, so without this the field cheerfully authored a value whose only
+            // possible fate was to vanish on the way to the model. Native `maxLength` is the right half of
+            // the fix: it blocks typing and truncates a paste, and it leaves an already-stored over-cap value
+            // alone — that one is `ProseFooter`'s to state and the form validator's to refuse.
+            maxLength={PROSE_MAX_CHARS}
             onChange={(next): void => {
               form.setFieldValue("prose", proseTemplateDraft(form.state.values, slotId, next));
             }}
@@ -172,28 +178,50 @@ function ProseTemplateBody({
             suggestions={suggestions}
             value={value}
           />
-          <ProseFooter footer={proseFooterState(slotId, value, form.state.values.prose[slotId])} />
+          <ProseFooter footer={proseFooterState(slotId, value, form.state.values.prose[slotId])} length={value.length} />
         </Stack>
       )}
     </form.Subscribe>
   );
 }
 
-/** The framing field's WARN-NEVER-BLOCK footer (§6.3 / §4.4) — the same two signals the Prose settings cards
- *  carry, off the same shared `proseFooterState`. A framing's `{{note}}` is its PAYLOAD carrier: an override
- *  that drops it renders the wrapper with the injection's content gone, which is the one mistake an author
- *  cannot see in the field itself. It stays a warning, not a refusal — that is the ruled posture for prose
- *  `requiredMacros` (`contracts/prose-slot`: "a lint in the editor — never a block"), deliberately unlike
- *  `FORMAT_STRING_CARRIER_TOKENS`, whose write-refusal is a separate owner ruling about format strings. */
-function ProseFooter({ footer }: { readonly footer: ProseFooterState }): ReactElement | null {
+/** The framing field's footer (§6.3 / §4.4) — the same signals the Prose settings cards carry, off the same
+ *  shared `proseFooterState`. A framing's `{{note}}` is its PAYLOAD carrier: an override that drops it renders
+ *  the wrapper with the injection's content gone, which is the one mistake an author cannot see in the field
+ *  itself. It stays a warning, not a refusal — that is the ruled posture for prose `requiredMacros`
+ *  (`contracts/prose-slot`: "a lint in the editor — never a block"), deliberately unlike
+ *  `FORMAT_STRING_CARRIER_TOKENS`, whose write-refusal is a separate owner ruling about format strings.
+ *
+ *  THE LENGTH SIGNALS ARE THE EXCEPTION, and they are a different KIND of fact. The counter is the
+ *  `hint-editor` grammar (quiet until `PROSE_COUNTER_AT` of the cap, then a live count) so an author sees the
+ *  ceiling coming instead of hitting a silent wall. The over-cap badge is the one BLOCKING signal in this
+ *  footer: the field's `maxLength` means an over-cap value cannot be TYPED, so reaching it at all means the
+ *  stored text predates the cap — and saving it would not error, it would DELETE it (`proseOverridesSchema`
+ *  heals an over-cap key to absent). It is `role="alert"` rather than a quiet chip precisely because the
+ *  autosave that would normally reassure is the thing being withheld: the form validator holds the write and
+ *  the header keeps reading "Saved", so this badge is the only place that state is legible. */
+function ProseFooter({ footer, length }: { readonly footer: ProseFooterState; readonly length: number }): ReactElement | null {
+  // Counted on the RAW field length, not the trimmed one `over` uses: the counter mirrors what the box holds
+  // (an author watching a number must see it move on every keystroke, trailing space included).
+  const counter =
+    length < PROSE_MAX_CHARS * PROSE_COUNTER_AT ? null : (
+      <Text className="tabular-nums" voice="gloss">
+        {length}/{PROSE_MAX_CHARS}
+      </Text>
+    );
   if (footer.isDefault) {
     return <Text voice="gloss">Using the built-in wording</Text>;
   }
-  if (footer.missing.length === 0 && !footer.stale) {
+  if (counter === null && footer.missing.length === 0 && !footer.stale) {
     return null;
   }
   return (
     <Row align="center" gap="field">
+      {footer.over > 0 ? (
+        <Badge intent="danger" role="alert" size="sm" tone="soft">
+          {footer.over} characters over the {PROSE_MAX_CHARS} limit — trim it to save
+        </Badge>
+      ) : null}
       {footer.missing.map((token) => (
         <Badge intent="warning" key={token} size="sm" tone="soft">
           Missing {token}
@@ -204,6 +232,7 @@ function ProseFooter({ footer }: { readonly footer: ProseFooterState }): ReactEl
           The built-in wording was updated
         </Badge>
       ) : null}
+      {counter}
     </Row>
   );
 }

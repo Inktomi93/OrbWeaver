@@ -49,6 +49,13 @@ export interface MacroTextareaProps {
   id?: string;
   /** Forwarded as `disabled` on the underlying textarea. */
   disabled?: boolean;
+  /**
+   * Native character cap, forwarded to the textarea. The browser blocks typing and truncates a paste at
+   * the limit; it deliberately does NOT truncate a value set programmatically, so a stored value that
+   * already exceeds the cap renders in FULL — the caller shows it and refuses the save, rather than
+   * silently eating the tail of text it did not author.
+   */
+  maxLength?: number;
   /** Optional inline helper line under the textarea. */
   helper?: ReactNode;
   /** Accessible name for the textarea when it isn't wrapped in a `<Field label>`. */
@@ -154,6 +161,7 @@ export function MacroTextarea({
   className,
   id,
   disabled,
+  maxLength,
   helper,
   "aria-label": ariaLabel,
 }: MacroTextareaProps): ReactElement {
@@ -249,6 +257,9 @@ export function MacroTextarea({
         // mergeProps treats an explicit key as an override even when undefined — a bare id={id}
         // would erase Field.Control's auto-generated id when the caller doesn't pass one.
         {...(id === undefined ? {} : { id })}
+        // Same conditional-spread rule as `id` above: Field.Control merges props, so an explicit
+        // `maxLength={undefined}` is an OVERRIDE that would erase a cap the field context supplied.
+        {...(maxLength === undefined ? {} : { maxLength })}
         onBlur={(): void => {
           // Mouse picks are handled by the popover's own mousedown preventDefault (below); this
           // deferred close covers non-mouse blur (tab-away, programmatic) after a short settle delay.
