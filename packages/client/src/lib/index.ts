@@ -76,7 +76,25 @@ export { withUserMacros } from "./prompt-macros.ts";
 export { REGEX_PLACEMENT_ITEMS, REGEX_PLACEMENT_LABELS, regexPlacementStep, regexScriptScent, regexScriptTitle } from "./regex-placement-labels.ts";
 export type { ContributorRegistry, Registry } from "./registry.ts";
 export { createContributorRegistry, createRegistry } from "./registry.ts";
-export * from "./registry-contracts.ts";
+export type {
+  AnalyticsContextState,
+  CharacterChatsProjectionView,
+  CharacterContextState,
+  ChatContextState,
+  ChatContextTabId,
+  CommittedChatContext,
+  ContextDefinition,
+  ContextEmptyArm,
+  ContextRegionDef,
+  ContextRegionView,
+  ContextTabDef,
+  ContextTabStrip,
+  ContextTabsSpec,
+  DraftChatContext,
+  ResolvedContextTab,
+  ResolvedContextTabs,
+} from "./registry-contracts.ts";
+export { CHAT_CONTEXT_TAB_IDS, defineContextRegion, defineContextTabs, resolveContextTabs, VOID_STATE } from "./registry-contracts.ts";
 export { RenderProfiler } from "./render-profiler.tsx";
 export type { ResolveRowRenderPolicyInput, RowRenderPolicy } from "./render-trust.ts";
 export { resolveRowRenderPolicy } from "./render-trust.ts";
@@ -93,7 +111,7 @@ export { timeLib } from "./time.ts";
 export { createToastNotify } from "./toast-notify.ts";
 export type { TrpcOpLogEntry } from "./trpc-devlog.ts";
 export { formatTrpcOp } from "./trpc-devlog.ts";
-export * from "./use-focus-on-mount.ts";
+export { useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
 export { withViewTransition } from "./view-transition.ts";
 export type { WeaveGlyphProps } from "./weave-glyph.tsx";
 export { WeaveGlyph } from "./weave-glyph.tsx";
