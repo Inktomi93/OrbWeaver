@@ -15,10 +15,16 @@
 #   · The app port is `expose`d, NEVER `ports:`-published. Publishing it lets any reachable client send
 #     `Host: 127.0.0.1` and mint an un-credentialed OWNER via the origin-gated fallback. Your reverse
 #     proxy joins this network and targets `orbweaver:8788` (service DNS).
+#   · `expose`-only is HALF the reachability control: every other container on this network can also
+#     reach `orbweaver:8788`. The shipped `single-user` mode grants OWNER to anything that reaches the
+#     port, so keep it on a network carrying nothing but your proxy — a shared/external network (the
+#     Caddy stanza at the bottom) means every co-tenant container is the owner. Public FQDN or shared
+#     network ⇒ switch to an SSO mode + AUTH_FALLBACK=deny (docker/orbweaver.env).
 #   · Secrets are FILES mounted at /run/secrets/* (never env values — they'd read back out of
 #     `docker inspect`); the image entrypoint exports each `<VAR>_FILE` into `<VAR>` at boot.
-#   · The shipped env file (docker/orbweaver.env) carries the §3 secure defaults: single-user +
-#     AUTH_FALLBACK=deny + every debug/capture surface off.
+#   · The shipped env file (docker/orbweaver.env) carries the §3 defaults: single-user (fallback `owner`
+#     — it is that mode's ONLY credential) + every debug/capture surface off. Each SSO mode's block in
+#     that file carries its own AUTH_FALLBACK=deny.
 #
 # Deploy checklist: docker/README.md. Design: docs/design/containerize-prod-image-spec.md +
 # docs/design/containerize-build-plan.md.
