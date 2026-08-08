@@ -394,6 +394,30 @@ security lens.
   new literals in the same relocation. Do NOT dispatch until RENDERFIX merges. `no-media-queries-in-
   features`'s `MEDIA_QUERY_RE` matches viewport widths only — this is a NEW gate, not an extension.
 
+**⚑ OVERNIGHT PROGRESS (2026-08-07, `128`-ahead) — merges + premise-kills:**
+- ✅ **RENDERFIX MERGED** (`6807f5eb4`, consolidated check 14/14 after a post-merge biome fixup on a new
+  CT-stories file). 5 side-eye findings fixed red-first + 314 CT; both geometry sites cleared
+  GEOMETRICALLY. **It REFUSED my "delete the exemption rows" instruction correctly** — the gate's arm is
+  STRUCTURAL (floorless-Button-in-wrap), the fix is GEOMETRIC, so the arm still fires; deleting would
+  force the sizing remedy the owner declined. Rows kept as permanent; `Core-Enforcement-Active-Gates.md`
+  gate row truth-repaired. **OWES a deferred side-eye graduation** (task #16 — run on the SETTLED rpg
+  state after PTRGATE relocates its literals, not mid-churn).
+- ✅ **IMPORT-SETTINGS-WRITE-GUARD → PREMISE-DEAD (not a gap).** The ruling assumed the import path
+  skipped a write-guard the normal path runs. But `coherentRoutingPatch` only runs for
+  `section==="routing"`, and routing is FENCED OUT of `SHARE_SAFE_SETTINGS_NAMESPACES` — no import can
+  carry a routing value, the guard is unbuildable, and the read-side heal recovers undecidable-at-write
+  source classes (not deletable). SMALLS-SERVER built only Item 1 (narrator preview).
+- ✅ **TEMPLATING (b) UNIFICATION → ALREADY DONE (premise-kill of a board-inflated item).** The PROSE-1
+  program (`269860bcf`) already unified it: registry mechanism, injection framings
+  (`chat.injection.systemNote`/`.userNote`), continuation cue, the §3.2/§3.3 settings split. Contract
+  suite 34/34. TEMPLATE-UNIFY builds ONLY the residual preset row 49 (`DEFAULT_COMPACT_INSTRUCTIONS`
+  adapted slot). **Two pieces routed OUT (task #17):** the REWRITE_TOGGLES/GREETING_TRANSFORMS fragment
+  bytes (rows 53-73 — client-composed via kit, a design FORK) and the rpg per-game teaches + extraction
+  templates (rows 1-36/11-26 — no `rpg/prose.ts` yet, needs a dedicated rpg-server lane).
+- ⚑ **PTRGATE dispatched** (`a989027e`) — the owner-ruled pointer-coarse-in-features gate + sweep of the
+  literals RENDERFIX added, into the token/shell layer, behavior-preserving. **Glyph sweep (#13) waits
+  behind it** (same rpg files).
+
 **⚑ OVERNIGHT RECONCILIATION (2026-08-07) — ruled items verified against the tree, several already DONE:**
 - [x] **DOCLAW-RPG-REFS → ALREADY DONE.** The carve-out is `Documentation-Law.md:114` (amended
   2026-08-07: "A comment STATES its constraint; a citation may accompany it, never replace it" — the
