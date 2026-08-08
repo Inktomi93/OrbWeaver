@@ -100,7 +100,7 @@ import type {
   SlashCommandContribution,
   ToolRenderer,
 } from "#lib";
-import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createContributorRegistry, createRegistry } from "#lib";
+import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createContributorRegistry, createRegistry, createToastNotify } from "#lib";
 import type { SettingsSectionContribution } from "#state";
 import {
   assembleChrome,
@@ -345,17 +345,7 @@ const settingsPanes = createRegistry("settings-panes", SETTINGS_CATEGORY_IDS, {
 // The app-wide toast manager, minted outside React so it binds once here and <ToastProvider> renders
 // whatever notify.* enqueues. Without this bind, user-facing errors were console-only.
 const toastManager = createToastManager();
-bindNotify({
-  info: (message): void => {
-    toastManager.add({ title: message });
-  },
-  success: (message): void => {
-    toastManager.add({ title: message, type: "success" });
-  },
-  error: (message): void => {
-    toastManager.add({ title: message, type: "error", priority: "high" });
-  },
-});
+bindNotify(createToastNotify(toastManager));
 
 function reportClientError(error: Error, ownerStack: string | null): void {
   const url = `${globalThis.location.pathname}${globalThis.location.search}`;
