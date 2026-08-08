@@ -19,6 +19,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../support/ct/route-trpc.ts";
+import { touchFloorPx } from "../../support/ct/touch-floor.ts";
 import { TagPickerDialogHarness } from "./tag-picker-dialog.fixtures.tsx";
 
 const tag = (id: string, name: string, total: number): unknown => ({
@@ -160,6 +161,42 @@ test("suggestions showing: the list stays INSIDE the dialog card, on a 430px pho
   expect((list?.y ?? 0) + (list?.height ?? 0)).toBeLessThanOrEqual((card?.y ?? 0) + (card?.height ?? 0));
   expect(list?.y ?? 0).toBeGreaterThan(card?.y ?? 0);
   expect(await topmostAt(page, CONFIRM)).toBe(CONFIRM);
+});
+
+// THE PHONE PROOF ABOVE RUNS AT A FINE POINTER. `setViewportSize` narrows the window and changes NOTHING
+// about pointer class, so it renders a layout no phone produces: under `pointer: coarse` every suggestion row
+// is `min-h-touch-target` (44px, not the fine 28), so the same eight matches ask for ~1.6× the height inside
+// the same card. That is precisely the direction the P0 failed in — the list outgrowing its host — and the
+// existing proof is structurally incapable of seeing it. `hasTouch: true` is what flips the media query
+// (`tests/ui/touch-target-floor.suite.ct.tsx` proves the emulation lands); it needs its own describe because
+// `test.use` is scope-wide and the rest of this file is deliberately a desktop pass.
+test.describe("on a real phone (coarse pointer, 430px)", () => {
+  test.use({ hasTouch: true, viewport: { width: 430, height: 740 } });
+
+  test("the suggestion rows meet the touch floor, and the list still fits inside the card", async ({ mount, page }) => {
+    // The floor is a coarse-only guarantee — assert the emulation landed before trusting any geometry it
+    // explains, or a fine-pointer run reads as a pass at 28px.
+    // ONESHOT-OK: pointer class is fixed when the browser CONTEXT is created (`hasTouch` above), not page
+    // state — there is no transition for a retry to wait out, and a poll here would only mask a config miss.
+    expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+    await stub(page, CROWDED);
+    await mount(<TagPickerDialogHarness />);
+    await page.getByRole("combobox", { name: "Tag name" }).fill("fantas");
+    await expect(page.getByRole("option", { name: "fantasy-0" })).toBeVisible();
+
+    // The token, never a literal 44 — the CT's rendering context is not the app's.
+    const floor = await touchFloorPx(page);
+    const rowHeight = await page.getByRole("option", { name: "fantasy-0" }).evaluate((el: Element) => el.getBoundingClientRect().height);
+    expect(rowHeight).toBeGreaterThanOrEqual(floor);
+
+    // Containment and hit-testability re-proven at the taller rows: the inline list is a BOUNDED scroller, so
+    // growing the rows must scroll them, never grow the card past the footer it sits above.
+    const card = await page.locator('[data-slot="dialog-popup"]').boundingBox();
+    const list = await page.locator('[data-slot="autocomplete-inline-list"]').boundingBox();
+    expect((list?.y ?? 0) + (list?.height ?? 0)).toBeLessThanOrEqual((card?.y ?? 0) + (card?.height ?? 0));
+    expect(await topmostAt(page, CONFIRM)).toBe(CONFIRM);
+    expect(await topmostAt(page, "Cancel")).toBe("Cancel");
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────

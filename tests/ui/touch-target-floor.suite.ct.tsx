@@ -23,6 +23,7 @@
 // .emulateMedia` does NOT expose a `pointer` feature, so it can't drive this. The first test PROBES that
 // the emulation landed before any geometry is trusted. Assertions POLL (`expect.poll`) so a popup's
 // open-scale animation (Base UI Menu scales from ~0.95 → 1) settles before the box is read. Coarse-wide.
+import { Autocomplete } from "@orb/ui/autocomplete";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 import { Combobox } from "@orb/ui/combobox";
@@ -200,6 +201,31 @@ test("Combobox tap surface (the input group) meets the height floor", async ({ m
   await expect.poll(() => controlHeight(group), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
 });
 
+// The OPTION ROW is its own geometry, on its own rule. Both seals' items render `ITEM_ROW`
+// (`min-h-touch-target`, lib/popup-surface.ts) — NOT the `h-control-sm` the input groups above ride, and not
+// the `min-h-control-sm` this file's Menu case asserts. So neither of the two input-group cases above says
+// anything about the row a finger actually lands on, and the suite's own non-coverage note used to claim
+// otherwise for Autocomplete (corrected below). The tag-attach picker makes this the load-bearing target:
+// picking the suggestion IS the whole affordance — retyping the name instead is the duplicate-tag rot it
+// exists to prevent.
+test("Autocomplete option rows meet the height floor (the tap target is the ROW, not the field)", async ({ mount, page }) => {
+  // The INLINE arm, because that is the one a prompt dialog uses and it needs no open animation to settle:
+  // `mode="none"` renders exactly the items handed in, `open` is Base UI's requirement for inline.
+  await mount(<Autocomplete aria-label="Tag" inline={true} items={TAGS} mode="none" open={true} />);
+  const option = page.getByRole("option", { name: "Adventure" });
+  await expect(option).toBeVisible();
+  await expect.poll(() => controlHeight(option), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(FLOOR);
+});
+
+test("Combobox option rows meet the height floor (the same ITEM_ROW rule, in the anchored arm)", async ({ mount, page }) => {
+  await mount(<Combobox aria-label="Tag" items={TAGS} />);
+  await page.getByRole("combobox", { name: "Tag" }).click();
+  const option = page.getByRole("option", { name: "Adventure" });
+  await expect(option).toBeVisible();
+  // POLLED: this arm IS an anchored popup, so the box is read through the open-scale animation.
+  await expect.poll(() => controlHeight(option), { intervals: [20, 50, 100], timeout: 5000 }).toBeGreaterThanOrEqual(FLOOR);
+});
+
 test("Menu items meet the height floor (opened, measured in the portal after the open animation)", async ({ mount, page }) => {
   await mount(
     <Menu>
@@ -219,7 +245,11 @@ test("Menu items meet the height floor (opened, measured in the portal after the
 // ── NAMED NON-COVERAGE — interactive primitives this sweep deliberately does not mount ────────────
 // (Recorded as a reviewable list, not `test.skip` — the repo's lint bans skipped tests. Each shares its
 // hit-area anatomy with a primitive asserted above, so mounting it would re-measure the same box.)
-//   • Autocomplete — identical control-height input-trigger anatomy to Combobox (covered).
+//   (Autocomplete came OFF this list 2026-08-08. Its entry read "identical control-height input-trigger
+//   anatomy to Combobox (covered)", which was true of the FIELD and silent about the option ROW — a
+//   different element on a different rule (`ITEM_ROW`), and the one the tag-attach picker asks a finger to
+//   hit. Both seals' rows are asserted above now. The lesson generalises: a non-coverage row must name the
+//   ELEMENT it is excusing, not the component.)
 //   • Command — its palette items ride the same MenuItem `min-h-control-sm` rule as Menu (covered);
 //     a Command mount only adds the CommandDialog open flow, no new geometry.
 //   • MacroTextarea — a sealed mid-text editable seam, not a discrete tap target; its textarea rides
