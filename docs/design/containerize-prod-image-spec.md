@@ -32,14 +32,17 @@ updated: 2026-08-08
    pnpm@11.15.1`. The only build artifact is the client bundle (`vite build` → `packages/client/dist`,
    `packages/client/package.json` `build`). So "build" = install deps + `pnpm --filter @orb/client build`;
    the server ships as source `.ts` + its workspace deps (`kit`/`contracts`/`db`) as source.
-2. **The vLLM engine base URL is hardcoded to `127.0.0.1` — and that hardcode is the LEVER, not a wall.**
-   `engineBaseUrl` builds `http://127.0.0.1:${PORTS[engine]}` at ONE site
-   (`infra/providers/vllm/engine/engine-url.ts:17-20`), and the egress firewall's internal-backend bypass
-   hardcodes the same `127.0.0.1:${VLLM_*_PORT}` (`infra/network/egress.ts:81-83`). The correct deployment
-   **co-deploys vLLM as a sibling container** (owner: "it uses the vllm container image … the vllm would be
-   in the image with it"), so the engine IS reachable — only the *address* changes. Making the host component
-   configurable is the small code change that unlocks it (see §3.6 + Fork D). This is why the image can serve
-   GPU inference for everyone, not just cloud-only deployers.
+2. **The canonical deployment bakes orb AND the 3-engine vLLM fleet into ONE container** (owner's turnkey
+   profile). The engine is reached over loopback: `engineBaseUrl` builds `http://127.0.0.1:${PORTS[engine]}`
+   at ONE site (`infra/providers/vllm/engine/engine-url.ts:17-20`), the egress bypass hardcodes the same
+   `127.0.0.1:${VLLM_*_PORT}` (`infra/network/egress.ts:81-83`), and the spawn path already anticipates a
+   Docker image supplying the vLLM binary — "Bare-metal dev uses the repo venv; **the Docker image sets
+   vllmBin**" (`infra/providers/vllm/engine/spawn-engine.ts:58-59`, via `VLLM_BIN`/`VLLM_PY`/`HF_HOME`). In
+   the all-in-one container `127.0.0.1` is literally correct and the GPU is passed to THE container, so none
+   of the "reach a remote engine" plumbing bites the owner's profile (§3.6 confirms this against the code).
+   The `VLLM_ENGINE_HOST` env lever is retained only for the SLIM profile's external-engine arm; it defaults
+   to `127.0.0.1` at zero cost for the all-in-one. This is why one codebase serves both the turnkey GPU box
+   and cloud/CPU deployers (§2 two-profile structure + Fork D).
 
 ## 1. The four auth modes (the enumeration)
 
@@ -56,14 +59,40 @@ The identity pipeline is three tiers, and the split matters for what the contain
 - **RESOLUTION** (`domain/sessions`): role policy + users-row upsert.
 - **CONSTRUCTION** (`entry/auth/seam.ts`): the ONE `Principal` mint.
 
-## 2. The production image
+## 2. The production image — TWO profiles from one codebase (the load-bearing packaging decision)
 
-**Base:** `node:26` in the builder, `node:26-slim` (Debian) at runtime — matches the toolchain the
-devcontainer already proves (`FROM node:26`, `corepack enable`) and the `>=26` engines pin. Do NOT use
+"Designing for everyone" and "the owner's turnkey GPU box" are not one image — they are two build targets
+that share all app code and differ only in whether the vLLM fleet is baked in:
+
+| | **Profile 1 — all-in-one (DEFAULT)** | **Profile 2 — slim app-only** |
+| - | - | - |
+| Contents | orb + the 3 vLLM engines + CUDA + models | orb only |
+| For | the owner + any GPU self-hoster who wants turnkey | cloud-only / CPU-only / GPU-less deployers |
+| `ENGINES_POSTURE` | `adopt-or-start` (the container spawns the fleet) | `off` (D3) or `adopt-only` + external URL (D2) |
+| `VLLM_ENGINE_HOST` | `127.0.0.1` (default — fleet shares the namespace) | unset (off) or the external engine host |
+| GPU | MANDATORY (`--gpus all`; ~34 GiB VRAM/card, 2×A6000 class) | none |
+| Image size | HUGE (CUDA + vLLM + model weights, many GB) | small (node + app + client dist) |
+| Base image | an NVIDIA CUDA runtime base + node 26 | `node:26-slim` |
+
+**The honest tradeoff:** the all-in-one is the OPPOSITE of universal — GPU-mandatory and multi-GB — which is
+exactly why it cannot be the *only* image. Profile 1 is the owner's default because it is turnkey (`docker run
+--gpus all` and the whole stack, engines included, comes up). Profile 2 is the documented alternative that
+keeps the "everyone" contract: a cloud/CPU deployer gets a small image that runs cloud models (OpenRouter /
+agent-sdk) or points at an external engine. The `VLLM_ENGINE_HOST` env lever (§3.6) is what lets ONE codebase
+serve both — it defaults to `127.0.0.1` for profile 1 at zero cost and is the external-engine pointer for
+profile 2. The auth matrix (§3.1-3.5) and the container trust model (§4) are IDENTICAL across both profiles;
+only engine packaging differs.
+
+The rest of this section specifies the SLIM runtime (profile 2 / the shared app layer); §3.6 specifies how
+profile 1 bakes the fleet on top of it.
+
+**Base:** `node:26` in the builder, `node:26-slim` (Debian) at runtime for profile 2 — matches the toolchain
+the devcontainer already proves (`FROM node:26`, `corepack enable`) and the `>=26` engines pin. Do NOT use
 Alpine: node 26's native TS type-stripping + libSQL's native bindings (`@libsql/client`) are lower-risk on
-glibc than musl, and the devcontainer's proven path is Debian. (Fork A: base image.)
+glibc than musl, and the devcontainer's proven path is Debian. Profile 1 swaps the runtime base for an NVIDIA
+CUDA runtime image with node 26 layered on (Fork A: base image, now per-profile).
 
-**Multi-stage:**
+**Multi-stage (slim / shared app layer):**
 
 ```
 # ---- Stage 1: builder (node:26) ----
@@ -206,51 +235,69 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
 | oidc | `OIDC_ISSUER/CLIENT_ID/CLIENT_SECRET/REDIRECT_URIS`, `SESSION_SECRET` | origin-gated (Host header) | YES (cookie + callback proto) | works out of the box behind TLS proxy; owner via `OWNER_GROUP` |
 | forward-header | none hard-fatal; signed path needs a JWKS source | signed: n/a; unsigned: TCP-peer gate | recommended | prefer SIGNED; unsigned needs `FORWARD_AUTH_TRUSTED_PROXIES=<proxy-ip>/32` |
 
-### 3.6 Engine posture in a co-deployed container (GPU inference)
+### 3.6 Engine posture — Profile 1 (all-in-one) and Profile 2 (external/off)
 
-vLLM ships as a **sibling service in the same compose deployment / network** (the vllm container image runs
-the engine; the app container adopts it). The engine is reachable — the only questions are the address, the
-egress hop, GPU passthrough, and the posture. Three address shapes:
+#### Profile 1 — the fleet lives IN the container (owner's default)
 
-- **(a) shared network namespace / same pod** (`network_mode: "service:vllm"`, or a k8s pod): both containers
-  see ONE loopback, so `http://127.0.0.1:<port>` **literally still works** with zero code change on the URL —
-  the current hardcode is correct in this shape. (But see the GPU-gate code change below, which still bites.)
-- **(b) separate compose services on one network** (RECOMMENDED — how the owner runs it): the app calls the
-  vllm **service name**, `http://vllm:<port>`. This needs the host component to be env-configurable.
-- **(c) external engine URL:** a vLLM/OpenAI-compatible endpoint elsewhere — same env lever as (b).
+orb and the three engines (`gen`/`embed`/`rerank`) run in ONE container, one PID + network namespace, one
+GPU passthrough. This replicates the bare-host `pnpm stack up prod` topology, which is: `stack-prod.ts` spawns
+the SERVER detached (`node entry/index.ts`, NODE_ENV=production, `stack-prod.ts:431`), and the SERVER — under
+`ENGINES_POSTURE=adopt-or-start` — runs the in-process supervisor that triggers a **detached `setsid` fleet
+spawn** when an engine is down (`supervisor.ts:2-5`). The container inherits that exact flow.
 
-**What must become configurable (exact sites):**
-1. **`infra/providers/vllm/engine/engine-url.ts:17-20`** — `engineBaseUrl` hardcodes `http://127.0.0.1:`.
-   Introduce `VLLM_ENGINE_HOST` (env, default `127.0.0.1`) and build `http://${VLLM_ENGINE_HOST}:${PORTS[e]}`.
-   Host-only keeps the three existing per-engine port vars (`VLLM_*_PORT`) intact. This is the ONE URL the app
-   calls engines on (client, wake-gate, fleet-control all resolve through it — `engine/index.ts:30`).
-2. **`infra/network/egress.ts:81-83`** — `internalBackendHostPorts` hardcodes `127.0.0.1:${port}`. It MUST
-   read the same `VLLM_ENGINE_HOST` so the internal-backend firewall bypass stays host:port-scoped
-   (least-privilege) for the sibling. Otherwise: shape (b)'s `http://vllm:<port>` resolves to a private
-   container IP and the egress DNS-lookup gate **BLOCKS it** (`egress.ts:118-124`), because the bypass only
-   matches `127.0.0.1:<port>`. Fallback without the code change: set `EGRESS_ALLOWLIST=vllm` (host-keyed,
-   any-port — looser than the port-scoped bypass). Recommend the code change over the allowlist.
+**Config for profile 1:**
+- **`ENGINES_POSTURE=adopt-or-start`** — the container IS the fleet's owner and spawns it (NOT `adopt-only`:
+  that is the passive-consumer posture for a fleet someone else runs). `postureManages` is true, so the
+  supervisor owns spawn + auto-sleep (`foundation/env/posture.ts`).
+- **`VLLM_BIN` / `VLLM_PY`** → the in-image vLLM binary + python (the code already expects the Docker image to
+  set these — `spawn-engine.ts:58-59`). **`HF_HOME` / `VLLM_CACHE_ROOT` / `VLLM_STORE_ROOT`** → the in-image
+  (or volume-mounted) model cache.
+- **`VLLM_ENGINE_HOST` unset ⇒ `127.0.0.1`** — correct as-is; the fleet shares the namespace.
+- **`--gpus all`** at runtime (NVIDIA Container Toolkit on the host); `--shm-size` raised for vLLM.
 
-**The GPU-detect gate — a SECOND required code change for shapes (a)/(b), independent of the URL.**
-`entry/lifecycle.ts:201-203` computes `vllmDisabled = !(postureRegistersBackend(posture) && gpuPresent)`,
-where `gpuPresent = detectGpu()` execs `nvidia-smi -L` **on the app container** (`vllm/engine/gpu.ts:7`). In
-a co-deployed layout the GPU is passed to the vllm SIBLING, so the app container sees no GPU →
-`gpuPresent=false` → **the vLLM backend is not registered even under `adopt-only`**, and the app silently
-runs cloud-only. The fix: gate `gpuPresent` on `postureManages(posture)` (i.e. only `adopt-or-start`, the
-posture that SPAWNS engines locally and genuinely needs a local GPU). A passive `adopt-only` consumer of a
-remote/sibling engine must not require a local GPU. Without this change the co-deployed arm needs the ugly
-workaround of installing `nvidia-smi` + exposing the GPU to the app container too.
+**Do the §-earlier "remote engine" findings bite profile 1? CONFIRMED against the code: NO.**
+- **The `VLLM_ENGINE_HOST` URL change — NOT needed.** `engineBaseUrl` → `http://127.0.0.1:<port>`
+  (`engine-url.ts:17-20`) is literally correct when the fleet is in the same namespace.
+- **The egress app→vllm hop — NOT an issue.** `internalBackendHostPorts` already bypasses the firewall for
+  `127.0.0.1:${VLLM_*_PORT}` (`egress.ts:81-83`), which is exactly what the loopback fleet uses. No new
+  allowlist entry.
+- **The GPU-detect gate — does NOT misfire here.** `gpuPresent = detectGpu()` execs `nvidia-smi -L` on the
+  app process (`gpu.ts:7`, `lifecycle.ts:201-203`); the GPU is passed to THIS container, so `gpuPresent=true`
+  → the backend registers under `adopt-or-start`. The bug I flagged only bites a GPU-LESS app process, which
+  profile 1 is not.
 
-**Posture:** the app runs **`ENGINES_POSTURE=adopt-only`** (`foundation/env/posture.ts` — passive consumer;
-never spawns, never manages auto-sleep). `adopt-or-start` is wrong here: it would try to spawn engines the
-slim app image has no vLLM binary for. The vllm container owns the engine lifecycle.
+  **Defensive note (still worth the fix):** the GPU-detect fix — gate `gpuPresent` on `postureManages(posture)`
+  so a passive `adopt-only` consumer of a *remote* engine does not require a local GPU — is NOT needed for
+  profile 1, but IS required for profile 2's external-engine arm (D2). Recommend landing it once; it is inert
+  for profile 1 (`adopt-or-start` ⇒ `postureManages` true ⇒ the local-GPU requirement still applies, exactly
+  as today).
 
-**GPU passthrough (deployment/runtime requirement):** the **vllm** service needs device reservations —
-compose `deploy.resources.reservations.devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]` (or
-`--gpus all` under `docker run`) — plus the NVIDIA Container Toolkit on the host. The **app** container needs
-NO GPU. The vllm container must bind on the service-reachable interface (`--host 0.0.0.0`) for shape (b), not
-loopback — that is the vllm container image's own launch config, not the app's `build-argv` (the app doesn't
-spawn it under `adopt-only`).
+**Fleet-launch reconciliation (`never-run-engine-launcher-live` + ~34 GiB/card):**
+- The detached-`setsid` design makes the fleet "nobody's child" so a SERVER restart reuses a warm fleet via
+  adopt (`supervisor.ts:2-5`). Inside a container this is naturally bounded: a *server-process* restart keeps
+  the fleet warm (same PID namespace), while `docker stop` reaps the whole namespace — fleet included. So the
+  container is a clean lifecycle boundary for the immortal-launcher class, not a leak.
+- ~34 GiB VRAM/card (2×A6000 class, `foundation/env` header) is a HARD runtime floor: profile 1 refuses to be
+  useful without adequate GPU. Cold fleet spawn is slow (the stack.sh boot-readiness bounds exist for exactly
+  this) — the container's healthcheck must allow a long `start_period` (minutes) so the orchestrator doesn't
+  kill the container while the fleet warms. Engines bind loopback (`--host 127.0.0.1`, `build-argv.ts:155`),
+  which is correct and keeps them off the network — do NOT expose the engine ports from the container.
+
+#### Profile 2 — external engine URL or engines-off (the "everyone" arm)
+
+The slim app-only image, no CUDA/vLLM/models. Two arms, both via env, no fleet in the image:
+- **D3 engines-off (default for a GPU-less deployer): `ENGINES_POSTURE=off`** — cloud/OpenRouter/agent-sdk
+  models only; the supervisor is never registered (`postureRegistersBackend` false, `lifecycle.ts:203`).
+- **D2 external engine: `ENGINES_POSTURE=adopt-only` + `VLLM_ENGINE_HOST=<host>`** pointing at a vLLM/
+  OpenAI-compatible endpoint elsewhere. This arm needs the two code changes I originally scoped, now
+  justified only HERE:
+  1. **`engine-url.ts:17-20`** — make `engineBaseUrl` read `VLLM_ENGINE_HOST` (default `127.0.0.1`), host-only
+     so `VLLM_*_PORT` stays intact.
+  2. **`egress.ts:81-83`** — `internalBackendHostPorts` must read the same `VLLM_ENGINE_HOST` (else an external
+     private-IP host is blocked by the egress DNS-lookup gate, `egress.ts:118-124`); fallback `EGRESS_ALLOWLIST
+     =<host>`.
+  3. **the GPU-detect fix** above (`lifecycle.ts:201-203`) — else the GPU-less app container never registers
+     the external engine under `adopt-only`.
 
 ## 4. The container trust model — debug-gate / `isLocalOrigin` / owner-fallback posture (AUTHFIX-2)
 
@@ -327,31 +374,31 @@ and per-IP rate limits see the REAL client IP — provided Caddy sets XFF (defau
 
 ## 6. Compose integration
 
-- **Orbweaver as a real service on `inktomi-net`:**
+- **Orbweaver as a real service on `inktomi-net` (Profile 1, all-in-one — the owner's default):**
   ```yaml
   orbweaver:
-    image: orbweaver:<tag>            # built from this spec (or build: ./development/orbweaver)
-    expose: ["8788"]                  # NEVER ports: — see §4
-    env_file: [ ./secrets/orbweaver.env ]   # or docker secrets; AUTH_MODE + the mode's required keys
-    volumes: [ orbweaver_data:/app/data ]   # sqlite + CAS + variants
-    networks: { inktomi-net: {} }
-    healthcheck: { test: node -e "...healthz...", interval: 30s, timeout: 5s, retries: 3 }
-    depends_on: { caddy: ..., vllm: { condition: service_healthy } }
-    # engine posture (Fork D1): VLLM_ENGINE_HOST=vllm, ENGINES_POSTURE=adopt-only in the env_file
-  ```
-- **Co-deployed vLLM sibling (Fork D1):**
-  ```yaml
-  vllm:
-    image: <vllm-container-image>          # binds --host 0.0.0.0 so `vllm:<port>` is reachable
-    expose: ["8703","8701","8702"]         # gen / embed / rerank (VLLM_*_PORT)
+    image: orbweaver:<tag>-gpu        # Profile 1: orb + fleet + CUDA (Profile 2 uses orbweaver:<tag>-slim)
+    expose: ["8788"]                  # NEVER ports: — see §4; engine ports are NOT exposed (loopback only)
+    env_file: [ ./secrets/orbweaver.env ]   # AUTH_MODE + the mode's secrets; ENGINES_POSTURE=adopt-or-start;
+                                            # VLLM_BIN/VLLM_PY/HF_HOME → in-image paths; VLLM_ENGINE_HOST unset (127.0.0.1)
+    volumes:
+      - orbweaver_data:/app/data      # sqlite + CAS + variants
+      - hf_cache:/models              # (optional) model cache if not baked — see Fork D sub-fork
+    shm_size: "8gb"                   # vLLM needs a larger /dev/shm
     networks: { inktomi-net: {} }
     deploy:
       resources:
         reservations:
-          devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]
-    healthcheck: { test: curl -f http://127.0.0.1:8703/health, ... }
+          devices: [{ driver: nvidia, count: all, capabilities: [gpu] }]   # GPU into THIS container
+    healthcheck:
+      test: node -e "...healthz..."
+      start_period: 300s             # LONG — the cold fleet spawn (§3.6) must not trip the healthcheck
+      interval: 30s
+      retries: 3
+    depends_on: { caddy: ... }
   ```
-  Requires the NVIDIA Container Toolkit on the host. The app container needs no GPU.
+  Requires the NVIDIA Container Toolkit on the host. Profile 2 drops the `deploy.resources`, `shm_size`, the
+  model volume, and sets `ENGINES_POSTURE=off` (or `adopt-only` + `VLLM_ENGINE_HOST=<external>`).
 - **Repoint Caddy off `host.docker.internal`:** in `caddy/conf/Caddyfile:385` change
   `reverse_proxy host.docker.internal:8788` → `reverse_proxy orbweaver:8788` (service DNS on the shared
   network). Keep `flush_interval -1` and the 1800s read/write timeouts (D118 single multiplexed SSE socket —
@@ -385,19 +432,17 @@ and per-IP rate limits see the REAL client IP — provided Caddy sets XFF (defau
   - **C2: keep raw-LAN owner.** Publish `8788` to the LAN interface only and accept that anyone who can reach
     that port + forge a private `Host` is owner (LAN-scoped exposure). Only if the owner wants it.
 
-- **Fork D — engine deployment shape.** vLLM co-deploys as a sibling container; the hardcoded `127.0.0.1`
-  (`engine-url.ts:17-20`, `egress.ts:81-83`) is the lever. Two small code changes gate the recommended arm
-  (both in §3.6): make `VLLM_ENGINE_HOST` configurable at those two sites, and gate `detectGpu()` on
-  `postureManages` so a GPU-less app container still registers a remote engine under `adopt-only`. Three arms:
-  - **D1 (RECOMMENDED — matches how the owner runs it): co-deployed vLLM container.** Separate compose
-    services on one network; app calls `http://vllm:<port>` with `ENGINES_POSTURE=adopt-only`,
-    `VLLM_ENGINE_HOST=vllm`; GPU reserved to the vllm service. Full local GPU inference for the owner's box.
-    (Shape (a), shared network namespace, is a sub-variant that keeps `127.0.0.1` and skips the URL change but
-    still needs the GPU-gate change.)
-  - **D2: external engine URL.** Point `VLLM_ENGINE_HOST` (+ `EGRESS_ALLOWLIST`) at a vLLM/OpenAI-compatible
-    endpoint elsewhere. Same lever, no co-located GPU.
-  - **D3: engines-off (CPU-only deployer).** `ENGINES_POSTURE=off` — cloud/OpenRouter/agent-sdk models only.
-    The right default for a stranger with no GPU; degrades cleanly to no-supervisor (`lifecycle.ts:198-204`).
+- **Fork D — engine packaging (the two-profile decision, §2 + §3.6).** *Recommend: ship BOTH, with Profile 1
+  as the default the owner runs and Profile 2 as the documented "everyone" alternative.*
+  - **Profile 1 (DEFAULT): all-in-one GPU image** — orb + the 3-engine fleet + CUDA + models, one namespace,
+    loopback, `ENGINES_POSTURE=adopt-or-start`, `--gpus all`. Turnkey for the owner + GPU self-hosters. HUGE
+    and GPU-mandatory (~34 GiB VRAM/card). None of the remote-engine plumbing bites it (§3.6 confirmed).
+  - **Profile 2 (alternative for GPU-less/cloud deployers): slim app-only image** — `ENGINES_POSTURE=off`
+    (D3), or `adopt-only` + `VLLM_ENGINE_HOST` at an external engine (D2). Small. This arm is what keeps the
+    "designing for everyone" contract, and it is why the `VLLM_ENGINE_HOST` lever + the GPU-detect fix earn
+    their place (both scoped in §3.6, needed ONLY by profile 2's D2 arm; inert for profile 1).
+  - Sub-fork: **models baked into profile 1 vs a mounted HF-cache volume.** Baked = truly turnkey but a
+    multi-GB image; volume = smaller image, first-boot model pull (needs egress to the HF host). Owner picks.
 
 - **Fork E — production dependency pruning for a source-run TS workspace.** The server runs `.ts` source and
   imports workspace packages as source, so a naive `--prod` install can drop something node needs at runtime,
