@@ -16,17 +16,17 @@ import type { ChatContextState, ContextRegionDef, ContextTabDef } from "@orb/cli
 import { bindNotify, createContributorRegistry } from "@orb/client/lib";
 import { selectChat, useSectionRegistry } from "@orb/client/state";
 import type { MessageView } from "@orb/contracts/chat";
+import type { RpgActorVolatile, RpgInventoryItem } from "@orb/contracts/rpg";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
-import type { RpgActorVolatile, RpgInventoryItem } from "@orb/contracts/rpg";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
 import { ConditionChips } from "../../../../packages/client/src/features/rpg/components/rpg-actor-trackers.tsx";
-import { PackBody } from "../../../../packages/client/src/features/rpg/components/rpg-pack-rows.tsx";
 import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator.tsx";
+import { PackBody } from "../../../../packages/client/src/features/rpg/components/rpg-pack-rows.tsx";
 import { RpgCardLightbox } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards.tsx";
 import { useUpdateConfig } from "../../../../packages/client/src/features/rpg/hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "../../../../packages/client/src/features/rpg/lib/archived-cards.ts";
@@ -59,10 +59,7 @@ const PACK_FIXTURE: readonly RpgInventoryItem[] = [
 export function ConditionChipsStory({ width = 430 }: { readonly width?: number } = {}): ReactElement {
   return (
     <div style={{ width }}>
-      <ConditionChips
-        conditions={CONDITION_FIXTURE}
-        onRemove={(): void => undefined}
-      />
+      <ConditionChips conditions={CONDITION_FIXTURE} onRemove={(): void => undefined} />
     </div>
   );
 }
