@@ -44,7 +44,8 @@ import {
   GUIDED_ACTION_KINDS,
   TEMPLATE_DEFS,
 } from "@orb/contracts/preset";
-import { isPresetProseSlotId, resolveProseText } from "@orb/contracts/prose";
+import type { ProseOverrides } from "@orb/contracts/prose";
+import { composeProse, isPresetProseSlotId, resolveProseText } from "@orb/contracts/prose";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { projectBodyForPreview } from "@orb/kit/content";
@@ -423,12 +424,17 @@ async function previewRpgFields(
   ctx: ChatContext,
   chatId: ChatId,
   steerIdentity: { readonly user: string | undefined; readonly char: string },
+  /** PROSE-1 — the previewed preset's teach/heading overrides, threaded for the same reason the whole gather is:
+   *  the preview must show the bytes the model actually receives, and a host who re-authored a teach on this
+   *  preset would otherwise read the shipped default on their own honesty instrument. */
+  prose: ProseOverrides,
 ): Promise<{
   rpgMacros?: Readonly<Record<string, string>>;
   rpgInjections?: readonly ChatInjection[];
   rpgCelBindings?: Readonly<Record<string, unknown>>;
 }> {
-  const rpg = ctx.rpg === null ? null : await ctx.rpg.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, steerIdentity });
+  const rpg =
+    ctx.rpg === null ? null : await ctx.rpg.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, steerIdentity, prose });
   if (rpg === null) {
     return {};
   }
@@ -458,13 +464,18 @@ async function buildPreviewContext(
   const participants = await opts.deps.loadParticipantViews(chatId);
   // The host `steeringNote`'s identity binding, resolved CHAT-SIDE exactly as the turn path does: `{{user}}` =
   // the active persona; `{{char}}` = the Ruling-B joined present cast (a preview has no triggering speaker).
-  const rpgFields = await previewRpgFields(ctx, chatId, {
-    user: inputs.foreign.personas.active?.name,
-    char: participants
-      .filter((p) => p.kind === "character")
-      .map((p) => p.displayName)
-      .join(", "),
-  });
+  const rpgFields = await previewRpgFields(
+    ctx,
+    chatId,
+    {
+      user: inputs.foreign.personas.active?.name,
+      char: participants
+        .filter((p) => p.kind === "character")
+        .map((p) => p.displayName)
+        .join(", "),
+    },
+    composeProse({ preset: inputs.foreign.promptConfig.prose }),
+  );
   const gathered = await gatherAssembleContext(
     ctx,
     {

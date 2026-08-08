@@ -101,11 +101,8 @@ function mergeConfig(params: UpdateConfigParams, current: RpgGameConfig, nextPro
     // keep, an unrelated config edit would reset them to the schema default `[]`). The turn registers these
     // beside the preset's, the game winning a name clash.
     userMacros: patch?.userMacros !== undefined ? [...patch.userMacros] : current.userMacros,
-    // PROSE-1 (§4.2) — the per-GAME prose overrides: whole-record replace on a passed record, keep-on-omit like
-    // every sibling ([versioned-config-lift-drops-overrides]). Without the keep, an unrelated config edit would
-    // reset a host's re-authored teach to `{}` (the shipped default) — the exact silent-reset trap this merge
-    // exists to close.
-    prose: patch?.prose ?? current.prose,
+    // NO `prose` ARM (owner ruling 2026-08-08): the reminder teach/heading overrides are PRESET-homed
+    // (`promptConfig.prose`, the Templates tab). This door writes game state only.
   };
 }
 
