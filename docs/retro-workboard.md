@@ -194,9 +194,20 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     narrator-room preview requested WITH a `speakerCharacterId` shows narrator framing while an actual
     single-speaker regen would render per-speaker. Pre-existing modeling choice (preview = next natural
     full-cast turn), harmless, worth a note if preview-fidelity is ever pushed further.
-  - **⏳ `verify --push` BATTERY RUNNING on main (`bd644dbd2`, detached) at owner request** — snapshot of
-    main's full-battery state before more overnight merges land. Concurrent with 3 write lanes, so a
-    `tests:node` flake would be CONTENTION not a real red — will distinguish from `reports/verify.json`.
+  - **⏳ `verify --push` BATTERY on main (`bd644dbd2`, detached, owner request).** **STATIC TIER ALL
+    GREEN** (15/15: lint·all types·structure:full·deps·docs); behavioral phase (`tests:node`+CT,
+    e2e-smoke, cpd, parity) still running. A `tests:node` flake here = contention (3 write lanes), not a
+    real red — read `reports/verify.json`. **HOLD ALL MERGES until it lands** (banked law: merging
+    mid-battery muddies what got certified).
+  - ✅ **PTRGATE DONE, MERGE HELD FOR THE BATTERY (`cca9715`, `wt/agent-a989027e`).** Gate
+    `no-pointer-variants-in-features` minted (**194→195**); all **8** feature-file `pointer-*` literals
+    relocated byte-identically to `#components/pointer-variants.ts` (incl. the 8th at persona-panel-row);
+    75 CTs green prove the coarse touch-floors + collapse SURVIVE the relocation; planted real-tree
+    violation bit then removed; §4b codified (axis 3 binds utility variants, no D). **Its worktree
+    `typecheck:graph` katex red (`ui/src/markdown/math.ts` CSS import, untouched) is a WORKTREE ARTIFACT
+    — clean main's `types:graph` is GREEN in the running battery.** Merge + consolidated check after the
+    battery; then the rpg-file chain unblocks: glyph sweep (#13), D132(G) prose gate, and RENDERFIX's
+    deferred side-eye (#16, which also covers PTRGATE's rendered relocations).
 
   ### ✅ ALL DISPATCHED CHUNKS HAVE GRADUATED (2026-08-07 evening)
   Every lens has reported. NARRATOR-CAST, PROVGATE, the two push-red fixes and SIDE-EYE-DAY are above;
