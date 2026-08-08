@@ -305,6 +305,75 @@ test("discovery's three system prompts resolve, unset, to the exact bytes they h
   }
 });
 
+// ── S3: the per-GAME steering-reminder cohort (census 1-10) — frozen at the bytes each constant carried in
+// `domain/rpg/substrate/reminder.ts` + `delta.ts` at `48e679d02`, re-typed independently of the slot table.
+// A drift in EITHER the slot text OR the reminder-derived const (`RPG_STEERING_LICENSE = PROSE_SLOTS[…].text`)
+// REDs, which is what makes "the reminder ships the same bytes it always did" a fact, not a claim. The card
+// example's LEADING BLANK LINE is load-bearing (it separates the example from the ask) — the resolver must not
+// trim it, which is why `resolveTeach` (reminder.ts) does not route macro-free text through the trimming
+// guided resolver.
+const RPG_FROZEN_DEFAULTS: Readonly<Partial<Record<ProseSlotId, string>>> = {
+  "rpg.reminder.steeringLicense":
+    "These tracked values are live state for THIS story — let them visibly shape behaviour, dialogue, and the scene as you narrate. When a value changes, let the change land in the fiction. Never recite the raw numbers back at the player; weave them into the prose.",
+  "rpg.reminder.deceptionTeach":
+    'DECEPTION: a character may deceive the player. When a character states something they know to be false, emit — on its own, right after the spoken lie — a self-closing tag recording the truth: <lie character="who is lying" type="the kind of lie" truth="what is actually true" reason="why they lie" />. This tag is INVISIBLE to the player but you REMEMBER it, so keep the deception consistent and let it have consequences later. Never reveal the truth in your prose or narration — only in the tag.',
+  "rpg.reminder.omniscienceTeach":
+    'PERCEPTION: the player perceives only what their character can. When something happens beyond their perception (offscreen, hidden, a secret another character keeps), emit a self-closing tag recording it: <ofilter event="what happened out of their perception" reason="why they cannot perceive it" />. This tag is INVISIBLE to the player but you REMEMBER it — narrate only what the player CAN perceive, and let the unperceived event shape the world consistently.',
+  "rpg.card.askInteractive":
+    'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS/JS, then `:::` on its own line. Make whatever fits the moment — animations, layouts, interactive bits are all welcome. Everything must be self-contained markup and CSS — no images at all (external URLs and inline data: URIs are BOTH blocked by the platform security policy; a card with an <img> renders with a hole in it). Paint textures, shapes and iconography with CSS instead. Do not wrap it in a code fence. Close the card with its own `:::` line BEFORE you open any other directive (a `:::choices` block never goes inside a card). Cards are for things the CHARACTERS see in the world — never a status readout, stat block, or tracker display; the tracked values stay woven into your prose, never recited.',
+  "rpg.card.askStatic":
+    'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS, then `:::` on its own line. Keep it a still visual — no scripts or animations, just an in-world page for the reader. Everything must be self-contained markup and CSS — no images at all (external URLs and inline data: URIs are BOTH blocked by the platform security policy; a card with an <img> renders with a hole in it). Paint textures, shapes and iconography with CSS instead. Do not wrap it in a code fence. Close the card with its own `:::` line BEFORE you open any other directive (a `:::choices` block never goes inside a card). Cards are for things the CHARACTERS see in the world — never a status readout, stat block, or tracker display; the tracked values stay woven into your prose, never recited.',
+  "rpg.card.example": `
+
+For example, a three-line sign is enough:
+:::card title="Crossing sign"
+<div style="font-family:monospace;text-align:center;padding:14px;border:2px solid #6b5c3e;background:#e9e1cb;color:#3a2f1c;letter-spacing:2px">
+  <div>EAST CROSSING</div><div>CLINIC — 2 KM</div><div>NO ENTRY AFTER DARK</div>
+</div>
+:::`,
+  "rpg.reminder.cyoaTeach":
+    "CHOICES: end every response with a set of choices for the player. After your narration, add a line containing exactly :::choices then 3-5 numbered options (1. ...), each a distinct action the player could take next, then a line containing exactly ::: on its own. Keep each option one sentence, concrete, and meaningfully different from the others.",
+  "rpg.reminder.castHeader":
+    "Present (appearance/outfit are standing — describe them consistently, not re-invented; thoughts are UNSPOKEN inner state, never said aloud):",
+  "rpg.reminder.offstageHeader": "Known, offstage (established characters not in this scene — bring them back consistently, never re-introduce them):",
+  "rpg.delta.changesHeading": "CHANGES SINCE LAST BEAT",
+  "rpg.delta.sceneOpensHeading": "SCENE OPENS",
+};
+
+test("S3 rpg reminder slots resolve, unset, to the exact bytes their pre-PROSE-1 constants shipped", () => {
+  for (const [id, frozen] of Object.entries(RPG_FROZEN_DEFAULTS) as [ProseSlotId, string][]) {
+    expect(resolveProseText(id, {}), id).toBe(frozen);
+  }
+});
+
+test("the whole rpg cohort is game-homed; the teaches are names-only, the headers/headings are none", () => {
+  const namesOnly = new Set<ProseSlotId>([
+    "rpg.reminder.steeringLicense",
+    "rpg.reminder.deceptionTeach",
+    "rpg.reminder.omniscienceTeach",
+    "rpg.card.askInteractive",
+    "rpg.card.askStatic",
+    "rpg.card.example",
+    "rpg.reminder.cyoaTeach",
+  ]);
+  for (const id of Object.keys(RPG_FROZEN_DEFAULTS) as ProseSlotId[]) {
+    expect(PROSE_SLOTS[id].home, id).toBe("game");
+    expect(PROSE_SLOTS[id].macros, id).toBe(namesOnly.has(id) ? "names-only" : "none");
+  }
+  // The whole cohort is game-homed, so NONE of it reaches the user/preset editor derivations.
+  for (const id of Object.keys(RPG_FROZEN_DEFAULTS) as ProseSlotId[]) {
+    expect(USER_PROSE_SLOT_IDS, id).not.toContain(id);
+    expect(PRESET_PROSE_SLOT_IDS, id).not.toContain(id);
+  }
+});
+
+test("every rpg cohort slot's stored override wins over its shipped default", () => {
+  for (const id of Object.keys(RPG_FROZEN_DEFAULTS) as ProseSlotId[]) {
+    const overrides: ProseOverrides = { [id]: { text: `host copy for ${id}`, baseVersion: PROSE_SLOTS[id].version } };
+    expect(resolveProse(id, overrides), id).toStrictEqual({ text: `host copy for ${id}`, source: "override", stale: false });
+  }
+});
+
 test("every S1b slot's stored override wins, and the whole cohort ships an editable home / macros=none", () => {
   const ids = [...S1B_FROZEN_RENDERS.map((r) => r.id), ...(Object.keys(DISCOVERY_FROZEN_DEFAULTS) as ProseSlotId[])];
   for (const id of ids) {

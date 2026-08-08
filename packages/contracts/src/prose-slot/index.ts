@@ -99,6 +99,26 @@ export const PROSE_SLOT_IDS = [
   "discovery.compare.system",
   "discovery.ask.system",
   "discovery.distill.system",
+  // ── per-GAME: the steering-reminder TEACHES (census 1-7) — home `rpg_games.config.prose`, resolved off
+  //    `LiteReminderInput.prose` in `domain/rpg/substrate/reminder.ts`. `names-only` macro mode (§6.1): a host
+  //    override's `{{user}}`/`{{char}}` resolve through the identity-only registry, the default resolves
+  //    byte-identically (it carries no macro). ──
+  "rpg.reminder.steeringLicense",
+  "rpg.reminder.deceptionTeach",
+  "rpg.reminder.omniscienceTeach",
+  "rpg.card.askInteractive",
+  "rpg.card.askStatic",
+  "rpg.card.example",
+  "rpg.reminder.cyoaTeach",
+  // ── per-GAME: the cast/offstage HEADERS (census 8 + the offstage sibling) and the delta-block headings
+  //    (census 9-10) — `macros:"none"`: a header/heading has no character context to substitute, so its bytes
+  //    ship verbatim (owner decision 5 ruled the delta headings prose/voice, in scope). The cast header is a
+  //    DUAL-surface vocabulary — the reminder AND the `{{rpgCast}}`/`{{rpgSceneState}}` macro feed both resolve
+  //    it, so an override lands on both surfaces at once (the "two surfaces, one vocabulary" law). ──
+  "rpg.reminder.castHeader",
+  "rpg.reminder.offstageHeader",
+  "rpg.delta.changesHeading",
+  "rpg.delta.sceneOpensHeading",
 ] as const;
 export type ProseSlotId = (typeof PROSE_SLOT_IDS)[number];
 

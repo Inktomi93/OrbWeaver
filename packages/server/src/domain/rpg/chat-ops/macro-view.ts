@@ -26,6 +26,7 @@
 // the prose the vocabulary split exists to collapse. The tracker HINT still reaches a preset author through
 // `{{rpgDelta}}` (the delta line glosses each reading).
 
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RpgActorView, RpgDateMode, RpgQuestView, RpgSnapshotState, RpgStatProfile, RpgTrackerView } from "@orb/contracts/rpg";
 import { RPG_CAST_GUIDE_FIELDS } from "@orb/contracts/rpg";
 import type { CelValue } from "@orb/kit/cel";
@@ -39,23 +40,28 @@ function onStage(view: RpgTrackerView): readonly RpgActorView[] {
   return view.actors.filter((a) => a.actorRef.kind === "cast" && a.presence);
 }
 
+/** The shared render context the `{{rpgCast}}`/`{{rpgSceneState}}` string builders thread — bundled into ONE
+ *  object so each builder stays under the param cap. `statProfile` + `relationshipHints` come from the game
+ *  config; `prose` is `config.prose`, threaded so the cast header resolves the SAME host override the reminder's
+ *  `Present:` header does (the two-surfaces-one-vocabulary law — `castHeader`'s doc). */
+interface CastRenderCtx {
+  readonly statProfile: RpgStatProfile;
+  readonly relationshipHints: Readonly<Record<string, string>>;
+  readonly prose: ProseOverrides;
+}
+
 /** The `Present:` block both string macros carry — the guide-teaching header + one whole {@link actorLine} per
  *  member (identity · carried trackers · the volatile plane · the standing guides). */
-function castBlock(view: RpgTrackerView, statProfile: RpgStatProfile, relationshipHints: Readonly<Record<string, string>>): string[] {
+function castBlock(view: RpgTrackerView, ctx: CastRenderCtx): string[] {
   const cast = onStage(view);
-  return [castHeader(cast), ...cast.map((a) => actorLine(a, statProfile.attributes, relationshipHints))];
+  return [castHeader(cast, ctx.prose), ...cast.map((a) => actorLine(a, ctx.statProfile.attributes, ctx.relationshipHints))];
 }
 
 /** `{{rpgSceneState}}` — the scene the world is in: ambient · plot · present cast · the GAME-subject tracker
  *  readings (which belong to no actor, so they fall through the party/cast split unless this block carries
  *  them) · recent beats. The party sheets are `{{rpgCast}}`'s job. Empty planes are omitted; a wholly-empty
  *  scene returns "". */
-function sceneStateString(
-  view: RpgTrackerView,
-  dateMode: RpgDateMode,
-  statProfile: RpgStatProfile,
-  relationshipHints: Readonly<Record<string, string>>,
-): string {
+function sceneStateString(view: RpgTrackerView, dateMode: RpgDateMode, ctx: CastRenderCtx): string {
   const lines: string[] = [];
   if (view.ambient !== null) {
     const ambient = ambientLine(view.ambient, dateMode);
@@ -68,7 +74,7 @@ function sceneStateString(
     lines.push(`Story: ${plotLine(view.plot)}`);
   }
   if (view.cast.length > 0) {
-    lines.push(...castBlock(view, statProfile, relationshipHints));
+    lines.push(...castBlock(view, ctx));
   }
   if (view.gameTrackers.length > 0) {
     lines.push("Game trackers:", ...view.gameTrackers.map(gameTrackerLine));
@@ -82,15 +88,15 @@ function sceneStateString(
 /** `{{rpgCast}}` — the people: the party actors' whole lines (identity · attribute readings · carried trackers ·
  *  the volatile plane · the sheet's flavor continuation) + the present cast. The identity+volatile planes the
  *  panel's Party + Present tabs render. */
-function castString(view: RpgTrackerView, statProfile: RpgStatProfile, relationshipHints: Readonly<Record<string, string>>): string {
+function castString(view: RpgTrackerView, ctx: CastRenderCtx): string {
   const lines: string[] = [];
   // The same roster/cast partition the reminder makes off the one actor list (R2) — never a second rule.
   const party = view.actors.filter((a) => a.actorRef.kind !== "cast");
   if (party.length > 0) {
-    lines.push("Party:", ...party.map((a) => actorLine(a, statProfile.attributes, relationshipHints)));
+    lines.push("Party:", ...party.map((a) => actorLine(a, ctx.statProfile.attributes, ctx.relationshipHints)));
   }
   if (view.cast.length > 0) {
-    lines.push(...castBlock(view, statProfile, relationshipHints));
+    lines.push(...castBlock(view, ctx));
   }
   return lines.join("\n");
 }
@@ -192,11 +198,17 @@ export function buildRpgMacroFeed(args: {
   // The §2.7 delta line, reachable as a macro so a preset can place it (and as `rpg.delta.text` for `{{expr}}`).
   // null (no-change / non-game-empty) ⇒ "" — the byte-stable quiet-turn signal (never a "no changes" line).
   const deltaText = buildDeltaBlock(args.prevSnapshot, args.curSnapshot, args.deltaContext) ?? "";
-  const hints = args.deltaContext.relationshipHints;
+  // PROSE-1 — the cast-header override rides the SAME `config.prose` the delta headings do (threaded on
+  // `deltaContext`), so both macro surfaces resolve it without a second feed input.
+  const castCtx: CastRenderCtx = {
+    statProfile: args.statProfile,
+    relationshipHints: args.deltaContext.relationshipHints,
+    prose: args.deltaContext.prose ?? {},
+  };
   return {
     macros: {
-      rpgSceneState: sceneStateString(args.view, args.dateMode, args.statProfile, hints),
-      rpgCast: castString(args.view, args.statProfile, hints),
+      rpgSceneState: sceneStateString(args.view, args.dateMode, castCtx),
+      rpgCast: castString(args.view, castCtx),
       rpgQuests: questsString(args.view.quests),
       rpgDelta: deltaText,
     },

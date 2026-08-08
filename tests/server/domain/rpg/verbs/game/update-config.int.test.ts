@@ -80,6 +80,24 @@ describe("updateConfig — knobs + profile mutability", () => {
     expect((await findGameByChat(db, chatId))?.config.userMacros).toEqual([]);
   });
 
+  test("PROSE-1: the per-GAME prose overrides write through this door, whole-record replace + keep-on-omit", async () => {
+    const { chatId, h } = await seedLiteGame(db);
+    expect((await findGameByChat(db, chatId))?.config.prose).toEqual({}); // born empty (the schema default)
+
+    const prose = { "rpg.reminder.steeringLicense": { text: "our table's own license", baseVersion: 1 } } as const;
+    await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { prose } });
+    expect((await findGameByChat(db, chatId))?.config.prose).toEqual(prose);
+
+    // Keep-on-omit — the [versioned-config-lift-drops-overrides] trap: an unrelated edit must not wipe the
+    // host's re-authored teach (the exact silent-reset class `mergeConfig` threads every field to close).
+    await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { steeringNote: "z" } });
+    expect((await findGameByChat(db, chatId))?.config.prose).toEqual(prose);
+
+    // A passed record REPLACES the whole set (the `userMacros`/`trackers` semantics) — including back to none.
+    await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { prose: {} } });
+    expect((await findGameByChat(db, chatId))?.config.prose).toEqual({});
+  });
+
   test("R4c: the custom-journal-type hints are keep-on-omit like every sibling knob", async () => {
     const { chatId, h } = await seedLiteGame(db);
     await h.service.updateConfig({
