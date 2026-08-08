@@ -519,8 +519,19 @@ security lens.
   - ⏳ **RE-HOME lane** (`a24cf423e9a649a4d`, task #18) — delete config.prose spine, thread preset
     `promptConfig.prose`, verify Templates-tab surfacing. Fence: contracts/rpg config/inputs/prose +
     domain/rpg update-config/fork/reminder/delta + preset tab.
-  - ⏳ **INFRA-WARN-DEAF side-eye** (`a82f6f8dd5c53dd99`) — the OVERDUE toast lens (board debt caught
-    by the full read: "side-eye owed after merge" never dispatched).
+  - ✅➡️ **INFRA-WARN-DEAF side-eye REPORTED: SHIP WITH FIXES** — plumbing held under attack (once-per-
+    event ×3 layers · exhaustive code map w/ assertNever · emit-before-terminal ordering all praised);
+    the RENDERED surface has 3 P1s: toast covers the Send button 94% at turn-terminal (click swallowed) ·
+    close ✕ drawn over the copy (26px overlap, every toast in the app) · copy says "direct/BYOK" which
+    exists NOWHERE in the UI (zero user-facing hits). +3 P2 (no warn identity · 5s dismiss for 3 lines ·
+    aria-hidden+tabindex close, h2-outline) +2 P3. CORRECTION: the map carries TWO codes not one
+    (custom_parameters_ignored + image_edit_dropped). Caveat banked: no client-side coalescing (server
+    dedupes; same code ×3 would stack). Receipts `reports/snaps/` + `reports/scratch-ct/`.
+    **TOAST-FIX lane DISPATCHED** (`ac60e5cd15326dfc0`, fix-ALL-findings): widen Notify to
+    {title,description?,action?,type} (collapses 5 findings) + 2 primitive geometry fixes + real
+    connection-label copy + warn identity + ARIA. Side-eye re-verify follows.
+  - ⏳ **CEREMONY batch** (`a2bb3d2f493e20956`, mech, docs-only fence) — mint D133/D134 from the two
+    security drafts + the D129(G) both-gates wording amendment + enumeration check through D134.
   - ⏳ **W4-BURNDOWN** (`a97343d5655d5a35c`) — W4.5 withResolvers ×7 + W4.2 toSorted (115 sites
     re-swept). RULED mid-run: convert all 4 rpg-named sites (no real collision with re-home — my
     directory fence was drawn from a stale map); SPREAD-SORT arm = option (a) syntactic-provable only
