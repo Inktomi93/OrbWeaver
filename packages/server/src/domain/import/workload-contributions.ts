@@ -10,11 +10,36 @@
 
 import { readFile, rm } from "node:fs/promises";
 import { resolve, sep } from "node:path";
-import type { BundleImportWorkloadResult, MaintenanceResult } from "@orb/contracts/workloads";
+import type { BundleImportWorkloadResult, MaintenanceResult, ReportProgress } from "@orb/contracts/workloads";
 import { importBundleWorkloadParams, importStWorkloadParams } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
+import type { UserId } from "@orb/kit/ids";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { ImportWorkloadDeps } from "./contract/workloads.ts";
+
+/** Post-settle side effects of an import-st run: surface the skip count + report path to the workload
+ *  progress, then reconcile owner stats on a real run that wrote canon. Extracted to keep the run body under
+ *  the cognitive-complexity gate. */
+async function settleImportRun(args: {
+  readonly result: { readonly failed: number; readonly changed: number; readonly reportPath?: string };
+  readonly dryRun: boolean;
+  readonly ownerId: UserId;
+  readonly report: ReportProgress;
+  readonly reconcileImportStats: (a: { readonly ownerId: UserId }) => Promise<void>;
+}): Promise<void> {
+  const { result, dryRun, ownerId, report, reconcileImportStats } = args;
+  if (result.failed > 0) {
+    // Per-card isolation surfaced: some cards were skipped but the batch completed (never a hard abort).
+    report({ message: `imported with ${result.failed} card(s) skipped (validation)` });
+  }
+  if (result.reportPath !== undefined) {
+    report({ message: `import report written: ${result.reportPath}` });
+  }
+  if (!dryRun && result.changed > 0) {
+    report({ message: "reconciling stats post-import" });
+    await reconcileImportStats({ ownerId });
+  }
+}
 
 type ImportContributions = readonly [WorkloadContribution<"import-st">, WorkloadContribution<"import-bundle">];
 
@@ -70,7 +95,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
         // A folder-upload override resolves the server-minted handle to a PROPER STRICT DESCENDANT of the
         // staging root (throws on any traversal attempt, before any fs read); absent ⇒ the configured root.
         const profileRoot = params.stagedDir !== undefined ? resolveStagedPath(deps.stagingRoot, params.stagedDir) : deps.stProfileDir;
-        let result: { readonly scanned: number; readonly changed: number };
+        let result: { readonly scanned: number; readonly changed: number; readonly failed: number; readonly reportPath?: string };
         try {
           result = await deps.runProfileDirImport({ profileRoot, ownerId: targetOwnerId, dryRun, signal });
         } finally {
@@ -80,11 +105,14 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
             await rmContained(deps.stagingRoot, profileRoot);
           }
         }
-        if (!dryRun && result.changed > 0) {
-          report({ message: "reconciling stats post-import" });
-          await deps.reconcileImportStats({ ownerId: targetOwnerId });
-        }
-        return { scanned: result.scanned, changed: result.changed, dryRun };
+        await settleImportRun({ result, dryRun, ownerId: targetOwnerId, report, reconcileImportStats: deps.reconcileImportStats });
+        return {
+          scanned: result.scanned,
+          changed: result.changed,
+          dryRun,
+          failed: result.failed,
+          ...(result.reportPath !== undefined ? { reportPath: result.reportPath } : {}),
+        };
       },
     },
     {

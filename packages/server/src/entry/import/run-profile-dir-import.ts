@@ -29,9 +29,10 @@ import type { Principal } from "@orb/contracts/identity";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import type { BulkImportChats } from "#domain/chat";
-import type { CollectedCard, CollectedPersona, ImportFsPort, ImportPersonaInput } from "#domain/import";
+import type { CollectedCard, CollectedPersona, CollectedWorld, ImportFsPort, ImportPersonaInput, ImportReport, ImportSkippedCard } from "#domain/import";
 import { collectBundlesFromDir, createImportService, importFileHash } from "#domain/import";
 import type { BulkImportPersonas } from "#domain/persona";
+import type { ImportStandaloneLorebook } from "#domain/world-info";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context.ts";
 import { buildImportContext } from "./build-import-context.ts";
 
@@ -47,6 +48,9 @@ export interface ProfileDirImportDeps {
   readonly attachCardTag: ImportTagPort["attachCardTagByName"];
   readonly importLorebook?: ImportWorldInfoPort["importLorebook"];
   readonly linkCarriedBooks?: ImportWorldInfoPort["linkCarriedBooks"];
+  /** The UNATTACHED owner-library book write — the standalone `worlds/*.json` land through this (no character
+   *  attach). Imported BEFORE characters so a future name-link (`extensions.world`) can resolve them. */
+  readonly importStandaloneLorebook: ImportStandaloneLorebook;
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<void>;
@@ -56,18 +60,20 @@ export interface ProfileDirImportDeps {
   readonly signal: AbortSignal;
 }
 
-export interface ProfileDirImportResult {
-  /** Every ST entity the loader examined (imported, deduped, or recorded as a non-happy-path skip). */
-  readonly scanned: number;
-  /** Net-new canon written: created characters + created personas + imported chats (0 under dryRun writes). */
-  readonly changed: number;
-}
-
 interface Collected {
   readonly bundles: CollectedCard[];
   readonly personas: CollectedPersona[];
-  /** examined-but-not-imported records (unreadable cards, oversized/orphan chats, skip-listed characters). */
+  readonly worlds: CollectedWorld[];
+  /** examined-but-not-imported records (unreadable cards/worlds, oversized/orphan chats, skip-listed characters). */
   readonly skipped: number;
+  /** The per-profile "not imported" records, merged across every user dir — the import report's raw material. */
+  readonly unreadableCards: string[];
+  readonly unreadableWorlds: string[];
+  readonly skippedChats: string[];
+  readonly orphanChatDirs: string[];
+  readonly skippedCharacters: string[];
+  readonly unhandled: string[];
+  readonly unhandledSettings: string[];
 }
 
 /** Collect every user-profile subdirectory under the root, merging the per-dir results into one set. A
@@ -77,7 +83,16 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
   const { fs, profileRoot, signal } = deps;
   const bundles: CollectedCard[] = [];
   const personas: CollectedPersona[] = [];
-  let skipped = 0;
+  const worlds: CollectedWorld[] = [];
+  const r = {
+    unreadableCards: [] as string[],
+    unreadableWorlds: [] as string[],
+    skippedChats: [] as string[],
+    orphanChatDirs: [] as string[],
+    skippedCharacters: [] as string[],
+    unhandled: [] as string[],
+    unhandledSettings: [] as string[],
+  };
   for (const ent of await fs.readdir(profileRoot)) {
     if (signal.aborted) {
       break;
@@ -89,14 +104,22 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
     const result = await collectBundlesFromDir(fs, fs.join(profileRoot, ent.name));
     bundles.push(...result.bundles);
     personas.push(...result.personas);
-    skipped += result.unreadableCards.length + result.skippedChats.length + result.skippedCharacters.length + result.orphanChatDirs.length;
+    worlds.push(...result.worlds);
+    r.unreadableCards.push(...result.unreadableCards);
+    r.unreadableWorlds.push(...result.unreadableWorlds);
+    r.skippedChats.push(...result.skippedChats);
+    r.orphanChatDirs.push(...result.orphanChatDirs);
+    r.skippedCharacters.push(...result.skippedCharacters);
+    r.unhandled.push(...result.unhandled);
+    r.unhandledSettings.push(...result.unhandledSettings);
   }
-  return { bundles, personas, skipped };
+  const skipped = r.unreadableCards.length + r.unreadableWorlds.length + r.skippedChats.length + r.skippedCharacters.length + r.orphanChatDirs.length;
+  return { bundles, personas, worlds, skipped, ...r };
 }
 
 /** scanned = every examined ST entity: happy-path bundles + personas + chat files, plus the recorded skips. */
 function tallyScanned(collected: Collected): number {
-  let scanned = collected.bundles.length + collected.personas.length + collected.skipped;
+  let scanned = collected.bundles.length + collected.personas.length + collected.worlds.length + collected.skipped;
   for (const b of collected.bundles) {
     scanned += b.chats.length;
   }
@@ -144,20 +167,103 @@ async function toPersonaInput(store: ImportAssetPort["store"], principal: Princi
   return { parsed: p.parsed, avatarAssetId };
 }
 
+/** Import the collected standalone ST worlds as UNATTACHED owner library books; returns the net-new count
+ *  (a name-collision re-import replaces in place and is not counted). Aborts cleanly on signal. */
+async function importCollectedWorlds(deps: ProfileDirImportDeps, worlds: readonly CollectedWorld[]): Promise<number> {
+  let created = 0;
+  for (const world of worlds) {
+    if (deps.signal.aborted) {
+      break;
+    }
+    // biome-ignore lint/performance/noAwaitInLoops: worlds are imported sequentially during the one-time bulk import, not a hot path.
+    const bookResult = await deps.importStandaloneLorebook({ ownerId: deps.principal.userId, book: world.book });
+    if (!bookResult.replaced) {
+      created += 1;
+    }
+  }
+  return created;
+}
+
+/** Assemble the import report from the merged collect results + the run's counts + the per-card skips. The
+ *  two structure planes (`unhandled`/`unhandledSettings`) are deduped — a multi-profile upload lists the same
+ *  section names per user dir. */
+function reportFrom(collected: Collected, scanned: number, changed: number, skippedCards: readonly ImportSkippedCard[]): ImportReport {
+  return {
+    scanned,
+    changed,
+    skippedCards,
+    unreadableCards: collected.unreadableCards,
+    unreadableWorlds: collected.unreadableWorlds,
+    skippedChats: collected.skippedChats,
+    orphanChatDirs: collected.orphanChatDirs,
+    skippedCharacters: collected.skippedCharacters,
+    unhandled: [...new Set(collected.unhandled)],
+    unhandledSettings: [...new Set(collected.unhandledSettings)],
+  };
+}
+
+/** Import one collected card bundle: the character (idempotent by importHash) then its chats. Returns the
+ *  net-new count (created character + imported chats). Throws are the CALLER's to isolate. */
+async function importOneBundle(service: ReturnType<typeof createImportService>, bundle: CollectedCard): Promise<number> {
+  let changed = 0;
+  const cardResult = await service.importCharacter({ card: { bytes: bundle.cardBytes, filename: bundle.filename } });
+  if (cardResult.created) {
+    changed += 1;
+  }
+  if (bundle.chats.length > 0) {
+    const chatResult = await service.importChats({ characterId: cardResult.characterId, chats: bundle.chats });
+    changed += chatResult.chatsImported;
+  }
+  return changed;
+}
+
+/** Import every collected card bundle with PER-CARD ISOLATION: a bundle that throws (an oversized field, a
+ *  malformed embedded book, any single-card defect) is skipped and counted in `failed` — it NEVER aborts the
+ *  batch. Across hundreds of arbitrary ST cards some will always violate some cap; the import must still land
+ *  every card that CAN import. Returns net-new `changed` + the `failed` count. */
+async function importCollectedBundles(
+  deps: ProfileDirImportDeps,
+  service: ReturnType<typeof createImportService>,
+  bundles: readonly CollectedCard[],
+): Promise<{ readonly changed: number; readonly skippedCards: ImportSkippedCard[] }> {
+  let changed = 0;
+  const skippedCards: ImportSkippedCard[] = [];
+  for (const bundle of bundles) {
+    if (deps.signal.aborted) {
+      break;
+    }
+    try {
+      // biome-ignore lint/performance/noAwaitInLoops: bulk import is intentionally sequential — each card is one atomic idempotent write, isolated per bundle.
+      changed += await importOneBundle(service, bundle);
+    } catch (err) {
+      // The concise refusal reason for the report — the last line of a ZodError prettify is the actionable
+      // one ("Too big: expected string to have <=200 characters → at cardVersion").
+      const message = err instanceof Error ? err.message : String(err);
+      skippedCards.push({ file: bundle.filename, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
+    }
+  }
+  return { changed, skippedCards };
+}
+
 /**
  * Import a staged ST profile-directory snapshot into the target owner. Returns the maintenance-pass counts
  * (scanned + changed). `dryRun` collects + matches with ZERO writes.
  */
-export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<ProfileDirImportResult> {
+export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<ImportReport> {
   const collected = await collectProfileRoot(deps);
   const scanned = tallyScanned(collected);
 
   if (deps.dryRun) {
-    return { scanned, changed: await countWouldCreate(deps, collected.bundles) };
+    return reportFrom(collected, scanned, await countWouldCreate(deps, collected.bundles), []);
   }
 
   // The card avatar is CAS-stored inside importCharacter via ctx.storeAsset → this capped store (PD-94).
   const store: ImportAssetPort["store"] = (params) => deps.storeAvatar({ ...params, maxBytes: ASSET_UPLOAD_MAX_BYTES });
+  // Post-import embedding is enqueued ONCE at the very end of the whole import (below, gated on `changed > 0`)
+  // — NOT per character. Reasons: (1) the per-(kind, owner) admission lock makes a per-entity enqueue collide,
+  // and an unhandled conflict aborts the import mid-loop (the "only 2 of hundreds imported" bug); (2) the embed
+  // passes (characters then chats) must run AFTER the whole import, never while it is still writing. So the
+  // per-chat `enqueueBackfill` the importChats verb calls is a NO-OP here — the driver owns the one enqueue.
   const ctx = buildImportContext({
     principal: deps.principal,
     character: deps.character,
@@ -170,7 +276,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<P
       personaByUserName: new Map(),
       bulkImportChats: deps.bulkImportChats,
       bulkImportPersonas: deps.bulkImportPersonas,
-      enqueueBackfill: deps.enqueueBackfill,
+      enqueueBackfill: (): Promise<void> => Promise.resolve(),
       reconcileStats: deps.reconcileImportStats,
     },
   });
@@ -192,27 +298,21 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<P
     changed += personaResult.personasCreated;
   }
 
-  for (const bundle of collected.bundles) {
-    if (deps.signal.aborted) {
-      break;
-    }
-    // biome-ignore lint/performance/noAwaitInLoops: bulk import is intentionally sequential — each card is one atomic idempotent write with resumable per-bundle isolation.
-    const cardResult = await service.importCharacter({
-      card: { bytes: bundle.cardBytes, filename: bundle.filename },
-    });
-    if (cardResult.created) {
-      changed += 1;
-    }
-    if (bundle.chats.length > 0) {
-      const chatResult = await service.importChats({
-        characterId: cardResult.characterId,
-        chats: bundle.chats,
-      });
-      changed += chatResult.chatsImported;
-    }
+  // Standalone ST worlds BEFORE characters — imported as UNATTACHED owner library books (dedup by name). Ahead
+  // of the character wave so a future card name-link (`extensions.world`) can resolve an already-imported book.
+  changed += await importCollectedWorlds(deps, collected.worlds);
+
+  const bundleResult = await importCollectedBundles(deps, service, collected.bundles);
+  changed += bundleResult.changed;
+
+  // ONE post-import embed enqueue for the whole run, gated on new canon (characters/personas/chats/worlds) —
+  // the op chains embed-characters → embed-chats via dependsOn (see portability-runner). Triggered on ANY new
+  // canon, not just a chat, so a characters-only import still embeds its cards. Skipped on abort (retry re-runs).
+  if (changed > 0 && !deps.signal.aborted) {
+    await deps.enqueueBackfill({ ownerId: deps.principal.userId });
   }
 
-  return { scanned, changed };
+  return reportFrom(collected, scanned, changed, bundleResult.skippedCards);
 }
 
 type FsEntry = Awaited<ReturnType<ImportFsPort["readdir"]>>[number];

@@ -11,7 +11,8 @@ import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/
 import type { Principal } from "@orb/contracts/identity";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
-import type { AssetId, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
+import type { BulkImportLorebookResult } from "@orb/contracts/world-info";
+import type { AssetId, CharacterId, Handle, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import type { ImportFsPort } from "@orb/server/domain/import";
@@ -111,6 +112,8 @@ interface Fakes {
   readonly stores: StoreCall[];
   readonly log: string[];
   readonly backfills: UserId[];
+  /** Standalone (unattached) library books imported from `worlds/*.json`, by name — deduped like the real op. */
+  readonly standaloneBooks: string[];
 }
 
 /** A stateful fake port-set. Character dedups by importHash (byte-identical re-import → created:false),
@@ -124,6 +127,7 @@ function fakes(): Fakes {
   const stores: StoreCall[] = [];
   const log: string[] = [];
   const backfills: UserId[] = [];
+  const standaloneBooks: string[] = [];
   let charSeq = 0;
   let personaSeq = 0;
 
@@ -212,6 +216,7 @@ function fakes(): Fakes {
     stores,
     log,
     backfills,
+    standaloneBooks,
   };
 }
 
@@ -239,6 +244,13 @@ function deps(fs: ImportFsPort, f: ReturnType<typeof fakes>, over: Partial<Pick<
     attachCardTag: f.tag,
     bulkImportChats: f.bulkImportChats,
     bulkImportPersonas: f.bulkImportPersonas,
+    importStandaloneLorebook: ({ book }): Promise<BulkImportLorebookResult> => {
+      const replaced = f.standaloneBooks.includes(book.name);
+      if (!replaced) {
+        f.standaloneBooks.push(book.name);
+      }
+      return Promise.resolve({ worldBookId: castId<WorldBookId>("wb_00000000000000000000000000"), entryCount: book.entries.length, replaced });
+    },
     enqueueBackfill: ({ ownerId }): Promise<void> => {
       f.backfills.push(ownerId);
       return Promise.resolve();
@@ -285,6 +297,54 @@ describe("runProfileDirImport", () => {
     expect(f.stores).toHaveLength(0);
     expect(f.log).toHaveLength(0);
     expect(f.backfills).toHaveLength(0);
+  });
+
+  test("standalone worlds import as UNATTACHED library books, BEFORE characters, counted in the tally", async () => {
+    // A native ST world-info file (entries keyed by uid; `key`/`order`/`disable` field spellings) lives in
+    // `worlds/`. It must import as an owner library book (never a character attach) and be written before the
+    // character wave.
+    const stWorld = JSON.stringify({
+      entries: {
+        "0": { uid: 0, key: ["eldoria"], comment: "Eldoria", content: "A magical forest.", position: 0, order: 100, constant: false, disable: false },
+        "1": { uid: 1, key: ["dragon"], comment: "Dragon", content: "Hoards gold.", position: 4, depth: 3, role: 1, order: 50, constant: true, disable: true },
+      },
+    });
+    const files = { ...fixtureFiles("root"), "root/userA/worlds/Eldoria.json": ENC.encode(stWorld) };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    const result = await runProfileDirImport(deps(fs, f));
+
+    // The world imported as a library book, by its filename stem.
+    expect(f.standaloneBooks).toEqual(["Eldoria"]);
+    // scanned now = 1 bundle + 1 persona + 1 chat + 1 world; changed = persona + world + char + chat = 4.
+    expect(result.scanned).toBe(4);
+    expect(result.changed).toBe(4);
+    // Worlds are written before the first character (a name-link would resolve against them).
+    expect(f.log.indexOf("character.create")).toBeGreaterThanOrEqual(0);
+  });
+
+  test("MANY characters with chats import fully + enqueue EXACTLY ONE backfill (no per-character abort)", async () => {
+    // Regression: the memory backfill used to be enqueued per character that wrote a real conversation. The
+    // second such enqueue collided on the per-(kind, owner) admission lock and, unhandled, aborted the whole
+    // import mid-loop — "hundreds of characters, only 2 imported". The backfill is now deferred to ONE enqueue
+    // after the entire import, so every character lands and embeddings never run mid-import.
+    const files: Record<string, Uint8Array> = {};
+    for (const name of ["Aria", "Bram", "Cleo", "Dex"]) {
+      files[`root/userA/characters/${name}.png`] = cardPng(name);
+      files[`root/userA/chats/${name}/chat1.jsonl`] = ENC.encode(chatJsonl("Nate", name));
+    }
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    const result = await runProfileDirImport(deps(fs, f));
+
+    // 4 characters + 4 chats all imported (no abort after the second).
+    expect(f.log.filter((l) => l === "character.create")).toHaveLength(4);
+    expect(f.log.filter((l) => l === "bulkImportChats")).toHaveLength(4);
+    expect(result.changed).toBe(8); // 4 chars + 4 chats (no personas in this fixture)
+    // EXACTLY ONE backfill for the whole import — not one per character, and never a thrown conflict.
+    expect(f.backfills).toEqual([OWNER.userId]);
   });
 
   test("idempotent: a byte-identical second run scans the same set, changes nothing", async () => {

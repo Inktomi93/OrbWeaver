@@ -24,6 +24,7 @@ import { DomainConflictError } from "@orb/kit/errors";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import type { WorkloadService } from "#domain/workloads";
+import { getLog } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import { sniffTreeLayout } from "../import/index.ts";
 
@@ -38,9 +39,13 @@ const UPLOAD_FIELD = "file";
 
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
-// Total batch cap — the DoS ceiling on the whole multipart body (formData buffers it), matching the
-// compressed-bundle route's 256 MiB (a larger library must use the .zip path, which streams to disk).
-const TREE_MAX_TOTAL_MIB = 256;
+// Total batch cap — the ceiling on the whole multipart body (formData buffers it in memory). Raised to
+// 1 GiB (owner, 2026-08-08) for whole-ST-profile folder imports: a real SillyTavern default-user tree
+// runs 500 MiB–1 GiB (character-card PNGs + chat logs dominate), and the 256 MiB memory-DoS ceiling is a
+// MULTI-USER concern — on a single-owner self-hosted box the owner's own upload is not a threat. NOTE the
+// .zip/bundle route is NOT an escape hatch here: it caps at 256 MiB COMPRESSED and only accepts an ORB
+// backup layout (no ST sniff), so the multipart tree route is the sole whole-ST-folder ingest.
+const TREE_MAX_TOTAL_MIB = 1024;
 const TREE_MAX_TOTAL_BYTES = TREE_MAX_TOTAL_MIB * BYTES_PER_MIB;
 // Per-file cap — the same per-blob bound the PD-94 asset store + the zip per-entry belt enforce (64 MiB).
 const TREE_MAX_FILE_MIB = 64;
@@ -51,7 +56,12 @@ const TREE_MAX_FILES = 50_000;
 
 const DRIVE_LETTER = /^[a-zA-Z]:/;
 const TRAILING_SLASH = /\/$/;
-const ST_SHARED_DIRS = new Set(["characters/", "chats/"]);
+// Orb bundle dir names that ALSO appear in a real SillyTavern profile tree — a name collision, not an
+// orb signal. `characters/`/`chats/` are shared by both formats' content; `themes/` (orb theme
+// portability vs ST's UI-theme dir) and `assets/` (orb asset portability vs ST's uploaded-assets dir)
+// collide by NAME only. Excluding them here is what lets a real ST profile (which always carries
+// `settings.json` + a `themes/` dir) sniff as ST instead of tripping the both-markers ambiguity reject.
+const ST_SHARED_DIRS = new Set(["characters/", "chats/", "themes/", "assets/"]);
 
 export interface ImportTreeDeps {
   readonly workloads: Pick<WorkloadService, "start">;
@@ -169,6 +179,9 @@ function orbOnlyDirNames(registry: PortabilityRegistry): Set<string> {
  *  {@link TreeRejected} (nothing staged) on the first breach. */
 async function collectParts(form: FormData): Promise<UploadPart[]> {
   const files = form.getAll(UPLOAD_FIELD).filter((e): e is File => e instanceof File);
+  // DIAGNOSTIC: how many parts the server actually received + their total bytes. Locates a truncated
+  // whole-folder upload (client/browser vs server body cap) — a real ST library is hundreds of cards.
+  getLog().info({ receivedFiles: files.length, totalBytes: files.reduce((n, f) => n + f.size, 0) }, "import-tree: multipart parts received");
   if (files.length === 0) {
     throw new TreeRejected(BAD_REQUEST, `no "${UPLOAD_FIELD}" uploads`);
   }

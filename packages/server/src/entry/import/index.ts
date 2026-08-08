@@ -22,10 +22,7 @@ export {
   importStagedArchive,
   runBundleImport,
 } from "./run-bundle-import.ts";
-export type {
-  ProfileDirImportDeps,
-  ProfileDirImportResult,
-} from "./run-profile-dir-import.ts";
+export type { ProfileDirImportDeps } from "./run-profile-dir-import.ts";
 export {
   createNodeFsImportPort,
   runProfileDirImport,

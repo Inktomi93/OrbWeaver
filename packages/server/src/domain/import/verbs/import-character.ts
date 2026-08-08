@@ -1,14 +1,16 @@
 // verb: importCharacter — one ST character card → one canonical character. Flow: parse bytes → hash whole
-// file → byte-identical dedup (return existing, created:false) → flatten+validate → PD-108 handle-match
-// (edit in place instead of insert) → else create fresh with provenance + CAS-store avatar → attach tags
-// → re-link carried attached-book references (PD-144), else carry the embedded lorebook clone (the fallback
-// when no reference resolves on this install). All cross-feature ops (create/lookup/update/store/attach/
-// re-link) are injected via context.ts — import never reads a db table directly.
+// file → byte-identical dedup (return existing, created:false — the ONLY dedup: the same FILE, never a name)
+// → flatten+validate → mint a FREE per-owner handle (a name-slug collision suffixes the HANDLE only, never
+// the display name — two distinct "Emily" cards are two characters) → create fresh with provenance +
+// CAS-store avatar → attach tags → re-link carried attached-book references (PD-144), else carry the embedded
+// lorebook clone (the fallback when no reference resolves on this install). All cross-feature ops are injected
+// via context.ts — import never reads a db table directly.
 
 import type { AttachedBookRef } from "@orb/contracts/character";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
-import type { CharacterId, RegexScriptId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, RegexScriptId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { isPng } from "@orb/kit/png-card-chunk";
 import type { ImportContext } from "../context.ts";
 import { ImportCardError } from "../contract/errors.ts";
@@ -33,27 +35,19 @@ function fallbackNameFrom(filename: string | undefined): string {
   return stem.length > 0 ? stem : DEFAULT_FALLBACK_NAME;
 }
 
-interface WriteCharacterArgs {
-  readonly matchedId: CharacterId | null;
-  readonly input: Parameters<ImportContext["createCharacter"]>[0]["input"];
-  readonly filename: string | undefined;
-  readonly importHash: string;
-}
-
-/** A handle match edits the existing row in place instead of inserting (dead-ends on the unique index). */
-async function writeCharacter(ctx: ImportContext, args: WriteCharacterArgs): Promise<{ readonly characterId: CharacterId; readonly created: boolean }> {
-  const { matchedId, input, filename, importHash } = args;
-  if (matchedId !== null) {
-    await ctx.updateCharacter({ ownerId: ctx.ownerId, characterId: matchedId, input });
-    return { characterId: matchedId, created: false };
+/** Resolve a FREE per-owner character handle: `characters.handle` is per-owner UNIQUE, so a byte-new card
+ *  whose name-slug is already taken gets a numeric suffix (`emily` → `emily-2` → `emily-3`). This suffixes the
+ *  HANDLE only — the card's display `name` is untouched. We NEVER dedupe by name: two distinct "Emily" cards
+ *  are two characters (byte-identical files already deduped upstream by importHash). */
+async function freeHandle(ctx: ImportContext, base: CharacterHandle): Promise<CharacterHandle> {
+  let handle: CharacterHandle = base;
+  let n = 2;
+  // biome-ignore lint/performance/noAwaitInLoops: a sequential probe for the next free per-owner handle — at most a handful of same-name collisions.
+  while ((await ctx.findByHandle({ ownerId: ctx.ownerId, handle })) !== null) {
+    handle = castId<CharacterHandle>(`${base}-${n}`);
+    n += 1;
   }
-  const ref = await ctx.createCharacter({
-    ownerId: ctx.ownerId,
-    input,
-    importedFrom: filename ?? null,
-    importHash,
-  });
-  return { characterId: ref.characterId, created: true };
+  return handle;
 }
 
 async function attachCardTags(ctx: ImportContext, characterId: CharacterId, tags: readonly string[]): Promise<void> {
@@ -145,22 +139,19 @@ export function createImportCharacter(ctx: ImportContext): ImportService["import
       return { characterId: existing, created: false, importHash, attachedBooksLinked: 0, attachedBooksSkipped: 0 };
     }
 
-    const inputForNewHandle = cardToCreateInput(characterCard, null);
-    const matchedId = await ctx.findByHandle({
-      ownerId: ctx.ownerId,
-      handle: inputForNewHandle.handle,
-    });
-
     // Content-addressed store: a byte-identical re-import resolves to the same asset id.
     const avatarAssetId = png ? await ctx.storeAsset({ ownerId: ctx.ownerId, bytes, mime: PNG_MIME }) : null;
-    const input = cardToCreateInput(characterCard, avatarAssetId);
-
-    const { characterId, created } = await writeCharacter(ctx, {
-      matchedId,
-      input,
-      filename,
+    const baseInput = cardToCreateInput(characterCard, avatarAssetId);
+    // A byte-new card is always a NEW character; only its per-owner-unique handle is disambiguated (the name stays).
+    const handle = await freeHandle(ctx, baseInput.handle);
+    const ref = await ctx.createCharacter({
+      ownerId: ctx.ownerId,
+      input: { ...baseInput, handle },
+      importedFrom: filename ?? null,
       importHash,
     });
+    const characterId = ref.characterId;
+    const created = true;
     await attachCardTags(ctx, characterId, tags);
 
     const { attachedBooksLinked, attachedBooksSkipped } = await attachCarriedContent(ctx, characterId, {

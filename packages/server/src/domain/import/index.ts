@@ -18,11 +18,14 @@ export type {
   CollectedCard,
   CollectedChat,
   CollectedPersona,
+  CollectedWorld,
   CollectResult,
   ImportChatFileInput,
   ImportChatsInput,
   ImportFsPort,
   ImportPersonaInput,
+  ImportReport,
+  ImportSkippedCard,
 } from "./contract/views.ts";
 export type { ImportWorkloadDeps } from "./contract/workloads.ts";
 export { collectBundlesFromDir } from "./loader/collect.ts";

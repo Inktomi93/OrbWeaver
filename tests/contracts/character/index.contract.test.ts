@@ -8,6 +8,7 @@ import {
   characterListCursorSchema,
   characterListSortSchema,
   createCharacterSchema,
+  repairImportedCardInput,
   updateCharacterSchema,
 } from "@orb/contracts/character";
 import type { RegexScriptCard } from "@orb/contracts/regex";
@@ -144,6 +145,40 @@ test("the SAME createCharacterSchema validates an import-normalized payload (no 
 test("createCharacterSchema rejects a missing required name", () => {
   const bad = { handle: "no-name", description: "x" };
   expect(createCharacterSchema.safeParse(bad).success).toBe(false);
+});
+
+// ── import repair: clamp over-cap fields so a foreign card still imports (repair, then isolate) ──
+test("repairImportedCardInput clamps over-cap fields, so a card that would be rejected now validates", () => {
+  const longVersion = "v".repeat(500); // > CARD_VERSION_MAX (200)
+  const raw = {
+    handle: "foreign-card",
+    name: "Foreign Card",
+    description: "",
+    greetings: Array.from({ length: 150 }, (_, i) => ({ text: `greeting ${i}` })), // > GREETINGS_MAX (100)
+    cardVersion: longVersion,
+    creator: "c".repeat(300), // > CREATOR_MAX (200)
+    nickname: "n".repeat(300), // > NICKNAME_MAX (200)
+  };
+  // Raw would be REJECTED (three over-cap strings + an oversized array)…
+  expect(createCharacterSchema.safeParse(raw).success).toBe(false);
+  // …but the repaired candidate validates (parse throws on failure), with every field clamped to its limit.
+  const data = createCharacterSchema.parse(repairImportedCardInput(raw));
+  expect(data.cardVersion).toHaveLength(200);
+  expect(data.creator).toHaveLength(200);
+  expect(data.nickname).toHaveLength(200);
+  expect(data.greetings).toHaveLength(100);
+});
+
+test("repairImportedCardInput leaves an in-bounds card byte-identical (no needless mutation)", () => {
+  const raw = {
+    handle: "fine-card",
+    name: "Fine",
+    description: "ok",
+    greetings: [{ text: "hi" }],
+    cardVersion: "1.0",
+    creator: "studio",
+  };
+  expect(repairImportedCardInput(raw)).toEqual(raw);
 });
 
 test("updateCharacterSchema makes content optional and adds the identity-only flags", () => {

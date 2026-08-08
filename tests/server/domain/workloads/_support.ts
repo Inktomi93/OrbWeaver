@@ -90,7 +90,7 @@ export function fakeContributions(): WorkloadContributions {
     ...createImportWorkloadContributions({
       stagingRoot: "/tmp/orb-test-staging",
       stProfileDir: "/tmp/orb-test-profiles",
-      runProfileDirImport: stub({ scanned: 0, changed: 0 }),
+      runProfileDirImport: stub({ scanned: 0, changed: 0, failed: 0 }),
       runBundleImport: stub({ imported: 0, skipped: 0, failed: 0 }),
       runStagedDirImport: stub({ imported: 0, skipped: 0, failed: 0 }),
       reconcileImportStats: stub(undefined),

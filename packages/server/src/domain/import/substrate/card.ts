@@ -6,7 +6,7 @@
 // Pure: no DB, no fs, no logger. A parse failure returns null, never throws.
 
 import type { AttachedBookRef, CharacterCard, CreateCharacterInput } from "@orb/contracts/character";
-import { ATTACHED_BOOKS_WIRE_KEY, attachedBookRefSchema, createCharacterSchema } from "@orb/contracts/character";
+import { ATTACHED_BOOKS_WIRE_KEY, attachedBookRefSchema, createCharacterSchema, repairImportedCardInput } from "@orb/contracts/character";
 import { ATTACHED_REGEX_SCRIPTS_WIRE_KEY, attachedRegexScriptRefSchema } from "@orb/contracts/regex";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId, RegexScriptId } from "@orb/kit/ids";
@@ -189,7 +189,10 @@ export function cardToCreateInput(card: CharacterCard, avatarAssetId: AssetId | 
     avatarAssetId,
     depthPrompt: card.depthPrompt,
   };
-  const result = createCharacterSchema.safeParse(candidate);
+  // Best-effort repair BEFORE validation: clamp over-cap fields so a foreign card with a too-long value still
+  // imports. A card that STILL fails (a structural/type defect repair can't fix) throws — the bulk-import loop
+  // isolates it per-card (skip + count), never aborting the batch.
+  const result = createCharacterSchema.safeParse(repairImportedCardInput(candidate));
   if (!result.success) {
     // `z.prettifyError` over `error.message`: the raw message is the ZodError's JSON issue DUMP — a wall of
     // `[{"expected":"string","code":"invalid_type","path":["name"],…}]` shown verbatim to whoever dragged the
