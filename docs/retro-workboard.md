@@ -449,9 +449,17 @@ security lens.
 - [ ] **`run-coverage.ts` widgets/trackers bug** (PROBES-TYPING flagged, one-line fix): `seedState()`
   seeds `trackers:{}` but every path reads `state.widgets` → `renderReminder` throws turn 1. `run.ts` is
   correct; only run-coverage mismatches.
-- **⏳ FINAL BATTERY running (`6616ddd44`, detached) for `tests:node` cert · PORT-R6 verifier in flight
-  (`a181b333`, id-remap).** Post-battery, rpg zone settled: dispatch side-eye #16 + glyph #13; any push
-  needs a fresh owner word + this battery green.
+- ✅ **PORT-R6 GRADUATED — verifier CONFIRMED all 6** (`a181b333`, 24 targeted tests re-run incl. the
+  round-trip): the id-remap "not-equal" proof is genuinely non-vacuous (fresh box mints real new ids);
+  pruning pins match the actual db CHECK/CASCADE/RESTRICT arms; every DEFER plane is
+  runtime/derived/cross-box-identity (parentChatId defer honest); the lying `_support.ts` double is
+  fixed index-aligned; trust boundary sound (host-gated export, D30 per-tagger tag scope, char-required
+  refusal writes nothing); envelope discriminates on `schemaKind` not extension. **Residual (hardening,
+  not a defect):** no ≥2-turn cross-link fixture — "cannot cross-link two rpg-anchored turns" is verified
+  by reading the positional-index logic, not a runtime counterexample. Boardable one-fixture add.
+- **⏳ FINAL BATTERY (`6616ddd44`, detached): STATIC + orphan-ratchet ALL GREEN (15/15, incl. the katex
+  `types:graph` fix); behavioral phase (`tests:node`+CT, e2e-smoke, cpd, parity) running.** Post-battery,
+  rpg zone settled: dispatch side-eye #16 + glyph #13; any push needs a fresh owner word + this green.
 - ✅ **TEMPLATE-UNIFY merged** (`6d7867401`, check 14/14) — row 49 slotted; (b) unification COMPLETE.
 - ✅ **SMALLS-SERVER merged** (`58b1f9ce7`, check 14/14) — narrator room previews its CAST shape now
   (GroupConfig threaded into PreviewInputs, per-speaker byte-unchanged, red-first: narrator RED on old
