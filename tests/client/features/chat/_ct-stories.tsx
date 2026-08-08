@@ -35,12 +35,13 @@ import type {
   HomeTileContribution,
   MessageRenderContext,
   MessageToolsRenderer,
+  NotifyInput,
   RowRenderPolicy,
   SlashCommandContribution,
   SlashCommandMountProps,
   ToolRenderer,
 } from "@orb/client/lib";
-import { bindNotify, createContributorRegistry, resolveRowRenderPolicy } from "@orb/client/lib";
+import { bindNotify, createContributorRegistry, resolveRowRenderPolicy, toNotice } from "@orb/client/lib";
 import type { ActiveChatHandle, ChatHandle } from "@orb/client/state";
 import {
   addDraftCharacter,
@@ -918,7 +919,8 @@ function ComposerStoryInner({ committed = true, tailRole = null, tailAssistantMe
   // this marker. Same shape as PersonaThisChatStory.
   const [notified, setNotified] = useState<string>("");
   useState(() => {
-    bindNotify({ info: (m): void => setNotified(m), success: (m): void => setNotified(m), error: (m): void => setNotified(m) });
+    const sink = (notice: NotifyInput): void => setNotified(toNotice(notice).title);
+    bindNotify({ error: sink, info: sink, success: sink, warn: sink });
     return null;
   });
 
@@ -1879,9 +1881,10 @@ export function ChatImportDialogStory(): ReactElement {
   const [notice, setNotice] = useState("");
   useEffect(() => {
     bindNotify({
-      info: (message): void => setNotice(`info: ${message}`),
-      success: (message): void => setNotice(`success: ${message}`),
-      error: (message): void => setNotice(`error: ${message}`),
+      error: (raised): void => setNotice(`error: ${toNotice(raised).title}`),
+      info: (raised): void => setNotice(`info: ${toNotice(raised).title}`),
+      success: (raised): void => setNotice(`success: ${toNotice(raised).title}`),
+      warn: (raised): void => setNotice(`warn: ${toNotice(raised).title}`),
     });
   }, []);
   return (
