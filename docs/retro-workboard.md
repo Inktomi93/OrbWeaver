@@ -419,8 +419,13 @@ Ranked by consequence within each category. Every item carries its receipt state
   PROSE-1 landed) · unsent-draft reload persistence + the nav-away draft-discard design pass ·
   chars+chats one-glyph rail merge · trust-gated card images doorway (mechanism pinned: `src=`-routed
   card-frame doc with its own CSP) · **mid-session persona↔rpg linkage — OWNER-SACRED, ruled flavor
-  recorded (persona-pin semantics), DO NOT BUILD** · `.env` OpenRouter key is INERT (no env
-  fallback; decide: env fallback for the testing arm, or document UI-entry-once) · templating fork
+  recorded (persona-pin semantics), DO NOT BUILD** · ~~`.env` OpenRouter key is INERT~~ **FALSE —
+  struck 2026-08-08 (owner caught it, orchestrator pinned the receipt):** `seedCredentialFromEnv`
+  (`entry/boot/seed-credential.ts`, wired `lifecycle.ts:242`, predates the retro era) idempotently
+  seeds the env key onto the OWNER's credentials at boot when no openrouter row exists. The 08-07
+  "no env fallback" claim promoted an empty-list STATE observation into a structural claim without
+  a two-method check. Decision row premise-dead; note the task-#8 interplay (a mode-flip owner row
+  inherits the seeded key at next boot) · templating fork
   rows 53-73 (REWRITE\_TOGGLES/GREETING\_TRANSFORMS fragment bytes — client-composed via kit, a
   design fork) · shell-tier CLS \~0.26 (F-14, three sightings, needs an owner look — pairs
   with E1) · home-tile promotion WHETHER (`docs/design/home-tile-promotion.md` — in-place chips may
