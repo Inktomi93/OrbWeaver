@@ -25,6 +25,7 @@ import type {
   ChatInjection,
   ChatMacroNameProducer,
   ContextFitPreview,
+  GroupConfig,
   JoinHistoryVisibility,
   MemberCardView,
   MemberCardVisibility,
@@ -208,6 +209,11 @@ interface PreviewInputs {
   readonly api: ResolvedConnection["api"];
   readonly castCharacterIds: readonly CharacterId[];
   readonly personaIds: readonly PersonaId[];
+  /** The room's effective GroupConfig — its `output` axis is the ONE the SHAPE peek resolves, so a preview
+   *  renders the SAME cast/per-speaker shape the next turn will (`TurnSpeakerShape.output`), never a pinned
+   *  guess. A narrator room previews its joined-cast `{{char}}` + `[Cast — …]` framing; per-speaker is
+   *  byte-unchanged. `DEFAULT_GROUP_CONFIG` for a room carrying no group blob. */
+  readonly group: GroupConfig;
   readonly foreign: ForeignInputs;
   /** The GAME's authored user macros (the second definition home, owner ruling #20) — resolved with the
    *  other cross-domain preview inputs so the preview registry sees the SAME effective def set a real turn
@@ -351,6 +357,10 @@ async function resolvePreviewInputs(
   if (hostUserId === null) {
     throw new ChatNotFoundError(chatId);
   }
+  // The room's effective output axis (narrator vs per-speaker) — read exactly as `getGroupConfigForChat` does
+  // so the SHAPE peek renders the shape the next turn will send, not a pinned `per-speaker` guess.
+  const chatRow = await loadChatRow(ctx.db, chatId);
+  const group = chatRow?.metadata.group ?? DEFAULT_GROUP_CONFIG;
   const castIds = roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
   const castCharacterIds =
     speakerCharacterId !== null && speakerCharacterId !== undefined && castIds.includes(speakerCharacterId)
@@ -382,6 +392,7 @@ async function resolvePreviewInputs(
     api: connection.api,
     castCharacterIds,
     personaIds,
+    group,
     foreign,
     gameUserMacros,
   };
@@ -474,12 +485,12 @@ async function buildPreviewContext(
     inputs.foreign,
   );
   const primary = gathered.castMembers?.[0];
-  // `output: "per-speaker"` is the preview's own pinned axis, the same one `shapeNextTurn` hardcodes below:
-  // a preview has no arbitrated round, so it renders the primary speaker's turn. A NARRATOR room therefore
-  // previews its per-speaker shape rather than its cast shape — a known preview-fidelity gap, not a turn-path
-  // one (the turn reads `TurnSpeakerShape.output`), and closing it means threading the room's group config
-  // into `PreviewInputs`.
-  return primary === undefined ? gathered : shapeContextForSpeaker(gathered, { ref: primary, output: "per-speaker", cardScope: "merged" });
+  // The room's OWN output axis — the same one `shapeNextTurn` threads below and a real turn reads off
+  // `TurnSpeakerShape.output`: a NARRATOR room previews its cast shape (joined `{{char}}` + `[Cast — …]`
+  // framing), a per-speaker room renders the primary speaker's turn byte-identically to before. A preview has
+  // no arbitrated round, so `cardScope` stays pinned `merged` (narrator is always merged; per-speaker's
+  // scoped fold is a per-round selection a shapeless peek can't make) — only the output axis is now honest.
+  return primary === undefined ? gathered : shapeContextForSpeaker(gathered, { ref: primary, output: inputs.group.output, cardScope: "merged" });
 }
 
 /** `listChats` — the caller's chats (pure membership, host or member), newest-updated first. */
@@ -840,7 +851,10 @@ async function shapeNextTurn(
     canon: assembled.sendHistory ? toShapeCanon(canon, assembleContext, historyMacroNames, previewPromptHistoryEnv(ctx, assembleContext, inputs)) : [],
     appendUserTurn: null,
     injections: inChatInjections,
-    output: "per-speaker",
+    // The room's own output axis (see `buildPreviewContext`) — a narrator preview shapes its history as the
+    // cast turn will. `cardScope`/`scopedTargetId` stay pinned (merged / no fold): narrator is always merged,
+    // and a shapeless peek makes no per-speaker scoped selection, so per-speaker rooms stay byte-identical.
+    output: inputs.group.output,
     cardScope: "merged",
     scopedTargetId: null,
     namesBehavior: assembleContext.promptConfig.namesBehavior ?? DEFAULT_NAMES_BEHAVIOR,
