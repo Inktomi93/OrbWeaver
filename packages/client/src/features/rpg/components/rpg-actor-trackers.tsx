@@ -243,8 +243,20 @@ export function ConditionChips({
       {edit === undefined || !edit.isLocked(".conditions") ? null : (
         <RpgFieldLock field="the conditions" onRelease={(): void => edit.onRelease(".conditions")} />
       )}
+      {/* THE CHIP CARRIES THE TOUCH FLOOR AT COARSE (owner ruling 2026-08-07, on side-eye's measured
+          tables). The remove ✕ is `size="glyph-xs"` — FLOORLESS, so its 44px coarse hit area rides an
+          OVERFLOWING `::after` rather than its 16px box. MEASURED at 430 coarse with five live conditions:
+          chip 30 tall, `gap-field` 6 ⇒ wrapped-row pitch 36, so the ✕'s effective hit box was **43×35** on
+          every wrapped row — 9px under the vertical floor on a DESTRUCTIVE verb. (The
+          `no-floorless-control-in-wrap` gate's stated harm — committing a NEIGHBOUR — was measured false
+          here: a cross-chip sample lands in the 6px gap. The floor was the whole defect, and the chip's own
+          label was never at risk.) Flooring the CHIP is the only one of the four priced options that fixes
+          the CAUSE — a 44px hit area hanging off a 30px chip — instead of padding around it: at
+          `min-h-touch-target` the pseudo fits INSIDE its own chip, so the visible chip and the live
+          destructive zone are finally the same shape. FINE is untouched (a 30px chip in a dense tracker
+          row). */}
       {conditions.map((cond) => (
-        <Badge key={cond.name} tone="soft" size="sm" intent="danger">
+        <Badge key={cond.name} tone="soft" size="sm" intent="danger" className="pointer-coarse:min-h-touch-target">
           <Icon icon={resolveConditionGlyph(cond.name)} size="xs" />
           {cond.name}
           {onRemove === undefined ? null : (

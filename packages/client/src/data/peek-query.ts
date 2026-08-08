@@ -16,3 +16,19 @@ import type { QueryClient, QueryKey } from "@tanstack/react-query";
 export function peekQueryData<T>(queryClient: QueryClient, queryKey: QueryKey): T | undefined {
   return queryClient.getQueryData<T>(queryKey);
 }
+
+/** The PREFIX form of {@link peekQueryData}: every cached entry whose key starts with `queryKeyPrefix`,
+ *  newest-first is NOT guaranteed — the caller folds them.
+ *
+ *  It exists because a paged list is cached under its PAGE PARAMS, and a reader that only wants "is this row
+ *  already known" cannot name the page: `character.list` is fetched with four different `limit`s by four
+ *  callers (the picker's 100, the portrait map's 200, quick picks' 6, agent-nav's 500), each its own cache
+ *  key. Pinning a reader to one of those limits is a magic-number handshake between two files that breaks
+ *  silently when either moves; matching the PREFIX picks up whichever page happens to be warm and couples to
+ *  nothing. Same law as the single-key peek: read-only, never fetches, `data/`-only. */
+export function peekMatchingQueryData<T>(queryClient: QueryClient, queryKeyPrefix: QueryKey): readonly T[] {
+  return queryClient
+    .getQueriesData<T>({ queryKey: queryKeyPrefix })
+    .map(([, data]) => data)
+    .filter((data): data is T => data !== undefined);
+}

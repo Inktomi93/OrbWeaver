@@ -18,7 +18,7 @@
   "packages/client/src/features/chat/components/message-row-parts.tsx": 1,
   "packages/client/src/features/chat/lib/imagery-templates-model.ts": 2,
   "packages/client/src/features/chat/lib/speaker-color.ts": 1,
-  "packages/client/src/features/persona/components/persona-panel-row.tsx": 1,
+  "packages/client/src/features/persona/components/persona-row-name-column.tsx": 1,
   "packages/client/src/features/preset/components/preset-rename-dialog.tsx": 1,
   "packages/client/src/features/preset/components/variable-editor-dialog.tsx": 1,
   "packages/client/src/features/rpg/components/rpg-scene-tab.tsx": 1,
