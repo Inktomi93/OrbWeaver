@@ -6,9 +6,13 @@ import type { DocumentView } from "@orb/contracts/databank";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import {
+  bankHealth,
+  bankHealthLine,
   documentSubtitle,
+  INGEST_POLL_MS,
   ingestBadge,
   ingestPhase,
+  ingestPollInterval,
   ingestStallHint,
   isIngestInFlight,
   showsPhaseChip,
@@ -119,6 +123,68 @@ describe("isIngestInFlight — the bounded poll's driver (D-3 arm b)", () => {
     const queued = doc({ chunkCount: 0, embeddedCount: 0 });
     expect(isIngestInFlight(queued, AT + FIVE_MINUTES - 1)).toBe(true);
     expect(isIngestInFlight(queued, AT + FIVE_MINUTES)).toBe(false);
+  });
+});
+
+describe("ingestPollInterval — ONE rule for both readers of databank.list", () => {
+  test("polls while some row is in flight, and stops the moment none is", () => {
+    expect(ingestPollInterval([doc(), doc({ chunkCount: 0, embeddedCount: 0 })], AT)).toBe(INGEST_POLL_MS);
+    expect(ingestPollInterval([doc()], AT)).toBe(false);
+    // A bank that is entirely wedged must not poll forever — the phase says "act", not "wait".
+    expect(ingestPollInterval([doc({ chunkCount: 0, embeddedCount: 0 })], AT + FIVE_MINUTES)).toBe(false);
+  });
+
+  test("an unread cache (the first refetch callback, before any data) polls nothing", () => {
+    expect(ingestPollInterval(undefined, AT)).toBe(false);
+    expect(ingestPollInterval([], AT)).toBe(false);
+  });
+});
+
+// D-7 — the HOME tile's summary. It must answer "is my bank doing its job" out of the SAME counts the rows
+// derive their phase from, or home and the library pane disagree about one document in two places.
+describe("bankHealth — the tile's ingest health (D-7)", () => {
+  const bank: readonly DocumentView[] = [
+    doc(),
+    doc({ id: castId("document_00000000000000000002"), chunkCount: 39, embeddedCount: 22 }),
+    doc({ id: castId("document_00000000000000000003"), charCount: 0, chunkCount: 0, embeddedCount: 0 }),
+    doc({ id: castId("document_00000000000000000004"), chunkCount: 0, embeddedCount: 0, updatedAt: AT - FIVE_MINUTES }),
+  ];
+
+  test("counts PASSAGES, not chunks — an un-embedded chunk is invisible to retrieval", () => {
+    // 12 embedded + 22 of 39 embedded + 0 + 0. A chunk count would read 51 and over-promise what a chat
+    // can actually pull, which is the one number this line exists to be honest about.
+    expect(bankHealth(bank, AT).passages).toBe(34);
+    expect(bankHealth(bank, AT).total).toBe(4);
+  });
+
+  test("one chip per NON-READY phase, worst first, and READY earns none", () => {
+    expect(bankHealth(bank, AT).attention).toEqual([
+      { intent: "danger", label: "1 stalled" },
+      { intent: "neutral", label: "1 empty" },
+      { intent: "warning", label: "1 indexing" },
+    ]);
+    // A bank at rest says nothing beyond its size — the steady state is the absence of a chip (§6.1).
+    expect(bankHealth([doc(), doc({ id: castId("document_00000000000000000005") })], AT).attention).toEqual([]);
+  });
+
+  test("the stall overlay rides the INJECTED clock — the same document is queued, then wedged", () => {
+    const queued = [doc({ chunkCount: 0, embeddedCount: 0 })];
+    expect(bankHealth(queued, AT + FIVE_MINUTES - 1).attention).toEqual([{ intent: "warning", label: "1 queued" }]);
+    expect(bankHealth(queued, AT + FIVE_MINUTES).attention).toEqual([{ intent: "danger", label: "1 stalled" }]);
+  });
+
+  test("documents in the SAME phase aggregate into one chip", () => {
+    const two = [
+      doc({ charCount: 0, chunkCount: 0, embeddedCount: 0 }),
+      doc({ id: castId("document_00000000000000000006"), charCount: 0, chunkCount: 0, embeddedCount: 0 }),
+    ];
+    expect(bankHealth(two, AT).attention).toEqual([{ intent: "neutral", label: "2 empty" }]);
+  });
+
+  test("the health LINE reads its two counts, with the singulars", () => {
+    expect(bankHealthLine(bankHealth(bank, AT))).toBe("4 documents · 34 passages indexed");
+    expect(bankHealthLine(bankHealth([doc({ chunkCount: 1, embeddedCount: 1 })], AT))).toBe("1 document · 1 passage indexed");
+    expect(bankHealthLine(bankHealth([], AT))).toBe("0 documents · 0 passages indexed");
   });
 });
 

@@ -58,7 +58,7 @@ import {
 } from "#features/chat";
 import { makeConfigSection } from "#features/config";
 import { connectionsPane } from "#features/credentials";
-import { databankSection } from "#features/databank";
+import { databankDocumentsTile, databankSection } from "#features/databank";
 import { corpusSection } from "#features/discovery";
 import { automationDormantTile, buddyDormantTile, makeHomeSection, sectionJumpTile } from "#features/home";
 import { notificationsChrome } from "#features/notifications";
@@ -206,13 +206,15 @@ const characterDetailContributors = createContributorRegistry<CharacterDetailCon
 // The HOME-TILE contributor seam (§6c / home-section-spec §3.2) — the SIXTH contributor registry, and the
 // whole point of the home section: a feature raises a tile, home skims it. Adding "future stuff" to home is
 // ONE co-located file in the OWNING feature plus ONE array member HERE — home is never edited. Canonical
-// `(order, id)` at the door: home's own jump grid is order 40 (the chat tiles land at 10/20/30, the dormant
-// doorways at 80/90). Home consumes the registry BLIND through `makeHomeSection`.
+// `(order, id)` at the door: home's own jump grid is order 40 (the chat tiles land at 10/20/30, databank's
+// documents tile at 50, the dormant doorways at 80/90). Home consumes the registry BLIND through
+// `makeHomeSection`.
 const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
   chatRecentsTile,
   chatQuickPicksTile,
   chatTempChatTile,
   sectionJumpTile,
+  databankDocumentsTile,
   buddyDormantTile,
   automationDormantTile,
 ]);
