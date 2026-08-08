@@ -16,7 +16,7 @@
 //
 // Also records the prompt_tokens delta terse->enriched (the "cost of enrichment at scale" half of F4).
 
-import { OR_MODEL, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.mjs";
+import { OR_MODEL, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.ts";
 
 const TERSE = {
   set_hp: "Set a character's HP.",

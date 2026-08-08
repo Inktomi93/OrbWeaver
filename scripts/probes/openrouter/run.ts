@@ -10,12 +10,12 @@
 // ⚠️ Live spend against OpenRouter (`anthropic/claude-sonnet-5`) and, for F5's native reference arms,
 // the Anthropic Messages API. Full batch ≈ $0.5. Keys are read from the repo `.env` and never printed.
 
-import { jsonl, readEnvKey, totalSpend } from "./_kit.mjs";
-import * as f4 from "./f4-tool-description-cache.mjs";
-import * as f4a from "./f4a-effort-cache.mjs";
-import * as f5 from "./f5-effort-translation.mjs";
-import * as or5 from "./or5-breakpoint-offsets.mjs";
-import * as or7 from "./or7-reasoning-roundtrip.mjs";
+import { jsonl, readEnvKey, totalSpend } from "./_kit.ts";
+import * as f4 from "./f4-tool-description-cache.ts";
+import * as f4a from "./f4a-effort-cache.ts";
+import * as f5 from "./f5-effort-translation.ts";
+import * as or5 from "./or5-breakpoint-offsets.ts";
+import * as or7 from "./or7-reasoning-roundtrip.ts";
 
 const ALL = [f4, f4a, f5, or5, or7];
 

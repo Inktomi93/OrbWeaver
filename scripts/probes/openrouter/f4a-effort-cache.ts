@@ -17,7 +17,7 @@
 // Arm 5 separates the two possible worlds: per-effort cache ENTRIES (arm 5 hits, cost is one extra write
 // per distinct effort) vs invalidation (arm 5 misses, every effort flip re-bills the whole prefix).
 
-import { OR_MODEL, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.mjs";
+import { OR_MODEL, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.ts";
 
 export const id = "f4a";
 export const title = "does an `effort` change bust the OR prompt cache";
