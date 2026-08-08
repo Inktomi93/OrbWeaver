@@ -513,7 +513,10 @@ security lens.
   UN-EXTENDABLE** — probed live, extending to scripts/ yields 12 FALSE findings (gate doc-comments
   describing the marker grammar have no literal-span fence like strings do); closing the scripts/
   inventory gap needs NEW structural info in the marker grammar, a design fork not a scanRoot tune.
-  Boarded as such.
+  Boarded as such. **(CLOSED 2026-08-08, FORGE mention-fence lane: the structural info is "a marker IS
+  a `//` comment that BEGINS with the vocabulary" — pass.ts anchors the suppressor's parse AND fences
+  the scanner to comment-opener matches, which also closed a live prose-suppression bypass; scanRoot now
+  includes `scripts/check/gates/`. docs/design/gate-ignore-mention-fence.md.)**
 - **⚑ NEW BOARDED ROW (POLISH-CLUSTER find): wire CapabilityGate to resolve-failure.ts.** The same
   wrong-confident-cause sentence ("routing problem, not a missing connection") is ALSO hardcoded at
   `capability-gate.tsx:66` over `resolveChatCapability`, which can fail PRECONDITION_FAILED
@@ -836,6 +839,8 @@ security lens.
   modes; GATE-AUTHORING §1 names its enforcer. **Boarded follow-up:** `@orb-gate-ignore` under
   `scripts/` is UNINVENTORIED (gate-ignore-inventory scanRoot is packages+tests by deliberate
   design; extending needs the literal-span exclusion extended to scripts/ — its own lane).
+  **(CLOSED 2026-08-08 — the mention fence; see the TOOLING-INVESTIGATE row's closure note +
+  docs/design/gate-ignore-mention-fence.md.)**
 - **⚑ PRIOR GATE-IGNORE ARC (for the record):** "FULLY CLOSED" REFUTED — a 4th leg is in flight.** Verifier
   `a8fed8ee2276a7c1e` CONFIRMED the 14 converted gates (3 spot-checks incl. the over-exempt property
   at same-line granularity; kept-arms correctly §1-sanctioned; expect.token discriminates) but

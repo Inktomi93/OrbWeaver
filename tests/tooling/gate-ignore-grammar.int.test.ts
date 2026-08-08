@@ -11,6 +11,9 @@
 // The carrier is `no-color-literals`: it is token-anchored, scans plain string literals under
 // packages/ui/src (no JSX carrier fence), and reports MULTIPLE tokens from ONE node — the only live shape
 // that reproduces §4.3a's "one line, two guarded things" (`record(chatId: string, sessionId: string)`).
+// The SCRIPTS side (2026-08-08) probes the same vocabulary inside the gate corpus — carrier
+// `no-raw-intl-time`, whose scanRoot admits it — plus the MENTION FENCE both ways: a quoted marker in
+// prose neither suppresses (the closed bypass) nor gets inventoried (what made the corpus scannable).
 // Fixtures use the reserved `__g_` sentinel so every other tree consumer excludes them and a crashed run
 // leaves nothing that can red an independent pass (scripts/check/pass.ts PROBE_ARTIFACT_RE).
 import { execFileSync } from "node:child_process";
@@ -31,6 +34,14 @@ const INVENTORY = "gate-ignore-inventory";
 const VIOLATION = "bg-black";
 /** The §4.3a sibling on the SAME line — a different token of the SAME gate. */
 const SIBLING = "text-[#abc]";
+/** The SCRIPTS-side fixture dir (the 2026-08-08 scanRoot extension): a SUBDIR of the gate corpus, so the
+ *  workspace walk loads the fixtures (`scripts/check/gates/**` glob) while the loader's flat `*.ts` glob
+ *  and `discoverGateNames`'s flat readdir never see them — no import side effects, no name pollution. */
+const SCRIPTS_DIR = "scripts/check/gates/__g_gi";
+/** The scripts-side carrier: node-anchored, token-carrying, and its scanRoot ADMITS the gate corpus
+ *  (`(p) => !p.startsWith("packages/kit/src/time/")`), so a marker in a gate file is LIVE vocabulary. */
+const SCRIPTS_CARRIER = "no-raw-intl-time";
+const SCRIPTS_VIOLATION = "tolocale";
 
 /** case → the fixture source planted at `${DIR}/__g_<case>.ts`. */
 const CASES: Readonly<Record<string, string>> = {
@@ -50,6 +61,31 @@ const CASES: Readonly<Record<string, string>> = {
   positioned: '// @orb-gate-ignore no-color-literals(bg-black): probe — position-scoped\nexport const g7 = "bg-black text-[#abc]";\n',
   // §4.3a COUNTERFACTUAL — the same line under ONE unpositioned marker: the over-exemption.
   overexempt: '// @orb-gate-ignore no-color-literals: probe — unpositioned, absolves BOTH\nexport const g8 = "bg-black text-[#abc]";\n',
+  // MENTION-FENCE COUNTERFACTUAL — a well-formed marker with a LIVE position, QUOTED inside a prose
+  // comment. Until 2026-08-08 the suppressor's unanchored parse consumed this and the violation vanished.
+  quotation: '// see `// @orb-gate-ignore no-color-literals(bg-black): x` — a quotation must never suppress\nexport const g9 = "bg-black";\n',
+};
+
+/** case → the fixture source planted at `${SCRIPTS_DIR}/__g_<case>.ts` — the SAME vocabulary probed
+ *  inside the gate corpus, where markers were UNINVENTORIED until the 2026-08-08 scanRoot extension.
+ *  The carrier matches `.toLocale*()` by PROPERTY NAME, so the receiver is a deterministic `(0)` —
+ *  fixture SOURCE must not spell ambient-clock calls (test-determinism scans this file's strings). */
+const SCRIPTS_CASES: Readonly<Record<string, string>> = {
+  // the carrier bites in the corpus at all — a violation with NO marker.
+  corpusUnmarked: "export const s0 = (0).toLocaleString();\n",
+  // a marker in a gate file naming a gate that does not exist.
+  corpusUnregistered: "// @orb-gate-ignore g-no-such-gate: probe — names a gate that does not exist\nexport const s1 = 1;\n",
+  // MALFORMED: bare, no `: <reason>` — and it suppresses nothing, so the carrier reds too.
+  corpusBare: "// @orb-gate-ignore no-raw-intl-time\nexport const s2 = (0).toLocaleString();\n",
+  // STALE: well-formed, registered, but the named gate consumes nothing in this file.
+  corpusStale: "// @orb-gate-ignore no-color-literals: probe — consumes nothing in the gate corpus\nexport const s3 = 1;\n",
+  // the promise is honourable IN the corpus: a positioned marker suppresses, and is not flagged.
+  corpusSuppressed: "// @orb-gate-ignore no-raw-intl-time(tolocale): probe — a corpus marker must still suppress\nexport const s4 = (0).toLocaleString();\n",
+  // §4.3a in the corpus: one unpositioned marker over TWO guarded calls in ONE statement.
+  corpusOverexempt:
+    "// @orb-gate-ignore no-raw-intl-time: probe — unpositioned, absolves BOTH calls\nexport const s5 = [(0).toLocaleString(), (0).toLocaleTimeString()];\n",
+  // the founding false-positive shape: gate prose QUOTING the grammar — a mention, and no shield.
+  corpusMention: "// the grammar is `// @orb-gate-ignore no-raw-intl-time(tolocale): <reason>` — a quotation\nexport const s6 = (0).toLocaleString();\n",
 };
 
 function clean(): void {
@@ -60,6 +96,11 @@ function clean(): void {
 function plant(): void {
   for (const [name, src] of Object.entries(CASES)) {
     const abs = join(ROOT, DIR, `__g_${name}.ts`);
+    mkdirSync(dirname(abs), { recursive: true });
+    writeFileSync(abs, src);
+  }
+  for (const [name, src] of Object.entries(SCRIPTS_CASES)) {
+    const abs = join(ROOT, SCRIPTS_DIR, `__g_${name}.ts`);
     mkdirSync(dirname(abs), { recursive: true });
     writeFileSync(abs, src);
   }
@@ -95,6 +136,22 @@ function tokens(gate: string, kase: keyof typeof CASES): readonly string[] {
 
 function messages(kase: keyof typeof CASES): string {
   return findings(INVENTORY, kase)
+    .map((f) => f.message ?? "")
+    .join("\n");
+}
+
+/** The scripts-side mirrors of findings/tokens/messages, over `${SCRIPTS_DIR}/__g_<case>.ts`. */
+function sFindings(gate: string, kase: keyof typeof SCRIPTS_CASES): readonly Finding[] {
+  const file = `${SCRIPTS_DIR}/__g_${kase}.ts`;
+  return (pass.gates.find((g) => g.name === gate)?.findings ?? []).filter((f) => f.file === file);
+}
+
+function sTokens(gate: string, kase: keyof typeof SCRIPTS_CASES): readonly string[] {
+  return sFindings(gate, kase).map((f) => f.token ?? "(no token)");
+}
+
+function sMessages(kase: keyof typeof SCRIPTS_CASES): string {
+  return sFindings(INVENTORY, kase)
     .map((f) => f.message ?? "")
     .join("\n");
 }
@@ -150,7 +207,53 @@ test("§4.3a — one UNPOSITIONED marker over two guarded things absolves BOTH, 
   expect(messages("overexempt")).toContain("it absolved 2 guarded things");
 });
 
+test("MENTION FENCE — a quoted marker inside a prose comment must NOT suppress (the closed bypass)", () => {
+  // Until 2026-08-08 this fixture's violation VANISHED: the unanchored parse read the backtick quotation
+  // as a live-position marker and absolved the finding, while the inventory counted it consumed (green).
+  expect(tokens(CARRIER, "quotation")).toEqual([VIOLATION]);
+  expect(findings(INVENTORY, "quotation")).toEqual([]);
+});
+
+// ---- the SCRIPTS side (the 2026-08-08 scanRoot extension): the same vocabulary, probed inside the gate
+// corpus, where a marker could always SUPPRESS (the suppressor has no scanRoot) but was never audited.
+
+test("scripts — the carrier bites inside the gate corpus at all, and an unmarked violation is RED", () => {
+  expect(sTokens(SCRIPTS_CARRIER, "corpusUnmarked")).toEqual([SCRIPTS_VIOLATION]);
+  expect(sFindings(INVENTORY, "corpusUnmarked")).toEqual([]);
+});
+
+test("scripts — a marker naming a DEAD GATE in a gate file is RED (it was silently inert before)", () => {
+  expect(sMessages("corpusUnregistered")).toContain("isn't registered");
+});
+
+test("scripts — a BARE marker in a gate file is RED as MALFORMED, and shields nothing", () => {
+  expect(sMessages("corpusBare")).toContain("MALFORMED");
+  expect(sTokens(SCRIPTS_CARRIER, "corpusBare")).toEqual([SCRIPTS_VIOLATION]);
+});
+
+test("scripts — a well-formed marker that consumes nothing in the corpus is RED as STALE", () => {
+  expect(sMessages("corpusStale")).toContain("STALE");
+});
+
+test("scripts — a positioned marker in a gate file still SUPPRESSES, and is not itself flagged", () => {
+  expect(sTokens(SCRIPTS_CARRIER, "corpusSuppressed")).toEqual([]);
+  expect(sFindings(INVENTORY, "corpusSuppressed")).toEqual([]);
+});
+
+test("scripts — §4.3a holds in the corpus: one unpositioned marker over two calls is RED as over-exempting", () => {
+  expect(sTokens(SCRIPTS_CARRIER, "corpusOverexempt")).toEqual([]);
+  expect(sMessages("corpusOverexempt")).toContain("OVER-EXEMPTING");
+  expect(sMessages("corpusOverexempt")).toContain("it absolved 2 guarded things");
+});
+
+test("scripts — gate prose QUOTING the grammar is a MENTION: silent to the inventory, and no shield", () => {
+  expect(sFindings(INVENTORY, "corpusMention")).toEqual([]);
+  expect(sTokens(SCRIPTS_CARRIER, "corpusMention")).toEqual([SCRIPTS_VIOLATION]);
+});
+
 test("the LIVE corpus carries no malformed / unregistered / stale / over-exempting marker", () => {
-  const live = (pass.gates.find((g) => g.name === INVENTORY)?.findings ?? []).filter((f) => !f.file.startsWith(DIR));
+  // Covers the gate corpus too since the scanRoot extension: the 12 live doc-prose grammar quotations
+  // (the false positives that blocked the naive extension) must stay silent under the mention fence.
+  const live = (pass.gates.find((g) => g.name === INVENTORY)?.findings ?? []).filter((f) => !(f.file.startsWith(DIR) || f.file.startsWith(SCRIPTS_DIR)));
   expect(live).toEqual([]);
 });

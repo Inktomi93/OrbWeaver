@@ -4,7 +4,8 @@
 // Every visit/run/finalize call is wrapped per-gate: a throw becomes a ToolError attributed to the
 // gate+phase and does NOT abort the sibling gates. Findings are canonical-sorted here so output is
 // deterministic.
-import type { Node, SourceFile, SyntaxKind } from "ts-morph";
+import type { Node, SourceFile } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 import { getWorkspace } from "../ts-workspace.ts";
 import type { Finding, GateDescriptor, GateRunCtx, Scope } from "./contract.ts";
 
@@ -96,6 +97,14 @@ function isNode(v: Node | Finding): v is Node {
  *  The pattern is deliberately PERMISSIVE about the tail so a malformed marker is still RECOGNISED as an
  *  attempted marker — `parseGateIgnoreMarker` then judges it. A marker that only the suppressor knew
  *  about would be invisible to `gate-ignore-inventory`, which is the gate that reds bare/stale ones.
+ *
+ *  THE MENTION FENCE (docs/design/gate-ignore-mention-fence.md): a marker IS a `//` comment whose own
+ *  text begins with the vocabulary. Marker-shaped text anywhere else — inside a string/template/JSX/regex
+ *  literal, or embedded LATER in a comment's text (a backtick quotation in prose, a JSDoc example) — is a
+ *  MENTION of the grammar, never a use of it. Both readers enforce the same fence: the suppressor anchors
+ *  the parse at the comment's start (a quotation above a reported node must never absolve it — that was a
+ *  live bypass), and the inventory's scanner counts only comment-OPENER matches (so gate doc-prose can
+ *  document the grammar without self-flagging, which is what let scanRoot include the gate corpus).
  *  Groups: 1 = gate name · 2 = the optional position name · 3 = everything after it. */
 const GATE_IGNORE_SOURCE = String.raw`//\s*@orb-gate-ignore\s+([a-zA-Z0-9-]+)(?:\(\s*([^)\n]*?)\s*\))?(.*)`;
 
@@ -120,24 +129,106 @@ function judgeGateIgnore(gate: string, rawPosition: string | undefined, tail: st
   return { gate, position: positionEmpty ? undefined : rawPosition, reason, malformed: reason.length === 0 || positionEmpty };
 }
 
-/** Parse ONE comment's text. `undefined` = the comment is not a gate-ignore marker at all. */
+/** Parse ONE comment's text. `undefined` = the comment is not a gate-ignore marker at all. ANCHORED at
+ *  the comment's start (the mention fence): the comment must BE the marker — a marker-shaped quotation
+ *  embedded later in a prose comment's text must never parse, or a doc-comment sitting above a reported
+ *  node would silently absolve it (a live bypass until 2026-08-08: a planted backtick quotation naming a
+ *  live position suppressed a real `no-color-literals` finding). */
 export function parseGateIgnoreMarker(commentText: string): GateIgnoreMarker | undefined {
   // Biome's type lens believes `exec` is non-nullable; tsc types it `RegExpExecArray | null` and REDS the
   // destructure without this guard. tsc wins — and a non-matching comment is the COMMON case here, so the
   // null arm is the hot path, not a theoretical one.
   // biome-ignore lint/suspicious/noUnnecessaryConditions: exec IS nullable per tsc — see above
-  const m = new RegExp(GATE_IGNORE_SOURCE, "u").exec(commentText) ?? [];
+  const m = new RegExp(`^${GATE_IGNORE_SOURCE}`, "u").exec(commentText) ?? [];
   const [, gate, position, tail] = m;
   return gate === undefined ? undefined : judgeGateIgnore(gate, position, tail ?? "");
 }
 
-/** Every marker in a source text, with its 0-based text offset — the inventory gate's scanner. Kept HERE
- *  beside the suppressor so the grammar has exactly ONE spelling: a gate that re-spelled it would drift
- *  out of agreement with the thing it is auditing. */
-export function findGateIgnoreMarkers(text: string): readonly { readonly index: number; readonly marker: GateIgnoreMarker }[] {
+/** Node kinds whose spans can legally CONTAIN a marker spelling without it being a marker (gate
+ *  fixtures, doc strings, regex sources). A match inside one of these spans is prose about the
+ *  vocabulary, not a use of it. */
+const MENTION_SPAN_KINDS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.StringLiteral,
+  SyntaxKind.NoSubstitutionTemplateLiteral,
+  SyntaxKind.TemplateExpression,
+  SyntaxKind.JsxText,
+  SyntaxKind.RegularExpressionLiteral,
+]);
+
+function literalSpans(sf: SourceFile): readonly (readonly [number, number])[] {
+  const spans: [number, number][] = [];
+  sf.forEachDescendant((node) => {
+    if (MENTION_SPAN_KINDS.has(node.getKind())) {
+      spans.push([node.getStart(), node.getEnd()]);
+    }
+  });
+  return spans;
+}
+
+type CommentScanMode = "code" | "line" | "block";
+
+/** One comment-scanner step at `i` (already outside literal spans): the next mode, the index AFTER the
+ *  step, and the opener position when a `//` line comment opens here. */
+function stepCommentScan(text: string, i: number, mode: CommentScanMode): { readonly mode: CommentScanMode; readonly next: number; readonly opener?: number } {
+  const c = text[i];
+  if (mode === "line") {
+    return { mode: c === "\n" ? "code" : "line", next: i + 1 };
+  }
+  if (mode === "block") {
+    return c === "*" && text[i + 1] === "/" ? { mode: "code", next: i + 2 } : { mode: "block", next: i + 1 };
+  }
+  if (c === "/" && text[i + 1] === "/") {
+    return { mode: "line", next: i + 2, opener: i };
+  }
+  return c === "/" && text[i + 1] === "*" ? { mode: "block", next: i + 2 } : { mode: "code", next: i + 1 };
+}
+
+/** Positions where a `//` LINE COMMENT opens, outside the literal spans. Outside literals, a bare `//`
+ *  in TS is always a comment opener (division needs an operand after the slash), so tracking
+ *  line-comment state (to the newline) and block-comment state (to the closing star-slash) is exact:
+ *  a `//` INSIDE an earlier comment (a quotation) or a block comment is not an opener. */
+function lineCommentOpeners(text: string, spans: readonly (readonly [number, number])[]): ReadonlySet<number> {
+  const openers = new Set<number>();
+  const sorted = [...spans].sort((a, b) => a[0] - b[0]);
+  let spanIdx = 0;
+  let mode: CommentScanMode = "code";
+  let i = 0;
+  while (i < text.length) {
+    while (spanIdx < sorted.length && (sorted[spanIdx]?.[1] ?? 0) <= i) {
+      spanIdx += 1;
+    }
+    const span = sorted[spanIdx];
+    if (mode === "code" && span !== undefined && i >= span[0]) {
+      i = span[1]; // resume after the literal
+      spanIdx += 1;
+      continue;
+    }
+    const step = stepCommentScan(text, i, mode);
+    if (step.opener !== undefined) {
+      openers.add(step.opener);
+    }
+    mode = step.mode;
+    i = step.next;
+  }
+  return openers;
+}
+
+/** Every REAL marker in a source file, with its 0-based text offset — the inventory gate's scanner. Kept
+ *  HERE beside the suppressor so the grammar AND its mention fence have exactly ONE spelling: a gate that
+ *  re-spelled either would drift out of agreement with the thing it is auditing. Returns only matches at
+ *  comment-OPENER positions outside literal spans — the same "a marker IS the comment" law the anchored
+ *  `parseGateIgnoreMarker` applies on the suppression side, so everything this reports as a marker is
+ *  exactly what the suppressor could honour (plus inert ATTEMPTS — e.g. a trailing marker after code,
+ *  which opens a real comment but sits in no node's leading trivia, stays visible here so the STALE arm
+ *  can red it rather than let it sit there looking like protection). */
+export function findGateIgnoreMarkers(sf: SourceFile): readonly { readonly index: number; readonly marker: GateIgnoreMarker }[] {
+  const text = sf.getFullText();
+  const openers = lineCommentOpeners(text, literalSpans(sf));
   const out: { index: number; marker: GateIgnoreMarker }[] = [];
   for (const m of text.matchAll(new RegExp(GATE_IGNORE_SOURCE, "gu"))) {
-    out.push({ index: m.index, marker: judgeGateIgnore(m[1] ?? "", m[2], m[3] ?? "") });
+    if (openers.has(m.index)) {
+      out.push({ index: m.index, marker: judgeGateIgnore(m[1] ?? "", m[2], m[3] ?? "") });
+    }
   }
   return out;
 }
