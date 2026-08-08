@@ -89,25 +89,40 @@ Ranked by consequence within each category. Every item carries its receipt state
 
 ### A · IN-FLIGHT (reconcile at landing)
 
-- **A1 · REFINERY R0 → merged `b7ca6d55a`; VERIFIER RUNNING (the pre-R1 gate).** R0 landed
-  contracts (`contracts/src/refinery/` — stages/verdicts/statuses/F4 enums/F5 fields, single-arm
-  `{kind:"fixed"}` config union, 3 F3 payloads, mapped-Record dispatch) + db
-  (`refinery_sessions`/`refinery_runs`, tuple-CHECKs, baseline squashed — **dev db drops on next
-  boot**) + kit id brands + gate registry rows + 21 new tests. Deviations receipted in
-  `docs/design/refinery-r0.md` §3 (no-ownerId per D23 derive; signals stay character-homed; one
-  payload per stage). **R1 (domain/refinery) dispatches ONLY after the verifier confirms;
-  security-executor pass MANDATORY pre-R1** (untrusted card → LLM → write-back). R1 must delete the
-  two pre-producer gate rows (design doc §7). Owner already ruled BUILD with forks F1-F5.
-- **A2 · CONTAINERIZE → merged `fd4ae9119`, check PASS; SECURITY §8 REVIEW RUNNING (the gate before
-  done).** One Dockerfile 2 targets (runtime-slim/runtime-gpu) · compose 3 profiles
-  (all-in-one/slim/sibling, expose-only, file-secrets + entrypoint shim, cap_drop ALL, non-root) ·
-  code arms (`VLLM_ENGINE_HOST` at engine-url+egress, `effectiveVllmDisabled` posture,
-  supervisor idle-gate manages-scoped) all red-first · host BOOT PROOF through the shim (healthz,
-  SPA, engines-ctl via symlinks, SIGTERM drain). Premise repairs receipted in
-  `docs/design/containerize-build-plan.md` (CUDA 13.0 not 12.x; node-26 refuses type-stripping
-  under node_modules → `pnpm deploy --legacy` hoisted layout). **After the review:** the OWNER's
-  live-infra steps — `docker build` both targets, container runs, fleet-in-namespace, the pentest
-  cage (§4/Fork F, positive controls both ways), deploy posture (C13).
+- **A1 · REFINERY R0 → merged `b7ca6d55a`, check PASS, ✅ VERIFIER CONFIRMED ALL 7 (graduated);
+  PRE-R1 SECURITY PASS RUNNING.** R0 landed contracts (`contracts/src/refinery/` —
+  stages/verdicts/statuses/F4 enums/F5 fields, single-arm `{kind:"fixed"}` config union — DDL-free
+  seam PROVEN, custom arm is contract-only) + db (`refinery_sessions`/`refinery_runs`, tuple-CHECKs
+  in the regenerated baseline, FK chain complete+NOT-NULL so no unscoped row is representable —
+  **dev db drops on next boot**) + kit brands + gate rows (census 84 re-counted) + 21 tests
+  (cascade proofs real, planted tsc probe proves dispatch exhaustiveness). Deviations ratified
+  (no-ownerId per D23 derive — verifier read D23 and agrees). **The verifier handed the security
+  pass 5 foundation bounds-gaps:** unbounded score/analyze payload strings/arrays (analysis lands
+  in CANON and ships to the client) · whole-object `.catch(null)` deletes a stamped score on
+  analysis drift · `greetingIndex⇔greetings` unenforced + unbounded · `sessions.guidance` uncapped
+  free text with no contract schema (the prompt-injection surface) · zod strips-not-rejects. Plus 2
+  cheap test adds (status CHECK never bitten; sessions-row cascade control). **R1 (domain/refinery,
+  warm forge lane preferred) dispatches on the security pass's GO**, building its prescribed belts;
+  R1 deletes the two pre-producer gate rows (design §7 — only the db-structure rider auto-flags,
+  the SCHEMA_OWNERS row will NOT remind you). Owner already ruled BUILD F1-F5.
+- **A2 · CONTAINERIZE → merged `fd4ae9119`, check PASS; ✅ SECURITY §8 REVIEW LANDED (8/9 hold);
+  FOLLOW-UP LEG on the warm security lane.** Review:
+  `docs/reviews/security/2026-08-08-containerize-surface-review.md`. **F1 (real, fixed
+  `82bf99a60`):** the shipped `single-user`+`AUTH_FALLBACK=deny` pair was INERT (401s everything) —
+  the "single-user ignores the knob" claim is FALSE (`infra/auth/index.ts:48` checks fallback
+  first; pinned by its own test) — and the natural deployer reaction (flip fallback + publish
+  ports) is the AUTHFIX-2 exploit shape. Now ships `owner` with single-user; `deny` moved into
+  each SSO mode's block. CONFIRMED: expose-only (0 `ports:` all profiles) · secrets (planted
+  positive+negative context controls; shim clean) · egress structurally can't accumulate ·
+  hostile `VLLM_ENGINE_HOST` fails closed (all smuggling shapes measured) · non-root both app
+  targets. REFUTED (recorded): the vllm SIBLING runs root/default-caps (upstream image — live-step
+  rec: try cap_drop, CUDA may need IPC_LOCK) · profile coupling only pins `sibling` (availability
+  not exposure). **FOLLOW-UP LEG (running):** spec truth-repair ×3 sites + the `superRefine`
+  boot-fence (single-user+deny = boot-fatal, red-first) + 3 in-code comment repairs + the
+  shim⇔`HOST_SECRET_ENV_KEYS` coupled-site tie. **OWNER after that:** fork — zero-config default
+  usable-as-owner (shipped, spec-matching) vs deliberately-inert (stricter) · the live-infra steps
+  — `docker build` both targets (+`docker inspect` the healthcheck), container runs,
+  fleet-in-namespace, read-only shakeout, the pentest cage (§4/Fork F), deploy posture (C13).
 - **A3 · PRESET-FOLLOWUP (executor, worktree).** B1 CapabilityGate→`resolve-failure.ts` (the
   inverted "routing problem" claim over a missing-credential failure) + B2 Prompt-view
   section-drill fork-eject (the FORGE#1 store-axis fix applied) + 2 verification CTs (readout
