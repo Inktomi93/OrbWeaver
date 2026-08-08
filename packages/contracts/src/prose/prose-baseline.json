@@ -207,6 +207,166 @@
     "rpg.delta.sceneOpensHeading": {
       "version": 1,
       "sha256": "1043b502b7de33ea2a3f6443bf4f594f73c0c66f57496ec8ff896bfe5cd87e92"
+    },
+    "rpg.extract.deceptionSurface": {
+      "version": 1,
+      "sha256": "89f41826c7cf1ec7bf5c226775e1a0da600113a7fa5542ae2aef21cdc3e14ee7"
+    },
+    "rpg.extract.party.resources": {
+      "version": 1,
+      "sha256": "eea443e0a8a866b003ab6e57ef928994d97ca9d13b18e8b440bac19e82f4c1e6"
+    },
+    "rpg.extract.party.states": {
+      "version": 1,
+      "sha256": "510a4604f396bbd0b416d02e1748cf199e9e9e42026863077f03c06a3f913e82"
+    },
+    "rpg.extract.party.trackerScope": {
+      "version": 1,
+      "sha256": "f19b33ce6405f2d0ae5bd4fe70b199110b59177eb3d885237e897a651f111b28"
+    },
+    "rpg.extract.scene.core": {
+      "version": 1,
+      "sha256": "a2f331ebff6185323f5d389a4e65963577d077bcb20bad827694b9e6eea0dfe8"
+    },
+    "rpg.extract.scene.clock": {
+      "version": 1,
+      "sha256": "50cdd8185dc81ceb1f2cf73600fa9665ce9d8d86d92a504b31f2d6db1da30ddb"
+    },
+    "rpg.extract.scene.weather": {
+      "version": 1,
+      "sha256": "6e09436f2d5866499460a0514d95d4d78c8fd9f8b426432236d8dc2b308a47ce"
+    },
+    "rpg.extract.scene.dayStructured": {
+      "version": 1,
+      "sha256": "dcbd4e71629a8240ddb5ea4511b3d944154141ea9822f94e76a43569f51bf9f5"
+    },
+    "rpg.extract.scene.dayNarrated": {
+      "version": 1,
+      "sha256": "977e1065f2cbf29b766c3a72f421b4ed03105aea4cdefbd0bda01cacbc46e0bc"
+    },
+    "rpg.extract.scene.present": {
+      "version": 1,
+      "sha256": "96df13cc37fe11dd51ca406a82344747e4a2f4c6a578b56599c30058978c5a44"
+    },
+    "rpg.extract.scene.mood": {
+      "version": 1,
+      "sha256": "c26d62355ecfae3226dc19da29bf861ea0de24238dbe78bacc1dc18dcbb3f596"
+    },
+    "rpg.extract.scene.emoji": {
+      "version": 1,
+      "sha256": "06241d032b86f85c3a6c21964e62fb1afd94639fdb18b496f4ba21890e5c018f"
+    },
+    "rpg.extract.scene.plot": {
+      "version": 1,
+      "sha256": "cc357a114cda5ff33cd7044bfe4849fdfe2cb7c5d7d7cb60cdd59d4780fad242"
+    },
+    "rpg.extract.plane.party": {
+      "version": 1,
+      "sha256": "90d345f03dbda24f04034bdf6102e37588fc6d018b37ff4070eac66bdcd1fed9"
+    },
+    "rpg.extract.plane.inventory": {
+      "version": 1,
+      "sha256": "9f1f2d5755080ff8ca8ff542f30e06178254fc814a871e991e0a115e13fd0ae0"
+    },
+    "rpg.extract.plane.trackers": {
+      "version": 1,
+      "sha256": "1769dd3ebc44049dd5d9a13dd73b8f65b29fc4bbdb11fe47856a1cc8dd1c87fc"
+    },
+    "rpg.extract.plane.quests": {
+      "version": 1,
+      "sha256": "9afb26125d98e006d9fd384cc1aa3888bf42406e1b80b39413964d44465e84f9"
+    },
+    "rpg.extract.plane.journal": {
+      "version": 1,
+      "sha256": "8661e6f13e953528bf0f2e193bc15f6bcef3a22a256772f5dfa07f7e6771b8aa"
+    },
+    "rpg.extract.journal.customType": {
+      "version": 1,
+      "sha256": "22c012d5494f7da0156f671ba2d28f10d73faedd42b7f6032c478e7d823b2a6b"
+    },
+    "rpg.extract.journal.customLabels": {
+      "version": 1,
+      "sha256": "588ee2d979cec37085467fc92e25c1d34d1ab8b01f963a036603573efebff696"
+    },
+    "rpg.extract.reconcileDoctrine": {
+      "version": 1,
+      "sha256": "ef9578d2f272fb757d426644c8765a456f5597ffc22e5bc2bfabc5985ceee778"
+    },
+    "rpg.extract.tool.updateParty": {
+      "version": 1,
+      "sha256": "73e3b3cb69afd40e1c2592cbc712cf90b49c40abdc1aaf38341e7bab64ae6838"
+    },
+    "rpg.extract.tool.partyExample": {
+      "version": 1,
+      "sha256": "841fa81ee5043a49bcc6126c8d1481290ce016cd8b6131a3f064231b70703e67"
+    },
+    "rpg.extract.tool.updateInventory": {
+      "version": 1,
+      "sha256": "7717d6e1a1581d427f42b4d7fe4f558824b3713bc996368363569df0488766d9"
+    },
+    "rpg.extract.tool.updateScene": {
+      "version": 1,
+      "sha256": "a69b69203573b2e529c1137d2998e8af7faa889386ca9763cf6664a18d4702f5"
+    },
+    "rpg.extract.tool.setTracker": {
+      "version": 1,
+      "sha256": "7dc5c7375c160e859519c3c7435b806cb266d6e92718f39bf286a92f8ef9c283"
+    },
+    "rpg.extract.tool.upsertQuest": {
+      "version": 1,
+      "sha256": "4689da8fbdeeaec101a0b1e8d430ec484a1acbbb1ab0f3245e59064930d86406"
+    },
+    "rpg.extract.tool.addJournalEntry": {
+      "version": 1,
+      "sha256": "5390eee5906750c71fdd2e40d6b7daddb12341bfd71941b2360ff5b151cb785f"
+    },
+    "rpg.extract.tool.noChanges": {
+      "version": 1,
+      "sha256": "1e9bd2b90107653e95eed84be452c3754b871fc64e19266400fde21e870f185c"
+    },
+    "rpg.extract.systemHeader": {
+      "version": 1,
+      "sha256": "0fe8960b3cee193e5bb7d0fed64b9f75be8de5385c7d6e7d20377e11b7918140"
+    },
+    "rpg.extract.toolRoundHeader": {
+      "version": 1,
+      "sha256": "1b99d9bafaa1f630c59775c97a8345185ccfc3059bab71e08ecd916df2680077"
+    },
+    "rpg.extract.reconcilePass": {
+      "version": 1,
+      "sha256": "e427d5b24c2e4df81ce75fdb204633e7dc189d97bd4a3427b5721cfeb5ae5cf3"
+    },
+    "rpg.extract.foldedReconcile": {
+      "version": 1,
+      "sha256": "7dbe33e7eb87d4de70ca3cc4d770be932d9998896ba38939232c93835195c68a"
+    },
+    "rpg.extract.lockedPaths": {
+      "version": 1,
+      "sha256": "49d4be964f221d9a23b6dc32a1f5d87d9847ca29aebd1378dec3135040c260de"
+    },
+    "rpg.extract.refs.targets": {
+      "version": 1,
+      "sha256": "14d87cd11e06d9e35c4efeb80c0a2369207594ce9a3639d4d430e0de9c148fad"
+    },
+    "rpg.extract.refs.playerToken": {
+      "version": 1,
+      "sha256": "eb5055358764ec22e75654e9b5252648e74e7a30f3857b95ecf294e91fb86b19"
+    },
+    "rpg.extract.refs.trackerGroup": {
+      "version": 1,
+      "sha256": "ce5b87a2933eab1642de0a8e94c01cc46401a4f4ce9e160827e913b410ecf464"
+    },
+    "rpg.extract.refs.gameTrackerKeys": {
+      "version": 1,
+      "sha256": "a327e96f7a9f89c380871061164b14ea307d287f87345f0a5956a6a6647be0c5"
+    },
+    "rpg.extract.refs.conditions": {
+      "version": 1,
+      "sha256": "64603b0b57e599307bd6ec3148bde89f9ec76dd1f12b6e28e2ae28deb96f2778"
+    },
+    "rpg.extract.refs.closing": {
+      "version": 1,
+      "sha256": "d60b8623291cda1e7e4ca5380a969e3874c5e90d93943f9a096ba392f72a93e8"
     }
   }
 }

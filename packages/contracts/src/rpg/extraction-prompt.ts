@@ -18,20 +18,54 @@
 // so the hidden layer lives only in the reasoning channel + the host's reveal-eye (member-safe by
 // construction; the fork-strip §3.2 leak vector evaporates). Deception-gated — a non-deception game composes
 // byte-identically to the pre-registry per-plane prose.
+//
+// THE BYTES ARE DATA (PROSE-1 S4, census 11-26). Every model-facing string this module used to hold as a const
+// is now a slot row in `./prose.ts`, resolved against `ExtractionPromptContext.prose` — the GM PRESET's
+// `promptConfig.prose`, authored in the preset Templates tab. What stays here is the ASSEMBLY: which clause
+// fires for which config, what the per-game tokens expand to, and the composition order. An ABSENT override
+// resolves to the shipped default, so a game whose host has edited nothing composes byte-identically to the
+// pre-PROSE-1 prompt (asserted per-slot in `tests/contracts/rpg/extraction-prompt.contract.test.ts`).
+//
+// ONE CONSTANT IS DELIBERATELY NOT A SLOT: `RPG_STATE_TRACKING_GUIDE` (census 27) is composed onto NOTHING
+// today — `pnpm ast refs` finds only its declaration. Spec §11 decision 6 (wire it and measure, or delete) is
+// owner-DEFERRED, and slotting a dead constant would hand a host an edit surface over bytes no model ever
+// reads. It stays dead-but-present until that ruling lands, and it is the reason ARM B of the
+// `no-hardcoded-model-prose` gate exists.
 
+import type { ProseOverrides } from "#prose-slot";
+import { resolveProseFrom, spliceProseTokens } from "#prose-slot";
 import { RPG_WEATHER_TYPES, TIME_OF_DAY } from "./ambient.ts";
 import type { RpgGameConfig } from "./config.ts";
 import { isDeceptionActive, rpgGameConfigSchema } from "./config.ts";
 import type { ExtractionRefs, RpgExtraction } from "./extraction.ts";
+import { RPG_PROSE_SLOTS } from "./prose.ts";
 import type { RpgTrackerDef } from "./tracker.ts";
 import { gameTrackers, sortTrackers } from "./tracker.ts";
 
-/** The context a fragment builder reads: the game config (feature gates, cast-field defs + hints, dateMode)
- *  and the per-call refs (widget labels, cast-field keys). A fragment returns `null` when its plane is OFF
- *  for this game (the feature-gated arm) — the composer drops a null row. */
+/** The context a fragment builder reads: the game config (feature gates, cast-field defs + hints, dateMode),
+ *  the per-call refs (widget labels, cast-field keys), and the turn's resolved PROSE overrides. A fragment
+ *  returns `null` when its plane is OFF for this game (the feature-gated arm) — the composer drops a null row. */
 export interface ExtractionPromptContext {
   readonly config: RpgGameConfig;
   readonly refs: ExtractionRefs;
+  /** PROSE-1 §4.5 (census 11-26) — the GM PRESET's model-facing overrides for the extraction seam, threaded
+   *  whole exactly as `LiteReminderInput.prose` is. Every string below resolves through it, so a host edit in
+   *  the preset Templates tab lands on the write surface. ABSENT ⇒ `{}` ⇒ every fragment is byte-identical to
+   *  the pre-PROSE-1 constant, which is what keeps `RPG_BASELINE_TOOL_DESCRIPTIONS` (built at module load,
+   *  with no game and therefore no preset in scope) and every hand-built test context honest. */
+  readonly prose?: ProseOverrides | undefined;
+}
+
+/** Resolve ONE rpg prose slot against this context's overrides, splicing the slot's declared PRE-SUBSTITUTION
+ *  tokens (PROSE-1 §4.5 arm (a): the per-game TEMPLATE is a slot whose text is the template source and whose
+ *  token VALUES this module computes off the ctx).
+ *
+ *  It goes through `#prose-slot`'s primitives rather than `#prose`'s `resolveProseText` for ONE structural
+ *  reason: `#prose` imports `#rpg` to compose `PROSE_SLOTS`, so an import the other way would close a
+ *  `no-circular` cycle. The precedence rule + the splice are the SAME code either way — they live on the shape
+ *  half precisely so a domain table can call them (see `#prose-slot`'s resolution-primitives header). */
+function rpgProse(ctx: ExtractionPromptContext, id: keyof typeof RPG_PROSE_SLOTS, tokens?: Readonly<Record<string, string>>): string {
+  return spliceProseTokens(resolveProseFrom(RPG_PROSE_SLOTS[id], (ctx.prose ?? {})[id]).text, tokens);
 }
 
 /** One row per model-writable extraction plane: the schema field (the ratchet key), its teaching-fragment
@@ -42,15 +76,6 @@ export interface ExtractionPlanePrompt {
   readonly toolName: string;
   readonly fragment: (ctx: ExtractionPromptContext) => string | null;
 }
-
-/** The DECEPTION-ACTIVE standing prefix (§1.6 #7 recommendation A). Composed onto EVERY plane fragment (and the
- *  shared header) when either hidden channel is on — the tracker tracks the players' SURFACE reality only. */
-const DECEPTION_SURFACE_CLAUSE =
-  "This game has hidden layers. Record only the players' SURFACE reality — what the scene openly shows: a " +
-  "character's outward words, visible actions, and apparent state. Do NOT write a character's secret truth, " +
-  "hidden motive, or a lie's real answer into any tracked plane (journal, beats, cast thoughts/mood/" +
-  "relationship, quests). The hidden layer lives in your reasoning channel and the host's reveal-eye — never " +
-  "the panel.";
 
 /** ONE tracker's model-facing catalogue line — a bulleted label, its key + range, then an em-dash gloss.
  *  THE R2/R6 interpolation unit: a host-defined tracker reaches the write surface BY NAME AND GLOSS,
@@ -82,18 +107,12 @@ function actorTrackerFragment(ctx: ExtractionPromptContext): string | null {
   const deltas = defs.filter((d) => d.write === "delta");
   const sets = defs.filter((d) => d.write === "set");
   if (deltas.length > 0) {
-    blocks.push(
-      `TRACKED RESOURCES — party[].trackerDeltas: spend or restore these by a signed amount when the beat moves them (negative = spent):\n${deltas
-        .map(trackerCatalogueLine)
-        .join("\n")}`,
-    );
+    blocks.push(rpgProse(ctx, "rpg.extract.party.resources", { trackerCatalogue: deltas.map(trackerCatalogueLine).join("\n") }));
   }
   if (sets.length > 0) {
-    blocks.push(
-      `TRACKED STATES — party[].trackerSets: record the NEW reading whenever the beat changes one of these:\n${sets.map(trackerCatalogueLine).join("\n")}`,
-    );
+    blocks.push(rpgProse(ctx, "rpg.extract.party.states", { trackerCatalogue: sets.map(trackerCatalogueLine).join("\n") }));
   }
-  blocks.push("Only write a tracker on an actor the schema offers it for — not every character carries every tracker.");
+  blocks.push(rpgProse(ctx, "rpg.extract.party.trackerScope"));
   return blocks.join("\n");
 }
 
@@ -106,57 +125,26 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
     toolName: "update_scene",
     fragment: (ctx) => {
       const lines: string[] = [];
-      lines.push(
-        `SCENE — set scene.location (WHERE) and scene.timeOfDay (${[...TIME_OF_DAY].join("/")}); when the beat ` +
-          "doesn't change them, restate the current values, never blank them. Set scene.recentEvent = a one-line " +
-          "summary of what just happened.",
-      );
+      lines.push(rpgProse(ctx, "rpg.extract.scene.core", { timeOfDayValues: [...TIME_OF_DAY].join("/") }));
       // RV-9 — WHEN to move the clock/weather. The panel's Waystone reads these two fields as a live clock, so a
       // story that runs for pages at one timeOfDay reads as a stopped clock. Terse, one clause per field: the
       // R4b lesson is that a gloss saying WHEN measurably changes whether a small model writes the field at all.
-      lines.push(
-        "KEEP TIME MOVING — advance scene.timeOfDay whenever the beat spends real time: a rest or a meal, travel, " +
-          "a long conversation, a fight's aftermath, or a cut to later. Move it forward through the day's order " +
-          "and let night follow evening; never jump backwards, and never leave it parked while hours of story pass.",
-      );
-      lines.push(
-        "WEATHER — scene.weather is the WORLD'S weather: the sky, never the room. Set it whenever the story tells " +
-          "you what the sky is doing, indoors or out — a blizzard closing in past the cabin window counts as much as " +
-          "stepping outdoors into it. When the story says nothing about the sky, leave it alone: omitting keeps what " +
-          "is already there. A room's own atmosphere (torchlight, damp, a stifling hall) is NOT weather — that belongs " +
-          `in scene.location. scene.weather.type is one of ${[...RPG_WEATHER_TYPES].join("/")}; use "indoors" when the ` +
-          "scene is enclosed and no sky is visible from it at all, and if none of them is what the sky is actually " +
-          "doing, OMIT weather rather than forcing the nearest. Put the vivid phrasing in " +
-          `scene.weather.label ("torrential sleet", "a thin grey drizzle"), which is what the reader sees.`,
-      );
+      lines.push(rpgProse(ctx, "rpg.extract.scene.clock"));
+      lines.push(rpgProse(ctx, "rpg.extract.scene.weather", { weatherTypes: [...RPG_WEATHER_TYPES].join("/") }));
       // §1.6 gap — the structured day counter, prompted ONLY when dateMode is structured (mode-aware fragment).
-      if (ctx.config.dateMode === "structured") {
-        lines.push(
-          "Set scene.day (the integer day counter) and advance it by one whenever the party sleeps through the " +
-            "night or the story crosses into the next morning; set scene.calendarDate for a narrated in-world date.",
-        );
-      } else {
-        lines.push('Set scene.calendarDate for a narrated in-world date the story gives (e.g. "3rd of Frostmoon"), and move it on as days pass.');
-      }
-      lines.push(
-        "WHO IS PRESENT — scene.presentUpsert: one entry per character who speaks or acts (name required). Fill " +
-          "what the beat reveals: mood, appearance, outfit, thoughts (inner state), and relationship toward the " +
-          "player (kind = lover/friend/ally/neutral/enemy/custom) as it shifts. scene.presentRemove a character " +
-          "who leaves.",
-      );
+      // TWO SLOTS, not one slot with a mode token: the two clauses say different things, so burying either in a
+      // token VALUE would put un-editable model prose back in the code — the disease this program exists to kill.
+      lines.push(rpgProse(ctx, ctx.config.dateMode === "structured" ? "rpg.extract.scene.dayStructured" : "rpg.extract.scene.dayNarrated"));
+      lines.push(rpgProse(ctx, "rpg.extract.scene.present"));
       // The mood-prose steer (owner report): models write a whole sentence into `mood`, which the cast row
       // renders as a wall of text. Taught in PROSE, never a schema max/pattern — a hard constraint would make
       // the whole call unemittable on a non-enforcing wire and cost the beat, the exact class EXT-4 is fixing.
-      lines.push(
-        'MOOD IS A SHORT READ — scene.presentUpsert[].mood is 1-3 words, evocative ("wary", "quietly furious", ' +
-          '"giddy"), never a sentence. The reasoning behind it belongs in thoughts; what just happened belongs in ' +
-          "scene.recentEvent.",
-      );
+      lines.push(rpgProse(ctx, "rpg.extract.scene.mood"));
       // §1.6 gap — the portrait-fallback emoji, one clause.
-      lines.push("Give a NEW character a fitting single emoji (presentUpsert[].emoji) — the portrait fallback.");
+      lines.push(rpgProse(ctx, "rpg.extract.scene.emoji"));
       // §1.6 gap — the plot act rail, gated on plotProgression.
       if (ctx.config.features.plotProgression) {
-        lines.push("When the story crosses into a NEW act, set scene.plot (act number + a short act title); set the story title once it's clear.");
+        lines.push(rpgProse(ctx, "rpg.extract.scene.plot"));
       }
       return lines.join("\n");
     },
@@ -165,10 +153,7 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
     plane: "party",
     toolName: "update_party",
     fragment: (ctx) => {
-      const base =
-        "PARTY — party: ONLY mechanical changes. Tracked-value writes (trackerDeltas/trackerSets), conditions " +
-        'gained/lost (addCondition/removeCondition, e.g. "bleeding", "on edge"), and a short ' +
-        "status line (status). A character's personality, mood, or relationship goes in scene.presentUpsert, NOT here.";
+      const base = rpgProse(ctx, "rpg.extract.plane.party");
       // R2/R6 — the game's OWN trackers, by name + host gloss. Static prose here would teach a vocabulary
       // this game may not have and omit the one it does.
       const trackers = actorTrackerFragment(ctx);
@@ -178,10 +163,7 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
   {
     plane: "inventory",
     toolName: "update_inventory",
-    fragment: () =>
-      "INVENTORY — inventory: items gained or lost (add/remove) and currency (walletDeltas — named currencies, " +
-      "e.g. gold). INFER what a character has on them from what the story showed — recording an item the story " +
-      "established (a key pocketed three turns ago) is NOT inventing.",
+    fragment: (ctx) => rpgProse(ctx, "rpg.extract.plane.inventory"),
   },
   {
     plane: "trackers",
@@ -193,24 +175,16 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
       if (defs.length === 0) {
         return null;
       }
-      return (
-        "GAME TRACKERS — trackers: the whole-game readings (not tied to one character). Write one when the " +
-        "beat moves it — a delta tracker takes a signed `delta`, a state tracker takes the new `value`. " +
-        `Never invent a key.\n${defs.map(trackerCatalogueLine).join("\n")}`
-      );
+      return rpgProse(ctx, "rpg.extract.plane.trackers", { trackerCatalogue: defs.map(trackerCatalogueLine).join("\n") });
     },
   },
   {
     plane: "quests",
     toolName: "upsert_quest",
-    fragment: () =>
-      "QUESTS — quests: a new or advancing quest (name + action create/update/complete/fail, with objectives). " +
-      // EXT-4c — the two objective gestures, in prose (never extra schema): the model has to learn that ticking
-      // one objective off is `completeObjectives`, not a re-listing, or it restates the list on every beat.
-      "To mark an objective DONE, name its text in completeObjectives — do NOT restate the objective list to " +
-      "report progress. Send objectives only to CHANGE the list itself (adding a newly-revealed step); the " +
-      "lines you repeat keep the progress already recorded against them. " +
-      "Reconcile a quest the story resolved (mark it complete/fail) even if a later beat stopped mentioning it.",
+    // EXT-4c — the slot carries the two objective gestures in prose (never extra schema): the model has to
+    // learn that ticking one objective off is `completeObjectives`, not a re-listing, or it restates the list
+    // on every beat.
+    fragment: (ctx) => rpgProse(ctx, "rpg.extract.plane.quests"),
   },
   {
     plane: "journal",
@@ -218,13 +192,13 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
     // R4c — teach the `custom` escape + the host's own type glosses. The seven built-ins are combat-flavoured
     // on a plane that fires on 79% of turns; a host who defines "ritual" or "gossip" gets it taught by name.
     fragment: (ctx) => {
-      const base = "JOURNAL — journal: one short entry (type + content) for a notable beat worth logging.";
+      const base = rpgProse(ctx, "rpg.extract.plane.journal");
       const hints = Object.entries(ctx.config.features.journalTypeHints);
       if (hints.length === 0) {
-        return `${base} When none of the built-in types fits, use type "custom" with a short \`label\` naming the kind of beat.`;
+        return `${base} ${rpgProse(ctx, "rpg.extract.journal.customType")}`;
       }
       const lines = hints.map(([label, hint]) => (hint === "" ? `  • ${label}` : `  • ${label} — ${hint}`));
-      return `${base} When none of the built-in types fits, use type "custom" with one of this game's own labels:\n${lines.join("\n")}`;
+      return `${base} ${rpgProse(ctx, "rpg.extract.journal.customLabels", { journalTypeLabels: lines.join("\n") })}`;
     },
   },
 ];
@@ -236,7 +210,7 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
 export function composePlaneTeaching(ctx: ExtractionPromptContext): string {
   const blocks: string[] = [];
   if (isDeceptionActive(ctx.config.features)) {
-    blocks.push(DECEPTION_SURFACE_CLAUSE);
+    blocks.push(rpgProse(ctx, "rpg.extract.deceptionSurface"));
   }
   for (const row of EXTRACTION_PLANE_PROMPTS) {
     const fragment = row.fragment(ctx);
@@ -244,11 +218,7 @@ export function composePlaneTeaching(ctx: ExtractionPromptContext): string {
       blocks.push(fragment);
     }
   }
-  blocks.push(
-    "RECONCILE: when the CURRENT TRACKED STATE contradicts the story (a character shown leaving is still listed " +
-      "present, an outfit the story replaced), fix it in this delta. Recording facts the story states is not " +
-      "inventing — but never fabricate numbers, items, or events the story does not show.",
-  );
+  blocks.push(rpgProse(ctx, "rpg.extract.reconcileDoctrine"));
   return blocks.join("\n");
 }
 
@@ -275,7 +245,7 @@ const POPULATE_DOCTRINE =
 export function composePopulateTeaching(ctx: ExtractionPromptContext): string {
   const blocks: string[] = [];
   if (isDeceptionActive(ctx.config.features)) {
-    blocks.push(DECEPTION_SURFACE_CLAUSE);
+    blocks.push(rpgProse(ctx, "rpg.extract.deceptionSurface"));
   }
   blocks.push(
     "IDENTITY — sheet.title is this character's TITLE or class as the card presents them (\"Warden of House " +
@@ -315,15 +285,12 @@ function partyExample(ctx: ExtractionPromptContext): string {
   const defs = writableActorTrackers(ctx.config);
   const delta = defs.find((d) => d.write === "delta");
   const set = defs.find((d) => d.write === "set");
-  const parts = ["targetRef:'player'"];
-  if (delta !== undefined) {
-    parts.push(`trackerDeltas:[{key:'${delta.key}',delta:-3}]`);
-  }
-  if (set !== undefined) {
-    parts.push(`trackerSets:[{key:'${set.key}',value:${set.shape === "text" ? "'guarded'" : "40"}}]`);
-  }
-  parts.push("addCondition:{name:'Bleeding',modifier:-1}", "status:'bleeding, breathing hard'");
-  return `{${parts.join(", ")}}`;
+  // The two tracker args carry their OWN `, ` separator, so an absent tracker contributes nothing and the
+  // tracker-free game renders the same bytes the pre-slot `parts.join(", ")` produced.
+  return rpgProse(ctx, "rpg.extract.tool.partyExample", {
+    trackerDeltaArg: delta === undefined ? "" : `, trackerDeltas:[{key:'${delta.key}',delta:-3}]`,
+    trackerSetArg: set === undefined ? "" : `, trackerSets:[{key:'${set.key}',value:${set.shape === "text" ? "'guarded'" : "40"}}]`,
+  });
 }
 
 /** Build the per-game model-facing tool DESCRIPTIONS (R2 templates), keyed by WIRE TOOL NAME. A `Map` (not an
@@ -336,73 +303,37 @@ export function buildRpgToolDescriptions(ctx: ExtractionPromptContext): Readonly
   return new Map([
     [
       "update_party",
-      "Record changes to any actor's body, condition, or tracked values. " +
-        "trackerDeltas: spend/restore a tracked RESOURCE (negative = spent, e.g. damage on an HP meter). trackerSets: record the " +
-        "new reading of a tracked STATE. addCondition: a new status effect (e.g. Blessed, Bleeding, Poisoned) with " +
-        "an optional numeric modifier. removeCondition: when an effect ends. status: a short current-state line " +
-        `('bleeding, on edge').${actorTrackers === null ? "" : `\n${actorTrackers}`}\nEXAMPLE — took a cut and spent ` +
-        `themselves fighting: \`${partyExample(ctx)}\`.`,
+      rpgProse(ctx, "rpg.extract.tool.updateParty", {
+        // The per-actor tracker block carries its own leading newline, so a tracker-free game renders the
+        // description with nothing between the status clause and the EXAMPLE — the pre-slot ternary's bytes.
+        actorTrackers: actorTrackers === null ? "" : `\n${actorTrackers}`,
+        partyExample: partyExample(ctx),
+      }),
     ],
-    [
-      "update_inventory",
-      "Items and coin on an actor. add: new items — ALWAYS give a `description` and a `location` (where it's " +
-        "carried: 'belt pouch', 'sheathed'), plus quantity. remove: items used/lost/given away. walletDeltas: coin " +
-        "gained/spent (negative=spent). EXAMPLE — gifted an oil vial, paid 20 gold: `{targetRef:'player', " +
-        "add:[{name:'Vial of Sanctified Oil', description:'warded holy oil, faintly glowing', quantity:1, " +
-        "location:'belt pouch'}], walletDeltas:[{name:'gold', delta:-20}]}`.",
-    ],
+    ["update_inventory", rpgProse(ctx, "rpg.extract.tool.updateInventory")],
     // RV-9: time and weather are a LIVE CLOCK on the panel, so the description says WHEN to move them — a field
     // the model never advances renders as a stopped clock (the R4b gloss lesson).
-    [
-      "update_scene",
-      "The scene + who is present. Set location/timeOfDay/weather when they change — specifically whenever " +
-        "the beat spends time (rest, travel, a cut to later), so the day actually moves, and whenever the " +
-        "sky turns; calendarDate/day as days " +
-        "pass; advance plot.act/title/actSummary as the story moves. weather is the WORLD'S weather — the sky, " +
-        "never the room: set it whenever the story says what the sky is doing, indoors or out (a blizzard past the " +
-        "cabin window counts); when the story says nothing about the sky, omit it and it keeps, and a room's own " +
-        "atmosphere goes in location instead. weather.type is one of " +
-        `${[...RPG_WEATHER_TYPES].join("/")} — use "indoors" when the scene is enclosed with no sky visible from ` +
-        "it at all, and if none fits what the sky is doing, OMIT weather rather than " +
-        'forcing the nearest; the vivid phrasing goes in weather.label ("torrential sleet"). ' +
-        "presentUpsert: for EACH character on screen set mood (every demeanor shift — 1-3 " +
-        'words, "wary", "quietly furious", NEVER a sentence), appearance + outfit (when described), thoughts ' +
-        "(their implied inner state), and relationship {kind,label}. " +
-        "recentEvent: a one-line beat. EXAMPLE — a priest warms to you: `{timeOfDay:'evening', " +
-        "presentUpsert:[{name:'Sister Vesna', emoji:'🕯️', mood:'warming', appearance:'tall, silver-haired', " +
-        "outfit:'patched grey habit', thoughts:'weighing whether to trust you', " +
-        "relationship:{kind:'ally',label:''}}], recentEvent:'Vesna softened as you shared road news'}`.",
-    ],
+    ["update_scene", rpgProse(ctx, "rpg.extract.tool.updateScene", { weatherTypes: [...RPG_WEATHER_TYPES].join("/") })],
     [
       "set_tracker",
-      "Write a GAME-WIDE tracked reading (not tied to one character). A resource tracker takes a signed `delta`; " +
-        `a state tracker takes the new \`value\` (or \`items\` for a list).${
-          gameTrackerDefs.length === 0 ? "" : `\n${gameTrackerDefs.map(trackerCatalogueLine).join("\n")}`
-        }\nEXAMPLE — the town's alarm rises: \`{key:'${gameTrackerDefs.at(0)?.key ?? "alarm"}', value:35}\`.`,
+      rpgProse(ctx, "rpg.extract.tool.setTracker", {
+        gameTrackerCatalogue: gameTrackerDefs.length === 0 ? "" : `\n${gameTrackerDefs.map(trackerCatalogueLine).join("\n")}`,
+        exampleTrackerKey: gameTrackerDefs.at(0)?.key ?? "alarm",
+      }),
     ],
-    [
-      "upsert_quest",
-      "Create/update/complete/fail a quest. Give a description and objectives[] on create; use action " +
-        "'complete'/'fail' when the WHOLE quest resolves. To tick ONE objective off, pass its exact text in " +
-        "completeObjectives — never re-send objectives[] to report progress (send objectives[] only to change " +
-        "the list itself; repeated lines keep the progress already on them). EXAMPLE — a new task opens: " +
-        "`{name:'Reach the Vault of Ash', action:'create', description:'Get to the vault before the new moon', " +
-        "objectives:['Find the road north','Enter the vault']}`. EXAMPLE — the road is found: " +
-        "`{name:'Reach the Vault of Ash', action:'update', completeObjectives:['Find the road north']}`.",
-    ],
-    [
-      "add_journal_entry",
-      "Log a notable beat with the right type (location/npc/combat/quest/item/event/note, or 'custom' with a " +
-        "short `label` when none of those fits) + a short title + content. EXAMPLE: `{type:'combat', title:'Ambush " +
-        "at the Chapel', content:'Corvin drew on you at the altar; you took a cut but stayed up.'}`.",
-    ],
+    ["upsert_quest", rpgProse(ctx, "rpg.extract.tool.upsertQuest")],
+    ["add_journal_entry", rpgProse(ctx, "rpg.extract.tool.addJournalEntry")],
   ]);
 }
 
 /** The GAME-FREE baseline descriptions — the templates rendered against a default config with no trackers.
  *  The tool-use REGISTRY defs (which are registered once at compose, with no game in scope) read these, so
  *  the static registry and the per-call wire tools can never say two different things about the same tool.
- *  A per-call assembly ALWAYS re-renders through {@link buildRpgToolDescriptions} with the real game. */
+ *  A per-call assembly ALWAYS re-renders through {@link buildRpgToolDescriptions} with the real game.
+ *
+ *  NO PROSE, and that is the invariant rather than an omission (PROSE-1): this is built at MODULE LOAD, where
+ *  there is no game and therefore no GM preset in scope, so a host override has nothing to be an override OF.
+ *  The baseline consumer reads shipped DEFAULTS, always — an extraction override is a per-call fact. */
 export const RPG_BASELINE_TOOL_DESCRIPTIONS: ReadonlyMap<string, string> = buildRpgToolDescriptions({
   config: rpgGameConfigSchema.parse({}),
   refs: {

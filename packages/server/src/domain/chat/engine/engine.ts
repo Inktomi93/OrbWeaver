@@ -23,6 +23,7 @@ import {
   MANAGED_COMPACT_DEFAULT_PCT,
   MANAGED_VERBATIM_TAIL,
 } from "@orb/contracts/preset";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
@@ -621,6 +622,17 @@ function memoryRequestId(turnId: ChatTurnId): string {
  *  (`withRequestSpan`, whose `root: true` is what makes that detach real), keyed by the turn —
  *  `/api/_debug/traces` shows the round as its own trace with its provider + db children under it, instead of
  *  nothing. The span marks itself error on the same throw the warn below records. */
+/** THIS turn's already-composed prose view (PROSE-1 S4) — captured, never re-resolved (see
+ *  `RpgTurnContext.prose`). The SAME record the assembler read for the prompt the post-commit state round is
+ *  about to extract from, and the same one the gather handed the fold mount, so the narrator and the
+ *  extractor are taught one vocabulary. Absent (a hand-built context) ⇒ `{}` ⇒ the shipped defaults.
+ *
+ *  Its own function purely so the `??` stays out of the turn body's cognitive-complexity budget, which is at
+ *  its ceiling — the alternative was raising the ceiling for one coalesce. */
+function turnProse(prep: TurnPrep): ProseOverrides {
+  return prep.assembleContext.prose ?? {};
+}
+
 function fireRpgTurnCompleted(ctx: ChatContext, view: MessageView, turnId: ChatTurnId, turn: RpgTurnContext): void {
   if (ctx.rpg !== null) {
     const rpg = ctx.rpg;
@@ -1344,6 +1356,7 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
       ownerConsented,
       transcript: projectTurnRpgTranscript(canonAll, view, historyMacroNames),
       terminalToolCalls: result.terminalToolCalls,
+      prose: turnProse(prep),
       // The round's cancellation inputs. `triggeredBy` is the OWNER it is scoped to (`cancelStateRounds` mirrors
       // `activeTurns.abort`'s owner-only rule); `signal` is this turn's own registration signal, which covers
       // ONLY the multi-speaker overlap window — the registration is released the moment this function returns,

@@ -465,8 +465,8 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
   const expected = PROSE_SLOT_IDS.filter((id) => PROSE_SLOTS[id].home === "preset" && !legacyAdapted.has(id));
   expect(PRESET_PROSE_SLOT_IDS).toStrictEqual(expected);
   // Spelled out so a slot JOINING or LEAVING the preset-editable set is a decision somebody reads, not a silent
-  // derivation shift: the three turn-wire framings (2026-08-07) plus the eleven rpg game-turn teaches (the
-  // 2026-08-08 re-home), in `PROSE_SLOT_IDS` tuple order.
+  // derivation shift: the three turn-wire framings (2026-08-07), the eleven rpg game-turn teaches (the
+  // 2026-08-08 re-home), and the forty EXTRACTION-seam slots (PROSE-1 S4), in `PROSE_SLOT_IDS` tuple order.
   expect(PRESET_PROSE_SLOT_IDS).toStrictEqual([
     "chat.injection.systemNote",
     "chat.injection.userNote",
@@ -482,6 +482,46 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "rpg.reminder.offstageHeader",
     "rpg.delta.changesHeading",
     "rpg.delta.sceneOpensHeading",
+    "rpg.extract.deceptionSurface",
+    "rpg.extract.party.resources",
+    "rpg.extract.party.states",
+    "rpg.extract.party.trackerScope",
+    "rpg.extract.scene.core",
+    "rpg.extract.scene.clock",
+    "rpg.extract.scene.weather",
+    "rpg.extract.scene.dayStructured",
+    "rpg.extract.scene.dayNarrated",
+    "rpg.extract.scene.present",
+    "rpg.extract.scene.mood",
+    "rpg.extract.scene.emoji",
+    "rpg.extract.scene.plot",
+    "rpg.extract.plane.party",
+    "rpg.extract.plane.inventory",
+    "rpg.extract.plane.trackers",
+    "rpg.extract.plane.quests",
+    "rpg.extract.plane.journal",
+    "rpg.extract.journal.customType",
+    "rpg.extract.journal.customLabels",
+    "rpg.extract.reconcileDoctrine",
+    "rpg.extract.tool.updateParty",
+    "rpg.extract.tool.partyExample",
+    "rpg.extract.tool.updateInventory",
+    "rpg.extract.tool.updateScene",
+    "rpg.extract.tool.setTracker",
+    "rpg.extract.tool.upsertQuest",
+    "rpg.extract.tool.addJournalEntry",
+    "rpg.extract.tool.noChanges",
+    "rpg.extract.systemHeader",
+    "rpg.extract.toolRoundHeader",
+    "rpg.extract.reconcilePass",
+    "rpg.extract.foldedReconcile",
+    "rpg.extract.lockedPaths",
+    "rpg.extract.refs.targets",
+    "rpg.extract.refs.playerToken",
+    "rpg.extract.refs.trackerGroup",
+    "rpg.extract.refs.gameTrackerKeys",
+    "rpg.extract.refs.conditions",
+    "rpg.extract.refs.closing",
   ]);
 });
 

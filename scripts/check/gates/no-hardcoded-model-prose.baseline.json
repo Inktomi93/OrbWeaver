@@ -1,8 +1,8 @@
 {
-  "packages/contracts/src/rpg/extraction-prompt.ts": 30,
+  "packages/contracts/src/rpg/extraction-prompt.ts": 3,
   "packages/server/src/domain/imagery/tool/index.ts": 1,
   "packages/server/src/domain/rpg/substrate/actor-ops.ts": 1,
   "packages/server/src/domain/rpg/substrate/actor-rekey.ts": 2,
   "packages/server/src/domain/rpg/tools/index.ts": 1,
-  "packages/server/src/entry/compose/rpg.ts": 16
+  "packages/server/src/entry/compose/rpg.ts": 8
 }
