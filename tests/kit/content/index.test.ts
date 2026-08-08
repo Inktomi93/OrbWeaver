@@ -609,6 +609,34 @@ describe("projectBodyForPreview", () => {
     expect(projectBodyForPreview('<gmnote to="self" text="not prose"/>\nShe waits.')).toBe("She waits.");
   });
 
+  test("a NARRATOR row's <speaker> markers flatten to plain NAME: attribution — never raw markup in the scent line", () => {
+    // The chat-list subtitle is exactly this projection (`ChatSummary.lastMessagePreview`). A group narrator
+    // body carries inline `<speaker>NAME</speaker>` markers that the message-list renderer splits + tints; the
+    // one-line preview must read as prose, not leak the tag. Reuses the kit speaker engine (`speakerTagsToPlain`).
+    const body = "<speaker>Aldric</speaker>The gate holds. <speaker>Sabine</speaker>For now.";
+    const preview = projectBodyForPreview(body);
+    expect(preview).not.toContain("<speaker>");
+    expect(preview).not.toContain("</speaker>");
+    expect(preview).toBe("Aldric: The gate holds. Sabine: For now.");
+  });
+
+  test("a NON-narrator body carries NO <speaker> markers, so the strip is a byte-for-byte no-op (the fence)", () => {
+    // The speaker flatten must touch ONLY narrator rows. A per-speaker / solo / human body has no `<speaker>`
+    // tags, so `speakerTagsToPlain` is a no-op and the preview is exactly the pre-change projection. A prose
+    // line that merely mentions the word "speaker" (never as a tag) is likewise untouched.
+    expect(projectBodyForPreview("She lowers her voice to a whisper. The room stills.")).toBe("She lowers her voice to a whisper. The room stills.");
+    expect(projectBodyForPreview("The speaker at the lectern cleared his throat.")).toBe("The speaker at the lectern cleared his throat.");
+  });
+
+  test("truncation lands on the FLATTENED string — a long narrator preview caps to the budget, not the raw markup", () => {
+    // The cap runs AFTER the speaker flatten, so the budget is spent on readable prose, never on `<speaker>` bytes.
+    const body = `<speaker>Aldric</speaker>${"a".repeat(300)}`;
+    const preview = projectBodyForPreview(body);
+    expect(preview).toHaveLength(PREVIEW_MAX_CHARS);
+    expect(preview.startsWith("Aldric: ")).toBe(true);
+    expect(preview.endsWith("…")).toBe(true);
+  });
+
   test("an all-structure or empty body previews as the EMPTY string (the caller decides what that means)", () => {
     expect(projectBodyForPreview("")).toBe("");
     expect(projectBodyForPreview('<lie character="Aria" truth="x"/>')).toBe("");
