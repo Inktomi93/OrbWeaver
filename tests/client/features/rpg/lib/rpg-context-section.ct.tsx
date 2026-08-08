@@ -8,8 +8,9 @@
 // `trackersReadOnly`. The roster/view stubs return only what the panel reads (a partial shape, the chats-
 // section.ct ROSTER_STUB posture); every value crosses the routeTrpc JSON boundary as a plain object.
 
-import type { RpgExtractionMode } from "@orb/contracts/rpg";
-import type { MessageId } from "@orb/kit/ids";
+import type { RpgExtractionMode, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
+import { actorRefKey, carriesTracker } from "@orb/contracts/rpg";
+import type { CharacterId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
@@ -90,8 +91,8 @@ const VITALITY = {
   sort: 0,
   pinned: true,
   locked: false,
-};
-const RESOLVE = { ...VITALITY, key: "resolve", label: "Resolve", max: 10, sort: 1 };
+} satisfies RpgTrackerDef;
+const RESOLVE = { ...VITALITY, key: "resolve", label: "Resolve", max: 10, sort: 1 } satisfies RpgTrackerDef;
 
 // A `rpg.getTrackerView` stub — one roster actor with trackers + a condition, ambient + orbs, cast, a goal, beats.
 function trackerView(trackersReadOnly: boolean): unknown {
@@ -259,6 +260,11 @@ function stubTakeover(
     readonly resyncVerdict?: { readonly ok: true; readonly rebuilt: boolean } | { readonly ok: false; readonly reason: string };
     /** POPLOUD — the born-state round's verdict (`PopulateResult`). Default: a fill that landed. */
     readonly populateVerdict?: { readonly ok: true; readonly populated: boolean } | { readonly ok: false; readonly reason: string };
+    /** GRANTS-EDITOR — a LIVE getTrackerView that re-resolves per read (so a persisted grant flips carriage on
+     *  the post-write refetch), and the patchSheet handler that mutates the store it reads. Both default to the
+     *  static arms above, so every existing caller is unchanged. */
+    readonly liveTracker?: () => unknown;
+    readonly patchSheet?: (input: unknown) => unknown;
   } = {},
 ): ReturnType<typeof routeTrpc> {
   const readOnly = opts.readOnly ?? false;
@@ -270,7 +276,7 @@ function stubTakeover(
     "chat.reattributePersona": () => (opts.restampFails === true ? trpcError({ message: "restamp blew up" }) : undefined),
     "chat.getChat": () => opts.chat ?? gameChat(),
     "rpg.getGame": () => opts.game ?? gameView(readOnly),
-    "rpg.getTrackerView": () => opts.tracker ?? trackerView(readOnly),
+    "rpg.getTrackerView": () => (opts.liveTracker !== undefined ? opts.liveTracker() : (opts.tracker ?? trackerView(readOnly))),
     // EDITSNAP-OK — the four HAND DOORS answer with a `HandDoorResult` VERDICT, never a bare `undefined`. The
     // stub says so: the client now reads `ok` (a refusal is errors-as-data on a RESOLVED mutation, so it is
     // the only channel a refusal has), and a stub that lies about the wire shape would be testing a contract
@@ -279,7 +285,7 @@ function stubTakeover(
     "rpg.patchActor": () => opts.handDoorRefusal ?? { ok: true },
     "rpg.dismissActor": () => opts.handDoorRefusal ?? { ok: true },
     "rpg.promoteActor": () => opts.handDoorRefusal ?? { ok: true },
-    "rpg.patchSheet": () => undefined,
+    "rpg.patchSheet": opts.patchSheet ?? ((): undefined => undefined),
     // POPLOUD — the born-state round answers with a `PopulateResult` VERDICT, never a bare `undefined`: like
     // the resync it is a model call that can fail at the PROVIDER, and the client reads the verdict to tell
     // "filled" from "the round never ran". A stub returning `undefined` would test a contract the server no
@@ -2933,4 +2939,124 @@ test("a fine pointer keeps the band's satellites and its selection echo", async 
   const component = await mount(<RpgTakeoverStory height={720} width={360} />);
   await expect(component.locator('[data-slot="rpg-band-satellites"]')).toBeVisible();
   await expect(component.locator('[data-slot="rpg-hud-echo"]')).toBeVisible();
+});
+
+// ── The per-actor TRACKER-EXCEPTIONS editor (host grants/revokes, tracked-field-unification §5.1) ──────────
+// `sheet.trackerGrants`/`trackerRevokes` gate per-actor tracker applicability server-side and were stored,
+// gated + optimistically merged with NO client editor — so the owner's explicit-list-only ruling was a DEAD
+// LETTER (a host could not author the list). The host editor lives in the Status character takeover. These
+// pin the three things: (1) a host GRANTS a class-excluded tracker and REVOKES a class-included one, persisted
+// as the whole-list `patchSheet` payload; (2) the write CHANGES APPLICABILITY — the stub re-resolves
+// `carriesTracker` on the post-write refetch, so the takeover renders the SETTLED new carriage; (3) a MEMBER
+// sees no editor (grants are the host's call — PERMISSION-omit).
+
+// Mara is a CHARACTER actor ⇒ the `party` carrier class. `vitality`/`resolve` (party) reach her by class and
+// can be revoked; `bound-will` (explicit EMPTY list) reaches her ONLY by a grant. All actor-subject meters,
+// `satisfies`-typed (VITALITY/RESOLVE above) so they feed the ONE carrier predicate without a literal-cast.
+const BOUND_WILL = { ...VITALITY, key: "bound-will", label: "Bound Will", appliesTo: [], sort: 2, pinned: false } satisfies RpgTrackerDef;
+const GRANT_DEFS = [VITALITY, RESOLVE, BOUND_WILL];
+const MARA_REF = { kind: "character", characterId: "character_ct_mara" } as const;
+const MARA_KEY = actorRefKey({ kind: "character", characterId: castId<CharacterId>("character_ct_mara") });
+
+/** A LIVE grants/revokes store: `tracker()` re-resolves Mara's carried set through the ONE carrier predicate on
+ *  every read, `patch()` mutates the store from a whole-list `patchSheet` payload. So a persisted grant really
+ *  starts carrying on the refetch — the applicability half, not just a payload assertion. */
+function grantsStore(): { readonly tracker: () => unknown; readonly patch: (input: unknown) => void } {
+  const grants: string[] = [];
+  const revokes: string[] = [];
+  const defs = GRANT_DEFS;
+  const carrier = (): RpgTrackerCarrier => ({ actorKey: MARA_KEY, name: "Mara", kind: "party", grants, revokes });
+  return {
+    tracker: (): unknown => ({
+      ...(trackerView(false) as Record<string, unknown>),
+      trackerDefs: defs,
+      actors: [
+        {
+          actorRef: MARA_REF,
+          name: "Mara",
+          presence: false,
+          identity: null,
+          sheet: { className: "Warden", attributes: {}, flavor: "", level: null, trackerGrants: [...grants], trackerRevokes: [...revokes] },
+          // The server's carrier verdict — the panel renders exactly this, never re-deriving carriage itself.
+          trackers: defs.filter((def) => carriesTracker(def, carrier())),
+          volatile: { trackerValues: {}, conditions: [], inventory: [], wallet: [], status: "" },
+        },
+      ],
+    }),
+    patch: (input: unknown): undefined => {
+      const patch = (input as { readonly patch?: { readonly trackerGrants?: string[]; readonly trackerRevokes?: string[] } }).patch ?? {};
+      if (patch.trackerGrants !== undefined) {
+        grants.splice(0, grants.length, ...patch.trackerGrants);
+      }
+      if (patch.trackerRevokes !== undefined) {
+        revokes.splice(0, revokes.length, ...patch.trackerRevokes);
+      }
+    },
+  };
+}
+
+test("host GRANTS a class-excluded tracker: whole-list patchSheet persists it, and the actor starts carrying it", async ({ mount, page }) => {
+  const store = grantsStore();
+  const trpc = await stubTakeover(page, { game: d20Game(), liveTracker: store.tracker, patchSheet: store.patch });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("button", { name: "Open Mara" }).click();
+
+  const editor = component.locator('[data-slot="rpg-tracker-grants"]');
+  await expect(editor).toBeVisible();
+  const row = editor.locator('[data-slot="rpg-tracker-grant-row"][data-tracker-key="bound-will"]');
+  // At rest: the explicit-empty class excludes her, so she does not carry it (the outcome hint, server truth).
+  await expect(row.locator('[data-slot="rpg-tracker-grant-outcome"]')).toHaveText("Doesn't carry");
+
+  // Grant it — the Select opens a listbox; pick Granted.
+  await row.getByRole("combobox", { name: "Bound Will access for Mara" }).click();
+  await page.getByRole("option", { name: "Granted" }).click();
+
+  // PERSISTED — the whole-list payload names the grant, revokes stays empty (disjoint by construction).
+  await expect.poll(() => trpc.count("rpg.patchSheet"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
+  await expect
+    .poll(() => trpc.lastInput("rpg.patchSheet"), { intervals: [20, 50, 100] })
+    .toMatchObject({ actorRef: { kind: "character", characterId: "character_ct_mara" }, patch: { trackerGrants: ["bound-will"], trackerRevokes: [] } });
+
+  // APPLICABILITY — the post-write refetch re-resolves carriage from the store, so the SETTLED outcome flips.
+  await expect(row.locator('[data-slot="rpg-tracker-grant-outcome"]')).toHaveText("Carries");
+});
+
+test("host REVOKES a class-included tracker: patchSheet persists the revoke and the actor stops carrying it", async ({ mount, page }) => {
+  const store = grantsStore();
+  const trpc = await stubTakeover(page, { game: d20Game(), liveTracker: store.tracker, patchSheet: store.patch });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("button", { name: "Open Mara" }).click();
+
+  const row = component.locator('[data-slot="rpg-tracker-grants"] [data-slot="rpg-tracker-grant-row"][data-tracker-key="vitality"]');
+  // The party class swept her in at rest.
+  await expect(row.locator('[data-slot="rpg-tracker-grant-outcome"]')).toHaveText("Carries");
+
+  await row.getByRole("combobox", { name: "Vitality access for Mara" }).click();
+  await page.getByRole("option", { name: "Revoked" }).click();
+
+  await expect
+    .poll(() => trpc.lastInput("rpg.patchSheet"), { intervals: [20, 50, 100] })
+    .toMatchObject({ patch: { trackerGrants: [], trackerRevokes: ["vitality"] } });
+  // A revoke beats the class — she stops carrying it on the settled refetch.
+  await expect(row.locator('[data-slot="rpg-tracker-grant-outcome"]')).toHaveText("Doesn't carry");
+});
+
+test("a MEMBER sees NO grants editor in the takeover — grants are the host's call (PERMISSION-omit)", async ({ mount, page }) => {
+  const store = grantsStore();
+  await stubTakeover(page, {
+    game: d20Game(),
+    liveTracker: store.tracker,
+    patchSheet: store.patch,
+    chat: { ...(gameChat() as Record<string, unknown>), viewerIsHost: false },
+  });
+  const component = await mount(<RpgTakeoverStory />);
+  await component.getByRole("tablist", { name: "Game" }).getByRole("tab", { name: "Status" }).click();
+  await component.getByRole("button", { name: "Open Mara" }).click();
+
+  const detail = component.locator('[data-slot="rpg-character-detail"]');
+  await expect(detail).toBeVisible();
+  // The takeover renders (a member reads the roster) — but the host-only grants editor is absent, not disabled.
+  await expect(detail.locator('[data-slot="rpg-tracker-grants"]')).toHaveCount(0);
 });

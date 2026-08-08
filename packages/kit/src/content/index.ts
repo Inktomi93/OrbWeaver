@@ -39,6 +39,7 @@
 
 import type { AssetId } from "#ids";
 import { castId } from "#ids";
+import { speakerTagsToPlain } from "#speaker-label";
 
 /** A parsed image target: an owned-CAS asset (by id) or an external URL. The chat domain resolves this to a
  *  model-fetchable URL via the injected `resolveImageUrl` op (asset→CAS URL/data-URI; external→gated). */
@@ -989,7 +990,12 @@ export function projectBodyForPreview(content: string, maxChars: number = PREVIE
   const prose = tokenizeContent(content, { committed: true })
     .map((s) => (s.kind === "text" ? s.text : ""))
     .join("");
-  const flat = prose
+  // A NARRATOR row carries inline `<speaker>NAME</speaker>` markers (§12.4) — the SAME markup the message-list
+  // renderer splits + tints. `tokenizeContent` leaves them inside `text` spans (they are not span-tokens), so a
+  // raw `<speaker>` would leak into the one-line scent. Flatten through the ONE kit speaker engine
+  // (`speakerTagsToPlain` — the prompt-history home) to `NAME: ` plain attribution rather than re-spelling the
+  // tag grammar here (the content-class-wire duplication ban). A tagless per-speaker/solo row is a cheap no-op.
+  const flat = speakerTagsToPlain(prose)
     .replace(PREVIEW_LINK_RE, "$1")
     .replace(PREVIEW_BLOCK_PREFIX_RE, "")
     .replace(PREVIEW_INLINE_MARKERS_RE, "")
