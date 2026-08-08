@@ -252,12 +252,13 @@ test("at the REAL 320×700 pane the tail control is reachable by scrolling — n
   // floor is this surface's most common rendered defect).
   const paneBox = await list.boundingBox();
   const buttonBox = await loadMore.boundingBox();
-  expect(paneBox).not.toBeNull();
-  expect(buttonBox).not.toBeNull();
-  if (paneBox !== null && buttonBox !== null) {
-    expect(buttonBox.x).toBeGreaterThanOrEqual(paneBox.x);
-    expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(paneBox.x + paneBox.width);
+  // Throw-guard (not an `if` around the expects — a conditional expect that skips reads as a pass): a
+  // visible, in-viewport control always has a box, so a null here is a real failure, not a branch.
+  if (paneBox === null || buttonBox === null) {
+    throw new Error("expected rendered boxes for the pane and the Load more control");
   }
+  expect(buttonBox.x).toBeGreaterThanOrEqual(paneBox.x);
+  expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(paneBox.x + paneBox.width);
 
   // …and it works from there: the next page lands.
   await loadMore.click();
