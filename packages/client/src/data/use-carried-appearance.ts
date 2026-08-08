@@ -21,13 +21,17 @@
 import type { CarriedAppearanceCast, CarriedAppearanceMember } from "@orb/contracts/chat";
 import { carriedCastFromParticipants } from "@orb/contracts/chat";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { useQueries } from "@tanstack/react-query";
 import { useTRPC } from "./trpc.ts";
+import { useDraftCastCards } from "./use-draft-cast-cards.ts";
 import { useGatedQuery } from "./use-gated-query.ts";
 
 /** A pre-send draft's human seats: the viewer, alone. An invite can only land once the chat row exists, so
  *  a draft is single-human BY CONSTRUCTION — the same composition its `startChat` will create. */
 const DRAFT_HUMAN_SEATS = 1;
+
+/** The frozen "not a draft" cast ref — a stable identity so the committed arm never churns the resolver's
+ *  query list (the selector-stability floor, UI-Gates §7 row 4). */
+const NO_DRAFT_CAST: readonly CharacterId[] = Object.freeze([]);
 
 /**
  * The carried-appearance cast for the room a caller is showing.
@@ -42,15 +46,15 @@ const DRAFT_HUMAN_SEATS = 1;
 export function useCarriedAppearanceCast(chatId: ChatId | null, draftCharacterIds: readonly CharacterId[]): CarriedAppearanceCast | undefined {
   const trpc = useTRPC();
   const { data: chat } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
-  // The draft arm reads the founding CARDS themselves — the same `character.get` entries the greeting
-  // preview already suspends on, so this is a warm cache hit inside a room and one cheap read outside it.
-  const cards = useQueries({
-    queries: (chatId === null ? draftCharacterIds : []).map((characterId) => ({
-      ...trpc.character.get.queryOptions({ characterId }),
-      // Decoration: a slow/failed card must degrade to no-takeover, never throw into a shell's boundary.
-      throwOnError: false,
-    })),
-  });
+  // The draft arm reads the founding CARDS themselves, LIST-FIRST (`useDraftCastCards`). It used to read N
+  // cold `character.get` entries directly, and — because the gate below is all-or-nothing — the whole carried
+  // look waited on the SLOWEST of them: measured, a fresh draft rendered ~2s of the viewer's own chrome
+  // before snapping to the card's theme and background (side-eye 2026-08-07 §④ P2). The picker one frame
+  // earlier had already fetched exactly these cards' `themeOverride` and `backgroundOverride` under
+  // `character.list`, so the resolver now answers from whatever list page is warm and lets `character.get`
+  // take over as the authority when it lands. The all-or-nothing gate is UNCHANGED, and so is what it
+  // protects — it just stops being the thing that makes a resolvable draft wait.
+  const cards = useDraftCastCards(chatId === null ? draftCharacterIds : NO_DRAFT_CAST);
 
   if (chatId !== null) {
     return chat === undefined ? undefined : carriedCastFromParticipants(chat.participants);
@@ -62,13 +66,13 @@ export function useCarriedAppearanceCast(chatId: ChatId | null, draftCharacterId
   // the first card's background onto what is actually a group draft.
   const characters: CarriedAppearanceMember[] = [];
   for (const card of cards) {
-    if (card.data === undefined) {
+    if (card === undefined) {
       return;
     }
     characters.push({
-      displayName: card.data.name,
-      themeOverride: card.data.themeOverride,
-      backgroundOverride: card.data.backgroundOverride,
+      displayName: card.name,
+      themeOverride: card.themeOverride,
+      backgroundOverride: card.backgroundOverride,
     });
   }
   return { humanCount: DRAFT_HUMAN_SEATS, characters };

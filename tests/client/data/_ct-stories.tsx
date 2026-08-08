@@ -11,6 +11,7 @@ import {
   useCarriedAppearanceCast,
   useColorQuotedSpeech,
   useDisplayScripts,
+  useDraftCastCards,
   useGatedQuery,
   useInvalidation,
   useOnlineStatus,
@@ -700,4 +701,68 @@ function CarriedAppearanceCastReader({
   const cast = useCarriedAppearanceCast(chatId, draftCharacterIds);
   const readout = cast === undefined ? "pending" : `humans=${cast.humanCount} cards=${cast.characters.map((member) => member.displayName).join("+")}`;
   return <output data-testid="carried-cast">{readout}</output>;
+}
+
+/** The new-chat PICKER's own read, stood up on its own — `useSuspenseQuery(character.list)` at the picker's
+ *  page limit. This is the whole premise of the list-first resolver: by the time a draft exists, the user has
+ *  just walked a `character.list` page, and that page already carries every founding card's name, avatar,
+ *  theme and background. The limit mirrors `CharacterPicker`'s, but the resolver PREFIX-matches the key, so
+ *  the number here is a faithful simulation rather than a handshake the fix depends on. */
+const PICKER_LIST_LIMIT = 100;
+
+function CharacterListWarmer(): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useSuspenseQuery(trpc.character.list.queryOptions({ limit: PICKER_LIST_LIMIT }));
+  return <output data-testid="list-warm">{`rows=${data.items.length}`}</output>;
+}
+
+/** DraftCastCardsStory — the resolver itself, one line per founding seat: `name|theme|background`, or the
+ *  word `unresolved`. Mounted WITHOUT a warm list page, so the CT drives the `character.get` authority arm
+ *  and the unresolved arm directly (its list-first arm is driven by `DraftCastCardsListFirstStory`). */
+export function DraftCastCardsStory({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
+  return (
+    <CtDataProviders>
+      <DraftCastCardsReader characterIds={characterIds} />
+    </CtDataProviders>
+  );
+}
+
+/** The same resolver, mounted only AFTER the picker's `character.list` page has landed — the production
+ *  order, and the state the list-first rule exists for. */
+export function DraftCastCardsListFirstStory({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
+  return (
+    <CtDataProviders>
+      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
+        <CharacterListWarmer />
+        <DraftCastCardsReader characterIds={characterIds} />
+      </QueryBoundary>
+    </CtDataProviders>
+  );
+}
+
+function DraftCastCardsReader({ characterIds }: { readonly characterIds: readonly CharacterId[] }): ReactElement {
+  const cards = useDraftCastCards(characterIds);
+  const readout = cards.map((card) =>
+    card === undefined ? "unresolved" : `${card.name}|${card.themeOverride === null ? "-" : "theme"}|${card.backgroundOverride === null ? "-" : "bg"}`,
+  );
+  return <output data-testid="draft-cast-cards">{readout.join(" ")}</output>;
+}
+
+/** CarriedAppearanceListFirstStory — the SAME reader, mounted after the picker's `character.list` page has
+ *  landed (side-eye 2026-08-07 §④ P2). With `character.get` held in flight, the carried cast must already be
+ *  resolved: that is the ~2s placebo-identity window closing. `CarriedAppearanceCastStory` with the same
+ *  held `character.get` and NO warm list is the planted control — it reads `pending`. */
+export function CarriedAppearanceListFirstStory({ draftCharacterIds }: { readonly draftCharacterIds: readonly CharacterId[] }): ReactElement {
+  return (
+    <CtDataProviders>
+      {/* The reader is INSIDE the warmer's boundary on purpose — it must not mount until the list page has
+          landed, exactly as the real draft mounts only after the picker's list read. It also keeps the two
+          reads out of ONE tRPC HTTP batch: batched together, a CT that holds `character.get` would hold the
+          list request with it and the story could never reach the state it is written to prove. */}
+      <QueryBoundary fallback={<p>loading…</p>} renderError={(e): ReactElement => <p>{String(e)}</p>}>
+        <CharacterListWarmer />
+        <CarriedAppearanceCastReader chatId={null} draftCharacterIds={draftCharacterIds} />
+      </QueryBoundary>
+    </CtDataProviders>
+  );
 }

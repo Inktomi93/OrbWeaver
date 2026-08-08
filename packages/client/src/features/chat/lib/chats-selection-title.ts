@@ -16,8 +16,7 @@
 // Niko" read "Aldric Vane" on the phone. Both surfaces call `draftChatTitle` now; the sameness is a shared
 // function, not a comment.
 
-import { useQueries } from "@tanstack/react-query";
-import { useGatedQuery, useTRPC } from "#data";
+import { useDraftCastCards, useGatedQuery, useTRPC } from "#data";
 import { isCommitted, isLanding, useActiveChatHandle, useActiveChatId, useActiveDraftFoundingCast } from "#state";
 import { draftChatTitle } from "./chat-summary-row.ts";
 
@@ -27,8 +26,10 @@ export function useChatsSelectionTitle(): string | null {
   const chatId = useActiveChatId();
   const foundingCast = useActiveDraftFoundingCast();
   const { data } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
-  // ONE hook over a varying list (the `DraftChatHeader` precedent) — empty while nothing is drafting.
-  const cast = useQueries({ queries: foundingCast.map((characterId) => trpc.character.get.queryOptions({ characterId })) });
+  // ONE hook over a varying list (the `DraftChatHeader` precedent) — empty while nothing is drafting, and
+  // LIST-FIRST, so a draft started from the picker is titled on its first frame instead of reading
+  // "New chat" for ~2s while N cold `character.get` reads land (side-eye 2026-08-07 §④ P2).
+  const cast = useDraftCastCards(foundingCast);
 
   if (isLanding(handle)) {
     return null;
@@ -37,5 +38,5 @@ export function useChatsSelectionTitle(): string | null {
     const title = data?.title ?? "";
     return title.length === 0 ? null : title;
   }
-  return draftChatTitle(cast.map((seat) => seat.data?.name ?? ""));
+  return draftChatTitle(cast.map((seat) => seat?.name ?? ""));
 }

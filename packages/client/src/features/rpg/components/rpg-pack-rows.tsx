@@ -31,10 +31,21 @@ import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs.ts";
 /** The quest-bound tell - the model-written item `type` naming the quest taxonomy (DESIGN.md 12.2). */
 const QUEST_TYPE_RE = /quest/i;
 
-/** The #37c icon-picker popover body — the curated `ITEM_ICON_CHOICES` grid; picking writes the name. */
+/** The #37c icon-picker popover body — the curated `ITEM_ICON_CHOICES` grid; picking writes the name.
+ *
+ *  THE COARSE GAP IS THE TOUCH FLOOR (owner ruling 2026-08-07, on side-eye's measured tables). A
+ *  `size="glyph-lg"` Button is FLOORLESS — its 44px coarse hit area rides an OVERFLOWING `::after`, not its
+ *  32px box — so on a wrapped grid the pseudo is clipped by the gap it shares with the next cell. MEASURED at
+ *  430 coarse: box 32×32, `gap-field` 6, pitch 38 both axes, effective hit box **37×37**, 7px under the
+ *  floor. (The `no-floorless-control-in-wrap` gate's stated harm — "aiming at one control commits its
+ *  neighbour" — was measured FALSE here: all 21 cells hit themselves, because the 6px of pseudo overlap lands
+ *  entirely inside the gap. The gate's arm was right; its inherited premise was not. The defect was the floor
+ *  alone.) `gap-block` is 12px, which makes the pitch exactly 44 — the cause fixed with the token that
+ *  already equals the answer, and the FINE picker is untouched (still `gap-field`, still 5 columns). Cost:
+ *  the grid goes 5×5 → 4×6 at coarse, +68px of popover height. */
 function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; readonly onPick: (icon: string) => void }): ReactElement {
   return (
-    <Row gap="field" className="max-w-(--width-control-col) flex-wrap">
+    <Row gap="field" className="max-w-(--width-control-col) flex-wrap pointer-coarse:gap-block">
       {Object.entries(ITEM_ICON_CHOICES).map(([name, glyph]) => (
         <Button key={name} intent="ghost" size="glyph-lg" title={`${itemName}: use the ${name} icon`} onClick={(): void => onPick(name)}>
           <Icon icon={glyph} size="sm" />
