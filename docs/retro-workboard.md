@@ -508,10 +508,18 @@ security lens.
   real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
 - **⚑ LIVE LANE ROSTER — 2ND COMPACT BOUNDARY (2026-08-07 late, main 14-ahead — 1 UNDER-LENS, 3 in flight):**
   - ✅➡️ **`CLIENT-SMALLS` MERGED — GRADUATING (NOT done yet).** Merged `--no-ff` to main as
-    **`25a551366`** (from commit **7f240e0**). **Fresh lenses IN FLIGHT: verifier `a3d64d2bb4af621c8`
-    (code/logic), side-eye `a035aaf9715d1cd7d` (the new tracker-grants editor UI).** Consolidated `pnpm
-    check` running detached (`<scratchpad>/client-smalls-check.{log,exit}`). Row graduates ONLY when BOTH
-    lenses report CONFIRMED + check green. Worktree `wt/agent-a7a28c621505e7785` NOT torn down (post-lens).
+    **`25a551366`** (from commit **7f240e0**). Consolidated `pnpm check` on merged tree: **PASS 14/14**.
+    **Verifier `a3d64d2bb4af621c8`: CONFIRMED both claims** (red-first re-proven vs `7f240e06f^`; suites
+    re-run cold 75/75 + 109/109; tri-state mapping total; MA-4 omit-keeps no-clobber; carriage stays
+    server truth). **Side-eye `a035aaf9715d1cd7d` still IN FLIGHT** — row graduates only on its report.
+    Worktree `wt/agent-a7a28c621505e7785` NOT torn down (post-lens).
+    **⚠ VERIFIER FIND (pre-existing, NOT this diff — queued security row):** the host-only invariant on
+    tracker exceptions is UI-ONLY. Server `mergeSheet` (`packages/server/src/domain/rpg/verbs/patch-sheet.ts:60-61`)
+    applies `trackerGrants`/`trackerRevokes` from ANY patch, and `assertOwnUserRef` (`guard.ts:98-105`)
+    lets a MEMBER write their own user-ref sheet → a member can self-grant/self-revoke tracker exceptions,
+    bypassing "grants are the host's call". Game-integrity, not cross-tenant. **Fix = host-only gate on
+    those two fields at the server write boundary → security-executor lane, QUEUED BEHIND RPG-PROSE
+    (fence collision: domain/rpg).**
     Item 1: KIT fix — `projectBodyForPreview`
     (`packages/kit/src/content/index.ts`) flattens prose via existing `speakerTagsToPlain` before
     markdown-flatten+truncate (also cleans filter-chats search); red-first proven (2 narrator tests RED
