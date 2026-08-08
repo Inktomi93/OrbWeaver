@@ -32,14 +32,20 @@ const STALE_PREFIX =
 /** The sanctioned zones that actually covered a bare `fetch(` this run — the stale arm's truth set. */
 const seenZones = new Set<string>();
 
+// THE ONE REASON, carrying BOTH source arms by token. `corsproxy.io`'s own message folded in here when that
+// arm stopped riding the Finding overload (which bypasses `hasGateIgnore` — GATE-AUTHORING §1 — so every
+// `@orb-gate-ignore no-raw-egress(corsproxy.io)` was inert). The stale-zone arm in `finalize` still carries
+// its own message: it anchors on the GATE FILE and is the sanctioned Finding-overload use.
 const FETCH_MESSAGE =
-  "bare `fetch(` outside the sanctioned provider-egress zones — route untrusted/user-influenced egress " +
-  "through `safeFetch` (the self-enforcing SSRF guard: REQUIRED allowedHosts + scheme pin + " +
-  "resolve→validate→pin + deadline + typed EgressBlockedError, infra/network). Sanctioned raw-fetch: " +
-  "infra/network · infra/providers (vLLM/custom-BYO). See Core-Path-Registry.md D61 (B5a).";
-const CORSPROXY_MESSAGE =
-  "`corsproxy.io` is the NAMED-REJECTED third-party CORS proxy (D61 B5a) — never route egress through it. See Core-Path-Registry.md D61.";
+  "banned egress spelling. `fetch(…)`: a bare `fetch(` outside the sanctioned provider-egress zones — route " +
+  "untrusted/user-influenced egress through `safeFetch` (the self-enforcing SSRF guard: REQUIRED " +
+  "allowedHosts + scheme pin + resolve→validate→pin + deadline + typed EgressBlockedError, infra/network). " +
+  "Sanctioned raw-fetch: infra/network · infra/providers (vLLM/custom-BYO). `corsproxy.io`: the " +
+  "NAMED-REJECTED third-party CORS proxy — never route egress through it, anywhere in server source. " +
+  "See Core-Path-Registry.md D61 (B5a).";
 
+/** Repo-relative path — the fetch arm's zone lookup reads it (the report no longer needs it: the node
+ *  overload derives the file from the node itself). */
 function relPath(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
@@ -89,14 +95,7 @@ export const gate: GateDescriptor = {
     // A string/template PART carrying `corsproxy.io` — banned server-wide (comments are excluded: only
     // literal nodes are walked here).
     if (node.getText().includes(CORSPROXY)) {
-      const abs = sf.getFilePath();
-      ctx.report({
-        file: abs.startsWith(ctx.root) ? abs.slice(ctx.root.length + 1) : abs,
-        line: node.getStartLineNumber(),
-        column: node.getSourceFile().getLineAndColumnAtPos(node.getStart()).column,
-        message: CORSPROXY_MESSAGE,
-        token: CORSPROXY,
-      });
+      ctx.report(node, { token: CORSPROXY, offset: 0 });
     }
   },
   begin: () => {
@@ -106,6 +105,8 @@ export const gate: GateDescriptor = {
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {
       return;
     }
+    // THE SANCTIONED Finding overload (§1): the stale-zone finding anchors on the GATE FILE, not on a source
+    // node — there is nothing to hang a marker off, and a stale exemption must not be suppressible anyway.
     for (const zone of FETCH_SANCTIONED) {
       if (!seenZones.has(zone.source)) {
         ctx.report({
@@ -121,13 +122,13 @@ export const gate: GateDescriptor = {
     {
       files: 'export async function f() {\n  return await fetch("https://x");\n}\n',
       at: "packages/server/src/domain/hub/verbs/browse.ts",
-      expect: { messageIncludes: "safeFetch" },
+      expect: { token: "fetch(…)" },
       why: "a bare fetch( in an unsanctioned server zone — the SSRF/exfil hole B5a closes",
     },
     {
       files: 'export const proxy = "https://corsproxy.io/?url=";\n',
       at: "packages/server/src/domain/hub/lib/x.ts",
-      expect: { messageIncludes: "corsproxy.io" },
+      expect: { token: "corsproxy.io" },
       why: "the NAMED-REJECTED third-party CORS proxy literal anywhere in server source",
     },
     {

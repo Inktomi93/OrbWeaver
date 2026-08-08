@@ -51,16 +51,18 @@ const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
     "server-side via the routing autosave form; CONNECTIONS-BUILD-SPEC §3 / §12.1)",
 };
 
+// THE ONE REASON, carrying BOTH source arms by token. The REGISTRY arm's own message folded in here when it
+// stopped riding the Finding overload (which bypasses `hasGateIgnore` — GATE-AUTHORING §1 — so a marker
+// worked on the raw-storage arm and silently did nothing on this one). The stale-registry arm in `finalize`
+// keeps its message: it anchors on the GATE FILE, the sanctioned Finding-overload use.
 const RAW_STORAGE_MESSAGE =
-  "raw browser storage outside the persistence doors (UI-Theming-and-Content.md §12.1: synced prefs → " +
-  "the server user_settings blob; device-local state → createPersistedStore/createEntityDraftStore, " +
-  "which force version/partialize/migrate). Add the file to persistence-boundary.ts's allowlist ONLY " +
-  "with a boot/dev-tooling reason.";
-
-const UNREGISTERED_MESSAGE_PREFIX =
-  "persisted store name not in DEVICE_LOCAL_REGISTRY (persistence-boundary.ts) — a new device-local " +
-  "persist is a deliberate act: register the name with its why-device-local rationale, or home the " +
-  "pref in the synced user_settings blob (UI-Theming-and-Content.md §12.1): ";
+  "persistence outside the doors (UI-Theming-and-Content.md §12.1: synced prefs → the server user_settings " +
+  "blob; device-local state → createPersistedStore/createEntityDraftStore, which force " +
+  "version/partialize/migrate). A `localStorage`/`sessionStorage` token: raw browser storage outside the " +
+  "persistence doors — add the file to persistence-boundary.ts's allowlist ONLY with a boot/dev-tooling " +
+  'reason. An `unregistered persist "<name>"` token: a persisted store name not in DEVICE_LOCAL_REGISTRY — ' +
+  "a new device-local persist is a deliberate act, so register the name with its why-device-local " +
+  "rationale, or home the pref in the synced user_settings blob.";
 
 const STALE_REGISTRY_MESSAGE_PREFIX =
   "DEVICE_LOCAL_REGISTRY entry has NO createPersistedStore/createEntityDraftStore call site — delete the stale row in persistence-boundary.ts: ";
@@ -148,13 +150,9 @@ export const gate: GateDescriptor = {
       }
       seenPersistNames.add(name);
       if (!(name in DEVICE_LOCAL_REGISTRY)) {
-        ctx.report({
-          file: rel,
-          line: node.getStartLineNumber(),
-          column: node.getSourceFile().getLineAndColumnAtPos(node.getStart()).column,
-          message: `${UNREGISTERED_MESSAGE_PREFIX}"${name}" — register it in scripts/check/gates/persistence-boundary.ts`,
-          token: `persist "${name}"`,
-        });
+        // The store NAME rides the TOKEN, not a per-finding message: `render.ts` prints the token and
+        // never the message when both are present, so the name was already the only rendered half.
+        ctx.report(node, { token: `unregistered persist "${name}"`, offset: 0 });
       }
     }
   },
@@ -162,6 +160,8 @@ export const gate: GateDescriptor = {
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, PERSIST_DOOR_FILE)) {
       return; // not the real full client tree — the name-keyed stale arm would misfire (§4.4)
     }
+    // THE SANCTIONED Finding overload (§1): anchored on the GATE FILE, no source node, and a stale registry
+    // row must not be suppressible.
     for (const registered of Object.keys(DEVICE_LOCAL_REGISTRY)) {
       if (!seenPersistNames.has(registered)) {
         ctx.report({
@@ -177,19 +177,19 @@ export const gate: GateDescriptor = {
     {
       files: 'export const x = localStorage.getItem("k");\n',
       at: "packages/client/src/features/x/x.ts",
-      expect: { messageIncludes: "raw browser storage" },
+      expect: { token: "localStorage" },
       why: "a raw localStorage identifier outside the persistence doors (§12.1)",
     },
     {
       files: 'export const s = createPersistedStore("unregistered-name", () => ({}));\n',
       at: "packages/client/src/state/x.ts",
-      expect: { messageIncludes: "not in DEVICE_LOCAL_REGISTRY" },
+      expect: { token: 'unregistered persist "unregistered-name"' },
       why: "a persisted store name not in the registry — a new device-local persist is a reviewed act",
     },
     {
       files: 'export const s = createPersistedStore("unregistered-name" as string, () => ({}));\n',
       at: "packages/client/src/state/x.ts",
-      expect: { messageIncludes: "not in DEVICE_LOCAL_REGISTRY" },
+      expect: { token: 'unregistered persist "unregistered-name"' },
       why: 'the same unregistered name written `"unregistered-name" as string` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader silently PASSED (skipping the ratchet) before hardening',
     },
   ],
