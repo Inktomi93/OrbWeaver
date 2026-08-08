@@ -24,3 +24,19 @@ export const selectPresetTemplate = templateSelection.select;
 export const __resetPresetTemplate = templateSelection.clear;
 /** Reactive: the selected action-template id (`null` = none picked this session). A primitive selector. */
 export const useSelectedPresetTemplateId = templateSelection.usePrimaryId;
+
+// The DRILL axis (the Actions-tab IA §2.6) — which template's EDITOR is open. A second factory-minted store
+// rather than component state, because the state's whole job is surviving a remount the component cannot:
+// the built-in's copy-on-write retarget swaps `selectPreset` → the keyed `PresetForm` session remounts the
+// entire editor → a LOCAL drill id died and dumped the author at the top of the 67-row list mid-sentence.
+// The drilled id is a REGISTRY id (never preset-scoped), so re-anchoring "the forked preset's same slot" is
+// the plain read-back. Its own axis rather than a second slot on the selection above: DRILL implies SELECT
+// (the view writes both — side-eye F-2's rule), but SELECT must never imply drill, so one id cannot serve.
+const templateDrill = createDrillSelectionStore<string>("preset-template-drill");
+
+/** DRILL into a template's editor (the row chevron). The view also SELECTS it — one act, two axes. */
+export const drillPresetTemplate = templateDrill.select;
+/** Close the drill-in (the Back affordance) — the list stands back up. */
+export const closePresetTemplateDrill = templateDrill.clear;
+/** Reactive: the drilled template id (`null` = the list is showing). */
+export const useDrilledPresetTemplateId = templateDrill.usePrimaryId;

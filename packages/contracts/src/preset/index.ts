@@ -773,6 +773,17 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 export const TEMPLATE_KINDS = ["steer", "voice", "studio", "format", "nudge", "teach", "extract"] as const satisfies readonly string[];
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
+/** Sub-clusters for a kind whose row count outgrew a glance (the Actions-tab IA,
+ *  `docs/design/actions-tab-information-architecture.md` §2.1). Today that is `extract` alone: its 40 rows
+ *  render as collapsed disclosure bands, one per member here, in THIS tuple's order. Membership is DECLARED
+ *  per def (`TemplateDef.cluster`) rather than derived from the slot-id dot-prefixes, because the grouping
+ *  follows what a HOST TUNES TOGETHER, not the engineering id structure (`rpg.extract.plane.party` clusters
+ *  with the party teaching, which no string-split can know). The client's band labels are keyed by this
+ *  union (`TEMPLATE_CLUSTER_LABEL`), so a new member fails `tsc` there until labeled — the
+ *  `TEMPLATE_KIND_LABEL` registration shape, one level down. */
+export const TEMPLATE_CLUSTERS = ["round", "scene", "party", "planes", "tools", "refs"] as const satisfies readonly string[];
+export type TemplateClusterId = (typeof TEMPLATE_CLUSTERS)[number];
+
 /** One declared capability of a template — the EXTENSIBLE axis. A template needing a genuinely new field
  *  class is a NEW MEMBER here plus its renderer row in the editor's exhaustive `Record`, never a fork of the
  *  editor ([[lock-the-extensible-shape]]). A def declaring NO capabilities renders text-only BY DERIVATION
@@ -812,6 +823,12 @@ export interface TemplateDef {
    *  `| undefined` (and written explicitly on that one row) so the property exists on EVERY def — a reader
    *  walking the table never has to narrow before asking for it. */
   readonly defaultSlot?: ProseSlotId | undefined;
+  /** The Actions-list SUB-CLUSTER this row renders under ({@link TEMPLATE_CLUSTERS}) — declared on every
+   *  `extract` row and on nothing else, a pairing the type system cannot state (the kind and the cluster are
+   *  two independent fields), so it is enforced two-sidedly by the registry contract test instead: an
+   *  extract row WITHOUT a cluster would render mis-filed above the bands, and a clustered row of an
+   *  un-banded kind would declare a band no renderer draws. */
+  readonly cluster?: TemplateClusterId | undefined;
 }
 
 /** Every guided template delivers in-chat, so each carries role + depth; the token list is the editor's chip
@@ -966,11 +983,13 @@ export const TEMPLATE_DEFS = [
     caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
     defaultSlot: "rpg.reminder.omniscienceTeach",
   },
+  // The pair's `fires` glosses FRONT-LOAD the discriminator: they used to differ only in their final word
+  // ("…interactivity allowed"/"…off"), so at any one-line truncation the two rows read byte-identically.
   {
     id: "rpg.card.askInteractive",
     kind: "teach",
     label: "Interactive card",
-    fires: "A game turn with immersive cards on and interactivity allowed",
+    fires: "Interactivity allowed — a game turn with immersive cards on",
     caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
     defaultSlot: "rpg.card.askInteractive",
   },
@@ -978,7 +997,7 @@ export const TEMPLATE_DEFS = [
     id: "rpg.card.askStatic",
     kind: "teach",
     label: "Static card",
-    fires: "A game turn with immersive cards on and interactivity off",
+    fires: "Interactivity off — a game turn with immersive cards on",
     caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
     defaultSlot: "rpg.card.askStatic",
   },
@@ -1038,6 +1057,10 @@ export const TEMPLATE_DEFS = [
   // worked example's keys — which the seam splices as DATA (never the macro engine, which has no binding to
   // offer an extraction prompt). Those chips are true statements: drop a token from an override and the value
   // it carried is simply gone, which is exactly what the footer lint warns about.
+  //
+  // EVERY row here declares a `cluster` (the Actions-list bands — the tuple order within a cluster is this
+  // table's own), and the `fires` glosses do NOT re-say the cluster's noun: the band names the scene plane /
+  // the ref block ONCE, so a row under it states only its own condition (the X-7 anti-echo rule).
   {
     id: "rpg.extract.deceptionSurface",
     kind: "extract",
@@ -1045,6 +1068,7 @@ export const TEMPLATE_DEFS = [
     fires: "Heads every extraction on a Deception/Perception game",
     caps: [],
     defaultSlot: "rpg.extract.deceptionSurface",
+    cluster: "round",
   },
   {
     id: "rpg.extract.party.resources",
@@ -1053,6 +1077,7 @@ export const TEMPLATE_DEFS = [
     fires: "This game defines a spend/restore tracker on an actor",
     caps: [{ kind: "tokens", tokens: ["{{trackerCatalogue}}"] }],
     defaultSlot: "rpg.extract.party.resources",
+    cluster: "party",
   },
   {
     id: "rpg.extract.party.states",
@@ -1061,6 +1086,7 @@ export const TEMPLATE_DEFS = [
     fires: "This game defines a set-the-reading tracker on an actor",
     caps: [{ kind: "tokens", tokens: ["{{trackerCatalogue}}"] }],
     defaultSlot: "rpg.extract.party.states",
+    cluster: "party",
   },
   {
     id: "rpg.extract.party.trackerScope",
@@ -1069,30 +1095,34 @@ export const TEMPLATE_DEFS = [
     fires: "Closes the per-actor tracker teaching",
     caps: [],
     defaultSlot: "rpg.extract.party.trackerScope",
+    cluster: "party",
   },
   {
     id: "rpg.extract.scene.core",
     kind: "extract",
     label: "Scene basics",
-    fires: "Opens the scene plane on every extraction",
+    fires: "Opens the plane on every extraction",
     caps: [{ kind: "tokens", tokens: ["{{timeOfDayValues}}"] }],
     defaultSlot: "rpg.extract.scene.core",
+    cluster: "scene",
   },
   {
     id: "rpg.extract.scene.clock",
     kind: "extract",
     label: "Keep time moving",
-    fires: "The scene plane — when to advance the clock",
+    fires: "When to advance the clock",
     caps: [],
     defaultSlot: "rpg.extract.scene.clock",
+    cluster: "scene",
   },
   {
     id: "rpg.extract.scene.weather",
     kind: "extract",
     label: "Weather steer",
-    fires: "The scene plane — the sky, never the room",
+    fires: "The sky, never the room",
     caps: [{ kind: "tokens", tokens: ["{{weatherTypes}}"] }],
     defaultSlot: "rpg.extract.scene.weather",
+    cluster: "scene",
   },
   {
     id: "rpg.extract.scene.dayStructured",
@@ -1101,6 +1131,7 @@ export const TEMPLATE_DEFS = [
     fires: "A game whose dates are structured (an integer day)",
     caps: [],
     defaultSlot: "rpg.extract.scene.dayStructured",
+    cluster: "scene",
   },
   {
     id: "rpg.extract.scene.dayNarrated",
@@ -1109,30 +1140,34 @@ export const TEMPLATE_DEFS = [
     fires: "A game whose dates are narrated (no day counter)",
     caps: [],
     defaultSlot: "rpg.extract.scene.dayNarrated",
+    cluster: "scene",
   },
   {
     id: "rpg.extract.scene.present",
     kind: "extract",
     label: "Who is present",
-    fires: "The scene plane — the cast upsert/remove teaching",
+    fires: "The cast upsert/remove teaching",
     caps: [],
     defaultSlot: "rpg.extract.scene.present",
+    cluster: "scene",
   },
   {
     id: "rpg.extract.scene.mood",
     kind: "extract",
     label: "Mood is short",
-    fires: "The scene plane — the 1-3 word contract on mood",
+    fires: "The 1-3 word contract on mood",
     caps: [],
     defaultSlot: "rpg.extract.scene.mood",
+    cluster: "scene",
   },
   {
     id: "rpg.extract.scene.emoji",
     kind: "extract",
     label: "Portrait emoji",
-    fires: "The scene plane — a newly-seen character's fallback",
+    fires: "A newly-seen character's fallback",
     caps: [],
     defaultSlot: "rpg.extract.scene.emoji",
+    cluster: "scene",
   },
   {
     id: "rpg.extract.scene.plot",
@@ -1141,22 +1176,25 @@ export const TEMPLATE_DEFS = [
     fires: "A game with Plot progression on",
     caps: [],
     defaultSlot: "rpg.extract.scene.plot",
+    cluster: "scene",
   },
   {
     id: "rpg.extract.plane.party",
     kind: "extract",
     label: "Party plane",
-    fires: "The party plane — mechanical changes only",
+    fires: "Mechanical changes only",
     caps: [],
     defaultSlot: "rpg.extract.plane.party",
+    cluster: "party",
   },
   {
     id: "rpg.extract.plane.inventory",
     kind: "extract",
     label: "Inventory plane",
-    fires: "The inventory plane, and the born-state round",
+    fires: "Every extraction, and the born-state round",
     caps: [],
     defaultSlot: "rpg.extract.plane.inventory",
+    cluster: "planes",
   },
   {
     id: "rpg.extract.plane.trackers",
@@ -1165,22 +1203,25 @@ export const TEMPLATE_DEFS = [
     fires: "This game defines an unlocked game-wide tracker",
     caps: [{ kind: "tokens", tokens: ["{{trackerCatalogue}}"] }],
     defaultSlot: "rpg.extract.plane.trackers",
+    cluster: "party",
   },
   {
     id: "rpg.extract.plane.quests",
     kind: "extract",
     label: "Quests plane",
-    fires: "The quest plane, and the born-state round",
+    fires: "Every extraction, and the born-state round",
     caps: [],
     defaultSlot: "rpg.extract.plane.quests",
+    cluster: "planes",
   },
   {
     id: "rpg.extract.plane.journal",
     kind: "extract",
     label: "Journal plane",
-    fires: "Opens the journal plane on every extraction",
+    fires: "Opens the plane on every extraction",
     caps: [],
     defaultSlot: "rpg.extract.plane.journal",
+    cluster: "planes",
   },
   {
     id: "rpg.extract.journal.customType",
@@ -1189,6 +1230,7 @@ export const TEMPLATE_DEFS = [
     fires: "A game that defines no journal-type labels of its own",
     caps: [],
     defaultSlot: "rpg.extract.journal.customType",
+    cluster: "planes",
   },
   {
     id: "rpg.extract.journal.customLabels",
@@ -1197,30 +1239,40 @@ export const TEMPLATE_DEFS = [
     fires: "A game that defines its own journal-type labels",
     caps: [{ kind: "tokens", tokens: ["{{journalTypeLabels}}"] }],
     defaultSlot: "rpg.extract.journal.customLabels",
+    cluster: "planes",
   },
+  // ROW 27 and the reconcile rule both tail the plane teaching on every extraction — their `fires` glosses
+  // FRONT-LOAD what tells them apart (the identical-truncation defect the askInteractive/askStatic pair had:
+  // two rows whose one-line glosses differ only past the ellipsis read as the same row).
   {
     id: "rpg.extract.stateTrackingGuide",
     kind: "extract",
     label: "Be thorough",
-    fires: "Tails the plane teaching on every extraction",
+    fires: "The record-everything push — sums the planes on every extraction",
     caps: [],
     defaultSlot: "rpg.extract.stateTrackingGuide",
+    cluster: "round",
   },
   {
     id: "rpg.extract.reconcileDoctrine",
     kind: "extract",
     label: "Reconcile rule",
-    fires: "Tails the plane teaching on every extraction",
+    fires: "The contradiction fix — closes the plane teaching on every extraction",
     caps: [],
     defaultSlot: "rpg.extract.reconcileDoctrine",
+    cluster: "round",
   },
+  // The eight TOOL rows wear HUMAN labels (the Actions-tab IA — `template-rows.ts`'s own kicker law applies
+  // to a row title too); the WIRE name each row edits stays in its `fires` gloss verbatim, so the author can
+  // still map row → tool without a second registry field.
   {
     id: "rpg.extract.tool.updateParty",
     kind: "extract",
-    label: "update_party",
+    label: "Party update",
     fires: "The update_party tool's description, every tool vehicle",
     caps: [{ kind: "tokens", tokens: ["{{actorTrackers}}", "{{partyExample}}"] }],
     defaultSlot: "rpg.extract.tool.updateParty",
+    cluster: "tools",
   },
   {
     id: "rpg.extract.tool.partyExample",
@@ -1229,54 +1281,61 @@ export const TEMPLATE_DEFS = [
     fires: "The worked call update_party's description ends on",
     caps: [{ kind: "tokens", tokens: ["{{trackerDeltaArg}}", "{{trackerSetArg}}"] }],
     defaultSlot: "rpg.extract.tool.partyExample",
+    cluster: "tools",
   },
   {
     id: "rpg.extract.tool.updateInventory",
     kind: "extract",
-    label: "update_inventory",
+    label: "Inventory update",
     fires: "The update_inventory tool's description",
     caps: [],
     defaultSlot: "rpg.extract.tool.updateInventory",
+    cluster: "tools",
   },
   {
     id: "rpg.extract.tool.updateScene",
     kind: "extract",
-    label: "update_scene",
+    label: "Scene update",
     fires: "The update_scene tool's description",
     caps: [{ kind: "tokens", tokens: ["{{weatherTypes}}"] }],
     defaultSlot: "rpg.extract.tool.updateScene",
+    cluster: "tools",
   },
   {
     id: "rpg.extract.tool.setTracker",
     kind: "extract",
-    label: "set_tracker",
+    label: "Set tracker",
     fires: "The set_tracker tool — only when this game has one",
     caps: [{ kind: "tokens", tokens: ["{{gameTrackerCatalogue}}", "{{exampleTrackerKey}}"] }],
     defaultSlot: "rpg.extract.tool.setTracker",
+    cluster: "tools",
   },
   {
     id: "rpg.extract.tool.upsertQuest",
     kind: "extract",
-    label: "upsert_quest",
+    label: "Quest update",
     fires: "The upsert_quest tool's description",
     caps: [],
     defaultSlot: "rpg.extract.tool.upsertQuest",
+    cluster: "tools",
   },
   {
     id: "rpg.extract.tool.addJournalEntry",
     kind: "extract",
-    label: "add_journal_entry",
+    label: "Journal entry",
     fires: "The add_journal_entry tool's description",
     caps: [],
     defaultSlot: "rpg.extract.tool.addJournalEntry",
+    cluster: "tools",
   },
   {
     id: "rpg.extract.tool.noChanges",
     kind: "extract",
-    label: "no_changes",
-    fires: "The quiet-beat escape tool's description",
+    label: "No changes",
+    fires: "The no_changes quiet-beat escape tool's description",
     caps: [],
     defaultSlot: "rpg.extract.tool.noChanges",
+    cluster: "tools",
   },
   {
     id: "rpg.extract.systemHeader",
@@ -1285,6 +1344,7 @@ export const TEMPLATE_DEFS = [
     fires: "Opens the structured extraction's system prompt",
     caps: [],
     defaultSlot: "rpg.extract.systemHeader",
+    cluster: "round",
   },
   {
     id: "rpg.extract.toolRoundHeader",
@@ -1293,6 +1353,7 @@ export const TEMPLATE_DEFS = [
     fires: "Opens the cheap tool round's system prompt",
     caps: [],
     defaultSlot: "rpg.extract.toolRoundHeader",
+    cluster: "round",
   },
   {
     id: "rpg.extract.reconcilePass",
@@ -1301,6 +1362,7 @@ export const TEMPLATE_DEFS = [
     fires: "A reconcile beat's state round, and a host resync",
     caps: [],
     defaultSlot: "rpg.extract.reconcilePass",
+    cluster: "round",
   },
   {
     id: "rpg.extract.foldedReconcile",
@@ -1309,6 +1371,7 @@ export const TEMPLATE_DEFS = [
     fires: "A reconcile beat on a folded game — rides the reminder",
     caps: [],
     defaultSlot: "rpg.extract.foldedReconcile",
+    cluster: "round",
   },
   {
     id: "rpg.extract.lockedPaths",
@@ -1317,22 +1380,25 @@ export const TEMPLATE_DEFS = [
     fires: "A turn where a player has pinned a tracked field",
     caps: [{ kind: "tokens", tokens: ["{{lockedPaths}}"] }],
     defaultSlot: "rpg.extract.lockedPaths",
+    cluster: "round",
   },
   {
     id: "rpg.extract.refs.targets",
     kind: "extract",
     label: "Valid targets",
-    fires: "The ref block, when this call resolved a targetable actor",
+    fires: "When this call resolved a targetable actor",
     caps: [{ kind: "tokens", tokens: ["{{targetRefs}}"] }],
     defaultSlot: "rpg.extract.refs.targets",
+    cluster: "refs",
   },
   {
     id: "rpg.extract.refs.playerToken",
     kind: "extract",
     label: "Player token",
-    fires: 'The ref block, when the "player" token is in the enum',
+    fires: 'When the "player" token is in the enum',
     caps: [{ kind: "tokens", tokens: ["{{playerRef}}", "{{playerName}}"] }],
     defaultSlot: "rpg.extract.refs.playerToken",
+    cluster: "refs",
   },
   {
     id: "rpg.extract.refs.trackerGroup",
@@ -1341,30 +1407,34 @@ export const TEMPLATE_DEFS = [
     fires: "Once per distinct writable-tracker set on this game's actors",
     caps: [{ kind: "tokens", tokens: ["{{targetRefs}}", "{{trackerKeys}}"] }],
     defaultSlot: "rpg.extract.refs.trackerGroup",
+    cluster: "refs",
   },
   {
     id: "rpg.extract.refs.gameTrackerKeys",
     kind: "extract",
     label: "Game-wide keys",
-    fires: "The ref block, when this game has a writable game tracker",
+    fires: "When this game has a writable game tracker",
     caps: [{ kind: "tokens", tokens: ["{{trackerKeys}}"] }],
     defaultSlot: "rpg.extract.refs.gameTrackerKeys",
+    cluster: "refs",
   },
   {
     id: "rpg.extract.refs.conditions",
     kind: "extract",
     label: "Live conditions",
-    fires: "The ref block, when somebody is carrying a condition",
+    fires: "When somebody is carrying a condition",
     caps: [{ kind: "tokens", tokens: ["{{conditions}}"] }],
     defaultSlot: "rpg.extract.refs.conditions",
+    cluster: "refs",
   },
   {
     id: "rpg.extract.refs.closing",
     kind: "extract",
     label: "Never invent",
-    fires: "Closes the ref block on every extraction",
+    fires: "Closes the block on every extraction",
     caps: [],
     defaultSlot: "rpg.extract.refs.closing",
+    cluster: "refs",
   },
 ] as const satisfies readonly TemplateDef[];
 

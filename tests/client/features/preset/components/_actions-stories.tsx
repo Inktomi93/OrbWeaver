@@ -57,6 +57,28 @@ function ActionsBody({
   );
 }
 
+const FORKED_PRESET = castId<PresetId>("preset_actionsforkedxx");
+
+/** The FORK-RETARGET seam, isolated (IA §2.6): the production `PresetForm` is keyed `entityId={presetId}`,
+ *  and the built-in's copy-on-write retarget swaps that id mid-edit — remounting the entire keyed session.
+ *  The story reproduces exactly that seam (same boundary, same keyed remount); the CT pins that the OPEN
+ *  drill-in survives it. The trigger + the entity echo are test chrome around the REAL view. */
+export function ActionsForkStory(): ReactElement {
+  const [entity, setEntity] = useState<PresetId>(STORY_PRESET);
+  return (
+    <ToastProvider>
+      <button onClick={(): void => setEntity(FORKED_PRESET)} type="button">
+        simulate fork retarget
+      </button>
+      <output>{`entity=${entity}`}</output>
+      <StoryForm entityId={entity} save={(): Promise<void> => Promise.resolve()} serverValues={SERVER_VALUES}>
+        {(session): ReactElement => <ActionsBody saved="—" savedFraming="—" session={session} />}
+      </StoryForm>
+      <Toaster />
+    </ToastProvider>
+  );
+}
+
 export function ActionsStory(): ReactElement {
   const [saved, setSaved] = useState("—");
   const [savedFraming, setSavedFraming] = useState("—");
