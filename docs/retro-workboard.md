@@ -31,6 +31,31 @@ build the maximal, most-provable version (\[\[kiss-yagni-suspended-build-maximal
 kit ← contracts ← db ← server ← client + sealed ui; one-directional flow (rpg ↔ chat only via
 injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 
+## ═══ OWNER RULINGS LEDGER (append-only; CHECK HERE BEFORE POSING ANY QUESTION) ═══
+
+> **Why (owner, 2026-08-08, frustrated and right):** rulings kept getting re-asked — W5 was ruled
+> 2026-07-27 at its spec's foot and re-posed as an open fork on 2026-08-08; the OpenRouter-key row
+> re-posed a dead question. **RULE: no question reaches the owner until it is grepped against THIS
+> table + the named design doc's foot. Every answered question is appended here the same day.**
+> One line per ruling; receipts live where the line points.
+
+| date | ruling |
+| - | - |
+| 07-27 | **W5 user-macro values = Arm A per-chat** ("yes option A"); no ForeignInputs field. BUILT. |
+| 08-02 | wiFormat `{{entry}}` carrier BLOCKS at write · main-prompt ADDRESS clause is deliberate |
+| 08-07 | Templates ONE home = PRESETS (D132) · row-27 WIRE · pushes = fresh word + fresh battery · tag ≤30 cap stays · probe-lint = scratch · summarize-sub DROP |
+| 08-08 | Containerize default = usable-as-owner (ST first-run) · refinery BUILD F1-F5 · FF-merge/currency discipline |
+| 08-08 | **C2 `{{note}}` BLOCKS** (carrier, Option C) · **C3 nudge texts SHIP VERBATIM** (veto pile closed) · **C8 shared `MAX_INJECTION_TEMPLATE_LENGTH`=10000** |
+| 08-08 | **C4 narrator marker = MODE-AWARE default, bytes BLESSED** (in the C4 merge `0282bb554`) · **Arm A/D16: narrator-of-one KEEPS narrator framing** (mode is data; size branch forbidden; owner: "do whatever's cleanest") |
+| 08-08 | **C6 = kebab PNG/JSON submenu** · **C7 = launcher sheds count+create when populated, New-book double STAYS** |
+| 08-08 | **OpenRouter: F5 build+prove+depth-knob (ARM A clamp-to-safe) · F6 skip · F7 defer** (drop-is-safe measured; storage exists) |
+| 08-08 | **Stickler F1 = short-circuit narrator arbitration, KEEP policy field · F2 = BUILD real round-robin · F3 = DELETE groupCharacterId · F4 = re-home group framings to PRESET + amend D132(B)** |
+| 08-08 | **Vocab kill list RATIFIED IN FULL** (crew incl. schema field · director→arbiter · seat · 3 UI strings; party/scene/act + ember/weave STAY) |
+| 08-08 | **CAS = weekly GC + monthly fsck** · **AGENT-1 = wait for owner re-auth, keep whole** · **Refinery R2 GO + R3 MOCKUPS GO** (TanStack, not "React Query") |
+| 08-08 | **PUSH WORD GRANTED** for this train (drain → battery → E2E\_LIVE → push) · queued trio = train two |
+| standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
+| open | C1 persona D→C go/no-go (Reading-B explained 08-08, answer pending) · R0 ratifications (handoff-clear default · ENTRIES\_MAX=108 · PROSE\_MAX=4000 · the 12 prose-slot baseline texts) · C5 · C9 · C13 · home-tile WHETHER · ctx-tab-strip coarse · token-unification offer |
+
 ## ═══ STANDING LAWS (owner-set, all in force) ═══
 
 - **Cap FIVE concurrent lanes.** ONE COMMIT per lane (stack, never amend); receipts in the report,
