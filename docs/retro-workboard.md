@@ -533,6 +533,14 @@ security lens.
   empty-slot chrome. **Rendered re-verify BATCHES with the FORGE#1 + PROSE-GEOMETRY preset-surface
   lens** (one side-eye over the whole preset/config fix train). Freed slot HELD (barrel-amputation +
   capability-gate follow-up both want a quiet/uncontested tree).
+- **✅ TREE GREEN at `698a76f32` (train4 check PASS all stages).** FORGE#2 (mention-fence, `49b6e3620`)
+  + GAP-FIX (EmptyState w-full fence, `4a01d2854`) + the conditional-expect fix merged & certified.
+  **⚠ ORCHESTRATOR DISCIPLINE SLIP (owned):** I fire-and-forgot consolidated checks — DBANK-HOME's
+  `train3-check` was dispatched and NEVER READ, so a `noConditionalExpect` lint error rode main until
+  `forge2-check` caught it (a `.exit`-sweep found it). The law I quote lanes ("a finished check that
+  sits unread = skipping it") — I broke it. Fixed; going forward EVERY check exit gets read. All other
+  historical red `.exit` codes were intermediate states superseded by a green re-check before the next
+  merge (verified by train4 covering the current tree).
 - **✅ FORGE #1 (Actions-tab IA) MERGED `dcaf87bc1`** — per-kind delivery-truth readout (derived from
   LIVE assembly: nudges ride appendUserTurn not the marker), 6 collapsed bands + tab filter over 41
   extract rows, fork-eject fixed (drill id → store axis), human row labels, chip off rows; red-first
