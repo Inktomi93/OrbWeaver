@@ -69,9 +69,10 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 - **Merged today, this train:** FORGE#4 CONTAINERIZE (`fd4ae9119`, check PASS) · REFINERY R0
   (`b7ca6d55a`, check PASS) · AUTH BOOT-FENCE + spec repair + shim⇔firewall pin (`06a706551`,
   check RUNNING — read `<scratchpad>/sec-leg-check.exit`).
-- **LIVE lanes (3):** PRESET-FOLLOWUP (executor, worktree — see A3) · REFINERY pre-R1 security
-  pass (see A1) · POPULATE-PROSE (executor, worktree — the 7 verified-open slots, byte-identity
-  bar; see B1).
+- **LIVE lanes (2 — R1 GRADUATION, owner-cleared "do the security audit, enough usage"):**
+  refinery R1 **security-executor** live-flow audit (`acd25d370…`) + **verifier** correctness lens
+  (`a8f6d051…`), both against the merged `1abec875b` with design §9.10 attack targets. Nothing else
+  is dispatched.
 - **⚑ FULL-BOARD SCOUT SWEEP DONE (2026-08-08, owner-ordered "verify they aren't already done"):**
   four scouts re-laddered every B/C-premise/D/E row. **Stale harvest: B 3/4 · C 1/10 · D 7/9 ·
   E 5/6 already-done** — struck below with receipts (F). The C pile survived near-intact (it waits
@@ -116,10 +117,24 @@ Ranked by consequence within each category. Every item carries its receipt state
   not a refine) · strip stays + itemize stripped KEYS · 3 latent MEDIUMs for R1 (applyFields
   re-parse per card.ts:192; dropNullValues under D126 strict-compatible — verified every rewrite
   would fail; neutralizeMacros card text) · member plane confirmed NOT exposed · no
-  lifecycle-portability row owed · prose homed `user` = no fork strip. **⚑ R1 DISPATCHED to the
-  warm forge lane** (rebase-main-first; §4 belts carried in its design; handoff-copy `refinery`
-  carry defaults to CLEAR — owner may override; deletes both pre-producer gate rows; post-R1
-  graduation = verifier + security review of the live untrusted flow). **⚑ BELT-5 DEVIATION RULED
+  lifecycle-portability row owed · prose homed `user` = no fork strip.
+  **⚑ R1 (THE ENGINE) MERGED `1abec875b` (rebased from `6d206ceb1`); GRADUATION LENSES RUNNING —
+  owner-cleared. 64 files/+3729, 266 tests, ALL floors clean; consolidated check running.**
+  Built `domain/refinery`: 9 verbs (session lifecycle + runStage + iterate + applyFields), shared
+  stage engine, D23 character-join ownership, 3 substrates + all 17 §4 belts with receipts (belt-5
+  by-construction per the mid-run ruling below, pinned BOTH drift directions + two-method
+  zero-macro-imports; heal+score-tightening in ONE change; handoff-copy `refinery:null` clear; 12
+  user-homed prose slots + 3 `refine_*` postures; `refinery_runs.strippedKeys` column; both
+  pre-producer gate rows DELETED). Two of the lane's OWN test expectations were wrong not the code
+  (null-drop non-itemization; drop-reason precedence) — corrected. **GRADUATION LENSES DISPATCHED
+  (owner-cleared "do the security audit, enough usage"):** verifier `a8f6d051…` (apply-intersection
+  algebra · heal independence · latestVerdict newest-wins · iterate mid-round state · shared
+  stage-engine sink · the 2 self-corrected tests) + security-executor `acd25d370…` (belt-5 DOWNSTREAM
+  reach via viewers/replays/exports/preview/reminder — the seam by-construction does NOT auto-cover ·
+  the stamp WHERE belt · injection widening apply past belts 9/10 · strippedKeys keys-not-values ·
+  internal re-parse caps). Graduates on both CONFIRMED + the consolidated check exit. **⚑ OWNER-SACRED, awaits sign-off: the 12 shipped
+  prose-slot baseline TEXTS** (the lane's adaptation of the extension corpus to structured output —
+  model-facing default bytes, [[persona-is-owner-sacred]] class). **⚑ BELT-5 DEVIATION RULED
   (orchestrator, mid-run):** `neutralizeMacros` on refinery text would CORRUPT canon (ZWSP'd braces
   ride rewrite→applyFields→card, killing the card's own {{char}} at chat time) —
   satisfaction-by-construction APPROVED instead (no macro engine in the domain, concatenation not
