@@ -19,8 +19,8 @@
 // 20, but the toggle still has nothing to act on here).
 
 import { Compass } from "@orb/ui/icons";
-import type { ContributorRegistry, HomeTileContribution } from "#lib";
-import type { SectionDefinition } from "#state";
+import type { ContributorRegistry } from "#lib";
+import type { HomeTileContribution, SectionDefinition } from "#state";
 import { NO_SELECTION_TITLE, openModal } from "#state";
 import { HomeSurface } from "../surfaces/home-surface.tsx";
 

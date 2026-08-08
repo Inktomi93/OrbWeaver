@@ -55,8 +55,15 @@ const RETIRED_SECTION_HEAL: Readonly<Record<string, SectionId>> = {
   worldInfo: "config",
 };
 
-/** The modal vocabulary — the ModalDefinition registry is total over this tuple (assembled at the door). */
-export const MODAL_SLOT_IDS = ["theme", "settings", "account", "command", "newChat", "you"] as const;
+/** The modal vocabulary — the ModalDefinition registry is total over this tuple (assembled at the door).
+ *
+ *  `addDocument` joined it for the same reason `newChat` is here: the ingest dialog is a CREATION CEREMONY
+ *  reachable from more than one surface (the Databank band's Add, that pane's empty state, and home's
+ *  databank tile), and while it lived as local `useState` in two components a third caller could only
+ *  navigate you toward it — home's "Add your first document" landed on the library's own empty state, one
+ *  more click from the thing it named (side-eye 2026-08-08 P1-2). A slot makes the dialog itself the
+ *  destination, from anywhere, with one opener. */
+export const MODAL_SLOT_IDS = ["theme", "settings", "account", "command", "newChat", "you", "addDocument"] as const;
 export type ModalSlotId = (typeof MODAL_SLOT_IDS)[number];
 
 /** The settings vocabulary — the SettingsPaneDefinition registry is total over this tuple (assembled at

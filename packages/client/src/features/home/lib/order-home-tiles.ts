@@ -4,7 +4,7 @@
 // is this registry's ONE consumer — the order has one home either way, and a second assemble module for a
 // single consumer would be the indirection the lockdown bans.
 
-import type { HomeTileContribution } from "#lib";
+import type { HomeTileContribution } from "#state";
 
 export function orderHomeTiles(tiles: readonly HomeTileContribution[]): readonly HomeTileContribution[] {
   return tiles.toSorted((a, b) => (a.order ?? 0) - (b.order ?? 0) || a.id.localeCompare(b.id));

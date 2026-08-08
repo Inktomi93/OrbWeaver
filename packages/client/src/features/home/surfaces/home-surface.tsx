@@ -18,8 +18,9 @@ import { Icon, Plus } from "@orb/ui/icons";
 import { Container, Grid, Stack, Surface } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import type { ContributorRegistry, HomeTileContribution } from "#lib";
+import type { ContributorRegistry } from "#lib";
 import { useFocusOnMount, WeaveGlyph } from "#lib";
+import type { HomeTileContribution } from "#state";
 import { HomeTile } from "../components/home-tile.tsx";
 import { orderHomeTiles } from "../lib/order-home-tiles.ts";
 

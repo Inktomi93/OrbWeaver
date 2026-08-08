@@ -21,6 +21,7 @@
 //
 // It suspends; home mounts every tile body inside its own `QueryBoundary`.
 
+import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
 import type { DocumentId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
@@ -29,11 +30,13 @@ import { FileText, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { timeLib } from "#lib";
-import { selectDocumentFromList, setActiveSection } from "#state";
+import type { IngestPhase } from "#state";
+import { openModal, selectDocumentFromList, setActiveSection, setDatabankPhaseFilter } from "#state";
+import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import { bankHealth, bankHealthLine, documentSubtitle, ingestBadge, ingestPhase, ingestPollInterval, showsPhaseChip } from "../lib/databank-model.ts";
 
 /** How many documents the tile shows. FOUR, not the library's eight: this is a half-span tile carrying a
@@ -44,6 +47,13 @@ const RECENT_DOCUMENTS_LIMIT = 4;
  *  the rail (the `#state` module actions — the sanctioned channel; home never wires this). */
 function openDocument(documentId: DocumentId): void {
   selectDocumentFromList(documentId);
+  setActiveSection("databank");
+}
+
+/** An aggregate chip's whole job: scope the library to the phase it names, then GO there. Without the
+ *  second half the user is left on home having "filtered" something they cannot see. */
+function showPhase(phase: IngestPhase): void {
+  setDatabankPhaseFilter(phase);
   setActiveSection("databank");
 }
 
@@ -61,19 +71,23 @@ export function HomeDocumentsTileBody(): ReactElement {
     return (
       <EmptyState
         action={
-          <Button intent="secondary" onClick={(): void => setActiveSection("databank")} size="sm">
+          // IT OPENS THE CEREMONY, NOT A SECTION (side-eye 2026-08-08 P1-2). This button used to
+          // `setActiveSection("databank")`, which landed the user on the library's own empty state — the
+          // same sentence again, with the real button under it. The dialog is a shell modal slot now, so
+          // the promise the label makes is the thing that happens.
+          <Button intent="secondary" onClick={(): void => openModal("addDocument")} size="sm">
             <Icon icon={FileText} size="sm" />
             Add your first document
           </Button>
         }
-        description="Upload a file, paste text or pull in a page — indexed once, its passages feed your chats as they happen."
+        description={DATABANK_INGEST_GLOSS}
         icon={<Icon icon={FileText} size="lg" />}
         title="No documents yet"
       />
     );
   }
 
-  const health = bankHealth(documents, nowMs);
+  const health = bankHealth(documents, nowMs, RECENT_DOCUMENTS_LIMIT, DATABANK_LIST_DEFAULT_LIMIT);
   const recents = documents.slice(0, RECENT_DOCUMENTS_LIMIT);
 
   return (
@@ -88,11 +102,31 @@ export function HomeDocumentsTileBody(): ReactElement {
           // because a non-wrapping group is ONE unbreakable flex item — four chips after a bad reindex ran
           // 12px past the card's edge with the outer row wrapping perfectly. Both levels wrap, or the
           // widest state this line exists to report is the one that falls off it.
-          <Row align="center" className="flex-wrap" gap="field" justify="end">
+          //
+          // A NAMED GROUP (side-eye 2026-08-08 P3): the chips are a set with a subject, and a bare run of
+          // three pills announces as three unrelated words between the datum line and the list.
+          <Row align="center" aria-label="Ingest attention" className="flex-wrap" gap="field" justify="end" role="group">
             {health.attention.map((chip) => (
-              <Badge intent={chip.intent} key={chip.label} size="sm" tone="soft">
-                {chip.label}
-              </Badge>
+              // EVERY AGGREGATE IS A CONTROL (side-eye 2026-08-08 P2-a). The chip names documents you
+              // cannot see from here; clicking it scopes the Databank list to exactly that phase and takes
+              // you there, so "12 stalled" is a door instead of a notice. The accessible name says what
+              // will happen — the chip's own text is a count, which is a fine LABEL and a terrible verb.
+              <Button
+                aria-label={`Show the ${chip.label} documents in your databank`}
+                // `min-h-touch-target` is the POINTER-CONDITIONAL token (44px coarse / 28px fine), not a
+                // media variant a feature may not spell: the chip's own box is ~24px, which is a fine
+                // target for a mouse and an unhittable one for a thumb.
+                className="min-h-touch-target rounded-full p-0"
+                intent="ghost"
+                key={chip.phase}
+                onClick={(): void => showPhase(chip.phase)}
+                size="sm"
+                type="button"
+              >
+                <Badge intent={chip.intent} size="sm" tone="soft">
+                  {chip.label}
+                </Badge>
+              </Button>
             ))}
           </Row>
         )}
@@ -108,6 +142,11 @@ export function HomeDocumentsTileBody(): ReactElement {
             <Row key={doc.id} role="listitem">
               <ListRow
                 clickable={true}
+                // THE "RECENT" CUE, VISIBLE (side-eye 2026-08-08 P3): the list's accessible name says
+                // "Recent documents" and sighted users were told nothing — four rows in an order they had
+                // to infer. The stamp is the same one chat's recents tile shows ("9d"), off the same
+                // `updatedAt` the server sorted by, so the order and the label agree.
+                meta={timeLib.formatRelativeCompact(doc.updatedAt)}
                 onClick={(): void => openDocument(doc.id)}
                 subtitle={documentSubtitle(doc)}
                 title={doc.name}
@@ -129,5 +168,25 @@ export function HomeDocumentsTileBody(): ReactElement {
         })}
       </Stack>
     </Stack>
+  );
+}
+
+/** The tile's ONE trailing affordance, which DISAPPEARS on an empty bank (side-eye 2026-08-08 P2-b): a
+ *  header link promising "All documents →" beside a body saying "No documents yet" is two controls with one
+ *  destination, one of which promises a list of nothing. It reads the SAME `databank.list` cache entry
+ *  non-suspensefully (no new key, no second fetch, no boundary of its own — home renders the action in the
+ *  tile FRAME, outside the body's QueryBoundary), and stays visible while that read is in flight: the
+ *  steady state is a bank with documents in it, and flashing the link out and back in would be its own
+ *  defect. */
+export function HomeDocumentsTileAction(): ReactElement | null {
+  const trpc = useTRPC();
+  const { data: documents } = useQuery(trpc.databank.list.queryOptions({}));
+  if (documents?.length === 0) {
+    return null;
+  }
+  return (
+    <Button intent="ghost" onClick={(): void => setActiveSection("databank")} size="sm">
+      All documents →
+    </Button>
   );
 }

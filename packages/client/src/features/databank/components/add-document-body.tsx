@@ -14,8 +14,15 @@
 //    for `warning:'empty-extraction'` (a scanned image-only PDF): the row's derived `Empty` chip alone
 //    reads as a bug, so the moment of creation says it in words.
 //
-// The dialog owns its overlay (a component, not a surface — surface-purity), and every arm reports the
-// created document to its caller, which opens it in CONTENT and closes the dialog.
+// IT IS A SHELL MODAL SLOT NOW, NOT A LOCALLY-HELD DIALOG (side-eye 2026-08-08 P1-2). It used to be
+// `useState` in TWO components (the list band and the library pane) — which meant a THIRD caller could not
+// open it at all: home's databank tile could only `setActiveSection("databank")`, so "Add your first
+// document" landed the user on the library's own empty state, one more click away from the dialog it had
+// just named. The dialog is now `addDocument` in `MODAL_SLOT_IDS`, so every caller — including one on
+// another section — opens the ceremony itself with `openModal("addDocument")`. This file is the BODY the
+// slot renders: ModalHost owns the overlay, the title and the close affordance, so there is no `open` prop
+// and no `onOpenChange` to thread. Landing a document CLOSES the modal and opens that document in the
+// Databank section, from wherever the ceremony was started.
 
 import type { IngestOutcome, ScraperKind } from "@orb/contracts/databank";
 import type { DocumentId } from "@orb/kit/ids";
@@ -31,10 +38,12 @@ import { Textarea } from "@orb/ui/textarea";
 import { useToastManager } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialog, FormSubmitButton } from "#components";
+import { FormSubmitButton } from "#components";
 import { uploadDocument, useInvalidation, useTRPC, useUploadCaps } from "#data";
+import { closeModal, selectDocumentFromList, setActiveSection } from "#state";
 import { useCreateDocumentFromText, useScrapeWeb, useScrapeWiki, useScrapeYoutube } from "../hooks/use-databank-mutations.ts";
 import { useScrapeForm } from "../hooks/use-scrape-form.ts";
+import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import type { ScrapeFormValues } from "../lib/scrape-form-model.ts";
 import { DEFAULT_CAPTION_LANG, SCRAPER_OPTIONS } from "../lib/scrape-form-model.ts";
 
@@ -47,16 +56,8 @@ type AddMode = (typeof ADD_MODES)[number];
 
 const MODE_LABELS: Record<AddMode, string> = { upload: "Upload a file", paste: "Paste text", link: "From a link" };
 
-export interface AddDocumentDialogProps {
-  readonly open: boolean;
-  readonly onOpenChange: (open: boolean) => void;
-  /** Fires with the landed document — the caller opens it in CONTENT. Present on the DUPLICATE path too:
-   *  the honest answer to "add this again" is to show you the one you already have. */
-  readonly onCreated?: (id: DocumentId) => void;
-}
-
-/** The add-document dialog: a three-mode toggle over upload · paste · scrape. */
-export function AddDocumentDialog({ open, onOpenChange, onCreated }: AddDocumentDialogProps): ReactElement {
+/** The add-document modal BODY: a three-mode toggle over upload · paste · scrape. */
+export function AddDocumentBody(): ReactElement {
   const [mode, setMode] = useState<AddMode>("upload");
   const toast = useToastManager();
 
@@ -74,8 +75,13 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated }: AddDocument
     } else if (warning === "empty-extraction") {
       toast.add({ title: "Nothing to index in that file", description: "No text could be extracted — a scanned image PDF, most likely." });
     }
-    onCreated?.(id);
-    onOpenChange(false);
+    // The ceremony's END, wherever it was started: close the slot, then open what just landed in its own
+    // section. A caller on HOME therefore finishes on the new document rather than back where it began
+    // with nothing to show for it. (`selectDocumentFromList` + `setActiveSection` are the same two module
+    // actions any cross-section navigation uses.)
+    selectDocumentFromList(id);
+    setActiveSection("databank");
+    closeModal();
   };
 
   const bodies: Record<AddMode, ReactElement> = {
@@ -85,12 +91,10 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated }: AddDocument
   };
 
   return (
-    <FormDialog
-      description="Upload a file, paste text, or pull in a page — its contents get indexed so the most relevant passages feed into your chats as they happen."
-      onOpenChange={onOpenChange}
-      open={open}
-      title="Add a document"
-    >
+    <Stack gap="block" padding="block">
+      {/* ModalHost draws the title + the close; the teaching gloss is the body's, and it is the ONE
+          spelling (databank-copy) every add/empty surface prints. */}
+      <Text voice="gloss">{DATABANK_INGEST_GLOSS}</Text>
       <Stack gap="block">
         {/* Three pressable modes, not a tablist: each swaps the body in place with no panel to own or
             label, and `aria-pressed` is the honest name for "this is the one you are on". */}
@@ -103,7 +107,7 @@ export function AddDocumentDialog({ open, onOpenChange, onCreated }: AddDocument
         </Row>
         {bodies[mode]}
       </Stack>
-    </FormDialog>
+    </Stack>
   );
 }
 

@@ -15,7 +15,7 @@
 // RED, and adding `tile` to that gate's suffix list is work that belongs to the day buddy actually lands.
 
 import { BrainCircuit } from "@orb/ui/icons";
-import type { HomeTileContribution } from "#lib";
+import type { HomeTileContribution } from "#state";
 
 const BUDDY_TILE_ORDER = 80;
 

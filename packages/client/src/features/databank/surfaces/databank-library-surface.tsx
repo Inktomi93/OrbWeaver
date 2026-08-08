@@ -19,18 +19,20 @@
 
 import type { DocumentView } from "@orb/contracts/databank";
 import type { DocumentId } from "@orb/kit/ids";
+import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { FileText, Icon, Search } from "@orb/ui/icons";
-import { Stack } from "@orb/ui/layout";
+import { FileText, Icon, Search, X } from "@orb/ui/icons";
+import { Row, Stack } from "@orb/ui/layout";
+import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useDeferredValue, useRef, useState } from "react";
 import { LibraryListLayout, LibrarySurfaceShell } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { timeLib, useFocusOnMount } from "#lib";
-import { clearDocumentSelection, selectDocumentFromList, useSelectedDocumentId } from "#state";
-import { AddDocumentDialog } from "../components/add-document-dialog.tsx";
+import type { IngestPhase } from "#state";
+import { clearDatabankPhaseFilter, clearDocumentSelection, openModal, selectDocumentFromList, useDatabankPhaseFilter, useSelectedDocumentId } from "#state";
 import { DatabankLibraryRow } from "../components/databank-library-row.tsx";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import {
@@ -40,7 +42,8 @@ import {
   useRemoveDocument,
   useRenameDocument,
 } from "../hooks/use-databank-mutations.ts";
-import { ingestPollInterval } from "../lib/databank-model.ts";
+import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
+import { ingestBadge, ingestPhase, ingestPollInterval } from "../lib/databank-model.ts";
 
 export function DatabankLibrarySurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -82,12 +85,16 @@ function DatabankList(): ReactElement {
   const detachGlobal = useDetachDocumentGlobal({ trpc, invalidation });
 
   const [query, setQuery] = useState("");
-  const [addOpen, setAddOpen] = useState(false);
   const [renameId, setRenameId] = useState<DocumentId | null>(null);
+  const phaseFilter = useDatabankPhaseFilter();
   const deferredQuery = useDeferredValue(query);
 
   const needle = deferredQuery.trim().toLowerCase();
-  const filtered: readonly DocumentView[] = needle === "" ? documents : documents.filter((doc) => doc.name.toLowerCase().includes(needle));
+  // TWO scopes, composed: the typed name filter, and the PHASE scope home's health chips write (P2-a). The
+  // phase is derived per row from the same clock the rows badge against, so the scope and the chips a user
+  // just clicked can never disagree about which documents are stalled.
+  const named: readonly DocumentView[] = needle === "" ? documents : documents.filter((doc) => doc.name.toLowerCase().includes(needle));
+  const filtered: readonly DocumentView[] = phaseFilter === null ? named : named.filter((doc) => ingestPhase(doc, nowMs) === phaseFilter);
   const globals = new Set<DocumentId>(globalIds);
 
   const onToggleGlobal = (id: DocumentId, next: boolean): void => {
@@ -111,25 +118,9 @@ function DatabankList(): ReactElement {
 
   return (
     <>
+      {phaseFilter === null ? null : <PhaseFilterChip phase={phaseFilter} />}
       <LibraryListLayout
-        empty={
-          <EmptyState
-            action={
-              needle === "" ? (
-                <Button intent="secondary" onClick={(): void => setAddOpen(true)} size="sm">
-                  Add a document
-                </Button>
-              ) : undefined
-            }
-            description={
-              needle === ""
-                ? "Upload a file, paste text, or pull in a page — its contents get indexed so the most relevant passages feed into your chats as they happen."
-                : "No document matches your search."
-            }
-            icon={<Icon icon={needle === "" ? FileText : Search} size="lg" />}
-            title={needle === "" ? "No documents yet" : "No matches"}
-          />
-        }
+        empty={<DatabankEmpty needle={needle} phaseFilter={phaseFilter} />}
         isEmpty={filtered.length === 0}
         onSearchChange={setQuery}
         searchLabel="Search documents"
@@ -152,10 +143,6 @@ function DatabankList(): ReactElement {
         ))}
       </LibraryListLayout>
 
-      {/* The band owns the pane's create PRIMARY; this dialog is the EMPTY STATE's own action (an empty
-          library that only says "no documents yet" is a dead end). */}
-      <AddDocumentDialog onCreated={selectDocumentFromList} onOpenChange={setAddOpen} open={addOpen} />
-
       {renameTarget === null ? null : (
         <DatabankRenameDialog
           currentName={renameTarget.name}
@@ -169,5 +156,58 @@ function DatabankList(): ReactElement {
         />
       )}
     </>
+  );
+}
+
+/** The pane's THREE honest empties, never one generic "nothing here" — a bank with nothing in it teaches
+ *  the first step, a search with no hits says so, and a PHASE SCOPE with no matches is the good-news case
+ *  ("nothing is stalled") that must offer its own way out, or a scoped pane reads as an empty bank
+ *  (side-eye 2026-08-08 P2-a). Split out of the list body, which the third arm pushed past the complexity
+ *  ceiling — three empty states is a component's worth of decision. */
+function DatabankEmpty({ needle, phaseFilter }: { readonly needle: string; readonly phaseFilter: IngestPhase | null }): ReactElement {
+  if (phaseFilter !== null) {
+    return (
+      <EmptyState
+        action={
+          <Button intent="secondary" onClick={clearDatabankPhaseFilter} size="sm">
+            Show every document
+          </Button>
+        }
+        description={`Nothing in your databank is ${ingestBadge(phaseFilter).label.toLowerCase()}${needle === "" ? "" : " under that search"}.`}
+        icon={<Icon icon={Search} size="lg" />}
+        title="No documents in that state"
+      />
+    );
+  }
+  return (
+    <EmptyState
+      action={
+        needle === "" ? (
+          <Button intent="secondary" onClick={(): void => openModal("addDocument")} size="sm">
+            Add a document
+          </Button>
+        ) : undefined
+      }
+      description={needle === "" ? DATABANK_INGEST_GLOSS : "No document matches your search."}
+      icon={<Icon icon={needle === "" ? FileText : Search} size="lg" />}
+      title={needle === "" ? "No documents yet" : "No matches"}
+    />
+  );
+}
+
+/** The active phase scope + its way out — the `chat-list-filter` clear-chip grammar, so a scope the user
+ *  arrived with from another section is visible and one click from gone. */
+function PhaseFilterChip({ phase }: { readonly phase: IngestPhase }): ReactElement {
+  const badge = ingestBadge(phase);
+  return (
+    <Row align="center" gap="field">
+      <Text voice="kicker">Filtered:</Text>
+      <Badge intent={badge.intent} size="sm" tone="soft">
+        {badge.label}
+      </Badge>
+      <Button aria-label={`Clear the ${badge.label} filter`} intent="ghost" onClick={clearDatabankPhaseFilter} size="icon" type="button">
+        <Icon icon={X} size="sm" />
+      </Button>
+    </Row>
   );
 }

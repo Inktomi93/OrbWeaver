@@ -32,7 +32,6 @@ import type {
   ChatSurfaceContribution,
   ContextTabDef,
   ContributorRegistry,
-  HomeTileContribution,
   MessageRenderContext,
   MessageToolsRenderer,
   NotifyInput,
@@ -42,7 +41,7 @@ import type {
   ToolRenderer,
 } from "@orb/client/lib";
 import { bindNotify, createContributorRegistry, resolveRowRenderPolicy, toNotice } from "@orb/client/lib";
-import type { ActiveChatHandle, ChatHandle } from "@orb/client/state";
+import type { ActiveChatHandle, ChatHandle, HomeTileContribution } from "@orb/client/state";
 import {
   addDraftCharacter,
   cancelEditingMessage,

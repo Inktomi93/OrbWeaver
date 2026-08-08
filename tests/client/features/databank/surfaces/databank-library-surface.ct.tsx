@@ -13,7 +13,7 @@
 // through the recorded MUTATION INPUT — never through a UI reaction to a stubbed response.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DatabankLibraryStory } from "../_ct-stories.tsx";
+import { DatabankHomeTileAndLibraryStory, DatabankLibraryStory } from "../_ct-stories.tsx";
 import { INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures.ts";
 
 test("a phase chip renders ONLY for a non-ready row — Ready is the absence of a chip (§6.1)", async ({ mount, page }) => {
@@ -157,4 +157,59 @@ test("a search with no hits says so, and does NOT offer the create action (the b
 
   await expect(list.getByText("No matches")).toBeVisible();
   await expect(list.getByRole("button", { name: "Add a document" })).toHaveCount(0);
+});
+
+// ── The PHASE SCOPE home's health chips write (side-eye 2026-08-08 P2-a) ───────────────────────────────
+// The chip is only half a fix: the other half is this pane honoring the scope, SAYING it is scoped, and
+// offering the way out. Driven end-to-end in ONE mount — the tile writes the store, the list reacts.
+
+/** Five healthy documents and a WEDGED one last, so the stalled row sits past the four the tile renders —
+ *  which is exactly when an aggregate chip earns its place (a phase visible in the rows shows no chip). */
+const WEDGED_AGO_MS = 3_600_000;
+const BANK_WITH_A_HIDDEN_STALL = [
+  ...Array.from({ length: 5 }, (_, i) => ({ ...READY_DOC, id: `document_${String(500 + i).padStart(20, "0")}`, name: `Healthy ${i}` })),
+  {
+    ...READY_DOC,
+    id: "document_00000000000000000999",
+    name: "Treaty of Ashfen",
+    chunkCount: 0,
+    embeddedCount: 0,
+    updatedAt: READY_DOC.updatedAt - WEDGED_AGO_MS,
+  },
+];
+
+test("a health chip scopes this pane to that phase, says so, and offers the way back", async ({ mount, page }) => {
+  await stubDatabank(page, { "databank.list": () => BANK_WITH_A_HIDDEN_STALL });
+  const both = await mount(<DatabankHomeTileAndLibraryStory />);
+  const pane = both.getByRole("region", { name: "Library pane" });
+
+  // Unscoped, the pane shows the whole bank.
+  await expect(pane.getByRole("button", { exact: true, name: "Healthy 0" })).toHaveCount(1);
+
+  await both.locator('[data-home-tile="databank.documents"]').getByRole("button", { name: "Show the 1 stalled documents in your databank" }).click();
+
+  // The pane says it is scoped, and its rows are only that phase.
+  await expect(pane.getByText("Filtered:")).toBeVisible();
+  await expect(pane.getByRole("button", { exact: true, name: "Treaty of Ashfen" })).toHaveCount(1);
+  await expect(pane.getByRole("button", { exact: true, name: "Healthy 0" })).toHaveCount(0);
+
+  // …and the clear affordance puts the whole bank back.
+  await pane.getByRole("button", { name: "Clear the Stalled filter" }).click();
+  await expect(pane.getByRole("button", { exact: true, name: "Healthy 0" })).toHaveCount(1);
+});
+
+test("a phase scope that matches nothing reads as GOOD NEWS with its own way out, not as an empty bank", async ({ mount, page }) => {
+  await stubDatabank(page, { "databank.list": () => BANK_WITH_A_HIDDEN_STALL });
+  const both = await mount(<DatabankHomeTileAndLibraryStory />);
+  const pane = both.getByRole("region", { name: "Library pane" });
+
+  await both.locator('[data-home-tile="databank.documents"]').getByRole("button", { name: "Show the 1 stalled documents in your databank" }).click();
+  await expect(pane.getByRole("button", { exact: true, name: "Treaty of Ashfen" })).toHaveCount(1);
+
+  // Deleting is not needed to reach the state — searching within the scope empties it, which is the same
+  // arm: a scope with no matches must never read "No documents yet" (the bank has six).
+  await pane.getByRole("textbox", { name: "Search documents" }).fill("zzzz");
+  await expect(pane.getByText("No documents in that state")).toBeVisible();
+  await expect(pane.getByText("No documents yet")).toHaveCount(0);
+  await expect(pane.getByRole("button", { name: "Show every document" })).toBeVisible();
 });

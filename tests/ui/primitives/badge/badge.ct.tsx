@@ -63,6 +63,133 @@ test("ghost tone drops the fill entirely, keeping the hairline outline + muted t
   expect(Number.parseFloat(borderWidth)).toBeGreaterThan(0);
 });
 
+// ── side-eye 2026-08-08 P1-1: the SOFT tone's text must clear AA-NORMAL on its own tinted pill ─────────
+// The `soft` tone is the one arm where the pill's background is NOT a token the palette suite already
+// checks: it is a `bg-<intent>/15` tint composited over whatever surface the chip sits on, and the text is
+// the intent hue itself. The palette suite proves `text-destructive` clears 4.5:1 on the CARD; it cannot
+// see that the same red over a 15%-red tint of that card does not. Measured on the databank home tile:
+// 4.28:1 at 13px/500, i.e. under AA-NORMAL, on the one chip in the app that says "this job is dead".
+//
+// The calculator below composites in a CANVAS (a translucent `color-mix` background is invisible to a
+// naive computed-style read — the same reason a masked surface needs framebuffer sampling) and is
+// VALIDATED IN-TEST against two known ratios before it is trusted for a verdict.
+
+/** WCAG 2.x relative luminance + contrast, over sRGB 0-255 triples. */
+function contrastRatio(fg: readonly number[], bg: readonly number[]): number {
+  const luminance = (rgb: readonly number[]): number => {
+    const channels = rgb.slice(0, 3).map((v) => {
+      const c = v / 255;
+      return c <= 0.040_45 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+    });
+    return 0.2126 * (channels[0] ?? 0) + 0.7152 * (channels[1] ?? 0) + 0.0722 * (channels[2] ?? 0);
+  };
+  const [light, dark] = [luminance(fg), luminance(bg)].toSorted((a, b) => b - a);
+  return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
+}
+
+/** The element's PAINTED foreground + background as sRGB triples: every translucent background from the
+ *  nearest opaque ancestor down is composited in a canvas, then the text color is composited on top of
+ *  that. Returns `[fg, bg]`. */
+const paintedColors = (el: Element): readonly (readonly number[])[] => {
+  const layers: string[] = [];
+  for (let node: Element | null = el; node !== null; node = node.parentElement) {
+    const bg = getComputedStyle(node).backgroundColor;
+    layers.unshift(bg);
+    const probe = document.createElement("canvas").getContext("2d");
+    if (probe !== null) {
+      probe.fillStyle = bg;
+      // An opaque layer ends the walk — nothing below it can show through. "Transparent" is READ OFF THE
+      // ENGINE (a fresh div's default background) rather than spelled as a color literal, which is both
+      // the §13.7 discipline and more robust than guessing the serialization.
+      const transparent = getComputedStyle(document.createElement("div")).backgroundColor;
+      // biome-ignore lint/performance/useTopLevelRegex: serialized into the browser by `evaluate`
+      const translucent = /\/\s*0?\.\d|,\s*0?\.\d+\)/u.test(probe.fillStyle);
+      if (!translucent && probe.fillStyle !== transparent) {
+        break;
+      }
+    }
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = 4;
+  canvas.height = 4;
+  const ctx = canvas.getContext("2d");
+  if (ctx === null) {
+    return [[], []];
+  }
+  // The document's own canvas colour is the floor beneath every layer.
+  ctx.fillStyle = getComputedStyle(document.documentElement).backgroundColor;
+  ctx.fillRect(0, 0, 4, 4);
+  for (const layer of layers) {
+    ctx.fillStyle = layer;
+    ctx.fillRect(0, 0, 4, 4);
+  }
+  const bg = [...ctx.getImageData(1, 1, 1, 1).data];
+  ctx.fillStyle = getComputedStyle(el).color;
+  ctx.fillRect(0, 0, 4, 4);
+  const fg = [...ctx.getImageData(1, 1, 1, 1).data];
+  return [fg, bg];
+};
+
+test("the calculator agrees with two KNOWN ratios before it is trusted", async ({ mount }) => {
+  const probe = await mount(
+    // The two CSS keywords whose contrast ratio is fixed by the spec at 21:1 (pure white on pure black) —
+    // the calculator's known answer. Keywords, not color literals: §13.7 bans literal colors in a primitive
+    // CT, and these are not design values, they are the arithmetic's fixed points.
+    <div style={{ backgroundColor: "black" }}>
+      <span data-testid="max" style={{ color: "white" }}>
+        max
+      </span>
+      <span data-testid="none" style={{ color: "black" }}>
+        none
+      </span>
+    </div>,
+  );
+  const measure = async (testid: string): Promise<number> => {
+    const [fg, bg] = await probe.getByTestId(testid).evaluate(paintedColors);
+    return contrastRatio(fg ?? [], bg ?? []);
+  };
+  // White on black is 21:1 and black on black is 1:1 — if either misses, the verdict below is noise.
+  expect(await measure("max")).toBeCloseTo(21, 1);
+  expect(await measure("none")).toBeCloseTo(1, 2);
+});
+
+test("soft-tone text clears AA-NORMAL over its own tint, on the surface it actually sits on", async ({ mount }) => {
+  // Mounted on a CARD (the tile/pane surface every soft chip in the app rests on), because the tint
+  // composites against whatever is under it — the ratio is a property of the PAIR, not of the token.
+  const chips = await mount(
+    <div className="bg-card">
+      <Badge data-testid="danger" intent="danger" tone="soft">
+        12 stalled
+      </Badge>
+      <Badge data-testid="warning" intent="warning" tone="soft">
+        10 queued
+      </Badge>
+      <Badge data-testid="neutral" intent="neutral" tone="soft">
+        11 empty
+      </Badge>
+      <Badge data-testid="success" intent="success" tone="soft">
+        ready
+      </Badge>
+      <Badge data-testid="info" intent="info" tone="soft">
+        info
+      </Badge>
+      <Badge data-testid="primary" intent="primary" tone="soft">
+        primary
+      </Badge>
+    </div>,
+  );
+  const measured = await Promise.all(
+    ["danger", "warning", "neutral", "success", "info", "primary"].map(async (testid) => {
+      const [fg, bg] = await chips.getByTestId(testid).evaluate(paintedColors);
+      return { testid, ratio: contrastRatio(fg ?? [], bg ?? []) };
+    }),
+  );
+  // AA-NORMAL: the chip is 13px/500, which is not large text under any reading of the rule.
+  for (const { testid, ratio } of measured) {
+    expect(ratio, `${testid} soft-tone contrast`).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
 test("md size carries more horizontal padding than sm", async ({ mount }) => {
   const small = await mount(<Badge size="sm">Tag</Badge>);
   const smallPad = await small.evaluate((el) => getComputedStyle(el).paddingLeft);

@@ -4,7 +4,7 @@
 
 import { Button } from "@orb/ui/button";
 import { MessagesSquare } from "@orb/ui/icons";
-import type { HomeTileContribution } from "#lib";
+import type { HomeTileContribution } from "#state";
 import { setActiveSection } from "#state";
 import { HomeRecentsTileBody } from "../components/home-recents-tile-body.tsx";
 

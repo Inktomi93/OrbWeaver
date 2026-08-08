@@ -28,8 +28,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, ListPaneHeader, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import { openModal } from "#state";
 import { useReindexDocuments } from "../hooks/use-databank-mutations.ts";
-import { AddDocumentDialog } from "./add-document-dialog.tsx";
 
 export function DatabankListHeader(): ReactElement {
   const trpc = useTRPC();
@@ -37,7 +37,6 @@ export function DatabankListHeader(): ReactElement {
   const toast = useToastManager();
   const { data: documents } = useQuery(trpc.databank.list.queryOptions({}));
   const reindex = useReindexDocuments({ trpc, invalidation });
-  const [addOpen, setAddOpen] = useState(false);
   const [reExtractOpen, setReExtractOpen] = useState(false);
 
   const sweep = (mode: "chunk-embed" | "re-extract"): void => {
@@ -67,7 +66,7 @@ export function DatabankListHeader(): ReactElement {
                 Re-extract everything
               </MenuItem>
             </RowActionsMenu>
-            <Button intent="primary" onClick={(): void => setAddOpen(true)} size="sm">
+            <Button intent="primary" onClick={(): void => openModal("addDocument")} size="sm">
               <Icon icon={Plus} size="sm" />
               Add
             </Button>
@@ -76,7 +75,6 @@ export function DatabankListHeader(): ReactElement {
         count={documents?.length ?? 0}
         title="Databank"
       />
-      <AddDocumentDialog onOpenChange={setAddOpen} open={addOpen} />
       <ConfirmDialog
         confirmIntent="primary"
         confirmLabel="Re-extract"

@@ -112,6 +112,8 @@ export type { KindedDrillStore, KindedSelection } from "./create-kinded-selectio
 export { createKindedSelectionStore } from "./create-kinded-selection-store.ts";
 export type { PersistedStoreOptions } from "./create-persisted-store.ts";
 export { createPersistedStore } from "./create-persisted-store.ts";
+export type { IngestPhase } from "./databank-filter-store.ts";
+export { clearDatabankPhaseFilter, INGEST_PHASES, setDatabankPhaseFilter, useDatabankPhaseFilter } from "./databank-filter-store.ts";
 export { clearDocumentSelection, databankSectionSelection, selectDocumentFromList, useSelectedDocumentId } from "./databank-selection-store.ts";
 export type { DraftConfig, DraftRosterOverride } from "./draft-config-store.ts";
 export {
@@ -129,6 +131,8 @@ export {
   useDraftConfig,
 } from "./draft-config-store.ts";
 export { __readHomeTileBoxForTest, __resetHomeTileBoxes, rememberHomeTileBox, useHomeTileBox } from "./home-tile-box-store.ts";
+export type { DormantDoorway, HomeTileContribution, HomeTileSpan } from "./home-tile-contracts.ts";
+export { HOME_TILE_SPANS } from "./home-tile-contracts.ts";
 export {
   __readMessageEditDraftForTest,
   cancelEditingMessage,
