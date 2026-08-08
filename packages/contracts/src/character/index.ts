@@ -6,6 +6,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
+import { cardFaceFields } from "#card-face";
 import { refineryAnalyzePayloadSchema } from "#refinery";
 import { regexScriptCardSchema } from "#regex";
 import { themeBackgroundSchema, themeOverrideSchema } from "#theme";
@@ -13,8 +14,8 @@ import { worldBookRoleSchema } from "#world-info";
 
 const HANDLE_MIN = 1;
 const HANDLE_MAX = 200;
-const NAME_MIN = 1;
-const NAME_MAX = 200;
+// CARD-CONTENT ceiling (greetings/systemPrompt/…). The FACE fields (name/description/starred/
+// avatarAssetId) spread `cardFaceFields` (D137(E)) — their limits live in `#card-face`, not here.
 const TEXT_MAX = 100_000;
 const CREATOR_MAX = 200;
 const CARD_VERSION_MAX = 200;
@@ -109,8 +110,10 @@ export const greetingsColumnSchema = z.array(greetingSchema).catch([]);
 
 // Identity-free (no id/handle/ownerId — those are row identity columns, not card content).
 export const characterCardSchema = z.object({
-  name: z.string().min(NAME_MIN).max(NAME_MAX),
-  description: z.string().max(TEXT_MAX).nullable(),
+  name: cardFaceFields.name,
+  // The face description, `.nullable()` per card-spec fidelity (a V2/V3 card may omit it) — the wrap is
+  // character's write semantics; the inner validator is the ONE home.
+  description: cardFaceFields.description.nullable(),
   personality: z.string().max(TEXT_MAX).nullable(),
   scenario: z.string().max(TEXT_MAX).nullable(),
   /** Ordered greetings — `[0]` is the first message, the rest are alternates; `groupOnly` marks a
@@ -147,7 +150,7 @@ export const characterCardSchema = z.object({
   extensions: z.record(z.string(), z.unknown()).nullable(),
   /** Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields — distinct from `extensions`. */
   residualData: z.record(z.string(), z.unknown()).nullable(),
-  avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable(),
+  avatarAssetId: cardFaceFields.avatarAssetId,
   /** CardRefinery pipeline signals (derived, not authored). */
   refinery: refinerySignalsSchema.nullable(),
   /** The wire spec this card was READ from (`chara_card_v2`/`chara_card_v3`) so export round-trips it (V2→V2,
@@ -168,8 +171,8 @@ export const createCharacterSchema = z.object({
     .min(HANDLE_MIN)
     .max(HANDLE_MAX)
     .transform((v) => castId<CharacterHandle>(v)),
-  name: z.string().min(NAME_MIN).max(NAME_MAX),
-  description: z.string().max(TEXT_MAX),
+  name: cardFaceFields.name,
+  description: cardFaceFields.description,
   personality: z.string().max(TEXT_MAX).nullable().optional(),
   scenario: z.string().max(TEXT_MAX).nullable().optional(),
   greetings: z.array(greetingSchema).max(GREETINGS_MAX).nullable().optional(),
@@ -188,14 +191,14 @@ export const createCharacterSchema = z.object({
   // op (which mints library rows + the `character_regex_scripts` attachment) — the `importLorebook` shape.
   extensions: z.record(z.string(), z.unknown()).nullable().optional(),
   residualData: z.record(z.string(), z.unknown()).nullable().optional(),
-  avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable().optional(),
+  avatarAssetId: cardFaceFields.avatarAssetId.optional(),
   /** Character's Note \@ Depth — null clears it; omit to leave unchanged. */
   depthPrompt: cardDepthPromptSchema.nullable().optional(),
 });
 export type CreateCharacterInput = z.infer<typeof createCharacterSchema>;
 
 export const updateCharacterSchema = createCharacterSchema.partial().extend({
-  starred: z.boolean().optional(),
+  starred: cardFaceFields.starred.optional(),
   archived: z.boolean().optional(),
   forbidExternalMedia: z.boolean().nullable().optional(),
   /** Tri-state: null = inherit the deployment default, true = HTML renders TRUSTED, false = force untrusted. */
