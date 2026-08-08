@@ -708,6 +708,17 @@ security lens.
   shell cannot produce — RULED arm (b): DROP it, record the measured truth, keep the working `:has()`
   chain · [layout] the World Info empty-state one-line box (both affordances stay — mock-ratified).
   Members-chip dead-control fix in flight separately (`a8b871a5f15e96f57`).
+- **✅ I-2 DATABANK CLOSES — re-verify 7/7 Y under manufactured-state attack** (side-eye
+  `afc03ded6ccd00510`; 3 own-retractions published incl. a pointer:none emulation trap that
+  inflated touch geometry). Contrast held on 4 surfaces (4.64-5.71:1; margin 0.14 over floor —
+  the badge CT pins it against theme drift). Suppression rule proven DISCRIMINATING (keyed on
+  hidden count, not phase presence). Taste: "actually good." MICRO-LEG in flight
+  (`a94fa02a65560a8a8`): chunks→passages at model:158 (the last user-facing "chunk") + the library
+  header gets the same 100+ treatment + the sectionId/useVisible latent-incompat doc comment.
+  **NEW BOARDED ROW — DATABANK PAGINATION:** no way to reach document 101 (list caps at 100, no
+  cursor/load-more, search filters the same page client-side) — the "100+" honesty made a
+  previously-invisible ceiling USER-VISIBLE; needs pagination or the link carrying the caveat.
+  Its own lane, server+client.
 - **✅ S3 TILE FIX-ALL applied `434790388`** (the lane amended its branch — SECOND amend tonight;
   recovered as the delta patch like RE-HOME. FUTURE LANE BRIEFS: stack commits, never amend — the
   original is already merged). All 11 findings: danger/soft tint /15→/8 = 4.66:1 measured (shared
