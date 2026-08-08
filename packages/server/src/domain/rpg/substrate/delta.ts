@@ -23,15 +23,19 @@
 // a per-plane guard: a throwing renderer DEGRADES that plane's lines to nothing and the OTHER planes still
 // render. The block never throws, never drops whole (the DEFENSIVE arm — never a parallel healing home).
 
+import { PROSE_SLOTS, resolveProse } from "@orb/contracts/prose";
 import type { RpgSnapshotState, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { clockTimeOfDay, rpgWeatherText, trackerCeiling, trackerNumber } from "@orb/contracts/rpg";
 import type { DeltaContext, PlaneDiffRenderer, RegisteredPlaneDiff } from "../contract/delta.ts";
 
-/** The diff heading (§2.7) — a VERSIONED constant like the license, so a copy revision is a legible bump. */
-export const RPG_DELTA_HEADING = "CHANGES SINCE LAST BEAT";
+/** The diff heading (§2.7) — a VERSIONED PROSE-1 slot (`rpg.delta.changesHeading`, `macros:"none"`) so a copy
+ *  revision is a legible `version` bump. This exported const is the DERIVED default (the byte-reference tests
+ *  read); `buildDeltaBlock` resolves the slot against `ctx.prose` so a host override lands. */
+export const RPG_DELTA_HEADING = PROSE_SLOTS["rpg.delta.changesHeading"].text;
 /** The first-snapshot heading (§2.7 first-snapshot arm) — the born state is labelled as the scene OPENING, not
- *  as "everything just changed" (which would lie about causality on turn 1). */
-export const RPG_SCENE_OPENS_HEADING = "SCENE OPENS";
+ *  as "everything just changed" (which would lie about causality on turn 1). A `rpg.delta.sceneOpensHeading`
+ *  slot; the const is the derived default. */
+export const RPG_SCENE_OPENS_HEADING = PROSE_SLOTS["rpg.delta.sceneOpensHeading"].text;
 
 /** Bind a typed `PlaneDiffRenderer<T>` into the type-erased `RegisteredPlaneDiff` the registry holds — the ONE
  *  place `select`→`render` are threaded, so the slice `T` stays private to the renderer. P1 REGISTERS its
@@ -491,7 +495,7 @@ export function buildDeltaBlock(prev: RpgSnapshotState | null, cur: RpgSnapshotS
   if (lines.length === 0) {
     return null; // no-change — OMIT the block (byte-stable quiet-turn signal)
   }
-  return `${RPG_DELTA_HEADING}: ${lines.join(" · ")}`;
+  return `${resolveProse("rpg.delta.changesHeading", ctx.prose ?? {}).text}: ${lines.join(" · ")}`;
 }
 
 /** The first-snapshot arm (§2.7): the born state as a one-line SCENE OPENS summary (setting + who's present),
@@ -517,5 +521,5 @@ function buildFirstSnapshotBlock(cur: RpgSnapshotState, ctx: DeltaContext): stri
   if (parts.length === 0) {
     return null; // an empty born state has no scene to open on (§2.7 first-snapshot omit)
   }
-  return `${RPG_SCENE_OPENS_HEADING}: ${parts.join(" · ")}`;
+  return `${resolveProse("rpg.delta.sceneOpensHeading", ctx.prose ?? {}).text}: ${parts.join(" · ")}`;
 }

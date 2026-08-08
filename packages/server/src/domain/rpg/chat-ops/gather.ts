@@ -160,6 +160,9 @@ export async function gatherTurnContext(
     deception: game.config.features.deception,
     omniscience: game.config.features.omniscience,
     dateMode: game.config.dateMode, // #9 — narrated drops the day counter from the ambient line
+    // PROSE-1 — the game's model-facing prose overrides, so the reminder's teaches/headings resolve any host
+    // edit (absent ⇒ shipped defaults, byte-identical to pre-PROSE-1).
+    prose: game.config.prose,
   });
 
   // The reconcile-beat note rides the reminder ONLY on a folded turn (the post-commit rounds append their own
@@ -180,7 +183,7 @@ export async function gatherTurnContext(
     view,
     prevSnapshot,
     curSnapshot,
-    deltaContext: { rosterNames, trackerDefs: game.config.trackers, relationshipHints: game.config.features.relationshipHints },
+    deltaContext: { rosterNames, trackerDefs: game.config.trackers, relationshipHints: game.config.features.relationshipHints, prose: game.config.prose },
     dateMode: game.config.dateMode,
     statProfile: game.config.statProfile,
   });

@@ -2,6 +2,7 @@
 // (parity-plus §2.7/§2.7.1). Homed here (§7.4: domain-internal types live in the domain's contract/, not the
 // substrate that USES them); `substrate/delta.ts` imports these to declare its renderers + the open registry.
 
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RpgSnapshotState, RpgTrackerDef } from "@orb/contracts/rpg";
 
 /** The pure diff's DATA CONTEXT (parity-plus §2.7, P0 fold-ins #5/§2.8) — everything a renderer needs that is
@@ -17,6 +18,10 @@ export interface DeltaContext {
   /** Per-custom-relationship-kind steering HINTS (M1 — `label → gloss`) so a custom relationship delta line
    *  renders `vassal (sworn to serve but resentful)`. Empty ⇒ bare labels. */
   readonly relationshipHints: Readonly<Record<string, string>>;
+  /** PROSE-1 (§4.3) — the game's model-facing prose overrides (`config.prose`), so the two delta HEADINGS
+   *  (`rpg.delta.changesHeading` / `rpg.delta.sceneOpensHeading`) resolve a host override. Optional: absent/`{}`
+   *  ⇒ each heading resolves to its shipped default, byte-identical to the pre-PROSE-1 constant. */
+  readonly prose?: ProseOverrides;
 }
 
 /** One per-plane diff renderer authored over its OWN slice type `T` (§2.7.1). `select` projects the plane's
