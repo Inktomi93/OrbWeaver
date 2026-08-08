@@ -669,7 +669,16 @@ security lens.
   design-law-correct ("New book" ×2 is the DRAWN mock + a ratifying CT — parked beside the
   landing-cards OWNER item as one duplication ruling; X-7's destination preserved in EmptyState
   action). Mobile fix = a SIBLING reveal intent (revealContextPanelBesideContent), not a fold
-  architecture. **Side-eye re-verify IN FLIGHT** (`a745bb9c0eab275f4`, the original sweeper).
+  architecture. **Re-verify: SHIP — 15/16 CLOSED, both refusals RATIFIED** (side-eye withdrew its
+  half of "New book"×2 after reading the mock+CT; "tapping Regex scripts now shows the regex
+  scripts" = the phone win). FIX LEG in flight on the warm lane: 1 NEW P2 (the swatch sentence
+  leaked into all 32 roster rows' aria-describedby + no separator — the documented subtitleLead
+  seam trap) + 2 P3 (refinery's zero-children band wants the list-side :empty; Escape on the chat
+  Details overlay). TASTE NOTE for owner: two CONTEXT arms now spend ~383px declining honestly —
+  fine twice, worth noticing before a third joins.
+  **⚑ DEV STACK RESTARTED (pre-authorized):** the running vite predated tonight's merges and
+  white-screened on a stale HMR module graph. `pnpm stack restart dev` → up, healthz ok, client
+  200. Lanes drove isolated stages throughout.
   3 lessons banked to memory (self-occluding reveals · dnd-kit frozen plugin closures ·
   ListRow.leading aria-hidden).
 - **⏳ DATABANK S3 dispatched** (`afee5836975cedc36`) — the D-7 home tile per
