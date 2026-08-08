@@ -6,7 +6,7 @@
 
 import type { ReactElement } from "react";
 import type { CharacterDetailContribution, ContributorRegistry } from "#lib";
-import { revealContextPanel, useSelectedCharacterId } from "#state";
+import { revealContextPanelBesideContent, useSelectedCharacterId } from "#state";
 import { CharacterEditorSurface } from "../surfaces/character-editor-surface.tsx";
 import { CharacterLibraryWelcome } from "./character-library-welcome.tsx";
 
@@ -22,6 +22,10 @@ export function CharacterContent({ detailContributors }: CharacterContentProps):
     return <CharacterLibraryWelcome />;
   }
   return (
-    <CharacterEditorSurface characterId={selectedCharacterId} detailContributors={detailContributors} onRevealField={(): void => revealContextPanel("field")} />
+    <CharacterEditorSurface
+      characterId={selectedCharacterId}
+      detailContributors={detailContributors}
+      onRevealField={(): void => revealContextPanelBesideContent("field")}
+    />
   );
 }

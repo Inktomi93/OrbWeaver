@@ -51,34 +51,58 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
   return (
     <Stack gap="tight" data-slot="collection-group" data-collection={collection.id}>
       <Row align="center" gap="tight">
-        <Button
-          aria-controls={bodyId}
-          aria-expanded={open}
-          className="min-w-0 flex-1 justify-start"
-          intent="ghost"
-          onClick={(): void => toggleCollectionGroup(collection.id)}
-          size="sm"
-          type="button"
-        >
-          <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
-          <Icon icon={collection.icon} size="sm" />
-          <Text as="span" voice="kicker" className="truncate">
-            {collection.label}
-          </Text>
-          {count === undefined ? null : (
-            <Text as="span" voice="datum">
-              {count}
+        {/* A ZERO-MEMBER GROUP HAS NOTHING TO DISCLOSE (side-eye 2026-08-06 P2), so it renders no chevron and
+            no body: the old band kept a live toggle whose panel opened onto nothing, one row above the empty
+            card that had already said so. The identity cluster stays — same glyph, same kicker, same
+            horizon — it just stops pretending to be a door. */}
+        {isEmpty ? (
+          <Row align="center" className="min-w-0 flex-1 px-field" gap="tight">
+            <Icon icon={collection.icon} size="sm" />
+            <Text as="span" voice="kicker" className="truncate">
+              {collection.label}
             </Text>
-          )}
-        </Button>
+          </Row>
+        ) : (
+          <Button
+            aria-controls={bodyId}
+            aria-expanded={open}
+            // THE BAND IS AN ISLAND, NOT A LABELLED BUTTON (side-eye 2026-08-06 P3). `Button`'s base
+            // `gap-field` (6px) × three joints plus `size="sm"`'s inline padding spent ten pixels of a
+            // 271px pane on air, and "REGEX SCRIPTS" — the longest kicker in the door array, on the one
+            // collection that ALSO draws all three trailing verbs — lost its tail to an ellipsis at the
+            // panel's 17rem clamp floor. `tight` is the token minted for exactly this (glyph↔text inside an
+            // island); the padding drops one step for the same reason. Pinned by the narrow-pane CT.
+            className="min-w-0 flex-1 justify-start gap-tight px-field"
+            intent="ghost"
+            onClick={(): void => toggleCollectionGroup(collection.id)}
+            size="sm"
+            type="button"
+          >
+            <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
+            <Icon icon={collection.icon} size="sm" />
+            <Text as="span" voice="kicker" className="truncate">
+              {collection.label}
+            </Text>
+            {count === undefined ? null : (
+              <Text as="span" voice="datum">
+                {count}
+              </Text>
+            )}
+          </Button>
+        )}
         <CollectionBulkTrigger collection={collection} />
         <CollectionImportTrigger collection={collection} />
+        {/* The band's `+` STAYS at zero, and the empty slot below repeats the verb. The same finding called
+            that doubling a defect; the drawn design has both — `empty-states.html:191-193` puts a `+` in the
+            zero-count band AND a "New tag" link in `.gempty` — and `config-roster-surface.ct.tsx` ratifies
+            it. Only the DEAD half of the finding (a disclosure onto nothing) is fixed here; collapsing the
+            two verbs into one is a design call, not a defect fix. */}
         <Button aria-label={collection.create.label} intent="ghost" onClick={create} size="icon" title={collection.create.label} type="button">
           <Icon icon={Plus} size="sm" />
         </Button>
       </Row>
-      <div id={bodyId} hidden={!open}>
-        {open ? (
+      <div id={bodyId} hidden={!open || isEmpty}>
+        {open && !isEmpty ? (
           <QueryBoundary
             fallback={<Skeleton className="h-16 w-full" />}
             renderError={(_error, retry): ReactElement => <QueryErrorState label={collection.label.toLowerCase()} onRetry={retry} />}
@@ -94,7 +118,8 @@ export function CollectionGroup({ collection }: CollectionGroupProps): ReactNode
         ) : null}
       </div>
       {/* The EMPTY SLOT stays with the band, outside the disclosure: a zero-member group that only says so
-          once expanded would read as a library the user has to open to learn is empty. */}
+          once expanded would read as a library the user has to open to learn is empty. That ruling is why
+          the DISCLOSURE (and not this card) is what stands down at zero — see the band above. */}
       {isEmpty ? <CollectionGroupEmpty collection={collection} onCreate={create} /> : null}
     </Stack>
   );

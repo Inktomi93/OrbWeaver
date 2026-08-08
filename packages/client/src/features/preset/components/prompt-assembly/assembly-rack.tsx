@@ -6,8 +6,9 @@
 //
 // KEYBOARD REORDER IS THE SAME HOME (§16 row 17): `SortableList` ships dnd-kit's KeyboardSensor plus the
 // mid-drag focus keeper, so Space/Enter + arrows moves a row and focus survives to the DROP. What this
-// file owns is the per-row grip NAME (`handleLabel`) — a screen reader cannot tell N generic "Reorder
-// item" grips apart, and a rack of twelve is exactly where that bites.
+// file owns is the per-row NAME (`itemLabel`) — a screen reader cannot tell N generic "Reorder item" grips
+// apart, and a rack of twelve is exactly where that bites. The seal composes both the grip's "Reorder <name>"
+// and the live-region "…moved to position N of M" from that one string.
 //
 // The rack is an instrument ISLAND inside the form-tier editor (§2 — the density law's sanctioned reverse
 // nesting): rows are `ListRow`-skinned, hairline-separated, no border boxes.
@@ -45,14 +46,15 @@ export interface AssemblyRackProps {
   readonly restoreFocusSectionId: string | null;
 }
 
-/** The grip's per-row accessible name — the rack's own labels, so "Reorder Main" reads instead of N
- *  identical "Reorder item"s. */
-function reorderLabel(section: PromptSection): string {
+/** The row's own NAME — the rack's labels, so the grip reads "Reorder Main" instead of N identical
+ *  "Reorder item"s AND the live region announces the same word (`SortableList.itemLabel`: one resolver,
+ *  the seal owns the verb). */
+function sectionName(section: PromptSection): string {
   const name = section.name.trim();
   if (name !== "") {
-    return `Reorder ${name}`;
+    return name;
   }
-  return `Reorder ${section.type === "marker" ? MARKER_COPY[section.marker].label : "literal text"}`;
+  return section.type === "marker" ? MARKER_COPY[section.marker].label : "literal text";
 }
 
 export function AssemblyRack({
@@ -113,7 +115,7 @@ export function AssemblyRack({
               <SortableList
                 getItemKey={(section): SortableItemKey => section.id}
                 handle={true}
-                handleLabel={reorderLabel}
+                itemLabel={sectionName}
                 items={sections}
                 onReorder={onReorder}
                 renderItem={(section, index): ReactElement => {
