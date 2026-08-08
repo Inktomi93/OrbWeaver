@@ -506,6 +506,45 @@ security lens.
   from the session** — the rest (cold-check>warm, scope-the-absence-receipt, shared-value-owes-a-battery,
   ratifying-gate-two-receipts) are DOCTRINE/memory, not gates: the existing gates + battery caught every
   real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
+- **⚑ SMALLS BATCHED OUT (2026-08-08, owner: "send the undeployed + small stuff in batches").** Two
+  collision-free lanes dispatched (the load ceiling held at the live client-fix lanes — no 6th/7th
+  gate-heavy lane stacked):
+  - **DBANK-HOME** (`a2740c83073edd2ce`, executor): Row 1 databank pagination BUILDING (character.list
+    keyset precedent + ruled client-filter search arm). Row 2 (home tile promotion) → ESCALATED TO
+    OWNER as a design row, NOT built: the executor proved both naive arms are DEFECTS (CSS-order =
+    WCAG 2.4.3 focus divergence; data-driven-after-read reopens the measured F14 CLS), so the only
+    correct arm is a new store + orderHomeTiles signature change + demote-on-resolve UX — architecture
+    with a live fork, and the tile's attention chips ALREADY landed tonight as in-place deep-link
+    buttons. Analysis → `docs/design/home-tile-promotion.md`; owner rules WHETHER (build the store arm
+    / drop it — the in-place chips may already cover it).
+  - **TOOLING-INVESTIGATE** (`a867e56c60b9c0c21`, mech): BUILD the scripts/ gate-ignore inventory gap
+    (extend scanRoot + the literal-span exclusion) · INVESTIGATE the populate-round prose census
+    (→ docs/design/prose-1-populate-census.md, enumerate don't build) · INVESTIGATE the prod-build CLS
+    lead (confirm/refute the 0.134 dev artifact against a prod build if cheap, else report blocked).
+  - **HELD (not batched — need a quiet tree or an owner ruling):** the 135-name barrel amputation
+    (per-symbol verdicts, contracts/rpg locked-shape data — a careful lane on a drained tree) ·
+    `--include-entry-exports` (whole-repo posture, owner-visible noise/value tradeoff — a ruling, not
+    a default).
+- **⚑ GAP-CLOSURE LENS REPORTED: SHIP WITH FIXES — 3 P1 · 10 P2 · 7 P3** (the five previously-unlensed
+  surfaces; 1 own-retraction — same-tick reads vs React commit). HELD SURFACE: the preset ACTIONS TAB
+  ("a database dump wearing a UI" at 66 rows) — [P1] the readout states a FALSE DELIVERY PATH for all
+  51 teach/extract rows · snake_case row titles · 40-row flat group · false teaching sentence ·
+  fork-and-EJECT on editing the built-in Default · 131ms tab frame. PROSE editors: [P1] the over-cap
+  refusal renders ~900px below the fold (uncapped field-sizing) · [P2] "Saved" while refusing · three
+  cap regimes one signalled. [P1] colour-picker native input has no focus ring. TRANSWEEP verified
+  clean live; the readout pending-arm lie confirmed dead; contrast uniformly strong; CONFIG-FINAL's
+  claims held exactly. **THREE FIX LANES DISPATCHED: FORGE #1** (`ae00d9bbd323b47b2`, its maiden
+  lane — the Actions-tab IA redesign, think-then-build) · PROSE-GEOMETRY (`ac5d3f3534e347fa9`) ·
+  POLISH-CLUSTER (`adb081a0dc3e98a4c`). **The conditional push word now waits behind these + ROW-27
+  → battery → push.**
+- **✅ `forge` AGENT MINTED** (`7c4e4ab84`, owner-ordered): frontier thinker-then-builder, fable @
+  MAX effort (xhigh-audit caveat recorded in-def; max is bet on design-before-edit, not review),
+  doctrine + recon standards + the night's build laws baked. Routing: design-risk work only;
+  security never.
+- **✅ NL→SCHEMA DESIGN + SHELL AUDIT DELIVERED** (`299fdc2d5` + `8c6a16a72`): engine tier ALREADY
+  BUILT both directions (liftJsonSchema ↔ projectJsonSchema, golden-proven); SF0-SF3 rides R0-R3;
+  §10 shell-conformance — sessions = the LIST selection (one-shell rule joins), CONTEXT = the
+  cross-run ledger (anti-echo tested), 3 D62 deltas NAMED FOR OWNER. Refinery kickoff after push.
 - **⚑ OWNER RULINGS (2026-08-08 ~04:00, pre-sleep batch):**
   - **PUSH: conditional word GRANTED** — after the gap-closure side-eye lands (+ any fix legs) and a
     fresh battery greens, PUSH origin. The word is THIS sequence's; a red resets to ask-again.
@@ -887,7 +926,9 @@ security lens.
 - **⚑ OWNER RULINGS (2026-08-08, Nate live):**
   - **PUSHES HELD tonight** — even on a green battery. The train-drain `verify --push` battery still
     RUNS for verification; origin stays un-pushed until a fresh word on a later day.
-  - **Row 27 (`RPG_STATE_TRACKING_GUIDE`, dead): DEFER** — leave dead-but-present; the extraction
+  - ~~**Row 27: DEFER**~~ **SUPERSEDED — owner ruled WIRE 2026-08-08, and it LANDED** (`bbb6364a2`:
+    the guide is the `rpg.extract.stateTrackingGuide` slot on both write surfaces, ~160 tok/round
+    measured; A/B quality measurement remains open). Original: leave dead-but-present; the extraction
     follow-on lane migrates around it and flags it again.
   - **Probe-lint: RESOLVED — leave `scripts/probes/**` as lint-free scratch** (bugs there are caught by
     running probes, not gates). Removed from the parked pile.

@@ -1236,6 +1236,14 @@ export const TEMPLATE_DEFS = [
     cluster: "planes",
   },
   {
+    id: "rpg.extract.stateTrackingGuide",
+    kind: "extract",
+    label: "Be thorough",
+    fires: "Tails the plane teaching on every extraction",
+    caps: [],
+    defaultSlot: "rpg.extract.stateTrackingGuide",
+  },
+  {
     id: "rpg.extract.reconcileDoctrine",
     kind: "extract",
     label: "Reconcile rule",
