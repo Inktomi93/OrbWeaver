@@ -533,6 +533,18 @@ security lens.
   empty-slot chrome. **Rendered re-verify BATCHES with the FORGE#1 + PROSE-GEOMETRY preset-surface
   lens** (one side-eye over the whole preset/config fix train). Freed slot HELD (barrel-amputation +
   capability-gate follow-up both want a quiet/uncontested tree).
+- **⚑ CONTAINERIZE → BUILD (owner: "put a forge on it… after having it look at the most recent docker
+  capabilities + best practices, fully modern and proper").** Pipeline (forge has no web tools):
+  (1) WEB-RESEARCH lane `abeb1d71601a7c8d7` → `docs/design/docker-modern-practices-research.md`
+  (current 2026 Docker/BuildKit/compose-v2 practice: cache+secret mounts, CUDA/node base, GPU device
+  reservation syntax, healthcheck start_period, non-root, PID-1 reaping, SBOM/provenance — cited);
+  (2) FORGE builds the real Dockerfile(s) + docker-compose + .dockerignore against the SPEC
+  (`containerize-prod-image-spec.md`, 2-profile: all-in-one fleet default + slim) + the research, plus
+  the profile-2 code changes (VLLM_ENGINE_HOST at engine-url.ts + egress.ts, GPU-detect-under-posture
+  fix); (3) SECURITY-EXECUTOR reviews the §8 surface (secrets, auth-mode env, expose-only /
+  AUTH_FALLBACK=deny, the AUTHFIX-2 Host-mint control) before done. LIMIT: a lane cannot `docker build`
+  the GPU image in a worktree — image build+run is the owner's live-infra step (sequenced w/ the
+  pentest cage), the lane proves the code changes + authors best-practice-correct Docker files.
 - **⚑ FOLLOW-UP CAPTURE (owner caught it 2026-08-08: closed lanes had attached follow-ups I relayed
   but never BOARDED — the "looked handled" class). Dropped rows now boarded:**
   - **guided-prompt cap** — `guidedActionSchema.prompt` is uncapped `z.string()` reaching BOTH DB and the
