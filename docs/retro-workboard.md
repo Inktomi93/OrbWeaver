@@ -48,7 +48,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   granted for the preset train — after PRESET-FOLLOWUP lands + fix legs + a FRESH battery greens,
   push. Otherwise held. `E2E_LIVE=1 pnpm e2e` is owed on the push window.
 - **A value/label/enum-changing merge owes the BATTERY, not just static** — `pnpm check` never runs
-  `tests:node`; budget ~1 stale coupled fixture per value-changing lane
+  `tests:node`; budget \~1 stale coupled fixture per value-changing lane
   (\[\[shared-value-change-owes-a-battery-not-static]]). One `verify --push` when the train drains.
 - **Every UI build gets its side-eye, and ALL findings get fixed** (\[\[side-eye-fix-all-findings]])
   — but a side-eye PRESCRIPTION never reverses a recorded ruling; kill the symptom, keep the law.
@@ -62,17 +62,48 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 
 ## ═══ LIVE STATE (2026-08-08, evening) ═══
 
-- **main `06a706551`**, ~170 ahead of origin, tree clean (minus the refinery security pass's
-  in-progress contract edits). **Gates 197.** Battery last green at `6494c540e` (night-seal); a
-  FRESH battery is owed when the train drains (docker + refinery + auth-fence + preset-followup +
-  populate-prose are all value-changing).
+- **main `1f62fadb5`**, \~170 ahead of origin, tree clean. **Gates 197.** **⚑ FRESH BATTERY RUN
+  2026-08-08 evening (verify --push, detached, exit read): 17/19 — `tests:node` (whole vitest+CT)
+  GREEN.** Two push-tier-only reds, both root-caused + fix lanes live: (1) orphan-ratchet —
+  `RefineryFieldScore` (contracts/refinery/index.ts:204), R1 export whose consumer is unbuilt R2 →
+  `@public` tag in the C2/C8 lane; (2) e2e-smoke — multi-user-seed owner-handle failure. **The auth
+  merges are EXONERATED** (security lane, cold-reproduced): harness stacks inherit `OWNER_HANDLES`
+  from the repo `.env` (ORB\_ENV\_NO\_OVERRIDE flips precedence only for keys the harness SETS); the
+  seed had lived off the pre-D135 twin-mint bug's artifact (last passing DB minted its twin 4 min
+  before `04a96f459` removed the class). Fix: pin `OWNER_HANDLES=owner` in e2e envs + state-root
+  move `.cache/e2e-<mode>/` → `.cache/e2e/<mode>/` (dodges stale-DB D17 unique-owner collision).
+  Re-certify battery after the fix train merges; the conditional push word spends on that green.
 - **Merged today, this train:** FORGE#4 CONTAINERIZE (`fd4ae9119`, check PASS) · REFINERY R0
   (`b7ca6d55a`, check PASS) · AUTH BOOT-FENCE + spec repair + shim⇔firewall pin (`06a706551`,
   check RUNNING — read `<scratchpad>/sec-leg-check.exit`).
-- **⚑ NO LIVE LANES — the whole board is drained + graduated.** Refinery R1 GRADUATED (both lenses
-  passed + check exit 0; see A1). Everything buildable-without-the-owner is done. What remains is the
-  owner-decision pile (C), the refinery R2-R4 + NL→schema tail (owner-sequenced), and the live-infra
-  steps. Nothing fires without the owner's word.
+- **⚑ THREE WRITE LANES + ONE STICKLER LIVE (2026-08-08 decision sitting, 2nd account):**
+  (1) security-executor — e2e-smoke seed fix (root cause above; final smoke run on new cache paths
+  in flight, merge on its green). (2) executor — C2-BLOCK {{note}} carrier refusal (write boundary +
+  editor save-hold, fence extended mid-run) + C8-CAP `MAX_INJECTION_TEMPLATE_LENGTH=10000` (RENAMES
+  `MAX_FORMAT_STRING_LENGTH`, coupled sites swept) + the RefineryFieldScore `@public` tag (ratchet
+  re-run exit 0 branch-side). (3) executor — OR-F5 cache-breakpoint fix: premise CORRECTED mid-run
+  (no tool fan-out on today's tree; real skew = parallel tool calls + recursion drift), fix =
+  tool-exchange rows TRANSPARENT to the conversational depth counter (sanctioned ST deviation —
+  ST never had tool rows here), + caching-depth knob (ARM A clamp-to-safe, Settings›Admin D126
+  precedent, null = byte-identical) + F5/F7 wire-probe matrix (authorized spend). (4) stickler —
+  group-chat architecture coherence review (owner: "feels crunchy"), report →
+  `docs/reviews/stickler/2026-08-08-group-chat-coherence.md`; the C4 build queues behind its verdict.
+- **⚑ DECISION SITTING RESULTS (2026-08-08, owner live):** C2 BLOCK (Option C) · C3 SHIP ALL
+  VERBATIM (ratified — the veto pile is closed) · C4 RULED mode-aware default + BLESSED narrator
+  bytes (verbatim in the session TaskList #5; identity-as-narrator, address clause preserved;
+  per-section override stays one text for both kinds) · C6 arm 1 (kebab PNG/JSON submenu, queued) ·
+  C7 arm 2 (CollectionLauncher drops count+create once populated; New-book double stays, queued) ·
+  C8 Option 2 (shared constant, in-lane) · **openrouter split: F5 BUILD+prove+depth-knob (lane 3) ·
+  F6 SKIP (wire property, nothing to build) · F7 DEFER** — the board's "latent hard-400 bug" framing
+  was WRONG: we never replay reasoning (no ChatContentPart arm), drop-is-safe is MEASURED, reasoning
+  STORAGE already exists per-message; probe arms ride lane 3 to re-confirm on a multi-hop chain.
+- **⚑ W5 (user-macro values store) STRUCK — FULLY BUILT, board row was rotted** (orchestrator
+  ast/grep ladder 2026-08-08): sibling column `chats.userMacroValues` (schema/chat.ts:156) ·
+  `setUserMacroValues` verb (chat-lifecycle.ts:254) + proc (routers/chat.ts:534) + matrix member row
+  (:115) · turn consumption `turn.ts:394` via `loadStoredUserMacroValues` (placeholder `values: {}`
+  gone, zero hits) · pane `MacroPicksSection` mounted (settings-context-tab.tsx:144) · bundle
+  portability. The spec's own F1 ruling (2026-07-27, "yes option A") was recorded at its foot and
+  the board's "parked on owner fork" claim never re-checked it.
 - **⚑ FULL-BOARD SCOUT SWEEP DONE (2026-08-08, owner-ordered "verify they aren't already done"):**
   four scouts re-laddered every B/C-premise/D/E row. **Stale harvest: B 3/4 · C 1/10 · D 7/9 ·
   E 5/6 already-done** — struck below with receipts (F). The C pile survived near-intact (it waits
@@ -124,7 +155,7 @@ Ranked by consequence within each category. Every item carries its receipt state
   BROKEN-AND-HELD — the ONLY repo-wide readers of `characters.refinery` are the admin-gated debug
   inspector + card-merge field-carry, ZERO chat/prompt/macro consumer, so stamped card bytes never
   reach a macro-resolving path; stamp-WHERE owner-predicate real+non-vacuous; injection can't widen
-  the apply set (selection fence + server-derived characterId); write re-validates card TEXT_MAX;
+  the apply set (selection fence + server-derived characterId); write re-validates card TEXT\_MAX;
   strippedKeys paths-only. **Verifier receipt:** apply-intersection algebra red-pinned; heal
   independence proven via RAW column bytes (score survives analysis-drift); latestVerdict newest-wins;
   iterate mid-round writes nothing on failure; shared stage-engine has no pooled sink.
@@ -138,7 +169,7 @@ Ranked by consequence within each category. Every item carries its receipt state
   self-proven; an independent re-verify of the fence is available on the owner's word (optional,
   belt-and-suspenders).
   **⚑ NON-BLOCKING SMALLS (boarded, from both lenses — see D):** `accepts` has no wire `.max()`
-  (self-DoS, owner-only today) · apply-fields lacks an explicit foreign-session NOT_FOUND pin (reuses
+  (self-DoS, owner-only today) · apply-fields lacks an explicit foreign-session NOT\_FOUND pin (reuses
   a belt proven in 6 siblings) · `depthPrompt→not_applicable` branch unpinned · `latestVerdict` ORDER
   BY has no id secondary-sort (deterministic in practice, ms-apart runs). **⚑ OWNER product calls
   (carried from R0, not defects):** the handoff-clear verdict (new owner does NOT inherit the prior
@@ -157,7 +188,7 @@ Ranked by consequence within each category. Every item carries its receipt state
   the stamp WHERE belt · injection widening apply past belts 9/10 · strippedKeys keys-not-values ·
   internal re-parse caps). Graduates on both CONFIRMED + the consolidated check exit. **⚑ OWNER-SACRED, awaits sign-off: the 12 shipped
   prose-slot baseline TEXTS** (the lane's adaptation of the extension corpus to structured output —
-  model-facing default bytes, [[persona-is-owner-sacred]] class). **⚑ BELT-5 DEVIATION RULED
+  model-facing default bytes, \[\[persona-is-owner-sacred]] class). **⚑ BELT-5 DEVIATION RULED
   (orchestrator, mid-run):** `neutralizeMacros` on refinery text would CORRUPT canon (ZWSP'd braces
   ride rewrite→applyFields→card, killing the card's own {{char}} at chat time) —
   satisfaction-by-construction APPROVED instead (no macro engine in the domain, concatenation not
@@ -177,7 +208,7 @@ Ranked by consequence within each category. Every item carries its receipt state
   positive+negative context controls; shim clean) · egress structurally can't accumulate ·
   hostile `VLLM_ENGINE_HOST` fails closed (all smuggling shapes measured) · non-root both app
   targets. REFUTED (recorded): the vllm SIBLING runs root/default-caps (upstream image — live-step
-  rec: try cap_drop, CUDA may need IPC_LOCK) · profile coupling only pins `sibling` (availability
+  rec: try cap\_drop, CUDA may need IPC\_LOCK) · profile coupling only pins `sibling` (availability
   not exposure). **FOLLOW-UP LEG (running):** spec truth-repair ×3 sites + the `superRefine`
   boot-fence (single-user+deny = boot-fatal, red-first) + 3 in-code comment repairs + the
   shim⇔`HOST_SECRET_ENV_KEYS` coupled-site tie. **✅ FORK RULED (owner, 2026-08-08):
@@ -190,7 +221,7 @@ Ranked by consequence within each category. Every item carries its receipt state
   fence is env-boundary only (infra `resolve` still accepts a constructed incoherent config — its
   contract test depends on it; stated in-code). **OWNER — the only remaining containerize work is
   the live-infra steps:** `docker build` both targets (+`docker inspect` the healthcheck),
-  container runs, fleet-in-namespace, read-only shakeout, sibling-vllm cap_drop probe, the pentest
+  container runs, fleet-in-namespace, read-only shakeout, sibling-vllm cap\_drop probe, the pentest
   cage (§4/Fork F), deploy posture (C13).
 - **✅ A3 · PRESET-FOLLOWUP — GRADUATED** (fix leg `eb3669b1e`, re-verify CONFIRMED all 5
   consequences DEAD + all 4 minors real + both truth-repaired CTs bite; fix-leg check exit 0;
@@ -199,7 +230,7 @@ Ranked by consequence within each category. Every item carries its receipt state
   cross-preset leak UNREPRESENTABLE (scoped read → foreign preset = null), retarget-on-fork from
   the one site that knows (`use-preset-autosave.ts`), clear at the single view-writer chokepoint
   (`setPresetEditorView` — so nav doors inherit it), `presetId` REQUIRED (7 sites). All 5 pins bite;
-  swept coupled sites the brief didn't name (2 pre-existing CTs falsely named routing → BAD_REQUEST,
+  swept coupled sites the brief didn't name (2 pre-existing CTs falsely named routing → BAD\_REQUEST,
   branding, a test-presence mirror). Durable lesson: moving state useState→store is taking on a
   lifecycle you must design per nav axis (banked). Original verifier verdict (3/4 CONFIRMED, 2a
   REFUTED — the drill store had NO production reset:
@@ -212,7 +243,7 @@ Ranked by consequence within each category. Every item carries its receipt state
   prose, retry-CT focus-heal false-pass path). Graduates on the fix leg + re-verify. Original
   landing detail:
   Shipped 3/4: B1 CapabilityGate wired to shared `failureCause` (verdict verbatim ONLY on
-  BAD_REQUEST; error threads WHOLE so `data.code` survives; red-first CT bite-proven) · B2 Prompt
+  BAD\_REQUEST; error threads WHOLE so `data.code` survives; red-first CT bite-proven) · B2 Prompt
   section-drill on a store axis (mirrors FORGE#1; red-first: old source ejected, new survives the
   fork; 20/20 drill CTs) · retry CT closed the real gap (fail→Retry→recovers over the wire; click
   proven the only trigger). ITEM-3 DECLINED per recorded ruling (`index.ts:1265-1267` — the wire
@@ -238,47 +269,56 @@ Ranked by consequence within each category. Every item carries its receipt state
   sibling `:377` (the turn-loop extraction user prompt) — small gate-reach row for a later lane.
   Landing detail: All 7
   strings are `rpg.populate.*` slots (2 tokened blocks body-as-token per the {{actorTrackers}}
-  precedent) + TEMPLATE_DEFS rows in `cluster:"round"` ("Born-state round —" glosses; a dedicated
+  precedent) + TEMPLATE\_DEFS rows in `cluster:"round"` ("Born-state round —" glosses; a dedicated
   band = a later 1-member sibling-file change if wanted). Byte-identity: pre-migration fixtures
   green on HEAD then green post + planted 1-char control red. Ratchets shrink-only
   (extraction-prompt row DELETED, rpg.ts 8→6; prose-baseline 93→100). Its literal sweep caught +
   fixed 1 stale coupled site (hand-spelled slot-id list). 376 tests + 21 CT + full static floors.
-  Verifier is independently re-deriving the old bytes from git. [merged 08-08]
+  Verifier is independently re-deriving the old bytes from git. \[merged 08-08]
 - ~~B2 respell~~ · ~~B3 cross-link fixture~~ · ~~B4 baseline+fork.ts~~ — **ALL STRUCK, scout-
   verified already-done** (receipts in F).
 
 ### C · OWNER-DECISION (his word only; recommended arm marked)
 
 **Persona / prose cluster**
+
 - **C1 · persona = character** — OWNER-SACRED. Design:
   `docs/design/persona-character-kind-substrate.md` (5 forks §10). **Rec: Phase D now**
   (kind-polymorphic cast — `CAST_KINDS`+`CAST_KIND_POLICY`, no stored column), **then Phase C**
   (`@orb/contracts/card-face` 4-field substrate). Reading B is OFF THE TABLE (D122/D131 collision).
   Build lane mints **D137**; behavioral gate: `persona-resolution.suite.int.test.ts` byte-untouched.
-- **C2 · `{{note}}` warn-vs-block** — `docs/design/note-token-intent-history.md`: warn-never-block
+- **✅ C2 · RULED 2026-08-08: BLOCK (Option C), lane live** — `{{note}}` warn-vs-block. History:
+  `docs/design/note-token-intent-history.md`: warn-never-block
   was INHERITED, never decided. **Rec: Option C** — reclassify `{{note}}` as a CARRIER token that
   BLOCKS at write (join `FORMAT_STRING_CARRIER_TOKENS`, today only wiFormat/`{{entry}}` at
-  `preset/index.ts:734`), keep cosmetic `{{name}}`/`{{names}}` as warns. [live-verified still warn]
-- **C3 · Default-text veto pile** (ship-verbatim rec on all): the 3 nudge texts (`speakerTags` v1 ·
+  `preset/index.ts:734`), keep cosmetic `{{name}}`/`{{names}}` as warns. \[live-verified still warn]
+- **✅ C3 · RATIFIED 2026-08-08: SHIP ALL VERBATIM (closed, no build)** — the veto pile: the 3 nudge texts (`speakerTags` v1 ·
   `narratorNudge` v1 · `roundNudge` v2 — LIVE defaults today) + `chat.group.castMember`
   (`[Cast — {{name}}]`). **Rec: ship all verbatim**, no token added.
-- **C4 · Narrator main-prompt marker contradicts itself** — once `{{char}}` binds the joined cast,
+- **✅ C4 · RULED 2026-08-08: MODE-AWARE DEFAULT + bytes BLESSED (build queued behind the group-chat
+  stickler verdict; bytes verbatim in TaskList #5 + the sitting block above).** Decisive facts: presets
+  are GLOBAL (a narrator-preset would flip every chat), and one narrator room legitimately produces
+  BOTH turn shapes (forced/@mention coerces per-speaker via `asPerSpeaker`), so only turn-time
+  selection by speaker kind puts right bytes on both. Original row: once `{{char}}` binds the joined cast,
   the default marker renders "…write Charlotte, JFC's perspective only" (self-contradictory;
   `contracts/preset/index.ts:995`). PRESET-owned template, deliberately not fixed from the
   assembler. **Owner call: a mode-aware default marker, or a documented narrator-preset.**
 
 **Config / portability cluster** (`docs/design/parked-options-config-port.md`)
+
 - **C5 · Presets into the config rail** — **Rec: arm 4** (leave standalone; the "one array member"
   premise is false — folding needs 3 seam extensions; migrate properly when he feels it).
-- **C6 · JSON-card export affordance** — **Rec: arm 1** — server arm SHIPPED (`?format=png|json`);
-  add the PNG/JSON submenu to the character kebab mirroring the chat kebab. ~10 lines.
-- **C7 · Landing-cards + "New book" duplication** — **Rec: arm 2 (split the class)** — fix the
+- **✅ C6 · RULED 2026-08-08: arm 1, build queued (TaskList #3)** — server arm SHIPPED (`?format=png|json`);
+  add the PNG/JSON submenu to the character kebab mirroring the chat kebab. \~10 lines.
+- **✅ C7 · RULED 2026-08-08: arm 2 split-the-class, build queued (TaskList #4)** — fix the
   landing at the child level (each `CollectionLauncher` drops count+create once populated), KEEP the
   New-book double affordance (mock-ratified + CT-pinned).
 
 **Tag / contract cluster** (`docs/design/parked-options-tag-contract.md`)
-- **C8 · Guided-prompt cap** — **Rec: Option 2** — shared `MAX_INJECTION_TEMPLATE_LENGTH` (=10000)
-  for BOTH formatStrings and `guidedActions.*.prompt` + UI maxLength. [live-verified:
+
+- **✅ C8 · RULED 2026-08-08: Option 2, in the C2 lane (renames `MAX_FORMAT_STRING_LENGTH`)** —
+  shared `MAX_INJECTION_TEMPLATE_LENGTH` (=10000)
+  for BOTH formatStrings and `guidedActions.*.prompt` + UI maxLength. \[live-verified:
   `guidedActionConfigSchema.prompt` still uncapped `z.string()` at `preset/index.ts:337` — the lone
   uncapped authored-text field reaching DB + wire]
 - **C9 · Four tag taste-calls** — recs: 1a tag-only backup → SKIP (bundle carries tags.json) · 1b
@@ -287,20 +327,25 @@ Ranked by consequence within each category. Every item carries its receipt state
   `folderType`).
 
 **Ops / posture cluster** (`docs/design/parked-options-ops-posture.md`)
+
 - **C10 · AGENT-1** — **Rec: SPLIT.** The credential is an OWNER ACTION (re-auth Claude Max OAuth);
   arms 1-3 (knob honesty · reasoning-visibility parity · usage/context parity) are a buildable lane
   that does NOT wait on it; only arm 4 (live rpg-lite on the SDK wire) is credential-blocked.
+
 - **C11 · Barrel amputation worklist** — root-fix LANDED (57→**29** stars, scout recount 08-08 —
   doc says 28, off-by-one; both files the sanctioned db-schema stars); HELD for a quiet tree: Tier
-  A 85 per-symbol verdicts (delete / `@public` / header-cite; several RPG_* protected) + Tier B 50
+  A 85 per-symbol verdicts (delete / `@public` / header-cite; several RPG\_\* protected) + Tier B 50
   zero-risk drops. Then **C12 · `--include-entry-exports`** — **Rec: arm (c)**, enable AFTER the
   amputation (else it buries the 85 under entry-export noise).
+
 - **C13 · Containerize deploy posture** (post-A2-review): `AUTH_FALLBACK=deny` for public
   multi-user · `OWNER_HANDLES`/`OWNER_GROUP` provisioning · image build + pentest-cage sequencing ·
   the env-schema `*_FILE` support fork (lane refused as out-of-scope — foundation surgery, his
   call).
+
 - **C14 · Refinery F6/F7** — F6 auto-stamp rec: every analyze refreshes `characters.refinery`,
   `applyFields` auto-snapshots first · F7 retention rec: no caps v1. Low-stakes; fold into R4.
+
 - **⚑ C15 · REFINERY TAIL R2-R4 + NL→schema** (owner-sequenced; R0+R1 DONE+graduated, port study
   `:379-386`). **R2 client mutations (S)** — just the React-Query hooks over the tRPC router R1
   already shipped; safe/mechanical, clear to start on the owner's word. **R3 the Refinery SURFACE
@@ -327,6 +372,7 @@ Ranked by consequence within each category. Every item carries its receipt state
   only) — recorded, not a fix.
 
 **Standing owner items (genuinely open, unchanged)**
+
 - DRAFT-TRUST server render-policy seam (architecture call) · VRAM-refusal live drill ·
   v3-transcripts-reach-new-installs-only heal · RV-13 branch-and-save game modes (READY TO SPEC —
   PROSE-1 landed) · unsent-draft reload persistence + the nav-away draft-discard design pass ·
@@ -334,8 +380,8 @@ Ranked by consequence within each category. Every item carries its receipt state
   card-frame doc with its own CSP) · **mid-session persona↔rpg linkage — OWNER-SACRED, ruled flavor
   recorded (persona-pin semantics), DO NOT BUILD** · `.env` OpenRouter key is INERT (no env
   fallback; decide: env fallback for the testing arm, or document UI-entry-once) · templating fork
-  rows 53-73 (REWRITE_TOGGLES/GREETING_TRANSFORMS fragment bytes — client-composed via kit, a
-  design fork) · shell-tier CLS ~0.26 (F-14, three sightings, needs an owner look — pairs
+  rows 53-73 (REWRITE\_TOGGLES/GREETING\_TRANSFORMS fragment bytes — client-composed via kit, a
+  design fork) · shell-tier CLS \~0.26 (F-14, three sightings, needs an owner look — pairs
   with E1) · home-tile promotion WHETHER (`docs/design/home-tile-promotion.md` — in-place chips may
   already cover it) · ctx-tab-strip label unreachable at coarse · REGPAR F3/F4/F5 menu · "Untitled
   chat" in regex rosters · X-16 edited-ago timestamp (contracts+db) · **taste (optional):** the
@@ -347,17 +393,17 @@ Ranked by consequence within each category. Every item carries its receipt state
 
 - **D1 · Home `useOrder` follow-up** — CONFIRMED still static (`order-home-tiles.ts:9-11`, pure
   sort, no store) — but that's the DESIGN OPTION awaiting the owner (home-tile promotion, C-pile),
-  not debt. [scout-verified]
+  not debt. \[scout-verified]
 - **D2 · REGX2 deferred bulk PLACEMENT** — CONFIRMED blocked: `deriveRegexTierFlags` still
   client-homed (`features/regex/lib/derive-tier-flags.ts:48`), zero kit twin (two-method). Unblocks
-  when it lifts into `@orb/kit/regex`. [scout-verified]
+  when it lifts into `@orb/kit/regex`. \[scout-verified]
 - **D3 · LAUNCH-DAY trio** (parked to the day, not scout-checkable): REGIME-2 db-baseline re-point
   · the two-switch migration-regime flip · h3/QUIC checklist (Caddy h3 + UDP 443).
 - **D4 · CT-on-our-vite spike**: pnpm override `@playwright/experimental-ct-core>vite: ^8.1.2`;
-  green = one vite; red = revert. [not scout-checkable — a probe, not a premise]
+  green = one vite; red = revert. \[not scout-checkable — a probe, not a premise]
 - **D5 · Engines fleet fix — live verification owed**: the next real `pnpm engines adopt` IS the
   test (one launcher exits promptly, no dupe on a healthy port, pidfile merges).
-- **D6 · automation_rules + global_variables portable family** (the 12th kind). Fork lineage
+- **D6 · automation\_rules + global\_variables portable family** (the 12th kind). Fork lineage
   (`parentChatId`) structurally does not travel. Deferred with corrected end conditions.
 - **D7 · SM7 residue — RELOCATED (scout 08-08), recorded DELIBERATE (I-1):** the second
   `response_format` builder that never emits `strict` lives at
@@ -380,7 +426,7 @@ What remains needs a LIVE window or a rendered lens, not a scout:
   window opens.
 - **E2 · PRESET-SLIDER-VERIFY** (S): re-verify the slider deck rendered on a vLLM/OR connection
   (sonnet-5 exposes no sampling knobs — the deck was never seen).
-- **E3 · E2E_LIVE=1 pnpm e2e** on the push window (never re-confirmed this era).
+- **E3 · E2E\_LIVE=1 pnpm e2e** on the push window (never re-confirmed this era).
 - **E4 · narrowest-mount row gate candidate**: gate-shaped, ASTLENS-precedent report first (the
   class behind both gap-audit P1s: `shrink-0` trailing cluster never re-measured at production
   width; candidate CT floor: leading text ≥50% at narrowest real mount).
@@ -454,17 +500,18 @@ line).
 > signature ast-grep ts=13/tsx=0 = truly absent). Genuinely-open carried below; built struck.
 
 **GENUINELY OPEN (specced, a real remainder — carry these):**
+
 - **persona = character** (`persona-character-kind-substrate.md`) — UNBUILT, specced+pinned, **= C1**
   (awaits the 5-fork ruling; forge lane ready on the owner's word). The one that prompted this section.
-- **⚑ NEW — user-macro W5 values-store** (`user-macro-delivery-spec.md`) — W1-W4 BUILT
-  (contracts/registry/turn-wiring/previews); **W5 (the values store) PARKED on an OWNER FORK F1:
-  per-chat (Arm A) vs per-user (Arm B).** Ships `values: {}` placeholder today
-  (`assembly/user-macros.ts` → `resolveUserMacroInputs`; doc `:285`,`:487`). Was NOT a board row before
-  — the exact class this section exists to catch. **→ owner-decision (add to C).**
-- **⚑ openrouter findings 5-7** (`openrouter-provider-findings.md`) — 1-4 applied; 5-7 unbuilt
-  (cache-breakpoint offsets · effort under-drive · **reasoning-signature round-trip — the high-impact
-  one: a hard 400 on unsigned replay**; zero signature-threading in the OR backend today). The
-  signature one is a latent BUG risk, not just a nicety — worth an owner look at priority.
+- ~~user-macro W5 values-store~~ — **STRUCK 2026-08-08: FULLY BUILT** (see the W5 strike block in
+  LIVE STATE — column/verb/turn-read/pane/portability all live; the F1 fork was ruled Arm A
+  2026-07-27 at the spec's own foot). The spec's status line + this row were both rotted.
+- **openrouter findings 5-7 — RULED 2026-08-08 (F5 lane LIVE · F6 skip · F7 defer).** The old
+  "signature round-trip = latent hard-400 bug" framing was a board paraphrase error the doc's own
+  §7 caveat refutes: we never replay reasoning (no `ChatContentPart` arm), DROP-IS-SAFE is measured,
+  and reasoning STORAGE already exists per-message — the 400 lives only on a path we can't take.
+  F7 re-probe arms (multi-hop drop / unsigned-400 / ST encrypted-rebuild) ride the F5 lane's harness
+  run, record-only.
 - **tracked-field unification + context-panel fidelity** (`tracked-field-unification.md` ·
   `context-panel-fidelity-findings.md`) — PARTIAL: stages 1+2 shipped (`ea99b0e3`,`98ee6da2`); both feed
   the SAME still-open **W-H side-eye lane** (needs a model-populated game) + EXT-4 (likely mostly closed
@@ -475,6 +522,7 @@ line).
   explicitness smalls (low-urgency). Not a real queue item until the browser ships.
 
 **BUILT — rotted status lines, struck (do NOT re-chase; receipts from the reconcile):**
+
 - **parity-plus program** (`parity-plus-program-spec.md`) — the BIG one: **ALL 7 features BUILT**
   (declared+exported+live). 1-5,7: `RpgRelationship`/`setRelationship` `actor.ts:128,149,295` · `level`
   `rpg.ts:35` · `CONTENT_CLASS_POLICY` `content-classes.ts:44-51`; D110 "foundation-landed 2026-07-27".
@@ -483,8 +531,8 @@ line).
   (`kit/guided/index.ts:84,116` — **6 kinds vs the specced 5**, `advance` added), delivered via M5's
   guided-wand re-homing (`composer-utility-menu.tsx:199-211` `PlotSteersSubmenu` → `onSteer`), PLUS a
   structured act-rail plot DATA plane the marinara floor lacked (`plot-edit.ts`, `plot.acts`/`plot.act`
-  + `plotProgression` host toggle). Only §12A macro-parity DEPTH un-probed (a "how thorough" question,
-  not a gap — no evidence of missing machinery).
+  - `plotProgression` host toggle). Only §12A macro-parity DEPTH un-probed (a "how thorough" question,
+    not a gap — no evidence of missing machinery).
 - **lite+guided substrate** (`lite-plus-guided-substrate-spec.md`) — BUILT (quests folded into
   `rpg_snapshots` JSON, `rpg_quests` deleted, journal variant-aware — `rpg.ts:170,13-18`).
 - **density pass** (`density-pass-spec.md`) — BUILT (gate `density-tier.ts` minted + self-cites the
@@ -510,7 +558,7 @@ controls both ways, security-executor only).
 
 - `code-editor.ct` CM6 75ms completion flake under contention · `drawer.ct:162` focus-trap
   (pre-existing at HEAD) · `preset-editor-surface.ct:140` parallel-load flake (A/B-proven
-  pre-existing) · `seed-demo-chats` cold-import contention (structurally fixed → SERIAL_INT; watch
+  pre-existing) · `seed-demo-chats` cold-import contention (structurally fixed → SERIAL\_INT; watch
   it stays quiet) · `rpg-scene-tab.tsx` near the 450-line cap.
 
 ## ═══ ORCHESTRATOR QUICK-ONBOARD (load-bearing — keep) ═══
@@ -542,8 +590,8 @@ controls both ways, security-executor only).
 
 **Verification instruments**
 
-- `pnpm check` = STATIC (~90-220s). `pnpm verify --push` = static + `tests:node` (vitest+CT, ONE
-  behavioral lane) + e2e-smoke + cpd + parity (~16min; setsid-detach + `.exit` file, READ it).
+- `pnpm check` = STATIC (\~90-220s). `pnpm verify --push` = static + `tests:node` (vitest+CT, ONE
+  behavioral lane) + e2e-smoke + cpd + parity (\~16min; setsid-detach + `.exit` file, READ it).
   `--full` adds full e2e + mutation. Exit 2 = a checker BROKE (not a verdict). Read `reports/`,
   never re-run to find a failure; never `| tail` the harness.
 - A lane's COLD-worktree red OUTRANKS your warm read — reproduce on a clean tree before calling it
@@ -571,7 +619,7 @@ controls both ways, security-executor only).
 
 **Owner cadence**
 
-- Batch pending forks ~4 at a time via the question tool, recommendations marked; he answers fast
+- Batch pending forks \~4 at a time via the question tool, recommendations marked; he answers fast
   and usually takes the marked arm. He challenges PREMISES, correctly — when a premise dies, say so.
 - "Read the reports in full" means it — summaries drop load-bearing items (proven twice).
 - Publish mocks as artifacts for taste calls.
