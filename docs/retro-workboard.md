@@ -396,10 +396,14 @@ line).
 > could fall off. This section carries every `docs/design/*.md` that represents specced-but-unbuilt (or
 > partial) work, so it can't be lost again. **NOT `docs/architecture/proposed/**`** — those are the
 > separate parked-programs set (`proposed/INDEX.md` owns their status); leave them alone.
-> **RECONCILED 2026-08-08** (scout `a43b158ec`, declared→exported→imported→called-live evidence, not
-> a test pass). Headline: **the big one — parity-plus — has NO large unbuilt tail**; and FIVE docs had
-> ROTTED status lines claiming "nothing built" while the tree shows them shipped. Genuinely-open items
-> carried below; built ones struck with receipts.
+> **RECONCILED 2026-08-08** (scout `a43b158ec`, then **ORCHESTRATOR-RE-VERIFIED with ast-grep**
+> ts+tsx, declared→exported→called-live ladders — not relayed). Headline: **the big one — parity-plus
+> — has ALL 7 features BUILT** (F1 relationship called-live `actor-ops.ts:90`; F2 level `sheet.ts:35`;
+> F3/4/5/7 `CONTENT_CLASS_POLICY`+`HIDDEN_TAGS`/`DIRECTIVE_FENCE_NAMES` consumed in strip/reminder/
+> tokenizer; F6 plot exceeded). FIVE docs had ROTTED status lines claiming "nothing built" while the
+> tree shows them shipped (spot-verified: `rpg_quests` tsx=0/folded, density gate present, list-pane in
+> `main.tsx:241`, roster `cards.ts:57`). The 3 PARTIAL confirmed genuinely partial (openrouter
+> signature ast-grep ts=13/tsx=0 = truly absent). Genuinely-open carried below; built struck.
 
 **GENUINELY OPEN (specced, a real remainder — carry these):**
 - **persona = character** (`persona-character-kind-substrate.md`) — UNBUILT, specced+pinned, **= C1**
