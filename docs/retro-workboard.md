@@ -506,65 +506,52 @@ security lens.
   from the session** — the rest (cold-check>warm, scope-the-absence-receipt, shared-value-owes-a-battery,
   ratifying-gate-two-receipts) are DOCTRINE/memory, not gates: the existing gates + battery caught every
   real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
-- **⚑ LIVE LANE ROSTER — 2ND COMPACT BOUNDARY (2026-08-07 late, main 14-ahead — 1 UNDER-LENS, 3 in flight):**
-  - ✅➡️ **`CLIENT-SMALLS` MERGED — GRADUATING (NOT done yet).** Merged `--no-ff` to main as
-    **`25a551366`** (from commit **7f240e0**). Consolidated `pnpm check` on merged tree: **PASS 14/14**.
-    **Verifier `a3d64d2bb4af621c8`: CONFIRMED both claims** (red-first re-proven vs `7f240e06f^`; suites
-    re-run cold 75/75 + 109/109; tri-state mapping total; MA-4 omit-keeps no-clobber; carriage stays
-    server truth). **Side-eye `a035aaf9715d1cd7d`: SHIP — no P0/P1, three P3s** (receipts
-    `reports/side-eye-grants/`). Per fix-ALL-findings law, a **P3 FIX LEG is IN FLIGHT on the warm lane
-    agent** (`a7a28c621505e7785`, its worktree): (1) `aria-describedby` wiring outcome badge → combobox;
-    (2) `title={def.label}` on the truncated label; optional badge-column alignment @480. Graduates when
-    the fix leg lands + CTs stay green. (3rd P3 = the app-wide 10.5px Kicker/gloss convention — noted,
-    not this lane's to churn.) Worktree NOT torn down (fix leg live).
-    **⚠ VERIFIER FIND (pre-existing, NOT this diff — queued security row):** the host-only invariant on
+- **⚑ LIVE LANE ROSTER (2026-08-08 — 2 GRADUATED+torn down, 1 under lens, 1 in flight):**
+  - ✅ **`CLIENT-SMALLS` FULLY GRADUATED, worktree torn down.** Main merge `25a551366` (kit
+    `projectBodyForPreview` → `speakerTagsToPlain` flatten, red-first proven; new host-only tracker
+    grant/revoke editor `rpg-tracker-grants.tsx`) + P3 fix leg `77ae00db6` (aria-describedby outcome
+    wiring + `title` on truncating label, planted-positive-control proven). Receipts: consolidated
+    check PASS ×2 · verifier `a3d64d2bb4af621c8` CONFIRMED both claims (cold re-runs 75/75, 109/109) ·
+    side-eye `a035aaf9715d1cd7d` SHIP, then RE-VERIFY **both P3 findings CLOSED** (computed accessible
+    description incl. the settle-flip; per-row id uniqueness stress-passed; long-label ellipsis+title
+    proven at 320px). 480px badge-column decline RATIFIED by side-eye (tokens-only; reasoning in
+    `docs/client-smalls-lane.md`). Lane notes there too.
+    **⚠ VERIFIER FIND (pre-existing, NOT that diff — queued security row):** the host-only invariant on
     tracker exceptions is UI-ONLY. Server `mergeSheet` (`packages/server/src/domain/rpg/verbs/patch-sheet.ts:60-61`)
     applies `trackerGrants`/`trackerRevokes` from ANY patch, and `assertOwnUserRef` (`guard.ts:98-105`)
-    lets a MEMBER write their own user-ref sheet → a member can self-grant/self-revoke tracker exceptions,
-    bypassing "grants are the host's call". Game-integrity, not cross-tenant. **Fix = host-only gate on
-    those two fields at the server write boundary → security-executor lane, QUEUED BEHIND RPG-PROSE
-    (fence collision: domain/rpg).**
-    Item 1: KIT fix — `projectBodyForPreview`
-    (`packages/kit/src/content/index.ts`) flattens prose via existing `speakerTagsToPlain` before
-    markdown-flatten+truncate (also cleans filter-chats search); red-first proven (2 narrator tests RED
-    on HEAD, byte-unchanged non-narrator fence PASS). Item 2: NEW host editor
-    `packages/client/src/features/rpg/components/rpg-tracker-grants.tsx` wired into RpgCharacterDetail
-    (host-only, non-cast), tri-state Select → whole-list `patchSheet` (carriage stays server truth).
-    **⚠ CONSOLIDATED-CHECK HEADS-UP: two SHARED test-infra changes in `rpg-context-section.ct.tsx` —
-    (a) `stubTakeover` extended w/ 2 backward-compat opts (liveTracker, patchSheet); (b) `satisfies
-    RpgTrackerDef` on shared VITALITY/RESOLVE fixtures (type-only). Proven safe by full-file 109/109.**
-    Lane floor all-green incl. all 3 typecheck programs + check:structure + depcruise. Merge → verifier
-    (code) + side-eye (Item 2 is a new user-visible editor). Notes: `docs/client-smalls-lane.md`.
-  - ⏳ **`NODE26-GATE` in flight** (agent **a234bedd227c7521a**) — §8 gate GENUINELY UNBUILT (verified: no
-    `platform-spellings.ts`; 195 registered gates → 196). APPROVED default: land 3 HONEST arms (SLEEP
-    w/ client/ui carve-out for the browser `route-guards.ts` site + DEFERRED + ESCAPE-MINT), burn
-    non-fenced live violations in-lane, **DEFER the SPREAD-SORT arm to a dedicated W4.2 burn-down lane**
-    (W4.2 NEVER LANDED — ~100 type-judgment sites, array-copy-vs-iterator-materialization needs the type
-    checker, most FENCED; header-note pending-not-dropped). Will escalate 4 fenced sleep files (chat CT,
-    kit macro, 2× domain/rpg) for owner-lane routing. New-gate = gate-census value change → owes the
-    census tests:node, not static. Fence `scripts/check/gates/**`.
-  - ⏳ **`RPG-PROSE` in flight** (agent **a2b8b028dc3859073**) — PROSE-1 S3/S4: rpg per-game teaches +
-    extraction templates → `contracts/rpg/prose.ts` slots (default text = OWNER-VETO, ship existing
-    strings as v1); fence server rpg + contracts/rpg. ESCALATES design forks. (Task #17.)
-  - ✅ **`PORTR6-FIXTURE` GRADUATED** — commit `f574ba39b` (test-only, +289) merged as **`75250af9a`**.
-    **Verifier `a1f94d93f67dda984`: CONFIRMED via MUTATION PROBE** — swap-mutating the real remap
-    (`domain/import/verbs/import-chat-bundle.ts:186-189`, in the lane worktree, restored after) turned the
-    new test RED at the exact cross-link assertion while the OLD single-turn test stayed GREEN under both
-    mutations — the precise gap the fixture exists to close. Real end-to-end (real export/import routes,
-    workload runner, fresh db+CAS); 24 bidirectional assertions. First consolidated check after this merge
-    FAILED on 2 stages — BOTH were the side-eye's untracked scratch CT (`zz-review-grants.ct.tsx`,
-    since removed by side-eye), NOT the merge; re-check running. Worktree teardown-ready once re-check
-    is green.
-  - Fences disjoint. **Post-compact steps, per lane: (1) confirm the lane's commit SHA on its worktree
-    branch; (2) merge bare on green (never piped); (3) run consolidated `pnpm check`; (4) fresh lens
-    (verifier=code / side-eye=UI / security-executor=security). When the train drains: run ONE `pnpm
-    verify --push` battery — static is NOT graduation, expect ~1 stale coupled test-site per value lane.
-    The next ORIGIN push needs a FRESH owner word + fresh battery** (main is 13 ahead of origin). 5th
-    slot deliberately left open at this depth — don't dispatch a marginal/collision lane post-compact
-    without re-checking fences.
+    lets a MEMBER write their own user-ref sheet → member can self-grant/self-revoke, bypassing "grants
+    are the host's call". Game-integrity, not cross-tenant. **Fix = host-only gate on those two fields at
+    the server write boundary → security-executor lane, QUEUED BEHIND RPG-PROSE (fence: domain/rpg).**
+  - ✅➡️ **`NODE26-GATE` MERGED — under verifier lens.** Commit `041b41c9d` merged as **`5d65bd961`**:
+    NEW gate `platform-spellings` (node-26 §8 ADOPT/AVOID), scoped `packages/**` per the
+    zod-modern-spellings precedent + §4.1; arms SLEEP (client/ui browser carve-out, timeout-reject-race
+    excluded) + ESCAPE-MINT (name-arm only — the char-class heuristic was built, measured at **27 false
+    positives**, and dropped). Census 195→196 (`enforcement-registry-parity` reconciles);
+    `__g_platspell` anti-drift fixture; gate-conformance 5/5 branch-side. **Two W4 sub-waves the program
+    doc implied "merged" NEVER landed** — W4.5 withResolvers (7 live sites) + W4.2 toSorted (~40 sites,
+    type-judgment): arms DEFERRED pending-not-dropped, burn-down lane brief at
+    `docs/design/node-26-w4-residual-burndown.md`. **Verifier `a1cb70df920e07585` IN FLIGHT** (reach
+    probe, carve-out scope, zero-FP spot-check, census, deferral honesty); consolidated check running.
+    Worktree stands until lens + check green. Durable lesson banked in
+    memory `ratifying-gate-owes-two-receipts` (run the gate as its own arm-inventory instrument).
+  - ⏳ **`RPG-PROSE` in flight** (agent **a2b8b028dc3859073**) — APPROVED scope: reminder seam (rows
+    1-10) + `contracts/src/rpg/prose.ts` home + `config.prose` storage spine, ONE commit,
+    byte-identical. EXTRACTION seam (rows 11-36, `render(ctx)` core-shape fork + fenced client preview)
+    = follow-on lane; census/classification lands in a docs/ file. (Task #17.)
+  - ✅ **`PORTR6-FIXTURE` GRADUATED, worktree torn down.** `f574ba39b` merged as `75250af9a`; verifier
+    `a1f94d93f67dda984` CONFIRMED via MUTATION PROBE (swap-mutated the real remap
+    `domain/import/verbs/import-chat-bundle.ts:186-189` in the lane worktree, restored — new test RED at
+    the exact cross-link assertion, OLD single-turn test GREEN under both mutations). Re-check after the
+    scratch-CT contamination cleared: PASS all stages.
+- **⚑ OWNER RULINGS (2026-08-08, Nate live):**
+  - **PUSHES HELD tonight** — even on a green battery. The train-drain `verify --push` battery still
+    RUNS for verification; origin stays un-pushed until a fresh word on a later day.
+  - **Row 27 (`RPG_STATE_TRACKING_GUIDE`, dead): DEFER** — leave dead-but-present; the extraction
+    follow-on lane migrates around it and flags it again.
+  - **Probe-lint: RESOLVED — leave `scripts/probes/**` as lint-free scratch** (bugs there are caught by
+    running probes, not gates). Removed from the parked pile.
 - **Owner-gated pile parked:** nudge texts · presets-into-rail · JSON-card export · `{{note}}` posture ·
-  persona=character · AGENT-1 · templating fork (rows 53-73) · SUMMARIZE-SUB capability · **the probe-lint
-  decision** (un-ignore `scripts/probes` in biome/eslint, or leave as scratch) · fillRule probe.
+  persona=character · AGENT-1 · templating fork (rows 53-73) · SUMMARIZE-SUB capability · fillRule probe.
 - ✅ **TEMPLATE-UNIFY merged** (`6d7867401`, check 14/14) — row 49 slotted; (b) unification COMPLETE.
 - ✅ **SMALLS-SERVER merged** (`58b1f9ce7`, check 14/14) — narrator room previews its CAST shape now
   (GroupConfig threaded into PreviewInputs, per-speaker byte-unchanged, red-first: narrator RED on old
