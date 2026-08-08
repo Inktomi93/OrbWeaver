@@ -6,6 +6,7 @@
 import type { TagContext, TagService } from "./contract/service.ts";
 import { createAttach } from "./verbs/attach.ts";
 import { createAttachCardTagByName } from "./verbs/attach-card-tag-by-name.ts";
+import { createAttachChatTagByName } from "./verbs/attach-chat-tag-by-name.ts";
 import { createCreate } from "./verbs/create.ts";
 import { createDetachCardTagByName } from "./verbs/detach-card-tag-by-name.ts";
 import { createList } from "./verbs/list.ts";
@@ -33,6 +34,7 @@ export function createTagService(ctx: TagContext): TagService {
     detachTag: attach.detachTag,
     bulkAttachTag: attach.bulkAttachTag,
     attachCardTagByName: createAttachCardTagByName(ctx),
+    attachChatTagByName: createAttachChatTagByName(ctx),
     detachCardTagByName: createDetachCardTagByName(ctx),
   };
 }

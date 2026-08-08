@@ -6,7 +6,7 @@
 // per-chat dedup oracle (pre-fetched once, updated mid-loop). Each chat commits as ONE db.batch —
 // db.transaction() is BANNED (the :memory: trap) — so a kill mid-import leaves zero rows, healed by dedup.
 
-import type { BulkImportChatInput, BulkImportChatsResult, MessageKind } from "@orb/contracts/chat";
+import type { BulkImportChatInput, BulkImportChatsResult, ImportedChatIdentity, MessageKind } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characters, chatInjections, chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
@@ -14,7 +14,7 @@ import type { BatchStmt } from "@orb/db/kit";
 import { batchMany, batchStmt } from "@orb/db/kit";
 import { tokenizeContent } from "@orb/kit/content";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { AssetId, CharacterId, ChatId, MessageId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { and, eq, inArray } from "drizzle-orm";
 import type { BulkImportChats, ChatImportContext } from "../contract/import.ts";
@@ -191,10 +191,12 @@ function hasNarratorSlot(ci: BulkImportChatInput): boolean {
   return ci.messages.some(isNarratorSlot);
 }
 
-/** Statements for ONE imported message: slot (pointer null) → its variant pool → set the pointer. */
+/** Statements for ONE imported message: slot (pointer null) → its variant pool → set the pointer. `variantIds`
+ *  comes back INDEX-ALIGNED to `message.variants` — the R6 remap the orb-native bundle re-links its carried
+ *  rpg planes through (`ImportedChatIdentity`). */
 function messageStatements(args: MessageStatementsArgs): {
   readonly stmts: BatchStmt[];
-  readonly variantCount: number;
+  readonly variantIds: readonly MessageVariantId[];
 } {
   const { ctx, messageId, chatId, seq, message } = args;
   const { db } = ctx;
@@ -216,8 +218,10 @@ function messageStatements(args: MessageStatementsArgs): {
     ),
   ];
   let selectedVariantId: (typeof messageVariants.$inferInsert)["id"] | null = null;
+  const variantIds: MessageVariantId[] = [];
   for (const [i, v] of message.variants.entries()) {
     const variantId = ctx.newMessageVariantId();
+    variantIds.push(variantId);
     if (i === message.selectedIdx) {
       selectedVariantId = variantId;
     }
@@ -230,11 +234,14 @@ function messageStatements(args: MessageStatementsArgs): {
           content: v.content,
           model: v.model,
           provider: v.provider,
+          // R6 orb-native extras — absent on the ST arm, where the column stays null exactly as before.
+          tokensIn: v.tokensIn ?? null,
           tokensOut: v.tokensOut,
           reasoning: v.reasoning,
           ttftMs: v.ttftMs,
           genStartedAt: v.genStartedAt,
           genFinishedAt: v.genFinishedAt,
+          variableDelta: v.variableDelta ?? null,
           metadata: v.metadata,
           createdAt: message.createdAt,
         }),
@@ -257,7 +264,7 @@ function messageStatements(args: MessageStatementsArgs): {
       );
     }
   }
-  return { stmts, variantCount: message.variants.length };
+  return { stmts, variantIds };
 }
 
 /** Commit one chat's statements as ONE atomic `db.batch`. */
@@ -313,6 +320,46 @@ interface OneChatArgs {
 const IMPORTED_NOTE_DEPTH = 4;
 const IMPORTED_NOTE_ROLE = "system";
 
+/** The chat's whole PROSE plane. Two mutually-exclusive sources, deliberately not merged: the ST arm migrates
+ *  its single `note_prompt` to the house author's-note register, while an orb-native bundle carries the
+ *  `chat_injections` LIST verbatim (R6 — the plane the jsonl interchange structurally cannot express, since
+ *  ST has one slot and this is a list with positions, depths, roles and ordering). */
+function injectionStmts(ctx: ChatImportContext, chatId: ChatId, ci: BulkImportChatInput): BatchStmt[] {
+  const { db } = ctx;
+  if (ci.injections !== undefined) {
+    return ci.injections.map((injection) =>
+      batchStmt(
+        db.insert(chatInjections).values({
+          id: ctx.newChatInjectionId(),
+          chatId,
+          position: injection.position,
+          depth: injection.depth,
+          role: injection.role,
+          content: injection.content,
+          order: injection.order,
+          createdAt: injection.createdAt,
+        }),
+      ),
+    );
+  }
+  if (ci.authorsNote === null) {
+    return [];
+  }
+  return [
+    batchStmt(
+      db.insert(chatInjections).values({
+        id: ctx.newChatInjectionId(),
+        chatId,
+        position: "in_chat",
+        depth: IMPORTED_NOTE_DEPTH,
+        role: IMPORTED_NOTE_ROLE,
+        content: ci.authorsNote,
+        createdAt: ci.createdAt,
+      }),
+    ),
+  ];
+}
+
 /** The chat row + founding roster inserts for one imported chat. The ST `note_prompt` rides in as a
  *  `chat_injections` row — the ONE per-chat prose door (owner ruling 2026-08-01 retired the
  *  `roomOverrides.authorsNote` twin: both landed as the SAME at-depth splice). */
@@ -330,25 +377,22 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
         // parser (the same fault-isolated read seam every consumer uses) so a caller can never land a
         // sub-blob shape the readers would heal away — one validation home, no second spelling here.
         metadata: ci.metadata === undefined ? null : parseChatMetadata(ci.metadata),
+        // R6 orb-native extras. Each `?? <column default>` is the ST arm's behavior spelled out loud: an
+        // interchange transcript declares none of these and lands exactly the row it landed before R6.
+        // DELIBERATELY ABSENT: `runtimeVariables` (DERIVED — re-folded from the carried per-variant deltas),
+        // `temporary` (an ephemeral room its own TTL sweeper already decided to reap), and the pending-handoff
+        // pair (it names a USER that does not exist on this box).
+        star: ci.star ?? false,
+        archived: ci.archived ?? false,
+        compactSummary: ci.compactSummary ?? null,
+        compactedAtSeq: ci.compactedAtSeq ?? null,
+        variableValues: ci.variableValues ?? null,
+        userMacroValues: ci.userMacroValues ?? null,
         createdAt: ci.createdAt,
         updatedAt: ci.updatedAt,
       }),
     ),
-    ...(ci.authorsNote === null
-      ? []
-      : [
-          batchStmt(
-            db.insert(chatInjections).values({
-              id: ctx.newChatInjectionId(),
-              chatId,
-              position: "in_chat",
-              depth: IMPORTED_NOTE_DEPTH,
-              role: IMPORTED_NOTE_ROLE,
-              content: ci.authorsNote,
-              createdAt: ci.createdAt,
-            }),
-          ),
-        ]),
+    ...injectionStmts(ctx, chatId, ci),
     ...rosterRows({
       ctx,
       chatId,
@@ -360,21 +404,24 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
   ];
 }
 
-/** All statements for ONE imported chat (header + roster + message slots/variants) + its tallies. */
+/** All statements for ONE imported chat (header + roster + message slots/variants) + the identity of what it
+ *  writes. `identity` is INDEX-ALIGNED to `ci.messages` — the R6 remap (`ImportedChatIdentity`); the tallies
+ *  the caller reports are derived from it rather than counted separately, so the count and the remap cannot
+ *  disagree about what landed. */
 function buildChatStatements(args: OneChatArgs): {
   readonly stmts: BatchStmt[];
-  readonly messageCount: number;
-  readonly variantCount: number;
+  readonly identity: ImportedChatIdentity;
 } {
   const { ctx, chatId, ci, ownerId, characterId, existingAssetIds, narratorCharacterId } = args;
   const stmts = chatHeaderStmts(args);
-  let messageCount = 0;
-  let variantCount = 0;
+  const messageIds: MessageId[] = [];
+  const variantIds: (readonly MessageVariantId[])[] = [];
   let seq = 0;
   for (const m of ci.messages) {
+    const messageId = ctx.newMessageId();
     const built = messageStatements({
       ctx,
-      messageId: ctx.newMessageId(),
+      messageId,
       chatId,
       seq,
       message: m,
@@ -384,11 +431,11 @@ function buildChatStatements(args: OneChatArgs): {
       narratorCharacterId,
     });
     stmts.push(...built.stmts);
-    messageCount += 1;
-    variantCount += built.variantCount;
+    messageIds.push(messageId);
+    variantIds.push(built.variantIds);
     seq += 1;
   }
-  return { stmts, messageCount, variantCount };
+  return { stmts, identity: { chatId, messageIds, variantIds } };
 }
 
 /** EVERY character id a run could seat or attribute: the primary, each chat's extra roster, and each slot's
@@ -438,7 +485,7 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
       input.map((c) => c.importHash),
     );
 
-    const chatIds: ChatId[] = [];
+    const written: ImportedChatIdentity[] = [];
     let chatsImported = 0;
     let chatsSkipped = 0;
     let messagesImported = 0;
@@ -455,16 +502,16 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
 
       const chatId = ctx.newChatId();
       // biome-ignore lint/performance/noAwaitInLoops: per-chat by construction — the preconditions resolve against THIS chat's freshly minted id, at the same granularity as the atomic commit below.
-      const { stmts, messageCount, variantCount } = await planOneChat({ ctx, chatId, ci, ownerId, characterId });
+      const { stmts, identity } = await planOneChat({ ctx, chatId, ci, ownerId, characterId });
       if (ci.parentRef !== null) {
         pendingParents.push({ chatId, parentRef: ci.parentRef, forkedAt: ci.createdAt });
       }
 
       await commitChatBatch(db, stmts);
-      chatIds.push(chatId);
+      written.push(identity);
       chatsImported += 1;
-      messagesImported += messageCount;
-      variantsImported += variantCount;
+      messagesImported += identity.messageIds.length;
+      variantsImported += identity.variantIds.reduce((total, pool) => total + pool.length, 0);
       if (ci.isRealConversation) {
         realConversationWritten = true;
       }
@@ -472,7 +519,7 @@ export function createBulkImportChats(ctx: ChatImportContext): BulkImportChats {
 
     const branchesLinked = await resolveBranches(db, characterId, pendingParents);
     return {
-      chatIds,
+      written,
       chatsImported,
       chatsSkipped,
       messagesImported,

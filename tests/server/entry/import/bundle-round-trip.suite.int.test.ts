@@ -10,11 +10,14 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
+import { rpgGameConfigSchema, rpgSheetSchema } from "@orb/contracts/rpg";
 import {
   assets as assetsTable,
   characters as charactersTable,
+  chatInjections,
   chatParticipants,
   chats as chatsTable,
+  chatTags,
   documents as documentsTable,
   galleryItems,
   globalDocuments,
@@ -23,12 +26,34 @@ import {
   messageVariants,
   personas as personasTable,
   presets as presetsTable,
+  rpgCheckpoints,
+  rpgGames,
+  rpgJournal,
+  rpgSheets,
+  rpgSnapshots,
+  rpgTurnToolCalls,
   tags as tagsTable,
   themes as themesTable,
   userSettings as userSettingsTable,
   worldBooks,
 } from "@orb/db";
-import type { CharacterHandle, ChatId, ChatParticipantId, Handle, MessageAssetId, MessageId, MessageVariantId, UserId, WorkloadId } from "@orb/kit/ids";
+import type {
+  CharacterHandle,
+  ChatId,
+  ChatParticipantId,
+  Handle,
+  MessageAssetId,
+  MessageId,
+  MessageVariantId,
+  RpgCheckpointId,
+  RpgGameId,
+  RpgJournalId,
+  RpgSheetId,
+  RpgSnapshotId,
+  RpgTurnToolCallsId,
+  UserId,
+  WorkloadId,
+} from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadWorkload, runWorkload } from "@orb/server/domain/workloads";
 import type { ExportDeps, ImportBundleDeps } from "@orb/server/entry/http";
@@ -57,6 +82,18 @@ const INLINE_BYTES = new TextEncoder().encode("inline-chat-image-bytes-📷");
 const ATTACH_BYTES = new TextEncoder().encode("composer-attachment-bytes-📎");
 
 const OWNER_ID = castId<UserId>("user_p8_source_owner");
+
+// ── R6 fixture constants: the chat-anchored planes the ST jsonl arm could not carry (F9). Each is asserted
+// by VALUE on the fresh box, so "the chat imported" can never stand in for "the plane travelled".
+const R6_INJECTION = "Keep the tone wry and the stakes personal.";
+const R6_TAG = "campaign";
+const R6_COMPACT_SUMMARY = "Everything before the bridge collapse, in brief.";
+const R6_COMPACTED_AT_SEQ = 1;
+const R6_TITLE = "P8 Chat";
+const R6_VARIABLES = { mood: "grim" };
+const R6_JOURNAL_TITLE = "The bridge fell";
+const R6_CHECKPOINT_LABEL = "before the bridge";
+const R6_LOCATION = "the broken bridge";
 
 function principalOf(userId: UserId): Principal {
   return { userId, role: "owner", handle: castId<Handle>(userId), externalId: null, via: "header" };
@@ -209,11 +246,13 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
       anchorPersonaId: null,
       parentChatId: null,
       forkedAt: null,
-      compactSummary: null,
-      compactedAtSeq: null,
-      metadata: null,
-      variableValues: null,
-      runtimeVariables: null,
+      // R6 — the fidelity planes. `runtimeVariables` is DERIVED and deliberately does NOT travel; the
+      // rest do, and each is asserted by value after the round trip.
+      compactSummary: R6_COMPACT_SUMMARY,
+      compactedAtSeq: R6_COMPACTED_AT_SEQ,
+      metadata: { roomOverrides: { scenario: "a rain-soaked frontier town" } },
+      variableValues: R6_VARIABLES,
+      runtimeVariables: { mood: "STALE-DERIVED-MUST-NOT-TRAVEL" },
       importedFrom: null,
       importHash: null,
       createdAt: clock.now(),
@@ -272,6 +311,84 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
       id: castId<MessageAssetId>("msgasset_p8"),
       messageId: msgId,
       assetId: attachBlob.assetId,
+      createdAt: clock.now(),
+    });
+
+    // ── R6: the chat-anchored planes the ST jsonl arm is structurally incapable of carrying (F9) ───────
+    // The per-chat PROSE plane (the author's-note replacement — a LIST with positions/depths/roles).
+    await db.insert(chatInjections).values({
+      id: castId("chatinj_p8"),
+      chatId,
+      position: "in_chat",
+      depth: 4,
+      role: "system",
+      content: R6_INJECTION,
+      order: 2,
+      createdAt: clock.now(),
+    });
+    // The D30 per-tagger chat↔tag overlay — the ACCEPTED-LOSSY row this wave ended.
+    await app.services.tag.attachChatTagByName({ ownerId: OWNER_ID, chatId, tagName: R6_TAG });
+    // The rpg CAMPAIGN. The snapshot / journal entry / tool-call record are all keyed to `msgvar_p8` — the
+    // variant whose id does NOT survive a cross-box move. Whether they come back anchored to the RIGHT
+    // restored variant is the whole point of the positional remap, and is asserted below.
+    const gameId = castId<RpgGameId>("rpg_game_p8");
+    const snapshotId = castId<RpgSnapshotId>("rpg_snapshot_p8");
+    await db.insert(rpgGames).values({
+      id: gameId,
+      chatId,
+      mode: "lite",
+      status: "active",
+      sessionNumber: 3,
+      config: rpgGameConfigSchema.parse({}),
+      createdAt: clock.now(),
+      updatedAt: clock.now(),
+    });
+    await db.insert(rpgSheets).values([
+      {
+        id: castId<RpgSheetId>("rpg_sheet_p8"),
+        gameId,
+        characterId: character.id,
+        userId: null,
+        sheet: rpgSheetSchema.parse({ className: "Wanderer", level: 4 }),
+        createdAt: clock.now(),
+        updatedAt: clock.now(),
+      },
+    ]);
+    await db.insert(rpgSnapshots).values({
+      id: snapshotId,
+      gameId,
+      messageId: msgId,
+      variantId: castId<MessageVariantId>("msgvar_p8"),
+      asOfMessageId: null,
+      location: R6_LOCATION,
+      committed: 1,
+      createdAt: clock.now(),
+    });
+    await db.insert(rpgJournal).values({
+      id: castId<RpgJournalId>("rpg_journal_p8"),
+      gameId,
+      type: "event",
+      label: "",
+      title: R6_JOURNAL_TITLE,
+      content: "The span gave way under the caravan.",
+      variantId: castId<MessageVariantId>("msgvar_p8"),
+      sourceMessageId: msgId,
+      createdAt: clock.now(),
+    });
+    await db.insert(rpgTurnToolCalls).values({
+      id: castId<RpgTurnToolCallsId>("rpg_ttc_p8"),
+      gameId,
+      messageId: msgId,
+      variantId: castId<MessageVariantId>("msgvar_p8"),
+      calls: [{ name: "update_scene", args: '{"location":"the broken bridge"}', verdict: "applied", issues: [] }],
+      createdAt: clock.now(),
+    });
+    await db.insert(rpgCheckpoints).values({
+      id: castId<RpgCheckpointId>("rpg_ckpt_p8"),
+      gameId,
+      snapshotId,
+      label: R6_CHECKPOINT_LABEL,
+      trigger: "manual",
       createdAt: clock.now(),
     });
 
@@ -402,12 +519,14 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
 
       // The inline `asset:<id>` ref survives in the re-imported message CONTENT (verbatim, D51) AND resolves
       // to a live blob on the fresh box — not merely that the host seat exists.
-      const freshHostChatId = freshHostSeat[0]?.chatId;
+      // ONE resolution of "the restored chat", reused by every read below — the same `?? none` spelled at
+      // each call site is a branch per site (and the P-8 case has a cognitive-complexity budget).
+      const freshHostChatId = freshHostSeat[0]?.chatId ?? castId<ChatId>("none");
       const freshVariants = await freshDatabase
         .select({ content: messageVariants.content })
         .from(messageVariants)
         .innerJoin(messagesTable, eq(messagesTable.id, messageVariants.messageId))
-        .where(eq(messagesTable.chatId, freshHostChatId ?? castId<ChatId>("none")));
+        .where(eq(messagesTable.chatId, freshHostChatId));
       const inlineRef = `asset:${inlineBlob.assetId}`;
       expect(freshVariants.some((v) => v.content.includes(inlineRef))).toBe(true);
       // …and that referenced id resolves to real bytes on the fresh CAS (the blob, not a dangling token).
@@ -423,12 +542,120 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
         .select({ assetId: messageAssets.assetId, messageId: messageAssets.messageId })
         .from(messageAssets)
         .innerJoin(messagesTable, eq(messagesTable.id, messageAssets.messageId))
-        .where(eq(messagesTable.chatId, freshHostChatId ?? castId<ChatId>("none")));
+        .where(eq(messagesTable.chatId, freshHostChatId));
       expect(freshMessageAssets.map((r) => r.assetId)).toContain(attachBlob.assetId);
 
       // user-settings VALUE transferred (a positive read, not just `failed === 0`): the seeded chat toggle.
       const freshSettings = await fresh.services.settings.loadUserSettings(targetId);
       expect(freshSettings.chat.continueOnSend).toBe(false);
+
+      // ── R6: the chat-anchored planes came back, BY VALUE, and the rpg campaign re-anchored CORRECTLY ─
+      const freshChatRows = await freshDatabase
+        .select({
+          id: chatsTable.id,
+          title: chatsTable.title,
+          compactSummary: chatsTable.compactSummary,
+          compactedAtSeq: chatsTable.compactedAtSeq,
+          metadata: chatsTable.metadata,
+          variableValues: chatsTable.variableValues,
+          runtimeVariables: chatsTable.runtimeVariables,
+        })
+        .from(chatsTable)
+        .where(eq(chatsTable.id, freshHostChatId));
+      const freshChat = freshChatRows[0];
+      expect(freshChat?.title).toBe(R6_TITLE);
+      expect(freshChat?.compactSummary).toBe(R6_COMPACT_SUMMARY);
+      expect(freshChat?.compactedAtSeq).toBe(R6_COMPACTED_AT_SEQ);
+      // The ROOM BLOB (group config / room overrides / opening policy) — the plane a jsonl transcript has no
+      // slot for at all.
+      expect(freshChat?.metadata?.roomOverrides?.scenario).toBe("a rain-soaked frontier town");
+      expect(freshChat?.variableValues).toEqual(R6_VARIABLES);
+      // …and the DERIVED cache did NOT travel (it re-folds from the carried per-variant deltas). A carried
+      // `runtimeVariables` would be shipping a snapshot of a cache the restore immediately invalidates.
+      expect(freshChat?.runtimeVariables).toBeNull();
+
+      // The per-chat PROSE plane (a LIST, with its position/depth/role/order intact).
+      const freshInjections = await freshDatabase
+        .select({ content: chatInjections.content, position: chatInjections.position, depth: chatInjections.depth, order: chatInjections.order })
+        .from(chatInjections)
+        .where(eq(chatInjections.chatId, freshHostChatId));
+      expect(freshInjections).toEqual([{ content: R6_INJECTION, position: "in_chat", depth: 4, order: 2 }]);
+
+      // The chat↔tag overlay re-links BY NAME (the ACCEPTED-LOSSY row this wave ended).
+      const freshChatTags = await freshDatabase
+        .select({ name: tagsTable.name })
+        .from(chatTags)
+        .innerJoin(tagsTable, eq(tagsTable.id, chatTags.tagId))
+        .where(and(eq(chatTags.chatId, freshHostChatId), eq(chatTags.ownerId, targetId)));
+      expect(freshChatTags.map((r) => r.name)).toEqual([R6_TAG]);
+
+      // THE REMAP PROOF. The campaign's three variant-keyed planes must anchor to the RIGHT restored variant
+      // — not to nothing (orphaned) and not to a different turn (cross-linked). Resolve the fresh chat's one
+      // variant id independently, then require every plane to point AT IT.
+      const freshVariantRows = await freshDatabase
+        .select({ id: messageVariants.id, messageId: messageVariants.messageId })
+        .from(messageVariants)
+        .innerJoin(messagesTable, eq(messagesTable.id, messageVariants.messageId))
+        .where(eq(messagesTable.chatId, freshHostChatId));
+      expect(freshVariantRows).toHaveLength(1);
+      const freshVariantId = freshVariantRows[0]?.id;
+      const freshMessageId = freshVariantRows[0]?.messageId;
+      // The ids are genuinely NEW — otherwise "it re-anchored" would be trivially true and prove nothing.
+      expect(freshVariantId).not.toBe(castId<MessageVariantId>("msgvar_p8"));
+
+      const freshGames = await freshDatabase
+        .select({ id: rpgGames.id, mode: rpgGames.mode, status: rpgGames.status, sessionNumber: rpgGames.sessionNumber })
+        .from(rpgGames)
+        .where(eq(rpgGames.chatId, freshHostChatId));
+      expect(freshGames).toHaveLength(1);
+      const freshGameId = freshGames[0]?.id ?? castId<RpgGameId>("none");
+      expect(freshGames[0]?.sessionNumber).toBe(3);
+
+      const freshSnapshots = await freshDatabase
+        .select({ id: rpgSnapshots.id, messageId: rpgSnapshots.messageId, variantId: rpgSnapshots.variantId, location: rpgSnapshots.location })
+        .from(rpgSnapshots)
+        .where(eq(rpgSnapshots.gameId, freshGameId));
+      expect(freshSnapshots).toHaveLength(1);
+      expect(freshSnapshots[0]?.variantId).toBe(freshVariantId);
+      expect(freshSnapshots[0]?.messageId).toBe(freshMessageId);
+      expect(freshSnapshots[0]?.location).toBe(R6_LOCATION);
+
+      const freshJournal = await freshDatabase
+        .select({ title: rpgJournal.title, variantId: rpgJournal.variantId, sourceMessageId: rpgJournal.sourceMessageId })
+        .from(rpgJournal)
+        .where(eq(rpgJournal.gameId, freshGameId));
+      expect(freshJournal).toHaveLength(1);
+      expect(freshJournal[0]?.title).toBe(R6_JOURNAL_TITLE);
+      expect(freshJournal[0]?.variantId).toBe(freshVariantId);
+      expect(freshJournal[0]?.sourceMessageId).toBe(freshMessageId);
+
+      const freshToolCalls = await freshDatabase
+        .select({ messageId: rpgTurnToolCalls.messageId, variantId: rpgTurnToolCalls.variantId, calls: rpgTurnToolCalls.calls })
+        .from(rpgTurnToolCalls)
+        .where(eq(rpgTurnToolCalls.gameId, freshGameId));
+      expect(freshToolCalls).toHaveLength(1);
+      expect(freshToolCalls[0]?.variantId).toBe(freshVariantId);
+      expect(freshToolCalls[0]?.messageId).toBe(freshMessageId);
+      expect(freshToolCalls[0]?.calls[0]?.name).toBe("update_scene");
+
+      // The checkpoint's snapshot ref is a POSITION in the payload — it must resolve to the restored snapshot.
+      const freshCheckpoints = await freshDatabase
+        .select({ label: rpgCheckpoints.label, snapshotId: rpgCheckpoints.snapshotId })
+        .from(rpgCheckpoints)
+        .where(eq(rpgCheckpoints.gameId, freshGameId));
+      expect(freshCheckpoints).toHaveLength(1);
+      expect(freshCheckpoints[0]?.label).toBe(R6_CHECKPOINT_LABEL);
+      expect(freshCheckpoints[0]?.snapshotId).toBe(freshSnapshots[0]?.id);
+
+      // The per-actor SHEET re-links by character HANDLE (the host-sheet arm keys onto the importer instead).
+      const freshSheets = await freshDatabase
+        .select({ characterId: rpgSheets.characterId, userId: rpgSheets.userId, sheet: rpgSheets.sheet })
+        .from(rpgSheets)
+        .where(eq(rpgSheets.gameId, freshGameId));
+      expect(freshSheets).toHaveLength(1);
+      expect(freshSheets[0]?.characterId).toBe(freshCharId);
+      expect(freshSheets[0]?.sheet.className).toBe("Wanderer");
+      expect(freshSheets[0]?.sheet.level).toBe(4);
 
       // ── IDEMPOTENT re-import: a SECOND upload writes ZERO new rows for EACH of the 10 entities ────────
       // Count every entity scoped to the target owner (chat via its host seat; gallery via its asset owner;
@@ -460,6 +687,14 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
               .where(eq(assetsTable.ownerId, targetId))
           ).length,
           assets: (await freshDatabase.select({ id: assetsTable.id }).from(assetsTable).where(eq(assetsTable.ownerId, targetId))).length,
+          // R6 — the chat-anchored planes. A re-import must not double them either: the chat dedups on
+          // `importHash`, so the overlay/campaign restore is skipped wholesale rather than re-run.
+          chatInjections: (await freshDatabase.select({ id: chatInjections.id }).from(chatInjections).where(eq(chatInjections.chatId, freshHostChatId))).length,
+          chatTags: (await freshDatabase.select({ tagId: chatTags.tagId }).from(chatTags).where(eq(chatTags.ownerId, targetId))).length,
+          rpgGames: (await freshDatabase.select({ id: rpgGames.id }).from(rpgGames).where(eq(rpgGames.chatId, freshHostChatId))).length,
+          rpgSnapshots: (await freshDatabase.select({ id: rpgSnapshots.id }).from(rpgSnapshots).where(eq(rpgSnapshots.gameId, freshGameId))).length,
+          rpgJournal: (await freshDatabase.select({ id: rpgJournal.id }).from(rpgJournal).where(eq(rpgJournal.gameId, freshGameId))).length,
+          rpgCheckpoints: (await freshDatabase.select({ id: rpgCheckpoints.id }).from(rpgCheckpoints).where(eq(rpgCheckpoints.gameId, freshGameId))).length,
           // #67 — the attachment retaining rows (via the target-owned asset join) — a re-import must not
           // double them (the chat-skip on `importHash` guarantees it).
           messageAssets: (

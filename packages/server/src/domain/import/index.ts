@@ -9,6 +9,8 @@ export type { ImportCharacterResult, ImportChatFileOutcome, ImportedCharacterRef
 export type {
   CreateImportedCharacter,
   FindCharacterByImportHash,
+  // R6 — the compose seam threads the orb-native chat bundle's three optional re-link ops through this shape.
+  ImportProfileDeps,
   ImportService,
   StoreImportAsset,
 } from "./contract/service.ts";

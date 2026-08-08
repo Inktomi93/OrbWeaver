@@ -650,17 +650,32 @@ cites a count owes a re-read before anyone plans around it.
 **Residual, small and real:** `sessionId`→`sdkSessionId` remains a dissolving candidate among the 28
 markers — a rename, not a burn-down.
 
-### I-6 · PORTABILITY — R0-R5 landed; R6 is the honest scope-out
+### I-6 · PORTABILITY — ✅ CLOSED (R6 landed 2026-08-07, lane PORT-R6)
 
 **Landed:** PORT (`87b3c826`) — F1 CLOSED (databank travels, real bundle round-trip), the
 `lifecycle-portability` gate #173 (it caught `globalDocuments` unclassified WHILE BEING WRITTEN), the
 R3 serde spine (8 families, envelope/decode/version-gate/emit exist ONCE), world-info doors +
 `?format=png|json`, persona chrome re-homed, the O-3 merge-in-place flip (theme + tag restore-wins,
 USER-VISIBLE).
-**OPEN — R6:** the orb-native chat-bundle arm alongside jsonl. It was scoped out HONESTLY and is
-MACHINE-TRACKED: the ACCEPTED-LOSSY / DEFERRED rows each say "ends when R6 lands". O-6
-characterless-import rides it, and so does the standing owner question below.
-**⚑ OWNER ITEMS on this initiative:** ~~the absent-character transcript import policy~~ — **RULED
+**R6 LANDED (PORT-R6, D136):** the orb-native chat BUNDLE is now what an account backup carries
+(`kit/serde/chat-bundle`, born on the R3 spine; the ST jsonl arm stays the SHARE/ST-import door and the
+descriptor's import half accepts BOTH, routing on the file's own ENVELOPE). The planes that were
+unportable by construction now travel: `chat_injections` · the `chat_tags` overlay · the room blob
+(group config / room overrides / opening policy) · the per-chat variable + user-macro picks ·
+star/archive/compaction · the per-swipe `tokensIn`/`variableDelta` · **the whole rpg campaign** (games ·
+sheets · snapshots · journal · turn-tool-calls · checkpoints), re-anchored through a POSITIONAL remap
+(`messages[i].variants[j]`) because no id survives a cross-box move. Proof: the P-8 fresh-box round trip
+now seeds and asserts every one of them, including that each variant-keyed rpg plane comes back pointing
+at the RIGHT restored variant. **`chat_tags`'s ACCEPTED-LOSSY row is DELETED** (the table moved into the
+`chat` kind's carried set). **O-6 is DEAD, as ruled** — the import refuses a bundle naming no character
+this account holds, names the handles it looked for, and writes nothing.
+**STILL DEFERRED, with corrected end conditions (they were misfiled at R6):** `automation_rules` +
+`global_variables` need their OWN portable family — a 12th kind with its own serde/verbs/descriptor/
+import-order slot/doors — which the chat bundle structurally could not deliver. `plugins`/`plugin_kv`
+stay RULED-OUT (installed code is not user data). Fork lineage (`parentChatId`) does not travel: it needs
+a chat-level remap the delivery core (one `importFile` per file, no cross-file state) cannot express.
+**⚑ OWNER ITEMS on this initiative:** ~~the absent-character transcript import policy~~ — **BUILT
+2026-08-07 (D136(F)). RULED
 2026-08-07 (question-tool, owner OVERRODE the characterless-chat rec): REJECT — "you shouldn't be
 able to import a transcript without having a character selected." A character must be selected at
 import; the characterless arm is dead, O-6's premise with it. R6 builds against this policy.** ·

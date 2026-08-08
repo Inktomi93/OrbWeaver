@@ -8,7 +8,10 @@
 // the row kebab; the chat room carries no lifecycle chrome). It is a plain download LINK to the host-gated
 // `GET /api/export/chat/:id` — a non-host member's request 404s at the verb, so the item cannot leak a
 // visibility plane the requester can't already see. The two formats the route serves are two link items in
-// one submenu (`.jsonl` round-trips back through the band's Import; `.txt` is a read-only reading copy).
+// one submenu. `.orb.json` (R6) is the FIDELITY container — the room whole, including the planes a
+// transcript cannot carry (injections, room overrides, the tag overlay, the rpg campaign) — and is listed
+// FIRST because it is what "export this chat" should mean by default; `.jsonl` is the ST/share transcript
+// (both round-trip back through the band's Import); `.txt` is a read-only reading copy.
 //
 // REVERSIBILITY (DESIGN.md §9): rename/star/archive are quiet in-place edits; DELETE cascades hard
 // (messages/roster/events, FK) — NOT reversible — so it sits behind RowActionsMenu's ConfirmDialog
@@ -103,8 +106,11 @@ export function ChatListRowMenu({ chatId, title, rowName, starred, archived, onD
             Export transcript
           </MenuSubmenuTrigger>
           <MenuPopup>
+            <MenuLinkItem download={true} href={`${EXPORT_CHAT_PATH}${chatId}?format=orb`}>
+              Whole room (.orb.json)
+            </MenuLinkItem>
             <MenuLinkItem download={true} href={`${EXPORT_CHAT_PATH}${chatId}`}>
-              Chat file (.jsonl)
+              Transcript (.jsonl)
             </MenuLinkItem>
             <MenuLinkItem download={true} href={`${EXPORT_CHAT_PATH}${chatId}?format=txt`}>
               Plain text (.txt)

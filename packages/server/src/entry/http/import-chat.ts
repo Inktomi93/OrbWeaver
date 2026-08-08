@@ -63,10 +63,22 @@ export interface ChatImportResult {
 }
 
 const DEC = new TextDecoder();
+/** The ST interchange extension — the ONE upload shape whose routing handle is derived from its CONTENT. */
+const ST_TRANSCRIPT_EXT = ".jsonl";
 
-/** The descriptor path a bare transcript maps to: `<handle>/<leaf>`, where the handle comes from the
- *  transcript's own `character_name` — or the operator-facing reason it maps nowhere. */
+/** The descriptor path an upload maps to.
+ *
+ *  An ORB-NATIVE bundle (R6) passes through UNCHANGED: it carries its own seat list, so it needs no
+ *  synthesized `<handle>/` prefix — and force-parsing it as ST jsonl (which is what this function used to do
+ *  to every byte that arrived) refused every bundle at the door with "not a valid chat file" before the
+ *  format router downstream ever saw it.
+ *
+ *  An ST transcript still maps to `<handle>/<leaf>`, where the handle comes from the transcript's own
+ *  `character_name` — or the operator-facing reason it maps nowhere. */
 function descriptorPath(bytes: Uint8Array, filename: string): { readonly path: string } | { readonly error: string } {
+  if (!filename.endsWith(ST_TRANSCRIPT_EXT)) {
+    return { path: filename };
+  }
   // Parsed TWICE (here for the routing name, again inside the descriptor for the content). The alternative —
   // a second import entry point taking a resolved characterId — is the parallel path this route exists to
   // avoid; a transcript is small and the parse is pure.

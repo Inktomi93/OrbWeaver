@@ -75,6 +75,7 @@ import { parseChatMetadata } from "#domain/chat";
 import type { ConnectionService } from "#domain/connection";
 import { AgentModelHealError, ConnectionRoutingError } from "#domain/connection";
 import type {
+  ImportRpgGame,
   RosterRefIndex,
   RpgContext,
   RpgCopyPresetToUser,
@@ -88,6 +89,7 @@ import type {
 import {
   actorCarrier,
   buildRosterRefIndex,
+  createImportRpgGame,
   createRpgChatOps,
   createRpgFlushBarrier,
   createRpgService,
@@ -243,6 +245,10 @@ function buildPromoteToRoster(deps: RpgComposeDeps): RpgContext["promoteToRoster
 export interface RpgComposeResult {
   readonly service: RpgService;
   readonly chatOps: ReturnType<typeof createRpgChatOps>;
+  /** R6 — the campaign's portability WRITE half, surfaced because it closes over the SAME `ids` bundle every
+   *  other rpg write uses. Building a second minter set at the portability seam would be two homes for one
+   *  id vocabulary. (The READ half needs only `db`, so the root wires it directly.) */
+  readonly importGame: ImportRpgGame;
 }
 
 // THE HOST resolves by ROLE (the injected `deps.rpgChatOps.resolveHostUserId`, role='host' — D19), never join
@@ -1616,7 +1622,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
   for (const def of rpgToolDefinitions(ctx)) {
     deps.toolUse.register(def);
   }
-  return { service, chatOps: createRpgChatOps(ctx) };
+  return { service, chatOps: createRpgChatOps(ctx), importGame: createImportRpgGame(ctx) };
 }
 
 /** Read the chat's per-chat routing overlay (`metadata.providerRouting`) as a `RouteChatAssignment` — the SAME

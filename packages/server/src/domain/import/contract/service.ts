@@ -7,8 +7,9 @@ import type { AttachedBookRef, CreateCharacterInput, UpdateCharacterInput } from
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
-import type { AssetId, CharacterHandle, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ImportCardScripts } from "#domain/regex";
+import type { ImportRpgGame } from "#domain/rpg";
 import type { ImportCharacterInput } from "./params.ts";
 import type { ImportCharacterResult, ImportChatFileOutcome, ImportChatsResult, ImportedCharacterRef, ImportPersonasResult } from "./results.ts";
 import type { ImportChatFileInput, ImportChatsInput, ImportPersonaInput } from "./views.ts";
@@ -66,6 +67,16 @@ type BulkImportChatsOp = (args: {
 /** Persona-owned bulk-import write op (dedup-by-name); returned idByName feeds chat attribution. */
 type BulkImportPersonasOp = (args: { readonly ownerId: UserId; readonly personas: readonly BulkImportPersonaInput[] }) => Promise<BulkImportPersonasResult>;
 
+/** Persona-owned by-NAME lookup (R6). `personaByUserName` below is the PROFILE run's in-memory map, built by
+ *  the persona wave in the same process; a BUNDLE gets one fresh `ImportContext` per file, so a chat that
+ *  imports after the personas entity needs a durable read instead. `(ownerId, name)` is the persona domain's
+ *  own dedup key, so this resolves exactly what its import verb would have merged onto. */
+type FindPersonaByNameOp = (args: { readonly ownerId: UserId; readonly name: string }) => Promise<PersonaId | null>;
+
+/** Tag-owned resolve-or-create + D30 per-tagger chat-overlay attach (R6 — the `chat_tags` re-link that ended
+ *  the ACCEPTED-LOSSY row). By NAME, because tag ids no more survive a cross-box move than chat ids do. */
+type AttachChatTagByNameOp = (args: { readonly ownerId: UserId; readonly chatId: ChatId; readonly tagName: string }) => Promise<boolean>;
+
 /** Profile-wave deps: no db handle or id minters here — each entity write is an injected owning-domain op. */
 export interface ImportProfileDeps {
   readonly now: () => number;
@@ -74,6 +85,15 @@ export interface ImportProfileDeps {
   readonly bulkImportPersonas: BulkImportPersonasOp;
   readonly enqueueBackfill: EnqueueImportBackfill;
   readonly reconcileStats: ReconcileImportStats;
+  // ── R6: the orb-native chat bundle's three cross-domain re-links. All OPTIONAL, on the
+  // `importLorebook`/`importCardScripts` precedent: absent ⇒ that plane simply does not restore, which keeps
+  // the ST-only profile-import wiring (which has no use for any of them) honest instead of forcing it to
+  // fabricate stubs. The real bundle composition always wires all three.
+  readonly findPersonaByName?: FindPersonaByNameOp;
+  readonly attachChatTagByName?: AttachChatTagByNameOp;
+  /** The chat-anchored rpg campaign's write half. Every message/variant ref is remapped by the bundle verb
+   *  through the `ImportedChatIdentity` the chat write op returns, before this ever sees it. */
+  readonly importRpgGame?: ImportRpgGame;
 }
 
 /** DI bundle every import verb closes over. `profile` is absent for the card-only slice. */
@@ -99,9 +119,15 @@ export interface ImportService {
   readonly importCharacter: (input: ImportCharacterInput) => Promise<ImportCharacterResult>;
   /** Imports loose ST chat .jsonl files into an existing owned character. Requires ctx.profile. */
   readonly importChats: (input: ImportChatsInput) => Promise<ImportChatsResult>;
-  /** Imports ONE bundle-shaped `<handle>/<leaf>.jsonl` — the single-transcript door AND the bundle
-   *  descriptor's one path. Requires ctx.profile. Never throws for a malformed/unmatched file. */
+  /** Imports ONE bundle-shaped chat file — the single-chat door AND the bundle descriptor's one path.
+   *  Routes an ST `<handle>/<leaf>.jsonl` to the interchange arm and anything else to
+   *  {@link ImportService.importChatBundle}. Requires ctx.profile. Never throws for a malformed file. */
   readonly importChatFile: (input: ImportChatFileInput) => Promise<ImportChatFileOutcome>;
+  /** R6 — imports ONE orb-native `<handle>/<id>.orb.json`: the room WHOLE (canon + injections + the tag
+   *  overlay + the room blob + the variable/macro picks + the rpg campaign). REFUSES when the file names no
+   *  character this account holds (owner ruling 2026-08-07 — a transcript may not be imported without a
+   *  character). Requires ctx.profile. Never throws for a malformed file. */
+  readonly importChatBundle: (input: ImportChatFileInput) => Promise<ImportChatFileOutcome>;
   /** Imports a profile's personas; must run before the chat importers (populates personaByUserName). */
   readonly importPersonas: (input: { readonly personas: readonly ImportPersonaInput[] }) => Promise<ImportPersonasResult>;
 }

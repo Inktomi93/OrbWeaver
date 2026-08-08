@@ -179,7 +179,7 @@ export function createDemoChatSeeder(deps: DemoChatSeederDeps): DemoChatSeeder {
       characterId: primary.characterId,
       chats: [toChatInput({ demo, parsed, seats, anchorPersonaId, now })],
     });
-    const chatId = result.chatIds[0];
+    const chatId = result.written[0]?.chatId;
     if (chatId === undefined) {
       return false; // dedup skip — the example (and its game) already landed on a prior partial run
     }
