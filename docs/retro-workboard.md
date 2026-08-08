@@ -506,10 +506,24 @@ security lens.
   from the session** — the rest (cold-check>warm, scope-the-absence-receipt, shared-value-owes-a-battery,
   ratifying-gate-two-receipts) are DOCTRINE/memory, not gates: the existing gates + battery caught every
   real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
-- **REMAINING TAIL (non-owner-gated):** node-26 §8 gate · rpg-prose teaches #17 · PORT-R6 2-turn
-  cross-link fixture · fillRule probe. **Owner-gated pile parked:** nudge texts · presets-into-rail ·
-  JSON-card export · `{{note}}` posture · persona=character · AGENT-1 · templating fork (rows 53-73) ·
-  SUMMARIZE-SUB capability.
+- **⚑ LIVE LANE ROSTER AT THE COMPACT BOUNDARY (2026-08-07 late — 4 live, 1 slot open):**
+  - `CLIENT-SMALLS` (**a7a28c621505e7785**) — `<speaker>` chat-list-preview leak → KIT fix in
+    `projectBodyForPreview` reusing `speakerTagsToPlain` (also fixes `filter-chats` search) + the
+    per-actor tracker grant/revoke editor in `RpgCharacterDetail` (`patchSheet` is the write path).
+  - `NODE26-GATE` (**a234bedd227c7521a**) — mint the node-26 §8 ADOPT/AVOID gate (last leg of the
+    program); fence `scripts/check/gates/**`.
+  - `RPG-PROSE` (**a2b8b028dc3859073**) — PROSE-1 S3/S4: rpg per-game teaches + extraction templates →
+    `contracts/rpg/prose.ts` slots (default text = OWNER-VETO, ship existing strings as v1); fence
+    server rpg + contracts/rpg. ESCALATES design forks.
+  - `PORTR6-FIXTURE` (**ae2672795553f1f01**) — add a ≥2-turn cross-link fixture to
+    `bundle-round-trip.suite.int.test.ts` (the verifier's one residual); fence `tests/server/entry/import/**`.
+  - Fences are disjoint. Each was briefed: re-verify premise first (≈11 premise-kills this session), a
+    correct refusal is a success, ONE commit, a VALUE change owes a `tests:node`/CT run (not static),
+    back-channel mid-run. **Post-compact: merge each on green + fresh lens; run ONE `verify --push` when
+    the train drains; the next push needs a FRESH owner word + fresh battery** (main is 12 ahead of origin).
+- **Owner-gated pile parked:** nudge texts · presets-into-rail · JSON-card export · `{{note}}` posture ·
+  persona=character · AGENT-1 · templating fork (rows 53-73) · SUMMARIZE-SUB capability · **the probe-lint
+  decision** (un-ignore `scripts/probes` in biome/eslint, or leave as scratch) · fillRule probe.
 - ✅ **TEMPLATE-UNIFY merged** (`6d7867401`, check 14/14) — row 49 slotted; (b) unification COMPLETE.
 - ✅ **SMALLS-SERVER merged** (`58b1f9ce7`, check 14/14) — narrator room previews its CAST shape now
   (GroupConfig threaded into PreviewInputs, per-speaker byte-unchanged, red-first: narrator RED on old
