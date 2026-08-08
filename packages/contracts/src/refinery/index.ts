@@ -201,6 +201,10 @@ export const refineryFieldScoreSchema = z.object({
   weaknesses: z.string().max(PROSE_MAX),
   suggestions: z.string().max(PROSE_MAX),
 });
+/** @public type twin of `refineryFieldScoreSchema` — the per-field score ROW. Its consumer is the R2 refinery
+ *  client-mutations tier (owner-sequenced, board C15), which renders and applies these rows off
+ *  `refineryScorePayloadSchema.fieldScores`; R1 only ever handles the payload whole, so the row type has no
+ *  importer until that tier lands. */
 export type RefineryFieldScore = z.infer<typeof refineryFieldScoreSchema>;
 
 export const refineryScorePayloadSchema = z.object({

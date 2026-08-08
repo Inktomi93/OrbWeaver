@@ -8,7 +8,7 @@
 // ignores it (its knobs are the modeled sampling surface). This model just round-trips the blob.
 
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
-import { THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
+import { proseCarrierMisses, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
 import { isProseSlotId, PROSE_SLOTS, proseOverBy } from "@orb/contracts/prose";
 
 /** Assign `value` to `target[key]` only when defined — keeps the merge branch-free. */
@@ -84,7 +84,18 @@ function normalizePresetProse(prose: PromptConfig["prose"]): PromptConfig["prose
 }
 
 /**
- * THE SAVE REFUSAL for over-cap framing overrides — the `onDynamic` form validator the editor mounts.
+ * THE SAVE REFUSAL for framing overrides that cannot survive the wire — the `onDynamic` form validator the
+ * editor mounts. TWO arms, one signalling vocabulary: an over-cap override, and a note-frame override that
+ * dropped its `{{note}}` carrier.
+ *
+ * THE CARRIER ARM (owner ruling 2026-08-08, option C of `docs/design/note-token-intent-history.md`).
+ * `promptConfigWriteSchema` REFUSES a non-blank `chat.injection.*Note` override missing `{{note}}` — the token
+ * carries the injection's entire payload, so the frame would ship as `[Note from user: ]` with the host's note
+ * gone. Without this arm the autosave would FIRE and bounce off the server, leaving the header reading "Saved"
+ * over a write that never landed: the same fail-shape the over-cap arm below exists to prevent. The membership
+ * test is `proseCarrierMisses` — the contract's own predicate, not a second spelling of it, so the field's
+ * statement and the server's refusal can never disagree. The server guard stays the floor: an import, a
+ * foreign API write and a preset file never pass through this editor.
  *
  * WHY A REFUSAL AND NOT A TRUNCATION. `proseOverridesSchema` wraps each key in `.catch(undefined)`, so an
  * over-cap override does not bounce off the server, it SELF-HEALS TO ABSENT: the row disappears, the shipped
@@ -108,14 +119,20 @@ export function validatePresetProse(config: PromptConfig): { fields: Record<stri
   const over = Object.entries(config.prose).flatMap(([id, override]) =>
     override !== undefined && isProseSlotId(id) && proseOverBy(override.text) > 0 ? [PROSE_SLOTS[id].title] : [],
   );
-  if (over.length === 0) {
+  const dropped = proseCarrierMisses(config.prose).map((carrier) => `${PROSE_SLOTS[carrier.slotId].title} (${carrier.token})`);
+  if (over.length === 0 && dropped.length === 0) {
     return;
   }
   // Keyed at the `prose` path — the record IS the bound value (a slot id contains dots, which TanStack reads
   // as a value path, so there is no per-slot field to hang this on; see `proseTemplateDraft`). Nothing
-  // renders this string today: the drill-in's own over-cap badge is the author-facing statement, and this
-  // exists to make `isValid` false. It still NAMES the templates, so a future surface has the fact.
-  return { fields: { prose: `Too long to save: ${over.join(", ")}` } };
+  // renders this string today: the drill-in's own over-cap badge and missing-token chip are the author-facing
+  // statements, and this exists to make `isValid` false. It still NAMES the templates, so a future surface
+  // has the fact — and it names BOTH reasons, because a config can carry one of each.
+  const reasons = [
+    ...(over.length === 0 ? [] : [`Too long to save: ${over.join(", ")}`]),
+    ...(dropped.length === 0 ? [] : [`Missing its payload token: ${dropped.join(", ")}`]),
+  ];
+  return { fields: { prose: reasons.join(" · ") } };
 }
 
 /** Normalize the edited `PromptConfig` for persistence: strips all-default blocks back to unset, and

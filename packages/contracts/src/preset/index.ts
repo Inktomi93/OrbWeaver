@@ -18,8 +18,8 @@ import type { RegexPlacement } from "@orb/kit/regex";
 import { z } from "zod";
 import type { EffortLevel as ModelEffortLevel } from "#connection";
 import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEVELS } from "#connection";
-import type { ProseSlotId } from "#prose-slot";
-import { proseOverridesSchema } from "#prose-slot";
+import type { ProseOverrides, ProseSlotId } from "#prose-slot";
+import { hasProseToken, proseOverridesSchema } from "#prose-slot";
 import { defineVersionedConfig } from "#versioned-config";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
 
@@ -37,11 +37,22 @@ const MAX_CHOICE_VALUE_LENGTH = 10_000;
 const MIN_QUESTION_LENGTH = 1;
 const MAX_QUESTION_LENGTH = 2000;
 const MAX_SEPARATOR_LENGTH = 64;
-/** The per-slot `formatStrings` cap. EXPORTED because the editor must wear it: this schema is also the READ
- *  path (`parsePromptConfig` degrades a failed parse to DEFAULT_PROMPT_CONFIG), so an over-cap format string
- *  is not a bounced field — it is the whole preset reading as defaults. The field caps and counts off THIS
- *  number rather than re-spelling it (the `PROSE_MAX_CHARS` precedent). */
-export const MAX_FORMAT_STRING_LENGTH = 10_000;
+/** The cap on an authored TURN-INJECTION TEMPLATE — the ONE number for that whole class (owner ruling
+ *  2026-08-08, option 2 of `docs/design/parked-options-tag-contract.md` §2). Two schemas wear it and they are
+ *  the same kind of thing: a `formatStrings` slot and a `guidedActions.*.prompt` are both macro-carrying text
+ *  spliced into a turn. It supersedes the old `MAX_FORMAT_STRING_LENGTH` (same value, renamed rather than aliased —
+ *  a second spelling of one cap is the drift this constant exists to prevent), and the guided prompt was
+ *  UNCAPPED until this ruling: a `z.string()` that reached both the preset row and the model wire unbounded.
+ *
+ *  EXPORTED because the editor must wear it: `formatStringsSchema` is also the READ path (`parsePromptConfig`
+ *  degrades a failed parse to DEFAULT_PROMPT_CONFIG), so an over-cap format string is not a bounced field —
+ *  it is the whole preset reading as defaults. Every field caps and counts off THIS number rather than
+ *  re-spelling it (the `PROSE_MAX_CHARS` precedent).
+ *
+ *  NOT the cap for every authored string in this file, and deliberately so: the tiers below it are real
+ *  (a section's literal content genuinely needs `MAX_TEXT_LENGTH`; a name needs `MAX_NAME_LENGTH`). This one
+ *  names a CLASS, not a file-wide maximum. */
+export const MAX_INJECTION_TEMPLATE_LENGTH = 10_000;
 const MIN_INJECT_DEPTH = 0;
 const INJECT_ORDER_MIN = -1_000_000;
 const INJECT_ORDER_MAX = 1_000_000;
@@ -344,8 +355,13 @@ const GUIDED_DEFAULT_ROLE: MessageRole = "system";
 // a stored blob are STRIPPED by this non-strict object, so a preset saved with the old `sampling` key still
 // parses and simply loses it.
 export const guidedActionConfigSchema = z.object({
-  /** The injection template; `{{input}}` = the user's steering text. Missing/empty falls back to `{{input}}` alone. */
-  prompt: z.string(),
+  /** The injection template; `{{input}}` = the user's steering text. Missing/empty falls back to `{{input}}` alone.
+   *
+   *  CAPPED at the shared injection-template max (owner ruling 2026-08-08). It was an unbounded `z.string()` —
+   *  the one authored text field in this contract with no ceiling, reaching BOTH the preset row and the model's
+   *  system block (`assembly/macros.ts` resolveGuidedInstruction) at whatever length a caller sent. Its
+   *  functional sibling `formatStrings` has always carried this same number; they are one class. */
+  prompt: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH),
   /** Conversation role the resolved text is delivered with; `system` renders in the cacheable system
    *  prompt, `user`/`assistant` push as an in-chat injection. */
   role: z.enum(MESSAGE_ROLES).default(GUIDED_DEFAULT_ROLE),
@@ -735,11 +751,18 @@ interface FormatCarrierToken {
  *  quietly ignored. Blank/absent stays legal: blank means "the shipped default rides", the storage semantic
  *  everywhere in this schema.
  *
- *  DELIBERATELY DISTINCT from PROSE-1's `requiredMacros` (`contracts/prose-slot`: "a lint in the editor —
- *  never a block"). Those are voice guidance whose absence weakens prose (the identity macros in the
- *  impersonate nudge); these are carriers whose absence DELETES content. Same reason the guided templates'
- *  missing-`{{input}}` check stays a display lint (`guidedFooterState`) and is not enumerated here — an
- *  empty steer template legitimately means "the steer lands on its own, unwrapped".
+ *  THE LINE IS "DELETES CONTENT", NOT "IS A FORMAT STRING" (owner ruling 2026-08-08, option C of
+ *  `docs/design/note-token-intent-history.md` — this clause previously read "DELIBERATELY DISTINCT from
+ *  PROSE-1's `requiredMacros`", which was true of the `requiredMacros` set as it then stood and false of
+ *  `{{note}}`). A carrier is any token whose absence deletes the payload, wherever it is stored: the two
+ *  injection note frames are carriers too and refuse alongside these, from `PROSE_CARRIER_TOKENS` beside the
+ *  write schema (a separate list only because their storage is the `prose` blob, not `formatStrings`).
+ *
+ *  PROSE-1's general `requiredMacros` STAYS A LINT (`contracts/prose-slot`: "a lint in the editor — never a
+ *  block") and this ruling does not widen it: those are voice guidance whose absence WEAKENS prose (the
+ *  identity macros in the impersonate nudge). Same reason the guided templates' missing-`{{input}}` check
+ *  stays a display lint (`guidedFooterState`) and is not enumerated here — an empty steer template
+ *  legitimately means "the steer lands on its own, unwrapped".
  *
  *  A new carrier = one row here; the refine below reads nothing else. */
 const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] as const satisfies readonly FormatCarrierToken[];
@@ -1729,11 +1752,11 @@ const SCHEMA_VERSION_V6 = 6;
  *  DEFAULT_PROMPT_CONFIG), so refusing on read would nuke an entire stored preset over one bad wrapper. The
  *  guard rides `promptConfigWriteSchema` below. */
 export const formatStringsSchema = z.object({
-  continueNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
-  impersonateNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
-  responseNudge: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
-  wiFormat: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
-  newChatMarker: z.string().max(MAX_FORMAT_STRING_LENGTH).optional(),
+  continueNudge: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
+  impersonateNudge: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
+  responseNudge: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
+  wiFormat: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
+  newChatMarker: z.string().max(MAX_INJECTION_TEMPLATE_LENGTH).optional(),
 });
 
 export const promptConfigSchema = z.object({
@@ -1879,27 +1902,86 @@ export const REPLY_LANE_STEPS: readonly PromptPipelineStep[] = [
   { kind: "regex", placement: "DISPLAY" },
 ];
 
+/** One PROSE slot whose pre-substitution token IS its payload slot — the `FormatCarrierToken` sibling for the
+ *  frames that store in `promptConfig.prose` instead of `formatStrings`. */
+export interface ProseCarrierToken {
+  readonly slotId: ProseSlotId;
+  /** The token NAME, brace-less — the key `spliceProseTokens` splices by, and what `hasProseToken` recognises. */
+  readonly name: string;
+  /** The BRACED spelling — what the refusal message says and what the editor's chip shows. It is also the exact
+   *  string the slot's own `requiredMacros` carries; the preset contract test pins the pair. */
+  readonly token: string;
+}
+
+/** PROSE CARRIER slots — the write guard's SECOND enumeration (owner ruling 2026-08-08, option C of
+ *  `docs/design/note-token-intent-history.md`). The two injection note frames carry `{{note}}`, which is the
+ *  injection's ENTIRE payload: `spliceProseTokens` is a replace, so an override that drops the token matches
+ *  nothing and the frame ships as an empty wrapper (`[Note from user: ]`) with the author's note gone. That is
+ *  byte-for-byte the `{{entry}}` failure the 2026-08-02 carrier ruling refuses, so these refuse with it.
+ *
+ *  WHY A SECOND LIST rather than a row in `FORMAT_STRING_CARRIER_TOKENS`: that enum keys off `FormatStringKey`
+ *  and its loop reads `config.formatStrings`. These frames are `kind:"format"` rows in the same Templates tab,
+ *  but their STORAGE is `promptConfig.prose[<slot id>].text` — a different field with a different key type, so
+ *  the enum structurally cannot absorb them. The enforcement split used to track exactly that plumbing
+ *  difference; it no longer does.
+ *
+ *  WHAT DID NOT CHANGE: PROSE-1's general `requiredMacros` stays a LINT (`contracts/prose-slot` — "a lint in
+ *  the editor, never a block"). That posture is ruled and correct for VOICE macros, whose absence weakens
+ *  prose. This list is not a widening of it — it names the two slots whose token absence DELETES content, which
+ *  is the carrier-bucket's own membership test.
+ *
+ *  A new prose carrier = one row here; the refine below reads nothing else. */
+const PROSE_CARRIER_TOKENS = [
+  { slotId: "chat.injection.systemNote", name: "note", token: "{{note}}" },
+  { slotId: "chat.injection.userNote", name: "note", token: "{{note}}" },
+] as const satisfies readonly ProseCarrierToken[];
+
+/** THE CARRIER PREDICATE — every stored note-frame override that is non-blank and DROPPED its token, i.e.
+ *  exactly the set {@link promptConfigWriteSchema} refuses.
+ *
+ *  EXPORTED because the refusal needs a SECOND consumer, not a second spelling: the preset editor's form
+ *  validator holds the autosave on this (`validatePresetProse`), so a host who deletes `{{note}}` sees the save
+ *  withheld with the reason in the field — instead of the autosave firing and bouncing off the server, which is
+ *  the exact fail-shape the over-cap prose regime already fixed on this surface. The server guard stays the
+ *  FLOOR regardless: an import, a foreign API write and a preset file never pass through an editor. */
+export function proseCarrierMisses(prose: ProseOverrides): readonly ProseCarrierToken[] {
+  return PROSE_CARRIER_TOKENS.filter((carrier) => {
+    const text = prose[carrier.slotId]?.text;
+    // `hasProseToken`, never a hand-rolled `includes`: the splice recognises `{{ note }}` and `{{NOTE}}` too,
+    // and a refusal stricter than the renderer would bounce text that works.
+    return text !== undefined && text.trim().length > 0 && !hasProseToken(text, carrier.name);
+  });
+}
+
 /** THE WRITE BOUNDARY (the `injectionDirectiveSchema` → wire-guard layering precedent, `@orb/kit/injection`):
  *  `promptConfigSchema` plus the guards that may REFUSE an author's edit. The transport create/update procs
  *  parse through THIS; every read path (`parsePromptConfig`, `parsePresetFile`, the assembler) keeps the
  *  plain schema, so a preset already carrying a broken wrapper still LOADS (and the editor can show it) —
  *  a refusal on read would degrade the whole preset to default over one field.
  *
- *  Today's one guard: the carrier-token refusal (`FORMAT_STRING_CARRIER_TOKENS`). */
+ *  ONE guard, TWO enumerations — the carrier-token refusal over `FORMAT_STRING_CARRIER_TOKENS` (the
+ *  `formatStrings` field) and over `PROSE_CARRIER_TOKENS` (the `prose` blob). Blank/absent is legal on both:
+ *  blank means "the shipped default rides", the storage semantic everywhere in this schema. */
 export const promptConfigWriteSchema = promptConfigSchema.superRefine((config, ctx): void => {
   const formatStrings = config.formatStrings;
-  if (formatStrings === undefined) {
-    return;
-  }
-  for (const { key, token } of FORMAT_STRING_CARRIER_TOKENS) {
-    const text = formatStrings[key];
-    if (text !== undefined && text.trim().length > 0 && !text.includes(token)) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["formatStrings", key],
-        message: `${key} must contain ${token} — that is where the wrapped content lands, so without it the content is dropped. Leave it blank to use the default.`,
-      });
+  if (formatStrings !== undefined) {
+    for (const { key, token } of FORMAT_STRING_CARRIER_TOKENS) {
+      const text = formatStrings[key];
+      if (text !== undefined && text.trim().length > 0 && !text.includes(token)) {
+        ctx.addIssue({
+          code: "custom",
+          path: ["formatStrings", key],
+          message: `${key} must contain ${token} — that is where the wrapped content lands, so without it the content is dropped. Leave it blank to use the default.`,
+        });
+      }
     }
+  }
+  for (const { slotId, token } of proseCarrierMisses(config.prose)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["prose", slotId, "text"],
+      message: `${slotId} must contain ${token} — that is where the injection's own content lands, so without it the note ships as an empty frame. Leave it blank to use the default.`,
+    });
   }
 });
 
@@ -2519,7 +2601,7 @@ function collectFormatStrings(rawObj: Record<string, unknown>): PromptConfig["fo
   const take = (key: string, slot: string): void => {
     const v = rawObj[key];
     if (typeof v === "string" && v.trim().length > 0) {
-      out[slot] = v.slice(0, MAX_FORMAT_STRING_LENGTH);
+      out[slot] = v.slice(0, MAX_INJECTION_TEMPLATE_LENGTH);
     }
   };
   take("continue_nudge_prompt", "continueNudge");

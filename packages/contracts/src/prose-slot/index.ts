@@ -337,3 +337,20 @@ export function spliceProseTokens(text: string, tokens: Readonly<Record<string, 
   }
   return out;
 }
+
+/** Does `text` carry the pre-substitution token `name` — by EXACTLY the recognition {@link spliceProseTokens}
+ *  splices with (whitespace-tolerant, case-insensitive)?
+ *
+ *  It lives HERE, beside the splice that defines the semantics, because its one caller is a REFUSAL: the
+ *  preset write boundary's carrier guard (`promptConfigWriteSchema`). A guard carrying its own spelling —
+ *  a plain `text.includes("{{note}}")` — would bounce `{{ note }}` and `{{Note}}`, both of which the splice
+ *  fills perfectly well, and a refusal that is stricter than the renderer is a bug the author cannot argue
+ *  with. One recogniser, one answer. */
+export function hasProseToken(text: string, name: string): boolean {
+  const re = tokenRe(name);
+  // The cached regex is GLOBAL (the splice needs it to replace every occurrence) and `RegExp.test` on a
+  // global regex ADVANCES `lastIndex` — without this reset, alternating calls would report a matching text
+  // as token-less. `String.replace` resets it itself, which is why the splice never had to.
+  re.lastIndex = 0;
+  return re.test(text);
+}

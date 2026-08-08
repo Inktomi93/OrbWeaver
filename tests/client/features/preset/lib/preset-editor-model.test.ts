@@ -182,6 +182,49 @@ test("validatePresetProse passes anything the schema will actually keep, and ref
   expect(validatePresetProse(withProse(PROSE_MAX_CHARS + 1))?.fields["prose"]).toContain(PROSE_SLOTS[FRAMING].title);
 });
 
+// ── THE CARRIER ARM (owner ruling 2026-08-08 — the {{note}} write refusal reaches the editor) ─────────
+// `promptConfigWriteSchema` refuses a non-blank note-frame override that dropped `{{note}}`, because the token
+// carries the injection's WHOLE payload. Without this arm the autosave fires and bounces off the server with
+// the header still reading "Saved" — the fail-shape the over-cap arm above exists to prevent, one field over.
+const NOTE_FRAME: ProseSlotId = "chat.injection.userNote";
+
+/** A seeded config carrying one note-frame override. */
+function withNoteFrame(text: string): PromptConfig {
+  const server = parsePromptConfig(DEFAULT_PROMPT_CONFIG);
+  return { ...seedConfig(server), prose: { [NOTE_FRAME]: { text, baseVersion: 1 } } };
+}
+
+test("validatePresetProse HOLDS the save when a note frame dropped {{note}}, and names the template + token", () => {
+  const held = validatePresetProse(withNoteFrame("[A note from the operator.]"));
+  expect(held).toBeDefined();
+  expect(held?.fields["prose"]).toContain(PROSE_SLOTS[NOTE_FRAME].title);
+  expect(held?.fields["prose"]).toContain("{{note}}");
+});
+
+test("validatePresetProse lets every LEGAL note frame save — blank, carrier present, and the splice's own spellings", () => {
+  expect(validatePresetProse(withNoteFrame(""))).toBeUndefined();
+  expect(validatePresetProse(withNoteFrame("   "))).toBeUndefined();
+  expect(validatePresetProse(withNoteFrame("<<{{note}}>>"))).toBeUndefined();
+  // The editor's hold may never be STRICTER than the renderer: `spliceProseTokens` is whitespace-tolerant and
+  // case-insensitive, so a save held on either of these would refuse text that works.
+  expect(validatePresetProse(withNoteFrame("<<{{ note }}>>"))).toBeUndefined();
+  expect(validatePresetProse(withNoteFrame("<<{{NOTE}}>>"))).toBeUndefined();
+});
+
+test("validatePresetProse reports BOTH reasons when one config is over-cap AND missing its carrier", () => {
+  const server = parsePromptConfig(DEFAULT_PROMPT_CONFIG);
+  const both: PromptConfig = {
+    ...seedConfig(server),
+    prose: {
+      [FRAMING]: { text: "y".repeat(PROSE_MAX_CHARS + 1), baseVersion: 1 },
+      [NOTE_FRAME]: { text: "[no token here]", baseVersion: 1 },
+    },
+  };
+  const message = validatePresetProse(both)?.fields["prose"];
+  expect(message).toContain(PROSE_SLOTS[FRAMING].title);
+  expect(message).toContain(PROSE_SLOTS[NOTE_FRAME].title);
+});
+
 test("validatePresetProse is blind to a RETIRED slot id left in a stored blob — it never indexes the registry with one", () => {
   // The same key class `proseOverridesSchema`'s preprocess strips (§4.4 rung 5). Indexing `PROSE_SLOTS` with
   // it would throw inside a form validator, i.e. brick the editor on a blob it was supposed to tolerate.

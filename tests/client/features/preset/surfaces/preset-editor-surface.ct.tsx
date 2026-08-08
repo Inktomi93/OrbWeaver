@@ -20,7 +20,7 @@
 // the segmented strip died), so its state reads off the TRIGGER'S TEXT and its options live in a portal.
 
 import type { PromptConfig } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG, MAX_FORMAT_STRING_LENGTH } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, MAX_INJECTION_TEMPLATE_LENGTH } from "@orb/contracts/preset";
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { PresetId } from "@orb/kit/ids";
@@ -812,14 +812,64 @@ test("PROSE GEOMETRY — the box scrolls at its cap, the refusal stays on screen
   await expect(status).not.toContainText("Not saved");
 });
 
+// ── THE {{note}} CARRIER REFUSAL (owner ruling 2026-08-08, option C of note-token-intent-history.md) ───
+// `{{note}}` carries the injection's ENTIRE payload: `spliceProseTokens` is a replace, so a frame override
+// that dropped it ships `[Note from user: ]` with the host's note gone. That is now a WRITE REFUSAL, and this
+// is the rendered half — the same three-signal shape the over-cap regime above wears, because a save that
+// fires and bounces off the server while the header reads "Saved" is the defect, not the fix.
+const USER_NOTE_ROW = "Edit User-note frame";
+const USER_NOTE_SLOT = "chat.injection.userNote";
+/** A legal override — the shipped wording, so the baseline arm starts from a frame that really does save. */
+const NOTE_FRAME_LEGAL = "[Operator: {{note}}]";
+/** The same frame with its carrier deleted: the wrapper survives, the payload has nowhere to land. */
+const NOTE_FRAME_BROKEN = "[Operator: ]";
+
+/** `PRESET_A` carrying one stored USER-NOTE frame override. */
+function presetWithNoteFrame(text: string): PresetDetailFixture {
+  const base = presetDetail(PRESET_A, "Preset A", "fast");
+  return {
+    ...base,
+    config: { ...base.config, prose: { [USER_NOTE_SLOT]: { text, baseVersion: PROSE_SLOTS[USER_NOTE_SLOT].version } } },
+  };
+}
+
+test("NOTE CARRIER — dropping {{note}} holds the save, says why in the field, and the header stops saying Saved", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => presetWithNoteFrame(NOTE_FRAME_LEGAL),
+    "preset.list": () => [presetWithNoteFrame(NOTE_FRAME_LEGAL)],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+    "preset.update": () => ({}),
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+  await component.getByRole("tab", { name: "Actions" }).click();
+  await component.getByRole("button", { name: USER_NOTE_ROW }).click();
+  // BARRIER: the drill-in's back row is the settled render of the editor — never assert into the swap.
+  await expect(component.getByRole("button", { name: "Back to actions" })).toBeVisible();
+  const field = component.getByRole("textbox", { name: TEMPLATE_FIELD, exact: true });
+  await expect(field).toHaveValue(NOTE_FRAME_LEGAL);
+
+  // DELETE THE CARRIER. The wrapper is still perfectly readable prose — which is exactly why the author
+  // cannot see the mistake in the field itself, and why the surface has to say it.
+  await field.fill(NOTE_FRAME_BROKEN);
+  await expect(component.getByText("Missing {{note}}")).toBeVisible();
+  const status = component.getByRole("status");
+  await expect(status).toContainText("Not saved");
+
+  // …AND IT LIFTS the moment the carrier comes back — the hold is about the token, not about having edited.
+  await field.fill(NOTE_FRAME_LEGAL);
+  await expect(status).toContainText("Saved");
+  await expect(status).not.toContainText("Not saved");
+});
+
 // ── THE FORMAT-STRING CAP (the SECOND of the three regimes on this surface) ────────────────────────────
-// `formatStringsSchema` bounds every slot at MAX_FORMAT_STRING_LENGTH and the SAME schema is the read path
+// `formatStringsSchema` bounds every slot at MAX_INJECTION_TEMPLATE_LENGTH and the SAME schema is the read path
 // (`parsePromptConfig` degrades a failed parse to DEFAULT_PROMPT_CONFIG), so an over-cap nudge is not one
 // bounced field — it is the whole preset reading as defaults. The field wore no cap and no counter at all:
 // three cap regimes met on this one drill-in and exactly one of them was signalled.
 const CONTINUE_NUDGE_ROW = "Edit Continue nudge";
 /** The format-string counter's threshold — the shared capped-field grammar's default 80%. */
-const FORMAT_COUNTER_FROM = MAX_FORMAT_STRING_LENGTH * 0.8;
+const FORMAT_COUNTER_FROM = MAX_INJECTION_TEMPLATE_LENGTH * 0.8;
 
 test("FORMAT-STRING CAP — the nudge field wears the schema's cap and counts toward it", async ({ mount, page }) => {
   await routeTrpc(page, {
@@ -836,16 +886,54 @@ test("FORMAT-STRING CAP — the nudge field wears the schema's cap and counts to
   const field = component.getByRole("textbox", { name: TEMPLATE_FIELD, exact: true });
 
   // THE CAP IS THE SCHEMA'S, worn by the control the browser enforces it in.
-  await expect(field).toHaveAttribute("maxlength", String(MAX_FORMAT_STRING_LENGTH));
+  await expect(field).toHaveAttribute("maxlength", String(MAX_INJECTION_TEMPLATE_LENGTH));
 
   // The counter is quiet until 80% of it, asserted from both sides so an off-by-one can't pass by showing
   // the count earlier.
   await field.fill("x".repeat(FORMAT_COUNTER_FROM - 1));
-  await expect(component.getByText(`${String(FORMAT_COUNTER_FROM - 1)}/${String(MAX_FORMAT_STRING_LENGTH)}`)).toHaveCount(0);
+  await expect(component.getByText(`${String(FORMAT_COUNTER_FROM - 1)}/${String(MAX_INJECTION_TEMPLATE_LENGTH)}`)).toHaveCount(0);
   await field.fill("x".repeat(FORMAT_COUNTER_FROM));
-  await expect(component.getByText(`${String(FORMAT_COUNTER_FROM)}/${String(MAX_FORMAT_STRING_LENGTH)}`)).toBeVisible();
+  await expect(component.getByText(`${String(FORMAT_COUNTER_FROM)}/${String(MAX_INJECTION_TEMPLATE_LENGTH)}`)).toBeVisible();
 
   // …and the box that now holds 8000 characters is still a field, not a page: it scrolls at its ceiling.
+  const box = await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }));
+  expect(box.content).toBeGreaterThan(box.client);
+  expect(box.client).toBeLessThan((page.viewportSize()?.height ?? 0) / 2);
+});
+
+// ── THE GUIDED-PROMPT CAP (the THIRD regime — owner ruling 2026-08-08, parked-options §2 option 2) ──────
+// `guidedActionConfigSchema.prompt` was an unbounded `z.string()` and this field wore no `maxLength` at all,
+// with a comment saying so: the editor could author text of any length, which reached both the preset row and
+// the model's system block. Now the contract caps it at the SAME shared constant `formatStrings` wears, and
+// the field wears that constant — so the editor and the write boundary agree instead of the field inviting
+// text the server would bounce.
+const IMPERSONATE_ROW = "Edit Impersonate";
+
+test("GUIDED-PROMPT CAP — the steer field wears the shared injection-template cap and counts toward it", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+    "preset.update": () => ({}),
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+  await component.getByRole("tab", { name: "Actions" }).click();
+  // `exact` because "Edit Impersonate" is a PREFIX of "Edit Impersonate nudge" — the nudge is the OTHER cap
+  // regime, and a substring match would silently test the field that was already capped.
+  await component.getByRole("button", { name: IMPERSONATE_ROW, exact: true }).click();
+  await expect(component.getByRole("button", { name: "Back to actions" })).toBeVisible();
+  const field = component.getByRole("textbox", { name: TEMPLATE_FIELD, exact: true });
+
+  await expect(field).toHaveAttribute("maxlength", String(MAX_INJECTION_TEMPLATE_LENGTH));
+
+  // The same 80% counter grammar the nudge field speaks, asserted from both sides.
+  await field.fill("x".repeat(FORMAT_COUNTER_FROM - 1));
+  await expect(component.getByText(`${String(FORMAT_COUNTER_FROM - 1)}/${String(MAX_INJECTION_TEMPLATE_LENGTH)}`)).toHaveCount(0);
+  await field.fill("x".repeat(FORMAT_COUNTER_FROM));
+  await expect(component.getByText(`${String(FORMAT_COUNTER_FROM)}/${String(MAX_INJECTION_TEMPLATE_LENGTH)}`)).toBeVisible();
+
+  // …and the box holding 8000 characters is still a field, not a page.
   const box = await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }));
   expect(box.content).toBeGreaterThan(box.client);
   expect(box.client).toBeLessThan((page.viewportSize()?.height ?? 0) / 2);

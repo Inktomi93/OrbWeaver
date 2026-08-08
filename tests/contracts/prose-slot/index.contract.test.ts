@@ -2,6 +2,7 @@
 // composed registry, the resolver and the baseline manifest are exercised in `tests/contracts/prose/`.
 import type { ProseSlotId } from "@orb/contracts/prose-slot";
 import {
+  hasProseToken,
   isProseSlotId,
   LEGACY_PROSE_BASE_VERSION,
   PROSE_COUNTER_AT,
@@ -10,6 +11,7 @@ import {
   proseOverBy,
   proseOverrideFromLegacy,
   proseOverridesSchema,
+  spliceProseTokens,
 } from "@orb/contracts/prose-slot";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -60,4 +62,31 @@ test("the legacy bare-string adapter stamps the FIRST version — honest today, 
   expect(proseOverrideFromLegacy(undefined)).toBeUndefined();
   expect(proseOverrideFromLegacy("")).toStrictEqual({ text: "", baseVersion: LEGACY_PROSE_BASE_VERSION });
   expect(proseOverrideFromLegacy("mine")).toStrictEqual({ text: "mine", baseVersion: LEGACY_PROSE_BASE_VERSION });
+});
+
+// ── hasProseToken — the recogniser the CARRIER REFUSAL asks (owner ruling 2026-08-08) ────────────────
+// `promptConfigWriteSchema` refuses a note-frame override that dropped `{{note}}`. That refusal must agree
+// EXACTLY with `spliceProseTokens`, or it bounces text the renderer would have filled — which is why the
+// predicate lives beside the splice instead of being spelled `text.includes("{{note}}")` at the guard.
+
+test("hasProseToken recognises exactly what spliceProseTokens fills — whitespace-tolerant, case-insensitive", () => {
+  for (const text of ["{{note}}", "[Note: {{note}}]", "{{ note }}", "{{NOTE}}", "{{  Note  }}"]) {
+    expect(hasProseToken(text, "note"), text).toBe(true);
+    // The pairing, stated rather than assumed: anything this reports present is a value the splice CHANGES.
+    expect(spliceProseTokens(text, { note: "PAYLOAD" }), text).toContain("PAYLOAD");
+  }
+  for (const text of ["", "[Note: ]", "note", "{note}", "{{notes}}"]) {
+    expect(hasProseToken(text, "note"), text).toBe(false);
+    expect(spliceProseTokens(text, { note: "PAYLOAD" }), text).toBe(text);
+  }
+});
+
+test("hasProseToken is REPEATABLE — the cached regex is global, and a stateful probe would flip on alternate calls", () => {
+  // `RegExp.test` on a `/g/` regex advances `lastIndex`. The cache is shared with the splice, so without the
+  // reset the SECOND write validated in one process would report a perfectly good frame as token-less.
+  const text = "[Note from user: {{note}}]";
+  expect([hasProseToken(text, "note"), hasProseToken(text, "note"), hasProseToken(text, "note")]).toStrictEqual([true, true, true]);
+  // …and interleaving with the splice (which shares the cache) does not disturb either one.
+  expect(spliceProseTokens(text, { note: "x" })).toBe("[Note from user: x]");
+  expect(hasProseToken(text, "note")).toBe(true);
 });

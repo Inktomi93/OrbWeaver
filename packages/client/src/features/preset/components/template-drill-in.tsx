@@ -14,7 +14,7 @@
 // the user's CLICK, so `fires` is a descriptive gloss and never a control.
 
 import type { PromptConfig, TemplateCapability } from "@orb/contracts/preset";
-import { MAX_FORMAT_STRING_LENGTH } from "@orb/contracts/preset";
+import { MAX_INJECTION_TEMPLATE_LENGTH } from "@orb/contracts/preset";
 import type { ProseFooterState, ProseSlotId } from "@orb/contracts/prose";
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS, proseFooterState } from "@orb/contracts/prose";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
@@ -116,30 +116,42 @@ function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: 
             {(field): ReactElement => (
               <Stack gap="field">
                 {/* THE CAP, off the contract constant. `formatStringsSchema` bounds every slot at
-                    `MAX_FORMAT_STRING_LENGTH`, and this schema is also the READ path — `parsePromptConfig`
+                    `MAX_INJECTION_TEMPLATE_LENGTH`, and this schema is also the READ path — `parsePromptConfig`
                     degrades a failed parse to DEFAULT_PROMPT_CONFIG — so an over-cap nudge does not bounce
                     one field, it makes the WHOLE preset read as defaults. Three cap regimes met on this one
                     surface and only the prose one was signalled (side-eye PROSE-LIMIT); this is the second. */}
                 <field.MacroField
                   label={label}
-                  maxLength={MAX_FORMAT_STRING_LENGTH}
+                  maxLength={MAX_INJECTION_TEMPLATE_LENGTH}
                   maxRows={CAPPED_FIELD_MAX_ROWS}
                   placeholder={placeholder}
                   rows={4}
                   suggestions={suggestions}
                 />
-                <CappedFieldCounter length={(field.state.value ?? "").length} max={MAX_FORMAT_STRING_LENGTH} />
+                <CappedFieldCounter length={(field.state.value ?? "").length} max={MAX_INJECTION_TEMPLATE_LENGTH} />
               </Stack>
             )}
           </form.AppField>
         ) : (
           <form.AppField name={`guidedActions.${guidedKind}.prompt`}>
-            {/* NO `maxLength` HERE, deliberately: `guidedActionSchema.prompt` is an uncapped `z.string()`,
-                so there is no number to wear — capping the field would invent a contract in the editor and
-                refuse text the wire accepts. Raised as a CONTRACT question, not decided here. The autosize
-                CEILING still applies: an uncapped field is the one MOST able to grow past the fold. */}
+            {/* THE CAP, off the SAME contract constant the nudge above wears. The contract question this
+                field once raised is answered (owner ruling 2026-08-08): `guidedActionConfigSchema.prompt` was
+                an uncapped `z.string()` and is now bounded by `MAX_INJECTION_TEMPLATE_LENGTH`, because a
+                guided prompt and a format string are one class — authored text spliced into a turn. So the
+                editor and the wire agree on one number instead of the field silently authoring text the write
+                boundary would bounce. The autosize CEILING still applies. */}
             {(field): ReactElement => (
-              <field.MacroField label={label} maxRows={CAPPED_FIELD_MAX_ROWS} placeholder={placeholder} rows={4} suggestions={suggestions} />
+              <Stack gap="field">
+                <field.MacroField
+                  label={label}
+                  maxLength={MAX_INJECTION_TEMPLATE_LENGTH}
+                  maxRows={CAPPED_FIELD_MAX_ROWS}
+                  placeholder={placeholder}
+                  rows={4}
+                  suggestions={suggestions}
+                />
+                <CappedFieldCounter length={(field.state.value ?? "").length} max={MAX_INJECTION_TEMPLATE_LENGTH} />
+              </Stack>
             )}
           </form.AppField>
         )
@@ -218,9 +230,16 @@ function ProseTemplateBody({
 /** The framing field's footer (§6.3 / §4.4) — the same signals the Prose settings cards carry, off the same
  *  shared `proseFooterState`. A framing's `{{note}}` is its PAYLOAD carrier: an override that drops it renders
  *  the wrapper with the injection's content gone, which is the one mistake an author cannot see in the field
- *  itself. It stays a warning, not a refusal — that is the ruled posture for prose `requiredMacros`
- *  (`contracts/prose-slot`: "a lint in the editor — never a block"), deliberately unlike
- *  `FORMAT_STRING_CARRIER_TOKENS`, whose write-refusal is a separate owner ruling about format strings.
+ *  itself.
+ *
+ *  THE WARNING IS NOW THE FRONT HALF OF A REFUSAL, not the whole answer (owner ruling 2026-08-08, option C of
+ *  `docs/design/note-token-intent-history.md`). This comment used to say the missing-`{{note}}` chip stays a
+ *  warning "deliberately unlike `FORMAT_STRING_CARRIER_TOKENS`" — the ruling resolved that: `{{note}}` deletes
+ *  content exactly as `{{entry}}` does, so `promptConfigWriteSchema` REFUSES a non-blank note-frame override
+ *  that dropped it (`PROSE_CARRIER_TOKENS`). The chip is still the right thing to draw here — it is what tells
+ *  the author WHY the save is being held, in the field, before the round trip — and every OTHER slot's
+ *  `requiredMacros` chip remains a pure lint, which is the unchanged PROSE-1 posture (`contracts/prose-slot`:
+ *  "a lint in the editor — never a block"). Only the two carrier frames block.
  *
  *  THE LENGTH SIGNALS ARE THE EXCEPTION, and they are a different KIND of fact. The counter is the
  *  `hint-editor` grammar (quiet until `PROSE_COUNTER_AT` of the cap, then a live count) so an author sees the
