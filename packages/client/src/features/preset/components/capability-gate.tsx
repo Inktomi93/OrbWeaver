@@ -8,7 +8,17 @@
 // isError ≠ no-model (side-eye F-02, the P1): the capability read FAILING (the review's receipt: `400
 // incoherent routing (agent-sdk × local-light)`) rendered as "connect a chat model" to a user who had one
 // connected — a swallowed server error dressed up as an empty state, so the server's own message is shown
-// verbatim and the fix is named as the routing problem it is.
+// verbatim.
+//
+// WHICH CAUSE THE FAILURE NAMES IS DERIVED, NOT ASSERTED (2026-08-08 — the same second-defect the readout's
+// `EffectiveProfile` took). The F-02 fix printed an UNCONDITIONAL "this is a routing problem, not a missing
+// connection" over whatever the read threw — so a `NOT_FOUND`, a 500 or a dropped socket all got told they
+// had a routing fault, and the "not a missing connection" clause is literally INVERTED over any failure that
+// IS a missing precondition. The verdict is now kept VERBATIM only for the `BAD_REQUEST` that earns it and
+// WITHHELD otherwise, discriminated through the shared classifier (`lib/resolve-failure.ts`, which owns the
+// `error.data.code` map and states the fork). The gate keeps its own deck-context WORDS — its failure is
+// that these knobs can't be shown at the model's real caps, not that the assembled turn can't be shown — so
+// it consumes the `failureCause`/`resolveFailureMessage` SEAM, never `resolveFailureCopy`'s preset-turn copy.
 //
 // PENDING IS NOT AN EMPTY STATE (lane FLK / F-02's class, 2026-08-02). This gate's two reachable states are
 // PENDING and FAILED, and nothing else — `connection.resolveChatCapability` returns a REQUIRED descriptor
@@ -29,16 +39,21 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { SkeletonRows } from "#data";
+import { failureCause, resolveFailureMessage } from "../lib/resolve-failure.ts";
 
 /** One placeholder bar per model-fed cluster the settled read will fill (SAMPLING, REASONING and the seed
  *  row) — enough to hold the column's height so the deck does not jump when the descriptor lands. */
 const PENDING_ROWS = 3;
 
 export interface CapabilityGateProps {
-  /** The capability read's own failure message — `null` while the read is still PENDING. Those two states
-   *  are exhaustive here (see the header): a settled-successful read carries a descriptor, so the deck
-   *  renders its real clusters and never mounts this gate. */
-  readonly error: string | null;
+  /** The capability read's THROWN error — `null` while the read is still PENDING. Those two states are
+   *  exhaustive here (see the header): a settled-successful read carries a descriptor, so the deck renders
+   *  its real clusters and never mounts this gate.
+   *
+   *  It is the error OBJECT, not a pre-extracted message: the band discriminates on the structured
+   *  `error.data.code` tRPC puts there (via `failureCause`) to decide whether it has EARNED the routing
+   *  verdict. A caller that flattened it to `.message` first would take that choice away. */
+  readonly error: unknown;
 }
 
 export function CapabilityGate({ error }: CapabilityGateProps): ReactElement {
@@ -51,6 +66,11 @@ export function CapabilityGate({ error }: CapabilityGateProps): ReactElement {
       </Section>
     );
   }
+  // ONLY a `BAD_REQUEST` (the routing refusal `assertCoherent` throws) earns the routing verdict; a
+  // `NOT_FOUND`, a missing-precondition or a bare transport failure withholds it (the F-02 clause was
+  // "not a missing connection", which is a lie the moment the failure IS a missing precondition).
+  const routing = failureCause(error) === "routing";
+  const message = resolveFailureMessage(error);
   return (
     <Section kicker="Sampling · reasoning · output">
       <Row align="start" className="rounded-base border border-warning bg-warning/10 text-warning" gap="field" padding="row">
@@ -59,11 +79,15 @@ export function CapabilityGate({ error }: CapabilityGateProps): ReactElement {
           <Text prose={true} voice="label">
             Your chat model couldn't be resolved, so these knobs can't be shown at your model's real caps.
           </Text>
+          {message === null ? null : (
+            <Text prose={true} voice="gloss">
+              {message}
+            </Text>
+          )}
           <Text prose={true} voice="gloss">
-            {error}
-          </Text>
-          <Text prose={true} voice="gloss">
-            This is a routing problem, not a missing connection — fix it under Settings → Connections → Model roles.
+            {routing
+              ? "This is a routing problem, not a missing connection — fix it under Settings → Connections → Model roles."
+              : "Check your model roles under Settings → Connections → Model roles, then retry."}
           </Text>
         </Stack>
       </Row>

@@ -13,16 +13,28 @@
 
 import type { AppFormInstance, AutosaveSession } from "@orb/client/forms";
 import { createAutosaveEntityForm } from "@orb/client/forms";
+import { closePresetSectionDrill } from "@orb/client/state";
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Toaster, ToastProvider } from "@orb/ui/toast";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { PresetStructureTabs } from "../../../../../../packages/client/src/features/preset/components/preset-structure-tabs.tsx";
 
 const STORY_PRESET = castId<PresetId>("preset_delundostoryy");
+
+/** The section drill is now STORE state, not local component state (so it survives the fork-retarget
+ *  remount) — which means it also LEAKS across tests in one page. Clear it on each story mount so every test
+ *  starts on the rack; the effect runs once (deps `[]`), so it never clears the drill the fork test is
+ *  proving survives a keyed remount. */
+function useFreshSectionDrill(): void {
+  useEffect(() => {
+    closePresetSectionDrill();
+    return closePresetSectionDrill;
+  }, []);
+}
 
 // `sec_del` sits in the MIDDLE: a middle target is the only fixture that distinguishes a duplicate/insert-
 // at-index from an append-to-end (identical for the tail).
@@ -59,6 +71,7 @@ function triggerState(sections: readonly PromptSection[]): string {
  *  its persistence, plus the enabled flags (the drilled-header echo's convergence proof). */
 function RackBody({ session, savedCount }: { readonly session: AutosaveSession<PromptConfig>; readonly savedCount: number }): ReactElement {
   const form = session.form as AppFormInstance<PromptConfig>;
+  useFreshSectionDrill();
   return (
     <>
       <form.Subscribe selector={(state): readonly PromptSection[] => state.values.sections}>
@@ -79,6 +92,7 @@ const MAIN_PROMPT_SECTIONS: PromptSection[] = [{ type: "marker", id: "sec_main",
  *  is a full sentence and therefore GHOSTS as a multi-line placeholder. Its own story so the drill-in can be
  *  measured against the real default without perturbing the rack fixture. */
 export function MainPromptStory(): ReactElement {
+  useFreshSectionDrill();
   return (
     <ToastProvider>
       <StoryForm
@@ -86,6 +100,37 @@ export function MainPromptStory(): ReactElement {
         save={(): Promise<void> => Promise.resolve()}
         serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections: [...MAIN_PROMPT_SECTIONS] }}
       >
+        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} tab="prompt" />}
+      </StoryForm>
+      <Toaster />
+    </ToastProvider>
+  );
+}
+
+const FORKED_PRESET = castId<PresetId>("preset_promptforkedxx");
+
+// A two-literal fixture, both post-nothing (no pivot ⇒ every section is Relative — the drill body is all we
+// pin here). Distinct ids from `SECTIONS` so a stray leak can never re-anchor into a rack fixture.
+const FORK_SECTIONS: PromptSection[] = [
+  { type: "literal", id: "sec_fork_a", name: "Prologue", role: "system", content: "a", enabled: true },
+  { type: "literal", id: "sec_fork_b", name: "Epilogue", role: "system", content: "b", enabled: true },
+];
+
+/** The FORK-RETARGET seam for the PROMPT view (§5.2), isolated exactly as the Actions story isolates it: the
+ *  production `PresetForm` is keyed `entityId={presetId}`, and the built-in's copy-on-write retarget swaps
+ *  that id mid-edit — remounting the whole keyed session. The fork carries the SAME config (same section
+ *  ids), so a drill homed on the section id must re-anchor; a LOCAL drill id is lost and dumps the author on
+ *  the rack. The trigger + the entity echo are test chrome around the REAL view. */
+export function SectionForkStory(): ReactElement {
+  const [entity, setEntity] = useState<PresetId>(STORY_PRESET);
+  useFreshSectionDrill();
+  return (
+    <ToastProvider>
+      <button onClick={(): void => setEntity(FORKED_PRESET)} type="button">
+        simulate fork retarget
+      </button>
+      <output>{`entity=${entity}`}</output>
+      <StoryForm entityId={entity} save={(): Promise<void> => Promise.resolve()} serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections: [...FORK_SECTIONS] }}>
         {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} tab="prompt" />}
       </StoryForm>
       <Toaster />

@@ -57,19 +57,21 @@ export interface ParamsDeckProps {
   readonly form: AppForm;
   /** `undefined` until the capability read lands, and forever if it FAILS — QUALITY/CONTEXT/ADVANCED still
    *  render, the model-fed clusters stand down to `CapabilityGate`. Which of that gate's two arms shows is
-   *  the `capabilityError` split, never this field: PENDING holds a skeleton, a FAILED read is a routing
-   *  fault quoting the server (F-02). There is no third arm — a settled-successful read always carries a
-   *  descriptor, so `undefined` here means pending-or-failed and nothing else. */
+   *  the `capabilityError` split, never this field: PENDING holds a skeleton, a FAILED read quotes the server
+   *  and names the cause it has EARNED (a routing verdict only on a routing refusal — F-02 + the 2026-08-08
+   *  earned-cause fix). There is no third arm — a settled-successful read always carries a descriptor, so
+   *  `undefined` here means pending-or-failed and nothing else. */
   readonly capability: ModelCapability | undefined;
   /** The funnel projected for this preset (`preset.resolveEffective`) — `undefined` while it is
    *  unavailable (no chat model, or the read has not landed), which degrades to un-ghosted rows. */
   readonly effective: EffectiveProfileRow | undefined;
   /** The server-only BYOK passthrough's KEYS — a read-only presence row in ADVANCED (D7). */
   readonly customParameterKeys: readonly string[];
-  /** The capability read's FAILURE message — `null` while the read is still PENDING. A failed read is a
-   *  routing fault, not an absent connection (side-eye F-02), and a pending one is not a state at all, so
-   *  the gate must print neither over the other. */
-  readonly capabilityError: string | null;
+  /** The capability read's THROWN error object — `null` while the read is still PENDING. Passed WHOLE (not a
+   *  flattened `.message`) so the gate discriminates the cause on `data.code`: only a routing refusal earns
+   *  the routing verdict (side-eye F-02 + the 2026-08-08 earned-cause fix), and a pending read is not a state
+   *  at all, so the gate must print neither over the other. */
+  readonly capabilityError: unknown;
 }
 
 /** The staleness row's vocabulary (§4.2): every knob the effective read can report as STORED-BUT-DROPPED,

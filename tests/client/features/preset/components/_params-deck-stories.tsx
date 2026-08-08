@@ -105,10 +105,33 @@ export function ParamsDeckPendingCapabilityStory(): ReactElement {
   return <DeckHarness capability={null} effective={undefined} params={{}} />;
 }
 
-/** The deck whose capability read FAILED (side-eye F-02): a routing fault, not an absent connection, and the
- *  server's own reason is the only honest thing to show. */
+/** The deck whose capability read FAILED with the ROUTING refusal `assertCoherent` throws — a `BAD_REQUEST`,
+ *  which is the ONE code that EARNS the "routing problem, not a missing connection" verdict (side-eye F-02).
+ *  The server's own reason is quoted verbatim. */
 export function ParamsDeckCapabilityErrorStory(): ReactElement {
-  return <DeckHarness capability={null} capabilityError="400 incoherent routing (agent-sdk × local-light)" effective={undefined} params={{}} />;
+  return (
+    <DeckHarness
+      capability={null}
+      capabilityError={{ message: "400 incoherent routing (agent-sdk × local-light)", data: { code: "BAD_REQUEST" } }}
+      effective={undefined}
+      params={{}}
+    />
+  );
+}
+
+/** The deck whose capability read FAILED with a MISSING PRECONDITION (`PRECONDITION_FAILED`) — a missing
+ *  credential is the archetype. The old gate printed "this is a routing problem, NOT a missing connection"
+ *  over exactly this, which is the F-02 verdict INVERTED (2026-08-08): the failure IS a missing precondition.
+ *  The verdict must now be WITHHELD, and the server's own reason shown. */
+export function ParamsDeckCapabilityMissingCredentialStory(): ReactElement {
+  return (
+    <DeckHarness
+      capability={null}
+      capabilityError={{ message: "no chat credential is configured for this source", data: { code: "PRECONDITION_FAILED" } }}
+      effective={undefined}
+      params={{}}
+    />
+  );
 }
 
 /** The deck carrying a server-only `customParameters` blob — D7's read-only presence row in ADVANCED. */
@@ -123,8 +146,9 @@ interface DeckHarnessProps {
    *  which is exactly the mistake that made the gate story render a model's knobs. */
   readonly capability?: Parameters<typeof ParamsDeck>[0]["capability"] | null;
   readonly customParameterKeys?: readonly string[];
-  /** The capability read's FAILURE message — distinct from "no model configured" (side-eye F-02). */
-  readonly capabilityError?: string | null;
+  /** The capability read's THROWN error object — passed WHOLE so the gate reads `data.code` (side-eye F-02 +
+   *  the 2026-08-08 earned-cause fix). `null` = PENDING. */
+  readonly capabilityError?: unknown;
 }
 
 /** The shared harness: the REAL deck under the REAL autosave boundary, with the last-saved params KEY SET

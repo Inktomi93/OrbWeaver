@@ -10,6 +10,18 @@ import { createDrillSelectionStore } from "./create-drill-selection-store.ts";
 // The rack section id is a preset-config-local string (not a `@orb/kit/ids` entity id).
 const presetSelection = createDrillSelectionStore<PresetId, string>("preset-selection", { secondary: true });
 
+// The Prompt view's section DRILL axis (§5.2) — which section's consolidated EDITOR the center paints. Its
+// OWN store, NOT the SELECTION above (§16 row 19: DRILL implies SELECT, never the reverse — one id cannot
+// serve both) and NOT the local component state it used to be. The built-in's copy-on-write retarget swaps
+// `selectPreset` → the keyed `PresetForm` session remounts the WHOLE editor mid-edit, and a LOCAL drill id
+// died there, dumping the author from the section editor to the top of the rack mid-sentence — the SAME
+// F-2 fork-eject the Actions-tab template drill (`preset-template-selection-store.ts`) already fixed by
+// homing its drill on a store axis. The section id survives the fork VERBATIM — the server copies the
+// submitted config, ids intact (`domain/preset/verbs/update.ts`) — so re-anchoring "the forked preset's
+// same section" is the plain read-back, exactly as the registry-id template drill re-anchors. Device-
+// transient, never persisted.
+const presetSectionDrill = createDrillSelectionStore<string>("preset-section-drill");
+
 /** Open a preset (a library-row click) — CONTENT swaps to its tabbed editor; a stale section is cleared. */
 export const selectPreset = presetSelection.select;
 /** Open a preset from the LIST AND close any open LIST slide-over (no-op when the LIST is docked). */
@@ -28,3 +40,11 @@ export const useSelectedPresetId = presetSelection.usePrimaryId;
 export const useSelectedPresetSectionId = presetSelection.useSecondaryId;
 /** The section-registry SEAM (`SectionSelection`) — what the SHELL reads for the mobile ONE-SHELL rule. */
 export const presetSectionSelection = presetSelection.selection;
+
+/** DRILL into a section's consolidated editor (the rack row's chevron / Enter). The Prompt view also SELECTS
+ *  it — one act, two axes. Survives the built-in's fork-retarget remount because it is store state, not local. */
+export const drillPresetSection = presetSectionDrill.select;
+/** Close the section drill-in (the Back-to-rack affordance) — the rack stands back up. */
+export const closePresetSectionDrill = presetSectionDrill.clear;
+/** Reactive: the drilled section id (`null` = the rack is showing). A primitive selector. */
+export const useDrilledPresetSectionId = presetSectionDrill.usePrimaryId;
