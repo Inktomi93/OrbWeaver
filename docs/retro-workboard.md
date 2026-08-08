@@ -506,6 +506,26 @@ security lens.
   from the session** — the rest (cold-check>warm, scope-the-absence-receipt, shared-value-owes-a-battery,
   ratifying-gate-two-receipts) are DOCTRINE/memory, not gates: the existing gates + battery caught every
   real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
+- **⚑ GAP-CLOSURE LENS REPORTED: SHIP WITH FIXES — 3 P1 · 10 P2 · 7 P3** (the five previously-unlensed
+  surfaces; 1 own-retraction — same-tick reads vs React commit). HELD SURFACE: the preset ACTIONS TAB
+  ("a database dump wearing a UI" at 66 rows) — [P1] the readout states a FALSE DELIVERY PATH for all
+  51 teach/extract rows · snake_case row titles · 40-row flat group · false teaching sentence ·
+  fork-and-EJECT on editing the built-in Default · 131ms tab frame. PROSE editors: [P1] the over-cap
+  refusal renders ~900px below the fold (uncapped field-sizing) · [P2] "Saved" while refusing · three
+  cap regimes one signalled. [P1] colour-picker native input has no focus ring. TRANSWEEP verified
+  clean live; the readout pending-arm lie confirmed dead; contrast uniformly strong; CONFIG-FINAL's
+  claims held exactly. **THREE FIX LANES DISPATCHED: FORGE #1** (`ae00d9bbd323b47b2`, its maiden
+  lane — the Actions-tab IA redesign, think-then-build) · PROSE-GEOMETRY (`ac5d3f3534e347fa9`) ·
+  POLISH-CLUSTER (`adb081a0dc3e98a4c`). **The conditional push word now waits behind these + ROW-27
+  → battery → push.**
+- **✅ `forge` AGENT MINTED** (`7c4e4ab84`, owner-ordered): frontier thinker-then-builder, fable @
+  MAX effort (xhigh-audit caveat recorded in-def; max is bet on design-before-edit, not review),
+  doctrine + recon standards + the night's build laws baked. Routing: design-risk work only;
+  security never.
+- **✅ NL→SCHEMA DESIGN + SHELL AUDIT DELIVERED** (`299fdc2d5` + `8c6a16a72`): engine tier ALREADY
+  BUILT both directions (liftJsonSchema ↔ projectJsonSchema, golden-proven); SF0-SF3 rides R0-R3;
+  §10 shell-conformance — sessions = the LIST selection (one-shell rule joins), CONTEXT = the
+  cross-run ledger (anti-echo tested), 3 D62 deltas NAMED FOR OWNER. Refinery kickoff after push.
 - **⚑ OWNER RULINGS (2026-08-08 ~04:00, pre-sleep batch):**
   - **PUSH: conditional word GRANTED** — after the gap-closure side-eye lands (+ any fix legs) and a
     fresh battery greens, PUSH origin. The word is THIS sequence's; a red resets to ask-again.
