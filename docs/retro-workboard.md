@@ -513,7 +513,13 @@ security lens.
   UN-EXTENDABLE** — probed live, extending to scripts/ yields 12 FALSE findings (gate doc-comments
   describing the marker grammar have no literal-span fence like strings do); closing the scripts/
   inventory gap needs NEW structural info in the marker grammar, a design fork not a scanRoot tune.
-  Boarded as such.
+  **→ OWNER ORDERED "fix it properly in full" — FORGE #2 dispatched** (`ad3b52d37d1c12b95`): design
+  the real discriminator (strong hypothesis: a marker in file F for gate G is inert unless G's
+  scanRoot includes F — the 12 false positives all name their OWN packages-scanning gate; VERIFY
+  against per-gate scanRoots, some self-test gates DO scan scripts/). Plant matrix: real marker under
+  scripts/ CAUGHT · 12 gate-prose classes SILENT · packages/tests inventory byte-unchanged. This is
+  the LOAD CEILING (5 lanes: forge×2 + prose-geo + polish + dbank-home) — nothing further until one
+  drains.
 - **⚑ NEW BOARDED ROW (POLISH-CLUSTER find): wire CapabilityGate to resolve-failure.ts.** The same
   wrong-confident-cause sentence ("routing problem, not a missing connection") is ALSO hardcoded at
   `capability-gate.tsx:66` over `resolveChatCapability`, which can fail PRECONDITION_FAILED
