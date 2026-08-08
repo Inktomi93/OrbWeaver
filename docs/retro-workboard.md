@@ -506,21 +506,40 @@ security lens.
   from the session** — the rest (cold-check>warm, scope-the-absence-receipt, shared-value-owes-a-battery,
   ratifying-gate-two-receipts) are DOCTRINE/memory, not gates: the existing gates + battery caught every
   real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
-- **⚑ LIVE LANE ROSTER AT THE COMPACT BOUNDARY (2026-08-07 late — 4 live, 1 slot open):**
-  - `CLIENT-SMALLS` (**a7a28c621505e7785**) — `<speaker>` chat-list-preview leak → KIT fix in
-    `projectBodyForPreview` reusing `speakerTagsToPlain` (also fixes `filter-chats` search) + the
-    per-actor tracker grant/revoke editor in `RpgCharacterDetail` (`patchSheet` is the write path).
-  - `NODE26-GATE` (**a234bedd227c7521a**) — mint the node-26 §8 ADOPT/AVOID gate (last leg of the
-    program); fence `scripts/check/gates/**`.
-  - `RPG-PROSE` (**a2b8b028dc3859073**) — PROSE-1 S3/S4: rpg per-game teaches + extraction templates →
-    `contracts/rpg/prose.ts` slots (default text = OWNER-VETO, ship existing strings as v1); fence
-    server rpg + contracts/rpg. ESCALATES design forks.
-  - `PORTR6-FIXTURE` (**ae2672795553f1f01**) — add a ≥2-turn cross-link fixture to
-    `bundle-round-trip.suite.int.test.ts` (the verifier's one residual); fence `tests/server/entry/import/**`.
-  - Fences are disjoint. Each was briefed: re-verify premise first (≈11 premise-kills this session), a
-    correct refusal is a success, ONE commit, a VALUE change owes a `tests:node`/CT run (not static),
-    back-channel mid-run. **Post-compact: merge each on green + fresh lens; run ONE `verify --push` when
-    the train drains; the next push needs a FRESH owner word + fresh battery** (main is 12 ahead of origin).
+- **⚑ LIVE LANE ROSTER — 2ND COMPACT BOUNDARY (2026-08-07 late, main 13-ahead — 2 READY, 2 in flight):**
+  - ✅ **`CLIENT-SMALLS` READY TO MERGE** (agent **a7a28c621505e7785**, commit **7f240e0** on
+    `wt/agent-a7a28c621505e7785`, 6 files, clean). Item 1: KIT fix — `projectBodyForPreview`
+    (`packages/kit/src/content/index.ts`) flattens prose via existing `speakerTagsToPlain` before
+    markdown-flatten+truncate (also cleans filter-chats search); red-first proven (2 narrator tests RED
+    on HEAD, byte-unchanged non-narrator fence PASS). Item 2: NEW host editor
+    `packages/client/src/features/rpg/components/rpg-tracker-grants.tsx` wired into RpgCharacterDetail
+    (host-only, non-cast), tri-state Select → whole-list `patchSheet` (carriage stays server truth).
+    **⚠ CONSOLIDATED-CHECK HEADS-UP: two SHARED test-infra changes in `rpg-context-section.ct.tsx` —
+    (a) `stubTakeover` extended w/ 2 backward-compat opts (liveTracker, patchSheet); (b) `satisfies
+    RpgTrackerDef` on shared VITALITY/RESOLVE fixtures (type-only). Proven safe by full-file 109/109.**
+    Lane floor all-green incl. all 3 typecheck programs + check:structure + depcruise. Merge → verifier
+    (code) + side-eye (Item 2 is a new user-visible editor). Notes: `docs/client-smalls-lane.md`.
+  - ⏳ **`NODE26-GATE` in flight** (agent **a234bedd227c7521a**) — §8 gate GENUINELY UNBUILT (verified: no
+    `platform-spellings.ts`; 195 registered gates → 196). APPROVED default: land 3 HONEST arms (SLEEP
+    w/ client/ui carve-out for the browser `route-guards.ts` site + DEFERRED + ESCAPE-MINT), burn
+    non-fenced live violations in-lane, **DEFER the SPREAD-SORT arm to a dedicated W4.2 burn-down lane**
+    (W4.2 NEVER LANDED — ~100 type-judgment sites, array-copy-vs-iterator-materialization needs the type
+    checker, most FENCED; header-note pending-not-dropped). Will escalate 4 fenced sleep files (chat CT,
+    kit macro, 2× domain/rpg) for owner-lane routing. New-gate = gate-census value change → owes the
+    census tests:node, not static. Fence `scripts/check/gates/**`.
+  - ⏳ **`RPG-PROSE` in flight** (agent **a2b8b028dc3859073**) — PROSE-1 S3/S4: rpg per-game teaches +
+    extraction templates → `contracts/rpg/prose.ts` slots (default text = OWNER-VETO, ship existing
+    strings as v1); fence server rpg + contracts/rpg. ESCALATES design forks. (Task #17.)
+  - ✅ **`PORTR6-FIXTURE` — presumed done** (agent **ae2672795553f1f01**) — ≥2-turn cross-link fixture in
+    `bundle-round-trip.suite.int.test.ts`; fence `tests/server/entry/import/**`. **CONFIRM its commit +
+    re-verify before merge** (no ready-report seen at this boundary).
+  - Fences disjoint. **Post-compact steps, per lane: (1) confirm the lane's commit SHA on its worktree
+    branch; (2) merge bare on green (never piped); (3) run consolidated `pnpm check`; (4) fresh lens
+    (verifier=code / side-eye=UI / security-executor=security). When the train drains: run ONE `pnpm
+    verify --push` battery — static is NOT graduation, expect ~1 stale coupled test-site per value lane.
+    The next ORIGIN push needs a FRESH owner word + fresh battery** (main is 13 ahead of origin). 5th
+    slot deliberately left open at this depth — don't dispatch a marginal/collision lane post-compact
+    without re-checking fences.
 - **Owner-gated pile parked:** nudge texts · presets-into-rail · JSON-card export · `{{note}}` posture ·
   persona=character · AGENT-1 · templating fork (rows 53-73) · SUMMARIZE-SUB capability · **the probe-lint
   decision** (un-ignore `scripts/probes` in biome/eslint, or leave as scratch) · fillRule probe.
