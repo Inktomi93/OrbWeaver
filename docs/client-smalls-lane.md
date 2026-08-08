@@ -44,3 +44,27 @@ lists are kept disjoint per key. It writes through the same `patchSheet` door th
 Doesn't carry) from the server-resolved `actor.trackers` set — the panel "never re-derives carriage itself"
 (views.ts). A grant flips the badge on the post-write refetch, not optimistically (the optimistic
 `applySheetPatch` updates the sheet lists but not the resolved `trackers`).
+
+### side-eye P3 follow-up (post-merge)
+
+Both fixed on `rpg-tracker-grants.tsx`:
+
+1. **The outcome now reaches the control, not just the eye.** The outcome badge carries an `id` and the row's
+   picker points at it with `aria-describedby` (a first-class `Select` prop the seal forwards to the Trigger,
+   `select.tsx`). Chosen over folding the outcome into `aria-label`: the label is the control's stable NAME
+   ("Vitality access for Mara") while carriage is changing supplementary STATE, and describing the already-
+   VISIBLE badge beats duplicating it into hidden text. Ids are `useId()` + `def.key`, which is slug-safe by
+   construction (`mintDefKey` emits `[a-z0-9_]` only), so it is always a valid id fragment.
+2. **Truncated label recovery** — the ellipsizing label Text carries `title={def.label}`.
+
+Pinned in the existing GRANTS CT as the COMPUTED accessible description (`toHaveAccessibleDescription`), so it
+proves the whole id→describedby→Trigger chain rather than an attribute string, and asserts the description
+FLIPS with the server verdict ("Doesn't carry" → "Carries"). Both assertions carry a planted positive control
+receipt: removing `aria-describedby` reds the description assertion (Received `""`), removing `title` reds the
+attribute assertion — each attributed separately, then restored.
+
+**DECLINED (optional, with receipt): the 480px outcome-badge column alignment.** side-eye called it
+stretched-but-never-broken. The badges are content-width ("Carries" vs "Doesn't carry") and the `flex-1` label
+pushes them ragged-right; aligning them to a column needs either a grid track or a `min-w` floor, and there is
+no existing token for an outcome-badge column — every available spelling is an arbitrary value (tokens-only
+forbids it) or a new token minted for one row (machinery for a cosmetic P3). Left as-is deliberately.

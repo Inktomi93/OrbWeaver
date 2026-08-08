@@ -3008,8 +3008,17 @@ test("host GRANTS a class-excluded tracker: whole-list patchSheet persists it, a
   // At rest: the explicit-empty class excludes her, so she does not carry it (the outcome hint, server truth).
   await expect(row.locator('[data-slot="rpg-tracker-grant-outcome"]')).toHaveText("Doesn't carry");
 
+  // side-eye P3 — the OUTCOME reaches the control, not just the eye. The picker's accessible DESCRIPTION is
+  // the badge (aria-describedby → the visible chip), so a screen-reader/keyboard user focusing it hears the
+  // resolved carriage and not only the exception state ("By class"). Asserted as the COMPUTED description, so
+  // it proves the whole id→describedby→Trigger chain rather than an attribute string.
+  const picker = row.getByRole("combobox", { name: "Bound Will access for Mara" });
+  await expect(picker).toHaveAccessibleDescription("Doesn't carry");
+  // A long host-authored label truncates in this column, so it carries its full text for mouse recovery.
+  await expect(row.locator('[data-slot="rpg-tracker-grant-label"]')).toHaveAttribute("title", "Bound Will");
+
   // Grant it — the Select opens a listbox; pick Granted.
-  await row.getByRole("combobox", { name: "Bound Will access for Mara" }).click();
+  await picker.click();
   await page.getByRole("option", { name: "Granted" }).click();
 
   // PERSISTED — the whole-list payload names the grant, revokes stays empty (disjoint by construction).
@@ -3020,6 +3029,9 @@ test("host GRANTS a class-excluded tracker: whole-list patchSheet persists it, a
 
   // APPLICABILITY — the post-write refetch re-resolves carriage from the store, so the SETTLED outcome flips.
   await expect(row.locator('[data-slot="rpg-tracker-grant-outcome"]')).toHaveText("Carries");
+  // …and the flip reaches the CONTROL's description too — the badge is the description target, so the
+  // announced outcome tracks the server verdict instead of going stale at the a11y layer.
+  await expect(picker).toHaveAccessibleDescription("Carries");
 });
 
 test("host REVOKES a class-included tracker: patchSheet persists the revoke and the actor stops carrying it", async ({ mount, page }) => {
