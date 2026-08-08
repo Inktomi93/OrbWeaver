@@ -74,6 +74,9 @@ export const ID_PREFIX = {
   // The installed-plugin registry row (D46). `plugin_kv` has NO TypeID — its identity is the composite
   // PK (pluginId, key).
   plugin: "plugin",
+  // Card-refinery pipeline rows (refinery R0 — docs/design/refinery-r0.md).
+  refinerySession: "refinery_session",
+  refineryRun: "refinery_run",
   // RPG lite substrate (rpg-design/05 §4.1). Quest ids are PLAIN strings minted inside the snapshot
   // blob (no table, no FK — a TypeID brand buys nothing there; the objective-id precedent), so no
   // `rpgQuest` prefix. Full ADDS its own prefixes (npc/clock/map/session/encounter/scene/pendingCheck).
@@ -171,6 +174,10 @@ export type DocumentChunkId = TypeIdOf<"document_chunk">;
 
 // --- Plugins (D46 code sandbox) ----------------------------------------------
 export type PluginId = TypeIdOf<"plugin">;
+
+// --- Refinery (card-refinery pipeline sessions + append-only run log) ---------
+export type RefinerySessionId = TypeIdOf<"refinery_session">;
+export type RefineryRunId = TypeIdOf<"refinery_run">;
 
 // --- RPG (lite substrate — the 5-table floor, rpg-design/05 §4.1) ------------
 export type RpgGameId = TypeIdOf<"rpg_game">;

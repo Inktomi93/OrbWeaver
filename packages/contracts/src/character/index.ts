@@ -6,6 +6,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
+import { refineryAnalyzePayloadSchema } from "#refinery";
 import { regexScriptCardSchema } from "#regex";
 import { themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import { worldBookRoleSchema } from "#world-info";
@@ -59,10 +60,15 @@ export const cardDepthPromptSchema = injectionDirectiveSchema.extend({
 });
 export type CardDepthPrompt = z.infer<typeof cardDepthPromptSchema>;
 
-// Derived pipeline signals (score + analysis) — not user-authored, absent from create/update.
+// Derived pipeline signals (score + analysis) — not user-authored, absent from create/update. The
+// signals object is a CARD field (this file's home turf, like depthPrompt); the analysis half is the
+// refinery pipeline's TYPED analyze payload (per-run verdict/soul-check shape — `#refinery` owns it).
+// Import direction is one-way BY LAW: `#refinery` never imports `#character` (its header states why).
+// The read seam's whole-object `.catch(null)` (character persistence) heals any pre-tightening loose
+// blob to null — the pre-launch bargain, no migration mechanics.
 export const refinerySignalsSchema = z.object({
   score: z.number().nullable(),
-  analysis: z.record(z.string(), z.unknown()).nullable(),
+  analysis: refineryAnalyzePayloadSchema.nullable(),
 });
 export type RefinerySignals = z.infer<typeof refinerySignalsSchema>;
 

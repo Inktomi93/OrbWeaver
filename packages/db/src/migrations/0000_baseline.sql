@@ -766,6 +766,39 @@ CREATE TABLE `rate_limit_buckets` (
 	`expires_at` integer NOT NULL
 );
 --> statement-breakpoint
+CREATE TABLE `refinery_runs` (
+	`id` text PRIMARY KEY NOT NULL,
+	`session_id` text NOT NULL,
+	`stage` text NOT NULL,
+	`iteration` integer DEFAULT 0 NOT NULL,
+	`payload_config` text NOT NULL,
+	`payload` text NOT NULL,
+	`model` text NOT NULL,
+	`prompt_tokens` integer,
+	`output_tokens` integer,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`session_id`) REFERENCES `refinery_sessions`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "refinery_runs_stage_check" CHECK(stage in ('score', 'rewrite', 'analyze'))
+);
+--> statement-breakpoint
+CREATE INDEX `refinery_runs_session_stage_idx` ON `refinery_runs` (`session_id`,`stage`,`created_at`);--> statement-breakpoint
+CREATE TABLE `refinery_sessions` (
+	`id` text PRIMARY KEY NOT NULL,
+	`character_id` text NOT NULL,
+	`name` text,
+	`status` text DEFAULT 'active' NOT NULL,
+	`original_card` text NOT NULL,
+	`selection` text NOT NULL,
+	`stage_config` text NOT NULL,
+	`guidance` text,
+	`iteration_count` integer DEFAULT 0 NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`character_id`) REFERENCES `characters`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "refinery_sessions_status_check" CHECK(status in ('active', 'completed', 'abandoned'))
+);
+--> statement-breakpoint
+CREATE INDEX `refinery_sessions_character_idx` ON `refinery_sessions` (`character_id`);--> statement-breakpoint
 CREATE TABLE `character_regex_scripts` (
 	`character_id` text NOT NULL,
 	`regex_script_id` text NOT NULL,

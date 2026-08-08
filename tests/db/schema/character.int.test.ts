@@ -19,7 +19,8 @@ import { seedUser } from "./_support.ts";
 
 // Named so the literals aren't bare magic numbers (noMagicNumbers).
 const DEPTH_PROMPT_DEPTH = 4;
-const REFINERY_SCORE = 0.85;
+const REFINERY_SCORE = 8.5;
+const REFINERY_SOUL_SCORE = 9;
 
 async function seedCharacter(db: Db, ownerId: UserId, id: string): Promise<CharacterId> {
   const characterId = castId<CharacterId>(id);
@@ -68,8 +69,20 @@ test("card-content JSON columns round-trip (greetings, extensions, residualData,
     role: "system",
     prompt: "Stay in character.",
   };
-  // CardRefinery pipeline signals (derived) — a numeric score + an opaque analysis blob.
-  const refinery: RefinerySignals = { score: REFINERY_SCORE, analysis: { summary: "clean" } };
+  // CardRefinery pipeline signals (derived) — the stamped score + the TYPED analyze payload (R0 I1).
+  const refinery: RefinerySignals = {
+    score: REFINERY_SCORE,
+    analysis: {
+      preserved: ["core traits"],
+      lost: [],
+      gained: ["clearer scenario"],
+      soulScore: REFINERY_SOUL_SCORE,
+      soulAssessment: "same character",
+      verdict: "ACCEPT",
+      issues: [],
+      recommendations: [],
+    },
+  };
   // A complete typed regex script (defaults filled via the contract schema, so it round-trips intact).
   await db.insert(characters).values({
     id,
