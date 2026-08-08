@@ -192,7 +192,17 @@ export interface MenuSubmenuTriggerProps extends Omit<BaseSubmenuTriggerProps, "
   className?: string;
 }
 
-/** The row that opens a nested submenu, with a trailing chevron. Opens on hover and ArrowRight. */
+/** The row that opens a nested submenu, with a trailing chevron. Opens on hover and ArrowRight.
+ *
+ *  THE CHEVRON DOES NOT FLIP WHEN THE SUBMENU OPENS LEFT, and cannot today (side-eye 2026-08-08 P3, verified
+ *  against the installed Base UI). Which side the child lands on is the POSITIONER's fact — it publishes
+ *  `data-side` — and the positioner is PORTALED out of the trigger's subtree, so no CSS relationship
+ *  (`:has`, sibling, ancestor) reaches it. The trigger's own contract exposes three attributes and side is
+ *  not among them (`menu/submenu-trigger/MenuSubmenuTriggerDataAttributes.d.ts`: `data-popup-open`,
+ *  `data-highlighted`, `data-disabled`), and `@base-ui/react/menu` exports no positioner-context hook —
+ *  every part is a type-only export beside the components (`menu/index.d.ts`). Closing this needs NEW
+ *  plumbing (a seal-owned context published by `MenuPopup` and read here), which a P3 does not buy. Left
+ *  static and stated, rather than plumbed or silently wrong. */
 export function MenuSubmenuTrigger(props: MenuSubmenuTriggerProps): ReactElement {
   const { className, children, ...rest } = props;
   return (

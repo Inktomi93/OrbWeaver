@@ -107,6 +107,48 @@ test("menu items animate the highlight color swap (motion guide §4.2 #9)", asyn
   expect(duration).not.toBe("0s");
 });
 
+// THE HIGHLIGHT NEEDS A REAL INDICATOR (side-eye 2026-08-08 P2). The only cue a highlighted row carried
+// was a background swap — `bg-accent` (oklch 0.285) over `bg-popover` (oklch 0.245), a 1.13:1 step — with
+// `outline-none` and nothing else, and with submenus the question "am I on the parent or the child?" now
+// rests on it. The fix is the toggle primitive's ruled selection cue: an Ember `inset-ring`, a
+// lightness-INDEPENDENT signal that composes with (never replaces) the focus ring's own layer.
+//
+// The pin is the RENDERED shadow layer, at rest and highlighted, against the resolved `--color-ring` — a
+// class list is not a cue and a hardcoded colour would freeze today's palette.
+test("a highlighted menu item draws a real indicator, not just a background step", async ({ mount, page }) => {
+  await mount(
+    <Menu>
+      <MenuTrigger>Actions</MenuTrigger>
+      <MenuPopup>
+        <MenuItem>Rename</MenuItem>
+        <MenuItem>Duplicate</MenuItem>
+      </MenuPopup>
+    </Menu>,
+  );
+  await page.getByRole("button", { name: "Actions" }).click();
+  const resting = page.getByRole("menuitem", { name: "Duplicate" });
+  const highlighted = page.getByRole("menuitem", { name: "Rename" });
+
+  // Base UI roves the highlight with the keyboard; opening by click leaves nothing highlighted.
+  await page.keyboard.press("ArrowDown");
+  await expect(highlighted).toHaveAttribute("data-highlighted", "");
+  await expect(resting).not.toHaveAttribute("data-highlighted", "");
+
+  const ring = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.color = "var(--color-ring)";
+    document.body.append(probe);
+    const value = getComputedStyle(probe).color;
+    probe.remove();
+    return value;
+  });
+  const shadowOf = (target: typeof resting): Promise<string> => target.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(await shadowOf(resting), "an un-highlighted row draws no indicator").toBe("none");
+  const cue = await shadowOf(highlighted);
+  expect(cue, "the highlighted row draws an INSET ring").toContain("inset");
+  expect(cue, "…in the ring colour, which clears 3:1 on the popup ground in both themes").toContain(ring);
+});
+
 test("Escape closes the menu without selecting", async ({ mount, page }) => {
   await mount(
     <Menu>

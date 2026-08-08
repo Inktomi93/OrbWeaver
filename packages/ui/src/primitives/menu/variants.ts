@@ -1,9 +1,25 @@
 import { OVERLAY_ARROW, OVERLAY_MOTION, SCRIM, tv } from "#lib";
 
+// THE HIGHLIGHT NEEDS A REAL INDICATOR (side-eye 2026-08-08 P2). The fill swap alone was the whole cue:
+// `bg-accent` (oklch 0.285) over `bg-popover` (oklch 0.245) is a 1.13:1 step, with `outline-none` and no
+// ring — so which row is armed read almost entirely from the text brightening, and with nested submenus on
+// screen the question is now "am I on the parent or the child?". This is the toggle primitive's already-ruled
+// selection cue, applied to the same defect class: an Ember `inset-ring` is a saturated,
+// lightness-INDEPENDENT signal, and it rides `--tw-inset-ring-shadow` — a different box-shadow layer from
+// FOCUS_RING's `--tw-ring-shadow` — so the two stack rather than collide. Measured (WCAG ratio, OKLCH→sRGB
+// on the seed value-sets): ring vs the `bg-accent` it is drawn on 5.48:1 hearth / 4.18:1 light, and vs the
+// `bg-popover` ground 6.19:1 hearth · 5.07:1 light · 6.18:1 mocha — against the 1.13:1 (hearth) / 1.21:1
+// (light) the fill swap was carrying alone. `focus-visible` carries it too: `outline-none` is on this base, so a row that is
+// focused WITHOUT Base UI's highlight would otherwise draw nothing at all.
+//
+// The submenu TRIGGER deliberately does NOT take the ring on `data-popup-open` (below): while a child popup
+// is open the parent keeps its fill and the child's highlighted row wears the ring, which is exactly the
+// parent-vs-child disambiguation the finding asked for.
+const HIGHLIGHT_INDICATOR = "data-highlighted:inset-ring-2 data-highlighted:inset-ring-ring focus-visible:inset-ring-2 focus-visible:inset-ring-ring";
+
 // Shared item skin — every clickable menu row wears it, so highlight/disabled/touch-floor behave
 // identically. `data-highlighted` is Base UI's own hover/rove state.
-const itemBase =
-  "flex min-h-control-sm cursor-default items-center gap-row rounded-control px-row text-body leading-body outline-none select-none transition-colors duration-(--motion-fast) ease-out-expo data-disabled:opacity-50 data-highlighted:bg-accent data-highlighted:text-accent-foreground";
+const itemBase = `flex min-h-control-sm cursor-default items-center gap-row rounded-control px-row text-body leading-body outline-none select-none transition-colors duration-(--motion-fast) ease-out-expo data-disabled:opacity-50 data-highlighted:bg-accent data-highlighted:text-accent-foreground ${HIGHLIGHT_INDICATOR}`;
 
 // EVERY COMMAND ROW RESERVES THE LEADING GLYPH GUTTER (side-eye 2026-08-06 P2). One menu mixes iconed rows
 // (`<Icon>` as the first child) with bare-text rows, and the bare ones started their label a whole glyph +
