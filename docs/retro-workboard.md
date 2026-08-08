@@ -708,6 +708,24 @@ security lens.
   shell cannot produce — RULED arm (b): DROP it, record the measured truth, keep the working `:has()`
   chain · [layout] the World Info empty-state one-line box (both affordances stay — mock-ratified).
   Members-chip dead-control fix in flight separately (`a8b871a5f15e96f57`).
+- **✅ S3 TILE FIX-ALL applied `434790388`** (the lane amended its branch — SECOND amend tonight;
+  recovered as the delta patch like RE-HOME. FUTURE LANE BRIEFS: stack commits, never amend — the
+  original is already merged). All 11 findings: danger/soft tint /15→/8 = 4.66:1 measured (shared
+  primitive, all six soft arms pinned by canvas-composite CTs — the palette suite can't see
+  token-over-own-tint) · `addDocument` SHELL MODAL SLOT (ceremony started on Home finishes on the
+  new document) · aggregates suppressed-when-visible + surviving chips are phase-filter deep-link
+  BUTTONS (new databank-filter-store, D-5 non-reopening stated) · jump-row claim seam
+  (`HomeTileContribution.sectionId`, H10 move to state/, only databank claims — nav-vs-data) ·
+  "100+" limit honesty · N-of-M passages · Empty→warning · timestamps · aria group. P2-f refused
+  w/ receipts (static order — home-owned useOrder follow-up boarded). 51 targeted CTs green on the
+  applied delta; check + fresh side-eye re-verify in flight (`afc03ded6ccd00510`).
+- **✅ PROSE-LIMIT merged `acb48dce6`** — over-cap prose no longer fails open: BOTH editors (class
+  fix), MacroTextarea gains maxLength, house 0.8 counter, refuse-not-truncate w/ the refusal-lifts
+  pin; red-first proved real over-cap WRITES on both surfaces. MEMBERS-CHIP merged `f8f572dad`
+  (dead control below 64rem — red-first CT). CONFIG work-stream CLOSED at `fe8b798f3`.
+- **⏳ TRANSITION-SWEEP in flight** (`a57b64b7243ee3439`) — transition-all on focusables, classify
+  convert/leave/ambiguous, mechanism pins. **BARREL FIX next on the quiet tree, then the BATTERY
+  (no push — owner word).**
 - **✅ GATE-IGNORE CLASS CLOSED FOR REAL — ENFORCED, NOT SWEPT** (`00628ab03`, commit `f3d786862`).
   The 4 refuted gates converted (incl. no-inline-union-redecl's finalize→run move — a node report in
   finalize lands AFTER the inventory sweep) + 2 tripwire-found extras (query-freshness-coverage,
