@@ -6,10 +6,10 @@ Throwaway spike harness behind the one-call-tools decision. Full writeup:
 **ARCHIVED 2026-08-02 — pre-R2R3 vocabulary.** `real-cheap-toolround.json`, `real-reliable-structured.json`,
 and `captures.json` all carry the retired `hpDelta`/`setHp` party vocab (pre-actor-state-reshape). Kept
 as historical measurement records — do NOT run against the current contracts (the actor-state reshape
-retired this vocab; see `run-coverage.mjs`/`run.mjs`/`native-wire-probe.mjs`/`native-format-roundtrip.mjs`,
+retired this vocab; see `run-coverage.ts`/`run.ts`/`native-wire-probe.ts`/`native-format-roundtrip.ts`,
 similarly archived) — mint fresh corpora instead. The corpora files themselves are untouched.
 
-`run-coverage.mjs` — plays a fixed 8-turn game through the `1call-tools` shape (GM persona + the 7 real
+`run-coverage.ts` — plays a fixed 8-turn game through the `1call-tools` shape (GM persona + the 7 real
 rpg tools + `tool_choice:"auto"`) TWICE: Arm A = terse tool descriptions, Arm B = enriched
 "when-to-use + example" descriptions. Emits a per-field coverage matrix (which tracked fields the model
 populates, terse vs enriched) to `out2/`.
@@ -17,7 +17,7 @@ populates, terse vs enriched) to `out2/`.
 **⚠️ Live spend.** Hits OpenRouter (`anthropic/claude-sonnet-5`), ~16 calls, ~$0.30/run. Reads
 `OPENROUTER_API_KEY` from the repo `.env` (never printed). `out2/` outputs are gitignored.
 
-Run: `node scripts/probes/rpg-extraction/run-coverage.mjs`
+Run: `node scripts/probes/rpg-extraction/run-coverage.ts`
 
 Env knobs (added for the §4a reasoning sweep — all optional):
 
@@ -32,7 +32,7 @@ Env knobs (added for the §4a reasoning sweep — all optional):
 ```sh
 # the §4c decisive test — ground-truth recall for removeCondition / hpDelta
 SPIKE_GAME=afflictions SPIKE_ARMS=B SPIKE_EFFORT=none SPIKE_OUT=f1-none-1 \
-  node scripts/probes/rpg-extraction/run-coverage.mjs
+  node scripts/probes/rpg-extraction/run-coverage.ts
 ```
 
 On the `afflictions` game the run prints a `GROUND TRUTH:` line — `removeCondition hits/expected` plus
@@ -43,22 +43,22 @@ block before believing a miss.
 
 ```sh
 # the §4a run: enriched arm, medium reasoning, beside the baseline
-SPIKE_ARMS=B SPIKE_EFFORT=medium SPIKE_OUT=out2-medium node scripts/probes/rpg-extraction/run-coverage.mjs
+SPIKE_ARMS=B SPIKE_EFFORT=medium SPIKE_OUT=out2-medium node scripts/probes/rpg-extraction/run-coverage.ts
 ```
 
 `real-cheap-toolround.json` is the real captured production tool-round body (the 7 tools + arg schemas);
 the harness swaps only each tool's `description` between arms.
 
-`run.mjs` is the **method-matrix** harness behind §3 (7 methods: 1-call vs 2-call × tools vs strict-lean
-schema × reasoning none/high). `replay-toolround.mjs` is the required-vs-auto content probe.
+`run.ts` is the **method-matrix** harness behind §3 (7 methods: 1-call vs 2-call × tools vs strict-lean
+schema × reasoning none/high). `replay-toolround.ts` is the required-vs-auto content probe.
 
 Two **native-wire** probes hit Anthropic's Messages API directly (`ANTHROPIC_API_KEY`, not OpenRouter) to
 answer §2 questions the OpenAI-compat wire can't express. They print and write nothing:
 
 | probe | answers | ~cost |
 |---|---|---|
-| `native-wire-probe.mjs` | tools × `output_config.format` × `thinking:{adaptive}` on the native wire | $0.03 |
-| `native-format-roundtrip.mjs` | does the schema land on the final text turn after a `tool_result`? (**yes**) | $0.01 |
+| `native-wire-probe.ts` | tools × `output_config.format` × `thinking:{adaptive}` on the native wire | $0.03 |
+| `native-format-roundtrip.ts` | does the schema land on the final text turn after a `tool_result`? (**yes**) | $0.01 |
 `card-teach-probe.ts` is the **F2** harness (§4h) — a 10-turn scene of pure card OPPORTUNITIES, the real
 `buildLiteReminder` with only the card-teach block swapped per arm (A–H), scored twice: `emitted` (a `:::card`
 line in the text) vs **`rendered`** (a `card` span out of the production tokenizer). That split is the whole

@@ -4,7 +4,7 @@
 transcript on this box, to spec a PreToolUse hook against actual frequency/false-positive data
 instead of guessing a ruleset. Read-only. No repo source was touched.
 
-**Instrument:** `scripts/probes/transcript-census.mjs` (committed, reusable — re-run any time the
+**Instrument:** `scripts/probes/transcript-census.ts` (committed, reusable — re-run any time the
 hook needs retuning). Streams every `*.jsonl` line-by-line (never loads a file whole), pre-filters
 on a cheap substring check before `JSON.parse`, classifies every Bash `tool_use` command by regex
 heuristics (documented as heuristic, NOT a shell parser — see the script's own header), and pairs
@@ -12,7 +12,7 @@ each `tool_use` with its `tool_result` in the same file to measure wall-clock du
 the literal `"Command timed out after …"` marker Claude Code emits on a Bash-tool timeout.
 
 ```
-node scripts/probes/transcript-census.mjs --out reports/census.json
+node scripts/probes/transcript-census.ts --out reports/census.json
 ```
 
 ## Corpus scanned

@@ -10,25 +10,25 @@
 // ⚠️ Live spend against OpenRouter (`anthropic/claude-sonnet-5`) and, for F5's native reference arms,
 // the Anthropic Messages API. Full batch ≈ $0.5. Keys are read from the repo `.env` and never printed.
 
-import { jsonl, readEnvKey, totalSpend } from "./_kit.mjs";
-import * as f4 from "./f4-tool-description-cache.mjs";
-import * as f4a from "./f4a-effort-cache.mjs";
-import * as f5 from "./f5-effort-translation.mjs";
-import * as or5 from "./or5-breakpoint-offsets.mjs";
-import * as or7 from "./or7-reasoning-roundtrip.mjs";
+import { jsonl, readEnvKey, totalSpend } from "./_kit.ts";
+import * as f4 from "./f4-tool-description-cache.ts";
+import * as f4a from "./f4a-effort-cache.ts";
+import * as f5 from "./f5-effort-translation.ts";
+import * as or5 from "./or5-breakpoint-offsets.ts";
+import * as or7 from "./or7-reasoning-roundtrip.ts";
 
 const ALL = [f4, f4a, f5, or5, or7];
 
-const requested = (process.env.PROBES ?? "").trim();
+const requested = (process.env["PROBES"] ?? "").trim();
 const selected = requested.length > 0 ? ALL.filter((p) => requested.split(",").includes(p.id)) : ALL;
-const force = process.env.FORCE === "1";
+const force = process.env["FORCE"] === "1";
 
 if (readEnvKey("OPENROUTER_API_KEY").length === 0) {
   console.error("OPENROUTER_API_KEY not found (process.env or the repo .env). Nothing fired.");
   process.exit(1);
 }
 
-const verdicts = [];
+const verdicts: object[] = [];
 for (const probe of selected) {
   if (!force && jsonl(probe.id).hasCompletedRun()) {
     console.log(`\n=== ${probe.id} — SKIPPED (a completed run is already in results/${probe.id}.jsonl; FORCE=1 to re-run)`);

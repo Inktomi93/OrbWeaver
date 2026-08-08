@@ -8,21 +8,297 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// ---- internal running-state model (the harness's own tracked-state shape, not a wire type) ----
+interface Hp {
+  value: number;
+  max: number;
+}
+interface Pool {
+  name: string;
+  value: number;
+  max: number;
+}
+interface Item {
+  name: string;
+  quantity: number;
+  location: string;
+  description?: string;
+}
+interface Relationship {
+  kind: string;
+  label: string;
+}
+interface PresentChar {
+  name: string;
+  emoji: string;
+  mood: string;
+  appearance: string;
+  outfit: string;
+  thoughts: string;
+  customFields: Record<string, string | number>;
+  relationship: Relationship;
+}
+interface Actor {
+  ref: string;
+  name: string;
+  role: string;
+  level: number;
+  hp: Hp;
+  pools: Pool[];
+  conditions: string[];
+  status: string;
+  items: Item[];
+  wallet: Record<string, number>;
+}
+interface Scene {
+  location: string;
+  calendarDate: string;
+  timeOfDay: string;
+  weather: string;
+  recentEvent: string;
+  day?: number;
+}
+interface Plot {
+  act: number;
+  maxActs: number;
+  title: string;
+  actTitle: string;
+  actSummary: string;
+}
+interface Objective {
+  text: string;
+  completed: boolean;
+}
+interface Quest {
+  name: string;
+  status: string;
+  description: string;
+  objectives: Objective[];
+}
+interface JournalEntry {
+  type: string;
+  title: string;
+  content: string;
+}
+interface WidgetState {
+  value?: number | undefined;
+  max?: number | undefined;
+  items?: unknown[] | undefined;
+}
+// NOTE (latent bug, PRESERVED): `seedState` populates `trackers`, but every code path reads/writes
+// `state.widgets` (which the seed never sets) — so a real run crashes in `renderReminder`'s
+// `Object.entries(state.widgets)` on turn 1. Both fields are modelled optional to type the code exactly
+// as written; the `state.widgets!` assertions below keep that runtime behaviour intact. Flagged, not fixed.
+interface GameState {
+  scene: Scene;
+  plot: Plot;
+  party: Actor[];
+  present: PresentChar[];
+  widgets?: Record<string, WidgetState>;
+  trackers?: Record<string, WidgetState>;
+  quests: Quest[];
+  journal: JournalEntry[];
+  beats: string[];
+}
+interface Touched {
+  party: boolean;
+  inventory: boolean;
+  scene: boolean;
+  widgets: boolean;
+  quests: boolean;
+  journal: boolean;
+}
+
+// ---- tool-call arguments (dynamic JSON the model emits; a union of every tool's fields, all optional) ----
+interface CustomFieldEntry {
+  name: string;
+  value: string | number;
+}
+interface PresentUpsert {
+  name: string;
+  emoji?: string;
+  mood?: string;
+  appearance?: string;
+  outfit?: string;
+  thoughts?: string;
+  customFields?: CustomFieldEntry[] | Record<string, string | number>;
+  relationship?: { kind?: string; label?: string };
+}
+interface DeltaEntry {
+  name: string;
+  delta: number;
+}
+interface InvItem {
+  name: string;
+  quantity?: number;
+  location?: string;
+  description?: string;
+}
+interface PlotArgs {
+  act?: number;
+  title?: string;
+  actTitle?: string;
+  actSummary?: string;
+}
+interface ToolArgs {
+  targetRef?: string;
+  hpDelta?: number;
+  poolDeltas?: DeltaEntry[];
+  addCondition?: { name?: string; modifier?: number };
+  removeCondition?: string;
+  status?: string;
+  add?: InvItem[];
+  remove?: InvItem[];
+  walletDeltas?: DeltaEntry[];
+  location?: string;
+  calendarDate?: string;
+  timeOfDay?: string;
+  weather?: string;
+  day?: number;
+  recentEvent?: string;
+  plot?: PlotArgs;
+  presentUpsert?: PresentUpsert[];
+  presentRemove?: string[];
+  widgetRef?: string;
+  value?: number;
+  max?: number;
+  items?: unknown[];
+  name?: string;
+  action?: string;
+  description?: string;
+  objectives?: string[];
+  type?: string;
+  title?: string;
+  content?: string;
+}
+type Op = [string, ToolArgs];
+
+// ---- raw OpenRouter chat-completions wire (snake_case; hits the HTTP endpoint directly) ----
+interface RawToolCall {
+  function: { name: string; arguments: string };
+}
+interface RawMessage {
+  content?: string | null;
+  tool_calls?: RawToolCall[];
+}
+interface RawUsage {
+  cost?: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  completion_tokens_details?: { reasoning_tokens?: number };
+}
+interface RawChoice {
+  message: RawMessage;
+  finish_reason?: string | null;
+}
+interface RawResponse {
+  choices?: RawChoice[];
+  usage?: RawUsage;
+  error?: unknown;
+}
+type RpgRequestBody = { max_tokens?: number; [k: string]: unknown };
+interface UsageOf {
+  cost_usd: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  reasoning_tokens: number;
+}
+interface ToolDef {
+  function: { name: string; description: string };
+}
+interface ToolTemplate {
+  tools: ToolDef[];
+}
+
+// ---- action script + game registry ----
+interface ActionSpec {
+  text: string;
+  expectHp?: boolean;
+  ensure?: string[];
+  expectRemove?: string[];
+}
+interface GameDef {
+  seed: () => GameState;
+  actions: ActionSpec[];
+  title: string;
+}
+
+// ---- coverage / scoring records ----
+type FieldTest = (list: ToolArgs[]) => unknown;
+type FieldSpec = [string, string, FieldTest];
+interface Truth {
+  expectRemove: string[];
+  removeHits: string[];
+  removeMisses: string[];
+  removeSpurious: string[];
+  expectHp: boolean;
+  hpHit: boolean;
+}
+interface TurnRecord {
+  turn: number;
+  action: string;
+  narrative: string;
+  ops: Op[];
+  coverage: Record<string, boolean>;
+  opportunity: Record<string, boolean>;
+  nudged: boolean;
+  truth: Truth;
+  num_tool_calls: number;
+  tools_called: string[];
+  delta: string;
+  usage: UsageOf;
+  finish: string | null | undefined;
+}
+interface GroundTruth {
+  removeExpected: number;
+  removeHit: number;
+  removeSpurious: number;
+  hpExpected: number;
+  hpHit: number;
+}
+interface ArmTotals {
+  cost: number;
+  toolCalls: number;
+  latency: number;
+  promptTok: number;
+  complTok: number;
+  turnsCompleted: number;
+}
+interface ArmResult {
+  armKey: string;
+  turns: TurnRecord[];
+  tally: Record<string, number>;
+  denom: Record<string, number>;
+  missed: Record<string, number | null>;
+  gt: GroundTruth;
+  totals: ArmTotals;
+  failures: string[];
+}
+
+/** The PC lives at party[0] in every seed; this asserts that invariant once for the strict index checks. */
+function firstActor(state: GameState): Actor {
+  const pc = state.party[0];
+  if (pc === undefined) {
+    throw new Error("party has no PC at index 0");
+  }
+  return pc;
+}
+
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 // SPIKE_OUT lets a variant run (e.g. a reasoning sweep) write beside the committed baseline instead of
 // clobbering it. SPIKE_EFFORT sweeps the reasoning ladder — the original matrix only measured the ends
 // ("none" here, "high" in run.mjs's +reasoning arms), leaving low/medium/xhigh unmeasured. SPIKE_ARMS runs
 // a subset (the enriched arm alone is the cheap F1 probe: 8 calls, ~$0.15, vs ~$0.30 for both).
-const OUT = path.join(DIR, process.env.SPIKE_OUT || "out2");
-const EFFORT = process.env.SPIKE_EFFORT || "none";
-const ARMS_RUN = (process.env.SPIKE_ARMS || "A,B").split(",").map((s) => s.trim()).filter(Boolean);
+const OUT = path.join(DIR, process.env["SPIKE_OUT"] || "out2");
+const EFFORT = process.env["SPIKE_EFFORT"] || "none";
+const ARMS_RUN = (process.env["SPIKE_ARMS"] || "A,B").split(",").map((s) => s.trim()).filter(Boolean);
 const REPO_ENV = "/home/inktomi/inktomi-stack/development/orbweaver/.env";
 // SPIKE_ENDPOINT/SPIKE_MODEL retarget the harness at any OpenAI-compatible server (e.g. the local vLLM
 // gen engine on 127.0.0.1:8703). SPIKE_LOCAL=1 strips the OpenRouter-only body fields (provider routing,
 // plugins, usage.include, reasoning) that vLLM rejects or ignores.
-const MODEL = process.env.SPIKE_MODEL || "anthropic/claude-sonnet-5";
-const LOCAL = process.env.SPIKE_LOCAL === "1";
-const ENDPOINT = process.env.SPIKE_ENDPOINT || "https://openrouter.ai/api/v1/chat/completions";
+const MODEL = process.env["SPIKE_MODEL"] || "anthropic/claude-sonnet-5";
+const LOCAL = process.env["SPIKE_LOCAL"] === "1";
+const ENDPOINT = process.env["SPIKE_ENDPOINT"] || "https://openrouter.ai/api/v1/chat/completions";
 const MAX_FETCHES = 40; // hard safety cap across the whole run (spec: stop if a call would push over ~40)
 
 // ---- creds (never logged) ----
@@ -35,11 +311,11 @@ const KEY = (() => {
 })();
 
 // ---- 7 real tools (verbatim schemas; Arm A uses verbatim descriptions) ----
-const cheapTpl = JSON.parse(fs.readFileSync(path.join(DIR, "real-cheap-toolround.json"), "utf8"));
+const cheapTpl = JSON.parse(fs.readFileSync(path.join(DIR, "real-cheap-toolround.json"), "utf8")) as ToolTemplate;
 const TOOLS_A = cheapTpl.tools; // Arm A: verbatim descriptions
 
 // Arm B: same names + parameter schemas; ONLY the description string changes (enriched, from spec).
-const ENRICHED = {
+const ENRICHED: Record<string, string> = {
   update_party: "Record changes to any actor's body/condition. hpDelta: damage (negative) or healing (positive). poolDeltas: spend/restore named pools like Mana/Stamina/Focus (negative=spent). addCondition: a new status effect (e.g. Blessed, Bleeding, Poisoned) with an optional numeric modifier. removeCondition: when an effect ends. status: a short current-state line ('bleeding, on edge'). EXAMPLE — took a cut and spent wind fighting: {targetRef:'player', hpDelta:-5, poolDeltas:[{name:'Stamina',delta:-3}], addCondition:{name:'Bleeding',modifier:-1}, status:'bleeding, breathing hard'}.",
   update_inventory: "Items and coin on an actor. add: new items — ALWAYS give a `description` and a `location` (where it's carried: 'belt pouch', 'sheathed'), plus quantity. remove: items used/lost/given away. walletDeltas: coin gained/spent (negative=spent). EXAMPLE — gifted an oil vial, paid 20 gold: {targetRef:'player', add:[{name:'Vial of Sanctified Oil', description:'warded holy oil, faintly glowing', quantity:1, location:'belt pouch'}], walletDeltas:[{name:'gold', delta:-20}]}.",
   update_scene: "The scene + who is present. Set location/timeOfDay/weather when they change; calendarDate/day as days pass; advance plot.act/title/actSummary as the story moves. presentUpsert: for EACH character on screen set mood (every demeanor shift), appearance + outfit (when described), thoughts (their implied inner state), relationship {kind,label}, and customFields trust/role. recentEvent: a one-line beat. EXAMPLE — a priest warms to you: {timeOfDay:'evening', presentUpsert:[{name:'Sister Vesna', emoji:'🕯️', mood:'warming', appearance:'tall, silver-haired, sharp-eyed', outfit:'patched grey habit', thoughts:'weighing whether to trust you', relationship:{kind:'ally',label:'wary priest'}, customFields:[{name:'trust',value:'40'},{name:'role',value:'chapel keeper'}]}], recentEvent:'Vesna softened as you shared road news'}.",
@@ -48,7 +324,7 @@ const ENRICHED = {
   add_journal_entry: "Log a notable beat with the right type (location/npc/combat/quest/item/event/note) + a short title + content. EXAMPLE: {type:'combat', title:'Ambush at the Chapel', content:'Corvin drew on you at the altar; you took a cut but stayed up.'}.",
   no_changes: "Call ONLY when nothing trackable changed. Do NOT use this to avoid filling fields — if anything in the fiction moved, record it.",
 };
-const TOOLS_B = JSON.parse(JSON.stringify(TOOLS_A)).map((t) => {
+const TOOLS_B = (JSON.parse(JSON.stringify(TOOLS_A)) as ToolDef[]).map((t) => {
   const enr = ENRICHED[t.function.name];
   if (!enr) throw new Error(`no enriched description for ${t.function.name}`);
   t.function.description = enr;
@@ -70,13 +346,13 @@ const CLAUSE_B =
   "- add_journal_entry for a notable beat, with the right `type`.\n" +
   "Fill every field the fiction supports. Sparse tracking makes the panel feel dead.";
 
-const ARMS = {
+const ARMS: Record<string, { tools: ToolDef[]; system: string }> = {
   A: { tools: TOOLS_A, system: `${GM_BASE}\n\n${CLAUSE_A}` },
   B: { tools: TOOLS_B, system: `${GM_BASE}\n\n${CLAUSE_B}` },
 };
 
 // ---- seed state ("The Sanctified Map") ----
-function seedState() {
+function seedState(): GameState {
   return {
     scene: { location: "", calendarDate: "", timeOfDay: "", weather: "", recentEvent: "" },
     plot: { act: 1, maxActs: 3, title: "The Sanctified Map", actTitle: "", actSummary: "" },
@@ -119,7 +395,7 @@ const ACTIONS = [
 // `ensure` forces the condition to be present at turn start regardless of whether the model emitted
 // addCondition earlier. That is a deliberate harness intervention: without it a missed ADD silently
 // removes a REMOVE opportunity, and the run would measure two things at once. We are isolating retirement.
-const AFFLICTIONS_ACTIONS = [
+const AFFLICTIONS_ACTIONS: ActionSpec[] = [
   // 1 — add Bleeding + damage
   { text: "The ambush comes at the ford. A blade opens a long gash across my forearm and the blood runs freely down to my fingers before I drive the man off.", expectHp: true },
   // 2 — persists
@@ -146,33 +422,37 @@ const AFFLICTIONS_ACTIONS = [
   { text: "I take a full night at the waystation — a real bed, a hot meal, the ankle bound and rested. I wake clear-headed and strong, and the limp is gone.", ensure: ["Exhausted", "Lamed"], expectRemove: ["Exhausted", "Lamed"] },
 ];
 
-function seedAfflictions() {
+function seedAfflictions(): GameState {
   const s = seedState();
   s.plot.title = "The Ford Road";
   s.scene.location = "the ford";
-  s.party[0].name = "Rook";
-  s.party[0].role = "courier";
+  const pc = firstActor(s);
+  pc.name = "Rook";
+  pc.role = "courier";
   return s;
 }
 
-const GAMES = {
+const GAMES: Record<string, GameDef> = {
   sanctified: { seed: seedState, actions: ACTIONS.map((text) => ({ text })), title: "The Sanctified Map" },
   afflictions: { seed: seedAfflictions, actions: AFFLICTIONS_ACTIONS, title: "The Ford Road" },
 };
-const GAME_KEY = process.env.SPIKE_GAME || "sanctified";
-if (!GAMES[GAME_KEY]) throw new Error(`SPIKE_GAME must be one of ${Object.keys(GAMES).join("|")}`);
-const GAME = GAMES[GAME_KEY];
+const GAME_KEY = process.env["SPIKE_GAME"] || "sanctified";
+const GAME: GameDef = (() => {
+  const g = GAMES[GAME_KEY];
+  if (!g) throw new Error(`SPIKE_GAME must be one of ${Object.keys(GAMES).join("|")}`);
+  return g;
+})();
 
 // ---- clone / actor ----
-const clone = (o) => JSON.parse(JSON.stringify(o));
-function findActor(state, ref) {
-  if (!ref || ref === "player" || ref === "Nate") return state.party[0];
+const clone = <T>(o: T): T => JSON.parse(JSON.stringify(o)) as T;
+function findActor(state: GameState, ref: string | undefined): Actor {
+  if (!ref || ref === "player" || ref === "Nate") return firstActor(state);
   const a = state.party.find((p) => p.name === ref || p.ref === ref);
-  return a || state.party[0]; // party updates in this game all target the PC
+  return a || firstActor(state); // party updates in this game all target the PC
 }
 
 // ---- apply (running state so the reminder evolves; mirrors run.mjs applyOp) ----
-function applyOp(state, name, args, touched) {
+function applyOp(state: GameState, name: string, args: ToolArgs, touched: Touched): void {
   args = args || {};
   switch (name) {
     case "update_party": {
@@ -221,7 +501,7 @@ function applyOp(state, name, args, touched) {
       for (const u of args.presentUpsert || []) {
         let c = state.present.find((x) => x.name.toLowerCase() === String(u.name).toLowerCase());
         if (!c) { c = { name: u.name, emoji: "", mood: "", appearance: "", outfit: "", thoughts: "", customFields: {}, relationship: { kind: "", label: "" } }; state.present.push(c); }
-        for (const k of ["emoji", "mood", "appearance", "outfit", "thoughts"]) if (u[k]) c[k] = u[k];
+        for (const k of ["emoji", "mood", "appearance", "outfit", "thoughts"] as const) { const val = u[k]; if (val) c[k] = val; }
         if (Array.isArray(u.customFields)) for (const cf of u.customFields) c.customFields[cf.name] = cf.value;
         else if (u.customFields && typeof u.customFields === "object") Object.assign(c.customFields, u.customFields);
         if (u.relationship) { if (u.relationship.kind) c.relationship.kind = u.relationship.kind; if (u.relationship.label) c.relationship.label = u.relationship.label; }
@@ -231,11 +511,13 @@ function applyOp(state, name, args, touched) {
       return;
     }
     case "set_widget_value": {
-      const w = state.widgets[args.widgetRef] || {};
+      // biome-ignore lint/style/noNonNullAssertion: `state.widgets` is the PRESERVED trackers/widgets bug (see GameState note); widgetRef is schema-required.
+      const w: WidgetState = state.widgets![args.widgetRef!] || {};
       if (typeof args.value === "number") w.value = args.value;
       if (typeof args.max === "number") w.max = args.max;
       if (Array.isArray(args.items)) w.items = args.items;
-      state.widgets[args.widgetRef] = w;
+      // biome-ignore lint/style/noNonNullAssertion: `state.widgets` is the PRESERVED trackers/widgets bug (see GameState note); widgetRef is schema-required.
+      state.widgets![args.widgetRef!] = w;
       touched.widgets = true;
       return;
     }
@@ -243,7 +525,8 @@ function applyOp(state, name, args, touched) {
       const action = String(args.action || "").toLowerCase();
       let q = state.quests.find((x) => x.name.toLowerCase() === String(args.name || "").toLowerCase());
       const objs = (args.objectives || []).map((t) => ({ text: t, completed: action === "complete" }));
-      if (!q) { q = { name: args.name, status: "active", description: args.description || "", objectives: objs }; state.quests.push(q); }
+      // biome-ignore lint/style/noNonNullAssertion: quest name is required by the upsert_quest tool schema on create.
+      if (!q) { q = { name: args.name!, status: "active", description: args.description || "", objectives: objs }; state.quests.push(q); }
       else { if (args.description) q.description = args.description; if (objs.length) q.objectives = objs; }
       if (action === "complete") q.status = "completed";
       else if (action === "fail") q.status = "failed";
@@ -259,21 +542,21 @@ function applyOp(state, name, args, touched) {
     default: return;
   }
 }
-function applyOps(state, ops) {
-  const touched = { party: false, inventory: false, scene: false, widgets: false, quests: false, journal: false };
+function applyOps(state: GameState, ops: Op[]): Touched {
+  const touched: Touched = { party: false, inventory: false, scene: false, widgets: false, quests: false, journal: false };
   for (const [name, args] of ops) applyOp(state, name, args, touched);
   return touched;
 }
 
 // ---- reminder / state-fold rendering ----
-function fmtWallet(w) { return Object.entries(w).map(([k, v]) => `${v} ${k}`).join(", "); }
-function fmtItems(items) { return items.map((i) => i.quantity > 1 ? `${i.name} ×${i.quantity}` : i.name).join(", ") || "nothing"; }
-function fmtPools(pools) { return pools.map((p) => `${p.name} ${p.value}/${p.max}`).join(", "); }
+function fmtWallet(w: Record<string, number>) { return Object.entries(w).map(([k, v]) => `${v} ${k}`).join(", "); }
+function fmtItems(items: Item[]) { return items.map((i) => i.quantity > 1 ? `${i.name} ×${i.quantity}` : i.name).join(", ") || "nothing"; }
+function fmtPools(pools: Pool[]) { return pools.map((p) => `${p.name} ${p.value}/${p.max}`).join(", "); }
 
-function renderReminder(state, action, changesLine) {
+function renderReminder(state: GameState, action: string, changesLine: string): string {
   const s = state.scene;
-  const pc = state.party[0];
-  const lines = [];
+  const pc = firstActor(state);
+  const lines: string[] = [];
   lines.push("[System note — current tracked game state:");
   const sceneBits = [s.location || "(unset)", s.calendarDate || "", s.timeOfDay || "", s.weather || ""].filter(Boolean);
   lines.push(`Scene: ${sceneBits.join(" · ")}`);
@@ -286,14 +569,15 @@ function renderReminder(state, action, changesLine) {
   lines.push("Present cast:");
   if (state.present.length) {
     for (const c of state.present) {
-      const trust = c.customFields.trust != null ? ` — Trust ${c.customFields.trust}/100` : "";
-      const role = c.customFields.role ? ` — Role: ${c.customFields.role}` : "";
+      const trust = c.customFields["trust"] != null ? ` — Trust ${c.customFields["trust"]}/100` : "";
+      const role = c.customFields["role"] ? ` — Role: ${c.customFields["role"]}` : "";
       const rel = c.relationship.label || c.relationship.kind || "";
       lines.push(`- ${c.emoji ? c.emoji + " " : ""}${c.name} — ${c.mood || "—"}${rel ? " — " + rel : ""}${trust}${role}`);
     }
   } else lines.push("- (none yet)");
   lines.push("Custom trackers:");
-  for (const [name, w] of Object.entries(state.widgets)) lines.push(`- ${name}: ${w.value}${w.max != null ? "/" + w.max : ""}`);
+  // biome-ignore lint/style/noNonNullAssertion: `state.widgets` is the PRESERVED trackers/widgets bug (see GameState note) — this is where a real run throws.
+  for (const [name, w] of Object.entries(state.widgets!)) lines.push(`- ${name}: ${w.value}${w.max != null ? "/" + w.max : ""}`);
   if (state.quests.length) {
     lines.push("Active quests:");
     for (const q of state.quests) {
@@ -312,9 +596,9 @@ function renderReminder(state, action, changesLine) {
 }
 
 // ---- delta (hint line only) ----
-function computeDelta(before, after) {
-  const parts = [];
-  const bp = before.party[0], ap = after.party[0];
+function computeDelta(before: GameState, after: GameState): string {
+  const parts: string[] = [];
+  const bp = firstActor(before), ap = firstActor(after);
   if (bp.hp.value !== ap.hp.value) parts.push(`HP ${bp.hp.value}→${ap.hp.value}`);
   for (const pool of ap.pools) {
     const pb = bp.pools.find((x) => x.name === pool.name);
@@ -335,8 +619,9 @@ function computeDelta(before, after) {
   const aN = new Set(after.present.map((c) => c.name.toLowerCase()));
   for (const c of after.present) if (!bN.has(c.name.toLowerCase())) parts.push(`+NPC ${c.name}`);
   for (const c of before.present) if (!aN.has(c.name.toLowerCase())) parts.push(`-NPC ${c.name}`);
-  for (const [name, w] of Object.entries(after.widgets)) { const bw = before.widgets[name]; if (bw && bw.value !== w.value) parts.push(`${name} ${bw.value}→${w.value}`); }
-  const bQ = Object.fromEntries(before.quests.map((q) => [q.name.toLowerCase(), q.status]));
+  // biome-ignore lint/style/noNonNullAssertion: `after.widgets`/`before.widgets` are the PRESERVED trackers/widgets bug (see GameState note).
+  for (const [name, w] of Object.entries(after.widgets!)) { const bw = before.widgets![name]; if (bw && bw.value !== w.value) parts.push(`${name} ${bw.value}→${w.value}`); }
+  const bQ = Object.fromEntries(before.quests.map((q) => [q.name.toLowerCase(), q.status] as [string, string]));
   for (const q of after.quests) {
     if (!(q.name.toLowerCase() in bQ)) parts.push(`quest "${q.name}" started`);
     else if (bQ[q.name.toLowerCase()] !== q.status) parts.push(`quest "${q.name}" ${q.status}`);
@@ -347,9 +632,9 @@ function computeDelta(before, after) {
 
 // ---- OR call ----
 let FETCHES = 0;
-async function orCall(body, label) {
+async function orCall(body: RpgRequestBody, label: string): Promise<{ json: RawResponse; latency_ms: number }> {
   const started = Date.now();
-  let lastErr;
+  let lastErr: unknown;
   for (let attempt = 1; attempt <= 2; attempt++) {
     if (FETCHES >= MAX_FETCHES) throw new Error(`fetch cap ${MAX_FETCHES} reached — aborting before ${label}`);
     FETCHES++;
@@ -361,7 +646,7 @@ async function orCall(body, label) {
       });
       const text = await res.text();
       if (!res.ok) { lastErr = new Error(`${label} HTTP ${res.status}: ${text.slice(0, 400)}`); continue; }
-      const json = JSON.parse(text);
+      const json = JSON.parse(text) as RawResponse;
       if (json.error) { lastErr = new Error(`${label} api-error: ${JSON.stringify(json.error).slice(0, 400)}`); continue; }
       const finish = json.choices?.[0]?.finish_reason;
       if (finish === "length" && attempt === 1 && (body.max_tokens ?? 0) < 16000) { body = { ...body, max_tokens: 16000 }; continue; }
@@ -370,8 +655,8 @@ async function orCall(body, label) {
   }
   throw lastErr;
 }
-function usageOf(json) {
-  const u = json.usage || {};
+function usageOf(json: RawResponse): UsageOf {
+  const u: RawUsage = json.usage || {};
   // reasoning_tokens is the CAUSAL evidence for any effort-ladder claim: without it, "higher effort fixed
   // it" is inferred from the request parameter rather than observed in the response. run.mjs recorded it;
   // this harness did not, which left §4a's mechanism unverified. Always capture it.
@@ -382,11 +667,11 @@ function usageOf(json) {
     reasoning_tokens: u.completion_tokens_details?.reasoning_tokens ?? 0,
   };
 }
-function parseToolCalls(msg) {
-  const ops = [];
+function parseToolCalls(msg: RawMessage): Op[] {
+  const ops: Op[] = [];
   for (const tc of msg.tool_calls || []) {
-    let args = {};
-    try { args = JSON.parse(tc.function.arguments || "{}"); } catch { args = {}; }
+    let args: ToolArgs = {};
+    try { args = JSON.parse(tc.function.arguments || "{}") as ToolArgs; } catch { args = {}; }
     ops.push([tc.function.name, args]);
   }
   return ops;
@@ -408,23 +693,29 @@ const BASE = LOCAL
 //   reconcile — a targeted instruction. §4 disproved instruction in the TOOL DESCRIPTIONS and the
 //               system-prompt guide; the user turn is a different position and was never tested.
 // Both fire ONLY when a condition is active at turn start — the conditional-cost property is the point.
-const NUDGES = {
+const NUDGES: Record<string, string> = {
   think: "\n\nPlease think hard before responding.",
   reconcile:
     "\n\nBefore you record state: re-read the conditions listed above and decide, for each one, whether this beat ENDED it. If it did, emit removeCondition for it.",
 };
-const NUDGE_MODE = process.env.SPIKE_NUDGE || "off"; // off | think | reconcile
+const NUDGE_MODE = process.env["SPIKE_NUDGE"] || "off"; // off | think | reconcile
 if (NUDGE_MODE !== "off" && !NUDGES[NUDGE_MODE]) throw new Error(`SPIKE_NUDGE must be off|think|reconcile, got "${NUDGE_MODE}"`);
+
+interface Turn {
+  action: string;
+  narrative: string;
+}
+type WireMessage = { role: string; content: unknown };
 
 /** Nudge iff a condition is actually active — same precondition the §4b denominator uses, so "turns
  *  nudged" and "opportunities" line up and the cost of the lever is legible. */
-function nudgeFor(state) {
+function nudgeFor(state: GameState): string {
   if (NUDGE_MODE === "off") return "";
-  return state.party.some((p) => (p.conditions || []).length > 0) ? NUDGES[NUDGE_MODE] : "";
+  return state.party.some((p) => (p.conditions || []).length > 0) ? NUDGES[NUDGE_MODE] ?? "" : "";
 }
 
-function messages(system, history, action, state, changesLine, nudge = "") {
-  const msgs = [{ role: "system", content: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] }];
+function messages(system: string, history: Turn[], action: string, state: GameState, changesLine: string, nudge = ""): WireMessage[] {
+  const msgs: WireMessage[] = [{ role: "system", content: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }] }];
   for (const h of history) { msgs.push({ role: "user", content: h.action }); msgs.push({ role: "assistant", content: h.narrative }); }
   // Appended to the NEWEST user message only — everything before the breakpoint is byte-identical.
   msgs.push({ role: "user", content: renderReminder(state, action, changesLine) + nudge });
@@ -432,14 +723,14 @@ function messages(system, history, action, state, changesLine, nudge = "") {
 }
 
 // ---- COVERAGE: leaf-field checkers (spec's full leaf set) ----
-const nStr = (v) => typeof v === "string" && v.trim() !== "";
-const nNum = (v) => typeof v === "number" && Number.isFinite(v);
-const nArr = (v) => Array.isArray(v) && v.length > 0;
-const someAdd = (list, k, pred) => (list || []).some((a) => (a.add || []).some((it) => pred(it[k])));
-const somePU = (list, fn) => (list || []).some((a) => (a.presentUpsert || []).some(fn));
+const nStr = (v: unknown): boolean => typeof v === "string" && v.trim() !== "";
+const nNum = (v: unknown): boolean => typeof v === "number" && Number.isFinite(v);
+const nArr = (v: unknown): boolean => Array.isArray(v) && v.length > 0;
+const someAdd = (list: ToolArgs[], k: keyof InvItem, pred: (v: unknown) => unknown) => (list || []).some((a) => (a.add || []).some((it) => pred(it[k])));
+const somePU = (list: ToolArgs[], fn: (p: PresentUpsert) => unknown) => (list || []).some((a) => (a.presentUpsert || []).some(fn));
 
 // FIELD_SPECS: { key (matrix label), tool, test(argsListForThatTool) }. argsList = all calls of that tool this turn.
-const FIELD_SPECS = [
+const FIELD_SPECS: FieldSpec[] = [
   // update_party
   ["update_party.targetRef", "update_party", (L) => L.some((a) => nStr(a.targetRef))],
   ["update_party.hpDelta", "update_party", (L) => L.some((a) => nNum(a.hpDelta))],
@@ -491,44 +782,48 @@ const FIELD_SPECS = [
   ["add_journal_entry.content", "add_journal_entry", (L) => L.some((a) => nStr(a.content))],
 ];
 
-function coverageForTurn(ops) {
-  const byTool = {};
+function coverageForTurn(ops: Op[]): Record<string, boolean> {
+  const byTool: Record<string, ToolArgs[]> = {};
   for (const [name, args] of ops) (byTool[name] ||= []).push(args);
-  const row = {};
+  const row: Record<string, boolean> = {};
   for (const [key, tool, test] of FIELD_SPECS) row[key] = !!test(byTool[tool] || []);
   return row;
 }
 
 // ---- run one arm ----
-async function runArm(armKey) {
+async function runArm(armKey: string): Promise<ArmResult> {
   const arm = ARMS[armKey];
+  if (!arm) throw new Error(`unknown arm "${armKey}"`);
   const adir = path.join(OUT, armKey);
   fs.mkdirSync(adir, { recursive: true });
   const state = GAME.seed();
-  const history = [];
+  const history: Turn[] = [];
   let changesLine = GAME_KEY === "afflictions" ? "SCENE OPENS — the ford at first light" : "SCENE OPENS — the chapel at dusk";
   const transcript = [`# Arm ${armKey} — transcript ("${GAME.title}")\n\nModel: ${MODEL} · 1call-tools (persona + 7 tools + tool_choice:auto) · descriptions: ${armKey === "A" ? "TERSE (verbatim)" : "ENRICHED"} · reasoning effort: ${EFFORT} · game: ${GAME_KEY}\n`];
-  const turns = [];
+  const turns: TurnRecord[] = [];
   let cost = 0, toolCalls = 0, latency = 0, promptTok = 0, complTok = 0;
-  const failures = [];
+  const failures: string[] = [];
 
   for (let t = 0; t < GAME.actions.length; t++) {
-    const spec = GAME.actions[t];
+    // biome-ignore lint/style/noNonNullAssertion: t < GAME.actions.length directly above.
+    const spec = GAME.actions[t]!;
     const action = spec.text;
     // Ground-truth setup: guarantee the condition exists so a missed ADD on an earlier turn can't
     // silently delete this turn's REMOVE opportunity. Isolates retirement from addition.
     for (const c of spec.ensure ?? []) {
-      const pc = state.party[0];
+      const pc = firstActor(state);
       if (!pc.conditions.includes(c)) pc.conditions.push(c);
     }
     const before = clone(state);
     const nudge = nudgeFor(before);
     const body = { ...BASE, max_tokens: 8192, ...(LOCAL ? {} : { reasoning: { effort: EFFORT } }), messages: messages(arm.system, history, action, state, changesLine, nudge), tools: arm.tools, tool_choice: "auto" };
-    let r;
+    let r: { json: RawResponse; latency_ms: number };
     try { r = await orCall(body, `arm${armKey}/turn${t + 1}`); }
-    catch (e) { failures.push(`turn ${t + 1}: ${e.message}`); transcript.push(`\n## Turn ${t + 1}\n**Player:** ${action}\n\n**ERROR:** ${e.message}\n`); break; }
+    catch (e) { const emsg = e instanceof Error ? e.message : String(e); failures.push(`turn ${t + 1}: ${emsg}`); transcript.push(`\n## Turn ${t + 1}\n**Player:** ${action}\n\n**ERROR:** ${emsg}\n`); break; }
 
-    const msg = r.json.choices[0].message;
+    // biome-ignore lint/style/noNonNullAssertion: a 2xx OpenRouter response always carries choices[0].
+    const choice0 = r.json.choices![0]!;
+    const msg = choice0.message;
     const narrative = msg.content || "";
     const ops = parseToolCalls(msg);
     const u = usageOf(r.json);
@@ -541,16 +836,16 @@ async function runArm(armKey) {
     const delta = computeDelta(before, after);
 
     // Opportunity is evaluated against `before` — the state as it stood when the model was prompted.
-    const opportunity = Object.fromEntries(Object.entries(PRECONDITIONS).map(([k, fn]) => {
+    const opportunity = Object.fromEntries(Object.entries(PRECONDITIONS).map(([k, fn]): [string, boolean] => {
       try { return [k, !!fn(before)]; } catch { return [k, false]; } // a malformed plane must not kill the run
     }));
     // ---- ground-truth scoring (afflictions game) ----
     // Matched case-insensitively on a prefix, because the model writes "Bleeding (-1)" or "Bleeding wound"
     // where the truth says "Bleeding". Scoring the concept, not the string.
-    const emittedRemoves = ops.filter(([n]) => n === "update_party").map(([, a]) => a.removeCondition).filter(Boolean);
+    const emittedRemoves = ops.filter(([n]) => n === "update_party").map(([, a]) => a.removeCondition).filter((x): x is string => Boolean(x));
     const emittedHp = ops.filter(([n]) => n === "update_party").some(([, a]) => typeof a.hpDelta === "number" && a.hpDelta !== 0);
-    const norm = (s) => String(s).toLowerCase().replace(/[^a-z]/g, "");
-    const hit = (want) => emittedRemoves.some((got) => norm(got).startsWith(norm(want)) || norm(want).startsWith(norm(got)));
+    const norm = (s: unknown) => String(s).toLowerCase().replace(/[^a-z]/g, "");
+    const hit = (want: string) => emittedRemoves.some((got) => norm(got).startsWith(norm(want)) || norm(want).startsWith(norm(got)));
     const expectRemove = spec.expectRemove ?? [];
     const truth = {
       expectRemove,
@@ -561,12 +856,12 @@ async function runArm(armKey) {
       expectHp: spec.expectHp === true,
       hpHit: spec.expectHp === true && emittedHp,
     };
-    turns.push({ turn: t + 1, action, narrative, ops, coverage: cov, opportunity, nudged: nudge !== "", truth, num_tool_calls: ops.length, tools_called: ops.map(([n]) => n), delta, usage: u, finish: r.json.choices[0].finish_reason });
+    turns.push({ turn: t + 1, action, narrative, ops, coverage: cov, opportunity, nudged: nudge !== "", truth, num_tool_calls: ops.length, tools_called: ops.map(([n]) => n), delta, usage: u, finish: choice0.finish_reason });
 
     // transcript
     transcript.push(`\n## Turn ${t + 1}\n`);
     transcript.push(`**Player:** ${action}\n`);
-    transcript.push(`**Narrative** (${narrative.length} chars, finish=${r.json.choices[0].finish_reason}):\n\n${narrative || "_(no narrative)_"}\n`);
+    transcript.push(`**Narrative** (${narrative.length} chars, finish=${choice0.finish_reason}):\n\n${narrative || "_(no narrative)_"}\n`);
     transcript.push(`**Tool calls (${ops.length}): ${ops.map(([n]) => n).join(", ") || "(none)"}**\n`);
     transcript.push("```json\n" + JSON.stringify(ops.map(([n, a]) => ({ [n]: a })), null, 2) + "\n```\n");
     transcript.push(`**Delta:** ${delta} · cost $${u.cost_usd.toFixed(4)} · ${r.latency_ms}ms\n`);
@@ -580,13 +875,13 @@ async function runArm(armKey) {
   // per-field tally. `tally` stays the raw hit count (unchanged shape — old readers still work);
   // `denom` is what that count should be read against: opportunities for a conditional field, turns
   // otherwise. `missed` is the actionable number — chances the model had and didn't take.
-  const tally = {};
-  const denom = {};
-  const missed = {};
+  const tally: Record<string, number> = {};
+  const denom: Record<string, number> = {};
+  const missed: Record<string, number | null> = {};
   for (const [key] of FIELD_SPECS) {
     tally[key] = turns.filter((tn) => tn.coverage[key]).length;
-    denom[key] = PRECONDITIONS[key] ? turns.filter((tn) => tn.opportunity?.[key]).length : turns.length;
-    missed[key] = PRECONDITIONS[key] ? turns.filter((tn) => tn.opportunity?.[key] && !tn.coverage[key]).length : null;
+    denom[key] = PRECONDITIONS[key] ? turns.filter((tn) => tn.opportunity[key]).length : turns.length;
+    missed[key] = PRECONDITIONS[key] ? turns.filter((tn) => tn.opportunity[key] && !tn.coverage[key]).length : null;
   }
 
   // COVERAGE.md matrix
@@ -594,12 +889,12 @@ async function runArm(armKey) {
 
   // Ground-truth recall — the number F1 turns on. Unlike the state-derived denominator, this counts only
   // turns where the FICTION explicitly ended an effect, so it is a true rate.
-  const gt = {
-    removeExpected: turns.reduce((a, t) => a + (t.truth?.expectRemove.length ?? 0), 0),
-    removeHit: turns.reduce((a, t) => a + (t.truth?.removeHits.length ?? 0), 0),
-    removeSpurious: turns.reduce((a, t) => a + (t.truth?.removeSpurious.length ?? 0), 0),
-    hpExpected: turns.filter((t) => t.truth?.expectHp).length,
-    hpHit: turns.filter((t) => t.truth?.hpHit).length,
+  const gt: GroundTruth = {
+    removeExpected: turns.reduce((a, t) => a + t.truth.expectRemove.length, 0),
+    removeHit: turns.reduce((a, t) => a + t.truth.removeHits.length, 0),
+    removeSpurious: turns.reduce((a, t) => a + t.truth.removeSpurious.length, 0),
+    hpExpected: turns.filter((t) => t.truth.expectHp).length,
+    hpHit: turns.filter((t) => t.truth.hpHit).length,
   };
   if (gt.removeExpected > 0) {
     console.log(`       GROUND TRUTH: removeCondition ${gt.removeHit}/${gt.removeExpected} (spurious ${gt.removeSpurious}) · hpDelta ${gt.hpHit}/${gt.hpExpected}`);
@@ -613,9 +908,16 @@ async function runArm(armKey) {
 }
 
 const TOOL_ORDER = ["update_party", "update_inventory", "update_scene", "set_widget_value", "upsert_quest", "add_journal_entry"];
-function writeArmCoverageMd(adir, armKey, turns, tally, denom, missed) {
+function writeArmCoverageMd(
+  adir: string,
+  armKey: string,
+  turns: TurnRecord[],
+  tally: Record<string, number>,
+  denom: Record<string, number>,
+  missed: Record<string, number | null>,
+): void {
   const nT = turns.length;
-  const rows = [];
+  const rows: string[] = [];
   rows.push(`# Arm ${armKey} — field coverage matrix`);
   rows.push("");
   rows.push(`Descriptions: ${armKey === "A" ? "TERSE (verbatim)" : "ENRICHED (when-to-use + example)"} · ${nT} turns · reasoning effort: ${EFFORT} · ✓ = field present+non-empty in that turn's tool_calls`);
@@ -663,8 +965,8 @@ function writeArmCoverageMd(adir, armKey, turns, tally, denom, missed) {
   fs.writeFileSync(path.join(adir, "COVERAGE.md"), rows.join("\n"));
 }
 
-function writeSummary(A, B) {
-  const rows = [];
+function writeSummary(A: ArmResult, B: ArmResult) {
+  const rows: string[] = [];
   rows.push("# Spike 2 — field-coverage A/B SUMMARY (1call-tools: terse vs enriched tool descriptions)");
   rows.push("");
   rows.push(`Model: \`${MODEL}\` · game "The Sanctified Map" · 8 turns/arm · 1call-tools (persona + 7 tools + tool_choice:auto, max_tokens 8192, no reasoning).`);
@@ -680,11 +982,11 @@ function writeSummary(A, B) {
   rows.push("");
   rows.push("| Field | A /8 | B /8 | Δ | note |");
   rows.push("|---|:-:|:-:|:-:|---|");
-  const skippedToCovered = [];
-  const neverA = [], neverB = [];
+  const skippedToCovered: string[] = [];
+  const neverA: string[] = [], neverB: string[] = [];
   let improvedFields = 0, regressedFields = 0;
   for (const [key] of FIELD_SPECS) {
-    const a = A.tally[key], b = B.tally[key];
+    const a = A.tally[key] ?? 0, b = B.tally[key] ?? 0;
     const d = b - a;
     if (a === 0) neverA.push(key);
     if (b === 0) neverB.push(key);
@@ -717,10 +1019,10 @@ function writeSummary(A, B) {
 
   // aggregate leaf coverage
   const totalFields = FIELD_SPECS.length;
-  const aTouched = FIELD_SPECS.filter(([k]) => A.tally[k] > 0).length;
-  const bTouched = FIELD_SPECS.filter(([k]) => B.tally[k] > 0).length;
-  const aSum = FIELD_SPECS.reduce((s, [k]) => s + A.tally[k], 0);
-  const bSum = FIELD_SPECS.reduce((s, [k]) => s + B.tally[k], 0);
+  const aTouched = FIELD_SPECS.filter(([k]) => (A.tally[k] ?? 0) > 0).length;
+  const bTouched = FIELD_SPECS.filter(([k]) => (B.tally[k] ?? 0) > 0).length;
+  const aSum = FIELD_SPECS.reduce((s, [k]) => s + (A.tally[k] ?? 0), 0);
+  const bSum = FIELD_SPECS.reduce((s, [k]) => s + (B.tally[k] ?? 0), 0);
   rows.push("## Aggregate");
   rows.push("");
   rows.push(`- Distinct leaf fields ever populated: **A ${aTouched}/${totalFields}** · **B ${bTouched}/${totalFields}**.`);
@@ -731,7 +1033,7 @@ function writeSummary(A, B) {
   // still-neglected = never-touched under B (enrichment couldn't fix) — the fields needing a different lever
   rows.push("## STILL-NEGLECTED even with examples (Arm B ≤ 1/8) — need a different fix (schema default / required / dedicated nudge)");
   rows.push("");
-  const stillNeglected = FIELD_SPECS.filter(([k]) => B.tally[k] <= 1).map(([k]) => k);
+  const stillNeglected = FIELD_SPECS.filter(([k]) => (B.tally[k] ?? 0) <= 1).map(([k]) => k);
   for (const k of stillNeglected) rows.push(`- \`${k}\` — A ${A.tally[k]}/8, B ${B.tally[k]}/8`);
   if (!stillNeglected.length) rows.push("_none — every field hit ≥2/8 under enrichment_");
   rows.push("");
@@ -762,13 +1064,13 @@ function writeSummary(A, B) {
 // active for turns without the story ending it), so treat the result as a CEILING-corrected floor, not a
 // true rate. Fields whose opportunity is genuinely unknowable from state (hpDelta — any beat may deal
 // damage) are intentionally absent.
-const PRECONDITIONS = {
+const PRECONDITIONS: Record<string, (s: GameState) => boolean> = {
   "update_party.removeCondition": (s) => s.party.some((p) => (p.conditions || []).length > 0),
   "update_inventory.remove": (s) => s.party.some((p) => (p.items || []).length > 0),
   "update_scene.presentRemove": (s) => (s.present || []).length > 0,
 };
 
-const serializeArm = (r) => ({
+const serializeArm = (r: ArmResult) => ({
   tally: r.tally, denom: r.denom, missed: r.missed, gt: r.gt, totals: r.totals, failures: r.failures,
   turns: r.turns.map((t) => ({ turn: t.turn, coverage: t.coverage, opportunity: t.opportunity, nudged: t.nudged, truth: t.truth, tools_called: t.tools_called, num_tool_calls: t.num_tool_calls, delta: t.delta, usage: t.usage, finish: t.finish })),
 });
@@ -776,7 +1078,7 @@ const serializeArm = (r) => ({
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
   console.log(`[config] game=${GAME_KEY} arms=${ARMS_RUN.join(",")} effort=${EFFORT} nudge=${NUDGE_MODE} out=${path.basename(OUT)}`);
-  const results = {};
+  const results: Record<string, ArmResult> = {};
   for (const key of ARMS_RUN) {
     if (!ARMS[key]) throw new Error(`unknown arm "${key}" (have: ${Object.keys(ARMS).join(",")})`);
     results[key] = await runArm(key);
@@ -785,13 +1087,13 @@ async function main() {
   fs.writeFileSync(path.join(OUT, "coverage.json"), JSON.stringify({
     model: MODEL, game: GAME.title, game_key: GAME_KEY, reasoning_effort: EFFORT, nudge_mode: NUDGE_MODE, arms_run: ARMS_RUN,
     fields: FIELD_SPECS.map(([k]) => k),
-    arms: Object.fromEntries(Object.entries(results).map(([k, r]) => [k, serializeArm(r)])),
+    arms: Object.fromEntries(Object.entries(results).map(([k, r]): [string, unknown] => [k, serializeArm(r)])),
   }, null, 2));
 
   const totalCost = Object.values(results).reduce((a, r) => a + r.totals.cost, 0);
   // The A-vs-B summary only means anything with both arms; a single-arm sweep skips it.
-  if (results.A && results.B) {
-    const s = writeSummary(results.A, results.B);
+  if (results["A"] && results["B"]) {
+    const s = writeSummary(results["A"], results["B"]);
     console.log(`\n=== TOTAL SPEND: $${s.totalCost.toFixed(4)} over ${FETCHES} OR fetches ===`);
     console.log(`ever-touched: A ${s.aTouched}/${FIELD_SPECS.length} B ${s.bTouched}/${FIELD_SPECS.length} · skipped→covered ${s.skippedToCovered.length} · still-neglected(B≤1) ${s.stillNeglected.length}`);
   } else {
@@ -803,4 +1105,4 @@ async function main() {
     console.log(`(single-arm run — A/B summary skipped; compare coverage.json against the baseline out2/)`);
   }
 }
-main().catch((e) => { console.error("FATAL:", e.message); process.exit(1); });
+main().catch((e: unknown) => { console.error("FATAL:", e instanceof Error ? e.message : e); process.exit(1); });

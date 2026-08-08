@@ -406,8 +406,8 @@ antipattern this program exists to kill — refused. Therefore:
 3. **D46 doc-truth**: "tier-2 workers are server-side today" is backed by ZERO `worker_threads` usage
    (proven sweep). Correct the doc claim or mark the doorway dormant — a doc that promises machinery
    that does not exist is the lying-doc class.
-4. **`scripts/probes/transcript-census.mjs`** is the one `.mjs` outside every sweep AND every type
-   program — fold into the scripts sweep or convert to `.ts` so no file class escapes the nets.
+4. **`scripts/probes/transcript-census.mjs`** was the one `.mjs` outside every sweep AND every type
+   program — converted to `.ts` (MJS-PROBES lane, 2026-08-07), joining the type-checked world.
 
 ## §8 Enforcement — regression becomes unrepresentable
 

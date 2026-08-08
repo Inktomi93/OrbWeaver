@@ -26,7 +26,63 @@ import os from "node:os";
 import path from "node:path";
 import process from "node:process";
 import { createInterface } from "node:readline";
-import { classify } from "../../.claude/hooks/tool-guard.mjs";
+// @ts-expect-error tool-guard.mjs is an untyped JS hook (no .d.ts, and .claude/hooks is out of this lane's
+// scope); the real `classify` signature is declared and pinned via the cast below.
+import { classify as classifyRaw } from "../../.claude/hooks/tool-guard.mjs";
+
+// The PreToolUse guard hook is an untyped JS module; declare the one symbol this replay imports.
+interface ClassifyCtx {
+  projectDir: string;
+  now: number;
+  procRoot: string;
+  cwd: string;
+  agentId: string | null;
+}
+interface ClassifyResult {
+  decision: string;
+  rule?: string;
+  reason?: string;
+  contexts?: string[];
+  rewrite?: { command?: string };
+}
+const classify = classifyRaw as (command: string, ctx: ClassifyCtx) => ClassifyResult;
+
+// ---- transcript JSONL shapes + replay accumulators ----
+type Scope = "main" | "subagent";
+interface ContentItem {
+  type?: string;
+  name?: string;
+  input?: { command?: string };
+}
+interface TranscriptRecord {
+  type?: string;
+  isSidechain?: boolean;
+  cwd?: string;
+  message?: { content?: ContentItem[] };
+}
+interface Sample {
+  command: string;
+  scope: Scope;
+  rewrittenTo?: string | undefined;
+}
+interface Bucket {
+  rule: string;
+  decision: string;
+  total: number;
+  main: number;
+  subagent: number;
+  seen: number;
+  samples: Sample[];
+}
+interface Stats {
+  filesScanned: number;
+  bashCallsTotal: number;
+  bashCallsMain: number;
+  bashCallsSubagent: number;
+  buckets: Record<string, Bucket>;
+  advisoryContextTotals: Record<string, number>;
+  gitRemoteTouch: { total: number; main: number; subagent: number };
+}
 
 const DEFAULT_SAMPLES_PER_BUCKET = 15;
 const PROGRESS_EVERY_N_FILES = 200;
@@ -37,9 +93,12 @@ const LCG_INCREMENT = 12_345;
 const LCG_MODULUS = 2_147_483_648;
 const LCG_SEED = 42;
 
-function argVal(args, name, fallback) {
+function argVal(args: string[], name: string, fallback: string): string;
+function argVal(args: string[], name: string, fallback: null): string | null;
+function argVal(args: string[], name: string, fallback: string | null): string | null {
   const i = args.indexOf(`--${name}`);
-  return i === -1 ? fallback : args[i + 1];
+  // biome-ignore lint/style/noNonNullAssertion: preserves the original `args[i+1]` read (undefined only if the flag is the final token).
+  return i === -1 ? fallback : args[i + 1]!;
 }
 
 const argv = process.argv.slice(2);
@@ -59,7 +118,7 @@ const REPLAY_CTX_BASE = {
 
 // deterministic PRNG → reproducible reservoir samples across runs
 let lcgState = LCG_SEED;
-function nextRandom() {
+function nextRandom(): number {
   lcgState = (lcgState * LCG_MULTIPLIER + LCG_INCREMENT) % LCG_MODULUS;
   return lcgState / LCG_MODULUS;
 }
@@ -68,7 +127,7 @@ const GIT_REMOTE_TOUCH = /\bgit\s+(?:[^\s;|&]+\s+)*?(?:push|fetch|pull)\b/;
 const LOOKS_LIKE_BASH_USE_NAME = '"name":"Bash"';
 const LOOKS_LIKE_TOOL_USE = '"tool_use"';
 
-const stats = {
+const stats: Stats = {
   filesScanned: 0,
   bashCallsTotal: 0,
   bashCallsMain: 0,
@@ -78,13 +137,18 @@ const stats = {
   gitRemoteTouch: { total: 0, main: 0, subagent: 0 },
 };
 
-function bucketFor(rule, decision) {
+function bucketFor(rule: string, decision: string): Bucket {
   const key = `${rule}|${decision}`;
-  stats.buckets[key] ??= { rule, decision, total: 0, main: 0, subagent: 0, seen: 0, samples: [] };
-  return stats.buckets[key];
+  const existing = stats.buckets[key];
+  if (existing) {
+    return existing;
+  }
+  const created: Bucket = { rule, decision, total: 0, main: 0, subagent: 0, seen: 0, samples: [] };
+  stats.buckets[key] = created;
+  return created;
 }
 
-function reservoirAdd(bucket, sample) {
+function reservoirAdd(bucket: Bucket, sample: Sample): void {
   bucket.seen += 1;
   if (bucket.samples.length < SAMPLES_PER_BUCKET) {
     bucket.samples.push(sample);
@@ -96,13 +160,13 @@ function reservoirAdd(bucket, sample) {
   }
 }
 
-function truncate(cmd) {
+function truncate(cmd: string): string {
   return cmd.length > SAMPLE_COMMAND_MAX_CHARS ? `${cmd.slice(0, SAMPLE_COMMAND_MAX_CHARS)}…` : cmd;
 }
 
 const ADVISORY_HEADLINE_MAX = 60;
 
-function recordAdvisoryHeadlines(contexts) {
+function recordAdvisoryHeadlines(contexts: string[]): void {
   for (const c of contexts) {
     const dashIdx = c.indexOf(" — ");
     const headline = c.slice(0, dashIdx === -1 ? ADVISORY_HEADLINE_MAX : dashIdx);
@@ -110,7 +174,7 @@ function recordAdvisoryHeadlines(contexts) {
   }
 }
 
-function classifySafe(cmd, ctx) {
+function classifySafe(cmd: string, ctx: ClassifyCtx): ClassifyResult {
   try {
     return classify(cmd, ctx);
   } catch (err) {
@@ -118,32 +182,31 @@ function classifySafe(cmd, ctx) {
   }
 }
 
-function recordCommand(cmd, scope, cwd) {
+function recordCommand(cmd: string, scope: Scope, cwd: string | undefined): void {
   stats.bashCallsTotal += 1;
   stats[scope === "main" ? "bashCallsMain" : "bashCallsSubagent"] += 1;
   if (GIT_REMOTE_TOUCH.test(cmd)) {
     stats.gitRemoteTouch.total += 1;
     stats.gitRemoteTouch[scope] += 1;
   }
-  const ctx = { ...REPLAY_CTX_BASE, cwd: cwd ?? "/repo", agentId: scope === "subagent" ? "replay-agent" : null };
+  const ctx: ClassifyCtx = { ...REPLAY_CTX_BASE, cwd: cwd ?? "/repo", agentId: scope === "subagent" ? "replay-agent" : null };
   const result = classifySafe(cmd, ctx);
   const rule = result.rule ?? "none";
   const bucket = bucketFor(rule, result.decision);
   bucket.total += 1;
   bucket[scope] += 1;
   if (rule !== "none") {
-    // biome-ignore lint/suspicious/noUnnecessaryConditions: false positive — classify's union has rewrite-less arms (deny/ask/defer); biome's type lens can't see the cross-file .mjs union.
     const rewrittenTo = typeof result.rewrite?.command === "string" ? truncate(result.rewrite.command) : undefined;
     reservoirAdd(bucket, { command: truncate(cmd), scope, rewrittenTo });
   }
   if (rule === "advisory") {
-    recordAdvisoryHeadlines(result.contexts);
+    recordAdvisoryHeadlines(result.contexts ?? []);
   }
 }
 
-async function findJsonlFiles(root) {
-  const out = [];
-  let entries;
+async function findJsonlFiles(root: string): Promise<string[]> {
+  const out: string[] = [];
+  let entries: import("node:fs").Dirent[];
   try {
     entries = await readdir(root, { recursive: true, withFileTypes: true });
   } catch {
@@ -151,16 +214,16 @@ async function findJsonlFiles(root) {
   }
   for (const e of entries) {
     if ((e.isFile() || e.isSymbolicLink()) && e.name.endsWith(".jsonl")) {
-      out.push(path.join(e.parentPath ?? e.path, e.name));
+      out.push(path.join(e.parentPath, e.name));
     }
   }
   return out;
 }
 
-function handleLine(line) {
-  let rec;
+function handleLine(line: string): void {
+  let rec: TranscriptRecord;
   try {
-    rec = JSON.parse(line);
+    rec = JSON.parse(line) as TranscriptRecord;
   } catch {
     return;
   }
@@ -174,7 +237,7 @@ function handleLine(line) {
   }
 }
 
-async function processFile(file) {
+async function processFile(file: string): Promise<void> {
   stats.filesScanned += 1;
   const rl = createInterface({ input: createReadStream(file, { encoding: "utf8" }), crlfDelay: Number.POSITIVE_INFINITY });
   for await (const line of rl) {
@@ -189,9 +252,9 @@ const COL_DECISION = 9;
 const COL_TOTAL = 8;
 const COL_MAIN = 7;
 
-function printReport() {
+function printReport(): void {
   const rows = Object.values(stats.buckets).sort((a, b) => b.total - a.total);
-  const pad = (s, n) => String(s).padEnd(n);
+  const pad = (s: unknown, n: number): string => String(s).padEnd(n);
   const g = stats.gitRemoteTouch;
   const corpusLine = `\ncorpus: ${stats.bashCallsTotal} Bash calls (${stats.bashCallsMain} main / ${stats.bashCallsSubagent} subagent) across ${stats.filesScanned} files\n`;
   process.stdout.write(corpusLine);
@@ -206,7 +269,7 @@ function printReport() {
   }
 }
 
-async function main() {
+async function main(): Promise<void> {
   const found = await Promise.all(roots.map(findJsonlFiles));
   const files = found.flat();
   process.stderr.write(`guard-replay: scanning ${files.length} files across ${roots.length} roots\n`);
