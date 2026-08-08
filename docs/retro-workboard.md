@@ -530,10 +530,19 @@ security lens.
     `__g_platspell` anti-drift fixture; gate-conformance 5/5 branch-side. **Two W4 sub-waves the program
     doc implied "merged" NEVER landed** — W4.5 withResolvers (7 live sites) + W4.2 toSorted (~40 sites,
     type-judgment): arms DEFERRED pending-not-dropped, burn-down lane brief at
-    `docs/design/node-26-w4-residual-burndown.md`. **Verifier `a1cb70df920e07585` IN FLIGHT** (reach
-    probe, carve-out scope, zero-FP spot-check, census, deferral honesty); consolidated check running.
-    Worktree stands until lens + check green. Durable lesson banked in
-    memory `ratifying-gate-owes-two-receipts` (run the gate as its own arm-inventory instrument).
+    `docs/design/node-26-w4-residual-burndown.md`. Consolidated train check (incl. this + RPG-PROSE +
+    the `984a1ece6` docs:format fixup for its Active-Gates edit): **PASS all stages**.
+    **Verifier `a1cb70df920e07585`: 4/5 CONFIRMED, 1 REFUTED** — reach probe fired both arms (+2
+    unclaimed shapes), carve-out exactly client/ui, zero-FP + all ex-FP sites genuinely legit, census
+    196 + anti-drift structurally forced, deferral docs honest w/ 4-of-7 W4.5 sites spot-verified. THE
+    REFUTED: **the reject-race exclusion is degenerate** (`platform-spellings.ts:113-116` counts the
+    param's own declaration node, so `(resolve, reject) => setTimeout(resolve, ms)` with UNUSED reject
+    passes silently, contradicting the gate's own header). Live tree clean (all 5 two-param setTimeout
+    sites are genuine races) — the RATCHET has the hole, not the tree. **FIX LEG IN FLIGHT on the warm
+    lane agent**: body-scoped ident sweep + a mustFlag unused-second-param row; 2 lower-severity blind
+    spots (globalThis.setTimeout, method-form escape-mint) fix-or-document. Gotcha banked: check-gates +
+    gate-conformance live in `--project integration-serial`, NOT `integration`. Worktree stands.
+    Durable lesson in memory `ratifying-gate-owes-two-receipts`.
   - ⏳ **`RPG-PROSE` in flight** (agent **a2b8b028dc3859073**) — APPROVED scope: reminder seam (rows
     1-10) + `contracts/src/rpg/prose.ts` home + `config.prose` storage spine, ONE commit,
     byte-identical. EXTRACTION seam (rows 11-36, `render(ctx)` core-shape fork + fenced client preview)
