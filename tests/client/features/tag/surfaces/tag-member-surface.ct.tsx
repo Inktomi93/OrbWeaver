@@ -93,6 +93,38 @@ test("each colour picker ANNOUNCES the value it holds, and both arms of the tri-
   await expect(editor.getByRole("button", { name: "Text" })).toHaveAccessibleDescription("Not set — uses the theme default");
 });
 
+// …AND EACH ARM SPEAKS IN ITS OWN VOICE (side-eye 2026-08-08 P3). Both arms rode `voice="datum"` — the MONO
+// tabular VALUE voice — which is right for `#3355ff` and wrong for "Not set — uses the theme default": prose
+// set in tabular mono reads as machine output, i.e. the one voice that says "this string is data" applied to
+// the one string that is explanation. Pinned on the resolved FONT FAMILY, the rendered fact, against the two
+// house tokens rather than a hard-coded family name — and both arms are present in this one mount, so the
+// assertion is a CONTRAST and cannot pass by having flattened both to the same voice.
+test("the colour readout's voice follows what it says — mono for the hex, sans for the unset sentence", async ({ mount, page }) => {
+  await stub(page);
+  const editor = await mount(<TagMemberStory />);
+
+  const hex = editor.getByText("#3355ff", { exact: true });
+  const sentence = editor.getByText("Not set — uses the theme default");
+  await expect(hex).toBeVisible();
+  await expect(sentence).toBeVisible();
+
+  const families = await hex.evaluate(() => {
+    const probe = document.createElement("div");
+    document.body.append(probe);
+    const resolve = (token: string): string => {
+      probe.style.fontFamily = `var(${token})`;
+      return getComputedStyle(probe).fontFamily;
+    };
+    const tokens = { mono: resolve("--font-mono"), sans: resolve("--font-sans") };
+    probe.remove();
+    return tokens;
+  });
+  // Guard the vacuous case where a theme happens to point both families at one stack.
+  expect(families.mono).not.toBe(families.sans);
+  expect(await hex.evaluate((el) => getComputedStyle(el).fontFamily), "a hex IS a value — mono").toBe(families.mono);
+  expect(await sentence.evaluate((el) => getComputedStyle(el).fontFamily), "an explanation is prose — sans").toBe(families.sans);
+});
+
 // …AND IT COSTS ONE LINE AT THE PANE'S REAL WIDTH (the same finding's P3). The readout used to lead with the
 // slot's own key — "Background: not set — uses the theme default" — which is the Field label repeated 20px
 // lower, and it is exactly what tipped the sentence onto a second line in a 430px editor pane. Measured as

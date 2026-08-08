@@ -6,6 +6,9 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { ColorFieldHarness } from "./color-field.fixtures.tsx";
 
 const STYLE_URL_RE = /url/u;
+/** Splits a computed `box-shadow` on its TOP-LEVEL commas — the ones outside a colour function's parens, so
+ *  `oklch(0.72 0.175 52)` survives as one layer instead of shattering into three. */
+const BOX_SHADOW_LAYER_SPLIT_RE = /,(?![^(]*\))/u;
 const NON_EMPTY = /.+/u;
 
 function noop(): void {
@@ -79,6 +82,21 @@ test("an unset (inherit) field shows NO error when opened — empty = a valid cl
   await expect(page.getByText("Enter a valid color")).toHaveCount(0);
 });
 
+// An UNSET field's picker must not open PRELOADED WITH BLACK (side-eye 2026-08-08 P3). `#000000` against a
+// near-black popup rendered as an empty hole, and inside the picker "no colour is set" and "the colour is
+// black" were the same pixels. The seed is a mid-tone — and it is only a DISPLAY seed: opening and
+// dismissing an unset field must still commit nothing.
+test("an unset field seeds the native picker with a mid-tone, never black, and commits nothing", async ({ mount, page }) => {
+  await mount(<ColorFieldHarness initialValue="" />);
+  await page.getByLabel("Accent").click();
+  const native = page.locator('[data-slot="color-field-native-input"]');
+  await expect(native).not.toHaveValue("#000000");
+  await expect(native).toHaveValue("#808080");
+  // The seed never became a value: the hex alternative is still empty and nothing reached the caller.
+  await expect(page.getByLabel("Hex")).toHaveValue("");
+  await expect(page.getByTestId("committed-value")).toHaveText("");
+});
+
 test("a NON-empty invalid value still errors — the gate neutralizes only EMPTY", async ({ mount, page }) => {
   await mount(<ColorFieldHarness initialValue="" />);
   await page.getByLabel("Accent").click();
@@ -133,6 +151,69 @@ test("keyboard: Enter opens the popover (native button activation) and Escape cl
   await page.keyboard.press("Escape");
   await expect(page.getByLabel("Hex")).toHaveCount(0);
   await expect(trigger).toBeFocused();
+});
+
+// THE POPUP'S FIRST TAB STOP MUST BE VISIBLY FOCUSED (side-eye 2026-08-08 P1, WCAG 2.4.7). The native
+// `<input type="color">` carried no house focus state at all, so a keyboard user entering the popover got
+// only the UA's own outline — a near-black hairline on a near-black popup, i.e. nothing.
+//
+// The keyboard path is driven for REAL, never `.focus()`: `:focus-visible` is a heuristic on the interaction
+// MODALITY, so a programmatic focus can satisfy it where a real pointer entry would not, and the assertion
+// would pass against the broken build. MEASURED here (not assumed from the mock): Base UI moves focus to the
+// popup's first tabbable on open, so the native swatch is ALREADY focused after `Enter` on the trigger —
+// there is no second Tab to press, and the `matches(":focus-visible")` probe below is what proves the
+// heuristic actually fired rather than the test asserting into a resting state.
+test("keyboard: the native color input paints a visible focus ring when the popover is opened from the keyboard", async ({ mount, page }) => {
+  await mount(<ColorFieldHarness />);
+  await page.getByLabel("Accent").focus();
+  await page.keyboard.press("Enter");
+  const native = page.locator('[data-slot="color-field-native-input"]');
+  await expect(native).toBeFocused();
+
+  const focused = await native.evaluate((el) => {
+    // A token is compared through the BROWSER, never as a string: `--color-popover` is authored
+    // `oklch(24.5% .007 60)` and serializes into a box-shadow as `oklch(0.245 0.007 60)`, so a raw
+    // `getPropertyValue` comparison fails on formatting while the paint is correct.
+    const probe = document.createElement("div");
+    document.body.append(probe);
+    const resolve = (token: string): string => {
+      probe.style.backgroundColor = `var(${token})`;
+      return getComputedStyle(probe).backgroundColor;
+    };
+    const tokens = { popover: resolve("--color-popover"), background: resolve("--color-background") };
+    probe.remove();
+    return {
+      boxShadow: getComputedStyle(el).boxShadow,
+      outlineStyle: getComputedStyle(el).outlineStyle,
+      matchesFocusVisible: el.matches(":focus-visible"),
+      ...tokens,
+    };
+  });
+  // The modality heuristic actually fired — otherwise every assertion below is vacuous.
+  expect(focused.matchesFocusVisible).toBe(true);
+  // The UA outline is retired rather than layered under our ring (two competing focus paints is the other
+  // failure mode, and Tailwind's `outline-none` is also what would silently kill a FOCUS_RING_OUTLINE).
+  expect(focused.outlineStyle).toBe("none");
+  // The ring is a real PAINT, not a class list that merely READS as ringed. Tailwind always emits five
+  // box-shadow slots and leaves the unused ones fully transparent, so the pin is on how many slots actually
+  // CARRY INK: an element whose shadow composite is already owned collapses every ring slot to
+  // `rgba(0, 0, 0, 0) 0px 0px 0px 0px`, which is the trap FOCUS_RING_OUTLINE exists for.
+  expect(focused.boxShadow).not.toBe("none");
+  const inked = focused.boxShadow.split(BOX_SHADOW_LAYER_SPLIT_RE).filter((layer) => !layer.includes("rgba(0, 0, 0, 0)"));
+  // Two: the offset MOAT and the ring itself.
+  expect(inked).toHaveLength(2);
+  // …and the moat is the POPOVER tone, not the page background — this control only ever renders inside a
+  // popup, so a plain FOCUS_RING would paint a page-toned band around it. Guarded against the vacuous case
+  // where a theme happens to give the two tokens the same value.
+  expect(focused.popover).not.toBe(focused.background);
+  expect(focused.boxShadow).toContain(focused.popover);
+  expect(focused.boxShadow).not.toContain(focused.background);
+
+  // …and it is the FOCUS state that paints it: Tab on to the hex field and the same element goes bare.
+  await page.keyboard.press("Tab");
+  await expect(native).not.toBeFocused();
+  const resting = await native.evaluate((el) => getComputedStyle(el).boxShadow);
+  expect(focused.boxShadow).not.toBe(resting);
 });
 
 test("loading swaps the swatch for a spinner and inerts the trigger", async ({ mount, page }) => {

@@ -7,6 +7,13 @@
 // at every user who opened the panel WITH a model connected, and on a routing failure it stood there
 // permanently naming the wrong cause.
 //
+// AND (2026-08-08) the panel's SECOND wrong-confident-cause: the F-02 fix replaced the false
+// "missing connection" claim with an UNCONDITIONAL "this is a routing problem", printed over whatever raw
+// string the transport handed up. Three failure arms are pinned now — the `BAD_REQUEST` that EARNS the
+// routing verdict (kept verbatim), the `NOT_FOUND` that means the preset is gone, and a `data`-less
+// transport failure where the band may name no cause at all — plus the Retry that keeps a transient failure
+// from being a dead end, and a RELATIVE geometry pin on the skeleton actually matching the settled panel.
+//
 // TWO TIERS, deliberately:
 //   ARMS      — `EffectiveProfile` mounted PROP-DIRECT. It is a pure projection of `(effective, error)`, so
 //               each arm is a SETTLED rendered state with nothing in flight. Holding the real query open
@@ -22,7 +29,15 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../../support/ct/route-trpc.ts";
 import { makeModelCapability, makeResolvedChatCapability } from "../../../../../support/factories/resolved-connection.ts";
-import { EffectiveProfileFailedStory, EffectiveProfilePendingStory, EffectiveProfileSettledStory, PresetReadoutParamsBoundStory } from "./_readout-stories.tsx";
+import {
+  EffectiveProfileFailedStory,
+  EffectiveProfileMissingPresetStory,
+  EffectiveProfilePendingStory,
+  EffectiveProfileSettledStory,
+  EffectiveProfileShapeMatchStory,
+  EffectiveProfileTransportFailureStory,
+  PresetReadoutParamsBoundStory,
+} from "./_readout-stories.tsx";
 
 /** Any prose claiming something about the user's chat model. Deliberately BROADER than the deleted string:
  *  on an UNSETTLED read the panel asserts NOTHING about the connection, so a future arm re-introducing any
@@ -40,6 +55,12 @@ const FAILURE_RE = /couldn't be resolved/i;
 const ROUTING_FAULT = "incoherent routing (agent-sdk × local-light)";
 /** The failure arm's two remaining sentences, as a reader meets them — the diagnosis and the routing verdict. */
 const ROUTING_VERDICT_RE = /routing problem, not a missing connection/i;
+/** The NOT_FOUND arm's headline — it names the PRESET, which is what actually failed to read. */
+const MISSING_PRESET_RE = /preset couldn't be read/i;
+/** The causeless arm's headline — it names the READ and nothing about which half of it broke. */
+const CAUSELESS_FAILURE_RE = /generation profile couldn't be resolved/i;
+/** The place to LOOK, which every failure arm still offers even when it withholds a cause. */
+const MODEL_ROLES_PATH_RE = /Settings → Connections → Model roles/;
 /** The model line the SETTLED arm signs its numbers with (`resolvedForLabel` + the readout's `· chat role`). */
 const RESOLVED_FOR_RE = /resolved for qwen3-32b · chat role/;
 
@@ -59,7 +80,7 @@ test("PENDING — the panel holds a skeleton and says NOTHING about the user's c
   await expect(probe.getByText(FAILURE_RE)).toHaveCount(0);
 });
 
-test("FAILED — the server's message is quoted verbatim and named as ROUTING, never as a missing connection", async ({ mount }) => {
+test("FAILED (BAD_REQUEST) — the server's message is quoted verbatim and named as ROUTING, never as a missing connection", async ({ mount }) => {
   const probe = await mount(<EffectiveProfileFailedStory />);
 
   await expect(probe.getByText(FAILURE_RE)).toBeVisible();
@@ -68,6 +89,40 @@ test("FAILED — the server's message is quoted verbatim and named as ROUTING, n
   // A settled failure never stands on the skeleton, and never invites the user to connect anything.
   await expect(probe.locator('[data-slot="skeleton"]')).toHaveCount(0);
   await expect(probe.getByText(CONNECT_INVITATION_RE)).toHaveCount(0);
+});
+
+// ── WHICH CAUSE THE BAND IS ENTITLED TO NAME (side-eye 2026-08-08 P2) ────────────────────────────────────
+// The arm above is the ONE error that earns "this is a routing problem". The two below are the errors the
+// verdict was ALSO being printed over — a preset deleted in another tab, and a dropped socket. Asserted
+// through the rendered SENTENCE, not through the classifier, so the pin survives any refactor of it.
+
+test("FAILED (NOT_FOUND) — a missing preset is named as one, and the routing verdict is WITHHELD", async ({ mount }) => {
+  const probe = await mount(<EffectiveProfileMissingPresetStory />);
+
+  await expect(probe.getByText(MISSING_PRESET_RE)).toBeVisible();
+  await expect(probe.getByText("preset not found", { exact: true })).toBeVisible();
+  // THE REGRESSION: the panel claimed a routing fault over a deleted row.
+  await expect(probe.getByText(ROUTING_VERDICT_RE)).toHaveCount(0);
+  await expect(probe.getByText(CONNECT_INVITATION_RE)).toHaveCount(0);
+});
+
+test("FAILED (no tRPC data — a transport failure) — the band states NO cause at all", async ({ mount }) => {
+  const probe = await mount(<EffectiveProfileTransportFailureStory />);
+
+  // It names the READ, never which half of (preset × chat model) broke.
+  await expect(probe.getByText(CAUSELESS_FAILURE_RE)).toBeVisible();
+  await expect(probe.getByText("Failed to fetch", { exact: true })).toBeVisible();
+  await expect(probe.getByText(ROUTING_VERDICT_RE)).toHaveCount(0);
+  // The place to LOOK is still offered — withholding a cause is not withholding help.
+  await expect(probe.getByText(MODEL_ROLES_PATH_RE)).toBeVisible();
+});
+
+test("FAILED — Retry reaches the caller, so a transient read failure is not a dead end", async ({ mount }) => {
+  const probe = await mount(<EffectiveProfileTransportFailureStory />);
+
+  await expect(probe.getByTestId("retry-count")).toHaveText("0");
+  await probe.getByRole("button", { name: "Retry" }).click();
+  await expect(probe.getByTestId("retry-count")).toHaveText("1");
 });
 
 test("SETTLED — the funnel's own row renders with its provenance rung and the model it resolved against", async ({ mount }) => {
@@ -82,6 +137,27 @@ test("SETTLED — the funnel's own row renders with its provenance rung and the 
   await expect(probe.getByText("32,768", { exact: true })).toBeVisible();
   await expect(probe.getByText(RESOLVED_FOR_RE)).toBeVisible();
   await expect(probe.locator('[data-slot="skeleton"]')).toHaveCount(0);
+});
+
+// ── THE SKELETON'S ONE JOB IS TO NOT MOVE (side-eye 2026-08-08 P2) ──────────────────────────────────────
+// Measured, not assumed: with the `line` arm's control-height bars the PENDING panel was 233px against an
+// 89px settled panel, so the panel a skeleton exists to hold still COLLAPSED ~144px every time a resolve
+// landed. The pin is RELATIVE — pending vs the settled panel `PENDING_ROWS` is standing in for — so nothing
+// here breaks when a token moves, and a regression to a control-height bar reds it by 100+px.
+
+/** One `DatumRow` pitch of slack (a text line + the `tight` gap): the residual is the settled panel's
+ *  trailing provenance line, which a placeholder row deliberately does not stand in for. */
+const SETTLE_JUMP_TOLERANCE_PX = 32;
+
+test("PENDING — the skeleton is SHAPE-MATCHED: settling does not collapse the panel", async ({ mount }) => {
+  const probe = await mount(<EffectiveProfileShapeMatchStory />);
+  const pendingBox = await probe.getByTestId("pending-panel").locator("section").first().boundingBox();
+  const settledBox = await probe.getByTestId("settled-panel").locator("section").first().boundingBox();
+  expect(pendingBox).not.toBeNull();
+  expect(settledBox).not.toBeNull();
+
+  const jump = Math.abs((pendingBox?.height ?? 0) - (settledBox?.height ?? 0));
+  expect(jump).toBeLessThanOrEqual(SETTLE_JUMP_TOLERANCE_PX);
 });
 
 // ── WIRING ──────────────────────────────────────────────────────────────────────────────────────────────
@@ -112,8 +188,12 @@ const CAPABILITY = makeResolvedChatCapability({ capability: makeModelCapability(
 // The resolve handler for each wiring arm, hoisted so the route map reads as one line per arm. Written as
 // camelCase FUNCTIONS, not SCREAMING consts: in a `.tsx` file biome reads a capitalised const arrow as a
 // React component and `useComponentExportOnlyModules` reds it.
+// `BAD_REQUEST` on purpose: that is the code a real routing refusal carries (a `DomainOperationError` →
+// `error-mapping.ts`), and it is what makes the wiring assertion below a pin on the CALLER handing the error
+// OBJECT down. A caller that flattened it to `.message` first would strip `data.code`, and the band would
+// fall to its causeless arm — so the routing verdict appearing here proves the whole error travelled.
 function failingResolve(): unknown {
-  return trpcError({ message: ROUTING_FAULT });
+  return trpcError({ code: "BAD_REQUEST", message: ROUTING_FAULT });
 }
 
 function settledResolve(): unknown {
@@ -140,6 +220,8 @@ test("WIRING — a FAILED resolve reaches the panel as an ERROR, not as an absen
   // which is the same lie in the other direction.
   await expect(probe.getByText(FAILURE_RE)).toBeVisible();
   await expect(probe.getByText(ROUTING_FAULT, { exact: true })).toBeVisible();
+  // The verdict only renders when `data.code` survived the hand-off — see `failingResolve` above.
+  await expect(probe.getByText(ROUTING_VERDICT_RE)).toBeVisible();
   await expect(probe.getByText(CONNECT_INVITATION_RE)).toHaveCount(0);
 });
 
