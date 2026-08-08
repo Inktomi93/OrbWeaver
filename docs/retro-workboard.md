@@ -629,6 +629,35 @@ security lens.
   `docs/design/prose-1-rpg-extraction-followon.md` to preset-home. Byte-identity guards (frozen
   cohort, field-reachability) must stay green — the re-home changes the OVERRIDE SOURCE, never the
   defaults. Security lane's Item 2 (strip review + fork-game comment repair) DROPPED as moot.
+- **⚑ OWNER RULINGS, ROUND 2 (2026-08-08 night, pre-overnight):**
+  - **Extraction-seam fork → RULED BY CRITERIA (owner: "cleanest, most forward-thinking, extensible,
+    defensible, matches repo procedure" → orchestrator pick): ARM (a) — capture composed prose onto
+    `RpgTurnContext` at turn time.** Rationale: matches the established connection/consent
+    frozen-view precedent on that context; ONE resolution moment (turn resolves the GM preset once —
+    reminder, extraction round, and preview all read the same frozen view; arm (b)'s live re-resolve
+    is a second answer to one question, the divergence class this repo kills); preview fidelity falls
+    out naturally (the fix-leg's inherited rule); no new injected op crossing the rpg↔chat seam;
+    future per-turn preset-derived data rides the same capture. The extraction lane builds this.
+  - **Member-visible bytes on `getActivePresetConfig` → ACCEPT, no strip** ("templates are
+    shared-table stakes"): the GM preset's PromptConfig incl. prose is member-readable via the
+    member-tier verb; the sacred steering NOTE stays host-plane. Matrix classification stands.
+  - **Barrel root-fix (56 `export *`) → IN SCOPE TONIGHT**, as the last lane on the quiet tree
+    before the battery.
+  - **Tag ≤30 drag-cap at ~400 tags → LEAVE AS-IS** (deliberate cliff stands; I-4's flag closed).
+- **✅ RE-HOME FULLY GRADUATED** — merge `61c9ee6c4` + preview-fidelity fix leg landed as patch
+  `d808287ef` (the lane amended its branch; delta extracted `3e1cdb20e..ca188abe0`, applied, 99/99 on
+  the pinned suite incl. the red-first-proven GM-redirect pin at the REAL seam; explicit editor
+  override outranks redirect). ALL SEVEN preview surfaces now faithful (previewAssembly, peekPrompt,
+  getShapeTrace, previewContextFit, previewSection, previewActionTemplates, getActivePresetConfig).
+  Worktree torn down. Task #18 closed. The extraction follow-on doc carries the inherited rule:
+  whatever seam extraction picks, the PREVIEW of that round resolves it the same way.
+- **⚑ TOAST-FIX round 2 in flight** (warm `ac60e5cd15326dfc0`): re-verify closed 8/9 ("looks good
+  now, genuinely") — P3-1 REGRESSED (shadow-overlay clobbers the ring's box-shadow layers +
+  outline-none killed the UA fallback → real Tab paints NOTHING; fix = outline-based ring or
+  ::before elevation, verify by REAL Tab + untruncated boxShadow — the side-eye's own truncated
+  string nearly reported it green) · NEW P2 action button 1.03:1 invisible-as-control · NEW P3
+  z-inversion (popover 65 over toast 60; §3 wants toast above) · residual filed: error/success
+  glyphs via the warningIcon slot · assess: mobile toast over message-row reveals (fix-or-decline).
 - **⚑ OWNER RULINGS (2026-08-08, Nate live):**
   - **PUSHES HELD tonight** — even on a green battery. The train-drain `verify --push` battery still
     RUNS for verification; origin stays un-pushed until a fresh word on a later day.
