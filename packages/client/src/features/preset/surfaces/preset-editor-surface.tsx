@@ -115,7 +115,7 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
 interface ViewContentProps {
   readonly form: AppFormInstance<PromptConfig>;
   readonly capability: ModelCapability | undefined;
-  readonly capabilityError: string | null;
+  readonly capabilityError: unknown;
   /** The funnel projected for this preset (§4.3) — undefined while unavailable. */
   readonly effective: EffectiveProfileRow | undefined;
   /** The server-only BYOK passthrough's keys (D7's presence row) — it never enters the form values. */
@@ -216,10 +216,10 @@ function PresetEditor({ presetId, onRevealSection }: PresetEditorSurfaceProps): 
   const onActivate = (): void => {
     setDefault.mutate({ section: "seeds", patch: { defaultPresetId: preset.isSystemDefault ? null : presetId } });
   };
-  // isError ≠ no-model (side-eye F-02): a FAILED capability read must not render as "connect a chat model"
-  // to someone who has one connected. The message is the server's own. `null` therefore means PENDING, which
-  // is the gate's other (and only other) arm — see `capability-gate.tsx`'s header.
-  const capabilityError = capabilityQuery.error === null ? null : capabilityQuery.error.message;
+  // isError ≠ no-model (side-eye F-02): a FAILED read must not render as "connect a chat model" to someone who
+  // has one. The ERROR OBJECT goes down WHOLE (2026-08-08), not a flattened `.message`, so the gate can
+  // discriminate the cause on `data.code` (the routing verdict is EARNED, not asserted). `null` = PENDING.
+  const capabilityError = capabilityQuery.error;
 
   return (
     <>
@@ -268,8 +268,8 @@ interface PresetEditorBodyProps {
   /** Make it the pick — the one `setDefault` mutation the LIST row toggle also calls (§16 row 3). */
   readonly onActivate: () => void;
   readonly capability: ModelCapability | undefined;
-  /** The capability read's failure message, `null` while it is still PENDING (§F-02). */
-  readonly capabilityError: string | null;
+  /** The capability read's thrown error object, `null` while it is still PENDING (§F-02). */
+  readonly capabilityError: unknown;
   readonly effective: EffectiveProfileRow | undefined;
   readonly customParameterKeys: readonly string[];
   readonly reset: ReturnType<typeof useResetPreset>;

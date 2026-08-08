@@ -234,3 +234,28 @@ test("WIRING — a SETTLED resolve renders the funnel's rows through the real re
   await expect(probe.getByText(CHAT_MODEL_CLAIM_RE)).toHaveCount(0);
   await expect(probe.getByText(CONNECT_INVITATION_RE)).toHaveCount(0);
 });
+
+test("WIRING — Retry fires a REAL re-read: the click issues a second resolve that RECOVERS the panel", async ({ mount, page }) => {
+  // The gap the prop-direct RetryProbe cannot close: it proves the onRetry CALLBACK fires, not that the real
+  // caller's `onRetry` (`() => effective.refetch()`) issues a fresh read over the wire. The wire fails the
+  // FIRST read and settles every read after it — the documented route-trpc fail-then-succeed script — so the
+  // recovery below can ONLY come from a real second read the panel asked for. Asserted through RENDERED state,
+  // never a node-side call count (`ct-no-oneshot-live-read-assert`): a diagnostic drive confirmed the failed
+  // panel does NOT recover on its own (no auto-refetch of an idle errored query — retry:false, staleTime:∞),
+  // so the settled row appearing after the click is attributable to Retry's refetch and nothing else.
+  let calls = 0;
+  const resolve = (): unknown => (calls++ === 0 ? failingResolve() : settledResolve());
+  await routeTrpc(page, readoutRoutes(resolve));
+  const probe = await mount(<PresetReadoutParamsBoundStory />);
+
+  // The first read failed and rendered as such — the settle barrier. The panel is on its failure arm and has
+  // NOT recovered on its own: the settled row is absent.
+  await expect(probe.getByText(ROUTING_FAULT, { exact: true })).toBeVisible();
+  await expect(probe.getByText("max output", { exact: true })).toHaveCount(0);
+
+  // THE PIN: the Retry click issues a real second read and the panel recovers to the settled row. If onRetry
+  // were not wired to `refetch`, no read would fire and the settled row would never appear.
+  await probe.getByRole("button", { name: "Retry" }).click();
+  await expect(probe.getByText("max output", { exact: true })).toBeVisible();
+  await expect(probe.getByText(FAILURE_RE)).toHaveCount(0);
+});

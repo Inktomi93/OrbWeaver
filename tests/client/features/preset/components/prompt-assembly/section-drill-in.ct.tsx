@@ -14,7 +14,7 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { MainPromptStory, RackStory } from "./_rack-stories.tsx";
+import { MainPromptStory, RackStory, SectionForkStory } from "./_rack-stories.tsx";
 
 /** The rendered box, as a rounded integer rect — sub-pixel noise is not a defect, an 8/16px shear is. */
 async function boxOf(locator: Locator): Promise<{ readonly top: number; readonly height: number; readonly width: number }> {
@@ -425,4 +425,34 @@ test("Add mints a section AND drills straight into it, where the Name field is",
   await expect(probe.getByRole("button", { name: "Back to rack" })).toBeVisible();
   await expect(probe.getByLabel("Name", { exact: true })).toHaveValue("New literal");
   await expect(state).toContainText("savedCount=7");
+});
+
+// ── §5.2 fork-eject: the section drill survives the built-in's fork-retarget remount ──────────────────────
+// The SAME defect the Actions template drill already fixed (dcaf87bc1), one view over: the production seam is
+// `PresetForm entityId={presetId}` + the autosave hook's `selectPreset(fork)` swapping that id mid-edit,
+// which remounts the whole keyed session. With the drill held in LOCAL component state, that remount dumped
+// the author from the section editor to the top of the rack mid-sentence. The fork carries the SAME config
+// (same section ids), so a drill homed on the section-id STORE axis re-anchors onto the copy's same section.
+// The story reproduces exactly that seam; the pin is that the OPEN editor is still open, on the same section.
+test("§5.2 — the section drill-in survives the fork's keyed remount, re-anchored to the same section", async ({ mount }) => {
+  const probe = await mount(<SectionForkStory />);
+
+  await probe.getByRole("button", { name: "Edit Epilogue" }).click();
+  await expect(probe.getByRole("region", { name: "Epilogue — section editor" })).toBeVisible();
+  // The rack rows are gone — we are IN the editor, not standing on the list.
+  await expect(probe.getByRole("button", { name: "Prologue", exact: true })).toHaveCount(0);
+
+  // The fork retarget: the session boundary remounts under the fork's entity id.
+  await probe.getByRole("button", { name: "simulate fork retarget" }).click();
+  await expect(probe.getByText("entity=preset_promptforkedxx")).toBeVisible();
+
+  // STILL in the editor, STILL on Epilogue — never ejected to the rack. (With a local drill id this is where
+  // the author landed back on the section list, mid-edit.)
+  await expect(probe.getByRole("region", { name: "Epilogue — section editor" })).toBeVisible();
+  await expect(probe.getByLabel("Name", { exact: true })).toHaveValue("Epilogue");
+  await expect(probe.getByRole("button", { name: "Prologue", exact: true })).toHaveCount(0);
+
+  // …and Back still works after the swap (the closed drill returns to the fork's rack).
+  await probe.getByRole("button", { name: "Back to rack" }).click();
+  await expect(probe.getByRole("button", { name: "Prologue", exact: true })).toBeVisible();
 });

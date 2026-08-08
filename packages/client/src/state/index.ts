@@ -170,10 +170,13 @@ export {
   __dismissPresetSectionForTest,
   __resetPresetSection,
   __resetPresetSelection,
+  closePresetSectionDrill,
+  drillPresetSection,
   presetSectionSelection,
   selectPreset,
   selectPresetFromList,
   selectPresetSection,
+  useDrilledPresetSectionId,
   useSelectedPresetId,
   useSelectedPresetSectionId,
 } from "./preset-selection-store.ts";
