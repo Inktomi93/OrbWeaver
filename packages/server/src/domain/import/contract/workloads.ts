@@ -11,6 +11,10 @@ import type { UserId } from "@orb/kit/ids";
 interface ImportPassCounts {
   readonly scanned: number;
   readonly changed: number;
+  /** Cards skipped by per-card isolation (a single card's defect never aborts the batch). */
+  readonly failed: number;
+  /** Path to the written import report (what landed / what didn't). Absent on a dry run (nothing written). */
+  readonly reportPath?: string;
 }
 
 /** A bundle import's per-entity tallies, as the delivery core reports them. */

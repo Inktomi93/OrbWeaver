@@ -197,6 +197,41 @@ export const createCharacterSchema = z.object({
 });
 export type CreateCharacterInput = z.infer<typeof createCharacterSchema>;
 
+/** Clamp a string to `max` (null/undefined pass through) — the string half of the import repair. */
+function clampStr<T extends string | null | undefined>(v: T, max: number): T {
+  return typeof v === "string" && v.length > max ? (v.slice(0, max) as T) : v;
+}
+
+/**
+ * Best-effort REPAIR of an imported card candidate BEFORE validation: clamp over-cap strings and oversized
+ * arrays to the contract limits so a foreign card with a too-long field (a novella stuffed in
+ * `character_version`, a hundred-and-one greetings) still imports instead of being rejected outright. This is
+ * the "repair, then isolate" boundary posture — structural/type defects it cannot fix fall through to the
+ * import loop's per-card isolation (skip + count, never abort the batch).
+ *
+ * IMPORT-ONLY: the tRPC create/update path does NOT call this — a user editing their own card must see the
+ * real limit, not a silent truncation. Lives here, beside the caps + `createCharacterSchema`, so the repair
+ * and the limits it clamps to can never drift.
+ */
+export function repairImportedCardInput(input: z.input<typeof createCharacterSchema>): z.input<typeof createCharacterSchema> {
+  return {
+    ...input,
+    personality: clampStr(input.personality, TEXT_MAX),
+    scenario: clampStr(input.scenario, TEXT_MAX),
+    exampleMessages: clampStr(input.exampleMessages, TEXT_MAX),
+    systemPrompt: clampStr(input.systemPrompt, TEXT_MAX),
+    postHistoryInstructions: clampStr(input.postHistoryInstructions, TEXT_MAX),
+    creatorNotes: clampStr(input.creatorNotes, TEXT_MAX),
+    creator: clampStr(input.creator, CREATOR_MAX),
+    cardVersion: clampStr(input.cardVersion, CARD_VERSION_MAX),
+    nickname: clampStr(input.nickname, NICKNAME_MAX),
+    greetings: Array.isArray(input.greetings)
+      ? input.greetings.slice(0, GREETINGS_MAX).map((g) => ({ ...g, text: clampStr(g.text, TEXT_MAX) }))
+      : input.greetings,
+    source: Array.isArray(input.source) ? input.source.slice(0, SOURCE_MAX).map((s) => clampStr(s, TEXT_MAX)) : input.source,
+  };
+}
+
 export const updateCharacterSchema = createCharacterSchema.partial().extend({
   starred: cardFaceFields.starred.optional(),
   archived: z.boolean().optional(),

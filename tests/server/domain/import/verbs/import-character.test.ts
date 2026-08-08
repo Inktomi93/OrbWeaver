@@ -316,65 +316,63 @@ describe("importCharacter", () => {
 
   // ── PD-108 — re-import of an edited / second same-name card ─────────────────────────────────────────
 
-  test("re-importing an EDITED card (same handle, different bytes+content) edits the existing row in place — no failure, no insert", async () => {
+  test("a byte-NEW card whose name-slug is taken becomes a NEW character with a disambiguated HANDLE (name kept, never merged)", async () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);
     const existingId = castId<CharacterId>("character_existing");
-    // The owner already has a character at the "aria" handle (e.g. from a prior import or app-authored
-    // create) — the importHash dedup oracle is EMPTY (this file's bytes were never seen before).
+    // The owner already has a character at the "aria" handle; this file's bytes were never seen (importHash miss).
+    // We NEVER dedupe by name — a distinct card sharing a name is a distinct character (own UUID), not an edit.
     h.setExistingHandle(castId<CharacterHandle>("aria"), existingId);
 
     const editedCard = JSON.stringify({
       spec: "chara_card_v3",
       spec_version: "3.0",
-      data: {
-        name: "Aria",
-        description: "A wandering bard, now retired.",
-        first_mes: "Welcome back.",
-      },
+      data: { name: "Aria", description: "A wandering bard, now retired.", first_mes: "Welcome back." },
     });
 
     const result = await svc.importCharacter({
       card: { bytes: encoder.encode(editedCard), filename: "Aria.json" },
     });
 
-    // Edit-in-place (D28): NOT created, NOT a failure — the existing row is targeted for update.
-    expect(result.created).toBe(false);
-    expect(result.characterId).toBe(existingId);
-    expect(h.creates).toHaveLength(0);
-    expect(h.updates).toHaveLength(1);
-    const update = h.updates[0];
-    if (update === undefined) {
-      throw new Error("expected a recorded update call");
+    // A NEW character (own minted id), never the existing row; the existing character is untouched (no update).
+    expect(result.created).toBe(true);
+    expect(result.characterId).not.toBe(existingId);
+    expect(h.updates).toHaveLength(0);
+    expect(h.creates).toHaveLength(1);
+    const create = h.creates[0];
+    if (create === undefined) {
+      throw new Error("expected a recorded create call");
     }
-    expect(update.ownerId).toBe(h.ownerId);
-    expect(update.characterId).toBe(existingId);
-    expect(update.input.description).toBe("A wandering bard, now retired.");
-    expect(update.input.greetings).toEqual([{ text: "Welcome back." }]);
+    // The display NAME is preserved; only the per-owner-unique HANDLE slug is suffixed (`aria` was taken).
+    expect(create.input.name).toBe("Aria");
+    expect(create.input.handle).toBe("aria-2");
+    expect(create.input.description).toBe("A wandering bard, now retired.");
   });
 
-  test("a second same-name card resolves via the (ownerId, handle) match — no unique-constraint failure", async () => {
+  test("a THIRD same-name card walks the handle suffix to the next free slot (aria → aria-2 → aria-3)", async () => {
     const h = makeHarness();
     const svc = createImportService(h.ctx);
-    const existingId = castId<CharacterId>("character_existing");
-    h.setExistingHandle(castId<CharacterHandle>("aria"), existingId);
+    h.setExistingHandle(castId<CharacterHandle>("aria"), castId<CharacterId>("character_a1"));
+    h.setExistingHandle(castId<CharacterHandle>("aria-2"), castId<CharacterId>("character_a2"));
 
-    // A DIFFERENT card that happens to share the derived handle ("aria") — the exact PD-108 dead-end case
-    // (would have tripped `characters_owner_handle_unique` on a blind insert).
-    const secondCard = JSON.stringify({
+    const thirdCard = JSON.stringify({
       spec: "chara_card_v3",
       spec_version: "3.0",
-      data: { name: "Aria", description: "An entirely different bard." },
+      data: { name: "Aria", description: "A third, entirely different bard." },
     });
 
     const result = await svc.importCharacter({
-      card: { bytes: encoder.encode(secondCard), filename: "aria-2.json" },
+      card: { bytes: encoder.encode(thirdCard), filename: "aria-again.json" },
     });
 
-    expect(result.created).toBe(false);
-    expect(result.characterId).toBe(existingId);
-    expect(h.creates).toHaveLength(0);
-    expect(h.updates).toHaveLength(1);
+    expect(result.created).toBe(true);
+    expect(h.creates).toHaveLength(1);
+    const create = h.creates[0];
+    if (create === undefined) {
+      throw new Error("expected a recorded create call");
+    }
+    expect(create.input.handle).toBe("aria-3");
+    expect(create.input.name).toBe("Aria");
   });
 
   test("a brand-new card (no importHash or handle match) still inserts", async () => {

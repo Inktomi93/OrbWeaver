@@ -33,7 +33,7 @@ function build(
   const deps: ImportWorkloadDeps = {
     stagingRoot,
     stProfileDir: join(stagingRoot, "..", "profiles"),
-    runProfileDirImport: vi.fn(async () => ({ scanned: 12, changed: 4 })),
+    runProfileDirImport: vi.fn(async () => ({ scanned: 12, changed: 4, failed: 0 })),
     runBundleImport: vi.fn(async () => ({ imported: 7, skipped: 1, failed: 0 })),
     runStagedDirImport: vi.fn(async () => ({ imported: 3, skipped: 0, failed: 0 })),
     reconcileImportStats: vi.fn(async () => undefined),
@@ -100,7 +100,7 @@ describe("import-st — staging containment", () => {
     const { deps, contributions } = build(stagingRoot);
     const result = await contributions[0].run(ctx, { stagedDir: VALID_TOKEN }, vi.fn(), sig());
     expect(vi.mocked(deps.runProfileDirImport).mock.calls[0]?.[0]?.profileRoot).toBe(stagedPath);
-    expect(result).toEqual({ scanned: 12, changed: 4, dryRun: false });
+    expect(result).toEqual({ scanned: 12, changed: 4, dryRun: false, failed: 0 });
     // Cleanup happened, but scoped INSIDE the root: the staged tree is gone, the root + sibling remain.
     expect(await exists(stagedPath)).toBe(false);
     expect(await exists(stagingRoot)).toBe(true);
@@ -134,12 +134,12 @@ describe("import-st — the run's own logic", () => {
     const { deps, contributions } = build(stagingRoot);
     const result = await contributions[0].run(ctx, { dryRun: true }, vi.fn(), sig());
     expect(deps.reconcileImportStats).not.toHaveBeenCalled();
-    expect(result).toEqual({ scanned: 12, changed: 4, dryRun: true });
+    expect(result).toEqual({ scanned: 12, changed: 4, dryRun: true, failed: 0 });
   });
 
   test("a real run that changed NOTHING does not reconcile", async () => {
     const { stagingRoot } = await makeStaging();
-    const { deps, contributions } = build(stagingRoot, { runProfileDirImport: vi.fn(async () => ({ scanned: 3, changed: 0 })) });
+    const { deps, contributions } = build(stagingRoot, { runProfileDirImport: vi.fn(async () => ({ scanned: 3, changed: 0, failed: 0 })) });
     await contributions[0].run(ctx, {}, vi.fn(), sig());
     expect(deps.reconcileImportStats).not.toHaveBeenCalled();
   });

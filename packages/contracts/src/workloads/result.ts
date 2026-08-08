@@ -20,6 +20,11 @@ export interface MaintenanceResult {
   readonly scanned: number;
   readonly changed: number;
   readonly dryRun: boolean;
+  /** import-st only: cards skipped by per-card isolation (a single card's defect never aborts the batch).
+   *  Optional — other maintenance kinds have no per-item failure plane. */
+  readonly failed?: number;
+  /** import-st only: path to the written import report (what landed / what didn't). Absent on a dry run. */
+  readonly reportPath?: string;
 }
 
 /** A portability bundle import's per-entity tallies. */

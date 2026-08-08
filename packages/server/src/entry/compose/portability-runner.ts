@@ -11,8 +11,10 @@
 import { tmpdir } from "node:os";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
+import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
-import type { PersonaId, UserId } from "@orb/kit/ids";
+import { DomainConflictError } from "@orb/kit/errors";
+import type { PersonaId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
@@ -30,6 +32,7 @@ import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { stageDirectory } from "#infra/storage";
+import { writeImportReport } from "../import/import-report.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import {
   createNodeFsImportPort,
@@ -90,15 +93,36 @@ export interface PortabilityRunnerComposeResult {
 export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): PortabilityRunnerComposeResult {
   const { db, now, workloads } = deps;
 
+  // Enqueue one embed workload, swallowing the benign "already queued/running" admission conflict (that run is
+  // idempotent + hash-gated, so it already covers the freshly imported rows). Returns the new workload id (or
+  // undefined on a swallowed conflict) so the caller can chain a dependent on it.
+  const startEmbed = async (ownerId: UserId, input: StartWorkloadInput, dependsOnId?: WorkloadId): Promise<WorkloadId | undefined> => {
+    try {
+      const { id } = await workloads.start({
+        input,
+        caller: null,
+        mode: "singular",
+        ownerId,
+        ...(dependsOnId !== undefined ? { dependsOn: [dependsOnId] } : {}),
+      });
+      return id;
+    } catch (err) {
+      if (err instanceof DomainConflictError) {
+        return;
+      }
+      throw err;
+    }
+  };
+
   // Shared by the zip-bundle portability descriptors AND the ST profile-directory importer — built ONCE.
+  // Post-import embedding runs as a DAG, in order and only AFTER the whole import: embed CHARACTERS (the
+  // corpus `index` pass) first, then embed CHATS (`memory-backfill`) gated on it via `dependsOn`. Chaining
+  // (not two independent enqueues) is deliberate — embeddings never run mid-import, and the chat memory pass
+  // does not compete with the character pass for the embed engine.
   type ImportOwnerOp = (args: { readonly ownerId: UserId }) => Promise<void>;
   const enqueueImportBackfill: ImportOwnerOp = async ({ ownerId }) => {
-    await workloads.start({
-      input: { kind: "memory-backfill", params: {} },
-      caller: null,
-      mode: "singular",
-      ownerId,
-    });
+    const embedChars = await startEmbed(ownerId, { kind: "index", params: { source: "text" } });
+    await startEmbed(ownerId, { kind: "memory-backfill", params: {} }, embedChars);
   };
   const reconcileImportStats: ImportOwnerOp = async ({ ownerId }) => {
     await reconcileStats(db, { ownerId, now });
@@ -149,8 +173,19 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     stProfileDir: deps.stProfileDir ?? DEFAULT_ST_PROFILE_DIR,
     runProfileDirImport: async ({ profileRoot, ownerId, dryRun, signal }) => {
       const principal = await deps.resolveOwnerPrincipal(ownerId);
-      const { scanned, changed } = await runProfileDirImport({ fs, profileRoot, principal, ...profileImport, now, dryRun, signal });
-      return { scanned, changed };
+      const report = await runProfileDirImport({
+        fs,
+        profileRoot,
+        principal,
+        ...profileImport,
+        importStandaloneLorebook: deps.importStandaloneLorebook,
+        now,
+        dryRun,
+        signal,
+      });
+      // A real run writes the "what landed / what didn't" report to disk; a dry run writes nothing.
+      const reportPath = dryRun ? undefined : await writeImportReport(report, now());
+      return { scanned: report.scanned, changed: report.changed, failed: report.skippedCards.length, ...(reportPath !== undefined ? { reportPath } : {}) };
     },
     runBundleImport: async ({ archive, ownerId, stagingRoot: root, signal }) => {
       const report = await runBundleImport({

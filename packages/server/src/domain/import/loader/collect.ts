@@ -9,9 +9,10 @@ import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { parseChatJsonl } from "#kit/serde/chat";
-import type { CollectedCard, CollectedChat, CollectedPersona, CollectResult, ImportFsPort } from "../contract/views.ts";
+import type { CollectedCard, CollectedChat, CollectedPersona, CollectedWorld, CollectResult, ImportFsPort } from "../contract/views.ts";
 import { importFileHash, parseCardPng } from "../substrate/card.ts";
 import { parseStPersonas } from "../substrate/persona.ts";
+import { parseStWorldFile } from "../substrate/world.ts";
 
 // Ceiling so a hostile staging dir with a million empty entries can't pin the loop.
 const MAX_DIR_ENTRIES = 100_000;
@@ -19,6 +20,7 @@ const MAX_DIR_ENTRIES = 100_000;
 const MAX_JSONL_BYTES = 67_108_864;
 const PNG_EXT = /\.png$/i;
 const JSONL_EXT = /\.jsonl$/i;
+const JSON_EXT = /\.json$/i;
 const TRAILING_DIGITS = /\d+$/;
 const TRAILING_HYPHENS = /-+$/;
 const SPEC_WRAPPER = /^main-(.+)-spec-v\d+$/;
@@ -32,11 +34,24 @@ interface CollectState {
   readonly byHandle: Map<string, Group>;
   readonly skip: ReadonlySet<string>;
   readonly skippedHandles: Set<string>;
+  readonly worlds: CollectedWorld[];
+  readonly unreadableWorlds: string[];
   readonly unreadableCards: string[];
   readonly skippedChats: string[];
   readonly skippedCharacters: string[];
   readonly collidedCards: { file: string; handle: CharacterHandle }[];
+  /** Top-level profile entries the importer does not process (assets/backgrounds/extensions/presets/…). */
+  readonly unhandled: string[];
+  /** settings.json top-level sections the importer does not process (only `power_user.personas` is read). */
+  readonly unhandledSettings: string[];
 }
+
+// The top-level profile names the importer DOES consume — everything else in a user profile dir is reported
+// as unhandled so a whole-folder import never silently drops a plane (presets, quick replies, themes, …).
+const HANDLED_ENTRIES: ReadonlySet<string> = new Set(["characters", "chats", "worlds", "User Avatars", "settings.json"]);
+// The ONE settings.json section the importer reads (personas live under `power_user`). Every other top-level
+// key is reported as an unimported setting (presets under oai_settings, world_info_settings, tags, …).
+const HANDLED_SETTINGS: ReadonlySet<string> = new Set(["power_user"]);
 
 function group(state: CollectState, handle: CharacterHandle): Group {
   const existing = state.byHandle.get(handle);
@@ -150,6 +165,49 @@ function fuzzyPair(state: CollectState): { chatDir: string; handle: CharacterHan
   return fuzzyPairedDirs;
 }
 
+// ST-native standalone lorebooks: `<profileDir>/worlds/*.json`. Each is parsed to the canonical book shape
+// (name = filename stem); an unparseable file is recorded, never silent. A missing `worlds/` dir yields [].
+async function collectWorlds(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
+  const worldsDir = fs.join(profileDir, "worlds");
+  for (const ent of await listDir(fs, worldsDir)) {
+    if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
+      continue;
+    }
+    // biome-ignore lint/performance/noAwaitInLoops: worlds are read + parsed sequentially — a one-time collection scan bounded by the dir cap, not a hot path.
+    const bytes = await fs.readFile(fs.join(worldsDir, ent.name));
+    const book = parseStWorldFile(bytes, ent.name.replace(JSON_EXT, ""));
+    if (book === null) {
+      state.unreadableWorlds.push(ent.name);
+      continue;
+    }
+    state.worlds.push({ book });
+  }
+}
+
+// Enumerate what the importer does NOT process: every top-level profile entry outside HANDLED_ENTRIES, plus
+// every settings.json top-level section outside HANDLED_SETTINGS. Feeds the import report so a whole-folder
+// import is honest about what it left behind (presets, quick replies, themes, extension configs, …).
+async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
+  for (const ent of await listDir(fs, profileDir)) {
+    if (!HANDLED_ENTRIES.has(ent.name)) {
+      state.unhandled.push(ent.kind === "directory" ? `${ent.name}/` : ent.name);
+    }
+  }
+  try {
+    const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
+    if (typeof parsed === "object" && parsed !== null) {
+      for (const key of Object.keys(parsed)) {
+        if (!HANDLED_SETTINGS.has(key)) {
+          state.unhandledSettings.push(key);
+        }
+      }
+    }
+  } catch {
+    // No/corrupt settings.json — nothing to report from it (personas collection records its own absence).
+  }
+}
+
 // Best-effort: a missing/corrupt settings.json yields []; a missing avatar yields an avatar-less persona.
 async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<CollectedPersona[]> {
   let settingsRaw: unknown;
@@ -180,13 +238,19 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: string
     byHandle: new Map<string, Group>(),
     skip: new Set(skipCharacterNames.map((s) => s.trim().toLowerCase()).filter((s) => s.length > 0)),
     skippedHandles: new Set<string>(),
+    worlds: [],
+    unreadableWorlds: [],
     unreadableCards: [],
     skippedChats: [],
     skippedCharacters: [],
     collidedCards: [],
+    unhandled: [],
+    unhandledSettings: [],
   };
 
   await collectCards(fs, profileDir, state);
+  await collectWorlds(fs, profileDir, state);
+  await collectUnhandled(fs, profileDir, state);
 
   const chatsDir = fs.join(profileDir, "chats");
   for (const dirEnt of await listDir(fs, chatsDir)) {
@@ -212,11 +276,15 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: string
   return {
     bundles,
     personas,
+    worlds: state.worlds,
     orphanChatDirs,
     unreadableCards: state.unreadableCards,
+    unreadableWorlds: state.unreadableWorlds,
     skippedChats: state.skippedChats,
     skippedCharacters: state.skippedCharacters,
     collidedCards: state.collidedCards,
+    unhandled: state.unhandled,
+    unhandledSettings: state.unhandledSettings,
     fuzzyPairedDirs,
   };
 }

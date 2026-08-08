@@ -625,4 +625,29 @@ describe("the WI-entry round-trip (IN ∘ OUT is the exact inverse — byte-iden
     expect(meta["scopeMode"]).toBeUndefined();
     expect(meta["inject"]).toBeUndefined();
   });
+
+  test("ST `position` is normalized to orb's before/after enum — the raw value never reaches the write seam", () => {
+    // Regression: a real ST card book carries `position` as the chara_card_v2 STRING enum
+    // (`before_char`/`after_char`), a NATIVE numeric WORLD_INFO_POSITION (0-6), or an empty string — all of
+    // which collide with orb's `metadata.position` `before`/`after` enum and used to abort the whole book
+    // import with `invalid_value path:['position']`. Each form maps to a valid orb value (or is dropped).
+    expect(loreEntryMetadata({ content: "c", position: "before_char" })["position"]).toBe("before");
+    expect(loreEntryMetadata({ content: "c", position: "after_char" })["position"]).toBe("after");
+    expect(loreEntryMetadata({ content: "c", position: 0 })["position"]).toBe("before"); // before-char
+    expect(loreEntryMetadata({ content: "c", position: 1 })["position"]).toBe("after"); // after-char
+    expect(loreEntryMetadata({ content: "c", position: 2 })["position"]).toBe("before"); // AN-top
+    expect(loreEntryMetadata({ content: "c", position: 6 })["position"]).toBe("after"); // EM-bottom
+    // orb's own value is the fixpoint; empty/unknown drops the key entirely (the entry takes the default).
+    expect(loreEntryMetadata({ content: "c", position: "after" })["position"]).toBe("after");
+    expect(loreEntryMetadata({ content: "c", position: "" })).not.toHaveProperty("position");
+    expect(loreEntryMetadata({ content: "c", position: "garbage" })).not.toHaveProperty("position");
+  });
+
+  test("a NATIVE ST world-info at-depth entry (top-level position:4 + depth/role) → inject, no position", () => {
+    // The standalone `worlds/*.json` encoding puts position/depth/role at the TOP LEVEL (no `extensions`),
+    // unlike an embedded card book (`extensions.position:4`). Both must yield the same orb `inject`.
+    const meta = loreEntryMetadata({ content: "c", keys: ["k"], position: 4, depth: 3, role: 0 });
+    expect(meta["inject"]).toEqual({ depth: 3, role: "system" }); // ST role 0 → "system"
+    expect(meta).not.toHaveProperty("position"); // at-depth is not an anchor bucket
+  });
 });

@@ -517,24 +517,90 @@ export function loreEntryColumns(entry: Record<string, unknown>): LoreEntryColum
   };
 }
 
+/** Map ST's world-info `position` onto orb's `before`/`after` anchor bucket (or `null` = no bucket). ST
+ *  spells the field THREE incompatible ways, all of which collide with orb's `metadata.position` enum at the
+ *  write seam if passed through raw:
+ *    • the chara_card_v2 string enum (`before_char` / `after_char`) — embedded card books;
+ *    • ST's numeric `WORLD_INFO_POSITION` (0 before-char · 1 after-char · 2 AN-top · 3 AN-bottom ·
+ *      4 at-depth · 5 EM-top · 6 EM-bottom) — native standalone `worlds/*.json` entries;
+ *    • our own already-normalized `before` / `after` (a re-import of an orb export — the fixpoint).
+ *  At-depth (4) is not an anchor bucket — it becomes an `inject` directive (below), so it returns `null`
+ *  here; an empty string / unknown value also returns `null` so the entry carries no `position` at all. */
+// ST numeric WORLD_INFO_POSITION values that map onto each orb anchor bucket. before-char/AN-top/EM-top all
+// render ahead of the anchor; after-char/AN-bottom/EM-bottom after it. `atDepth` (4) is handled as an inject.
+// biome-ignore lint/style/noMagicNumbers: these Sets ARE the named extraction — ST's WORLD_INFO_POSITION enum values
+const ST_POSITIONS_BEFORE: ReadonlySet<number> = new Set([0, 2, 5]);
+// biome-ignore lint/style/noMagicNumbers: these Sets ARE the named extraction — ST's WORLD_INFO_POSITION enum values
+const ST_POSITIONS_AFTER: ReadonlySet<number> = new Set([1, 3, 6]);
+
+function orbEntryPositionFromSt(raw: unknown): "before" | "after" | null {
+  if (raw === "before" || raw === "after") {
+    return raw;
+  }
+  if (raw === "before_char") {
+    return "before";
+  }
+  if (raw === "after_char") {
+    return "after";
+  }
+  if (typeof raw === "number" && Number.isInteger(raw)) {
+    if (ST_POSITIONS_BEFORE.has(raw)) {
+      return "before";
+    }
+    if (ST_POSITIONS_AFTER.has(raw)) {
+      return "after";
+    }
+  }
+  return null;
+}
+
+/** Resolve an at-depth `inject` directive from an ST entry, or `null` when it is not at-depth. At-depth is
+ *  ST's `extensions.position:4` (embedded chara_card book) or a top-level numeric `position:4` (native ST
+ *  world-info entry); `depth`/`role` sit beside whichever encoding carried it (role via the message-role
+ *  bimap). A missing/invalid depth ⇒ no directive (the entry renders into the system half). */
+function stEntryInjectDirective(entry: Record<string, unknown>, rawPosition: unknown): Record<string, unknown> | null {
+  const ext = isPlainObject(entry["extensions"]) ? entry["extensions"] : undefined;
+  const atDepth = Number(ext?.["position"]) === ST_POSITION_AT_DEPTH || Number(rawPosition) === ST_POSITION_AT_DEPTH;
+  if (!atDepth) {
+    return null;
+  }
+  const depth = Number(ext?.["depth"] ?? entry["depth"]);
+  if (!(Number.isInteger(depth) && depth >= 0)) {
+    return null;
+  }
+  const role = messageRoleFromSt(ext?.["role"] ?? entry["role"]);
+  return { depth, ...(role !== null ? { role } : {}) };
+}
+
 /** Build the stored `world_entries.metadata` blob: the WHOLE original ST entry (lossless — `exportBookEntry`
- *  reads it back as the base), PLUS the two runtime fields derived from ST's encoding when absent:
+ *  reads it back as the base) EXCEPT `position` (normalized, see below), PLUS the runtime fields derived from
+ *  ST's encoding when absent:
  *    • `constant: true` → `scopeMode: "always"` — the runtime reads `scopeMode`, NOT `constant`, so a KEYED
  *      constant entry would otherwise silently demote to keyword scope on import (load-bearing).
- *    • `extensions.{position:4, depth, role}` (ST's at-depth placement) → `metadata.inject` (role via the
- *      `@orb/kit/message-role` bimap). 4 is ST's `WORLD_INFO_POSITION.atDepth` — the ONE encoding site.
- *  An explicit `scopeMode`/`inject` already on the entry (a re-import of our OWN export) WINS (idempotent). */
+ *    • `position` NORMALIZED to orb's `before`/`after` enum via {@link orbEntryPositionFromSt} — the raw ST
+ *      value (v2 string, numeric 0-6, or empty) would otherwise fail `metadata.position` at the write seam
+ *      (the whole book import aborts). At-depth / unknown ⇒ the key is omitted entirely.
+ *    • at-depth `{depth, role}` → `metadata.inject` (role via the `@orb/kit/message-role` bimap), read from
+ *      ST's `extensions.position:4` (embedded card book) OR a top-level numeric `position:4` (native ST
+ *      world-info entry), with `depth`/`role` beside whichever. 4 is ST's `WORLD_INFO_POSITION.atDepth`.
+ *  An explicit `scopeMode`/`inject`/`position` already on the entry (a re-import of our OWN export) WINS
+ *  (idempotent — `before`/`after` pass through, `inject` short-circuits). */
 export function loreEntryMetadata(entry: Record<string, unknown>): Record<string, unknown> {
-  const meta: Record<string, unknown> = { ...entry };
+  // `position` is normalized (not passed through raw), so drop the source key from the lossless base and
+  // re-add only a valid orb value — a `delete` would trip `performance/noDelete`.
+  const { position: rawPosition, ...rest } = entry;
+  const meta: Record<string, unknown> = { ...rest };
   if (meta["scopeMode"] === undefined && entry["constant"] === true) {
     meta["scopeMode"] = "always";
   }
+  const orbPosition = orbEntryPositionFromSt(rawPosition);
+  if (orbPosition !== null) {
+    meta["position"] = orbPosition;
+  }
   if (meta["inject"] === undefined) {
-    const ext = isPlainObject(entry["extensions"]) ? entry["extensions"] : undefined;
-    const depth = Number(ext?.["depth"]);
-    if (ext !== undefined && Number(ext["position"]) === ST_POSITION_AT_DEPTH && Number.isInteger(depth) && depth >= 0) {
-      const role = messageRoleFromSt(ext["role"]);
-      meta["inject"] = { depth, ...(role !== null ? { role } : {}) };
+    const inject = stEntryInjectDirective(entry, rawPosition);
+    if (inject !== null) {
+      meta["inject"] = inject;
     }
   }
   return meta;
