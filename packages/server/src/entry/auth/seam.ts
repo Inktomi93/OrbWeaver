@@ -251,11 +251,21 @@ function createFallbackPrincipalResolver(sessions: Pick<SessionsService, "loadUs
  * `fallback` is `false` because that arm is precisely the caller who presented NOTHING: `infra/auth.resolve`
  * mints it whenever `ownerFallbackAllowed` says the ORIGIN is trusted — unconditionally under `single-user`,
  * and under an SSO mode on nothing but the client-supplied `Host` header. An origin is not a credential.
+ *
+ * STANDING NOTE — the `header:true` arm is safe HERE by a CALL-SITE OMISSION, not by its own logic. `isAdmin`
+ * calls `resolvePrincipal(headers)` with no `PerRequestSeamDeps`, so `peerIp` is `undefined`, and
+ * `resolveUnsignedHeader` rejects on `peerIp === undefined` (`infra/auth/modes/forward-header.ts`). Only the
+ * signed-JWT arm can therefore mint `via:"header"` at this gate. The per-request middleware (`entry/app.ts`)
+ * DOES thread `peerIp`, so tRPC admits a wider set than this gate in an unsigned `forward-header` deployment.
+ * If `isAdmin` is ever given `peerIp`, `header:true` would start meaning "a raw `Remote-User:` header from an
+ * allowlisted TCP peer", and the gate's whole strength would collapse onto `FORWARD_AUTH_TRUSTED_PROXIES`.
+ * Thread `peerIp` into `isAdmin` only with that trade understood.
  */
 const DEBUG_GATE_CREDENTIALED = {
   /** A session cookie that `sessions.validate` accepted (peppered-hash lookup, fails closed on a forgery). */
   cookie: true,
-  /** A verified SSO identity — a signed JWT, or a raw header from a TCP peer inside the trusted-proxy allowlist. */
+  /** A verified SSO identity. At THIS gate only a signed JWT reaches it: `isAdmin` passes no `peerIp`, so the
+   *  raw-header (allowlisted-TCP-peer) arm is unreachable here — see the STANDING NOTE above. */
   header: true,
   /** The un-credentialed origin-gated owner fallback. NOT a credential — see above. */
   fallback: false,

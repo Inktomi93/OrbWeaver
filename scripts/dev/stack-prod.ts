@@ -144,22 +144,64 @@ async function probeHealthz(port: number): Promise<{ healthy: boolean; harness: 
   }
 }
 
-/** The debug-posture probe — and, when it answers 200, the STRONGEST instance identity available.
+/** Read the operator debug token WITHOUT minting one — `debugToken()` mints on miss, which a probe must
+ *  never do. Returns null when no token is on disk (debug not armed). */
+function readDebugToken(): string | null {
+  try {
+    const token = readFileSync(TOKEN_PATH(), "utf8").trim();
+    return token.length > 0 ? token : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The debug probe answers TWO questions with TWO requests, because they are different questions:
  *
- *  The gate never needs (or is given) the secret: 404 = the surface is off, 401 = the token gate is
- *  armed, 200 = the admin arm passed and the body carries the SERVING PROCESS'S OWN `pid`. That pid beats
- *  `ss` outright — it comes from inside the process answering on the port, not from a socket table. */
+ *  1. POSTURE — is the surface reachable WITHOUT a credential? A credential-free GET: 404 = off, 401 = the
+ *     token gate is armed (normal), 200 = reachable un-credentialed (post-AUTHFIX-2 this is an anomaly to
+ *     investigate). This request MUST stay credential-free — presenting a token would turn every armed
+ *     stack into a 200 and destroy the question.
+ *  2. PID — what process is serving? Post-AUTHFIX-2 the pid body sits BEHIND the gate, so the un-credentialed
+ *     posture fetch can no longer read it. Present `x-debug-token` and, on 200, the body carries the SERVING
+ *     PROCESS'S OWN `pid` — the strongest instance identity available (it comes from inside the process on
+ *     the port, not the `ss` socket table). Skipped entirely when the surface is off or no token is on disk;
+ *     `observe()` then falls back to `listenerPid`. */
 async function probeDebug(port: number): Promise<{ posture: DebugPosture; pid: number | null }> {
+  const posture = await probeDebugPosture(port);
+  if (posture === "off" || posture === "unknown") {
+    return { posture, pid: null };
+  }
+  return { posture, pid: await probeDebugPid(port) };
+}
+
+/** Credential-free posture classification — never presents the token (see probeDebug #1). */
+async function probeDebugPosture(port: number): Promise<DebugPosture> {
   try {
     const res = await fetch(`http://127.0.0.1:${port}/api/_debug/info`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
-    const posture = classifyDebugPosture(res.status);
-    if (posture !== "open") {
-      return { posture, pid: null };
+    return classifyDebugPosture(res.status);
+  } catch {
+    return "unknown";
+  }
+}
+
+/** The token-bearing pid read (see probeDebug #2). Null when no token is on disk or the gate refuses it. */
+async function probeDebugPid(port: number): Promise<number | null> {
+  const token = readDebugToken();
+  if (token === null) {
+    return null;
+  }
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/api/_debug/info`, {
+      headers: { "x-debug-token": token },
+      signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    });
+    if (!res.ok) {
+      return null;
     }
     const body = (await res.json()) as { pid?: unknown };
-    return { posture, pid: typeof body.pid === "number" ? body.pid : null };
+    return typeof body.pid === "number" ? body.pid : null;
   } catch {
-    return { posture: "unknown", pid: null };
+    return null;
   }
 }
 

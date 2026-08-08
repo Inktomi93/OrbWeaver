@@ -11,7 +11,7 @@ import type { Db } from "@orb/db";
 import { users } from "@orb/db";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, eq, isNull, ne } from "drizzle-orm";
+import { and, eq, isNull, ne, or } from "drizzle-orm";
 import type { SessionsService } from "#domain/sessions";
 import { getLog } from "#foundation/observability";
 
@@ -43,10 +43,14 @@ export async function seedOwner(deps: SeedOwnerDeps): Promise<readonly UserId[]>
   const ids = await Promise.all(
     deps.ownerHandles.map(async (handle): Promise<UserId> => {
       const userId = await deps.sessions.ensureUser(castId<Handle>(handle));
+      // Boot invariant: the owner row is always role=owner AND enabled. `enabled:true` self-heals a
+      // disabled owner (a raw-write brick with no in-app exit — admin.setEnabled refuses the owner row).
+      // The WHERE must fire on an ALREADY-owner-but-disabled row too, so it widens past the role backfill
+      // to `enabled = false`; still a no-op (0 rows) on a healthy owner+enabled row.
       await deps.db
         .update(users)
-        .set({ role: OWNER_ROLE, updatedAt: at })
-        .where(and(eq(users.id, userId), ne(users.role, OWNER_ROLE)));
+        .set({ role: OWNER_ROLE, enabled: true, updatedAt: at })
+        .where(and(eq(users.id, userId), or(ne(users.role, OWNER_ROLE), eq(users.enabled, false))));
       if (seedPassword !== null && (await seedOwnerPassword(deps.db, userId, seedPassword, at))) {
         passwordsSeeded += 1;
       }
