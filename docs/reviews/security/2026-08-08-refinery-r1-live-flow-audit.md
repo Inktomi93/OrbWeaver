@@ -6,13 +6,15 @@ updated: 2026-08-08
 
 # Refinery R1 — the live untrusted-input flow (mandatory graduation security pass)
 
-> **VERDICT: GO.** R1 (`domain/refinery` — 9 verbs, the stage engine, 3 substrates + the character-side
-> belts, merged as `1abec875b`) carries every belt the R0 security pass (§4) prescribed. The untrusted-card
-> → LLM → write-back surface is bounded on every leg I could reach: the injection stopper (intersection +
-> selection fence + explicit accept) is real and verb-tier; the write-back re-validates against the card's
-> own caps; the stamp op gates ownership in the SQL WHERE (not app-side); nothing on the refinery path runs
-> the macro engine; and the derived-signal blob reaches no chat/prompt/macro consumer. No VULNERABLE finding.
-> One INFO observation and one nice-to-have test gap, both non-blocking.
+> **VERDICT: GO** (one LOW-severity belt-9 gap found and FIXED this pass, `11c3ec6e7`). R1
+> (`domain/refinery` — 9 verbs, the stage engine, 3 substrates + the character-side belts, merged as
+> `1abec875b`) carries every belt the R0 security pass (§4) prescribed. The untrusted-card → LLM →
+> write-back surface is bounded on every leg I could reach: the injection stopper (intersection + selection
+> fence + explicit accept) is verb-tier and — after this pass's fix — now fences on the greeting-index
+> granularity too; the write-back re-validates against the card's own caps; the stamp op gates ownership in
+> the SQL WHERE (not app-side); nothing on the refinery path runs the macro engine; and the derived-signal
+> blob reaches no chat/prompt/macro consumer. No VULNERABLE finding remains. One INFO observation and two
+> non-blocking coverage gaps noted.
 >
 > Threat model (unchanged from R0): a character card is UNTRUSTED text authored by a stranger (D44, serde
 > header law). Prompt injection in the card can steer the model's structured payload; the payload zod
@@ -78,9 +80,31 @@ non-vacuous: `refinery-ops.int.test.ts:55-76` seeds a stranger, calls `stamp({ow
 asserts the row is unchanged. Defense-in-depth: the caller (`run-stage.ts` dispatch) already derives
 `characterId` from an owner-scoped session, so the WHERE is a second belt, not the only one.
 
-### 3. Injection widening the apply set (belts 9/10/11) — CONFIRMED-SAFE
+### 3. Injection widening the apply set (belts 9/10/11) — NEEDS-FIX (FIXED THIS PASS, `11c3ec6e7`)
 
-`classifyAccept` (`apply-fields.ts:118-144`) is the intersection, in itemized order:
+**One real gap, found by the parallel code-verifier and confirmed here: the selection fence honored
+`selection.fields[]` but NOT `selection.greetingIndexes`.** A user who narrowed a session to a subset of
+greeting indexes (e.g. only index 0) could have an unselected index (say 1) OVERWRITTEN if a prompt-steered
+rewrite fabricated an entry for it AND the user accepted that entry — the index was never in the pipeline
+(never fed to the model at prompt time via `selectedGreetingIndexes`, `refine-prompt.ts:52-59`), so its
+"rewrite" is invented content reaching a slot the user excluded. This is exactly the scope-widening class
+belt 9 exists to stop; the fields-level fence closed cross-FIELD widening but left the intra-greetings
+granularity open. Severity is LOW as an exploit (requires the uncommon explicit-index-narrowing + a steered
+rewrite + a user accepting a change to a greeting they didn't select), but it is a genuine hole in the
+control's stated invariant and the R0 belt-9 wording ("only fields the selection named") under-specified the
+greeting granularity that the selection schema carries as a first-class dimension.
+
+**Fixed this pass** (`apply-fields.ts` `classifyAccept`, commit `11c3ec6e7`): the selection fence now has two
+arms — the field must be selected AND, when the selection narrowed greetings to specific indexes, the
+greeting index must be among them; an accept outside the selected indexes is dropped `not_selected` (reused,
+not a new enum member — the greetingIndex rides the drop record so the client still renders the exact slot).
+`undefined` greetingIndexes still means "every greeting" (contracts law), so the common case is unaffected.
+Red-first: `apply-fields.int.test.ts` "the selection fence honors greetingIndexes" run RED against the
+pre-fix source (it applied index 1), GREEN after. Floor: 56/56 refinery+character suites, `pnpm typecheck`
+and `pnpm typecheck:graph` clean.
+
+The rest of the intersection was and remains sound:
+`classifyAccept` (`apply-fields.ts:118-160` post-fix) is the intersection, in itemized order:
 `accepts ∩ rewrite.fields ∩ session.selection ∩ live-card-applicability`. The **selection fence** (step 3,
 line 133: `!belts.selectedFields.includes(accept.field)` → `not_selected` drop) is the injection stopper: a
 card that steers the model into producing a `systemPrompt` rewrite the owner never selected dies here.
@@ -154,6 +178,10 @@ write by bare `eq(id)` only AFTER the belt threw for a foreign id (the shared-be
   sibling verb tests (`get-session`, `list-runs`, `delete-session`, `update-session`, `run-stage`,
   `start-session` + `queries.int`). The belt is proven; the sharp-end verb just doesn't restate it. Adding a
   one-line foreign-apply pin would be cheap insurance.
+- **Coverage gap (non-blocking, agreeing with the code-verifier): the `depthPrompt → not_applicable` branch**
+  (`apply-fields.ts:148-150`, a depth-prompt rewrite when the LIVE card has no note to hang it on) is unpinned
+  by any test. Not a defect — the branch is correct and the overlay mirrors it (`refine-prompt.ts:145-147`) —
+  but it is the one classify arm with no red-first witness. Worth a pin when R3 touches this verb.
 
 ## For the human eye (product calls, not defects — carried from R0)
 
@@ -165,7 +193,9 @@ write by bare `eq(id)` only AFTER the belt threw for a foreign id (the shared-be
 ## GO / NO-GO
 
 **GO.** The live untrusted-input flow is now enforced end-to-end: injection cannot widen the apply set past
-the owner's selection + explicit accept; the write-back re-validates against the card's own caps; the stamp
-op gates ownership in the SQL WHERE; strip/heal/null-drop are observable and correct; card bytes reach no
-macro-execution path on the prompt leg OR downstream; and the derived blob is display-only, owner-scoped, and
-cleared on the one owner-crossing copy. 55/55 suite green, no type errors. No fix required.
+the owner's selection — including the greeting-index granularity, closed this pass (`11c3ec6e7`) — plus the
+explicit accept; the write-back re-validates against the card's own caps; the stamp op gates ownership in the
+SQL WHERE; strip/heal/null-drop are observable and correct; card bytes reach no macro-execution path on the
+prompt leg OR downstream; and the derived blob is display-only, owner-scoped, and cleared on the one
+owner-crossing copy. 56/56 suite green, both typecheck programs clean. One LOW belt-9 gap found and fixed;
+nothing left needing a human security decision beyond the two R0 product calls above.
