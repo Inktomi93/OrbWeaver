@@ -263,6 +263,19 @@ Ranked by consequence within each category. Every item carries its receipt state
   `applyFields` auto-snapshots first · F7 retention rec: no caps v1. Low-stakes; fold into R1
   unless he objects.
 
+- **C-TBD · CAS maintenance scheduling** (orchestrator read the CAS with own eyes 2026-08-08 — the
+  store is EXCELLENT and correct; this is the one "built but not used to its fullest"). The
+  mark-sweep GC (`collectGarbage` — whole-CAS orphan + abandoned-upload sweep) and `fsck` are
+  registered `WorkloadContribution`s + manually triggerable from the workloads UI, but **nothing
+  seeds a default schedule** — the targeted `reapIfOrphan` IS wired to character-remove
+  (`assets-character.ts:222`), so the common case reaps immediately, but crash/DR orphans +
+  abandoned uploads accumulate on disk until a manual trigger. **TBD (owner posture):** seed a
+  default schedule (rec: weekly GC real-run + monthly fsck) and fold in the variant-cache
+  stale-quality reclaim (a quality-setting change orphans old `qN.webp` files until the blob is
+  purged — disk-only, recomputable), OR keep manual-trigger as the deliberate self-hosted posture.
+  Non-blocking; blob-serve full-buffer/no-Range is a NON-issue today (owner-gated capped images
+  only) — recorded, not a fix.
+
 **Standing owner items (genuinely open, unchanged)**
 - DRAFT-TRUST server render-policy seam (architecture call) · VRAM-refusal live drill ·
   v3-transcripts-reach-new-installs-only heal · RV-13 branch-and-save game modes (READY TO SPEC —
