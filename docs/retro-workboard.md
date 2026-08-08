@@ -84,9 +84,20 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     MERGED green (`94394e611`, rebase-then-ff, check PASS; item 1 phone-markread was already fixed
     b407a084a, item 2 ashen-spire 26-anchor seed coverage added).
   - **LIVE lanes:** FORGE #4 Docker build (`a063356b2ad358a65`, worktree agent-forge-docker) · REFINERY
-    R0 forge (`a91b702e2d9ae545c`, agent-refinery-r0) · preset/config batched side-eye
-    (`a528c629d6a4aa017`) · FORGE#2 verifier CONFIRMED (done) · smallbatch3 MERGED. Only 2 worktrees on
-    disk (forge-docker, refinery-r0). smallbatch3-check running.
+    R0 forge (`a91b702e2d9ae545c`, agent-refinery-r0) · **PRESET-FOLLOWUP** (`aa9a5c8df7d61786f`,
+    executor, worktree) — B1 capability-gate→resolve-failure + B2 Prompt-view fork-eject + the P3
+    snake_case row-desc + 2 verification CTs (readout skeleton-height + error-arm). smallbatch3 MERGED.
+  - **✅ PRESET/CONFIG SIDE-EYE LANDED — SHIP across all three** (`a528c629d6a4aa017`, ref-pinned stage
+    `be00cf36a`). FORGE#1 Actions IA "database dump is genuinely gone" (67 rows, 4 distinct delivery-truth
+    channels, fork-eject picker praised) · POLISH cluster SHIP (color focus ring, readout skeleton settles,
+    error arm wired) · PROSE-GEOMETRY SHIP (12-row cap + internal scroll + on-screen counter/refusal). This
+    was the fresh rendered lens the FORGE#1/POLISH/PROSE train was waiting on → those rows GRADUATE.
+    **Findings → PRESET-FOLLOWUP lane** (P3 snake_case desc; the 2 CTs it recommended). **OWNER intent Q
+    (parked, non-blocking):** color picker has no preset-colour "voices" SWATCHES — popup is ColorWell+Hex+
+    reset only; if "tag colour voices" meant swatches they're absent, if it meant unset→theme-default that's
+    present+correct. **Shell heads-up (out of preset scope):** the rail shows 9 facet icons (Home·Chats·
+    Characters·Corpus·Configuration·Databank·Presets·Refinery·Analytics) vs the §14 seven-ceiling — a
+    separate shell concern to review, not a preset bug.
   - **DELIVERED, awaiting OWNER ruling (no build without his word):** persona/character design
     (`persona-character-kind-substrate.md`, 5 forks) · `{{note}}` block-vs-warn (intent found: inherited
     default, `note-token-intent-history.md`) · containerize SPEC done (`containerize-prod-image-spec.md`,
@@ -94,8 +105,10 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     · batch-2 benched items un-posed (JSON-card=client-submenu-only · guided-cap=shared MAX const ·
     duplication=trim-landing-keep-newbook · nudge texts=ship-verbatim · tag calls · D62 deltas · refinery
     F-N forks) — all in `docs/design/parked-options-*.md` w/ recommendations.
-  - **QUEUED behind the preset side-eye** (avoid surface collision): capability-gate→resolve-failure.ts ·
-    Prompt-view section-drill fork-eject (FORGE#1 flagged).
+  - **UNBLOCKED — folded into PRESET-FOLLOWUP** (`aa9a5c8df7d61786f`): capability-gate→resolve-failure.ts
+    (B1) · Prompt-view section-drill fork-eject (B2, FORGE#1 flagged). The side-eye they were queued behind
+    landed SHIP; surface is quiet. Lane graduates on a fresh lens: verifier on B1's failure-classification
+    logic + a light drill re-check on B2.
   - **PUSH:** conditional word granted for THIS train — after preset side-eye + fix legs + a FRESH
     battery greens. Held tonight otherwise. E2E_LIVE owed on the push window.
   - **MERGE discipline:** rebase-onto-main-then-`--ff-only` (currency); read EVERY consolidated check
