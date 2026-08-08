@@ -533,6 +533,23 @@ security lens.
   empty-slot chrome. **Rendered re-verify BATCHES with the FORGE#1 + PROSE-GEOMETRY preset-surface
   lens** (one side-eye over the whole preset/config fix train). Freed slot HELD (barrel-amputation +
   capability-gate follow-up both want a quiet/uncontested tree).
+- **⚑ GAP-AUDIT DELIVERED (owner catch — real): `docs/reviews/misc/2026-08-08-followup-gap-audit.md`.**
+  132 agent reports read whole (2-pass: marker-grep + full report-tail), 222 noise files skipped;
+  board coverage HIGH (most flags boarded/minted/banked/fixed-by-a-later-lane, incl. a cluster of
+  scary verifier refutations all since-fixed). **6 GENUINE GAPS found:**
+  - **GAP-FIX lane `aa67f0c0d823dd667` (2 P1 UI regressions + the class fence + 1 doc):** [P1]
+    automation empty-state collapsed to a 63px word-per-line ribbon (DOG-POLISH P3-15 wrapped
+    `@container` EmptyState in a centering Stack → width 0) · [P1/P2] group-draft MOBILE topbar names
+    only participant 1 (the `86a1736bc` desktop fix never reached the phone, `chats-selection-title.ts:37`
+    contradicts its own header) · [FENCE, do-it-right-once] the CLASS — a re-parent silently narrows a
+    component no CT width-asserts → an EmptyState w-full primitive floor + a rendered-width CT · [doc]
+    `names.ts:2` header contradicts code.
+  - **BOARDED (low, not in the fix lane):** [LOW] phone notification sheet never marks read
+    (`notification-bell.tsx:155` mount-time markAllRead comment is FALSE — no useEffect; board captured
+    the phone unread *indicator*, not this *clear* bug) · [HEADS-UP] `ashen-spire.jsonl`'s 26 marked
+    lines are unexercised by the canon-identity seed test (a seed-coverage add).
+  - Audit's stated residual risk: a follow-up flagged ONLY mid-transcript via SendMessage (not restated
+    in the final report) — the one class the report-tail method can't catch.
 - **⚑ CONTAINERIZE → BUILD (owner: "put a forge on it… after having it look at the most recent docker
   capabilities + best practices, fully modern and proper").** Pipeline (forge has no web tools):
   (1) WEB-RESEARCH lane `abeb1d71601a7c8d7` → `docs/design/docker-modern-practices-research.md`
