@@ -272,6 +272,22 @@ test("the three turn-wire framings are ROWS in this tab, ghosting their shipped 
   await expect(probe.getByPlaceholder("[Continue the conversation.]")).toBeVisible();
 });
 
+// ── ROW 27: the state-tracking guide became an AUTHORABLE row (owner ruling 2026-08-08) ───────────────
+// `RPG_STATE_TRACKING_GUIDE` was a const composed onto nothing. Wiring it made its bytes reach a model; making
+// it a slot is what makes them EDITABLE — and "editable" is only true if the row is reachable in this tab. The
+// same SEEING half the turn-wire framings above needed: a green resolver test cannot tell you a host can find it.
+
+test("row 27 — the state-tracking guide is a row in State tracking, ghosting its shipped bytes", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  await expect(probe.getByRole("heading", { name: "State tracking", exact: true })).toBeVisible();
+  await expect(probe.getByRole("button", { name: "Be thorough", exact: true })).toBeVisible();
+
+  await probe.getByRole("button", { name: "Edit Be thorough" }).click();
+  // The ghost is the shipped default byte-for-byte — which is exactly what both write-surface prompts ship
+  // until the host types over it.
+  await expect(probe.getByPlaceholder("BE THOROUGH — the panel should reflect the FULL richness", { exact: false })).toBeVisible();
+});
+
 test("a framing drill-in is TEXT-ONLY and offers its own {{note}} token, never arrangement vocabulary", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
   await probe.getByRole("button", { name: "Edit System-note frame" }).click();

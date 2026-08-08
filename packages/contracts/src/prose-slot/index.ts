@@ -125,12 +125,13 @@ export const PROSE_SLOT_IDS = [
   "rpg.reminder.offstageHeader",
   "rpg.delta.changesHeading",
   "rpg.delta.sceneOpensHeading",
-  // ── per-PRESET: the EXTRACTION seam (census 11-26 + 29-36) — the WRITE-surface prose every state vehicle
+  // ── per-PRESET: the EXTRACTION seam (census 11-27 + 29-36) — the WRITE-surface prose every state vehicle
   //    composes (`contracts/rpg/extraction-prompt.ts` + `entry/compose/rpg.ts`). `macros:"none"` for the whole
   //    cohort: several carry a PRE-SUBSTITUTION token vocabulary (this game's tracker catalogue, the worked
   //    example's keys, the resolved ref lists) which the seam splices as data — never the macro engine, which
-  //    has no binding to offer an extraction prompt. Census 27 (`RPG_STATE_TRACKING_GUIDE`) is DEFERRED (it is
-  //    composed onto nothing today — spec §11 decision 6), and 28/32 are structural labels, out by §2.11. ──
+  //    has no binding to offer an extraction prompt. Census 27 is `rpg.extract.stateTrackingGuide` — the owner
+  //    ruled decision 6 WIRE (2026-08-08), so the former dead `RPG_STATE_TRACKING_GUIDE` constant is now a slot
+  //    composed onto both write surfaces. 28/32 are structural labels, out by §2.11. ──
   "rpg.extract.deceptionSurface",
   "rpg.extract.party.resources",
   "rpg.extract.party.states",
@@ -151,6 +152,7 @@ export const PROSE_SLOT_IDS = [
   "rpg.extract.plane.journal",
   "rpg.extract.journal.customType",
   "rpg.extract.journal.customLabels",
+  "rpg.extract.stateTrackingGuide",
   "rpg.extract.reconcileDoctrine",
   "rpg.extract.tool.updateParty",
   "rpg.extract.tool.partyExample",

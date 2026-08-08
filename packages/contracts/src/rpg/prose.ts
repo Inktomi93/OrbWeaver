@@ -3,7 +3,7 @@
 //     `domain/rpg/substrate/reminder.ts` + `delta.ts` DERIVE their exported constants from these rows
 //     (`RPG_STEERING_LICENSE = PROSE_SLOTS["rpg.reminder.steeringLicense"].text`), so a default is authored
 //     exactly once and the reminder can never disagree with what the registry ships.
-//   • census 11-26 + 29-36 — the EXTRACTION seam (what the EXTRACTOR is taught to write back): the per-plane
+//   • census 11-27 + 29-36 — the EXTRACTION seam (what the EXTRACTOR is taught to write back): the per-plane
 //     teaching fragments, the six tool descriptions + the `no_changes` escape, and the two system-prompt
 //     framings. These are per-game TEMPLATES — see the cohort's own header block below for why that is a
 //     token vocabulary on an ordinary `text` slot and not a `render(ctx)` arm on `ProseSlotDef`.
@@ -33,7 +33,7 @@
 
 import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
 
-/** The game-turn steering-reminder prose (census 1-10) + the extraction seam (11-26, 29-36). Keys ARE the
+/** The game-turn steering-reminder prose (census 1-10) + the extraction seam (11-27, 29-36). Keys ARE the
  *  slot ids; `satisfies Partial<Record<…>>`
  *  so an unlisted id fails `tsc`, and `#prose` annotates the composed `PROSE_SLOTS` so a missing row fails too. */
 export const RPG_PROSE_SLOTS = {
@@ -167,7 +167,7 @@ For example, a three-line sign is enough:
   },
 
   // ══════════════════════════════════════════════════════════════════════════════════════════════════
-  // THE EXTRACTION SEAM (census 11-26 + 29-36) — the WRITE-surface prose (PROSE-1 §4.5, S4).
+  // THE EXTRACTION SEAM (census 11-27 + 29-36) — the WRITE-surface prose (PROSE-1 §4.5, S4).
   // ══════════════════════════════════════════════════════════════════════════════════════════════════
   // The reminder cohort above teaches the NARRATOR what the tracked values mean. This cohort teaches the
   // EXTRACTOR what to write back — the per-plane teaching fragments, the six tool descriptions, and the two
@@ -195,11 +195,11 @@ For example, a three-line sign is enough:
   // an extraction prompt is not a character context — there is no `{{user}}`/`{{char}}` binding to resolve, so
   // any other `{{…}}` in an override ships as literal braces rather than silently rendering empty.
   //
-  // ROW 27 (`RPG_STATE_TRACKING_GUIDE`) IS DEFERRED, not migrated: it is composed onto NOTHING today (spec
-  // §11 decision 6 — wire it and measure, or delete), and slotting a dead constant would give a host an edit
-  // surface over bytes that never reach a model. It stays where it is, dead-but-present, until that ruling
-  // lands. Census rows 28 and 32 (the transcript role fallback, the three user-prompt block labels) are
-  // STRUCTURAL labels and stay out by §2.11.
+  // ROW 27 IS NOW `rpg.extract.stateTrackingGuide` (owner ruling 2026-08-08 on spec §11 decision 6: WIRE it and
+  // measure). It was the one row S4 deferred — a constant composed onto nothing, which is why slotting it then
+  // would have handed a host an edit surface over bytes no model read. It is wired now, so it is a slot like its
+  // siblings; see its own comment block below. Census rows 28 and 32 (the transcript role fallback, the three
+  // user-prompt block labels) are STRUCTURAL labels and stay out by §2.11.
 
   // ── The deception-gated standing prefix (census 11) ──
   "rpg.extract.deceptionSurface": {
@@ -469,6 +469,30 @@ For example, a three-line sign is enough:
     requiredTokens: [],
     title: "This game's logs",
     fires: "Closes the journal teaching on a game that defines its own journal-type hints.",
+  },
+
+  // ── The BE-THOROUGH state-tracking guide (census 27) ──
+  // Appendix A's system-prompt addendum, the measured per-turn coverage lifter. It was authored long before the
+  // registry and composed onto NOTHING for the whole of its life (`pnpm ast refs` found only its declaration);
+  // owner decision 6 (wire-or-delete) was ruled WIRE on 2026-08-08, so the constant became this row and
+  // `composePlaneTeaching` pushes it. Bytes VERBATIM from the retired `RPG_STATE_TRACKING_GUIDE` — a wire-and-
+  // measure ruling is only measurable if what lands is the text the measurement was taken on.
+  "rpg.extract.stateTrackingGuide": {
+    id: "rpg.extract.stateTrackingGuide",
+    home: "preset",
+    version: 1,
+    text:
+      "BE THOROUGH — the panel should reflect the FULL richness of what you narrated. Each turn record ALL that " +
+      "changed: any on-screen character (mood on every demeanor shift, appearance + outfit when described, thoughts " +
+      "for implied inner state, relationship when it forms or turns, their tracked values as they move); the scene " +
+      "(location/timeOfDay/weather on change, the plot act summary); bodies (hp, tracked resources, conditions " +
+      "gained AND ended, a status line); items (add with description + location, remove when used, wallet for coin); " +
+      "quests (with objectives); and a journal entry for the beat. Sparse tracking makes the panel feel dead.",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Be thorough",
+    fires: "Tails the plane teaching on every extraction prompt — the coverage push, ahead of the reconcile rule.",
   },
 
   // ── The shared RECONCILE doctrine (census 19) ──
