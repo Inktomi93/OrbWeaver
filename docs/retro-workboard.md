@@ -62,14 +62,20 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 
 ## ═══ LIVE STATE (2026-08-08, evening) ═══
 
-- **main `b7ca6d55a`**, ~165 ahead of origin, tree clean. **Gates 197.** Battery last green at
-  `6494c540e` (night-seal); a FRESH battery is owed when the current train drains (docker + refinery
-  + preset-followup are all value-changing).
-- **Merged today, this train:** FORGE#4 CONTAINERIZE (`fd4ae9119`, consolidated check **PASS exit
-  0** — read) · REFINERY R0 (`b7ca6d55a`, consolidated check RUNNING — read
-  `<scratchpad>/refinery-merge-check.exit`).
-- **LIVE lanes (3):** PRESET-FOLLOWUP (executor, worktree — see A3) · CONTAINERIZE §8 security
-  review (security-executor, on main — see A2) · REFINERY R0 verifier (pre-R1 gate — see A1).
+- **main `06a706551`**, ~170 ahead of origin, tree clean (minus the refinery security pass's
+  in-progress contract edits). **Gates 197.** Battery last green at `6494c540e` (night-seal); a
+  FRESH battery is owed when the train drains (docker + refinery + auth-fence + preset-followup +
+  populate-prose are all value-changing).
+- **Merged today, this train:** FORGE#4 CONTAINERIZE (`fd4ae9119`, check PASS) · REFINERY R0
+  (`b7ca6d55a`, check PASS) · AUTH BOOT-FENCE + spec repair + shim⇔firewall pin (`06a706551`,
+  check RUNNING — read `<scratchpad>/sec-leg-check.exit`).
+- **LIVE lanes (3):** PRESET-FOLLOWUP (executor, worktree — see A3) · REFINERY pre-R1 security
+  pass (see A1) · POPULATE-PROSE (executor, worktree — the 7 verified-open slots, byte-identity
+  bar; see B1).
+- **⚑ FULL-BOARD SCOUT SWEEP DONE (2026-08-08, owner-ordered "verify they aren't already done"):**
+  four scouts re-laddered every B/C-premise/D/E row. **Stale harvest: B 3/4 · C 1/10 · D 7/9 ·
+  E 5/6 already-done** — struck below with receipts (F). The C pile survived near-intact (it waits
+  on the OWNER, not on memory). Every surviving row below now carries a 2026-08-08 live receipt.
 - **Worktrees on disk:** `agent-forge-docker` (merged — reap after the security review clears, may
   get a fix leg) · `agent-refinery-r0` (merged — reap after the verifier clears) · the
   PRESET-FOLLOWUP worktree (live) · `.cache/snap-stage/be00cf36a4dc` (side-eye ref-pinned stage,
@@ -120,11 +126,17 @@ Ranked by consequence within each category. Every item carries its receipt state
   not exposure). **FOLLOW-UP LEG (running):** spec truth-repair ×3 sites + the `superRefine`
   boot-fence (single-user+deny = boot-fatal, red-first) + 3 in-code comment repairs + the
   shim⇔`HOST_SECRET_ENV_KEYS` coupled-site tie. **✅ FORK RULED (owner, 2026-08-08):
-  usable-as-owner IS the default** — the SillyTavern first-run model (boots immediately usable;
-  hardening is opt-in when exposed); the shipped arm is RATIFIED, the spec truth-repair states it
-  as ruled. **OWNER after the leg:** the live-infra steps — `docker build` both targets
-  (+`docker inspect` the healthcheck), container runs, fleet-in-namespace, read-only shakeout, the
-  pentest cage (§4/Fork F), deploy posture (C13).
+  usable-as-owner IS the default** — the SillyTavern first-run model; ratified, recorded in the
+  spec. **✅ THE LEG LANDED (`06a706551`) — BUILD STREAM GRADUATED:** spec truth-repaired ×3 with
+  the ruling verbatim · boot fence red-first (single-user+deny refuses at env parse; `oidc`+`deny`
+  scope-control green; per-mode requirements now a mapped `Record` so a 5th auth mode fails tsc) ·
+  all 3 false-claim comments repaired · shim⇔`HOST_SECRET_ENV_KEYS` set-identity conformance test
+  w/ planted control that DEMONSTRATED the leak · 249 tests + 3 typecheck programs green. The
+  fence is env-boundary only (infra `resolve` still accepts a constructed incoherent config — its
+  contract test depends on it; stated in-code). **OWNER — the only remaining containerize work is
+  the live-infra steps:** `docker build` both targets (+`docker inspect` the healthcheck),
+  container runs, fleet-in-namespace, read-only shakeout, sibling-vllm cap_drop probe, the pentest
+  cage (§4/Fork F), deploy posture (C13).
 - **A3 · PRESET-FOLLOWUP (executor, worktree).** B1 CapabilityGate→`resolve-failure.ts` (the
   inverted "routing problem" claim over a missing-credential failure) + B2 Prompt-view
   section-drill fork-eject (the FORGE#1 store-axis fix applied) + 2 verification CTs (readout
@@ -139,21 +151,12 @@ Ranked by consequence within each category. Every item carries its receipt state
 
 ### B · DISPATCHABLE NOW (no owner ruling needed)
 
-- **B1 · Populate-round prose migration** (`docs/design/prose-1-populate-census.md`): 7 model-facing
-  slot candidates (`POPULATE_SYSTEM_HEADER`, inline identity clause, `POPULATE_DOCTRINE`, 4
-  `populateUserPrompt` labels) → `RPG_PROSE_SLOTS` rows + call-site swaps on the existing
-  `rpgProse`/`spliceProseTokens` convention. PROSE-1 class already ruled. Rows 8-10 (host toasts)
-  excluded. [live-verified 08-08]
-- **B2 · `respell` derive-or-cite**: `DigestsParams`/`SegmentsParams` ≡ contracts
-  `MemoryQueryOptions` (`domain/search/contract/params`) — cite-or-derive; the `MemoryBackfillCounts`
-  twin is already gone. Tiny. [grep-sourced; re-verify at dispatch]
-- **B3 · PORT-R6 residual fixture**: a ≥2-turn cross-link fixture (the "cannot cross-link two
-  rpg-anchored turns" invariant is currently verified by reading, not by a runtime counterexample).
-  One fixture add. [verifier-flagged, boarded]
-- **B4 · Verify-then-strike pair**: the ledger carried `no-test-fabrication` baseline regen +
-  `fork.ts:154-155` stale comment as open, but SMALLS-1 (`208abac21`) claims both landed
-  ("fabrication baseline regen 81→70", "fork.ts comment LIVE w/ both SHAs"). One grep each; strike
-  or dispatch. [board-contradiction found in the 08-08 full read]
+- **B1 · Populate-round prose migration → IN FLIGHT (lane POPULATE-PROSE).** Scout re-verified all
+  7 rows STILL-OPEN with line receipts (`rpg.ts:1396-1409` ×5, `extraction-prompt.ts:245-275` ×2;
+  zero `populate` slots in `rpg/prose.ts`, two-method). Lane bar: defaults byte-VERBATIM +
+  TEMPLATE_DEFS rows + byte-identity proof + coupled-literal sweep. [scout-verified 08-08]
+- ~~B2 respell~~ · ~~B3 cross-link fixture~~ · ~~B4 baseline+fork.ts~~ — **ALL STRUCK, scout-
+  verified already-done** (receipts in F).
 
 ### C · OWNER-DECISION (his word only; recommended arm marked)
 
@@ -198,7 +201,8 @@ Ranked by consequence within each category. Every item carries its receipt state
 - **C10 · AGENT-1** — **Rec: SPLIT.** The credential is an OWNER ACTION (re-auth Claude Max OAuth);
   arms 1-3 (knob honesty · reasoning-visibility parity · usage/context parity) are a buildable lane
   that does NOT wait on it; only arm 4 (live rpg-lite on the SDK wire) is credential-blocked.
-- **C11 · Barrel amputation worklist** — root-fix LANDED (57→28 stars); HELD for a quiet tree: Tier
+- **C11 · Barrel amputation worklist** — root-fix LANDED (57→**29** stars, scout recount 08-08 —
+  doc says 28, off-by-one; both files the sanctioned db-schema stars); HELD for a quiet tree: Tier
   A 85 per-symbol verdicts (delete / `@public` / header-cite; several RPG_* protected) + Tier B 50
   zero-risk drops. Then **C12 · `--include-entry-exports`** — **Rec: arm (c)**, enable AFTER the
   amputation (else it buries the 85 under entry-export noise).
@@ -219,8 +223,7 @@ Ranked by consequence within each category. Every item carries its receipt state
   recorded (persona-pin semantics), DO NOT BUILD** · `.env` OpenRouter key is INERT (no env
   fallback; decide: env fallback for the testing arm, or document UI-entry-once) · templating fork
   rows 53-73 (REWRITE_TOGGLES/GREETING_TRANSFORMS fragment bytes — client-composed via kit, a
-  design fork) · **rail shows 9 facet icons vs the §14 seven-ceiling** (amend §14 or trim — doc-law
-  vs tree divergence) · shell-tier CLS ~0.26 (F-14, three sightings, needs an owner look — pairs
+  design fork) · shell-tier CLS ~0.26 (F-14, three sightings, needs an owner look — pairs
   with E1) · home-tile promotion WHETHER (`docs/design/home-tile-promotion.md` — in-place chips may
   already cover it) · ctx-tab-strip label unreachable at coarse · REGPAR F3/F4/F5 menu · "Untitled
   chat" in regex rosters · X-16 edited-ago timestamp (contracts+db) · **taste (optional):** the
@@ -228,44 +231,37 @@ Ranked by consequence within each category. Every item carries its receipt state
   speaker-tint override (the ThemeOverride door — optional, nothing asks for it) · Meteocons ·
   grimstone · chat-options placement (D111 clause).
 
-### D · OLDER OPEN (small, real, re-verified where marked)
+### D · OLDER OPEN (scout-swept 2026-08-08 — 7 of 9 checked rows were ALREADY DONE, struck to F)
 
-- **D1 · AMBIENT-NONE-AFFORDANCE** (S): `RPG_WEATHER_TYPES`/`TIME_OF_DAY` closed vocabs have no
-  unset member — weather/timeOfDay can't be cleared (location/date can).
-- **D2 · Tool-round wire-capture blindness**: the tool-round provider call has no `captureWire`
-  sink — `update_scene` traffic never reaches `/api/_debug/wire/captures`. One sink closes it.
-  [re-verify at dispatch]
-- **D3 · Phone notification bell** (LOW): unread-indicator gap + the sheet never marks read
-  (`notification-bell.tsx:155` mount-time markAllRead comment is FALSE — no useEffect).
-- **D4 · Snap-isolated boot gap** (tooling): post-D135 an isolated stage can't boot without
-  `OWNER_HANDLES`+`CREDENTIALS_KEY` in its env — snap-stage propagation fix.
-- **D5 · LAUNCH-DAY trio** (parked to the day): REGIME-2 db-baseline re-point ·
-  the two-switch migration-regime flip · h3/QUIC checklist (Caddy h3 + UDP 443).
-- **D6 · Surface-manifest FORMAT ping-pong**: teach `gen-baseui-surface.ts` to emit biome-format.
-  [not re-verified]
-- **D7 · `.claude/hooks/biome-check.sh`** lints the guard file biome.json says to skip. [not
-  re-verified]
-- **D8 · Home `useOrder` follow-up** (from the S3 tile P2-f refusal — static order stands; a
-  store-backed order is the proper arm if wanted).
-- **D9 · CT-on-our-vite spike**: pnpm override `@playwright/experimental-ct-core>vite: ^8.1.2`;
-  green = one vite; red = revert.
-- **D10 · Engines fleet fix — live verification owed**: the next real `pnpm engines adopt` IS the
+- **D1 · Home `useOrder` follow-up** — CONFIRMED still static (`order-home-tiles.ts:9-11`, pure
+  sort, no store) — but that's the DESIGN OPTION awaiting the owner (home-tile promotion, C-pile),
+  not debt. [scout-verified]
+- **D2 · REGX2 deferred bulk PLACEMENT** — CONFIRMED blocked: `deriveRegexTierFlags` still
+  client-homed (`features/regex/lib/derive-tier-flags.ts:48`), zero kit twin (two-method). Unblocks
+  when it lifts into `@orb/kit/regex`. [scout-verified]
+- **D3 · LAUNCH-DAY trio** (parked to the day, not scout-checkable): REGIME-2 db-baseline re-point
+  · the two-switch migration-regime flip · h3/QUIC checklist (Caddy h3 + UDP 443).
+- **D4 · CT-on-our-vite spike**: pnpm override `@playwright/experimental-ct-core>vite: ^8.1.2`;
+  green = one vite; red = revert. [not scout-checkable — a probe, not a premise]
+- **D5 · Engines fleet fix — live verification owed**: the next real `pnpm engines adopt` IS the
   test (one launcher exits promptly, no dupe on a healthy port, pidfile merges).
-- **D11 · REGX2 deferred bulk PLACEMENT add/remove** — unblocks when `deriveRegexTierFlags` lifts
-  into `@orb/kit/regex`.
-- **D12 · automation_rules + global_variables portable family** (the 12th kind — own
-  serde/verbs/descriptor/import-order/doors). Fork lineage (`parentChatId`) structurally does not
-  travel. Deferred with corrected end conditions.
-- **D13 · CPD 3 dup rows + TYPO 27 as-const tuples** — consolidate only when next IN the file
-  (DRY-not-gospel).
-- **D14 · WAKE-STATUS**: the 3s engine wake is silent; revisit only if laggy.
-- **D15 · Recorded-no-action set** (kept so nobody re-derives): L8-inbound one-liner
-  declined-by-scope · seeder drop-patch stays until the next fixture regen · `staging.ensure`
-  dormant (`gather.ts:194` still `tools: []`) · per-chat connection `providerRouting` phantom
-  (DORMANT/RESERVED by its own comment — feature row, not defect) · FillableIcon adoption targets
-  are OPPORTUNITIES not rot · `lockdown` §16 G-table defers to live count.
+- **D6 · automation_rules + global_variables portable family** (the 12th kind). Fork lineage
+  (`parentChatId`) structurally does not travel. Deferred with corrected end conditions.
+- **D7 · SM7 residue — RELOCATED (scout 08-08), recorded DELIBERATE (I-1):** the second
+  `response_format` builder that never emits `strict` lives at
+  `vllm/engine/chat-completion.ts:87-105` today (post-restructure), consumed only by vLLM
+  summarize (`surfaces/summarize.ts:79-180`). I-1 recorded it deliberately-untouched; if summarize
+  ever wants grammar enforcement this is the address. Not debt unless re-ruled.
+- **D8 · CPD 3 dup rows + TYPO 27 as-const tuples** — consolidate only when next IN the file.
+- **D9 · WAKE-STATUS**: the 3s engine wake is silent; revisit only if laggy.
+- **D10 · Recorded-no-action set** (kept so nobody re-derives): L8-inbound declined-by-scope ·
+  seeder drop-patch stays until the next fixture regen · `staging.ensure` dormant · per-chat
+  `providerRouting` phantom (DORMANT/RESERVED by design) · FillableIcon targets are OPPORTUNITIES
+  · `lockdown` §16 G-table defers to live count.
 
-### E · VERIFY / INVESTIGATE (report-then-decide)
+### E · VERIFY / INVESTIGATE (scout-swept 2026-08-08 — 5 of 6 checked rows CLOSED, receipts in F)
+
+What remains needs a LIVE window or a rendered lens, not a scout:
 
 - **E1 · prod-build CLS window** (`docs/design/prod-build-cls-investigation.md`): dev home-boot CLS
   0.134 + the shell-tier 0.26 sightings; run `pnpm stack up prod` (non-8788) and re-measure when a
@@ -273,25 +269,19 @@ Ranked by consequence within each category. Every item carries its receipt state
 - **E2 · PRESET-SLIDER-VERIFY** (S): re-verify the slider deck rendered on a vLLM/OR connection
   (sonnet-5 exposes no sampling knobs — the deck was never seen).
 - **E3 · E2E_LIVE=1 pnpm e2e** on the push window (never re-confirmed this era).
-- **E4 · narrowest-mount row gate candidate**: a `Row` with a `shrink-0` trailing cluster sized wide
-  and never re-measured at its production width (the class behind both gap-audit P1s). Candidate:
-  such a row owes a CT at its narrowest real mount asserting leading text ≥50%. Gate-shaped;
-  ASTLENS-precedent report first.
-- **E5 · Databank pagination live-drive**: pagination is BUILT (keyset + infinite-query,
-  live-verified); DBANK-HOME proved reach via a contract STUB — drive a real >100-doc bank once.
-- **E6 · Paged-list `.find(` tree sweep**: DBANK-HOME's lesson
-  (\[\[paginating-a-list-breaks-resolve-by-find]]) — sweep OTHER keyset-paged surfaces
-  (chats/notifications/characters) for resolve-by-find-over-a-page. Un-run.
-- **E7 · `countByBook` twins**: REGROSTER flagged a 2-instance dup; today ONE home
-  (`world-info/persistence/queries.ts:81`). Already dissolved or respelled — look before acting.
-- **E8 · `names.ts:2` header vs `shape.ts:213`** (stamp applied before vs after squash) — verify
-  GAP-FIX's doc leg landed it; repair in-commit if not.
-- **E9 · fillRule=evenodd fillable-set probe** (owner-optional, needs a side-eye gallery verdict).
-- **E10 · Low-priority unverified tail**: ARCHIVE2's six unreached side-eye items ·
-  `refEnumerationLines` active-conditions coverage · SM7 second `response_format` builder residue
-  (path restructured — re-locate) · SSE-STARVATION-PIN (two-method absence check never run) ·
-  whether NIGHTFIX's three argued refusals are settled with the OWNER or only the reviewer · the
-  engine auto-sleep/wake live pass + VRAM drill dependency.
+- **E4 · narrowest-mount row gate candidate**: gate-shaped, ASTLENS-precedent report first (the
+  class behind both gap-audit P1s: `shrink-0` trailing cluster never re-measured at production
+  width; candidate CT floor: leading text ≥50% at narrowest real mount).
+- **E5 · Databank pagination live-drive**: drive a real >100-doc bank once (reach was proven via a
+  contract stub).
+- **E6 · fillRule=evenodd fillable-set probe** (owner-optional, needs a side-eye gallery verdict).
+- **E7 · Residual unverified tail** (low): ARCHIVE2's six unreached side-eye items · whether
+  NIGHTFIX's three argued refusals are settled with the OWNER or only the reviewer · the engine
+  auto-sleep/wake live pass + VRAM drill dependency.
+- **⚑ One documented ceiling from the E-sweep (not a bug, recorded):** `agent-nav/index.ts:144`
+  resolves a character by `.find()` over ONE `character.list` page (limit 500) — self-documented
+  dev-tool limitation ("dev library is small… no keyset walk needed"); becomes real if the library
+  exceeds 500.
 
 ### F · STRUCK DONE (verified closed — do NOT re-chase; receipts in the 08-08 archive + git)
 
@@ -314,6 +304,26 @@ prop — already fixed; the swatch reading was a gloss error) · principal diver
 graduated) · ROW-27 WIRED (`bbb6364a2`) · probe-lint ruled leave-as-scratch · tag ≤30 drag-cap
 ruled leave-as-is · CapabilityGate PENDING arm shipped (distinct from A3's wrong-cause fix) ·
 F4-CACHE-VOLATILITY built · `getCatalog` boot-warm readers answered.
+
+**The 2026-08-08 scout sweep's strikes (4 scouts, every negative two-method with scanned counts):**
+respell = plain aliases now (`search/contract/params.ts:28,31`) · PORT-R6 cross-link fixture
+EXISTS (`bundle-round-trip.suite.int.test.ts:732-1013`, ≥2 rpg turns, own-ids + `not.toBe` the
+sibling's) · fabrication baseline clean (10/10 sample paths live) · fork.ts comment already
+corrected ("LIVE, not dormant", cites both writer SHAs; file is `verbs/fork.ts`) · rail 9-vs-7
+PREMISE-DEAD (D121 amended the law — the ceiling is about KIND, not count;
+`UI-Architecture-and-Layout.md:189-208` documents all nine) · ambient CLEAR built
+(`ambient-strip.tsx:167-184`, dated header) · tool-round wire capture built (`rpg.ts:1047-1053`
+threads chatId; executor wires captureWire uniformly) · notification bell built BOTH halves
+(mount-effect markAllRead + unread count in the sheet kicker) · snap-stage env propagates
+(`snap-stage.ts:290-308` spreads process.env) · surface-manifest generator already biome-clean
+(probed read-only) · biome hook cannot lint the excluded guard file ("Checked 0 files", probed) ·
+paged-list `.find(` sweep CLEAN — no live instance of the DBANK-HOME bug class; chats.listChats is
+NOT paged (the board's claim refuted); infinite-query surfaces resolve against the flattened
+multi-page set · countByBook twin NEVER EXISTED (git -S: one introducing commit, one home ever) ·
+names.ts header self-corrected 08-07 ("NAME FIRST, THEN SQUASH") · SSE-STARVATION-PIN exists at
+unit tier (`debug/index.test.ts` header names it + `socket-registry.test.ts:289-306`) ·
+`refEnumerationLines` active-conditions COVERED (`rpg.int.test.ts:972-1010` asserts the exact
+line).
 
 ## ═══ INITIATIVES — one-line status ═══
 

@@ -67,7 +67,9 @@ its receipt, and moves `AUTH_FALLBACK=deny` INSIDE each SSO mode's commented blo
 protecting a surface, it was disabling the application; the belt that matters (`deny` in the three SSO
 modes, where the origin gate is the attack surface) is now attached to each mode that needs it.
 
-**Still owed — two things this review did NOT do:**
+**~~Still owed~~ — BOTH LANDED in the follow-up leg (`06a706551`, same day): the spec truth-repair
+(with the owner's usable-as-owner ruling recorded) and the boot fence (red-first, in the env
+schema). The list below is the record of what the leg was built against, not open work:**
 
 1. **Truth-repair the spec** (outside the `docker/` remit granted to this lane). Exact edits owed:
    - `containerize-prod-image-spec.md:147` — "`AUTH_FALLBACK` is irrelevant (fallback is unconditional)"
