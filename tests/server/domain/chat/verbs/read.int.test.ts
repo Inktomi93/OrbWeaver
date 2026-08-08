@@ -10,6 +10,8 @@ import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connect
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_PROMPT_CONFIG, TEMPLATE_DEFS } from "@orb/contracts/preset";
+import type { ProseOverrides } from "@orb/contracts/prose";
+import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import { characterBooks, chatParticipants, chats as chatsTable, messages, messageVariants, personas as personasTable, worldBooks, worldEntries } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -1071,10 +1073,17 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     );
     // The same minimal-stub precedent as the deception-replay test below (which fabricates only
     // `resolveReasoningHostOnly`).
-    // The preview path calls ONLY `gatherTurnContext` + the game-macro declaration read
-    // (`resolveUserMacros`, WAVE MU's second definition home).
-    // FABRICATION-OK: minimal ChatRpgOps stub — the preview path reaches only these two ops.
-    const rpg = { gatherTurnContext, resolveUserMacros: () => Promise.resolve([]) } as unknown as NonNullable<ChatContext["rpg"]>;
+    // The preview path calls `gatherTurnContext`, the game-macro declaration read (`resolveUserMacros`, WAVE
+    // MU's second definition home), and — since the GM-preset redirect landed on this path (2026-08-08) —
+    // `resolvePresetOverride`. `null` here is the honest arm for THIS game: no `gmPresetId`, so the preview
+    // falls to the host's own default preset exactly as its turn would. The redirect's own coverage is the two
+    // tests below.
+    // FABRICATION-OK: minimal ChatRpgOps stub — the preview path reaches only these three ops.
+    const rpg = {
+      gatherTurnContext,
+      resolveUserMacros: () => Promise.resolve([]),
+      resolvePresetOverride: () => Promise.resolve(null),
+    } as unknown as NonNullable<ChatContext["rpg"]>;
     const ctx = makeChatContext(db, { rpg });
 
     // PROSE-1 re-home (owner ruling 2026-08-08): the reminder's teach/heading overrides are the PRESET's
@@ -1114,6 +1123,99 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
         prose: { "rpg.reminder.steeringLicense": { text: "our table's own license", baseVersion: 1 } },
       }),
     );
+  });
+
+  // ── THE GM-PRESET REDIRECT ON THE PREVIEW PATH (verifier REFUTED the re-home merge, 2026-08-08) ──────────
+  // `turn.ts` runs `ctx.rpg.resolvePresetOverride(chatId)` BEFORE the foreign read, so a game turn assembles the
+  // game's `gmPresetId`. `resolvePreviewInputs` never ran that hop — so on a game chat EVERY preview surface
+  // rendered the host's DEFAULT preset while the turn shipped the GM preset's: sections, guided prompts, format
+  // strings, the turn-wire framings, and (after the prose re-home) the eleven rpg teaches.
+  //
+  // The bug is OLDER than the re-home and was invisible for a structural reason worth stating: while the teaches
+  // lived in `rpg_games.config.prose` they were ONE storage both paths read, so preview and turn agreed by
+  // construction. Re-homing them to the preset moved them onto the unfaithful side — the merge did not create
+  // the defect, it made the host's honesty instrument start lying about the bytes it exists to show.
+  //
+  // The stub above cannot see any of this (it hands back one config whatever it is asked for). This one branches
+  // on `presetOverride`, which is the actual seam, and reads the RENDERED bytes rather than a call argument.
+  test("a GAME chat's preview resolves the GM PRESET the turn resolves — the rpg teaches included", async () => {
+    const me = await seedUser(db, castId<Handle>("gm_preset_host"));
+    const chatId = await seedRoom("gmpreset", me);
+    const gmPresetId = castId<PresetId>("preset_gm_voice");
+    const authoredLicense = "OUR TABLE'S OWN LICENSE — the GM preset speaks.";
+    const gmConfig: PromptConfig = { ...DEFAULT_PROMPT_CONFIG, prose: { "rpg.reminder.steeringLicense": { text: authoredLicense, baseVersion: 1 } } };
+
+    const seen: (PresetId | undefined)[] = [];
+    // The three rpg ops this path reaches. `resolvePresetOverride` is the redirect under test; the gather
+    // resolves its teach through the SAME `resolveProseText` the real reminder uses, so what is asserted is the
+    // THREADING, never a re-implementation of the reminder.
+    // FABRICATION-OK: minimal ChatRpgOps stub — the preview path reaches only the three ops below.
+    const rpg = {
+      resolvePresetOverride: () => Promise.resolve(gmPresetId),
+      resolveUserMacros: () => Promise.resolve([]),
+      gatherTurnContext: (args: { readonly prose?: ProseOverrides | undefined }) =>
+        Promise.resolve({
+          macros: {},
+          injections: [
+            { position: "in_chat" as const, depth: 0, role: "system" as const, content: resolveProseText("rpg.reminder.steeringLicense", args.prose ?? {}) },
+          ],
+          tools: [],
+        }),
+    } as unknown as NonNullable<ChatContext["rpg"]>;
+    const deps = makeDeps({
+      resolveForeignInputs: (params) => {
+        seen.push(params.presetOverride);
+        return Promise.resolve({
+          promptConfig: params.presetOverride === gmPresetId ? gmConfig : DEFAULT_PROMPT_CONFIG,
+          personas: { anchor: null, active: null },
+          globalRegexScripts: [],
+          scanDepth: 6,
+          injectionTokenBudget: 0,
+        });
+      },
+    });
+
+    const { budget } = await createRead(makeChatContext(db, { rpg }), deps).previewAssembly({ principal: principal(me), chatId });
+
+    // THE WHOLE CLASS, in one line: the foreign read ran under the GM preset, so EVERY template it carries —
+    // sections and guided prompts included, not just prose — is the one the turn would use.
+    expect(seen).toEqual([gmPresetId]);
+    // …and the RENDERED bytes, which is what a host actually reads off this instrument.
+    const gameState = budget.sources.find((s) => s.source === "game-state");
+    expect(gameState?.text).toBe(authoredLicense);
+    expect(gameState?.text).not.toBe(PROSE_SLOTS["rpg.reminder.steeringLicense"].text);
+  });
+
+  // The precedence half. A host inspecting a CANDIDATE preset is asking "what would THIS render in this room";
+  // letting a game's `gmPresetId` win would answer a question nobody asked, on the one surface whose entire job
+  // is inspecting a preset the room has not adopted.
+  test("an EXPLICIT presetOverride still outranks the GM redirect", async () => {
+    const me = await seedUser(db, castId<Handle>("gm_preset_host2"));
+    const chatId = await seedRoom("gmpreset2", me);
+    const candidateId = castId<PresetId>("preset_candidate");
+
+    const seen: (PresetId | undefined)[] = [];
+    // FABRICATION-OK: minimal ChatRpgOps stub — only the redirect + the macro-declaration read are reached.
+    const rpg = {
+      resolvePresetOverride: () => Promise.resolve(castId<PresetId>("preset_gm_voice")),
+      resolveUserMacros: () => Promise.resolve([]),
+      gatherTurnContext: () => Promise.resolve(null),
+    } as unknown as NonNullable<ChatContext["rpg"]>;
+    const deps = makeDeps({
+      resolveForeignInputs: (params) => {
+        seen.push(params.presetOverride);
+        return Promise.resolve({
+          promptConfig: DEFAULT_PROMPT_CONFIG,
+          personas: { anchor: null, active: null },
+          globalRegexScripts: [],
+          scanDepth: 6,
+          injectionTokenBudget: 0,
+        });
+      },
+    });
+
+    await createRead(makeChatContext(db, { rpg }), deps).previewAssembly({ principal: principal(me), chatId, presetOverride: candidateId });
+    expect(seen).toEqual([candidateId]);
   });
 
   // ── the persona-swap CONTEXT leak (owner report 2026-08-01) ────────────────────────────────────────
