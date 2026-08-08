@@ -74,6 +74,37 @@ test("the selection intersection stops scope-widening: a rewritten-but-UNSELECTE
   expect(result.character.description).toBe("A meticulous keeper of records who says {{char}} likes {{user}}.");
 });
 
+test("the selection fence honors greetingIndexes: an accepted rewrite of an UNSELECTED greeting index is dropped", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_af_gi" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "af-card-gi");
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  // The user narrows to greeting index 0 ONLY — greeting 1 is out of the pipeline (never fed to the model).
+  await h.svc.updateSession({
+    principal: principal(owner),
+    sessionId: session.id,
+    patch: { selection: { fields: ["greetings"], greetingIndexes: [0] } },
+  });
+  // A (potentially prompt-steered) rewrite fabricates an entry for greeting 1 — a slot the user did NOT
+  // select. `rewriteReply()` carries exactly that greetingIndex:1 entry.
+  h.queueReply(rewriteReply());
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+
+  const result = await h.svc.applyFields({
+    principal: principal(owner),
+    sessionId: session.id,
+    accepts: [{ field: "greetings", greetingIndex: 1 }],
+  });
+  // Belt 9 must fence on the SELECTED indexes, not just the greetings field — the model cannot widen its
+  // apply scope to an unselected greeting slot even with an explicit accept.
+  expect(result.applied).toEqual([]);
+  expect(result.dropped).toEqual([{ field: "greetings", greetingIndex: 1, reason: "not_selected" }]);
+  // The zero-write arm: greeting 1 untouched, no snapshot.
+  expect(result.character.greetings[1]?.text).toBe("Back again? The stacks missed you.");
+  expect(await db.select().from(characterSnapshots).where(eq(characterSnapshots.characterId, characterId))).toHaveLength(0);
+});
+
 test("the greeting-index assert runs against the LIVE card: an index deleted since session start drops", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { id: "user_af_c" });
