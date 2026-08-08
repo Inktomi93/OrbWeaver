@@ -526,6 +526,21 @@ security lens.
   (DomainNoCredentialError = literally a missing credential — the claim INVERTED), NOT_FOUND, 500.
   The shared classifier lib landed tonight already owns the discrimination; wiring the deck was
   deferred (preset-editor-surface contested by FORGE + PROSE-GEOMETRY). 3-line change, quiet-tree.
+- **✅ POLISH-CLUSTER merged `66969d228`** (14 files, 9/9 new assertions positive-control-proven):
+  color-picker focus ring · readout skeleton shape-match (144px collapse fixed) · the `resolve-failure.ts`
+  shared classifier (error arm keeps the routing verdict VERBATIM on BAD_REQUEST, withholds on
+  NOT_FOUND/transport — F-02 ruling preserved) + Retry · tag voices/#808080 seed · config band gutter ·
+  empty-slot chrome. **Rendered re-verify BATCHES with the FORGE#1 + PROSE-GEOMETRY preset-surface
+  lens** (one side-eye over the whole preset/config fix train). Freed slot HELD (barrel-amputation +
+  capability-gate follow-up both want a quiet/uncontested tree).
+- **⚑ BENCHED-SET RE-POSE (owner: "investigate each in code+docs, options, mark the forward-thinking /
+  do-it-right-once arm, then repose all"):** 4 read-only recon lanes writing options docs —
+  INV persona/nudge/{{note}} (`a15d52ec2e1d40fb0`) · INV config-rail/dup/json-card (`acbfc1319e411ad29`) ·
+  INV tag-calls/guided-cap (`a607a60a5ca796876`) · INV containerize/entry-exports/AGENT-1
+  (`a303ee0f5e683eeb8`) → `docs/design/parked-options-*.md`. Already-investigated tonight (fold from
+  source): refinery F-N forks (NL→schema doc) · 3 D62 deltas (shell audit §10) · home-tile promotion
+  (dbank-home analysis). SYNTHESIS → one grounded owner decision-sitting, each option-set with the
+  forward-thinking arm flagged Recommended.
 - **⚑ SMALLS BATCHED OUT (2026-08-08, owner: "send the undeployed + small stuff in batches").** Two
   collision-free lanes dispatched (the load ceiling held at the live client-fix lanes — no 6th/7th
   gate-heavy lane stacked):
