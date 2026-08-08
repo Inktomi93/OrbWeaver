@@ -76,18 +76,59 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 - **Merged today, this train:** FORGE#4 CONTAINERIZE (`fd4ae9119`, check PASS) · REFINERY R0
   (`b7ca6d55a`, check PASS) · AUTH BOOT-FENCE + spec repair + shim⇔firewall pin (`06a706551`,
   check RUNNING — read `<scratchpad>/sec-leg-check.exit`).
-- **⚑ THREE WRITE LANES + ONE STICKLER LIVE (2026-08-08 decision sitting, 2nd account):**
-  (1) security-executor — e2e-smoke seed fix (root cause above; final smoke run on new cache paths
-  in flight, merge on its green). (2) executor — C2-BLOCK {{note}} carrier refusal (write boundary +
-  editor save-hold, fence extended mid-run) + C8-CAP `MAX_INJECTION_TEMPLATE_LENGTH=10000` (RENAMES
-  `MAX_FORMAT_STRING_LENGTH`, coupled sites swept) + the RefineryFieldScore `@public` tag (ratchet
-  re-run exit 0 branch-side). (3) executor — OR-F5 cache-breakpoint fix: premise CORRECTED mid-run
-  (no tool fan-out on today's tree; real skew = parallel tool calls + recursion drift), fix =
-  tool-exchange rows TRANSPARENT to the conversational depth counter (sanctioned ST deviation —
-  ST never had tool rows here), + caching-depth knob (ARM A clamp-to-safe, Settings›Admin D126
-  precedent, null = byte-identical) + F5/F7 wire-probe matrix (authorized spend). (4) stickler —
-  group-chat architecture coherence review (owner: "feels crunchy"), report →
-  `docs/reviews/stickler/2026-08-08-group-chat-coherence.md`; the C4 build queues behind its verdict.
+- **⚑ TRAIN STATE (2026-08-08 late): main `0282bb554` — ONE write lane out (group-engine), push
+  word GRANTED.** Merged + check-green this sitting, in order: C2/C8/orphan `c0f896d76` (VERIFIER
+  CONFIRMED 6/6 — GRADUATED; 5 observations routed to the smalls batch, notably `preset.importFile`
+  bypasses the write-boundary carrier guard, pre-existing {{entry}} twin) · e2e seed fix `ebe6f8905`
+  (VERIFIER CONFIRMED 6/6 — GRADUATED; ran smoke 6/6 itself on the new cache paths + forward 4/4) ·
+  OR-F5 `05b69a9e9` (wire-proven: array-offset breakpoint landed on a `tool` row costing 5341
+  cache-write tokens/turn; conversational-depth fix = 0, invariant across recursion; knob
+  `promptCacheMinDepth` in Settings›Admin›System tuning, clamp-to-safe, null=byte-identical;
+  F7 probe STRENGTHENED the deferral — 3-hop chain kept naming the mid-chain rune with reasoning
+  dropped; $0.152 spent of $0.75) + biome fixup `f71ff9586` · C6/C7 `7f7d56c7f` (export submenu +
+  launcher shed; New-book byte-untouched; MOCK CONTRADICTION recorded — the ratified empty-states
+  mock frame 2 draws the shed affordance but was drawn SOLO where the duplication can't arise;
+  deviation in the component docblock, mock truth-repair in the smalls batch) · C4 `dab954f40`→
+  merged `0282bb554` (narrator marker mode-aware, blessed bytes byte-exact; 4 coupled test sites
+  caught by the literal sweep; drill-in note w/ planted control). **AWAITING GRADUATION:** OR-F5 +
+  C6/C7 + C4 + group-engine — one batched verifier + one batched side-eye (C6/C7 surfaces: submenu
+  at narrowest pane · card rhythm sans footer verb · mixed empty/populated arrangement) when the
+  train drains.
+- **⚑ STICKLER VERDICT (group-chat coherence, owner-ordered "feels crunchy"): BLESS with 4 real
+  mis-splits** (`docs/reviews/stickler/2026-08-08-group-chat-coherence.md`). C4's mode-aware fix
+  independently vindicated ("the right fix, not a symptom"). Findings ruled by the owner same
+  sitting: **F1 short-circuit narrator arbitration, KEEP the policy field** (no smart side-LLM call
+  discarded, no phantom warning; field survives mode toggles) · **F2 BUILD real round-robin**
+  (pooled ≡ list today, UI label lies, chain starves members) · **F3 delete `groupCharacterId`**
+  (D107 dead-switch default — zero readers, travels as a foreign id in bundles) · F5 stale
+  smart-fallback comment · F6 per-speaker arm → strictObject (with F3 transition test) · F7
+  @mention first-occurrence masking + narrator-room @mention routes through asPerSpeaker →
+  **all six in the GROUP-ENGINE lane (live)**. **F4 RULED arm (a): re-home the group-round framings
+  to the PRESET home + amend D132(B)** (queued, task #9). **VOCAB CENSUS RATIFIED IN FULL** (task
+  \#10): kill crew (39 files + the LIVE `entryMetadata.crew` schema field, NO-LEGACY rename) ·
+  director→arbiter · stop minting seat\* · 3 theatrical UI strings; KEEP party/scene/act (model-facing
+  wire vocab) + ember/weave (brand rulings stand).
+- **⚑ ARM A / D16 MARGIN RULED (orchestrator, owner-endorsed "do whatever's cleanest"):**
+  narrator-of-ONE (reachable only by shrinkage/mute — group controls gate at 2+) keeps the NARRATOR
+  marker: mode is host-chosen DATA, a `members.length > 1` gate is the exact `if (isGroup)` shape
+  D16 forbids, and narrator-of-one was never byte-identical in the persisted plane (synthetic-
+  character canon authorship). The solo-byte suite's narrator test reformulated LOUDLY (old text
+  preserved above the amendment; nudge-suppression-at-≤1 stays — mechanics vs identity distinction
+  recorded). **Ceremony candidate: a D16 amendment clause** at the next batch (enforcer exists —
+  the reformulated suite test).
+- **⚑ PUSH WORD GRANTED (owner, 2026-08-08 late): "you have my word to push when we get there."**
+  Sequence it spends on: group-engine merges → batched lenses → FRESH `verify --push` green →
+  `E2E_LIVE=1 pnpm e2e` → PUSH. The queued trio (F4 re-home · vocab sweep · OIDC owner-binding
+  task #8 — the owner's dogfood pain point, security-executor, FIRST dispatch after the push) is
+  train two.
+- **⚑ NEW ROWS from the sitting's lenses:** OIDC owner-flip binding (#8 — seeded owner collides
+  with OIDC sign-in under D17; bind-or-heal by OWNER\_HANDLES match; owner wants db-surgery-free
+  mode flips) · harness env-inheritance class (#7 — 3 sibling harnesses on the weak hatch +
+  OWNER\_GROUP/WIRE\_CAPTURE latent leak notes; e2e lane's class sweep) · smalls batch (#6 —
+  recognizer-mismatch chip lie · guidedActions read-degradation class created by C8 (no .catch) ·
+  importFile guard bypass truth-repair-or-guard · 2 stale comments · @public wording · the C7 mock
+  truth-repair). Token-concepts unification (DEBUG\_TOKEN/wire/allowlist as ONE ops story) OFFERED,
+  not yet ruled — DEBUGGATE unified only the debug surface's credential model.
 - **⚑ DECISION SITTING RESULTS (2026-08-08, owner live):** C2 BLOCK (Option C) · C3 SHIP ALL
   VERBATIM (ratified — the veto pile is closed) · C4 RULED mode-aware default + BLESSED narrator
   bytes (verbatim in the session TaskList #5; identity-as-narrator, address clause preserved;
