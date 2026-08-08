@@ -380,6 +380,22 @@ no `any`/`unknown` escape hatches. Merges the rename branch first; its branch su
   new literals in the same relocation. Do NOT dispatch until RENDERFIX merges. `no-media-queries-in-
   features`'s `MEDIA_QUERY_RE` matches viewport widths only — this is a NEW gate, not an extension.
 
+**⚑ OVERNIGHT RECONCILIATION (2026-08-07) — ruled items verified against the tree, several already DONE:**
+- [x] **DOCLAW-RPG-REFS → ALREADY DONE.** The carve-out is `Documentation-Law.md:114` (amended
+  2026-08-07: "A comment STATES its constraint; a citation may accompany it, never replace it" — the
+  ~4,066 §/D-refs sanctioned, bare pointers still a defect). The board row asking the orchestrator to
+  "write the paragraph" was stale — it was already written. (Nearly wrote a duplicate; re-verify caught it.)
+- [x] **ZOD-STAGE-D → DONE.** `z.hostname()` at `contracts/plugin/manifest.ts:62` (replaced the charset
+  regex 2026-08-02); strip-observability referenced at `contracts/rpg/extraction.ts:558`. All three legs
+  landed.
+- [x] **MACRO-CAST-GUIDES → DONE.** `rpg/chat-ops/macro-view.ts:144-150` — the three RV-11 standing
+  guides (appearance/outfit/thoughts) are CEL leaves DERIVED from `RPG_CAST_GUIDE_FIELDS`, reaching
+  `{{expr::rpg.cast…}}` and the Scene tab's `CastGuides`. A fourth guide joins by tuple membership.
+- **⏳ scout `aa56b683a841d3bd5` is reconciling the remaining smalls** (import-settings-write-guard ·
+  readout-parts pending-flash · CapabilityGate flash · field-reachability `.ok` · respell dup ·
+  per-actor tracker grant/revoke editor · countByBook twins · staging.ensure residual) — dispatch real
+  lanes only for the ones it confirms OPEN.
+
 **STILL BOARDED, NOT DISPATCHED:**
 - [ ] The preview fidelity gap — `verbs/read.ts` hardcodes `output:"per-speaker"` in three places, so a
   narrator room previews the wrong shape. Needs `GroupConfig` threaded into `PreviewInputs`.
