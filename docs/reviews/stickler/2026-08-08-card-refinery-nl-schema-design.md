@@ -349,3 +349,145 @@ Carried from the study's same-day reads: `generate.ts`/`validate.ts`/`auto-fix.t
 read via headers + call-site comments), `agent-sdk/output-schema.ts` full body, the preset-drawer's second
 generate wiring beyond its call line, `structured-output-section.tsx` internals (confirmed a knob UI by
 name + nav file only).
+
+
+---
+
+## 10. Shell-conformance audit (owner addendum #2 — the P5 surface + this design vs the REAL shell contract)
+
+Charge: verify the Refinery design (study §5.4 + §4.7 above) against the shell's actual
+LIST|CONTENT|CONTEXT contracts — not D62's sketch. All seams read in full this session; receipts below.
+Where D62 and the shell's later law diverge, the conflict is named for the owner (§10.5).
+
+### 10.1 The contracts as they actually are
+
+- **`list` and `selection` are ONE type-forked decision** (`packages/client/src/state/section-registry.ts:98-115`):
+  `SectionWithList` REQUIRES `selection: SectionSelection` — `{subscribe, hasSelection, clear}`
+  (`:89-96`) — "a `list` without a `selection` does not type-check … that is what makes the rule
+  un-opt-out-able" (`:98-102`). The seam publishes the section's EXISTING selection store, never a second
+  home (`:86-88`).
+- **Mobile never resolves a docked LIST except the list-as-screen arm** (`state/panel-resolve.ts:73-77`),
+  and that arm fires only when `listIsScreen` — computed as `selection !== undefined && !hasSelection`
+  (`state/section-list-projection.ts:27-32`). **The coordinator's premise is verified TRUE**: a section
+  without a `selection` key can never resolve a docked LIST at mobile widths. Refinery TODAY declares
+  neither `list` nor `selection` (`features/refinery/lib/refinery-section.tsx:9-32`), so `listIsScreen`
+  is structurally false — that is exactly why its list is collapsed/overlay-only now.
+- **The ONE-SHELL rule** (owner-ruled 2026-08-03, `panel-resolve.ts:48-57`): on a phone, a list-bearing
+  section with nothing selected shows its LIST docked as THE SCREEN; a selection pushes CONTENT with the
+  shell topbar carrying back; the user's own `"none"` (topbar toggle) still drops the roster to reach the
+  no-selection CONTENT (the corpus/analytics dashboard arm).
+- **The two reveal intents** (`state/shell-store.ts:288-324`): `revealContextPanel(tab?)` writes BOTH
+  regime channels unconditionally — for a jump whose DESTINATION is the panel ("the sheet IS the
+  navigation", the rpg Scene→Quests hop). `revealContextPanelBesideContent(tab)` (side-eye 2026-08-06 P1)
+  skips `setOpenOverlayPanel` on mobile (`:318-324`) — for a drill whose body is ALREADY in CONTENT,
+  because the mobile context sheet resolves overlay at 100dvw with CONTENT `inert` behind it: the
+  self-occlusion defect. Mock ruling: "the CONTEXT arm folds into CONTENT on mobile — no third pane on a
+  phone" (`:313-317`). Live exemplars: `preset-content.tsx`, `character-content.tsx`, `chat-header.tsx`,
+  rpg band/tab (sweep this session).
+- **`ContextDefinition`** (`lib/registry-contracts.ts:168-184`): `none | single | tabs`; `tabs` minted
+  ONLY by `defineContextTabs<S>` (G3 wall, `:182`); every arm carries the empty copy; the band identity
+  (`header`) is mint-supplied from the same `S` (`:193-196`).
+- **The selection mint is sealed**: `createDrillSelectionStore` (G27 `selection-store-via-factory` —
+  `state/create-drill-selection-store.ts:1-11`); `clear()` is the ONE door back and also releases an open
+  slide-over (`:27-30`).
+- **The X-7 defect class** (`docs/reviews/side-eye/2026-08-03-scoped-recheck.md:258-264`): the same
+  heading + helper rendered in the CONTEXT inspector AND the CONTENT drill header AND the CONTENT picker
+  heading, plus a dead no-action readout — the anti-echo bar every CONTEXT payload below is tested against.
+- **The board's taste note** (`docs/retro-workboard.md:711-712`): "two CONTEXT arms now spend ~383px
+  declining honestly — fine twice, worth noticing before a third joins." Bears directly on §10.3.
+
+### 10.2 The selection-key decision (explicit, with the mobile arms)
+
+**Refinery declares a sessions LIST ⇒ it MUST declare `selection` — and the design does:**
+`state/refinery-selection-store.ts` minted via `createDrillSelectionStore` (G27), primary =
+`RefinerySessionId`, no secondary (the STAGE is in-session UI state on the stepper, not a drill — the
+back gesture must pop to the roster, never stage-by-stage). The section definition publishes the mint's
+`{subscribe, hasSelection, clear}` as its `selection` seam; `useSelectionTitle` returns the open
+session's name (character + session label), `null` ⇒ the shell prints "Refinery".
+
+**This CHANGES the mobile resolution, deliberately.** Today: no seam ⇒ mobile refinery can never dock a
+list. Under the design, refinery joins the one-shell rule, and the arms become:
+
+| Regime | Resolution |
+| - | - |
+| Phone, no session open | the sessions roster IS the screen (docked, in flow, no scrim — `panel-resolve.ts:74-76`); topbar toggle (`"none"`) drops it to the pick-a-character CONTENT |
+| Phone, session open | CONTENT (the pipeline surface) is the screen; the shell back affordance fires `selection.clear()` → roster again |
+| Narrow desktop | LIST default `collapsed` auto-behaves as a closed slide-over; opens to overlay on demand (`:79-84`) |
+| Wide desktop | `panelDefaults: {list: "collapsed"}` — D62's content-first hub, unchanged |
+
+**Load-bearing consequence**: a first-run phone user lands on an EMPTY sessions roster — so the LIST
+empty state must carry the start door ("Pick a character → Score it"), not a bare "no sessions" (the
+empty-states-are-load-bearing posture). The planned-state marker (`content: {planned}`) is deleted in the
+SAME edit that lands `list`+`selection`+`content` (G1's wall). The H3 `panels` arm is not needed — the
+section gains real panes.
+
+### 10.3 The CONTEXT-panel payload rule (anti-echo applied)
+
+D62 fixed CONTENT's cargo: stage stepper · assay · issues · compare, plus guidance and field selection
+(study §5.4). The rule this design adds, stated as law for the build lane:
+
+> **Refinery CONTEXT carries the session's CROSS-RUN dimension — the ledger — never the current stage's
+> payload.** Anything about the run you are looking at lives in CONTENT; anything about the runs you are
+> NOT looking at, and the configuration in force across them, lives in CONTEXT.
+
+Concretely: `kind: "tabs"` via `defineContextTabs<RefinerySessionState>` (G3), replacing today's
+`{kind: "none"}`:
+
+- **Runs** — the append-only run history, reactive to the selected session: per-run stage · iteration ·
+  model · token cost · duration · verdict chip; tapping a run loads it into CONTENT's viewer (the
+  extension's `viewingHistoryIndex` history navigation, re-homed to the panel that owns cross-run data).
+- **Setup** — the in-force configuration snapshot: the active custom-schema chip (name + "Edit" → the
+  §4.7 modal) · prose-override indicator · model/posture line · the original-card anchor link (snapshot
+  precedent) · the token-fit line (study I4).
+- Band identity (`header`): character avatar + session name — from the same `S` (P4, `registry-contracts.ts:193-196`).
+
+**Anti-echo test, applied**: no Runs/Setup row reproduces a CONTENT heading or helper — CONTENT never
+lists prior runs (it shows ONE payload at a time) and never restates the model/schema/posture config;
+the stepper's stage names appear in CONTEXT only as row DATA (chips), never as heading+helper pairs.
+No dead readouts: every row carries its action (load run · open editor · open snapshot) — the X-7
+receipt's "0 scripts attached" no-action readout is the named anti-pattern. Empty arms per
+`ContextEmptyArm` (`registry-contracts.ts:164-165`): session-with-zero-runs ⇒ "No runs yet — Run Score
+to start" WITH the action; no-session ⇒ the mint's empty copy naming what appears on selection.
+
+`panelDefaults: {context: "collapsed"}` is KEPT — D62's ruling was a default-MODE, not a kind (§10.5-2).
+
+### 10.4 Reveal-intent picks per payload (the self-occlusion rule)
+
+| Trigger | Payload home | Intent |
+| - | - | - |
+| CONTENT iteration chip / "view run N" | the run viewer swaps INTO CONTENT; the ledger is supplementary | `revealContextPanelBesideContent("runs")` — desktop docks the ledger beside the viewer; a phone does NOT get a sheet over the viewer it just opened |
+| Topbar detail toggle · a menu's "Session setup" | the panel IS the destination | `revealContextPanel("setup")` — the sheet is the navigation, mobile included |
+| Schema chip "Edit" · stage-config "New schema" | a MODAL (registry-paired) | neither intent — modals are viewport-safe by construction |
+
+NL-schema surfaces re-checked against self-occlusion: the payload picker, editor form, NL panel and
+test-preview all live in CONTENT or the modal; the only CONTEXT resident is the passive schema chip —
+no addendum surface can occlude itself on coarse pointer.
+
+### 10.5 D62-vs-shell conflicts, named for the owner (not silently picked)
+
+1. **D62 "Refinery LIST … defaults collapsed" vs the one-shell rule (post-dates D62 by a month).** On
+   mobile the sessions roster now leads over D62's pick-a-character CONTENT whenever sessions exist.
+   Not a contradiction — a later owner ruling layered over an older sketch — but it changes what a phone
+   user sees first. REC: accept (it is ONE rule across all seven measured list-bearing sections,
+   `panel-resolve.ts:53-55`; opting refinery out would require sitting outside the sealed seam). The
+   opt-out alternative — no LIST at all + `panels: {list: "unavailable"}` — keeps D62's letter and
+   forfeits the session roster everywhere; not recommended.
+2. **D62 "CONTEXT collapsed (compare/guidance live in CONTENT)" vs the board's taste note.** D62's cell
+   rules a default MODE; it does not rule `kind:"none"`. Keeping the panel EMPTY would add the third
+   ~383px honestly-declining CONTEXT arm the board flagged (`retro-workboard.md:711-712`). REC: the
+   §10.3 ledger payload (unique cargo, default collapsed — D62's mode honored). This is the one
+   D62-delta the owner signs.
+3. **D62 "past refinery sessions per character".** The drill store has ONE primary; the design's LIST is
+   the owner's sessions with the character as row identity/grouping — not a per-character sub-list.
+   Minor letter-deviation, named here; the row's title carries the character name so the reading is the
+   same.
+
+### 10.6 Coverage (this audit)
+
+Read IN FULL: `state/section-registry.ts`, `state/panel-resolve.ts`, `state/section-list-projection.ts`,
+`features/refinery/lib/refinery-section.tsx` (study session), `create-drill-selection-store.ts:1-30`,
+`shell-store.ts:274-338` (the reveal/overlay hunks), `registry-contracts.ts:160-198`, the X-7 receipt
+(`side-eye/2026-08-03-scoped-recheck.md:256-264,322-325`), the board hunks (`retro-workboard.md:702-726,
+813-827`). NOT read: `useShellLayout` itself (app-shell tier — its behavior is cited via the contracts'
+own headers, which name it), the seven live section definitions beyond refinery's (their conformance is
+the gates' business), `defineContextTabs`'s mint body below `registry-contracts.ts:250`.
