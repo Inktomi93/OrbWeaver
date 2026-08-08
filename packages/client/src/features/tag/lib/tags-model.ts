@@ -97,10 +97,13 @@ export function unusedTagsLabel(count: number): string {
   return `${count} unused tag${count === 1 ? "" : "s"}`;
 }
 
-/** What a colour slot IS, in words — ONE home for the roster row's screen-reader datum and the editor's
- *  own readout under each picker (side-eye 2026-08-06 P3). `null` is a real state, not a blank: a tag with
- *  no colour paints the theme default, and "unset" and "set to something invisible in this theme" were the
- *  same silence in both places. */
+/** What a colour slot IS, in words — the EDITOR's readout under each picker, and the roster swatch's hover
+ *  tooltip (side-eye 2026-08-06 P3). `null` is a real state, not a blank: a tag with no colour paints the
+ *  theme default, and "unset" and "set to something this theme swallows" were the same silence.
+ *
+ *  IT IS NOT A ROW DATUM. The re-verify caught the first pass routing this through `ListRow.markers` —
+ *  the row's `aria-describedby` channel — which made a screen reader recite the whole disclaimer once per
+ *  row across a 400-tag library. A roster row is a scan line; this is an editing fact. */
 export function tagColorLabel(kind: "Background" | "Text", value: string | null): string {
   return value === null ? `${kind}: not set — uses the theme default` : `${kind}: ${value}`;
 }

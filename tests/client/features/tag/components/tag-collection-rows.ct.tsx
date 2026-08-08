@@ -94,6 +94,20 @@ test("each row carries its name and its usage census", async ({ mount, page }) =
   await expect(rows.getByText("unused", { exact: true })).toBeVisible();
 });
 
+// A ROW IS A SCAN LINE, AND ITS SPOKEN FORM IS TOO (side-eye re-verify 2026-08-06). A fix that put the
+// swatch's colour value in `markers` — the row's `aria-describedby` channel — made a screen reader recite
+// an 8-word "not set — uses the theme default" disclaimer once per row, ahead of the census, and
+// concatenated to it with no separator, across a 400-tag library. The row's description is the census
+// ALONE; the colour's value is stated once, in words, in the editor the row's click mounts.
+test("a row's spoken DESCRIPTION is the census alone — no per-row colour disclaimer", async ({ mount, page }) => {
+  await stub(page);
+  const rows = await mount(<TagCollectionRowsStory />);
+  const row = rows.getByRole("button", { name: "adventure" });
+  await expect(row).toHaveAccessibleDescription("7 uses");
+  // The words are nowhere in the roster at all — not in a row's name, not in its description.
+  await expect(rows.getByText("theme default")).toHaveCount(0);
+});
+
 test("the host's filter string narrows the OWNER's rows", async ({ mount, page }) => {
   await stub(page);
   const rows = await mount(<TagCollectionRowsStory filter="orph" />);
