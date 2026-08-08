@@ -12,7 +12,7 @@ import { ListPaneHeader } from "@orb/client/components";
 import { Button } from "@orb/ui/button";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
-import { ListBandInShell } from "./list-pane-header.fixtures.tsx";
+import { EmptyListBandInShell, ListBandInShell } from "./list-pane-header.fixtures.tsx";
 
 const MICRO_PX = `${Number.parseFloat(TOKENS["text.micro"].value) * 16}px`;
 const MICRO_TRACKING = TOKENS["tracking.micro"].value;
@@ -127,4 +127,19 @@ test("DESKTOP: the band is untouched — title, count and action all paint", asy
   await expect(page.locator(".shell-panel-header")).not.toHaveCSS("display", "none");
   await expect(band.getByRole("heading", { level: 2 })).toContainText("Configuration");
   await expect(band.getByText("8", { exact: true })).toBeVisible();
+});
+
+// THE CHILDLESS BAND (side-eye re-verify 2026-08-06). Refinery declares no `listHeader` at all, so its band
+// has zero children — the `:has()` chain that sheds a band whose cluster stopped painting has nothing to
+// anchor on, and 48px of bordered nothing survived on the one section with the least to say. This is the
+// CONTEXT side's own `:empty` collapse, finally spelled for the LIST band.
+test("MOBILE: a band with NO header content at all collapses out", async ({ mount, page }) => {
+  await page.setViewportSize(PHONE);
+  await mount(<EmptyListBandInShell />);
+  await expect(page.locator(".shell-panel-header")).toHaveCSS("display", "none");
+});
+
+test("DESKTOP: the same childless band KEEPS its row — the D66 A1 baseline horizon is a desktop rule", async ({ mount, page }) => {
+  await mount(<EmptyListBandInShell />);
+  await expect(page.locator(".shell-panel-header")).not.toHaveCSS("display", "none");
 });

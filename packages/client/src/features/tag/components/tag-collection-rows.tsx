@@ -196,9 +196,16 @@ function TagCollectionRow({
         // token gates deliberately scope out), and it rides a layout primitive because a feature may not
         // put `style` on a raw intrinsic.
         //
-        // A hover TOOLTIP on the box, and the same fact as text in `markers` below — `ListRow` wraps its
-        // whole `leading` slot in `aria-hidden` by construction (the fallback-initials rule), so a name on
-        // this element could never reach the a11y tree no matter how it were spelled.
+        // A hover TOOLTIP and nothing else. `ListRow` wraps its whole `leading` slot in `aria-hidden` by
+        // construction (the fallback-initials rule), so a name spelled here could never reach the a11y tree.
+        //
+        // AND THE VALUE DOES NOT BELONG ON THE ROW AT ALL (side-eye re-verify 2026-08-06). The first pass
+        // routed it through `markers`, which is the row's `aria-describedby` channel — so a screen-reader
+        // user scanning a 32-row roster heard an 8-word colour disclaimer THIRTY-TWO TIMES, ahead of the
+        // census they were scanning for, and concatenated to it with no separator ("…theme default5 uses":
+        // the adjacent-inline-node trap `chat-documents-section.tsx:172-175` guards with a literal space).
+        // A roster row is a SCAN line — swatch, name, usage. The colour's exact value is an EDITING fact and
+        // it is stated once, in words, in the editor the row's own click mounts (`tag-member-surface.tsx`).
         <Row
           aria-hidden={true}
           className="size-3 shrink-0 rounded-control bg-muted"
@@ -207,19 +214,9 @@ function TagCollectionRow({
         />
       }
       markers={
-        <>
-          {/* THE SWATCH SAYS ITS VALUE (side-eye 2026-08-06 P3). The ONE fact the leading box carries —
-              which colour this tag paints, or that it has none — was sighted-only, and "no colour set" and
-              "set to something" were indistinguishable in the a11y tree because neither existed there.
-              `markers` is the row's own description channel (its id rides `aria-describedby`), so the datum
-              lands with the census and spends no width on a 400-row roster. */}
-          <Text as="span" className="sr-only">
-            {tagColorLabel("Background", tag.color)}
-          </Text>
-          <Text as="span" voice="datum">
-            {usageTotalLabel(tag.usage.total)}
-          </Text>
-        </>
+        <Text as="span" voice="datum">
+          {usageTotalLabel(tag.usage.total)}
+        </Text>
       }
       onSelect={onSelect}
       selected={selected}

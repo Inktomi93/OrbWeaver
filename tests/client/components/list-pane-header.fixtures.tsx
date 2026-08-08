@@ -8,6 +8,20 @@ import { ListPaneHeader } from "@orb/client/components";
 import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
 
+/** The band a section that declares NO `listHeader` gets: present, on the shared horizon, and childless.
+ *  Refinery is the live one. It is a DIFFERENT shape from "the slot rendered something that then shed" —
+ *  `:has()` has nothing to anchor on and `:empty` is the only thing that can see it. */
+export function EmptyListBandInShell(): ReactElement {
+  return (
+    <div className="shell-grid" data-list-mode="docked" data-section="refinery">
+      <aside className="shell-panel" data-panel-mode="docked" data-panel-side="list">
+        <header className="shell-panel-header" />
+        <div className="shell-panel-body">rows</div>
+      </aside>
+    </div>
+  );
+}
+
 interface BandInShellProps {
   /** The scoped-mode entity half — a SCOPED title survives the mobile shed, an unscoped one does not. */
   readonly accent?: string;
