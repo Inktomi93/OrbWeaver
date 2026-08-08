@@ -36,6 +36,32 @@ threading seam (`GatherTurnContextArgs.prose` → `LiteReminderInput.prose`) and
 (`TEMPLATE_DEFS` + the two-sided coverage test in `tests/contracts/prose/`) both landed. This is exactly why
 the spec (§9) sequences S4 after S3.
 
+## The re-home DROPS data, and that is sanctioned (2026-08-08)
+
+Stated plainly so nobody re-derives it as a bug: any `rpg_games.config.prose` a host authored during the ~one
+merge window the field existed (`fa8f944a0` → the re-home) is **GONE**. The field is deleted from
+`rpgGameConfigSchema`, so zod strips the key on the next parse of a stored blob — no read, no migration, no
+shim. Pre-launch NO-LEGACY: there is no production data and no upgrade path to owe. A host who edited a teach in
+that window re-authors it in the preset Templates tab.
+
+The stored bytes are inert rather than fatal — `tests/contracts/rpg/config.contract.test.ts` pins exactly that
+("a stale stored `prose` key is stripped rather than fatal"), which is what makes the delete safe to do without
+touching a single row.
+
+## The preview path had to be fixed with it (2026-08-08, verifier REFUTED)
+
+The re-home surfaced an OLDER defect it did not create. `chat/verbs/turn.ts` runs the GM-preset redirect
+(`ctx.rpg.resolvePresetOverride`) before the foreign read; `resolvePreviewInputs` never did. So on a game chat
+every preview surface rendered the HOST'S DEFAULT preset while the turn shipped the GM preset's — sections,
+guided prompts, format strings, the turn-wire framings, all of it. It was invisible while the teaches lived in
+`config.prose`, because that was ONE storage both paths read: preview and turn agreed by construction. Moving
+the teaches to the preset put them on the unfaithful side.
+
+`resolvePreviewInputs` now runs the same redirect, with an EXPLICIT `presetOverride` outranking it (the preset
+editor asking "what would THIS preset render here" must still be answered). One fix, every preview surface.
+**The extraction lane inherits the same rule:** whatever seam it picks to get preset prose into the post-commit
+extraction round, the preview of that round must resolve it the same way, or the instrument lies again.
+
 ## Verifier F2 — "the prose write door has no READ door" — is DEAD (2026-08-08)
 
 The RPG-PROSE verifier filed F2 against the shipped spine: `updateConfig.patch.prose` WROTE, and nothing read

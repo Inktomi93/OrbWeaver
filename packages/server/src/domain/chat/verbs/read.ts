@@ -336,7 +336,14 @@ async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView
  *  to the HOST's own active persona (the `human` trigger) — the preview already resolves everything else under
  *  the host (`runAsUserId`, the connection, the preset). A host with NO active persona takes the `none` arm ⇒
  *  the chat ANCHOR. Both arms are deterministic and host-scoped; neither can surface another member's persona
- *  on the host's own instrument, which the retired `personaIds[0]` fallback could (2026-08-07). */
+ *  on the host's own instrument, which the retired `personaIds[0]` fallback could (2026-08-07).
+ *
+ *  It also runs the turn's GM-PRESET REDIRECT (see the block at the `resolveForeignInputs` call), so every
+ *  surface built on these inputs — `previewAssembly`, `peekPrompt`, `getShapeTrace`, `previewContextFit`,
+ *  `previewSection`, `previewActionTemplates`, `getActivePresetConfig` — answers about the preset the TURN
+ *  assembles on a game chat. That was a lie until 2026-08-08 and nothing caught it, because the one storage the
+ *  rpg teaches used to live in (`config.prose`) was shared by both paths and so was byte-identical by
+ *  construction; re-homing the teaches to the preset moved them onto the unfaithful side and exposed it. */
 async function resolvePreviewInputs(
   ctx: ChatContext,
   deps: ReadDeps,
@@ -348,7 +355,11 @@ async function resolvePreviewInputs(
      *  inspects a preset the room has not adopted). Rides the LANDED `ResolveForeignInputsOp.presetOverride`
      *  seam (minted for the rpg GM-voice redirect): compose resolves it owned-or-system under the HOST and
      *  falls back to the host's own default on a stale/unowned id — the lenient-id rule, so an override can
-     *  never read a preset outside the host's library. Absent ⇒ byte-identical to every existing preview. */
+     *  never read a preset outside the host's library. Absent ⇒ the GM-preset redirect, else the host default.
+     *
+     *  EXPLICIT OUTRANKS THE REDIRECT: this is a host pointing at a candidate preset and asking what it would
+     *  render here. Letting a game chat's `gmPresetId` win would answer a question nobody asked, on the one
+     *  surface whose entire job is inspecting a preset the room has NOT adopted. */
     readonly presetOverride?: PresetId | undefined;
   },
 ): Promise<PreviewInputs> {
@@ -370,6 +381,20 @@ async function resolvePreviewInputs(
   const personaIds = roster.flatMap((r) => (r.kind === "human" && r.activePersonaId !== null ? [r.activePersonaId] : []));
   const hostPersonaId = roster.find((r) => r.kind === "human" && r.userId === hostUserId)?.activePersonaId ?? null;
   const connection = await deps.resolveConnection({ runAsUserId: hostUserId, chatId });
+  // THE GM-PRESET REDIRECT — the SAME early hop the turn runs (`verbs/turn.ts`: `resolvePresetOverride` before
+  // the foreign read). A game chat assembles its `gmPresetId`, not the host's default preset, and until now no
+  // preview ran that hop: every preview surface on a game chat rendered the host's DEFAULT preset's templates
+  // while the turn shipped the GM preset's — the sections, the guided prompts, the format strings, the framings
+  // and (since the 2026-08-08 prose re-home) the eleven rpg teaches. A preview is an HONESTY INSTRUMENT; a
+  // preview that resolves a different preset than the turn is not a partial answer, it is a wrong one.
+  //
+  // PRECEDENCE mirrors the turn's, with one addition the turn has no analogue for: an EXPLICIT `presetOverride`
+  // is the preset editor asking "what would THIS preset render in this room", so it outranks the redirect —
+  // otherwise a host inspecting a candidate preset on a game chat would be shown the GM preset instead of the
+  // one they clicked. Absent ⇒ the redirect ⇒ (no game / no gmPresetId) the host's own default, unchanged.
+  const explicitPreset = opts.presetOverride;
+  const gmPreset = explicitPreset !== undefined || ctx.rpg === null ? null : await ctx.rpg.resolvePresetOverride(chatId);
+  const presetOverride = explicitPreset ?? gmPreset ?? undefined;
   const foreign = await deps.resolveForeignInputs({
     chatId,
     runAsUserId: hostUserId,
@@ -382,7 +407,7 @@ async function resolvePreviewInputs(
     // and inherit the `personaIds[0]` fallback, which could render ANOTHER member's persona as `{{user}}` on
     // the host's instrument, and re-ordered itself whenever someone joined (that fallback is retired).
     trigger: hostPersonaId !== null ? { kind: "human", userId: hostUserId, personaId: hostPersonaId } : { kind: "none" },
-    ...(opts.presetOverride !== undefined ? { presetOverride: opts.presetOverride } : {}),
+    ...(presetOverride !== undefined ? { presetOverride } : {}),
   });
   const gameUserMacros = ctx.rpg === null ? [] : await ctx.rpg.resolveUserMacros(chatId);
   return {
