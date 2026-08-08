@@ -1,6 +1,6 @@
 // biome-ignore-all lint/style/useNamingConvention: SillyTavern wire field names (snake_case) — `min_p` etc.
 // are exactly what an ST preset blob carries (the D68-A import mapping tests below).
-import type { GuidedActionKind, PromptConfig } from "@orb/contracts/preset";
+import type { GuidedActionKind, PromptConfig, TemplateDef } from "@orb/contracts/preset";
 import {
   ASSEMBLE_POST_PROCESS_ORDER,
   buildPresetFile,
@@ -28,6 +28,7 @@ import {
   RECEIVE_POST_PROCESS_ORDER,
   REPLY_LANE_STEPS,
   SIDE_GEN_POSTURES,
+  TEMPLATE_CLUSTERS,
   TEMPLATE_DEF_BY_ID,
   TEMPLATE_DEFS,
   TEMPLATE_KINDS,
@@ -741,6 +742,26 @@ test("every TemplateDef points at a REAL prose slot, and its kind is a declared 
 test("the by-id lookup is total over the registry (the client renders a row without a fallback)", () => {
   for (const def of TEMPLATE_DEFS) {
     expect(TEMPLATE_DEF_BY_ID[def.id]).toBe(def);
+  }
+});
+
+test("clusters pair with the banded kind TWO-SIDEDLY: every extract row declares one, nothing else does", () => {
+  // The Actions-tab IA (docs/design/actions-tab-information-architecture.md §2.1): `extract` renders as
+  // collapsed disclosure bands, so an extract row WITHOUT a cluster would render mis-filed above the bands —
+  // and a clustered row of an un-banded kind would declare a band no renderer draws. The type system cannot
+  // state the pairing (kind and cluster are independent fields), so this census is the enforcement.
+  // Widened to the INTERFACE: the tuple's literal members omit the absent optional key entirely, so a
+  // `.cluster` read on the raw union is a TS2339 rather than `undefined`.
+  const defs: readonly TemplateDef[] = TEMPLATE_DEFS;
+  expect(defs.filter((def) => def.kind === "extract" && def.cluster === undefined).map((def) => def.id)).toStrictEqual([]);
+  expect(defs.filter((def) => def.kind !== "extract" && def.cluster !== undefined).map((def) => def.id)).toStrictEqual([]);
+  // …and every declared cluster is DRAWN: no `TEMPLATE_CLUSTERS` member may be empty, or the tuple carries a
+  // band label the list never renders (the vocabulary and the data drifting apart).
+  for (const cluster of TEMPLATE_CLUSTERS) {
+    expect(
+      defs.some((def) => def.cluster === cluster),
+      `cluster "${cluster}" has no rows`,
+    ).toBe(true);
   }
 });
 

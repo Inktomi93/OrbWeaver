@@ -10,8 +10,8 @@
 // WHY IT IS PURE: the registration cost for a new template stays "one enum member + one def row" (the D117
 // shape). Nothing here enumerates templates — it maps over whatever the registry holds.
 
-import type { GuidedActionKind, PromptConfig, TemplateDef, TemplateDefId, TemplateKind } from "@orb/contracts/preset";
-import { GUIDED_ACTION_KINDS, TEMPLATE_DEFS, TEMPLATE_KINDS } from "@orb/contracts/preset";
+import type { GuidedActionKind, PromptConfig, TemplateClusterId, TemplateDef, TemplateDefId, TemplateKind } from "@orb/contracts/preset";
+import { GUIDED_ACTION_KINDS, TEMPLATE_CLUSTERS, TEMPLATE_DEFS, TEMPLATE_KINDS } from "@orb/contracts/preset";
 import type { ProseSlotId } from "@orb/contracts/prose";
 import { isPresetProseSlotId, PROSE_SLOTS } from "@orb/contracts/prose";
 
@@ -28,10 +28,21 @@ export interface TemplateRow {
   readonly factoryDefault: string;
 }
 
-/** One kicker-headed group in the Actions list, in `TEMPLATE_KINDS` order. */
+/** One disclosure-banded SUB-CLUSTER inside a group (the Actions-tab IA §2.1) — the registry's own
+ *  `cluster` declarations, banded in `TEMPLATE_CLUSTERS` tuple order, rows in registry order within. */
+export interface TemplateRowCluster {
+  readonly id: TemplateClusterId;
+  readonly label: string;
+  readonly rows: readonly TemplateRow[];
+}
+
+/** One kicker-headed group in the Actions list, in `TEMPLATE_KINDS` order. `rows` are the FLAT
+ *  (cluster-less) members; `clusters` are the banded ones — a kind has one or the other in practice, but
+ *  the shape permits both so a kind can grow its first band without a shape change. */
 export interface TemplateGroup {
   readonly kind: TemplateKind;
   readonly rows: readonly TemplateRow[];
+  readonly clusters: readonly TemplateRowCluster[];
 }
 
 const GUIDED_KIND_SET: ReadonlySet<string> = new Set<string>(GUIDED_ACTION_KINDS);
@@ -44,8 +55,8 @@ function isGuidedActionKind(id: TemplateDefId): id is GuidedActionKind {
 /** The GROUP HEADING for one registry kind. The enum member is a code identifier (`steer`, `voice`) — the
  *  kicker over a group of rows is a heading a person reads, so it gets a human plural (side-eye F-30 /
  *  ARIA rec 10). Keyed by the union, so a new kind is a `tsc` error here until it has a label — the D117
- *  registration cost, unchanged. The per-row KIND CHIP deliberately keeps the raw member: it is a
- *  taxonomy tag echoing the registry's own vocabulary, and the mock draws it that way. */
+ *  registration cost, unchanged. The raw member survives as a taxonomy chip ONLY in the drill-in header
+ *  (the LIST dropped it with the IA — under a kind-titled kicker it discriminated nothing on any row). */
 export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
   steer: "Steers",
   voice: "Voice",
@@ -61,6 +72,97 @@ export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
   extract: "State tracking",
 };
 
+/** The BAND label over one sub-cluster (the Actions-tab IA §2.1) — keyed by the contracts union, so a new
+ *  cluster id fails `tsc` HERE until labeled: the `TEMPLATE_KIND_LABEL` registration shape, one level down.
+ *  Kicker-voiced copy a person reads (the bands are the map; the rows inside no longer re-say these nouns —
+ *  X-7 anti-echo). Owner-vetoable chrome copy, deliberately ALL in this one file. */
+export const TEMPLATE_CLUSTER_LABEL: Record<TemplateClusterId, string> = {
+  round: "Round framing",
+  scene: "The scene plane",
+  party: "Party & trackers",
+  planes: "Inventory, quests & journal",
+  tools: "Tool descriptions",
+  refs: "The ref block",
+};
+
+/** The tab's teaching sentence (the Actions-tab IA §2.5). Its predecessor taught `{{input}}` steering —
+ *  true for 9 of 67 rows; the `{{input}}` teaching lives where it is true per-row (the drill-in's token
+ *  vocabulary and its missing-`{{input}}` warning). Homed HERE with the other reword-able chrome copy. */
+export const ACTIONS_TAB_TEACH = "Every prompt template this preset authors — select a row to see where it lands, drill in to edit it.";
+
+/** WHERE a kind's bytes reach the model — the readout's DELIVERY PATH dispatch (the Actions-tab IA §2.3,
+ *  derived from the LIVE assembly code, receipts in the design doc §1). `marker` renders the standing
+ *  `guided_instruction` cluster (health · position · role · cross-link); `static` renders the kind's own
+ *  truth. Exhaustive over `TemplateKind`, so a new kind fails `tsc` here until its delivery is stated —
+ *  which is precisely how the teach/extract rows shipped a FALSE marker cluster for a night.
+ *
+ *  The alias is UNEXPORTED on purpose (no-inline-types: a feature `lib/` is not a type home): every consumer
+ *  reads the exported VALUE below and narrows on `.kind` structurally — nothing needs the name. */
+type TemplateDelivery =
+  | { readonly kind: "marker" }
+  | {
+      readonly kind: "static";
+      /** The channel datum ("The game turn") — the static arm's answer to the marker arm's name row. */
+      readonly channel: string;
+      /** The delivery sentence. The selected row's own `fires` line renders beneath it as the specific. */
+      readonly body: string;
+    };
+
+export const TEMPLATE_KIND_DELIVERY: Record<TemplateKind, TemplateDelivery> = {
+  // The guided family: a `system`-role steer rides the `{{guided_instruction}}` marker (loud injection
+  // fallback when the preset lacks it); user/assistant roles ride a depth-N injection. The marker cluster
+  // stays the load-bearing "will my steer LAND" fact for all three kinds.
+  steer: { kind: "marker" },
+  voice: { kind: "marker" },
+  studio: { kind: "marker" },
+  nudge: {
+    kind: "static",
+    channel: "The next user turn",
+    body: "Appended to the history as the newest user-role turn when its action fires with nothing typed. It rides the turn itself — the Guided instruction marker plays no part.",
+  },
+  format: {
+    kind: "static",
+    channel: "The outgoing wire",
+    body: "Applied by the assembler wherever the wire's shape calls for it — wrapping an injection, marking the history's start, or cueing a continuation.",
+  },
+  teach: {
+    kind: "static",
+    channel: "The game turn",
+    body: "Composed into the steering reminder — one system note near the prompt's tail, rebuilt every game turn. Fires only while this preset drives a chat with a game running.",
+  },
+  extract: {
+    kind: "static",
+    channel: "The state round",
+    body: "A separate extraction call after each beat records the tracked state (a folded game mounts it on the turn's terminal tools). These bytes never enter the chat prompt itself.",
+  },
+};
+
+/** The UNBOUND preview's trailing gloss, per kind — its predecessor claimed "every macro here resolves in
+ *  chat" for all 67 rows, false for the game rows (extract tokens are DATA the seam splices; the chat macro
+ *  engine passes them through untouched — `kit/macro/evaluator.ts`'s passthrough). */
+export const TEMPLATE_KIND_UNBOUND_GLOSS: Record<TemplateKind, string> = {
+  steer: "Every macro here resolves in chat — open a chat and this readout binds to it, showing what the model actually receives.",
+  voice: "Every macro here resolves in chat — open a chat and this readout binds to it, showing what the model actually receives.",
+  studio: "Every macro here resolves in chat — open a chat and this readout binds to it, showing what the model actually receives.",
+  nudge: "Every macro here resolves in chat — open a chat and this readout binds to it, showing what the model actually receives.",
+  format: "Macros here fill when the assembler applies this row to a real turn — a frame's {{note}} is the wrapped injection's own content.",
+  teach: "{{user}} and {{char}} resolve through the chat's identity registry on each game turn — open a game chat and this readout binds to it.",
+  extract:
+    "Braced tokens here are spliced from the game's own data at the state round — they are not chat macros. Binding a chat resolves only the identity names.",
+};
+
+/** The BOUND gloss's fire-time tail, per kind — the phrase after the surviving-token list. Its predecessor
+ *  said "they fill in when you click" for every row; only the guided family fires on a click. */
+export const TEMPLATE_KIND_FIRE_TIME: Record<TemplateKind, string> = {
+  steer: "they fill in when you fire the action",
+  voice: "they fill in when you fire the action",
+  studio: "they fill in when you fire the action",
+  nudge: "they fill in when the nudge fires",
+  format: "they fill at assembly, per turn",
+  teach: "they resolve on each game turn",
+  extract: "they are spliced from game data at the state round",
+};
+
 /** The ONE place a def's id becomes a form shape. */
 function templateRow(def: TemplateDef): TemplateRow {
   const slot = def.defaultSlot;
@@ -72,12 +174,36 @@ function templateRow(def: TemplateDef): TemplateRow {
   };
 }
 
-/** The whole list, grouped by the registry's own `kind` in tuple order. A kind with no defs yields no
- *  group (an empty kicker over nothing is chrome). */
-export function templateGroups(): readonly TemplateGroup[] {
-  return TEMPLATE_KINDS.map((kind) => ({ kind, rows: TEMPLATE_DEFS.filter((def) => def.kind === kind).map(templateRow) })).filter(
-    (group) => group.rows.length > 0,
-  );
+/** Does a row match the tab's filter? Over the two strings a reader can SEE (label + fires) — matching
+ *  hidden fields would make rows appear for no visible reason. `""` matches everything (no filter). */
+export function templateRowMatches(row: TemplateRow, filter: string): boolean {
+  const needle = filter.trim().toLowerCase();
+  if (needle === "") {
+    return true;
+  }
+  return row.def.label.toLowerCase().includes(needle) || row.def.fires.toLowerCase().includes(needle);
+}
+
+/** The whole list, grouped by the registry's own `kind` in tuple order, filtered by the tab's filter box
+ *  (`""` = everything). Within a group, rows DECLARING a cluster band under it (in `TEMPLATE_CLUSTERS` tuple
+ *  order, registry order within); the rest render flat above the bands. A kind — or a cluster — with no
+ *  matching rows yields no group/band (an empty kicker over nothing is chrome; a band with zero matches
+ *  while filtering would be a door onto nothing). */
+export function templateGroups(filter = ""): readonly TemplateGroup[] {
+  return TEMPLATE_KINDS.map((kind): TemplateGroup => {
+    const members = TEMPLATE_DEFS.filter((def) => def.kind === kind)
+      .map(templateRow)
+      .filter((row) => templateRowMatches(row, filter));
+    return {
+      kind,
+      rows: members.filter((row) => row.def.cluster === undefined),
+      clusters: TEMPLATE_CLUSTERS.map((id) => ({
+        id,
+        label: TEMPLATE_CLUSTER_LABEL[id],
+        rows: members.filter((row) => row.def.cluster === id),
+      })).filter((cluster) => cluster.rows.length > 0),
+    };
+  }).filter((group) => group.rows.length > 0 || group.clusters.length > 0);
 }
 
 /** The row for one def id, or `undefined` when the id is stale (a drilled row whose def vanished). */
