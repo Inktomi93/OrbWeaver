@@ -1,0 +1,258 @@
+// @orb/contracts/refinery — the card-refinery pipeline contracts (R0 of the owner-signed port:
+// docs/design/refinery-r0.md; the study is docs/reviews/stickler/2026-08-08-card-refinery-port-study.md).
+// SCORE → REWRITE → ANALYZE with an anti-drift invariant (analyze always compares against the session's
+// original-card snapshot) and a REGRESSION-bearing verdict enum — the loop's contract, carried verbatim
+// from the source extension.
+//
+// IMPORT DIRECTION (load-bearing): this namespace imports NOTHING from `#character`. The card contract
+// imports `refineryAnalyzePayloadSchema` from HERE (for the card's derived `refinery` signals field), so
+// a `#character` import in this file would be a module cycle. The `REFINABLE_FIELDS ⊆ CharacterCard`
+// field-name pin therefore lives in the contract TEST (tests/contracts/refinery), which may import both.
+//
+// The stage PAYLOADS are the F3 "fixed typed payloads" — ONE schema per stage across every F4 mode
+// (modes are PROMPT-tier variants; the extension's separate quick-score schema is deliberately
+// collapsed). They are projected to provider wires via `projectJsonSchema` in R1, so they carry NO
+// zod refinements — bounds are native keywords (grammar-enforced on vLLM, post-parse-belt everywhere
+// else). Selection/config schemas are storage/input shapes, never projected, and MAY refine.
+
+import type { ModelId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
+
+// The extension's 1-10 rubric ("Rate this character card on a scale of 1-10"; the soul check is the
+// same scale). Non-int: the overall score is a weighted average. Post-parse zod is the belt the
+// per-wire scrubs cannot lose.
+const SCORE_MIN = 1;
+const SCORE_MAX = 10;
+// The card TEXT_MAX twin (contracts/character) — an applied rewrite flows into `character.update`,
+// whose text fields cap at 100 000; an uncapped payload would make the apply verb partial. Pinned
+// behaviorally in the contract test (the character constant is unexported and unimportable from here).
+const REWRITE_TEXT_MAX = 100_000;
+
+// ── The pipeline axes (as-const tuples; unions derived — spine §7.5) ────────────────────────────────────
+
+export const REFINERY_STAGES = ["score", "rewrite", "analyze"] as const;
+export type RefineryStage = (typeof REFINERY_STAGES)[number];
+export const refineryStageSchema = z.enum(REFINERY_STAGES);
+
+/** The analyze verdict — carried VERBATIM from the source extension (its prompt corpus teaches these
+ *  exact uppercase spellings, and REGRESSION is the iterate loop's stop condition). */
+export const REFINERY_VERDICTS = ["ACCEPT", "NEEDS_REFINEMENT", "REGRESSION"] as const;
+export type RefineryVerdict = (typeof REFINERY_VERDICTS)[number];
+export const refineryVerdictSchema = z.enum(REFINERY_VERDICTS);
+
+export const REFINERY_SESSION_STATUSES = ["active", "completed", "abandoned"] as const;
+export type RefinerySessionStatus = (typeof REFINERY_SESSION_STATUSES)[number];
+export const refinerySessionStatusSchema = z.enum(REFINERY_SESSION_STATUSES);
+
+// ── F4 stage modes (per-stage prompt-variant enums; the extension's 8 builtin presets ARE these) ────────
+
+export const REFINERY_SCORE_MODES = ["full", "quick"] as const;
+export type RefineryScoreMode = (typeof REFINERY_SCORE_MODES)[number];
+export const refineryScoreModeSchema = z.enum(REFINERY_SCORE_MODES);
+
+export const REFINERY_REWRITE_MODES = ["conservative", "balanced", "expansive"] as const;
+export type RefineryRewriteMode = (typeof REFINERY_REWRITE_MODES)[number];
+export const refineryRewriteModeSchema = z.enum(REFINERY_REWRITE_MODES);
+
+export const REFINERY_ANALYZE_MODES = ["full", "iteration", "quick"] as const;
+export type RefineryAnalyzeMode = (typeof REFINERY_ANALYZE_MODES)[number];
+export const refineryAnalyzeModeSchema = z.enum(REFINERY_ANALYZE_MODES);
+
+// ── F5 refinable fields (card text fields, canonical-card order; per-greeting via indexes) ──────────────
+
+/** The card fields the pipeline may read/rewrite (F5: card fields only — attached books are a
+ *  cross-domain follow-up, never v1). Members are CANONICAL CARD field names in card-schema order;
+ *  `greetings` granularity rides `greetingIndexes` (selection) / `greetingIndex` (payload entries) —
+ *  orb greetings are ONE index-addressable array. `depthPrompt` means the note TEXT (`.prompt`); the
+ *  `{depth, role}` directive is authored config, not refinable prose. The ⊆-CharacterCard pin lives in
+ *  the contract test (see the import-direction header note). */
+export const REFINABLE_FIELDS = [
+  "description",
+  "personality",
+  "scenario",
+  "greetings",
+  "exampleMessages",
+  "systemPrompt",
+  "postHistoryInstructions",
+  "depthPrompt",
+  "creatorNotes",
+] as const;
+export type RefinableField = (typeof REFINABLE_FIELDS)[number];
+export const refinableFieldSchema = z.enum(REFINABLE_FIELDS);
+
+/** Which card content rides the pipeline — session state (stored, never wire-projected).
+ *  `greetingIndexes` applies when `fields` includes `greetings`: absent ⇒ every greeting. */
+export const refinerySelectionSchema = z.object({
+  fields: z.array(refinableFieldSchema).refine((fields) => new Set(fields).size === fields.length, "selection fields must be unique"),
+  greetingIndexes: z
+    .array(z.number().int().min(0))
+    .refine((idxs) => new Set(idxs).size === idxs.length, "greeting indexes must be unique")
+    .optional(),
+});
+export type RefinerySelection = z.infer<typeof refinerySelectionSchema>;
+
+// ── Per-stage payload config — the kind-tagged SINGLE-ARM union (the SF extension seam) ─────────────────
+// F3 v1 is fixed payloads, so today the one arm is `{kind:"fixed", mode}`. The sanctioned NL→schema
+// extension arm (SF0) adds `{kind:"custom", schemaId}` as a UNION MEMBER — zero DDL, zero stored-row
+// migration (sessions/runs store these as JSON). Locked kind-tagged from birth so that widening is
+// additive (lock-the-extensible-shape).
+
+export const refineryScoreConfigSchema = z.object({
+  kind: z.literal("fixed"),
+  mode: refineryScoreModeSchema,
+});
+export type RefineryScoreConfig = z.infer<typeof refineryScoreConfigSchema>;
+
+export const refineryRewriteConfigSchema = z.object({
+  kind: z.literal("fixed"),
+  mode: refineryRewriteModeSchema,
+});
+export type RefineryRewriteConfig = z.infer<typeof refineryRewriteConfigSchema>;
+
+export const refineryAnalyzeConfigSchema = z.object({
+  kind: z.literal("fixed"),
+  mode: refineryAnalyzeModeSchema,
+});
+export type RefineryAnalyzeConfig = z.infer<typeof refineryAnalyzeConfigSchema>;
+
+/** The session's in-force per-stage config (stored on `refinery_sessions.stage_config`). */
+export const refineryStageConfigSchema = z.object({
+  score: refineryScoreConfigSchema,
+  rewrite: refineryRewriteConfigSchema,
+  analyze: refineryAnalyzeConfigSchema,
+});
+export type RefineryStageConfig = z.infer<typeof refineryStageConfigSchema>;
+
+/** A session's born configuration (score full · rewrite balanced · analyze full — the extension's
+ *  "default" presets under the F4 mode names). */
+export const DEFAULT_REFINERY_STAGE_CONFIG = {
+  score: { kind: "fixed", mode: "full" },
+  rewrite: { kind: "fixed", mode: "balanced" },
+  analyze: { kind: "fixed", mode: "full" },
+} as const satisfies RefineryStageConfig;
+
+/** The per-RUN provenance snapshot (`refinery_runs.payload_config`) — the config arm that produced a
+ *  run's payload. A TYPE union only: the arms' `kind` overlaps and modes collide across stages
+ *  ("full"/"quick"), so a generic runtime union would mis-narrow — reads dispatch per stage through the
+ *  run view / the per-stage schemas instead. */
+export type RefineryStagePayloadConfig = RefineryScoreConfig | RefineryRewriteConfig | RefineryAnalyzeConfig;
+
+// ── F3 stage payloads (fixed; wire-projected in R1 — NO refinements here, see the header) ───────────────
+
+/** One field's critique in a score payload. `strengths`/`weaknesses`/`suggestions` are prose STRINGS
+ *  (the extension's builtin score schema, not arrays). `greetingIndex` is present ⇔ `field` is
+ *  `greetings` — a flat optional (not a per-entry union) for small-model structured-output reliability;
+ *  the invariant's one enforcement consumer is R1's apply/render belt. */
+export const refineryFieldScoreSchema = z.object({
+  field: refinableFieldSchema,
+  greetingIndex: z.number().int().min(0).optional(),
+  score: z.number().min(SCORE_MIN).max(SCORE_MAX),
+  strengths: z.string(),
+  weaknesses: z.string(),
+  suggestions: z.string(),
+});
+export type RefineryFieldScore = z.infer<typeof refineryFieldScoreSchema>;
+
+export const refineryScorePayloadSchema = z.object({
+  fieldScores: z.array(refineryFieldScoreSchema),
+  /** Weighted average over `fieldScores` — the value R1 stamps into `characters.refinery.score` (F6). */
+  overallScore: z.number().min(SCORE_MIN).max(SCORE_MAX),
+  priorityImprovements: z.array(z.string()),
+  summary: z.string(),
+});
+export type RefineryScorePayload = z.infer<typeof refineryScorePayloadSchema>;
+
+/** One rewritten field. `text` caps at the card TEXT_MAX twin so an accepted rewrite always satisfies
+ *  `character.update`; min(1) — a rewrite never CLEARS a field (clearing is authoring, not refining).
+ *  `greetingIndex` ⇔ `field === "greetings"` (see refineryFieldScoreSchema). */
+export const refineryRewriteFieldSchema = z.object({
+  field: refinableFieldSchema,
+  greetingIndex: z.number().int().min(0).optional(),
+  text: z.string().min(1).max(REWRITE_TEXT_MAX),
+});
+export type RefineryRewriteField = z.infer<typeof refineryRewriteFieldSchema>;
+
+/** The structured rewrite — the single biggest correctness upgrade over the extension (which
+ *  regex-parsed markdown back into fields): typed entries make compare + apply lossless by construction. */
+export const refineryRewritePayloadSchema = z.object({
+  fields: z.array(refineryRewriteFieldSchema),
+});
+export type RefineryRewritePayload = z.infer<typeof refineryRewritePayloadSchema>;
+
+/** The anti-drift comparison verdict — ALWAYS rewrite-vs-ORIGINAL (the session's `original_card`
+ *  snapshot), never rewrite-vs-previous-rewrite. The soul check is the 1-10 "does it still feel like
+ *  the same character" rubric. */
+export const refineryAnalyzePayloadSchema = z.object({
+  preserved: z.array(z.string()),
+  lost: z.array(z.string()),
+  gained: z.array(z.string()),
+  soulScore: z.number().min(SCORE_MIN).max(SCORE_MAX),
+  soulAssessment: z.string(),
+  verdict: refineryVerdictSchema,
+  issues: z.array(z.string()),
+  recommendations: z.array(z.string()),
+});
+export type RefineryAnalyzePayload = z.infer<typeof refineryAnalyzePayloadSchema>;
+
+export type RefineryStagePayload = RefineryScorePayload | RefineryRewritePayload | RefineryAnalyzePayload;
+
+/** The exhaustive per-stage payload-schema dispatch (spine §7.5 mapped-Record) — the ONE home R1's run
+ *  writes/reads and the client's payload rendering resolve a stage's schema through. A new stage member
+ *  fails tsc here before anything else. */
+export const REFINERY_STAGE_PAYLOADS = {
+  score: refineryScorePayloadSchema,
+  rewrite: refineryRewritePayloadSchema,
+  analyze: refineryAnalyzePayloadSchema,
+} as const satisfies Record<RefineryStage, z.ZodType>;
+
+// ── Wire views (tRPC outputs; the FULL session view with `originalCard` homes in domain/refinery's
+//    contract/ (R1) — it needs `#character`, which this file must not import) ───────────────────────────
+
+const refineryRunBaseSchema = z.object({
+  id: typeIdSchema(ID_PREFIX.refineryRun),
+  sessionId: typeIdSchema(ID_PREFIX.refinerySession),
+  /** Which refinement round produced this run (0 = the initial pass; `iterate` increments). */
+  iteration: z.number().int().min(0),
+  model: brandedId<ModelId>(),
+  /** Provider-reported usage, or null when the backend reports none (stats parity). */
+  promptTokens: z.number().int().min(0).nullable(),
+  outputTokens: z.number().int().min(0).nullable(),
+  createdAt: z.number().int(),
+});
+
+/** One append-only pipeline run, discriminated on `stage` so the payload AND the provenance config
+ *  narrow together ("current result per stage" = latest run per (session, stage)). */
+export const refineryRunSchema = z.discriminatedUnion("stage", [
+  refineryRunBaseSchema.extend({
+    stage: z.literal("score"),
+    payloadConfig: refineryScoreConfigSchema,
+    payload: refineryScorePayloadSchema,
+  }),
+  refineryRunBaseSchema.extend({
+    stage: z.literal("rewrite"),
+    payloadConfig: refineryRewriteConfigSchema,
+    payload: refineryRewritePayloadSchema,
+  }),
+  refineryRunBaseSchema.extend({
+    stage: z.literal("analyze"),
+    payloadConfig: refineryAnalyzeConfigSchema,
+    payload: refineryAnalyzePayloadSchema,
+  }),
+]);
+export type RefineryRun = z.infer<typeof refineryRunSchema>;
+
+/** The sessions-roster row (D62: name · character · verdict badge · updatedAt). `latestVerdict` is the
+ *  newest analyze run's verdict, null before the first analyze. Character display resolves client-side
+ *  by `characterId`; the full session view (R1, domain contract/) carries `originalCard`. */
+export const refinerySessionSummarySchema = z.object({
+  id: typeIdSchema(ID_PREFIX.refinerySession),
+  characterId: typeIdSchema(ID_PREFIX.character),
+  name: z.string().nullable(),
+  status: refinerySessionStatusSchema,
+  iterationCount: z.number().int().min(0),
+  latestVerdict: refineryVerdictSchema.nullable(),
+  createdAt: z.number().int(),
+  updatedAt: z.number().int(),
+});
+export type RefinerySessionSummary = z.infer<typeof refinerySessionSummarySchema>;

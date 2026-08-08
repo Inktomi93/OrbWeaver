@@ -57,7 +57,21 @@ const APP_CARD: CharacterCard = {
   extensions: { favColor: "ink-black" },
   residualData: null,
   avatarAssetId: null,
-  refinery: { score: 87, analysis: { tone: "consistent" } },
+  // The refinery signals' analysis half is the TYPED analyze payload (refinery R0 I1 tightening) — a
+  // full payload here proves the card round-trips typed pipeline output, not an opaque blob.
+  refinery: {
+    score: 8.5,
+    analysis: {
+      preserved: ["dry humour", "archivist diction"],
+      lost: [],
+      gained: ["a concrete daily routine"],
+      soulScore: 9,
+      soulAssessment: "Still unmistakably Aria.",
+      verdict: "ACCEPT",
+      issues: [],
+      recommendations: ["Tighten the scenario paragraph."],
+    },
+  },
 };
 
 test("the canonical card round-trips an app-authored card byte-for-byte (no raw blob)", () => {

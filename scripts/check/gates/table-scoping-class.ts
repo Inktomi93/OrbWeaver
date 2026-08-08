@@ -43,9 +43,10 @@ export type ScopingRow = ExemptionRow & { readonly scope: ScopingClass };
 /** EVERY table in `packages/db/src/schema/**`, classified. TOTAL and TWO-SIDED: an unlisted table is RED,
  *  a listed table the schema no longer declares is RED. The (a) rows mirror `ownerid-registry`'s
  *  OWNERID_ALLOWLIST (that gate owns WHETHER the stamp is legal; this one owns what the stamp MEANS for a
- *  read), so their reasons stay short and cite it. Verified against the schema at landing: 80 tables —
- *  23 ownerId · 19 membership · 15 junction · 18 parent · 5 global (D121-E added the regex library + its
- *  four scope junctions). */
+ *  read), so their reasons stay short and cite it. Verified against the schema 2026-08-08 (refinery R0 —
+ *  which also corrected a two-row drift the previous census missed): 84 tables — 23 ownerId ·
+ *  19 membership · 15 junction · 22 parent · 5 global (D121-E added the regex library + its four scope
+ *  junctions; refinery R0 added its two parent-scoped tables). */
 export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   // ── (a) ownerId-scoped — the D23 stamp. Reasons live in ownerid-registry's OWNERID_ALLOWLIST. ──────────
   assets: { scope: "ownerId", why: "D21 single-owned; reads go through `fetchOwned` (ownerid-registry owns the stamp's justification)." },
@@ -179,6 +180,14 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   notifications: {
     scope: "parent",
     why: "the per-user durable inbox — `recipientUserId` IS the single owning FK (a differently-spelled owner column, so it is not on the D23 stamp allowlist).",
+  },
+  refinery_runs: {
+    scope: "parent",
+    why: "refinery append-only run log — scope derives through `refinery_sessions` → `characters.ownerId` (two required FKs; docs/design/refinery-r0.md §3.1).",
+  },
+  refinery_sessions: {
+    scope: "parent",
+    why: "refinery session — anchored `character_id NOT NULL → characters.ownerId`; the D23 DERIVE class (no stamp), the gallery_items/imagery_generations precedent.",
   },
   rpg_checkpoints: { scope: "parent", why: "scope derives through `rpg_games` to the room; the snapshot FK is intra-aggregate." },
   rpg_journal: { scope: "parent", why: "scope derives through `rpg_games` to the room." },
