@@ -85,17 +85,15 @@ interface WidgetState {
   max?: number | undefined;
   items?: unknown[] | undefined;
 }
-// NOTE (latent bug, PRESERVED): `seedState` populates `trackers`, but every code path reads/writes
-// `state.widgets` (which the seed never sets) — so a real run crashes in `renderReminder`'s
-// `Object.entries(state.widgets)` on turn 1. Both fields are modelled optional to type the code exactly
-// as written; the `state.widgets!` assertions below keep that runtime behaviour intact. Flagged, not fixed.
+// `seedState` seeds `widgets` (the field `renderReminder` and the widget ops read) with the game's
+// Suspicion meter — the `trackers` mis-seed that crashed turn 1 on `Object.entries(state.widgets)` is
+// fixed (2026-08-07). Widgets is required, so the seed always satisfies the reads.
 interface GameState {
   scene: Scene;
   plot: Plot;
   party: Actor[];
   present: PresentChar[];
-  widgets?: Record<string, WidgetState>;
-  trackers?: Record<string, WidgetState>;
+  widgets: Record<string, WidgetState>;
   quests: Quest[];
   journal: JournalEntry[];
   beats: string[];
@@ -368,7 +366,7 @@ function seedState(): GameState {
       wallet: { gold: 40, silver: 5 },
     }],
     present: [],
-    trackers: { Suspicion: { value: 10, max: 100 } },
+    widgets: { Suspicion: { value: 10, max: 100 } },
     quests: [],
     journal: [],
     beats: [],
@@ -511,13 +509,13 @@ function applyOp(state: GameState, name: string, args: ToolArgs, touched: Touche
       return;
     }
     case "set_widget_value": {
-      // biome-ignore lint/style/noNonNullAssertion: `state.widgets` is the PRESERVED trackers/widgets bug (see GameState note); widgetRef is schema-required.
-      const w: WidgetState = state.widgets![args.widgetRef!] || {};
+      // biome-ignore lint/style/noNonNullAssertion: widgetRef is schema-required on the set_widget_value op.
+      const w: WidgetState = state.widgets[args.widgetRef!] || {};
       if (typeof args.value === "number") w.value = args.value;
       if (typeof args.max === "number") w.max = args.max;
       if (Array.isArray(args.items)) w.items = args.items;
-      // biome-ignore lint/style/noNonNullAssertion: `state.widgets` is the PRESERVED trackers/widgets bug (see GameState note); widgetRef is schema-required.
-      state.widgets![args.widgetRef!] = w;
+      // biome-ignore lint/style/noNonNullAssertion: widgetRef is schema-required on the set_widget_value op.
+      state.widgets[args.widgetRef!] = w;
       touched.widgets = true;
       return;
     }
@@ -576,8 +574,7 @@ function renderReminder(state: GameState, action: string, changesLine: string): 
     }
   } else lines.push("- (none yet)");
   lines.push("Custom trackers:");
-  // biome-ignore lint/style/noNonNullAssertion: `state.widgets` is the PRESERVED trackers/widgets bug (see GameState note) — this is where a real run throws.
-  for (const [name, w] of Object.entries(state.widgets!)) lines.push(`- ${name}: ${w.value}${w.max != null ? "/" + w.max : ""}`);
+  for (const [name, w] of Object.entries(state.widgets)) lines.push(`- ${name}: ${w.value}${w.max != null ? "/" + w.max : ""}`);
   if (state.quests.length) {
     lines.push("Active quests:");
     for (const q of state.quests) {
@@ -619,8 +616,7 @@ function computeDelta(before: GameState, after: GameState): string {
   const aN = new Set(after.present.map((c) => c.name.toLowerCase()));
   for (const c of after.present) if (!bN.has(c.name.toLowerCase())) parts.push(`+NPC ${c.name}`);
   for (const c of before.present) if (!aN.has(c.name.toLowerCase())) parts.push(`-NPC ${c.name}`);
-  // biome-ignore lint/style/noNonNullAssertion: `after.widgets`/`before.widgets` are the PRESERVED trackers/widgets bug (see GameState note).
-  for (const [name, w] of Object.entries(after.widgets!)) { const bw = before.widgets![name]; if (bw && bw.value !== w.value) parts.push(`${name} ${bw.value}→${w.value}`); }
+  for (const [name, w] of Object.entries(after.widgets)) { const bw = before.widgets[name]; if (bw && bw.value !== w.value) parts.push(`${name} ${bw.value}→${w.value}`); }
   const bQ = Object.fromEntries(before.quests.map((q) => [q.name.toLowerCase(), q.status] as [string, string]));
   for (const q of after.quests) {
     if (!(q.name.toLowerCase() in bQ)) parts.push(`quest "${q.name}" started`);
