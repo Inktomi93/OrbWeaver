@@ -286,7 +286,13 @@ R1 = `domain/refinery` per the study §5.3, riding this foundation:
 5. New-domain coupled set (the memory-pinned seven): Services type + compose wiring +
    DOMAIN_SPECIFIC_ROOT_FILES + the rider removal + tRPC router registration + cross-tenant sweep
    classification per procedure + the `services.test.ts` SERVICE_KEYS array.
-6. **Why security first:** untrusted card text (serde header law: cards are UNTRUSTED) enters LLM
+6. **The security pass is DONE (2026-08-08) — GO for R1:**
+   [`../reviews/security/2026-08-08-refinery-r0-security-pass.md`](../reviews/security/2026-08-08-refinery-r0-security-pass.md).
+   Its **§4 belt list is R1's checklist** and its §1 carries the prescriptions R1 builds (field-level heal for
+   the signals read · the `greetingIndex` biconditional at the APPLY verb, not the contract · strip-stays +
+   itemize · the guidance parse/neutralize wiring). The payload BOUNDS it prescribed already landed at the
+   contract tier in that pass.
+7. **Why security first:** untrusted card text (serde header law: cards are UNTRUSTED) enters LLM
    prompts; model output is written back into the card on accept; prompt-injection can steer a rewrite
    into `systemPrompt`; the study §6 security block names the mitigations (explicit per-field apply,
    snapshot-first, zod-bounded payloads, text-tier rendering, ownership belts before content verdicts,

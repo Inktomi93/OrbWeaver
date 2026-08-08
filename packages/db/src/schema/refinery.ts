@@ -51,6 +51,7 @@ export const refinerySessions = sqliteTable(
       .notNull()
       .references(() => characters.id, { onDelete: "cascade" }),
     // Optional user label; null renders as the character-derived default in the roster (D62 LIST row).
+    // Bounded at the write verb via `refinerySessionNameSchema` (@orb/contracts/refinery).
     name: text("name"),
     status: text("status", { enum: REFINERY_SESSION_STATUSES }).$type<RefinerySessionStatus>().notNull().default("active"),
     // The full canonical card snapshotted at session start — the anti-drift anchor (header; D28 blob law).
@@ -60,6 +61,9 @@ export const refinerySessions = sqliteTable(
     // The in-force per-stage config (F4 modes, kind-tagged for the SF custom arm). Read-seam parsed.
     stageConfig: text("stage_config", { mode: "json" }).$type<RefineryStageConfig>().notNull(),
     // The session-level loop input ("keep her mean") threaded into every stage prompt; null = none.
+    // HOST-authored but MODEL-FACING: the write verb parses it through `refineryGuidanceSchema`
+    // (@orb/contracts/refinery — the cap's ONE home) and the prompt substrate NEUTRALIZES it before
+    // splicing, the `{{input}}` guided precedent. SQLite has no length domain; the belt is the verb.
     guidance: text("guidance"),
     iterationCount: integer("iteration_count").notNull().default(0),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),

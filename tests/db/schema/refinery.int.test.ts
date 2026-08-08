@@ -177,6 +177,9 @@ test("deleting the USER cascades the whole chain (user → character → session
     },
     model: MODEL,
   });
+  // Positive control on BOTH levels before the delete (the session row's own non-vacuity — the assert
+  // below cannot pass because the session was never written).
+  expect(await db.select().from(refinerySessions).where(eq(refinerySessions.id, sessionId))).toHaveLength(1);
   expect(await db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, sessionId))).toHaveLength(1);
 
   await db.delete(users).where(eq(users.id, ownerId));
@@ -201,6 +204,30 @@ test("the stage CHECK constraint rejects a foreign stage member", async () => {
       payloadConfig: { kind: "fixed", mode: "full" },
       payload: SCORE_PAYLOAD,
       model: MODEL,
+    });
+  } catch (err) {
+    caught = err;
+  }
+  expect(caught).toBeDefined();
+  expect(isConstraintViolation(caught)?.kind).toBe("check");
+});
+
+test("the session status CHECK constraint rejects a foreign status member", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_ref_g", handle: castId<Handle>("ref-owner-g") });
+  const characterId = await seedCharacter(db, ownerId, "character_ref_status_check");
+
+  let caught: unknown;
+  try {
+    await db.insert(refinerySessions).values({
+      id: castId<RefinerySessionId>("refinery_session_bad_status"),
+      characterId,
+      // Force an off-tuple value past the TS enum to exercise the SQL CHECK (the runs-stage twin above —
+      // the sessions CHECK was DECLARED but never bitten until this pin).
+      status: "paused" as (typeof REFINERY_SESSION_STATUSES)[number],
+      originalCard: ORIGINAL_CARD,
+      selection: SELECTION,
+      stageConfig: DEFAULT_REFINERY_STAGE_CONFIG,
     });
   } catch (err) {
     caught = err;
