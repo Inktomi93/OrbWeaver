@@ -41,14 +41,16 @@ const STORY_CHAT = castId<ChatId>("chat_ct_readoutbind");
 const STORY_SECTION = "chat-history";
 
 /** Open the preset on `view`; `chatId` non-null also makes that chat the active (last-open) one. Every axis is
- *  driven through its PRODUCTION store door, so the CT proves the projection rather than a prop. */
-function useReadoutFixture(chatId: ChatId | null, view: string): void {
+ *  driven through its PRODUCTION store door, so the CT proves the projection rather than a prop. `templateId`
+ *  is the Actions selection the readout echoes — `impersonate` unless a story is about the per-KIND delivery
+ *  dispatch (the Actions-tab IA §2.3), which is exactly a claim about which row is selected. */
+function useReadoutFixture(chatId: ChatId | null, view: string, templateId = "impersonate"): void {
   useEffect(() => {
     selectPreset(STORY_PRESET);
     setPresetEditorView(view);
     // The SELECTIONS the readout echoes (§6.1: the row body selects, the readout resolves that row) — the
     // Actions template and the Prompt rack row.
-    selectPresetTemplate("impersonate");
+    selectPresetTemplate(templateId);
     selectPresetSection(STORY_SECTION);
     if (chatId !== null) {
       selectChat(chatId);
@@ -58,11 +60,11 @@ function useReadoutFixture(chatId: ChatId | null, view: string): void {
       __resetPresetTemplate();
       goToLanding();
     };
-  }, [chatId, view]);
+  }, [chatId, view, templateId]);
 }
 
-function ReadoutFrame({ chatId, view }: { readonly chatId: ChatId | null; readonly view: string }): ReactElement {
-  useReadoutFixture(chatId, view);
+function ReadoutFrame({ chatId, view, templateId }: { readonly chatId: ChatId | null; readonly view: string; readonly templateId?: string }): ReactElement {
+  useReadoutFixture(chatId, view, templateId);
   return (
     <div style={{ height: 720, width: 380 }}>
       <PresetReadout />
@@ -84,6 +86,36 @@ export function PresetReadoutUnboundStory(): ReactElement {
   return (
     <CtDataProviders>
       <ReadoutFrame chatId={null} view="actions" />
+    </CtDataProviders>
+  );
+}
+
+/** A GAME-TURN TEACH selected (per-kind delivery, IA §2.3): the readout must state the steering-reminder
+ *  truth, never the guided marker's. Unbound — the delivery dispatch is chat-free. */
+export function PresetReadoutTeachSelectedStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ReadoutFrame chatId={null} templateId="rpg.reminder.deceptionTeach" view="actions" />
+    </CtDataProviders>
+  );
+}
+
+/** An EXTRACTION row selected (per-kind delivery, IA §2.3): the state-round truth — these bytes never enter
+ *  the chat prompt, and the braced tokens are seam-spliced DATA, not chat macros. */
+export function PresetReadoutExtractSelectedStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ReadoutFrame chatId={null} templateId="rpg.extract.tool.updateParty" view="actions" />
+    </CtDataProviders>
+  );
+}
+
+/** An EXTRACTION row selected WITH a bound chat: the bound gloss's deferred-token tail must state the
+ *  state-round splice, never the guided family's "when you fire the action". */
+export function PresetReadoutExtractBoundStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <ReadoutFrame chatId={STORY_CHAT} templateId="rpg.extract.tool.updateParty" view="actions" />
     </CtDataProviders>
   );
 }
