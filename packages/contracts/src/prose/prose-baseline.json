@@ -163,6 +163,50 @@
     "discovery.distill.system": {
       "version": 1,
       "sha256": "a94274f42c496bab9d39977350a37e4eb72269e09559f656016472c3d0490280"
+    },
+    "rpg.reminder.steeringLicense": {
+      "version": 1,
+      "sha256": "922650fc654a91000faedef2c6cf30ace94c5cbb7155d7cb0e01e6532fcc74e2"
+    },
+    "rpg.reminder.deceptionTeach": {
+      "version": 1,
+      "sha256": "b23de992782202eac39a44b0abc34396523f0a052dedae6a701b4dd87da52293"
+    },
+    "rpg.reminder.omniscienceTeach": {
+      "version": 1,
+      "sha256": "2a14ef80f2fd4632e7a23e13a234222e759eaba506fcacd51814254defa05d46"
+    },
+    "rpg.card.askInteractive": {
+      "version": 1,
+      "sha256": "4a81cf0ea003320419c32610db9a0c36b47ef082066ce2aebb8a14c7e3229f87"
+    },
+    "rpg.card.askStatic": {
+      "version": 1,
+      "sha256": "058878501b28368e4e09b8d9dfee167197482b9659540aaecd1251023d3371eb"
+    },
+    "rpg.card.example": {
+      "version": 1,
+      "sha256": "972f4ebb705adacc9b892016de83e2c64426e2e22a9d3d2d5f21cc6d017644e1"
+    },
+    "rpg.reminder.cyoaTeach": {
+      "version": 1,
+      "sha256": "9bc9f8e67e7513468c8b597f056a24eced9f0452910fcc64d23950e326c0bb27"
+    },
+    "rpg.reminder.castHeader": {
+      "version": 1,
+      "sha256": "414ab4ad75263351deca3b33573e4803446bf6d791033025e3cae9337d66ff12"
+    },
+    "rpg.reminder.offstageHeader": {
+      "version": 1,
+      "sha256": "d0fbfa4164228c710ad87d9340a0ba9c7a0fe50eb24a237faded799dfa8f53db"
+    },
+    "rpg.delta.changesHeading": {
+      "version": 1,
+      "sha256": "94018698c8ab1d4bbe2f53e4525b482aa28fd0a5787bf30bb449f7b55ec266da"
+    },
+    "rpg.delta.sceneOpensHeading": {
+      "version": 1,
+      "sha256": "1043b502b7de33ea2a3f6443bf4f594f73c0c66f57496ec8ff896bfe5cd87e92"
     }
   }
 }

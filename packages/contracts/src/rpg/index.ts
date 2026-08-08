@@ -39,6 +39,7 @@ export * from "./inputs.ts";
 export * from "./mode.ts";
 export * from "./pointer.ts";
 export * from "./profile.ts";
+export * from "./prose.ts";
 export * from "./sheet.ts";
 export * from "./snapshot.ts";
 export * from "./tools.ts";
