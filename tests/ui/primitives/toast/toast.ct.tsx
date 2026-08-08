@@ -31,6 +31,41 @@ async function boxOf(locator: Locator): Promise<{ x: number; y: number; width: n
   return box;
 }
 
+/** WCAG contrast between two CSS colours, computed on real sRGB bytes. `getComputedStyle` hands these
+ *  back in the authored colour space, not sRGB, so they are painted into a 1×1 canvas and sampled
+ *  rather than string-parsed — the browser is the only honest converter, and a regex over a colour
+ *  notation is how a contrast probe starts lying. */
+function contrastRatio(page: Page, foreground: string, background: string): Promise<number> {
+  return page.evaluate(
+    ([front, back]: readonly [string, string]) => {
+      const canvas = document.createElement("canvas");
+      canvas.width = 1;
+      canvas.height = 1;
+      const context = canvas.getContext("2d");
+      if (context === null) {
+        throw new Error("toast CT: no 2d context for the contrast probe");
+      }
+      const luminance = (color: string): number => {
+        context.clearRect(0, 0, 1, 1);
+        context.fillStyle = color;
+        context.fillRect(0, 0, 1, 1);
+        // Defaults are syntax, not a branch: a 1×1 RGBA read always yields four entries — they exist
+        // only because `noUncheckedIndexedAccess` types the buffer read as possibly-undefined.
+        const [r = 0, g = 0, b = 0] = context.getImageData(0, 0, 1, 1).data;
+        const channel = (value: number): number => {
+          const srgb = value / 255;
+          return srgb <= 0.039_28 ? srgb / 12.92 : ((srgb + 0.055) / 1.055) ** 2.4;
+        };
+        return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+      };
+      const a = luminance(front);
+      const b = luminance(back);
+      return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+    },
+    [foreground, background] as const,
+  );
+}
+
 /** A toast SLIDES in. Geometry read on the same tick as the mount is the enter transition's first frame,
  *  not the resting layout (measured: y=4 mid-slide against a settled y=72) — so wait for the element's own
  *  animations to finish before believing a box. A cancelled animation is a settle too, hence the catch. */
@@ -198,13 +233,21 @@ test("title and description render as distinct elements, the title naming the to
 });
 
 // P3-1. The root is `tabIndex: 0` (ToastRoot.mjs:414) and carried NO focus style, so keyboard focus fell
-// back to the UA outline — the one focusable surface in the app not wearing the app ring.
-test("the focused root wears the app focus ring, not the UA outline", async ({ mount, page }) => {
+// back to the UA outline. The FIRST fix regressed it: a box-shadow ring on an element that also carries
+// `shadow-overlay` loses the composite to the elevation — `:focus-visible` matched, all four ring slots
+// stayed `0 0 0 0` transparent, and `outline-none` had killed the UA fallback, so a real Tab painted
+// NOTHING (WCAG 2.4.7). The ring is an OUTLINE now, which is a separate paint property.
+//
+// Read the ring off `outline-*`, and read the box-shadow WHOLE: the regression survived its first review
+// because the instrument sliced the shadow string and the transparent ring slots fell outside the slice.
+test("a real Tab paints a visible focus ring on the root, and the elevation shadow survives it", async ({ mount, page }) => {
   await mount(<ToastPlayground />);
   await page.getByRole("button", { name: "add toast", exact: true }).click();
 
   const toast = page.locator(ROOT);
   await expect(toast).toHaveCount(1);
+  const restingShadow = await toast.evaluate((element: Element) => getComputedStyle(element).boxShadow);
+
   // KEYBOARD focus, never `locator.focus()`: `:focus-visible` does not match a script-focused div, so a
   // programmatic focus reads as "no ring" whether or not the ring exists. F6 is Base UI's own
   // focus-the-viewport hotkey; Tab then steps into the toast.
@@ -212,9 +255,83 @@ test("the focused root wears the app focus ring, not the UA outline", async ({ m
   await page.keyboard.press("Tab");
   await expect(toast).toBeFocused();
 
-  await expect(toast).toHaveCSS("outline-style", "none");
+  // The ring itself: a real, coloured, non-zero outline. `outline-style: none` is the regression's shape.
   const ring = await resolvedToken(page, "color", TOKENS["color.ring"].cssVar);
-  await expect(toast).toHaveCSS("box-shadow", new RegExp(ring.replaceAll(/[.()]/g, String.raw`\$&`)));
+  await expect(toast).toHaveCSS("outline-color", ring);
+  await expect(toast).toHaveCSS("outline-width", "2px");
+  await expect(toast).not.toHaveCSS("outline-style", "none");
+
+  // …and the elevation is untouched — the whole point of moving off the box-shadow slot is that the two
+  // no longer compete. Compared as FULL strings, never a slice.
+  await expect(toast).toHaveCSS("box-shadow", restingShadow);
+});
+
+// ── The side-eye RE-VERIFY findings (2026-08-07, leg 2) ──────────────────────────────────────────────
+
+// NEW P2. The action carried `bg-secondary` on a `bg-popover` surface with `border: 0` — 1.03:1, one
+// L-step apart, so the only actionable thing in the toast read as stray text. WCAG 1.4.11 wants ≥3:1 for
+// a control's boundary. Asserted as a real ratio on sampled pixels, not as a class name, so any future
+// token retune that flattens the fill fails here.
+test("the action button's fill clears the 3:1 non-text contrast floor against the toast surface", async ({ mount, page }) => {
+  await mount(<ToastPlayground />);
+  await page.getByRole("button", { name: "add toast with action", exact: true }).click();
+
+  const toast = page.locator(ROOT);
+  await expect(toast).toHaveCount(1);
+  const action = toast.locator('[data-slot="toast-action"]');
+  await expect(action).toBeVisible();
+
+  const fill = await action.evaluate((element: Element) => getComputedStyle(element).backgroundColor);
+  const surface = await toast.evaluate((element: Element) => getComputedStyle(element).backgroundColor);
+  expect(await contrastRatio(page, fill, surface)).toBeGreaterThanOrEqual(3);
+
+  // …and its LABEL stays readable on that new fill (4.5:1 text floor) — a boundary fix that blinds the
+  // text is not a fix.
+  const label = await action.evaluate((element: Element) => getComputedStyle(element).color);
+  expect(await contrastRatio(page, label, fill)).toBeGreaterThanOrEqual(4.5);
+});
+
+// NEW P3. Moving the stack top-right put it under the notifications popover: measured z-60 toast vs z-65
+// popover, 272×26px of occlusion INCLUDING the ✕, so the toast could be neither read nor dismissed. The
+// scale itself was re-ranked (tokens.json `z.toast` 60 → 68) rather than the viewport overriding it, so
+// the assertion is on the RANK, which is the thing that was wrong.
+test("the toast viewport outranks the popover tier so a popover can never bury it", async ({ mount, page }) => {
+  await mount(<ToastPlayground />);
+
+  const viewport = page.locator('[data-slot="toast-viewport"]');
+  await expect(viewport).toHaveCSS("z-index", TOKENS["z.toast"].value);
+  expect(Number(TOKENS["z.toast"].value)).toBeGreaterThan(Number(TOKENS["z.popover"].value));
+  // …and still below the tooltip tier: a tooltip must stay readable over anything.
+  expect(Number(TOKENS["z.toast"].value)).toBeLessThan(Number(TOKENS["z.tooltip"].value));
+});
+
+/** Fires one typed toast, asserts it carries a glyph BESIDE the close ✕ (two SVGs), then dismisses it so
+ *  the next type's locator stays unambiguous. */
+async function expectTypeGlyph(page: Page, button: string, type: string): Promise<void> {
+  await page.getByRole("button", { name: button, exact: true }).click();
+  const toast = page.locator(`${ROOT}[data-type="${type}"]`);
+  await expect(toast).toHaveCount(1);
+  await expect(toast.locator("svg")).toHaveCount(2);
+  await toast.locator('button[aria-label="Close notification"]').click();
+  await expect(toast).toHaveCount(0);
+}
+
+// Filed residual. `error` and `success` were still colour-only after the warning grew its glyph — the
+// same WCAG 1.4.1 defect, and `error`'s border is the WEAKEST tint of the set, so it was the worst of
+// the three. Two SVGs = the type glyph + the close ✕; the plain toast's one is the control.
+test("every meaning-bearing toast type carries a glyph, not just a tint", async ({ mount, page }) => {
+  await mount(<ToastPlayground />);
+
+  // Sequential by necessity (each toast is dismissed before the next so the type locators stay unique),
+  // so this is three explicit awaits rather than a loop — `noAwaitInLoops` is right that a loop here
+  // would be the wrong shape to reach for.
+  await expectTypeGlyph(page, "add error toast", "error");
+  await expectTypeGlyph(page, "add success toast", "success");
+  await expectTypeGlyph(page, "add warning toast", "warning");
+
+  // The control: a plain info toast claims no state, so it stays glyph-less (its lone SVG is the ✕).
+  await page.getByRole("button", { name: "add toast", exact: true }).click();
+  await expect(page.locator(`${ROOT}:not([data-type])`).locator("svg")).toHaveCount(1);
 });
 
 // ── P1-1: the toast stack may never land on the composer band ────────────────────────────────────────
