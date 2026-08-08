@@ -629,6 +629,28 @@ security lens.
   `docs/design/prose-1-rpg-extraction-followon.md` to preset-home. Byte-identity guards (frozen
   cohort, field-reachability) must stay green — the re-home changes the OVERRIDE SOURCE, never the
   defaults. Security lane's Item 2 (strip review + fork-game comment repair) DROPPED as moot.
+- **⚑ CONFIG-SWEEP (I-3 tail) REPORTED: SHIP WITH FIXES — 4 P1 · 9 P2 · 5 P3** (side-eye
+  `a745bb9c0eab275f4`; receipts `reports/snaps/sweep-*.png`; SEEDED FIXTURE left in dev DB: 35 regex
+  scripts / 32 tags / 6 databank docs, reusable). Root cause on most: a CONTEXT arm with nothing
+  unique to say (duplicated headings desktop, full-screen occlusion mobile — the committed mock rules
+  fold-into-CONTENT). P1s: list-row title aria-hidden unconditionally (non-clickable rows have NO
+  accessible name — ui primitive, latent everywhere) · mobile field-drill overlay hides the thing just
+  opened · picker unfiltered at 35→~400 rows · regex facet prints its name 4× (X-7 regression).
+  WHAT HELD: keyboard reorder end-to-end (persisted, focus kept) · the 320px eye-column CT true live
+  both pointer classes · touch floor CLEAN at coarse (0 real misses) · contrast clean everywhere
+  measured · the >30 tag fork now honest. 3 self-retractions published (incl. its own truncated-string
+  instrument). **CONFIG-FIX lane dispatched** (`a8d38549399606f89`, fix-ALL minus owner-gated).
+  **SMALLS batch dispatched** (`a59b723b1575337e0`: fork.ts comment · baseline regen · readout-parts ·
+  CapabilityGate pending arm · field-reachability .ok · R5b(a) verify · gate-ignore Finding-overload).
+  **NEW OWNER ITEMS (parked to the pile):** (1) the Configuration LANDING duplicates the list verbatim
+  once populated — collides with the 2026-08-03 "genuinely good teaching state" verdict; side-eye now
+  disagrees at 32/35 counts; your call. (2) ctx-tab-strip icon-only at coarse: the recorded ruling's
+  stated fallback is "icon + tooltip" but title-tooltips don't exist at coarse — the label is
+  unreachable by any sighted means on the one width where the panel is the whole screen.
+  (3) Tag-cap refinement note: the sweep found regex's MoveControls mechanism working above 30 in the
+  SAME section — the cap ruling stands per tonight's word ("leave as-is"); recorded that the reuse-
+  MoveControls question is narrower than the original 30-of-400 framing if ever revisited.
+- ✅ W4-BURNDOWN consolidated check on merged main: **PASS all stages** (verifier lens still running).
 - **⚑ OWNER DIRECTIVE (2026-08-08 night): CARD-REFINERY PORT STUDY.** Stickler `ad52e90d372a0b670`
   (read-only, code-recon standards) exploring `/home/inktomi/inktomi-stack/development/neo-tavern/references/card-refinery`
   vs orb's contracts + db schemas + card render pipeline → deliverable
