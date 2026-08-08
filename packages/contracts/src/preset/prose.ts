@@ -1,7 +1,8 @@
-// @orb/contracts/preset — the per-PRESET prose slot table (PROSE-1 §4.1, census rows 38-48). The ONE home
-// for the BYTES of every guided-action template and format string: `index.ts` DERIVES `guidedActionsSchema`'s
-// defaults, `DEFAULT_GUIDED_ACTIONS` and `DEFAULT_FORMAT_STRINGS` from these rows, so a default is authored
-// exactly once and the registry can never disagree with what the assembler actually ships.
+// @orb/contracts/preset — the per-PRESET prose slot table (PROSE-1 §4.1, census rows 38-49). The ONE home
+// for the BYTES of every guided-action template, format string, and the compaction steering: `index.ts`
+// DERIVES `guidedActionsSchema`'s defaults, `DEFAULT_GUIDED_ACTIONS`, `DEFAULT_FORMAT_STRINGS` and
+// `DEFAULT_COMPACT_INSTRUCTIONS` from these rows, so a default is authored exactly once and the registry can
+// never disagree with what the assembler actually ships.
 //
 // The slot SHAPE comes from `#prose-slot`, never `#prose`: `#prose` imports this table at runtime to compose
 // `PROSE_SLOTS`, so importing it here — even for a type — would close a `no-circular` cycle.
@@ -141,6 +142,21 @@ export const PRESET_PROSE_SLOTS = {
     title: "World-info entry format",
     fires: "Wraps every injected world-info entry.",
   },
+  "preset.compaction.instructions": {
+    id: "preset.compaction.instructions",
+    home: "preset",
+    version: 1,
+    // The RP-tuned `/compact` steering (vs the SDK's generic coding-agent summary). `macros:"none"`: it is
+    // summarizer steering handed to `runCompaction`, run over the TRANSCRIPT with no character context — no
+    // `{{char}}` binding at this seam, so a `{{…}}` in an override ships verbatim rather than rendering empty
+    // (the CHAT side-generation posture, not the guided/format `full` posture).
+    text: "Summarize the roleplay so far for continuation: preserve each character's voice and persona, the relationships and their current state, established facts and world details, unresolved threads, and the present scene/location. Be concise but lossless on canon — names, commitments, and specific details must survive.",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Compaction steering",
+    fires: "Each managed-compaction pass — the chat's own model rebuilding the portable summary marker.",
+  },
 } as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;
 
 /** `formatStrings` key → slot id. The ONE map every `formatStrings` reader funnels through (`turn.ts`'s
@@ -155,6 +171,12 @@ export const PRESET_FORMAT_SLOT_IDS = {
   // "no boundary marker" is the product behavior, not a default sentence someone wrote. It becomes a slot the
   // day it ships bytes.
 } as const satisfies Record<string, ProseSlotId>;
+
+/** The compaction-steering slot id. A single slot (not a keyed family like guided/format), so a plain const
+ *  rather than a map — but it is a legacy-ADAPTED preset slot for the same reason they are (§4.6): the
+ *  override is the existing `promptConfig.compaction.instructions` field, so it is excluded from the
+ *  `promptConfig.prose` editable set. `DEFAULT_COMPACT_INSTRUCTIONS` derives its bytes from this slot. */
+export const PRESET_COMPACTION_SLOT_ID = "preset.compaction.instructions" as const satisfies ProseSlotId;
 
 /** Guided-action kind → slot id. `response` and `swipe` intentionally share ONE slot. */
 export const PRESET_GUIDED_SLOT_IDS = {

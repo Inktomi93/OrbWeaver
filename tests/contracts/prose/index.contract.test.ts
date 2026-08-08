@@ -4,7 +4,15 @@
 // half-registered id impossible rather than merely discouraged.
 import { createHash } from "node:crypto";
 import { DEFAULT_CAPTION_INSTRUCTIONS, DEFAULT_PROMPT_TEMPLATES, IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "@orb/contracts/imagery";
-import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, PRESET_GUIDED_SLOT_IDS, TEMPLATE_DEFS } from "@orb/contracts/preset";
+import {
+  DEFAULT_COMPACT_INSTRUCTIONS,
+  DEFAULT_FORMAT_STRINGS,
+  DEFAULT_GUIDED_ACTIONS,
+  PRESET_COMPACTION_SLOT_ID,
+  PRESET_FORMAT_SLOT_IDS,
+  PRESET_GUIDED_SLOT_IDS,
+  TEMPLATE_DEFS,
+} from "@orb/contracts/preset";
 import type { ProseOverride, ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
 import {
   composeProse,
@@ -130,6 +138,26 @@ test("adapted preset slots are byte-identical to the constants the assembler alr
   for (const [kind, id] of Object.entries(PRESET_GUIDED_SLOT_IDS)) {
     expect(resolveProseText(id, {})).toBe(DEFAULT_GUIDED_ACTIONS[kind as keyof typeof DEFAULT_GUIDED_ACTIONS].prompt);
   }
+  // Census 49 — the compaction steering, adapted the same way (override = `promptConfig.compaction.instructions`).
+  expect(resolveProseText(PRESET_COMPACTION_SLOT_ID, {})).toBe(DEFAULT_COMPACT_INSTRUCTIONS);
+});
+
+// The frozen literal `DEFAULT_COMPACT_INSTRUCTIONS` shipped as a source const before census 49 slotted it —
+// re-typed here independently of the slot table. A FENCE (it passes both sides of the migration, because the
+// migration is byte-preserving by construction), so it guards the default-identity discipline, not a defect:
+// a drift in the slot text OR the derived const REDs and names the seam. Bytes at `e495855de`.
+test("the adapted compaction slot ships the exact bytes DEFAULT_COMPACT_INSTRUCTIONS carried as a source const", () => {
+  const frozen =
+    "Summarize the roleplay so far for continuation: preserve each character's voice and persona, the " +
+    "relationships and their current state, established facts and world details, unresolved threads, and " +
+    "the present scene/location. Be concise but lossless on canon — names, commitments, and specific " +
+    "details must survive.";
+  expect(resolveProseText(PRESET_COMPACTION_SLOT_ID, {})).toBe(frozen);
+  expect(DEFAULT_COMPACT_INSTRUCTIONS).toBe(frozen);
+  // Adapted like guided/format: preset-homed, but NOT offered a `promptConfig.prose` door (its override is the
+  // pre-PROSE-1 field), so it stays OUT of the editable preset-prose set.
+  expect(PROSE_SLOTS[PRESET_COMPACTION_SLOT_ID].home).toBe("preset");
+  expect(PRESET_PROSE_SLOT_IDS).not.toContain(PRESET_COMPACTION_SLOT_ID);
 });
 
 // ── S1: the app-tier cohort's defaults are the PRE-migration constants, byte for byte ───────────────
@@ -353,7 +381,7 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
   // guided/format slots are `home:"preset"` too, but their override storage is the pre-PROSE-1
   // `guidedActions.*.prompt` / `formatStrings.*` field (§4.6), so giving them a `prose` key as well would be
   // the two-doors defect with the resolver reading only one of them.
-  const legacyAdapted = new Set<ProseSlotId>([...Object.values(PRESET_GUIDED_SLOT_IDS), ...Object.values(PRESET_FORMAT_SLOT_IDS)]);
+  const legacyAdapted = new Set<ProseSlotId>([...Object.values(PRESET_GUIDED_SLOT_IDS), ...Object.values(PRESET_FORMAT_SLOT_IDS), PRESET_COMPACTION_SLOT_ID]);
   const expected = PROSE_SLOT_IDS.filter((id) => PROSE_SLOTS[id].home === "preset" && !legacyAdapted.has(id));
   expect(PRESET_PROSE_SLOT_IDS).toStrictEqual(expected);
   expect(PRESET_PROSE_SLOT_IDS).toStrictEqual(["chat.injection.systemNote", "chat.injection.userNote", "chat.assembly.continuationNudge"]);

@@ -21,7 +21,7 @@ import { EFFORT_LEVELS as MODEL_EFFORT_LEVELS, roleHandlingSchema, VERBOSITY_LEV
 import type { ProseSlotId } from "#prose-slot";
 import { proseOverridesSchema } from "#prose-slot";
 import { defineVersionedConfig } from "#versioned-config";
-import { PRESET_PROSE_SLOTS } from "./prose.ts";
+import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
 
 export * from "./prose.ts";
 
@@ -946,9 +946,10 @@ export const TEMPLATE_DEF_BY_ID: Record<RegistryTemplateId, TemplateDef> & Parti
   return out as Record<RegistryTemplateId, TemplateDef> & Partial<Record<ProseSlotId, TemplateDef>>;
 })();
 
-/** Default `/compact` steering (RP-tuned vs the SDK's generic coding-agent summary). */
-export const DEFAULT_COMPACT_INSTRUCTIONS =
-  "Summarize the roleplay so far for continuation: preserve each character's voice and persona, the relationships and their current state, established facts and world details, unresolved threads, and the present scene/location. Be concise but lossless on canon — names, commitments, and specific details must survive.";
+/** Default `/compact` steering (RP-tuned vs the SDK's generic coding-agent summary). DERIVED from the
+ *  PROSE-1 slot (census 49, §4.6 adapted): the override stays `promptConfig.compaction.instructions`; the
+ *  slot is what gives the default a version, a staleness signal and registry coverage from ONE place. */
+export const DEFAULT_COMPACT_INSTRUCTIONS = PRESET_PROSE_SLOTS[PRESET_COMPACTION_SLOT_ID].text;
 
 /** Managed-compaction trigger threshold (fraction of `contextWindow`). Overridable per preset. */
 export const MANAGED_COMPACT_DEFAULT_PCT = 0.85;
