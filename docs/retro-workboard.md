@@ -154,8 +154,15 @@ Ranked by consequence within each category. Every item carries its receipt state
   the live-infra steps:** `docker build` both targets (+`docker inspect` the healthcheck),
   container runs, fleet-in-namespace, read-only shakeout, sibling-vllm cap_drop probe, the pentest
   cage (§4/Fork F), deploy posture (C13).
-- **A3 · PRESET-FOLLOWUP → MERGED `57215749a`; verifier 3/4 CONFIRMED, **claim-2a REFUTED — FIX LEG
-  on the warm lane.** The drill store has NO production reset (2 call sites of
+- **A3 · PRESET-FOLLOWUP → fix leg MERGED `eb3669b1e`; RE-VERIFY RUNNING (the graduation gate).**
+  The drill is now a scoped `(presetId,sectionId)` pair (`state/preset-section-drill-store.ts`) —
+  cross-preset leak UNREPRESENTABLE (scoped read → foreign preset = null), retarget-on-fork from
+  the one site that knows (`use-preset-autosave.ts`), clear at the single view-writer chokepoint
+  (`setPresetEditorView` — so nav doors inherit it), `presetId` REQUIRED (7 sites). All 5 pins bite;
+  swept coupled sites the brief didn't name (2 pre-existing CTs falsely named routing → BAD_REQUEST,
+  branding, a test-presence mirror). Durable lesson: moving state useState→store is taking on a
+  lifecycle you must design per nav axis (banked). Original verifier verdict (3/4 CONFIRMED, 2a
+  REFUTED — the drill store had NO production reset:
   `closePresetSectionDrill`, scanned=987): **B-2 live regression** (Delivers-via chip lands in the
   WRONG section's editor when drilled — its contract CT green only because it never drills first) ·
   B-1 view-switch persists the drill · B-3 cross-preset leak (section ids are DEFAULT literal
