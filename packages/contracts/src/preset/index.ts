@@ -767,7 +767,8 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 // screen saying so.
 // `extract` is the WRITE-surface twin of `teach` (PROSE-1 S4): a `teach` row shapes what the NARRATOR is told
 // the tracked values mean; an `extract` row shapes what the EXTRACTOR is told to write back — the per-plane
-// teaching, the six state tools' descriptions, and the two state-round system framings. Its own kind rather
+// teaching, the six state tools' descriptions, the two state-round system framings, and the born-state
+// (populate) round's own header/teaching/user-turn blocks. Its own kind rather
 // than more `teach` rows because the two groups fire on different CALLS (the character turn vs the state
 // round) and a host tuning one has no reason to read the other.
 export const TEMPLATE_KINDS = ["steer", "voice", "studio", "format", "nudge", "teach", "extract"] as const satisfies readonly string[];
@@ -1435,6 +1436,77 @@ export const TEMPLATE_DEFS = [
     caps: [],
     defaultSlot: "rpg.extract.refs.closing",
     cluster: "refs",
+  },
+  // ── THE BORN-STATE ROUND (the populate census rows 1-7) ──────────────────────────────────────────────────
+  // The host's one card-read click: its system framing, the identity-sheet clause, the invent-nothing doctrine,
+  // and the three user-turn blocks (plus the blank-card stand-in). `extract` kind — they shape what a WRITE
+  // surface is told to record, which is the kind's own definition; the round they fire on is what each `fires`
+  // gloss front-loads ("Born-state round …"), because the `round` band holds both this round and the turn-loop
+  // extraction and a row that only said "Opens the system prompt" would read as either.
+  // CLUSTER `round` rather than a seventh TEMPLATE_CLUSTERS member: a new band member is a `tsc` error in the
+  // client's `TEMPLATE_CLUSTER_LABEL` until labeled, and these seven ARE round framings — the band's own noun.
+  {
+    id: "rpg.populate.systemHeader",
+    kind: "extract",
+    label: "Populate header",
+    fires: "Born-state round — opens its system prompt",
+    caps: [],
+    defaultSlot: "rpg.populate.systemHeader",
+    cluster: "round",
+  },
+  {
+    id: "rpg.populate.identity",
+    kind: "extract",
+    label: "Identity sheet",
+    fires: "Born-state round — the sheet plane no turn writes",
+    caps: [],
+    defaultSlot: "rpg.populate.identity",
+    cluster: "round",
+  },
+  {
+    id: "rpg.populate.doctrine",
+    kind: "extract",
+    label: "Invent nothing",
+    fires: "Born-state round — closes its teaching",
+    caps: [],
+    defaultSlot: "rpg.populate.doctrine",
+    cluster: "round",
+  },
+  {
+    id: "rpg.populate.cardBlock",
+    kind: "extract",
+    label: "Card block",
+    fires: "Born-state round — the card itself, always",
+    caps: [{ kind: "tokens", tokens: ["{{cardName}}", "{{cardBody}}"] }],
+    defaultSlot: "rpg.populate.cardBlock",
+    cluster: "round",
+  },
+  {
+    id: "rpg.populate.emptyCard",
+    kind: "extract",
+    label: "Empty card",
+    fires: "Born-state round — a card with no written description",
+    caps: [],
+    defaultSlot: "rpg.populate.emptyCard",
+    cluster: "round",
+  },
+  {
+    id: "rpg.populate.openingBlock",
+    kind: "extract",
+    label: "Opening block",
+    fires: "Born-state round — the room has posted an opening",
+    caps: [{ kind: "tokens", tokens: ["{{opening}}"] }],
+    defaultSlot: "rpg.populate.openingBlock",
+    cluster: "round",
+  },
+  {
+    id: "rpg.populate.targetLine",
+    kind: "extract",
+    label: "Target line",
+    fires: "Born-state round — names the one actor it fills",
+    caps: [{ kind: "tokens", tokens: ["{{targetRef}}"] }],
+    defaultSlot: "rpg.populate.targetLine",
+    cluster: "round",
   },
 ] as const satisfies readonly TemplateDef[];
 

@@ -37,6 +37,11 @@
 >   POPULATE round's own prose (`POPULATE_SYSTEM_HEADER`, `POPULATE_DOCTRINE`, the identity clause), which
 >   post-dates the `e0b9816d` census, plus the six host-facing REFUSAL sentences (toasts, not model prose) and
 >   row 27. A follow-on census pass owns those.
+> - **LANDED 2026-08-08 (the POPULATE lane).** That residue is gone: the populate census
+>   (`prose-1-populate-census.md`) rows 1-7 are the `rpg.populate.*` cohort — 7 slots + 7 `TEMPLATE_DEFS` rows
+>   under the `round` band — and the seam baseline shrank again, `extraction-prompt.ts` 2 → **0** (row dropped)
+>   and `compose/rpg.ts` 8 → **6**. What remains at those two seams is host-facing refusal copy and structural
+>   grammar, not model prose. Row 27 was WIRED the same day (`rpg.extract.stateTrackingGuide`).
 
 **Status:** brief material for a dedicated lane. Written by the RPG-PROSE lane (2026-08-07), which shipped the
 steering-REMINDER seam (census rows 1-10) + the `contracts/src/rpg/prose.ts` home. This doc carries the

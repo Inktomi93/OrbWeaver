@@ -173,6 +173,21 @@ export const PROSE_SLOT_IDS = [
   "rpg.extract.refs.gameTrackerKeys",
   "rpg.extract.refs.conditions",
   "rpg.extract.refs.closing",
+  // ── per-PRESET: the POPULATE round's own prose (the populate census rows 1-7,
+  //    `docs/design/prose-1-populate-census.md`). Its own `rpg.populate.*` group rather than more
+  //    `rpg.extract.*` rows because the two fire on DIFFERENT CALLS — the extraction cohort rides every state
+  //    round of every turn, this one rides the host's ONE born-state click over a card — so a host tuning the
+  //    card read has no reason to read the turn-loop teaching. Same posture as the extraction cohort
+  //    otherwise: `macros:"none"`, with a PRE-SUBSTITUTION token vocabulary the seam splices as data (the
+  //    card's name + body, the opening, the one target ref). Census rows 8-10 (the three host TOASTS) are OUT:
+  //    they are read from a click result and never reach a model, which is the §Scope test. ──
+  "rpg.populate.systemHeader",
+  "rpg.populate.identity",
+  "rpg.populate.doctrine",
+  "rpg.populate.cardBlock",
+  "rpg.populate.emptyCard",
+  "rpg.populate.openingBlock",
+  "rpg.populate.targetLine",
 ] as const;
 export type ProseSlotId = (typeof PROSE_SLOT_IDS)[number];
 

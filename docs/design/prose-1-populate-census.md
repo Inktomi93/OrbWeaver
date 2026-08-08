@@ -1,7 +1,18 @@
 # PROSE-1 — the populate round's own prose (post-census enumeration)
 
-**Status:** INVESTIGATION — enumeration only, no build. Input to a future migration lane, not the
-migration itself.
+**Status:** BUILT 2026-08-08 — rows 1-7 landed as the `rpg.populate.*` cohort (7 `RPG_PROSE_SLOTS` rows +
+7 `TEMPLATE_DEFS` rows, `cluster:"round"`, `kind:"extract"`). Rows 8-10 stay EXCLUDED by the §Scope test
+below. The enumeration is kept as the migration's record; the live law is the code + `prose.ts`'s header.
+
+**Slot ids as landed** (composition order): `rpg.populate.systemHeader` (row 1) · `rpg.populate.identity`
+(2) · `rpg.populate.doctrine` (3) · `rpg.populate.cardBlock` (4, tokens `{{cardName}}`/`{{cardBody}}`) ·
+`rpg.populate.emptyCard` (5) · `rpg.populate.openingBlock` (6, token `{{opening}}`) ·
+`rpg.populate.targetLine` (7, token `{{targetRef}}`). Byte-identity of the composed round is pinned at the
+COMPOSED-REAL tier (`tests/server/entry/compose/rpg.int.test.ts`, "PROSE-1 POPULATE") — the fixtures were
+captured by running those tests against the PRE-migration source, so they are the old bytes, not a
+re-derivation of the new ones. `populateUserPrompt` now takes the round's resolved prose view; row 3's
+migration removed `extraction-prompt.ts` from the `no-hardcoded-model-prose` baseline entirely (2 → 0) and
+row 1+7's took `compose/rpg.ts` 8 → 6.
 
 **Why this exists:** the `docs/design/prose-1-spec.md` census (`e0b9816d`) covers `packages/{server,
 contracts,kit}/src` and predates the born-state POPULATE round's own prose. `EXTRACTION_PLANE_PROMPTS`'

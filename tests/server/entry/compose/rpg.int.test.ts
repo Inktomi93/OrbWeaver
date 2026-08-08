@@ -2635,6 +2635,129 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
   expect(game.canPopulate).toBe(false);
 });
 
+// ── PROSE-1 POPULATE: the born-state round's own prose is SLOTTED, and its bytes did not move ─────────
+// The populate census (`docs/design/prose-1-populate-census.md`) rows 1-7 — the round's system header, its
+// inline IDENTITY clause, the invent-nothing doctrine, and the four user-turn labels — stopped being source
+// constants and became `rpg.populate.*` slot rows resolved against the GM PRESET's `promptConfig.prose`.
+//
+// THE FIXTURES BELOW ARE THE RENDERED BYTES AT `e495855de`+HEAD-BEFORE-THE-MIGRATION, captured by running
+// these two tests against the pre-migration source. They are the graduation bar for this class: a migration
+// that changes the SOURCE of the bytes must not change the bytes, and the composed prompt is the only place
+// where "the slot resolved" and "the model was told it" are the same fact. Per-slot `.text` comparison would
+// have passed while a lost `\n\n` join silently changed every born-state prompt.
+const POPULATE_SYSTEM_BYTES = `You are reading a role-play character's CARD and the story's OPENING scene to fill in what that character starts the game with. This runs ONCE, before the character has played: you are establishing their sheet and the gear, coin, and goals they walked in with — not reacting to any beat. Output ONE JSON object.
+
+IDENTITY — sheet.title is this character's TITLE or class as the card presents them ("Warden of House Vane", "hedge-witch"), short and in the card's own voice; sheet.level is their starting level as a whole number — 1 unless the card explicitly establishes a veteran standing.
+INVENTORY — inventory: items gained or lost (add/remove) and currency (walletDeltas — named currencies, e.g. gold). INFER what a character has on them from what the story showed — recording an item the story established (a key pocketed three turns ago) is NOT inventing.
+QUESTS — quests: a new or advancing quest (name + action create/update/complete/fail, with objectives). To mark an objective DONE, name its text in completeObjectives — do NOT restate the objective list to report progress. Send objectives only to CHANGE the list itself (adding a newly-revealed step); the lines you repeat keep the progress already recorded against them. Reconcile a quest the story resolved (mark it complete/fail) even if a later beat stopped mentioning it.
+Record ONLY what the character card and the opening scene actually establish or plainly imply — the gear they are described carrying, the coin their station implies, the goals their background already gives them. If the card says nothing about a plane, leave it empty. Do NOT invent adventuring loot, quest chains, or a purse the character has no reason to carry.`;
+
+const POPULATE_USER_BYTES = `CHARACTER CARD — bly:
+DESCRIPTION:
+A ferryman who has never once been paid in coin.
+
+OPENING SCENE (how the story begins):
+The ford runs black under a sky that has forgotten the sun.
+
+Write everything for targetRef "bly" — this round fills exactly this one character.`;
+
+/** The EMPTY-CARD / NO-OPENING complement: the fallback sentence stands in for a blank card, and the opening
+ *  block is absent entirely rather than rendered with nothing under it. Half the user-turn slots are only
+ *  reachable on this arm, which a single maximal fixture cannot cover. */
+const POPULATE_USER_BYTES_BARE = `CHARACTER CARD — nix:
+(the card carries no written description)
+
+Write everything for targetRef "nix" — this round fills exactly this one character.`;
+
+test("PROSE-1 POPULATE: the round's system + user prompts are byte-identical to the pre-slot composition", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "populate-bytes");
+  const characterId = await seedCharacter(db, hostId, "bly", { id: mintTypeId(ID_PREFIX.character) });
+  await db.update(characters).set({ description: "A ferryman who has never once been paid in coin." }).where(eq(characters.id, characterId));
+  await seedParticipant(db, { chatId, key: "populate_bytes_char", characterId, joinSeq: 1 });
+  await seedMessage(db, chatId, 1, { role: "assistant", content: "The ford runs black under a sky that has forgotten the sun." });
+
+  const spy = emptySpy();
+  const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: "{}" });
+  await compose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+
+  await compose.service.populateFromCharacter({ principal: hostPrincipal(hostId), chatId, actorRef: { kind: "character", characterId } });
+
+  expect(spy.systemPrompts[0]).toBe(POPULATE_SYSTEM_BYTES);
+  expect(spy.userPrompts[0]).toBe(POPULATE_USER_BYTES);
+});
+
+test("PROSE-1 POPULATE: a blank card and an empty room render the fallback arm byte-identically", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "populate-bytes-bare");
+  const characterId = await seedCharacter(db, hostId, "nix", { id: mintTypeId(ID_PREFIX.character) });
+  await seedParticipant(db, { chatId, key: "populate_bare_char", characterId, joinSeq: 1 });
+
+  const spy = emptySpy();
+  const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: "{}" });
+  await compose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+
+  await compose.service.populateFromCharacter({ principal: hostPrincipal(hostId), chatId, actorRef: { kind: "character", characterId } });
+
+  expect(spy.userPrompts[0]).toBe(POPULATE_USER_BYTES_BARE);
+});
+
+test("PROSE-1 POPULATE: a GM-preset override reaches every one of the round's SEVEN slots, tokens and all", async ({ app, db }) => {
+  // The half a byte-identity fixture cannot prove: the bytes now have a HOST-EDITABLE source. Driven through
+  // the same HOST-DOOR ladder the resync pin uses (the GM-voice preset REDIRECT, then the owner-scoped read),
+  // and asserted on the rendered prompts the wire carried — the only place "the host edited it" and "the model
+  // was told it" are the same fact. The blank-card slot is exercised by giving the character no description.
+  const { chatId, hostId } = await seedHostGameChat(db, "populate-prose-override");
+  const principal = hostPrincipal(hostId);
+  const characterId = await seedCharacter(db, hostId, "vail", { id: mintTypeId(ID_PREFIX.character) });
+  await seedParticipant(db, { chatId, key: "populate_override_char", characterId, joinSeq: 1 });
+  await seedMessage(db, chatId, 1, { role: "assistant", content: "Rain on the ferry deck." });
+
+  const presetId = castId<PresetId>("preset_prose_populate");
+  await db.insert(presets).values({
+    id: presetId,
+    ownerId: hostId,
+    name: "table voice",
+    kind: "user",
+    config: {
+      ...DEFAULT_PROMPT_CONFIG,
+      prose: {
+        "rpg.populate.systemHeader": { text: "HOUSE RULE: read the card, fill the sheet.", baseVersion: 1 },
+        "rpg.populate.identity": { text: "HOUSE RULE: titles are earned, never claimed.", baseVersion: 1 },
+        "rpg.populate.doctrine": { text: "HOUSE RULE: when in doubt, leave it blank.", baseVersion: 1 },
+        "rpg.populate.cardBlock": { text: "THE CARD OF {{cardName}} >>\n{{cardBody}}", baseVersion: 1 },
+        "rpg.populate.emptyCard": { text: "(this card is blank at our table)", baseVersion: 1 },
+        "rpg.populate.openingBlock": { text: "HOW IT STARTS >>\n{{opening}}", baseVersion: 1 },
+        "rpg.populate.targetLine": { text: "Fill only {{targetRef}}.", baseVersion: 1 },
+      },
+    },
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+
+  const spy = emptySpy();
+  const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: "{}" });
+  await compose.service.createGame({ principal, chatId, mode: "lite" });
+  await compose.service.updateConfig({ principal, chatId, gmPresetId: presetId });
+
+  await compose.service.populateFromCharacter({ principal, chatId, actorRef: { kind: "character", characterId } });
+
+  const system = spy.systemPrompts[0] ?? "";
+  expect(system).toContain("HOUSE RULE: read the card, fill the sheet.");
+  expect(system).toContain("HOUSE RULE: titles are earned, never claimed.");
+  expect(system).toContain("HOUSE RULE: when in doubt, leave it blank.");
+  // …and the shipped defaults are GONE, not merely joined (two rungs, never a cascade).
+  expect(system).not.toContain("Output ONE JSON object.");
+  expect(system).not.toContain("sheet.title is this character's TITLE");
+  expect(system).not.toContain("Do NOT invent adventuring loot");
+  // The two born-state PLANE fragments still ship their defaults in the same composition — an edit to the
+  // round's own framing is surgical, not a fork of the whole prompt.
+  expect(system).toContain("INVENTORY — inventory: items gained or lost");
+
+  // The user turn: every block re-framed, and each PRE-SUBSTITUTION token still carries its per-call value.
+  expect(spy.userPrompts[0]).toBe(
+    ["THE CARD OF vail >>\n(this card is blank at our table)", "HOW IT STARTS >>\nRain on the ferry deck.", "Fill only vail."].join("\n\n"),
+  );
+});
+
 // HOST HANDOFF × the GM-voice knob (stickler 2026-08-03 F1) — the COMPOSED-REAL wiring proof for the heal that
 // mirrors `resolveForkGmPreset`. `chat.acceptHostHandoff` moves room authority; `rpg_games.gmPresetId` is then
 // resolved under the NEW host (`resolvePresetOverride` → the owner-scoped `preset.get`), so a preset the new

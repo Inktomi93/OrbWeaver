@@ -371,6 +371,34 @@
     "rpg.extract.refs.closing": {
       "version": 1,
       "sha256": "d60b8623291cda1e7e4ca5380a969e3874c5e90d93943f9a096ba392f72a93e8"
+    },
+    "rpg.populate.systemHeader": {
+      "version": 1,
+      "sha256": "4a07a35f263bf6370fc7be8f1f7e9245e9f50c039190582828d43ca576d746af"
+    },
+    "rpg.populate.identity": {
+      "version": 1,
+      "sha256": "3abe08ee3ecfc61e839fdab9a308032645c5374c1b5cdbd0f589d7cb19d145c2"
+    },
+    "rpg.populate.doctrine": {
+      "version": 1,
+      "sha256": "ab1e4dd121a06427a78c2b3e9e7dd26cc1dd940f43deb6cdfa8f9cfb208c9247"
+    },
+    "rpg.populate.cardBlock": {
+      "version": 1,
+      "sha256": "32bde73374e5af7c120acfe569bb5f30bc7d126b2a22640cb0216651107cd77c"
+    },
+    "rpg.populate.emptyCard": {
+      "version": 1,
+      "sha256": "c9d62c7518fbb2add4e4022eac1b7bd3c7decc98a659750e62745465b9f0ab26"
+    },
+    "rpg.populate.openingBlock": {
+      "version": 1,
+      "sha256": "87a778bce369624251c619d06c608c2806bd691947a52798e4a4c0be25cb8cc7"
+    },
+    "rpg.populate.targetLine": {
+      "version": 1,
+      "sha256": "b1f301a87c5fdf4992b4c3f6426bc695be0c1062a18d15bae6cc0bec08b7198c"
     }
   }
 }
