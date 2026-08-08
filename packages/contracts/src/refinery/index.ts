@@ -11,12 +11,22 @@
 //
 // The stage PAYLOADS are the F3 "fixed typed payloads" — ONE schema per stage across every F4 mode
 // (modes are PROMPT-tier variants; the extension's separate quick-score schema is deliberately
-// collapsed). They are projected to provider wires via `projectJsonSchema` in R1, so they carry NO
-// zod refinements — bounds are native keywords (grammar-enforced on vLLM, post-parse-belt everywhere
-// else). Selection/config schemas are storage/input shapes, never projected, and MAY refine.
+// collapsed). They are projected to provider wires via `projectJsonSchema` in R1, so EVERY bound is
+// expressed as a NATIVE zod keyword (grammar-enforced on vLLM, post-parse-belt everywhere else).
+// Selection/config schemas are storage/input shapes, never projected, and MAY refine.
+//
+// THE ONE SANCTIONED REFINEMENT (owner ruling 2026-08-08, amending the pre-2026-08-08 "carry NO zod
+// refinements" rule): critique prose is capped in TOKENS, and a token count is not a JSON-Schema keyword —
+// no grammar can express it, so the belt is the ONLY possible enforcer for that tier. The relaxation is
+// SAFE because it is additive: every critique field still carries its native `.max()`, so the projected
+// wire schema is unchanged in KIND and the grammar still prevents at the char tier; the refinement only
+// tightens the parse. Verified, not assumed (zod 4.4.3): `z.toJSONSchema` does NOT throw on a refined
+// string — it silently DROPS the refinement and keeps `maxLength`, so the projection stays whole. The
+// cost is stated plainly: an over-token blob is now a FAILED RUN rather than an ungeneratable one.
 
 import type { ModelId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
 
 // The refinery prose slot table (R1) — composed into `PROSE_SLOTS` by `#prose` through this front door.
@@ -39,13 +49,59 @@ const REWRITE_TEXT_MAX = 100_000;
 // detail read AND every `character_snapshots` blob; the score/rewrite payloads land in append-only run
 // rows. Unbounded strings/arrays therefore were a store-and-serve amplification path with no belt at all
 // (measured: a 2 MB `summary` and a 5 000-entry array parsed clean). Every bound below is a NATIVE zod
-// keyword — never a refinement — so it survives `projectJsonSchema` as `maxLength`/`maxItems` and is
-// GRAMMAR-ENFORCED on the guided-decoding wire, while the hosted wires strip it and the zod belt re-imposes
-// it on the reply (`kit/json-schema/wire-subset` states that contract).
+// keyword — so it survives `projectJsonSchema` as `maxLength`/`maxItems` and is GRAMMAR-ENFORCED on the
+// guided-decoding wire, while the hosted wires strip it and the zod belt re-imposes it on the reply
+// (`kit/json-schema/wire-subset` states that contract). Critique prose additionally carries the ONE
+// sanctioned refinement (the token cap — see the header).
 
-/** One free-prose critique string (`summary`, `soulAssessment`, a per-field critique) — the
- *  `PROSE_MAX_CHARS` twin (contracts/prose-slot), this repo's ceiling for one model-facing prose blob. */
-const PROSE_MAX = 4000;
+/** The product cap for one free-prose critique string (`summary`, `soulAssessment`, a per-field critique),
+ *  in TOKENS. OWNER RULING 2026-08-08 — the cap was 4 000 CHARS (the `PROSE_MAX_CHARS` twin) and that was
+ *  the wrong UNIT for model-authored prose: "we are thinking in chars but it needs to be tokens ... 1000
+ *  tokens is piddly, I have cards that are like 4k". Measured by `@orb/kit/tokens`, the ONE production
+ *  estimator (never a re-implementation) — which makes this cap the same currency as every prompt budget
+ *  in the tree. */
+const CRITIQUE_TOKEN_MAX = 4000;
+
+/** The most characters ONE token can buy under the production estimator. `estimateTokens` (QuadChars,
+ *  `@orb/kit/tokens`) charges a printable-ASCII run 1 token per 4 chars and EVERY other codepoint a whole
+ *  token, so `estimateTokens(t) >= ceil(t.length / 4)` holds for every string — 4 is the ceiling, reached
+ *  only by pure printable ASCII.
+ *
+ *  THIS IS A PREMISE, NOT A CONSTANT: if the estimator is ever swapped for a real BPE (where common words
+ *  routinely exceed 4 chars per token) the inequality above becomes FALSE and the derivation below must be
+ *  revisited in that same change. Deriving the backstop instead of writing `16_000` is what forces that —
+ *  a literal would silently outlive its premise. */
+const QUADCHARS_MAX_CHARS_PER_TOKEN = 4;
+
+/** The DoS backstop for one critique string, in CHARS — the NATIVE keyword that survives projection and
+ *  keeps the guided-decoding grammar preventing over-long prose at generation time (a grammar cannot count
+ *  tokens). DERIVED, so it is exactly the char envelope of the token cap: by the inequality above a
+ *  token-legal string is always within `4 × budget` chars, so this rejects NOTHING the token cap accepts
+ *  while bounding bytes at half of the flat 32 000 a hand-picked literal would have cost.
+ *
+ *  It is deliberately NOT the whole belt: non-ASCII prose costs a token PER CODEPOINT, so 5 000 CJK
+ *  characters is 5 000 tokens at only 5 000 chars — over the product cap and nowhere near this backstop.
+ *  That gap is precisely why the token refinement exists. */
+const CRITIQUE_CHAR_BACKSTOP = CRITIQUE_TOKEN_MAX * QUADCHARS_MAX_CHARS_PER_TOKEN;
+
+/** One free-prose critique string, DUAL-BOUND: a native char backstop (projected to the wire, grammar-
+ *  enforced on vLLM) plus the token product cap (parse-only — see the header's sanctioned-refinement note).
+ *
+ *  The `length` guard in front of `estimateTokens` is LOAD-BEARING, not defensive: zod string checks are
+ *  NON-ABORTING, so without it a blob that already failed `.max()` would still be walked codepoint-by-
+ *  codepoint by the estimator — the byte ceiling would have become a CPU amplifier (measured: 40 MB ≈ 1.9 s
+ *  of tokenizing for a string already known to be refused). Answering `false` on length alone is exact, not
+ *  an approximation: over `4 × budget` chars is over budget in tokens by the inequality above. */
+const critiqueProseSchema = z
+  .string()
+  .max(CRITIQUE_CHAR_BACKSTOP)
+  .refine((text) => text.length <= CRITIQUE_CHAR_BACKSTOP && estimateTokens(text) <= CRITIQUE_TOKEN_MAX, `must be at most ${CRITIQUE_TOKEN_MAX} tokens`);
+
+/** Host-authored free prose that reaches a model wire (session `guidance`) — the `PROSE_MAX_CHARS` twin
+ *  (contracts/prose-slot), and deliberately still CHARS. It is a typed input field, not model-authored
+ *  critique output: a human types it into a bounded control, so the char cap is the one the editor can show
+ *  and the token ruling above does not reach it. */
+const HOST_PROSE_MAX_CHARS = 4000;
 /** One bullet in a list payload (`issues[]`, `preserved[]`, …) — a bullet, not an essay. */
 const NOTE_MAX = 500;
 /** Items in one bullet list. */
@@ -62,6 +118,20 @@ const GREETING_INDEX_MAX = 99;
 const GREETING_INDEXES_MAX = 100;
 /** Host-authored session label (the card `NAME_MAX` twin — a roster row's label, not prose). */
 const SESSION_NAME_MAX = 200;
+
+// ── WORST-CASE PAYLOAD BUDGET (recomputed 2026-08-08 for the chars→tokens cap; measured, not estimated) ──
+// Every string and array at its ceiling, serialized:
+//   • ANALYZE — THE ONE THAT REACHES CANON — ~127 KB → ~139 KB (+9%). The 4× prose growth barely moves it:
+//     six 50×500 note lists dominate this payload, and one critique string is a small share of it. This is
+//     the number that matters, because these bytes ride every card detail read and every snapshot blob.
+//   • SCORE (append-only run rows, never canon) — ~1.27 MB → ~4.99 MB (~3.9×). The growth lands almost
+//     entirely here: 108 entries × 3 critique strings is 324 of the 325 prose blobs in the whole contract.
+//   • REWRITE — unchanged; it is capped by the CARD's own text ceiling (`REWRITE_TEXT_MAX`), not by prose.
+// PARSE COST of the refinement, worst case (325 at-cap strings, ~5 MB): ~22 ms warm / ~28 ms cold. It stays
+// linear because the char backstop bounds ONE string at 16 000 chars — a single multi-megabyte string, where
+// the codepoint walk degrades badly (5.2 MB in one string measured ~251 ms), is refused in O(1) instead.
+// The SCORE ceiling is theoretical: 325 at-cap blobs is ~1.3 M output tokens, which no single generation
+// call can emit — a realistic 20-entry at-cap payload is ~0.96 MB and ~4 ms.
 
 // ── The pipeline axes (as-const tuples; unions derived — spine §7.5) ────────────────────────────────────
 
@@ -135,7 +205,7 @@ export type RefinerySelection = z.infer<typeof refinerySelectionSchema>;
  *  stage prompt, so it crosses into the model wire and is bounded like any other model-facing prose. The
  *  ONE home for the `refinery_sessions.guidance` bound: R1's start/iterate inputs parse through THIS, and
  *  the prompt substrate neutralizes it before splicing (the `{{input}}` guided precedent). */
-export const refineryGuidanceSchema = z.string().max(PROSE_MAX);
+export const refineryGuidanceSchema = z.string().max(HOST_PROSE_MAX_CHARS);
 
 /** The session's optional roster label — host-authored, never model-facing. Bounded like the card's own
  *  `name`: it is a row label rendered in the D62 LIST pane, not a prose field. */
@@ -197,9 +267,9 @@ export const refineryFieldScoreSchema = z.object({
   field: refinableFieldSchema,
   greetingIndex: z.number().int().min(0).max(GREETING_INDEX_MAX).optional(),
   score: z.number().min(SCORE_MIN).max(SCORE_MAX),
-  strengths: z.string().max(PROSE_MAX),
-  weaknesses: z.string().max(PROSE_MAX),
-  suggestions: z.string().max(PROSE_MAX),
+  strengths: critiqueProseSchema,
+  weaknesses: critiqueProseSchema,
+  suggestions: critiqueProseSchema,
 });
 /** @public type twin of `refineryFieldScoreSchema` — the per-field score ROW. Its consumer is the R3 refinery
  *  SURFACE (design-gated on the owner's mockup ruling, board C15), which maps
@@ -216,7 +286,7 @@ export const refineryScorePayloadSchema = z.object({
   /** Weighted average over `fieldScores` — the value R1 stamps into `characters.refinery.score` (F6). */
   overallScore: z.number().min(SCORE_MIN).max(SCORE_MAX),
   priorityImprovements: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
-  summary: z.string().max(PROSE_MAX),
+  summary: critiqueProseSchema,
 });
 export type RefineryScorePayload = z.infer<typeof refineryScorePayloadSchema>;
 
@@ -252,7 +322,7 @@ export const refineryAnalyzePayloadSchema = z.object({
   lost: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
   gained: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
   soulScore: z.number().min(SCORE_MIN).max(SCORE_MAX),
-  soulAssessment: z.string().max(PROSE_MAX),
+  soulAssessment: critiqueProseSchema,
   verdict: refineryVerdictSchema,
   issues: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
   recommendations: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
