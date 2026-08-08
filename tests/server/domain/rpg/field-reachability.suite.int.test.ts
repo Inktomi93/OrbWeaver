@@ -354,12 +354,16 @@ async function openGame(opts: { carrier: Carrier; trackers?: readonly RpgTracker
       const { messageId, variantId } = await seedMessage(db, chatId, seq, { role: "assistant" });
       await h.chatOps.onTurnCompleted(chatId, messageId, variantId, castId<ChatTurnId>(`chat_turn_${seq}`), turnConnection());
     },
+    // BOTH hand doors assert their `HandDoorResult` in the house grammar (`hand-edit-vs-flush.suite`'s
+    // `.resolves.toEqual({ ok: true })`): the verbs are ERRORS-AS-DATA, so a refusal RESOLVES and a discarded
+    // result makes the whole probe vacuous — the state simply never moved and every downstream expectation
+    // reads a world the edit never touched. `toEqual` over `expect(result.ok).toBe(true)` because the refusal
+    // arm carries the `reason` sentence, and the diff prints it instead of "expected false to be true".
     handEdit: async (patch: Record<string, unknown>): Promise<void> => {
-      const result = await h.service.editSnapshot({ principal: HOST, chatId, patch, lockPaths: [] });
-      expect(result.ok).toBe(true);
+      await expect(h.service.editSnapshot({ principal: HOST, chatId, patch, lockPaths: [] })).resolves.toEqual({ ok: true });
     },
     handActorOps: async (ops: readonly RpgActorOp[]): Promise<void> => {
-      await h.service.patchActor({ principal: HOST, chatId, targetRef: opts.carrier.actorRef, ops, autoLock: false });
+      await expect(h.service.patchActor({ principal: HOST, chatId, targetRef: opts.carrier.actorRef, ops, autoLock: false })).resolves.toEqual({ ok: true });
     },
     reminder,
     stateBlock: async (): Promise<string> => {
@@ -1152,7 +1156,7 @@ test("LOCK (fieldLocks): a hand-pinned value still renders AND survives the next
   const f = await openGame({ carrier: CARRIERS.character });
   await f.beat({ scene: { location: "The Bone Road" } });
   // The coarse auto-lock (the hand-edit default) pins `location`.
-  await f.h.service.editSnapshot({ principal: HOST, chatId: f.chatId, patch: { location: "The Crypt" } });
+  await expect(f.h.service.editSnapshot({ principal: HOST, chatId: f.chatId, patch: { location: "The Crypt" } })).resolves.toEqual({ ok: true });
   await f.beat({ scene: { location: "The Docks" } });
   const reminder = await f.reminder();
   expect(reminder).toContain("Scene: The Crypt");
@@ -1178,9 +1182,13 @@ test("READ-ONLY delivery: a game whose connection can't write state still READS 
   const carrier = CARRIERS.character;
   const { chatId, h } = await seedLiteGame(db, { roster: [...carrier.roster], trackersReadOnly: true });
   await h.service.updateConfig({ principal: HOST, chatId, patch: { trackers: [MANA] } });
-  await h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "The Crypt" } });
+  // BOTH hand doors are asserted: `trackersReadOnly` is a MODEL-write verdict, so the HOST's hand must still
+  // commit here — a silently-refused edit would leave the two reads below asserting an unmoved state.
+  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "The Crypt" } })).resolves.toEqual({ ok: true });
   // The per-actor half rides the op door (R1) — the image left `editSnapshot`'s vocabulary.
-  await h.service.patchActor({ principal: HOST, chatId, targetRef: carrier.actorRef, ops: [{ op: "setTracker", key: "mana", value: { value: 5 } }] });
+  await expect(
+    h.service.patchActor({ principal: HOST, chatId, targetRef: carrier.actorRef, ops: [{ op: "setTracker", key: "mana", value: { value: 5 } }] }),
+  ).resolves.toEqual({ ok: true });
   const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
   const reminder = out?.injections[0]?.content ?? "";
   // The honest degrade (§4.6): no write path, but the hand-steered values still steer.

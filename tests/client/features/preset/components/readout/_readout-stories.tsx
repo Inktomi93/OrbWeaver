@@ -29,6 +29,7 @@ import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 import { PromptReadout } from "../../../../../../packages/client/src/features/preset/components/readout/prompt-readout.tsx";
+import { EffectiveProfile } from "../../../../../../packages/client/src/features/preset/components/readout/readout-parts.tsx";
 import { TransformsReadout } from "../../../../../../packages/client/src/features/preset/components/readout/transforms-readout.tsx";
 import { CtDataProviders } from "../../../../../support/ct/ct-data-providers.tsx";
 
@@ -112,6 +113,57 @@ export function PresetReadoutParamsBoundStory(): ReactElement {
   return (
     <CtDataProviders>
       <ReadoutFrame chatId={STORY_CHAT} view="params" />
+    </CtDataProviders>
+  );
+}
+
+// ── The EFFECTIVE-GENERATION panel's THREE ARMS, mounted PROP-DIRECT ────────────────────────────────────
+// `EffectiveProfile` is a pure projection of `(effective, error)`, so each arm is a SETTLED rendered state
+// with nothing in flight — the only shape that can pin the PENDING arm honestly. The obvious alternative
+// (hold `preset.resolveEffective` open through the real readout) cannot work here: tRPC batches
+// `preset.get` with it, so holding one holds both and the panel never mounts at all — it renders the
+// enclosing "Loading the readout…" instead, and the assertion would be chasing a state the story cannot
+// produce. The CALLER's half (that `preset-readout.tsx` hands the resolve's error down rather than only
+// its data) is pinned separately, through the real readout, by the FAILED integration arm.
+
+/** PENDING — an absent profile with NO error: the read has not landed, and the panel must claim nothing. */
+export function EffectiveProfilePendingStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <EffectiveProfile effective={undefined} error={null} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** FAILED — an absent profile WITH the server's message: a routing fault, stated as one. */
+export function EffectiveProfileFailedStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <EffectiveProfile effective={undefined} error="incoherent routing (agent-sdk × local-light)" />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** SETTLED — the funnel's own row, its provenance rung, and the window the capability read supplied. */
+export function EffectiveProfileSettledStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ width: 380 }}>
+        <EffectiveProfile
+          contextWindow={32_768}
+          effective={{
+            model: "qwen3-32b",
+            knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } },
+            stale: [],
+            qualityMapping: null,
+          }}
+          error={null}
+        />
+      </div>
     </CtDataProviders>
   );
 }
