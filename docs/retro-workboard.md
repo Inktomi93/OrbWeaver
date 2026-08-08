@@ -182,7 +182,14 @@ Ranked by consequence within each category. Every item carries its receipt state
 
 ### B · DISPATCHABLE NOW (no owner ruling needed)
 
-- **B1 · Populate-round prose migration → MERGED `cc4404bf2`; GRADUATION VERIFIER RUNNING.** All 7
+- **✅ B1 · Populate-round prose migration — GRADUATED** (verifier CONFIRMED all 6, byte-identity
+  INDEPENDENTLY derived by eval'ing the old functions from git across all 4 corpus arms; all 100
+  prose-baseline sha256s recomputed 0-mismatch; ratchet regen diff-empty). Worktree torn down.
+  **2 notes recorded:** (A) sequential token splice = a character NAME containing literal
+  `{{cardBody}}` expands to the card's own body — SELF-injection only, no cross-tenant reach, no
+  action; (B) pre-existing gate reach gap — `no-hardcoded-model-prose` counts `rpg.ts:380` but not
+  sibling `:377` (the turn-loop extraction user prompt) — small gate-reach row for a later lane.
+  Landing detail: All 7
   strings are `rpg.populate.*` slots (2 tokened blocks body-as-token per the {{actorTrackers}}
   precedent) + TEMPLATE_DEFS rows in `cluster:"round"` ("Born-state round —" glosses; a dedicated
   band = a later 1-member sibling-file change if wanted). Byte-identity: pre-migration fixtures
