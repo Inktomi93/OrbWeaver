@@ -13,7 +13,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { ChatContextHeaderDraftStory, ChatHeaderStory, ChatsTopbarDraftStory } from "../_ct-stories.tsx";
+import { ChatContextHeaderDraftStory, ChatHeaderNarrowStory, ChatHeaderStory, ChatsTopbarDraftStory } from "../_ct-stories.tsx";
 import { makeMessagesPage } from "../fixtures.ts";
 
 const MEMBERS_CHIP_RE = /Members/;
@@ -81,6 +81,38 @@ test("a GROUP cast shows the chip counting PRESENT participants (\u00a7 6.1: Mem
   // proof at this scope is the ABSENCE of the solo popover — the group arm never renders it.
   await chip.click();
   await expect(page.getByTestId("solo-roster-menu")).toHaveCount(0);
+});
+
+// ── THE MEMBERS CHIP WAS A DEAD CONTROL BELOW 64rem (CONFIG-FIX lane finding) ──────────────────────
+// `openMembersTab` used to write only `contextTab` + `panelMode("context","docked")` — never
+// `openOverlayPanel`. `resolvePanelMode` downgrades a `docked` resolution to CLOSED (`collapsed`) at
+// mobile/narrow-desktop widths unless a request NAMES the panel, so the chip's tap never opened
+// anything to look at on a touch/narrow viewport. The fix routes through `revealContextPanel("members")`,
+// the shared reveal intent that writes the overlay request unconditionally alongside the tab + dock.
+test.describe("narrow/touch viewport", () => {
+  test.use({ viewport: { width: 430, height: 900 }, hasTouch: true });
+
+  test("tapping the Members chip reveals the CONTEXT overlay on the members tab (was dead <64rem)", async ({ mount, page }) => {
+    await routeTrpc(page, {
+      "chat.getChat": () => ({
+        title: "Council of Two",
+        participants: [human("host"), character("Aria"), character("Bolt")],
+        viewerIsHost: true,
+      }),
+      "chat.listMessages": () => makeMessagesPage([]),
+    });
+
+    const component = await mount(<ChatHeaderNarrowStory />);
+    const state = component.getByTestId("shell-state");
+    await expect(state).toHaveText("contextTab=none openOverlayPanel=none");
+
+    const chip = component.getByRole("button", { name: "Members — 3" });
+    await chip.tap();
+
+    // The overlay request now NAMES "context" — the write `resolvePanelMode` needs to reveal the sheet
+    // below 64rem — alongside the members tab selection.
+    await expect(state).toHaveText("contextTab=members openOverlayPanel=context");
+  });
 });
 
 test("a SOLO chat renders the members entry and opens a roster popover with Add a character (CP-1 ruling)", async ({ mount, page }) => {

@@ -26,7 +26,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useAuthConfig, useDraftCastCards, useTRPC } from "#data";
 import type { ChatContextTabId } from "#lib";
 import { testId } from "#lib";
-import { setContextTab, setPanelMode } from "#state";
+import { revealContextPanel } from "#state";
 import { deriveChatTitle, draftChatTitle } from "../lib/chat-summary-row.ts";
 import { draftMembersTabJustified, filterCharacters, membersTabJustified } from "../lib/roster.ts";
 import { AddMemberPopover } from "./add-member-popover.tsx";
@@ -133,8 +133,7 @@ function RosterChipButton({ count, onClick }: { readonly count: number; readonly
 /** Open the Members context tab — the roster chip's action in a GROUP room, both phases. Entry-only: it
  *  never toggles closed (the collapse affordance is the context header's own control, D66 §2). */
 function openMembersTab(): void {
-  setContextTab("members" satisfies ChatContextTabId);
-  setPanelMode("context", "docked");
+  revealContextPanel("members" satisfies ChatContextTabId);
 }
 
 /** The topbar members entry — the ONE roster doorway (chat-header §2/§9, one home). It ALWAYS renders now
