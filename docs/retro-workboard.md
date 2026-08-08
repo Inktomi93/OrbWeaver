@@ -168,6 +168,21 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
       `readDebugToken`.
   - **⚑ OWNER, operational (relayed from DEBUGGATE, standing):** rotate `DEBUG_TOKEN` (surface was open
     an unknown window) · `IP_ALLOWLIST` still unset with `WIRE_CAPTURE=on`.
+  - ✅ **AUTHTAIL GRADUATED — fresh security lens, all 4 CONFIRMED (`a1eecb1d`).** Sole `passwordHash`
+    write path confirmed by full census (reset-password + create-user insert + seed-owner backfill; NO
+    self-service change-password verb, so the scoped guard is justified not gratuitous); principal role
+    is row-derived every request (guard can't be spoofed); both red-first arms genuine; the seed-owner
+    `or(ne(role,'owner'),eq(enabled,false))` predicate is correctly AND-scoped to the owner id (heals a
+    disabled owner, 0-row on healthy, never touches a non-owner). **Two NON-BLOCKING hardening flags
+    (safe today under the single-owner invariant D17), boarded for a batchable follow-up:** (1)
+    `resetPassword`'s write lacks the atomic `WHERE ne(role,'owner')` race-clause its siblings carry —
+    unexploitable (owner is boot-seeded, never runtime-minted) but an asymmetry worth an inline note or
+    the clause; (2) `resetPassword` lacks the `cannot_modify_agent` guard its siblings have — harmless
+    now (agents aren't form-loginable) but a sibling to sweep if agent hardening ever happens.
+  - **⏳ TWO VERIFIERS IN FLIGHT over lanes I graduated on 'mechanical' judgment (owner offered the
+    spend):** `a74f2250` on SMALLS-SERVER (the narrator-preview GroupConfig threading + its byte-fence) ·
+    `a07a6cd8` on SUMDROP + TEMPLATE-UNIFY (the deleted resolve-role test's coverage, the self-heal, and
+    the compaction-slot byte-identity). Read-only; don't consume the write cap.
 
   ### ✅ ALL DISPATCHED CHUNKS HAVE GRADUATED (2026-08-07 evening)
   Every lens has reported. NARRATOR-CAST, PROVGATE, the two push-red fixes and SIDE-EYE-DAY are above;
