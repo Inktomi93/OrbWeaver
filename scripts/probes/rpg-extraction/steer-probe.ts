@@ -19,10 +19,31 @@
 
 import fs from "node:fs";
 
+interface WireMsg {
+  role: string;
+  content: string;
+}
+interface HistoryEntry {
+  u: string;
+  a: string;
+}
+interface SteerTurn {
+  turn: number;
+  wits: number;
+  text: string;
+  score?: number;
+}
+interface RawResp {
+  choices?: Array<{ message: { content?: string | null } }>;
+  usage?: { cost?: number };
+  error?: unknown;
+}
+
 const KEY = (() => {
   const line = fs.readFileSync("~/dev/orbweaver/.env", "utf8")
     .split(/\r?\n/).find((l) => l.startsWith("OPENROUTER_API_KEY="));
-  let v = line.slice("OPENROUTER_API_KEY=".length).trim();
+  // biome-ignore lint/style/noNonNullAssertion: this probe assumes the key line is present (crashes if not, as before).
+  let v = line!.slice("OPENROUTER_API_KEY=".length).trim();
   if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
   return v;
 })();
@@ -49,7 +70,7 @@ const WITS_DECAY = [95, 82, 68, 55, 42, 30, 19, 10];
 
 // The reminder block, shaped like run-coverage's renderReminder (present cast + inline customFields).
 // `Wits` sits beside `Trust` with no gloss — a bare number, exactly as a host-defined castField renders.
-function reminder(action, wits, beats, gloss = "") {
+function reminder(action: string, wits: number, beats: string[], gloss = ""): string {
   const lines = [
     "[System note — current tracked game state:",
     "Scene: the ford road · evening · light rain",
@@ -67,7 +88,7 @@ function reminder(action, wits, beats, gloss = "") {
   return lines.join("\n");
 }
 
-async function call(messages, maxTokens = 700) {
+async function call(messages: WireMsg[], maxTokens = 700) {
   const r = await fetch(ENDPOINT, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${KEY}` },
@@ -77,33 +98,37 @@ async function call(messages, maxTokens = 700) {
       reasoning: { effort: "none" }, messages,
     }),
   });
-  const j = await r.json();
+  const j = (await r.json()) as RawResp;
   if (!j.choices) throw new Error(JSON.stringify(j.error ?? j).slice(0, 200));
-  return { text: j.choices[0].message.content ?? "", cost: j.usage?.cost ?? 0 };
+  // biome-ignore lint/style/noNonNullAssertion: a 2xx OpenRouter response with `choices` always carries choices[0].
+  return { text: j.choices[0]!.message.content ?? "", cost: j.usage?.cost ?? 0 };
 }
 
 let spent = 0;
 
-async function runArm(label, witsSeries, gloss = "") {
-  const history = [];
-  const beats = [];
-  const turns = [];
+async function runArm(label: string, witsSeries: number[], gloss = ""): Promise<SteerTurn[]> {
+  const history: HistoryEntry[] = [];
+  const beats: string[] = [];
+  const turns: SteerTurn[] = [];
   for (let t = 0; t < ACTIONS.length; t++) {
-    const msgs = [{ role: "system", content: SYSTEM }];
+    const msgs: WireMsg[] = [{ role: "system", content: SYSTEM }];
     for (const h of history) { msgs.push({ role: "user", content: h.u }); msgs.push({ role: "assistant", content: h.a }); }
-    msgs.push({ role: "user", content: reminder(ACTIONS[t], witsSeries[t], beats, gloss) });
+    // biome-ignore lint/style/noNonNullAssertion: t < ACTIONS.length, and witsSeries is the same length.
+    msgs.push({ role: "user", content: reminder(ACTIONS[t]!, witsSeries[t]!, beats, gloss) });
     const { text, cost } = await call(msgs);
     spent += cost;
-    history.push({ u: ACTIONS[t], a: text });
+    // biome-ignore lint/style/noNonNullAssertion: t < ACTIONS.length.
+    history.push({ u: ACTIONS[t]!, a: text });
     beats.push(`Kestrel pressed Wren on the ${["lockbox", "seal", "ledger", "missing wagon", "leak", "betrayal", "roads", "plan"][t]}`);
-    turns.push({ turn: t + 1, wits: witsSeries[t], text });
+    // biome-ignore lint/style/noNonNullAssertion: t < witsSeries.length.
+    turns.push({ turn: t + 1, wits: witsSeries[t]!, text });
     process.stdout.write(`  ${label} t${t + 1} (Wits ${witsSeries[t]}) ${text.length}ch\n`);
   }
   return turns;
 }
 
 // Blind judge: one turn's prose, no state, no arm, no turn number, no mention of any manipulation.
-async function judge(text) {
+async function judge(text: string): Promise<number> {
   const { text: out, cost } = await call([
     { role: "system", content: "You rate fictional characters. Reply with ONLY a single integer 1-10, nothing else." },
     { role: "user", content: `In the passage below, rate the character WREN on how mentally sharp, insightful and capable she comes across — 1 (slow, confused, unhelpful) to 10 (brilliant, incisive).\n\n---\n${text}\n---\n\nInteger only:` },
@@ -133,13 +158,14 @@ for (const r of glossed) r.score = await judge(r.text);
 console.log("turn   Wits   HIGH   DECAY(bare)   DECAY+GLOSS");
 console.log("-".repeat(52));
 for (let i = 0; i < high.length; i++) {
-  console.log(`  ${String(i + 1).padEnd(6)}${String(decay[i].wits).padEnd(7)}${String(high[i].score).padEnd(7)}${String(decay[i].score).padEnd(14)}${glossed[i].score}`);
+  // biome-ignore lint/style/noNonNullAssertion: i < high.length, and all arms are the same length.
+  console.log(`  ${String(i + 1).padEnd(6)}${String(decay[i]!.wits).padEnd(7)}${String(high[i]!.score).padEnd(7)}${String(decay[i]!.score).padEnd(14)}${glossed[i]!.score}`);
 }
-const mean = (a) => (a.reduce((x, y) => x + y, 0) / a.length).toFixed(2);
-const hs = high.map((r) => r.score), ds = decay.map((r) => r.score), gs = glossed.map((r) => r.score);
+const mean = (a: number[]) => (a.reduce((x, y) => x + y, 0) / a.length).toFixed(2);
+const hs = high.map((r) => r.score ?? 0), ds = decay.map((r) => r.score ?? 0), gs = glossed.map((r) => r.score ?? 0);
 console.log("-".repeat(56));
 console.log(`mean    HIGH ${mean(hs)}   DECAY ${mean(ds)}   GLOSS ${mean(gs)}`);
 console.log(`last-3  HIGH ${mean(hs.slice(-3))}   DECAY ${mean(ds.slice(-3))}   GLOSS ${mean(gs.slice(-3))}`);
-console.log(`\ndelta vs HIGH:  bare ${(mean(ds)-mean(hs)).toFixed(2)}   glossed ${(mean(gs)-mean(hs)).toFixed(2)}`);
+console.log(`\ndelta vs HIGH:  bare ${(Number(mean(ds)) - Number(mean(hs))).toFixed(2)}   glossed ${(Number(mean(gs)) - Number(mean(hs))).toFixed(2)}`);
 fs.writeFileSync("scripts/probes/rpg-extraction/steer-out.json", JSON.stringify({ high, decay, glossed }, null, 2));
 console.log(`\nfull transcripts -> steer-out.json · total $${spent.toFixed(4)}\n`);

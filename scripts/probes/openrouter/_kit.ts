@@ -20,10 +20,107 @@ export const RESULTS_DIR = path.join(DIR, "results");
 
 const OR_URL = "https://openrouter.ai/api/v1/chat/completions";
 
+// ---- raw OpenRouter chat-completions wire shapes ----
+// These probes hit the RAW HTTP endpoint, so the wire is snake_case — NOT the camelCase SDK shape the
+// production `kit/wire-schemas.ts` models. All fields optional: a probe reads whatever the vendor returned
+// (a 400 arrives with `error` and no `choices`; a tool-choice:"none" turn has no `tool_calls`).
+interface OrReasoningDetail {
+  readonly type?: string;
+  readonly text?: string | null;
+  readonly signature?: string;
+  readonly id?: string | null;
+  readonly format?: string;
+  readonly index?: number;
+  readonly [k: string]: unknown;
+}
+interface OrToolCall {
+  readonly id: string;
+  readonly type?: string;
+  readonly function?: { readonly name?: string; readonly arguments?: string };
+}
+export interface OrMessage {
+  readonly role?: string;
+  readonly content?: string | null;
+  readonly reasoning?: string | null;
+  readonly reasoning_details?: OrReasoningDetail[];
+  readonly tool_calls?: OrToolCall[];
+}
+interface OrPromptTokensDetails {
+  readonly cached_tokens?: number;
+  readonly cache_write_tokens?: number;
+}
+interface OrCompletionTokensDetails {
+  readonly reasoning_tokens?: number;
+}
+interface OrUsage {
+  readonly prompt_tokens?: number;
+  readonly completion_tokens?: number;
+  readonly cost?: number;
+  readonly prompt_tokens_details?: OrPromptTokensDetails;
+  readonly completion_tokens_details?: OrCompletionTokensDetails;
+}
+interface OrChoice {
+  readonly message?: OrMessage;
+  readonly finish_reason?: string | null;
+}
+interface OrResponse {
+  readonly choices?: OrChoice[];
+  readonly usage?: OrUsage;
+  readonly error?: { readonly code?: number; readonly message?: string };
+}
+
+/** A request message on the OpenRouter (OpenAI-compat) wire — heterogeneous by role (system/user/assistant/
+ *  tool carry different fields), so `content` is genuinely dynamic and narrowed at use. */
+export interface OrRequestMessage {
+  readonly role: string;
+  content?: unknown;
+  tool_calls?: OrToolCall[] | undefined;
+  tool_call_id?: string | undefined;
+  reasoning_details?: OrReasoningDetail[] | undefined;
+  readonly [k: string]: unknown;
+}
+
+/** The request body passed to `orCall` — `model`/`messages` are load-bearing; the rest (tools, reasoning,
+ *  tool_choice, provider…) vary per probe and are held open. */
+interface OrRequestBody {
+  readonly model: string;
+  readonly messages: OrRequestMessage[];
+  readonly [k: string]: unknown;
+}
+
+/** camelCase summary of the wire usage that every probe row spreads. */
+interface UsageSummary {
+  readonly promptTokens: number | null;
+  readonly cachedTokens: number | null;
+  readonly cacheWriteTokens: number | null;
+  readonly completionTokens: number | null;
+  readonly reasoningTokens: number | null;
+  readonly cost: number | null;
+}
+
+interface OrCallResult {
+  readonly status: number;
+  readonly ms: number;
+  readonly json: OrResponse;
+  readonly usage: UsageSummary;
+  readonly error: string | null;
+  readonly message: OrMessage | null;
+}
+
+/** An evidence row every probe spreads its usage into, plus arm-specific fields via the index signature. */
+export interface ArmRowBase extends UsageSummary {
+  readonly kind: string;
+  readonly probe: string;
+  readonly status: number;
+  readonly error: string | null;
+  readonly ms: number;
+  readonly [k: string]: unknown;
+}
+
 /** Anthropic-family model: these probes are about Anthropic cache/thinking semantics as seen THROUGH the
  *  OpenAI-compat shim, so a non-Anthropic model answers a different question. */
-export const OR_MODEL = process.env.OR_MODEL ?? "anthropic/claude-sonnet-5";
-export const NATIVE_MODEL = process.env.NATIVE_MODEL ?? "claude-sonnet-5";
+export const OR_MODEL = process.env["OR_MODEL"] ?? "anthropic/claude-sonnet-5";
+export const NATIVE_MODEL = process.env["NATIVE_MODEL"] ?? "claude-sonnet-5";
 
 /** Pin Anthropic with no fallbacks — an unpinned turn can land on Bedrock/Azure/Google, which ignore
  *  `cache_control` entirely and would read as a cache "bust" that is really a routing hop (findings §2). */
@@ -31,9 +128,10 @@ export const ANTHROPIC_PIN = { order: ["Anthropic"], allow_fallbacks: false };
 
 /** Walks up from this file for the repo `.env` — this harness runs from git worktrees, which do not carry
  *  their own `.env`. `process.env` wins when set. */
-export function readEnvKey(name) {
-  if (process.env[name] !== undefined && process.env[name] !== "") {
-    return process.env[name];
+export function readEnvKey(name: string): string {
+  const preset = process.env[name];
+  if (preset !== undefined && preset !== "") {
+    return preset;
   }
   let dir = DIR;
   for (let i = 0; i < 12; i += 1) {
@@ -63,7 +161,7 @@ export function readEnvKey(name) {
 
 /** Deterministic filler so a prefix is byte-stable across arms, and `nonce`-unique across runs (a prior
  *  run's live cache entry would otherwise make a "prime" arm read as a hit). ~14 tokens per line. */
-export function filler(nonce, lines) {
+export function filler(nonce: string, lines: number): string {
   const out = [];
   for (let i = 0; i < lines; i += 1) {
     out.push(`[${nonce}#${i}] Field note ${i}: the ashen road bends north past the salt weirs, and the ledger keeper records every toll paid in coin or in name.`);
@@ -71,8 +169,8 @@ export function filler(nonce, lines) {
   return out.join("\n");
 }
 
-export function usageOf(json) {
-  const usage = json?.usage ?? {};
+export function usageOf(json: OrResponse): UsageSummary {
+  const usage = json.usage ?? {};
   return {
     promptTokens: usage.prompt_tokens ?? null,
     cachedTokens: usage.prompt_tokens_details?.cached_tokens ?? null,
@@ -86,33 +184,38 @@ export function usageOf(json) {
 let spend = 0;
 export const totalSpend = () => spend;
 
-export async function orCall(body, key) {
+export async function orCall(body: OrRequestBody, key: string): Promise<OrCallResult> {
   const started = Date.now();
   const response = await fetch(OR_URL, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({ usage: { include: true }, provider: ANTHROPIC_PIN, stream: false, ...body }),
   });
-  const json = await response.json();
-  spend += json?.usage?.cost ?? 0;
+  const json = (await response.json()) as OrResponse;
+  spend += json.usage?.cost ?? 0;
   return {
     status: response.status,
     ms: Date.now() - started,
     json,
     usage: usageOf(json),
-    error: json?.error ? JSON.stringify(json.error).slice(0, 600) : null,
-    message: json?.choices?.[0]?.message ?? null,
+    error: json.error ? JSON.stringify(json.error).slice(0, 600) : null,
+    message: json.choices?.[0]?.message ?? null,
   };
 }
 
 /** Appends one evidence row. `arm` is the moving variable's value; everything else in the row is the
  *  constant it moved against. */
-export function jsonl(probe) {
+interface JsonlRow {
+  readonly kind?: string;
+  readonly blocked?: unknown;
+}
+
+export function jsonl(probe: string) {
   fs.mkdirSync(RESULTS_DIR, { recursive: true });
   const file = path.join(RESULTS_DIR, `${probe}.jsonl`);
   return {
     file,
-    append(row) {
+    append(row: object) {
       fs.appendFileSync(file, `${JSON.stringify(row)}\n`);
     },
     /** Resume unit is the PROBE, not the arm: the cache arms are only meaningful back-to-back inside one
@@ -125,7 +228,7 @@ export function jsonl(probe) {
         .readFileSync(file, "utf8")
         .split("\n")
         .filter((l) => l.trim().length > 0)
-        .map((l) => JSON.parse(l))
+        .map((l): JsonlRow => JSON.parse(l) as JsonlRow)
         // A `blocked` verdict is a probe that couldn't measure (e.g. the capture arm produced nothing to
         // replay) — it is kept as evidence but must NOT satisfy the resume check.
         .some((row) => row.kind === "verdict" && row.blocked === undefined);
@@ -133,6 +236,6 @@ export function jsonl(probe) {
   };
 }
 
-export function printTable(rows) {
+export function printTable(rows: readonly object[]): void {
   console.table(rows);
 }

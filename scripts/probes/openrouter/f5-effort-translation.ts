@@ -21,6 +21,43 @@ import { NATIVE_MODEL, OR_MODEL, jsonl, orCall, printTable, readEnvKey } from ".
 export const id = "f5";
 export const title = "OR effort translation / native-depth reachability";
 
+// Native Anthropic Messages wire (the reference arms hit api.anthropic.com directly, not the OR shim).
+interface NativeContentBlock {
+  readonly type?: string;
+  readonly [k: string]: unknown;
+}
+interface NativeMessagesResponse {
+  readonly content?: NativeContentBlock[];
+  readonly usage?: { readonly output_tokens?: number; readonly output_tokens_details?: { readonly thinking_tokens?: number } };
+  readonly error?: unknown;
+}
+
+interface NativeCallResult {
+  readonly status: number;
+  readonly ms: number;
+  readonly thinking: number | null;
+  readonly outputTokens: number | null;
+  readonly toolCalls: number;
+  readonly error: string | null;
+}
+
+// One row per (wire, arm): OR arms carry a `cost`, native arms leave it null.
+interface F5Row {
+  readonly kind: string;
+  readonly probe: string;
+  readonly wire: string;
+  readonly arm: string;
+  readonly knob: string;
+  readonly maxTokens: number;
+  readonly status: number;
+  readonly thinking: number | null;
+  readonly outputTokens: number | null;
+  readonly toolCalls: number;
+  readonly cost: number | null;
+  readonly error: string | null;
+  readonly ms: number;
+}
+
 const SYSTEM = "You are the game master of an immersive tabletop role-play. Narrate vividly in second person, then keep tracked state in sync using the tools.";
 
 // Deliberately reasoning-heavy: several interacting state changes to work out, so a working effort ladder
@@ -50,7 +87,7 @@ const TOOLS = [
 const OR_TOOLS = TOOLS.map((t) => ({ type: "function", function: { name: t.name, description: t.description, parameters: t.parameters } }));
 const NATIVE_TOOLS = TOOLS.map((t) => ({ name: t.name, description: t.description, input_schema: t.parameters }));
 
-async function nativeCall(key, outputConfig, maxTokens) {
+async function nativeCall(key: string, outputConfig: Record<string, unknown>, maxTokens: number): Promise<NativeCallResult> {
   const started = Date.now();
   const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
@@ -64,14 +101,14 @@ async function nativeCall(key, outputConfig, maxTokens) {
       output_config: outputConfig,
     }),
   });
-  const json = await response.json();
+  const json = (await response.json()) as NativeMessagesResponse;
   return {
     status: response.status,
     ms: Date.now() - started,
-    thinking: json?.usage?.output_tokens_details?.thinking_tokens ?? null,
-    outputTokens: json?.usage?.output_tokens ?? null,
-    toolCalls: Array.isArray(json?.content) ? json.content.filter((b) => b.type === "tool_use").length : 0,
-    error: json?.error ? JSON.stringify(json.error).slice(0, 400) : null,
+    thinking: json.usage?.output_tokens_details?.thinking_tokens ?? null,
+    outputTokens: json.usage?.output_tokens ?? null,
+    toolCalls: Array.isArray(json.content) ? json.content.filter((b) => b.type === "tool_use").length : 0,
+    error: json.error ? JSON.stringify(json.error).slice(0, 400) : null,
   };
 }
 
@@ -79,9 +116,9 @@ export async function run() {
   const orKey = readEnvKey("OPENROUTER_API_KEY");
   const nativeKey = readEnvKey("ANTHROPIC_API_KEY");
   const out = jsonl(id);
-  const rows = [];
+  const rows: F5Row[] = [];
 
-  const orArms = [
+  const orArms: Array<[string, Record<string, unknown>, number]> = [
     ["or-effort-low-mt4000", { effort: "low" }, 4000],
     ["or-effort-high-mt4000", { effort: "high" }, 4000],
     ["or-effort-high-mt16000", { effort: "high" }, 16000],
@@ -122,10 +159,11 @@ export async function run() {
   }
 
   if (nativeKey.length > 0) {
-    for (const [arm, outputConfig] of [
+    const nativeArms: Array<[string, Record<string, unknown>]> = [
       ["native-effort-high", { effort: "high" }],
       ["native-effort-max", { effort: "max" }],
-    ]) {
+    ];
+    for (const [arm, outputConfig] of nativeArms) {
       const result = await nativeCall(nativeKey, outputConfig, 16000);
       const row = {
         kind: "arm",
@@ -147,7 +185,7 @@ export async function run() {
     }
   }
 
-  const think = (arm) => rows.find((r) => r.arm === arm)?.thinking ?? null;
+  const think = (arm: string) => rows.find((r) => r.arm === arm)?.thinking ?? null;
   const orHigh4k = think("or-effort-high-mt4000");
   const orHigh16k = think("or-effort-high-mt16000");
   const orExplicit = think("or-reasoning-maxtokens-8000");

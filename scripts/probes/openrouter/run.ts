@@ -19,16 +19,16 @@ import * as or7 from "./or7-reasoning-roundtrip.ts";
 
 const ALL = [f4, f4a, f5, or5, or7];
 
-const requested = (process.env.PROBES ?? "").trim();
+const requested = (process.env["PROBES"] ?? "").trim();
 const selected = requested.length > 0 ? ALL.filter((p) => requested.split(",").includes(p.id)) : ALL;
-const force = process.env.FORCE === "1";
+const force = process.env["FORCE"] === "1";
 
 if (readEnvKey("OPENROUTER_API_KEY").length === 0) {
   console.error("OPENROUTER_API_KEY not found (process.env or the repo .env). Nothing fired.");
   process.exit(1);
 }
 
-const verdicts = [];
+const verdicts: object[] = [];
 for (const probe of selected) {
   if (!force && jsonl(probe.id).hasCompletedRun()) {
     console.log(`\n=== ${probe.id} — SKIPPED (a completed run is already in results/${probe.id}.jsonl; FORCE=1 to re-run)`);

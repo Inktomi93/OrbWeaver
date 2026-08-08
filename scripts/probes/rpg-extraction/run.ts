@@ -7,6 +7,217 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// ---- internal running-state model (the harness's own tracked-state shape, not a wire type) ----
+interface Hp {
+  value: number;
+  max: number;
+}
+interface Pool {
+  name: string;
+  value: number;
+  max: number;
+}
+interface Item {
+  name: string;
+  quantity: number;
+  location: string;
+  description?: string;
+}
+interface Relationship {
+  kind: string;
+  label: string;
+}
+interface PresentChar {
+  name: string;
+  emoji: string;
+  mood: string;
+  appearance: string;
+  outfit: string;
+  thoughts: string;
+  customFields: Record<string, string | number>;
+  relationship: Relationship;
+}
+interface Actor {
+  ref: string;
+  name: string;
+  role: string;
+  level: number;
+  hp: Hp;
+  pools: Pool[];
+  conditions: string[];
+  status: string;
+  items: Item[];
+  wallet: Record<string, number>;
+}
+interface Scene {
+  location: string;
+  calendarDate: string;
+  timeOfDay: string;
+  weather: string;
+  recentEvent: string;
+  day?: number;
+}
+interface Plot {
+  act: number;
+  maxActs: number;
+  title: string;
+  actTitle: string;
+  actSummary: string;
+}
+interface Objective {
+  text: string;
+  completed: boolean;
+}
+interface Quest {
+  name: string;
+  status: string;
+  description: string;
+  objectives: Objective[];
+}
+interface JournalEntry {
+  type: string;
+  title: string;
+  content: string;
+}
+interface WidgetState {
+  value?: number | undefined;
+  max?: number | undefined;
+  items?: unknown[] | undefined;
+}
+interface GameState {
+  scene: Scene;
+  plot: Plot;
+  party: Actor[];
+  present: PresentChar[];
+  widgets: Record<string, WidgetState>;
+  quests: Quest[];
+  journal: JournalEntry[];
+  beats: string[];
+}
+interface Touched {
+  party: boolean;
+  inventory: boolean;
+  scene: boolean;
+  widgets: boolean;
+  quests: boolean;
+  journal: boolean;
+}
+
+// ---- tool-call arguments (dynamic JSON the model emits; a union of every tool's fields, all optional) ----
+interface CustomFieldEntry {
+  name: string;
+  value: string | number;
+}
+interface PresentUpsert {
+  name: string;
+  emoji?: string;
+  mood?: string;
+  appearance?: string;
+  outfit?: string;
+  thoughts?: string;
+  customFields?: CustomFieldEntry[] | Record<string, string | number>;
+  relationship?: { kind?: string; label?: string };
+}
+interface DeltaEntry {
+  name: string;
+  delta: number;
+}
+interface InvItem {
+  name: string;
+  quantity?: number;
+  location?: string;
+  description?: string;
+}
+interface PlotArgs {
+  act?: number;
+  title?: string;
+  actTitle?: string;
+  actSummary?: string;
+}
+interface ToolArgs {
+  targetRef?: string;
+  hpDelta?: number;
+  poolDeltas?: DeltaEntry[];
+  addCondition?: { name?: string; modifier?: number };
+  removeCondition?: string;
+  status?: string;
+  add?: InvItem[];
+  remove?: InvItem[];
+  walletDeltas?: DeltaEntry[];
+  location?: string;
+  calendarDate?: string;
+  timeOfDay?: string;
+  weather?: string;
+  day?: number;
+  recentEvent?: string;
+  plot?: PlotArgs;
+  presentUpsert?: PresentUpsert[];
+  presentRemove?: string[];
+  widgetRef?: string;
+  value?: number;
+  max?: number;
+  items?: unknown[];
+  name?: string;
+  action?: string;
+  description?: string;
+  objectives?: string[];
+  type?: string;
+  title?: string;
+  content?: string;
+}
+type Op = [string, ToolArgs];
+
+// ---- raw OpenRouter chat-completions wire (snake_case; these probes hit the HTTP endpoint directly) ----
+interface RawToolCall {
+  function: { name: string; arguments: string };
+}
+interface RawMessage {
+  content?: string | null;
+  tool_calls?: RawToolCall[];
+}
+interface RawUsage {
+  cost?: number;
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  completion_tokens_details?: { reasoning_tokens?: number };
+}
+interface RawChoice {
+  message: RawMessage;
+  finish_reason?: string | null;
+}
+interface RawResponse {
+  choices?: RawChoice[];
+  usage?: RawUsage;
+  error?: unknown;
+}
+type RpgRequestBody = { max_tokens?: number; [k: string]: unknown };
+interface UsageOf {
+  cost_usd: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  reasoning_tokens: number;
+}
+
+// ---- lean-snapshot payload shape (mirrors LEAN_SCHEMA; the `required` fields are non-optional) ----
+interface LeanSnapshot {
+  scene?: { location?: string; time_of_day?: string; weather?: string };
+  party?: { hp_current?: number; hp_max?: number; status?: string };
+  present?: Array<{ name: string; mood?: string; disposition?: string }>;
+  inventory?: Array<{ item: string; qty?: number }>;
+  wallet?: { gold?: number; silver?: number };
+  quests?: Array<{ title: string; status?: string }>;
+  journal?: Array<{ beat: string }>;
+}
+
+/** The PC lives at party[0] in every seed; this asserts that invariant once for the strict index checks. */
+function firstActor(state: GameState): Actor {
+  const pc = state.party[0];
+  if (pc === undefined) {
+    throw new Error("party has no PC at index 0");
+  }
+  return pc;
+}
+
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const OUT = path.join(DIR, "out");
 const REPO_ENV = "~/dev/orbweaver/.env";
@@ -22,14 +233,23 @@ const KEY = (() => {
   return v;
 })();
 
-// ---- real templates ----
-const cheapTpl = JSON.parse(fs.readFileSync(path.join(DIR, "real-cheap-toolround.json"), "utf8"));
-const reliableTpl = JSON.parse(fs.readFileSync(path.join(DIR, "real-reliable-structured.json"), "utf8"));
-const narrTpl = JSON.parse(fs.readFileSync(path.join(DIR, "real-narrative-turn.json"), "utf8"));
+// ---- real templates (captured request fixtures; JSON.parse is `unknown` here, so pin the read shapes) ----
+interface ToolTemplate {
+  tools: unknown;
+  messages: Array<{ content: string }>;
+}
+interface ReliableTemplate {
+  response_format: { json_schema: { schema: unknown } };
+}
+interface NarrTemplate {
+  messages: Array<{ content: string }>;
+}
+const cheapTpl = JSON.parse(fs.readFileSync(path.join(DIR, "real-cheap-toolround.json"), "utf8")) as ToolTemplate;
+const reliableTpl = JSON.parse(fs.readFileSync(path.join(DIR, "real-reliable-structured.json"), "utf8")) as ReliableTemplate;
+const narrTpl = JSON.parse(fs.readFileSync(path.join(DIR, "real-narrative-turn.json"), "utf8")) as NarrTemplate;
 
 const TOOLS = cheapTpl.tools; // 7 real tools, verbatim
-const TOOL_SYS = cheapTpl.messages[0].content; // real cheap-round system prompt (array-of-parts, verbatim)
-const EXTRACT_SYS = reliableTpl.messages[0].content; // real reliable extraction system prompt (string, verbatim)
+const TOOL_SYS = cheapTpl.messages[0]?.content; // real cheap-round system prompt (array-of-parts, verbatim)
 const STATE_SCHEMA = reliableTpl.response_format.json_schema.schema; // real rpg_state_extraction schema, verbatim
 // KEY FINDING (documented in SUMMARY.md): the real rpg_state_extraction schema CANNOT be grammar-enforced by
 // claude-sonnet-5's structured-output path (the 4.6 capture could). Three walls, in order:
@@ -44,21 +264,31 @@ const STATE_SCHEMA = reliableTpl.response_format.json_schema.schema; // real rpg
 // mentions are this comment and the directive below. STATE_SCHEMA survives as the measured-against artifact
 // (the three walls above were found on it); it is not sent as a response_format.
 // Tool methods (M2/M3/M4/M7) are UNAFFECTED — the tools API accepts the schema exactly as captured.
-(function stripBounds(node) {
-  if (Array.isArray(node)) return node.forEach(stripBounds);
+(function stripBounds(node: unknown): void {
+  if (Array.isArray(node)) {
+    node.forEach(stripBounds);
+    return;
+  }
   if (node && typeof node === "object") {
-    if (node.type === "integer" || node.type === "number") { delete node.minimum; delete node.maximum; }
-    for (const k of Object.keys(node)) stripBounds(node[k]);
+    const obj = node as Record<string, unknown>;
+    if (obj["type"] === "integer" || obj["type"] === "number") {
+      delete obj["minimum"];
+      delete obj["maximum"];
+    }
+    for (const k of Object.keys(obj)) {
+      stripBounds(obj[k]);
+    }
   }
 })(STATE_SCHEMA);
 // robust JSON parse (strict json_schema output is already clean JSON; keep this as belt-and-suspenders).
-function parseLenientJson(s) {
+function parseLenientJson(s: string | null | undefined): Record<string, unknown> {
   if (!s) return {};
   let t = s.trim();
   const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fence) t = fence[1].trim();
+  // biome-ignore lint/style/noNonNullAssertion: capture group 1 is always present when `fence` matches.
+  if (fence) t = fence[1]!.trim();
   else { const i = t.indexOf("{"); const j = t.lastIndexOf("}"); if (i >= 0 && j > i) t = t.slice(i, j + 1); }
-  try { return JSON.parse(t); } catch { return {}; }
+  try { return JSON.parse(t) as Record<string, unknown>; } catch { return {}; }
 }
 
 // ---- STRICT-LEAN schema (owner directive: enforced-only, no json_object) ----
@@ -68,7 +298,7 @@ function parseLenientJson(s) {
 // object, enums for closed sets. Probed on sonnet-5 -> compiles strict + returns valid output. Consequence
 // (a KEY comparison point): all-required makes it NON-SPARSE — the model re-emits the FULL state snapshot
 // every turn, so apply OVERWRITES (vs the tools methods' sparse deltas). Watch for stale/dropped items/NPCs.
-const OBJ = (req, props) => ({ type: "object", additionalProperties: false, required: req, properties: props });
+const OBJ = (req: string[], props: Record<string, unknown>) => ({ type: "object", additionalProperties: false, required: req, properties: props });
 const LEAN_SCHEMA = OBJ(["scene", "party", "present", "inventory", "wallet", "quests", "journal"], {
   scene: OBJ(["location", "time_of_day", "weather"], {
     location: { type: "string" },
@@ -88,13 +318,14 @@ const LEAN_SCHEMA = OBJ(["scene", "party", "present", "inventory", "wallet", "qu
   journal: { type: "array", items: OBJ(["beat"], { beat: { type: "string" } }) },
 });
 const LEAN_WRAPPER_SCHEMA = OBJ(["message", "state"], { message: { type: "string" }, state: LEAN_SCHEMA });
-const leanRF = (schema, name) => ({ type: "json_schema", json_schema: { name, strict: true, schema } });
+const leanRF = (schema: unknown, name: string) => ({ type: "json_schema", json_schema: { name, strict: true, schema } });
 // Lean extraction system prompt. The real EXTRACT_SYS describes the big DELTA-shaped schema (poolDeltas etc.)
 // and can't be reused for a full-snapshot lean schema — so this is a minimal matched prompt (documented).
 const LEAN_EXTRACT_SYS = "You keep a role-play game's tracked state in sync with the story. You are given the RECENT STORY, the CURRENT TRACKED STATE, and the LATEST BEAT. Output the COMPLETE current tracked state as ONE JSON object — this is a full SNAPSHOT, not a delta: restate every field at its current value, carrying forward everything still true from the current state and folding in what the latest beat changed. Never drop a character, item, or quest that is still in play. Use \"unknown\" for an enum you can't determine yet. Never invent facts the story doesn't show.";
 
 // The two trailing instruction paragraphs (immersive-card grammar + never-recite-numbers), byte-for-byte.
-const NARR_FULL_NOTE = narrTpl.messages[4].content;
+// biome-ignore lint/style/noNonNullAssertion: the captured narrative template always carries messages[4].
+const NARR_FULL_NOTE = narrTpl.messages[4]!.content;
 const TRAILING = NARR_FULL_NOTE.slice(NARR_FULL_NOTE.indexOf("When it fits the scene")); // ends with the closing "]"
 
 // GM persona system. NOTE (documented in SUMMARY.md): the real template's persona is a DIFFERENT game
@@ -104,7 +335,7 @@ const TRAILING = NARR_FULL_NOTE.slice(NARR_FULL_NOTE.indexOf("When it fits the s
 const PERSONA = "You are the game master of a dark low-fantasy tale. Keep replies terse and wry, grounded in the rain-soaked roads and taverns of the frontier town of Ashfall. Narrate vivid, immersive second-person prose for the player character, a sellsword named Kestrel.";
 
 // ---- seed state ----
-function seedState() {
+function seedState(): GameState {
   return {
     scene: { location: "", calendarDate: "", timeOfDay: "", weather: "", recentEvent: "" },
     plot: { act: 1, maxActs: 3, title: "The Ashfall Courier", actTitle: "", actSummary: "" },
@@ -137,17 +368,17 @@ const ACTIONS = [
 ];
 
 // ---- clone / actor lookup ----
-const clone = (o) => JSON.parse(JSON.stringify(o));
-function findActor(state, ref) {
-  if (ref === "player" || ref === "Alex") return state.party[0];
-  let a = state.party.find((p) => p.name === ref || p.ref === ref);
+const clone = <T>(o: T): T => JSON.parse(JSON.stringify(o)) as T;
+function findActor(state: GameState, ref: string | undefined): Actor {
+  if (ref === "player" || ref === "Alex") return firstActor(state);
+  const a = state.party.find((p) => p.name === ref || p.ref === ref);
   if (a) return a;
   // unknown ref (schema enum is locked to the template's cast) -> default to player character
-  return state.party[0];
+  return firstActor(state);
 }
 
 // ---- ops (unified apply for tool-calls AND structured object) ----
-function applyOp(state, name, args, touched) {
+function applyOp(state: GameState, name: string, args: ToolArgs, touched: Touched): void {
   args = args || {};
   switch (name) {
     case "update_party": {
@@ -196,7 +427,7 @@ function applyOp(state, name, args, touched) {
       for (const u of args.presentUpsert || []) {
         let c = state.present.find((x) => x.name.toLowerCase() === u.name.toLowerCase());
         if (!c) { c = { name: u.name, emoji: "", mood: "", appearance: "", outfit: "", thoughts: "", customFields: {}, relationship: { kind: "", label: "" } }; state.present.push(c); }
-        for (const k of ["emoji", "mood", "appearance", "outfit", "thoughts"]) if (u[k]) c[k] = u[k];
+        for (const k of ["emoji", "mood", "appearance", "outfit", "thoughts"] as const) { const val = u[k]; if (val) c[k] = val; }
         // customFields can be array (schema) or object
         if (Array.isArray(u.customFields)) for (const cf of u.customFields) c.customFields[cf.name] = cf.value;
         else if (u.customFields && typeof u.customFields === "object") Object.assign(c.customFields, u.customFields);
@@ -207,7 +438,8 @@ function applyOp(state, name, args, touched) {
       return;
     }
     case "set_widget_value": {
-      state.widgets[args.widgetRef] = { value: args.value, max: args.max, items: args.items };
+      // biome-ignore lint/style/noNonNullAssertion: widgetRef is required by the set_widget_value tool schema.
+      state.widgets[args.widgetRef!] = { value: args.value, max: args.max, items: args.items };
       touched.widgets = true;
       return;
     }
@@ -215,7 +447,8 @@ function applyOp(state, name, args, touched) {
       const action = String(args.action || "").toLowerCase(); // enum casing not guaranteed
       let q = state.quests.find((x) => x.name.toLowerCase() === (args.name || "").toLowerCase());
       const objs = (args.objectives || []).map((t) => ({ text: t, completed: action === "complete" }));
-      if (!q) { q = { name: args.name, status: "active", description: args.description || "", objectives: objs }; state.quests.push(q); }
+      // biome-ignore lint/style/noNonNullAssertion: quest name is required by the upsert_quest tool schema on create.
+      if (!q) { q = { name: args.name!, status: "active", description: args.description || "", objectives: objs }; state.quests.push(q); }
       else { if (args.description) q.description = args.description; if (objs.length) q.objectives = objs; }
       if (action === "complete") q.status = "completed";
       else if (action === "fail") q.status = "failed";
@@ -235,24 +468,7 @@ function applyOp(state, name, args, touched) {
   }
 }
 
-// structured rpg_state_extraction object -> op list
-function structuredToOps(obj) {
-  const ops = [];
-  if (!obj || typeof obj !== "object") return ops;
-  for (const p of obj.party || []) ops.push(["update_party", p]);
-  for (const i of obj.inventory || []) ops.push(["update_inventory", i]);
-  if (obj.scene && Object.keys(obj.scene).length) {
-    const s = { ...obj.scene };
-    if (s.plot && !s.plot.actTitle && s.plot.title === undefined) { /* keep */ }
-    ops.push(["update_scene", s]);
-  }
-  for (const w of obj.widgets || []) ops.push(["set_widget_value", w]);
-  for (const q of obj.quests || []) ops.push(["upsert_quest", q]);
-  for (const j of obj.journal || []) ops.push(["add_journal_entry", j]);
-  return ops;
-}
-
-function applyOps(state, ops) {
+function applyOps(state: GameState, ops: Op[]): Touched {
   const touched = { party: false, inventory: false, scene: false, widgets: false, quests: false, journal: false };
   for (const [name, args] of ops) applyOp(state, name, args, touched);
   return touched;
@@ -261,10 +477,10 @@ function applyOps(state, ops) {
 // Apply a LEAN full-state SNAPSHOT by OVERWRITING running state (non-sparse semantics). touched flags are
 // derived by diffing before vs after so completeness/delta metrics stay comparable with the tools methods.
 const TOD = new Set(["dawn", "morning", "afternoon", "evening", "night", "midnight"]);
-function applyLeanSnapshot(state, snap) {
-  const touched = { party: false, inventory: false, scene: false, widgets: false, quests: false, journal: false };
+function applyLeanSnapshot(state: GameState, snap: LeanSnapshot | undefined): Touched {
+  const touched: Touched = { party: false, inventory: false, scene: false, widgets: false, quests: false, journal: false };
   if (!snap || typeof snap !== "object") return touched;
-  const pc = state.party[0];
+  const pc = firstActor(state);
   if (snap.scene && typeof snap.scene === "object") {
     if (snap.scene.location) state.scene.location = snap.scene.location;
     if (snap.scene.time_of_day && TOD.has(String(snap.scene.time_of_day).toLowerCase())) state.scene.timeOfDay = String(snap.scene.time_of_day).toLowerCase();
@@ -289,8 +505,8 @@ function applyLeanSnapshot(state, snap) {
     touched.inventory = true;
   }
   if (snap.wallet && typeof snap.wallet === "object") {
-    if (typeof snap.wallet.gold === "number") pc.wallet.gold = snap.wallet.gold;
-    if (typeof snap.wallet.silver === "number") pc.wallet.silver = snap.wallet.silver;
+    if (typeof snap.wallet.gold === "number") pc.wallet["gold"] = snap.wallet.gold;
+    if (typeof snap.wallet.silver === "number") pc.wallet["silver"] = snap.wallet.silver;
     touched.inventory = true;
   }
   if (Array.isArray(snap.quests)) {
@@ -305,14 +521,14 @@ function applyLeanSnapshot(state, snap) {
 }
 
 // ---- reminder / state-fold rendering ----
-function fmtWallet(w) { return Object.entries(w).map(([k, v]) => `${v} ${k}`).join(", "); }
-function fmtItems(items) { return items.map((i) => i.quantity > 1 ? `${i.name} ×${i.quantity}` : i.name).join(", ") || "nothing"; }
-function fmtPools(pools) { return pools.map((p) => `${p.name} ${p.value}/${p.max}`).join(", "); }
+function fmtWallet(w: Record<string, number>) { return Object.entries(w).map(([k, v]) => `${v} ${k}`).join(", "); }
+function fmtItems(items: Item[]) { return items.map((i) => i.quantity > 1 ? `${i.name} ×${i.quantity}` : i.name).join(", ") || "nothing"; }
+function fmtPools(pools: Pool[]) { return pools.map((p) => `${p.name} ${p.value}/${p.max}`).join(", "); }
 
-function renderReminder(state, action, changesLine) {
+function renderReminder(state: GameState, action: string, changesLine: string): string {
   const s = state.scene;
-  const pc = state.party[0];
-  const lines = [];
+  const pc = firstActor(state);
+  const lines: string[] = [];
   lines.push("[Note from system: # Game state");
   const sceneBits = [s.location || "(unset)", s.calendarDate || "", s.timeOfDay || "", s.weather ? `${s.weather}` : ""].filter(Boolean);
   lines.push(`Scene: ${sceneBits.join(" · ")}`);
@@ -326,8 +542,8 @@ function renderReminder(state, action, changesLine) {
   if (state.present.length) {
     lines.push("Present:");
     for (const c of state.present) {
-      const trust = c.customFields.trust != null ? ` — Trust ${c.customFields.trust}/100` : "";
-      const role = c.customFields.role ? ` — Role: ${c.customFields.role}` : "";
+      const trust = c.customFields["trust"] != null ? ` — Trust ${c.customFields["trust"]}/100` : "";
+      const role = c.customFields["role"] ? ` — Role: ${c.customFields["role"]}` : "";
       const rel = c.relationship.label || c.relationship.kind || "";
       lines.push(`- ${c.emoji ? c.emoji + " " : ""}${c.name} — ${c.mood || "—"}${rel ? " — " + rel : ""}${trust}${role}`);
     }
@@ -351,10 +567,10 @@ function renderReminder(state, action, changesLine) {
 }
 
 // ---- delta computation (before vs after) ----
-function computeDelta(before, after) {
-  const parts = [];
+function computeDelta(before: GameState, after: GameState): string {
+  const parts: string[] = [];
   const b = before, a = after;
-  const bp = b.party[0], ap = a.party[0];
+  const bp = firstActor(b), ap = firstActor(a);
   if (bp.hp.value !== ap.hp.value) parts.push(`HP ${bp.hp.value}→${ap.hp.value} (${ap.hp.value - bp.hp.value >= 0 ? "+" : ""}${ap.hp.value - bp.hp.value})`);
   for (const pool of ap.pools) {
     const pb = bp.pools.find((x) => x.name === pool.name);
@@ -364,14 +580,14 @@ function computeDelta(before, after) {
   for (const c of bp.conditions) if (!ap.conditions.includes(c)) parts.push(`- condition "${c}"`);
   if (bp.status !== ap.status) parts.push(`status "${bp.status}"→"${ap.status}"`);
   // items
-  const bItems = Object.fromEntries(bp.items.map((i) => [i.name.toLowerCase(), i.quantity]));
-  const aItems = Object.fromEntries(ap.items.map((i) => [i.name.toLowerCase(), i.quantity]));
+  const bItems = Object.fromEntries(bp.items.map((i) => [i.name.toLowerCase(), i.quantity] as [string, number]));
+  const aItems = Object.fromEntries(ap.items.map((i) => [i.name.toLowerCase(), i.quantity] as [string, number]));
   for (const it of ap.items) if (!(it.name.toLowerCase() in bItems)) parts.push(`+ ${it.name}`);
   for (const it of bp.items) if (!(it.name.toLowerCase() in aItems)) parts.push(`- ${it.name}`);
   for (const [k, v] of Object.entries(aItems)) if (k in bItems && bItems[k] !== v) parts.push(`${k} ×${bItems[k]}→×${v}`);
   // wallet
-  for (const [k, v] of Object.entries(a.party[0].wallet)) {
-    const bv = b.party[0].wallet[k] ?? 0;
+  for (const [k, v] of Object.entries(ap.wallet)) {
+    const bv = bp.wallet[k] ?? 0;
     if (bv !== v) parts.push(`${k} ${bv}→${v} (${v - bv >= 0 ? "+" : ""}${v - bv})`);
   }
   // scene
@@ -385,10 +601,10 @@ function computeDelta(before, after) {
   for (const c of b.present) if (!aNames.has(c.name.toLowerCase())) parts.push(`- NPC ${c.name} (dropped)`);
   for (const c of a.present) {
     const bc = b.present.find((x) => x.name.toLowerCase() === c.name.toLowerCase());
-    if (bc && bc.customFields.trust !== c.customFields.trust && c.customFields.trust != null) parts.push(`${c.name} trust ${bc.customFields.trust ?? "?"}→${c.customFields.trust}`);
+    if (bc && bc.customFields["trust"] !== c.customFields["trust"] && c.customFields["trust"] != null) parts.push(`${c.name} trust ${bc.customFields["trust"] ?? "?"}→${c.customFields["trust"]}`);
   }
   // quests
-  const bQ = Object.fromEntries(b.quests.map((q) => [q.name.toLowerCase(), q.status]));
+  const bQ = Object.fromEntries(b.quests.map((q) => [q.name.toLowerCase(), q.status] as [string, string]));
   for (const q of a.quests) {
     if (!(q.name.toLowerCase() in bQ)) parts.push(`quest "${q.name}" started`);
     else if (bQ[q.name.toLowerCase()] !== q.status) parts.push(`quest "${q.name}" ${q.status}`);
@@ -399,7 +615,7 @@ function computeDelta(before, after) {
 }
 
 // state-completeness: populated planes this turn (0..5)
-function completeness(state, touched) {
+function completeness(state: GameState, touched: Touched): number {
   let n = 0;
   if (state.scene.location) n++;
   if (state.present.length >= 1) n++;
@@ -410,21 +626,21 @@ function completeness(state, touched) {
 }
 
 // count null/empty leaf fields in an extraction payload (approximation)
-function countEmptyLeaves(obj) {
+function countEmptyLeaves(obj: unknown): number {
   let n = 0;
-  const walk = (v) => {
+  const walk = (v: unknown): void => {
     if (v === null || v === undefined || v === "") { n++; return; }
     if (Array.isArray(v)) { if (v.length === 0) return; v.forEach(walk); return; }
-    if (typeof v === "object") { const ks = Object.keys(v); if (ks.length === 0) return; ks.forEach((k) => walk(v[k])); return; }
+    if (typeof v === "object") { const rec = v as Record<string, unknown>; const ks = Object.keys(rec); if (ks.length === 0) return; ks.forEach((k) => walk(rec[k])); return; }
   };
   walk(obj);
   return n;
 }
 
 // ---- OpenRouter call ----
-async function orCall(body, label) {
+async function orCall(body: RpgRequestBody, label: string): Promise<{ json: RawResponse; latency_ms: number }> {
   const started = Date.now();
-  let lastErr;
+  let lastErr: unknown;
   // Budget: 2 attempts. Spend the 2nd on a max_tokens bump if the 1st truncated (finish_reason "length").
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
@@ -435,7 +651,7 @@ async function orCall(body, label) {
       });
       const text = await res.text();
       if (!res.ok) { lastErr = new Error(`${label} HTTP ${res.status}: ${text.slice(0, 400)}`); continue; }
-      const json = JSON.parse(text);
+      const json = JSON.parse(text) as RawResponse;
       if (json.error) { lastErr = new Error(`${label} api-error: ${JSON.stringify(json.error).slice(0, 400)}`); continue; }
       const finish = json.choices?.[0]?.finish_reason;
       if (finish === "length" && attempt === 1 && (body.max_tokens ?? 0) < 16000) { body = { ...body, max_tokens: 16000 }; continue; }
@@ -445,8 +661,8 @@ async function orCall(body, label) {
   throw lastErr;
 }
 
-function usageOf(json) {
-  const u = json.usage || {};
+function usageOf(json: RawResponse): UsageOf {
+  const u: RawUsage = json.usage || {};
   return {
     cost_usd: u.cost ?? 0,
     prompt_tokens: u.prompt_tokens ?? 0,
@@ -456,8 +672,13 @@ function usageOf(json) {
 }
 
 // ---- narrative body ----
-function narrativeMessages(history, action, reminderState, changesLine) {
-  const msgs = [{ role: "system", content: [{ type: "text", text: PERSONA, cache_control: { type: "ephemeral" } }] }];
+interface Turn {
+  action: string;
+  narrative: string;
+}
+type WireMessage = { role: string; content: unknown };
+function narrativeMessages(history: Turn[], action: string, reminderState: GameState, changesLine: string): WireMessage[] {
+  const msgs: WireMessage[] = [{ role: "system", content: [{ type: "text", text: PERSONA, cache_control: { type: "ephemeral" } }] }];
   for (const h of history) { msgs.push({ role: "user", content: h.action }); msgs.push({ role: "assistant", content: h.narrative }); }
   msgs.push({ role: "user", content: renderReminder(reminderState, action, changesLine) });
   return msgs;
@@ -466,13 +687,13 @@ function narrativeMessages(history, action, reminderState, changesLine) {
 const BASE = { model: MODEL, stream: false, usage: { include: true }, provider: { order: ["Anthropic"], allow_fallbacks: false }, plugins: [{ id: "context-compression", enabled: false }] };
 
 // build extraction B user message (shared M1/M2 for fairness)
-function extractionUserMessage(history, currentNarrative, state) {
+function extractionUserMessage(history: Turn[], currentNarrative: string, state: GameState & { __lastAction: string }): string {
   const story = history.map((h) => `Player: ${h.action}\nGM: ${h.narrative}`).join("\n\n");
   const stateJson = JSON.stringify(serializeStateForExtract(state));
   return `RECENT STORY (oldest first):\n${story ? story + "\n\n" : ""}Player: ${state.__lastAction}\n\nCURRENT TRACKED STATE:\n${stateJson}\n\nLATEST BEAT (the newest story turn above — your delta covers exactly this):\n${currentNarrative}`;
 }
-function serializeStateForExtract(state) {
-  const pc = state.party[0];
+function serializeStateForExtract(state: GameState) {
+  const pc = firstActor(state);
   return {
     location: state.scene.location, calendarDate: state.scene.calendarDate, timeOfDay: state.scene.timeOfDay,
     weather: state.scene.weather, recentEvents: state.beats.slice(-3),
@@ -483,11 +704,11 @@ function serializeStateForExtract(state) {
   };
 }
 
-function parseToolCalls(msg) {
-  const ops = [];
+function parseToolCalls(msg: RawMessage): Op[] {
+  const ops: Op[] = [];
   for (const tc of msg.tool_calls || []) {
-    let args = {};
-    try { args = JSON.parse(tc.function.arguments || "{}"); } catch { args = {}; }
+    let args: ToolArgs = {};
+    try { args = JSON.parse(tc.function.arguments || "{}") as ToolArgs; } catch { args = {}; }
     ops.push([tc.function.name, args]);
   }
   return ops;
@@ -498,12 +719,33 @@ function parseToolCalls(msg) {
 const MT_NARR = 8192, MT_EXTRACT = 4096;
 
 // ---- method runners ----
+interface CallRecord {
+  usage: UsageOf;
+  latency_ms: number;
+  finish: string | null | undefined;
+  message: RawMessage;
+}
+interface MethodResult {
+  narrative: string;
+  ops?: Op[];
+  snapshot?: LeanSnapshot;
+  kind: "ops" | "snapshot";
+  extractPayload: unknown;
+  calls: CallRecord[];
+}
 // Returns {narrative, ops?, snapshot?, kind, extractPayload, calls}. kind="ops" => applyOps(ops);
 // kind="snapshot" => applyLeanSnapshot(snapshot).
-async function runMethod(method, history, action, state, changesLine) {
+async function runMethod(method: string, history: Turn[], action: string, state: GameState, changesLine: string): Promise<MethodResult> {
   const narrMsgs = narrativeMessages(history, action, state, changesLine);
-  const calls = [];
-  const rec = (r) => { calls.push({ usage: usageOf(r.json), latency_ms: r.latency_ms, finish: r.json.choices[0].finish_reason, message: r.json.choices[0].message }); return r.json.choices[0].message; };
+  const calls: CallRecord[] = [];
+  const rec = (r: { json: RawResponse; latency_ms: number }): RawMessage => {
+    const choice = r.json.choices?.[0];
+    if (choice === undefined) {
+      throw new Error("orCall returned no choices");
+    }
+    calls.push({ usage: usageOf(r.json), latency_ms: r.latency_ms, finish: choice.finish_reason, message: choice.message });
+    return choice.message;
+  };
 
   // ---- STRICT-LEAN 2-call: A prose, B strict-lean full-snapshot extraction ----
   if (method === "2call-strict-lean") {
@@ -512,7 +754,7 @@ async function runMethod(method, history, action, state, changesLine) {
     const userMsg = extractionUserMessage(history, narrative, { ...state, __lastAction: action });
     const B = await orCall({ ...BASE, provider: { ...BASE.provider, require_parameters: true }, max_tokens: MT_EXTRACT, reasoning: { effort: "none" },
       messages: [{ role: "system", content: LEAN_EXTRACT_SYS }, { role: "user", content: userMsg }], response_format: leanRF(LEAN_SCHEMA, "rpg_state_lean") }, `${method}/B`);
-    const snap = parseLenientJson(rec(B).content);
+    const snap = parseLenientJson(rec(B).content) as LeanSnapshot;
     return { narrative, snapshot: snap, kind: "snapshot", extractPayload: snap, calls };
   }
 
@@ -554,7 +796,7 @@ async function runMethod(method, history, action, state, changesLine) {
       response_format: leanRF(LEAN_WRAPPER_SCHEMA, "narrative_and_lean_state"),
       reasoning: method.endsWith("+reasoning") ? { effort: "high" } : { effort: "none" } };
     const msg = rec(await orCall(body, method));
-    const parsed = parseLenientJson(msg.content);
+    const parsed = parseLenientJson(msg.content) as { message?: string; state?: LeanSnapshot };
     return { narrative: parsed.message || "", snapshot: parsed.state || {}, kind: "snapshot", extractPayload: parsed.state || {}, calls };
   }
 
@@ -571,36 +813,73 @@ let METHODS = [
   "1call-tools-required",
 ];
 let MAX_TURNS = ACTIONS.length;
-if (process.env.SPIKE_METHODS) METHODS = process.env.SPIKE_METHODS.split(",");
-if (process.env.SPIKE_TURNS) MAX_TURNS = Number(process.env.SPIKE_TURNS);
+const envMethods = process.env["SPIKE_METHODS"];
+if (envMethods) METHODS = envMethods.split(",");
+const envTurns = process.env["SPIKE_TURNS"];
+if (envTurns) MAX_TURNS = Number(envTurns);
 
 const CARD_RE = /:::\s*card/i;
 
+interface TurnMetrics {
+  turn: number;
+  latency_ms: number;
+  prompt_tokens: number;
+  completion_tokens: number;
+  reasoning_tokens: number;
+  cost_usd: number;
+  finish_reason: string;
+  narrative_chars: number;
+  state_present: boolean;
+  state_completeness: number;
+  null_or_empty_fields: number;
+  card_emitted: boolean;
+  num_ops: number;
+  delta: string;
+}
+interface MethodSummary {
+  total_cost_usd: number;
+  total_latency_ms: number;
+  mean_completeness: number;
+  turns_completed: number;
+  turns_with_narrative: number;
+  turns_with_full_state: number;
+  failures: string[];
+  perTurn: TurnMetrics[];
+}
+interface Summary {
+  model: string;
+  methods: Record<string, MethodSummary>;
+  totalCost: number;
+  totalCalls: number;
+}
+
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
-  const summary = { model: MODEL, methods: {}, totalCost: 0, totalCalls: 0 };
+  const summary: Summary = { model: MODEL, methods: {}, totalCost: 0, totalCalls: 0 };
   let globalCalls = 0;
 
   for (const method of METHODS) {
     const mdir = path.join(OUT, method);
     fs.mkdirSync(mdir, { recursive: true });
     const state = seedState();
-    const history = [];
+    const history: Turn[] = [];
     let changesLine = "SCENE OPENS";
     const transcript = [`# ${method}\n\nModel: ${MODEL} · fixed 6-turn game "The Ashfall Courier"\n`];
-    const perTurn = [];
+    const perTurn: TurnMetrics[] = [];
     let mCost = 0, mLat = 0, completSum = 0, narrCount = 0, fullStateCount = 0;
-    const failures = [];
+    const failures: string[] = [];
 
     for (let t = 0; t < MAX_TURNS; t++) {
-      const action = ACTIONS[t];
+      // biome-ignore lint/style/noNonNullAssertion: t < MAX_TURNS, and MAX_TURNS defaults to ACTIONS.length.
+      const action = ACTIONS[t]!;
       const before = clone(state);
-      let result;
+      let result: MethodResult;
       try {
         result = await runMethod(method, history, action, state, changesLine);
       } catch (e) {
-        failures.push(`turn ${t + 1}: ${e.message}`);
-        transcript.push(`\n## Turn ${t + 1}\n**Player:** ${action}\n\n**ERROR:** ${e.message}\n`);
+        const emsg = e instanceof Error ? e.message : String(e);
+        failures.push(`turn ${t + 1}: ${emsg}`);
+        transcript.push(`\n## Turn ${t + 1}\n**Player:** ${action}\n\n**ERROR:** ${emsg}\n`);
         break;
       }
       globalCalls += result.calls.length;
@@ -677,14 +956,14 @@ async function main() {
   console.log(`\n=== TOTAL SPEND: $${summary.totalCost} over ${globalCalls} calls ===`);
 }
 
-function writeSummaryMd(summary) {
-  const rows = [];
+function writeSummaryMd(summary: Summary): void {
+  const rows: string[] = [];
   rows.push("# Spike SUMMARY — narrative+state extraction method matrix");
   rows.push("");
   rows.push(`Model: \`${summary.model}\` · fixed 6-turn game "The Ashfall Courier" · 1 rep/method.`);
   rows.push(`Total spend: **$${summary.totalCost}** over ${summary.totalCalls} OpenRouter calls.`);
   rows.push("");
-  const MECH = {
+  const MECH: Record<string, string> = {
     "2call-strict-lean": "2 calls · strict json_schema (lean, full-snapshot)",
     "2call-cheap": "2 calls · strict tool args (sparse)",
     "1call-tools": "1 call · persona + tools auto (sparse)",
@@ -706,7 +985,7 @@ function writeSummaryMd(summary) {
     const cards = s.perTurn.filter((p) => p.card_emitted).length;
     const reason = s.perTurn.reduce((a, p) => a + p.reasoning_tokens, 0);
     const dropped = s.perTurn.filter((p) => /\(dropped\)|^- |; - /.test(p.delta)).length;
-    const notes = [];
+    const notes: string[] = [];
     if (s.failures.length) notes.push(`FAILED ${s.failures.length}`);
     notes.push(`~${avgChars} chars/narr`);
     if (reason) notes.push(`${reason} reason toks`);
@@ -723,4 +1002,4 @@ function writeSummaryMd(summary) {
   fs.writeFileSync(path.join(OUT, "SUMMARY.md"), rows.join("\n"));
 }
 
-main().catch((e) => { console.error("FATAL:", e.message); process.exit(1); });
+main().catch((e: unknown) => { console.error("FATAL:", e instanceof Error ? e.message : e); process.exit(1); });

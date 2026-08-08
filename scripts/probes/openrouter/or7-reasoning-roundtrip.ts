@@ -17,7 +17,16 @@
 //
 // Evidence: HTTP status + the verbatim error body + usage. A 400 IS the verdict.
 
-import { OR_MODEL, jsonl, orCall, printTable, readEnvKey } from "./_kit.ts";
+import {
+  type ArmRowBase,
+  OR_MODEL,
+  type OrMessage,
+  type OrRequestMessage,
+  jsonl,
+  orCall,
+  printTable,
+  readEnvKey,
+} from "./_kit.ts";
 
 export const id = "or7";
 export const title = "reasoning round-trip — is replaying a reasoning block a hard 400?";
@@ -45,7 +54,7 @@ const FOLLOW_UP = "I rest for an hour. Narrate one sentence.";
 export async function run() {
   const key = readEnvKey("OPENROUTER_API_KEY");
   const out = jsonl(id);
-  const rows = [];
+  const rows: ArmRowBase[] = [];
 
   const capture = await orCall(
     {
@@ -61,7 +70,7 @@ export async function run() {
     },
     key,
   );
-  const assistant = capture.message ?? {};
+  const assistant: OrMessage = capture.message ?? {};
   const details = assistant.reasoning_details ?? [];
   const toolCall = assistant.tool_calls?.[0] ?? null;
   out.append({
@@ -96,7 +105,7 @@ export async function run() {
     .filter((d) => typeof d.signature === "string" && d.signature.length > 0)
     .map((d) => ({ type: "reasoning.encrypted", data: d.signature, id: d.id ?? null, format: d.format ?? "anthropic-claude-v1", index: d.index ?? 0 }));
 
-  const arms = [
+  const arms: Array<[string, OrRequestMessage]> = [
     ["2-drop", baseAssistant],
     ["3-verbatim", { ...baseAssistant, reasoning_details: details }],
     ["4-unsigned", { ...baseAssistant, reasoning_details: stripped }],
@@ -135,7 +144,7 @@ export async function run() {
     rows.push(row);
   }
 
-  const byArm = (arm) => rows.find((r) => r.arm === arm) ?? {};
+  const byArm = (arm: string): Partial<ArmRowBase> => rows.find((r) => r["arm"] === arm) ?? {};
   const verdict = {
     kind: "verdict",
     probe: id,

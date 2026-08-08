@@ -53,12 +53,90 @@ const ISO_WEEK_ONE = 1;
 const PERCENTILE_SCALE = 100;
 const P90 = 90;
 
-function argVal(args, name, fallback) {
+// ---- transcript JSONL shapes (reverse-engineered; see the header) ----
+type Scope = "main" | "subagent";
+interface ContentItem {
+  type?: string;
+  name?: string;
+  id?: string;
+  input?: { command?: string; description?: string };
+  tool_use_id?: string;
+  content?: unknown;
+}
+interface TranscriptRecord {
+  type?: string;
+  timestamp?: string;
+  isSidechain?: boolean;
+  attributionAgent?: string;
+  cwd?: string;
+  message?: { content?: ContentItem[] };
+}
+interface PendingUse {
+  ts: number;
+  command: string;
+  description: string | null;
+  scope: Scope;
+  sig: string | null;
+  piped: boolean | null;
+}
+interface TagCount {
+  main: number;
+  subagent: number;
+  total: number;
+}
+interface TagExample {
+  command: string;
+  description: string | null;
+  scope: Scope;
+  file: string;
+}
+interface TimeoutExample {
+  command: string;
+  scope: Scope;
+  piped: boolean;
+  durationMs: number | null;
+  file: string;
+}
+interface Timeouts {
+  total: number;
+  main: number;
+  subagent: number;
+  piped: number;
+  unpiped: number;
+  wallMsTotal: number;
+  wallMsPiped: number;
+  wallMsUnpiped: number;
+  examples: TimeoutExample[];
+}
+interface DurationBucket {
+  piped: number[];
+  unpiped: number[];
+}
+interface Stats {
+  filesScanned: number;
+  linesScanned: number;
+  bashCallsTotal: number;
+  bashCallsMain: number;
+  bashCallsSubagent: number;
+  parseErrors: number;
+  tagCounts: Record<string, TagCount>;
+  tagExamples: Record<string, TagExample[]>;
+  weekly: Record<string, Record<string, number>>;
+  weeklyBashTotal: Record<string, number>;
+  timeouts: Timeouts;
+  durationsBySignature: Record<string, DurationBucket>;
+  attributionAgentCounts: Record<string, number>;
+}
+
+function argVal(args: string[], name: string, fallback: string): string;
+function argVal(args: string[], name: string, fallback: null): string | null;
+function argVal(args: string[], name: string, fallback: string | null): string | null {
   const i = args.indexOf(`--${name}`);
   if (i === -1) {
     return fallback;
   }
-  return args[i + 1];
+  // biome-ignore lint/style/noNonNullAssertion: preserves the original `args[i+1]` read (undefined only if the flag is the final token).
+  return args[i + 1]!;
 }
 
 const argv = process.argv.slice(2);
@@ -74,9 +152,9 @@ const OUT_FILE = argVal(argv, "out", null);
 // File discovery
 // ---------------------------------------------------------------------------------------
 
-async function findJsonlFiles(root) {
-  const out = [];
-  let entries;
+async function findJsonlFiles(root: string): Promise<string[]> {
+  const out: string[] = [];
+  let entries: import("node:fs").Dirent[];
   try {
     entries = await readdir(root, { recursive: true, withFileTypes: true });
   } catch {
@@ -84,7 +162,7 @@ async function findJsonlFiles(root) {
   }
   for (const e of entries) {
     if ((e.isFile() || e.isSymbolicLink()) && e.name.endsWith(".jsonl")) {
-      out.push(path.join(e.parentPath ?? e.path, e.name));
+      out.push(path.join(e.parentPath, e.name));
     }
   }
   return out;
@@ -129,21 +207,22 @@ const RE_HARNESS_SIGNATURE = /\b(pnpm|turbo|npm)\s+(?:run\s+)?([a-z0-9:_-]+)/i;
 const RE_TIMED_OUT = /Command timed out after/;
 const RE_CLAUSE_SPLIT = /(?:&&|;|\n)/;
 
-function splitClauses(cmd) {
+function splitClauses(cmd: string): string[] {
   // Crude split on && / ; / newline. Does not respect quoting — acceptable for a census,
   // not for a hook (the hook needs a real shell tokenizer; this script is the SPEC, not it).
   return cmd.split(RE_CLAUSE_SPLIT);
 }
 
-function harnessSignature(cmd) {
-  const match = cmd.match(RE_HARNESS_SIGNATURE);
+function harnessSignature(cmd: string): string | null {
+  const match = RE_HARNESS_SIGNATURE.exec(cmd);
   if (!match) {
     return null;
   }
-  return `${match[1].toLowerCase()} ${match[2].toLowerCase()}`;
+  // biome-ignore lint/style/noNonNullAssertion: groups 1-2 are present whenever RE_HARNESS_SIGNATURE matches.
+  return `${match[1]!.toLowerCase()} ${match[2]!.toLowerCase()}`;
 }
 
-function classifyHarnessClauses(cmd, tags) {
+function classifyHarnessClauses(cmd: string, tags: Set<string>): void {
   for (const clause of splitClauses(cmd)) {
     const match = clause.match(RE_HARNESS);
     if (!match) {
@@ -165,7 +244,7 @@ function classifyHarnessClauses(cmd, tags) {
   }
 }
 
-function classifyBareRunners(cmd, tags) {
+function classifyBareRunners(cmd: string, tags: Set<string>): void {
   if (RE_BARE_VITEST.test(cmd)) {
     tags.add("B1_bare_vitest");
   }
@@ -184,7 +263,7 @@ function classifyBareRunners(cmd, tags) {
   }
 }
 
-function classifyFootguns(cmd, tags) {
+function classifyFootguns(cmd: string, tags: Set<string>): void {
   if (RE_GIT_STASH.test(cmd)) {
     tags.add("C1_git_stash");
   }
@@ -215,7 +294,7 @@ function classifyFootguns(cmd, tags) {
   }
 }
 
-function classifyExtras(cmd, tags) {
+function classifyExtras(cmd: string, tags: Set<string>): void {
   if (RE_GIT_ADD_ALL.test(cmd)) {
     tags.add("D1_git_add_all_or_dot");
   }
@@ -230,8 +309,8 @@ function classifyExtras(cmd, tags) {
   }
 }
 
-function classifyCommand(cmd) {
-  const tags = new Set();
+function classifyCommand(cmd: string): { tags: string[]; harnessSignature: string | null; harnessPiped: boolean | null } {
+  const tags = new Set<string>();
   classifyHarnessClauses(cmd, tags);
   classifyBareRunners(cmd, tags);
   classifyFootguns(cmd, tags);
@@ -244,38 +323,40 @@ function classifyCommand(cmd) {
 
 const ISO_WEEK_LABEL_PAD = 2;
 
-function isoWeek(tsMs) {
+function isoWeek(tsMs: number): string {
   const d = new Date(tsMs);
   d.setUTCHours(0, 0, 0, 0);
   d.setUTCDate(d.getUTCDate() + ISO_THURSDAY_OFFSET - ((d.getUTCDay() + ISO_WEEKDAY_SUNDAY_SHIFT) % DAYS_PER_WEEK));
   const week1 = new Date(Date.UTC(d.getUTCFullYear(), 0, ISO_WEEK_ANCHOR_DAY));
-  const dayDiff = (d - week1) / MS_PER_DAY - ISO_THURSDAY_OFFSET + ((week1.getUTCDay() + ISO_WEEKDAY_SUNDAY_SHIFT) % DAYS_PER_WEEK);
+  const dayDiff = (d.getTime() - week1.getTime()) / MS_PER_DAY - ISO_THURSDAY_OFFSET + ((week1.getUTCDay() + ISO_WEEKDAY_SUNDAY_SHIFT) % DAYS_PER_WEEK);
   const wk = ISO_WEEK_ONE + Math.round(dayDiff / DAYS_PER_WEEK);
   return `${d.getUTCFullYear()}-W${String(wk).padStart(ISO_WEEK_LABEL_PAD, "0")}`;
 }
 
-function median(arr) {
+function median(arr: number[]): number | null {
   if (arr.length === 0) {
     return null;
   }
   const s = [...arr].sort((a, b) => a - b);
   const mid = Math.floor(s.length / 2);
-  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  // biome-ignore lint/style/noNonNullAssertion: mid and mid-1 are in-bounds for a non-empty array.
+  return s.length % 2 ? s[mid]! : (s[mid - 1]! + s[mid]!) / 2;
 }
 
-function pctl(arr, p) {
+function pctl(arr: number[], p: number): number | null {
   if (arr.length === 0) {
     return null;
   }
   const s = [...arr].sort((a, b) => a - b);
-  return s[Math.min(s.length - 1, Math.floor((p / PERCENTILE_SCALE) * s.length))];
+  // biome-ignore lint/style/noNonNullAssertion: the index is clamped to [0, s.length-1] for a non-empty array.
+  return s[Math.min(s.length - 1, Math.floor((p / PERCENTILE_SCALE) * s.length))]!;
 }
 
 // ---------------------------------------------------------------------------------------
 // Stats accumulator
 // ---------------------------------------------------------------------------------------
 
-const stats = {
+const stats: Stats = {
   filesScanned: 0,
   linesScanned: 0,
   bashCallsTotal: 0,
@@ -299,38 +380,41 @@ const WEEKLY_TAGS = new Set([
   "B4_playwright_unsanctioned",
 ]);
 
-function bump(tag, scope) {
-  if (!stats.tagCounts[tag]) {
-    stats.tagCounts[tag] = { main: 0, subagent: 0, total: 0 };
+function bump(tag: string, scope: Scope): void {
+  let c = stats.tagCounts[tag];
+  if (!c) {
+    c = { main: 0, subagent: 0, total: 0 };
+    stats.tagCounts[tag] = c;
   }
-  const c = stats.tagCounts[tag];
   c[scope]++;
   c.total++;
 }
 
-function recordExample(tag, ex) {
-  if (!stats.tagExamples[tag]) {
-    stats.tagExamples[tag] = [];
+function recordExample(tag: string, ex: TagExample): void {
+  let list = stats.tagExamples[tag];
+  if (!list) {
+    list = [];
+    stats.tagExamples[tag] = list;
   }
-  const list = stats.tagExamples[tag];
   if (list.length < EXAMPLES_PER_TAG) {
     list.push(ex);
   }
 }
 
-function recordWeekly(tag, tsMs) {
+function recordWeekly(tag: string, tsMs: number): void {
   if (!WEEKLY_TAGS.has(tag)) {
     return;
   }
   const wk = isoWeek(tsMs);
-  if (!stats.weekly[tag]) {
-    stats.weekly[tag] = {};
+  let bucket = stats.weekly[tag];
+  if (!bucket) {
+    bucket = {};
+    stats.weekly[tag] = bucket;
   }
-  const bucket = stats.weekly[tag];
   bucket[wk] = (bucket[wk] ?? 0) + 1;
 }
 
-function truncateForExample(cmd) {
+function truncateForExample(cmd: string): string {
   return cmd.length > EXAMPLE_COMMAND_MAX_CHARS ? `${cmd.slice(0, EXAMPLE_COMMAND_MAX_CHARS)}…` : cmd;
 }
 
@@ -338,14 +422,21 @@ function truncateForExample(cmd) {
 // Per-file processing
 // ---------------------------------------------------------------------------------------
 
-function bumpAttribution(rec) {
+function bumpAttribution(rec: TranscriptRecord): void {
   if (!rec.attributionAgent) {
     return;
   }
   stats.attributionAgentCounts[rec.attributionAgent] = (stats.attributionAgentCounts[rec.attributionAgent] ?? 0) + 1;
 }
 
-function recordTagsForCommand(tags, ctx) {
+interface TagContext {
+  scope: Scope;
+  cmd: string;
+  item: ContentItem;
+  file: string;
+  tsMs: number;
+}
+function recordTagsForCommand(tags: string[], ctx: TagContext): void {
   const { scope, cmd, item, file, tsMs } = ctx;
   for (const tag of tags) {
     bump(tag, scope);
@@ -356,7 +447,7 @@ function recordTagsForCommand(tags, ctx) {
   }
 }
 
-function recordBashToolUseItem(rec, file, pending, item) {
+function recordBashToolUseItem(rec: TranscriptRecord, file: string, pending: Map<string, PendingUse>, item: ContentItem): void {
   if (item.type !== "tool_use" || item.name !== "Bash") {
     return;
   }
@@ -364,20 +455,20 @@ function recordBashToolUseItem(rec, file, pending, item) {
   if (typeof cmd !== "string") {
     return;
   }
-  const scope = rec.isSidechain ? "subagent" : "main";
+  const scope: Scope = rec.isSidechain ? "subagent" : "main";
   stats.bashCallsTotal++;
   stats[scope === "main" ? "bashCallsMain" : "bashCallsSubagent"]++;
   bumpAttribution(rec);
 
   const { tags, harnessSignature: sig, harnessPiped } = classifyCommand(cmd);
-  const tsMs = Date.parse(rec.timestamp);
+  const tsMs = Date.parse(rec.timestamp ?? "");
   if (Number.isFinite(tsMs)) {
     const wk = isoWeek(tsMs);
     stats.weeklyBashTotal[wk] = (stats.weeklyBashTotal[wk] ?? 0) + 1;
   }
   recordTagsForCommand(tags, { scope, cmd, item, file, tsMs });
 
-  pending.set(item.id, {
+  pending.set(item.id ?? "", {
     ts: tsMs,
     command: cmd,
     description: item.input?.description ?? null,
@@ -387,24 +478,25 @@ function recordBashToolUseItem(rec, file, pending, item) {
   });
 }
 
-function handleBashToolUse(rec, file, pending) {
-  for (const item of rec.message.content) {
+function handleBashToolUse(rec: TranscriptRecord, file: string, pending: Map<string, PendingUse>): void {
+  for (const item of rec.message?.content ?? []) {
     recordBashToolUseItem(rec, file, pending, item);
   }
 }
 
-function recordDuration(use, durationMs) {
+function recordDuration(use: PendingUse, durationMs: number | null): void {
   if (!(use.sig && durationMs !== null && durationMs >= 0)) {
     return;
   }
-  if (!stats.durationsBySignature[use.sig]) {
-    stats.durationsBySignature[use.sig] = { piped: [], unpiped: [] };
+  let bucket = stats.durationsBySignature[use.sig];
+  if (!bucket) {
+    bucket = { piped: [], unpiped: [] };
+    stats.durationsBySignature[use.sig] = bucket;
   }
-  const bucket = stats.durationsBySignature[use.sig];
   bucket[use.piped ? "piped" : "unpiped"].push(durationMs);
 }
 
-function recordTimeout(use, durationMs, file) {
+function recordTimeout(use: PendingUse, durationMs: number | null, file: string): void {
   stats.timeouts.total++;
   stats.timeouts[use.scope === "main" ? "main" : "subagent"]++;
   const wasPiped = RE_SWALLOWER.test(use.command) || RE_STDERR_MERGE_PIPE.test(use.command);
@@ -424,18 +516,21 @@ function recordTimeout(use, durationMs, file) {
   }
 }
 
-function recordToolResultItem(rec, file, pending, item) {
+function recordToolResultItem(rec: TranscriptRecord, file: string, pending: Map<string, PendingUse>, item: ContentItem): void {
   if (item.type !== "tool_result") {
     return;
   }
   const toolUseId = item.tool_use_id;
+  if (toolUseId === undefined) {
+    return;
+  }
   const use = pending.get(toolUseId);
   if (!use) {
     return;
   }
   pending.delete(toolUseId);
 
-  const resultTs = Date.parse(rec.timestamp);
+  const resultTs = Date.parse(rec.timestamp ?? "");
   const durationMs = Number.isFinite(use.ts) && Number.isFinite(resultTs) ? resultTs - use.ts : null;
   recordDuration(use, durationMs);
 
@@ -445,15 +540,15 @@ function recordToolResultItem(rec, file, pending, item) {
   }
 }
 
-function handleToolResult(rec, file, pending) {
-  for (const item of rec.message.content) {
+function handleToolResult(rec: TranscriptRecord, file: string, pending: Map<string, PendingUse>): void {
+  for (const item of rec.message?.content ?? []) {
     recordToolResultItem(rec, file, pending, item);
   }
 }
 
-async function processFile(file) {
+async function processFile(file: string): Promise<void> {
   stats.filesScanned++;
-  const pending = new Map(); // tool_use_id -> {ts, command, description, scope, sig, piped}
+  const pending = new Map<string, PendingUse>(); // tool_use_id -> {ts, command, description, scope, sig, piped}
 
   const rl = createInterface({ input: createReadStream(file, { encoding: "utf8" }), crlfDelay: Number.POSITIVE_INFINITY });
   for await (const line of rl) {
@@ -469,9 +564,9 @@ async function processFile(file) {
       continue;
     }
 
-    let rec;
+    let rec: TranscriptRecord;
     try {
-      rec = JSON.parse(line);
+      rec = JSON.parse(line) as TranscriptRecord;
     } catch {
       stats.parseErrors++;
       continue;
@@ -490,9 +585,9 @@ async function processFile(file) {
 // Main
 // ---------------------------------------------------------------------------------------
 
-function buildDurationSummary() {
+function buildDurationSummary(): Record<string, unknown> {
   return Object.fromEntries(
-    Object.entries(stats.durationsBySignature).map(([sig, { piped, unpiped }]) => [
+    Object.entries(stats.durationsBySignature).map(([sig, { piped, unpiped }]): [string, unknown] => [
       sig,
       {
         piped: { n: piped.length, medianMs: median(piped), p90Ms: pctl(piped, P90) },
@@ -502,7 +597,7 @@ function buildDurationSummary() {
   );
 }
 
-async function main() {
+async function main(): Promise<void> {
   const found = await Promise.all(roots.map(findJsonlFiles));
   const files = found.flat();
   process.stderr.write(`transcript-census: scanning ${files.length} files across ${roots.length} roots\n`);

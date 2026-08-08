@@ -19,9 +19,19 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import Anthropic from "@anthropic-ai/sdk";
 
+// Raw OpenRouter chat-completions wire (snake_case; the OR arm hits the HTTP endpoint directly).
+interface OrResp {
+  choices?: Array<{ message: { tool_calls?: Array<{ function: { arguments: string } }> } }>;
+  usage?: { cost?: number; completion_tokens?: number; completion_tokens_details?: { reasoning_tokens?: number } };
+  error?: unknown;
+}
+interface OrToolTemplate {
+  tools: Array<{ function: { name: string; description: string; parameters: unknown } }>;
+}
+
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const ENV = fs.readFileSync("~/dev/orbweaver/.env", "utf8").split(/\r?\n/);
-const readEnv = (k) => {
+const readEnv = (k: string): string => {
   let v = (ENV.find((l) => l.startsWith(`${k}=`)) || "").slice(k.length + 1).trim();
   if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
   return v;
@@ -30,7 +40,7 @@ const OR_KEY = readEnv("OPENROUTER_API_KEY");
 const anthropic = new Anthropic({ apiKey: readEnv("ANTHROPIC_API_KEY") });
 
 // Real tools, but converted to native shape for the Anthropic call.
-const ORT = JSON.parse(fs.readFileSync(path.join(DIR, "real-cheap-toolround.json"), "utf8")).tools;
+const ORT = (JSON.parse(fs.readFileSync(path.join(DIR, "real-cheap-toolround.json"), "utf8")) as OrToolTemplate).tools;
 const NATIVE_TOOLS = ORT.map((t) => ({ name: t.function.name, description: t.function.description, input_schema: t.function.parameters }));
 
 const SYSTEM = "You are the game master of an immersive tabletop role-play. Narrate vividly in second person, then keep tracked state in sync using the tools.";
@@ -52,27 +62,28 @@ vault road at last. Corvin, seeing the exchange, backs out of the chapel entirel
 as the last of its light goes out of my blade.`;
 
 const LEVELS = ["low", "medium", "high", "xhigh", "max"];
-const rows = [];
+const rows: Array<Record<string, unknown>> = [];
 
-async function native(effort) {
+async function native(effort: string): Promise<number> {
   const t0 = Date.now();
   try {
+    // `output_config` is a beta param not in the SDK 0.106 create types; the wire accepts it.
     const r = await anthropic.messages.create({
       model: "claude-sonnet-5", max_tokens: 8000, system: SYSTEM,
       messages: [{ role: "user", content: USER }],
       tools: NATIVE_TOOLS, output_config: { effort },
-    });
+    } as Anthropic.Messages.MessageCreateParamsNonStreaming);
     const think = r.usage.output_tokens_details?.thinking_tokens ?? 0;
     const calls = r.content.filter((b) => b.type === "tool_use").length;
     const cost = (r.usage.input_tokens * 2 + r.usage.output_tokens * 10) / 1e6;
     rows.push({ wire: "native", effort, thinking: think, output: r.usage.output_tokens, calls, cost: +cost.toFixed(5) });
   } catch (e) {
-    rows.push({ wire: "native", effort, thinking: "ERR", output: String(e.message).slice(0, 60), calls: 0, cost: 0 });
+    rows.push({ wire: "native", effort, thinking: "ERR", output: String(e instanceof Error ? e.message : e).slice(0, 60), calls: 0, cost: 0 });
   }
   return Date.now() - t0;
 }
 
-async function or_(effort) {
+async function or_(effort: string) {
   const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${OR_KEY}` },
@@ -84,13 +95,14 @@ async function or_(effort) {
       tools: ORT, tool_choice: "auto",
     }),
   });
-  const j = await r.json();
+  const j = (await r.json()) as OrResp;
   if (!j.choices) { rows.push({ wire: "openrouter", effort, thinking: "ERR", output: JSON.stringify(j.error ?? {}).slice(0, 60), calls: 0, cost: 0 }); return; }
   const u = j.usage ?? {};
   rows.push({
     wire: "openrouter", effort,
     thinking: u.completion_tokens_details?.reasoning_tokens ?? 0,
-    output: u.completion_tokens, calls: (j.choices[0].message.tool_calls ?? []).length,
+    // biome-ignore lint/style/noNonNullAssertion: a 2xx OpenRouter response with `choices` always carries choices[0].
+    output: u.completion_tokens, calls: (j.choices[0]!.message.tool_calls ?? []).length,
     cost: +(u.cost ?? 0).toFixed(5),
   });
 }
@@ -100,11 +112,11 @@ console.log("    identical messages + tools · claude-sonnet-5 · thinking token
 for (const e of LEVELS) { await native(e); await or_(e); }
 
 console.table(rows);
-const spread = (w) => {
-  const v = rows.filter((r) => r.wire === w && typeof r.thinking === "number").map((r) => r.thinking);
+const spread = (w: string) => {
+  const v = rows.filter((r) => r["wire"] === w && typeof r["thinking"] === "number").map((r) => r["thinking"] as number);
   return v.length ? `${Math.min(...v)} .. ${Math.max(...v)}  (${(Math.max(...v) / Math.max(1, Math.min(...v))).toFixed(1)}x)` : "n/a";
 };
 console.log(`\nthinking-token spread across the ladder:`);
 console.log(`  native     : ${spread("native")}`);
 console.log(`  openrouter : ${spread("openrouter")}`);
-console.log(`\ntotal $${rows.reduce((a, r) => a + (r.cost || 0), 0).toFixed(4)}\n`);
+console.log(`\ntotal $${rows.reduce((a, r) => a + (Number(r["cost"]) || 0), 0).toFixed(4)}\n`);
