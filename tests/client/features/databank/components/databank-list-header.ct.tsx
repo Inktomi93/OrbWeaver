@@ -2,9 +2,10 @@
 // (never a primary: A2's one primary here is Add), and `re-extract` — the arm that re-runs extraction over
 // every stored source file — waits for an explicit confirm before a single call leaves the client.
 
+import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DatabankListHeaderStory } from "../_ct-stories.tsx";
-import { stubDatabank } from "../fixtures.ts";
+import { READY_DOC, stubDatabank } from "../fixtures.ts";
 
 test("the maintenance kebab fires the owner-wide sweep, and re-extract waits for a confirm (D-6)", async ({ mount, page }) => {
   const trpc = await stubDatabank(page);
@@ -22,6 +23,17 @@ test("the maintenance kebab fires the owner-wide sweep, and re-extract waits for
 
   await page.getByRole("alertdialog").getByRole("button", { name: "Re-extract" }).click();
   await expect.poll(() => trpc.lastInput("databank.reindex"), { intervals: [20, 50, 100] }).toEqual({ scope: { kind: "owner" }, mode: "re-extract" });
+});
+
+test("a page filled to the server's own limit reads 100+, never a count it did not take (P2-d)", async ({ mount, page }) => {
+  const page100 = Array.from({ length: DATABANK_LIST_DEFAULT_LIMIT }, (_, i) => ({
+    ...READY_DOC,
+    id: `document_${String(i + 1).padStart(20, "0")}`,
+  }));
+  await stubDatabank(page, { "databank.list": () => page100 });
+  const band = await mount(<DatabankListHeaderStory />);
+
+  await expect(band.getByText(`${DATABANK_LIST_DEFAULT_LIMIT}+`, { exact: true })).toBeVisible();
 });
 
 // EVERY ARM OWES A WAY OUT (side-eye sweep 2026-08-03). Each ingest arm draws its own footer because each

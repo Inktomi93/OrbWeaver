@@ -18,6 +18,7 @@
 // The count is a non-suspending `useQuery` sharing the `databank.list` cache with the suspending list below,
 // so it costs no extra fetch: the title + actions render immediately and stay put while the count settles.
 
+import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
 import { Button } from "@orb/ui/button";
 import { Icon, Plus, RefreshCw } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
@@ -30,6 +31,7 @@ import { ConfirmDialog, ListPaneHeader, RowActionsMenu } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { openModal } from "#state";
 import { useReindexDocuments } from "../hooks/use-databank-mutations.ts";
+import { cappedCount } from "../lib/databank-model.ts";
 
 export function DatabankListHeader(): ReactElement {
   const trpc = useTRPC();
@@ -72,7 +74,7 @@ export function DatabankListHeader(): ReactElement {
             </Button>
           </Row>
         }
-        count={documents?.length ?? 0}
+        count={documents === undefined ? 0 : cappedCount(documents.length, DATABANK_LIST_DEFAULT_LIMIT)}
         title="Databank"
       />
       <ConfirmDialog

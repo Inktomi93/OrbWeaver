@@ -32,8 +32,10 @@ export interface ListPaneHeaderProps {
   readonly title: string;
   /** The scoped-mode entity half — renders as `TITLE · <accent>` with the accent in the foreground tone. */
   readonly accent?: string;
-  /** A live census. Rendered mono/micro/muted, and omitted at 0 (a zero census is noise, not information). */
-  readonly count?: number;
+  /** A live census. Rendered mono/micro/muted, and omitted at 0 (a zero census is noise, not information). A
+   *  string is a page-BOUNDED count that already read `"100+"` off its own limit (P2-d) — the caller decided
+   *  the cap, this band just prints what it is handed. */
+  readonly count?: number | string;
   readonly back?: ListPaneHeaderBack;
   /** The panel's ONE primary action (A2). Omit for a browse-shaped pane with no create verb. */
   readonly action?: ReactNode;

@@ -48,7 +48,13 @@ export interface HomeTileContribution {
    *  job (the section's name, its glyph, its live contents and a door into it), never by a tile that merely
    *  reads a section's data. Home's jump grid drops the row while such a tile is registered, so one
    *  destination is not two doors ten pixels apart (side-eye 2026-08-08 P2-c). Absent ⇒ the section keeps
-   *  its jump row, which is the right default: most tiles are DATA surfaces, not navigation. */
+   *  its jump row, which is the right default: most tiles are DATA surfaces, not navigation.
+   *
+   *  LATENT INCOMPATIBILITY: the jump grid computes its claims off the raw door registration and does NOT
+   *  consult `useVisible` — so a tile that pairs `sectionId` with a sometimes-false `useVisible` would drop
+   *  the jump row PERMANENTLY while its own tile renders nothing on the ticks `useVisible` reads false,
+   *  orphaning the section from Home with no door left to it at all. No claimer does this today (every
+   *  `sectionId` tile is unconditionally visible); a future one MUST resolve this before pairing the two. */
   readonly sectionId?: SectionId;
   /** The tile's ONE trailing affordance ("All characters →"). Never a second primary (CD3), and never
    *  supplied alongside the DORMANT arm (a doorway has no controls). */

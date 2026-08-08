@@ -87,7 +87,7 @@ test("a READY row carries no phase chip; a non-ready row carries its own, plus a
   const ready = tile.getByRole("listitem").filter({ hasText: READY_DOC.name });
   const indexing = tile.getByRole("listitem").filter({ hasText: INDEXING_DOC.name });
 
-  await expect(ready).toContainText("Upload · 24.5 KB · 12 chunks");
+  await expect(ready).toContainText("Upload · 24.5 KB · 12 passages");
   await expect(ready.locator('[data-slot="badge"]')).toHaveCount(0);
   await expect(indexing.locator('[data-slot="badge"]')).toHaveText(["Indexing"]);
   // The list is called "Recent documents" — sighted users get the ordering cue too, not just the SR label.
