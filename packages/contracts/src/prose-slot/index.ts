@@ -125,6 +125,52 @@ export const PROSE_SLOT_IDS = [
   "rpg.reminder.offstageHeader",
   "rpg.delta.changesHeading",
   "rpg.delta.sceneOpensHeading",
+  // ── per-PRESET: the EXTRACTION seam (census 11-26 + 29-36) — the WRITE-surface prose every state vehicle
+  //    composes (`contracts/rpg/extraction-prompt.ts` + `entry/compose/rpg.ts`). `macros:"none"` for the whole
+  //    cohort: several carry a PRE-SUBSTITUTION token vocabulary (this game's tracker catalogue, the worked
+  //    example's keys, the resolved ref lists) which the seam splices as data — never the macro engine, which
+  //    has no binding to offer an extraction prompt. Census 27 (`RPG_STATE_TRACKING_GUIDE`) is DEFERRED (it is
+  //    composed onto nothing today — spec §11 decision 6), and 28/32 are structural labels, out by §2.11. ──
+  "rpg.extract.deceptionSurface",
+  "rpg.extract.party.resources",
+  "rpg.extract.party.states",
+  "rpg.extract.party.trackerScope",
+  "rpg.extract.scene.core",
+  "rpg.extract.scene.clock",
+  "rpg.extract.scene.weather",
+  "rpg.extract.scene.dayStructured",
+  "rpg.extract.scene.dayNarrated",
+  "rpg.extract.scene.present",
+  "rpg.extract.scene.mood",
+  "rpg.extract.scene.emoji",
+  "rpg.extract.scene.plot",
+  "rpg.extract.plane.party",
+  "rpg.extract.plane.inventory",
+  "rpg.extract.plane.trackers",
+  "rpg.extract.plane.quests",
+  "rpg.extract.plane.journal",
+  "rpg.extract.journal.customType",
+  "rpg.extract.journal.customLabels",
+  "rpg.extract.reconcileDoctrine",
+  "rpg.extract.tool.updateParty",
+  "rpg.extract.tool.partyExample",
+  "rpg.extract.tool.updateInventory",
+  "rpg.extract.tool.updateScene",
+  "rpg.extract.tool.setTracker",
+  "rpg.extract.tool.upsertQuest",
+  "rpg.extract.tool.addJournalEntry",
+  "rpg.extract.tool.noChanges",
+  "rpg.extract.systemHeader",
+  "rpg.extract.toolRoundHeader",
+  "rpg.extract.reconcilePass",
+  "rpg.extract.foldedReconcile",
+  "rpg.extract.lockedPaths",
+  "rpg.extract.refs.targets",
+  "rpg.extract.refs.playerToken",
+  "rpg.extract.refs.trackerGroup",
+  "rpg.extract.refs.gameTrackerKeys",
+  "rpg.extract.refs.conditions",
+  "rpg.extract.refs.closing",
 ] as const;
 export type ProseSlotId = (typeof PROSE_SLOT_IDS)[number];
 
@@ -176,4 +222,64 @@ export const LEGACY_PROSE_BASE_VERSION = 1;
 /** Adapt a legacy bare-string override field into the ONE override shape. */
 export function proseOverrideFromLegacy(text: string | undefined): ProseOverride | undefined {
   return text === undefined ? undefined : { text, baseVersion: LEGACY_PROSE_BASE_VERSION };
+}
+
+// ── THE RESOLUTION PRIMITIVES (PROSE-1 §4.3) ────────────────────────────────────────────────────────
+// The precedence rule and the pre-substitution splice live HERE, on the SHAPE half, rather than in `#prose`
+// beside the composed registry — because a domain TABLE may need to resolve its own slots and cannot reach
+// `#prose` without closing the `#prose → #<domain> → #prose` cycle this module's split exists to prevent
+// (`contracts/rpg/extraction-prompt.ts` is the first such caller: its per-game plane/tool templates resolve
+// `RPG_PROSE_SLOTS` rows against the turn's overrides, in contracts, beside the schema they teach).
+//
+// STILL EXACTLY ONE HOME. `#prose`'s `resolveProse(id, overrides)` / `resolveProseText(id, overrides, tokens)`
+// are THIN DELEGATES over these — they add the registry lookup and nothing else. A second spelling of "which
+// text wins" or "how a token splices" is what these two functions exist to make unnecessary.
+
+/** Host edit BEATS shipped default, two rungs, no cascade — over a slot DEF + that slot's stored override,
+ *  so a caller holding its own domain table can resolve without the composed registry.
+ *
+ *  A BLANK override is treated as ABSENT: `{text:""}` parses (the schema has no min length), so it can arrive
+ *  from an imported preset file, a direct API write, or a blob predating a normalizer, and resolving it
+ *  literally puts EMPTY BYTES on the wire. Healed at the READ, per `#prose`'s own long-form reasoning. */
+export function resolveProseFrom(slot: ProseSlotDef, override: ProseOverride | undefined): ProseResolution {
+  if (override === undefined || override.text.trim() === "") {
+    return { text: slot.text, source: "default", stale: false };
+  }
+  return { text: override.text, source: "override", stale: override.baseVersion < slot.version };
+}
+
+// The pre-substitution token regexes, memoized by token NAME (an assembler resolves the same handful of
+// frames per member per turn, so a per-call `new RegExp` would recompile them forever). Names are code
+// constants from the slot table — never host or user input — so there is nothing to escape. The
+// `useTopLevelRegex` lint's sanctioned shape: build once, cache, reuse.
+const tokenReByName = new Map<string, RegExp>();
+function tokenRe(name: string): RegExp {
+  const cached = tokenReByName.get(name);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const re = new RegExp(`\\{\\{\\s*${name}\\s*\\}\\}`, "gi");
+  tokenReByName.set(name, re);
+  return re;
+}
+
+/**
+ * Splice a slot's caller-supplied PRE-SUBSTITUTION tokens into resolved text: a `{{name}}`/`{{note}}` in the
+ * text (default OR host override) becomes the caller's string, as a plain replace — NOT the macro engine (the
+ * `resolveGuidedInstruction` `{{person}}`/`{{base}}` precedent). Two reasons it must stay a replace: these
+ * frames wrap text that is ALREADY macro-resolved (re-running the engine would resolve it twice), and the
+ * value is per-render data the engine has no binding for. Absent ⇒ verbatim, so every token-free slot and
+ * every existing caller is byte-identical.
+ *
+ * The replacement is a FUNCTION, so a `$&`/`$1` inside a member name or an injection body is a literal.
+ */
+export function spliceProseTokens(text: string, tokens: Readonly<Record<string, string>> | undefined): string {
+  if (tokens === undefined) {
+    return text;
+  }
+  let out = text;
+  for (const [name, value] of Object.entries(tokens)) {
+    out = out.replace(tokenRe(name), () => value);
+  }
+  return out;
 }

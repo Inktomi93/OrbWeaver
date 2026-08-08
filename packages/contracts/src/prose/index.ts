@@ -29,7 +29,7 @@ import { DISCOVERY_PROSE_SLOTS } from "#discovery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_PROSE_SLOTS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
 import { PRESET_PROSE_SLOTS } from "#preset";
 import type { ProseHome, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
-import { isProseSlotId, PROSE_SLOT_IDS, proseOverrideFromLegacy } from "#prose-slot";
+import { isProseSlotId, PROSE_SLOT_IDS, proseOverrideFromLegacy, resolveProseFrom, spliceProseTokens } from "#prose-slot";
 import { RPG_PROSE_SLOTS } from "#rpg";
 
 export * from "#prose-slot";
@@ -103,64 +103,24 @@ export function composeProse(sources: Readonly<Partial<Record<ProseHome, ProseOv
   return out;
 }
 
-/** Host edit BEATS shipped default, two rungs, no cascade (PROSE-1 §4.3). The ONE place the precedence rule
- *  lives — every home's resolver funnels here so precedence and staleness can never drift apart. */
+/** Host edit BEATS shipped default, two rungs, no cascade (PROSE-1 §4.3) — the REGISTRY-KEYED door onto the
+ *  primitive in `#prose-slot`. The precedence rule itself moved down there when the rpg extraction templates
+ *  landed: a domain TABLE resolving its own slots cannot import this module without closing the
+ *  `#prose → #<domain> → #prose` cycle. This adds the id lookup and NOTHING else, so there is still exactly
+ *  one place "which text wins" (and the blank-override heal, and staleness) is decided. */
 export function resolveProse(id: ProseSlotId, overrides: ProseOverrides): ProseResolution {
-  const slot = PROSE_SLOTS[id];
-  const override = overrides[id];
-  // A BLANK override is treated as ABSENT — the same self-healing posture as `proseOverridesSchema`'s per-key
-  // `.catch(undefined)`, applied to the one malformed shape a *valid* record can still carry. `{text:""}`
-  // parses fine, so nothing upstream refuses it, and it can arrive from an imported preset file, a direct
-  // API write, or a blob predating a normalizer; resolving it literally means EMPTY BYTES reach the wire —
-  // a note frame that deletes the injection it was supposed to wrap, and a continuation cue that appends an
-  // empty user row. Healed at the READ rather than refused at the WRITE for the reason `promptConfigWrite
-  // Schema`'s own header gives: a read-side refusal would fail a whole preset to load over one empty string,
-  // and "blank means the shipped default rides" is already this schema's storage semantic everywhere else
-  // (`formatStrings`, `guidedActions`, the settings editor's clear-to-reset). The editors additionally DROP
-  // the key on save (`normalizePresetProse` / `proseSlotPatch`), so this is the belt, not the only guard.
-  if (override === undefined || override.text.trim() === "") {
-    return { text: slot.text, source: "default", stale: false };
-  }
-  return { text: override.text, source: "override", stale: override.baseVersion < slot.version };
-}
-
-// The pre-substitution token regexes, memoized by token NAME (the assembler resolves a frame per roster
-// member per turn, so a per-call `new RegExp` would recompile the same handful forever). Names are code
-// constants from the slot table — never host or user input — so there is nothing to escape. The `useTopLevel
-// Regex` lint's sanctioned shape: build once, cache, reuse (the `volatileMacroRe` precedent in assembly).
-const tokenReByName = new Map<string, RegExp>();
-function tokenRe(name: string): RegExp {
-  const cached = tokenReByName.get(name);
-  if (cached !== undefined) {
-    return cached;
-  }
-  const re = new RegExp(`\\{\\{\\s*${name}\\s*\\}\\}`, "gi");
-  tokenReByName.set(name, re);
-  return re;
+  return resolveProseFrom(PROSE_SLOTS[id], overrides[id]);
 }
 
 /**
  * The bytes only — the hot-path caller shape (an assembler wants a string, not a verdict).
  *
- * `tokens` are the slot's caller-supplied PRE-SUBSTITUTION values: a `{{name}}`/`{{note}}` in the resolved
- * text (default OR host override) is replaced with the caller's string, as a plain replace — NOT the macro
- * engine (the `resolveGuidedInstruction` `{{person}}`/`{{base}}` precedent). Two reasons it must stay a
- * replace: these frames wrap text that is ALREADY macro-resolved (re-running the engine would resolve it
- * twice), and the value is per-render data the engine has no binding for. Absent ⇒ the text ships verbatim,
- * so every token-free slot and every existing caller is byte-identical.
- *
- * The replacement is a FUNCTION, so a `$&`/`$1` inside a member name or an injection body is a literal.
+ * `tokens` are the slot's caller-supplied PRE-SUBSTITUTION values, spliced by {@link spliceProseTokens} (a
+ * plain replace, never the macro engine — see its header). Absent ⇒ the text ships verbatim, so every
+ * token-free slot and every existing caller is byte-identical.
  */
 export function resolveProseText(id: ProseSlotId, overrides: ProseOverrides, tokens?: Readonly<Record<string, string>>): string {
-  const text = resolveProse(id, overrides).text;
-  if (tokens === undefined) {
-    return text;
-  }
-  let out = text;
-  for (const [name, value] of Object.entries(tokens)) {
-    out = out.replace(tokenRe(name), () => value);
-  }
-  return out;
+  return spliceProseTokens(resolveProse(id, overrides).text, tokens);
 }
 
 /** One prose field's derived footer state — Default/Customized plus the two WARN-NEVER-BLOCK signals every

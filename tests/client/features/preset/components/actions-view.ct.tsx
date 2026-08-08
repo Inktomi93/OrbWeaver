@@ -24,9 +24,15 @@ async function boxOf(locator: Locator): Promise<{ readonly top: number; readonly
 /** The group HEADINGS, in `TEMPLATE_KINDS` tuple order. Human labels, not the raw enum members the
  *  registry keys on (side-eye F-30 / ARIA rec 10): a kicker over a group of rows is a heading a person
  *  reads. The per-row KIND CHIP still prints the raw member — that is a taxonomy tag, not a heading. */
-const KIND_HEADERS = ["Steers", "Voice", "Studio", "Format", "Nudges", "Game teaches"] as const;
+const KIND_HEADERS = ["Steers", "Voice", "Studio", "Format", "Nudges", "Game teaches", "State tracking"] as const;
 /** A rack GRIP's accessible-name shape — the affordance this list must never grow (audit row 31). */
 const REORDER_GRIP_RE = /^Reorder/u;
+/** The ADD affordance's accessible-name shape, for the same absence assertion. A REGEX, not the bare string
+ *  `"Add"`: Playwright's string `name` is a case-insensitive SUBSTRING match, so once the registry grew the
+ *  `add_journal_entry` extraction row (PROSE-1 S4) the plain string matched that row AND its Edit chevron —
+ *  two false positives for an affordance neither of them is. The word boundary keeps every real Add control
+ *  ("Add", "Add section") in scope while a wire tool name spelled in snake_case falls out. */
+const ADD_CONTROL_RE = /^Add\b/u;
 /** The DELIVERY row's two `<Field>` labels, matched exactly — the hint trigger is a SIBLING of the label,
  *  so a loose match would catch its "More info about …" name too. */
 const ROLE_LABEL_RE = /^Role$/;
@@ -176,7 +182,7 @@ test("the list is a FIXED ENUM — no toggle, no grip, no Add anywhere (§16 row
   const probe = await mount(<ActionsStory />);
   await expect(probe.getByRole("switch")).toHaveCount(0);
   await expect(probe.getByRole("button", { name: REORDER_GRIP_RE })).toHaveCount(0);
-  await expect(probe.getByRole("button", { name: "Add" })).toHaveCount(0);
+  await expect(probe.getByRole("button", { name: ADD_CONTROL_RE })).toHaveCount(0);
 });
 
 // ── §16 row 23 / §6.1: SELECT ≠ DRILL, the rack's grammar spoken here too ─────────────────────────────
