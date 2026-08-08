@@ -7,6 +7,9 @@
 //     teaching fragments, the six tool descriptions + the `no_changes` escape, and the two system-prompt
 //     framings. These are per-game TEMPLATES — see the cohort's own header block below for why that is a
 //     token vocabulary on an ordinary `text` slot and not a `render(ctx)` arm on `ProseSlotDef`.
+//   • the POPULATE census (rows 1-7) — the BORN-STATE round's own prose (`rpg.populate.*`): its system header,
+//     identity clause, invent-nothing doctrine, and the four user-turn blocks. Same shape as the extraction
+//     cohort, its own group because it fires on the host's one card-read click, not on turns.
 //
 // The slot SHAPE comes from `#prose-slot`, never `#prose`: `#prose` imports this table at runtime to compose
 // `PROSE_SLOTS`, so importing it here — even for a type — would close a `no-circular` cycle (the split's whole
@@ -805,5 +808,119 @@ For example, a three-line sign is enough:
     requiredTokens: [],
     title: "Never-invent rule",
     fires: "Closes the ref block on every extraction prompt.",
+  },
+
+  // ══════════════════════════════════════════════════════════════════════════════════════════════════
+  // THE POPULATE ROUND (the populate census rows 1-7) — the BORN-STATE surface's own prose.
+  // ══════════════════════════════════════════════════════════════════════════════════════════════════
+  // The host's ONE click over a character CARD, not a turn: the round reads the card + the room's opening
+  // line and writes what the character walked in with. Everything it says to the model used to be a source
+  // constant — the system header and the four user-turn labels in `entry/compose/rpg.ts`, the IDENTITY clause
+  // and the invent-nothing doctrine inline in `extraction-prompt.ts` — while its two PLANE fragments
+  // (inventory/quests) were already slots. That split is the disease: one prompt, half of it host-editable.
+  //
+  // ITS OWN `rpg.populate.*` GROUP, not more `rpg.extract.*` rows: the two cohorts fire on different calls
+  // (every state round of every turn vs one born-state click), so the `rpg.extract.` cohort assertions stay a
+  // statement about the turn loop and a host tuning the card read is not handed the turn-loop vocabulary.
+  // `macros:"none"` for the whole group, for the extraction cohort's reason verbatim — a card read is not a
+  // character context, so any other `{{…}}` in an override ships as literal braces.
+  //
+  // THE USER-TURN ROWS CARRY THE BLOCK, not just its label. The seam pushes whole `label + "\n" + body`
+  // strings into one `blocks` array, so the slot is that push site and the body arrives as a TOKEN — which is
+  // what lets a host re-order or re-frame a block rather than only rename it. An override that drops the body
+  // token loses the body: the documented warn-never-block cost (§6.3), identical to the plane-teaching slots.
+  "rpg.populate.systemHeader": {
+    id: "rpg.populate.systemHeader",
+    home: "preset",
+    version: 1,
+    text:
+      "You are reading a role-play character's CARD and the story's OPENING scene to fill in what that character " +
+      "starts the game with. This runs ONCE, before the character has played: you are establishing their sheet and " +
+      "the gear, coin, and goals they walked in with — not reacting to any beat. Output ONE JSON object.",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Populate header",
+    fires: "Opens the born-state round's system prompt (the host's populate-from-card click).",
+  },
+  "rpg.populate.identity": {
+    id: "rpg.populate.identity",
+    home: "preset",
+    version: 1,
+    // The one plane the POPULATE schema adds and no turn round has: the hand-only identity sheet. Taught here
+    // rather than as an `EXTRACTION_PLANE_PROMPTS` row because no turn vehicle may write it.
+    text:
+      "IDENTITY — sheet.title is this character's TITLE or class as the card presents them (\"Warden of House " +
+      'Vane", "hedge-witch"), short and in the card\'s own voice; sheet.level is their starting level as a ' +
+      "whole number — 1 unless the card explicitly establishes a veteran standing.",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Identity sheet",
+    fires: "Heads the born-state teaching — the sheet plane only the populate round writes.",
+  },
+  "rpg.populate.doctrine": {
+    id: "rpg.populate.doctrine",
+    home: "preset",
+    version: 1,
+    // The populate counterpart to `rpg.extract.reconcileDoctrine`: a card read has no story to check itself
+    // against, so "what the card and the opening establish" is the only guardrail there is.
+    text:
+      "Record ONLY what the character card and the opening scene actually establish or plainly imply — the gear " +
+      "they are described carrying, the coin their station implies, the goals their background already gives them. " +
+      "If the card says nothing about a plane, leave it empty. Do NOT invent adventuring loot, quest chains, or a " +
+      "purse the character has no reason to carry.",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Invent nothing",
+    fires: "Closes the born-state teaching — the card-read counterpart to the reconcile rule.",
+  },
+  "rpg.populate.cardBlock": {
+    id: "rpg.populate.cardBlock",
+    home: "preset",
+    version: 1,
+    text: "CHARACTER CARD — {{cardName}}:\n{{cardBody}}",
+    macros: "none",
+    requiredMacros: ["{{cardName}}", "{{cardBody}}"],
+    requiredTokens: [],
+    title: "Card block",
+    fires: "The born-state user turn — the character card, always present.",
+  },
+  "rpg.populate.emptyCard": {
+    id: "rpg.populate.emptyCard",
+    home: "preset",
+    version: 1,
+    // Spliced in as `{{cardBody}}` when the card renders to nothing. It is prose, not a structural stub: it is
+    // the sentence the model reads INSTEAD of a description, and it is what stops a blank card reading as a
+    // truncated prompt the model should fill in for itself.
+    text: "(the card carries no written description)",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Empty card",
+    fires: "Stands in for the card body when the character carries no written description.",
+  },
+  "rpg.populate.openingBlock": {
+    id: "rpg.populate.openingBlock",
+    home: "preset",
+    version: 1,
+    text: "OPENING SCENE (how the story begins):\n{{opening}}",
+    macros: "none",
+    requiredMacros: ["{{opening}}"],
+    requiredTokens: [],
+    title: "Opening block",
+    fires: "The born-state user turn, only when the room has posted an opening line.",
+  },
+  "rpg.populate.targetLine": {
+    id: "rpg.populate.targetLine",
+    home: "preset",
+    version: 1,
+    text: 'Write everything for targetRef "{{targetRef}}" — this round fills exactly this one character.',
+    macros: "none",
+    requiredMacros: ["{{targetRef}}"],
+    requiredTokens: [],
+    title: "Target line",
+    fires: "Closes the born-state user turn — names the one actor this round fills.",
   },
 } as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;

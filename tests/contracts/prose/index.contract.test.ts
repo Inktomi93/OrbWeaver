@@ -467,8 +467,9 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
   expect(PRESET_PROSE_SLOT_IDS).toStrictEqual(expected);
   // Spelled out so a slot JOINING or LEAVING the preset-editable set is a decision somebody reads, not a silent
   // derivation shift: the three turn-wire framings (2026-08-07), the eleven rpg game-turn teaches (the
-  // 2026-08-08 re-home), and the forty-one EXTRACTION-seam slots (PROSE-1 S4 + census row 27, wired by the
-  // 2026-08-08 decision-6 ruling), in `PROSE_SLOT_IDS` tuple order.
+  // 2026-08-08 re-home), the forty-one EXTRACTION-seam slots (PROSE-1 S4 + census row 27, wired by the
+  // 2026-08-08 decision-6 ruling), and the seven BORN-STATE round slots (the populate census rows 1-7), in
+  // `PROSE_SLOT_IDS` tuple order.
   expect(PRESET_PROSE_SLOT_IDS).toStrictEqual([
     "chat.injection.systemNote",
     "chat.injection.userNote",
@@ -525,6 +526,13 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
     "rpg.extract.refs.gameTrackerKeys",
     "rpg.extract.refs.conditions",
     "rpg.extract.refs.closing",
+    "rpg.populate.systemHeader",
+    "rpg.populate.identity",
+    "rpg.populate.doctrine",
+    "rpg.populate.cardBlock",
+    "rpg.populate.emptyCard",
+    "rpg.populate.openingBlock",
+    "rpg.populate.targetLine",
   ]);
 });
 

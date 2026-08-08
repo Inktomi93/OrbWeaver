@@ -1,7 +1,11 @@
 // PROSE-1 S4 — the EXTRACTION seam's default-identity + override reach (spec §4.5, §10). Census rows 11-26
 // and 29-36 stopped being source constants and became slot rows in `contracts/rpg/prose.ts`, resolved per
 // game against the GM PRESET's `promptConfig.prose`. Two things have to be true forever, and this file is
-// where they are true:
+// where they are true. The POPULATE round's own prose (populate census rows 1-7) joined the same discipline
+// as `rpg.populate.*`; its byte-identity is proven at the COMPOSED-REAL tier instead (the round's system + user
+// prompts, `tests/server/entry/compose/rpg.int.test.ts`), because four of its seven slots live at the server
+// seam and only the driven round renders them together.
+//
 //
 //   1. AN ABSENT OVERRIDE IS BYTE-IDENTICAL to the pre-migration prompt. The fixtures below are the RENDERED
 //      bytes at `e495855de` (the commit before the migration), frozen for a game that lights up every gated
@@ -197,6 +201,34 @@ test("every extraction slot is PRESET-homed with macros:none — the tokens are 
     // so anything else in braces must ship as literal braces rather than silently rendering empty.
     expect(PROSE_SLOTS[id].macros, id).toBe("none");
   }
+});
+
+test("the POPULATE cohort is its own group, PRESET-homed with macros:none — the born-state round's seven", () => {
+  // Its own `rpg.populate.*` group rather than more `rpg.extract.*` rows (populate census rows 1-7): the two
+  // cohorts fire on different CALLS, so the count above stays a statement about the turn loop.
+  const cohort = PROSE_SLOT_IDS.filter((id) => id.startsWith("rpg.populate."));
+  expect(cohort.length).toBe(7);
+  for (const id of cohort) {
+    expect(PROSE_SLOTS[id].home, id).toBe("preset");
+    expect(PROSE_SLOTS[id].macros, id).toBe("none");
+  }
+});
+
+test("the populate teaching's identity clause and doctrine are OVERRIDABLE — the last two source constants", () => {
+  // Census rows 2-3. Before this migration they were string literals inside `composePopulateTeaching`, in a
+  // function that composed everything ELSE from slots — the half-editable prompt this program exists to kill.
+  const composed = composePopulateTeaching(
+    ctx(rpgGameConfigSchema.parse({}), {
+      ...override("rpg.populate.identity", "TITLES: short, in the card's voice."),
+      ...override("rpg.populate.doctrine", "Leave blank rather than guess."),
+    }),
+  );
+  expect(composed).toContain("TITLES: short, in the card's voice.");
+  expect(composed).toContain("Leave blank rather than guess.");
+  expect(composed).not.toContain("sheet.title is this character's TITLE");
+  expect(composed).not.toContain("Do NOT invent adventuring loot");
+  // The two born-state plane fragments are untouched — an edit resolves one slot, never the block around it.
+  expect(composed).toContain("QUESTS — quests: a new or advancing quest");
 });
 
 // ── 2b. Census row 27 is WIRED (owner ruling 2026-08-08, spec §11 decision 6) ────────────────────────

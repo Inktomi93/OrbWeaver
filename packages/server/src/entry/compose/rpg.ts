@@ -1390,23 +1390,27 @@ async function resyncViaStructured(
 // The state half still folds through the SAME `extractionToStateDelta` the turn vehicles use (locks/heal/ghost
 // guard all hold verbatim) — the populate round is not a second write path, only a second READER.
 
-/** The populate system prompt HEADER. Names the two evidence blocks + the ONE-SHOT framing (this runs once, at
- *  a host's click, on a character who has not played yet), and hands the invent-nothing doctrine to the shared
- *  teaching composer (`composePopulateTeaching`, the §1.6 registry's populate arm). */
-const POPULATE_SYSTEM_HEADER =
-  "You are reading a role-play character's CARD and the story's OPENING scene to fill in what that character " +
-  "starts the game with. This runs ONCE, before the character has played: you are establishing their sheet and " +
-  "the gear, coin, and goals they walked in with — not reacting to any beat. Output ONE JSON object.";
-
 /** The populate user-turn body: the two evidence blocks + the target the writes must name. The CURRENT state is
  *  deliberately NOT sent — a born-state round has nothing to reconcile against, and showing it invites the
- *  model to restate what is already there instead of reading the card. */
-function populateUserPrompt(corpus: RpgCardCorpus, targetRef: string): string {
-  const blocks = [`CHARACTER CARD — ${corpus.name}:\n${corpus.card === "" ? "(the card carries no written description)" : corpus.card}`];
+ *  model to restate what is already there instead of reading the card.
+ *
+ *  Every block is an `rpg.populate.*` SLOT (populate census rows 4-7), which is why this takes the round's
+ *  resolved prose view: the born-state prompt is the host's to re-frame in the preset Templates tab, exactly
+ *  like the teaching half `composePopulateTeaching` composes. The card BODY and the opening ride in as
+ *  PRE-SUBSTITUTION tokens rather than being concatenated around a label, so an override can move them. */
+function populateUserPrompt(corpus: RpgCardCorpus, targetRef: string, prose: ProseOverrides): string {
+  const blocks = [
+    resolveProseText("rpg.populate.cardBlock", prose, {
+      cardName: corpus.name,
+      // A card that renders to nothing gets the fallback SENTENCE, not an empty block — a truncated-looking
+      // prompt is what teaches a model to fill the gap in for itself.
+      cardBody: corpus.card === "" ? resolveProseText("rpg.populate.emptyCard", prose) : corpus.card,
+    }),
+  ];
   if (corpus.opening !== "") {
-    blocks.push(`OPENING SCENE (how the story begins):\n${corpus.opening}`);
+    blocks.push(resolveProseText("rpg.populate.openingBlock", prose, { opening: corpus.opening }));
   }
-  blocks.push(`Write everything for targetRef "${targetRef}" — this round fills exactly this one character.`);
+  blocks.push(resolveProseText("rpg.populate.targetLine", prose, { targetRef }));
   return blocks.join("\n\n");
 }
 
@@ -1482,8 +1486,8 @@ function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopula
       chatId,
       // The host funds + authorizes this call (the consenting human clicked the button) — the resync's posture.
       ownerConsented: true,
-      systemPrompt: `${POPULATE_SYSTEM_HEADER}\n\n${composePopulateTeaching({ config: game?.config ?? rpgGameConfigSchema.parse({}), refs, prose })}`,
-      userPrompt: populateUserPrompt(corpus, targetRef),
+      systemPrompt: `${resolveProseText("rpg.populate.systemHeader", prose)}\n\n${composePopulateTeaching({ config: game?.config ?? rpgGameConfigSchema.parse({}), refs, prose })}`,
+      userPrompt: populateUserPrompt(corpus, targetRef, prose),
       schema: constrainPopulateSchema(projectJsonSchema(rpgPopulateSchema), targetRef),
       // A HOST DOOR has no cancellation to inherit — the resync's posture verbatim (see `resyncViaStructured`).
       signal: undefined,
