@@ -979,11 +979,13 @@ export const TEMPLATE_DEFS = [
     caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
     defaultSlot: "rpg.reminder.omniscienceTeach",
   },
+  // The pair's `fires` glosses FRONT-LOAD the discriminator: they used to differ only in their final word
+  // ("…interactivity allowed"/"…off"), so at any one-line truncation the two rows read byte-identically.
   {
     id: "rpg.card.askInteractive",
     kind: "teach",
     label: "Interactive card",
-    fires: "A game turn with immersive cards on and interactivity allowed",
+    fires: "Interactivity allowed — a game turn with immersive cards on",
     caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
     defaultSlot: "rpg.card.askInteractive",
   },
@@ -991,7 +993,7 @@ export const TEMPLATE_DEFS = [
     id: "rpg.card.askStatic",
     kind: "teach",
     label: "Static card",
-    fires: "A game turn with immersive cards on and interactivity off",
+    fires: "Interactivity off — a game turn with immersive cards on",
     caps: [{ kind: "tokens", tokens: ["{{user}}", "{{char}}"] }],
     defaultSlot: "rpg.card.askStatic",
   },
@@ -1235,19 +1237,23 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "rpg.extract.journal.customLabels",
     cluster: "planes",
   },
+  // ROW 27 and the reconcile rule both tail the plane teaching on every extraction — their `fires` glosses
+  // FRONT-LOAD what tells them apart (the identical-truncation defect the askInteractive/askStatic pair had:
+  // two rows whose one-line glosses differ only past the ellipsis read as the same row).
   {
     id: "rpg.extract.stateTrackingGuide",
     kind: "extract",
     label: "Be thorough",
-    fires: "Tails the plane teaching on every extraction",
+    fires: "The record-everything push — sums the planes on every extraction",
     caps: [],
     defaultSlot: "rpg.extract.stateTrackingGuide",
+    cluster: "round",
   },
   {
     id: "rpg.extract.reconcileDoctrine",
     kind: "extract",
     label: "Reconcile rule",
-    fires: "Tails the plane teaching on every extraction",
+    fires: "The contradiction fix — closes the plane teaching on every extraction",
     caps: [],
     defaultSlot: "rpg.extract.reconcileDoctrine",
     cluster: "round",

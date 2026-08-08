@@ -8,9 +8,10 @@
 //     template renders the shared DeliveryCluster, and nothing branches on a template's NAME;
 //   · a template's editor NEVER carries arrangement vocabulary (zone / order / triggers / locks).
 
+import { TEMPLATE_DEFS } from "@orb/contracts/preset";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
-import { ActionsStory } from "./_actions-stories.tsx";
+import { ActionsForkStory, ActionsStory } from "./_actions-stories.tsx";
 
 /** The rendered box, rounded — sub-pixel noise is not a defect, an 8/16px shear is. */
 async function boxOf(locator: Locator): Promise<{ readonly top: number; readonly height: number }> {
@@ -23,8 +24,22 @@ async function boxOf(locator: Locator): Promise<{ readonly top: number; readonly
 
 /** The group HEADINGS, in `TEMPLATE_KINDS` tuple order. Human labels, not the raw enum members the
  *  registry keys on (side-eye F-30 / ARIA rec 10): a kicker over a group of rows is a heading a person
- *  reads. The per-row KIND CHIP still prints the raw member — that is a taxonomy tag, not a heading. */
+ *  reads. The per-row KIND CHIP left the LIST with the IA (it discriminated nothing under a kind-titled
+ *  kicker); the drill-in header still wears it. */
 const KIND_HEADERS = ["Steers", "Voice", "Studio", "Format", "Nudges", "Game teaches", "State tracking"] as const;
+
+/** The six extract CLUSTER bands (IA §2.1), by their visible labels — `TEMPLATE_CLUSTER_LABEL`'s values in
+ *  `TEMPLATE_CLUSTERS` tuple order. Collapsed by default; a geometry test that wants to measure EVERY row
+ *  expands them all first (a collapsed band's rows are unmounted — that is the perf half of the IA). */
+const CLUSTER_BANDS = ["Round framing", "The scene plane", "Party & trackers", "Inventory, quests & journal", "Tool descriptions", "The ref block"] as const;
+
+/** Expand every cluster band, so a total-list assertion really is total. */
+async function expandAllClusters(probe: Locator): Promise<void> {
+  for (const band of CLUSTER_BANDS) {
+    // biome-ignore lint/performance/noAwaitInLoops: real user clicks are inherently sequential — each expansion pushes the bands below it down, so a Promise.all would race the pointer against a shifting layout (the scatter.ct precedent).
+    await probe.getByRole("button", { name: band }).click();
+  }
+}
 /** A rack GRIP's accessible-name shape — the affordance this list must never grow (audit row 31). */
 const REORDER_GRIP_RE = /^Reorder/u;
 /** The ADD affordance's accessible-name shape, for the same absence assertion. A REGEX, not the bare string
@@ -79,12 +94,15 @@ const ROW_ROOT = '[data-slot="list-row-root"]';
 test("F-01 — EVERY row's name has real width, and it is the GLOSS that shortens", async ({ mount, page }) => {
   const probe = await mount(<ActionsStory />);
   await expect(probe.getByRole("button", { name: "Response nudge", exact: true })).toBeVisible();
+  // TOTAL means total: a collapsed band's rows are unmounted, so the geometry sweep expands every cluster
+  // first — otherwise 41 of the registry's rows are invisible to the very check that exists to measure them.
+  await expandAllClusters(probe);
 
   const titles = probe.locator(TITLE);
   const count = await titles.count();
-  // The registry ships 11 rows today (8 guided actions + 3 nudges + the format slot, minus none). Pin the
-  // count so a registry that stops rendering rows cannot make the width check vacuously pass.
-  expect(count).toBeGreaterThanOrEqual(11);
+  // EVERY registry def renders a row — pinned to the registry's own length, so a registry that stops
+  // rendering rows (or a band that silently eats its members) cannot make the width check vacuously pass.
+  expect(count).toBe(TEMPLATE_DEFS.length);
 
   // Measured in ONE page evaluation: a per-row `await` loop is both slower and a lint violation, and the
   // whole point is a snapshot of the SAME layout pass across every row.
@@ -153,6 +171,8 @@ test("the state chip reads Customized only for a real override — and ABSENCE i
 test("R-7 — every row's description shares ONE left edge, and takes ALL the width the name isn't using", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
   await expect(probe.getByRole("button", { name: "Response nudge", exact: true })).toBeVisible();
+  // The banded rows are part of "every row" — expanded first, same reason as F-01.
+  await expandAllClusters(probe);
 
   const rows = await probe.locator(ROW_ROOT).evaluateAll((els) =>
     els.map((el) => {
@@ -165,7 +185,7 @@ test("R-7 — every row's description shares ONE left edge, and takes ALL the wi
       };
     }),
   );
-  expect(rows.length).toBeGreaterThanOrEqual(11);
+  expect(rows.length).toBe(TEMPLATE_DEFS.length);
 
   // THE DEFECT, stated exactly: five different left edges (measured 487…520) down one column, because the
   // `inline` arm sized each name cell to its own text. One column, one edge.
@@ -180,9 +200,101 @@ test("R-7 — every row's description shares ONE left edge, and takes ALL the wi
 
 test("the list is a FIXED ENUM — no toggle, no grip, no Add anywhere (§16 row 31's absence)", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
+  // The absences hold over the WHOLE surface, banded rows included — a management affordance hiding inside
+  // a collapsed cluster would pass a rest-state sweep.
+  await expandAllClusters(probe);
   await expect(probe.getByRole("switch")).toHaveCount(0);
   await expect(probe.getByRole("button", { name: REORDER_GRIP_RE })).toHaveCount(0);
   await expect(probe.getByRole("button", { name: ADD_CONTROL_RE })).toHaveCount(0);
+});
+
+// ── THE IA (docs/design/actions-tab-information-architecture.md) — bands, filter, labels, the fork ────────
+
+test("IA — the extract clusters mount COLLAPSED; the band is the map and one click discloses", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  await expect(probe.getByRole("heading", { name: "State tracking", exact: true })).toBeVisible();
+
+  // Collapsed at rest: the band stands, its rows are UNMOUNTED (the perf half — a 67-row flat commit was
+  // the measured 131ms tab switch).
+  const band = probe.getByRole("button", { name: "The scene plane" });
+  await expect(band).toBeVisible();
+  await expect(band).toHaveAttribute("aria-expanded", "false");
+  await expect(probe.getByRole("button", { name: "Weather steer", exact: true })).toHaveCount(0);
+
+  // One click in, one click back out.
+  await band.click();
+  await expect(band).toHaveAttribute("aria-expanded", "true");
+  await expect(probe.getByRole("button", { name: "Weather steer", exact: true })).toBeVisible();
+  await band.click();
+  await expect(probe.getByRole("button", { name: "Weather steer", exact: true })).toHaveCount(0);
+});
+
+test("IA — the tab filter narrows every group and REVEALS matches a collapsed band would hide", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  const filter = probe.getByRole("textbox", { name: "Filter templates" });
+  await expect(filter).toBeVisible();
+
+  await filter.fill("weather");
+  // The match is visible WITHOUT a band click — a filter that left its matches behind collapsed bands
+  // would be lying about the library.
+  await expect(probe.getByRole("button", { name: "Weather steer", exact: true })).toBeVisible();
+  // Groups with no match vanish (the empty-group rule); the matching cluster renders as a static
+  // sub-header (the disclosure means nothing while the filter decides visibility).
+  await expect(probe.getByRole("heading", { name: "Steers", exact: true })).toHaveCount(0);
+  await expect(probe.getByRole("button", { name: "The scene plane" })).toHaveCount(0);
+  await expect(probe.getByText("The scene plane", { exact: true })).toBeVisible();
+
+  // Clearing restores the map: bands back, collapse state honored, every group standing.
+  await filter.fill("");
+  await expect(probe.getByRole("heading", { name: "Steers", exact: true })).toBeVisible();
+  await expect(probe.getByRole("button", { name: "Weather steer", exact: true })).toHaveCount(0);
+
+  // The all-filtered-out state states its condition rather than rendering a silent blank list.
+  await filter.fill("zzzz-no-such-template");
+  await expect(probe.getByText("No template matches", { exact: false })).toBeVisible();
+});
+
+test("IA — no row wears a snake_case wire name; the tool rows are human-labeled with the wire name in the gloss", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  await probe.getByRole("button", { name: "Tool descriptions" }).click();
+
+  // The template-rows.ts kicker law, applied to row titles: a label a person reads.
+  await expect(probe.getByRole("button", { name: "Party update", exact: true })).toBeVisible();
+  await expect(probe.getByRole("button", { name: "Inventory update", exact: true })).toBeVisible();
+  await expect(probe.getByRole("button", { name: "No changes", exact: true })).toBeVisible();
+  await Promise.all(
+    ["update_party", "update_inventory", "update_scene", "set_tracker", "upsert_quest", "add_journal_entry", "no_changes"].map((wireName) =>
+      expect(probe.getByRole("button", { name: wireName, exact: true })).toHaveCount(0),
+    ),
+  );
+  // …and the wire name is NOT lost: it rides the row's own fires gloss, so the author can map row → tool.
+  await expect(probe.getByText("The update_party tool's description", { exact: false })).toBeVisible();
+});
+
+// ── IA §2.6: the built-in fork's retarget REMOUNTS the keyed session — the drill must survive it ──────────
+// The production seam: `PresetForm entityId={presetId}` + the autosave hook's `selectPreset(fork)` swap the
+// whole editor to the fork's id mid-edit. With a LOCAL drill id, that remount dumped the author from the
+// editor to the top of the 67-row list mid-sentence (side-eye P2). The story simulates exactly the seam —
+// a keyed remount of the same session boundary — and the pin is that the SAME row's editor is still open.
+
+test("IA §2.6 — the drill-in survives the fork's keyed remount, re-anchored to the same template", async ({ mount }) => {
+  const probe = await mount(<ActionsForkStory />);
+
+  await probe.getByRole("button", { name: "Edit Impersonate", exact: true }).click();
+  await expect(probe.getByRole("button", { name: "Back to actions" })).toBeVisible();
+
+  // The fork retarget: the session boundary remounts under the fork's entity id.
+  await probe.getByRole("button", { name: "simulate fork retarget" }).click();
+  await expect(probe.getByText("entity=preset_actionsforkedxx")).toBeVisible();
+
+  // STILL in the editor, STILL on Impersonate — never ejected to the list.
+  await expect(probe.getByRole("button", { name: "Back to actions" })).toBeVisible();
+  await expect(probe.getByRole("heading", { name: "Impersonate", exact: true })).toBeVisible();
+  await expect(probe.getByRole("heading", { name: "Steers", exact: true })).toHaveCount(0);
+
+  // …and Back still works after the swap (the closed drill returns to the fork's list).
+  await probe.getByRole("button", { name: "Back to actions" }).click();
+  await expect(probe.getByRole("heading", { name: "Steers", exact: true })).toBeVisible();
 });
 
 // ── §16 row 23 / §6.1: SELECT ≠ DRILL, the rack's grammar spoken here too ─────────────────────────────
@@ -280,6 +392,8 @@ test("the three turn-wire framings are ROWS in this tab, ghosting their shipped 
 test("row 27 — the state-tracking guide is a row in State tracking, ghosting its shipped bytes", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
   await expect(probe.getByRole("heading", { name: "State tracking", exact: true })).toBeVisible();
+  // The guide lives in the ROUND FRAMING cluster (IA §2.1) — collapsed at rest, one disclosure away.
+  await probe.getByRole("button", { name: "Round framing" }).click();
   await expect(probe.getByRole("button", { name: "Be thorough", exact: true })).toBeVisible();
 
   await probe.getByRole("button", { name: "Edit Be thorough" }).click();

@@ -177,7 +177,14 @@ export {
   useSelectedPresetId,
   useSelectedPresetSectionId,
 } from "./preset-selection-store.ts";
-export { __resetPresetTemplate, selectPresetTemplate, useSelectedPresetTemplateId } from "./preset-template-selection-store.ts";
+export {
+  __resetPresetTemplate,
+  closePresetTemplateDrill,
+  drillPresetTemplate,
+  selectPresetTemplate,
+  useDrilledPresetTemplateId,
+  useSelectedPresetTemplateId,
+} from "./preset-template-selection-store.ts";
 export {
   __readRecentModelsForTest,
   __resetAllRecentModels,
