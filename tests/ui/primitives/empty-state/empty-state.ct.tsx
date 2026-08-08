@@ -37,6 +37,25 @@ test("the voice scales to the SURFACE: one step down inside a LIST-pane-width co
   await expect(component.locator(TITLE)).toHaveCSS("font-size", expected);
 });
 
+// GAP-2 FENCE (2026-08-08 follow-up gap-audit): the whole CLASS of "a re-parent silently narrows a
+// component whose rendered width nothing asserts." EmptyState's root is a `@container` (contain:
+// inline-size), so a flex parent with `align-items: center` gives the box `align-self: center` and its
+// inline size collapses toward 0 — the description falls to one word per line (the automation-settings
+// 63px ribbon: `settings-pane-placeholder` wrapped it in `<Stack align="center">`). A `w-full` floor on
+// the primitive root (variants.ts) defeats the collapse in every consumer at once; this MEASURES the slot
+// width so the class can't silently recur (`done ≠ rendered` — no role/text assertion sees a 0-width box).
+test("does NOT collapse under a centering flex parent — the @container keeps its full slot width", async ({ mount }) => {
+  const component = await mount(
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: 400 }}>
+      <EmptyState description="Weave your first one to begin so the room has a voice, not a ribbon." title="No characters yet" />
+    </div>,
+  );
+  // 400px slot, centering parent. Pre-fix the @container root shrinks to ~min-content (one word wide);
+  // the `w-full` floor makes it fill the slot. A floor of 300 is well clear of both readings.
+  const box = await component.locator('[data-slot="empty-state-root"]').boundingBox();
+  expect(box?.width ?? 0).toBeGreaterThan(300);
+});
+
 test("omits the description and action slots when not provided", async ({ mount, page }) => {
   await mount(<EmptyState title="Nothing here" />);
   await expect(page.getByText("Nothing here")).toBeVisible();
