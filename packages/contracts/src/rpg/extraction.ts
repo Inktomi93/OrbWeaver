@@ -406,6 +406,9 @@ export const RPG_TOOL_ROUND_TOOL_NAMES = [
   "add_journal_entry",
   RPG_NO_CHANGES_TOOL,
 ] as const;
+/** @public locked shape — derived from the live `RPG_TOOL_ROUND_TOOL_NAMES` tuple, which the tool-round parse
+ *  code reads directly by string; this type is the narrowed surface a future typed tool-round dispatcher uses
+ *  instead of `string` (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RpgToolRoundToolName = (typeof RPG_TOOL_ROUND_TOOL_NAMES)[number];
 
 /** One parsed tool call off the round's `ChatResult.toolCalls`: the tool name + its raw JSON args string. */
@@ -694,6 +697,9 @@ export const rpgPopulateSchema = z.object({
   inventory: z.array(updateInventoryArgsSchema).default([]),
   quests: z.array(upsertQuestArgsSchema).default([]),
 });
+/** @public locked shape — inferred from the live `rpgPopulateSchema`, which the populate-round parse code
+ *  reads directly; this type is the whole-payload surface for consumers of the not-yet-built populate-round
+ *  entry point beyond `RpgPopulateSalvage`'s per-field access (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RpgPopulate = z.infer<typeof rpgPopulateSchema>;
 
 /** What a salvaging populate parse yields: the sheet half (`null` = the model wrote none), the state half as

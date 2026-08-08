@@ -263,6 +263,9 @@ export const RPG_ACTOR_IDENTITY_TEXT_FIELDS = [
   "outfit",
   "thoughts",
 ] as const satisfies readonly (keyof RpgActorIdentity)[];
+/** @public locked shape — derived from the live `RPG_ACTOR_IDENTITY_TEXT_FIELDS` tuple, which every current
+ *  consumer reads directly; this type is the projected-grammar/full-mode surface for that tuple (rpg/index.ts
+ *  KISS/YAGNI SUSPENDED: full-mode shapes ship as data from day one). */
 export type RpgActorIdentityTextField = (typeof RPG_ACTOR_IDENTITY_TEXT_FIELDS)[number];
 
 /** The tracked-value PATCH a `setTracker` op carries — each datum optional, each DERIVED from the resident
