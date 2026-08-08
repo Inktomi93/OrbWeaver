@@ -56,6 +56,17 @@
 // may plant an old spelling deliberately as a fixture. DECLARED BLIND SPOTS beyond the ARM-A one above: a
 // schema assembled through a helper (`makeStrict(z.object(…))`) carries none of these shapes in its own
 // source, the literal-shape reader's honest limit.
+//
+// SUPPRESSION: the four SPELLING arms report NODE-anchored and carry their arm as the finding's token, so
+//   `// @orb-gate-ignore zod-modern-spellings(strict-object|literal-union|error-issues|bool-enum): <reason>`
+//   works AND names its position (§4.3a — one line really can carry two of these: a
+//   `z.object({k: z.union([z.literal("a"), z.literal("b")])}).strict()` is both ARM A and ARM B). Until
+//   2026-08-08 all four reported through the explicit-`Finding` overload, which bypasses `hasGateIgnore` by
+//   construction: EVERY marker on every arm was inert, and nothing said so (the same defect
+//   `platform-spellings` carried — this gate is where it was copied from). The per-arm `Finding.message`
+//   overrides went with it; the reason now lives once on `MESSAGE`, which is where the harness homes it.
+//   The `finalize` STALE arm KEEPS the Finding overload deliberately — it anchors on this gate FILE, has no
+//   node to read a marker from, and §1 reserves the overload for exactly that.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
@@ -101,14 +112,23 @@ const ISSUES_ALLOWLIST: Record<string, string> = {
     "the same write-guard RE-EMIT for `entryMetadataWriteSchema` (its header cites the persona rationale verbatim) — issues forwarded structurally, never flattened to a display string.",
 };
 
+// THE ONE REASON, printed once per group. It carries all four arms BY TOKEN — the per-arm `Finding.message`
+// overrides are gone with the Finding overload that carried them (see the header's SUPPRESSION note), so the
+// load-bearing halves of each ("byte-identical", "widens the vocabulary") had to come home here rather than
+// die. Each occurrence's token says which arm it is.
 const MESSAGE =
   "a superseded zod spelling — the zod 4.4.3 leverage audit ruled each of these and its remedy already " +
-  "landed on the tree (docs/reviews/stickler/2026-08-02-zod-leverage-audit.md). `.strict()` on a " +
-  "`z.object(…)` is legacy-compat (F2: the documented reason to avoid `z.strictObject` was stale and is " +
-  "corrected); an all-literal `z.union` emits a nested `invalid_union` where multi-value `z.literal([…])` " +
-  "emits one option-naming `invalid_value` (F7); a hand-flattened `error.issues` drops the PATH from a " +
-  'user-facing refusal, which `z.prettifyError` carries (F4); a `z.enum(["true","false"])` hand-rolls ' +
-  "`z.stringbool` (F5). Every one is semantics-preserving — there is no legitimate survivor to allowlist " +
+  "landed on the tree (docs/reviews/stickler/2026-08-02-zod-leverage-audit.md). `strict-object`: `.strict()` " +
+  "on a `z.object(…)` is legacy-compat (F2 — the documented reason to avoid `z.strictObject` claimed it " +
+  "inflates the inferred type with an index-signature tag; that is FALSE on 4.4.3, where `$strict` is " +
+  "byte-identical to `$strip`). `literal-union`: an all-literal `z.union` emits a nested `invalid_union` " +
+  "where multi-value `z.literal([…])` emits one option-naming `invalid_value` (F7) — same accepted set, same " +
+  "inferred type, an actionable refusal. `error-issues`: a hand-flattened `error.issues` drops the PATH from " +
+  'a user-facing refusal, which `z.prettifyError` carries (F4 — `issues[0].message` printed "Too small: ' +
+  'expected string to have >=1 characters" and named no field). `bool-enum`: a `z.enum(["true","false"])` ' +
+  "hand-rolls `z.stringbool` (F5) — and the PARAMS are the point, since a bare `z.stringbool()` is " +
+  "case-INSENSITIVE and also accepts `1/0/yes/no/on/off`, silently widening a knob whose old vocabulary was " +
+  "a LOUD boot refusal. Every one is semantics-preserving — there is no legitimate survivor to allowlist " +
   "except the CITED model-facing join sites.";
 
 const FIX =
@@ -119,28 +139,20 @@ const FIX =
   "`path: message` convention a model matches against its own schema) or a structural write-guard re-emit, " +
   "it takes an ISSUES_ALLOWLIST row WITH that reason in scripts/check/gates/zod-modern-spellings.ts.";
 
-const STRICT_MESSAGE =
-  "`.strict()` on a `z.object(…)` — respell as `z.strictObject(…)` (F2). The comment that used to justify " +
-  "this spelling claimed `z.strictObject` inflates the inferred type with an index-signature tag; that is " +
-  "FALSE on 4.4.3 (`$strict` is byte-identical to `$strip`) and `.strict()` is tagged legacy-compat in the " +
-  "installed d.ts.";
+/** The ARM tokens — each finding's `token`, and therefore the POSITION an `@orb-gate-ignore` names. They are
+ *  self-identifying labels rather than lexemes (the `no-inline-union-redecl` idiom), because a lexeme could
+ *  not tell these arms apart: ARM A and ARM B both anchor on a `CallExpression` whose text starts `z.`.
+ *  DELIBERATELY COUNT-FREE — the retired `UNION_MESSAGE(count)` named the member count, and a position that
+ *  moved every time someone added a union member would break a standing marker on an unrelated edit. The
+ *  count is legible at the anchored line; the position has to be stable to be namable. */
+const ARM_TOKENS = { strictObject: "strict-object", literalUnion: "literal-union", errorIssues: "error-issues", boolEnum: "bool-enum" } as const;
 
-const UNION_MESSAGE = (count: number): string =>
-  `an all-literal \`z.union\` of ${count} members — respell as multi-value \`z.literal([…])\` (F7). The union ` +
-  "form fails with a NESTED `invalid_union` issue; the multi-value literal fails with ONE `invalid_value` " +
-  "naming every accepted option. Same accepted set, same inferred type, an actionable refusal.";
-
-const ISSUES_MESSAGE =
-  "hand-flattened `error.issues` — a user-facing refusal built by hand loses the PATH (F4: `issues[0].message` " +
-  'printed "Too small: expected string to have >=1 characters" and named no field). `z.prettifyError(err)` ' +
-  "renders the same message WITH `→ at config.sections[0].id` — the worked example is `parsePresetFile` in " +
-  "packages/contracts/src/preset/index.ts.";
-
-const BOOL_ENUM_MESSAGE =
-  '`z.enum(["true","false"])` hand-rolls a string→boolean codec — use the pinned `envBool` helper ' +
-  '(packages/server/src/foundation/env/index.ts), which is `z.stringbool({truthy:["true"], falsy:["false"], ' +
-  'case:"sensitive"})`. The params are load-bearing: a bare `z.stringbool()` is case-INSENSITIVE and also ' +
-  "accepts `1/0/yes/no/on/off`, silently widening a knob whose old vocabulary was a LOUD boot refusal (F5).";
+/** GATE-AUTHORING §1: the NODE overload for every node-anchored, suppressible finding. The Finding overload
+ *  bypasses `hasGateIgnore` entirely — reported that way, no `@orb-gate-ignore` on this gate could ever
+ *  work. Only `finalize`'s stale arm keeps it, and only because it anchors on this gate FILE. */
+function report(node: Node, token: string, ctx: GateRunCtx): void {
+  ctx.report(node, { token, offset: 0 });
+}
 
 const STALE_ISSUES_PREFIX =
   "ISSUES_ALLOWLIST row for a file that no longer reads `.error.issues` — the sanction is unused (ratchet " +
@@ -228,18 +240,17 @@ function isZodErrorIssuesRead(node: Node): boolean {
 
 const passSeenIssuesAllowed = new Set<string>();
 
-function visitCall(node: Node, rel: string, ctx: GateRunCtx): void {
+function visitCall(node: Node, ctx: GateRunCtx): void {
   if (isStrictOnZodObject(node)) {
-    ctx.report({ file: rel, line: node.getStartLineNumber(), column: 0, message: STRICT_MESSAGE });
+    report(node, ARM_TOKENS.strictObject, ctx);
     return;
   }
-  const unionSize = literalUnionSize(node);
-  if (unionSize !== undefined) {
-    ctx.report({ file: rel, line: node.getStartLineNumber(), column: 0, message: UNION_MESSAGE(unionSize) });
+  if (literalUnionSize(node) !== undefined) {
+    report(node, ARM_TOKENS.literalUnion, ctx);
     return;
   }
   if (isBooleanStringEnum(node)) {
-    ctx.report({ file: rel, line: node.getStartLineNumber(), column: 0, message: BOOL_ENUM_MESSAGE });
+    report(node, ARM_TOKENS.boolEnum, ctx);
   }
 }
 
@@ -260,19 +271,19 @@ export const gate: GateDescriptor = {
   },
 
   visit: (node, sf, ctx) => {
-    const rel = repoRel(sf.getFilePath());
     if (node.isKind(SyntaxKind.CallExpression)) {
-      visitCall(node, rel, ctx);
+      visitCall(node, ctx);
       return;
     }
     if (!isZodErrorIssuesRead(node)) {
       return;
     }
+    const rel = repoRel(sf.getFilePath());
     if (rel in ISSUES_ALLOWLIST) {
       passSeenIssuesAllowed.add(rel);
       return;
     }
-    ctx.report({ file: rel, line: node.getStartLineNumber(), column: 0, message: ISSUES_MESSAGE });
+    report(node, ARM_TOKENS.errorIssues, ctx);
   },
 
   finalize: (ctx) => {
@@ -281,6 +292,8 @@ export const gate: GateDescriptor = {
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, REAL_TREE_ANCHOR)) {
       return;
     }
+    // THE SANCTIONED Finding overload (§1): this finding anchors on the GATE FILE, not on a node — there is
+    // no source node to hang an `@orb-gate-ignore` off, and a stale exemption must not be suppressible anyway.
     for (const rel of Object.keys(ISSUES_ALLOWLIST)) {
       if (!passSeenIssuesAllowed.has(rel)) {
         ctx.report({ file: GATE_SELF, line: 1, column: 0, message: `${STALE_ISSUES_PREFIX}"${rel}" — scripts/check/gates/zod-modern-spellings.ts` });
@@ -292,19 +305,19 @@ export const gate: GateDescriptor = {
     {
       files: 'import { z } from "zod";\nexport const s = z.object({ a: z.string() }).strict();\n',
       at: "packages/contracts/src/probe-strict/index.ts",
-      expect: { count: 1, messageIncludes: "z.strictObject" },
+      expect: { count: 1, token: "strict-object" },
       why: "ARM A — the exact spelling all five sites carried, kept alive by a comment whose premise (strictObject inflates the inferred type) is false on 4.4.3",
     },
     {
       files: 'import { z } from "zod";\nexport const s = z.union([z.literal("none"), z.literal("raw"), z.literal("escaped")]);\n',
       at: "packages/contracts/src/probe-union/index.ts",
-      expect: { count: 1, messageIncludes: "invalid_union" },
+      expect: { count: 1, token: "literal-union" },
       why: "ARM B — the regex domain's retired three-arm literal union; the remedy names the FAILURE-shape difference, not a style preference",
     },
     {
       files: 'import { z } from "zod";\nexport const s = z.union([z.literal(true), z.literal(false)]);\n',
       at: "packages/contracts/src/probe-union2/index.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "literal-union" },
       why: "ARM B at its floor — a TWO-member, non-string literal union is the same respelling (`z.literal([true, false])`); the arity floor is 2, not 3",
     },
     {
@@ -313,7 +326,7 @@ export const gate: GateDescriptor = {
         '  return result.error.issues.map((i) => i.message).join("; ");\n' +
         "}\n",
       at: "packages/server/src/domain/probe-plugin/substrate/manifest.ts",
-      expect: { count: 1, messageIncludes: "prettifyError" },
+      expect: { count: 1, token: "error-issues" },
       why: "ARM C — the live offender this gate's landing commit fixed: an operator-facing bundle refusal that mapped issues to MESSAGE ONLY, dropping the path that names the bad field",
     },
     {
@@ -322,19 +335,19 @@ export const gate: GateDescriptor = {
         '  return result.error.issues[0]?.message ?? "schema mismatch";\n' +
         "}\n",
       at: "packages/server/src/domain/probe-preset/verbs/import-file.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "error-issues" },
       why: "ARM C's founding shape — the `issues[0]` first-issue hand-flatten from F4 itself (a 500-section preset refused with no field named)",
     },
     {
       files: 'import { z } from "zod";\nexport const s = z.enum(["true", "false"]).default("false").transform((v) => v === "true");\n',
       at: "packages/server/src/probe-env/index.ts",
-      expect: { count: 1, messageIncludes: "stringbool" },
+      expect: { count: 1, token: "bool-enum" },
       why: "ARM D — the hand-rolled env boolean codec the seven knobs carried before `envBool`; the remedy names the PINNED params, since an unpinned `z.stringbool()` would widen the accepted vocabulary",
     },
     {
       files: 'import { z } from "zod";\nexport const s = z.enum(["false", "true"]);\n',
       at: "packages/server/src/probe-env2/index.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "bool-enum" },
       why: "ARM D is order-insensitive — the same hand-roll written the other way round is the same hand-roll",
     },
   ],
