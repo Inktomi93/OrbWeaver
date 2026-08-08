@@ -468,9 +468,23 @@ security lens.
   third coupled site). Owner word given ("push when ready with no verify"); `git push --no-verify` (the
   battery was the certification). **STANDING LAW RESETS: the NEXT push needs a FRESH word + a FRESH
   battery** — this word and this green are spent.
-- **RESUMED QUEUE (box free, no write lanes):** side-eye #16 (rendered graduation of RENDERFIX+PTRGATE
-  on the settled rpg surfaces) · glyph sweep #13 (square-glyph Button debt + icon-seal doorways) ·
-  the `run-coverage.ts` widgets bug · the PORT-R6 2-turn cross-link fixture hardening.
+- ✅ **RENDERFIX + PTRGATE GRADUATED ON THE RENDERED LENS — SIDE-EYE-RPG: SHIP, NO DEFECTS**
+  (`docs/reviews/side-eye/2026-08-07-rpg-graduation.md`). All 5 targets CONFIRMED at REAL coarse pointer
+  (`matchMedia('(pointer:coarse)')` asserted true before every geometry read): persona crown+heart
+  visible with accessible names (one-per-pointer-class arm-swap proven) · rail cells 66.5/56.9/**45.3px**
+  clear the 44px floor at 430/375/320 with a solid 6-col frame · inset focus ring paints fully in the
+  overflow box · new-draft identity is ATOMIC (rAF recorder: `"Chats"` → full cast, ZERO "New chat"/"?"
+  frames). PTRGATE: RPG_RAIL_WRAP + HIDE_AT_COARSE rendered; CHIP_TOUCH_FLOOR/PICKER_GAP/REVEAL/FINE_INERT
+  byte-identical+CT (live-render deferred, low-risk — no seed populates a removable condition/the picker's
+  behind a popover). Self-retracted a false positive (the +condition button has an `::after` 44px expander).
+- ✅ **`run-coverage.ts` widgets bug FIXED** (`20b883e3e`) — seed `widgets` (the field read), widgets made
+  required, dead field + bug-preserving assertions/suppressions dropped, full check green.
+- ✅ **GLYPHSWEEP done** — square-glyph debt already paid; icon-seal doorways BUILD-NONE (only
+  fillRule=evenodd boarded). See its own board rows below.
+- [ ] **[P3 taste, pre-existing — NOT from the graduated fixes]** the Map cell's lock glyph dangles
+  slightly outside the rail frame's top-right edge (SIDE-EYE-RPG stumble). Low-priority polish.
+- **REMAINING TAIL (non-owner-gated):** client narrator smalls #15 (speaker-markup leak + tracker editor)
+  · node-26 §8 gate · rpg-prose teaches #17 · PORT-R6 2-turn cross-link fixture · fillRule probe.
 - ✅ **TEMPLATE-UNIFY merged** (`6d7867401`, check 14/14) — row 49 slotted; (b) unification COMPLETE.
 - ✅ **SMALLS-SERVER merged** (`58b1f9ce7`, check 14/14) — narrator room previews its CAST shape now
   (GroupConfig threaded into PreviewInputs, per-speaker byte-unchanged, red-first: narrator RED on old
