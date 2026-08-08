@@ -11,9 +11,10 @@
 //   3. Ban-last-speaker (soft) — drop the last speaker from the pool; if that empties it, restore (yield
 //      rather than empty). A solo roster falls out here: the pool empties → restores → re-speaks.
 //   4. Policy — order/subset the pool: `list` (roster order, all), `natural` (talkativeness-weighted
-//      sample order, Efraimidis-Spirakis), `pooled` (roster order, round-robin), `manual` (none — only
-//      forced drives it), `smart` (the side-LLM path lives in `engine/smart-arbitrate`; this file only sees
-//      `smart` on the forced-target branch and treats it as `natural` — see `applyPolicy`).
+//      sample order, Efraimidis-Spirakis), `pooled` (ROUND-ROBIN — least-recently-spoken first: the roster
+//      rotated to start at the seat after the last speaker), `manual` (none — only forced drives it),
+//      `smart` (the side-LLM path lives in `engine/smart-arbitrate`; this file sees `smart` only where the
+//      turn verb did not route there — see `applyPolicy`).
 //   5. Cap — `maxSpeakers` (optional) truncates the ordered result; default = all eligible.
 
 import type { GroupConfig, SpeakerRef } from "@orb/contracts/chat";
@@ -81,28 +82,64 @@ export function selectSpeakers(params: SelectSpeakersParams): SpeakerRef[] {
     }
   }
 
-  const ordered = applyPolicy(pool, params.policy, params.rng);
+  const ordered = applyPolicy(pool, params.policy, params.rng, { eligible, lastSpeaker: params.lastSpeaker });
   return cap(
     ordered.map((c) => c.ref),
     params.maxSpeakers,
   );
 }
 
-function applyPolicy(pool: readonly ArbiterCandidate[], policy: GroupConfig["policy"], rng: () => number): readonly ArbiterCandidate[] {
+/** What `pooled` needs beyond the (already ban-last-filtered) pool: the full eligible roster in join order
+ *  and who spoke last, which together give the rotation origin. */
+interface RotationState {
+  readonly eligible: readonly ArbiterCandidate[];
+  readonly lastSpeaker: SpeakerRef | null;
+}
+
+/**
+ * `pooled` — round-robin by LEAST RECENTLY SPOKEN. The roster is a cycle; the last speaker's seat is the
+ * origin, so the rotation starts at the seat AFTER it and wraps. That is the whole state the rotation needs:
+ * "who spoke last" already rides every arbitration call, and one step of that cycle per round visits every
+ * member before repeating any of them — including under the auto-chain's `maxSpeakers: 1`, which is exactly
+ * where plain roster order degenerated into an A/B ping-pong that starved everyone after the second seat.
+ * No last speaker (round 1 / after a human turn), or a last speaker who has since left/muted: nothing to
+ * rotate around, so the pool keeps roster order.
+ */
+function pooledOrder(pool: readonly ArbiterCandidate[], state: RotationState): readonly ArbiterCandidate[] {
+  if (state.lastSpeaker === null) {
+    return pool;
+  }
+  const lastKey = speakerKey(state.lastSpeaker);
+  const originIdx = state.eligible.findIndex((c) => speakerKey(c.ref) === lastKey);
+  if (originIdx === -1) {
+    return pool;
+  }
+  const poolKeys = new Set(pool.map((c) => speakerKey(c.ref)));
+  const rotated = [...state.eligible.slice(originIdx + 1), ...state.eligible.slice(0, originIdx + 1)];
+  return rotated.filter((c) => poolKeys.has(speakerKey(c.ref)));
+}
+
+function applyPolicy(
+  pool: readonly ArbiterCandidate[],
+  policy: GroupConfig["policy"],
+  rng: () => number,
+  rotation: RotationState,
+): readonly ArbiterCandidate[] {
   switch (policy) {
     case "natural":
-    // `smart` is the side-LLM path (`engine/smart-arbitrate`) — the turn verb routes a smart round there,
-    // so this arm is reached ONLY on the forced-target branch: a `smart` room whose human `@mention`
-    // resolved to nobody eligible (the named seat is muted/left), which lands here with an empty forced
-    // list. No model was consulted, so this is a plain `natural` order, not the degrade path (the model
-    // failing IS the degrade path, and it is emitted as `smart_arbitration_degraded` by the caller).
+    // `smart` is the side-LLM path (`engine/smart-arbitrate`), which the turn verb routes a per-speaker
+    // smart round to — so this arm is reached only where it did NOT: a `smart` room whose human `@mention`
+    // resolved to nobody eligible (the named seat is muted/left), and a NARRATOR room, where the director
+    // call is short-circuited because its verdict governs nothing. No model was consulted in either case, so
+    // this is a plain `natural` order, not the degrade path (the model FAILING is the degrade path, emitted
+    // as `smart_arbitration_degraded` by the caller).
     case "smart":
       return weightedOrder(pool, rng);
-    // `list` (roster order, all) + `pooled` (round-robin — the banned last speaker is already excluded, so
-    // roster order is the rotation).
+    // `list` — roster order, all of them, every round (no rotation: that is `pooled`).
     case "list":
-    case "pooled":
       return pool;
+    case "pooled":
+      return pooledOrder(pool, rotation);
     // `manual` schedules no one automatically — only a forced/@mention target speaks (handled above).
     case "manual":
       return [];
@@ -148,24 +185,27 @@ export function resolveMentions(triggerText: string, cast: readonly CastName[]):
   // @mention is character-only: only character seats resolve to a forced characterId.
   const characters = cast.map((c) => ({ characterId: c.ref.characterId, name: c.name }));
   const byLongest = characters.toSorted((a, b) => b.name.length - a.name.length);
-  // Longest-first with overlap masking: a longer name that matched first CONSUMES its span, so a shorter
-  // name nested inside it (`@Aria` within `@Aria Stormborn`) cannot also fire.
+  // Longest-first with overlap masking: a longer name that matched CONSUMES its span, so a shorter name
+  // nested inside it (`@Aria` within `@Aria Stormborn`) cannot fire off that span. Masking is per-SPAN, not
+  // per-name: every occurrence is examined, so a later STANDALONE `@Aria` still forces her even though her
+  // first occurrence was swallowed by `@Aria Stormborn`. (A single `.search()` per name dropped that
+  // mention silently — the human typed it on purpose and the round fell back to policy order.)
   const found: { id: CharacterId; at: number }[] = [];
   const consumed: { at: number; end: number }[] = [];
   for (const member of byLongest) {
     if (member.name.length === 0) {
       continue;
     }
-    const at = triggerText.search(new RegExp(`@${RegExp.escape(member.name)}\\b`, "iu"));
-    if (at === -1) {
+    const spans = [...triggerText.matchAll(new RegExp(`@${RegExp.escape(member.name)}\\b`, "giu"))].map((m) => ({
+      at: m.index,
+      end: m.index + member.name.length + 1, // include the leading `@`
+    }));
+    const free = spans.find((s) => !consumed.some((r) => s.at < r.end && s.end > r.at));
+    if (free === undefined) {
       continue;
     }
-    const end = at + member.name.length + 1; // include the leading `@`
-    if (consumed.some((r) => at < r.end && end > r.at)) {
-      continue;
-    }
-    consumed.push({ at, end });
-    found.push({ id: member.characterId, at });
+    consumed.push(free);
+    found.push({ id: member.characterId, at: free.at });
   }
   return dedupeIds(found.sort((a, b) => a.at - b.at).map((f) => f.id));
 }

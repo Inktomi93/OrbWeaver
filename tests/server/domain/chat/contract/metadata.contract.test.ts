@@ -77,6 +77,38 @@ describe("parseChatMetadata", () => {
     expect(parseChatMetadata({ roomOverrides: { authorsNote: "Keep it tense." } }).roomOverrides).toBeUndefined();
   });
 
+  // RETIRED KEY, the OTHER disposition (2026-08-08): `group.groupCharacterId` was a dead switch — declared,
+  // never written, never read — and it travelled verbatim in the portability bundle carrying a foreign
+  // CharacterId. It is deleted from the contract, and BOTH union arms are now strict. Unlike `roomOverrides`
+  // (where heal-to-absent means "inherit"), healing the group sub-blob to absent would silently REVERT a
+  // narrator room to the per-speaker default — so a retired key is STRIPPED at this read seam instead of
+  // nuking the room's mode. Both arms, because both stored them.
+  test("a stored groupCharacterId is stripped, not fatal: the room keeps its mode on BOTH arms", () => {
+    const narrator = parseChatMetadata({
+      group: { output: "narrator", policy: "list", groupCharacterId: mintTypeId(ID_PREFIX.character) },
+      opening: "greet-all",
+    });
+    expect(narrator.group?.output).toBe("narrator");
+    expect(narrator.group?.policy).toBe("list");
+    expect(narrator.group === undefined ? true : "groupCharacterId" in narrator.group).toBe(false);
+    expect(narrator.opening).toBe("greet-all");
+
+    const perSpeaker = parseChatMetadata({
+      group: { output: "per-speaker", policy: "pooled", cardScope: "scoped", groupCharacterId: mintTypeId(ID_PREFIX.character) },
+    });
+    expect(perSpeaker.group?.output).toBe("per-speaker");
+    expect(perSpeaker.group?.output === "per-speaker" ? perSpeaker.group.cardScope : undefined).toBe("scoped");
+    expect(perSpeaker.group === undefined ? true : "groupCharacterId" in perSpeaker.group).toBe(false);
+  });
+
+  // The strip is scoped to the RETIRED key — an arbitrary typo'd key still fails the (now strict) per-speaker
+  // arm and heals the sub-blob to absent, exactly like the narrator arm has always done.
+  test("a stray (non-retired) key still heals the group sub-blob to absent on the per-speaker arm", () => {
+    const parsed = parseChatMetadata({ group: { output: "per-speaker", policy: "list", cardscope: "scoped" }, opening: "none" });
+    expect(parsed.group).toBeUndefined();
+    expect(parsed.opening).toBe("none");
+  });
+
   test("a corrupt providerRouting sub-blob heals to absent (never throws)", () => {
     expect(parseChatMetadata({ providerRouting: "nope" }).providerRouting).toBeUndefined();
     expect(parseChatMetadata({ providerRouting: 42 }).providerRouting).toBeUndefined();

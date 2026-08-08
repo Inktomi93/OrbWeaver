@@ -888,6 +888,104 @@ describe("send — narrator output (group character authors the turn)", () => {
   });
 });
 
+// A NARRATOR round voices the whole cast in ONE generation authored by the synthetic group character — it
+// never consumes an arbitrated speaker. So the `smart` side-LLM turn director must not run there: it costs a
+// real model call whose verdict is discarded, and its degrade would warn the room about a decision that
+// governs nothing. `policy` STAYS on the narrator arm (a mode toggle round-trips the host's choice) — it just
+// never buys a director call.
+describe("send — narrator × smart: the director is short-circuited (its verdict governs nothing)", () => {
+  const warnings = (events: readonly ChatBusEvent[]): readonly ChatBusEvent[] => events.filter((e) => e.type === "warning");
+
+  test("a narrator round makes ZERO side-LLM director calls and still commits the cast turn", async () => {
+    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { output: "narrator" });
+    const groupCharacterId = await seedCharacter(db, host, "group");
+    let directorCalls = 0;
+    const h = harness(db, names, {
+      groupCharacterId,
+      summarize: (): Promise<SummarizeResult> => {
+        directorCalls += 1;
+        return Promise.resolve({ items: [{ text: "aria", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+      },
+    });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "narrate" });
+
+    expect(directorCalls).toBe(0);
+    const assistants = outcome.messages.filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(assistants[0]?.characterId).toBe(groupCharacterId);
+  });
+
+  test("a DEAD director box never warns a narrator room (nothing degraded — nothing was asked)", async () => {
+    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { output: "narrator" });
+    const groupCharacterId = await seedCharacter(db, host, "group");
+    const h = harness(db, names, {
+      groupCharacterId,
+      summarize: () => Promise.reject(new Error("side-LLM down")),
+    });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "narrate" });
+
+    expect(warnings(h.events)).toHaveLength(0);
+    expect(outcome.messages.filter((m) => m.role === "assistant")).toHaveLength(1);
+  });
+
+  // The auto-chain in a narrator room must keep chaining: its continue/stop probe is the DETERMINISTIC
+  // arbitration (a nominee exists ⇒ narrate again), never the side-LLM.
+  test("the auto-chain still runs in a narrator×smart room, with no director calls", async () => {
+    const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], {
+      output: "narrator",
+      autoMode: true,
+      autoModeMaxTurns: 2,
+    });
+    const groupCharacterId = await seedCharacter(db, host, "group");
+    let directorCalls = 0;
+    const h = harness(db, names, {
+      groupCharacterId,
+      summarize: (): Promise<SummarizeResult> => {
+        directorCalls += 1;
+        return Promise.resolve({ items: [{ text: "aria", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
+      },
+    });
+
+    await h.turn.send({ principal: principal(host), chatId, content: "narrate" });
+
+    expect(directorCalls).toBe(0);
+    // the human round's narrator turn + 2 chained narrator turns, all authored by the group character.
+    const assistants = (await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(3);
+    expect(assistants.map((m) => m.characterId)).toEqual([groupCharacterId, groupCharacterId, groupCharacterId]);
+  });
+
+  // The THIRD forced-speaker door. `forceCharacterTurn` and `requestTurn` both coerce a narrator room to a
+  // per-speaker turn for the named character; the send-path `@mention` is the same intent typed into the
+  // composer, so it coerces too instead of silently narrating.
+  test("an @mention in a NARRATOR room coerces the round to a per-speaker turn for the named character", async () => {
+    const { host, chatId, chars, names } = await seedRoom("list", ["aria", "bryn"], { output: "narrator" });
+    const groupCharacterId = await seedCharacter(db, host, "group");
+    const h = harness(db, names, { groupCharacterId });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "@bryn hello" });
+
+    const assistants = outcome.messages.filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(assistants[0]?.characterId).toBe(chars[1]);
+  });
+
+  // …and a mention nobody eligible answers is NOT a forced round: the room stays in narrator mode.
+  test("an @mention naming a non-member leaves the narrator round alone", async () => {
+    const { host, chatId, names } = await seedRoom("list", ["aria", "bryn"], { output: "narrator" });
+    const groupCharacterId = await seedCharacter(db, host, "group");
+    const h = harness(db, names, { groupCharacterId });
+
+    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "@Gandalf hello" });
+
+    const assistants = outcome.messages.filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(assistants[0]?.characterId).toBe(groupCharacterId);
+  });
+});
+
 describe("send — auto-mode AI→AI chain", () => {
   test("autoMode chains additional turns past the human round (deterministic, ban-last)", async () => {
     const { host, chatId, names } = await seedRoom("list", ["aria", "bryn"], {
@@ -902,6 +1000,24 @@ describe("send — auto-mode AI→AI chain", () => {
     const canon = await loadCanonHistory(db, chatId);
     expect(canon.filter((m) => m.role === "assistant")).toHaveLength(4);
     expect(canon).toHaveLength(5);
+  });
+
+  // `pooled` is the room's ROTATION policy ("Round-robin" in the UI). The auto-chain is where it earns that
+  // name: every chained turn arbitrates ONE speaker, so plain roster order would ping-pong between the first
+  // two seats and starve the third forever. Least-recently-spoken ordering visits the whole roster.
+  test("a pooled auto-chain rotates through EVERY seat (no starvation at maxSpeakers: 1)", async () => {
+    const { host, chatId, chars, names } = await seedRoom("pooled", ["aria", "bryn", "cara"], {
+      autoMode: true,
+      autoModeMaxTurns: 3,
+    });
+    const h = harness(db, names);
+
+    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+
+    const assistants = (await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant");
+    // The human round is uncapped (all three, roster order); the three CHAINED turns then rotate past the
+    // last speaker — aria, bryn, cara — instead of re-running aria/bryn.
+    expect(assistants.map((m) => m.characterId)).toEqual([...chars, ...chars]);
   });
 
   // THE CHAIN-ARBITRATION HANG (owner: "handle it in full"): the continuation arbitration between chained

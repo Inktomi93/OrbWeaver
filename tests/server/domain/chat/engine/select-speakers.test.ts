@@ -184,6 +184,59 @@ describe("selectSpeakers — eligibility + manual + cap", () => {
   });
 });
 
+// `pooled` is the ROTATION policy the UI sells as "Round-robin" — it must differ from `list` (roster order,
+// all). The distinguishing surface is a CAPPED chain (auto-mode drives `maxSpeakers: 1`): pooled visits every
+// member before repeating one; list ping-pongs between the first two and starves the rest.
+describe("selectSpeakers — pooled (round-robin: least-recently-spoken first)", () => {
+  /** Walk N capped rounds, feeding each round's pick back as the next `lastSpeaker` (the auto-chain's shape). */
+  function chain(policy: GroupConfig["policy"], candidates: readonly ArbiterCandidate[], rounds: number): string[] {
+    const rng = seededRng(1);
+    const visited: string[] = [];
+    let last: SpeakerRef | null = null;
+    for (let i = 0; i < rounds; i += 1) {
+      const next: SpeakerRef | undefined = selectSpeakers({ candidates, policy, lastSpeaker: last, rng, maxSpeakers: 1 })[0];
+      if (next === undefined) {
+        return visited;
+      }
+      visited.push(speakerKey(next));
+      last = next;
+    }
+    return visited;
+  }
+
+  test("STARVATION: a capped pooled chain visits EVERY member before repeating one", () => {
+    const candidates = [cc("a"), cc("b"), cc("c")];
+    expect(chain("pooled", candidates, 6)).toEqual(keys([charRef("a"), charRef("b"), charRef("c"), charRef("a"), charRef("b"), charRef("c")]));
+  });
+
+  test("`list` is NOT a rotation — it stays roster order and starves the tail (the two policies differ)", () => {
+    const candidates = [cc("a"), cc("b"), cc("c")];
+    // ban-last alone only alternates the first two: `c` never speaks under a capped `list` chain.
+    expect(chain("list", candidates, 4)).toEqual(keys([charRef("a"), charRef("b"), charRef("a"), charRef("b")]));
+  });
+
+  test("uncapped pooled orders the WHOLE pool least-recently-spoken first (rotated past the last speaker)", () => {
+    const out = selectSpeakers({
+      candidates: [cc("a"), cc("b"), cc("c"), cc("d")],
+      policy: "pooled",
+      lastSpeaker: charRef("b"),
+      rng: seededRng(1),
+    });
+    // `b` is ban-last-dropped; the rotation starts at the roster slot AFTER it, wrapping to `a` last.
+    expect(keys(out)).toEqual(keys([charRef("c"), charRef("d"), charRef("a")]));
+  });
+
+  test("a last speaker who is no longer eligible (left/muted) leaves roster order untouched", () => {
+    const out = selectSpeakers({
+      candidates: [cc("a"), cc("b"), cc("gone", { leftSeq: 3 })],
+      policy: "pooled",
+      lastSpeaker: charRef("gone"),
+      rng: seededRng(1),
+    });
+    expect(keys(out)).toEqual(keys([charRef("a"), charRef("b")]));
+  });
+});
+
 describe("resolveMentions — @mention extraction (human-authored text only)", () => {
   const cast = [
     { ref: charRef("aria"), name: "Aria" },
@@ -202,6 +255,16 @@ describe("resolveMentions — @mention extraction (human-authored text only)", (
   test("case-insensitive; no @ → nothing", () => {
     expect(resolveMentions("@aria", cast)).toEqual([cid("aria")]);
     expect(resolveMentions("Aria without an at-sign", cast)).toEqual([]);
+  });
+
+  // FIRST-OCCURRENCE MASKING: a shorter name whose FIRST occurrence sits inside a longer name's consumed
+  // span must still fire on a LATER standalone occurrence — the human typed `@Aria` on purpose.
+  test("a later standalone @Aria still forces her, even after @Aria Stormborn consumed the first hit", () => {
+    expect(resolveMentions("@Aria Stormborn opens the door… @Aria, what do you think?", cast)).toEqual([cid("ariastorm"), cid("aria")]);
+  });
+
+  test("the nested-only case is unchanged: @Aria Stormborn alone forces ONLY the longer name", () => {
+    expect(resolveMentions("@Aria Stormborn opens the door.", cast)).toEqual([cid("ariastorm")]);
   });
 
   test("empty text / empty cast → no mentions", () => {

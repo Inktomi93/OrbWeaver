@@ -22,13 +22,32 @@ export const TOOL_RECURSE_LIMIT_MIN = 1;
 export const TOOL_RECURSE_LIMIT_MAX = 20;
 export const toolRecurseLimitSchema = z.number().int().min(TOOL_RECURSE_LIMIT_MIN).max(TOOL_RECURSE_LIMIT_MAX);
 
+/** Keys a STORED `group` sub-blob may still carry from a retired contract field (2026-08-08:
+ *  `groupCharacterId`, the D107 dead switch). Both union arms are `z.strictObject` now, so a retired key
+ *  would fail the parse and the `.catch(undefined)` below would heal the WHOLE sub-blob to absent —
+ *  silently reverting a narrator room to the per-speaker default. Unlike `roomOverrides` (where absent means
+ *  "inherit", so heal-to-absent is free), losing the group blob CHANGES the room, so retired keys are
+ *  stripped HERE on the read instead. The WRITE boundaries stay strict: the wire schema refuses the key
+ *  loudly, which is what makes this list finite and non-growing. */
+const RETIRED_GROUP_KEYS: readonly string[] = ["groupCharacterId"];
+
+/** Drop the retired keys from a stored group sub-blob; anything that is not a plain object passes through
+ *  untouched (the union's own parse owns that refusal). */
+function stripRetiredGroupKeys(raw: unknown): unknown {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return raw;
+  }
+  const entries = Object.entries(raw as Record<string, unknown>).filter(([key]) => !RETIRED_GROUP_KEYS.includes(key));
+  return Object.fromEntries(entries);
+}
+
 /** The declarative shape of the `chats.metadata` blob — every sub-blob independently fault-isolated
  *  (`.catch(undefined)`: a malformed one heals to absent without nuking its siblings) and the object
  *  itself `.loose()` (unknown future fields pass through unstripped). The runtime entry point is
  *  {@link parseChatMetadata}. */
 const chatMetadataSchema = z
   .object({
-    group: groupConfigSchema.optional().catch(undefined),
+    group: z.preprocess(stripRetiredGroupKeys, groupConfigSchema).optional().catch(undefined),
     roomOverrides: roomOverridesSchema.optional().catch(undefined),
     opening: openingPolicySchema.optional().catch(undefined),
     providerRouting: openRouterProviderRoutingSchema.optional().catch(undefined),

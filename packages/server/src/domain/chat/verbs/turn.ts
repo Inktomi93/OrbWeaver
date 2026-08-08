@@ -700,6 +700,10 @@ async function persistUserMessage(
 interface ArbitrationOutcome {
   readonly speakers: readonly CastName[];
   readonly aborted: boolean;
+  /** True when the result came from the FORCED hard-override (a `@mention`/explicit target that resolved to
+   *  an eligible seat), not from a policy. The caller uses it to coerce a narrator room to a per-speaker
+   *  round for the named character — the third forced-speaker door. */
+  readonly forcedOverride: boolean;
 }
 
 /** Arbitrates who speaks. An `@mention`/forced target hard-overrides any policy; `smart` (no forced) runs
@@ -729,7 +733,13 @@ async function arbitrate(
 ): Promise<ArbitrationOutcome> {
   const forced = args.forcedIds ?? [];
   let refs: readonly SpeakerRef[];
-  if (args.group.policy === "smart" && forced.length === 0) {
+  // NARRATOR SHORT-CIRCUIT (owner ruling 2026-08-08): a narrator round voices the whole cast in ONE
+  // generation authored by the synthetic group character and consumes NO arbitrated speaker (`round.ts`
+  // ignores `speakers` on that arm), so buying the side-LLM director there costs a real model call for a
+  // verdict nothing reads — and its degrade would warn the room about a decision that governs nothing. The
+  // deterministic sampler still runs: the auto-chain's continue/stop probe reads its nominee (a nominee
+  // exists ⇒ narrate again), which is the ONLY thing a narrator round takes from arbitration.
+  if (args.group.policy === "smart" && forced.length === 0 && args.group.output !== "narrator") {
     // The side-gen sampling ladder: the `arbiter` floor (temp 0.2, 24 out — a deterministic name pick) ← the
     // chat host's default-preset params. A user with no preset params gets byte-identical behavior; a user WITH
     // preset params can now widen/tune it. Mapped to the summarize seam's `{temperature, maxTokens}`.
@@ -747,7 +757,7 @@ async function arbitrate(
       ...(args.signal !== undefined ? { signal: args.signal } : {}),
     });
     if (smart.aborted) {
-      return { speakers: [], aborted: true };
+      return { speakers: [], aborted: true, forcedOverride: false };
     }
     if (smart.degraded) {
       await deps.emit({ type: "warning", chatId: args.chatId, code: "smart_arbitration_degraded" });
@@ -768,7 +778,13 @@ async function arbitrate(
     const c = byKey.get(speakerKey(ref));
     return c !== undefined ? [c] : [];
   });
-  return { speakers, aborted: false };
+  // Did the FORCED branch fire? `selectSpeakers` takes it only when a forced id intersects the eligible set,
+  // and returns exactly that intersection — so a returned speaker who is a forced target proves it. The
+  // converse is safe too: when no forced id is eligible the result is policy-derived off the eligible pool,
+  // which is disjoint from the (ineligible) forced ids.
+  const forcedKeys = new Set(forced.map((characterId) => speakerKey({ kind: "character", characterId })));
+  const forcedOverride = speakers.some((c) => forcedKeys.has(speakerKey(c.ref)));
+  return { speakers, aborted: false, forcedOverride };
 }
 
 /** Coerces a room config to `per-speaker` for a single forced character, so a narrator room still forces a
@@ -926,6 +942,12 @@ async function runAiRound(
     return { messages: [], aborted: true, abortReason: "user" };
   }
   const speakers = arbitration.speakers;
+  // THE THIRD FORCED DOOR (F7): `forceCharacterTurn` and `requestTurn` both coerce a narrator room to a
+  // per-speaker turn for the named character; a send-path `@mention` is the same intent typed into the
+  // composer and coerces the same way — otherwise it is the one forced door that silently no-ops in a
+  // narrator room (the narrator round discards the speaker list). Scoped to the ROUND: the mint and the
+  // auto-chain below still read the ROOM's own config, so the chain resumes narrating.
+  const roundGroup = arbitration.forcedOverride ? asPerSpeaker(args.group) : args.group;
   const groupCharacterId =
     args.group.output === "narrator"
       ? (
@@ -940,7 +962,7 @@ async function runAiRound(
   // drives exactly the arbitration result. When arbitration yields NO eligible per-speaker responder the engine
   // never runs, so it emits neither `turnStarted` nor a terminal — and the `turnAccepted` slot above would
   // strand OPEN (a stuck Stop button, the same bug inverted). Close it here with the honest no-reply terminal.
-  const drivesAnyTurn = args.group.output === "narrator" || speakers.length > 0;
+  const drivesAnyTurn = roundGroup.output === "narrator" || speakers.length > 0;
   if (!drivesAnyTurn) {
     await deps.emit({ type: "turnCompleted", chatId: args.base.chatId, intent, messageId: null });
     return { messages: [], aborted: false, abortReason: undefined };
@@ -948,7 +970,7 @@ async function runAiRound(
   const round = await driveRoundVia({
     engine: deps.engine,
     base: args.base,
-    group: args.group,
+    group: roundGroup,
     speakers,
     groupCharacterId,
     castName,
