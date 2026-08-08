@@ -68,6 +68,13 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 
 ## ═══ STATE (2026-08-07 — the identity build landed; the queue below is live) ═══
 
+- **═══ ⚑ AUTHORITATIVE REMAINING WORK = `docs/retro-remaining-work-ledger.md` (2026-08-08, tree-reverified) ═══**
+  The board below is layered/scattered and CONTRADICTS ITSELF in 4 places the ledger resolved — trust
+  the LEDGER over any block below it: **AUTHFIX-2 is CLOSED (the "OPEN UNAUTHENTICATED HOLE" section
+  further down is STALE — DEBUGGATE graduated it; only rotate DEBUG_TOKEN + set IP_ALLOWLIST remain)**;
+  databank pagination is BUILT; I-2 databank is CLOSED (its `### I-2` header lies "S3 unbuilt");
+  capability-gate wiring is genuinely open. The ledger is A(in-flight)/B(dispatchable)/C(owner-decision)/
+  D(older-open)/E(verify)/F(struck-done, 14 groups).
 - **⚑ COMPACT BOUNDARY SNAPSHOT (2026-08-08 late, main `94394e611`, 157 ahead of origin, tree clean):**
   - **⚑ CONSOLIDATED REMAINING-WORK LEDGER being built** (`a8eeb652ff8e38926`, read-only) →
     `docs/retro-remaining-work-ledger.md` — reads the WHOLE board + all options/design/audit docs,
@@ -359,7 +366,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - **THE DAY'S NUMBER:** 12 fresh-lens passes, **8 refutations** — every one already merged, gate-green
   and believed done. Six premise-kills by lanes, three against briefs the orchestrator wrote.
 
-## ═══ ⚑ AUTHFIX-2 — AN OPEN UNAUTHENTICATED HOLE, FOUND 2026-08-07, NOT FIXED ═══
+## ═══ ~~AUTHFIX-2 — OPEN HOLE~~ **STALE — CLOSED by DEBUGGATE (graduated); see the ledger. Only DEBUG_TOKEN rotation + IP_ALLOWLIST remain (owner ops).** ═══
 
 **Severity HIGH on any box whose origin port is reachable. Found by lane AUTHFIX while fixing something
 else; deliberately NOT fixed, with reasons. Full write-up + exploit path + two costed fix shapes:
