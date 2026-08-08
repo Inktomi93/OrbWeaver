@@ -16,10 +16,12 @@
 // 127.0.0.1:22) stays BLOCKED. This does not touch the safeFetch path, whose unconditional private-range
 // denial never consults the allowlist.
 
+// biome-ignore-all lint/style/noProcessEnv: the VLLM_ENGINE_HOST describe DRIVES the sole env reader by crafting process.env (the reimport pattern from tests/server/foundation/env/index.test.ts).
+import process from "node:process";
 import { fetchOpenAiModels, installEgressFirewall } from "@orb/server/infra/network";
 import type { Dispatcher } from "undici";
 import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
-import { afterAll, beforeAll, describe } from "vitest";
+import { afterAll, beforeAll, describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 // Capture/restore the process-global dispatcher through undici's PUBLIC accessors. Restoring is MANDATORY:
@@ -101,5 +103,64 @@ describe("installEgressFirewall — boot-installed global SSRF dispatcher (s7 HI
       headers: null,
     });
     expect(ids).toEqual([]);
+  });
+});
+
+// ── VLLM_ENGINE_HOST relocation: the internal-backend bypass FOLLOWS the declared engine host ────────────
+// Profile-2/D2 (docs/design/containerize-prod-image-spec.md §3.6): a slim app container points at an
+// EXTERNAL vLLM via VLLM_ENGINE_HOST; the egress private-range block must open for exactly
+// `<that host>:<the three engine ports>` — declared operator intent, the same class as the OIDC-issuer
+// auto-allow — and CLOSE for the loopback default it replaced (the set READS env, it never accumulates).
+// The env floor is frozen at module load, so this drives a FRESH module registry with a crafted
+// process.env (the tests/server/foundation/env/index.test.ts reimport pattern). 127.0.0.2 is used as the
+// relocated host: still local (a connect attempt fails FAST as ECONNREFUSED, never a slow dial-out), but
+// NEVER where the engines actually bind (they bind 127.0.0.1 — build-argv LOOPBACK_HOST), so nothing can
+// be listening and the pass/block verdicts stay deterministic on a box with a live fleet.
+describe("installEgressFirewall — VLLM_ENGINE_HOST relocates the internal-backend bypass", () => {
+  let snapshot: Record<string, string | undefined>;
+  let original: Dispatcher;
+
+  beforeAll(async () => {
+    snapshot = { ...process.env };
+    for (const k of Object.keys(process.env)) {
+      delete process.env[k];
+    }
+    process.env["VITEST"] = "1";
+    process.env["ORB_ENV_NO_FILE"] = "1";
+    process.env["VLLM_ENGINE_HOST"] = "127.0.0.2";
+    vi.resetModules();
+    const freshNetwork = await import("@orb/server/infra/network");
+    original = getGlobalDispatcher();
+    freshNetwork.installEgressFirewall();
+  });
+
+  afterAll(() => {
+    setGlobalDispatcher(original);
+    for (const k of Object.keys(process.env)) {
+      delete process.env[k];
+    }
+    Object.assign(process.env, snapshot);
+    vi.resetModules();
+  });
+
+  test("the relocated host's exact engine ports pass — connect attempted (ECONNREFUSED), not SSRF-blocked", async () => {
+    const results = await Promise.all(
+      [8701, 8702, 8703].map(async (port) => [port, errorChainText(await fetch(`http://127.0.0.2:${port}/models`).catch((e: unknown) => e))] as const),
+    );
+    for (const [port, txt] of results) {
+      expect(txt, `127.0.0.2:${port}`).not.toContain("SSRF_BLOCKED");
+    }
+  });
+
+  test("a NON-configured port on the relocated host stays SSRF-blocked (port-scoping survives relocation)", async () => {
+    const err = await fetch("http://127.0.0.2:9998/x").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(errorChainText(err)).toContain("SSRF_BLOCKED");
+  });
+
+  test("the DISPLACED loopback default is no longer bypassed — the set reads env, it never accumulates", async () => {
+    const err = await fetch("http://127.0.0.1:8701/models").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(errorChainText(err)).toContain("SSRF_BLOCKED");
   });
 });

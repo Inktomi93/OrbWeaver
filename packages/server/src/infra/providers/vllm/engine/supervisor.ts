@@ -288,7 +288,11 @@ export function startVllmEngines(opts: {
   const autoSleepStates = new Map<VllmEngine, AutoSleepState>(ENGINES.map((e) => [e, initialAutoSleepState]));
   const log = getLog().child({ component: "vllm-engines" });
 
-  if (!detectGpu()) {
+  // The local-GPU requirement is MANAGER-scoped: a MANAGING supervisor spawns engines on THIS host, so no
+  // local GPU ⇒ idle (engines unavailable). adopt-only is a passive consumer of a fleet that may be REMOTE
+  // (VLLM_ENGINE_HOST — profile-2/D2, docs/design/containerize-prod-image-spec.md §3.6): it probes and
+  // adopts regardless of the local GPU, and its decideFree arm already fail-fasts when nothing answers.
+  if (manages && !detectGpu()) {
     log.warn("vllm-engines: no NVIDIA GPU detected — supervisor idle, engines unavailable");
     for (const engine of ENGINES) {
       setEngineStatus(engine, "down", "no GPU on this host", now());

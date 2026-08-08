@@ -1,0 +1,39 @@
+# Build-context filter for Dockerfile (both targets). Two jobs: keep SECRETS + STATE out of the daemon
+# (a fat context can leak .env/data into a layer), and keep the context small so `COPY . .` cache-busts
+# only on real source changes. NOT ignored on purpose: `patches/` (pnpm patchedDependencies — a frozen
+# install refuses to run without them) and `scripts/` (the fleet front door ships in the gpu target).
+
+# secrets + state — the load-bearing exclusions
+.env
+.env.*
+data/
+docker/secrets/
+
+# dependency + build output (rebuilt in-image)
+node_modules
+**/node_modules
+packages/client/dist
+
+# the multi-GB engine stores (the main checkout's store root is the repo root)
+.cache
+.models
+
+# VCS + dev tooling
+.git
+.github
+.claude
+.devcontainer
+.vscode
+
+# tests + docs + reports — never part of the runtime
+tests/
+docs/
+reports/
+coverage/
+.stryker-tmp
+playwright/
+test-results/
+
+# misc noise
+*.log
+.DS_Store

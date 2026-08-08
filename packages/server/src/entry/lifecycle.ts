@@ -19,7 +19,7 @@ import { discovery } from "openid-client";
 import { startAutomationWatcher } from "#domain/automation";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
-import { enginesPostureInput, env, postureManages, postureRegistersBackend, resolveEnginesPosture } from "#foundation/env";
+import { effectiveVllmDisabled, enginesPostureInput, env, postureManages, resolveEnginesPosture } from "#foundation/env";
 import { getLog, initTracing, wrapLibSqlClient } from "#foundation/observability";
 import { createForwardJwtVerifier, createPasswordHasher } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
@@ -196,11 +196,12 @@ export function createLifecycle(): Lifecycle {
     }
 
     // The one GPU/vLLM-availability fact: probe the host once, then resolve the ENGINES_POSTURE (A.4). The
-    // deprecated VLLM_DISABLED/STACK_ENGINES pair maps to a posture with a VISIBLE log. `off` OR no GPU ⇒
-    // the backend isn't registered and no supervisor runs (effective "disabled" for the rest of compose).
+    // deprecated VLLM_DISABLED/STACK_ENGINES pair maps to a posture with a VISIBLE log. `off` ⇒ disabled;
+    // the local-GPU requirement is MANAGER-scoped (effectiveVllmDisabled): adopt-or-start spawns on THIS
+    // host and needs its GPU, while adopt-only may consume a REMOTE fleet (VLLM_ENGINE_HOST) GPU-less.
     const gpuPresent = detectGpu();
     const posture = resolveEnginesPosture(enginesPostureInput(), (msg) => log.warn({ deprecation: true }, `boot: ${msg}`));
-    const vllmDisabled = !(postureRegistersBackend(posture) && gpuPresent);
+    const vllmDisabled = effectiveVllmDisabled(posture, gpuPresent);
     log.info({ gpuPresent, posture, vllmDisabled }, "boot: gpu-detect → engines posture → effective vLLM availability");
 
     // The stable per-replica lock-holder tag — threaded into both compose (chat turn-lock) and the boot

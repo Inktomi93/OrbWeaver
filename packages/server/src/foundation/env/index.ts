@@ -16,7 +16,7 @@ import type { EnginesPosture } from "./posture.ts";
 import { ENGINES_POSTURES } from "./posture.ts";
 
 export type { EnginesPosture } from "./posture.ts";
-export { ENGINES_POSTURES, postureManages, postureRegistersBackend, resolveEnginesPosture } from "./posture.ts";
+export { ENGINES_POSTURES, effectiveVllmDisabled, postureManages, postureRegistersBackend, resolveEnginesPosture } from "./posture.ts";
 
 const DEFAULT_PORT = 8788;
 // vLLM loopback engine ports (must match what the stack supervisor passes).
@@ -201,6 +201,12 @@ const envSchema = z
     // The local inference family (embed/rerank/image-embed/summarize/VL gen), supervised loopback engines.
     // STACK_ENGINES=yes signals the stack leader already spawned them (adopt, don't double-spawn GPU).
     STACK_ENGINES: z.enum(["yes", "no"]).default("no"),
+    // The host the three engines are REACHED at (engineBaseUrl + the egress internal-backend allowlist).
+    // Default loopback: the bare-metal/all-in-one fleet shares the network namespace. A slim app-only
+    // deployment pointing at an EXTERNAL vLLM (compose sibling / remote box — profile-2/D2,
+    // docs/design/containerize-prod-image-spec.md §3.6) relocates it, typically with
+    // ENGINES_POSTURE=adopt-only. Host-only (no scheme/port): VLLM_*_PORT stays the port authority.
+    VLLM_ENGINE_HOST: z.string().min(1).default("127.0.0.1"),
     VLLM_EMBED_PORT: z.coerce.number().int().positive().default(VLLM_EMBED_PORT_DEFAULT),
     VLLM_RERANK_PORT: z.coerce.number().int().positive().default(VLLM_RERANK_PORT_DEFAULT),
     VLLM_GEN_PORT: z.coerce.number().int().positive().default(VLLM_GEN_PORT_DEFAULT),

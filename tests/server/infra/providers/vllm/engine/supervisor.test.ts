@@ -19,7 +19,9 @@ const io = vi.hoisted(() => {
   // Engines currently answering /health OK. A trigger marks the trio healthy; a simulated crash removes one.
   const healthy = new Set<string>();
   const triggers: number[] = []; // one entry per triggerSpawn call (detached fleet boots)
-  return { healthy, triggers };
+  // detectGpu's nvidia-smi probe outcome. Default false = a GPU is "present"; the manager-scoped-GPU
+  // describe flips it true to drive a GPU-less box (and resets it in its afterEach).
+  return { healthy, triggers, gpuAbsent: false };
 });
 
 // Partial mocks (spread the real module — foundation/config etc. still need readFileSync/the rest).
@@ -30,8 +32,12 @@ vi.mock("node:child_process", async (importOriginal) => {
     // reap ps / port-owner ss → empty (no orphans, no foreign owner). The detached spawn is the INJECTED
     // triggerSpawn (not execFile), so nothing here launches a real fleet.
     execFile: (_c: string, _a: readonly string[], cb: (e: unknown, out: string) => void): void => cb(null, ""),
-    // detectGpu's nvidia-smi probe: succeed (a GPU is "present").
-    execFileSync: (): undefined => undefined,
+    // detectGpu's nvidia-smi probe: succeed (a GPU is "present") unless the harness flips gpuAbsent.
+    execFileSync: (): undefined => {
+      if (io.gpuAbsent) {
+        throw new Error("nvidia-smi: command not found");
+      }
+    },
   };
 });
 
@@ -490,6 +496,109 @@ describe("startVllmEngines — auto-sleep idle timer", () => {
       await vi.advanceTimersByTimeAsync(21_000);
       await settle();
       expect(slept).toEqual([]); // adopt-only is a passive consumer — never sleeps the fleet
+    } finally {
+      stop();
+    }
+  });
+});
+
+// ── GPU-less boxes: the local-GPU requirement is MANAGER-scoped ──────────────────────────────────────────
+// A MANAGING supervisor spawns engines on THIS host, so no local GPU ⇒ idle ("no GPU on this host").
+// adopt-only is a passive consumer of a fleet that may be REMOTE (VLLM_ENGINE_HOST — profile-2/D2,
+// docs/design/containerize-prod-image-spec.md §3.6): a GPU-less app box must still probe and adopt.
+describe("startVllmEngines — the local-GPU requirement is MANAGER-scoped", () => {
+  const engines = ["embed", "rerank", "gen"] as const;
+  const urlEngine = (url: string): string | undefined => engines.find((e) => url.startsWith(engineBaseUrl(e)));
+
+  beforeEach(() => {
+    io.healthy.clear();
+    io.triggers.length = 0;
+    io.gpuAbsent = true; // every test in this describe runs on a GPU-less box
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", (input: unknown): Promise<{ ok: boolean; json: () => Promise<unknown> }> => {
+      const url = String(input);
+      const engine = urlEngine(url);
+      if (engine !== undefined && io.healthy.has(engine)) {
+        // biome-ignore lint/style/useNamingConvention: is_sleeping mirrors the vLLM /is_sleeping wire body.
+        const body = url.includes("/is_sleeping") ? { is_sleeping: false } : {};
+        return Promise.resolve({ ok: true, json: (): Promise<unknown> => Promise.resolve(body) });
+      }
+      return Promise.reject(new Error("ECONNREFUSED"));
+    });
+  });
+  afterEach(() => {
+    io.gpuAbsent = false;
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+  const settle = async (): Promise<void> => {
+    for (let i = 0; i < 8; i += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: draining the async chain is inherently sequential.
+      await vi.advanceTimersByTimeAsync(0);
+    }
+  };
+
+  test("adopt-only on a GPU-less box still probes and ADOPTS a healthy (remote) fleet — never idles on 'no GPU'", async () => {
+    io.healthy.add("embed");
+    io.healthy.add("rerank");
+    io.healthy.add("gen");
+    const stop = startVllmEngines({
+      repoRoot: "/repo",
+      now: (): number => 1_000_000,
+      sleep: () => Promise.resolve(),
+      manages: false,
+      triggerSpawn: () => {
+        io.triggers.push(io.triggers.length);
+      },
+    });
+    try {
+      await settle();
+      expect(getEngineStatus("embed")?.status).toBe("adopted");
+      expect(getEngineStatus("rerank")?.status).toBe("adopted");
+      expect(getEngineStatus("gen")?.status).toBe("adopted");
+      expect(io.triggers).toEqual([]); // adopt-only NEVER spawns, GPU or not
+    } finally {
+      stop();
+    }
+  });
+
+  test("adopt-only on a GPU-less box with the fleet DOWN fail-fasts on the probe verdict, not on the GPU", async () => {
+    const stop = startVllmEngines({
+      repoRoot: "/repo",
+      now: (): number => 1_000_000,
+      sleep: () => Promise.resolve(),
+      manages: false,
+      triggerSpawn: () => {
+        io.triggers.push(io.triggers.length);
+      },
+    });
+    try {
+      await settle();
+      // decideFree's adopt-only arm — the honest fail-fast with the remedy — NOT the pre-probe GPU idle.
+      expect(getEngineStatus("embed")?.status).toBe("down");
+      expect(getEngineStatus("embed")?.detail).toContain("adopt-only: this stack never spawns");
+      expect(io.triggers).toEqual([]);
+    } finally {
+      stop();
+    }
+  });
+
+  test("the MANAGER posture still idles without a local GPU (it would have to spawn locally)", async () => {
+    io.healthy.add("embed"); // even a healthy port doesn't matter — the manager idles before probing
+    const stop = startVllmEngines({
+      repoRoot: "/repo",
+      now: (): number => 1_000_000,
+      sleep: () => Promise.resolve(),
+      triggerSpawn: () => {
+        io.triggers.push(io.triggers.length);
+      },
+    });
+    try {
+      await settle();
+      expect(getEngineStatus("embed")?.status).toBe("down");
+      expect(getEngineStatus("embed")?.detail).toBe("no GPU on this host");
+      expect(getEngineStatus("gen")?.detail).toBe("no GPU on this host");
+      expect(io.triggers).toEqual([]);
     } finally {
       stop();
     }

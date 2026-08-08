@@ -31,6 +31,10 @@ RUN_DIR="$REPO/.cache/stack"
 PIDFILE="$RUN_DIR/engines.pgid"
 LOG_DIR="$RUN_DIR"
 TSX="$REPO/node_modules/.bin/tsx"
+# tsx is a ROOT devDependency — absent from a prod-pruned install (the container image, which carries the
+# `pnpm deploy --prod` node_modules). node 26 runs .ts source directly (the same mechanism as the server),
+# so fall back to plain node there; dev boxes keep the tsx binary and are byte-identical.
+[ -x "$TSX" ] || TSX="node"
 CTL_TS="$REPO/scripts/dev/engines-ctl.ts"
 # Model/venv stores are SHARED across git worktrees (git-common-dir parent); an explicit override wins.
 STORE_ROOT="${VLLM_STORE_ROOT:-$(dirname "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo "$REPO/.git")")}"

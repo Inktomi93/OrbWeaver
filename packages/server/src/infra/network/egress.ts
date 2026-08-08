@@ -75,11 +75,14 @@ function hostPortKey(hostname: string, port: string, protocol: string): string {
   return `${hostname.toLowerCase()}:${p}`;
 }
 
-/** The box's OWN configured inference backends, host:PORT-scoped (least-privilege). vLLM engines are
- *  structurally loopback (engineBaseUrl hardcodes 127.0.0.1). Membership here bypasses the private-range
- *  block for that EXACT host:port only. */
+/** The box's OWN configured inference backends, host:PORT-scoped (least-privilege). The host is the SAME
+ *  env-declared VLLM_ENGINE_HOST engineBaseUrl dials (default loopback; a profile-2/D2 deployment points
+ *  it at an external engine — operator-declared intent, the same class as the OIDC-issuer auto-add, never
+ *  attacker input). Lower-cased to stay comparable with the connect wrapper's `hostPortKey`. Membership
+ *  bypasses the private-range block for that EXACT host:port only. */
 function internalBackendHostPorts(): ReadonlySet<string> {
-  return new Set<string>([`127.0.0.1:${env.VLLM_EMBED_PORT}`, `127.0.0.1:${env.VLLM_RERANK_PORT}`, `127.0.0.1:${env.VLLM_GEN_PORT}`]);
+  const host = env.VLLM_ENGINE_HOST.toLowerCase();
+  return new Set<string>([`${host}:${env.VLLM_EMBED_PORT}`, `${host}:${env.VLLM_RERANK_PORT}`, `${host}:${env.VLLM_GEN_PORT}`]);
 }
 
 export function installEgressFirewall(): void {

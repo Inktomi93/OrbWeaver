@@ -1,7 +1,7 @@
 // Unit tests for the engine-posture resolver (A.4) — the ONE topology decision + the back-compat mapping of
 // the deprecated VLLM_DISABLED/STACK_ENGINES pair (with a VISIBLE deprecation log, never silent re-semantics).
 
-import { postureManages, postureRegistersBackend, resolveEnginesPosture } from "@orb/server/foundation/env";
+import { effectiveVllmDisabled, postureManages, postureRegistersBackend, resolveEnginesPosture } from "@orb/server/foundation/env";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -50,5 +50,27 @@ describe("posture predicates", () => {
     expect(postureManages("off")).toBe(false);
     expect(postureManages("adopt-only")).toBe(false);
     expect(postureManages("adopt-or-start")).toBe(true);
+  });
+});
+
+// The boot fact `entry/lifecycle` derives from posture × local-GPU probe. The load-bearing row is
+// `adopt-only × no GPU` → NOT disabled: a passive consumer's engines may live on ANOTHER host
+// (VLLM_ENGINE_HOST — profile-2/D2, docs/design/containerize-prod-image-spec.md §3.6), so a GPU-less app
+// box must still register the backend and probe/adopt. Only the MANAGING posture spawns locally and
+// therefore requires a local GPU.
+describe("effectiveVllmDisabled — the local-GPU requirement is MANAGER-scoped", () => {
+  test("off → disabled regardless of GPU", () => {
+    expect(effectiveVllmDisabled("off", true)).toBe(true);
+    expect(effectiveVllmDisabled("off", false)).toBe(true);
+  });
+
+  test("adopt-or-start (the manager spawns locally) → requires a local GPU", () => {
+    expect(effectiveVllmDisabled("adopt-or-start", true)).toBe(false);
+    expect(effectiveVllmDisabled("adopt-or-start", false)).toBe(true);
+  });
+
+  test("adopt-only (passive consumer, possibly-remote fleet) → available WITHOUT a local GPU", () => {
+    expect(effectiveVllmDisabled("adopt-only", true)).toBe(false);
+    expect(effectiveVllmDisabled("adopt-only", false)).toBe(false);
   });
 });
