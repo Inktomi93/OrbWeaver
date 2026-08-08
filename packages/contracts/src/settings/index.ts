@@ -5,7 +5,7 @@ import { isPlainObject } from "@orb/kit/guards";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { z } from "zod";
-import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "#chat";
+import { DEFAULT_GROUP_CONFIG, storedGroupConfigSchema } from "#chat";
 import { chatApiSchema, openRouterProviderRoutingSchema } from "#connection";
 import { credentialSourceSchema } from "#credentials";
 import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
@@ -895,7 +895,11 @@ export const userSettingsSchema = z.object({
   // duplicate) and are NOT mirrored here.
   prose: proseOverridesSchema,
   persona: personaSchema,
-  groupDefaults: groupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
+  // The STORED read shares the chat blob's ONE strip home (`storedGroupConfigSchema`): a retired group key
+  // is dropped before the strict arms see it, because this `.catch` would otherwise revert the user's saved
+  // room defaults to per-speaker — the chat blob's silent-reversal class, one tier up. The section's write
+  // path is deep-merge-and-re-validate through this same lenient parser by design, so no strict door moves.
+  groupDefaults: storedGroupConfigSchema.catch(DEFAULT_GROUP_CONFIG).default(DEFAULT_GROUP_CONFIG),
   onboarding: onboardingSchema,
   workloads: workloadsSchema,
   profile: profileSchema,

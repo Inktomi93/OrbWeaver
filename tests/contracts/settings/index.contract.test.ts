@@ -20,6 +20,7 @@ import {
   USER_SETTINGS_SECTIONS,
   userSettingsSchema,
 } from "@orb/contracts/settings";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "../../support/fixtures.ts";
 
 const SCHEMA_VERSION_V1 = 1;
@@ -203,6 +204,34 @@ test("summarize roleDefault rejects local-light (chat-less tier) — heals to no
 test("UserSettings.groupDefaults carries the D22 memberCardVisibility default 'sheet'", () => {
   expect(DEFAULT_USER_SETTINGS.groupDefaults).toEqual(DEFAULT_GROUP_CONFIG);
   expect(DEFAULT_USER_SETTINGS.groupDefaults.memberCardVisibility).toBe("sheet");
+});
+
+// RETIRED KEY, one tier up (2026-08-08): `group.groupCharacterId` was deleted from `groupConfigSchema` and
+// both union arms are strict, so a stored `groupDefaults` still carrying it would fail the parse and the
+// `.catch(DEFAULT_GROUP_CONFIG)` would silently revert the user's saved room defaults to per-speaker — the
+// same silent-reversal class as the chat blob, one tier up. `groupDefaults` shares the chat blob's ONE
+// stored-read schema (`storedGroupConfigSchema`), so the strip lands here too. The section's WRITE path is
+// deep-merge-and-re-validate through this same lenient parser by design
+// (`domain/settings/verbs/update-user-settings-section.ts`) — there is no strict door being weakened.
+//
+// Both pins pass the STORED VERSION, which is what the real read seam does
+// (`domain/settings/persistence/queries.ts:32` — `parseUserSettings(row.config, row.schemaVersion)`). Without
+// it the blob probes as v1 and the v1 lift rebuilds it from the v1 key set, where `groupDefaults` did not yet
+// exist — a correct additive-namespace drop that would mask what these pins are about.
+test("a stored groupDefaults carrying the retired groupCharacterId keeps its mode (stripped, not reverted)", () => {
+  const parsed = parseUserSettings(
+    { groupDefaults: { output: "narrator", policy: "list", speakerTags: false, groupCharacterId: mintTypeId(ID_PREFIX.character) } },
+    USER_SETTINGS_SCHEMA_VERSION,
+  );
+  expect(parsed.groupDefaults.output).toBe("narrator");
+  expect(parsed.groupDefaults.policy).toBe("list");
+  expect(parsed.groupDefaults.speakerTags).toBe(false);
+  expect("groupCharacterId" in parsed.groupDefaults).toBe(false);
+});
+
+test("a stray (non-retired) key in groupDefaults still heals the whole section to the default", () => {
+  const parsed = parseUserSettings({ groupDefaults: { output: "narrator", policy: "list", cardscope: "scoped" } }, USER_SETTINGS_SCHEMA_VERSION);
+  expect(parsed.groupDefaults).toEqual(DEFAULT_GROUP_CONFIG);
 });
 
 // ── Additive namespaces read their default with NO version bump (the lenient-parser dividend) ──

@@ -100,8 +100,8 @@ const autoModeFields = {
 // bundle, where a foreign `CharacterId` resolves to nothing on the target box (the D136(C) class). Both arms
 // now REFUSE it (strictObject) at every write boundary. A STORED blob still carrying one is not debris the
 // way a retired `authorsNote` is: healing the group sub-blob to absent would silently revert a narrator room
-// to the per-speaker default, so the retired key is STRIPPED at the read seam instead
-// (`domain/chat/contract/metadata.ts`). Pre-launch, no migration.
+// to the per-speaker default, so the retired key is STRIPPED on the stored read instead — see
+// `storedGroupConfigSchema` below, the ONE strip home both stored readers share. Pre-launch, no migration.
 
 // `memberCardVisibility` (D22) — host-set, default `sheet`; on BOTH arms (both arms are strict).
 const memberCardVisibilityField = {
@@ -143,6 +143,32 @@ export const groupConfigSchema = z.discriminatedUnion("output", [
   }),
 ]);
 export type GroupConfig = z.infer<typeof groupConfigSchema>;
+
+/** Keys a STORED group blob may still carry from a retired field (above: `groupCharacterId`). Finite and
+ *  non-growing BY CONSTRUCTION — every WRITE door refuses a retired key against the strict arms, so the only
+ *  way one exists is that it was written before the retirement. */
+const RETIRED_GROUP_KEYS: readonly string[] = ["groupCharacterId"];
+
+/** Drop the retired keys; anything that is not a plain object passes through untouched (the union's own
+ *  parse owns that refusal). */
+function stripRetiredGroupKeys(raw: unknown): unknown {
+  if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
+    return raw;
+  }
+  return Object.fromEntries(Object.entries(raw as Record<string, unknown>).filter(([key]) => !RETIRED_GROUP_KEYS.includes(key)));
+}
+
+/** The STORED-blob read of {@link groupConfigSchema}: retired keys are stripped BEFORE the strict arms see
+ *  them. ONE HOME for every fault-isolated stored read of a group config — today the `chats.metadata.group`
+ *  sub-blob (`domain/chat/contract/metadata.ts`) and the per-user `settings.groupDefaults`.
+ *
+ *  WHY a strip and not the `authorsNote` heal-to-absent precedent: both of those seams wrap this schema in a
+ *  `.catch(...)`, and for a group config that catch is NOT free. A retired key would fail the strict parse
+ *  and the room would heal to the per-speaker DEFAULT — silently reverting a narrator room (or a user's saved
+ *  room defaults) to a different mode. `roomOverrides` heals to "inherit", which costs nothing; this heals to
+ *  "a different room", which is a data-loss disguised as fault isolation. Use the raw
+ *  {@link groupConfigSchema} at every WRITE boundary, where a stray key must still be refused loudly. */
+export const storedGroupConfigSchema = z.preprocess(stripRetiredGroupKeys, groupConfigSchema);
 /** The LENIENT input (pre-default): callers may omit the defaulted knobs; `setGroupConfig` parses to
  *  {@link GroupConfig} before persisting, so a stored blob is always fully-defaulted. */
 export type GroupConfigInput = z.input<typeof groupConfigSchema>;
