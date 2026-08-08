@@ -220,14 +220,23 @@ function CollectionGroupBody({ collection, count, filter, onFilterChange, select
 }
 
 /** The zero-member slot — the group keeps its band and says so, with its own create verb as the next step
- *  (empty states are load-bearing: a vanished group would make the roster's membership depend on data). */
+ *  (empty states are load-bearing: a vanished group would make the roster's membership depend on data).
+ *
+ *  IT IS A CARD, NOT A ROW (side-eye 2026-08-08). Laid out as a `Row`, the copy and the verb shared one line
+ *  inside the dashed box — measured on World Info at the docked pane's width as "No books yet." and the New
+ *  book button abreast, which reads as a broken table row rather than as an empty state. The house grammar is
+ *  the `EmptyState` primitive's: copy, then the next step BELOW it, centered — spelled here on the group's own
+ *  dashed frame rather than by nesting that primitive, because the frame IS this slot's zero marker and a
+ *  teaching card inside a card is two boxes saying one thing. Pinned by geometry in the roster CT. */
 function CollectionGroupEmpty({ collection, onCreate }: CollectionGroupProps & { readonly onCreate: () => void }): ReactElement {
   return (
-    <Row align="center" className="rounded-control border border-input border-dashed px-field py-tight" gap="field">
-      <Text voice="gloss">{collection.emptyText}</Text>
+    <Stack align="center" className="rounded-control border border-input border-dashed px-field py-block" gap="tight">
+      <Text className="text-center" voice="gloss">
+        {collection.emptyText}
+      </Text>
       <Button intent="ghost" onClick={onCreate} size="sm" type="button">
         {collection.create.label}
       </Button>
-    </Row>
+    </Stack>
   );
 }
