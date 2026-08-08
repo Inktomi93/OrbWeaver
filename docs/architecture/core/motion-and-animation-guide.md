@@ -111,8 +111,22 @@ sequences, shimmer sweeps, spinner rotation, attention-getters (shake). The only
 in the app today is the skeleton shimmer (`ui/src/styles/globals.css`).
 
 This app's existing `OVERLAY_MOTION` fragments already made this exact call — they're
-`transition-all` + `data-starting-style:`/`data-ending-style:` Tailwind arbitrary-variant
-classes, not `@keyframes`. That's the correct default; keep it.
+transitions + `data-starting-style:`/`data-ending-style:` Tailwind arbitrary-variant classes,
+not `@keyframes`. That's the correct default; keep it.
+
+**But the transition NAMES ITS PROPERTIES — never `transition-all` on a focusable element.**
+Both fragments were `transition-all` until 2026-08-08 and are now `transition-[opacity,scale]`.
+`outline-*` is interpolable, so `all` fades a focus ring in over the duration and a keyboard user
+moving at speed sees a desaturated half-ring at every stop — and these popups ARE focus stops
+(Base UI's floating focus manager stamps a managed `tabindex` on any `role="dialog"` floating
+element and moves focus into it on open; measured on dialog + popover). `all` also silently
+animates the layout vars Base UI recomputes live (`--available-height`, `--anchor-width`), so a
+repositioned popup lags its anchor. Same finding as the toast root (`toast/variants.ts`) and the
+same reason Button has to name `scale`. Pinned by unpolled `transitionProperty` reads in
+`tests/ui/primitives/dialog/dialog.ct.tsx` + `tests/ui/primitives/popover/popover.ct.tsx`.
+The four surviving `transition-all` sites (accordion panel, collapsible panel, progress
+indicator, tabs indicator) are measured NON-focusable — no tab stop lands on any of them — so
+they keep the shorthand.
 
 ### 1.3 Keeping the exit animation alive: `keepMounted`
 
