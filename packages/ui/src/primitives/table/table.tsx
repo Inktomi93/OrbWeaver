@@ -142,7 +142,7 @@ function sortEntries<TData>(
     return entries;
   }
   const sign = sort.direction === "desc" ? -1 : 1;
-  return [...entries].sort((a, b) => compareValues(column.accessor(a.row), column.accessor(b.row), sign));
+  return entries.toSorted((a, b) => compareValues(column.accessor(a.row), column.accessor(b.row), sign));
 }
 
 function defaultCell(value: unknown): ReactNode {

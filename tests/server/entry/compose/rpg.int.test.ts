@@ -2452,7 +2452,7 @@ test("POPULATE (real round): the card's identity + gear land, and the live-play 
     properties: { sheet: { required?: string[] }; inventory: { items: { properties: { targetRef: { enum?: string[] } } } } };
   };
   expect(schema.required).toContain("sheet");
-  expect([...(schema.properties.sheet.required ?? [])].sort()).toEqual(["level", "title"]);
+  expect((schema.properties.sheet.required ?? []).toSorted()).toEqual(["level", "title"]);
   expect(schema.properties.inventory.items.properties.targetRef.enum).toEqual(["mara"]);
   // The prompt carried BOTH halves of the corpus — the card prose and the room's opening line.
   expect(spy.userPrompts[0]).toContain("sworn to a dead name");

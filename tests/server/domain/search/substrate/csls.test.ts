@@ -47,7 +47,7 @@ describe("compareCsls / compareCslsBy", () => {
       { dist: 1.1, hub: 0.5 }, // adj 0.6
       { dist: 1.2, hub: 0.5 }, // adj 0.7
     ];
-    expect([...rows].sort(compareCsls).map((r) => r.dist)).toEqual([1.1, 1.2, 1.4]);
+    expect(rows.toSorted(compareCsls).map((r) => r.dist)).toEqual([1.1, 1.2, 1.4]);
   });
 
   test("clamp-flattened ties break on the RAW distance, never concat order", () => {
@@ -64,7 +64,7 @@ describe("compareCsls / compareCslsBy", () => {
       { d: 1.3, h: 0.5 }, // adj 0.8 — ranked last
       { d: 0.1, h: 0.2 }, // adj 0 — tie, closest
     ];
-    const sorted = [...items].sort(
+    const sorted = items.toSorted(
       compareCslsBy(
         (i) => i.d,
         (i) => i.h,

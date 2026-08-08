@@ -619,7 +619,7 @@ test("THREE active rows attach THREE rooms over exactly ONE socket; a finished r
   await expect(page.getByRole("tabpanel", { name: "All" }).getByText("Compute themes")).toBeVisible();
 
   // One room per running row, each keyed by its own workloadId…
-  await expect.poll(() => [...socket.attachedChannels()].sort()).toEqual(["workloads:workload_ct_1", "workloads:workload_ct_2", "workloads:workload_ct_3"]);
+  await expect.poll(() => socket.attachedChannels().toSorted()).toEqual(["workloads:workload_ct_1", "workloads:workload_ct_2", "workloads:workload_ct_3"]);
   // …over ONE EventSource. That number used to be three, on top of the tab's standing streams.
   expect(socket.connects()).toBe(1);
   // Live-only: no room asks for a replay — the durable `progress` column + `workloads.list` are the truth a

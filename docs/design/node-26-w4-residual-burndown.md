@@ -1,17 +1,39 @@
 ---
 kind: design
-status: proposed
+status: landed
 updated: 2026-08-07
 ---
 
 # Node-26 program — W4 residual burn-down (W4.5 withResolvers + W4.2 toSorted)
 
-> Brief for a dedicated burn-down lane. Two W4 sub-waves of `docs/design/node-26-adoption-program.md`
-> NEVER LANDED (discovered 2026-08-07 while authoring the §8 `platform-spellings` gate — the gate found
-> the live sites the original sweeps missed). Each is blocked from the §8 gate: the gate cannot enforce an
-> arm green while its production violations are live, so the arms `DEFERRED→withResolvers` and `SPREAD-SORT`
-> are documented pending-not-dropped in `platform-spellings.ts` and are ADDED to that gate once this lane
-> lands. Re-sweep every pattern before executing — these site lists are 2026-08-07 snapshots.
+> **LANDED 2026-08-07.** Both sub-waves burned down and BOTH gate arms are live in
+> `scripts/check/gates/platform-spellings.ts`. This file is kept as the record of what the burn-down
+> actually found, because its own §-lists died on contact exactly as the program doc's did — see
+> "What the re-sweep corrected" below before citing any site list here.
+>
+> Original brief: two W4 sub-waves of `docs/design/node-26-adoption-program.md` NEVER LANDED (discovered
+> 2026-08-07 while authoring the §8 `platform-spellings` gate — the gate found the live sites the original
+> sweeps missed). Each was blocked from the §8 gate: the gate cannot enforce an arm green while its
+> production violations are live.
+
+## What the re-sweep corrected (2026-08-07, the burn-down lane)
+
+Four premises in this brief were wrong on the tree. Each is a receipt for "re-derive before building":
+
+1. **W4.5 is 8 captures, not 7.** `packages/client/src/features/preset/hooks/use-preset-autosave.ts:110`
+   captures its resolver into a REF (`answerRef.current = resolve`), a property target the brief's
+   identifier-only description missed. The landed gate arm flags property targets too.
+2. **W4.2 is 115 sites, not "~40 prod + ~60 test"**, split **94 CONVERT / 21 KEEP** by the type checker.
+3. **Two of this brief's CONVERT candidates are KEEPs.** `contracts/src/rpg/extraction.ts:477`
+   (`[...offending]`) is a `Set<string>`; `chat/memory/build/digests.ts:284` (`[...env.groups]`) is a
+   `ReadonlyMap` (the brief said "verify Map vs array" — it is a Map). Both keep their spread.
+4. **`packages/server/src/domain/rpg/**` — the lane's collision fence — contains ZERO spread-sort sites.**
+   The rpg-NAMED sites live in `contracts/src/rpg/` and `client/src/features/rpg/`, outside the fence, so
+   the fence cost the SPREAD-SORT arm nothing and it landed green rather than deferred.
+5. **The prescribed "type-aware (checker-backed)" SPREAD-SORT arm is IMPOSSIBLE at `pnpm check` tier.**
+   The harness builds the PURE-AST workspace (`scripts/ts-workspace.ts` `getWorkspace({root})`), so a
+   gate's checker call answers as if every cross-package type were unknown. The landed arm is syntactic
+   and proves array-ness IN-FILE only; the checker-backed version is push-tier work.
 
 ## W4.5 — deferred-promise captures → `Promise.withResolvers()` (§4.5)
 

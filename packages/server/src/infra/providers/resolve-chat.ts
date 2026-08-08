@@ -71,7 +71,7 @@ function effectiveEffort(params: UserIntent, capability: ModelCapability): UserI
 // `supportedEfforts` HIGHEST-first, so array position ≠ severity). Falls back to the global minimum.
 function lowestEffort(levels: readonly EffortLevel[] | undefined): EffortLevel {
   const pool = levels !== undefined && levels.length > 0 ? levels : EFFORT_LEVELS;
-  return [...pool].sort((a, b) => EFFORT_LEVELS.indexOf(a) - EFFORT_LEVELS.indexOf(b))[0] ?? EFFORT_LEVELS[0];
+  return pool.toSorted((a, b) => EFFORT_LEVELS.indexOf(a) - EFFORT_LEVELS.indexOf(b))[0] ?? EFFORT_LEVELS[0];
 }
 
 // The quality dial's SAMPLING half — an explicit user knob wins; quality only FILLS the gap, and the value

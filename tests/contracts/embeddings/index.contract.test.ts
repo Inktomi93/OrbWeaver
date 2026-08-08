@@ -30,5 +30,5 @@ const LENS_SEEN: Record<ImageLens, true> = {
   "image-captioned": true,
 };
 test("ImageLens has no member beyond the tuple (exhaustive over image-raw|image-captioned)", () => {
-  expect(Object.keys(LENS_SEEN).sort()).toEqual([...IMAGE_LENSES].sort());
+  expect(Object.keys(LENS_SEEN).sort()).toEqual(IMAGE_LENSES.toSorted());
 });

@@ -15,7 +15,7 @@ test("USER_ROLES is exactly the 3-member D17 axis [owner, admin, user]", () => {
 // assert below is backed by a compile-time guard (no inline role-union re-spelling anywhere else).
 const ROLE_SEEN: Record<UserRole, true> = { owner: true, admin: true, user: true };
 test("UserRole has no member beyond the tuple (exhaustive over owner|admin|user)", () => {
-  expect(Object.keys(ROLE_SEEN).sort()).toEqual([...USER_ROLES].sort());
+  expect(Object.keys(ROLE_SEEN).sort()).toEqual(USER_ROLES.toSorted());
 });
 
 test("userRoleSchema round-trips every valid role and rejects non-members", () => {
@@ -44,7 +44,7 @@ const MODE_SEEN: Record<AuthMode, true> = {
   oidc: true,
 };
 test("AuthMode has no member beyond the tuple (exhaustive over the 4 modes)", () => {
-  expect(Object.keys(MODE_SEEN).sort()).toEqual([...AUTH_MODES].sort());
+  expect(Object.keys(MODE_SEEN).sort()).toEqual(AUTH_MODES.toSorted());
 });
 
 test("authModeSchema round-trips every mode and rejects non-members", () => {

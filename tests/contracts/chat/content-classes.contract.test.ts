@@ -14,7 +14,7 @@ test("CONTENT_CLASS_POLICY covers EVERY ContentSpanKind (registry totality — a
     expect(["full", "stub", "drop"]).toContain(policy.wire);
   }
   // No orphan rows either — the registry and the axis are the same set.
-  expect(Object.keys(CONTENT_CLASS_POLICY).sort()).toEqual([...CONTENT_SPAN_KINDS].sort());
+  expect(Object.keys(CONTENT_CLASS_POLICY).sort()).toEqual(CONTENT_SPAN_KINDS.toSorted());
 });
 
 test("the shipped cells match the ratified §3.1 table", () => {

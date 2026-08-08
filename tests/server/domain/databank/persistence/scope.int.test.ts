@@ -57,7 +57,7 @@ test("D85 gate-8: the membership union credits every ATTACHED member doc; privat
 
   // (a) + (b): the union credits the member's ATTACHED global doc; NO private doc from either member leaks.
   const union = await resolveActiveDocumentIds(db, { chatId });
-  expect([...union].sort()).toEqual([hostGlobal.document.id, hostChat.document.id, memberGlobal.document.id].sort());
+  expect(union.toSorted()).toEqual([hostGlobal.document.id, hostChat.document.id, memberGlobal.document.id].sort());
   expect(union).not.toContain(hostPrivate.document.id);
   expect(union).not.toContain(memberPrivate.document.id);
 
@@ -65,20 +65,20 @@ test("D85 gate-8: the membership union credits every ATTACHED member doc; privat
   await hideDocuments(db, chatId, [memberGlobal.document.id]);
   const afterHide = await resolveActiveDocumentIds(db, { chatId });
   expect(afterHide).not.toContain(memberGlobal.document.id);
-  expect([...afterHide].sort()).toEqual([hostGlobal.document.id, hostChat.document.id].sort());
+  expect(afterHide.toSorted()).toEqual([hostGlobal.document.id, hostChat.document.id].sort());
 
   // (d): the member LEAVES → their global doc stops crediting the room (kind='human' + leftSeq-null filter bites).
   await hideDocuments(db, chatId, []); // clear the override so (d) isolates the leftSeq effect
   await markMemberLeft(db, chatId, member, 7);
   const afterLeave = await resolveActiveDocumentIds(db, { chatId });
   expect(afterLeave).not.toContain(memberGlobal.document.id);
-  expect([...afterLeave].sort()).toEqual([hostGlobal.document.id, hostChat.document.id].sort());
+  expect(afterLeave.toSorted()).toEqual([hostGlobal.document.id, hostChat.document.id].sort());
 
   // Personal search scope = the whole bank (every owned doc, attachment-independent) — unchanged by D85.
   const hostBank = await resolveActiveDocumentIds(db, { ownerId: host });
-  expect([...hostBank].sort()).toEqual([hostGlobal.document.id, hostChat.document.id, hostPrivate.document.id].sort());
+  expect(hostBank.toSorted()).toEqual([hostGlobal.document.id, hostChat.document.id, hostPrivate.document.id].sort());
   const memberBank = await resolveActiveDocumentIds(db, { ownerId: member });
-  expect([...memberBank].sort()).toEqual([memberGlobal.document.id, memberPrivate.document.id].sort());
+  expect(memberBank.toSorted()).toEqual([memberGlobal.document.id, memberPrivate.document.id].sort());
 });
 
 test("a corrupt databankVisibility blob heals to default-visible (fault-isolated; never hides silently)", async () => {

@@ -99,7 +99,7 @@ describe("createDefaultCharacterSeeder", () => {
     await seeder.ensureSeeded(actor);
 
     const list = await svc.list({ principal: actor });
-    expect(list.items.map((c) => c.handle).sort()).toEqual([...ALL_HANDLES].sort());
+    expect(list.items.map((c) => c.handle).sort()).toEqual(ALL_HANDLES.toSorted());
     expect(latch.marks).toHaveLength(1);
   });
 

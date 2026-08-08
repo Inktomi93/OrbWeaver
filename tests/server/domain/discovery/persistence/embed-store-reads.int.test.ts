@@ -131,9 +131,9 @@ describe("hub reads are OWNER-SCOPED (csls analyzes YOUR OWN library only — ne
     expect((await readImageHubVectors(db, a)).map((r) => r.id)).toEqual(["image_embedding_a"]);
 
     // The BULK fan-out universe: both owners have rows in every table.
-    expect([...(await distinctCharacterHubOwners(db))].sort()).toEqual([a, b].sort());
-    expect([...(await distinctDigestHubOwners(db))].sort()).toEqual([a, b].sort());
-    expect([...(await distinctSegmentHubOwners(db))].sort()).toEqual([a, b].sort());
-    expect([...(await distinctImageHubOwners(db))].sort()).toEqual([a, b].sort());
+    expect((await distinctCharacterHubOwners(db)).toSorted()).toEqual([a, b].sort());
+    expect((await distinctDigestHubOwners(db)).toSorted()).toEqual([a, b].sort());
+    expect((await distinctSegmentHubOwners(db)).toSorted()).toEqual([a, b].sort());
+    expect((await distinctImageHubOwners(db)).toSorted()).toEqual([a, b].sort());
   });
 });

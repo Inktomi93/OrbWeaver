@@ -216,11 +216,17 @@ stated pattern first (audit lists are snapshots) and burns the delta too.
    a `tests/**` scope decision or a burn-down pass. Kit purity re-verified for this item: `ast-grep -p
    'setTimeout($$$)' -l ts packages/kit packages/contracts` → scannedFileCount=136, ZERO matches, so no
    sleep seam lives below the isomorphic line and `node:timers/promises` never crosses it.
-2. **`[...x].sort(fn)` → `x.toSorted(fn)`** — 49 sites (largest volume; heavy in `scripts/codemods/`,
-   `scripts/check/gates/`, `domain/{discovery,chat,stats}`; representatives
-   `domain/stats/substrate/percentiles.ts:20`, `domain/chat/memory/build/digests.ts:255,260`). Rubric:
-   the swap is 1:1 when the spread existed only to avoid mutating; where the source is already a fresh
-   array the plain in-place `.sort` stays. Sweep pattern: ast-grep `[...$X].sort($$$)`.
+2. **`[...x].sort(fn)` → `x.toSorted(fn)`** — LANDED 2026-08-07 (the W4 residual burn-down lane).
+   **Census CORRECTED at landing — the "49 sites" here was a stale snapshot, low by more than half**
+   (the fourth §-list in this document to die that way): the real sweep over `packages/**` + `tests/**`
+   found **115** sites, split **94 CONVERT / 21 KEEP** by the TYPE CHECKER (a ts-morph tsconfig-loaded
+   project, `type.getApparentType().getProperty("toSorted") !== undefined` — the semantic test, immune to
+   `NoInfer<…>` wrappers and unions of array arms; ZERO came back ambiguous). Rubric as written: the swap
+   is 1:1 when the spread existed only to avoid mutating an ARRAY; an iterator/Set/Map materialization
+   (`[...m.entries()]`, `[...new Set(x)]`) KEEPS its spread. Two brief-level classifications were WRONG on
+   the tree and the checker caught both: `contracts/rpg/extraction.ts:477` (`[...offending]`) is a `Set`,
+   and `chat/memory/build/digests.ts:284` (`[...env.groups]`) is a `ReadonlyMap` — both KEEP.
+   Sweep pattern: ast-grep `[...$X].sort($$$)`, run in BOTH `-l ts` and `-l tsx`.
 3. **Set algebra** — 13 sites: literal difference `contracts/rpg/snapshot.ts:129` →
    `A.difference(B)`; spread-unions (`discovery/verbs/catalog.ts:105`,
    `discovery/cooccurrence/generate.ts:111`, `server/kit/custom-parameters/index.ts:39`,
@@ -230,9 +236,15 @@ stated pattern first (audit lists are snapshots) and burns the delta too.
    `Map.groupBy`/`Object.groupBy`. Sweep the shape again post-W1 (`($X[$K] ??= []).push($V)` and the
    Map get-or-set-array idiom) — the earlier sweep classified most Map hits as legit memoization;
    memoization sites are `getOrInsert` targets instead (item 6).
-5. **Deferred promises → `Promise.withResolvers`** — the two true resolver-captures:
-   `local-light/model-cache.ts:147-150`, `chat/engine/engine.ts:1369-1372` (both cancellation
-   barriers; `withResolvers` is a clean shape-swap). The QuickJS-bridge deferreds
+5. **Deferred promises → `Promise.withResolvers`** — LANDED 2026-08-07 (the W4 residual burn-down lane).
+   **"The two true resolver-captures" was wrong — there were EIGHT**, and the two this list named were
+   never converted at the time. The live set: `client/lib/agent-bridge.ts:22` (app-ready signal),
+   `client/features/preset/hooks/use-preset-autosave.ts:110` (the fork-choice ask, captured into a REF —
+   the shape the §8 gate arm's own detection had missed), `chat/engine/engine.ts:1484` (lock-lost
+   barrier), `chat/verbs/turn.ts:1858+1865` (the DeltaBridge arrival re-arm, hoisted into one `arm()`
+   minter), `transport/trpc/stream/frame-queue.ts:188` (drain wake), `local-light/model-cache.ts:148`
+   (orphan guard), `entry/compose/chat.ts:558` (drain notify — its `noLoopFunc` biome-ignore dropped with
+   the executor, shrinking that file's suppressions-baseline budget 9→8). The QuickJS-bridge deferreds
    (`membrane.ts:638`) are `ctx.newPromise()` — NOT candidates, different mechanism.
 6. **Get-or-set memoization → `Map.getOrInsert` / `getOrInsertComputed`** — sweep
    `$M.get($K) ?? ($M.set($K, $V), $V)` variants and the `if (!m.has(k)) m.set(k, …); m.get(k)!`
@@ -431,12 +443,21 @@ antipattern this program exists to kill — refused. Therefore:
    - ARM SLEEP: `new Promise(($R) => setTimeout($R, $MS))` (and arrow-body variant) outside
      `node_modules` → "use node:timers/promises setTimeout". mustPass: `setTimeout(res, ms)` where the
      promise ALSO wires reject (a timeout-reject race is not a sleep).
-   - ARM DEFERRED: `let $X; new Promise(($RES) => { $X = $RES })` capture shape → withResolvers.
-     mustPass: `ctx.newPromise()` (the QuickJS bridge).
+   - ARM DEFERRED (LANDED 2026-08-07): the executor ASSIGNS one of its own params outside itself
+     (`$X = $RES`, including a `ref.current = $RES` property target) → withResolvers. mustPass:
+     `ctx.newPromise()` (the QuickJS bridge), a normal executor that CALLS resolve/reject, and a target
+     declared INSIDE the executor (a local shuffle, not a hand-out).
    - ARM ESCAPE-MINT: a function DECLARATION named `escapeRegExp`/`escapeRegex`, or the escape
      char-class literal `[.*+?^${}()|[\]\\]` in a replace — the exact re-mint neo tripled.
-   - ARM SPREAD-SORT: `[...$X].sort($$$)` → toSorted. mustPass: `[...$X].sort($$$)` where the spread
-     source is an ARGUMENTS-like/live NodeList (declared limit: the gate cannot type; document).
+     (LANDED name-only; the char-class half was BUILT AND REMOVED at 27 measured false positives.)
+   - ARM SPREAD-SORT (LANDED 2026-08-07): `[...$X].sort($$$)` → toSorted, flagged ONLY where `$X` is
+     provably an array from SAME-FILE syntax. **The "the gate cannot type" note was right but its reason
+     was under-stated: the `pnpm check` harness builds the PURE-AST workspace, so a checker call there
+     fails SILENT cross-package — a checker-backed version is push-tier work, not a commit-bar gate.**
+     Measured on the pre-burn-down tree: 14 of 21 real `packages/**` copies flagged, 0 of 13 iterator
+     materializations — precision 100%, recall 67%. mustPass rows write the misses down as a baseline
+     (an SDK response property, a query `.data`, a `for`-of tuple destructure, a contextually-typed
+     callback param) plus the two KEEP shapes and a bare identifier holding a `Set`.
    - Declared limits in the header; six-case probe not required (no marker vocabulary — violations are
      fix-only, no exemption table planned; if one becomes needed it follows §4a).
 3. **biome `noRestrictedImports` additions** (same block as tailwind-variants): `dotenv` (post-§3, with

@@ -59,7 +59,7 @@ describe("assets maintenance persistence", () => {
 
     const owners = await listAssetOwners(db);
 
-    expect([...owners].sort()).toEqual([other, owner].sort());
+    expect(owners.toSorted()).toEqual([other, owner].sort());
   });
 
   test("deleteAssetRow removes exactly the named row", async () => {

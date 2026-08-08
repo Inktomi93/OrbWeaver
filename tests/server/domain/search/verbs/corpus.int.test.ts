@@ -56,7 +56,7 @@ describe("corpus", () => {
     const svc = makeSearch(db, {
       embedVector: () => vec(1),
       rerank: (_q, documents) => {
-        const ordered = [...documents].sort((a, b) => (a.id.startsWith("s|") ? -1 : 1) - (b.id.startsWith("s|") ? -1 : 1));
+        const ordered = documents.toSorted((a, b) => (a.id.startsWith("s|") ? -1 : 1) - (b.id.startsWith("s|") ? -1 : 1));
         return Promise.resolve({
           hits: ordered.map((d, i) => ({ id: d.id, score: ordered.length - i })),
           model: "rerank",

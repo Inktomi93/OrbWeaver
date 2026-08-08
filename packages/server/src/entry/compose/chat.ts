@@ -553,11 +553,10 @@ export function createRunChatTurnBridge(deps: {
         }
         break;
       } else {
+        const arrival = Promise.withResolvers<void>();
+        notify = arrival.resolve;
         // biome-ignore lint/performance/noAwaitInLoops: waiting for next chunk
-        // biome-ignore lint/nursery/noLoopFunc: simple promise
-        await new Promise<void>((resolve) => {
-          notify = resolve;
-        });
+        await arrival.promise;
       }
     }
   };

@@ -25,7 +25,7 @@ const MODE_SEEN: Record<MemoryRetrievalMode, true> = {
   tiered: true,
 };
 test("MemoryRetrievalMode has no member beyond the tuple", () => {
-  expect(Object.keys(MODE_SEEN).sort()).toEqual([...MEMORY_RETRIEVAL_MODES].sort());
+  expect(Object.keys(MODE_SEEN).sort()).toEqual(MEMORY_RETRIEVAL_MODES.toSorted());
 });
 
 test("memoryRetrievalModeSchema round-trips every mode and rejects non-members", () => {

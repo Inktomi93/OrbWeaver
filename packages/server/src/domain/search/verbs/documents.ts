@@ -120,7 +120,7 @@ export function createDocuments(ctx: SearchContext): SearchService["documents"] 
           score: cslsAdjust(r.distance, r.hubScore),
         }),
       );
-    const ranked = [...candidates].sort(
+    const ranked = candidates.toSorted(
       compareCslsBy(
         (c) => c.distance,
         (c) => c.hubScore,

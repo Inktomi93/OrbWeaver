@@ -18,7 +18,7 @@ const FORMAT_SEEN: Record<DocFormat, true> = {
   epub: true,
 };
 test("DocFormat has no member beyond the tuple", () => {
-  expect(Object.keys(FORMAT_SEEN).sort()).toEqual([...DOC_FORMATS].sort());
+  expect(Object.keys(FORMAT_SEEN).sort()).toEqual(DOC_FORMATS.toSorted());
 });
 
 // ── The error pair (databank-design/04 §1) — the client renders "unsupported type" vs "extraction failed"
