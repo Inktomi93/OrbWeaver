@@ -483,8 +483,24 @@ security lens.
   fillRule=evenodd boarded). See its own board rows below.
 - [ ] **[P3 taste, pre-existing — NOT from the graduated fixes]** the Map cell's lock glyph dangles
   slightly outside the rail frame's top-right edge (SIDE-EYE-RPG stumble). Low-priority polish.
-- **REMAINING TAIL (non-owner-gated):** client narrator smalls #15 (speaker-markup leak + tracker editor)
-  · node-26 §8 gate · rpg-prose teaches #17 · PORT-R6 2-turn cross-link fixture · fillRule probe.
+- **⏳ CLIENT-SMALLS in flight (`a7a28c621`).** Item 1 premise REFINED: the `<speaker>` leak is NOT
+  client-derived — the chat-list subtitle passes through server-computed `chat.lastMessagePreview`, and
+  the fix is in KIT (`projectBodyForPreview` reusing the existing `speakerTagsToPlain`), which ALSO fixes
+  `filter-chats.ts` search (same field). Approved the kit fence-cross (single home; a client strip would
+  leave search dirty). Item 2 (tracker grant/revoke editor) confirmed OPEN + client-only — `patchSheet`
+  already accepts `trackerGrants`/`trackerRevokes`, no server verb needed; building in `RpgCharacterDetail`.
+- **⚑ OWNER DECISION PENDING (near-compact, non-blocking):** probes escape BOTH biome + eslint
+  (`scripts/probes/**` ignored) — our code typechecks but isn't linted (3 dead `biome-ignore`s sat there).
+  Options: (a) un-ignore `scripts/probes` in biome/eslint (biome's native unused-suppression rule then
+  catches dead markers for free) · (b) a small gate flagging suppressions in unlinted dirs · (c) leave as
+  throwaway diagnostic scratch. Orchestrator recommended (a) or (c). **This was the ONLY gate-able lesson
+  from the session** — the rest (cold-check>warm, scope-the-absence-receipt, shared-value-owes-a-battery,
+  ratifying-gate-two-receipts) are DOCTRINE/memory, not gates: the existing gates + battery caught every
+  real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
+- **REMAINING TAIL (non-owner-gated):** node-26 §8 gate · rpg-prose teaches #17 · PORT-R6 2-turn
+  cross-link fixture · fillRule probe. **Owner-gated pile parked:** nudge texts · presets-into-rail ·
+  JSON-card export · `{{note}}` posture · persona=character · AGENT-1 · templating fork (rows 53-73) ·
+  SUMMARIZE-SUB capability.
 - ✅ **TEMPLATE-UNIFY merged** (`6d7867401`, check 14/14) — row 49 slotted; (b) unification COMPLETE.
 - ✅ **SMALLS-SERVER merged** (`58b1f9ce7`, check 14/14) — narrator room previews its CAST shape now
   (GroupConfig threaded into PreviewInputs, per-speaker byte-unchanged, red-first: narrator RED on old
