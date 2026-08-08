@@ -65,6 +65,11 @@ export type GateExample = {
     readonly messageIncludes?: string;
     readonly line?: number;
     readonly count?: number;
+    /** The `Finding.token` a node-anchored report must carry — WHICH arm bit, and (§4.3a) the position an
+     *  `@orb-gate-ignore` would have to name. `messageIncludes` cannot answer this for a multi-arm gate:
+     *  a token-emitting gate has no per-finding message, so every arm's needle matches the ONE group
+     *  message and the row proves nothing about which arm fired. */
+    readonly token?: string;
   };
   readonly why?: string; // one-liner: what this example proves (rendered in conformance failures)
 };

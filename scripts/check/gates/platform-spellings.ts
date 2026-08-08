@@ -40,6 +40,13 @@
 //   normal executor CALLS resolve/reject, it never hands them out, so it is never flagged (mustPass) — and
 //   an assignment whose target is declared INSIDE the executor is a local shuffle, also never flagged. The
 //   QuickJS bridge's `ctx.newPromise()` is a different construct (not a `new Promise`) and §4.5 excludes it.
+//   DECLARED LIMIT — the arm keys on `=` ASSIGNMENT of a param identifier, so a resolver handed out through a
+//   CALL (`register(resolve)`, `arr.push(resolve)`, `emitter.once("x", resolve)`) is INVISIBLE to it: that is
+//   also a deferred promise, and `withResolvers` is also its fix. Not a live hole — every remaining
+//   `new Promise` in `packages/**` is an inline wrapper (verifier-measured 2026-08-07) — but it is UNDER-REACH,
+//   not a distinction, and the mustPass row below pins it so the blind spot is a BASELINE, not an assumption.
+//   Closing it needs escape analysis (which call arguments outlive the executor), which the pure-AST harness
+//   cannot answer; same posture as SPREAD-SORT's cross-file class.
 //
 // ARM SPREAD-SORT (§4.2) — `[...x].sort(fn)` → `x.toSorted(fn)`, but ONLY where the receiver is PROVABLY an
 //   array. The split is real: `[...m.entries()].sort()` / `[...new Set(xs)].sort()` MATERIALIZE an iterator,
@@ -63,6 +70,13 @@
 // SCOPE: `packages/**` only — tests/ and scripts/ are OUT, matching the LANDED `zod-modern-spellings`
 //   precedent (a test may plant an old spelling DELIBERATELY as a fixture) and §8's own §4.1, which
 //   explicitly sanctions "a tests/** scope decision." This exclusion is deliberate-and-precedented.
+//
+// SUPPRESSION: every finding is NODE-anchored and carries its ARM as its token, so
+//   `// @orb-gate-ignore platform-spellings(sleep|deferred|spread-sort|escape-mint): <reason>` works AND names
+//   its position (§4.3a — one line can carry a sleep and a spread-sort). Until 2026-08-07 this gate reported
+//   through the explicit-`Finding` overload, which bypasses `hasGateIgnore` by construction: EVERY marker on
+//   every arm was inert, and nothing said so. The per-arm `Finding.message` overrides went with it — the
+//   reason now lives once on `GROUP_MESSAGE`, which is where the harness homes it.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { unwrapExpression } from "../ast-read.ts";
@@ -99,32 +113,21 @@ const ARRAY_TYPE_NAMES: ReadonlySet<string> = new Set(["Array", "ReadonlyArray"]
  *  the bound exists so a self-referential or cyclic same-file chain cannot spin. */
 const MAX_RESOLVE_HOPS = 3;
 
-const SLEEP_MESSAGE =
-  "a hand-rolled sleep `new Promise((resolve) => setTimeout(resolve, ms))` — import `setTimeout` from " +
-  "`node:timers/promises` and `await setTimeout(ms)` (node-26 adoption program §4.1). A timeout-REJECT race " +
-  "is a different construct and is never flagged.";
-
-const DEFERRED_MESSAGE =
-  "a hand-rolled deferred promise — the `new Promise` executor hands its resolve/reject OUT to an enclosing " +
-  "binding. Use `Promise.withResolvers()` (node-26 adoption program §4.5): `const { promise, resolve } = " +
-  "Promise.withResolvers<T>()`. An executor that CALLS resolve/reject is a normal promise and is never flagged.";
-
-const SPREAD_SORT_MESSAGE =
-  "a `[...arr].sort(fn)` defensive copy — use `arr.toSorted(fn)` (node-26 adoption program §4.2). Only a " +
-  "PROVABLE array is flagged: an iterator materialization (`[...map.entries()].sort()`, `[...new Set(x)]" +
-  ".sort()`) needs its spread and is never flagged.";
-
-const ESCAPE_MESSAGE =
-  "a hand-rolled RegExp-escape re-mint — use the platform `RegExp.escape(str)` (node-26 adoption program " +
-  "§4.7). It is browser-baseline and a strict superset of every hand-roll; the kit `escapeRegExp` and its " +
-  "duplicates were deleted in W4.";
-
+// THE ONE REASON, printed once per group — the per-arm `Finding.message` overrides are GONE with the Finding
+// overload that carried them (see `report` below). Each occurrence names its arm through its `token`, so this
+// prose carries every arm INCLUDING the distinction that keeps an author from "fixing" a non-violation: the
+// three shapes this gate deliberately never flags are the ones most likely to be mistaken for a hit.
 const GROUP_MESSAGE =
   "a superseded pre-node-26 spelling — the node-26 maximal-adoption program (docs/design/" +
   "node-26-adoption-program.md §8) ruled the modern spelling is THE spelling and W4 burned the sites down. " +
-  "`new Promise(setTimeout)` sleeps → `node:timers/promises` setTimeout (§4.1); a `new Promise` that hands " +
-  "its resolver out → `Promise.withResolvers()` (§4.5); `[...arr].sort(fn)` → `arr.toSorted(fn)` (§4.2); a " +
-  "hand-rolled RegExp escape (a function named escapeRegExp/escapeRegex) → `RegExp.escape` (§4.7).";
+  "Each occurrence's token names its arm. `sleep`: `new Promise((resolve) => setTimeout(resolve, ms))` → " +
+  "`node:timers/promises` setTimeout (§4.1) — a timeout-REJECT race references reject in its body and is " +
+  "never flagged. `deferred`: a `new Promise` that hands its resolver OUT to an enclosing binding → " +
+  "`Promise.withResolvers()` (§4.5) — an executor that CALLS resolve/reject is a normal promise and is never " +
+  "flagged. `spread-sort`: `[...arr].sort(fn)` → `arr.toSorted(fn)` (§4.2) — an iterator materialization " +
+  "(`[...map.entries()].sort()`, `[...new Set(x)].sort()`) needs its spread and is never flagged. " +
+  "`escape-mint`: a hand-rolled RegExp escape (a function named escapeRegExp/escapeRegex) → `RegExp.escape` " +
+  "(§4.7), which is browser-baseline and a strict superset of every hand-roll.";
 
 const FIX =
   'SLEEP: `import { setTimeout } from "node:timers/promises"; await setTimeout(ms)`. DEFERRED: `const { promise, resolve } = Promise.withResolvers<T>()`. SPREAD-SORT: `arr.toSorted(fn)`. ESCAPE: `RegExp.escape(str)` — delete the hand-rolled escapeRegExp.';
@@ -385,8 +388,20 @@ function isFunctionValued(node: Node | undefined): boolean {
   return node !== undefined && (node.isKind(SyntaxKind.ArrowFunction) || node.isKind(SyntaxKind.FunctionExpression));
 }
 
-function report(node: Node, rel: string, message: string, ctx: GateRunCtx): void {
-  ctx.report({ file: rel, line: node.getStartLineNumber(), column: 0, message });
+/** The ARM tokens — each finding's `token`, and therefore the POSITION an `@orb-gate-ignore` names
+ *  (`// @orb-gate-ignore platform-spellings(spread-sort): <reason>`). Self-identifying labels rather than
+ *  lexemes, the `no-inline-union-redecl` idiom: the lexeme would not distinguish these arms — SLEEP and
+ *  DEFERRED both anchor on the SAME `new Promise` node text — and §4.3a demands a namable position wherever
+ *  one line can carry two guarded things, which a `[...a].sort()` beside a sleep does. */
+const ARM_TOKENS = { sleep: "sleep", deferred: "deferred", spreadSort: "spread-sort", escapeMint: "escape-mint" } as const;
+
+/** GATE-AUTHORING §1: the NODE overload, never the explicit-`Finding` one. All four arms are node-anchored
+ *  and suppressible, and the Finding overload bypasses `hasGateIgnore` entirely — reported that way, no
+ *  `@orb-gate-ignore` on this gate could ever work (the same regression `no-inline-types` shipped once).
+ *  The per-arm prose it used to carry moves onto the group `message`/`fix`, which is where the harness homes
+ *  a reason (see `render.ts`: a finding carries `{file,line,column,token}` and the reason prints once). */
+function report(node: Node, token: string, ctx: GateRunCtx): void {
+  ctx.report(node, { token, offset: 0 });
 }
 
 export const gate: GateDescriptor = {
@@ -408,26 +423,25 @@ export const gate: GateDescriptor = {
   ],
 
   visit: (node, sf, ctx) => {
-    const rel = repoRel(sf.getFilePath());
     if (node.isKind(SyntaxKind.NewExpression)) {
       // SLEEP is node-only (the client/ui carve-out); DEFERRED is browser-baseline, so it applies everywhere.
-      if (!isBrowserPath(rel) && isSleepPromise(node)) {
-        report(node, rel, SLEEP_MESSAGE, ctx);
+      if (!isBrowserPath(repoRel(sf.getFilePath())) && isSleepPromise(node)) {
+        report(node, ARM_TOKENS.sleep, ctx);
       } else if (isDeferredCapture(node)) {
-        report(node, rel, DEFERRED_MESSAGE, ctx);
+        report(node, ARM_TOKENS.deferred, ctx);
       }
       return;
     }
     if (node.isKind(SyntaxKind.CallExpression)) {
       const receiver = spreadSortReceiver(node);
       if (receiver !== undefined) {
-        report(receiver, rel, SPREAD_SORT_MESSAGE, ctx);
+        report(receiver, ARM_TOKENS.spreadSort, ctx);
       }
       return;
     }
     const nameNode = escapeMintName(node);
     if (nameNode !== undefined) {
-      report(nameNode, rel, ESCAPE_MESSAGE, ctx);
+      report(nameNode, ARM_TOKENS.escapeMint, ctx);
     }
   },
 
@@ -435,55 +449,55 @@ export const gate: GateDescriptor = {
     {
       files: "export const nap = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));\n",
       at: "packages/server/src/domain/probe-sleep/expr.ts",
-      expect: { count: 1, messageIncludes: "node:timers/promises" },
+      expect: { count: 1, token: "sleep" },
       why: "ARM SLEEP expr-body — the exact hand-roll W4.1 burned across seven production sites; resolve is passed DIRECTLY to setTimeout",
     },
     {
       files: "export function nap(ms: number): Promise<void> {\n  return new Promise((resolve) => {\n    setTimeout(resolve, ms);\n  });\n}\n",
       at: "packages/server/src/domain/probe-sleep/block.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "sleep" },
       why: "ARM SLEEP block-body — the same sleep with a statement body, proving the arm is not expression-body-only",
     },
     {
       files: "export const napA = (ms: number): Promise<void> => new Promise((resolve, reject) => setTimeout(resolve, ms));\n",
       at: "packages/server/src/domain/probe-sleep/unused-reject.ts",
-      expect: { count: 1, messageIncludes: "node:timers/promises" },
+      expect: { count: 1, token: "sleep" },
       why: "THE REGRESSION PIN (verifier-refuted 2026-08-07): a plain sleep declaring an UNUSED second param. The reject-exclusion used to sweep the whole executor, where the param's own DECLARATION name matches — so this exact code returned ZERO findings on the real tree. The sweep now reads the BODY; this row fails the moment anyone widens it back",
     },
     {
       files: "export const napB = (ms: number): Promise<void> => new Promise((resolve, _reject) => {\n  setTimeout(resolve, ms);\n});\n",
       at: "packages/server/src/domain/probe-sleep/unused-reject-underscore.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "sleep" },
       why: "the same degenerate-exclusion hole in its `_reject` spelling with a block body — an underscore-prefixed unused param is the idiom this repo writes, so it is the likelier real-world shape of the miss",
     },
     {
       files: "export const napC = (ms: number): Promise<void> => new Promise((resolve) => globalThis.setTimeout(resolve, ms));\n",
       at: "packages/server/src/domain/probe-sleep/globalthis.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "sleep" },
       why: "BLIND SPOT CLOSED (verifier-flagged): the callee test was an exact-text compare on `setTimeout`, so a `globalThis.`-qualified sleep slipped through. A qualifier does not make a sleep something else",
     },
     {
       files: "export function escapeRegExp(s: string): string {\n  return s;\n}\n",
       at: "packages/server/src/kit/probe-escape/decl.ts",
-      expect: { count: 1, messageIncludes: "RegExp.escape" },
+      expect: { count: 1, token: "escape-mint" },
       why: "ARM ESCAPE-MINT decl — a function DECLARATION named escapeRegExp, the kit export W4.7 deleted",
     },
     {
       files: "export const helpers = {\n  escapeRegExp(s: string): string {\n    return s;\n  },\n};\n",
       at: "packages/server/src/kit/probe-escape/method.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "escape-mint" },
       why: "BLIND SPOT CLOSED (verifier-flagged): a re-mint hiding as an object-literal METHOD — the arm handled only function declarations and variable declarations, so a helpers-bag spelling was invisible",
     },
     {
       files: "export const helpers = {\n  escapeRegex: (s: string): string => s,\n};\n",
       at: "packages/server/src/kit/probe-escape/property.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "escape-mint" },
       why: "the property-assignment twin of the method spelling — a function-VALUED object property is the same re-mint; the arm requires the value to be a function so a plain string property named escapeRegex never matches",
     },
     {
       files: "export const escapeRegex = (s: string): string => s;\n",
       at: "packages/server/src/kit/probe-escape/arrow.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "escape-mint" },
       why: "ARM ESCAPE-MINT decl (arrow) — the `const escapeRegex = (…) =>` local re-mint form (body.ts carried its own copy); the name-binding arm covers both spellings",
     },
     {
@@ -496,8 +510,8 @@ export const gate: GateDescriptor = {
         "  return { ready, wake };\n" +
         "}\n",
       at: "packages/server/src/domain/probe-deferred/resolve.ts",
-      expect: { count: 1, messageIncludes: "Promise.withResolvers()" },
-      why: "ARM DEFERRED founding shape — the resolve hand-out W4.5 burned at six production sites (app-ready, frame-queue wake, the turn DeltaBridge re-arm, compose drain notify)",
+      expect: { count: 1, token: "deferred" },
+      why: "ARM DEFERRED founding shape — the resolve hand-out W4.5 burned at EIGHT production sites (app-ready, preset fork-choice ask, chat-engine lock-lost barrier, the turn DeltaBridge re-arm ×2, frame-queue wake, local-light orphan guard, compose drain notify). The 'six' this row used to claim was a stale snapshot the header had already corrected",
     },
     {
       files:
@@ -510,7 +524,7 @@ export const gate: GateDescriptor = {
         "  return lost;\n" +
         "}\n",
       at: "packages/server/src/domain/probe-deferred/reject.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "deferred" },
       why: "ARM DEFERRED, the REJECT half with a definite-assignment `let x!` — the chat-engine lock-lost barrier + the local-light orphan guard; proves the arm is not resolve-only and reads past the `!` modifier",
     },
     {
@@ -520,7 +534,7 @@ export const gate: GateDescriptor = {
         "  return [...rows].sort((a, b) => a.rank - b.rank);\n" +
         "}\n",
       at: "packages/server/src/domain/probe-spread-sort/annotated.ts",
-      expect: { count: 1, messageIncludes: "toSorted" },
+      expect: { count: 1, token: "spread-sort" },
       why: "ARM SPREAD-SORT founding shape — an ANNOTATED array parameter defensively copied to avoid mutating it; the single commonest of the 21 packages/** sites W4.2 converted",
     },
     {
@@ -530,7 +544,7 @@ export const gate: GateDescriptor = {
         "  return [...all.filter((r) => r.rank > 0)].sort((a, b) => a.rank - b.rank);\n" +
         "}\n",
       at: "packages/server/src/domain/probe-spread-sort/method.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "spread-sort" },
       why: "ARM SPREAD-SORT via an array-RETURNING built-in — `.filter()` already produced a fresh array, so the spread is a second wasted copy; proves the proof does not depend on a type annotation",
     },
     {
@@ -542,7 +556,7 @@ export const gate: GateDescriptor = {
         "  return ranked.length === 0 ? null : null;\n" +
         "}\n",
       at: "packages/client/src/features/probe-spread-sort/components/destructured.tsx",
-      expect: { count: 1 },
+      expect: { count: 1, token: "spread-sort" },
       why: "ARM SPREAD-SORT through the DESTRUCTURED-PROP idiom (`{ rows }: { rows: Row[] }`) — the client's dominant prop shape; without this resolution the arm would go blind on every component, which is how it reaches the rpg-journal / corpus-similarity sites",
     },
   ],
@@ -628,6 +642,17 @@ export const gate: GateDescriptor = {
         "}\n",
       at: "packages/server/src/domain/probe-deferred-local/index.ts",
       why: "DECLARED DISTINCTION — the assignment TARGET is declared INSIDE the executor, so the resolver never outlives it. That is a local shuffle, not a deferred promise, and `withResolvers` is not its fix",
+    },
+    {
+      files:
+        "declare function register(fn: () => void): void;\n" +
+        "export function armed(): Promise<void> {\n" +
+        "  return new Promise<void>((resolve) => {\n" +
+        "    register(resolve);\n" +
+        "  });\n" +
+        "}\n",
+      at: "packages/server/src/domain/probe-deferred-call/index.ts",
+      why: "DECLARED LIMIT, not a distinction (verifier-flagged 2026-08-07) — a resolver handed out through a CALL is a REAL deferred promise that `withResolvers` also fixes, but the arm keys on `=` assignment and cannot see it. Closing it needs escape analysis the pure-AST harness cannot do. Pinned as a BASELINE so the blind spot is measured rather than assumed; it is not live today (every remaining packages/** `new Promise` is an inline wrapper), and this row turning RED means someone taught the arm to reach it",
     },
     {
       files:
