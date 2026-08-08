@@ -389,6 +389,39 @@ unit tier (`debug/index.test.ts` header names it + `socket-registry.test.ts:289-
 `refEnumerationLines` active-conditions COVERED (`rpg.int.test.ts:972-1010` asserts the exact
 line).
 
+## ═══ SPECCED DESIGNS — pinned docs, build not (fully) sent ═══
+
+> **Why this section exists (owner catch 2026-08-08):** the board rewrite absorbed the remaining-work
+> LEDGER, which was built from OPEN board ROWS — a specced+pinned design DOC that never became a row
+> could fall off. This section carries every `docs/design/*.md` that represents specced-but-unbuilt (or
+> partial) work, so it can't be lost again. **NOT `docs/architecture/proposed/**`** — those are the
+> separate parked-programs set (`proposed/INDEX.md` owns their status); leave them alone.
+> **⚑ VERDICTS PENDING** — scout `a43b158ecad106686` is reconciling each doc against the tree
+> (build-status, not the docs' own rotted status lines). This list is the CANDIDATE set; the scout
+> replaces each `?` with BUILT/PARTIAL/UNBUILT/SUPERSEDED + a receipt + the named remainder.
+
+- **persona = character** (`persona-character-kind-substrate.md`) — UNBUILT, specced+pinned, **= C1**
+  (awaits the 5-fork ruling; forge lane ready to send on the owner's word). The one that prompted this
+  section.
+- **parity-plus-program** (`parity-plus-program-spec.md`) — the BIG one: 7-feature "first-class +
+  better" program, owner-greenlit 2026-07-27. `?` built vs unbuilt tail (W4 committed; rest TBD-by-scout).
+- **lite+guided substrate** (`lite-plus-guided-substrate-spec.md`) — the LITE+GUIDED carve; `?` vs the
+  landed rpg-lite W1-W4.
+- **density pass** (`density-pass-spec.md`) — UI density tier-map + assignment law + gate, owner-approved
+  2026-08-01. `?` gate-minted+swept vs approved-not-built.
+- **list-pane projection** (`list-pane-projection-proposal.md`) — chats-with-this-character list-pane;
+  self-status DRAFT/nothing-built. `?` still unbuilt.
+- **default-character roster** (`default-character-roster.md`) — authored pack v2, self-status
+  "nothing wired". `?` now in `character/seeder/cards.ts` or still just the doc.
+- **tracked-field unification** (`tracked-field-unification.md`) — stages 1+2 SHIPPED per self-status;
+  `?` remainder (W-H side-eye + EXT-4).
+- **node-26 adoption program** (`node-26-adoption-program.md` + `-w4-residual-burndown.md`) — 336-line
+  W-wave program; W4-BURNDOWN landed. `?` whole-program-done vs unbuilt waves.
+- **findings docs** (`context-panel-fidelity-findings.md`, `openrouter-provider-findings.md`) — `?`
+  absorbed/acted-on vs still-open.
+- (preset-surface-redesign · user-macro-delivery-spec — presumed BUILT with the closed programs; scout
+  flags only on a contradicting spot-check.)
+
 ## ═══ INITIATIVES — one-line status ═══
 
 I-1 structured output **CLOSED** · I-2 databank **CLOSED** · I-3 config workspace **CLOSED** (C5
