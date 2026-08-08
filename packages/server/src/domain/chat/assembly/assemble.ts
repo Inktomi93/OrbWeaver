@@ -24,7 +24,7 @@
 
 import type { AssembleCharacter, AssembleContext, AssembledPrompt, AssembleTrace, ChatInjection, SectionPreview } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig, PromptSection } from "@orb/contracts/preset";
-import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
+import { DEFAULT_MARKER_TEMPLATES, NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
 import type { ProseSlotId } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { MacroRegistry } from "@orb/kit/macro";
@@ -77,9 +77,27 @@ function findVolatileMacros(text: string | null | undefined, registry: MacroRegi
 type MarkerSection = Extract<PromptSection, { type: "marker" }>;
 type TemplatedMarkerSection = Extract<MarkerSection, { marker: keyof typeof DEFAULT_MARKER_TEMPLATES }>;
 
-/** The template for a templated marker — caller override wins, else the shipped default framing. */
-function templateFor(section: TemplatedMarkerSection): string {
-  return section.template ?? DEFAULT_MARKER_TEMPLATES[section.marker];
+/**
+ * The template for a templated marker — caller override wins, else the shipped default framing.
+ *
+ * The `main_prompt` DEFAULT is MODE-AWARE, and this is its ONE resolution home. A narrator round is one
+ * generation voicing the whole cast, so the per-speaker default — `You are {{char}} … write {{char}}'s perspective only`,
+ * with `{{char}}` bound to the JOINED cast on that arm — instructs the model to do something the round
+ * cannot do; the 2026-08-07 live drive read it back as "write Charlotte, JFC's perspective only". Keyed on `speaker.kind === "cast"`, the same axis {@link memberHeadingSlot} picks the
+ * co-speaker card frame on, and for the same reason: the SHAPE already decided what this turn voices, so
+ * nothing here re-derives it from `cardScope`/`isGroup`. Every other arm — solo, per-speaker, and a FORCED
+ * speaker in a narrator room (`verbs/turn` asPerSpeaker coerces it to the single arm) — reads the same
+ * bytes it always did.
+ *
+ * A caller `template` is checked FIRST and is one stored text for both kinds: a host who writes the framing
+ * owns the whole slot, on every turn (row 52 — the per-section override IS the edit path, so there is no
+ * per-mode override to consult).
+ */
+function templateFor(section: TemplatedMarkerSection, ctx: AssembleContext): string {
+  if (section.template !== undefined) {
+    return section.template;
+  }
+  return section.marker === "main_prompt" && ctx.speaker?.kind === "cast" ? NARRATOR_MAIN_PROMPT_TEMPLATE : DEFAULT_MARKER_TEMPLATES[section.marker];
 }
 
 /** Memoized preset render of each overridable section's preset `template`, keyed by section id. */
@@ -290,7 +308,7 @@ function renderOverridable(
 ): { text: string; merged: boolean } {
   const { ctx, cardCtx, originals, registry } = env;
   const cardOverride = ctx.character[cardField];
-  const preset = originals.renderedById.get(section.id) ?? renderMacros(templateFor(section), ctx, ctx.activePersona, { registry });
+  const preset = originals.renderedById.get(section.id) ?? renderMacros(templateFor(section, ctx), ctx, ctx.activePersona, { registry });
   const afterCard =
     overrideSet(cardOverride) && section.forbidCharacterOverride !== true
       ? renderMacros(cardOverride, cardCtx, ctx.pinnedPersona, { original: preset, registry })
@@ -329,7 +347,7 @@ function renderScenarioMarker(section: TemplatedMarkerSection, env: BuildEnv): s
   const room = ctx.roomOverrides?.scenario;
   // Active speaker's effective scenario only — co-speakers' scenarios are emitted once by the
   // char_description co-block; merging them here too would double-emit.
-  const value = renderMacros(templateFor(section), env.cardCtx, ctx.pinnedPersona, { registry: env.registry });
+  const value = renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, { registry: env.registry });
   if (value.trim().length === 0) {
     return "";
   }
@@ -364,7 +382,7 @@ function renderServerMarker(section: TemplatedMarkerSection, marker: "compact_su
     return "";
   }
   markServerInclude(marker, env.trace);
-  return renderMacros(templateFor(section), env.ctx, env.ctx.activePersona, { registry: env.registry });
+  return renderMacros(templateFor(section, env.ctx), env.ctx, env.ctx.activePersona, { registry: env.registry });
 }
 
 // biome-ignore-start lint/suspicious/noUnnecessaryConditions: biome's cross-package zod-union inference
@@ -385,7 +403,7 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
       // The MERGED card section — the one section whose text belongs to several roster members at once, so it
       // records a per-member split (`env.memberBlocks`) the budget attributes by NAME. The joined string is
       // byte-identical to the pre-split render.
-      const active = renderMacros(templateFor(section), env.cardCtx, ctx.pinnedPersona, { registry: env.registry });
+      const active = renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, { registry: env.registry });
       const blocks = renderCoSpeakerBlocks(ctx, env.registry);
       if (blocks.length > 0) {
         recordMergedCacheBuster(trace);
@@ -398,17 +416,17 @@ function renderMarker(section: MarkerSection, env: BuildEnv): string {
     }
     case "char_personality":
       return ctx.character.personality !== null && ctx.character.personality !== ""
-        ? renderMacros(templateFor(section), env.cardCtx, ctx.pinnedPersona, { registry: env.registry })
+        ? renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, { registry: env.registry })
         : "";
     case "dialogue_examples":
       return ctx.character.exampleMessages !== null && ctx.character.exampleMessages !== ""
-        ? renderMacros(templateFor(section), env.cardCtx, ctx.pinnedPersona, { registry: env.registry })
+        ? renderMacros(templateFor(section, ctx), env.cardCtx, ctx.pinnedPersona, { registry: env.registry })
         : "";
     case "persona":
       // Emits ONLY when the active persona's description placement is in_prompt (else it rode an
       // injection, or nowhere — the single-placement rule that makes double-injection impossible).
       return ctx.activePersona && ctx.personaMarkerActive !== false
-        ? renderMacros(templateFor(section), ctx, ctx.activePersona, { registry: env.registry })
+        ? renderMacros(templateFor(section, ctx), ctx, ctx.activePersona, { registry: env.registry })
         : "";
     case "compact_summary":
     case "memory":
@@ -447,19 +465,19 @@ function markerStaticSources(section: MarkerSection, ctx: AssembleContext): stri
     case "compact_summary":
     case "memory":
     case "guided_instruction":
-      return [templateFor(section)];
+      return [templateFor(section, ctx)];
     case "main_prompt":
-      return [templateFor(section), ctx.character.systemPrompt ?? "", ctx.roomOverrides?.mainPrompt ?? "", ...coSpeakerFieldSources("systemPrompt", ctx)];
+      return [templateFor(section, ctx), ctx.character.systemPrompt ?? "", ctx.roomOverrides?.mainPrompt ?? "", ...coSpeakerFieldSources("systemPrompt", ctx)];
     case "post_history":
       return [
-        templateFor(section),
+        templateFor(section, ctx),
         ctx.character.postHistoryInstructions ?? "",
         ctx.roomOverrides?.postHistory ?? "",
         ...coSpeakerFieldSources("postHistoryInstructions", ctx),
       ];
     case "char_description":
       return [
-        templateFor(section),
+        templateFor(section, ctx),
         ctx.character.description,
         ...coSpeakerFieldSources("description", ctx),
         ...coSpeakerFieldSources("personality", ctx),
@@ -467,11 +485,11 @@ function markerStaticSources(section: MarkerSection, ctx: AssembleContext): stri
         ...coSpeakerFieldSources("exampleMessages", ctx),
       ];
     case "char_personality":
-      return [templateFor(section), ctx.character.personality ?? ""];
+      return [templateFor(section, ctx), ctx.character.personality ?? ""];
     case "scenario":
-      return [templateFor(section), ctx.character.scenario ?? "", ctx.roomOverrides?.scenario ?? "", ...coSpeakerFieldSources("scenario", ctx)];
+      return [templateFor(section, ctx), ctx.character.scenario ?? "", ctx.roomOverrides?.scenario ?? "", ...coSpeakerFieldSources("scenario", ctx)];
     case "dialogue_examples":
-      return [templateFor(section), ctx.character.exampleMessages ?? ""];
+      return [templateFor(section, ctx), ctx.character.exampleMessages ?? ""];
   }
 }
 // biome-ignore-end lint/suspicious/noUnnecessaryConditions: see the matching -start above.
@@ -491,7 +509,7 @@ function computeOriginals(config: PromptConfig, ctx: AssembleContext, registry: 
   }
   const renderedById = new Map<string, string>();
   for (const s of overridable) {
-    renderedById.set(s.id, renderMacros(templateFor(s), ctx, ctx.activePersona, { registry }));
+    renderedById.set(s.id, renderMacros(templateFor(s, ctx), ctx, ctx.activePersona, { registry }));
   }
   return { renderedById };
 }

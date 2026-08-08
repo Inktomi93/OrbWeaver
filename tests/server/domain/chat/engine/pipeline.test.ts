@@ -2118,22 +2118,25 @@ describe("runTurnPipeline — narrator round assembly", () => {
   test("`{{char}}` binds to the WHOLE cast in the PRESET framing, which is the one place it should", async () => {
     const { args } = baseArgs({ assembleContext: narratorCtx(), shape: narratorShape });
     const result = await runTurnPipeline(args);
-    // DEFAULT_MARKER_TEMPLATES.main_prompt opens "You are {{char}} in an immersive, ongoing roleplay".
-    // Preset-authored framing, not card-derived text — the split `cardOwnerCtx` draws.
-    expect(result.request.prompt.static).toContain("You are Charlotte, JFC in an immersive");
+    // The narrator arm resolves NARRATOR_MAIN_PROMPT_TEMPLATE ("…voicing {{char}} and the world around
+    // them", `assembly/assemble` templateFor) — preset-authored framing, not card-derived text, so it keeps
+    // the TURN's speaker arm and `{{char}}` is the joined cast (the split `cardOwnerCtx` draws).
+    expect(result.request.prompt.static).toContain("voicing Charlotte, JFC and the world around them");
+    // …and it never carries the per-speaker default's single-perspective clause on a round voicing both.
+    expect(result.request.prompt.static).not.toContain("perspective only");
   });
 
   test("an EMPTY-but-defined cast floors `{{char}}` to the primary instead of shipping an empty name", async () => {
     // Reachable: `getCard` returning falsy for every seated id leaves `cast: []`/`castMembers: []` (both
     // DEFINED, so the absent-cast early return does not fire) while a narrator round still runs. An unfloored
-    // members list joins to "" — "You are  in an immersive…".
+    // members list joins to "" — the narrator framing would ship "voicing  and the world around them".
     const { args } = baseArgs({
       assembleContext: ctxOf({ character: charlotte, cast: [], castMembers: [] }),
       shape: narratorShape,
     });
     const system = (await runTurnPipeline(args)).request.prompt.static;
-    expect(system).toContain("You are Charlotte in an immersive");
-    expect(system).not.toContain("You are  in an immersive");
+    expect(system).toContain("voicing Charlotte and the world around them");
+    expect(system).not.toContain("voicing  and the world");
   });
 
   // THE ROUND-SCOPED REGEX PLACEMENTS AGREE ON `{{char}}`. `PROMPT_HISTORY` and `AI_OUTPUT`/`REASONING` are

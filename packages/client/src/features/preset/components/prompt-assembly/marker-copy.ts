@@ -22,6 +22,13 @@ export interface MarkerCopy {
    *  information. The mock draws a distinct glyph per slot, and the glyph is the only thing that lets the
    *  eye find "the character card's description" without reading. */
   readonly glyph: LucideIcon;
+  /** A drill-in note about how this marker's TEMPLATE behaves, rendered under the body textarea beside the
+   *  ghost/reset sentence. Present only where the mechanism would otherwise surprise the author — today
+   *  exactly `main_prompt`, whose built-in default is MODE-AWARE (a narrator turn resolves a narrator-true
+   *  framing, `assembly/assemble.ts` templateFor) while the field itself is ONE stored text that replaces
+   *  the default on BOTH turn kinds. The ghost shows the per-speaker default, so without this line the
+   *  narrator behaviour is invisible from the only surface that edits it. */
+  readonly templateNote?: string;
   /** A FIXED-BY-PRODUCT firing cue for the rack row (crunch item 16 / the mock's `⚡ steered turns`). Not
    *  the section's editable `trigger` list — this is a fact about the MARKER that no preset can change, so
    *  it belongs to the registry rather than to a stored field. Absent for every marker that fires on every
@@ -37,6 +44,8 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
     oneLiner: "Your top-level system instruction — the character's card can replace it in place.",
     subtitle: "your core system instruction",
     glyph: Sparkles,
+    templateNote:
+      "The built-in default adapts to the turn: a narrator round gets a narrator framing instead of this one. Anything you write here replaces it on every turn, narrator and per-character alike.",
   },
   ["char_description"]: {
     label: "Character description",

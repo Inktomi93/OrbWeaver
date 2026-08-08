@@ -314,6 +314,97 @@ describe("assemblePrompt — merged co-speaker scenario (F6: single emission)", 
   });
 });
 
+// ── THE FACTORY main_prompt IS MODE-AWARE (C4) ───────────────────────────────────────────────────────
+// The shipped default framing says "You are {{char}} … write {{char}}'s perspective only" — true for a
+// per-speaker turn and FALSE for a narrator round, which is ONE generation voicing the whole cast (the
+// 2026-08-07 live drive read "write Charlotte, JFC's perspective only", a self-contradictory instruction).
+// The default now selects on the SAME axis the card-heading slot selects on (`speaker.kind === "cast"`,
+// `memberHeadingSlot`); every other turn keeps its bytes EXACTLY. Asserted on the assembled bytes — the
+// text the model receives — never on the constant, so the narrator pin is a defect proof.
+describe("assemblePrompt — the factory main_prompt default is MODE-AWARE (narrator vs per-speaker)", () => {
+  const char = (name: string): AssembleCharacter => ({
+    name,
+    description: `${name} description`,
+    personality: null,
+    scenario: null,
+    exampleMessages: null,
+    systemPrompt: null,
+    postHistoryInstructions: null,
+    depthPrompt: null,
+  });
+  const aria = char("Aria");
+  const kai = char("Kai");
+  const ariaRef = { kind: "character", characterId: castId<CharacterId>("character_aria") } as const;
+  const kaiRef = { kind: "character", characterId: castId<CharacterId>("character_kai") } as const;
+  /** The `template`-less factory section: the whole point is which DEFAULT resolves. */
+  const factoryMain = (): PromptConfig => configOf([marker({ marker: "main_prompt" })]);
+  const persona = { name: "Traveler", description: "" };
+
+  /** The ONE immutable round ctx of a two-member room, before the per-turn shape picks an arm. */
+  function roomCtx(): AssembleContext {
+    return ctxOf({
+      character: aria,
+      cast: [aria, kai],
+      castCharacterIds: [castId<CharacterId>("character_aria"), castId<CharacterId>("character_kai")],
+      castMembers: [ariaRef, kaiRef],
+      pinnedPersona: persona,
+      activePersona: persona,
+    });
+  }
+
+  // The BYTES of the per-speaker/solo default, spelled out ONCE: every non-narrator arm below is pinned
+  // against this exact string, so a drift in the shipped default fails here instead of silently riding.
+  const characterText = (name: string): string =>
+    `You are ${name} in an immersive, ongoing roleplay with Traveler. Stay in character; write ${name}'s perspective only. ` +
+    "Address Traveler in the second person; use their name only when it is one they have chosen for themselves.";
+
+  test("a NARRATOR turn gets a narrator-true framing — no single-perspective clause", () => {
+    const ctx = shapeContextForSpeaker(roomCtx(), { ref: ariaRef, output: "narrator", cardScope: "merged" });
+    const out = assemblePrompt(factoryMain(), ctx);
+    // The defect: the round voicing everybody was told to write ONE member's perspective only.
+    expect(out.static).not.toContain("perspective only");
+    expect(out.static).not.toContain("You are Aria, Kai in an immersive");
+    // …replaced by a framing that names the job the round actually has, with `{{char}}` still bound to the
+    // joined cast (the one place cast-binding belongs — preset-authored framing, not card text).
+    expect(out.static).toContain("You are the narrator");
+    expect(out.static).toContain("voicing Aria, Kai");
+    // The address clause is preserved VERBATIM on this arm too (owner ruling 2026-08-02).
+    expect(out.static).toContain("Address Traveler in the second person; use their name only when it is one they have chosen for themselves.");
+  });
+
+  test("a SOLO turn is byte-identical — no speaker arm, no change", () => {
+    const out = assemblePrompt(factoryMain(), ctxOf({ activePersona: persona, pinnedPersona: persona }));
+    expect(out.static).toBe(characterText("Aria"));
+  });
+
+  test("a PER-SPEAKER turn is byte-identical — the speaker's own character framing", () => {
+    const ctx = shapeContextForSpeaker(roomCtx(), { ref: kaiRef, output: "per-speaker", cardScope: "merged" });
+    expect(assemblePrompt(factoryMain(), ctx).static).toContain(characterText("Kai"));
+  });
+
+  test("a FORCED speaker in a NARRATOR room gets the CHARACTER text — the `asPerSpeaker` coercion arm", () => {
+    // `verbs/turn.asPerSpeaker` coerces a narrator room's config to `per-speaker` for a forced character, so
+    // the turn arrives here with the single arm — the room's MODE must not leak into the framing.
+    const ctx = shapeContextForSpeaker(roomCtx(), { ref: kaiRef, output: "per-speaker", cardScope: "merged" });
+    expect(ctx.speaker?.kind).toBe("single");
+    expect(assemblePrompt(factoryMain(), ctx).static).toContain(characterText("Kai"));
+  });
+
+  test("a host's per-section `template` override is ONE text applied to BOTH turn kinds", () => {
+    // The override is stored as a single string (there is no per-mode override slot, row 52): whichever arm
+    // the turn takes, an overridden section renders the host's bytes and NEITHER default.
+    const config = configOf([marker({ marker: "main_prompt", template: "HOST: you are {{char}}." })]);
+    const narrator = shapeContextForSpeaker(roomCtx(), { ref: ariaRef, output: "narrator", cardScope: "merged" });
+    const perSpeaker = shapeContextForSpeaker(roomCtx(), { ref: kaiRef, output: "per-speaker", cardScope: "merged" });
+    expect(assemblePrompt(config, narrator).static).toContain("HOST: you are Aria, Kai.");
+    expect(assemblePrompt(config, perSpeaker).static).toContain("HOST: you are Kai.");
+    for (const out of [assemblePrompt(config, narrator), assemblePrompt(config, perSpeaker)]) {
+      expect(out.static).not.toContain("immersive, ongoing roleplay");
+      expect(out.static).not.toContain("You are the narrator");
+    }
+  });
+});
+
 // The ASSEMBLE post-process arm (`applyAssemblePostProcess`, keyed to the preset's `postProcess` block):
 // the UI-exposed `collapseNewlines` knob must actually bite on the assembled halves — collapse runs of 3+
 // newlines WITHIN a rendered section down to a single blank line. Knob-off is the regression belt: a preset

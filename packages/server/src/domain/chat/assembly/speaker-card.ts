@@ -39,7 +39,9 @@ function shapeContextForCast(ctx: AssembleContext, cast: readonly AssembleCharac
   // An EMPTY-but-defined cast is reachable, so `members` needs the same floor `active` gets: `getCard` returning
   // falsy for every seated id drops the whole roster (`assembly/context` buildAssembleContext) while a narrator
   // round still fires (`verbs/turn` gates on `output === "narrator"` OR a speaker, never on roster size). An
-  // unfloored `members: []` joins to "" and ships "You are  in an immersive…" — `{{char}}` with no value at all.
+  // unfloored `members: []` joins to "" and ships "…voicing  and the world around them" — `{{char}}` with no
+  // value at all (the narrator default, `assembly/assemble` templateFor; it read "You are  in an immersive…"
+  // before the framing became mode-aware).
   // Flooring to `[active]` degrades to exactly the pre-cast-arm binding (the primary's name).
   const members = cast.length > 0 ? [...cast] : [active];
   return {

@@ -206,12 +206,47 @@ describe("D16 solo ≡ group-of-one (the byte-identical property)", () => {
   // shape: the shared ctx carried no `cast`/`castMembers`, so both postures took `shapeContextForSpeaker`'s
   // absent-cast early return and 3/3 green proved nothing about the arm. It now carries a real roster of one
   // and drives the branch that most plausibly breaks D16 — a whole-cast speaker arm and whole-cast card merge.
-  test("the NARRATOR arm is byte-identical at cast=1 too (the whole-cast shape degrades to the solo one)", async () => {
+  //
+  // AMENDED 2026-08-08 (C4, the mode-aware main_prompt default; ruled by the orchestrator 2026-08-08) —
+  // READ THIS BEFORE "RESTORING" THE OLD FORM. The original assertion was
+  // `wireBytes(narrator.req) === wireBytes(solo.req)`, whole. It no longer holds, by design and by exactly
+  // ONE section: the factory `main_prompt` default now resolves per turn MODE (`assembly/assemble`
+  // templateFor, keyed on `speaker.kind === "cast"` — the same axis `memberHeadingSlot` uses), because
+  // "write {{char}}'s perspective only" is an instruction a narrator round cannot obey.
+  //   1. D16 bans branching on group-NESS/SIZE ("no `if (isGroup)`; solo = roster-of-1, byte-identical").
+  //      Gating the framing on `members.length > 1` to keep this line green IS that forbidden shape — a
+  //      roster-size branch deciding wire bytes. Keying on the host-CHOSEN output mode is D16 honored:
+  //      the mode is config DATA and the selection reads the speaker arm the SHAPE already produced.
+  //   2. The 2026-08-07 stance ("narrator-of-one ≡ solo") rested on a premise this ruling kills: a narrator
+  //      room of one is still a NARRATOR room — the host asked for a third-person voice narrating Aria AND
+  //      the world, and "write Aria's perspective only" contradicts the mode they chose. A ruling whose
+  //      premise dies gets re-ruled, not defended.
+  //   3. The narrator arm was never byte-identical in the PERSISTED plane either — its canon row commits
+  //      under the synthetic group character, which is why the canon test below compares only the
+  //      per-speaker postures. The identity claim was always WIRE-ONLY, and this marker is now its one
+  //      deliberate wire exception.
+  //   4. This does NOT touch the cast≤1 nudge suppression below, and the two are not in tension: the NUDGE
+  //      teaches multi-SPEAKER mechanics (size-relevant, so it vanishes at one), while the MARKER states the
+  //      round's IDENTITY (mode-relevant, so it holds at any size). Do not flatten them into one rule.
+  test("the NARRATOR arm at cast=1 degrades to the solo shape — byte-identical but for the mode's own framing", async () => {
     const solo = await makePosture(DEFAULT_GROUP_CONFIG);
     const narrator = await makePosture(NARRATOR_OF_ONE);
 
-    // The headline, for the arm that has its own speaker shape: same wire product as the untouched solo room.
-    expect(wireBytes(narrator.req)).toBe(wireBytes(solo.req));
+    // Sections join with a blank line: the framing is the FIRST block, everything after it is the shape D16
+    // is about (the cards, the persona, the history, the params).
+    const [narratorFraming, ...narratorRest] = narrator.req.prompt.static.split("\n\n");
+    const [soloFraming, ...soloRest] = solo.req.prompt.static.split("\n\n");
+    expect(narratorRest).toEqual(soloRest);
+    // …and the WHOLE wire product is byte-identical once that one section is put back — so nothing else
+    // (history, intent, kind, cache breakpoint, trace, the dynamic half) diverged with it.
+    const restored = { ...narrator.req, prompt: { ...narrator.req.prompt, static: solo.req.prompt.static } };
+    expect(wireBytes(restored)).toBe(wireBytes(solo.req));
+
+    // The ONE deliberate difference, stated in both directions so neither default can drift unnoticed.
+    expect(soloFraming).toContain("You are Aria in an immersive");
+    expect(narratorFraming).toContain("You are the narrator of an immersive");
+    expect(narratorFraming).not.toContain("perspective only");
+
     // Non-vacuous: the cast-of-one card actually rendered, and neither cast-of-one fence fired.
     expect(narrator.req.prompt.static).toContain("a bold knight");
     expect(historyText(narrator.req)).not.toContain("Continue the scene, voicing the present characters");

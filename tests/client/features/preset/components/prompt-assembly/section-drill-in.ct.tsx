@@ -46,6 +46,10 @@ const CONTINUE_TRIGGER_RE = /Continue/;
 /** Every option the Fires-on dial offers, in `GENERATION_TYPES` order — the all-selected arm's input. */
 const ALL_GENERATION_TYPES = ["Normal", "Continue", "Impersonate", "Swipe", "Regenerate", "Quiet"] as const;
 const SWIPE_TRIGGER_RE = /Swipe/;
+/** The main-prompt drill-in's mode-aware note — the two halves it has to say (C4). Top-level per
+ *  `useTopLevelRegex`. */
+const MODE_AWARE_DEFAULT_RE = /narrator round gets a narrator framing/;
+const OVERRIDE_COVERS_BOTH_RE = /replaces it on every turn, narrator and per-character alike/;
 
 test("a row CLICK selects without mounting the drill-in; the CHEVRON drills", async ({ mount }) => {
   const probe = await mount(<RackStory />);
@@ -179,6 +183,18 @@ test("the main-prompt GHOST fits its own box — the second-person address claus
   expect(fit.ghost).toContain("Address");
   expect(fit.ghost).toContain("chosen for themselves");
   expect(fit.overflow).toBeLessThanOrEqual(0);
+});
+
+test("the main-prompt drill-in DISCLOSES the mode-aware default — and that one typed template covers both turn kinds", async ({ mount }) => {
+  // The ghost shows the PER-SPEAKER default (the narrator arm resolves a different one, `assembly/assemble`
+  // templateFor). Without this line the mode-awareness is invisible from the only surface that edits the
+  // slot, and a host who types a template has no way to know it lands on narrator rounds too — the stored
+  // field is ONE text (row 52: the per-section override IS the edit path).
+  const probe = await mount(<MainPromptStory />);
+  await probe.getByRole("button", { name: "Edit Main prompt" }).click();
+
+  await expect(probe.getByText(MODE_AWARE_DEFAULT_RE)).toBeVisible();
+  await expect(probe.getByText(OVERRIDE_COVERS_BOTH_RE)).toBeVisible();
 });
 
 test("item 10 — the row is STABLE across the two zone arms: the Role select keeps its column", async ({ mount, page }) => {

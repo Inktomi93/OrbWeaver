@@ -17,6 +17,7 @@ import {
   guidedActionsSchema,
   importStChatCompletionPreset,
   MAX_INJECTION_TEMPLATE_LENGTH,
+  NARRATOR_MAIN_PROMPT_TEMPLATE,
   PRESET_SCHEMA_KIND,
   PROMPT_CONFIG_SCHEMA_VERSION,
   PROMPT_LANE_STEPS,
@@ -80,6 +81,20 @@ test("the starter arrangement stores NO section templates — the built-in opens
   // so the same bytes still go out for the main prompt.
   expect(DEFAULT_MARKER_TEMPLATES.main_prompt).toContain("{{char}}");
   expect(DEFAULT_MARKER_TEMPLATES.main_prompt).toContain("{{user}}");
+});
+
+test("the two main_prompt defaults differ ONLY in the perspective framing — the address clause is verbatim in both", () => {
+  // The narrator sibling is a second TEXT, never a second rule: the vocative defect the address clause fixes
+  // (a default persona's name is a LABEL, so "Goodnight, You.") is a property of `{{user}}`, not of the
+  // turn's mode, and the clause is owner-ruled (2026-08-02). WHICH text a turn gets is decided once, in
+  // `assembly/assemble.ts` templateFor — nothing here re-derives it.
+  const ADDRESS_CLAUSE = "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.";
+  expect(DEFAULT_MARKER_TEMPLATES.main_prompt).toContain(ADDRESS_CLAUSE);
+  expect(NARRATOR_MAIN_PROMPT_TEMPLATE).toContain(ADDRESS_CLAUSE);
+  // The narrator text carries the joined cast as its VOICES, never as one perspective to write.
+  expect(NARRATOR_MAIN_PROMPT_TEMPLATE).toContain("{{char}}");
+  expect(NARRATOR_MAIN_PROMPT_TEMPLATE).not.toContain("perspective only");
+  expect(DEFAULT_MARKER_TEMPLATES.main_prompt).toContain("perspective only");
 });
 
 test("parsePromptConfig degrades a non-object / malformed blob to DEFAULT_PROMPT_CONFIG (lenient)", () => {

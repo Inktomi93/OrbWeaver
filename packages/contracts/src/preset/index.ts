@@ -694,7 +694,10 @@ const templatedMarkerSection = z.object({
   marker: z.enum(TEMPLATED_MARKERS),
   role: z.enum(MESSAGE_ROLES).default("system"),
   enabled: z.boolean().default(true),
-  /** Custom framing template (macros allowed). Omit ⇒ `DEFAULT_MARKER_TEMPLATES[marker]`.
+  /** Custom framing template (macros allowed). Omit ⇒ `DEFAULT_MARKER_TEMPLATES[marker]` — except
+   *  `main_prompt`, whose default is MODE-AWARE (a narrator turn resolves `NARRATOR_MAIN_PROMPT_TEMPLATE`;
+   *  the pick lives in `assembly/assemble.ts` templateFor). This field is ONE stored text either way: an
+   *  override REPLACES the default on both turn kinds, and there is no per-mode override slot.
    *  There is no "render nothing" arm: an EMPTY string is the same thing as omitted (the editor writes
    *  `undefined` when you clear the field), and turning a marker off is `enabled: false` — the one
    *  mechanism (preset-surface-redesign §5.2a, the tri-state retirement; the v4→v5 lift retires every
@@ -1613,10 +1616,13 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
   // default persona's name is a LABEL, not a name its owner picked — so a model reaching for a vocative
   // produced "Goodnight, You." The clause is deliberately CONDITIONAL rather than a name ban: a persona the
   // user actually named ("Sarah") must stay addressable, and only the placeholder case degrades to "you".
-  // It lives HERE, on the marker default, and not in a PROSE-1 slot: the only identity-framing slot
+  // It lives HERE, on the marker defaults — BOTH of them, verbatim and identically (see
+  // {@link NARRATOR_MAIN_PROMPT_TEMPLATE}) — and not in a PROSE-1 slot: the only identity-framing slot
   // (`chat.assembly.anchorIdentity`) fires solely on a persona SWAP, the default persona block ships
   // deliberately unframed, and PROSE-1's own census leaves this template un-slotted (row 52) precisely
   // because the per-section `template` override IS its edit path.
+  // THIS entry is the PER-SPEAKER/SOLO text — the mode-aware pick is made where the default RESOLVES
+  // (`assembly/assemble.ts` templateFor), never re-derived here; see the narrator sibling below.
   ["main_prompt"]:
     "You are {{char}} in an immersive, ongoing roleplay with {{user}}. Stay in character; write {{char}}'s perspective only. " +
     "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.",
@@ -1630,6 +1636,29 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
   ["memory"]: `Past events:\n${macro("memory")}`,
   ["guided_instruction"]: macro("guided_instruction"),
 };
+
+/** The NARRATOR-turn `main_prompt` default — the sibling of `DEFAULT_MARKER_TEMPLATES.main_prompt`, not a
+ *  replacement for it. A narrator round is ONE generation voicing the WHOLE cast, so the shipped
+ *  per-speaker framing (`You are {{char}} … write {{char}}'s perspective only`) arrives at the model as a
+ *  self-contradiction: the 2026-08-07 live drive read "write Charlotte, JFC's perspective only" on a turn
+ *  that had to produce both. `{{char}}` binds to the JOINED cast on that arm (`assembly/macros`
+ *  charForSpeaker), which is exactly what `voicing {{char}}` wants and what `{{char}}'s perspective only`
+ *  cannot survive.
+ *
+ *  WHICH text a turn gets is decided ONCE, where the default resolves (`assembly/assemble.ts` templateFor,
+ *  keyed on `speaker.kind === "cast"` — the same axis `memberHeadingSlot` already selects the co-speaker
+ *  card frame on). There is deliberately NO second resolution home and NO mode-keyed record here: this file
+ *  owns the BYTES, the assembler owns the pick.
+ *
+ *  The ADDRESS clause is byte-identical to the per-speaker default's, on purpose (owner ruling 2026-08-02 —
+ *  see the comment above): the vocative defect is a property of `{{user}}`, not of the turn's mode.
+ *
+ *  A host's per-section `template` override is ONE stored text and REPLACES both arms (row 52: the override
+ *  IS the edit path; there is no per-mode override slot). */
+export const NARRATOR_MAIN_PROMPT_TEMPLATE =
+  "You are the narrator of an immersive, ongoing roleplay with {{user}}, voicing {{char}} and the world around them. " +
+  "Give each speaking character a distinct, consistent voice. " +
+  "Address {{user}} in the second person; use their name only when it is one they have chosen for themselves.";
 
 // ChoiceBlock — preset-author-declared named variables (POV/tense/style); the macro engine exposes
 // them as `{{getvar::<name>}}` / `{{<name>}}`.
