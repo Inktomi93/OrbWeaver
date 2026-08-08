@@ -1502,6 +1502,13 @@ Items this audit could not prove either way from the tree. **None were dropped.*
 
 ## ═══ STANDING FACTS + POSTURE ═══
 
+- **⚑ THE NEO-PARITY ORACLE IS A FLOOR WE'VE PASSED, NOT A GOLDEN (owner, 2026-08-07).** `pnpm
+  test:parity` (`parity-runner.ts` + `pipeline-breakpoint.parity.test.ts`) diffs orbweaver's SHAPE-phase
+  history + §8 cache breakpoint against `fixtures/parity/neo-reference.json`. **We have EXCEEDED neo —
+  where our shape diverges, ORBWEAVER is correct.** A red parity diff = confirm it's one of our
+  improvements, then RE-CAPTURE/ANNOTATE the reference; **NEVER** change `assembly/shape.ts` to match neo.
+  Same for the ST-parity suites (`tests/kit/macro/st-parity*`). \[\[neo-parity-oracle-is-a-floor-not-a-golden]]
+
 - **Stack:** `pnpm stack restart` defaults `ENGINES_POSTURE=adopt-only`; `--force` is the ONE
   fleet-killer. Engines: `pnpm engines:{wake,sleep,status}`; truth = `GET /is_sleeping` (`/health` AND
   `/v1/models` both LIE while asleep); the hold marker refuses auto-wake. Wake-on-demand is built into
