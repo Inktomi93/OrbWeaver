@@ -11,22 +11,32 @@ export const toastVariants = tv({
     // `container` + `swipeDirection` (ToasterProps).
     //
     // ACCEPTED RESIDUAL — on a phone the stack lands on the message transcript, covering one row's
-    // secondary actions (Edit / Fork / More; side-eye re-verify, measured). There is no inset that
-    // avoids it: at 430×740 the bands are topbar 0-48, TRANSCRIPT 48-548, composer 548-672, tab bar
-    // 684-740, so an overlay toast must cover the transcript or the composer — the two constraints are
-    // mutually exclusive, and the composer collision is the one that was a P1 (94% of Send, click
-    // swallowed, at the turn-terminal moment the user reaches for it). Row actions are per-row,
+    // secondary actions (Edit / Fork / More; side-eye re-verify, measured). No inset avoids it, and the
+    // reason is STRUCTURAL, not a matter of which pixels: the 430-wide column is topbar, then transcript,
+    // then composer, then tab bar, with no toast-height gap that is neither transcript nor composer. So
+    // an overlay toast must cover one of the two, and the composer is the one that was a P1 (94% of Send,
+    // click swallowed, at the turn-terminal moment the user reaches for it). Row actions are per-row,
     // duplicated on every row the toast does not cover, and the toast is gone in 5-12s or one swipe.
-    // Escaping the choice entirely means a non-overlay surface (a reflowing shell band), which is
-    // layout machinery, not an inset — raise it as its own piece of work, don't retune this line.
+    // Escaping the choice entirely means a non-overlay surface (a reflowing shell band), which is layout
+    // machinery, not an inset — raise it as its own piece of work, don't retune this line.
     // `pointer-events-none` on the region so an empty viewport never eats clicks on the controls it
-    // overlaps — individual toasts opt back in via `root`'s `pointer-events-auto`.
-    viewport: "pointer-events-none fixed top-(--dimension-chrome-row) right-0 z-(--z-toast) flex w-full max-w-cq-sm flex-col gap-row p-section outline-none",
+    // overlaps — individual toasts opt back in via `root`'s `pointer-events-auto`. No `outline-none`:
+    // nothing rings this element today, but the reset would arm the `--tw-outline-style` landmine that
+    // FOCUS_RING_OUTLINE's header documents for whoever adds one (the Viewport IS an F6 focus stop).
+    viewport: "pointer-events-none fixed top-(--dimension-chrome-row) right-0 z-(--z-toast) flex w-full max-w-cq-sm flex-col gap-row p-section",
     root: [
       // `flex` + `gap-row`: the type GLYPH is a sibling of the content column (see `icon`), so meaning is
       // never carried by the border colour alone.
       "pointer-events-auto relative flex w-full gap-row rounded-card border border-border bg-popover p-block text-popover-foreground shadow-overlay",
-      "transition-all duration-(--motion-base) ease-out-expo [transform:translate(var(--toast-swipe-movement-x),var(--toast-swipe-movement-y))]",
+      // The transition NAMES ITS THREE PROPERTIES — `transition-all` was a bug, not a shorthand.
+      // `outline-*` is interpolable, so `all` faded the focus ring in over `--motion-base`: a keyboard
+      // user moving at speed saw a desaturated half-ring at every stop, and the ring is the one thing on
+      // this element that must be instant. Naming the set also keeps the animation compositor-friendly.
+      // The three are exactly what the motion below needs: `opacity` + `translate` (the enter/exit slide,
+      // which is Tailwind v4's `translate` property, NOT `transform`) and `transform` (the swipe-movement
+      // vars on this same line). Dropping any one silently kills that half of the motion — see Button's
+      // variants for the sibling case where `scale` had to be named for the same reason.
+      "transition-[opacity,transform,translate] duration-(--motion-base) ease-out-expo [transform:translate(var(--toast-swipe-movement-x),var(--toast-swipe-movement-y))]",
       // Enter: slide down + fade in. Exit: the reverse — slide back up + fade, not a bare opacity cut.
       // (`-translate-y-full` because the stack is top-anchored: a toast arrives from off the top edge.)
       "data-limited:hidden data-starting-style:opacity-0 data-starting-style:-translate-y-full data-ending-style:opacity-0 data-ending-style:-translate-y-full",
