@@ -13,8 +13,8 @@
 // through the recorded MUTATION INPUT — never through a UI reaction to a stubbed response.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { DatabankHomeTileAndLibraryStory, DatabankLibraryStory } from "../_ct-stories.tsx";
-import { INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures.ts";
+import { DatabankHomeTileAndLibraryStory, DatabankLibraryStory, DatabankLibraryTallStory } from "../_ct-stories.tsx";
+import { INDEXING_DOC, pagedBank, READY_DOC, stubDatabank } from "../fixtures.ts";
 
 test("a phase chip renders ONLY for a non-ready row — Ready is the absence of a chip (§6.1)", async ({ mount, page }) => {
   await stubDatabank(page);
@@ -141,7 +141,7 @@ test("Delete goes through the confirm, and reaches the server only after it", as
 });
 
 test("the empty bank TEACHES and offers the next step — never a blank pane", async ({ mount, page }) => {
-  await stubDatabank(page, { "databank.list": () => [], "databank.listGlobal": () => [] });
+  await stubDatabank(page, { "databank.list": pagedBank([]), "databank.listGlobal": () => [] });
   const list = await mount(<DatabankLibraryStory />);
 
   await expect(list.getByText("No documents yet")).toBeVisible();
@@ -179,7 +179,7 @@ const BANK_WITH_A_HIDDEN_STALL = [
 ];
 
 test("a health chip scopes this pane to that phase, says so, and offers the way back", async ({ mount, page }) => {
-  await stubDatabank(page, { "databank.list": () => BANK_WITH_A_HIDDEN_STALL });
+  await stubDatabank(page, { "databank.list": pagedBank(BANK_WITH_A_HIDDEN_STALL) });
   const both = await mount(<DatabankHomeTileAndLibraryStory />);
   const pane = both.getByRole("region", { name: "Library pane" });
 
@@ -198,8 +198,92 @@ test("a health chip scopes this pane to that phase, says so, and offers the way 
   await expect(pane.getByRole("button", { exact: true, name: "Healthy 0" })).toHaveCount(1);
 });
 
+// ── PAGINATION — the 100-doc ceiling ───────────────────────────────────────────────────────────────────
+// The pane used to render exactly `databank.list`'s default page and offer no way to ask for another, so a
+// bank's 101st document was unreachable from the UI — a ceiling the tile's honest "100+" had just made
+// visible. These pin the two halves: the tail control REACHES the row past the cap, and a search that finds
+// nothing among the loaded rows says THAT rather than claiming the bank has no such document.
+
+/** A bank two pages deep at the pane's page size. `updatedAt` DESCENDS with the index so the fixture is in
+ *  the same order the verb serves (`updatedAt DESC, id DESC`) and the keyset walk is meaningful. */
+const DEEP_BANK = Array.from({ length: 130 }, (_, i) => ({
+  ...READY_DOC,
+  id: `document_${String(i).padStart(20, "0")}`,
+  name: `Document ${String(i + 1)}`,
+  updatedAt: READY_DOC.updatedAt - i * 1000,
+}));
+
+test("a document PAST the first page is reachable — Load more walks the keyset", async ({ mount, page }) => {
+  await stubDatabank(page, { "databank.list": pagedBank(DEEP_BANK), "databank.listGlobal": () => [] });
+  const list = await mount(<DatabankLibraryTallStory />);
+
+  // The first page landed (the default `library.pageSize` is 30) and the bank's 101st document is NOT in it.
+  await expect(list.getByRole("button", { exact: true, name: "Document 1" })).toHaveCount(1);
+  await expect(list.getByRole("button", { exact: true, name: "Document 101" })).toHaveCount(0);
+
+  // Walk to it the way a user does. Each press appends the next page, so the row lands on the fourth.
+  const loadMore = list.getByRole("button", { name: "Load more", exact: true });
+  for (let i = 0; i < 3; i += 1) {
+    // biome-ignore lint/performance/noAwaitInLoops: pressing a control and waiting for the page it fetches is sequential by construction — this loop IS the user walking the keyset.
+    await expect(loadMore).toBeEnabled();
+    await loadMore.click();
+    // Barrier on the SETTLED page: the row count only grows once the next page's rows have rendered.
+    await expect(list.getByRole("button", { exact: true, name: "Document 101" })).toHaveCount(i === 2 ? 1 : 0);
+  }
+
+  // …and the tail control retires itself when the bank is exhausted (130 rows = the last page is short).
+  await loadMore.click();
+  await expect(list.getByRole("button", { exact: true, name: "Document 130" })).toHaveCount(1);
+  await expect(loadMore).toHaveCount(0);
+});
+
+test("at the REAL 320×700 pane the tail control is reachable by scrolling — not clipped out of the list", async ({ mount, page }) => {
+  await stubDatabank(page, { "databank.list": pagedBank(DEEP_BANK), "databank.listGlobal": () => [] });
+  // The PRODUCTION mount, not the tall story: a "Load more" at the end of a 30-row page lives past the fold
+  // of a 700px pane, and a tail control a user cannot scroll to is the same as no tail control at all.
+  const list = await mount(<DatabankLibraryStory />);
+  await expect(list.getByRole("button", { exact: true, name: "Document 1" })).toHaveCount(1);
+
+  const loadMore = list.getByRole("button", { name: "Load more", exact: true });
+  await loadMore.scrollIntoViewIfNeeded();
+  await expect(loadMore).toBeInViewport();
+
+  // Geometry, not just presence: the control sits INSIDE the pane's box (a row that overflows the 320px
+  // floor is this surface's most common rendered defect).
+  const paneBox = await list.boundingBox();
+  const buttonBox = await loadMore.boundingBox();
+  expect(paneBox).not.toBeNull();
+  expect(buttonBox).not.toBeNull();
+  if (paneBox !== null && buttonBox !== null) {
+    expect(buttonBox.x).toBeGreaterThanOrEqual(paneBox.x);
+    expect(buttonBox.x + buttonBox.width).toBeLessThanOrEqual(paneBox.x + paneBox.width);
+  }
+
+  // …and it works from there: the next page lands.
+  await loadMore.click();
+  await expect(list.getByRole("button", { exact: true, name: "Document 31" })).toHaveCount(1);
+});
+
+test("a search with no hits among the LOADED rows says so — it never claims the whole bank has none", async ({ mount, page }) => {
+  await stubDatabank(page, { "databank.list": pagedBank(DEEP_BANK), "databank.listGlobal": () => [] });
+  const list = await mount(<DatabankLibraryTallStory />);
+  await expect(list.getByRole("button", { exact: true, name: "Document 1" })).toHaveCount(1);
+
+  // "Document 101" exists in the bank and not in the loaded window — the exact case where a flat "No
+  // matches" would be a lie about data the client never fetched.
+  await list.getByRole("textbox", { name: "Search documents" }).fill("Document 101");
+  await expect(list.getByText("No matches in view")).toBeVisible();
+  await expect(list.getByText("No matches", { exact: true })).toHaveCount(0);
+
+  // And the empty state's own action keeps looking — a scoped dead end is not an answer.
+  await list.getByRole("button", { name: "Load more", exact: true }).click();
+  await list.getByRole("button", { name: "Load more", exact: true }).click();
+  await list.getByRole("button", { name: "Load more", exact: true }).click();
+  await expect(list.getByRole("button", { exact: true, name: "Document 101" })).toHaveCount(1);
+});
+
 test("a phase scope that matches nothing reads as GOOD NEWS with its own way out, not as an empty bank", async ({ mount, page }) => {
-  await stubDatabank(page, { "databank.list": () => BANK_WITH_A_HIDDEN_STALL });
+  await stubDatabank(page, { "databank.list": pagedBank(BANK_WITH_A_HIDDEN_STALL) });
   const both = await mount(<DatabankHomeTileAndLibraryStory />);
   const pane = both.getByRole("region", { name: "Library pane" });
 

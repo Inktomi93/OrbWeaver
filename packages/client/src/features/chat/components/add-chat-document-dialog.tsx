@@ -74,7 +74,7 @@ function PickerBody({
   if (bank.isPending) {
     return <SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />;
   }
-  const documents = bank.data ?? [];
+  const documents = bank.data?.items ?? [];
   const candidates = attachableDocuments(documents, activeIds);
 
   // TWO different nothings, said differently (empty states are load-bearing): an empty BANK is "go make

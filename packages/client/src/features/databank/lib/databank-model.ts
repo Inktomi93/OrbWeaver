@@ -192,8 +192,8 @@ export interface BankHealth {
 }
 
 /**
- * The bank's ingest health over the documents the caller was handed — the tile reads the SAME
- * `databank.list` page the library pane does, so this summarizes that page, not a second server truth.
+ * The bank's ingest health over the documents the caller was handed — ONE page of `databank.list`, so this
+ * summarizes that page, not a bank-wide census and not a second server truth.
  * `now` is INJECTED (the stall overlay's clock; the render edge passes it, never an ambient read).
  *
  * `visibleCount` is how many of these documents the caller RENDERS as rows (the list is newest-first, so
