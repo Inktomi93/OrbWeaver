@@ -119,10 +119,12 @@ Ranked by consequence within each category. Every item carries its receipt state
   rec: try cap_drop, CUDA may need IPC_LOCK) · profile coupling only pins `sibling` (availability
   not exposure). **FOLLOW-UP LEG (running):** spec truth-repair ×3 sites + the `superRefine`
   boot-fence (single-user+deny = boot-fatal, red-first) + 3 in-code comment repairs + the
-  shim⇔`HOST_SECRET_ENV_KEYS` coupled-site tie. **OWNER after that:** fork — zero-config default
-  usable-as-owner (shipped, spec-matching) vs deliberately-inert (stricter) · the live-infra steps
-  — `docker build` both targets (+`docker inspect` the healthcheck), container runs,
-  fleet-in-namespace, read-only shakeout, the pentest cage (§4/Fork F), deploy posture (C13).
+  shim⇔`HOST_SECRET_ENV_KEYS` coupled-site tie. **✅ FORK RULED (owner, 2026-08-08):
+  usable-as-owner IS the default** — the SillyTavern first-run model (boots immediately usable;
+  hardening is opt-in when exposed); the shipped arm is RATIFIED, the spec truth-repair states it
+  as ruled. **OWNER after the leg:** the live-infra steps — `docker build` both targets
+  (+`docker inspect` the healthcheck), container runs, fleet-in-namespace, read-only shakeout, the
+  pentest cage (§4/Fork F), deploy posture (C13).
 - **A3 · PRESET-FOLLOWUP (executor, worktree).** B1 CapabilityGate→`resolve-failure.ts` (the
   inverted "routing problem" claim over a missing-credential failure) + B2 Prompt-view
   section-drill fork-eject (the FORGE#1 store-axis fix applied) + 2 verification CTs (readout
