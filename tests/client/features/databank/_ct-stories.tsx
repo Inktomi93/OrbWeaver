@@ -10,8 +10,13 @@
 import type { ReactElement } from "react";
 import { DatabankContextBody } from "../../../../packages/client/src/features/databank/components/databank-context-body.tsx";
 import { DatabankListHeader } from "../../../../packages/client/src/features/databank/components/databank-list-header.tsx";
+import { databankDocumentsTile } from "../../../../packages/client/src/features/databank/lib/home-documents-tile.tsx";
 import { DatabankDetailSurface } from "../../../../packages/client/src/features/databank/surfaces/databank-detail-surface.tsx";
 import { DatabankLibrarySurface } from "../../../../packages/client/src/features/databank/surfaces/databank-library-surface.tsx";
+import { HomeSurface } from "../../../../packages/client/src/features/home/index.ts";
+import type { HomeTileContribution } from "../../../../packages/client/src/lib/index.ts";
+import { createContributorRegistry } from "../../../../packages/client/src/lib/index.ts";
+import { useActiveSection, useSelectedDocumentId } from "../../../../packages/client/src/state/index.ts";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The LIST pane at its REAL production width — the 320px panel floor the §6.1 width math is stated at, so
@@ -77,6 +82,43 @@ export function DatabankContextStory(): ReactElement {
       </div>
     </CtDataProviders>
   );
+}
+
+// ── The HOME tile (D-7) ────────────────────────────────────────────────────────────────────────────
+// The tile is mounted through the REAL `HomeSurface`, so the kicker frame, the per-tile QueryBoundary and
+// the trailing action are the SHIPPED ones and not a story's own scaffold. The `<output>` publishes the two
+// stores a row click writes (databank's selection + the shell's active section), so the navigation
+// assertion reads the STORE ACTION, never a rendered echo.
+
+function DatabankHomeProbe(): ReactElement {
+  return (
+    <output>
+      section={useActiveSection()} document={useSelectedDocumentId() ?? "none"}
+    </output>
+  );
+}
+
+function DatabankHomeTile({ width }: { readonly width: number }): ReactElement {
+  return (
+    <CtDataProviders>
+      <DatabankHomeProbe />
+      <div style={{ width }}>
+        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [databankDocumentsTile])} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The tile at a DESKTOP home host (the content region a two-column grid is drawn at). */
+export function DatabankHomeTileStory(): ReactElement {
+  return <DatabankHomeTile width={720} />;
+}
+
+/** The tile at the NARROWEST real host — a phone's content region, where the grid is one column and the
+ *  health line's chips have no slack. A chip pushed out of the card is exactly what this tile exists to
+ *  say, so the geometry is asserted here, not at the roomy width. */
+export function DatabankHomeTileNarrowStory(): ReactElement {
+  return <DatabankHomeTile width={390} />;
 }
 
 /** The whole tri-pane — LIST + CONTENT + CONTEXT at their production widths. The selection handoff (a row
