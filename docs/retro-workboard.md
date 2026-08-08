@@ -652,9 +652,18 @@ security lens.
   extraction-prompt.ts 30→3, compose/rpg.ts 16→8 residual baselines are THAT, not census misses).
   40 slots, token-splice (NO ProseSlotDef widening — §4.5's arm was resolveProseText's splice all
   along), precedence relocated #prose→#prose-slot (one home), `resolveChatPresetProse` op w/ the
-  two-invocation-class law documented at the seam. Byte-identity: 10-axis probe diff BYTE-IDENTICAL,
-  red-first at rendered bytes, 4419 tests + 127 CT green branch-side. **Verifier `a84fb07e7b52cf25f`
-  IN FLIGHT** (independent byte-identity repro, one-home check, class-law trace, op trust boundary).
+  two-invocation-class law documented at the seam. **Verifier CONFIRMED all 6 — GRADUATED, torn
+  down**: independent byte-identity repro (pre-tree materialized w/ its own node_modules, 14 combos,
+  md5-IDENTICAL 145,116 bytes both sides + a live positive control) · one-home proven (2 hits, the
+  2nd is the editor-footer question) · no cycle (depcruise 2813 clean) · class-law traced at all 5
+  sites w/ LADDER EQUALITY (door and turn run the same resolvePromptConfigWithOverride, same
+  principal by D19) · trust boundary sound (host-gated pre-model, owner-scoped read, lenient-id
+  fall-through matches siblings) · token-drop warn-never-block pinned + independently reproduced.
+  Its one red was CONFIG-FIX debris (shell.css format — fixed `2bdbed447`, whitespace-only, sync
+  suite green). 4 non-blocking observations banked in its report; ONE boarded as a small:
+  **PROSE_MAX_CHARS fail-open** — an over-4000-char override save heals to `{}` silently at the
+  contract (designed self-heal), so the preset editor should surface the limit BEFORE save (a
+  maxLength + counter on the Templates-tab field; small, client-only).
 - **✅ CONFIG-FIX MERGED `5a7e2a060`** (34 files; 2049 CT · 870 unit · structure clean after fixing 7
   self-caught violations, none allowlisted). All 4 P1s + P2/P3 tail; TWO REFUSALS accepted as
   design-law-correct ("New book" ×2 is the DRAWN mock + a ratifying CT — parked beside the
