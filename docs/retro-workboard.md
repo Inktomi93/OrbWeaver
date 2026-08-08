@@ -396,31 +396,47 @@ line).
 > could fall off. This section carries every `docs/design/*.md` that represents specced-but-unbuilt (or
 > partial) work, so it can't be lost again. **NOT `docs/architecture/proposed/**`** — those are the
 > separate parked-programs set (`proposed/INDEX.md` owns their status); leave them alone.
-> **⚑ VERDICTS PENDING** — scout `a43b158ecad106686` is reconciling each doc against the tree
-> (build-status, not the docs' own rotted status lines). This list is the CANDIDATE set; the scout
-> replaces each `?` with BUILT/PARTIAL/UNBUILT/SUPERSEDED + a receipt + the named remainder.
+> **RECONCILED 2026-08-08** (scout `a43b158ec`, declared→exported→imported→called-live evidence, not
+> a test pass). Headline: **the big one — parity-plus — has NO large unbuilt tail**; and FIVE docs had
+> ROTTED status lines claiming "nothing built" while the tree shows them shipped. Genuinely-open items
+> carried below; built ones struck with receipts.
 
+**GENUINELY OPEN (specced, a real remainder — carry these):**
 - **persona = character** (`persona-character-kind-substrate.md`) — UNBUILT, specced+pinned, **= C1**
-  (awaits the 5-fork ruling; forge lane ready to send on the owner's word). The one that prompted this
-  section.
-- **parity-plus-program** (`parity-plus-program-spec.md`) — the BIG one: 7-feature "first-class +
-  better" program, owner-greenlit 2026-07-27. `?` built vs unbuilt tail (W4 committed; rest TBD-by-scout).
-- **lite+guided substrate** (`lite-plus-guided-substrate-spec.md`) — the LITE+GUIDED carve; `?` vs the
-  landed rpg-lite W1-W4.
-- **density pass** (`density-pass-spec.md`) — UI density tier-map + assignment law + gate, owner-approved
-  2026-08-01. `?` gate-minted+swept vs approved-not-built.
-- **list-pane projection** (`list-pane-projection-proposal.md`) — chats-with-this-character list-pane;
-  self-status DRAFT/nothing-built. `?` still unbuilt.
-- **default-character roster** (`default-character-roster.md`) — authored pack v2, self-status
-  "nothing wired". `?` now in `character/seeder/cards.ts` or still just the doc.
-- **tracked-field unification** (`tracked-field-unification.md`) — stages 1+2 SHIPPED per self-status;
-  `?` remainder (W-H side-eye + EXT-4).
-- **node-26 adoption program** (`node-26-adoption-program.md` + `-w4-residual-burndown.md`) — 336-line
-  W-wave program; W4-BURNDOWN landed. `?` whole-program-done vs unbuilt waves.
-- **findings docs** (`context-panel-fidelity-findings.md`, `openrouter-provider-findings.md`) — `?`
-  absorbed/acted-on vs still-open.
-- (preset-surface-redesign · user-macro-delivery-spec — presumed BUILT with the closed programs; scout
-  flags only on a contradicting spot-check.)
+  (awaits the 5-fork ruling; forge lane ready on the owner's word). The one that prompted this section.
+- **⚑ NEW — user-macro W5 values-store** (`user-macro-delivery-spec.md`) — W1-W4 BUILT
+  (contracts/registry/turn-wiring/previews); **W5 (the values store) PARKED on an OWNER FORK F1:
+  per-chat (Arm A) vs per-user (Arm B).** Ships `values: {}` placeholder today
+  (`assembly/user-macros.ts` → `resolveUserMacroInputs`; doc `:285`,`:487`). Was NOT a board row before
+  — the exact class this section exists to catch. **→ owner-decision (add to C).**
+- **⚑ openrouter findings 5-7** (`openrouter-provider-findings.md`) — 1-4 applied; 5-7 unbuilt
+  (cache-breakpoint offsets · effort under-drive · **reasoning-signature round-trip — the high-impact
+  one: a hard 400 on unsigned replay**; zero signature-threading in the OR backend today). The
+  signature one is a latent BUG risk, not just a nicety — worth an owner look at priority.
+- **tracked-field unification + context-panel fidelity** (`tracked-field-unification.md` ·
+  `context-panel-fidelity-findings.md`) — PARTIAL: stages 1+2 shipped (`ea99b0e3`,`98ee6da2`); both feed
+  the SAME still-open **W-H side-eye lane** (needs a model-populated game) + EXT-4 (likely mostly closed
+  — worth a second scout pass before boarding as work). = E4/E-adjacent (rendered lens, live window).
+- **node-26 adoption program** (`node-26-adoption-program.md`) — mostly BUILT (W1-W5 live: `using`/
+  `await using` in turn.ts/cas.ts/port.ts; the 4-arm platform-spellings gate); only remainder is the
+  **Temporal/luxon swap (EXTERNAL blocker — Safari Temporal unshipped, deliberate deferral)** + §7
+  explicitness smalls (low-urgency). Not a real queue item until the browser ships.
+
+**BUILT — rotted status lines, struck (do NOT re-chase; receipts from the reconcile):**
+- **parity-plus program** (`parity-plus-program-spec.md`) — the BIG one: features 1-5,7 all
+  declared+exported+live (`RpgRelationship`/`setRelationship` `actor.ts:128,149,295`; `level`
+  `rpg.ts:35`; `CONTENT_CLASS_POLICY` `content-classes.ts:44-51`); D110 "foundation-landed 2026-07-27".
+  Only §6 plot-progression + §12A macro-parity DEPTH not independently confirmed (a finer scout pass if
+  ever wanted — no evidence of a gap).
+- **lite+guided substrate** (`lite-plus-guided-substrate-spec.md`) — BUILT (quests folded into
+  `rpg_snapshots` JSON, `rpg_quests` deleted, journal variant-aware — `rpg.ts:170,13-18`).
+- **density pass** (`density-pass-spec.md`) — BUILT (gate `density-tier.ts` minted + self-cites the
+  spec + baseline generator + CT lens).
+- **list-pane projection** (`list-pane-projection-proposal.md`) — BUILT `baea66933` (the doc's own
+  "DRAFT/nothing built" line PREDATES the build by a day — `chats-with-character-pane.tsx:39` live).
+- **default-character roster** (`default-character-roster.md`) — BUILT `bb6d50646` (10-card pack v2 in
+  `character/seeder/cards.ts:80-575`).
+- **preset-surface-redesign** (`preset-surface-redesign.md`) — BUILT (D121, five-view shell + setDefault).
 
 ## ═══ INITIATIVES — one-line status ═══
 
