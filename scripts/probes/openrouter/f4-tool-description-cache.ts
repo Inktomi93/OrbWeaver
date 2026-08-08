@@ -16,7 +16,7 @@
 //
 // Also records the prompt_tokens delta terse->enriched (the "cost of enrichment at scale" half of F4).
 
-import { OR_MODEL, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.mjs";
+import { type ArmRowBase, OR_MODEL, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.ts";
 
 const TERSE = {
   set_hp: "Set a character's HP.",
@@ -27,7 +27,7 @@ const TERSE = {
 const ENRICHED_TAIL =
   "Remove a condition from a character. Call this the moment the narration retires an affliction — a wound cauterized, a poison purged, a blessing burning out, a fever broken by rest. Do not wait for the player to ask. Example: the text says 'the bleeding stops', so call remove_condition({ target: 'player', condition: 'Bleeding' }). Removing a condition that is not present is a no-op and is safe.";
 
-const tools = (removeDescription) => [
+const tools = (removeDescription: string) => [
   {
     type: "function",
     function: {
@@ -64,7 +64,7 @@ export async function run() {
   const system = `You are the game master of an immersive tabletop role-play. Keep tracked state in sync using the tools.\n\n## WORLD LORE (stable prefix)\n${filler(nonce, 40)}`;
   const user = "The bleeding stops as I cauterize the wound with the hot iron. Narrate one sentence, then sync state.";
 
-  const body = (removeDescription) => ({
+  const body = (removeDescription: string) => ({
     model: OR_MODEL,
     max_tokens: 64,
     messages: [
@@ -75,14 +75,14 @@ export async function run() {
     tool_choice: "auto",
   });
 
-  const arms = [
+  const arms: Array<[string, string]> = [
     ["1-prime-terse", TERSE.remove_condition],
     ["2-replay-terse", TERSE.remove_condition],
     ["3-enriched-tail", ENRICHED_TAIL],
     ["4-replay-enriched", ENRICHED_TAIL],
   ];
 
-  const rows = [];
+  const rows: ArmRowBase[] = [];
   for (const [arm, description] of arms) {
     const result = await orCall(body(description), key);
     const row = {
@@ -100,7 +100,8 @@ export async function run() {
     rows.push(row);
   }
 
-  const [primeTerse, replayTerse, enriched, replayEnriched] = rows;
+  // The loop above pushed one row per arm; assert the fixed 4-arm length.
+  const [primeTerse, replayTerse, enriched, replayEnriched] = rows as [ArmRowBase, ArmRowBase, ArmRowBase, ArmRowBase];
   const prefixCaches = (replayTerse.cachedTokens ?? 0) > 0;
   const enrichedRead = enriched.cachedTokens ?? 0;
   const verdict = {

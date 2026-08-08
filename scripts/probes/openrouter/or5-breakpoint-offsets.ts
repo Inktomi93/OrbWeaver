@@ -23,12 +23,12 @@
 // Evidence: cached_tokens (read) AND cache_write_tokens (the waste). Arm 2's write is the per-depth
 // re-bill of a prefix that can never be read again; arm 3 should write ~nothing.
 
-import { OR_MODEL, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.mjs";
+import { type ArmRowBase, OR_MODEL, type OrRequestMessage, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.ts";
 
 export const id = "or5";
 export const title = "cache breakpoints count array offsets, not conversational turns";
 
-const withCache = (message) => ({ ...message, content: [{ type: "text", text: typeof message.content === "string" ? message.content : "", cache_control: { type: "ephemeral" } }] });
+const withCache = (message: OrRequestMessage) => ({ ...message, content: [{ type: "text", text: typeof message.content === "string" ? message.content : "", cache_control: { type: "ephemeral" } }] });
 
 export async function run() {
   const key = readEnvKey("OPENROUTER_API_KEY");
@@ -38,7 +38,7 @@ export async function run() {
   const system = "You are the game master of an immersive tabletop role-play. Keep replies to one sentence.";
   // Conversational canon: u1 a1 u2 a2 u3 — the assistant rows carry the bulk so the prefix clears the
   // 1024-token cache floor without a system-block breakpoint (which would mask the history breakpoint).
-  const canon = [
+  const canon: OrRequestMessage[] = [
     { role: "user", content: "Describe the chapel.\n" },
     { role: "assistant", content: `The chapel is cold and salt-stained.\n${filler(`${nonce}-a1`, 25)}` },
     { role: "user", content: "I search the reliquary.\n" },
@@ -46,7 +46,7 @@ export async function run() {
     { role: "user", content: "I cauterize the wound with the hot iron." },
   ];
   // What `runRecurseLoop` appends before the depth-2 request: the assistant's tool-call row + one tool row.
-  const toolExchange = [
+  const toolExchange: OrRequestMessage[] = [
     {
       role: "assistant",
       content: "The iron hisses against your skin.",
@@ -66,19 +66,19 @@ export async function run() {
   ];
 
   // Mirrors `placeHistoryCacheBreakpoint`: idx = len - 1 - offset, over the HISTORY array (system excluded).
-  const place = (history, offsetFromEnd) => {
+  const place = (history: OrRequestMessage[], offsetFromEnd: number) => {
     const idx = history.length - 1 - offsetFromEnd;
     return history.map((message, i) => (i === idx ? withCache(message) : message));
   };
 
-  const arms = [
+  const arms: Array<[string, OrRequestMessage[], number]> = [
     ["1-turn1-offset1", canon, 1],
     ["2-depth2-stale-offset1", [...canon, ...toolExchange], 1],
     ["3-depth2-corrected-offset3", [...canon, ...toolExchange], 3],
     ["4-depth2-breakpoint-on-tool-row", [...canon, ...toolExchange], 0],
   ];
 
-  const rows = [];
+  const rows: ArmRowBase[] = [];
   for (const [arm, history, offset] of arms) {
     const placed = place(history, offset);
     const result = await orCall(
@@ -109,14 +109,15 @@ export async function run() {
     rows.push(row);
   }
 
-  const [prime, stale, corrected, onToolRow] = rows;
+  // The loop above pushed one row per arm; assert the fixed 4-arm length.
+  const [prime, stale, corrected, onToolRow] = rows as [ArmRowBase, ArmRowBase, ArmRowBase, ArmRowBase];
   const verdict = {
     kind: "verdict",
     probe: id,
     nonce,
     at: new Date().toISOString(),
     primeWrote: prime.cacheWriteTokens,
-    staleOffsetLandsOn: stale.breakpointRole,
+    staleOffsetLandsOn: stale["breakpointRole"],
     staleCached: stale.cachedTokens,
     staleWrote: stale.cacheWriteTokens,
     correctedCached: corrected.cachedTokens,

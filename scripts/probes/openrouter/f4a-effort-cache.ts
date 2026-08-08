@@ -17,7 +17,7 @@
 // Arm 5 separates the two possible worlds: per-effort cache ENTRIES (arm 5 hits, cost is one extra write
 // per distinct effort) vs invalidation (arm 5 misses, every effort flip re-bills the whole prefix).
 
-import { OR_MODEL, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.mjs";
+import { type ArmRowBase, OR_MODEL, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.ts";
 
 export const id = "f4a";
 export const title = "does an `effort` change bust the OR prompt cache";
@@ -29,7 +29,7 @@ export async function run() {
   const system = `You are a terse assistant answering questions about a fictional ledger.\n\n## LEDGER (stable prefix)\n${filler(nonce, 200)}`;
   const user = "Name one toll recorded in the ledger. One short sentence.";
 
-  const body = (effort) => ({
+  const body = (effort: string) => ({
     model: OR_MODEL,
     max_tokens: 64,
     reasoning: { effort },
@@ -39,7 +39,7 @@ export async function run() {
     ],
   });
 
-  const arms = [
+  const arms: Array<[string, string]> = [
     ["1-prime-low", "low"],
     ["2-replay-low", "low"],
     ["3-switch-high", "high"],
@@ -47,7 +47,7 @@ export async function run() {
     ["5-back-to-low", "low"],
   ];
 
-  const rows = [];
+  const rows: ArmRowBase[] = [];
   for (const [arm, effort] of arms) {
     const result = await orCall(body(effort), key);
     const row = { kind: "arm", probe: id, nonce, arm, effort, status: result.status, ...result.usage, error: result.error, ms: result.ms };
@@ -55,7 +55,14 @@ export async function run() {
     rows.push(row);
   }
 
-  const [, replayLow, switchHigh, replayHigh, backToLow] = rows;
+  // The loop above pushed one row per arm; assert the fixed 5-arm length.
+  const [, replayLow, switchHigh, replayHigh, backToLow] = rows as [
+    ArmRowBase,
+    ArmRowBase,
+    ArmRowBase,
+    ArmRowBase,
+    ArmRowBase,
+  ];
   const controlCaches = (replayLow.cachedTokens ?? 0) > 0;
   const busts = controlCaches && (switchHigh.cachedTokens ?? 0) === 0;
   const verdict = {

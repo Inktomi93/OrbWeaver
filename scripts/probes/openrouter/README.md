@@ -15,9 +15,9 @@ readable. Subject docs: `docs/design/openrouter-provider-findings.md` ·
 | `or7` | is replaying a reasoning block a hard 400? | $0.02 |
 
 ```sh
-node scripts/probes/openrouter/run.mjs                 # the batch (skips probes with a completed run)
-PROBES=f4,or5 node scripts/probes/openrouter/run.mjs   # a subset
-FORCE=1 PROBES=f4 node scripts/probes/openrouter/run.mjs   # re-measure
+node scripts/probes/openrouter/run.ts                 # the batch (skips probes with a completed run)
+PROBES=f4,or5 node scripts/probes/openrouter/run.ts   # a subset
+FORCE=1 PROBES=f4 node scripts/probes/openrouter/run.ts   # re-measure
 ```
 
 **⚠️ Live spend** (~$0.32 for the full batch). Keys are read from `process.env` first, then the repo
@@ -31,7 +31,7 @@ FORCE=1 PROBES=f4 node scripts/probes/openrouter/run.mjs   # re-measure
 - **Each probe carries its own controls.** A "prime" arm and a byte-identical "replay" arm bracket the
   measurement, so a miss can be told apart from a cold cache.
 - **Resume unit is the PROBE, not the arm.** The cache arms are only meaningful fired back-to-back inside
-  one Anthropic cache TTL window, so a half-finished cache probe must re-run whole. `run.mjs` skips a
+  one Anthropic cache TTL window, so a half-finished cache probe must re-run whole. `run.ts` skips a
   probe that already has a non-`blocked` `kind:"verdict"` row.
 - **Every arm's raw wire evidence is written**: HTTP status, `prompt_tokens_details.cached_tokens`,
   `cache_write_tokens`, `completion_tokens_details.reasoning_tokens`, `usage.cost`, and on a non-200 the
