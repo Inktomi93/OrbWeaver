@@ -1191,10 +1191,15 @@ all three of the sibling's corrections to me** (the S6 seal block at :3060 confi
 deleted; the icon-seal block at :2469 confirms two real client consumers) — so those corrections stand
 twice over, not once.
 
-- [ ] **SQUARE-GLYPH-BUTTON-SWEEP** (M) — `ui-size-via-variant`'s `DEBT_BASELINE` still carries the full
-  **14-row `!size-N !p-0` icon-Button debt across 9 `rpg/*` files**, unpaid since it was surfaced.
-  Confirmed live in the gate's current source. Needs a Button square-glyph size arm + a sweep with
-  computed-geometry proof; returns that baseline to terminal `{}`.
+- [x] ✅ **SQUARE-GLYPH-BUTTON-SWEEP — ALREADY PAID (premise-killed 2026-08-07, lane GLYPHSWEEP,
+  corroborated on main).** This row was STALE and the board CONTRADICTED ITSELF: the SMALLS head already
+  had `✅ DONE (d0a9443b6/3ce7e3dfe)`; this TAIL-pass row was an ARCHIVE2 audit snapshot from before the
+  payment. Current tree: Button has the `glyph-xs/sm/md/lg` ramp (`button/variants.ts`), 15 rpg sites
+  consume `size="glyph-*"`, **ZERO `!size-N !p-0` in `features/rpg`**, and the gate is at TRUE terminal
+  zero ("terminal zero on a FIXED tree, not a parked one" — baseline removed 2026-08-03, §4.8). Geometry
+  CT already pins each step square (`button.ct.tsx:250-276`). The `!w-avatar-*` `<TrackerValue>` sites
+  are a `#components` local, the gate's documented LIMIT-1 substituted-template family — separate matter.
+  **GLYPHSWEEP now assessing the icon-seal doorways only (opportunities, not debt — bias to board).**
 - [ ] **ICON-SEAL-DOORWAYS** (M) — the OTHER four named-not-built follow-ups, all **zero-hit confirmed**:
   `LucideProvider` at the client composition root · vector-effect CSS stroke route · the `iconNode`
   door for brand glyphs · the `fillRule=evenodd` probe to grow the fillable set.
