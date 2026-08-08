@@ -2,7 +2,10 @@
 // name is the amnesiac agent's insider-knowledge trap). Sanctioned: a genuine in-module collision (rename-
 // import); a rename-EXPORT of a GENERIC name (declared by ≥2 producer modules — barrel disambiguation); an
 // @orb/ui / @orb/db-`*Table` / @orb/contracts-`*Wire` rename; a `/contract/` distinct-alias-per-verb home.
-// Vendor-package renames are always legal. core/Spine-TypeScript-and-Patterns.md.
+// Vendor-package renames are always legal. All three rules are NODE-anchored and carry their arm+name as
+// the finding's token, so `// @orb-gate-ignore no-vanity-alias(rename-import Foo): <reason>` works AND
+// names its position (§4.3a — one `import { A as B, C as D }` line carries two guarded things).
+// core/Spine-TypeScript-and-Patterns.md.
 import type { ImportSpecifier, Node, SourceFile } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
@@ -35,10 +38,16 @@ function relOf(root: string, abs: string): string {
   return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
 }
 
-function reportAt(ctx: GateRunCtx, node: Node, message: string, token: string): void {
-  const sf = node.getSourceFile();
-  const { line, column } = sf.getLineAndColumnAtPos(node.getStart());
-  ctx.report({ file: relOf(ctx.root, sf.getFilePath()), line, column, message, token });
+/** The three ARMS' token prefixes. The token is `<arm> <original name>`: the arm says WHICH rule bit, the
+ *  name is the position an `@orb-gate-ignore` must name (§4.3a). Until 2026-08-08 this helper reported
+ *  through the explicit-`Finding` overload with a per-finding message — which bypasses `hasGateIgnore`
+ *  (GATE-AUTHORING §1), so every marker on all three rules was inert AND the author got the hostile
+ *  double-red (the gate, plus `gate-ignore-inventory` calling the correct marker stale). The per-rule prose
+ *  moved onto the group `message`, which is where the harness homes a reason. */
+const ARM = { renameImport: "rename-import", renameExport: "rename-export", doubleAlias: "double-alias" } as const;
+
+function reportAt(ctx: GateRunCtx, node: Node, token: string): void {
+  ctx.report(node, { token, offset: 0 });
 }
 
 type MaybeNamedExportable = { isExported: () => boolean; getName: () => string | undefined };
@@ -112,12 +121,7 @@ function checkRenameImportSpecifier(named: ImportSpecifier, scan: ImportScan, ct
   if ((scan.freq.get(original) ?? 0) > 1 || isDbWireSuffixRename(scan.spec, scan.rel, original, alias)) {
     return; // genuine collision, or the sanctioned db/wire suffix convention
   }
-  reportAt(
-    ctx,
-    named,
-    `vanity rename-import '${original} as ${alias}' — the original '${original}' is not otherwise used in this module, so the alias is cosmetic; import '${original}' directly. @orb/ui + db/wire-suffix + genuine collisions are exempt. ${DOC}`,
-    original,
-  );
+  reportAt(ctx, named, `${ARM.renameImport} ${original}`);
 }
 
 /** Rule (a): a workspace rename-IMPORT whose original name is not otherwise present in the module — the
@@ -153,12 +157,7 @@ function checkRenameExports(sf: SourceFile, ctx: GateRunCtx, producerCount: Read
       if ((producerCount.get(original) ?? 0) >= MIN_PRODUCERS) {
         continue; // generic name (≥2 producers) — barrel disambiguation, legal
       }
-      reportAt(
-        ctx,
-        named,
-        `vanity rename-export '${original} as ${aliasNode.getText()}' — '${original}' has ONE producer module, so the alias is a synonym (the ChatSource class); re-export '${original}' under its own name. Vendor-source + generic-name (≥2 producers) re-exports are exempt. ${DOC}`,
-        original,
-      );
+      reportAt(ctx, named, `${ARM.renameExport} ${original}`);
     }
   }
 }
@@ -193,17 +192,12 @@ function checkDoubleTypeAliases(sf: SourceFile, ctx: GateRunCtx, rel: string): v
       list.push(ta.getNameNode());
     }
   }
-  for (const [target, nameNodes] of byTarget) {
+  for (const nameNodes of byTarget.values()) {
     if (nameNodes.length < MIN_PRODUCERS) {
       continue;
     }
     for (const nn of nameNodes) {
-      reportAt(
-        ctx,
-        nn,
-        `vanity double type-alias — '${nn.getText()}' is one of ${nameNodes.length} bare aliases pointing at '${target}' in this file; one type, one name (a /contract/ vocab home is exempt). ${DOC}`,
-        nn.getText(),
-      );
+      reportAt(ctx, nn, `${ARM.doubleAlias} ${nn.getText()}`);
     }
   }
 }
@@ -213,8 +207,16 @@ export const gate: GateDescriptor = {
   docRow: "core/Core-Enforcement-Active-Gates.md (Layer 3)",
   status: "active",
   scopeSafety: "whole-project", // rule (b)'s generic-name test counts producer modules across the tree
+  // THE ONE REASON, carrying all three arms by token (their per-finding messages folded in here when they
+  // stopped riding the Finding overload). Each token is `<arm> <name>`.
   message:
-    "vanity rename — one symbol, one name; rename at source or use the original. Sanctioned only for a genuine in-module collision, a generic name (≥2 producer modules), an @orb/ui / db-`*Table` / contracts-`*Wire` rename, or a /contract/ distinct-alias-per-verb home. core/Spine-TypeScript-and-Patterns.md",
+    "vanity rename — one symbol, one name; rename at source or use the original. A `rename-import <name>` " +
+    "token: the original is not otherwise used in this module, so the `as` alias is cosmetic — import the " +
+    "original directly. A `rename-export <name>` token: the original has ONE producer module, so the alias " +
+    "is a synonym (the ChatSource class) — re-export it under its own name. A `double-alias <name>` token: " +
+    "two or more bare type aliases in one file point at the SAME identifier (RouteOverlay/RoutableChat) — " +
+    "one type, one name. Sanctioned only for a genuine in-module collision, a generic name (≥2 producer " +
+    `modules), an @orb/ui / db-\`*Table\` / contracts-\`*Wire\` rename, or a /contract/ distinct-alias-per-verb home. ${DOC}`,
   fix: "use the original name (import/re-export it un-renamed), or rename AT SOURCE. A rename is legal only to resolve a real in-module collision, for a generic ≥2-producer name, off @orb/ui / db-`*Table` / contracts-`*Wire`, or as a /contract/ verb-vocabulary alias.",
   scanRoot: inScope,
   run: (ctx) => {
@@ -240,20 +242,20 @@ export const gate: GateDescriptor = {
     {
       files: 'import { Foo as Bar } from "@orb/kit/x";\nexport const use = Bar;\n',
       at: "packages/server/src/domain/x/x.ts",
-      expect: { messageIncludes: "vanity rename-import" },
+      expect: { count: 1, token: "rename-import Foo" },
       why: "a workspace rename-import whose original 'Foo' is not otherwise present — a cosmetic alias (rule a)",
     },
     {
       files: 'export { Foo as Bar } from "@orb/kit/x";\n',
       at: "packages/server/src/domain/x/index.ts",
-      expect: { messageIncludes: "vanity rename-export" },
+      expect: { count: 1, token: "rename-export Foo" },
       why: "a rename-export of a uniquely-homed name (0 producers here) — a synonym, the ChatSource class (rule b)",
     },
     {
       files: "export type RouteOverlay = RouteChatAssignment;\nexport type RoutableChat = RouteChatAssignment;\n",
       at: "packages/contracts/src/connection/index.ts",
-      expect: { messageIncludes: "vanity double type-alias", count: 2 },
-      why: "two bare type aliases onto one identifier outside a /contract/ home — the RouteOverlay/RoutableChat case (rule c)",
+      expect: { count: 2, token: "double-alias RouteOverlay" },
+      why: "two bare type aliases onto one identifier outside a /contract/ home — the RouteOverlay/RoutableChat case (rule c). Two findings, one per alias, each naming its OWN position — a §4.3a marker must name which alias it forgives",
     },
   ],
   mustPass: [

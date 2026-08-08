@@ -38,7 +38,15 @@ const SIGNATURES: readonly FragmentSignature[] = [
 ];
 
 const MESSAGE =
-  "a class string outside packages/ui/src/lib/ hand-spells a homed skin fragment — compose the lib constant instead so a drift in the fragment is structurally impossible (derive-modernization-audit.md §W2; the FOCUS_RING precedent).";
+  "a class string outside packages/ui/src/lib/ hand-spells a homed skin fragment — compose the lib constant instead so a drift in the fragment is structurally impossible (derive-modernization-audit.md §W2; the FOCUS_RING precedent). The finding's TOKEN is the hand-spelled signature; the fix below names the constant to compose for each.";
+
+/** The fix line, DERIVED from SIGNATURES so the "which constant" answer can never drift from the table.
+ *  It lives on `fix` (printed once under the group header) rather than on a per-finding message override:
+ *  a per-occurrence message forces the explicit-`Finding` overload, which bypasses `hasGateIgnore`
+ *  (GATE-AUTHORING §1) — the defect this gate carried until 2026-08-08. */
+const FIX = `replace the hand-spelled classes with the lib constant, imported from #lib or the fragment's module — never re-spell a homed fragment. ${SIGNATURES.map(
+  (r) => `"${r.signature}" → ${r.composeInstead}`,
+).join(" · ")}`;
 
 export const gate: GateDescriptor = {
   name: "ui-skin-fragment-purity",
@@ -46,51 +54,45 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "incremental-safe",
   message: MESSAGE,
-  // biome-ignore lint/suspicious/noTemplateCurlyInString: gate message
-  fix: "replace the hand-spelled classes with `${CONSTANT}` from packages/ui/src/lib/ (import from #lib or the fragment's module) — never re-spell a homed fragment.",
+  fix: FIX,
   scanRoot: (p) => p.startsWith("packages/ui/src/") && !p.startsWith(LIB_HOME),
   // String literals + every static carrier of a template literal (a tv()/cn() class string may be a
   // template interpolating lib constants — its head/middle/tail are the parts we scan).
   kinds: [SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral, SyntaxKind.TemplateHead, SyntaxKind.TemplateMiddle, SyntaxKind.TemplateTail],
-  visit: (node, sf, ctx) => {
+  visit: (node, _sf, ctx) => {
     const text = node.getText();
-    const abs = sf.getFilePath();
-    const file = abs.startsWith(`${ctx.root}/`) ? abs.slice(ctx.root.length + 1) : abs;
     for (const row of SIGNATURES) {
       const offset = text.indexOf(row.signature);
       if (offset === -1) {
         continue;
       }
-      // Land the caret on the signature and name the exact constant to compose (the per-occurrence
-      // override; the base `message` prints once as the group header).
-      const { line, column } = sf.getLineAndColumnAtPos(node.getStart() + offset);
-      ctx.report({
-        file,
-        line,
-        column,
-        token: row.signature,
-        message: `hand-spelled skin fragment "${row.signature}" — compose ${row.composeInstead} from packages/ui/src/lib/ instead (derive-modernization-audit.md §W2).`,
-      });
+      // The TOKEN overload (GATE-AUTHORING §1): `offset` lands the caret on the signature INSIDE the class
+      // string — the literal case that overload exists for — and the signature is the token, so
+      // `// @orb-gate-ignore ui-skin-fragment-purity(bg-scrim): <reason>` works AND names its position
+      // (§4.3a: one class string routinely carries two signatures). Until 2026-08-08 this computed the
+      // same caret by hand and reported through the explicit-`Finding` overload, which bypasses
+      // `hasGateIgnore` — so every marker was inert. The per-row `composeInstead` moved into MESSAGE.
+      ctx.report(node, { token: row.signature, offset });
     }
   },
   mustFlag: [
     {
       files: 'export const overlay = { arrow: "size-row rotate-45 border border-border bg-popover" };\n',
       at: "packages/ui/src/primitives/tooltip/variants.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "rotate-45 border border-border bg-popover" },
       why: "a variants.ts re-spelling the OVERLAY_ARROW diamond by hand — the drift-forever case the tier ends",
     },
     {
       files: 'export const toast = { root: "rounded-control focus-visible:ring-2 focus-visible:ring-ring" };\n',
       at: "packages/ui/src/primitives/toast/variants.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "focus-visible:ring-" },
       why: "the toast PARTIAL hand focus-ring — `focus-visible:ring-` must compose FOCUS_RING (the white-halo paint defect, caught forever)",
     },
     {
       // biome-ignore lint/suspicious/noTemplateCurlyInString: test syntax
       files: "declare const z: string;\nexport const scrim = `fixed inset-0 bg-scrim ${z}`;\n",
       at: "packages/ui/src/primitives/backdrop/variants.ts",
-      expect: { count: 1 },
+      expect: { count: 1, token: "bg-scrim" },
       why: "a TEMPLATE literal whose STATIC part hand-spells `bg-scrim` around an interpolation — the head/tail scan must still bite",
     },
   ],
