@@ -5,7 +5,9 @@
 //
 // The forward-header stack boots with FORWARD_AUTH_VERIFY_JWT=true + a non-empty JWKS allowlist; the actor
 // signs a JWT and rides its public JWKS as a request literal (the server verifies against it). The OWNER is
-// the handle in OWNER_HANDLES — unset here ⇒ [DEFAULT_USER_HANDLE] = "owner"; any other handle → role=user.
+// the handle in OWNER_HANDLES, which this project PINS to `HARNESS_OWNER_HANDLE` ("owner", support/modes.ts);
+// any other handle → role=user. It used to be left unset and rely on `[DEFAULT_USER_HANDLE]` — which an
+// operator's `.env` silently overrode, making this file's owner case a latent red on their box.
 
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -20,7 +22,7 @@ test("a signed-JWT identity with a non-owner handle resolves as role=user", asyn
   expect(who.role).toBe("user");
 });
 
-test("the OWNER handle (DEFAULT_USER_HANDLE) resolves as role=owner via a signed JWT", async ({ baseURL }) => {
+test("the OWNER handle (the project's pinned OWNER_HANDLES) resolves as role=owner via a signed JWT", async ({ baseURL }) => {
   const owner = await actorViaHeader(baseURL ?? "", { handle: castId<Handle>("owner"), sub: "sub-owner" });
   const who = await owner.whoami();
   expect(who.authenticated).toBe(true);

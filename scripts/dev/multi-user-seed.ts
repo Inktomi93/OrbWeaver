@@ -77,9 +77,20 @@ async function canLogin(handle: string, password: string): Promise<boolean> {
 }
 
 async function main(): Promise<void> {
-  const owner = (await listUsers()).find((u) => (u.handle ?? "").toLowerCase() === OWNER_HANDLE);
+  const rows = await listUsers();
+  const owner = rows.find((u) => (u.handle ?? "").toLowerCase() === OWNER_HANDLE);
   if (owner?.id === undefined) {
-    die(`owner "${OWNER_HANDLE}" not found via the fallback seam — is AUTH_MODE=local + a local origin?`);
+    // Two very different causes, so the message names WHICH: an empty list means the fallback seam gave us no
+    // admin identity at all (wrong AUTH_MODE / non-local origin); a NON-empty list without our handle means
+    // the box's owner is someone else — `OWNER_HANDLES` (or an ambient `.env` supplying it) disagrees with
+    // FIXTURE_OWNER_HANDLE. The original message asserted the first cause for both, and the second one cost
+    // an investigation (2026-08-08 e2e-smoke red).
+    const seen = rows.map((u) => u.handle ?? "?").join(", ");
+    die(
+      rows.length === 0
+        ? `owner "${OWNER_HANDLE}" not found — admin.listUsers returned NO users, so the fallback seam gave no admin identity: is AUTH_MODE=local + a local origin?`
+        : `owner "${OWNER_HANDLE}" not found — this box's users are [${seen}]. The box owner is OWNER_HANDLES (default DEFAULT_USER_HANDLE="owner"); set FIXTURE_OWNER_HANDLE to it, or boot the fixture with OWNER_HANDLES=${OWNER_HANDLE}.`,
+    );
   }
 
   await trpc("admin.resetPassword", { userId: owner.id, password: OWNER_PASSWORD });

@@ -6,7 +6,7 @@
 // globalSetup's unconditional `pinRouting` rewrote the operator's REAL `routing.roleDefaults`.
 
 import { describe, expect, test } from "vitest";
-import { MODE_PROJECTS, SINGLE_USER } from "./modes.ts";
+import { LOCAL_OWNER, MODE_PROJECTS, SINGLE_USER } from "./modes.ts";
 import { ALLOW_DEV_TARGET_ENV, DEV_STACK_PORTS, devTargetAllowed, targetRefusal } from "./target-guard.ts";
 
 const HARNESS_TARGET = { name: "single-user", baseUrl: "http://localhost:5181", backendUrl: "http://127.0.0.1:8796" } as const;
@@ -69,7 +69,27 @@ describe("mode projects (default, no override)", () => {
   });
 
   test("the single-user project is the one that regressed — it is isolated by default", () => {
-    expect(SINGLE_USER.webServerEnv["DATABASE_URL"]).toBe("file:./.cache/e2e-single/orb.db");
+    expect(SINGLE_USER.webServerEnv["DATABASE_URL"]).toBe("file:./.cache/e2e/single/orb.db");
     expect(targetRefusal(SINGLE_USER, STAMPED, false)).toBeUndefined();
+  });
+
+  // IDENTITY ISOLATION — the second half of "isolated stack", and the half that was missing. A harness stack
+  // whose OWNER_HANDLES comes from the operator's checked-in `.env` has a DIFFERENT box owner than the fixture
+  // claims: `global-setup`'s multi-user seed then cannot find handle "owner" (it dies, aborting the whole
+  // run), and `auth-smoke.forward.spec.ts`'s owner case resolves role=user. Both are pinned here because both
+  // are invisible to every source-scoped tool and to a box with no `.env`.
+  test("every mode PINS the box owner handle — an ambient OWNER_HANDLES cannot redefine the fixture's owner", () => {
+    for (const mode of MODE_PROJECTS) {
+      expect(mode.webServerEnv["OWNER_HANDLES"], mode.name).toBe(LOCAL_OWNER.handle);
+    }
+  });
+
+  test("every mode skips the operator's `.env` ENTIRELY (ORB_ENV_NO_FILE) — not merely its precedence", () => {
+    for (const mode of MODE_PROJECTS) {
+      // ORB_ENV_NO_OVERRIDE only decides who WINS for a key the harness also sets; every key it does NOT set
+      // still gets filled from the file. ORB_ENV_NO_FILE is the same ambient-proofing vitest.config.ts applies
+      // to the node lanes, for the same measured reason (a live box's AUTH_MODE/WIRE_CAPTURE reddening tests).
+      expect(mode.webServerEnv["ORB_ENV_NO_FILE"], mode.name).toBe("1");
+    }
   });
 });
