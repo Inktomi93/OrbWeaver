@@ -39,7 +39,7 @@ import type {
   ScrapeYoutubeParams,
   UploadDocumentParams,
 } from "./params.ts";
-import type { DatabankGatherResult, UploadResult } from "./results.ts";
+import type { DatabankGatherResult, ListDocumentsResult, UploadResult } from "./results.ts";
 import type { ActiveChatDocumentView, DocumentAttachmentsView, DocumentDetailView, DocumentView } from "./views.ts";
 
 /** assets.store, narrowed to the CAS write databank drives (`kind:'document'`). Returns the stored blob's id
@@ -140,7 +140,8 @@ export interface DatabankService {
   readonly scrapeWiki: (params: ScrapeWikiParams) => Promise<UploadResult>;
 
   readonly get: (params: GetDocumentParams) => Promise<DocumentDetailView>;
-  readonly list: (params: ListDocumentsParams) => Promise<DocumentView[]>;
+  /** Keyset-paged (`{ items, nextCursor }`) — the bank is browsable past its first page. */
+  readonly list: (params: ListDocumentsParams) => Promise<ListDocumentsResult>;
   /** Mutable display metadata only; bumps `updatedAt`, touches nothing derived. */
   readonly rename: (params: RenameDocumentParams) => Promise<DocumentView>;
   /** DB cascade clears the chunks + all scope-junction rows; the CAS blob self-heals on the next GC sweep. */

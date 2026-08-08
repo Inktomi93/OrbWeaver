@@ -38,8 +38,24 @@ export const documentIdSchema = typeIdSchema(ID_PREFIX.document);
  *  because the CLIENT has to know it too. A surface that summarizes the returned rows ("46 documents")
  *  is reporting a PAGE, and it can only say so honestly ("100+ documents") if it can tell a full page from
  *  a whole bank (side-eye 2026-08-08 P2-d). Two spellings of this number would make that "+" a lie the day
- *  either moved. */
+ *  either moved.
+ *
+ *  It is the default page for a caller that pages ONCE and summarizes (the home tile, the list band's
+ *  count). The LIBRARY pane pages properly — `UserSettings.library.pageSize` per page, `cursor` for the
+ *  rest — so it is not bounded by this number. */
 export const DATABANK_LIST_DEFAULT_LIMIT = 100;
+
+/** The keyset `databank.list` pages by — the boundary row's own `(updatedAt, id)`, because the list is
+ *  ordered `updatedAt DESC, id DESC` and `updatedAt` is not unique (two documents written in the same
+ *  millisecond, which a bulk import produces by the dozen). `id` breaks the tie, so no row is served twice
+ *  and none is skipped. An OFFSET would do neither: it re-counts from the top of a list whose head moves
+ *  every time an ingest bumps a row's `updatedAt` (the `character.list` keyset precedent). */
+export const documentListCursorSchema = z.object({
+  updatedAt: z.number().int(),
+  id: documentIdSchema,
+});
+
+export type DocumentListCursor = z.infer<typeof documentListCursorSchema>;
 
 // Chunk/retrieval bounds — named (contracts enforce no-magic-numbers). ST-derived defaults (databank-design
 // /03 §1, /05 §3.7): 2500-char chunks, 0% overlap, ≤5 KB whole-file, k=5, minScore 0.25.

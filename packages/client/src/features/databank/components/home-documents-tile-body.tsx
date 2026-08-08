@@ -8,12 +8,16 @@
 // invisible from everywhere except the library pane, and the whole point of D-7 is that you should not have
 // to go looking. The health line is therefore the tile's FIRST line, above the documents.
 //
-// ONE READ, ONE TRUTH: `databank.list({})` is the identical query key the library pane uses, so the tile
-// costs nothing extra when both are alive, it inherits every producer/CRUD invalidation the library
-// mutations already declare, and the two can never disagree about a document's phase. That read is the
-// server's first page (newest-activity first, `desc(updatedAt)`, default limit 100) — so "recent" is the
-// server's own order, and the health line summarizes that page rather than claiming a bank-wide census the
-// client never fetched.
+// ONE PAGE, HONESTLY LABELLED: `databank.list({})` is the server's FIRST page (newest-activity first,
+// `desc(updatedAt), desc(id)`, `DATABANK_LIST_DEFAULT_LIMIT` rows) — so "recent" is the server's own order,
+// and the health line summarizes THAT PAGE ("100+ documents") rather than claiming a bank-wide census the
+// client never fetched. It shares the band header's cache entry and inherits every producer/CRUD
+// invalidation the library mutations already declare (they invalidate the whole `databank.list` path).
+//
+// It is no longer byte-identical to what the LIBRARY PANE reads: that pane pages (`infiniteQueryOptions`,
+// `UserSettings.library.pageSize` per page) so a bank's 101st document is reachable, and an infinite query
+// is its own cache entry. The two cannot DISAGREE — same verb, same order, same derived-phase rules — the
+// tile simply never looks past the first page, which is exactly what a four-row "recent" glance wants.
 //
 // FRESHNESS: the same bounded poll the library pane runs (D-3 arm b), through the model's shared
 // `ingestPollInterval` — a tile that renders "2 indexing" and then never moves is the "is it stuck?" hole
@@ -62,10 +66,11 @@ export function HomeDocumentsTileBody(): ReactElement {
   // `dataUpdatedAt` — "when these rows were true" — is the clock the stall overlay reads, exactly as the
   // library pane reads it: it ADVANCES with every poll tick, so a document that wedges while home is open
   // flips to `Stalled` here on the tick that crosses the threshold.
-  const { data: documents, dataUpdatedAt: nowMs } = useSuspenseQuery({
+  const { data: page, dataUpdatedAt: nowMs } = useSuspenseQuery({
     ...trpc.databank.list.queryOptions({}),
-    refetchInterval: (listQuery): number | false => ingestPollInterval(listQuery.state.data, timeLib.now()),
+    refetchInterval: (listQuery): number | false => ingestPollInterval(listQuery.state.data?.items, timeLib.now()),
   });
+  const documents = page.items;
 
   if (documents.length === 0) {
     return (
@@ -180,8 +185,8 @@ export function HomeDocumentsTileBody(): ReactElement {
  *  defect. */
 export function HomeDocumentsTileAction(): ReactElement | null {
   const trpc = useTRPC();
-  const { data: documents } = useQuery(trpc.databank.list.queryOptions({}));
-  if (documents?.length === 0) {
+  const { data: page } = useQuery(trpc.databank.list.queryOptions({}));
+  if (page?.items.length === 0) {
     return null;
   }
   return (

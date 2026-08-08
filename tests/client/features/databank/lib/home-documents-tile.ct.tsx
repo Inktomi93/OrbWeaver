@@ -14,14 +14,14 @@
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import { DatabankHomeTileNarrowStory, DatabankHomeTileStory, DatabankHomeTileWithJumpGridStory } from "../_ct-stories.tsx";
-import { INDEXING_DOC, READY_DOC, stubDatabank } from "../fixtures.ts";
+import { INDEXING_DOC, pagedBank, READY_DOC, stubDatabank } from "../fixtures.ts";
 
 const TILE = '[data-home-tile="databank.documents"]';
 
 // A bank AFTER A BAD REINDEX — the state the aggregates exist for: every non-ready phase populated at two
 // digits, far past the four rows the tile renders. (The four-state fixture bank is fully VISIBLE in those
 // rows, which is exactly why it must produce no aggregates at all — the test below pins that.)
-function crowdedRows(count: number, offset: number, over: Record<string, number>): readonly object[] {
+function crowdedRows(count: number, offset: number, over: Partial<typeof READY_DOC>): readonly (typeof READY_DOC)[] {
   return Array.from({ length: count }, (_, i) => ({ ...READY_DOC, id: `document_${String(offset + i).padStart(20, "0")}`, ...over }));
 }
 
@@ -57,7 +57,7 @@ test("no aggregate chip for a phase the ROWS already show — only the rows' own
 });
 
 test("a phase that reaches PAST the rows earns an aggregate, worst first, as a named control", async ({ mount, page }) => {
-  await stubDatabank(page, { "databank.list": () => CROWDED_BANK });
+  await stubDatabank(page, { "databank.list": pagedBank(CROWDED_BANK) });
   const home = await mount(<DatabankHomeTileWithJumpGridStory />);
 
   const group = home.locator(TILE).getByRole("group", { name: "Ingest attention" });
@@ -68,7 +68,7 @@ test("a phase that reaches PAST the rows earns an aggregate, worst first, as a n
 });
 
 test("clicking an aggregate scopes the library to that phase AND goes there — assert the STORES", async ({ mount, page }) => {
-  await stubDatabank(page, { "databank.list": () => CROWDED_BANK });
+  await stubDatabank(page, { "databank.list": pagedBank(CROWDED_BANK) });
   const home = await mount(<DatabankHomeTileStory />);
   const probe = home.locator("output");
   await expect(probe).toContainText("phase=none");
@@ -119,7 +119,7 @@ test("the trailing action goes to the library — assert the STORE, not a render
 });
 
 test("an EMPTY bank teaches the first step, opens the CEREMONY, and drops the link to nothing", async ({ mount, page }) => {
-  await stubDatabank(page, { "databank.list": () => [] });
+  await stubDatabank(page, { "databank.list": pagedBank([]) });
   const home = await mount(<DatabankHomeTileStory />);
   const probe = home.locator("output");
 
@@ -150,7 +150,7 @@ test("the tile SUBSUMES its jump row — Databank is one door on home, not two",
 });
 
 test("at the narrowest real host a crowded health line WRAPS — every chip stays inside the card", async ({ mount, page }) => {
-  await stubDatabank(page, { "databank.list": () => CROWDED_BANK });
+  await stubDatabank(page, { "databank.list": pagedBank(CROWDED_BANK) });
   const home = await mount(<DatabankHomeTileNarrowStory />);
 
   const tile = home.locator(TILE);

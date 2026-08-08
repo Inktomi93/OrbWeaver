@@ -16,6 +16,7 @@
 // `stubDatabank` pins the page clock with `page.clock.setFixedTime` — the date reader ONLY, no timer faking,
 // so the surface's own 4s ingest poll and playwright's auto-waiting still run for real.
 
+import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
 import type { Page } from "@playwright/test";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import type { TrpcRecorder, TrpcRoutes } from "../../../support/ct/route-trpc.ts";
@@ -77,6 +78,28 @@ const STALLED_DOC = {
 
 export const SOURCE_TEXT = "HOUSE VALEROTH — the elder line, seated at Duskwater since the Compact.";
 
+/** One row as the stub serves it — the fixture shape, structural (a CT never mints a branded id). */
+type StubDocument = typeof READY_DOC;
+
+/**
+ * A `databank.list` responder that PAGES the way the verb pages — keyset on `(updatedAt, id)`, `limit` rows,
+ * `nextCursor` only on a FULL page. A stub that returned the whole array regardless of `cursor` would make
+ * every pagination assertion pass against a surface that never paged at all: the rows would already be
+ * there. So the fake carries the verb's contract, and "document 101 is reachable" is a claim about the
+ * SURFACE's paging, not about a generous stub.
+ */
+export function pagedBank(documents: readonly StubDocument[]): (input: unknown) => { items: readonly StubDocument[]; nextCursor: unknown } {
+  return (input: unknown) => {
+    const { limit, cursor } = (input ?? {}) as { limit?: number; cursor?: { readonly id: string } | null };
+    const size = limit ?? DATABANK_LIST_DEFAULT_LIMIT;
+    const start = cursor === undefined || cursor === null ? 0 : documents.findIndex((doc) => doc.id === cursor.id) + 1;
+    const items = documents.slice(start, start + size);
+    const last = items.at(-1);
+    const nextCursor = items.length === size && last !== undefined ? { updatedAt: last.updatedAt, id: last.id } : null;
+    return { items, nextCursor };
+  };
+}
+
 /** The bank as the surfaces read it: four documents, with the READY one globally attached. `over` replaces
  *  any route (an empty bank, a failing write) without re-spelling the rest. */
 export async function stubDatabank(page: Page, over: TrpcRoutes = {}): Promise<TrpcRecorder> {
@@ -84,7 +107,7 @@ export async function stubDatabank(page: Page, over: TrpcRoutes = {}): Promise<T
   // the rows below are dated against, on every run and every machine.
   await page.clock.setFixedTime(NOW);
   return routeTrpc(page, {
-    "databank.list": () => [READY_DOC, INDEXING_DOC, EMPTY_DOC, STALLED_DOC],
+    "databank.list": pagedBank([READY_DOC, INDEXING_DOC, EMPTY_DOC, STALLED_DOC]),
     "databank.listGlobal": () => [READY_DOC.id],
     // Resolve the REQUESTED document, so "the row you clicked is the document you got" is a real assertion
     // rather than a stub that would answer the same either way.

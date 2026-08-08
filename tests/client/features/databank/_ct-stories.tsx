@@ -32,6 +32,21 @@ export function DatabankLibraryStory(): ReactElement {
   );
 }
 
+/** The LIST pane in a TALL host — the pagination story. The 320px×700px production mount scrolls, and a
+ *  "Load more" control at the tail of a 30-row page is below the fold, so a test would have to scroll a
+ *  virtual-less container to reach it before it could even ask whether paging works. Same pane, same width
+ *  (the §6.1 width math is unchanged); only the viewport is generous, because the question here is REACH,
+ *  not fit. */
+export function DatabankLibraryTallStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 4000, overflow: "hidden", width: 320 }}>
+        <DatabankLibrarySurface />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The LIST chrome band (title · count · Add · the D-6 maintenance kebab) PLUS the shell's real ModalHost:
  *  the band's Add opens a MODAL SLOT now (P1-2), so the dialog it opens is the shell's, not the band's, and
  *  a story without the host would assert on a dialog that production renders one level up. */
