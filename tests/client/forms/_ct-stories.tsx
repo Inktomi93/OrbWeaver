@@ -29,6 +29,9 @@ export function AutosaveStatusStory(): ReactElement {
       <button type="button" onClick={(): void => setState("saving")}>
         set saving
       </button>
+      <button type="button" onClick={(): void => setState("blocked")}>
+        set blocked
+      </button>
       <button type="button" onClick={(): void => setState("error")}>
         set error
       </button>

@@ -45,6 +45,12 @@ export interface MacroTextareaProps {
   suggestions: readonly MacroSuggestion[];
   placeholder?: string;
   rows?: number;
+  /**
+   * The autosize CEILING in lines (see `TextareaProps.maxRows`) — past it the box scrolls instead of
+   * growing. An editor whose field can hold a capped-but-long value (a prose override, a format string)
+   * passes it so the counter/refusal under the box cannot be pushed off the fold by the value itself.
+   */
+  maxRows?: number;
   className?: string;
   id?: string;
   /** Forwarded as `disabled` on the underlying textarea. */
@@ -158,6 +164,7 @@ export function MacroTextarea({
   suggestions,
   placeholder,
   rows = 6,
+  maxRows,
   className,
   id,
   disabled,
@@ -268,6 +275,9 @@ export function MacroTextarea({
         }}
         onChange={handleChange}
         onKeyDown={handleKeyDown}
+        // Same conditional-spread rule as `id`/`maxLength`: an explicit `maxRows={undefined}` would be an
+        // override, and the prop is genuinely absent-or-number under exactOptionalPropertyTypes.
+        {...(maxRows === undefined ? {} : { maxRows })}
         placeholder={placeholder}
         ref={textareaRef}
         rows={rows}

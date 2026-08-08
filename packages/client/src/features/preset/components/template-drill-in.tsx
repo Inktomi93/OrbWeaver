@@ -14,6 +14,7 @@
 // the user's CLICK, so `fires` is a descriptive gloss and never a control.
 
 import type { PromptConfig, TemplateCapability } from "@orb/contracts/preset";
+import { MAX_FORMAT_STRING_LENGTH } from "@orb/contracts/preset";
 import type { ProseFooterState, ProseSlotId } from "@orb/contracts/prose";
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS, proseFooterState } from "@orb/contracts/prose";
 import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
@@ -28,6 +29,7 @@ import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms";
+import { CAPPED_FIELD_MAX_ROWS, CappedFieldCounter, showsCappedFieldCounter } from "#forms";
 import { useFocusOnSwap } from "#lib";
 import { GUIDED_INPUT_TOKEN } from "../lib/assembly-model.ts";
 import type { TemplateRow } from "../lib/template-rows.ts";
@@ -111,11 +113,34 @@ function TemplateBody({ form, row }: { readonly form: PresetForm; readonly row: 
       {(suggestions): ReactElement =>
         guidedKind === undefined ? (
           <form.AppField name={`formatStrings.${def.id}` as "formatStrings.continueNudge"}>
-            {(field): ReactElement => <field.MacroField label={label} placeholder={placeholder} rows={4} suggestions={suggestions} />}
+            {(field): ReactElement => (
+              <Stack gap="field">
+                {/* THE CAP, off the contract constant. `formatStringsSchema` bounds every slot at
+                    `MAX_FORMAT_STRING_LENGTH`, and this schema is also the READ path — `parsePromptConfig`
+                    degrades a failed parse to DEFAULT_PROMPT_CONFIG — so an over-cap nudge does not bounce
+                    one field, it makes the WHOLE preset read as defaults. Three cap regimes met on this one
+                    surface and only the prose one was signalled (side-eye PROSE-LIMIT); this is the second. */}
+                <field.MacroField
+                  label={label}
+                  maxLength={MAX_FORMAT_STRING_LENGTH}
+                  maxRows={CAPPED_FIELD_MAX_ROWS}
+                  placeholder={placeholder}
+                  rows={4}
+                  suggestions={suggestions}
+                />
+                <CappedFieldCounter length={(field.state.value ?? "").length} max={MAX_FORMAT_STRING_LENGTH} />
+              </Stack>
+            )}
           </form.AppField>
         ) : (
           <form.AppField name={`guidedActions.${guidedKind}.prompt`}>
-            {(field): ReactElement => <field.MacroField label={label} placeholder={placeholder} rows={4} suggestions={suggestions} />}
+            {/* NO `maxLength` HERE, deliberately: `guidedActionSchema.prompt` is an uncapped `z.string()`,
+                so there is no number to wear — capping the field would invent a contract in the editor and
+                refuse text the wire accepts. Raised as a CONTRACT question, not decided here. The autosize
+                CEILING still applies: an uncapped field is the one MOST able to grow past the fold. */}
+            {(field): ReactElement => (
+              <field.MacroField label={label} maxRows={CAPPED_FIELD_MAX_ROWS} placeholder={placeholder} rows={4} suggestions={suggestions} />
+            )}
           </form.AppField>
         )
       }
@@ -170,6 +195,11 @@ function ProseTemplateBody({
             // the fix: it blocks typing and truncates a paste, and it leaves an already-stored over-cap value
             // alone — that one is `ProseFooter`'s to state and the form validator's to refuse.
             maxLength={PROSE_MAX_CHARS}
+            // …AND THE CEILING (side-eye PROSE-LIMIT P1). Without it, `field-sizing: content` rendered the
+            // whole stored value as box height — the over-cap override this field exists to refuse measured
+            // 2333px in a 720px viewport, putting the counter and the `role="alert"` refusal below the fold.
+            // The block was invisible on the surface being blocked.
+            maxRows={CAPPED_FIELD_MAX_ROWS}
             onChange={(next): void => {
               form.setFieldValue("prose", proseTemplateDraft(form.state.values, slotId, next));
             }}
@@ -202,17 +232,15 @@ function ProseTemplateBody({
  *  the header keeps reading "Saved", so this badge is the only place that state is legible. */
 function ProseFooter({ footer, length }: { readonly footer: ProseFooterState; readonly length: number }): ReactElement | null {
   // Counted on the RAW field length, not the trimmed one `over` uses: the counter mirrors what the box holds
-  // (an author watching a number must see it move on every keystroke, trailing space included).
-  const counter =
-    length < PROSE_MAX_CHARS * PROSE_COUNTER_AT ? null : (
-      <Text className="tabular-nums" voice="gloss">
-        {length}/{PROSE_MAX_CHARS}
-      </Text>
-    );
+  // (an author watching a number must see it move on every keystroke, trailing space included). The SHARED
+  // counter, not a local spelling — it and the prose-settings card's copy had drifted (side-eye PROSE-LIMIT
+  // P3: both stayed muted grey beside their own red refusal), and one home fixes both at once.
+  const counter = <CappedFieldCounter counterAt={PROSE_COUNTER_AT} length={length} max={PROSE_MAX_CHARS} />;
+  const counterShown = showsCappedFieldCounter(length, PROSE_MAX_CHARS, PROSE_COUNTER_AT);
   if (footer.isDefault) {
     return <Text voice="gloss">Using the built-in wording</Text>;
   }
-  if (counter === null && footer.missing.length === 0 && !footer.stale) {
+  if (!counterShown && footer.missing.length === 0 && !footer.stale) {
     return null;
   }
   return (

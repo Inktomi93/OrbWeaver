@@ -82,6 +82,7 @@ import {
   useActiveSection,
   useActiveSessionKey,
   useAggregateSaveStatus,
+  useBlockedSaveSections,
   useCharacterBulkMode,
   useCharacterSortMode,
   useCharacterViewMode,
@@ -823,6 +824,9 @@ export function SettingsSaveStatusProbe(): ReactElement {
       <button type="button" onClick={(): void => reportSectionSaveStatus("probe-a", "error")}>
         a error
       </button>
+      <button type="button" onClick={(): void => reportSectionSaveStatus("probe-a", "blocked")}>
+        a blocked
+      </button>
       <button type="button" onClick={(): void => reportSectionSaveStatus("probe-b", "saving")}>
         b saving
       </button>
@@ -846,7 +850,10 @@ export function SettingsSaveStatusProbe(): ReactElement {
 function SettingsSaveStatusReader(): ReactElement {
   const aggregate = useAggregateSaveStatus();
   const errored = useErroredSaveSections();
-  return <output>{`aggregate=${aggregate ?? "none"} errored=${errored.length === 0 ? "none" : errored.join(",")}`}</output>;
+  const blocked = useBlockedSaveSections();
+  return (
+    <output>{`aggregate=${aggregate ?? "none"} errored=${errored.length === 0 ? "none" : errored.join(",")} blocked=${blocked.length === 0 ? "none" : blocked.join(",")}`}</output>
+  );
 }
 
 /** SettingsSectionRegistryProbe — reads the settings-SECTION registry through `useSettingsSectionRegistry`

@@ -60,7 +60,9 @@ function takeDiscard(discardRef: RefObject<boolean>): boolean {
 export interface AutosaveSession<TValues extends object> {
   /** The widened AppForm surface (same as the old factory's), minus `reset` at the type level. */
   readonly form: AutosaveForm<TValues>;
-  /** The live save lifecycle for `AutosaveStatus`, per SESSION (resets on entity switch / reseed). */
+  /** The live save lifecycle for `AutosaveStatus`, per SESSION (resets on entity switch / reseed). Folds the
+   *  driver's own lifecycle together with form VALIDITY: an invalid form reads `blocked`, because the driver
+   *  is holding that write and a status line saying "Saved" over it is simply false. */
   readonly saveState: AutosaveSaveState;
   /** Explicit user retry (the AutosaveStatus affordance) — submits the current values unconditionally. */
   readonly retrySave: () => void;
@@ -336,13 +338,39 @@ export function createAutosaveEntityForm<TValues extends object>(
       form.handleSubmit().catch(() => undefined);
     };
 
-    const session: AutosaveSession<TValues> = {
-      form: form as AutosaveForm<TValues>,
-      saveState,
-      retrySave,
-      reseed,
-    };
-    return <>{children(session)}</>;
+    // THE HELD-WRITE ARM (side-eye PROSE-LIMIT P2). `attemptSave` and the teardown flush BOTH gate on
+    // `form.state.isValid`, so an invalid form is a write the driver is deliberately NOT making — and every
+    // status affordance was reading the untouched `saveState`, i.e. "Saved", over text that was not saved and
+    // would not be. The truth lives at the same seam the refusal does, so it is folded in HERE rather than at
+    // each call site: one derivation, every autosave surface, no editor able to forget it.
+    //
+    // THROUGH `form.Subscribe`, not a render-time `form.state.isValid` read: `form.state` is a SNAPSHOT and
+    // reading it subscribes to nothing, so the status would keep the validity it happened to have at the last
+    // Session render — and the flip we need to catch (the driver's own submit attempt validating and
+    // refusing) does not re-render the Session at all. `error` still WINS the fold: a save that genuinely
+    // failed is a stronger fact about the write than the validity of what is in the box now, and it owns the
+    // retry affordance.
+    // EXPLICITLY INSTANTIATED `<boolean>`, through a local alias: `Subscribe`'s `TSelected` is
+    // inference-blocked here (its props wrap the state in `NoInfer`, and `TValues` is still generic inside
+    // the factory), so an un-instantiated call defaults `TSelected` to the WHOLE FormState and rejects a
+    // boolean selector — and TSX cannot carry type arguments on a MEMBER-expression tag (`<form.Subscribe<
+    // boolean>>` is a parse error), so the component comes out to a const first. Concretely-typed call sites
+    // (a feature's own `form.Subscribe`) infer fine; this is a factory-generic-only wrinkle. Subscribing to
+    // `isValid` ALONE and not to the whole state is deliberate: the body here is the consumer's entire
+    // editor, and a whole-state subscription would re-render it on every keystroke.
+    const FormSubscribe = form.Subscribe;
+    return (
+      <FormSubscribe<boolean> selector={(state): boolean => state.isValid}>
+        {(isValid: boolean): ReactNode =>
+          children({
+            form: form as AutosaveForm<TValues>,
+            saveState: saveState === "error" || isValid ? saveState : "blocked",
+            retrySave,
+            reseed,
+          })
+        }
+      </FormSubscribe>
+    );
   }
 
   // noComponentHookFactories is off for THIS file via a biome.json override (the D54 §13.1 editor-factory

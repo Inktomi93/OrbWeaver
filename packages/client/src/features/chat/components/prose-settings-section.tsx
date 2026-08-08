@@ -28,7 +28,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms";
-import { createAutosaveEntityForm, SectionSaveStatus } from "#forms";
+import { CAPPED_FIELD_MAX_ROWS, CappedFieldCounter, createAutosaveEntityForm, SectionSaveStatus } from "#forms";
 import { settingsAnchorId } from "#state";
 import {
   PROSE_SETTINGS_SUBCATEGORY,
@@ -185,6 +185,12 @@ function ProseCard({ form, id, stored, onKeepMine }: ProseCardProps): ReactEleme
             placeholder={slot.text}
             rows={3}
             maxLength={PROSE_MAX_CHARS}
+            // …AND THE CEILING, the half the cap was missing (side-eye PROSE-LIMIT P1). `field-sizing:
+            // content` grows without bound, so the already-stored over-cap value this card exists to refuse
+            // rendered as a 2333px box in a 720px viewport — pushing this field's own counter, its error and
+            // the section's save status ~900px below the fold. The refusal was invisible on exactly the card
+            // it was about, and (P2) a 2255px card dragged its grid-row sibling to ~1850px of empty.
+            maxRows={CAPPED_FIELD_MAX_ROWS}
           />
         )}
       </form.AppField>
@@ -217,7 +223,10 @@ interface ProseCardFooterProps {
  *  silently left on a stale copy.
  *
  *  Plus the length COUNTER, quiet until `PROSE_COUNTER_AT` of the cap (the shared `hint-editor` grammar), so
- *  an author sees the ceiling coming rather than hitting a silent wall at `maxLength`.
+ *  an author sees the ceiling coming rather than hitting a silent wall at `maxLength`. It is the SHARED
+ *  `CappedFieldCounter` rather than a local spelling: this counter and the preset drill-in's had already
+ *  drifted (both stayed muted grey while sitting beside their own red refusal — side-eye PROSE-LIMIT P3),
+ *  and one home is what makes "danger-toned once it is over" true on both surfaces at once.
  *
  *  NO over-cap badge here, deliberately — unlike the preset Templates drill-in, which carries one. That
  *  surface writes `prose` as a whole record at one path (a slot id contains dots, which TanStack reads as a
@@ -235,11 +244,7 @@ function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCard
             Reset to built-in
           </Button>
         )}
-        {length < PROSE_MAX_CHARS * PROSE_COUNTER_AT ? null : (
-          <Text voice="gloss" className="tabular-nums">
-            {length}/{PROSE_MAX_CHARS}
-          </Text>
-        )}
+        <CappedFieldCounter counterAt={PROSE_COUNTER_AT} length={length} max={PROSE_MAX_CHARS} />
       </Row>
       {footer.missing.length > 0 ? (
         <Row gap="field" align="center">
