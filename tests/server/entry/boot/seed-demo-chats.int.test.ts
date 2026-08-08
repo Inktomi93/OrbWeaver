@@ -182,6 +182,46 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
     expect(narratorRows.every((m) => m.role === "assistant" && m.characterId !== null)).toBe(true);
   });
 
+  // D129 mirror for the FLAGSHIP: the rpg example ships 26 declared-narrator rows too, but where Second
+  // Opinion's narrator rows are SPOKEN narration that must land as narrator canon, Ashen Spire's are the
+  // rpg STATE-ANCHOR exports — `extra.type:"narrator"` rows with a blank `mes` (a content-less slot is a
+  // snapshot FK, not a lost completion — the state-anchor law). Their contract is the OPPOSITE of Second
+  // Opinion's: the real serde must STRIP every one at parse (a row with no rendered text and no media is
+  // unrepresentable at the write boundary), so the flagship's game/narrator state rides the manifest replay
+  // (`demo.game`) and NONE of these 26 anchors reaches canon. The blank-row int test below EXEMPTS the
+  // flagship's trailing blanks (the replay legitimately mints its own), and the D129 test above reads only
+  // Second Opinion — so nothing else pins that these 26 declared-narrator rows are stripped rather than seeded.
+  // This runs the REAL parse over the REAL shipped bytes, the same way the two byte-reading tests above do.
+  test("the flagship's 26 declared-narrator STATE-ANCHOR rows are all blank and all stripped by the real parse", async () => {
+    const { readFile } = await import("node:fs/promises");
+    const { fileURLToPath } = await import("node:url");
+    const { parseChatJsonl } = await import("@orb/server/kit/serde/chat");
+    const dir = fileURLToPath(new URL("../../../../packages/server/src/entry/boot/seed-assets/demo-chats/", import.meta.url));
+    const text = await readFile(`${dir}ashen-spire.jsonl`, "utf8");
+    const rows = text
+      .split("\n")
+      .filter((l) => l.trim() !== "")
+      .map((l) => JSON.parse(l) as Record<string, unknown>);
+    const [, ...messages] = rows;
+
+    // The shipped bytes: exactly 26 rows DECLARE narrator (ST's `extra.type` marker), and every one is a
+    // content-less state-anchor slot. Both halves matter — a declared-narrator row that carried real text
+    // would be spoken narration (the Second Opinion case) and SHOULD survive.
+    const declaredNarrator = messages.filter((m) => (m["extra"] as Record<string, unknown> | undefined)?.["type"] === "narrator");
+    expect(declaredNarrator.length).toBe(26);
+    expect(declaredNarrator.every((m) => String(m["mes"] ?? "") === "")).toBe(true);
+
+    // The real serde strips every one: no narrator-kind message survives, and the surviving count is exactly
+    // the non-anchor rows. A regression in the blank-row strip would surface all 26 here as narrator rows —
+    // the exact leak the flagship-exempt blank-row test cannot catch.
+    const parsed = parseChatJsonl(text, { fileName: "ashen-spire.jsonl", charDirName: "ashen-spire" });
+    if (parsed === null) {
+      throw new Error("the shipped flagship transcript did not parse");
+    }
+    expect(parsed.messages.filter((m) => m.kind === "narrator")).toHaveLength(0);
+    expect(parsed.messages).toHaveLength(messages.length - declaredNarrator.length);
+  });
+
   test("no BLANK row lands inside a seeded conversation (the transcript's exported state-anchor slots)", async ({ db, app, services }) => {
     await virginBoot(db, app);
 
