@@ -128,7 +128,7 @@ Ranked by consequence within each category. Every item carries its receipt state
   strippedKeys paths-only. **Verifier receipt:** apply-intersection algebra red-pinned; heal
   independence proven via RAW column bytes (score survives analysis-drift); latestVerdict newest-wins;
   iterate mid-round writes nothing on failure; shared stage-engine has no pooled sink.
-  **⚑ ONE REAL FIX from the cross-lens loop (`11c3ec6e7`, consolidated check running):** the
+  **⚑ ONE REAL FIX from the cross-lens loop (`11c3ec6e7`, consolidated check exit 0 — SEALED):** the
   code-verifier flagged that belt-9's apply fence honored `selection.fields[]` but NOT
   `selection.greetingIndexes` → orchestrator relayed it to the live security lens → ruled NEEDS-FIX
   (a prompt-steered rewrite could reach an UNSELECTED greeting slot the user accepts) → security
