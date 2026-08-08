@@ -35,7 +35,7 @@ import type { PresetId } from "@orb/kit/ids";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
-import { selectPreset } from "#state";
+import { retargetPresetSectionDrill, selectPreset } from "#state";
 import { mergeOnSubmit } from "../lib/preset-editor-model.ts";
 import { findConvergenceFork, suggestForkName } from "../lib/preset-fork-choice.ts";
 import { useSetDefaultPreset, useUpdatePreset } from "./use-preset-mutations.ts";
@@ -94,6 +94,12 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
       setDefault.mutate({ section: "seeds", patch: { defaultPresetId: to } });
     }
     selectPreset(to);
+    // …and carry an OPEN section drill onto the copy. THIS is the one entityId swap where the drill must
+    // SURVIVE (the author is mid-sentence in a section the fork holds byte-identically), which is why the
+    // drill store is scoped by preset and re-stamped explicitly here rather than reset on every swap: from
+    // the store's side a fork and "the user picked a different preset" are the same prop change, and only
+    // this line knows which one just happened. A no-op when nothing is drilled.
+    retargetPresetSectionDrill(to);
   };
 
   /** The owner's answer, or `undefined` when nothing is being asked: `null` = keep editing, string = new fork. */

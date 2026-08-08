@@ -37,6 +37,7 @@ import {
   EffectiveProfileShapeMatchStory,
   EffectiveProfileTransportFailureStory,
   PresetReadoutParamsBoundStory,
+  PresetReadoutRetryStory,
 } from "./_readout-stories.tsx";
 
 /** Any prose claiming something about the user's chat model. Deliberately BROADER than the deleted string:
@@ -246,7 +247,10 @@ test("WIRING — Retry fires a REAL re-read: the click issues a second resolve t
   let calls = 0;
   const resolve = (): unknown => (calls++ === 0 ? failingResolve() : settledResolve());
   await routeTrpc(page, readoutRoutes(resolve));
-  const probe = await mount(<PresetReadoutParamsBoundStory />);
+  // The FOCUS-SAFE story: an errored query is stale, so react-query's `refetchOnWindowFocus` default would
+  // heal this panel on any focus event between the barrier and the assertion — a pass with the Retry button
+  // never doing anything (graduation verifier, 2026-08-08).
+  const probe = await mount(<PresetReadoutRetryStory />);
 
   // The first read failed and rendered as such — the settle barrier. The panel is on its failure arm and has
   // NOT recovered on its own: the settled row is absent.

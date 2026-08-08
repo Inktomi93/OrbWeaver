@@ -23,7 +23,8 @@ import { clearNumber, setNumber } from "../../../../support/ct/set-number.ts";
 import { CompactionTabDefaultsStory, CompactionTabSetStory } from "./_add-flow-stories.tsx";
 import {
   ParamsDeckCapabilityErrorStory,
-  ParamsDeckCapabilityMissingCredentialStory,
+  ParamsDeckCapabilityNonRoutingStory,
+  ParamsDeckCapabilityTransportFailureStory,
   ParamsDeckCustomParamsStory,
   ParamsDeckExplicitStory,
   ParamsDeckGhostStory,
@@ -45,8 +46,12 @@ const CAPABILITY_ERROR = "400 incoherent routing (agent-sdk × local-light)";
 /** The F-02 routing verdict — EARNED only by a `BAD_REQUEST` routing refusal, and a LIE over any failure
  *  that is a missing precondition (its "not a missing connection" clause is then literally inverted). */
 const ROUTING_VERDICT_RE = /routing problem, not a missing connection/i;
-/** The server's own reason for the missing-precondition arm — the deck must quote it, not swallow it. */
-const MISSING_CREDENTIAL_MSG = "no chat credential is configured for this source";
+/** The server's own reason for the non-routing arm — the deck must quote it, not swallow it. */
+const NON_ROUTING_MSG = "the routing settings could not be read";
+/** The headline that NAMES A CAUSE (the chat model). Earned by the routing refusal, and by nothing else. */
+const MODEL_CAUSE_HEADLINE_RE = /chat model couldn't be resolved/i;
+/** The headline that names only the READ — what every unearned arm must fall back to. */
+const READ_HEADLINE_RE = /capabilities couldn't be read/i;
 const CLAUDE_ENV_RE = /claudeEnv/;
 const DEFAULT_PREFIX = /Default — /;
 const SETTLE_MS = 500;
@@ -289,26 +294,39 @@ test("CAPABILITY ERROR (BAD_REQUEST) — the server's reason is quoted and named
 
   await expect(deck.getByText(CAPABILITY_ERROR, { exact: false })).toBeVisible();
   await expect(deck.getByText(ROUTING_VERDICT_RE)).toBeVisible();
+  // The EARNED arm keeps both halves: the cause-naming headline and the verdict.
+  await expect(deck.getByText(MODEL_CAUSE_HEADLINE_RE)).toBeVisible();
   // The routing sentence is printed exactly ONCE, where it used to appear three times (F-02's P0).
   await expect(deck.getByText(GATE_SETTINGS_RE)).toHaveCount(1);
   // A settled arm is not a loading arm — the placeholder is gone.
   await expect(deck.locator('[data-slot="skeleton"]')).toHaveCount(0);
 });
 
-test("CAPABILITY ERROR (PRECONDITION_FAILED) — a missing precondition is NOT called a routing problem", async ({ mount }) => {
-  // The 2026-08-08 defect: the gate hardcoded "this is a routing problem, NOT a missing connection" over
-  // EVERY failure — so a `PRECONDITION_FAILED` (the archetype: a missing credential) got told, verbatim, that
-  // its cause was not the very thing it was. The verdict is now discriminated on `data.code` (via the shared
-  // classifier), so it is WITHHELD here. Asserted through the rendered SENTENCE, so the pin survives a
-  // refactor of the classifier.
-  const deck = await mount(<ParamsDeckCapabilityMissingCredentialStory />);
+test("CAPABILITY ERROR (non-routing code) — NEITHER line names a cause the error never gave", async ({ mount }) => {
+  // The 2026-08-08 defect, and its graduation follow-up: the gate hardcoded "this is a routing problem, NOT a
+  // missing connection" over EVERY failure — and the first fix discriminated only the GUIDANCE, leaving the
+  // headline still asserting the chat model as the cause. Both lines must fall back to naming the READ.
+  const deck = await mount(<ParamsDeckCapabilityNonRoutingStory />);
 
   // The server's own reason is still shown — a failure is never swallowed.
-  await expect(deck.getByText(MISSING_CREDENTIAL_MSG, { exact: false })).toBeVisible();
-  // THE REGRESSION: the inverted verdict must be absent, and the place-to-look still offered.
+  await expect(deck.getByText(NON_ROUTING_MSG, { exact: false })).toBeVisible();
+  // THE REGRESSION, both halves: no routing verdict, and no chat-model cause in the headline.
   await expect(deck.getByText(ROUTING_VERDICT_RE)).toHaveCount(0);
+  await expect(deck.getByText(MODEL_CAUSE_HEADLINE_RE)).toHaveCount(0);
+  await expect(deck.getByText(READ_HEADLINE_RE)).toBeVisible();
+  // The place to LOOK is still offered — withholding a cause is not withholding help.
   await expect(deck.getByText(GATE_SETTINGS_RE)).toHaveCount(1);
   await expect(deck.locator('[data-slot="skeleton"]')).toHaveCount(0);
+});
+
+test("CAPABILITY ERROR (no tRPC data — a transport failure) — the band states no cause at all", async ({ mount }) => {
+  // A dropped socket / a 500 carries no `data.code`, so the gate knows the read failed and nothing more.
+  const deck = await mount(<ParamsDeckCapabilityTransportFailureStory />);
+
+  await expect(deck.getByText("Failed to fetch", { exact: false })).toBeVisible();
+  await expect(deck.getByText(ROUTING_VERDICT_RE)).toHaveCount(0);
+  await expect(deck.getByText(MODEL_CAUSE_HEADLINE_RE)).toHaveCount(0);
+  await expect(deck.getByText(READ_HEADLINE_RE)).toBeVisible();
 });
 
 test("ADVANCED — the ONE collapsed disclosure; it opens onto the escape hatches + the D7 presence row", async ({ mount }) => {

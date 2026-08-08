@@ -39,6 +39,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { SkeletonRows } from "#data";
+import type { ReadFailure } from "../lib/resolve-failure.ts";
 import { failureCause, resolveFailureMessage } from "../lib/resolve-failure.ts";
 
 /** One placeholder bar per model-fed cluster the settled read will fill (SAMPLING, REASONING and the seed
@@ -52,8 +53,14 @@ export interface CapabilityGateProps {
    *
    *  It is the error OBJECT, not a pre-extracted message: the band discriminates on the structured
    *  `error.data.code` tRPC puts there (via `failureCause`) to decide whether it has EARNED the routing
-   *  verdict. A caller that flattened it to `.message` first would take that choice away. */
-  readonly error: unknown;
+   *  verdict. A caller that flattened it to `.message` first would take that choice away.
+   *
+   *  TYPED `ReadFailure | null`, never `unknown` (graduation verifier, 2026-08-08): the FAILED arm is
+   *  selected by `error !== null`, so a widened prop let an `undefined` — the shape a query that has not
+   *  landed hands up — select a permanent failure band under a read that never failed. (Not `Error`
+   *  either: `useQuery().error` is a `TRPCClientErrorLike`, an interface with no `name`, so `tsc` refuses
+   *  it — see `ReadFailure`'s own note.) */
+  readonly error: ReadFailure | null;
 }
 
 export function CapabilityGate({ error }: CapabilityGateProps): ReactElement {
@@ -66,9 +73,12 @@ export function CapabilityGate({ error }: CapabilityGateProps): ReactElement {
       </Section>
     );
   }
-  // ONLY a `BAD_REQUEST` (the routing refusal `assertCoherent` throws) earns the routing verdict; a
-  // `NOT_FOUND`, a missing-precondition or a bare transport failure withholds it (the F-02 clause was
-  // "not a missing connection", which is a lie the moment the failure IS a missing precondition).
+  // ONLY a `BAD_REQUEST` (the routing refusal `assertCoherent` throws) earns a CAUSE here; every other code
+  // — a `NOT_FOUND`, a missing precondition, a 500, a dropped socket — withholds it. BOTH LINES SWING
+  // TOGETHER (graduation verifier, 2026-08-08): the first cut discriminated only the guidance, so the
+  // HEADLINE still asserted "your chat model couldn't be resolved" over a data-less transport failure, which
+  // is the very class this module was minted to kill — a confident cause over an error that names none. The
+  // unearned arm states the READ and stops, exactly as the classifier's own `unknown` copy does.
   const routing = failureCause(error) === "routing";
   const message = resolveFailureMessage(error);
   return (
@@ -77,7 +87,9 @@ export function CapabilityGate({ error }: CapabilityGateProps): ReactElement {
         <Icon icon={AlertTriangle} size="sm" />
         <Stack gap="tight">
           <Text prose={true} voice="label">
-            Your chat model couldn't be resolved, so these knobs can't be shown at your model's real caps.
+            {routing
+              ? "Your chat model couldn't be resolved, so these knobs can't be shown at your model's real caps."
+              : "Your model's capabilities couldn't be read, so these knobs can't be shown at their real caps."}
           </Text>
           {message === null ? null : (
             <Text prose={true} voice="gloss">
