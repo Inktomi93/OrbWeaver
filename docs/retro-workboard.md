@@ -148,13 +148,18 @@ Ranked by consequence within each category. Every item carries its receipt state
   the live-infra steps:** `docker build` both targets (+`docker inspect` the healthcheck),
   container runs, fleet-in-namespace, read-only shakeout, sibling-vllm cap_drop probe, the pentest
   cage (§4/Fork F), deploy posture (C13).
-- **A3 · PRESET-FOLLOWUP (executor, worktree).** B1 CapabilityGate→`resolve-failure.ts` (the
-  inverted "routing problem" claim over a missing-credential failure) + B2 Prompt-view
-  section-drill fork-eject (the FORGE#1 store-axis fix applied) + 2 verification CTs (readout
-  skeleton-height == settled; error arm earns its cause + Retry refetches). ITEM-3 (snake_case
-  `fires` gloss) **DECLINED per recorded ruling** — `contracts/preset/index.ts:1265-1267` states
-  the wire name in `fires` IS the row→tool map, all eight tool rows; owner may override as a copy
-  call (C-taste). Graduates on a verifier over B1's classification logic.
+- **A3 · PRESET-FOLLOWUP → MERGED `57215749a` (lane `d92bf5b21`); GRADUATION VERIFIER RUNNING.**
+  Shipped 3/4: B1 CapabilityGate wired to shared `failureCause` (verdict verbatim ONLY on
+  BAD_REQUEST; error threads WHOLE so `data.code` survives; red-first CT bite-proven) · B2 Prompt
+  section-drill on a store axis (mirrors FORGE#1; red-first: old source ejected, new survives the
+  fork; 20/20 drill CTs) · retry CT closed the real gap (fail→Retry→recovers over the wire; click
+  proven the only trigger). ITEM-3 DECLINED per recorded ruling (`index.ts:1265-1267` — the wire
+  name in `fires` IS the row→tool map; owner may override as a copy call, C-taste). **⚑ MECHANISM
+  CORRECTION (lane receipt, `resolve-role.ts:355`):** `resolveChatCapability` is CREDENTIAL-FREE —
+  the old board text "missing credential inverts the claim" was wrong; the hardcoded verdict lied
+  over ANY non-routing failure (500s etc.). Same class, same fix. Durable lesson banked:
+  \[\[ct-vite-prebundle-masks-source-neuter]] (bare `@orb/client/*` CT imports run PREBUNDLED code
+  — a source-neuter bite lies green; prove via rendered pre/post controls).
 - **A4 · The preset/config side-eye train GRADUATED (2026-08-08):** FORGE#1 Actions IA + POLISH
   cluster + PROSE-GEOMETRY all **SHIP** under the batched rendered lens (`be00cf36a` ref-stage;
   delivery-truth readout, fork-eject picker, prose cap geometry all confirmed live). Their rows are
