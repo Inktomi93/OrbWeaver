@@ -4,8 +4,10 @@ import type { ProseSlotId } from "@orb/contracts/prose-slot";
 import {
   isProseSlotId,
   LEGACY_PROSE_BASE_VERSION,
+  PROSE_COUNTER_AT,
   PROSE_MAX_CHARS,
   PROSE_SLOT_IDS,
+  proseOverBy,
   proseOverrideFromLegacy,
   proseOverridesSchema,
 } from "@orb/contracts/prose-slot";
@@ -37,6 +39,21 @@ test("proseOverridesSchema: an over-long override is rejected (self-healed away)
   expect(tooLong[SOME_ID]).toBeUndefined();
   const atCap = proseOverridesSchema.parse({ [SOME_ID]: { text: "x".repeat(PROSE_MAX_CHARS), baseVersion: 1 } });
   expect(atCap[SOME_ID]?.text.length).toBe(PROSE_MAX_CHARS);
+});
+
+test("proseOverBy is the EDITOR-side twin of that rejection — the number the two prose editors refuse on", () => {
+  // The test above is the loss: an over-cap override does not bounce, it self-heals to ABSENT, so the host's
+  // text is deleted and the shipped default rides with nothing on screen having said so. `proseOverBy` is
+  // what lets an editor see that coming BEFORE the wire, off this constant rather than a re-spelled 4000.
+  expect(proseOverBy("")).toBe(0);
+  expect(proseOverBy("x".repeat(PROSE_MAX_CHARS))).toBe(0);
+  expect(proseOverBy("x".repeat(PROSE_MAX_CHARS + 1))).toBe(1);
+  // TRIMMED, because the trimmed bytes are what the save boundaries actually store — a value that fits once
+  // padding is dropped must not have its save refused, and one that does not must not be excused by it.
+  expect(proseOverBy(`  ${"x".repeat(PROSE_MAX_CHARS)}  `)).toBe(0);
+  expect(proseOverBy(`  ${"x".repeat(PROSE_MAX_CHARS + 3)}  `)).toBe(3);
+  // The counter threshold is a fraction of the cap, not a second magic number.
+  expect(PROSE_MAX_CHARS * PROSE_COUNTER_AT).toBe(3200);
 });
 
 test("the legacy bare-string adapter stamps the FIRST version — honest today, stale after the first bump", () => {

@@ -22,6 +22,7 @@ import {
   PRESET_PROSE_SLOT_IDS,
   PROSE_HOMES,
   PROSE_MACRO_MODES,
+  PROSE_MAX_CHARS,
   PROSE_SLOT_IDS,
   PROSE_SLOTS,
   proseFooterState,
@@ -593,7 +594,19 @@ test("a blank override never reports STALE either — it is not an authored edit
 // may not import another (D70), so the derivation lives in contracts and its tests live with it.
 test("the footer reads Default while the field is empty, whatever is still stored (the next save clears it)", () => {
   const stored: ProseOverride = { text: "an override about to be cleared", baseVersion: 1 };
-  expect(proseFooterState("chat.arbiter.system", "", stored)).toEqual({ isDefault: true, stale: false, missing: [] });
+  expect(proseFooterState("chat.arbiter.system", "", stored)).toEqual({ isDefault: true, stale: false, missing: [], over: 0 });
+});
+
+test("`over` counts the TRIMMED excess over PROSE_MAX_CHARS — the one BLOCKING signal in the footer", () => {
+  // WHY the footer carries a BLOCKING signal at all, when `missing`/`stale` are ruled warn-never-block:
+  // `proseOverridesSchema`'s per-key `.catch(undefined)` makes an over-cap override VANISH rather than fail
+  // (pinned in `tests/contracts/prose-slot/`), so a save at this length does not error — it deletes the
+  // host's text and lets the shipped default ride. `over` is what the two editors refuse on.
+  expect(proseFooterState("chat.arbiter.system", "x".repeat(PROSE_MAX_CHARS), undefined).over).toBe(0);
+  // Measured on what gets STORED: both editors trim at their save boundary, so padding must never be what
+  // refuses a save whose actual payload fits.
+  expect(proseFooterState("chat.arbiter.system", `   ${"x".repeat(PROSE_MAX_CHARS)}   `, undefined).over).toBe(0);
+  expect(proseFooterState("chat.arbiter.system", "x".repeat(PROSE_MAX_CHARS + 7), undefined).over).toBe(7);
 });
 
 test("the required-token lint bites only text the host actually wrote, and names the missing token", () => {
