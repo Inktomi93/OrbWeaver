@@ -506,6 +506,29 @@ security lens.
   from the session** — the rest (cold-check>warm, scope-the-absence-receipt, shared-value-owes-a-battery,
   ratifying-gate-two-receipts) are DOCTRINE/memory, not gates: the existing gates + battery caught every
   real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
+- **═══ ⚑ NIGHT SEALED (2026-08-08 ~03:30) — CERTIFIED GREEN AT `6494c540e`, 107 AHEAD OF ORIGIN, NOT PUSHED (owner word) ═══**
+  **The full `verify --push` battery: PASS, ALL stages clean** — incl. tests:node (whole vitest+CT),
+  e2e-smoke, cpd, parity. First run had ONE red: the orphan ratchet catching 13 contracts/rpg
+  orphans the barrel conversion made visible (tagged @public w/ surface-naming reasons, the ruled
+  arm; delete verdicts stay with the amputation follow-up). ZERO stale coupled fixtures — the
+  in-lane literal-sweep briefing held on every value-changing lane.
+  **Buildable board: DRAINED.** Tonight's merged+graduated train (every one under a fresh lens):
+  CLIENT-SMALLS · TRACKERGATE(+pins) · NODE26-GATE(+fix) · RE-HOME(+preview-fidelity) · PORTR6 ·
+  EXTRACTION (PROSE-1 COMPLETE) · TOAST ×3 legs · CONFIG ×4 legs (closed) · W4-BURNDOWN ·
+  SMALLS ×3 + GATE-IGNORE-CLOSE (the class ENFORCED, 197 gates) · DBANK S3+fix+micro (I-2 CLOSED) ·
+  MEMBERS-CHIP · TAG-WANTS(premise-dead+coverage) · TRANSWEEP · PROSE-LIMIT · BARREL · ORPHAN-TAGS.
+  Plus: ceremony (ledger through D136) · the card-refinery port study · 6+ stale rows struck · the
+  dev stack restarted.
+  **AWAITS THE OWNER (morning pile):** the push word (fresh battery green is banked at `6494c540e` but
+  the next push wants its own word per standing law) · card-refinery forks F1-F7 + build go/no-go ·
+  the landing-cards + "New book" duplication ruling (one combined question) · ctx-tab-strip
+  tooltip-at-coarse · nudge texts · `{{note}}` posture · presets-into-rail · JSON-card export ·
+  row-27 wire-or-delete · tag drag-cap (ruled leave-as-is; MoveControls note recorded) · AGENT-1 ·
+  containerize (sequenced post-board).
+  **New rows tonight's honesty minted (unbuilt, boarded):** databank pagination (the 100-doc
+  ceiling) · home useOrder follow-up · the 136-name barrel amputation worklist
+  (docs/barrel-star-reexport-residue.md) · --include-entry-exports posture lane · scripts/
+  gate-ignore inventory gap · E2E_LIVE on the next push window · prod-build CLS confirmation lead.
 - **⚑ ROSTER REFRESH (2026-08-08, later — 5 live after the full-board audit the owner ordered):**
   - ✅ **TRACKERGATE merged `a67cf44e9` + check PASS + verifier CONFIRMED** (own red-first on pre-fix
     source; COMPLETE writer sweep of the FIELD — all 6 sheet-blob writers accounted, bundle-restore is
