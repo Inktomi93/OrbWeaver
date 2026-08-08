@@ -69,6 +69,13 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 ## ═══ STATE (2026-08-07 — the identity build landed; the queue below is live) ═══
 
 - **⚑ COMPACT BOUNDARY SNAPSHOT (2026-08-08 late, main `94394e611`, 157 ahead of origin, tree clean):**
+  - **⚑ CONSOLIDATED REMAINING-WORK LEDGER being built** (`a8eeb652ff8e38926`, read-only) →
+    `docs/retro-remaining-work-ledger.md` — reads the WHOLE board + all options/design/audit docs,
+    re-verifies each open item vs the tree, produces ONE ranked ledger (A in-flight · B dispatchable ·
+    C owner-decision · D older-archaeology-still-open incl. AUTHFIX-2 · E verify/investigate · F
+    struck-done). This is the authoritative "what's left" — the scattered board reconciled. smallbatch3
+    MERGED green (`94394e611`, rebase-then-ff, check PASS; item 1 phone-markread was already fixed
+    b407a084a, item 2 ashen-spire 26-anchor seed coverage added).
   - **LIVE lanes:** FORGE #4 Docker build (`a063356b2ad358a65`, worktree agent-forge-docker) · REFINERY
     R0 forge (`a91b702e2d9ae545c`, agent-refinery-r0) · preset/config batched side-eye
     (`a528c629d6a4aa017`) · FORGE#2 verifier CONFIRMED (done) · smallbatch3 MERGED. Only 2 worktrees on
