@@ -457,9 +457,15 @@ security lens.
   refusal writes nothing); envelope discriminates on `schemaKind` not extension. **Residual (hardening,
   not a defect):** no ≥2-turn cross-link fixture — "cannot cross-link two rpg-anchored turns" is verified
   by reading the positional-index logic, not a runtime counterexample. Boardable one-fixture add.
-- **⏳ FINAL BATTERY (`6616ddd44`, detached): STATIC + orphan-ratchet ALL GREEN (15/15, incl. the katex
-  `types:graph` fix); behavioral phase (`tests:node`+CT, e2e-smoke, cpd, parity) running.** Post-battery,
-  rpg zone settled: dispatch side-eye #16 + glyph #13; any push needs a fresh owner word + this green.
+- ⚑ **SECOND BATTERY CATCH (`6616ddd44` run): ONE CT red** — `chat-list-surface.ct.tsx` asserted the
+  OLD "Chat file (.jsonl)" label; PORT-R6 renamed it "Transcript (.jsonl)" + added "Whole room
+  (.orb.json)" and reported "No CT" (there WAS one). Fixed to the 3-format menu (`95c552e2c`, 32/32 CT).
+  **Two batteries, two stale coupled test-sites (SUMDROP enum fixture · this menu-label CT) — both
+  invisible to static + the targeted verifier. \[\[shared-value-change-owes-a-battery-not-static]]:
+  an enum/label/menu change owes a `tests:node`/CT run; the coupled site hides in an unrelated suite.**
+- **⏳ CERTIFICATION BATTERY (`95c552e2c`, detached) — the clean-green push gate.** Prior run was 15/15
+  static + e2e-smoke + cpd + parity green with only the one CT red (now fixed). Post-green, rpg zone
+  settled: dispatch side-eye #16 + glyph #13; a push needs a fresh owner word + this green.
 - ✅ **TEMPLATE-UNIFY merged** (`6d7867401`, check 14/14) — row 49 slotted; (b) unification COMPLETE.
 - ✅ **SMALLS-SERVER merged** (`58b1f9ce7`, check 14/14) — narrator room previews its CAST shape now
   (GroupConfig threaded into PreviewInputs, per-speaker byte-unchanged, red-first: narrator RED on old
