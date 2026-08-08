@@ -29,12 +29,19 @@ const FORMAT_QUERY = "format";
 const KINDS_QUERY = "kinds";
 const LIBRARY_FILENAME = "orbweaver-library.zip";
 
+/** R6 — the chat door's THIRD container: the orb-native bundle. Not an `ExportChatFormat` member, because
+ *  that union is the ST INTERCHANGE's two text shapes and this one is neither text nor ST — it is the same
+ *  payload an account backup carries, served for one room. Kept on the same `?format=` axis so a caller has
+ *  one question to ask ("which container?"), not two doors to know about. */
+const CHAT_FORMAT_ORB = "orb";
+const ORB_BUNDLE_MIME = "application/json; charset=utf-8";
+
 const CHAT_FORMATS: ReadonlySet<string> = new Set<ExportChatFormat>(["jsonl", "txt"]);
 const CARD_FORMATS: ReadonlySet<string> = new Set<ExportCardFormat>(["png", "json"]);
 const PORTABLE_KIND_VALUES: readonly string[] = PORTABLE_KINDS;
 
 export interface ExportDeps {
-  readonly export: Pick<ExportService, "exportCharacter" | "exportChat">;
+  readonly export: Pick<ExportService, "exportCharacter" | "exportChat" | "exportChatBundle">;
   readonly registry: PortabilityRegistry;
 }
 
@@ -116,11 +123,17 @@ export function registerExport(app: Hono<PrincipalEnv>, deps: ExportDeps): void 
       return c.body(null, UNAUTHORIZED);
     }
     const formatRaw = c.req.query(FORMAT_QUERY);
-    if (formatRaw !== undefined && !CHAT_FORMATS.has(formatRaw)) {
-      return c.json({ error: `invalid "${FORMAT_QUERY}" — expected jsonl or txt` }, BAD_REQUEST);
+    if (formatRaw !== undefined && formatRaw !== CHAT_FORMAT_ORB && !CHAT_FORMATS.has(formatRaw)) {
+      return c.json({ error: `invalid "${FORMAT_QUERY}" — expected jsonl, txt or orb` }, BAD_REQUEST);
+    }
+    const chatId = castId<ChatId>(c.req.param("chatId"));
+    if (formatRaw === CHAT_FORMAT_ORB) {
+      // The FIDELITY container — the whole room (injections, the tag overlay, room overrides, the
+      // variable/macro picks, the rpg campaign), not the ST interchange's message subset.
+      const bundle = await deps.export.exportChatBundle({ principal, chatId });
+      return bundle === null ? c.body(null, NOT_FOUND) : serveDownload(bundle.bytes, ORB_BUNDLE_MIME, bundle.filename);
     }
     const format = formatRaw as ExportChatFormat | undefined;
-    const chatId = castId<ChatId>(c.req.param("chatId"));
     const transcript = await deps.export.exportChat({ principal, chatId, format });
     if (transcript === null) {
       return c.body(null, NOT_FOUND);

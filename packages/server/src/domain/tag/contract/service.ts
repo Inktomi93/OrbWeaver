@@ -10,6 +10,7 @@ import type { ChatId, TagId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   AttachCardTagByNameParams,
+  AttachChatTagByNameParams,
   AttachTagParams,
   BulkAttachTagParams,
   CreateTagParams,
@@ -66,6 +67,9 @@ export interface TagService {
    *  `source`/`status` default to `manual`/`accepted`; import/seeded cards pass `card`/`pending` to stage a
    *  suggestion. Not principal-gated — trusts the caller-resolved `ownerId`. */
   readonly attachCardTagByName: (params: AttachCardTagByNameParams) => Promise<boolean>;
+  /** R6 — the CHAT arm of the same by-name attach: resolve-or-create the owner's tag, then place the D30
+   *  per-tagger overlay row. No `status` (the junction has no such column). Not principal-gated. */
+  readonly attachChatTagByName: (params: AttachChatTagByNameParams) => Promise<boolean>;
   /** Resolve the owner's tag by name (case-insensitive, no create) and detach it from the character.
    *  Idempotent on absent. The tag row itself survives a detach. Not principal-gated. */
   readonly detachCardTagByName: (params: DetachCardTagByNameParams) => Promise<boolean>;

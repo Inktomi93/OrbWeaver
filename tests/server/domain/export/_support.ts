@@ -80,7 +80,15 @@ export function makeHarness(db: Db): ExportHarness {
   return {
     // D121-E: the card RE-EMBED. Empty by default — an export suite that wants attached scripts on the
     // wire overrides this op with its own rows.
-    ctx: { db, cas, imageTransform, exportCardScripts: () => Promise.resolve({ scripts: [], carried: [] }) },
+    // R6: `exportRpgGame` defaults to "this chat has no campaign" — the overwhelmingly common case, and the
+    // shape every non-rpg export suite should see. A bundle suite that wants a game overrides it.
+    ctx: {
+      db,
+      cas,
+      imageTransform,
+      exportCardScripts: () => Promise.resolve({ scripts: [], carried: [] }),
+      exportRpgGame: () => Promise.resolve(null),
+    },
     putBlob: (ownerId, hash, bytes): void => {
       blobs.set(key(ownerId, hash), bytes);
     },

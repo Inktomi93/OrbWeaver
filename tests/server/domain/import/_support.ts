@@ -11,7 +11,7 @@ import type { AttachedBookRef, CreateCharacterInput, UpdateCharacterInput } from
 import type { BulkImportChatInput } from "@orb/contracts/chat";
 import type { BulkImportPersonaInput } from "@orb/contracts/persona";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
-import type { AssetId, CharacterHandle, CharacterId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImportContext } from "../../../../packages/server/src/domain/import/context.ts";
 import type { ImportProfileDeps } from "../../../../packages/server/src/domain/import/contract/service.ts";
@@ -227,8 +227,15 @@ export function makeProfileHarness(ownerId: UserId): ProfileHarness {
       chatCalls.push(args);
       const realConversationWritten = args.chats.some((c) => c.isRealConversation);
       return Promise.resolve({
-        // The stub writes nothing, so it reports no written ids — the real op returns one per imported chat.
-        chatIds: [],
+        // One identity per chat, index-aligned to its messages/variants — the shape the REAL op returns, and
+        // the shape the R6 bundle verb re-links its carried rpg planes through. A stub reporting
+        // `chatsImported: N` beside `written: []` would describe an impossible write and would silently hide
+        // the whole overlay/remap step from every test that used it.
+        written: args.chats.map((c, i) => ({
+          chatId: castId<ChatId>(`chat_stub_${i}`),
+          messageIds: c.messages.map((_m, mi) => castId<MessageId>(`msg_stub_${i}_${mi}`)),
+          variantIds: c.messages.map((m, mi) => m.variants.map((_v, vi) => castId<MessageVariantId>(`msgvar_stub_${i}_${mi}_${vi}`))),
+        })),
         chatsImported: args.chats.length,
         chatsSkipped: 0,
         messagesImported: args.chats.reduce((n, c) => n + c.messages.length, 0),

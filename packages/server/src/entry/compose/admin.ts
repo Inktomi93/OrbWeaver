@@ -38,6 +38,8 @@ export interface AdminComposeDeps {
   readonly imageTransform: Parameters<typeof createExportService>[0]["imageTransform"];
   /** D121-E: the card RE-EMBED op (a card's regex scripts are library rows now, not a column). */
   readonly exportCardScripts: Parameters<typeof createExportService>[0]["exportCardScripts"];
+  /** R6: the chat-anchored rpg CAMPAIGN read the orb-native chat-bundle export carries. */
+  readonly exportRpgGame: Parameters<typeof createExportService>[0]["exportRpgGame"];
 }
 
 /** The admin compose product: the admin service + the two singletons built here (the ONE tool-use registry and
@@ -116,7 +118,13 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
   // resolves them per turn through the SAME registry, projecting via toAgentToolServer (T5).
   const toolUse = createToolUseService({ can, clock: now });
 
-  const exportService = createExportService({ db, cas: deps.cas, imageTransform: deps.imageTransform, exportCardScripts: deps.exportCardScripts });
+  const exportService = createExportService({
+    db,
+    cas: deps.cas,
+    imageTransform: deps.imageTransform,
+    exportCardScripts: deps.exportCardScripts,
+    exportRpgGame: deps.exportRpgGame,
+  });
 
   return { admin, toolUse, exportService };
 }

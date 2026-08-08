@@ -12,7 +12,7 @@ import { tmpdir } from "node:os";
 import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
-import type { UserId } from "@orb/kit/ids";
+import type { PersonaId, UserId } from "@orb/kit/ids";
 import type { AssetsContext, AssetsService } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
 import type { BulkImportChats } from "#domain/chat";
@@ -20,8 +20,10 @@ import type { DatabankPortabilityContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImportWorkloadDeps } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
+import { findOwnedPersonaByName } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
 import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
+import type { ImportRpgGame } from "#domain/rpg";
 import type { SettingsContext } from "#domain/settings";
 import { reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
@@ -60,6 +62,10 @@ export interface PortabilityRunnerComposeDeps {
   readonly character: CharacterService;
   readonly assets: AssetsService;
   readonly attachCardTag: TagService["attachCardTagByName"];
+  /** R6 — the orb-native chat bundle's chat-TAG overlay re-link (D30 per-tagger, resolve-or-create by name). */
+  readonly attachChatTag: TagService["attachChatTagByName"];
+  /** R6 — the chat-anchored rpg campaign's WRITE half (from the rpg compose seam, which owns the id mints). */
+  readonly importRpgGame: ImportRpgGame;
   readonly importWorldInfo: ImportWorldInfoPort;
   /** D121-E: the card LIFT + the `regex` bundle descriptor's two halves (from the regex compose seam). */
   readonly importCardScripts: ImportCardScripts;
@@ -109,6 +115,12 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     bulkImportPersonas: deps.bulkImportPersonas,
     enqueueBackfill: enqueueImportBackfill,
     reconcileImportStats,
+    // R6 — the orb-native chat bundle's three cross-domain re-links (persona by name, the chat-tag overlay,
+    // the rpg campaign). Shared by both consumers exactly like the rest of this slice.
+    findPersonaByName: ({ ownerId, name }: { readonly ownerId: UserId; readonly name: string }): Promise<PersonaId | null> =>
+      findOwnedPersonaByName(db, ownerId, name),
+    attachChatTagByName: deps.attachChatTag,
+    importRpgGame: deps.importRpgGame,
     resolveOwnerPrincipal: deps.resolveOwnerPrincipal,
   };
 

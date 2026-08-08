@@ -82,11 +82,12 @@ function handlerFor(deps: ExportDeps, route: string): Handler {
 const CARD = { bytes: new Uint8Array([1, 2, 3]), filename: "aria.png" };
 const TRANSCRIPT = { text: '{"line":1}\n', filename: "chat.jsonl" };
 
-function stubExport(overrides: Partial<Pick<ExportService, "exportCharacter" | "exportChat">>): ExportDeps {
+function stubExport(overrides: Partial<Pick<ExportService, "exportCharacter" | "exportChat" | "exportChatBundle">>): ExportDeps {
   return {
     export: {
       exportCharacter: (): Promise<null> => Promise.resolve(null),
       exportChat: (): Promise<null> => Promise.resolve(null),
+      exportChatBundle: (): Promise<null> => Promise.resolve(null),
       ...overrides,
     },
     // The library route's injected portability registry — empty here (these tests exercise the single-entity

@@ -63,8 +63,10 @@ export type { BackfillPassResult, MemoryBackfillResult } from "./backfill.ts";
 export type {
   BulkImportChatInput,
   BulkImportChatsResult,
+  BulkImportInjectionInput,
   BulkImportMessageInput,
   BulkImportVariantInput,
+  ImportedChatIdentity,
 } from "./bulk-import.ts";
 export type {
   ChatBusEvent,

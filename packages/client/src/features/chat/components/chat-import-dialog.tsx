@@ -15,7 +15,11 @@ import type { ChatImportResult } from "#data";
 import { importChats, useInvalidation } from "#data";
 import { notify } from "#lib";
 
-const TRANSCRIPT_ACCEPT = ".jsonl,application/x-ndjson";
+// Both chat formats the single-chat door accepts: the ST/share transcript and the R6 orb-native BUNDLE
+// (which carries the room whole — injections, room overrides, the tag overlay, the rpg campaign). `.json`
+// rides the accept list because a browser file picker filters on the LAST dot; the server tells the two
+// apart by the file's own envelope, never by its name.
+const TRANSCRIPT_ACCEPT = ".jsonl,.json,application/x-ndjson,application/json";
 
 /** The toast to fire for one import batch — `kind` indexes `notify`. */
 interface ImportNotice {
@@ -76,7 +80,7 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
 
   return (
     <FormDialog
-      description="Drop chat transcripts (.jsonl) exported from orbweaver or SillyTavern. Each lands on the character its header names, so import that character's card first."
+      description="Drop chat files exported from orbweaver (.orb.json — the whole room) or transcripts from orbweaver or SillyTavern (.jsonl). Each lands on the character it names, so import that character's card first."
       onOpenChange={onOpenChange}
       open={open}
       title="Import a chat"
@@ -84,7 +88,7 @@ export function ChatImportDialog({ open, onOpenChange }: ChatImportDialogProps):
       <FileDropzone
         accept={TRANSCRIPT_ACCEPT}
         hint="orbweaver or SillyTavern chat transcripts"
-        instructions="Drop a chat .jsonl, or click to browse"
+        instructions="Drop a chat file (.orb.json or .jsonl), or click to browse"
         multiple={true}
         onFilesSelected={({ accepted }): void => onFiles(accepted)}
       />

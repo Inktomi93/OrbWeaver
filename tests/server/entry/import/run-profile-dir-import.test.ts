@@ -192,8 +192,8 @@ function fakes(): Fakes {
       }
     }
     return Promise.resolve({
-      // The stub writes nothing, so it reports no written ids — the real op returns one per imported chat.
-      chatIds: [],
+      // The stub writes nothing, so it reports no written rows — the real op returns one identity per chat.
+      written: [],
       chatsImported: imported,
       chatsSkipped: args.chats.length - imported,
       messagesImported: args.chats.reduce((n, c) => n + c.messages.length, 0),
