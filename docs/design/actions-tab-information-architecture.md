@@ -1,17 +1,19 @@
-# The Actions tab at 66 rows — information architecture (FORGE lane, 2026-08-08)
+# The Actions tab at 67 rows — information architecture (FORGE lane, 2026-08-08)
 
-> **Status: DESIGNED → BUILT in this lane.** The side-eye's gap-closure verdict on the Actions tab was
-> "a database dump wearing a UI": 51 of its 66 rows landed in one night (the D132 prose migrations —
-> the turn-wire framings, the 11 game teaches, the 40 extraction slots) and the tab's structure,
-> readout, and teaching copy were all still sized for the original 15. This document is the fix's
-> architecture: what changes, what was REJECTED and why, and which invariants hold it up.
-> Receipts for every finding: `reports/snaps/group-extract-tall.png` (the 40-row group),
-> `reports/snaps/readout-update-party.png` (the false delivery path).
+> **Status: BUILT (this lane, branch `wt/agent-forge-actions`).** The side-eye's gap-closure verdict on
+> the Actions tab was "a database dump wearing a UI": 51 of its then-66 rows landed in one night (the
+> D132 prose migrations — the turn-wire framings, the 11 game teaches, the extraction slots) and the
+> tab's structure, readout, and teaching copy were all still sized for the original 15. ROW-27
+> (`rpg.extract.stateTrackingGuide`, merged mid-lane) made it 67 rows / 41 extract. This document is
+> the fix's architecture: what changes, what was REJECTED and why, and which invariants hold it up.
+> Receipts for every finding: `reports/snaps/group-extract-tall.png` (the 40-row group as shipped),
+> `reports/snaps/readout-update-party.png` (the false delivery path); the BUILT state:
+> `reports/snaps/forge-ia-rest.png` + `forge-ia-extract.png`.
 
 ## 0. The constraints that shape everything
 
 - **D132** — templates have ONE home and it is presets. Splitting rows back out to settings or a
-  second tab is not on the table; the tab must carry 66 rows WELL.
+  second tab is not on the table; the tab must carry 67 rows WELL.
 - **§5.0 / §16 row 31** — the list is a FIXED PRODUCT ENUM, not a manageable collection: no toggles,
   no grips, no Add. Whatever structure lands must not read as management chrome (the CT pins the
   absences by accessible name).
@@ -50,7 +52,7 @@ the standing copy around it lied.
 
 ## 2. The architecture
 
-### 2.1 Sub-clusters for the 40 extraction rows — registry-declared, disclosure-banded, collapsed
+### 2.1 Sub-clusters for the 41 extraction rows — registry-declared, disclosure-banded, collapsed
 
 `TemplateDef` gains an optional **`cluster`** field over a closed contracts union:
 
@@ -58,10 +60,13 @@ the standing copy around it lied.
 TEMPLATE_CLUSTERS = ["round", "scene", "party", "planes", "tools", "refs"]
 ```
 
-Membership (7 · 9 · 5 · 5 · 8 · 6 = 40):
+Membership (8 · 9 · 5 · 5 · 8 · 6 = 41):
 
 - **round** — the call's framing & passes: `deceptionSurface`, `systemHeader`, `toolRoundHeader`,
-  `reconcilePass`, `foldedReconcile`, `lockedPaths`, `reconcileDoctrine`
+  `reconcilePass`, `foldedReconcile`, `lockedPaths`, `reconcileDoctrine`, and ROW-27's
+  `stateTrackingGuide` (a cross-plane doctrine like the reconcile rule it precedes; its `fires` gloss
+  was differentiated from the doctrine's — the two were byte-identical, the identical-truncation class
+  again, one night old)
 - **scene** — `scene.*` (9)
 - **party** — the actor-tracker teaching + its planes: `party.resources`, `party.states`,
   `party.trackerScope`, `plane.party`, `plane.trackers`
@@ -85,17 +90,17 @@ band is the map; expanding is one click"). The band is a button with `aria-expan
 no `/^Add\b/`, no `/^Reorder/` names).
 
 **The teach group (11 rows) stays flat.** Clustering is COUNT-DRIVEN, the same way the config filter
-is: 11 human-labeled rows are scannable; 40 were not. The threshold precedent is
+is: 11 human-labeled rows are scannable; 41 are not. The threshold precedent is
 `COLLECTION_LARGE_GROUP` — no group here except extract exceeds it.
 
 **Anti-echo consequences** (X-7): with a band naming the noun, (a) the per-row `extract`/`teach` KIND
-CHIP leaves the LIST entirely — under a kind-titled kicker it discriminates nothing on ANY row, 40
+CHIP leaves the LIST entirely — under a kind-titled kicker it discriminates nothing on ANY row, 41
 identical chips were eating the row's right third, and the drill-in header keeps the chip where it
 does discriminate; (b) the `fires` glosses drop their now-redundant cluster prefixes
 ("The scene plane — when to advance the clock" → "When to advance the clock", the `refs.*` and
 `party.*` equivalents likewise).
 
-### 2.2 The tab-level filter (66 > 30)
+### 2.2 The tab-level filter (67 > 30)
 
 One filter input above the groups (config grammar: search glyph + `Input`, `aria-label` "Filter
 templates"). Matching is a pure model function over `label + fires` (case-insensitive substring).
@@ -158,13 +163,18 @@ wrote with the author's own bytes. Focus lands on the drill-in's Back affordance
 `useFocusOnSwap` — one Tab from the field, versus re-finding a row in a 66-row list. (The caret
 itself cannot survive a suspense remount; position preservation is the finding's ask.)
 
-### 2.7 Perf (the 131ms long frame)
+### 2.7 Perf (the 131ms long frame) — MEASURED
 
-The cost is 66 `ListRow`s each wrapping a `form.Subscribe`, all mounted in one tab-switch commit.
+The cost was 67 `ListRow`s each wrapping a `form.Subscribe`, all mounted in one tab-switch commit.
 Collapsed-by-default clusters cut the resting mount to 26 rows + 6 bands (15 guided/format/nudge +
-11 teach). Re-measured after the build via `pnpm snap --isolated` driving the real tab switch with a
-long-task observer; windowing joins the design ONLY if the measured commit is still long (it is not
-expected to be — see §3).
+11 teach). Measured on the isolated stage (`pnpm snap --isolated --ref <sha>`, a long-task observer
+installed in-page around a real Actions-tab click, same instrument both sides):
+
+- **before** (main `809fdf96c`, flat 67 rows): ONE long task, **87ms**, at the click.
+- **after** (this branch `753e1d5cf`, banded): **zero long tasks** — the commit dropped below the
+  50ms long-task floor entirely.
+
+Windowing therefore does NOT join the design (rejected-alternative #4 stays rejected on the measure).
 
 ## 3. Rejected alternatives (each with its why)
 
