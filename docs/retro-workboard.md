@@ -128,6 +128,15 @@ Ranked by consequence within each category. Every item carries its receipt state
   strippedKeys paths-only. **Verifier receipt:** apply-intersection algebra red-pinned; heal
   independence proven via RAW column bytes (score survives analysis-drift); latestVerdict newest-wins;
   iterate mid-round writes nothing on failure; shared stage-engine has no pooled sink.
+  **⚑ ONE REAL FIX from the cross-lens loop (`11c3ec6e7`, consolidated check running):** the
+  code-verifier flagged that belt-9's apply fence honored `selection.fields[]` but NOT
+  `selection.greetingIndexes` → orchestrator relayed it to the live security lens → ruled NEEDS-FIX
+  (a prompt-steered rewrite could reach an UNSELECTED greeting slot the user accepts) → security
+  lens fixed it in-verb RED-FIRST (`classifyAccept` now drops out-of-`greetingIndexes` accepts as
+  `not_selected`; `undefined`=all greetings, common case untouched; 56/56 + typecheck). R0's belt-9
+  wording under-specified greeting granularity — the fix closes it. LOW severity, security-lens
+  self-proven; an independent re-verify of the fence is available on the owner's word (optional,
+  belt-and-suspenders).
   **⚑ NON-BLOCKING SMALLS (boarded, from both lenses — see D):** `accepts` has no wire `.max()`
   (self-DoS, owner-only today) · apply-fields lacks an explicit foreign-session NOT_FOUND pin (reuses
   a belt proven in 6 siblings) · `depthPrompt→not_applicable` branch unpinned · `latestVerdict` ORDER
