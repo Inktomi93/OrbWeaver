@@ -40,11 +40,7 @@ import {
   useRemoveDocument,
   useRenameDocument,
 } from "../hooks/use-databank-mutations.ts";
-import { isIngestInFlight } from "../lib/databank-model.ts";
-
-/** How often the list re-reads while ANY row is mid-ingest (D-3 arm b). Slow enough to be free at rest,
- *  fast enough that a small document's `Queued → Ready` is seen rather than reported later. */
-const INGEST_POLL_MS = 4000;
+import { ingestPollInterval } from "../lib/databank-model.ts";
 
 export function DatabankLibrarySurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -73,8 +69,9 @@ function DatabankList(): ReactElement {
     // The predicate reads the LIVE cached rows, so the poll starts itself when an add lands an in-flight
     // row and stops itself on the tick that finds none — INCLUDING the tick that finds a row has stalled
     // (a wedged document is not in flight, and polling it forever is a request every 4s for a job that is
-    // never coming back). The clock here is per-tick, since a callback is not a render path.
-    refetchInterval: (listQuery): number | false => ((listQuery.state.data ?? []).some((doc) => isIngestInFlight(doc, timeLib.now())) ? INGEST_POLL_MS : false),
+    // never coming back). The clock here is per-tick, since a callback is not a render path. The rule
+    // itself lives in the model, shared with home's databank tile (the list's other reader).
+    refetchInterval: (listQuery): number | false => ingestPollInterval(listQuery.state.data, timeLib.now()),
   });
   const { data: globalIds } = useSuspenseQuery(trpc.databank.listGlobal.queryOptions());
 

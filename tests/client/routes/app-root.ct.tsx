@@ -6,7 +6,9 @@
 // CONTENT to a seeded chat room. This is the §5.1 anti-jank seam proven without a real generation.
 //
 // tRPC is stubbed at the NETWORK (routeTrpc): `chat.listChats` (the docked LIST panel + the landing
-// recents) + `character.list` (the library + the landing quick-picks) + `character.get` (a seeded draft
+// recents) + `databank.list` (home's databank tile — an EMPTY bank, so the front door renders that tile's
+// teaching state rather than an error card) + `character.list` (the library + the landing quick-picks) +
+// `character.get` (a seeded draft
 // previews each founding character's greeting as an editable row, J2/J3 — it reads the founding CARD, but
 // never CANON `chat.listMessages`, since every chat reached here is a DRAFT with no server row).
 
@@ -53,6 +55,7 @@ const DRAFT_IDENTITY_STUB = {
 test("fresh state lands on HOME — the launcher, never an empty room (D62 P4 via owner decision H1 = D-1)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": [],
+    "databank.list": [],
     "character.list": NO_CHARACTERS,
     "persona.list": PERSONAS,
   });
@@ -64,8 +67,12 @@ test("fresh state lands on HOME — the launcher, never an empty room (D62 P4 vi
   await expect(component.locator('[data-home-tile="chat.recents"]')).toBeVisible();
   await expect(component.locator('[data-home-tile="chat.quickPicks"]')).toBeVisible();
   await expect(component.locator('[data-home-tile="home.jump"]')).toBeVisible();
+  // …including the tile a FEATURE raised (databank, D-7) — the door-assembled seam, proven at the real
+  // composition root and not just in a hand-built registry.
+  await expect(component.locator('[data-home-tile="databank.documents"]')).toBeVisible();
   // An empty DB still teaches the first step, per tile.
   await expect(component.getByRole("button", { name: "Create your first character" })).toBeVisible();
+  await expect(component.getByRole("button", { name: "Add your first document" })).toBeVisible();
   // Home declares no LIST pane, so no toggle offers one.
   await expect(component.getByRole("button", { name: LIST_TOGGLE_RE })).toHaveCount(0);
   // No chat room / composer is mounted at rest.
@@ -75,6 +82,7 @@ test("fresh state lands on HOME — the launcher, never an empty room (D62 P4 vi
 test("the chats section's own no-selection state is the SLIM one — the launcher lives in exactly one place", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": [],
+    "databank.list": [],
     "character.list": NO_CHARACTERS,
     "persona.list": PERSONAS,
   });
@@ -91,6 +99,7 @@ test("the chats section's own no-selection state is the SLIM one — the launche
 test("picking a character in the library starts a chat with it (the library→chat seam)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": [],
+    "databank.list": [],
     "character.list": ONE_CHARACTER,
     // The seeded draft reads Aria's card to preview her greeting as the opening row (J2/J3).
     "character.get": {
@@ -132,6 +141,7 @@ test("picking a character in the library starts a chat with it (the library→ch
 test("the temp tile starts its room through the SHARED picker, and the draft survives a rail round-trip", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": [],
+    "databank.list": [],
     "character.list": NO_CHARACTERS,
     "persona.list": PERSONAS,
     "chat.reapTemporaryChats": { reaped: 0 },
@@ -176,6 +186,7 @@ test("the temp tile starts its room through the SHARED picker, and the draft sur
 test("zero personas: the first-run persona ask is FORCED open — no dismiss, one way out", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": [],
+    "databank.list": [],
     "character.list": NO_CHARACTERS,
     "persona.list": [],
   });
@@ -200,6 +211,7 @@ test("zero personas: the first-run persona ask is FORCED open — no dismiss, on
 test("a user who owns a persona never sees the gate (the automation-seeded + returning-user arm)", async ({ mount, page }) => {
   await routeTrpc(page, {
     "chat.listChats": [],
+    "databank.list": [],
     "character.list": NO_CHARACTERS,
     "persona.list": PERSONAS,
   });

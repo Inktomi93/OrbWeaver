@@ -11,3 +11,5 @@
 //     feature import. That surface is the program's next stage, not this one.
 
 export { databankSection } from "./lib/databank-section.tsx";
+// The HOME tile (D-7) — a CONTRIBUTION the door assembles, never an import home makes of this feature.
+export { databankDocumentsTile } from "./lib/home-documents-tile.tsx";

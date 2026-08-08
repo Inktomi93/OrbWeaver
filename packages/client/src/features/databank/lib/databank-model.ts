@@ -120,6 +120,22 @@ export function isIngestInFlight(doc: Pick<DocumentView, "charCount" | "chunkCou
   return phase !== "stalled" && IN_FLIGHT_WORD[phase] !== null;
 }
 
+/** How often a documents read re-runs while ANY row is mid-ingest (D-3 arm b). Slow enough to be free at
+ *  rest, fast enough that a small document's `Queued → Ready` is seen rather than reported later. */
+export const INGEST_POLL_MS = 4000;
+
+/** The bounded-poll interval for a `databank.list` read: {@link INGEST_POLL_MS} while some row is still
+ *  ingesting, `false` the moment none is (a bank at rest makes zero extra requests). ONE home for the
+ *  predicate because both readers of that list — the library pane and the HOME tile — must start and stop
+ *  polling on the same rule; two spellings would drift into one surface polling a bank the other calls
+ *  settled. `documents` is optional because a refetch callback sees the cache BEFORE the first read lands. */
+export function ingestPollInterval(
+  documents: readonly Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount" | "updatedAt">[] | undefined,
+  now: number,
+): number | false {
+  return (documents ?? []).some((doc) => isIngestInFlight(doc, now)) ? INGEST_POLL_MS : false;
+}
+
 /** A stuck-ingest sentence for the surfaces' Reindex affordance, or `null` when the doc is fresh or terminal.
  *  Names the phase the job wedged in (which is why it reads the COUNTED phase, not the rendered `stalled`).
  *  `now` is injected (client-determinism — the render edge passes the wall clock). */
@@ -136,4 +152,53 @@ export function ingestStallHint(doc: Pick<DocumentView, "charCount" | "chunkCoun
 export function documentSubtitle(doc: DocumentView): string {
   const chunks = doc.chunkCount === 1 ? "1 chunk" : `${doc.chunkCount} chunks`;
   return `${originLabel(doc.origin)} · ${formatBytes(doc.byteSize)} · ${chunks}`;
+}
+
+// ── The bank-wide ingest health (the HOME tile, D-7) ────────────────────────────────────────────────
+// The tile answers one question the LIST pane cannot answer from across the app: is the bank you already
+// built still doing its job? That is two data points — how much of the bank is actually RETRIEVABLE
+// (embedded passages, not documents: an un-embedded document feeds nothing), and which documents are in a
+// phase that will never resolve on its own. Both derive from the SAME counts the row phase does, so the
+// tile can never claim a health the rows contradict.
+
+/** Worst-first order for the health line's aggregate chips. A full Record so a new phase must decide where
+ *  it sits; `ready` carries the last rank and is filtered out by {@link showsPhaseChip} — the steady state
+ *  is the ABSENCE of a chip here exactly as it is on a row (§6.1). */
+const ATTENTION_ORDER: Record<IngestPhase, number> = { stalled: 0, empty: 1, indexing: 2, embedding: 3, ready: 4 };
+
+/** The bank as the HOME tile summarizes it: its size, the passages that can actually be retrieved, and one
+ *  aggregate chip per non-ready phase present in it ("3 stalled", in that phase's own badge tone). The chip
+ *  shape is spelled INLINE — it has exactly one producer and one consumer, and a named export for it is an
+ *  unused type the liveness lens correctly reds. */
+export interface BankHealth {
+  readonly total: number;
+  readonly passages: number;
+  readonly attention: readonly { readonly label: string; readonly intent: "success" | "warning" | "neutral" | "danger" }[];
+}
+
+/** The bank's ingest health over the documents the caller was handed — the tile reads the SAME
+ *  `databank.list` page the library pane does, so this summarizes that page, not a second server truth.
+ *  `now` is INJECTED (the stall overlay's clock; the render edge passes it, never an ambient read). */
+export function bankHealth(documents: readonly DocumentView[], now: number): BankHealth {
+  const counts = new Map<IngestPhase, number>();
+  let passages = 0;
+  for (const doc of documents) {
+    passages += doc.embeddedCount;
+    const phase = ingestPhase(doc, now);
+    counts.set(phase, (counts.get(phase) ?? 0) + 1);
+  }
+  const attention = [...counts.entries()]
+    .filter(([phase]) => showsPhaseChip(phase))
+    .toSorted(([a], [b]) => ATTENTION_ORDER[a] - ATTENTION_ORDER[b])
+    .map(([phase, count]) => ({ intent: ingestBadge(phase).intent, label: `${count} ${ingestBadge(phase).label.toLowerCase()}` }));
+  return { attention, passages, total: documents.length };
+}
+
+/** The tile's one-line summary: what you have, and how much of it a chat can actually pull from. Counts
+ *  PASSAGES rather than chunks because an indexed-but-unembedded chunk is invisible to retrieval — the
+ *  number a user can trust is the one retrieval can reach. */
+export function bankHealthLine(health: BankHealth): string {
+  const documents = health.total === 1 ? "1 document" : `${health.total} documents`;
+  const passages = health.passages === 1 ? "1 passage" : `${health.passages} passages`;
+  return `${documents} · ${passages} indexed`;
 }
