@@ -68,13 +68,13 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
 - **✅ THE CANON-IDENTITY BUILD IS COMPLETE AND FRESH-LENS VERIFIED.** Design:
   `docs/reviews/stickler/2026-08-08-canon-message-identity.md` (931 lines) — all six §18 owner calls
   ruled, all three confirmed defects fixed. Landed in four legs: the SPINE (`dde07f52c` — `MESSAGE_KINDS`
-  + `MESSAGE_KIND_POLICY` + `messages.kind` + variant `rawContent`/`macroFreezes`, one baseline squash) ·
-  the ORPHAN-DIGEST PRUNE (`3d19fd66a` — F-A's second half: hiding rows SHRINKS the ingest set and a
-  position-keyed digest of vanished blocks survived; the cascade is ceiling arithmetic, not machinery) ·
-  the DISPATCH FAN-OUT (`c9f33c9b4` — seven sites; **a real user-visible fix: narrator rows were reaching
-  the wire prefixed `Group: ` / `Aria: `, crediting one cast member with the whole cast's narration**) ·
-  the FREEZE RECORD + replay (`c197ce01b` + `16bb934a1` — and every content writer now clears the
-  provenance pair, so the invariant is true in the DB, not just stated).
+  - `MESSAGE_KIND_POLICY` + `messages.kind` + variant `rawContent`/`macroFreezes`, one baseline squash) ·
+    the ORPHAN-DIGEST PRUNE (`3d19fd66a` — F-A's second half: hiding rows SHRINKS the ingest set and a
+    position-keyed digest of vanished blocks survived; the cascade is ceiling arithmetic, not machinery) ·
+    the DISPATCH FAN-OUT (`c9f33c9b4` — seven sites; **a real user-visible fix: narrator rows were reaching
+    the wire prefixed `Group: ` / `Aria: `, crediting one cast member with the whole cast's narration**) ·
+    the FREEZE RECORD + replay (`c197ce01b` + `16bb934a1` — and every content writer now clears the
+    provenance pair, so the invariant is true in the DB, not just stated).
 - **✅ THE DAY'S OTHER MERGES:** MOBILE legs 1-4 (the one-shell rule + the topbar budget) · PHONE-COMP
   (the phone is COMPOSED, not compressed — shared coarse-pointer constants) · DRAFT-POLISH legs 1-2
   (draft visuals + group-draft identity) · STACK-MODES legs 1-3 (`pnpm stack dev|prod` + `--debug`
@@ -97,14 +97,16 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   - **SIDE-EYE-DAY** (`adf8e74d1848e35ae`, side-eye) — the rendered lens on the day's merges
     (PHONE-COMP's vitals-orbs call · the two `JUDGMENT_DEFERRED` geometry sites · MOBILE 1-4 ·
     DRAFT-POLISH 1-2). Briefed with the prescription-vs-symptom law and the mobile one-shell ruling.
-  All four were briefed: re-verify your premise first, a correct refusal is a success, ONE commit,
-  durable text under `docs/` never `reports/`, back-channel mid-run. Scope-fenced off each other's dirs.
+    All four were briefed: re-verify your premise first, a correct refusal is a success, ONE commit,
+    durable text under `docs/` never `reports/`, back-channel mid-run. Scope-fenced off each other's dirs.
 - **⚑ GRADUATION GATE — NOTHING BELOW IS "DONE" UNTIL ITS FRESH LENS REPORTS CONFIRMED (owner
   re-flagged 2026-08-07: "don't forget about verifier or the proper graduation process").** The lane's
   own floors + `pnpm check` prove STRUCTURE, never LOGIC. Sequence is: lane floors green → merge →
   fresh-context lens at CHUNK granularity → THEN the row graduates. Batching lenses behind merges is
   allowed when load demands; skipping them is not.
+
   ### ✅ GRADUATED (fresh lens reported; merges + consolidated `pnpm check` 14/14 PASS at `e73529d87`)
+
   - [x] **NARRATOR-CAST** — verifier **REFUTED 3 of 6**, incl. a LIVE REGRESSION the merge introduced
     (the PRIMARY member's own card had `{{char}}` bound to the joined cast). Fix leg `619a36ca5` closed
     all five as a CLASS: the rule was already in the file — *a `pinnedPersona` render is card-derived*
@@ -139,6 +141,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     (correct fallback); U1's vanishing chat was AUTHFIX landing mid-review (7→6 = twin→real owner).
 
   ### ✅ AUTHFIX + DEBUGGATE GRADUATED (fresh security lens, 9/11 CONFIRMED; both merges are sound)
+
   - [x] **AUTHFIX / ROLECLIENTS (D135)** — the role verdict IS single-homed (AST census: 9 Principal
     sites, zero stray `owner`/`admin` stamps; the 3 surviving `role:"user"` floor stamps verified
     floor-only by their consumer sets, not their comments). The pre-fix exploit (a non-owner rule author
@@ -210,6 +213,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     deferred side-eye (#16, which also covers PTRGATE's rendered relocations).
 
   ### ✅ ALL DISPATCHED CHUNKS HAVE GRADUATED (2026-08-07 evening)
+
   Every lens has reported. NARRATOR-CAST, PROVGATE, the two push-red fixes and SIDE-EYE-DAY are above;
   AUTHFIX + DEBUGGATE graduated via the security lens (their four follow-ups are lane AUTHTAIL).
   DATABANK-S2 landed zero code — its sweep WAS the verification. The graduation gate is currently EMPTY.
@@ -220,7 +224,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   is a VITEST test, not a structure gate, so the static/battery split hid it
   (\[\[check-is-static-battery-is-separate]] biting for real). **DISPATCH NEXT, none started:**
   AUTHFIX (the principal divergence, security-executor) · the narrator co-speaker-cards defect ·
-  side-eye on the day's rendered merges (PHONE-COMP's vitals-orbs call + the two JUDGMENT_DEFERRED
+  side-eye on the day's rendered merges (PHONE-COMP's vitals-orbs call + the two JUDGMENT\_DEFERRED
   geometry sites). Superseded note (both finished, verdicts boarded above): NARRATOR-LIVE + the 4-chunk verifier were lane **NARRATOR-LIVE** (`a04f9f8075274896e`) + a 4-chunk **VERIFIER** (`a5efc87558f12b959`) over the day's un-graduated merges (FANOUT-1's seven dispatch sites incl. the 33-line shipped-asset patch · GATEFORGE's four gates, false-positive hunt included · the RPGFORK + FANOUT-2 fix legs). Nothing else is running. Original NARRATOR-LIVE note: lane **NARRATOR-LIVE** — a dogfood-shaped LIVE drive of group narrator mode (hosted +
   local vLLM arms) answering "does it demonstrably work end-to-end now that the fan-out changed what the
   model sees?" Verdict → `docs/reviews/misc/2026-08-07-narrator-live-drive.md`.
@@ -295,7 +299,7 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   `kind=narrator`. The nudge holds on a small local model — the compliance worry was the reason for the
   drive.
 - **NOT PUSHED: 84 commits** ahead of `ab55c112e` (counted 2026-08-07 at `96d35ee80`; the board carried
-  "~72" from an earlier point in the same session). The push word is the owner's, fresh, per push.
+  "\~72" from an earlier point in the same session). The push word is the owner's, fresh, per push.
 - **LEDGER:** through **D132**. **D133 + D134 drafted-not-minted** in
   `docs/reviews/security/2026-08-07-{fork,rpg-fork}-host-plane-strip.md` — batch at the next ceremony.
   **D129(G) owes a wording amendment** (owner-ruled): it says the shape dispatch "replaces" the bare
@@ -325,6 +329,7 @@ else; deliberately NOT fixed, with reasons. Full write-up + exploit path + two c
 `docs/architecture/core/Core-Audits-and-Debt.md`.**
 
 The chain, four links, all verified as code:
+
 1. `foundation/observability/debug/routes.ts:184-201` `createDebugAuthMiddleware` — the `adminAuth.isAdmin(headers)`
    arm calls `next()` **BEFORE** the `expectedToken` check. Its own doc says the arm is for "an admin
    session COOKIE".
@@ -369,11 +374,12 @@ expired). **No origin push** (needs a fresh per-push owner word + battery).
 
 **Durable queue = TaskList (#11–#15+) + this ledger.** As lanes merge, dispatch the next; sequence
 rpg-file items (glyph sweep, pointer-coarse gate) AFTER RENDERFIX to avoid collision. Re-verify EVERY
-board row's premise before dispatch — this session has premise-killed ~5 believed-open rows (3 databank,
-+ others), the board's measured defect rate on grep-sourced rows is ~50%.
+board row's premise before dispatch — this session has premise-killed \~5 believed-open rows (3 databank,
+
+- others), the board's measured defect rate on grep-sourced rows is \~50%.
 
 **⚑ MJS-PROBES → PROBES-TYPING handoff (the "green ≠ typechecked" reveal):** the mech lane renamed 17
-`.mjs` probes → `.ts` (`77a9118b6`, branch `wt/agent-af1268fce19895923`), which dragged **~686 latent
+`.mjs` probes → `.ts` (`77a9118b6`, branch `wt/agent-af1268fce19895923`), which dragged **\~686 latent
 strict-mode errors** into the aggregator — real debt from `.mjs` escaping every typechecker for years,
 NOT a rename regression. Excluding is OFF THE TABLE (tsconfig.json's own law: probes are "our code",
 never excluded like the 3rd-party ST runtime). Handed to executor **PROBES-TYPING** (`a98737bcaa810909b`)
@@ -400,6 +406,7 @@ sweep (#13) + pointer-coarse gate (#14) WAIT for RENDERFIX (rpg client files). A
 security lens.
 
 **PRIOR DISPATCH LEDGER (superseded by the roster above):**
+
 - **DEBUGGATE** (`aa32294c5e699ca9e`, security-executor) — AUTHFIX-2, the unauthenticated `/api/_debug/*`
   hole. Briefed to fix shape (i) (thread `DEBUG_TOKEN` through the three e2e mode envs + a shared header
   helper, THEN remove the bypass) — **NOT shape (ii)**, which leaves a conditional control and is the
@@ -411,6 +418,7 @@ security lens.
 - **SIDE-EYE-DAY** (`adf8e74d1848e35ae`) — the rendered lens on the day's merges.
 
 **⚑ OWNER RULINGS 2026-08-07 (question-tool batch) — routed:**
+
 - [x] **SUMMARIZE-SUB → DROP `max-pro-sub` from `SUMMARIZE_SOURCES`.** The 2026-07-27 split STANDS —
   summarize and structured do NOT run on the metered Claude sub (batch roles don't spend the
   subscription). The owner's "it should support it" was reconsidered once shown it contradicts his own
@@ -435,6 +443,7 @@ security lens.
   features`'s `MEDIA_QUERY_RE` matches viewport widths only — this is a NEW gate, not an extension.
 
 **⚑ ALL FIVE OVERNIGHT WRITE LANES MERGED (`148`-ahead, static 14/14 GREEN). No write lanes live.**
+
 - ✅ PTRGATE (gate 194→195) · PORT-R6 (`6be6873d`, D136, I-6, round-trip proven) · PROBES-TYPING
   (`56ae7f493`, 686 strict errors → 0) — plus earlier TEMPLATE-UNIFY + SMALLS-SERVER. All static-green.
 - ⚑ **The combined merge red'd on `types:graph` + `docs:format` — both fixed on main.** `types:graph`
@@ -474,14 +483,14 @@ security lens.
   visible with accessible names (one-per-pointer-class arm-swap proven) · rail cells 66.5/56.9/**45.3px**
   clear the 44px floor at 430/375/320 with a solid 6-col frame · inset focus ring paints fully in the
   overflow box · new-draft identity is ATOMIC (rAF recorder: `"Chats"` → full cast, ZERO "New chat"/"?"
-  frames). PTRGATE: RPG_RAIL_WRAP + HIDE_AT_COARSE rendered; CHIP_TOUCH_FLOOR/PICKER_GAP/REVEAL/FINE_INERT
+  frames). PTRGATE: RPG\_RAIL\_WRAP + HIDE\_AT\_COARSE rendered; CHIP\_TOUCH\_FLOOR/PICKER\_GAP/REVEAL/FINE\_INERT
   byte-identical+CT (live-render deferred, low-risk — no seed populates a removable condition/the picker's
   behind a popover). Self-retracted a false positive (the +condition button has an `::after` 44px expander).
 - ✅ **`run-coverage.ts` widgets bug FIXED** (`20b883e3e`) — seed `widgets` (the field read), widgets made
   required, dead field + bug-preserving assertions/suppressions dropped, full check green.
 - ✅ **GLYPHSWEEP done** — square-glyph debt already paid; icon-seal doorways BUILD-NONE (only
   fillRule=evenodd boarded). See its own board rows below.
-- [ ] **[P3 taste, pre-existing — NOT from the graduated fixes]** the Map cell's lock glyph dangles
+- [ ] **\[P3 taste, pre-existing — NOT from the graduated fixes]** the Map cell's lock glyph dangles
   slightly outside the rail frame's top-right edge (SIDE-EYE-RPG stumble). Low-priority polish.
 - **⏳ CLIENT-SMALLS in flight (`a7a28c621`).** Item 1 premise REFINED: the `<speaker>` leak is NOT
   client-derived — the chat-list subtitle passes through server-computed `chat.lastMessagePreview`, and
@@ -507,6 +516,7 @@ security lens.
   tree). Item 2 (import-guard) premise-dead. `prose-1-spec.md` §2.6 row-49 override-✗ truth-repaired.
 
 **⚑ OVERNIGHT PROGRESS (2026-08-07, `128`-ahead) — merges + premise-kills:**
+
 - ✅ **RENDERFIX MERGED** (`6807f5eb4`, consolidated check 14/14 after a post-merge biome fixup on a new
   CT-stories file). 5 side-eye findings fixed red-first + 314 CT; both geometry sites cleared
   GEOMETRICALLY. **It REFUSED my "delete the exemption rows" instruction correctly** — the gate's arm is
@@ -523,7 +533,7 @@ security lens.
   program (`269860bcf`) already unified it: registry mechanism, injection framings
   (`chat.injection.systemNote`/`.userNote`), continuation cue, the §3.2/§3.3 settings split. Contract
   suite 34/34. TEMPLATE-UNIFY builds ONLY the residual preset row 49 (`DEFAULT_COMPACT_INSTRUCTIONS`
-  adapted slot). **Two pieces routed OUT (task #17):** the REWRITE_TOGGLES/GREETING_TRANSFORMS fragment
+  adapted slot). **Two pieces routed OUT (task #17):** the REWRITE\_TOGGLES/GREETING\_TRANSFORMS fragment
   bytes (rows 53-73 — client-composed via kit, a design FORK) and the rpg per-game teaches + extraction
   templates (rows 1-36/11-26 — no `rpg/prose.ts` yet, needs a dedicated rpg-server lane).
 - ⚑ **PTRGATE dispatched** (`a989027e`) — the owner-ruled pointer-coarse-in-features gate + sweep of the
@@ -531,9 +541,10 @@ security lens.
   behind it** (same rpg files).
 
 **⚑ OVERNIGHT RECONCILIATION (2026-08-07) — ruled items verified against the tree, several already DONE:**
+
 - [x] **DOCLAW-RPG-REFS → ALREADY DONE.** The carve-out is `Documentation-Law.md:114` (amended
   2026-08-07: "A comment STATES its constraint; a citation may accompany it, never replace it" — the
-  ~4,066 §/D-refs sanctioned, bare pointers still a defect). The board row asking the orchestrator to
+  \~4,066 §/D-refs sanctioned, bare pointers still a defect). The board row asking the orchestrator to
   "write the paragraph" was stale — it was already written. (Nearly wrote a duplicate; re-verify caught it.)
 - [x] **ZOD-STAGE-D → DONE.** `z.hostname()` at `contracts/plugin/manifest.ts:62` (replaced the charset
   regex 2026-08-02); strip-observability referenced at `contracts/rpg/extraction.ts:558`. All three legs
@@ -547,9 +558,10 @@ security lens.
   lanes only for the ones it confirms OPEN.
 
 **STILL BOARDED, NOT DISPATCHED:**
+
 - [ ] The preview fidelity gap — `verbs/read.ts` hardcodes `output:"per-speaker"` in three places, so a
   narrator room previews the wrong shape. Needs `GroupConfig` threaded into `PreviewInputs`.
-- [ ] `no-test-fabrication.baseline.json` is stale by ~15 rows tree-wide (deleted files, absorbed
+- [ ] `no-test-fabrication.baseline.json` is stale by \~15 rows tree-wide (deleted files, absorbed
   shrinks). A regen is a legitimate one-line cleanup but belongs to whoever owns the tree, not a lane.
 - [ ] `fork.ts:154-155` stale comment — "no production writer yet" for the host-plane strip; `c197ce01b`
   landed the writers. Comment only; the strip itself is correct and PROVGATE's gate passes it.
@@ -627,6 +639,7 @@ correctly.**
 ✅ **AND THE RESIDUAL SWEEP CAME BACK CLEAN — D85's ENFORCEMENT AND ITS TRUST BOUNDARY ARE BOTH SOUND
 (lane DATABANK-S2, zero commits, receipt-only — a successful lane).** No `docs/` deliverable; the
 receipts are here.
+
 - **D110 drift sweep: no leaking plane.** The vector (a plane reading the raw `chats.metadata`
   sub-blob instead of `resolveChatHiddenDocumentIds`) **does not exist** — `$X.databankVisibility` 0
   matches / ts scanned=3365, `$X["…"]` exactly 1 (the resolver itself), `$X?.…` 3 (all tests), tsx
@@ -655,7 +668,7 @@ receipts are here.
 - **Tool lesson banked to memory** (\[\[ast-grep-property-read-has-three-shapes]]): `$X.foo`,
   `$X?.foo` and `$X["foo"]` are THREE different node kinds — a dot-only sweep reports a clean zero
   with a legitimate scanned count while optional-chained readers sit in the tree.
-**OPEN — S3:** unbuilt. D-7's real home tile still owed. Spec: `docs/design/databank-surface-spec.md`.
+  **OPEN — S3:** unbuilt. D-7's real home tile still owed. Spec: `docs/design/databank-surface-spec.md`.
 
 ### I-3 · CONFIG WORKSPACE — ✅ the rail + the MOBILE tail are DONE; presets-into-rail is owner-timed
 
@@ -1164,7 +1177,7 @@ what Caddy exposes, real response headers, whether `/api/_debug` answers from ou
   honoring the hand row's auto-locks: manual-edit-wins on touched fields, the turn's writes survive
   everywhere else. Last-write-wins was refused (contradicts the recorded manual-edit-wins law);
   refuse-during-flight was refused (blocks the host mid-steer). Red-first pins owed on BOTH victims
-  + the same-field-conflict-resolves-to-human case.
+  - the same-field-conflict-resolves-to-human case.
 - [x] ~~**CONTRACTS-BARREL**~~ — **REFUSED, premise false (SMALLS-BATCH 2026-08-07):** the file is one
   line and already says "placeholder; unused — every consumer imports contracts modules directly". No
   such sentence exists; grep zero-hit.
@@ -1503,7 +1516,7 @@ Items this audit could not prove either way from the tree. **None were dropped.*
     CT/integration suites that assert the changed value + repo-wide-grep the literal across `tests/`;
     brief lanes to do this and to treat "No CT" as a claim owing a grep, not a default.
   - **Run ONE `verify --push` when the merge train drains, and ALWAYS before a push — never push on a
-    static receipt.** Budget for it to find ~1 stale coupled site per value-changing lane; that is
+    static receipt.** Budget for it to find \~1 stale coupled site per value-changing lane; that is
     EXPECTED, not a surprise — fix it and re-certify. Background it (setsid + `.exit`), read the file,
     NEVER stack a background watcher while it matters (\[\[polling-reaps-your-own-background-task]]) — but
     DO actively read the `.exit`; a finished battery that sits unread is the same skip.
@@ -1621,7 +1634,7 @@ Items this audit could not prove either way from the tree. **None were dropped.*
   accident did.
 - **BRIEF EVERY LANE THAT A CORRECT REFUSAL IS A SUCCESS — it produced SIX premise-kills, THREE of
   them against briefs I wrote.** The lanes that beat their briefs did it by reading a contract the
-  brief never mentioned (a leak-free NOT_FOUND; a shared per-turn registry; a nonexistent Duplicate
+  brief never mentioned (a leak-free NOT\_FOUND; a shared per-turn registry; a nonexistent Duplicate
   command). Put the WHY in the brief and they can tell you when the why is wrong.
 - **Lane deliverables that are TEXT go in `docs/…`, not in a report** — `reports/` is ephemera and a
   D-entry that lived only there had to be re-derived from the tree weeks later.
@@ -1662,26 +1675,32 @@ Items this audit could not prove either way from the tree. **None were dropped.*
   fleet-killer. Engines: `pnpm engines:{wake,sleep,status}`; truth = `GET /is_sleeping` (`/health` AND
   `/v1/models` both LIE while asleep); the hold marker refuses auto-wake. Wake-on-demand is built into
   the server's vllm request seam (single-flight, fail-loud). No stack restart mid-battery.
+
 - **⚠️ BASELINE SQUASHED 2026-08-03 (DBFIX, `e9e76f35`)** — `workloads.source` → `admission_key` + the
   two index keys + the dropped CHECK. **The dev db DROPS on next boot**; back it up first if anything
   in it matters, then let the latch re-migrate + reseed. The owner's hand-entered regex scripts are the
   usual casualty (\[\[backrest-recovery-and-cited-reports]]).
+
 - **DB:** pre-launch, schema changes SQUASH into `0000_baseline.sql` — a baseline regen DROPS the dev db
   on next boot (backup + re-migrate, reseeds via the latch). Announce it when squashing. **NEVER bare
   `sqlite3` on the live db** — probe COPIES or `/api/_debug/*`. Wire capture:
   `GET /api/_debug/wire/captures?chatId=…` (`x-debug-token: dbg`).
+
 - **Worktree lanes:** the auto-hook creates `wt/<name>` from local HEAD + `pnpm install` (2s/48MiB);
   NEVER `enableGlobalVirtualStore`. ONE committer on main; lanes commit with PATHSPEC and must
   `git add` new files first; lane cwd RESETS across notification boundaries. Semantic conflicts on a
   lane's own files → abort and send the LANE to merge main into its branch.
+
 - **Probe harnesses:** `scripts/probes/rpg-extraction/` (`run-coverage.ts` env-driven ·
   `steer-probe-real.ts` · `local-8b-vehicles.ts` with resumable `SPIKE_ARMS` · `card-teach-probe.ts`).
   Score against OPPORTUNITIES and through the PRODUCTION tokenizer (emitted ≠ rendered).
+
 - **The extraction-mode map is EMPIRICAL** (spike §4f-§4h — read it before ANY mode work): hosted strong
   × folded = the proven default · agent-sdk wire = no terminal channel → LOUD fallback round · local
   vLLM × folded = prose-silenced → the `local-engine-fold-guard` runs the cheap round · **cheap is the
   local champion** (grammar-bound via `tool_choice:"required"`). `reliable` was CONTRADICTED by
   measurement and DELETED 2026-08-01.
+
 - **Orchestration:** delegate volume, keep judgment; a fresh-context verifier/side-eye before any
   non-trivial "done"; diff an executor's self-flagged "deliberate deviation" against the SPEC TEXT
   before minting law (\[\[spec-completeness-no-improvisation]]).
