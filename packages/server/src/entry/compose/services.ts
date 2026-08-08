@@ -40,7 +40,7 @@ import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
 import type { ExportService } from "#domain/export";
 import { createCopyPresetToUser, PresetNotFoundError } from "#domain/preset";
 import type { RpgTraceRecorder } from "#domain/rpg";
-import { createRpgTraceRecorder } from "#domain/rpg";
+import { createExportRpgGame, createRpgTraceRecorder } from "#domain/rpg";
 import type { SessionsService } from "#domain/sessions";
 import { createSessionsService } from "#domain/sessions";
 import type { SettingsContext, SettingsServiceDeps } from "#domain/settings";
@@ -497,6 +497,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     cas,
     imageTransform: imageAdapter.transform,
     exportCardScripts: regexCompose.exportCardScripts,
+    // R6 — the chat-anchored campaign READ the orb-native chat-bundle export carries. A standalone factory
+    // (db only), so it wires here rather than waiting on the rpg compose seam below.
+    exportRpgGame: createExportRpgGame({ db }),
   });
 
   // ── imagery (the imagery seam). `resolveViewerVisibility` is a late-bound forward-ref (chat composes below);
@@ -718,6 +721,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     character,
     assets,
     attachCardTag: tag.attachCardTagByName,
+    // R6 — the orb-native chat bundle's tag-overlay + rpg-campaign re-links.
+    attachChatTag: tag.attachChatTagByName,
+    importRpgGame: rpgCompose.importGame,
     importWorldInfo,
     importCardScripts: regexCompose.importCardScripts,
     exportRegexScripts: regexCompose.exportRegexScripts,

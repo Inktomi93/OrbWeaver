@@ -6,12 +6,14 @@ import type { ExportContext } from "./context.ts";
 import type { ExportService } from "./contract/service.ts";
 import { createExportCharacter } from "./verbs/export-character.ts";
 import { createExportChat } from "./verbs/export-chat.ts";
+import { createExportChatBundle } from "./verbs/export-chat-bundle.ts";
 import { createListHostChats } from "./verbs/list-host-chats.ts";
 
 export function createExportService(ctx: ExportContext): ExportService {
   return {
     exportCharacter: createExportCharacter(ctx),
     exportChat: createExportChat(ctx),
+    exportChatBundle: createExportChatBundle(ctx),
     listHostChats: createListHostChats(ctx),
   };
 }

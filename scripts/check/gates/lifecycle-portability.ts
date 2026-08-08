@@ -58,9 +58,13 @@ interface NonPortableRow extends ExemptionRow {
  *  be added without saying what it carries, and arm A cross-checks the claim against the schema. */
 const PORTABLE_CANON_TABLES: Record<PortableKind, readonly string[]> = {
   character: ["characters"],
-  // `chats` carries no ownerId (membership-scoped, D18) so arm A never derives it; listed because the kind
-  // does carry it, and the stale arm still proves the table exists.
-  chat: ["chats"],
+  // R6 — the chat arm is now the ORB-NATIVE BUNDLE (`kit/serde/chat-bundle`), not the ST jsonl interchange, so
+  // the chat-anchored planes travel: `chat_injections`, the rpg campaign's six tables, and `chat_tags` (which
+  // carried an ACCEPTED-LOSSY row here reading "Ends with the orb-native chat bundle (R6)" until this wave
+  // ended it). `chats` itself carries no ownerId (membership-scoped, D18) so arm A never derives it; listed
+  // because the kind does carry it, and the stale arm still proves the table exists. Every table here is
+  // owner-DERIVED except `chat_tags`, which IS owner-stamped (D30 — the per-TAGGER overlay).
+  chat: ["chats", "chatTags"],
   persona: ["personas"],
   "world-info": ["worldBooks"],
   regex: ["regexScripts"],
@@ -93,15 +97,15 @@ const NON_PORTABLE_CANON: ExemptionTable<NonPortableRow> = {
   },
   automationRules: {
     classification: "DEFERRED",
-    why: "O-4 RULED these portable (owner-authored artifacts, the tag/theme class) — the descriptor is R6's named work. Ends when `automation` registers a PORTABLE_KINDS member.",
+    why:
+      "O-4 RULED these portable (owner-authored artifacts, the tag/theme class). TRUTH-REPAIRED 2026-08-07 (R6): this row used to " +
+      "say 'the descriptor is R6's named work', which R6 could not deliver and did not — R6 is the orb-native CHAT BUNDLE, and " +
+      "automation rules are not chat-anchored. They need their OWN portable family (serde + verbs + descriptor + import-order " +
+      "slot + doors), which is a separate wave. Ends when `automation` registers a PORTABLE_KINDS member.",
   },
   globalVariables: {
     classification: "DEFERRED",
-    why: "O-4 RULED these portable, same wave as `automationRules`. Ends when the automation descriptor lands.",
-  },
-  chatTags: {
-    classification: "ACCEPTED-LOSSY",
-    why: "the chat↔tag overlay. The chat arm is the ST jsonl interchange and chat ids are not preserved, so the re-link cannot be expressed; ruled lossy under O-4's chat-fidelity rider. Ends with the orb-native chat bundle (R6).",
+    why: "O-4 RULED these portable, same wave and same corrected end condition as `automationRules` (NOT R6 — see that row). Ends when the automation descriptor lands.",
   },
   workloads: {
     classification: "RUNTIME",

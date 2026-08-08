@@ -6,10 +6,11 @@
 
 import type { Db } from "@orb/db";
 import type { ExportCardScripts } from "#domain/regex";
+import type { ExportRpgGame } from "#domain/rpg";
 import type { ImageTransformOptions } from "#infra/image";
 import type { Cas } from "#infra/storage";
-import type { ExportCharacterParams, ExportChatParams, ListHostChatsParams } from "./params.ts";
-import type { ExportedCard, ExportedText, HostChatRef } from "./results.ts";
+import type { ExportCharacterParams, ExportChatBundleParams, ExportChatParams, ListHostChatsParams } from "./params.ts";
+import type { ExportedCard, ExportedFile, ExportedText, HostChatRef } from "./results.ts";
 
 /** The DI bundle every export verb closes over, wired at the composition root. */
 export interface ExportContext {
@@ -20,6 +21,10 @@ export interface ExportContext {
    *  wire + the reference list a same-install re-import re-links by. Injected (cross-domain), because a
    *  card's scripts are no longer a column export could read off the flat row. */
   readonly exportCardScripts: ExportCardScripts;
+  /** R6: the chat-anchored rpg CAMPAIGN, read whole. Injected (cross-domain) for exactly the reason
+   *  `exportCardScripts` is: a game is six tables `export` does not own, and reaching into them directly
+   *  would be a sideways read. Null for the overwhelmingly common gameless chat. */
+  readonly exportRpgGame: ExportRpgGame;
 }
 
 // The chat transcript format union's declaration home is params.ts (keeps contract/ acyclic); the
@@ -36,6 +41,11 @@ export interface ExportService {
    *  interchange (default) or a human-readable TXT transcript. Host-gated: a non-host caller or missing
    *  chat returns `null`. */
   readonly exportChat: (params: ExportChatParams) => Promise<ExportedText | null>;
+  /** R6 — the ORB-NATIVE chat bundle: the room whole (canon + variants + injections + the tag overlay + the
+   *  room blob + the per-chat variable/macro picks + the rpg campaign), not the ST interchange subset. This
+   *  is what an ACCOUNT BACKUP carries; `exportChat` stays the ST/share door. Same host gate, same null-for-
+   *  not-yours posture. */
+  readonly exportChatBundle: (params: ExportChatBundleParams) => Promise<ExportedFile | null>;
   /** Every chat the caller hosts + the handle of its primary seated character — the enumeration the bundle
    *  descriptor streams transcripts over. */
   readonly listHostChats: (params: ListHostChatsParams) => Promise<readonly HostChatRef[]>;

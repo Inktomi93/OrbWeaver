@@ -15,7 +15,7 @@ import type { BulkImportChats } from "#domain/chat";
 import type { DatabankPortabilityContext } from "#domain/databank";
 import { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "#domain/databank";
 import type { ExportService } from "#domain/export";
-import type { ImportService } from "#domain/import";
+import type { ImportProfileDeps, ImportService } from "#domain/import";
 import { createImportService } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
@@ -27,6 +27,7 @@ import type { TagContext } from "#domain/tag";
 import { createTagLibraryExport, createTagLibraryImport } from "#domain/tag";
 import type { ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { createExportWorldBook, createImportWorldBook, createListOwnedBookIds } from "#domain/world-info";
+import { CHAT_BUNDLE_EXT } from "#kit/serde/chat-bundle";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "../import/index.ts";
 import { buildImportContext } from "../import/index.ts";
 
@@ -42,7 +43,7 @@ export interface PortabilityDeps {
   readonly assetsCtx: AssetsContext;
   readonly databankCtx: DatabankPortabilityContext;
   readonly persona: Pick<PersonaService, "export" | "import" | "list">;
-  readonly exportService: Pick<ExportService, "exportCharacter" | "exportChat" | "listHostChats">;
+  readonly exportService: Pick<ExportService, "exportCharacter" | "exportChatBundle" | "listHostChats">;
   readonly character: ImportCharacterPort;
   readonly listOwnedCharacterIds: (ownerId: UserId) => Promise<readonly CharacterId[]>;
   readonly storeAvatar: ImportAssetPort["store"];
@@ -57,12 +58,14 @@ export interface PortabilityDeps {
   readonly linkCarriedBooks: ImportWorldInfoPort["linkCarriedBooks"];
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
+  // R6 — the orb-native chat arm's three cross-domain re-links, threaded into every per-owner ImportContext.
+  readonly findPersonaByName: NonNullable<ImportProfileDeps["findPersonaByName"]>;
+  readonly attachChatTagByName: NonNullable<ImportProfileDeps["attachChatTagByName"]>;
+  readonly importRpgGame: NonNullable<ImportProfileDeps["importRpgGame"]>;
   readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly resolveOwnerPrincipal: (userId: UserId) => Promise<Principal>;
 }
-
-const ENC = new TextEncoder();
 
 /** Build the per-owner `ImportContext`, shared by both the character card path and the chat path. */
 async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise<ImportService> {
@@ -82,6 +85,9 @@ async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise
       bulkImportPersonas: deps.bulkImportPersonas,
       enqueueBackfill: deps.enqueueBackfill,
       reconcileStats: deps.reconcileImportStats,
+      findPersonaByName: deps.findPersonaByName,
+      attachChatTagByName: deps.attachChatTagByName,
+      importRpgGame: deps.importRpgGame,
     },
   });
   return createImportService(ctx);
@@ -305,28 +311,36 @@ export function buildPortabilityRegistry(deps: PortabilityDeps): PortabilityRegi
     },
   };
 
+  // R6 — an ACCOUNT BACKUP carries the ORB-NATIVE bundle, not the ST interchange. The jsonl arm was the
+  // spec's ruled shape (G-3) and is correct for ST parity, but it carries messages and nothing else: every
+  // chat-anchored plane born after the spec froze (rpg campaigns, `chat_injections`, room overrides, the
+  // `chat_tags` overlay, the per-chat variable/macro picks) was unportable BY CONSTRUCTION, so "backup
+  // everything" quietly excluded whole planes (F9). It is NOT a second `PORTABLE_KINDS` member: that would
+  // put every transcript in every backup TWICE and hand the import router two answers per chat. The jsonl arm
+  // lives on where it belongs — the single-chat share door (`GET /api/export/chat/:id?format=jsonl|txt`) and
+  // the ST import, which the descriptor's import half still accepts by extension.
   const chatExportAll = async function* chatAll(ownerId: UserId): AsyncIterable<PortableFile> {
     const principal = await deps.resolveOwnerPrincipal(ownerId);
     for (const { chatId, handle } of await deps.exportService.listHostChats({ principal })) {
-      // biome-ignore lint/performance/noAwaitInLoops: enumeration streams one chat transcript at a time (bounded memory).
-      const transcript = await deps.exportService.exportChat({
-        principal,
-        chatId,
-        format: "jsonl",
-      });
-      if (transcript !== null) {
-        // Nest under the host handle; the chat id keeps the leaf unique (same-title chats can't collide).
-        yield { filename: `${handle}/${chatId}.jsonl`, bytes: ENC.encode(transcript.text) };
+      // biome-ignore lint/performance/noAwaitInLoops: enumeration streams one chat at a time (bounded memory — the descriptor contract).
+      const bundle = await deps.exportService.exportChatBundle({ principal, chatId });
+      if (bundle !== null) {
+        // Nest under the host handle, chat id as the leaf (same-title chats can't collide) — the jsonl arm's
+        // layout, unchanged, so the DIRECTORY stays a usable re-link fallback for a file whose carried seat
+        // list did not survive. The verb's own flat slug is the single-chat DOWNLOAD name, not this.
+        yield { filename: `${handle}/${chatId}${CHAT_BUNDLE_EXT}`, bytes: bundle.bytes };
       }
     }
   };
   const chat: PortableEntity = {
     kind: "chat",
     dir: "chats/",
-    ext: ".jsonl",
+    // The extension an EXPORT writes. The import half accepts BOTH formats under this dir (an ST `.jsonl`
+    // routes to the interchange verb, anything else to the orb-native one, which refuses by envelope).
+    ext: CHAT_BUNDLE_EXT,
     exportAll: chatExportAll,
-    // Pure wiring: the handle derivation, the jsonl parse and the refusal copy live in
-    // `import/verbs/import-chat-file` (the ONE path `POST /api/import/chat` also calls).
+    // Pure wiring: the format routing, the handle derivation, both parses and every refusal copy live in
+    // `import/verbs/import-chat-file` + `import-chat-bundle` (the ONE path `POST /api/import/chat` also calls).
     importFile: async (ownerId, file) => {
       try {
         const service = await buildOwnerImport(deps, ownerId);

@@ -13,6 +13,7 @@ import type { CharacterHandle, CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
 import type { ImportService } from "../../../../../packages/server/src/domain/import/contract/service.ts";
+import { createImportChatBundle } from "../../../../../packages/server/src/domain/import/verbs/import-chat-bundle.ts";
 import { createImportChatFile } from "../../../../../packages/server/src/domain/import/verbs/import-chat-file.ts";
 import { createImportChats } from "../../../../../packages/server/src/domain/import/verbs/import-chats.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -40,7 +41,7 @@ function harness(known: Record<string, CharacterId> = { aria: ARIA }): ProfileHa
     ...h.ctx,
     findByHandle: ({ handle }: { readonly handle: CharacterHandle }): Promise<CharacterId | null> => Promise.resolve(known[handle] ?? null),
   };
-  return { ...h, verb: createImportChatFile(ctx, createImportChats(ctx)) };
+  return { ...h, verb: createImportChatFile(ctx, createImportChats(ctx), createImportChatBundle(ctx)) };
 }
 
 describe("importChatFile", () => {

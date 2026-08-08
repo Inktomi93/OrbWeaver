@@ -67,7 +67,7 @@ function makeHarness(options: HarnessOptions = {}): { readonly deps: DemoChatSee
     writeChats: ({ chats }) => {
       rec.chats.push(...chats);
       return Promise.resolve({
-        chatIds: chats.map((c) => castId<ChatId>(`chat_${c.importHash ?? "x"}`)),
+        written: chats.map((c) => ({ chatId: castId<ChatId>(`chat_${c.importHash ?? "x"}`), messageIds: [], variantIds: [] })),
         chatsImported: chats.length,
         chatsSkipped: 0,
         messagesImported: chats.reduce((n, c) => n + c.messages.length, 0),

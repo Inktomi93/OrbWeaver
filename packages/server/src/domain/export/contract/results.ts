@@ -11,10 +11,16 @@ export interface HostChatRef {
   readonly handle: CharacterHandle;
 }
 
-export interface ExportedCard {
+/** A BINARY portable artifact: the bytes plus the download filename. One shape because "bytes + filename" is
+ *  one concept — the character card and the R6 orb-native chat bundle are two producers of it, not two
+ *  shapes. (`ExportedText` stays separate: its payload is a string the HTTP door serves as text.) */
+export interface ExportedFile {
   readonly bytes: Uint8Array;
   readonly filename: string;
 }
+
+/** The character card's container-agnostic output (`png` or unwrapped `json`). */
+export type ExportedCard = ExportedFile;
 
 export interface ExportedText {
   readonly text: string;

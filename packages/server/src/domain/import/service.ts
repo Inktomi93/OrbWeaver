@@ -9,18 +9,22 @@
 import type { ImportContext } from "./context.ts";
 import type { ImportService } from "./contract/service.ts";
 import { createImportCharacter } from "./verbs/import-character.ts";
+import { createImportChatBundle } from "./verbs/import-chat-bundle.ts";
 import { createImportChatFile } from "./verbs/import-chat-file.ts";
 import { createImportChats } from "./verbs/import-chats.ts";
 import { createImportPersonas } from "./verbs/import-personas.ts";
 
 export function createImportService(ctx: ImportContext): ImportService {
-  // The single-transcript door is a thin arm over the BULK write verb; the two are wired HERE (a verb never
-  // imports a sibling verb — `domain-no-cross-verb`).
+  // The single-chat door is a thin arm over the two format verbs; all three are wired HERE (a verb never
+  // imports a sibling verb — `domain-no-cross-verb`). R6: `importChatFile` routes an ST `.jsonl` to the
+  // interchange path and anything else to the orb-native bundle, which refuses by envelope.
   const importChats = createImportChats(ctx);
+  const importChatBundle = createImportChatBundle(ctx);
   return {
     importCharacter: createImportCharacter(ctx),
     importChats,
-    importChatFile: createImportChatFile(ctx, importChats),
+    importChatBundle,
+    importChatFile: createImportChatFile(ctx, importChats, importChatBundle),
     importPersonas: createImportPersonas(ctx),
   };
 }
