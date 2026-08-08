@@ -24,23 +24,62 @@ const REAL_TREE_ANCHOR = "packages/db/src/schema/index.ts";
 const FLEX_WRAP_RE = /\bflex-wrap\b/u;
 const MAP_CALLEE_RE = /\.map$/u;
 
-/** The two live hits at landing — each a RENDERED-GEOMETRY judgment this lane cannot make (resizing a live
- *  control is a design change, not a gate fix — the glyph ramp's own geometry-preserving law), in files a
- *  concurrent lane (PHONE-COMP, the rpg context panel) held at gate-landing. The REPORT-THEN-DECIDE ledger:
- *  side-eye rules each site (a boxed size · a spacing floor · deliberate), then the row deletes WITH the fix. */
+/**
+ * THE TWO SITES ARE FIXED AND STILL LISTED — and that is the point, not an oversight (owner ruling
+ * 2026-08-07). The name is retained: the `Core-Enforcement-Active-Gates.md` row cites this symbol, and that
+ * doc is a concurrent lane's file this pass, so renaming it would dangle the cite (`dangling-refs`).
+ *
+ * WHAT CHANGED. These rows were a REPORT-THEN-DECIDE ledger for two live hits this gate found at landing —
+ * rpg-pack-rows' `ItemIconPicker` grid and rpg-actor-trackers' per-chip remove ✕ — held because resizing a
+ * live control is a design change. side-eye measured both at 430 coarse, and the owner ruled: FIX BOTH, by
+ * the SPACING options, not by a boxed size. Both are fixed at source: `pointer-coarse:gap-block` makes the
+ * icon grid's pitch exactly 44 (hit 37×37 → 43×43), and `pointer-coarse:min-h-touch-target` on the condition
+ * Badge makes the 44px pseudo fit INSIDE its own chip (hit 43×35 → floor cleared on every wrapped row).
+ *
+ * ⚑ SO WHY DO THE ROWS SURVIVE THE FIX? Because this gate's ARM is STRUCTURAL and the ruled fix is
+ * GEOMETRIC. The arm asks "is a floorless-size Button mapped inside a `flex-wrap` container", and after the
+ * fix the answer is still yes — the sizes are deliberately unchanged. Its `FIX` text names exactly one
+ * remedy, a boxed control size, and the owner priced that remedy and declined it at both sites (+188px of
+ * popover at the grid; a 48px control bar where a 30px chip run belongs). MEASURED: with the rows deleted,
+ * `check:structure` reds at both files on the fixed tree. So these are now what an allowlist is actually
+ * for — PERMANENT, deliberate, reasoned exemptions — and the honest alternative (teaching the arm to
+ * recognise a coarse spacing floor as a second sanctioned remedy) is a real gate feature, flagged to the
+ * orchestrator rather than improvised here.
+ *
+ * ⚑ AND THE MEASUREMENT CORRECTED THIS GATE'S OWN STATED HARM. Both rows originally asserted the gate's
+ * general mechanism — adjacent 44px pseudos overlapping so that "aiming at one control commits its
+ * neighbour". That is **measured FALSE at both sites** (real touch emulation, `elementFromPoint`, not
+ * bounding boxes): all 21 icon cells hit THEMSELVES at centre + top + bottom + right edge, and a cross-chip
+ * sample lands in the 6px inter-chip gap, never over a sibling. The harm came from the ambient-strip weather
+ * picker, whose controls were `size="inline"` — a full-width pseudo on an ~18px-tall text button. A `glyph-*`
+ * box of 30-32px puts the overflow in the GAP instead. The arm was right at both sites; its stated reason was
+ * not. What reproduces on a boxed glyph is a touch-FLOOR shortfall, because the pseudo the floor rides on is
+ * clipped by the gap it shares with the next cell. `MESSAGE` still leads with the collision — the founding
+ * weather-picker case is real — but a future site must be judged against BOTH failure modes.
+ */
 const JUDGMENT_DEFERRED: ExemptionTable<ExemptionRow> = {
   "packages/client/src/features/rpg/components/rpg-pack-rows.tsx": {
     why:
-      'ItemIconPicker: a MAPPED size="glyph-lg" icon grid in a flex-wrap popover — coarse-pointer 44px ' +
-      "pseudos overlap on the wrapped row pitch. Geometry call escalated to side-eye (2026-08-07); ENDS: " +
-      "side-eye rules boxed `icon` size / a spacing floor / deliberate — then delete this row.",
+      'ItemIconPicker: a MAPPED size="glyph-lg" icon grid in a flex-wrap popover. FIXED, geometrically, ' +
+      "not structurally (owner ruling 2026-08-07): `pointer-coarse:gap-block` raises the coarse pitch to " +
+      "exactly 44, so the effective hit box goes 37×37 → 43×43 and the FINE picker is untouched. The size " +
+      "arm stays `glyph-lg` deliberately — the boxed-size remedy this gate's `fix` names was priced " +
+      '(`size="icon"` ⇒ 3×7 cells, +188px of popover, and it grows the fine box 32→34) and declined. ' +
+      "PERMANENT: this arm cannot see spacing, so it will keep matching a correctly-floored site.",
   },
   "packages/client/src/features/rpg/components/rpg-actor-trackers.tsx": {
     why:
-      "the per-condition glyph-xs remove ✕ inside mapped Badge chips in the flex-wrap conditions row — " +
-      "adjacent wrapped rows' 44px coarse pseudos overlap. Same escalation + end condition as rpg-pack-rows.",
+      "ConditionChips: the per-condition glyph-xs remove ✕ inside mapped Badge chips in the flex-wrap " +
+      "conditions row. FIXED, geometrically (owner ruling 2026-08-07): `pointer-coarse:min-h-touch-target` " +
+      "on the Badge floors the CHIP at 44, which is the only priced option that fixes the cause — a 44px " +
+      "hit area hanging off a 30px chip — so the pseudo now fits inside its own chip and the ✕'s 43×35 " +
+      "effective box clears the floor on every wrapped row. The measured collision claim did NOT " +
+      "reproduce here (a cross-chip sample lands in the 6px gap). Size arm stays `glyph-xs`: the boxed " +
+      "remedy turns a 30px chip run into a 48px control bar. PERMANENT, same reason as rpg-pack-rows.",
   },
 };
+
+const seenDeferred = new Set<string>();
 
 const MESSAGE =
   "a floorless-size Button (`inline`/`glyph-*`) repeated inside a `flex-wrap` container — the size arm " +
@@ -52,8 +91,6 @@ const MESSAGE =
 const FIX =
   "use a control size (`sm`/`icon` — the box IS the target, nothing overflows to collide) for controls in a " +
   "wrapping run; `inline`/`glyph-*` stay correct for a lone datum/glyph riding inside a row.";
-
-const seenDeferred = new Set<string>();
 
 /** The nearest enclosing JsxElement whose OPENING tag carries `flex-wrap` (same-file JSX tree only). */
 function wrapContainerOf(node: Node): JsxElement | undefined {
@@ -228,7 +265,7 @@ export const gate: GateDescriptor = {
         "packages/db/src/schema/index.ts": "export const anchor = 1;\n",
       },
       expect: { count: 2, messageIncludes: "JUDGMENT_DEFERRED" },
-      why: "mode B (§4.4a): the real tree's anchor is present but neither PENDING file carries a live hit — both rows red as stale",
+      why: "mode B (§4.4a): the real tree's anchor is present but neither exempted file carries a live hit — both rows red as stale",
     },
   ],
   mustPass: [

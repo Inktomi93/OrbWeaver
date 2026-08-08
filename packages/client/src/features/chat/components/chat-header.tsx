@@ -19,10 +19,11 @@ import { Icon, Users } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Separator } from "@orb/ui/separator";
+import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useAuthConfig, useTRPC } from "#data";
+import { useAuthConfig, useDraftCastCards, useTRPC } from "#data";
 import type { ChatContextTabId } from "#lib";
 import { testId } from "#lib";
 import { setContextTab, setPanelMode } from "#state";
@@ -278,13 +279,21 @@ const DRAFT_VIEWER_SEATS = 1;
  * No options menu: that lives in the topbar TRAIL (`chat-options-topbar.tsx`), which serves both phases.
  */
 export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactElement {
-  const trpc = useTRPC();
-  const results = useQueries({
-    queries: characterIds.map((characterId) => trpc.character.get.queryOptions({ characterId })),
-  });
-  const cast = results.map((r) => ({
-    name: r.data?.name ?? "",
-    avatarHash: r.data?.avatarHash ?? null,
+  // LIST-FIRST (side-eye 2026-08-07 §④ P2). This read N cold `character.get` queries, while the picker the
+  // user had just come through resolved the same cards through `character.list` one frame earlier — so a
+  // brand-new draft's topbar spent ~2s reading "? | ? | ? | New chat" and then snapped correct. That first
+  // frame is the worst possible one for a room the user just deliberately composed, and it made three
+  // separately-landed fixes (title, theme, background) all look broken at once.
+  const cards = useDraftCastCards(characterIds);
+  const cast = cards.map((card, index) => ({
+    // The founding id is the seat's identity BEFORE its card resolves — which is what lets the loading
+    // placeholders carry a real key instead of an array index.
+    id: characterIds[index] ?? "",
+    name: card?.name ?? "",
+    avatarHash: card?.avatarHash ?? null,
+    // AN UNRESOLVED SEAT IS LOADING, NOT AN ERROR. `initialsFor("")` renders a literal "?" — which cold-read
+    // is a failure glyph, not a spinner, and it was on screen for the whole placebo window.
+    resolved: card !== undefined,
   }));
   // `draftChatTitle` (lib/chat-summary-row.ts) owns the whole rule — the cast join, the un-landed-name drop
   // and the "New chat" fallback — because the MOBILE topbar prints the same statement and had invented its
@@ -298,9 +307,33 @@ export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactEl
   );
 }
 
-function DraftCastAvatars({ cast }: { readonly cast: readonly { readonly name: string; readonly avatarHash: string | null }[] }): ReactElement | null {
+/** One draft seat as the topbar sees it — `resolved: false` is the LOADING arm (skeleton), never a "?". */
+interface DraftCastSeat {
+  /** The founding character id — the seat's identity before its card lands. */
+  readonly id: string;
+  readonly name: string;
+  readonly avatarHash: string | null;
+  readonly resolved: boolean;
+}
+
+function DraftCastAvatars({ cast }: { readonly cast: readonly DraftCastSeat[] }): ReactElement | null {
   if (cast.length === 0) {
     return null;
+  }
+  // WHILE THE CAST IS UNRESOLVED THE CLUSTER IS A SKELETON (side-eye 2026-08-07 §④ P2). An avatar whose
+  // initials are "?" is not a loading state — it is what a BROKEN seat looks like, and it painted for the
+  // whole cold window on a room the user had just composed by hand. One skeleton per seat keeps the
+  // cluster's geometry identical to the resolved shape, so the topbar does not reflow when the names land.
+  // It is all-or-nothing to match the carried appearance's own gate: a half-named cluster reads as a
+  // different, smaller room for a frame.
+  if (cast.some((seat) => !seat.resolved)) {
+    return (
+      <Row align="center" aria-busy={true} gap="tight" data-slot="draft-cast-loading">
+        {cast.map((seat) => (
+          <Skeleton key={seat.id} variant="circle" className="size-avatar-sm" />
+        ))}
+      </Row>
+    );
   }
   const lead = cast[0];
   if (cast.length === 1 && lead !== undefined) {

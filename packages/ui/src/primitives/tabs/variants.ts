@@ -21,8 +21,9 @@ export const tabsVariants = tv({
     tab: [
       "relative z-(--z-raised) inline-flex cursor-pointer select-none items-center justify-center gap-field whitespace-nowrap text-label font-medium leading-label text-muted-foreground",
       "transition-colors duration-(--motion-fast) ease-out-expo hover:text-foreground",
+      // The focus ring is per-LAYOUT (see the `layout` variant): a strip tab takes the offset ring every
+      // control wears; a rail cell takes the INSET one, because its list can become a scroll box.
       "outline-none",
-      FOCUS_RING,
       "data-active:text-foreground",
       DISABLED_STATE,
       "data-[orientation=vertical]:justify-start",
@@ -53,8 +54,28 @@ export const tabsVariants = tv({
     // rendered as a 5px sliver. A sealed size can only be overridden HERE, the button `size="media"`
     // precedent (F2). Pinned by COMPUTED height in tests/ui/primitives/tabs/tabs.ct.tsx.
     layout: {
-      inline: { tab: "h-control-sm px-block" },
-      stacked: { tab: "h-auto min-h-control-sm flex-col gap-0 px-field py-field" },
+      inline: { tab: `h-control-sm px-block ${FOCUS_RING}` },
+      // `min-w-touch-target` is the WIDTH half of the same floor the height already carries, and it is
+      // sealed here for the same reason (side-eye 2026-08-07 §① P2). The rpg rail put the cells on
+      // `grid-auto-columns: max-content` at a coarse pointer and three of six came out 34-43px wide — a
+      // 49px-tall cell you cannot reliably hit, with no `::after` hit pseudo to make up the difference the
+      // way `Button`'s `glyph-*` arm does. The token is POINTER-CONDITIONAL (44px coarse / 28px fine), so
+      // the floor is stated once, in the layer §4b axis 3 puts pointer capability in, and no consumer of
+      // this arm can forget it. It is a MIN, so an equal-column rail with room to spare still stretches.
+      //
+      // AND THE FOCUS RING FORKS WITH THE ARRANGEMENT, for the reason the `panel` slot above already states
+      // one component over. A `stacked` cell is a RAIL cell, and a rail that has to fit more cells than its
+      // width affords becomes an `overflow-x-auto` box — which forces `overflow-y` to `auto` too (CSS
+      // computes a `visible` axis to `auto` when the other axis is not visible), while the list's client box
+      // is exactly one cell tall with no padding. `FOCUS_RING`'s `ring-offset-2` paints 4px OUTSIDE the
+      // cell's border box, i.e. entirely inside the clipped region: MEASURED by a real Tab traversal at 430
+      // coarse, the focused cell's computed box-shadow was a non-inset 4px ring with 0px of headroom in a
+      // non-`visible` overflow box — a keyboard indicator nobody can see. Paying for it with 4px of rail
+      // padding was the other arm and was refused: the 50px rail height is the vertical-budget win that pane
+      // was rebuilt for, and it is CT-pinned. The fork lives HERE rather than as an override appended to the
+      // base, so each arm composes exactly one homed `lib/focus-ring.ts` fragment and neither has to
+      // neutralise the other's offset.
+      stacked: { tab: `h-auto min-h-control-sm min-w-touch-target flex-col gap-0 px-field py-field ${FOCUS_RING_INSET}` },
     },
   },
   defaultVariants: { layout: "inline" },

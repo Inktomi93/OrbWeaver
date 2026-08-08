@@ -235,11 +235,31 @@ const CROWN_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = 
  *  AND THE WRAP IS A FINE-POINTER ANSWER (side-eye 2026-08-07 finding 2). Two rows of three costs a second
  *  55px band, which a desktop pane in a narrow dock can afford and a phone cannot: MEASURED at 320×568, the
  *  claimed pane is 464px, this rail took 105 of it, and the active tabpanel was left EIGHTEEN pixels against
- *  a 558px body. At a coarse pointer the rail stays ONE row and SCROLLS instead — cells at their content
- *  width (`auto-cols-max`, so no caption clips), the row scrollable horizontally, which is the phone tab-strip
- *  idiom and costs 50px instead of 105. Base UI's roving focus is unchanged, and the browser scrolls a
- *  focused cell into view, so the keyboard reaches every tab either way. */
-const RAIL_WRAP_CLASS = "pointer-fine:@max-xs:grid-flow-row pointer-fine:@max-xs:grid-cols-3 pointer-coarse:auto-cols-max pointer-coarse:overflow-x-auto";
+ *  a 558px body. At a coarse pointer the rail stays ONE row and SCROLLS instead, which is the phone
+ *  tab-strip idiom and costs 50px instead of 105. Base UI's roving focus is unchanged, and the browser
+ *  scrolls a focused cell into view, so the keyboard reaches every tab either way.
+ *
+ *  THE COARSE ROW'S TRACK SIZING IS `minmax(max-content, 1fr)` (side-eye 2026-08-07 §① P2). The first shape
+ *  of that fix put the coarse cells at their CONTENT width (`auto-cols-max`), and MEASURED at 430 coarse it
+ *  produced Status 43 · Inventory 60 · Scene 41 · Quests 46 · Journal 47 · Map 34 — three of six under the
+ *  44px touch floor — with the six cells ending at x=302 and 127px of DEAD RAIL after them: word for word
+ *  the "bitsy buttons bunched left" this function's own header says an owner ruled against on 2026-07-28.
+ *  Neither `max-content` nor `1fr` alone satisfies all three constraints this rail is under, and the three
+ *  are not negotiable against each other:
+ *    · `auto-cols-max` → whole captions, but bunched left AND below the floor (the measured defect).
+ *    · `auto-cols-fr`  → equal columns and full rail, but at a 320-375px pane the equal share is ~48px and
+ *      "Inventory" clips — re-buying the icon-only defect (F6 #2) the caption rule exists to end.
+ *    · `minmax(max-content, 1fr)` → the fr MAX makes the cells equal columns filling the rail whenever there
+ *      is slack (measured 67px a cell at 430, no dead strip), and the max-content MIN refuses to shrink a
+ *      caption: where the six no longer fit, the tracks OVERFLOW and `overflow-x-auto` scrolls them. The row
+ *      degrades to scrolling, never below the floor and never into an ellipsis.
+ *  The ≥44px floor itself is NOT spelled here — it is `TabsTab`'s own sealed `min-w-touch-target`, which
+ *  raises each track's max-content minimum, so a cell whose caption is narrower than a thumb ("Map") still
+ *  gets a thumb's width. The bracket is a track-sizing FUNCTION, not an off-token size (the
+ *  `grid-cols-[repeat(auto-fit,minmax(…))]` precedent in `@orb/ui`'s layout variants); `auto-cols` carries no
+ *  token scale to spell it with. The vertical budget is untouched — the rail is one 50px row either way. */
+const RAIL_WRAP_CLASS =
+  "pointer-fine:@max-xs:grid-flow-row pointer-fine:@max-xs:grid-cols-3 pointer-coarse:auto-cols-[minmax(max-content,1fr)] pointer-coarse:overflow-x-auto";
 const RAIL_WRAP_MIN_CELLS = 5;
 
 /** One rail: its OWN labelled a11y group + roving-focus row, cells as equal columns so the rail reads as a

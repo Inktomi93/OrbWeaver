@@ -19,7 +19,7 @@ import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc } from "../../support/ct/route-trpc.ts";
-import { CarriedAppearanceCastStory } from "./_ct-stories.tsx";
+import { CarriedAppearanceCastStory, CarriedAppearanceListFirstStory } from "./_ct-stories.tsx";
 
 const NO_DRAFT: readonly CharacterId[] = [];
 const ARIA = mintTypeId(ID_PREFIX.character);
@@ -103,6 +103,53 @@ test("LANDING and a BLANK draft carry nothing (the viewer's own chrome)", async 
   await mount(<CarriedAppearanceCastStory chatId={null} draftCharacterIds={NO_DRAFT} />);
 
   // No chat and no cast — the `undefined` floor every consumer maps to "the viewer's own chrome".
+  await expect(page.getByTestId("carried-cast")).toHaveText("pending");
+});
+
+// ── PIN 6: the DRAFT arm resolves LIST-FIRST (side-eye 2026-08-07 §④ P2) ────────────────────────────
+// Every new draft rendered a ~2s placebo identity — `? | ? | ? | New chat`, no theme, no background — and
+// then snapped correct, because the draft arm waited on N COLD `character.get` reads while the picker the
+// user had just walked resolved the same cards through `character.list` one frame earlier. `CharacterSummary`
+// already carries `themeOverride` and `backgroundOverride`, so the data was in hand and only the key was
+// wrong. The proof is a RENDER-SEQUENCE claim, never a timing number: hold `character.get` in flight
+// FOREVER, and the room must already be dressed.
+
+/** Hold every `character.get` request open for the life of the test — the cold-read window, made infinite. */
+async function holdCardReads(page: Page): Promise<void> {
+  await page.route("**/api/trpc/**", async (route) => {
+    if (route.request().url().includes("character.get")) {
+      await new Promise(() => undefined);
+      return;
+    }
+    await route.fallback();
+  });
+}
+
+test("DRAFT, LIST-FIRST: a warm `character.list` page dresses the room while `character.get` is still in flight", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "character.list": () => ({
+      items: [{ id: ARIA, name: "Aria", avatarHash: null, themeOverride: null, backgroundOverride: null }],
+      nextCursor: null,
+    }),
+  });
+  await holdCardReads(page);
+
+  await mount(<CarriedAppearanceListFirstStory draftCharacterIds={[ARIA]} />);
+
+  // The premise: the picker's page landed.
+  await expect(page.getByTestId("list-warm")).toHaveText("rows=1");
+  // The claim: the carried look is resolved ANYWAY. Before the fix this read `pending` for as long as the
+  // card read took — which is the whole defect, and is exactly what the control below still proves.
+  await expect(page.getByTestId("carried-cast")).toHaveText("humans=1 cards=Aria");
+});
+
+// THE PLANTED POSITIVE CONTROL for the pin above: identical held `character.get`, no warm list page. If this
+// ever goes green the assertion above has stopped being able to fail and stops being evidence.
+test("DRAFT control: with NO warm list page the same held card read still reads `pending`", async ({ mount, page }) => {
+  await holdCardReads(page);
+
+  await mount(<CarriedAppearanceCastStory chatId={null} draftCharacterIds={[ARIA]} />);
+
   await expect(page.getByTestId("carried-cast")).toHaveText("pending");
 });
 

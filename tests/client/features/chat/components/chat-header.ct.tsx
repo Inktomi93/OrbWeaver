@@ -196,3 +196,35 @@ test("a SOLO DRAFT keeps its single name and one portrait — the chip stays off
   await expect(component.locator('[data-slot="avatar-stack-root"]')).toHaveCount(0);
   await expect(component.locator('[data-slot="avatar-root"]')).toHaveCount(1);
 });
+
+// ── AN UNRESOLVED DRAFT SEAT IS LOADING, NOT AN ERROR (side-eye 2026-08-07 §④ P2) ──────────────────
+// Measured on a fresh group draft: t+0 the topbar read `? | ? | ? | | New chat | | 4`, no theme, no
+// background; ~2s later the real names. The "?" is `initialsFor("")`'s fallback rendered into a real
+// Avatar — cold-read it is a BROKEN seat, not a spinner, and it made three separately-landed fixes
+// (title, theme, background) look broken simultaneously on the very first frame of a room the user had
+// just composed by hand. The window itself is closed by the list-first resolver
+// (tests/client/data/use-carried-appearance.ct.tsx); this pins what the residual window LOOKS like.
+
+test("a DRAFT whose cards have not landed shows SKELETON seats — never a '?' avatar", async ({ mount, page }) => {
+  // Hold every card read open: the cold window, made infinite, with no warm `character.list` page.
+  await page.route("**/api/trpc/**", async (route) => {
+    if (route.request().url().includes("character.get")) {
+      await new Promise(() => undefined);
+      return;
+    }
+    await route.fallback();
+  });
+
+  const component = await mount(<ChatsTopbarDraftStory characterIds={[HANA, KOHAKU]} />);
+
+  const loading = component.locator('[data-slot="draft-cast-loading"]');
+  await expect(loading).toBeVisible();
+  // One placeholder per seat, so the cluster does not reflow when the names land.
+  await expect(loading.locator('[data-slot="skeleton"]')).toHaveCount(2);
+  // …and the region announces itself as busy rather than as content.
+  await expect(loading).toHaveAttribute("aria-busy", "true");
+  // THE SYMPTOM, dead: no "?" anywhere, and no avatar claiming to be a person.
+  await expect(component.getByText("?", { exact: true })).toHaveCount(0);
+  await expect(component.locator('[data-slot="avatar-root"]')).toHaveCount(0);
+  await expect(component.locator('[data-slot="avatar-stack-root"]')).toHaveCount(0);
+});
