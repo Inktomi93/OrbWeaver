@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REFINERY — selection scope, accept set, apply result (the belt-9 granularity)</title>
+<style>
+:root{
+  --color-background: oklch(0.158 0.006 60);
+  --color-foreground: oklch(0.955 0.004 75);
+  --color-card: oklch(0.205 0.006 60);
+  --color-surface-raised: oklch(0.185 0.006 60);
+  --color-popover: oklch(0.245 0.007 60);
+  --color-primary: oklch(0.72 0.175 52);
+  --color-primary-foreground: oklch(0.19 0.03 50);
+  --color-muted: oklch(0.255 0.006 60);
+  --color-muted-foreground: oklch(0.74 0.008 65);
+  --color-accent: oklch(0.285 0.009 60);
+  --color-destructive: oklch(0.65 0.19 25);
+  --color-success: oklch(0.72 0.13 155);
+  --color-warning: oklch(0.79 0.13 75);
+  --color-info: oklch(0.7 0.1 232);
+  --color-border: oklch(0.99 0.005 60 / 0.08);
+  --color-input: oklch(0.99 0.005 60 / 0.12);
+  --color-sidebar: oklch(0.132 0.006 60);
+  --color-sidebar-border: oklch(0.99 0.005 60 / 0.07);
+  --radius-base:0.5rem; --radius-control:0.375rem; --radius-card:0.625rem; --radius-full:9999px;
+  --font-sans:Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+  --ember-tint: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  --ok-tint: color-mix(in oklab, var(--color-success) 15%, transparent);
+  --bad-tint: color-mix(in oklab, var(--color-destructive) 15%, transparent);
+  --warn-tint: color-mix(in oklab, var(--color-warning) 14%, transparent);
+  --chrome-row:48px; --touch:44px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:oklch(0.11 0.008 60);color:var(--color-foreground);
+  font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:26px 24px 90px}
+.mono{font-family:var(--font-mono)}
+.muted{color:var(--color-muted-foreground)}
+h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
+h2{font-size:1rem;margin:40px 0 4px;letter-spacing:-.01em}
+.lede{margin:0 0 22px;color:var(--color-muted-foreground);max-width:1100px}
+.lede b{color:var(--color-foreground);font-weight:650}
+.sublede{margin:0 0 14px;color:var(--color-muted-foreground);max-width:1100px;font-size:12px}
+.stage{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+.plabel{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650;margin:0 0 7px}
+.note{font-size:11px;color:var(--color-muted-foreground);max-width:420px;margin:12px 0 0;line-height:1.65;
+  border-left:2px solid var(--color-sidebar-border);padding-left:11px}
+.note.wide{max-width:1180px}
+.note b{color:var(--color-foreground);font-weight:650}
+.tag{display:inline-block;font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;
+  padding:1px 6px;border-radius:var(--radius-full);vertical-align:1px;margin-right:5px}
+.tag.law{background:var(--ok-tint);color:var(--color-success)}
+.tag.fork{background:var(--warn-tint);color:var(--color-warning)}
+.tag.draw{background:color-mix(in oklab, var(--color-info) 15%, transparent);color:var(--color-info)}
+
+.frame{border:1px solid var(--color-sidebar-border);border-radius:14px;overflow:hidden;background:var(--color-background);box-shadow:0 12px 40px rgb(0 0 0 / .35)}
+.band{height:var(--chrome-row);flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--color-sidebar-border)}
+.band .ttl{font-size:13.5px;font-weight:640}
+.band .caps{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:650;color:var(--color-muted-foreground)}
+.band .grow{flex:1}
+.ghostbtn{background:none;border:none;color:var(--color-muted-foreground);padding:5px;border-radius:var(--radius-control);display:inline-flex}
+.ghostbtn svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.body{padding:12px 14px;display:flex;flex-direction:column;gap:9px}
+.btn{height:30px;padding:0 11px;border-radius:var(--radius-control);border:1px solid transparent;background:var(--color-primary);
+  color:var(--color-primary-foreground);font-size:12px;font-weight:640;display:inline-flex;align-items:center;gap:6px}
+.btn.secondary{background:none;border-color:var(--color-border);color:var(--color-foreground)}
+.btn.ghost{background:none;border-color:transparent;color:var(--color-muted-foreground)}
+.btn[disabled]{opacity:.45}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;letter-spacing:.05em;
+  padding:1px 6px;border-radius:var(--radius-full);text-transform:uppercase}
+.chip.neutral{background:var(--color-muted);color:var(--color-muted-foreground);text-transform:none;letter-spacing:0;font-weight:600}
+.chip.ok{background:var(--ok-tint);color:var(--color-success)}
+.chip.bad{background:var(--bad-tint);color:var(--color-destructive)}
+.chip.warn{background:var(--warn-tint);color:var(--color-warning)}
+
+/* selection rows */
+.selrow{display:flex;align-items:center;gap:10px;min-height:var(--touch);padding:7px 9px;border-radius:var(--radius-control);background:var(--color-surface-raised)}
+.selrow.off{opacity:.62}
+.selrow .n{font-size:12.5px;font-weight:590}
+.selrow .d{font-size:10.5px;color:var(--color-muted-foreground);margin-top:1px}
+.selrow .grow{flex:1}
+.selrow .tk{font-family:var(--font-mono);font-size:10px;color:var(--color-muted-foreground);white-space:nowrap}
+.box{width:17px;height:17px;flex:none;border-radius:4px;border:1.5px solid var(--color-input);display:inline-flex;align-items:center;justify-content:center}
+.box.on{background:var(--color-primary);border-color:var(--color-primary)}
+.box.on::after{content:"";width:8px;height:4px;border-left:2px solid var(--color-primary-foreground);border-bottom:2px solid var(--color-primary-foreground);transform:rotate(-45deg);margin-top:-2px}
+.box.mixed{background:var(--color-primary);border-color:var(--color-primary)}
+.box.mixed::after{content:"";width:9px;height:2px;background:var(--color-primary-foreground)}
+.box.dis{border-style:dashed;opacity:.55}
+.sub{margin-left:27px;display:flex;flex-direction:column;gap:3px;padding:2px 0 4px}
+.grow{flex:1}
+.grow1{flex:1}
+.gcard{display:flex;align-items:center;gap:9px;min-height:var(--touch);padding:6px 9px;border-radius:var(--radius-control);background:var(--color-card)}
+.gcard .ix{font-family:var(--font-mono);font-size:10px;color:var(--color-muted-foreground);width:26px;flex:none}
+.gcard .tx{font-size:11.5px;color:var(--color-muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1}
+.gcard .sc{font-family:var(--font-mono);font-size:11px;font-weight:600}
+.gcard.pinned{background:color-mix(in oklab, var(--color-primary) 7%, transparent)}
+.hint{font-size:11px;color:var(--color-muted-foreground);line-height:1.55;background:var(--color-surface-raised);border-radius:var(--radius-control);padding:8px 10px}
+.hint b{color:var(--color-foreground)}
+.foot{display:flex;align-items:center;gap:9px;border-top:1px solid var(--color-border);padding:10px 14px}
+.fit{font-family:var(--font-mono);font-size:10px;color:var(--color-muted-foreground)}
+.fit b{color:var(--color-foreground);font-weight:600}
+
+/* result */
+.res{display:flex;flex-direction:column;gap:7px}
+.resrow{display:flex;align-items:flex-start;gap:9px;padding:8px 10px;border-radius:var(--radius-control);background:var(--color-surface-raised)}
+.resrow .ic{width:16px;height:16px;flex:none;margin-top:1px}
+.resrow .ic svg{width:16px;height:16px;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.resrow.ok .ic svg{stroke:var(--color-success)}
+.resrow.bad .ic svg{stroke:var(--color-destructive)}
+.resrow.warn .ic svg{stroke:var(--color-warning)}
+.resrow .t{font-size:12px;font-weight:600}
+.resrow .why{font-size:11px;color:var(--color-muted-foreground);margin-top:2px;line-height:1.5}
+.resrow .why .mono{font-size:10px}
+.banner{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:var(--radius-base);font-size:12px;line-height:1.5}
+.banner.ok{background:var(--ok-tint)} .banner.zero{background:var(--warn-tint)}
+.banner b{font-weight:650}
+.arrow{color:var(--color-muted-foreground);font-family:var(--font-mono);font-size:10px}
+</style></head><body>
+
+<h1>Refinery — selection scope, the accept set, and what apply refuses</h1>
+<p class="lede">Three states that only exist because the shipped verb made them granular: the <b>session selection</b>
+(<span class="mono">refinerySelectionSchema {fields[], greetingIndexes?}</span>), the <b>accept set</b> the user hands to
+<span class="mono">applyFields</span>, and the <b>itemised drop result</b> the belt-9 fence produces. Every drop reason drawn below is a real member of
+<span class="mono">ApplyDropReason</span> — the UI's job is to say each one in English, because a silent drop reads as data loss.</p>
+
+<h2>Frame 1 — the selection editor (which card content rides the pipeline)</h2>
+<div class="stage">
+
+<div class="frame" style="width:520px">
+  <div class="band"><span class="ttl">Scope</span><span class="chip neutral">4 of 9 fields</span><span class="grow"></span>
+    <button class="ghostbtn"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <div class="body">
+    <div class="hint">Only what you select is sent to the model — and only what you selected can ever be applied back.
+      <b>Widening the scope later re-runs the pipeline; it does not retro-fit an old rewrite.</b></div>
+
+    <div class="selrow"><span class="box on"></span><div><div class="n">description</div><div class="d">1 840 chars</div></div><span class="grow"></span><span class="tk">≈ 460 tok</span></div>
+    <div class="selrow"><span class="box on"></span><div><div class="n">personality</div><div class="d">420 chars</div></div><span class="grow"></span><span class="tk">≈ 105 tok</span></div>
+    <div class="selrow"><span class="box on"></span><div><div class="n">scenario</div><div class="d">260 chars</div></div><span class="grow"></span><span class="tk">≈ 65 tok</span></div>
+
+    <div class="selrow"><span class="box mixed"></span><div><div class="n">greetings</div><div class="d">2 of 4 slots selected</div></div><span class="grow"></span><span class="tk">≈ 380 tok</span>
+      <svg viewBox="0 0 24 24" style="width:14px;height:14px;flex:none;stroke:var(--color-muted-foreground);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round"><path d="m6 9 6 6 6-6"/></svg></div>
+    <div class="sub">
+      <div class="gcard pinned"><span class="box on"></span><span class="ix">[0]</span><span class="tx">"I am Seraphine," she says coldly. "I do not care for company."</span><span class="sc" style="color:var(--color-destructive)">4.5</span></div>
+      <div class="gcard"><span class="box"></span><span class="ix">[1]</span><span class="tx">The rain has not stopped for three days and neither has she.</span><span class="sc" style="color:var(--color-success)">8.0</span></div>
+      <div class="gcard pinned"><span class="box on"></span><span class="ix">[2]</span><span class="tx">She is already seated when you arrive, ledger open.</span><span class="sc" style="color:var(--color-warning)">6.5</span></div>
+      <div class="gcard"><span class="box"></span><span class="ix">[3]</span><span class="tx">GROUP ONLY — "You brought friends," she says, not looking up.</span><span class="sc" style="color:var(--color-success)">7.5</span></div>
+    </div>
+
+    <div class="selrow off"><span class="box"></span><div><div class="n">exampleMessages</div><div class="d">3 blocks</div></div><span class="grow"></span><span class="tk">≈ 520 tok</span></div>
+    <div class="selrow off"><span class="box"></span><div><div class="n">systemPrompt</div><div class="d">empty</div></div><span class="grow"></span><span class="tk">—</span></div>
+    <div class="selrow off"><span class="box"></span><div><div class="n">postHistoryInstructions</div><div class="d">180 chars</div></div><span class="grow"></span><span class="tk">≈ 45 tok</span></div>
+    <div class="selrow off"><span class="box dis"></span><div><div class="n">depthPrompt</div><div class="d">no depth note on this card</div></div><span class="grow"></span><span class="tk">—</span></div>
+    <div class="selrow off"><span class="box"></span><div><div class="n">creatorNotes</div><div class="d">90 chars · not shown to the model at chat time</div></div><span class="grow"></span><span class="tk">≈ 22 tok</span></div>
+  </div>
+  <div class="foot">
+    <span class="fit">prompt ≈ <b>3 140</b> / 8 192 tok · <b>5</b> targets</span>
+    <span class="grow"></span>
+    <button class="btn ghost">Reset to populated</button>
+    <button class="btn">Save scope</button>
+  </div>
+</div>
+
+<div>
+<p class="note"><span class="tag law">LAW</span>
+The field list, its ORDER and its spellings are <span class="mono">REFINABLE_FIELDS</span> verbatim (canonical-card order):
+description · personality · scenario · greetings · exampleMessages · systemPrompt · postHistoryInstructions · depthPrompt · creatorNotes.
+No "alternate greetings" row exists — orb folds greetings into ONE index-addressable array, and per-slot granularity rides
+<span class="mono">greetingIndexes</span>. That is why the greetings row is a <b>tri-state parent</b> with an index list under it, not nine sibling rows.</p>
+<p class="note"><span class="tag law">LAW</span>
+<span class="mono">greetingIndexes</span> absent means EVERY greeting. So an all-checked greetings parent must save as
+<i>absent</i>, not as <span class="mono">[0,1,2,3]</span> — otherwise a greeting added later silently falls outside the session's scope.
+The UI must not make that distinction visible, but the build must honour it.</p>
+<p class="note"><span class="tag law">LAW</span>
+<span class="mono">depthPrompt</span> means the note TEXT only; the <span class="mono">{depth, role}</span> directive is authored config the model never rewrites.
+A card with no depth note gets the DISABLED row drawn above rather than a hidden one — apply would drop it as
+<span class="mono">not_applicable</span> anyway, and a checkbox that leads to a drop is a trap.</p>
+<p class="note"><span class="tag fork">FORK F · default selection</span>
+Drawn: "populated fields" (the shipped <span class="mono">startSession</span> default) with greetings ALL in scope. The alternative is
+"everything the score marked below 7" — a quality-driven default that makes the first run cheaper and more targeted.
+<b>Rec:</b> keep populated-fields as the born default (it needs no prior score), and add a "Select what scored under 7" action to the scope editor
+once a score run exists. Drawn as the "Reset to populated" slot's sibling — the owner decides whether that second action ships in R3 or R4.</p>
+<p class="note"><span class="tag fork">FORK G · where the scope editor lives</span>
+Drawn as a panel (the CONTENT "Edit scope" affordance opens it). Alternatives: a permanent left column inside CONTENT (always visible, costs ~260px),
+or a CONTEXT tab. <b>Rec:</b> panel-over-CONTENT as drawn — CONTEXT is ruled to carry cross-run cargo only, and a permanent column
+starves the assay at the narrow desktop mount.</p>
+</div>
+</div>
+
+<h2>Frame 2 — the apply result: 3 applied, 3 dropped, each with its reason</h2>
+<p class="sublede">This is the frame the granularity exists for. <span class="mono">applyFields</span> never refuses a whole payload — it applies what survives the belts and
+itemises every drop. A UI that only says "3 fields applied" throws away the half of the result that tells the user something went wrong.</p>
+<div class="stage">
+<div class="frame" style="width:600px">
+  <div class="band"><span class="ttl">Applied to Seraphine Ash</span><span class="grow"></span>
+    <button class="ghostbtn"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+  <div class="body">
+    <div class="banner ok">
+      <svg style="width:18px;height:18px;flex:none;stroke:var(--color-success);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>
+      <span><b>3 fields written.</b> A snapshot was taken first — <span class="mono">"auto: before refinery apply"</span> — so this is reversible from the character's History tab.</span>
+    </div>
+    <div class="res">
+      <div class="resrow ok"><span class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <div><div class="t">description</div><div class="why">Replaced · 1 840 <span class="arrow">→</span> 1 210 chars</div></div></div>
+      <div class="resrow ok"><span class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <div><div class="t">greetings [0]</div><div class="why">Replaced · the other three greetings are untouched</div></div></div>
+      <div class="resrow ok"><span class="ic"><svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg></span>
+        <div><div class="t">scenario</div><div class="why">Replaced · 260 <span class="arrow">→</span> 410 chars</div></div></div>
+
+      <div class="resrow bad"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span>
+        <div><div class="t">systemPrompt <span class="chip bad">not selected</span></div>
+          <div class="why">The rewrite produced a <span class="mono">systemPrompt</span> entry, but this session's scope never included it — so the model was never given it to rewrite.
+            <b>An entry for an unselected field is invented, and a card whose own text asks the model to rewrite its system prompt dies exactly here.</b></div></div></div>
+      <div class="resrow warn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></span>
+        <div><div class="t">greetings [3] <span class="chip warn">slot no longer exists</span></div>
+          <div class="why">That greeting was deleted from the card after this session started. A rewrite is never re-created as a new greeting by index.</div></div></div>
+      <div class="resrow warn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></span>
+        <div><div class="t">depthPrompt <span class="chip warn">no longer applicable</span></div>
+          <div class="why">The card's depth note has been removed. The rewrite only carries the note's TEXT — it cannot invent the depth/role directive.</div></div></div>
+    </div>
+  </div>
+  <div class="foot">
+    <span class="fit">session marked <b>completed</b> · a further run reopens it</span>
+    <span class="grow"></span>
+    <button class="btn secondary">View card</button>
+    <button class="btn">Done</button>
+  </div>
+</div>
+
+<div>
+<p class="note"><span class="tag law">LAW</span> The six reasons are the closed <span class="mono">ApplyDropReason</span> axis, and each needs its own English:
+<span class="mono">not_in_rewrite</span> · <span class="mono">not_selected</span> · <span class="mono">greeting_index_missing</span> ·
+<span class="mono">greeting_index_invalid</span> · <span class="mono">greeting_index_forbidden</span> · <span class="mono">not_applicable</span>.
+Drawn: three of them. The two <i>shape</i> reasons (<span class="mono">greeting_index_missing</span>/<span class="mono">_forbidden</span>) can only occur on a malformed
+client call, so their copy is diagnostic ("this looks like a bug — the run record has the details"), not user-facing advice.</p>
+<p class="note"><span class="tag law">LAW</span> The snapshot line is not decoration — <span class="mono">applyFields</span> snapshots before the one canon write, and the
+reversibility IS the mitigation for a steered rewrite. It says the label verbatim so a user can find the entry in the character's History tab.</p>
+<p class="note"><span class="tag law">LAW</span> Apply flips the session to <span class="mono">completed</span>, and a later run flips it back to <span class="mono">active</span> —
+a label, not a lock. The footer says so, because a status that changes under you without explanation reads as a bug.</p>
+<p class="note"><span class="tag fork">FORK H · where the result lands</span> Drawn as a panel over CONTENT. Alternatives: inline in CONTENT under the compare
+(keeps the diff on screen beside the outcome), or a toast plus a CONTEXT row (cheapest, but a toast cannot hold six itemised drops).
+<b>Rec:</b> panel as drawn when anything dropped; a quiet inline confirmation when the drop list is EMPTY — the full-stop panel should be reserved for
+the case that needs reading.</p>
+<p class="note"><span class="tag fork">FORK I · zero-write arm</span> When every accept drops, the verb returns an honest zero-write result — no snapshot, no update.
+Drawn variant below. The fork is whether that arm reads as an ERROR (destructive banner) or as a REFUSAL (warning banner).
+<b>Rec:</b> refusal, as drawn — nothing broke, and the reasons are actionable.</p>
+</div>
+</div>
+
+<h2>Frame 3 — the zero-write arm (every accept dropped)</h2>
+<div class="stage">
+<div class="frame" style="width:520px">
+  <div class="band"><span class="ttl">Nothing was applied</span><span class="grow"></span></div>
+  <div class="body">
+    <div class="banner zero">
+      <svg style="width:18px;height:18px;flex:none;stroke:var(--color-warning);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round" viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg>
+      <span><b>The card was not touched.</b> No snapshot was taken and nothing was written — every accepted field failed a check.</span>
+    </div>
+    <div class="res">
+      <div class="resrow bad"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></span>
+        <div><div class="t">greetings [5] <span class="chip bad">outside your scope</span></div>
+          <div class="why">This session only put greetings <span class="mono">0</span> and <span class="mono">2</span> in scope.</div></div></div>
+      <div class="resrow warn"><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="9"/></svg></span>
+        <div><div class="t">personality <span class="chip warn">not in this rewrite</span></div>
+          <div class="why">The latest rewrite run produced no entry for it. Re-run rewrite, or accept from the run that did.</div></div></div>
+    </div>
+  </div>
+  <div class="foot"><span class="grow"></span><button class="btn secondary">Edit scope</button><button class="btn">Re-run rewrite</button></div>
+</div>
+<p class="note"><span class="tag law">LAW</span> "No snapshot was taken" is stated because the verb genuinely skips it on a zero-write —
+a user who goes looking for a rollback point must not find a missing one unexplained.<br><br>
+<span class="tag draw">DRAWING CALL</span> Both footer actions are the two real ways out of this state. An empty-handed panel with only "Close"
+is the dead-readout anti-pattern (the X-7 receipt).</p>
+</div>
+
+</body></html>

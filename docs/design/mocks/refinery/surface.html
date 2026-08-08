@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>REFINERY — the R3 surface (LIST · CONTENT · CONTEXT, desktop)</title>
+<style>
+:root{
+  --color-background: oklch(0.158 0.006 60);
+  --color-foreground: oklch(0.955 0.004 75);
+  --color-card: oklch(0.205 0.006 60);
+  --color-surface-raised: oklch(0.185 0.006 60);
+  --color-popover: oklch(0.245 0.007 60);
+  --color-primary: oklch(0.72 0.175 52);
+  --color-primary-foreground: oklch(0.19 0.03 50);
+  --color-muted: oklch(0.255 0.006 60);
+  --color-muted-foreground: oklch(0.74 0.008 65);
+  --color-accent: oklch(0.285 0.009 60);
+  --color-destructive: oklch(0.65 0.19 25);
+  --color-success: oklch(0.72 0.13 155);
+  --color-warning: oklch(0.79 0.13 75);
+  --color-info: oklch(0.7 0.1 232);
+  --color-highlight: oklch(0.82 0.16 100);
+  --color-border: oklch(0.99 0.005 60 / 0.08);
+  --color-input: oklch(0.99 0.005 60 / 0.12);
+  --color-sidebar: oklch(0.132 0.006 60);
+  --color-sidebar-border: oklch(0.99 0.005 60 / 0.07);
+  --color-chart-2: oklch(0.70 0.10 200);
+  --radius-base:0.5rem; --radius-control:0.375rem; --radius-card:0.625rem; --radius-full:9999px;
+  --font-sans:Geist, ui-sans-serif, system-ui, sans-serif;
+  --font-mono:'Geist Mono', ui-monospace, SFMono-Regular, monospace;
+  --ember-tint: color-mix(in oklab, var(--color-primary) 10%, transparent);
+  --ok-tint: color-mix(in oklab, var(--color-success) 15%, transparent);
+  --bad-tint: color-mix(in oklab, var(--color-destructive) 15%, transparent);
+  --warn-tint: color-mix(in oklab, var(--color-warning) 14%, transparent);
+  --rail-w:56px; --list-w:320px; --context-w:352px; --chrome-row:48px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:oklch(0.11 0.008 60);color:var(--color-foreground);
+  font-family:var(--font-sans);font-size:13px;line-height:1.5;padding:26px 24px 90px}
+.muted{color:var(--color-muted-foreground)}
+.mono{font-family:var(--font-mono)}
+h1{font-size:1.3rem;margin:0 0 3px;letter-spacing:-.01em}
+h2{font-size:1rem;margin:40px 0 4px;letter-spacing:-.01em}
+.lede{margin:0 0 22px;color:var(--color-muted-foreground);max-width:1100px}
+.lede b{color:var(--color-foreground);font-weight:650}
+.sublede{margin:0 0 14px;color:var(--color-muted-foreground);max-width:1100px;font-size:12px}
+.stage{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start}
+.plabel{font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650;margin:0 0 7px}
+.note{font-size:11px;color:var(--color-muted-foreground);max-width:1240px;margin:12px 0 0;line-height:1.65;
+  border-left:2px solid var(--color-sidebar-border);padding-left:11px}
+.note b{color:var(--color-foreground);font-weight:650}
+.tag{display:inline-block;font-size:9px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;
+  padding:1px 6px;border-radius:var(--radius-full);vertical-align:1px;margin-right:5px}
+.tag.law{background:var(--ok-tint);color:var(--color-success)}
+.tag.fork{background:var(--warn-tint);color:var(--color-warning)}
+.tag.draw{background:color-mix(in oklab, var(--color-info) 15%, transparent);color:var(--color-info)}
+
+/* ── shell ───────────────────────────────────────────────────────────── */
+.shell{display:flex;width:1300px;height:812px;border:1px solid var(--color-sidebar-border);border-radius:14px;
+  overflow:hidden;background:var(--color-background);box-shadow:0 12px 40px rgb(0 0 0 / .35)}
+.rail{width:var(--rail-w);flex:none;background:var(--color-sidebar);border-right:1px solid var(--color-sidebar-border);
+  display:flex;flex-direction:column;align-items:center}
+.brand{height:var(--chrome-row);width:100%;display:flex;align-items:center;justify-content:center;flex:none;border-bottom:1px solid var(--color-sidebar-border)}
+.brand svg{width:22px;height:22px;color:var(--color-primary);stroke:currentColor;stroke-width:1.5;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.railgroup{display:flex;flex-direction:column;gap:2px;padding:8px 0;width:100%;align-items:center}
+.railgroup + .railgroup{border-top:1px solid var(--color-sidebar-border)}
+.rbtn{width:38px;height:38px;border-radius:var(--radius-control);display:flex;align-items:center;justify-content:center;color:var(--color-muted-foreground);position:relative}
+.rbtn svg{width:19px;height:19px;stroke:currentColor;stroke-width:1.8;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.rbtn.active{background:var(--ember-tint);color:var(--color-primary)}
+.rbtn.active::before{content:"";position:absolute;left:-9px;top:8px;bottom:8px;width:2px;border-radius:2px;background:var(--color-primary)}
+.railspacer{flex:1}
+
+.band{height:var(--chrome-row);flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--color-sidebar-border)}
+.band .caps{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;font-weight:650;color:var(--color-muted-foreground)}
+.band .ttl{font-size:13.5px;font-weight:640;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.band .grow{flex:1}
+.ghostbtn{background:none;border:none;color:var(--color-muted-foreground);padding:5px;border-radius:var(--radius-control);display:inline-flex}
+.ghostbtn svg{width:15px;height:15px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round;stroke-linejoin:round}
+
+/* LIST — sessions */
+.list{width:var(--list-w);flex:none;background:var(--color-sidebar);border-right:1px solid var(--color-sidebar-border);display:flex;flex-direction:column}
+.listbody{flex:1;min-height:0;padding:6px 7px 14px;display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.srow{display:flex;align-items:flex-start;gap:9px;padding:8px;border-radius:var(--radius-control);min-height:44px}
+.srow.selected{background:var(--ember-tint);position:relative}
+.srow.selected::before{content:"";position:absolute;left:0;top:6px;bottom:6px;width:2px;border-radius:2px;background:var(--color-primary)}
+.av{width:26px;height:26px;flex:none;border-radius:var(--radius-full);display:flex;align-items:center;justify-content:center;
+  font-size:11px;font-weight:700;color:var(--color-primary-foreground);background:var(--color-primary)}
+.av.b{background:var(--color-chart-2);color:oklch(0.16 0.02 200)}
+.av.c{background:oklch(0.68 0.12 300);color:oklch(0.16 0.02 300)}
+.srow .body{min-width:0;flex:1}
+.srow .t{font-size:12.5px;font-weight:590;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow .sub{font-size:10.5px;color:var(--color-muted-foreground);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.srow .sub .mono{font-size:9.5px}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:9.5px;font-weight:700;letter-spacing:.05em;
+  padding:1px 6px;border-radius:var(--radius-full);text-transform:uppercase}
+.chip.accept{background:var(--ok-tint);color:var(--color-success)}
+.chip.needs{background:var(--warn-tint);color:var(--color-warning)}
+.chip.regress{background:var(--bad-tint);color:var(--color-destructive)}
+.chip.none{background:var(--color-muted);color:var(--color-muted-foreground)}
+.chip.neutral{background:var(--color-muted);color:var(--color-muted-foreground);text-transform:none;letter-spacing:0;font-weight:600}
+.searchrow{padding:8px 9px 4px}
+.search{height:32px;border-radius:var(--radius-control);background:var(--color-input);display:flex;align-items:center;gap:7px;padding:0 9px;color:var(--color-muted-foreground);font-size:12px}
+.search svg{width:14px;height:14px;stroke:currentColor;stroke-width:1.9;fill:none;stroke-linecap:round}
+.daygroup{font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650;padding:10px 8px 4px}
+
+/* CONTENT */
+.main{flex:1;min-width:0;display:flex;flex-direction:column;background:var(--color-background)}
+.mainbody{flex:1;min-height:0;padding:14px 18px;display:flex;flex-direction:column;gap:12px;overflow:hidden}
+.idhead{display:flex;align-items:center;gap:10px}
+.idhead .av{width:32px;height:32px;font-size:12px}
+.idhead .n{font-size:15px;font-weight:660;letter-spacing:-.01em}
+.idhead .s{font-size:11px;color:var(--color-muted-foreground);margin-top:1px}
+.idhead .grow{flex:1}
+.btn{height:30px;padding:0 11px;border-radius:var(--radius-control);border:1px solid transparent;background:var(--color-primary);
+  color:var(--color-primary-foreground);font-size:12px;font-weight:640;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn svg{width:14px;height:14px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.btn.secondary{background:none;border-color:var(--color-border);color:var(--color-foreground)}
+.btn.ghost{background:none;border-color:transparent;color:var(--color-muted-foreground)}
+.btn.danger{background:none;border-color:color-mix(in oklab, var(--color-destructive) 45%, transparent);color:var(--color-destructive)}
+.btn[disabled]{opacity:.45}
+
+/* stage stepper */
+.stepper{display:flex;align-items:stretch;gap:0;border:1px solid var(--color-border);border-radius:var(--radius-base);background:var(--color-surface-raised);overflow:hidden}
+.step{flex:1;display:flex;align-items:center;gap:9px;padding:9px 12px;min-width:0;position:relative}
+.step + .step{border-left:1px solid var(--color-border)}
+.step .dot{width:22px;height:22px;flex:none;border-radius:var(--radius-full);display:flex;align-items:center;justify-content:center;
+  background:var(--color-muted);color:var(--color-muted-foreground);font-size:10px;font-weight:700}
+.step.done .dot{background:var(--ok-tint);color:var(--color-success)}
+.step.active .dot{background:var(--color-primary);color:var(--color-primary-foreground)}
+.step.running .dot{background:var(--ember-tint);color:var(--color-primary)}
+.step .lbl{min-width:0}
+.step .lbl .k{font-size:12px;font-weight:640}
+.step .lbl .v{font-size:10.5px;color:var(--color-muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.step.active{background:var(--ember-tint)}
+.step.active::after{content:"";position:absolute;left:0;right:0;bottom:0;height:2px;background:var(--color-primary)}
+.step .grow{flex:1}
+.spin{width:13px;height:13px;border-radius:var(--radius-full);border:2px solid var(--color-input);border-top-color:var(--color-primary)}
+
+/* scope strip */
+.scope{border:1px solid var(--color-border);border-radius:var(--radius-base);background:var(--color-card);padding:9px 11px;display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.scope .k{font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:650;color:var(--color-muted-foreground)}
+.fchip{font-size:11px;padding:2px 8px;border-radius:var(--radius-full);background:var(--color-muted);color:var(--color-muted-foreground)}
+.fchip.on{background:var(--ember-tint);color:var(--color-primary);font-weight:600}
+.fchip .mono{font-size:9.5px;opacity:.85}
+
+/* assay */
+.pane{flex:1;min-height:0;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.gauge{display:flex;align-items:center;gap:14px;border:1px solid var(--color-border);border-radius:var(--radius-base);background:var(--color-card);padding:12px 14px}
+.big{font-family:var(--font-mono);font-size:30px;font-weight:600;line-height:1;color:var(--color-primary)}
+.big .of{font-size:13px;color:var(--color-muted-foreground);font-weight:400}
+.gauge .txt{min-width:0}
+.gauge .txt .h{font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650}
+.gauge .txt .p{font-size:12px;margin-top:3px;line-height:1.55}
+.cols{display:flex;gap:10px;min-height:0}
+.col{flex:1;min-width:0;border:1px solid var(--color-border);border-radius:var(--radius-base);background:var(--color-card);display:flex;flex-direction:column;overflow:hidden}
+.colhead{padding:8px 11px;border-bottom:1px solid var(--color-border);display:flex;align-items:center;gap:7px}
+.colhead .h{font-size:10px;letter-spacing:.08em;text-transform:uppercase;font-weight:650;color:var(--color-muted-foreground)}
+.colhead .grow{flex:1}
+.colbody{padding:8px 10px;display:flex;flex-direction:column;gap:5px;overflow:hidden}
+.frow{display:flex;flex-direction:column;gap:5px;padding:6px 8px;border-radius:var(--radius-control);background:var(--color-surface-raised)}
+.frow .top{display:flex;align-items:center;gap:8px}
+.frow .name{font-size:12px;font-weight:600}
+.frow .idx{font-family:var(--font-mono);font-size:9.5px;color:var(--color-muted-foreground)}
+.frow .grow{flex:1}
+.frow .sc{font-family:var(--font-mono);font-size:12px;font-weight:600}
+.bar{height:5px;border-radius:var(--radius-full);background:var(--color-input);overflow:hidden}
+.bar i{display:block;height:100%;border-radius:var(--radius-full);background:var(--color-primary)}
+.bar i.hi{background:var(--color-success)}
+.bar i.lo{background:var(--color-warning)}
+.bar i.vlo{background:var(--color-destructive)}
+.crit{display:flex;flex-direction:column;gap:3px;margin-top:2px}
+.crit .l{display:flex;gap:7px;font-size:11px;line-height:1.5}
+.crit .l .k{flex:none;width:66px;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:650;padding-top:2px}
+.crit .l.s .k{color:var(--color-success)} .crit .l.w .k{color:var(--color-warning)} .crit .l.g .k{color:var(--color-info)}
+.bullets{display:flex;flex-direction:column;gap:5px}
+.bullets .b{display:flex;gap:7px;font-size:11.5px;line-height:1.5}
+.bullets .b::before{content:"";width:4px;height:4px;border-radius:50%;background:var(--color-muted-foreground);flex:none;margin-top:7px}
+.chev{width:13px;height:13px;stroke:var(--color-muted-foreground);stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
+
+/* run bar */
+.runbar{border:1px solid var(--color-border);border-radius:var(--radius-base);background:var(--color-card);padding:9px 11px;display:flex;align-items:center;gap:9px}
+.gin{flex:1;min-width:0;height:32px;border-radius:var(--radius-control);background:var(--color-input);display:flex;align-items:center;padding:0 10px;font-size:12px;color:var(--color-foreground)}
+.gin.ph{color:var(--color-muted-foreground)}
+.fit{font-family:var(--font-mono);font-size:10px;color:var(--color-muted-foreground);white-space:nowrap}
+.fit b{color:var(--color-foreground);font-weight:600}
+
+/* CONTEXT */
+.ctx{width:var(--context-w);flex:none;background:var(--color-sidebar);border-left:1px solid var(--color-sidebar-border);display:flex;flex-direction:column}
+.ctxtabs{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--color-sidebar-border)}
+.ctxtab{padding:6px 10px 7px;font-size:11.5px;font-weight:600;color:var(--color-muted-foreground);border-bottom:2px solid transparent}
+.ctxtab.on{color:var(--color-foreground);border-bottom-color:var(--color-primary)}
+.ctxbody{flex:1;min-height:0;padding:10px;display:flex;flex-direction:column;gap:7px;overflow:hidden}
+.rrow{display:flex;align-items:center;gap:9px;padding:8px 9px;border-radius:var(--radius-control);background:var(--color-surface-raised)}
+.rrow .body{min-width:0;flex:1}
+.rrow .t{font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:6px}
+.rrow .sub{font-family:var(--font-mono);font-size:9.5px;color:var(--color-muted-foreground);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rrow.cur{background:var(--ember-tint)}
+.stagepill{font-family:var(--font-mono);font-size:9px;letter-spacing:.05em;text-transform:uppercase;padding:1px 5px;border-radius:3px;background:var(--color-muted);color:var(--color-muted-foreground)}
+.stagepill.sc{color:var(--color-info)} .stagepill.rw{color:var(--color-primary)} .stagepill.an{color:var(--color-highlight)}
+.setrow{display:flex;align-items:flex-start;gap:9px;padding:8px 9px;border-radius:var(--radius-control);background:var(--color-surface-raised)}
+.setrow .body{min-width:0;flex:1}
+.setrow .k{font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:650;color:var(--color-muted-foreground)}
+.setrow .v{font-size:12px;margin-top:2px}
+.setrow .act{font-size:11px;font-weight:640;color:var(--color-primary);flex:none;align-self:center}
+.warnline{display:flex;gap:8px;align-items:flex-start;padding:8px 9px;border-radius:var(--radius-control);background:var(--warn-tint);font-size:11px;line-height:1.5;color:var(--color-foreground)}
+.warnline b{color:var(--color-warning)}
+
+/* compare */
+.cmpbar{display:flex;align-items:center;gap:9px}
+.seg{display:inline-flex;border:1px solid var(--color-border);border-radius:var(--radius-control);overflow:hidden}
+.seg span{padding:4px 9px;font-size:11px;color:var(--color-muted-foreground)}
+.seg span.on{background:var(--color-accent);color:var(--color-foreground);font-weight:600}
+.cb{border:1px solid var(--color-border);border-radius:var(--radius-base);background:var(--color-card);padding:9px 10px;display:flex;flex-direction:column;gap:7px}
+.cb .lab{font-size:11.5px;font-weight:650;display:flex;align-items:center;gap:7px}
+.pair{display:flex;gap:8px}
+.side{flex:1;min-width:0;border-radius:var(--radius-control);padding:7px 9px;font-size:11.5px;line-height:1.55}
+.side .sh{display:flex;align-items:center;gap:5px;font-size:9.5px;letter-spacing:.07em;text-transform:uppercase;font-weight:700;margin-bottom:4px}
+.side.before{background:var(--bad-tint)} .side.before .sh{color:var(--color-destructive)}
+.side.after{background:var(--ok-tint)} .side.after .sh{color:var(--color-success)}
+.acc{display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--color-muted-foreground)}
+.box{width:15px;height:15px;flex:none;border-radius:4px;border:1.5px solid var(--color-input);display:inline-flex;align-items:center;justify-content:center}
+.box.on{background:var(--color-primary);border-color:var(--color-primary)}
+.box.on::after{content:"";width:7px;height:4px;border-left:2px solid var(--color-primary-foreground);border-bottom:2px solid var(--color-primary-foreground);transform:rotate(-45deg);margin-top:-2px}
+.box.mixed{background:var(--color-primary);border-color:var(--color-primary)}
+.box.mixed::after{content:"";width:8px;height:2px;background:var(--color-primary-foreground)}
+.diffpre{font-family:var(--font-mono);font-size:11px;line-height:1.65;white-space:pre-wrap;margin:0;
+  background:var(--color-surface-raised);border-radius:var(--radius-control);padding:8px 9px}
+.ins{background:color-mix(in oklab, var(--color-success) 26%, transparent);border-radius:2px}
+.del{background:color-mix(in oklab, var(--color-destructive) 26%, transparent);border-radius:2px;text-decoration:line-through}
+
+/* verdict banner */
+.verdict{display:flex;align-items:center;gap:12px;border-radius:var(--radius-base);padding:12px 14px;border:1px solid transparent}
+.verdict.regress{background:var(--bad-tint);border-color:color-mix(in oklab, var(--color-destructive) 40%, transparent)}
+.verdict.accept{background:var(--ok-tint);border-color:color-mix(in oklab, var(--color-success) 40%, transparent)}
+.verdict.needs{background:var(--warn-tint);border-color:color-mix(in oklab, var(--color-warning) 40%, transparent)}
+.verdict .vh{font-size:14px;font-weight:700;letter-spacing:.02em}
+.verdict .vp{font-size:11.5px;line-height:1.55;color:var(--color-foreground);opacity:.9;margin-top:2px}
+.verdict .grow{flex:1}
+.soul{text-align:center;flex:none;padding-left:12px;border-left:1px solid var(--color-border)}
+.soul .n{font-family:var(--font-mono);font-size:22px;font-weight:600;line-height:1}
+.soul .k{font-size:9px;letter-spacing:.08em;text-transform:uppercase;color:var(--color-muted-foreground);font-weight:650;margin-top:3px}
+.frame{border:1px solid var(--color-sidebar-border);border-radius:14px;overflow:hidden;background:var(--color-background);box-shadow:0 12px 40px rgb(0 0 0 / .35)}
+</style></head><body>
+
+<h1>Refinery — the R3 surface</h1>
+<p class="lede">The <b>D62 anatomy</b> (stage stepper · assay · issues · compare) rendered into the <b>D70 founding-member section shell</b>:
+LIST = the sessions roster, CONTENT = the active run, CONTEXT = the cross-run ledger. Field names, enums and bounds are copied from the
+SHIPPED contracts (<span class="mono">packages/contracts/src/refinery/index.ts</span>, R0+R1 graduated) — this drawing does not invent a payload.
+<b>A drawing is never law.</b> Each frame's note names what is law-derived and what is a FORK for the owner.</p>
+
+<h2>Frame 1 — the whole shell, SCORE settled</h2>
+<p class="sublede">Wide desktop. D62 rules <span class="mono">panelDefaults: {list:"collapsed", context:"collapsed"}</span>; this frame draws both panels OPEN
+(the user's explicit toggle) so the anatomy is visible at once. The default-collapsed arm is Frame 4.</p>
+<div class="stage">
+<div class="shell">
+  <div class="rail">
+    <div class="brand"><svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M12 22V12M3 7l9 5 9-5"/></svg></div>
+    <div class="railgroup">
+      <div class="rbtn"><svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
+      <div class="rbtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></div>
+      <div class="rbtn"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg></div>
+    </div>
+    <div class="railgroup">
+      <div class="rbtn"><svg viewBox="0 0 24 24"><path d="M4 19V6a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/></svg></div>
+      <div class="rbtn"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h7"/></svg></div>
+      <div class="rbtn active" title="Refinery"><svg viewBox="0 0 24 24"><path d="M10 2v6.5L4.6 18A2 2 0 0 0 6.3 21h11.4a2 2 0 0 0 1.7-3L14 8.5V2"/><path d="M9 2h6M7.5 15h9"/></svg></div>
+    </div>
+    <div class="railspacer"></div>
+    <div class="railgroup"><div class="rbtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 2"/></svg></div></div>
+  </div>
+
+  <div class="list">
+    <div class="band"><span class="caps">Sessions</span><span class="grow"></span>
+      <button class="ghostbtn"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button></div>
+    <div class="searchrow"><div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>Search sessions</div></div>
+    <div class="listbody">
+      <div class="daygroup">Today</div>
+      <div class="srow selected">
+        <div class="av">SA</div>
+        <div class="body">
+          <div class="t">Meaner second pass</div>
+          <div class="sub"><span>Seraphine Ash</span><span class="chip needs">Needs refinement</span></div>
+          <div class="sub"><span class="mono">iteration 2 · 6 runs · 4m ago</span></div>
+        </div>
+      </div>
+      <div class="srow">
+        <div class="av b">KV</div>
+        <div class="body">
+          <div class="t">Tighten the scenario</div>
+          <div class="sub"><span>Kestrel Vane</span><span class="chip accept">Accept</span></div>
+          <div class="sub"><span class="mono">iteration 1 · 4 runs · 1h ago</span></div>
+        </div>
+      </div>
+      <div class="daygroup">Earlier</div>
+      <div class="srow">
+        <div class="av c">MR</div>
+        <div class="body">
+          <div class="t">Untitled session</div>
+          <div class="sub"><span>Mirelle Roque</span><span class="chip regress">Regression</span></div>
+          <div class="sub"><span class="mono">iteration 3 · 9 runs · Tue</span></div>
+        </div>
+      </div>
+      <div class="srow">
+        <div class="av b">KV</div>
+        <div class="body">
+          <div class="t">First look</div>
+          <div class="sub"><span>Kestrel Vane</span><span class="chip none">No verdict</span></div>
+          <div class="sub"><span class="mono">iteration 0 · 1 run · Mon</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="band">
+      <span class="ttl">Meaner second pass</span>
+      <span class="chip neutral">active</span>
+      <span class="grow"></span>
+      <button class="ghostbtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button>
+    </div>
+    <div class="mainbody">
+      <div class="idhead">
+        <div class="av">SA</div>
+        <div>
+          <div class="n">Seraphine Ash</div>
+          <div class="s">Anchored to the card as it was at 14:02 — every analyze compares against that snapshot.</div>
+        </div>
+        <div class="grow"></div>
+        <button class="btn secondary">Original card</button>
+      </div>
+
+      <div class="stepper">
+        <div class="step done"><div class="dot">1</div><div class="lbl"><div class="k">Score</div><div class="v">overall 6.8 · full</div></div><div class="grow"></div><svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
+        <div class="step done"><div class="dot">2</div><div class="lbl"><div class="k">Rewrite</div><div class="v">5 fields · balanced</div></div><div class="grow"></div><svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
+        <div class="step active"><div class="dot">3</div><div class="lbl"><div class="k">Analyze</div><div class="v">soul 7 · needs work</div></div><div class="grow"></div><span class="chip needs">round 2</span></div>
+      </div>
+
+      <div class="scope">
+        <span class="k">Scope</span>
+        <span class="fchip on">description</span>
+        <span class="fchip on">personality</span>
+        <span class="fchip on">scenario</span>
+        <span class="fchip on">greetings <span class="mono">0,2</span></span>
+        <span class="fchip">exampleMessages</span>
+        <span class="fchip">systemPrompt</span>
+        <span class="fchip">postHistoryInstructions</span>
+        <span class="fchip">depthPrompt</span>
+        <span class="fchip">creatorNotes</span>
+        <span class="grow" style="flex:1"></span>
+        <button class="btn ghost">Edit scope</button>
+      </div>
+
+      <div class="pane">
+        <div class="gauge">
+          <div class="big">6.8<span class="of">/10</span></div>
+          <div class="txt">
+            <div class="h">Score · summary</div>
+            <div class="p">A vivid silhouette carried by one strong image, but the greetings repeat the description almost verbatim and the scenario never says what the user is doing there.</div>
+          </div>
+        </div>
+        <div class="cols">
+          <div class="col">
+            <div class="colhead"><span class="h">Per-field assay</span><span class="grow"></span><span class="chip neutral">6 fields</span></div>
+            <div class="colbody">
+              <div class="frow">
+                <div class="top"><span class="name">description</span><span class="grow"></span><span class="sc">7.5</span><svg class="chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></div>
+                <div class="bar"><i class="hi" style="width:75%"></i></div>
+                <div class="crit">
+                  <div class="l s"><span class="k">Strengths</span><span>The ash-and-ledger image is specific and reusable.</span></div>
+                  <div class="l w"><span class="k">Weaknesses</span><span>Three sentences restate the same trait.</span></div>
+                  <div class="l g"><span class="k">Suggests</span><span>Replace the second paragraph with one habit.</span></div>
+                </div>
+              </div>
+              <div class="frow">
+                <div class="top"><span class="name">personality</span><span class="grow"></span><span class="sc">6.0</span><svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
+                <div class="bar"><i class="lo" style="width:60%"></i></div>
+              </div>
+              <div class="frow">
+                <div class="top"><span class="name">greetings</span><span class="idx">[0]</span><span class="grow"></span><span class="sc">4.5</span><svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
+                <div class="bar"><i class="vlo" style="width:45%"></i></div>
+              </div>
+              <div class="frow">
+                <div class="top"><span class="name">greetings</span><span class="idx">[2]</span><span class="grow"></span><span class="sc">6.5</span><svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
+                <div class="bar"><i class="lo" style="width:65%"></i></div>
+              </div>
+              <div class="frow">
+                <div class="top"><span class="name">scenario</span><span class="grow"></span><span class="sc">5.0</span><svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></div>
+                <div class="bar"><i class="vlo" style="width:50%"></i></div>
+              </div>
+            </div>
+          </div>
+          <div class="col" style="max-width:300px">
+            <div class="colhead"><span class="h">Priority improvements</span></div>
+            <div class="colbody">
+              <div class="bullets">
+                <div class="b">Rewrite greeting 0 so it opens on an action, not a self-description.</div>
+                <div class="b">Give the scenario a reason the user is present.</div>
+                <div class="b">Compress the description's repeated trait statements into one habit.</div>
+                <div class="b">Personality reads as a synonym list — name two conflicting drives instead.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="runbar">
+          <div class="gin">keep her mean — do not soften the ledger grudge</div>
+          <span class="fit">prompt ≈ <b>3 140</b> / 8 192 tok</span>
+          <button class="btn secondary">Re-score</button>
+          <button class="btn">Rewrite <svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ctx">
+    <div class="band"><div class="av" style="width:22px;height:22px;font-size:9px">SA</div><span class="ttl">Meaner second pass</span><span class="grow"></span>
+      <button class="ghostbtn"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+    <div class="ctxtabs"><span class="ctxtab on">Runs</span><span class="ctxtab">Setup</span></div>
+    <div class="ctxbody">
+      <div class="rrow cur">
+        <div class="body"><div class="t"><span class="stagepill an">analyze</span> round 2 <span class="chip needs">Needs</span></div>
+          <div class="sub">qwen3-32b · 4 210 in / 512 out · 6.1s · 14:41</div></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div class="rrow">
+        <div class="body"><div class="t"><span class="stagepill rw">rewrite</span> round 2</div>
+          <div class="sub">qwen3-32b · 3 980 in / 1 844 out · 22.4s · 14:39</div></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div class="rrow">
+        <div class="body"><div class="t"><span class="stagepill an">analyze</span> round 1 <span class="chip regress">Regression</span></div>
+          <div class="sub">qwen3-32b · 4 006 in / 486 out · 5.8s · 14:22</div></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div class="rrow">
+        <div class="body"><div class="t"><span class="stagepill rw">rewrite</span> round 1</div>
+          <div class="sub">qwen3-32b · 3 902 in / 1 712 out · 19.9s · 14:19</div></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div class="rrow">
+        <div class="body"><div class="t"><span class="stagepill sc">score</span> round 0</div>
+          <div class="sub">qwen3-32b · 3 140 in / 768 out · 9.2s · 14:03</div></div>
+        <svg class="chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg>
+      </div>
+      <div class="warnline"><span><b>2 keys dropped</b> from the round-1 rewrite payload — <span class="mono">fields[3].confidence</span>, <span class="mono">notes</span>. The parse kept the shape; the invented keys are recorded, not silently swallowed.</span></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<p class="note"><span class="tag law">LAW</span>
+<b>LIST = sessions with the character as row identity</b> (D62 §2b.1 "past refinery sessions per character"; addendum §10.5-3 rules the drill store has ONE primary, so the roster is flat and the character rides the row).
+Row cargo = <span class="mono">refinerySessionSummarySchema</span>: name (nullable → "Untitled session") · character · <span class="mono">latestVerdict</span> (null → "No verdict") · <span class="mono">iterationCount</span> · <span class="mono">updatedAt</span>.
+<b>CONTEXT = the cross-run ledger</b> (addendum §10.3): Runs + Setup, nothing the CONTENT frame already says (the anti-echo rule). Run rows carry the contract's real provenance —
+<span class="mono">model</span>, <span class="mono">promptTokens</span>/<span class="mono">outputTokens</span>, <span class="mono">iteration</span> — and <span class="mono">strippedKeys</span> becomes the visible warn line rather than a silent success.
+<b>Stage is NOT a drill</b> — the stepper is in-session UI state (addendum §10.2), so the phone back gesture pops to the roster, never stage-by-stage.
+<b>The anti-drift line under the character name</b> is the <span class="mono">originalCard</span> anchor stated in the UI, because it is the invariant the whole feature sells.
+</p>
+<p class="note"><span class="tag fork">FORK A · assay density</span>
+Drawn: the <b>selected</b> field row expands its <span class="mono">strengths</span>/<span class="mono">weaknesses</span>/<span class="mono">suggestions</span> inline; the rest collapse to name + bar + score.
+The alternative is every row always expanded (a long scroll, everything comparable at once) or a master/detail split (list left, critique right).
+<b>Rec:</b> accordion-with-one-open as drawn — the payload allows 4 000 chars per critique string × 3 per field, which no always-expanded list survives.
+</p>
+<p class="note"><span class="tag fork">FORK B · where "priority improvements" lives</span>
+Drawn as a second column beside the assay. Alternative: a strip directly under the summary gauge (full width, above the per-field rows), which reads more like "here is what to do next" and less like a sidebar.
+<b>Rec:</b> as drawn at wide widths, folding under the gauge below the CONTENT breakpoint.
+</p>
+
+<h2>Frame 2 — CONTENT: the REWRITE compare + accept set</h2>
+<p class="sublede">The primitives are prebuilt and sealed for exactly this: <span class="mono">CompareBlocks</span> (per-block before/after + per-block Accept + an Accept-all row with indeterminate state)
+and <span class="mono">@orb/ui/diff</span> <span class="mono">DiffView</span> (inline jsdiff segments, chars/words/lines). This frame draws them composed, not chosen between.</p>
+<div class="stage">
+<div class="frame" style="width:820px">
+  <div class="band"><span class="ttl">Meaner second pass</span><span class="chip neutral">rewrite · round 2</span><span class="grow"></span>
+    <button class="ghostbtn"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg></button></div>
+  <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+    <div class="cmpbar">
+      <span class="acc"><span class="box mixed"></span> Accept all</span>
+      <span class="chip neutral">3 of 5 accepted</span>
+      <span style="flex:1"></span>
+      <span class="plabel" style="margin:0">Diff</span>
+      <span class="seg"><span>chars</span><span class="on">words</span><span>lines</span></span>
+      <span class="seg"><span class="on">side by side</span><span>inline</span></span>
+    </div>
+
+    <div class="cb">
+      <div class="lab">description <span class="chip neutral">7.5 → rewritten</span></div>
+      <div class="pair">
+        <div class="side before"><div class="sh">— before</div>Seraphine is cold, aloof and unfriendly. She is distant with strangers and rarely smiles. She keeps to herself and does not trust easily.</div>
+        <div class="side after"><div class="sh">+ after</div>Seraphine keeps a ledger of every debt owed to her and reads from it aloud when she wants a room to go quiet. She does not raise her voice; she waits.</div>
+      </div>
+      <div class="acc"><span class="box on"></span> Accept description</div>
+    </div>
+
+    <div class="cb">
+      <div class="lab">greetings <span class="mono" style="font-size:10px;color:var(--color-muted-foreground)">[0]</span> <span class="chip neutral">4.5 → rewritten</span></div>
+      <pre class="diffpre"><span class="del">"I am Seraphine," she says coldly. "I do not care for company."</span><span class="ins">She does not look up from the ledger. "You are the fourth today," she says, turning a page. "Sit, if you are staying."</span></pre>
+      <div class="acc"><span class="box on"></span> Accept greetings [0]</div>
+    </div>
+
+    <div class="cb">
+      <div class="lab">scenario <span class="chip neutral">5.0 → rewritten</span></div>
+      <div class="pair">
+        <div class="side before"><div class="sh">— before</div>A tavern in a cold city. Seraphine is there.</div>
+        <div class="side after"><div class="sh">+ after</div>The Ash Ledger keeps a back room for people who owe. You are here because your name is in it, and Seraphine is the one who decides what the entry costs.</div>
+      </div>
+      <div class="acc"><span class="box"></span> Accept scenario</div>
+    </div>
+
+    <div class="runbar">
+      <span class="fit"><b>3</b> fields accepted · applies to the LIVE card · a snapshot is taken first</span>
+      <span style="flex:1"></span>
+      <button class="btn secondary">Iterate with guidance</button>
+      <button class="btn">Apply 3 fields</button>
+    </div>
+  </div>
+</div>
+<p class="note" style="max-width:400px"><span class="tag law">LAW</span>
+Accept state is per-BLOCK and the Accept-all row carries an <b>indeterminate</b> arm — that is the shipped <span class="mono">CompareBlocks</span> contract
+(<span class="mono">accepted[]</span> / <span class="mono">onAcceptedChange</span>), not a new control.<br><br>
+<span class="tag law">LAW</span> The greeting block is addressed by <b>index</b> (<span class="mono">greetingIndex</span>) — orb greetings are ONE array, and the payload's
+<span class="mono">greetingIndex</span> is present ⇔ <span class="mono">field === "greetings"</span>.<br><br>
+<span class="tag fork">FORK C · which instrument per block</span> Drawn BOTH ways in one frame: <span class="mono">CompareBlocks</span> pairs for prose fields, an inline
+<span class="mono">DiffView</span> for the greeting (short text, where a word diff is legible). The "side by side / inline" segmented control makes it a per-user choice.
+<b>Rec:</b> ship the toggle, default side-by-side for fields over ~200 chars and inline below it.<br><br>
+<span class="tag fork">FORK D · apply from the compare, or a confirm step?</span> Drawn: the accept set IS the apply set, one button, no dialog.
+Alternative: "Review apply" opens a modal listing the accepted fields before writing. <b>Rec:</b> as drawn — apply already auto-snapshots
+(<span class="mono">"auto: before refinery apply"</span>) and the result panel itemises drops, so a confirm modal buys nothing but a click.
+</p>
+</div>
+
+<h2>Frame 3 — CONTENT: ANALYZE, including the REGRESSION arm</h2>
+<div class="stage">
+<div class="frame" style="width:640px">
+  <div class="band"><span class="ttl">Analyze · round 1</span><span class="grow"></span></div>
+  <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px">
+    <div class="verdict regress">
+      <div>
+        <div class="vh">REGRESSION</div>
+        <div class="vp">The rewrite is better prose and a worse character. The grudge that made her legible is gone.</div>
+      </div>
+      <div class="grow"></div>
+      <div class="soul"><div class="n" style="color:var(--color-destructive)">4</div><div class="k">Soul</div></div>
+    </div>
+    <div class="cols">
+      <div class="col"><div class="colhead"><span class="h">Preserved</span></div><div class="colbody"><div class="bullets">
+        <div class="b">The ledger as her signature object.</div><div class="b">Low-volume menace rather than shouting.</div></div></div></div>
+      <div class="col"><div class="colhead"><span class="h" style="color:var(--color-destructive)">Lost</span></div><div class="colbody"><div class="bullets">
+        <div class="b">The debt she is herself unable to repay.</div><div class="b">Her refusal to use the user's name.</div></div></div></div>
+      <div class="col"><div class="colhead"><span class="h" style="color:var(--color-info)">Gained</span></div><div class="colbody"><div class="bullets">
+        <div class="b">A warmth toward strangers the original never had.</div></div></div></div>
+    </div>
+    <div class="col">
+      <div class="colhead"><span class="h">Issues</span><span class="grow"></span><span class="chip regress">2 blocking</span></div>
+      <div class="colbody"><div class="bullets">
+        <div class="b">Greeting 0 now invites the user to sit — the original made them stand.</div>
+        <div class="b">The description's new closing sentence editorialises about her ("but she is kind underneath").</div>
+      </div></div>
+    </div>
+    <div class="col">
+      <div class="colhead"><span class="h">Recommendations</span></div>
+      <div class="colbody"><div class="bullets">
+        <div class="b">Re-run rewrite with guidance: keep the ledger debt, restore the refusal of names.</div>
+        <div class="b">Drop the closing sentence entirely rather than rewriting it.</div>
+      </div></div>
+    </div>
+    <div class="runbar">
+      <div class="gin ph">Add guidance for the next round…</div>
+      <button class="btn secondary">Discard rewrite</button>
+      <button class="btn">Iterate</button>
+    </div>
+  </div>
+</div>
+<p class="note" style="max-width:560px"><span class="tag law">LAW</span>
+The three-column <span class="mono">preserved</span>/<span class="mono">lost</span>/<span class="mono">gained</span> split, <span class="mono">soulScore</span> 1-10,
+<span class="mono">soulAssessment</span>, <span class="mono">issues[]</span>, <span class="mono">recommendations[]</span> and the uppercase verdict spellings are the shipped
+<span class="mono">refineryAnalyzePayloadSchema</span>. REGRESSION is the loop's stop condition, so it gets a destructive-tinted banner rather than a neutral badge.<br><br>
+<span class="tag law">LAW</span> The verdict banner never rests on colour alone — the word is the primary signal, the tint is secondary (the CompareBlocks colourblind precedent).<br><br>
+<span class="tag fork">FORK E · what a REGRESSION offers</span> Drawn: "Discard rewrite" beside "Iterate", and <b>no Apply affordance at all</b> on a regression frame.
+The alternative is leaving Apply enabled with a warning (the user may still want one field of a regressed rewrite).
+<b>Rec:</b> as drawn for the primary action, but keep the compare frame reachable from the stepper — refusing to show it would hide data the user paid for.
+</p>
+</div>
+
+<h2>Frame 4 — the D62 default: both side panels collapsed</h2>
+<p class="sublede">What a first visit actually resolves to, per the SHIPPED section definition (<span class="mono">panelDefaults: {list:"collapsed", context:"collapsed"}</span>).
+The reopen affordances are the band's edge buttons.</p>
+<div class="stage">
+<div class="frame" style="width:900px;height:300px;display:flex">
+  <div class="rail" style="border-radius:0">
+    <div class="brand"><svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="M12 22V12M3 7l9 5 9-5"/></svg></div>
+    <div class="railgroup"><div class="rbtn active"><svg viewBox="0 0 24 24"><path d="M10 2v6.5L4.6 18A2 2 0 0 0 6.3 21h11.4a2 2 0 0 0 1.7-3L14 8.5V2"/><path d="M9 2h6M7.5 15h9"/></svg></div></div>
+  </div>
+  <div class="main">
+    <div class="band">
+      <button class="ghostbtn" title="Open sessions"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
+      <span class="ttl">Meaner second pass</span><span class="chip needs">Needs refinement</span>
+      <span class="grow"></span>
+      <button class="ghostbtn" title="Open the run ledger"><svg viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></button>
+    </div>
+    <div class="mainbody">
+      <div class="stepper">
+        <div class="step done"><div class="dot">1</div><div class="lbl"><div class="k">Score</div><div class="v">overall 6.8</div></div></div>
+        <div class="step running"><div class="dot"><span class="spin"></span></div><div class="lbl"><div class="k">Rewrite</div><div class="v">streaming · 5 fields</div></div><div class="grow"></div><button class="btn danger">Abort</button></div>
+        <div class="step"><div class="dot">3</div><div class="lbl"><div class="k">Analyze</div><div class="v muted">waiting on the rewrite</div></div></div>
+      </div>
+      <div class="gauge">
+        <div class="big">6.8<span class="of">/10</span></div>
+        <div class="txt"><div class="h">Last settled stage · score</div>
+          <div class="p">The score stays on screen while the rewrite runs — the surface never goes blank between stages.</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+<p class="note" style="max-width:340px"><span class="tag law">LAW</span> The collapsed default is the shipped <span class="mono">panelDefaults</span>; D62 rules refinery a content-first hub.<br><br>
+<span class="tag draw">DRAWING CALL</span> The RUNNING stage keeps the previous settled payload on screen and puts Abort <i>in the step</i>, not in the run bar — the pending stage
+states why it is waiting rather than showing a bare disabled row (a pending pane that says nothing reads as broken).
+</p>
+</div>
+
+</body></html>
