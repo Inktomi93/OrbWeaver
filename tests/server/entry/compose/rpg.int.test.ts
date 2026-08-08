@@ -233,8 +233,12 @@ function recordChatTurn(spy: ExtractionSpy, req: Parameters<NonNullable<Paramete
   if ("tools" in req && Array.isArray(req.tools)) {
     spy.wireTools.push(req.tools as { name: string; description: string; parameters: Record<string, unknown> }[]);
   }
+  // The SYSTEM prompt is captured on EVERY api, not just agent-sdk: `ChatTurnRequest.systemPrompt` is one
+  // `{static,dynamic}` shape across the wires, and the CHEAP TOOL ROUND (an array wire) is the second write
+  // surface — leaving it uncaptured meant no tier could see what that vehicle actually teaches. The USER prompt
+  // stays agent-sdk-only because only that arm carries a flat `prompt` (the array wires send `history`).
+  spy.systemPrompts.push(req.systemPrompt.static);
   if (req.api === "agent-sdk") {
-    spy.systemPrompts.push(req.systemPrompt.static);
     spy.userPrompts.push("prompt" in req && typeof req.prompt === "string" ? req.prompt : "");
   }
 }
@@ -537,6 +541,49 @@ test("R1: the ref enum reaches the agent-sdk chat arm too (portable — same sha
   const schema = spy.schemas[0] as { properties?: { party?: { items?: { properties?: { targetRef?: { enum?: string[] } } } } } };
   expect(Array.isArray(schema.properties?.party?.items?.properties?.targetRef?.enum)).toBe(true);
   expect(spy.systemPrompts[0]).toContain("Valid targetRef values");
+});
+
+// ── ROW 27: the state-tracking GUIDE reaches BOTH write surfaces (owner ruling 2026-08-08) ──────────────
+// `RPG_STATE_TRACKING_GUIDE` documented itself as "composed onto the write-surface prompts (the tool round +
+// the structured extraction)" and was composed onto NOTHING for its entire life — an exported const whose only
+// reference was its own declaration. Spec §11 decision 6 (wire and measure, or delete) was ruled WIRE, so it is
+// now the `rpg.extract.stateTrackingGuide` slot pushed by `composePlaneTeaching`. The contracts tier proves the
+// shared body carries it; only THIS tier proves the bytes ride each vehicle's actual request — which is the
+// claim the doc-comment made and never kept.
+
+test("row 27: the BE THOROUGH guide rides the STRUCTURED extraction's system prompt", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "row27-structured");
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this drives the DEDICATED round (structured on the agent-sdk wire)
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
+
+  expect(spy.systemPrompts[0]).toContain("BE THOROUGH — the panel should reflect the FULL richness");
+  // …and it lands ahead of the reconcile rule, so "never fabricate" is what closes the coverage push.
+  expect(spy.systemPrompts[0]?.indexOf("BE THOROUGH")).toBeLessThan(spy.systemPrompts[0]?.indexOf("RECONCILE:") ?? -1);
+});
+
+test("row 27: the guide rides the CHEAP TOOL ROUND's system prompt too — the second write surface", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "row27-toolround");
+  const spy = emptySpy();
+  const rpgCompose = buildCannedRpgWithText({
+    app,
+    db,
+    api: "chat-completions",
+    spy,
+    cannedText: "{}",
+    cannedToolCalls: [{ name: "update_scene", arguments: JSON.stringify({ recentEvent: "arrived at the tower" }) }],
+  });
+  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
+  await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
+
+  // The tool round is an ARRAY wire, so this pin exists only because the spy captures `systemPrompt` on every
+  // api — a structured-arm-only capture would have made the second surface unassertable at any tier.
+  expect(spy.systemPrompts[0]).toContain("Sparse tracking makes the panel feel dead.");
 });
 
 // ── RPG-SIGNAL: the cancellation reaches the LAST HOP (the provider request) ──────────────────────────────

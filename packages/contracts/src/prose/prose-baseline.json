@@ -288,6 +288,10 @@
       "version": 1,
       "sha256": "588ee2d979cec37085467fc92e25c1d34d1ab8b01f963a036603573efebff696"
     },
+    "rpg.extract.stateTrackingGuide": {
+      "version": 1,
+      "sha256": "99ad2cece918a2762f2e5501f241d700ca7ab476c0d9ddb490ba82cb37956465"
+    },
     "rpg.extract.reconcileDoctrine": {
       "version": 1,
       "sha256": "ef9578d2f272fb757d426644c8765a456f5597ffc22e5bc2bfabc5985ceee778"

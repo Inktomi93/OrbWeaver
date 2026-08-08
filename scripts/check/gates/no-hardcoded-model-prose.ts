@@ -3,7 +3,9 @@
 // authored ONLY in a prose CATALOG — everywhere else it is a slot that escaped the registry (the disease that
 // let a hardcoded nudge ride every turn for a campaign). ARM A: seam literals vs a SHRINK-ONLY per-file baseline
 // (terminal {} at PROSE-1 S3/S4 — then delete baseline+generator). ARM B: a catalog prose const nothing
-// references is DEAD prose (the RPG_STATE_TRACKING_GUIDE row-27 class). Escapes: logger/*Error/throw args are
+// references is DEAD prose (the RPG_STATE_TRACKING_GUIDE row-27 class — the exemplar itself was WIRED and
+// slotted on 2026-08-08, and the class name outlives it; ARM B never scanned it anyway, since it lived in a
+// SEAM file and ARM B walks CATALOG files). Escapes: logger/*Error/throw args are
 // structural; `// PROSE-OK: <reason>` is the marker (two-sided: stale RED, malformed RED). DECLARED LIMITS
 // (mustPass rows): sub-12-word structural labels; prose assembled through an imported helper; a barrel
 // re-export does NOT make a catalog const alive (ImportSpecifiers only).
