@@ -25,6 +25,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useId } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import { usePatchSheet } from "../hooks/use-rpg-mutations.ts";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
@@ -92,6 +93,13 @@ export function TrackerGrantsEditor({
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const patchSheet = usePatchSheet({ trpc, invalidation });
+  // One id base for the row OUTCOME badges (side-eye P3): each row's picker points at its own badge through
+  // `aria-describedby`, so focusing the control announces the resolved outcome ("Carries") and not just the
+  // exception state ("By class") — the two are different facts, and the outcome is the one the host is
+  // actually deciding about. It describes the VISIBLE badge rather than duplicating it into hidden text.
+  // Suffixed by `def.key`, which is slug-safe by construction (`mintDefKey` emits `[a-z0-9_]` only), so it is
+  // always a valid id fragment.
+  const outcomeIdBase = useId();
   const actorDefs = sortTrackers(trackerDefs.filter((def) => def.subject === "actor"));
   const grants = actor.sheet.trackerGrants;
   const revokes = actor.sheet.trackerRevokes;
@@ -110,16 +118,20 @@ export function TrackerGrantsEditor({
           {actorDefs.map((def) => {
             const current = exceptionFor(def.key, grants, revokes);
             const carried = carriedKeys.has(def.key);
+            const outcomeId = `${outcomeIdBase}-${def.key}`;
             return (
               <Row key={def.key} gap="field" align="center" className="flex-wrap" data-slot="rpg-tracker-grant-row" data-tracker-key={def.key}>
-                <Text as="span" voice="label" className="min-w-0 flex-1 truncate">
+                {/* A long host-authored label ellipsizes in this column, so it carries its full text on
+                    `title` — the mouse-hover recovery a truncated datum owes the reader (side-eye P3). */}
+                <Text as="span" voice="label" className="min-w-0 flex-1 truncate" data-slot="rpg-tracker-grant-label" title={def.label}>
                   {def.label}
                 </Text>
-                <Badge intent={carried ? "success" : "neutral"} size="sm" tone="soft" data-slot="rpg-tracker-grant-outcome">
+                <Badge id={outcomeId} intent={carried ? "success" : "neutral"} size="sm" tone="soft" data-slot="rpg-tracker-grant-outcome">
                   {carried ? "Carries" : "Doesn't carry"}
                 </Badge>
                 <Select
                   aria-label={`${def.label} access for ${actor.name}`}
+                  aria-describedby={outcomeId}
                   items={EXCEPTION_OPTIONS}
                   value={current}
                   onValueChange={(next): void => {
