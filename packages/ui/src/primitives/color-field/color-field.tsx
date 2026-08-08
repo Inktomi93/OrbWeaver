@@ -88,8 +88,17 @@ function ColorFieldTriggerGlyph({ loading, success, isValid, value, slots }: Col
 
 const NATIVE_HEX_RE = /^#[0-9a-f]{6}$/iu;
 // The browser's <input type="color"> only accepts a strict 6-digit hex — a non-hex committed value
-// falls back to this neutral default, never overwriting `value`/`draft` itself.
-const FALLBACK_NATIVE_HEX = "#000000";
+// (including the UNSET "" clear state) falls back to this neutral default, never overwriting
+// `value`/`draft` itself.
+//
+// IT IS A MID-TONE, NOT BLACK (side-eye 2026-08-08 P3). The fallback was `#000000`, which meant an UNSET
+// field opened its picker already showing black: against the near-black popup the swatch read as an empty
+// hole, and INSIDE the picker "no colour is set" and "the colour is set to black" were the same pixels —
+// the exact indistinguishability the tag editor's own readout sentence exists to fix one level up. A mid
+// grey is legible on either a light or a dark popup and is obviously not a chosen colour. It is still only
+// a DISPLAY seed: nothing commits until the user picks, so an unset field that is opened and dismissed
+// stays unset.
+const FALLBACK_NATIVE_HEX = "#808080";
 
 /**
  * The editable color field — a swatch trigger that opens a popover with a native
