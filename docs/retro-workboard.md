@@ -683,6 +683,24 @@ security lens.
   ListRow.leading aria-hidden).
 - **⏳ DATABANK S3 dispatched** (`afee5836975cedc36`) — the D-7 home tile per
   docs/design/databank-surface-spec.md; premise-re-verify first (3 prior databank premise-kills).
+- **⚠ GATE-IGNORE CLASS: "FULLY CLOSED" REFUTED — a 4th leg is in flight.** Verifier
+  `a8fed8ee2276a7c1e` CONFIRMED the 14 converted gates (3 spot-checks incl. the over-exempt property
+  at same-line granularity; kept-arms correctly §1-sanctioned; expect.token discriminates) but
+  REFUTED the closure: **4 more gates** the closing sweep's regex missed (`no-vanity-alias` — proven
+  behaviorally: a CORRECT marker double-reds · `chat-viewer-plane-canon-reads` ·
+  `ui-skin-fragment-purity` · `no-inline-union-redecl`), found via a stronger tell (column DERIVED
+  from a node). Two hand-sweeps have each missed members → the fix lane
+  (`aa3ff1114d475654b`) converts the 4 AND builds a STRUCTURAL TRIPWIRE (self-test AST scan of gate
+  sources w/ sanctioned-escape grammar) whose first run IS the exhaustive census of the ~171-call
+  tail. The class closes when it's unmakeable, not re-swept.
+- **✅ TAG-WANTS: PREMISE-DEAD, correctly refused** (merge `d759eb354`, tests-only) — ALL THREE
+  ranked wants from the TAGDIG audit shipped 5 days ago in `fb3cf32af` (sort mode w/ used-default ·
+  the inline autocomplete picker · three-state exclusion) + TAGUX hardening; the audit doc's status
+  is STALE. Two brief clauses were ruled the other way pre-dispatch with measured receipts
+  (exact-match ENDS suggesting; the popup was deleted for a P0). The lane closed the one real gap:
+  the coarse OPTION-ROW touch floor had no proof (the suite's non-coverage note excused the
+  component, true of the FIELD, false of the ROW) — class-level fix + positive control. Lesson: a
+  non-coverage row must name the ELEMENT it excuses, not the component.
 - **✅ SMALLS-1 MERGED `208abac21`** (10 files): gate-ignore now LIVE on platform-spellings (node
   overload + arm tokens + the `expect.token` conformance widening — probe matrix incl. SKIPPED-on-
   marker, dead-position still-RED, malformed still-RED; caught its own module-cache instrument lie) ·
