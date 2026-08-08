@@ -34,6 +34,8 @@ export type {
   SnapshotParams,
   UpdateCharacterParams,
 } from "./contract/params.ts";
+// The two refinery-consumed ops (R1) — factories here, types in contract/refinery-ops.ts, wired at compose.
+export type { LoadOwnedCardOp, RefinerySignalsPatch, StampRefinerySignalsOp } from "./contract/refinery-ops.ts";
 export type {
   CharacterRef,
   GeneratedGreeting,
@@ -50,6 +52,7 @@ export type {
 export type { CharacterDetail, CharacterSummary } from "./contract/views.ts";
 export { createLinkCharacterAvatars } from "./persistence/avatar-link-write.ts";
 export { createCopyHandoffCards } from "./persistence/handoff-copy-write.ts";
+export { createLoadOwnedCard, createStampRefinerySignals } from "./persistence/refinery-ops.ts";
 export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder/index.ts";
 export {
   CARD_PACK_VERSION,

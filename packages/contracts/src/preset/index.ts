@@ -98,6 +98,9 @@ export const SIDE_GEN_KINDS = [
   "greeting_studio",
   "autobg",
   "caption",
+  "refine_score",
+  "refine_rewrite",
+  "refine_analyze",
 ] as const satisfies readonly string[];
 export type SideGenKind = (typeof SIDE_GEN_KINDS)[number];
 
@@ -141,6 +144,14 @@ export const SIDE_GEN_POSTURES = {
   // Vision caption: an EMPTY floor — the caption call historically passed NO sampling options (the backend
   // defaults stood). An empty posture is the honest encoding; the caller's preset params CAN now reach it.
   caption: {},
+  // ── Refinery stage floors (R1 — docs/design/refinery-r0.md §9.7; study §5.3's values). The caller is
+  //    always the card owner, so the preset-params rung ALWAYS applies (no mixed-owner batch arm here). ──
+  // Score: near-deterministic critique, budgeted for the per-field payload (bigger than distill's facets).
+  refine_score: { temperature: 0.2, maxOutputTokens: 768 },
+  // Rewrite: the one CREATIVE stage — card prose, the largest budget of the three.
+  refine_rewrite: { temperature: 0.7, maxOutputTokens: 2048 },
+  // Analyze: a grounded drift comparison — short, structured, near-deterministic.
+  refine_analyze: { temperature: 0.3, maxOutputTokens: 512 },
 } as const satisfies Record<SideGenKind, SideGenPosture>;
 // biome-ignore-end lint/style/useNamingConvention: the map key IS the SideGenKind string (snake_case vocabulary)
 

@@ -19,6 +19,9 @@ import type { ModelId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
+// The refinery prose slot table (R1) — composed into `PROSE_SLOTS` by `#prose` through this front door.
+export { REFINERY_PROSE_SLOTS } from "./prose.ts";
+
 // The extension's 1-10 rubric ("Rate this character card on a scale of 1-10"; the soul check is the
 // same scale). Non-int: the overall score is a weighted average. Post-parse zod is the belt the
 // per-wire scrubs cannot lose.
@@ -75,6 +78,10 @@ export const refineryVerdictSchema = z.enum(REFINERY_VERDICTS);
 export const REFINERY_SESSION_STATUSES = ["active", "completed", "abandoned"] as const;
 export type RefinerySessionStatus = (typeof REFINERY_SESSION_STATUSES)[number];
 export const refinerySessionStatusSchema = z.enum(REFINERY_SESSION_STATUSES);
+
+/** The coded reason for a stage run refused out of order (analyze with no rewrite to judge; a refinement
+ *  round with no analyze to refine against). The client reads it off the BAD_REQUEST error body. */
+export const REFINERY_STAGE_NOT_READY_REASON = "refinery_stage_not_ready";
 
 // ── F4 stage modes (per-stage prompt-variant enums; the extension's 8 builtin presets ARE these) ────────
 
@@ -267,6 +274,10 @@ const refineryRunBaseSchema = z.object({
   /** Provider-reported usage, or null when the backend reports none (stats parity). */
   promptTokens: z.number().int().min(0).nullable(),
   outputTokens: z.number().int().min(0).nullable(),
+  /** The keys the zod strip-mode parse silently REMOVED from the model's payload — dotted paths, never
+   *  content (the strip-and-itemize posture: an invented key must appear in the run record instead of
+   *  vanishing into a success; security pass §1 gap 5 / belt 6). Empty = the payload was shape-clean. */
+  strippedKeys: z.array(z.string()),
   createdAt: z.number().int(),
 });
 

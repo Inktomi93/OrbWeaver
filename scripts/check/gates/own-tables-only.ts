@@ -84,14 +84,6 @@ const SCHEMA_OWNERS: ExemptionTable<ExemptionRow & { readonly owners: readonly s
     owners: ["assets"],
     why: "a satellite table of the assets producer — the same mapping `db-structure`'s NON_DOMAIN_PRODUCERS makes (gallery → domain/assets).",
   },
-  refinery: {
-    owners: ["refinery"],
-    why:
-      "refinery R0 (docs/design/refinery-r0.md): the sessions/runs DDL rides the baseline squash AHEAD of " +
-      "its producer — `domain/refinery` is R1, gated behind the mandatory security-executor pass. The row " +
-      "pre-names that one producer (db-structure's BASELINE_RIDER_PRODUCERS twin); R1 DELETES both — the " +
-      "moment the domain dir exists, the default same-named derivation makes this row redundant.",
-  },
   "sdk-session": {
     owners: [],
     why:

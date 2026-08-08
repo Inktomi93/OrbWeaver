@@ -16,6 +16,7 @@ import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { z } from "zod";
+import { addSpanEvent } from "#foundation/observability";
 import { AssetNotFoundError } from "../contract/errors.ts";
 import type { SnapshotSummary } from "../contract/results.ts";
 import type { CharacterDetail, CharacterSummary } from "../contract/views.ts";
@@ -26,7 +27,27 @@ type CharacterRow = typeof characters.$inferSelect;
 type AssetRow = typeof assets.$inferSelect;
 
 const depthPromptParser = cardDepthPromptSchema.nullable().catch(null);
-const refineryParser = refinerySignalsSchema.nullable().catch(null);
+// The refinery-signals READ heal — FIELD-LEVEL, never whole-object (security pass §1 gap 2): the two
+// halves have independent producers (score runs stamp `score`, analyze runs stamp `analysis`), so one
+// arm's drift must never wipe the other. The measured pre-fix failure: `{score: 8, analysis: <legacy>}`
+// healed to null — the stamped score DELETED on read, silently. Each arm now heals to null OBSERVABLY
+// (D112 banned-silent-fork; `addSpanEvent` is a no-op outside an active span), and the outer catch
+// survives only for the not-an-object / null-column case. The contracts schema stays STRICT (it is the
+// validity authority — the 1-10 score tightening landed in the SAME change as this split, the pass's
+// ordering condition).
+export const refinerySignalsReadParser = z
+  .object({
+    score: refinerySignalsSchema.shape.score.catch(() => {
+      addSpanEvent("character.refinery.heal", { arm: "score" });
+      return null;
+    }),
+    analysis: refinerySignalsSchema.shape.analysis.catch(() => {
+      addSpanEvent("character.refinery.heal", { arm: "analysis" });
+      return null;
+    }),
+  })
+  .nullable()
+  .catch(null);
 const extensionsParser = z.record(z.string(), z.unknown()).nullable().catch(null);
 const residualDataParser = z.record(z.string(), z.unknown()).nullable().catch(null);
 
@@ -368,7 +389,7 @@ export function cardOf(src: CharacterCard): CharacterCard {
     extensions: extensionsParser.parse(src.extensions),
     residualData: residualDataParser.parse(src.residualData),
     avatarAssetId: src.avatarAssetId,
-    refinery: refineryParser.parse(src.refinery),
+    refinery: refinerySignalsReadParser.parse(src.refinery),
   };
 }
 

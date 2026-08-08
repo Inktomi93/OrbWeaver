@@ -300,6 +300,180 @@ R1 = `domain/refinery` per the study §5.3, riding this foundation:
 
 ## 8. Floors run (receipts in the lane report)
 
+> §8 closed R0. Everything below is the R1 leg (same lane, post-merge `b7ca6d55a`, post-security-pass
+> `d8674e83a`), designed against
+> [the security pass](../reviews/security/2026-08-08-refinery-r0-security-pass.md) §4's belt list.
+
+## 9. R1 — the engine (`domain/refinery`), designed
+
+### 9.1 Scope
+
+`domain/refinery` (8-slot template) + the compose/transport wiring + the character-side belts the pass
+prescribed. NOT in R1: the client surface (R3), sorts/dossier/workload sweep (R4), NL→schema (SF),
+portability rows (§3.E: nothing owed — FK-inherited tables ride their character).
+
+### 9.2 Verbs (`contract/service.ts` is the authority; every belt cites its § in the pass)
+
+| Verb | Contract | Belts |
+| - | - | - |
+| `startSession {principal, characterId, name?}` | snapshot the card into `original_card` via the injected `loadOwnedCard` (leak-free NOT_FOUND when undefined); selection defaults to the card's POPULATED refinable fields; `DEFAULT_REFINERY_STAGE_CONFIG`; name via `refinerySessionNameSchema` | §3.E ownership-first |
+| `getSession` / `listSessions` / `listRuns` | reads scope through the character join (`persistence/queries.ts` carries the owner predicate in the WHERE — the `ensureCharacterOwned` shape); `listSessions` computes `latestVerdict` (newest analyze run per session); `listRuns` is the D62 CONTEXT ledger read | §3.E; run reads ONLY via sessionId |
+| `updateSession {sessionId, patch}` | patch = name?/guidance?/selection?/stageConfig?/status? — parsed through the R0 schemas (`refineryGuidanceSchema`, `refinerySelectionSchema`, `refineryStageConfigSchema`); **collapses the study's `renameSession`** (one patch verb, the `updateCharacterSchema` precedent — rename alone cannot serve the D62 Setup tab, which edits modes/selection/guidance) | §1 gap 4 |
+| `deleteSession {sessionId}` | owner-belted delete; runs cascade | §3.E |
+| `runStage {sessionId, stage}` | the engine (§9.4): prompt → summarize+ResponseFormat → null-drop parse → run row (+ `strippedKeys`) → signal stamp (score/analyze) → `updatedAt` | §4 items 1-7, 14 |
+| `iterate {sessionId, guidance?}` | guidance parsed+persisted; refinement REWRITE (the `refine.system` slot + latest analyze feedback in-context) then ANALYZE; `iterationCount++`. Requires a latest analyze run (typed `RefineryStageNotReadyError` otherwise — the loop refines, it does not start) | anti-drift §4.3 |
+| `applyFields {sessionId, accepts: [{field, greetingIndex?}]}` | §9.5 — the sharp end | §4 items 8-13 |
+
+Stage preconditions: `analyze` requires a latest rewrite run; `rewrite` embeds the latest score run when
+one exists (context, not a requirement); `score` requires nothing. `applyFields` stamps
+`status:"completed"`; a later `runStage`/`iterate` stamps it back `"active"` (status is a roster label,
+never a lock). Double structured failure = typed `RefineryRunFailedError` — never a fallback write (§4.7).
+
+### 9.3 Context / injected ops (all typed in `contract/service.ts`, wired at `entry/compose/refinery.ts`)
+
+`db · now · newRefinerySessionId · newRefineryRunId · summarize · summarizerModel ·
+resolveUserPresetParams · resolveUserProse` (the distill rung, verbatim) plus four character ops:
+
+- `loadOwnedCard(ownerId, characterId) → CharacterCard | undefined` — NEW character persistence factory
+  (`character/persistence/card-read.ts`, wrapping `loadOwnedCharacterRow` + `cardOf` so the card
+  projection stays one-homed; the `createLinkCharacterAvatars` worked-example pattern).
+- `stampRefinerySignals({ownerId, characterId, patch: {score} | {analysis}})` — NEW character persistence
+  factory (`character/persistence/refinery-signals-write.ts`): read-merge-write of the JSON column with
+  the owner predicate IN THE WHERE (injected-op-caller-gate — dropping the caller is a cross-tenant hole).
+  A score run stamps the score half (its `overallScore`); an analyze run stamps the analysis half — the
+  two halves have independent producers (the pass's own gap-2 rationale; refines the study's F6 sentence,
+  which pre-dated the payload split).
+- `snapshotCharacter` = `CharacterService["snapshot"]` (label `"auto: before refinery apply"` — the
+  `restore.ts` reversibility precedent, §4.13).
+- `updateCharacter` = `CharacterService["update"]` (the full character belt runs inside the verb).
+
+### 9.4 The engine (`runStage` + substrate)
+
+- **Prompt assembly** (`substrate/refine-prompt.ts`, pure): system = `resolveProseText` of the stage
+  SYSTEM slot (refinement rewrites use `refinery.refine.system`); instructions = the (stage × mode)
+  INSTRUCTION slot; user = engine-CONCATENATED sections — card fields (selected only, per-greeting by
+  index, `## <field>` headers), score context (rewrite), original-vs-rewrite (analyze — ALWAYS
+  `original_card`, §4.3), guidance last. **No truncation** — a rewrite must see whole fields; the posture
+  caps output, a context overflow surfaces as the provider's typed error (the extension's token-fit
+  warning is R3's read-only I4).
+- **Belt 5 — BY CONSTRUCTION, deviation flagged (SendMessage'd):** no refinery string ever enters the
+  macro engine (slots are `macros:"none"`; the user prompt is concatenated, never
+  `spliceProseTokens`-spliced — that helper is a sequential replace, an injection surface for values
+  carrying token syntax). The pass's §3.C prescription is CONDITIONED on "runs the assembled string
+  through the macro engine"; here that path does not exist. `neutralizeMacros` on card text would
+  actively CORRUPT the product: ZWSP-split braces ride the model's rewrite back through `applyFields`
+  into canon, killing the card's own `{{char}}`/`{{user}}` macros at chat time. Pinned by a substrate
+  test: prompt output carries the card's `{{…}}` bytes VERBATIM (no ZWSP), and the domain imports no
+  macro engine (grep receipt in the report).
+- **Parse** (`substrate/stage-parse.ts`): per-call `z.preprocess` wrapper — `dropNullValues` (§3.B,
+  strict-compatible survival) + a capture taken AFTER the drop; `runStructuredTurn` with the
+  per-stage schema out of `REFINERY_STAGE_PAYLOADS` (§4.5); after success, `strippedKeys` = the dotted
+  paths present in the captured object but absent from the parsed value (paths only, never content —
+  §4.6). Capture-after-drop is deliberate: an explicit null under strict-compatible is the projection's
+  encoding of ABSENT, not an invented key — itemizing it would stamp every legitimate run on that
+  deployment and drown the tamper signal (only schema-unknown keys itemize; pinned in the substrate
+  test); retry observability via a refinery-local `traceStructuredRetry` twin (same
+  `provider.structured.retry` event + shape as discovery's — its header's one-home claim is per-domain
+  lane vocabulary, cited in the file).
+- **Run row**: stage, iteration (the session's counter at run time), `payload_config` (the in-force arm),
+  payload, `strippedKeys` (NEW COLUMN — the coordinator's belt 6 homes the itemization in the run
+  RECORD; baseline re-squashed), model (`summarizerModel`, castId at the boundary), prompt/output tokens
+  null v1 (the summarize result carries no usage — "absent when the backend reports none" is the R0
+  column's own contract).
+
+### 9.5 `applyFields` (the sharp end, §4.8-13 in order)
+
+ownership belt → load the latest REWRITE run (none = typed not-ready) → per-entry intersection:
+`accepts ∩ run.payload.fields ∩ session.selection ∩ REFINABLE_FIELDS` → greeting-index assert against
+the LIVE card (`greetingIndex` present ⇔ `field === "greetings"`, `< card.greetings.length` — a greeting
+deleted since session start is DROPPED, never re-created; §1 gap 3 verb-tier ruling) → dropped entries
+itemized `{field, greetingIndex?, reason}` in the RESULT (per-entry salvage, never a whole-payload
+refusal) → build the patch (greetings = the live array with accepted indexes replaced) →
+**`updateCharacterSchema.parse` on the constructed patch** (§3.A; the `domain/import/substrate/card.ts:192`
+precedent, cited in the verb header) → `snapshotCharacter("auto: before refinery apply")` →
+`updateCharacter` → stamp `status:"completed"`.
+
+### 9.6 Character-side belts (same lane, distinct files)
+
+1. **The heal split + score tightening, ONE change** (§1 gap 2's ordering condition): contracts
+   `refinerySignalsSchema.score` gains `.min(1).max(10)` (STRICT — the contract stays the validity
+   authority); the READ SEAM (`character/persistence/queries.ts`) replaces the whole-object
+   `refinerySignalsSchema.nullable().catch(null)` with a FIELD-LEVEL healing parser — per-arm
+   `.catch((ctx) => { addSpanEvent("character.refinery.heal", {arm}); return null; })` + the outer
+   `.nullable().catch(null)` kept only for the not-an-object case. Healing is thereby observable
+   (D112 banned-silent-fork) and one arm's rot can never cost the other. Red-first: the pass's measured
+   `{score: 8, analysis: legacy} → null` case becomes the pin (old parser observed deleting the score;
+   new parser preserves it).
+2. **Handoff clear** (§3.D, coordinator DEFAULT accepted): `handoff-copy-write.ts` sets
+   `refinery: null` on the minted copy, header states the ruling (derived data; the old host's private
+   critique; possibly echoing the old host's guidance), pinned beside the existing copy assertions.
+   Owner may override — flagged in the report.
+
+### 9.7 Prose slots (12) + postures (3)
+
+- **Slots** (`contracts/refinery/prose.ts` table + `PROSE_SLOT_IDS` rows + the `contracts/prose`
+  composition spread + `prose-baseline.json` entries via `scripts/check/gen-prose-baseline.ts`): four
+  stage-SYSTEM slots (`refinery.score.system`, `.rewrite.system`, `.refine.system`, `.analyze.system`)
+  + eight (stage × mode) INSTRUCTION slots (`refinery.score.mode.full`/`.quick`,
+  `refinery.rewrite.mode.conservative`/`.balanced`/`.expansive`,
+  `refinery.analyze.mode.full`/`.iteration`/`.quick`). That is F4's own arithmetic — the extension's 8
+  builtins ARE the mode bodies, and PROSE-1's one-override-per-slot is the sanctioned tuning surface
+  (the study's 4-slot list pre-dated F4's signing). All `home:"user"` (§3.G — beside the discovery
+  cohort; the USER_PROSE_SLOT_IDS derivation makes them reach the Prose editor the same commit, zero
+  client work), `macros:"none"`, baselines seeded from the extension corpus (`defaults.ts:35-233`) —
+  **owner-sacred: the texts ship as baselines for the owner to sign/veto**, flagged in the report.
+  The engine maps (stage, mode, isRefinement) → slot id through an exhaustive mapped Record.
+- **Postures** (`contracts/preset`): `refine_score {0.2, 768}` · `refine_rewrite {0.7, 2048}` ·
+  `refine_analyze {0.3, 512}` (study §5.3 values) — SideGenKind members + posture rows (`satisfies`
+  makes a missing arm tsc-RED); resolved per call via `resolveSideGenSampling(floor, ownerPresetParams)`
+  — the caller is always the card owner, so the preset rung ALWAYS applies (no mixed-owner arm here,
+  unlike distill's library batch).
+
+### 9.8 Coupled sites (the seven + this lane's own)
+
+Services type (`transport/trpc/context.ts`) · `entry/compose/refinery.ts` + the `services.ts` call ·
+`services.test.ts` SERVICE_KEYS ("refinery", sorted) · tRPC `routers/refinery.ts` + root-router row ·
+cross-tenant sweep: a seeded marker session + a probe per procedure (the completeness guard forces it) ·
+**delete BOTH pre-producer gate rows** (db-structure BASELINE_RIDER — self-flagging — and own-tables-only
+SCHEMA_OWNERS.refinery — silent) · prose composition spread + baseline json + the prose contract test's
+slot census (if it counts) · `SIDE_GEN_KINDS` consumers sweep (repo-grep, shared-value law) ·
+`refinery_runs.strippedKeys` = contracts run view + db column + baseline re-squash + the R0 db/contract
+tests updated · workload-contributions: ABSENT BY DESIGN in R1 (no refinery workload kind until R4; five
+existing domains ship without the file — persona/tag/settings/sessions/preset all lack it).
+
+### 9.9 Test plan (mirror paths; presence-gated surfaces each get their file)
+
+- Per-verb `.int.test.ts` (freshDb + a scripted `summarize` stub injected through the ctx — the
+  mock-at-the-edges doctrine): happy path + the belt each verb owes (foreign session → NOT_FOUND
+  identical to absent; stage-not-ready; per-entry drops itemized; the apply re-parse refusing an
+  over-cap text; snapshot-before-update ordering; stamp halves independent).
+- `contract/` schemas → `.contract.test.ts` (params/errors round-trip).
+- Substrate units: prompt bytes verbatim (the belt-5 pin: `{{char}}` survives un-ZWSP'd), anti-drift
+  (analyze prompt contains ORIGINAL bytes, not the previous rewrite), stage-parse null-drop +
+  stripped-keys capture (planted junk key → itemized; explicit null → survives parse).
+- Character side: the heal-split red-first pin (`{score:8, analysis:junk}` preserved-score), the handoff
+  clear pin, the stamp WHERE-belt (foreign ownerId writes nothing).
+- Sweep: marker-named session/run seeds + probes for every refinery procedure.
+- Conformance: `check-gates.int` + `gate-conformance.int` after the two row deletions; prose baseline
+  test; `tests/contracts/preset` posture census if one asserts.
+
+### 9.10 What the post-R1 reviews should attack (the graduation brief)
+
+**verifier:** the apply intersection algebra (accepts ∩ payload ∩ selection ∩ live-card indexes — four
+sets, off-by-one surface); the heal split's arm independence under real drift shapes; latestVerdict
+join correctness; the iterate two-run transaction (rewrite lands, analyze fails — is the state honest?).
+**security-executor:** the belt-5 by-construction claim — WHY it replaced the letter: `neutralizeMacros`
+ZWSP-splits braces, the model echoes them into its rewrite, `applyFields` writes that rewrite into
+canon, and the card's own `{{char}}`/`{{user}}` are then dead at chat time (the macro engine no longer
+matches the ZWSP-split token) — the letter was a canon-corruption path. The construction to attack:
+can card bytes reach ANY macro-RESOLVING path downstream (viewers, replays, exports, a future
+`spliceProseTokens` call in a refinery template)? The substrate pin holds both drift directions
+(a seeded `{{char}}` reaches the assembled prompt VERBATIM — unresolved AND un-neutralized), and the
+domain carries zero macro-engine imports (two-method grep receipt in the lane report); the
+stamp op's WHERE belt; the sweep's refinery rows; prompt-injection steering `applyFields` outside the
+accept set (belt 9/10's intersection is the defense — try to widen it); the run-row strippedKeys never
+carrying content.
+
 Named suites cold: the two new tests + the two updated tests + kit/ids tests + serde card test +
 tooling gate suites; `pnpm check:structure`; `pnpm check:db-baseline` + `pnpm check:drizzle-kit`;
 `pnpm typecheck` + `pnpm typecheck:graph` (tests/ touched); scoped biome + eslint; whole-tree knip;

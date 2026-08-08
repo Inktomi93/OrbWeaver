@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2005d0d5-2aa0-4b0b-8efe-1c5a1e064386",
+  "id": "9f03b256-f073-40bb-887f-2d15e4ce56e4",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "tables": {
     "assets": {
@@ -5002,6 +5002,14 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "stripped_keys": {
+          "name": "stripped_keys",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'[]'"
         },
         "created_at": {
           "name": "created_at",

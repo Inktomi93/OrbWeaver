@@ -104,6 +104,22 @@ export const PROSE_SLOT_IDS = [
   "discovery.compare.system",
   "discovery.ask.system",
   "discovery.distill.system",
+  // ── per-USER: the refinery pipeline prompts (R1 — docs/design/refinery-r0.md §9.7): four stage-SYSTEM
+  //    slots (`refine` = the refinement-rewrite system) + the eight F4 (stage × mode) instruction bodies.
+  //    All `macros:"none"` BY LAW (belt 5 by-construction): refinery prompts never enter the macro engine,
+  //    so card-text `{{…}}` rides to the model verbatim and applied rewrites keep their macros intact. ──
+  "refinery.score.system",
+  "refinery.rewrite.system",
+  "refinery.refine.system",
+  "refinery.analyze.system",
+  "refinery.score.mode.full",
+  "refinery.score.mode.quick",
+  "refinery.rewrite.mode.conservative",
+  "refinery.rewrite.mode.balanced",
+  "refinery.rewrite.mode.expansive",
+  "refinery.analyze.mode.full",
+  "refinery.analyze.mode.iteration",
+  "refinery.analyze.mode.quick",
   // ── per-PRESET: the game-turn steering-reminder TEACHES (census 1-7) — stored in `promptConfig.prose`,
   //    authored in the preset Templates tab, and threaded to `LiteReminderInput.prose` by chat's rpg gather
   //    args (`domain/rpg/substrate/reminder.ts` resolves them). `names-only` macro mode (§6.1): a host

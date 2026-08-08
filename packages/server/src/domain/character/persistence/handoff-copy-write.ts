@@ -109,6 +109,12 @@ export function createCopyHandoffCards(ctx: CharacterHandoffCopyContext): CopyHa
           // The provenance stamp IS the idempotency key (`duplicate` deliberately clears provenance; a
           // handoff copy deliberately carries it). `importHash` stays null — there were no import bytes.
           importedFrom: handoffProvenance(chatId, source.id),
+          // RULING (security pass §3.D, refinery R1): the refinery signals do NOT cross the owner
+          // boundary — they are the OLD host's private quality judgement (the analysis may echo their
+          // session `guidance`), derived data the new owner regenerates in one run. Every other
+          // cross-boundary path already clears them (serde nulls `refinery` on the card wire; only
+          // same-owner `duplicate` carries them), so the spread above must not be the one exception.
+          refinery: null,
           createdAt: at,
         });
         return { sourceCharacterId: source.id, characterId: newId, minted: true };

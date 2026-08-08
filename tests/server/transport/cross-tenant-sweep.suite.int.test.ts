@@ -24,6 +24,7 @@ import type {
   MessageId,
   PersonaId,
   PresetId,
+  RefinerySessionId,
   RegexScriptId,
   RpgCheckpointId,
   RpgJournalId,
@@ -72,6 +73,9 @@ const MARK = {
   rpgJournal: "AlphaSecretJournal",
   rpgCheckpoint: "AlphaSecretCheckpoint",
   regexScript: "AlphaSecretRegexScript",
+  // The refinery session's NAME — a leaked SessionView/summary carries it verbatim (R1: sessions derive
+  // ownership through the character join, D23 — no ownerId column, so the join IS the belt under probe).
+  refinerySession: "AlphaSecretRefinery",
 } as const;
 const MARKERS = Object.values(MARK);
 
@@ -98,6 +102,9 @@ interface OwnerIds {
   rpgJournalId: RpgJournalId;
   rpgCheckpointId: RpgCheckpointId;
   regexScriptId: RegexScriptId;
+  // refinery (R1) — A's real session id; every session verb derives ownership through the character join
+  // (D23, no ownerId column), so a stranger passing it must collapse to leak-free NOT_FOUND.
+  refinerySessionId: RefinerySessionId;
 }
 
 /** tRPC's cross-realm error duck-type (matchers.ts precedent): an Error named "TRPCError" with a code. */
@@ -161,6 +168,24 @@ const FAKE = {
 } as const;
 
 const PROBES: readonly Probe[] = [
+  // ── refinery (R1: ownership DERIVES through the character join — D23, no ownerId column; every probe
+  //    must collapse to leak-free NOT_FOUND BEFORE any model call, so no stage probe ever reaches the
+  //    summarize role). `startSession` takes A's CHARACTER id; the rest take A's session id; a leaked
+  //    view carries MARK.refinerySession (the name) and MARK.character (inside the anchor card). ──
+  { path: "refinery.startSession", call: (c, i) => c.refinery.startSession({ characterId: i.characterId }) },
+  { path: "refinery.getSession", call: (c, i) => c.refinery.getSession({ sessionId: i.refinerySessionId }) },
+  { path: "refinery.listRuns", call: (c, i) => c.refinery.listRuns({ sessionId: i.refinerySessionId }) },
+  {
+    path: "refinery.updateSession",
+    call: (c, i) => c.refinery.updateSession({ sessionId: i.refinerySessionId, patch: { name: "hacked" } }),
+  },
+  { path: "refinery.deleteSession", call: (c, i) => c.refinery.deleteSession({ sessionId: i.refinerySessionId }) },
+  { path: "refinery.runStage", call: (c, i) => c.refinery.runStage({ sessionId: i.refinerySessionId, stage: "score" }) },
+  { path: "refinery.iterate", call: (c, i) => c.refinery.iterate({ sessionId: i.refinerySessionId }) },
+  {
+    path: "refinery.applyFields",
+    call: (c, i) => c.refinery.applyFields({ sessionId: i.refinerySessionId, accepts: [{ field: "description" }] }),
+  },
   // ── character (owner-scoped) ──
   { path: "character.get", call: (c, i) => c.character.get({ characterId: i.characterId }) },
   {
@@ -1013,6 +1038,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "chat.reapTemporaryChats": "self-scoped maintenance: no input at all — sweeps only the CALLER's own expired temp chats (matrix: non-chat-scoped)",
   "character.create": "self-scoped: creates the caller's own row",
   "character.list": "self-scoped: lists the caller's own rows",
+  "refinery.listSessions":
+    "self-scoped: the roster reads through the caller's OWN character join (no id input); a stranger's roster is [] — proven in list-sessions.int.test.ts",
   "persona.create": "self-scoped",
   "persona.list": "self-scoped",
   "persona.import": "self-scoped: imports into the caller's own namespace",
@@ -1229,6 +1256,9 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     });
     const tag = await owner.tag.createTag({ input: { name: MARK.tag } });
     const snapshot = await owner.character.snapshot({ characterId: character.id });
+    // A refinery session on A's character (front door) — its NAME is A's marker; the anchor card inside
+    // carries A's character marker too, so a leaked SessionView betrays itself twice.
+    const refinerySession = await owner.refinery.startSession({ characterId: character.id, name: MARK.refinerySession });
 
     // The credential is seeded DIRECTLY — the `app` fixture's SecretBox is keyless (CREDENTIALS_KEY unset),
     // so the front-door `credentials.add` is disabled. The ownership probes never decrypt; they gate on the
@@ -1389,6 +1419,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       rpgJournalId,
       rpgCheckpointId,
       regexScriptId,
+      refinerySessionId: refinerySession.id,
     };
   }
 
