@@ -38,6 +38,9 @@ export const rpgJournalTypeSchema = z.enum(RPG_JOURNAL_TYPES);
 /** Checkpoint trigger. Lite only ever writes `"manual"`; full ADDS the session/combat arms (additive
  *  tuple members — the reserved-vocabulary posture). */
 export const RPG_CHECKPOINT_TRIGGERS = ["manual"] as const;
+/** @public locked shape — derived from the live `RPG_CHECKPOINT_TRIGGERS` tuple (currently `["manual"]`
+ *  only); this type covers full's session/combat trigger arms, additive vocabulary shipped as data from day
+ *  one ahead of the full-mode graft (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RpgCheckpointTrigger = (typeof RPG_CHECKPOINT_TRIGGERS)[number];
 export const rpgCheckpointTriggerSchema = z.enum(RPG_CHECKPOINT_TRIGGERS);
 
@@ -58,12 +61,18 @@ export const rpgTrackerShapeSchema = z.enum(RPG_TRACKER_SHAPES);
  *  `{key, value}`). It drives the tool arg shape, the model's mental model, and the panel read (a bar you
  *  drain vs a gauge that tracks). */
 export const RPG_TRACKER_WRITES = ["delta", "set"] as const;
+/** @public locked shape — derived from the live `RPG_TRACKER_WRITES` tuple, which `rpgTrackerWriteSchema` and
+ *  the tool-arg shape selection read directly; this type is the `delta`/`set` discrimination surface the
+ *  not-yet-built tracker-write consumers key off (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RpgTrackerWrite = (typeof RPG_TRACKER_WRITES)[number];
 export const rpgTrackerWriteSchema = z.enum(RPG_TRACKER_WRITES);
 
 /** A tracker's SUBJECT — `actor` (per-carrier, resolved through `appliesTo`+grants−revokes) or `game` (ONE
  *  value on the snapshot; the old game-scoped widgets, no carrier resolution). */
 export const RPG_TRACKER_SUBJECTS = ["actor", "game"] as const;
+/** @public locked shape — derived from the live `RPG_TRACKER_SUBJECTS` tuple, which `rpgTrackerSubjectSchema`
+ *  and the tracker carrier-resolution code read directly; this type is the full-mode `game`/`actor`-subject
+ *  discrimination surface the not-yet-built tracker consumers key off (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RpgTrackerSubject = (typeof RPG_TRACKER_SUBJECTS)[number];
 export const rpgTrackerSubjectSchema = z.enum(RPG_TRACKER_SUBJECTS);
 
@@ -81,6 +90,9 @@ export const rpgTrackerCarrierClassSchema = z.enum(RPG_TRACKER_CARRIER_CLASSES);
  *  schema-enforcing backend, §2.3) but CAN reach anything through `{kind:"custom", label:"…"}`. */
 export const RPG_RELATIONSHIP_KINDS = ["lover", "friend", "ally", "neutral", "enemy", "custom"] as const;
 export type RpgRelationshipKind = (typeof RPG_RELATIONSHIP_KINDS)[number];
+/** @public locked shape — the zod counterpart of the live `RPG_RELATIONSHIP_KINDS` tuple, whose current
+ *  consumers (`rpgRelationshipSchema` et al.) read the tuple/`RpgRelationshipKind` type directly; kept for the
+ *  wire-validation surface a future relationship-write endpoint uses (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export const rpgRelationshipKindSchema = z.enum(RPG_RELATIONSHIP_KINDS);
 
 /** P5 — what a CYOA choice CLICK does (§5.4). `compose` = the option text lands in the composer DRAFT + the
@@ -90,4 +102,7 @@ export const rpgRelationshipKindSchema = z.enum(RPG_RELATIONSHIP_KINDS);
  *  knob only shapes the click handler's behavior. */
 export const RPG_CYOA_CHOICE_BEHAVIORS = ["compose", "send"] as const;
 export type RpgCyoaChoiceBehavior = (typeof RPG_CYOA_CHOICE_BEHAVIORS)[number];
+/** @public locked shape — the zod counterpart of the live `RPG_CYOA_CHOICE_BEHAVIORS` tuple, whose current
+ *  consumers read the tuple/`RpgCyoaChoiceBehavior` type directly; kept alongside its sibling schemas for the
+ *  wire-validation surface a future CYOA-behavior write path uses (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export const rpgCyoaChoiceBehaviorSchema = z.enum(RPG_CYOA_CHOICE_BEHAVIORS);
