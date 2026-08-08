@@ -35,9 +35,13 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
   initiatives to CLOSED; the original three-cap came from "six ate our usage too fast" — five is the
   tested ceiling, six is not). **ONE COMMIT per lane**, terse
   message drafted in seconds; receipts go in the final report, never the commit message.
-- **Merges** `--no-ff --no-verify` on branch-side hook-green receipts — BUT any branch certified
-  BEFORE sibling merges landed gets a consolidated `pnpm check` on the merged result (caught reds
-  three separate nights). Merge → SEPARATE verify call → THEN teardown, never chained. `git -C <ABSOLUTE-main-path>` on every merge/verify command.
+- **Merges FAST-FORWARD to main (owner ruling 2026-08-08, supersedes --no-ff):** REBASE the lane's
+  single commit onto CURRENT main in its worktree (`git -C <wt> rebase main`), resolve any conflict
+  THERE (never on main), then `git -C <main> merge --ff-only <branch>`. Linear history, no merge
+  commits, conflicts caught in the worktree not half-baked on main (which cost two delta-patch
+  recoveries + several conflict resolutions on 2026-08-08). Still: any branch certified BEFORE sibling
+  merges landed gets a consolidated `pnpm check` on the FF'd result; verify → teardown, never chained;
+  `git -C <ABSOLUTE-main-path>` on every command. The rebase changes the lane's SHA — track the new tip.
 - **GRADUATION NEEDS THE FRESH LENS, not just the static check (owner catch 2026-08-07 — a whole
   session of merges shipped without it):** every non-trivial merged work-stream gets a fresh-context
   `verifier` pass (code lens) and/or `side-eye` (rendered lens) BEFORE its row is called done —
@@ -575,6 +579,12 @@ security lens.
     lines are unexercised by the canon-identity seed test (a seed-coverage add).
   - Audit's stated residual risk: a follow-up flagged ONLY mid-transcript via SendMessage (not restated
     in the final report) — the one class the report-tail method can't catch.
+- **⚡ REFINERY R0 DISPATCHED (forge `a91b702e2d9ae545c`) — SEQUENCING FIX.** Owner signed off on the
+  refinery build; kickoff was wrongly gated behind the push. The push is origin-publish, NOT a build
+  dependency — the only real precondition (the NL→schema design) landed (`299fdc2d5` + shell audit
+  `8c6a16a72`). R0 = contracts+db foundation (F1 new domain/refinery · F3 fixed payloads · F4 stage
+  enums · F5 card-fields v1; verify the pre-built scaffold, add only what's missing, DB baseline
+  squash). Security-executor MANDATORY pre-R1 (untrusted-card→LLM→write-back). R1+ waits for R0's review.
 - **⚑ CONTAINERIZE → BUILD (owner: "put a forge on it… after having it look at the most recent docker
   capabilities + best practices, fully modern and proper").** Pipeline (forge has no web tools):
   (1) WEB-RESEARCH lane `abeb1d71601a7c8d7` → `docs/design/docker-modern-practices-research.md`
