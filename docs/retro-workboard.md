@@ -1200,9 +1200,19 @@ twice over, not once.
   CT already pins each step square (`button.ct.tsx:250-276`). The `!w-avatar-*` `<TrackerValue>` sites
   are a `#components` local, the gate's documented LIMIT-1 substituted-template family — separate matter.
   **GLYPHSWEEP now assessing the icon-seal doorways only (opportunities, not debt — bias to board).**
-- [ ] **ICON-SEAL-DOORWAYS** (M) — the OTHER four named-not-built follow-ups, all **zero-hit confirmed**:
-  `LucideProvider` at the client composition root · vector-effect CSS stroke route · the `iconNode`
-  door for brand glyphs · the `fillRule=evenodd` probe to grow the fillable set.
+- [x] ✅ **ICON-SEAL-DOORWAYS — ASSESSED BUILD-NONE (GLYPHSWEEP, 2026-08-07).** Full assessment:
+  `docs/reviews/misc/2026-08-07-icon-seal-doorways-assessment.md`. The load-bearing fact: every icon
+  renders through the `Icon` wrapper which passes size/stroke props explicitly, so any defaults mechanism
+  is DEAD. **`LucideProvider`** — redundant (the wrapper IS the defaults home; a provider is a competing
+  second source of truth — a durable design lesson) · **vector-effect** — no consumer (only matters for
+  CSS-transform-scaled icons; none exist; `absoluteStrokeWidth` covers the size-prop path) · **`iconNode`
+  door** — fights §13.9's hand-authored weave-glyph brand ruling + adds surface. All three SKIP. **Only
+  `fillRule=evenodd` survives as a boarded candidate** — cheap to probe but UNCERTAIN value (an
+  evidence-based gallery verdict), no named consumer; needs a side-eye look before it's worth building.
+  Recipe in the assessment doc.
+- [ ] **fillRule=evenodd fillable-set probe** (S, boarded from the above) — the one live icon-seal
+  candidate: probe whether `evenodd` grows the fillable icon set usefully; needs a side-eye gallery
+  verdict. Owner-optional; not debt.
 - [ ] **AGENT-1-PROGRAM** (L, owner-scoped) — agent-sdk first-class for rpg-lite, 5 named arms explicitly
   scoped-and-not-dispatched, ruled order 2→3→1→4.
 - [ ] **ZOD-STAGE-D — RULED 2026-08-07 (question-tool): LAND IN FULL** (stringbool / hostname /
