@@ -153,12 +153,9 @@ export const gate: GateDescriptor = {
     if (token === undefined || isSanctioned(rel(ctx, sf))) {
       return;
     }
-    ctx.report({
-      file: rel(ctx, sf),
-      line: node.getStartLineNumber(),
-      column: sf.getLineAndColumnAtPos(node.getStart()).column,
-      token,
-    });
+    // NODE overload (GATE-AUTHORING §1) — the token is the resolver NAME, which is both the arm's stable
+    // position and what a `// @orb-gate-ignore macro-resolution-home(resolveRowMacros): <reason>` names.
+    ctx.report(node, { token, offset: 0 });
   },
   // Fail-loud rename tripwire: a resolver renamed out from under this name-keyed gate would leave every
   // arm above matching nothing, forever green. Self-guards on a whole-project run (a `--changed` scope
@@ -167,6 +164,8 @@ export const gate: GateDescriptor = {
     if (ctx.scope.kind !== "project") {
       return;
     }
+    // THE SANCTIONED Finding overload (§1): this tripwire anchors on the GATE FILE, not on a source node —
+    // there is nothing to hang a marker off, and a blindness alarm must not be suppressible anyway.
     const sources = ctx.project.getSourceFiles().filter((sf) => DECLARED_IN.test(sf.getFilePath()));
     for (const name of RESOLVERS) {
       if (sources.some((sf) => sf.getFunction(name) !== undefined)) {
@@ -187,7 +186,7 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/preset/components/section-body-editor.tsx": IMPORT_AND_CALL,
       },
       // Both arms fire: the ImportSpecifier + the CallExpression.
-      expect: { count: 2, messageIncludes: "RAW template text" },
+      expect: { count: 2, token: "renderMessageForDisplay" },
       why: "a prompt-section EDITOR resolving its own field value — the corruption class verbatim (the saved template loses its {{tokens}})",
     },
     {
@@ -196,7 +195,7 @@ export const gate: GateDescriptor = {
         // No import at all — the symbol arrives via a re-export/rebind. The CALL arm still matches by name.
         "packages/client/src/features/chat/components/injections-manager.tsx": "declare function processMacros(): string;\nexport const V = processMacros();\n",
       },
-      expect: { count: 1, messageIncludes: "RAW template text" },
+      expect: { count: 1, token: "processMacros" },
       why: "the CALL arm matches by NAME — a barrel re-export / local re-binding cannot launder a resolver into an editor",
     },
     {

@@ -73,16 +73,12 @@ const FIX =
   "with computed fields), rename it so the collision stops lying — or take an ALLOWLIST row WITH that reason in " +
   "scripts/check/gates/contract-derives-not-respells.ts.";
 
-const RESPELL_MESSAGE = (name: string, domain: string): string =>
-  `\`${name}\` is re-declared here with a hand-written body, but @orb/contracts/${domain} already exports that ` +
-  `name — derive it (\`export type ${name} = …\` referencing the contracts export) instead of re-spelling it ` +
-  "(packages/contracts/src/" +
-  `${domain}/).`;
-
-const HANDROW_MESSAGE = (name: string, table: string, suffix: string): string =>
-  `\`${name}\` hand-spells the \`${table}\` row shape — derive it: \`export type ${name} = typeof ${table}.$infer` +
-  `${suffix === "Row" ? "Select" : "Insert"}\` (import the table from @orb/db). A hand copy silently rots when the ` +
-  "table grows a column (packages/db/src/schema/).";
+/** The ARM tokens. Each carries the offending SHAPE NAME, which is the arm's stable position AND the
+ *  identity a reader needs — `render.ts` prints the token, so putting the name there is strictly more
+ *  legible than the per-finding message it replaces (which the token already outranked whenever both were
+ *  set). The KIND prefix keeps the two arms distinguishable on one node. */
+const respellToken = (name: string): string => `respells "${name}"`;
+const handRowToken = (name: string): string => `hand-row "${name}"`;
 
 const STALE_ALLOW = (key: string): string =>
   `ALLOWLIST entry \`${key}\` no longer names a hand-spelled table-row shape (renamed, derived, or deleted) — ` +
@@ -174,7 +170,7 @@ function run(ctx: GateRunCtx): void {
     const rel = repoRel(sf.getFilePath());
     for (const shape of handWrittenShapes(sf)) {
       if (siblings.has(shape.name)) {
-        ctx.report({ file: rel, line: shape.node.getStartLineNumber(), column: 0, message: RESPELL_MESSAGE(shape.name, domain) });
+        ctx.report(shape.node, { token: respellToken(shape.name), offset: 0 });
         continue;
       }
       const match = matchedTable(shape.name, tables);
@@ -186,7 +182,7 @@ function run(ctx: GateRunCtx): void {
         seenAllowed.add(key);
         continue;
       }
-      ctx.report({ file: rel, line: shape.node.getStartLineNumber(), column: 0, message: HANDROW_MESSAGE(shape.name, match.table, match.suffix) });
+      ctx.report(shape.node, { token: handRowToken(shape.name), offset: 0 });
     }
   }
   reportStaleAllowlist(ctx, seenAllowed);
@@ -207,6 +203,8 @@ function reportStaleAllowlist(ctx: GateRunCtx, seen: ReadonlySet<string>): void 
     }
     const file = key.split("::")[0] ?? "";
     if (scanned.has(file) || realTree) {
+      // THE SANCTIONED Finding overload (§1): anchored on the GATE FILE, no source node, and a stale
+      // exemption must not be suppressible.
       ctx.report({ file: "scripts/check/gates/contract-derives-not-respells.ts", line: 1, column: 0, message: STALE_ALLOW(key) });
     }
   }
@@ -229,7 +227,7 @@ export const gate: GateDescriptor = {
         "packages/contracts/src/chat/roster.ts": "export interface RosterMemberSpec {\n  readonly kind: string;\n}\n",
         "packages/server/src/domain/chat/contract/params.ts": "export interface RosterMemberSpec {\n  readonly kind: string;\n}\n",
       },
-      expect: { messageIncludes: "already exports that name" },
+      expect: { token: 'respells "RosterMemberSpec"' },
       why: "ARM A: the domain contract re-declares a name @orb/contracts/chat owns — the wire shape now has two homes and they drift apart silently",
     },
     {
@@ -238,7 +236,7 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/workloads/contract/probe-schedule.ts":
           "export interface WorkloadScheduleRow {\n  readonly id: string;\n  readonly enabled: boolean;\n}\n",
       },
-      expect: { messageIncludes: "$inferSelect" },
+      expect: { token: 'hand-row "WorkloadScheduleRow"' },
       why: "ARM B: the founding defect — a hand-written interface listing a real table's columns (fixed on the tree in this gate's landing commit)",
     },
     {
@@ -246,7 +244,7 @@ export const gate: GateDescriptor = {
         "packages/db/src/schema/workloads.ts": 'export const workloads = sqliteTable("workloads", {});\n',
         "packages/server/src/domain/workloads/contract/x.ts": "export type WorkloadInsert = {\n  readonly id: string;\n};\n",
       },
-      expect: { messageIncludes: "$inferInsert" },
+      expect: { token: 'hand-row "WorkloadInsert"' },
       why: "ARM B, the INSERT half + the object-literal TYPE ALIAS spelling (not just `interface`) — the remedy names $inferInsert, not $inferSelect",
     },
   ],

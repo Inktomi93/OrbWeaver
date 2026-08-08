@@ -40,10 +40,22 @@ const WS_RE = /\s+/u;
 const BARE_ROOTS: readonly string[] = ["docs/architecture/core", "docs/architecture/history", "docs/architecture/proposed", "."];
 const ANCHOR_TERMINATORS = ".):; ";
 
+// THE ONE REASON. The three NODE-anchored arms name themselves through their token; their per-finding
+// messages folded in here when they left the Finding overload (which bypasses `hasGateIgnore` —
+// GATE-AUTHORING §1 — so every marker on them was inert). The file-level NO-DESCRIPTOR arm and the two
+// stale-baseline arms keep their own messages: they anchor on a file, not a node.
 const MESSAGE =
   "a gate file breaks the gate-authoring law (scripts/check/GATE-AUTHORING.md): it registers no proven " +
   "descriptor, carries an exemption vocabulary with no STALE arm, or cites a `§` anchor that does not exist " +
-  "in the doc it names. The gate corpus is the enforcement layer — nothing else enforces its shape.";
+  "in the doc it names. The gate corpus is the enforcement layer — nothing else enforces its shape. " +
+  "A `mustFlag`/`mustPass` token: the descriptor has no non-empty array for that field — a gate without a " +
+  "self-proof cannot be shown to bite, so add ≥1 example WITH a `why`. A `§<anchor>` token: the docRow cites " +
+  "that section but the doc it names defines no such anchor — no heading, no line-start anchor — which is " +
+  "drift the amnesiac reader cannot tell from a real home (the UI-Gates §12.6 phantom class). Any other " +
+  "token is an EXEMPTION TABLE by that name with no STALE arm: this gate module contains no diagnostic that " +
+  "fires when a row stops matching a live violation, and a one-sided exemption rots into a lie — the " +
+  "violation gets fixed, the row stays, and the next violation written at that site inherits an exemption " +
+  "nobody granted it.";
 
 const FIX =
   "A: export a `gate: GateDescriptor` with ≥1 mustFlag + ≥1 mustPass (scripts/check/contract.ts). " +
@@ -57,11 +69,6 @@ const NO_DESCRIPTOR = (rel: string): string =>
   `${rel} lives in the gate corpus but exports no \`gate\` descriptor object — the loader SKIPS such a ` +
   "module (`mod.gate === undefined ⇒ continue`, scripts/check/loader.ts), so the file enforces nothing and " +
   `reports nothing, forever. Export a valid descriptor or delete the file (${LAW} §1).`;
-
-const NO_PROOF = (rel: string, field: string): string =>
-  `${rel}'s descriptor has no non-empty \`${field}\` — a gate without a self-proof cannot be shown to bite ` +
-  "(scripts/check/contract.ts; the loader refuses it at run time and gate-conformance runs it). Add ≥1 " +
-  `\`${field}\` example WITH a \`why\` (${LAW} §5).`;
 
 /** The `gate` descriptor object literal of a gate module, if it declares one. */
 function descriptorOf(sf: SourceFile): Node | undefined {
@@ -78,12 +85,16 @@ function hasNonEmptyArrayProp(obj: Node, field: string): boolean {
 function armDescriptor(sf: SourceFile, rel: string, ctx: GateRunCtx): Node | undefined {
   const obj = descriptorOf(sf);
   if (obj === undefined) {
+    // THE SANCTIONED Finding overload (§1): FILE-LEVEL by construction — the module exports no descriptor,
+    // so there is no node to anchor on or hang a marker off.
     ctx.report({ file: rel, line: 1, column: 0, message: NO_DESCRIPTOR(rel) });
     return;
   }
   for (const field of ["mustFlag", "mustPass"]) {
     if (!hasNonEmptyArrayProp(obj, field)) {
-      ctx.report({ file: rel, line: obj.getStartLineNumber(), column: 0, message: NO_PROOF(rel, field) });
+      // The missing FIELD is the token — both fields can be missing on the SAME descriptor node, which is
+      // exactly the §4.3a case a line-scoped marker would over-exempt.
+      ctx.report(obj, { token: field, offset: 0 });
     }
   }
   return obj;
@@ -95,7 +106,9 @@ function armDescriptor(sf: SourceFile, rel: string, ctx: GateRunCtx): Node | und
  *  flagged — it has no row to rot, and it reds the moment a row lands. */
 interface Collection {
   readonly name: string;
-  readonly line: number;
+  /** The declaration itself — ARM B reports NODE-anchored off it (it used to carry only `line`, which is
+   *  what forced the explicit-`Finding` overload and left every `@orb-gate-ignore` on this arm inert). */
+  readonly node: Node;
   readonly count: number;
 }
 
@@ -135,7 +148,7 @@ export function exemptionCollections(sf: SourceFile): Collection[] {
     }
     const count = entryCount(vd.getInitializer());
     if (count !== undefined && count > 0) {
-      out.push({ name, line: vd.getStartLineNumber(), count });
+      out.push({ name, node: vd, count });
     }
   }
   return out;
@@ -161,14 +174,6 @@ export function hasStaleArm(sf: SourceFile): boolean {
   }
   return false;
 }
-
-const ONE_SIDED = (rel: string, name: string, count: number): string =>
-  `\`${name}\` (${count} row(s)) in ${rel} is an EXEMPTION table with no STALE arm — this gate module ` +
-  "contains no diagnostic that fires when a row stops matching a live violation. A one-sided exemption rots " +
-  "into a lie: the violation gets fixed, the row stays, and the next violation written at that site inherits " +
-  `an exemption nobody granted it. Add the stale arm in \`finalize\`, guarded on a real-tree anchor (${LAW} ` +
-  "§4). If this collection is a scan-SCOPE decision and not an exemption, rename it out of the exemption " +
-  "vocabulary — the name is the signal.";
 
 // ── ARM C ────────────────────────────────────────────────────────────────────────────────────────────
 function resolveDoc(root: string, ref: string): string | undefined {
@@ -222,11 +227,6 @@ function anchorExists(src: string, section: string): boolean {
   return definedAsListItem(src, first);
 }
 
-const GHOST_SECTION = (rel: string, ref: string, section: string): string =>
-  `${rel}'s docRow cites \`${ref} §${section}\`, but ${ref} defines no such section — no heading and no ` +
-  "line-start anchor. A §-cite that leads nowhere is drift the amnesiac reader cannot tell from a real home " +
-  `(the UI-Gates §12.6 phantom class). Repoint it to an anchor the doc actually defines (${LAW} §1).`;
-
 /** The literal text of a docRow initializer (string or no-substitution template). */
 function docRowText(obj: Node): string | undefined {
   const prop = TsNode.isObjectLiteralExpression(obj) ? obj.getProperty("docRow") : undefined;
@@ -238,7 +238,7 @@ function docRowText(obj: Node): string | undefined {
   return TsNode.isStringLiteral(n) || TsNode.isNoSubstitutionTemplateLiteral(n) ? n.getLiteralText() : undefined;
 }
 
-function armCitation(obj: Node, rel: string, ctx: GateRunCtx): void {
+function armCitation(obj: Node, ctx: GateRunCtx): void {
   const value = docRowText(obj);
   if (value === undefined) {
     return;
@@ -258,7 +258,8 @@ function armCitation(obj: Node, rel: string, ctx: GateRunCtx): void {
       continue; // the doc itself does not resolve — that is `dangling-refs`' arm, not a second red here
     }
     if (!anchorExists(readFileSync(abs, "utf8"), section)) {
-      ctx.report({ file: rel, line: obj.getStartLineNumber(), column: 0, message: GHOST_SECTION(rel, owner.ref, section.trim()) });
+      // The ghost ANCHOR is the token — several ghost cites can ride one docRow on one node.
+      ctx.report(obj, { token: `§${section.trim()}`, offset: 0 });
     }
   }
 }
@@ -318,7 +319,7 @@ function armExemptions(sf: SourceFile, rel: string, ctx: GateRunCtx, { baseline,
       seen.add(`${rel}\u0000${c.name}`);
       continue;
     }
-    ctx.report({ file: rel, line: c.line, column: 0, message: ONE_SIDED(rel, c.name, c.count) });
+    ctx.report(c.node, { token: c.name, offset: 0 });
   }
 }
 
@@ -326,6 +327,8 @@ function reportStaleBaseline(ctx: GateRunCtx, files: ReadonlyMap<string, SourceF
   if (!existsSync(join(ctx.root, BASELINE_REL))) {
     return; // REAL-TREE ANCHOR: no committed baseline in this tree ⇒ no stale claim to make
   }
+  // THE SANCTIONED Finding overload (§1) for both arms below: each anchors on the GATE FILE (the baseline's
+  // own home), has no source node, and a stale ratchet row must not be suppressible.
   for (const [rel, names] of Object.entries(baseline)) {
     if (!files.has(rel)) {
       ctx.report({ file: GATE_SELF, line: 1, column: 0, message: STALE_BASELINE_GATE(rel) });
@@ -354,7 +357,7 @@ export const gate: GateDescriptor = {
       const obj = armDescriptor(sf, rel, ctx);
       armExemptions(sf, rel, ctx, run);
       if (obj !== undefined) {
-        armCitation(obj, rel, ctx);
+        armCitation(obj, ctx);
       }
     }
     reportStaleBaseline(ctx, files, run);
@@ -370,7 +373,7 @@ export const gate: GateDescriptor = {
       files: {
         "scripts/check/gates/__probe.ts": 'export const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [{ files: "x" }], mustPass: [] };\n',
       },
-      expect: { messageIncludes: "no non-empty `mustPass`" },
+      expect: { token: "mustPass" },
       why: "ARM A — an empty self-proof arm: a gate nobody can show does not false-positive",
     },
     {
@@ -378,7 +381,7 @@ export const gate: GateDescriptor = {
         "scripts/check/gates/__probe.ts":
           'const ALLOWLIST = { "packages/x/src/a.ts": "sanctioned because reasons" };\nexport const gate = { name: "__probe", docRow: "x", message: "m", mustFlag: [1], mustPass: [1], allow: ALLOWLIST };\n',
       },
-      expect: { messageIncludes: "no STALE arm" },
+      expect: { token: "ALLOWLIST" },
       why: "ARM B — the founding shape: a populated allowlist with no diagnostic that fires when a row stops matching (the ~57-gate one-sided census)",
     },
     {
@@ -387,7 +390,7 @@ export const gate: GateDescriptor = {
         "scripts/check/gates/__probe.ts":
           'export const gate = { name: "__probe", docRow: "__g_gm_doc.md §12.6", message: "m", mustFlag: [1], mustPass: [1] };\n',
       },
-      expect: { messageIncludes: "defines no such section" },
+      expect: { token: "§12.6" },
       why: "ARM C — the UI-Gates §12.6 phantom EXACTLY: the doc REFERENCES the anchor in prose but never DEFINES it, so a reference-counting check would false-pass",
     },
   ],

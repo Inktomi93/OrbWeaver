@@ -22,25 +22,25 @@ import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 const CONTAINER = "container";
 const PORTAL_TAG_RE = /(?:^|\.)Portal$/u;
 
+// THE ONE REASON, carrying BOTH arms by token (the per-arm overrides died with the Finding overload).
 const MESSAGE =
   "a sealed Base UI portal does not expose its `container`. Base UI portals to `document.body` by default, " +
   "which sits outside every `<ThemeScope>`: the popup then resolves its theme variables against the ROOT " +
   "palette instead of the scope it was opened from, and it leaves the surrounding focus scope at the same " +
   "time. Every portal-bearing seal in @orb/ui takes a `container` prop and defaults it to the themed portal " +
-  "root (`usePortalContainer()`), so the caller can override it per call site.";
+  "root (`usePortalContainer()`), so the caller can override it per call site. `no-container-prop`: the file " +
+  "renders a `*.Portal` but no exported props interface declares `container`, so no caller can place the " +
+  "popup at all. `container-not-wired`: this `*.Portal` gets no `container` — the prop exists but never " +
+  "reaches Base UI, which reads like a seam while behaving exactly like the default (a dead wire is worse " +
+  "than a missing one). packages/ui/src/primitives/dialog/dialog.tsx is the reference for both halves.";
 
 const FIX =
   'declare `container?: BasePortalProps["container"]` on the seal\'s exported props interface (derive it — ' +
   "do not hand-spell the union), and pass it through: `<X.Portal container={container ?? portalContainer}>`. " +
   "packages/ui/src/primitives/dialog/dialog.tsx is the reference shape.";
 
-const NO_PROP = (file: string): string =>
-  `${file} renders a Base UI \`*.Portal\` but declares no \`container\` prop, so no caller can place the popup ` +
-  "inside its ThemeScope — the popup will always land on document.body with the root palette.";
-const NOT_WIRED =
-  "this `*.Portal` gets no `container` — the seal's `container` prop exists but never reaches Base UI, which " +
-  "reads like a seam while behaving exactly like the default (a dead wire is worse than a missing one). " +
-  "packages/ui/src/primitives/dialog/dialog.tsx is the reference wiring.";
+/** The ARM tokens — each finding's `token`, and the position an `@orb-gate-ignore` names. */
+const ARM_TOKENS = { noProp: "no-container-prop", notWired: "container-not-wired" } as const;
 
 function isPortalTag(text: string): boolean {
   return PORTAL_TAG_RE.test(text);
@@ -63,14 +63,14 @@ function run(ctx: GateRunCtx): void {
     if (portals.length === 0) {
       continue;
     }
-    if (!declaresContainer(sf)) {
-      const first = portals[0];
-      ctx.report({ file: rel, line: first === undefined ? 1 : first.getStartLineNumber(), column: 0, message: NO_PROP(rel) });
+    const first = portals[0];
+    if (!declaresContainer(sf) && first !== undefined) {
+      ctx.report(first, { token: ARM_TOKENS.noProp, offset: 0 });
     }
     for (const el of portals) {
       const wired = el.getAttributes().some((a) => Node.isJsxAttribute(a) && a.getNameNode().getText() === CONTAINER);
       if (!wired) {
-        ctx.report({ file: rel, line: el.getStartLineNumber(), column: 0, message: NOT_WIRED });
+        ctx.report(el, { token: ARM_TOKENS.notWired, offset: 0 });
       }
     }
   }
@@ -94,21 +94,21 @@ export const gate: GateDescriptor = {
       files:
         'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  className?: string;\n}\nexport const P = () => (\n  <BaseDialog.Portal>\n    <BaseDialog.Popup />\n  </BaseDialog.Portal>\n);\n',
       at: AT,
-      expect: { messageIncludes: "declares no `container` prop" },
+      expect: { token: "no-container-prop" },
       why: "ARM A — the seal portals but offers the caller no way to place it, so every popup lands on document.body outside the ThemeScope",
     },
     {
       files:
         'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  container?: unknown;\n}\nexport const P = () => (\n  <BaseDialog.Portal>\n    <BaseDialog.Popup />\n  </BaseDialog.Portal>\n);\n',
       at: AT,
-      expect: { messageIncludes: "never reaches Base UI" },
+      expect: { token: "container-not-wired" },
       why: "ARM B, the dead-wire half: the prop is declared but not threaded — an affordance that looks live and does nothing, which no type error can catch because the seal simply never reads it",
     },
     {
       files:
         'import { Dialog as BaseDialog } from "@base-ui/react/dialog";\nexport interface DialogPopupProps {\n  container?: unknown;\n}\nexport const P = () => <BaseDialog.Portal container={undefined} />;\nexport const Q = () => <BaseDialog.Portal />;\n',
       at: AT,
-      expect: { count: 1 },
+      expect: { count: 1, token: "container-not-wired" },
       why: "the SELF-CLOSING spelling, and per-OCCURRENCE granularity: one wired portal and one unwired portal in the same file must yield exactly one finding, on the unwired one",
     },
   ],
