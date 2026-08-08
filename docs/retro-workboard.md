@@ -313,6 +313,30 @@ token may not be bypassed by an un-credentialed principal") — closes it on the
 token-less e2e stacks working, but it is a conditional control with its own conformance suite to sweep.
 **OWNER: this is the one live-posture item on the board that is a real hole rather than debt.**
 
+## ═══ ⚑ OVERNIGHT FULL-AUTO ENGAGED (2026-08-07, owner word: "full auto, overnight protocol, implement everything in the retro doc in full, incl. the smaller bits — glyphs etc") ═══
+
+**Posture:** work the queue via the escalation ladder (stickler → ast/code → docs → judgment), NO
+blocking questions, every non-trivial merge gets a fresh lens before it graduates, security → security-
+executor (never the main session, never Fable). Main session is on **Fable 5** (orchestration only).
+
+**WILL NOT AUTO-BUILD — owner-gated, stay parked:** the 3 nudge default texts (owner veto) · presets-
+into-rail (owner-timed) · JSON-card export · `{{note}}` warn-vs-block · the persona=character design
+pass (OWNER-SACRED / parked — do NOT build) · RV-13 branch-and-save · AGENT-1 (owner-scoped, Max OAuth
+expired). **No origin push** (needs a fresh per-push owner word + battery).
+
+**Durable queue = TaskList (#11–#15+) + this ledger.** As lanes merge, dispatch the next; sequence
+rpg-file items (glyph sweep, pointer-coarse gate) AFTER RENDERFIX to avoid collision. Re-verify EVERY
+board row's premise before dispatch — this session has premise-killed ~5 believed-open rows (3 databank,
++ others), the board's measured defect rate on grep-sourced rows is ~50%.
+
+**⚑ MJS-PROBES → PROBES-TYPING handoff (the "green ≠ typechecked" reveal):** the mech lane renamed 17
+`.mjs` probes → `.ts` (`77a9118b6`, branch `wt/agent-af1268fce19895923`), which dragged **~686 latent
+strict-mode errors** into the aggregator — real debt from `.mjs` escaping every typechecker for years,
+NOT a rename regression. Excluding is OFF THE TABLE (tsconfig.json's own law: probes are "our code",
+never excluded like the 3rd-party ST runtime). Handed to executor **PROBES-TYPING** (`a98737bcaa810909b`)
+to type them PROPERLY — reusing the production wire types the probes already probe (`infra/providers`),
+no `any`/`unknown` escape hatches. Merges the rename branch first; its branch supersedes the mech branch.
+
 ## ═══ ⚑ DISPATCH LEDGER (2026-08-07 evening) — what is RUNNING vs merely BOARDED ═══
 
 > **Why this section exists:** the orchestrator wrote *"routed to its own lane"* THREE times about
@@ -402,9 +426,16 @@ the merged result. D-1 `listGlobal` minted. Its rendered check caught a real def
 `ListRow.subtitleLead`. **Owner CLOSED the section-vs-collection fork: Arm A (own rail section)
 stands** — demotion stays a one-file edit if he ever wants it.
 
-**OPEN — S2:** the per-chat rack (D-2 sources threaded — `scope.ts` already runs the three junction
-queries and DISCARDS the answer) · the rack after Injections per D-4 · the `listActiveForChat`
-freshness row.
+✅ **S2 IS FULLY SHIPPED — closed 2026-08-07 after a THIRD stale-databank-row premise-kill this
+session.** All three "open S2" items landed in `2b4c2d24d` (Aug 3, "DBANK S2 — the per-chat documents
+rack + the D85 visibility toggle"), verified full-file by lane DBANK-RACK (zero commits, correct
+refusal): the per-chat rack + D-2 sources (`resolveChatDocumentSources` KEEPS provenance → source chips
+in `chat-documents-section.tsx`), D-4 ordering (`ChatDocumentsSection` mounts after Injections in
+`settings-context-tab.tsx`), and the freshness row (`listActiveForChat` on the `chatUpdated`
+invalidation arm — spec §7's invalidation-map row, NOT an ingest-staleness indicator). D85 honored
+end-to-end (member payload filters hidden rows). **The board carried all three as OPEN for 4 days** —
+same disease as the D85 row: a "receipt of not-done" written from a grep, never re-checked against the
+shipped commit. THREE databank rows premise-killed in one session (D85, the rack tail, and this).
 
 ✅ **THE D85 HOST VISIBILITY TOGGLE IS BUILT, END TO END — the row that called it "still unbuilt" was
 WRONG and cost lane DATABANK-S2 its opening (premise-killed 2026-08-07, corroborated on main before
