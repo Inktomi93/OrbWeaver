@@ -144,6 +144,12 @@ function BlockView({ block, onSelect }: { readonly block: PreviewBlock; readonly
         {block.name}
       </Text>
       <BlockBody block={block} />
+      {/* THE MODE CUE (side-eye 2026-08-08 P2). The body above is the default the preview can print — for
+          `main_prompt` that is the PER-SPEAKER framing, and a narrator round resolves a different one
+          (`assembly/assemble.ts` templateFor). Without a word here the read-out silently claims to be the
+          whole story. It is a POINTER, not the explanation: `MarkerCopy.templateNote` stays the one home for
+          what actually changes, in the drill-in this very block clicks through to. */}
+      {block.cue === undefined ? null : <Text voice="gloss">{block.cue}</Text>}
     </Button>
   );
 }

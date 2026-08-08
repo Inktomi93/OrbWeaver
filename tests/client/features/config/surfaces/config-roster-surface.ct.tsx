@@ -25,6 +25,16 @@ const ANY_BULK_TOGGLE = /^Select /;
 
 const TAG_COUNT = 400;
 
+/** Every collection's create verb, as one pattern — the door array's whole create vocabulary is
+ *  `New tag` / `New script` / `New book`. */
+const ANY_CREATE_VERB = /^New /;
+/** The two launcher CARDS the launcher tests drive, addressed by their BLURB — the accessible name of an
+ *  operable card is its own content, and the blurb is the half the roster band does not carry. */
+const TAGS_LAUNCHER = /Colour-coded labels/;
+const WORLD_INFO_LAUNCHER = /Keyword-triggered lore/;
+/** The coarse-pointer tap floor (WCAG 2.5.5 / the house `size-control-md` coarse step). */
+const TOUCH_FLOOR_PX = 44;
+
 // The workspace mounts all three panes, and TWO of them legitimately offer a collection's create verb: the
 // group BAND (the per-group `+`) and the welcome's LAUNCHER CARD. That is the drawn design, so the CTs
 // address the region they mean by its slot rather than by a bare name.
@@ -192,13 +202,68 @@ test("a POPULATED collection's launcher sheds the count + create the roster band
   await bandCount(workspace, "worldInfo", BOOKS.length);
 
   const welcome = workspace.locator(WELCOME);
-  // The restatement is gone from the LANDING — every create verb on screen is the roster's.
-  await expect(welcome.getByRole("button")).toHaveCount(0);
+  // The restatement is gone from the LANDING — every CREATE verb on screen is the roster's. (This used to
+  // read `welcome.getByRole("button")).toHaveCount(0)`; the card itself is a button now — the launcher of
+  // the test below — so the assertion says what it always meant: no collection's create verb is restated
+  // here. `New tag` / `New script` / `New book` is the door array's whole create vocabulary.)
+  await expect(welcome.getByRole("button", { name: ANY_CREATE_VERB })).toHaveCount(0);
   await expect(launcher(workspace, "tags").getByText(String(TAG_COUNT))).toHaveCount(0);
   // …and the teaching sentence the pane exists for stays, on every card.
   await expect(welcome.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
   await expect(welcome.getByText("Colour-coded labels for characters, chats, books, personas and presets.")).toBeVisible();
   await expect(welcome.getByText("Keyword-triggered lore your characters draw on — a book fires where you attach it.")).toBeVisible();
+});
+
+// …AND IT IS STILL A CONTROL (side-eye 2026-08-08 P1, the C7 re-check). Shedding the count + create left a
+// populated card with NO affordance at all — no click target, no keyboard stop, and 62% of its empty
+// sibling's height — so the pane's three cards read as failed-to-load chrome. The card is the LAUNCHER its
+// own name claims: clicking it takes the reader to that library in the LIST, through the same
+// `goToCollection` intent every other cross-surface "manage it over there" door fires.
+//
+// The card's accessible NAME is its own content (label + blurb) — the blurb is what the roster band does not
+// carry, so naming the control by it keeps the one thing this pane adds readable to a screen reader.
+test("a POPULATED launcher card is a real control — clicking it opens that collection's group in the LIST", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+  await bandCount(workspace, "tags", TAG_COUNT);
+
+  const roster = workspace.locator(ROSTER);
+  const band = roster.getByRole("button", { name: TAGS_BAND });
+  await expect(band).toHaveAttribute("aria-expanded", "false");
+
+  const card = workspace.locator(WELCOME).getByRole("button", { name: TAGS_LAUNCHER });
+  await expect(card).toBeVisible();
+  // A launcher a thumb cannot land on is not a launcher: the card clears the touch floor by a wide margin
+  // (it is a three-line island), and the assertion guards the day someone trims it to a strip.
+  const box = await card.boundingBox();
+  if (box === null) {
+    throw new Error("the populated launcher card did not render a box");
+  }
+  expect(box.height, "the launcher clears the coarse touch floor").toBeGreaterThanOrEqual(TOUCH_FLOOR_PX);
+
+  await card.click();
+  await expect(band).toHaveAttribute("aria-expanded", "true");
+  await expect(workspace.getByText(FIRST_ROW)).toBeVisible();
+});
+
+// …AND IT IS REACHABLE WITHOUT A POINTER (same finding). The card was a plain `<div>`: no tab stop, no
+// Enter/Space, no focus ring — the launcher pane was keyboard-dead in full. The pin is the rendered
+// affordance (focus lands, Enter operates), not the attribute that produces it.
+test("the populated launcher card takes keyboard focus and operates on Enter", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+  await bandCount(workspace, "worldInfo", BOOKS.length);
+
+  const band = workspace.locator(ROSTER).getByRole("button", { name: WORLD_INFO_BAND });
+  await expect(band).toHaveAttribute("aria-expanded", "false");
+
+  const card = workspace.locator(WELCOME).getByRole("button", { name: WORLD_INFO_LAUNCHER });
+  await card.focus();
+  await expect(card).toBeFocused();
+  await card.press("Enter");
+  await expect(band).toHaveAttribute("aria-expanded", "true");
 });
 
 // THE EMPTY STATE IS UNTOUCHED (the 2026-08-03 "genuinely good teaching state" verdict, which was the
@@ -217,9 +282,13 @@ test("an EMPTY collection's launcher keeps its count and create verb — the fir
   const tags = launcher(workspace, "tags");
   await expect(tags.getByText("0")).toBeVisible();
   await expect(tags.getByRole("button", { name: "New tag" })).toBeVisible();
-  // The control, in the same frame: the populated siblings shed theirs.
+  // The control, in the same frame: the populated siblings shed theirs. (`getByRole` searches DESCENDANTS,
+  // so a populated card being a button ITSELF does not satisfy this — it still asserts an empty card body.)
   await expect(launcher(workspace, "regex").getByRole("button")).toHaveCount(0);
   await expect(launcher(workspace, "worldInfo").getByRole("button")).toHaveCount(0);
+  // …and the EMPTY card is not a launcher: its create button is the affordance, and an interactive card
+  // wrapping a button is the nested-interactive shape the band's own header rules out.
+  await expect(tags).not.toHaveAttribute("role", "button");
 });
 
 // D121-D's lifecycle anatomy, landed on the group band: IMPORT is host chrome driven by the contribution's

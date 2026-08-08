@@ -39,6 +39,9 @@ export interface PreviewBlock {
   readonly tokens: readonly MacroRun[] | undefined;
   /** A one-line "what this contributes" hint for a plain marker (no author text of its own). */
   readonly plainHint: string | undefined;
+  /** The marker's own preview CUE — "the text above is not the only arm" (`MarkerCopy.previewCue`). Absent
+   *  for every marker whose default does not vary, and for a literal (an author's own text has no arms). */
+  readonly cue: string | undefined;
 }
 
 /** A splice entry in the conversation band — a spliced (`inject`) section at its depth/order. */
@@ -93,7 +96,8 @@ function sectionName(section: PromptSection): string {
 function toBlock(section: PromptSection): PreviewBlock {
   const tokens = displayTokens(section);
   const plainHint = tokens === undefined && section.type === "marker" ? MARKER_COPY[section.marker].oneLiner : undefined;
-  return { section, name: sectionName(section), tokens, plainHint };
+  const cue = section.type === "marker" ? MARKER_COPY[section.marker].previewCue : undefined;
+  return { section, name: sectionName(section), tokens, plainHint, cue };
 }
 
 /** Is this section SPLICED into the conversation (carries an absolute-depth `inject`)? */

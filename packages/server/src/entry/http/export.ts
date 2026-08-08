@@ -1,6 +1,19 @@
-// The download registrar. All routes are owner/host-gated reads (GET downloads carry no CSRF
-// requirement): the character card PNG, the chat transcript (jsonl/txt), and the owner's full/filtered
-// portability bundle streamed as a zip. The library route iterates the injected `PortabilityRegistry`:
+// The download registrar: the character card PNG/JSON, the chat transcript (jsonl/txt/orb), and the owner's
+// full/filtered portability bundle streamed as a zip. GET downloads carry no CSRF requirement.
+//
+// WHAT THE GATE ACTUALLY IS (truth-repair, side-eye 2026-08-08 — this header used to say "all routes are
+// owner/host-gated reads", which reads as "a credential is required" and is not what ships). Each route
+// requires a RESOLVED PRINCIPAL and nothing more: `null` ⇒ 401, otherwise the downstream verb scopes the read
+// to that principal (not-owned / not-host / missing all collapse to 404). WHO the principal is is decided
+// upstream, once, by the auth mode (`entry/app.ts`'s per-request middleware → `entry/auth/seam.ts`
+// `resolvePrincipal`) — and under `AUTH_MODE=single-user` that resolution mints the owner-fallback principal
+// unconditionally (`via:"fallback"`, `infra/auth.resolve`'s `ownerFallbackAllowed`). So a cookie-less request
+// to this door returns 200 in single-user mode, correctly: in that deployment the fallback owner IS the
+// principal. An origin is not a credential, which is why the DEBUG gate refuses `via:"fallback"` explicitly
+// (`seam.ts` `DEBUG_GATE_CREDENTIALED`) — these routes deliberately do not, because they serve the owner
+// their own rows. Do not read "owner-gated" here as an authentication claim.
+//
+// The library route iterates the injected `PortabilityRegistry`:
 // for each requested kind it pulls that entity's exportAll(ownerId) and packs each file into one streamed
 // zip. Owner-scoped by construction. A verb returning null (not-owned/missing) maps to 404 uniformly.
 

@@ -10,7 +10,8 @@
 // one-child-per-contribution shape (TrailWidget/HomeTile precedent) exists to avoid. The teaching voice is
 // never wrong for either reader, and each card carries its own live count, which is what actually tells a
 // populated user where they stand. What the populated case DOES change is per-card and therefore hook-safe:
-// see `CollectionLauncher` — a card with members drops the count + create the roster band already carries.
+// see `CollectionLauncher` — a card with members drops the count + create the roster band already carries,
+// and becomes an operable LAUNCHER into that library instead.
 
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -19,6 +20,7 @@ import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import type { CollectionContribution, ContributorRegistry } from "#lib";
+import { goToCollection } from "#state";
 import { orderCollections } from "../lib/order-collections.ts";
 
 export interface ConfigWelcomeProps {
@@ -74,7 +76,25 @@ export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement
  *  state" verdict, which was the cold-first-timer test: at zero the verb is the onboarding next step, not a
  *  restatement. `undefined` (a collection that declares no `useCount`, or a read that has not landed) takes
  *  the SAME arm as zero: the card sheds only what it KNOWS is duplicated, so a future contribution without a
- *  count hook keeps its create verb rather than silently losing the only way into an empty library. */
+ *  count hook keeps its create verb rather than silently losing the only way into an empty library.
+ *
+ *  …AND THEN THE POPULATED CARD IS A LAUNCHER (side-eye 2026-08-08 P1, the C7 re-check — its "single biggest
+ *  opportunity"). The trim above is right about the DUPLICATION and left the card with nothing to do: no
+ *  click target, no tab stop, no focus ring, and — with its verb gone — 62% of an empty sibling's height, so
+ *  three described cards read as chrome that failed to load. Both findings hold at once, because the fix is
+ *  not the count or the verb coming back: the card does what its own name says and TAKES YOU TO THE LIBRARY,
+ *  through `goToCollection` — the same intent every cross-surface "manage it over there" door already fires,
+ *  never a new nav plane. Selection stays the roster's; the card opens that collection's group in the LIST.
+ *
+ *  Only the POPULATED arm is operable, and that is structural rather than a preference: the empty card
+ *  CONTAINS its create button, and an interactive card wrapping a button is a nested interactive — the
+ *  unclickable-by-spec shape the group band's own header rules out. So the empty arm renders byte-identically
+ *  to before (`interactive={false}` emits no role/tabIndex/class and `onClick={undefined}` emits no handler).
+ *
+ *  THE ACCESSIBLE NAME IS THE CARD'S OWN CONTENT (label + blurb), not an `aria-label` verb: the blurb is the
+ *  one thing the roster band does not carry, and an override would hide it from exactly the reader who cannot
+ *  see it. `Card interactive` supplies role=button + tabIndex + Enter/Space + the house focus ring; the coarse
+ *  floor comes free (a three-line island clears it several times over, pinned by geometry in the CT). */
 function CollectionLauncher({ collection }: { readonly collection: CollectionContribution }): ReactNode {
   const visible = collection.useVisible?.() ?? true;
   const count = collection.useCount?.();
@@ -84,7 +104,12 @@ function CollectionLauncher({ collection }: { readonly collection: CollectionCon
   }
   const populated = count !== undefined && count > 0;
   return (
-    <Card data-slot="collection-launcher" data-collection={collection.id}>
+    <Card
+      data-slot="collection-launcher"
+      data-collection={collection.id}
+      interactive={populated}
+      onClick={populated ? (): void => goToCollection(collection.id) : undefined}
+    >
       <Stack gap="tight">
         <Row align="center" gap="field">
           <Icon icon={collection.icon} size="sm" />

@@ -29,6 +29,13 @@ export interface MarkerCopy {
    *  the default on BOTH turn kinds. The ghost shows the per-speaker default, so without this line the
    *  narrator behaviour is invisible from the only surface that edits it. */
   readonly templateNote?: string;
+  /** The ASSEMBLED PREVIEW's one-line pointer at {@link templateNote} (side-eye 2026-08-08 P2). The preview
+   *  paints the built-in default verbatim — for `main_prompt` that is the PER-SPEAKER framing — so a reader
+   *  who never opens the drill-in leaves believing the sentence on screen is the whole story. This cue is
+   *  deliberately NOT the note: one home for the explanation stays the section body, and the preview block is
+   *  already a click-through INTO that body, so the cue's job is to say "there is more here", nothing else.
+   *  Meaningful only beside a `templateNote` — a pointer at an absent explanation is a dead end. */
+  readonly previewCue?: string;
   /** A FIXED-BY-PRODUCT firing cue for the rack row (crunch item 16 / the mock's `⚡ steered turns`). Not
    *  the section's editable `trigger` list — this is a fact about the MARKER that no preset can change, so
    *  it belongs to the registry rather than to a stored field. Absent for every marker that fires on every
@@ -46,6 +53,7 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
     glyph: Sparkles,
     templateNote:
       "The built-in default adapts to the turn: a narrator round gets a narrator framing instead of this one. Anything you write here replaces it on every turn, narrator and per-character alike.",
+    previewCue: "Adapts on narrator turns — open it for what changes.",
   },
   ["char_description"]: {
     label: "Character description",
