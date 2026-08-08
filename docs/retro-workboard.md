@@ -1493,6 +1493,24 @@ Items this audit could not prove either way from the tree. **None were dropped.*
   comment is the receipt; this line previously said otherwise and was stale). And `types:testd` rides the STATIC bar,
   not the battery. \~16-17 min; BACKGROUND it, never foreground with a timeout. READ
   `reports/` instead of re-running.
+- **⚑ STATIC IS NOT GRADUATION — THE BATTERY IS NOT OPTIONAL (2026-08-07, the hard lesson of the night;
+  it cost three re-runs).** `pnpm check` (the per-merge consolidated check) is STATIC — it NEVER runs
+  `tests:node`. TWO `tests:node` regressions rode through every per-merge static check and were caught
+  ONLY by `verify --push`: a dropped `SUMMARIZE_SOURCES` enum member left a stale fixture in the
+  routing-coherence int-suite (healed to `undefined` by `.catch`), and a renamed row-kebab menu item left
+  a CT asserting the old label.
+  - **A value/UI-changing merge is NOT graduated on `pnpm check` alone.** Its lane must RUN the
+    CT/integration suites that assert the changed value + repo-wide-grep the literal across `tests/`;
+    brief lanes to do this and to treat "No CT" as a claim owing a grep, not a default.
+  - **Run ONE `verify --push` when the merge train drains, and ALWAYS before a push — never push on a
+    static receipt.** Budget for it to find ~1 stale coupled site per value-changing lane; that is
+    EXPECTED, not a surprise — fix it and re-certify. Background it (setsid + `.exit`), read the file,
+    NEVER stack a background watcher while it matters (\[\[polling-reaps-your-own-background-task]]) — but
+    DO actively read the `.exit`; a finished battery that sits unread is the same skip.
+  - **A lane's COLD-worktree red OUTRANKS your warm read.** PTRGATE's cold `types:graph` red was REAL;
+    dismissing it as a "worktree artifact" against a battery that PREDATED the merge cost a red main.
+    Reproduce a dismissed red on a CLEAN tree before calling it an artifact — the fresh worktree compiled
+    the truth. (\[\[shared-value-change-owes-a-battery-not-static]])
 - snap is STUDIED IN FULL in `side-eye.md`: `--eval` takes a BARE arrow (an arrow-IIFE double-invokes);
   `--jsclick` for list rows; `--isolated`/`--dirty` beat dev-stack HMR; `--goto`/`__orb.nav` for SPA
   reach; `--file` renders committed HTML mocks; `--contexts` now works ALONGSIDE the dev stack (the

@@ -28,3 +28,13 @@ Never fix anything — not even a one-line fix. Your entire value is independenc
   contention flake by construction, and its "pass" verifies nothing.
 - When verifying a "fixed" claim against an ACTIVE gate's green: the gate parses the AST — if your
   independent check disagrees with a live gate, suspect your instrument before the gate.
+
+## Accreted 2026-08-07
+
+- **When the change REMOVES or RENAMES a value other code references by LITERAL** — an enum/allowlist
+  member, a user-facing label, a menu item, a wire field name — grep that literal across ALL of `tests/`,
+  not just the suites you'd associate with the change. Two value-removals shipped a stale fixture in an
+  UNRELATED suite this way (a `SUMMARIZE_SOURCES` drop broke a routing-coherence int-test whose value
+  `.catch`-healed to `undefined`; a menu rename broke a chat-list CT), and BOTH passed a verifier that ran
+  only the obviously-coupled suites. The coupled site hides where you would not look; the literal grep is
+  what finds it. `pnpm check` (static) never runs `tests:node`, so it will not catch it for you.

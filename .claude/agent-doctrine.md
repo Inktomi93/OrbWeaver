@@ -398,3 +398,69 @@ instrument is broken, not the tree.
   times, the co-speaker **zero** times, and opening "write X's perspective only" — the feature worked
   only because the model inferred a character it was never given. No unit or CT can see that; it is
   not a wrong value, it is an absent one, in a prompt nobody asserts on.
+
+### An absence receipt must be scoped to where the LAW puts the thing (2026-08-07, lane DATABANK-S2)
+
+A board row said the D85 host-visibility toggle was "still unbuilt" and backed it with a receipt: an
+exhaustive listing of `databank/verbs/` showing no visibility setter. The listing was accurate. The
+conclusion was false — D85 homes that override in **chat**, not databank, and the whole feature had
+shipped: host-gated write verb, strict schema parse, enforcement subtracting hidden ids from the union,
+contract, client affordance.
+
+**An exhaustive listing of the wrong directory reads exactly like proof.** It has a method, a scope, and
+a complete enumeration; it just answers a question nobody asked.
+
+- A row citing an ABSENCE owes its **scope** as well as its method, and the scope is decided by the LAW,
+  not by the domain whose name appears in the feature's title. Cross-domain overrides live where the
+  precedent puts them.
+- Before writing "X is unbuilt", read the D-entry that governs X and check the home it names. One
+  `git show` of the ledger would have killed this row.
+- The corollary for dispatch: when a brief hands a lane an absence receipt, say which directory was
+  searched and why THAT directory is where the thing would be. If you can't justify the scope, the row
+  is a lead, not a row.
+
+### "Declare the limit" is a partial fix wearing a receipt's clothes (2026-08-07, owner correction)
+
+Owner, verbatim: **"we are the do things right the first time club even if it means more work."**
+
+I briefed three lanes with an escape hatch and did not notice I had done it three times:
+- a gate lane: *"extend the reach where it's cheap, declare the rest"* — for four write shapes that were
+  all resolvable with the ts-morph machinery the gate ALREADY contained, one of them a live idiom with
+  20+ call sites;
+- an assembly lane: *"report your recommendation"* on a new inconsistency that lane's own change had
+  introduced;
+- a security lane: *"either gate it or state the asymmetry"* on a uniformity claim that was false.
+
+Each reads like rigor. Each is the same move: converting work into a sentence.
+
+**The tell is the justification.** A declared limit is legitimate when the thing is genuinely out of
+reach — "`tests/**` is outside scanRoot because scanning it would red the gate's own proofs" is a real
+limit with a real reason. **"I could resolve this but it's more work" is not a limit, it's a decision,
+and writing it down doesn't make it a receipt.** A documented blind spot on a live idiom is a gate that
+stays silent on the next real defect while reading as covered.
+
+Related orchestrator failure in the same session: I said an urgent finding was **"routed to its own
+lane"** three separate times, in three messages, without ever dispatching it. Saying where work belongs
+is not the same as sending it. **Grep your own outbound claims for "routed", "boarded", "queued" — then
+verify each one against the dispatch results**, the same way a board row owes its evidence method.
+
+**Fix the class, not the instance the reviewer happened to probe.** When a verifier finds one site of an
+asymmetry, ask what else shares its shape before scoping the leg.
+
+## Minted 2026-08-07 (overnight) — the verify step is not optional
+
+- **`pnpm check` is STATIC — it NEVER runs `tests:node` (the vitest projects + the CTs).** A green
+  `pnpm check` is NOT the behavioral tier and is NOT "done". A change that alters a SHARED VALUE other
+  code references by literal — an enum/allowlist member, a user-facing label or menu item, a wire field
+  name — hides a stale coupled fixture in a suite you never thought to open, and static will not see it.
+  Proven twice in one night: a dropped `SUMMARIZE_SOURCES` member left a stale fixture in the
+  *routing-coherence* int-suite (the `.catch(undefined)` schema HEALED the bad value to `undefined`, so
+  the failure read as a cryptic `expected undefined to be '…'`); a renamed row-kebab menu item left a CT
+  asserting the OLD label. Both were invisible to `pnpm check` AND to a targeted verifier that swept only
+  the suites it expected to be coupled.
+- **When you change such a value, RUN the CT/integration suites that assert it — and repo-wide-grep the
+  literal across `tests/` for a coupled fixture in an unrelated suite.** Name BOTH the suites you ran and
+  the coupled sites you checked. **"No CT" is a claim you owe a grep for, not a default** — the lane that
+  renamed a menu item and reported "No CT" was wrong; a CT asserted that exact label.
+- **`pnpm check` green + a targeted verifier CONFIRMED is not a substitute for the tier the change lives
+  in.** Verify at the tier where the coupled assertion lives, not one below it.
