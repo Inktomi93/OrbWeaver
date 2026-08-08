@@ -204,6 +204,15 @@ function judgeInterface(gateCtx: GateRunCtx, iface: InterfaceDeclaration, ctx: F
     const ourArity = signatureArity(typeNode);
     const handler = ctx.handlers.get(name);
     if (ourArity !== undefined && handler !== undefined) {
+      // ARM A keeps the explicit-`Finding` overload DELIBERATELY, and that is the one thing separating it
+      // from ARM B one branch below (which uses the node overload). This file's header states the rule —
+      // "ARM A — HANDLERS (hard, no exemption)" — and the overload is what enforces it: `hasGateIgnore` only
+      // reads leading comments off a NODE, so a Finding-overload arm cannot be marker-suppressed at all
+      // (GATE-AUTHORING §1). An `onValueChange` that silently drops Base UI's `eventDetails` deletes
+      // capability from every caller with no type error anywhere; there is no site-local reason that makes
+      // that correct, so there must be no site-local escape. The finding still carries the member's LINE and
+      // the prop NAME as its token so the jump-link and §4.3a position survive.
+      // @finding-overload-ok: ARM A is non-suppressible BY DESIGN (this file's header: "hard, no exemption") — the overload is the enforcement, not an oversight; ends if the eventDetails class ever gains a legitimate per-site narrowing, at which point it becomes ARM B
       gateCtx.report({
         file: repoRelative(iface.getSourceFile().getFilePath()),
         line: member.getStartLineNumber(),

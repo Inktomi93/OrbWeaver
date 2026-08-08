@@ -121,10 +121,12 @@ export const gate: GateDescriptor = {
       }
       const { line } = sf.getLineAndColumnAtPos(index);
       if (marker.malformed) {
+        // @finding-overload-ok: the finding IS a COMMENT, not a node — `index` is a text offset from the marker scanner, so there is nothing for hasGateIgnore to read a marker off; and the marker gate must never be marker-suppressible (a bare marker could otherwise absolve the report that indicts it)
         ctx.report({ file, line, column: 0, token: marker.gate, message: MSG_MALFORMED });
         continue;
       }
       if (!registered.has(marker.gate)) {
+        // @finding-overload-ok: the finding IS a COMMENT, not a node — `index` is a text offset from the marker scanner, so there is nothing for hasGateIgnore to read a marker off; and the marker gate must never be marker-suppressible (a bare marker could otherwise absolve the report that indicts it)
         ctx.report({ file, line, column: 0, token: marker.gate, message: MSG_UNREGISTERED });
         continue;
       }

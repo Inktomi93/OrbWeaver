@@ -419,6 +419,16 @@ function writeFixtures(): void {
   // meta-gate reads scripts/check/gates from the shared project, so its fixture lives there, not under
   // packages/; no `gate` export, so the loader skips it as un-ported).
   fx("scripts/check/gates/__g_diaglegi.ts", 'export const stub = { message: "a bare diagnostic with no home" };\n');
+  // finding-overload-provenance: a NEW gate-corpus module building a node-anchored `Finding` literal (a
+  // derived column) with no marker and no baseline row — the authoring-time red this gate exists for. Like
+  // the diagnostic-legibility fixture above it lives in the gate corpus (that is this gate's scanRoot) and
+  // exports no `gate`, so the loader skips it. It carries a pointer in its message so it does not ALSO trip
+  // diagnostic-legibility, and it is deliberately absent from finding-overload-provenance.baseline.json —
+  // a `__g_` path can never earn a budget, which is exactly what makes it prove the unbaselined case.
+  fx(
+    "scripts/check/gates/__g_findprov.ts",
+    'export function gFindProv(node: N, ctx: C): void {\n  ctx.report({ file: rel, line: node.getStartLineNumber(), column: 7, message: "see scripts/check/GATE-AUTHORING.md" });\n}\n',
+  );
   // test-presence-client: a client data/ file with a callable export and no tests/client mirror.
   fx("packages/client/src/data/__g_presclient.ts", "export function gPresClient(): number {\n  return 1;\n}\n");
   // surface-in-a-container: a surface with raw structural JSX, no Container, no anchors/ dir under

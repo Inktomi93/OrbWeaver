@@ -170,11 +170,15 @@ function coDeclarationUnionNode(elementType: Node): UnionTypeNode | undefined {
 // judge (a re-spell can reference a tuple declared later in the walk), so re-spell candidates are
 // accumulated in visit and reconciled against the collected tuples in `finalize`.
 type RespellCandidate = {
+  /** The offending NODE itself — carried (not a line/column snapshot) so arm B can report through the
+   *  NODE overload and `@orb-gate-ignore` works on it (GATE-AUTHORING §1; the Finding overload bypasses
+   *  `hasGateIgnore`). Nodes stay live for the whole pass: `visit` and `run` share one Project. */
+  readonly node: Node;
   readonly file: string;
-  readonly line: number;
-  readonly column: number;
   readonly loc: LocKey;
   readonly sig: string;
+  /** Which arm-B sub-kind fired — it rides in the finding's TOKEN, which is the only precision a
+   *  token-emitting gate's self-proofs have now that the per-finding messages fold into `message`. */
   readonly kind: "union" | "zenum";
 };
 type TupleHome = { readonly name: string; readonly file: string };
@@ -184,19 +188,8 @@ const passTuples = new Map<string, TupleHome>(); // sig → { tuple name, home f
 const passCoDeclLocs = new Set<LocKey>();
 const passRespells: RespellCandidate[] = [];
 
-function candidateColumn(node: Node): number {
-  return node.getSourceFile().getLineAndColumnAtPos(node.getStart()).column;
-}
-
 function pushRespell(node: Node, root: string, members: string[], kind: "union" | "zenum"): void {
-  passRespells.push({
-    file: relPath(root, node.getSourceFile().getFilePath()),
-    line: node.getStartLineNumber(),
-    column: candidateColumn(node),
-    loc: locKeyOf(node, root),
-    sig: sig(members),
-    kind,
-  });
+  passRespells.push({ node, file: relPath(root, node.getSourceFile().getFilePath()), loc: locKeyOf(node, root), sig: sig(members), kind });
 }
 
 /** Register a `const X = [...] as const [satisfies readonly Y[]]` string tuple as a canonical axis home
@@ -268,8 +261,15 @@ export const gate: GateDescriptor = {
   docRow: "core/Spine-TypeScript-and-Patterns.md §7.5",
   status: "active",
   scopeSafety: "whole-project", // arm B compares against tuples collected from the whole tree
+  // THE ONE REASON, carrying all three arm tokens (arm B's two per-finding messages folded in here when it
+  // stopped riding the Finding overload, which bypasses `hasGateIgnore` — GATE-AUTHORING §1).
   message:
-    "an inline string-literal union re-spells (or should derive from) a canonical `as const` tuple — declare the axis ONCE as a tuple (export const X = [...] as const) and derive ((typeof X)[number] / z.enum(X)). Spine-TypeScript-and-Patterns.md §7.5",
+    "an inline string-literal union re-spells (or should derive from) a canonical `as const` tuple — declare " +
+    "the axis ONCE as a tuple (export const X = [...] as const) and derive ((typeof X)[number] / z.enum(X)). " +
+    "A `union <Alias>` token is arm A: an inline string-union type alias of ≥3 members. A `re-spell <Tuple>` " +
+    "token is arm B: an inline union whose members EXACTLY equal that homed tuple — derive " +
+    "((typeof <Tuple>)[number]). A `z.enum re-spell <Tuple>` token is arm B's z.enum sub-kind — use " +
+    "z.enum(<Tuple>). Spine-TypeScript-and-Patterns.md §7.5",
   fix: "derive the union from the homed tuple: `(typeof X)[number]` (or `z.enum(X)`) — never re-spell its members.",
   // Pinned to packages+tests: the §2.2 fold-in globs scripts/check/gates/** into the workspace; a gate
   // file's inline-union EXAMPLE strings (mustFlag fixtures) are not real axis declarations, and the gate
@@ -290,7 +290,14 @@ export const gate: GateDescriptor = {
     visitAlias(node, ctx); // arm A (self-contained)
     visitRespellCandidate(node, ctx.root); // arm B (accumulate)
   },
-  finalize: (ctx: GateRunCtx) => {
+  // Arm B reconciles in `run`, NOT `finalize`, and that is LOAD-BEARING: it reports node-anchored findings
+  // through the NODE overload, so a `@orb-gate-ignore` here is CONSUMED during the phase it is reported in.
+  // `gate-ignore-inventory`'s STALE sweep runs in `finalize`, and gates finalize in load (filename) order —
+  // `g…` before `n…` — so a suppression consumed in THIS gate's finalize would land after the sweep read the
+  // count and the author's correct marker would be reported stale (pass.ts's `gateIgnoreSuppressedInFinalize`
+  // tripwire exists for exactly that, and names `run` as the fix). Every gate's `run` precedes every
+  // `finalize`, and `run` is still after the whole walk — so all tuples are collected. See scripts/check/pass.ts.
+  run: (ctx: GateRunCtx) => {
     for (const c of passRespells) {
       const home = passTuples.get(c.sig);
       if (home === undefined) {
@@ -307,24 +314,14 @@ export const gate: GateDescriptor = {
       if (!canReachHome(c.file, home.file)) {
         continue;
       }
-      const message =
-        c.kind === "zenum"
-          ? `z.enum([...]) re-spells the canonical tuple '${home.name}' — use z.enum(${home.name}). Spine-TypeScript-and-Patterns.md §7.5`
-          : `inline union re-spells the canonical tuple '${home.name}' — derive ((typeof ${home.name})[number]) instead of re-spelling its members. Spine-TypeScript-and-Patterns.md §7.5`;
-      ctx.report({
-        file: c.file,
-        line: c.line,
-        column: c.column,
-        message,
-        token: `re-spell ${home.name}`,
-      });
+      ctx.report(c.node, { token: `${c.kind === "zenum" ? "z.enum re-spell" : "re-spell"} ${home.name}`, offset: 0 });
     }
   },
   mustFlag: [
     {
       files: "export type Mode = 'a' | 'b' | 'c';\n",
       at: "packages/contracts/src/x.ts",
-      expect: { messageIncludes: "declare the axis" },
+      expect: { count: 1, token: "union Mode" },
       why: "an inline string-union type alias of ≥3 members (arm A) — declare a tuple + derive (§7.5)",
     },
     {
@@ -332,7 +329,7 @@ export const gate: GateDescriptor = {
         "packages/contracts/src/home.ts": "export const AXIS = ['a', 'b', 'c'] as const;\n",
         "packages/server/src/x.ts": "export interface T { mode: 'a' | 'b' | 'c' }\n",
       },
-      expect: { messageIncludes: "re-spells the canonical tuple" },
+      expect: { count: 1, token: "re-spell AXIS" },
       why: "an inline union re-spelling a homed `as const` tuple (arm B, cross-file) — derive instead",
     },
     {
@@ -340,15 +337,15 @@ export const gate: GateDescriptor = {
         "packages/contracts/src/mode-home.ts": "export const MODE = ['a', 'b', 'c'] as const;\n",
         "packages/server/src/z.ts": "export const schema = z.enum(['a', 'b', 'c']);\n",
       },
-      expect: { messageIncludes: "z.enum([...]) re-spells the canonical tuple" },
-      why: "a `z.enum([...])` respelling a homed `as const` tuple (arm B ZENUM sub-kind — the AUTH_MODE bug) — use z.enum(X)",
+      expect: { count: 1, token: "z.enum re-spell MODE" },
+      why: "a `z.enum([...])` respelling a homed `as const` tuple (arm B ZENUM sub-kind — the AUTH_MODE bug) — use z.enum(X). The TOKEN is what discriminates the sub-kind now that both messages fold into `message`",
     },
     {
       files: {
         "packages/kit/src/pair-home.ts": "export const PAIR = ['x', 'y'] as const;\n",
         "packages/server/src/pair-respell.ts": "export interface P { side: 'x' | 'y' }\n",
       },
-      expect: { messageIncludes: "re-spells the canonical tuple" },
+      expect: { count: 1, token: "re-spell PAIR" },
       why: "blind spot (b) repaired: a 2-member tuple homed in kit/ now registers, so a 2-member re-spell is caught (arm B at the ≥2 homed floor)",
     },
     {
@@ -357,7 +354,7 @@ export const gate: GateDescriptor = {
           "export interface Cfg { mode: 'a' | 'b' | 'c'; n: number }\nexport const MODES = ['a', 'b', 'c'] as const satisfies readonly Cfg['mode'][];\n",
         "packages/server/src/sat-respell.ts": "export interface Reuse { mode: 'a' | 'b' | 'c' }\n",
       },
-      expect: { messageIncludes: "re-spells the canonical tuple" },
+      expect: { count: 1, token: "re-spell MODES" },
       why: "blind spot (a) repaired: an `as const satisfies readonly X[]` tuple now registers, so a FOREIGN re-spell is caught — while its OWN satisfies co-declaration (Cfg.mode) is exempt (the next mustPass proves the exemption)",
     },
   ],

@@ -376,7 +376,10 @@ export const gate: GateDescriptor = {
         ctx.report({
           file: TIER_MAP_REL,
           line,
-          column: 1,
+          // 0, not 1: `line` is a CSS stylesheet line from a text scan — there is no node and no intra-line
+          // token, and `Finding.column` spells that "0" (contract.ts). It read `1` until 2026-08-08, which
+          // claimed an intra-line caret this gate cannot have.
+          column: 0,
           message: `${TIER_MAP_REL} maps [data-slot="${slot}"] but no file under ${UI_SRC} emits that slot — a mapped-but-dead rule paints nothing while the stylesheet reads as load-bearing (density-pass-spec.md §4.2). Emit the slot from the primitive that owns it, or drop the rule.`,
         });
       }
