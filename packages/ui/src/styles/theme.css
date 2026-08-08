@@ -154,8 +154,8 @@
   --z-raised: 10;
   --z-overlay: 40;
   --z-modal: 50;
-  --z-toast: 60;
   --z-popover: 65;
+  --z-toast: 68;
   --z-tooltip: 70;
   --motion-fast: 130ms;
   --motion-base: 220ms;

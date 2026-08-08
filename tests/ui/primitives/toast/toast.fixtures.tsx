@@ -70,6 +70,22 @@ function ToastButtons(): ReactElement {
       >
         add warning toast
       </button>
+      <button
+        onClick={(): void => {
+          toastManager.add({ title: "Couldn't save", type: "error", priority: "high" });
+        }}
+        type="button"
+      >
+        add error toast
+      </button>
+      <button
+        onClick={(): void => {
+          toastManager.add({ title: "Saved to your library", type: "success" });
+        }}
+        type="button"
+      >
+        add success toast
+      </button>
     </div>
   );
 }

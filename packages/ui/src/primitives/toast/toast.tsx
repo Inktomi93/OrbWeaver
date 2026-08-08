@@ -1,7 +1,7 @@
 import type { ToastPortalProps as BasePortalProps, ToastProviderProps as BaseProviderProps, ToastRootProps as BaseRootProps } from "@base-ui/react/toast";
 import { Toast as BaseToast } from "@base-ui/react/toast";
 import type { ReactElement } from "react";
-import { AlertTriangle, Icon, X } from "#primitives/icons";
+import { AlertTriangle, Check, CircleAlert, Icon, X } from "#primitives/icons";
 import { toastVariants } from "./variants.ts";
 
 const slots = toastVariants();
@@ -10,9 +10,29 @@ const slots = toastVariants();
  *  default (`['down','right']`) would ask the user to drag a top-edge toast toward the page. */
 const TOP_ANCHORED_SWIPE: BaseRootProps["swipeDirection"] = ["up", "right"];
 
-/** Base UI stamps `data-type` from the toast's `type`; `"warning"` is the app's degrade channel
- *  (`notify.warn`) and is the one type that carries a glyph — meaning is never colour alone (WCAG 1.4.1). */
-const WARNING_TYPE = "warning";
+/**
+ * The glyph half of a toast's identity. Base UI stamps `data-type` from the toast's `type`, and each
+ * MEANING-BEARING type pairs its border tint with a shape — a tint alone is a colour-only signal
+ * (WCAG 1.4.1), and `error`'s tint is the weakest of the set (4.59:1 measured), so it needs the shape most.
+ *
+ * `type` is Base UI's own OPEN string (`string | undefined`), not one of our unions, so there is no
+ * exhaustive dispatch to owe here and no `assertNever` that could ever fire — an `if` chain, not a
+ * `switch` (which `switch-exhaustiveness-check` correctly refuses to believe is total over `string`).
+ * `loading` and the plain info toast stay glyph-less deliberately: neither asserts a state a reader
+ * could mis-read from colour.
+ */
+function TypeGlyph({ type }: { readonly type: string | undefined }): ReactElement | null {
+  if (type === "error") {
+    return <Icon className={slots.errorIcon()} icon={CircleAlert} size="sm" />;
+  }
+  if (type === "success") {
+    return <Icon className={slots.successIcon()} icon={Check} size="sm" />;
+  }
+  if (type === "warning") {
+    return <Icon className={slots.warningIcon()} icon={AlertTriangle} size="sm" />;
+  }
+  return null;
+}
 
 /** App-wide toast state — seals the Base UI Toast manager. Mount ONCE near the root. */
 export function ToastProvider(props: BaseProviderProps): ReactElement {
@@ -35,7 +55,7 @@ function ToastItems({ swipeDirection = TOP_ANCHORED_SWIPE }: ToastItemsProps): R
         // `notify.error` is high-priority, so the errors that most need announcing announced nothing. The
         // Viewport is `aria-live="polite"`, so the toast is announced exactly once with this restored.
         <BaseToast.Root aria-hidden={false} className={slots.root()} data-slot="toast-root" key={toast.id} swipeDirection={swipeDirection} toast={toast}>
-          {toast.type === WARNING_TYPE ? <Icon className={slots.warningIcon()} icon={AlertTriangle} size="sm" /> : null}
+          <TypeGlyph type={toast.type} />
           <BaseToast.Content className={slots.content()}>
             <BaseToast.Title className={slots.title()} />
             <BaseToast.Description className={slots.description()} />
