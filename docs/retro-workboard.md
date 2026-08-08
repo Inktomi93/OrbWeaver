@@ -179,10 +179,24 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     unexploitable (owner is boot-seeded, never runtime-minted) but an asymmetry worth an inline note or
     the clause; (2) `resetPassword` lacks the `cannot_modify_agent` guard its siblings have — harmless
     now (agents aren't form-loginable) but a sibling to sweep if agent hardening ever happens.
-  - **⏳ TWO VERIFIERS IN FLIGHT over lanes I graduated on 'mechanical' judgment (owner offered the
-    spend):** `a74f2250` on SMALLS-SERVER (the narrator-preview GroupConfig threading + its byte-fence) ·
-    `a07a6cd8` on SUMDROP + TEMPLATE-UNIFY (the deleted resolve-role test's coverage, the self-heal, and
-    the compaction-slot byte-identity). Read-only; don't consume the write cap.
+  - ✅ **TWO VERIFIERS CONFIRMED the 'mechanical' graduations (owner-offered spend) — no refutation.**
+    `a74f2250` SMALLS-SERVER 4/4: the per-speaker byte-fence covers ALL cases (`GroupConfig.output` is a
+    2-value union; only `.output` threads, `cardScope`/`scopedTargetId` stay pinned), group-load parity
+    with the real turn is faithful (`metadata.group ?? DEFAULT_GROUP_CONFIG`, same `parseChatMetadata`),
+    `PreviewInputs` is file-local single-constructor, red-first genuinely bites. `a07a6cd8` SUMDROP+
+    TEMPLATE-UNIFY 6/6: the firewall pin (`firewall.test.ts:46-51`) covers summarize+max-pro-sub→forbidden
+    so the deleted resolve-role test lost no coverage; `.catch(undefined)` self-heals stored values;
+    structured untouched; compaction slot byte-IDENTICAL (both 314 chars, sha match); override path
+    unchanged; no model-prose baseline debt.
+  - **⚑ ONE PRE-EXISTING CAVEAT the SMALLS-SERVER verifier flagged (not a refutation, boarded):** the
+    real turn coerces a single-target regen to per-speaker via `asPerSpeaker` (`turn.ts:1485/2336`); the
+    PREVIEW accepts a `speakerCharacterId` but only reorders the cast and keeps `group.output` — so a
+    narrator-room preview requested WITH a `speakerCharacterId` shows narrator framing while an actual
+    single-speaker regen would render per-speaker. Pre-existing modeling choice (preview = next natural
+    full-cast turn), harmless, worth a note if preview-fidelity is ever pushed further.
+  - **⏳ `verify --push` BATTERY RUNNING on main (`bd644dbd2`, detached) at owner request** — snapshot of
+    main's full-battery state before more overnight merges land. Concurrent with 3 write lanes, so a
+    `tests:node` flake would be CONTENTION not a real red — will distinguish from `reports/verify.json`.
 
   ### ✅ ALL DISPATCHED CHUNKS HAVE GRADUATED (2026-08-07 evening)
   Every lens has reported. NARRATOR-CAST, PROVGATE, the two push-red fixes and SIDE-EYE-DAY are above;
