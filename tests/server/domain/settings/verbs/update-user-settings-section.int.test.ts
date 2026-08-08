@@ -305,10 +305,12 @@ describe("updateUserSettingsSection — routing (source, model) coherence", () =
 
     const flipped = await h.svc.updateUserSettingsSection({
       principal: p,
-      input: { section: "routing", patch: { roleDefaults: { summarize: { source: "max-pro-sub" } } } },
+      // Flip to vllm (the other CATALOG summarize source) — max-pro-sub was dropped from SUMMARIZE_SOURCES
+      // (owner ruling 2026-08-07: batch roles don't spend the metered sub), so it now heals to undefined here.
+      input: { section: "routing", patch: { roleDefaults: { summarize: { source: "vllm" } } } },
     });
 
-    expect(flipped.config.routing.roleDefaults.summarize?.source).toBe("max-pro-sub");
+    expect(flipped.config.routing.roleDefaults.summarize?.source).toBe("vllm");
     expect(flipped.config.routing.roleDefaults.summarize?.model ?? "").toBe("");
   });
 
