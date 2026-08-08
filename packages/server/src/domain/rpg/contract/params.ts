@@ -180,7 +180,8 @@ export interface UpdateConfigParams {
 
 /** `patchSheet` — write an actor's identity sheet (host any; a member their own `user` ref). MA-4 patch: every
  *  field optional, no defaults — an omitted field keeps its current value. Attribute keys are validated ∈ the
- *  profile vocabulary + range. */
+ *  profile vocabulary + range. The two tracker-exception fields carry a SECOND, per-field HOST floor (see
+ *  `verbs/patch-sheet.ts` — whose row ≠ which fields). */
 export interface PatchSheetParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
@@ -190,6 +191,8 @@ export interface PatchSheetParams {
     readonly attributes?: Readonly<Record<string, number>> | undefined;
     // The per-actor TRACKER EXCEPTIONS (the applicability model) — tracker KEYS granted to / revoked from
     // THIS actor against its carrier class. Whole-list replace; defs themselves live in `config.trackers`.
+    // HOST-ONLY (grants are the host's call): a member naming either field is refused at the verb, even on
+    // their OWN user-ref sheet, which `assertOwnUserRef` alone would have allowed.
     readonly trackerGrants?: readonly string[] | undefined;
     readonly trackerRevokes?: readonly string[] | undefined;
     readonly flavor?: string | undefined;
