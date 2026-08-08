@@ -9,7 +9,8 @@
 // OWNER-supplied hook — reading N of them in a loop is exactly the rules-of-hooks violation the
 // one-child-per-contribution shape (TrailWidget/HomeTile precedent) exists to avoid. The teaching voice is
 // never wrong for either reader, and each card carries its own live count, which is what actually tells a
-// populated user where they stand.
+// populated user where they stand. What the populated case DOES change is per-card and therefore hook-safe:
+// see `CollectionLauncher` — a card with members drops the count + create the roster band already carries.
 
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -52,7 +53,28 @@ export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement
 }
 
 /** One launcher card. Its own component so each collection's `useVisible`/`useCount` hooks are called
- *  unconditionally, once, in a fixed position (the `TrailWidget` shape). */
+ *  unconditionally, once, in a fixed position (the `TrailWidget` shape) — and so the POPULATED trim below
+ *  can be a per-child verdict instead of the parent count-loop the header rules out.
+ *
+ *  THE TRIM (C7 arm 2, owner ruling 2026-08-08): with both panes docked and the library full, the line
+ *  `Tags · 400 · New tag` rendered here AND in the roster's group band — one concept, two homes. A POPULATED
+ *  card therefore drops the count and the create verb (both of which the band carries, beside the rows they
+ *  act on) and keeps icon + label + blurb, where the blurb is the one thing the band does NOT carry: the
+ *  pane stops being a second roster and becomes what its heading promises.
+ *
+ *  A SECOND DEVIATION FROM `empty-states.html` FRAME 2, stated so it is not read as an oversight (the
+ *  header's first one is the copy switch): the mock's populated CONTENT frame draws the count + create on
+ *  every launcher card and says in its note that the populated arm "keeps the counts visible so the roster
+ *  still reads as a map" (`docs/design/mocks/config-rail/empty-states.html:310-333`). It is drawn SOLO
+ *  there — one pane, no roster beside it — which is the case the duplication does not arise in. Docked, the
+ *  roster IS on screen carrying every one of those numbers, and the owner ruled the restatement out
+ *  (2026-08-08, C7 arm 2).
+ *
+ *  THE EMPTY CARD IS UNTOUCHED — count(0) + create stay. That is the 2026-08-03 "genuinely good teaching
+ *  state" verdict, which was the cold-first-timer test: at zero the verb is the onboarding next step, not a
+ *  restatement. `undefined` (a collection that declares no `useCount`, or a read that has not landed) takes
+ *  the SAME arm as zero: the card sheds only what it KNOWS is duplicated, so a future contribution without a
+ *  count hook keeps its create verb rather than silently losing the only way into an empty library. */
 function CollectionLauncher({ collection }: { readonly collection: CollectionContribution }): ReactNode {
   const visible = collection.useVisible?.() ?? true;
   const count = collection.useCount?.();
@@ -60,6 +82,7 @@ function CollectionLauncher({ collection }: { readonly collection: CollectionCon
   if (!visible) {
     return null;
   }
+  const populated = count !== undefined && count > 0;
   return (
     <Card data-slot="collection-launcher" data-collection={collection.id}>
       <Stack gap="tight">
@@ -68,7 +91,7 @@ function CollectionLauncher({ collection }: { readonly collection: CollectionCon
           <Text as="span" voice="kicker">
             {collection.label}
           </Text>
-          {count === undefined ? null : (
+          {populated || count === undefined ? null : (
             <Text as="span" voice="datum">
               {count}
             </Text>
@@ -80,11 +103,13 @@ function CollectionLauncher({ collection }: { readonly collection: CollectionCon
             — on the pane whose whole job is to offer three of them. `secondary` is the house's non-primary
             button chrome; the `Row` keeps it intrinsically sized (a `Stack` child stretches to the card's
             full width, which is what made it read as a stripe rather than a control). */}
-        <Row>
-          <Button intent="secondary" onClick={create} size="sm" type="button">
-            {collection.create.label}
-          </Button>
-        </Row>
+        {populated ? null : (
+          <Row>
+            <Button intent="secondary" onClick={create} size="sm" type="button">
+              {collection.create.label}
+            </Button>
+          </Row>
+        )}
       </Stack>
     </Card>
   );

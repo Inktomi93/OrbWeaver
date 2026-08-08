@@ -164,6 +164,64 @@ test("no selection renders the host WELCOME with a launcher card per collection"
   await expect(welcome.getByText("Keyword-triggered lore your characters draw on — a book fires where you attach it.")).toBeVisible();
 });
 
+/** One launcher card in the welcome, by its collection id. */
+function launcher(workspace: Locator, collectionId: string): Locator {
+  return workspace.locator(WELCOME).locator(`[data-collection="${collectionId}"]`);
+}
+
+/** SETTLE BARRIER for the launcher arms: each ROSTER band prints its own collection's count, off the SAME
+ *  cache-first hook the launcher reads. Until a band shows its number that collection's count is
+ *  `undefined` — the in-flight state, where a launcher legitimately still draws its create verb — so a
+ *  populated-arm assertion made before this barrier would be asserting a flash. */
+async function bandCount(workspace: Locator, collectionId: string, count: number): Promise<void> {
+  await expect(workspace.locator(ROSTER).locator(`[data-collection="${collectionId}"] [data-slot="collection-band"]`).getByText(String(count))).toBeVisible();
+}
+
+// C7 arm 2 (split-the-class, 2026-08-08): with both panes docked and populated, `Tags · 400 · New tag`
+// rendered in the roster band AND in the welcome's launcher card — two homes for one concept on one screen.
+// The fix is per-CHILD (the documented rules-of-hooks trap: a "switch voice when populated" parent would
+// have to read N owner count hooks in a loop), and it sheds ONLY the duplicated half: a populated card keeps
+// the blurb, which is the one thing the band does not carry.
+test("a POPULATED collection's launcher sheds the count + create the roster band already carries", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  await bandCount(workspace, "tags", TAG_COUNT);
+  await bandCount(workspace, "regex", SCRIPTS.length);
+  await bandCount(workspace, "worldInfo", BOOKS.length);
+
+  const welcome = workspace.locator(WELCOME);
+  // The restatement is gone from the LANDING — every create verb on screen is the roster's.
+  await expect(welcome.getByRole("button")).toHaveCount(0);
+  await expect(launcher(workspace, "tags").getByText(String(TAG_COUNT))).toHaveCount(0);
+  // …and the teaching sentence the pane exists for stays, on every card.
+  await expect(welcome.getByRole("heading", { name: "The parts every chat is built from" })).toBeVisible();
+  await expect(welcome.getByText("Colour-coded labels for characters, chats, books, personas and presets.")).toBeVisible();
+  await expect(welcome.getByText("Keyword-triggered lore your characters draw on — a book fires where you attach it.")).toBeVisible();
+});
+
+// THE EMPTY STATE IS UNTOUCHED (the 2026-08-03 "genuinely good teaching state" verdict, which was the
+// COLD-FIRST-TIMER test): at zero the card's count + create ARE the onboarding next step, and the roster
+// band is not a duplicate of them so much as the same first step said where the user is looking. The tags
+// collection is empty here while its two siblings are populated — one frame carrying both arms, so the
+// populated shed cannot be a blanket removal.
+test("an EMPTY collection's launcher keeps its count and create verb — the first-run teacher", async ({ mount, page }) => {
+  await stub(page, []);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  await bandCount(workspace, "tags", 0);
+  await bandCount(workspace, "regex", SCRIPTS.length);
+
+  const tags = launcher(workspace, "tags");
+  await expect(tags.getByText("0")).toBeVisible();
+  await expect(tags.getByRole("button", { name: "New tag" })).toBeVisible();
+  // The control, in the same frame: the populated siblings shed theirs.
+  await expect(launcher(workspace, "regex").getByRole("button")).toHaveCount(0);
+  await expect(launcher(workspace, "worldInfo").getByRole("button")).toHaveCount(0);
+});
+
 // D121-D's lifecycle anatomy, landed on the group band: IMPORT is host chrome driven by the contribution's
 // `importFile` DATA, so it appears for exactly the collections that declare one — and the register of which
 // is which is `lifecycle-portability.ts`'s `LIFECYCLE_DOORS` table, never a host string list.

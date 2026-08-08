@@ -190,15 +190,22 @@ test("bulk mode: the row body toggles selection (not open-editor) and shows a ch
 });
 
 // The lifecycle one-home ruling: card EXPORT homes on this row's kebab (import is the band's ghost; the
-// editor carries no lifecycle chrome). It is a plain download LINK to the owner-gated export route — a
-// non-owner's GET 404s at the verb, so the item can't reach a card the viewer doesn't own.
-test("§12 the kebab carries Export card as a download link to the owner-gated route", async ({ mount, page }) => {
+// editor carries no lifecycle chrome). Both formats the owner-gated route serves are plain download LINKS
+// in ONE submenu — the chat kebab's grammar (`chat-list-surface.ct.tsx`) — because a card that reaches a
+// viewer who does not own it 404s at the verb, whichever container it asked for. `.png` is the default arm
+// (no `?format`, the ST-parity card with the avatar welded in); `.json` rides `?format=json` and is the
+// unwrapped V3 card the import door already accepts.
+test("§12 the kebab's Export card submenu links BOTH formats to the owner-gated route", async ({ mount, page }) => {
   const component = await mount(<CharacterCardTileStory name="Aria Nightshade" />);
   await component.getByRole("button", { name: "Actions for Aria Nightshade", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Export card" }).click();
 
-  const exportItem = page.getByRole("menuitem", { name: "Export card" });
-  await expect(exportItem).toHaveAttribute("href", "/api/export/character/char_ct_story");
-  await expect(exportItem).toHaveAttribute("download", "");
+  const png = page.getByRole("menuitem", { name: "With avatar (.png)" });
+  await expect(png).toHaveAttribute("href", "/api/export/character/char_ct_story");
+  await expect(png).toHaveAttribute("download", "");
+  const json = page.getByRole("menuitem", { name: "Data only (.json)" });
+  await expect(json).toHaveAttribute("href", "/api/export/character/char_ct_story?format=json");
+  await expect(json).toHaveAttribute("download", "");
   // The rare/destructive cluster the ruling puts it in — the same menu, not a second home.
   await expect(page.getByRole("menuitem", { name: "Duplicate" })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: "Delete" })).toBeVisible();
