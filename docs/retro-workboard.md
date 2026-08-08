@@ -543,10 +543,23 @@ security lens.
     spots (globalThis.setTimeout, method-form escape-mint) fix-or-document. Gotcha banked: check-gates +
     gate-conformance live in `--project integration-serial`, NOT `integration`. Worktree stands.
     Durable lesson in memory `ratifying-gate-owes-two-receipts`.
-  - ⏳ **`RPG-PROSE` in flight** (agent **a2b8b028dc3859073**) — APPROVED scope: reminder seam (rows
-    1-10) + `contracts/src/rpg/prose.ts` home + `config.prose` storage spine, ONE commit,
-    byte-identical. EXTRACTION seam (rows 11-36, `render(ctx)` core-shape fork + fenced client preview)
-    = follow-on lane; census/classification lands in a docs/ file. (Task #17.)
+  - ✅ **`RPG-PROSE` GRADUATED** — `fe9a16a0a` merged as **`fa8f944a0`** (24 files): reminder seam (rows
+    1-10 + census-gap offstageHeader) → `contracts/src/rpg/prose.ts` (11 slots) + full `config.prose`
+    storage spine; defaults are the old constants VERBATIM, reminder consts now derive from slots.
+    **Verifier `aed1cca843965bc7d`: CONFIRMED all 5** — byte-identity proven by AST-diff against the
+    real pre-migration git blobs (11/11 `===`, card example's leading `\n\n` intact); frozen-defaults
+    cohort verified GENUINELY independently typed; keep-on-omit proven incl. the `.prefault({})` leak
+    probe; macro split matches old consumers; 866 tests across the whole rpg+prose surface green + a
+    literal sweep for coupled fixtures (none missed). EXTRACTION seam = follow-on
+    (`docs/design/prose-1-rpg-extraction-followon.md`; row-27 owner-DEFERRED).
+    **Verifier F1 (routed to the live security lane):** comment at `fork-game.ts:118-119` FALSELY claims
+    `getConfigView` reads prose — NO read door exists anywhere; security lane told to reason from code +
+    truth-repair the comment in its commit.
+    **Verifier F2 (NEW ROW — prose read door):** `updateConfig.patch.prose` WRITES but nothing reads it
+    back to a host (no getConfigView arm, no editor, zero client refs to rpg.* slot ids) — "host-editable"
+    is true at the verb tier only. Needs: host-gated `RpgConfigView.prose` read arm + the host editor
+    surface (pairs naturally with the extraction follow-on's preview surface). NOT a defect in what
+    shipped; the write door is safe (host-plane-stripped on fork, no member read path).
   - ✅ **`PORTR6-FIXTURE` GRADUATED, worktree torn down.** `f574ba39b` merged as `75250af9a`; verifier
     `a1f94d93f67dda984` CONFIRMED via MUTATION PROBE (swap-mutated the real remap
     `domain/import/verbs/import-chat-bundle.ts:186-189` in the lane worktree, restored — new test RED at
