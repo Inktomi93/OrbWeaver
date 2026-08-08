@@ -14,8 +14,8 @@
 // historical portrait to bare initials. The live participant still WINS when present (its avatarHash can
 // carry a per-chat override the character-level producer doesn't).
 
-import type { CarriedAppearanceCast, MessageKind, ParticipantView } from "@orb/contracts/chat";
-import { resolveCarriedTheme } from "@orb/contracts/chat";
+import type { CarriedAppearanceCast, CastKind, CastKindPolicy, MessageKind, ParticipantView } from "@orb/contracts/chat";
+import { CAST_KIND_POLICY, resolveCarriedTheme } from "@orb/contracts/chat";
 import { cardEmbeddableSubset } from "@orb/contracts/theme";
 import type { AssetId, CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -150,6 +150,33 @@ function assertNeverMessageKind(kind: never): never {
   throw new Error(`isNarratorVoiced: unhandled MessageKind ${JSON.stringify(kind)}`);
 }
 
+/** The per-kind avatar precedence — `CAST_KIND_POLICY`'s `avatar` column enacted (D137, its live reader):
+ *  `participant-first` lets a live `ParticipantView`'s hash (which can carry a per-chat override) win over
+ *  the cast entry's; `cast-only` reads the cast producer alone (a persona has no participant avatar plane).
+ *  Total over the policy verdict (`assertNever` tail — a third precedence cannot ship unread). */
+function avatarByPolicy(kind: CastKind, participantHash: string | null | undefined, castHash: string | null | undefined): string | null {
+  return applyAvatarPrecedence(CAST_KIND_POLICY[kind].avatar, participantHash, castHash);
+}
+
+function applyAvatarPrecedence(
+  precedence: CastKindPolicy["avatar"],
+  participantHash: string | null | undefined,
+  castHash: string | null | undefined,
+): string | null {
+  switch (precedence) {
+    case "participant-first":
+      return participantHash ?? castHash ?? null;
+    case "cast-only":
+      return castHash ?? null;
+    default:
+      return assertNeverAvatarPrecedence(precedence);
+  }
+}
+
+function assertNeverAvatarPrecedence(precedence: never): never {
+  throw new Error(`avatarByPolicy: unhandled avatar precedence ${JSON.stringify(precedence)}`);
+}
+
 export function resolveRowAttribution(input: ResolveRowAttributionInput): RowAttribution {
   if (input.role === "user") {
     return resolveUserAttribution(input);
@@ -170,7 +197,7 @@ function resolveUserAttribution(input: ResolveRowAttributionInput): RowAttributi
   if (persona === undefined) {
     return DEFAULT_USER_ATTRIBUTION;
   }
-  const avatarHash = (personaId === null ? undefined : input.personaAvatarsById?.get(personaId)) ?? null;
+  const avatarHash = avatarByPolicy("persona", undefined, personaId === null ? undefined : input.personaAvatarsById?.get(personaId));
   return {
     name: persona.name,
     kind: "persona",
@@ -196,9 +223,10 @@ function resolveAssistantAttribution(input: ResolveRowAttributionInput): RowAttr
   }
   const participant = input.participants?.get(input.characterId);
   const tokens = characterTint(input.characterId, participant?.themeOverride, false);
-  // The live participant wins (it can carry a per-chat avatar override); once removed it's absent, so the
-  // portrait falls back to the character-level producer — never straight to the initials fallback.
-  const avatarHash = participant?.avatarHash ?? input.characterAvatarsById?.get(input.characterId) ?? null;
+  // participant-first (CAST_KIND_POLICY.character.avatar): the live participant wins (it can carry a
+  // per-chat avatar override); once removed it's absent, so the portrait falls back to the cast producer's
+  // character entry — never straight to the initials fallback.
+  const avatarHash = avatarByPolicy("character", participant?.avatarHash, input.characterAvatarsById?.get(input.characterId));
   return {
     name,
     kind: "character",

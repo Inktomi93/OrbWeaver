@@ -1,15 +1,10 @@
-// @orb/contracts/chat/producers — the chat-read member-gated id→name / id→avatar producer maps, so a client
-// can DERIVE per-row `{{char}}`/`{{user}}`/`{{persona}}` names (`resolveRowMacros`) + row attribution avatars
-// (`resolveRowAttribution`). Rows stay id-only — these are the PRODUCERS, never per-row denormalized names.
-// Wire-serializable as ARRAYS (raw JSON, no superjson transformer here — a `Map` doesn't survive JSON).
-
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
-import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
-
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// THE KIND-POLYMORPHIC CAST (D137) — ONE kind-discriminated entry per identity a chat references, over the
-// active ∪ stamped coverage (`domain/chat/persistence/cast.ts`), replacing the per-kind entry-type/builder
-// matrix. The D129 message-kind shape transposed: a closed kind tuple + a total policy record + total
+// @orb/contracts/chat/producers — the chat-read member-gated CAST producer (D137): ONE kind-discriminated
+// entry per identity a chat references, so a client can DERIVE per-row `{{char}}`/`{{user}}`/`{{persona}}`
+// names (`resolveRowMacros` via `buildCastNameContext`) + row attribution avatars (`resolveRowAttribution`
+// via `buildCastAvatarMaps`). Rows stay id-only — this is the PRODUCER, never per-row denormalized names.
+// Wire-serializable as an ARRAY (raw JSON, no superjson transformer here — a `Map` doesn't survive JSON).
+//
+// The D129 message-kind shape transposed: a closed kind tuple + a total policy record + total
 // `Record`/`assertNever` dispatches at every consumer. Cast kind is STRUCTURAL — the row's stamp columns
 // (`characterId` vs `personaId`) ARE the declaration — so there is deliberately NO stored column
 // (derive-don't-stamp; contrast D129, where purpose was un-derivable from degradable stamps).
@@ -17,7 +12,9 @@ import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 // The names-only law's MECHANISM is the projection types, not the wire envelope: `buildCastNameContext`'s
 // outputs are the KIT's avatar-free entry types (`RowCharacterName`/`RowPersonaName`), so the macro engine
 // remains structurally unable to see chrome; `buildCastAvatarMaps` is the ONLY chrome carrier.
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
+
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 
 /** The closed cast-kind axis. `agent` is the D60 one-arm add: adding it REDS the policy record, both
  *  projections' `assertNever` tails, the loader's per-kind source table and `castKey` — the five decision
@@ -27,7 +24,10 @@ export type CastKind = (typeof CAST_KINDS)[number];
 
 /** One character the chat references — name + portrait floor. NO description: a card's description is not
  *  member-consented; the member-visible card surface is `ParticipantView`, and it agrees (design §3.6 —
- *  fail-closed; an additive field behind its own D-entry if a surface ever earns it). */
+ *  fail-closed; an additive field behind its own D-entry if a surface ever earns it). The portrait floor
+ *  exists because a message's speaker CAN leave the room while its historical rows stay in the transcript:
+ *  once removed there is no `ParticipantView` to carry `avatarHash`, so the assistant-row avatar would
+ *  degrade to bare initials without this participant-independent entry. */
 export interface CastCharacterEntry {
   readonly kind: "character";
   readonly id: CharacterId;
@@ -36,7 +36,8 @@ export interface CastCharacterEntry {
 }
 
 /** One persona the chat references — D122's consented presentation surface (name, description) + the
- *  avatar hash the transcript already renders. */
+ *  avatar hash the transcript already renders. `description` backs the row `{{persona}}` macro (distinct
+ *  from `{{user}}`, which resolves to `name`). */
 export interface CastPersonaEntry {
   readonly kind: "persona";
   readonly id: PersonaId;
@@ -145,82 +146,4 @@ function projectAvatarEntry(entry: CastEntry, characterAvatarsById: Map<Characte
     default:
       assertNeverCastEntry(entry);
   }
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// THE CHAT MACRO NAME PRODUCER — a chat read's member-gated id→name maps, so a client can DERIVE per-row
-// `{{char}}`/`{{user}}`/`{{persona}}` names via `resolveRowMacros`. Rows stay id-only — this is the
-// PRODUCER, never a per-row denormalized name. Wire-serializable as ARRAYS (raw JSON, no superjson
-// transformer here — a `Map` doesn't survive a JSON round-trip).
-// ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-
-/** One character name entry (§1) — the array form of a `characterNamesById` producer map. */
-export interface CharacterNameEntry {
-  readonly id: CharacterId;
-  readonly name: string;
-}
-
-/** One persona name entry (§1) — the array form of a `personaNamesById` producer map. `description`
- *  backs the row `{{persona}}` macro (distinct from `{{user}}`, which resolves to `name`). */
-export interface PersonaNameEntry {
-  readonly id: PersonaId;
-  readonly name: string;
-  readonly description: string;
-}
-
-/** Rebuild the `characterNamesById` lookup `resolveRowMacros` takes, from the wire array. Pure;
- *  last-write-wins on a duplicate id. */
-export function buildCharacterNameMap(entries: readonly CharacterNameEntry[]): ReadonlyMap<CharacterId, RowCharacterName> {
-  return new Map(entries.map((e) => [e.id, { name: e.name }]));
-}
-
-/** Rebuild the `personaNamesById` lookup `resolveRowMacros` takes, from the wire array. */
-export function buildPersonaNameMap(entries: readonly PersonaNameEntry[]): ReadonlyMap<PersonaId, RowPersonaName> {
-  return new Map(entries.map((e) => [e.id, { name: e.name, description: e.description }]));
-}
-
-/** The producer a chat read returns (§1) — `personaNamesById`/`characterNamesById` scoped to ONE chat,
- *  covering every id the chat references (participants' personas/characters AND any `personaId`/
- *  `characterId` a stored message carries, incl. since-switched personas). Member-gated: any chat member
- *  may read this (see the header note — names only, not a permission-spine change). */
-export interface ChatMacroNameProducer {
-  readonly characterNames: readonly CharacterNameEntry[];
-  readonly personaNames: readonly PersonaNameEntry[];
-}
-
-/** One persona AVATAR entry — the array form of a `personaAvatarsById` producer map, SAME coverage
- *  algorithm as {@link ChatMacroNameProducer}'s `personaNames` (every participant's active persona UNION
- *  every stored message row's `personaId` stamp) but a DELIBERATELY SEPARATE type: the macro-name
- *  producer (`RowPersonaName`, `@orb/kit/macro`) is "names only, never the full entity" (chat-macro-
- *  resolution §1) — avatar chrome is a display concern the macro engine must never carry. Fed to
- *  `resolveRowAttribution`'s USER-row path (`features/chat/lib/attribution.ts`), never to
- *  `resolveRowMacros`. */
-export interface PersonaAvatarEntry {
-  readonly id: PersonaId;
-  readonly avatarHash: string | null;
-}
-
-/** Rebuild the `personaAvatarsById` lookup `resolveRowAttribution` takes, from the wire array. Pure;
- *  last-write-wins on a duplicate id (mirrors {@link buildPersonaNameMap}). */
-export function buildPersonaAvatarMap(entries: readonly PersonaAvatarEntry[]): ReadonlyMap<PersonaId, string | null> {
-  return new Map(entries.map((e) => [e.id, e.avatarHash]));
-}
-
-/** One character AVATAR entry — the array form of a `characterAvatarsById` producer map, the assistant-
- *  row twin of {@link PersonaAvatarEntry}. SAME coverage algorithm as {@link ChatMacroNameProducer}'s
- *  `characterNames` (every participant's characterId UNION every stored message row's `characterId`
- *  stamp), and — like `personaAvatars` — a DELIBERATELY SEPARATE type from the names-only macro producer.
- *  It exists because a message's speaker CAN leave the room while its historical rows stay in the
- *  transcript: once removed there is no `ParticipantView` to carry `avatarHash`, so the assistant-row
- *  avatar would degrade to bare initials without this participant-independent portrait floor. Fed to
- *  `resolveRowAttribution`'s ASSISTANT-row path as the fallback when the live participant is absent. */
-export interface CharacterAvatarEntry {
-  readonly id: CharacterId;
-  readonly avatarHash: string | null;
-}
-
-/** Rebuild the `characterAvatarsById` lookup `resolveRowAttribution` takes, from the wire array. Pure;
- *  last-write-wins on a duplicate id (mirrors {@link buildPersonaAvatarMap}). */
-export function buildCharacterAvatarMap(entries: readonly CharacterAvatarEntry[]): ReadonlyMap<CharacterId, string | null> {
-  return new Map(entries.map((e) => [e.id, e.avatarHash]));
 }

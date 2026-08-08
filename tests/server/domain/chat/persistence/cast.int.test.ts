@@ -1,33 +1,23 @@
 // persistence/cast — proves the ONE kind-polymorphic CAST producer loader (D137, Chat-Macro-Resolution.md
-// §1) against a real libSQL db. Ports the coverage assertions of the two per-kind loaders it replaces
-// (macro-names.int.test.ts + roster-avatars.int.test.ts — assertions intact, re-pointed): member-gated
-// coverage (participants' seat/active-persona ids UNION a loaded set of message rows' stamps), dedup
-// across the two sources, the `assets` LEFT JOIN (an entity with no avatar resolves `avatarHash: null`,
-// never dropped), the removed-character portrait floor, the empty-input no-query floor, and the
-// multi-human member-not-owner gating.
+// §1) against a real libSQL db. Ports the coverage assertions of the two per-kind loaders it replaced
+// (macro-names.int.test.ts + roster-avatars.int.test.ts — assertions intact, re-pointed; see the
+// test-baseline `deletions` ledger): member-gated coverage (participants' seat/active-persona ids UNION a
+// loaded set of message rows' stamps), dedup across the two sources, the `assets` LEFT JOIN (an entity
+// with no avatar resolves `avatarHash: null`, never dropped), the removed-character portrait floor, the
+// empty-input no-query floor, and the multi-human member-not-owner gating.
 //
-// The EQUIVALENCE block at the bottom is the §8.2 red-first pin for the leg-D1→D2 swap: the cast
-// projections must reproduce the old builders' maps byte-for-byte over the same seeded rows. It is
-// deleted WITH the old loaders in leg D2 (its comparison subjects stop existing); the coverage
-// assertions above it are the permanent suite.
+// (Leg D1 additionally carried a transitional §8.2 equivalence block proving the cast projections
+// reproduce the old builders' maps byte-for-byte; it died with the old loaders in leg D2 — the git
+// history of this file holds the receipt.)
 
 import type { CastEntry } from "@orb/contracts/chat";
-import {
-  buildCastAvatarMaps,
-  buildCastNameContext,
-  buildCharacterAvatarMap,
-  buildCharacterNameMap,
-  buildPersonaAvatarMap,
-  buildPersonaNameMap,
-} from "@orb/contracts/chat";
+import { buildCastNameContext } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { resolveRowMacros } from "@orb/kit/macro";
 import { beforeEach, describe } from "vitest";
 import { loadChatCastProducer } from "../../../../../packages/server/src/domain/chat/persistence/cast.ts";
-import { loadChatMacroNameProducer } from "../../../../../packages/server/src/domain/chat/persistence/macro-names.ts";
-import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../../../../../packages/server/src/domain/chat/persistence/roster-avatars.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedAsset, seedCharacter, seedChat, seedPersona, seedUser } from "../_support.ts";
@@ -173,45 +163,5 @@ describe("persistence/cast — multi-human coverage is member-gated, not owner-g
     // the host's row is never retargeted to the member's persona or vice versa.
     expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: hostPersona }, { characterNamesById, personaNamesById })).toBe("nova waves");
     expect(resolveRowMacros("{{user}} waves", { characterId: null, personaId: memberPersona }, { characterNamesById, personaNamesById })).toBe("juno waves");
-  });
-});
-
-// ── §8.2 EQUIVALENCE (leg-D1 red-first pin; DELETED with the old loaders in leg D2) ───────────────────
-// The cast projections must reproduce the OLD three-loader/four-builder pipeline's maps exactly, over one
-// seeded fixture covering every coverage arm at once: seated character + active persona + a since-switched
-// persona stamp + a removed character stamp + a bare (avatar-less) entity.
-describe("persistence/cast — equivalence with the replaced per-kind loaders (§8.2, transitional)", () => {
-  test("buildCastNameContext(cast) and buildCastAvatarMaps(cast) equal the old builders' maps", async () => {
-    const owner = await seedUser(db, castId<Handle>("owner"));
-    await seedChat(db, "a");
-    const charAvatar = await seedAsset(db, owner, "aria_avatar", { hash: "hash_aria" });
-    const seatedChar = await seedCharacter(db, owner, "aria", { avatarAssetId: charAvatar });
-    const removedAvatar = await seedAsset(db, owner, "removed_avatar", { hash: "hash_removed" });
-    const removedChar = await seedCharacter(db, owner, "removed", { avatarAssetId: removedAvatar });
-    const bareChar = await seedCharacter(db, owner, "bare");
-    const activePersona = await seedPersona(db, owner, "zara");
-    const oldAvatar = await seedAsset(db, owner, "mara_avatar", { hash: "hash_mara" });
-    const oldPersona = await seedPersona(db, owner, "mara", { avatarAssetId: oldAvatar });
-
-    const args = {
-      participants: [{ characterId: seatedChar, activePersonaId: activePersona }],
-      messages: [
-        { characterId: removedChar, personaId: oldPersona },
-        { characterId: bareChar, personaId: null },
-      ],
-    };
-
-    const cast = await loadChatCastProducer(db, args);
-    const names = buildCastNameContext(cast);
-    const avatars = buildCastAvatarMaps(cast);
-
-    const oldNames = await loadChatMacroNameProducer(db, args);
-    const oldPersonaAvatars = await loadPersonaAvatarProducer(db, args);
-    const oldCharacterAvatars = await loadCharacterAvatarProducer(db, args);
-
-    expect(names.characterNamesById).toEqual(buildCharacterNameMap(oldNames.characterNames));
-    expect(names.personaNamesById).toEqual(buildPersonaNameMap(oldNames.personaNames));
-    expect(avatars.personaAvatarsById).toEqual(buildPersonaAvatarMap(oldPersonaAvatars));
-    expect(avatars.characterAvatarsById).toEqual(buildCharacterAvatarMap(oldCharacterAvatars));
   });
 });

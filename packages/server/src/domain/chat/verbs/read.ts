@@ -23,7 +23,6 @@ import type {
   AssembleContext,
   AssemblePersona,
   ChatInjection,
-  ChatMacroNameProducer,
   ContextFitPreview,
   GroupConfig,
   JoinHistoryVisibility,
@@ -32,7 +31,7 @@ import type {
   MessageView,
   ParticipantView,
 } from "@orb/contracts/chat";
-import { buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { buildCastNameContext, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ChatSendAvailability, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
@@ -102,7 +101,7 @@ import type {
   VariantWireView,
 } from "../contract/views.ts";
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
-import { loadChatMacroNameProducer } from "../persistence/macro-names.ts";
+import { loadChatCastProducer } from "../persistence/cast.ts";
 import {
   listMemberChats,
   loadAncestorChain,
@@ -121,7 +120,6 @@ import {
   loadVariantWire,
 } from "../persistence/queries.ts";
 import { loadPresentVisibilityRows, loadRoster } from "../persistence/roster.ts";
-import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import {
   buildAssemblyBudget,
@@ -589,15 +587,11 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
   return async ({ principal, chatId }: GetChatParams): Promise<ChatDetail> => {
     const membership = await requireParticipant(ctx, principal, chatId);
     const participants = await deps.loadParticipantViews(chatId);
-    const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
-    const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
-    const characterAvatars = await loadCharacterAvatarProducer(ctx.db, { participants });
+    const cast = await loadChatCastProducer(ctx.db, { participants });
     return toChatDetail({
       chat: membership.chat,
       participants,
-      macroNames,
-      personaAvatars,
-      characterAvatars,
+      cast,
       viewerUserId: principal.userId,
       viewerHistoryFloorSeq: membership.historyFloorSeq,
     });
@@ -785,7 +779,7 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 100;
 
 /** `listMessages` — a paged canon read (each slot joined to its selected variant), chronological, + the
- *  page's {@link ChatMacroNameProducer}. The `excludedFromPrompt` flag rides each `MessageView`.
+ *  page's cast producer (`MessagesPage.cast`, D137). The `excludedFromPrompt` flag rides each `MessageView`.
  *
  *  D16 join-history clamp: the window's floor is the CALLER's `historyFloorSeq` (stamped by the chokepoint) —
  *  a `from-join` member never receives a row below their own `joinSeq`. Pagination stays honest: a
@@ -809,10 +803,8 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
     const reasoningHostOnly = readsHidden ? false : await resolveReasoningHostOnly(ctx, chatId);
     const messages = readsHidden ? chronological : chronological.map((v) => projectViewForMember(v, reasoningHostOnly));
     const participants = await deps.loadParticipantViews(chatId);
-    const macroNames = await loadChatMacroNameProducer(ctx.db, { participants, messages });
-    const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants, messages });
-    const characterAvatars = await loadCharacterAvatarProducer(ctx.db, { participants, messages });
-    return { messages, macroNames, personaAvatars, characterAvatars };
+    const cast = await loadChatCastProducer(ctx.db, { participants, messages });
+    return { messages, cast };
   };
 }
 
@@ -876,11 +868,7 @@ async function shapeNextTurn(
   // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps
   // (client-display parity), exactly as the engine builds it for a real turn.
   const canon = await loadCanonHistory(ctx.db, chatId);
-  const macroProducer = await loadChatMacroNameProducer(ctx.db, { messages: canon });
-  const historyMacroNames: HistoryMacroNames = {
-    characterNamesById: buildCharacterNameMap(macroProducer.characterNames),
-    personaNamesById: buildPersonaNameMap(macroProducer.personaNames),
-  };
+  const historyMacroNames: HistoryMacroNames = buildCastNameContext(await loadChatCastProducer(ctx.db, { messages: canon }));
   const inChatInjections: ChatInjection[] = [...(assembleContext.chatInjections ?? []).filter((i) => i.position === "in_chat"), ...assembled.afterHistory];
   const turns = inputs.capability?.turns;
   const shaped = shapeTurn({

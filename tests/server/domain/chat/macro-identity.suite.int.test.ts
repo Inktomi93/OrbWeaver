@@ -23,7 +23,7 @@
 // a PAIR against `[ideal, ideal]` — one `expect` proves the ideal AND server == client (the oracle).
 
 import type { AssembleContext, AssemblePersona, ParticipantView } from "@orb/contracts/chat";
-import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import { buildCastNameContext } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
 import type { CharacterId, Handle, PersonaId } from "@orb/kit/ids";
@@ -34,7 +34,7 @@ import { eq } from "drizzle-orm";
 import { resolveMessageRenderContext } from "../../../../packages/client/src/features/chat/lib/message-render-context.ts";
 import { renderMessageForDisplay } from "../../../../packages/client/src/lib/message-render.ts";
 import { renderHistoryMacros } from "../../../../packages/server/src/domain/chat/assembly/macros.ts";
-import { loadChatMacroNameProducer } from "../../../../packages/server/src/domain/chat/persistence/macro-names.ts";
+import { loadChatCastProducer } from "../../../../packages/server/src/domain/chat/persistence/cast.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "./_support.ts";
@@ -153,9 +153,9 @@ async function seedScene(
   } as unknown as AssembleContext;
 
   const resolve = async (row: Row): Promise<{ server: string; client: string }> => {
-    // The producer covers every participant id UNION the row's own stamps (a reattributed / since-switched
-    // persona resolves to its OWN name even when no participant seats it).
-    const producerRaw = await loadChatMacroNameProducer(db, {
+    // The cast producer covers every participant id UNION the row's own stamps (a reattributed /
+    // since-switched persona resolves to its OWN name even when no participant seats it).
+    const producerCast = await loadChatCastProducer(db, {
       participants: [
         ...castNames.map((n) => ({ characterId: chars[n] ?? null, activePersonaId: null })),
         ...Object.values(personas).map((activePersonaId) => ({
@@ -165,8 +165,7 @@ async function seedScene(
       ],
       messages: [{ characterId: row.characterId, personaId: row.personaId }],
     });
-    const characterNamesById = buildCharacterNameMap(producerRaw.characterNames);
-    const personaNamesById = buildPersonaNameMap(producerRaw.personaNames);
+    const { characterNamesById, personaNamesById } = buildCastNameContext(producerCast);
     const stamps: RowMacroStamps = { characterId: row.characterId, personaId: row.personaId };
 
     // SERVER — mirror `toShapeCanon`: an assistant row passes the producer's card name as `speakerCharName`;

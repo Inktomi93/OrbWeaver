@@ -45,10 +45,9 @@ import type { GuidedSteer, StartChatParams } from "../contract/params.ts";
 import type { OpeningFailure, StartChatResult, TurnEngine, TurnOutcome } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write.ts";
-import { loadChatMacroNameProducer } from "../persistence/macro-names.ts";
+import { loadChatCastProducer } from "../persistence/cast.ts";
 import { loadChatRow } from "../persistence/queries.ts";
 import { buildInitialRosterRows, characterSeatedInAnotherChat } from "../persistence/roster.ts";
-import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { resolveGuidedActionText } from "../substrate/assembly-access.ts";
 import { NO_HISTORY_FLOOR } from "../substrate/auth/index.ts";
@@ -486,16 +485,12 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
       throw new ChatNotFoundError(chatId);
     }
     const participants = await deps.loadParticipantViews(chatId);
-    const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
-    const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
-    const characterAvatars = await loadCharacterAvatarProducer(ctx.db, { participants });
+    const cast = await loadChatCastProducer(ctx.db, { participants });
     return {
       chat: toChatDetail({
         chat: chatRow,
         participants,
-        macroNames,
-        personaAvatars,
-        characterAvatars,
+        cast,
         viewerUserId: hostUserId,
         // Born-here host: `joinSeq` 0, so the checkpoint clamp is inert by construction (there is no
         // pre-membership canon in a room this call just created).

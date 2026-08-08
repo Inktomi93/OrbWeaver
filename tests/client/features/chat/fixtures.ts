@@ -2,35 +2,24 @@
 // a different layer). Kept OUT of _ct-stories.tsx so that module exports only components
 // (lint useComponentExportOnlyModules). Imported by the stories + the .ct.tsx assertions.
 
-import type { CharacterAvatarEntry, ChatMacroNameProducer, MessageView, PersonaAvatarEntry } from "@orb/contracts/chat";
+import type { CastEntry, MessageView } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
 /** The `chat.listMessages` wire shape (MessagesPage — packages/server/src/domain/chat/contract/
  *  views.ts). A plain client read-model literal (see the header) — the return type CHANGED from a
- *  bare `MessageView[]` (Chat-Macro-Resolution.md §1/§3). */
+ *  bare `MessageView[]` (Chat-Macro-Resolution.md §1/§3; the D137 kind-polymorphic `cast`). */
 export interface MessagesPageFixture {
   readonly messages: readonly MessageView[];
-  readonly macroNames: ChatMacroNameProducer;
-  readonly personaAvatars: readonly PersonaAvatarEntry[];
-  readonly characterAvatars: readonly CharacterAvatarEntry[];
+  readonly cast: readonly CastEntry[];
 }
 
-/** The empty `ChatMacroNameProducer` (Chat-Macro-Resolution.md §1) — the CT default for a chat with no
- *  roster/history-persona ids to resolve; still a real (if empty) shape, never routeTrpc's generic
- *  unlisted-procedure `null`. */
-export function makeMacroNameProducer(overrides: Partial<ChatMacroNameProducer> = {}): ChatMacroNameProducer {
-  return {
-    characterNames: [],
-    personaNames: [],
-    ...overrides,
-  };
-}
-
-/** Wrap a `chat.listMessages` stub's messages array into its actual `MessagesPage` wire shape. */
-export function makeMessagesPage(messages: readonly MessageView[], macroNames: ChatMacroNameProducer = makeMacroNameProducer()): MessagesPageFixture {
-  return { messages, macroNames, personaAvatars: [], characterAvatars: [] };
+/** Wrap a `chat.listMessages` stub's messages array into its actual `MessagesPage` wire shape. The
+ *  default empty cast is still a real (if empty) shape, never routeTrpc's generic unlisted-procedure
+ *  `null`. */
+export function makeMessagesPage(messages: readonly MessageView[], cast: readonly CastEntry[] = []): MessagesPageFixture {
+  return { messages, cast };
 }
 
 /** The fixed chat the stories address — the CT's routeTrpc/routeOrbSocket key off this id. */

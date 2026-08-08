@@ -27,7 +27,7 @@ import { useReattributePersona, useSetChatActivePersona, useSetChatAnchorPersona
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
 
-/** A persona id → its display name. The chat's MEMBER-GATED name producer (`macroNames`,
+/** A persona id → its display name. The chat's MEMBER-GATED cast producer (`cast`, D137 /
  *  Chat-Macro-Resolution §1) is consulted FIRST because it covers every persona the ROOM references —
  *  including another member's, which the viewer's own `persona.list` can never contain. Reading only the
  *  viewer's list rendered a host-pinned member-owned anchor as "Unknown persona" while the correct name was
@@ -37,7 +37,7 @@ function personaLabel(chat: ChatDetail, personas: readonly PersonaListItem[], id
   if (id === null) {
     return "None";
   }
-  return chat.macroNames.personaNames.find((p) => p.id === id)?.name ?? personas.find((p) => p.id === id)?.name ?? "Unknown persona";
+  return chat.cast.find((e) => e.kind === "persona" && e.id === id)?.name ?? personas.find((p) => p.id === id)?.name ?? "Unknown persona";
 }
 
 /** The OTHER present humans' pinnable personas — each member's own active persona, labeled with the member.

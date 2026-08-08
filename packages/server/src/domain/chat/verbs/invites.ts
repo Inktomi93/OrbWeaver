@@ -30,6 +30,7 @@ import type {
 } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost } from "../guard.ts";
+import { loadChatCastProducer } from "../persistence/cast.ts";
 import {
   acceptInviteByIdAtomic,
   countPresentMembers,
@@ -41,9 +42,7 @@ import {
   redeemInviteAtomic,
   revokeInviteById,
 } from "../persistence/invites.ts";
-import { loadChatMacroNameProducer } from "../persistence/macro-names.ts";
 import { loadChatRow, loadMemberChat } from "../persistence/queries.ts";
-import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars.ts";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { hostSeatOf } from "../substrate/roster-host.ts";
@@ -228,16 +227,12 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
     if (participant === undefined) {
       throw new ChatNotFoundError(chatId);
     }
-    const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
-    const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
-    const characterAvatars = await loadCharacterAvatarProducer(ctx.db, { participants });
+    const cast = await loadChatCastProducer(ctx.db, { participants });
     return {
       chat: toChatDetail({
         chat,
         participants,
-        macroNames,
-        personaAvatars,
-        characterAvatars,
+        cast,
         viewerUserId: principal.userId,
         // The joiner's OWN D16 floor, off the row the redeem just wrote — a `from-join` joiner must not
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
@@ -292,16 +287,12 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
     if (participant === undefined) {
       throw new ChatNotFoundError(chatId);
     }
-    const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
-    const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
-    const characterAvatars = await loadCharacterAvatarProducer(ctx.db, { participants });
+    const cast = await loadChatCastProducer(ctx.db, { participants });
     return {
       chat: toChatDetail({
         chat,
         participants,
-        macroNames,
-        personaAvatars,
-        characterAvatars,
+        cast,
         viewerUserId: principal.userId,
         // The joiner's OWN D16 floor, off the row the redeem just wrote — a `from-join` joiner must not
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very

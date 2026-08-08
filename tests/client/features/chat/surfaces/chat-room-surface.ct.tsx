@@ -7,11 +7,11 @@
 //
 // NOTE: `chat.listMessages` is stubbed at the NETWORK (routeTrpc) — the draft case asserts it is NEVER
 // hit (the surface must not fetch CANON for a chat with no server row yet). `chat.listMessages` returns
-// `MessagesPage { messages, macroNames }` (Chat-Macro-Resolution.md §1/§3) — every stub wraps via
-// `makeMessagesPage`; the committed test also stubs `chat.getChat`'s roster + `macroNames` floor
+// `MessagesPage { messages, cast }` (Chat-Macro-Resolution.md §1/§3 / D137) — every stub wraps via
+// `makeMessagesPage`; the committed test also stubs `chat.getChat`'s roster + `cast` floor
 // (message-list-surface.ct.tsx's `ROSTER_STUB` precedent).
 
-import type { GroupConfig } from "@orb/contracts/chat";
+import type { CastEntry, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { CharacterId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
@@ -22,7 +22,7 @@ import { testId } from "../../../../../packages/client/src/lib/test-ids.ts";
 import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatRoomSurfaceStory, ChatSurfaceContributorStory } from "../_ct-stories.tsx";
-import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures.ts";
+import { CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 // The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
@@ -69,16 +69,12 @@ const ROSTER_STUB = {
   "chat.getChat": (): {
     participants: never[];
     anchorPersonaId: null;
-    macroNames: ReturnType<typeof makeMacroNameProducer>;
-    personaAvatars: never[];
-    characterAvatars: never[];
+    cast: readonly CastEntry[];
     group: GroupConfig;
   } => ({
     participants: [],
     anchorPersonaId: null,
-    macroNames: makeMacroNameProducer(),
-    personaAvatars: [],
-    characterAvatars: [],
+    cast: [],
     group: DEFAULT_GROUP_CONFIG,
   }),
 };
@@ -88,7 +84,9 @@ const ROSTER_STUB = {
 // `resolveDraftAnchorPersona`, so a draft greeting's `{{user}}` names the persona the commit will anchor.
 const NOVA = "persona_nova";
 const DRAFT_IDENTITY_STUB = {
-  "persona.list": (): readonly { id: string; name: string; description: string }[] => [{ id: NOVA, name: "Nova", description: "a wandering cartographer" }],
+  "persona.list": (): readonly { id: string; name: string; description: string; avatarHash: null }[] => [
+    { id: NOVA, name: "Nova", description: "a wandering cartographer", avatarHash: null },
+  ],
   "persona.listConnectedToCharacter": (): readonly never[] => [],
   "settings.getUserSettings": (): { userId: UserId; schemaVersion: number; config: unknown; updatedAt: number } => ({
     userId: castId<UserId>("user_ct"),
@@ -276,21 +274,17 @@ test("the COMMITTED arm renders that same body identically — the draft is not 
   await routeTrpc(page, {
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([makeMessageView({ id: castId<MessageId>("msg_room_greeting"), role: "assistant", content: FORMATTED_BODY })]),
-    // The committed arm's `{{user}}` subject: the chat's ANCHOR persona + the name producer that carries it
+    // The committed arm's `{{user}}` subject: the chat's ANCHOR persona + the cast entry that carries it
     // (the exact pair the draft arm predicts client-side).
     "chat.getChat": (): {
       participants: never[];
       anchorPersonaId: string;
-      macroNames: ReturnType<typeof makeMacroNameProducer>;
-      personaAvatars: never[];
-      characterAvatars: never[];
+      cast: readonly CastEntry[];
       group: GroupConfig;
     } => ({
       participants: [],
       anchorPersonaId: NOVA,
-      macroNames: makeMacroNameProducer({ personaNames: [{ id: castId<PersonaId>(NOVA), name: "Nova", description: "a wandering cartographer" }] }),
-      personaAvatars: [],
-      characterAvatars: [],
+      cast: [{ kind: "persona", id: castId<PersonaId>(NOVA), name: "Nova", description: "a wandering cartographer", avatarHash: null }],
       group: DEFAULT_GROUP_CONFIG,
     }),
   });
@@ -721,9 +715,7 @@ test("COMMITTED: the SAME card resolves the SAME room accent through the roster 
         },
       ],
       anchorPersonaId: null,
-      macroNames: makeMacroNameProducer(),
-      personaAvatars: [],
-      characterAvatars: [],
+      cast: [],
       group: DEFAULT_GROUP_CONFIG,
     }),
   });

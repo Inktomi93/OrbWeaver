@@ -5,8 +5,8 @@
 // never re-renders the list. A draft has no committed chatId; `DraftGreetingThread` renders each
 // founding character's greeting as a normal, editable `MessageRow` instead of an empty state.
 
-import type { CharacterAvatarEntry, ChatMacroNameProducer, ContextFitPreview, MessageKind, PersonaAvatarEntry } from "@orb/contracts/chat";
-import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaAvatarMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import type { CastEntry, ContextFitPreview, MessageKind } from "@orb/contracts/chat";
+import { buildCastAvatarMaps, buildCastNameContext, castKey } from "@orb/contracts/chat";
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { Stack } from "@orb/ui/layout";
@@ -123,17 +123,13 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
   });
   const messages = messagesPage.messages;
   const participants = buildParticipantsById(chatDetail.participants);
-  // Merge the two ChatMacroNameProducer wire halves (chat-level floor + this page's own stamped ids),
-  // last-write-wins on a dup id.
-  const producers: readonly ChatMacroNameProducer[] = [chatDetail.macroNames, messagesPage.macroNames];
-  const characterNamesById = buildCharacterNameMap(producers.flatMap((p) => p.characterNames));
-  const personaNamesById = buildPersonaNameMap(producers.flatMap((p) => p.personaNames));
-  const personaAvatarEntries: readonly PersonaAvatarEntry[] = [...chatDetail.personaAvatars, ...messagesPage.personaAvatars];
-  const personaAvatarsById = buildPersonaAvatarMap(personaAvatarEntries);
-  // The assistant-row portrait floor (same merge contract as macroNames): the chat-level roster avatars
-  // UNION this page's message-stamped ids — the half that carries a REMOVED character's portrait.
-  const characterAvatarEntries: readonly CharacterAvatarEntry[] = [...chatDetail.characterAvatars, ...messagesPage.characterAvatars];
-  const characterAvatarsById = buildCharacterAvatarMap(characterAvatarEntries);
+  // Merge the two CAST wire halves (D137: the chat-level participant floor ∪ this page's own stamped ids —
+  // the half that carries a REMOVED character's portrait / a since-switched persona), last-write-wins on
+  // `castKey` (the page's fresher entry wins). Both projections derive from the ONE merged cast.
+  const castById = new Map<string, CastEntry>([...chatDetail.cast, ...messagesPage.cast].map((e) => [castKey(e), e]));
+  const cast = [...castById.values()];
+  const { characterNamesById, personaNamesById } = buildCastNameContext(cast);
+  const { characterAvatarsById, personaAvatarsById } = buildCastAvatarMaps(cast);
   // Server-resolved from the principal (ChatDetail's own header: "so the client never has to
   // find-and-match its own userId in participants"). The roster-scan proxies these replaced returned the
   // FIRST PRESENT HUMAN — the host in any group room — so every viewer saw the host's identity as their
@@ -366,15 +362,22 @@ function DraftGreetingThread({ draftKey, characterIds, chatStyle, seedAnchorPers
     currentPersonaId: settings.config.seeds.currentPersonaId,
     defaultPersonaId: settings.config.seeds.defaultPersonaId,
   });
-  const characterNamesById = buildCharacterNameMap(characters.map((c) => ({ id: c.data.id, name: c.data.name })));
-  // DRAFT-PHASE ROW AVATAR — verified root cause, and it is NOT a missing data thread. `resolveAssistantAttribution`
-  // takes a row's portrait from the live `participants` (a draft has none — nothing is seated yet) and falls back to
-  // `characterAvatarsById`, which this thread simply never passed: it built the NAME producer off the fetched cards
-  // and stopped there, so every draft greeting rendered its initials while the topbar — reading the SAME
-  // `character.get` payload two components away — showed the portrait. Self-healing on commit is the roster arriving,
-  // not a race. The hashes are already in hand; this is the producer that was missing, off the same query.
-  const characterAvatarsById = buildCharacterAvatarMap(characters.map((c) => ({ id: c.data.id, avatarHash: c.data.avatarHash })));
-  const personaNamesById = buildPersonaNameMap(personas.map((p) => ({ id: p.id, name: p.name, description: p.description })));
+  // DRAFT-PHASE CAST — built from the fetched cards + the viewer's personas (a draft has no committed
+  // chat, so no wire producer exists yet); same entry shape, same projections, so the greeting preview
+  // resolves through the identical path a committed row does.
+  //
+  // The avatar half — verified root cause, and it is NOT a missing data thread. `resolveAssistantAttribution`
+  // takes a row's portrait from the live `participants` (a draft has none — nothing is seated yet) and falls
+  // back to the character avatar map, which this thread once never passed: it built the NAME producer off the
+  // fetched cards and stopped there, so every draft greeting rendered its initials while the topbar — reading
+  // the SAME `character.get` payload two components away — showed the portrait. Self-healing on commit is the
+  // roster arriving, not a race. The hashes are already in hand, off the same query.
+  const draftCast: readonly CastEntry[] = [
+    ...characters.map((c): CastEntry => ({ kind: "character", id: c.data.id, name: c.data.name, avatarHash: c.data.avatarHash })),
+    ...personas.map((p): CastEntry => ({ kind: "persona", id: p.id, name: p.name, description: p.description, avatarHash: p.avatarHash })),
+  ];
+  const { characterNamesById, personaNamesById } = buildCastNameContext(draftCast);
+  const { characterAvatarsById } = buildCastAvatarMaps(draftCast);
   // The draft-greeting preview renders through the same display leg as a committed row, so a viewer's
   // DISPLAY script transforms the greeting they are about to pick too (one render path, one answer).
   const displayScripts = useDisplayScripts(null);
