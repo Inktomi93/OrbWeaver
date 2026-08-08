@@ -3,16 +3,27 @@
 // `SectionJumpGrid`; this file is only the contribution the door assembles.
 
 import { LayoutGrid } from "@orb/ui/icons";
-import type { HomeTileContribution } from "#lib";
+import type { HomeTileContribution } from "#state";
 import { SectionJumpGrid } from "../components/section-jump-grid.tsx";
 
 const JUMP_TILE_ORDER = 40;
 
-export const sectionJumpTile: HomeTileContribution = {
-  id: "home.jump",
-  title: "Jump to",
-  icon: LayoutGrid,
-  order: JUMP_TILE_ORDER,
-  span: "full",
-  body: () => <SectionJumpGrid />,
-};
+/**
+ * The jump tile is a FACTORY over its SIBLING tiles (`makeSectionJumpTile(siblings)`, the
+ * `makeHomeSection` posture) because its rows now depend on them: a section whose tile declares
+ * `sectionId` has its jump row dropped, so one destination is not two doors ten pixels apart (side-eye
+ * 2026-08-08 P2-c). It takes the sibling ARRAY rather than the registry it is itself a member of — the
+ * registry cannot exist before its own members do. Home still reads no feature: the claim travels with the
+ * tile that makes it, never through a second "which sections have tiles" list (which is the parallel map
+ * G2 bans).
+ */
+export function makeSectionJumpTile(siblings: readonly HomeTileContribution[]): HomeTileContribution {
+  return {
+    id: "home.jump",
+    title: "Jump to",
+    icon: LayoutGrid,
+    order: JUMP_TILE_ORDER,
+    span: "full",
+    body: () => <SectionJumpGrid siblings={siblings} />,
+  };
+}

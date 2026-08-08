@@ -38,7 +38,8 @@ import { Heading, Text } from "@orb/ui/text";
 import type { CSSProperties, ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef } from "react";
 import { QueryBoundary, QueryErrorState, SkeletonRows, skeletonRowCountFor } from "#data";
-import type { DormantDoorway, HomeTileContribution } from "#lib";
+
+import type { DormantDoorway, HomeTileContribution } from "#state";
 import { rememberHomeTileBox, useHomeTileBox } from "#state";
 
 const TILE_SKELETON_ROWS = 3;

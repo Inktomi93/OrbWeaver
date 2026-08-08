@@ -12,13 +12,19 @@ import { Icon } from "@orb/ui/icons";
 import { Grid } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement } from "react";
+import type { HomeTileContribution } from "#state";
 import { setActiveSection, useSectionRegistry } from "#state";
 
-export function SectionJumpGrid(): ReactElement {
+export function SectionJumpGrid({ siblings }: { readonly siblings: readonly HomeTileContribution[] }): ReactElement {
+  // A section whose TILE does this row's whole job loses the row (side-eye 2026-08-08 P2-c): the databank
+  // tile carries the section's name, its glyph, its live contents, its health and a door into it, so a jump
+  // row beside it is the same destination twice. Derived from the tiles' own `sectionId` claims — never a
+  // second list of "which sections have tiles", which would be exactly the parallel map G2 bans.
+  const claimed = new Set(siblings.flatMap((tile) => (tile.sectionId === undefined ? [] : [tile.sectionId])));
   // Home is its own host — a row that navigates to where you already are is dead chrome.
   const sections = useSectionRegistry()
     .list()
-    .filter((def) => def.id !== "home");
+    .filter((def) => def.id !== "home" && !claimed.has(def.id));
   return (
     <Grid cols="auto" gap="field">
       {sections.map((def) => (

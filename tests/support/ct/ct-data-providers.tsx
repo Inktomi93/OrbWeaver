@@ -47,9 +47,9 @@ import {
 } from "@orb/client/features/chat";
 import { makeConfigSection } from "@orb/client/features/config";
 import { connectionsPane } from "@orb/client/features/credentials";
-import { databankDocumentsTile, databankSection } from "@orb/client/features/databank";
+import { addDocumentModal, databankDocumentsTile, databankSection } from "@orb/client/features/databank";
 import { corpusSection } from "@orb/client/features/discovery";
-import { automationDormantTile, buddyDormantTile, makeHomeSection, sectionJumpTile } from "@orb/client/features/home";
+import { automationDormantTile, buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "@orb/client/features/home";
 import { notificationsChrome } from "@orb/client/features/notifications";
 import { personaChrome, personasPane } from "@orb/client/features/persona";
 import { presetsSection } from "@orb/client/features/preset";
@@ -84,13 +84,13 @@ import type {
   ContextRegionDef,
   ContextTabDef,
   ContributorRegistry,
-  HomeTileContribution,
   ToolRenderer,
 } from "@orb/client/lib";
 import { createContributorRegistry, createRegistry } from "@orb/client/lib";
 import type {
   ChromeEntry,
   ChromeRegistry,
+  HomeTileContribution,
   ModalDefinition,
   ModalRegistry,
   ModalSlotId,
@@ -166,14 +166,20 @@ const chatToolRenderers = createContributorRegistry<ToolRenderer>("tool-renderer
 
 // The home-tile seam, assembled as at the real door (home's own jump grid + whatever features raise) —
 // so a shell CT that lands on `home` renders the REAL tile grid, not a stand-in.
-const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
+const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [
   chatRecentsTile,
   chatQuickPicksTile,
   chatTempChatTile,
-  sectionJumpTile,
   databankDocumentsTile,
   buddyDormantTile,
   automationDormantTile,
+];
+
+const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
+  ...HOME_TILE_CONTRIBUTIONS,
+  // LAST, and built FROM the list above: its rows are the section registry minus home minus every section
+  // a tile beside it already subsumes (`sectionId`).
+  makeSectionJumpTile(HOME_TILE_CONTRIBUTIONS),
 ]);
 
 // The COLLECTION seam, assembled as at the real door — so a shell CT landing on `config` renders the REAL
@@ -209,6 +215,7 @@ const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
   account: accountModal,
   command: commandModal,
   newChat: newChatModal,
+  addDocument: addDocumentModal,
   you: youModal,
 };
 

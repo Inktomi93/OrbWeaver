@@ -8,16 +8,17 @@
 // generated component consts, so a mixed export (component + constant) fails to parse.
 
 import type { ReactElement } from "react";
+import { ModalHost } from "../../../../packages/client/src/features/app-shell/components/modal-host.tsx";
 import { DatabankContextBody } from "../../../../packages/client/src/features/databank/components/databank-context-body.tsx";
 import { DatabankListHeader } from "../../../../packages/client/src/features/databank/components/databank-list-header.tsx";
 import { databankDocumentsTile } from "../../../../packages/client/src/features/databank/lib/home-documents-tile.tsx";
 import { DatabankDetailSurface } from "../../../../packages/client/src/features/databank/surfaces/databank-detail-surface.tsx";
 import { DatabankLibrarySurface } from "../../../../packages/client/src/features/databank/surfaces/databank-library-surface.tsx";
-import { HomeSurface } from "../../../../packages/client/src/features/home/index.ts";
-import type { HomeTileContribution } from "../../../../packages/client/src/lib/index.ts";
+import { HomeSurface, makeSectionJumpTile } from "../../../../packages/client/src/features/home/index.ts";
 import { createContributorRegistry } from "../../../../packages/client/src/lib/index.ts";
-import { useActiveSection, useSelectedDocumentId } from "../../../../packages/client/src/state/index.ts";
-import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
+import type { HomeTileContribution } from "../../../../packages/client/src/state/index.ts";
+import { closeModal, useActiveSection, useDatabankPhaseFilter, useOpenModal, useSelectedDocumentId } from "../../../../packages/client/src/state/index.ts";
+import { CtDataProviders, CtRealSectionRegistry } from "../../../support/ct/ct-data-providers.tsx";
 
 /** The LIST pane at its REAL production width — the 320px panel floor the §6.1 width math is stated at, so
  *  a clipped title or a cluster that does not fit is visible here rather than hidden by a roomy story box. */
@@ -31,15 +32,27 @@ export function DatabankLibraryStory(): ReactElement {
   );
 }
 
-/** The LIST chrome band (title · count · Add · the D-6 maintenance kebab). */
+/** The LIST chrome band (title · count · Add · the D-6 maintenance kebab) PLUS the shell's real ModalHost:
+ *  the band's Add opens a MODAL SLOT now (P1-2), so the dialog it opens is the shell's, not the band's, and
+ *  a story without the host would assert on a dialog that production renders one level up. */
 export function DatabankListHeaderStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ display: "flex", justifyContent: "space-between", width: 320 }}>
-        <DatabankListHeader />
-      </div>
+      <CtRealSectionRegistry>
+        <div style={{ display: "flex", justifyContent: "space-between", width: 320 }}>
+          <DatabankListHeader />
+        </div>
+        <CtModalSlotHost />
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
+}
+
+/** Renders whichever modal slot the shell store has open — the AppShell's own `ModalHost` wiring, reduced
+ *  to the two lines a story needs. */
+function CtModalSlotHost(): ReactElement {
+  const open = useOpenModal();
+  return <ModalHost onClose={closeModal} openModal={open ?? null} />;
 }
 
 /** CONTENT — the welcome arm with nothing selected, and the document detail once a row is opened (the
@@ -93,18 +106,24 @@ export function DatabankContextStory(): ReactElement {
 function DatabankHomeProbe(): ReactElement {
   return (
     <output>
-      section={useActiveSection()} document={useSelectedDocumentId() ?? "none"}
+      section={useActiveSection()} document={useSelectedDocumentId() ?? "none"} modal={useOpenModal() ?? "none"} phase={useDatabankPhaseFilter() ?? "none"}
     </output>
   );
 }
 
-function DatabankHomeTile({ width }: { readonly width: number }): ReactElement {
+function DatabankHomeTile({ width, withJumpGrid = false }: { readonly width: number; readonly withJumpGrid?: boolean }): ReactElement {
+  // The door's own assembly shape: the jump tile is built FROM its siblings, so the claim the databank tile
+  // makes (`sectionId`) is resolved exactly as production resolves it.
+  const siblings = [databankDocumentsTile];
+  const tiles = withJumpGrid ? [...siblings, makeSectionJumpTile(siblings)] : siblings;
   return (
     <CtDataProviders>
-      <DatabankHomeProbe />
-      <div style={{ width }}>
-        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [databankDocumentsTile])} />
-      </div>
+      <CtRealSectionRegistry>
+        <DatabankHomeProbe />
+        <div style={{ width }}>
+          <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", tiles)} />
+        </div>
+      </CtRealSectionRegistry>
     </CtDataProviders>
   );
 }
@@ -112,6 +131,30 @@ function DatabankHomeTile({ width }: { readonly width: number }): ReactElement {
 /** The tile at a DESKTOP home host (the content region a two-column grid is drawn at). */
 export function DatabankHomeTileStory(): ReactElement {
   return <DatabankHomeTile width={720} />;
+}
+
+/** The tile BESIDE home's jump grid, assembled the way the door assembles them — so the Databank jump row's
+ *  absence is a property of the real derivation, not of a story that left the grid out. */
+export function DatabankHomeTileWithJumpGridStory(): ReactElement {
+  return <DatabankHomeTile width={720} withJumpGrid={true} />;
+}
+
+/** The tile ABOVE the library pane, in ONE mount — the deep link the health chips write is a property of
+ *  the two together (a CT mounts once per test, so the chip and the list it scopes cannot be two mounts). */
+export function DatabankHomeTileAndLibraryStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <DatabankHomeProbe />
+      <div style={{ width: 720 }}>
+        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [databankDocumentsTile])} />
+      </div>
+      {/* NAMED so a test can tell the pane's rows from the tile's — both render the same documents, which
+          is the whole point of the seam under test. */}
+      <section aria-label="Library pane" style={{ height: 700, overflow: "hidden", width: 320 }}>
+        <DatabankLibrarySurface />
+      </section>
+    </CtDataProviders>
+  );
 }
 
 /** The tile at the NARROWEST real host — a phone's content region, where the grid is one column and the

@@ -17,6 +17,7 @@ import type { DocOrigin, DocumentView } from "@orb/contracts/databank";
 // `formatBytes` moved to `@orb/kit/strings` when the per-chat rack became its THIRD consumer (it was
 // spelled here and, byte-identically, inside `@orb/ui/file-dropzone`). Same function, one home.
 import { formatBytes } from "@orb/kit/strings";
+import type { IngestPhase } from "#state";
 
 const ORIGIN_LABELS: Record<DocOrigin, string> = {
   upload: "Upload",
@@ -31,16 +32,15 @@ export function originLabel(origin: DocOrigin): string {
   return ORIGIN_LABELS[origin];
 }
 
-// The derived ingest phase (ONE importable union from a tuple — §5.5). The chunk/embed counts are the ONLY
-// truth (no status column): `indexing` = no chunks yet (queued/in-flight); `embedding` = chunks exist but
-// not all embedded (partial ingest, a retry resumes it); `ready` = every chunk is embedded; `empty` = a
-// document that extracted to nothing (charCount 0 — the `empty-extraction` warning's persistent state);
-// `stalled` = an in-flight phase whose `updatedAt` froze (see {@link STALE_INGEST_MS}).
-// NOT exported: every consumer receives the phase from `ingestPhase(doc, now)` and hands it straight to
-// `ingestBadge`/`showsPhaseChip`, so inference carries it and no surface ever needs to NAME the type
-// (`no-inline-types` — a feature `lib/` is not a type home).
-const INGEST_PHASES = ["empty", "indexing", "embedding", "ready", "stalled"] as const;
-type IngestPhase = (typeof INGEST_PHASES)[number];
+// The derived ingest phase. The chunk/embed counts are the ONLY truth (no status column): `indexing` = no
+// chunks yet (queued/in-flight); `embedding` = chunks exist but not all embedded (partial ingest, a retry
+// resumes it); `ready` = every chunk is embedded; `empty` = a document that extracted to nothing (charCount
+// 0 — the `empty-extraction` warning's persistent state); `stalled` = an in-flight phase whose `updatedAt`
+// froze (see {@link STALE_INGEST_MS}).
+//
+// THE VOCABULARY MOVED TO `#state` (databank-filter-store) when a phase became a LIST SCOPE the shell can
+// hold — a feature `lib/` cannot export the type (`no-inline-types`), and the store must name it. The RULES
+// below are still this file's; only the tuple lives there, so there is exactly one spelling of the axis.
 
 // The COUNT-derived half — the four phases that read off chunk/embed arithmetic alone, with no clock. The
 // stall overlay is applied on top by `ingestPhase`; the hint needs THIS answer (it names the phase the job
@@ -88,7 +88,12 @@ export function ingestPhase(doc: Pick<DocumentView, "charCount" | "chunkCount" |
 /** The `@orb/ui/badge` intent + label per ingest phase — a mapped-type Record dispatch (a new phase without
  *  a badge fails tsc; §5.5 exhaustiveness). */
 const INGEST_BADGES: Record<IngestPhase, { readonly label: string; readonly intent: "success" | "warning" | "neutral" | "danger" }> = {
-  empty: { label: "Empty", intent: "neutral" },
+  // WARNING, not neutral (side-eye 2026-08-08 P3): "Empty" is not the absence of a state, it is a FAILED
+  // extraction — a scanned PDF that will never feed a chat no matter how long you wait. Neutral filed it
+  // beside "nothing to report" and it read as a shrug; the user has to act (re-upload a text PDF, or paste
+  // the text) or the document is dead weight. It stops short of `danger`, which is reserved for the job
+  // that WEDGED — this one completed, honestly, with nothing in it.
+  empty: { label: "Empty", intent: "warning" },
   indexing: { label: "Queued", intent: "warning" },
   embedding: { label: "Indexing", intent: "warning" },
   ready: { label: "Ready", intent: "success" },
@@ -166,39 +171,84 @@ export function documentSubtitle(doc: DocumentView): string {
  *  is the ABSENCE of a chip here exactly as it is on a row (§6.1). */
 const ATTENTION_ORDER: Record<IngestPhase, number> = { stalled: 0, empty: 1, indexing: 2, embedding: 3, ready: 4 };
 
-/** The bank as the HOME tile summarizes it: its size, the passages that can actually be retrieved, and one
- *  aggregate chip per non-ready phase present in it ("3 stalled", in that phase's own badge tone). The chip
- *  shape is spelled INLINE — it has exactly one producer and one consumer, and a named export for it is an
- *  unused type the liveness lens correctly reds. */
+/** The bank as the HOME tile summarizes it: its size, the passages a chat can actually pull from out of the
+ *  passages that exist, and one aggregate chip per non-ready phase the ROWS DO NOT ALREADY SHOW. Each chip
+ *  carries its `phase`, because a chip is a CONTROL — it scopes the library to that phase (P2-a). The chip
+ *  shape is spelled INLINE: one producer, one consumer, and a named export for it is an unused type the
+ *  liveness lens correctly reds. */
 export interface BankHealth {
   readonly total: number;
+  /** True when `total` is the server page's own limit — the bank is at LEAST this big, and the tile must
+   *  say so rather than reporting a page as a census (P2-d). */
+  readonly capped: boolean;
   readonly passages: number;
-  readonly attention: readonly { readonly label: string; readonly intent: "success" | "warning" | "neutral" | "danger" }[];
+  /** Every chunk the bank holds — the denominator that makes `passages` legible ("286 of 1,170"). */
+  readonly chunks: number;
+  readonly attention: readonly {
+    readonly phase: IngestPhase;
+    readonly label: string;
+    readonly intent: "success" | "warning" | "neutral" | "danger";
+  }[];
 }
 
-/** The bank's ingest health over the documents the caller was handed — the tile reads the SAME
- *  `databank.list` page the library pane does, so this summarizes that page, not a second server truth.
- *  `now` is INJECTED (the stall overlay's clock; the render edge passes it, never an ambient read). */
-export function bankHealth(documents: readonly DocumentView[], now: number): BankHealth {
+/**
+ * The bank's ingest health over the documents the caller was handed — the tile reads the SAME
+ * `databank.list` page the library pane does, so this summarizes that page, not a second server truth.
+ * `now` is INJECTED (the stall overlay's clock; the render edge passes it, never an ambient read).
+ *
+ * `visibleCount` is how many of these documents the caller RENDERS as rows (the list is newest-first, so
+ * they are the first N). A phase whose every document is already inside that window earns NO chip: the
+ * rows below say "Stalled" on the one stalled document by name, and an aggregate reading "1 stalled" above
+ * them is the same fact twice, competing for the same glance (side-eye 2026-08-08 P2-a). The aggregate
+ * exists for what you CANNOT see — the twelve wedged documents further down the bank.
+ */
+export function bankHealth(documents: readonly DocumentView[], now: number, visibleCount: number, pageLimit: number): BankHealth {
   const counts = new Map<IngestPhase, number>();
+  const hidden = new Map<IngestPhase, number>();
   let passages = 0;
-  for (const doc of documents) {
+  let chunks = 0;
+  for (const [index, doc] of documents.entries()) {
     passages += doc.embeddedCount;
+    chunks += doc.chunkCount;
     const phase = ingestPhase(doc, now);
     counts.set(phase, (counts.get(phase) ?? 0) + 1);
+    if (index >= visibleCount) {
+      hidden.set(phase, (hidden.get(phase) ?? 0) + 1);
+    }
   }
   const attention = [...counts.entries()]
-    .filter(([phase]) => showsPhaseChip(phase))
+    .filter(([phase]) => showsPhaseChip(phase) && (hidden.get(phase) ?? 0) > 0)
     .toSorted(([a], [b]) => ATTENTION_ORDER[a] - ATTENTION_ORDER[b])
-    .map(([phase, count]) => ({ intent: ingestBadge(phase).intent, label: `${count} ${ingestBadge(phase).label.toLowerCase()}` }));
-  return { attention, passages, total: documents.length };
+    .map(([phase, count]) => ({ intent: ingestBadge(phase).intent, label: `${count} ${ingestBadge(phase).label.toLowerCase()}`, phase }));
+  return { attention, capped: documents.length >= pageLimit, chunks, passages, total: documents.length };
 }
 
-/** The tile's one-line summary: what you have, and how much of it a chat can actually pull from. Counts
- *  PASSAGES rather than chunks because an indexed-but-unembedded chunk is invisible to retrieval — the
- *  number a user can trust is the one retrieval can reach. */
+const THOUSANDS_RE = /\B(?=(\d{3})+(?!\d))/gu;
+
+/** Group a passage count for display ("1170" → "1,170"). Hand-rolled because `.toLocaleString()` is banned
+ *  repo-wide (`no-raw-intl-time` — un-memoized Intl by the back door), and a four-digit passage count with
+ *  no grouping reads as an id. Same spelling as the assembly panel's own `formatCount`, deliberately not
+ *  lifted into a shared home for two call sites in different features. */
+function groupThousands(value: number): string {
+  return String(value).replace(THOUSANDS_RE, ",");
+}
+
+/** The tile's one-line summary: what you have, and how much of it a chat can actually pull from.
+ *
+ *  BOTH NUMBERS, ALWAYS ("286 of 1,170 passages indexed") — a bare "286 passages indexed" reads as a
+ *  complete count, so a bank half-way through an embed looks finished (side-eye 2026-08-08 P2-e); side by
+ *  side the two numbers teach what a passage IS and what "indexed" costs. And a capped page says `100+`,
+ *  because `databank.list` returns a PAGE: reporting its length as the bank's size is a census the client
+ *  never took (P2-d). */
+function documentCount(health: BankHealth): string {
+  if (health.capped) {
+    return `${health.total}+ documents`;
+  }
+  return health.total === 1 ? "1 document" : `${health.total} documents`;
+}
+
 export function bankHealthLine(health: BankHealth): string {
-  const documents = health.total === 1 ? "1 document" : `${health.total} documents`;
-  const passages = health.passages === 1 ? "1 passage" : `${health.passages} passages`;
-  return `${documents} · ${passages} indexed`;
+  const size = documentCount(health);
+  const unit = health.chunks === 1 ? "passage" : "passages";
+  return `${size} · ${groupThousands(health.passages)} of ${groupThousands(health.chunks)} ${unit} indexed`;
 }

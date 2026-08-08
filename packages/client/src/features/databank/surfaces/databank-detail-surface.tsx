@@ -32,6 +32,7 @@ import { timeLib, useFocusOnMount } from "#lib";
 import { useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
+import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import { documentSubtitle, ingestBadge, ingestPhase, ingestStallHint, originLabel } from "../lib/databank-model.ts";
 
 export function DatabankDetailSurface(): ReactElement {
@@ -57,11 +58,14 @@ export function DatabankDetailSurface(): ReactElement {
   );
 }
 
-/** The no-selection arm — what the bank IS, and what a document does once it is in it. */
+/** The no-selection arm — what the bank IS, and what a document does once it is in it. The description is
+ *  the SHARED gloss (one spelling of the mechanism, `databank-copy`) plus this pane's OWN second sentence:
+ *  the part only CONTENT can say, about the pane to its left. It used to re-word the mechanism itself
+ *  ("chunked and embedded"), one of four drifted spellings (side-eye 2026-08-08 P2-c). */
 function DatabankWelcome(): ReactElement {
   return (
     <EmptyState
-      description="Documents you add here get chunked and embedded, so the passages most relevant to the moment are pulled into your chats as they happen. Pick one on the left to see what was indexed, or add another."
+      description={`${DATABANK_INGEST_GLOSS} Pick one on the left to see what was indexed, or add another.`}
       icon={<Icon icon={FileText} size="lg" />}
       title="Your databank"
     />

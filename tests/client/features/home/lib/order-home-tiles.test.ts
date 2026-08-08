@@ -2,7 +2,7 @@
 // still sorts deterministically, and two tiles sharing an `order` break the tie on `id` rather than
 // inheriting the door's array order (which would make the grid depend on import order at main.tsx).
 
-import type { HomeTileContribution } from "@orb/client/lib";
+import type { HomeTileContribution } from "@orb/client/state";
 import { Clock } from "@orb/ui/icons";
 import { orderHomeTiles } from "../../../../../packages/client/src/features/home/lib/order-home-tiles.ts";
 import { expect, test } from "../../../../support/fixtures.ts";

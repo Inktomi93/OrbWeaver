@@ -10,6 +10,6 @@ export { automationDormantTile } from "./lib/automation-tile.tsx";
 export { buddyDormantTile } from "./lib/buddy-tile.tsx";
 export { makeHomeSection } from "./lib/home-section.tsx";
 export { orderHomeTiles } from "./lib/order-home-tiles.ts";
-export { sectionJumpTile } from "./lib/section-jump-tile.tsx";
+export { makeSectionJumpTile } from "./lib/section-jump-tile.tsx";
 export type { HomeSurfaceProps } from "./surfaces/home-surface.tsx";
 export { HomeSurface } from "./surfaces/home-surface.tsx";

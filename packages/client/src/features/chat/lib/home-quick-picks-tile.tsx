@@ -4,7 +4,7 @@
 
 import { Button } from "@orb/ui/button";
 import { Users } from "@orb/ui/icons";
-import type { HomeTileContribution } from "#lib";
+import type { HomeTileContribution } from "#state";
 import { setActiveSection } from "#state";
 import { HomeQuickPicksTileBody } from "../components/home-quick-picks-tile-body.tsx";
 

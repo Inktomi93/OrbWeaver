@@ -21,6 +21,7 @@ import {
   clearCharacterFacet,
   clearCharacterSelection,
   clearChatListCharacterFilter,
+  clearDatabankPhaseFilter,
   clearCollectionSelection,
   clearCorpusSelection,
   clearNewChatPreset,
@@ -61,6 +62,7 @@ import {
   setCharacterSortMode,
   setCharacterViewMode,
   setChatListCharacterFilter,
+  setDatabankPhaseFilter,
   setComposerDraft,
   setContextTab,
   setFocusMode,
@@ -84,6 +86,7 @@ import {
   useCharacterSortMode,
   useCharacterViewMode,
   useChatListCharacterFilter,
+  useDatabankPhaseFilter,
   useChromeRegistry,
   useCollectionGroupOpen,
   useCollectionSelection,
@@ -415,6 +418,27 @@ export function ChatListFilterProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => clearChatListCharacterFilter()}>
         clear filter
+      </button>
+    </div>
+  );
+}
+
+/** DatabankFilterProbe — drives the databank phase-scope store (home's ingest-health chips → the scoped
+ *  Databank LIST) through its module actions + read hook. A CT, not a unit test, for the same reason its
+ *  chat-list twin is one: the store's only read surface is a `useSyncExternalStore` hook. */
+export function DatabankFilterProbe(): ReactElement {
+  const phase = useDatabankPhaseFilter();
+  return (
+    <div>
+      <output>{`phase=${phase ?? "none"}`}</output>
+      <button onClick={(): void => setDatabankPhaseFilter("stalled")} type="button">
+        scope to stalled
+      </button>
+      <button onClick={(): void => setDatabankPhaseFilter("empty")} type="button">
+        scope to empty
+      </button>
+      <button onClick={(): void => clearDatabankPhaseFilter()} type="button">
+        clear scope
       </button>
     </div>
   );

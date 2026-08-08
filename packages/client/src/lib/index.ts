@@ -38,8 +38,6 @@ export { IS_DEV } from "./dev-flag.ts";
 export { downloadJson, downloadTextFile, downloadUrl, slugifyFilename } from "./download-json.ts";
 export type { AppErrorBoundaryProps } from "./error-boundary.tsx";
 export { AppErrorBoundary } from "./error-boundary.tsx";
-export type { DormantDoorway, HomeTileContribution, HomeTileSpan } from "./home-tile-contracts.ts";
-export { HOME_TILE_SPANS } from "./home-tile-contracts.ts";
 export {
   ASSISTANT_PREFILL_WARNING,
   CHOICE_NEEDS_LIVE_CHAT,

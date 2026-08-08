@@ -3,9 +3,9 @@
 // FAKES and drive the REAL `HomeSurface` — proving order, `useVisible` gating, the dormant arm, and the
 // zero-tile empty state against the shipped grid, not a bespoke double.
 
-import { automationDormantTile, buddyDormantTile, HomeSurface, sectionJumpTile } from "@orb/client/features/home";
-import type { HomeTileContribution } from "@orb/client/lib";
+import { automationDormantTile, buddyDormantTile, HomeSurface, makeSectionJumpTile } from "@orb/client/features/home";
 import { createContributorRegistry } from "@orb/client/lib";
+import type { HomeTileContribution } from "@orb/client/state";
 import { rememberHomeTileBox, useActiveSection } from "@orb/client/state";
 import { Button } from "@orb/ui/button";
 import { BrainCircuit, Clock, MessagesSquare } from "@orb/ui/icons";
@@ -74,15 +74,17 @@ export function HomeEmptyStory(): ReactElement {
   return <Story tiles={[]} />;
 }
 
-/** The REAL home-owned jump tile over the REAL section registry — its rows must BE the registry. The
- *  `<output>` publishes the shell store's active section so a row click asserts the STORE ACTION fired,
- *  never a rendered echo. */
+/** The REAL home-owned jump tile over the REAL section registry — its rows must BE the registry, MINUS any
+ *  section a sibling tile subsumes (`sectionId`). Mounted with NO siblings, so nothing is claimed and every
+ *  non-home section keeps its row; the claim itself is pinned by the databank tile's own CT, which mounts
+ *  the jump grid beside the tile that makes the claim. The `<output>` publishes the shell store's active
+ *  section so a row click asserts the STORE ACTION fired, never a rendered echo. */
 export function HomeSectionJumpStory(): ReactElement {
   return (
     <CtDataProviders>
       <CtRealSectionRegistry>
         <ActiveSectionProbe />
-        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [sectionJumpTile])} />
+        <HomeSurface onNewChat={(): void => undefined} tiles={createContributorRegistry<HomeTileContribution>("home-tiles", [makeSectionJumpTile([])])} />
       </CtRealSectionRegistry>
     </CtDataProviders>
   );

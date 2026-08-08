@@ -34,6 +34,13 @@ export type ScraperKind = z.infer<typeof scraperKindSchema>;
 /** The branded `documents.id` schema (strict TypeID — validates the `document_…` prefix at a boundary). */
 export const documentIdSchema = typeIdSchema(ID_PREFIX.document);
 
+/** The page `databank.list` serves when a caller names no `limit` — the verb's default, promoted here
+ *  because the CLIENT has to know it too. A surface that summarizes the returned rows ("46 documents")
+ *  is reporting a PAGE, and it can only say so honestly ("100+ documents") if it can tell a full page from
+ *  a whole bank (side-eye 2026-08-08 P2-d). Two spellings of this number would make that "+" a lie the day
+ *  either moved. */
+export const DATABANK_LIST_DEFAULT_LIMIT = 100;
+
 // Chunk/retrieval bounds — named (contracts enforce no-magic-numbers). ST-derived defaults (databank-design
 // /03 §1, /05 §3.7): 2500-char chunks, 0% overlap, ≤5 KB whole-file, k=5, minScore 0.25.
 const CHUNK_SIZE_MIN = 200;

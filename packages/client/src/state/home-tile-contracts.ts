@@ -1,12 +1,17 @@
-// Tier-4 contract home for the HOME-TILE contributor seam (home-section-spec §3.1, owner decision H10) —
-// the shapes home and every tile-raising feature both need without either importing the other. It binds NO
-// state-owned vocabulary (`ReactNode` + `LucideIcon` only), so it is tier 4, not `state/` — the
-// `CharacterDetailContribution` precedent. It is its OWN file rather than a block inside
-// `registry-contracts.ts` purely because that file sits at the 450-line component-size cap; the tier, the
-// import surface, and the entry point are identical (every consumer imports from `#lib`).
+// Contract home for the HOME-TILE contributor seam (home-section-spec §3.1, owner decision H10) — the
+// shapes home and every tile-raising feature both need without either importing the other.
+//
+// IT MOVED FROM `lib/` (tier 4) TO `state/` — under H10's OWN test, not against it. H10 put it in tier 4
+// "because it binds no state-owned vocabulary (`ReactNode` + `LucideIcon` only)" and ruled, in the same
+// breath: "if a tile ever needs `SectionId` in its own contract, it moves to `state/` under the same test
+// that moved `SettingsSectionContribution` there". `sectionId` is that day (side-eye 2026-08-08 P2-c): a
+// tile can now declare the section whose jump row it SUBSUMES, which is `SectionId`, which is
+// state-owned vocabulary. The seam, the entry point and every consumer's import shape are otherwise
+// unchanged — `#lib` became `#state`.
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
+import type { SectionId } from "./shell-store.ts";
 
 /** How much of the home tile grid one tile claims — a CLOSED axis (§5.5: one importable union), so an
  *  unlisted span is unspellable. `"half"` = one grid column; `"full"` = the whole row. */
@@ -39,6 +44,12 @@ export interface HomeTileContribution {
   readonly order?: number;
   /** @defaultValue "half" */
   readonly span?: HomeTileSpan;
+  /** The section whose JUMP ROW this tile subsumes — declared only by a tile that does that row's entire
+   *  job (the section's name, its glyph, its live contents and a door into it), never by a tile that merely
+   *  reads a section's data. Home's jump grid drops the row while such a tile is registered, so one
+   *  destination is not two doors ten pixels apart (side-eye 2026-08-08 P2-c). Absent ⇒ the section keeps
+   *  its jump row, which is the right default: most tiles are DATA surfaces, not navigation. */
+  readonly sectionId?: SectionId;
   /** The tile's ONE trailing affordance ("All characters →"). Never a second primary (CD3), and never
    *  supplied alongside the DORMANT arm (a doorway has no controls). */
   readonly action?: ReactNode;

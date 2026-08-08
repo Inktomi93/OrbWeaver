@@ -7,7 +7,7 @@
 // UI half of that posture, and it disappears by construction the day the chips consume the channel.
 
 import { Zap } from "@orb/ui/icons";
-import type { HomeTileContribution } from "#lib";
+import type { HomeTileContribution } from "#state";
 
 const AUTOMATION_TILE_ORDER = 90;
 

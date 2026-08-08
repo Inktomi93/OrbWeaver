@@ -5,6 +5,7 @@
 import type { DocumentView } from "@orb/contracts/databank";
 import { castId } from "@orb/kit/ids";
 import { describe } from "vitest";
+import type { BankHealth } from "../../../../../packages/client/src/features/databank/lib/databank-model.ts";
 import {
   bankHealth,
   bankHealthLine,
@@ -103,9 +104,13 @@ describe("showsPhaseChip — Ready is the ABSENCE of a chip (§6.1)", () => {
   test("the badge each non-ready phase renders names its state and its urgency", () => {
     expect(ingestBadge("indexing")).toEqual({ label: "Queued", intent: "warning" });
     expect(ingestBadge("embedding")).toEqual({ label: "Indexing", intent: "warning" });
-    // `Empty` is NEUTRAL, not a warning: nothing is in flight and nothing is wrong with the system — the
-    // file simply had no text. A warning tone would send the user hunting for a failure that never happened.
-    expect(ingestBadge("empty")).toEqual({ label: "Empty", intent: "neutral" });
+    // `Empty` IS A WARNING — REVERSED 2026-08-08 (side-eye P3), and the old reasoning is kept here because
+    // it was not wrong about the SYSTEM: nothing is in flight and nothing failed internally, so `neutral`
+    // said "no state to report". What it missed is the USER's position: an empty extraction is a document
+    // that will never feed a chat, waiting for a human to re-upload or paste the text, and neutral filed
+    // that beside "nothing to report" — a shrug on a document that is dead weight. It stops short of
+    // `danger`, which stays reserved for the job that WEDGED (this one completed, honestly, with nothing).
+    expect(ingestBadge("empty")).toEqual({ label: "Empty", intent: "warning" });
   });
 });
 
@@ -143,6 +148,9 @@ describe("ingestPollInterval — ONE rule for both readers of databank.list", ()
 // D-7 — the HOME tile's summary. It must answer "is my bank doing its job" out of the SAME counts the rows
 // derive their phase from, or home and the library pane disagree about one document in two places.
 describe("bankHealth — the tile's ingest health (D-7)", () => {
+  /** The tile shows four rows and reads a 100-document page — the production call shape. */
+  const health = (documents: readonly DocumentView[], now: number, visible = 0, limit = 100): BankHealth => bankHealth(documents, now, visible, limit);
+
   const bank: readonly DocumentView[] = [
     doc(),
     doc({ id: castId("document_00000000000000000002"), chunkCount: 39, embeddedCount: 22 }),
@@ -150,27 +158,36 @@ describe("bankHealth — the tile's ingest health (D-7)", () => {
     doc({ id: castId("document_00000000000000000004"), chunkCount: 0, embeddedCount: 0, updatedAt: AT - FIVE_MINUTES }),
   ];
 
-  test("counts PASSAGES, not chunks — an un-embedded chunk is invisible to retrieval", () => {
-    // 12 embedded + 22 of 39 embedded + 0 + 0. A chunk count would read 51 and over-promise what a chat
-    // can actually pull, which is the one number this line exists to be honest about.
-    expect(bankHealth(bank, AT).passages).toBe(34);
-    expect(bankHealth(bank, AT).total).toBe(4);
+  test("counts PASSAGES against the chunks that exist — an un-embedded chunk is invisible to retrieval", () => {
+    // 12 embedded of 12 + 22 of 39 + 0 of 0 + 0 of 0. Reporting 34 alone would read as a finished count;
+    // reporting 51 (the chunks) would over-promise what a chat can actually pull.
+    expect(health(bank, AT).passages).toBe(34);
+    expect(health(bank, AT).chunks).toBe(51);
+    expect(health(bank, AT).total).toBe(4);
   });
 
   test("one chip per NON-READY phase, worst first, and READY earns none", () => {
-    expect(bankHealth(bank, AT).attention).toEqual([
-      { intent: "danger", label: "1 stalled" },
-      { intent: "neutral", label: "1 empty" },
-      { intent: "warning", label: "1 indexing" },
+    expect(health(bank, AT).attention).toEqual([
+      { intent: "danger", label: "1 stalled", phase: "stalled" },
+      { intent: "warning", label: "1 empty", phase: "empty" },
+      { intent: "warning", label: "1 indexing", phase: "embedding" },
     ]);
     // A bank at rest says nothing beyond its size — the steady state is the absence of a chip (§6.1).
-    expect(bankHealth([doc(), doc({ id: castId("document_00000000000000000005") })], AT).attention).toEqual([]);
+    expect(health([doc(), doc({ id: castId("document_00000000000000000005") })], AT).attention).toEqual([]);
+  });
+
+  // The aggregate exists for what the tile CANNOT show you. A phase whose every document is already a
+  // visible row is the same fact twice, competing for one glance (side-eye 2026-08-08 P2-a).
+  test("a phase fully visible in the rendered rows earns NO chip; one that reaches past them does", () => {
+    expect(health(bank, AT, bank.length).attention).toEqual([]);
+    // The stalled row is LAST of four, so at three visible rows it is the only phase still hidden.
+    expect(health(bank, AT, 3).attention).toEqual([{ intent: "danger", label: "1 stalled", phase: "stalled" }]);
   });
 
   test("the stall overlay rides the INJECTED clock — the same document is queued, then wedged", () => {
     const queued = [doc({ chunkCount: 0, embeddedCount: 0 })];
-    expect(bankHealth(queued, AT + FIVE_MINUTES - 1).attention).toEqual([{ intent: "warning", label: "1 queued" }]);
-    expect(bankHealth(queued, AT + FIVE_MINUTES).attention).toEqual([{ intent: "danger", label: "1 stalled" }]);
+    expect(health(queued, AT + FIVE_MINUTES - 1).attention).toEqual([{ intent: "warning", label: "1 queued", phase: "indexing" }]);
+    expect(health(queued, AT + FIVE_MINUTES).attention).toEqual([{ intent: "danger", label: "1 stalled", phase: "stalled" }]);
   });
 
   test("documents in the SAME phase aggregate into one chip", () => {
@@ -178,13 +195,22 @@ describe("bankHealth — the tile's ingest health (D-7)", () => {
       doc({ charCount: 0, chunkCount: 0, embeddedCount: 0 }),
       doc({ id: castId("document_00000000000000000006"), charCount: 0, chunkCount: 0, embeddedCount: 0 }),
     ];
-    expect(bankHealth(two, AT).attention).toEqual([{ intent: "neutral", label: "2 empty" }]);
+    expect(health(two, AT).attention).toEqual([{ intent: "warning", label: "2 empty", phase: "empty" }]);
   });
 
-  test("the health LINE reads its two counts, with the singulars", () => {
-    expect(bankHealthLine(bankHealth(bank, AT))).toBe("4 documents · 34 passages indexed");
-    expect(bankHealthLine(bankHealth([doc({ chunkCount: 1, embeddedCount: 1 })], AT))).toBe("1 document · 1 passage indexed");
-    expect(bankHealthLine(bankHealth([], AT))).toBe("0 documents · 0 passages indexed");
+  test("the health LINE reads BOTH counts, with the singulars", () => {
+    expect(bankHealthLine(health(bank, AT))).toBe("4 documents · 34 of 51 passages indexed");
+    expect(bankHealthLine(health([doc({ chunkCount: 1, embeddedCount: 1 })], AT))).toBe("1 document · 1 of 1 passage indexed");
+    expect(bankHealthLine(health([], AT))).toBe("0 documents · 0 of 0 passages indexed");
+  });
+
+  // A FULL PAGE IS NOT A CENSUS (side-eye 2026-08-08 P2-d): `databank.list` returns at most its default
+  // limit, so a surface that prints `documents.length` as "N documents" states a bank size it never read.
+  test("a page filled to the limit reports 100+, never a count it did not take", () => {
+    const page = Array.from({ length: 4 }, (_, i) => doc({ id: castId(`document_0000000000000000000${i}`) }));
+    expect(bankHealthLine(health(page, AT, 0, 4))).toBe("4+ documents · 48 of 48 passages indexed");
+    expect(health(page, AT, 0, 4).capped).toBe(true);
+    expect(health(page, AT, 0, 5).capped).toBe(false);
   });
 });
 

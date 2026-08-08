@@ -60,7 +60,15 @@ export const badgeVariants = tv({
     { intent: "primary", tone: "soft", class: "bg-primary/15 text-primary border-primary/30" },
     { intent: "success", tone: "soft", class: "bg-success/15 text-success border-success/30" },
     { intent: "warning", tone: "soft", class: "bg-warning/15 text-warning border-warning/30" },
-    { intent: "danger", tone: "soft", class: "bg-destructive/15 text-destructive border-destructive/30" },
+    // DANGER TINTS AT 8%, NOT THE FAMILY'S 15% (side-eye 2026-08-08 P1-1, measured). `soft` paints the
+    // intent's own hue as TEXT on a tint of that same hue — so the tint spends contrast, and destructive
+    // has the least to spend: tokens.json tunes it to 5.07:1 as text on the dark card, the FLOOR of the
+    // status family (success/warning/info/primary all sit higher). At 15% the composite fell to 4.28:1 —
+    // under AA-NORMAL at this chip's 13px/500 — on the one chip in the app whose whole job is to say a job
+    // is dead. 8% restores 4.66:1 (10% was only 4.59:1, too thin a margin to survive a theme's own
+    // destructive arm). The hairline stays at /30, so the pill keeps its shape and reads as a `soft` chip,
+    // not a ghost. Pinned by a canvas-composited contrast measurement in tests/ui/primitives/badge/badge.ct.tsx.
+    { intent: "danger", tone: "soft", class: "bg-destructive/8 text-destructive border-destructive/30" },
     { intent: "info", tone: "soft", class: "bg-info/15 text-info border-info/30" },
     { intent: "neutral", tone: "ghost", class: "text-muted-foreground border-border" },
     { intent: "primary", tone: "ghost", class: "text-primary border-primary/30" },

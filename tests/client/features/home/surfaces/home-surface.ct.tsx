@@ -3,8 +3,8 @@
 // the `(order, id)` sort, `useVisible:false` ⇒ NO DOM, the dormant arm's zero-control doorway, the
 // zero-tile empty state, and the duplicate-id THROW at construction.
 
-import type { HomeTileContribution } from "@orb/client/lib";
 import { createContributorRegistry } from "@orb/client/lib";
+import type { HomeTileContribution } from "@orb/client/state";
 import { Clock } from "@orb/ui/icons";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { HomeDormantTileStory, HomeEmptyStory, HomeTileOrderStory, HomeTileVisibilityStory } from "../_ct-stories.tsx";

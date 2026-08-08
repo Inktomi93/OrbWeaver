@@ -58,9 +58,9 @@ import {
 } from "#features/chat";
 import { makeConfigSection } from "#features/config";
 import { connectionsPane } from "#features/credentials";
-import { databankDocumentsTile, databankSection } from "#features/databank";
+import { addDocumentModal, databankDocumentsTile, databankSection } from "#features/databank";
 import { corpusSection } from "#features/discovery";
-import { automationDormantTile, buddyDormantTile, makeHomeSection, sectionJumpTile } from "#features/home";
+import { automationDormantTile, buddyDormantTile, makeHomeSection, makeSectionJumpTile } from "#features/home";
 import { notificationsChrome } from "#features/notifications";
 import { personaChrome, personasPane } from "#features/persona";
 import { presetsSection } from "#features/preset";
@@ -95,13 +95,12 @@ import type {
   CollectionContribution,
   ContextRegionDef,
   ContextTabDef,
-  HomeTileContribution,
   MessageToolsRenderer,
   SlashCommandContribution,
   ToolRenderer,
 } from "#lib";
 import { AppErrorBoundary, bindNotify, buildClientErrorPayload, createContributorRegistry, createRegistry, createToastNotify } from "#lib";
-import type { SettingsSectionContribution } from "#state";
+import type { HomeTileContribution, SettingsSectionContribution } from "#state";
 import {
   assembleChrome,
   assertSettingsKeyPartition,
@@ -209,14 +208,20 @@ const characterDetailContributors = createContributorRegistry<CharacterDetailCon
 // `(order, id)` at the door: home's own jump grid is order 40 (the chat tiles land at 10/20/30, databank's
 // documents tile at 50, the dormant doorways at 80/90). Home consumes the registry BLIND through
 // `makeHomeSection`.
-const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
+const HOME_TILE_CONTRIBUTIONS: readonly HomeTileContribution[] = [
   chatRecentsTile,
   chatQuickPicksTile,
   chatTempChatTile,
-  sectionJumpTile,
   databankDocumentsTile,
   buddyDormantTile,
   automationDormantTile,
+];
+
+const homeTiles = createContributorRegistry<HomeTileContribution>("home-tiles", [
+  ...HOME_TILE_CONTRIBUTIONS,
+  // LAST, and built FROM the list above: its rows are the section registry minus home minus every section
+  // a tile beside it already subsumes (`sectionId`).
+  makeSectionJumpTile(HOME_TILE_CONTRIBUTIONS),
 ]);
 
 // The COLLECTION contributor seam (config-rail-spec.md · review §4) — the ELEVENTH contributor family and
@@ -250,6 +255,7 @@ const modals = createRegistry("modals", MODAL_SLOT_IDS, {
   account: accountModal,
   command: commandModal,
   newChat: newChatModal,
+  addDocument: addDocumentModal,
   you: youModal,
 });
 
