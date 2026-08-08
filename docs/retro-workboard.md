@@ -511,8 +511,12 @@ security lens.
     **`25a551366`** (from commit **7f240e0**). Consolidated `pnpm check` on merged tree: **PASS 14/14**.
     **Verifier `a3d64d2bb4af621c8`: CONFIRMED both claims** (red-first re-proven vs `7f240e06f^`; suites
     re-run cold 75/75 + 109/109; tri-state mapping total; MA-4 omit-keeps no-clobber; carriage stays
-    server truth). **Side-eye `a035aaf9715d1cd7d` still IN FLIGHT** — row graduates only on its report.
-    Worktree `wt/agent-a7a28c621505e7785` NOT torn down (post-lens).
+    server truth). **Side-eye `a035aaf9715d1cd7d`: SHIP — no P0/P1, three P3s** (receipts
+    `reports/side-eye-grants/`). Per fix-ALL-findings law, a **P3 FIX LEG is IN FLIGHT on the warm lane
+    agent** (`a7a28c621505e7785`, its worktree): (1) `aria-describedby` wiring outcome badge → combobox;
+    (2) `title={def.label}` on the truncated label; optional badge-column alignment @480. Graduates when
+    the fix leg lands + CTs stay green. (3rd P3 = the app-wide 10.5px Kicker/gloss convention — noted,
+    not this lane's to churn.) Worktree NOT torn down (fix leg live).
     **⚠ VERIFIER FIND (pre-existing, NOT this diff — queued security row):** the host-only invariant on
     tracker exceptions is UI-ONLY. Server `mergeSheet` (`packages/server/src/domain/rpg/verbs/patch-sheet.ts:60-61`)
     applies `trackerGrants`/`trackerRevokes` from ANY patch, and `assertOwnUserRef` (`guard.ts:98-105`)
@@ -542,10 +546,15 @@ security lens.
   - ⏳ **`RPG-PROSE` in flight** (agent **a2b8b028dc3859073**) — PROSE-1 S3/S4: rpg per-game teaches +
     extraction templates → `contracts/rpg/prose.ts` slots (default text = OWNER-VETO, ship existing
     strings as v1); fence server rpg + contracts/rpg. ESCALATES design forks. (Task #17.)
-  - ⏳ **`PORTR6-FIXTURE` in flight** (agent **ae2672795553f1f01**) — ≥2-turn cross-link fixture in
-    `bundle-round-trip.suite.int.test.ts`; fence `tests/server/entry/import/**`. STATE @ boundary:
-    uncommitted edit to the suite on `wt/agent-ae2672795553f1f01` — actively mid-work, NOT committed,
-    do not touch its worktree. Confirm its commit + re-verify (int-suite green) before merge.
+  - ✅ **`PORTR6-FIXTURE` GRADUATED** — commit `f574ba39b` (test-only, +289) merged as **`75250af9a`**.
+    **Verifier `a1f94d93f67dda984`: CONFIRMED via MUTATION PROBE** — swap-mutating the real remap
+    (`domain/import/verbs/import-chat-bundle.ts:186-189`, in the lane worktree, restored after) turned the
+    new test RED at the exact cross-link assertion while the OLD single-turn test stayed GREEN under both
+    mutations — the precise gap the fixture exists to close. Real end-to-end (real export/import routes,
+    workload runner, fresh db+CAS); 24 bidirectional assertions. First consolidated check after this merge
+    FAILED on 2 stages — BOTH were the side-eye's untracked scratch CT (`zz-review-grants.ct.tsx`,
+    since removed by side-eye), NOT the merge; re-check running. Worktree teardown-ready once re-check
+    is green.
   - Fences disjoint. **Post-compact steps, per lane: (1) confirm the lane's commit SHA on its worktree
     branch; (2) merge bare on green (never piped); (3) run consolidated `pnpm check`; (4) fresh lens
     (verifier=code / side-eye=UI / security-executor=security). When the train drains: run ONE `pnpm
