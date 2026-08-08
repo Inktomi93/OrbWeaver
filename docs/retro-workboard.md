@@ -150,19 +150,22 @@ sealed ui; one-directional flow (rpg ↔ chat only via injected ops). Read
     cookie (256-bit CSPRNG, HMAC-peppered, hash-only, throws on unset pepper). No owner-inference reader
     of `via` exists (swept all 3 node kinds — every reader is a CSRF gate on `via==="cookie"`). The
     credential gate composes with the `enabled` gate with no gap.
-  - **⚑ FOUR FOLLOW-UPS → lane AUTHTAIL (`abad209e843199e43`, security-executor), all clearly-correct,
-    not blocking the owner:**
-    - [ ] **`admin.resetPassword` MISSING THE OWNER-IMMUTABILITY GUARD its 3 siblings carry** — under
-      `AUTH_MODE=local` this is admin → owner account takeover (reset owner's password, log in),
-      contradicting D17. PRE-EXISTING, out of both reviewed diffs. Red-first pin + the 3-line guard.
-      **This is the most serious thing the review found — worse than anything in the diffs it reviewed.**
-    - [ ] `seedOwner` re-promotes role but never re-enables → a disabled owner row bricks the box with no
-      in-app recovery (LOW: entry needs a raw write). Fix: `enabled: true` in the boot `.set({...})`.
-    - [ ] `DEBUG_GATE_CREDENTIALED.header`'s comment is FALSE (the raw-header arm is unreachable because
-      `isAdmin` passes no `peerIp`; only signed JWTs reach it). Amend + a standing note that threading
-      `peerIp` later is a security change.
-    - [ ] `stack-prod.ts::probeDebug` is permanently blind post-AUTHFIX-2 (sends no token, so `debug.pid`
-      is always null now) with a stale comment. Send the token when it wants the pid.
+  - ✅ **FOUR FOLLOW-UPS FIXED + MERGED — lane AUTHTAIL (`05f8a1b71`, merge green, consolidated `pnpm
+    check` 14/14 at `123`-ahead). Owes a batchable security lens (small, red-first-proven; not yet run).**
+    - [x] **`admin.resetPassword` owner-takeover CLOSED** — a **scoped** guard, not the siblings' blanket
+      block: `target.role===OWNER_ROLE && principal.role!==OWNER_ROLE → cannotModifyOwner`. The fork the
+      lane caught: `resetPassword` is the SOLE in-app `passwordHash` write path, so the owner rotates
+      their OWN password through it — a blanket block would trade the takeover for an availability hole.
+      Red-first proven (delegated-admin→owner FAILED pre-fix; owner self-rotation FENCE green both sides).
+    - [x] `seedOwner` disabled-owner heal — **my spec edit would have been INERT** (the existing
+      `WHERE ne(role,'owner')` excludes the exact owner row); the lane widened the predicate to
+      `and(eq(id), or(ne(role,'owner'), eq(enabled,false)))` so the heal actually fires. Still 0-row on
+      a healthy owner.
+    - [x] `DEBUG_GATE_CREDENTIALED.header` comment corrected + standing note (safe by call-site omission,
+      not its own logic; threading `peerIp` later is a security change).
+    - [x] `probeDebug` split — `probeDebugPosture` stays credential-free (a token would 200 every armed
+      stack and destroy the posture question); `probeDebugPid` presents the token via read-only
+      `readDebugToken`.
   - **⚑ OWNER, operational (relayed from DEBUGGATE, standing):** rotate `DEBUG_TOKEN` (surface was open
     an unknown window) · `IP_ALLOWLIST` still unset with `WIRE_CAPTURE=on`.
 
