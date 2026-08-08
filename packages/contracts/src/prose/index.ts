@@ -29,7 +29,7 @@ import { DISCOVERY_PROSE_SLOTS } from "#discovery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_PROSE_SLOTS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
 import { PRESET_PROSE_SLOTS } from "#preset";
 import type { ProseHome, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
-import { isProseSlotId, PROSE_SLOT_IDS, proseOverrideFromLegacy, resolveProseFrom, spliceProseTokens } from "#prose-slot";
+import { isProseSlotId, PROSE_SLOT_IDS, proseOverBy, proseOverrideFromLegacy, resolveProseFrom, spliceProseTokens } from "#prose-slot";
 import { RPG_PROSE_SLOTS } from "#rpg";
 
 export * from "#prose-slot";
@@ -137,6 +137,17 @@ export interface ProseFooterState {
   readonly stale: boolean;
   /** Declared `requiredMacros`/`requiredTokens` this text has dropped. A WARN — never a save block. */
   readonly missing: readonly string[];
+  /**
+   * Characters OVER {@link PROSE_MAX_CHARS}; `0` when the text fits. **The one BLOCKING signal in this
+   * shape** — deliberately unlike `missing`/`stale`, whose warn-never-block posture is a ruled §6.3
+   * decision about advice. This is not advice: `proseOverridesSchema`'s per-key `.catch(undefined)` heals
+   * an over-cap override to ABSENT, so a save at `over > 0` does not fail loudly, it silently deletes the
+   * host's text and lets the shipped default ride. The editors cap typing at the limit, so `over > 0` is
+   * reachable only from text that predates the cap (an import, a direct API write, a blob from before this
+   * fix) — which is exactly why it must be SHOWN rather than truncated away, and why the save is refused
+   * until the author trims it themselves.
+   */
+  readonly over: number;
 }
 
 /** `value` is the LIVE field text; `stored` is the persisted override (for the version the edit was authored
@@ -152,6 +163,9 @@ export function proseFooterState(id: ProseSlotId, value: string, stored: ProseOv
     // A required macro/token is only meaningful against text the host actually wrote — the shipped default
     // carries them all by construction.
     missing: isDefault ? [] : [...slot.requiredMacros, ...slot.requiredTokens].filter((token) => !trimmed.includes(token)),
+    // NOT gated on `isDefault`: an empty field is under the cap by construction, so the guard would be
+    // decoration — and `proseOverBy` already measures the trimmed bytes that actually get stored.
+    over: proseOverBy(value),
   };
 }
 
