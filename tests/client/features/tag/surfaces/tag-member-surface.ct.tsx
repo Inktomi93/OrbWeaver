@@ -81,6 +81,43 @@ test("clearing a colour sends the updateTag tri-state null (clear to theme defau
   await expect.poll(() => trpc.lastInput("tag.updateTag"), { intervals: [20, 50, 100] }).toEqual({ tagId: "tag_adventure", patch: { color: null } });
 });
 
+// THE READOUT MUST BE ON THE CONTROL, not merely near it (side-eye 2026-08-08 P2). A 32×32 swatch button
+// has no text of its own, so "what colour is this?" is answerable only through its accessible DESCRIPTION —
+// and a loose `<Text>` sibling inside the Field is not one. Asserted through the a11y tree (the affordance a
+// screen-reader user actually gets), and driven across BOTH arms of the tri-state in one mount: "adventure"
+// carries a set background and an unset text colour.
+test("each colour picker ANNOUNCES the value it holds, and both arms of the tri-state say their own word", async ({ mount, page }) => {
+  await stub(page);
+  const editor = await mount(<TagMemberStory />);
+  await expect(editor.getByRole("button", { name: "Background" })).toHaveAccessibleDescription("#3355ff");
+  await expect(editor.getByRole("button", { name: "Text" })).toHaveAccessibleDescription("Not set — uses the theme default");
+});
+
+// …AND IT COSTS ONE LINE AT THE PANE'S REAL WIDTH (the same finding's P3). The readout used to lead with the
+// slot's own key — "Background: not set — uses the theme default" — which is the Field label repeated 20px
+// lower, and it is exactly what tipped the sentence onto a second line in a 430px editor pane. Measured as
+// the description BOX against its own resolved line-height, not as a character count.
+const NARROW_EDITOR_PX = 430;
+/** One wrapped line of slack — a box taller than 1.5 line-heights is a SECOND line, which is the defect. */
+const ONE_LINE_TOLERANCE = 1.5;
+
+test("the readout spends ONE line at the editor pane's real width, and the pair stays a pair", async ({ mount, page }) => {
+  await stub(page);
+  const editor = await mount(<TagMemberStory width={NARROW_EDITOR_PX} />);
+
+  const readout = editor.getByText("Not set — uses the theme default");
+  const [box, lineHeight] = await Promise.all([readout.boundingBox(), readout.evaluate((node) => Number.parseFloat(getComputedStyle(node).lineHeight))]);
+  expect(box?.height ?? 0, "the readout is one line, not two").toBeLessThanOrEqual(lineHeight * ONE_LINE_TOLERANCE);
+
+  // …and the two swatches still share a line: the descriptions must not have widened the intrinsic Fields
+  // into a wrap (`*:w-auto` is what keeps the pair a pair).
+  const [background, text] = await Promise.all([
+    editor.getByRole("button", { name: "Background" }).boundingBox(),
+    editor.getByRole("button", { name: "Text" }).boundingBox(),
+  ]);
+  expect(background?.y).toBe(text?.y);
+});
+
 test("the hide-on-card switch patches isHiddenOnCard", async ({ mount, page }) => {
   const trpc = await stub(page);
   const editor = await mount(<TagMemberStory />);
