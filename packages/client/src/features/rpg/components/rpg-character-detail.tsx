@@ -36,6 +36,7 @@ import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { Kicker } from "./rpg-kicker.tsx";
 import { RpgPopulateControl } from "./rpg-populate-control.tsx";
+import { TrackerGrantsEditor } from "./rpg-tracker-grants.tsx";
 
 /** The hand-only progression LEVEL (§2.6) — `Level N`, editable-in-place for the sheet owner/host. A null level
  *  is omitted from a READ-ONLY view (nullable-honesty: no phantom "Level 0"); an editable view shows an empty
@@ -400,6 +401,11 @@ export function RpgCharacterDetail({ state, actor, edit, onBack }: RpgCharacterD
 
       <TrackerSection actor={actor} carriesNone={carriesNone} {...(edit === undefined ? {} : { edit })} />
       <ConditionSection actor={actor} {...(edit === undefined ? {} : { edit })} />
+      {/* The per-actor tracker-EXCEPTIONS editor — HOST-only (grants are the host's call; PERMISSION-omit, never
+          a disabled twin) and NON-CAST (a `cast` NPC has no sheet; its applicability rides the def's class /
+          explicit list, not a per-actor grant). It edits `sheet.trackerGrants`/`trackerRevokes` through the
+          same `patchSheet` door the identity planes use. */}
+      {isHost && actor.actorRef.kind !== "cast" ? <TrackerGrantsEditor chatId={chatId} actor={actor} trackerDefs={tracker.trackerDefs} /> : null}
       {/* The born-state doorway — HOST-only (PERMISSION-omit: a member never sees a control that would refuse),
           and the one place the hand-only sheet fields can be model-written at all. */}
       {isHost ? <RpgPopulateControl chatId={chatId} actor={actor} canPopulate={state.game.canPopulate} /> : null}
