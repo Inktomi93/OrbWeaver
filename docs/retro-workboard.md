@@ -53,8 +53,9 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-08 | **Vocab kill list RATIFIED IN FULL** (crew incl. schema field · director→arbiter · seat · 3 UI strings; party/scene/act + ember/weave STAY) |
 | 08-08 | **CAS = weekly GC + monthly fsck** · **AGENT-1 = wait for owner re-auth, keep whole** · **Refinery R2 GO + R3 MOCKUPS GO** (TanStack, not "React Query") |
 | 08-08 | **PUSH WORD GRANTED** for this train (drain → battery → E2E\_LIVE → push) · queued trio = train two |
-| standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
-| open | C1 persona D→C go/no-go (Reading-B explained 08-08, answer pending) · R0 ratifications (handoff-clear default · ENTRIES\_MAX=108 · PROSE\_MAX=4000 · the 12 prose-slot baseline texts) · C5 · C9 · C13 · home-tile WHETHER · ctx-tab-strip coarse · token-unification offer |
+| 08-08 | **C1 persona program APPROVED IN FULL on the doc's recommended arms** (owner, after the Reading-B walkthrough): Phase D → Phase C, all 5 §10 forks on their recs (C after D, before the agent wave · substrate home contracts · 4-field overlap only · NO character-arm description · build lane mints **D137** w/ the §10.5 draft clause). Phase gate: persona-resolution suite BYTE-UNTOUCHED. Forge lane dispatched. |
+| standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE (re-affirmed 08-08 after full walkthrough) · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
+| open | R0 ratifications (handoff-clear default · ENTRIES\_MAX=108 · PROSE\_MAX=4000 · the 12 prose-slot baseline texts) · C5 · C9 · C13 · home-tile WHETHER · ctx-tab-strip coarse · token-unification offer |
 
 ## ═══ STANDING LAWS (owner-set, all in force) ═══
 
