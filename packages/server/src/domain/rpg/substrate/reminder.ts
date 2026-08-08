@@ -71,7 +71,7 @@ import { buildDeltaBlock } from "./delta.ts";
 
 // The teaches + headings below are PROSE-1 slots (`@orb/contracts/rpg/prose`, census 1-10): the shipped-default
 // BYTES live in the `RPG_PROSE_SLOTS` table (ONE home), and the reminder resolves each against the game's
-// `config.prose` overrides via {@link resolveTeach}. These exported constants are the DERIVED defaults — the
+// PRESET `promptConfig.prose` overrides via {@link resolveTeach}. These exported constants are the DERIVED defaults — the
 // byte-references the substrate tests and the macro-feed sibling read — never a second copy of the string.
 
 /** The steering LICENSE (§4.7 #2) — a VERSIONED slot (a `version` bump = a legible copy revision, never a
@@ -415,7 +415,7 @@ export function questLine(quest: RpgTrackerView["quests"][number]): string {
 /** The config-gated teaching blocks (parity-plus §3.3) — composed AFTER the state/delta, BEFORE the license,
  *  each gated by its knob (all off ⇒ `[]`, byte-identical to a pre-feature reminder). Extracted so
  *  `buildLiteReminder` stays under the cognitive-complexity ceiling — a NEW teach is one arm here. */
-/** Resolve a per-GAME teach SLOT against the game's `config.prose` overrides and render its `names-only` macros
+/** Resolve a teach SLOT against the turn preset's `promptConfig.prose` overrides and render its `names-only` macros
  *  (§6.1) — the same identity-only registry {@link renderSteeringNote} uses, so a host override's
  *  `{{user}}`/`{{char}}` become names while every other macro re-emits verbatim. NOT trimmed (unlike the
  *  steering note): a teach's own leading whitespace is load-bearing — the card example opens with a blank line
@@ -532,7 +532,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
     rosterNames: input.rosterNames,
     trackerDefs: view.trackerDefs,
     relationshipHints: input.features.relationshipHints,
-    // PROSE-1 — the two delta HEADINGS are slots resolved off `config.prose` (§4.3). Absent ⇒ shipped defaults.
+    // PROSE-1 — the two delta HEADINGS are slots resolved off the preset prose (§4.3). Absent ⇒ shipped defaults.
     prose: input.prose ?? {},
   });
   if (delta !== null) {

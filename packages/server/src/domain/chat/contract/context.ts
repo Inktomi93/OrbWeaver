@@ -795,6 +795,15 @@ export interface GatherTurnContextArgs {
   readonly respondsToLatestUserTurn: boolean;
   readonly steerIdentity?: { readonly user: string | undefined; readonly char: string } | undefined;
   readonly regenSlotMessageId?: MessageId | undefined;
+  /** PROSE-1 — the turn PRESET's model-facing prose OVERRIDES (`promptConfig.prose`, authored in the Templates
+   *  tab), composed by home exactly as `buildAssembleContext` composes them for the assembler. The rpg reminder
+   *  resolves its teaches/headings against this, so a host's re-authored teach lands on the game turn.
+   *
+   *  It is CHAT's resolution, threaded in, for the same reason `steerIdentity` is: the preset plane is chat's
+   *  (rpg has no preset reach beyond handing chat a `gmPresetId` to redirect to), and a game turn assembles that
+   *  redirected preset — so what arrives here is the GM preset's copy without rpg ever reading a preset row.
+   *  Optional and absent-safe: `{}` ⇒ every slot resolves to its shipped default, byte-identical. */
+  readonly prose?: ProseOverrides | undefined;
 }
 
 /** The `forkChat`→rpg clone call args (§3.2). Chat OWNS this shape (rpg satisfies it, the one-directional-flow

@@ -22,7 +22,7 @@ import { AUTOMATION_DEPTH_HARD_CAP, DEFAULT_GROUP_CONFIG, isAiDriven, speakerKey
 import type { ResolvedConnection } from "@orb/contracts/connection";
 import type { GenerationType, GuidedImpersonatePerson, UserMacroSpec, UserMacroValues } from "@orb/contracts/preset";
 import { PRESET_FORMAT_SLOT_IDS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
-import { legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
+import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
 import { batchMany, isConstraintViolation } from "@orb/db/kit";
 import type { AssetId, CharacterId, ChatId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry } from "@orb/kit/macro";
@@ -556,6 +556,12 @@ async function buildTurnContext(
           // The swipe/reroll target (VER-1b): rpg resolves the turn's tracked state as of BEFORE this slot, the
           // same cut this turn's canon context takes, so a reroll is never told the abandoned variant's beats.
           regenSlotMessageId: args.regenSlotMessageId,
+          // PROSE-1 — the reminder's teach/heading overrides, PRESET-homed (owner ruling 2026-08-08). Composed
+          // by home for the same no-cascade reason `buildAssembleContext` does it: a key only survives from the
+          // storage its slot actually homes in, so a stale key in the blob is inert rather than authoritative.
+          // `foreign.promptConfig` is the REDIRECTED preset on a game turn (`presetOverride`, resolved above), so
+          // the teaches a table authored on its GM preset are the ones the reminder gets.
+          prose: composeProse({ preset: foreign.promptConfig.prose }),
         })
       : null;
   // The chat-crew director's GATHER (chat-crew-design/04 §1): the current guidance as ONE injection. Null op /

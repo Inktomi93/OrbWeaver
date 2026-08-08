@@ -506,7 +506,58 @@ security lens.
   from the session** — the rest (cold-check>warm, scope-the-absence-receipt, shared-value-owes-a-battery,
   ratifying-gate-two-receipts) are DOCTRINE/memory, not gates: the existing gates + battery caught every
   real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
-- **⚑ LIVE LANE ROSTER (2026-08-08 — 2 GRADUATED+torn down, 1 under lens, 1 in flight):**
+- **⚑ ROSTER REFRESH (2026-08-08, later — 5 live after the full-board audit the owner ordered):**
+  - ✅ **TRACKERGATE merged `a67cf44e9` + check PASS + verifier CONFIRMED** (own red-first on pre-fix
+    source; COMPLETE writer sweep of the FIELD — all 6 sheet-blob writers accounted, bundle-restore is
+    no-escalation since the importer hosts the fresh chat). Tiny PIN LEG in flight on the warm agent
+    (2 probe-proven unpinned edges: member empty-array refusal + character-ref-with-grants). Graduates
+    on that landing.
+  - ✅ **NODE26 FIX LEG merged `5d45f8b3e`** (body-scoped reject test — the concise-body trap handled;
+    globalThis + method-form blind spots closed; 3 mustFlag + 2 mustPass pins). Original refuting
+    verifier re-dispatched to CLOSE ITS OWN FINDING (its exact receipt + the concise-body regression
+    check). Check running.
+  - ✅➡️ **RE-HOME merged `61c9ee6c4`** (30 files; check PASS) — config.prose spine DELETED total (incl.
+    dead `PROSE_HOMES.game`, pinned), preset `promptConfig.prose` threaded (GatherTurnContextArgs),
+    11 slots render under new `teach` TEMPLATE_KIND "Game teaches" (contract row per slot — the tab
+    walks TEMPLATE_DEFS, not slot ids; ≤17-char label grammar; memory banked). **Verifier
+    `a6838f0af87a22dc6`: CONFIRMED on deletion/re-thread/byte-identity/fork-security (copy-on-write of
+    the system default closes the shared-preset arm — STRONGER than the old blank) — 1 REFUTED:
+    PREVIEW FIDELITY regressed** — turn runs `resolvePresetOverride` (GM redirect, turn.ts:530),
+    `resolvePreviewInputs` never does → host-authored teach shows the DEFAULT on previewAssembly while
+    the turn ships the override (pre-merge one storage served both). Broader unfaithfulness
+    (formatStrings/framings/sections on game-chat previews) is PRE-EXISTING. **FIX LEG in flight on the
+    warm lane: the GENERAL fix** — explicit editor presetOverride keeps its meaning; absent it, preview
+    runs the same GM redirect as the turn (fixes the whole class); pin at the REAL seam (the existing
+    test stubs resolveForeignInputs and is blind), red-first. Also: lane's reported test counts didn't
+    reproduce (all green, but counts weren't read off the runs — report-hygiene flag); the one-merge-
+    window config.prose data drop is sanctioned NO-LEGACY, recorded.
+  - ✅➡️ **INFRA-WARN-DEAF side-eye REPORTED: SHIP WITH FIXES** — plumbing held under attack (once-per-
+    event ×3 layers · exhaustive code map w/ assertNever · emit-before-terminal ordering all praised);
+    the RENDERED surface has 3 P1s: toast covers the Send button 94% at turn-terminal (click swallowed) ·
+    close ✕ drawn over the copy (26px overlap, every toast in the app) · copy says "direct/BYOK" which
+    exists NOWHERE in the UI (zero user-facing hits). +3 P2 (no warn identity · 5s dismiss for 3 lines ·
+    aria-hidden+tabindex close, h2-outline) +2 P3. CORRECTION: the map carries TWO codes not one
+    (custom_parameters_ignored + image_edit_dropped). Caveat banked: no client-side coalescing (server
+    dedupes; same code ×3 would stack). Receipts `reports/snaps/` + `reports/scratch-ct/`.
+    **TOAST-FIX lane DISPATCHED** (`ac60e5cd15326dfc0`, fix-ALL-findings): widen Notify to
+    {title,description?,action?,type} (collapses 5 findings) + 2 primitive geometry fixes + real
+    connection-label copy + warn identity + ARIA. Side-eye re-verify follows.
+  - ⏳ **CEREMONY batch** (`a2bb3d2f493e20956`, mech, docs-only fence) — mint D133/D134 from the two
+    security drafts + the D129(G) both-gates wording amendment + enumeration check through D134.
+  - ⏳ **W4-BURNDOWN** (`a97343d5655d5a35c`) — W4.5 withResolvers ×7 + W4.2 toSorted (115 sites
+    re-swept). RULED mid-run: convert all 4 rpg-named sites (no real collision with re-home — my
+    directory fence was drawn from a stale map); SPREAD-SORT arm = option (a) syntactic-provable only
+    (the pure-AST harness cannot type — recorded law), honest catch-rate report, fallback to
+    deferred+truth-repaired header if decorative.
+  - **Stale rows struck this audit:** REGX2 checkbox · preview-fidelity · tracker editor ·
+    import-user-settings guard · HAND-EDIT-VS-FLUSH (graduated leg 4) · STATLAS leg 2 (landed) —
+    each now says so at its row. Dogfood campaign: its doc says **CLOSED 2026-08-08 dawn**.
+  - **Queue for open slots:** ceremony batch (D133/D134 + D129(G) amendment) · config/databank/regex
+    320px side-eye sweep (I-3 tail) · smalls batch (fork.ts stale comment · no-test-fabrication
+    baseline regen · readout-parts flash · CapabilityGate pending arm · field-reachability `.ok` ·
+    R5b(a) verify) · extraction seam (behind re-home) · databank S3 · barrel root-fix (quiet tree) ·
+    tag wants #1/#2. **Battery (no push — owner ruling) when the train drains.**
+- **⚑ PRIOR ROSTER (2026-08-08 — 2 GRADUATED+torn down, 1 under lens, 1 in flight):**
   - ✅ **`CLIENT-SMALLS` FULLY GRADUATED, worktree torn down.** Main merge `25a551366` (kit
     `projectBodyForPreview` → `speakerTagsToPlain` flatten, red-first proven; new host-only tracker
     grant/revoke editor `rpg-tracker-grants.tsx`) + P3 fix leg `77ae00db6` (aria-describedby outcome
@@ -528,7 +579,7 @@ security lens.
     excluded) + ESCAPE-MINT (name-arm only — the char-class heuristic was built, measured at **27 false
     positives**, and dropped). Census 195→196 (`enforcement-registry-parity` reconciles);
     `__g_platspell` anti-drift fixture; gate-conformance 5/5 branch-side. **Two W4 sub-waves the program
-    doc implied "merged" NEVER landed** — W4.5 withResolvers (7 live sites) + W4.2 toSorted (~40 sites,
+    doc implied "merged" NEVER landed** — W4.5 withResolvers (7 live sites) + W4.2 toSorted (\~40 sites,
     type-judgment): arms DEFERRED pending-not-dropped, burn-down lane brief at
     `docs/design/node-26-w4-residual-burndown.md`. Consolidated train check (incl. this + RPG-PROSE +
     the `984a1ece6` docs:format fixup for its Active-Gates edit): **PASS all stages**.
@@ -556,7 +607,7 @@ security lens.
     `getConfigView` reads prose — NO read door exists anywhere; security lane told to reason from code +
     truth-repair the comment in its commit.
     **Verifier F2 (NEW ROW — prose read door):** `updateConfig.patch.prose` WRITES but nothing reads it
-    back to a host (no getConfigView arm, no editor, zero client refs to rpg.* slot ids) — "host-editable"
+    back to a host (no getConfigView arm, no editor, zero client refs to rpg.\* slot ids) — "host-editable"
     is true at the verb tier only. Needs: host-gated `RpgConfigView.prose` read arm + the host editor
     surface (pairs naturally with the extraction follow-on's preview surface). NOT a defect in what
     shipped; the write door is safe (host-plane-stripped on fork, no member read path).
@@ -636,8 +687,7 @@ security lens.
 
 **STILL BOARDED, NOT DISPATCHED:**
 
-- [ ] The preview fidelity gap — `verbs/read.ts` hardcodes `output:"per-speaker"` in three places, so a
-  narrator room previews the wrong shape. Needs `GroupConfig` threaded into `PreviewInputs`.
+- [x] ~~The preview fidelity gap~~ — **STALE ROW: SMALLS-SERVER landed it** (`58b1f9ce7`, GroupConfig threaded into PreviewInputs, red-first). Struck 2026-08-08.
 - [ ] `no-test-fabrication.baseline.json` is stale by \~15 rows tree-wide (deleted files, absorbed
   shrinks). A regen is a legitimate one-line cleanup but belongs to whoever owns the tree, not a lane.
 - [ ] `fork.ts:154-155` stale comment — "no production writer yet" for the host-plane strip; `c197ce01b`
@@ -1036,11 +1086,7 @@ what Caddy exposes, real response headers, whether `/api/_debug` answers from ou
 
 - ✅ **Square-glyph Button sweep — DONE** (merged `d0a9443b6`/`3ce7e3dfe`: square-glyph size ramp + TrackBar width variant; `ui-size-via-variant` baseline reached terminal `{}` — the 14 rows PAID).
 
-- **Per-actor tracker grant/revoke EDITOR** — `sheet.trackerGrants` / `trackerRevokes` exist and gate
-  NPC tracker applicability, but NO client editor exists. The owner's "keep explicit-list-only"
-  NPC-grants ruling is a DEAD LETTER until hosts can edit the list. **Re-flagged by the archive tail
-  audit (T-11), which trusted the doc's citation rather than re-grepping — a one-minute grep of
-  `trackerGrants|trackerRevokes` in `packages/client/src` firms it before dispatch.**
+- ~~**Per-actor tracker grant/revoke EDITOR**~~ — **DONE 2026-08-08**: CLIENT-SMALLS built `rpg-tracker-grants.tsx` (graduated, dual lens) and TRACKERGATE closed the server-side member-self-grant hole (verifier-confirmed). Struck.
 
 - **`readout-parts.tsx` pending-flash** (`packages/client/src/features/preset/components/readout/`) —
   the same F-02 lying-pending-arm class SM4 fixed elsewhere; flagged, not fixed.
@@ -1053,8 +1099,7 @@ what Caddy exposes, real response headers, whether `/api/_debug` answers from ou
   `MemoryQueryOptions` (both still live in `domain/search/contract/params`). Its twin,
   `MemoryBackfillCounts`, is GONE — that half is closed.
 
-- **`import-user-settings` bypasses the routing write-guard** (whole-blob verb) — imports heal+warn at
-  read instead of refusing at write; lift the guard into the import path on want.
+- ~~**`import-user-settings` bypasses the routing write-guard**~~ — **PREMISE-DEAD** (see IMPORT-SETTINGS-WRITE-GUARD kill above: routing is fenced out of SHARE\_SAFE\_SETTINGS\_NAMESPACES, no import can carry it). Struck 2026-08-08.
 
 - ✅ **`connection.getCatalog` / `getAgentSdkCatalog` — ANSWERED, not dead** (archive tail audit): both are
   called at BOOT to warm caches (`entry/lifecycle.ts:181-191`), and `use-admin-mutations.ts:80` already
@@ -1123,7 +1168,7 @@ what Caddy exposes, real response headers, whether `/api/_debug` answers from ou
   **st-goldens re-sweep** (STATLAS found the rig's `rm -rf output` wipes the PRIOR sweep's arm by
   design — only 10 ST captures survive, the 16-combo ST arm was destroyed by the tools sweep; fix
   accumulation (per-sweep dirs or drop the rm), then a full two-arm re-sweep upgrades the atlas §2
-  from source-pinned to measured — the doc is structured for that drop-in). **UPGRADED to STATLAS leg 2 (owner word 2026-08-07): rig+comparator fixes + the re-sweep are IN BUILD, capture step held until the battery lands.**
+  from source-pinned to measured — the doc is structured for that drop-in). **STATLAS leg 2 LANDED** (`56af5ea2e`: measured §2 atlas + 7 rig defects fixed, sweep-proven). Row closed 2026-08-08.
 
 - **CRUNCH (owner-recalled 08-08, recorded so they stop being forgotten):**
   **(a) The injection note-framings are HARDCODED prose** — `[Note from system: …]` / the demote
@@ -1239,10 +1284,9 @@ what Caddy exposes, real response headers, whether `/api/_debug` answers from ou
   flattening at rpg's own seam, which covers rpg only; every other structured caller stays exposed.
   **The general law worth pinning: `AbortSignal.any` propagates the source signal's `reason`, and a
   reason that reaches `fetch` becomes the error your transport classifier sees.**
-- [ ] **REGX2** (M) — an owner BUILD RULING that got archived: regex bulk edit + pipeline debugger +
-  per-script JSON door (NOT regex presets). Ruled 08-03 dawn, queued, never dispatched.
+- [x] ~~**REGX2**~~ — **STALE ROW: landed 2026-08-07** (see I-4 "REGX2 LANDED" above — bulk edit + pipeline debugger + JSON door all shipped). Struck 2026-08-08 full-board audit.
 - [x] ✅ **RPG-ROUND-SIGNAL — DONE** (merged `1b581127b`: the state round is cancelable with its own lifetime, and a cancelled round writes NOTHING).
-- [ ] **HAND-EDIT-VS-FLUSH — REPRODUCED (lane live, fix ruled + building): ONE RACE, TWO VICTIMS.**
+- [x] ✅ **HAND-EDIT-VS-FLUSH — DONE, GRADUATED on leg 4** (`01300b330` merge + `f473abbc6` board seal: 400-turn property test, 188/400 control; two accuracy caveats recorded in that seal). Original row for the record: **REPRODUCED: ONE RACE, TWO VICTIMS.**
   Deterministic repro on the real flush gate. The row's suspicion was HALF right: **Arm B**
   (back-to-back assistant turns) — the hand edit IS clobbered: `resolveHead`'s in-place door fires
   on a `latestSnapshot` FALLBACK row from an older slot (contract violation of its own "this turn's

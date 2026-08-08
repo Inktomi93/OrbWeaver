@@ -1,9 +1,30 @@
 # PROSE-1 — model-facing prose becomes host-editable data
 
 **Status:** SPEC — not built, not approved. Owner ruling (`docs/retro-workboard.md:141-145`): *"prose shouldn't live in the code."* This document is the blueprint.
-**Scope:** every piece of MODEL-FACING prose the server assembles into a prompt — the rpg teaches/licenses/headings, the extraction + tool-description templates, the chat nudge/voice templates, the app-tier side-generation prompts. It adds ONE registry (`packages/contracts/src/prose/`), three override storages (game · preset · user), three edit surfaces, and ONE gate. It moves no verb, changes no wire protocol, and adds no table.
+**Scope:** every piece of MODEL-FACING prose the server assembles into a prompt — the rpg teaches/licenses/headings, the extraction + tool-description templates, the chat nudge/voice templates, the app-tier side-generation prompts. It adds ONE registry (`packages/contracts/src/prose/`), TWO override storages (preset · user — the third, per-game, was retired by the 2026-08-08 ruling below), their edit surfaces, and ONE gate. It moves no verb, changes no wire protocol, and adds no table.
 **Evidence:** a full literal sweep of `packages/{server,contracts,kit}/src` (long-string-literal scan, comment lines excluded, then hand-classified) — the census in §2 is that sweep, not the board's four-item lean (\[\[audit-lists-are-snapshots]]). Every row carries `file:line` at `e0b9816d`.
 **Sibling work (written aware of it):** RV-13's *branch-and-save game modes* is deliberately sequenced AFTER this (`docs/retro-workboard.md:208-213`) — a mode fork is only worth forking once the slots exist. KNOB EDITORS (`:137-140`) is the numeric twin of §5 and shares the GM-console surface.
+
+> **⚑ AMENDMENT — OWNER RULING 2026-08-08: THE PER-GAME HOME IS RETIRED. THERE ARE TWO STORAGES, NOT THREE.**
+>
+> Nate, live: *"we are putting everything in presets."* Every slot this spec classifies **per-GAME** — the
+> reminder teaches/headings (rows 1-10, 28-36) AND the extraction templates S4 has not built yet (11-27) —
+> homes on the **PRESET's `promptConfig.prose`** and is authored in the preset **Templates tab**. The ruling is
+> the standing one already recorded at `packages/server/src/domain/chat/assembly/injections.ts` and D132
+> ("templates have ONE home and it is PRESETS"); S3 shipped against the older per-game reading and was
+> re-homed in the same week.
+>
+> **What actually changed on the tree** (`rpg_games.config.prose`, the `updateConfig.patch.prose` write arm,
+> the `stripConfigForForker` blank arm, and the `"game"` member of `PROSE_HOMES`): **deleted**, no shim
+> (pre-launch NO-LEGACY). The reminder/delta/macro-feed builders kept their signatures — chat resolves
+> `promptConfig.prose`, composes it by home, and threads it on `GatherTurnContextArgs.prose` exactly as it
+> threads `steerIdentity`. A game turn assembles its `gmPresetId`, so "this table's own copy" is authored on
+> that table's GM preset, which is also what keeps a non-host FORK from resolving it (a preset the forker
+> cannot read is nulled by `resolveForkGmPreset` — the guarantee the deleted strip arm used to give).
+>
+> Rows below still reading "per-GAME / `config.prose`" are corrected in place; where a row's REASONING was
+> per-game (§3.2's "a horror game and a heist game want different deception copy"), the ruling's answer is
+> that they want different GM PRESETS. Decision 7 is superseded outright.
 
 ---
 
@@ -25,7 +46,7 @@
 
 Sweep method: all string/template literals ≥70 chars containing ≥8 spaces across `packages/{server,contracts,kit}/src`, comment lines excluded, then hand-classified by whether the bytes reach a model. **122 constants** in **17 files**. Line numbers at `e0b9816d`.
 
-### 2.1 rpg — the steering reminder (per-GAME)
+### 2.1 rpg — the steering reminder (per-PRESET since 2026-08-08)
 
 | # | constant | file:line | reaches the model as |
 | - | - | - | - |
@@ -38,14 +59,14 @@ Sweep method: all string/template literals ≥70 chars containing ≥8 spaces ac
 | 7 | `RPG_CYOA_TEACH` | `reminder.ts:111` | reminder, gated `features.cyoa` |
 | 8 | `RPG_CAST_GUIDE_HEADER` | `reminder.ts:244` | the `Present:` header when a cast guide exists |
 
-### 2.2 rpg — the delta block (per-GAME)
+### 2.2 rpg — the delta block (per-PRESET since 2026-08-08)
 
 | # | constant | file:line | reaches the model as |
 | - | - | - | - |
 | 9 | `RPG_DELTA_HEADING` | `packages/server/src/domain/rpg/substrate/delta.ts:31` | the diff block heading |
 | 10 | `RPG_SCENE_OPENS_HEADING` | `delta.ts:34` | the first-snapshot heading |
 
-### 2.3 rpg — the extraction plane-teaching registry (per-GAME)
+### 2.3 rpg — the extraction plane-teaching registry (per-PRESET since 2026-08-08)
 
 Home: `packages/contracts/src/rpg/extraction-prompt.ts`. Each fragment is a per-game TEMPLATE already (it interpolates the game's own tracker defs) — an override slot must therefore be a template too (§4.5).
 
@@ -69,7 +90,7 @@ Home: `packages/contracts/src/rpg/extraction-prompt.ts`. Each fragment is a per-
 | 26 | `partyExample` worked example | `:267-279` |
 | 27 | `RPG_STATE_TRACKING_GUIDE` | `:369-375` — **DEAD**: `pnpm ast refs` finds only the declaration |
 
-### 2.4 rpg — the extraction/tool-round system prompts (per-GAME)
+### 2.4 rpg — the extraction/tool-round system prompts (per-PRESET since 2026-08-08)
 
 Home: `packages/server/src/entry/compose/rpg.ts`.
 
@@ -178,7 +199,7 @@ A slot is per-game OR per-preset OR per-user. There is no "game overrides preset
 
 | class | home | storage | why | census rows |
 | - | - | - | - | - |
-| **per-GAME** | `rpg_games.config.prose` | the existing rpg config blob | a teach is a property of THIS table's fiction — a horror game and a heist game want different deception copy, and they may share a preset | 1-36 (33 slots after the six derived rows) |
+| ~~**per-GAME**~~ **RETIRED 2026-08-08** — these rows are per-PRESET (see the amendment above). The original reasoning ("a horror game and a heist game want different deception copy, and they may share a preset") is answered by giving them different GM PRESETS: a game already redirects to its own `gmPresetId`. | | | | 1-36 |
 | **per-PRESET** | `promptConfig.prose` + the existing `formatStrings`/`guidedActions` | the existing preset blob (COW-forked, versioned) | voice/nudge prose is a property of the PRESET — this is exactly ST's `assistant_impersonation` precedent, which we already import (`preset/index.ts:1502-1506`) | 38-73 |
 | **per-USER (app-tier)** | `UserSettings.prose` | the existing user-settings blob | a side-generation prompt (summarizer, arbiter, memory digest) is a property of how YOU run the app, not of one table or one preset — and imagery already proved the shape | 37, 74-91 |
 
@@ -198,7 +219,7 @@ A slot is per-game OR per-preset OR per-user. There is no "game overrides preset
 
 ```
 packages/contracts/src/prose/index.ts        # the shape, the merged registry, resolveProse, PROSE_SLOT_IDS
-packages/contracts/src/rpg/prose.ts          # the per-GAME slot table (census 1-36)
+packages/contracts/src/rpg/prose.ts          # the rpg slot table, PRESET-homed (census 1-36)
 packages/contracts/src/preset/prose.ts       # the per-PRESET slot table (census 38-73)
 packages/contracts/src/chat/prose.ts         # the app-tier chat slot table (census 74-81)
 packages/contracts/src/imagery/index.ts      # already holds its table (census 82-90) — adapted in place
@@ -210,7 +231,7 @@ Per-domain tables live BESIDE the vocabulary they teach (the `EXTRACTION_PLANE_P
 /** One model-facing prose slot: the shipped default + everything the edit surface and the gate need. */
 export interface ProseSlotDef {
   readonly id: ProseSlotId;
-  readonly home: ProseHome;                 // "game" | "preset" | "user"
+  readonly home: ProseHome;                 // "preset" | "user"  (the "game" member is RETIRED, 2026-08-08)
   /** Bumped in the SAME commit as any `text`/`render` change — pinned by the manifest (§4.4). */
   readonly version: number;
   /** The shipped default. A per-game TEMPLATE slot supplies `render` instead (§4.5). */
@@ -227,11 +248,10 @@ export interface ProseSlotDef {
 
 `ProseSlotId` is a closed tuple → `Record<ProseSlotId, ProseSlotDef>` totality (the `RUNNERS` gold standard, `Spine-TypeScript-and-Patterns.md` §"String-union dispatch discipline"). A new slot without a row fails `tsc`; a row without a tuple member fails `tsc`.
 
-### 4.2 Override storage — three additive fields, zero new tables
+### 4.2 Override storage — two additive fields, zero new tables (was three; the game field is retired)
 
 | home | field | schema |
 | - | - | - |
-| game | `rpg_games.config.prose` | `z.record(proseSlotIdSchema, proseOverrideSchema).default({})` on `rpgGameConfigSchema` (`packages/contracts/src/rpg/config.ts:153`) |
 | preset | `promptConfig.prose` | same shape on `promptConfigSchema` (`packages/contracts/src/preset/index.ts:849`); the EXISTING `formatStrings`/`guidedActions` fields stay where they are and are ADAPTED as slots (§4.6) — never duplicated |
 | user | `UserSettings.prose` | same shape, a new section beside `imagery` (`packages/contracts/src/settings/index.ts:823`) |
 
@@ -316,8 +336,8 @@ Three surfaces, each already exists in some form; each gets the same three affor
 
 | slot class | mode | engine path | why |
 | - | - | - | - |
-| per-GAME teaches (1-10, 28-36) | `names-only` | `resolveGuidedInstruction` + `createNamesOnlyRegistry`, exactly as `renderSteeringNote` does today (`reminder.ts:428-449`) | a host teach reaches EVERY member's turn; `{{user}}`/`{{char}}` are the whole ask, and `{{setvar}}`/`{{expr}}`/injection macros are not (the steer-neutralization ruling the steering note already obeys) |
-| per-GAME extraction templates (11-27) | slot-token vocabulary only (§4.5) | the render helper's token expansion | the tokens ARE the game's own tracker vocabulary; a general macro engine has nothing to add and the extraction prompt is not a character context |
+| per-PRESET rpg teaches (1-10, 28-36) | `names-only` | `resolveGuidedInstruction` + `createNamesOnlyRegistry`, exactly as `renderSteeringNote` does today (`reminder.ts:428-449`) | a host teach reaches EVERY member's turn; `{{user}}`/`{{char}}` are the whole ask, and `{{setvar}}`/`{{expr}}`/injection macros are not (the steer-neutralization ruling the steering note already obeys) |
+| per-PRESET rpg extraction templates (11-27) | slot-token vocabulary only (§4.5) | the render helper's token expansion | the tokens ARE the game's own tracker vocabulary; a general macro engine has nothing to add and the extraction prompt is not a character context |
 | per-PRESET nudges/guided (38-52) | `full` | `resolveNudgeText` (`chat/assembly/macros.ts:237`) / `resolveGuidedInstruction` — UNCHANGED | already full-power today; the user steer is neutralized as `{{input}}` before it lands, which is the actual boundary |
 | per-PRESET rewrite/greeting fragments (53-73) | `none` | plain string join in `composeRewriteSteer` (`kit/guided/index.ts:61-68`) | fragments are composed INTO `{{input}}` and therefore neutralized downstream — a `{{user}}` in a fragment renders as literal braces. The existing comment says exactly this (`preset/index.ts:429-431`); the slot's `macros: "none"` makes it a typed fact instead of a comment |
 | app-tier (74-91) | `none` | — | a summarizer/arbiter/digest prompt runs over a transcript, not a character context. A `{{…}}` in an override ships verbatim |
@@ -397,10 +417,9 @@ Prove it bites with a SCRATCH file, then `rm` it — never `git stash`/`restore`
 | - | - | - |
 | `packages/contracts/src/prose/index.ts` | NEW | `ProseSlotDef`/`ProseHome`/`ProseOverrides`, `PROSE_SLOT_IDS`, `PROSE_SLOTS`, `resolveProse` |
 | `packages/contracts/src/prose/prose-baseline.json` | NEW | the version↔hash manifest (§4.4) |
-| `packages/contracts/src/rpg/prose.ts` | NEW | per-GAME slot table (rows 1-36) |
+| `packages/contracts/src/rpg/prose.ts` | NEW | the rpg slot table (rows 1-36) — PRESET-homed since 2026-08-08 |
 | `packages/contracts/src/preset/prose.ts` | NEW | per-PRESET slot table (rows 38-73) |
 | `packages/contracts/src/chat/prose.ts` | NEW | app-tier chat slot table (rows 74-81) |
-| `packages/contracts/src/rpg/config.ts:153` | EDIT | `+prose` on `rpgGameConfigSchema` |
 | `packages/contracts/src/preset/index.ts:849` | EDIT | `+prose` on `promptConfigSchema` + one lift |
 | `packages/contracts/src/settings/index.ts:823` | EDIT | `+prose` section + one lift |
 | `packages/contracts/src/rpg/inputs.ts:48-88` | EDIT | `+prose` patch arm on `rpgUpdateConfigInputSchema` |
@@ -430,8 +449,8 @@ Prove it bites with a SCRATCH file, then `rm` it — never `git stash`/`restore`
 | **S0** | `contracts/prose` (shape + resolver + `PROSE_SLOT_IDS` + the baseline manifest + `pnpm prose:baseline`), with the registry born holding ONLY the 18 already-overridable slots (§4.6) and their resolvers re-pointed. Gate registered but its `scanRoot` scoped to the (empty) catalog dir so it is vacuous. | zero behavior change, proves the resolver + the manifest mechanism against slots whose override path is already tested |
 | **S1** | app-tier: rows 37, 74-81, 88, 90, 91 → slots + `UserSettings.prose` + the settings Prose section | the cheapest whole class, one storage, no threading — proves override storage end to end on prompts nobody's game depends on |
 | **S2** | preset: rows 49, 53-73 → slots; close the editor gaps (`responseNudge` field, placeholders on all nudge fields, the shared footer, `requiredMacros` lints, stale affordance) | no new storage — the blob field and the COW fork already exist. This is the stage that pays IMP-1's copy half |
-| **S3** | per-game teaches: rows 1-10, 28-36 → slots + `config.prose` + the `updateConfig` patch arm + `LiteReminderInput.prose` + the GM-console Prose section | the biggest threading job (\[\[rpg-writable-field-coupled-sites]] — a new writable field is \~7 sites). Gate `scanRoot` widens to `rpg/substrate/**` + `compose/rpg.ts` here |
-| **S4** | per-game extraction TEMPLATES: rows 11-26 → template slots (§4.5) + the token-expansion preview. Row 27 (`RPG_STATE_TRACKING_GUIDE`) is resolved in this commit: wired into `extractionSystem`/`toolRoundSystem` as its docstring claims, or DELETED — owner decision 6 | needs the §4.5 machinery, which needs S3's storage proven |
+| **S3** | the rpg teaches: rows 1-10, 28-36 → slots + `promptConfig.prose` + `GatherTurnContextArgs.prose` threading + `LiteReminderInput.prose` + their preset **Templates-tab** rows (LANDED — shipped per-GAME at `fa8f944a0`, re-homed to the preset the same week; no GM-console prose section is built or wanted, the preset editor is the one door) | the biggest threading job (\[\[rpg-writable-field-coupled-sites]] — a new writable field is \~7 sites). Gate `scanRoot` widens to `rpg/substrate/**` + `compose/rpg.ts` here |
+| **S4** | the rpg extraction TEMPLATES: rows 11-26 → template slots (§4.5, PRESET-homed like S3) + the token-expansion preview. Row 27 (`RPG_STATE_TRACKING_GUIDE`) is resolved in this commit: wired into `extractionSystem`/`toolRoundSystem` as its docstring claims, or DELETED — owner decision 6 | needs the §4.5 machinery, which needs S3's storage proven |
 | **S5** | close-out: gate goes live at full `scanRoot` with the cited allowlist; ledger entry (next free D-number) recording the one-home-per-slot law + the never-silently-replace rule; workboard PROSE-1 closed | the gate goes red-capable only when every seam has a slot to point at |
 
 No stage leaves two homes for one slot. No stage ships a half-migrated seam (the constitution's "no leaving the OLD map beside the new" — `AGENTS.md` §4).
@@ -482,5 +501,5 @@ No stage leaves two homes for one slot. No stage ships a half-migrated seam (the
 4. **`SCOPE_INSTRUCTIONS` (16 embedder hints) — slots or code?** Recommendation: **code**. They are model-family tuning with a silent failure mode and no feedback loop.
 5. **Delta headings (rows 9-10) — prose or grammar?** Recommendation: **prose, in scope**. `CHANGES SINCE LAST BEAT` / `SCENE OPENS` are voice, and both already carry "a bump = a legible copy revision" docstrings (`delta.ts:29-34`) — which is a version field written in a comment. The structural labels of §2.11 stay out.
 6. **Row 27, `RPG_STATE_TRACKING_GUIDE`: wire it or delete it?** It is dead today and its docstring claims otherwise. Recommendation: **wire it** at S4 onto both write-surface prompts as its docstring says (it is the Appendix-A measured coverage lifter), as a slot — then measure. If a probe shows no lift, delete. Either way it stops lying in this spec's lane.
-7. **Per-game vs per-mode home for the teaches.** Recommendation: **per-game now**, slot ids stable. RV-13's mode fork is then a `config.prose` COPY, which is exactly what "branch off and save your own game mode" means and needs no re-homing (`docs/retro-workboard.md:208-213` sequences this work first for precisely that reason).
+7. ~~**Per-game vs per-mode home for the teaches.**~~ **SUPERSEDED by the owner ruling of 2026-08-08 (see the amendment at the top): PER-PRESET.** The recommendation here was per-game; it shipped that way at `fa8f944a0` and was re-homed. RV-13's mode fork is now a PRESET copy — which the preset editor already does (fork-on-edit), so the mode fork needs no prose machinery of its own at all.
 8. **THE GENUINE FORK — whose app-tier prose runs in a multi-human room?** App-tier slots are per-USER (`UserSettings`). In a multi-human room the compaction/memory/arbiter prompts are room-level side generations, but the turn is triggered by whichever member spoke. Two honest options: **(a) resolve against the ROOM HOST's settings** — the same principal whose connection funds the turn, so a room's memory prompts are stable regardless of who speaks; **(b) resolve against the triggering member** — each member's own tuning applies to the turns they trigger, which means one chat's digests are written by up to N different prompts. **Recommendation: (a), the room host.** It matches who owns the room's canon, matches where the connection and consent already resolve (`compose/rpg.ts:130-132` resolves the host by ROLE for exactly this reason — D19/D64), and keeps a chat's memory corpus internally consistent. This one changes a resolver signature (`loadUserSettings(caller.userId)` → `loadUserSettings(hostUserId)`), so it must be ruled before S1 builds.

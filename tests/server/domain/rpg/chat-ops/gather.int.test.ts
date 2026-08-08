@@ -121,6 +121,36 @@ test("a game contributes ONE depth-0 system reminder injection + the rpg macro/C
   expect(inj?.content).toContain(":::card");
 });
 
+// PROSE-1 RE-HOME (owner ruling 2026-08-08, "we are putting everything in presets"): the reminder's teach and
+// heading OVERRIDES arrive as a gather ARG — chat resolves the turn preset's `promptConfig.prose` and threads it,
+// exactly as it threads `steerIdentity`. The game row carries no prose plane at all any more, so this arg is the
+// ONLY path an override has to the wire; absent ⇒ the shipped defaults, byte-identical.
+test("a PRESET prose override threaded through the gather replaces the shipped teach in the reminder", async () => {
+  const db = await freshDb();
+  const { chatId, h } = await seedLiteGame(db);
+
+  const base = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false });
+  // The control: with no override the shipped card teach rides (`immersiveHtml` is default-on).
+  expect(base?.injections[0]?.content ?? "").toContain(":::card");
+
+  const out = await h.chatOps.gatherTurnContext({
+    chatId,
+    pendingUserText: undefined,
+    respondsToLatestUserTurn: false,
+    prose: {
+      "rpg.card.askInteractive": { text: "OUR TABLE'S OWN CARD ASK — :::card only for in-world signage.", baseVersion: 1 },
+      "rpg.reminder.steeringLicense": { text: "OUR TABLE'S OWN LICENSE.", baseVersion: 1 },
+    },
+  });
+  const reminder = out?.injections[0]?.content ?? "";
+
+  expect(reminder).toContain("OUR TABLE'S OWN CARD ASK");
+  expect(reminder).toContain("OUR TABLE'S OWN LICENSE.");
+  // …and the bytes it REPLACED are gone, which is what "override" has to mean (an appended teach would still
+  // contain `:::card` and pass a contains-only assertion).
+  expect(reminder).not.toContain("you may render an immersive card");
+});
+
 // The steeringNote substitution fix (end-to-end through the gather): a host-authored steeringNote with
 // {{user}}/{{char}} renders to the ACTIVE persona name / the Ruling-B `{{char}}` — BOTH resolved CHAT-SIDE and
 // threaded in via the `steerIdentity` arg (chat owns identity resolution; rpg splices, never re-derives).

@@ -451,10 +451,10 @@ export interface LiteReminderInput {
   readonly omniscience: boolean;
   /** The #9 ambient-date mode — `narrated` drops the `day N` counter from the ambient line. */
   readonly dateMode: RpgDateMode;
-  /** PROSE-1 (§4.3) — the game's model-facing prose OVERRIDES (`config.prose`), threaded whole so the reminder
+  /** PROSE-1 (§4.3) — the turn PRESET's model-facing prose OVERRIDES (`promptConfig.prose`), threaded whole so the reminder
    *  resolves each teach/heading against it (`resolveProse`). ABSENT/`{}` ⇒ every slot resolves to its shipped
    *  default, byte-identical to the pre-PROSE-1 constant — the default-identity discipline that makes this
    *  migration a no-op until a host edits prose. Optional for the same reason `steerMacros` is: a test caller
-   *  supplies none and gets the shipped defaults. The gather always threads `game.config.prose`. */
+   *  supplies none and gets the shipped defaults. The gather threads chat's `GatherTurnContextArgs.prose`. */
   readonly prose?: ProseOverrides | undefined;
 }
