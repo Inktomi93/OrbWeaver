@@ -13,6 +13,7 @@ import type { Can, Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, PromptConfig, UserIntent, UserMacroSpec } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
+import { composeProse } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { characterPersonas, chatParticipants, chats, personas, users } from "@orb/db";
@@ -328,6 +329,18 @@ export interface ChatComposeResult {
      *  console's shadow gloss names the exact defs a game macro would shadow (chat owns preset resolution for
      *  a chat; rpg re-deriving it would be a second home for the rule). */
     readonly resolvePromptUserMacros: (chatId: ChatId) => Promise<readonly UserMacroSpec[]>;
+    /** The chat's GM-PRESET prose overrides (PROSE-1 S4) — what the two rpg HOST DOORS (`resyncFromStory`,
+     *  `populateFromCharacter`) resolve their extraction prose through. Chat owns preset resolution AND the
+     *  GM-voice redirect; rpg reads no preset table, and re-deriving either here would be a second home for
+     *  both rules.
+     *
+     *  TWO ARMS, TWO INVOCATION CLASSES — that difference is why this is not a duplicate of the turn path and
+     *  must not be "unified" with it. A post-commit state ROUND rides the CAPTURED view its own turn already
+     *  resolved (`RpgTurnContext.prose`): it runs AFTER that turn's prompt was assembled, so a second
+     *  resolution moment there could disagree with the very prompt it is extracting from — a divergence by
+     *  construction, ruled out. A VERB DOOR has no first resolution to diverge from; the consenting human
+     *  clicked a button and this IS the moment, exactly as `resolvePromptUserMacros` is for the picks pane. */
+    readonly resolveChatPresetProse: (chatId: ChatId) => Promise<ProseOverrides>;
   };
   /** The D50 PromptTransform registrar (automation-design/04 §6) — surfaced so automation's rule lifecycle
    *  (A7) + the plugin host `register`/`unregister` their `transform_draft` transforms onto the same list the
@@ -684,6 +697,25 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       return {};
     }
     return (await input.settings.loadUserSettings(hostUserId)).prose;
+  };
+
+  // The chat's PRESET-tier prose (PROSE-1 S4) — the rpg host doors' own resolution moment (see the field's
+  // doc on `ChatComposeResult.rpgChatOps`). It walks the SAME ladder a game TURN walks, in the same order:
+  // the GM-voice preset REDIRECT first (`input.rpg.resolvePresetOverride`, the early hop `buildTurnContext`
+  // runs before its foreign read), then `resolvePromptConfigWithOverride`'s lenient resolve, then
+  // `composeProse` by home. That sameness IS the inherited-preview rule: a host who edits a plane teach on
+  // the table's GM preset sees the SAME bytes on a resync/populate that they see on a turn. Diverging here —
+  // e.g. reading the host's default preset — is precisely the defect the `resolvePreviewInputs` GM redirect
+  // was landed to fix, in a different jacket.
+  const resolveChatPresetProse = async (chatId: ChatId): Promise<ProseOverrides> => {
+    const hostUserId = await resolveChatHostUserId(chatId);
+    if (hostUserId === null) {
+      return {};
+    }
+    const presetOverride = (await input.rpg?.resolvePresetOverride(chatId)) ?? null;
+    const us = await input.settings.loadUserSettings(hostUserId);
+    const { config } = await resolvePromptConfigWithOverride(hostUserId, presetOverride ?? undefined, us.seeds.defaultPresetId);
+    return composeProse({ preset: config.prose });
   };
 
   // The one memory-config merge: the admin-set defaults, forced to `mode:"off"` when the host disabled
@@ -1193,6 +1225,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       resolveCanonWindow: createResolveCanonWindow(chatCtx),
       resolveCardCorpus: createResolveRpgCardCorpus(chatCtx),
       resolvePromptUserMacros,
+      resolveChatPresetProse,
     },
     promptTransforms: promptTransformRegistry,
     applyVariableOps: (chatId, ops) => applyStandaloneVariableOps(chatCtx, chatId, ops),

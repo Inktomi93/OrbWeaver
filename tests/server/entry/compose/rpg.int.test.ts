@@ -76,6 +76,8 @@ function tc(api: ChatApi, over: Partial<RpgTurnContext> = {}): RpgTurnContext {
     // default — on a real single-speaker turn it is already released before the round runs).
     triggeredBy: castId<UserId>("user_host"),
     signal: undefined,
+    // PROSE-1 S4 — the turn's FROZEN prose view (empty ⇒ shipped defaults; an override test passes a record).
+    prose: {},
     ...over,
   };
 }
@@ -2080,6 +2082,56 @@ test("VER-1a: SWIPING between variants surfaces the SELECTED variant's own conse
   // whole, and nothing was re-applied (each variant's snapshot is absolute over the same pre-slot base).
   await selectVariant(db, slot.messageId, slot.variantId);
   expect(await panelState(towerCompose, hostId, chatId)).toEqual({ location: "the obsidian tower", beats: ["arrived at the tower"], journal: ["Arrival"] });
+});
+
+// ── PROSE-1 S4: a host's EXTRACTION template edit reaches the write surface ───────────────────────────
+// The census rows 11-26/29-36 became slot rows in `contracts/rpg/prose.ts`, homed on the GM PRESET's
+// `promptConfig.prose` and authored in the preset Templates tab. This is the END-TO-END proof for the HOST
+// DOOR arm of the threading: the verb has no turn to inherit a frozen prose view from, so it resolves its own
+// through chat's `resolveChatPresetProse` — which runs the SAME ladder a turn runs (the GM-voice preset
+// REDIRECT first, then the owner-scoped preset read), so a table's authored copy reaches its rebuild exactly
+// as it reaches its turns. Asserted through the rendered SYSTEM PROMPT the wire actually carried: the only
+// place where "the host edited it" and "the model was told it" are the same fact.
+test("PROSE-1: a GM-preset extraction override rides the RESYNC's system prompt, replacing the shipped default", async ({ app, db }) => {
+  const { chatId, hostId } = await seedHostGameChat(db, "prose-extract-resync");
+  const principal = hostPrincipal(hostId);
+  const spy = emptySpy();
+  // The AGENT-SDK wire carries no `tools[]`, so the resync takes its STRUCTURED degrade — the arm whose
+  // request has a system prompt the harness records. Same composition either way (the shared-plane proof);
+  // this is the vehicle that lets the assertion read the rendered bytes rather than a tool description.
+  const compose = buildCannedRpgWithText({ app, db, api: "agent-sdk", spy, cannedText: rerollExtractionText() });
+  // The host authors the edit where the ruling put it: the preset's own `promptConfig.prose`, keyed by slot id.
+  const presetId = castId<PresetId>("preset_prose_extract");
+  await db.insert(presets).values({
+    id: presetId,
+    ownerId: hostId,
+    name: "table voice",
+    kind: "user",
+    config: {
+      ...DEFAULT_PROMPT_CONFIG,
+      prose: {
+        "rpg.extract.plane.inventory": { text: "INVENTORY — only coin and what a hand can carry. Nothing else is tracked at this table.", baseVersion: 1 },
+      },
+    },
+    createdAt: FROZEN_AT,
+    updatedAt: FROZEN_AT,
+  });
+  await compose.service.createGame({ principal, chatId, mode: "lite" });
+  await compose.service.updateConfig({ principal, chatId, extractionMode: "cheap", gmPresetId: presetId });
+  const slot = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
+  await compose.chatOps.onTurnCompleted(chatId, slot.messageId, slot.variantId, TURN, tc("agent-sdk"));
+  spy.systemPrompts.length = 0; // the turn's own round is not what this asserts — the HOST DOOR is
+
+  await compose.service.resyncFromStory({ principal, chatId });
+
+  const prompt = spy.systemPrompts[0] ?? "";
+  expect(prompt).toContain("INVENTORY — only coin and what a hand can carry.");
+  // …and the shipped default is GONE, not merely joined by the override (a slot resolves two rungs deep,
+  // never a cascade — the override IS the plane's teaching now).
+  expect(prompt).not.toContain("recording an item the story established");
+  // Every OTHER plane still ships its default in the same composition, so an edit is surgical rather than a
+  // fork of the whole prompt.
+  expect(prompt).toContain("PARTY — party: ONLY mechanical changes.");
 });
 
 // ── resyncFromStory: the RECONCILER lands the re-derived truth, it never appends onto it ──────────────

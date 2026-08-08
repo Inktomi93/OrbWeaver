@@ -1,5 +1,43 @@
 # PROSE-1 — the rpg EXTRACTION seam (follow-on to the reminder-seam lane)
 
+> **✅ LANDED 2026-08-08 (the EXTRACTION-SEAM lane).** Everything below is now HISTORY except where it is
+> explicitly contradicted here. What shipped, and the three rulings that shaped it:
+>
+> - **40 slots**, census rows 11-26 + 29-36, in `contracts/src/rpg/prose.ts` under the `rpg.extract.*` id
+>   namespace, mapped **1:1 onto the seam's existing `lines.push`/`return` sites** so absent-override byte
+>   identity is checkable by inspection. Row 28 (`TRANSCRIPT_ROLE_FALLBACK`) and row 32 (the three user-prompt
+>   block labels) stayed OUT as structural labels (§2.11), as this doc recommended. Row 27
+>   (`RPG_STATE_TRACKING_GUIDE`) is **owner-DEFERRED**: still dead, still present, unslotted — slotting a
+>   constant no model reads would hand a host an edit surface over nothing.
+> - **The §4.5 core-shape decision resolved to arm (a) WITHOUT widening `ProseSlotDef`.** The spec's own words
+>   for arm (a) — "the override being a template string resolved against the SAME ctx … with a slot-declared
+>   token vocabulary … the shipped default is expressed in that same vocabulary" — describe a mechanism that
+>   already shipped: `resolveProseText(id, overrides, tokens)`'s PRE-SUBSTITUTION splice (the `{{note}}`
+>   injection-frame precedent), with `requiredMacros` as the declared vocabulary. So a per-game TEMPLATE is an
+>   ordinary `text` slot whose token VALUES the domain computes off `ExtractionPromptContext`. Consequently
+>   **none** of the three coupled changes this doc predicted were needed: the baseline manifest still hashes
+>   `.text`, the registry-totality/no-dup-text invariants are untouched, and no domain's `prose.ts` changed
+>   shape. The ONE structural move: the precedence rule + the token splice moved DOWN into `#prose-slot` as
+>   `resolveProseFrom` / `spliceProseTokens`, because `contracts/rpg/extraction-prompt.ts` cannot import
+>   `#prose` (that closes the `#prose → #rpg → #prose` cycle the split exists to prevent). `#prose`'s
+>   `resolveProse`/`resolveProseText` are thin delegates — still exactly one home for "which text wins".
+> - **The threading fork resolved to BOTH arms, keyed by INVOCATION CLASS** (owner ruling, this lane):
+>   a post-commit state ROUND rides the **captured** view (`RpgTurnContext.prose`, filled from
+>   `prep.assembleContext.prose` — the arm this doc's §"Coupled sites" named); the two **HOST DOORS**
+>   (`resyncFromStory`, `populateFromCharacter`) have no turn to capture from and resolve their OWN through a
+>   new injected chat op `resolveChatPresetProse(chatId)`, the sibling of `resolvePromptUserMacros`. The op
+>   walks the SAME ladder a turn walks (GM-preset redirect → owner-scoped preset read → `composeProse`), which
+>   is the inherited-preview rule discharged. Both headers say, in as many words, that unifying the two arms
+>   is the bug. The fold mount (`RpgBuildFoldedTurn.prose`) takes the gather's own resolution, so the folded
+>   vehicle and the round it replaces teach one vocabulary structurally.
+> - Reachability: a new `TemplateKind` `"extract"` (kicker **"State tracking"**) + 40 `TEMPLATE_DEFS` rows, so
+>   the two-sided coverage test stays green and every slot is authorable in the preset Templates tab.
+> - Ratchets: `prose-baseline.json` 52 → 92 slots; the `no-hardcoded-model-prose` baseline SHRANK
+>   `extraction-prompt.ts` 30 → 3 and `compose/rpg.ts` 16 → 8. The residue is NOT census 11-36: it is the
+>   POPULATE round's own prose (`POPULATE_SYSTEM_HEADER`, `POPULATE_DOCTRINE`, the identity clause), which
+>   post-dates the `e0b9816d` census, plus the six host-facing REFUSAL sentences (toasts, not model prose) and
+>   row 27. A follow-on census pass owns those.
+
 **Status:** brief material for a dedicated lane. Written by the RPG-PROSE lane (2026-08-07), which shipped the
 steering-REMINDER seam (census rows 1-10) + the `contracts/src/rpg/prose.ts` home. This doc carries the
 classification + the core-shape decision the extraction seam needs so the next lane does not re-run the census.

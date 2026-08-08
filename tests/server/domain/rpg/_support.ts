@@ -187,6 +187,10 @@ export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnConte
     // The character turn's own signal. `undefined` by default: on a real single-speaker turn it is already
     // released by the time the round runs, so the barrier's OWN controller is the cancellation that matters.
     signal: undefined,
+    // PROSE-1 S4 — the turn's FROZEN prose view. Empty by default ⇒ every extraction slot resolves to its
+    // shipped default, which is the byte-identity a non-prose test is asserting anyway; an override test
+    // passes a real `{ [slotId]: {text, baseVersion} }` record here.
+    prose: {},
     ...over,
   };
 }

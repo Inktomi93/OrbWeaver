@@ -35,6 +35,8 @@ import { randomInt } from "node:crypto";
 import type { ChatApi, ResolvedConnection, RouteChatAssignment } from "@orb/contracts/connection";
 import { coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
+import type { ProseOverrides } from "@orb/contracts/prose";
+import { resolveProseText } from "@orb/contracts/prose";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type { ExtractionRefs, RpgActorRef, RpgExtraction, RpgGameConfig, RpgSheet, RpgSnapshotState, RpgToolCall, RpgTrackerCarrier } from "@orb/contracts/rpg";
 import {
@@ -315,31 +317,34 @@ function sliceTranscript(transcript: readonly RpgTurnTranscriptMessage[], config
  *  covered planes (plot/trackers/emoji/day — §1.6). ESTABLISH-when-unset stays the ENFORCED-SCHEMA
  *  lever (`constrainExtractionSchema` marks scene fields REQUIRED on a fresh game); this prompt is the content-
  *  quality arm. The R1 ref enums (below) keep targets honest. */
-const EXTRACTION_SYSTEM_HEADER =
-  "You keep a role-play game's tracked state in sync with the story. You are given the RECENT STORY (the turns " +
-  "leading up to now), the CURRENT TRACKED STATE (the panel as it stands), and the LATEST BEAT (the newest turn " +
-  "— your delta covers exactly this). Output ONE JSON object that updates the tracked state to match the story. " +
-  "The RECENT STORY is your evidence: use the whole arc to understand the latest beat — a relationship that has " +
-  "warmed over several turns, an item a character picked up earlier and still carries, a quest implied across " +
-  "turns. The player sees this as a live character panel, so keep every plane current and rich.";
-
-/** The RECONCILE prompt line (crunchy-cluster §1.3) — appended to BOTH system prompts on a reconcile beat / a
- *  resync. It pairs with the establish-EVERYTHING schema forcing (`establishScene` all-true) so the model
- *  re-states the whole scene + present cast as the story currently stands, healing a decayed panel. The delta
- *  is still applied through the [merge-clear] + lock machinery, so a reconcile can never clobber a hand-pin. */
-const RECONCILE_PROMPT_LINE =
-  "This is a RECONCILE pass: re-state the FULL scene and everyone currently present as the story now stands — " +
-  "refresh any plane the recent beats stopped mentioning (location, time, weather, who is here, what they carry " +
-  "and wear, active quests, the plot act). Correct anything the CURRENT TRACKED STATE gets wrong against the story.";
+/** The per-call PROMPT INPUTS every extraction vehicle resolves once and threads whole: the ref bundle, the
+ *  game config, the player's display name, and the turn's PROSE overrides. Bundled so the four prompt builders
+ *  below stay under the param-count gate and so a new prompt-shaping input lands as ONE field. */
+interface PromptInputs {
+  readonly config: RpgGameConfig;
+  readonly refs: ExtractionRefs;
+  readonly playerDisplayName: string | null;
+  readonly reconcile: boolean;
+  /** PROSE-1 S4 — the GM PRESET's `promptConfig.prose`, by two DIFFERENT routes for two DIFFERENT invocation
+   *  classes (see `RpgTurnContext.prose` and `ChatRpgOps.resolveChatPresetProse`). Absent/`{}` ⇒ every slot
+   *  resolves to its shipped default, byte-identical to the pre-PROSE-1 prompt. */
+  readonly prose: ProseOverrides;
+}
 
 /** Compose the full structured-extraction system prompt: the header + the per-plane teaching (from the §1.6 registry,
- *  config/refs aware — plot/trackers/emoji/day/deception-clause) + the R1 ref enumeration + (on a
+ *  config/refs/prose aware — plot/trackers/emoji/day/deception-clause) + the R1 ref enumeration + (on a
  *  reconcile beat) the reconcile line. The registry is the ONE home both the structured extraction and the cheap
- *  tool round teach their planes from. */
-function extractionSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisplayName: string | null, reconcile: boolean): string {
-  const teaching = composePlaneTeaching({ config, refs });
-  const refLines = refEnumerationLines(refs, playerDisplayName);
-  const parts = [EXTRACTION_SYSTEM_HEADER, teaching, ...(refLines.length > 0 ? [refLines] : []), ...(reconcile ? [RECONCILE_PROMPT_LINE] : [])];
+ *  tool round teach their planes from; every string in it is a PROSE-1 slot (`contracts/rpg/prose.ts`). */
+function extractionSystem(inputs: PromptInputs): string {
+  const { config, refs, prose, reconcile } = inputs;
+  const teaching = composePlaneTeaching({ config, refs, prose });
+  const refLines = refEnumerationLines(inputs);
+  const parts = [
+    resolveProseText("rpg.extract.systemHeader", prose),
+    teaching,
+    ...(refLines.length > 0 ? [refLines] : []),
+    ...(reconcile ? [resolveProseText("rpg.extract.reconcilePass", prose)] : []),
+  ];
   return parts.join("\n\n");
 }
 
@@ -349,7 +354,7 @@ function extractionSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDis
  *   • quest + objective `id`s — the extractor targets quests by NAME (`upsert_quest`), so the branded ids are
  *     pure noise that bloat the prompt and can mislead a weak model into echoing an id.
  *  Returns the projected JSON string + the locked-paths line (empty when nothing is locked). */
-function projectStateForModel(baseState: RpgSnapshotState): { json: string; lockedPathsLine: string } {
+function projectStateForModel(baseState: RpgSnapshotState, prose: ProseOverrides): { json: string; lockedPathsLine: string } {
   const { fieldLocks, quests, ...rest } = baseState;
   const strippedQuests = quests.map(({ id: _id, objectives, ...q }) => ({
     ...q,
@@ -357,7 +362,7 @@ function projectStateForModel(baseState: RpgSnapshotState): { json: string; lock
   }));
   const json = JSON.stringify({ ...rest, quests: strippedQuests });
   const lockedPaths = fieldLocks !== null ? Object.keys(fieldLocks) : [];
-  const lockedPathsLine = lockedPaths.length > 0 ? `Locked by the players — do not rewrite: ${lockedPaths.join(", ")}.` : "";
+  const lockedPathsLine = lockedPaths.length > 0 ? resolveProseText("rpg.extract.lockedPaths", prose, { lockedPaths: lockedPaths.join(", ") }) : "";
   return { json, lockedPathsLine };
 }
 
@@ -384,14 +389,19 @@ function extractionUserPrompt(args: { story: readonly RpgTurnTranscriptMessage[]
  *  pre-redesign shape — the FULL `JSON.stringify(baseState)` (no §4.4 strip) and no RECENT STORY block, so the
  *  verifier's diff matches today exactly. The `window`/`full` arms slice the turn's transcript and ride the
  *  model-projected state (locks/ids stripped, §4.4). */
-function buildExtractionUserPrompt(transcript: readonly RpgTurnTranscriptMessage[], baseState: RpgSnapshotState, config: RpgGameConfig): string {
+function buildExtractionUserPrompt(
+  transcript: readonly RpgTurnTranscriptMessage[],
+  baseState: RpgSnapshotState,
+  config: RpgGameConfig,
+  prose: ProseOverrides,
+): string {
   const { story, beat } = sliceTranscript(transcript, config);
   // `beat` arm — byte-identical to the pre-redesign request: the raw full state JSON, no strip, no story block.
   if (config.extractionContext === "beat") {
     return extractionUserPrompt({ story: [], stateJson: JSON.stringify(baseState), lockedPathsLine: "", beat });
   }
   // `window`/`full` — the new behavior: sliced story + the §4.4 model-projected state.
-  const { json, lockedPathsLine } = projectStateForModel(baseState);
+  const { json, lockedPathsLine } = projectStateForModel(baseState, prose);
   return extractionUserPrompt({ story, stateJson: json, lockedPathsLine, beat });
 }
 
@@ -591,21 +601,24 @@ async function resolveExtractionRefs(deps: RpgComposeDeps, chatId: ChatId, baseS
  *  everywhere). The `player` token is explained (= the human's character, currently shown as X) so the model
  *  prefers the stable ref. Returns "" for a fresh game with no refs (the composer omits the block). Both the
  *  structured extraction (`extractionSystem`) and the cheap tool round (`toolRoundSystem`) append this. */
-function refEnumerationLines(refs: ExtractionRefs, playerDisplayName: string | null): string {
+function refEnumerationLines(inputs: PromptInputs): string {
+  const { refs, playerDisplayName, prose } = inputs;
   const lines: string[] = [];
   if (refs.actorRefs.length > 0) {
-    lines.push(`Valid targetRef values (use EXACTLY one of these for any party/inventory/scene target): ${refs.actorRefs.join(", ")}.`);
+    lines.push(resolveProseText("rpg.extract.refs.targets", prose, { targetRefs: refs.actorRefs.join(", ") }));
   }
   // Explain the `player` token ONLY when it is actually in the enum — a roster char literally named "Player"
   // owns that ref (F10), so the token is withheld and the human is addressed by their display name instead.
   if (playerDisplayName !== null && refs.actorRefs.includes(PLAYER_SEMANTIC_REF)) {
-    lines.push(
-      `"${PLAYER_SEMANTIC_REF}" = the human's own character (currently shown as "${playerDisplayName}"); prefer "${PLAYER_SEMANTIC_REF}" for the human.`,
-    );
+    lines.push(resolveProseText("rpg.extract.refs.playerToken", prose, { playerRef: PLAYER_SEMANTIC_REF, playerName: playerDisplayName }));
   }
   // R6 — the TRACKER write surface named in prose (the fallback arm for a wire that can't enforce the enums).
   // The keys are listed per distinct carrier set, so a model reading only the prompt still learns that not
   // every actor carries every tracker. Empty groups (a tracker-free game) contribute nothing.
+  //
+  // The two ARM LABELS stay inline literals and are NOT slots: `trackerDeltas keys:` / `trackerSets keys:` are
+  // the wire field names with a colon — structural grammar, three words, §2.11's out-of-scope class (editing
+  // one buys a host nothing and desyncs the label from the arg it names).
   for (const group of refs.trackerWriteGroups) {
     if (group.deltaKeys.length === 0 && group.setKeys.length === 0) {
       continue;
@@ -617,19 +630,19 @@ function refEnumerationLines(refs: ExtractionRefs, playerDisplayName: string | n
     if (group.setKeys.length > 0) {
       arms.push(`trackerSets keys: ${group.setKeys.join(", ")}`);
     }
-    lines.push(`For ${group.targetRefs.join(", ")} — ${arms.join("; ")}.`);
+    lines.push(resolveProseText("rpg.extract.refs.trackerGroup", prose, { targetRefs: group.targetRefs.join(", "), trackerKeys: arms.join("; ") }));
   }
   const gameKeys = [...refs.gameTrackerKeys.deltaKeys, ...refs.gameTrackerKeys.setKeys];
   if (gameKeys.length > 0) {
-    lines.push(`Valid set_tracker keys (game-wide trackers — never invent one): ${gameKeys.join(", ")}.`);
+    lines.push(resolveProseText("rpg.extract.refs.gameTrackerKeys", prose, { trackerKeys: gameKeys.join(", ") }));
   }
   // R5b(a) — the schema binds `removeCondition` to the live conditions (R5a); this is the matching PROMPT half
   // for a backend that can't enforce the enum. Without it the model retires a condition nobody carries (or
   // comma-joins four into the scalar, the measured 8B failure) and the write is silently dropped at apply.
   if (refs.conditionNames.length > 0) {
-    lines.push(`Currently-active conditions (removeCondition must name EXACTLY one of these): ${refs.conditionNames.join(", ")}.`);
+    lines.push(resolveProseText("rpg.extract.refs.conditions", prose, { conditions: refs.conditionNames.join(", ") }));
   }
-  lines.push("Location goes in scene.location — NEVER in a tracker. Never target a name not in the lists above.");
+  lines.push(resolveProseText("rpg.extract.refs.closing", prose));
   return lines.join("\n");
 }
 
@@ -662,12 +675,18 @@ function buildRunExtraction(deps: RpgComposeDeps): RpgRunExtraction {
     // EVERYTHING + the reconcile prompt line so a drifted panel self-heals this beat.
     const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
     const schema = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs);
+    // PROSE-1 S4 — the CAPTURED view (owner ruling): the GM preset's prose as the ENGINE resolved it for this
+    // turn, riding `RpgTurnContext` beside the connection + consent it already carries for exactly this
+    // frozen-view reason. NEVER a live re-resolve here: this round runs post-commit, so a second resolution
+    // moment could disagree with the prompt the turn itself was assembled from — a divergence by construction.
+    const prose = turnConnection.prose;
+    const inputs: PromptInputs = { config, refs, playerDisplayName, reconcile, prose };
     const ctx: ExtractCtx = {
       conn,
       chatId,
       ownerConsented: turnConnection.ownerConsented,
-      systemPrompt: extractionSystem(config, refs, playerDisplayName, reconcile),
-      userPrompt: buildExtractionUserPrompt(turnConnection.transcript, baseState, config),
+      systemPrompt: extractionSystem(inputs),
+      userPrompt: buildExtractionUserPrompt(turnConnection.transcript, baseState, config, prose),
       schema,
       signal,
     };
@@ -929,27 +948,17 @@ function safeJson(text: string): unknown {
 /** The tool-round system prompt — state-focused, aggressive about tool use (no prose to lose). Composes the
  *  SAME per-plane teaching (from the §1.6 registry — plot/trackers/deception-clause) that the
  *  structured arm uses, plus the tool-round's decomposition-nudge framing + the ref enumeration (R1 fallback). */
-function toolRoundSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisplayName: string | null, reconcile: boolean): string {
+function toolRoundSystem(inputs: PromptInputs): string {
+  const { config, refs, prose, reconcile } = inputs;
   // DECOMPOSITION NUDGE (2026-07-27): the 8B under-fires — a beat that moved location AND wounded someone often
-  // wrote only ONE plane. So the prompt now walks the model plane-by-plane (a checklist) and gives the concrete
+  // wrote only ONE plane. So the prompt walks the model plane-by-plane (a checklist) and gives the concrete
   // multi-call example, forcing it to consider EACH plane independently rather than settling for one call.
   // Bounded attempt ([[plan-for-small-hardware]] — if the 8B ceiling holds, the honest-arms degrade holds).
-  const base =
-    "You maintain the tracked game state. Read the RECENT STORY + current state + the latest story beat, then " +
-    "call a SEPARATE tool for EACH plane the beat changed. Check every plane independently:\n" +
-    "• Did anyone's HP, pools, conditions, or status change? → update_party (one call PER affected actor)\n" +
-    "• Did items or currency move? → update_inventory\n" +
-    "• Did the location, time, weather, or present cast change? → update_scene\n" +
-    "• Did a game-wide tracker change? → set_tracker\n" +
-    "• Did a quest start, advance, complete, or fail? → upsert_quest\n" +
-    "• Is there a notable beat worth logging? → add_journal_entry\n" +
-    'Most beats change MORE THAN ONE plane — e.g. "she\'s wounded and bleeding as you flee into the cave" ' +
-    "needs update_party (a Bleeding condition on her) AND update_scene (location → cave), so call BOTH in this " +
-    "one turn. Emit every applicable call together. If — and only if — the beat changed NOTHING trackable, call " +
-    "no_changes and nothing else. Do not narrate.";
-  const teaching = composePlaneTeaching({ config, refs });
-  const refLines = refEnumerationLines(refs, playerDisplayName);
-  const parts = [base, teaching, refLines, ...(reconcile ? [RECONCILE_PROMPT_LINE] : [])];
+  // The bytes are a PROSE-1 slot, so a host whose model under-fires differently can retune the checklist.
+  const base = resolveProseText("rpg.extract.toolRoundHeader", prose);
+  const teaching = composePlaneTeaching({ config, refs, prose });
+  const refLines = refEnumerationLines(inputs);
+  const parts = [base, teaching, refLines, ...(reconcile ? [resolveProseText("rpg.extract.reconcilePass", prose)] : [])];
   return parts.join("\n\n");
 }
 
@@ -962,7 +971,11 @@ function toolRoundSystem(config: RpgGameConfig, refs: ExtractionRefs, playerDisp
  *  A plane the game doesn't have is OMITTED ENTIRELY, never offered as an empty husk: `set_tracker` disappears
  *  when the game defines no game-subject trackers (the constraint dropped the plane from the schema, and a
  *  tool whose parameters no longer exist would be an invitation to write nothing). */
-function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameConfig): { name: string; description: string; parameters: Record<string, unknown> }[] {
+function buildToolRoundWireTools(
+  refs: ExtractionRefs,
+  config: RpgGameConfig,
+  prose: ProseOverrides,
+): { name: string; description: string; parameters: Record<string, unknown> }[] {
   // The per-tool projected args, ref-constrained. We reuse the extraction constraint by projecting the whole
   // extraction schema once and lifting each array field's item schema (which carries the injected enums).
   const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs) as {
@@ -973,7 +986,7 @@ function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameConfig): {
     return node === undefined ? undefined : (node.items ?? { type: "object" });
   };
   const sceneSchema = (constrained.properties?.["scene"] as Record<string, unknown> | undefined) ?? { type: "object" };
-  const descriptions = buildRpgToolDescriptions({ config, refs });
+  const descriptions = buildRpgToolDescriptions({ config, refs, prose });
   const describeTool = (name: string): string => descriptions.get(name) ?? "";
   const tools: { name: string; description: string; parameters: Record<string, unknown> }[] = [
     { name: "update_party", description: describeTool("update_party"), parameters: itemSchemaOf("party") ?? { type: "object" } },
@@ -991,8 +1004,7 @@ function buildToolRoundWireTools(refs: ExtractionRefs, config: RpgGameConfig): {
     { name: "add_journal_entry", description: describeTool("add_journal_entry"), parameters: itemSchemaOf("journal") ?? { type: "object" } },
     {
       name: RPG_NO_CHANGES_TOOL,
-      description:
-        "Call ONLY when the latest beat changed NOTHING trackable. Do NOT use this to avoid filling fields — if anything in the fiction moved, record it.",
+      description: resolveProseText("rpg.extract.tool.noChanges", prose),
       parameters: { type: "object", properties: {}, additionalProperties: false },
     },
   );
@@ -1027,6 +1039,9 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
       return empty;
     }
     const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
+    // The turn's CAPTURED prose view — see `buildRunExtraction`'s note (no live re-resolve post-commit).
+    const prose = turnConnection.prose;
+    const inputs: PromptInputs = { config, refs, playerDisplayName, reconcile, prose };
     let calls: readonly RpgToolCall[];
     try {
       const result = await deps.executor.runChatTurn({
@@ -1040,9 +1055,9 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
         credential: conn.credential,
         capability: conn.capability,
         params: {},
-        systemPrompt: { static: toolRoundSystem(config, refs, playerDisplayName, reconcile), dynamic: "" },
-        history: [{ role: "user", content: [{ type: "text", text: buildExtractionUserPrompt(turnConnection.transcript, baseState, config) }] }],
-        tools: buildToolRoundWireTools(refs, config),
+        systemPrompt: { static: toolRoundSystem(inputs), dynamic: "" },
+        history: [{ role: "user", content: [{ type: "text", text: buildExtractionUserPrompt(turnConnection.transcript, baseState, config, prose) }] }],
+        tools: buildToolRoundWireTools(refs, config, prose),
         toolChoice: { mode: "required" },
         // The character turn's enforced consent verdict, inherited (never force-stamped `true` — F1). Non-sub
         // backends ignore it; a max-pro-sub round only ever runs because the character turn already consented.
@@ -1090,17 +1105,6 @@ function buildRunToolRound(deps: RpgComposeDeps): RpgRunToolRound {
 // surfaced (`rpg.extraction.empty`), and ZERO calls is a legitimate quiet beat with its OWN line
 // (`rpg.extraction.folded.quiet`) so "the model recorded nothing" can never be misread as "the fold broke".
 
-/** The reconcile-beat note a FOLDED turn's reminder carries. Deliberately NOT `RECONCILE_PROMPT_LINE`: that
- *  line addresses a state-only round ("re-state the FULL scene…") and, on a turn that is also writing prose,
- *  reads as an instruction to the NARRATOR — the character would narrate a stocktake. This one addresses the
- *  write surface explicitly, and pairs with the establish-EVERYTHING schema forcing (`reconcile: true` →
- *  `constrainExtractionSchema`) that does the structural half of the job. */
-const FOLDED_RECONCILE_NOTE =
-  "STATE BOOKKEEPING (not part of your reply): when you record this turn's state, re-state the FULL scene and " +
-  "everyone currently present as the story now stands — refresh any plane the recent beats stopped mentioning " +
-  "(location, time, weather, who is here, what they carry and wear, active quests, the plot act), and correct " +
-  "anything the tracked state gets wrong against the story. Never mention this in your reply.";
-
 /** Build the `buildFoldedTurn` op (R1 — the gather's half). Resolves the per-call refs off the SAME base state
  *  the flush will apply against and returns the wire tools. No model call, no connection read: the engine
  *  decides at request-build time whether the turn's connection can actually carry them (and hands back a `null`
@@ -1116,13 +1120,16 @@ const FOLDED_RECONCILE_NOTE =
  *  backstops at apply. The DEDICATED round below keeps the full live bundle — it is the enforcing vehicle, and
  *  its own prefix is per-turn volatile regardless (its system block re-renders the same refs). */
 function buildFoldedTurnBuilder(deps: RpgComposeDeps): RpgContext["buildFoldedTurn"] {
-  return async ({ chatId, baseState, reconcile }) => {
+  return async ({ chatId, baseState, reconcile, prose }) => {
     const { refs, config } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
-    const tools = buildToolRoundWireTools(cacheStableExtractionRefs(refs, config.trackers), config);
+    const tools = buildToolRoundWireTools(cacheStableExtractionRefs(refs, config.trackers), config, prose);
     // R-OBS: what this turn was even ABLE to write. The optional CALL short-circuits its argument, so the
     // event object is never built when tracing is off (`domain/rpg/contract/trace` header).
     deps.trace?.({ phase: "mount", chatId, toolNames: tools.map((tool) => tool.name) });
-    return { tools, reconcileNote: reconcile ? FOLDED_RECONCILE_NOTE : null };
+    // The FOLDED reconcile note is deliberately NOT `rpg.extract.reconcilePass`: that one addresses a
+    // state-only round ("re-state the FULL scene…") and, on a turn that is also writing prose, reads as an
+    // instruction to the NARRATOR — the character would narrate a stocktake. Its own slot, its own bytes.
+    return { tools, reconcileNote: reconcile ? resolveProseText("rpg.extract.foldedReconcile", prose) : null };
   };
 }
 
@@ -1218,13 +1225,12 @@ async function resyncViaToolRound(
      *  `tools[]` and never reaches this arm (it takes the structured degrade instead). */
     readonly api: Exclude<ChatApi, "agent-sdk">;
     readonly baseState: RpgSnapshotState;
-    readonly refs: ExtractionRefs;
-    readonly playerDisplayName: string | null;
-    readonly config: RpgGameConfig;
+    readonly inputs: PromptInputs;
     readonly userPrompt: string;
   },
 ): Promise<{ readonly ok: true; readonly delta: RpgStateDelta } | { readonly ok: false; readonly reason: string }> {
-  const { chatId, conn, api, baseState, refs, playerDisplayName, config, userPrompt } = args;
+  const { chatId, conn, api, baseState, inputs, userPrompt } = args;
+  const { refs, config, prose } = inputs;
   let calls: readonly RpgToolCall[];
   try {
     const result = await deps.executor.runChatTurn({
@@ -1236,9 +1242,9 @@ async function resyncViaToolRound(
       credential: conn.credential,
       capability: conn.capability,
       params: {},
-      systemPrompt: { static: toolRoundSystem(config, refs, playerDisplayName, true), dynamic: "" },
+      systemPrompt: { static: toolRoundSystem(inputs), dynamic: "" },
       history: [{ role: "user", content: [{ type: "text", text: userPrompt }] }],
-      tools: buildToolRoundWireTools(refs, config),
+      tools: buildToolRoundWireTools(refs, config, prose),
       toolChoice: { mode: "required" },
       // The host funds + authorizes this call (the consenting human clicked the button) — never an inherited
       // turn verdict, because no turn is running.
@@ -1299,8 +1305,15 @@ function buildRunResyncExtraction(deps: RpgComposeDeps): RpgContext["runResyncEx
     // resync deliberately re-reads the deepest story, regardless of the game's per-turn context knob).
     const { refs, playerDisplayName, config } = await resolveExtractionRefs(deps, chatId, baseState, true);
     const resyncConfig: RpgGameConfig = { ...config, extractionContext: "full" };
-    const userPrompt = buildExtractionUserPrompt(transcript, baseState, resyncConfig);
-    const args = { chatId, conn, baseState, refs, playerDisplayName, config: resyncConfig, userPrompt };
+    // PROSE-1 S4 — a HOST DOOR resolves its OWN prose view (the injected chat op), because there is no turn to
+    // capture one from: the two invocation classes are genuinely different, and that difference is the whole
+    // reason both arms exist (see `ChatRpgOps.resolveChatPresetProse`). It runs the SAME ladder the turn does
+    // (GM-preset redirect → the preset's `promptConfig.prose` → `composeProse`), so a host who retunes a plane
+    // teach sees it on the rebuild exactly as they see it on a turn — the inherited-preview rule.
+    const prose = await deps.rpgChatOps.resolveChatPresetProse(chatId);
+    const inputs: PromptInputs = { config: resyncConfig, refs, playerDisplayName, reconcile: true, prose };
+    const userPrompt = buildExtractionUserPrompt(transcript, baseState, resyncConfig, prose);
+    const args = { chatId, conn, baseState, inputs, userPrompt };
     return toolWire !== null ? await resyncViaToolRound(deps, { ...args, api: toolWire }) : await resyncViaStructured(deps, args);
   };
 }
@@ -1313,13 +1326,12 @@ async function resyncViaStructured(
     readonly chatId: ChatId;
     readonly conn: ResolvedConnection;
     readonly baseState: RpgSnapshotState;
-    readonly refs: ExtractionRefs;
-    readonly playerDisplayName: string | null;
-    readonly config: RpgGameConfig;
+    readonly inputs: PromptInputs;
     readonly userPrompt: string;
   },
 ): Promise<{ readonly ok: true; readonly delta: RpgStateDelta } | { readonly ok: false; readonly reason: string }> {
-  const { chatId, conn, baseState, refs, playerDisplayName, config, userPrompt } = args;
+  const { chatId, conn, baseState, inputs, userPrompt } = args;
+  const { refs } = inputs;
   const ctx: ExtractCtx = {
     conn,
     chatId,
@@ -1327,7 +1339,7 @@ async function resyncViaStructured(
     // never a force-stamped inheritance from an unrelated turn. A max-pro-sub firewall still applies — a host
     // whose own consent belt refuses a metered sub simply refuses the resync.
     ownerConsented: true,
-    systemPrompt: extractionSystem(config, refs, playerDisplayName, true),
+    systemPrompt: extractionSystem(inputs),
     userPrompt,
     schema: constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), refs),
     // A HOST DOOR has no cancellation to inherit: it is verb-initiated, and the tRPC request's signal is not
@@ -1461,12 +1473,16 @@ function buildRunPopulateExtraction(deps: RpgComposeDeps): RpgContext["runPopula
     // target as the whole ref surface.
     const game = await findGameByChat(deps.db, chatId);
     const refs = populateRefs(targetRef);
+    // A HOST DOOR resolves its own prose view, exactly as the resync does (see `buildRunResyncExtraction`) —
+    // the born-state round teaches the SAME inventory/quest planes a turn round does, so a host's edit to one
+    // of them must land here too or the two surfaces would teach the card two different vocabularies.
+    const prose = await deps.rpgChatOps.resolveChatPresetProse(chatId);
     const ctx: ExtractCtx = {
       conn,
       chatId,
       // The host funds + authorizes this call (the consenting human clicked the button) — the resync's posture.
       ownerConsented: true,
-      systemPrompt: `${POPULATE_SYSTEM_HEADER}\n\n${composePopulateTeaching({ config: game?.config ?? rpgGameConfigSchema.parse({}), refs })}`,
+      systemPrompt: `${POPULATE_SYSTEM_HEADER}\n\n${composePopulateTeaching({ config: game?.config ?? rpgGameConfigSchema.parse({}), refs, prose })}`,
       userPrompt: populateUserPrompt(corpus, targetRef),
       schema: constrainPopulateSchema(projectJsonSchema(rpgPopulateSchema), targetRef),
       // A HOST DOOR has no cancellation to inherit — the resync's posture verbatim (see `resyncViaStructured`).

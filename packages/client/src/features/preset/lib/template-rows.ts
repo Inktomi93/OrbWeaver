@@ -55,6 +55,10 @@ export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
   // The rpg re-home (2026-08-08). The kicker names the SURFACE, not the domain enum: every row in this group
   // reaches the model only on a game turn, and that — not "rpg" — is what a preset author needs told.
   teach: "Game teaches",
+  // The WRITE-surface twin (PROSE-1 S4). Same rule as `teach`: the kicker names the SURFACE a preset author
+  // is actually tuning — these rows reach the model on the STATE ROUND that reads the beat back into the
+  // panel, which is a different call from the one the game teaches shape.
+  extract: "State tracking",
 };
 
 /** The ONE place a def's id becomes a form shape. */
