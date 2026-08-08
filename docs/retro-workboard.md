@@ -506,6 +506,20 @@ security lens.
   from the session** — the rest (cold-check>warm, scope-the-absence-receipt, shared-value-owes-a-battery,
   ratifying-gate-two-receipts) are DOCTRINE/memory, not gates: the existing gates + battery caught every
   real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
+- **✅ TOOLING-INVESTIGATE merged `b850dbb54`** (docs-only): populate-round prose census
+  (`docs/design/prose-1-populate-census.md` — 7 slot candidates, 3 host-toast excluded) + prod-CLS
+  lead (`prod-build-cls-investigation.md` — prod launcher EXISTS but :8788 held by the live dev
+  stack; blocked on a prod-build window, dev 0.134 stands). **gate-ignore scanRoot: RULED
+  UN-EXTENDABLE** — probed live, extending to scripts/ yields 12 FALSE findings (gate doc-comments
+  describing the marker grammar have no literal-span fence like strings do); closing the scripts/
+  inventory gap needs NEW structural info in the marker grammar, a design fork not a scanRoot tune.
+  Boarded as such.
+- **⚑ NEW BOARDED ROW (POLISH-CLUSTER find): wire CapabilityGate to resolve-failure.ts.** The same
+  wrong-confident-cause sentence ("routing problem, not a missing connection") is ALSO hardcoded at
+  `capability-gate.tsx:66` over `resolveChatCapability`, which can fail PRECONDITION_FAILED
+  (DomainNoCredentialError = literally a missing credential — the claim INVERTED), NOT_FOUND, 500.
+  The shared classifier lib landed tonight already owns the discrimination; wiring the deck was
+  deferred (preset-editor-surface contested by FORGE + PROSE-GEOMETRY). 3-line change, quiet-tree.
 - **⚑ SMALLS BATCHED OUT (2026-08-08, owner: "send the undeployed + small stuff in batches").** Two
   collision-free lanes dispatched (the load ceiling held at the live client-fix lanes — no 6th/7th
   gate-heavy lane stacked):
