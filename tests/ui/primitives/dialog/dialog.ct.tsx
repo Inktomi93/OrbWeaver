@@ -103,6 +103,41 @@ test("focus is trapped inside the popup and returns to the trigger on close", as
   await expect(trigger).toBeFocused();
 });
 
+// TRANSITION-SWEEP (2026-08-08) — the toast root's `transition-all` finding, swept repo-wide. This popup
+// is a FOCUS STOP: Base UI's focus manager stamps a managed `tabindex` on any `role="dialog"` floating
+// element and moves focus into it on open (asserted below, because that premise is the whole reason the
+// fence exists). `outline-*` is interpolable, so `transition: all` faded the focus ring in over
+// --motion-base and a keyboard user moving at speed saw a desaturated half-ring at every stop.
+// `OVERLAY_MOTION.modalPopup` names its two properties now.
+//
+// Read UNPOLLED and ONCE — a retrying matcher would happily wait out a fade and call an interpolating
+// ring a pass. This is the DETERMINISTIC pin for the mechanism; no per-site ring-fade CT can be.
+test("the modal popup is a focus stop whose transition names its properties — never `all`", async ({ mount, page }) => {
+  await mount(
+    <Dialog>
+      <DialogTrigger>Open settings</DialogTrigger>
+      {/* No focusable content: the focus manager then makes the popup ITSELF the tab stop, which is the
+          exact element carrying the shared motion fragment. */}
+      <DialogPopup>
+        <DialogTitle>Settings</DialogTitle>
+        <DialogDescription>Adjust your preferences.</DialogDescription>
+      </DialogPopup>
+    </Dialog>,
+  );
+
+  await page.getByRole("button", { name: "Open settings" }).click();
+  const popup = page.locator('[data-slot="dialog-popup"]');
+  await expect(popup).toBeVisible();
+  await expect(popup).toBeFocused();
+
+  const transitioned = await popup.evaluate((element: Element) => getComputedStyle(element).transitionProperty);
+  expect(transitioned).not.toBe("all");
+  expect(transitioned).not.toContain("outline");
+  // …while the enter/exit fade+scale keeps both of its halves. Dropping either silently kills that half.
+  expect(transitioned).toContain("opacity");
+  expect(transitioned).toContain("scale");
+});
+
 const ROOT_PX = 16;
 const widthPx = (path: "width.dialog-sm" | "width.dialog-md" | "width.dialog-lg"): string => `${Number.parseFloat(TOKENS[path].value) * ROOT_PX}px`;
 
