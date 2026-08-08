@@ -506,6 +506,17 @@ security lens.
   from the session** — the rest (cold-check>warm, scope-the-absence-receipt, shared-value-owes-a-battery,
   ratifying-gate-two-receipts) are DOCTRINE/memory, not gates: the existing gates + battery caught every
   real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
+- **⚑ OWNER RULINGS (2026-08-08 ~04:00, pre-sleep batch):**
+  - **PUSH: conditional word GRANTED** — after the gap-closure side-eye lands (+ any fix legs) and a
+    fresh battery greens, PUSH origin. The word is THIS sequence's; a red resets to ask-again.
+  - **REFINERY: BUILD with the study's recommended forks** (F1 new domain/refinery · F2
+    summarize-role v1 + `refine` escalation path · F3 fixed payloads w/ NL→schema as the
+    extensibility arm · F4 stage-mode enums · F5 card-fields v1). R0 starts AFTER the NL→schema
+    design lands (designed together); security-executor pass MANDATORY pre-R1. Sequence: gap-lens →
+    battery → push → refinery kickoff.
+  - **Duplication class (landing cards + New-book): DEFERRED** (owner sleepy) — stays parked.
+  - **Row 27: WIRE IT** — RPG_STATE_TRACKING_GUIDE becomes a live prose slot on the write-surface
+    prompts; lane dispatched.
 - **═══ ⚑ NIGHT SEALED (2026-08-08 ~03:30) — CERTIFIED GREEN AT `6494c540e`, 107 AHEAD OF ORIGIN, NOT PUSHED (owner word) ═══**
   **The full `verify --push` battery: PASS, ALL stages clean** — incl. tests:node (whole vitest+CT),
   e2e-smoke, cpd, parity. First run had ONE red: the orphan ratchet catching 13 contracts/rpg
