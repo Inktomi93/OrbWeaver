@@ -84,6 +84,39 @@ test("opens on trigger click and closes on Escape", async ({ mount, page }) => {
   await expect(popup).toBeHidden();
 });
 
+// TRANSITION-SWEEP (2026-08-08) — the anchored half of the same fence the dialog CT pins for the modal
+// half. `OVERLAY_MOTION.anchoredPopup` is shared by select/menu/tooltip/autocomplete/combobox/popover, and
+// the popover popup is the FOCUS STOP among them: Base UI's focus manager stamps a managed `tabindex` on a
+// `role="dialog"` floating element and moves focus into it on open. `outline-*` is interpolable, so
+// `transition: all` faded the focus ring in over --motion-fast (the toast root's measured defect).
+//
+// Read UNPOLLED and ONCE — a retrying matcher would wait out a fade and call an interpolating ring a pass.
+test("the anchored popup is a focus stop whose transition names its properties — never `all`", async ({ mount, page }) => {
+  await mount(
+    <Popover>
+      <PopoverTrigger>Show details</PopoverTrigger>
+      {/* No focusable content: the focus manager then makes the popup ITSELF the tab stop, which is the
+          exact element carrying the shared motion fragment. */}
+      <PopoverPopup>
+        <PopoverTitle>Details</PopoverTitle>
+        <PopoverDescription>Everything you need to know.</PopoverDescription>
+      </PopoverPopup>
+    </Popover>,
+  );
+
+  await page.getByRole("button", { name: "Show details" }).click();
+  const popup = page.locator('[data-slot="popover-popup"]');
+  await expect(popup).toBeVisible();
+  await expect(popup).toBeFocused();
+
+  const transitioned = await popup.evaluate((element: Element) => getComputedStyle(element).transitionProperty);
+  expect(transitioned).not.toBe("all");
+  expect(transitioned).not.toContain("outline");
+  // …while the enter/exit fade+scale keeps both of its halves. Dropping either silently kills that half.
+  expect(transitioned).toContain("opacity");
+  expect(transitioned).toContain("scale");
+});
+
 test("closes on outside click", async ({ mount, page }) => {
   await mount(
     <Popover>
