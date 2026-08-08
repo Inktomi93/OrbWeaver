@@ -26,12 +26,17 @@ tune on first live run.
 
 | `AUTH_MODE` | secrets to fill (`docker/secrets/`) | must sit behind HTTPS proxy? | note |
 | - | - | - | - |
-| `single-user` (shipped default) | none | no — but the port must stay UNREACHABLE by untrusted clients | every request that reaches the port IS the owner; this compose publishes no port, which is the control |
+| `single-user` (shipped default) | none | no — but the port must stay UNREACHABLE by untrusted clients | every request that reaches the port IS the owner; the control is network reachability, and co-tenant containers on the same network count as reachable |
 | `local` | `session_secret`, `local_initial_password` | YES (`__Host-`/Secure cookie — plain-HTTP logins silently fail) | multi-user is a runtime admin setting |
 | `oidc` | `session_secret`, `oidc_client_secret` + the `OIDC_*` block in `docker/orbweaver.env` | YES (callback derives from `X-Forwarded-Proto/Host`) | misconfig is boot-fatal, never a silent owner-fallback |
 | `forward-header` | none hard-required (signed path needs a JWKS source) | recommended | prefer SIGNED; the unsigned path is fail-closed until `FORWARD_AUTH_TRUSTED_PROXIES` names the proxy `/32` |
 
-Shipped hard lines (do not soften): `AUTH_FALLBACK=deny` (un-credentialed ≠ owner in every SSO mode,
+`AUTH_FALLBACK` is **not** inert under `single-user` — the fallback flag is checked before the mode's
+unconditional arm (`infra/auth/index.ts:48`), so `deny` there 401s every request and the box serves
+nobody. The shipped file pairs `single-user` with `owner` (that fallback is the mode's only credential)
+and puts `AUTH_FALLBACK=deny` inside each SSO mode's block — flip AUTH_MODE and AUTH_FALLBACK together.
+
+Shipped hard lines (do not soften): `AUTH_FALLBACK=deny` in every SSO mode (un-credentialed ≠ owner,
 even from inside the network), `DEBUG_TOKEN` unset (the whole `/api/_debug/*` surface 404s),
 `WIRE_CAPTURE=off`, `RPG_TRACE=off`, no `ports:` on any service, `TRUSTED_LOCAL_HOSTS` never set to a
 public FQDN.
