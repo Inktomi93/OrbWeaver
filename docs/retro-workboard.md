@@ -516,9 +516,21 @@ security lens.
     globalThis + method-form blind spots closed; 3 mustFlag + 2 mustPass pins). Original refuting
     verifier re-dispatched to CLOSE ITS OWN FINDING (its exact receipt + the concise-body regression
     check). Check running.
-  - ⏳ **RE-HOME lane** (`a24cf423e9a649a4d`, task #18) — delete config.prose spine, thread preset
-    `promptConfig.prose`, verify Templates-tab surfacing. Fence: contracts/rpg config/inputs/prose +
-    domain/rpg update-config/fork/reminder/delta + preset tab.
+  - ✅➡️ **RE-HOME merged `61c9ee6c4`** (30 files; check PASS) — config.prose spine DELETED total (incl.
+    dead `PROSE_HOMES.game`, pinned), preset `promptConfig.prose` threaded (GatherTurnContextArgs),
+    11 slots render under new `teach` TEMPLATE_KIND "Game teaches" (contract row per slot — the tab
+    walks TEMPLATE_DEFS, not slot ids; ≤17-char label grammar; memory banked). **Verifier
+    `a6838f0af87a22dc6`: CONFIRMED on deletion/re-thread/byte-identity/fork-security (copy-on-write of
+    the system default closes the shared-preset arm — STRONGER than the old blank) — 1 REFUTED:
+    PREVIEW FIDELITY regressed** — turn runs `resolvePresetOverride` (GM redirect, turn.ts:530),
+    `resolvePreviewInputs` never does → host-authored teach shows the DEFAULT on previewAssembly while
+    the turn ships the override (pre-merge one storage served both). Broader unfaithfulness
+    (formatStrings/framings/sections on game-chat previews) is PRE-EXISTING. **FIX LEG in flight on the
+    warm lane: the GENERAL fix** — explicit editor presetOverride keeps its meaning; absent it, preview
+    runs the same GM redirect as the turn (fixes the whole class); pin at the REAL seam (the existing
+    test stubs resolveForeignInputs and is blind), red-first. Also: lane's reported test counts didn't
+    reproduce (all green, but counts weren't read off the runs — report-hygiene flag); the one-merge-
+    window config.prose data drop is sanctioned NO-LEGACY, recorded.
   - ✅➡️ **INFRA-WARN-DEAF side-eye REPORTED: SHIP WITH FIXES** — plumbing held under attack (once-per-
     event ×3 layers · exhaustive code map w/ assertNever · emit-before-terminal ordering all praised);
     the RENDERED surface has 3 P1s: toast covers the Send button 94% at turn-terminal (click swallowed) ·
