@@ -144,10 +144,7 @@ function registerBeltLoad(reject: (err: Error) => void): () => void {
 }
 
 async function ownModelLoad<T>(load: () => Promise<T>): Promise<T> {
-  let rejectOrphan: (err: Error) => void = () => undefined;
-  const orphanGuard = new Promise<never>((_, reject) => {
-    rejectOrphan = reject;
-  });
+  const { promise: orphanGuard, reject: rejectOrphan } = Promise.withResolvers<never>();
   const cleanup = registerBeltLoad(rejectOrphan);
   try {
     return await Promise.race([load(), orphanGuard]);

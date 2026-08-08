@@ -31,7 +31,7 @@ test("messageKindSchema is z.enum(MESSAGE_KINDS) — the three ruled members, an
 test("MESSAGE_KIND_POLICY is TOTAL over the axis and carries the ruled cells", () => {
   // Totality is the compile-force (a `Record<MessageKind, …>`); this pins that no member was left with a
   // placeholder row and that the shipped semantics are the ones the design ruled.
-  expect(Object.keys(MESSAGE_KIND_POLICY).sort()).toEqual([...MESSAGE_KINDS].sort());
+  expect(Object.keys(MESSAGE_KIND_POLICY).sort()).toEqual(MESSAGE_KINDS.toSorted());
   expect(MESSAGE_KIND_POLICY.standard).toEqual({ prompt: "conversation", memory: "ingest", reading: "show" });
   // A narrator recap IS story canon: prompt-eligible and digested. `system-channel` marks it ELIGIBLE for the
   // capability-gated wire mapping — dormant until a live probe measures it per model, so nothing ships live.

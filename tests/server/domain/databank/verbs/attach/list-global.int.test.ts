@@ -28,7 +28,7 @@ test("returns only the caller's OWN global documents, and tracks attach/detach",
   expect(await h.service.listGlobal({ principal: principalFor(stranger) })).toEqual([theirs.id]);
 
   await h.service.attachGlobal({ principal: principalFor(owner), documentId: alsoMine.id });
-  expect([...(await h.service.listGlobal({ principal: principalFor(owner) }))].sort()).toEqual([mine.id, alsoMine.id].sort());
+  expect((await h.service.listGlobal({ principal: principalFor(owner) })).toSorted()).toEqual([mine.id, alsoMine.id].sort());
 
   await h.service.detachGlobal({ principal: principalFor(owner), documentId: mine.id });
   expect(await h.service.listGlobal({ principal: principalFor(owner) })).toEqual([alsoMine.id]);

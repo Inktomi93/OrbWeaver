@@ -74,7 +74,7 @@ export async function runEmbed(client: OrEmbedClient, req: EmbedRequest): Promis
       message: `${errorPrefix(req.model)}: embeddings response carried no vectors`,
     });
   }
-  const ordered = [...response.data].sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+  const ordered = response.data.toSorted((a, b) => (a.index ?? 0) - (b.index ?? 0));
   const vectors = ordered.map((entry) => toFloat32(entry.embedding));
   return {
     vectors,

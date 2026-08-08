@@ -33,5 +33,5 @@ const EVENT_SEEN: Record<DomainEventType, true> = {
   "asset.created": true,
 };
 test("DomainEventType has no member beyond the tuple", () => {
-  expect(Object.keys(EVENT_SEEN).sort()).toEqual([...DOMAIN_EVENT_TYPES].sort());
+  expect(Object.keys(EVENT_SEEN).sort()).toEqual(DOMAIN_EVENT_TYPES.toSorted());
 });

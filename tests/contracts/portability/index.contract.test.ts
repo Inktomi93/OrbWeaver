@@ -39,7 +39,7 @@ const KIND_SEEN: Record<PortableKind, true> = {
   assets: true,
 };
 test("PortableKind has no member beyond the tuple", () => {
-  expect(Object.keys(KIND_SEEN).sort()).toEqual([...PORTABLE_KINDS].sort());
+  expect(Object.keys(KIND_SEEN).sort()).toEqual(PORTABLE_KINDS.toSorted());
 });
 
 // ── The fixed dependency import order (the ONE cross-entity rule, as data) ──────────────────────────────
@@ -63,7 +63,7 @@ test("PORTABLE_IMPORT_ORDER pins the exact dependency order", () => {
 });
 
 test("PORTABLE_IMPORT_ORDER is a permutation of PORTABLE_KINDS (every kind exactly once)", () => {
-  expect([...PORTABLE_IMPORT_ORDER].sort()).toEqual([...PORTABLE_KINDS].sort());
+  expect(PORTABLE_IMPORT_ORDER.toSorted()).toEqual(PORTABLE_KINDS.toSorted());
 });
 
 // ── Shape pins: the descriptor + its aggregate the delivery core consumes ───────────────────────────────

@@ -88,7 +88,7 @@ function budgetInjections(
   candidates: readonly InjectionCandidate[],
   budget: number,
 ): { kept: InjectionCandidate[]; dropped: { id: string; reason: "budget" }[] } {
-  const ordered = [...candidates].sort(compareCandidates);
+  const ordered = candidates.toSorted(compareCandidates);
   const keptSet = new Set<InjectionCandidate>();
   const dropped: { id: string; reason: "budget" }[] = [];
   let spent = 0;

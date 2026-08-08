@@ -17,11 +17,9 @@ import { renderHeatmap } from "./render-stats.ts";
 const READY_ATTR = "data-app-ready";
 const READY_FALLBACK_MS = 3000;
 
-let markReady = (): void => undefined;
-/** Resolves once the app has hydrated and its initial reads have settled (see installAppReadySignal). */
-const ready: Promise<void> = new Promise<void>((resolve) => {
-  markReady = resolve;
-});
+/** `ready` resolves once the app has hydrated and its initial reads have settled (see installAppReadySignal);
+ *  `markReady` is its resolver, called from the settle check. */
+const { promise: ready, resolve: markReady } = Promise.withResolvers<void>();
 
 export function installAppReadySignal(queryClient: QueryClient): void {
   const el = document.documentElement;

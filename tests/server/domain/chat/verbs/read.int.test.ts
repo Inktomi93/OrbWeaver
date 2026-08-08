@@ -844,7 +844,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // Every id is a REAL rack row of the resolved config (never a synthesized key), in rack order.
     const rackIds = DEFAULT_PROMPT_CONFIG.sections.map((s) => s.id);
     expect(ids.every((id) => rackIds.includes(id))).toBe(true);
-    expect(ids).toEqual([...ids].sort((a, b) => rackIds.indexOf(a) - rackIds.indexOf(b)));
+    expect(ids).toEqual(ids.toSorted((a, b) => rackIds.indexOf(a) - rackIds.indexOf(b)));
 
     // THE CARRIER: `chat-history` renders nothing in the BUILD walk, so a chat-free editor prices it `~—`.
     // Bound, it carries the FIT's own number and one materialized row per kept turn.

@@ -65,7 +65,7 @@ describe("selectSpeakers — determinism", () => {
       rng: seededRng(7),
     });
     const byStr = (a: string, b: string): number => a.localeCompare(b);
-    expect([...keys(out)].sort(byStr)).toEqual([charRef("a"), charRef("b"), charRef("c")].map(speakerKey).sort(byStr));
+    expect(keys(out).toSorted(byStr)).toEqual([charRef("a"), charRef("b"), charRef("c")].map(speakerKey).sort(byStr));
   });
 });
 

@@ -34,7 +34,7 @@ export function CharacterHistoryTab({ characterId }: CharacterHistoryTabProps): 
   const restore = useRestoreCharacter({ trpc, invalidation });
 
   // Reverse-chron (newest first) — the browse-log reading order, independent of the read's own ordering.
-  const rows = [...(snapshotsQuery.data ?? [])].sort((a, b) => b.createdAt - a.createdAt);
+  const rows = (snapshotsQuery.data ?? []).toSorted((a, b) => b.createdAt - a.createdAt);
 
   return (
     <Stack gap="block">

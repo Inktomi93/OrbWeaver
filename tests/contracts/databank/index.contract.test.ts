@@ -38,7 +38,7 @@ const ORIGIN_SEEN: Record<DocOrigin, true> = {
   text: true,
 };
 test("DocOrigin has no member beyond the tuple", () => {
-  expect(Object.keys(ORIGIN_SEEN).sort()).toEqual([...DOC_ORIGINS].sort());
+  expect(Object.keys(ORIGIN_SEEN).sort()).toEqual(DOC_ORIGINS.toSorted());
 });
 
 test("SCRAPER_KINDS is the fetched-bytes subset of the origin axis (web/youtube/wiki)", () => {
@@ -52,7 +52,7 @@ test("SCRAPER_KINDS is the fetched-bytes subset of the origin axis (web/youtube/
 
 const SCRAPER_SEEN: Record<ScraperKind, true> = { web: true, youtube: true, wiki: true };
 test("ScraperKind has no member beyond the tuple", () => {
-  expect(Object.keys(SCRAPER_SEEN).sort()).toEqual([...SCRAPER_KINDS].sort());
+  expect(Object.keys(SCRAPER_SEEN).sort()).toEqual(SCRAPER_KINDS.toSorted());
 });
 
 test("chunkParamsSchema.parse({}) yields the documented ST-derived defaults (the kit-shape twin's contract)", () => {

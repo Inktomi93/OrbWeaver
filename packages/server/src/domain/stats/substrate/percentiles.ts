@@ -17,7 +17,7 @@ export function percentiles(arr: number[]): {
   if (arr.length === 0) {
     return { avg: null, p50: null, p90: null };
   }
-  const sorted = [...arr].sort((a, b) => a - b);
+  const sorted = arr.toSorted((a, b) => a - b);
   const n = sorted.length;
   const at = (p: number): number => sorted[Math.min(n - 1, Math.floor(p * n))] ?? 0;
   const avg = sorted.reduce((s, v) => s + v, 0) / n;

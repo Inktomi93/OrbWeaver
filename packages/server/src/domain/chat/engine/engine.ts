@@ -1480,10 +1480,7 @@ async function runInLockWithHeartbeat(ctx: ChatContext, deps: EngineDeps, prep: 
   const heartbeatController = new AbortController();
   const composedSignal = prep.signal !== undefined ? AbortSignal.any([prep.signal, heartbeatController.signal]) : heartbeatController.signal;
   let lockLost = false;
-  let rejectLockLost!: (err: unknown) => void;
-  const lockLostBarrier = new Promise<never>((_resolve, reject) => {
-    rejectLockLost = reject;
-  });
+  const { promise: lockLostBarrier, reject: rejectLockLost } = Promise.withResolvers<never>();
   const tick = async (): Promise<void> => {
     try {
       if (await refreshLock(ctx.db, prep.chatId, deps.holder, ctx.now() + deps.lockTtlMs)) {

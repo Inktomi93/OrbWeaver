@@ -37,7 +37,7 @@ test("the source axis and the storage axis are NOT conflated", () => {
   }
   // The overlap (a key stored AND dispatched) is exactly { openrouter, custom_openai }.
   const overlap = CRED_SOURCES.filter((s) => (CRED_PROVIDERS as readonly string[]).includes(s));
-  expect([...overlap].sort()).toEqual(["custom_openai", "openrouter"]);
+  expect(overlap.toSorted()).toEqual(["custom_openai", "openrouter"]);
 });
 
 // --- Provider metadata schema (the `metadata` JSON gate) ----------------------

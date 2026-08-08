@@ -42,5 +42,5 @@ const COMPARATORS: Record<TagSortMode, (a: SortableTag, b: SortableTag) => numbe
 /** A NEW array in `mode` order (the input is a query cache's array — sorting it in place would mutate the
  *  cache). Pure + total: every mode has a comparator by construction. */
 export function sortTagsBy<T extends SortableTag>(tags: readonly T[], mode: TagSortMode): readonly T[] {
-  return [...tags].sort(COMPARATORS[mode]);
+  return tags.toSorted(COMPARATORS[mode]);
 }

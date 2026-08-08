@@ -153,7 +153,7 @@ export function assemblePreview(sections: readonly PromptSection[]): AssembledPr
   }
 
   // Splice order: higher depth sits earlier (further from the tail); within a depth, LOWER order higher.
-  const orderedSplices = [...splices].sort((a, b) => (a.depth !== b.depth ? b.depth - a.depth : a.order - b.order));
+  const orderedSplices = splices.toSorted((a, b) => (a.depth !== b.depth ? b.depth - a.depth : a.order - b.order));
 
   return {
     setup: groupByRole(setupInFlow),

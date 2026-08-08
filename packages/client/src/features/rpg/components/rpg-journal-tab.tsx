@@ -184,7 +184,7 @@ function JournalCards({ cards }: { readonly cards: readonly ArchivedCard[] }): R
   if (cards.length === 0) {
     return <Text>No cards yet — the story crafts them.</Text>;
   }
-  const newestFirst = [...cards].sort((a, b) => b.createdAt - a.createdAt);
+  const newestFirst = cards.toSorted((a, b) => b.createdAt - a.createdAt);
   return (
     <Stack gap="field">
       {newestFirst.map((card) => (
@@ -202,7 +202,7 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
   const createCheckpoint = useCreateCheckpoint({ trpc, invalidation });
   const restoreCheckpoint = useRestoreCheckpoint({ trpc, invalidation });
 
-  const sorted = [...marks].sort((a, b) => b.createdAt - a.createdAt);
+  const sorted = marks.toSorted((a, b) => b.createdAt - a.createdAt);
 
   return (
     <Stack gap="section">

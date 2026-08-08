@@ -42,7 +42,7 @@ const TARGET_SEEN: Record<TagTargetType, true> = {
   preset: true,
 };
 test("TagTargetType has no member beyond the tuple", () => {
-  expect(Object.keys(TARGET_SEEN).sort()).toEqual([...TAG_TARGET_TYPES].sort());
+  expect(Object.keys(TARGET_SEEN).sort()).toEqual(TAG_TARGET_TYPES.toSorted());
 });
 
 // ── Source axis (invariant #5: no semantic-facet members — those are discovery's) ─────────────────────

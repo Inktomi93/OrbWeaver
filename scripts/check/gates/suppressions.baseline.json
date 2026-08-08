@@ -107,7 +107,7 @@
   "packages/server/src/domain/world-info/verbs/entries/update.ts": 1,
   "packages/server/src/domain/world-info/verbs/entries/upsert-entries.ts": 2,
   "packages/server/src/entry/app.ts": 1,
-  "packages/server/src/entry/compose/chat.ts": 9,
+  "packages/server/src/entry/compose/chat.ts": 8,
   "packages/server/src/entry/compose/portability.ts": 5,
   "packages/server/src/entry/compose/services.ts": 1,
   "packages/server/src/entry/http/auth-meta.ts": 1,

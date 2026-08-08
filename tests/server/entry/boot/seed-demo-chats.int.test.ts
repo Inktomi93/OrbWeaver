@@ -50,7 +50,7 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
     const rows = await services.chat.listChats({ principal: PRINCIPAL });
     expect(rows).toHaveLength(DEMO_CHATS.length);
     expect(rows.map((r) => r.title).sort((a, b) => (a ?? "").localeCompare(b ?? ""))).toEqual(
-      [...DEMO_CHATS.map((d) => d.title)].sort((a, b) => a.localeCompare(b)),
+      DEMO_CHATS.map((d) => d.title).toSorted((a, b) => a.localeCompare(b)),
     );
     expect(rows.every((r) => r.title?.startsWith("Example — ") === true)).toBe(true);
 

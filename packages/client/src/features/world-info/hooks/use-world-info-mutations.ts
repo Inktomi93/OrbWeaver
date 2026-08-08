@@ -101,7 +101,7 @@ export const useApplyEntryOrder = createEntityMutation<
       const rank = new Map(vars.orderedEntryIds.map((id, i) => [id, i]));
       // Ids present in the drag order sort by their new position; any not in the order (shouldn't happen —
       // the list drags every row) keep their relative tail spot.
-      return [...old].sort((a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+      return old.toSorted((a, b) => (rank.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.id) ?? Number.MAX_SAFE_INTEGER));
     },
   },
   invalidates: (trpc) => [trpc.worldInfo.listEntries.pathFilter()],
