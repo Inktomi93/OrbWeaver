@@ -509,10 +509,14 @@ security lens.
 - **⚑ SMALLS BATCHED OUT (2026-08-08, owner: "send the undeployed + small stuff in batches").** Two
   collision-free lanes dispatched (the load ceiling held at the live client-fix lanes — no 6th/7th
   gate-heavy lane stacked):
-  - **DBANK-HOME** (`a2740c83073edd2ce`, executor): databank pagination (the 100-doc ceiling → cursor
-    on the list verb + load-more, match the house pagination precedent; search-honesty fork flagged) +
-    home tile useOrder (conditional promotion above the jump grid when attention>0 — the arm the S3
-    fix lane refused as home-surgery; design-which-mechanism first).
+  - **DBANK-HOME** (`a2740c83073edd2ce`, executor): Row 1 databank pagination BUILDING (character.list
+    keyset precedent + ruled client-filter search arm). Row 2 (home tile promotion) → ESCALATED TO
+    OWNER as a design row, NOT built: the executor proved both naive arms are DEFECTS (CSS-order =
+    WCAG 2.4.3 focus divergence; data-driven-after-read reopens the measured F14 CLS), so the only
+    correct arm is a new store + orderHomeTiles signature change + demote-on-resolve UX — architecture
+    with a live fork, and the tile's attention chips ALREADY landed tonight as in-place deep-link
+    buttons. Analysis → `docs/design/home-tile-promotion.md`; owner rules WHETHER (build the store arm
+    / drop it — the in-place chips may already cover it).
   - **TOOLING-INVESTIGATE** (`a867e56c60b9c0c21`, mech): BUILD the scripts/ gate-ignore inventory gap
     (extend scanRoot + the literal-span exclusion) · INVESTIGATE the populate-round prose census
     (→ docs/design/prose-1-populate-census.md, enumerate don't build) · INVESTIGATE the prod-build CLS
