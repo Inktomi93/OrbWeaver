@@ -184,6 +184,27 @@ export function isProseSlotId(value: string): value is ProseSlotId {
 /** An instruction is a paragraph, not an essay — mirrors `IMAGERY_TEMPLATE_MAX_CHARS`. */
 export const PROSE_MAX_CHARS = 4000;
 
+/** Show a prose editor's character counter from 80% of the cap — the `hint-editor` precedent ("a quiet
+ *  counter from 80% full"). A counter that is always on is chrome; one that appears only as the ceiling
+ *  approaches is the warning it exists to be. */
+export const PROSE_COUNTER_AT = 0.8;
+
+/** How many characters `text` is OVER {@link PROSE_MAX_CHARS}; `0` when it fits.
+ *
+ *  MEASURED ON THE TRIMMED TEXT because that is what gets STORED — both editors trim at their save boundary
+ *  (`normalizePresetProse` / `proseSlotPatch`), so measuring the raw draft would refuse a save whose actual
+ *  payload fits.
+ *
+ *  WHY AN EDITOR NEEDS THIS AT ALL. `proseOverrideSchema` caps `text` and `proseOverridesSchema` wraps each
+ *  key in `.catch(undefined)` — correct at the contract (one malformed row must not nuke its siblings), but
+ *  it means an over-cap override does not FAIL, it VANISHES: the key heals to absent, the shipped default
+ *  rides, and the host's text is gone with no signal anywhere. The self-heal is the right last resort and
+ *  stays; the editors are what must stop the loss before the wire, and they cap and refuse off THIS number
+ *  rather than re-spelling it. */
+export function proseOverBy(text: string): number {
+  return Math.max(0, text.trim().length - PROSE_MAX_CHARS);
+}
+
 /** A stored host override. `baseVersion` = the slot `version` this edit was authored against; it is the
  *  ONLY staleness signal (PROSE-1 §4.4) and is never used to pick which text wins. */
 export const proseOverrideSchema = z.object({

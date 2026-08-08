@@ -12,7 +12,7 @@
 // projection/patch walks `USER_PROSE_SLOT_IDS` (never the reverse mapping — nothing needs name → id).
 
 import type { ProseOverride, ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
-import { PROSE_SLOTS, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
+import { PROSE_SLOTS, proseOverBy, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
 import type { SettingsSubcategory } from "#state";
 
 export const PROSE_SETTINGS_SUBCATEGORY: SettingsSubcategory = {
@@ -46,6 +46,32 @@ export function proseSlotPatch(id: ProseSlotId, value: string): ProseOverride | 
  *  resets it to the shipped default instead of silently keeping the stored override. */
 export function toProsePatch(values: Record<string, string>): Record<string, ProseOverride | null> {
   return Object.fromEntries(USER_PROSE_SLOT_IDS.map((id) => [id, proseSlotPatch(id, values[proseFieldName(id)] ?? "")]));
+}
+
+/**
+ * THE SAVE REFUSAL for over-cap user overrides — the `onDynamic` form validator this section mounts, and the
+ * exact twin of the preset editor's `validatePresetProse` (one defect, two editors, `PROSE_MAX_CHARS` spelled
+ * in neither).
+ *
+ * `proseOverridesSchema`'s per-key `.catch(undefined)` heals an over-cap override to ABSENT, so a save at
+ * that length is not an error the host can see — it is their text silently deleted with the shipped default
+ * riding in its place. Each card's textarea carries `maxLength`, so nothing typed here can trip this; what
+ * trips it is a blob that predates the cap. Refusing (never truncating) keeps the author's bytes on screen
+ * and makes trimming their decision.
+ *
+ * Errors are keyed by the FIELD NAME, so each over-cap card renders its own message through the bound
+ * `<Field>` — this form's values are the flat dashed-name bag (see the header), which the preset editor's
+ * dotted `prose` record cannot do.
+ */
+export function validateProseLengths(values: Record<string, string>): { fields: Record<string, string> } | undefined {
+  const fields = Object.fromEntries(
+    USER_PROSE_SLOT_IDS.flatMap((id) => {
+      const name = proseFieldName(id);
+      const over = proseOverBy(values[name] ?? "");
+      return over === 0 ? [] : [[name, `${String(over)} characters over the limit — trim it to save`]];
+    }),
+  );
+  return Object.keys(fields).length === 0 ? undefined : { fields };
 }
 
 // The per-card footer derivation (Default/Customized + the stale and required-macro warnings) MOVED to

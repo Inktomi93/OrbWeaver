@@ -9,6 +9,7 @@
 
 import type { PromptConfig, UserIntent } from "@orb/contracts/preset";
 import { THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
+import { isProseSlotId, PROSE_SLOTS, proseOverBy } from "@orb/contracts/prose";
 
 /** Assign `value` to `target[key]` only when defined — keeps the merge branch-free. */
 function assignIfDefined<T extends object, K extends keyof T>(target: T, key: K, value: T[K] | undefined): void {
@@ -80,6 +81,41 @@ function normalizePresetProse(prose: PromptConfig["prose"]): PromptConfig["prose
       return override === undefined || text === "" ? [] : [[id, { ...override, text }]];
     }),
   );
+}
+
+/**
+ * THE SAVE REFUSAL for over-cap framing overrides — the `onDynamic` form validator the editor mounts.
+ *
+ * WHY A REFUSAL AND NOT A TRUNCATION. `proseOverridesSchema` wraps each key in `.catch(undefined)`, so an
+ * over-cap override does not bounce off the server, it SELF-HEALS TO ABSENT: the row disappears, the shipped
+ * default rides, and the host's text is gone with nothing on screen having said so. That self-heal is right
+ * at the contract (one bad row must not nuke its siblings) and stays. This is the other half — the editor
+ * stops the loss before the wire. Truncating instead would be the same data loss with a nicer name, on text
+ * this editor did not author.
+ *
+ * REACHABLE ONLY FROM PRE-EXISTING DATA. The drill-in's textarea carries `maxLength={PROSE_MAX_CHARS}`, so
+ * nothing typed here can trip this; what trips it is a blob that predates the cap — an imported preset, a
+ * direct API write. The author sees the real text, the over-cap badge, and a save that waits for them.
+ *
+ * The refusal MECHANISM is the autosave factory's own: `createAutosaveEntityForm`'s save driver and its
+ * teardown flush both gate on `form.state.isValid`, and `handleSubmit` runs this before `onSubmit` — so an
+ * invalid form is three independent no-writes, not a hand-rolled guard at one call site.
+ */
+export function validatePresetProse(config: PromptConfig): { fields: Record<string, string> } | undefined {
+  // `isProseSlotId` rather than a cast: `Object.entries` erases the key to `string`, and the registry lookup
+  // needs the union. It also correctly skips a RETIRED id left in a stored blob (the same key class
+  // `proseOverridesSchema`'s preprocess strips) instead of indexing the registry with it.
+  const over = Object.entries(config.prose).flatMap(([id, override]) =>
+    override !== undefined && isProseSlotId(id) && proseOverBy(override.text) > 0 ? [PROSE_SLOTS[id].title] : [],
+  );
+  if (over.length === 0) {
+    return;
+  }
+  // Keyed at the `prose` path — the record IS the bound value (a slot id contains dots, which TanStack reads
+  // as a value path, so there is no per-slot field to hang this on; see `proseTemplateDraft`). Nothing
+  // renders this string today: the drill-in's own over-cap badge is the author-facing statement, and this
+  // exists to make `isValid` false. It still NAMES the templates, so a future surface has the fact.
+  return { fields: { prose: `Too long to save: ${over.join(", ")}` } };
 }
 
 /** Normalize the edited `PromptConfig` for persistence: strips all-default blocks back to unset, and

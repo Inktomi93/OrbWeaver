@@ -7,7 +7,9 @@
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG, parsePromptConfig, THINK_PREFIX_DEFAULT, THINK_SUFFIX_DEFAULT } from "@orb/contracts/preset";
-import { mergeOnSubmit, seedConfig } from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
+import type { ProseSlotId } from "@orb/contracts/prose";
+import { PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
+import { mergeOnSubmit, seedConfig, validatePresetProse } from "../../../../../packages/client/src/features/preset/lib/preset-editor-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** A parsed server config with server-only fields set (the fields the params panel never edits). */
@@ -154,4 +156,37 @@ test("an empty compaction block round-trips to unset", () => {
     params: { compaction: {} },
   };
   expect(mergeOnSubmit(edited, server).params.compaction).toBeUndefined();
+});
+
+// ── The over-cap SAVE REFUSAL (verifier finding on the EXTRACTION merge) ──────────────────────────────
+// `proseOverridesSchema` heals an over-cap override to ABSENT, so persisting one is not an error the author
+// can see — it is their wording deleted with the shipped default riding in its place. `validatePresetProse`
+// is what makes the form invalid, and `isValid` is what the autosave factory's save driver AND its teardown
+// flush both gate on. The rendered half is pinned in the preset-editor-surface CT.
+const FRAMING: ProseSlotId = "chat.assembly.continuationNudge";
+
+/** A seeded config carrying one framing override of `length` characters. */
+function withProse(length: number): PromptConfig {
+  const server = parsePromptConfig(DEFAULT_PROMPT_CONFIG);
+  return { ...seedConfig(server), prose: { [FRAMING]: { text: "y".repeat(length), baseVersion: 1 } } };
+}
+
+test("validatePresetProse passes anything the schema will actually keep, and refuses what it would heal away", () => {
+  expect(validatePresetProse(parsePromptConfig(DEFAULT_PROMPT_CONFIG))).toBeUndefined();
+  expect(validatePresetProse(withProse(PROSE_MAX_CHARS))).toBeUndefined();
+  // The boundary is the schema's, exactly: one character past `.max(PROSE_MAX_CHARS)` is the first value
+  // that vanishes on the way in, and the first the editor must hold back.
+  expect(validatePresetProse(withProse(PROSE_MAX_CHARS + 1))).toBeDefined();
+  // The error NAMES the template rather than the slot id — nothing renders this string today (the drill-in's
+  // own badge is the author-facing statement), but a future surface inherits a sentence a person can act on.
+  expect(validatePresetProse(withProse(PROSE_MAX_CHARS + 1))?.fields["prose"]).toContain(PROSE_SLOTS[FRAMING].title);
+});
+
+test("validatePresetProse is blind to a RETIRED slot id left in a stored blob — it never indexes the registry with one", () => {
+  // The same key class `proseOverridesSchema`'s preprocess strips (§4.4 rung 5). Indexing `PROSE_SLOTS` with
+  // it would throw inside a form validator, i.e. brick the editor on a blob it was supposed to tolerate.
+  const server = parsePromptConfig(DEFAULT_PROMPT_CONFIG);
+  // FABRICATION-OK: a RETIRED slot id is by construction absent from `ProseSlotId`, so the input this guards against is unspellable in the type — the cast IS the probe, and no typed factory can produce it.
+  const stale = { ...seedConfig(server), prose: { "retired.slot.id": { text: "y".repeat(PROSE_MAX_CHARS + 1), baseVersion: 1 } } } as PromptConfig;
+  expect(validatePresetProse(stale)).toBeUndefined();
 });

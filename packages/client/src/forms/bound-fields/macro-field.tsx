@@ -25,6 +25,9 @@ export interface MacroFieldProps {
   readonly disabled?: boolean;
   /** Extra classes forwarded to the underlying textarea (e.g. a taller min-height). */
   readonly className?: string;
+  /** Native character cap (see `MacroTextareaProps.maxLength`) — blocks typing/paste past the limit, and
+   *  deliberately leaves an already-over-cap STORED value rendered in full for the caller to refuse. */
+  readonly maxLength?: number;
   /** Renders a live "~N tokens" line below the field (§6.3) — omit for fields that never reach the
    *  model (e.g. creatorNotes). @defaultValue false */
   readonly showTokenCount?: boolean;
@@ -50,6 +53,7 @@ export function MacroField(props: MacroFieldProps): ReactElement {
           // only while the field is empty makes the tree say what the screen says.
           {...(props.placeholder === undefined || field.state.value !== "" ? {} : { placeholder: props.placeholder })}
           {...(props.rows === undefined ? {} : { rows: props.rows })}
+          {...(props.maxLength === undefined ? {} : { maxLength: props.maxLength })}
           {...(props.className === undefined ? {} : { className: props.className })}
         />
       </Field>

@@ -21,6 +21,7 @@
 
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -634,6 +635,134 @@ test("FIVE VIEWS — one flat strip (Params default), and the re-homed nudge edi
     payloadKey: "config.formatStrings.continueNudge",
   });
 });
+
+// ── THE PROSE CAP (verifier finding on the EXTRACTION merge) ──────────────────────────────────────────
+// `proseOverridesSchema` wraps every override in a per-key `.catch(undefined)`. That is right at the contract
+// — one malformed row must not make a whole stored blob unparseable — but it means an over-cap framing
+// template does not BOUNCE, it VANISHES: the write "succeeds", the key heals to absent, the shipped default
+// rides, and the host's wording is gone with nothing anywhere having said so. Fail-open, silently, on the
+// user's own words. The schema stays; the EDITOR is what must stop the loss before the wire, and these are
+// the three halves of that — cap the typing, show the ceiling coming, refuse a save that would delete text.
+//
+// The framing rows are the third form path (`promptConfig.prose`), so they are the surface at risk: the
+// `formatStrings`/`guidedActions` rows next to them in this same list are plain strings with no such heal.
+// "Continuation cue" is the framing row with NO required-token capability, so its footer carries only the
+// length signals and nothing else can be mistaken for them.
+const CONTINUATION_ROW = "Edit Continuation cue";
+const CONTINUATION_SLOT = "chat.assembly.continuationNudge";
+const TEMPLATE_FIELD = "Template";
+/** The `hint-editor` grammar the cap adopts: quiet until 80% of the cap, then a live count. */
+const COUNTER_FROM = PROSE_MAX_CHARS * PROSE_COUNTER_AT;
+/** A field one character short of the cap, plus the ONE keystroke the cap still admits. */
+const AT_CAP = `${"x".repeat(PROSE_MAX_CHARS - 1)}a`;
+/** Longer than the cap can ever be TYPED — the shape only pre-existing data can have. */
+const OVERLONG = "y".repeat(PROSE_MAX_CHARS + 500);
+/** The withheld-save alert, AFTER one deletion: 499, because the count tracks the live field. */
+const OVER_CAP_ALERT_RE = /499 characters over the 4000 limit/;
+
+/** `PRESET_A` carrying one stored framing override — the pre-existing-data arm's fixture. */
+function presetWithProse(text: string): PresetDetailFixture {
+  const base = presetDetail(PRESET_A, "Preset A", "fast");
+  return {
+    ...base,
+    config: { ...base.config, prose: { [CONTINUATION_SLOT]: { text, baseVersion: PROSE_SLOTS[CONTINUATION_SLOT].version } } },
+  };
+}
+
+/** Open the Continuation-cue framing template's drill-in and return its textarea. */
+async function openContinuationCue(component: Locator): Promise<Locator> {
+  await component.getByRole("tab", { name: "Actions" }).click();
+  await component.getByRole("button", { name: CONTINUATION_ROW }).click();
+  // BARRIER: the drill-in's back row is the settled render of the editor — never assert into the swap.
+  await expect(component.getByRole("button", { name: "Back to actions" })).toBeVisible();
+  return component.getByRole("textbox", { name: TEMPLATE_FIELD, exact: true });
+}
+
+test("PROSE CAP — the counter is quiet until 80% of the cap, then typing HARD-STOPS at it", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+    "preset.update": () => ({}),
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+  const field = await openContinuationCue(component);
+
+  // Well under the cap: no counter. An always-on counter is chrome; the affordance IS its lateness.
+  await field.fill("x".repeat(100));
+  await expect(component.getByText(`100/${String(PROSE_MAX_CHARS)}`)).toHaveCount(0);
+
+  // One character under the counter threshold — still silent. The boundary is asserted from BOTH sides so a
+  // future off-by-one in the threshold cannot pass by simply showing the counter earlier.
+  await field.fill("x".repeat(COUNTER_FROM - 1));
+  await expect(component.getByText(`${String(COUNTER_FROM - 1)}/${String(PROSE_MAX_CHARS)}`)).toHaveCount(0);
+
+  // At the threshold the count appears and tracks the box.
+  await field.fill("x".repeat(PROSE_MAX_CHARS - 1));
+  await expect(component.getByText(`${String(PROSE_MAX_CHARS - 1)}/${String(PROSE_MAX_CHARS)}`)).toBeVisible();
+
+  // THE PIN: real keystrokes at the boundary. `pressSequentially` goes through the keyboard (unlike `fill`,
+  // which assigns the value and would sail past a native cap), so this is the affordance a person meets —
+  // two more characters, exactly ONE of which is allowed to land.
+  await field.pressSequentially("ab");
+  await expect(field).toHaveValue(AT_CAP);
+  await expect(component.getByText(`${String(PROSE_MAX_CHARS)}/${String(PROSE_MAX_CHARS)}`)).toBeVisible();
+  // …and it is a stop, not a lag: further typing changes nothing at all.
+  await field.pressSequentially("cde");
+  await expect(field).toHaveValue(AT_CAP);
+});
+
+test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and REFUSES to save until trimmed", async ({ mount, page }) => {
+  // The only way to be over the cap now that the field stops at it: text that arrived that way — an imported
+  // preset, a direct API write, a blob predating the cap. Truncating it would be the same data loss the
+  // schema's self-heal already commits, just with a friendlier name, so the editor refuses instead.
+  const trpc = await routeTrpc(page, {
+    "preset.get": () => presetWithProse(OVERLONG),
+    "preset.list": () => [presetWithProse(OVERLONG)],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+    "preset.update": () => ({}),
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+  const field = await openContinuationCue(component);
+
+  // THE AUTHOR'S BYTES ARE ON SCREEN, all 4500 of them — never silently clipped to the cap behind their back.
+  await expect(field).toHaveValue(OVERLONG);
+
+  // A real edit — the author starts deleting. Under the old code this debounced straight into a write whose
+  // payload the server would heal away to nothing.
+  await field.press("End");
+  await field.press("Backspace");
+  await expect(field).toHaveValue("y".repeat(PROSE_MAX_CHARS + 499));
+
+  // THE PIN, FIRST: no write, ever. The debounce (500ms) plus a full round-trip have had their chance. It
+  // leads deliberately — an assertion ordered behind a cosmetic one is an assertion that never runs on the
+  // red side, and THIS is the defect (measured on the unfixed tree: exactly one `preset.update` fired,
+  // carrying 4499 characters the schema would then heal to nothing).
+  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 900)));
+  // ONESHOT-OK: settled — the preceding 900ms real-timer wait IS the negative-assertion window.
+  expect(trpc.count("preset.update")).toBe(0);
+
+  // …and the withheld save is STATED, as an alert: the autosave that would normally reassure is the thing
+  // being held back, so this badge is the only place that state is legible.
+  await expect(component.getByRole("alert")).toHaveText(OVER_CAP_ALERT_RE);
+
+  // …AND THE REFUSAL LIFTS. A form that stayed invalid forever would be a worse bug than the one being fixed:
+  // trimming under the cap must let the edit through, carrying the author's own trimmed text.
+  await field.fill("y".repeat(3000));
+  await expect(component.getByRole("alert")).toHaveCount(0);
+  await expect
+    .poll(() => (trpc.inputs("preset.update") as ProseUpdateCall[]).at(-1)?.config?.prose?.[CONTINUATION_SLOT]?.text?.length, {
+      intervals: [100, 200, 300, 500],
+    })
+    .toBe(3000);
+});
+
+/** The framing override as it rides `preset.update` — the payload the cap exists to keep parseable. */
+interface ProseUpdateCall {
+  readonly config?: { readonly prose?: Record<string, { readonly text?: string } | undefined> };
+}
 
 // ── G7: HEADER TRUTH (redesign §10 G7 / §16 row 3 echo b) ────────────────────────────────────────
 // Two facts change UNDER an open editor and are otherwise only legible in another pane: whether this preset

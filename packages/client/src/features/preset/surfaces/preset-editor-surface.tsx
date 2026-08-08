@@ -69,7 +69,7 @@ import { usePresetAutosave } from "../hooks/use-preset-autosave.ts";
 import { useResetPreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
 import type { EffectiveProfileRow } from "../lib/effective-knobs.ts";
 import { resolvedForLabel } from "../lib/effective-knobs.ts";
-import { seedConfig } from "../lib/preset-editor-model.ts";
+import { seedConfig, validatePresetProse } from "../lib/preset-editor-model.ts";
 import type { PresetEditorView } from "../lib/preset-nav.ts";
 import { openSectionInPrompt, PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 
@@ -81,6 +81,13 @@ const RESET_LABEL = "Reset to starter arrangement";
 // INSIDE it — a consumer cannot mount it any way except keyed by `entityId`.
 const PresetForm = createAutosaveEntityForm<PromptConfig>({
   defaultValues: DEFAULT_PROMPT_CONFIG,
+  // THE ONE VALIDATOR ON THIS FORM, and it REFUSES a write rather than advising — `validatePresetProse`'s
+  // header carries the why. `onDynamic` is the slot `revalidateLogic()` drives (the factory sets it).
+  options: {
+    validators: {
+      onDynamic: ({ value }: { value: PromptConfig }): { fields: Record<string, string> } | undefined => validatePresetProse(value),
+    },
+  },
 });
 
 export interface PresetEditorSurfaceProps {
