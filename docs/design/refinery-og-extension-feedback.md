@@ -33,8 +33,8 @@
    world-info refinement arm is an R4+ doorway — new field family, same engine; the batch-score sweep
    (R4) is its natural sibling. NOT v1 scope; recorded so it isn't re-derived from scratch when asked.
 3. **APPLY-AS-COPY (the OG's "download as a new one" arm, Jeb/owner 1/5):** orb applies to the live
-   card or nothing. A "save refined result as a NEW character" arm (fork-the-card-with-rewrite) is a
-   small R4 candidate riding existing character-create machinery.
+   card or nothing. A "save refined result as a NEW character" arm (fork-the-card-with-rewrite) is
+   RULED IN 2026-08-08 (owner) — R3 scope; design: refinery-schema-renderer.md §17.
 4. **Persona-substitution TOGGLE (zvxcm 1/8, owner offered):** "in case you WANT the {{user}}
    replacement" during analysis. Orb's belt-5 makes the default (no substitution) structural; an
    opt-in substitution arm would be a deliberate belt-5 exception needing its own security look.

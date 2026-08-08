@@ -1,3 +1,8 @@
+> **2026-08-08 — RECORD.** The live R3/SF program authority is
+> [refinery-schema-renderer.md](../../design/refinery-schema-renderer.md). Superseded here: the
+> §5.1 rewrite-payload sketch (no clear arm — see authority §15); gap-3 apply-as-copy timing
+> (now RULED R3 — authority §17). Everything else stands as the port-decision record.
+
 # Card-Refinery port-and-improve study (owner-ordered, 2026-08-08)
 
 Charge: study `/home/inktomi/inktomi-stack/development/neo-tavern/references/card-refinery` (the owner's
@@ -35,8 +40,8 @@ The question is NOT new. The ledger and D62 already rule on most of the frame:
 
 ## 1. Card-refinery inventory (Subject A)
 
-**What it is:** a SillyTavern extension (`manifest.json:1-13`), ~13.8k LOC TS in 98 files + 4.4k LOC
-CSS in 33 files (tokei), tests ~5.2k LOC. An AI pipeline that iteratively refines character cards:
+**What it is:** a SillyTavern extension (`manifest.json:1-13`), \~13.8k LOC TS in 98 files + 4.4k LOC
+CSS in 33 files (tokei), tests \~5.2k LOC. An AI pipeline that iteratively refines character cards:
 **SCORE** (LLM critiques each field) → **REWRITE** (LLM improves) → **ANALYZE** (LLM compares the rewrite
 against the ORIGINAL and issues a verdict) → iterate with user guidance until ACCEPT (`README.md:12-66`).
 
@@ -53,12 +58,12 @@ against the ORIGINAL and issues a verdict) → iterate with user guidance until 
    `iterationCount++` (`src/state/pipeline-actions.ts:343-467`). The analyze verdict enum is
    `ACCEPT / NEEDS_REFINEMENT / REGRESSION` with a 1-10 `soulScore`
    (`src/data/settings/defaults.ts:335-370` — the builtin analyze schema).
-3. **Field-level selection** over 11 fields — description, personality, first_mes, scenario,
-   mes_example, system_prompt, post_history_instructions, creator_notes, alternate_greetings (**per-index**),
-   depth_prompt, character_book (**per-entry**) (`src/shared/constants.ts:59-98`;
+3. **Field-level selection** over 11 fields — description, personality, first\_mes, scenario,
+   mes\_example, system\_prompt, post\_history\_instructions, creator\_notes, alternate\_greetings (**per-index**),
+   depth\_prompt, character\_book (**per-entry**) (`src/shared/constants.ts:59-98`;
    `src/domain/character/summary.ts:100-151`). Per-STAGE selection with a linked/unlinked toggle
    (`src/types/state.ts:24-31` `StageFieldSelection`).
-4. **Structured output subsystem** (~1,100 LOC): user-authored JSON schemas per stage
+4. **Structured output subsystem** (\~1,100 LOC): user-authored JSON schemas per stage
    (`src/types/stage.ts:21-27` StageConfig), a validator enforcing Anthropic/OpenAI constraints
    (depth/anyOf caps/additionalProperties/regex features — `src/domain/schema/validate.ts`, 637 lines),
    an auto-fixer that rewrites unsupported constraints into descriptions (`auto-fix.ts:18-121`),
@@ -124,20 +129,20 @@ against the ORIGINAL and issues a verdict) → iterate with user guidance until 
 
 | Card-refinery subsystem | LOC (approx) | Verdict | Why / where it dies |
 | - | - | - | - |
-| Pipeline stage semantics, anti-drift compare, verdict enum, guidance threading | ~500 | **ESSENTIAL** | The product. Port as design. |
-| Per-field selection incl. per-greeting granularity | ~400 | **ESSENTIAL** | Port (orb-shaped — §5 P3). |
-| Sessions + history + iterate counters | ~900 | **ESSENTIAL** (shape only) | Becomes DB tables; IndexedDB/localforage/migrations are the contortion. |
-| Score/analyze visualization, compare view | ~600 | **ESSENTIAL** (shape only) | Typed payloads kill the markdown re-parse (`compare-view.ts:33-101` dies); `CompareBlocks`+`DiffView` exist. |
-| JSON-schema subsystem (validate/auto-fix/generate/parse) | ~1,100 | **ACCIDENTAL** | Existed because the extension couldn't know its payload shapes and had to police provider limits client-side. Orb: zod-typed payloads + `projectJsonSchema` + `runStructuredTurn` (D79) + provider-side enforcement (xgrammar / `json_schema`). Collapses to ~0 new lines. |
-| Client-side PNG chunk writer | ~209 | **ACCIDENTAL** | Orb owns the codec server-side: `packages/kit/src/png-card-chunk` (writes chara+ccv3, reads tEXt AND zTXt) + the export door. 0 new lines. |
-| Token-count debounce/cache/batch machinery | ~300 | **ACCIDENTAL** | Orb's `cardTokenSize` QuadChars estimate is sync + already a queryable denorm (`packages/db/src/schema/character.ts:81-86`). ~0 new lines. |
-| Generation plumbing: error-substring categorization, `reasoning_effort` mutation hack, prefill carve-outs, profile status sniffing | ~700 | **ACCIDENTAL** | Orb providers own per-backend wire vocab + typed errors; side-gen postures + preset params govern sampling. 0 new lines. |
-| Macro ZWSP escaping | ~100 | **ACCIDENTAL** (already law in orb) | `@orb/kit/guided` ZWSP-neutralizes other-author content (`greeting-studio.ts:7-9` cites it). |
-| morphdom components, update-coordinator, error boundaries, popup lifecycle, scroll fixes | ~2,500+ | **ACCIDENTAL** | React + the section shell. |
-| Settings manager + versioned migrations + preset CRUD registry | ~800 | **MOSTLY ACCIDENTAL** | Prose-slot overrides + typed stage-mode enums replace it (fork F4 if the owner wants preset multiplicity). |
-| V1/V2 path-fallback field extraction, `ensureUnshallowed` | ~260 | **ACCIDENTAL** | Orb's serde normalizes V1/V2/V3/Pygmalion at import; the card is a flat row. |
+| Pipeline stage semantics, anti-drift compare, verdict enum, guidance threading | \~500 | **ESSENTIAL** | The product. Port as design. |
+| Per-field selection incl. per-greeting granularity | \~400 | **ESSENTIAL** | Port (orb-shaped — §5 P3). |
+| Sessions + history + iterate counters | \~900 | **ESSENTIAL** (shape only) | Becomes DB tables; IndexedDB/localforage/migrations are the contortion. |
+| Score/analyze visualization, compare view | \~600 | **ESSENTIAL** (shape only) | Typed payloads kill the markdown re-parse (`compare-view.ts:33-101` dies); `CompareBlocks`+`DiffView` exist. |
+| JSON-schema subsystem (validate/auto-fix/generate/parse) | \~1,100 | **ACCIDENTAL** | Existed because the extension couldn't know its payload shapes and had to police provider limits client-side. Orb: zod-typed payloads + `projectJsonSchema` + `runStructuredTurn` (D79) + provider-side enforcement (xgrammar / `json_schema`). Collapses to \~0 new lines. |
+| Client-side PNG chunk writer | \~209 | **ACCIDENTAL** | Orb owns the codec server-side: `packages/kit/src/png-card-chunk` (writes chara+ccv3, reads tEXt AND zTXt) + the export door. 0 new lines. |
+| Token-count debounce/cache/batch machinery | \~300 | **ACCIDENTAL** | Orb's `cardTokenSize` QuadChars estimate is sync + already a queryable denorm (`packages/db/src/schema/character.ts:81-86`). \~0 new lines. |
+| Generation plumbing: error-substring categorization, `reasoning_effort` mutation hack, prefill carve-outs, profile status sniffing | \~700 | **ACCIDENTAL** | Orb providers own per-backend wire vocab + typed errors; side-gen postures + preset params govern sampling. 0 new lines. |
+| Macro ZWSP escaping | \~100 | **ACCIDENTAL** (already law in orb) | `@orb/kit/guided` ZWSP-neutralizes other-author content (`greeting-studio.ts:7-9` cites it). |
+| morphdom components, update-coordinator, error boundaries, popup lifecycle, scroll fixes | \~2,500+ | **ACCIDENTAL** | React + the section shell. |
+| Settings manager + versioned migrations + preset CRUD registry | \~800 | **MOSTLY ACCIDENTAL** | Prose-slot overrides + typed stage-mode enums replace it (fork F4 if the owner wants preset multiplicity). |
+| V1/V2 path-fallback field extraction, `ensureUnshallowed` | \~260 | **ACCIDENTAL** | Orb's serde normalizes V1/V2/V3/Pygmalion at import; the card is a flat row. |
 
-Net: of ~13.8k extension LOC, the essential surface that needs an orb home is roughly the pipeline
+Net: of \~13.8k extension LOC, the essential surface that needs an orb home is roughly the pipeline
 semantics + sessions + selection + the UI surface. Everything else is already standing orb machinery.
 
 ---
@@ -192,7 +197,7 @@ Ladder legend: declared < exported < imported < called-in-live-path < test-asser
   elevatorPitch/overview per card into `character_summaries` + staged tag suggestions (`distill.ts:86-95`);
   `askCard` and `compareCharactersDeep` produce grounded structured answers (`discovery/verbs/analyze.ts:40-102`).
 - **LLM card REWRITE already live (single-field)**: the greeting studio — `generateGreeting` /
-  `rewriteGreeting`, owner-gated (leak-free NOT_FOUND), template+steer via `resolveGuidedInstruction`,
+  `rewriteGreeting`, owner-gated (leak-free NOT\_FOUND), template+steer via `resolveGuidedInstruction`,
   card-scoped macros with `{{user}}`="You" authoring stand-in, RETURNS text and never writes (client applies
   via `character.update`) (`domain/character/verbs/generate-greeting.ts:1-25`;
   `substrate/greeting-studio.ts:1-44`; tRPC `transport/trpc/routers/character.ts:133-146`).
@@ -244,28 +249,28 @@ Absence receipts (each: ast-grep sweep scannedFileCount=2029 + literal grep, bot
 
 | # | Capability | ST shape → orb shape | Size delta |
 | - | - | - | - |
-| P1 | The pipeline engine: score / rewrite / analyze verbs + iterate loop + REGRESSION verdict + guidance threading + anti-drift compare-vs-original | ~1,900 LOC of extension glue (generation.ts 386 + pipeline 295 + pipeline-actions 505 + the schema subsystem's live half) → **3-4 domain verbs riding `runStructuredTurn` + `summarize` role + 4 new prose slots + 3 new side-gen postures + typed zod payloads** | ~500-700 server LOC + contracts (~150) + tests. The 1,100-LOC schema subsystem and 700-LOC generation plumbing become 0. |
-| P2 | Durable refinery sessions + run history | ~900 LOC IndexedDB/migrations/autosave → **two tables (`refinery_sessions`, `refinery_runs`) + 5 CRUD verbs**; D62 already reserves the LIST pane for them | ~300-400 LOC + tests |
-| P3 | Field selection (which card fields ride the pipeline, per-greeting granularity) | ~400 LOC selector state + path-fallback extraction → **one contracts enum (`REFINABLE_FIELDS`) + a selection zod shape + one pure substrate (card→prompt text)**, reusing the flat card row | ~150-250 LOC |
-| P4 | Per-field APPLY of accepted rewrites | per-field HTTP loop against ST → **one call: auto-snapshot ("auto: before refinery apply") + `character.update`** via injected cross-feature ops | ~50-100 LOC |
-| P5 | The Refinery section UI (stage stepper · assay · issues · compare — D62 §4.1's ruled anatomy) | ~5,000+ LOC of morphdom/HTML-string components + 4.4k CSS → React feature over the section shell; `DiffView` + `CompareBlocks` prebuilt; score/verdict readouts are tokens + existing primitives | The largest remaining chunk: ~1,500-2,500 client LOC + CTs. No new CSS (paint law). |
+| P1 | The pipeline engine: score / rewrite / analyze verbs + iterate loop + REGRESSION verdict + guidance threading + anti-drift compare-vs-original | \~1,900 LOC of extension glue (generation.ts 386 + pipeline 295 + pipeline-actions 505 + the schema subsystem's live half) → **3-4 domain verbs riding `runStructuredTurn` + `summarize` role + 4 new prose slots + 3 new side-gen postures + typed zod payloads** | \~500-700 server LOC + contracts (\~150) + tests. The 1,100-LOC schema subsystem and 700-LOC generation plumbing become 0. |
+| P2 | Durable refinery sessions + run history | \~900 LOC IndexedDB/migrations/autosave → **two tables (`refinery_sessions`, `refinery_runs`) + 5 CRUD verbs**; D62 already reserves the LIST pane for them | \~300-400 LOC + tests |
+| P3 | Field selection (which card fields ride the pipeline, per-greeting granularity) | \~400 LOC selector state + path-fallback extraction → **one contracts enum (`REFINABLE_FIELDS`) + a selection zod shape + one pure substrate (card→prompt text)**, reusing the flat card row | \~150-250 LOC |
+| P4 | Per-field APPLY of accepted rewrites | per-field HTTP loop against ST → **one call: auto-snapshot ("auto: before refinery apply") + `character.update`** via injected cross-feature ops | \~50-100 LOC |
+| P5 | The Refinery section UI (stage stepper · assay · issues · compare — D62 §4.1's ruled anatomy) | \~5,000+ LOC of morphdom/HTML-string components + 4.4k CSS → React feature over the section shell; `DiffView` + `CompareBlocks` prebuilt; score/verdict readouts are tokens + existing primitives | The largest remaining chunk: \~1,500-2,500 client LOC + CTs. No new CSS (paint law). |
 
 ### IMPROVE (orb has it weaker)
 
 | # | Capability | Today | Improvement |
 | - | - | - | - |
-| I1 | `refinerySignals` shape | `{score: number\|null, analysis: Record<string,unknown>\|null}` — the analysis half is opaque (`contracts/character/index.ts:63-67`) | Tighten to the typed pipeline payloads (per-field scores, verdict enum, soulScore, issues[]) so the client renders typed data, not a JSON blob. JSON column: no migration mechanics beyond the contract + parser (both belt-parsed already). |
+| I1 | `refinerySignals` shape | `{score: number\|null, analysis: Record<string,unknown>\|null}` — the analysis half is opaque (`contracts/character/index.ts:63-67`) | Tighten to the typed pipeline payloads (per-field scores, verdict enum, soulScore, issues\[]) so the client renders typed data, not a JSON blob. JSON column: no migration mechanics beyond the contract + parser (both belt-parsed already). |
 | I2 | Score visibility in the library | Two null-guarded readouts exist; no sort | Once scores exist: optional `bestScore`/`worstScore` members of `CHARACTER_LIST_SORTS` (`contracts/character/index.ts:204`) — a coupled-sites change (cursor union + keyset query + client sort menu); defer to a follow-up row. |
-| I3 | Batch scoring (orb-native win the extension never had) | Nothing | A `refine-score-sweep` workload kind: score the whole library, fill `refinery.score`, feed the dossier + sorts. Rides the distill batch pattern verbatim (waves, per-card failure containment). WORKLOAD_KINDS is a closed registry — one enum member + one contribution + registry row. |
+| I3 | Batch scoring (orb-native win the extension never had) | Nothing | A `refine-score-sweep` workload kind: score the whole library, fill `refinery.score`, feed the dossier + sorts. Rides the distill batch pattern verbatim (waves, per-card failure containment). WORKLOAD\_KINDS is a closed registry — one enum member + one contribution + registry row. |
 | I4 | Pre-run token fit | `tokenSize` denorm exists; `summarizerContextTokens` exposed on RoleClients (`role-clients/index.ts:110`) | Surface "prompt ≈ N tokens vs context M" in the run panel — read-only arithmetic, no new counting machinery. |
 
 ### ALREADY-EXCEEDED (do NOT port — orb is better; say why)
 
-| # | Card-refinery thing | Orb's superior native | 
+| # | Card-refinery thing | Orb's superior native |
 | - | - | - |
 | E1 | Client-side PNG writer (`png-writer.ts`) | `kit/png-card-chunk` + export door: server-side, reads zTXt too, strips stale chunks, round-trip test-pinned |
 | E2 | IndexedDB sessions + hand-rolled migrations | SQLite tables, FK-cascade, baseline-squash schema law |
-| E3 | The whole JSON-schema subsystem (validate/auto-fix/NL-generate/parse) | zod payloads + `projectJsonSchema` + `runStructuredTurn` bounded retry + provider-enforced json_schema/xgrammar. The extension's validator polices ANTHROPIC limits client-side because it had no server; orb's providers own their wire. |
+| E3 | The whole JSON-schema subsystem (validate/auto-fix/NL-generate/parse) | zod payloads + `projectJsonSchema` + `runStructuredTurn` bounded retry + provider-enforced json\_schema/xgrammar. The extension's validator polices ANTHROPIC limits client-side because it had no server; orb's providers own their wire. |
 | E4 | Error-substring categorization + `reasoning_effort` live-mutation hack + prefill carve-outs | Provider backends own per-backend wire vocab + typed errors (membrane typed-error boundary); sampling rides side-gen postures + preset params; no global-state mutation |
 | E5 | Prompt customization via settings blobs + preset CRUD | PROSE-1 slots: versioned shipped baseline + per-user override, sha-pinned; owner-rung resolution proven in distill (`distill.ts:170`) |
 | E6 | Macro ZWSP-escaping | `@orb/kit/guided` neutralization is standing law; greeting studio already resolves card-scoped macros with the "You" stand-in |
@@ -293,7 +298,7 @@ All sketches obey the cake (`kit ← contracts ← db ← server ← client`, se
 one home per shape, and the D62-ruled surface anatomy. Maximal-provable per the standing rule; simpler
 ARCHITECTURE per the owner's directive — every piece rides an existing rail.
 
-### 5.1 Contracts (`packages/contracts/src/refinery/` — new namespace; ~150 LOC)
+### 5.1 Contracts (`packages/contracts/src/refinery/` — new namespace; \~150 LOC)
 
 - `REFINERY_STAGES = ["score","rewrite","analyze"]` + status/verdict enums
   (`ACCEPT/NEEDS_REFINEMENT/REGRESSION` — carry the extension's enum verbatim; it is the loop's contract).
@@ -305,7 +310,7 @@ ARCHITECTURE per the owner's directive — every piece rides an existing rail.
   - `analyzePayloadSchema`: `{preserved[], lost[], gained[], soulScore, soulAssessment, verdict, issues[], recommendations[]}` (`defaults.ts:328-370` source shape).
 - `REFINABLE_FIELDS` derived from the canonical card's text fields (description, personality, scenario,
   exampleMessages, systemPrompt, postHistoryInstructions, creatorNotes, depthPrompt.prompt,
-  greetings[i]) + a selection schema (`{fields: RefinableField[], greetingIndexes?: number[]}`).
+  greetings\[i]) + a selection schema (`{fields: RefinableField[], greetingIndexes?: number[]}`).
   NOTE the model difference from ST: orb greetings are ONE array (first/alternates/groupOnly folded), and
   lorebooks are ATTACHED refs (PD-144), not embedded — see fork F5.
 - Tighten `refinerySignalsSchema.analysis` to the typed analyze payload (nullable), keeping `score`.
@@ -323,7 +328,7 @@ ARCHITECTURE per the owner's directive — every piece rides an existing rail.
 
 ### 5.3 Server (`packages/server/src/domain/refinery/` — new domain, 8-slot template; fork F1)
 
-Verbs (each owner-gated with the leak-free NOT_FOUND belt, the generate-greeting precedent):
+Verbs (each owner-gated with the leak-free NOT\_FOUND belt, the generate-greeting precedent):
 
 - `startSession` — snapshot the card into `originalCard`, default selection = populated fields.
 - `runStage {sessionId, stage}` — build the stage prompt from `originalCard` + selection + prior runs
@@ -342,8 +347,8 @@ Verbs (each owner-gated with the leak-free NOT_FOUND belt, the generate-greeting
 - Prose slots: `refinery.score.system`, `refinery.rewrite.system`, `refinery.refine.system`,
   `refinery.analyze.system` — shipped baselines seeded from the extension's builtin prompts
   (`defaults.ts:35-232` is the corpus; the "soul check" language is good and battle-tested).
-- Side-gen postures: `refine_score` (0.2, ~768), `refine_rewrite` (0.7, ~2048 — creative), `refine_analyze`
-  (0.3, ~512) — floor ← owner preset params via `resolveSideGenSampling`, the distill rung.
+- Side-gen postures: `refine_score` (0.2, \~768), `refine_rewrite` (0.7, \~2048 — creative), `refine_analyze`
+  (0.3, \~512) — floor ← owner preset params via `resolveSideGenSampling`, the distill rung.
 - Workload (I3): `refine-score-sweep` kind — batch score-only over the library, wave-bounded, per-card
   failure containment, fills `refinery.score` (the distill batch arm copied).
 - Transport: `transport/trpc/routers/refinery.ts`, mounted like `character.ts`.
@@ -365,9 +370,9 @@ D62 §2b.1's ruled anatomy (`:446,459`):
 
 ### 5.5 Rough size roll-up
 
-contracts ~150 · db ~120 · domain (verbs+substrate+prose+postures+workload) ~600-800 · transport ~80 ·
-client ~1,500-2,500 · tests per Spine-Testing (every verb + contract + payload round-trip + CTs) ~1,000+.
-Total new: **~3.5-5k LOC** replacing an 18k-LOC extension (13.8k TS + 4.4k CSS), with the schema/PNG/token/
+contracts \~150 · db \~120 · domain (verbs+substrate+prose+postures+workload) \~600-800 · transport \~80 ·
+client \~1,500-2,500 · tests per Spine-Testing (every verb + contract + payload round-trip + CTs) \~1,000+.
+Total new: **\~3.5-5k LOC** replacing an 18k-LOC extension (13.8k TS + 4.4k CSS), with the schema/PNG/token/
 generation/persistence subsystems contributed by standing orb machinery at zero new lines.
 
 ---
@@ -389,7 +394,7 @@ Recommended order (each stage independently green):
 
 - **F1 · Domain home** — REC: new `domain/refinery` (8-slot). It owns tables + a workload contribution and
   is a rail-level surface; the alternative (a `character` subsystem, the `chat/memory` pattern) saves the
-  new-domain coupled sites (~6, per memory) but buries a section-sized engine inside character. Either way
+  new-domain coupled sites (\~6, per memory) but buries a section-sized engine inside character. Either way
   character stays the only WRITER of `characters.*` (injected ops).
 - **F2 · Which model runs the pipeline** — REC: the `summarize` role via `RoleClients` (the distill/analyze/
   greeting rung) for v1, with the honest caveat that rewrite QUALITY wants the user's smart chat model
@@ -445,7 +450,8 @@ apply-suggestions/{dialog,helpers}, stage-config/{token-display,field-selector}}
 error-boundary,update-coordinator,base,api-status,character-selector,session-dropdown,stage-tabs},
 preset-drawer/, settings-drawer/, results-panel internals, schema/{constants,types}, shared/{debug,utils},
 data/{index,storage/cache}, domain/preset-validation. Conclusions about those areas rest on their outlines
-+ the callers I did read; none is load-bearing for the matrix.
+
+- the callers I did read; none is load-bearing for the matrix.
 
 **Orbweaver, read IN FULL:** contracts/character; db/schema/character; kit doctrine + constitution
 (AGENTS.md); domain/character/{substrate/greeting-studio, verbs/generate-greeting}; domain/discovery/

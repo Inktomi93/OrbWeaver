@@ -1,3 +1,10 @@
+> **2026-08-08 — RECORD.** Renderer + hint design now lives in
+> [refinery-schema-renderer.md](../../design/refinery-schema-renderer.md) (its §3-§5 supersede
+> §4.7's renderer sketch; its §9.1 supersedes the bare {kind:"custom",schemaId} run-provenance
+> arm — runs must embed the schema; its §6.3/§16.3 adds a Versions CONTEXT tab as an owner-fork
+> DELTA to §10.3's Runs+Setup pair). The SF0-SF3 sequencing and the shell-conformance audit
+> (§10) otherwise stand.
+
 # NL→schema generation — orb-native design addendum (owner override of study row S1)
 
 Addendum to `2026-08-08-card-refinery-port-study.md`. Owner ruling: S1 (NL→JSON-schema generation) is
@@ -112,6 +119,7 @@ else the lift belt is the enforcement and the honest sentence is "validated, ret
 
 One position-aware walk engine (`packages/kit/src/json-schema/wire-subset.ts:1-40`), mode owned by each
 request-build site:
+
 - **OpenRouter hosted**: `"hosted-common"` — ALL bound keywords stripped (strictest common subset; the
   route can't know which vendor serves it); `oneOf` carried (`backends/openrouter/runners/chat/shared.ts:183-189`).
 - **vLLM guided decoding**: `"guided-decoding"` — bounds/enum/required KEPT, xgrammar compiles them into
@@ -202,7 +210,7 @@ extension arm that makes that ruling both safe and extensible:
   `{fields:[{field,text}]}` contract (study §5.1); an arbitrary rewrite shape has no apply semantics.
   (Fork F-N3 if the owner wants it later.)
 
-### 4.4 Verbs (all owner-gated, leak-free NOT_FOUND belts per the generate-greeting precedent)
+### 4.4 Verbs (all owner-gated, leak-free NOT\_FOUND belts per the generate-greeting precedent)
 
 - `generateSchema {description, stage}` → draft (NOT persisted; the client holds the draft): builds the
   system prompt from the new prose slot, runs ONE structured call, validates via §4.5, returns
@@ -229,7 +237,7 @@ The `payloadSchema` handed to `runStructuredTurn` for `generateSchema`/`refineSc
   message (`lift.ts:46` — the message already tells the author exactly what subset to stay inside).
 
 Effect: **the model's correction prompt on the bounded retry IS the lift's typed refusal** — "unsupported
-JSON Schema construct \"oneOf\" at #/properties/verdict — the liftable subset is …". The extension's
+JSON Schema construct "oneOf" at #/properties/verdict — the liftable subset is …". The extension's
 auto-fix (silent mutation) becomes an honest ask-the-model-to-fix, and the final failure is a typed
 refusal carrying the raw draft for hand-editing. No new validator is written; the trust boundary that
 already guards plugin tool registration guards this artifact.
@@ -245,7 +253,7 @@ already guards plugin tool registration guards this artifact.
   (the distill vehicle, `discovery/verbs/distill.ts:95,165`). Recommendation: structured-first with a
   composed summarize fallback, decided at the compose root by what `resolveRole` yields — never a silent
   in-verb downgrade (banned-silent-fork).
-- **Posture**: new `schema_forge` side-gen kind (temp ~0.2, ~768 out) beside `distill`
+- **Posture**: new `schema_forge` side-gen kind (temp \~0.2, \~768 out) beside `distill`
   (`contracts/preset/index.ts:111-140`); the `SideGenKind` union + posture map are one coupled edit
   (`satisfies Record<SideGenKind, …>` makes a missing arm tsc-RED).
 - **Prompt**: new PROSE-1 slot `refinery.schemaForge.system` (owner-signed baseline; seeded from the
@@ -278,8 +286,8 @@ already guards plugin tool registration guards this artifact.
    correction is a typed refusal naming construct and path. On vLLM, ride the optional depth-unrolled
    meta-schema of the liftable subset as the generation call's OWN `ResponseFormat` so xgrammar makes an
    out-of-subset draft UNREPRESENTABLE at the wire (`kit/json-schema/meta.ts`, derived from
-   `LIFTABLE_JSON_SCHEMA`, ~80 lines + golden test). The extension generated raw text and hoped.
-   Cost: the verbs (§4.4) + ~80 kit lines (optional arm); the engine is standing.
+   `LIFTABLE_JSON_SCHEMA`, \~80 lines + golden test). The extension generated raw text and hoped.
+   Cost: the verbs (§4.4) + \~80 kit lines (optional arm); the engine is standing.
 2. **Iterate-on-the-schema-in-dialogue.** `refineSchema` — "add a per-field severity enum" against the
    current draft, same belt, N times. The extension was one-shot into a textarea. Cost: one verb arm +
    one instruction box.
@@ -322,13 +330,13 @@ already guards plugin tool registration guards this artifact.
 ## 8. Sequencing vs the study's R0-R4 (amended)
 
 - **SF0** (rides R0): `refinery_schemas` table (baseline squash) + contracts (schema-row wire types, the
-  stage-config `payload` union, the well-known-core refinements) + the save-belt tightenings. ~S.
+  stage-config `payload` union, the well-known-core refinements) + the save-belt tightenings. \~S.
 - **SF1** (after R1's engine lands): `generateSchema`/`refineSchema`/`testSchema`/CRUD + the prose slot +
-  `schema_forge` posture + the structured-role compose wiring + `runStage`'s custom arm. ~M.
+  `schema_forge` posture + the structured-role compose wiring + `runStage`'s custom arm. \~M.
 - **SF2** (with/after R3): the editor modal + form + NL panel + schema-driven renderer + stage-config
-  integration. ~M-L (client ~600-1,000 LOC + CTs).
+  integration. \~M-L (client \~600-1,000 LOC + CTs).
 - **SF3** (optional, anytime after SF1): the depth-unrolled meta-schema for grammar-locked generation on
-  vLLML. ~S (~80 kit lines + golden).
+  vLLML. \~S (\~80 kit lines + golden).
 
 **Owner-veto forks:** F-N1 structured-role-first with composed summarize fallback (rec: yes) · F-N2 subset
 widenings (number enums / nullables; each owes the golden round-trip; rec: defer until a real schema hits
@@ -349,7 +357,6 @@ Carried from the study's same-day reads: `generate.ts`/`validate.ts`/`auto-fix.t
 read via headers + call-site comments), `agent-sdk/output-schema.ts` full body, the preset-drawer's second
 generate wiring beyond its call line, `structured-output-section.tsx` internals (confirmed a knob UI by
 name + nav file only).
-
 
 ---
 
@@ -393,7 +400,7 @@ Where D62 and the shell's later law diverge, the conflict is named for the owner
 - **The X-7 defect class** (`docs/reviews/side-eye/2026-08-03-scoped-recheck.md:258-264`): the same
   heading + helper rendered in the CONTEXT inspector AND the CONTENT drill header AND the CONTENT picker
   heading, plus a dead no-action readout — the anti-echo bar every CONTEXT payload below is tested against.
-- **The board's taste note** (`docs/retro-workboard.md:711-712`): "two CONTEXT arms now spend ~383px
+- **The board's taste note** (`docs/retro-workboard.md:711-712`): "two CONTEXT arms now spend \~383px
   declining honestly — fine twice, worth noticing before a third joins." Bears directly on §10.3.
 
 ### 10.2 The selection-key decision (explicit, with the mobile arms)
@@ -474,7 +481,7 @@ no addendum surface can occlude itself on coarse pointer.
    forfeits the session roster everywhere; not recommended.
 2. **D62 "CONTEXT collapsed (compare/guidance live in CONTENT)" vs the board's taste note.** D62's cell
    rules a default MODE; it does not rule `kind:"none"`. Keeping the panel EMPTY would add the third
-   ~383px honestly-declining CONTEXT arm the board flagged (`retro-workboard.md:711-712`). REC: the
+   \~383px honestly-declining CONTEXT arm the board flagged (`retro-workboard.md:711-712`). REC: the
    §10.3 ledger payload (unique cargo, default collapsed — D62's mode honored). This is the one
    D62-delta the owner signs.
 3. **D62 "past refinery sessions per character".** The drill store has ONE primary; the design's LIST is

@@ -230,7 +230,9 @@ itemises every drop. A UI that only says "3 fields applied" throws away the half
 <span class="mono">not_in_rewrite</span> · <span class="mono">not_selected</span> · <span class="mono">greeting_index_missing</span> ·
 <span class="mono">greeting_index_invalid</span> · <span class="mono">greeting_index_forbidden</span> · <span class="mono">not_applicable</span>.
 Drawn: three of them. The two <i>shape</i> reasons (<span class="mono">greeting_index_missing</span>/<span class="mono">_forbidden</span>) can only occur on a malformed
-client call, so their copy is diagnostic ("this looks like a bug — the run record has the details"), not user-facing advice.</p>
+client call, so their copy is diagnostic ("this looks like a bug — the run record has the details"), not user-facing advice.
+Axis widens with the cleared/append arms (schema-renderer §15.2: <span class="mono">would_leave_no_greeting</span>) and the divergence
+check (schema-renderer §21: <span class="mono">diverged_since_session</span>) — the closed-axis discipline unchanged.</p>
 <p class="note"><span class="tag law">LAW</span> The snapshot line is not decoration — <span class="mono">applyFields</span> snapshots before the one canon write, and the
 reversibility IS the mitigation for a steered rewrite. It says the label verbatim so a user can find the entry in the character's History tab.</p>
 <p class="note"><span class="tag law">LAW</span> Apply flips the session to <span class="mono">completed</span>, and a later run flips it back to <span class="mono">active</span> —

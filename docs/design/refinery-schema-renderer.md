@@ -868,8 +868,8 @@ edits. Code comments get repaired in the SAME lane as their code change, never s
   append one sentence — *"Axis widens with the cleared/append arms (schema-renderer §15.2:
   `would_leave_no_greeting`) — the closed-axis discipline unchanged."*
 - `accept-ergonomics.html`: the "needs widening ×2" primitive section gains count 3 (absent-side
-  arm) — pointer to schema-renderer §18 row 1. (This file lives on worktree
-  `agent-a6d841ff566b5edc8` until merged — edit after it lands on main.)
+  arm) — pointer to schema-renderer §18 row 1. (This file was on worktree
+  `agent-a6d841ff566b5edc8` — merged (`5b34b48ff`); edit lands directly.)
 - `empty-states.html` / `d62-deltas.html`: no stale claims found; no edit.
 
 ### 19.6 Code comments (repair IN the lane that changes the code, never a doc lane)

@@ -27,7 +27,7 @@ Every study claim this design builds on, re-verified on THIS lane's tree (the st
 | Defensive read parse (`.nullable().catch(null)`) | LIVE | `domain/character/persistence/queries.ts:29,371` |
 | Zero producers (every writer stamps/preserves null) | CONFIRMED | `create.ts:75` · `group-character.ts:47` · `card-merge.ts:44,48` · `serde/card/index.ts:302`; repo sweep this lane (`rg refinery` over packages+tests, all hits enumerated) |
 | Two null-guarded client readouts | LIVE | `character-overview-card.tsx:89-90`; `character-provenance-section.tsx:38-42` |
-| `DiffView` sealed PREBUILT[for:refinery/compare]; `CompareBlocks` | LIVE | `packages/ui/src/diff/diff.tsx:1-2`; compare-blocks primitive dir |
+| `DiffView` sealed PREBUILT\[for:refinery/compare]; `CompareBlocks` | LIVE | `packages/ui/src/diff/diff.tsx:1-2`; compare-blocks primitive dir |
 | Section slot registered DECLARED-PLANNED | LIVE | `features/refinery/lib/refinery-section.tsx:9-32`; `SECTION_IDS` (`state/shell-store.ts:44`) |
 | No refinery sessions store / no refinery schema files / no domain dir | CONFIRMED ABSENT | schema dir listing + the sweep (two methods) |
 
@@ -123,7 +123,7 @@ genuinely new — exactly the study's R0.
 
 ### 4.1 Contracts — `packages/contracts/src/refinery/index.ts`
 
-Imports: `zod`, `@orb/kit/ids` (typeIdSchema/ID_PREFIX for view ids). ZERO `#character` imports (§3.2).
+Imports: `zod`, `@orb/kit/ids` (typeIdSchema/ID\_PREFIX for view ids). ZERO `#character` imports (§3.2).
 
 - `REFINERY_STAGES = ["score","rewrite","analyze"]` → `RefineryStage`, `refineryStageSchema`.
 - `REFINERY_VERDICTS = ["ACCEPT","NEEDS_REFINEMENT","REGRESSION"]` — verbatim (the loop's contract; the
@@ -194,7 +194,7 @@ refinery_runs   (append-only — the extension's history[]; latest-per-(session,
 ```
 
 Enum columns reference the imported contracts tuples (`db-enum-from-tuple`); every FK states `onDelete`
-and leads an index (`fk-ondelete-stated`/`fk-columns-indexed`); explicit snake_case column names
+and leads an index (`fk-ondelete-stated`/`fk-columns-indexed`); explicit snake\_case column names
 (drizzle.config.ts convention); both tables declare PKs. Barrel row added alphabetically. D24 clean (no
 polymorphic refs); D28 clean (`original_card` is an opaque blob copy, FKs nothing, gates nothing).
 
@@ -224,12 +224,12 @@ polymorphic refs); D28 clean (`original_card` is an opaque blob copy, FKs nothin
 5. `packages/db/src/schema/index.ts` — barrel row.
 6. `packages/db/src/migrations/*` — regenerated baseline + meta (biome-formatted).
 7. `scripts/check/gates/db-structure.ts` — the baseline-rider entry (gate edit ⇒ run the gate suites).
-7a. `scripts/check/gates/own-tables-only.ts` — a `SCHEMA_OWNERS` row (`refinery → ["refinery"]`, the
-    pre-producer twin of the rider; R1 deletes both). Surfaced by the structure run, not the pre-build
-    sweep — the gate's totality arm demands a deliberate owner for every table-bearing schema file.
-7b. `scripts/check/gates/table-scoping-class.ts` — two `parent`-class rows (the D23 DERIVE declaration
-    made legible to readers + gates) + the census comment corrected (it had ALREADY drifted 80→82 before
-    this lane; now 84 — 23 ownerId · 19 membership · 15 junction · 22 parent · 5 global).
+   7a. `scripts/check/gates/own-tables-only.ts` — a `SCHEMA_OWNERS` row (`refinery → ["refinery"]`, the
+   pre-producer twin of the rider; R1 deletes both). Surfaced by the structure run, not the pre-build
+   sweep — the gate's totality arm demands a deliberate owner for every table-bearing schema file.
+   7b. `scripts/check/gates/table-scoping-class.ts` — two `parent`-class rows (the D23 DERIVE declaration
+   made legible to readers + gates) + the census comment corrected (it had ALREADY drifted 80→82 before
+   this lane; now 84 — 23 ownerId · 19 membership · 15 junction · 22 parent · 5 global).
 8. `tests/contracts/character/index.contract.test.ts:60` — stale fixture (`analysis:{tone:…}` fails the
    tightened parse; parse-is-identity test).
 9. `tests/db/schema/character.int.test.ts:22,72` — stale typed fixture (type error post-tightening).
@@ -238,7 +238,7 @@ polymorphic refs); D28 clean (`original_card` is an opaque blob copy, FKs nothin
 12. NOT coupled (verified): client components (structural assignability holds, §4.2); serde
     (`refinery: null` literal, no schema import); debug inspector (`refinery: unknown`); compose/Services/
     tRPC/workloads (all R1 — no domain exists yet); relations.ts (consumer-driven, none);
-    `tests/support/factories/character.ts` (`refinery: null` stays valid); the ~10 chat-test
+    `tests/support/factories/character.ts` (`refinery: null` stays valid); the \~10 chat-test
     `refinery: null` fixtures (null stays valid).
 
 ## 6. Test plan
@@ -255,7 +255,7 @@ polymorphic refs); D28 clean (`original_card` is an opaque blob copy, FKs nothin
   character → session → run, then `DELETE character` cascades sessions AND runs (two levels), and
   `DELETE user` cascades all three; enum column rejects a foreign stage (CHECK constraint);
   latest-per-(session,stage) ordering sanity on the composite index path.
-- **Updated fixtures**: character contract APP_CARD gets a FULL typed analyze payload (upgrades the
+- **Updated fixtures**: character contract APP\_CARD gets a FULL typed analyze payload (upgrades the
   round-trip proof from opaque-blob to typed); character db int test likewise.
 - **Gate conformance** (db-structure edited): `tests/tooling/check-gates.int.test.ts` +
   `gate-conformance.int.test.ts` + `schema-baseline-parity.int.test.ts`.
@@ -278,14 +278,14 @@ R1 = `domain/refinery` per the study §5.3, riding this foundation:
    `refine-prompt.ts` (pure; the §1.2 prompt discipline: analyze ALWAYS compares vs `original_card`);
    parse seams dispatch through `REFINERY_STAGE_PAYLOADS`.
 3. Ownership: the D23-derived join (`persistence/` helper à la `ensureCharacterOwned`; leak-free
-   NOT_FOUND). NO `fetchOwned` on refinery tables (no ownerId — §3.1).
+   NOT\_FOUND). NO `fetchOwned` on refinery tables (no ownerId — §3.1).
 4. Prose slots (`refinery.score.system` + rewrite/refine/analyze — owner signs baselines; prose is
    owner-sacred) + `refine_score`/`refine_rewrite`/`refine_analyze` SideGenKind postures + the
    summarize-role wiring (F2) + `characters.refinery` stamping via an injected character op (F6;
    character stays the only writer of `characters.*`).
 5. New-domain coupled set (the memory-pinned seven): Services type + compose wiring +
-   DOMAIN_SPECIFIC_ROOT_FILES + the rider removal + tRPC router registration + cross-tenant sweep
-   classification per procedure + the `services.test.ts` SERVICE_KEYS array.
+   DOMAIN\_SPECIFIC\_ROOT\_FILES + the rider removal + tRPC router registration + cross-tenant sweep
+   classification per procedure + the `services.test.ts` SERVICE\_KEYS array.
 6. **The security pass is DONE (2026-08-08) — GO for R1:**
    [`../reviews/security/2026-08-08-refinery-r0-security-pass.md`](../reviews/security/2026-08-08-refinery-r0-security-pass.md).
    Its **§4 belt list is R1's checklist** and its §1 carries the prescriptions R1 builds (field-level heal for
@@ -316,13 +316,13 @@ portability rows (§3.E: nothing owed — FK-inherited tables ride their charact
 
 | Verb | Contract | Belts |
 | - | - | - |
-| `startSession {principal, characterId, name?}` | snapshot the card into `original_card` via the injected `loadOwnedCard` (leak-free NOT_FOUND when undefined); selection defaults to the card's POPULATED refinable fields; `DEFAULT_REFINERY_STAGE_CONFIG`; name via `refinerySessionNameSchema` | §3.E ownership-first |
+| `startSession {principal, characterId, name?}` | snapshot the card into `original_card` via the injected `loadOwnedCard` (leak-free NOT\_FOUND when undefined); selection defaults to the card's POPULATED refinable fields; `DEFAULT_REFINERY_STAGE_CONFIG`; name via `refinerySessionNameSchema` | §3.E ownership-first |
 | `getSession` / `listSessions` / `listRuns` | reads scope through the character join (`persistence/queries.ts` carries the owner predicate in the WHERE — the `ensureCharacterOwned` shape); `listSessions` computes `latestVerdict` (newest analyze run per session); `listRuns` is the D62 CONTEXT ledger read | §3.E; run reads ONLY via sessionId |
 | `updateSession {sessionId, patch}` | patch = name?/guidance?/selection?/stageConfig?/status? — parsed through the R0 schemas (`refineryGuidanceSchema`, `refinerySelectionSchema`, `refineryStageConfigSchema`); **collapses the study's `renameSession`** (one patch verb, the `updateCharacterSchema` precedent — rename alone cannot serve the D62 Setup tab, which edits modes/selection/guidance) | §1 gap 4 |
 | `deleteSession {sessionId}` | owner-belted delete; runs cascade | §3.E |
 | `runStage {sessionId, stage}` | the engine (§9.4): prompt → summarize+ResponseFormat → null-drop parse → run row (+ `strippedKeys`) → signal stamp (score/analyze) → `updatedAt` | §4 items 1-7, 14 |
 | `iterate {sessionId, guidance?}` | guidance parsed+persisted; refinement REWRITE (the `refine.system` slot + latest analyze feedback in-context) then ANALYZE; `iterationCount++`. Requires a latest analyze run (typed `RefineryStageNotReadyError` otherwise — the loop refines, it does not start) | anti-drift §4.3 |
-| `applyFields {sessionId, accepts: [{field, greetingIndex?}]}` | §9.5 — the sharp end | §4 items 8-13 |
+| `applyFields {sessionId, accepts: [{field, greetingIndex?}]}` | §9.5 — the sharp end. Accepts may carry `cleared` entries; optional `rewriteRunId` (schema-renderer §16.1); sibling verb `applyAsCopy` (schema-renderer §17). | §4 items 8-13 |
 
 Stage preconditions: `analyze` requires a latest rewrite run; `rewrite` embeds the latest score run when
 one exists (context, not a requirement); `score` requires nothing. `applyFields` stamps
@@ -379,7 +379,7 @@ resolveUserPresetParams · resolveUserProse` (the distill rung, verbatim) plus f
   payload, `strippedKeys` (NEW COLUMN — the coordinator's belt 6 homes the itemization in the run
   RECORD; baseline re-squashed), model (`summarizerModel`, castId at the boundary), prompt/output tokens
   null v1 (the summarize result carries no usage — "absent when the backend reports none" is the R0
-  column's own contract).
+  column's own contract). Gains `durationMs` + the usage-threading decision (schema-renderer §9.2).
 
 ### 9.5 `applyFields` (the sharp end, §4.8-13 in order)
 
@@ -391,7 +391,8 @@ itemized `{field, greetingIndex?, reason}` in the RESULT (per-entry salvage, nev
 refusal) → build the patch (greetings = the live array with accepted indexes replaced) →
 **`updateCharacterSchema.parse` on the constructed patch** (§3.A; the `domain/import/substrate/card.ts:192`
 precedent, cited in the verb header) → `snapshotCharacter("auto: before refinery apply")` →
-`updateCharacter` → stamp `status:"completed"`.
+`updateCharacter` → stamp `status:"completed"`. Acquires the divergence check + `source_run_id`
+(schema-renderer §21, Edge 1/Edge 2).
 
 ### 9.6 Character-side belts (same lane, distinct files)
 
@@ -414,15 +415,16 @@ precedent, cited in the verb header) → `snapshotCharacter("auto: before refine
 - **Slots** (`contracts/refinery/prose.ts` table + `PROSE_SLOT_IDS` rows + the `contracts/prose`
   composition spread + `prose-baseline.json` entries via `scripts/check/gen-prose-baseline.ts`): four
   stage-SYSTEM slots (`refinery.score.system`, `.rewrite.system`, `.refine.system`, `.analyze.system`)
-  + eight (stage × mode) INSTRUCTION slots (`refinery.score.mode.full`/`.quick`,
-  `refinery.rewrite.mode.conservative`/`.balanced`/`.expansive`,
-  `refinery.analyze.mode.full`/`.iteration`/`.quick`). That is F4's own arithmetic — the extension's 8
-  builtins ARE the mode bodies, and PROSE-1's one-override-per-slot is the sanctioned tuning surface
-  (the study's 4-slot list pre-dated F4's signing). All `home:"user"` (§3.G — beside the discovery
-  cohort; the USER_PROSE_SLOT_IDS derivation makes them reach the Prose editor the same commit, zero
-  client work), `macros:"none"`, baselines seeded from the extension corpus (`defaults.ts:35-233`) —
-  **owner-sacred: the texts ship as baselines for the owner to sign/veto**, flagged in the report.
-  The engine maps (stage, mode, isRefinement) → slot id through an exhaustive mapped Record.
+  - eight (stage × mode) INSTRUCTION slots (`refinery.score.mode.full`/`.quick`,
+    `refinery.rewrite.mode.conservative`/`.balanced`/`.expansive`,
+    `refinery.analyze.mode.full`/`.iteration`/`.quick`). That is F4's own arithmetic — the extension's 8
+    builtins ARE the mode bodies, and PROSE-1's one-override-per-slot is the sanctioned tuning surface
+    (the study's 4-slot list pre-dated F4's signing). All `home:"user"` (§3.G — beside the discovery
+    cohort; the USER\_PROSE\_SLOT\_IDS derivation makes them reach the Prose editor the same commit, zero
+    client work), `macros:"none"`, baselines seeded from the extension corpus (`defaults.ts:35-233`) —
+    **owner-sacred: the texts ship as baselines for the owner to sign/veto**, flagged in the report.
+    The engine maps (stage, mode, isRefinement) → slot id through an exhaustive mapped Record. Notes the
+    pending `{{shape}}` splice change (schema-renderer §9.3).
 - **Postures** (`contracts/preset`): `refine_score {0.2, 768}` · `refine_rewrite {0.7, 2048}` ·
   `refine_analyze {0.3, 512}` (study §5.3 values) — SideGenKind members + posture rows (`satisfies`
   makes a missing arm tsc-RED); resolved per call via `resolveSideGenSampling(floor, ownerPresetParams)`
@@ -432,10 +434,10 @@ precedent, cited in the verb header) → `snapshotCharacter("auto: before refine
 ### 9.8 Coupled sites (the seven + this lane's own)
 
 Services type (`transport/trpc/context.ts`) · `entry/compose/refinery.ts` + the `services.ts` call ·
-`services.test.ts` SERVICE_KEYS ("refinery", sorted) · tRPC `routers/refinery.ts` + root-router row ·
+`services.test.ts` SERVICE\_KEYS ("refinery", sorted) · tRPC `routers/refinery.ts` + root-router row ·
 cross-tenant sweep: a seeded marker session + a probe per procedure (the completeness guard forces it) ·
-**delete BOTH pre-producer gate rows** (db-structure BASELINE_RIDER — self-flagging — and own-tables-only
-SCHEMA_OWNERS.refinery — silent) · prose composition spread + baseline json + the prose contract test's
+**delete BOTH pre-producer gate rows** (db-structure BASELINE\_RIDER — self-flagging — and own-tables-only
+SCHEMA\_OWNERS.refinery — silent) · prose composition spread + baseline json + the prose contract test's
 slot census (if it counts) · `SIDE_GEN_KINDS` consumers sweep (repo-grep, shared-value law) ·
 `refinery_runs.strippedKeys` = contracts run view + db column + baseline re-squash + the R0 db/contract
 tests updated · workload-contributions: ABSENT BY DESIGN in R1 (no refinery workload kind until R4; five
@@ -444,7 +446,7 @@ existing domains ship without the file — persona/tag/settings/sessions/preset 
 ### 9.9 Test plan (mirror paths; presence-gated surfaces each get their file)
 
 - Per-verb `.int.test.ts` (freshDb + a scripted `summarize` stub injected through the ctx — the
-  mock-at-the-edges doctrine): happy path + the belt each verb owes (foreign session → NOT_FOUND
+  mock-at-the-edges doctrine): happy path + the belt each verb owes (foreign session → NOT\_FOUND
   identical to absent; stage-not-ready; per-entry drops itemized; the apply re-parse refusing an
   over-cap text; snapshot-before-update ordering; stamp halves independent).
 - `contract/` schemas → `.contract.test.ts` (params/errors round-trip).
