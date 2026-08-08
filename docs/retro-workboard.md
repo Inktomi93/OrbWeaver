@@ -167,10 +167,14 @@ Ranked by consequence within each category. Every item carries its receipt state
 
 ### B · DISPATCHABLE NOW (no owner ruling needed)
 
-- **B1 · Populate-round prose migration → IN FLIGHT (lane POPULATE-PROSE).** Scout re-verified all
-  7 rows STILL-OPEN with line receipts (`rpg.ts:1396-1409` ×5, `extraction-prompt.ts:245-275` ×2;
-  zero `populate` slots in `rpg/prose.ts`, two-method). Lane bar: defaults byte-VERBATIM +
-  TEMPLATE_DEFS rows + byte-identity proof + coupled-literal sweep. [scout-verified 08-08]
+- **B1 · Populate-round prose migration → MERGED `cc4404bf2`; GRADUATION VERIFIER RUNNING.** All 7
+  strings are `rpg.populate.*` slots (2 tokened blocks body-as-token per the {{actorTrackers}}
+  precedent) + TEMPLATE_DEFS rows in `cluster:"round"` ("Born-state round —" glosses; a dedicated
+  band = a later 1-member sibling-file change if wanted). Byte-identity: pre-migration fixtures
+  green on HEAD then green post + planted 1-char control red. Ratchets shrink-only
+  (extraction-prompt row DELETED, rpg.ts 8→6; prose-baseline 93→100). Its literal sweep caught +
+  fixed 1 stale coupled site (hand-spelled slot-id list). 376 tests + 21 CT + full static floors.
+  Verifier is independently re-deriving the old bytes from git. [merged 08-08]
 - ~~B2 respell~~ · ~~B3 cross-link fixture~~ · ~~B4 baseline+fork.ts~~ — **ALL STRUCK, scout-
   verified already-done** (receipts in F).
 
