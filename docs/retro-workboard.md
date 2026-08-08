@@ -907,7 +907,9 @@ security lens.
 - **⚑ OWNER RULINGS (2026-08-08, Nate live):**
   - **PUSHES HELD tonight** — even on a green battery. The train-drain `verify --push` battery still
     RUNS for verification; origin stays un-pushed until a fresh word on a later day.
-  - **Row 27 (`RPG_STATE_TRACKING_GUIDE`, dead): DEFER** — leave dead-but-present; the extraction
+  - ~~**Row 27: DEFER**~~ **SUPERSEDED — owner ruled WIRE 2026-08-08, and it LANDED** (`bbb6364a2`:
+    the guide is the `rpg.extract.stateTrackingGuide` slot on both write surfaces, ~160 tok/round
+    measured; A/B quality measurement remains open). Original: leave dead-but-present; the extraction
     follow-on lane migrates around it and flags it again.
   - **Probe-lint: RESOLVED — leave `scripts/probes/**` as lint-free scratch** (bugs there are caught by
     running probes, not gates). Removed from the parked pile.
