@@ -22,13 +22,71 @@ import { castId } from "@orb/kit/ids";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
+import type { RpgActorVolatile, RpgInventoryItem } from "@orb/contracts/rpg";
 import { SectionContextHeader, SectionContextHost } from "../../../../packages/client/src/features/app-shell/components/section-context-host.tsx";
+import { ConditionChips } from "../../../../packages/client/src/features/rpg/components/rpg-actor-trackers.tsx";
+import { PackBody } from "../../../../packages/client/src/features/rpg/components/rpg-pack-rows.tsx";
 import { RpgFreshnessIndicator } from "../../../../packages/client/src/features/rpg/components/rpg-freshness-indicator.tsx";
 import { RpgCardLightbox } from "../../../../packages/client/src/features/rpg/components/rpg-scene-cards.tsx";
 import { useUpdateConfig } from "../../../../packages/client/src/features/rpg/hooks/use-rpg-mutations.ts";
 import type { ArchivedCard } from "../../../../packages/client/src/features/rpg/lib/archived-cards.ts";
 import { CtChatContributorSectionRegistry, CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 import { CHAT_ID, makeMessageView } from "../chat/fixtures.ts";
+
+/** Five live conditions — the measured shape, and enough to WRAP at 430, which is where the vertical floor
+ *  was missed. NOT exported: playwright-ct rewrites every named import from a story module into a generated
+ *  component const, so a story module may only export components. */
+const CONDITION_FIXTURE: RpgActorVolatile["conditions"] = [
+  { name: "Poisoned", stat: "hp", modifier: -2, turnsLeft: 3 },
+  { name: "Bleeding", stat: "hp", modifier: -1, turnsLeft: 2 },
+  { name: "Blessed", stat: "defense", modifier: 2, turnsLeft: null },
+  { name: "Hastened", stat: "speed", modifier: 3, turnsLeft: 4 },
+  { name: "Weakened", stat: "attack", modifier: -3, turnsLeft: null },
+];
+
+const PACK_FIXTURE: readonly RpgInventoryItem[] = [
+  { id: "itm-1", name: "Iron Sword", description: "", quantity: 1, location: "belt", type: "" },
+  { id: "itm-2", name: "Healing Draught", description: "", quantity: 3, location: "pack", type: "" },
+];
+
+/** The two TOUCH-FLOOR geometry sites, mounted bare at a FIXED width (owner ruling 2026-08-07 — the
+ *  `no-floorless-control-in-wrap` deferrals). Both take plain props and need no data providers, which is why
+ *  they mount without `CtDataProviders`: fewer moving parts between the fixture and the pixels the CT
+ *  hit-samples. 430 is the reviewer's measuring width and the widest common phone.
+ *
+ *  Five live conditions is the measured shape (side-eye at 430 coarse): enough to WRAP, which is where the
+ *  vertical floor was missed — a single row's ✕ cleared 44 by accident of being last. */
+export function ConditionChipsStory({ width = 430 }: { readonly width?: number } = {}): ReactElement {
+  return (
+    <div style={{ width }}>
+      <ConditionChips
+        conditions={CONDITION_FIXTURE}
+        onRemove={(): void => undefined}
+      />
+    </div>
+  );
+}
+
+/** The pack LIST lens at its host-editable arm, where each row's glyph IS the icon-picker's popover trigger.
+ *  (`view="grid"` reaches the same picker one popover deeper, through the tile editor — the LIST lens is the
+ *  shorter path to the identical `ItemIconPicker`, which is not exported.) The CT opens it the way a host
+ *  does, by tapping a row's glyph. */
+export function PackIconPickerStory({ width = 430 }: { readonly width?: number } = {}): ReactElement {
+  return (
+    <div style={{ width }}>
+      <PackBody
+        view="list"
+        items={PACK_FIXTURE}
+        edit={{
+          onPickIcon: (): void => undefined,
+          onPatchItem: (): void => undefined,
+          onRemoveItem: (): void => undefined,
+          onAddItem: (): void => undefined,
+        }}
+      />
+    </div>
+  );
+}
 
 /** Mounts the chats section's CONTEXT through the real host, with BOTH rpg contributions merged in — the tab
  *  contributors AND the whole-pane HUD region claim — built here with the CT's own trpc/queryClient (the

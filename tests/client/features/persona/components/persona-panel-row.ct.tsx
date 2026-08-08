@@ -250,6 +250,46 @@ test.describe("coarse pointer", () => {
       await expect(markers).toBeVisible();
     });
 
+    // ── THE MARKERS SURVIVE THE COLLAPSE (side-eye 2026-08-07 §① P1) ──────────────────────────────
+    // `ROW_REVEAL_SWAP` computes `display:none` at coarse on the premise that the control carrying the same
+    // datum is permanently visible there. The collapse above DELETED that premise for this row: Favorite and
+    // Set-as-default moved into the CLOSED kebab. Measured result — "which persona is my default" had zero
+    // homes on a phone: the crown was `display:none` and its verb was behind a tap. Same bug the same commit
+    // fixed on the chats row (`ROW_REVEAL_SWAP_COARSE_KEEP`), not applied here.
+    //
+    // VISIBLE, not merely attached: the defect is `display:none`, which `toBeAttached` cannot see.
+    test(`@${width}: the DEFAULT crown and the FAVORITED heart survive the coarse collapse`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<PersonaPanelRowDenseStory width={width} />);
+      await expect(component.getByRole("img", { name: "Your default" })).toBeVisible();
+      await expect(component.getByRole("img", { name: "Favorited" })).toBeVisible();
+    });
+
+    // THE A11Y HALF OF THE SAME PREMISE DEATH (found while fixing the visual half; unreported). The heart
+    // marker is ornament (`aria-hidden`) because the reveal cluster's heart BUTTON is named for the state and
+    // is always in the a11y tree — "Unfavorite" ⇒ favorited. At coarse that button is `display:none` and its
+    // kebab twin lives inside a CLOSED menu, so an aria-hidden marker plus a gone button means the row states
+    // "favorited" nowhere at all. Exactly one telling per pointer class, so the row can be READ on a phone
+    // without opening anything.
+    test(`@${width}: 'favorited' is stated exactly ONCE at coarse — by the marker, since its verb is gone`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<PersonaPanelRowDenseStory width={width} />);
+      await expect(component.getByRole("img", { name: "Favorited" })).toHaveCount(1);
+      await expect(component.getByRole("button", { name: "Unfavorite" })).toHaveCount(0);
+    });
+
+    // The markers must be READABLE, not merely painted: they moved onto the title line, so the thing to prove
+    // is that the name lane did not pay for them with an ellipsis.
+    test(`@${width}: the title-line markers do not clip the persona's name`, async ({ mount, page }) => {
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+      const component = await mount(<PersonaPanelRowDenseStory width={width} />);
+      const nameText = component.getByText("Traveler", { exact: true });
+      await expect(nameText).toBeVisible();
+      // `truncate` clips by overflow, so the tell is scrollWidth vs clientWidth — polled, because the glyph
+      // row beside it settles its own width a frame after the text paints.
+      await expect.poll(() => nameText.evaluate((el: HTMLElement) => el.scrollWidth > el.clientWidth + 1)).toBe(false);
+    });
+
     test(`@${width}: the collapsed verbs are REACHABLE — the kebab is the one door, and it is not doubled`, async ({ mount, page }) => {
       await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
       const component = await mount(<PersonaPanelRowDenseStory width={width} />);
@@ -278,7 +318,11 @@ test("a fine pointer keeps the inline verbs and drops their menu twins — exact
   // The fine-pointer cluster is deliberately INERT at rest (`pointer-fine:pointer-events-none` — a click
   // in that strip means "switch to this persona", never "unfavorite"), so the kebab is only hit-testable
   // once the row is hovered. That IS the shipped interaction; hovering is the real user path to it.
-  await component.locator('[data-slot="persona-row-name"]').hover();
+  // Hover the NAME CONTROL, not the name lane's box. The lane is `pointer-events-none` and its glyph
+  // markers now share the first line, so the lane's centre point resolves to the stretched select-Button
+  // underneath and Playwright's actionability check refuses. `:hover` on the row is true either way (the
+  // stretched button is inside `group/row`), so this is the same interaction, aimed at a live target.
+  await component.getByRole("button", { name: "Rename persona" }).hover();
   await component.getByRole("button", { name: "Actions for Traveler" }).click();
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();

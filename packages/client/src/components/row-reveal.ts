@@ -62,11 +62,20 @@ export const ROW_REVEAL_SWAP_COARSE_KEEP = "group-hover/row:invisible group-focu
 
 /** The INLINE arm of a collapsing pair: a secondary row control that stands down at `pointer: coarse`,
  *  where its twin `MenuItem` (wearing {@link ROW_ACTION_OVERFLOW}) is the one door. Goes on the control —
- *  or on a `<Row>` wrapping the several controls that collapse together. */
+ *  or on a `<Row>` wrapping the several controls that collapse together.
+ *
+ *  ALSO THE FINE ARM OF A MARKER PAIR. A rest-visible marker whose fact is already named by an always-
+ *  present control drops to ornament (`aria-hidden`) so the row never states one fact twice — but "always
+ *  present" is a FINE-pointer claim once the row collapses: the control is `display:none` at coarse and its
+ *  menu twin sits inside a CLOSED menu, so the ornament marker would be the row's only telling and it is
+ *  unnamed. `aria-hidden` is a JS prop and cannot read a media query, so the two a11y arms are separate
+ *  elements gated by display, exactly like the control pair — one in the a11y tree per pointer class.
+ *  Live instance: the persona row's favorited heart. */
 export const ROW_ACTION_INLINE = "pointer-coarse:hidden";
 
 /** The OVERFLOW arm: the menu item that exists ONLY at `pointer: coarse`, standing in for the inline
- *  control that stood down. Omit it where the menu ALREADY carries the verb for both pointers (the chats
- *  row's kebab keeps its Star item at every width by mirror-parity ruling — adding a coarse-only twin
- *  there would put the item in the menu twice). */
+ *  control that stood down — or (see {@link ROW_ACTION_INLINE}) the NAMED half of a marker pair, for the
+ *  pointer class where no control is left to carry the name. Omit it where the menu ALREADY carries the
+ *  verb for both pointers (the chats row's kebab keeps its Star item at every width by mirror-parity
+ *  ruling — adding a coarse-only twin there would put the item in the menu twice). */
 export const ROW_ACTION_OVERFLOW = "pointer-fine:hidden";

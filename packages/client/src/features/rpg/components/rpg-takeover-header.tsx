@@ -199,9 +199,23 @@ export function RpgTakeoverHeader({
   // active tabpanel EIGHTEEN pixels against a 558px body — Status, Inventory, Scene, Quests and Journal were
   // all unreadable and the weather picker painted its chips entirely outside the visible strip. The band is
   // the GLANCE and the tab bodies are the READING (this file's own §2 framing): on a phone there is no room
-  // for both, and the READING is what the pane is for. The orbs' numbers are not lost — every one of them is
-  // a tracker row in Status, which the reclaimed height is what makes reachable. `pointer-coarse`, not a
-  // width query: the constraint is the phone's vertical budget, which a container query cannot see.
+  // for both, and the READING is what the pane is for. `pointer-coarse`, not a width query: the constraint
+  // is the phone's vertical budget, which a container query cannot see.
+  //
+  // WHERE THE DROPPED FIGURES ACTUALLY GO (owner ruling 2026-08-07 — KEEP the drop, CORRECT this text). The
+  // original claim here was "every one of them is a tracker row in Status", and side-eye measured that to be
+  // broader than the truth. Per figure, on the seeded d20 shape:
+  //   · HP · Mana · Focus — YES, tracker rows on the Status roster card. One tap (Status is the rail's first
+  //     cell and the default selection), and the reclaimed height is what makes them readable there.
+  //   · The WALLET (gold) — NOT a Status row, and never was. It renders in the INVENTORY tab header (one
+  //     tap) and again in the character takeover (two). The "every one of them" claim never covered it.
+  // AND THE CLAIM IS SHAPE-SPECIFIC, not general: the orb set is derived server-side
+  // (`rpg/chat-ops/tracker-view.ts`) from the pinned METER trackers of the first actor with state, then the
+  // pinned GAME trackers — and a pinned game-level tracker is not an actor tracker row at all, while an orb
+  // from a `kind:"cast"` actor homes on SCENE (rpg-status-tab.tsx filters `kind !== "cast"` out of the
+  // roster by design). So it is true for the seeded d20 profile and not guaranteed in general.
+  // THE ACCEPTED COST: at coarse, on Scene/Quests/Journal/Map there are no vitals and no wallet on screen.
+  // The owner ruled that acceptable rather than spend a text line of the phone's budget re-stating them.
   const satellites =
     trackerOrbs.length === 0 && wallet === null ? null : (
       <Row gap="block" align="start" className="flex-wrap pointer-coarse:hidden" data-slot="rpg-band-satellites">

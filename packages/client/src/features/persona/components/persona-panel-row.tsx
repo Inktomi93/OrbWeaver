@@ -10,8 +10,7 @@ import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel } from "@orb/ui/collapsible";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import type { LucideIcon } from "@orb/ui/icons";
-import { ChevronDown, ChevronRight, Crown, Download, Heart, Icon, Star } from "@orb/ui/icons";
-import { Input } from "@orb/ui/input";
+import { ChevronDown, ChevronRight, Download, Heart, Icon, Star } from "@orb/ui/icons";
 import { Layer, Row, Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
@@ -25,6 +24,7 @@ import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset } from "#data";
 import { cn, downloadTextFile, notify } from "#lib";
 import { useUpdatePersona } from "../hooks/use-persona-mutations.ts";
 import { PersonaEditor } from "./persona-editor.tsx";
+import { PersonaRowNameColumn } from "./persona-row-name-column.tsx";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 
@@ -58,19 +58,7 @@ export function PersonaPanelRow({
   // The EDITOR's own Delete button routes through this confirm; the kebab's destructive item owns its own
   // (RowActionsMenu). ONE copy string, so the two confirms can't drift.
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [editingName, setEditingName] = useState(false);
-  const [draftName, setDraftName] = useState(persona.name);
   const avatarSrc = persona.avatarHash === null ? {} : { src: blobUrl(persona.avatarHash) };
-
-  const commitName = (): void => {
-    setEditingName(false);
-    const trimmed = draftName.trim();
-    if (trimmed === "" || trimmed === persona.name) {
-      setDraftName(persona.name);
-      return;
-    }
-    update.mutate({ personaId: persona.id, input: { name: trimmed } });
-  };
 
   const onAvatarFile = async (file: File): Promise<void> => {
     try {
@@ -145,48 +133,7 @@ export function PersonaPanelRow({
             name ran under the orange "PLAYING AS"). A floor on one side of a two-item row is a squeeze on
             the other. What actually bounds this row is the MARKERS reserving their content (below) while the
             name shrinks and truncates — one shrinker, one reserver. */}
-        <Stack className="pointer-events-none relative min-w-0 flex-1" data-slot="persona-row-name">
-          {editingName ? (
-            <Input
-              aria-label="Persona name"
-              // eslint-disable-next-line jsx-a11y/no-autofocus
-              autoFocus={true}
-              className="pointer-events-auto"
-              onBlur={commitName}
-              onKeyDown={(event): void => {
-                if (event.key === "Enter") {
-                  event.preventDefault();
-                  commitName();
-                } else if (event.key === "Escape") {
-                  setDraftName(persona.name);
-                  setEditingName(false);
-                }
-              }}
-              onValueChange={setDraftName}
-              value={draftName}
-            />
-          ) : (
-            <Button
-              aria-label="Rename persona"
-              className="pointer-events-auto min-w-0 justify-start truncate"
-              intent="ghost"
-              onClick={(): void => {
-                setDraftName(persona.name);
-                setEditingName(true);
-              }}
-              size="sm"
-            >
-              <Text as="span" className="truncate" weight="medium">
-                {persona.name}
-              </Text>
-            </Button>
-          )}
-          {persona.title === null ? null : (
-            <Text className="truncate" size="micro" tone="muted">
-              {persona.title}
-            </Text>
-          )}
-        </Stack>
+        <PersonaRowNameColumn isDefault={isDefault} onRename={(name): void => update.mutate({ personaId: persona.id, input: { name } })} persona={persona} />
 
         {/* MARKERS ⇄ ACTIONS is a PAINT swap, never a display swap: both clusters are permanently in flow, so
             the row's geometry is byte-identical at rest and on hover. A `hidden`/`flex` swap here reflowed the
@@ -217,14 +164,9 @@ export function PersonaPanelRow({
                 Playing as
               </Text>
             ) : null}
-            {isDefault ? <StatusGlyph className="text-warning" icon={Crown} label="Your default" /> : null}
-            {/* DECORATIVE, unlike the crown (side-eye 2026-08-06 P1). The reveal cluster's heart button is in
-                the a11y tree at ALL times and its NAME is the state ("Unfavorite" ⇒ favorited), so a named
-                `role="img"` here made the row announce one fact twice on every rest-state read. The crown has
-                no such twin — its verb ("Set as default") exists only while the state is FALSE — so the crown
-                keeps its accessible name and this one drops to ornament. The glyph and its tooltip are
-                unchanged: at rest the marker is still the only thing a reader SEES. */}
-            {persona.starred ? <StatusGlyph className="text-destructive" decorative={true} icon={Heart} label="Favorited" /> : null}
+            {/* THE CROWN AND THE HEART MOVED TO THE TITLE LINE (side-eye 2026-08-07 §① P1 — see the block
+                comment there). What is left in this cell is the kicker alone, which is why the cell keeps
+                plain `ROW_REVEAL_SWAP`: the words are the one marker whose coarse drop is DELIBERATE. */}
           </Row>
 
           {/* INERT AT REST, and that is a CONSEQUENCE of sharing the cell (`ROW_REVEAL`'s own carve-out: an
@@ -394,35 +336,6 @@ interface IconActionProps {
   readonly onClick: () => void;
   readonly disabled?: boolean;
   readonly className?: string;
-}
-
-/** A non-interactive, glanceable status glyph shown at rest. `decorative` drops it out of the a11y tree —
- *  the arm for a marker whose fact is ALREADY named by an always-present control in the reveal cluster (the
- *  favorite heart); a marker with no such twin (the default crown) keeps its `role="img"` name. `label` is
- *  required either way: it is the tooltip's words, which a sighted reader still needs. */
-function StatusGlyph({
-  icon,
-  label,
-  className,
-  decorative = false,
-}: {
-  readonly icon: LucideIcon;
-  readonly label: string;
-  readonly className: string;
-  readonly decorative?: boolean;
-}): ReactElement {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Text as="span" className={className} {...(decorative ? { "aria-hidden": true } : { "aria-label": label, role: "img" })}>
-            <Icon icon={icon} size="sm" />
-          </Text>
-        }
-      />
-      <TooltipPopup side="top">{label}</TooltipPopup>
-    </Tooltip>
-  );
 }
 
 /** A reveal-action icon button — layered above the stretched select-Button by its POSITIONED ancestor (the

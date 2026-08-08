@@ -2804,6 +2804,126 @@ test.describe("coarse HUD budget", () => {
   }
 });
 
+// ── THE COARSE GAME RAIL'S CELL WIDTH (side-eye 2026-08-07 §① P2) ───────────────────────────────────
+// `pointer-coarse:auto-cols-max` sized the six cells at their CONTENT width, which does two things the
+// budget fix above never intended. MEASURED at 430 coarse: Status 43 · Inventory 60 · Scene 41 · Quests 46 ·
+// Journal 47 · Map 34 — three of six under the 44px touch floor (D62 P1 / §4b axis 3), and `TabsTab` carries
+// no hit-area pseudo to make up the difference. And the six cells ended at x=302, leaving 127px of DEAD
+// RAIL — word for word the "bitsy buttons bunched left" that `rpg-hud.tsx`'s own header cites a 2026-07-28
+// owner ruling against ("cells as equal columns so the rail reads as a solid frame").
+//
+// 430 is the reviewer's measuring width and the widest common phone; the 320/375 panes above keep guarding
+// the vertical budget and the caption legibility at the narrow end.
+
+const COARSE_RAIL_PANES = [
+  { width: 430, height: 700 },
+  { width: 375, height: 520 },
+  { width: 320, height: 464 },
+] as const;
+
+test.describe("coarse game rail cells", () => {
+  test.use({ hasTouch: true });
+
+  for (const pane of COARSE_RAIL_PANES) {
+    test(`@${pane.width}: every game-rail cell clears the 44px touch floor`, async ({ mount, page }) => {
+      await stubTakeover(page);
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+
+      const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
+      const rail = component.locator('[data-slot="rpg-hud-rail"]').first();
+      await expect(rail.getByRole("tab")).toHaveCount(6);
+      // BOXES, because `TabsTab` has no overflowing hit pseudo — here the box IS the target.
+      const widths = await rail.evaluate((el: HTMLElement) =>
+        Array.from(el.querySelectorAll<HTMLElement>('[role="tab"]')).map((node) => node.getBoundingClientRect().width),
+      );
+      expect(widths).toHaveLength(6);
+      expect(widths.filter((w) => w < 44)).toEqual([]);
+    });
+
+    test(`@${pane.width}: the rail reads as a solid frame — no dead strip after the last cell`, async ({ mount, page }) => {
+      await stubTakeover(page);
+      await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+
+      const component = await mount(<RpgTakeoverStory width={pane.width} height={pane.height} />);
+      const rail = component.locator('[data-slot="rpg-hud-rail"]').first();
+      await expect(rail.getByRole("tab")).toHaveCount(6);
+      // The tail gap is measured against the LIST's own box, so the assertion survives a retune of the rail's
+      // inline padding. MEASURED before: 127px of 429 at 430.
+      const tail = await rail.evaluate((el: HTMLElement) => {
+        const list = el.querySelector('[role="tablist"]') as HTMLElement;
+        const cells = Array.from(list.querySelectorAll<HTMLElement>('[role="tab"]'));
+        const last = cells.at(-1) as HTMLElement;
+        return list.getBoundingClientRect().right - last.getBoundingClientRect().right;
+      });
+      // One inter-cell gap of slack: an equal-column rail lands the last cell on the list's own right edge.
+      expect(tail).toBeLessThan(12);
+    });
+  }
+});
+
+// ── THE COARSE RAIL IS A SCROLL BOX WITH ZERO HEADROOM (side-eye 2026-08-07 §① P2, focus ring) ───────
+// `overflow-x-auto` forces `overflow-y` to `auto` (CSS: a non-`visible` value on one axis computes the other
+// from `visible` to `auto`), and the list's client box is exactly the cell height — no padding. `FOCUS_RING`
+// is `ring-2 ring-offset-2`, i.e. 4px painted OUTSIDE the cell's border box, so a keyboard user's focus
+// indicator lands in the scroll container's clipped overflow.
+//
+// THE REVIEWER'S RECEIPT WAS GEOMETRIC ONLY — it could not complete a Tab traversal, and said so. This does
+// the traversal: it proves the rail is keyboard-REACHABLE first, and only then judges the ring. The rail
+// cells are one roving tab stop (Base UI), so the walk is bounded.
+
+/** Tab from the document until focus lands inside `selector`. A keyboard traversal is inherently sequential,
+ *  so it is expressed as a promise CHAIN rather than a loop with awaits in it (`noAwaitInLoops`): each press
+ *  is followed by a settled read of where focus actually went. */
+function tabInto(page: import("@playwright/test").Page, selector: string, maxPresses = 24): Promise<boolean> {
+  const focusIsInside = (): Promise<boolean> =>
+    page.evaluate((sel: string) => document.activeElement !== null && document.activeElement.closest(sel) !== null, selector);
+  const pressTab = (): Promise<void> => page.keyboard.press("Tab");
+  const step = (remaining: number): Promise<boolean> =>
+    remaining === 0
+      ? Promise.resolve(false)
+      : pressTab()
+          .then(focusIsInside)
+          .then((landed) => (landed ? true : step(remaining - 1)));
+  return step(maxPresses);
+}
+
+test.describe("coarse game rail focus ring", () => {
+  test.use({ hasTouch: true });
+
+  test("@430: a Tab walk reaches a rail cell and its focus ring is not clipped by the scroll box", async ({ mount, page }) => {
+    await stubTakeover(page);
+    await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
+
+    const component = await mount(<RpgTakeoverStory width={430} height={700} />);
+    const rail = component.locator('[data-slot="rpg-hud-rail"]').first();
+    await expect(rail.getByRole("tab")).toHaveCount(6);
+
+    // 1) REACHABILITY — the half the reviewer could not measure.
+    expect(await tabInto(page, '[data-slot="rpg-hud-rail"] [role="tablist"]')).toBe(true);
+
+    const measured = await rail.evaluate((el: HTMLElement) => {
+      const list = el.querySelector('[role="tablist"]') as HTMLElement;
+      const cell = document.activeElement as HTMLElement;
+      const listBox = list.getBoundingClientRect();
+      const cellBox = cell.getBoundingClientRect();
+      return {
+        overflowY: getComputedStyle(list).overflowY,
+        headroomTop: cellBox.top - listBox.top,
+        headroomBottom: listBox.bottom - cellBox.bottom,
+        boxShadow: getComputedStyle(cell).boxShadow,
+      };
+    });
+
+    // 2) The clip CONDITION — the box really does clip its overflow, and the cell has no headroom in it.
+    expect(measured.overflowY).not.toBe("visible");
+    expect(Math.min(measured.headroomTop, measured.headroomBottom)).toBeLessThan(4);
+    // 3) …so the ring MUST paint inward. A non-inset `ring-offset-2` ring would be drawn 4px outside the
+    //    cell, i.e. entirely inside the clipped region, and a keyboard user would see nothing.
+    expect(measured.boxShadow).not.toBe("none");
+    expect(measured.boxShadow).toContain("inset");
+  });
+});
+
 // The fine-pointer pane is untouched: the band keeps its satellite orbs and its echo, because a desktop
 // dock has the vertical budget the phone does not. This is what makes the fix an ARRANGEMENT, not a
 // deletion — the same data, composed for the column it is in.
