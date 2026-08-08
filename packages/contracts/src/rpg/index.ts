@@ -171,7 +171,6 @@ export {
   composePopulateTeaching,
   EXTRACTION_PLANE_PROMPTS,
   RPG_BASELINE_TOOL_DESCRIPTIONS,
-  RPG_STATE_TRACKING_GUIDE,
 } from "./extraction-prompt.ts";
 export {
   rpgAddJournalEntryInputSchema,

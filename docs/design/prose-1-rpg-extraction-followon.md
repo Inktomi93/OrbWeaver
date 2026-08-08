@@ -7,8 +7,8 @@
 >   namespace, mapped **1:1 onto the seam's existing `lines.push`/`return` sites** so absent-override byte
 >   identity is checkable by inspection. Row 28 (`TRANSCRIPT_ROLE_FALLBACK`) and row 32 (the three user-prompt
 >   block labels) stayed OUT as structural labels (§2.11), as this doc recommended. Row 27
->   (`RPG_STATE_TRACKING_GUIDE`) is **owner-DEFERRED**: still dead, still present, unslotted — slotting a
->   constant no model reads would hand a host an edit surface over nothing.
+>   (`RPG_STATE_TRACKING_GUIDE`) was **owner-DEFERRED** at S4 — see the ROW-27 banner immediately below, which
+>   supersedes that and the "wire or delete" section further down.
 > - **The §4.5 core-shape decision resolved to arm (a) WITHOUT widening `ProseSlotDef`.** The spec's own words
 >   for arm (a) — "the override being a template string resolved against the SAME ctx … with a slot-declared
 >   token vocabulary … the shipped default is expressed in that same vocabulary" — describe a mechanism that
@@ -151,18 +151,37 @@ file" exemption + its second arm. **Recommendation: (a)**, because it keeps ONE 
 preview expand the tokens for a live game (the assembly-preview precedent). But it is an owner/architecture
 call — escalate, don't guess.
 
-## Row-27 owner decision — `RPG_STATE_TRACKING_GUIDE` is DEAD today (wire or delete)
+## Row-27 — RULED **WIRE** and LANDED (owner, 2026-08-08); this section is now history
 
-`RPG_STATE_TRACKING_GUIDE` (`extraction-prompt.ts:421`) documents itself as *"Composed onto the write-surface
-prompts (the tool round + the structured extraction)"* — verified again this lane: **`pnpm ast refs
-RPG_STATE_TRACKING_GUIDE` returns only its own declaration.** It is composed onto nothing. Spec §11 owner
-decision 6: **wire it** onto `extractionSystem` + `toolRoundSystem` as a slot, then measure (it is the
-Appendix-A coverage lifter); if a probe shows no lift, **delete**. Either way it stops lying. This needs an
-owner ruling before the extraction lane touches it.
+`RPG_STATE_TRACKING_GUIDE` (`extraction-prompt.ts`) documented itself as *"Composed onto the write-surface
+prompts (the tool round + the structured extraction)"* and was composed onto **nothing** — `pnpm ast refs`
+returned only its own declaration, twice verified. Spec §11 owner decision 6 (wire and measure, or delete) was
+ruled **WIRE**. What landed:
+
+- The constant is **deleted**, bytes and all, and re-authored VERBATIM as the `rpg.extract.stateTrackingGuide`
+  prose slot (`contracts/src/rpg/prose.ts`, `home:"preset"`, `macros:"none"`, v1) — verbatim because the ruling
+  was "wire and MEASURE", and a measurement against reworded text measures the rewording. Its Templates-tab row
+  is **"Be thorough"** under the `extract` kicker ("State tracking"), so the host can retune it.
+- It is pushed by **`composePlaneTeaching`**, not by the two system builders — the same one-home reason the
+  RECONCILE doctrine rides there: the shared body is what both write surfaces walk, so the two arms cannot
+  drift. Position: after the last plane fragment, **before** the reconcile rule, so "never fabricate numbers,
+  items, or events the story does not show" is what closes the be-thorough push.
+- Reach, by construction: the STRUCTURED extraction (`extractionSystem`), the CHEAP TOOL ROUND
+  (`toolRoundSystem`) and with it the HOST RESYNC's catch-up round. It does **not** reach the populate round
+  (whose counterpart doctrine is INVENT-NOTHING) or the folded turn's narration prompt — the exclusion its own
+  doc-comment always claimed and never enforced.
+- The `no-hardcoded-model-prose` ARM A baseline for `extraction-prompt.ts` **shrank 3 → 2**. ARM B never
+  tracked this constant (ARM B scans CATALOG files; `extraction-prompt.ts` is a SEAM file) — the gate merely
+  names it as the exemplar of the dead-catalog-prose class, and that class label outlives the constant.
+- This is a deliberate **prompt-BYTES change**: the frozen-default fixtures in
+  `tests/contracts/rpg/extraction-prompt.contract.test.ts` now carry the guide, with the ruling cited in the
+  file header. Every other byte is still `e495855de`'s.
+
+**The measure half is now possible and NOT yet done** — the guide rides the wire; nobody has run the A/B.
 
 ## Classification — rows 11-36 (so the next lane doesn't re-census)
 
-### Rows 11-27 (`contracts/src/rpg/extraction-prompt.ts`) — ALL render-templates or dead
+### Rows 11-27 (`contracts/src/rpg/extraction-prompt.ts`) — ALL render-templates (27 was dead; wired 2026-08-08)
 
 | census | symbol | class |
 | - | - | - |
@@ -173,7 +192,7 @@ owner ruling before the extraction lane touches it.
 | 19 | RECONCILE tail on `composePlaneTeaching` | static text |
 | 20-25 | the 6 tool descriptions in `buildRpgToolDescriptions` | RENDER-templates (per-game tracker vocab + worked examples) |
 | 26 | `partyExample` worked example | RENDER-template (this game's tracker keys) |
-| 27 | `RPG_STATE_TRACKING_GUIDE` | static text, **DEAD** (owner decision 6 above) |
+| 27 | `RPG_STATE_TRACKING_GUIDE` | static text, was DEAD — **WIRED 2026-08-08** as `rpg.extract.stateTrackingGuide` (see the ROW-27 section above) |
 
 `RPG_BASELINE_TOOL_DESCRIPTIONS` DERIVES rows 20-25 against the empty-config baseline (one home, two consumers)
 — it needs no slot of its own.

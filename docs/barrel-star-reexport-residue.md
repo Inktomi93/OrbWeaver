@@ -84,11 +84,13 @@ tree, with review.
 > header law — `packages/contracts/src/rpg/index.ts` states *"KISS/YAGNI SUSPENDED: the full-mode shape
 > ships as DATA from day one so full grafts add siblings, never re-spell"*, which covers the
 > `RPG_*`/`Rpg*` shape data below. Each Tier-A name needs an individual verdict (delete · keep with
-> `/** @public */` · keep with a header cite), not a blanket sweep. `RPG_STATE_TRACKING_GUIDE` is
-> already the known `no-hardcoded-model-prose` ARM B "dead prose" case, which independently
-> corroborates that this list finds real residue.
+> `/** @public */` · keep with a header cite), not a blanket sweep. `RPG_STATE_TRACKING_GUIDE` was
+> the known `no-hardcoded-model-prose` ARM B "dead prose" case, which independently corroborated that
+> this list finds real residue — and it is RESOLVED (2026-08-08, the row-27 WIRE ruling): the constant
+> is gone, its bytes are the `rpg.extract.stateTrackingGuide` prose slot, and its barrel line with it.
 
-Totals: **136** names are re-exported by a barrel that NO consumer imports through it — Tier A **86**, Tier B **50**.
+Totals: **135** names are re-exported by a barrel that NO consumer imports through it — Tier A **85**, Tier B **50**.
+(136/86 at the audit; `RPG_STATE_TRACKING_GUIDE` was struck when row 27 was wired.)
 
 ### Tier A — reachable by NOTHING (dropping the barrel line makes them dead code)
 
@@ -101,13 +103,13 @@ Totals: **136** names are re-exported by a barrel that NO consumer imports throu
 
 - `packages/contracts/src/prose-slot/index.ts` — `ProseHome (type)`, `ProseMacroMode (type)`, `ProseResolution (type)`, `proseOverrideSchema`, `proseSlotIdSchema`
 
-**`packages/contracts/src/rpg/index.ts`** — 45
+**`packages/contracts/src/rpg/index.ts`** — 44 (45 at the audit; `RPG_STATE_TRACKING_GUIDE` struck 2026-08-08)
 
 - `packages/contracts/src/rpg/actor.ts` — `RpgActorIdentityTextField (type)`, `rpgInventoryItemSchema`, `rpgRelationshipSchema`
 - `packages/contracts/src/rpg/ambient.ts` — `RpgWeatherType (type)`, `TimeOfDay (type)`, `rpgWeatherTypeSchema`
 - `packages/contracts/src/rpg/config.ts` — `RPG_CARD_KEEP_LAST_DEFAULT`, `RPG_DELIVERY_PATHS`, `RPG_FOLD_FALLBACK_REASONS`
 - `packages/contracts/src/rpg/enums.ts` — `RpgCheckpointTrigger (type)`, `RpgCyoaChoiceBehavior (type)`, `RpgTrackerShape (type)`, `RpgTrackerSubject (type)`, `RpgTrackerWrite (type)`, `rpgCyoaChoiceBehaviorSchema`, `rpgRelationshipKindSchema`
-- `packages/contracts/src/rpg/extraction-prompt.ts` — `ExtractionPlanePrompt (type)`, `RPG_STATE_TRACKING_GUIDE`
+- `packages/contracts/src/rpg/extraction-prompt.ts` — `ExtractionPlanePrompt (type)`
 - `packages/contracts/src/rpg/extraction.ts` — `RpgExtractionDrop (type)`, `RpgExtractionDropPlane (type)`, `RpgExtractionSalvage (type)`, `RpgMalformedToolCall (type)`, `RpgPopulate (type)`, `RpgPopulateSalvage (type)`, `RpgPopulateSheet (type)`, `RpgToolRoundToolName (type)`, `rpgPopulateSheetSchema`
 - `packages/contracts/src/rpg/mode.ts` — `RpgModeCapabilityAxis (type)`, `RpgModePolicy (type)`
 - `packages/contracts/src/rpg/profile.ts` — `RPG_SEED_HP_MAX`, `RpgStatResolution (type)`, `rpgStatAttributeDefSchema`, `rpgStatResolutionSchema`
