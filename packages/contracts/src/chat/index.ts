@@ -148,6 +148,7 @@ export {
   memberCardVisibilitySchema,
   openingPolicySchema,
   roomOverridesSchema,
+  storedGroupConfigSchema,
 } from "./metadata.ts";
 export type { MessageKind, MessageKindPolicy, ParticipantKind, SpeakerRef } from "./participants.ts";
 export {
