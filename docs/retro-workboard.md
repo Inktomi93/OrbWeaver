@@ -113,7 +113,17 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   green). **⚑ DEV STACK RESTARTED** (node --watch did NOT reload the import-tree change — the 400s
   persisted against stale code until `pnpm stack restart dev` at pgid 1243245). Owner re-importing
   the 782M ST default-user folder now; MORE fixes may surface on real data (commit all import fixes
-  together once it lands).
+  together once it lands). **⚑ TWO MORE IMPORT FINDINGS live (tasks #16, #17):** after size+layout
+  fixes the import got 202+staged and characters+chats DID import (13→15, 18→19), but (#16, transient)
+  the import-st workload first lost a per-owner single-active-lock race to a background `memory-backfill`
+  sweep — both in the `sweep` lane — failing with a confusing "already in progress"; retry after the
+  sweep drained worked. Then (#17, the LAST real blocker) **world-info/lorebook import FAILS**:
+  import-st zod `invalid_value path:['position'] expected ['before','after']` — ST WI entries carry
+  `position` as a NUMBER 0-6 (0=before-char, 1=after-char, 4=at-depth, …) and the ST→orb lorebook
+  importer (`kit/serde/world-info`) passes the raw int to orb's `'before'|'after'` enum unmapped →
+  `world_books` stuck at 0. FIX in #17 (map 0/2/5→before, 1/3/6→after, 4→after+depth; check
+  order/depth/role carry). Fold into the #15 import-fix commit; whole-ST-folder import is ONE mapper
+  away from working end-to-end.
 - **⚑ CONFIG IA — junk-drawer diagnosis boarded** (`docs/design/config-ia-the-junk-drawer-problem.md`,
   committed `c635798d3`): Config is a home defined by EXCLUSION (violates one-home-per-concept at the
   meta level); tags are a FACET not a destination (leave the rail; editor → in-place popover;
