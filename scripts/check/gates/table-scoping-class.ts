@@ -237,7 +237,15 @@ const MESSAGE =
   "membership / junction / parent / global) that an authorization predicate is built from. Ownership is " +
   "INHERITED, not stamped (AGENTS §1): a table without an `ownerId` is not unscoped, its scope derives " +
   "through the FK chain — but WHICH chain has to be written down, once, where a reader and a gate can both " +
-  "see it. Add a row to TABLE_SCOPING_CLASSES in scripts/check/gates/table-scoping-class.ts.";
+  "see it. Add a row to TABLE_SCOPING_CLASSES in scripts/check/gates/table-scoping-class.ts. " +
+  'A bare `"table"` token = UNCLASSIFIED (no row yet). Any other token is an INCOHERENCE: the row ' +
+  "exists but the schema shape contradicts it — either the column/FK shape changed (re-classify the row) or " +
+  "the declaration was always wrong. The kinds: `no-owner-id` — declared ownerId-scoped but declares no " +
+  "`ownerId` column. `stamped` — carries an `ownerId` column, so its scope is the stamp, not the roster / " +
+  "two parents / a parent. `no-chat-id` — declared membership-scoped but carries no `chatId` column and is " +
+  "not the room table itself. `room-gated` — carries a `chatId` column, so the room gates it and it is " +
+  "`membership`-scoped. `too-few-fks` — a junction needs TWO independently-scoped parents (a parent needs " +
+  "one), and it declares fewer.";
 
 const FIX =
   "classify the table: `ownerId` (it carries the D23 stamp) · `membership` (it carries a chatId — authority " +
@@ -247,10 +255,6 @@ const FIX =
 
 const STALE = (t: string): string =>
   `TABLE_SCOPING_CLASSES names "${t}" but the schema declares no such table — delete the stale row in ${GATE_SELF} (two-direction ratchet).`;
-
-const INCOHERENT = (t: string, cls: ScopingClass, detail: string): string =>
-  `table "${t}" is declared \`${cls}\`-scoped but its schema shape contradicts that: ${detail}. Either the ` +
-  `column/FK shape changed (re-classify the row in ${GATE_SELF}) or the declaration was always wrong.`;
 
 const BLIND =
   'table-scoping-class is keyed on the room table name "chats", which the schema no longer declares — the ' +
@@ -307,41 +311,50 @@ function tableShapeOf(node: Node): { readonly name: string; readonly shape: Tabl
   return { name: nameArg.getLiteralText(), shape: { hasOwnerId, hasChatId, fkCount } };
 }
 
-/** Why this table's shape contradicts its declared class — or undefined when they agree. The check is
- *  FALSIFIABILITY, not derivation: `junction` vs `parent` is a judgment the reason carries, but a class
+/** The INCOHERENCE KINDS — a closed vocabulary, because each is also a finding TOKEN and therefore a
+ *  position an `@orb-gate-ignore` can name. Stable by construction: a kind describes the SHAPE FACT that
+ *  contradicts the declared class, so it does not move when a table gains an unrelated column. The prose for
+ *  each lives once, in MESSAGE's legend. (Before 2026-08-08 this function returned the prose directly and
+ *  the finding rode the explicit-`Finding` overload — which bypasses `hasGateIgnore`, so no marker on this
+ *  arm ever worked, and the three self-proofs discriminated on a message string instead of a stable code.) */
+const INCOHERENCE_KINDS = ["no-owner-id", "stamped", "no-chat-id", "room-gated", "too-few-fks"] as const;
+type IncoherenceKind = (typeof INCOHERENCE_KINDS)[number];
+
+/** Which shape fact contradicts this table's declared class — or undefined when they agree. The check is
+ *  FALSIFIABILITY, not derivation: `junction` vs `parent` is a judgment the row's reason carries, but a class
  *  whose defining column/FK is absent is a lie the machine CAN catch. */
-function incoherence(name: string, cls: ScopingClass, s: TableShape): string | undefined {
-  const checks: Readonly<Record<ScopingClass, () => string | undefined>> = {
-    ownerId: () => (s.hasOwnerId ? undefined : "it declares no `ownerId` column"),
+function incoherence(name: string, cls: ScopingClass, s: TableShape): IncoherenceKind | undefined {
+  const checks: Readonly<Record<ScopingClass, () => IncoherenceKind | undefined>> = {
+    ownerId: () => (s.hasOwnerId ? undefined : "no-owner-id"),
     membership: () => {
       if (s.hasOwnerId) {
-        return "it carries an `ownerId` column, so its scope is the stamp, not the roster";
+        return "stamped";
       }
-      return s.hasChatId || name === ROOM_TABLE ? undefined : "it carries no `chatId` column and is not the room table itself";
+      return s.hasChatId || name === ROOM_TABLE ? undefined : "no-chat-id";
     },
     junction: () => {
       if (s.hasOwnerId) {
-        return "it carries an `ownerId` column, so its scope is the stamp, not two parents";
+        return "stamped";
       }
       if (s.hasChatId) {
-        return "it carries a `chatId` column — the room gates it, so it is `membership`-scoped";
+        return "room-gated";
       }
-      return s.fkCount >= 2 ? undefined : `it declares ${s.fkCount} FK column(s) — a junction links TWO independently-scoped parents`;
+      return s.fkCount >= 2 ? undefined : "too-few-fks";
     },
     parent: () => {
       if (s.hasOwnerId) {
-        return "it carries an `ownerId` column, so its scope is the stamp, not a parent";
+        return "stamped";
       }
       if (s.hasChatId) {
-        return "it carries a `chatId` column — the room gates it, so it is `membership`-scoped";
+        return "room-gated";
       }
-      return s.fkCount >= 1 ? undefined : "it declares no FK column — there is no parent to derive scope from";
+      return s.fkCount >= 1 ? undefined : "too-few-fks";
     },
     global: () => {
       if (s.hasOwnerId) {
-        return "it carries an `ownerId` column — a stamped table has tenancy";
+        return "stamped";
       }
-      return s.hasChatId ? "it carries a `chatId` column — the room gates it" : undefined;
+      return s.hasChatId ? "room-gated" : undefined;
     },
   };
   return checks[cls]();
@@ -361,7 +374,7 @@ export const gate: GateDescriptor = {
     seen.clear();
   },
 
-  visit: (node, sf: SourceFile, ctx: GateRunCtx) => {
+  visit: (node, _sf: SourceFile, ctx: GateRunCtx) => {
     const found = tableShapeOf(node);
     if (found === undefined) {
       return;
@@ -374,17 +387,15 @@ export const gate: GateDescriptor = {
     }
     const bad = incoherence(found.name, row.scope, found.shape);
     if (bad !== undefined) {
-      ctx.report({
-        file: repoRel(sf.getFilePath()),
-        line: node.getStartLineNumber(),
-        column: sf.getLineAndColumnAtPos(node.getStart()).column,
-        token: `"${found.name}"`,
-        message: INCOHERENT(found.name, row.scope, bad),
-      });
+      // The KIND is the position (MESSAGE's legend spells each one); the table name is the identity. Both
+      // are stable, which is what makes `@orb-gate-ignore table-scoping-class(stamped "messages")` writable.
+      ctx.report(node, { token: `${bad} "${found.name}"`, offset: 0 });
     }
   },
 
   finalize: (ctx) => {
+    // The stale + blindness arms are the SANCTIONED Finding-overload use (§1): both anchor on the GATE FILE,
+    // neither has a source node, and neither may be suppressible.
     // The stale arm is a WHOLE-TREE claim, name-keyed against the LIVE registry: a conformance mini-project
     // declares one table and would "prove" 75 rows dead. Anchor on the real schema barrel (§4.5).
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, SCHEMA_BARREL)) {
@@ -404,25 +415,25 @@ export const gate: GateDescriptor = {
     {
       files: 'export const t = sqliteTable("brand_new_table", { id: text("id").primaryKey() });\n',
       at: "packages/db/src/schema/x.ts",
-      expect: { messageIncludes: "must declare HOW a caller's tenancy reaches it" },
+      expect: { token: '"brand_new_table"' },
       why: "the founding shape — a NEW table is unauthorizable until someone writes down which predicate scopes it. RED at birth, exactly like ownerid-registry's stamp arm",
     },
     {
       files: 'export const t = sqliteTable("characters", { id: text("id").primaryKey() });\n',
       at: "packages/db/src/schema/character.ts",
-      expect: { messageIncludes: "declares no `ownerId` column" },
+      expect: { token: 'no-owner-id "characters"' },
       why: "the COHERENCE arm: `characters` is declared ownerId-scoped, so losing the stamp column must RED — a class map that only checked NAMES would silently keep asserting a dead predicate",
     },
     {
       files: 'export const t = sqliteTable("messages", { id: text("id").primaryKey(), ownerId: text("owner_id") });\n',
       at: "packages/db/src/schema/chat.ts",
-      expect: { messageIncludes: "its scope is the stamp, not the roster" },
+      expect: { token: 'stamped "messages"' },
       why: "the D18 inversion: stamping an owner onto a membership-scoped chat child changes WHAT authorizes a read — the declaration and the schema must not silently disagree",
     },
     {
       files: 'export const t = sqliteTable("character_tags", { id: text("id").primaryKey(), characterId: text("character_id").references(() => x.id) });\n',
       at: "packages/db/src/schema/tag.ts",
-      expect: { messageIncludes: "a junction links TWO independently-scoped parents" },
+      expect: { token: 'too-few-fks "character_tags"' },
       why: "a junction that lost a parent FK is no longer a junction — the derived arm catches the class drifting away from the shape",
     },
   ],

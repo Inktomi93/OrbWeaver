@@ -147,8 +147,18 @@ const FILE_ALLOWLIST: ExemptionTable = {
   },
 };
 
+// THE ONE REASON, carrying BOTH source arms by token (`read <table>` / `write <table>`); their per-finding
+// messages folded in here when they stopped riding the Finding overload, which bypasses `hasGateIgnore`
+// (GATE-AUTHORING §1) so every marker on them was inert. The NO-OWNER arm and the stale arms keep the
+// overload: the first is genuinely file-level (there is no node — the file simply has no owner) and the
+// second anchors on the gate file.
 const MESSAGE =
-  "cross-domain table import outside `persistence/` — a domain touches its OWN tables directly and reaches " +
+  "cross-domain table access outside `persistence/`. A `read <table>` token: the table is imported by a " +
+  "domain that does not own it. A `write <table>` token: a drizzle insert/update/delete into a table this " +
+  "domain does not own — no bulk-serializer class and no allowlist row buys a foreign WRITE; route it " +
+  "through the owning domain's persistence helper (the shape `domain/import` already uses for six domains' " +
+  "canon) or an injected op. " +
+  "A domain touches its OWN tables directly and reaches " +
   "another domain's DATA through an injected op (AGENTS §2: cross-feature dependency is never a sideways " +
   "import). Tier-1-DB.md §'Cross-tier composition': `persistence/` is the home for reusable READ helpers and " +
   "cross-domain ownership checks; verbs/substrate/subsystems write their own domain's tables. The ownership " +
@@ -234,6 +244,8 @@ function deriveOwnership(ctx: GateRunCtx): void {
     } else if (domainExists(ctx, name)) {
       owners = [name];
     } else {
+      // THE SANCTIONED Finding overload (§1): a FILE-LEVEL finding — the schema file as a whole has no
+      // owner, so there is no offending node to anchor on or hang a marker off.
       ctx.report({
         file: rel,
         line: 1,
@@ -276,47 +288,33 @@ function writtenTableIdentifier(node: Node): string | undefined {
   return arg?.isKind(SyntaxKind.Identifier) === true ? arg.getText() : undefined;
 }
 
-function readMessage(table: string, owners: readonly string[], domain: string): string {
-  const home = owners.length === 0 ? "NO domain (its producer lives outside `domain/`)" : owners.join(" / ");
-  return `\`${table}\` is owned by ${home}, not by \`${domain}\` — a cross-domain table import outside \`persistence/\`. ${MESSAGE}`;
-}
+/** The two SOURCE arms' tokens — `read <table>` / `write <table>`. The kind is the stable position an
+ *  `@orb-gate-ignore own-tables-only(write messages): <reason>` names; the table is the identity. The owning
+ *  domain is NOT in the token: it is a fact about the tree, not about this site, so folding it in would make
+ *  the position move when ownership is re-declared elsewhere. MESSAGE carries both arms' prose. */
+const readToken = (table: string): string => `read ${table}`;
+const writeToken = (table: string): string => `write ${table}`;
 
-function writeMessage(table: string, owners: readonly string[], domain: string): string {
-  const home = owners.length === 0 ? "NO domain (its producer lives outside `domain/`)" : owners.join(" / ");
-  return (
-    `WRITE into \`${table}\`, which is owned by ${home}, from \`${domain}\` — a domain may only write tables ` +
-    "it OWNS. No bulk-serializer class and no allowlist row buys a foreign write: route it through the " +
-    "owning domain's persistence helper (the shape `domain/import` already uses for six domains' canon) or " +
-    "an injected op."
-  );
-}
-
-/** The per-node scan site: the file's repo-relative path + owning domain, resolved once in `visit`. */
+/** The per-node scan site: the file's repo-relative path + owning domain, resolved once in `visit`. (No
+ *  `SourceFile` — it existed only to compute a report column, which the node overload now derives itself.) */
 interface Site {
-  readonly sf: SourceFile;
   readonly ctx: GateRunCtx;
   readonly rel: string;
   readonly domain: string;
 }
 
 /** The WRITE arm: a drizzle write whose target identifier was imported as a FOREIGN table in this file. */
-function visitWrite(node: Node, { sf, ctx, rel, domain }: Site): void {
+function visitWrite(node: Node, { ctx, rel }: Site): void {
   const written = writtenTableIdentifier(node);
   if (written === undefined || !(foreignByFile.get(rel)?.has(written) ?? false)) {
     return;
   }
-  ctx.report({
-    file: rel,
-    line: node.getStartLineNumber(),
-    column: sf.getLineAndColumnAtPos(node.getStart()).column,
-    token: written,
-    message: writeMessage(written, tableOwners.get(written) ?? [], domain),
-  });
+  ctx.report(node, { token: writeToken(written), offset: 0 });
 }
 
 /** The READ arm: a VALUE `ImportSpecifier` naming a table this domain does not own. Records the name either
  *  way (the write arm reads it; the row ratchets prove their sanctions are still earned). */
-function visitImport(node: ImportSpecifier, { sf, ctx, rel, domain }: Site): void {
+function visitImport(node: ImportSpecifier, { ctx, rel, domain }: Site): void {
   if (node.isTypeOnly()) {
     return;
   }
@@ -341,13 +339,7 @@ function visitImport(node: ImportSpecifier, { sf, ctx, rel, domain }: Site): voi
     seenBulkDomain.add(domain);
     return;
   }
-  ctx.report({
-    file: rel,
-    line: node.getStartLineNumber(),
-    column: sf.getLineAndColumnAtPos(node.getStart()).column,
-    token: table,
-    message: readMessage(table, owners, domain),
-  });
+  ctx.report(node, { token: readToken(table), offset: 0 });
 }
 
 export const gate: GateDescriptor = {
@@ -376,7 +368,7 @@ export const gate: GateDescriptor = {
     if (domain === undefined) {
       return;
     }
-    const site: Site = { sf, ctx, rel, domain };
+    const site: Site = { ctx, rel, domain };
     if (node.isKind(SyntaxKind.CallExpression)) {
       visitWrite(node, site);
       return;
@@ -426,7 +418,7 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/character/verbs/read.ts": "export const x = 1;\n",
         "packages/server/src/domain/persona/verbs/create-from-character.ts": 'import { characters } from "@orb/db";\nexport const c = characters;\n',
       },
-      expect: { count: 1, messageIncludes: "owned by character" },
+      expect: { count: 1, token: "read characters" },
       why: "the founding shape — a verb reading ANOTHER domain's table straight off the barrel (the real create-from-character defect this gate was minted from)",
     },
     {
@@ -436,7 +428,7 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/export/verbs/export-chat.ts":
           'import { messages } from "@orb/db";\nexport async function f(db: { delete: (t: unknown) => Promise<void> }): Promise<void> {\n  await db.delete(messages);\n}\n',
       },
-      expect: { count: 1, messageIncludes: "a domain may only write tables it OWNS" },
+      expect: { count: 1, token: "write messages" },
       why: "the WRITE arm's whole point: `export` carries a BULK_READERS row, so its foreign READ passes — and the `delete` still reds. No class exemption buys a foreign write",
     },
     {
@@ -453,7 +445,7 @@ export const gate: GateDescriptor = {
         "packages/server/src/domain/character/verbs/read.ts": "export const x = 1;\n",
         "packages/server/src/domain/assets/workload-contributions.ts": 'import { characters } from "@orb/db";\nexport const c = characters;\n',
       },
-      expect: { count: 1 },
+      expect: { count: 1, token: "read characters" },
       why: "a FEATURE-ROOT slot (workload-contributions.ts), not a verb — the scan is `domain/** minus persistence/`, so the root slots and named subsystems are covered too",
     },
   ],

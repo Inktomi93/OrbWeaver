@@ -11,14 +11,15 @@ const BANNED_IMPORTS = new Set(["fetchOwned", "OwnedTable"]);
 const OWNER_ID = "ownerId";
 const EQUALITY_OPS = new Set(["==", "===", "!=", "!=="]);
 
-const COMPARE_MESSAGE =
-  "owner-equality comparison in the chat scope — chats are MEMBERSHIP-scoped (D18: chats.ownerId is DROPPED; authority = chat_participants via assertParticipant → the can() seam). The host, when needed, is LOOKED UP from the loaded roster, never compared as an owner (D18 — Spine-Identity-and-Auth.md).";
-const IMPORT_MESSAGE =
-  "fetchOwned/OwnedTable imported in domain/chat — chats are the MEMBERSHIP-scoped ownership category (D18's two-category split); the single-owned helpers structurally do not apply to a chat.";
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
+// THE ONE REASON, carrying BOTH arms by token. `ownerId`: an owner-equality comparison. `fetchOwned` /
+// `OwnedTable`: the single-owned import. (The import arm's own message folded in here when it stopped
+// riding the Finding overload — see the header's SUPPRESSION note.)
+const MESSAGE =
+  "the chat scope is MEMBERSHIP-scoped, not owner-scoped (D18: chats.ownerId is DROPPED; authority = " +
+  "chat_participants via assertParticipant → the can() seam). `ownerId`: an owner-equality comparison — the " +
+  "host, when needed, is LOOKED UP from the loaded roster, never compared as an owner. " +
+  "`fetchOwned`/`OwnedTable`: chats are the MEMBERSHIP-scoped ownership category of D18's two-category " +
+  "split, so the single-owned helpers structurally do not apply to a chat. (Spine-Identity-and-Auth.md)";
 
 function endsInOwnerId(text: string): boolean {
   return text === OWNER_ID || text.endsWith(`.${OWNER_ID}`);
@@ -31,11 +32,11 @@ export const gate: GateDescriptor = {
   docRow: "ledger D16/D18 (Spine-Identity-and-Auth.md)",
   status: "active",
   scopeSafety: "incremental-safe",
-  message: COMPARE_MESSAGE,
+  message: MESSAGE,
   fix: "authority is chat_participants via assertParticipant → the can() seam; the host is LOOKED UP from the loaded roster, never compared as an owner.",
   scanRoot: (p) => CHAT_SCOPE.test(`/${p}`),
   kinds: [SyntaxKind.BinaryExpression, SyntaxKind.ImportSpecifier],
-  visit: (node, sf, ctx) => {
+  visit: (node, _sf, ctx) => {
     if (
       node.isKind(SyntaxKind.BinaryExpression) &&
       EQUALITY_OPS.has(node.getOperatorToken().getText()) &&
@@ -45,25 +46,20 @@ export const gate: GateDescriptor = {
       return;
     }
     if (node.isKind(SyntaxKind.ImportSpecifier) && BANNED_IMPORTS.has(node.getName())) {
-      ctx.report({
-        file: relPath(ctx.root, sf.getFilePath()),
-        line: node.getStartLineNumber(),
-        column: node.getSourceFile().getLineAndColumnAtPos(node.getStart()).column,
-        message: IMPORT_MESSAGE,
-        token: node.getName(),
-      });
+      ctx.report(node, { token: node.getName(), offset: 0 });
     }
   },
   mustFlag: [
     {
       files: "export const bad = (x: { ownerId: string }, y: string) => x.ownerId === y;\n",
       at: "packages/server/src/domain/chat/verbs/x.ts",
+      expect: { count: 1, token: "ownerId" },
       why: "an owner-equality comparison in the chat scope — the ~171-site neo pattern D18 dissolved",
     },
     {
       files: 'import { fetchOwned } from "@orb/db";\nexport const f = fetchOwned;\n',
       at: "packages/server/src/domain/chat/verbs/y.ts",
-      expect: { messageIncludes: "MEMBERSHIP-scoped ownership category" },
+      expect: { count: 1, token: "fetchOwned" },
       why: "a fetchOwned import in domain/chat — the D18 category error (chats aren't single-owned)",
     },
   ],

@@ -2,17 +2,17 @@
 // (features/**/lib/*-modal.tsx) whose FUNCTION-arm `body` renders a `<SectionPlaceholder>` is RED. An
 // unbuilt modal uses the DECLARED-PLANNED arm (`body: { planned: "<reason>" }`); a placeholder-rendering
 // function body is the silent-sparkle anti-pattern, now unspellable. Walks every `**/lib/*-modal.tsx`.
+//
+// SUPPRESSION: the finding is NODE-anchored and carries the modal's own name as its token, so
+// `// @orb-gate-ignore modal-body-not-placeholder("themeModal"): <reason>` works. It reported through the
+// explicit-`Finding` overload until 2026-08-08, which bypasses `hasGateIgnore` by construction
+// (GATE-AUTHORING §1) — every marker on this gate was inert and nothing said so.
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
 
 const PLACEHOLDER_TAG = "SectionPlaceholder";
 /** A co-located modal definition file: `features/<owner>/lib/<id>-modal.tsx`. */
 const MODAL_FILE_RE = /\/lib\/[^/]+-modal\.tsx$/;
-
-function rel(path: string): string {
-  const idx = path.indexOf("/packages/");
-  return idx === -1 ? path : path.slice(idx + 1);
-}
 
 /** Does this subtree render a `<SectionPlaceholder …>` (open or self-closing) JSX element? */
 function rendersPlaceholder(node: Node): boolean {
@@ -41,7 +41,7 @@ export const gate: GateDescriptor = {
   fix: 'use `body: { planned: "<reason>" }` for an unbuilt modal, or render a real body — a placeholder function body is unspellable.',
   scanRoot: (p) => MODAL_FILE_RE.test(p),
   kinds: [SyntaxKind.VariableDeclaration],
-  visit: (node, sf, ctx) => {
+  visit: (node, _sf, ctx) => {
     if (!Node.isVariableDeclaration(node)) {
       return;
     }
@@ -65,17 +65,13 @@ export const gate: GateDescriptor = {
     if (!rendersPlaceholder(body)) {
       return;
     }
-    ctx.report({
-      file: rel(sf.getFilePath()),
-      line: node.getStartLineNumber(),
-      column: node.getSourceFile().getLineAndColumnAtPos(node.getStart()).column,
-      token: `"${node.getName()}"`,
-    });
+    ctx.report(node, { token: `"${node.getName()}"`, offset: 0 });
   },
   mustFlag: [
     {
       files: "export const themeModal: ModalDefinition = { id: 'theme', body: () => <SectionPlaceholder /> };\n",
       at: "packages/client/src/features/settings/lib/theme-modal.tsx",
+      expect: { count: 1, token: '"themeModal"' },
       why: "a ModalDefinition function body rendering <SectionPlaceholder> — the silent-sparkle anti-pattern",
     },
   ],
