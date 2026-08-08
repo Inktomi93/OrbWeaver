@@ -167,6 +167,11 @@ export {
   USER_BACKED_KINDS,
 } from "./participants.ts";
 export type {
+  CastCharacterEntry,
+  CastEntry,
+  CastKind,
+  CastKindPolicy,
+  CastPersonaEntry,
   CharacterAvatarEntry,
   CharacterNameEntry,
   ChatMacroNameProducer,
@@ -174,10 +179,15 @@ export type {
   PersonaNameEntry,
 } from "./producers.ts";
 export {
+  buildCastAvatarMaps,
+  buildCastNameContext,
   buildCharacterAvatarMap,
   buildCharacterNameMap,
   buildPersonaAvatarMap,
   buildPersonaNameMap,
+  CAST_KIND_POLICY,
+  CAST_KINDS,
+  castKey,
 } from "./producers.ts";
 // The PROSE-1 app-tier slot table (census 74-81) — `#prose` imports it to compose `PROSE_SLOTS`.
 export { CHAT_PROSE_SLOTS } from "./prose.ts";
