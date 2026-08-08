@@ -154,8 +154,10 @@ Ranked by consequence within each category. Every item carries its receipt state
   the live-infra steps:** `docker build` both targets (+`docker inspect` the healthcheck),
   container runs, fleet-in-namespace, read-only shakeout, sibling-vllm cap_drop probe, the pentest
   cage (§4/Fork F), deploy posture (C13).
-- **A3 · PRESET-FOLLOWUP → fix leg MERGED `eb3669b1e`; RE-VERIFY RUNNING (the graduation gate).**
-  The drill is now a scoped `(presetId,sectionId)` pair (`state/preset-section-drill-store.ts`) —
+- **✅ A3 · PRESET-FOLLOWUP — GRADUATED** (fix leg `eb3669b1e`, re-verify CONFIRMED all 5
+  consequences DEAD + all 4 minors real + both truth-repaired CTs bite; fix-leg check exit 0;
+  worktree reaped). The drill is a scoped `(presetId,sectionId)` pair
+  (`state/preset-section-drill-store.ts`) —
   cross-preset leak UNREPRESENTABLE (scoped read → foreign preset = null), retarget-on-fork from
   the one site that knows (`use-preset-autosave.ts`), clear at the single view-writer chokepoint
   (`setPresetEditorView` — so nav doors inherit it), `presetId` REQUIRED (7 sites). All 5 pins bite;
