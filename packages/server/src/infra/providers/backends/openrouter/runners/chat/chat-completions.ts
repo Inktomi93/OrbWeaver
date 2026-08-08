@@ -10,10 +10,10 @@ import { estimateTokens } from "@orb/kit/tokens";
 import type { ChatResult, OpenRouterChatRequest, ResolvedChatKnobs } from "../../../../contract/index.ts";
 import { ProviderError } from "../../../../contract/index.ts";
 import { resolveChat } from "../../../../resolve-chat.ts";
-import type { ChatCompletionResult, StreamReduceOptions } from "../../../kit/index.ts";
+import type { CacheBreakpointRow, ChatCompletionResult, StreamReduceOptions } from "../../../kit/index.ts";
 import {
   cacheControlBlock,
-  computeCacheBreakpointOffsets,
+  computeCacheBreakpointPlacements,
   effortToOpenAIReasoning,
   isAnthropicModel,
   logProviderCache,
@@ -47,27 +47,50 @@ import {
 
 const REASONING_OFF = "none";
 
+/** True for a row of a WITHIN-TURN tool exchange — a `tool` result row, or the assistant row carrying the
+ *  calls that produced it. Both are appended AFTER assembly by `chat/engine/pipeline.ts:runRecurseLoop`, so
+ *  neither existed when the conversational depth was computed and neither may consume a depth unit
+ *  (`backends/kit/cache-control.ts` states the axis in full). */
+function isToolExchangeRow(message: ChatMessages): boolean {
+  if (message.role === "tool") {
+    return true;
+  }
+  return message.role === "assistant" && message.toolCalls !== undefined && message.toolCalls.length > 0;
+}
+
+/** The wire history projected onto the placer's row view: role (the depth axis), tool-exchange transparency,
+ *  and the token contribution the `cacheMinTokens` floor sums. Non-string content contributes 0 — it also
+ *  cannot receive a breakpoint on this dialect. */
+function breakpointRows(messages: readonly ChatMessages[]): CacheBreakpointRow[] {
+  return messages.map((message) => ({
+    role: message.role,
+    toolExchange: isToolExchangeRow(message),
+    tokens: typeof message.content === "string" ? estimateTokens(message.content) : 0,
+  }));
+}
+
 /**
- * Places the rolling-tail Anthropic cache pair at `depth` and `depth+2` (kept inside Anthropic's 20-block
- * lookback window, unlike a single breakpoint). Returns the array unchanged when no offset clears the
- * floor or its target content isn't a plain string.
+ * Places the rolling-tail Anthropic cache pair at conversational depths `depth` and `depth+2` (kept inside
+ * Anthropic's 20-block lookback window, unlike a single breakpoint). Depth is counted in ROLE SWITCHES from
+ * the end with within-turn tool exchanges transparent — see `backends/kit/cache-control.ts` for why the raw
+ * array offset is the wrong unit here. Returns the array unchanged when no depth clears the floor or its
+ * target content isn't a plain string.
  */
-export function placeHistoryCacheBreakpoint(messages: ChatMessages[], systemStatic: string, offsetFromEnd: number, cacheMinTokens: number): ChatMessages[] {
-  const offsets = computeCacheBreakpointOffsets({
-    messageTokens: messages.map((m) => (typeof m.content === "string" ? estimateTokens(m.content) : 0)),
+export function placeHistoryCacheBreakpoint(messages: ChatMessages[], systemStatic: string, depthFromEnd: number, cacheMinTokens: number): ChatMessages[] {
+  const placements = computeCacheBreakpointPlacements({
+    rows: breakpointRows(messages),
     systemStaticTokens: estimateTokens(systemStatic),
-    offsetFromEnd,
+    depthFromEnd,
     cacheMinTokens,
   });
-  if (offsets.length === 0) {
+  if (placements.length === 0) {
     return messages;
   }
   const replaced = messages.slice();
-  for (const offset of offsets) {
-    const targetIdx = messages.length - 1 - offset;
-    const target = replaced.at(targetIdx);
+  for (const { index } of placements) {
+    const target = replaced.at(index);
     if (target !== undefined && typeof target.content === "string") {
-      replaced[targetIdx] = { ...target, content: [cacheControlBlock(target.content)] };
+      replaced[index] = { ...target, content: [cacheControlBlock(target.content)] };
     }
   }
   return replaced;
@@ -88,19 +111,20 @@ function historyCacheGateOffset(req: OpenRouterChatRequest): number | undefined 
   return req.historyCacheBreakpointFromEnd;
 }
 
-// Recomputes the same positional decision `buildChatBody` applied, for the `provider.cache` receipt.
+// Recomputes the same positional decision `buildChatBody` applied, for the `provider.cache` receipt. Reports
+// the placed DEPTHS (the axis the knob + SHAPE both speak), not the resolved array indices — a depth is
+// stable across a tool exchange and an index is not, so the depth pair is what a drift diagnosis compares.
 function historyCacheOffsets(req: OpenRouterChatRequest): readonly number[] {
-  const offsetFromEnd = historyCacheGateOffset(req);
-  if (offsetFromEnd === undefined) {
+  const depthFromEnd = historyCacheGateOffset(req);
+  if (depthFromEnd === undefined) {
     return [];
   }
-  const messages = buildHistoryMessages(req.history);
-  return computeCacheBreakpointOffsets({
-    messageTokens: messages.map((m) => (typeof m.content === "string" ? estimateTokens(m.content) : 0)),
+  return computeCacheBreakpointPlacements({
+    rows: breakpointRows(buildHistoryMessages(req.history)),
     systemStaticTokens: estimateTokens(req.systemPrompt.static),
-    offsetFromEnd,
+    depthFromEnd,
     cacheMinTokens: historyCacheMinTokens(req),
-  });
+  }).map((placement) => placement.depth);
 }
 
 // A collapsed hitRatio with a spiked cacheWriteTokens is the cache-rot re-bill signal.

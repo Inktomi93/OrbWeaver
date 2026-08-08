@@ -23,6 +23,7 @@ export const systemTuningSection: SettingsSectionContribution = {
       "catalogRefreshIntervalMs",
       "imageVariantQuality",
       "maxDatabankBytes",
+      "promptCacheMinDepth",
       // The LEAF, not the parent (SET-SEAMS stage 4): the restart-gated launch editor (`admin-engines`)
       // owns every other `engineLaunch` field, so this section writes — and resets — this leaf ALONE.
       "engineLaunch.genPresencePenalty",

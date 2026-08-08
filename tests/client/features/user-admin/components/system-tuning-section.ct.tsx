@@ -20,6 +20,7 @@ const RESOLVED = {
   catalogRefreshIntervalMs: 86_400_000,
   imageVariantQuality: 80,
   maxDatabankBytes: 20_971_520,
+  promptCacheMinDepth: 0,
   engineLaunch: { genPresencePenalty: 1.5 },
 };
 
@@ -43,6 +44,26 @@ test("mounts with the resolved floors and shows the default beneath each field",
   await expect(page.getByRole("textbox", { name: "Agent-SDK summarize concurrency" })).toHaveValue("4");
   await expect(page.getByRole("textbox", { name: "Image-variant quality (1–100)" })).toHaveValue("80");
   await expect(page.getByRole("textbox", { name: "vLLM presence-penalty default" })).toHaveValue("1.5");
+  // The prompt-cache depth floor (findings §5). Its shipped floor 0 is the identity of the `Math.max` the
+  // server applies, so a virgin deployment renders "0" and every wire body is byte-identical to pre-knob.
+  await expect(page.getByRole("textbox", { name: "Prompt-cache depth floor (0–20)" })).toHaveValue("0");
+});
+
+// The D126 teaching-copy rider: the clamp is the ONE thing about this knob that surprises a reader (the
+// number they type is not necessarily the depth in use), and a hover-only `hint` cannot carry it.
+test("the prompt-cache clamp is ALWAYS-VISIBLE copy, not a hover-only hint", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<SystemTuningSectionStory />);
+  await expect(page.getByText(/only ever moves the cache breakpoint DEEPER/)).toBeVisible();
+});
+
+test("editing the prompt-cache depth floor + Save patches promptCacheMinDepth alone", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await mount(<SystemTuningSectionStory />);
+  await setNumber(page.getByRole("textbox", { name: "Prompt-cache depth floor (0–20)" }), "2");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect.poll(() => lastPartial(trpc)?.["promptCacheMinDepth"], { intervals: [20, 50, 100] }).toBe(2);
+  expect(lastPartial(trpc)?.["imageVariantQuality"]).toBeUndefined();
 });
 
 test("editing a flat field + Save fires updateAppSettings with ONLY the moved nested key", async ({ mount, page }) => {
@@ -81,6 +102,9 @@ test("an active override shows 'Overridden' and Reset clears every ⑩ override 
   // null (a nested `undefined` would be stripped by tRPC's plain-JSON wire → the override would survive its
   // own reset). Assert the ACTUAL fired patch shape (the merge-clear transition-test law).
   await expect.poll(() => lastPartial(trpc)?.["imageVariantQuality"], { intervals: [20, 50, 100] }).toBeNull();
+  // The new ⑩ key must ride the SAME reset — an owned key missing from `onReset` is an override with no way
+  // back to the floor (SET-SEAMS stage 4).
+  expect(lastPartial(trpc)?.["promptCacheMinDepth"]).toBeNull();
   const patch = lastPartial(trpc);
   expect(patch?.["engineLaunch"]).toEqual({ genPresencePenalty: null }); // leaf-null survives the wire, clears via the recursion
   expect((patch?.["engineLaunch"] as Record<string, unknown>)["genPresencePenalty"]).toBeNull();

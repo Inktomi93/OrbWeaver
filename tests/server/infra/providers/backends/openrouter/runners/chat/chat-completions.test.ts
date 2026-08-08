@@ -583,6 +583,108 @@ describe("the history cache breakpoint placement", () => {
   });
 });
 
+// ── The TOOL-EXCHANGE skew (findings §5) ────────────────────────────────────────────────────────────────
+// The depth SHAPE hands the runner is CONVERSATIONAL: `assembly/shape.ts` computes it over canon rows, whose
+// role axis is a two-arm `user|assistant` union — a `tool` row is unrepresentable there. Every tool row on
+// the wire is therefore appended AFTER assembly by `chat/engine/pipeline.ts:runRecurseLoop`, which re-sends
+// the SAME `cacheBreakpointFromEnd`. Two independent skews follow, pinned separately below; both are wrong
+// the same way (the breakpoint slides FORWARD onto bytes generated this turn, which can never be read back).
+describe("the history cache breakpoint is invariant across a within-turn tool exchange", () => {
+  const longText = "word ".repeat(1500);
+  // The conversational boundary every case below must land on: the last stable assistant turn.
+  const BOUNDARY = `A2 ${longText}`;
+
+  interface WireRow {
+    readonly role: string;
+    readonly content: string;
+    readonly toolCalls?: readonly { readonly id: string }[];
+    readonly toolCallId?: string;
+  }
+
+  function asWire(rows: readonly WireRow[]): Parameters<typeof placeHistoryCacheBreakpoint>[0] {
+    // `ChatMessages` is the SDK's role-discriminated union with a branded `role` enum per arm; the placer reads
+    // only role / toolCalls / content, and the point of these fixtures is the exact wire ROW ORDER a tool
+    // exchange produces. A typed factory here would be a factory for a vendor union we do not own.
+    // FABRICATION-OK: wire-shaped fixtures for a vendor union (the sibling `asMessages` helper does the same).
+    return rows as unknown as Parameters<typeof placeHistoryCacheBreakpoint>[0];
+  }
+
+  // canon: u1 a1 u2 A2 u3 — exactly the 5-row shape SHAPE delivers, with the volatile user turn last. Its
+  // safe offset is 1 (one step back from the tail), which is the boundary row `A2`.
+  const CANON: readonly WireRow[] = [
+    { role: "user", content: `U1 ${longText}` },
+    { role: "assistant", content: `A1 ${longText}` },
+    { role: "user", content: `U2 ${longText}` },
+    { role: "assistant", content: BOUNDARY },
+    { role: "user", content: `U3 ${longText}` },
+  ];
+
+  /** One recursion depth's appended exchange: the assistant row carrying its calls, then one `tool` row per
+   *  call (`pipeline.ts:toolExchangeMessages`). `width` = the number of PARALLEL calls in that batch. */
+  function exchange(width: number): WireRow[] {
+    return [
+      { role: "assistant", content: "calling", toolCalls: Array.from({ length: width }, (_, i) => ({ id: `call_${i}` })) },
+      ...Array.from({ length: width }, (_, i): WireRow => ({ role: "tool", content: "ok", toolCallId: `call_${i}` })),
+    ];
+  }
+
+  /** The CONTENT of every row that came back carrying a cache_control block — identity by bytes, not index,
+   *  so a pin says which conversational row was cached rather than which array slot. */
+  function cachedRows(placed: ReturnType<typeof placeHistoryCacheBreakpoint>): string[] {
+    return placed.flatMap((message) => {
+      const content = message.content;
+      if (!Array.isArray(content)) {
+        return [];
+      }
+      return content.flatMap((block) => (typeof (block as { text?: unknown }).text === "string" ? [(block as { text: string }).text] : []));
+    });
+  }
+
+  // PIN 1 — RECURSION DRIFT. The same offset, re-sent after one exchange, must still cache the same
+  // conversational row. Pre-fix it slides onto the assistant tool-call row generated THIS turn (measured on
+  // the live wire as a wasted cache write per depth — scripts/probes/openrouter/RESULTS.md, OR-5 arm 2).
+  // The assertion is SET EQUALITY, not `toContain(BOUNDARY)`: the R1 pair's deeper leg (`depth+2`) happens
+  // to land on the boundary even while the near leg has slid, so a containment check passes pre-fix and
+  // proves nothing. What is actually claimed is that NEITHER leg moved.
+  test("the SAME offset re-sent after a tool exchange caches the SAME conversational rows", () => {
+    const before = cachedRows(placeHistoryCacheBreakpoint(asWire(CANON), "", 1, CACHE_MIN));
+    const after = cachedRows(placeHistoryCacheBreakpoint(asWire([...CANON, ...exchange(1)]), "", 1, CACHE_MIN));
+    expect(before).toContain(BOUNDARY);
+    expect(after).toEqual(before);
+  });
+
+  // PIN 2 — PARALLEL FAN-OUT WIDTH. One depth of THREE parallel calls appends 4 array rows but only two
+  // role groups. An array-offset placer therefore lands somewhere different for width 1 vs width 3; a
+  // conversational placer lands on the same row for both.
+  test("the placement does not move with the WIDTH of a parallel tool batch", () => {
+    const narrow = cachedRows(placeHistoryCacheBreakpoint(asWire([...CANON, ...exchange(1)]), "", 1, CACHE_MIN));
+    const wide = cachedRows(placeHistoryCacheBreakpoint(asWire([...CANON, ...exchange(3)]), "", 1, CACHE_MIN));
+    expect(wide).toEqual(narrow);
+  });
+
+  // PIN 3 — a tool row NEVER carries the breakpoint. Accepted upstream (200) and therefore silent, which is
+  // exactly why it needs a pin: it writes a cache entry keyed on bytes that cannot recur (OR-5 arm 4).
+  test("no `tool` row and no tool-call assistant row is ever the breakpoint target", () => {
+    const placed = placeHistoryCacheBreakpoint(asWire([...CANON, ...exchange(2)]), "", 1, CACHE_MIN);
+    // Collected, then asserted once — a cached row is described by its role AND whether it carried tool
+    // calls, and BOTH must be false for every block placed.
+    const cachedRowShapes = placed.flatMap((message) =>
+      Array.isArray(message.content) ? [{ role: message.role, hadToolCalls: (message as { toolCalls?: unknown }).toolCalls !== undefined }] : [],
+    );
+    expect(cachedRowShapes).toEqual([
+      { role: "assistant", hadToolCalls: false },
+      { role: "assistant", hadToolCalls: false },
+    ]);
+  });
+
+  // PIN 4 — the pair survives the exchange: `depth` AND `depth+2` both land on conversational rows.
+  test("the R1 pair (`depth` + `depth+2`) stays on conversational rows across the exchange", () => {
+    const placed = placeHistoryCacheBreakpoint(asWire([...CANON, ...exchange(2)]), "", 1, CACHE_MIN);
+    // depth 1 → A2 (the boundary); depth 3 → A1, two conversational groups deeper. Array order, so A1 first.
+    expect(cachedRows(placed)).toEqual([`A1 ${longText}`, BOUNDARY]);
+  });
+});
+
 // The turns cell that turns the OR history-cache gate ON (an ANTHROPIC-family fact — ruling 3). The runner
 // reads `explicitPromptCache` + `cacheMinTokens` off the capability, NOT `isAnthropicModel` + a hardcoded
 // 1024 (W3). `historyCacheBreakpointFromEnd` is the ONE safe offset SHAPE computes.

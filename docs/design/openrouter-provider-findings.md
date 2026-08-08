@@ -1,6 +1,8 @@
 # OpenRouter chat-completions backend — measured findings & fixes
 
-**Status:** findings 1–4 APPLIED (2026-07-31); 5–7 MEASURED, unbuilt (2026-08-01 — verdicts +
+**Status:** findings 1–4 APPLIED (2026-07-31); **5 APPLIED (2026-08-08 — role-switch depth + the
+`promptCacheMinDepth` admin knob; live before/after in the harness's OR-5b)**; 6–7 MEASURED, unbuilt
+(7 re-probed 2026-08-08 at multi-hop — the deferral premise HOLDS, see OR-7b) (2026-08-01 — verdicts +
 recommendations in [`scripts/probes/openrouter/RESULTS.md`](../../scripts/probes/openrouter/RESULTS.md),
 raw wire evidence in that harness's `results/*.jsonl`) · **Date:** 2026-07-30 · **Scope:**
 `packages/server/src/infra/providers/backends/openrouter/` (the sealed `chat-completions` runner + `kit`).
@@ -20,7 +22,7 @@ Messages API. Sibling doc: `rpg-extraction-one-call-spike.md` (different subject
 | 2 | The Anthropic "pin" doesn't pin | 1 field | correctness of a stated guarantee |
 | 3 | An invalid TTL silently disables caching | guard + warning | 10× cost, zero signal |
 | 4 | `isError` on tool results is silently dropped | warning | D41 no-silent-degrade |
-| 5 | Cache breakpoints counted in array offsets, not role switches | small | ~~under-caching~~ **downgraded 08-01**: the read still hits (lookback); cost is a wasted WRITE per tool depth |
+| 5 | Cache breakpoints counted in array offsets, not role switches | small | **FIXED 08-08** — measured 5341 wasted cache-write tokens/depth → 0, invariant across recursion; + an admin depth knob |
 | 6 | OR under-drives `effort` 3–6× vs native | none (know it) | **confirmed + sharpened 08-01**: 28× at the ceiling, and no lever reaches native depth (F5) |
 | 7 | Reasoning is never round-tripped | contract change | continuity on long agentic chains — **08-01: an unsigned replay is a hard 400, so the signature must be structurally non-optional** |
 
@@ -89,19 +91,56 @@ chat-completions wire has nowhere to put it. It vanishes. D41 says a drop is lou
 `tool_result_error_dropped` warning alongside the existing `verbosity_dropped` /
 `custom_parameters_ignored`.
 
-## 5. Cache breakpoints are counted in array offsets; they should be role switches
+## 5. Cache breakpoints are counted in array offsets; they should be role switches — **FIXED 2026-08-08**
 
-`computeCacheBreakpointOffsets` walks raw array offsets from the end. SillyTavern's equivalent
-(`cachingAtDepthForOpenRouterClaude`) counts **role switches**, skips the prefill, and skips system rows.
-Both use the same `depth` / `depth+2` pair trick.
+`computeCacheBreakpointOffsets` walked raw array offsets from the end. It is now
+`computeCacheBreakpointPlacements` and counts **role switches**, with within-turn **tool exchanges
+transparent** and system rows consuming no depth. SillyTavern's equivalent
+(`cachingAtDepthForOpenRouterClaude`) is the reference for the role-switch unit and the system skip; both
+keep the same `depth` / `depth+2` pair trick.
 
-Why it matters here specifically: `toolResultMessages` expands ONE `tool` history turn into **N** wire
-messages (one per part). A caller passing `historyCacheBreakpointFromEnd` in conversational terms gets
-silently skewed by tool-result fan-out. `shared.ts:120` already notes empty-turn filtering was done "so the
-offset still lines up" — the same reasoning applies to fan-out and wasn't.
+**The original diagnosis named the wrong mechanism.** `toolResultMessages` *can* expand one `tool` history
+turn into N wire messages, but the only live producer of tool rows — `chat/engine/pipeline.ts:746
+toolExchangeMessages` — emits exactly ONE tool turn per record carrying ONE part, so that fan-out never
+occurs in production. The two skews that DO occur:
 
-Confirmed harmless-but-wrong: a breakpoint placed on a `role:"tool"` message is **accepted** (200,
-cWrite 10009). So this under-caches quietly rather than failing.
+- **Parallel width.** One recursion depth of N parallel calls appends **N+1** array rows (the assistant row
+  carrying the batch, then one `tool` row per call) but only **two** role groups.
+- **Recursion drift.** `runRecurseLoop` (`pipeline.ts:715`) re-sends `{ ...request, history }` with the
+  **unchanged** `cacheBreakpointFromEnd` after appending that exchange, so the array grows at the tail while
+  the offset does not.
+
+Both are the same root cause: the depth is CONVERSATIONAL — `chat/assembly/shape.ts:computeHistoryBreakpoint`
+derives it over canon rows, whose role axis is a two-arm `user|assistant` union, so a `tool` row is
+unrepresentable there. Every tool row on the wire postdates the depth's computation, which is exactly why
+counting it is wrong. `shared.ts:130` already notes empty-turn filtering was done "so the offset still lines
+up"; fan-out and recursion now get the same treatment.
+
+**Deliberate deviation from ST: the prefill skip is NOT adopted.** ST re-anchors depth 0 past a trailing
+assistant prefill. Ours anchors depth 0 on the volatile tail whatever its role, because that is what
+`computeHistoryBreakpoint` counts (`stableCount = withTail.length - 1`). Re-anchoring in the runner would
+shift every depth one group against its own producer. The prefill is never a target anyway: the producer
+returns `undefined` below offset 1 and the admin knob (below) can only raise the depth.
+
+**Measured, before and after** (`scripts/probes/openrouter/RESULTS.md` OR-5b, 2026-08-08, recursion depth 2,
+3 parallel calls, ~2.2k-token tool results):
+
+| placement | bp index | role at index | cached | cache write | cost |
+|---|---|---|---|---|---|
+| stale array offset 1 (old) | 7 | **tool** | 7727 | **5341** | $0.02024 |
+| conversational depth 1 (new) | 3 | assistant | 7727 | **0** | $0.01752 |
+| conversational depth 1, one MORE recursion depth | **3** | assistant | 7727 | **0** | — |
+
+The third row is the invariance receipt: eight appended rows across two recursion depths, and the breakpoint
+does not move. A breakpoint placed on a `role:"tool"` message is **accepted** (200), which is why this
+under-cached quietly rather than failing.
+
+**The knob.** Depth is now also settable: `AppSettings.promptCacheMinDepth` (Settings › Admin › System
+tuning, AppSettings tier with DB override — the D126 precedent), an integer 0–20 read per turn through a
+thunk. It is a **floor**, not an override — layered at `entry/compose/chat.ts` as
+`Math.max(shapeSafeDepth, knob)` — so it can only push the breakpoint DEEPER (more of the tail kept
+volatile), never shallower, and SHAPE's abort stays absolute. Floor 0 is `Math.max`'s identity, so an unset
+knob leaves every wire body byte-identical.
 
 ## 6. OpenRouter under-drives `effort` 3–6× vs the native wire
 
@@ -170,7 +209,9 @@ contract change (`ChatContentPart` + a signature guard) with an unquantified pay
 ## Verification
 
 Findings 5–7 now have a STANDING harness in the repo: `scripts/probes/openrouter/`
-(`node scripts/probes/openrouter/run.ts`, resumable, ~$0.32 for the full batch) — it also answers F4
+(`node scripts/probes/openrouter/run.ts`, resumable, ~$0.48 for the full seven-probe batch) — including
+**OR-5b** (finding 5's before/after on the live wire, at recursion depth 2 with a fat parallel batch) and
+**OR-7b** (finding 7's deferral premise re-tested at multi-hop, plus replay shape × splice position) — it also answers F4
 (tool descriptions ARE cache-key bytes; any edit invalidates the whole prefix) and F4a (effort keys the
 cache, one extra full write per distinct effort). Read `RESULTS.md` there before re-deriving anything below.
 

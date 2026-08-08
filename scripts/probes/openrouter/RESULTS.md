@@ -1,8 +1,9 @@
 # OpenRouter probe batch — verdicts
 
-**Run:** 2026-08-01 · **Wire:** `anthropic/claude-sonnet-5` via OpenRouter (Anthropic pinned,
-`allow_fallbacks:false`), plus the Anthropic Messages API for F5's native reference arms.
-**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32**.
+**Run:** 2026-08-01 (F4/F4a/F5/OR-5/OR-7) · 2026-08-08 (OR-5b/OR-7b) · **Wire:** `anthropic/claude-sonnet-5`
+via OpenRouter (Anthropic pinned, `allow_fallbacks:false`), plus the Anthropic Messages API for F5's native
+reference arms.
+**Spend:** ~$0.20 OpenRouter + ~$0.12 Anthropic native ≈ **$0.32** (08-01) · **$0.152** OpenRouter (08-08).
 **Raw evidence:** `results/<probe>.jsonl` — every arm's HTTP status + full usage block, append-only.
 **Sibling docs:** `docs/design/openrouter-provider-findings.md` (findings 1–7) ·
 `docs/design/rpg-extraction-one-call-spike.md` §7 (the F-list).
@@ -14,6 +15,8 @@
 | **F5** | is native thinking depth reachable through OR? | **NO — 205 vs 5783 thinking tokens (28×)**; neither `max_tokens` nor `reasoning:{max_tokens}` moves it | deliberation depth is capped by this wire; tool-call output was unaffected |
 | **OR-5** | do array-offset breakpoints under-cache tool-heavy turns? | **REFUTED in the strong form** — the read still hits (3477 both ways); cost is a small wasted WRITE per depth | a real but bounded defect; fix is ~2 lines, ROI scales with tool-result size |
 | **OR-7** | is replaying a reasoning block a hard 400? | **only when the signature is missing** — verbatim 200 · unsigned **400** · ST `reasoning.encrypted` 200 · drop 200 | if reasoning is ever round-tripped, the signature must be structurally non-optional |
+| **OR-5b** | does counting depth in ROLE SWITCHES (tool exchanges transparent) remove the wasted write? | **YES — 5341 wasted cache-write tokens → 0**, and the placement is INVARIANT across a second recursion depth | the §5 fix, measured; ~$0.0027/depth recovered on a fat parallel exchange |
+| **OR-7b** | is DROPPING reasoning still safe past ONE hop? | **YES — 3-hop chain 200/200/200 and the chain still carried a fact only a mid-chain tool result revealed** | the finding-7 deferral premise HOLDS at the shape it is actually about |
 
 ---
 
@@ -153,6 +156,36 @@ number (~$0.0001/depth here) but scales linearly with tool-result size — a 2k-
 ~$0.0075 per depth. Not measured: whether a large fan-out can push the intended boundary out of
 Anthropic's ~20-block lookback, which WOULD turn this into a real miss.
 
+## OR-5b — the FIX: depth counted in role switches, tool exchanges transparent
+
+**Run:** 2026-08-08 · `results/or5b.jsonl` · spend **$0.0910** · one variable: where the breakpoint lands.
+The history is the production shape at recursion depth 2 with a **parallel batch of 3** and **fat tool
+results** (~2.2k tokens each) — the shape that makes the defect expensive rather than a rounding error.
+
+| arm | rows | bp idx | role at idx | cached | cache write | cost |
+|---|---|---|---|---|---|---|
+| 1 prime-canon (5 rows, depth 1 → idx 3) | 5 | 3 | assistant | 0 | 7727 | $0.01984 |
+| 2 **stale array offset 1** (pre-fix) | 9 | **7** | **tool** | 7727 | **5341** | $0.02024 |
+| 3 **conversational depth 1** (shipped) | 9 | **3** | assistant | 7727 | **0** | $0.01752 |
+| 4 conversational depth 1, SECOND recursion depth | 13 | **3** | assistant | 7727 | **0** | $0.03339 |
+
+**Verdict.** The fix holds on the live wire and the number is bigger than OR-5's original estimate, because
+OR-5 measured a 1-call exchange with a 20-token result. Here:
+
+- The stale array offset lands on a **`role:"tool"` row** and writes **5341** cache tokens that describe
+  bytes generated this turn — an entry that can never be read again. Cost of that one wasted write:
+  **$0.0027 on this turn** ($0.02024 vs $0.01752, same prompt, same 7727 cached tokens).
+- The conversational depth lands on the **same stable assistant boundary as arm 1**, writes **zero**, and
+  still reads the full 7727 primed tokens.
+- **Arm 4 is the invariance receipt.** After a SECOND recursion depth (13 rows, 4 more appended), the
+  resolved index is **still 3** and the write is still **0**. The array grew by 8 rows across two depths; the
+  breakpoint did not move. That is the property `tests/support/parity-runner.ts:223 offsetInvariant` names and
+  the reason `pipeline.ts:runRecurseLoop`'s unchanged re-send needs no fix of its own — the placer now
+  ignores exactly the rows the loop appends.
+
+Scaling: the waste is the size of the tool exchange, billed at the 1.25× cache-write rate, **per depth**. A
+3-call rpg state round with 2k-token results is ~$0.003/depth; a 5-depth agentic chain is ~$0.015/turn.
+
 ## OR-7 — reasoning round-trip
 
 `results/or7.jsonl` · one variable: the shape of the replayed assistant reasoning. Captured turn, tool
@@ -183,3 +216,47 @@ the signature must be structurally non-optional or the shape must be `reasoning.
 reasoning part that can exist without its signature is a hard 400 on every subsequent turn of the chat,
 and `shared.ts:reshapeReasoningDetails` currently drops `signature` while keeping `text`, which is exactly
 the fatal combination. The payoff (agentic continuity) is still unquantified; the failure mode now is not.
+
+## OR-7b — the deferral premise at MULTI-hop, and replay shape × splice POSITION
+
+**Run:** 2026-08-08 · `results/or7b.jsonl` · spend **$0.0610** across four iterations (two of which were
+instrument repairs — recorded below, because both would have shipped a false verdict). **Probe and record
+only** — the finding-7 deferral (we never replay reasoning) stands and no product code changed.
+
+OR-7 measured a SINGLE trivial hop, which is the case least able to expose a continuity loss. This probe
+re-asks at the shape the ruling is about: a 3-hop tool chain where every replayed assistant turn arrives
+with its thinking block dropped, and the final answer depends on a nonsense rune (`vhalthenmir`) revealed
+ONLY inside a mid-chain tool result — so "did it keep the fact" is measured, not asserted.
+
+| arm | position | status | prompt | reasoning tk | cost |
+|---|---|---|---|---|---|
+| 1 chain-drop hop 1 (3 parallel calls) | — | **200** | 775 | 9 | $0.00662 |
+| 2 chain-drop hop 2 (1 call) | — | **200** | 1216 | 0 | $0.00365 |
+| 3 chain-drop hop 3 (answers) | — | **200** | 1327 | 0 | $0.00309 |
+| 4 unsigned replay | deep (hop 1's turn) | **400** | — | — | — |
+| 5 ST `reasoning.encrypted` | deep (hop 1's turn) | **200** | 1621 | 0 | $0.00387 |
+| 6 unsigned replay | last assistant | **400** | — | — | — |
+| 7 ST `reasoning.encrypted` | last assistant | **200** | 1621 | 0 | $0.00376 |
+
+Final text, arm 3: *"Speaking **vhalthenmir**, the rune from the sole unweathered ward stone, the ancient
+door grinds open before you."*
+
+**Verdict — the deferral premise HOLDS.** (a) Dropping is safe past one hop: 200 on every hop of a 3-hop
+chain, and the chain still named a fact that existed only in a hop-1 tool result it never saw again. No
+degradation to report. (b) The unsigned-replay 400 re-confirms, verbatim upstream body:
+`messages.1.content.0: Invalid \`signature\` in \`thinking\` block` (provider Anthropic). (c) ST's cheaper
+rebuilt `reasoning.encrypted` + `data` + `format` shape is accepted, 200. **New datum: splice POSITION does
+not matter** — both shapes behave identically whether the block sits on the last assistant turn or deep in
+the chain, so the rule is per-block, not per-position.
+
+**Two instrument repairs, kept as evidence** (both produced a confident, wrong verdict first):
+
+1. *The chain ends on an assistant row.* Splicing a replay into it and sending as-is returns **400 —
+   "This model does not support assistant message prefill. The conversation must end with a user message."**
+   That is a 400 that says nothing about signatures, and on the first run it made BOTH replay arms read as
+   rejected. The replay arms must re-open with a user turn.
+2. *A signed block with ZERO reasoning tokens is not validated.* The second repair run captured
+   `hasSignature: true` at hop 1 with `reasoning_tokens: 0`, and the unsigned replay returned **200** — i.e.
+   an empty thinking block's signature is not checked, and the arm was vacuous while looking like a
+   contradiction of OR-7. The 400 reproduces only once hop 1 does REAL thinking (`reasoning_tokens: 9`).
+   A replay arm now records `hasSignature` and self-declares `blocked` when there is nothing signed to send.

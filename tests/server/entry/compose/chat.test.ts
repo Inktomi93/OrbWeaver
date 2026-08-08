@@ -261,4 +261,47 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
     ]);
     expect(chunks.map((c) => c.kind)).toEqual(["final"]);
   });
+
+  // ── The prompt-cache depth FLOOR (AppSettings.promptCacheMinDepth, findings §5) ────────────────────────
+  // The knob is layered HERE, at the one seam a domain depth becomes an infra request field. It is a floor
+  // and only a floor: SHAPE's per-turn minimum still wins when it is deeper, and SHAPE's abort (a null
+  // breakpoint — the prefix is mutating) is absolute, because a breakpoint on shifting bytes is a wasted
+  // cache write in every case, at every depth.
+  async function depthSentTo(cacheBreakpointFromEnd: number | null, promptCacheMinDepth?: () => number): Promise<number | undefined> {
+    let seen: number | undefined;
+    const bridge = createRunChatTurnBridge({
+      runChatTurn: (req): Promise<ChatResult> => {
+        seen = "historyCacheBreakpointFromEnd" in req ? req.historyCacheBreakpointFromEnd : undefined;
+        return Promise.resolve({ ...baseResult, events: [] });
+      },
+      getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
+      ...(promptCacheMinDepth === undefined ? {} : { promptCacheMinDepth }),
+    });
+    for await (const _chunk of bridge({ ...wireRequest, cacheBreakpointFromEnd })) {
+      // drain
+    }
+    return seen;
+  }
+
+  test("no knob wired ⇒ SHAPE's depth rides VERBATIM (the byte-identical default)", async () => {
+    expect(await depthSentTo(1)).toBe(1);
+    expect(await depthSentTo(null)).toBeUndefined();
+  });
+
+  test("the floor 0 is the IDENTITY — an unset override cannot move any wire body", async () => {
+    expect(await depthSentTo(1, () => 0)).toBe(1);
+    expect(await depthSentTo(7, () => 0)).toBe(7);
+  });
+
+  test("a floor DEEPER than SHAPE's minimum wins (the owner's 'keep slots 0/1 volatile' case)", async () => {
+    expect(await depthSentTo(1, () => 2)).toBe(2);
+  });
+
+  test("a floor SHALLOWER than SHAPE's minimum is IGNORED — the knob can never pin mutating bytes", async () => {
+    expect(await depthSentTo(4, () => 2)).toBe(4);
+  });
+
+  test("SHAPE's ABORT is absolute — a null breakpoint stays absent however deep the floor is set", async () => {
+    expect(await depthSentTo(null, () => 20)).toBeUndefined();
+  });
 });

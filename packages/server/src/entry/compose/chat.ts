@@ -282,6 +282,10 @@ export interface ChatComposeInput {
    *  to undefined (byte-identical no-op). Bridged from `databank.gatherRetrieval` at the composition root. */
   readonly gatherDatabank?: ChatContext["gatherDatabank"];
   readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
+  /** The deployment's Anthropic prompt-cache depth FLOOR, read per turn off the resolved AppSettings tier
+   *  (`EffectiveAppConfig.promptCacheMinDepth`, Settings › Admin › System tuning). A thunk, not a value, so an
+   *  admin flip reaches the next turn without a restart. Absent ⇒ the floor 0 (byte-identical no-op). */
+  readonly promptCacheMinDepth?: () => number;
   readonly assets: AssetsService;
   /** Materialize a user-pasted external carried-background URL into an owned CAS asset (side-eye F-P0-2) — the
    *  shared compose-built op the `setChatBackground` verb runs for a `kind:"external"` source. */
@@ -432,6 +436,11 @@ function warningChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
 export function createRunChatTurnBridge(deps: {
   readonly runChatTurn: (req: ChatRequest) => Promise<ChatResult>;
   readonly getOrSkinTierModels: ConnectionService["getOrSkinTierModels"];
+  /** The deployment's prompt-cache depth FLOOR (`AppSettings.promptCacheMinDepth`, Settings › Admin › System
+   *  tuning) — read PER TURN so an admin flip governs the next request with no restart (the D126 thunk
+   *  precedent). Optional: absent reads as the born-in-DB floor 0, which is `Math.max`'s identity, so a
+   *  harness that omits it produces byte-identical wire bodies. */
+  readonly promptCacheMinDepth?: () => number;
 }): (req: TurnRequest) => AsyncIterable<TurnStreamChunk> {
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: adapter logic
   return async function* runChatTurn(req: TurnRequest): AsyncIterable<TurnStreamChunk> {
@@ -500,7 +509,14 @@ export function createRunChatTurnBridge(deps: {
             chatId: req.chatId,
             // biome-ignore lint/suspicious/noExplicitAny: interface mismatch
             history: req.history as any,
-            historyCacheBreakpointFromEnd: req.cacheBreakpointFromEnd ?? undefined,
+            // The cache breakpoint DEPTH (role switches from the end — `backends/kit/cache-control.ts` owns
+            // the axis). SHAPE computes the turn's MINIMUM SAFE depth and returns nothing at all when the
+            // stable prefix is disrupted; the admin knob is a FLOOR layered on top, so it can only push the
+            // breakpoint DEEPER (more of the tail kept volatile), never shallower — a shallower breakpoint
+            // pins bytes that change every turn, which is a guaranteed wasted cache write, not a preference.
+            // SHAPE's abort therefore stays absolute: no safe depth ⇒ no breakpoint, whatever the knob says.
+            historyCacheBreakpointFromEnd:
+              req.cacheBreakpointFromEnd === null ? undefined : Math.max(req.cacheBreakpointFromEnd, deps.promptCacheMinDepth?.() ?? 0),
             // The preset's provider-passthrough blob (PD-148) rides the shared chat-completions/responses arm,
             // but is BYOK-ONLY at the wire: only the custom-byo runner honors it. OpenRouter drops it (its knobs
             // are the modeled sampling surface — the anti-sprawl design); the agent-sdk arm carries none by charter.
@@ -765,6 +781,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     runChatTurn: createRunChatTurnBridge({
       runChatTurn: input.runChatTurn,
       getOrSkinTierModels: () => input.connection.getOrSkinTierModels(),
+      ...(input.promptCacheMinDepth === undefined ? {} : { promptCacheMinDepth: input.promptCacheMinDepth }),
     }),
     resolveChatPresetParams,
     resolveChatProse,

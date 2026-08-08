@@ -4,8 +4,8 @@
 // Anthropic provider (order + allow_fallbacks:false) so an unpinned model can't silently land on a
 // non-caching endpoint. Measured wire facts (ttl "1h" honored, the fallback leak, the silent invalid-ttl
 // drop) are recorded in docs/design/openrouter-provider-findings.md §1–§3.
-// `computeCacheBreakpointOffsets` is the pure positional core the openrouter runner maps onto its own
-// wire dialect.
+// `computeCacheBreakpointPlacements` is the pure positional core the openrouter runner maps onto its own
+// wire dialect; its DEPTH axis (role switches, tool exchanges transparent) is specified at that function.
 
 import type { OpenRouterProviderRouting } from "@orb/contracts/connection";
 import { providerLog } from "./provider-log.ts";
@@ -84,30 +84,101 @@ export function cacheControlBlock(text: string): CacheControlTextBlock {
   return { type: "text", text, cacheControl: ANTHROPIC_CACHE_1H };
 }
 
-// Returns the pair of offsets `depth` and `depth+2` whose cumulative prefix clears the per-model
-// cacheMinTokens floor. The deeper offset keeps a cache hit inside Anthropic's 20-block lookback window
-// that a single breakpoint drops on a long conversation. Drops the deeper offset when it runs off the
-// front or is below the floor; drops both when even `depth` is below the floor.
-export function computeCacheBreakpointOffsets(args: {
-  readonly messageTokens: readonly number[];
+// ── The breakpoint DEPTH axis ────────────────────────────────────────────────────────────────────────────
+// The depth a runner is handed is CONVERSATIONAL, and it is counted in ROLE SWITCHES from the end — not in
+// raw wire-array offsets (findings §5). Two facts force that unit:
+//
+//  1. The producer counts conversation. `chat/assembly/shape.ts:computeHistoryBreakpoint` derives the depth
+//     over CANON rows, whose role axis is a two-arm `user|assistant` union — a `tool` row cannot exist there.
+//  2. The wire array does not. Every `tool` row (and the assistant row carrying its calls) is appended AFTER
+//     assembly by `chat/engine/pipeline.ts:runRecurseLoop`, which re-sends the SAME depth it was given. One
+//     recursion depth of N parallel calls adds N+1 array rows but only TWO role groups — so an array-offset
+//     placer slides forward by a number nobody upstream can predict, landing the breakpoint on bytes
+//     GENERATED THIS TURN. Measured: still a cache READ (Anthropic's lookback finds the older entry) but a
+//     wasted cache WRITE per depth, sized by the tool exchange (scripts/probes/openrouter/RESULTS.md, OR-5).
+//
+// So a within-turn tool exchange is TRANSPARENT to depth: it did not exist when the depth was computed, and
+// counting it is the whole defect. This is a DELIBERATE deviation from SillyTavern's
+// `cachingAtDepthForOpenRouterClaude` (`prompt-converters.js`), which has no tool rows in that flow and so
+// never had this decision to make; the ST reference is a floor, not a golden.
+//
+// System rows DO consume no depth (ST parity, and a system injection is not a conversational turn) — skipping
+// them can only move a breakpoint DEEPER into the already-stable prefix, never shallower, so it is safe
+// against `shape.ts`'s array-counted number by monotonicity.
+//
+// ST's PREFILL skip is deliberately NOT adopted. ST anchors depth 0 on the last real conversational message;
+// OUR depth 0 is the volatile tail whatever its role, because that is what `computeHistoryBreakpoint` counts
+// (`stableCount = withTail.length - 1` — the tail is index 0 even when it is an `assistantPrefill` row).
+// Re-anchoring here would shift every depth by one group against its own producer. The prefill is never a
+// target anyway: `computeHistoryBreakpoint` returns `undefined` below offset 1, and the admin depth knob can
+// only raise the depth, so the placer is never asked for depth 0.
+
+/** One delivered wire row as the breakpoint placer sees it. */
+export interface CacheBreakpointRow {
+  /** The wire role — the depth axis (`system` consumes none). */
+  readonly role: string;
+  /** Part of a WITHIN-TURN tool exchange (a `tool` result row, or the assistant row carrying its calls):
+   *  transparent to conversational depth, because it postdates the depth's computation. */
+  readonly toolExchange: boolean;
+  /** This row's contribution to the cumulative prefix the `cacheMinTokens` floor is measured against. */
+  readonly tokens: number;
+}
+
+/** A placed breakpoint: the conversational DEPTH it satisfies, and the wire-array INDEX that depth resolved
+ *  to. The two are equal only on a tool-free, system-free, fully role-alternating history. */
+export interface CacheBreakpointPlacement {
+  readonly depth: number;
+  readonly index: number;
+}
+
+const TOOL_DEPTH_TRANSPARENT_ROLE = "system";
+
+/** The wire-array index of the NEWEST row at conversational depth `wanted`, or undefined when the history
+ *  is not that deep. Depth 0 is the newest role group; each role SWITCH walking backwards opens the next. */
+function indexAtDepth(rows: readonly CacheBreakpointRow[], wanted: number): number | undefined {
+  let depth = 0;
+  let previousRole = "";
+  let found: number | undefined;
+  for (let i = rows.length - 1; i >= 0 && found === undefined; i -= 1) {
+    const row = rows[i];
+    if (row === undefined || row.toolExchange || row.role === TOOL_DEPTH_TRANSPARENT_ROLE) {
+      continue;
+    }
+    if (row.role !== previousRole) {
+      if (depth === wanted) {
+        found = i;
+        continue;
+      }
+      depth += 1;
+      previousRole = row.role;
+    }
+  }
+  return found;
+}
+
+// Returns the pair of placements at depths `depth` and `depth+2` whose cumulative prefix clears the
+// per-model cacheMinTokens floor. The deeper one keeps a cache hit inside Anthropic's 20-block lookback
+// window that a single breakpoint drops on a long conversation. Drops the deeper placement when it runs off
+// the front or is below the floor; drops both when even `depth` is below the floor.
+export function computeCacheBreakpointPlacements(args: {
+  readonly rows: readonly CacheBreakpointRow[];
   readonly systemStaticTokens: number;
-  readonly offsetFromEnd: number;
+  readonly depthFromEnd: number;
   readonly cacheMinTokens: number;
-}): readonly number[] {
-  const { messageTokens, systemStaticTokens, offsetFromEnd, cacheMinTokens } = args;
-  const len = messageTokens.length;
-  const placed: number[] = [];
-  for (const offset of [offsetFromEnd, offsetFromEnd + 2]) {
-    const targetIdx = len - 1 - offset;
-    if (targetIdx < 0) {
+}): readonly CacheBreakpointPlacement[] {
+  const { rows, systemStaticTokens, depthFromEnd, cacheMinTokens } = args;
+  const placed: CacheBreakpointPlacement[] = [];
+  for (const depth of [depthFromEnd, depthFromEnd + 2]) {
+    const index = indexAtDepth(rows, depth);
+    if (index === undefined) {
       continue;
     }
     let prefixTokens = systemStaticTokens;
-    for (let i = 0; i <= targetIdx; i += 1) {
-      prefixTokens += messageTokens[i] ?? 0;
+    for (let i = 0; i <= index; i += 1) {
+      prefixTokens += rows[i]?.tokens ?? 0;
     }
     if (prefixTokens >= cacheMinTokens) {
-      placed.push(offset);
+      placed.push({ depth, index });
     }
   }
   return placed;

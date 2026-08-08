@@ -10,6 +10,7 @@ import {
   DEFAULT_MAX_IMAGE_BYTES,
   DEFAULT_USER_SETTINGS,
   LOG_LEVELS,
+  PROMPT_CACHE_MIN_DEPTH_CEIL,
   parseAppSettings,
   parseUserSettings,
   resolveImageryCaption,
@@ -474,9 +475,33 @@ test("a stored prose override round-trips, and a RETIRED slot id is stripped ins
   expect(parsed.prose).toEqual({ "chat.compaction.system": { text: "Summarize like a ship's log.", baseVersion: 1 } });
 });
 
-test("the pinned schema versions: AppSettings v5 (D126 structuredOutputShape), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
-  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V5);
+test("the pinned schema versions: AppSettings v6 (promptCacheMinDepth, findings §5), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
+  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V6);
   expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V8);
+});
+
+// The AppSettings v5→v6 lift. `promptCacheMinDepth` is purely additive AND its floor 0 is the identity of the
+// `Math.max` it feeds, so a stored v5 blob must read back with the field absent and every sibling override
+// intact — the proof that no deployment's wire bodies moved when this landed.
+test("AppSettings v5→v6: a stored v5 blob keeps its overrides and reads back with NO promptCacheMinDepth", () => {
+  // `appSettingsSchema` strips the stored `schemaVersion` on the way out (it lives in the blob, not a column),
+  // so the lift's receipt is the SURVIVING overrides, not a version field on the parsed value.
+  const parsed = parseAppSettings({ schemaVersion: SCHEMA_VERSION_V5, structuredOutputShape: "strict-compatible", maxImageBytes: 1_000_000 });
+  expect(parsed.structuredOutputShape).toBe("strict-compatible");
+  expect(parsed.maxImageBytes).toBe(1_000_000);
+  expect(parsed.promptCacheMinDepth).toBeUndefined();
+});
+
+// Bounded at PARSE, the `maxDatabankBytes` precedent: an out-of-range depth drops to the floor rather than
+// pushing a breakpoint past Anthropic's ~20-block lookback (or below its own identity).
+test("promptCacheMinDepth is bounded 0–20 at parse; an out-of-range or fractional value drops to the floor", () => {
+  expect(parseAppSettings({ promptCacheMinDepth: 2 }).promptCacheMinDepth).toBe(2);
+  expect(parseAppSettings({ promptCacheMinDepth: PROMPT_CACHE_MIN_DEPTH_CEIL }).promptCacheMinDepth).toBe(PROMPT_CACHE_MIN_DEPTH_CEIL);
+  expect(parseAppSettings({ promptCacheMinDepth: PROMPT_CACHE_MIN_DEPTH_CEIL + 1 }).promptCacheMinDepth).toBeUndefined();
+  expect(parseAppSettings({ promptCacheMinDepth: -1 }).promptCacheMinDepth).toBeUndefined();
+  expect(parseAppSettings({ promptCacheMinDepth: 2.5 }).promptCacheMinDepth).toBeUndefined();
+  // The CLEAR sentinel survives as null (the layer reads it as "no override" → the floor).
+  expect(parseAppSettings({ promptCacheMinDepth: null }).promptCacheMinDepth).toBeNull();
 });
 
 // ── ⑫ imagery templates: default-identity + per-mode override resolution ──

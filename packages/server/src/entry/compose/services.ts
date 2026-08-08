@@ -608,6 +608,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     embeddings,
     resolveHandle: (handle) => sessions.resolveHandle(handle),
     runChatTurn: executor.runChatTurn,
+    // The Anthropic prompt-cache depth FLOOR, read PER TURN off the resolved AppSettings tier (Settings ›
+    // Admin › System tuning). A thunk for the same reason `structuredOutputShape` below is one: an admin flip
+    // must govern the next turn with no restart.
+    promptCacheMinDepth: () => effectiveConfig.getEffectiveConfig().promptCacheMinDepth,
     readPresence: (userId) => Promise.resolve(presence.read(userId)),
     generatePicture: imagery.generatePicture,
     gatherDatabank: databank.gatherRetrieval,
