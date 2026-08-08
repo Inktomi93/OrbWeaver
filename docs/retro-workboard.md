@@ -708,7 +708,19 @@ security lens.
   shell cannot produce — RULED arm (b): DROP it, record the measured truth, keep the working `:has()`
   chain · [layout] the World Info empty-state one-line box (both affordances stay — mock-ratified).
   Members-chip dead-control fix in flight separately (`a8b871a5f15e96f57`).
-- **⚠ GATE-IGNORE CLASS: "FULLY CLOSED" REFUTED — a 4th leg is in flight.** Verifier
+- **✅ GATE-IGNORE CLASS CLOSED FOR REAL — ENFORCED, NOT SWEPT** (`00628ab03`, commit `f3d786862`).
+  The 4 refuted gates converted (incl. no-inline-union-redecl's finalize→run move — a node report in
+  finalize lands AFTER the inventory sweep) + 2 tripwire-found extras (query-freshness-coverage,
+  density-tier's bogus column). NEW GATE `finding-overload-provenance` (196→**197**): matches the
+  finding literal by SHAPE wherever built (why 3 call-site sweeps each missed members), 3 arms
+  strongest-wins, two-sided `@finding-overload-ok` sanction grammar. First-run census EXHAUSTIVE:
+  60 sites = 6 converted · 8 permanently sanctioned (incl. baseui ARM A + schema-banned-shapes —
+  RATIFIED: converting would silently repeal recorded no-exemption rulings) · 52 in a shrink-only
+  baseline w/ committed generator. Six-case probe incl. bare-marker double-fire + both baseline
+  modes; GATE-AUTHORING §1 names its enforcer. **Boarded follow-up:** `@orb-gate-ignore` under
+  `scripts/` is UNINVENTORIED (gate-ignore-inventory scanRoot is packages+tests by deliberate
+  design; extending needs the literal-span exclusion extended to scripts/ — its own lane).
+- **⚑ PRIOR GATE-IGNORE ARC (for the record):** "FULLY CLOSED" REFUTED — a 4th leg is in flight.** Verifier
   `a8fed8ee2276a7c1e` CONFIRMED the 14 converted gates (3 spot-checks incl. the over-exempt property
   at same-line granularity; kept-arms correctly §1-sanctioned; expect.token discriminates) but
   REFUTED the closure: **4 more gates** the closing sweep's regex missed (`no-vanity-alias` — proven
