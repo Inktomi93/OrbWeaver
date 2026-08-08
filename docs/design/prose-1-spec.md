@@ -110,7 +110,7 @@ Home: `packages/contracts/src/preset/index.ts`.
 | 46 | `DEFAULT_FORMAT_STRINGS.impersonateNudge` | `:659` | `formatStrings` ✅ editor ✅ |
 | 47 | `DEFAULT_FORMAT_STRINGS.responseNudge` | `:665` | `formatStrings` ✅ **editor ✗** |
 | 48 | `DEFAULT_FORMAT_STRINGS.wiFormat` | `:666` | `formatStrings` ✅ editor ✅ (`section-body-editor.tsx:211`) |
-| 49 | `DEFAULT_COMPACT_INSTRUCTIONS` | `:670` | ✗ |
+| 49 | `DEFAULT_COMPACT_INSTRUCTIONS` | `:670` | `promptConfig.compaction.instructions` ✅ — SLOTTED `preset.compaction.instructions` (adapted, 2026-08-07); the earlier "✗" was stale (already overridable) |
 | 50 | `DEFAULT_MARKER_TEMPLATES.compact_summary` | `:698` | per-section `template` ✅ |
 | 51 | `DEFAULT_MARKER_TEMPLATES.memory` | `:699` | per-section `template` ✅ |
 | 52 | `DEFAULT_PROMPT_CONFIG` `main_prompt` template | `:967` | per-section `template` ✅ |
