@@ -629,6 +629,24 @@ security lens.
   `docs/design/prose-1-rpg-extraction-followon.md` to preset-home. Byte-identity guards (frozen
   cohort, field-reachability) must stay green — the re-home changes the OVERRIDE SOURCE, never the
   defaults. Security lane's Item 2 (strip review + fork-game comment repair) DROPPED as moot.
+- **✅ W4-BURNDOWN GRADUATED, torn down.** Verifier `ad52e90d372a0b670` CONFIRMED all 4 claims:
+  re-arm order A/B-executed identical across 4 scenarios; types/timing/error-paths preserved; zero
+  resolver-captures remain (4 inline wrappers only); 94/115 toSorted exact w/ all 21 keeps inspected
+  as genuine materializations; BOTH gate measurements independently reproduced (reach control fired
+  8/8 DEFERRED on pre-W4 plants — confirming the 8th ref-capture site; recall control 14/21
+  SPREAD-SORT, 0 FP); NODE26-FIX mechanics byte-identical (8 functions string-compared). 2 doc gaps
+  (undeclared call-handed-resolver blind spot + a six-vs-eight prose drift) routed to the live SMALLS
+  lane (same file). ~3,900 tests green across its runs.
+- **✅ TOAST work-stream: ALL CLOSED — side-eye final verdict "It's finished."** Leg 2 merged
+  `6c6d3f08f`, check PASS. Ring CLOSED (side-eye retracted its own near-false-negative — a same-tick
+  read of the 220ms transition; settled values = ring token/2px/solid, elevation byte-intact; reduced-
+  motion instant) · action 6.18:1 boundary + 7.06:1 label pixel-sampled · z 68>65 live single-frame
+  receipt PAID (bell reproduced) · glyph grammar ratified incl. the deliberate glyph-less info ·
+  mobile decline RATIFIED (tested for a better option, none exists) · viewport-F6 CLEARED on 4 grounds.
+  Side-eye also retracted its phantom "§3 semantic scale" cite (it was a skill heuristic, not repo
+  law — the doc truth-repair stands). FINAL MICRO-LEG in flight (2 one-liners: narrow transition-all
+  so the ring is instant; delete the viewport outline-none landmine; + restate the residual comment
+  structurally). Closes on that landing.
 - **⚑ CONFIG-SWEEP (I-3 tail) REPORTED: SHIP WITH FIXES — 4 P1 · 9 P2 · 5 P3** (side-eye
   `a745bb9c0eab275f4`; receipts `reports/snaps/sweep-*.png`; SEEDED FIXTURE left in dev DB: 35 regex
   scripts / 32 tags / 6 databank docs, reusable). Root cause on most: a CONTEXT arm with nothing
