@@ -3,13 +3,26 @@
 // keeps its current value). Attribute keys are validated ∈ the profile vocabulary AND in range (§2.3). The row
 // is created on FIRST WRITE (the persistence upsert); a `character` ref carries `characterId`, a `user` ref
 // carries `userId` (the XOR the schema enforces).
+//
+// TWO AUTHORITY FLOORS, NOT ONE. `assertOwnUserRef` answers "whose ROW may I write"; it cannot answer "which
+// FIELDS of that row are mine", and the tracker EXCEPTIONS are the one pair that differs on that second axis.
+// `trackerGrants`/`trackerRevokes` decide which meters an actor CARRIES — the applicability model the host
+// authors from the Tracker access editor ("grants are the host's call",
+// `client/features/rpg/components/rpg-tracker-grants.tsx`). Until 2026-08-07 that invariant lived only in the
+// client's PERMISSION-omit of the control, so a member could self-grant or self-revoke a meter on their own
+// `user` sheet by hand-sending the field — game integrity, not cross-tenant. The gate is now here, at the write
+// boundary, on the SAME injected `can()` seam every other rpg host answer runs through (`guard.ts`): a member
+// naming either field is REFUSED (the domain's convention for a non-member-writable plane — rpg rejects with a
+// verb-specific `DomainForbidden` sentence, it never silently strips), and every other field of the same patch
+// is untouched, so ordinary self-editing (className/attributes/flavor/level) still works.
 
+import type { ParticipantRole } from "@orb/contracts/identity";
 import type { RpgActorRef, RpgSheet } from "@orb/contracts/rpg";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { PatchSheetParams } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow, RpgService } from "../contract/service.ts";
-import { assertOwnUserRef, resolveMember } from "../guard.ts";
+import { assertHostRole, assertOwnUserRef, resolveMember } from "../guard.ts";
 import { findSheet, upsertSheet } from "../persistence/sheets.ts";
 
 /** Validate a patched attributes record against the game's profile: every key ∈ the profile's attribute
@@ -56,7 +69,9 @@ function mergeSheet(current: RpgSheet, patch: PatchSheetParams["patch"]): RpgShe
     className: patch.className ?? current.className,
     attributes: patch.attributes !== undefined ? { ...patch.attributes } : current.attributes,
     // The per-actor tracker EXCEPTIONS — whole-list replace on a passed array, keep on omit (MA-4). Tracker
-    // DEFS are not reachable here: they home once in `config.trackers` (`updateConfig` is their door).
+    // DEFS are not reachable here: they home once in `config.trackers` (`updateConfig` is their door). Reaching
+    // EITHER of these two fields is HOST-gated one level up (see the file header + `assertTrackerExceptionHost`);
+    // by the time the merge runs, a member's patch provably names neither.
     trackerGrants: patch.trackerGrants !== undefined ? [...patch.trackerGrants] : current.trackerGrants,
     trackerRevokes: patch.trackerRevokes !== undefined ? [...patch.trackerRevokes] : current.trackerRevokes,
     flavor: patch.flavor ?? current.flavor,
@@ -66,10 +81,24 @@ function mergeSheet(current: RpgSheet, patch: PatchSheetParams["patch"]): RpgShe
   };
 }
 
+/** The per-FIELD host floor over the sheet's two tracker-exception lists (see the file header). Fires only when
+ *  the patch actually NAMES one of them — key-presence, the same MA-4 test `mergeSheet` uses, so an omitted
+ *  field is not a host ask and a member's ordinary self-edit is byte-identically unaffected. The verdict is the
+ *  kernel's (`ctx.can`, through `assertHostRole`); this only decides WHEN to ask. */
+function assertTrackerExceptionHost(ctx: RpgContext, params: PatchSheetParams, role: ParticipantRole): void {
+  if (params.patch.trackerGrants === undefined && params.patch.trackerRevokes === undefined) {
+    return;
+  }
+  assertHostRole(ctx.can, params.principal, role, "host authority required to grant or revoke a tracker exception");
+}
+
 export function createPatchSheet(ctx: RpgContext): Pick<RpgService, "patchSheet"> {
   async function patchSheet(params: PatchSheetParams): Promise<void> {
     const { game, role } = await resolveMember(ctx, params.principal, params.chatId);
     assertOwnUserRef(ctx.can, params.principal, role, params.actorRef);
+    // …and the second floor: WHOSE row is not the same question as WHICH FIELDS. Both refusals land before any
+    // read of the current sheet, so a refused patch touches nothing and emits nothing.
+    assertTrackerExceptionHost(ctx, params, role);
     const { characterId, userId } = actorIds(params.actorRef);
 
     if (params.patch.attributes !== undefined) {
