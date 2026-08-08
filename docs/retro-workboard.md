@@ -348,7 +348,18 @@ no `any`/`unknown` escape hatches. Merges the rename branch first; its branch su
 > Grep your own outbound text for "routed" / "boarded" / "queued" and verify each against the dispatch
 > results before repeating it. Doctrine block minted the same day.
 
-**RUNNING (5 — at the concurrency cap):**
+**⚑ ROSTER AT `123`-AHEAD (owner raised the cap back to 5, 2026-08-07 overnight) — FIVE LIVE:**
+`RENDERFIX` (a8a2eab, client: side-eye P1/P2s + geometry + vitals) · `PROBES-TYPING` (a98737bc, the
+17 probes' 686 latent type errors) · `PORT-R6` (acf450ce, chat-bundle arm — 3 forks ruled: one `chat`
+kind extension-dispatched, automation deferred to its own family, rpg carry via injected
+`RpgPortabilityPort`) · `SMALLS-SERVER` (a3fb5a08, narrator preview-fidelity + import-write-guard) ·
+`TEMPLATE-UNIFY` (a10196440, D132 (b) unification — re-verify what TEMPLATE-CENSUS already landed FIRST).
+Fences: RENDERFIX=client only · PROBES=scripts/probes · PORT-R6=portability/serde/server-rpg-persistence
+· SMALLS-SERVER=chat verbs+settings · TEMPLATE-UNIFY=contracts/preset+injections+prose registry. Glyph
+sweep (#13) + pointer-coarse gate (#14) WAIT for RENDERFIX (rpg client files). AUTHTAIL owes a batchable
+security lens.
+
+**PRIOR DISPATCH LEDGER (superseded by the roster above):**
 - **DEBUGGATE** (`aa32294c5e699ca9e`, security-executor) — AUTHFIX-2, the unauthenticated `/api/_debug/*`
   hole. Briefed to fix shape (i) (thread `DEBUG_TOKEN` through the three e2e mode envs + a shared header
   helper, THEN remove the bypass) — **NOT shape (ii)**, which leaves a conditional control and is the
