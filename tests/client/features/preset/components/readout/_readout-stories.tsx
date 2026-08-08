@@ -27,7 +27,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ChatId, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { PromptReadout } from "../../../../../../packages/client/src/features/preset/components/readout/prompt-readout.tsx";
 import { EffectiveProfile } from "../../../../../../packages/client/src/features/preset/components/readout/readout-parts.tsx";
 import { TransformsReadout } from "../../../../../../packages/client/src/features/preset/components/readout/transforms-readout.tsx";
@@ -126,24 +126,72 @@ export function PresetReadoutParamsBoundStory(): ReactElement {
 // produce. The CALLER's half (that `preset-readout.tsx` hands the resolve's error down rather than only
 // its data) is pinned separately, through the real readout, by the FAILED integration arm.
 
+// A thrown read, shaped the way the tRPC CLIENT hands one to a caller: `message` plus the structured
+// `data.code` the server's own DomainError→code mapper produced. The failure band discriminates on that
+// code (`lib/resolve-failure.ts`), so the arms below differ ONLY in the code — a story that flattened the
+// error to a string could not exercise the discrimination at all.
+function readError(code: string | undefined, message: string): unknown {
+  return code === undefined ? { message } : { message, data: { code } };
+}
+
+/** Records that Retry actually fired — the affordance is only real if the click reaches the caller. */
+function RetryProbe({ error }: { readonly error: unknown }): ReactElement {
+  const [retries, setRetries] = useState(0);
+  return (
+    <div style={{ width: 380 }}>
+      <EffectiveProfile
+        effective={undefined}
+        error={error}
+        onRetry={(): void => {
+          setRetries((n) => n + 1);
+        }}
+      />
+      <span data-testid="retry-count">{retries}</span>
+    </div>
+  );
+}
+
+function noRetry(): void {
+  // The PENDING and SETTLED arms never render the failure band, so nothing can call this.
+}
+
 /** PENDING — an absent profile with NO error: the read has not landed, and the panel must claim nothing. */
 export function EffectiveProfilePendingStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 380 }}>
-        <EffectiveProfile effective={undefined} error={null} />
+        <EffectiveProfile effective={undefined} error={null} onRetry={noRetry} />
       </div>
     </CtDataProviders>
   );
 }
 
-/** FAILED — an absent profile WITH the server's message: a routing fault, stated as one. */
+/** FAILED (ROUTING) — the `BAD_REQUEST` the capability resolution refuses with. This is the ONE code that
+ *  earns the "routing problem, not a missing connection" verdict, and it must still print it verbatim. */
 export function EffectiveProfileFailedStory(): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ width: 380 }}>
-        <EffectiveProfile effective={undefined} error="incoherent routing (agent-sdk × local-light)" />
-      </div>
+      <RetryProbe error={readError("BAD_REQUEST", "incoherent routing (agent-sdk × local-light)")} />
+    </CtDataProviders>
+  );
+}
+
+/** FAILED (PRESET GONE) — `NOT_FOUND`: the preset row itself is unreadable (deleted in another tab). The
+ *  routing verdict is simply false here, which is the 2026-08-08 defect. */
+export function EffectiveProfileMissingPresetStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <RetryProbe error={readError("NOT_FOUND", "preset not found")} />
+    </CtDataProviders>
+  );
+}
+
+/** FAILED (TRANSPORT) — a raw thrown value with NO tRPC `data` at all: a dropped socket / a 500. We know
+ *  the read failed and nothing else, so the band may name no cause. */
+export function EffectiveProfileTransportFailureStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <RetryProbe error={readError(undefined, "Failed to fetch")} />
     </CtDataProviders>
   );
 }
@@ -162,7 +210,41 @@ export function EffectiveProfileSettledStory(): ReactElement {
             qualityMapping: null,
           }}
           error={null}
+          onRetry={noRetry}
         />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** PENDING **beside** the SETTLED panel it is standing in for — ONE story, because playwright-ct allows one
+ *  `mount` per test and the pin is a COMPARISON (side-eye 2026-08-08 P2). `PENDING_ROWS` is 4, so the settled
+ *  half carries three resolved knobs plus the window row: the four `DatumRow`s the four placeholder rows
+ *  claim to be holding space for. Same 380px width, so only the vertical anatomy differs. */
+export function EffectiveProfileShapeMatchStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ display: "flex", gap: 24 }}>
+        <div data-testid="pending-panel" style={{ width: 380 }}>
+          <EffectiveProfile effective={undefined} error={null} onRetry={noRetry} />
+        </div>
+        <div data-testid="settled-panel" style={{ width: 380 }}>
+          <EffectiveProfile
+            contextWindow={32_768}
+            effective={{
+              model: "qwen3-32b",
+              knobs: {
+                temperature: { value: 0.8, provenance: "explicit" },
+                topP: { value: 0.95, provenance: "explicit" },
+                maxOutputTokens: { value: 2048, provenance: "floor" },
+              },
+              stale: [],
+              qualityMapping: null,
+            }}
+            error={null}
+            onRetry={noRetry}
+          />
+        </div>
       </div>
     </CtDataProviders>
   );
