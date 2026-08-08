@@ -96,6 +96,10 @@ function TemplatedMarkerBody({ form, section, index }: SectionBodyProps): ReactE
       <Text voice="gloss">
         Substance: {copy.subtitle}. {GHOST_PLACEHOLDER_HINT}
       </Text>
+      {/* The mode-aware note (today only `main_prompt`): the ghost above shows the per-speaker default, so
+          this is the one place the narrator arm — and the fact that ONE typed template covers both — is
+          visible from the surface that edits it. */}
+      {copy.templateNote === undefined ? null : <Text voice="gloss">{copy.templateNote}</Text>}
     </Stack>
   );
 }

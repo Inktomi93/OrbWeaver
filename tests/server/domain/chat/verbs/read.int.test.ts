@@ -51,10 +51,12 @@ import {
 } from "../_support.ts";
 
 // The `DEFAULT_PROMPT_CONFIG` main-section framing, `{{char}}` resolved through the speaker arm: the JOINED
-// cast (narrator) vs a SINGLE primary (per-speaker). Hoisted per biome's top-level-regex rule.
-const JOINED_CAST_FRAMING = /You are (Aria, Kai|Kai, Aria) in an immersive/;
+// cast (narrator) vs a SINGLE primary (per-speaker). The two arms also resolve DIFFERENT default texts —
+// the narrator arm gets `NARRATOR_MAIN_PROMPT_TEMPLATE` ("…voicing {{char}} and the world around them"),
+// every other arm keeps the shipped per-speaker bytes. Hoisted per biome's top-level-regex rule.
+const JOINED_CAST_FRAMING = /You are the narrator of an immersive[^\n]*voicing (Aria, Kai|Kai, Aria) and the world around them/;
 const SINGLE_SPEAKER_FRAMING = /You are (Aria|Kai) in an immersive/;
-const JOINED_CAST_ANYWHERE = /You are (Aria, Kai|Kai, Aria)/;
+const JOINED_CAST_ANYWHERE = /(You are (Aria, Kai|Kai, Aria)|voicing (Aria, Kai|Kai, Aria))/;
 
 let db: Db;
 let loadParticipantViews: ReturnType<typeof makeLoadParticipantViews>;
@@ -962,11 +964,13 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     });
     const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
 
-    // The `DEFAULT_PROMPT_CONFIG` main section is "You are {{char}} in an immersive… write {{char}}'s
-    // perspective only" — a TOP-LEVEL (non-card) framing, so its `{{char}}` resolves through the speaker arm: a
-    // narrator turn binds it to the JOINED cast. The shipped preview bound it to a single primary name.
+    // The `DEFAULT_PROMPT_CONFIG` main section is a TOP-LEVEL (non-card) framing, so its `{{char}}` resolves
+    // through the speaker arm: a narrator turn binds it to the JOINED cast. The shipped preview bound it to a
+    // single primary name. The narrator arm also resolves the narrator-true DEFAULT — the host previewing a
+    // narrator room must see the bytes that round actually sends, never the per-speaker framing.
     expect(prompt.static).toMatch(JOINED_CAST_FRAMING);
     expect(prompt.static).not.toMatch(SINGLE_SPEAKER_FRAMING); // never the single-speaker binding
+    expect(prompt.static).not.toContain("perspective only"); // …nor its single-perspective clause
     // Both cast cards reach the wire, framed as the round's VOICES (narrator "[Cast — X]"), never bystanders.
     expect(prompt.static).toContain("Aria is a warden of the ford.");
     expect(prompt.static).toContain("Kai is a wandering bard.");
