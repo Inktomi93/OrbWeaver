@@ -201,10 +201,14 @@ export const refineryFieldScoreSchema = z.object({
   weaknesses: z.string().max(PROSE_MAX),
   suggestions: z.string().max(PROSE_MAX),
 });
-/** @public type twin of `refineryFieldScoreSchema` — the per-field score ROW. Its consumer is the R2 refinery
- *  client-mutations tier (owner-sequenced, board C15), which renders and applies these rows off
- *  `refineryScorePayloadSchema.fieldScores`; R1 only ever handles the payload whole, so the row type has no
- *  importer until that tier lands. */
+/** @public type twin of `refineryFieldScoreSchema` — the per-field score ROW. Its consumer is the R3 refinery
+ *  SURFACE (design-gated on the owner's mockup ruling, board C15), which maps
+ *  `refineryScorePayloadSchema.fieldScores` into rendered per-field rows. R1 only ever handles the payload
+ *  whole, and R2 (the client data tier, shipped) deliberately types through the tRPC WIRE types —
+ *  `inferInput`/`inferOutput` off the options proxy, so a router reshape breaks at the hook rather than at a
+ *  hand-picked alias — which is why the row type still has no importer. Do not re-try consuming it from the
+ *  data tier: this alias belongs to whatever RENDERS a score row. (Amended 2026-08-08: the reason previously
+ *  named R2 as the consumer; R2 landed without one.) */
 export type RefineryFieldScore = z.infer<typeof refineryFieldScoreSchema>;
 
 export const refineryScorePayloadSchema = z.object({

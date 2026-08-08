@@ -7,7 +7,7 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppRouter } from "@orb/server";
 import type { QueryClient } from "@tanstack/react-query";
-import type { TRPCClient } from "@trpc/client";
+import type { TRPCClient, TRPCClientErrorLike } from "@trpc/client";
 import { createTRPCClient, httpBatchLink, httpSubscriptionLink, loggerLink, splitLink } from "@trpc/client";
 import type { TRPCOptionsProxy } from "@trpc/tanstack-react-query";
 import { createTRPCContext, createTRPCOptionsProxy } from "@trpc/tanstack-react-query";
@@ -18,6 +18,18 @@ const TRPC_URL = "/api/trpc";
 
 /** The typed options proxy — pass around as `Trpc`; it is the app-wide key factory. */
 export type Trpc = TRPCOptionsProxy<AppRouter>;
+
+/**
+ * The error a tRPC read/write hands up, over THIS router — the `TError` half of a `UseQueryResult`.
+ *
+ * It exists because the biome `useExplicitReturnType` rule and the real client type collide: a hook that
+ * returns a tRPC query result must annotate its signature, and `UseQueryResult<T>` DEFAULTS `TError` to
+ * `Error` — which `TRPCClientErrorLike` does not satisfy (it is an INTERFACE with no `name`; measured: tsc
+ * TS2322, the same measurement `features/preset/lib/resolve-failure.ts` records for its `ReadFailure` prop).
+ * So the alternative to this alias is every feature hook RE-SPELLING the router's error shape inline, which
+ * §5.4 forbids. One home, derived off `AppRouter`.
+ */
+export type TrpcReadError = TRPCClientErrorLike<AppRouter>;
 
 export const { TRPCProvider, useTRPC, useTRPCClient } = createTRPCContext<AppRouter>();
 

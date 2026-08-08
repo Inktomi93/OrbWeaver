@@ -140,6 +140,21 @@ const STATIC: Record<string, string> = {
   "databank.listAttachments":
     "the CONTEXT panel's read-only 'Active in' chips. Driven by the same global attach/detach mutations; the chat/character junction writers (the per-chat rack, the character rack) are later stages of the databank program and land their own rows with the surfaces that write them.",
 
+  // ── refinery: the SAME shape as databank — NO bus event exists, so every read is driven by the write
+  //    tier's own `invalidates` (blind spot 4). `USER_BUS_EVENT_TYPES` has no refinery member and
+  //    `domain/refinery/**` emits nothing at all, so a seam row would have no event to hang on. The drivers
+  //    are enumerated in `packages/client/src/features/refinery/hooks/use-refinery-mutations.ts`, which routes
+  //    every one of the R1 router's six write verbs through `createEntityMutation` with an explicit
+  //    `invalidates`; the CT at tests/client/features/refinery/use-refinery-mutations.ct.tsx exercises the
+  //    read↔write pair on the wire (a mounted roster read REFETCHES after a write, counted at the network).
+  //    (docs/design/refinery-r0.md; board C15 R2.) ────────────────────────────────────────────────────────
+  "refinery.listSessions":
+    "the D62 sessions roster + its verdict badge. Driven by all six write verbs — `startSession` (a new row), `updateSession` (name/status), `deleteSession` (the row leaves), `runStage`/`iterate` (status back to `active` + `updatedAt` + `latestVerdict`), `applyFields` (status `completed`) — each naming `refinery.listSessions.pathFilter()` in `invalidates`.",
+  "refinery.getSession":
+    "ONE session's full view (selection · stageConfig · guidance · iterationCount · status; the `originalCard` anchor is frozen at session start and cannot go stale). Driven query-level by every write that touches its row: `updateSession`, `deleteSession`, `runStage`, `iterate`, `applyFields`. `startSession` is absent by construction — the session did not exist, so its first read is a cold fetch of a NEW key.",
+  "refinery.listRuns":
+    "ONE session's append-only run ledger (the CONTEXT Runs tab). Driven query-level by the two verbs that append to it — `runStage` (one run) and `iterate` (a rewrite + an analyze) — and by `deleteSession`, whose DB cascade drops the rows. Nothing else can write a run.",
+
   // ── the upload seam: a RAW multipart POST, so its freshness lives outside the seam (blind spot 4) ────────
   "assets.listOwned":
     "driven by the upload front door `useUploadAsset` (data/use-upload-asset.ts) — every completed upload calls invalidation.invalidateFilters([trpc.assets.listOwned.pathFilter()]). The upload route is a raw multipart POST, not a tRPC mutation, so it can carry no `invalidates` and no bus event announces it; the hook IS the driver, and every feature upload (character/persona avatars, backgrounds, chat attachments) goes through it. Proven by tests/client/data/use-upload-asset.ct.tsx (the mounted listOwned read refetches after an upload).",
