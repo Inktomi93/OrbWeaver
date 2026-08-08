@@ -29,7 +29,10 @@ import { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
  *     `sessions.validate` BEFORE calling here), so cookie modes fall through to the owner fallback / unauth.
  *   - SSO HEADER (`forward-header`) — the verified header/JWT identity (NO upsert here — that's the seam).
  *   - OWNER FALLBACK — the origin-gated un-credentialed owner identity, stamped `via:"fallback"` (the seam
- *     mints the owner from this discriminant — invariant #7); `single-user` is unconditional.
+ *     mints the owner from this discriminant — invariant #7). Two conditions, in this order: the
+ *     `AUTH_FALLBACK=owner` knob, THEN the origin gate (which `single-user` passes unconditionally). So
+ *     `single-user` + `AUTH_FALLBACK=deny` resolves NOBODY — boot-fatal in `foundation/env`, since that
+ *     fallback is single-user's only credential.
  *
  * `config` is injectable via `deps.config` (tests vary mode/fallback without re-parsing the frozen env);
  * production omits it → `authConfigFromEnv()`.

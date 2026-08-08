@@ -12,6 +12,12 @@ import { processEnvSnapshot } from "#foundation/env";
 import type { OrSkinTierModels } from "../../contract/index.ts";
 
 // Non-Claude-namespaced app secrets the child has no business seeing (the Claude/Anthropic namespace is stripped wholesale below).
+//
+// COUPLED SITE — the container's `*_FILE` secret shim, `docker/entrypoint.sh`. That shim EXPORTS each of
+// these into the server's process.env from a mounted file, and `processEnvSnapshot()` below is what this
+// list then has to scrub; the child runs tools AS HOST, so a secret file-mountable there but missing here
+// reaches a tool-executing subprocess. The two lists must stay SET-IDENTICAL — asserted (both directions,
+// plus the strip itself) by tests/server/infra/providers/backends/agent-sdk/env.test.ts.
 const HOST_SECRET_ENV_KEYS = [
   "OPENROUTER_API_KEY",
   "CREDENTIALS_KEY",

@@ -6,8 +6,11 @@
 // ORIGIN-GATED FALLBACK (load-bearing safety): in any SSO mode the owner fallback is granted ONLY for a
 // LOCAL origin (the raw-LAN-IP path). On the public FQDN an un-credentialed request resolves to nothing
 // (→ 401), making SSO mandatory. WITHOUT this gate, oidc+owner would hand every anonymous public request
-// owner. In `single-user` the fallback is unconditional (the only way in). `isLocalOrigin` reads `Host`
-// (NOT `X-Forwarded-Host`) deliberately — a proxy-rewritten Host can only REMOVE trust, never grant it.
+// owner. In `single-user` the ORIGIN test is unconditional — but read that as "unconditional GIVEN
+// `AUTH_FALLBACK=owner`": `resolve` (index.ts) tests `fallback === "owner"` BEFORE ever calling here, so
+// `single-user` + `deny` authenticates nobody. That pair is now boot-fatal (`foundation/env`), because
+// single-user's ONLY credential is this fallback. `isLocalOrigin` reads `Host` (NOT `X-Forwarded-Host`)
+// deliberately — a proxy-rewritten Host can only REMOVE trust, never grant it.
 
 import { DEFAULT_TRUSTED_RANGES, isInRanges } from "#infra/network";
 import type { AuthConfig, ModeResolver } from "./contract.ts";
@@ -33,9 +36,13 @@ export const MODE_RESOLVERS: Record<AuthConfig["mode"], ModeResolver> = {
 };
 
 /**
- * Whether the un-credentialed owner fallback may be granted. `single-user`: always (the only way in).
- * SSO modes: only on a local origin — the gate that keeps oidc+owner from handing anonymous public
- * requests owner.
+ * Whether the request's ORIGIN permits the un-credentialed owner fallback. `single-user`: always (the
+ * only way in). SSO modes: only on a local origin — the gate that keeps oidc+owner from handing anonymous
+ * public requests owner.
+ *
+ * This answers the ORIGIN question only. The `AUTH_FALLBACK` knob is the caller's (`resolve`, index.ts),
+ * which short-circuits on `fallback !== "owner"` before consulting this — so "always" here is never
+ * "always" end-to-end.
  */
 export function ownerFallbackAllowed(headers: Headers, config: AuthConfig): boolean {
   if (config.mode === "single-user") {

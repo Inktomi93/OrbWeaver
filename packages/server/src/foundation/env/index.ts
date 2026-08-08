@@ -145,6 +145,18 @@ function envBool(fallback: boolean): z.ZodDefault<z.ZodCodec<z.ZodString, z.ZodB
   return z.stringbool({ truthy: ["true"], falsy: ["false"], case: "sensitive" }).default(fallback);
 }
 
+/** The env keys each AUTH_MODE cannot boot without (the superRefine's boot-fatality table). A mapped-type
+ *  Record over `AUTH_MODES` — a fifth mode fails `tsc` here rather than silently requiring nothing. The
+ *  two credential-less modes are `[]` on purpose: `single-user` needs none, and `forward-header`'s
+ *  requirements are conditional (the signed path needs a JWKS source, which `infra/auth/config` resolves
+ *  and fails CLOSED on) rather than hard-fatal at parse. */
+const AUTH_MODE_REQUIRED_ENV = {
+  "single-user": [],
+  local: ["SESSION_SECRET", "LOCAL_INITIAL_PASSWORD"],
+  oidc: ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_REDIRECT_URIS", "SESSION_SECRET"],
+  "forward-header": [],
+} as const satisfies Record<(typeof AUTH_MODES)[number], readonly string[]>;
+
 const envSchema = z
   .object({
     PORT: z.coerce.number().int().positive().default(DEFAULT_PORT),
@@ -369,30 +381,34 @@ const envSchema = z
     RATE_LIMIT_LOGIN: z.coerce.number().int().positive().default(RATE_LIMIT_LOGIN_DEFAULT),
   })
   .superRefine((val, ctx) => {
-    // Fail fast at boot if oidc is selected without the credentials to run it — a misconfigured deploy
-    // must not silently fall back to owner-on-the-public-FQDN.
-    if (val.AUTH_MODE === "oidc") {
-      const required = ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_REDIRECT_URIS", "SESSION_SECRET"] as const;
-      for (const key of required) {
-        if (val[key] === undefined) {
-          ctx.addIssue({
-            code: "custom",
-            path: [key],
-            message: `${key} is required when AUTH_MODE=oidc`,
-          });
-        }
+    // Fail fast at boot if the selected mode lacks the credentials to run it — a misconfigured deploy must
+    // not silently fall back to owner-on-the-public-FQDN. The per-mode requirement is a mapped-type Record
+    // over AUTH_MODES (the string-union dispatch discipline), so a fifth mode fails `tsc` here instead of
+    // silently requiring nothing.
+    for (const key of AUTH_MODE_REQUIRED_ENV[val.AUTH_MODE]) {
+      if (val[key] === undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: [key],
+          message: `${key} is required when AUTH_MODE=${val.AUTH_MODE}`,
+        });
       }
     }
-    if (val.AUTH_MODE === "local") {
-      for (const key of ["SESSION_SECRET", "LOCAL_INITIAL_PASSWORD"] as const) {
-        if (val[key] === undefined) {
-          ctx.addIssue({
-            code: "custom",
-            path: [key],
-            message: `${key} is required when AUTH_MODE=local`,
-          });
-        }
-      }
+    // The INCOHERENT PAIR — same fail-fast class as the two blocks above, for the same reason: a deploy
+    // must never silently degrade. `single-user` has NO credential but the owner fallback (its resolver
+    // always returns null — infra/auth/modes/single-user.ts), and `infra/auth/resolve` tests
+    // `fallback === "owner"` BEFORE the mode's unconditional origin arm — so this combination
+    // authenticates nobody and EVERY request 401s. Left unfenced it is a box that boots healthy and
+    // serves no one, which is how it shipped as the container image's default env
+    // (docs/reviews/security/2026-08-08-containerize-surface-review.md F1, three docs asserting the knob
+    // was inert here). Scoped to the pair: `deny` stays the SSO modes' secure default.
+    if (val.AUTH_MODE === "single-user" && val.AUTH_FALLBACK === "deny") {
+      ctx.addIssue({
+        code: "custom",
+        path: ["AUTH_FALLBACK"],
+        message:
+          "AUTH_FALLBACK=deny with AUTH_MODE=single-user leaves NO way to authenticate — single-user's only credential IS the owner fallback. Set AUTH_FALLBACK=owner, or pick an SSO mode (local/oidc/forward-header) where deny is the secure default.",
+      });
     }
     // The box has exactly one owner. A multi-handle list would seed >1 owner row and hit the DB unique
     // index as a raw violation later — fail fast here with a clear message instead.
