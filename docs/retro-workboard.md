@@ -683,6 +683,22 @@ security lens.
   ListRow.leading aria-hidden).
 - **⏳ DATABANK S3 dispatched** (`afee5836975cedc36`) — the D-7 home tile per
   docs/design/databank-surface-spec.md; premise-re-verify first (3 prior databank premise-kills).
+- **✅ DBANK-S3 MERGED `88508bb6e`** — the D-7 home tile (premise SURVIVED for once: no tile existed;
+  spec row = "recent documents + an ingest-health line"). No new verb (rides databank.list's exact
+  query key — free, shared invalidation, can't disagree on phase); health counts EMBEDDED passages;
+  self-caught + fixed a real 12.5px chip overflow at 390px w/ planted control (and replaced a
+  green-that-couldn't-fail fixture). **I-2 DATABANK: S1+S2+S3 all built** — side-eye on the tile in
+  flight (`ac0fdff5020072e81`).
+- **✅ CONFIG-FIX-2 merged `6fddc5cca` + final side-eye pass: SHIP WITH FIXES → CONFIG-FINAL lane
+  (`af99c962b2df8aeb1`).** Roster rows PASS (one id, one fact — "the shape other list panes should
+  copy"). **ESCAPE FINDING CLEARED** — reproduced dismissing 3/3 both focus arms, raw store and
+  resolved mode never diverged; the original read was the snap instrument's step-then-eval ordering
+  (side-eye retracted its own near-finding). Remaining, ruled: [P2] the colour readout is ORPHAN text
+  — wire via `Field description` so the CONTROL announces the value (+ copy trim kills the 430
+  double-wrap) · [P3] the `:empty` band rule is DEAD CSS over an unreachable state w/ a fence the
+  shell cannot produce — RULED arm (b): DROP it, record the measured truth, keep the working `:has()`
+  chain · [layout] the World Info empty-state one-line box (both affordances stay — mock-ratified).
+  Members-chip dead-control fix in flight separately (`a8b871a5f15e96f57`).
 - **⚠ GATE-IGNORE CLASS: "FULLY CLOSED" REFUTED — a 4th leg is in flight.** Verifier
   `a8fed8ee2276a7c1e` CONFIRMED the 14 converted gates (3 spot-checks incl. the over-exempt property
   at same-line granularity; kept-arms correctly §1-sanctioned; expect.token discriminates) but
