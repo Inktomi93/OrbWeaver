@@ -40,23 +40,29 @@ updated: 2026-07-13
 - **Producer, not hard-link.** The row carries only IDS. Names are DERIVED from a per-chat name
   **producer**, never denormalized onto the row (that is the neo hard-link we do not carry).
 
-## 1. The producer (membership-gated name maps)
+## 1. The producer (the membership-gated kind-polymorphic cast, D137)
 
-A chat read yields the `ChatMacroNameProducer` (`@orb/contracts/chat`) — two id→name lists scoped to ONE
-chat, **member-gated** (any member may read them), loaded via `loadChatMacroNameProducer`
-(`domain/chat/persistence/macro-names.ts`):
+A chat read yields the CAST producer (`CastEntry[]`, `@orb/contracts/chat/producers.ts`) — ONE
+kind-discriminated entry per identity the chat references, **member-gated** (any member may read it),
+loaded via `loadChatCastProducer` (`domain/chat/persistence/cast.ts`):
 
-- `personaNames` — each `{ id; name; description }`
-- `characterNames` — each `{ id; name }`
+- `{ kind: "persona"; id; name; description; avatarHash }` — description backs `{{persona}}`
+- `{ kind: "character"; id; name; avatarHash }` — deliberately NO description (a card's description is not
+  member-consented; the member card surface is `ParticipantView`, D137(D))
 
-The resolver (§2) consumes these as `personaNamesById`/`characterNamesById` maps. Coverage: every id the
-chat references — its participants' personas/characters AND any `personaId`/`characterId` a stored message
-carries (incl. since-switched personas). **Names only, not full entities** — so this is NOT the owner-scoped
-persona/character read (`fetchOwned`), NOT a permission-spine change: a member already sees who authored each
-line, so a co-participant's persona *name* is not a secret. The efficient loader is a `LEFT JOIN` (message
-ids → personas/characters), but its OUTPUT is this producer — rows stay id-only. Loaded once per read
-(client) / once per assemble (server, engine-side, after canon history is known — the ids aren't knowable in
-turn PREP).
+TWO projections derive the consumer maps, and the split IS the names-only law's mechanism: the resolver
+(§2) consumes `buildCastNameContext(cast)` → `personaNamesById`/`characterNamesById` — the KIT's
+avatar-free entry types, so the macro engine is structurally unable to see chrome; the attribution chrome
+consumes `buildCastAvatarMaps(cast)` (avatar precedence per `CAST_KIND_POLICY` — a live participant
+outranks a character entry, `participant-first`; personas are `cast-only`). Coverage: every id the chat
+references — its participants' personas/characters AND any `personaId`/`characterId` a stored message
+carries (incl. since-switched personas and a REMOVED character whose rows remain: the transcript-integrity
+portrait floor). **Names/description/hash only, not full entities** — so this is NOT the owner-scoped
+persona/character read (`fetchOwned`), NOT a permission-spine change: a member already sees who authored
+each line, so a co-participant's persona *name* is not a secret. The loader `LEFT JOIN`s each entity to its
+`assets` hash, but its OUTPUT is this producer — rows stay id-only. Loaded once per read (client: the
+`ChatDetail.cast` ∪ `MessagesPage.cast` merge, last-write-wins on `castKey`) / once per assemble (server,
+engine-side, after canon history is known — the ids aren't knowable in turn PREP).
 
 ## 2. The shared resolver (`@orb/kit` — the one atom)
 

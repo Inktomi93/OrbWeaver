@@ -166,6 +166,13 @@ character editor when wanted.
 
 ### A.8 The avatar/name producer "smell" — fix lands WITH agent-principal (D60)
 
+> **LANDED 2026-08-08 (D137)** — the kind-polymorphic cast producer shipped INDEPENDENT of agent-principal
+> (the "lands WITH agent-principal" rider below is SUPERSEDED by the owner's Option-D-now direction,
+> recorded in D137(C)): `CAST_KINDS`/`CastEntry`/`CAST_KIND_POLICY` + two projections in
+> `@orb/contracts/chat/producers.ts`, ONE loader `domain/chat/persistence/cast.ts`, ONE `cast` wire field
+> on `ChatDetail`/`MessagesPage`. The `agent` arm remains the compile-forced one-arm add this section asked
+> for. Design: `docs/design/persona-character-kind-substrate.md`.
+
 Message-row NAMES come from producers (`characterNamesById`/`personaNamesById`) while AVATARS are split
 (personas via a stamped-id producer with full history coverage; characters inline off the roster `ParticipantView.avatarHash`,
 which leaves a documented "since-left character avatar on an old row" gap). The name/avatar split is CORRECT

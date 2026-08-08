@@ -10,15 +10,15 @@
 //
 // ROSTER STUB: `ChatThread` now also suspends on `chat.getChat` (roster threading — see
 // message-list-surface.tsx's header). Every committed-chat test below stubs it with an EMPTY roster +
-// `macroNames` producer (`ROSTER_STUB`) — these CTs assert canon rendering + streaming, not
+// `cast` producer (`ROSTER_STUB`) — these CTs assert canon rendering + streaming, not
 // attribution/macro chrome (that's message-row.ct.tsx's lane); an empty roster still exercises the
 // real read + producer-merge path without pulling attribution assertions into this file's scope.
-// `chat.listMessages` now returns `MessagesPage { messages, macroNames }` (Chat-Macro-Resolution.md
-// §1/§3, its shape CHANGED from a bare `MessageView[]`) — every stub below wraps via `makeMessagesPage`.
+// `chat.listMessages` now returns `MessagesPage { messages, cast }` (Chat-Macro-Resolution.md §1/§3 /
+// D137, its shape CHANGED from a bare `MessageView[]`) — every stub below wraps via `makeMessagesPage`.
 // The owner-scoped `persona.list` read is GONE (the member-gated producer replaced it), so no stub for
 // it remains.
 
-import type { ChatBusEvent, GroupConfig } from "@orb/contracts/chat";
+import type { CastEntry, ChatBusEvent, GroupConfig } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { MessageId } from "@orb/kit/ids";
@@ -29,7 +29,7 @@ import { routeOrbSocket } from "../../../../support/ct/route-orb-socket.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { MessageListReplaySeedStory, MessageListStoppingStory, MessageListSurfaceStory } from "../_ct-stories.tsx";
 import { MessageListEdgeFadeStory } from "../_edge-fade-stories.tsx";
-import { CHAT_ID, makeMacroNameProducer, makeMessagesPage, makeMessageView } from "../fixtures.ts";
+import { CHAT_ID, makeMessagesPage, makeMessageView } from "../fixtures.ts";
 
 // The divider's present-tense preview (PD-#7). Every map stubs it with a VALID resolved shape — the
 // harness's unlisted-proc default (`data: null`) is out-of-contract for this query and crashes the
@@ -68,23 +68,19 @@ const AI_VIEW = makeMessageView({
 });
 
 // The roster stub every test below wires alongside `chat.listMessages` (see header) — an empty roster
-// + empty producer, just enough for `ChatThread`'s `chat.getChat` suspense read to resolve to a real
+// + empty cast, just enough for `ChatThread`'s `chat.getChat` suspense read to resolve to a real
 // (if empty) shape rather than routeTrpc's generic `null` unlisted-procedure default.
 const ROSTER_STUB = {
   ...PREVIEW_FIT_STUB,
   "chat.getChat": (): {
     participants: never[];
     anchorPersonaId: null;
-    macroNames: ReturnType<typeof makeMacroNameProducer>;
-    personaAvatars: never[];
-    characterAvatars: never[];
+    cast: readonly CastEntry[];
     group: GroupConfig;
   } => ({
     participants: [],
     anchorPersonaId: null,
-    macroNames: makeMacroNameProducer(),
-    personaAvatars: [],
-    characterAvatars: [],
+    cast: [],
     group: DEFAULT_GROUP_CONFIG,
   }),
 };

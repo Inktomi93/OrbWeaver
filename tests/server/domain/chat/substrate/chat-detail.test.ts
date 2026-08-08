@@ -4,7 +4,7 @@
 // the host arm, the member arm, and the arm the roster `find` produces for a viewer who is not on it at
 // all (a non-member is NOT a host — the flag must never fall open when the lookup misses).
 
-import type { ChatMacroNameProducer, ParticipantView } from "@orb/contracts/chat";
+import type { ParticipantView } from "@orb/contracts/chat";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { toChatDetail } from "../../../../../packages/server/src/domain/chat/substrate/chat-detail.ts";
@@ -14,8 +14,6 @@ const chatId = castId<ChatId>("chat_detail_1");
 const hostId = castId<UserId>("user_host");
 const memberId = castId<UserId>("user_member");
 const strangerId = castId<UserId>("user_stranger");
-
-const NO_MACRO_NAMES: ChatMacroNameProducer = { characterNames: [], personaNames: [] };
 
 // A deliberate minimal roster row — `toChatDetail`'s viewer resolution reads ONLY `userId` (the ⋈ key) and
 // `role` (the projected bit); the other ~16 ParticipantView fields are irrelevant to what these tests pin,
@@ -48,9 +46,7 @@ function detailFor(viewerUserId: UserId, participants: readonly ParticipantView[
   return toChatDetail({
     chat: ROW,
     participants,
-    macroNames: NO_MACRO_NAMES,
-    personaAvatars: [],
-    characterAvatars: [],
+    cast: [],
     viewerUserId,
     viewerHistoryFloorSeq: 0,
   });

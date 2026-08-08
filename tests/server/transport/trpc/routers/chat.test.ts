@@ -7,7 +7,7 @@
 // are pinned on the room source at `tests/server/transport/trpc/stream/sources/chat.test.ts`. The one
 // subscription left on this router is `impersonateStream` (permanently unfolded, spec §14 decision 2).
 
-import type { ChatBusEvent, ChatMacroNameProducer, MessageView } from "@orb/contracts/chat";
+import type { CastEntry, ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, ChatInjectionId, ChatParticipantId, MessageVariantId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -65,17 +65,15 @@ const MESSAGE: MessageView = {
   toolCalls: [],
 };
 
-// The empty producer fixture (Chat-Macro-Resolution.md §1) — this router test only proves the wire-through,
-// not the producer's own resolution (that's `persistence/macro-names.int.test.ts` + `read.int.test.ts`).
-const EMPTY_MACRO_NAMES: ChatMacroNameProducer = { characterNames: [], personaNames: [] };
+// The empty cast fixture (Chat-Macro-Resolution.md §1 / D137) — this router test only proves the
+// wire-through, not the producer's own resolution (that's `persistence/cast.int.test.ts` + `read.int.test.ts`).
+const EMPTY_CAST: readonly CastEntry[] = [];
 
 describe("chat.listMessages — the paged canon read (D26), member-gated", () => {
   test("a member pages messages: the parsed cursor/limit reach the verb with the resolved Principal", async () => {
     const listMessages = vi.fn<ChatService["listMessages"]>(async () => ({
       messages: [MESSAGE],
-      macroNames: EMPTY_MACRO_NAMES,
-      personaAvatars: [],
-      characterAvatars: [],
+      cast: EMPTY_CAST,
     }));
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
@@ -92,9 +90,7 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
     });
     expect(result).toEqual({
       messages: [MESSAGE],
-      macroNames: EMPTY_MACRO_NAMES,
-      personaAvatars: [],
-      characterAvatars: [],
+      cast: EMPTY_CAST,
     });
   });
 
@@ -594,9 +590,7 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
       compactedAtSeq: null,
       createdAt: 0,
       updatedAt: 0,
-      macroNames: EMPTY_MACRO_NAMES,
-      personaAvatars: [],
-      characterAvatars: [],
+      cast: EMPTY_CAST,
     },
   };
 

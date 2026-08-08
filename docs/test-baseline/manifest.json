@@ -1565,6 +1565,12 @@
     },
     "tests/ui/primitives/setting-row/setting-row.ct.tsx": {
       "why": "@orb/ui/setting-row primitive deleted with zero importers after the Base UI 1.7 SettingRow-to-Field migration; its CT and fixtures die with it (label wiring is now Field context, covered by tests/ui/primitives/field/field.ct.tsx)"
+    },
+    "tests/server/domain/chat/persistence/macro-names.int.test.ts": {
+      "why": "merged into tests/server/domain/chat/persistence/cast.int.test.ts (D137 kind-polymorphic cast producer replaced the per-kind loaders; assertions ported intact) — un-delete only if the per-kind loaders return"
+    },
+    "tests/server/domain/chat/persistence/roster-avatars.int.test.ts": {
+      "why": "merged into tests/server/domain/chat/persistence/cast.int.test.ts (D137 kind-polymorphic cast producer replaced the per-kind loaders; assertions ported intact) — un-delete only if the per-kind loaders return"
     }
   }
 }

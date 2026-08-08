@@ -40,7 +40,7 @@ import type { ForkChatParams } from "../contract/params.ts";
 import type { ForkResult } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
-import { loadChatMacroNameProducer } from "../persistence/macro-names.ts";
+import { loadChatCastProducer } from "../persistence/cast.ts";
 import {
   loadChatInjections,
   loadChatRow,
@@ -50,7 +50,6 @@ import {
   loadVariantsByMessageIds,
 } from "../persistence/queries.ts";
 import { loadRoster } from "../persistence/roster.ts";
-import { loadCharacterAvatarProducer, loadPersonaAvatarProducer } from "../persistence/roster-avatars.ts";
 import { NO_HISTORY_FLOOR, permitsHost } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
@@ -704,16 +703,12 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       throw new ChatNotFoundError(newChatId);
     }
     const participants = await deps.loadParticipantViews(newChatId);
-    const macroNames = await loadChatMacroNameProducer(ctx.db, { participants });
-    const personaAvatars = await loadPersonaAvatarProducer(ctx.db, { participants });
-    const characterAvatars = await loadCharacterAvatarProducer(ctx.db, { participants });
+    const cast = await loadChatCastProducer(ctx.db, { participants });
     return {
       chat: toChatDetail({
         chat: forkRow,
         participants,
-        macroNames,
-        personaAvatars,
-        characterAvatars,
+        cast,
         viewerUserId: principal.userId,
         // The forker is the NEW room's born-here host (`joinSeq` 0) — unclamped in the fork, which already
         // carries only what their source-room floor allowed.

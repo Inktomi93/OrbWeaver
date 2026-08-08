@@ -4,7 +4,7 @@
 //                         + the MESSAGE-KIND axis (`MESSAGE_KINDS` / `MESSAGE_KIND_POLICY` — row PURPOSE)
 //   • assemble.ts       — the ASSEMBLE family (slim projections, `AssembleContext`, traces, injections)
 //   • messages.ts       — the D26 message/variant wire (`messageSlotSchema`, `MessageView`, tool/var records)
-//   • producers.ts      — the member-gated id→name / id→avatar producer maps
+//   • producers.ts      — the member-gated kind-polymorphic CAST producer (D137) + its two projections
 //   • bus.ts            — the stream delta, the `ChatBusEvent` union, warning codes, turn origin, D50 transform
 //   • metadata.ts       — the `chats.metadata` sub-blobs (roomOverrides/group/opening/visibility/steer)
 //   • roster.ts         — the unified-roster wire (D16/D22/D80): roster/seat/invite/render-policy/history-floor
@@ -172,19 +172,10 @@ export type {
   CastKind,
   CastKindPolicy,
   CastPersonaEntry,
-  CharacterAvatarEntry,
-  CharacterNameEntry,
-  ChatMacroNameProducer,
-  PersonaAvatarEntry,
-  PersonaNameEntry,
 } from "./producers.ts";
 export {
   buildCastAvatarMaps,
   buildCastNameContext,
-  buildCharacterAvatarMap,
-  buildCharacterNameMap,
-  buildPersonaAvatarMap,
-  buildPersonaNameMap,
   CAST_KIND_POLICY,
   CAST_KINDS,
   castKey,

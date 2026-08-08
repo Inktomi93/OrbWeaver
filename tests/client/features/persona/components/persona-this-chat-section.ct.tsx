@@ -22,8 +22,9 @@ const PERSONAS = [
 
 const ZARA = "persona_zara"; // a MEMBER's persona — never in the viewer's own persona.list
 
-/** A base chat detail: the viewer hosts a solo room, anchored on their own persona. `macroNames` is the
- *  member-gated name producer every real `chat.getChat` payload carries (Chat-Macro-Resolution §1). */
+/** A base chat detail: the viewer hosts a solo room, anchored on their own persona. `cast` is the
+ *  member-gated kind-polymorphic producer every real `chat.getChat` payload carries
+ *  (Chat-Macro-Resolution §1 / D137). */
 const CHAT = {
   id: CHAT_ID,
   viewerUserId: "user_ct",
@@ -31,7 +32,7 @@ const CHAT = {
   anchorPersonaId: NOVA,
   viewerIsHost: true,
   participants: [],
-  macroNames: { characterNames: [], personaNames: PERSONAS.map((p) => ({ id: p.id, name: p.name, description: "" })) },
+  cast: PERSONAS.map((p) => ({ kind: "persona", id: p.id, name: p.name, description: "", avatarHash: null })),
 };
 
 /** The MULTI-HUMAN room: a second present human plays "Zara", and the host has pinned HER persona as the
@@ -43,10 +44,7 @@ const MULTI_HUMAN_CHAT = {
     { kind: "human", userId: "user_ct", displayName: "You", activePersonaId: NOVA, leftSeq: null },
     { kind: "human", userId: "user_member", displayName: "Rowan", activePersonaId: ZARA, leftSeq: null },
   ],
-  macroNames: {
-    characterNames: [],
-    personaNames: [...CHAT.macroNames.personaNames, { id: ZARA, name: "Zara", description: "" }],
-  },
+  cast: [...CHAT.cast, { kind: "persona", id: ZARA, name: "Zara", description: "", avatarHash: null }],
 };
 
 const UPDATE_PROC = "persona.setActivePersona";

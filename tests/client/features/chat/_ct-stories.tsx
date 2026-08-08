@@ -68,18 +68,16 @@ import {
   useTurnPhase,
 } from "@orb/client/state";
 import type {
-  CharacterAvatarEntry,
-  CharacterNameEntry,
+  CastEntry,
   HandoffOffer,
   JoinHistoryVisibility,
   MessageKind,
   MessageView,
   ParticipantView,
-  PersonaNameEntry,
   RoomOverrides,
   ToolCallRecord,
 } from "@orb/contracts/chat";
-import { buildCharacterAvatarMap, buildCharacterNameMap, buildPersonaNameMap, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { buildCastAvatarMaps, buildCastNameContext, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
@@ -257,24 +255,21 @@ export function MessageRowStory({
       : new Map(
           participants.filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null).map((p) => [p.characterId, p] as const),
         );
-  // The story's own producer, built with the REAL contracts builders (never a hand-rolled Map) so
-  // `MessageRow` sees exactly the shape `message-list-surface.tsx` would merge from the wire. Names cover
-  // the participant roster UNION any decoupled `characters` (the removal case — a character with no
-  // participant row whose message is still in the transcript); avatars come from `characters` only (that
-  // IS the participant-independent producer under test).
-  const rosterNameEntries: CharacterNameEntry[] = (participants ?? [])
-    .filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null)
-    .map((p) => ({ id: p.characterId, name: p.displayName }));
-  const decoupledNameEntries: CharacterNameEntry[] = (characters ?? []).map((c) => ({ id: c.id, name: c.name }));
-  const characterAvatarEntries: CharacterAvatarEntry[] = (characters ?? []).map((c) => ({ id: c.id, avatarHash: c.avatarHash ?? null }));
-  const personaNameEntries: PersonaNameEntry[] = (personas ?? []).map((p) => ({
-    id: p.id,
-    name: p.name,
-    description: p.description ?? "",
-  }));
-  const characterNamesById = buildCharacterNameMap([...rosterNameEntries, ...decoupledNameEntries]);
-  const characterAvatarsById = buildCharacterAvatarMap(characterAvatarEntries);
-  const personaNamesById = buildPersonaNameMap(personaNameEntries);
+  // The story's own producer, built with the REAL contracts cast projections (never a hand-rolled Map) so
+  // `MessageRow` sees exactly the maps `message-list-surface.tsx` would derive from the wire cast (D137).
+  // Names cover the participant roster UNION any decoupled `characters` (the removal case — a character
+  // with no participant row whose message is still in the transcript); the decoupled `characters` entries
+  // (later in the array — last-write-wins) are what carry avatar hashes: that IS the
+  // participant-independent portrait floor under test.
+  const storyCast: readonly CastEntry[] = [
+    ...(participants ?? [])
+      .filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null)
+      .map((p): CastEntry => ({ kind: "character", id: p.characterId, name: p.displayName, avatarHash: null })),
+    ...(characters ?? []).map((c): CastEntry => ({ kind: "character", id: c.id, name: c.name, avatarHash: c.avatarHash ?? null })),
+    ...(personas ?? []).map((p): CastEntry => ({ kind: "persona", id: p.id, name: p.name, description: p.description ?? "", avatarHash: null })),
+  ];
+  const { characterNamesById, personaNamesById } = buildCastNameContext(storyCast);
+  const { characterAvatarsById } = buildCastAvatarMaps(storyCast);
 
   return (
     // The row now always renders <MessageActionsRow> (Edit/Hide/Delete/Fork/Copy), which reads the
@@ -356,18 +351,20 @@ export function NarratorTranscriptStory({
   const participantsMap = new Map(
     participants.filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null).map((p) => [p.characterId, p] as const),
   );
-  const characterNamesById = buildCharacterNameMap([
+  const { characterNamesById, personaNamesById } = buildCastNameContext([
     ...participants
       .filter((p): p is ParticipantView & { characterId: CharacterId } => p.characterId !== null)
-      .map((p) => ({ id: p.characterId, name: p.displayName })),
+      .map((p): CastEntry => ({ kind: "character", id: p.characterId, name: p.displayName, avatarHash: null })),
     // The synthetic group card rides the producer like any cast member — that is the whole defect.
-    ...(narratorProducer === undefined ? [] : [narratorProducer]),
+    ...(narratorProducer === undefined
+      ? []
+      : [{ kind: "character", id: narratorProducer.id, name: narratorProducer.name, avatarHash: null } satisfies CastEntry]),
   ]);
   const rowProps = {
     chatStyle: "bubble",
     participants: participantsMap,
     characterNamesById,
-    personaNamesById: buildPersonaNameMap([]),
+    personaNamesById,
     toolRenderers: NO_TOOL_RENDERERS,
   } as const;
   return (
@@ -551,8 +548,7 @@ export function MessageContentSpansStory({
     characterName === undefined && userName === undefined
       ? undefined
       : {
-          characterNamesById: buildCharacterNameMap([]),
-          personaNamesById: buildPersonaNameMap([]),
+          ...buildCastNameContext([]),
           ...(characterName === undefined ? {} : { speakerCharName: characterName }),
           ...(userName === undefined ? {} : { fallbackPersonaName: userName }),
         };

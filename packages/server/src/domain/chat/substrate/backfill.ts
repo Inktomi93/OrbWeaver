@@ -18,7 +18,7 @@
 // guarantee. And because that precondition is minted inline, the per-chat isolation catch below is NOT a
 // silent-skip engine: an isolated chat is COUNTED (`failed`) and logged at `error` level — see there.
 
-import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import { buildCastNameContext } from "@orb/contracts/chat";
 import { chatParticipants, chats } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
@@ -29,7 +29,7 @@ import type { BackfillPassCounts, MemoryBackfillCounts, MemoryConfig, MemoryScop
 import { generateDigests } from "../memory/build/digests.ts";
 import { generateSegments } from "../memory/build/segments.ts";
 import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
-import { loadChatMacroNameProducer } from "../persistence/macro-names.ts";
+import { loadChatCastProducer } from "../persistence/cast.ts";
 import { loadRoster } from "../persistence/roster.ts";
 import { resolveGroupBucketCharacterId } from "./group-bucket.ts";
 import { hostUserIdOf } from "./roster-host.ts";
@@ -57,8 +57,8 @@ async function loadAllChatIds(ctx: ChatContext, hostUserId?: UserId | null): Pro
   return rows.map((r) => r.id);
 }
 
-/** A chat's present cast + its host + the macro name producer (the summarizer transcript labels resolve
- *  by character/persona name, not the raw id). One roster read serves all three. */
+/** A chat's present cast + its host + the projected macro-name context (the summarizer transcript labels
+ *  resolve by character/persona name, not the raw id). One roster read serves all three. */
 async function loadCastAndHost(
   ctx: ChatContext,
   chatId: ChatId,
@@ -70,11 +70,7 @@ async function loadCastAndHost(
   const roster = await loadRoster(ctx.db, chatId);
   const cast = roster.flatMap((r) => (r.kind === "character" && r.characterId !== null ? [r.characterId] : []));
   const hostUserId = hostUserIdOf(roster);
-  const producer = await loadChatMacroNameProducer(ctx.db, { participants: roster });
-  const macroNames: RowMacroNameContext = {
-    characterNamesById: buildCharacterNameMap(producer.characterNames),
-    personaNamesById: buildPersonaNameMap(producer.personaNames),
-  };
+  const macroNames: RowMacroNameContext = buildCastNameContext(await loadChatCastProducer(ctx.db, { participants: roster }));
   return { cast, hostUserId, macroNames };
 }
 

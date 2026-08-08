@@ -659,8 +659,7 @@ const historyText = (req: TurnRequest): string =>
     .join("\n");
 
 /** Build the {@link HistoryMacroNames} producer `args.historyMacroNames` takes — the test-local stand-in
- *  for the engine's `loadChatMacroNameProducer` + `buildCharacterNameMap`/`buildPersonaNameMap`
- *  (Chat-Macro-Resolution.md §1). */
+ *  for the engine's `loadChatCastProducer` + `buildCastNameContext` (Chat-Macro-Resolution.md §1 / D137). */
 function macroNamesOf(
   chars: readonly { id: CharacterId; name: string }[] = [],
   personas: readonly { id: PersonaId; name: string; description?: string }[] = [],

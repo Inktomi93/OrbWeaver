@@ -12,10 +12,10 @@
 // sees this read, and a deception-active game's tracker stays surface-only by the §1.6 extraction-prompt clause,
 // NOT by redacting this feed).
 
-import { buildCharacterNameMap, buildPersonaNameMap } from "@orb/contracts/chat";
+import { buildCastNameContext } from "@orb/contracts/chat";
 import type { ChatContext } from "../context.ts";
 import type { ResolveCanonWindow } from "../contract/context.ts";
-import { loadChatMacroNameProducer } from "../persistence/macro-names.ts";
+import { loadChatCastProducer } from "../persistence/cast.ts";
 import { loadCanonHistory } from "../persistence/queries.ts";
 import { projectRpgTranscript, sliceCanonWindow } from "../substrate/rpg-transcript.ts";
 
@@ -27,14 +27,10 @@ export function createResolveCanonWindow(ctx: ChatContext): ResolveCanonWindow {
     if (canon.length === 0) {
       return [];
     }
-    // The name producer covers every character/persona id the loaded canon stamps (the engine's per-turn build,
-    // off the messages this time — a resync has no live turn prep). Names-only, member-gated (a co-participant's
-    // name is not a further secret; §1 macro-names).
-    const producer = await loadChatMacroNameProducer(ctx.db, { messages: canon });
-    const names = {
-      characterNamesById: buildCharacterNameMap(producer.characterNames),
-      personaNamesById: buildPersonaNameMap(producer.personaNames),
-    };
+    // The cast producer covers every character/persona id the loaded canon stamps (the engine's per-turn
+    // build, off the messages this time — a resync has no live turn prep). Projected through the names-only
+    // arm — member-gated (a co-participant's name is not a further secret; §1 cast producer).
+    const names = buildCastNameContext(await loadChatCastProducer(ctx.db, { messages: canon }));
     // Slice to the deep budget (newest-first fill, restored to chronological order — whole messages).
     return sliceCanonWindow(projectRpgTranscript(canon, names), opts.maxTokens);
   };
