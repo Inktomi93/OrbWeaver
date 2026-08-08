@@ -19,6 +19,14 @@
 #
 # The allowlist is explicit — it documents exactly which secrets are file-mountable. Extending it is a
 # one-line change here plus a `secrets:`/env pair in docker-compose.yaml.
+#
+# COUPLED SITE — HOST_SECRET_ENV_KEYS in
+# packages/server/src/infra/providers/backends/agent-sdk/env.ts. Every name below gets EXPORTED into the
+# server's process.env, which is the baseline each agent-sdk child env spreads — and that child runs tools
+# AS HOST. The firewall's list is what deletes them again, so a name added here and not there hands a live
+# app secret to a tool-executing subprocess. The two lists must stay SET-IDENTICAL; that is asserted by
+# tests/server/infra/providers/backends/agent-sdk/env.test.ts ("the *_FILE secret shim and the credential
+# firewall move together"), which parses this very line.
 set -eu
 
 load_secret() {

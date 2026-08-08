@@ -144,8 +144,11 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
 - **What it is:** no SSO, no cookies, no headers. EVERY request resolves to the owner via the
   **unconditional** owner fallback (`infra/auth/modes/single-user.ts:9`, `dispatch.ts:41-43`
   `ownerFallbackAllowed` returns `true` for `single-user` unconditionally).
-- **Env/secrets:** none required. `AUTH_FALLBACK` is irrelevant (fallback is unconditional). `SESSION_SECRET`
-  not required.
+- **Env/secrets:** none required; `SESSION_SECRET` not required. **`AUTH_FALLBACK` must be `owner`** — it
+  is NOT irrelevant here (a correction; see §4). `resolve` tests `fallback === "owner"` BEFORE the mode's
+  unconditional origin arm (`infra/auth/index.ts:48`), so `single-user` + `deny` authenticates nobody and
+  401s every request. The pair is boot-fatal (`foundation/env` superRefine); the working pair is the
+  ruled default below.
 - **Container posture — THE CRITICAL WARNING:** single-user has NO network origin gate. Any request that
   reaches the port is the owner. **This mode is safe ONLY when the port is unreachable by untrusted clients**
   — i.e. behind a proxy that itself authenticates, or on a trusted LAN. Shipping single-user behind Caddy on
@@ -230,7 +233,7 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
 
 | Mode | Required secrets (boot-fatal) | Origin gate on owner-fallback | HTTPS-at-edge required? | Secure default for a stranger |
 | - | - | - | - | - |
-| single-user | none | NONE (unconditional owner) | no (but must not be publicly reachable) | private/loopback only; never public without an auth front door |
+| single-user | none (`AUTH_FALLBACK=owner` REQUIRED — `deny` is boot-fatal, it authenticates nobody) | NONE (unconditional owner, given `AUTH_FALLBACK=owner`) | no (but must not be publicly reachable) | private/loopback only; never public without an auth front door |
 | local | `SESSION_SECRET`, `LOCAL_INITIAL_PASSWORD` | origin-gated (Host header) | YES (`__Host-`/Secure cookie) | `AUTH_FALLBACK=deny` for public multi-user |
 | oidc | `OIDC_ISSUER/CLIENT_ID/CLIENT_SECRET/REDIRECT_URIS`, `SESSION_SECRET` | origin-gated (Host header) | YES (cookie + callback proto) | works out of the box behind TLS proxy; owner via `OWNER_GROUP` |
 | forward-header | none hard-fatal; signed path needs a JWKS source | signed: n/a; unsigned: TCP-peer gate | recommended | prefer SIGNED; unsigned needs `FORWARD_AUTH_TRUSTED_PROXIES=<proxy-ip>/32` |
@@ -334,8 +337,18 @@ never grant it" (`dispatch.ts:9-10,47-51`).
 2. **For any public multi-user deployment, recommend `AUTH_FALLBACK=deny`** (fork C). This removes the
    un-credentialed owner path entirely, so even a same-network container that forged `Host: 127.0.0.1`
    gets 401. The owner authenticates via SSO and is elevated by `OWNER_GROUP`/`OWNER_HANDLES` — no loss of
-   owner capability. `single-user` ignores `AUTH_FALLBACK` (unconditional), which is exactly why single-user
-   must not be public.
+   owner capability. **This belt applies to the three SSO modes only.** `single-user` does NOT ignore
+   `AUTH_FALLBACK` (a correction to an earlier claim in this spec, which the shipped container env was
+   written from — `docs/reviews/security/2026-08-08-containerize-surface-review.md` F1): the flag is
+   tested before the mode's unconditional origin arm, so `deny` there authenticates nobody and is now
+   boot-fatal. single-user's protection is network reachability ALONE, which is exactly why it must not be
+   public.
+
+   **RULED DEFAULT (owner, 2026-08-08): `single-user` + `AUTH_FALLBACK=owner` — usable-as-owner on first
+   run.** The image boots immediately usable the way SillyTavern's first run does (serving on a private
+   origin with no setup); hardening is what you opt into when you expose it, not a wall you must clear to
+   see the app. Do not re-litigate this toward a deliberately-inert default — the fence above refuses the
+   INCOHERENT pair, not this one.
 3. **`TRUSTED_LOCAL_HOSTS` must NEVER list the public FQDN** (`contract.ts:14`, `env:296-298`). The image
    ships it unset.
 

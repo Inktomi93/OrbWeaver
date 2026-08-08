@@ -5,7 +5,7 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
 import { buildClaudeAnthEnv, buildClaudeOpenRouterEnv, buildClaudeSdkEnv, RESERVED_CLAUDE_ENV_KEYS } from "@orb/server/infra/providers/backends/agent-sdk";
 import { afterEach, describe, vi } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
@@ -290,5 +290,69 @@ describe("agent-sdk env — bundled-runtime name parity (SDK-upgrade tripwire)",
     for (const name of ["DISABLE_AUTO_COMPACT", "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE", "CLAUDE_CODE_MAX_CONTEXT_TOKENS", "CLAUDE_CODE_MAX_OUTPUT_TOKENS"]) {
       expect(emitted.has(name)).toBe(true);
     }
+  });
+});
+
+// ── COUPLED SITE: the container's *_FILE secret shim ↔ HOST_SECRET_ENV_KEYS ─────────────────────────────
+// docker/entrypoint.sh reads each listed secret out of a mounted file and EXPORTS it into the server's
+// process.env. Every key it exports therefore becomes reachable by `processEnvSnapshot()` — which is the
+// baseline every agent-sdk child env spreads. The firewall's HOST_SECRET_ENV_KEYS is what deletes them
+// again, and the agent-sdk child runs tools AS HOST. So a key added to the shim but not to the firewall
+// hands a fresh app secret to a tool-executing subprocess, and nothing else in the tree would notice:
+// the shim is a shell script no TypeScript instrument reads.
+// Found by the containerize security review (docs/reviews/security/2026-08-08-containerize-surface-review.md,
+// item 3b). Both sides carry a pointer comment; this is the assertion.
+// tests/server/infra/providers/backends/agent-sdk → repo root is six levels up.
+const REPO_ROOT = resolve(import.meta.dirname, "../../../../../..");
+const SHIM_PATH = join(REPO_ROOT, "docker/entrypoint.sh");
+const FIREWALL_SRC_PATH = join(REPO_ROOT, "packages/server/src/infra/providers/backends/agent-sdk/env.ts");
+// `for name in A B C; do` — the shim's one explicit allowlist. Both patterns are /g so the extraction can
+// use matchAll (a total function: no null arm to branch on, and the match COUNT is the blindness tripwire).
+const SHIM_LOOP_RE = /^for name in ([^;]+); do$/gmu;
+const FIREWALL_LIST_RE = /const HOST_SECRET_ENV_KEYS = \[([^\]]+)\]/gu;
+const KEY_SEPARATOR_RE = /[\s,"']+/u;
+const MIN_EXPECTED_KEYS = 5;
+
+/** Parse a whitespace/quote/comma-separated key list out of a source file, refusing to return an empty
+ *  set — a pattern that stopped matching must RED here, not silently pass an empty loop. */
+function parseKeyList(path: string, re: RegExp, what: string): ReadonlySet<string> {
+  expect(existsSync(path), `${what}: ${path} is missing — this conformance test cannot see its subject`).toBe(true);
+  const captured = [...readFileSync(path, "utf8").matchAll(re)].map((m) => m[1] ?? "");
+  expect(
+    captured,
+    `${what}: the key-list pattern no longer matches exactly once in ${path} — the list moved or was reshaped, so this test is blind`,
+  ).toHaveLength(1);
+  const keys = captured
+    .join("")
+    .split(KEY_SEPARATOR_RE)
+    .map((k) => k.trim())
+    .filter((k) => k.length > 0);
+  expect(keys.length, `${what}: parsed ${keys.length} keys from ${path} — too few to be the real list`).toBeGreaterThanOrEqual(MIN_EXPECTED_KEYS);
+  return new Set(keys);
+}
+
+describe("the *_FILE secret shim and the credential firewall move together", () => {
+  test("every secret docker/entrypoint.sh exports is STRIPPED from the agent-sdk child env (the property)", () => {
+    const shimKeys = parseKeyList(SHIM_PATH, SHIM_LOOP_RE, "entrypoint shim");
+    for (const key of shimKeys) {
+      vi.stubEnv(key, `SHIM-PROBE-${key}`);
+    }
+    const childEnv = buildClaudeSdkEnv();
+    const values = Object.values(childEnv);
+    for (const key of shimKeys) {
+      expect(childEnv[key], `${key} is file-mountable by the container shim but reaches the agent-sdk child`).toBeUndefined();
+      // Scrub-by-VALUE too: a key deleted but echoed into some other var would still leak the secret.
+      expect(values, `the value of ${key} leaked into the agent-sdk child env under another name`).not.toContain(`SHIM-PROBE-${key}`);
+    }
+  });
+
+  test("the two allowlists are SET-IDENTICAL (either side drifting is the coupled-site failure)", () => {
+    const shimKeys = parseKeyList(SHIM_PATH, SHIM_LOOP_RE, "entrypoint shim");
+    const firewallKeys = parseKeyList(FIREWALL_SRC_PATH, FIREWALL_LIST_RE, "HOST_SECRET_ENV_KEYS");
+    // Sorted arrays, not set math, so a failure PRINTS both lists and names the drift.
+    expect(
+      [...shimKeys].sort(),
+      "docker/entrypoint.sh and HOST_SECRET_ENV_KEYS disagree — a secret is file-mountable but not firewalled, or firewalled but not file-mountable. Decide which list is wrong; do not just re-sync this test.",
+    ).toEqual([...firewallKeys].sort());
   });
 });

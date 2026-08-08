@@ -181,6 +181,40 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
     await expect(reimportEnvWith({ AUTH_MODE: "bogus" })).rejects.toThrow("AUTH_MODE");
   });
 
+  // The INCOHERENT pair, in the same class as the oidc/local refusals above: single-user has no credential
+  // other than the owner fallback (`resolveSingleUser` always returns null) and `infra/auth/resolve` tests
+  // `fallback === "owner"` BEFORE the mode's unconditional origin arm, so this combination authenticates
+  // NOBODY and every request 401s. It shipped as the container image's default env
+  // (docs/reviews/security/2026-08-08-containerize-surface-review.md F1) precisely because three docs
+  // claimed single-user ignores the knob. A silently-inert box is the failure this refusal replaces.
+  test("AUTH_MODE=single-user + AUTH_FALLBACK=deny → boot FAILS (the pair authenticates nobody)", async () => {
+    await expect(reimportEnvWith({ AUTH_MODE: "single-user", AUTH_FALLBACK: "deny" })).rejects.toThrow(
+      "AUTH_FALLBACK=deny with AUTH_MODE=single-user leaves NO way to authenticate",
+    );
+  });
+
+  // Scope control #1: the fence refuses the incoherent PAIR, never the mode's working default.
+  test("single-user + AUTH_FALLBACK=owner boots (the shipped container pair)", async () => {
+    const { env } = await reimportEnvWith({ AUTH_MODE: "single-user", AUTH_FALLBACK: "owner" });
+    expect(env.AUTH_MODE).toBe("single-user");
+    expect(env.AUTH_FALLBACK).toBe("owner");
+  });
+
+  // Scope control #2: `deny` is the SSO modes' SECURE default and must stay freely selectable — a fence
+  // that made `deny` feel banned would push a public deploy back onto the origin-gated owner fallback.
+  test("AUTH_MODE=oidc + AUTH_FALLBACK=deny boots — deny is the SSO-mode secure default, not a banned value", async () => {
+    const { env } = await reimportEnvWith({
+      AUTH_MODE: "oidc",
+      AUTH_FALLBACK: "deny",
+      OIDC_ISSUER: "https://idp.example",
+      OIDC_CLIENT_ID: "client",
+      OIDC_CLIENT_SECRET: "x",
+      OIDC_REDIRECT_URIS: "https://app/api/auth/oidc/callback",
+      SESSION_SECRET: VALID_SESSION_SECRET,
+    });
+    expect(env.AUTH_FALLBACK).toBe("deny");
+  });
+
   test("a multi-handle OWNER_HANDLES is boot-fatal (D17: exactly one owner)", async () => {
     await expect(reimportEnvWith({ OWNER_HANDLES: "alice,bob" })).rejects.toThrow("OWNER_HANDLES must name EXACTLY ONE owner");
   });
