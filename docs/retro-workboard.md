@@ -107,10 +107,21 @@ Ranked by consequence within each category. Every item carries its receipt state
   in CANON and ships to the client) · whole-object `.catch(null)` deletes a stamped score on
   analysis drift · `greetingIndex⇔greetings` unenforced + unbounded · `sessions.guidance` uncapped
   free text with no contract schema (the prompt-injection surface) · zod strips-not-rejects. Plus 2
-  cheap test adds (status CHECK never bitten; sessions-row cascade control). **R1 (domain/refinery,
-  warm forge lane preferred) dispatches on the security pass's GO**, building its prescribed belts;
-  R1 deletes the two pre-producer gate rows (design §7 — only the db-structure rider auto-flags,
-  the SCHEMA_OWNERS row will NOT remind you). Owner already ruled BUILD F1-F5.
+  cheap test adds (status CHECK never bitten; sessions-row cascade control). **✅ SECURITY PASS
+  LANDED — GO for R1** (`d8674e83a` + report
+  `docs/reviews/security/2026-08-08-refinery-r0-security-pass.md`): every model-authored
+  string/array now contract-bounded (red-first ×8; analyze ≈130KB worst-case, was unbounded;
+  status CHECK now bitten; guidance/session-name schemas minted) · rulings: field-level heal (+
+  HARD ordering: score tightening same-change) · greetingIndex = verb-tier assert (3 receipts why
+  not a refine) · strip stays + itemize stripped KEYS · 3 latent MEDIUMs for R1 (applyFields
+  re-parse per card.ts:192; dropNullValues under D126 strict-compatible — verified every rewrite
+  would fail; neutralizeMacros card text) · member plane confirmed NOT exposed · no
+  lifecycle-portability row owed · prose homed `user` = no fork strip. **⚑ R1 DISPATCHED to the
+  warm forge lane** (rebase-main-first; §4 belts carried in its design; handoff-copy `refinery`
+  carry defaults to CLEAR — owner may override; deletes both pre-producer gate rows; post-R1
+  graduation = verifier + security review of the live untrusted flow). **OWNER (small):** ratify
+  the handoff-copy CLEAR default · the two judgment caps (`ENTRIES_MAX=108`, `PROSE_MAX=4000` — how
+  much critique a model may write).
 - **A2 · CONTAINERIZE → merged `fd4ae9119`, check PASS; ✅ SECURITY §8 REVIEW LANDED (8/9 hold);
   FOLLOW-UP LEG on the warm security lane.** Review:
   `docs/reviews/security/2026-08-08-containerize-surface-review.md`. **F1 (real, fixed
