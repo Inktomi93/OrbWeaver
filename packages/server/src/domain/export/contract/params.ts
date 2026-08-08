@@ -29,3 +29,9 @@ export interface ExportChatParams extends ExportActorParams {
   readonly chatId: ChatId;
   readonly format?: ExportChatFormat | undefined;
 }
+
+/** R6 — the orb-native chat bundle. NO format axis by design: the bundle IS the format, and the ST
+ *  interchange containers live on `ExportChatParams` where the ST-shaped verb can reach them. Same host gate. */
+export interface ExportChatBundleParams extends ExportActorParams {
+  readonly chatId: ChatId;
+}

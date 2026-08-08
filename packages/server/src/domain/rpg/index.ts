@@ -14,6 +14,10 @@ export { createRpgChatOps } from "./chat-ops/index.ts";
 // the compose walk that builds the model's WRITE surface. Two spellings of that rule is exactly the §1.4
 // read/write drift the R2 reshape dissolved.
 export { actorCarrier } from "./chat-ops/tracker-view.ts";
+// PORTABILITY R6 — the chat-anchored campaign's read-whole/write-whole pair, wired at the composition root as
+// injected ops on the chat-bundle export/import verbs. A campaign was unportable BY CONSTRUCTION while the
+// bundle's chat arm was the ST jsonl interchange (F9); these are the fidelity arm's rpg half.
+export type { ExportRpgGame, ImportRpgGame, RpgPortabilityContext, RpgPortableGame } from "./contract/portability.ts";
 // EDITSNAP-OK — the hand doors' errors-as-data VERDICT. Exported because compose CALLS those doors (the
 // demo-chat replay) and a caller that cannot name the refusal shape cannot check it; the type was already
 // the exported `RpgService`'s return type, so this adds a name, not surface.
@@ -47,6 +51,7 @@ export { createRpgFlushBarrier } from "./flush-barrier.ts";
 // (the connection-capability resolve keys on `extractionMode`). A thin persistence read exposed for the
 // composition root — the tracker-readonly + runExtraction ops it wires close over it.
 export { findGameByChat } from "./persistence/games.ts";
+export { createExportRpgGame, createImportRpgGame } from "./persistence/portability-write.ts";
 // R6 — the per-actor write-surface assembly (compose) resolves each roster actor's SHEET exceptions
 // (`trackerGrants`/`trackerRevokes`) to decide which trackers that actor may be offered.
 export { listSheets } from "./persistence/sheets.ts";

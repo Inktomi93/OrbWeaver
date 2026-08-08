@@ -3,7 +3,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CreateTagInput, TagSource, TagStatus, TagTargetType, UpdateTagInput } from "@orb/contracts/tag";
-import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, TagId, UserId } from "@orb/kit/ids";
 
 /** Common to every tag verb: the acting principal whose `userId` is the owner discriminant. */
 interface TagActorParams {
@@ -88,6 +88,21 @@ export interface AttachCardTagByNameParams {
   /** Default `accepted`; import/distillation pass `pending` to stage a suggestion. Never downgrades an
    *  already-`accepted` row. */
   readonly status?: TagStatus;
+}
+
+/** The internal resolve-or-create-by-name CHAT-tag attach (R6 — the orb-native chat bundle's tag overlay
+ *  re-link). Same posture as {@link AttachCardTagByNameParams}: the caller has already resolved authority on
+ *  the chat, so this carries the resolved `ownerId` and no principal.
+ *
+ *  NO `status`, and that is the D30 shape rather than an omission: `chat_tags` is a per-TAGGER overlay whose
+ *  PK includes `ownerId` — there is no proposed/accepted surface on it, because a chat label is placed by the
+ *  person who wants it and belongs to nobody else. */
+export interface AttachChatTagByNameParams {
+  readonly ownerId: UserId;
+  readonly chatId: ChatId;
+  readonly tagName: string;
+  /** Stamped on the TAG row at first create only (the label may be brand-new on this box). */
+  readonly source?: TagSource;
 }
 
 /** The internal resolve-by-name card-tag detach — the mirror of {@link AttachCardTagByNameParams}. No

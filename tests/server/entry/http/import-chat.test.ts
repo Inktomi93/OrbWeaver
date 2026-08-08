@@ -188,6 +188,22 @@ describe("registerImportChat — the thin arm over the chat descriptor", () => {
     expect(spy.calls).toHaveLength(0);
   });
 
+  test("R6: an ORB-NATIVE bundle reaches the descriptor with its filename UNTOUCHED — the door does not force-parse it as ST jsonl", async () => {
+    const spy = spyRegistry();
+    const form = new FormData();
+    // Real orb-native bytes (the envelope is what the descriptor's format router reads). This file carries
+    // its OWN seat list, so the route must NOT synthesize a `<handle>/` prefix from a jsonl `character_name`
+    // it does not have — and before R6 it did exactly that to every upload, refusing every bundle at the
+    // door with "not a valid chat file" before the router downstream ever saw it.
+    const bundle = new File([JSON.stringify({ schemaKind: "orb.chat.bundle", schemaVersion: 1 })], "aria-a-long-road.orb.json", { type: "application/json" });
+    form.append("file", bundle);
+    const res = await handlerFor(spy.deps)(makeCtx(OWNER, form));
+
+    expect(res.status).toBe(200);
+    expect(spy.calls.map((call) => call.file.filename)).toEqual(["aria-a-long-road.orb.json"]);
+    expect(spy.calls.map((call) => call.ownerId)).toEqual([OWNER.userId]);
+  });
+
   test("a transcript routes to the descriptor as <slugified character_name>/<filename>, owner-scoped", async () => {
     const spy = spyRegistry();
     const form = new FormData();
