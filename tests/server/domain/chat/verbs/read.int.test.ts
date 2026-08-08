@@ -48,6 +48,12 @@ import {
   seedUser,
 } from "../_support.ts";
 
+// The `DEFAULT_PROMPT_CONFIG` main-section framing, `{{char}}` resolved through the speaker arm: the JOINED
+// cast (narrator) vs a SINGLE primary (per-speaker). Hoisted per biome's top-level-regex rule.
+const JOINED_CAST_FRAMING = /You are (Aria, Kai|Kai, Aria) in an immersive/;
+const SINGLE_SPEAKER_FRAMING = /You are (Aria|Kai) in an immersive/;
+const JOINED_CAST_ANYWHERE = /You are (Aria, Kai|Kai, Aria)/;
+
 let db: Db;
 let loadParticipantViews: ReturnType<typeof makeLoadParticipantViews>;
 
@@ -925,6 +931,72 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(niko?.text).toContain("wary scout");
     // …and each member's bytes are bytes the model actually receives.
     expect(cardsRow?.text).toBe([mara?.text, niko?.text].join("\n\n"));
+  });
+
+  // NARRATOR-CAST follow-up: buildPreviewContext / shapeNextTurn hardcoded `output: "per-speaker"`, so a
+  // NARRATOR room previewed its per-speaker shape — under-reporting the joined-cast `{{char}}` binding and
+  // framing the co-speaker cards as bystanders. The fix threads the room's `GroupConfig.output` (the SAME axis
+  // `TurnSpeakerShape` carries into the turn) through `PreviewInputs`. Asserted through the surface the host
+  // reads: `prompt.static`.
+  test("a NARRATOR room previews its CAST shape — joined {{char}} + [Cast —] framing, not per-speaker", async () => {
+    const me = await seedUser(db, castId<Handle>("narr_host"));
+    // The narrator arm is a `strictObject`; `policy` is its only non-defaulted field, so this parses to a real
+    // narrator GroupConfig (a malformed blob `.catch`es to the per-speaker default and would silently defeat
+    // the test — every other narrator knob carries a default).
+    const chatId = await seedChat(db, "narr", { metadata: { group: { output: "narrator", policy: "natural" } } });
+    const ariaId = await seedCharacter(db, me, "aria");
+    const kaiId = await seedCharacter(db, me, "kai");
+    await seedParticipant(db, { chatId, key: "narr_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId, key: "narr_aria", characterId: ariaId });
+    await seedParticipant(db, { chatId, key: "narr_kai", characterId: kaiId });
+
+    const cards: Record<string, { name: string; description: string; regexScripts: [] }> = {
+      [ariaId]: { name: "Aria", description: "Aria is a warden of the ford.", regexScripts: [] },
+      [kaiId]: { name: "Kai", description: "Kai is a wandering bard.", regexScripts: [] },
+    };
+    const ctx = makeChatContext(db, {
+      // FABRICATION-OK: minimal CharacterCard doubles — assembly reads name + description off these.
+      getCard: ({ characterId }) => Promise.resolve((cards[characterId] ?? null) as unknown as CharacterCard),
+    });
+    const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
+
+    // The `DEFAULT_PROMPT_CONFIG` main section is "You are {{char}} in an immersive… write {{char}}'s
+    // perspective only" — a TOP-LEVEL (non-card) framing, so its `{{char}}` resolves through the speaker arm: a
+    // narrator turn binds it to the JOINED cast. The shipped preview bound it to a single primary name.
+    expect(prompt.static).toMatch(JOINED_CAST_FRAMING);
+    expect(prompt.static).not.toMatch(SINGLE_SPEAKER_FRAMING); // never the single-speaker binding
+    // Both cast cards reach the wire, framed as the round's VOICES (narrator "[Cast — X]"), never bystanders.
+    expect(prompt.static).toContain("Aria is a warden of the ford.");
+    expect(prompt.static).toContain("Kai is a wandering bard.");
+    expect(prompt.static).toContain("[Cast — ");
+    expect(prompt.static).not.toContain("[Also present —");
+  });
+
+  test("FENCE: a PER-SPEAKER room preview is byte-unchanged — single {{char}} + [Also present —]", async () => {
+    const me = await seedUser(db, castId<Handle>("ps_host"));
+    const chatId = await seedChat(db, "ps", { metadata: { group: { output: "per-speaker", policy: "natural" } } });
+    const ariaId = await seedCharacter(db, me, "aria");
+    const kaiId = await seedCharacter(db, me, "kai");
+    await seedParticipant(db, { chatId, key: "ps_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId, key: "ps_aria", characterId: ariaId });
+    await seedParticipant(db, { chatId, key: "ps_kai", characterId: kaiId });
+
+    const cards: Record<string, { name: string; description: string; regexScripts: [] }> = {
+      [ariaId]: { name: "Aria", description: "Aria is a warden of the ford.", regexScripts: [] },
+      [kaiId]: { name: "Kai", description: "Kai is a wandering bard.", regexScripts: [] },
+    };
+    const ctx = makeChatContext(db, {
+      // FABRICATION-OK: minimal CharacterCard doubles — assembly reads name + description off these.
+      getCard: ({ characterId }) => Promise.resolve((cards[characterId] ?? null) as unknown as CharacterCard),
+    });
+    const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
+
+    // Per-speaker is the shipped shape: one speaker voiced, `{{char}}` bound to that ONE primary, the rest
+    // framed as bystanders. Threading the real output axis must leave this arm identical.
+    expect(prompt.static).toMatch(SINGLE_SPEAKER_FRAMING);
+    expect(prompt.static).not.toMatch(JOINED_CAST_ANYWHERE);
+    expect(prompt.static).toContain("[Also present — ");
+    expect(prompt.static).not.toContain("[Cast —");
   });
 
   test("the budget ceiling is the CONNECTED model's window; an unknown window says so (owner bug, D41)", async () => {
