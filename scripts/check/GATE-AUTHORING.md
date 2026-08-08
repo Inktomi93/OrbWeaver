@@ -155,7 +155,13 @@ An exemption is a promise. This is how the promise is written.
 3. **COMMENT MARKERS, when a table cannot express the site** (`// allow-skip:`, `// terse-ok:`,
    `// FABRICATION-OK:`, `// @swallowed-ok:`, `// @typeonly-ok:`, `// @server-only:`): the house grammar is
    `marker:\s*\S` — **the reason after the colon is REQUIRED**, and a bare marker must exempt NOTHING. A
-   bare-marker-exempts rule is a rubber stamp.
+   bare-marker-exempts rule is a rubber stamp. For the shared `@orb-gate-ignore` vocabulary the **MENTION
+   FENCE** applies (`pass.ts`, docs/design/gate-ignore-mention-fence.md, 2026-08-08): **a marker IS a `//`
+   comment whose own text begins with the vocabulary** — the suppressor anchors its parse there (a
+   quotation embedded in a prose comment above a reported node must never absolve it; that was a live
+   bypass) and the inventory counts only comment-OPENER matches, so a grammar quotation in prose/JSDoc
+   (backtick style) or inside a string literal is an inert MENTION everywhere — which is what lets
+   `gate-ignore-inventory` scan the gate corpus itself without the corpus's own documentation self-flagging.
 3a. **THE MARKER NAMES ITS POSITION whenever ONE LINE can carry two guarded things**
    (`// @foreign-id-ok(<positionName>): <reason>`). A line-scoped marker OVER-EXEMPTS: the live corpus case
    is `record(chatId: string, sessionId: string)` — a foreign `sessionId` sitting beside one of OUR

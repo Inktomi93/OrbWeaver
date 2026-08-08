@@ -513,13 +513,13 @@ security lens.
   UN-EXTENDABLE** — probed live, extending to scripts/ yields 12 FALSE findings (gate doc-comments
   describing the marker grammar have no literal-span fence like strings do); closing the scripts/
   inventory gap needs NEW structural info in the marker grammar, a design fork not a scanRoot tune.
-  **→ OWNER ORDERED "fix it properly in full" — FORGE #2 dispatched** (`ad3b52d37d1c12b95`): design
-  the real discriminator (strong hypothesis: a marker in file F for gate G is inert unless G's
-  scanRoot includes F — the 12 false positives all name their OWN packages-scanning gate; VERIFY
-  against per-gate scanRoots, some self-test gates DO scan scripts/). Plant matrix: real marker under
-  scripts/ CAUGHT · 12 gate-prose classes SILENT · packages/tests inventory byte-unchanged. This is
-  the LOAD CEILING (5 lanes: forge×2 + prose-geo + polish + dbank-home) — nothing further until one
-  drains.
+  **→ CLOSED 2026-08-08 (FORGE #2 `fed99940f`, merged): the discriminator is NOT scanRoot-inclusion
+  (that hypothesis was REJECTED — no-inline-types + no-raw-intl-time scan the gates dir, so their own
+  prose stays red). Shipped the MENTION FENCE: a marker IS a `//` comment whose text BEGINS with the
+  vocabulary; quotations/JSDoc are mentions (`pass.ts`, the one home, both sides). Also closed a LIVE
+  suppression bypass (unanchored parse let a prose quote suppress a real finding). Plant matrix all 6
+  post-fix; packages/tests inventory byte-unchanged; 17/17+3/3+2/2. `docs/design/gate-ignore-mention-fence.md`.
+  VERIFIER dispatched on the load-bearing pass.ts change.)**
 - **⚑ NEW BOARDED ROW (POLISH-CLUSTER find): wire CapabilityGate to resolve-failure.ts.** The same
   wrong-confident-cause sentence ("routing problem, not a missing connection") is ALSO hardcoded at
   `capability-gate.tsx:66` over `resolveChatCapability`, which can fail PRECONDITION_FAILED
@@ -921,6 +921,8 @@ security lens.
   modes; GATE-AUTHORING §1 names its enforcer. **Boarded follow-up:** `@orb-gate-ignore` under
   `scripts/` is UNINVENTORIED (gate-ignore-inventory scanRoot is packages+tests by deliberate
   design; extending needs the literal-span exclusion extended to scripts/ — its own lane).
+  **(CLOSED 2026-08-08 — the mention fence; see the TOOLING-INVESTIGATE row's closure note +
+  docs/design/gate-ignore-mention-fence.md.)**
 - **⚑ PRIOR GATE-IGNORE ARC (for the record):** "FULLY CLOSED" REFUTED — a 4th leg is in flight.** Verifier
   `a8fed8ee2276a7c1e` CONFIRMED the 14 converted gates (3 spot-checks incl. the over-exempt property
   at same-line granularity; kept-arms correctly §1-sanctioned; expect.token discriminates) but
