@@ -11,7 +11,12 @@ import { tv } from "#lib";
 // step between the two — every shell LIST pane sits below it, every CONTENT surface above.
 export const emptyStateVariants = tv({
   slots: {
-    root: "@container flex flex-col items-center gap-block py-section text-center @max-sm:gap-row @max-sm:py-block",
+    // `w-full` is a STRUCTURAL FENCE, not decoration (follow-up gap-audit 2026-08-08 gap 2): the root is a
+    // `@container` (contain: inline-size — its inline size ignores its own contents), so a flex parent with
+    // `align-items: center` gives it `align-self: center` and it collapses toward 0, dropping the description
+    // to one word per line (the automation-settings 63px ribbon). Filling the slot defeats that in EVERY
+    // consumer at once — no re-parent can silently narrow it. Measured by empty-state.ct.tsx.
+    root: "@container w-full flex flex-col items-center gap-block py-section text-center @max-sm:gap-row @max-sm:py-block",
     decoration: "",
     icon: "text-muted-foreground",
     title: "font-medium text-foreground text-title leading-title @max-sm:text-body @max-sm:leading-body",
