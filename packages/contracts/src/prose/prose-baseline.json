@@ -44,6 +44,10 @@
       "version": 1,
       "sha256": "eee65f3e08de9cb55308fa46b25f2a3049186e91054979400cae68591be54717"
     },
+    "preset.compaction.instructions": {
+      "version": 1,
+      "sha256": "654c5781f7283f10fc8fc24b664b7fbc5871ebdf40ef84f4d4c6b5caff62794c"
+    },
     "imagery.template.character": {
       "version": 1,
       "sha256": "afbdc4416d5a8eb201e5ef8941620343847cca285da3b71e7d8bb0ec3d25d713"
