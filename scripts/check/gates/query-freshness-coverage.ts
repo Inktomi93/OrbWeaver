@@ -313,19 +313,22 @@ function collectFilters(decl: Node, roots: Set<string>, keys: Set<string>): void
 // ── the reconcile ────────────────────────────────────────────────────────────────────────────────────────
 const GATE_FILE = "scripts/check/gates/query-freshness-coverage.ts";
 
-const MISSING = (key: string): string =>
-  `query-freshness-coverage[${key}]: this client-consumed query key appears in ZERO invalidation rows — with staleTime:Infinity and no focus-refetch, the surface it feeds is FROZEN at its first fetch until the query is GC'd or the page reloads (the previewAssembly/getShapeTrace class). Add the row to packages/client/src/data/invalidation.ts (the narrowest pathFilter/queryFilter that fits), or add a cited STATIC (sanctioned — say why it cannot go stale in-session, or name the driver that lives outside the seam) / DEFERRED (tracked staleness debt + remediation) entry in ${GATE_FILE}.`;
+// The MISSING arm no longer has a per-finding message: it is NODE-anchored, so its prose lives on the gate
+// descriptor's `message` (a per-occurrence override would force the Finding overload — see §1) and the key
+// it named rides in the finding's TOKEN.
 const STALE = (key: string): string =>
   `query-freshness-coverage[${key}]: this key GAINED an invalidation row but still carries a STATIC/DEFERRED entry — delete the stale entry in ${GATE_FILE} (the ratchet is self-cleaning in BOTH directions; the D50/D107 discipline).`;
 const ORPHAN = (key: string): string =>
   `query-freshness-coverage[${key}]: a STATIC/DEFERRED entry names a query key NOTHING consumes any more (the read was renamed or deleted) — drop the entry in ${GATE_FILE}.`;
 const TRIPWIRE = `query-freshness-coverage: the ${SEAM_ANCHOR} seam anchor is present but no client module declares \`${SEAM_FACTORY}\` — the invalidation seam was renamed away, so the coverage side would go vacuous. Re-point SEAM_FACTORY in scripts/check/gates/query-freshness-coverage.ts (path-keyed-gates-die-on-rename; the seam lives at packages/client/src/data/invalidation.ts).`;
 
-type Report = (finding: { file: string; line: number; column: number; message: string }) => void;
+/** The finding sink, taken straight off the run context so `reconcile` can use BOTH overloads: the NODE
+ *  overload for the MISSING arm (a real consumption site — suppressible, GATE-AUTHORING §1) and the
+ *  explicit-`Finding` overload for the three GATE_FILE arms (tripwire / stale / orphan — no node exists). */
+type Report = GateRunCtx["report"];
 
-function repoRel(root: string, abs: string): string {
-  return abs.startsWith(`${root}/`) ? abs.slice(root.length + 1) : abs;
-}
+// (`repoRel` died with the MISSING arm's Finding literal — the node overload derives the repo-relative path
+// from the node itself, in pass.ts, so the gate no longer computes one.)
 
 /** Is the seam anchor identifier present anywhere in the client tree? (Content-guarded tripwire — a
  *  synthetic tree without the anchor never activates it.) */
@@ -360,8 +363,11 @@ function reconcile(ctx: Pick<GateRunCtx, "project" | "root">, report: Report): v
     const isCovered = covered(key, router);
     const cited = key in STATIC || key in DEFERRED;
     if (!(isCovered || cited)) {
-      const { line, column } = node.getSourceFile().getLineAndColumnAtPos(node.getStart());
-      report({ file: repoRel(ctx.root, node.getSourceFile().getFilePath()), line, column, message: MISSING(key) });
+      // The MISSING arm is NODE-anchored (the consumption site itself) — the NODE overload, so
+      // `// @orb-gate-ignore query-freshness-coverage(<router>.<proc>): <reason>` works (GATE-AUTHORING §1;
+      // until 2026-08-08 this rode the Finding overload, which bypasses `hasGateIgnore`). The token is the
+      // query key: §4.3a's position, since one line can chain two reads. Prefer a cited STATIC/DEFERRED row.
+      report(node, { token: key, offset: 0 });
     }
     if (isCovered && cited) {
       report({ file: GATE_FILE, line: 1, column: 0, message: STALE(key) });
@@ -385,13 +391,14 @@ export const gate: GateDescriptor = {
   status: "active",
   scopeSafety: "whole-project",
   scanRoot: (p) => CLIENT_SRC.test(`/${p}`),
+  // The MISSING arm's prose lives HERE (it stopped riding a per-finding message when it moved to the node
+  // overload); its token is the `<router>.<proc>` key. The three GATE_FILE arms keep their own messages —
+  // each names a specific dead/lying registry row, which is per-occurrence detail by nature.
   message:
-    "a client-consumed tRPC query key has NO freshness driver — with the app QueryClient's staleTime:Infinity + no focus-refetch, a key in zero invalidation rows leaves its surface frozen at the first fetch until GC or a reload (the previewAssembly/getShapeTrace frozen-Preview-tab class). Add the row to packages/client/src/data/invalidation.ts, or cite the key STATIC/DEFERRED with a real reason in scripts/check/gates/query-freshness-coverage.ts.",
+    "a client-consumed tRPC query key appears in ZERO invalidation rows, so it has NO freshness driver — with the app QueryClient's staleTime:Infinity + no focus-refetch, the surface it feeds is FROZEN at its first fetch until the query is GC'd or the page reloads (the previewAssembly/getShapeTrace frozen-Preview-tab class). The finding's TOKEN is the query key. Add the row to packages/client/src/data/invalidation.ts, or cite the key STATIC/DEFERRED with a real reason in scripts/check/gates/query-freshness-coverage.ts.",
   fix: "add the narrowest pathFilter/queryFilter row to packages/client/src/data/invalidation.ts, or add a cited STATIC/DEFERRED entry in scripts/check/gates/query-freshness-coverage.ts; a stale entry (the key gained a row) must be deleted in the same change.",
   run: (ctx) => {
-    reconcile(ctx, (finding) => {
-      ctx.report(finding);
-    });
+    reconcile(ctx, ctx.report);
   },
   mustFlag: [
     {
@@ -401,7 +408,7 @@ export const gate: GateDescriptor = {
           "export interface Invalidation { readonly invalidate: () => void }\nexport function createInvalidation(trpc: Trpc) {\n  return [trpc.other.thing.pathFilter()];\n}\n",
         "packages/client/src/features/x/components/x.tsx": "export const q = trpc.ghost.frozenRead.queryOptions({});\n",
       },
-      expect: { messageIncludes: "appears in ZERO invalidation rows" },
+      expect: { count: 1, token: "ghost.frozenRead" },
       why: "the literal `trpc.<router>.<proc>.queryOptions(` consumption with no seam row — the previewAssembly/getShapeTrace bug, now RED",
     },
     {
@@ -411,7 +418,7 @@ export const gate: GateDescriptor = {
           "export interface Invalidation { readonly invalidate: () => void }\nexport function createInvalidation(trpc: Trpc) {\n  return [trpc.other.thing.pathFilter()];\n}\n",
         "packages/client/src/features/x/surfaces/deep/nested/y.tsx": "export const q = deps.trpc.ghost.pagedRead.infiniteQueryOptions({});\n",
       },
-      expect: { messageIncludes: "appears in ZERO invalidation rows" },
+      expect: { count: 1, token: "ghost.pagedRead" },
       why: "a nested-path consumer through a `deps.trpc` receiver + the infinite read terminal — the enumerator is not shallow-path- or bare-identifier-bound",
     },
     {
@@ -421,7 +428,7 @@ export const gate: GateDescriptor = {
           "export interface Invalidation { readonly invalidate: () => void }\nfunction deadHelper(trpc: Trpc) {\n  return [trpc.ghost.orphanRead.pathFilter()];\n}\nexport function createInvalidation(trpc: Trpc) {\n  return [trpc.other.thing.pathFilter()];\n}\n",
         "packages/client/src/features/x/components/x.tsx": "export const q = trpc.ghost.orphanRead.queryOptions({});\n",
       },
-      expect: { messageIncludes: "appears in ZERO invalidation rows" },
+      expect: { count: 1, token: "ghost.orphanRead" },
       why: "a filter row parked in a helper nothing reaches from createInvalidation is dead wire, not coverage",
     },
     {

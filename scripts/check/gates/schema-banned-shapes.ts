@@ -195,6 +195,7 @@ function contractDeclViolations(sf: SourceFile, rel: string): Violation[] {
     if (shape.kind === "interface-field") {
       const iface: InterfaceDeclaration | undefined = sf.getInterface(shape.typeName);
       if (iface?.getProperty(shape.field)) {
+        // @finding-overload-ok: a ledger-REJECTED shape is non-suppressible BY DESIGN — the escape is contesting the D-cite in Core-Laws-and-Precedents.md, never a comment at the reintroduction site; the LINE is a jump hint only (every row reports at column 0). Ends if a D-row is ever retired
         out.push({
           file: rel,
           line: iface.getProperty(shape.field)?.getStartLineNumber() ?? 1,
@@ -220,6 +221,7 @@ function schemaFieldViolations(sf: SourceFile, rel: string, shape: SchemaFieldBa
     return [];
   }
   return [
+    // @finding-overload-ok: a ledger-REJECTED shape is non-suppressible BY DESIGN — the escape is contesting the D-cite in Core-Laws-and-Precedents.md, never a comment at the reintroduction site; the LINE is a jump hint only (every row reports at column 0). Ends if a D-row is ever retired
     {
       file: rel,
       line: prop.getStartLineNumber(),
@@ -238,6 +240,7 @@ function importViolations(sf: SourceFile, rel: string): Violation[] {
     for (const decl of sf.getImportDeclarations()) {
       const spec = decl.getModuleSpecifierValue();
       if (spec === shape.specifier || spec.startsWith(`${shape.specifier}/`)) {
+        // @finding-overload-ok: a ledger-REJECTED shape is non-suppressible BY DESIGN — the escape is contesting the D-cite in Core-Laws-and-Precedents.md, never a comment at the reintroduction site; the LINE is a jump hint only (every row reports at column 0). Ends if a D-row is ever retired
         out.push({
           file: rel,
           line: decl.getStartLineNumber(),

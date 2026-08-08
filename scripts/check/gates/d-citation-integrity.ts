@@ -83,6 +83,7 @@ function danglingCitesIn(sf: SourceFile, root: string, ids: Set<number>, reserve
     }
     const n = Number(raw);
     if (!resolves(n, ids, reserved)) {
+      // @finding-overload-ok: a TEXT-scan position — `m.index` is a regex match offset into the raw file text (a citation in a comment or a doc), NOT a node start, so there is nothing for hasGateIgnore to read a marker off. Ends if this scanner ever resolves its hits to real nodes
       out.push({
         file: relPath(root, sf.getFilePath()),
         line: sf.getLineAndColumnAtPos(m.index).line,
