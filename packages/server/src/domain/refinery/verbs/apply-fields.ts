@@ -57,6 +57,7 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
     const { applied, dropped, chosen } = partitionAccepts(accepts, {
       rewriteFields: rewrite.data.fields,
       selectedFields: session.selection.fields,
+      selectedGreetingIndexes: session.selection.greetingIndexes,
       liveGreetingCount: liveCard.greetings.length,
       liveHasDepthPrompt: liveCard.depthPrompt !== null,
     });
@@ -107,6 +108,10 @@ function partitionAccepts(
 interface AcceptBelts {
   readonly rewriteFields: readonly RefineryRewriteField[];
   readonly selectedFields: readonly string[];
+  /** The selection's greeting-index narrowing — `undefined` means every greeting is in scope (contracts
+   *  law). When it IS an array, an accept for a greeting index outside it is scope-widening past what the
+   *  user selected (belt 9): the index was never fed to the model, so a rewrite entry for it is fabricated. */
+  readonly selectedGreetingIndexes: readonly number[] | undefined;
   readonly liveGreetingCount: number;
   readonly liveHasDepthPrompt: boolean;
 }
@@ -129,8 +134,19 @@ function classifyAccept(accept: AcceptedField, belts: AcceptBelts): AcceptVerdic
   if (entry === undefined) {
     return { kind: "drop", drop: { ...at, reason: "not_in_rewrite" } };
   }
-  // (3) the SESSION's selection fence (belt 9 — the scope-widening stopper).
+  // (3) the SESSION's selection fence (belt 9 — the scope-widening stopper). Two arms: the FIELD must be
+  // selected, AND — when the selection narrowed greetings to specific indexes — the greeting INDEX must be
+  // among them. A steered rewrite fabricating an entry for an unselected greeting slot dies here even with
+  // an explicit accept (the index was never in the pipeline, so its "rewrite" is invented).
   if (!belts.selectedFields.includes(accept.field)) {
+    return { kind: "drop", drop: { ...at, reason: "not_selected" } };
+  }
+  if (
+    accept.field === "greetings" &&
+    belts.selectedGreetingIndexes !== undefined &&
+    accept.greetingIndex !== undefined &&
+    !belts.selectedGreetingIndexes.includes(accept.greetingIndex)
+  ) {
     return { kind: "drop", drop: { ...at, reason: "not_selected" } };
   }
   // (4) live-card applicability (belt 11 — against the LIVE card, never the snapshot).
