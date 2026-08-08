@@ -1,8 +1,9 @@
 // entry/boot/seed-owner — the privileged boot owner backfill. Real libSQL :memory: (the .int lane). Covers:
 // a non-owner row at an OWNER handle is flipped to role=owner; the returned ids match; idempotent (a second
-// run keeps role=owner and does NOT re-stamp updated_at, proving the ne(role,'owner') guard changed 0 rows);
-// a row whose handle is NOT in OWNER_HANDLES is left untouched. `ensureUser` is stubbed to the row the test
-// seeded (its JIT-create mechanics are tested in domain/sessions — this isolates the backfill).
+// run on a healthy owner+enabled row changes 0 rows and does NOT re-stamp updated_at); a DISABLED already-owner
+// row is re-enabled at boot (the widened `or(ne(role,'owner'), enabled=false)` heal); a row whose handle is
+// NOT in OWNER_HANDLES is left untouched. `ensureUser` is stubbed to the row the test seeded (its JIT-create
+// mechanics are tested in domain/sessions — this isolates the backfill).
 //
 // The AUTH_MODE=local password-seed block below runs against the REAL sessions service (real ensureUser +
 // real scrypt hasher over one pepper): a fresh local owner is FORM-loginable via the real `authenticate`
@@ -67,6 +68,25 @@ test("idempotent — a second run keeps role=owner and does not re-stamp updated
   expect(afterSecond?.role).toBe("owner");
   // The ne(role,'owner') guard matched 0 rows on the second run → updated_at is unchanged.
   expect(afterSecond?.updatedAt).toBe(stampedAt);
+});
+
+// Boot invariant: the owner row is always enabled. A raw-write `enabled=0` on the owner bricks the box
+// (every request 401s and admin.setEnabled refuses the owner row), so a reboot must self-heal it. RED-first:
+// the pre-fix `ne(role,'owner')` WHERE excluded an already-owner row, so `enabled` stayed 0.
+test("re-enables a DISABLED already-owner row at boot (raw-write brick recovery)", async ({ clock }) => {
+  const db = await freshDb();
+  await db.insert(users).values({ id: OWNER_ID, handle: castId<Handle>("owner"), role: "owner", enabled: false });
+
+  await seedOwner({
+    db,
+    sessions: { ensureUser: (): Promise<UserId> => Promise.resolve(OWNER_ID) },
+    ownerHandles: ["owner"],
+    now: clock.now,
+  });
+
+  const [row] = await db.select().from(users).where(eq(users.id, OWNER_ID));
+  expect(row?.role).toBe("owner");
+  expect(row?.enabled).toBe(true);
 });
 
 test("refuses a multi-handle owner set — fail-fast, not a UNIQUE loop (D17: exactly one owner)", async ({ clock }) => {
