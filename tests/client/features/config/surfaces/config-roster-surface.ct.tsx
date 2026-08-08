@@ -355,6 +355,30 @@ test("a zero-member group keeps its band and says so, with its own create verb",
   await expect(roster.getByRole("button", { expanded: false })).toHaveCount(2);
 });
 
+// …AND IT IS A CARD, NOT A ROW (side-eye 2026-08-08). The copy and the create verb sat side-by-side on one
+// line inside the dashed box, which at the roster's real width read as a broken table row rather than as the
+// house empty-state grammar (copy, then the next step BELOW it, centered). The assertion is the two boxes'
+// GEOMETRY — stacked (the verb starts below the copy's last line) and sharing a centre — because "stacked and
+// centered" is a rendered fact and a class list is not.
+test("the zero-member slot is a centered CARD — the verb sits below its copy, not beside it", async ({ mount, page }) => {
+  await stub(page, []);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  const group = workspace.locator(ROSTER).locator('[data-collection="tags"]');
+  const copy = group.getByText("No tags yet.");
+  // The band's `+` comes first in DOM order; the empty slot's repeat of the same verb is the trailing one.
+  const verb = group.getByRole("button", { name: "New tag" }).last();
+  await expect(copy).toBeVisible();
+  await expect(verb).toBeVisible();
+  const [copyBox, verbBox] = await Promise.all([copy.boundingBox(), verb.boundingBox()]);
+  if (copyBox === null || verbBox === null) {
+    throw new Error("the empty slot's copy or its create verb did not render a box");
+  }
+  expect(verbBox.y, "the create verb starts below the copy's last line").toBeGreaterThanOrEqual(copyBox.y + copyBox.height);
+  expect(Math.abs(copyBox.x + copyBox.width / 2 - (verbBox.x + verbBox.width / 2)), "copy and verb share one centre line").toBeLessThanOrEqual(1);
+});
+
 // The band's KICKER at the pane it actually lives in (side-eye 2026-08-06 P3). "REGEX SCRIPTS" is the
 // longest label the door array carries, and at the docked pane's real 307px content width it lost its last
 // two pixels to the ellipsis — a truncated group name in a roster whose entire job is naming the groups.

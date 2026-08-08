@@ -13,10 +13,12 @@ import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
  *  plus the tag mutations (`updateTag`/`removeTag`/`mergeTags`) are stubbed per-test via routeTrpc. The
  *  QueryBoundary is production's (the config host wraps `detail(view)` in one), not scaffolding: the
  *  surface reads through `useSuspenseQuery`. */
-export function TagMemberStory({ memberId = "tag_adventure" }: { readonly memberId?: string }): ReactElement {
+export function TagMemberStory({ memberId = "tag_adventure", width = 720 }: { readonly memberId?: string; readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
-      <div style={{ height: 720, overflow: "auto", width: 720 }}>
+      {/* `width` is FIXED, never content-sized: the colour readouts' one-line budget is a fact about the pane
+          they land in, and a mount that grows to fit its content agrees with every overflow. */}
+      <div style={{ height: 720, overflow: "auto", width }}>
         <QueryBoundary fallback={<p>loading…</p>} renderError={(error): ReactElement => <p role="alert">{String(error)}</p>}>
           <TagMemberSurface memberId={memberId} />
         </QueryBoundary>
