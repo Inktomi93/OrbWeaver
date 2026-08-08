@@ -647,6 +647,15 @@ security lens.
   law — the doc truth-repair stands). FINAL MICRO-LEG in flight (2 one-liners: narrow transition-all
   so the ring is instant; delete the viewport outline-none landmine; + restate the residual comment
   structurally). Closes on that landing.
+- **✅ SMALLS-1 MERGED `208abac21`** (10 files): gate-ignore now LIVE on platform-spellings (node
+  overload + arm tokens + the `expect.token` conformance widening — probe matrix incl. SKIPPED-on-
+  marker, dead-position still-RED, malformed still-RED; caught its own module-cache instrument lie) ·
+  readout pending arm + CT · fabrication baseline regen 81→70 shrink-only-proven · fork.ts comment
+  LIVE w/ both SHAs · field-reachability 4×.ok honest · R5b(a) verified-carried · CapabilityGate
+  SKIPPED (already shipped `8ea171268`). **LEG 2 in flight (same worktree): zod-modern-spellings twin
+  fix + a ONE-gate probe of the Finding-overload class (13 gates / 18 node-anchored sites — a LEAD;
+  full burn-down decided on the probe's data).** Queued smalls: the `transition-all`-on-focusables
+  repo sweep (toast micro-leg lesson — outline-* interpolates, rings fade in).
 - **⚑ CONFIG-SWEEP (I-3 tail) REPORTED: SHIP WITH FIXES — 4 P1 · 9 P2 · 5 P3** (side-eye
   `a745bb9c0eab275f4`; receipts `reports/snaps/sweep-*.png`; SEEDED FIXTURE left in dev DB: 35 regex
   scripts / 32 tags / 6 databank docs, reusable). Root cause on most: a CONTEXT arm with nothing
@@ -1180,12 +1189,9 @@ what Caddy exposes, real response headers, whether `/api/_debug` answers from ou
 
 - ~~**Per-actor tracker grant/revoke EDITOR**~~ — **DONE 2026-08-08**: CLIENT-SMALLS built `rpg-tracker-grants.tsx` (graduated, dual lens) and TRACKERGATE closed the server-side member-self-grant hole (verifier-confirmed). Struck.
 
-- **`readout-parts.tsx` pending-flash** (`packages/client/src/features/preset/components/readout/`) —
-  the same F-02 lying-pending-arm class SM4 fixed elsewhere; flagged, not fixed.
+- ~~**`readout-parts.tsx` pending-flash**~~ — **DONE (SMALLS-1, `208abac21`)**: EffectiveProfile gained the SM4 three-arm shape + 5-test CT; also truth-repaired its formatCount prose. Struck.
 
-- **CapabilityGate's no-error arm is UNREACHABLE as a settled state** (capability required | error —
-  undefined+null = PENDING), so every editor open FLASHES "connect a chat model" at users who have one.
-  Owner ruling was "build it later": add a pending arm, then delete-or-reach the note.
+- ~~**CapabilityGate's no-error arm**~~ — **STALE ROW: already shipped** in `8ea171268` (real PENDING arm + three-state CT at preset-editor-surface.ct.tsx:204+). SMALLS-1 premise check caught it. Struck.
 
 - **`respell` derive-or-cite row:** search `DigestsParams` / `SegmentsParams` ≡ contracts
   `MemoryQueryOptions` (both still live in `domain/search/contract/params`). Its twin,
@@ -1197,7 +1203,7 @@ what Caddy exposes, real response headers, whether `/api/_debug` answers from ou
   called at BOOT to warm caches (`entry/lifecycle.ts:181-191`), and `use-admin-mutations.ts:80` already
   carries the explanation in a comment. Deliberate boot-only readers. No action.
 
-- **`field-reachability` suite ignores a `.ok`** (SM5's flag — non-vacuous, honest-fix-same-shape).
+- ~~**`field-reachability` suite ignores a `.ok`**~~ — **DONE (SMALLS-1)**: FOUR discarded HandDoorResults moved to the resolves.toEqual({ok:true}) grammar; planted control proves the reason sentence surfaces. Struck.
 
 - **L8-inbound:** foreign ST `mes:""` rows at import — declined-by-scope in ANCHOR, a one-liner if
   wanted.
@@ -1214,8 +1220,7 @@ what Caddy exposes, real response headers, whether `/api/_debug` answers from ou
   as REGISTRY tools again. **Re-verified 08-03:** `chat-ops/gather.ts:194` is still `tools: []`, so the
   dormancy condition holds — a correctly-cited doorway, not forgotten debt.
 
-- **R5b(a) verify:** `refEnumerationLines` (the non-enforcing-backend prompt fallback) should enumerate
-  active conditions post-R5a — confirm the R6 build carried it; \~2 lines if not.
+- ~~**R5b(a) verify**~~ — **VERIFIED CARRIED (SMALLS-1)**: emitted at entry/compose/rpg.ts:629-631 from a live derivation, both vehicles, asserted at rpg.int.test.ts:961. Closed.
 
 - **WAKE-STATUS:** the 3s engine wake is silent (spec accepted the wait); revisit if it feels laggy.
 
