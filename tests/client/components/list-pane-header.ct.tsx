@@ -12,6 +12,7 @@ import { ListPaneHeader } from "@orb/client/components";
 import { Button } from "@orb/ui/button";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
+import { ListBandInShell } from "./list-pane-header.fixtures.tsx";
 
 const MICRO_PX = `${Number.parseFloat(TOKENS["text.micro"].value) * 16}px`;
 const MICRO_TRACKING = TOKENS["tracking.micro"].value;
@@ -83,4 +84,47 @@ test("back fires its handler; exactly one action node renders (A2 — one primar
   expect(backs).toBe(1);
   // Two buttons total: back + the ONE primary. No hidden second create.
   await expect(component.getByRole("button")).toHaveCount(2);
+});
+
+// ── THE MOBILE BAND (side-eye 2026-08-06 P2) ─────────────────────────────────────────────────────────
+// The ONE-SHELL rule sheds this band's UNSCOPED title on a phone (the topbar already prints the section's
+// name ~50px above). What it used to leave behind was a 48px bordered chrome row containing an empty flex
+// cluster — an empty strip on config/corpus/refinery — and, where a count was set, an orphan number with no
+// noun. `:empty` cannot see the strip: the identity `Row` is still in the DOM, 0×0. Driven at 320px through
+// the real shell selector chain, because the whole decision lives in that chain.
+
+const PHONE = { width: 320, height: 800 };
+
+test("MOBILE: a band with nothing left to paint is GONE, not an empty 48px strip", async ({ mount, page }) => {
+  await page.setViewportSize(PHONE);
+  await mount(<ListBandInShell />);
+  await expect(page.locator(".shell-panel-header")).toHaveCSS("display", "none");
+});
+
+test("MOBILE: the count travels with the title — no orphan number on a nameless band", async ({ mount, page }) => {
+  await page.setViewportSize(PHONE);
+  await mount(<ListBandInShell count={8} />);
+  // The whole band goes, so the census cannot survive its noun.
+  await expect(page.locator(".shell-panel-header")).toHaveCSS("display", "none");
+  await expect(page.getByText("8", { exact: true })).toBeHidden();
+});
+
+test("MOBILE: a band that still has something to say KEEPS its row (a scoped title, or the pane's action)", async ({ mount, page }) => {
+  await page.setViewportSize(PHONE);
+  const scoped = await mount(<ListBandInShell accent="Sera" count={8} />);
+  await expect(page.locator(".shell-panel-header")).not.toHaveCSS("display", "none");
+  // A SCOPED band names a swapped pane — a different fact from the topbar's — so title AND count stay.
+  await expect(scoped.getByText("Sera", { exact: true })).toBeVisible();
+  await expect(scoped.getByText("8", { exact: true })).toBeVisible();
+
+  await scoped.update(<ListBandInShell withAction={true} />);
+  await expect(page.locator(".shell-panel-header")).not.toHaveCSS("display", "none");
+  await expect(page.getByRole("button", { name: "New tag" })).toBeVisible();
+});
+
+test("DESKTOP: the band is untouched — title, count and action all paint", async ({ mount, page }) => {
+  const band = await mount(<ListBandInShell count={8} withAction={true} />);
+  await expect(page.locator(".shell-panel-header")).not.toHaveCSS("display", "none");
+  await expect(band.getByRole("heading", { level: 2 })).toContainText("Configuration");
+  await expect(band.getByText("8", { exact: true })).toBeVisible();
 });

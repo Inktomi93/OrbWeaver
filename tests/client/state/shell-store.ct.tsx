@@ -91,6 +91,29 @@ test("revealContextPanel dual-writes: contextTab + openOverlayPanel + the CONTEX
   await expect(state).toContainText("contextTab=field openOverlayPanel=context");
 });
 
+// THE MOBILE FOLD (side-eye 2026-08-06 P1). `revealContextPanelBesideContent` is the same intent for a
+// drill whose BODY is already in CONTENT — a character-card facet, where the tap that opens the field also
+// swaps CONTENT to that field's editor. On a phone the overlay request above would land a 100dvw sheet OVER
+// that editor with the content column inert; the mock rules "the CONTEXT arm folds into CONTENT on mobile —
+// no third pane on a phone". The TAB and the wide dock are still written, so nothing about the desktop
+// behaviour or the phone's own detail-panel toggle changes.
+test("revealContextPanelBesideContent writes the tab + the dock, and the overlay request ONLY off mobile", async ({ mount }) => {
+  const probe = await mount(<ShellStoreProbe />);
+  const state = probe.locator("output");
+
+  await probe.getByRole("button", { name: "enter mobile viewport" }).click();
+  await probe.getByRole("button", { name: "reveal context beside content" }).click();
+  // The tab is requested and the WIDE dock is recorded…
+  await expect(state).toContainText("context=docked");
+  // …but nothing floats over the editor the tap just opened.
+  await expect(state).toContainText("contextTab=field openOverlayPanel=none");
+
+  // Off a phone the pane is a track beside CONTENT, not over it — so the reveal opens it, as before.
+  await probe.getByRole("button", { name: "enter desktop viewport" }).click();
+  await probe.getByRole("button", { name: "reveal context beside content" }).click();
+  await expect(state).toContainText("contextTab=field openOverlayPanel=context");
+});
+
 test("useListDocked resolves override-over-default, per section, live", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");

@@ -390,6 +390,28 @@
   flex: 1 1 auto;
   min-width: 0;
 }
+/* …except the OVERLAY dismiss (side-eye 2026-08-06 P2), which is a fixed control on the trailing edge and
+ * must not take a share of the band's width. */
+.shell-panel .shell-panel-header > [data-slot="panel-overlay-close"] {
+  flex: none;
+}
+/* The OVERLAY band's content group (panel-chrome.tsx): re-states the band's own two-child `space-between`
+ * inside itself, so a LIST header keeps its `identity … action` split while the dismiss owns the edge. */
+.shell-panel-header-group {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-row);
+}
+/* A CLAIMED context pane, floating: the group is genuinely childless (`SectionContextHeader` returns
+ * nothing), so the band collapses exactly as the docked `:empty` rule collapses it — the claimant owns its
+ * top edge AND its own way out (HUD-1 §3.1). Without this the dismiss alone would keep the band non-empty
+ * and paint a chrome row the claim exists to remove. */
+.shell-panel[data-panel-side="context"] .shell-panel-header:has(> .shell-panel-header-group:empty) {
+  display: none;
+}
 /* Container-responsive CONTEXT tab strip (Context-Panel-Program CP-1 · UI-Arch §4.3 rule-4 progressive
  * disclosure · §4b axis-1 @container — NEVER a viewport @media). The strip is the query CONTAINER; each
  * tab shows its word label ONLY when the container is wide enough to fit EVERY current tab's label,
@@ -827,6 +849,21 @@
    * the LIST band's unscoped title repeats it ~50px lower — measured on Characters, "Characters" twice.
    * A SCOPED band ("CHATS · Sera") names a swapped pane, which is a different fact, so it survives. */
   .shell-grid[data-list-mode="docked"] .shell-panel[data-panel-side="list"] [data-slot="list-pane-title"]:not([data-scoped]) {
+    display: none;
+  }
+
+  /* …AND THE BAND GOES WITH IT WHEN NOTHING IS LEFT (side-eye 2026-08-06 P2). Shedding the title left a
+   * 48px bordered chrome row containing an empty flex cluster — an empty strip on config/corpus/refinery.
+   * `:empty` cannot see it: the identity `Row` is still there, 0×0 and childless-looking but present. So
+   * the test is stated as what would PAINT: a leading back button, a SCOPED title, or the pane's primary
+   * action. The action is the band's only direct child that is not the identity cluster, which is what the
+   * first clause detects — a `listHeader` that is not a `ListPaneHeader` has no identity slot at all and so
+   * never matches, keeping the rule scoped to the composite that declared these slots. */
+  .shell-grid[data-list-mode="docked"]
+    .shell-panel[data-panel-side="list"]
+    .shell-panel-header:not(:has(> *:not([data-slot="list-pane-identity"]))):not(:has([data-slot="list-pane-back"])):not(
+      :has([data-slot="list-pane-title"][data-scoped])
+    ) {
     display: none;
   }
 

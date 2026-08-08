@@ -246,6 +246,7 @@ export {
   openModal,
   openSettingsTo,
   revealContextPanel,
+  revealContextPanelBesideContent,
   SECTION_IDS,
   SETTINGS_CATEGORY_IDS,
   setActiveSection,

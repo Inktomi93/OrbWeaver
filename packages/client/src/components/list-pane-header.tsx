@@ -43,9 +43,12 @@ export interface ListPaneHeaderProps {
 export function ListPaneHeader({ title, accent, count, back, action }: ListPaneHeaderProps): ReactElement {
   return (
     <>
-      <Row align="center" className="min-w-0" gap="field">
+      {/* `data-slot="list-pane-identity"` names this cluster for the shell: on a phone the ONE-SHELL rule
+          sheds the unscoped title (below), and the shell then needs to know whether ANYTHING is left in the
+          band before it keeps spending a 48px chrome row on it. See shell.css's mobile arm. */}
+      <Row align="center" className="min-w-0" data-slot="list-pane-identity" gap="field">
         {back === undefined ? null : (
-          <Button aria-label={back.label} intent="ghost" onClick={back.onClick} size="icon" type="button">
+          <Button aria-label={back.label} data-slot="list-pane-back" intent="ghost" onClick={back.onClick} size="icon" type="button">
             <Icon icon={ChevronLeft} size="sm" />
           </Button>
         )}
@@ -54,8 +57,14 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
             (side-eye leg-4 P3 — measured on Characters). A SCOPED band ("CHATS · Sera") is a different
             statement about a swapped pane, so it stays. shell.css sheds the duplicate; the decision lives
             there because "is this pane the screen?" is the shell's fact, not this composite's. */}
+        {/* THE COUNT TRAVELS WITH THE TITLE (side-eye 2026-08-06). It used to be the heading's SIBLING, so
+            the mobile rule shed the noun and left the number behind: the Chats roster printed a bare "8" on
+            an otherwise empty 48px band, and a count with no noun is not a fact. Inside the heading it can
+            only ever be read WITH the thing it counts, in either regime, with no second CSS rule to keep in
+            step. The heading is therefore the flex BOX and `truncate` moves to the title text alone — so a
+            long name still ellipsises and the census still survives beside it, exactly as before. */}
         <Heading
-          className="truncate"
+          className="flex min-w-0 items-center gap-field"
           data-scoped={accent === undefined ? undefined : "true"}
           data-slot="list-pane-title"
           level={2}
@@ -64,20 +73,25 @@ export function ListPaneHeader({ title, accent, count, back, action }: ListPaneH
           transform="caps"
           weight="semibold"
         >
-          {accent === undefined ? title : `${title} · `}
-          {/* The entity half carries the foreground tone so the pane reads as "CHATS, scoped to HER";
-              `caps` inherits from the heading, so the accent needs no transform of its own. */}
-          {accent === undefined ? null : (
-            <Text as="span" size="micro" tone="default" weight="semibold">
-              {accent}
+          {/* The title TEXT is what truncates, not the heading box — see the count's note. It restates the
+              micro-caps axes because it is the element that now carries them (the heading became the flex
+              box), which is the same spelling the accent half beside it already uses. */}
+          <Text as="span" className="truncate" size="micro" tone="muted" transform="caps" weight="semibold">
+            {accent === undefined ? title : `${title} · `}
+            {/* The entity half carries the foreground tone so the pane reads as "CHATS, scoped to HER";
+                `caps` inherits from the heading, so the accent needs no transform of its own. */}
+            {accent === undefined ? null : (
+              <Text as="span" size="micro" tone="default" weight="semibold">
+                {accent}
+              </Text>
+            )}
+          </Text>
+          {count === undefined || count === 0 ? null : (
+            <Text as="span" className="shrink-0 font-mono" size="micro" tone="muted" weight="regular">
+              {count}
             </Text>
           )}
         </Heading>
-        {count === undefined || count === 0 ? null : (
-          <Text className="font-mono" size="micro" tone="muted">
-            {count}
-          </Text>
-        )}
       </Row>
       {action}
     </>

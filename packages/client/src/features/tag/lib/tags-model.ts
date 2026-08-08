@@ -97,6 +97,14 @@ export function unusedTagsLabel(count: number): string {
   return `${count} unused tag${count === 1 ? "" : "s"}`;
 }
 
+/** What a colour slot IS, in words — ONE home for the roster row's screen-reader datum and the editor's
+ *  own readout under each picker (side-eye 2026-08-06 P3). `null` is a real state, not a blank: a tag with
+ *  no colour paints the theme default, and "unset" and "set to something invisible in this theme" were the
+ *  same silence in both places. */
+export function tagColorLabel(kind: "Background" | "Text", value: string | null): string {
+  return value === null ? `${kind}: not set — uses the theme default` : `${kind}: ${value}`;
+}
+
 /** The compact total-uses label for a tag row's usage chip (e.g. `"12 uses"` / `"1 use"` / `"unused"`). */
 export function usageTotalLabel(total: number): string {
   if (total === 0) {

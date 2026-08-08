@@ -129,6 +129,11 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
           aria-label="Regex scripts"
           className={COLLECTION_WINDOW_MAX_HEIGHT}
           estimateSize={(): number => ESTIMATED_ROW_PX}
+          // The cap is a fixed box and the rows are 51.5px, so the window ends MID-ROW every time; with
+          // overlay scrollbars that half-row is the only cue there is more, and it reads as clipping
+          // (side-eye 2026-08-06 P2 — the tag arm already carries this; the regex arm was the miss). The
+          // fade is state-gated on the live scroll position, so at the bottom it lifts.
+          fadeEdge={true}
           gapToken="field"
           getItemKey={(script): string => script.id}
           items={filtered}
