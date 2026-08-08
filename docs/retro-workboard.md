@@ -629,6 +629,20 @@ security lens.
   `docs/design/prose-1-rpg-extraction-followon.md` to preset-home. Byte-identity guards (frozen
   cohort, field-reachability) must stay green — the re-home changes the OVERRIDE SOURCE, never the
   defaults. Security lane's Item 2 (strip review + fork-game comment repair) DROPPED as moot.
+- **⚑ OWNER DIRECTIVE (2026-08-08 night): CARD-REFINERY PORT STUDY.** Stickler `ad52e90d372a0b670`
+  (read-only, code-recon standards) exploring `/home/inktomi/inktomi-stack/development/neo-tavern/references/card-refinery`
+  vs orb's contracts + db schemas + card render pipeline → deliverable
+  `docs/reviews/stickler/2026-08-08-card-refinery-port-study.md` (feature inventory · capability map ·
+  PORT/IMPROVE/EXCEEDED/SKIP matrix · orb-shaped designs · sequencing w/ owner forks flagged). Owner
+  also authorized a post-queue verification sweep (side-eye on a few merged pieces).
+- ✅ **W4-BURNDOWN MERGED `92fbdbca6`** (79 files: withResolvers ×8 incl. the ref-capture the brief
+  missed · toSorted 94/115 type-checker-decided · DEFERRED + SPREAD-SORT arms LIVE, spread-sort
+  syntactic w/ measured 14/21 recall + 100% precision, misses = mustPass declared limits). Conflict
+  vs NODE26-FIX resolved by reset-to-main + re-apply-arms (fix mechanics byte-preserved, receipts
+  re-run on merged tree: 9 plants fired / silents silent, 1223 node + conformance green). **Verifier
+  IN FLIGHT** (behavioral preservation of the 4 riskiest barriers + arm-order in turn.ts + gate
+  plants). Its flagged follow-up queued: platform-spellings uses the Finding overload → gate-ignore
+  inert on all arms (smalls batch).
 - **⚑ OWNER RULINGS, ROUND 2 (2026-08-08 night, pre-overnight):**
   - **Extraction-seam fork → RULED BY CRITERIA (owner: "cleanest, most forward-thinking, extensible,
     defensible, matches repo procedure" → orchestrator pick): ARM (a) — capture composed prose onto
