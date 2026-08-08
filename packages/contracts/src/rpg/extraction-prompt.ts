@@ -26,11 +26,15 @@
 // resolves to the shipped default, so a game whose host has edited nothing composes byte-identically to the
 // pre-PROSE-1 prompt (asserted per-slot in `tests/contracts/rpg/extraction-prompt.contract.test.ts`).
 //
-// ONE CONSTANT IS DELIBERATELY NOT A SLOT: `RPG_STATE_TRACKING_GUIDE` (census 27) is composed onto NOTHING
-// today — `pnpm ast refs` finds only its declaration. Spec §11 decision 6 (wire it and measure, or delete) is
-// owner-DEFERRED, and slotting a dead constant would hand a host an edit surface over bytes no model ever
-// reads. It stays dead-but-present until that ruling lands, and it is the reason ARM B of the
-// `no-hardcoded-model-prose` gate exists.
+// CENSUS 27 IS WIRED (owner ruling 2026-08-08 on spec §11 decision 6: WIRE it and measure). The state-tracking
+// GUIDE — Appendix A's "be thorough, the panel should reflect the FULL richness of the narration" addendum, the
+// measured per-turn coverage lifter — spent its whole life as `RPG_STATE_TRACKING_GUIDE`, an exported const
+// composed onto nothing (`pnpm ast refs` found only its declaration; it is the reason ARM B of the
+// `no-hardcoded-model-prose` gate exists). It is now the `rpg.extract.stateTrackingGuide` slot, pushed by
+// `composePlaneTeaching` — so it rides BOTH write surfaces (the structured extraction + the cheap tool round,
+// and with them the host resync) and NEITHER narration prompt, which is exactly what its own doc-comment always
+// claimed. Its bytes are VERBATIM the retired constant's: the ruling was "wire and MEASURE", and a measurement
+// against reworded text measures the rewording.
 
 import type { ProseOverrides } from "#prose-slot";
 import { resolveProseFrom, spliceProseTokens } from "#prose-slot";
@@ -205,8 +209,9 @@ export const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
 
 /** Compose the plane fragments into a teaching block for a system prompt — the SHARED body both the structured
  *  extraction and the cheap tool round walk (§1.6). Drops disabled planes (null fragments), and on a
- *  DECEPTION-ACTIVE game prefixes the surface-only standing clause (#7 recommendation A). The RECONCILE
- *  doctrine (fix a contradicted plane) rides here so both arms teach it identically. */
+ *  DECEPTION-ACTIVE game prefixes the surface-only standing clause (#7 recommendation A). The two CROSS-PLANE
+ *  doctrines ride here so both arms teach them identically: the state-tracking GUIDE (be thorough — census 27,
+ *  wired 2026-08-08) and the RECONCILE rule (fix a contradicted plane). */
 export function composePlaneTeaching(ctx: ExtractionPromptContext): string {
   const blocks: string[] = [];
   if (isDeceptionActive(ctx.config.features)) {
@@ -218,6 +223,12 @@ export function composePlaneTeaching(ctx: ExtractionPromptContext): string {
       blocks.push(fragment);
     }
   }
+  // Census 27, wired 2026-08-08. It rides HERE rather than in the two system builders for the same reason the
+  // RECONCILE doctrine does: a cross-plane doctrine composed once cannot drift between the two arms, which is
+  // the §1.6 thesis. Position is deliberate — it lands AFTER the per-plane teaching (it is a summary of the
+  // planes above, not a preamble) and BEFORE the reconcile rule, so the "never fabricate numbers, items, or
+  // events the story does not show" clause is what CLOSES the be-thorough push rather than being buried above it.
+  blocks.push(rpgProse(ctx, "rpg.extract.stateTrackingGuide"));
   blocks.push(rpgProse(ctx, "rpg.extract.reconcileDoctrine"));
   return blocks.join("\n");
 }
@@ -344,17 +355,3 @@ export const RPG_BASELINE_TOOL_DESCRIPTIONS: ReadonlyMap<string, string> = build
     establishScene: { location: false, timeOfDay: false, presentCast: false },
   },
 });
-
-/** The state-tracking GUIDE (Appendix A's system-prompt addendum) — the "be thorough, the panel should reflect
- *  the FULL richness of the narration" instruction that lifted per-turn field coverage. Composed onto the
- *  write-surface prompts (the tool round + the structured extraction), never onto the character turn's own
- *  narration prompt (which must never be asked to carry bookkeeping it might narrate back). */
-/** @public owner-deferred decision 6 (wire-or-delete) — left dead-but-present by ruling 2026-08-08; see
- *  docs/design/prose-1-rpg-extraction-followon.md. */
-export const RPG_STATE_TRACKING_GUIDE =
-  "BE THOROUGH — the panel should reflect the FULL richness of what you narrated. Each turn record ALL that " +
-  "changed: any on-screen character (mood on every demeanor shift, appearance + outfit when described, thoughts " +
-  "for implied inner state, relationship when it forms or turns, their tracked values as they move); the scene " +
-  "(location/timeOfDay/weather on change, the plot act summary); bodies (hp, tracked resources, conditions " +
-  "gained AND ended, a status line); items (add with description + location, remove when used, wallet for coin); " +
-  "quests (with objectives); and a journal entry for the beat. Sparse tracking makes the panel feel dead.";

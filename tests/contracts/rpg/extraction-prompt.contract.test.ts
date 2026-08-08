@@ -8,6 +8,11 @@
 //      clause at once — deception, both actor-tracker axes, a game tracker, structured dates, plot
 //      progression, journal-type hints. A drift in ANY of the ~30 slots those blocks compose REDs here and
 //      names the block, which is the whole safety story for a migration this wide.
+//      THE ONE SANCTIONED DEPARTURE from those frozen bytes (owner ruling 2026-08-08, spec §11 decision 6 —
+//      WIRE row 27): both plane-teaching fixtures now carry the BE THOROUGH guide between the last plane and
+//      the RECONCILE rule. That is the intended prompt-bytes change — the guide was authored as a write-surface
+//      addendum and composed onto nothing for its entire life; the ruling wired it so its effect can be
+//      measured. Every other byte is still `e495855de`'s.
 //   2. AN OVERRIDE ACTUALLY REACHES THE WIRE — including through the per-game TOKEN vocabulary, which is what
 //      makes these template slots (§4.5 arm (a)) rather than static text.
 //
@@ -50,6 +55,7 @@ QUESTS — quests: a new or advancing quest (name + action create/update/complet
 JOURNAL — journal: one short entry (type + content) for a notable beat worth logging. When none of the built-in types fits, use type "custom" with one of this game's own labels:
   • ritual — a rite performed
   • gossip
+BE THOROUGH — the panel should reflect the FULL richness of what you narrated. Each turn record ALL that changed: any on-screen character (mood on every demeanor shift, appearance + outfit when described, thoughts for implied inner state, relationship when it forms or turns, their tracked values as they move); the scene (location/timeOfDay/weather on change, the plot act summary); bodies (hp, tracked resources, conditions gained AND ended, a status line); items (add with description + location, remove when used, wallet for coin); quests (with objectives); and a journal entry for the beat. Sparse tracking makes the panel feel dead.
 RECONCILE: when the CURRENT TRACKED STATE contradicts the story (a character shown leaving is still listed present, an outfit the story replaced), fix it in this delta. Recording facts the story states is not inventing — but never fabricate numbers, items, or events the story does not show.`;
 
 const EVERYTHING_POPULATE_TEACHING = `This game has hidden layers. Record only the players' SURFACE reality — what the scene openly shows: a character's outward words, visible actions, and apparent state. Do NOT write a character's secret truth, hidden motive, or a lie's real answer into any tracked plane (journal, beats, cast thoughts/mood/relationship, quests). The hidden layer lives in your reasoning channel and the host's reveal-eye — never the panel.
@@ -90,6 +96,7 @@ PARTY — party: ONLY mechanical changes. Tracked-value writes (trackerDeltas/tr
 INVENTORY — inventory: items gained or lost (add/remove) and currency (walletDeltas — named currencies, e.g. gold). INFER what a character has on them from what the story showed — recording an item the story established (a key pocketed three turns ago) is NOT inventing.
 QUESTS — quests: a new or advancing quest (name + action create/update/complete/fail, with objectives). To mark an objective DONE, name its text in completeObjectives — do NOT restate the objective list to report progress. Send objectives only to CHANGE the list itself (adding a newly-revealed step); the lines you repeat keep the progress already recorded against them. Reconcile a quest the story resolved (mark it complete/fail) even if a later beat stopped mentioning it.
 JOURNAL — journal: one short entry (type + content) for a notable beat worth logging. When none of the built-in types fits, use type "custom" with a short \`label\` naming the kind of beat.
+BE THOROUGH — the panel should reflect the FULL richness of what you narrated. Each turn record ALL that changed: any on-screen character (mood on every demeanor shift, appearance + outfit when described, thoughts for implied inner state, relationship when it forms or turns, their tracked values as they move); the scene (location/timeOfDay/weather on change, the plot act summary); bodies (hp, tracked resources, conditions gained AND ended, a status line); items (add with description + location, remove when used, wallet for coin); quests (with objectives); and a journal entry for the beat. Sparse tracking makes the panel feel dead.
 RECONCILE: when the CURRENT TRACKED STATE contradicts the story (a character shown leaving is still listed present, an outfit the story replaced), fix it in this delta. Recording facts the story states is not inventing — but never fabricate numbers, items, or events the story does not show.`;
 
 const BASELINE_UPDATE_PARTY = `Record changes to any actor's body, condition, or tracked values. trackerDeltas: spend/restore a tracked RESOURCE (negative = spent, e.g. damage on an HP meter). trackerSets: record the new reading of a tracked STATE. addCondition: a new status effect (e.g. Blessed, Bleeding, Poisoned) with an optional numeric modifier. removeCondition: when an effect ends. status: a short current-state line ('bleeding, on edge').
@@ -182,13 +189,43 @@ test("the GAME-FREE baseline descriptions are byte-identical, and the tracker-fr
 // ── 2. The cohort's declared posture ─────────────────────────────────────────────────────────────────
 test("every extraction slot is PRESET-homed with macros:none — the tokens are data, never the macro engine", () => {
   const cohort = PROSE_SLOT_IDS.filter((id) => id.startsWith("rpg.extract."));
-  expect(cohort.length).toBe(40);
+  // 40 at S4 + census row 27 (`stateTrackingGuide`), wired by the 2026-08-08 ruling.
+  expect(cohort.length).toBe(41);
   for (const id of cohort) {
     expect(PROSE_SLOTS[id].home, id).toBe("preset");
     // An extraction prompt is not a character context: there is no `{{user}}`/`{{char}}` binding to resolve,
     // so anything else in braces must ship as literal braces rather than silently rendering empty.
     expect(PROSE_SLOTS[id].macros, id).toBe("none");
   }
+});
+
+// ── 2b. Census row 27 is WIRED (owner ruling 2026-08-08, spec §11 decision 6) ────────────────────────
+// The defect this pins: `RPG_STATE_TRACKING_GUIDE` documented itself as "composed onto the write-surface
+// prompts (the tool round + the structured extraction)" and was composed onto NOTHING — an exported const with
+// no reference anywhere. These assert the two halves of the ruling: it now rides the SHARED teaching body both
+// write surfaces walk, and it still stays OFF the surfaces its own doc-comment excluded.
+
+test("the BE THOROUGH guide rides the shared plane teaching — on a maximal game and on a bare one", () => {
+  // The shared body is what `extractionSystem` and `toolRoundSystem` both compose, so landing it here is what
+  // makes "both write surfaces" structural rather than two call sites that can drift.
+  expect(composePlaneTeaching(ctx(everythingConfig()))).toContain("BE THOROUGH — the panel should reflect");
+  expect(composePlaneTeaching(ctx(rpgGameConfigSchema.parse({})))).toContain("Sparse tracking makes the panel feel dead.");
+});
+
+test("the guide sits BETWEEN the last plane and the reconcile rule — the never-fabricate clause closes it", () => {
+  const teaching = composePlaneTeaching(ctx(everythingConfig()));
+  const journal = teaching.indexOf("JOURNAL — journal:");
+  const guide = teaching.indexOf("BE THOROUGH");
+  const reconcile = teaching.indexOf("RECONCILE:");
+  expect(journal).toBeGreaterThan(-1);
+  expect(guide).toBeGreaterThan(journal);
+  expect(reconcile).toBeGreaterThan(guide);
+});
+
+test("the POPULATE round does NOT get the guide — a born-state read has no turn whose changes to record", () => {
+  // Its counterpart doctrine there is INVENT-NOTHING, and "each turn record ALL that changed" is turn-loop
+  // language a card read cannot honor. The guide's own doc-comment named the write surfaces it belongs to.
+  expect(composePopulateTeaching(ctx(everythingConfig()))).not.toContain("BE THOROUGH");
 });
 
 // ── 3. Override reach — the half a byte-identity fixture cannot prove ────────────────────────────────
