@@ -239,12 +239,12 @@ describe("ingestStallHint — a wedged job, derived from updatedAt with an INJEC
 });
 
 describe("the row subtitle + byte format", () => {
-  test("provenance · size · chunk count, with the singular chunk", () => {
-    expect(documentSubtitle(doc())).toBe("Upload · 24.5 KB · 12 chunks");
-    expect(documentSubtitle(doc({ origin: "youtube", byteSize: 219_136, chunkCount: 1 }))).toBe("YouTube · 214 KB · 1 chunk");
+  test("provenance · size · passage count, with the singular passage", () => {
+    expect(documentSubtitle(doc())).toBe("Upload · 24.5 KB · 12 passages");
+    expect(documentSubtitle(doc({ origin: "youtube", byteSize: 219_136, chunkCount: 1 }))).toBe("YouTube · 214 KB · 1 passage");
   });
 
-  test("a not-yet-chunked document reads 0 chunks — the chip carries the in-flight signal, not the subtitle", () => {
-    expect(documentSubtitle(doc({ chunkCount: 0, embeddedCount: 0 }))).toBe("Upload · 24.5 KB · 0 chunks");
+  test("a not-yet-chunked document reads 0 passages — the chip carries the in-flight signal, not the subtitle", () => {
+    expect(documentSubtitle(doc({ chunkCount: 0, embeddedCount: 0 }))).toBe("Upload · 24.5 KB · 0 passages");
   });
 });
