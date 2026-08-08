@@ -60,9 +60,11 @@ import {
   startNewChat,
   toggleMessageSelected,
   useActiveSection,
+  useContextTab,
   useDraftConfig,
   useNewChatPreset,
   useOpenModal,
+  useOpenOverlayPanel,
   useSectionRegistry,
   useTurnPhase,
 } from "@orb/client/state";
@@ -1634,6 +1636,23 @@ export function ChatHeaderStory(): ReactElement {
     <CtDataProviders>
       <div>
         <ChatHeaderSurface chatId={CHAT_ID} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** {@link ChatHeaderStory} + a shell-store readout — for pinning the Members chip's REVEAL write
+ *  (`revealContextPanel`, state/shell-store.ts) at the narrow/mobile overlay regime, where a chip that
+ *  only wrote `contextTab`/`panelMode` and never named the panel in `openOverlayPanel` left
+ *  `resolvePanelMode` returning `collapsed` — a dead control below 64rem. */
+export function ChatHeaderNarrowStory(): ReactElement {
+  const contextTab = useContextTab();
+  const openOverlayPanel = useOpenOverlayPanel();
+  return (
+    <CtDataProviders>
+      <div>
+        <ChatHeaderSurface chatId={CHAT_ID} />
+        <output data-testid="shell-state">{`contextTab=${contextTab ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"}`}</output>
       </div>
     </CtDataProviders>
   );
