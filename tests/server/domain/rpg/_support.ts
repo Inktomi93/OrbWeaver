@@ -91,7 +91,6 @@ export function liteConfig(): RpgGameConfig {
       plotProgression: true,
     },
     userMacros: [],
-    prose: {},
   };
 }
 

@@ -115,11 +115,10 @@ function stripConfigForForker(config: RpgGameConfig, readsHidden: boolean): RpgG
     // ── HOST-PLANE — served ONLY behind `getConfigView`'s `resolveHost` ──────────────────────────────────
     // The GM directive. Blanked, never removed: `lite` is a required sub-object and the note has a "" default.
     lite: { steeringNote: "" },
-    // PROSE-1 — the host's re-authored model-facing teach/heading copy (`config.prose`). The `steeringNote`
-    // class EXACTLY: host-authored steering PROSE whose only reader is `getConfigView` (host-gated) and whose
-    // only consumer is the assembled REMINDER prompt — a member sees its EFFECT on the narration, never the
-    // bytes. Blanked to the empty record (each slot re-resolves to the shipped default in the fork).
-    prose: {},
+    // NO `prose` KEY — the teach/heading overrides left this blob entirely (owner ruling 2026-08-08: PRESET-homed).
+    // Nothing to strip here, and the host-plane guarantee is UNCHANGED rather than merely moved: the overrides now
+    // live in the GM preset, which rides `resolveForkGmPreset` — a preset the forker cannot READ is dropped to
+    // null, so a non-host fork can no more resolve the host's re-authored copy than it could read the preset.
     // WAVE MU: the game's authored macros. The picks pane (`chat.getUserMacroPicks`, member-gated) projects
     // name+description+inputs and WITHHOLDS the body/args as prompt content — so the bodies have no
     // member-gated reader at all, and an input-less macro has no member-visible existence. Dropped WHOLE.

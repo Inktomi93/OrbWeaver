@@ -24,7 +24,7 @@ async function boxOf(locator: Locator): Promise<{ readonly top: number; readonly
 /** The group HEADINGS, in `TEMPLATE_KINDS` tuple order. Human labels, not the raw enum members the
  *  registry keys on (side-eye F-30 / ARIA rec 10): a kicker over a group of rows is a heading a person
  *  reads. The per-row KIND CHIP still prints the raw member — that is a taxonomy tag, not a heading. */
-const KIND_HEADERS = ["Steers", "Voice", "Studio", "Format", "Nudges"] as const;
+const KIND_HEADERS = ["Steers", "Voice", "Studio", "Format", "Nudges", "Game teaches"] as const;
 /** A rack GRIP's accessible-name shape — the affordance this list must never grow (audit row 31). */
 const REORDER_GRIP_RE = /^Reorder/u;
 /** The DELIVERY row's two `<Field>` labels, matched exactly — the hint trigger is a SIBLING of the label,

@@ -25,7 +25,7 @@
 import type { ChatInjection } from "@orb/contracts/chat";
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import { actorRefKey } from "@orb/contracts/rpg";
-import type { ChatId, MessageId } from "@orb/kit/ids";
+import type { GatherTurnContextArgs } from "../../chat/index.ts";
 import type { RpgGatherResult } from "../contract/params.ts";
 import type { RpgContext, RpgGameRow } from "../contract/service.ts";
 import { snapshotRowToState } from "../contract/service.ts";
@@ -57,15 +57,20 @@ async function buildFoldedTurnSafely(
   }
 }
 
-export async function gatherTurnContext(
-  ctx: RpgContext,
-  chatId: ChatId,
-  steerIdentity?: { readonly user: string | undefined; readonly char: string },
-  /** VER-1b — the assistant slot this turn is REGENERATING (chat's swipe/reroll target), or `undefined` for a
-   *  fresh turn / the preview. Every state read below resolves as of BEFORE that slot; see the block above the
-   *  `buildTrackerView` call for why. */
-  regenSlotMessageId?: MessageId,
-): Promise<RpgGatherResult | null> {
+/**
+ * The gather, over chat's own call shape ({@link GatherTurnContextArgs}) — `chatId`, the identity binding, the
+ * VER-1b regen slot, and the resolved PRESET prose. Taking the args object rather than a positional list is what
+ * keeps chat's contract and this impl one shape: a new chat-resolved input (prose was the third) lands as one
+ * field, not a fourth positional nobody at the call site can read.
+ */
+export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContextArgs): Promise<RpgGatherResult | null> {
+  const { chatId, steerIdentity, regenSlotMessageId } = args;
+  // PROSE-1 — the model-facing teach/heading OVERRIDES, resolved CHAT-SIDE off the turn's PRESET
+  // (`promptConfig.prose`, authored in the Templates tab) and threaded in exactly like `steerIdentity`: rpg
+  // splices chat's resolution, it never reaches for a preset. Absent ⇒ `{}` ⇒ every slot resolves to its shipped
+  // default, byte-identical to a game whose host has edited nothing. A game turn assembles the game's
+  // `gmPresetId` (chat's preset REDIRECT), so what lands here IS that table's GM preset's copy.
+  const prose = args.prose ?? {};
   const game: RpgGameRow | undefined = await findGameByChat(ctx.db, chatId);
   if (game === undefined || !game.config.engaged) {
     // Non-game chat, or a DISENGAGED game (#40 front-door toggle OFF) — byte-identical no-op: no
@@ -160,9 +165,9 @@ export async function gatherTurnContext(
     deception: game.config.features.deception,
     omniscience: game.config.features.omniscience,
     dateMode: game.config.dateMode, // #9 — narrated drops the day counter from the ambient line
-    // PROSE-1 — the game's model-facing prose overrides, so the reminder's teaches/headings resolve any host
+    // PROSE-1 — the preset's model-facing prose overrides, so the reminder's teaches/headings resolve any host
     // edit (absent ⇒ shipped defaults, byte-identical to pre-PROSE-1).
-    prose: game.config.prose,
+    prose,
   });
 
   // The reconcile-beat note rides the reminder ONLY on a folded turn (the post-commit rounds append their own
@@ -183,7 +188,7 @@ export async function gatherTurnContext(
     view,
     prevSnapshot,
     curSnapshot,
-    deltaContext: { rosterNames, trackerDefs: game.config.trackers, relationshipHints: game.config.features.relationshipHints, prose: game.config.prose },
+    deltaContext: { rosterNames, trackerDefs: game.config.trackers, relationshipHints: game.config.features.relationshipHints, prose },
     dateMode: game.config.dateMode,
     statProfile: game.config.statProfile,
   });

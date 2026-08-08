@@ -65,7 +65,6 @@ const CONFIG: RpgGameConfig = {
     plotProgression: true,
   },
   userMacros: [],
-  prose: {},
 };
 const EMPTY_SHEET = { className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] };
 

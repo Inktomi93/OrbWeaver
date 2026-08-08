@@ -16,7 +16,6 @@ import type { ChatId, PresetId, RpgCheckpointId, RpgJournalId, RpgQuestId } from
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { MAX_USER_MACROS, userMacroSchema } from "#preset";
-import { proseOverridesSchema } from "#prose-slot";
 import { rpgActorOpSchema, rpgActorRefSchema, rpgCastRefSchema } from "./actor.ts";
 import {
   RPG_DATE_MODES,
@@ -90,10 +89,8 @@ export const rpgUpdateConfigInputSchema = z.object({
       // (whole-list replace, the `trackers` semantics). Omit keeps the current set. The turn registers these
       // BESIDE the preset's, the game winning a name clash (`shadowPresetUserMacros`).
       userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).optional(),
-      // PROSE-1 (§4.2/§4.6) — the per-GAME model-facing prose OVERRIDES (`slotId → {text, baseVersion}`) for the
-      // steering-reminder teaches/headings. Whole-record replace on a passed record, keep-on-omit like every
-      // sibling; `proseOverridesSchema` self-heals a retired/unknown slot key at the parse seam.
-      prose: proseOverridesSchema.optional(),
+      // NO `prose` ARM (owner ruling 2026-08-08): the reminder teach/heading overrides are written through the
+      // PRESET editor (`promptConfig.prose`), never this door — one home for authorable prompt text.
     })
     .optional(),
   gmPresetId: brandedId<PresetId>().nullable().optional(),

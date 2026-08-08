@@ -346,7 +346,11 @@ test("S3 rpg reminder slots resolve, unset, to the exact bytes their pre-PROSE-1
   }
 });
 
-test("the whole rpg cohort is game-homed; the teaches are names-only, the headers/headings are none", () => {
+test("the whole rpg cohort is PRESET-homed; the teaches are names-only, the headers/headings are none", () => {
+  // RE-HOMED 2026-08-08 (owner: "we are putting everything in presets"). This row asserted `home:"game"` for one
+  // merge; the game storage — `config.prose`, the `updateConfig.patch.prose` arm, the fork strip — is deleted, so
+  // `preset` is not a relabel: it is what routes each slot into `promptConfig.prose`, `composeProse`'s preset
+  // source, and a Templates-tab row. The BYTES are untouched (the frozen cohort above is the proof).
   const namesOnly = new Set<ProseSlotId>([
     "rpg.reminder.steeringLicense",
     "rpg.reminder.deceptionTeach",
@@ -357,14 +361,21 @@ test("the whole rpg cohort is game-homed; the teaches are names-only, the header
     "rpg.reminder.cyoaTeach",
   ]);
   for (const id of Object.keys(RPG_FROZEN_DEFAULTS) as ProseSlotId[]) {
-    expect(PROSE_SLOTS[id].home, id).toBe("game");
+    expect(PROSE_SLOTS[id].home, id).toBe("preset");
     expect(PROSE_SLOTS[id].macros, id).toBe(namesOnly.has(id) ? "names-only" : "none");
-  }
-  // The whole cohort is game-homed, so NONE of it reaches the user/preset editor derivations.
-  for (const id of Object.keys(RPG_FROZEN_DEFAULTS) as ProseSlotId[]) {
+    // Editable through the preset door — and only that one (the user editor must not offer a second door into a
+    // storage this slot does not use, which is the same no-two-doors rule the legacy-adapted slots ride).
+    expect(PRESET_PROSE_SLOT_IDS, id).toContain(id);
     expect(USER_PROSE_SLOT_IDS, id).not.toContain(id);
-    expect(PRESET_PROSE_SLOT_IDS, id).not.toContain(id);
   }
+});
+
+test("the `game` prose HOME is retired — no slot claims it and the vocabulary no longer offers it", () => {
+  // The storage a slot's `home` names must exist. `game` named `rpg_games.config.prose`, deleted by the same
+  // ruling; leaving the member would let a future table row re-open the storage the ruling closed, with nothing
+  // in the type system to stop it (`ProseHome` is the only gate `composeProse`'s source map has).
+  expect(PROSE_HOMES).toStrictEqual(["preset", "user"]);
+  expect(PROSE_SLOT_IDS.filter((id) => (PROSE_SLOTS[id].home as string) === "game")).toStrictEqual([]);
 });
 
 test("every rpg cohort slot's stored override wins over its shipped default", () => {
@@ -453,7 +464,25 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
   const legacyAdapted = new Set<ProseSlotId>([...Object.values(PRESET_GUIDED_SLOT_IDS), ...Object.values(PRESET_FORMAT_SLOT_IDS), PRESET_COMPACTION_SLOT_ID]);
   const expected = PROSE_SLOT_IDS.filter((id) => PROSE_SLOTS[id].home === "preset" && !legacyAdapted.has(id));
   expect(PRESET_PROSE_SLOT_IDS).toStrictEqual(expected);
-  expect(PRESET_PROSE_SLOT_IDS).toStrictEqual(["chat.injection.systemNote", "chat.injection.userNote", "chat.assembly.continuationNudge"]);
+  // Spelled out so a slot JOINING or LEAVING the preset-editable set is a decision somebody reads, not a silent
+  // derivation shift: the three turn-wire framings (2026-08-07) plus the eleven rpg game-turn teaches (the
+  // 2026-08-08 re-home), in `PROSE_SLOT_IDS` tuple order.
+  expect(PRESET_PROSE_SLOT_IDS).toStrictEqual([
+    "chat.injection.systemNote",
+    "chat.injection.userNote",
+    "chat.assembly.continuationNudge",
+    "rpg.reminder.steeringLicense",
+    "rpg.reminder.deceptionTeach",
+    "rpg.reminder.omniscienceTeach",
+    "rpg.card.askInteractive",
+    "rpg.card.askStatic",
+    "rpg.card.example",
+    "rpg.reminder.cyoaTeach",
+    "rpg.reminder.castHeader",
+    "rpg.reminder.offstageHeader",
+    "rpg.delta.changesHeading",
+    "rpg.delta.sceneOpensHeading",
+  ]);
 });
 
 test("every preset-homed prose slot has a Templates-tab row, and every prose-armed row is one of them", () => {
