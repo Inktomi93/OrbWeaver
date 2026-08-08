@@ -34,6 +34,8 @@ import { Row, Stack } from "@orb/ui/layout";
 import { CoinFigure, RingGauge, Waystone } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
+import { HIDE_AT_COARSE } from "#components";
+import { cn } from "#lib";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgFreshnessIndicator } from "./rpg-freshness-indicator.tsx";
 
@@ -218,7 +220,7 @@ export function RpgTakeoverHeader({
   // The owner ruled that acceptable rather than spend a text line of the phone's budget re-stating them.
   const satellites =
     trackerOrbs.length === 0 && wallet === null ? null : (
-      <Row gap="block" align="start" className="flex-wrap pointer-coarse:hidden" data-slot="rpg-band-satellites">
+      <Row gap="block" align="start" className={cn("flex-wrap", HIDE_AT_COARSE) ?? ""} data-slot="rpg-band-satellites">
         {trackerOrbs.map((orb, i) => (
           <Satellite key={orb.key} orb={orb} ordinal={i} />
         ))}

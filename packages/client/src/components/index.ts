@@ -21,6 +21,14 @@ export type { LibraryListLayoutProps, LibrarySurfaceShellProps } from "./library
 export { LibraryListLayout, LibrarySurfaceShell } from "./library-surface.tsx";
 export type { ListPaneHeaderBack, ListPaneHeaderProps } from "./list-pane-header.tsx";
 export { ListPaneHeader } from "./list-pane-header.tsx";
+export {
+  CHIP_TOUCH_FLOOR_AT_COARSE,
+  FINE_INERT_UNTIL_HOVER,
+  HIDE_AT_COARSE,
+  PICKER_GAP_AT_COARSE,
+  REVEAL_AT_COARSE,
+  RPG_RAIL_WRAP,
+} from "./pointer-variants.ts";
 export type { RegexScopeOrderProps } from "./regex-scope-order.tsx";
 export { RegexScopeOrder } from "./regex-scope-order.tsx";
 export type { RegexScriptPickerProps } from "./regex-script-picker.tsx";

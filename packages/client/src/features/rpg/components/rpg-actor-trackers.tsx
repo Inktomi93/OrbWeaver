@@ -28,7 +28,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { MeterRow, TrackerValue } from "#components";
+import { CHIP_TOUCH_FLOOR_AT_COARSE, MeterRow, TrackerValue } from "#components";
 import { resolveConditionGlyph } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
@@ -256,7 +256,7 @@ export function ConditionChips({
           destructive zone are finally the same shape. FINE is untouched (a 30px chip in a dense tracker
           row). */}
       {conditions.map((cond) => (
-        <Badge key={cond.name} tone="soft" size="sm" intent="danger" className="pointer-coarse:min-h-touch-target">
+        <Badge key={cond.name} tone="soft" size="sm" intent="danger" className={CHIP_TOUCH_FLOOR_AT_COARSE}>
           <Icon icon={resolveConditionGlyph(cond.name)} size="xs" />
           {cond.name}
           {onRemove === undefined ? null : (

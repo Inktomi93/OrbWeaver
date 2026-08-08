@@ -18,7 +18,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog, ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu } from "#components";
+import { ConfirmDialog, FINE_INERT_UNTIL_HOVER, ROW_ACTION_INLINE, ROW_ACTION_OVERFLOW, ROW_REVEAL, ROW_REVEAL_SWAP, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC, useTRPCClient, useUploadAsset } from "#data";
 import { cn, downloadTextFile, notify } from "#lib";
@@ -176,17 +176,7 @@ export function PersonaPanelRow({
               (the stretched button below), never "unfavorite". Fine pointers only: at coarse there is no
               hover, the cluster is permanently visible (`ROW_REVEAL`) and must stay live. `pointer-events`
               INHERITS, so the wrapper alone carries it — the children deliberately declare none. */}
-          <Row
-            align="center"
-            className={
-              cn(
-                "pointer-fine:pointer-events-none pointer-fine:group-hover:pointer-events-auto pointer-fine:group-focus-within:pointer-events-auto",
-                ROW_REVEAL,
-              ) ?? ""
-            }
-            gap="field"
-            justify="end"
-          >
+          <Row align="center" className={cn(FINE_INERT_UNTIL_HOVER, ROW_REVEAL) ?? ""} gap="field" justify="end">
             {/* THE COARSE COLLAPSE (side-eye 2026-08-07 finding 3 — the founding instance of the rule; see
                 `#components/row-reveal.ts`). At a coarse pointer `ROW_REVEAL` pins this whole cluster ON and
                 every icon button is 44-48px by touch-floor construction, so these two verbs plus the kebab
