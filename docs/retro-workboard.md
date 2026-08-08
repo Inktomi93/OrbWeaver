@@ -69,10 +69,10 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 - **Merged today, this train:** FORGE#4 CONTAINERIZE (`fd4ae9119`, check PASS) · REFINERY R0
   (`b7ca6d55a`, check PASS) · AUTH BOOT-FENCE + spec repair + shim⇔firewall pin (`06a706551`,
   check RUNNING — read `<scratchpad>/sec-leg-check.exit`).
-- **LIVE lanes (2 — R1 GRADUATION, owner-cleared "do the security audit, enough usage"):**
-  refinery R1 **security-executor** live-flow audit (`acd25d370…`) + **verifier** correctness lens
-  (`a8f6d051…`), both against the merged `1abec875b` with design §9.10 attack targets. Nothing else
-  is dispatched.
+- **⚑ NO LIVE LANES — the whole board is drained + graduated.** Refinery R1 GRADUATED (both lenses
+  passed + check exit 0; see A1). Everything buildable-without-the-owner is done. What remains is the
+  owner-decision pile (C), the refinery R2-R4 + NL→schema tail (owner-sequenced), and the live-infra
+  steps. Nothing fires without the owner's word.
 - **⚑ FULL-BOARD SCOUT SWEEP DONE (2026-08-08, owner-ordered "verify they aren't already done"):**
   four scouts re-laddered every B/C-premise/D/E row. **Stale harvest: B 3/4 · C 1/10 · D 7/9 ·
   E 5/6 already-done** — struck below with receipts (F). The C pile survived near-intact (it waits
@@ -118,8 +118,22 @@ Ranked by consequence within each category. Every item carries its receipt state
   re-parse per card.ts:192; dropNullValues under D126 strict-compatible — verified every rewrite
   would fail; neutralizeMacros card text) · member plane confirmed NOT exposed · no
   lifecycle-portability row owed · prose homed `user` = no fork strip.
-  **⚑ R1 (THE ENGINE) MERGED `1abec875b` (rebased from `6d206ceb1`); GRADUATION LENSES RUNNING —
-  owner-cleared. 64 files/+3729, 266 tests, ALL floors clean; consolidated check running.**
+  **✅ R1 (THE ENGINE) GRADUATED `1abec875b` — verifier CONFIRMED all 7 + security-executor GO +
+  consolidated check exit 0; worktree reaped.** 64 files/+3729, 266 tests. **Security GO receipt
+  (`docs/reviews/security/2026-08-08-refinery-r1-live-flow-audit.md`):** belt-5 downstream seam
+  BROKEN-AND-HELD — the ONLY repo-wide readers of `characters.refinery` are the admin-gated debug
+  inspector + card-merge field-carry, ZERO chat/prompt/macro consumer, so stamped card bytes never
+  reach a macro-resolving path; stamp-WHERE owner-predicate real+non-vacuous; injection can't widen
+  the apply set (selection fence + server-derived characterId); write re-validates card TEXT_MAX;
+  strippedKeys paths-only. **Verifier receipt:** apply-intersection algebra red-pinned; heal
+  independence proven via RAW column bytes (score survives analysis-drift); latestVerdict newest-wins;
+  iterate mid-round writes nothing on failure; shared stage-engine has no pooled sink.
+  **⚑ NON-BLOCKING SMALLS (boarded, from both lenses — see D):** `accepts` has no wire `.max()`
+  (self-DoS, owner-only today) · apply-fields lacks an explicit foreign-session NOT_FOUND pin (reuses
+  a belt proven in 6 siblings) · `depthPrompt→not_applicable` branch unpinned · `latestVerdict` ORDER
+  BY has no id secondary-sort (deterministic in practice, ms-apart runs). **⚑ OWNER product calls
+  (carried from R0, not defects):** the handoff-clear verdict (new owner does NOT inherit the prior
+  owner's private card critique) · `PROSE_MAX=4000`/`ENTRIES_MAX=108` ceilings.
   Built `domain/refinery`: 9 verbs (session lifecycle + runStage + iterate + applyFields), shared
   stage engine, D23 character-join ownership, 3 substrates + all 17 §4 belts with receipts (belt-5
   by-construction per the mid-run ruling below, pinned BOTH drift directions + two-method
@@ -277,8 +291,18 @@ Ranked by consequence within each category. Every item carries its receipt state
   the env-schema `*_FILE` support fork (lane refused as out-of-scope — foundation surgery, his
   call).
 - **C14 · Refinery F6/F7** — F6 auto-stamp rec: every analyze refreshes `characters.refinery`,
-  `applyFields` auto-snapshots first · F7 retention rec: no caps v1. Low-stakes; fold into R1
-  unless he objects.
+  `applyFields` auto-snapshots first · F7 retention rec: no caps v1. Low-stakes; fold into R4.
+- **⚑ C15 · REFINERY TAIL R2-R4 + NL→schema** (owner-sequenced; R0+R1 DONE+graduated, port study
+  `:379-386`). **R2 client mutations (S)** — just the React-Query hooks over the tRPC router R1
+  already shipped; safe/mechanical, clear to start on the owner's word. **R3 the Refinery SURFACE
+  (L-XL, the center of mass)** — the D62 anatomy UI wired into the D70 founding-member section
+  (currently a "planned marker"); DESIGN-SENSITIVE → wants a mockup ruling + side-eye after (owner
+  taste territory, do NOT start unprompted). **R4 sweep+library (M)** — `refine-score-sweep`
+  workload (batch-score every card, the orb-native win) + I2 sorts + dossier hookup; folds F6/F7.
+  **NL→JSON-schema UI (SF0+, the owner-flagged "important" feature)** — the single-arm `{kind:"fixed"}`
+  config union has DDL-FREE room for a `{kind:"custom", schemaId}` arm; engine tier already exists
+  both directions (`liftJsonSchema`/`projectJsonSchema`). Layers onto R3's surface. Design:
+  `docs/reviews/stickler/2026-08-08-card-refinery-nl-schema-design.md`.
 
 - **C-TBD · CAS maintenance scheduling** (orchestrator read the CAS with own eyes 2026-08-08 — the
   store is EXCELLENT and correct; this is the one "built but not used to its fullest"). The
