@@ -296,6 +296,26 @@ export function revealContextPanel(tab?: string): void {
   setPanelMode("context", "docked");
 }
 
+/** Reveal the CONTEXT panel's tab for a drill whose BODY is ALREADY in CONTENT — a character-card facet,
+ *  where the tap that opens the field also swaps CONTENT to that field's editor.
+ *
+ *  THE MOBILE ARM FOLDS (side-eye 2026-08-06 P1). {@link revealContextPanel}'s unconditional
+ *  `setOpenOverlayPanel("context")` is right for a jump whose destination is somewhere else (the rpg
+ *  Scene→Quests hop): the sheet IS the navigation. Here it is the opposite — on a phone the context pane
+ *  resolves `overlay` at 100dvw and lands a full-screen sheet, with the CONTENT column behind it `inert`,
+ *  OVER the very editor the tap just opened. The mock's ruling is explicit: "the CONTEXT arm folds into
+ *  CONTENT on mobile — no third pane on a phone" (docs/design/mocks/config-rail/mobile.html frame 3). The
+ *  TAB and the WIDE dock are still written unconditionally, so the desktop behaviour is untouched and the
+ *  phone's own detail-panel toggle still opens the pane on demand — the reveal just stops doing it FOR the
+ *  user at the one moment it hides what they asked for. */
+export function revealContextPanelBesideContent(tab: string): void {
+  setContextTab(tab);
+  if (!useShellStore.getState().mobileViewport) {
+    setOpenOverlayPanel("context");
+  }
+  setPanelMode("context", "docked");
+}
+
 export function closeModal(): void {
   useShellStore.setState({ openModal: null, settingsCategory: null, settingsSubcategory: null }, false, "shell/closeModal");
 }

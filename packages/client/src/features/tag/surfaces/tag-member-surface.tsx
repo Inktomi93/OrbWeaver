@@ -30,7 +30,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { useFocusOnMount } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useMergeTags, useRemoveTag, useRenameTag, useUpdateTagStyle } from "../hooks/use-tag-settings-mutations.ts";
-import { FOLDER_TYPE_ITEMS, usageBreakdown, usageTotalLabel } from "../lib/tags-model.ts";
+import { FOLDER_TYPE_ITEMS, tagColorLabel, usageBreakdown, usageTotalLabel } from "../lib/tags-model.ts";
 
 /** Apply a partial patch to this tag (the immediate-commit style writer the sub-controls share). */
 type PatchStyle = (patch: UpdateTagInput) => void;
@@ -127,13 +127,25 @@ function TagColorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; rea
   // `*:w-auto` — a `<Field>` root is `w-full`, so two of them in a flex row each took HALF the pane and the
   // two 32px swatches ended up 250px apart with nothing between them (side-eye 2026-08-03: the tell that the
   // editor "never got its container"). Intrinsic width puts the pair beside each other, where a pair belongs.
+  //
+  // …AND EACH ONE SAYS WHAT IT HOLDS (side-eye 2026-08-06 P3). The editor never previews the chip these two
+  // values paint, so a cleared colour and a colour set to something the current theme happens to swallow
+  // looked identical: two 32px swatches and no words. The VALUE goes under the picker as text — the cheap
+  // honest readout — rather than a preview surface, which would be a second place for the chip to be drawn
+  // wrong. `tagColorLabel` is the one home, shared with the roster row's screen-reader datum.
   return (
     <Row align="start" className="*:w-auto" gap="block">
       <Field label="Background" name="tag-color">
-        <ColorField onValueChange={(value): void => patchStyle({ color: value === "" ? null : value })} value={tag.color ?? ""} />
+        <Stack gap="tight">
+          <ColorField onValueChange={(value): void => patchStyle({ color: value === "" ? null : value })} value={tag.color ?? ""} />
+          <Text voice="datum">{tagColorLabel("Background", tag.color)}</Text>
+        </Stack>
       </Field>
       <Field label="Text" name="tag-color2">
-        <ColorField onValueChange={(value): void => patchStyle({ color2: value === "" ? null : value })} value={tag.color2 ?? ""} />
+        <Stack gap="tight">
+          <ColorField onValueChange={(value): void => patchStyle({ color2: value === "" ? null : value })} value={tag.color2 ?? ""} />
+          <Text voice="datum">{tagColorLabel("Text", tag.color2)}</Text>
+        </Stack>
       </Field>
     </Row>
   );

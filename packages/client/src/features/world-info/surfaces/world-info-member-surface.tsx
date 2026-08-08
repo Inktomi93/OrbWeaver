@@ -140,7 +140,7 @@ function BookEditor({ bookId }: { readonly bookId: WorldBookId }): ReactElement 
           <SortableList
             getItemKey={(entry): SortableItemKey => entry.id}
             handle={true}
-            handleLabel={(entry): string => `Reorder ${entry.title}`}
+            itemLabel={(entry): string => entry.title}
             items={entries}
             onReorder={onReorder}
             renderItem={(entry): ReactElement => <EntryRow entry={entry} onSelect={(id): void => selectWorldEntry(id)} />}

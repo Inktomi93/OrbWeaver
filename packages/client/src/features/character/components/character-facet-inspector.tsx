@@ -9,9 +9,12 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
 import { Button } from "@orb/ui/button";
+import { EmptyState } from "@orb/ui/empty-state";
+import type { LucideIcon } from "@orb/ui/icons";
+import { Icon } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary, QueryErrorState, useTRPC } from "#data";
 import type { AppFormInstance } from "#forms";
@@ -78,7 +81,13 @@ function InspectorLoader({
   return <InspectorBody form={form} characterId={characterId} facetId={facetId} readOnly={readOnly} />;
 }
 
-/** The thin per-facet detail body — small knobs + counts only; the big text authors in CONTENT. */
+/** The thin per-facet detail body — small knobs + counts only; the big text authors in CONTENT.
+ *
+ *  TWO ARMS, and which one a facet takes is a DECISION (the `CollectionContext` precedent one workspace
+ *  over): `detail` is the titled header + the facet's small knobs; `none` is the honest-empty pattern for a
+ *  facet whose CONTEXT would only re-say what CONTENT already renders. The `none` arm draws NO header —
+ *  an `EmptyState` prints its own sentence as a title, and a heading above it is the F-12 defect (the band's
+ *  name, then the body placeholder's) rebuilt one tier down. */
 function InspectorBody({
   form,
   characterId,
@@ -91,6 +100,10 @@ function InspectorBody({
   readonly readOnly: CharacterProvenanceSectionProps;
 }): ReactElement {
   const facet = facetById(facetId);
+  const arm = FACET_CONTEXT_ARMS[facetId];
+  if (arm.kind === "none") {
+    return <FacetContextEmpty arm={arm} glyph={facet.glyph} />;
+  }
   return (
     <Stack gap="section" className="min-h-0 overflow-y-auto">
       <Stack gap="field">
@@ -102,8 +115,26 @@ function InspectorBody({
         </Text>
       </Stack>
 
-      <FacetDetail form={form} characterId={characterId} facetId={facetId} readOnly={readOnly} />
+      {arm.render({ form, characterId, readOnly })}
     </Stack>
+  );
+}
+
+/** The `none` arm's body: the collection-context grammar, verbatim — its own copy (never a host-generic
+ *  "nothing selected", which over a facet that IS open would be a lie), pointing at the pane that has the
+ *  thing, plus the one destination this pane can offer that CONTENT cannot. */
+function FacetContextEmpty({ arm, glyph }: { readonly arm: FacetContextNone; readonly glyph: LucideIcon }): ReactElement {
+  return (
+    <EmptyState
+      action={
+        <Button intent="secondary" onClick={arm.action.run} size="sm" type="button">
+          {arm.action.label}
+        </Button>
+      }
+      description={arm.description}
+      icon={<Icon icon={glyph} size="lg" />}
+      title={arm.title}
+    />
   );
 }
 
@@ -114,37 +145,47 @@ interface FacetDetailProps {
   readonly readOnly: CharacterProvenanceSectionProps;
 }
 
-/** THE CONTEXT-DETAIL DISPATCH — exhaustive `Record<CharacterFacetId, …>` (the house Record-not-switch
- *  dispatch, `template-drill-in.tsx`'s `CAPABILITY_RENDERERS`). A new facet id fails `tsc` HERE until it
- *  has a renderer, instead of silently falling through a switch. */
-const FACET_DETAIL_RENDERERS: Record<CharacterFacetId, (props: FacetDetailProps) => ReactElement> = {
-  depthPrompt: ({ form }) => <DepthDetail form={form} />,
-  provenance: ({ form, readOnly }) => <ProvenanceDetail form={form} readOnly={readOnly} />,
-  regexScripts: ({ characterId }) => <RegexDetail characterId={characterId} />,
-  creatorNotes: ({ form }) => <CountDetail form={form} name="creatorNotes" tokens={false} />,
-  description: ({ form }) => <CountDetail form={form} name="description" tokens={true} />,
-  personality: ({ form }) => <CountDetail form={form} name="personality" tokens={true} />,
-  scenario: ({ form }) => <CountDetail form={form} name="scenario" tokens={true} />,
-  exampleMessages: ({ form }) => <CountDetail form={form} name="exampleMessages" tokens={true} />,
-  systemPrompt: ({ form }) => <CountDetail form={form} name="systemPrompt" tokens={true} />,
-  postHistoryInstructions: ({ form }) => <CountDetail form={form} name="postHistoryInstructions" tokens={true} />,
-};
-
-/** The small detail per facet (owner's hard rule — no big text here). */
-function FacetDetail({
-  form,
-  characterId,
-  facetId,
-  readOnly,
-}: {
-  readonly form: CardForm;
-  readonly characterId: CharacterId;
-  readonly facetId: CharacterFacetId;
-  readonly readOnly: CharacterProvenanceSectionProps;
-}): ReactElement {
-  const render = FACET_DETAIL_RENDERERS[facetId];
-  return render({ form, characterId, readOnly });
+/** A facet's CONTEXT arm — an explicit DECISION, never an absence. `none` carries the facet's OWN copy for
+ *  the same reason `CollectionContext.none` does: something IS open, this facet just has nothing the CONTEXT
+ *  pane can add. */
+interface FacetContextNone {
+  readonly kind: "none";
+  readonly title: string;
+  readonly description: string;
+  /** The one thing the pane can still offer — a destination CONTENT does not carry. REQUIRED: an empty
+   *  state with no next step is the dead end `empty-state-has-action` exists to forbid. */
+  readonly action: { readonly label: string; readonly run: () => void };
 }
+type FacetContextArm = { readonly kind: "detail"; readonly render: (props: FacetDetailProps) => ReactElement } | FacetContextNone;
+
+/** THE CONTEXT DISPATCH — ONE exhaustive `Record<CharacterFacetId, …>` (the house Record-not-switch
+ *  dispatch, `template-drill-in.tsx`'s `CAPABILITY_RENDERERS`). A new facet id fails `tsc` HERE until it
+ *  DECIDES: small knobs, or honestly nothing.
+ *
+ *  THE REGEX FORK, STATED (side-eye 2026-08-06 vs the X-7 ruling recorded below on `RegexDetail`). X-7 ruled
+ *  that this pane's regex readout must CARRY A DESTINATION — "a readout that reports a zero and offers
+ *  nothing reads as unbuilt" — and that is preserved: the action below is the same button, the same verb,
+ *  the same home. What today's finding kills is the rest of the arm: with CONTENT already drawing the drill
+ *  header, its subtitle and the picker's own helper, the pane's `Regex scripts` heading + repeated subtitle
+ *  + "N scripts attached" made one screen say the facet's name four times and explain it three. The COUNT
+ *  goes because the picker's switches ARE the count, live and per-row, ~200px to the left. */
+const FACET_CONTEXT_ARMS: Record<CharacterFacetId, FacetContextArm> = {
+  depthPrompt: { kind: "detail", render: ({ form }) => <DepthDetail form={form} /> },
+  provenance: { kind: "detail", render: ({ form, readOnly }) => <ProvenanceDetail form={form} readOnly={readOnly} /> },
+  regexScripts: {
+    kind: "none",
+    title: "Nothing to attach here",
+    description: "Attaching and ordering this character's scripts happens in the editor on the left. Writing new ones happens in your library.",
+    action: { label: "Open your script library", run: (): void => goToCollection(REGEX_COLLECTION) },
+  },
+  creatorNotes: { kind: "detail", render: ({ form }) => <CountDetail form={form} name="creatorNotes" tokens={false} /> },
+  description: { kind: "detail", render: ({ form }) => <CountDetail form={form} name="description" tokens={true} /> },
+  personality: { kind: "detail", render: ({ form }) => <CountDetail form={form} name="personality" tokens={true} /> },
+  scenario: { kind: "detail", render: ({ form }) => <CountDetail form={form} name="scenario" tokens={true} /> },
+  exampleMessages: { kind: "detail", render: ({ form }) => <CountDetail form={form} name="exampleMessages" tokens={true} /> },
+  systemPrompt: { kind: "detail", render: ({ form }) => <CountDetail form={form} name="systemPrompt" tokens={true} /> },
+  postHistoryInstructions: { kind: "detail", render: ({ form }) => <CountDetail form={form} name="postHistoryInstructions" tokens={true} /> },
+};
 
 /** depthPrompt's SMALL knobs — the Depth stepper + Role select + the note's exact char/token count (the
  *  note TEXT authors in CONTENT; the count lives here, P5 — one surface-level readout in the editor header). */
@@ -189,31 +230,6 @@ function ProvenanceDetail({ form, readOnly }: { readonly form: CardForm; readonl
       </Section>
       <CharacterProvenanceSection {...readOnly} />
     </Stack>
-  );
-}
-
-/** regexScripts' SMALL detail — how many LIBRARY rows are attached to this character (D121-E: scripts are
- *  `character_regex_scripts` junction rows, not card content, so this is a read and not a form selector).
- *
- *  THE COUNT CARRIES A DESTINATION (side-eye X-7). It used to be a lone sentence — "0 scripts attached to
- *  this character." — with no action anywhere near it, on the one panel that states a fact the user would
- *  immediately want to change and cannot change here (the attaching happens in CONTENT; the AUTHORING
- *  happens in the settings library). A readout that reports a zero and offers nothing reads as unbuilt. */
-function RegexDetail({ characterId }: { readonly characterId: CharacterId }): ReactElement {
-  const trpc = useTRPC();
-  const attached = useQuery(trpc.regex.listForCharacter.queryOptions({ characterId }));
-  const count = attached.data?.length ?? 0;
-  return (
-    <Section heading="Scripts">
-      <Text size="micro" tone="muted">
-        {count} {count === 1 ? "script" : "scripts"} attached to this character.
-      </Text>
-      <Row>
-        <Button intent="ghost" onClick={(): void => goToCollection(REGEX_COLLECTION)} size="sm" type="button">
-          Open your script library
-        </Button>
-      </Row>
-    </Section>
   );
 }
 

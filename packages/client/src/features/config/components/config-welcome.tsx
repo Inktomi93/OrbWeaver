@@ -75,9 +75,16 @@ function CollectionLauncher({ collection }: { readonly collection: CollectionCon
           )}
         </Row>
         <Text voice="gloss">{collection.blurb}</Text>
-        <Button intent="ghost" onClick={create} size="sm" type="button">
-          {collection.create.label}
-        </Button>
+        {/* THE CARD'S VERB IS A BUTTON (side-eye 2026-08-06 P2). At `ghost` it was transparent, borderless
+            and full-bleed inside the card, so the launcher's one call to action read as a third line of copy
+            — on the pane whose whole job is to offer three of them. `secondary` is the house's non-primary
+            button chrome; the `Row` keeps it intrinsically sized (a `Stack` child stretches to the card's
+            full width, which is what made it read as a stripe rather than a control). */}
+        <Row>
+          <Button intent="secondary" onClick={create} size="sm" type="button">
+            {collection.create.label}
+          </Button>
+        </Row>
       </Stack>
     </Card>
   );

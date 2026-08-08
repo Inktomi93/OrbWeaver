@@ -149,12 +149,20 @@ interface ListRowDescriptors {
   markersId: string | undefined;
 }
 
-/** The body's inner content — strictly phrasing content so it's valid inside the clickable button. The
- *  title is `aria-hidden` because it backs the body's `aria-label` (repeating it as content would double
- *  the name); subtitle + meta stay visible AND carry ids the body's `aria-describedby` points at, so a
- *  screen reader hears "<title>, <subtitle> <meta>" — the name is the title alone, the rest a description. */
+/** The body's inner content — strictly phrasing content so it's valid inside the clickable button. On a
+ *  CLICKABLE row the title is `aria-hidden` because it backs the body's `aria-label` (repeating it as
+ *  content would double the name); subtitle + meta stay visible AND carry ids the body's
+ *  `aria-describedby` points at, so a screen reader hears "<title>, <subtitle> <meta>" — the name is the
+ *  title alone, the rest a description.
+ *
+ *  A NON-CLICKABLE row is the opposite case and the hide was unconditional (side-eye 2026-08-06): a static
+ *  `<div>` body carries no role, no `aria-label` and no `aria-describedby`, so hiding its title deleted the
+ *  row's only accessible name — measured on the chat rack, where five rows announced their byte size and
+ *  never the document they belonged to. The hide is therefore keyed to the very thing that supplies the
+ *  replacement name. */
 function ListRowContent({
   slots,
+  clickable,
   leading,
   title,
   fullTitle,
@@ -168,6 +176,7 @@ function ListRowContent({
   ids,
 }: {
   slots: Slots;
+  clickable: boolean;
   leading: ReactNode;
   title: string;
   fullTitle: string | undefined;
@@ -216,7 +225,7 @@ function ListRowContent({
       )}
       <span className={slots.content()} data-slot="list-row-content">
         <span className={slots.titleRow()} data-slot="list-row-title-row">
-          <span aria-hidden={true} className={slots.title()} data-slot="list-row-title" title={fullTitle ?? title}>
+          <span aria-hidden={clickable ? true : undefined} className={slots.title()} data-slot="list-row-title" title={fullTitle ?? title}>
             {title}
           </span>
           {/* INLINE: the scent rides the title line, taking the flexing column so the NAME keeps its floor. */}
@@ -376,6 +385,7 @@ export function ListRow({
         slots={slots}
       >
         <ListRowContent
+          clickable={clickable}
           fullTitle={fullTitle}
           ids={{ subtitleId, metaId, markersId }}
           leading={leading}

@@ -29,7 +29,13 @@ const REGEX_COLLECTION = "regex";
 // drill that is already titled `Regex scripts`, sitting beside a CONTEXT inspector whose panel is also
 // titled `Regex scripts` — so rendering a third `Regex scripts` heading 65px under the second one put four
 // labels for one concept on one screen, with two different explanations of it. The drill header names the
-// artifact; this body explains what attaching does, once.
+// artifact; this body explains what attaching does, once. (X-7's remaining half — the CONTEXT panel's own
+// copy of the heading + subtitle — was cut at the 2026-08-06 sweep; `character-facet-inspector.tsx`'s
+// `FACET_CONTEXT_ARMS` is where regex now declares that its context arm carries nothing.)
+//
+// …AND ONE HELPER SENTENCE, NOT THREE (same sweep). The drill header's subtitle already says WHAT a regex
+// script is ("Find/replace passes over the card's text."), so this line says only what it does not: where
+// the rows come from and when they fire. It used to open with the same two words.
 export function CharacterRegexScriptsField({ characterId }: { readonly characterId: CharacterId }): ReactElement {
   return (
     <QueryBoundary
@@ -38,7 +44,7 @@ export function CharacterRegexScriptsField({ characterId }: { readonly character
     >
       <RegexScriptPicker
         scope={{ kind: "character", characterId }}
-        helperText="Find/replace rules that run whenever this character is in the room, picked from your script library."
+        helperText="Picked from your script library — these run whenever this character is in the room."
         onOpenLibrary={(): void => goToCollection(REGEX_COLLECTION)}
       />
     </QueryBoundary>

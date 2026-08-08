@@ -95,6 +95,29 @@ test("clickable row's accessible name is the TITLE ALONE — subtitle rides aria
   await expect(page.getByText("mara-soul-check")).toBeVisible();
 });
 
+// The OTHER half of finding #1 (side-eye 2026-08-06, config sweep): the title span was `aria-hidden`
+// UNCONDITIONALLY, which is only correct when the body is a `<button>` carrying the same string as its
+// `aria-label`. A NON-clickable row has no label and no role, so hiding its title deleted the row's whole
+// accessible name — live receipt: five chat-rack rows announced their size and never their document name.
+test("NON-clickable row's title is IN the a11y tree — it is the row's only possible name", async ({ mount, page }) => {
+  await mount(<ListRow subtitle="Wiki · 91.7 KB" title="Duskwater Barony" />);
+  const snapshot = await page.locator('[data-slot="list-row-body"]').ariaSnapshot();
+  // `ariaSnapshot` walks the ACCESSIBILITY tree, so an aria-hidden span is simply absent from it.
+  expect(snapshot).toContain("Duskwater Barony");
+  expect(snapshot).toContain("Wiki · 91.7 KB");
+});
+
+// …and the clickable arm is unchanged: the title stays hidden there, so the button's `aria-label` is the
+// name ONCE rather than "Elara Elara" (name + name-from-content).
+test("clickable row's title stays out of the a11y tree — the name is not doubled", async ({ mount, page }) => {
+  await mount(<ListRow clickable={true} title="Elara" />);
+  const row = page.getByRole("button");
+  await expect(row).toHaveAccessibleName("Elara");
+  const snapshot = await row.ariaSnapshot();
+  // One occurrence: the button's own name. A visible title span would add a second text node.
+  expect(snapshot.match(/Elara/g)?.length).toBe(1);
+});
+
 // The relative-time meta now rides the `meta` slot INSIDE the row's accessible content (part of the
 // description), not stranded in the `actions` sibling outside the accessible name (the old chats-row bug
 // where "18m ago" was invisible to a SR walking the row button).

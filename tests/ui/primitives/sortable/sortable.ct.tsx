@@ -129,6 +129,25 @@ test("keyboard drag start/drop announce through the aria-live region", async ({ 
   await expect(liveRegion).toContainText(DROPPED_RE);
 });
 
+// The announcement's CONTENT, not just its presence (side-eye 2026-08-06). dnd-kit's stock script
+// interpolates `source.id` / `target.id` — in this app TypeIDs — and at drop names the target, which with
+// optimistic sorting is the row ITSELF. The seal's own script says the row's NAME and its DESTINATION RANK.
+test("announcements name the ROW and its position, never the raw item key", async ({ mount, page }) => {
+  await mount(<ReorderableList itemCount={3} />);
+  const rows = page.locator('[data-slot="sortable-item"]');
+  const liveRegion = page.getByRole("status");
+  await rows.nth(0).focus();
+
+  await page.keyboard.press("Space");
+  await expect(liveRegion).toHaveText("Picked up Item 0, position 1 of 3.");
+
+  await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Space");
+  await expect(liveRegion).toHaveText("Dropped Item 0, position 2 of 3.");
+  // The KEY never reaches the live region — the whole point of the finding.
+  await expect(liveRegion).not.toContainText("item-0");
+});
+
 test("dropping in place (no movement) does not call onReorder", async ({ mount, page }) => {
   await mount(<ReorderableList itemCount={3} />);
   const rows = page.locator('[data-slot="sortable-item"]');
