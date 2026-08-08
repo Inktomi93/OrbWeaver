@@ -27,3 +27,19 @@ export const FOCUS_RING_INSET = "focus-visible:ring-2 focus-visible:ring-ring fo
 export const FOCUS_RING_BARE = "focus-visible:ring-2 focus-visible:ring-ring";
 
 export const FOCUS_RING_DESTRUCTIVE = "data-invalid:focus-visible:ring-destructive";
+
+// _OUTLINE is the ring for a focusable surface WHOSE BOX-SHADOW SLOT IS ALREADY OWNED — an elevated
+// float (`shadow-overlay`), a `shadow-cta` button, anything painting a real box-shadow. Every helper
+// above draws through Tailwind's ring, which IS a box-shadow: on such an element the elevation layers
+// take the composite and the ring's slots stay `0 0 0 0` transparent, so the control paints NOTHING on
+// focus while the class list still reads as ringed. MEASURED on the toast root (side-eye re-verify,
+// `reports/scratch-ct/rv-focus.log`): under a REAL Tab, `:focus-visible` MATCHED and the computed
+// box-shadow was byte-identical to its resting value — four transparent ring slots, four live
+// shadow-overlay layers — a WCAG 2.4.7 failure on a `tabIndex: 0` element.
+//
+// `outline` is a separate paint property, so it composes with any shadow instead of competing for it.
+// The element must NOT also carry `outline-none`: Tailwind v4's `outline-none` sets
+// `--tw-outline-style: none`, and the width utility resolves its style FROM that variable, so a
+// `focus-visible:outline-2` layered on top still computes `outline-style: none` (the exact trap the
+// toast fell into). Rest is already outline-less by UA default — there is nothing to reset.
+export const FOCUS_RING_OUTLINE = "focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2";
