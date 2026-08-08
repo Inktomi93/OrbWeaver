@@ -51,10 +51,11 @@ test("mounts with the resolved floors and shows the default beneath each field",
 
 // The D126 teaching-copy rider: the clamp is the ONE thing about this knob that surprises a reader (the
 // number they type is not necessarily the depth in use), and a hover-only `hint` cannot carry it.
+const CLAMP_COPY_RE = /only ever moves the cache breakpoint DEEPER/;
 test("the prompt-cache clamp is ALWAYS-VISIBLE copy, not a hover-only hint", async ({ mount, page }) => {
   await stub(page);
   await mount(<SystemTuningSectionStory />);
-  await expect(page.getByText(/only ever moves the cache breakpoint DEEPER/)).toBeVisible();
+  await expect(page.getByText(CLAMP_COPY_RE)).toBeVisible();
 });
 
 test("editing the prompt-cache depth floor + Save patches promptCacheMinDepth alone", async ({ mount, page }) => {
