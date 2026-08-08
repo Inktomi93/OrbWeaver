@@ -506,6 +506,21 @@ security lens.
   from the session** — the rest (cold-check>warm, scope-the-absence-receipt, shared-value-owes-a-battery,
   ratifying-gate-two-receipts) are DOCTRINE/memory, not gates: the existing gates + battery caught every
   real regression; the failures were judgment/process. \[\[shared-value-change-owes-a-battery-not-static]]
+- **⚑ SMALLS BATCHED OUT (2026-08-08, owner: "send the undeployed + small stuff in batches").** Two
+  collision-free lanes dispatched (the load ceiling held at the live client-fix lanes — no 6th/7th
+  gate-heavy lane stacked):
+  - **DBANK-HOME** (`a2740c83073edd2ce`, executor): databank pagination (the 100-doc ceiling → cursor
+    on the list verb + load-more, match the house pagination precedent; search-honesty fork flagged) +
+    home tile useOrder (conditional promotion above the jump grid when attention>0 — the arm the S3
+    fix lane refused as home-surgery; design-which-mechanism first).
+  - **TOOLING-INVESTIGATE** (`a867e56c60b9c0c21`, mech): BUILD the scripts/ gate-ignore inventory gap
+    (extend scanRoot + the literal-span exclusion) · INVESTIGATE the populate-round prose census
+    (→ docs/design/prose-1-populate-census.md, enumerate don't build) · INVESTIGATE the prod-build CLS
+    lead (confirm/refute the 0.134 dev artifact against a prod build if cheap, else report blocked).
+  - **HELD (not batched — need a quiet tree or an owner ruling):** the 135-name barrel amputation
+    (per-symbol verdicts, contracts/rpg locked-shape data — a careful lane on a drained tree) ·
+    `--include-entry-exports` (whole-repo posture, owner-visible noise/value tradeoff — a ruling, not
+    a default).
 - **⚑ GAP-CLOSURE LENS REPORTED: SHIP WITH FIXES — 3 P1 · 10 P2 · 7 P3** (the five previously-unlensed
   surfaces; 1 own-retraction — same-tick reads vs React commit). HELD SURFACE: the preset ACTIONS TAB
   ("a database dump wearing a UI" at 66 rows) — [P1] the readout states a FALSE DELIVERY PATH for all
