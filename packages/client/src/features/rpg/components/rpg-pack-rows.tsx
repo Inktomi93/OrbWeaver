@@ -25,7 +25,8 @@ import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { ConfirmDialog, TrackerValue } from "#components";
+import { ConfirmDialog, PICKER_GAP_AT_COARSE, TrackerValue } from "#components";
+import { cn } from "#lib";
 import { ITEM_ICON_CHOICES, resolveItemIcon } from "../lib/glyphs.ts";
 
 /** The quest-bound tell - the model-written item `type` naming the quest taxonomy (DESIGN.md 12.2). */
@@ -45,7 +46,7 @@ const QUEST_TYPE_RE = /quest/i;
  *  the grid goes 5×5 → 4×6 at coarse, +68px of popover height. */
 function ItemIconPicker({ itemName, onPick }: { readonly itemName: string; readonly onPick: (icon: string) => void }): ReactElement {
   return (
-    <Row gap="field" className="max-w-(--width-control-col) flex-wrap pointer-coarse:gap-block">
+    <Row gap="field" className={cn("max-w-(--width-control-col) flex-wrap", PICKER_GAP_AT_COARSE) ?? ""}>
       {Object.entries(ITEM_ICON_CHOICES).map(([name, glyph]) => (
         <Button key={name} intent="ghost" size="glyph-lg" title={`${itemName}: use the ${name} icon`} onClick={(): void => onPick(name)}>
           <Icon icon={glyph} size="sm" />

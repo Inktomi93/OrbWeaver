@@ -56,8 +56,10 @@ import { Separator } from "@orb/ui/separator";
 import { Tabs, TabsList, TabsPanel, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { HIDE_AT_COARSE, RPG_RAIL_WRAP } from "#components";
 import { QueryBoundary } from "#data";
 import type { ContextRegionView, ResolvedContextTab } from "#lib";
+import { cn } from "#lib";
 import { useActiveChatId } from "#state";
 import { RpgHeaderBand } from "./rpg-header-band.tsx";
 
@@ -167,7 +169,7 @@ function RpgHudBand({ echo }: { readonly echo: string | null }): ReactElement | 
            whose eye is 870px from the rail that changed — a distance a 320px column does not have, where the
            owning rail is a thumb's width from the band. On a phone that line is a whole text row of the 464px
            the pane has to spend, and the pane's job is the tab body. */
-        <Text as="span" voice="kicker" aria-hidden={true} data-slot="rpg-hud-echo" className="truncate pointer-coarse:hidden">
+        <Text as="span" voice="kicker" aria-hidden={true} data-slot="rpg-hud-echo" className={cn("truncate", HIDE_AT_COARSE) ?? ""}>
           {echo}
         </Text>
       )}
@@ -258,8 +260,9 @@ const CROWN_OWNERSHIP_CLASSES: Readonly<Record<"owning" | "receded", string>> = 
  *  gets a thumb's width. The bracket is a track-sizing FUNCTION, not an off-token size (the
  *  `grid-cols-[repeat(auto-fit,minmax(…))]` precedent in `@orb/ui`'s layout variants); `auto-cols` carries no
  *  token scale to spell it with. The vertical budget is untouched — the rail is one 50px row either way. */
-const RAIL_WRAP_CLASS =
-  "pointer-fine:@max-xs:grid-flow-row pointer-fine:@max-xs:grid-cols-3 pointer-coarse:auto-cols-[minmax(max-content,1fr)] pointer-coarse:overflow-x-auto";
+// The literal lives at the shell/shared layer (`#components/pointer-variants.ts`, gate
+// `no-pointer-variants-in-features`); the measured rationale above is the rpg HUD's own and stays here.
+const RAIL_WRAP_CLASS = RPG_RAIL_WRAP;
 const RAIL_WRAP_MIN_CELLS = 5;
 
 /** One rail: its OWN labelled a11y group + roving-focus row, cells as equal columns so the rail reads as a

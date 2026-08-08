@@ -11,8 +11,11 @@
 // flipped in lockstep with opacity so a hidden cluster is also non-interactive at rest (and re-enabled
 // exactly where it becomes visible); keyboard users reach every action by tab-focusing the row
 // (group-focus-within reveals) and the ⋯ menu keeps hide/copy/delete reachable without a hover.
-const HOVER_REVEAL =
-  "opacity-0 pointer-events-none transition-opacity duration-(--motion-fast) ease-out-expo group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-hover:opacity-100 group-hover:pointer-events-auto pointer-coarse:opacity-100 pointer-coarse:pointer-events-auto";
+// The coarse-reveal fragment (`REVEAL_AT_COARSE`) is a pointer VARIANT, so it lives at the shell/shared layer
+// (`#components/pointer-variants.ts`, gate `no-pointer-variants-in-features`) and is composed in here.
+import { REVEAL_AT_COARSE } from "#components";
+
+const HOVER_REVEAL = `opacity-0 pointer-events-none transition-opacity duration-(--motion-fast) ease-out-expo group-focus-within:opacity-100 group-focus-within:pointer-events-auto group-hover:opacity-100 group-hover:pointer-events-auto ${REVEAL_AT_COARSE}`;
 const ALWAYS_REVEALED = "opacity-100";
 
 export function messageActionsRevealClass(mode: "expanded" | "hover" = "hover"): string {
