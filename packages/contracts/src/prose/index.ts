@@ -30,6 +30,7 @@ import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_PROSE_SLOTS, IMAGERY_TEMPLATE_SLOT_ID
 import { PRESET_PROSE_SLOTS } from "#preset";
 import type { ProseHome, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
 import { isProseSlotId, PROSE_SLOT_IDS, proseOverrideFromLegacy } from "#prose-slot";
+import { RPG_PROSE_SLOTS } from "#rpg";
 
 export * from "#prose-slot";
 
@@ -41,6 +42,7 @@ export const PROSE_SLOTS: Record<ProseSlotId, ProseSlotDef> = {
   ...CHAT_PROSE_SLOTS,
   ...AUTOMATION_PROSE_SLOTS,
   ...DISCOVERY_PROSE_SLOTS,
+  ...RPG_PROSE_SLOTS,
 };
 
 /** The legacy-adapted user slots (§4.6): their override is the pre-PROSE-1 `UserSettings.imagery.*` string

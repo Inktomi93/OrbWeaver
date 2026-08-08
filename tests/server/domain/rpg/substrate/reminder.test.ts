@@ -189,6 +189,36 @@ test("a fresh game reminder is just the license (no phantom empty headers; no-ch
   expect(out).toBe(RPG_STEERING_LICENSE);
 });
 
+// ── PROSE-1 (§4.3) — the per-GAME prose OVERRIDE path (`config.prose` → `LiteReminderInput.prose`) ──────
+test("a config.prose STEERING-LICENSE override replaces the shipped default in the license position", () => {
+  const out = buildLiteReminder(input({ prose: { "rpg.reminder.steeringLicense": { text: "MY TABLE'S OWN LICENSE.", baseVersion: 1 } } }));
+  expect(out).toBe("MY TABLE'S OWN LICENSE.");
+  expect(out).not.toContain(RPG_STEERING_LICENSE);
+});
+
+test("a names-only teach override resolves {{user}}/{{char}}, and re-emits a volatile macro verbatim", () => {
+  // The `resolveTeach` names-only path (the `renderSteeringNote` posture, §6.1): identity macros substitute,
+  // everything else ships literal. A DEFAULT teach carries no macro, so this path is exercised only by a host
+  // override — the case the migration's write door (`updateConfig.patch.prose`) makes reachable.
+  const out = buildLiteReminder(
+    input({
+      deception: true,
+      steerMacros: { user: "Alex", char: "Vesna" },
+      prose: { "rpg.reminder.deceptionTeach": { text: "Keep {{char}}'s lies straight for {{user}}. {{setvar::x::1}}", baseVersion: 1 } },
+    }),
+  );
+  expect(out).toContain("Keep Vesna's lies straight for Alex.");
+  expect(out).toContain("{{setvar::x::1}}"); // a non-identity macro re-emits verbatim (guided-safe, not full power)
+  expect(out).not.toContain("{{char}}");
+});
+
+test("a config.prose CAST-HEADER override replaces the Present: teach header (the dual-surface slot)", () => {
+  const view = emptyView(withActors(castActor("mari", { name: "Mari", appearance: "tall, scarred" })));
+  const out = buildLiteReminder(input({ view, prose: { "rpg.reminder.castHeader": { text: "ON STAGE:", baseVersion: 1 } } }));
+  expect(out).toContain("ON STAGE:");
+  expect(out).not.toContain("appearance/outfit are standing");
+});
+
 test("the reminder NEVER carries tool-update guidance (the char turn is tool-less; F7)", () => {
   // The dead UPDATE_GUIDANCE block was removed — the reminder is state flavor + license + note only. A
   // tool name appearing here would mean the dead block came back (the maintenance-trap the stickler flagged).

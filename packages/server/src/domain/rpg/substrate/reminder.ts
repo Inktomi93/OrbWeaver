@@ -41,6 +41,8 @@
 // (composes last, always-wins). The license is a VERSIONED constant so a copy revision is a legible bump, not a
 // silent drift — the marinara-derived line the D86 §4.4 posture ships.
 
+import type { ProseOverrides, ProseSlotId } from "@orb/contracts/prose";
+import { PROSE_SLOTS, resolveProse } from "@orb/contracts/prose";
 import type {
   RpgActorVolatile,
   RpgDateMode,
@@ -63,23 +65,26 @@ import {
   trackerVocabulary,
 } from "@orb/contracts/rpg";
 import { resolveGuidedInstruction } from "@orb/kit/guided";
-import { createNamesOnlyRegistry } from "@orb/kit/macro";
+import { createNamesOnlyRegistry, processMacros } from "@orb/kit/macro";
 import type { LiteReminderInput } from "../contract/params.ts";
 import { buildDeltaBlock } from "./delta.ts";
 
-/** The steering LICENSE (§4.7 #2) — a VERSIONED constant (a bump = a legible copy revision, never a silent
- *  drift; the marinara-derived line): the tracked values visibly shape behaviour, dialogue, and scene;
- *  acknowledge a change when it happens; NEVER recite the raw numbers back at the player. */
-export const RPG_STEERING_LICENSE =
-  "These tracked values are live state for THIS story — let them visibly shape behaviour, dialogue, and the scene as you narrate. When a value changes, let the change land in the fiction. Never recite the raw numbers back at the player; weave them into the prose.";
+// The teaches + headings below are PROSE-1 slots (`@orb/contracts/rpg/prose`, census 1-10): the shipped-default
+// BYTES live in the `RPG_PROSE_SLOTS` table (ONE home), and the reminder resolves each against the game's
+// `config.prose` overrides via {@link resolveTeach}. These exported constants are the DERIVED defaults — the
+// byte-references the substrate tests and the macro-feed sibling read — never a second copy of the string.
+
+/** The steering LICENSE (§4.7 #2) — a VERSIONED slot (a `version` bump = a legible copy revision, never a
+ *  silent drift): the tracked values visibly shape behaviour, dialogue, and scene; acknowledge a change when it
+ *  happens; NEVER recite the raw numbers back at the player. */
+export const RPG_STEERING_LICENSE = PROSE_SLOTS["rpg.reminder.steeringLicense"].text;
 
 /** The DECEPTION teaching block (P3 §3.3 feature 3) — a VERSIONED constant (a bump = a legible copy revision;
  *  the marinara-derived tag grammar the tokenizer's `HIDDEN_TAGS` `lie` registrant recognizes). Teaches the
  *  self-closing `<lie …/>` tag: it is HIDDEN from the reader but REMEMBERED by you (it rides the wire verbatim),
  *  so a lie stays consistent across the scene. The attrs (`character type truth reason`) match the reveal
  *  surface's field order. Composed ONLY when `config.features.deception` is on. */
-export const RPG_DECEPTION_TEACH =
-  'DECEPTION: a character may deceive the player. When a character states something they know to be false, emit — on its own, right after the spoken lie — a self-closing tag recording the truth: <lie character="who is lying" type="the kind of lie" truth="what is actually true" reason="why they lie" />. This tag is INVISIBLE to the player but you REMEMBER it, so keep the deception consistent and let it have consequences later. Never reveal the truth in your prose or narration — only in the tag.';
+export const RPG_DECEPTION_TEACH = PROSE_SLOTS["rpg.reminder.deceptionTeach"].text;
 
 /** The OMNISCIENCE-FILTER teaching block (P3 §3.3 feature 4) — a VERSIONED constant (the marinara-derived
  *  `<ofilter …/>` grammar the tokenizer's `ofilter` registrant recognizes). Teaches the perception gate: when
@@ -87,8 +92,7 @@ export const RPG_DECEPTION_TEACH =
  *  they CAN perceive. The attrs (`event reason`) match the reveal surface. The optional `who` attr (per-player
  *  perception, graft #V7) is tokenized but v1 hides uniformly — the teach does not mention it. Composed ONLY when
  *  `config.features.omniscience` is on. */
-export const RPG_OFILTER_TEACH =
-  'PERCEPTION: the player perceives only what their character can. When something happens beyond their perception (offscreen, hidden, a secret another character keeps), emit a self-closing tag recording it: <ofilter event="what happened out of their perception" reason="why they cannot perceive it" />. This tag is INVISIBLE to the player but you REMEMBER it — narrate only what the player CAN perceive, and let the unperceived event shape the world consistently.';
+export const RPG_OFILTER_TEACH = PROSE_SLOTS["rpg.reminder.omniscienceTeach"].text;
 
 // The WORKED EXAMPLE appended to both card-teach variants (spike §4h, F2b — the copy layer of the tokenizer
 // fix). Its measured job is GRAMMAR, not enthusiasm: it pins the opener line's exact bytes, and the opener is
@@ -97,35 +101,25 @@ export const RPG_OFILTER_TEACH =
 // scripts, no animation — so it mirrors into the static variant verbatim (§4h: "minus the JS/animation
 // clause" — there is none). It is never echoed as a card (0 "EAST CROSSING" cards in 40 example-arm turns).
 // Copy alone is NOT the fix (10/10 → 5/10 in one of two runs); it rides ON TOP of the tokenizer leniency.
-const RPG_CARD_TEACH_EXAMPLE = `
-
-For example, a three-line sign is enough:
-:::card title="Crossing sign"
-<div style="font-family:monospace;text-align:center;padding:14px;border:2px solid #6b5c3e;background:#e9e1cb;color:#3a2f1c;letter-spacing:2px">
-  <div>EAST CROSSING</div><div>CLINIC — 2 KM</div><div>NO ENTRY AFTER DARK</div>
-</div>
-:::`;
+const RPG_CARD_TEACH_EXAMPLE = PROSE_SLOTS["rpg.card.example"].text;
 
 // The card TEACHING injection (parity-plus §7.5 — owner-authored copy, deliberately SHORT + permissive:
 // no schema, no component vocabulary, no allowlist; the sandbox is the wall, §4.2). A versioned constant
 // (the RPG_STEERING_LICENSE pattern). Emitted only when `features.immersiveHtml` is on; the M3
 // `immersiveHtmlInteractive` sub-toggle picks the variant — it shapes the ASK, never the render (a card
 // the model emits renders in the same sandbox either way).
-const RPG_CARD_TEACH_ASK =
-  'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS/JS, then `:::` on its own line. Make whatever fits the moment — animations, layouts, interactive bits are all welcome. Everything must be self-contained markup and CSS — no images at all (external URLs and inline data: URIs are BOTH blocked by the platform security policy; a card with an <img> renders with a hole in it). Paint textures, shapes and iconography with CSS instead. Do not wrap it in a code fence. Close the card with its own `:::` line BEFORE you open any other directive (a `:::choices` block never goes inside a card). Cards are for things the CHARACTERS see in the world — never a status readout, stat block, or tracker display; the tracked values stay woven into your prose, never recited.';
+const RPG_CARD_TEACH_ASK = PROSE_SLOTS["rpg.card.askInteractive"].text;
 export const RPG_CARD_TEACH = RPG_CARD_TEACH_ASK + RPG_CARD_TEACH_EXAMPLE;
 
 // The CYOA teaching block (P5 §5.4 feature 5) — a versioned constant (the RPG_STEERING_LICENSE pattern).
 // Teaches the `:::choices` directive fence the tokenizer's `choices` registrant recognizes; the reading
 // surface renders the options as clickable send-affordances (§5.2-5.3). Composed ONLY when
 // `config.features.cyoa` is on; the wand's one-shot "Offer choices" covers the this-turn-only ask.
-export const RPG_CYOA_TEACH =
-  "CHOICES: end every response with a set of choices for the player. After your narration, add a line containing exactly :::choices then 3-5 numbered options (1. ...), each a distinct action the player could take next, then a line containing exactly ::: on its own. Keep each option one sentence, concrete, and meaningfully different from the others.";
+export const RPG_CYOA_TEACH = PROSE_SLOTS["rpg.reminder.cyoaTeach"].text;
 
 // The M3 static-ask variant (`immersiveHtmlInteractive: false`) — the calmer table: still cards, no ask
 // for scripts/animation. The render is identical (toggle-independent); only the invitation narrows.
-const RPG_CARD_TEACH_STATIC_ASK =
-  'When it fits the scene — an in-world screen, letter, poster, sign, book page, map, UI panel, or any visual the characters would encounter — you may render an immersive card. Open with `:::card title="a short label"` on its own line, then your HTML/CSS, then `:::` on its own line. Keep it a still visual — no scripts or animations, just an in-world page for the reader. Everything must be self-contained markup and CSS — no images at all (external URLs and inline data: URIs are BOTH blocked by the platform security policy; a card with an <img> renders with a hole in it). Paint textures, shapes and iconography with CSS instead. Do not wrap it in a code fence. Close the card with its own `:::` line BEFORE you open any other directive (a `:::choices` block never goes inside a card). Cards are for things the CHARACTERS see in the world — never a status readout, stat block, or tracker display; the tracked values stay woven into your prose, never recited.';
+const RPG_CARD_TEACH_STATIC_ASK = PROSE_SLOTS["rpg.card.askStatic"].text;
 export const RPG_CARD_TEACH_STATIC = RPG_CARD_TEACH_STATIC_ASK + RPG_CARD_TEACH_EXAMPLE;
 
 /** The ambient line. `dateMode` (#9): `narrated` renders the FREEFORM date string as the date datum and
@@ -326,14 +320,6 @@ function relationshipSeg(rel: RpgRelationship, hints: Readonly<Record<string, st
   return rel.kind === "neutral" ? null : rel.kind;
 }
 
-/** The `Present:` section header when at least one cast member carries a GUIDE — the label-as-mini-prompt
- *  that teaches the three continuation labels ONCE (the `Trackers:`/`Attributes:` vocabulary rule: meaning
- *  once, readings N times). It says the two things the character turn can get wrong: the look/dress are
- *  STANDING (re-inventing them every beat is the failure RV-11 names), and `thoughts` is inner state the
- *  player never hears (the model must not voice it as dialogue). */
-const RPG_CAST_GUIDE_HEADER =
-  "Present (appearance/outfit are standing — describe them consistently, not re-invented; thoughts are UNSPOKEN inner state, never said aloud):";
-
 /** A cast member's persistent GUIDES as CONTINUATION lines under its one-liner (the {@link questLine}
  *  objective precedent), never more ` — ` segs: these are model-authored PROSE with no length contract, and a
  *  sentence wedged mid-chain buries the short steering readings behind it. Written richly by the extraction
@@ -353,9 +339,15 @@ function guideLines(identity: RpgTrackerView["actors"][number]["identity"]): str
 /** The `Present:` header — the guide TEACH only when a guide actually exists, so a game whose cast carries
  *  none gets the byte-identical bare label it always had (the no-phantom-teaching rule the feature-gated
  *  teaching blocks follow). EXPORTED with {@link actorLine}: the teach and the guides travel TOGETHER, so no
- *  surface can print a member's unspoken `thoughts` without the line that says never to voice them. */
-export function castHeader(actors: readonly RpgTrackerView["actors"][number][]): string {
-  return actors.some((a) => guideLines(a.identity).length > 0) ? RPG_CAST_GUIDE_HEADER : "Present:";
+ *  surface can print a member's unspoken `thoughts` without the line that says never to voice them.
+ *
+ *  DUAL-surface (PROSE-1): the teach header is a `rpg.reminder.castHeader` slot the reminder AND the
+ *  `{{rpgCast}}`/`{{rpgSceneState}}` macro feed both resolve, so `prose` is threaded to BOTH — a host override
+ *  lands on both surfaces at once (the two-surfaces-one-vocabulary law this file's header states). Resolved
+ *  VERBATIM (`macros:"none"` — a header has no identity context to substitute). Empty overrides ⇒ the shipped
+ *  default, byte-identical to the pre-PROSE-1 constant. */
+export function castHeader(actors: readonly RpgTrackerView["actors"][number][], prose: ProseOverrides): string {
+  return actors.some((a) => guideLines(a.identity).length > 0) ? resolveProse("rpg.reminder.castHeader", prose).text : "Present:";
 }
 
 /** The `Known, offstage:` roster (R2) — the terse continuity line for every tracked cast actor who is NOT on
@@ -423,21 +415,38 @@ export function questLine(quest: RpgTrackerView["quests"][number]): string {
 /** The config-gated teaching blocks (parity-plus §3.3) — composed AFTER the state/delta, BEFORE the license,
  *  each gated by its knob (all off ⇒ `[]`, byte-identical to a pre-feature reminder). Extracted so
  *  `buildLiteReminder` stays under the cognitive-complexity ceiling — a NEW teach is one arm here. */
+/** Resolve a per-GAME teach SLOT against the game's `config.prose` overrides and render its `names-only` macros
+ *  (§6.1) — the same identity-only registry {@link renderSteeringNote} uses, so a host override's
+ *  `{{user}}`/`{{char}}` become names while every other macro re-emits verbatim. NOT trimmed (unlike the
+ *  steering note): a teach's own leading whitespace is load-bearing — the card example opens with a blank line
+ *  that separates it from the ask. A macro-FREE resolved text — every shipped default — never touches the
+ *  engine (the `!includes("{{")` fast path), so it is byte-identical to the pre-PROSE-1 constant. */
+function resolveTeach(id: ProseSlotId, input: LiteReminderInput): string {
+  const text = resolveProse(id, input.prose ?? {}).text;
+  if (input.steerMacros === undefined || !text.includes("{{")) {
+    return text;
+  }
+  return processMacros(text, { char: input.steerMacros.char, user: input.steerMacros.user, persona: "", scenario: "", env: {} }, STEER_NAMES_REGISTRY);
+}
+
 function teachingBlocks(input: LiteReminderInput): string[] {
   const blocks: string[] = [];
   if (input.deception) {
-    blocks.push(RPG_DECEPTION_TEACH);
+    blocks.push(resolveTeach("rpg.reminder.deceptionTeach", input));
   }
   if (input.omniscience) {
-    blocks.push(RPG_OFILTER_TEACH);
+    blocks.push(resolveTeach("rpg.reminder.omniscienceTeach", input));
   }
   if (input.features.immersiveHtml) {
-    blocks.push(input.features.immersiveHtmlInteractive ? RPG_CARD_TEACH : RPG_CARD_TEACH_STATIC);
+    // The card teach is TWO slots — the interactive/static ASK + the shared worked EXAMPLE (`RPG_CARD_TEACH`
+    // was `ASK + EXAMPLE`); resolved separately and re-concatenated so the composed bytes stay identical.
+    const ask: ProseSlotId = input.features.immersiveHtmlInteractive ? "rpg.card.askInteractive" : "rpg.card.askStatic";
+    blocks.push(resolveTeach(ask, input) + resolveTeach("rpg.card.example", input));
   }
   // P5 §5.4 — the standing CYOA mode: every turn ends with a `:::choices` set. Off ⇒ no teaching (the
   // tokenizer still renders an unprompted fence harmlessly; the wand one-shot covers this-turn-only asks).
   if (input.features.cyoa) {
-    blocks.push(RPG_CYOA_TEACH);
+    blocks.push(resolveTeach("rpg.reminder.cyoaTeach", input));
   }
   return blocks;
 }
@@ -464,18 +473,13 @@ function actorBlocks(input: LiteReminderInput): string[] {
     lines.push("Party:", ...party.map((a) => actorLine(a, attrDefs, hints)));
   }
   if (onStage.length > 0) {
-    lines.push(castHeader(onStage), ...onStage.map((a) => actorLine(a, attrDefs, hints)));
+    lines.push(castHeader(onStage, input.prose ?? {}), ...onStage.map((a) => actorLine(a, attrDefs, hints)));
   }
   if (offstage.length > 0) {
-    lines.push(RPG_OFFSTAGE_HEADER, ...offstage.map((a) => offstageLine(a, hints)));
+    lines.push(resolveProse("rpg.reminder.offstageHeader", input.prose ?? {}).text, ...offstage.map((a) => offstageLine(a, hints)));
   }
   return lines;
 }
-
-/** The `Known, offstage:` header — a VERSIONED constant like the other teaching lines. It says the one thing a
- *  model can get wrong about the block: these people EXIST and are not here, so bringing one back is a
- *  continuation, never an introduction. */
-const RPG_OFFSTAGE_HEADER = "Known, offstage (established characters not in this scene — bring them back consistently, never re-introduce them):";
 
 /** Build the lite steering reminder (§4.7). Returns the assembled block; the gather wraps it as ONE depth-0
  *  `role:"system"` `ChatInjection`. Empty sections are omitted so a fresh game's reminder is just the license
@@ -528,12 +532,14 @@ export function buildLiteReminder(input: LiteReminderInput): string {
     rosterNames: input.rosterNames,
     trackerDefs: view.trackerDefs,
     relationshipHints: input.features.relationshipHints,
+    // PROSE-1 — the two delta HEADINGS are slots resolved off `config.prose` (§4.3). Absent ⇒ shipped defaults.
+    prose: input.prose ?? {},
   });
   if (delta !== null) {
     blocks.push(delta);
   }
 
-  blocks.push(RPG_STEERING_LICENSE);
+  blocks.push(resolveTeach("rpg.reminder.steeringLicense", input));
 
   // The config-gated TEACHING blocks (parity-plus §3.3) — after the license, LAST but for the steering note.
   // P3 teaches the `<lie …/>`/`<ofilter …/>` grammar the `HIDDEN_TAGS` registry recognizes + server-strips;
