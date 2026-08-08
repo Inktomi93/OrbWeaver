@@ -1,32 +1,61 @@
 # PROSE-1 — the rpg EXTRACTION seam (follow-on to the reminder-seam lane)
 
 **Status:** brief material for a dedicated lane. Written by the RPG-PROSE lane (2026-08-07), which shipped the
-per-GAME steering-REMINDER seam (census rows 1-10) + the `contracts/src/rpg/prose.ts` home + the `config.prose`
-storage spine. This doc carries the classification + the core-shape decision the extraction seam needs so the
-next lane does not re-run the census.
+steering-REMINDER seam (census rows 1-10) + the `contracts/src/rpg/prose.ts` home. This doc carries the
+classification + the core-shape decision the extraction seam needs so the next lane does not re-run the census.
+
+> **⚑ RE-TARGETED 2026-08-08 — owner ruling, Nate live: "we are putting everything in presets."** The rpg prose
+> HOME is the PRESET's `promptConfig.prose`, authored in the preset **Templates tab**. The per-GAME
+> `config.prose` spine this doc was written against (config field · `updateConfig.patch.prose` arm · fork strip
+> arm · the `"game"` member of `PROSE_HOMES`) is **DELETED** — the extraction lane must NOT re-create it.
+> Everything below that says "per-game storage" now means: a slot row with `home:"preset"`, a `TEMPLATE_DEFS`
+> row so it is reachable in the tab, and the overrides threaded in from CHAT (`GatherTurnContextArgs.prose`)
+> rather than read off the game row.
 
 ## What the reminder-seam lane shipped (so you don't redo it)
 
 - `packages/contracts/src/rpg/prose.ts` — the `RPG_PROSE_SLOTS` table (census 1-10), mirroring the other
   domains' `prose.ts`. 11 slots: the 7 teaches (`names-only`) + cast/offstage headers + 2 delta headings
   (`none`). Re-exported from `#rpg`, composed into `PROSE_SLOTS` in `#prose`.
-- `config.prose` on `rpgGameConfigSchema` (`proseOverridesSchema`, additive self-heal to `{}`), the
-  `updateConfig.patch.prose` write arm, `LiteReminderInput.prose` + `DeltaContext.prose` threading, the
-  `mergeConfig` keep-on-omit arm, and the `stripConfigForForker` HOST-PLANE classification (blanked to `{}`
-  for a non-host fork — the `steeringNote` class).
-- `resolveTeach` in `reminder.ts` — resolves each teach slot against `config.prose` and renders `names-only`
+- ~~`config.prose` on `rpgGameConfigSchema` + the `updateConfig.patch.prose` write arm + the `mergeConfig`
+  keep-on-omit arm + the `stripConfigForForker` HOST-PLANE blank arm.~~ **ALL DELETED by the 2026-08-08
+  re-home.** What SURVIVED and is what you build on: `LiteReminderInput.prose` + `DeltaContext.prose`
+  threading (unchanged signatures — the builders never knew the source), fed from
+  `GatherTurnContextArgs.prose`, which chat fills with `composeProse({ preset: promptConfig.prose })`. The
+  fork's host-plane guarantee moved with the bytes: the copy lives in the GM preset, and `resolveForkGmPreset`
+  already nulls a preset the forker cannot read.
+- `resolveTeach` in `reminder.ts` — resolves each teach slot against the threaded prose and renders `names-only`
   macros (fast-path verbatim for macro-free defaults, so byte-identical). The cast header is dual-surface
   (reminder + `{{rpgCast}}`/`{{rpgSceneState}}` macro feed), threaded through `buildRpgMacroFeed` →
   `castBlock` → `castHeader`.
 - `prose-baseline.json` regenerated (52 slots). Contract + reminder + delta + macro-view + config +
   update-config + fork suites extended and green.
 
-**The `config.prose` storage the extraction seam needs is already built and proven.** This is exactly why
+**The storage the extraction seam needs is already built and proven — it is `promptConfig.prose`**, with the
+threading seam (`GatherTurnContextArgs.prose` → `LiteReminderInput.prose`) and the Templates-tab reachability
+(`TEMPLATE_DEFS` + the two-sided coverage test in `tests/contracts/prose/`) both landed. This is exactly why
 the spec (§9) sequences S4 after S3.
+
+## Verifier F2 — "the prose write door has no READ door" — is DEAD (2026-08-08)
+
+The RPG-PROSE verifier filed F2 against the shipped spine: `updateConfig.patch.prose` WROTE, and nothing read
+the override back to a host — no `getConfigView` arm, no editor, zero client references to an `rpg.*` slot id.
+"Host-editable" was true at the verb tier only, and the remedy it named was a host-gated `RpgConfigView.prose`
+read arm plus a new GM-console surface.
+
+**The re-home closed it without building either.** The overrides live in `promptConfig.prose`, and the PRESET
+EDITOR is the read door: each of the eleven slots has a `TEMPLATE_DEFS` row, so the Templates tab lists it,
+ghosts its shipped default, round-trips an edit through `proseTemplateDraft`/`normalizePresetProse`, and shows
+the stale/missing-token footer — the same door the three turn-wire framings already used. The two-sided
+coverage test in `tests/contracts/prose/index.contract.test.ts` REDs if a preset-homed slot ever loses its row,
+so the "authored but unreachable" class F2 named cannot re-form silently.
+
+**Do not build `RpgConfigView.prose`.** It would be the second door the ruling exists to prevent.
 
 ## Why the extraction seam is a SEPARATE lane (the fork the orchestrator ruled)
 
-1. **Rows 11-27 are per-game RENDER-TEMPLATES, not text slots.** They are BUILT per game — `fragment:(ctx)=>…`
+1. **Rows 11-27 are per-GAME-RENDERED templates, not text slots** (the override is authored on the preset; the
+   RENDER interpolates the game's data — those are different axes, and the re-home changes only the first). They are BUILT per game — `fragment:(ctx)=>…`
    in `EXTRACTION_PLANE_PROMPTS`, `buildRpgToolDescriptions(ctx)`, `partyExample(ctx)` — interpolating the
    game's own tracker defs by name/key/gloss (`packages/contracts/src/rpg/extraction-prompt.ts`). Migrating
    them needs the spec §4.5 `render(ctx)` slot shape, which is a **core-shape change to the SHARED
@@ -87,10 +116,11 @@ owner ruling before the extraction lane touches it.
 
 ### Rows 28-36 (`server/src/entry/compose/rpg.ts`) — mixed; migrate WITH 11-27 (same seam)
 
+
 | census | symbol | class / disposition |
 | - | - | - |
 | 28 | `TRANSCRIPT_ROLE_FALLBACK` (`You`/`System`/`Narrator`) | STRUCTURAL labels (1 word each, §2.11) — recommend OUT |
-| 29 | `EXTRACTION_SYSTEM_HEADER` | static text slot (`macros:"none"`, app-tier-ish — home per-game per §2.4) |
+| 29 | `EXTRACTION_SYSTEM_HEADER` | static text slot (`macros:"none"`, app-tier-ish — home PRESET per the 2026-08-08 ruling) |
 | 30 | `RECONCILE_PROMPT_LINE` | static text slot |
 | 31 | the locked-paths line (`projectStateForModel`) | RENDER-template (interpolates `fieldLocks` keys) |
 | 32 | the 3 user-prompt block labels (`RECENT STORY`/`CURRENT TRACKED STATE`/`LATEST BEAT`) | STRUCTURAL labels — recommend OUT |
@@ -107,8 +137,12 @@ with 11-27, the extraction lane migrates the whole set in one pass (no half-seam
 
 - `#prose-slot` tuple + `#prose` compose + `contracts/rpg/prose.ts` (extend the existing table) + baseline regen.
 - The `ProseSlotDef` render-arm (core shape) — see the decision above.
-- `compose/rpg.ts`: `extractionSystem`/`toolRoundSystem`/`buildExtractionUserPrompt` thread `config.prose`
-  (the config is already resolved in `resolveExtractionRefs` — §4.3 names the seam).
+- `compose/rpg.ts`: `extractionSystem`/`toolRoundSystem`/`buildExtractionUserPrompt` need the PRESET prose,
+  and this is the lane's REAL open problem — unlike the reminder (which rides the turn, where chat has already
+  resolved `promptConfig`), the extraction round runs POST-COMMIT inside rpg, which has no preset reach. Do not
+  re-open `config.prose` to dodge it. The two honest arms: resolve the game's `gmPresetId` through an injected
+  chat op at round time, or capture the turn's composed prose on `RpgTurnContext` (which already carries the
+  turn's resolved connection + consent for exactly this class of reason). ESCALATE the pick.
 - `RPG_BASELINE_TOOL_DESCRIPTIONS` is built at MODULE LOAD against the empty config — a render-slot override
   has no meaning there (no game in scope), so the baseline consumer reads DEFAULTS only. Keep that invariant.
 - The gate `scanRoot` widens to `rpg/substrate/**` + `compose/rpg.ts` + `contracts/rpg/extraction-prompt.ts`

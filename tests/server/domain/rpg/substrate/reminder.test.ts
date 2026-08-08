@@ -189,8 +189,8 @@ test("a fresh game reminder is just the license (no phantom empty headers; no-ch
   expect(out).toBe(RPG_STEERING_LICENSE);
 });
 
-// ── PROSE-1 (§4.3) — the per-GAME prose OVERRIDE path (`config.prose` → `LiteReminderInput.prose`) ──────
-test("a config.prose STEERING-LICENSE override replaces the shipped default in the license position", () => {
+// ── PROSE-1 (§4.3) — the PRESET prose OVERRIDE path (`promptConfig.prose` → gather arg → `LiteReminderInput.prose`) ─
+test("a preset-prose STEERING-LICENSE override replaces the shipped default in the license position", () => {
   const out = buildLiteReminder(input({ prose: { "rpg.reminder.steeringLicense": { text: "MY TABLE'S OWN LICENSE.", baseVersion: 1 } } }));
   expect(out).toBe("MY TABLE'S OWN LICENSE.");
   expect(out).not.toContain(RPG_STEERING_LICENSE);
@@ -199,7 +199,7 @@ test("a config.prose STEERING-LICENSE override replaces the shipped default in t
 test("a names-only teach override resolves {{user}}/{{char}}, and re-emits a volatile macro verbatim", () => {
   // The `resolveTeach` names-only path (the `renderSteeringNote` posture, §6.1): identity macros substitute,
   // everything else ships literal. A DEFAULT teach carries no macro, so this path is exercised only by a host
-  // override — the case the migration's write door (`updateConfig.patch.prose`) makes reachable.
+  // override — the case the preset Templates tab makes reachable.
   const out = buildLiteReminder(
     input({
       deception: true,
@@ -212,7 +212,7 @@ test("a names-only teach override resolves {{user}}/{{char}}, and re-emits a vol
   expect(out).not.toContain("{{char}}");
 });
 
-test("a config.prose CAST-HEADER override replaces the Present: teach header (the dual-surface slot)", () => {
+test("a preset-prose CAST-HEADER override replaces the Present: teach header (the dual-surface slot)", () => {
   const view = emptyView(withActors(castActor("mari", { name: "Mari", appearance: "tall, scarred" })));
   const out = buildLiteReminder(input({ view, prose: { "rpg.reminder.castHeader": { text: "ON STAGE:", baseVersion: 1 } } }));
   expect(out).toContain("ON STAGE:");

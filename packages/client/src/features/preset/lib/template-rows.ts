@@ -52,6 +52,9 @@ export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
   studio: "Studio",
   format: "Format",
   nudge: "Nudges",
+  // The rpg re-home (2026-08-08). The kicker names the SURFACE, not the domain enum: every row in this group
+  // reaches the model only on a game turn, and that — not "rpg" — is what a preset author needs told.
+  teach: "Game teaches",
 };
 
 /** The ONE place a def's id becomes a form shape. */
