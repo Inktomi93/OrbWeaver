@@ -7,10 +7,10 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { PERSONA_DESCRIPTION_POSITIONS } from "@orb/kit/persona";
 import { z } from "zod";
+import { cardFaceFields } from "#card-face";
 
-const NAME_MIN_LENGTH = 1;
-const NAME_MAX_LENGTH = 200;
-const DESCRIPTION_MAX_LENGTH = 100_000;
+// `title` is NOT a face field (persona-only, D137(E)) — its limit stays persona-local.
+const TITLE_MAX_LENGTH = 200;
 
 // `descriptionPosition` drives the in-prompt-vs-at-depth-vs-none decision. `sourceCharacterId` +
 // `swapMacros` are the non-lossy `createFromCharacter` provenance: a persona minted from a card can
@@ -52,14 +52,16 @@ export const personaMetadataWriteSchema = z.record(z.string(), z.unknown()).supe
 /** @public type twin of the live `personaMetadataWriteSchema` write guard. */
 export type PersonaMetadataWrite = z.infer<typeof personaMetadataWriteSchema>;
 
+// The FACE fields spread `cardFaceFields` (D137(E) — one home, reference-equality-pinned); the wraps
+// (`description` bare = REQUIRED, starred/avatarAssetId `.optional()`) are persona's write semantics.
 export const createPersonaSchema = z.object({
-  name: z.string().min(NAME_MIN_LENGTH).max(NAME_MAX_LENGTH),
+  name: cardFaceFields.name,
   /** Display subtitle for pickers/lists (ST persona "title") — never injected into the prompt. */
-  title: z.string().max(NAME_MAX_LENGTH).nullable().optional(),
-  description: z.string().max(DESCRIPTION_MAX_LENGTH),
+  title: z.string().max(TITLE_MAX_LENGTH).nullable().optional(),
+  description: cardFaceFields.description,
   /** Favorite flag (ST persona favorites) — pickers sort/highlight starred first. */
-  starred: z.boolean().optional(),
-  avatarAssetId: typeIdSchema(ID_PREFIX.asset).nullable().optional(),
+  starred: cardFaceFields.starred.optional(),
+  avatarAssetId: cardFaceFields.avatarAssetId.optional(),
   metadata: personaMetadataWriteSchema.nullable().optional(),
 });
 export type CreatePersonaInput = z.infer<typeof createPersonaSchema>;
