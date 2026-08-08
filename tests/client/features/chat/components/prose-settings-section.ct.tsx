@@ -9,6 +9,7 @@ import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/p
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
+import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ProseSettingsSectionStory } from "../_ct-stories.tsx";
@@ -142,6 +143,58 @@ test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and 
   // …AND IT LIFTS. A form that stayed invalid forever would be worse than the bug being fixed.
   await arbiter.fill("y".repeat(3000));
   await expect.poll(() => (lastPatch(trpc)?.[ARBITER] as { text?: string } | null | undefined)?.text?.length, { intervals: [100, 200, 300, 500] }).toBe(3000);
+});
+
+// ── THE GEOMETRY OF THE REFUSAL (side-eye PROSE-LIMIT P1/P2/P3) ───────────────────────────────────────
+// The cap above is only half an affordance: `field-sizing: content` has no ceiling, so the very 4500-char
+// value the refusal exists FOR grew the box past the fold and pushed the counter, the field error and the
+// save status ~900px below it. A refusal nobody can see is a save that silently stopped working. So the box
+// scrolls INSIDE a capped height, the counter goes danger-toned once it is over, and the save header stops
+// reading "Saved" while the write is being withheld.
+test("PROSE GEOMETRY — an over-cap value scrolls inside a capped box, and the counter + refusal stay on screen", async ({ mount, page }) => {
+  await stub(page, { [ARBITER]: { text: OVERLONG, baseVersion: 1 } });
+  await mount(<ProseSettingsSectionStory />);
+  const arbiter = page.getByRole("textbox", { name: ARBITER_FIELD, exact: true });
+  const card = page.getByRole("group", { name: ARBITER_FIELD });
+  await expect(arbiter).toHaveValue(OVERLONG);
+
+  // THE BOX IS CAPPED AND SCROLLS. Its own content is taller than it renders — which is the point: the text
+  // is all still there, reachable by scrolling the FIELD rather than by scrolling the page past it.
+  const box = await arbiter.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }));
+  expect(box.content).toBeGreaterThan(box.client);
+  // …and the cap is a real ceiling, not merely "shorter than the content": the box fits the viewport with
+  // room left for the footer it must not push away.
+  const viewportHeight = page.viewportSize()?.height ?? 0;
+  expect(box.client).toBeLessThan(viewportHeight / 2);
+
+  // …AND THE ROW STRETCH GOES WITH IT (P2). These cards are grid items, so the tallest one sets its row's
+  // height and its sibling gets the difference as empty card — a 2255px card dragged a neighbour to ~1850px
+  // of nothing. Capping the box is what collapses that: NO card may exceed the viewport now.
+  const cardHeights = await page.getByRole("group").evaluateAll((els) => els.map((el) => el.getBoundingClientRect().height));
+  expect(cardHeights.length).toBeGreaterThan(1);
+  expect(Math.max(...cardHeights)).toBeLessThan(viewportHeight);
+
+  // THE COUNTER IS ON SCREEN WITH THE FIELD. The FIELD is what gets scrolled into view (never the counter —
+  // that would scroll the very thing under test into place), exactly as a host editing this override does.
+  await arbiter.scrollIntoViewIfNeeded();
+  const counter = card.getByText(`${String(OVERLONG.length)}/${String(PROSE_MAX_CHARS)}`);
+  await expect(counter).toBeInViewport();
+  // …and it reads as the BLOCK it is (P3): a muted grey count beside a red refusal was the one number on the
+  // card that had to be alarming and wasn't.
+  await expect(counter).toHaveCSS("color", resolvedTokenColor("color.destructive"));
+
+  // THE HEADER STOPS LYING (P2). One real edit puts the form in refusal; the status line is the STATE (the
+  // field's own error is the REASON), so it must not keep reading "Saved · Synced across your devices." over
+  // a write that is being held.
+  await arbiter.press("End");
+  await arbiter.press("Backspace");
+  const status = page.getByRole("status");
+  await expect(status).toContainText("Not saved");
+  await expect(status).not.toContainText("Synced across your devices.");
+
+  // …AND IT LIFTS with the refusal — a header stuck on "Not saved" would be the same lie inverted.
+  await arbiter.fill("y".repeat(3000));
+  await expect(status).toContainText("Saved");
 });
 
 test("a required pre-substitution token dropped from an override lints — a warn, never a block", async ({ mount, page }) => {

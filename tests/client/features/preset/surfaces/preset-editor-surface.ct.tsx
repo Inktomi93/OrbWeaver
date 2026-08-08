@@ -20,7 +20,7 @@
 // the segmented strip died), so its state reads off the TRIGGER'S TEXT and its options live in a portal.
 
 import type { PromptConfig } from "@orb/contracts/preset";
-import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
+import { DEFAULT_PROMPT_CONFIG, MAX_FORMAT_STRING_LENGTH } from "@orb/contracts/preset";
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { PresetId } from "@orb/kit/ids";
@@ -28,6 +28,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import { assertTokenRoundtrip } from "../../../../support/ct/assert-token-roundtrip.ts";
+import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { makeModelCapability, makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
@@ -757,6 +758,92 @@ test("PROSE CAP — an ALREADY-over-cap stored override shows its real text and 
       intervals: [100, 200, 300, 500],
     })
     .toBe(3000);
+});
+
+// ── THE GEOMETRY OF THE REFUSAL + THE HEADER'S TRUTH (side-eye PROSE-LIMIT P1/P2/P3) ──────────────────
+// The cap above stopped the data loss and then hid its own affordances: `field-sizing: content` has no
+// ceiling, so the over-cap value all three signals are ABOUT rendered as one 2300px box and pushed the
+// counter, the `role="alert"` refusal and the header's save status below the fold. Meanwhile the header kept
+// reading "Saved" — the save driver gates on `form.state.isValid`, so the write was being held, and the one
+// line whose whole job is to say whether this preset is saved said the opposite of the truth.
+test("PROSE GEOMETRY — the box scrolls at its cap, the refusal stays on screen, and the header stops saying Saved", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => presetWithProse(OVERLONG),
+    "preset.list": () => [presetWithProse(OVERLONG)],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+    "preset.update": () => ({}),
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+  const field = await openContinuationCue(component);
+  await expect(field).toHaveValue(OVERLONG);
+
+  // THE BOX IS CAPPED AND SCROLLS — every byte still reachable, none of it spent on page height.
+  const box = await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }));
+  expect(box.content).toBeGreaterThan(box.client);
+  expect(box.client).toBeLessThan((page.viewportSize()?.height ?? 0) / 2);
+
+  await field.press("End");
+  await field.press("Backspace");
+
+  // THE REFUSAL IS ON SCREEN WITH THE FIELD it refuses — scrolling the FIELD into view (never the alert,
+  // which would place the thing under test by hand) is what an author editing this template does.
+  await field.scrollIntoViewIfNeeded();
+  const alert = component.getByRole("alert");
+  await expect(alert).toHaveText(OVER_CAP_ALERT_RE);
+  await expect(alert).toBeInViewport();
+  // …and the counter beside it reads as part of that refusal rather than as quiet chrome (P3).
+  const counter = component.getByText(`${String(PROSE_MAX_CHARS + 499)}/${String(PROSE_MAX_CHARS)}`);
+  await expect(counter).toBeInViewport();
+  await expect(counter).toHaveCSS("color", resolvedTokenColor("color.destructive"));
+
+  // THE HEADER STATES THE STATE (P2). The badge is the REASON; this line is whether the editor is saved —
+  // and it is the live region a screen-reader user hears when they leave the field expecting an autosave.
+  const status = component.getByRole("status");
+  await expect(status).toContainText("Not saved");
+  // …AND IT LIFTS when the refusal does.
+  await field.fill("y".repeat(3000));
+  await expect(status).toContainText("Saved");
+  await expect(status).not.toContainText("Not saved");
+});
+
+// ── THE FORMAT-STRING CAP (the SECOND of the three regimes on this surface) ────────────────────────────
+// `formatStringsSchema` bounds every slot at MAX_FORMAT_STRING_LENGTH and the SAME schema is the read path
+// (`parsePromptConfig` degrades a failed parse to DEFAULT_PROMPT_CONFIG), so an over-cap nudge is not one
+// bounced field — it is the whole preset reading as defaults. The field wore no cap and no counter at all:
+// three cap regimes met on this one drill-in and exactly one of them was signalled.
+const CONTINUE_NUDGE_ROW = "Edit Continue nudge";
+/** The format-string counter's threshold — the shared capped-field grammar's default 80%. */
+const FORMAT_COUNTER_FROM = MAX_FORMAT_STRING_LENGTH * 0.8;
+
+test("FORMAT-STRING CAP — the nudge field wears the schema's cap and counts toward it", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "preset.get": () => PRESET_A_DETAIL,
+    "preset.list": () => [PRESET_A_DETAIL],
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    "preset.resolveEffective": () => EFFECTIVE_FLOOR,
+    "preset.update": () => ({}),
+  });
+  const component = await mount(<PresetEditorSurfaceStory />);
+  await component.getByRole("tab", { name: "Actions" }).click();
+  await component.getByRole("button", { name: CONTINUE_NUDGE_ROW }).click();
+  await expect(component.getByRole("button", { name: "Back to actions" })).toBeVisible();
+  const field = component.getByRole("textbox", { name: TEMPLATE_FIELD, exact: true });
+
+  // THE CAP IS THE SCHEMA'S, worn by the control the browser enforces it in.
+  await expect(field).toHaveAttribute("maxlength", String(MAX_FORMAT_STRING_LENGTH));
+
+  // The counter is quiet until 80% of it, asserted from both sides so an off-by-one can't pass by showing
+  // the count earlier.
+  await field.fill("x".repeat(FORMAT_COUNTER_FROM - 1));
+  await expect(component.getByText(`${String(FORMAT_COUNTER_FROM - 1)}/${String(MAX_FORMAT_STRING_LENGTH)}`)).toHaveCount(0);
+  await field.fill("x".repeat(FORMAT_COUNTER_FROM));
+  await expect(component.getByText(`${String(FORMAT_COUNTER_FROM)}/${String(MAX_FORMAT_STRING_LENGTH)}`)).toBeVisible();
+
+  // …and the box that now holds 8000 characters is still a field, not a page: it scrolls at its ceiling.
+  const box = await field.evaluate((el: HTMLTextAreaElement) => ({ client: el.clientHeight, content: el.scrollHeight }));
+  expect(box.content).toBeGreaterThan(box.client);
+  expect(box.client).toBeLessThan((page.viewportSize()?.height ?? 0) / 2);
 });
 
 /** The framing override as it rides `preset.update` — the payload the cap exists to keep parseable. */

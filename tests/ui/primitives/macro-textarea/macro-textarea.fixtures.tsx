@@ -82,6 +82,27 @@ export function GhostDefaultStory(): ReactElement {
 }
 
 /**
+ * The CAPPED-EDITOR shape (side-eye PROSE-LIMIT P1): a field carrying a `maxLength` and a value long enough
+ * to matter. `maxRows` must reach the underlying textarea through the wrapper — the whole defect was that a
+ * capped-but-long value rendered as unbounded box height and pushed the counter/refusal under it off screen.
+ */
+export function CappedStory(): ReactElement {
+  const [value, setValue] = useState("a paragraph that will certainly wrap several times over. ".repeat(60));
+  return (
+    <MacroTextarea
+      aria-label="Body"
+      helper="the footer this box must not push away"
+      maxLength={4000}
+      maxRows={6}
+      onChange={setValue}
+      rows={3}
+      suggestions={MACROS}
+      value={value}
+    />
+  );
+}
+
+/**
  * The R7 acceptance shape: `suggestions` is a NEW array reference every render (filtered/mapped
  * from state), while the parent re-renders — the real consumer shape, not a module-const stable
  * reference. Proves the fuzzy index rebuild-on-miss (keyed by array IDENTITY, not deep-equal)

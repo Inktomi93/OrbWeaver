@@ -22,6 +22,9 @@ export interface MacroFieldProps {
   readonly suggestions: readonly MacroSuggestion[];
   readonly placeholder?: string;
   readonly rows?: number;
+  /** The autosize CEILING in lines (see `MacroTextareaProps.maxRows`) — past it the box scrolls instead of
+   *  growing, so a long value cannot push this field's own counter/error off the fold. */
+  readonly maxRows?: number;
   readonly disabled?: boolean;
   /** Extra classes forwarded to the underlying textarea (e.g. a taller min-height). */
   readonly className?: string;
@@ -53,6 +56,7 @@ export function MacroField(props: MacroFieldProps): ReactElement {
           // only while the field is empty makes the tree say what the screen says.
           {...(props.placeholder === undefined || field.state.value !== "" ? {} : { placeholder: props.placeholder })}
           {...(props.rows === undefined ? {} : { rows: props.rows })}
+          {...(props.maxRows === undefined ? {} : { maxRows: props.maxRows })}
           {...(props.maxLength === undefined ? {} : { maxLength: props.maxLength })}
           {...(props.className === undefined ? {} : { className: props.className })}
         />

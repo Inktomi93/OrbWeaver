@@ -7,7 +7,10 @@
 // hosting:
 //   HOSTED   — report into the transient store (the shell renders the ONE aggregate footer) and render
 //              inline ONLY in `error`, so the failing section is locatable at its own anchor with its own
-//              retry (D41: surface the failure where it happened; the aggregate never retries).
+//              retry (D41: surface the failure where it happened; the aggregate never retries). `blocked`
+//              (a held write) deliberately does NOT get an inline arm: its locality is already carried by
+//              the invalid FIELD's own error, and a second inline line saying the same thing is the stacked
+//              smear this seam exists to prevent. The aggregate footer states it and offers the jump.
 //   DEGRADED — no aggregate host mounted (a pane not yet migrated, a CT story): render inline in every
 //              state, exactly as before the seam existed.
 //
