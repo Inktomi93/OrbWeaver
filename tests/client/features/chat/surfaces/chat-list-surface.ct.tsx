@@ -165,9 +165,11 @@ test("the per-row kebab opens the actions menu", async ({ mount, page }) => {
 });
 
 // The lifecycle one-home ruling: EXPORT homes on the row kebab (import is the band's ghost; the room
-// carries no lifecycle chrome). Both formats the host-gated route serves are plain download links — a
-// non-host member's GET 404s at the verb, so the item can't leak a plane the requester can't already read.
-test("§12 export homes on the row kebab — both formats link to the host-gated download route", async ({ mount, page }) => {
+// carries no lifecycle chrome). All THREE formats the host-gated route serves are plain download links —
+// a non-host member's GET 404s at the verb, so the item can't leak a plane the requester can't already
+// read. `.orb.json` (R6 fidelity container, listed first) rides `?format=orb`; `.jsonl` is the default
+// route (ST/share transcript); `.txt` is the reading copy.
+test("§12 export homes on the row kebab — all three formats link to the host-gated download route", async ({ mount, page }) => {
   await routeTrpc(page, { "chat.listChats": [ADVENTURE] });
 
   const component = await mount(<ChatListSurfaceStory />);
@@ -175,7 +177,10 @@ test("§12 export homes on the row kebab — both formats link to the host-gated
   await component.getByRole("button", { name: ADVENTURE_MENU }).click();
   await page.getByRole("menuitem", { name: "Export transcript" }).click();
 
-  const jsonl = page.getByRole("menuitem", { name: "Chat file (.jsonl)" });
+  const orb = page.getByRole("menuitem", { name: "Whole room (.orb.json)" });
+  await expect(orb).toHaveAttribute("href", "/api/export/chat/chat_adventure?format=orb");
+  await expect(orb).toHaveAttribute("download", "");
+  const jsonl = page.getByRole("menuitem", { name: "Transcript (.jsonl)" });
   await expect(jsonl).toHaveAttribute("href", "/api/export/chat/chat_adventure");
   await expect(jsonl).toHaveAttribute("download", "");
   await expect(page.getByRole("menuitem", { name: "Plain text (.txt)" })).toHaveAttribute("href", "/api/export/chat/chat_adventure?format=txt");
