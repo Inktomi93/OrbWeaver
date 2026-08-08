@@ -23,7 +23,7 @@
 // Evidence: cached_tokens (read) AND cache_write_tokens (the waste). Arm 2's write is the per-depth
 // re-bill of a prefix that can never be read again; arm 3 should write ~nothing.
 
-import { OR_MODEL, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.mjs";
+import { OR_MODEL, filler, jsonl, orCall, printTable, readEnvKey } from "./_kit.ts";
 
 export const id = "or5";
 export const title = "cache breakpoints count array offsets, not conversational turns";

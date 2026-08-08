@@ -17,7 +17,7 @@
 //
 // Evidence: HTTP status + the verbatim error body + usage. A 400 IS the verdict.
 
-import { OR_MODEL, jsonl, orCall, printTable, readEnvKey } from "./_kit.mjs";
+import { OR_MODEL, jsonl, orCall, printTable, readEnvKey } from "./_kit.ts";
 
 export const id = "or7";
 export const title = "reasoning round-trip — is replaying a reasoning block a hard 400?";

@@ -170,7 +170,7 @@ contract change (`ChatContentPart` + a signature guard) with an unquantified pay
 ## Verification
 
 Findings 5–7 now have a STANDING harness in the repo: `scripts/probes/openrouter/`
-(`node scripts/probes/openrouter/run.mjs`, resumable, ~$0.32 for the full batch) — it also answers F4
+(`node scripts/probes/openrouter/run.ts`, resumable, ~$0.32 for the full batch) — it also answers F4
 (tool descriptions ARE cache-key bytes; any edit invalidates the whole prefix) and F4a (effort keys the
 cache, one extra full write per distinct effort). Read `RESULTS.md` there before re-deriving anything below.
 

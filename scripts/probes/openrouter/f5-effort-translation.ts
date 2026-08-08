@@ -16,7 +16,7 @@
 // If neither lever reaches native depth, deliberation depth is capped BY THE WIRE — which re-opens the
 // Anthropic-skin / native-migration question that §7a of the rpg spike dismissed.
 
-import { NATIVE_MODEL, OR_MODEL, jsonl, orCall, printTable, readEnvKey } from "./_kit.mjs";
+import { NATIVE_MODEL, OR_MODEL, jsonl, orCall, printTable, readEnvKey } from "./_kit.ts";
 
 export const id = "f5";
 export const title = "OR effort translation / native-depth reachability";

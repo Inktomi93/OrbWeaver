@@ -1422,7 +1422,7 @@ Items this audit could not prove either way from the tree. **None were dropped.*
   NEVER `enableGlobalVirtualStore`. ONE committer on main; lanes commit with PATHSPEC and must
   `git add` new files first; lane cwd RESETS across notification boundaries. Semantic conflicts on a
   lane's own files → abort and send the LANE to merge main into its branch.
-- **Probe harnesses:** `scripts/probes/rpg-extraction/` (`run-coverage.mjs` env-driven ·
+- **Probe harnesses:** `scripts/probes/rpg-extraction/` (`run-coverage.ts` env-driven ·
   `steer-probe-real.ts` · `local-8b-vehicles.ts` with resumable `SPIKE_ARMS` · `card-teach-probe.ts`).
   Score against OPPORTUNITIES and through the PRODUCTION tokenizer (emitted ≠ rendered).
 - **The extraction-mode map is EMPIRICAL** (spike §4f-§4h — read it before ANY mode work): hosted strong
