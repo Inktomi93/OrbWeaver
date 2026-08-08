@@ -16,6 +16,7 @@
 
 import type { Can, ParticipantRole } from "@orb/contracts/identity";
 import type { UserMacroSpec } from "@orb/contracts/preset";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
   ChatRpgPointer,
   EmitRpgEvent,
@@ -428,6 +429,12 @@ type RpgBuildFoldedTurn = (input: {
    *  the errors-as-data backstop for a ref that vanished between assembly and apply. */
   readonly baseState: RpgSnapshotState;
   readonly reconcile: boolean;
+  /** PROSE-1 S4 — the turn PRESET's model-facing overrides for the EXTRACTION seam (the six tool descriptions
+   *  + the reconcile note this mount renders). Threaded from the GATHER's own `GatherTurnContextArgs.prose`,
+   *  which is the SAME resolution the post-commit round later receives on `RpgTurnContext.prose` — the fold
+   *  and the round it replaces must teach one vocabulary, and this is what makes that structural. `{}` ⇒ every
+   *  slot resolves to its shipped default (byte-identical to pre-PROSE-1). */
+  readonly prose: ProseOverrides;
 }) => Promise<{ readonly tools: readonly WireTool[]; readonly reconcileNote: string | null }>;
 
 /** R1 — fold the character turn's co-emitted TERMINAL tool calls into the SAME `RpgStateDelta` the dedicated

@@ -23,6 +23,7 @@
 // game's `extractionMode` by the integration op) — the gather reuses its verdicts, never re-resolving.
 
 import type { ChatInjection } from "@orb/contracts/chat";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import { actorRefKey } from "@orb/contracts/rpg";
 import type { GatherTurnContextArgs } from "../../chat/index.ts";
@@ -47,10 +48,11 @@ async function buildFoldedTurnSafely(
   ctx: RpgContext,
   game: RpgGameRow,
   baseState: RpgSnapshotState,
+  prose: ProseOverrides,
 ): Promise<Awaited<ReturnType<RpgContext["buildFoldedTurn"]>> | null> {
   try {
     const reconcile = await isReconcileBeat(ctx.db, game);
-    return await ctx.buildFoldedTurn({ chatId: game.chatId, baseState, reconcile });
+    return await ctx.buildFoldedTurn({ chatId: game.chatId, baseState, reconcile, prose });
   } catch (err) {
     ctx.onFoldBuildFailed({ chatId: game.chatId, gameId: game.id, err });
     return null;
@@ -145,7 +147,10 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
   // The wire class arrives as a CAPABILITY fact (`coEmitsProseWithTools`, resolved at compose) — rpg never sees
   // a credential source. An EXPLICIT `cheap` is untouched: the guard governs only where folded lands.
   const foldable = game.config.extractionMode === "folded" && !trackersReadOnly && !foldGuarded;
-  const folded = foldable ? await buildFoldedTurnSafely(ctx, game, curSnapshot) : null;
+  // PROSE-1 S4 — the fold mounts the SAME six tool descriptions the post-commit round would send, so it gets
+  // the SAME prose the round will later receive on `RpgTurnContext.prose` (both are this turn's resolution).
+  // The two vehicles teaching one vocabulary is structural, not a convention.
+  const folded = foldable ? await buildFoldedTurnSafely(ctx, game, curSnapshot, prose) : null;
 
   // The reminder injects state as FLAVOR — never tool-update guidance. That holds on the folded path too: the
   // tool DESCRIPTIONS teach the write surface (measured: a hosted strong model co-emits narrative AND 1–3

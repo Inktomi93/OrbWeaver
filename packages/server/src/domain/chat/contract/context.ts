@@ -607,6 +607,22 @@ export interface RpgTurnContext {
    *  registration, so speaker 1's in-flight state round is still reachable through this signal while speaker 2
    *  generates. */
   readonly signal: AbortSignal | undefined;
+  /** THE TURN'S FROZEN PROSE VIEW (PROSE-1 S4) — the model-facing overrides the engine resolved for THIS turn
+   *  (`prep.assembleContext.prose`: the room host's user-tier blob and the RESOLVED preset's, composed by
+   *  home; on a game turn that preset is the game's GM preset, via the redirect `buildTurnContext` runs before
+   *  its foreign read). The post-commit state round resolves its extraction prompts through it.
+   *
+   *  CAPTURED, NEVER RE-RESOLVED — the same reason `connection` and `ownerConsented` ride here (the
+   *  [foreign-inputs-seam] shape: already-resolved values threaded IN). The round runs AFTER the turn's own
+   *  prompt was assembled and after the reply committed, so resolving the preset a second time at round time
+   *  would open a window where the extractor is taught a different vocabulary than the narrator was — a
+   *  divergence by construction, and one that would only show up when a host edits a teach mid-story. The
+   *  gather's fold mount (`RpgBuildFoldedTurn.prose`) receives the SAME resolution from the SAME turn, so
+   *  the folded vehicle and the round it replaces can never teach two things either.
+   *
+   *  A hand-built turn context (tests, previews) that omits it gets `{}` ⇒ every slot resolves to its shipped
+   *  default ⇒ byte-identical to pre-PROSE-1. */
+  readonly prose: ProseOverrides;
 }
 
 export interface ChatRpgOps {
