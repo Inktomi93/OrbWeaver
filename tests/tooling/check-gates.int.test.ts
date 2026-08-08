@@ -726,6 +726,10 @@ function writeFixtures(): void {
   fx(`${D}/__g_sidegen/__g_s.ts`, "export const opts = { temperature: 0.3, maxTokens: 24 };\n");
   // no-media-queries-in-features: a viewport breakpoint variant in a feature className.
   fx("packages/client/src/features/__g_mediaq/components/__g_c.tsx", 'export const C = () => <div className="md:flex-row" />;\n');
+  // no-pointer-variants-in-features: a pointer CAPABILITY variant in a feature className (the pointer twin of
+  // the width gate above). The blindness arm is real-tree-only (anchor-guarded), so it stays out of this
+  // fixture — it is driven by the gate's own mustFlag.
+  fx("packages/client/src/features/__g_ptrvar/components/__g_c.tsx", 'export const C = () => <div className="pointer-coarse:hidden" />;\n');
   // no-mint-via-cast: minting an id by laundering a fresh UUID through castId (assembled).
   fx(`${D}/__g_mintcast/x.ts`, `export const a = castId(crypto.${["random", "UUID"].join("")}());\n`);
   // no-multiplexed-mutation-error: two mutations' errors multiplexed through ??.

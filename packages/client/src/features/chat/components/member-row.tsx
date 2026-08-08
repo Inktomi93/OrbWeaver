@@ -26,7 +26,7 @@ import { Menu, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
-import { ConfirmDialog, ROW_REVEAL, SettingCheckboxRow } from "#components";
+import { ConfirmDialog, HIDE_AT_COARSE, ROW_REVEAL, SettingCheckboxRow } from "#components";
 import { cn } from "#lib";
 import type { MEMBER_ROW_CONFIRMS, MemberCastRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows.ts";
 import { rowAccessibleName } from "../lib/member-rows.ts";
@@ -198,7 +198,7 @@ function CastInlineCluster({ row, actions }: { readonly row: MemberCastRow; read
     // a stationary pointer — the hit-test oscillator the preset list measured (row-reveal.ts; gate
     // `no-hover-display-swap`). `pointer-coarse:hidden` keeps today's coarse behavior (the cluster is never
     // rendered there — the row tap opens the Menu) and is a DEVICE-class swap, which cannot oscillate.
-    <Row gap="field" align="center" className={cn(ROW_REVEAL, "pointer-coarse:hidden") ?? ""}>
+    <Row gap="field" align="center" className={cn(ROW_REVEAL, HIDE_AT_COARSE) ?? ""}>
       <Button
         type="button"
         intent="ghost"
