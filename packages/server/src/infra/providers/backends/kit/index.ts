@@ -13,13 +13,13 @@ export { flattenAbortSignal, foldAbortInto } from "./abort-flatten.ts";
 // ── Outbound image → Anthropic Messages content block (MA-10; agent-sdk summarize) ────────
 export { toAnthImageBlock } from "./anth-image-block.ts";
 // ── Anthropic cache_control: constants, the model anchor, the routing pin, the placement primitive ──
-export type { AnthropicCacheDirective, CacheControlTextBlock } from "./cache-control.ts";
+export type { AnthropicCacheDirective, CacheBreakpointPlacement, CacheBreakpointRow, CacheControlTextBlock } from "./cache-control.ts";
 export {
   ANTHROPIC_CACHE_1H,
   anthropicCacheDirective,
   CACHE_TTLS,
   cacheControlBlock,
-  computeCacheBreakpointOffsets,
+  computeCacheBreakpointPlacements,
   effectiveProviderRouting,
   isAnthropicModel,
 } from "./cache-control.ts";

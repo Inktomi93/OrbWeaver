@@ -12,7 +12,7 @@
 // here with the live knobs, not in the restart-gated launch editor).
 
 import type { AppSettings, EffectiveAppConfig } from "@orb/contracts/settings";
-import { IMAGE_VARIANT_QUALITY_MAX, IMAGE_VARIANT_QUALITY_MIN } from "@orb/contracts/settings";
+import { IMAGE_VARIANT_QUALITY_MAX, IMAGE_VARIANT_QUALITY_MIN, PROMPT_CACHE_MIN_DEPTH_CEIL, PROMPT_CACHE_MIN_DEPTH_FLOOR } from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -104,6 +104,17 @@ const KNOBS: readonly KnobDescriptor[] = [
     patch: (v) => ({ maxDatabankBytes: v }),
   },
   {
+    id: "promptCacheMinDepth",
+    label: "Prompt-cache depth floor (0–20)",
+    hint: "How many of the newest exchanges stay OUT of the Anthropic prompt cache. 0 uses each turn's own computed minimum.",
+    step: 1,
+    min: PROMPT_CACHE_MIN_DEPTH_FLOOR,
+    max: PROMPT_CACHE_MIN_DEPTH_CEIL,
+    read: (r) => r.promptCacheMinDepth,
+    overridden: (o) => isOverridden(o.promptCacheMinDepth),
+    patch: (v) => ({ promptCacheMinDepth: v }),
+  },
+  {
     id: "genPresencePenalty",
     label: "vLLM presence-penalty default",
     hint: "The per-request presence_penalty the vLLM chat surface applies when a preset is silent (any served model, incl. role/side-gen). A preset that sets its own value still wins.",
@@ -183,6 +194,7 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
           catalogRefreshIntervalMs: null,
           imageVariantQuality: null,
           maxDatabankBytes: null,
+          promptCacheMinDepth: null,
           engineLaunch: { genPresencePenalty: null },
         },
       })
@@ -216,6 +228,14 @@ function SystemTuningBody({ sectionId }: { readonly sectionId: string }): ReactE
             step={knob.step}
           />
         ))}
+        {/* The prompt-cache knob's clamp, ALWAYS visible (the D126 teaching-copy rider): a `hint` is
+            hover-only chrome, and "the number I typed is not the number in use" is exactly the surprise a
+            tooltip cannot carry. */}
+        <Text voice="gloss">
+          The prompt-cache depth floor only ever moves the cache breakpoint DEEPER. Each turn already computes the shallowest depth that is safe for it, and
+          keeps that when it is deeper than this number — so a smaller value here changes nothing, and a turn whose prompt is still shifting is never cached at
+          all. Raise it if you see cache writes on turns that should have been reads.
+        </Text>
         <AdminOverrideResetRow
           dirty={dirty}
           anyOverridden={anyOverridden}

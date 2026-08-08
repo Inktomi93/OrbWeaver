@@ -31,7 +31,7 @@ export const logLevelSchema = z.enum(LOG_LEVELS);
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const APP_SETTINGS_SCHEMA_VERSION = 5;
+export const APP_SETTINGS_SCHEMA_VERSION = 6;
 
 const SCORE_FLOOR = 0;
 const SCORE_CEIL = 1;
@@ -285,6 +285,26 @@ export type StructuredOutputShape = (typeof STRUCTURED_OUTPUT_SHAPES)[number];
 export const DEFAULT_STRUCTURED_OUTPUT_SHAPE: StructuredOutputShape = "as-projected";
 const structuredOutputShapeSchema = z.enum(STRUCTURED_OUTPUT_SHAPES);
 
+// ── Prompt-cache depth floor (findings §5) ───────────────────────────────────────────────────────────────
+// HOW DEEP into a conversation the Anthropic history `cache_control` breakpoint sits, counted in ROLE
+// SWITCHES from the end (`infra/providers/backends/kit/cache-control.ts` owns the axis; within-turn tool
+// exchanges are transparent to it). Depth N means the newest N role groups stay OUTSIDE the cached prefix —
+// at depth 2, slots 0 and 1 stay volatile.
+//
+// It is a FLOOR, not an override. Every turn already computes its own MINIMUM safe depth
+// (`chat/assembly/shape.ts:computeHistoryBreakpoint`), which aborts outright when something mutates the
+// stable prefix; this knob can only push the breakpoint DEEPER than that minimum, never shallower. A
+// shallower breakpoint is not a preference, it is a guaranteed wasted cache write — the placer would pin
+// bytes that change every turn — so the axis has one honest direction and `Math.max` is the whole rule.
+// The floor value 0 is therefore the exact identity: `max(0, safeDepth) === safeDepth`, i.e. an unset knob
+// leaves every wire body byte-identical.
+//
+// Ceiling 20: Anthropic's cache lookback spans ~20 blocks, so a deeper breakpoint has nothing left to find.
+/** The schema bound AND the born-in-DB default, deliberately the same constant: 0 = "use the turn's own
+ *  computed minimum" is both the shallowest meaningful value and the shipped behavior, byte-identical. */
+export const PROMPT_CACHE_MIN_DEPTH_FLOOR = 0;
+export const PROMPT_CACHE_MIN_DEPTH_CEIL = 20;
+
 // Every field `.nullable()` AS WELL AS `.optional().catch(undefined)`: null is the CLEAR sentinel.
 export const appSettingsSchema = z.object({
   corpusAutoindex: z.boolean().nullable().optional().catch(undefined),
@@ -316,6 +336,9 @@ export const appSettingsSchema = z.object({
   discreetLogin: z.boolean().nullable().optional().catch(undefined),
   // The JSON-Schema shape structured-output requests ride (D126) — see STRUCTURED_OUTPUT_SHAPES above.
   structuredOutputShape: structuredOutputShapeSchema.nullable().optional().catch(undefined),
+  // The Anthropic prompt-cache breakpoint depth FLOOR (role switches from the end) — see above. Bounded at
+  // parse: an out-of-range value drops to the floor rather than pushing a breakpoint past the lookback.
+  promptCacheMinDepth: z.number().int().min(PROMPT_CACHE_MIN_DEPTH_FLOOR).max(PROMPT_CACHE_MIN_DEPTH_CEIL).nullable().optional().catch(undefined),
 });
 
 export type AppSettings = z.infer<typeof appSettingsSchema>;
@@ -340,6 +363,10 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
   // v4→v5: `structuredOutputShape` (D126) is purely additive/optional — an absent field reads back as its
   // born-in-DB floor (`as-projected`), so no stored blob changes meaning. Same shape as the two lifts above.
   4: (config) => ({ ...config, schemaVersion: 5 }),
+  // v5→v6: `promptCacheMinDepth` (findings §5) is purely additive/optional — an absent field reads back as
+  // its born-in-DB floor 0, which is the identity of the `Math.max` it feeds, so no stored blob changes
+  // meaning and no wire body moves.
+  5: (config) => ({ ...config, schemaVersion: 6 }),
 };
 
 export const appSettingsConfig = defineVersionedConfig<AppSettings>({
@@ -1077,6 +1104,7 @@ export interface EffectiveAppConfig {
   catalogRefreshIntervalMs: number;
   imageVariantQuality: number;
   structuredOutputShape: StructuredOutputShape;
+  promptCacheMinDepth: number;
 }
 
 /** The admin-surface read for AppSettings: the RESOLVED config (floor ⊕ override, every field present) PLUS

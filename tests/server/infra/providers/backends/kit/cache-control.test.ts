@@ -3,12 +3,13 @@
 // receive Anthropic-only cache_control.
 
 import { logger } from "@orb/server/foundation/observability";
+import type { CacheBreakpointRow } from "@orb/server/infra/providers/backends/kit";
 import {
   ANTHROPIC_CACHE_1H,
   anthropicCacheDirective,
   CACHE_TTLS,
   cacheControlBlock,
-  computeCacheBreakpointOffsets,
+  computeCacheBreakpointPlacements,
   effectiveProviderRouting,
   isAnthropicModel,
 } from "@orb/server/infra/providers/backends/kit";
@@ -117,76 +118,134 @@ describe("anthropicCacheDirective — the ttl allowlist guard", () => {
   });
 });
 
-// computeCacheBreakpointOffsets (W3): the PURE positional core of the R1 rolling PAIR. From the ONE
-// SHAPE-computed safe offset it returns the pair of offsets-from-end (`depth` AND `depth+2`) whose
-// cumulative prefix clears the per-model `cacheMinTokens` floor. No wire types — each runner (OR
-// openai-compat / anth-direct) maps the returned offsets to its own block dialect. The single breakpoint
-// was the regression (part 01 §1d / part 02 §5d); this hoisted core emits the pair.
-describe("computeCacheBreakpointOffsets — the R1 rolling pair", () => {
-  // 6 messages, 500 tokens each; systemStatic 0. Cumulative prefix at index i = 500 * (i + 1).
-  const messageTokens = [500, 500, 500, 500, 500, 500];
+// computeCacheBreakpointPlacements (W3): the PURE positional core of the R1 rolling PAIR. From the ONE
+// SHAPE-computed safe DEPTH it returns the pair of placements (`depth` AND `depth+2`) whose cumulative
+// prefix clears the per-model `cacheMinTokens` floor. No wire types — each runner (OR openai-compat /
+// anth-direct) maps the returned indices to its own block dialect. The single breakpoint was the regression
+// (part 01 §1d / part 02 §5d); this hoisted core emits the pair.
+//
+// The DEPTH axis is role switches from the end, with within-turn tool exchanges transparent and system rows
+// consuming no depth (findings §5 — the source file states the full rationale). On a plain role-alternating
+// history depth === array offset, which is why the pre-existing rows below are unchanged.
+describe("computeCacheBreakpointPlacements — the R1 rolling pair", () => {
+  // 6 role-alternating messages, 500 tokens each; systemStatic 0. Cumulative prefix at index i = 500*(i+1).
+  const rows = (["user", "assistant", "user", "assistant", "user", "assistant"] as const).map((role) => ({
+    role,
+    toolExchange: false,
+    tokens: 500,
+  }));
 
-  test("returns BOTH offsets of the pair when each clears the floor", () => {
-    // offset 1 → idx 4 (prefix 2500); offset 3 → idx 2 (prefix 1500). floor 1024: both clear.
-    const offsets = computeCacheBreakpointOffsets({
-      messageTokens,
-      systemStaticTokens: 0,
-      offsetFromEnd: 1,
-      cacheMinTokens: 1024,
-    });
-    expect(offsets).toEqual([1, 3]);
+  test("returns BOTH placements of the pair when each clears the floor", () => {
+    // depth 1 → idx 4 (prefix 2500); depth 3 → idx 2 (prefix 1500). floor 1024: both clear.
+    expect(computeCacheBreakpointPlacements({ rows, systemStaticTokens: 0, depthFromEnd: 1, cacheMinTokens: 1024 })).toEqual([
+      { depth: 1, index: 4 },
+      { depth: 3, index: 2 },
+    ]);
   });
 
   test("the pair is `depth` AND `depth+2` (not two adjacent breakpoints)", () => {
-    const offsets = computeCacheBreakpointOffsets({
-      messageTokens,
-      systemStaticTokens: 0,
-      offsetFromEnd: 0,
-      cacheMinTokens: 1,
-    });
-    expect(offsets).toEqual([0, 2]);
+    expect(computeCacheBreakpointPlacements({ rows, systemStaticTokens: 0, depthFromEnd: 0, cacheMinTokens: 1 })).toEqual([
+      { depth: 0, index: 5 },
+      { depth: 2, index: 3 },
+    ]);
   });
 
   test("drops the deeper (`depth+2`) breakpoint when its prefix is below the floor (still keeps depth)", () => {
-    // offset 1 → idx 4 (prefix 2500 ✓); offset 3 → idx 2 (prefix 1500 ✗ under 2000). Only `depth` survives.
-    const offsets = computeCacheBreakpointOffsets({
-      messageTokens,
-      systemStaticTokens: 0,
-      offsetFromEnd: 1,
-      cacheMinTokens: 2000,
-    });
-    expect(offsets).toEqual([1]);
+    // depth 1 → idx 4 (prefix 2500 ✓); depth 3 → idx 2 (prefix 1500 ✗ under 2000). Only `depth` survives.
+    expect(computeCacheBreakpointPlacements({ rows, systemStaticTokens: 0, depthFromEnd: 1, cacheMinTokens: 2000 })).toEqual([{ depth: 1, index: 4 }]);
   });
 
-  test("drops the deeper breakpoint when `depth+2` runs off the front of the array", () => {
-    // offset 5 → idx 0 (in range); offset 7 → idx -2 (out of range). Only `depth` survives.
-    const offsets = computeCacheBreakpointOffsets({
-      messageTokens,
-      systemStaticTokens: 0,
-      offsetFromEnd: 5,
-      cacheMinTokens: 1,
-    });
-    expect(offsets).toEqual([5]);
+  test("drops the deeper breakpoint when `depth+2` runs off the front of the history", () => {
+    // depth 5 → idx 0 (in range); depth 7 → no such role group. Only `depth` survives.
+    expect(computeCacheBreakpointPlacements({ rows, systemStaticTokens: 0, depthFromEnd: 5, cacheMinTokens: 1 })).toEqual([{ depth: 5, index: 0 }]);
   });
 
   test("returns EMPTY when even `depth` is below the floor (no breakpoint placed)", () => {
-    const offsets = computeCacheBreakpointOffsets({
-      messageTokens: [10, 10],
-      systemStaticTokens: 0,
-      offsetFromEnd: 0,
-      cacheMinTokens: 1024,
-    });
-    expect(offsets).toEqual([]);
+    const tiny = [
+      { role: "user", toolExchange: false, tokens: 10 },
+      { role: "assistant", toolExchange: false, tokens: 10 },
+    ];
+    expect(computeCacheBreakpointPlacements({ rows: tiny, systemStaticTokens: 0, depthFromEnd: 0, cacheMinTokens: 1024 })).toEqual([]);
   });
 
   test("the systemStatic tokens count toward the prefix floor", () => {
+    const tiny = [
+      { role: "user", toolExchange: false, tokens: 10 },
+      { role: "assistant", toolExchange: false, tokens: 10 },
+    ];
     // depth idx prefix would be 20 without system; systemStatic 2000 pushes it over 1024.
-    const offsets = computeCacheBreakpointOffsets({
-      messageTokens: [10, 10],
-      systemStaticTokens: 2000,
-      offsetFromEnd: 0,
+    expect(computeCacheBreakpointPlacements({ rows: tiny, systemStaticTokens: 2000, depthFromEnd: 0, cacheMinTokens: 1024 })).toEqual([
+      { depth: 0, index: 1 }, // depth 2 has no role group left
+    ]);
+  });
+});
+
+// The DEPTH AXIS itself (findings §5). Each case below is a history shape the array-offset placer got wrong,
+// or one it got right and must keep getting right.
+describe("computeCacheBreakpointPlacements — the conversational depth axis", () => {
+  // 600 tokens/row so a TWO-row prefix (the `depth+2` leg's target at index 1) clears the 1024 floor.
+  const conv = (role: string, tokens = 600): CacheBreakpointRow => ({ role, toolExchange: false, tokens });
+  const toolRow = (role: string, tokens = 20): CacheBreakpointRow => ({ role, toolExchange: true, tokens });
+
+  test("a within-turn tool exchange consumes NO depth — depth 1 lands on the same row before and after", () => {
+    const canon = [conv("user"), conv("assistant"), conv("user"), conv("assistant"), conv("user")];
+    const before = computeCacheBreakpointPlacements({ rows: canon, systemStaticTokens: 0, depthFromEnd: 1, cacheMinTokens: 1024 });
+    // One recursion depth of THREE parallel calls: 1 assistant tool-call row + 3 `tool` rows = 4 array rows.
+    const after = computeCacheBreakpointPlacements({
+      rows: [...canon, toolRow("assistant"), toolRow("tool"), toolRow("tool"), toolRow("tool")],
+      systemStaticTokens: 0,
+      depthFromEnd: 1,
       cacheMinTokens: 1024,
     });
-    expect(offsets).toEqual([0]); // depth+2 (idx -2) out of range
+    expect(before.map((p) => p.index)).toEqual([3, 1]);
+    expect(after).toEqual(before);
+  });
+
+  test("adjacent same-role rows are ONE depth group (the role-switch unit, not the array unit)", () => {
+    // user user assistant user — `roleHandling:"none"` delivers unsquashed runs. depth 0 = the trailing user
+    // group; depth 1 = the assistant; depth 2 = the leading user RUN, whose newest row is index 1.
+    const rows = [conv("user"), conv("user"), conv("assistant"), conv("user")];
+    expect(computeCacheBreakpointPlacements({ rows, systemStaticTokens: 0, depthFromEnd: 2, cacheMinTokens: 1 })).toEqual([{ depth: 2, index: 1 }]);
+  });
+
+  test("a system row consumes NO depth and never receives a breakpoint (ST parity)", () => {
+    // user assistant SYSTEM user — the mid-conversation system injection must not shift the axis.
+    const rows = [conv("user"), conv("assistant"), conv("system"), conv("user")];
+    const placed = computeCacheBreakpointPlacements({ rows, systemStaticTokens: 0, depthFromEnd: 1, cacheMinTokens: 1 });
+    expect(placed).toEqual([{ depth: 1, index: 1 }]); // the assistant, NOT the system row at index 2
+  });
+
+  test("a trailing assistant PREFILL row is depth 0 — our anchor is the volatile tail, whatever its role", () => {
+    // ST re-anchors past the prefill; we do NOT (`computeHistoryBreakpoint` counts the tail as index 0, so
+    // re-anchoring would shift every depth one group against its own producer). depth 1 → the user turn.
+    const rows = [conv("user"), conv("assistant"), conv("user"), conv("assistant")];
+    expect(computeCacheBreakpointPlacements({ rows, systemStaticTokens: 0, depthFromEnd: 1, cacheMinTokens: 1 })).toEqual([
+      { depth: 1, index: 2 },
+      { depth: 3, index: 0 },
+    ]);
+  });
+
+  test("depth 0 targets the newest conversational row, skipping a trailing tool exchange", () => {
+    const rows = [conv("user"), conv("assistant"), conv("user"), toolRow("assistant"), toolRow("tool")];
+    expect(computeCacheBreakpointPlacements({ rows, systemStaticTokens: 0, depthFromEnd: 0, cacheMinTokens: 1 })).toEqual([
+      { depth: 0, index: 2 },
+      { depth: 2, index: 0 },
+    ]);
+  });
+
+  test("an all-tool-exchange history has no conversational depth at all", () => {
+    expect(
+      computeCacheBreakpointPlacements({ rows: [toolRow("assistant"), toolRow("tool")], systemStaticTokens: 5000, depthFromEnd: 0, cacheMinTokens: 1 }),
+    ).toEqual([]);
+  });
+
+  test("tool-exchange tokens still COUNT toward the prefix floor (they are real bytes on the wire)", () => {
+    // The only row before the target is a tool row worth 2000 tokens; the floor must see it.
+    const rows = [toolRow("tool", 2000), conv("user", 10), conv("assistant", 10)];
+    expect(computeCacheBreakpointPlacements({ rows, systemStaticTokens: 0, depthFromEnd: 1, cacheMinTokens: 1024 })).toEqual([{ depth: 1, index: 1 }]);
+  });
+
+  test("an empty history places nothing", () => {
+    expect(computeCacheBreakpointPlacements({ rows: [], systemStaticTokens: 9999, depthFromEnd: 0, cacheMinTokens: 1 })).toEqual([]);
   });
 });

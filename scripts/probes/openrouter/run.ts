@@ -1,7 +1,7 @@
 // The OpenRouter provider probe batch — one harness, five standing probes.
 //
-//   PROBES=f4,f4a,f5,or5,or7   subset (default: all)
-//   FORCE=1                    re-run a probe that already has a verdict row in its JSONL
+//   PROBES=f4,f4a,f5,or5,or5b,or7,or7b   subset (default: all)
+//   FORCE=1                              re-run a probe that already has a verdict row in its JSONL
 //
 // Resume unit is the PROBE, not the arm: the cache probes are only meaningful with their arms fired
 // back-to-back inside one 5-minute Anthropic cache TTL, so a half-finished cache probe MUST be re-run
@@ -15,9 +15,11 @@ import * as f4 from "./f4-tool-description-cache.ts";
 import * as f4a from "./f4a-effort-cache.ts";
 import * as f5 from "./f5-effort-translation.ts";
 import * as or5 from "./or5-breakpoint-offsets.ts";
+import * as or5b from "./or5b-depth-invariance.ts";
 import * as or7 from "./or7-reasoning-roundtrip.ts";
+import * as or7b from "./or7b-multihop-reasoning-drop.ts";
 
-const ALL = [f4, f4a, f5, or5, or7];
+const ALL = [f4, f4a, f5, or5, or5b, or7, or7b];
 
 const requested = (process.env["PROBES"] ?? "").trim();
 const selected = requested.length > 0 ? ALL.filter((p) => requested.split(",").includes(p.id)) : ALL;

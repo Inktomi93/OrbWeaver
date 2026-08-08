@@ -21,6 +21,7 @@ import {
   DEFAULT_LOCAL_MULTI_USER,
   DEFAULT_MAX_IMAGE_BYTES,
   DEFAULT_STRUCTURED_OUTPUT_SHAPE,
+  PROMPT_CACHE_MIN_DEPTH_FLOOR,
 } from "@orb/contracts/settings";
 import { DATABANK_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import { env } from "#foundation/env";
@@ -145,5 +146,6 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     localMultiUser: overrides.localMultiUser ?? DEFAULT_LOCAL_MULTI_USER,
     discreetLogin: overrides.discreetLogin ?? DEFAULT_DISCREET_LOGIN,
     structuredOutputShape: overrides.structuredOutputShape ?? DEFAULT_STRUCTURED_OUTPUT_SHAPE,
+    promptCacheMinDepth: overrides.promptCacheMinDepth ?? PROMPT_CACHE_MIN_DEPTH_FLOOR,
   };
 }

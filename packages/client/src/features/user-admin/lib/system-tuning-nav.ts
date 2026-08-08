@@ -23,5 +23,13 @@ export const SYSTEM_TUNING_SUBCATEGORY: SettingsSubcategory = {
     "upload",
     "presence",
     "penalty",
+    // The words an admin types when they are staring at a cache bill, not at this knob's own name.
+    "cache",
+    "prompt cache",
+    "depth",
+    "breakpoint",
+    "anthropic",
+    "claude",
   ],
+  settings: [{ id: "promptCacheMinDepth", label: "Prompt-cache depth floor", keywords: ["cache", "depth", "breakpoint", "anthropic", "claude", "cost"] }],
 };
