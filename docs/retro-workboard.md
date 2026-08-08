@@ -687,8 +687,17 @@ security lens.
   spec row = "recent documents + an ingest-health line"). No new verb (rides databank.list's exact
   query key — free, shared invalidation, can't disagree on phase); health counts EMBEDDED passages;
   self-caught + fixed a real 12.5px chip overflow at 390px w/ planted control (and replaced a
-  green-that-couldn't-fail fixture). **I-2 DATABANK: S1+S2+S3 all built** — side-eye on the tile in
-  flight (`ac0fdff5020072e81`).
+  green-that-couldn't-fail fixture). **I-2 DATABANK: S1+S2+S3 all built.** Tile side-eye verdict:
+  SHIP WITH FIXES — ARIA grammar "exemplary", deep-link/touch/focus praised; **FIX LEG on the warm
+  lane**: 2 P1 (danger/soft Badge 4.28:1 — a SHARED-PRIMITIVE contrast defect every danger+soft
+  badge inherits · "Add your first document" no-ops into a paraphrase of itself → the add-document
+  dialog promotes to a shell MODAL SLOT) + 6 P2 (actionable aggregate chips · empty-state action
+  dedup · two-homes-on-Home (jump row suppression when a tile exists) · the 100-cap census lie →
+  "100+" · passages-vs-chunks units teach each other · conditional promotion above the jump grid when
+  attention>0) + 3 P3. Side-eye killed its own CLS P1 with its own receipts (home-boot CLS 0.134 is
+  a COLD DEV-MODULE artifact, NOT the tile — the F14 reservation is byte-exact; LEAD: confirm CLS
+  against a prod build someday). Also: design-audit ran effectively clean and would have shipped
+  all of this — it structurally cannot see state-dependent contrast.
 - **✅ CONFIG-FIX-2 merged `6fddc5cca` + final side-eye pass: SHIP WITH FIXES → CONFIG-FINAL lane
   (`af99c962b2df8aeb1`).** Roster rows PASS (one id, one fact — "the shape other list panes should
   copy"). **ESCAPE FINDING CLEARED** — reproduced dismissing 3/3 both focus arms, raw store and
