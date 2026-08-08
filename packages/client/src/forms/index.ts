@@ -5,6 +5,11 @@
 
 export type { AutosaveStatusProps } from "./autosave-status.tsx";
 export { AutosaveStatus } from "./autosave-status.tsx";
+// The character-capped-field affordances (side-eye PROSE-LIMIT): the near-cap counter + the autosize
+// ceiling, shared by every editor whose field carries a `maxLength`.
+export type { CappedFieldCounterProps } from "./capped-field.tsx";
+export { CappedFieldCounter } from "./capped-field.tsx";
+export { CAPPED_FIELD_MAX_ROWS, showsCappedFieldCounter } from "./capped-field-model.ts";
 export { useFieldContext, useFormContext } from "./contexts.ts";
 // D78 session-boundary autosave factory (autosave-form-doctrine.md §1–§6) — the ONE autosave form entry:
 // a module-scope `createAutosaveEntityForm<TValues>(config)` returns the boundary COMPONENT that owns

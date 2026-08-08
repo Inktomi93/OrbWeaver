@@ -1,5 +1,5 @@
-// The ONE live autosave status affordance (north-star §7 / D66 A4): "Saved / Saving… / Save failed —
-// Retry", rendered where an editor's Save button used to be. Fed by createAutosaveEntityForm's exposed
+// The ONE live autosave status affordance (north-star §7 / D66 A4): "Saved / Saving… / Not saved / Save
+// failed — Retry", rendered where an editor's Save button used to be. Fed by createAutosaveEntityForm's exposed
 // `saveState` + `retrySave` — never a per-surface hand-roll. The character editor is the first consumer;
 // presets + the settings panes adopt it next.
 // Compose-only: @orb/ui primitives, no raw intrinsics.
@@ -39,6 +39,22 @@ export function AutosaveStatus({ state, onRetry, caption }: AutosaveStatusProps)
         <Button type="button" intent="ghost" size="sm" onClick={onRetry}>
           Retry
         </Button>
+      </Row>
+    );
+  }
+  if (state === "blocked") {
+    // A HELD write, not a failed one (side-eye PROSE-LIMIT P2): the driver gates on `form.state.isValid`, so
+    // while a field is refusing its value nothing is attempted — and this line used to keep reading "Saved"
+    // over it, which is the only status in the set that is actively false. It stays POLITE, unlike `error`:
+    // the interrupting announcement belongs to the field's own error/alert (the REASON); this is the STATE,
+    // and it is what a screen-reader user hears when they leave the field expecting an autosave. No retry —
+    // retrying an invalid form does nothing; the fix is in the field.
+    return (
+      <Row align="center" data-slot="autosave-status" gap="field" role="status" aria-live="polite">
+        <Text className="text-destructive" voice="gloss">
+          Not saved
+        </Text>
+        <Text voice="gloss">Fix the highlighted field to save.</Text>
       </Row>
     );
   }

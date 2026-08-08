@@ -70,6 +70,29 @@ test("disabled blocks input and drops the interactive skin", async ({ mount, pag
 
 // field-sizing: content makes the browser ignore `rows` for sizing — an empty rows={3} field would
 // collapse to a single line without the rows-floor min-height re-establishing "at least 3 lines".
+// The OTHER half of the same law: `rows` floors, `maxRows` ceilings. Without a ceiling the autosize is
+// unbounded, and a long-but-legal value (a capped 4500-char prose override) rendered a 2333px control that
+// pushed its own counter/error/save-status off the fold — the affordances that state the cap, hidden by the
+// value the cap is about (side-eye PROSE-LIMIT P1).
+test("maxRows caps the autosize and the overflow becomes the field's OWN scroll", async ({ mount, page }) => {
+  const long = `${"a paragraph that will certainly wrap several times over. ".repeat(60)}`;
+  await mount(<Textarea aria-label="Scene" defaultValue={long} maxRows={6} rows={3} />);
+  const control = page.getByRole("textbox");
+  const measured = await control.evaluate((el: HTMLTextAreaElement) => ({
+    lineHeight: Number.parseFloat(getComputedStyle(el).lineHeight),
+    client: el.clientHeight,
+    content: el.scrollHeight,
+    overflowY: getComputedStyle(el).overflowY,
+  }));
+  // The ceiling is the SAME line-box arithmetic the floor uses (6 lines + block padding + borders), so it is
+  // asserted against the resolved line-height rather than a px literal. The +2 lines of slack is the padding
+  // + border the formula adds; the point of the assertion is that it is SIX-ish, not sixty.
+  expect(measured.client).toBeLessThanOrEqual(measured.lineHeight * 8);
+  // Not a clip: every byte is still reachable inside the control.
+  expect(measured.content).toBeGreaterThan(measured.client);
+  expect(measured.overflowY).toBe("auto");
+});
+
 test("rows sets a min-height floor under field-sizing: content", async ({ mount, page }) => {
   await mount(<Textarea aria-label="Scene" rows={3} />);
   const control = page.getByRole("textbox");

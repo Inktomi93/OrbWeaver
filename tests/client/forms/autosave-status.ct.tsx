@@ -15,6 +15,16 @@ test("reads out each lifecycle state and the error-state Retry fires onRetry", a
   await component.getByRole("button", { name: "set saving" }).click();
   await expect(component.getByText("Saving…")).toBeVisible();
 
+  // The HELD-write arm (side-eye PROSE-LIMIT P2): the driver gates on `form.state.isValid`, so an invalid
+  // form is a write nobody is making — and this line used to keep reading "Saved" over it. It is POLITE
+  // (role=status), unlike `error`: nothing failed, and the interrupting announcement belongs to the field's
+  // own error. No Retry — retrying an invalid form does nothing.
+  await component.getByRole("button", { name: "set blocked" }).click();
+  const blocked = component.locator('[data-slot="autosave-status"]');
+  await expect(blocked).toContainText("Not saved");
+  await expect(blocked).toHaveAttribute("role", "status");
+  await expect(blocked.getByRole("button", { name: "Retry" })).toHaveCount(0);
+
   await component.getByRole("button", { name: "set error" }).click();
   await expect(component.getByText("Save failed —")).toBeVisible();
 

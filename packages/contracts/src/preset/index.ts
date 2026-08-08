@@ -37,7 +37,11 @@ const MAX_CHOICE_VALUE_LENGTH = 10_000;
 const MIN_QUESTION_LENGTH = 1;
 const MAX_QUESTION_LENGTH = 2000;
 const MAX_SEPARATOR_LENGTH = 64;
-const MAX_FORMAT_STRING_LENGTH = 10_000;
+/** The per-slot `formatStrings` cap. EXPORTED because the editor must wear it: this schema is also the READ
+ *  path (`parsePromptConfig` degrades a failed parse to DEFAULT_PROMPT_CONFIG), so an over-cap format string
+ *  is not a bounced field — it is the whole preset reading as defaults. The field caps and counts off THIS
+ *  number rather than re-spelling it (the `PROSE_MAX_CHARS` precedent). */
+export const MAX_FORMAT_STRING_LENGTH = 10_000;
 const MIN_INJECT_DEPTH = 0;
 const INJECT_ORDER_MIN = -1_000_000;
 const INJECT_ORDER_MAX = 1_000_000;
