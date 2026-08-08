@@ -238,6 +238,7 @@ export {
   reportSectionSaveStatus,
   SAVE_LIFECYCLE_STATES,
   useAggregateSaveStatus,
+  useBlockedSaveSections,
   useErroredSaveSections,
 } from "./settings-save-status-store.ts";
 export type { SettingsSectionRegistry } from "./settings-section-registry-context.ts";

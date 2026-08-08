@@ -94,6 +94,12 @@ function SlotLabel({ slot }: { readonly slot: RoleSlot }): ReactElement {
 const DRAFT_STATE_BY_SAVE_STATE: Record<AutosaveSaveState, keyof typeof ROLE_ROW_SYNC_LABELS> = {
   saved: "pending",
   saving: "saving",
+  // A HELD write (the form is invalid) says the same thing to a drifted ROW as a failed one — "Not saved",
+  // and a turn still uses the persisted value. The distinction that matters (retry it vs fix a field) is
+  // carried by the pane's own status line, which is where the reason lives; a row chip that split them would
+  // be two vocabularies for one fact at the noisiest scale. This pane's form carries no validators today, so
+  // the arm exists to keep the dispatch exhaustive rather than because it fires.
+  blocked: "failed",
   error: "failed",
 };
 

@@ -6,6 +6,7 @@
 // The report/degrade halves ride their own mirrors: tests/client/forms/save-status-seam.ct.tsx (hosted vs
 // unhosted) and tests/client/forms/section-save-status.ct.tsx (the inline error arm + the section's retry).
 
+import { PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -77,4 +78,52 @@ test("ERROR: the footer's locator jumps to the failing section's anchor", async 
   await page.getByRole("button", { name: "Message handling" }).click();
   await footer.getByRole("button", { name: "Show me" }).click();
   await expect(page.locator("#settings-anchor-chat-behavior-world-info")).toBeInViewport();
+});
+
+// ── THE HELD WRITE (side-eye PROSE-LIMIT P2) ──────────────────────────────────────────────────────────
+// A hosted section renders NO inline status outside `error`, so this footer is the WHOLE save affordance for
+// a decomposed pane — and it read "Saved · Synced across your devices." while a contributed section's own
+// validator was refusing the write (the over-cap prose override: `proseOverridesSchema` heals it to absent,
+// so the editor holds the save rather than deleting the host's wording). The one line whose job is to say
+// whether this pane is saved said the opposite. Driven through the PRODUCTION composition — the real shell,
+// the real prose section, the real autosave driver — because the lie only exists in the hosted arm.
+const ARBITER_SLOT = "chat.arbiter.system";
+const ARBITER_FIELD = PROSE_SLOTS[ARBITER_SLOT].title;
+const PROSE_ANCHOR = "#settings-anchor-chat-behavior-prose";
+
+test("BLOCKED: a section holding its write flips the footer off 'Saved' and stays locatable", async ({ mount, page }) => {
+  await routeTrpc(page, {
+    "settings.getUserSettings": () => ({
+      ...SETTINGS_VIEW,
+      config: {
+        ...DEFAULT_USER_SETTINGS,
+        // Longer than the cap can ever be TYPED — the shape only pre-existing data has, and exactly what the
+        // editor refuses rather than silently deleting.
+        prose: { [ARBITER_SLOT]: { text: "y".repeat(PROSE_MAX_CHARS + 500), baseVersion: PROSE_SLOTS[ARBITER_SLOT].version } },
+      },
+    }),
+    [UPDATE_PROC]: () => ({}),
+  });
+  await mount(<SettingsShellStory />);
+  await page.getByRole("button", { name: "Chat behavior" }).click();
+  await page.getByRole("heading", { name: "World info" }).waitFor();
+
+  // A real edit on the over-cap override — the author starts trimming, the driver refuses the write.
+  const arbiter = page.getByRole("textbox", { name: ARBITER_FIELD, exact: true });
+  await arbiter.press("End");
+  await arbiter.press("Backspace");
+
+  const footer = page.locator('[data-slot="settings-save-footer"]');
+  await expect(footer).toContainText("Not saved");
+  await expect(footer).not.toContainText("Synced across your devices.");
+  // POLITE, not an alert: nothing failed — a write is waiting on the author, and the field carrying the
+  // reason does its own announcing.
+  await expect(footer).toHaveAttribute("role", "status");
+  // No second inline copy at the section: its own FIELD error is the locality (the stacked-footer smear this
+  // seam exists to prevent), so the aggregate states it once and offers the jump.
+  await expect(page.locator(`${PROSE_ANCHOR} [data-slot="autosave-status"]`)).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Message handling" }).click();
+  await footer.getByRole("button", { name: "Show me" }).click();
+  await expect(page.locator(PROSE_ANCHOR)).toBeInViewport();
 });

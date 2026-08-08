@@ -9,6 +9,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import {
   BlockSuggestionsStory,
+  CappedStory,
   DerivedSuggestionsStory,
   EmptySuggestionsStory,
   FieldWrappedStory,
@@ -204,4 +205,21 @@ test("a 60-word ghost default never becomes the field's accessible name", async 
   await expect(control).toHaveAccessibleName("Template");
   const name = await control.evaluate((el) => (el as HTMLTextAreaElement).labels?.[0]?.textContent ?? "");
   expect(name).not.toContain("Forget all other previous instructions");
+});
+
+// `maxRows` must reach the underlying control THROUGH this wrapper (the same conditional-spread seam
+// `maxLength`/`id` ride). A capped editor's whole point is that the box stops growing before it pushes its
+// own helper/counter/refusal off the fold — the wrapper owning the helper is exactly where that breaks.
+test("maxRows reaches the control, so a long value scrolls the box instead of growing past its helper", async ({ mount, page }) => {
+  await mount(<CappedStory />);
+  const control = page.getByRole("textbox");
+  const measured = await control.evaluate((el: HTMLTextAreaElement) => ({
+    lineHeight: Number.parseFloat(getComputedStyle(el).lineHeight),
+    client: el.clientHeight,
+    content: el.scrollHeight,
+  }));
+  expect(measured.client).toBeLessThanOrEqual(measured.lineHeight * 8);
+  expect(measured.content).toBeGreaterThan(measured.client);
+  // The helper is the thing an uncapped box pushes away — it must still be in the viewport with the field.
+  await expect(page.locator('[data-slot="macro-textarea-helper"]')).toBeInViewport();
 });
