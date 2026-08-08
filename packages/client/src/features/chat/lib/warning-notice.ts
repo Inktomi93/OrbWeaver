@@ -5,10 +5,19 @@
 // The doctrine forbids a silent no-op, so every warning surfaces — this maps each code to plain,
 // honest copy stating WHAT was dropped and (where it matters) that the rest still went through.
 //
+// TITLE + DESCRIPTION, never one sentence (side-eye INFRA-WARN-DEAF P1-3). As a single string these ran
+// to three wrapped lines of bold that nobody scans. The TITLE is the fact — what was dropped, readable
+// in under a second; the DESCRIPTION is the why and the reassurance. `notify.warn` renders the split.
+//
+// COPY RULE — name things the way the UI names them. The user has never seen the words "direct", "BYOK"
+// or "custom-BYO": the labels they can actually read are the connection ones in
+// `features/connections/lib/connections-model.ts` ("OpenRouter", "Custom OpenAI-compatible"). A notice
+// that names a concept absent from every screen cannot be acted on.
+//
 // One home, pure: `data/` may not import `features/`, so the bus reducer takes an injected `onWarning`
-// callback and the code→copy decision is wired HERE in the feature (mirroring `onTurnAbort`). The CT
-// QueryClient has no MutationCache seam so toast copy is unobservable in a CT (ct-queryclient
-// precedent) — this mapper is unit-tested instead, and the reducer stays a one-liner over it.
+// callback and the code→copy decision is wired HERE in the feature (mirroring `onTurnAbort`). This
+// mapper stays PURE COPY — the one notice that offers a next step gets its action attached by the
+// caller (`chat-content.tsx`), because navigation is a feature capability and copy is not.
 //
 // EXHAUSTIVE by construction (§5.5): the `switch` ends in `assertNever`, so a newly-added
 // `CHAT_WARNING_CODES` member fails `tsc` until it is given copy — a new degrade can never ship
@@ -16,35 +25,48 @@
 // the sibling `turnAbortNotice` shape and carries the same tsc guarantee.)
 
 import type { ChatWarningCode } from "@orb/contracts/chat";
+import type { NotifyNotice } from "#lib";
 
 /** The user-visible notice for a chat `warning` code — honest, plain-language copy voiced like the
  *  other transient chat notices (`TURN_STALE_ABORT_COPY`). Total over `ChatWarningCode`: every degrade
  *  is surfaced (unlike `turnAbortNotice`, no code is silenced — a `warning` is always something the
  *  user asked for that didn't happen). */
-export function warningNotice(code: ChatWarningCode): string {
+export function warningNotice(code: ChatWarningCode): NotifyNotice {
   switch (code) {
     case "image_dropped":
-      return "The image you attached was ignored — this model can't see images.";
+      return { description: "This model can't see images, so it was left out of the turn.", title: "Your image was ignored" };
     case "tools_unsupported":
-      return "Tools were turned off for this reply — the model doesn't support them.";
+      return { description: "This model doesn't support them, so the reply came back without any tool use.", title: "Tools were turned off for this reply" };
     case "memory_build_failed":
-      return "Long-term memory couldn't update this turn — your reply is unaffected.";
+      return { description: "Your reply is unaffected — only the long-term memory index missed this turn.", title: "Long-term memory couldn't update" };
     case "structured_output_unsupported":
-      return "Structured output isn't supported by this model — the reply came back as plain text.";
+      return { description: "This model doesn't support it, so the reply came back as plain text.", title: "Structured output isn't supported" };
     case "prompt_transform_skipped":
-      return "A prompt rule was skipped — it errored or ran too long, so your message was sent unchanged.";
+      return { description: "It errored or ran too long, so your message was sent unchanged.", title: "A prompt rule was skipped" };
     case "image_edit_dropped":
-      return "The image was generated without your reference — this model can't edit images.";
+      return { description: "This model can't edit images, so the picture was generated without your reference.", title: "Your reference image was ignored" };
     case "compaction_failed":
-      return "The conversation summary couldn't update this turn — your reply is unaffected.";
+      return { description: "Your reply is unaffected — only the running summary missed this turn.", title: "The conversation summary couldn't update" };
     case "context_trimmed_no_summary":
-      return "The conversation got too long to summarize — the oldest messages were dropped from context to keep going.";
+      return {
+        description: "The conversation got too long to summarize, so the oldest messages were dropped from context to keep going.",
+        title: "Older messages were dropped from context",
+      };
     case "smart_arbitration_degraded":
-      return "The turn director model wasn't available — who speaks next was picked automatically instead.";
+      return {
+        description: "The turn director model wasn't available, so who speaks next was picked automatically.",
+        title: "Who speaks next was picked automatically",
+      };
     case "guided_placed_as_injection":
-      return "Your steering was added as an inline instruction — this preset has no Guided instruction marker to place it in.";
+      return {
+        description: "This preset has no Guided instruction marker to place it in, so your steering was added as an inline instruction.",
+        title: "Your steering was added inline",
+      };
     case "custom_parameters_ignored":
-      return "Your preset's custom parameters weren't sent — this connection doesn't accept them (they apply on a direct/BYOK connection).";
+      return {
+        description: "OpenRouter ignores them. They apply only on a Custom OpenAI-compatible connection.",
+        title: "Your preset's custom parameters weren't sent",
+      };
     default:
       return assertNeverCode(code);
   }

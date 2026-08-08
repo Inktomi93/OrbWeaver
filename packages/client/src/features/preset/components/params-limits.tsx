@@ -330,9 +330,13 @@ function AdvancedCluster({ form, customParameterKeys }: { readonly form: AppForm
   );
 }
 
-/** D7 — the read-only presence row for `customParameters`: a server-only custom-BYO passthrough that
- *  CHANGES THE WIRE. Editing stays out (it is the BYOK escape hatch by design), but an invisible stored
- *  blob that alters generation fails the no-silent-knobs bar. */
+/** D7 — the read-only presence row for `customParameters`: a server-only passthrough that CHANGES THE
+ *  WIRE. Editing stays out (it is the bring-your-own-key escape hatch by design), but an invisible stored
+ *  blob that alters generation fails the no-silent-knobs bar.
+ *
+ *  The gloss names the CONNECTION the way the Connections pane names it (`connections-model.ts`
+ *  SOURCE_LABELS) — the same one vocabulary the `custom_parameters_ignored` warning toast now speaks
+ *  (side-eye INFRA-WARN-DEAF P3-2). "custom-BYO" appears on no screen the user can reach. */
 function CustomParametersRow({ keys }: { readonly keys: readonly string[] }): ReactElement {
   if (keys.length === 0) {
     return <Text voice="gloss">No custom parameters are stored on this preset.</Text>;
@@ -341,7 +345,7 @@ function CustomParametersRow({ keys }: { readonly keys: readonly string[] }): Re
     <Row align="center" gap="field">
       <Text voice="label">Custom parameters</Text>
       <Text voice="datum">{keys.join(" · ")}</Text>
-      <Text voice="gloss">sent verbatim by custom-BYO backends only; OpenRouter drops them</Text>
+      <Text voice="gloss">sent verbatim only on a Custom OpenAI-compatible connection; OpenRouter ignores them</Text>
     </Row>
   );
 }

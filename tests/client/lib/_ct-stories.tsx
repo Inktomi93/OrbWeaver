@@ -7,7 +7,7 @@
 // toast manager, and fires a mutation whose `meta.errorToast` message must reach a rendered toast.
 
 import { createAppQueryClient } from "@orb/client/data";
-import { bindNotify } from "@orb/client/lib";
+import { bindNotify, createToastNotify, notify } from "@orb/client/lib";
 import { createToastManager, Toaster, ToastProvider } from "@orb/ui/toast";
 // @orb-gate-ignore query-machine-seals(useMutation): test-tier code the gate's `\.test\.tsx?$` scope
 // cannot see — Spine-Testing §7 requires a CT to mount from a NON-test story module, so every
@@ -22,18 +22,11 @@ import type { ReactElement, ReactNode } from "react";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT
 // test (ct-data-providers.tsx header) → module state starts clean, so the bind is per-test-clean.
+// `createToastNotify` is the PRODUCTION mapping (lib/toast-notify.ts), not a hand-copy: the copy this
+// story used to carry had already drifted (no `warn` channel, no description/action/timeout), which is
+// exactly how a CT goes green against a toast the app never renders.
 const toastManager = createToastManager();
-bindNotify({
-  info: (message): void => {
-    toastManager.add({ title: message });
-  },
-  success: (message): void => {
-    toastManager.add({ title: message, type: "success" });
-  },
-  error: (message): void => {
-    toastManager.add({ title: message, type: "error", priority: "high" });
-  },
-});
+bindNotify(createToastNotify(toastManager));
 
 // The REAL app QueryClient — its MutationCache.onError is the D54 errorToast→notify channel under test.
 const queryClient = createAppQueryClient();
@@ -61,6 +54,34 @@ export function NotifyToastStory(): ReactElement {
         <FailingMutationButton />
       </CtToastSurface>
     </QueryClientProvider>
+  );
+}
+
+/** The chat degrade the INFRA-WARN-DEAF review measured, driven through the WHOLE seam: a split notice
+ *  with an action, on the `warn` channel. The button labels are the story's controls; everything the
+ *  assertions read is what `notify` put on screen. */
+function WarnNoticeButton(): ReactElement {
+  return (
+    <button
+      type="button"
+      onClick={(): void => {
+        notify.warn({
+          action: { label: "Open Connections", onClick: (): void => notify.success("Connections opened.") },
+          description: "OpenRouter ignores them. They apply only on a Custom OpenAI-compatible connection.",
+          title: "Your preset's custom parameters weren't sent",
+        });
+      }}
+    >
+      warn
+    </button>
+  );
+}
+
+export function NotifyNoticeStory(): ReactElement {
+  return (
+    <CtToastSurface>
+      <WarnNoticeButton />
+    </CtToastSurface>
   );
 }
 

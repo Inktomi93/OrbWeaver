@@ -8,8 +8,8 @@
 // invariant" test class (Spine-Testing §6), not a tautology over a constructor call.
 
 import { createAppQueryClient } from "@orb/client/data";
-import type { Notify } from "@orb/client/lib";
-import { bindNotify } from "@orb/client/lib";
+import type { Notify, NotifyInput } from "@orb/client/lib";
+import { bindNotify, toNotice } from "@orb/client/lib";
 import { MutationObserver } from "@tanstack/react-query";
 import { afterEach, describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
@@ -20,8 +20,11 @@ function spyNotify(): Notify & { readonly errorCalls: string[] } {
   const notify: Notify & { readonly errorCalls: string[] } = {
     info: vi.fn(),
     success: vi.fn(),
-    error: vi.fn((message: string) => {
-      errorCalls.push(message);
+    warn: vi.fn(),
+    // A notice is `string | NotifyNotice`; the D54 errorToast channel passes a bare string, and `toNotice`
+    // is the seam's own normalizer, so the spy records the same TITLE the toast would print.
+    error: vi.fn((notice: NotifyInput) => {
+      errorCalls.push(toNotice(notice).title);
     }),
     errorCalls,
   };
@@ -32,9 +35,10 @@ function spyNotify(): Notify & { readonly errorCalls: string[] } {
 afterEach(() => {
   // Restore the console fallback so a later suite doesn't inherit this file's spy.
   bindNotify({
-    info: (m) => console.info(m),
-    success: (m) => console.info(m),
-    error: (m) => console.error(m),
+    error: (n) => console.error(toNotice(n).title),
+    info: (n) => console.info(toNotice(n).title),
+    success: (n) => console.info(toNotice(n).title),
+    warn: (n) => console.warn(toNotice(n).title),
   });
 });
 

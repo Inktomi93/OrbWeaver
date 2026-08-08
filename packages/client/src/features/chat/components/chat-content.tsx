@@ -7,9 +7,9 @@ import type { ChatWarningCode, TurnAbortReason } from "@orb/contracts/chat";
 import type { ReactElement } from "react";
 import type { ChatBusDeps } from "#data";
 import { useChatBusDeps } from "#data";
-import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
+import type { ChatSurfaceContribution, ContributorRegistry, NotifyAction, ToolRenderer } from "#lib";
 import { notify } from "#lib";
-import { commitDraft, isLanding, openModal, selectChat, useActiveChatHandle, useActiveDraftSeed, useActiveSessionKey } from "#state";
+import { commitDraft, isLanding, openModal, openSettingsTo, selectChat, useActiveChatHandle, useActiveDraftSeed, useActiveSessionKey } from "#state";
 import { turnAbortNotice } from "../lib/turn-abort-notice.ts";
 import { warningNotice } from "../lib/warning-notice.ts";
 import { ChatLandingSurface } from "../surfaces/chat-landing-surface.tsx";
@@ -31,13 +31,25 @@ function surfaceTurnAbort(reason: TurnAbortReason): void {
   }
 }
 
+// The one warning that has somewhere to send you: custom parameters are a CONNECTION property, so the
+// notice offers the jump to the pane that owns them. Attached here rather than in the mapper because
+// `warningNotice` is pure copy and navigation is a feature capability (see that file's header).
+const OPEN_CONNECTIONS: NotifyAction = {
+  label: "Open Connections",
+  onClick: (): void => {
+    openSettingsTo("connections");
+  },
+};
+
 // The honest-degrade seam: a domain `warning` bus event (non-vision image strip, tools/structured-output/
 // memory/compaction degrades) surfaces through the injected `onWarning` callback — `data/` may not import
-// `features/`, so the code→copy mapper is wired HERE, in the feature. It's an INFO notice — the turn/image
-// still produced a result, so this is non-blocking "here's what got dropped", never an error. Module-stable
-// so `busDeps` stays referentially calm. Every warning surfaces (the mapper is total — no silenced code).
+// `features/`, so the code→copy mapper is wired HERE, in the feature. It's a WARN notice, not an error and
+// not plain info: the turn/image still produced a result, but the thing the user asked for did not happen,
+// and as `info` it arrived with no identity at all (side-eye P2-1). Module-stable so `busDeps` stays
+// referentially calm. Every warning surfaces (the mapper is total — no silenced code).
 function surfaceWarning(code: ChatWarningCode): void {
-  notify.info(warningNotice(code));
+  const notice = warningNotice(code);
+  notify.warn(code === "custom_parameters_ignored" ? { ...notice, action: OPEN_CONNECTIONS } : notice);
 }
 
 export function ChatContent({ surfaceContributors, toolRenderers }: ChatContentProps): ReactElement {
