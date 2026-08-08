@@ -1181,7 +1181,8 @@ const EXEMPT: Readonly<Record<string, string>> = {
     "self-scoped: stamps ownerId = principal.userId; input is a url + lang string, no foreign id — the caption track becomes the caller's OWN canon. Same ANY_HOST safeFetch guard as scrapeWeb; a refusal collapses to a leak-free ScrapeFailedError",
   "databank.scrapeWiki":
     "self-scoped: stamps ownerId = principal.userId; input is a single url string, no foreign id — the article extract becomes the caller's OWN canon. Same ANY_HOST safeFetch guard as scrapeWeb; a refusal collapses to a leak-free ScrapeFailedError",
-  "databank.list": "self-scoped: listOwnedMeta filters WHERE owner_id = principal.userId; origin/limit/offset only, no foreign id",
+  "databank.list":
+    "self-scoped: listOwnedMeta filters WHERE owner_id = principal.userId; origin/limit/cursor only. The keyset `cursor` DOES carry a documentId, but it is never LOOKED UP — it is a `(updatedAt, id)` comparison ANDed with the owner predicate, so a foreign (or invented) id can only move the window inside the caller's own rows, never widen it. Nothing about the named document is returned or revealed",
   "databank.listGlobal":
     "self-scoped: listGlobalDocumentIds filters WHERE global_documents.owner_id = principal.userId (the junction's own scope column, D23); takes NO input at all, so there is no foreign id to probe",
   "settings.getAppSettings": "admin-gated: deployment settings",

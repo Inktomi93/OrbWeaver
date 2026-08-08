@@ -14,6 +14,14 @@
 // `kind:"single"` context ⇒ the NO-SELECTION arm is the section definition's `context.empty`, never this
 // file: the shell only mounts a body when something is selected. What remains here is the GONE arm — the
 // document was deleted (on this device or another) while its context was open.
+//
+// THE GONE ARM READS `databank.get`, NOT THE LIST. It used to look the open document up in
+// `databank.list`'s rows and call a miss "deleted" — a reading that held only while that list was the WHOLE
+// bank. The library pane pages now, so a document opened from page three is simply not in the first page,
+// and the list-miss test would have reported every one of them as deleted. `get` is the per-document read
+// the CONTENT pane already makes for the same document (same cache entry, no extra fetch), and its
+// NOT_FOUND is the real deletion signal — surfaced as this pane's own designed empty rather than the
+// boundary's generic failure, because "someone deleted this" is a state, not an error.
 
 import type { DocumentId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
@@ -66,16 +74,39 @@ export function DatabankContextHeader(): ReactElement {
   );
 }
 
+/** The document is GONE — deleted here or on another device while its context was open. A designed state,
+ *  not a failure: there is nothing to retry, and the next step is picking another row. */
+function DocumentGone(): ReactElement {
+  return <EmptyState description="This document was deleted. Pick another on the left." icon={<Icon icon={FileText} size="lg" />} title="Document not found" />;
+}
+
+/** Is this the server saying the document no longer exists? Keyed on the STRUCTURED tRPC code, never message
+ *  text (the `use-databank-mutations` / `invite-dialog` precedent) — `DocumentNotFoundError` is mapped to
+ *  NOT_FOUND by the transport's global error mapping. */
+function isDocumentGone(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("data" in error)) {
+    return false;
+  }
+  return (error as { data?: { code?: string } }).data?.code === "NOT_FOUND";
+}
+
+/** The open document's own row. NON-suspending, deliberately: a deleted document is a designed STATE with
+ *  its own copy, and a suspending read can only report it as a thrown error to the boundary — which would
+ *  make this panel hand-roll a `renderError` arm (G29 RED, and rightly: the boundary's error surface is one
+ *  sealed component). The three arms are decided HERE instead. The `listGlobal`/`listAttachments` reads
+ *  below still suspend, so the boundary keeps its job for everything that IS a failure. */
 function ContextBody({ documentId }: { readonly documentId: DocumentId }): ReactElement {
   const trpc = useTRPC();
-  const { data: documents } = useSuspenseQuery(trpc.databank.list.queryOptions({}));
-  const doc = documents.find((row) => row.id === documentId);
+  const { data: doc, error, isPending, refetch } = useQuery(trpc.databank.get.queryOptions({ id: documentId }));
 
-  if (doc === undefined) {
-    return (
-      <EmptyState description="This document was deleted. Pick another on the left." icon={<Icon icon={FileText} size="lg" />} title="Document not found" />
-    );
+  if (isPending) {
+    // The SAME line the boundary's fallback shows, so the panel reads identically whichever read is settling.
+    return <Text voice="gloss">Loading…</Text>;
   }
+  if (error !== null) {
+    return isDocumentGone(error) ? <DocumentGone /> : <QueryErrorState label="this document" onRetry={(): void => void refetch()} />;
+  }
+
   return (
     // `instrument` with a form island (density §3 blesses exactly this nesting for a context panel).
     <Surface tier="instrument">

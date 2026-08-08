@@ -39,6 +39,12 @@ export interface CollectionSelection {
 
 export interface CollectionSurface<TItem> {
   readonly items: readonly TItem[];
+  /** WHEN these rows were true — the query's own `dataUpdatedAt`, forwarded because a surface whose rows
+   *  carry a TIME-derived state (databank's stall verdict: an in-flight row whose `updatedAt` froze) needs a
+   *  clock that ADVANCES with each refetch. A mount-time `useState(() => now())` snapshot would freeze and
+   *  leave a document that wedged while the pane is open reading `Queued` forever; an ambient `Date.now()`
+   *  off render is the impurity client-determinism forbids. `0` until the first read lands. */
+  readonly dataUpdatedAt: number;
   readonly isPending: boolean;
   /** True while showing the PREVIOUS params' rows (grey them; gate forward-nav on it — §10). */
   readonly isPlaceholderData: boolean;
@@ -88,6 +94,7 @@ export function createCollectionSurface<TItem, TPage, TParams, TPageParam = unkn
 
     return {
       items,
+      dataUpdatedAt: query.dataUpdatedAt,
       isPending: query.isPending,
       isPlaceholderData: query.isPlaceholderData,
       error: query.error,

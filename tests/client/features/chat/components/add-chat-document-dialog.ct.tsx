@@ -44,7 +44,7 @@ const LEDGER = { ...TREATISE, id: castId<DocumentId>("document_00000000000000000
 /** The picker's ONE read, plus the attach it fires. `bank` scripts `databank.list` per case. */
 function stubPicker(page: Page, bank: readonly unknown[]): Promise<TrpcRecorder> {
   return routeTrpc(page, {
-    "databank.list": () => bank,
+    "databank.list": () => ({ items: bank, nextCursor: null }),
     "databank.attachToChat": () => null,
   });
 }

@@ -5,11 +5,11 @@
 // ACTIVE embed model (a stale-space row is not a live chunk). `document_chunks` is read-only here (the count);
 // databank never writes it (the single-write-path invariant — writes ride `embeddings.store`).
 
-import type { DocumentView } from "@orb/contracts/databank";
+import type { DocumentListCursor, DocumentView } from "@orb/contracts/databank";
 import type { Db } from "@orb/db";
 import { characterDocuments, characters, chatDocuments, documents, globalDocuments } from "@orb/db";
 import type { CharacterId, ChatId, DocumentId, UserId } from "@orb/kit/ids";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, or, sql } from "drizzle-orm";
 import { DatabankCharacterNotFoundError } from "../contract/errors.ts";
 import type { DocumentAttachmentsView } from "../contract/views.ts";
 
@@ -119,12 +119,27 @@ export async function findByImportHash(db: Db, ownerId: UserId, importHash: stri
 interface ListDocumentsQuery {
   readonly origin?: DocumentView["origin"];
   readonly limit: number;
-  readonly offset: number;
+  /** The boundary row of the previous page — omit for the first page. */
+  readonly cursor?: DocumentListCursor;
 }
 
+/** One page of the owner's documents, `updatedAt DESC, id DESC`. The ORDER carries `id` because
+ *  `updatedAt` is not unique, and the KEYSET predicate is the lexicographic "strictly after the boundary
+ *  row" test on that same pair — so the page a cursor names is stable even while an ingest is bumping
+ *  `updatedAt` on rows above it, which is exactly what an OFFSET cannot promise (it would re-serve or skip
+ *  rows as the head shifts under it). */
 export async function listOwnedMeta(db: Db, ownerId: UserId, query: ListDocumentsQuery): Promise<DocumentMetaRow[]> {
-  const where = query.origin === undefined ? eq(documents.ownerId, ownerId) : and(eq(documents.ownerId, ownerId), eq(documents.origin, query.origin));
-  const rows = await db.select(META_COLUMNS).from(documents).where(where).orderBy(desc(documents.updatedAt)).limit(query.limit).offset(query.offset);
+  const owned = query.origin === undefined ? eq(documents.ownerId, ownerId) : and(eq(documents.ownerId, ownerId), eq(documents.origin, query.origin));
+  const after =
+    query.cursor === undefined
+      ? undefined
+      : or(lt(documents.updatedAt, query.cursor.updatedAt), and(eq(documents.updatedAt, query.cursor.updatedAt), lt(documents.id, query.cursor.id)));
+  const rows = await db
+    .select(META_COLUMNS)
+    .from(documents)
+    .where(after === undefined ? owned : and(owned, after))
+    .orderBy(desc(documents.updatedAt), desc(documents.id))
+    .limit(query.limit);
   return rows;
 }
 

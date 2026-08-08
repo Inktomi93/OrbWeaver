@@ -15,8 +15,12 @@
 // (every document, junction and chunk survives — the canon is re-derived from bytes we still hold), and a
 // red confirm on a maintenance sweep teaches the wrong thing about the one control here that IS destructive.
 //
-// The count is a non-suspending `useQuery` sharing the `databank.list` cache with the suspending list below,
-// so it costs no extra fetch: the title + actions render immediately and stay put while the count settles.
+// The count is a non-suspending `useQuery` over `databank.list`'s FIRST page (`limit` unnamed ⇒ the verb's
+// `DATABANK_LIST_DEFAULT_LIMIT`), so the title + actions render immediately and stay put while it settles.
+// It is deliberately its own read now that the pane below PAGES: the pane's rows live in an infinite query
+// keyed per page size, and a band count that grew as you pressed "Load more" would report how far you have
+// scrolled, not how big your bank is. The band states the bank's FLOOR ("100+" once the first page comes
+// back full — `cappedCount`), which is the same sentence the home tile makes about the same page.
 
 import { DATABANK_LIST_DEFAULT_LIMIT } from "@orb/contracts/databank";
 import { Button } from "@orb/ui/button";
@@ -74,7 +78,7 @@ export function DatabankListHeader(): ReactElement {
             </Button>
           </Row>
         }
-        count={documents === undefined ? 0 : cappedCount(documents.length, DATABANK_LIST_DEFAULT_LIMIT)}
+        count={documents === undefined ? 0 : cappedCount(documents.items.length, DATABANK_LIST_DEFAULT_LIMIT)}
         title="Databank"
       />
       <ConfirmDialog
