@@ -565,6 +565,19 @@ security lens.
     `domain/import/verbs/import-chat-bundle.ts:186-189` in the lane worktree, restored — new test RED at
     the exact cross-link assertion, OLD single-turn test GREEN under both mutations). Re-check after the
     scratch-CT contamination cleared: PASS all stages.
+- **⚑ OWNER RULING (2026-08-08, Nate live): "we are putting everything in presets" — RPG PROSE
+  RE-HOMES to the preset `promptConfig.prose` plane.** The merged RPG-PROSE `config.prose` spine
+  diverged from the standing per-PRESET ruling already recorded at
+  `server/src/domain/chat/assembly/injections.ts:7-9` (prose is authored in the preset Templates tab).
+  RE-HOME LANE (queued behind the security lane's domain/rpg commit): (1) DELETE the config.prose
+  spine — rpg config schema field, `updateConfig.patch.prose` arm, fork strip arm, threading source;
+  (2) thread the PRESET's `promptConfig.prose` into the rpg reminder/delta/macro-feed builders (same
+  object assembly already resolves); (3) slots STAY in `contracts/rpg/prose.ts` → they surface in the
+  preset Templates tab like every domain (lane must VERIFY the tab enumerates rpg slots); (4) F2
+  (prose read door) DIES — the preset editor is the read door; (5) truth-repair the S3 spec section +
+  `docs/design/prose-1-rpg-extraction-followon.md` to preset-home. Byte-identity guards (frozen
+  cohort, field-reachability) must stay green — the re-home changes the OVERRIDE SOURCE, never the
+  defaults. Security lane's Item 2 (strip review + fork-game comment repair) DROPPED as moot.
 - **⚑ OWNER RULINGS (2026-08-08, Nate live):**
   - **PUSHES HELD tonight** — even on a green battery. The train-drain `verify --push` battery still
     RUNS for verification; origin stays un-pushed until a fresh word on a later day.
