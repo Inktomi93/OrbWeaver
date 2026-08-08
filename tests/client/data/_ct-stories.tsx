@@ -21,7 +21,8 @@ import {
   useUploadAsset,
   useViewer,
 } from "@orb/client/data";
-import { bindNotify, renderMessageForDisplay } from "@orb/client/lib";
+import type { NotifyInput } from "@orb/client/lib";
+import { bindNotify, renderMessageForDisplay, toNotice } from "@orb/client/lib";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
@@ -576,7 +577,8 @@ function SectionRefusalInner(): ReactElement {
   useState(() => {
     // `bindNotify` is main.tsx-only, so the CT harness leaves `notify` a no-op unless a story binds it — and
     // the toast is the ONLY observable a refusal has (the `PersonaThisChatStory` precedent).
-    bindNotify({ info: (m): void => setNotified(m), success: (m): void => setNotified(m), error: (m): void => setNotified(m) });
+    const sink = (notice: NotifyInput): void => setNotified(toNotice(notice).title);
+    bindNotify({ error: sink, info: sink, success: sink, warn: sink });
     return null;
   });
 

@@ -7,7 +7,8 @@
 
 import { QueryBoundary } from "@orb/client/data";
 import { PersonaPanelRow } from "@orb/client/features/persona";
-import { bindNotify } from "@orb/client/lib";
+import type { NotifyInput } from "@orb/client/lib";
+import { bindNotify, toNotice } from "@orb/client/lib";
 import { selectChat } from "@orb/client/state";
 import type { ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -66,7 +67,8 @@ export function PersonaThisChatStory(): ReactElement {
   const [notified, setNotified] = useState<string>("");
   useState(() => {
     selectChat(THIS_CHAT_ID);
-    bindNotify({ info: (m): void => setNotified(m), success: (m): void => setNotified(m), error: (m): void => setNotified(m) });
+    const sink = (notice: NotifyInput): void => setNotified(toNotice(notice).title);
+    bindNotify({ error: sink, info: sink, success: sink, warn: sink });
     return null;
   });
   return (

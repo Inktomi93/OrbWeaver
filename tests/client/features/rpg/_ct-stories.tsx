@@ -12,8 +12,8 @@
 
 import { useGatedQuery, useInvalidation, useTRPC } from "@orb/client/data";
 import { makeRpgContextTabs, makeRpgHudRegion, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
-import type { ChatContextState, ContextRegionDef, ContextTabDef } from "@orb/client/lib";
-import { bindNotify, createContributorRegistry } from "@orb/client/lib";
+import type { ChatContextState, ContextRegionDef, ContextTabDef, NotifyInput } from "@orb/client/lib";
+import { bindNotify, createContributorRegistry, toNotice } from "@orb/client/lib";
 import { selectChat, useSectionRegistry } from "@orb/client/state";
 import type { MessageView } from "@orb/contracts/chat";
 import type { RpgActorVolatile, RpgInventoryItem } from "@orb/contracts/rpg";
@@ -148,11 +148,8 @@ export function RpgTakeoverNotifyStory(): ReactElement {
   const [notified, setNotified] = useState<string>("");
   useEffect(() => {
     selectChat(CHAT_ID);
-    bindNotify({
-      info: (m): void => setNotified(m),
-      success: (m): void => setNotified(m),
-      error: (m): void => setNotified(m),
-    });
+    const sink = (notice: NotifyInput): void => setNotified(toNotice(notice).title);
+    bindNotify({ error: sink, info: sink, success: sink, warn: sink });
   }, []);
   return (
     <CtDataProviders>
