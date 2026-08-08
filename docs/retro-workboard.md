@@ -434,12 +434,24 @@ security lens.
   new literals in the same relocation. Do NOT dispatch until RENDERFIX merges. `no-media-queries-in-
   features`'s `MEDIA_QUERY_RE` matches viewport widths only — this is a NEW gate, not an extension.
 
-**⚑ ROSTER at `134`-ahead:** WRITE lanes: `PROBES-TYPING` (a98737bc) · `PORT-R6` (acf450ce) ·
-`PTRGATE` (a989027e, now also relocating an 8th literal at persona-panel-row:183). READ lens:
-`AUTHTAIL security graduation` (a1eecb1d, verifying the reset-password takeover guard). **2 write slots
-open but FENCE-BLOCKED, not idle:** glyph sweep (#13) + the D132(G) prose-coverage gate wait for PTRGATE
-(rpg-client + gate-registry) · rpg-prose teaches (#17) waits for PORT-R6 (rpg persistence) · node-26 §8
-gate + STATLAS wait for PROBES-TYPING (scripts/probes). They burst as those three free their zones.
+**⚑ ALL FIVE OVERNIGHT WRITE LANES MERGED (`148`-ahead, static 14/14 GREEN). No write lanes live.**
+- ✅ PTRGATE (gate 194→195) · PORT-R6 (`6be6873d`, D136, I-6, round-trip proven) · PROBES-TYPING
+  (`56ae7f493`, 686 strict errors → 0) — plus earlier TEMPLATE-UNIFY + SMALLS-SERVER. All static-green.
+- ⚑ **The combined merge red'd on `types:graph` + `docs:format` — both fixed on main.** `types:graph`
+  was the katex `*.css` import in `ui/src/markdown/math.ts`: the node aggregator pulls browser files
+  transitively but excluded the per-package CSS ambients; PTRGATE's new transitive edge to math.ts hit
+  it. Fixed with an aggregator-only `aggregator-assets.d.ts` (`f38831a09`). **LESSON: PTRGATE's cold
+  worktree red was REAL — I dismissed it against a battery that predated the merge. A lane's cold check
+  outranks a warm one.**
+- ⚑ **SUMDROP regression caught by the earlier battery + fixed** (`7e7d9f72d`): a stale `max-pro-sub`
+  summarize fixture in the routing-coherence int-test. `pnpm check` never runs `tests:node`; a dropped
+  enum value owes a fixture sweep across ALL suites, not just production readers + the targeted verifier.
+- [ ] **`run-coverage.ts` widgets/trackers bug** (PROBES-TYPING flagged, one-line fix): `seedState()`
+  seeds `trackers:{}` but every path reads `state.widgets` → `renderReminder` throws turn 1. `run.ts` is
+  correct; only run-coverage mismatches.
+- **⏳ FINAL BATTERY running (`6616ddd44`, detached) for `tests:node` cert · PORT-R6 verifier in flight
+  (`a181b333`, id-remap).** Post-battery, rpg zone settled: dispatch side-eye #16 + glyph #13; any push
+  needs a fresh owner word + this battery green.
 - ✅ **TEMPLATE-UNIFY merged** (`6d7867401`, check 14/14) — row 49 slotted; (b) unification COMPLETE.
 - ✅ **SMALLS-SERVER merged** (`58b1f9ce7`, check 14/14) — narrator room previews its CAST shape now
   (GroupConfig threaded into PreviewInputs, per-speaker byte-unchanged, red-first: narrator RED on old
