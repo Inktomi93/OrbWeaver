@@ -94,7 +94,43 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   lanes both mint. Lane briefs name their exact playwright CT files (a CT nobody names is a CT
   nobody ran).
 
-## ═══ LIVE STATE (2026-08-08, LATE — compact boundary \~91%) ═══
+## ═══ LIVE STATE (2026-08-08, LATEST — ST-import epic + embeddings) ═══
+
+- **⚑ IMPORT EPIC COMMITTED `ba8b5fbe5` (NOT pushed — needs fresh word + full battery).** The whole
+  ST-folder import, verified live on the owner's real 782M / 310-card / 872-chat / 22k-message library:
+  **320 characters** (all cards incl. distinct same-name ones), **61 world books**, 646 avatars, import
+  report written. Pieces: shared ST world-info position mapper (embedded card books + standalone
+  `worlds/*.json` converge on ONE `loreEntryColumns/loreEntryMetadata` path; v2-string / numeric 0-6 /
+  empty / at-depth all normalized so the raw ST value never hits the `metadata.position` write seam) ·
+  standalone worlds → unattached owner library books (new ST-native substrate) · **per-card isolation**
+  (a bad card is skipped+counted, never aborts the batch) · **best-effort field repair** at the boundary
+  (`repairImportedCardInput` clamps over-cap fields; direct create/update stay strict) · **never dedupe
+  by NAME** — a byte-new card colliding on the per-owner-unique handle slug gets `emily`/`emily-2` (a NEW
+  character, own id; display name untouched); byte-identical still dedupes by importHash; replaces PD-108
+  handle-match-edit-in-place · tree cap 256MiB→1GiB + themes/assets ST\_SHARED\_DIRS collision fix ·
+  memory-backfill enqueued ONCE at end-of-import (no per-(kind,owner) admission abort; embeddings never
+  run mid-import) · **import report** at `data/import-reports/import-<stamp>.md` (skipped cards+reasons,
+  unreadable files, orphan chat dirs, ST planes/settings with no importer yet). #15/#16/#17/#18 CLOSED.
+
+- **⚑ EMBEDDINGS — chars+avatars work, chat-memory was OFF + LOOPING (fix in flight #21):** character
+  corpus (320) + avatars (646) embed fine. Chat memory built **0 segments** because (a) `memoryEnabled`
+  defaults **false** (owner enabled it) AND (b) the memory summarize LOOPS: it rides the LEAN
+  `vllm/engine/chat-completion.ts` path (maxTokens/temp/minP/repetitionDetection only) while GENERATE
+  rides the rich `backends/kit/openai-compat/body.ts` (full samplers incl. presence\_penalty). Qwen3-VL
+  ships repetition\_penalty=1.0 and loops → each summarize runs to maxTokens/120s (44 segments in 26 min
+  at 100% GPU). Neo passed the loop guard; retro dropped it. The launch `--override-generation-config`
+  is ONLY for the agent-sdk /v1/messages wire (can't do per-request) — NOT the fix. Also: the memory
+  build calls `summarize([oneBlock])` in a per-block loop → NO vLLM batching (neo batched via the worker
+  pool). Degenerate results wiped; chars/chats kept.
+
+- **⚑ LANES LIVE (dispatching RE-ENABLED — usage back):** #21 memory summarize (executor `a19e7d680f1bf5708`,
+  worktree) = add generate's per-request samplers to summarize (own knobs, NOT preset-coupled; presence\_penalty
+  1.5 default) + batch to vLLM (neo parity) + owner ordering (base embed → tiers → embed → elevator-pitch
+  last); live-verify on the imported corpus. · #14 C1 D137 persona graduation (verifier `a06af8b3661da3f1d`,
+  read-only). New open work: #19 ST plane importers (tags→presets→backgrounds→groups, homes mapped), #20
+  memory-settings UX (copy 'meh' + enabling memory doesn't auto-backfill), #21 (above).
+
+- **⚑ SUPERSEDED:** the "UNCOMMITTED ON THE TREE" block below is CLOSED — all committed in `ba8b5fbe5`.
 
 - **⚑ PUSHED 2026-08-08: `d34a6702c..c635798d3 main → main`** (229 commits, hook skipped on the
   in-session green battery, `hooksPath=/dev/null`). The whole morning's train is on origin: C1
@@ -103,6 +139,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   group-engine, OR-F5, caps, e2e-seed-fix, config-IA thinking doc. Battery was FULL green (19/19
   incl. tests:node 743s + e2e-smoke). **Standing law resets: next push needs FRESH word + FRESH
   battery.** Origin = `c635798d3` at push; **tree since has UNCOMMITTED import fixes (below).**
+
 - **⚑ UNCOMMITTED ON THE TREE (held per owner word until the ST-folder import confirms working):**
   `packages/server/src/entry/http/import-tree.ts` — (1) tree-import total cap **256 MiB → 1 GiB**
   (owner: whole-ST-profile import; single-owner self-host, memory-DoS is a multi-user concern); (2)
@@ -124,13 +161,16 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   `world_books` stuck at 0. FIX in #17 (map 0/2/5→before, 1/3/6→after, 4→after+depth; check
   order/depth/role carry). Fold into the #15 import-fix commit; whole-ST-folder import is ONE mapper
   away from working end-to-end.
+
 - **⚑ CONFIG IA — junk-drawer diagnosis boarded** (`docs/design/config-ia-the-junk-drawer-problem.md`,
   committed `c635798d3`): Config is a home defined by EXCLUSION (violates one-home-per-concept at the
   meta level); tags are a FACET not a destination (leave the rail; editor → in-place popover;
   bird's-eye → Corpus); the "can it fill CONTEXT?" + "thing vs facet" sorting tests; regex/world-info
   \= open (run the tests). Owner design-thinking, no build.
+
 - **⚑ FLEET LIVE:** gen swarm awake on :8703 (Qwen3-VL-8B, TP across both cards), embed+rerank
   healthy — clears **D5** (engines-fleet-fix live verification). Dev stack :8788/:5173 up.
+
 - **⚑ REFINERY = CROWNING FEATURE:** authority doc `docs/design/refinery-schema-renderer.md` (968L,
   committed) is the R3/SF program spec — renderer dissolves structurally (closed LIFTABLE subset →
   total widget mapping, no raw-JSON floor), P1 pre-launch contract fixes (emptying arm, schema-embed
@@ -138,13 +178,16 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   revert, save-as-copy, OG-test steal ledger. §19 supersession map EXECUTED (`addb13faa`). R3 build
   brief assembles from it + the 3 published mock artifacts (surface/deltas/accept-ergonomics; deltas
   ruled A/A/A, accept = per-block Keep/Discard verbs).
+
 - **⚑ NO AGENTS LIVE** (owner halted dispatching for usage). Everything above done by the orchestrator
   hands-on. C1 D137 fresh-lens graduation OWED-HELD (task #14). Prior battery-reds context (kept for
   history): the 2026-08-08 evening 17/19 run's two reds (orphan-ratchet `RefineryFieldScore`→@public;
   e2e-seed OWNER\_HANDLES) both fixed + graduated pre-push.
+
 - **Merged today, this train:** FORGE#4 CONTAINERIZE (`fd4ae9119`, check PASS) · REFINERY R0
   (`b7ca6d55a`, check PASS) · AUTH BOOT-FENCE + spec repair + shim⇔firewall pin (`06a706551`,
   check RUNNING — read `<scratchpad>/sec-leg-check.exit`).
+
 - **⚑ TRAIN STATE (2026-08-08 late): main `0282bb554` — ONE write lane out (group-engine), push
   word GRANTED.** Merged + check-green this sitting, in order: C2/C8/orphan `c0f896d76` (VERIFIER
   CONFIRMED 6/6 — GRADUATED; 5 observations routed to the smalls batch, notably `preset.importFile`
@@ -163,6 +206,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   C6/C7 + C4 + group-engine — one batched verifier + one batched side-eye (C6/C7 surfaces: submenu
   at narrowest pane · card rhythm sans footer verb · mixed empty/populated arrangement) when the
   train drains.
+
 - **⚑ STICKLER VERDICT (group-chat coherence, owner-ordered "feels crunchy"): BLESS with 4 real
   mis-splits** (`docs/reviews/stickler/2026-08-08-group-chat-coherence.md`). C4's mode-aware fix
   independently vindicated ("the right fix, not a symptom"). Findings ruled by the owner same
@@ -177,6 +221,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   \#10): kill crew (39 files + the LIVE `entryMetadata.crew` schema field, NO-LEGACY rename) ·
   director→arbiter · stop minting seat\* · 3 theatrical UI strings; KEEP party/scene/act (model-facing
   wire vocab) + ember/weave (brand rulings stand).
+
 - **⚑ ARM A / D16 MARGIN RULED (orchestrator, owner-endorsed "do whatever's cleanest"):**
   narrator-of-ONE (reachable only by shrinkage/mute — group controls gate at 2+) keeps the NARRATOR
   marker: mode is host-chosen DATA, a `members.length > 1` gate is the exact `if (isGroup)` shape
@@ -185,11 +230,13 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   preserved above the amendment; nudge-suppression-at-≤1 stays — mechanics vs identity distinction
   recorded). **Ceremony candidate: a D16 amendment clause** at the next batch (enforcer exists —
   the reformulated suite test).
+
 - **⚑ PUSH WORD GRANTED (owner, 2026-08-08 late): "you have my word to push when we get there."**
   Sequence it spends on: group-engine merges → batched lenses → FRESH `verify --push` green →
   `E2E_LIVE=1 pnpm e2e` → PUSH. The queued trio (F4 re-home · vocab sweep · OIDC owner-binding
   task #8 — the owner's dogfood pain point, security-executor, FIRST dispatch after the push) is
   train two.
+
 - **⚑ NEW ROWS from the sitting's lenses:** OIDC owner-flip binding (#8 — seeded owner collides
   with OIDC sign-in under D17; bind-or-heal by OWNER\_HANDLES match; owner wants db-surgery-free
   mode flips) · harness env-inheritance class (#7 — 3 sibling harnesses on the weak hatch +
@@ -198,6 +245,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   importFile guard bypass truth-repair-or-guard · 2 stale comments · @public wording · the C7 mock
   truth-repair). Token-concepts unification (DEBUG\_TOKEN/wire/allowlist as ONE ops story) OFFERED,
   not yet ruled — DEBUGGATE unified only the debug surface's credential model.
+
 - **⚑ DECISION SITTING RESULTS (2026-08-08, owner live):** C2 BLOCK (Option C) · C3 SHIP ALL
   VERBATIM (ratified — the veto pile is closed) · C4 RULED mode-aware default + BLESSED narrator
   bytes (verbatim in the session TaskList #5; identity-as-narrator, address clause preserved;
@@ -207,6 +255,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   F6 SKIP (wire property, nothing to build) · F7 DEFER** — the board's "latent hard-400 bug" framing
   was WRONG: we never replay reasoning (no ChatContentPart arm), drop-is-safe is MEASURED, reasoning
   STORAGE already exists per-message; probe arms ride lane 3 to re-confirm on a multi-hop chain.
+
 - **⚑ W5 (user-macro values store) STRUCK — FULLY BUILT, board row was rotted** (orchestrator
   ast/grep ladder 2026-08-08): sibling column `chats.userMacroValues` (schema/chat.ts:156) ·
   `setUserMacroValues` verb (chat-lifecycle.ts:254) + proc (routers/chat.ts:534) + matrix member row
@@ -214,16 +263,20 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   gone, zero hits) · pane `MacroPicksSection` mounted (settings-context-tab.tsx:144) · bundle
   portability. The spec's own F1 ruling (2026-07-27, "yes option A") was recorded at its foot and
   the board's "parked on owner fork" claim never re-checked it.
+
 - **⚑ FULL-BOARD SCOUT SWEEP DONE (2026-08-08, owner-ordered "verify they aren't already done"):**
   four scouts re-laddered every B/C-premise/D/E row. **Stale harvest: B 3/4 · C 1/10 · D 7/9 ·
   E 5/6 already-done** — struck below with receipts (F). The C pile survived near-intact (it waits
   on the OWNER, not on memory). Every surviving row below now carries a 2026-08-08 live receipt.
+
 - **Worktrees on disk:** `agent-forge-docker` (merged — reap after the security review clears, may
   get a fix leg) · `agent-refinery-r0` (merged — reap after the verifier clears) · the
   PRESET-FOLLOWUP worktree (live) · `.cache/snap-stage/be00cf36a4dc` (side-eye ref-pinned stage,
   :5273/:8888, left running DELIBERATELY for re-verification).
+
 - **⚑ OWNER OPS (standing, security):** rotate `DEBUG_TOKEN` (surface was open an unknown window) ·
   set `IP_ALLOWLIST` (still unset with `WIRE_CAPTURE=on` in the live `.env`).
+
 - **"Tag colour voices" RESOLVED (2026-08-08):** the phrase meant the `Text` primitive's `voice`
   prop (TYPOGRAPHY — `datum` vs `gloss` on the tag color readout), already fixed by POLISH-CLUSTER
   and re-verified. The board's old "preset swatches" gloss was an orchestrator paraphrase error; no
