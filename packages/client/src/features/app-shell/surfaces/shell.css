@@ -859,8 +859,7 @@
    * action. The action is the band's only direct child that is not the identity cluster, which is what the
    * first clause detects — a `listHeader` that is not a `ListPaneHeader` has no identity slot at all and so
    * never matches, keeping the rule scoped to the composite that declared these slots. */
-  .shell-grid[data-list-mode="docked"]
-    .shell-panel[data-panel-side="list"]
+  .shell-grid[data-list-mode="docked"] .shell-panel[data-panel-side="list"]
     .shell-panel-header:not(:has(> *:not([data-slot="list-pane-identity"]))):not(:has([data-slot="list-pane-back"])):not(
       :has([data-slot="list-pane-title"][data-scoped])
     ) {
