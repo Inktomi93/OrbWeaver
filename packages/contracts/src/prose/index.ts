@@ -32,7 +32,23 @@ import type { ProseHome, ProseOverride, ProseOverrides, ProseResolution, ProseSl
 import { isProseSlotId, PROSE_SLOT_IDS, proseOverBy, proseOverrideFromLegacy, resolveProseFrom, spliceProseTokens } from "#prose-slot";
 import { RPG_PROSE_SLOTS } from "#rpg";
 
-export * from "#prose-slot";
+export type { ProseHome, ProseMacroMode, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
+export {
+  isProseSlotId,
+  LEGACY_PROSE_BASE_VERSION,
+  PROSE_COUNTER_AT,
+  PROSE_HOMES,
+  PROSE_MACRO_MODES,
+  PROSE_MAX_CHARS,
+  PROSE_SLOT_IDS,
+  proseOverBy,
+  proseOverrideFromLegacy,
+  proseOverrideSchema,
+  proseOverridesSchema,
+  proseSlotIdSchema,
+  resolveProseFrom,
+  spliceProseTokens,
+} from "#prose-slot";
 
 /** The composed registry — every slot, one row each. Annotated (not inferred) so an id without a row is a
  *  `tsc` error at THIS line. */

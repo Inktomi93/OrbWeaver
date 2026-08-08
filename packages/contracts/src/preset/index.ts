@@ -23,7 +23,7 @@ import { proseOverridesSchema } from "#prose-slot";
 import { defineVersionedConfig } from "#versioned-config";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
 
-export * from "./prose.ts";
+export { PRESET_COMPACTION_SLOT_ID, PRESET_FORMAT_SLOT_IDS, PRESET_GUIDED_SLOT_IDS, PRESET_PROSE_SLOTS } from "./prose.ts";
 
 const MAX_NAME_LENGTH = 200;
 const MIN_ID_LENGTH = 1;

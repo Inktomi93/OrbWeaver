@@ -14,7 +14,20 @@
 // tables + the client.
 
 // The client + lifecycle (Db, createDb, the migration/integrity/backup/housekeeping helpers, LibSqlWrap).
-export * from "./client/index.ts";
+export type { BaselineCheck, Db, LibSqlWrap, ReadOnlyDb } from "./client/index.ts";
+export {
+  assertReferentialIntegrity,
+  backupBeforeMigrate,
+  checkBaseline,
+  createDb,
+  hasPendingMigrations,
+  localPath,
+  optimizeDb,
+  preCloseHousekeeping,
+  pruneDbBackups,
+  resetDevDatabase,
+  runMigrations,
+} from "./client/index.ts";
 // The native vector column codec (consumed by the embeddings + discovery schema files).
 export { vector32 } from "./custom-types/index.ts";
 // Every drizzle table + the relations (the db-row producers).
