@@ -9,7 +9,7 @@
 import { RPG_PROFILE_D20 } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
-import type { ChatId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { beforeEach, describe } from "vitest";
 import { findGameByChat } from "../../../../../packages/server/src/domain/rpg/persistence/games.ts";
@@ -171,6 +171,65 @@ describe("patchSheet — the tracker EXCEPTIONS are host-only, even on a member'
     expect(sheet?.flavor).toBe("");
     expect(sheet?.className).toBe("Rogue"); // the legitimate edit survived; only the refused patches wrote nothing
     // A refused write emits NOTHING — no `sheetChanged` repaint for a mutation that never happened.
+    expect(fakes.busEvents).toEqual([]);
+  });
+
+  test("an EMPTY list is still a host ask — key-PRESENCE gates, never truthiness", async () => {
+    // The gate reads `=== undefined`, the same MA-4 key-presence test `mergeSheet` uses, so `[]` is a real
+    // whole-list REPLACE ("clear every exception on this actor") and not a no-op. A truthiness/length check
+    // here would let a member wipe the host's grants with the emptiest possible payload — the arm is refused
+    // BY CONSTRUCTION today, and this row is what keeps it that way if the condition is ever "simplified".
+    const { chatId, memberId, service, fakes } = await seedGameWithMember();
+    const member = principal(castId<Handle>("member"));
+    const host = principal(castId<Handle>("host"));
+    const ref = { kind: "user" as const, userId: memberId };
+    const game = await findGameByChat(db, chatId);
+    if (!game) {
+      throw new Error("no game");
+    }
+    // The host authors an exception first, so the clear has something REAL to destroy.
+    await service.patchSheet({ principal: host, chatId, actorRef: ref, patch: { trackerGrants: ["bound_will"], trackerRevokes: ["mana"] } });
+    fakes.busEvents.length = 0;
+
+    await expect(service.patchSheet({ principal: member, chatId, actorRef: ref, patch: { trackerGrants: [] } })).rejects.toThrow(
+      new DomainForbiddenError("host authority required to grant or revoke a tracker exception"),
+    );
+    await expect(service.patchSheet({ principal: member, chatId, actorRef: ref, patch: { trackerRevokes: [] } })).rejects.toThrow(
+      new DomainForbiddenError("host authority required to grant or revoke a tracker exception"),
+    );
+
+    // The host's exceptions SURVIVED both empty-list attempts, and nothing repainted.
+    const sheet = (await findSheet(db, game.id, { userId: memberId }))?.sheet;
+    expect(sheet?.trackerGrants).toEqual(["bound_will"]);
+    expect(sheet?.trackerRevokes).toEqual(["mana"]);
+    expect(fakes.busEvents).toEqual([]);
+  });
+
+  test("a member reaching a CHARACTER ref with grants is refused by the ROW gate first — no emit", async () => {
+    // The two floors compose, and their ORDER is deliberate: `assertOwnUserRef` (whose row) runs before the
+    // field floor (which fields), so a member aiming grants at a roster CHARACTER never reaches the tracker
+    // check at all and gets the row-gate sentence. Pinned because the sentence is the contract and the
+    // ordering is what makes the coarser refusal the one a member sees — both refusals are `Forbidden`, so
+    // neither arm tells a member anything the other would not.
+    const { chatId, service, fakes } = await seedGameWithMember();
+    const member = principal(castId<Handle>("member"));
+    const characterRef = { kind: "character" as const, characterId: castId<CharacterId>("character_mara") };
+    fakes.busEvents.length = 0;
+
+    await expect(service.patchSheet({ principal: member, chatId, actorRef: characterRef, patch: { trackerGrants: ["bound_will"] } })).rejects.toThrow(
+      new DomainForbiddenError("a member may write only their own row"),
+    );
+    await expect(service.patchSheet({ principal: member, chatId, actorRef: characterRef, patch: { trackerRevokes: ["mana"] } })).rejects.toThrow(
+      new DomainForbiddenError("a member may write only their own row"),
+    );
+
+    // No sheet row was minted for the character (the refusal lands before the first-write upsert) and nothing
+    // repainted — a refused reach leaves no trace at all.
+    const game = await findGameByChat(db, chatId);
+    if (!game) {
+      throw new Error("no game");
+    }
+    expect(await findSheet(db, game.id, { characterId: castId<CharacterId>("character_mara") })).toBeUndefined();
     expect(fakes.busEvents).toEqual([]);
   });
 
