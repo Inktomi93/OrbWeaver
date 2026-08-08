@@ -72,17 +72,25 @@ const USER =
 const STATE = "\n\n## CURRENT STATE\nplayer — HP 22/30\n  conditions: Bleeding (-1), Exhausted (-1)\n  status: wounded, running on fumes";
 
 // Sonnet 5 pricing (intro rates through 2026-08-31): $2 / $10 per MTok.
-const price = (u) => ((u.input_tokens ?? 0) * 2 + (u.output_tokens ?? 0) * 10) / 1e6;
+const price = (u: { input_tokens?: number; output_tokens?: number }) => ((u.input_tokens ?? 0) * 2 + (u.output_tokens ?? 0) * 10) / 1e6;
 let spent = 0;
-const rows = [];
+const rows: Array<Record<string, unknown>> = [];
 
-async function arm(label, params) {
+// The tool inputs the model returns (ToolUseBlock.input is `unknown` in the SDK).
+interface PartyToolInput {
+  removeCondition?: string;
+  hpDelta?: number;
+}
+
+async function arm(label: string, params: Record<string, unknown>) {
   const started = Date.now();
-  let res, err = null;
+  let res: Anthropic.Messages.Message | undefined;
+  let err: string | null = null;
   try {
-    res = await client.messages.create({ model: MODEL, max_tokens: 1500, system: SYSTEM + STATE, messages: [{ role: "user", content: USER }], ...params });
+    // `output_config` / adaptive-thinking are beta params not in the SDK 0.106 create types; the wire accepts them.
+    res = await client.messages.create({ model: MODEL, max_tokens: 1500, system: SYSTEM + STATE, messages: [{ role: "user", content: USER }], ...params } as Anthropic.Messages.MessageCreateParamsNonStreaming);
   } catch (e) {
-    err = `${e.constructor?.name}: ${e.message}`.slice(0, 220);
+    err = (e instanceof Error ? `${e.constructor.name}: ${e.message}` : String(e)).slice(0, 220);
   }
   const ms = Date.now() - started;
 
@@ -92,17 +100,18 @@ async function arm(label, params) {
     console.log();
     return;
   }
+  if (!res) return;
 
-  const text = res.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-  const tools = res.content.filter((b) => b.type === "tool_use");
+  const text = res.content.filter((b): b is Anthropic.Messages.TextBlock => b.type === "text").map((b) => b.text).join("");
+  const tools = res.content.filter((b): b is Anthropic.Messages.ToolUseBlock => b.type === "tool_use");
   const think = res.content.filter((b) => b.type === "thinking");
   const cost = price(res.usage);
   spent += cost;
 
-  let schemaOk = null;
-  if (text) { try { const p = JSON.parse(text); schemaOk = typeof p.narrative === "string"; } catch { schemaOk = false; } }
+  let schemaOk: boolean | null = null;
+  if (text) { try { const p = JSON.parse(text) as { narrative?: unknown }; schemaOk = typeof p.narrative === "string"; } catch { schemaOk = false; } }
 
-  const args = tools.map((t) => t.input);
+  const args = tools.map((t) => t.input as PartyToolInput);
   const removed = args.map((a) => a.removeCondition).filter(Boolean);
   const hp = args.map((a) => a.hpDelta).filter((v) => typeof v === "number");
 

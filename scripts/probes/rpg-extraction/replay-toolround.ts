@@ -2,6 +2,16 @@
 // emits assistant message.content ALONGSIDE tool_calls (the message production currently discards).
 import { readFileSync } from "node:fs";
 
+type ReqBody = Record<string, unknown>;
+interface RawToolCall {
+  function?: { name?: string };
+}
+interface RawResp {
+  choices?: Array<{ message?: { content?: unknown; tool_calls?: RawToolCall[] }; finish_reason?: string | null }>;
+  usage?: { cost?: number; prompt_tokens?: number; completion_tokens?: number };
+  error?: unknown;
+}
+
 const DIR = new URL(".", import.meta.url).pathname;
 const REPO = "/home/inktomi/inktomi-stack/development/orbweaver";
 
@@ -9,15 +19,16 @@ const REPO = "/home/inktomi/inktomi-stack/development/orbweaver";
 const env = readFileSync(`${REPO}/.env`, "utf8");
 const m = env.match(/^OPENROUTER_API_KEY=(.*)$/m);
 if (!m) { console.error("no OPENROUTER_API_KEY in .env"); process.exit(1); }
-const KEY = m[1].trim().replace(/^["']|["']$/g, "");
+// biome-ignore lint/style/noNonNullAssertion: capture group 1 is present whenever the pattern matched.
+const KEY = m[1]!.trim().replace(/^["']|["']$/g, "");
 
-const base = JSON.parse(readFileSync(`${DIR}/real-cheap-toolround.json`, "utf8"));
+const base = JSON.parse(readFileSync(`${DIR}/real-cheap-toolround.json`, "utf8")) as ReqBody;
 
-async function run(label, mutate) {
-  const body = JSON.parse(JSON.stringify(base));
-  body.stream = false;
-  body.usage = { include: true };
-  delete body.stream_options;
+async function run(label: string, mutate: (b: ReqBody) => void) {
+  const body = JSON.parse(JSON.stringify(base)) as ReqBody;
+  body["stream"] = false;
+  body["usage"] = { include: true };
+  delete body["stream_options"];
   mutate(body);
   const started = Date.now();
   const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -26,10 +37,10 @@ async function run(label, mutate) {
     body: JSON.stringify(body),
   });
   const ms = Date.now() - started;
-  const j = await res.json();
-  console.log(`\n════ ${label}  tool_choice=${JSON.stringify(body.tool_choice)} ════`);
+  const j = (await res.json()) as RawResp;
+  console.log(`\n════ ${label}  tool_choice=${JSON.stringify(body["tool_choice"])} ════`);
   if (!res.ok || j.error) { console.log("HTTP", res.status, JSON.stringify(j.error ?? j).slice(0, 400)); return; }
-  const msg = j.choices?.[0]?.message ?? {};
+  const msg: { content?: unknown; tool_calls?: RawToolCall[] } = j.choices?.[0]?.message ?? {};
   const content = typeof msg.content === "string" ? msg.content : JSON.stringify(msg.content ?? "");
   const toolCalls = msg.tool_calls ?? [];
   console.log(`finish_reason=${j.choices?.[0]?.finish_reason}  latency=${ms}ms`);
@@ -40,4 +51,4 @@ async function run(label, mutate) {
 }
 
 await run("A) REQUIRED (production cheap config)", () => {});
-await run("B) AUTO (can it narrate + call tools?)", (b) => { b.tool_choice = "auto"; b.max_tokens = 4096; });
+await run("B) AUTO (can it narrate + call tools?)", (b) => { b["tool_choice"] = "auto"; b["max_tokens"] = 4096; });

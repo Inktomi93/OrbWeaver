@@ -49,16 +49,16 @@ const NARRATIVE_FORMAT = {
 const SYSTEM = "You are the GM of a dark-fantasy RPG. Narrate vividly in second person, then record ALL state that changed using the tools. The player is `player`.\n\n## CURRENT STATE\nplayer — HP 22/30\n  conditions: Bleeding (-1), Exhausted (-1)";
 const USER = "I press the cauterizing iron to the wound. The bleeding stops, but it costs me — searing pain, and I nearly black out.";
 
-const price = (u) => ((u.input_tokens ?? 0) * 2 + (u.output_tokens ?? 0) * 10) / 1e6;
+const price = (u: { input_tokens?: number; output_tokens?: number }) => ((u.input_tokens ?? 0) * 2 + (u.output_tokens ?? 0) * 10) / 1e6;
 let spent = 0;
 
-const show = (tag, res) => {
-  const text = res.content.filter((b) => b.type === "text").map((b) => b.text).join("");
-  const tools = res.content.filter((b) => b.type === "tool_use");
+const show = (tag: string, res: Anthropic.Messages.Message) => {
+  const text = res.content.filter((b): b is Anthropic.Messages.TextBlock => b.type === "text").map((b) => b.text).join("");
+  const tools = res.content.filter((b): b is Anthropic.Messages.ToolUseBlock => b.type === "tool_use");
   const cost = price(res.usage);
   spent += cost;
-  let schemaOk = null;
-  if (text) { try { schemaOk = typeof JSON.parse(text).narrative === "string"; } catch { schemaOk = false; } }
+  let schemaOk: boolean | null = null;
+  if (text) { try { schemaOk = typeof (JSON.parse(text) as { narrative?: unknown }).narrative === "string"; } catch { schemaOk = false; } }
   console.log(`  ${tag}: stop=${res.stop_reason} text=${text.length} tools=${tools.length} schemaValid=${schemaOk} $${cost.toFixed(5)}`);
   if (tools.length) for (const t of tools) console.log(`      → ${t.name}(${JSON.stringify(t.input).slice(0, 120)})`);
   if (text) console.log(`      text[0:160]: ${text.slice(0, 160).replace(/\n/g, " ")}`);
@@ -67,11 +67,12 @@ const show = (tag, res) => {
 
 console.log(`\n=== tools + output_config.format, TWO ROUNDS (native ${MODEL}) ===\n`);
 
-const messages = [{ role: "user", content: USER }];
+const messages: Array<{ role: string; content: unknown }> = [{ role: "user", content: USER }];
 const common = { model: MODEL, max_tokens: 1500, system: SYSTEM, tools: TOOLS, thinking: { type: "disabled" }, output_config: { effort: "low", format: NARRATIVE_FORMAT } };
 
 console.log("ROUND 1 — the call the earlier probe stopped at:");
-const r1 = show("r1", await client.messages.create({ ...common, messages }));
+// `output_config` is a beta param not in the SDK 0.106 create types; the wire accepts it.
+const r1 = show("r1", await client.messages.create({ ...common, messages } as Anthropic.Messages.MessageCreateParamsNonStreaming));
 
 if (r1.tools.length === 0) {
   console.log("\n  (no tool call — nothing to round-trip)");
@@ -82,7 +83,7 @@ if (r1.tools.length === 0) {
     content: r1.tools.map((t) => ({ type: "tool_result", tool_use_id: t.id, content: "ok, state updated" })),
   });
   console.log("\nROUND 2 — tool_result fed back; does the schema-constrained narrative arrive?");
-  const r2 = show("r2", await client.messages.create({ ...common, messages }));
+  const r2 = show("r2", await client.messages.create({ ...common, messages } as Anthropic.Messages.MessageCreateParamsNonStreaming));
 
   console.log("\n=== VERDICT ===");
   if (r2.schemaOk) {

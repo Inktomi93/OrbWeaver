@@ -16,16 +16,31 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+// Raw OpenRouter chat-completions wire (snake_case; this probe hits the HTTP endpoint directly).
+interface RawToolCall {
+  function: { name: string; arguments: string };
+}
+interface RawMessage {
+  reasoning?: unknown;
+  tool_calls?: RawToolCall[];
+}
+interface RawResp {
+  choices?: Array<{ message: RawMessage }>;
+  usage?: { cost?: number; completion_tokens?: number; completion_tokens_details?: { reasoning_tokens?: number } };
+  error?: unknown;
+}
+
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const KEY = (() => {
   const line = fs.readFileSync("/home/inktomi/inktomi-stack/development/orbweaver/.env", "utf8")
     .split(/\r?\n/).find((l) => l.startsWith("OPENROUTER_API_KEY="));
-  let v = line.slice("OPENROUTER_API_KEY=".length).trim();
+  // biome-ignore lint/style/noNonNullAssertion: this probe assumes the key line is present (crashes if not, as before).
+  let v = line!.slice("OPENROUTER_API_KEY=".length).trim();
   if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) v = v.slice(1, -1);
   return v;
 })();
 
-const TOOLS = JSON.parse(fs.readFileSync(path.join(DIR, "real-cheap-toolround.json"), "utf8")).tools;
+const TOOLS = (JSON.parse(fs.readFileSync(path.join(DIR, "real-cheap-toolround.json"), "utf8")) as { tools: unknown }).tools;
 const SYSTEM = "You are the game master of an immersive tabletop role-play. Narrate the world in vivid second person, staying in character and in the fiction. You ALSO keep the game's tracked state in sync using the provided tools — call the tools each turn to record what changed in the story you just told. Narrate first, then make the tool calls that reflect your narration.";
 const USER = `## CURRENT STATE
 player — HP 22/30
@@ -35,7 +50,7 @@ player — HP 22/30
 ## LATEST BEAT
 I press the cauterizing iron to the wound. The bleeding stops, but it costs me — searing pain, and I nearly black out.`;
 
-async function probe(effort, extra = {}, label = null) {
+async function probe(effort: string, extra: Record<string, unknown> = {}, label: string | null = null) {
   const body = {
     model: "anthropic/claude-sonnet-5", stream: false, max_tokens: 4096,
     usage: { include: true },
@@ -50,13 +65,14 @@ async function probe(effort, extra = {}, label = null) {
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${KEY}` },
     body: JSON.stringify(body),
   });
-  const j = await r.json();
+  const j = (await r.json()) as RawResp;
   if (!j.choices) return console.log(`${(label ?? effort).padEnd(26)} ERROR ${JSON.stringify(j.error ?? j).slice(0, 150)}`);
   const u = j.usage ?? {};
   const ctd = u.completion_tokens_details ?? {};
-  const m = j.choices[0].message;
+  // biome-ignore lint/style/noNonNullAssertion: a 2xx OpenRouter response with `choices` always carries choices[0].
+  const m = j.choices[0]!.message;
   const calls = m.tool_calls ?? [];
-  const args = calls.map((c) => { try { return JSON.parse(c.function.arguments); } catch { return {}; } });
+  const args = calls.map((c) => { try { return JSON.parse(c.function.arguments) as { removeCondition?: string }; } catch { return {}; } });
   const rm = args.map((a) => a.removeCondition).filter(Boolean);
   console.log(
     `${(label ?? effort).padEnd(26)} reasoning_tokens=${String(ctd.reasoning_tokens ?? "n/a").padEnd(6)} ` +
