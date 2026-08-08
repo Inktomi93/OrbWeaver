@@ -108,10 +108,14 @@ h3{font-size:12px;margin:0 0 8px;letter-spacing:.01em;font-weight:650}
 .cb.undecided{border-color:color-mix(in oklab, var(--color-warning) 38%, transparent)}
 .cb.discarded{background:var(--color-background);border-style:dashed}
 /* .62, not less: a discarded block's text stays READABLE (measured 4.9:1 against the frame) —
-   it is content the user paid a model call for, de-emphasised by strike + dashed border, not hidden.
-   Framebuffer-sampled at .62 -> 6.7:1 peak vs the block background; the earlier .42 measured 3.67:1. */
+   it is content the user paid a model call for, de-emphasised by dashed border + dim, not hidden.
+   Framebuffer-sampled at .62 -> 6.7:1 peak vs the block background; the earlier .42 measured 3.67:1.
+   OWNER CORRECTION (2026-08-08): NO strikethrough on discard. The first draft struck the after/ins
+   text, which COLLIDED with the diff's own strike vocabulary — in a discarded greeting the original
+   was struck (diff: "removed by the rewrite") AND the insertion was struck (state: "you rejected
+   this"): one glyph, two grammars, confusing. RULE: strikethrough is DIFF vocabulary ONLY; the
+   discard state is carried by the word chip + dashed border + dimmed body, never by strike. */
 .cb.discarded .pair,.cb.discarded .diffpre{opacity:.62}
-.cb.discarded .side.after,.cb.discarded .ins{text-decoration:line-through}
 .pendingline{display:flex;gap:8px;align-items:flex-start;padding:7px 9px;border-radius:var(--radius-control);
   background:var(--warn-tint);font-size:11px;line-height:1.5;color:var(--color-foreground)}
 .pendingline b{color:var(--color-warning)}
@@ -212,8 +216,8 @@ reports as <i>Gained: a warmth toward strangers</i>), and has not yet decided <s
       <button class="vbtn"><svg viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>Keep</button>
       <button class="vbtn drop-on"><svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></svg>Discard</button>
     </div>
-    <div class="d">Also an explicit press, and <b>visibly different from undecided</b> — dashed border, dimmed body, struck-through <i>after</i> text.
-      The user paid a model call for that text; it stays on screen.</div>
+    <div class="d">Also an explicit press, and <b>visibly different from undecided</b> — dashed border, dimmed body, the <b>Discarded</b> chip.
+      No strikethrough: that is the diff's vocabulary, not the state's (owner correction). The user paid a model call for that text; it stays on screen, readable.</div>
   </div>
 </div>
 <p class="note wide"><span class="tag law">BELT 10 &middot; why this grammar satisfies it natively</span>
@@ -318,7 +322,8 @@ The state word rides the <b>block header</b> as well as the pressed button, so a
 </p>
 <p class="note"><span class="tag law">COLOURBLIND &mdash; word primary, tint secondary</span>
 Every state is carried by a <b>word</b> first: the header chip (<b>Kept</b> / <b>Discarded</b> / <b>Undecided</b>), the button label (<b>Keep</b> / <b>Discard</b>), and, for a discard,
-a third redundant channel — a dashed border and struck-through <i>after</i> text. Each pair side keeps the primitive's glyph + word
+a third redundant channel — the dashed border + dimmed body. Strikethrough is deliberately NOT used for state: it is the diff's own vocabulary
+(&ldquo;removed by the rewrite&rdquo;), and reusing it for &ldquo;you rejected this&rdquo; put two grammars on one glyph (owner-caught collision, corrected). Each pair side keeps the primitive's glyph + word
 (<span class="mono">&minus; before</span> / <span class="mono">+ after</span>, matching <span class="mono">compare-blocks.tsx:65-78</span>'s
 <span class="mono">Icon</span> + <span class="mono">sr-only</span>). A greyscale screenshot of this frame is fully legible; no state anywhere rests on tint alone.
 </p>
