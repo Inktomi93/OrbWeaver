@@ -463,9 +463,14 @@ security lens.
   **Two batteries, two stale coupled test-sites (SUMDROP enum fixture · this menu-label CT) — both
   invisible to static + the targeted verifier. \[\[shared-value-change-owes-a-battery-not-static]]:
   an enum/label/menu change owes a `tests:node`/CT run; the coupled site hides in an unrelated suite.**
-- **⏳ CERTIFICATION BATTERY (`95c552e2c`, detached) — the clean-green push gate.** Prior run was 15/15
-  static + e2e-smoke + cpd + parity green with only the one CT red (now fixed). Post-green, rpg zone
-  settled: dispatch side-eye #16 + glyph #13; a push needs a fresh owner word + this green.
+- ✅ **PUSHED 2026-08-07: `ab55c112e..d34a6702c main → main` (152 commits).** Certification battery
+  `95c552e2c` came back **PASS (exit 0) — all stages clean incl. `tests:node`** on the third run (no
+  third coupled site). Owner word given ("push when ready with no verify"); `git push --no-verify` (the
+  battery was the certification). **STANDING LAW RESETS: the NEXT push needs a FRESH word + a FRESH
+  battery** — this word and this green are spent.
+- **RESUMED QUEUE (box free, no write lanes):** side-eye #16 (rendered graduation of RENDERFIX+PTRGATE
+  on the settled rpg surfaces) · glyph sweep #13 (square-glyph Button debt + icon-seal doorways) ·
+  the `run-coverage.ts` widgets bug · the PORT-R6 2-turn cross-link fixture hardening.
 - ✅ **TEMPLATE-UNIFY merged** (`6d7867401`, check 14/14) — row 49 slotted; (b) unification COMPLETE.
 - ✅ **SMALLS-SERVER merged** (`58b1f9ce7`, check 14/14) — narrator room previews its CAST shape now
   (GroupConfig threaded into PreviewInputs, per-speaker byte-unchanged, red-first: narrator RED on old
