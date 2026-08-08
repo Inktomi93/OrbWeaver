@@ -1325,6 +1325,32 @@ test("MOBILE: the full-screen sheet gets the same elevation + inert content", as
   await expect(page.locator(".shell-content")).toHaveAttribute("inert", "");
 });
 
+/** The overlay band's own dismiss, by its accessible name ("Close <section> list" / "… details"). */
+const OVERLAY_CLOSE_RE = /^Close /u;
+
+// A FLOATING PANEL CARRIES ITS OWN WAY OUT (side-eye 2026-08-06 P2). Docked and collapsed panels are
+// closed from the topbar, which is the right home for a track. An OVERLAY is different: it floats over the
+// column, and at 100dvw on a phone the scrim it floats over has no reachable pixel at all — the topbar
+// toggle was the only exit, a control somewhere else for a surface covering the screen.
+test("MOBILE: an overlay panel's band carries a DISMISS, and it closes the panel", async ({ mount, page }) => {
+  await page.setViewportSize(MOBILE);
+  const shell = await mount(<AppShellStory />);
+  const panel = page.locator('.shell-panel[data-panel-side="list"]');
+
+  // Docked/collapsed: the band offers no close — the topbar owns a track's toggle.
+  await expect(panel.getByRole("button", { name: OVERLAY_CLOSE_RE })).toHaveCount(0);
+
+  await shell.getByRole("button", { name: LIST_TOGGLE_RE }).click();
+  await expect(panel).toHaveAttribute("data-panel-mode", "overlay");
+
+  const dismiss = panel.getByRole("button", { name: OVERLAY_CLOSE_RE });
+  await expect(dismiss).toBeVisible();
+  await dismiss.click();
+  await expect(panel).toHaveAttribute("data-panel-mode", "collapsed");
+  // …and the content column is reachable again (the sheet's inert lifted with it).
+  await expect(page.locator(".shell-content")).not.toHaveAttribute("inert", "");
+});
+
 // ── THE MOBILE ONE-SHELL RULE (owner-ruled 2026-08-03) ───────────────────────────────────────────────
 // "On mobile, a list-bearing section with NO selection shows its LIST as the screen; selecting pushes to
 // CONTENT with a back row" — applied by the SHELL to every section that declares a list, so there are no

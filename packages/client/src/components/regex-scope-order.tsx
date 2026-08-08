@@ -39,9 +39,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { Trpc } from "#data";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { COLLECTION_LARGE_GROUP, regexScriptTitle } from "#lib";
-
-/** Two rows is the floor for an order to exist at all. */
-const ORDERABLE_MINIMUM = 2;
+import { ORDERABLE_MINIMUM } from "./regex-scope-order-model.ts";
 
 export interface RegexScopeOrderProps {
   /** WHICH junction the rewrite addresses — the `@orb/contracts/regex` union the router validates. */
@@ -62,16 +60,28 @@ export function RegexScopeOrder({ scope, scripts, renderItem }: RegexScopeOrderP
     apply.mutate({ scope, orderedScriptIds: [...orderedScriptIds] });
   };
 
+  // LIST SEMANTICS on every arm (side-eye 2026-08-06): the ordered slice is a RANKED list, and a ranked
+  // list whose rank exists only as a visual number tells a screen reader nothing about where a row sits.
+  // `role="list"` + `aria-posinset/setsize` is the `VirtualList`/`SortableList` shape, spelled here for the
+  // two arms that are plain stacks rather than the seal.
   if (scripts.length < ORDERABLE_MINIMUM) {
-    return <Stack gap="field">{scripts.map((script, index) => renderItem(script, index))}</Stack>;
+    return (
+      <Stack gap="field" role="list">
+        {scripts.map((script, index) => (
+          <Stack aria-posinset={index + 1} aria-setsize={scripts.length} key={script.id} role="listitem">
+            {renderItem(script, index)}
+          </Stack>
+        ))}
+      </Stack>
+    );
   }
 
   if (scripts.length > COLLECTION_LARGE_GROUP) {
     const ids = scripts.map((script) => script.id);
     return (
-      <Stack gap="field">
+      <Stack gap="field" role="list">
         {scripts.map((script, index) => (
-          <Row align="center" gap="field" key={script.id}>
+          <Row align="center" aria-posinset={index + 1} aria-setsize={scripts.length} gap="field" key={script.id} role="listitem">
             <Stack className="min-w-0 flex-1">{renderItem(script, index)}</Stack>
             <MoveControls count={scripts.length} index={index} onMove={(from, to): void => commit(reseat(ids, from, to))} script={script} />
           </Row>
@@ -84,7 +94,7 @@ export function RegexScopeOrder({ scope, scripts, renderItem }: RegexScopeOrderP
     <SortableList
       getItemKey={(script: RegexScriptRow): SortableItemKey => script.id}
       handle={true}
-      handleLabel={(script: RegexScriptRow): string => `Reorder ${regexScriptTitle(script)}`}
+      itemLabel={(script: RegexScriptRow): string => regexScriptTitle(script)}
       items={scripts}
       onReorder={(orderedKeys): void => {
         commit(orderedKeys.map((key) => key as RegexScriptId));

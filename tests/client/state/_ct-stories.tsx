@@ -41,6 +41,7 @@ import {
   reportSectionSaveStatus,
   requestComposerFocus,
   revealContextPanel,
+  revealContextPanelBesideContent,
   SECTION_IDS,
   SettingsSectionRegistryProvider,
   selectAnalyticsCharacter,
@@ -262,6 +263,9 @@ function ShellStoreProbeBody(): ReactElement {
       </button>
       <button type="button" onClick={(): void => revealContextPanel("field")}>
         reveal context panel
+      </button>
+      <button type="button" onClick={(): void => revealContextPanelBesideContent("field")}>
+        reveal context beside content
       </button>
       <button type="button" onClick={(): void => setMobileViewport(true)}>
         enter mobile viewport

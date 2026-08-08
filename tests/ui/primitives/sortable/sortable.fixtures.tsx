@@ -40,6 +40,9 @@ export function ReorderableList({ itemCount = 3, handle = false, disabled = fals
         disabled={disabled}
         getItemKey={(item): string => item.id}
         handle={handle}
+        // The row's NAME is deliberately DIFFERENT from its key ("Item 0" vs "item-0") so an announcement
+        // that leaked the raw id could never pass as the label.
+        itemLabel={(item): string => item.label}
         items={items}
         onReorder={(orderedKeys): void => {
           const byKey = new Map(items.map((item) => [item.id, item]));

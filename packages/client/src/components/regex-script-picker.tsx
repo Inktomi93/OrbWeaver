@@ -11,18 +11,26 @@
 // Client-shared (not `@orb/ui`): it speaks tRPC. Features cannot import each other, and BOTH the preset
 // editor and the character facet editor need it — `components/` is the shared home (the
 // `RegexEditorDialog` precedent).
+//
+// IT FILTERS PAST THE SAME CAP THE RAIL DOES (`COLLECTION_LARGE_GROUP`, side-eye 2026-08-06): this deck maps
+// the owner's WHOLE library flat, so it hits "not a glance" at exactly the size the config rail's group
+// frame does. ONE constant, one grammar, two homes — see `PickerBody`.
 
 import type { RegexPickerScope, RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { Icon, Search } from "@orb/ui/icons";
+import { Input } from "@orb/ui/input";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { regexScriptScent, regexScriptTitle } from "#lib";
+import { COLLECTION_LARGE_GROUP, regexScriptScent, regexScriptTitle } from "#lib";
 import { RegexScopeOrder } from "./regex-scope-order.tsx";
+import { scopeOrderShowsGrips } from "./regex-scope-order-model.ts";
 
 // Every regex verb is `busDriven` (`regexChanged` path-invalidates the whole router), so no call site
 // hand-invalidates its own attached-list read. The six factories live at the BOTTOM of this file, next to
@@ -111,13 +119,29 @@ function PickerBody({
 }: RegexScriptPickerProps & { readonly attached: readonly RegexScriptRow[] }): ReactElement {
   const trpc = useTRPC();
   const library = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
+  const [filter, setFilter] = useState("");
   const attachedIds = new Set(attached.map((row) => row.id));
-  const loose = library.data.filter((script) => !attachedIds.has(script.id));
+
+  // THE FILTER IS THE COLLECTION GROUP'S, GATED ON THE SAME CONSTANT (side-eye 2026-08-06). This picker maps
+  // the owner's WHOLE library flat — 35 rows at the seeded fixture, ~400 in the owner's real one — and a
+  // library past a glance earns the same box, in the same place, with the same grammar as the config rail's
+  // group frame. One constant (`COLLECTION_LARGE_GROUP`), one behaviour, both homes.
+  const filterable = library.data.length > COLLECTION_LARGE_GROUP;
+  const needle = filterable ? filter.trim().toLowerCase() : "";
+  const matches = (script: RegexScriptRow): boolean => needle === "" || regexScriptTitle(script).toLowerCase().includes(needle);
+  const loose = library.data.filter((script) => !attachedIds.has(script.id) && matches(script));
+  const matchedAttached = attached.filter(matches);
+  const nothingMatches = needle !== "" && loose.length === 0 && matchedAttached.length === 0;
+  // The rank column always; the grip column only where the ordered slice actually draws one (one home for
+  // that threshold — `scopeOrderShowsGrips`).
+  const reserveGrip = scopeOrderShowsGrips(attached.length);
 
   const looseRows = (
-    <Stack gap="field">
+    <Stack gap="field" role="list">
       {loose.map((script) => (
-        <PickerRow attached={false} key={script.id} scope={scope} script={script} />
+        <Stack key={script.id} role="listitem">
+          <PickerRow attached={false} reserveRank={attached.length > 0} reserveGrip={reserveGrip} scope={scope} script={script} />
+        </Stack>
       ))}
     </Stack>
   );
@@ -126,21 +150,50 @@ function PickerBody({
     <Stack gap="field">
       <Text voice="gloss">{helperText}</Text>
       {library.data.length === 0 ? <EmptyLibrary onOpenLibrary={onOpenLibrary} /> : null}
+      {filterable ? (
+        <Row align="center" gap="tight">
+          <Icon icon={Search} size="sm" className="text-muted-foreground" />
+          <Input aria-label="Filter regex scripts" onValueChange={setFilter} placeholder="Filter regex scripts…" value={filter} />
+        </Row>
+      ) : null}
+      {nothingMatches ? <Text voice="gloss">No scripts match that filter.</Text> : null}
       {/* Nothing attached ⇒ NO split: two group headings over one undifferentiated library is noise, and
           the ordered slice would be empty. This is the pre-REGORDER rendering, unchanged. */}
       {library.data.length > 0 && attached.length === 0 ? looseRows : null}
       {attached.length === 0 ? null : (
         <Section kicker={attached.length > 1 ? "Runs here, in order" : "Runs here"}>
-          <RegexScopeOrder
-            // The ordinal is the kicker's own claim, made checkable (side-eye sweep 2026-08-03). "Runs here,
-            // in order" over 34 undifferentiated rows asks the reader to count them by eye to know where the
-            // one they just moved landed — the config rail's global readout already answers that with a
-            // leading position, and this is the same concept in its other home. Only the ORDERED slice gets
-            // one: an unordered "Not attached" row numbered 1..n would be a rank that means nothing.
-            renderItem={(script, index): ReactElement => <PickerRow attached={true} position={index + 1} scope={scope} script={script} />}
-            scope={scope}
-            scripts={attached}
-          />
+          {/* A FILTERED VIEW HAS NO ORDER TO EDIT. `applyScopeOrder` keeps rows the write doesn't name as a
+              relative TAIL, so committing a drag over a filtered subset would silently push every hidden
+              attachment to the end — a control that lies. While a needle is set the slice renders as plain
+              rows carrying their TRUE ranks (the index in the whole attached list), and the reorder
+              affordance returns with the full list. */}
+          {needle === "" ? (
+            <RegexScopeOrder
+              // The ordinal is the kicker's own claim, made checkable (side-eye sweep 2026-08-03). "Runs here,
+              // in order" over 34 undifferentiated rows asks the reader to count them by eye to know where the
+              // one they just moved landed — the config rail's global readout already answers that with a
+              // leading position, and this is the same concept in its other home. Only the ORDERED slice gets
+              // one: an unordered "Not attached" row numbered 1..n would be a rank that means nothing.
+              renderItem={(script, index): ReactElement => <PickerRow attached={true} position={index + 1} scope={scope} script={script} />}
+              scope={scope}
+              scripts={attached}
+            />
+          ) : (
+            <Stack gap="field" role="list">
+              {matchedAttached.map((script) => (
+                <Stack aria-posinset={attached.indexOf(script) + 1} aria-setsize={attached.length} key={script.id} role="listitem">
+                  <PickerRow
+                    attached={true}
+                    position={attached.indexOf(script) + 1}
+                    reserveGrip={reserveGrip}
+                    reserveRank={false}
+                    scope={scope}
+                    script={script}
+                  />
+                </Stack>
+              ))}
+            </Stack>
+          )}
         </Section>
       )}
       {attached.length === 0 || loose.length === 0 ? null : <Section kicker="Not attached">{looseRows}</Section>}
@@ -183,12 +236,20 @@ function PickerRow({
   script,
   attached,
   position,
+  reserveGrip = false,
+  reserveRank = false,
 }: {
   readonly scope: RegexPickerScope;
   readonly script: RegexScriptRow;
   readonly attached: boolean;
   /** 1-based execution rank, present ONLY inside the ordered slice (see the `renderItem` note above). */
   readonly position?: number;
+  /** Hold the width the ORDERED slice spends on its drag grip, so the two slices share one left edge
+   *  (side-eye 2026-08-06 P3 — the unattached rows started 53px inboard of the attached ones). Set from
+   *  `scopeOrderShowsGrips`, never guessed: past the large-group cap that slice has Move buttons instead. */
+  readonly reserveGrip?: boolean;
+  /** Hold the rank column's width on a row that has no rank (the unattached slice), for the same reason. */
+  readonly reserveRank?: boolean;
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -200,11 +261,8 @@ function PickerRow({
       {/* The rank rides INSIDE the identity cluster (the `GlobalOrderRow` anatomy), not as a third
           `justify-between` child — a bare sibling would push the name to the row's centre. */}
       <Row align="center" className="min-w-0" gap="field">
-        {position === undefined ? null : (
-          <Text as="span" voice="datum">
-            {position}
-          </Text>
-        )}
+        {reserveGrip ? <Row aria-hidden={true} className="size-control-sm shrink-0" /> : null}
+        <RankCell position={position} reserve={reserveRank} />
         <Stack gap="tight" className="min-w-0">
           <Text>{name}</Text>
           <Text voice="gloss">{regexScriptScent(script)}</Text>
@@ -218,6 +276,20 @@ function PickerRow({
         }}
       />
     </Row>
+  );
+}
+
+/** The ordered slice's 1-based rank, or the WIDTH it would take on a row that has none — one fixed column
+ *  so the two slices share a left edge (see `PickerRow`'s `reserveRank`). Its own component rather than a
+ *  nested ternary: three states, one cell. */
+function RankCell({ position, reserve }: { readonly position: number | undefined; readonly reserve: boolean }): ReactElement | null {
+  if (position === undefined) {
+    return reserve ? <Row aria-hidden={true} className="w-control-sm shrink-0" /> : null;
+  }
+  return (
+    <Text as="span" voice="datum" className="w-control-sm shrink-0 text-end tabular-nums">
+      {position}
+    </Text>
   );
 }
 

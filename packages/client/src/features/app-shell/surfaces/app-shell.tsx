@@ -258,7 +258,13 @@ export function AppShell(): ReactElement {
             <CustomThemeStyle css={theme?.css ?? null} />
             <RailSlot activeSection={layout.activeSection} show={!layout.mobileViewport} />
 
-            <PanelChrome panel="list" label={`${layout.activeSectionLabel} list`} header={activeDef.listHeader?.()} mode={layout.listMode}>
+            <PanelChrome
+              panel="list"
+              label={`${layout.activeSectionLabel} list`}
+              header={activeDef.listHeader?.()}
+              mode={layout.listMode}
+              onDismiss={(): void => layout.collapsePanel("list")}
+            >
               <RegionAnchor region="list">{listContent}</RegionAnchor>
             </PanelChrome>
 
@@ -311,7 +317,13 @@ export function AppShell(): ReactElement {
               </main>
             </div>
 
-            <PanelChrome panel="context" label={`${layout.activeSectionLabel} details`} header={contextPane.header} mode={layout.contextMode}>
+            <PanelChrome
+              panel="context"
+              label={`${layout.activeSectionLabel} details`}
+              header={contextPane.header}
+              mode={layout.contextMode}
+              onDismiss={(): void => layout.collapsePanel("context")}
+            >
               {contextPane.body}
             </PanelChrome>
 

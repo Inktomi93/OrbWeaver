@@ -22,6 +22,32 @@ import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 
 const collections = createContributorRegistry<CollectionContribution>("config-collections", [tagCollection, regexCollection, worldInfoCollection]);
 
+/** The roster's content box at the NARROWEST real docked LIST pane: `--dimension-panel` clamps at 17rem
+ *  (272px) and the panel body pays its own inline padding out of that. Measured, not guessed — the band's
+ *  longest kicker ("Regex scripts", on the one collection that also draws all three trailing verbs) needed
+ *  273px of this box and the pane gives 271, which is the two pixels the sweep saw go to an ellipsis. The
+ *  shared workspace story runs a roomier 330px and cannot see it. */
+const NARROW_ROSTER_PX = 271;
+
+export function ConfigRosterNarrowStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <button
+        type="button"
+        onClick={(): void => {
+          __resetCollectionGroupOpen();
+          clearCollectionSelection();
+        }}
+      >
+        reset groups
+      </button>
+      <div style={{ overflow: "hidden", width: NARROW_ROSTER_PX }}>
+        <ConfigRosterSurface collections={collections} />
+      </div>
+    </CtDataProviders>
+  );
+}
+
 /** The whole Configuration workspace: LIST roster · CONTENT · CONTEXT, over the real collections. */
 export function ConfigWorkspaceStory(): ReactElement {
   return (

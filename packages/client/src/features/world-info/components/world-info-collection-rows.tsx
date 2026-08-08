@@ -103,6 +103,9 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
           aria-label="World books"
           className={COLLECTION_WINDOW_MAX_HEIGHT}
           estimateSize={(): number => ESTIMATED_ROW_PX}
+          // Same reason as the tag/regex arms (side-eye 2026-08-06 P2): a fixed cap over uniform rows ends
+          // mid-row, and under overlay scrollbars that sliver is the only "there is more" cue there is.
+          fadeEdge={true}
           gapToken="field"
           getItemKey={(book): string => book.id}
           items={filtered}

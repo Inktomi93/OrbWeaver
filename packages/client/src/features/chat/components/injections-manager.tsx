@@ -74,7 +74,9 @@ export function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: Inject
       </Text>
 
       {rows.length === 0 ? (
-        <Text>No injections yet.</Text>
+        // The muted empty-state grammar every other zero-row surface uses — at full body weight this one
+        // sentence carried more visual weight than the rows it stands in for (side-eye 2026-08-06 P3).
+        <Text voice="gloss">No injections yet.</Text>
       ) : (
         <Stack gap="section">
           {rows.map((row) => (

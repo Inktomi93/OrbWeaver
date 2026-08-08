@@ -11,7 +11,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { ConfigWorkspaceStory } from "../_ct-stories.tsx";
+import { ConfigRosterNarrowStory, ConfigWorkspaceStory } from "../_ct-stories.tsx";
 
 /** The group bands, by their accessible name — a band is `<disclosure> <icon> LABEL <count>`, so the
  *  name carries the count and only a pattern can address it. */
@@ -345,6 +345,28 @@ test("a zero-member group keeps its band and says so, with its own create verb",
   const roster = workspace.locator(ROSTER);
   await expect(roster.getByText("No tags yet.")).toBeVisible();
   // The empty slot repeats the collection's OWN create verb as the inline next step, BESIDE the band's `+`
-  // (two affordances, one verb, both in the roster — the drawn design).
+  // (two affordances, one verb, both in the roster — the drawn design, `empty-states.html:191-193`).
   await expect(roster.getByRole("button", { name: "New tag" })).toHaveCount(2);
+  // …and the ZERO group's band offers NO disclosure (side-eye 2026-08-06 P2): the chevron used to open a
+  // panel onto nothing, one row above the card that had already said the library was empty. Scoped to the
+  // tags group — its populated siblings in this story keep their own toggles, which is the control.
+  await expect(roster.locator('[data-collection="tags"]').getByRole("button", { expanded: false })).toHaveCount(0);
+  await expect(roster.locator('[data-collection="tags"]').getByRole("button", { expanded: true })).toHaveCount(0);
+  await expect(roster.getByRole("button", { expanded: false })).toHaveCount(2);
+});
+
+// The band's KICKER at the pane it actually lives in (side-eye 2026-08-06 P3). "REGEX SCRIPTS" is the
+// longest label the door array carries, and at the docked pane's real 307px content width it lost its last
+// two pixels to the ellipsis — a truncated group name in a roster whose entire job is naming the groups.
+// The assertion is the SPAN'S BOX (scrollWidth vs clientWidth), not a screenshot: `truncate` is silent, so
+// the only honest question is whether the text needed more room than it got.
+test("the longest group kicker survives the docked pane's real width — no ellipsis on a group name", async ({ mount, page }) => {
+  await stub(page);
+  const roster = await mount(<ConfigRosterNarrowStory />);
+  await roster.getByRole("button", { name: "reset groups" }).click();
+
+  const kicker = roster.getByText("Regex scripts", { exact: true });
+  await expect(kicker).toBeVisible();
+  const overflow = await kicker.evaluate((node) => node.scrollWidth - node.clientWidth);
+  expect(overflow).toBe(0);
 });

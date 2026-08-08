@@ -48,7 +48,7 @@ import type { CollectionListView } from "#lib";
 import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, sortTagsBy } from "#lib";
 import { setTagSortMode, useTagSortMode } from "#state";
 import { usePruneUnusedTags, useSetTagOrder } from "../hooks/use-tag-settings-mutations.ts";
-import { pruneConfirmLabel, tagOrderHint, tagSortItems, unusedTagsLabel, usageTotalLabel } from "../lib/tags-model.ts";
+import { pruneConfirmLabel, tagColorLabel, tagOrderHint, tagSortItems, unusedTagsLabel, usageTotalLabel } from "../lib/tags-model.ts";
 
 /** One compact row's height guess for the windowed arm (swatch + name + usage on one line). */
 const ESTIMATED_ROW_PX = 36;
@@ -126,17 +126,28 @@ export function TagCollectionRows({ view }: { readonly view: CollectionListView 
       )}
       {empty || !draggable ? null : (
         <SortableList
+          aria-label="Tags"
           getItemKey={(tag: TagWithUsage): string => tag.id}
           handle={true}
-          handleLabel={(tag: TagWithUsage): string => `Reorder ${tag.name}`}
+          itemLabel={(tag: TagWithUsage): string => tag.name}
           items={filtered}
           onReorder={(orderedKeys): void => setOrder.mutate({ orderedIds: orderedKeys.map((key) => key as TagId) })}
           renderItem={renderRow}
         />
       )}
-      {/* The DERIVED orders below the windowing cap: the same rows, no handles (see the header) — a plain
-          Stack rather than a second list role, because the rows are the list. */}
-      {empty || windowed || draggable ? null : <Stack gap="field">{filtered.map(renderRow)}</Stack>}
+      {/* The DERIVED orders below the windowing cap: the same rows, no handles (see the header). LIST
+          SEMANTICS are explicit here (side-eye 2026-08-06 P2) — the two sibling arms of this very component
+          are a `VirtualList` and a `SortableList`, both of which announce "list, N items", so the third arm
+          announcing nothing made the SAME library speak two a11y grammars depending on its sort mode. */}
+      {empty || windowed || draggable ? null : (
+        <Stack aria-label="Tags" gap="field" role="list">
+          {filtered.map((tag, index) => (
+            <Stack aria-posinset={index + 1} aria-setsize={filtered.length} key={tag.id} role="listitem">
+              {renderRow(tag)}
+            </Stack>
+          ))}
+        </Stack>
+      )}
       {/* The library-level verb rides the OWNER's half of the group body — the host's band carries only the
           create verb, and "prune" is a fact about this library nobody else can state.
           IT CONFIRMS (side-eye 2026-08-03 P2): it was a bare `prune.mutate()` on a ghost button sitting one
@@ -184,16 +195,31 @@ function TagCollectionRow({
         // The tag's own colour is USER DATA, not a token — the one legal inline style (a dynamic value the
         // token gates deliberately scope out), and it rides a layout primitive because a feature may not
         // put `style` on a raw intrinsic.
+        //
+        // A hover TOOLTIP on the box, and the same fact as text in `markers` below — `ListRow` wraps its
+        // whole `leading` slot in `aria-hidden` by construction (the fallback-initials rule), so a name on
+        // this element could never reach the a11y tree no matter how it were spelled.
         <Row
           aria-hidden={true}
           className="size-3 shrink-0 rounded-control bg-muted"
+          title={tagColorLabel("Background", tag.color)}
           {...(tag.color === null ? {} : { style: { backgroundColor: tag.color } })}
         />
       }
       markers={
-        <Text as="span" voice="datum">
-          {usageTotalLabel(tag.usage.total)}
-        </Text>
+        <>
+          {/* THE SWATCH SAYS ITS VALUE (side-eye 2026-08-06 P3). The ONE fact the leading box carries —
+              which colour this tag paints, or that it has none — was sighted-only, and "no colour set" and
+              "set to something" were indistinguishable in the a11y tree because neither existed there.
+              `markers` is the row's own description channel (its id rides `aria-describedby`), so the datum
+              lands with the census and spends no width on a 400-row roster. */}
+          <Text as="span" className="sr-only">
+            {tagColorLabel("Background", tag.color)}
+          </Text>
+          <Text as="span" voice="datum">
+            {usageTotalLabel(tag.usage.total)}
+          </Text>
+        </>
       }
       onSelect={onSelect}
       selected={selected}
