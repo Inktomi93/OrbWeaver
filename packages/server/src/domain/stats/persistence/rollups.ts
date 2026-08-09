@@ -7,6 +7,7 @@
 // `characters.ownerId`; the name comes off the flat `characters.name`. personaUsage is the live definition
 // (anchor persona OR a participant's active persona).
 
+import { STATS_LIST_MAX_LIMIT } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, characters, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
@@ -27,8 +28,9 @@ import type {
 import { cacheHitRate, deriveExtra, reasoningRate, throughputTps } from "../substrate/rates.ts";
 import { modelLatencyKey, readLatency, readModelLatencies } from "./latency.ts";
 
+// The ceiling is the shared `STATS_LIST_MAX_LIMIT` (`@orb/contracts/stats` — the transport `.max()`
+// references the same value); the `Math.min` is the DoS backstop for internal callers.
 const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 200;
 const UNKNOWN_PROVIDER = "(unknown)";
 const DAY_MS = 86_400_000;
 
@@ -118,7 +120,7 @@ export async function readCharacter(db: Db, ownerId: UserId, characterId: Charac
 
 export async function readLeaderboard(db: Db, ownerId: UserId, opts: LeaderboardOpts = {}): Promise<LeaderboardRow[]> {
   const sort = opts.sort ?? "assistantTurns";
-  const limit = Math.min(opts.limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+  const limit = Math.min(opts.limit ?? DEFAULT_LIMIT, STATS_LIST_MAX_LIMIT);
   // Mapped Record — a new LeaderboardSort member is a `tsc` error if its arm is missing (exhaustive-dispatch).
   const sortCols = {
     assistantTurns: characterStats.assistantTurns,
@@ -181,7 +183,7 @@ export async function readByModel(db: Db, ownerId: UserId, opts: { limit?: numbe
     .from(modelStats)
     .where(eq(modelStats.ownerId, ownerId))
     .orderBy(desc(modelStats.generations))
-    .limit(Math.min(opts.limit ?? DEFAULT_LIMIT, MAX_LIMIT));
+    .limit(Math.min(opts.limit ?? DEFAULT_LIMIT, STATS_LIST_MAX_LIMIT));
   // Distinct-characters-per-model ("reach") — the rollup is character-less, so one owner-scoped GROUP BY
   // over assistant selected variants, keyed by (model, provider).
   const reachRows = await db.all<{ model: string; provider: string | null; chars: number }>(sql`

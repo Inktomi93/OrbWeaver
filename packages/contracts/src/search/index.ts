@@ -13,6 +13,17 @@ export const MEMORY_RETRIEVAL_MODES = ["off", "mixA", "mixB", "mixC", "tiered"] 
 export type MemoryRetrievalMode = (typeof MEMORY_RETRIEVAL_MODES)[number];
 export const memoryRetrievalModeSchema = z.enum(MEMORY_RETRIEVAL_MODES);
 
+/** The `search.suggest` autocomplete page CEILING, enforced at the transport trust boundary (the
+ *  `CHARACTER_LIST_MAX_LIMIT` precedent) — an over-bound ask is a BAD_REQUEST rather than an unbounded
+ *  suggestion fetch. Clients ask ≤ 8. */
+export const SEARCH_SUGGEST_MAX_LIMIT = 100;
+
+/** The `topN` CEILING for the vector-search verbs (`search.search`, `search.fields`, `search.similarArt` /
+ *  `similarCharacters`), enforced at the transport trust boundary. Same #45 class as a `limit` field — a
+ *  top-N over a growing embedding corpus — just spelled `topN`; an over-bound ask is a BAD_REQUEST rather
+ *  than an unbounded ranked fetch. Clients ask ≤ 20. */
+export const SEARCH_TOP_N_MAX = 200;
+
 /** The block-level identity of one digest/segment block. `search.corpus` dedupes ranked blocks by this
  *  key, and `memory`'s tiered bridge passes the surviving keys as `MemoryQueryOptions.candidates`.
  *  `scopedCharacterId` carries the egocentric POV: two scoped-group characters can produce digests for

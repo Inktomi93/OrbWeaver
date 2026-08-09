@@ -18,6 +18,12 @@ const handleSchema = brandedId<Handle>();
 const automationRuleIdSchema = typeIdSchema(ID_PREFIX.automationRule);
 const pluginIdSchema = typeIdSchema(ID_PREFIX.plugin);
 
+/** The `notifications.list` inbox page CEILING, enforced at the transport trust boundary (the
+ *  `CHARACTER_LIST_MAX_LIMIT` precedent) — an over-bound ask is a BAD_REQUEST, never an unbounded inbox
+ *  fetch. The same 100 the domain DoS backstop (`verbs/list.ts` `Math.min`, for the stream replay's internal
+ *  calls) references, homed HERE so the wire ceiling and the backstop never drift. */
+export const NOTIFICATIONS_LIST_MAX_LIMIT = 100;
+
 /** The `automation-notice` rendered-message cap (automation-design/03 §1.5). A capped string is the argued,
  *  closed exception to the ids-only habit — it stays credential-unrepresentable (a host-authored template
  *  rendered server-side over room state every recipient can already read). */

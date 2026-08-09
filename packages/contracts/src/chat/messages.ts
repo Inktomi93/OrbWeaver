@@ -19,6 +19,12 @@ import { messageKindSchema, messageRoleSchema } from "./participants.ts";
 
 const SEQ_MIN = 0;
 
+/** The `listMessages` page CEILING, enforced at the transport trust boundary (the `CHAT_LIST_MAX_LIMIT` /
+ *  `character.list` precedent). An unclamped `limit` is an unbounded SQL `.limit()` DoS surface; an over-bound
+ *  ask is refused as BAD_REQUEST. The same 100 the domain DoS backstop (`read.ts` `Math.min`, for internal
+ *  callers) references, homed HERE so the wire ceiling and the backstop never drift. */
+export const CHAT_MESSAGE_LIST_MAX_LIMIT = 100;
+
 /** The `messages` SLOT (D26): identity + attribution + selection ONLY — NO content, NO economics. A swipe
  *  APPENDs a `message_variants` row and `selectVariant` flips `selectedVariantId` (a pointer move, never a
  *  content copy). Attribution (`authorUserId`/`characterId`/`personaId`) is slot-level — a swipe never

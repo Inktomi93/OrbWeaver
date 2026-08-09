@@ -11,7 +11,7 @@
 // produced nothing usable (SERVICE_UNAVAILABLE, retryable). `classifyDomainError` maps all three, and the
 // content verdicts are ordered AFTER the ownership belt so neither is an existence oracle.
 
-import { RELATIONS } from "@orb/contracts/discovery";
+import { DISCOVERY_LIST_MAX_LIMIT, RELATIONS } from "@orb/contracts/discovery";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -34,7 +34,7 @@ export const discoveryRouter = t.router({
     .input(
       z
         .object({
-          limit: z.number().int().positive().optional(),
+          limit: z.number().int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
           minScore: z.number().optional(),
         })
         .optional(),
@@ -51,7 +51,7 @@ export const discoveryRouter = t.router({
     .input(
       z
         .object({
-          limit: z.number().int().positive().optional(),
+          limit: z.number().int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
           minScore: z.number().optional(),
           relation: z.enum(RELATIONS).optional(),
         })
@@ -76,7 +76,7 @@ export const discoveryRouter = t.router({
           tag: z.string().optional(),
           q: z.string().optional(),
           sort: z.enum(BROWSE_SORTS).optional(),
-          limit: z.number().int().positive().optional(),
+          limit: z.number().int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
         })
         .optional(),
     )
@@ -115,7 +115,7 @@ export const discoveryRouter = t.router({
   // PD-40 swipeHotspots: one chat's most-re-rolled assistant slots. Owner-belted via characters.ownerId (a
   // foreign chat → [], proved by the cross-tenant sweep probe). Owner = the resolved principal (audit #1).
   swipeHotspots: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>(), limit: z.number().int().positive().optional() }))
+    .input(z.object({ chatId: brandedId<ChatId>(), limit: z.number().int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) => ctx.services.discovery.swipeHotspots(ctx.auth.userId, input.chatId, input.limit)),
 
   // PD-40 archetypes: k-means clusters of the owner's card embeddings, labelled from distilled facets.
@@ -142,7 +142,7 @@ export const discoveryRouter = t.router({
   // PD-22/PD-40 economics-composed insights (the stats↔discovery seam Tier 3). Owner = resolved principal
   // (audit #1); the economics arrive via the injected stats op (discovery reads no raw messages economics).
   forgottenGems: authedProcedure
-    .input(z.object({ limit: z.number().int().positive().optional() }).optional())
+    .input(z.object({ limit: z.number().int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }).optional())
     .query(({ ctx, input }) => ctx.services.discovery.forgottenGems(ctx.auth.userId, input?.limit)),
 
   modelRouting: authedProcedure.query(({ ctx }) => ctx.services.discovery.modelRouting(ctx.auth.userId)),
@@ -184,7 +184,7 @@ export const discoveryRouter = t.router({
     ),
 
   similarChats: authedProcedure
-    .input(z.object({ chatId: brandedId<ChatId>(), limit: z.number().int().positive().optional() }))
+    .input(z.object({ chatId: brandedId<ChatId>(), limit: z.number().int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) => ctx.services.discovery.similarChats(ctx.auth.userId, input.chatId, input.limit)),
 
   // PD-40 composed views (CONTENT-only). Owner = resolved principal.
@@ -205,7 +205,7 @@ export const discoveryRouter = t.router({
     .input(
       z
         .object({
-          limit: z.number().int().positive().optional(),
+          limit: z.number().int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
           minCount: z.number().int().positive().optional(),
         })
         .optional(),
@@ -218,14 +218,14 @@ export const discoveryRouter = t.router({
     ),
 
   cooccurringKeywords: authedProcedure
-    .input(z.object({ keyword: z.string(), limit: z.number().int().positive().optional() }))
+    .input(z.object({ keyword: z.string(), limit: z.number().int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) => ctx.services.discovery.cooccurringKeywords(ctx.auth.userId, input.keyword, input.limit)),
 
   characterKeywords: authedProcedure
     .input(
       z.object({
         characterId: brandedId<CharacterId>(),
-        limit: z.number().int().positive().optional(),
+        limit: z.number().int().positive().max(DISCOVERY_LIST_MAX_LIMIT).optional(),
       }),
     )
     .query(({ ctx, input }) => ctx.services.discovery.characterKeywords(ctx.auth.userId, input.characterId, input.limit)),

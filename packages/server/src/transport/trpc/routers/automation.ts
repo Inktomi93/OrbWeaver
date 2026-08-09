@@ -14,7 +14,7 @@
 // is now the `automation` ROOM (`transport/trpc/stream/sources/automation.ts`) — this router is request/
 // response only, and the `single-stream-transport` gate keeps a `.subscription(` from coming back to it.
 
-import { automationActionsSchema, automationTriggerSchema } from "@orb/contracts/automation";
+import { AUTOMATION_FIRES_LIST_MAX_LIMIT, automationActionsSchema, automationTriggerSchema } from "@orb/contracts/automation";
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -93,13 +93,15 @@ export const automationRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.automation.testRule({ principal: ctx.auth, ruleId: input.ruleId })),
 
   // The fire-log debug surface (host-only, newest first) — the "why didn't my rule fire" answer.
-  listFires: authedProcedure.input(z.object({ ruleId: brandedId<AutomationRuleId>(), limit: z.number().int().min(1).optional() })).query(({ ctx, input }) =>
-    ctx.services.automation.listFires({
-      principal: ctx.auth,
-      ruleId: input.ruleId,
-      ...(input.limit === undefined ? {} : { limit: input.limit }),
-    }),
-  ),
+  listFires: authedProcedure
+    .input(z.object({ ruleId: brandedId<AutomationRuleId>(), limit: z.number().int().min(1).max(AUTOMATION_FIRES_LIST_MAX_LIMIT).optional() }))
+    .query(({ ctx, input }) =>
+      ctx.services.automation.listFires({
+        principal: ctx.auth,
+        ruleId: input.ruleId,
+        ...(input.limit === undefined ? {} : { limit: input.limit }),
+      }),
+    ),
 
   // The per-chat fire-rate cap (host-only; the loop-safety belt). An absent field keeps the current value.
   setBudgets: authedProcedure

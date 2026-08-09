@@ -20,6 +20,12 @@ import { indexSourceSchema, workloadKindSchema } from "./axes.ts";
 
 const noParams = z.object({});
 
+/** The `workloads.list` page CEILING, enforced at the transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT`
+ *  precedent) — an over-bound ask is a BAD_REQUEST, never an unbounded run-history fetch. The same 500 the
+ *  persistence hard cap (`persistence/queries.ts` `Math.min`, the internal-caller backstop) references, homed
+ *  HERE so the wire ceiling and the backstop never drift. */
+export const WORKLOAD_LIST_MAX_LIMIT = 500;
+
 /** The params of a kind with no tunables (`{}`) — the shared type for every tunable-less kind. */
 export type NoWorkloadParams = z.infer<typeof noParams>;
 

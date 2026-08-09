@@ -4,6 +4,7 @@
 // Thin: validate → `ctx.services.search.<verb>` → map errors.
 
 import { imageLensSchema } from "@orb/contracts/embeddings";
+import { SEARCH_SUGGEST_MAX_LIMIT, SEARCH_TOP_N_MAX } from "@orb/contracts/search";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -25,7 +26,7 @@ const searchScopeInput = z.discriminatedUnion("kind", [
 
 const unifiedSearchInput = z.object({
   query: z.string().min(1),
-  topN: z.number().int().positive(),
+  topN: z.number().int().positive().max(SEARCH_TOP_N_MAX),
   over: z.enum(SEARCH_TARGETS),
   scope: searchScopeInput,
   rerank: z.boolean().optional(),
@@ -36,7 +37,7 @@ const unifiedSearchInput = z.object({
 // returns nothing for a foreign id, so a stranger gets an empty result, never another tenant's neighbourhood).
 const similarCharactersInput = z.object({
   characterId: brandedId<CharacterId>(),
-  topN: z.number().int().positive(),
+  topN: z.number().int().positive().max(SEARCH_TOP_N_MAX),
 });
 
 const similarArtInput = similarCharactersInput.extend({
@@ -44,7 +45,7 @@ const similarArtInput = similarCharactersInput.extend({
 });
 
 export const searchRouter = t.router({
-  fields: authedProcedure.input(z.object({ query: z.string().min(1), topN: z.number().int().positive() })).query(({ ctx, input }) =>
+  fields: authedProcedure.input(z.object({ query: z.string().min(1), topN: z.number().int().positive().max(SEARCH_TOP_N_MAX) })).query(({ ctx, input }) =>
     ctx.services.search.fields({
       ownerId: ctx.auth.userId,
       query: input.query,
@@ -52,13 +53,15 @@ export const searchRouter = t.router({
     }),
   ),
 
-  suggest: authedProcedure.input(z.object({ query: z.string().min(1), limit: z.number().int().positive() })).query(({ ctx, input }) =>
-    ctx.services.search.suggest({
-      ownerId: ctx.auth.userId,
-      query: input.query,
-      limit: input.limit,
-    }),
-  ),
+  suggest: authedProcedure
+    .input(z.object({ query: z.string().min(1), limit: z.number().int().positive().max(SEARCH_SUGGEST_MAX_LIMIT) }))
+    .query(({ ctx, input }) =>
+      ctx.services.search.suggest({
+        ownerId: ctx.auth.userId,
+        query: input.query,
+        limit: input.limit,
+      }),
+    ),
 
   similarArt: authedProcedure.input(similarArtInput).query(({ ctx, input }) =>
     ctx.services.search.similarArt({

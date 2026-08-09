@@ -173,6 +173,8 @@ export {
   RPG_BASELINE_TOOL_DESCRIPTIONS,
 } from "./extraction-prompt.ts";
 export {
+  RPG_JOURNAL_LIST_MAX_LIMIT,
+  RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT,
   rpgAddJournalEntryInputSchema,
   rpgCreateCheckpointInputSchema,
   rpgCreateGameInputSchema,

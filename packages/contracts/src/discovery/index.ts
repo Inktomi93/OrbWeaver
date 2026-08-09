@@ -15,6 +15,13 @@ export const RELATIONS = ["duplicate", "forked"] as const;
 export type DuplicateRelation = (typeof RELATIONS)[number];
 export const duplicateRelationSchema = z.enum(RELATIONS);
 
+/** The page CEILING for every discovery top-N read (`similarChats`, `swipeHotspots`, `forgottenGems`,
+ *  `topKeywords`, `cooccurringKeywords`, `characterKeywords`, `duplicate*`, `browseCharacters`), enforced at
+ *  the transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT` precedent). These are top-N analytics over a
+ *  GROWING library (characters/keywords/chats), and the domain verbs page an unbounded SQL `.limit()`, so an
+ *  over-bound ask is a BAD_REQUEST rather than the #45-class unbounded fetch. Generous: clients ask ≤ ~40. */
+export const DISCOVERY_LIST_MAX_LIMIT = 500;
+
 /** The `suggestCharacterTags` REFUSAL discriminator — the card carries no content beyond its `Name:` line,
  *  so there is nothing to distill and any facets would be invented from the name alone. Homed here (not in
  *  the domain's `contract/errors.ts`) because BOTH ends key on the literal: the server error class rides it
