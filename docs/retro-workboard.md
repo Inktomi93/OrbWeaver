@@ -146,11 +146,17 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   DIAGNOSE via vLLM `GET :<port>/metrics` — `num_requests_running`, `num_requests_waiting{reason=capacity}`,
   `num_preemptions_total`.
 
-- **⚑ #21 memory-summarize executor `a19e7d680f1bf5708` IN FLIGHT** (approved defaults): add generate's
-  per-request samplers to the summarize path (presence\_penalty **1.5** default — the loop fix; Qwen3-VL ships
-  rep\_penalty 1.0 + loops) + batch the digest build (collect→one batched summarize→per-item FALLBACK, surface
-  contract untouched) + live-verify on the 872-chat corpus. Segments EMBED (not summarize) — left untouched.
-  See \[\[vllm-memory-summarize-samplers-and-batching]].
+- **⚑ #21 memory-summarize DONE + committed, MERGE PENDING** — worktree branch `agent-a19e7d680f1bf5708`
+  HEAD `364b90f3a`, tree clean, **151 tests green**, floors clean (red-first proven). Full generate sampler
+  set threaded through the summarize path + presence\_penalty **1.5** default (loop fix, even when
+  memorySummarizer unset; admin override wins) + digest tier-0/consolidation ONE batched summarize with
+  per-item fallback (surface contract untouched). Deferred the MERGE from a 96%-context session (no mid-
+  compaction git). **NEXT SESSION: rebase lane onto main (main advanced only by docs commits — no code
+  conflict) → `git -C <main> merge --ff-only` → consolidated `pnpm check` → LIVE-VERIFY** (memoryEnabled →
+  POST workloads.start memory-backfill + x-orb-csrf:1 → confirm `grep -c presence_penalty .cache/stack/
+  vllm-gen.log` goes non-zero @1.5 \[main's log has ZERO now = the defect], durationMs drops \~30-120s→sec,
+  chat\_segments climbs to hundreds/min). :8788 runs main via node --watch so the ff-merge reloads it. Full
+  recipe + deviations in task #21. See \[\[vllm-memory-summarize-samplers-and-batching]].
 
 - **⚑ EMBEDDINGS STATE:** chars 320 + avatars 646 embedded ✅. Chat memory built 0 because `memoryEnabled`
   defaults FALSE (owner enabled it) + the summarize LOOP (fix #21). Degenerate 44-seg/8-digest run WIPED;
