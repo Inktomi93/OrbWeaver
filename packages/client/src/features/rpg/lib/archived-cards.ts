@@ -26,6 +26,11 @@ export interface ArchivedCard {
    *  cards from every speaker, so one blanket verdict for the surface would either over-block or — worse —
    *  paint an image the transcript blocked one panel away. Absent roster ⇒ false (fail closed). */
   readonly allowExternalMedia: boolean;
+  /** The AUTHORING participant — the card-frame doorway POLICY SELECTOR the routed frame is minted with.
+   *  Carried per card for the same per-AUTHOR reason `allowExternalMedia` is: the archive shows every
+   *  speaker's cards, so a single surface-wide selector would mint one character's policy for another's
+   *  bytes. `null` for a user/system-authored card ⇒ the server floor. */
+  readonly characterId: CharacterId | null;
 }
 
 /** The transcript row fields the projection reads: the body + its birth time, plus the ATTRIBUTION the
@@ -78,6 +83,7 @@ export function collectArchivedCards(messages: readonly ArchivedCardSource[], vi
           origin: span.origin,
           createdAt: message.createdAt,
           allowExternalMedia: policy.allowExternal,
+          characterId: message.characterId,
         });
       }
     });

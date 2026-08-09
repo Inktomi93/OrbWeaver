@@ -1,64 +1,33 @@
-// The Tier-B iframe security config — the exact sandbox + CSP that make the iframe a real boundary.
+// The Tier-B iframe SRCDOC arm — the frame's FLOOR delivery. The document body and the policy string are
+// built by the ONE engine in `@orb/kit/card-frame` (read its header: it carries the measured CSP-inheritance
+// / opaque-origin / cookie facts this whole surface rests on). Nothing about the policy is decided here.
+//
+// FLOOR, not fallback-for-now: a `srcdoc` document inherits the EMBEDDING document's CSP on top of its own
+// meta policy, so this arm can only ever be TIGHTER than the app's — it cannot express the per-trust
+// `img-src` widening the routed arm exists for, and it cannot carry `sandbox`/`frame-ancestors` (ignored in
+// `<meta>` by spec). It is what renders when no routed handle is available: a story/CT mount, a mint that
+// has not resolved yet, an offline or failed mint. Delivering the floor is always safe; delivering nothing
+// would be a blank card.
+
+import { buildCardFrameCsp, buildCardFrameDocument, CARD_FRAME_SAFE_FLOOR } from "@orb/kit/card-frame";
 
 /**
  * NO `allow-same-origin` (null origin — no cookies/localStorage/DOM access), NO `allow-scripts`
- * (doored, not walled), no `allow-popups`/`allow-forms`. Owned in this ONE place.
+ * (doored, not walled), no `allow-popups`/`allow-forms`. Owned in this ONE place for the ATTRIBUTE; the
+ * routed arm's twin is the CSP `sandbox` directive in `@orb/kit/card-frame` (both flip together).
  *
  * SECURITY-GATED: `allow-scripts` enablement + its tierB trust review is owned by a security-executor
  * pass before merge (parity-plus §4.2 / §10 flag #1). The ratified target posture is the artifact
  * sandbox — `SANDBOX_ATTR = "allow-scripts"` (NEVER paired with `allow-same-origin`: that combo lets the
- * frame read the app origin) plus `script-src 'unsafe-inline'` added to the CSP below (still no
+ * frame read the app origin) plus `script-src 'unsafe-inline'` added to the kit CSP builder (still no
  * `connect-src`, so a script can compute/animate but never phone home). Until that pass clears, scripts
- * stay OFF (the safe default) — the flip is this one constant + the one CSP directive, nothing else.
+ * stay OFF (the safe default) — the flip is this one constant + kit's `SANDBOX_VALUE` + the one directive.
  */
 export const SANDBOX_ATTR = "";
 
-/**
- * `default-src 'none'` denies everything by default; no `connect-src` so the frame can't fetch/exfil.
- * SECURITY-GATED (see `SANDBOX_ATTR`): the scripts flip adds `script-src 'unsafe-inline'` HERE, in the
- * same review that enables the sandbox attribute — never one without the other.
- *
- * `allowExternalMedia` is the ONLY variable part, and it mirrors the app-tier "Block external media"
- * setting exactly as the document CSP does (`server/entry/http/security-headers.ts`): `https:` on
- * `img-src`/`media-src`, never `http:`, never any other directive.
- *
- * BOTH policies must allow it for a card image to paint. A `srcdoc` frame is a LOCAL-scheme document, so
- * it INHERITS the embedding document's CSP on top of this meta policy (verified in Chromium: an external
- * image inside `sandbox=""` `srcdoc` logs two violations — one against the parent policy at `about:srcdoc`,
- * one against this one). `'self'` still resolves to the EMBEDDER's origin despite the frame's opaque
- * origin, which is why same-origin `/api/blob` card images work today.
- */
-function csp(allowExternalMedia: boolean): string {
-  const media = allowExternalMedia ? "'self' https:" : "'self'";
-  return `default-src 'none'; img-src ${media}; media-src ${media}; style-src 'unsafe-inline'; font-src 'self'`;
-}
-
-// A theme var carrying CSS-escape chars could break out of the <style> — drop it (the caller already clamps).
-const CSS_ESCAPE = /[<>{}]/u;
-
-function themeVarsBlock(themeTokens: Readonly<Record<string, string>> | undefined): string {
-  if (themeTokens === undefined) {
-    return "";
-  }
-  const decls = Object.entries(themeTokens)
-    .filter(([key, value]) => key.startsWith("--") && !CSS_ESCAPE.test(`${key}${value}`))
-    .map(([key, value]) => `${key}: ${value};`)
-    .join(" ");
-  return `:root { ${decls} }`;
-}
-
-// The base body rule so an UNSTYLED model card lands IN the app theme instead of browser-default
-// white/serif. It USES the injected surface/text vars (`--sandbox-bg`/`--sandbox-fg`, resolved from
-// `color.card`/`color.card-foreground` by useSandboxTheme) — so an under-filled frame is a dark themed
-// surface, not a white slab. `fontFamily` is a pre-validated font-list (font-list shape check upstream);
-// the `sans-serif` fallback guarantees a sans face (never serif) even when the font var is dropped. The
-// card's own params.css still layers on top of this.
-function baseBodyBlock(fontFamily: string | undefined): string {
-  const font = fontFamily === undefined ? "sans-serif" : `${fontFamily}, sans-serif`;
-  return `body { margin: 0; padding: 0; background: var(--sandbox-bg); color: var(--sandbox-fg); font-family: ${font}; }`;
-}
-
-/** Assembles the full sandboxed document — a null-origin, no-scripts frame that can style itself but not reach us. */
+/** Assembles the full sandboxed document for the `srcdoc` arm — the kit document plus the kit `meta` policy.
+ *  `allowExternalMedia` is the only variable part reachable here (`data:` is not expressible on this arm —
+ *  the embedder's `img-src` is intersected in); absent ⇒ blocked (fail closed). */
 export function buildSrcDoc(params: {
   readonly html: string;
   readonly css: string | undefined;
@@ -67,16 +36,9 @@ export function buildSrcDoc(params: {
   /** The resolved external-media verdict for the row this card belongs to. Absent ⇒ blocked (fail closed). */
   readonly allowExternalMedia?: boolean | undefined;
 }): string {
-  const themeCss = themeVarsBlock(params.themeTokens);
-  const baseBody = baseBodyBlock(params.fontFamily);
-  const cardCss = params.css ?? "";
-  return [
-    "<!doctype html>",
-    '<html><head><meta charset="utf-8">',
-    `<meta http-equiv="Content-Security-Policy" content="${csp(params.allowExternalMedia === true)}">`,
-    `<style>${themeCss} ${baseBody} ${cardCss}</style>`,
-    "</head><body>",
-    params.html,
-    "</body></html>",
-  ].join("");
+  const policy = { ...CARD_FRAME_SAFE_FLOOR, allowExternalMedia: params.allowExternalMedia === true };
+  return buildCardFrameDocument(
+    { html: params.html, css: params.css, themeTokens: params.themeTokens, fontFamily: params.fontFamily },
+    buildCardFrameCsp(policy, "meta"),
+  );
 }

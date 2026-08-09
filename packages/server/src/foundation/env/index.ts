@@ -12,9 +12,12 @@ import { parseEnv } from "node:util";
 import { AUTH_MODES } from "@orb/contracts/identity";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { z } from "zod";
+import type { DiagnosticsPostureInput } from "./diagnostics.ts";
 import type { EnginesPosture } from "./posture.ts";
 import { ENGINES_POSTURES } from "./posture.ts";
 
+export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput } from "./diagnostics.ts";
+export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture } from "./diagnostics.ts";
 export type { EnginesPosture } from "./posture.ts";
 export { ENGINES_POSTURES, effectiveVllmDisabled, postureManages, postureRegistersBackend, resolveEnginesPosture } from "./posture.ts";
 
@@ -491,6 +494,15 @@ export function engineLaunchEnvFloor(): {
  *  deprecation line lands in the boot log; foundation/env stays the pure process.env reader. */
 export function enginesPostureInput(): { readonly posture: EnginesPosture | undefined; readonly vllmDisabled: boolean; readonly stackEngines: "yes" | "no" } {
   return { posture: env.ENGINES_POSTURE, vllmDisabled: env.VLLM_DISABLED, stackEngines: env.STACK_ENGINES };
+}
+
+/** The raw inputs the DIAGNOSTICS posture resolver reads — the three ops knobs that together decide who can
+ *  look inside a running box and how much is there (`diagnostics.ts` holds the model). Same seam shape as
+ *  `enginesPostureInput`: this file stays the pure `process.env` reader; `lifecycle` composes + logs. The
+ *  TOKEN VALUE never leaves here — only whether one is set (`resolveDiagnosticsPosture` reduces it to a
+ *  boolean immediately), so no caller of the posture can echo the secret. */
+export function diagnosticsPostureInput(): DiagnosticsPostureInput {
+  return { debugToken: env.DEBUG_TOKEN, ipAllowlist: env.IP_ALLOWLIST, wireCapture: env.WIRE_CAPTURE, rpgTrace: env.RPG_TRACE };
 }
 
 /** The DEPLOYMENT-fact env slice the engine spawner reads (binary + cache stores). All optional — unset ⇒

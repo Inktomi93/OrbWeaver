@@ -21,7 +21,7 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context, Hono, MiddlewareHandler, Next } from "hono";
 import { APP_VERSION } from "#foundation/config";
-import { env } from "#foundation/env";
+import { diagnosticsPostureInput, diagnosticsPostureWarnings, env, resolveDiagnosticsPosture } from "#foundation/env";
 import { getAuditFailureSnapshot } from "../audit.ts";
 import { logRing, recentRequests } from "../logger.ts";
 import { getTraceByRequestId, recentTraces } from "../tracing.ts";
@@ -230,8 +230,14 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
   const { db, assets, rpgTrace, sockets, vllmMetrics, effectiveConfig, auth = env.DEBUG_TOKEN } = options;
   app.use("/api/_debug/*", createDebugAuthMiddleware(auth));
 
-  app.get("/api/_debug/info", (c) =>
-    c.json({
+  app.get("/api/_debug/info", (c) => {
+    // The DIAGNOSTICS POSTURE readout — the live twin of the boot report (`foundation/env/diagnostics.ts`).
+    // It belongs on THIS probe because this is the surface the posture is ABOUT: an operator who can read
+    // `/api/_debug` should be able to see, in one place, what reaching it is worth (retention), what bounds
+    // who else can try (perimeter), and which standing item is still open (`warnings`). No secret value is
+    // present — the resolver reduces DEBUG_TOKEN to a boolean before it ever leaves `foundation/env`.
+    const diagnostics = resolveDiagnosticsPosture(diagnosticsPostureInput());
+    return c.json({
       version: APP_VERSION,
       nodeEnv: env.NODE_ENV,
       pid: process.pid,
@@ -241,8 +247,9 @@ export function registerDebugRoutes(app: Hono, options: DebugRoutesOptions = {})
         openrouter: { configured: env.OPENROUTER_API_KEY !== undefined },
         defaultModels: { chat: DEFAULT_CHAT_MODEL_ID, openrouter: DEFAULT_OR_CHAT_MODEL_ID },
       },
-    }),
-  );
+      diagnostics: { ...diagnostics, warnings: diagnosticsPostureWarnings(diagnostics) },
+    });
+  });
 
   app.get("/api/_debug/logs", (c) =>
     c.json({
