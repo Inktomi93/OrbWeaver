@@ -14,8 +14,10 @@ import { expect, test } from "../../../../../support/fixtures.ts";
 
 const MODEL = "claude-sonnet-test";
 
+// `minItems` is NOT here: the owner-supplied Anthropic structured-outputs doc (2026-08-08) lists "Array
+// minItems (only values 0 and 1 supported)" under SUPPORTED, so this wire KEEPS it (clamped) rather than
+// stripping it. Its own pins are below; the rest of the bound table is unsupported and still comes off.
 const BOUND_KEYWORDS = [
-  "minItems",
   "maxItems",
   "minLength",
   "maxLength",
@@ -68,6 +70,22 @@ test("strips every bound keyword while keeping type/enum/required/anyOf", () => 
   expect(keys.has("anyOf")).toBe(true);
   const props = clean["properties"] as Record<string, Record<string, unknown>>;
   expect(props["kind"]?.["enum"]).toEqual(["a", "b"]);
+  // A supported `minItems: 1` rides through untouched — the vendor accepts it, so the wire keeps it.
+  expect(props["tags"]?.["minItems"]).toBe(1);
+  // Every bound the wire DID drop is relayed to the model instead of vanishing (task #40): the belt still
+  // enforces the real numbers, and now the model is told what they are.
+  expect(props["count"]?.["description"]).toBe("[Constraints: minimum: 0, maximum: 10, exclusiveMinimum: -1, exclusiveMaximum: 11, multipleOf: 2]");
+  expect((props["tags"]?.["items"] as Record<string, unknown>)["description"]).toBe("[Constraints: minLength: 1, maxLength: 40]");
+});
+
+test("clamps an UNSUPPORTED minItems to 1 and relays the author's number (Anthropic doc: only 0|1 supported)", () => {
+  const clean = sanitizeAnthropicOutputSchema(
+    { type: "object", properties: { tags: { type: "array", items: { type: "string" }, minItems: 4 } } },
+    MODEL,
+  ) as Record<string, unknown>;
+  const tags = (clean["properties"] as Record<string, Record<string, unknown>>)["tags"];
+  expect(tags?.["minItems"]).toBe(1);
+  expect(tags?.["description"]).toBe("[Constraints: minItems: 4]");
 });
 
 test("does not mutate the input (the same schema object also feeds the vLLM wire, which keeps bounds)", () => {
