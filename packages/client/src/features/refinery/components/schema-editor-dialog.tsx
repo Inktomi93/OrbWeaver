@@ -21,7 +21,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { CharacterPicker, FormDialog } from "#components";
+import { FormDialog } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import {
@@ -32,6 +32,7 @@ import {
   useUpdateRefinerySchema,
 } from "../hooks/use-refinery-schemas.ts";
 import { buildRenderPlan } from "../lib/render-plan.ts";
+import { CharacterDoor } from "./character-door.tsx";
 import { PayloadView } from "./payload-view.tsx";
 import { RefineryChip } from "./refinery-chip.tsx";
 
@@ -56,6 +57,9 @@ const FORGE_ARM_LABELS: Record<RefineryForgeArm, string> = {
   "two-stage": "Shape first, then styling",
 };
 const FORGE_ARM_ITEMS: SelectItems<string> = REFINERY_FORGE_ARMS.map((value) => ({ value, label: FORGE_ARM_LABELS[value] }));
+/** The arm picker's ONE label string — rendered visibly by `Field` AND as the control's `aria-label`
+ *  (see the call site's note: two spellings would be a WCAG 2.5.3 mismatch waiting to happen). */
+const FORGE_ARM_QUESTION = "How to build it";
 
 function dialogTitleOf(editing: SchemaEditorDialogProps["editing"], stage: RefinerySchemaStage): string {
   return editing === null ? `New ${STAGE_WORD[stage]} schema` : `Edit "${editing.name}"`;
@@ -103,8 +107,9 @@ function PreviewCard({
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const testSchema = useTestRefinerySchema({ trpc, invalidation });
-  const [testCharacterId, setTestCharacterId] = useState<CharacterId | null>(null);
+  const [testCharacter, setTestCharacter] = useState<{ readonly id: CharacterId; readonly name: string } | null>(null);
   const [testPayload, setTestPayload] = useState<Record<string, unknown> | null>(null);
+  const testCharacterId = testCharacter?.id ?? null;
   return (
     <Card>
       <Stack gap="row" padding="block">
@@ -112,15 +117,21 @@ function PreviewCard({
           <Text voice="kicker">Render preview</Text>
           <RefineryChip tone="info">the same renderer every run uses</RefineryChip>
         </Row>
-        <PayloadView payload={testPayload ?? {}} plan={plan} />
+        {/* The test drill's own loading arm (P1-10: "no loading affordance on any model call"). A
+            `testSchema` turn is a real model round-trip; while it runs, the preview keeps painting the
+            LAST settled payload under a shimmer rather than blanking — the same "never goes blank
+            between stages" law the content surface holds itself to. */}
+        <PayloadView payload={testPayload ?? {}} plan={plan} pending={testSchema.isPending} />
         <Row align="center" gap="field">
-          <CharacterPicker
-            emptyText="No characters match."
+          <CharacterDoor
+            chosenName={testCharacter?.name ?? null}
+            disabled={outerBusy || testSchema.isPending}
             label="Test the schema on a card"
-            onSelect={(id): void => setTestCharacterId(id)}
-            placeholder="Search characters…"
+            onSelect={(id, name): void => setTestCharacter({ id, name })}
+            placeholder="Pick a card to test on"
           />
           <Button
+            aria-busy={testSchema.isPending}
             disabled={outerBusy || testSchema.isPending || testCharacterId === null}
             intent="secondary"
             onClick={(): void => {
@@ -130,7 +141,7 @@ function PreviewCard({
             }}
             size="sm"
           >
-            Test on this card
+            {testSchema.isPending ? "Running…" : "Test on this card"}
           </Button>
         </Row>
       </Stack>
@@ -228,25 +239,36 @@ function GenerateRow({
 }): ReactElement {
   return (
     <>
-      <Select
-        aria-label="How to build it"
-        items={FORGE_ARM_ITEMS}
-        onValueChange={(value): void => {
-          const next = REFINERY_FORGE_ARMS.find((a) => a === value);
-          if (next !== undefined) {
-            onArmChange(next);
-          }
-        }}
-        value={arm}
-      />
+      {/* VISIBLY LABELLED (P2: "arm picker unlabeled visibly"). `aria-label` alone told a screen reader
+          what this control is and told a sighted user nothing — three sentence-shaped options with no
+          question above them. The Field label IS the question. `max-w-sm` caps the P1-3 squeeze at the
+          source: an unbounded Select sized itself to its longest option label. */}
+      <Field className="min-w-0 max-w-sm flex-1" label={FORGE_ARM_QUESTION}>
+        <Select
+          // The `aria-label` is the SAME STRING as the visible label, from one constant. It is kept
+          // because `Field` associates through Base UI context at runtime, which the static a11y lint
+          // cannot follow — and because a divergent aria-label would break WCAG 2.5.3 (the accessible
+          // name must contain the visible one). One constant makes divergence impossible.
+          aria-label={FORGE_ARM_QUESTION}
+          items={FORGE_ARM_ITEMS}
+          onValueChange={(value): void => {
+            const next = REFINERY_FORGE_ARMS.find((a) => a === value);
+            if (next !== undefined) {
+              onArmChange(next);
+            }
+          }}
+          value={arm}
+        />
+      </Field>
       <Button
+        aria-busy={busy}
         disabled={busy || description.trim().length === 0}
         onClick={(): void => {
           generate.mutate({ description, stage, arm }, { onSuccess: onLand });
         }}
         size="sm"
       >
-        Generate
+        {busy ? "Generating…" : "Generate"}
       </Button>
     </>
   );
@@ -337,12 +359,20 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
             value={description}
           />
         </Field>
+        {/* TWO ROWS, NOT ONE (side-eye 2026-08-09 P1-3 — the worse twin of P1-2). The arm Select, the
+            Generate press, the "Refine the draft" Field and the Refine press all shared one Row; the
+            Select alone took ~580px of 670, so the Field collapsed to **26px** and its placeholder
+            wrapped one character per line, driving the dialog's scrollHeight to 1989px against a 734px
+            viewport. Splitting them AND capping the Select is the fix: the two rows are also two
+            different verbs (author a draft / iterate on the draft), so the split is honest, not cosmetic. */}
         <Row align="center" gap="field">
           <GenerateRow arm={arm} busy={busy} description={description} generate={generate} onArmChange={setArm} onLand={landDraft} stage={stage} />
-          {schema !== null ? (
-            <RefineRow arm={arm} busy={busy} instructionRef={instructionRef} onLand={landDraft} refine={refine} schema={schema} stage={stage} />
-          ) : null}
         </Row>
+        {schema !== null ? (
+          <Row align="end" gap="field">
+            <RefineRow arm={arm} busy={busy} instructionRef={instructionRef} onLand={landDraft} refine={refine} schema={schema} stage={stage} />
+          </Row>
+        ) : null}
         {forgeNote !== null ? (
           <Text data-testid={testId("refineryForgeNote")} voice="gloss">
             {forgeNote}

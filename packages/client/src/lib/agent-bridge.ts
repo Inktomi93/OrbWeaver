@@ -9,6 +9,8 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { BusEventRecord } from "./bus-devlog.ts";
 import { busEventRing, busLiveCount } from "./bus-devlog.ts";
 import { IS_DEV } from "./dev-flag.ts";
+import type { MotionFlagRecord } from "./motion-flaggers.ts";
+import { __resetMotionFlags, installMotionFlaggers, motionFlags } from "./motion-flaggers.ts";
 import type { AnimationRecord, MotionSnapshot } from "./motion-stats.ts";
 import { activeAnimations, installMotionObservers, motionSnapshot } from "./motion-stats.ts";
 import { perfMeasureFromLoad, recentMeasures } from "./perf-marks.ts";
@@ -130,6 +132,13 @@ interface OrbDebugHandle {
   readonly motion: () => MotionSnapshot;
   /** Active animations, each classified compositor-clean (transform/opacity/filter) or a jank risk. */
   readonly animations: () => readonly AnimationRecord[];
+  /** The motion FLAGGER ring — every [anim]/[css]/[drop]/[space] defect raised this session, deduped
+   *  per offender. The pull half of the push channels in `motion-flaggers.ts`: a harness that cannot
+   *  read the console still gets the offender list. */
+  readonly flags: () => readonly MotionFlagRecord[];
+  /** Clear the flag ring + its per-offender dedupe. Call between the STEPS of a driven flow: without
+   *  it, step 1's offenders suppress the identical ones in step 2 and the later steps read clean. */
+  readonly resetFlags: () => void;
   /** One-call overview for a quick `preview_eval("__orb.snap()")`. */
   readonly snap: () => Record<string, unknown>;
   /** Dev-only SPA-navigation actions (see OrbNavHandle) — reach any surface without a click chain. */
@@ -165,11 +174,22 @@ function motionSummary(): {
   };
 }
 
+/** Raised motion flags counted per channel, for `snap()`'s one-call overview. The ring itself is the
+ *  actionable artifact (`__orb.flags()`); this is the "is anything wrong at all" line. */
+function flagCounts(): Record<string, number> {
+  const counts: Record<string, number> = {};
+  for (const flag of motionFlags()) {
+    counts[flag.tag] = (counts[flag.tag] ?? 0) + 1;
+  }
+  return counts;
+}
+
 export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHandle, seed: OrbSeedHandle): void {
   if (!IS_DEV) {
     return;
   }
   installMotionObservers();
+  installMotionFlaggers();
   const isReady = (): boolean => document.documentElement.hasAttribute(READY_ATTR);
   const shell = (): ShellSnapshot => ({
     section: document.querySelector('[aria-current="page"]')?.getAttribute("aria-label") ?? null,
@@ -208,6 +228,8 @@ export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHan
     perf: recentMeasures(),
     renders: renderHeatmap(),
     motion: motionSummary(),
+    // Raised motion defects, by channel — a zero here is the only cheap "the surface is clean" read.
+    flags: flagCounts(),
   });
   globalThis.__orb = {
     ready,
@@ -219,12 +241,14 @@ export function installAgentDebugHandle(queryClient: QueryClient, nav: OrbNavHan
     renders: renderHeatmap,
     motion: motionSnapshot,
     animations: activeAnimations,
+    flags: motionFlags,
+    resetFlags: __resetMotionFlags,
     snap,
     nav,
     seed,
   };
   console.info(
-    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .shell() · .nav.section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
+    "%c[orb]%c dev introspection ready → %cwindow.__orb%c.snap() · .queries() · .bus() · .perf() · .renders() · .motion() · .animations() · .flags()/.resetFlags() · .shell() · .nav.section/openModal/openSettings/contextTab/openChat/openCharacter/closeModal · .seed.game({profile:'d20'|'freeform'})/richGame;  wait on %chtml[data-app-ready]%c.  Docs: packages/client/src/lib/agent-tools.README.md",
     "color:#e0a; font-weight:bold",
     "color:#888",
     "color:#0a7; font-weight:bold",
