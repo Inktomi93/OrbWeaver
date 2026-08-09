@@ -149,7 +149,35 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   zone gap → fix lane) · side-eye batch pass: C6 submenu GRADUATED clean; findings (turn-director model
   text, Corpus first-run redesign, Delete aria, flash ring, + P2/P3 pile) ALL in a fix lane per the
   side-eye-authority rule.
-## ═══ OVERNIGHT PLAN (2026-08-09, post-reset — FREEZE LIFTED, full-auto per overnight posture) ═══
+## ═══ LIVE STATE (2026-08-09 MID-MORNING — compact-safety snapshot; supersedes the overnight plan below) ═══
+
+**Main `c5e2590e8`+ (~40 hook-gated merges since 08-08 morning), tree has NO uncommitted work, origin
+UNPUSHED (owner pushes himself).** All tasks ≤ #38 + #40 DONE. #39 in its final phases; #35 running.
+
+**IN FLIGHT (5 lanes) — resurrection anchors (worktree = durable; never prune unmerged):**
+· **phase 2.5 DONE, MERGE PENDING** — commit `3a5d1cd08` on `wt/agent-a48724acf440a873a` (preflight
+  advisories derive-don't-declare · editor CT suite 28/28 · server-side session identity ·
+  count-up fixes [money-shot-never-ran + backwards-ramp 4→3.8] · gifs in its worktree's
+  reports/recordings/ — copy to main before any prune!). Merge next, foreground.
+· **e2e lane** — `wt/agent-a575817fbc6f3b701`: fixing the 768 output-budget class (one-home
+  substrate/output-budget.ts, payload-aware floor), then the full live checklist (engines healthy
+  8701/8702/8703). Item 5 (error arm) already PASS-live.
+· **#35 lane** — `wt/agent-acbeb6e6e44293ba8`: corpus-settle root-cause + preset CT flake.
+· **batched verifier** (no worktree): 5 chunks — #37 card-frame CSP adversarial · polish · #40 ·
+  #38 · mobile/markers.
+· **shell-perf mop** — `wt/agent-a9fe5f8ff49eb26be`: home 0.106 shift, chat-list 74px shift,
+  623ms section-entry LoAF profile.
+**THEN:** merge order as they land (ONE chain at a time, foreground-600s under the reaper, `git log`
+is the receipt) → side-eye RE-VERIFY (#39 close; carries: roster N-on-one-card labeling, the
+chevron-at-wrap nit, stepper-numeral judgment) → final board pass. NEW task #41: transpiler
+additionalProperties gap (generated schemas ship OPEN on hosted — fix in transpiler, not advisory).
+**OWNER QUEUE (unchanged + additions):** push (his) · re-import (his trigger) · taste pass (gifs:
+reports/recordings/ refinery-roster-and-stepper.gif + refinery-schema-door.gif + preflight png —
+caveat: schema-door gif pre-dates the preflight; shimmer/skeleton states need the e2e's model runs)
+· prose sign-offs DONE (all signed 08-09) · the user-capped-overrun policy fork (warn/confirm/refuse)
+· decision pile.
+
+## ═══ SUPERSEDED: OVERNIGHT PLAN (2026-08-09 post-reset) ═══
 
 **METHOD (the session's ratified discipline — every step below follows it):**
 1. **Big lanes, ONE commit each**, worktree-isolated, briefs carry a READ-FIRST block (docs in full +
