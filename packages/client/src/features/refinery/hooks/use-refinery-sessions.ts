@@ -36,9 +36,8 @@ type SessionRoster = inferOutput<Trpc["refinery"]["listSessions"]>;
 type SessionView = inferOutput<Trpc["refinery"]["getSession"]>;
 type RunLedger = inferOutput<Trpc["refinery"]["listRuns"]>;
 
-/** @public the R2 read tier for the R3 refinery SURFACE (board C15, design-gated on the owner's mockup
- *  ruling) — the owner's sessions, newest-updated first, with the roster's `latestVerdict` badge. No prod
- *  consumer until that surface lands; the CT drives it today. */
+/** The R2 read tier for the R3 refinery SURFACE — the owner's sessions, newest-updated first, with the
+ *  roster's `latestVerdict` badge. */
 export function useRefinerySessions(): UseQueryResult<SessionRoster, TrpcReadError> {
   const trpc = useTRPC();
   return useQuery(trpc.refinery.listSessions.queryOptions());
