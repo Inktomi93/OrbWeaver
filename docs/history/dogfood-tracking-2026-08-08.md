@@ -589,7 +589,20 @@ The frame policy (`ui/content/sandbox-frame/srcdoc.ts`) at `allowExternalMedia=f
 `default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; font-src 'self'` — `'self'`
 resolves to the EMBEDDER's origin even through the frame's opaque origin, so same-origin `/api/blob/<hash>`
 card images and inline `<style>` both work. The flag adds `https:` to `img-src`/`media-src` and touches
-nothing else. The reported symptom is best explained by **CARD-TRUST-INVERTED**, which this entry itself names
+nothing else.
+
+> **⚠ TRUTH-REPAIR 2026-08-09 (CARDFRAME lane, measured in Chromium 1.61 headless).** The CSP half of that
+> paragraph is correct — `'self'` really does resolve to the app origin inside the opaque-origin frame. The
+> CONCLUSION drawn from it is **false**: `/api/blob/<hash>` card images do **not** paint today, on either
+> frame arm. An opaque-origin document's same-origin subresource fetch is `Sec-Fetch-Site: cross-site`, so
+> the `SameSite=Lax` session cookie (`entry/http/auth-routes.ts`) is **withheld**, `/api/blob` 401s, and the
+> image is broken. Measured for the srcdoc arm (today's production path), the routed arm, and the CSP-
+> `sandbox` arm alike; only a frame with `allow-same-origin` — which we must never grant — keeps the cookie.
+> The CSP permits a fetch that authentication then refuses. So a card can carry an EXTERNAL `https:` image
+> (no cookie needed, subject to the setting) or, since the trust-gated card-frame doorway landed, a `data:`
+> URI on a TRUSTED character's card — never a CAS blob. The `data:` row below is therefore no longer a
+> residual hole: `@orb/kit/card-frame` + `entry/http/card-frame.ts` opened it, per-character, without
+> loosening the app document's `img-src` by one byte. The reported symptom is best explained by **CARD-TRUST-INVERTED**, which this entry itself names
 as a dependency ("cards don't reach `ImmersiveCard` at all until \[it] is fixed") and which shipped in
 `9f30b7045`.
 

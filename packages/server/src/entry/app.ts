@@ -34,6 +34,7 @@ import {
   registerAuthMeta,
   registerAuthRoutes,
   registerBlob,
+  registerCardFrame,
   registerExport,
   registerHealthz,
   registerImportBundle,
@@ -225,6 +226,16 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     isHarnessStack: () => env.E2E_HARNESS === "on",
   });
   registerBlob(app, { assets: deps.assets, cas: deps.cas });
+
+  // The card-frame doorway. Its roster read IS the trust authority (a client selects a character, the server
+  // decides that character's policy), and `allowExternalMedia` is the SAME live deployment ceiling the app
+  // document CSP above is built from — one ceiling, now three consumers. Note `securityHeaders` deliberately
+  // SKIPS the served document path so the frame's own, tighter policy survives (see security-headers.ts).
+  registerCardFrame(app, {
+    roster: { listParticipants: (params) => deps.services.chat.listParticipants(params) },
+    allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
+    now: deps.now,
+  });
 
   registerUpload(app, {
     assets: deps.assets,

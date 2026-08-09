@@ -250,6 +250,9 @@ export function RpgCardLightboxStory({ allowExternalMedia }: { readonly allowExt
     origin: "fence",
     createdAt: 1_700_000_000_000,
     allowExternalMedia,
+    // No authoring character in this story, and no `chatId` below either — so the lightbox mints no routed
+    // card frame and renders the srcdoc FLOOR, which is what these CTs assert the CSP of.
+    characterId: null,
   };
   return <RpgCardLightbox cards={[card]} openKey={LIGHTBOX_CARD_KEY} onOpenChange={NOOP} />;
 }

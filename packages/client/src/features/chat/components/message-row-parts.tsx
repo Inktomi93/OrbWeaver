@@ -103,6 +103,7 @@ export function resolveRowContent(args: {
       rowPersonaId={args.message.personaId}
       speakerThemes={args.speakerThemes}
       narratorVoiced={args.narratorVoiced}
+      cardOrigin={{ chatId: args.message.chatId, characterId: args.message.characterId }}
     />
   );
 }
@@ -165,6 +166,7 @@ export function renderRowBubble(args: {
               rowPersonaId={args.message.personaId}
               speakerThemes={args.speakerThemes}
               narratorVoiced={args.narratorVoiced}
+              cardOrigin={{ chatId: args.message.chatId, characterId: args.message.characterId }}
             />
           </Stack>
         ))}

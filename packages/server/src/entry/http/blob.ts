@@ -43,7 +43,9 @@ export interface BlobDeps {
   readonly cas: BlobCasPort;
 }
 
-interface PrincipalEnv {
+/** The request-context shape EVERY principal-reading route registrar in this directory types its `app`
+ *  against — declared once here (the oldest such registrar) rather than re-spelled per route file. */
+export interface PrincipalEnv {
   // biome-ignore lint/style/useNamingConvention: `Variables` is Hono's reserved Env key (framework-fixed name).
   Variables: { principal: Principal | null };
 }
