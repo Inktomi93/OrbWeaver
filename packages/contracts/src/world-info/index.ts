@@ -57,7 +57,13 @@ export type LoreEntryProvenance = z.infer<typeof loreEntryProvenanceSchema>;
 // Loose: unknown keys (e.g. preserved ST entry fields) ride through untouched; the load-bearing fields are
 // typed. `provenance` is the machine-writer provenance (above) — present only on entries an upserter owns.
 // (Renamed from `crew` by the 2026-08-08 vocab kill; pre-launch NO-LEGACY, so a pre-rename row's `crew` key
-// rides through as an inert unknown key and the writer re-stamps `provenance`.)
+// rides through as an inert unknown key and the writer re-stamps `provenance`. Note for the record only —
+// no such row exists pre-launch, so this is comment-accuracy, not a live gap: on a hypothetical pre-rename
+// row the hand-edit belt would be DISARMED, not merely inert — `upsertEntries` reads
+// `metadata.provenance?.contentHash` (`upsert-entries.ts`) to detect a human hand-edit, and that reads
+// `undefined` on a `crew`-only row, which the belt treats as "never machine-owned" and overwrites
+// unconditionally; the stale `crew` key would also persist beside the new `provenance`, since the
+// upsert spreads `prior.metadata` forward rather than stripping retired keys.)
 export const entryMetadataSchema = z.looseObject({
   scopeMode: z.enum(ENTRY_SCOPE_MODES).optional(),
   inject: injectionDirectiveSchema.optional(),

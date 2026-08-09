@@ -937,8 +937,10 @@ Mapping, then the two edges it forces us to design properly:
 name their parents. Our run rows are a timestamp-ordered list: "which rewrite did this analyze
 judge?" is answerable only by "the latest at the time" — which BREAKS the moment §16.1's explicit
 `rewriteRunId` lets an analyze target round 1 while round 2 exists. **Add `source_run_id` (nullable
-text, no FK constraint needed beyond the session scope) to `refinery_runs` NOW** (the P1-C
-baseline-squash window): analyze rows record the rewrite they judged; rewrite rows record the
+text, no FK constraint needed beyond the session scope) to `refinery_runs` NOW** [OVERRULED: D24 —
+shipped as a self-FK (`.references(() => refineryRuns.id, { onDelete: "set null" })`,
+`packages/db/src/schema/refinery.ts`); boundaries are physics, so "no FK constraint needed" was
+rejected] (the P1-C baseline-squash window): analyze rows record the rewrite they judged; rewrite rows record the
 score/analyze context they consumed; the ledger can then draw the true DAG ("round 2 branched from
 round 1's rewrite") instead of implying a straight line that step-back makes false. Iterating after
 a step-back is then simply a new chain whose parent edge says so — git's answer, kept visible.

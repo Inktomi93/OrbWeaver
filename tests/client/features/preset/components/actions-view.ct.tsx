@@ -8,9 +8,10 @@
 //     template renders the shared DeliveryCluster, and nothing branches on a template's NAME;
 //   · a template's editor NEVER carries arrangement vocabulary (zone / order / triggers / locks).
 
-import { TEMPLATE_DEFS } from "@orb/contracts/preset";
+import { TEMPLATE_DEFS, TEMPLATE_KINDS } from "@orb/contracts/preset";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
+import { TEMPLATE_KIND_LABEL } from "../../../../../packages/client/src/features/preset/lib/template-rows.ts";
 import { ActionsForkStory, ActionsStory } from "./_actions-stories.tsx";
 
 /** The rendered box, rounded — sub-pixel noise is not a defect, an 8/16px shear is. */
@@ -25,8 +26,12 @@ async function boxOf(locator: Locator): Promise<{ readonly top: number; readonly
 /** The group HEADINGS, in `TEMPLATE_KINDS` tuple order. Human labels, not the raw enum members the
  *  registry keys on (side-eye F-30 / ARIA rec 10): a kicker over a group of rows is a heading a person
  *  reads. The per-row KIND CHIP left the LIST with the IA (it discriminated nothing under a kind-titled
- *  kicker); the drill-in header still wears it. */
-const KIND_HEADERS = ["Steers", "Voice", "Studio", "Format", "Nudges", "Game teaches", "State tracking"] as const;
+ *  kicker); the drill-in header still wears it.
+ *
+ *  DERIVED from `TEMPLATE_KIND_LABEL` — never hand-spelled — so a new `TEMPLATE_KINDS` member cannot go
+ *  silently unrendered here the way "group"/"Group rounds" did (F4: the label table gates it at `tsc`,
+ *  but a hand-copied list here does not; deriving closes that gap). */
+const KIND_HEADERS = TEMPLATE_KINDS.map((kind) => TEMPLATE_KIND_LABEL[kind]);
 
 /** The six extract CLUSTER bands (IA §2.1), by their visible labels — `TEMPLATE_CLUSTER_LABEL`'s values in
  *  `TEMPLATE_CLUSTERS` tuple order. Collapsed by default; a geometry test that wants to measure EVERY row
