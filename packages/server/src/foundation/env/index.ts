@@ -374,6 +374,30 @@ const envSchema = z
     OIDC_UID_CLAIM: z.string().min(1).default("sub"),
     OIDC_GROUPS_CLAIM: z.string().min(1).default("groups"),
     OIDC_EMAIL_CLAIM: z.string().min(1).default("email"),
+    // A4 — the groups-claim VALUE separator. An authentik property mapping may emit groups as a single
+    // separator-joined string instead of a JSON array; `identityFromClaims` splits on this (default ';',
+    // matching OpenWebUI's OAUTH_GROUPS_SEPARATOR). A single string with no separator is one group. Without
+    // this, a ';'-joined mapping silently yields [] — which under OIDC_ALLOWED_GROUPS denies EVERY login.
+    OIDC_GROUPS_SEPARATOR: z.string().min(1).default(";"),
+    // A1 — OIDC JIT-provisioning switch. DEFAULT OFF (owner-ruled deny-by-default): when off, a first-login
+    // OIDC identity that has NO existing users row (a NEW account) is refused — the box admits only identities
+    // an admin already provisioned, plus the box owner by policy (never a "signup"). Distinct from
+    // OIDC_ALLOWED_GROUPS, which gates WHO (new or existing) may log in; this gates WHETHER new rows appear at
+    // all. SCOPE: gates OIDC JIT ONLY. forward-header provisioning is governed by the trusted proxy (which
+    // already gated who reaches the app), never by this knob — the decision is resolved per-mode at the caller
+    // and passed into the mode-agnostic `provisionIdentity` verb (ruled 2026-08-09).
+    // UPGRADE CONSEQUENCE (owner-accepted): an OIDC deployment that relies on first-login JIT stops creating
+    // accounts until OIDC_SIGNUP=on is set.
+    OIDC_SIGNUP: envBool(false),
+    // A2 — approval queue. DEFAULT OFF; when on, a first-time (non-owner) SSO user provisions `enabled:false`
+    // and cannot sign in until an admin enables the account (Settings → Admin → Approvals). NOT a new role:
+    // `validate` + the SSO callback already refuse a disabled row, so the enforcement already exists. The box
+    // owner is never gated (it would lock the box out of itself).
+    OIDC_REQUIRE_APPROVAL: envBool(false),
+    // A5 — the RP back-channel logout endpoint (POST /api/auth/oidc/backchannel-logout). DEFAULT OFF; when on
+    // the endpoint validates the IdP's signed `logout_token` against the issuer JWKS and revokes every session
+    // row for the matching subject. No Redis dependency (unlike OpenWebUI, which degrades to a no-op without it).
+    OIDC_BACKCHANNEL_LOGOUT: envBool(false),
     // HMAC-peppers the session tokenHash so a DB leak alone can't forge a session.
     SESSION_SECRET: z.string().min(MIN_SESSION_SECRET_CHARS).optional(),
 

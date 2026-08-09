@@ -14,11 +14,14 @@ import { logout, useAuthConfig } from "#data";
 import { notify, testId, useFocusOnMount } from "#lib";
 import { useAuthMe } from "../hooks/use-auth-meta.ts";
 
-/** Sign out, then hard-redirect (see the file header for why a full document load is the reset). */
+/** Sign out, then hard-redirect (see the file header for why a full document load is the reset). A6 — when
+ *  the deployment is OIDC and the issuer exposes an end-session endpoint, continue THERE so the upstream SSO
+ *  session ends too (else clicking Continue logs straight back in); otherwise the local /login reset. Either
+ *  way the local session cookie is already cleared by the logout response. */
 async function signOut(): Promise<void> {
   try {
-    await logout();
-    globalThis.location.assign("/login");
+    const { endSessionUrl } = await logout();
+    globalThis.location.assign(endSessionUrl ?? "/login");
   } catch {
     notify.error("Couldn't sign out — try again.");
   }

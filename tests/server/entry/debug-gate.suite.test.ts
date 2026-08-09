@@ -78,6 +78,7 @@ function stubSessions(overrides: Partial<SessionsService>): SessionsService {
     revokeByToken: unused("revokeByToken"),
     revoke: unused("revoke"),
     revokeAllForUser: unused("revokeAllForUser"),
+    revokeByExternalId: unused("revokeByExternalId"),
     listForUser: unused("listForUser"),
     ensureUser: unused("ensureUser") as SessionsService["ensureUser"],
     provisionIdentity: unused("provisionIdentity") as SessionsService["provisionIdentity"],

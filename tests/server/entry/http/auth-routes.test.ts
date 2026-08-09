@@ -77,6 +77,34 @@ function makeCtx(req: MockReq): MockCtx {
 // FABRICATION-OK: never-dereferenced registration-only stand-in.
 const STUB_DB = {} as unknown as Db;
 
+// The openid-client Configuration type, derived from the deps surface (the tests workspace doesn't depend on
+// openid-client directly, so we borrow the type through OidcRoutesDeps rather than importing it).
+type OidcConfig = Awaited<ReturnType<OidcRoutesDeps["getConfig"]>>;
+
+/** A fake openid-client Configuration exposing only `serverMetadata()` — the one field the logout (A6) and
+ *  back-channel (A5) routes read. openid-client's Configuration has no public test constructor, so this is the
+ *  single sanctioned fabrication; every OidcRoutesDeps stub built below is otherwise fully typed. */
+// FABRICATION-OK: openid-client Configuration has no test constructor; only serverMetadata() is exercised.
+function fakeConfig(meta: { issuer: string; jwks_uri?: string; end_session_endpoint?: string }): OidcConfig {
+  return { serverMetadata: () => meta } as unknown as OidcConfig;
+}
+
+/** A fully-typed `OidcRoutesDeps` stub (no double-cast) for the route tests that don't run the IdP round-trip.
+ *  `getConfig` rejects by default; override it (with {@link fakeConfig}) for the logout / back-channel paths. */
+function fakeOidcDeps(over: Partial<OidcRoutesDeps> = {}): OidcRoutesDeps {
+  return {
+    getConfig: () => Promise.reject(new Error("getConfig not stubbed")),
+    redirectAllowlist: ["https://app.example/api/auth/oidc/callback"],
+    scope: "openid profile email",
+    claims: { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" },
+    groupsSeparator: ";",
+    allowJitProvision: true,
+    requireApproval: false,
+    store: { mint: () => Promise.resolve(), consume: () => Promise.resolve(null) },
+    ...over,
+  };
+}
+
 function routesOf(deps: AuthRoutesDeps): Map<string, Handler> {
   const routes = new Map<string, Handler>();
   const record =
@@ -133,6 +161,7 @@ function recordingSessions(): SessionRecorder {
           enabled: true,
           role: "user",
         }),
+      revokeByExternalId: (): Promise<number> => Promise.resolve(0),
     },
   };
   return rec;
@@ -201,22 +230,39 @@ describe("logout — CSRF gate", () => {
     expect(res.headers.get("set-cookie")).toBeNull();
   });
 
-  test("WITH the CSRF header + a session cookie → revokes the token + clears the cookie (204)", async () => {
+  // A6 — logout now returns 200 `{endSessionUrl}` (null in non-oidc modes) instead of 204, so the client can
+  // continue to the IdP end-session endpoint after the local revoke. The CSRF gate + revoke + clear are unchanged.
+  test("WITH the CSRF header + a session cookie → revokes the token + clears the cookie (200, endSessionUrl null)", async () => {
     const rec = recordingSessions();
     const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
     expect(rec.revoked).toBe("tok-123");
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
+    expect(((await res.json()) as { endSessionUrl: string | null }).endSessionUrl).toBeNull(); // no oidc deps here
   });
 
-  test("WITH the CSRF header but no cookie → still clears, does not revoke (204)", async () => {
+  test("WITH the CSRF header but no cookie → still clears, does not revoke (200)", async () => {
     const rec = recordingSessions();
     const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
     const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { [CSRF]: "1" } }));
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200);
     expect(rec.revoked).toBeNull();
     expect(res.headers.get("set-cookie")).toContain("Max-Age=0");
+  });
+
+  // A6 — with oidc deps whose issuer exposes an end_session_endpoint, logout returns it so the client can end
+  // the upstream SSO session.
+  test("with oidc deps → logout returns the IdP end_session_endpoint", async () => {
+    const rec = recordingSessions();
+    const endSession = "https://idp.example/application/o/orb/end-session/";
+    const oidc = fakeOidcDeps({
+      getConfig: () => Promise.resolve(fakeConfig({ issuer: "https://idp.example", end_session_endpoint: endSession })),
+    });
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10, oidc };
+    const res = await handlerFor(deps, "POST /api/auth/logout")(makeCtx({ headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }));
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { endSessionUrl: string | null }).endSessionUrl).toBe(endSession);
   });
 });
 
@@ -353,19 +399,50 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
   });
 });
 
-describe("OIDC route registration", () => {
-  const oidcStub = (): OidcRoutesDeps =>
-    ({
-      getConfig: (): Promise<null> => Promise.resolve(null),
-      redirectAllowlist: ["https://app.example/api/auth/oidc/callback"],
-      scope: "openid profile",
-      claims: { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups" },
-      store: {
-        mint: (): Promise<void> => Promise.resolve(),
-        consume: (): Promise<null> => Promise.resolve(null),
-      },
-    }) as unknown as OidcRoutesDeps;
+// A4 — tolerant groups-claim VALUE parsing. An authentik property mapping may emit `groups` as a single
+// separator-joined STRING rather than a JSON array; before this it yielded [], which under
+// OIDC_ALLOWED_GROUPS denied EVERY login (a fail-closed misconfiguration that reads like a broken IdP). The
+// separator is injected (OIDC_GROUPS_SEPARATOR, default ';').
+describe("OIDC groups-claim parsing (A4 — array | joined-string | single-string | empty)", () => {
+  const claims: OidcClaimMap = { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" };
+  const groupsFor = (groups: unknown, separator?: string): readonly string[] | undefined =>
+    identityFromClaims({ preferred_username: "u", sub: "s", groups }, claims, separator)?.groups;
 
+  test("an ARRAY is taken as-is (prior behavior, unchanged)", () => {
+    expect(groupsFor(["a", "b"])).toEqual(["a", "b"]);
+  });
+
+  test("a ';'-JOINED string splits into a group array (the authentik property-mapping shape)", () => {
+    expect(groupsFor("staff;admins;eng")).toEqual(["staff", "admins", "eng"]);
+  });
+
+  test("a joined string is TRIMMED and empties dropped (no phantom '' group)", () => {
+    expect(groupsFor(" staff ; ; admins ")).toEqual(["staff", "admins"]);
+  });
+
+  test("a SINGLE string with no separator is one group", () => {
+    expect(groupsFor("just-one")).toEqual(["just-one"]);
+  });
+
+  test("an empty string ⇒ [] (not a [''] that would slip a blank-named group past a gate)", () => {
+    expect(groupsFor("")).toEqual([]);
+  });
+
+  test("a CUSTOM separator (comma) splits on it", () => {
+    expect(groupsFor("a,b,c", ",")).toEqual(["a", "b", "c"]);
+  });
+
+  test("a non-string / non-array value ⇒ [] (a number, an object)", () => {
+    expect(groupsFor(42)).toEqual([]);
+    expect(groupsFor({ nope: true })).toEqual([]);
+  });
+
+  test("an array with non-string members keeps only the strings", () => {
+    expect(groupsFor(["a", 1, null, "b"])).toEqual(["a", "b"]);
+  });
+});
+
+describe("OIDC route registration", () => {
   test("OIDC routes present only when oidc deps are supplied", () => {
     const rec = recordingSessions();
     const withoutOidc: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10 };
@@ -376,7 +453,7 @@ describe("OIDC route registration", () => {
       now: (): number => NOW,
       db: STUB_DB,
       resolveLoginLimit: (): number => 10,
-      oidc: oidcStub(),
+      oidc: fakeOidcDeps(),
     };
     const routes = routesOf(withOidc);
     expect(routes.has("GET /api/auth/oidc/login")).toBe(true);
@@ -451,6 +528,9 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
           groupsClaim: "groups",
           emailClaim: "email",
         },
+        groupsSeparator: ";",
+        allowJitProvision: true,
+        requireApproval: false,
         store: {
           mint: (): Promise<void> => {
             rec.mints += 1;
@@ -527,6 +607,9 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
           groupsClaim: "groups",
           emailClaim: "email",
         },
+        groupsSeparator: ";",
+        allowJitProvision: true,
+        requireApproval: false,
         store: {
           mint: (): Promise<void> => Promise.resolve(),
           consume: (s: string): Promise<OidcTransaction | null> => {
@@ -544,19 +627,23 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
     };
   }
 
-  test("a forged/replayed/expired state (consume → null) → 401, no token exchange, no session", async () => {
+  // A7 — a callback is a TOP-LEVEL browser navigation, so a failed consume now 302s to /login?authError=…
+  // (never raw JSON in the address bar) instead of a 401 JSON body. The single-use consume gate is unchanged.
+  test("a forged/replayed/expired state (consume → null) → 302 /login?authError=invalid_state, no token exchange, no session", async () => {
     const h = callbackDeps(() => Promise.resolve(null));
     const res = await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: callbackUrl({ state: "forged", code: "grant" }) }));
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/login?authError=invalid_state");
     expect(h.getConfigCalls()).toBe(0); // never reached the IdP token exchange
     expect(h.session.createdFor).toBeNull(); // no session minted
   });
 
-  test("a missing state param (empty consume key) → 401 (the callback fails closed)", async () => {
+  test("a missing state param (empty consume key) → 302 invalid_state (the callback fails closed)", async () => {
     const h = callbackDeps(() => Promise.resolve(null));
     const res = await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: callbackUrl({ code: "grant" }) }));
-    expect(res.status).toBe(401);
-    expect(h.consumedWith()).toBe(""); // no `state` query → the empty-string consume key → null → 401
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/login?authError=invalid_state");
+    expect(h.consumedWith()).toBe(""); // no `state` query → the empty-string consume key → null → redirect
     expect(h.getConfigCalls()).toBe(0);
   });
 });
@@ -597,6 +684,9 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
         redirectAllowlist: [CALLBACK_BASE],
         scope: "openid profile email",
         claims: { usernameClaim: "preferred_username", uidClaim: "sub", groupsClaim: "groups", emailClaim: "email" },
+        groupsSeparator: ";",
+        allowJitProvision: true,
+        requireApproval: false,
         store: {
           mint: (): Promise<void> => Promise.resolve(),
           // The single-use consume STILL fires on the error path — a failed login must not leave a replayable txn.
@@ -610,25 +700,107 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
     return { deps, session, getConfigCalls: () => getConfigCalls, consumed: () => consumed };
   }
 
-  test("valid state + `?error=access_denied` → 401 (not 500), txn consumed, no token exchange, no session", async () => {
+  test("valid state + `?error=access_denied` → 302 /login?authError=access_denied (not 500), txn consumed, no token exchange, no session", async () => {
     const h = errorCallbackDeps();
     const res = await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: callbackUrl({ state: "s1", error: "access_denied" }) }));
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(302);
+    expect(res.headers.get("location")).toBe("/login?authError=access_denied"); // the sanitized standard code
     expect(h.consumed()).toBe(1); // single-use txn consume STILL happened (not replayable)
     expect(h.getConfigCalls()).toBe(0); // never reached the token exchange
     expect(h.session.createdFor).toBeNull(); // no session minted
     expect(res.headers.get("set-cookie")).toBeNull(); // no partial cookie on the error path
-    const decoded = JSON.parse(await res.text()) as { error: string };
-    expect(decoded.error).toContain("access_denied"); // the sanitized standard code is surfaced
   });
 
-  test("a malformed IdP `error` value is NOT reflected raw — replaced by a generic marker", async () => {
+  test("a malformed IdP `error` value is NOT reflected raw — replaced by a generic marker in the redirect", async () => {
     const h = errorCallbackDeps();
-    // Free-text with spaces / punctuation must never reach the response body (reflection guard).
+    // Free-text with spaces / punctuation must never reach the Location (reflection guard).
     const res = await handlerFor(h.deps, "GET /api/auth/oidc/callback")(makeCtx({ url: callbackUrl({ state: "s1", error: "<script>alert(1)</script>" }) }));
-    expect(res.status).toBe(401);
-    const decoded = JSON.parse(await res.text()) as { error: string };
-    expect(decoded.error).not.toContain("<script>");
-    expect(decoded.error).toContain("token_exchange_failed"); // the generic fallback marker
+    expect(res.status).toBe(302);
+    const location = res.headers.get("location") ?? "";
+    expect(location).not.toContain("<script>");
+    expect(location).toBe("/login?authError=token_exchange_failed"); // the generic fallback marker
+  });
+});
+
+// A5 — RP back-channel logout ROUTE. The JWKS signature + claim checklist lives in infra/auth/backchannel
+// (unit-tested there against a locally-signed token); HERE we prove the route wiring: registration gating,
+// the verify→revoke path, and the fail-closed 400s. The verifier is a stub so the route logic is isolated.
+describe("OIDC back-channel logout route (A5)", () => {
+  const CLIENT_ID = "orb-client";
+  const JWKS_URI = "https://idp.example/jwks";
+  const ISSUER = "https://idp.example";
+
+  interface BclRecorder {
+    revokedExternalId: string | null;
+    verifyCalls: number;
+  }
+
+  type Bcl = NonNullable<OidcRoutesDeps["backchannelLogout"]>;
+
+  function bclDeps(over: { verify?: Bcl; revokeReturns?: number }): { deps: AuthRoutesDeps; rec: BclRecorder } {
+    const rec: BclRecorder = { revokedExternalId: null, verifyCalls: 0 };
+    const sessions: AuthSessionsPort = {
+      ...recordingSessions().sessions,
+      revokeByExternalId: (externalId): Promise<number> => {
+        rec.revokedExternalId = externalId;
+        return Promise.resolve(over.revokeReturns ?? 1);
+      },
+    };
+    const backchannelLogout: Bcl = over.verify ?? {
+      clientId: CLIENT_ID,
+      verify: () => {
+        rec.verifyCalls += 1;
+        return Promise.resolve({ sub: "authentik|alice", sid: null });
+      },
+    };
+    const oidc = fakeOidcDeps({
+      getConfig: () => Promise.resolve(fakeConfig({ issuer: ISSUER, jwks_uri: JWKS_URI })),
+      backchannelLogout,
+    });
+    return { deps: { sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10, oidc }, rec };
+  }
+
+  test("route is NOT registered without backchannelLogout deps (default OFF)", () => {
+    const rec = recordingSessions();
+    const deps: AuthRoutesDeps = { sessions: rec.sessions, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10, oidc: fakeOidcDeps() };
+    expect(routesOf(deps).has("POST /api/auth/oidc/backchannel-logout")).toBe(false);
+  });
+
+  test("route IS registered when backchannelLogout is supplied (OIDC_BACKCHANNEL_LOGOUT=on)", () => {
+    const { deps } = bclDeps({});
+    expect(routesOf(deps).has("POST /api/auth/oidc/backchannel-logout")).toBe(true);
+  });
+
+  test("a valid logout_token → verify → revoke every session for the subject → 200, Cache-Control no-store", async () => {
+    const { deps, rec } = bclDeps({});
+    const res = await handlerFor(deps, "POST /api/auth/oidc/backchannel-logout")(makeCtx({ parseBody: { logout_token: "signed.jwt.here" } }));
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store");
+    expect(rec.verifyCalls).toBe(1);
+    expect(rec.revokedExternalId).toBe("authentik|alice");
+  });
+
+  test("a missing logout_token → 400, no verify, no revoke", async () => {
+    const { deps, rec } = bclDeps({});
+    const res = await handlerFor(deps, "POST /api/auth/oidc/backchannel-logout")(makeCtx({ parseBody: {} }));
+    expect(res.status).toBe(400);
+    expect(rec.verifyCalls).toBe(0);
+    expect(rec.revokedExternalId).toBeNull();
+  });
+
+  test("a logout_token that FAILS validation (verify → null) → 400, no revoke", async () => {
+    const failing: Bcl = { clientId: CLIENT_ID, verify: () => Promise.resolve(null) };
+    const { deps, rec } = bclDeps({ verify: failing });
+    const res = await handlerFor(deps, "POST /api/auth/oidc/backchannel-logout")(makeCtx({ parseBody: { logout_token: "forged.jwt" } }));
+    expect(res.status).toBe(400);
+    expect(rec.revokedExternalId).toBeNull();
+  });
+
+  test("a sid-only token (sub null) validates → 200 but revokes nothing (we key sessions on sub)", async () => {
+    const sidOnly: Bcl = { clientId: CLIENT_ID, verify: () => Promise.resolve({ sub: null, sid: "sess-1" }) };
+    const { deps, rec } = bclDeps({ verify: sidOnly });
+    const res = await handlerFor(deps, "POST /api/auth/oidc/backchannel-logout")(makeCtx({ parseBody: { logout_token: "sid.only.jwt" } }));
+    expect(res.status).toBe(200);
+    expect(rec.revokedExternalId).toBeNull(); // nothing to revoke — no sub
   });
 });
