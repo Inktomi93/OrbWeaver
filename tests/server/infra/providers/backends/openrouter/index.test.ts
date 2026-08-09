@@ -179,7 +179,15 @@ describe("createOpenRouterBackend — summarize shaper", () => {
   // A FORCED TOOL CALL carrying the same JSON Schema is 200 on ALL THREE. That is why the structured role
   // sends `tools:[…] + tool_choice:{function}` and reads the call's `arguments` — the vehicle the in-turn
   // folded round already proved on this wire (D112). The host `resyncFromStory` door died on exactly this.
-  test("STRUCTURED rides a FORCED TOOL CALL carrying the schema — never response_format", async () => {
+  // CORRECTED 2026-08-09 (task #36, 23 live calls with the owner's key — receipts in
+  // `docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md`): the blanket "never
+  // response_format" above is FALSE as stated. The variable is the schema SHAPE, not the field: the SAME
+  // `response_format` is 200 on anthropic-, openai- AND google-family endpoints when the schema rides the
+  // all-required shape with `strict:true` (openai's 400 above is literally the D126 knob's documented wall).
+  // What stands: a request that does NOT ask for the enforcing vehicle still rides the forced tool, so the
+  // rpg extraction rail — whose schema is optional-by-construction — is byte-unchanged. That fence is this
+  // test; the new vehicle is the two below it.
+  test("STRUCTURED with no vehicle asked for rides the FORCED TOOL CALL — the extraction rail's fence", async () => {
     const { backend, tracker } = backendWith((n) => summarizeReply(`S${n}`));
     const schema = {
       type: "object",
@@ -201,6 +209,54 @@ describe("createOpenRouterBackend — summarize shaper", () => {
     expect(sent.chatRequest?.toolChoice).toEqual({ type: "function", function: { name: "result" } });
     // …and `response_format` is GONE: sending both is what 400s on anthropic.
     expect(sent.chatRequest?.responseFormat).toBeUndefined();
+  });
+
+  // The `response-format` vehicle (task #36). The pairing asserted here is the ONE the live probe found
+  // servable on all three families: `response_format: json_schema` + the ALL-REQUIRED shape + `strict:true`
+  // + provider `require_parameters`. Each half is pinned, because dropping any of them silently reverts the
+  // request to a shape one of the three families 400s on.
+  test("STRUCTURED with vehicle:response-format rides response_format + strict + require_parameters, and drops the tool", async () => {
+    const { backend, tracker } = backendWith(() => summarizeReply('{"genre":"noir"}'));
+    const schema = {
+      type: "object",
+      properties: { genre: { type: "string" }, era: { type: "string" } },
+      required: ["genre"],
+      additionalProperties: false,
+    };
+    await callStructured(backend, {
+      credential: CRED,
+      model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+      inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+      responseFormat: { name: "result", schema, vehicle: "response-format" },
+    });
+    const sent = tracker.sentRequests[0] as {
+      chatRequest?: {
+        responseFormat?: { type?: string; jsonSchema?: { name?: string; strict?: boolean; schema?: Record<string, unknown> } };
+        tools?: unknown;
+        provider?: unknown;
+      };
+    };
+    expect(sent.chatRequest?.responseFormat?.type).toBe("json_schema");
+    expect(sent.chatRequest?.responseFormat?.jsonSchema?.name).toBe("result");
+    expect(sent.chatRequest?.responseFormat?.jsonSchema?.strict).toBe(true);
+    // The ALL-REQUIRED shape: the optional `era` became a null union and every property is required.
+    const wire = sent.chatRequest?.responseFormat?.jsonSchema?.schema ?? {};
+    expect(wire["required"]).toEqual(["genre", "era"]);
+    expect((wire["properties"] as Record<string, unknown>)["era"]).toEqual({ anyOf: [{ type: "string" }, { type: "null" }] });
+    expect(sent.chatRequest?.provider).toEqual({ requireParameters: true });
+    // …and the forced tool is GONE: sending both vehicles at once is what 400s on anthropic.
+    expect(sent.chatRequest?.tools).toBeUndefined();
+  });
+
+  test("STRUCTURED on the response-format vehicle reads the JSON out of the message CONTENT", async () => {
+    const { backend } = backendWith(() => summarizeReply('{"genre":"noir"}'));
+    const result = await callStructured(backend, {
+      credential: CRED,
+      model: castId<ModelId>("anthropic/claude-haiku-4-5"),
+      inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
+      responseFormat: { name: "result", schema: { type: "object" }, vehicle: "response-format" },
+    });
+    expect(result?.items[0]?.text).toBe('{"genre":"noir"}');
   });
 
   test("STRUCTURED reads the JSON out of the forced tool call's arguments", async () => {

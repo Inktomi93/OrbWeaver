@@ -14,6 +14,6 @@ export const structuredOutputSection: SettingsSectionContribution = {
   id: SECTION_ID,
   anchor: "admin",
   nav: STRUCTURED_OUTPUT_SUBCATEGORY,
-  owns: { tier: "app", keys: ["structuredOutputShape"] },
+  owns: { tier: "app", keys: ["structuredOutputShape", "structuredOutputVehicle"] },
   body: () => <StructuredOutputSection sectionId={SECTION_ID} />,
 };

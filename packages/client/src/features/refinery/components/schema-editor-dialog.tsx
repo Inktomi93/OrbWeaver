@@ -8,12 +8,15 @@
 // The generator's `failed` arm renders the RAW reply into the JSON pane for hand-fixing (the
 // show-the-partial policy — errors-as-data, never a toast that eats the draft).
 
-import type { RefinerySchemaStage } from "@orb/contracts/refinery";
+import type { RefineryForgeArm, RefinerySchemaStage } from "@orb/contracts/refinery";
+import { REFINERY_FORGE_ARM_DEFAULT, REFINERY_FORGE_ARMS } from "@orb/contracts/refinery";
 import type { CharacterId, RefinerySchemaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
+import type { SelectItems } from "@orb/ui/select";
+import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement, RefObject } from "react";
@@ -43,6 +46,16 @@ export interface SchemaEditorDialogProps {
 }
 
 const STAGE_WORD: Record<RefinerySchemaStage, string> = { score: "score", analyze: "analyze" };
+
+/** The authoring ARMS, as the author reads them (task #36 — the owner's "we should have options"). Labels
+ *  DERIVE from the contract tuple so a new arm cannot ship without a word for it (the admin-items
+ *  precedent). Owner-facing wording says what the arm COSTS and what it buys, never the mechanism. */
+const FORGE_ARM_LABELS: Record<RefineryForgeArm, string> = {
+  single: "One pass — fastest",
+  guided: "Field by field — best for big schemas",
+  "two-stage": "Shape first, then styling",
+};
+const FORGE_ARM_ITEMS: SelectItems<string> = REFINERY_FORGE_ARMS.map((value) => ({ value, label: FORGE_ARM_LABELS[value] }));
 
 function dialogTitleOf(editing: SchemaEditorDialogProps["editing"], stage: RefinerySchemaStage): string {
   return editing === null ? `New ${STAGE_WORD[stage]} schema` : `Edit "${editing.name}"`;
@@ -153,7 +166,10 @@ function saveDraft(name: string, schema: Record<string, unknown> | null, deps: S
   update.mutate({ schemaId: editing.id, patch: { name, description, schema } }, { onSuccess });
 }
 
-type ForgeResult = { kind: "draft"; name: string; schema: Record<string, unknown> } | { kind: "failed"; message: string; raw: string | null };
+type ForgeResult =
+  | { kind: "draft"; name: string; schema: Record<string, unknown>; dropped: readonly string[] }
+  | { kind: "needs-raw"; message: string; skeleton: Record<string, unknown> }
+  | { kind: "failed"; message: string; raw: string | null };
 
 interface DraftSetters {
   readonly nameRef: RefObject<HTMLTextAreaElement | null>;
@@ -162,9 +178,12 @@ interface DraftSetters {
   readonly setForgeNote: (note: string | null) => void;
 }
 
-/** Land a forge turn's result: a draft fills the panes (and a still-blank name), a failure renders the
- *  RAW reply into the JSON pane for hand-fixing (show-the-partial — never a toast that eats the draft).
- *  Runs at EVENT time only (mutation onSuccess), so the ref read is legal. */
+/** Land a forge turn's result. A draft fills the panes (and a still-blank name), itemizing any design row
+ *  the transpile could not place. `needs-raw` is the HONEST REFUSAL — the ask needed a construct the guided
+ *  designer cannot express, so the starter skeleton lands in the JSON pane (which takes the FULL vocabulary)
+ *  with the reason stated, instead of a flattened approximation of the author's idea. A failure renders the
+ *  raw reply for hand-fixing (show-the-partial — never a toast that eats the draft). Runs at EVENT time only
+ *  (mutation onSuccess), so the ref read is legal. */
 function applyForgeResult(result: ForgeResult, { nameRef, setNameFilled, setSchemaText, setForgeNote }: DraftSetters): void {
   if (result.kind === "draft") {
     if (nameRef.current !== null && nameRef.current.value.trim().length === 0) {
@@ -172,7 +191,12 @@ function applyForgeResult(result: ForgeResult, { nameRef, setNameFilled, setSche
       setNameFilled(true);
     }
     setSchemaText(JSON.stringify(result.schema, null, 2));
-    setForgeNote(null);
+    setForgeNote(result.dropped.length === 0 ? null : `Some rows didn't fit and were left out: ${result.dropped.join(" · ")}`);
+    return;
+  }
+  if (result.kind === "needs-raw") {
+    setSchemaText(JSON.stringify(result.skeleton, null, 2));
+    setForgeNote(`${result.message} The JSON below is a starting point — edit it directly; the raw editor accepts the whole schema vocabulary.`);
     return;
   }
   setForgeNote(result.message);
@@ -181,11 +205,59 @@ function applyForgeResult(result: ForgeResult, { nameRef, setNameFilled, setSche
   }
 }
 
+/** The GENERATE row — the arm picker + the Generate press (task #36). Its own component, beside `RefineRow`
+ *  for the same reason: the dialog is not a form (its two text panes are a description and a raw JSON door,
+ *  not fields of one record), and keeping each control cluster in its own component is what keeps it from
+ *  drifting into one. */
+function GenerateRow({
+  arm,
+  busy,
+  description,
+  stage,
+  generate,
+  onArmChange,
+  onLand,
+}: {
+  arm: RefineryForgeArm;
+  busy: boolean;
+  description: string;
+  stage: RefinerySchemaStage;
+  generate: ReturnType<typeof useGenerateRefinerySchema>;
+  onArmChange: (arm: RefineryForgeArm) => void;
+  onLand: (result: ForgeResult) => void;
+}): ReactElement {
+  return (
+    <>
+      <Select
+        aria-label="How to build it"
+        items={FORGE_ARM_ITEMS}
+        onValueChange={(value): void => {
+          const next = REFINERY_FORGE_ARMS.find((a) => a === value);
+          if (next !== undefined) {
+            onArmChange(next);
+          }
+        }}
+        value={arm}
+      />
+      <Button
+        disabled={busy || description.trim().length === 0}
+        onClick={(): void => {
+          generate.mutate({ description, stage, arm }, { onSuccess: onLand });
+        }}
+        size="sm"
+      >
+        Generate
+      </Button>
+    </>
+  );
+}
+
 /** The conversational-iteration row (§4.5 loop) — instruction in, `refineSchema` turn out. Only rendered
  *  once a parseable draft exists. */
 function RefineRow({
   schema,
   stage,
+  arm,
   busy,
   instructionRef,
   refine,
@@ -193,6 +265,7 @@ function RefineRow({
 }: {
   schema: Record<string, unknown>;
   stage: RefinerySchemaStage;
+  arm: RefineryForgeArm;
   busy: boolean;
   instructionRef: RefObject<HTMLTextAreaElement | null>;
   refine: ReturnType<typeof useRefineRefinerySchema>;
@@ -209,7 +282,7 @@ function RefineRow({
         onClick={(): void => {
           const instruction = instructionRef.current?.value.trim() ?? "";
           if (instruction.length > 0) {
-            refine.mutate({ schema, instruction, stage }, { onSuccess: onLand });
+            refine.mutate({ schema, instruction, stage, arm }, { onSuccess: onLand });
           }
         }}
         size="sm"
@@ -227,6 +300,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
   const [description, setDescription] = useState(editing === null ? "" : editing.description);
   const [schemaText, setSchemaText] = useState(editing === null ? "" : JSON.stringify(editing.schema, null, 2));
   const [forgeNote, setForgeNote] = useState<string | null>(null);
+  const [arm, setArm] = useState<RefineryForgeArm>(REFINERY_FORGE_ARM_DEFAULT);
 
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -251,8 +325,9 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
     <FormDialog onOpenChange={onOpenChange} open={open} size="lg" title={dialogTitleOf(editing, stage)}>
       <Stack gap="row">
         <Text voice="gloss">
-          Describe the structure you want in plain English — the generator stays inside the schema vocabulary the wire enforces, and hints it emits make the
-          result render as gauges, chips and prose instead of fields. Bounds are checked after the model replies; on a local model they are grammar-enforced.
+          Two ways in, both first-class. Describe what you want in plain English and the designer builds it — the model answers into a fixed grammar, so it
+          cannot invent a shape this app can't render. Or write the schema yourself in the JSON pane below, which takes the full vocabulary: unions, mixed
+          lists, deeper nesting. If a description needs something the designer can't express, it says so and hands you a starting point instead of guessing.
         </Text>
         <Field label="Describe the structure">
           <Textarea
@@ -262,24 +337,18 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
             value={description}
           />
         </Field>
-        <Row gap="field">
-          <Button
-            disabled={busy || description.trim().length === 0}
-            onClick={(): void => {
-              generate.mutate({ description, stage }, { onSuccess: landDraft });
-            }}
-            size="sm"
-          >
-            Generate
-          </Button>
-          {schema !== null ? <RefineRow busy={busy} instructionRef={instructionRef} onLand={landDraft} refine={refine} schema={schema} stage={stage} /> : null}
+        <Row align="center" gap="field">
+          <GenerateRow arm={arm} busy={busy} description={description} generate={generate} onArmChange={setArm} onLand={landDraft} stage={stage} />
+          {schema !== null ? (
+            <RefineRow arm={arm} busy={busy} instructionRef={instructionRef} onLand={landDraft} refine={refine} schema={schema} stage={stage} />
+          ) : null}
         </Row>
         {forgeNote !== null ? (
           <Text data-testid={testId("refineryForgeNote")} voice="gloss">
             {forgeNote}
           </Text>
         ) : null}
-        <Field label="Schema (JSON — the raw door)">
+        <Field label="Schema (JSON — the full vocabulary)">
           <Textarea onChange={(e): void => setSchemaText(e.target.value)} rows={8} value={schemaText} />
         </Field>
         <RefusalNote error={editing === null ? create.error : update.error} />
