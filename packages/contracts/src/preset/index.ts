@@ -112,6 +112,7 @@ export const SIDE_GEN_KINDS = [
   "refine_score",
   "refine_rewrite",
   "refine_analyze",
+  "schema_forge",
 ] as const satisfies readonly string[];
 export type SideGenKind = (typeof SIDE_GEN_KINDS)[number];
 
@@ -163,6 +164,9 @@ export const SIDE_GEN_POSTURES = {
   refine_rewrite: { temperature: 0.7, maxOutputTokens: 2048 },
   // Analyze: a grounded drift comparison — short, structured, near-deterministic.
   refine_analyze: { temperature: 0.3, maxOutputTokens: 512 },
+  // NL→JSON-schema generation (refinery SF — the NL design §4.6): a near-deterministic structural
+  // artifact, budgeted for a depth-≤8 schema document, never prose.
+  schema_forge: { temperature: 0.2, maxOutputTokens: 768 },
 } as const satisfies Record<SideGenKind, SideGenPosture>;
 // biome-ignore-end lint/style/useNamingConvention: the map key IS the SideGenKind string (snake_case vocabulary)
 

@@ -1,8 +1,9 @@
 // Section-jump tile CT — the tile DERIVES from the section registry (home-section-spec §3.4). What this
 // pins is that it is a derivation, not a hand list: the rows ARE the registry minus home, in registry
-// order, carrying each section's OWN rail label + its gate-checked placeholder copy as the gloss, and a
-// DECLARED-PLANNED section (refinery) renders its Planned badge from the same `content` field that
-// carries the marker. Clicking a row fires the store action (assert the store, never a rendered echo).
+// order, carrying each section's OWN rail label + its gate-checked placeholder copy as the gloss. The
+// Planned badge derives from the same `content` field that carries the `{planned}` marker — and since
+// refinery (the last planned member) graduated in R3, the derivation is pinned from the ABSENT side.
+// Clicking a row fires the store action (assert the store, never a rendered echo).
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { SectionId } from "../../../../../packages/client/src/state/shell-store.ts";
@@ -57,12 +58,15 @@ test("a row's gloss WRAPS to two clamped lines — a nowrap ellipsis would cut t
   expect(style.whitespace).not.toBe("nowrap");
 });
 
-test("a DECLARED-PLANNED section renders its Planned badge — derived from `content`, not a second list", async ({ mount }) => {
+test("no Planned badge survives a graduation — the badge derives from `content`, so it vanished the day refinery shipped", async ({ mount }) => {
   const home = await mount(<HomeSectionJumpStory />);
 
   const tile = home.locator('[data-home-tile="home.jump"]');
-  // Exactly one planned section today (refinery); the badge disappears by itself the day it ships.
-  await expect(tile.getByText("Planned")).toHaveCount(1);
+  // The registry's last DECLARED-PLANNED member (refinery) graduated in R3. The badge derives from the
+  // same `content` field that carried the `{planned}` marker, so ZERO badges is the self-cleaning
+  // guarantee working — a count here would only ever rise again if a new planned section joins, at which
+  // point this assertion is the compile-adjacent reminder to flip it back to a positive pin.
+  await expect(tile.getByText("Planned")).toHaveCount(0);
 });
 
 test("clicking a jump row fires setActiveSection — assert the STORE, not a rendered echo", async ({ mount }) => {

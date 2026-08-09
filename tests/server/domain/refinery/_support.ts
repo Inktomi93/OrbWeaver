@@ -6,7 +6,7 @@
 import type { RefineryAnalyzePayload, RefineryRewritePayload, RefineryScorePayload } from "@orb/contracts/refinery";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import type { CharacterHandle, CharacterId, RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterService } from "@orb/server/domain/character";
 import { createCharacterService, createLoadOwnedCard, createStampRefinerySignals } from "@orb/server/domain/character";
@@ -61,8 +61,10 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
     now: (): number => clock.now(),
     newRefinerySessionId: (): RefinerySessionId => castId<RefinerySessionId>(ids.next("refinery_session")),
     newRefineryRunId: (): RefineryRunId => castId<RefineryRunId>(ids.next("refinery_run")),
+    newRefinerySchemaId: (): RefinerySchemaId => castId<RefinerySchemaId>(ids.next("refinery_schema")),
     summarize,
     summarizerModel: TEST_SUMMARIZER_MODEL,
+    summarizerContextTokens: 8192,
     resolveUserPresetParams: () => Promise.resolve({}),
     resolveUserProse: () => Promise.resolve({}),
     loadOwnedCard: createLoadOwnedCard({ db }),
@@ -70,6 +72,7 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
     snapshotCharacter: character.snapshot,
     updateCharacter: character.update,
     getCharacter: character.get,
+    duplicateCharacter: character.duplicate,
   };
   return {
     svc: createRefineryService(ctx),
@@ -99,6 +102,21 @@ export async function seedOwnedCharacter(h: RefineryHarness, ownerId: UserId, ke
     },
   });
   return detail.id;
+}
+
+/** A belt-legal custom SCORE schema (the well-known core + one extra axis + a hinted enum) — the R3
+ *  custom-arm fixtures' shared shape (homed here so no test file imports another test file, which would
+ *  re-register its tests). */
+export function validScoreSchema(): Record<string, unknown> {
+  return {
+    type: "object",
+    properties: {
+      overallScore: { type: "number", minimum: 1, maximum: 10, "x-orb-ui": { role: "hero" } },
+      vibe: { type: "string", enum: ["COZY", "SHARP"], "x-orb-ui": { role: "verdict" } },
+      notes: { type: "array", items: { type: "string" } },
+    },
+    required: ["overallScore"],
+  };
 }
 
 // ── valid stage replies (the tape's payload bodies) ─────────────────────────────────────────────────────

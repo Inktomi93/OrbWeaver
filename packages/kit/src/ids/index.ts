@@ -77,6 +77,8 @@ export const ID_PREFIX = {
   // Card-refinery pipeline rows (refinery R0 — docs/design/refinery-r0.md).
   refinerySession: "refinery_session",
   refineryRun: "refinery_run",
+  // A user-authored custom payload schema (refinery R3 / SF0 — docs/design/refinery-r3-build-plan.md §1).
+  refinerySchema: "refinery_schema",
   // RPG lite substrate (rpg-design/05 §4.1). Quest ids are PLAIN strings minted inside the snapshot
   // blob (no table, no FK — a TypeID brand buys nothing there; the objective-id precedent), so no
   // `rpgQuest` prefix. Full ADDS its own prefixes (npc/clock/map/session/encounter/scene/pendingCheck).
@@ -178,6 +180,7 @@ export type PluginId = TypeIdOf<"plugin">;
 // --- Refinery (card-refinery pipeline sessions + append-only run log) ---------
 export type RefinerySessionId = TypeIdOf<"refinery_session">;
 export type RefineryRunId = TypeIdOf<"refinery_run">;
+export type RefinerySchemaId = TypeIdOf<"refinery_schema">;
 
 // --- RPG (lite substrate — the 5-table floor, rpg-design/05 §4.1) ------------
 export type RpgGameId = TypeIdOf<"rpg_game">;

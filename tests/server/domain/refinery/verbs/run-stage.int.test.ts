@@ -23,7 +23,148 @@ import {
   seedOwnedCharacter,
   seedUser,
   TEST_SUMMARIZER_MODEL,
+  validScoreSchema,
 } from "../_support.ts";
+
+const OPERATE_BACK_REFUSAL = /Only the analyze stage/u;
+
+function validAnalyzeSchema(): Record<string, unknown> {
+  return {
+    type: "object",
+    properties: {
+      verdict: { type: "string", enum: ["ACCEPT", "NEEDS_REFINEMENT", "REGRESSION"], "x-orb-ui": { role: "verdict" } },
+      driftNotes: { type: "array", items: { type: "string" } },
+    },
+    required: ["verdict"],
+  };
+}
+
+// ── the CUSTOM payload arm (R3/SF): per-call schema resolve, the P1-B provenance EMBED, the F6 stamp
+//    semantics under custom, the roster verdict fallback, the read-seam re-parse against the embed, and
+//    the §16.1 operate-back knob. ──────────────────────────────────────────────────────────────────────
+
+test("a custom SCORE run: resolves the schema per call, EMBEDS provenance, validates via the lift, stamps the core", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_cs_a" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "cs-card-a");
+  const p = principal(owner);
+  const row = await h.svc.createSchema({ principal: p, name: "vibe_scorer", description: "score the vibe", stage: "score", schema: validScoreSchema() });
+  const session = await h.svc.startSession({ principal: p, characterId });
+  await h.svc.updateSession({
+    principal: p,
+    sessionId: session.id,
+    patch: { stageConfig: { ...session.stageConfig, score: { kind: "custom", schemaId: row.id } } },
+  });
+
+  h.queueReply(JSON.stringify({ overallScore: 8, vibe: "COZY", notes: ["warm"], invented: "junk" }));
+  const run = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "score" });
+  expect(run.stage).toBe("score");
+  // The provenance EMBEDS the schema + version (P1-B) — never a bare pointer.
+  expect(run.payloadConfig).toEqual({ kind: "custom", schemaId: row.id, schemaVersion: 1, schema: validScoreSchema() });
+  // Strip-mode itemization still works over a lifted schema — the invented key is recorded, not swallowed.
+  expect(run.strippedKeys).toEqual(["invented"]);
+  // The custom instruction is the schema's own description; the wire grammar is the projected draft.
+  const call = h.summarizeCalls.at(-1);
+  expect(call?.user).toContain("score the vibe");
+  expect(call?.opts?.responseFormat?.name).toBe("vibe_scorer");
+  // The {{shape}} splice is the projected SCHEMA, not the fixed example.
+  expect(call?.system).toContain("JSON Schema");
+  // F6: the well-known core stamped the card's score readout.
+  const detail = await h.character.get({ principal: p, characterId });
+  expect(detail.refinery?.score).toBe(8);
+});
+
+test("a custom ANALYZE run stamps NOTHING into canon, but the roster badge still reads its verdict core", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_cs_b" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "cs-card-b");
+  const p = principal(owner);
+  const row = await h.svc.createSchema({ principal: p, name: "drift_check", description: "drift?", stage: "analyze", schema: validAnalyzeSchema() });
+  const session = await h.svc.startSession({ principal: p, characterId });
+  await h.svc.updateSession({
+    principal: p,
+    sessionId: session.id,
+    patch: { stageConfig: { ...session.stageConfig, analyze: { kind: "custom", schemaId: row.id } } },
+  });
+  h.queueReply(rewriteReply());
+  await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });
+  h.advance(1000);
+  h.queueReply(JSON.stringify({ verdict: "REGRESSION", driftNotes: ["colder"] }));
+  const run = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "analyze" });
+  expect(run.payloadConfig.kind).toBe("custom");
+  // Canon: the typed `analysis` column is fixed-shape — a custom analyze must NOT have stamped it.
+  const detail = await h.character.get({ principal: p, characterId });
+  expect(detail.refinery?.analysis ?? null).toBeNull();
+  // The roster badge still works — the well-known verdict core plucks from the custom payload.
+  const roster = await h.svc.listSessions({ principal: p });
+  expect(roster[0]?.latestVerdict).toBe("REGRESSION");
+});
+
+test("the read seam re-parses an old custom run against its EMBED — a later schema edit cannot rewrite history", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_cs_c" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "cs-card-c");
+  const p = principal(owner);
+  const row = await h.svc.createSchema({ principal: p, name: "vibe_scorer", description: "v1", stage: "score", schema: validScoreSchema() });
+  const session = await h.svc.startSession({ principal: p, characterId });
+  await h.svc.updateSession({
+    principal: p,
+    sessionId: session.id,
+    patch: { stageConfig: { ...session.stageConfig, score: { kind: "custom", schemaId: row.id } } },
+  });
+  h.queueReply(JSON.stringify({ overallScore: 7, vibe: "SHARP" }));
+  await h.svc.runStage({ principal: p, sessionId: session.id, stage: "score" });
+  // Edit the schema INCOMPATIBLY (vibe becomes a number axis) — the old run must still read as v1.
+  await h.svc.updateSchema({
+    principal: p,
+    schemaId: row.id,
+    patch: {
+      schema: {
+        type: "object",
+        properties: { overallScore: { type: "number", minimum: 1, maximum: 10 }, vibe: { type: "number", minimum: 0, maximum: 5 } },
+        required: ["overallScore"],
+      },
+    },
+  });
+  const runs = await h.svc.listRuns({ principal: p, sessionId: session.id });
+  expect(runs).toHaveLength(1);
+  expect(runs[0]?.payload).toEqual({ overallScore: 7, vibe: "SHARP" });
+  expect(runs[0]?.payloadConfig).toMatchObject({ kind: "custom", schemaVersion: 1 });
+  // A DELETED schema doesn't orphan history either — the embed is the whole provenance…
+  await h.svc.deleteSchema({ principal: p, schemaId: row.id });
+  expect(await h.svc.listRuns({ principal: p, sessionId: session.id })).toHaveLength(1);
+  // …but the NEXT run under the dangling pointer is a leak-free NOT_FOUND (the Setup tab re-points).
+  await expect(h.svc.runStage({ principal: p, sessionId: session.id, stage: "score" })).rejects.toThrow(DomainNotFoundError);
+});
+
+test("operate-back: analyze judges the NAMED earlier rewrite, not the latest; foreign run ids collapse", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_cs_e" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "cs-card-e");
+  const p = principal(owner);
+  const session = await h.svc.startSession({ principal: p, characterId });
+  h.queueReply(rewriteReply({ fields: [{ field: "description", text: "ROUND ONE description." }] }));
+  const first = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });
+  h.advance(1000);
+  h.queueReply(rewriteReply({ fields: [{ field: "description", text: "ROUND TWO description." }] }));
+  await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });
+  h.advance(1000);
+  // The named run wins over "latest": the analyze prompt carries ROUND ONE and the DAG edge names it.
+  h.queueReply(analyzeReply());
+  const analyze = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "analyze", rewriteRunId: first.id });
+  expect(analyze.sourceRunId).toBe(first.id);
+  const call = h.summarizeCalls.at(-1);
+  expect(call?.user).toContain("ROUND ONE");
+  expect(call?.user).not.toContain("ROUND TWO");
+  // Guard arms: a non-analyze stage refuses the knob; a fabricated run id is NOT_FOUND.
+  await expect(h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite", rewriteRunId: first.id })).rejects.toThrow(OPERATE_BACK_REFUSAL);
+  const foreignSession = await h.svc.startSession({ principal: p, characterId });
+  await expect(h.svc.runStage({ principal: p, sessionId: foreignSession.id, stage: "analyze", rewriteRunId: first.id })).rejects.toThrow(DomainNotFoundError);
+});
 
 test("a score run: prompt carries card {{macros}} VERBATIM (belt 5 both directions), posture+format ride the wire, the run row lands, the score half stamps", async () => {
   const db = await freshDb();

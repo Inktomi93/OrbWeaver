@@ -136,6 +136,30 @@ export const TEST_IDS = {
    *  asserting "the identity resolved but the fire-time tokens did not" must read exactly that box: the
    *  same words appear in the gloss beside it, so a text query would pass on the wrong element. */
   presetResolvedPreview: "preset-resolved-preview",
+  // ── refinery (R3) — the pipeline surface + the schema-driven renderer ──────────────────────────────
+  refineryContent: "refinery-content",
+  refineryTeaching: "refinery-teaching",
+  refineryStepper: "refinery-stepper",
+  /** One per stage cell — pair with `data-stage` to pick a cell. */
+  refineryStep: "refinery-step",
+  refineryPayloadView: "refinery-payload-view",
+  refineryVerdictBanner: "refinery-verdict-banner",
+  refineryHeroGauge: "refinery-hero-gauge",
+  /** One per assay row — pair with the row's own text. */
+  refineryAssayRow: "refinery-assay-row",
+  /** One per rendered field block — pair with `data-field` for the key. */
+  refineryField: "refinery-field",
+  refineryAcceptReview: "refinery-accept-review",
+  refineryUndecidedNote: "refinery-undecided-note",
+  refineryApplyOutcome: "refinery-apply-outcome",
+  refineryRunsTab: "refinery-runs-tab",
+  refinerySetupTab: "refinery-setup-tab",
+  refineryVersionsTab: "refinery-versions-tab",
+  refineryStrippedWarn: "refinery-stripped-warn",
+  refineryFitLine: "refinery-fit-line",
+  refineryPreflightWarn: "refinery-preflight-warn",
+  refineryForgeNote: "refinery-forge-note",
+  refinerySchemaRefusal: "refinery-schema-refusal",
 } as const;
 
 export type TestIdKey = keyof typeof TEST_IDS;

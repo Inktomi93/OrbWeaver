@@ -95,6 +95,14 @@ const NON_PORTABLE_CANON: ExemptionTable<NonPortableRow> = {
     classification: "RULED-OUT",
     why: "the KV store of RULED-OUT `plugins` — restoring a plugin's state without the plugin is worse than not restoring it. Ends with the `plugins` row.",
   },
+  refinerySchemas: {
+    classification: "DEFERRED",
+    why:
+      "R3/SF0 — owner-authored custom payload schemas (the tag/theme artifact class, so PORTABLE in spirit). Whether schema rows ride " +
+      "the portability bundle is an OPEN OWNER FORK recorded in the NL design (2026-08-08-card-refinery-nl-schema-design.md §8, the same " +
+      "question flagged for prose overrides — one lane, same answer for both). Ends when that fork is ruled: portable ⇒ register the kind " +
+      "(serde + verbs + descriptor + order slot + round-trip pin); not ⇒ reclassify RULED-OUT with the ruling cite.",
+  },
   automationRules: {
     classification: "DEFERRED",
     why:

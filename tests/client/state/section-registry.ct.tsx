@@ -15,7 +15,7 @@ test("every real section answers `useSelectionTitle` — nothing selected ⇒ `n
   const probe = await mount(<SectionTitleTotalityProbe />);
 
   // Cold cache + no selection: every section resolves to the "nothing to name" answer, which is what makes
-  // the shell print the SECTION label instead of a blank bar. A section with no member to name (home,
-  // refinery) reaches the same answer through `NO_SELECTION_TITLE`.
+  // the shell print the SECTION label instead of a blank bar. A section with no member to name (home)
+  // reaches the same answer through `NO_SELECTION_TITLE`.
   await Promise.all(SECTION_IDS.map((id) => expect(probe.locator(`output[data-section="${id}"]`)).toHaveText(`${id}=none`)));
 });

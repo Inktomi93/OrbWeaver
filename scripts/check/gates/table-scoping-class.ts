@@ -52,6 +52,10 @@ export const TABLE_SCOPING_CLASSES: Readonly<Record<string, ScopingRow>> = {
   assets: { scope: "ownerId", why: "D21 single-owned; reads go through `fetchOwned` (ownerid-registry owns the stamp's justification)." },
   automation_rules: { scope: "ownerId", why: "D46 host-authored rule — runs as its author; the ownerId is the funding/authority subject." },
   characters: { scope: "ownerId", why: "D23 true producer — the card library is single-owned." },
+  refinery_schemas: {
+    scope: "ownerId",
+    why: "R3/SF0 custom payload-schema LIBRARY — authored library tooling with no owning parent (the presets shape; ownerid-registry owns the stamp's justification).",
+  },
   chat_tags: {
     scope: "ownerId",
     why: "D30 per-user overlay on an OWNERLESS chat — the tagger IS the scope subject, so the chatId does NOT make it membership-scoped.",

@@ -47,7 +47,8 @@ test("accepted entries land on the LIVE card, snapshot-first, per-entry drops it
   // Snapshot-first (belt 13): the auto snapshot exists with the ruled label.
   const snaps = await db.select().from(characterSnapshots).where(eq(characterSnapshots.characterId, characterId));
   expect(snaps).toHaveLength(1);
-  expect(snaps[0]?.label).toBe("auto: before refinery apply");
+  // The §6.2 classification convention: prefix + the session id (the version walk classifies by it).
+  expect(snaps[0]?.label).toBe(`auto: before refinery apply · ${session.id}`);
   // …and it holds the PRE-apply description (reversibility — the snapshot is the undo).
   expect(snaps[0]?.content.description).toBe("A meticulous keeper of records who says {{char}} likes {{user}}.");
   // An apply completes the session (a label, not a lock).

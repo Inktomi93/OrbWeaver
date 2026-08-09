@@ -57,6 +57,12 @@ function cardSignalsRead(trpc: Trpc): InvalidateFilter {
   return trpc.character.get.pathFilter();
 }
 
+/** ONE session's preflight readout (§8) — moved by anything that changes scope/config/guidance or the
+ *  working overlay (a rewrite run changes what the next rewrite prompt assembles). */
+function preflightRead(trpc: Trpc, sessionId: inferInput<Trpc["refinery"]["preflight"]>["sessionId"]): InvalidateFilter {
+  return trpc.refinery.preflight.queryFilter({ sessionId });
+}
+
 // ── the discriminated failure copy ──────────────────────────────────────────────────────────────────
 
 /** The refusal reason off a tRPC error's `data.reason` (the error formatter's honest domain code), else "".
@@ -107,8 +113,9 @@ export const useStartRefinerySession = createEntityMutation<inferInput<Trpc["ref
  *  selection · stageConfig · status). No prod consumer until R3; the CT drives it today. */
 export const useUpdateRefinerySession = createEntityMutation<inferInput<Trpc["refinery"]["updateSession"]>, inferOutput<Trpc["refinery"]["updateSession"]>>({
   options: (trpc) => trpc.refinery.updateSession.mutationOptions(),
-  // Both: the patch is the CONTENT surface's own state, and `name`/`status`/`updatedAt` are roster columns.
-  invalidates: (trpc, vars) => [sessionRead(trpc, vars.sessionId), rosterRead(trpc)],
+  // All three: the patch is the CONTENT surface's own state, `name`/`status`/`updatedAt` are roster
+  // columns, and a scope/config/guidance change moves the preflight arithmetic.
+  invalidates: (trpc, vars) => [sessionRead(trpc, vars.sessionId), rosterRead(trpc), preflightRead(trpc, vars.sessionId)],
   errorToast: "Couldn't save the session.",
 });
 
@@ -129,8 +136,15 @@ export const useDeleteRefinerySession = createEntityMutation<inferInput<Trpc["re
 export const useRunRefineryStage = createEntityMutation<inferInput<Trpc["refinery"]["runStage"]>, inferOutput<Trpc["refinery"]["runStage"]>>({
   options: (trpc) => trpc.refinery.runStage.mutationOptions(),
   // A run APPENDS to the ledger, flips the session back to `active` with a fresh `updatedAt` (both roster
-  // columns), and — on score/analyze — silently re-stamps the card's F6 signals (the header's note).
-  invalidates: (trpc, vars) => [runsRead(trpc, vars.sessionId), sessionRead(trpc, vars.sessionId), rosterRead(trpc), cardSignalsRead(trpc)],
+  // columns), on score/analyze silently re-stamps the card's F6 signals (the header's note), and a fresh
+  // rewrite changes the next round's working overlay — the preflight arithmetic moves with it.
+  invalidates: (trpc, vars) => [
+    runsRead(trpc, vars.sessionId),
+    sessionRead(trpc, vars.sessionId),
+    rosterRead(trpc),
+    cardSignalsRead(trpc),
+    preflightRead(trpc, vars.sessionId),
+  ],
   errorToast: stageOrderAwareToast("That stage didn't finish — try again."),
 });
 
@@ -141,7 +155,13 @@ export const useIterateRefinery = createEntityMutation<inferInput<Trpc["refinery
   // A round writes TWO runs plus `iterationCount` (and, through its analyze half, the F6 analysis stamp) —
   // the same read set as `runStage`, and it must survive the MID-ROUND failure arm: when the analyze half
   // throws, the rewrite run already landed, and `onSettled` runs on error too, so the ledger still repaints.
-  invalidates: (trpc, vars) => [runsRead(trpc, vars.sessionId), sessionRead(trpc, vars.sessionId), rosterRead(trpc), cardSignalsRead(trpc)],
+  invalidates: (trpc, vars) => [
+    runsRead(trpc, vars.sessionId),
+    sessionRead(trpc, vars.sessionId),
+    rosterRead(trpc),
+    cardSignalsRead(trpc),
+    preflightRead(trpc, vars.sessionId),
+  ],
   errorToast: stageOrderAwareToast("That refinement round didn't finish — try again."),
 });
 
@@ -167,8 +187,7 @@ function applyRefusal(data: ApplyFieldsResult): string | null {
   return data.applied.length === 0 && data.dropped.length > 0 ? "Nothing was applied — every accepted rewrite was dropped." : null;
 }
 
-/** @public the R2 write tier for the R3 refinery surface (board C15) — the accepted rewrite entries onto the
- *  LIVE card. No prod consumer until R3; the CT drives it today. */
+/** The accepted rewrite entries onto the LIVE card — the merge terminal act. */
 export const useApplyRefineryFields = createEntityMutation<inferInput<Trpc["refinery"]["applyFields"]>, ApplyFieldsResult>({
   options: (trpc) => trpc.refinery.applyFields.mutationOptions(),
   // The refinery half ONLY — an apply completes the session (`status`/`updatedAt`, both roster columns). The
@@ -177,4 +196,33 @@ export const useApplyRefineryFields = createEntityMutation<inferInput<Trpc["refi
   invalidates: (trpc, vars) => [sessionRead(trpc, vars.sessionId), rosterRead(trpc)],
   refusal: applyRefusal,
   errorToast: stageOrderAwareToast("Couldn't apply that rewrite."),
+});
+
+type ApplyAsCopyResult = inferOutput<Trpc["refinery"]["applyAsCopy"]>;
+
+/** The zero-write branch-off (every accept dead on the belts ⇒ no copy minted) — the same errors-as-data
+ *  refusal class as the apply arm. */
+function copyRefusal(data: ApplyAsCopyResult): string | null {
+  return data.character === null && data.dropped.length > 0 ? "No copy was made — every accepted rewrite was dropped." : null;
+}
+
+/** The BRANCH-OFF terminal act (schema-renderer §17): the reviewed accepts land on a NEW character; the
+ *  live card is untouched. The fresh character rides the user bus (`duplicate`/`update` both emit
+ *  `charactersChanged`), so only the refinery half is named here. */
+export const useApplyRefineryAsCopy = createEntityMutation<inferInput<Trpc["refinery"]["applyAsCopy"]>, ApplyAsCopyResult>({
+  options: (trpc) => trpc.refinery.applyAsCopy.mutationOptions(),
+  invalidates: (trpc, vars) => [sessionRead(trpc, vars.sessionId), rosterRead(trpc)],
+  refusal: copyRefusal,
+  errorToast: stageOrderAwareToast("Couldn't save the copy."),
+});
+
+/** The hand-authored rewrite arm (og-feedback gap 1): the WIP edit lands as a `{kind:"manual"}` rewrite
+ *  run — the ledger, the session status and the next-round preflight all move. */
+export const useSubmitManualRewrite = createEntityMutation<
+  inferInput<Trpc["refinery"]["submitManualRewrite"]>,
+  inferOutput<Trpc["refinery"]["submitManualRewrite"]>
+>({
+  options: (trpc) => trpc.refinery.submitManualRewrite.mutationOptions(),
+  invalidates: (trpc, vars) => [runsRead(trpc, vars.sessionId), sessionRead(trpc, vars.sessionId), rosterRead(trpc), preflightRead(trpc, vars.sessionId)],
+  errorToast: "Couldn't save the hand edit — check it stays inside the session's scope.",
 });

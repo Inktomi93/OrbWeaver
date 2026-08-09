@@ -20,7 +20,7 @@ import { minter } from "./minter.ts";
 export interface RefineryComposeDeps {
   readonly db: Db;
   readonly now: () => number;
-  readonly roleClients: Pick<RoleClients, "summarize" | "summarizerModel">;
+  readonly roleClients: Pick<RoleClients, "summarize" | "summarizerModel" | "summarizerContextTokens">;
   readonly character: CharacterService;
   readonly resolveUserPresetParams: (userId: UserId) => Promise<SideGenSampling>;
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
@@ -33,8 +33,10 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryService {
     now: deps.now,
     newRefinerySessionId: minter(ID_PREFIX.refinerySession),
     newRefineryRunId: minter(ID_PREFIX.refineryRun),
+    newRefinerySchemaId: minter(ID_PREFIX.refinerySchema),
     summarize: deps.roleClients.summarize,
     summarizerModel: deps.roleClients.summarizerModel,
+    summarizerContextTokens: deps.roleClients.summarizerContextTokens,
     resolveUserPresetParams: deps.resolveUserPresetParams,
     resolveUserProse,
     loadOwnedCard: createLoadOwnedCard({ db: deps.db }),
@@ -42,5 +44,6 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryService {
     snapshotCharacter: deps.character.snapshot,
     updateCharacter: deps.character.update,
     getCharacter: deps.character.get,
+    duplicateCharacter: deps.character.duplicate,
   });
 }

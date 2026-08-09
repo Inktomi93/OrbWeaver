@@ -21,6 +21,7 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type {
+  RefinerySchemaStage,
   RefinerySelection,
   RefinerySessionStatus,
   RefineryStage,
@@ -28,18 +29,20 @@ import type {
   RefineryStagePayload,
   RefineryStagePayloadConfig,
 } from "@orb/contracts/refinery";
-import { REFINERY_SESSION_STATUSES, REFINERY_STAGES } from "@orb/contracts/refinery";
-import type { CharacterId, ModelId, RefineryRunId, RefinerySessionId } from "@orb/kit/ids";
+import { REFINERY_SCHEMA_STAGES, REFINERY_SESSION_STATUSES, REFINERY_STAGES } from "@orb/contracts/refinery";
+import type { CharacterId, ModelId, RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { characters } from "./character.ts";
+import { users } from "./users.ts";
 
 // CHECK lists derived from the canonical contracts tuples (NOT re-spelled — §7.5): drizzle's `{enum:}`
 // is TYPE-only for sqlite, so the SQL-level closure is an explicit tuple-built CHECK (the assets idiom).
 // A CHECK is static DDL and cannot carry bound parameters, so it is built as a raw fragment.
 const SESSION_STATUS_CHECK_LIST = REFINERY_SESSION_STATUSES.map((status) => `'${status}'`).join(", ");
 const RUN_STAGE_CHECK_LIST = REFINERY_STAGES.map((stage) => `'${stage}'`).join(", ");
+const SCHEMA_STAGE_CHECK_LIST = REFINERY_SCHEMA_STAGES.map((stage) => `'${stage}'`).join(", ");
 
 export const refinerySessions = sqliteTable(
   "refinery_sessions",
@@ -92,9 +95,13 @@ export const refineryRuns = sqliteTable(
     iteration: integer("iteration").notNull().default(0),
     // Provenance: the exact config arm that produced this payload (kind-tagged — the SF seam).
     payloadConfig: text("payload_config", { mode: "json" }).$type<RefineryStagePayloadConfig>().notNull(),
-    // The typed stage payload (F3) — parsed at the read seam per `stage` via REFINERY_STAGE_PAYLOADS.
-    payload: text("payload", { mode: "json" }).$type<RefineryStagePayload>().notNull(),
-    model: text("model").$type<ModelId>().notNull(),
+    // The stage payload — parsed at the read seam via `payloadSchemaFor(stage, payload_config)`: fixed
+    // and manual runs are the typed F3 contracts; a CUSTOM run's payload is an object of its own EMBEDDED
+    // schema (the P1-B provenance embed), typed here as the honest record.
+    payload: text("payload", { mode: "json" }).$type<RefineryStagePayload | Record<string, unknown>>().notNull(),
+    // NULLABLE for exactly the `manual` provenance arm (a hand-authored rewrite has no model) — an
+    // honest null, never a sentinel spelling. Every model-produced run writes it.
+    model: text("model").$type<ModelId>(),
     // Provider-reported usage; null when the backend reports none (stats parity, study §5.2). The
     // summarize result DOES carry usage and the engine threads it — a null here is a silent backend.
     promptTokens: integer("prompt_tokens"),
@@ -132,5 +139,42 @@ export const refineryRuns = sqliteTable(
     // to answer "what was derived FROM this run?".
     index("refinery_runs_source_idx").on(t.sourceRunId),
     check("refinery_runs_stage_check", sql.raw(`stage in (${RUN_STAGE_CHECK_LIST})`)),
+  ],
+);
+
+// The user-authored custom payload-schema library (R3/SF0 — docs/design/refinery-r3-build-plan.md §2;
+// the NL design §4.2's `presets`-shaped row). DIRECTLY owner-scoped (unlike sessions/runs, which derive
+// through the character join): a schema is library tooling, not per-character work product. `schema` is
+// LIFTABLE BY INVARIANT — every write parses `refinerySchemaDocumentSchema` (the contracts belt: lift +
+// depth/pattern/hint/core tightenings); reads still re-lift defensively. `version` bumps on every content
+// update — the run log pins it in its EMBEDDED provenance (P1-B), so editing a schema never re-writes
+// history. RESTRICT like `presets`: never cascade-delete a user's authored library.
+export const refinerySchemas = sqliteTable(
+  "refinery_schemas",
+  {
+    // TypeID PK (`refinery_schema_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
+    id: text("id").$type<RefinerySchemaId>().primaryKey(),
+    ownerId: text("owner_id")
+      .$type<UserId>()
+      .notNull()
+      .references(() => users.id, { onDelete: "restrict" }),
+    // The wire ResponseFormat identifier (identifier grammar, verb-enforced per-owner case-insensitively
+    // unique — the S5 registry-hygiene bar).
+    name: text("name").notNull(),
+    // The NL origin / purpose note (editable; rides the editor + the refine prompt).
+    description: text("description").notNull(),
+    // Which stage this schema serves (score|analyze — no custom rewrite, F-N3).
+    stage: text("stage", { enum: REFINERY_SCHEMA_STAGES }).$type<RefinerySchemaStage>().notNull(),
+    // The JSON-Schema document (liftable subset + x-orb-ui hints). Read-seam re-lifted.
+    schema: text("schema", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    // Bumped on every content update — the provenance pin the run embed records.
+    version: integer("version").notNull().default(1),
+    createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
+  },
+  (t) => [
+    // The owner's library list + the FK's child scan (`fk-columns-indexed`).
+    index("refinery_schemas_owner_idx").on(t.ownerId),
+    check("refinery_schemas_stage_check", sql.raw(`stage in (${SCHEMA_STAGE_CHECK_LIST})`)),
   ],
 );
