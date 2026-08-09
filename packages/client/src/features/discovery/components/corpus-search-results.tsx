@@ -5,6 +5,7 @@
 // read-only previews (a digest snippet + its chat, an avatar caption). The query is owner-scoped; the
 // image target rides the caption-aware lens. Rendered only while the omnibox has a query (parent-gated).
 
+import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
 import type { ChatId } from "@orb/kit/ids";
 import { Icon, Images, MessagesSquare, Search } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
@@ -29,9 +30,11 @@ type UnifiedOver = Extract<ReturnType<typeof resolveSearchTarget>, { kind: "unif
 const SKELETON_ROW_COUNT = 5;
 const SCORE_PRECISION = 2;
 const CHAT_REF_LEN = 6;
-// One generous page of the owner's cards — the lexical `fields` verb returns bare ids, so the picker names
-// them against this map. Personal-scale libraries fit one page; an unmapped id degrades to its short ref.
-const NAME_MAP_LIMIT = 200;
+// The owner's cards up to the server's page CEILING — the lexical `fields` verb returns bare ids, so the
+// picker names them against this map. It asked for 200 and silently got 100 until 2026-08-09, so a hit on a
+// card past the hundredth rendered as a bare short ref; the ask is now the real bound and an over-bound one
+// is refused loudly. An id still outside the page degrades to its short ref, as before.
+const NAME_MAP_LIMIT = CHARACTER_LIST_MAX_LIMIT;
 const ID_REF_LEN = 6;
 
 export interface CorpusSearchResultsProps {

@@ -5,6 +5,7 @@
 import type {
   ChatInjection,
   ChatInjectionInput,
+  ChatListCursor,
   CreateInviteInput,
   GroupConfigInput,
   GuidedSteer,
@@ -85,8 +86,19 @@ export interface StartChatParams extends ChatActorParams {
   readonly startAsGame?: { readonly profile?: RpgStatProfile | undefined } | undefined;
 }
 
+/** `listChats` — the caller's membership library, newest-updated-first, KEYSET-PAGED (the `character.list`
+ *  precedent). `characterId` is the D18 PROJECTION filter: it narrows the SERVER read to the chats that seat
+ *  one character (present or departed), so a character screen never has to pull the whole library to find
+ *  her three threads. `limit` is clamped in the verb; an absent `cursor` is the first page. */
 export interface ListChatsParams extends ChatActorParams {
   readonly includeArchived?: boolean | undefined;
+  readonly characterId?: CharacterId | undefined;
+  /** SERVER-SIDE search (owner ruling 2026-08-09). Matches the chat title, a character seat's name, or the
+   *  newest message's body — the 2026-08-01 semantics, now over the WHOLE library instead of the page the
+   *  client happens to hold. Blank/whitespace is the unsearched list. */
+  readonly search?: string | undefined;
+  readonly limit?: number | undefined;
+  readonly cursor?: ChatListCursor | undefined;
 }
 
 /** `listForks` — the membership-scoped fork children of a chat. */

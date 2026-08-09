@@ -7,6 +7,7 @@
 // path — and validates ids against the canonical vocabulary tuples, returning a loud {ok:false} on a
 // bad target instead of a silent no-op.
 
+import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "#data";
@@ -27,9 +28,14 @@ import {
 import type { NavResult, OrbNavHandle } from "../lib/agent-bridge.ts";
 
 const OK: NavResult = { ok: true };
-// One generous page covers a dev character library (small by construction) — enough to resolve any id/name
-// without a keyset walk. This is a dev-drivability bridge, not a paged UI surface.
-const CHARACTER_NAV_PAGE_LIMIT = 500;
+// One page at the server's CEILING covers a dev character library — enough to resolve any id/name without a
+// keyset walk. This is a dev-drivability bridge, not a paged UI surface. (It already asked for 500 and was
+// silently served 100 until 2026-08-09; the ask is the real bound now.)
+const CHARACTER_NAV_PAGE_LIMIT = CHARACTER_LIST_MAX_LIMIT;
+// How deep `openChat` resolves an id/title. `listChats` is keyset-paged (server ceiling 100), so this is one
+// page, not a walk: a dev bridge resolves what a dev is looking at, and the refusal below states its reach
+// rather than claiming the chat does not exist.
+const CHAT_NAV_PAGE_LIMIT = 100;
 // `openChat` targets that name a POSITION in the list instead of a chat: both mean its top row (see the
 // arm's comment — `listChats` is newest-updated-first, so top row === most recent).
 const CHAT_POSITION_SENTINELS = new Set(["first", "latest"]);
@@ -96,10 +102,11 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
     async openChat(idOrTitle: string): Promise<NavResult> {
       // The list may not be loaded yet (a fresh nav straight to open a chat) — fetch through the SAME
       // query the chat list uses, so this reads/populates the identical cache entry.
-      const chats = await queryClient.fetchQuery(trpc.chat.listChats.queryOptions({})).catch(() => null);
-      if (chats === null) {
+      const page = await queryClient.fetchQuery(trpc.chat.listChats.queryOptions({ limit: CHAT_NAV_PAGE_LIMIT })).catch(() => null);
+      if (page === null) {
         return { ok: false, reason: "chat list query failed — cannot resolve the chat" };
       }
+      const chats = page.items;
       // POSITIONAL sentinels — "open whatever chat is on top" without first learning an id. `listChats`
       // returns newest-updated-first and the list surface renders that order unsorted, so the top ROW and
       // the most-RECENT chat are the same row; both spellings resolve to it (a caller reaching for "latest"
@@ -131,7 +138,12 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
         openChatIn(singleTitle.id as ChatId);
         return OK;
       }
-      return { ok: false, reason: `no chat matches id-or-title "${idOrTitle}" (${chats.length} chat(s) in list)` };
+      // The REFUSAL names its own reach: `listChats` is keyset-paged, so a miss means "not in the most
+      // recent N", never "does not exist" — a dev bridge that says the wrong one of those costs an hour.
+      return {
+        ok: false,
+        reason: `no chat matches id-or-title "${idOrTitle}" (searched the ${chats.length} most recent of ${page.totalCount} chat(s))`,
+      };
     },
     async openCharacter(idOrName: string): Promise<NavResult> {
       // The characters-section twin of openChat: switch the rail to Characters + select the character

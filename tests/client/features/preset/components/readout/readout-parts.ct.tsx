@@ -208,7 +208,7 @@ function readoutRoutes(effective: () => unknown): Record<string, unknown> {
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => CAPABILITY,
     "preset.resolveEffective": effective,
-    "chat.listChats": () => [],
+    "chat.getChat": () => null,
   };
 }
 

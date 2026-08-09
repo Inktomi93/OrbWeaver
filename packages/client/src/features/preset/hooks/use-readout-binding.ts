@@ -15,7 +15,7 @@
 // target". It lives in a hook rather than a store because it is one panel's view state with one reader.
 
 import type { ChatId } from "@orb/kit/ids";
-import { useQuery } from "@tanstack/react-query";
+import { skipToken, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTRPC } from "#data";
 import { useActiveChatId } from "#state";
@@ -27,8 +27,8 @@ export interface ReadoutBinding {
   readonly targetChatId: ChatId | null;
   /** The chat the readout is CURRENTLY resolving against — `null` when dismissed, or with no target. */
   readonly boundChatId: ChatId | null;
-  /** The bind target's name. Falls back to a neutral noun rather than a blank: a chat the list does not carry
-   *  (a temporary chat is hidden from `listChats` by design) is still a real, honest binding. */
+  /** The bind target's name. Falls back to a neutral noun rather than a blank while the room read is in
+   *  flight (or when the room has no title) — the binding is real before it can be named. */
   readonly chatTitle: string;
   readonly dismiss: () => void;
   readonly rebind: () => void;
@@ -42,10 +42,14 @@ export function useReadoutBinding(): ReadoutBinding {
   const targetChatId = useActiveChatId();
   // WHICH chat the user dismissed, not a boolean: a dismissal must not silence the NEXT chat they open.
   const [dismissedChatId, setDismissedChatId] = useState<ChatId | null>(null);
-  // The list is the cheap name source — every chat surface already holds this exact query, so naming the
-  // binding costs no round trip (and its `chatsChanged` freshness row is already in the map).
-  const chats = useQuery(trpc.chat.listChats.queryOptions({}));
-  const title = chats.data?.find((chat) => chat.id === targetChatId)?.title;
+  // ASK ABOUT THE CHAT WE ARE BOUND TO (2026-08-09), not the library. This used to scan the whole
+  // `listChats` array for the active chat's title — which a keyset page can no longer promise contains it,
+  // and which pulled the caller's entire membership list to read one string. The room the readout binds to
+  // is by definition OPEN, so `getChat` is the warm cache entry the chat surface already holds, and it is
+  // exact rather than best-effort. `skipToken` keeps the key unbuilt when nothing is bound (the house gate —
+  // `use-send-availability.ts`), so an unbound readout fires no request at all.
+  const chat = useQuery(trpc.chat.getChat.queryOptions(targetChatId === null ? skipToken : { chatId: targetChatId }));
+  const title = chat.data?.title;
   return {
     targetChatId,
     boundChatId: targetChatId !== null && targetChatId !== dismissedChatId ? targetChatId : null,

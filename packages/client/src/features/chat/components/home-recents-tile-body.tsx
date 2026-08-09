@@ -4,6 +4,11 @@
 // and `chatsChanged` freshness comes free, and the same `ChatSummaryRow` anatomy the pane and the
 // character-chats projection render.
 //
+// It ASKS FOR WHAT IT NEEDS (2026-08-09): `limit: RECENTS_LIMIT` rather than the whole membership list
+// sliced to eight. `listChats` is keyset-paged and newest-updated-first, so the first eight rows of page one
+// ARE the eight recents — the tile used to pull every chat the user has (872 after a SillyTavern import) to
+// render eight of them, and its own query key made that everyone else's cost too.
+//
 // It suspends; home mounts every tile body inside its own `QueryBoundary`, so a slow read here cannot
 // blank the rest of home.
 //
@@ -30,8 +35,8 @@ function openRecent(chatId: ChatId): void {
 
 export function HomeRecentsTileBody(): ReactElement {
   const trpc = useTRPC();
-  const { data: chats } = useSuspenseQuery(trpc.chat.listChats.queryOptions({}));
-  const recents = chats.slice(0, RECENTS_LIMIT);
+  const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: RECENTS_LIMIT }));
+  const recents = page.items;
 
   if (recents.length === 0) {
     return (

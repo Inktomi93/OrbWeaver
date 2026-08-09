@@ -56,6 +56,9 @@ const MAX_ROW_FOCUS_FRAMES = 30;
 const SKELETON_ROW_COUNT = 6;
 const MAX_PAGES = 5;
 
+/** How deep the resume-or-new map looks back. The server's own page ceiling — one read, no keyset walk. */
+const RESUME_WINDOW = 100;
+
 type CharacterListPage = inferOutput<Trpc["character"]["list"]>;
 type CharacterLibraryItem = CharacterListPage["items"][number];
 
@@ -107,8 +110,13 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   const duplicate = useDuplicateCharacter({ trpc, invalidation });
   const remove = useRemoveCharacter({ trpc, invalidation });
 
-  const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
-  const resumeMap = resumeTargets(chatsQuery.data ?? []);
+  // The resume-or-new map (§4.4/§9c), over a BOUNDED recents page (2026-08-09): `listChats` is keyset-paged
+  // now, and this used to read the caller's entire membership list on every library mount. A row whose
+  // character is not in the recents window falls through to "start a new chat", which is the same visible
+  // affordance — the CTA's label does not change, only which chat it lands in. The exact fix is a batch
+  // reverse read (`characterIds → resume chatId`), which is a new server capability, not this lane's.
+  const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({ limit: RESUME_WINDOW }));
+  const resumeMap = resumeTargets(chatsQuery.data?.items ?? []);
 
   const items = collection.items;
   const favorites = items.filter((c) => c.starred);
