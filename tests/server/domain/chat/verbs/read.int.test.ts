@@ -5,7 +5,7 @@
 // non-participant is default-denied (leak-free NOT_FOUND). Reached through the BUNDLE `createRead(ctx, deps)`.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { AssemblePersona, MemberCardVisibility } from "@orb/contracts/chat";
+import type { AssemblePersona, ChatListCursor, MemberCardVisibility } from "@orb/contracts/chat";
 import type { ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
@@ -56,6 +56,10 @@ import {
 // every other arm keeps the shipped per-speaker bytes. Hoisted per biome's top-level-regex rule.
 const JOINED_CAST_FRAMING = /You are the narrator of an immersive[^\n]*voicing (Aria, Kai|Kai, Aria) and the world around them/;
 const SINGLE_SPEAKER_FRAMING = /You are (Aria|Kai) in an immersive/;
+/** The `listChats` page ceiling (`CHAT_LIST_MAX_LIMIT` in verbs/read.ts). Named here so the clamp arm below
+ *  fails loudly if the verb's number moves, instead of silently testing a bound that no longer exists. */
+const CHAT_LIST_PAGE_CEILING = 100;
+
 const JOINED_CAST_ANYWHERE = /(You are (Aria, Kai|Kai, Aria)|voicing (Aria, Kai|Kai, Aria))/;
 
 let db: Db;
@@ -108,7 +112,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     await seedMessage(db, mine, 1, { role: "user", authorUserId: me, content: "hi" });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const chats = await listChats({ principal: principal(me) });
+    const chats = (await listChats({ principal: principal(me) })).items;
 
     expect(chats.map((c) => c.id)).toEqual([mine]);
     expect(chats.map((c) => c.id)).not.toContain(theirs);
@@ -128,8 +132,8 @@ describe("read — listings (membership-scoped, D18)", () => {
       await seedParticipant(db, { chatId, key: "shared_friend", userId: friend, role: "member" });
 
       const { listChats } = createRead(makeChatContext(db), makeDeps());
-      const [mine] = await listChats({ principal: principal(me) });
-      const [theirs] = await listChats({ principal: principal(friend) });
+      const [mine] = (await listChats({ principal: principal(me) })).items;
+      const [theirs] = (await listChats({ principal: principal(friend) })).items;
 
       // PER-CALLER, from the SAME row: each viewer's own name is the one that's gone.
       expect(mine?.participantNames).toEqual(["character_shared_char", "user_friend"]);
@@ -142,7 +146,7 @@ describe("read — listings (membership-scoped, D18)", () => {
       await seedParticipant(db, { chatId: solo, key: "solo_me", userId: me, role: "host" });
 
       const { listChats } = createRead(makeChatContext(db), makeDeps());
-      const chats = await listChats({ principal: principal(me) });
+      const chats = (await listChats({ principal: principal(me) })).items;
 
       // Otherwise the row would fall through the client's title chain to "Untitled chat".
       expect(chats[0]?.participantNames).toEqual(["user_me"]);
@@ -158,7 +162,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     await seedParticipant(db, { chatId: guested, key: "guested_me", userId: me, role: "member" });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const byId = new Map((await listChats({ principal: principal(me) })).map((c) => [c.id, c.viewerRole]));
+    const byId = new Map((await listChats({ principal: principal(me) })).items.map((c) => [c.id, c.viewerRole]));
 
     expect(byId.get(hosted)).toBe("host");
     expect(byId.get(guested)).toBe("member");
@@ -172,8 +176,8 @@ describe("read — listings (membership-scoped, D18)", () => {
     await seedParticipant(db, { chatId: archived, key: "a", userId: me, role: "host" });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    expect((await listChats({ principal: principal(me) })).map((c) => c.id)).toEqual([live]);
-    const all = await listChats({ principal: principal(me), includeArchived: true });
+    expect((await listChats({ principal: principal(me) })).items.map((c) => c.id)).toEqual([live]);
+    const all = (await listChats({ principal: principal(me), includeArchived: true })).items;
     expect(all.map((c) => c.id).sort()).toEqual([archived, live].sort());
   });
 
@@ -185,9 +189,9 @@ describe("read — listings (membership-scoped, D18)", () => {
     await seedParticipant(db, { chatId: temp, key: "t", userId: me, role: "host" });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    expect((await listChats({ principal: principal(me) })).map((c) => c.id)).toEqual([normal]);
+    expect((await listChats({ principal: principal(me) })).items.map((c) => c.id)).toEqual([normal]);
     // includeArchived widens the archive filter only — a temporary chat never surfaces in the library.
-    const all = await listChats({ principal: principal(me), includeArchived: true });
+    const all = (await listChats({ principal: principal(me), includeArchived: true })).items;
     expect(all.map((c) => c.id)).toEqual([normal]);
   });
 
@@ -203,7 +207,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const preview = (await listChats({ principal: principal(me) }))[0]?.lastMessagePreview;
+    const preview = (await listChats({ principal: principal(me) })).items[0]?.lastMessagePreview;
 
     expect(preview).toBe("The Gate The door gives way. Ash on the wind.");
     // The §3.6 class: a lie's TRUTH is never list chrome, for ANY viewer (the strip is unconditional).
@@ -218,7 +222,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     await seedMessage(db, anchorOnly, 1, { role: "assistant", content: "" });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const byId = new Map((await listChats({ principal: principal(me) })).map((c) => [c.id, c.lastMessagePreview]));
+    const byId = new Map((await listChats({ principal: principal(me) })).items.map((c) => [c.id, c.lastMessagePreview]));
 
     expect(byId.get(empty)).toBeNull();
     expect(byId.get(anchorOnly)).toBeNull();
@@ -237,7 +241,7 @@ describe("read — listings (membership-scoped, D18)", () => {
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     const previewFor = async (userId: UserId): Promise<string | null | undefined> =>
-      (await listChats({ principal: principal(userId) })).find((c) => c.id === chatId)?.lastMessagePreview;
+      (await listChats({ principal: principal(userId) })).items.find((c) => c.id === chatId)?.lastMessagePreview;
 
     expect(await previewFor(host)).toBe("the pre-join secret");
     expect(await previewFor(clamped)).toBeNull();
@@ -260,11 +264,240 @@ describe("read — listings (membership-scoped, D18)", () => {
     );
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const byId = new Map((await listChats({ principal: principal(me) })).map((c) => [c.id, c.isGame]));
+    const byId = new Map((await listChats({ principal: principal(me) })).items.map((c) => [c.id, c.isGame]));
 
     expect(byId.get(game)).toBe(true);
     expect(byId.get(plain)).toBe(false);
     expect(byId.get(off)).toBe(false);
+  });
+});
+
+describe("read — listChats PAGING, projection + search (the 872-chat class)", () => {
+  /** N rooms hosted by `me`, all stamped the SAME `updatedAt` — the shape a bulk import writes, and the one
+   *  an `updated_at`-only keyset silently skips or repeats rows across. */
+  async function seedSameStampRooms(me: UserId, count: number, stamp: number): Promise<readonly ChatId[]> {
+    const ids: ChatId[] = [];
+    for (let i = 0; i < count; i += 1) {
+      // biome-ignore lint/performance/noAwaitInLoops: these rows share one `updatedAt` on purpose, so INSERT ORDER is all that separates them — parallelising would randomise the very keyset under test.
+      const chatId = await seedChat(db, `page${i}`, { title: `Room ${i}`, updatedAt: stamp });
+      await seedParticipant(db, { chatId, key: `page${i}_h`, userId: me, role: "host" });
+      ids.push(chatId);
+    }
+    return ids;
+  }
+
+  test("the keyset walks the WHOLE list exactly once — no skipped or repeated row across a tied `updatedAt`", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const seeded = await seedSameStampRooms(me, 7, FROZEN_AT);
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const walked: ChatId[] = [];
+    let cursor: ChatListCursor | undefined;
+    let pages = 0;
+    do {
+      // biome-ignore lint/performance/noAwaitInLoops: a KEYSET walk is sequential by definition — page N+1's cursor IS page N's answer, which is the property this test exists to prove.
+      const page = await listChats({ principal: principal(me), limit: 3, ...(cursor === undefined ? {} : { cursor }) });
+      walked.push(...page.items.map((c) => c.id));
+      cursor = page.nextCursor ?? undefined;
+      pages += 1;
+      // A runaway keyset (a cursor that never advances) would loop forever — bound it at the row count.
+    } while (cursor !== undefined && pages <= seeded.length);
+
+    // EXACTLY once each: a tie-blind keyset returns the same page forever or jumps a whole tied run.
+    expect(walked.length).toBe(seeded.length);
+    expect(new Set(walked).size).toBe(seeded.length);
+    expect([...walked].sort()).toEqual([...seeded].sort());
+  });
+
+  test("`nextCursor` is null on a SHORT page — a full final page hands back one more, and it returns nothing", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    await seedSameStampRooms(me, 4, FROZEN_AT);
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const short = await listChats({ principal: principal(me), limit: 10 });
+    expect(short.items.length).toBe(4);
+    expect(short.nextCursor).toBeNull();
+
+    // A page that came back FULL cannot know it is the last, so it mints a cursor — which must then be empty
+    // rather than repeating the tail.
+    const exact = await listChats({ principal: principal(me), limit: 4 });
+    expect(exact.nextCursor).not.toBeNull();
+    const after = await listChats({ principal: principal(me), limit: 4, ...(exact.nextCursor === null ? {} : { cursor: exact.nextCursor }) });
+    expect(after.items).toEqual([]);
+  });
+
+  test("`limit` is CLAMPED to the ceiling — an over-ask is served the ceiling, never the whole library", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    // ONE MORE ROOM THAN THE CEILING, deliberately: a fixture SMALLER than the clamp cannot tell a clamped
+    // read from an unclamped one, and this arm was exactly that false green until a planted control caught it
+    // (removing the clamp left it passing). Every row costs `buildSummaries` a participant resolve, which is
+    // the whole reason the ceiling exists — so the seed is the smallest one that can fail.
+    await seedSameStampRooms(me, CHAT_LIST_PAGE_CEILING + 1, FROZEN_AT);
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const page = await listChats({ principal: principal(me), limit: 10_000 });
+
+    expect(page.items.length).toBe(CHAT_LIST_PAGE_CEILING);
+    // The CENSUS is not clamped — it answers about the library, which is what the band prints.
+    expect(page.totalCount).toBe(CHAT_LIST_PAGE_CEILING + 1);
+    // A clamped page is still a real page: it hands back a cursor, and the tail is reachable through it.
+    expect(page.nextCursor).not.toBeNull();
+    const tail = await listChats({ principal: principal(me), limit: 10_000, ...(page.nextCursor === null ? {} : { cursor: page.nextCursor }) });
+    expect(tail.items.length).toBe(1);
+  });
+
+  test("`totalCount` is the SCOPE's census, not the page's length — and it moves with the filters", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const other = await seedUser(db, castId<Handle>("other"));
+    await seedSameStampRooms(me, 5, FROZEN_AT);
+    const theirs = await seedChat(db, "notmine");
+    await seedParticipant(db, { chatId: theirs, key: "notmine_h", userId: other, role: "host" });
+    const archived = await seedChat(db, "arch", { archived: true });
+    await seedParticipant(db, { chatId: archived, key: "arch_h", userId: me, role: "host" });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const page = await listChats({ principal: principal(me), limit: 2 });
+
+    // The band prints THIS number over a two-row page.
+    expect(page.items.length).toBe(2);
+    expect(page.totalCount).toBe(5);
+    // Someone else's room is not in my census; my archived one joins it only when I ask for archived.
+    expect((await listChats({ principal: principal(me), limit: 1, includeArchived: true })).totalCount).toBe(6);
+  });
+
+  test("`characterId` PROJECTS server-side — present AND departed seats, and it scopes the census too", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const her = await seedCharacter(db, me, "azarael");
+    const him = await seedCharacter(db, me, "kai");
+
+    const withHer = await seedChat(db, "withher", { title: "Rain" });
+    await seedParticipant(db, { chatId: withHer, key: "wh_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: withHer, key: "wh_c", characterId: her });
+
+    // She LEFT this one — `participantCharacterIds` promises "every chat you've had with them", so the
+    // server filter has to agree with that promise or the projection contradicts the row it renders.
+    const sheLeft = await seedChat(db, "sheleft", { title: "Ash" });
+    await seedParticipant(db, { chatId: sheLeft, key: "sl_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: sheLeft, key: "sl_c", characterId: her, leftSeq: 4 });
+
+    const withHim = await seedChat(db, "withhim", { title: "Elsewhere" });
+    await seedParticipant(db, { chatId: withHim, key: "whm_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: withHim, key: "whm_c", characterId: him });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const hers = await listChats({ principal: principal(me), characterId: her, limit: 50 });
+
+    expect([...hers.items.map((c) => c.id)].sort()).toEqual([sheLeft, withHer].sort());
+    expect(hers.totalCount).toBe(2);
+    expect(hers.items.map((c) => c.id)).not.toContain(withHim);
+  });
+
+  test("`characterId` never duplicates a row when a character holds TWO seats in one chat", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const her = await seedCharacter(db, me, "azarael");
+    const chatId = await seedChat(db, "twice", { title: "Twice" });
+    await seedParticipant(db, { chatId, key: "tw_h", userId: me, role: "host" });
+    // A re-join leaves the departed seat behind, so a chat legitimately carries two rows for one character.
+    await seedParticipant(db, { chatId, key: "tw_c1", characterId: her, leftSeq: 2 });
+    await seedParticipant(db, { chatId, key: "tw_c2", characterId: her });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const page = await listChats({ principal: principal(me), characterId: her, limit: 50 });
+
+    // A JOIN instead of an EXISTS would return the row twice AND count it twice.
+    expect(page.items.map((c) => c.id)).toEqual([chatId]);
+    expect(page.totalCount).toBe(1);
+  });
+
+  test("`search` matches the TITLE, a CHARACTER SEAT's name, and the NEWEST message's body", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const her = await seedCharacter(db, me, "Azarael");
+
+    const byTitle = await seedChat(db, "bytitle", { title: "The Ashen Spire" });
+    await seedParticipant(db, { chatId: byTitle, key: "bt_h", userId: me, role: "host" });
+
+    const byName = await seedChat(db, "byname", { title: "Untitled thing" });
+    await seedParticipant(db, { chatId: byName, key: "bn_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: byName, key: "bn_c", characterId: her });
+
+    const byBody = await seedChat(db, "bybody", { title: "Another room" });
+    await seedParticipant(db, { chatId: byBody, key: "bb_h", userId: me, role: "host" });
+    await seedMessage(db, byBody, 1, { role: "user", authorUserId: me, content: "nothing to see" });
+    await seedMessage(db, byBody, 2, { role: "assistant", content: "the ASHEN wind rises" });
+
+    const decoy = await seedChat(db, "decoy", { title: "Quiet" });
+    await seedParticipant(db, { chatId: decoy, key: "dc_h", userId: me, role: "host" });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const found = async (q: string): Promise<readonly ChatId[]> =>
+      [...(await listChats({ principal: principal(me), search: q, limit: 50 })).items.map((c) => c.id)].sort();
+
+    // Case-insensitive across all three arms — the user types what they remember, not what was stored.
+    expect(await found("ashen")).toEqual([byBody, byTitle].sort());
+    expect(await found("azarael")).toEqual([byName]);
+    expect(await found("  ")).toEqual([byBody, byName, byTitle, decoy].sort());
+    expect(await found("nothing-in-here")).toEqual([]);
+    // The census answers about the SEARCH, or the band would print the unsearched library over a filtered page.
+    expect((await listChats({ principal: principal(me), search: "ashen", limit: 50 })).totalCount).toBe(2);
+  });
+
+  test("`search` matches only the NEWEST message — an older body is not full-transcript search", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const chatId = await seedChat(db, "older", { title: "Room" });
+    await seedParticipant(db, { chatId, key: "old_h", userId: me, role: "host" });
+    await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "a buried phrase" });
+    await seedMessage(db, chatId, 2, { role: "assistant", content: "something else entirely" });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    // The 2026-08-01 ruling: search matches the SNIPPET THE ROW SHOWS, and the row shows the newest body.
+    expect((await listChats({ principal: principal(me), search: "buried", limit: 50 })).items).toEqual([]);
+    expect((await listChats({ principal: principal(me), search: "entirely", limit: 50 })).items.map((c) => c.id)).toEqual([chatId]);
+  });
+
+  test("`search` OBEYS THE D16 FLOOR — a from-join member cannot find a phrase they may not read", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const clamped = await seedUser(db, castId<Handle>("clamped"));
+    const chatId = await seedChat(db, "floor", { title: "Sealed" });
+    await seedParticipant(db, { chatId, key: "fl_h", userId: host, role: "host" });
+    await seedMessage(db, chatId, 1, { role: "assistant", content: "the pre-join secret" });
+    // Their whole readable window sits ABOVE the only message — its body must be unfindable, not merely unshown.
+    await seedParticipant(db, { chatId, key: "fl_m", userId: clamped, role: "member", joinSeq: 2, joinHistoryVisibility: "from-join" });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const hit = async (userId: UserId): Promise<readonly ChatId[]> =>
+      (await listChats({ principal: principal(userId), search: "pre-join secret", limit: 50 })).items.map((c) => c.id);
+
+    expect(await hit(host)).toEqual([chatId]);
+    // Search would otherwise be the ONE read that reaches beneath the floor every other read enforces.
+    expect(await hit(clamped)).toEqual([]);
+    // The title still finds it — they are a member of the room, they just may not read its pre-join canon.
+    expect((await listChats({ principal: principal(clamped), search: "sealed", limit: 50 })).items.map((c) => c.id)).toEqual([chatId]);
+  });
+
+  test("the filters COMPOSE — search inside a character projection stays membership-scoped", async () => {
+    const me = await seedUser(db, castId<Handle>("me"));
+    const stranger = await seedUser(db, castId<Handle>("stranger"));
+    const her = await seedCharacter(db, me, "azarael");
+
+    const mineHit = await seedChat(db, "minehit", { title: "Rain over the spire" });
+    await seedParticipant(db, { chatId: mineHit, key: "mh_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: mineHit, key: "mh_c", characterId: her });
+
+    const mineMiss = await seedChat(db, "minemiss", { title: "Snow" });
+    await seedParticipant(db, { chatId: mineMiss, key: "mm_h", userId: me, role: "host" });
+    await seedParticipant(db, { chatId: mineMiss, key: "mm_c", characterId: her });
+
+    // Same character, same word, someone ELSE'S room — the projection must not become a way to read it.
+    const theirs = await seedChat(db, "theirs", { title: "Rain elsewhere" });
+    await seedParticipant(db, { chatId: theirs, key: "th_h", userId: stranger, role: "host" });
+    await seedParticipant(db, { chatId: theirs, key: "th_c", characterId: her });
+
+    const { listChats } = createRead(makeChatContext(db), makeDeps());
+    const page = await listChats({ principal: principal(me), characterId: her, search: "rain", limit: 50 });
+
+    expect(page.items.map((c) => c.id)).toEqual([mineHit]);
+    expect(page.totalCount).toBe(1);
+    expect(page.items.map((c) => c.id)).not.toContain(theirs);
   });
 });
 

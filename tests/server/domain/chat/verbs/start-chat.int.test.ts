@@ -28,6 +28,9 @@ import { makeResolvedConnection } from "../../../../support/factories/resolved-c
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support.ts";
 
+/** A page bound comfortably above every fixture here — these arms are about the FILTERS, not the keyset. */
+const TEST_PAGE_LIMIT = 100;
+
 let db: Db;
 let emitted: ChatBusEvent[];
 let loadParticipantViews: ReturnType<typeof makeLoadParticipantViews>;
@@ -807,8 +810,8 @@ describe("startChat — PD-65 temporary rooms are HIDDEN from the library", () =
     const temp = await startChat({ principal: principal(host), characterIds: [aria], temporary: true, opening: "none" });
     const permanent = await startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
 
-    expect((await listMemberChats(db, host)).map((c) => c.id)).toEqual([permanent.chat.id]);
-    expect((await listMemberChats(db, host, true)).map((c) => c.id)).toEqual([permanent.chat.id]);
+    expect((await listMemberChats(db, host, { limit: TEST_PAGE_LIMIT })).map((c) => c.id)).toEqual([permanent.chat.id]);
+    expect((await listMemberChats(db, host, { includeArchived: true, limit: TEST_PAGE_LIMIT })).map((c) => c.id)).toEqual([permanent.chat.id]);
     // The row really does exist — it is hidden, not un-created (turns have to be able to run in it).
     expect(await db.select().from(chats).where(eq(chats.id, temp.chat.id))).toHaveLength(1);
   });

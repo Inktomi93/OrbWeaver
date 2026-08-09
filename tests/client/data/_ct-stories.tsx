@@ -461,7 +461,7 @@ function StartChatBurstProbe({ chatId }: { readonly chatId: ChatId }): ReactElem
   const edited: ChatBusEvent = { type: "messageEdited", chatId, messageId: castId("msg_ctburst00000002") };
   return (
     <div>
-      <p data-testid="burst-state">{`${chat.data.title ?? "untitled"} · ${list.data.length}`}</p>
+      <p data-testid="burst-state">{`${chat.data.title ?? "untitled"} · ${list.data.items.length}`}</p>
       <button type="button" onClick={(): void => invalidateUser({ type: "chatsChanged", chatId })}>
         chatsChanged
       </button>

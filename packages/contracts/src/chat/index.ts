@@ -11,6 +11,7 @@
 //   • content-blocks.ts — the D44 §12.4 render blocks + `contentSpansToBlocks`
 //   • card-frame.ts     — the trust-gated card-frame doorway wire (mint request/response + the route)
 //   • content-classes.ts — the parity-plus §3 content-class visibility registry (`CONTENT_CLASS_POLICY`)
+//   • listing.ts        — the `listChats` KEYSET cursor (`chatListCursorSchema`)
 //   • bulk-import.ts    — the chat-owned bulk-import op shapes (D34)
 //   • prose.ts          — the PROSE-1 app-tier slot table (the side-generation prompts' shipped defaults)
 //
@@ -106,6 +107,8 @@ export {
 } from "./content-blocks.ts";
 export type { ContentClassPolicy } from "./content-classes.ts";
 export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
+export type { ChatListCursor } from "./listing.ts";
+export { chatListCursorSchema } from "./listing.ts";
 // `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it
 // from `@orb/kit/macro`; contracts owns only the persisted/wire ARRAY (`MacroFreezeRecord`) + its parse seam.
 export type {

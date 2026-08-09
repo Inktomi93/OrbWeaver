@@ -5,8 +5,10 @@
 //
 // What it pins:
 //   · the SWAP — no selection = the picker; a selection = her chats, in the same slot (D2, unconditional);
-//   · the projection rows ARE `chatsWithCharacter(cache)` — a chat she LEFT is in (departed seats), a chat
-//     she was never in is out, and the ORDER is the server's (D4, never re-sorted);
+//   · the projection rows are the SERVER'S `characterId` narrowing (2026-08-09 — it used to be a client
+//     `chatsWithCharacter(cache)` filter over the whole library) — a chat she LEFT is in (departed seats),
+//     a chat she was never in is out, and the ORDER is the server's (D4, never re-sorted). The stub honours
+//     the input (`chatListResponder`), so these arms still fail if the surface stops asking for her;
 //   · the band swaps with the pane (D9): `CHARACTERS` + create ⇄ `‹ CHATS · <name>` + New chat;
 //   · New chat fires the STORE ACTION with her id (the draft cast + the section switch), not a UI echo;
 //   · back deselects AND restores focus to her row in the library — a swap that drops focus to <body> is
@@ -20,6 +22,8 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { expectInstrumentTierLive } from "../../../../support/ct/tier-liveness.ts";
+import type { ChatSummaryFixture } from "../../chat/fixtures.ts";
+import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharactersListPaneStory, CharactersScreenStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail, makeCharacterSummary } from "../fixtures.ts";
 
@@ -41,7 +45,7 @@ const AZARAEL_DETAIL = makeCharacterDetail({ id: AZARAEL, handle: castId<Charact
  *  remains, so a fixture that lists the viewer ("Alex") is not the wire shape any more. */
 const CAST_BY_SEAT: Record<string, string> = { [AZARAEL]: "Azarael", [SERA]: "Sera" };
 
-function chat(fields: { id: string; title: string; seats: readonly string[]; lastMessageAt: number }): Record<string, unknown> {
+function chat(fields: { id: string; title: string; seats: readonly string[]; lastMessageAt: number }): ChatSummaryFixture {
   return {
     id: fields.id,
     title: fields.title,
@@ -81,12 +85,12 @@ const NO_CHATS_YET = /no chats yet/i;
 const FROZEN_NOW = FROZEN_AT_MS;
 const HOUR_MS = 3_600_000;
 
-function routeAll(page: Parameters<typeof routeTrpc>[0], chats: readonly Record<string, unknown>[]): ReturnType<typeof routeTrpc> {
+function routeAll(page: Parameters<typeof routeTrpc>[0], chats: readonly ChatSummaryFixture[]): ReturnType<typeof routeTrpc> {
   return routeTrpc(page, {
     "character.list": () => CHARACTER_PAGE,
     "character.get": () => AZARAEL_DETAIL,
     "character.update": () => AZARAEL_DETAIL,
-    "chat.listChats": () => chats,
+    "chat.listChats": chatListResponder(chats),
     "settings.getUserSettings": () => SETTINGS,
   });
 }
@@ -294,7 +298,7 @@ test("the identity gloss is RECENCY only — the rows below it are the census", 
 // cannot quietly re-open the defect.
 
 test("the search input fits its own placeholder at the pane's 320px width", async ({ mount, page }) => {
-  await routeTrpc(page, { "character.list": CHARACTER_PAGE, "settings.getUserSettings": SETTINGS, "chat.listChats": [] });
+  await routeTrpc(page, { "character.list": CHARACTER_PAGE, "settings.getUserSettings": SETTINGS, "chat.listChats": chatListResponder([]) });
   const component = await mount(<CharactersListPaneStory />);
   const search = component.getByRole("textbox", { name: "Search characters" });
   await expect(search).toBeVisible();

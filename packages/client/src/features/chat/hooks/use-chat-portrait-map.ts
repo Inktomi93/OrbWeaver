@@ -9,12 +9,22 @@
 // Shared by both chat list panes (the chats section's list and the character screen's projection), so the
 // two can't drift into different portrait limits or a suspending variant.
 
+import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
 import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
 
-/** One page of the character library — wide enough to cover any list a user can actually scan. */
-const PORTRAIT_MAP_LIMIT = 200;
+/** The whole library, up to the server's page CEILING (`CHARACTER_LIST_MAX_LIMIT`). It asked for 200 and
+ *  silently received 100 until 2026-08-09, which meant a library past its hundredth card simply stopped
+ *  resolving portraits for the rest — every affected row fell back to initials with nothing saying why. The
+ *  ask is now the real bound, and an over-bound ask is a loud refusal rather than a trimmed page.
+ *
+ *  A whole-library map is the WRONG SHAPE for this and it is bounded, not solved: past the ceiling a seat
+ *  degrades to its hue-seeded initials again. The right fix is for the chat row to carry the portraits of
+ *  its OWN seats (`ChatSummary` already carries `participantCharacterIds` and the roster resolver already
+ *  reads character names), which retires this hook entirely — a roster/participants contract change, not a
+ *  chats-list one. */
+const PORTRAIT_MAP_LIMIT = CHARACTER_LIST_MAX_LIMIT;
 
 export function useChatPortraitMap(): ReadonlyMap<string, ChatRowPortrait> {
   const trpc = useTRPC();

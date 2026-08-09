@@ -91,6 +91,7 @@ import type {
   ChatDetail,
   ChatEventAttach,
   ChatLineageView,
+  ChatListPage,
   ChatStreamReplayEvent,
   ChatSummary,
   MessagesPage,
@@ -103,6 +104,7 @@ import type {
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
 import { loadChatCastProducer } from "../persistence/cast.ts";
 import {
+  countMemberChats,
   listMemberChats,
   loadAncestorChain,
   loadCanonHistory,
@@ -273,6 +275,12 @@ function toChatSummary({ row, stat, participants, participantCharacterIds, viewe
 
 /** The canon stats for a chat with no messages (absent from the batched aggregate). */
 const EMPTY_STATS = { messageCount: 0, lastMessageAt: null } as const;
+
+/** `listChats` page size when the caller names none — the `character.list` pair (50/100), deliberately the
+ *  same numbers so the two library reads cost the same per page. The MAX is a real ceiling, not advice: each
+ *  row costs `buildSummaries` a participant resolve, so 100 rows is already ~100 extra queries. */
+const CHAT_LIST_DEFAULT_LIMIT = 50;
+const CHAT_LIST_MAX_LIMIT = 100;
 
 /**
  * The per-caller SCENT line for one listed chat — the newest visible row, projected to one plain-text line.
@@ -527,11 +535,38 @@ async function buildPreviewContext(
   return primary === undefined ? gathered : shapeContextForSpeaker(gathered, { ref: primary, output: inputs.group.output, cardScope: "merged" });
 }
 
-/** `listChats` — the caller's chats (pure membership, host or member), newest-updated first. */
+/** `listChats` — ONE KEYSET PAGE of the caller's chats (pure membership, host or member), newest-updated
+ *  first, optionally projected to one character's seats.
+ *
+ *  The page size is CLAMPED, never trusted (`character.list`'s precedent): every row here costs
+ *  `buildSummaries` five bulk reads plus a per-chat participant resolve, so an unclamped `limit` is a
+ *  self-service load amplifier. `nextCursor` is minted only from a FULL page — a short page means the
+ *  keyset has run out, and minting one anyway would hand the client a cursor that always returns nothing.
+ *
+ *  `totalCount` is a second, separate `COUNT` over the same scope rather than a derivation from `items`: the
+ *  chats band and the character card both PRINT this number, and "how many rows this page happened to
+ *  carry" is not that number. */
 function createListChats(ctx: ChatContext, deps: ReadDeps): ChatService["listChats"] {
-  return async ({ principal, includeArchived }: ListChatsParams): Promise<ChatSummary[]> => {
-    const rows = await listMemberChats(ctx.db, principal.userId, includeArchived ?? false);
-    return await buildSummaries(ctx.db, deps, rows, principal.userId);
+  return async ({ principal, includeArchived, characterId, search, limit, cursor }: ListChatsParams): Promise<ChatListPage> => {
+    // Normalized ONCE, here: the predicate is a `lower(...) like` so the needle has to arrive lowercased,
+    // and a whitespace-only query is the UNSEARCHED list, never a search for a space.
+    const needle = search?.trim().toLowerCase() ?? "";
+    const filter = {
+      ...(includeArchived !== undefined ? { includeArchived } : {}),
+      ...(characterId !== undefined ? { characterId } : {}),
+      ...(needle === "" ? {} : { search: needle }),
+    };
+    const pageSize = Math.min(Math.max(limit ?? CHAT_LIST_DEFAULT_LIMIT, 1), CHAT_LIST_MAX_LIMIT);
+    const rows = await listMemberChats(ctx.db, principal.userId, {
+      ...filter,
+      limit: pageSize,
+      ...(cursor !== undefined ? { cursor } : {}),
+    });
+    const totalCount = await countMemberChats(ctx.db, principal.userId, filter);
+    const items = await buildSummaries(ctx.db, deps, rows, principal.userId);
+    const last = rows.at(-1);
+    const nextCursor = rows.length === pageSize && last !== undefined ? { updatedAt: last.updatedAt, id: last.id } : null;
+    return { items, nextCursor, totalCount };
   };
 }
 

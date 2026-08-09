@@ -1,6 +1,13 @@
 // The command-palette body. THREE kinds of row, and the distinction is the whole design:
-//   • Threads — ENTITY navigation, derived from `chat.listChats` (unbounded, data-driven: a row per thread
-//     is not a declarable command, it is a query result).
+//   • Threads — ENTITY navigation, derived from `chat.listChats` (data-driven: a row per thread is not a
+//     declarable command, it is a query result). CAPPED at the most-recent `RECENT_THREADS` (2026-08-09):
+//     it used to render a `CommandItem` per thread over the caller's ENTIRE membership list, so opening the
+//     palette on an 872-chat library mounted 872 scored items.
+//     THE CAP IS THE DESIGN, not a shortcut around virtualization: cmdk OWNS filtering and scoring, and it
+//     can only score items it has MOUNTED — a `<VirtualList>` inside a `CommandGroup` would windowed-render
+//     the rows and silently make the palette's own search blind to everything off-screen, which is worse
+//     than a stated cap. So the group is honest about what it is ("Recent threads") and the chats pane's
+//     server-side search is where "find any thread" lives.
 //   • Go to   — SECTION navigation, derived from the section registry (already one source of truth, handed
 //     down by `command-modal.tsx`).
 //   • Commands — the SLASH-COMMAND registry (client-architecture-lockdown.md §6c): the same registry the
@@ -28,7 +35,11 @@ import { closeModal, selectChat, setActiveSection, useActiveChatId } from "#stat
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { chatSummaryRowView } from "../lib/chat-summary-row.ts";
 
-type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
+type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
+
+/** How many threads the palette offers. A jump list is a RECENTS affordance — past the first screenful the
+ *  user is searching, not scanning, and cmdk must mount every row it can match. */
+const RECENT_THREADS = 20;
 
 /** A command's declared bucket, defaulted — the contribution's `group` is optional by design. */
 function groupOf(command: SlashCommandContribution): SlashCommandGroup {
@@ -143,13 +154,13 @@ interface ThreadsGroupProps {
 
 function ThreadsGroup({ onJump }: ThreadsGroupProps): ReactElement | null {
   const trpc = useTRPC();
-  const { data: chats } = useSuspenseQuery(trpc.chat.listChats.queryOptions({}));
-  if (chats.length === 0) {
+  const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: RECENT_THREADS }));
+  if (page.items.length === 0) {
     return null;
   }
   return (
-    <CommandGroup heading="Threads">
-      {chats.map((chat) => (
+    <CommandGroup heading="Recent threads">
+      {page.items.map((chat) => (
         <ThreadRow chat={chat} key={chat.id} onJump={onJump} />
       ))}
     </CommandGroup>

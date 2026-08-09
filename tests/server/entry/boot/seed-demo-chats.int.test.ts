@@ -47,7 +47,7 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
 
     // Read through the door a NEW USER reads through — chats carry no ownerId by law (D18; membership is the
     // scope), so "what this user got" is exactly `listChats`, not a table scan.
-    const rows = await services.chat.listChats({ principal: PRINCIPAL });
+    const rows = (await services.chat.listChats({ principal: PRINCIPAL })).items;
     expect(rows).toHaveLength(DEMO_CHATS.length);
     expect(rows.map((r) => r.title).sort((a, b) => (a ?? "").localeCompare(b ?? ""))).toEqual(
       DEMO_CHATS.map((d) => d.title).toSorted((a, b) => a.localeCompare(b)),
@@ -76,7 +76,7 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
     await seedDefaultCharacters({ seeder: app.characterSeeder, owner: PRINCIPAL });
     await app.demoChatSeeder.ensureSeeded(PRINCIPAL);
 
-    const rooms = await services.chat.listChats({ principal: PRINCIPAL });
+    const rooms = (await services.chat.listChats({ principal: PRINCIPAL })).items;
     const seats = await Promise.all(
       rooms.map(async (row) => {
         const detail = await services.chat.getChat({ principal: PRINCIPAL, chatId: row.id });
@@ -225,7 +225,7 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
   test("no BLANK row lands inside a seeded conversation (the transcript's exported state-anchor slots)", async ({ db, app, services }) => {
     await virginBoot(db, app);
 
-    const rooms = await services.chat.listChats({ principal: PRINCIPAL });
+    const rooms = (await services.chat.listChats({ principal: PRINCIPAL })).items;
     const shapes = await Promise.all(
       rooms.map(async (row) => {
         const page = await services.chat.listMessages({ principal: PRINCIPAL, chatId: row.id, limit: 200 });
@@ -258,7 +258,7 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
   test("THE FLAGSHIP'S PANELS ARE POPULATED — sheets, meters, inventory, quests, journal, scene — with zero model calls", async ({ db, app, services }) => {
     await virginBoot(db, app);
 
-    const chatId = (await services.chat.listChats({ principal: PRINCIPAL })).find((c) => c.title === "Example — The Ashen Spire")?.id;
+    const chatId = (await services.chat.listChats({ principal: PRINCIPAL })).items.find((c) => c.title === "Example — The Ashen Spire")?.id;
     if (chatId === undefined) {
       throw new Error("the rpg flagship example did not seed");
     }
@@ -311,7 +311,7 @@ describe("the EXAMPLE pack reseeds whole, from bytes, with no model", () => {
   test("the seeded board is PLAYABLE: the replay leaves no lock for the story to fight", async ({ db, app, services }) => {
     await virginBoot(db, app);
 
-    const chatId = (await services.chat.listChats({ principal: PRINCIPAL })).find((c) => c.title === "Example — The Ashen Spire")?.id;
+    const chatId = (await services.chat.listChats({ principal: PRINCIPAL })).items.find((c) => c.title === "Example — The Ashen Spire")?.id;
     if (chatId === undefined) {
       throw new Error("the rpg flagship example did not seed");
     }

@@ -2,6 +2,7 @@
 // is sort-discriminated: each sort has its own keyset, so a cursor minted under a different sort is
 // rejected rather than silently mis-applied (would return misordered/duplicated rows).
 
+import { CHARACTER_LIST_DEFAULT_LIMIT } from "@orb/contracts/character";
 import type { CharacterContext } from "../context.ts";
 import { CharacterOperationError } from "../contract/errors.ts";
 import type { CharacterListCursor, CharacterListSort, ListCharactersParams } from "../contract/params.ts";
@@ -9,8 +10,6 @@ import type { ListCharactersResult } from "../contract/results.ts";
 import type { CharacterService } from "../contract/service.ts";
 import { canonicalTagsFor, listOwnedCharactersWithAvatar, summaryOf } from "../persistence/queries.ts";
 
-const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 100;
 const DEFAULT_SORT: CharacterListSort = "recent";
 
 type CharacterListRow = Awaited<ReturnType<typeof listOwnedCharactersWithAvatar>>[number];
@@ -55,7 +54,10 @@ export function createList(ctx: CharacterContext): CharacterService["list"] {
     if (cursor !== undefined && cursor.sort !== effectiveSort) {
       throw new CharacterOperationError("cursor_sort_mismatch", `list cursor sort '${cursor.sort}' does not match the requested sort '${effectiveSort}'`);
     }
-    const pageSize = Math.min(limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    // No clamp here: the CEILING is a transport refusal now (`CHARACTER_LIST_MAX_LIMIT`), so an over-bound
+    // ask never reaches this verb. Silently trimming it was how four lookup-map callers spent months asking
+    // for 200-500 rows, receiving 100, and under-covering the library without a single signal.
+    const pageSize = limit ?? CHARACTER_LIST_DEFAULT_LIMIT;
     const rows = await listOwnedCharactersWithAvatar(ctx.db, {
       ownerId: principal.userId,
       limit: pageSize,

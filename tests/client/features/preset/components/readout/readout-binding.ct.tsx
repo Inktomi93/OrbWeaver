@@ -112,7 +112,10 @@ const CARRIER_UNPRICED = "Chat history cost not counted — this section's subst
 const CARRIER_PRICED = "Chat history approximately 1,624 tokens";
 
 const SETTINGS_VIEW = { userId: "user_ct_readout", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
-const CHAT_SUMMARY = { id: CHAT, title: CHAT_TITLE, star: false, messageCount: 4, lastMessageAt: 1, parentChatId: null };
+// The binding NAMES the room off `chat.getChat` (2026-08-09) — the readout binds to the OPEN chat, so the
+// room read is the exact, already-warm answer; it used to scan the whole `listChats` array for a title,
+// which a keyset page can no longer promise carries it.
+const CHAT_DETAIL = { id: CHAT, title: CHAT_TITLE, star: false, archived: false, temporary: false, parentChatId: null, participants: [] };
 
 /** Every read the readout fires. `connection.resolveChatCapability` deliberately FAILS (no model connected):
  *  the binding must not depend on a connection, and the Actions panel has no capability half. */
@@ -123,7 +126,7 @@ function readoutRoutes(): Record<string, unknown> {
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => trpcError({ message: "no chat connection configured" }),
     "preset.resolveEffective": () => ({ presetId: PRESET, model: "qwen3-32b", knobs: {}, stale: [] }),
-    "chat.listChats": () => [CHAT_SUMMARY],
+    "chat.getChat": () => CHAT_DETAIL,
     "chat.previewActionTemplates": () => RESOLVED,
     "chat.previewAssembly": () => ASSEMBLY,
   };

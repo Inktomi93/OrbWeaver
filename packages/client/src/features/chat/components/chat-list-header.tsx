@@ -5,10 +5,15 @@
 // domain-agnostic shell never names a feature.
 //
 // The band CLUSTER is the shared `ListPaneHeader` composite (§11.2) — this file owns only the chat DATA
-// (the count read + what New does). The count is a non-suspending `useQuery` (shares the `listChats` cache
-// with the list surface below, so no extra fetch): the title + New render immediately and stay put while the
-// count settles, instead of the whole band suspending. New opens the `newChat` modal — the same handler the
-// surface's empty-state News use.
+// (the count read + what New does). The count is a non-suspending `useQuery`: the title + New render
+// immediately and stay put while the count settles, instead of the whole band suspending. New opens the
+// `newChat` modal — the same handler the surface's empty-state News use.
+//
+// THE COUNT IS THE SERVER'S CENSUS, not a row tally (2026-08-09). `listChats` is keyset-paged now, so
+// `items.length` would be "loaded so far" — the number the characters band had to DELETE rather than print
+// when its own list went paged ("a census that silently means something else is worse than none",
+// `characters-list-header.tsx`). The page carries a real `COUNT` over the same scope, so this asks for the
+// cheapest possible page (`limit: 1`) and reads `totalCount` off it: one honest number, one tiny read.
 //
 // Import sits beside New as a GHOST icon — the ratified band anatomy (the presets band's landed precedent):
 // a secondary entry into the same "get a chat" job, and the ONE home for transcript import (the room's ⋯
@@ -25,9 +30,12 @@ import { useTRPC } from "#data";
 import { openModal } from "#state";
 import { ChatImportDialog } from "./chat-import-dialog.tsx";
 
+/** The band wants the CENSUS, not the rows — the smallest page the server will serve still carries it. */
+const COUNT_ONLY_PAGE = 1;
+
 export function ChatListHeader(): ReactElement {
   const trpc = useTRPC();
-  const { data: chats } = useQuery(trpc.chat.listChats.queryOptions({}));
+  const { data: page } = useQuery(trpc.chat.listChats.queryOptions({ limit: COUNT_ONLY_PAGE }));
   const [importOpen, setImportOpen] = useState(false);
 
   return (
@@ -45,7 +53,7 @@ export function ChatListHeader(): ReactElement {
             </Button>
           </Row>
         }
-        count={chats?.length ?? 0}
+        count={page?.totalCount ?? 0}
         title="Chats"
       />
       <ChatImportDialog onOpenChange={setImportOpen} open={importOpen} />
