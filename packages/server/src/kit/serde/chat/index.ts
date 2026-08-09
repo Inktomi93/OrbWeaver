@@ -46,8 +46,9 @@ export interface ParsedVariant {
   readonly content: string;
   readonly model: string | null;
   readonly provider: string | null;
-  /** ST's `extra.token_count` when this row's text is INBOUND (a user/system line) — see
-   *  {@link ParsedChatMessage.tokensIn}. Exactly one of `tokensIn`/`tokensOut` is ever non-null here. */
+  /** ST's `extra.token_count` when this take's text is INBOUND (a user/system line) — see
+   *  {@link ParsedChatMessage.tokensIn} for the axis rule AND for why "exactly one is set" is true of the
+   *  PARSE side only. */
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
   readonly reasoning: string | null;
@@ -101,7 +102,13 @@ export interface ParsedChatMessage {
    *  `script.js` `message.extra.token_count = await getTokenCountAsync(message.mes, 0)` on the user-send
    *  path), so on a user/system line it is an INPUT count and landing it in `tokensOut` (which this did
    *  until the 2026-08-08 import-fidelity audit) credits typed text as model OUTPUT in every economics
-   *  rollup. Exactly one of `tokensIn`/`tokensOut` is non-null: the axis is chosen by ROLE. */
+   *  rollup.
+   *
+   *  ON THE PARSE SIDE exactly one of `tokensIn`/`tokensOut` is non-null — ST has one field and `tokenColumns`
+   *  chooses its axis by ROLE. That is NOT an invariant of the type: the EXPORT producer
+   *  (`domain/export/verbs/export-chat.ts`) copies both columns off an orb-native `message_variants` row, where
+   *  a generated assistant take carries prompt tokens in `tokensIn` and completion tokens in `tokensOut` at
+   *  once. `buildExtra` states which one ST's single field gets, and why. */
   readonly tokensIn: number | null;
   readonly tokensOut: number | null;
   readonly reasoning: string | null;
@@ -149,6 +156,19 @@ export interface ParsedChat {
    *  ST's own macro engine stores strings, so a non-string value from a foreign/extension writer is dropped
    *  rather than stringified into a shape no reader could interpret. Null when the chat records none. */
   readonly variables: Record<string, string> | null;
+  /** ST's CHAT-BOUND persona pick — `chat_metadata.pinnedPersona`, whose value is a persona display NAME
+   *  (corpus-driven: 71 of 1,097 chats, `"Alex"` ×63 / `"Ashley"` ×8, 71/71 strings). It is the only signal of
+   *  who the user was on those chats, because ST wrote the header `user_name` as the literal sentinel
+   *  `"unused"` on all 71 — so the import mapper resolves THIS first and falls back to `userName`.
+   *
+   *  DELIBERATELY NOT the same field as ST's own upstream `chat_metadata.persona` (SillyTavern
+   *  `public/scripts/personas.js`), whose value is an AVATAR FILENAME rather than a name and which appears on
+   *  4 corpus chats. Two keys, two vocabularies; reading the filename one needs a filename→persona map the
+   *  chat mapper is not given, so it stays unread rather than half-resolved.
+   *
+   *  Null when the chat records none. BUILD-SIDE: not emitted — orb's single seat (`chats.anchorPersonaId`)
+   *  already exports as the header `user_name`, and writing it twice would give one fact two spellings. */
+  readonly pinnedPersonaName: string | null;
   readonly bucket: ChatBucket;
   readonly sourceMetadata: Record<string, unknown> | null;
   readonly messages: readonly ParsedChatMessage[];
@@ -439,6 +459,11 @@ function parseChatVariables(meta: Record<string, unknown> | null): Record<string
   }
   return Object.keys(out).length > 0 ? out : null;
 }
+
+/** The `chat_metadata` key carrying the chat-bound persona pick, as a NAME — see
+ *  {@link ParsedChat.pinnedPersonaName} for the corpus census and for why ST's own `persona` key (an avatar
+ *  filename) is a different field this does not read. */
+const ST_PINNED_PERSONA_KEY = "pinnedPersona";
 
 /** Normalize a `chat_metadata.main_chat` ref to filename form (ST stores it without ".jsonl"). */
 function normalizeParentRef(mainChat: string): string | null {
@@ -778,6 +803,7 @@ export function parseChatJsonl(
     notePrompt: nullIfEmpty(str(meta?.["note_prompt"])),
     notePlacement: parseNotePlacement(meta),
     variables: parseChatVariables(meta),
+    pinnedPersonaName: nullIfEmpty(str(meta?.[ST_PINNED_PERSONA_KEY])),
     bucket: classifyChat(messages),
     sourceMetadata: meta,
     messages,
@@ -821,8 +847,17 @@ function buildExtra(m: ParsedChatMessage): Record<string, unknown> {
   return {
     model: m.model,
     api: m.provider,
-    // ST has ONE token field and no in/out axis; the parse half routes it by role, so the build half
-    // un-routes it the same way. `??` (not `+`) because exactly one side is ever non-null.
+    // ST has ONE token field and no in/out axis, so the build half PICKS one — output first, input as the
+    // fallback for a user/system row. Deliberately `??` and NOT `+`, and NOT because only one side is set:
+    // that holds on a re-export of an IMPORTED chat (the parse half routes ST's single count by role,
+    // `tokenColumns`) but NOT on an orb-native one — `domain/export/verbs/export-chat.ts` feeds both columns
+    // straight off `message_variants`, where a generated assistant row legitimately carries prompt tokens in
+    // `tokensIn` AND completion tokens in `tokensOut`. Dropping `tokensIn` there is the CORRECT read of ST's
+    // field, which is the count of THIS ROW'S OWN TEXT (SOURCE-PINNED: `script.js`
+    // `message.extra.token_count = await getTokenCountAsync(message.mes, 0)`) and which ST's own renderer
+    // divides by the generation duration for its `t/s` readout (`formatGenerationTimer`) — a sum would credit
+    // the whole prompt to this row's text and inflate that rate by the context size. Same rule, same reason,
+    // on the swipe sidecar in `buildSwipeFields`.
     token_count: m.tokensOut ?? m.tokensIn,
     // `reasoning` is the ST thinking-trace field; only emitted when present so a no-reasoning turn stays
     // clean and re-imports as null.

@@ -1,7 +1,14 @@
 // domain/import/contract/results — the verb result shapes.
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
-import type { ImportPresetNote, ImportSkippedCard, ImportSkippedGroup, ImportSkippedGroupMember, ImportThemeNote } from "./views.ts";
+import type {
+  ImportPresetNote,
+  ImportSkippedCard,
+  ImportSkippedGroup,
+  ImportSkippedGroupMember,
+  ImportThemeNote,
+  ImportUnresolvedPinnedPersona,
+} from "./views.ts";
 
 export interface ImportedCharacterRef {
   readonly characterId: CharacterId;
@@ -19,7 +26,9 @@ export interface ImportCharacterResult {
   readonly attachedBooksSkipped: number;
 }
 
-/** backfillEnqueued: whether the run enqueued a memory-backfill (only when ≥1 real_conversation chat was written). */
+/** backfillEnqueued: whether the run enqueued a memory-backfill (only when ≥1 real_conversation chat was written).
+ *  `unresolvedPinnedPersonas` is the honest half of §5.7: the chats whose ST chat-bound persona pick named
+ *  nothing here. Always present (empty ⇒ every pick travelled), never a silent drop. */
 export interface ImportChatsResult {
   readonly characterId: CharacterId;
   readonly chatsImported: number;
@@ -28,6 +37,7 @@ export interface ImportChatsResult {
   readonly variantsImported: number;
   readonly branchesLinked: number;
   readonly backfillEnqueued: boolean;
+  readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
 }
 
 /** The ST preset wave's tally. The two counts are deliberately DISTINCT: `presetsImported` is every preset the
@@ -64,6 +74,9 @@ export interface ImportGroupsResult {
   readonly skippedGroups: readonly ImportSkippedGroup[];
   readonly skippedMembers: readonly ImportSkippedGroupMember[];
   readonly backfillNeeded: boolean;
+  /** Same §5.7 record as the solo wave's — a group transcript can carry a chat-bound pick too, and a
+   *  wave-local report field is what keeps it from being the one arm that drops it silently. */
+  readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
 }
 
 export interface ImportPersonasResult {

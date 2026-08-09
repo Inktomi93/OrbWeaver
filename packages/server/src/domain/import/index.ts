@@ -35,6 +35,7 @@ export type {
   ImportSkippedGroup,
   ImportSkippedGroupMember,
   ImportThemeNote,
+  ImportUnresolvedPinnedPersona,
   ParsedStTheme,
   StThemeParse,
 } from "./contract/views.ts";

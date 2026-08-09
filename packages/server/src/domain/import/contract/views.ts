@@ -275,6 +275,15 @@ export interface ImportSkippedGroup {
   readonly reason: string;
 }
 
+/** One imported chat whose ST chat-bound persona pick (`chat_metadata.pinnedPersona`) named a persona this
+ *  install does not have. The chat still imports — its anchor falls back to the header `user_name`, or to
+ *  none — and the pick is recorded rather than near-matched onto a similar name. `chat` is the ST filename
+ *  (the `importedFrom` provenance key), `persona` the name the pin asked for. */
+export interface ImportUnresolvedPinnedPersona {
+  readonly chat: string;
+  readonly persona: string;
+}
+
 /** One group MEMBER that did not make it into the room: the card is neither in this import set nor already in
  *  the library. The group still imports with the members that DID resolve (per-member isolation). */
 export interface ImportSkippedGroupMember {
@@ -336,6 +345,9 @@ export interface ImportReport {
   readonly unhandled: readonly string[];
   /** settings.json sections the importer does not process (only personas are read). */
   readonly unhandledSettings: readonly string[];
+  /** Chats whose ST chat-bound persona pick named a persona this install does not have (solo + group waves
+   *  merged). The chats imported; only the pin did not travel. */
+  readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
 }
 
 /** ONE bundle-shaped chat file: `filename` is `<character-handle>/<leaf>.jsonl` (the directory IS the

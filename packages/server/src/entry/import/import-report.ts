@@ -182,6 +182,10 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
       "Group transcripts a group claimed but that could not be read",
       report.missingGroupChats.map((f) => `\`${f}\``),
     ),
+    section(
+      "Chat-bound persona picks that did NOT resolve (the chat imported; only the pick was dropped)",
+      report.unresolvedPinnedPersonas.map((p) => `\`${p.chat}\` → persona \`${p.persona}\` — no persona of that name in this import or your library`),
+    ),
     section("ST profile planes NOT imported (no importer yet)", report.unhandled.map(unhandledLine)),
     section(
       "settings.json sections NOT imported (personas, library tags and the chat-completion preset are read today)",
