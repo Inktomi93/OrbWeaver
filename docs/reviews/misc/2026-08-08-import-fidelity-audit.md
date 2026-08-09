@@ -251,7 +251,7 @@ not about what the value means.
 | `extra.time_to_first_token` | `ttftMs` | `ttftMs` (**selected variant only**, `chat-input.ts:38`) | `ttft_ms` | ✓ — ST records one per message, so per-variant would be fabrication |
 | `extra.type: "narrator"` | `kind` | `kind` | `messages.kind` | ✓ (D129) |
 | `gen_started` / `gen_finished` | `genStarted`/`genFinished` | `genStartedAt`/`genFinishedAt` | same | ✓ (ISO in this corpus — absolute) |
-| `extra.*` residue (`bias` 11,426 · `reasoning_duration` 12,371 · `reasoning_signature` 6,057 · `isSmallSys` · `gen_id` · `memory`) | `metadata` | `metadata` | `message_variants.metadata` | ✓ **for single-take rows** · **DROP@3 for swipe-bearing rows** — see 5.1 |
+| `extra.*` residue (`bias` 11,426 · `reasoning_duration` 12,371 · `reasoning_signature` 6,057 · `isSmallSys` · `gen_id` · `memory`) | `metadata` | `metadata` | `message_variants.metadata` | **FIXED (§5.1)** — ONE flat shape on both paths; was nested (and `$.reasoning_duration`-blind) on swipe rows |
 | `name` (per-turn speaker) | `speakerName` | used by the GROUP arm as the fallback speaker match | `messages.character_id` | ✓ since lane #25 — see 5.2. Still unused on the SOLO arm, correctly: a solo transcript has one voice |
 | `original_avatar` (per-turn speaker IDENTITY) | `originalAvatar` | `characterId` via `speakerByFile` | `messages.character_id` | ✓ since lane #25 — see 5.2 |
 | `swipes[]` / `swipe_id` | `variants[]` / `activeVariantIdx` | full pool | one `message_variants` row each | ✓ — **all** swipes retained, not first-only; empty slots dropped and the active index remapped |
@@ -269,12 +269,14 @@ not about what the value means.
 | — (derived) | — | `updatedAt = max(send_dates)` | `chats.updated_at` | ✓ **not** `now()` — `chat-input.ts:98` |
 | `character_name` | `characterName` | (re-link key) | — | ✓ |
 | `user_name` | `userName` | → `anchorPersonaId` via `personaByUserName` | `chats.anchor_persona_id` | ✓ |
-| filename | `importedFrom` | `title` (ext stripped) + `importedFrom` | `chats.title`/`imported_from` | ✓ |
+| filename | `importedFrom` | `importedFrom` (verbatim) | `chats.imported_from` | ✓ — the provenance seat + the branch-lineage key |
+| — (derived) | — | `title` = cast/room name + the chat's own date | `chats.title` | **FIXED (owner report)** — was the raw filename stem (`"Emily Singleton - 2025-5-7 @22h 52m 11s 856ms"`); now `"Emily Singleton — May 7, 2025"`, ` (2)`-suffixed on a same-run collision |
 | file bytes | — | `importHash` (sha256) | `chats.import_hash` | ✓ dedup oracle |
 | `chat_metadata.main_chat` (216) | `parentRef` | `parentRef` | `chats.parent_chat_id` + `forked_at` | ✓ resolved character-wide |
-| `chat_metadata.note_prompt` (1,070) | `notePrompt` | `authorsNote` | a `chat_injections` row | ✓ landed, **but at a hardcoded placement** — see 5.5 |
-| `chat_metadata.note_depth/position/role/interval` (1,070) | in `sourceMetadata` | — | — | **DROP@3** — see 5.5 |
-| `chat_metadata.variables` (494) | in `sourceMetadata` | — | — | **DROP@3** — see 5.6 |
+| `chat_metadata.note_prompt` (key on 1,070; **non-empty on 0** — see 5.5) | `notePrompt` | `injections[0].content` | a `chat_injections` row | ✓ |
+| `chat_metadata.note_depth/position/role` (1,070) | `notePlacement` | `injections[0].depth/position/role` | same | **FIXED (§5.5)** — converted onto orb's injection axis; house register is the fallback |
+| `chat_metadata.note_interval` (1,070) | `notePlacement.interval` | — | — | **DROP@3, DELIB** — orb has no periodic-injection concept; see 5.5 |
+| `chat_metadata.variables` (494) | `variables` | `variableValues` | `chats.variable_values` | **FIXED (§5.6)** |
 | `chat_metadata.pinnedPersona` (71) · `scenario`/`mes_example`/`system_prompt` (5) · `timedWorldInfo` · `chat_id_hash` · `lastInContextMessageId` · `script_injects` (581) · `tainted` · `integrity` | `sourceMetadata` | — | — | **DROP@3** — see 5.7 |
 | (classifier) | `bucket` | `isRealConversation` | — | ✓ gates the PD-78 backfill |
 
@@ -310,7 +312,7 @@ Worth stating, because the report would otherwise read as if nothing works:
 
 ## 5. Findings reported, NOT fixed in this lane
 
-### 5.1 A swipe-bearing message loses its message-level `extra` blob — and `reasoning_duration` with it
+### 5.1 A swipe-bearing message loses its message-level `extra` blob — and `reasoning_duration` with it — **RESOLVED 2026-08-08**
 
 `chat-input.ts:20-41`: when a message has a real swipe pool, each variant's `metadata` is
 `swipe_info[i]` and the message's own `extra` object is never carried. Two consequences:
@@ -321,8 +323,32 @@ Worth stating, because the report would otherwise read as if nothing works:
    only exists in the flat shape, so **reasoning time reads NULL for every swipe-bearing imported message**
    (12,718 of 24,824 rows). `extra.reasoning_duration` is present on 12,371 rows corpus-wide.
 
-Not fixed here: the correct answer is a normalized variant-metadata shape, which is a decision about a
-column two domains read, not an import-local fix.
+**RESOLVED — owner ruling: fix the WRITER to one canonical shape; never teach the readers a second one.**
+The serde's new `variantMetadata` (`kit/serde/chat`) makes a swipe's blob the take's own **flat `extra`**,
+with the swipe entry's non-sidecar residue merged underneath it — the identical shape a single-take row
+already stored, so both import paths now write the one shape the column's two readers
+(`domain/stats/write/rebuild-from-canon.ts` and the live `domain/chat/substrate/stats-delta.ts` twin)
+address by path. `gen_started`/`gen_finished` are excluded from the blob because they are promoted to
+columns, exactly as a single-take row's line-level pair is; `send_date` and any foreign residue ride along,
+so flattening is not a drop (§5.4 stays true). No migration, per pre-launch NO-LEGACY: the owner re-imports.
+
+**Re-drive receipt (this lane, whole corpus, through orbweaver's OWN parse + map modules).** The 1,083 solo
+`chats/` files map to **73,848** swipe variants, of which **3,086 now carry a readable
+`metadata.reasoning_duration`** where the reader previously saw NULL on every one of them.
+
+**PREMISE CORRECTION — the plane is far emptier than the counts suggested.** "`extra.reasoning_duration` is
+present on 12,371 rows" (§4.1/§5.1 above) counts KEY PRESENCE, and ST writes the key with a **`null` value**
+almost everywhere. Measured across the same corpus:
+
+| where | numeric | `null` | key absent | total |
+| - | - | - | - | - |
+| `swipe_info[i].extra.reasoning_duration` | **3,121** | 69,992 | 929 | 74,042 |
+| message-level `extra.reasoning_duration` | 768 | 11,178 | 12,131 | 24,077 |
+
+So the corpus payoff is ~3.1k variants, not ~75k. The DEFECT and the fix are unchanged — the reader could
+resolve *nothing* on a swiped row and now resolves *everything ST recorded* — but the headline "12,718 rows
+of lost reasoning time" overstates the recoverable data, and anyone sizing this work off that number should
+use the table above.
 
 ### 5.2 Group-chat speaker attribution — RESOLVED by lane #25, do NOT re-open
 
@@ -349,7 +375,7 @@ as such rather than discovered later.
 Present on 78,407 swipe entries; survives inside `message_variants.metadata`, so nothing is lost, but a
 per-swipe timestamp has no column and no reader. Low value; listed for completeness.
 
-### 5.5 The imported author's note ignores ST's recorded placement
+### 5.5 The imported author's note ignores ST's recorded placement — **RESOLVED 2026-08-08**
 
 `import-write.ts:320,354` lands `note_prompt` at a hardcoded `depth: 4`, `position: "in_chat"`,
 `role: "system"`. ST records `note_depth`, `note_position`, `note_role`, `note_interval` alongside it on
@@ -359,11 +385,57 @@ house author's-note register") — but it is a ruling about *orb-authored* notes
 ones, and the imported value is available. Recommend: honor ST's recorded placement, clamped to orb's
 allowed positions, falling back to the house register.
 
-### 5.6 `chat_metadata.variables` is dropped although orb has the column
+**RESOLVED — owner ruling, verbatim: *"we basically have our own author's note with our injection system —
+just adapt and convert to that."*** Built as a CONVERSION into orb's model, not a port of ST's:
+`domain/import/substrate/chat-input.ts` maps ST's `extension_prompt_types`
+(`0 IN_PROMPT | 1 IN_CHAT | 2 BEFORE_PROMPT`) onto orb's `in_prompt`/`in_chat`/`before_prompt` and
+`extension_prompt_roles` (`0/1/2`) onto `system`/`user`/`assistant`, both SOURCE-PINNED to
+`SillyTavern/public/script.js`. Depth carries only on the at-depth splice (orb's own
+`ChatInjection.depth` contract — any other position stores the column's 0). **No new placement knob was
+invented.**
+
+**The RULING FORK, stated.** `import-write.ts`'s header recorded the hardcoded landing as deliberate ("the
+house author's-note register: *near enough to steer, far enough not to dominate*", chat-crew-design/04).
+Today's finding says that ruling, written about *orb-authored* notes, silently overrode what an *imported*
+note's own author recorded. Both were satisfied rather than one reversed: **the recorded ST value wins, the
+house register is the FALLBACK** (no knobs recorded ⇒ `in_chat` / depth 4 / `system`, byte-identically the
+old behavior, pinned by its own test). The header text moved with the policy into the mapper.
+
+**Two things orb's model deliberately does not express, taken at orb's default and recorded here as drops:**
+
+| ST value | why no seat | what happens |
+| - | - | - |
+| `note_interval` (re-insert every N messages) | orb's injection system has no periodic-insertion concept; adding one would be a new placement knob, i.e. a port not a conversion | dropped. The corpus records `1` (= every message, i.e. always present) on **1,068 of 1,070** chats, so orb's always-present injection is the faithful reading for effectively all of them |
+| `note_position: -1` (`NONE` — "do not inject") | a `chat_injections` row is always live; orb has no disabled-injection state | falls back to the house register. Keeping the text is the lesser failure, and **0 corpus chats record `-1`** |
+
+**PREMISE CORRECTION (this lane's re-drive, whole corpus).** §5.5's "1,070 chats" is the count of chats
+carrying the KNOBS. **`note_prompt` is present-but-EMPTY on all 1,070; ZERO of the 1,097 chats carry
+author's-note TEXT.** Since an empty note mints no injection at all, this fix changes **nothing** on today's
+corpus — it is correctness for every future import, and it is why the proving tests use hand-built ST
+fixtures rather than corpus bytes. Recorded knob combos: `d=4 p=1 r=0 i=1` ×1,065 · `d=2 p=1 r=1 i=1` ×2 ·
+`d=2 p=1 r=1 i=0` ×1 · `d=1 p=1 r=1 i=0` ×1 · `d=4 p=0 r=0 i=1` ×1.
+
+### 5.6 `chat_metadata.variables` is dropped although orb has the column — **RESOLVED 2026-08-08**
 
 494 chats carry ST's `{{getvar}}`/`{{setvar}}` store. `chats.variableValues` exists and
 `BulkImportChatInput.variableValues` is already on the canonical input — the ST arm just never fills it.
 Cheap, high-value follow-up. Needs a shape check (ST's values are not all strings).
+
+**RESOLVED — wired end to end**: serde parse (`ParsedChat.variables`) → `chat-input.ts` → the existing
+`BulkImportChatInput.variableValues` → `chats.variable_values`, plus the BUILD half (`chat_metadata.variables`
+is emitted on export), so the interchange is lossless in both directions like the date and token-axis fixes.
+
+**Why `variableValues` and not `runtimeVariables`** (the column ST's store structurally resembles):
+`runtimeVariables` is a DERIVED cache, re-folded from per-variant `variable_delta` ops on every mutating
+event — seeding it directly would be clobbered by the next fold. The config plane is authored and durable,
+and the assembly env seed OVERLAYS runtime over config (`substrate/assemble-gather.ts:324`) while
+`resolveChoiceVariables` **orphan-preserves** a stored key no preset declares
+(`substrate/variables.ts:50-55`) — so an imported variable is readable by `{{getvar}}` on the first turn.
+
+**PREMISE CORRECTION (this lane's re-drive).** "ST's values are not all strings" does not hold for this
+corpus: all **2,897** values across the 494 chats are strings. The parse seam still drops non-strings (a
+foreign/extension writer could produce one, and orb's column is a flat `Record<string,string>` no reader
+could interpret otherwise) — but the shape check found nothing to worry about.
 
 ### 5.7 The rest of `chat_metadata` is dropped
 
@@ -395,15 +467,27 @@ available signal and the collector does not read it.
 **No schema change was needed** — `message_variants.tokens_in` already existed. Nothing here invented a
 column for data orb has no concept for.
 
+**Fixed in the FOLLOW-UP lane (2026-08-08, one commit, red-first — 5 of 8 new int specs failed against
+`git show HEAD:` copies of the touched sources, each failure the defect itself):**
+
+| # | Finding | Ruling | Files |
+| - | - | - | - |
+| §5.1 | swipe-bearing variant metadata was a SECOND shape → `$.reasoning_duration` NULL for every swiped imported row | owner: fix the WRITER to one canonical shape, never dual-shape readers. No migration (pre-launch NO-LEGACY — the owner re-imports) | `packages/server/src/kit/serde/chat/index.ts` (`variantMetadata`) |
+| §5.6 | `chat_metadata.variables` dropped (494 chats) | owner: wire it through | `kit/serde/chat` · `domain/import/substrate/chat-input.ts` · `domain/export/verbs/export-chat.ts` |
+| §5.5 | the imported author's note ignored ST's recorded placement | owner, verbatim: *"we basically have our own author's note with our injection system — just adapt and convert to that"* | `kit/serde/chat` · `chat-input.ts` · `packages/contracts/src/chat/bulk-import.ts` · `domain/chat/persistence/import-write.ts` |
+| — | imported chat TITLES were the raw ST filename token | owner: derive a clean human title (cast/room name + the chat's real date), suffix same-day collisions, keep the filename as provenance | `chat-input.ts` · `domain/import/verbs/{import-chats,import-group-chats}.ts` · `contract/views.ts` |
+
+**A contract field was RETIRED in the same commit** (half a migration IS the rot): `BulkImportChatInput.
+authorsNote` had exactly one non-null producer — the ST arm — and a bare string can no longer say where a
+note goes now that ST's placement is honored. Both arms now use the one prose door, `injections`, and
+`import-write.ts` holds no placement policy at all.
+
 **Next lane's spec, in priority order:**
 
-1. **§5.1 variant-metadata normalization** — decide ONE shape for `message_variants.metadata` on the import
-   path and repoint `rebuild-from-canon.ts`'s two `json_extract` reads. Recovers reasoning-time for 12,718
-   rows. Cross-domain (chat + stats), so it needs a ruling, not just an edit.
-2. **§5.6 `chat_metadata.variables` → `chats.variableValues`** — smallest fix, 494 chats, column and
-   contract field already exist.
-3. **§5.5 author's-note placement** — honor `note_depth`/`note_position`/`note_role`. Overturns a recorded
-   ruling about the house register, so it is an owner call; see §5.5 for both texts.
+1. ~~**§5.1 variant-metadata normalization**~~ — **DONE** (see §5.1).
+2. ~~**§5.6 `chat_metadata.variables`**~~ — **DONE** (see §5.6).
+3. ~~**§5.5 author's-note placement**~~ — **DONE**, owner-ruled; the fork with the recorded house-register
+   ruling is stated in §5.5 (the ST value wins, the house register is the fallback).
 4. ~~**§5.2 + group chats**~~ — **STRUCK: shipped by lane #25 (`33ffe9fc3`) during this lane.** Group
    collection and per-slot `characterId`/`roster` attribution both exist; see §5.2 for the receipts. Do not
    dispatch this.
@@ -412,6 +496,8 @@ column for data orb has no concept for.
    When cross-box import becomes a real case, the setting lands on `ImportProfileDeps.stWallClockZone`,
    which is already injected end-to-end — no further plumbing.
 7. **§5.8** — decide whether "character acquired at" should read the card file's mtime.
+8. **§5.7 the rest of `chat_metadata`** — `pinnedPersona` (71) is the highest-value remainder (orb has
+   `chats.anchorPersonaId` and could resolve it by name, exactly as `user_name` already is).
 
 ## Verification
 
@@ -425,3 +511,32 @@ column for data orb has no concept for.
   `entry/boot/seed-demo-chats.int` · `tests/server/domain/stats` → **162 passed**.
 - Corpus re-drive after the fix: 0 future-dated chats (was 3), 12,305 message instants corrected,
   1,096/1,097 chat creation dates corrected.
+
+### The FOLLOW-UP lane (§5.1 · §5.5 · §5.6 · titles)
+
+- Red-first: `tests/server/entry/import/st-chat-fidelity.suite.int.test.ts` (the REAL `importChats` verb over
+  the REAL `createBulkImportChats` write against a real db, then the REAL `reconcileStats` reading it back)
+  ran against the pre-fix tree — **5 failed / 3 passed**, each failure the defect (`[]` where
+  `[900, 1200]` reasoning durations were expected; `null` for `variableValues`; `in_chat`/4/`system` where
+  ST recorded `in_prompt`/0/`user`; the raw filename as the title, twice). The 3 pre-fix passes are FENCES,
+  not proofs: the no-variables⇒NULL arm, the no-knobs⇒house-register arm, and the corpus's dominant
+  `d=4 p=1 r=0` combo — all three exist to prove the fixes changed nothing they should not have.
+- Green after: that suite **8/8**, plus `tests/server/domain/import/substrate/chat-input.test.ts` (11 — the
+  full ST position/role conversion matrix, the NONE + unknown-value fallbacks, the interval drop, the title
+  and its collision suffix) and the serde mirror's 4 new pins (flat-metadata shape, variables parse, knob
+  parse, the both-halves round trip).
+- Coupled suites re-run: `kit/serde/chat` · `domain/import` · `entry/import` · `chat/persistence/
+  import-write.int` · `domain/export` · `domain/stats` · `entry/boot` → **340 passed**; then
+  `entry/http/{import-chat,import-tree,export}` · `client/data/import-chats` · `db/schema/chat.int` ·
+  `contracts/chat` → **147 passed**; the whole `tests/server/domain/chat` tree (the domain whose write op +
+  demo seeder changed) → **1,755 passed / 1 skipped**. Coupled-literal sweep for the retired `authorsNote`
+  field name across `packages/` + `tests/`: the only remaining hits are the assembly trace's unrelated
+  `overrideSources.authorsNote` label and the 2026-08-01 retired-key docs.
+- Static floor: `pnpm typecheck` · `typecheck:graph` · `typecheck:tests-dom` (all three programs) ·
+  `pnpm check:structure` · `pnpm check:docs` · `npx knip --cache` · `npx depcruise packages` · biome +
+  eslint on the touched surface — all clean.
+- Corpus re-drive through the real modules (1,083 solo `chats/` files, `America/Denver`): **1,083 of 1,083
+  titles derived** (0 fell back to the filename), **615 needed the collision suffix** — e.g.
+  `Abigail - 2025-11-30@11h47m20s989ms.jsonl` → `Abigail1 — Nov 30, 2025`, its two same-day siblings taking
+  ` (2)` / ` (3)`. **480 chats / 2,813 variable values** land in `chats.variable_values`. **0 author's-note
+  injections** — the corpus carries no note text at all (§5.5).

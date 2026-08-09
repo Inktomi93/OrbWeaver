@@ -56,12 +56,16 @@ describe("importChats (Option B mapping)", () => {
     expect(call?.ownerId).toBe(OWNER);
     expect(call?.characterId).toBe(character);
     const chat = call?.chats[0];
-    expect(chat?.title).toBe("Aria - 2025-07-18@12h00m00s");
+    // The title is DERIVED (cast name + the chat's own date), never the raw ST filename token.
+    expect(chat?.title).toBe("Aria — Jul 18, 2025");
     expect(chat?.isRealConversation).toBe(true);
     // esoterica 2 — updatedAt is the MAX message send_date, not the import clock.
     expect(chat?.updatedAt).toBe(Date.UTC(2025, 6, 18, 12, 0, 2));
-    // SUPERSET round-trip — the ST note_prompt reaches the canonical author's-note field.
-    expect(chat?.authorsNote).toBe("stay in character");
+    // The ST note_prompt reaches the canonical prose door, converted to ONE injection. This fixture records
+    // no placement knobs, so it takes orb's house author's-note register.
+    expect(chat?.injections).toEqual([
+      { position: "in_chat", depth: 4, role: "system", content: "stay in character", order: null, createdAt: Date.UTC(2025, 6, 18, 12, 0, 0) },
+    ]);
     // Persona attribution — the anchor + the user turn credit "Nate"'s persona; the assistant turn is null.
     expect(chat?.anchorPersonaId).toBe(personaNate);
     expect(chat?.messages).toHaveLength(2);

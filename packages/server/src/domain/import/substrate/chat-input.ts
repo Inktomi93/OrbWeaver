@@ -8,9 +8,12 @@
 // attribution and the room-behavior blob. The group arm DELEGATES rather than re-deriving, so a change to
 // dates/variants/persona attribution can never apply to only one kind of room.
 
-import type { BulkImportChatInput, BulkImportMessageInput, BulkImportVariantInput } from "@orb/contracts/chat";
+import type { BulkImportChatInput, BulkImportInjectionInput, BulkImportMessageInput, BulkImportVariantInput } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
-import type { ParsedChatMessage } from "#kit/serde/chat";
+import type { MessageRole } from "@orb/kit/message-role";
+import { msToWallClock } from "@orb/kit/time";
+import type { ParsedChat, ParsedChatMessage, ParsedNotePlacement } from "#kit/serde/chat";
+import { ST_DEFAULT_WALL_CLOCK_ZONE } from "#kit/serde/chat";
 import type { CollectedChat, GroupChatInputDeps } from "../contract/views.ts";
 
 const JSONL_EXT = /\.jsonl$/i;
@@ -92,33 +95,162 @@ function toMessageInput(m: ParsedChatMessage, createdAt: number, chatPersonaId: 
   };
 }
 
-/** createDate is the filename date first, then the first message send date, then `now`. */
-export function buildBulkImportChatInput(
+// ── ST author's note → orb's injection system (the CONVERSION, owner ruling 2026-08-08) ──────────────────
+//
+// orb has its own author's note: a `chat_injections` row. ST's note is one slot plus four recorded knobs, and
+// the importer used to ignore all four — `import-write.ts` hardcoded the HOUSE REGISTER ("near enough to
+// steer, far enough not to dominate": `in_chat`, depth 4, `system`; chat-crew-design/04) onto every imported
+// note. That ruling is about orb-AUTHORED notes; applying it to a note whose author already SAID where it
+// goes is a misattribution of placement, so the recorded value wins and the house register becomes the
+// fallback. This is a conversion INTO orb's model: no ST knob mints a new orb placement concept.
+
+/** The house author's-note register — the placement an imported note takes when ST recorded none. */
+const HOUSE_NOTE_DEPTH = 4;
+const HOUSE_NOTE_POSITION: BulkImportInjectionInput["position"] = "in_chat";
+const HOUSE_NOTE_ROLE: MessageRole = "system";
+
+/** ST `extension_prompt_types` → orb's injection position (SOURCE-PINNED, SillyTavern `public/script.js`).
+ *  `0 IN_PROMPT` appends to the dynamic suffix, `1 IN_CHAT` splices at depth, `2 BEFORE_PROMPT` prepends to
+ *  the static block — each is exactly one of orb's four. DELIBERATELY UNMAPPED: `-1 NONE` (ST's "do not
+ *  inject at all"), which orb's model has no way to express — a `chat_injections` row is always live — so it
+ *  falls through to the house register like an unrecorded knob. orb's `in_static` has no ST counterpart. */
+const ST_NOTE_POSITIONS: Readonly<Record<number, BulkImportInjectionInput["position"]>> = {
+  0: "in_prompt",
+  1: "in_chat",
+  2: "before_prompt",
+};
+
+/** ST `extension_prompt_roles` → orb's canonical `MessageRole` (SOURCE-PINNED, same file). */
+const ST_NOTE_ROLES: Readonly<Record<number, MessageRole>> = { 0: "system", 1: "user", 2: "assistant" };
+
+/** The depth orb stores for a note at `position`. Depth is meaningful ONLY on the at-depth splice
+ *  (`ChatInjection.depth`'s own contract), so any other position stores the column's own 0 rather than
+ *  carrying a number no reader consults. A missing//negative ST depth on an `in_chat` note takes the house
+ *  register's 4. */
+function noteDepthFor(position: BulkImportInjectionInput["position"], recorded: number | null): number {
+  if (position !== "in_chat") {
+    return 0;
+  }
+  return recorded !== null && recorded >= 0 ? recorded : HOUSE_NOTE_DEPTH;
+}
+
+/** ST's `note_prompt` converted to the ONE `chat_injections` row it becomes, or null when the chat carries no
+ *  note text. `note_interval` (ST's "re-insert every N messages") is DROPPED: orb's injection system has no
+ *  periodic-insertion concept and inventing one here would be a new placement knob, not a conversion. The
+ *  corpus records interval 1 (= every message, i.e. always present) on 1,068 of 1,070 note-bearing chats, so
+ *  orb's always-present injection is the faithful reading for effectively all of them. */
+function importedNoteInjection(notePrompt: string | null, placement: ParsedNotePlacement | null, createdAt: number): BulkImportInjectionInput | null {
+  if (notePrompt === null) {
+    return null;
+  }
+  const recordedPosition = placement?.position ?? null;
+  const position = (recordedPosition === null ? undefined : ST_NOTE_POSITIONS[recordedPosition]) ?? HOUSE_NOTE_POSITION;
+  const recordedRole = placement?.role ?? null;
+  const role = (recordedRole === null ? undefined : ST_NOTE_ROLES[recordedRole]) ?? HOUSE_NOTE_ROLE;
+  return {
+    position,
+    depth: noteDepthFor(position, placement?.depth ?? null),
+    role,
+    content: notePrompt,
+    order: null,
+    createdAt,
+  };
+}
+
+// ── The imported chat's DISPLAY TITLE ────────────────────────────────────────────────────────────────────
+//
+// ST's filename IS its chat name, and it is a machine token: "Emily Singleton - 2025-5-7 @22h 52m 11s
+// 856ms". Importing it verbatim put that string in every chat list row. orb's own convention (client
+// `lib/chat-summary-row.ts`) is that a room shows its CAST and a date stamp, and its list date form is
+// `formatDate`'s `Mon D, YYYY` — so an imported chat gets the same two facts, composed once, here.
+// The raw filename is not lost: `chats.importedFrom` is its provenance seat (and the branch-lineage key).
+
+/** `Intl`-free short month names — this string is STORED (a title, like a rename), not rendered at the
+ *  display edge, so it must be stable across ICU builds and locales. Matches the client's `formatDate` form. */
+const SHORT_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
+/** Name and date are joined by an em dash — the name is not part of a date range, it is a separate fact. */
+const TITLE_SEPARATOR = "—";
+
+/** "Emily Singleton — May 7, 2025" for one imported room. `zone` is the SAME ST wall-clock zone the dates
+ *  were parsed in, so the rendered day is the day the ST filename spelled rather than a UTC-shifted one.
+ *  Null only when neither fact exists (no cast name AND an unformattable instant) — the caller then keeps the
+ *  source filename, which is worse-looking but never blank. */
+function importedChatTitle(name: string, createdAt: number, zone: string): string | null {
+  const trimmed = name.trim();
+  const wc = msToWallClock(createdAt, zone);
+  const date = wc === null ? null : `${SHORT_MONTHS[wc.month - 1]} ${wc.day}, ${wc.year}`;
+  if (trimmed.length > 0) {
+    return date === null ? trimmed : `${trimmed} ${TITLE_SEPARATOR} ${date}`;
+  }
+  return date;
+}
+
+/** Suffix duplicate titles within ONE import run — a character with three chats on one day would otherwise
+ *  show three identical rows. Numeric from 2 and never merging, the same rule the card collector's handle
+ *  `disambiguate` applies (`loader/collect.ts`); the spelling is ` (2)` rather than `-2` because this is
+ *  PROSE a human reads, not a slug. Order-stable: the first file to claim a title keeps it bare. */
+export function disambiguateChatTitles(inputs: readonly BulkImportChatInput[]): BulkImportChatInput[] {
+  const taken = new Set<string>();
+  return inputs.map((ci) => {
+    let title = ci.title;
+    let n = 2;
+    while (taken.has(title)) {
+      title = `${ci.title} (${n})`;
+      n += 1;
+    }
+    taken.add(title);
+    return title === ci.title ? { ...ci } : { ...ci, title };
+  });
+}
+
+/** The chat-level facts every arm shares: the resolved instants, the anchor persona, the prose plane and the
+ *  display title. `displayName` is the room's own name for the title — the header character for a solo
+ *  transcript, the ST group's name for a room. */
+function chatShell(
   ci: CollectedChat,
-  deps: {
-    readonly now: () => number;
-    readonly personaByUserName: Map<string, PersonaId>;
-  },
+  displayName: string,
+  deps: { readonly now: () => number; readonly personaByUserName: Map<string, PersonaId>; readonly wallClockZone?: string },
 ): BulkImportChatInput {
-  const pc = ci.parsed;
+  const pc: ParsedChat = ci.parsed;
   const created = pc.createDate ?? pc.messages.find((m) => m.sendDate !== null)?.sendDate ?? deps.now();
   const sendDates = pc.messages.flatMap((m) => (m.sendDate !== null ? [m.sendDate] : []));
   const updatedAt = sendDates.length > 0 ? Math.max(...sendDates) : created;
   const key = pc.userName?.trim().toLowerCase();
   const chatPersonaId: PersonaId | null = (key !== undefined && deps.personaByUserName.get(key)) || null;
+  const note = importedNoteInjection(pc.notePrompt, pc.notePlacement, created);
 
   return {
-    title: ci.importedFrom.replace(JSONL_EXT, ""),
+    title: importedChatTitle(displayName, created, deps.wallClockZone ?? ST_DEFAULT_WALL_CLOCK_ZONE) ?? ci.importedFrom.replace(JSONL_EXT, ""),
     importedFrom: ci.importedFrom,
     importHash: ci.importHash,
     anchorPersonaId: chatPersonaId,
     createdAt: created,
     updatedAt,
     parentRef: pc.parentRef,
-    authorsNote: pc.notePrompt,
+    // The ONE prose door. Omitted (not an empty list) when the chat carries no note, so a note-less ST
+    // transcript lands byte-identically to what it landed before the conversion existed.
+    ...(note === null ? {} : { injections: [note] }),
+    // ST's `{{setvar}}` store → orb's config-plane picks bag. The assembly env seed OVERLAYS the runtime
+    // fold over the resolved config picks and `resolveChoiceVariables` orphan-PRESERVES a stored key no
+    // preset declares, so an imported variable is readable by `{{getvar}}` on the very first turn. The
+    // runtime column is derived (re-folded from per-variant deltas) and is deliberately NOT seeded.
+    variableValues: pc.variables,
     isRealConversation: pc.bucket === "real_conversation",
     messages: pc.messages.map((m) => toMessageInput(m, m.sendDate ?? created, chatPersonaId)),
   };
+}
+
+/** createDate is the filename date first, then the first message send date, then `now`. */
+export function buildBulkImportChatInput(
+  ci: CollectedChat,
+  deps: {
+    readonly now: () => number;
+    readonly personaByUserName: Map<string, PersonaId>;
+    /** The zone ST's wall-clock dates were written in — the title's date is rendered in the SAME one. */
+    readonly wallClockZone?: string;
+  },
+): BulkImportChatInput {
+  return chatShell(ci, ci.parsed.characterName, deps);
 }
 
 /** WHICH seat voices this assistant slot. `original_avatar` (the card filename ST stamps on every group line)
@@ -144,7 +276,13 @@ function groupSpeakerFor(m: ParsedChatMessage, deps: GroupChatInputDeps): Charac
  * mapper only ever proposes ids the caller already resolved out of the room's own cast.
  */
 export function buildGroupChatInput(ci: CollectedChat, deps: GroupChatInputDeps): BulkImportChatInput {
-  const base = buildBulkImportChatInput(ci, { now: deps.now, personaByUserName: deps.personaByUserName });
+  // The room's TITLE is the group's own name, not the header `character_name` a group transcript carries
+  // (ST writes the first member there, which would title a five-hander after one seat).
+  const base = chatShell(ci, deps.roomName, {
+    now: deps.now,
+    personaByUserName: deps.personaByUserName,
+    ...(deps.wallClockZone === undefined ? {} : { wallClockZone: deps.wallClockZone }),
+  });
   const messages = base.messages.map((message, i): BulkImportMessageInput => {
     const parsed = ci.parsed.messages[i];
     const speaker = parsed === undefined ? null : groupSpeakerFor(parsed, deps);
