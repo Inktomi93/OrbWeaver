@@ -31,6 +31,9 @@ export const WORKLOAD_KINDS = [
   "reconcile-world-state",
   "databank-ingest",
   "databank-reindex",
+  // The refinery's library score sweep — one score pass per card, stamped into `characters.refinery.score`
+  // with no session (the sweep IS the no-session stamping path).
+  "refine-score-sweep",
 ] as const;
 
 export type WorkloadKind = (typeof WORKLOAD_KINDS)[number];
@@ -92,6 +95,8 @@ export const WORKLOAD_KIND_MODES = {
   "reconcile-world-state": { singular: false, bulk: true, bulkRequiresTarget: false, stub: true },
   "databank-ingest": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
   "databank-reindex": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
+  // A SWEEP-kind over existing rows (each card carries its own owner FK), so bulk designates no target.
+  "refine-score-sweep": { singular: true, bulk: true, bulkRequiresTarget: false, stub: false },
 } as const satisfies Record<WorkloadKind, WorkloadModePolicy>;
 
 /** How often a `workload_schedule` auto-enqueues its workload — a NAMED interval preset (no cron string)

@@ -3,6 +3,7 @@
 // greeting-index assert, snapshot-first reversibility, the real `character.update` write, and the honest
 // zero-write arm. The REAL character service runs under the apply (its own belts included).
 
+import { GREETING_SLOTS_MAX } from "@orb/contracts/refinery";
 import { characterSnapshots } from "@orb/db";
 import { RefineryStageNotReadyError } from "@orb/server/domain/refinery";
 import { eq } from "drizzle-orm";
@@ -353,6 +354,177 @@ test("belt 9 fences a CLEAR exactly like a rewrite: an unselected field and an u
   // The honest ZERO-WRITE arm holds for destruction too: no snapshot, both greetings intact.
   expect(await db.select().from(characterSnapshots).where(eq(characterSnapshots.characterId, characterId))).toHaveLength(0);
   expect(result.character.greetings).toHaveLength(2);
+});
+
+// ── THE APPEND ARM (fork F-T1, owner-ruled IN for R4 — schema-renderer §7b). Same discipline as the
+//    emptying block above: every test drives the WHOLE chain, because a contract that accepts
+//    `append:true` proves nothing about what lands in canon. ────────────────────────────────────────────
+
+test("an APPENDED greeting lands as a NEW slot at the end, itemized kind:added, existing slots untouched", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_af_add" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "af-card-add");
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  // THE SPLIT (the owner's own case): greeting 0 keeps the first half, a NEW slot carries the second.
+  h.queueReply(
+    rewriteReply({
+      fields: [
+        { field: "greetings", greetingIndex: 0, text: "Welcome to the archive." },
+        { field: "greetings", append: true, text: "…and mind the third shelf." },
+      ],
+    }),
+  );
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+
+  const result = await h.svc.applyFields({
+    principal: principal(owner),
+    sessionId: session.id,
+    accepts: [
+      { field: "greetings", greetingIndex: 0 },
+      // The APPEND address: the ordinal among the payload's append entries, never a card slot.
+      { field: "greetings", appendIndex: 0 },
+    ],
+  });
+
+  expect(result.applied).toEqual([
+    { field: "greetings", greetingIndex: 0, kind: "replaced" },
+    { field: "greetings", greetingIndex: undefined, appendIndex: 0, kind: "added" },
+  ]);
+  expect(result.dropped).toEqual([]);
+  // The card GAINED a slot at the tail; the pre-existing greetings kept their positions and their text.
+  const readBack = await h.character.get({ principal: principal(owner), characterId });
+  expect(readBack.greetings.map((g) => g.text)).toEqual(["Welcome to the archive.", "Back again? The stacks missed you.", "…and mind the third shelf."]);
+  // Belt 13 still runs for an additive write — the snapshot holds the two-greeting card.
+  const snaps = await db.select().from(characterSnapshots).where(eq(characterSnapshots.characterId, characterId));
+  expect(snaps[0]?.content.greetings).toHaveLength(2);
+});
+
+test("two appends in one round land in payload order, addressed by their own ordinals", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_af_add2" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "af-card-add2");
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  h.queueReply(
+    rewriteReply({
+      fields: [
+        { field: "greetings", append: true, text: "first new" },
+        { field: "description", text: "A meticulous keeper of records." },
+        { field: "greetings", append: true, text: "second new" },
+      ],
+    }),
+  );
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+
+  // Only the SECOND append is kept — proving the ordinal addresses the append LIST (not the payload's
+  // `fields` positions, where this entry sits third).
+  const result = await h.svc.applyFields({
+    principal: principal(owner),
+    sessionId: session.id,
+    accepts: [{ field: "greetings", appendIndex: 1 }],
+  });
+  expect(result.applied).toEqual([{ field: "greetings", greetingIndex: undefined, appendIndex: 1, kind: "added" }]);
+  const readBack = await h.character.get({ principal: principal(owner), characterId });
+  expect(readBack.greetings.map((g) => g.text)).toEqual(["Welcome to the archive.", "Back again? The stacks missed you.", "second new"]);
+  // The undecided first append was never sent, so it never landed — belt 10 (fail-closed) for the new arm.
+  expect(readBack.greetings.some((g) => g.text === "first new")).toBe(false);
+});
+
+test("belt 9 fences an APPEND on the FIELD: greetings out of selection dies, a narrowed index set does NOT block it", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_af_addfence" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "af-card-addfence");
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  // Greetings OUT of scope entirely — a steered append is an invented act, exactly like a steered rewrite.
+  await h.svc.updateSession({ principal: principal(owner), sessionId: session.id, patch: { selection: { fields: ["description"] } } });
+  h.queueReply(rewriteReply({ fields: [{ field: "greetings", append: true, text: "smuggled" }] }));
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+  const fenced = await h.svc.applyFields({
+    principal: principal(owner),
+    sessionId: session.id,
+    accepts: [{ field: "greetings", appendIndex: 0 }],
+  });
+  expect(fenced.applied).toEqual([]);
+  expect(fenced.dropped).toEqual([{ field: "greetings", greetingIndex: undefined, appendIndex: 0, reason: "not_selected" }]);
+  expect((await h.character.get({ principal: principal(owner), characterId })).greetings).toHaveLength(2);
+
+  // …but a selection that NARROWED to specific existing slots still permits an append: a new slot has no
+  // index to be inside that set, and gating on it would make "add a greeting" unreachable in any narrowed
+  // session (the deliberate asymmetry — the field fence is what belt 9 is actually about here).
+  await h.svc.updateSession({
+    principal: principal(owner),
+    sessionId: session.id,
+    patch: { selection: { fields: ["greetings"], greetingIndexes: [0] } },
+  });
+  h.queueReply(rewriteReply({ fields: [{ field: "greetings", append: true, text: "a third opening" }] }));
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+  const allowed = await h.svc.applyFields({
+    principal: principal(owner),
+    sessionId: session.id,
+    accepts: [{ field: "greetings", appendIndex: 0 }],
+  });
+  expect(allowed.applied).toEqual([{ field: "greetings", greetingIndex: undefined, appendIndex: 0, kind: "added" }]);
+  expect((await h.character.get({ principal: principal(owner), characterId })).greetings.map((g) => g.text)).toEqual([
+    "Welcome to the archive.",
+    "Back again? The stacks missed you.",
+    "a third opening",
+  ]);
+});
+
+test("an APPEND at the card's greetings ceiling is refused per entry (greeting_cap_reached), never a thrown patch", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_af_cap" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "af-card-cap");
+  // Fill the card to its ceiling (the card contract's own max) BEFORE the session pins it.
+  await h.character.update({
+    principal: principal(owner),
+    characterId,
+    input: { greetings: Array.from({ length: GREETING_SLOTS_MAX }, (_, i) => ({ text: `g${i}` })) },
+  });
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  h.queueReply(rewriteReply({ fields: [{ field: "greetings", append: true, text: "one too many" }] }));
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+
+  const result = await h.svc.applyFields({
+    principal: principal(owner),
+    sessionId: session.id,
+    accepts: [{ field: "greetings", appendIndex: 0 }],
+  });
+  // Itemized, not thrown: a card at its ceiling is a LEGAL card, so this is a refusal about one entry —
+  // and the belt runs BEFORE the patch is built, so `updateCharacterSchema` is never handed an over-cap array.
+  expect(result.applied).toEqual([]);
+  expect(result.dropped).toEqual([{ field: "greetings", greetingIndex: undefined, appendIndex: 0, reason: "greeting_cap_reached" }]);
+  expect((await h.character.get({ principal: principal(owner), characterId })).greetings).toHaveLength(GREETING_SLOTS_MAX);
+});
+
+test("a malformed APPEND address is itemized: an unknown ordinal, and an appendIndex on a non-greetings field", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_af_addbad" });
+  const h = makeRefineryHarness(db);
+  await seedOwnedCharacter(h, owner, "af-card-addbad");
+  const characterId = await seedOwnedCharacter(h, owner, "af-card-addbad2");
+  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  h.queueReply(rewriteReply({ fields: [{ field: "greetings", append: true, text: "the only one" }] }));
+  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+
+  const result = await h.svc.applyFields({
+    principal: principal(owner),
+    sessionId: session.id,
+    accepts: [
+      // Ordinal 4 addresses an append this payload never produced.
+      { field: "greetings", appendIndex: 4 },
+      // An append address on a field that cannot grow.
+      { field: "description", appendIndex: 0 },
+    ],
+  });
+  expect(result.applied).toEqual([]);
+  expect(result.dropped).toEqual([
+    { field: "greetings", greetingIndex: undefined, appendIndex: 4, reason: "not_in_rewrite" },
+    { field: "description", greetingIndex: undefined, appendIndex: 0, reason: "greeting_index_forbidden" },
+  ]);
 });
 
 test("apply with no rewrite run is the typed stage-order refusal; analyze payloads never apply", async () => {

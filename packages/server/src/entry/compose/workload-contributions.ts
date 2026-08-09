@@ -25,6 +25,8 @@ import type { EmbeddingsWorkloadDeps } from "#domain/embeddings";
 import { createEmbeddingsWorkloadContributions } from "#domain/embeddings";
 import type { ImportWorkloadDeps } from "#domain/import";
 import { createImportWorkloadContributions } from "#domain/import";
+import type { RefineryWorkloadDeps } from "#domain/refinery";
+import { createRefineryWorkloadContributions } from "#domain/refinery";
 import type { StatsWorkloadDeps } from "#domain/stats";
 import { createStatsWorkloadContributions } from "#domain/stats";
 import type { AnyWorkloadContribution, WorkloadContributions } from "#domain/workloads";
@@ -41,6 +43,7 @@ export interface WorkloadContributionsDeps
     ChatWorkloadDeps,
     DatabankWorkloadDeps {
   readonly importWorkloads: ImportWorkloadDeps;
+  readonly refineryWorkloads: RefineryWorkloadDeps;
 }
 
 /** Key a flat contribution list by kind, asserting exhaustive + duplicate-free registration. */
@@ -70,6 +73,7 @@ export function buildWorkloadContributions(deps: WorkloadContributionsDeps): Wor
     ...createChatWorkloadContributions(deps),
     ...createDatabankWorkloadContributions(deps),
     ...createImportWorkloadContributions(deps.importWorkloads),
+    ...createRefineryWorkloadContributions(deps.refineryWorkloads),
     ...createReservedWorkloadContributions(),
   ]);
 }

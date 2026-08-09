@@ -14,6 +14,7 @@
 import { z } from "zod";
 import { documentIdSchema, reindexModeSchema, reindexScopeSchema } from "#databank";
 import type { ComputeThemesWorkloadParams, FindDuplicatesWorkloadParams } from "#discovery";
+import type { RefineScoreSweepWorkloadParams } from "#refinery";
 import type { WorkloadKind } from "./axes.ts";
 import { indexSourceSchema, workloadKindSchema } from "./axes.ts";
 
@@ -99,6 +100,7 @@ export interface WorkloadParamsByKind {
   "reconcile-world-state": NoWorkloadParams;
   "databank-ingest": z.infer<typeof databankIngestWorkloadParams>;
   "databank-reindex": z.infer<typeof databankReindexWorkloadParams>;
+  "refine-score-sweep": RefineScoreSweepWorkloadParams;
 }
 
 /**

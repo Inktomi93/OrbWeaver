@@ -253,12 +253,12 @@
       "sha256": "4c2b7518e867bd8ae529f18ab161a623d79ca54f1c6dd8d688f1450e360cf280"
     },
     "refinery.rewrite.system": {
-      "version": 2,
-      "sha256": "4f0d888b8ac4953760f2262d506b18aa7a4277b897350398dcfd165ced985a76"
+      "version": 3,
+      "sha256": "b7ac7256b485ec643063c6ad3d0f4ed54931301f21d5c7b16e49601e186042fb"
     },
     "refinery.refine.system": {
-      "version": 2,
-      "sha256": "798cac4528d3d8796c43cbb9e561c14517b3ee377751100955cd22904ab4b211"
+      "version": 3,
+      "sha256": "7bb87a1b9925f5d1f9713f244025673047638cf90c5b3cce7596a699837176d0"
     },
     "refinery.analyze.system": {
       "version": 2,

@@ -9,6 +9,7 @@
 // state carried on the stepper cell.
 
 import type { RefinerySelection, RefineryStage } from "@orb/contracts/refinery";
+import { isAppendedRewrite } from "@orb/contracts/refinery";
 import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -355,17 +356,23 @@ function runSelectionOf(
 /** The kept accepts the terminal verbs send: each Keep press's target, with `confirmDiverged` riding
  *  exactly the diverged entries (the §21 informed re-confirmation — never a blanket flag). */
 function keptAcceptsOf(rewriteEntries: ReturnType<typeof reviewEntriesOf>, decided: readonly CompareDecision[]): KeptAccept[] {
-  return rewriteEntries.flatMap((entry, i) =>
-    decided[i] === true
-      ? [
-          {
-            field: entry.entry.field,
-            ...(entry.entry.greetingIndex === undefined ? {} : { greetingIndex: entry.entry.greetingIndex }),
-            ...(entry.diverged ? { confirmDiverged: true as const } : {}),
-          },
-        ]
-      : [],
-  );
+  return rewriteEntries.flatMap((entry, i): KeptAccept[] => {
+    if (decided[i] !== true) {
+      return [];
+    }
+    // An APPEND is addressed by its ordinal and NOTHING else: it has no slot to name and no history to have
+    // diverged from, so sending either key would be a malformed address the verb drops.
+    if (entry.appendIndex !== undefined) {
+      return [{ field: entry.entry.field, appendIndex: entry.appendIndex }];
+    }
+    return [
+      {
+        field: entry.entry.field,
+        ...(isAppendedRewrite(entry.entry) || entry.entry.greetingIndex === undefined ? {} : { greetingIndex: entry.entry.greetingIndex }),
+        ...(entry.diverged ? { confirmDiverged: true as const } : {}),
+      },
+    ];
+  });
 }
 
 type ManualCard = Parameters<typeof manualTextOf>[0] & { greetings: readonly { text: string }[] };

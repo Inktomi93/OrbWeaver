@@ -12,7 +12,8 @@ import type {
   RefineryStage,
   RefineryStageConfig,
 } from "@orb/contracts/refinery";
-import type { CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId } from "@orb/kit/ids";
+import type { ReportProgress } from "@orb/contracts/workloads";
+import type { CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 
 interface RefineryActorParams {
   readonly principal: Principal;
@@ -71,11 +72,15 @@ export interface IterateParams extends RefineryActorParams {
   readonly guidance?: string;
 }
 
-/** One user-accepted rewrite entry (the Keep set of the arm-B review). `greetingIndex` present ⇔
- *  `field === "greetings"` — asserted at the verb against the LIVE card (§1 gap 3's verb-tier ruling). */
+/** One user-accepted rewrite entry (the Keep set of the arm-B review). EXACTLY ONE index is legal, and only
+ *  on `greetings`: `greetingIndex` addresses a slot the card HAS (asserted at the verb against the LIVE
+ *  card — §1 gap 3's verb-tier ruling), `appendIndex` addresses the k-th NEW greeting the chosen rewrite
+ *  payload asked for (F-T1 — a slot with no card position yet cannot be named by one). Neither, both, or
+ *  either on a non-greetings field is a malformed address and drops with its typed reason. */
 export interface AcceptedField {
   readonly field: RefinableField;
   readonly greetingIndex?: number | undefined;
+  readonly appendIndex?: number | undefined;
   /** The MERGE-CONFLICT re-confirmation (schema-renderer §21 edge 2): the live card's text for this field
    *  moved since the session's pin, the surface re-opened the block as a three-pane conflict, and the user
    *  explicitly picked the rewrite anyway. Absent on a diverged field ⇒ the verb drops it
@@ -110,6 +115,19 @@ export interface ApplyAsCopyParams extends RefineryActorParams {
 export interface SubmitManualRewriteParams extends RefineryActorParams {
   readonly sessionId: RefinerySessionId;
   readonly fields: RefineryRewritePayload["fields"];
+}
+
+/** `scoreSweep` — the LIBRARY score pass (R4 / port study I3). The ONE refinery entry point that takes NO
+ *  principal: it is a workload run body, and the queue resolves identity for it (`WorkloadRunContext`), so
+ *  the pass takes the ENUMERATION SCOPE the engine hands it. `ownerId: null` IS the box-wide bulk arm — the
+ *  same spelling the engine uses — never "an owner I forgot to pass". */
+export interface ScoreSweepOptions {
+  readonly ownerId: UserId | null;
+  /** FILL (false, the default the contribution passes) scores only cards with no score yet; REFRESH (true)
+   *  re-scores every card. See `refineScoreSweepWorkloadParams`. */
+  readonly rescoreAll: boolean;
+  readonly report: ReportProgress;
+  readonly signal: AbortSignal | undefined;
 }
 
 /** `preflight` — the output-budget readout (schema-renderer §8): resolved per call so a preset edit

@@ -21,13 +21,14 @@ const DOSSIER = {
   elevatorPitch: "A cursed knight walking north.",
   tags: ["rogue"],
   portrait: null,
+  refineryScore: null,
   similar: [],
 };
 
 /** The dossier's other reads, stubbed flat so only the ASK answer varies between cases. */
-async function routeDossier(page: Page, answer: Record<string, unknown>): Promise<void> {
+async function routeDossier(page: Page, answer: Record<string, unknown>, dossier: Record<string, unknown> = DOSSIER): Promise<void> {
   await routeTrpc(page, {
-    "discovery.characterDossier": DOSSIER,
+    "discovery.characterDossier": dossier,
     "discovery.characterKeywords": [],
     "search.similarArt": [],
     "discovery.askCard": answer,
@@ -35,6 +36,9 @@ async function routeDossier(page: Page, answer: Record<string, unknown>): Promis
 }
 
 const QUESTION = "What drives them?";
+// Hoisted (biome useTopLevelRegex): the quality readout's two locators, matched by their leading copy.
+const SCORE_READOUT = /Refinery score:/;
+const NOT_SCORED = /Not scored yet/;
 
 test("a GROUNDED answer badges the model's own claim", async ({ mount, page }) => {
   await routeDossier(page, {
@@ -104,4 +108,36 @@ test("a DEGRADED answer says OUR parse failed — never the model's 'Speculative
   await expect(component.getByText("3 scenes sampled")).toHaveCount(0);
   // The raw text is still shown (it may be useful) — it is LABELLED, not hidden.
   await expect(component.getByText("Well, let me think about that one...")).toBeVisible();
+});
+
+// ── The CARD QUALITY readout (R4 / I2 — the refinery score, made visible where the library's understanding
+//    of a character lives). Two states, both DESIGNED: a number, or the empty state that names its door. ──
+
+/** An answer stub the quality cases never submit — the ASK panel stays idle so only the readout varies. */
+const IDLE_ANSWER = { characterId: "char_aria", question: "", answer: "", grounded: true, degraded: false, sampledMessages: 0 };
+
+test("a SCORED card shows its refinery score against the rubric ceiling", async ({ mount, page }) => {
+  await routeDossier(page, IDLE_ANSWER, { ...DOSSIER, refineryScore: 6.75 });
+  const component = await mount(<CorpusDossierSurfaceStory />);
+
+  await expect(component.getByRole("heading", { name: "Card quality" })).toBeVisible();
+  // WORD-PRIMARY: the printed numeral IS the signal (one decimal — the rubric is a weighted average), and
+  // the scale it is measured against rides with it rather than being folklore.
+  const readout = component.getByText(SCORE_READOUT);
+  await expect(readout).toBeVisible();
+  await expect(readout).toContainText("6.8");
+  await expect(readout).toContainText("/ 10");
+});
+
+test("an UNSCORED card renders the designed empty state, naming the sweep as its door", async ({ mount, page }) => {
+  await routeDossier(page, IDLE_ANSWER, { ...DOSSIER, refineryScore: null });
+  const component = await mount(<CorpusDossierSurfaceStory />);
+
+  await expect(component.getByRole("heading", { name: "Card quality" })).toBeVisible();
+  // "Not scored" is a real state with a real exit — it must never collapse to a blank where other cards
+  // show a number (empty-states-are-load-bearing).
+  const empty = component.getByText(NOT_SCORED);
+  await expect(empty).toBeVisible();
+  await expect(empty).toContainText("library score sweep");
+  await expect(component.getByText(SCORE_READOUT)).toHaveCount(0);
 });

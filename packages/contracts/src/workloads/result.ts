@@ -13,6 +13,7 @@ import type { CatalogRefreshResult } from "#connection";
 import type { IngestRunResult } from "#databank";
 import type { AnalyticsResult } from "#discovery";
 import type { EmbedPassResult } from "#embeddings";
+import type { RefineryScoreSweepResult } from "#refinery";
 import type { ReconcileStatsWorkloadResult } from "#stats";
 
 /** A maintenance pass's counts + the `dryRun` echo (assets backfill/gc, import-st). */
@@ -62,4 +63,5 @@ export interface WorkloadResultByKind {
   "reconcile-world-state": DeferredResult;
   "databank-ingest": IngestRunResult;
   "databank-reindex": IngestRunResult;
+  "refine-score-sweep": RefineryScoreSweepResult;
 }
