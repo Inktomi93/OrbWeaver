@@ -10,15 +10,13 @@
 // The row is now the CHARACTER: avatar + name as the title, the session's own name demoted to the
 // subtitle when it has one, and the verdict + iteration + relative time as the trailing readout.
 //
-// CHARACTER RESOLUTION IS CLIENT-SIDE, per the wire schema's own recorded ruling
-// (`refinerySessionSummarySchema`, @orb/contracts/refinery: "Character display resolves client-side by
-// `characterId`"). That mechanism is PRESERVED here rather than reversed — but it has a REAL CEILING
-// this file must not hide: `character.list` is a cursor page capped at 100 (`MAX_LIMIT`,
-// domain/character/verbs/list.ts), so a session whose card sits past the first page cannot be named by
-// any client-side join. Such a row renders the honest `UNRESOLVED_CARD` fallback and is excluded from a
-// character-name search rather than silently matching nothing. The durable fix is for the summary to
-// carry `characterName`/`avatarHash` server-side — that reverses a recorded ruling, so it is the
-// orchestrator's call, not this lane's.
+// CHARACTER IDENTITY COMES OFF THE WIRE (orchestrator ruling, 2026-08-09 — it reverses the summary
+// schema's former "resolves client-side by `characterId`" comment, truth-repaired there). The client-side
+// join this surface used to run had a hard ceiling: its only source was `character.list`, one cursor page
+// capped at 100 rows, so a session whose card sat past page one rendered UNNAMED and was unfindable by
+// the search box below — the paginating-a-list-breaks-resolve-by-find class, exactly. `characterName` and
+// `characterAvatarHash` now ride `refinerySessionSummarySchema`, joined on the ownership join the roster
+// read already performs, so the roster names EVERY session it lists and there is no second query here.
 
 import { blobUrl } from "@orb/contracts/assets";
 import type { RenderHintTone } from "@orb/contracts/refinery";
@@ -58,16 +56,10 @@ const VERDICT_WORD: Record<string, string> = {
   REGRESSION: "Regression",
 };
 
-// The client-side join's page (see the header's ceiling note). Matches CharacterPicker's own limit so
-// the two resolve the SAME set — a row the picker could start is a row this list can name.
-const CHARACTER_PAGE_LIMIT = 100;
-/** What a row shows when the client-side join could not name the card. Honest, not a guess. */
-const UNRESOLVED_CARD = "Character unavailable";
-
 interface ResolvedRow {
   readonly id: RefinerySessionId;
   readonly rawId: string;
-  readonly characterName: string | null;
+  readonly characterName: string;
   readonly avatarHash: string | null;
   /** Branded: it is the Avatar's `hueSeed`, i.e. a value that decides what the user SEES. A bare
    *  `string` here would let any other id type-check into the seed and silently recolour a row. */
@@ -98,35 +90,30 @@ function RowReadout({ row }: { row: ResolvedRow }): ReactElement {
 export function RefineryListSurface(): ReactElement {
   const trpc = useTRPC();
   const sessions = useSuspenseQuery(trpc.refinery.listSessions.queryOptions());
-  // Cache-first cross-feature read: CharacterPicker already holds this exact query, so on any surface
-  // that has opened a picker this resolves from cache with no second round-trip.
-  const characters = useSuspenseQuery(trpc.character.list.queryOptions({ limit: CHARACTER_PAGE_LIMIT }));
   const selectedId = useSelectedRefinerySessionId();
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   const [search, setSearch] = useState("");
   const query = search.trim().toLowerCase();
 
-  const byId = new Map(characters.data.items.map((c) => [c.id, c]));
-  const resolved: ResolvedRow[] = sessions.data.map((session) => {
-    const card = byId.get(session.characterId);
-    return {
-      id: castId<RefinerySessionId>(session.id),
-      rawId: session.id,
-      characterName: card?.name ?? null,
-      avatarHash: card?.avatarHash ?? null,
-      characterId: session.characterId,
-      sessionName: session.name,
-      iterationCount: session.iterationCount,
-      latestVerdict: session.latestVerdict,
-      updatedAt: session.updatedAt,
-    };
-  });
+  const resolved: ResolvedRow[] = sessions.data.map((session) => ({
+    id: castId<RefinerySessionId>(session.id),
+    rawId: session.id,
+    characterName: session.characterName,
+    avatarHash: session.characterAvatarHash,
+    characterId: session.characterId,
+    sessionName: session.name,
+    iterationCount: session.iterationCount,
+    latestVerdict: session.latestVerdict,
+    updatedAt: session.updatedAt,
+  }));
 
   // P1-5: the predicate matches the CHARACTER NAME as well as the session's own name — the roster's
-  // whole organising fact was previously unsearchable, and `session.name` is null on every row.
+  // whole organising fact was previously unsearchable, and `session.name` is null on every row. Since
+  // the name rides the summary, this now matches EVERY session, including one whose card sits past the
+  // page `character.list` would have returned.
   const rows = resolved.filter(
-    (r) => query.length === 0 || (r.characterName ?? "").toLowerCase().includes(query) || (r.sessionName ?? "").toLowerCase().includes(query),
+    (r) => query.length === 0 || r.characterName.toLowerCase().includes(query) || (r.sessionName ?? "").toLowerCase().includes(query),
   );
 
   return (
@@ -166,12 +153,12 @@ export function RefineryListSurface(): ReactElement {
                 size="sm"
                 {...(row.avatarHash === null ? {} : { src: blobUrl(row.avatarHash) })}
               >
-                {initialsFor(row.characterName ?? UNRESOLVED_CARD)}
+                {initialsFor(row.characterName)}
               </Avatar>
             }
             onClick={(): void => selectRefinerySessionFromList(row.id)}
             selected={selectedId === row.rawId}
-            title={row.characterName ?? UNRESOLVED_CARD}
+            title={row.characterName}
             {...(row.sessionName === null ? {} : { subtitle: row.sessionName })}
           />
         ))}

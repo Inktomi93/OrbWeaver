@@ -2,9 +2,12 @@
 // before the first analyze; the NEWEST analyze wins), owner-scoped (a stranger sees an empty roster —
 // a list is never an oracle).
 
+import { characters } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
+import { seedAsset } from "../../../../support/factories/asset.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { analyzeReply, makeRefineryHarness, principal, rewriteReply, seedOwnedCharacter, seedUser } from "../_support.ts";
 
@@ -41,4 +44,25 @@ test("roster: newest-updated first, latestVerdict from the newest analyze, stran
   expect(after[1]?.latestVerdict).toBeNull();
 
   expect(await h.svc.listSessions({ principal: principal(stranger) })).toEqual([]);
+});
+
+test("every roster row NAMES its card server-side, avatar hash and all — no client-side join, so no page ceiling", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_ls_c" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "ls-card-named");
+  await h.svc.startSession({ principal: principal(owner), characterId, name: "named" });
+
+  // Avatar-less arm: the `assets` join is a LEFT one, so a card with no avatar is a normal roster row.
+  const bare = await h.svc.listSessions({ principal: principal(owner) });
+  expect(bare[0]?.characterName).toBe("Aria the Archivist");
+  expect(bare[0]?.characterAvatarHash).toBeNull();
+
+  // Avatar arm: the hash is the JOINED `assets.hash`, not the character's `avatar_asset_id` — a wrong
+  // join column would leave the nullable field null forever and read as "this card has no avatar".
+  const asset = await seedAsset(db, { ownerId: owner });
+  await db.update(characters).set({ avatarAssetId: asset.id }).where(eq(characters.id, characterId));
+  const withAvatar = await h.svc.listSessions({ principal: principal(owner) });
+  expect(withAvatar[0]?.characterAvatarHash).toBe(asset.hash);
+  expect(withAvatar[0]?.characterName).toBe("Aria the Archivist");
 });

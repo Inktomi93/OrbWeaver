@@ -4,7 +4,8 @@
 // floor does not exist. Values only fill; the schema decided every widget.
 
 import { expect, test } from "@playwright/experimental-ct-react";
-import { PayloadViewStory } from "../_ct-stories.tsx";
+import type { Page } from "@playwright/test";
+import { HeroRampStory, PayloadViewStory } from "../_ct-stories.tsx";
 
 const SCORE_PAYLOAD = {
   fieldScores: [
@@ -117,4 +118,79 @@ test("a CUSTOM schema the build has never seen renders designed widgets — the 
   await expect(page.getByRole("listitem").filter({ hasText: "slow burn" })).toBeVisible();
   await expect(page.getByText("Warm but unhurried pacing throughout.")).toBeVisible();
   await expect(page.getByTestId("refinery-payload-view")).not.toContainText("{");
+});
+
+// ── The HERO COUNT-UP ramp (side-eye polish item 5, "the money shot") ────────────────────────────────
+// The SCORE story above takes the NO-RAMP path by construction: it mounts with the figure already
+// present, which is a value that did not arrive and must not animate. These three pin the ramp itself —
+// proven by the frames the numeral actually painted, collected by a MutationObserver, so nothing here
+// races a 360ms animation.
+
+/** Record every distinct value the hero numeral prints from now on. Installed BEFORE the press, and it
+ *  survives the node being created later (it observes the document, not the node). */
+async function traceHeroValues(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    // FABRICATION-OK: a page-scratch global, not a domain shape — the two evaluate calls need a shared handle and typeof globalThis has no slot for one.
+    (globalThis as unknown as { __heroTrace: string[] }).__heroTrace = seen;
+    const read = (): void => {
+      const node = document.querySelector('[data-testid="refinery-hero-value"]');
+      const text = node?.textContent ?? "";
+      if (text.length > 0 && seen.at(-1) !== text) {
+        seen.push(text);
+      }
+    };
+    read();
+    new MutationObserver(read).observe(document.body, { subtree: true, childList: true, characterData: true });
+  });
+}
+
+function heroTrace(page: Page): Promise<string[]> {
+  // FABRICATION-OK: reads back the page-scratch global installed above — same reason.
+  return page.evaluate(() => (globalThis as unknown as { __heroTrace: string[] }).__heroTrace);
+}
+
+test("the money shot: a score landing into a pane that was WAITING counts up from 0 and settles EXACTLY on 7.5", async ({ mount, page }) => {
+  // `from: null` = the pane opens pending with no payload, i.e. the plan-shaped skeleton — the first-run
+  // arm. Before this lane the gauge mounted holding its final number and the count never ran at all.
+  await mount(<HeroRampStory from={null} to={7.5} />);
+  await expect(page.getByTestId("refinery-payload-skeleton")).toBeVisible();
+  await traceHeroValues(page);
+
+  await page.getByRole("button", { name: "land" }).click();
+  await expect(page.getByTestId("refinery-hero-value")).toHaveText("7.5");
+
+  const trace = await heroTrace(page);
+  // The RAMP: values were painted between the start and the target, so this counted rather than snapped.
+  expect(trace.map(Number).filter((n) => n > 0 && n < 7.5).length).toBeGreaterThan(0);
+  // FRACTIONAL LANDING: the last frame is the target itself, never a quantized approximation of it — a
+  // ramp that rounded to integers would settle this on "8" and silently change the reported score.
+  expect(trace.at(-1)).toBe("7.5");
+});
+
+test("a RE-RUN retargets from the score on screen — it never snaps back to 0 (that would read as 'discarded')", async ({ mount, page }) => {
+  await mount(<HeroRampStory from={4} to={7.5} />);
+  await expect(page.getByTestId("refinery-hero-value")).toHaveText("4");
+  await traceHeroValues(page);
+
+  await page.getByRole("button", { name: "land" }).click();
+  await expect(page.getByTestId("refinery-hero-value")).toHaveText("7.5");
+
+  const trace = await heroTrace(page);
+  // Asserted as a FILTERED ARRAY, not a boolean: a `.every()` that fails prints `false` and tells you
+  // nothing, while this prints the offending frames.
+  expect(trace.filter((v) => Number(v) < 4)).toEqual([]);
+  expect(trace.map(Number).filter((n) => n > 4 && n < 7.5).length).toBeGreaterThan(0);
+});
+
+test("REDUCED MOTION removes the ramp rather than shortening it — the figure is correct on the first frame", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await mount(<HeroRampStory from={null} to={7.5} />);
+  await traceHeroValues(page);
+
+  await page.getByRole("button", { name: "land" }).click();
+  await expect(page.getByTestId("refinery-hero-value")).toHaveText("7.5");
+
+  // Every value the numeral ever printed is the answer. No intermediate state existed at all.
+  expect(await heroTrace(page)).toEqual(["7.5"]);
 });

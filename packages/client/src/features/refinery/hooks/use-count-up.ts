@@ -19,6 +19,13 @@
 // RE-ENTRANCY: the ramp is keyed on the TARGET. A second run landing mid-ramp retargets from wherever
 // the count currently is rather than restarting at zero (guide §3.2, interruptibility) — a re-run that
 // snapped back to 0 would read as "the previous result was discarded", which is not what happened.
+//
+// ARRIVAL vs PRESENCE (fixed 2026-08-09, phase 2.5 — the hook shipped animating the wrong case). The
+// original guard skipped the ramp on "the first value the hook ever sees", which is right for a figure
+// that was already painted at mount and WRONG for the money shot: a first run swaps the plan-shaped
+// skeleton for the settled payload, so the gauge MOUNTS holding its final number, and the 0 → score
+// count the side-eye asked for never ran. Only a re-run (gauge mounted, value changes) animated. The
+// caller now states which it is — see `arrived`.
 
 import { usePrefersReducedMotion } from "@orb/ui/lib";
 import { useEffect, useRef, useState } from "react";
@@ -56,17 +63,28 @@ function quantize(value: number, places: number): number {
 
 /**
  * The value to PRINT for a settling figure. Returns `target` immediately (no ramp) when `target` is
- * null, when the user prefers reduced motion, or on the very first value the hook ever sees — a number
- * that was already on screen when the surface mounted did not just "arrive", and animating it would be
- * motion the user did not cause (guide §3.8).
+ * null, when the user prefers reduced motion, or when the figure was ALREADY on screen at mount — a
+ * number that did not just "arrive" must not animate, or the surface moves for reasons the user did not
+ * cause (guide §3.8).
+ *
+ * `arrived` is how a caller says "this figure is the answer to something the user just watched run".
+ * It is load-bearing for the ONE case this hook exists for. A first run replaces the plan-shaped
+ * SKELETON with the settled payload, which MOUNTS the gauge carrying its final value — so without this
+ * flag the money shot (0 → score) was the exact case that never animated, while a re-run (gauge already
+ * mounted, value changes) was the only one that did. `PayloadView` sets it from the skeleton it just
+ * showed; a caller that renders a figure into a surface nobody was waiting on leaves it false.
  */
-export function useCountUp(target: number | null): number {
+export function useCountUp(target: number | null, arrived = false): number {
   const reducedMotion = usePrefersReducedMotion();
-  const [shown, setShown] = useState(target ?? 0);
+  // An ARRIVAL starts the count at 0 so it has somewhere to run from — except under reduced motion,
+  // where the answer must be right on the FIRST frame (a 0 that is immediately replaced is exactly the
+  // intermediate state the preference asks us not to paint).
+  const [shown, setShown] = useState(arrived && !reducedMotion ? 0 : (target ?? 0));
   // The last value we PRINTED, read inside the rAF loop without re-arming the effect on every frame.
   const shownRef = useRef(shown);
   shownRef.current = shown;
-  // First landed value is not an arrival — see the doc comment.
+  // "This hook has a value to ramp FROM." True at mount whenever a number is on screen, and true for an
+  // arrival (whose from-value is the 0 above) — a false here means the first number simply appears.
   const seenRef = useRef(target !== null);
 
   useEffect(() => {
@@ -82,7 +100,13 @@ export function useCountUp(target: number | null): number {
     const places = decimalsOf(target);
     const start = performance.now();
     let frame = requestAnimationFrame(function step(now: number): void {
-      const t = Math.min(1, (now - start) / COUNT_UP_MS);
+      // CLAMPED AT BOTH ENDS. A rAF callback's timestamp is the FRAME's start, which can be EARLIER
+      // than the `performance.now()` read while scheduling it — so `now - start` goes negative, and a
+      // one-sided `Math.min` let `easeOut` return a negative factor. Measured: a 4 → 7.5 re-run painted
+      // **3.8** on its first frame, i.e. the figure flicked BACKWARDS before counting up. Caught by the
+      // re-run CT's frame trace; it reproduced roughly one run in six, which is exactly how long it
+      // would have survived on a real machine.
+      const t = Math.min(1, Math.max(0, (now - start) / COUNT_UP_MS));
       // The final frame sets the TARGET itself, never a quantized approximation of it — the printed
       // figure must be byte-identical to the value the Meter and the wire carry.
       setShown(t < 1 ? quantize(from + (target - from) * easeOut(t), places) : target);

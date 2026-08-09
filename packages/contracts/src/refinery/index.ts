@@ -34,6 +34,10 @@ import { refineryVerdictSchema, SCORE_MAX, SCORE_MIN } from "./core.ts";
 export { REFINERY_VERDICTS, type RefineryVerdict, refineryVerdictSchema, SCORE_MAX, SCORE_MIN } from "./core.ts";
 // The refinery prose slot table (R1) — composed into `PROSE_SLOTS` by `#prose` through this front door.
 export { REFINERY_PROSE_SLOTS } from "./prose.ts";
+// The raw-door PREFLIGHT (advisories + stats). Sits BESIDE the belt, never in front of it: the belt
+// refuses, this only explains what a schema that saves will still cost on a hosted wire. It imports
+// nothing from this package, so its position in the re-export order carries no load-order meaning.
+export * from "./schema-advisory.ts";
 export * from "./schema-authoring.ts";
 // The forge's WIRE GRAMMAR (task #36 — the meta-schema every NL→schema call is constrained by). Imports
 // ./schema-authoring.ts for the caps it mirrors, so it is re-exported AFTER it.
@@ -597,11 +601,26 @@ export const refineryRunSchema = z.union([
 export type RefineryRun = z.infer<typeof refineryRunSchema>;
 
 /** The sessions-roster row (D62: name · character · verdict badge · updatedAt). `latestVerdict` is the
- *  newest analyze run's verdict, null before the first analyze. Character display resolves client-side
- *  by `characterId`; the full session view (R1, domain contract/) carries `originalCard`. */
+ *  newest analyze run's verdict, null before the first analyze; the full session view (R1, domain
+ *  contract/) carries `originalCard`.
+ *
+ *  CHARACTER IDENTITY RIDES THE ROW, SERVER-SIDE. This comment previously read "Character display
+ *  resolves client-side by `characterId`" — TRUTH-REPAIRED (orchestrator ruling, 2026-08-09), because
+ *  that mechanism has a hard ceiling the roster cannot survive: the client join's only source is
+ *  `character.list`, a cursor page capped at 100 rows (`MAX_LIMIT`, domain/character/verbs/list.ts), so
+ *  a session whose card sits past page one renders UNNAMED and is unfindable by the roster's own search
+ *  (the paginating-a-list-breaks-resolve-by-find class). The persistence read ALREADY inner-joins
+ *  `characters` for owner-scoping (domain/refinery/persistence/queries.ts), so carrying the two display
+ *  facts costs one left-join to `assets` and no extra query — and `characterName` is non-nullable
+ *  precisely BECAUSE that join is an inner one: a summary exists only where its character does. */
 export const refinerySessionSummarySchema = z.object({
   id: typeIdSchema(ID_PREFIX.refinerySession),
   characterId: typeIdSchema(ID_PREFIX.character),
+  /** The card's display name, joined server-side — the roster row's TITLE and its search key. */
+  characterName: z.string(),
+  /** The CAS hash of the card's `avatarAssetId` (`assets.hash`, joined server-side); `blobUrl(hash)` is
+   *  the row avatar's `src`. Null when the card has no avatar. */
+  characterAvatarHash: z.string().nullable(),
   name: refinerySessionNameSchema.nullable(),
   status: refinerySessionStatusSchema,
   iterationCount: z.number().int().min(0),
