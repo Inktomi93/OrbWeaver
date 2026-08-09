@@ -203,6 +203,47 @@ test("R-7 — every row's description shares ONE left edge, and takes ALL the wi
   expect([...new Set(rows.map((r) => r.toActions))], "the description always runs to the trailing cluster").toHaveLength(1);
 });
 
+// …AND THE DESCRIPTION IS NOT CUT MID-SENTENCE (side-eye 2026-08-08 P2). One left edge and full remaining
+// width still left every Group-rounds row ellipsised — up to 38% of the text gone, and the DISCRIMINATING
+// clause was what went ("…once per other present roster member" vs "…once per cast member whose card rides
+// beside the primary"), so the only cell that tells those seven rows apart was the cell being hidden. The
+// house arm for a subtitle that is a SENTENCE is a two-line clamp. Pinned on the RENDERED overflow, not on a
+// class: nothing may be ellipsised away.
+test("no row's description is truncated — the fires gloss clamps to two lines instead", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  await expect(probe.getByRole("button", { name: "Response nudge", exact: true })).toBeVisible();
+  await expandAllClusters(probe);
+
+  const glosses = await probe.locator(`${ROW_ROOT} [data-slot="list-row-subtitle"]`).evaluateAll((els) =>
+    els.map((el) => ({
+      text: el.textContent ?? "",
+      whitespace: globalThis.getComputedStyle(el).whiteSpace,
+      // A `truncate`d cell reports its full text as scrollWidth past the visible clientWidth; a clamped one
+      // wraps, so the horizontal overflow is gone.
+      clipped: el.scrollWidth > el.clientWidth + 1,
+    })),
+  );
+  expect(glosses.length).toBe(TEMPLATE_DEFS.length);
+  for (const gloss of glosses) {
+    expect(gloss.whitespace, `"${gloss.text}" must be allowed to wrap`).not.toBe("nowrap");
+    expect(gloss.clipped, `"${gloss.text}" must not be cut off horizontally`).toBe(false);
+  }
+});
+
+// THE LIST SHOWS WHICH ROW THE READOUT IS DESCRIBING, FROM THE FIRST FRAME (side-eye 2026-08-08 P2). The
+// readout owned its "else row 1" fallback privately, so on tab open it printed a specific delivery path and
+// a specific resolved preview as authoritative CONTEXT while NOTHING in the list was highlighted — a
+// confident answer to an unstated question. Both panes read `inspectedTemplateRow` now. The pin is the
+// rendered selection at rest, before any click.
+test("at tab open exactly ONE row is selected — the registry's first, the one the readout describes", async ({ mount }) => {
+  const probe = await mount(<ActionsStory />);
+  await expect(probe.getByRole("button", { name: "Response nudge", exact: true })).toBeVisible();
+
+  const selected = probe.locator(`${ROW_ROOT}[data-selected]`);
+  await expect(selected).toHaveCount(1);
+  await expect(selected.locator('[data-slot="list-row-title"]')).toHaveText(TEMPLATE_DEFS[0].label);
+});
+
 test("the list is a FIXED ENUM — no toggle, no grip, no Add anywhere (§16 row 31's absence)", async ({ mount }) => {
   const probe = await mount(<ActionsStory />);
   // The absences hold over the WHOLE surface, banded rows included — a management affordance hiding inside

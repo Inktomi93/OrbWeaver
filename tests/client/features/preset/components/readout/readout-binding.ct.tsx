@@ -149,9 +149,12 @@ test("BOUND — the Actions preview resolves identity for REAL and keeps the fir
   // the wrong thing while looking perfectly fine.
   await expect.poll(() => trpc.inputs("chat.previewActionTemplates")).toEqual([{ chatId: CHAT, presetId: PRESET }]);
 
-  // The panel NAMES which template it is showing — the mock's own `Resolved — Impersonate` kicker. Without
-  // it a resolved block is prose with no subject, and the echo of the row you selected is unreadable.
-  await expect(probe.getByRole("heading", { name: "Resolved — Impersonate" })).toBeVisible();
+  // The panel NAMES which template it is showing. Without it a resolved block is prose with no subject, and
+  // the echo of the row you selected is unreadable. The name lives on the panel's own HEADER since side-eye
+  // 2026-08-08 P2 (it was a suffix on the Resolved kicker, one section down and easy to read as belonging to
+  // that section alone), and the whole region carries it as its accessible name.
+  await expect(probe.getByRole("heading", { name: "Impersonate", exact: true })).toBeVisible();
+  await expect(probe.getByRole("region", { name: "Action readout — Impersonate" })).toBeVisible();
 
   // THE HONESTY PIN, both halves in one assertion set. `{{user}}` came back as "Nate" (the chat resolved it),
   // and the two fire-time tokens are still tokens because the user has typed no steer and picked no

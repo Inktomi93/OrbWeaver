@@ -45,7 +45,15 @@ import { useId, useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { closePresetTemplateDrill, drillPresetTemplate, selectPresetTemplate, useDrilledPresetTemplateId, useSelectedPresetTemplateId } from "#state";
 import type { TemplateRow, TemplateRowCluster } from "../lib/template-rows.ts";
-import { ACTIONS_TAB_TEACH, isCustomized, TEMPLATE_KIND_LABEL, templateGroups, templateRowById, templateStoredText } from "../lib/template-rows.ts";
+import {
+  ACTIONS_TAB_TEACH,
+  inspectedTemplateRow,
+  isCustomized,
+  TEMPLATE_KIND_LABEL,
+  templateGroups,
+  templateRowById,
+  templateStoredText,
+} from "../lib/template-rows.ts";
 import { TemplateDrillIn } from "./template-drill-in.tsx";
 
 type PresetForm = AppFormInstance<PromptConfig>;
@@ -80,8 +88,10 @@ export function ActionsView({ form, onSelectSection }: ActionsViewProps): ReactE
   // remount (IA §2.6). A stale id (a def that left the registry) resolves to no row and the list stands.
   const drilledId = useDrilledPresetTemplateId();
   // READ-ONLY here: the row highlight mirrors the same selection the READOUT projects, so the two panes can
-  // never disagree about which template is being inspected.
-  const selectedId = useSelectedPresetTemplateId();
+  // never disagree about which template is being inspected — through the SHARED `inspectedTemplateRow`
+  // fallback (side-eye 2026-08-08 P2), so at tab open row 1 is visibly selected rather than the readout
+  // silently describing a row nothing on screen points at.
+  const selectedId = inspectedTemplateRow(useSelectedPresetTemplateId()).def.id;
   // The tab-level filter (IA §2.2 — 67 rows > COLLECTION_LARGE_GROUP, the config-roster precedent). Local
   // on purpose: the drill swaps this component's RETURN, not its mount, so the filter survives a drill
   // round-trip; no sibling region reads it.
@@ -288,6 +298,13 @@ function TemplateListRow({
             // fires gloss at 1fr") always specified.
             subtitle={def.fires}
             subtitlePlacement="column"
+            // TWO LINES, NOT ONE (side-eye 2026-08-08 P2). `column` fixed WHERE the gloss starts; it still
+            // truncated, and on the Group-rounds cluster all seven rows lost up to 38% of their text — with
+            // the DISCRIMINATING word inside the cut ("…once per other present roster member" vs "…once per
+            // cast member whose card rides beside the primary"), so the one cell that tells the rows apart
+            // was the cell being hidden. `subtitleWrap` is the house arm for a subtitle that is a SENTENCE:
+            // clamp to two lines, raised leading. Titles fit — the name column is untouched.
+            subtitleWrap={true}
             title={def.label}
           />
         );

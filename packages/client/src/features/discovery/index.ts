@@ -8,6 +8,7 @@ export type { CorpusListAnchorProps } from "./anchors/corpus-list-anchor.tsx";
 export { CorpusListAnchor } from "./anchors/corpus-list-anchor.tsx";
 export { CorpusArchetypesTab } from "./components/corpus-archetypes-tab.tsx";
 export { CorpusCompareTab } from "./components/corpus-compare-tab.tsx";
+export { CorpusContent } from "./components/corpus-content.tsx";
 export { CorpusContextHeader } from "./components/corpus-context-header.tsx";
 export { CorpusListHeader } from "./components/corpus-list-header.tsx";
 export { CorpusMapTab } from "./components/corpus-map-tab.tsx";

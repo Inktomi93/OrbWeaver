@@ -46,7 +46,9 @@ export function CorpusDossierSurface({ characterId, onBack }: CorpusDossierSurfa
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("corpusDossierSurface")}>
+    // No height/scroll/inset of its own — the CONTENT region owns all three for both corpus surfaces
+    // (`corpus-content.tsx`, the Configuration precedent).
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none" data-testid={testId("corpusDossierSurface")}>
       <QueryBoundary
         fallback={<Text voice="gloss">Loading dossier…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the dossier" onRetry={retry} />}
@@ -81,7 +83,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
   const avatarHash = dossier.portrait?.avatarHash ?? null;
 
   return (
-    <Stack className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
+    <Stack gap="section">
       <Button intent="ghost" size="sm" onClick={onBack} className="self-start">
         <Icon icon={ArrowLeft} size="sm" />
         Back

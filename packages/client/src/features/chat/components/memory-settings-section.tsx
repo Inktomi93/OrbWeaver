@@ -13,6 +13,8 @@
 // the settings shell owns containment + focus-on-mount, so it is not itself a surface (extracted-fragment
 // precedent; client-structure + surface-a11y-focus therefore do not apply).
 
+import { Button } from "@orb/ui/button";
+import { ExternalLink, Icon } from "@orb/ui/icons";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
@@ -21,7 +23,7 @@ import { SettingSwitchRow } from "#components";
 import { createEntityMutation, QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import type { SaveLifecycleState } from "#state";
-import { settingsAnchorId } from "#state";
+import { openSettingsTo, settingsAnchorId } from "#state";
 import { MEMORY_SETTINGS_SUBCATEGORY } from "../lib/memory-settings-section-nav.ts";
 
 interface MemoryPatchVars {
@@ -71,10 +73,28 @@ function MemorySettingsBody({ sectionId }: { readonly sectionId: string }): Reac
           checked={data.config.memory.enabled}
           onChange={(next): void => setEnabled.mutate({ section: "memory", patch: { enabled: next } })}
         />
-        <Text voice="gloss">
-          Turning this on affects new activity only — it doesn't reprocess chats you've already had, so nothing changes right away. To build memory for existing
-          chats, run the Memory backfill job under Settings → Jobs.
-        </Text>
+        {/* THE NOTE IS PROSE, IN THE ROW'S OWN COLUMN (side-eye 2026-08-08 P2). It shipped at the `gloss`
+            voice's bare `text-micro` (10.5px, tight leading) and ran the FULL section width (~140ch), while
+            the switch description one line above it — the same kind of teaching sentence — sits at
+            `text-label` (13px) inside the Field's label column (~95ch). Two voices and two measures for one
+            explanation, with the SMALLER type carrying the harder fact ("nothing changes right away").
+            `prose` is the sanctioned length modifier (it lifts the step + leading and changes nothing else),
+            and the end padding reserves the same gutter the Field's control column takes, so both
+            paragraphs break on the same column. */}
+        <Stack className="pe-(--width-control-col) @max-md:pe-0" gap="field">
+          <Text voice="gloss" prose={true}>
+            Turning this on affects new activity only — it doesn't reprocess chats you've already had, so nothing changes right away. To build memory for
+            existing chats, run the Memory backfill job.
+          </Text>
+          {/* A cross-SURFACE pointer is a DOOR, not a sentence (side-eye 2026-08-08 P3): "run it under
+              Settings → Jobs" named a place the reader then had to go find by hand. The `CarrierBody`
+              grammar — ghost button + external-link glyph, riding a standing shell intent — is the repo's
+              existing shape for exactly this, so it is reused rather than re-invented. */}
+          <Button className="self-start" intent="ghost" onClick={(): void => openSettingsTo("workloads", "jobs")} size="sm" type="button">
+            Go to Jobs
+            <Icon icon={ExternalLink} size="xs" />
+          </Button>
+        </Stack>
       </Stack>
     </Section>
   );
