@@ -352,6 +352,19 @@ transform-only reorder, reduced-motion gated (`usePrefersReducedMotion` →
 **9. Selection/checked state.** BUILT. `checkbox/variants.ts`, `radio-group/variants.ts` (and
 siblings) carry `transition-colors duration-(--motion-fast) ease-out-expo`.
 
+**10. Streamed-word reveal fade (chat ghost row).** BUILT (#42, owner-ordered 2026-08-09 —
+supersedes the old §4.3 "don't animate streaming text" bullet; design + measurements:
+`docs/design/streaming-reveal-42.md`). Each newly revealed word of a streaming message fades in
+(opacity-only keyframe `orb-word-reveal`, `--motion-base` + `--ease-out-expo`, `fill both`) via the
+markdown seal's own rehype plugin (`ui/src/markdown/reveal-plugin.ts` → `[data-orb-reveal]` spans in
+`ui/src/styles/globals.css`). Fade progress is anchored to the word's REVEAL TIME through a negative
+`animation-delay`, so the hot-loop re-renders of a streaming block resume a mid-flight fade instead
+of restarting or snapping it — that anchoring is what makes a per-word fade safe on a
+high-frequency surface. Reduced-motion is REMOVE per §3.9 (no spans injected under the OS query;
+the CSS floors collapse the rest). The streaming caret beside it is also seal-owned CSS (2px
+primary bar on the last LEAF block — never Streamdown's `caret` prop, whose `::after` lands on the
+per-block `dir` wrapper and drops to a new line).
+
 ### 4.3 What NOT to add
 
 - No parallax, no scroll-jacking — nothing in the sources or the app's own restrained
@@ -359,8 +372,10 @@ siblings) carry `transition-colors duration-(--motion-fast) ease-out-expo`.
 - No bounce/elastic/spring-overshoot on anything programmatic (menus, dialogs, tabs) — save
   spring physics for genuinely gesture-driven surfaces only (drawer swipe, drag-reorder
   release).
-- Don't animate high-frequency/hot-loop surfaces (every keystroke, streaming token-by-token
-  text beyond what `useSmoothText` already paces) — violates the "100+ times daily" litmus.
+- Don't animate high-frequency/hot-loop surfaces (every keystroke) — violates the "100+ times
+  daily" litmus. (The old clause here also banned animating streamed token text; the owner
+  superseded that 2026-08-09 — the streamed-word reveal fade is §4.2 item 10, and its reveal-time
+  anchoring is the technique that makes a hot-loop fade correct.)
 - Don't invent a 4th/5th duration token or a 2nd easing curve without a category that
   genuinely doesn't fit `fast`/`base`/`layout` + `ease-out-expo`. The existing 3-tier system
   already covers the full taxonomy in §2.
