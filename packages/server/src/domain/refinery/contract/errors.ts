@@ -1,11 +1,13 @@
-// domain/refinery/contract/errors — the two typed errors refinery mints. Everything else is the house's:
+// domain/refinery/contract/errors — the three typed errors refinery mints. Everything else is the house's:
 // a foreign/absent session or character collapses to `DomainNotFoundError` (@orb/kit/errors → NOT_FOUND,
 // leak-free — the cross-tenant sweep's required shape), and ownership belts run BEFORE any statement
 // about content (the discovery existence-oracle ordering, `distill.ts`'s belt). Both classes here are
 // minted WITH their throw sites, in the same commit (the discovery errors-file law).
 
-import { REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
+import type { RefineryStage } from "@orb/contracts/refinery";
+import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
 import { DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
+import type { StageBudgetMisfit } from "./prompts.ts";
 
 /**
  * A stage run refused OUT OF ORDER — analyze with no rewrite run to judge, or an `iterate` round with no
@@ -17,6 +19,29 @@ import { DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
 export class RefineryStageNotReadyError extends DomainOperationError {
   constructor(message: string) {
     super(REFINERY_STAGE_NOT_READY_REASON, message);
+    this.name = this.constructor.name;
+  }
+}
+
+/**
+ * A stage run refused because the CALLER'S OWN preset caps `maxOutputTokens` below what this stage's payload
+ * needs (the owner ruling on live-e2e 2026-08-09 open fork 1; the predicate is `stageBudgetMisfitOf`). NOT
+ * retryable, not the model's fault, and not a server capacity problem (→ BAD_REQUEST): re-running changes
+ * nothing until a knob moves, which is why it is refused before a single token is decoded rather than
+ * discovered 21 seconds later as a truncation.
+ *
+ * THE MESSAGE IS THE FIT RECEIPT, and it is built HERE so the sentence has one spelling: the computed need,
+ * the cap that is under it, and the two knobs that fix it — the same pair the preflight warn line offers
+ * ("Raise max output in the preset, or narrow the selection"), because the refusal is that warning's other
+ * half, not a different diagnosis. The client quotes this text verbatim off the wire reason code; it must
+ * therefore stay self-contained and free of internals (the paths-not-messages law).
+ */
+export class RefineryOutputBudgetError extends DomainOperationError {
+  constructor(stage: RefineryStage, misfit: StageBudgetMisfit) {
+    super(
+      REFINERY_OUTPUT_BUDGET_REASON,
+      `This ${stage} run needs about ${misfit.needTokens} output tokens, but your preset caps max output at ${misfit.capTokens} — it would truncate and fail. Raise max output in the preset, or narrow the selection.`,
+    );
     this.name = this.constructor.name;
   }
 }

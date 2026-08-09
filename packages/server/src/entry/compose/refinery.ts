@@ -62,6 +62,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
     refinery,
     refineryWorkloads: {
       summarize: deps.roleClients.summarize,
+      summarizerContextTokens: deps.roleClients.summarizerContextTokens,
       resolveUserPresetParams: deps.resolveUserPresetParams,
       resolveUserProse,
       listRefineryScoreTargets: createListRefineryScoreTargets({ db: deps.db }),

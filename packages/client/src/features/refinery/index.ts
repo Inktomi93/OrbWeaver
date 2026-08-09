@@ -7,6 +7,11 @@
 export { AcceptReview } from "./components/accept-review.tsx";
 export { PayloadView } from "./components/payload-view.tsx";
 export { SchemaEditorDialog } from "./components/schema-editor-dialog.tsx";
+/** @public exported for the CT story that drives the REAL first-run arm (run null + running → a run lands
+ *  with `arrived`) — the composition surface imports it relatively; a story importing it relatively would
+ *  mount against a different React context instance (this door's own header). */
+export type { StagePaneProps } from "./components/stage-pane.tsx";
+export { StagePane } from "./components/stage-pane.tsx";
 export type { StageCell } from "./components/stage-stepper.tsx";
 export { StageStepper } from "./components/stage-stepper.tsx";
 export { TeachingState } from "./components/teaching-state.tsx";

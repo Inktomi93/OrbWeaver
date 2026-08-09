@@ -21,7 +21,6 @@ import type {
 import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { z } from "zod";
-import type { RefinerySessionView } from "./results.ts";
 
 /** One stage call's parse seam (built fresh per run — the capture is per-call state). */
 export interface StageParse<T> {
@@ -120,15 +119,42 @@ export interface StageOutputBudgetArgs {
   readonly inputEstimate: number;
 }
 
+/**
+ * WHAT the §8 output arithmetic is about to be asked for — the card and the slice of it under the stage,
+ * plus (rewrite only) the mode whose prose promises a length. Deliberately NOT a session: a
+ * `RefinerySessionView` satisfies it (`stageSubjectOf`), and so does the LIBRARY SWEEP's per-card pair,
+ * which has no session at all and still has to size its cap off the payload rather than the raw posture
+ * floor (live-e2e 2026-08-09 open fork 3 — the sweep shipped on the raw floor, the same defect class as
+ * the 503). Stage-tagged so the rewrite arm can REQUIRE its mode instead of defaulting one in.
+ */
+export type StageEstimateSubject =
+  // DERIVED, never re-spelled (`no-inline-union-redecl`): "every stage but the one that carries a mode".
+  | { readonly stage: Exclude<RefineryStage, "rewrite">; readonly card: CharacterCard; readonly selection: RefinerySelection }
+  | { readonly stage: "rewrite"; readonly card: CharacterCard; readonly selection: RefinerySelection; readonly mode: RefineryRewriteMode };
+
+/** What deciding the RULED refusal needs: the payload's own need vs the ladder's top rung. Split out from
+ *  {@link StageSamplingArgs} because the verdict is prompt-independent — the engine refuses BEFORE it
+ *  assembles anything, so a guaranteed-overrun run spends no decode at all. */
+export interface StageBudgetFitArgs {
+  readonly subject: StageEstimateSubject;
+  /** The caller's resolved preset generation params — the ladder's TOP rung, unchanged by any of this. */
+  readonly presetParams: SideGenSampling | undefined;
+}
+
+/** The refusal RECEIPT (`stageBudgetMisfitOf` — null when the run fits): the two numbers the user needs to
+ *  act, carried as data so the error class owns the ONE spelling of the sentence. */
+export interface StageBudgetMisfit {
+  /** The §8 prediction for this stage — the same number the fit line prints as `out ≈ N`. */
+  readonly needTokens: number;
+  /** The caller's own explicit preset `maxOutputTokens` — the cap that wins the ladder outright. */
+  readonly capTokens: number;
+}
+
 /** What resolving ONE stage call's whole sampling posture needs — the ladder plus the payload-aware floor
  *  ({@link StageOutputBudgetArgs}). Both `preflight` and the stage engine pass this, which is what keeps
  *  the fit line's advertised ceiling and the wire's `maxTokens` ONE expression instead of two that agreed
  *  by luck (they did not agree, and the disagreement was a 503 — `substrate/output-budget`'s header). */
-export interface StageSamplingArgs {
-  readonly stage: RefineryStage;
-  readonly session: RefinerySessionView;
-  /** The caller's resolved preset generation params — the ladder's TOP rung, unchanged by any of this. */
-  readonly presetParams: SideGenSampling | undefined;
+export interface StageSamplingArgs extends StageBudgetFitArgs {
   readonly contextTokens: number | null;
   /** This call's assembled-prompt estimate. */
   readonly inputEstimate: number;

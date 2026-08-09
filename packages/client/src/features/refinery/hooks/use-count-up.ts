@@ -71,8 +71,15 @@ function quantize(value: number, places: number): number {
  * It is load-bearing for the ONE case this hook exists for. A first run replaces the plan-shaped
  * SKELETON with the settled payload, which MOUNTS the gauge carrying its final value — so without this
  * flag the money shot (0 → score) was the exact case that never animated, while a re-run (gauge already
- * mounted, value changes) was the only one that did. `PayloadView` sets it from the skeleton it just
- * showed; a caller that renders a figure into a surface nobody was waiting on leaves it false.
+ * mounted, value changes) was the only one that did.
+ *
+ * WHO SETS IT: the SURFACE, and only the surface. `RefineryContentSurface` records the run ids its own
+ * mutations produced and threads the verdict down (surface → `StagePane` → `PayloadView` → `HeroGauge`), so
+ * the flag means "the user watched this run land", which is the fact the guard was previously guessing at.
+ * `PayloadView` does NOT infer it — an earlier version of this line said it "sets it from the skeleton it
+ * just showed", which was true of a local latch that has since been deleted as production-unreachable
+ * (`payload-view.tsx`'s `arrived` doc). A caller that renders a figure into a surface nobody was waiting on
+ * leaves it false.
  */
 export function useCountUp(target: number | null, arrived = false): number {
   const reducedMotion = usePrefersReducedMotion();
