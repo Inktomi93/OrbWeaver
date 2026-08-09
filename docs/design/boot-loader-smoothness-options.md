@@ -102,36 +102,122 @@ WebGL only wins if A1's ceiling turns out insufficient, which the analysis above
 **Stack fit: poor-to-neutral** — solves an already-solved problem at a real complexity and dependency
 tax; only justified if profiling A1 shows it can't hit 60fps (unlikely).
 
-### A3. Animated SVG (stroke-dashoffset weave + CSS/WAAPI)
+### A3. Animated SVG + CSS `@keyframes` — the HOUSE PATTERN (the waystone precedent)
 
-**What changes:** every strand becomes an SVG `<path>` animated via `stroke-dasharray`/
-`stroke-dashoffset` (the classic "draw-on" trick) or WAAPI, sway via CSS custom properties or a
-transform, dew/glint as separate elements.
+**Revised verdict (supersedes an earlier draft of this doc that took the design doc's SVG rejection at
+face value without checking whether this codebase already runs a comparable animated-SVG surface at
+60fps in production).** It does: **the waystone** (`packages/ui/src/charts/meter/waystone.tsx` +
+`waystone-layers.tsx`; keyframes `packages/ui/src/styles/globals.css:394-720`) is a family of eight
+independently animated SVG layers inside one 96×96 viewBox — dial arcs, cardinal glyphs, a star field,
+a cloud deck, falling-particle lattices, a sky wash + lightning bolt, wind/fog bands, a sun/moon that
+translates along its arc — **zero `<canvas>`, zero `requestAnimationFrame`, zero WAAPI** (confirmed:
+no `getContext`/rAF/`.animate` anywhere under `charts/meter/`). It is proven smooth precisely *because*
+it never repaints static geometry — CSS `@keyframes` on `translate`/`rotate`/`opacity`/`scale` run on
+the compositor thread, and the browser's own retained-mode paint cache keeps unanimated path geometry
+as a static layer, repainted zero times per second. That is the structural fix the offscreen-cache
+option (A1) has to hand-roll — SVG gets it for free from the platform's rendering model.
 
-**Verdict:** the design doc already ran this analysis (§1.2, live in the repo) and rejected it for
-concrete, still-valid reasons: the capture spiral is "thousands of dash-managed segments," the spider
-needs to walk an articulated-leg path tangent (no SVG primitive expresses "legs following a moving
-strand tip"), sag-tension interpolation *mutates geometry every frame* (a `<path d>` string rewrite per
-frame, not a cheap transform — this is worse than canvas per-frame stroke, since it forces DOM
-attribute parsing + layout invalidation on top of paint), and dew/glint are point-level painters that
-map to per-point DOM elements at the CT-proven density this web runs at (~4k segments). SVG's real
-strength — compositor-friendly CSS/WAAPI transforms on a *few dozen* static shapes — is not what this
-component needs; it needs per-frame *procedural mutation* of thousands of points, which is exactly what
-DOM-based rendering is bad at (each mutation risks layout/paint, unlike canvas's flat pixel buffer).
-**Ceiling: uncertain, likely worse than current canvas** for the live-weave and settled-sway states
-specifically (bounded animated primitives — dew twinkle, glint sweep — would be fine in isolation, but
-the strand geometry itself doesn't fit SVG's model without either baking to static paths, defeating the
-whole point, or fighting per-frame `d` attribute churn). **Complexity:** high (rearchitects the entire
-render module for a worse fit). **Dep cost:** zero. **Stack fit:** poor — contradicts the design's own
-prior rejection with no new information that changes the calculus.
+**The one real risk, addressed head-on, not hand-waved:** the waystone's busiest layers (star field,
+particle lattice) run on the order of a dozen-to-a-few-dozen elements. The weave is bigger — confirmed
+by reading `web-weave-geometry.ts`: `RADIUS_COUNT = 16` (`:141`), `CAPTURE_TURNS = 9` /
+`SPIRAL_STEP_RAD = 0.11` (`:145,175`) → ≈514 capture-spiral sample points, `AUX_TURNS = 4.4` → ≈251
+scaffold points, 16 radii × `RADIUS_SAMPLES = 22` (`:177`) → 352 points, plus frame/bridge/drop
+samples — **≈1,300 total path points**, the same order of magnitude the design doc's original "thousands
+of dash-managed segments" rejection (§1.2) was gesturing at. **Does that push it over the wall? No —
+if segments are grouped correctly, and yes if they're treated as one animated element per point.** The
+distinction that matters:
+
+- **Static path *point count* is a one-time paint cost, not a per-frame cost.** A `<path d="...">`
+  with 500 points, once painted and not touching `d` again, costs the browser nothing on subsequent
+  frames — same as any complex static SVG illustration. This is NOT the same risk as canvas, where
+  every point is re-stroked every tick regardless of whether it changed.
+- **The real budget is *animated element/layer count*, not point count.** Each CSS-animated
+  transform/opacity target is a compositor layer; dozens of them is exactly the waystone's proven
+  envelope (6 dial-arc paths + 2 cardinal glyphs + ~10 star circles with individually offset
+  twinkle phases (`globals.css:569-593`, the `nth-child(7n+k)` coprime-phase trick — 7 buckets over 10
+  stars so no two stars sync) + cloud slots + particle-lattice motes + 2 wind/fog band groups — all
+  ticking concurrently today at 96×96, unmeasured-but-unflagged by any side-eye pass). Hundreds of
+  *animated* elements is the danger zone; dozens is not.
+
+**Concrete grouping strategy (the answer, not a hand-wave) — port the render module's beats onto this
+discipline:**
+
+1. **Weaving draw-on → `stroke-dasharray`/`stroke-dashoffset` per strand, timed by data, not JS.** Each
+   strand already carries its birth window (`t0`/`t1` — `WeaveStrand` in `web-weave-geometry.ts:38-45`).
+   Set `stroke-dasharray: <path length>` and animate `stroke-dashoffset` from length→0 with
+   `animation-delay`/`animation-duration` computed once from `t0`/`t1` at mount (inline custom
+   properties, same idiom the render module already uses for `--orb-ws-pitch`/`--orb-weave-hub-x`).
+   After that, the browser's own animation timeline runs it — **zero JS per frame**, versus the current
+   canvas loop's `Math.sin`/`clearRect`/full-restroke on every rAF tick. This is a *more* efficient
+   build phase than what ships today, not just an equally-fast one.
+2. **16 radii = 16 elements, not 352.** Each radius is ONE `<path>` (its 22 sample points baked into a
+   single `d`); sway/dashoffset apply per-path, not per-point. Same for frame/bridge (1 path each).
+3. **Capture spiral (~514 points) split into ~6-8 arc-ring `<path>` groups**, not one path per point and
+   not one path for the whole spiral (a single path can't carry per-ring phase-offset sway). Each ring
+   gets a phase-offset `orb-ws-sway`-style transform (coprime `animation-delay` fractions, the star
+   precedent at `globals.css:569-593`), so the sway reads organic without per-point sine math. Total
+   animated groups for the whole web: 16 radii + ~8 spiral rings + ~1 frame + ~1 bridge + dew drops
+   (≈20-30, same order as the design's own dew-density spec) + spider ≈ **60-70 concurrently animated
+   elements at peak (weaving phase)**, settling to a much smaller ambient set (sway groups + dew + glint
+   overlay + resting spider ≈ 30-40) once settled — both comfortably inside the compositor's practical
+   envelope for transform/opacity-only layers, and the ambient-state number is within 2-3x of the
+   waystone's own already-shipping-smooth count.
+4. **Sway is GROUP-level, never per-point** (matches the waystone's own `orb-ws-sway`/`orb-ws-driftx`
+   pattern, `globals.css:427-441` — a whole-group `translate`, not a per-vertex offset). This is a
+   visual approximation of the canvas version's per-point ripple, not an identical reproduction — an
+   acceptable trade the waystone already normalizes in this codebase (its fog/wind bands sway as whole
+   groups too, `waystone-layers.tsx:158-186`).
+5. **Spider walk → CSS motion path (`offset-path`/`offset-distance`)** along the precomputed
+   `SpiderLeg.pts` polylines (`web-weave-geometry.ts:56-63`, already itinerary data) instead of the
+   current per-frame imperative pose tracker (`web-weave-spider.ts`). Resting/breathing spider = a
+   `scale` keyframe, identical in spirit to `orb-ws-glow`'s breathe (`globals.css:597-599`). Leg
+   articulation (gait) during the walk is the one piece that stays closest to bespoke work — nested
+   per-leg groups with phase-offset step keyframes, the same idiom as the wind bands' offset-copy
+   trick (`waystone-layers.tsx:160-174`, two gust groups half a cycle apart so wind never fully
+   disappears).
+6. **Glow: bake it, never compute it live — same lesson as canvas `shadowBlur`, restated for SVG.**
+   `<feGaussianBlur>` / CSS `filter: blur()` are expensive when applied to an *animating* element
+   (many engines fall back to software raster for filtered layers, reproducing exactly canvas's
+   shadowBlur problem in a different API). Fix: bake the glow as a static asset — a duplicated,
+   thicker, lower-opacity stroke copy of the same static path (a "glow twin," zero live filter cost)
+   for the capture spiral's halo, or a pre-blurred sprite computed once. Filters are fine on layers
+   that never move; dangerous on ones that do.
+7. **Glint sweep → a rotating gradient-masked overlay, not per-segment alpha math.** The canvas version
+   computes an angular distance-from-sweep alpha for every capture/radii segment every frame
+   (`web-weave-render.ts:187-192`, `drawGlint`'s `lit()` function) — O(segments) trig per tick. The SVG
+   equivalent: a single `<rect>`/`<div>` carrying a conic/radial CSS gradient, masked over the strand
+   layer, animated with one `rotate` transform keyframe. This is compositor-only (one rotating layer)
+   versus canvas's per-segment recomputation — strictly cheaper, and it's the same "rotating sheen"
+   technique used broadly for skeleton-loader shimmer, just repurposed as a directional sweep.
+8. **Hidden-tab pause + reduced motion: port the waystone's mechanism verbatim.**
+   `[data-paused="true"] * { animation-play-state: paused; }` off one `visibilitychange` subscription
+   (`waystone.tsx:123-124`, `globals.css:665-667`), and `@media (prefers-reduced-motion: reduce) { * {
+   animation: none; } }` with resting-frame overrides for any animation whose *default* rest state
+   would otherwise vanish (the bolt precedent, `globals.css:669-680`) — directly reusable for the
+   weave's own reduced-motion REMOVE law (design doc §3.9), replacing the current JS `still` branch
+   with the same declarative mechanism the waystone already ships.
+
+**Ceiling: 60fps at DPR2, high confidence, PROVIDED the grouping discipline above is followed** — the
+failure mode to avoid is a *naive* SVG port that animates per-point or per-segment (which would indeed
+hit a wall, as the design doc's original rejection correctly warned), not SVG-as-a-technology. Grouped
+correctly, this is structurally *safer* against the fill-bound failure than canvas, because the browser
+enforces "don't repaint what didn't change" automatically instead of relying on hand-rolled cache
+invalidation. **Complexity:** high — this is a real rearchitecture of the render module (imperative
+painters → declarative grouped SVG + keyframe timing), more invasive than A1's targeted cache-and-drop-
+shadowBlur patch, but it is executing an *already-proven-in-this-codebase* pattern, not inventing a new
+one. **Dep cost:** zero — CSS, `offset-path`, and SVG masks/gradients are platform features already in
+use (globals.css, the waystone). **Stack fit: excellent, and the best philosophical fit** — it aligns
+the weave with the single house pattern this codebase already trusts for "smooth, rich, ambient
+animated visual," rather than adding a second bespoke rendering strategy (hand-rolled canvas caching)
+that the waystone precedent shows wasn't even necessary here.
 
 ### Layer A verdict table
 
 | Option | fps ceiling @ DPR2 | Complexity | Dep cost | Stack fit |
 | --- | --- | --- | --- | --- |
-| **A1 Canvas 2D + offscreen cache, drop live `shadowBlur`** | **60fps, high confidence** | Medium (speced already) | None | Excellent |
+| **A3 Animated SVG + CSS keyframes (waystone pattern)** | **60fps, high confidence, if grouped per-unit not per-point** | High (real rearchitecture, but a proven in-house pattern) | None | **Best — the house pattern for exactly this problem shape** |
+| A1 Canvas 2D + offscreen cache, drop live `shadowBlur` | 60fps, high confidence | Medium (speced already, smaller diff) | None | Good — solid fallback, keeps the current imperative-canvas shape |
 | A2 WebGL (OGL/regl/Pixi/three) | 60fps, guaranteed | High | New dep (even OGL) | Poor–neutral, solves an already-solved problem |
-| A3 Animated SVG | Uncertain, likely worse | High | None | Poor — design already rejected this with valid reasons that still hold |
 
 ---
 
@@ -211,7 +297,14 @@ CSS). This is precisely the case the ecosystem's own guidance says CSS suffices 
 **Verdict: no — a dedicated animation lib is not warranted for Layer B.** `BootVeil`'s existing
 hand-rolled CSS-transition + `transitionend` approach already matches best practice (Base UI's own
 documented pattern) and adding Motion would be a dependency for a two-property compositor transition
-that CSS already does natively, on GPU compositor threads, with zero JS scheduling involvement.
+that CSS already does natively, on GPU compositor threads, with zero JS scheduling involvement. The
+waystone independently confirms this is the house answer for enter/exit too: its `.orb-ws-enter`
+keyframe (`globals.css:633-634`, `animation: orb-ws-enter var(--motion-transit) ease-out both;`,
+applied per-layer in `waystone-layers.tsx:118,164,177,282` — precipitation, wind/fog bands, and the
+celestial body each wrap their own `orb-ws-enter` group) is a plain CSS keyframe entrance, and reduced
+motion collapses it the same REMOVE way (`globals.css:669-680`, `[data-reduced-motion="true"]
+[data-slot="waystone"] * { animation: none; }` with the one necessary resting-frame exception). No
+animation library anywhere in this codebase's two richest ambient-motion surfaces.
 
 ### Layer B verdict table
 
@@ -227,42 +320,68 @@ that CSS already does natively, on GPU compositor threads, with zero JS scheduli
 
 ## Recommendation
 
-**Layer A (the actual 30fps bug): ship A1 — optimized Canvas 2D with an offscreen/back-buffer cache,
-and stop calling `shadowBlur` in the live per-frame path.** This is the fix the design doc already
-speced (§1.2, §9.9) and never built — it isn't new research, it's closing a known gap. Concretely:
-cache the settled web's static strand geometry (post-`shadowBlur`-baked glow included) into an offscreen
-canvas/bitmap once per `rebuild()` (mirrors the existing resize/theme-flip rebuild triggers already in
-`web-weave.tsx`), then each rAF tick does one `drawImage` blit + paints only the genuinely dynamic
-layers live (dew twinkle, glint sweep, spider, and either a whole-canvas translate approximating sway or
-a small subset of strands kept live if per-point sway must be exact). This should clear 60fps at DPR2
-with high confidence — it eliminates the two named cost centers (shadowBlur gaussian, full-web restroke)
-without touching the geometry module, the token-palette wiring, or the deterministic-seed contract.
-**Do not reach for WebGL** — it guarantees the fps ceiling too, but at a real dependency and complexity
-tax to solve a problem A1 already solves for free; escalate to WebGL only if A1 is implemented, profiled,
-and *still* short of 60fps (unlikely given the diagnosis). **Do not reach for SVG** — the design doc's
-existing rejection holds; nothing in this research changes that calculus, and the geometry (thousands of
-per-frame-mutated points) is the shape SVG/DOM handles worst.
+**Layer A (the actual 30fps bug): rebuild the weave as animated SVG + CSS `@keyframes`, following the
+waystone's proven house pattern (A3) — retire the canvas/rAF renderer.** This codebase already has a
+smooth, rich, ambient-animated visual in production (`packages/ui/src/charts/meter/waystone.tsx` +
+`waystone-layers.tsx`, keyframes `globals.css:394-720`) built entirely on SVG geometry + compositor-only
+CSS animation, with zero canvas, zero rAF, zero WAAPI — and it is smooth *because of*, not despite, that
+choice: static geometry is paint-cached by the browser instead of hand-rolled-cached by application
+code, and only `translate`/`rotate`/`opacity`/`scale` ever animate. That is a direct, mechanical fix for
+this weave's exact failure mode (full `clearRect` + full restroke + live `shadowBlur` every rAF tick,
+`web-weave-render.ts:169-186,251`, `web-weave.tsx:184-187`) — the SVG version structurally *cannot*
+reproduce that mistake, because unanimated paths never repaint regardless of point count. The concrete
+engineering plan (detailed above, A3): 16 radii as 16 static `<path>` elements, the capture spiral split
+into ~6-8 phase-offset ring groups (never per-point), the weave-in draw-on driven by
+`stroke-dashoffset` keyframes timed from the strands' already-existing `t0`/`t1` birth-window data (zero
+JS per frame — a strict improvement over today's `Math.sin`-every-tick loop), the spider's walk on CSS
+`offset-path`/`offset-distance` over the existing `SpiderLeg` polylines, glow baked as a static
+duplicate-stroke twin (never a live filter — the SVG-filter equivalent of the shadowBlur mistake), the
+glint sweep as one rotating gradient-masked overlay instead of O(segments) per-frame trig, and hidden-tab
+pause / reduced-motion REMOVE ported verbatim from the waystone's `[data-paused]`/`visibilitychange` and
+`prefers-reduced-motion` mechanisms. Expect 60fps at DPR2 with high confidence, and — unlike A1 below —
+this ceiling holds by construction (the compositor doesn't care about DPR for transform/opacity layers)
+rather than by careful cache management.
+
+**Fallback, not the pick: A1 (optimized Canvas 2D + offscreen cache, drop live `shadowBlur`) — smaller
+diff, same house-tested imperative-canvas shape, ship it instead if the SVG rearchitecture's lift doesn't
+fit the lane's budget.** It's the fix the design doc itself speced and never built (§1.2, §9.9), and it
+also clears 60fps at DPR2 with high confidence by eliminating the same two cost centers (shadowBlur
+gaussian, full-web restroke) without touching the geometry module or token-palette wiring. Between the
+two: **A3 is the stronger long-term answer** (it's the pattern this codebase already trusts, and it
+solves the caching problem structurally instead of procedurally); **A1 is the cheaper answer** (smaller,
+more localized diff against code that already works, no rearchitecture risk). The orchestrator should
+pick based on lane budget, not fps ceiling — both hit the target.
+
+**Do not reach for WebGL (A2)** — guarantees the ceiling too, but at real dependency and complexity cost
+to solve a problem both A3 and A1 already solve for free; only escalate here if both are implemented,
+profiled, and *still* short of 60fps (very unlikely given the diagnosis).
 
 **Layer B (the veil transition): no rendering-tech change needed — `BootVeil`'s existing hand-rolled CSS
-transition already is the "right modern-stack way."** It independently arrived at the exact pattern Base
-UI's own docs prescribe (transitions over animations for interruptibility, completion-detection over
-fixed timeouts, `opacity`+`filter` as GPU-compositable properties). Do not adopt a Base UI Dialog/Popover
-primitive for it — wrong semantic shape, would add indirection with no smoothness gain. Do not adopt
-Motion/motion-one — the transition is a plain two-property compositor animation, the case CSS is built
-for; adding a JS animation library here would be dependency weight for zero measurable benefit. The one
-optional, low-risk polish: adopt React 19.2's stable `useEffectEvent` in `WebWeave`'s mount effect to
-replace the manual `onSettledRef`/`onPhaseRef` latest-callback pattern (`web-weave.tsx:100-107`) — a
-correctness/readability improvement, explicitly NOT part of the fps fix, and safe to bundle into the
-same lane or skip entirely.
+transition already is the "right modern-stack way," and the waystone independently confirms it.** Both
+`BootVeil` (opacity+filter, `transitionend`-driven unmount, §9.3/§9.4 of the design doc) and the
+waystone's `.orb-ws-enter` (`globals.css:633-634`, applied per-layer in `waystone-layers.tsx`) arrive at
+the same answer Base UI's own docs prescribe: transitions over animations for interruptibility,
+completion-detection over fixed timeouts, GPU-compositable properties only. Do not adopt a Base UI
+Dialog/Popover primitive for it — wrong semantic shape. Do not adopt Motion/motion-one — the transition
+is a plain compositor animation, the case CSS is built for, and neither of this codebase's two richest
+motion surfaces uses one. The one optional, low-risk polish: adopt React 19.2's stable `useEffectEvent`
+in `WebWeave`'s mount effect to replace the manual `onSettledRef`/`onPhaseRef` latest-callback pattern
+(`web-weave.tsx:100-107`) — a correctness/readability improvement, explicitly NOT part of the fps fix,
+moot entirely if `WebWeave` is rebuilt as SVG per A3 (the effect shape changes anyway).
 
-**Dependency ledger:** the recommended path adds **zero new dependencies** — `OffscreenCanvas` and a
-second `<canvas>` element are platform APIs already reachable from the existing `web-weave.tsx` module.
-This keeps the crowning-surface latitude the design doc was granted (§ "we can go HARD") spent on the
-weave's *craft*, not on adopting an unproven rendering stack or an animation library the transition
-doesn't need.
+**Dependency ledger:** the recommended path (A3) adds **zero new dependencies** — CSS `@keyframes`,
+`offset-path`, SVG masks/gradients, and `stroke-dashoffset` are all platform features already exercised
+by the waystone. The fallback (A1) is equally dependency-free. Either way, the crowning-surface latitude
+the design doc was granted (§ "we can go HARD") gets spent on the weave's *craft*, not on adopting an
+unproven rendering stack or an animation library the transition never needed.
 
-**What I could not confirm / flag explicitly:** exact post-fix fps was not measured (no code was
-changed per this task's scope) — the "60fps, high confidence" verdict for A1 is a diagnosis-driven
-prediction (the two named cost centers are textbook canvas-perf killers and this is the textbook fix),
-not a benchmarked result; the build lane implementing A1 should re-run the side-eye fps measurement as
-its own verification receipt, per this repo's "verification — static is not done" law.
+**What I could not confirm / flag explicitly:** exact post-fix fps was not measured for either A3 or A1
+(no code was changed per this task's scope) — both "60fps, high confidence" verdicts are diagnosis-driven
+predictions grounded in a proven in-house precedent (A3, the waystone) or a textbook fix for a
+textbook failure mode (A1), not benchmarked results. Whichever the orchestrator picks, the build lane
+should re-run the side-eye fps measurement (the same 1440×900 DPR2 protocol that produced the 33.3ms/
+frame baseline) as its own verification receipt before calling the fps problem closed, per this repo's
+"verification — static is not done" law. One SVG-specific unknown worth flagging: `offset-path`/
+`offset-distance` browser support is solid in Chromium/Firefox but has a weaker Safari history — worth a
+quick cross-browser spot-check during the build lane if Safari/WebKit is a supported target for this
+app; if it isn't (or if it's an acceptable-degradation surface), this is a non-issue.
