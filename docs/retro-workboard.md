@@ -125,7 +125,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   lanes both mint. Lane briefs name their exact playwright CT files (a CT nobody names is a CT
   nobody ran).
 
-## ═══ LIVE STATE (2026-08-09 MIDDAY — ENDGAME; the queue below IS the remaining retro push) ═══
+## ═══ LIVE STATE (2026-08-09 AFTERNOON — ENDGAME draining; the queue below IS the remaining retro push) ═══
 
 **Main `3a432603e` — PUSHED (`216725582..3a432603e`), one-shot clean. Zero lanes, zero worktrees,
 tree clean, battery 18/19-green incl. the whole behavioral tier** (the 19th was orphan-ratchet's 3
@@ -133,6 +133,17 @@ stale `@public` tags — ratchet-down fixed pre-push; push-tier-only stage, budg
 consumer-adding train). :5173 fresh (pgid 1232985). **ALL owner forks RULED** (the four 08-09 rows
 above) — nothing is deferred; the board below is a burn-down, not a queue. Full pre-rewrite board:
 [`history/retro-workboard-2026-08-09.md`](history/retro-workboard-2026-08-09.md).
+
+**AFTERNOON merges since MIDDAY (main now `662cb49d4`, all hook-gated, origin UNPUSHED — 30+ ahead):**
+#48 smalls `a6133ffe4` · #50 barrels `02f0a91a0` · #54 apisurface `ef931ad45` · #45 chat-list `c33833d58`
+(pre-re-import gate CLEARED) · #53 OIDC cohesion `bd8c64f6d` · #57 regex bulk-placement `dd37bc8dd` ·
+#41 transpiler-premise-refuted (doc) `8e0e90cde` · #58 anti-rot gate `662cb49d4` (bare-@public-on-UNUSED
+now REDS; 47 adjudicated). **IN FLIGHT (3, at the gate-heavy cap):** auth-entry build (B5 link +
+first-run-all-modes + unified login) · #59 macro-DoS (O(n²) parser fix) · #60 refinery narrow-container
+polish (#39 side-eye close). **QUEUED:** #61 ResponseFormat brand via codemod-kit (the #41 enforcement,
+now viable — 2026-08-03 60-file brand-campaign precedent) · #46 pagination gate (UNBLOCKED, #58 gate-infra
+merged) + a ResponseFormat-provenance gate (batch) · #43 code-split (after auth) · #39 custom-schema e2e
+(needs fleet). **OWNER:** push (mine on your word, fresh battery first) · re-import (unblocked) · B5-vs-operator-contract decision.
 
 **This sitting's merges (all hook-gated):** #35 corpus-settle `2073bbdc8` · #39 live-e2e `275f5ea83`
 (768 output-budget class + content-pane scroll + count-up arrival; report
