@@ -6,8 +6,8 @@
 
 export { AcceptReview } from "./components/accept-review.tsx";
 export { PayloadView } from "./components/payload-view.tsx";
-export type { StageCell } from "./components/stage-stepper.tsx";
 export { SchemaEditorDialog } from "./components/schema-editor-dialog.tsx";
+export type { StageCell } from "./components/stage-stepper.tsx";
 export { StageStepper } from "./components/stage-stepper.tsx";
 export { TeachingState } from "./components/teaching-state.tsx";
 export {
