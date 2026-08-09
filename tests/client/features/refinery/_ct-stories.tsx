@@ -22,6 +22,7 @@ import {
   PayloadView,
   RefineryListHeader,
   RefineryListSurface,
+  RunControlsCard,
   SchemaEditorDialog,
   StagePane,
   StageStepper,
@@ -42,6 +43,7 @@ import type { CharacterId, ModelId, RefinerySchemaId, RefinerySessionId } from "
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
+import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { Suspense, useState } from "react";
 import { CtAppDataProviders } from "../../../support/ct/ct-data-providers.tsx";
@@ -302,12 +304,64 @@ export function HeroRampStory({ from, to }: HeroRampStoryProps): ReactElement {
 export interface StageStepperStoryProps {
   readonly cells: readonly StageCell[];
   readonly active: RefineryStage;
+  /** Mounts the stepper inside a fixed-width `@container` frame — the stepper stacks vertically below the
+   *  container's `@lg` step, so the narrow-mount proof needs a real container to query. Absent ⇒ bare
+   *  (content-sized, no `@container` ancestor, so it stays horizontal — the running-arm stories' mount). */
+  readonly width?: number;
 }
 
 /** The stepper at a chosen state — the running cell carries the indeterminate hairline whose whole
- *  reduced-motion contract is that the travelling segment is REMOVED, not parked. */
-export function StageStepperStory({ cells, active }: StageStepperStoryProps): ReactElement {
-  return <StageStepper active={active} cells={cells} onSelect={(): void => undefined} />;
+ *  reduced-motion contract is that the travelling segment is REMOVED, not parked. `width` mounts it in a
+ *  narrow `@container` for the P2 no-clip proof. */
+export function StageStepperStory({ cells, active, width }: StageStepperStoryProps): ReactElement {
+  if (width === undefined) {
+    return <StageStepper active={active} cells={cells} onSelect={(): void => undefined} />;
+  }
+  return (
+    <div data-testid="stepper-frame" style={{ overflow: "visible", width }}>
+      <Container name="refinery-stepper-cq">
+        <StageStepper active={active} cells={cells} onSelect={(): void => undefined} />
+      </Container>
+    </div>
+  );
+}
+
+const RUN_CONTROLS_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
+
+/** The run bar at a fixed narrow CONTAINER width — the P1 overlap proof. `analyze` is the widest verb
+ *  cluster (Hand-edit · Re-run analyze · Iterate), so if the fit-line readout ever paints through a button
+ *  it does so here. The frame carries `overflow: visible` so an overlap is measurable, not clipped away.
+ *  The preflight slice is deliberately UNDER budget (no ⚠, no PreflightWarn) — the fit-line + verbs row is
+ *  the whole subject. Wrapped in the data providers because the guidance field's blur mutation hook is
+ *  constructed at render (never fired here). */
+export function RunControlsCardStory({ width }: { readonly width: number }): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <div data-testid="run-controls-frame" style={{ overflow: "visible", width }}>
+        <RunControlsCard
+          canIterate={true}
+          contextTokens={8000}
+          effectiveStage="analyze"
+          guidance={null}
+          hasRun={true}
+          onIterate={(): void => undefined}
+          onManualOpen={(): void => undefined}
+          onRun={(): void => undefined}
+          onScopeOpen={(): void => undefined}
+          running={false}
+          sessionId={RUN_CONTROLS_SESSION_ID}
+          stagePre={{
+            stage: "analyze",
+            model: castId<ModelId>("test-model"),
+            temperature: null,
+            maxOutputTokens: 4096,
+            inputEstimate: 2736,
+            outputEstimate: 1490,
+          }}
+        />
+      </div>
+    </CtAppDataProviders>
+  );
 }
 
 /** The accept review, controlled the way the content surface holds it: every entry opens UNDECIDED

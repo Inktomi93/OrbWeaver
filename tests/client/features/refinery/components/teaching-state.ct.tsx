@@ -76,6 +76,19 @@ test("the flow row stays INSIDE the narrowest real mount — no cell clipped off
   expect((box?.x ?? 0) + (box?.width ?? 0), "…nor its right edge").toBeLessThanOrEqual((frame?.x ?? 0) + (frame?.width ?? 0) + SUBPIXEL);
 });
 
+test("each flow chevron is paired with its card, never a free child of the wrapping row — no orphan at wrap (P2)", async ({ mount, page }) => {
+  await mount(<TeachingStateStory />);
+  const row = page.locator(STEPS_ROW);
+  await expect(row).toBeVisible();
+  // The chevrons live INSIDE each step's own non-wrapping unit, never as DIRECT children of the wrapping
+  // steps row — so a step that reflows to the next line takes its leading chevron with it, instead of
+  // stranding it at the end of the line above pointing at nothing (the orphan the flat Fragment layout
+  // produced when Analyze wrapped). A direct-child chevron here IS that regression.
+  await expect(row.locator("> svg")).toHaveCount(0);
+  // …and all five glyphs (3 stage + 2 chevrons) still render, just nested — the redraw's decoration intact.
+  await expect(row.locator("svg")).toHaveCount(GLYPH_COUNT);
+});
+
 test("the stage glyphs and the flow chevrons are decoration — the sequence is DOM order, not five new graphics", async ({ mount, page }) => {
   await mount(<TeachingStateStory />);
   const row = page.locator(STEPS_ROW);

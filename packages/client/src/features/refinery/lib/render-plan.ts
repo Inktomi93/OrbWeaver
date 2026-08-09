@@ -102,6 +102,16 @@ export function formatLabel(key: string): string {
   return spaced.charAt(0).toUpperCase() + spaced.slice(1);
 }
 
+/** The scope chip's label for one selected field. Greetings spell out their narrowed slots; every other
+ *  field is humanized through {@link formatLabel} so the chip's micro-caps voice renders "EXAMPLE MESSAGES"
+ *  / "CREATOR NOTES" instead of the mashed "EXAMPLEMESSAGES" (side-eye 2026-08-09 P3). */
+export function scopeChipLabelOf(field: string, greetingIndexes: readonly number[] | undefined): string {
+  if (field === "greetings" && greetingIndexes !== undefined) {
+    return `greetings ${greetingIndexes.join(",")}`;
+  }
+  return formatLabel(field);
+}
+
 function hintAt(node: Record<string, unknown>, path: string, overlay: HintOverlay): RenderHint | null {
   return renderHintOf(node) ?? overlay[path] ?? null;
 }

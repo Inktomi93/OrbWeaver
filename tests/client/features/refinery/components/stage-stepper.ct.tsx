@@ -18,6 +18,12 @@ const RUNNING_CELLS: readonly StageCell[] = [
   { stage: "analyze", status: "needs a rewrite first", done: false, running: false },
 ];
 
+/** A phone CONTENT width: three rich cells cannot sit side by side here, so the old horizontal row pushed
+ *  Analyze off the pane's edge. */
+const NARROW_STEPPER_PX = 360;
+/** Sub-pixel slack for a fractional layout box — never a real overflow budget. */
+const SUBPIXEL = 0.5;
+
 function hairlineAfterContent(page: Page): Promise<string> {
   return page.evaluate(() => {
     const el = document.querySelector('[data-testid="refinery-step-hairline"]');
@@ -48,6 +54,24 @@ test("REDUCED MOTION removes the hairline's travelling segment outright, rather 
 
   await expect(page.getByTestId("refinery-step-hairline")).toHaveCount(1);
   expect(await hairlineAfterContent(page)).toBe("none");
+});
+
+test("in a narrow container every cell stays inside the pane — the stepper stacks instead of clipping Analyze (P2)", async ({ mount, page }) => {
+  // Mounted in a fixed-width `@container` frame: the stepper reflows to one column below the `@lg` step, so
+  // all three cells keep their full status line at the phone width instead of the third falling off the edge
+  // (the old horizontal `flex-1` row overflowed here). Asserts each cell's BOX against the frame's box —
+  // a non-wrapping flex row does not scroll, its overflowing cells simply paint outside it.
+  await mount(<StageStepperStory active="score" cells={RUNNING_CELLS} width={NARROW_STEPPER_PX} />);
+  const frame = await page.locator('[data-testid="stepper-frame"]').boundingBox();
+  expect(frame).not.toBeNull();
+  const cells = page.locator('[data-testid="refinery-step"]');
+  await expect(cells).toHaveCount(3);
+  const boxes = await Promise.all(Array.from({ length: await cells.count() }, (_, i) => cells.nth(i).boundingBox()));
+  boxes.forEach((box, i) => {
+    expect(box, `cell ${i} has a box`).not.toBeNull();
+    expect(box?.x ?? 0, `cell ${i} left edge inside the pane`).toBeGreaterThanOrEqual((frame?.x ?? 0) - SUBPIXEL);
+    expect((box?.x ?? 0) + (box?.width ?? 0), `cell ${i} right edge inside the pane`).toBeLessThanOrEqual((frame?.x ?? 0) + (frame?.width ?? 0) + SUBPIXEL);
+  });
 });
 
 test("no cell is running ⇒ no hairline at all — the affordance is a state, not decoration", async ({ mount, page }) => {

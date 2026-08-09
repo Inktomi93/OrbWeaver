@@ -7,8 +7,16 @@
 // ── ROW IDENTITY (side-eye 2026-08-09 P1-4/P1-5/P1-6) ────────────────────────────────────────────────
 // Every row read "Untitled session / iteration 0 / NO VERDICT" — four identical rows, no way to tell
 // which card any of them was about, and the search box filtered `session.name` (which is always null).
-// The row is now the CHARACTER: avatar + name as the title, the session's own name demoted to the
-// subtitle when it has one, and the verdict + iteration + relative time as the trailing readout.
+// The row is now the CHARACTER: avatar + name as the title, and the verdict + iteration + start stamp as
+// the subtitle line.
+//
+// ── THE READOUT IS IN THE ROW'S CONTENT, NOT ITS `actions` (side-eye 2026-08-09 P2 a11y) ──────────────
+// The readout first shipped in ListRow's `actions` slot — a sibling OUTSIDE the clickable button — so the
+// row's accessible NAME was the bare character name and its DESCRIPTION was empty: a screen reader heard
+// "Elias Thorn" six times for six sessions on one card, indistinguishable. It now rides the subtitle line
+// (verdict via `subtitleLead`, iteration + start stamp via `subtitle`), which ListRow folds into the body's
+// `aria-describedby`. The START STAMP doubles as the same-card distinguisher (see `readoutSubtitleOf`): a
+// nameless per-card session is told apart by WHEN it was started, in the tree and on screen.
 //
 // CHARACTER IDENTITY COMES OFF THE WIRE (orchestrator ruling, 2026-08-09 — it reverses the summary
 // schema's former "resolves client-side by `characterId`" comment, truth-repaired there). The client-side
@@ -67,24 +75,34 @@ interface ResolvedRow {
   readonly sessionName: string | null;
   readonly iterationCount: number;
   readonly latestVerdict: string | null;
-  readonly updatedAt: number;
+  /** The session's start time — the subtitle's readout stamp AND the same-card distinguisher (see
+   *  `readoutSubtitleOf`). `updatedAt` is no longer read here: the roster arrives newest-updated first, so
+   *  freshness is positional and the start stamp is the fact that tells two sessions on one card apart. */
+  readonly createdAt: number;
 }
 
-/** The trailing readout: verdict chip, iteration count, and when it last moved. Three facts in the
- *  order you'd ask them ("how did it go · how far in · how fresh"). */
-function RowReadout({ row }: { row: ResolvedRow }): ReactElement {
-  return (
-    <Row align="center" gap="field">
-      <Text voice="gloss">
-        iteration {row.iterationCount} · {timeLib.formatRelativeCompact(row.updatedAt)}
-      </Text>
-      {row.latestVerdict === null ? (
-        <RefineryChip tone="neutral">No verdict</RefineryChip>
-      ) : (
-        <RefineryChip tone={VERDICT_TONE[row.latestVerdict] ?? "neutral"}>{VERDICT_WORD[row.latestVerdict] ?? row.latestVerdict}</RefineryChip>
-      )}
-    </Row>
+/** The verdict chip, folded INTO the row's content (side-eye 2026-08-09 P2 a11y). The readout used to
+ *  render in ListRow's `actions` slot — a sibling OUTSIDE the clickable button — so the row's accessible
+ *  description was empty and a screen reader heard the bare character name once per session ("Elias Thorn"
+ *  ×6 for six sessions on one card). It now heads the subtitle line (`subtitleLead`), which rides the row's
+ *  `aria-describedby` through the subtitle span. */
+function verdictChipOf(row: ResolvedRow): ReactElement {
+  return row.latestVerdict === null ? (
+    <RefineryChip tone="neutral">No verdict</RefineryChip>
+  ) : (
+    <RefineryChip tone={VERDICT_TONE[row.latestVerdict] ?? "neutral"}>{VERDICT_WORD[row.latestVerdict] ?? row.latestVerdict}</RefineryChip>
   );
+}
+
+/** The subtitle: iteration + the session's START STAMP. The stamp is the same-card DISTINGUISHER — every
+ *  session on one card shares the character title and carries no name of its own, and `createdAt` is
+ *  per-session, so an absolute start stamp differs the rows visually AND in the a11y tree (the ruled
+ *  auto-label arm; no nameable-session affordance is added here). "Freshness" is already positional (the
+ *  roster is newest-updated first), so WHEN-STARTED is the fact that actually tells six sessions apart. A
+ *  session that HAS a name leads with it. Rides `aria-describedby` with the verdict via the subtitle span. */
+function readoutSubtitleOf(row: ResolvedRow): string {
+  const readout = `iteration ${row.iterationCount} · started ${timeLib.formatDateTime(row.createdAt)}`;
+  return row.sessionName === null ? readout : `${row.sessionName} · ${readout}`;
 }
 
 export function RefineryListSurface(): ReactElement {
@@ -105,7 +123,7 @@ export function RefineryListSurface(): ReactElement {
     sessionName: session.name,
     iterationCount: session.iterationCount,
     latestVerdict: session.latestVerdict,
-    updatedAt: session.updatedAt,
+    createdAt: session.createdAt,
   }));
 
   // P1-5: the predicate matches the CHARACTER NAME as well as the session's own name — the roster's
@@ -142,7 +160,6 @@ export function RefineryListSurface(): ReactElement {
       >
         {rows.map((row) => (
           <ListRow
-            actions={<RowReadout row={row} />}
             clickable={true}
             key={row.rawId}
             leading={
@@ -158,8 +175,9 @@ export function RefineryListSurface(): ReactElement {
             }
             onClick={(): void => selectRefinerySessionFromList(row.id)}
             selected={selectedId === row.rawId}
+            subtitle={readoutSubtitleOf(row)}
+            subtitleLead={verdictChipOf(row)}
             title={row.characterName}
-            {...(row.sessionName === null ? {} : { subtitle: row.sessionName })}
           />
         ))}
       </LibraryListLayout>
