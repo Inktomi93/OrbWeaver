@@ -8,12 +8,14 @@ import { join } from "node:path";
 import type { AutoSleepState, EngineUtilFractions, GpuVram, WakeDecision } from "@orb/server/infra/providers/vllm/engine";
 import {
   advanceAutoSleep,
+  capacityWarnings,
   clearHold,
   decideWake,
   holdMarkerPath,
   initialAutoSleepState,
   isEngineIdle,
   isHeld,
+  parseEngineCapacity,
   parseEngineMetrics,
   writeHold,
 } from "@orb/server/infra/providers/vllm/engine";
@@ -104,6 +106,81 @@ describe("parseEngineMetrics — Prometheus /metrics scrape (real vLLM label sha
 
   test("empty/absent metrics → all zero (never NaN)", () => {
     expect(parseEngineMetrics("")).toEqual({ running: 0, waiting: 0, successTotal: 0 });
+  });
+});
+
+describe("parseEngineCapacity / capacityWarnings — contention + KV headroom (#24)", () => {
+  // Label shapes + the cache-config values are COPIED from a live gen engine's /metrics (Qwen3-VL, 2 GPUs).
+  const cacheConfig = 'vllm:cache_config_info{block_size="16",engine="0",gpu_memory_utilization="0.55",num_gpu_blocks="15393"} 1.0';
+  const scrape = [
+    'vllm:num_requests_running{engine="0",model_name="Qwen"} 3.0',
+    'vllm:num_requests_waiting{engine="0",model_name="Qwen"} 4.0',
+    'vllm:num_requests_waiting_by_reason{engine="0",reason="capacity"} 4.0',
+    'vllm:num_requests_waiting_by_reason{engine="0",reason="deferred"} 7.0',
+    'vllm:num_preemptions_total{engine="0",model_name="Qwen"} 2.0',
+    'vllm:kv_cache_usage_perc{engine="0",model_name="Qwen"} 0.91',
+    cacheConfig,
+  ].join("\n");
+
+  test("counts only the CAPACITY waiting reason — `deferred` is a grammar wait, not contention", () => {
+    const m = parseEngineCapacity(scrape, "gen");
+    expect(m.waitingCapacity).toBe(4);
+    expect(m.running).toBe(3);
+    expect(m.preemptionsTotal).toBe(2);
+    expect(m.kvCacheUsagePerc).toBeCloseTo(0.91);
+  });
+
+  // The pin that proves the derivation is vLLM's own: 15393 blocks × 16 / 32768 ctx = 7.52x, which is exactly
+  // what this engine printed at startup ("Maximum concurrency for 32,768 tokens per request: 7.52x").
+  test("derives maxConcurrency matching the engine's own startup line", () => {
+    const m = parseEngineCapacity(scrape, "gen");
+    expect(m.maxConcurrency).not.toBeNull();
+    expect(m.maxConcurrency ?? 0).toBeCloseTo(7.52, 2);
+    expect(m.kvHeadroomOk).toBe(true);
+  });
+
+  // The VERBATIM cache_config_info line from a live engine. It carries four decoy labels ending in
+  // `block_size` (`_block_size_resolved`, `hash_block_size`, `mamba_block_size`, `user_specified_block_size`)
+  // — a substring-matching read sources the denominator from whichever appears first.
+  test("reads the exact label off a REAL cache_config_info line, not a decoy `*_block_size`", () => {
+    const real =
+      'vllm:cache_config_info{_block_size_resolved="True",block_size="16",cache_dtype="auto",enable_prefix_caching="True",' +
+      'engine="0",gpu_memory_utilization="0.55",hash_block_size="None",mamba_block_size="None",num_cpu_blocks="None",' +
+      'num_gpu_blocks="15393",num_gpu_blocks_override="None",user_specified_block_size="False"} 1.0';
+    const m = parseEngineCapacity(real, "gen");
+    // 15393 × 16 / 32768. A decoy read would not land here.
+    expect(m.maxConcurrency ?? 0).toBeCloseTo(7.52, 2);
+  });
+
+  test("absent cache_config_info → UNKNOWN headroom (null), never a passing zero", () => {
+    const m = parseEngineCapacity('vllm:num_requests_running{engine="0"} 0.0', "gen");
+    expect(m.maxConcurrency).toBeNull();
+    expect(m.kvHeadroomOk).toBeNull();
+    expect(capacityWarnings("gen", m)).toEqual([]);
+  });
+
+  test("headroom below 1x warns — the cache cannot hold one full-length request", () => {
+    const starved = ['vllm:cache_config_info{block_size="16",engine="0",num_gpu_blocks="1024"} 1.0'].join("\n");
+    const m = parseEngineCapacity(starved, "gen");
+    expect(m.maxConcurrency ?? 0).toBeCloseTo(0.5, 2);
+    expect(m.kvHeadroomOk).toBe(false);
+    expect(capacityWarnings("gen", m).some((w) => w.includes("KV headroom"))).toBe(true);
+  });
+
+  test("a healthy idle engine produces NO warnings (the warning list is a signal, not decoration)", () => {
+    const healthy = [
+      'vllm:num_requests_running{engine="0"} 0.0',
+      'vllm:num_requests_waiting_by_reason{engine="0",reason="capacity"} 0.0',
+      'vllm:num_preemptions_total{engine="0"} 0.0',
+      cacheConfig,
+    ].join("\n");
+    expect(capacityWarnings("gen", parseEngineCapacity(healthy, "gen"))).toEqual([]);
+  });
+
+  test("queued-for-capacity and preemptions each raise their own warning", () => {
+    const warnings = capacityWarnings("gen", parseEngineCapacity(scrape, "gen"));
+    expect(warnings.some((w) => w.includes("queued for CAPACITY"))).toBe(true);
+    expect(warnings.some((w) => w.includes("preemption"))).toBe(true);
   });
 });
 

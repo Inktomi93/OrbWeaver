@@ -29,19 +29,23 @@ export {
 } from "./engine-status.ts";
 export { engineBaseUrl } from "./engine-url.ts";
 export { VLLM_ENGINES } from "./engines.ts";
-export type { AutoSleepState, EngineMetrics, WakeDecision } from "./fleet-control.ts";
+export type { AutoSleepState, EngineCapacityMetrics, EngineMetrics, WakeDecision } from "./fleet-control.ts";
 export {
   advanceAutoSleep,
+  capacityWarnings,
   clearHold,
   decideWake,
   enginePortPid,
+  fetchEngineCapacity,
   fetchEngineMetrics,
+  fleetCapacitySnapshot,
   fleetRunDir,
   getIsSleeping,
   holdMarkerPath,
   initialAutoSleepState,
   isEngineIdle,
   isHeld,
+  parseEngineCapacity,
   parseEngineMetrics,
   postSleep,
   postWakeAndAwait,

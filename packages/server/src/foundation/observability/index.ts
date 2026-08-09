@@ -30,6 +30,7 @@ export {
   resetWireCaptures,
   tableCounts,
   tokenMatches,
+  type VllmMetricsInspector,
   type WireCapture,
   type WireCaptureFilter,
   type WireOutcome,

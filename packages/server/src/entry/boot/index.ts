@@ -4,6 +4,8 @@ export type { MigrateDeps } from "./migrate.ts";
 export { resolveMigrationsFolder, runBootMigrations } from "./migrate.ts";
 export type { ReclaimLocksDeps } from "./reclaim-locks.ts";
 export { reclaimLocksOnBoot } from "./reclaim-locks.ts";
+export type { SeedCasSchedulesDeps } from "./seed-cas-schedules.ts";
+export { seedCasSchedules } from "./seed-cas-schedules.ts";
 export type { SeedCredentialDeps } from "./seed-credential.ts";
 export { seedCredentialFromEnv } from "./seed-credential.ts";
 export type { SeedDefaultCharactersDeps } from "./seed-default-characters.ts";
