@@ -34,6 +34,14 @@
 // `out ≈ 980 / 768 tok ⚠`. The budget now comes from `substrate/output-budget`, the same expression
 // `preflight` reports, and the fold happens at the ARM because the window clamp needs the assembled prompt.
 // The ladder is unchanged: a user's preset `maxOutputTokens` still wins outright.
+//
+// …AND A GUARANTEED OVERRUN IS NOW REFUSED, NOT ATTEMPTED (owner ruling on the same e2e's open fork 1). The
+// payload-aware floor fixed the DEFAULT case; the case left standing was a caller whose own preset caps
+// `maxOutputTokens` under their payload — where the arithmetic is equally certain and the outcome equally
+// useless (two model calls, `finish_reason:"length"` twice, a 503). `assertStageBudgetFits` decides that
+// BEFORE any prompt is assembled or any token is decoded, and refuses with the fit receipt (need · cap ·
+// the knob) as a typed BAD_REQUEST the client quotes. Preflight is unchanged and still only WARNS — it is a
+// readout, and a readout that refused would be a readout nobody could read.
 
 import type { RefineryRun, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
@@ -50,12 +58,12 @@ import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
 import type { RefineryContext } from "../context.ts";
-import { RefineryRunFailedError, RefineryStageNotReadyError } from "../contract/errors.ts";
-import type { StagePrompts, StageResolution } from "../contract/prompts.ts";
+import { RefineryOutputBudgetError, RefineryRunFailedError, RefineryStageNotReadyError } from "../contract/errors.ts";
+import type { StageEstimateSubject, StagePrompts, StageResolution } from "../contract/prompts.ts";
 import type { RefinerySessionView } from "../contract/results.ts";
 import type { ExecuteStage, RefineryService, StageEngineDeps } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, loadSessionRewriteRunRow, sessionViewOf } from "../persistence/queries.ts";
-import { resolveStageSampling } from "../substrate/output-budget.ts";
+import { resolveStageSampling, stageBudgetMisfitOf, stageSubjectOf } from "../substrate/output-budget.ts";
 import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
 import { buildStageParse } from "../substrate/stage-parse.ts";
 import { REFINERY_RESPONSE_FORMATS, resolveStageResolution } from "../substrate/stage-resolution.ts";
@@ -80,6 +88,9 @@ interface StagePass {
   /** The ladder's TOP rung, carried unresolved: the output budget can only be sized once the arm has
    *  assembled its prompt, so the fold happens at the call ({@link sampleOptsFor}), not here. */
   readonly presetParams: SideGenSampling | undefined;
+  /** WHAT this pass will ask the model to produce (card + selection + the rewrite mode) — derived ONCE per
+   *  pass so the refusal verdict and the wire's cap provably measure the same payload. */
+  readonly subject: StageEstimateSubject;
   readonly stage: RefineryStage;
   readonly overrides: Awaited<ReturnType<RefineryContext["resolveUserProse"]>>;
   readonly resolution: StageResolution;
@@ -135,6 +146,7 @@ async function executeResolved(
   const { ownerId, stage, isRefinement, prior, session, sessionId } = args;
   assertStageReady(stage, isRefinement, prior);
   const pass = await resolveStagePass(ctx, { ownerId, sessionId, stage, session });
+  assertStageBudgetFits(pass);
   const view = await dispatchStage(ctx, { ownerId, stage, isRefinement, prior, pass });
 
   // A run makes the session live again (status is a roster label, never a lock — design §9.2).
@@ -252,6 +264,17 @@ async function readPriorRuns(ctx: RefineryContext, sessionId: Parameters<Execute
   };
 }
 
+/** The RULED budget refusal (see this file's header): a caller whose own preset caps `maxOutputTokens`
+ *  below this stage's predicted payload is refused with the fit receipt, before any prompt assembly and
+ *  before any decode. Runs AFTER the ownership belt and the stage-order precondition — a refusal that
+ *  mentioned a session's token mass ahead of the belt would be an existence oracle. */
+function assertStageBudgetFits(pass: StagePass): void {
+  const misfit = stageBudgetMisfitOf({ subject: pass.subject, presetParams: pass.presetParams });
+  if (misfit !== null) {
+    throw new RefineryOutputBudgetError(pass.stage, misfit);
+  }
+}
+
 /** Stage-order preconditions (AFTER the ownership belt — statements about the session's state). */
 function assertStageReady(stage: RefineryStage, isRefinement: boolean, prior: PriorRuns): void {
   if (stage === "analyze" && prior.rewrite === null) {
@@ -281,6 +304,7 @@ async function resolveStagePass(
   return {
     session,
     stage,
+    subject: stageSubjectOf(stage, session),
     overrides,
     resolution,
     presetParams,
@@ -302,8 +326,7 @@ async function resolveStagePass(
  *  the prompt, and only the arm has it. */
 function sampleOptsFor(ctx: RefineryContext, pass: StagePass, prompts: StagePrompts): SummarizeOptions {
   const sampling = resolveStageSampling({
-    stage: pass.stage,
-    session: pass.session,
+    subject: pass.subject,
     presetParams: pass.presetParams,
     contextTokens: ctx.summarizerContextTokens,
     inputEstimate: estimateTokens(`${prompts.system}\n${prompts.user}`),

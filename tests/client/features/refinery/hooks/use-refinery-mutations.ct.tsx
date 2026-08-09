@@ -8,16 +8,17 @@
 //     one: the roster would sit at its mount snapshot until the query is GC'd. The mounted roster read is
 //     ACTIVE here, so a reached invalidate is a real wire refetch `routeTrpc` counts AND a repaint — never a
 //     silent stale-mark that would pass with the row deleted.
-//  2. DISCRIMINATED FAILURE COPY. The two typed refinery errors have OPPOSITE fixes ("run the missing stage
-//     first" vs "try again"), and only the first carries a wire reason code. The pair below is two-sided: the
-//     reason arm quotes the server's own sentence (the only text naming WHICH stage is missing), the codeless
-//     arm keeps the retry copy. Collapse the branch either way and one of them reds.
+//  2. DISCRIMINATED FAILURE COPY. The three typed refinery errors have OPPOSITE fixes ("run the missing stage
+//     first" / "raise the cap or narrow the scope" / "try again"), and only the first two carry a wire reason
+//     code. The trio below is many-sided: each coded arm quotes the server's own sentence (the only text
+//     naming WHICH stage is missing, or carrying the fit receipt's numbers), the codeless arm keeps the retry
+//     copy. Collapse the branch in either direction and one of them reds.
 //  3. THE ERRORS-AS-DATA REFUSAL. `applyFields` itemizes per entry and RESOLVES, so a total drop is a
 //     mutation that succeeded while the user's card went untouched — no `errorToast`, no `mutation.error`,
 //     nothing on screen (EDITSNAP-OK). The `refusal` arm is what makes it visible; the partial-apply twin
 //     proves the arm is narrow (a write that DID land must not be toasted as a failure).
 
-import { REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
+import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
@@ -76,6 +77,29 @@ test("an OUT-OF-ORDER stage refusal toasts the SERVER's sentence — the only te
   const toast = page.locator(TOAST);
   await expect(toast).toHaveCount(1);
   await expect(toast).toContainText(serverSentence);
+  await expect(toast).toHaveAttribute("data-type", "error");
+});
+
+test("a BUDGET refusal toasts the server's FIT RECEIPT — the numbers and the knob, not 'try again'", async ({ mount, page }) => {
+  // `RefineryOutputBudgetError`: the caller's own preset caps max output under what the run needs, so the
+  // run is refused before any decode (owner ruling, live-e2e 2026-08-09). "Try again" would be a lie — the
+  // next attempt is identical — and the only text that makes it actionable is the server's own receipt.
+  const receipt =
+    "This score run needs about 1740 output tokens, but your preset caps max output at 768 — it would truncate and fail. Raise max output in the preset, or narrow the selection.";
+  await routeTrpc(page, {
+    "refinery.listSessions": () => [rosterRow("Rev")],
+    "refinery.runStage": () => trpcError({ code: "BAD_REQUEST", message: receipt, reason: REFINERY_OUTPUT_BUDGET_REASON }),
+  });
+
+  const component = await mount(<RefineryDataStory characterId={CHARACTER_ID} sessionId={SESSION_ID} />);
+  await expect(component.getByTestId("roster")).toHaveText("rows=1");
+
+  await component.getByRole("button", { name: "run stage" }).click();
+
+  const toast = page.locator(TOAST);
+  await expect(toast).toHaveCount(1);
+  await expect(toast).toContainText(receipt);
+  await expect(toast).not.toContainText("try again");
   await expect(toast).toHaveAttribute("data-type", "error");
 });
 

@@ -14,7 +14,7 @@
 // strings because its ids come from a fixture's display data, not from a mint.
 
 import { useInvalidation, useTRPC } from "@orb/client/data";
-import type { ReviewEntry, StageCell } from "@orb/client/features/refinery";
+import type { ReviewEntry, StageCell, StagePaneProps } from "@orb/client/features/refinery";
 import {
   AcceptReview,
   BUILTIN_STAGE_HINTS,
@@ -23,6 +23,7 @@ import {
   RefineryListHeader,
   RefineryListSurface,
   SchemaEditorDialog,
+  StagePane,
   StageStepper,
   TeachingState,
   useApplyRefineryFields,
@@ -37,7 +38,8 @@ import {
 } from "@orb/client/features/refinery";
 import type { RefinerySchemaStage, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
-import type { CharacterId, RefinerySchemaId, RefinerySessionId } from "@orb/kit/ids";
+import type { CharacterId, ModelId, RefinerySchemaId, RefinerySessionId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import type { ReactElement } from "react";
@@ -209,26 +211,88 @@ export function SchemaEditorStory({ stage = "score", editing = null }: SchemaEdi
 
 // --- The HERO COUNT-UP ramp (the money shot) ---
 
+type StagePaneRun = NonNullable<StagePaneProps["run"]>;
+
+const RAMP_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
+/** MINTED, never hand-written (the `typeIdSchema` 26-char-suffix rule). Two distinct ids because `arrived`
+ *  is decided BY ID: the run a session was merely opened on must not be mistaken for the one that landed. */
+const RAMP_OPENED_RUN_ID = mintTypeId(ID_PREFIX.refineryRun);
+const RAMP_LANDED_RUN_ID = mintTypeId(ID_PREFIX.refineryRun);
+const RAMP_FROZEN_AT = 1_750_000_000_000;
+
+/** One settled fixed SCORE run on the wire shape `listRuns` returns — the pane's whole input. */
+function scoreRun(id: StagePaneRun["id"], overallScore: number): StagePaneRun {
+  return {
+    id,
+    sessionId: RAMP_SESSION_ID,
+    iteration: 0,
+    model: castId<ModelId>("test-summarizer"),
+    promptTokens: 2736,
+    outputTokens: 1490,
+    durationMs: 23_600,
+    sourceRunId: null,
+    strippedKeys: [],
+    createdAt: RAMP_FROZEN_AT,
+    stage: "score",
+    payloadConfig: { kind: "fixed", mode: "full" },
+    payload: { fieldScores: [], overallScore, priorityImprovements: [], summary: "A solid card." },
+  };
+}
+
 export interface HeroRampStoryProps {
-  /** The payload the pane opens with. `null` = the pane opens PENDING with no payload, i.e. the
-   *  plan-shaped skeleton — the first-run arm, where the count-up is supposed to run 0 → score. */
-  readonly from: number | null;
+  /** A score the pane is ALREADY showing at mount, from a session the user merely opened (no arrival —
+   *  the re-run arm's starting state). Absent ⇒ the pane opens on the not-run-yet arm, i.e. the FIRST-RUN
+   *  arm, which is the one the money shot exists for. */
+  readonly from?: number;
   /** The score that lands when "land" is pressed. */
   readonly to: number;
 }
 
-/** The hero gauge's count-up, driven by a PRESS rather than a timer: the CT clicks "land" and then
- *  reads every value the numeral printed (a MutationObserver in the test), so the ramp is proven by the
- *  frames it actually painted instead of by racing one. */
+/**
+ * The hero gauge's count-up driven THROUGH `StagePane`, exactly as `RefineryContentSurface` drives it —
+ * because the arm this animation exists for only appears there.
+ *
+ * WHY NOT `PayloadView` DIRECTLY (this story's previous shape, replaced under #47). A first run in
+ * production goes `run === null && running` → `RunningPane` → the run lands → `PayloadView` MOUNTS holding
+ * its final number. `PayloadView` therefore never renders `pending` with an empty payload in the app at
+ * all; a story that mounted it that way was exercising a path the product does not have, and the local
+ * `awaited` latch that made that story pass was itself unreachable code. The buttons below are the two
+ * halves of a real mutation — "run" is the call going in flight (`runStage.isPending`), "land" is its
+ * `onSuccess` handing back a run whose id the surface records in `landedRunIds`, which is the ONLY thing
+ * that says `arrived`. Re-introduce the mount-with-value skip and the first-run test goes red here.
+ */
 export function HeroRampStory({ from, to }: HeroRampStoryProps): ReactElement {
-  const [score, setScore] = useState<number | null>(from);
-  const plan = buildRenderPlan(projectJsonSchema(REFINERY_STAGE_PAYLOADS.score), BUILTIN_STAGE_HINTS.score);
+  const [run, setRun] = useState<StagePaneRun | null>(from === undefined ? null : scoreRun(RAMP_OPENED_RUN_ID, from));
+  const [running, setRunning] = useState(false);
+  // The surface's own signal: the ids ITS mutations produced. A session merely opened contributes none, so
+  // the `from` run above is deliberately absent from this set.
+  const [landedRunIds, setLandedRunIds] = useState<ReadonlySet<string>>(() => new Set());
   return (
     <div>
-      <button onClick={(): void => setScore(to)} type="button">
+      <button onClick={(): void => setRunning(true)} type="button">
+        run
+      </button>
+      <button
+        onClick={(): void => {
+          const landed = scoreRun(RAMP_LANDED_RUN_ID, to);
+          setLandedRunIds((prev) => new Set([...prev, landed.id]));
+          setRun(landed);
+          setRunning(false);
+        }}
+        type="button"
+      >
         land
       </button>
-      <PayloadView payload={score === null ? {} : { overallScore: score, summary: "A solid card." }} pending={score === null} plan={plan} />
+      <StagePane
+        activeStage="score"
+        arrived={run !== null && landedRunIds.has(run.id)}
+        decided={[]}
+        entries={[]}
+        onDecide={(): void => undefined}
+        run={run}
+        running={running}
+        viewingBack={false}
+      />
     </div>
   );
 }

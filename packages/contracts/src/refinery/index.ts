@@ -165,6 +165,13 @@ export const refinerySessionStatusSchema = z.enum(REFINERY_SESSION_STATUSES);
  *  round with no analyze to refine against). The client reads it off the BAD_REQUEST error body. */
 export const REFINERY_STAGE_NOT_READY_REASON = "refinery_stage_not_ready";
 
+/** The coded reason for a stage run refused because the CALLER'S OWN preset caps `maxOutputTokens` below
+ *  what this stage's payload needs (the ruled refusal, live-e2e 2026-08-09 open fork 1). Distinct from
+ *  {@link REFINERY_STAGE_NOT_READY_REASON} because the fix is a different knob — raise the preset cap or
+ *  narrow the selection, not "run the missing stage first" — and the server's sentence carries the fit
+ *  receipt (the computed need, the cap, the knob), so the client quotes it rather than inventing copy. */
+export const REFINERY_OUTPUT_BUDGET_REASON = "refinery_output_budget_too_small";
+
 // ── F4 stage modes (per-stage prompt-variant enums; the extension's 8 builtin presets ARE these) ────────
 
 export const REFINERY_SCORE_MODES = ["full", "quick"] as const;
