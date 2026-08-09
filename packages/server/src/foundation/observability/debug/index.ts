@@ -39,6 +39,7 @@ export {
   registerDebugRoutes,
   type SocketInspector,
   tokenMatches,
+  type VllmMetricsInspector,
 } from "./routes.ts";
 export {
   isWireCaptureEnabled,

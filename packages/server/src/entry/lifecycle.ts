@@ -36,6 +36,7 @@ import { createAuthSeam, createHostPrincipalResolver } from "./auth/index.ts";
 import {
   reclaimLocksOnBoot,
   runBootMigrations,
+  seedCasSchedules,
   seedCredentialFromEnv,
   seedDefaultCharacters,
   seedDefaultPersona,
@@ -261,6 +262,9 @@ export function createLifecycle(): Lifecycle {
     await seedDefaultPersona({ seeder: built.personaSeeder, owner });
     // AFTER the cards — each bundled example attaches to seeded characters by handle.
     await seedDemoChats({ seeder: built.demoChatSeeder, owner });
+    // The CAS maintenance cadence (#11) — GC weekly, fsck monthly. Existence-gated per kind, so an owner's
+    // cadence/enabled edits survive a restart. Runs after the owner exists (the row's owner is NOT NULL).
+    await seedCasSchedules({ workloads: built.services.workloads, ownerId: owner.userId });
     await reclaimLocksOnBoot({ db, contributions: built.workloadContributions, now, holder });
 
     // Boot-reclaim the host-offline deferred-turn queue (chat Part III §5): each row runs (consent/budget

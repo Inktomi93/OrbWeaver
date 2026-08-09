@@ -263,5 +263,13 @@ export { createImageEmbedRole } from "./roles/image-embed.ts";
 export { createRerankRole } from "./roles/rerank.ts";
 export { createStructuredRole } from "./roles/structured.ts";
 export { createSummarizeRole } from "./roles/summarize.ts";
-export type { EngineDeploymentFacts, EngineStatusRecord, VllmEngineHandle } from "./vllm/index.ts";
-export { detectGpu, fetchEngineMaxModelLen, fetchGenMaxModelLen, resolveEngineDeploymentFacts } from "./vllm/index.ts";
+export type { EngineCapacityMetrics, EngineDeploymentFacts, EngineStatusRecord, VllmEngineHandle } from "./vllm/index.ts";
+export {
+  detectGpu,
+  fetchEngineCapacity,
+  fetchEngineMaxModelLen,
+  fetchGenMaxModelLen,
+  fleetCapacitySnapshot,
+  resolveEngineDeploymentFacts,
+  VLLM_ENGINES,
+} from "./vllm/index.ts";
