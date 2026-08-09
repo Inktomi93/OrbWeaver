@@ -127,7 +127,11 @@ test("L4 the LIST band names the section, counts the presets, and carries the pa
   await mount(<PresetLibrarySurfaceStory />);
 
   const band = page.getByTestId("list-band");
-  await expect(band.getByRole("heading", { level: 2 })).toHaveText("Presets");
+  // toContainText, never toHaveText: the count travels INSIDE the heading (`ListPaneHeader` — it is the
+  // heading's own child so the mobile shed can't orphan it), so the settled text is "Presets4". `toHaveText`
+  // only held while `preset.list` was in flight and the count was still undefined — an in-flight state that
+  // is catchable when this file runs alone and gone under parallel load. The count is asserted below.
+  await expect(band.getByRole("heading", { level: 2 })).toContainText("Presets");
   await expect(band.getByText(String(PRESETS.length), { exact: true })).toBeVisible();
   // A2 — ONE ember primary in the band; Import is its ghost companion, not a second CTA.
   await expect(band.getByRole("button", { name: "New", exact: true })).toBeVisible();

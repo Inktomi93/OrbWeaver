@@ -342,6 +342,12 @@ const SAMPLE_RING_MAX_PX = 6;
 const FOREGROUND_OPACITY_EPS = 0.999;
 const NAV_TIMEOUT_MS = 15_000;
 const WAIT_SELECTOR_TIMEOUT_MS = 10_000;
+// A STAGE (`--isolated`/`--dirty`) is a vite dev server that may be transforming the module graph on demand:
+// a freshly-booted one legitimately needs far longer than the shared dev stack's budget for its FIRST
+// navigation (measured 2026-08-09: every cold stage blew the 15s goto). These are ceilings, not sleeps — a
+// warm stage returns just as fast — so the wide budget costs nothing and buys a first call that isn't a lie.
+const STAGE_NAV_TIMEOUT_MS = 90_000;
+const STAGE_READY_TIMEOUT_MS = 60_000;
 const STEP_TIMEOUT_MS = 5000;
 // Let transitions/queries settle between steps (drawer slides, panel drops).
 const STEP_SETTLE_MS = 400;
@@ -886,8 +892,25 @@ type CaptureOutcome = {
   mapError: string | null;
 };
 
+/** Did the app reach a SETTLED state? `settled` = the flag went up on a real query-cache idle; `degraded` =
+ *  agent-bridge's ceiling handed the flag over with reads still running; `absent` = it never went up. */
+type AppReadiness = "settled" | "degraded" | "absent";
+
+async function appReadiness(page: Page, timeoutMs: number): Promise<AppReadiness> {
+  const flag = page.locator("html[data-app-ready]");
+  const attached = await flag
+    .waitFor({ state: "attached", timeout: timeoutMs })
+    .then(() => true)
+    .catch(() => false);
+  if (!attached) {
+    return "absent";
+  }
+  return (await flag.getAttribute("data-app-ready")) === "degraded" ? "degraded" : "settled";
+}
+
 async function navigate(page: Page, opts: Args, url: string): Promise<string | null> {
-  const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: NAV_TIMEOUT_MS });
+  const navTimeout = opts.isolated ? STAGE_NAV_TIMEOUT_MS : NAV_TIMEOUT_MS;
+  const resp = await page.goto(url, { waitUntil: "domcontentloaded", timeout: navTimeout });
   let navError: string | null = null;
   if (!resp) {
     navError = "no response";
@@ -897,15 +920,24 @@ async function navigate(page: Page, opts: Args, url: string): Promise<string | n
   // Default readiness gate: agent-bridge.ts sets `data-app-ready` on <html> once the initial reads
   // settle — independent of the never-idle SSE stream. Wait for it so snaps capture the SETTLED app,
   // not mid-hydration skeletons (the "lists sit on skeletons forever" friction). Graceful: a non-app
-  // page or an old build that never sets it just falls through (the app self-sets within ~3s), so this
-  // only ever adds real load-wait, never a hang.
+  // page or an old build that never sets it just falls through, so this only ever adds real load-wait,
+  // never a hang.
   // --file (a static mock over file://) has no app and never sets the flag — waiting would burn the full
-  // 10s timeout on EVERY mock snap, so skip it there rather than pay a guaranteed-useless wait.
+  // timeout on EVERY mock snap, so skip it there rather than pay a guaranteed-useless wait.
+  //
+  // THE RESULT IS REPORTED, NOT SWALLOWED (2026-08-09). This used to `.catch(() => undefined)` the whole
+  // wait, so a page that never signalled ready produced a mid-hydration capture and a clean report — the
+  // instrument failing open. It now reads the flag's VALUE too: agent-bridge hands over `degraded` when its
+  // ceiling fires with reads still in flight. Either shape is a nav error on a route we are serving,
+  // because the capture below is NOT of the settled app and every downstream assertion about it is void.
   if (opts.file === null) {
-    await page
-      .locator("html[data-app-ready]")
-      .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
-      .catch(() => undefined);
+    const readiness = await appReadiness(page, opts.isolated ? STAGE_READY_TIMEOUT_MS : WAIT_SELECTOR_TIMEOUT_MS);
+    if (readiness !== "settled" && navError === null) {
+      navError =
+        readiness === "absent"
+          ? "app never signalled data-app-ready — the capture is MID-HYDRATION, not the settled app (a cold stage's first navigation is the usual cause; re-run against the now-warm stage)"
+          : "data-app-ready came up DEGRADED — reads were still in flight at the readiness ceiling, so the capture is mid-hydration, not the settled app";
+    }
   }
   // Even a non-OK nav may still render something worth waiting for (SPA error page).
   if (opts.waitSelector !== null) {
