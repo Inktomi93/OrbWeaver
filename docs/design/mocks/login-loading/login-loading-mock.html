@@ -1,0 +1,1019 @@
+<!doctype html>
+<html lang="en" data-theme="ember">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>orbweaver — login + loading mock (web-weave)</title>
+<style>
+/* ── TOKENS — values copied VERBATIM from packages/ui/src/styles/theme.css (GENERATED file;
+      provenance: tokens.json → tokens:build). The real build imports these; a mock inlines them.
+      Themes here demo the INSTANCE DEFAULT theme + OS scheme — pre-auth there is no user theme. ── */
+:root {
+  --color-background: oklch(0.158 0.006 60);
+  --color-foreground: oklch(0.955 0.004 75);
+  --color-card: oklch(0.205 0.006 60);
+  --color-card-foreground: oklch(0.955 0.004 75);
+  --color-popover: oklch(0.245 0.007 60);
+  --color-primary: oklch(0.72 0.175 52);
+  --color-primary-foreground: oklch(0.19 0.03 50);
+  --color-muted: oklch(0.255 0.006 60);
+  --color-muted-foreground: oklch(0.74 0.008 65);
+  --color-destructive: oklch(0.65 0.19 25);
+  --color-border: oklch(0.99 0.005 60 / 0.08);
+  --color-input: oklch(0.99 0.005 60 / 0.12);
+  --color-ring: oklch(0.72 0.175 52);
+  --color-scrim: oklch(0.12 0.006 60 / 0.6);
+  --color-sky-star: oklch(0.97 0.015 250);
+  --spacing-tight: 0.25rem;
+  --spacing-row: 0.5rem;
+  --spacing-block: 0.75rem;
+  --spacing-section: 1.5rem;
+  --spacing-control-md: 3rem;
+  --radius-control: 0.375rem;
+  --radius-card: 0.625rem;
+  --shadow-overlay: 0 0 0 1px oklch(1 0 0 / 0.06), inset 0 1px 0 0 oklch(1 0 0 / 0.08), 0 2px 4px oklch(0 0 0 / 0.4), 0 12px 32px oklch(0 0 0 / 0.5);
+  --shadow-cta: inset 0 1px 0 oklch(1 0 0 / 0.15);
+  --shadow-cta-glow: inset 0 1px 0 oklch(1 0 0 / 0.15), 0 0 0 1px oklch(0.72 0.175 52 / 0.4), 0 0 18px oklch(0.72 0.175 52 / 0.18);
+  --blur-strength: 14px;
+  --blur-saturate: 1.4;
+  --font-sans: Geist, ui-sans-serif, system-ui, sans-serif;
+  --text-headline: 1.25rem;
+  --text-body: 0.9375rem;
+  --text-label: 0.8125rem;
+  --text-micro: 0.65625rem;
+  --tracking-micro: 0.08em;
+  --motion-fast: 130ms;
+  --motion-base: 220ms;
+  --motion-layout: 360ms;
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  color-scheme: dark;
+}
+@media (pointer: fine) { :root { --spacing-control-md: 2.125rem; } }
+[data-theme="light"] {
+  color-scheme: light;
+  --color-background: oklch(0.98 0.004 75);
+  --color-foreground: oklch(0.24 0.01 60);
+  --color-card: oklch(0.995 0.003 75);
+  --color-card-foreground: oklch(0.24 0.01 60);
+  --color-primary: oklch(0.55 0.16 50);
+  --color-primary-foreground: oklch(0.99 0.01 75);
+  --color-muted-foreground: oklch(0.44 0.01 65);
+  --color-destructive: oklch(0.50 0.19 25);
+  --color-border: oklch(0.2 0.01 60 / 0.12);
+  --color-input: oklch(0.2 0.01 60 / 0.16);
+  --color-ring: oklch(0.55 0.16 50);
+  --color-scrim: oklch(0.3 0.01 60 / 0.4);
+  --shadow-overlay: 0 0 0 1px oklch(0 0 0 / 0.04), 0 2px 4px oklch(0 0 0 / 0.10), 0 12px 32px oklch(0 0 0 / 0.14);
+}
+[data-theme="mocha"] {
+  color-scheme: dark;
+  --color-background: oklch(0.15 0.015 250);
+  --color-foreground: oklch(0.95 0.01 250);
+  --color-card: oklch(0.21 0.015 250);
+  --color-card-foreground: oklch(0.95 0.01 250);
+  --color-primary: oklch(0.7 0.14 250);
+  --color-primary-foreground: oklch(0.16 0.03 250);
+  --color-muted-foreground: oklch(0.72 0.012 250);
+  --color-border: oklch(0.99 0.01 250 / 0.09);
+  --color-input: oklch(0.99 0.01 250 / 0.13);
+  --color-ring: oklch(0.7 0.14 250);
+  --color-scrim: oklch(0.1 0.015 250 / 0.6);
+  --shadow-cta-glow: inset 0 1px 0 oklch(1 0 0 / 0.15), 0 0 0 1px oklch(0.7 0.14 250 / 0.4), 0 0 18px oklch(0.7 0.14 250 / 0.22);
+}
+
+/* ── base ── */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  font-family: var(--font-sans);
+  background: var(--color-background);
+  color: var(--color-foreground);
+  overflow: hidden;
+  font-size: var(--text-body);
+}
+
+/* ── the web layer ── */
+#glowfield {
+  position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(circle at var(--hub-x, 50%) var(--hub-y, 42%),
+    color-mix(in oklab, var(--color-primary) 13%, transparent), transparent 62%);
+  transition: opacity 600ms var(--ease-out-expo);
+}
+#web { position: fixed; inset: 0; width: 100vw; height: 100vh; display: block; }
+#webwrap { position: fixed; inset: 0; }
+#webwrap.dissolving, #stage.dissolving {
+  filter: blur(15px); opacity: 0;
+  transition: filter 500ms var(--ease-out-expo), opacity 500ms var(--ease-out-expo);
+}
+
+/* ── stage (scene UI) ── */
+#stage { position: fixed; inset: 0; display: grid; place-items: center; }
+.scene { display: none; width: 100%; height: 100%; position: relative; }
+.scene.on { display: block; }
+
+/* loading scene chrome */
+.bootFoot {
+  position: absolute; left: 0; right: 0; bottom: 6vh;
+  display: flex; flex-direction: column; align-items: center; gap: var(--spacing-row);
+  text-align: center;
+}
+.phaseCap {
+  font-size: var(--text-micro); letter-spacing: var(--tracking-micro); text-transform: uppercase;
+  color: var(--color-muted-foreground); min-height: 1.2em;
+  transition: opacity var(--motion-base) var(--ease-out-expo);
+}
+.wordmark { display: inline-flex; align-items: center; gap: 0.55rem; user-select: none; }
+.wordmark svg { display: block; }
+.wordmark .wm {
+  font-weight: 600; letter-spacing: -0.01em; font-size: 1.05rem; color: var(--color-foreground);
+}
+.wordmark .wm b { font-weight: 600; color: var(--color-primary); }
+.bootActions { display: flex; gap: var(--spacing-row); margin-top: var(--spacing-row); opacity: 0; transition: opacity var(--motion-layout) var(--ease-out-expo); pointer-events: none; }
+.bootActions.ready { opacity: 1; pointer-events: auto; }
+
+/* login card scenes */
+.loginCol {
+  position: absolute; left: 50%; top: 46vh; transform: translateX(-50%);
+  width: min(24rem, calc(100vw - 3rem));
+  display: flex; flex-direction: column; gap: var(--spacing-block); align-items: center;
+}
+.card {
+  width: 100%;
+  background: color-mix(in oklab, var(--color-card) 86%, transparent);
+  backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+  -webkit-backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-overlay);
+  padding: var(--spacing-section);
+  display: flex; flex-direction: column; gap: var(--spacing-block);
+  color: var(--color-card-foreground);
+  opacity: 0; translate: 0 10px; filter: blur(4px);
+  transition: opacity var(--motion-layout) var(--ease-out-expo),
+    translate var(--motion-layout) var(--ease-out-expo), filter var(--motion-layout) var(--ease-out-expo);
+}
+.scene.on .card { opacity: 1; translate: 0 0; filter: blur(0); }
+.card h1 { margin: 0; font-size: var(--text-headline); line-height: 1.3; font-weight: 600; }
+.hint { margin: 0; font-size: var(--text-label); line-height: 1.4; color: var(--color-muted-foreground); }
+.alert { margin: 0; font-size: var(--text-label); color: var(--color-destructive); }
+.field { display: flex; flex-direction: column; gap: var(--spacing-tight); }
+.field label { font-size: var(--text-label); color: var(--color-muted-foreground); }
+.field .desc { font-size: var(--text-micro); color: var(--color-muted-foreground); }
+input[type="text"], input[type="password"] {
+  height: var(--spacing-control-md);
+  padding: 0 0.65rem; font: inherit; font-size: var(--text-body);
+  color: var(--color-foreground);
+  background: var(--color-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  outline: none;
+}
+input:focus-visible { border-color: transparent; outline: 2px solid var(--color-ring); outline-offset: 0; }
+.btn {
+  height: var(--spacing-control-md);
+  padding: 0 1rem; font: inherit; font-size: var(--text-body); font-weight: 500;
+  border-radius: var(--radius-control); border: 1px solid transparent; cursor: pointer;
+  transition: box-shadow var(--motion-fast) var(--ease-out-expo), scale var(--motion-fast) var(--ease-out-expo),
+    background-color var(--motion-fast) var(--ease-out-expo);
+}
+.btn:active { scale: 0.97; }
+.btn.primary { background: var(--color-primary); color: var(--color-primary-foreground); box-shadow: var(--shadow-cta); }
+.btn.primary:hover { box-shadow: var(--shadow-cta-glow); }
+.btn.ghost { background: transparent; color: var(--color-foreground); border-color: var(--color-border); }
+.btn.ghost:hover { background: color-mix(in oklab, var(--color-foreground) 6%, transparent); }
+.spinRow { display: flex; align-items: center; gap: var(--spacing-row); }
+
+/* WebSpinner (the mini ST-beat loader — one emblem, every size) */
+.webspinner { display: inline-block; }
+.webspinner .rot { transform-origin: 16px 16px; animation: orb-spin-rot 14s linear infinite; }
+.webspinner .pulse { animation: orb-spin-pulse 1.5s linear infinite; }
+@keyframes orb-spin-rot { to { transform: rotate(360deg); } }
+@keyframes orb-spin-pulse { to { stroke-dashoffset: calc(-1 * var(--dash-period)); } }
+
+/* fake app (for the ST dissolve demo) */
+#app { position: fixed; inset: 0; display: none; opacity: 0; transition: opacity var(--motion-layout) var(--ease-out-expo); }
+#app.on { display: block; }
+#app.in { opacity: 1; }
+#app .bar { position: absolute; background: var(--color-card); border: 1px solid var(--color-border); border-radius: var(--radius-card); }
+
+/* mock chrome (NOT product UI) */
+#chrome {
+  position: fixed; top: 0.75rem; left: 0.75rem; z-index: 50;
+  background: color-mix(in oklab, var(--color-card) 92%, transparent);
+  border: 1px solid var(--color-border); border-radius: var(--radius-card);
+  padding: 0.6rem 0.7rem; display: flex; flex-direction: column; gap: 0.45rem;
+  font-size: var(--text-label); box-shadow: var(--shadow-overlay);
+  max-width: 17rem;
+}
+#chrome .t { font-size: var(--text-micro); letter-spacing: var(--tracking-micro); text-transform: uppercase; color: var(--color-muted-foreground); }
+#chrome .rowc { display: flex; align-items: center; gap: 0.45rem; justify-content: space-between; }
+#chrome select {
+  font: inherit; font-size: var(--text-label); color: var(--color-foreground);
+  background: var(--color-input); border: 1px solid var(--color-border); border-radius: var(--radius-control);
+  padding: 0.2rem 0.35rem; max-width: 10.5rem;
+}
+#chrome .note { font-size: var(--text-micro); color: var(--color-muted-foreground); line-height: 1.35; }
+#chrome button {
+  font: inherit; font-size: var(--text-label); cursor: pointer;
+  background: var(--color-input); color: var(--color-foreground);
+  border: 1px solid var(--color-border); border-radius: var(--radius-control); padding: 0.25rem 0.55rem;
+}
+#chrome.min .body { display: none; }
+
+/* reduced motion floor — mirrors the app's REMOVE-not-shorten floor */
+html.rm *, html.rm *::before, html.rm *::after {
+  animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+}
+</style>
+</head>
+<body data-scene="loading">
+
+<div id="webwrap">
+  <div id="glowfield"></div>
+  <canvas id="web"></canvas>
+</div>
+
+<div id="stage">
+
+  <!-- LOADING (boot) -->
+  <section class="scene" data-scene="loading">
+    <div class="bootFoot">
+      <div class="phaseCap" id="phaseCap">casting the bridge line</div>
+      <div class="wordmark">
+        <svg class="sigil" width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"></svg>
+        <span class="wm">orbweaver</span>
+      </div>
+      <div class="bootActions" id="bootActions">
+        <button class="btn ghost" id="toLoginBtn" type="button">Boot &rarr; login (web stays)</button>
+        <button class="btn ghost" id="toAppBtn" type="button">Boot &rarr; app (ST dissolve)</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- SINGLE-USER -->
+  <section class="scene" data-scene="single-user">
+    <div class="loginCol">
+      <div class="wordmark"><svg class="sigil" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"></svg><span class="wm">orbweaver</span></div>
+      <div class="card">
+        <h1>Single-user mode</h1>
+        <p class="hint">No login needed — you're already in.</p>
+        <button class="btn primary" type="button">Back to the app</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOCAL (plain username + password — ruling: no account picker, ever) -->
+  <section class="scene" data-scene="local">
+    <div class="loginCol">
+      <div class="wordmark"><svg class="sigil" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"></svg><span class="wm">orbweaver</span></div>
+      <div class="card">
+        <h1>Sign in</h1>
+        <div class="field"><label for="f-handle">Handle</label><input id="f-handle" type="text" autocomplete="username" value="nate"></div>
+        <div class="field"><label for="f-pass">Password</label><input id="f-pass" type="password" autocomplete="current-password"></div>
+        <button class="btn primary" type="button">Sign in</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOCAL FIRST-RUN (B4) — the web is HALF-WOVEN until setup completes -->
+  <section class="scene" data-scene="first-run">
+    <div class="loginCol">
+      <div class="wordmark"><svg class="sigil" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"></svg><span class="wm">orbweaver</span></div>
+      <div class="card">
+        <h1>Set up your server</h1>
+        <p class="hint">Set the password for the owner account &ldquo;nate&rdquo; to finish setting up this server.</p>
+        <div class="field"><label for="fr-pass">Owner password</label><input id="fr-pass" type="password" autocomplete="new-password"><span class="desc">At least 8 characters.</span></div>
+        <div class="field"><label for="fr-conf">Confirm password</label><input id="fr-conf" type="password" autocomplete="new-password"></div>
+        <button class="btn primary" id="firstRunBtn" type="button">Set password &amp; continue</button>
+        <p class="hint" style="font-size: var(--text-micro)">mock: the button finishes weaving the web — the server "spins up" its capture spiral</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- OIDC (first-class) -->
+  <section class="scene" data-scene="oidc">
+    <div class="loginCol">
+      <div class="wordmark"><svg class="sigil" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"></svg><span class="wm">orbweaver</span></div>
+      <div class="card">
+        <h1>Sign in</h1>
+        <p class="hint">You'll be redirected to Authentik, then back here.</p>
+        <button class="btn primary" id="oidcBtn" type="button">Continue with Authentik</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- OIDC + A7 error -->
+  <section class="scene" data-scene="oidc-error">
+    <div class="loginCol">
+      <div class="wordmark"><svg class="sigil" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"></svg><span class="wm">orbweaver</span></div>
+      <div class="card">
+        <h1>Sign in</h1>
+        <p class="hint">You'll be redirected to Authentik, then back here.</p>
+        <p class="alert" role="alert">Sign-in didn't complete. Try again, and if it keeps failing ask your admin to check the identity provider.</p>
+        <button class="btn primary" id="oidcBtn2" type="button">Continue with Authentik</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- OIDC A9 redirecting — the strand-out beat -->
+  <section class="scene" data-scene="oidc-redirect">
+    <div class="loginCol">
+      <div class="wordmark"><svg class="sigil" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"></svg><span class="wm">orbweaver</span></div>
+      <div class="card">
+        <h1>Signing in&hellip;</h1>
+        <div class="spinRow">
+          <svg class="webspinner" width="30" height="30" viewBox="0 0 32 32" role="status" aria-label="Redirecting"></svg>
+          <p class="hint" style="margin:0">Handing you off to Authentik along the silk.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FORWARD-HEADER -->
+  <section class="scene" data-scene="forward-header">
+    <div class="loginCol">
+      <div class="wordmark"><svg class="sigil" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"></svg><span class="wm">orbweaver</span></div>
+      <div class="card">
+        <h1>Authentication happens at your proxy</h1>
+        <p class="hint">This deployment uses forward-auth — the reverse proxy should authenticate you and inject identity headers before a request reaches the app. Seeing this page means it didn't: check the proxy configuration (authentik/Authelia/oauth2-proxy) and the FORWARD_AUTH_TRUSTED_PROXIES allowlist.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- UNREACHABLE -->
+  <section class="scene" data-scene="unreachable">
+    <div class="loginCol">
+      <div class="wordmark"><svg class="sigil" width="26" height="26" viewBox="0 0 32 32" aria-hidden="true"></svg><span class="wm">orbweaver</span></div>
+      <div class="card">
+        <h1>Can't reach the server</h1>
+        <p class="hint">The app couldn't load its sign-in configuration. Check the server is running, then retry.</p>
+        <button class="btn ghost" type="button">Retry</button>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- fake app behind the ST-dissolve demo -->
+<div id="app" aria-hidden="true">
+  <div class="bar" style="left:0;top:0;bottom:0;width:3.5rem"></div>
+  <div class="bar" style="left:4.25rem;top:0.75rem;bottom:0.75rem;width:20rem"></div>
+  <div class="bar" style="left:25.25rem;top:0.75rem;right:0.75rem;bottom:0.75rem"></div>
+</div>
+
+<!-- MOCK CHROME — demo controls, none of this is product UI -->
+<div id="chrome">
+  <div class="rowc"><span class="t">mock chrome — not product UI</span><button id="minBtn" type="button" title="collapse">–</button></div>
+  <div class="body" style="display:flex;flex-direction:column;gap:0.45rem">
+    <div class="rowc"><label for="sceneSel">scene</label>
+      <select id="sceneSel">
+        <option value="loading" selected>loading (boot weave)</option>
+        <option value="single-user">login · single-user</option>
+        <option value="local">login · local (plain form)</option>
+        <option value="first-run">login · local first-run (B4)</option>
+        <option value="oidc">login · oidc</option>
+        <option value="oidc-error">login · oidc + error (A7)</option>
+        <option value="oidc-redirect">login · oidc redirecting (A9)</option>
+        <option value="forward-header">login · forward-header</option>
+        <option value="unreachable">login · unreachable</option>
+      </select>
+    </div>
+    <div class="rowc"><label for="themeSel">instance theme</label>
+      <select id="themeSel">
+        <option value="ember" selected>Ember (default, dark)</option>
+        <option value="light">Ember (default, light)</option>
+        <option value="mocha">Mocha (deployment-branded)</option>
+      </select>
+    </div>
+    <div class="rowc"><label for="rmChk">reduced motion</label><input id="rmChk" type="checkbox"></div>
+    <div class="rowc"><button id="replayBtn" type="button">replay weave</button><button id="spiderBtn" type="button">spider: on</button></div>
+    <div class="note">Theme = the instance's DEFAULT theme + OS scheme (no session yet, so no user theme). The switcher demos token-driven recolor — it is not a login affordance.</div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ────────────────────────────────────────────────────────────────────────────
+   THE WEB-WEAVE — canvas orb-web woven the way an orb-weaver builds:
+   bridge → Y/frame → radii (alternating sides) → auxiliary spiral (out) →
+   capture spiral (in, consuming the scaffold, stopping at the free zone) →
+   settle (rest head-down at hub, dew, glint sweep, sway).
+   Deterministic (waystone-style sin-hash), token-driven (palette resolved from
+   CSS custom properties via computed style — the same wiring the real
+   primitive will use), reduced-motion = static settled render, no rAF.
+   ──────────────────────────────────────────────────────────────────────────── */
+const TAU = Math.PI * 2;
+const SEED = 7;
+function jitter(a, b) { const n = Math.sin(a * 127.1 + b * 311.7 + SEED) * 43758.545; return n - Math.floor(n); }
+const clamp01 = (v) => v < 0 ? 0 : v > 1 ? 1 : v;
+const easeOut = (p) => 1 - Math.pow(1 - p, 3);
+
+/* phase timeline (ms) — data, not CSS tokens (guide §4.3: no new duration tokens) */
+const T = {
+  bridge: [0, 900],
+  drop1: [900, 1250], drop2: [1250, 1650],
+  frame: [1650, 2400],
+  radii: [2400, 4600],
+  aux: [4600, 5600],
+  capture: [5600, 7600],
+  settle: 7600,
+};
+const RADIUS_N = 16;
+const CAPTURE_TURNS = 9;
+const AUX_TURNS = 4.4;
+
+const canvas = document.getElementById("web");
+const ctx = canvas.getContext("2d");
+let W = 0, H = 0, DPR = 1;
+
+/* ── palette: resolved from tokens at mount + on theme change (canvas can't var()) ── */
+const probe = document.createElement("div");
+probe.style.display = "none";
+document.body.appendChild(probe);
+function resolve(expr) { probe.style.color = expr; return getComputedStyle(probe).color; }
+let PAL = {};
+function resolvePalette() {
+  PAL = {
+    silk: resolve("color-mix(in oklab, var(--color-foreground) 62%, transparent)"),
+    silkBright: resolve("color-mix(in oklab, var(--color-primary) 55%, var(--color-foreground))"),
+    glow: resolve("var(--color-primary)"),
+    dew: resolve("color-mix(in oklab, var(--color-sky-star) 70%, var(--color-primary))"),
+    spiderBody: resolve("color-mix(in oklab, var(--color-foreground) 55%, var(--color-primary))"),
+    spiderBand: resolve("var(--color-primary)"),
+  };
+}
+
+/* ── geometry ── */
+let web = null;        // built strand set
+let hub = { x: 0, y: 0 };
+let hubFrac = { x: 0.5, y: 0.42 };
+
+function sagLine(a, b, sag, n) {
+  // quadratic curve sagging toward +y; returns sampled points
+  const pts = [];
+  const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2 + sag;
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, u = 1 - t;
+    pts.push({ x: u * u * a.x + 2 * u * t * mx + t * t * b.x, y: u * u * a.y + 2 * u * t * my + t * t * b.y });
+  }
+  return pts;
+}
+function segIntersect(p, d, a, b) {
+  // ray p+t*d vs segment ab → t (ray param) or null
+  const rx = d.x, ry = d.y, sx = b.x - a.x, sy = b.y - a.y;
+  const den = rx * sy - ry * sx;
+  if (Math.abs(den) < 1e-9) return null;
+  const qx = a.x - p.x, qy = a.y - p.y;
+  const t = (qx * sy - qy * sx) / den;
+  const u = (qx * ry - qy * rx) / den;
+  return (t > 0 && u >= 0 && u <= 1) ? t : null;
+}
+
+function buildWeb() {
+  hub = { x: hubFrac.x * W, y: hubFrac.y * H };
+  const anchors = {
+    bl: { x: -0.06 * W, y: hubFrac.y * H - 0.30 * H },
+    br: { x: 1.06 * W, y: hubFrac.y * H - 0.33 * H },
+    r: { x: 1.08 * W, y: hubFrac.y * H + 0.30 * H },
+    b: { x: 0.58 * W, y: hubFrac.y * H + 0.72 * H },
+    l: { x: -0.08 * W, y: hubFrac.y * H + 0.34 * H },
+  };
+  const poly = [anchors.bl, anchors.br, anchors.r, anchors.b, anchors.l];
+  const rayToFrame = (ang) => {
+    const d = { x: Math.cos(ang), y: Math.sin(ang) };
+    let best = Infinity;
+    for (let i = 0; i < poly.length; i++) {
+      const t = segIntersect(hub, d, poly[i], poly[(i + 1) % poly.length]);
+      if (t !== null && t < best) best = t;
+    }
+    return Number.isFinite(best) ? best : Math.max(W, H);
+  };
+
+  const strands = [];
+  // bridge (wavy while floating; the walkable top line)
+  const bridgePts = sagLine(anchors.bl, anchors.br, 0.045 * H, 48);
+  strands.push({ kind: "bridge", pts: bridgePts, t0: T.bridge[0], t1: T.bridge[1] - 250, w: 1.15 });
+  // bridge midpoint nearest hub.x
+  let bm = bridgePts[0];
+  for (const p of bridgePts) if (Math.abs(p.x - hub.x) < Math.abs(bm.x - hub.x)) bm = p;
+  // the Y: drop from bridge to hub, hub to bottom anchor
+  strands.push({ kind: "frame", pts: sagLine(bm, hub, 2, 16), t0: T.drop1[0], t1: T.drop1[1], w: 1.1 });
+  strands.push({ kind: "frame", pts: sagLine(hub, anchors.b, 5, 24), t0: T.drop2[0], t1: T.drop2[1], w: 1.1 });
+  // frame edges (light sag so radius tips sit close to the chord)
+  const edges = [[anchors.bl, anchors.l], [anchors.l, anchors.b], [anchors.b, anchors.r], [anchors.r, anchors.br]];
+  const fSlice = (T.frame[1] - T.frame[0]) / edges.length;
+  edges.forEach(([a, b2], i) => {
+    strands.push({ kind: "frame", pts: sagLine(a, b2, 4, 20), t0: T.frame[0] + i * fSlice, t1: T.frame[0] + (i + 1) * fSlice, w: 1.0 });
+  });
+
+  // radii — one at a time, alternating sides of the hub (tension balance)
+  const angles = [];
+  for (let i = 0; i < RADIUS_N; i++) angles.push((i / RADIUS_N) * TAU + (jitter(i, 3) - 0.5) * 0.16);
+  const order = [];
+  for (let k = 0; k < RADIUS_N / 2; k++) order.push(k, k + RADIUS_N / 2);
+  const rSlice = (T.radii[1] - T.radii[0]) / RADIUS_N;
+  const radii = [];
+  order.forEach((ai, oi) => {
+    const ang = angles[ai];
+    const len = rayToFrame(ang) * 0.995;
+    const end = { x: hub.x + Math.cos(ang) * len, y: hub.y + Math.sin(ang) * len };
+    const t0 = T.radii[0] + oi * rSlice;
+    const s = { kind: "radius", ang, pts: sagLine(hub, end, Math.min(6, len * 0.012), 22), t0, t1: t0 + rSlice * 0.68, zip1: t0 + rSlice, w: 0.95 };
+    strands.push(s); radii.push(s);
+  });
+
+  // spirals — shaped to the frame (r scaled by the frame distance at each angle), not circles
+  const avgMax = angles.reduce((s, a) => s + rayToFrame(a), 0) / RADIUS_N;
+  const rFree = avgMax * 0.16;
+  // Frame-following but ROUNDED — a raw frame-distance factor makes the spiral a hard polygon;
+  // blending toward circular keeps it filling the frame while the rings read as a real orb.
+  const shape = (ang) => 0.62 + 0.38 * (rayToFrame(ang) / avgMax);
+  const spiral = (kind, t0, t1, thFrom, thTo, rFrom, rTo, wpx) => {
+    const pts = [], vt = [];
+    const steps = Math.max(24, Math.round(Math.abs(thTo - thFrom) / 0.11));
+    for (let i = 0; i <= steps; i++) {
+      const s = i / steps;
+      const th = thFrom + (thTo - thFrom) * s;
+      const r = (rFrom + (rTo - rFrom) * s) * shape(th) * (1 + (jitter(i, kind === "aux" ? 11 : 13) - 0.5) * 0.012);
+      pts.push({ x: hub.x + Math.cos(th) * r, y: hub.y + Math.sin(th) * r });
+      vt.push(t0 + (t1 - t0) * s);
+    }
+    return { kind, pts, vt, t0, t1, w: wpx };
+  };
+  const auxS = spiral("aux", T.aux[0], T.aux[1], 0.3, 0.3 + AUX_TURNS * TAU, rFree * 1.15, avgMax * 0.86, 0.55);
+  const capS = spiral("capture", T.capture[0], T.capture[1], 0.3 + AUX_TURNS * TAU, 0.3 + AUX_TURNS * TAU - CAPTURE_TURNS * TAU, avgMax * 0.86, rFree * 1.35, 0.8);
+  strands.push(auxS, capS);
+
+  // dew — deterministic points on the capture spiral (condenses on settle)
+  const dew = [];
+  for (let i = 6; i < capS.pts.length - 4; i += 5) {
+    if (jitter(i, 21) > 0.72) {
+      dew.push({ x: capS.pts[i].x, y: capS.pts[i].y, r: 0.9 + jitter(i, 22) * 1.3, ph: jitter(i, 23) * TAU, sp: 0.6 + jitter(i, 24) * 0.9 });
+    }
+  }
+
+  // spider itinerary — where the weaver is at time t
+  const it = [];
+  it.push({ t0: 550, t1: 1000, pts: bridgePts, from: 0, to: bridgePts.indexOf(bm) / (bridgePts.length - 1) }); // walk to mid
+  it.push({ t0: T.drop1[0], t1: T.drop1[1], pts: strands[1].pts, from: 0, to: 1 });   // drop to hub
+  it.push({ t0: T.drop2[0], t1: T.drop2[1], pts: strands[2].pts, from: 0, to: 1 });   // down…
+  it.push({ t0: T.frame[0], t1: T.frame[1], pts: strands[2].pts, from: 1, to: 0 });   // …and back while frame sets
+  radii.forEach((s) => {
+    it.push({ t0: s.t0, t1: s.t1, pts: s.pts, from: 0, to: 1 });      // lay outward
+    it.push({ t0: s.t1, t1: s.zip1, pts: s.pts, from: 1, to: 0 });    // zip home
+  });
+  it.push({ t0: auxS.t0, t1: auxS.t1, pts: auxS.pts, from: 0, to: 1, tip: true });
+  it.push({ t0: capS.t0, t1: capS.t1, pts: capS.pts, from: 0, to: 1, tip: true });
+  it.push({ t0: T.capture[1], t1: T.capture[1] + 420, pts: [capS.pts[capS.pts.length - 1], hub], from: 0, to: 1 });
+
+  web = { strands, radii, auxS, capS, dew, itinerary: it, avgMax, rFree, anchors };
+}
+
+/* ── state ── */
+const state = {
+  mode: "weaving",        // weaving | settled | partial | resume
+  clock0: performance.now(),
+  offset: 0,              // timeline offset (resume support)
+  dim: 1,
+  spider: true,
+  rm: false,
+  strandOut: null,        // {t0} — the oidc handoff beat
+  flash: null,            // {t0} — exit glint flash
+  spiderPrev: null,
+};
+function timelineNow(now) {
+  if (state.mode === "settled") return T.settle + (now - state.clock0);        // ambient keeps flowing
+  if (state.mode === "partial") return T.radii[1] + 1;                          // frozen mid-build (sway alive via `now`)
+  return state.offset + (now - state.clock0);
+}
+function setMode(mode, opts = {}) {
+  state.mode = mode;
+  state.clock0 = performance.now();
+  state.offset = opts.offset ?? 0;
+  state.strandOut = null;
+  if (mode !== "weaving" && mode !== "resume") state.offset = 0;
+}
+
+/* ── drawing ── */
+function drawPolyline(pts, upTo, sway, t) {
+  ctx.beginPath();
+  const n = Math.min(upTo, pts.length - 1);
+  for (let i = 0; i <= n; i++) {
+    const p = pts[i];
+    const dx = sway ? Math.sin(t * 0.0006 + p.y * 0.012) * 2.1 : 0;
+    const dy = sway ? Math.cos(t * 0.0005 + p.x * 0.009) * 1.5 : 0;
+    if (i === 0) ctx.moveTo(p.x + dx, p.y + dy); else ctx.lineTo(p.x + dx, p.y + dy);
+  }
+  ctx.stroke();
+}
+function strandProgress(s, t) {
+  if (t <= s.t0) return 0;
+  if (t >= s.t1) return 1;
+  return easeOut((t - s.t0) / (s.t1 - s.t0));
+}
+function spiralUpTo(s, t) {
+  if (t >= s.t1) return s.pts.length - 1;
+  if (t <= s.t0) return -1;
+  let i = s._i ?? 0;
+  if (s.vt[i] > t) i = 0;
+  while (i < s.vt.length - 1 && s.vt[i + 1] <= t) i++;
+  s._i = i;
+  return i;
+}
+function pointAtFrac(pts, f) {
+  const x = f * (pts.length - 1), i = Math.min(Math.floor(x), pts.length - 2), r = x - i;
+  return { x: pts[i].x + (pts[i + 1].x - pts[i].x) * r, y: pts[i].y + (pts[i + 1].y - pts[i].y) * r };
+}
+
+function drawSpider(x, y, ang, moving, t) {
+  const s = 1.15;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(ang);
+  ctx.scale(s, s);
+  ctx.lineCap = "round";
+  const legAngles = [0.42, 0.85, 1.55, 2.05];
+  for (const side of [-1, 1]) {
+    legAngles.forEach((base, i) => {
+      const wob = Math.sin(t * 0.02 + i * 1.57 + (side > 0 ? 0 : 0.9)) * (moving ? 0.20 : 0.05);
+      const a1 = (base + wob) * side;
+      const shx = 2.0, shy = 0;
+      const ex = shx + Math.cos(a1) * 6.2, ey = shy + Math.sin(a1) * 6.2;
+      const a2 = a1 + 0.62 * side;
+      const fx = ex + Math.cos(a2) * 5.6, fy = ey + Math.sin(a2) * 5.6;
+      ctx.strokeStyle = PAL.spiderBody; ctx.lineWidth = 1.15;
+      ctx.beginPath(); ctx.moveTo(shx, shy); ctx.lineTo(ex, ey); ctx.stroke();
+      ctx.strokeStyle = PAL.spiderBand; ctx.lineWidth = 1.0;
+      ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(fx, fy); ctx.stroke();
+    });
+  }
+  const breathe = moving ? 1 : 1 + Math.sin(t * 0.0012) * 0.04;
+  ctx.fillStyle = PAL.spiderBody;
+  ctx.beginPath(); ctx.arc(2.2, 0, 2.4, 0, TAU); ctx.fill();                       // cephalothorax
+  ctx.save(); ctx.scale(breathe, breathe);
+  ctx.beginPath(); ctx.ellipse(-3.2, 0, 4.4, 3.4, 0, 0, TAU); ctx.fill();          // abdomen
+  ctx.fillStyle = PAL.spiderBand;
+  ctx.beginPath(); ctx.arc(-3.2, 0, 1.15, 0, TAU); ctx.fill();                     // the orb marking
+  ctx.restore();
+  ctx.restore();
+}
+
+function spiderAt(t) {
+  if (state.strandOut) {
+    const so = state.strandOut, p = clamp01((t - so.t0) / 1800);
+    if (p >= 1) return null;
+    const pos = pointAtFrac(so.pts, easeOut(p));
+    return { ...pos, ang: Math.atan2(so.pts[10].y - so.pts[0].y, so.pts[10].x - so.pts[0].x), moving: true };
+  }
+  if (t >= T.capture[1] + 420 || state.mode === "settled") {
+    return { x: hub.x, y: hub.y + Math.sin(t * 0.0009) * 0.9, ang: Math.PI / 2, moving: false }; // rest head-down
+  }
+  if (state.mode === "partial") return { x: hub.x, y: hub.y, ang: Math.PI / 2, moving: false };
+  for (const leg of web.itinerary) {
+    if (t >= leg.t0 && t <= leg.t1) {
+      let pos;
+      if (leg.tip) {
+        const strand = leg.pts === web.auxS.pts ? web.auxS : web.capS;
+        const i = Math.max(spiralUpTo(strand, t), 0);
+        pos = strand.pts[i];
+      } else {
+        const f = leg.from + (leg.to - leg.from) * easeOut(clamp01((t - leg.t0) / (leg.t1 - leg.t0)));
+        pos = pointAtFrac(leg.pts, f);
+      }
+      let ang = Math.PI / 2;
+      if (state.spiderPrev) {
+        const dx = pos.x - state.spiderPrev.x, dy = pos.y - state.spiderPrev.y;
+        if (dx * dx + dy * dy > 0.05) ang = Math.atan2(dy, dx);
+        else ang = state.spiderPrev.ang;
+      }
+      state.spiderPrev = { ...pos, ang };
+      return { ...pos, ang, moving: true };
+    }
+  }
+  return null;
+}
+
+function render(now) {
+  const t = timelineNow(now);
+  const settled = t >= T.settle || state.mode === "settled";
+  const sway = !state.rm;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.globalAlpha = 1;
+  ctx.lineCap = "round";
+
+  const capProgress = clamp01((t - T.capture[0]) / (T.capture[1] - T.capture[0]));
+  const dimA = state.dim;
+
+  // strands
+  for (const s of web.strands) {
+    let alpha = 0.85, upTo, width = s.w;
+    if (s.kind === "aux") {
+      alpha = 0.38 * (1 - 0.92 * capProgress);                  // the scaffold, consumed by the capture pass
+      upTo = spiralUpTo(s, t);
+    } else if (s.kind === "capture") {
+      alpha = 0.8;
+      upTo = spiralUpTo(s, t);
+    } else {
+      const p = strandProgress(s, t);
+      if (p === 0) continue;
+      upTo = Math.round(p * (s.pts.length - 1));
+      const fresh = clamp01(1 - (t - s.t1) / 300);
+      width = s.w + fresh * 0.5;
+      alpha = 0.6 + 0.25 * (1 - fresh);
+    }
+    if (upTo < 1) continue;
+    ctx.globalAlpha = alpha * dimA;
+    ctx.strokeStyle = s.kind === "capture" ? PAL.silk : PAL.silk;
+    ctx.lineWidth = width;
+    if (s.kind === "capture") { ctx.shadowColor = PAL.glow; ctx.shadowBlur = 3; }
+    drawPolyline(s.pts, upTo, sway && s.kind !== "bridge", now);
+    ctx.shadowBlur = 0;
+    // the bridge floats wavy before it catches
+    if (s.kind === "bridge" && t < 650 && !state.rm) {
+      ctx.globalAlpha = 0.25 * dimA;
+      ctx.beginPath();
+      for (let i = 0; i <= upTo; i++) {
+        const p = s.pts[i];
+        const wig = Math.sin(now * 0.004 + i * 0.5) * 6 * (1 - t / 650);
+        if (i === 0) ctx.moveTo(p.x, p.y + wig); else ctx.lineTo(p.x, p.y + wig);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // glint sweep — the web catches the accent light (settle only)
+  if (settled && !state.rm) {
+    const sweep = (now / 8000 % 1) * TAU;
+    ctx.lineWidth = 1.1;
+    ctx.strokeStyle = PAL.silkBright;
+    ctx.shadowColor = PAL.glow; ctx.shadowBlur = 6;
+    const lit = (p) => {
+      let d = Math.abs(((Math.atan2(p.y - hub.y, p.x - hub.x) - sweep) % TAU + TAU) % TAU);
+      if (d > Math.PI) d = TAU - d;
+      return d < 0.30 ? 1 - d / 0.30 : 0;
+    };
+    for (const s of [web.capS, ...web.radii]) {
+      ctx.beginPath();
+      let open = false;
+      for (let i = 0; i < s.pts.length - 1; i++) {
+        const li = lit(s.pts[i]);
+        if (li > 0.05) {
+          ctx.globalAlpha = 0.5 * li * dimA;
+          if (!open) { ctx.moveTo(s.pts[i].x, s.pts[i].y); open = true; }
+          ctx.lineTo(s.pts[i + 1].x, s.pts[i + 1].y);
+        } else if (open) { ctx.stroke(); ctx.beginPath(); open = false; }
+      }
+      if (open) ctx.stroke();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  // dew — condenses on settle, twinkles on its own phases
+  if (settled) {
+    const born = state.mode === "settled" ? 1 : clamp01((t - T.settle) / 900);
+    for (const d of web.dew) {
+      const tw = state.rm ? 0.8 : 0.35 + 0.65 * Math.pow(Math.sin(now * 0.001 * d.sp + d.ph), 2);
+      ctx.globalAlpha = born * tw * 0.9 * dimA;
+      ctx.fillStyle = PAL.dew;
+      ctx.beginPath(); ctx.arc(d.x, d.y, d.r, 0, TAU); ctx.fill();
+      ctx.globalAlpha = born * tw * 0.25 * dimA;
+      ctx.beginPath(); ctx.arc(d.x, d.y, d.r * 2.4, 0, TAU); ctx.fill();
+    }
+  }
+
+  // strand-out (the oidc handoff)
+  if (state.strandOut) {
+    const so = state.strandOut, p = clamp01((now - so.t0) / 1800);
+    const upTo = Math.round(easeOut(p) * (so.pts.length - 1));
+    ctx.globalAlpha = 0.9 * dimA;
+    ctx.strokeStyle = PAL.silkBright; ctx.lineWidth = 1.5;
+    ctx.shadowColor = PAL.glow; ctx.shadowBlur = 7;
+    drawPolyline(so.pts, upTo, false, now);
+    ctx.shadowBlur = 0;
+  }
+
+  // the weaver
+  if (state.spider) {
+    const sp = spiderAt(state.strandOut ? now : t);
+    if (sp) { ctx.globalAlpha = dimA; drawSpider(sp.x, sp.y, sp.ang, sp.moving, now); }
+  }
+
+  // exit glint flash
+  if (state.flash) {
+    const p = clamp01((now - state.flash.t0) / 350);
+    if (p >= 1) state.flash = null;
+    else {
+      ctx.globalAlpha = Math.sin(p * Math.PI) * 0.55 * dimA;
+      ctx.strokeStyle = PAL.silkBright; ctx.lineWidth = 1.3;
+      ctx.shadowColor = PAL.glow; ctx.shadowBlur = 10;
+      const i = web.capS.pts.length - 1;
+      drawPolyline(web.capS.pts, i, false, now);
+      for (const r of web.radii) drawPolyline(r.pts, r.pts.length - 1, false, now);
+      ctx.shadowBlur = 0;
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* ── loop + reduced motion ── */
+let rafId = 0;
+function loop(now) {
+  render(now);
+  updateCaption(timelineNow(now));
+  rafId = requestAnimationFrame(loop);
+}
+function renderStatic() {
+  cancelAnimationFrame(rafId); rafId = 0;
+  const now = performance.now();
+  const keepMode = state.mode;
+  if (keepMode === "weaving" || keepMode === "resume") setMode("settled");
+  render(now);
+  updateCaption(timelineNow(now));
+}
+function start() {
+  cancelAnimationFrame(rafId);
+  if (state.rm) renderStatic(); else rafId = requestAnimationFrame(loop);
+}
+
+/* ── phase captions (loading scene) ── */
+const capEl = document.getElementById("phaseCap");
+const bootActions = document.getElementById("bootActions");
+let lastCap = "";
+function updateCaption(t) {
+  if (document.body.dataset.scene !== "loading") return;
+  let cap;
+  if (state.rm || t >= T.settle) cap = "ready";
+  else if (t < T.drop1[0]) cap = "casting the bridge line";
+  else if (t < T.frame[0]) cap = "dropping the anchor";
+  else if (t < T.radii[0]) cap = "closing the frame";
+  else if (t < T.aux[0]) cap = "spinning radii";
+  else if (t < T.capture[0]) cap = "scaffolding the spiral";
+  else cap = "laying the capture spiral";
+  if (cap !== lastCap) { capEl.textContent = cap; lastCap = cap; }
+  bootActions.classList.toggle("ready", state.rm || t >= T.settle + 300);
+}
+
+/* ── the brand sigil + WebSpinner glyph (one emblem, every size) ── */
+function webGlyph(svg, { spokes = 8, pulse = false } = {}) {
+  const NS = "http://www.w3.org/2000/svg";
+  svg.innerHTML = "";
+  const g = document.createElementNS(NS, "g");
+  g.setAttribute("fill", "none");
+  g.setAttribute("stroke", "currentColor");
+  g.setAttribute("stroke-linecap", "round");
+  if (pulse) g.classList.add("rot");
+  // spokes
+  for (let i = 0; i < spokes; i++) {
+    const a = (i / spokes) * TAU - Math.PI / 2;
+    const p = document.createElementNS(NS, "path");
+    p.setAttribute("d", `M ${16 + Math.cos(a) * 2.6} ${16 + Math.sin(a) * 2.6} L ${16 + Math.cos(a) * 14} ${16 + Math.sin(a) * 14}`);
+    p.setAttribute("stroke-width", pulse ? "1.1" : "1.3");
+    p.setAttribute("opacity", pulse ? "0.32" : "0.9");
+    g.appendChild(p);
+  }
+  // the spiral (open, 2.6 turns) — the orbweaver tell vs a generic snowflake
+  let d = "", len = 0, prev = null;
+  for (let i = 0; i <= 96; i++) {
+    const s = i / 96, th = -Math.PI / 2 + s * 2.6 * TAU, r = 4 + s * 9.5;
+    const x = 16 + Math.cos(th) * r, y = 16 + Math.sin(th) * r;
+    d += (i === 0 ? "M " : "L ") + x.toFixed(2) + " " + y.toFixed(2) + " ";
+    if (prev) len += Math.hypot(x - prev.x, y - prev.y);
+    prev = { x, y };
+  }
+  const sp = document.createElementNS(NS, "path");
+  sp.setAttribute("d", d);
+  sp.setAttribute("stroke-width", pulse ? "1.8" : "1.5");
+  g.appendChild(sp);
+  if (pulse) {
+    const period = len + 16;
+    sp.classList.add("pulse");
+    sp.style.strokeDasharray = `16 ${len}`;
+    sp.style.setProperty("--dash-period", `${period}px`);
+    sp.style.strokeDashoffset = "0";
+  }
+  const dot = document.createElementNS(NS, "circle");
+  dot.setAttribute("cx", "16"); dot.setAttribute("cy", "16"); dot.setAttribute("r", "1.9");
+  dot.setAttribute("fill", "currentColor"); dot.setAttribute("stroke", "none");
+  g.appendChild(dot);
+  svg.appendChild(g);
+  svg.style.color = "var(--color-primary)";
+}
+document.querySelectorAll("svg.sigil").forEach((s) => webGlyph(s));
+document.querySelectorAll("svg.webspinner").forEach((s) => webGlyph(s, { pulse: true }));
+
+/* ── scenes ── */
+const SCENES = {
+  "loading": { hub: { x: 0.5, y: 0.42 }, mode: "weaving", dim: 1 },
+  "single-user": { hub: { x: 0.5, y: 0.34 }, mode: "settled", dim: 0.6 },
+  "local": { hub: { x: 0.5, y: 0.34 }, mode: "settled", dim: 0.6 },
+  "first-run": { hub: { x: 0.5, y: 0.34 }, mode: "partial", dim: 0.62 },
+  "oidc": { hub: { x: 0.5, y: 0.34 }, mode: "settled", dim: 0.6 },
+  "oidc-error": { hub: { x: 0.5, y: 0.34 }, mode: "settled", dim: 0.6 },
+  "oidc-redirect": { hub: { x: 0.5, y: 0.34 }, mode: "settled", dim: 0.6 },
+  "forward-header": { hub: { x: 0.5, y: 0.34 }, mode: "settled", dim: 0.45 },
+  "unreachable": { hub: { x: 0.5, y: 0.34 }, mode: "settled", dim: 0.5 },
+};
+const glowfield = document.getElementById("glowfield");
+function setScene(name, { replay = false } = {}) {
+  const sc = SCENES[name];
+  document.body.dataset.scene = name;
+  document.querySelectorAll(".scene").forEach((el) => el.classList.toggle("on", el.dataset.scene === name));
+  document.getElementById("app").classList.remove("on", "in");
+  document.getElementById("webwrap").classList.remove("dissolving");
+  document.getElementById("stage").classList.remove("dissolving");
+  document.getElementById("webwrap").style.display = "";
+  hubFrac = sc.hub;
+  glowfield.style.setProperty("--hub-x", (sc.hub.x * 100) + "%");
+  glowfield.style.setProperty("--hub-y", (sc.hub.y * 100) + "%");
+  buildWeb();
+  state.dim = sc.dim;
+  state.spiderPrev = null;
+  if (sc.mode === "weaving" && !replay) setMode("weaving");
+  else setMode(sc.mode);
+  if (name === "oidc-redirect") armStrandOut(); // AFTER setMode — setMode clears strandOut
+  lastCap = "";
+  start();
+}
+function armStrandOut() {
+  // Steeper than the bridge line so the handoff silk reads as ITS OWN strand, not web clutter.
+  const end = { x: W + 80, y: Math.max(hub.y - 0.26 * H, 40) };
+  state.strandOut = { t0: performance.now() + 250, pts: sagLine(hub, end, 16, 30) };
+}
+
+/* first-run completion — the capture spiral finishes behind the card */
+document.getElementById("firstRunBtn").addEventListener("click", () => {
+  setMode("resume", { offset: T.aux[0] });
+  start();
+});
+/* oidc → redirecting (the strand-out beat) */
+const goRedirect = () => { document.getElementById("sceneSel").value = "oidc-redirect"; setScene("oidc-redirect"); };
+document.getElementById("oidcBtn").addEventListener("click", goRedirect);
+document.getElementById("oidcBtn2").addEventListener("click", goRedirect);
+
+/* boot exits */
+document.getElementById("toLoginBtn").addEventListener("click", () => {
+  // the web STAYS — it dims and the login card arrives under it (the continuity story)
+  state.flash = { t0: performance.now() };
+  setTimeout(() => { document.getElementById("sceneSel").value = "local"; setScene("local"); }, state.rm ? 0 : 380);
+});
+document.getElementById("toAppBtn").addEventListener("click", () => {
+  // authed boot: the full ST-style veil dissolve (blur 15px + fade), app underneath
+  state.flash = { t0: performance.now() };
+  const app = document.getElementById("app");
+  app.classList.add("on");
+  requestAnimationFrame(() => app.classList.add("in"));
+  const go = () => {
+    document.getElementById("webwrap").classList.add("dissolving");
+    document.getElementById("stage").classList.add("dissolving");
+    setTimeout(() => { document.getElementById("webwrap").style.display = "none"; cancelAnimationFrame(rafId); rafId = 0; }, 560);
+  };
+  setTimeout(go, state.rm ? 0 : 380);
+});
+
+/* ── mock chrome wiring ── */
+document.getElementById("sceneSel").addEventListener("change", (e) => setScene(e.target.value));
+document.getElementById("themeSel").addEventListener("change", (e) => {
+  document.documentElement.dataset.theme = e.target.value;
+  resolvePalette();
+  if (state.rm) renderStatic();
+});
+const rmChk = document.getElementById("rmChk");
+rmChk.addEventListener("change", () => {
+  state.rm = rmChk.checked;
+  document.documentElement.classList.toggle("rm", state.rm);
+  if (state.rm) renderStatic(); else { setScene(document.getElementById("sceneSel").value); }
+});
+document.getElementById("replayBtn").addEventListener("click", () => {
+  const name = document.getElementById("sceneSel").value;
+  if (name === "loading") { setScene("loading", { replay: true }); setMode("weaving"); start(); }
+  else if (name === "first-run") setScene("first-run");
+  else setScene(name);
+});
+const spiderBtn = document.getElementById("spiderBtn");
+spiderBtn.addEventListener("click", () => {
+  state.spider = !state.spider;
+  spiderBtn.textContent = `spider: ${state.spider ? "on" : "off"}`;
+  if (state.rm) renderStatic();
+});
+document.getElementById("minBtn").addEventListener("click", () => document.getElementById("chrome").classList.toggle("min"));
+
+/* ── boot ── */
+function sizeCanvas() {
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth; H = window.innerHeight;
+  canvas.width = Math.round(W * DPR); canvas.height = Math.round(H * DPR);
+  buildWeb();
+  if (state.rm) renderStatic();
+}
+window.addEventListener("resize", sizeCanvas);
+if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+  rmChk.checked = true; state.rm = true; document.documentElement.classList.add("rm");
+}
+resolvePalette();
+sizeCanvas();
+setScene("loading");
+</script>
+</body>
+</html>

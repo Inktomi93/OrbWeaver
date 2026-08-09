@@ -1,0 +1,18 @@
+/**
+ * `@orb/ui/web-weave` — the brand web, live (docs/design/login-loading-screen.md; the "one emblem,
+ * every scale" system): `<WebWeave>` (the canvas orb web — weaving | settled | partial | strand-out),
+ * `<WeaveVeil>` (the boot/blocking veil owning the ST-style dissolve exit), and the PURE geometry —
+ * `buildWeb` + the seeded jitter (the vitest-testable half, waystone pattern) and `webGlyph` (the
+ * condensed mark the favicon, the client `WeaveGlyph`, and `WebSpinner`'s icon all derive from —
+ * one geometry, every scale).
+ */
+
+export type { WeaveVeilProps } from "./weave-veil.tsx";
+export { WeaveVeil } from "./weave-veil.tsx";
+export type { WebGlyphGeometry, WebGlyphInput, WebGlyphSpoke } from "./web-glyph.ts";
+export { WEB_GLYPH_COMPACT, WEB_GLYPH_DISPLAY, webGlyph } from "./web-glyph.ts";
+export type { WebWeaveProps } from "./web-weave.tsx";
+export { WebWeave } from "./web-weave.tsx";
+export type { BuildWebInput, SpiderLeg, WeaveDewDrop, WeavePhase, WeavePoint, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
+export { AUX_TURNS, buildStrandOut, buildWeb, CAPTURE_TURNS, RADIUS_COUNT, WEAVE_STATES, WEAVE_TIMELINE, weavePhaseAt } from "./web-weave-geometry.ts";
+export { sagLine, weaveJitter } from "./web-weave-math.ts";

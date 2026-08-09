@@ -5,8 +5,9 @@
 // content + its own mount focus.
 
 import { Button } from "@orb/ui/button";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
+import { WebSpinner } from "@orb/ui/spinner";
 import { Heading, Text } from "@orb/ui/text";
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactElement } from "react";
@@ -150,14 +151,20 @@ function assertNeverMode(mode: never): never {
   throw new Error(`unhandled auth mode: ${String(mode)}`);
 }
 
-/** A9 — the settled "redirecting to the IdP" note shown while the auto-redirect effect navigates away. */
+/** A9 — the settled "redirecting to the IdP" note shown while the auto-redirect effect navigates away.
+ *  The brand loader rides beside the copy (the backdrop's strand-out beat is the signature animation;
+ *  this is the in-card heartbeat while the whole-window navigation lands). The copy carries the words,
+ *  so the spinner's own status label stays terse. */
 function LoginRedirecting({ providerName }: { readonly providerName: string }): ReactElement {
   return (
     <Stack gap="block">
       <Heading level={1}>Signing in…</Heading>
-      <Text voice="label" className="text-muted-foreground">
-        Redirecting you to {providerName}.
-      </Text>
+      <Row align="center" gap="row">
+        <WebSpinner size="xl" label="Redirecting" className="text-primary" />
+        <Text voice="label" className="text-muted-foreground">
+          Redirecting you to {providerName}.
+        </Text>
+      </Row>
     </Stack>
   );
 }
