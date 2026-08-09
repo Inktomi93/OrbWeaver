@@ -29,6 +29,7 @@ import { ThemeBackgroundVideoLayer } from "../components/theme-background-video-
 import { useAppearance } from "../hooks/use-appearance.ts";
 import { useAppearanceRootEffects } from "../hooks/use-appearance-root-effects.ts";
 import { useChatBackground } from "../hooks/use-chat-background.ts";
+import { useListTrackFlip } from "../hooks/use-list-track-flip.ts";
 import { useSelectedTheme } from "../hooks/use-selected-theme.ts";
 import type { ShellLayout } from "../hooks/use-shell-layout.ts";
 import { useShellLayout } from "../hooks/use-shell-layout.ts";
@@ -214,6 +215,10 @@ export function AppShell(): ReactElement {
       );
   }
   const mainRef = useRef<HTMLElement>(null);
+  // The FLIP that keeps the docked-panel push compositor-only (shell.css "THE PANEL PUSH IS A FLIP"):
+  // stamps the direction on the grid in the same commit that resizes the LIST track.
+  const gridRef = useRef<HTMLDivElement>(null);
+  useListTrackFlip(gridRef, layout.listMode);
 
   // Escape dismisses an open narrow/mobile auto-overlay slide-over (the scrim's keyboard equivalent) —
   // but ONLY when no modal is open. An open Dialog/Drawer owns Escape itself (Base UI); stealing it here
@@ -244,6 +249,7 @@ export function AppShell(): ReactElement {
       <ThemeScope tokens={scopeTokens} className="contents">
         <PortalContainerContext value={portalRootRef}>
           <div
+            ref={gridRef}
             className="shell-grid"
             data-section={layout.activeSection}
             data-list-mode={layout.listMode}

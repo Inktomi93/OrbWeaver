@@ -18,7 +18,8 @@
   display: grid;
   grid-template-columns: var(--rail-w) var(--list-track) minmax(0, 1fr) var(--context-track);
   grid-template-rows: 100%;
-  transition: grid-template-columns var(--shell-motion) var(--shell-ease);
+  /* NO `transition: grid-template-columns` here — see "THE PANEL PUSH IS A FLIP" below. The track resizes
+   * in ONE frame and the visible motion is a compositor-only counter-translate. */
   height: 100vh; /* fallback for no-dvh */
   /* biome-ignore lint/suspicious/noDuplicateProperties: intentional dvh-over-vh fallback — the vh line above is the floor for browsers without dvh; this line wins where supported. */
   height: 100dvh;
@@ -112,6 +113,65 @@
 }
 .shell-grid[data-context-mode="docked"] {
   --context-track: var(--panel-context-w);
+}
+
+/* ── THE PANEL PUSH IS A FLIP, NOT A TRACK ANIMATION (guide §3.7 — compositor-only is a CORRECTNESS
+ * constraint) ────────────────────────────────────────────────────────────────────────────────────────
+ * `grid-template-columns` is a LAYOUT property. Transitioning it re-ran layout over the whole CONTENT
+ * subtree — the virtualizer, every @container inside it — once per frame for the full 220ms, and moved
+ * `.shell-main` 272px in ~7 recorded steps. MEASURED on the live stack 2026-08-09 (buffered
+ * `layout-shift` observer, attribution by source node): docking the LIST panel scored 0.2774 of layout
+ * instability and collapsing it 0.2166, a nine-section rail sweep 0.3067 total — F-14's "shell CLS
+ * ~0.26", found at last. (Boot is innocent and always was: a settled load measures 0.0002. The
+ * boot-squeeze CT below already ruled that out; nobody had attributed the toggle.)
+ *
+ * THE FIX IS A FLIP: the track resizes in ONE frame, and a counter-`translate` on `.shell-main` cancels
+ * that frame's move exactly, then animates to 0. The browser never sees the start corner change, so the
+ * shift is not merely small — it is not RECORDED. Instrument-probed with a positive control before the
+ * code was written (same page, synthetic box, 220ms each): a `left` transition scores 0.0567 over 14
+ * entries; a `translate` transition scores 0 over 0 entries; instant-layout + counter-translate scores 0
+ * over 0. Prototyped on the live shell: 0.2166 → 0.0205 (collapse), 0.2987 → 0.0205 (dock), rail nav
+ * 0.3067 → 0.0000. The 0.0205 residue is the content gutter RE-CENTRING inside a column whose width also
+ * changed — a width change no transform can cancel, one frame, well inside the 0.1 budget.
+ *
+ * THE CO-MOTION RULING IS PRESERVED, ON A NEW AXIS. The rule this replaces was pinned by
+ * app-shell.ct.tsx's "co-motion parity" test: the track and the panel slide are ONE visual event and
+ * must share a non-zero duration + easing (the corpus desync bug was the track having NO motion while
+ * the panel slid). That invariant is intact — both sides still read `--shell-motion`/`--shell-ease`, so
+ * divergence stays structurally impossible; the track's half of the event just moved from
+ * `transition-*` on `.shell-grid` to `animation-*` on `.shell-main`. The CT was retargeted, not deleted.
+ *
+ * WHY `@keyframes` AND NOT A TRANSITION (guide §1.2 permits exactly this): a FLIP's "from" is a
+ * TRANSIENT position that no resting state holds — `docked` and `collapsed` both rest at `translate: 0`,
+ * so a transition between them has nothing to interpolate. `data-list-flip` is stamped by the shell in a
+ * `useLayoutEffect` on the commit that changes the track (use-list-track-flip.ts), the same
+ * attribute-driven grammar Base UI's own `data-starting-style` uses — and it is ABSENT on first paint,
+ * which is what keeps a page load from playing an entrance nobody asked for (guide §3.8). */
+@keyframes shell-list-push-in {
+  from {
+    translate: calc(-1 * var(--panel-w)) 0;
+  }
+}
+@keyframes shell-list-push-out {
+  from {
+    translate: var(--panel-w) 0;
+  }
+}
+/* The docking panel arrives in a track that is ALREADY its full width, so it slides in from under the
+ * rail (the rail is `--z-raised` and opaque, and .shell-grid is `overflow: clip` — nothing escapes). */
+@keyframes shell-list-panel-in {
+  from {
+    translate: -100% 0;
+  }
+}
+.shell-grid[data-list-flip="in"] .shell-main {
+  animation: shell-list-push-in var(--shell-motion) var(--shell-ease);
+}
+.shell-grid[data-list-flip="out"] .shell-main {
+  animation: shell-list-push-out var(--shell-motion) var(--shell-ease);
+}
+.shell-grid[data-list-flip="in"] .shell-panel[data-panel-side="list"][data-panel-mode="docked"] {
+  animation: shell-list-panel-in var(--shell-motion) var(--shell-ease);
 }
 
 /* Rail — ONE component, ONE flat DOM list. This is the desktop icon column; the @media below reflows the
@@ -504,6 +564,43 @@
 /* (The count-6/7 thresholds were DELETED at HUD-1 H1: they were authored for the CP-4 bracket's GAME strip,
  * which a claimant now draws itself, and they could never fire at any width the shell gives this panel.) */
 
+/* ── A TOUCH USER CANNOT HOVER A `title` (UI-Arch §4.3 rule 4 · §4b axis 3) ──────────────────────────
+ * Icon-mode's whole contract is "the icon carries the tab, tooltip/title + aria-label carry the name".
+ * That contract has a hole at `pointer: coarse`: the name lives ONLY in a native `title` (see
+ * context-tabs-panel.tsx — Base UI also suppresses tooltips on touch by design), and a native title
+ * needs a hover the device cannot produce. The reveal thresholds above can never close it either — they
+ * are container-width questions, and the panel clamps to 26rem while the 5-tab threshold is 35rem, so a
+ * phone reaches icon-mode and STAYS there with no name affordance at all. Rule 4 already states the
+ * remedy in general ("appears on hover AND :focus-within, ALWAYS-VISIBLE at `pointer: coarse`"); this is
+ * that rule applied to the strip.
+ *
+ * The form is the app's OWN coarse-tab grammar, not a new one: icon over label, exactly as the rail
+ * becomes the mobile bottom tab bar below (`.shell-rail-button` — column, 0.125rem gap, label shown).
+ * The cell grows to two lines, so the block size becomes a FLOOR rather than a fixed height and the ≥44px
+ * touch floor is kept by `--spacing-control-md` (48px at coarse, D62 P1). The label truncates rather than
+ * wrapping — the cells are equal `1fr` columns and a wrapped word would make one cell taller than its
+ * neighbours; the full name stays in `aria-label`, so nothing is lost to AT. `overflow-x-auto` on the
+ * strip remains the safety scroll if a very narrow coarse host still cannot seat the words.
+ * Capability queries belong to this layer (§4b axis 3 — never a feature className). */
+@media (pointer: coarse) {
+  .ctx-tab-strip [data-slot="tabs-tab"] {
+    flex-direction: column;
+    gap: 0.125rem;
+    block-size: auto;
+    min-block-size: var(--spacing-control-md);
+    padding-block: var(--spacing-field);
+  }
+  /* Beats the icon-mode `display: none` on equal specificity by source order (that rule is declared
+   * above); the per-count `@container` reveals are equal too and simply agree with this. */
+  .ctx-tab-strip [data-slot="tabs-tab"][data-has-icon] .ctx-tab-label {
+    display: block;
+    max-inline-size: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
 .shell-panel-body {
   flex: 1 1 auto;
   min-height: 0;
@@ -722,6 +819,14 @@
   .shell-main {
     grid-column: 1;
     grid-row: 1;
+  }
+  /* NO FLIP ON A PHONE. The grid is ONE column here and every panel is `position: fixed` over it, so a
+   * docking LIST never moves CONTENT — the counter-translate would be a 272px slide of a column that did
+   * not go anywhere. The stamping hook is regime-blind on purpose (it reports the MODE change; what that
+   * change costs in layout is a CSS question), so the arm that owns the geometry cancels it here. */
+  .shell-grid[data-list-flip] .shell-main,
+  .shell-grid[data-list-flip] .shell-panel[data-panel-side="list"] {
+    animation: none;
   }
   /* The SAME rail DOM reflows into the bottom tab bar: the column becomes a row, the nav-group / footer
    * wrappers collapse (display:contents) so their buttons flow into the row directly, desktop-only chrome

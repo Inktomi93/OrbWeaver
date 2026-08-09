@@ -19,6 +19,10 @@ import { createToastManager, Toaster, ToastProvider } from "@orb/ui/toast";
 // would silently absolve a future `useInfiniteQuery` on the same line.
 import { QueryClientProvider, useMutation } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
+import { useEffect, useState } from "react";
+// Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
+// re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
+import { installMotionObservers, motionSnapshot } from "../../../packages/client/src/lib/motion-stats.ts";
 
 // Minted OUTSIDE React and bound ONCE — exactly the main.tsx posture. Fresh browser context per CT
 // test (ct-data-providers.tsx header) → module state starts clean, so the bind is per-test-clean.
@@ -82,6 +86,48 @@ export function NotifyNoticeStory(): ReactElement {
     <CtToastSurface>
       <WarnNoticeButton />
     </CtToastSurface>
+  );
+}
+
+/** The CLS-flagger stage (motion-stats.ts): a spacer whose growth pushes a marked block DOWN, which is
+ *  exactly what a layout shift is. Two controls, because the flagger's whole design claim is that the
+ *  CWV metric's `hadRecentInput` exclusion hides real defects:
+ *   · "shift now"    — grows inside the click handler, so the entry carries `hadRecentInput: true`; the
+ *                      spec metric must stay 0 while the flagger still names it;
+ *   · "shift later"  — schedules the growth past the 500ms input window, so the entry is `unexpected` and
+ *                      DOES count. This is the "async data arrival" shape §4.3 rule 7 bans.
+ *  The observers install on mount (main.tsx installs them via agent-bridge under IS_DEV — the CT is the
+ *  only place that wiring can be exercised, since a node test has no layout to shift). */
+export function MotionShiftFlaggerStory(): ReactElement {
+  const [pushed, setPushed] = useState(false);
+  useEffect(() => {
+    installMotionObservers();
+    // The accessor is published from HERE, not re-imported by the spec: a `page.evaluate` dynamic import
+    // resolves its own URL specifier and would hand the test a SECOND module instance with zero totals —
+    // a green that proves nothing. The story owns the instance under test, so it owns the read.
+    // FABRICATION-OK: a browser-context probe slot, written and read by this story's CT alone.
+    (globalThis as unknown as { __motionRead?: typeof motionSnapshot }).__motionRead = motionSnapshot;
+  }, []);
+  return (
+    <div>
+      <button type="button" onClick={(): void => setPushed(true)}>
+        shift now
+      </button>
+      <button
+        type="button"
+        onClick={(): void => {
+          // 900ms > the spec's 500ms input window, so the resulting shift is NOT input-attributed.
+          setTimeout(() => setPushed(true), 900);
+        }}
+      >
+        shift later
+      </button>
+      {/* The spacer IS the shift: 0 → 200px pushes everything after it down the page. */}
+      <div style={{ height: pushed ? 200 : 0 }} />
+      <div data-testid="cls-victim" style={{ height: 300, background: "#ccc" }}>
+        pushed block
+      </div>
+    </div>
   );
 }
 
