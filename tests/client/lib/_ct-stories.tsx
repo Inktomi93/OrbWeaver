@@ -17,9 +17,12 @@ import { createToastManager, Toaster, ToastProvider } from "@orb/ui/toast";
 // ENDS WHEN: query-machine-seals widens its test scope to `_ct-stories` modules, or this story is
 // deleted. §4.3a position-named — an import line can carry BOTH sealed hooks, and a bare marker here
 // would silently absolve a future `useInfiniteQuery` on the same line.
-import { QueryClientProvider, useMutation } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useMutation } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
+// Deep, not `@orb/client/lib`: agent-bridge is OUT of the barrel too (main.tsx imports it by path — a
+// re-export would drag the dev-only introspection handle into the prod bundle).
+import { installAppReadySignal } from "../../../packages/client/src/lib/agent-bridge.ts";
 // Deep, not `@orb/client/lib`: motion-stats is deliberately OUT of the barrel (its header — a barrel
 // re-export would drag the dev observers into the prod bundle), so the only way to reach it is the path.
 import { installMotionFlaggers } from "../../../packages/client/src/lib/motion-flaggers.ts";
@@ -179,6 +182,44 @@ export function MotionFlaggersCssTrailingStory(): ReactElement {
       </button>
       {/* A class no stylesheet defines — the dead-token shape `[css]` exists to catch. */}
       <div className={deadClassOn ? "orb-ct-dead-class-marker" : undefined}>content</div>
+    </div>
+  );
+}
+
+// Just past agent-bridge's 3s readiness GRACE. The marker is a settled RENDERED state, not a sleep: the CT
+// barriers on it, then asks what the flag did — which is the only way to observe a timer's decision without
+// a fixed wait.
+const GRACE_MARKER_MS = 3500;
+
+/** The `data-app-ready` signal under a read that is STILL RUNNING when the grace fires — the exact shape that
+ *  made every waiting instrument lie. `installAppReadySignal` is timer + query-cache wiring on the real
+ *  `<html>` element, so a CT is the only tier that can observe it (same reason as MotionShiftFlaggerStory).
+ *  The story owns a query that never resolves until its button is pressed, so the test controls the settle. */
+export function AppReadySignalStory(): ReactElement {
+  const [graceElapsed, setGraceElapsed] = useState(false);
+  const [client] = useState(() => new QueryClient());
+  const [gate] = useState(() => Promise.withResolvers<string>());
+  useEffect(() => {
+    installAppReadySignal(client);
+    // fetchQuery, not a hook: the subject reads `queryClient.isFetching()` and the cache subscription only,
+    // so driving the cache directly keeps the story free of the sealed query machinery it does not test.
+    void client.fetchQuery({ queryKey: ["ct-app-ready"], queryFn: () => gate.promise });
+    const marker = setTimeout(() => setGraceElapsed(true), GRACE_MARKER_MS);
+    return (): void => {
+      clearTimeout(marker);
+    };
+  }, [client, gate]);
+  return (
+    <div>
+      {graceElapsed ? <div data-testid="grace-elapsed">grace elapsed</div> : null}
+      <button
+        type="button"
+        onClick={(): void => {
+          gate.resolve("the read finally landed");
+        }}
+      >
+        land the read
+      </button>
     </div>
   );
 }

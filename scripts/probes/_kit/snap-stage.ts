@@ -18,6 +18,11 @@
 //   • A new HEAD sha ⇒ the active stage is stale ⇒ rebuild (the stale one is torn down first). `--fresh`
 //     forces a rebuild of the same sha. `--stage-down` stops the stack + removes the worktree.
 //
+// ENV: the stage boots under `ORB_ENV_NO_FILE` (it never reads the operator's `.env`) and inherits exactly
+// the DB-BOUND keys — `STAGE_INHERITED_ENV_KEYS`, each with its reason. A key the copied DB's own rows are
+// sealed under (CREDENTIALS_KEY) is not optional: without it `/healthz` answers 503 forever and the stage can
+// never be reported healthy, which is precisely how `snap --isolated` went blind.
+//
 // READ-ONLY BY CONVENTION: nothing edits the worktree source — it is a frozen snapshot of a commit. Only its
 // gitignored node_modules/db/assets are written (install + runtime), never tracked files.
 //
@@ -291,22 +296,57 @@ function stopStage(dir: string): void {
   }
 }
 
-/** The dev `.env`'s `OWNER_HANDLES`, read straight off disk (NOT via process.env — under `ORB_ENV_NO_FILE`
- *  the stage's own boot never loads the file at all). The stage boots on a COPY of the dev DB
- *  (`seedStageData`), so its owner row already sits at whatever handle the dev deploy provisioned; declaring
- *  the SAME handle here keeps `seedOwner` idempotent instead of colliding with D17's single-owner unique
- *  index. Absent `.env` or key ⇒ undefined, matching the schema's own OWNER_HANDLES-unset fallback. */
-function devOwnerHandle(root: string): string | undefined {
+/**
+ * THE DB-BOUND KEYS — the ONLY dev-`.env` values the stage inherits, and the reason each one is on the list.
+ *
+ * `ORB_ENV_NO_FILE` makes the stage skip the operator's `.env` wholesale (the security hatch — see
+ * `bootStage`), so every key the stage needs is re-declared explicitly. A key earns a row here ONLY when the
+ * stage's DB — a COPY of the dev DB (`seedStageData`) — is meaningless without it: the copy carries rows
+ * whose identity or ciphertext is bound to that exact value, so a stage booting under a different one is
+ * booting against data it cannot read. Anything else (DEBUG_TOKEN, WIRE_CAPTURE, OIDC_*, provider API keys)
+ * stays OUT by design — that is the whole point of the hatch, and this allowlist is what keeps it narrow.
+ *
+ *   • OWNER_HANDLES   — the copied DB's owner row already sits at whatever handle the dev deploy
+ *                       provisioned. Declaring the SAME handle keeps `seedOwner` idempotent instead of
+ *                       colliding with D17's single-owner unique index.
+ *   • CREDENTIALS_KEY — the copied DB's credential ciphertext was sealed under the dev key. Without it the
+ *                       boot decrypt-probe fails, `credentialsKeyOk` goes false, and `/healthz` answers 503
+ *                       FOREVER (`entry/http/healthz.ts`) — which `stageHealthy` reads, so the stage is
+ *                       never healthy, `bootStage` throws "stack failed to boot", the active marker is never
+ *                       written, and every later `snap --isolated` re-enters rebuild and fights its own
+ *                       orphaned processes for the ports. Measured 2026-08-09 on a stage seeded from the dev
+ *                       DB: no key ⇒ `boot-failed` + `healthz=503`; same stage, same DB, key present ⇒
+ *                       `stack: up` + `healthz=200`. That failure is what made `snap --isolated` blind.
+ */
+export const STAGE_INHERITED_ENV_KEYS = ["OWNER_HANDLES", "CREDENTIALS_KEY"] as const;
+
+/** Pick the inherited keys out of a dev `.env`'s TEXT (pure — the imperative caller supplies the bytes).
+ *  A key absent from the file is absent from the result, matching the schema's own unset fallback for each. */
+export function stageInheritedEnv(envFileContent: string): Record<string, string> {
+  const parsed = parseEnv(envFileContent);
+  const inherited: Record<string, string> = {};
+  for (const key of STAGE_INHERITED_ENV_KEYS) {
+    const value = parsed[key];
+    if (typeof value === "string") {
+      inherited[key] = value;
+    }
+  }
+  return inherited;
+}
+
+/** The inherited keys read straight off the dev `.env` on disk (NOT via process.env — under
+ *  `ORB_ENV_NO_FILE` the stage's own boot never loads the file at all). No `.env` ⇒ nothing inherited, which
+ *  is correct: without one there is no dev DB copy to be bound to either. */
+function devInheritedEnv(root: string): Record<string, string> {
   const p = join(root, ".env");
   if (!existsSync(p)) {
-    return;
+    return {};
   }
-  const parsed = parseEnv(readFileSync(p, "utf8"));
-  return parsed["OWNER_HANDLES"];
+  return stageInheritedEnv(readFileSync(p, "utf8"));
 }
 
 function bootStage(root: string, paths: StagePaths, ports: StagePorts): void {
-  const ownerHandle = devOwnerHandle(root);
+  const inherited = devInheritedEnv(root);
   const env: NodeJS.ProcessEnv = {
     // biome-ignore lint/style/noProcessEnv: the stage stack inherits the operator's ambient env (PATH etc) — harness plumbing, not app config.
     ...process.env,
@@ -327,11 +367,11 @@ function bootStage(root: string, paths: StagePaths, ports: StagePorts): void {
     // behind a copy of the dev DB, on a second port. The keys the copied DB actually needs are declared
     // explicitly below instead.
     ORB_ENV_NO_FILE: "1",
-    // The stage's DB is a COPY of the dev DB (seedStageData) — its owner row is already provisioned at
-    // whatever handle the dev deploy used, so this must match or seedOwner's idempotent-insert collides
-    // with D17's single-owner unique index. Undefined (no dev .env / no OWNER_HANDLES key) falls through to
-    // the schema's own default, exactly like an unset key always has.
-    ...(ownerHandle === undefined ? {} : { OWNER_HANDLES: ownerHandle }),
+    // The DB-BOUND keys, and ONLY those — see STAGE_INHERITED_ENV_KEYS for the per-key reason. The stage's
+    // DB is a COPY of the dev DB, so a value the copied rows are bound to (the owner row's handle, the
+    // credential ciphertext's key) must come across or the stage boots against data it cannot read. An
+    // absent key falls through to the schema's own default, exactly like an unset key always has.
+    ...inherited,
     // Minted per stage boot (like probe-fire.ts) rather than inherited — the operator's real token must
     // never arm a second, less-guarded /api/_debug/* surface. WIRE_CAPTURE stays at its schema default
     // (off) under ORB_ENV_NO_FILE; a caller who wants the wire-capture surface on the stage can still
