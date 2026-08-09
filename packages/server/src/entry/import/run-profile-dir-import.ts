@@ -6,9 +6,12 @@
 // node:fs-free) and imported into the ONE target owner.
 //
 // FLOW (real run): collect every user dir → store persona avatars + `importPersonas` FIRST (populates the
-// cross-verb `personaByUserName` map the chat importers attribute against) → per bundle `importCharacter`
-// (idempotent by importHash; the card PNG is CAS-stored inside the verb) then `importChats`, then attach the
-// character's ST library tags (`settings.tag_map[card filename]` → resolve-or-create by name). Counts follow
+// cross-verb `personaByUserName` map the chat importers attribute against) → standalone worlds → ST
+// chat-completion presets (`importPresets`, through the preset domain's own idempotent op) → per bundle
+// `importCharacter` (idempotent by importHash; the card PNG is CAS-stored inside the verb) then `importChats`,
+// then attach the character's ST library tags (`settings.tag_map[card filename]` → resolve-or-create by name)
+// → LAST the ST GROUPS (`importGroupChats`), which must follow the character wave because a group's members
+// are CARD FILENAMES and the filename → characterId map is that wave's output. Counts follow
 // the maintenance-pass shape: `scanned` = every ST entity the loader examined (bundles + personas + chat
 // files + the recorded non-happy-path skips), `changed` = net-new canon written (created characters +
 // created personas + imported chats). The runner reconciles stats post-run when `changed > 0` (PD-78); a
@@ -30,9 +33,23 @@ import type { Principal } from "@orb/contracts/identity";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import type { BulkImportChats } from "#domain/chat";
-import type { CollectedCard, CollectedPersona, CollectedWorld, ImportFsPort, ImportPersonaInput, ImportReport, ImportSkippedCard } from "#domain/import";
+import type {
+  CollectedCard,
+  CollectedGroup,
+  CollectedPersona,
+  CollectedPreset,
+  CollectedWorld,
+  ImportFsPort,
+  ImportPersonaInput,
+  ImportPresetNote,
+  ImportReport,
+  ImportSkippedCard,
+  ImportSkippedGroup,
+  ImportSkippedGroupMember,
+} from "#domain/import";
 import { collectBundlesFromDir, createImportService, importFileHash } from "#domain/import";
 import type { BulkImportPersonas } from "#domain/persona";
+import type { ImportPreset } from "#domain/preset";
 import type { ImportStandaloneLorebook } from "#domain/world-info";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context.ts";
 import { buildImportContext } from "./build-import-context.ts";
@@ -52,6 +69,10 @@ export interface ProfileDirImportDeps {
   /** The UNATTACHED owner-library book write — the standalone `worlds/*.json` land through this (no character
    *  attach). Imported BEFORE characters so a future name-link (`extensions.world`) can resolve them. */
   readonly importStandaloneLorebook: ImportStandaloneLorebook;
+  /** The preset domain's own import op — the ST preset wave hands it orb-native `orb.preset` bytes. Optional
+   *  on the `importLorebook` precedent: absent ⇒ the preset plane does not restore and every collected preset
+   *  is reported skipped-with-reason, never silently dropped. */
+  readonly importPreset?: ImportPreset;
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<void>;
@@ -61,22 +82,63 @@ export interface ProfileDirImportDeps {
   readonly signal: AbortSignal;
 }
 
-interface Collected {
-  readonly bundles: CollectedCard[];
-  readonly personas: CollectedPersona[];
-  readonly worlds: CollectedWorld[];
-  /** ST library-tag assignments merged across every profile dir: card/avatar filename → tag names. */
-  readonly tagsByEntityKey: ReadonlyMap<string, readonly string[]>;
-  /** examined-but-not-imported records (unreadable cards/worlds, oversized/orphan chats, skip-listed characters). */
-  readonly skipped: number;
-  /** The per-profile "not imported" records, merged across every user dir — the import report's raw material. */
+/** The per-profile "not imported" records, merged across every user dir — the import report's raw material. */
+interface CollectRecords {
   readonly unreadableCards: string[];
   readonly unreadableWorlds: string[];
+  readonly unreadablePresets: string[];
+  readonly unreadableGroups: string[];
+  /** Transcript leaves a group's own `chats[]` claimed with no readable file, merged across every group. */
+  readonly missingGroupChats: string[];
   readonly skippedChats: string[];
   readonly orphanChatDirs: string[];
   readonly skippedCharacters: string[];
   readonly unhandled: string[];
   readonly unhandledSettings: string[];
+}
+
+interface Collected extends CollectRecords {
+  readonly bundles: CollectedCard[];
+  readonly personas: CollectedPersona[];
+  readonly worlds: CollectedWorld[];
+  readonly presets: CollectedPreset[];
+  readonly groups: CollectedGroup[];
+  /** ST library-tag assignments merged across every profile dir: card/avatar filename → tag names. */
+  readonly tagsByEntityKey: ReadonlyMap<string, readonly string[]>;
+  /** examined-but-not-imported records (unreadable cards/worlds, oversized/orphan chats, skip-listed characters). */
+  readonly skipped: number;
+}
+
+/** Union one profile dir's ST library tags into the run-wide map: a card/avatar FILENAME can recur across user
+ *  dirs, so the tag lists merge rather than overwrite. */
+function mergeTags(into: Map<string, string[]>, from: ReadonlyMap<string, readonly string[]>): void {
+  for (const [key, names] of from) {
+    const merged = into.get(key) ?? [];
+    for (const name of names) {
+      if (!merged.includes(name)) {
+        merged.push(name);
+      }
+    }
+    into.set(key, merged);
+  }
+}
+
+/** Append one profile dir's "not imported" records onto the run-wide set. Split out of the collect loop so the
+ *  loop reads as "collect, merge, record" — the record list grows with every new plane and inlining it made
+ *  the loop the file's most complex function. */
+function mergeRecords(into: CollectRecords, from: Awaited<ReturnType<typeof collectBundlesFromDir>>): void {
+  into.unreadableCards.push(...from.unreadableCards);
+  into.unreadableWorlds.push(...from.unreadableWorlds);
+  into.unreadablePresets.push(...from.unreadablePresets);
+  into.unreadableGroups.push(...from.unreadableGroups);
+  for (const g of from.groups) {
+    into.missingGroupChats.push(...g.missingChatLeaves);
+  }
+  into.skippedChats.push(...from.skippedChats);
+  into.orphanChatDirs.push(...from.orphanChatDirs);
+  into.skippedCharacters.push(...from.skippedCharacters);
+  into.unhandled.push(...from.unhandled);
+  into.unhandledSettings.push(...from.unhandledSettings);
 }
 
 /** Collect every user-profile subdirectory under the root, merging the per-dir results into one set. A
@@ -87,16 +149,21 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
   const bundles: CollectedCard[] = [];
   const personas: CollectedPersona[] = [];
   const worlds: CollectedWorld[] = [];
+  const presets: CollectedPreset[] = [];
+  const groups: CollectedGroup[] = [];
   // card/avatar filename → tag names, unioned across dirs (a filename can recur across profiles).
   const tagsByEntityKey = new Map<string, string[]>();
-  const r = {
-    unreadableCards: [] as string[],
-    unreadableWorlds: [] as string[],
-    skippedChats: [] as string[],
-    orphanChatDirs: [] as string[],
-    skippedCharacters: [] as string[],
-    unhandled: [] as string[],
-    unhandledSettings: [] as string[],
+  const r: CollectRecords = {
+    unreadableCards: [],
+    unreadableWorlds: [],
+    unreadablePresets: [],
+    unreadableGroups: [],
+    missingGroupChats: [],
+    skippedChats: [],
+    orphanChatDirs: [],
+    skippedCharacters: [],
+    unhandled: [],
+    unhandledSettings: [],
   };
   for (const ent of await fs.readdir(profileRoot)) {
     if (signal.aborted) {
@@ -110,32 +177,33 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
     bundles.push(...result.bundles);
     personas.push(...result.personas);
     worlds.push(...result.worlds);
-    for (const [key, names] of result.tagsByEntityKey) {
-      const merged = tagsByEntityKey.get(key) ?? [];
-      for (const name of names) {
-        if (!merged.includes(name)) {
-          merged.push(name);
-        }
-      }
-      tagsByEntityKey.set(key, merged);
-    }
-    r.unreadableCards.push(...result.unreadableCards);
-    r.unreadableWorlds.push(...result.unreadableWorlds);
-    r.skippedChats.push(...result.skippedChats);
-    r.orphanChatDirs.push(...result.orphanChatDirs);
-    r.skippedCharacters.push(...result.skippedCharacters);
-    r.unhandled.push(...result.unhandled);
-    r.unhandledSettings.push(...result.unhandledSettings);
+    presets.push(...result.presets);
+    groups.push(...result.groups);
+    mergeTags(tagsByEntityKey, result.tagsByEntityKey);
+    mergeRecords(r, result);
   }
-  const skipped = r.unreadableCards.length + r.unreadableWorlds.length + r.skippedChats.length + r.skippedCharacters.length + r.orphanChatDirs.length;
-  return { bundles, personas, worlds, tagsByEntityKey, skipped, ...r };
+  const skipped =
+    r.unreadableCards.length +
+    r.unreadableWorlds.length +
+    r.unreadablePresets.length +
+    r.unreadableGroups.length +
+    r.missingGroupChats.length +
+    r.skippedChats.length +
+    r.skippedCharacters.length +
+    r.orphanChatDirs.length;
+  return { bundles, personas, worlds, presets, groups, tagsByEntityKey, skipped, ...r };
 }
 
-/** scanned = every examined ST entity: happy-path bundles + personas + chat files, plus the recorded skips. */
+/** scanned = every examined ST entity: happy-path bundles + personas + worlds + presets + groups (and their
+ *  transcripts) + chat files, plus the recorded skips. */
 function tallyScanned(collected: Collected): number {
-  let scanned = collected.bundles.length + collected.personas.length + collected.worlds.length + collected.skipped;
+  let scanned =
+    collected.bundles.length + collected.personas.length + collected.worlds.length + collected.presets.length + collected.groups.length + collected.skipped;
   for (const b of collected.bundles) {
     scanned += b.chats.length;
+  }
+  for (const g of collected.groups) {
+    scanned += g.chats.length;
   }
   return scanned;
 }
@@ -201,13 +269,49 @@ async function importCollectedWorlds(deps: ProfileDirImportDeps, worlds: readonl
 /** Assemble the import report from the merged collect results + the run's counts + the per-card skips. The
  *  two structure planes (`unhandled`/`unhandledSettings`) are deduped — a multi-profile upload lists the same
  *  section names per user dir. */
-function reportFrom(collected: Collected, scanned: number, changed: number, skippedCards: readonly ImportSkippedCard[]): ImportReport {
+/** The preset + group waves' accounting, threaded into the report. Zero-valued (and empty) on a dryRun and on
+ *  a profile carrying neither plane, which is byte-identically the pre-epic report. */
+interface WaveOutcomes {
+  readonly presetsImported: number;
+  readonly presetsCreated: number;
+  readonly skippedPresets: readonly ImportSkippedCard[];
+  readonly presetNotes: readonly ImportPresetNote[];
+  readonly groupsImported: number;
+  readonly groupChatsImported: number;
+  readonly skippedGroups: readonly ImportSkippedGroup[];
+  readonly skippedGroupMembers: readonly ImportSkippedGroupMember[];
+}
+
+const NO_WAVES: WaveOutcomes = {
+  presetsImported: 0,
+  presetsCreated: 0,
+  skippedPresets: [],
+  presetNotes: [],
+  groupsImported: 0,
+  groupChatsImported: 0,
+  skippedGroups: [],
+  skippedGroupMembers: [],
+};
+
+interface ReportArgs {
+  readonly collected: Collected;
+  readonly scanned: number;
+  readonly changed: number;
+  readonly skippedCards: readonly ImportSkippedCard[];
+  readonly waves: WaveOutcomes;
+}
+
+function reportFrom({ collected, scanned, changed, skippedCards, waves }: ReportArgs): ImportReport {
   return {
     scanned,
     changed,
     skippedCards,
     unreadableCards: collected.unreadableCards,
     unreadableWorlds: collected.unreadableWorlds,
+    unreadablePresets: collected.unreadablePresets,
+    unreadableGroups: collected.unreadableGroups,
+    missingGroupChats: collected.missingGroupChats,
+    ...waves,
     skippedChats: collected.skippedChats,
     orphanChatDirs: collected.orphanChatDirs,
     skippedCharacters: collected.skippedCharacters,
@@ -254,9 +358,18 @@ async function importCollectedBundles(
   service: ReturnType<typeof createImportService>,
   bundles: readonly CollectedCard[],
   tagsByEntityKey: ReadonlyMap<string, readonly string[]>,
-): Promise<{ readonly changed: number; readonly skippedCards: ImportSkippedCard[] }> {
+): Promise<{
+  readonly changed: number;
+  readonly skippedCards: ImportSkippedCard[];
+  /** Card FILENAME → the character it resolved to (created OR matched). The ST group wave's ONLY member key —
+   *  see `verbs/import-group-chats.ts` for why a handle or a display name cannot substitute. */
+  readonly characterIdByCardFilename: Map<string, CharacterId>;
+  readonly characterNameByCardFilename: Map<string, string>;
+}> {
   let changed = 0;
   const skippedCards: ImportSkippedCard[] = [];
+  const characterIdByCardFilename = new Map<string, CharacterId>();
+  const characterNameByCardFilename = new Map<string, string>();
   for (const bundle of bundles) {
     if (deps.signal.aborted) {
       break;
@@ -265,6 +378,8 @@ async function importCollectedBundles(
       // biome-ignore lint/performance/noAwaitInLoops: bulk import is intentionally sequential — each card is one atomic idempotent write, isolated per bundle.
       const result = await importOneBundle(service, bundle);
       changed += result.changed;
+      characterIdByCardFilename.set(bundle.filename, result.characterId);
+      characterNameByCardFilename.set(bundle.filename, bundle.cardName);
       const tagNames = tagsByEntityKey.get(bundle.filename);
       if (tagNames !== undefined && tagNames.length > 0) {
         await attachBundleTags(deps, result.characterId, tagNames);
@@ -276,7 +391,7 @@ async function importCollectedBundles(
       skippedCards.push({ file: bundle.filename, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
     }
   }
-  return { changed, skippedCards };
+  return { changed, skippedCards, characterIdByCardFilename, characterNameByCardFilename };
 }
 
 /**
@@ -288,7 +403,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
   const scanned = tallyScanned(collected);
 
   if (deps.dryRun) {
-    return reportFrom(collected, scanned, await countWouldCreate(deps, collected.bundles), []);
+    return reportFrom({ collected, scanned, changed: await countWouldCreate(deps, collected.bundles), skippedCards: [], waves: NO_WAVES });
   }
 
   // The card avatar is CAS-stored inside importCharacter via ctx.storeAsset → this capped store (PD-94).
@@ -312,6 +427,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
       bulkImportPersonas: deps.bulkImportPersonas,
       enqueueBackfill: (): Promise<void> => Promise.resolve(),
       reconcileStats: deps.reconcileImportStats,
+      ...(deps.importPreset !== undefined ? { importPreset: deps.importPreset } : {}),
     },
   });
   const service = createImportService(ctx);
@@ -336,17 +452,50 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
   // of the character wave so a future card name-link (`extensions.world`) can resolve an already-imported book.
   changed += await importCollectedWorlds(deps, collected.worlds);
 
+  // ST chat-completion presets — independent of every other plane (a preset references no character), so the
+  // wave runs before the characters and its `changed` counts as new canon like a world book does.
+  const presetResult = await service.importPresets({ presets: collected.presets });
+  // Only CREATES are net-new canon — a merged preset is the idempotent re-run path (see ImportPresetsResult),
+  // exactly as `importCollectedWorlds` counts only a book it did not replace.
+  changed += presetResult.presetsCreated;
+
   const bundleResult = await importCollectedBundles(deps, service, collected.bundles, collected.tagsByEntityKey);
   changed += bundleResult.changed;
 
-  // ONE post-import embed enqueue for the whole run, gated on new canon (characters/personas/chats/worlds) —
-  // the op chains embed-characters → embed-chats via dependsOn (see portability-runner). Triggered on ANY new
-  // canon, not just a chat, so a characters-only import still embeds its cards. Skipped on abort (retry re-runs).
+  // ST GROUPS strictly AFTER the character wave: a group's members are card FILENAMES, and the filename →
+  // characterId map only exists once every card has been imported (or matched). A member card that is not in
+  // the import set is skipped WITH a report note — the room still forms around the members that resolved.
+  const groupResult = await service.importGroupChats({
+    groups: deps.signal.aborted ? [] : collected.groups,
+    characterIdByCardFilename: bundleResult.characterIdByCardFilename,
+    characterNameByCardFilename: bundleResult.characterNameByCardFilename,
+  });
+  changed += groupResult.groupChatsImported;
+
+  // ONE post-import embed enqueue for the whole run, gated on new canon (characters/personas/chats/worlds/
+  // presets/group rooms) — the op chains embed-characters → embed-chats via dependsOn (see portability-runner).
+  // Triggered on ANY new canon, not just a chat, so a characters-only import still embeds its cards. Skipped on
+  // abort (retry re-runs).
   if (changed > 0 && !deps.signal.aborted) {
     await deps.enqueueBackfill({ ownerId: deps.principal.userId });
   }
 
-  return reportFrom(collected, scanned, changed, bundleResult.skippedCards);
+  return reportFrom({
+    collected,
+    scanned,
+    changed,
+    skippedCards: bundleResult.skippedCards,
+    waves: {
+      presetsImported: presetResult.presetsImported,
+      presetsCreated: presetResult.presetsCreated,
+      skippedPresets: presetResult.skippedPresets,
+      presetNotes: presetResult.notes,
+      groupsImported: groupResult.groupsImported,
+      groupChatsImported: groupResult.groupChatsImported,
+      skippedGroups: groupResult.skippedGroups,
+      skippedGroupMembers: groupResult.skippedMembers,
+    },
+  });
 }
 
 type FsEntry = Awaited<ReturnType<ImportFsPort["readdir"]>>[number];

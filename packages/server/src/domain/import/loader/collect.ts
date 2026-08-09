@@ -2,16 +2,28 @@
 // ImportFsPort (domain-no-node-fs), reads/hashes/parses PNG cards + chat JSONL + settings.json personas,
 // and pairs them into per-character bundles. Pure over the injected port — fixture-testable.
 //
-// Layout: <profileDir>/characters/*.png, /chats/<charDir>/*.jsonl, /settings.json, /User Avatars/*.png.
+// Layout: <profileDir>/characters/*.png, /chats/<charDir>/*.jsonl, /settings.json, /User Avatars/*.png,
+// /worlds/*.json, /OpenAI Settings/*.json (chat-completion presets), /groups/*.json + /group chats/*.jsonl.
 // Cards and chat dirs pair by slugifyHandle. Every non-happy path is recorded in CollectResult, never silent.
 
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { parseChatJsonl } from "#kit/serde/chat";
-import type { CollectedCard, CollectedChat, CollectedPersona, CollectedWorld, CollectResult, ImportFsPort } from "../contract/views.ts";
+import type {
+  CollectedCard,
+  CollectedChat,
+  CollectedGroup,
+  CollectedPersona,
+  CollectedPreset,
+  CollectedWorld,
+  CollectResult,
+  ImportFsPort,
+} from "../contract/views.ts";
 import { importFileHash, parseCardPng } from "../substrate/card.ts";
+import { parseStGroupFile } from "../substrate/group.ts";
 import { parseStPersonas } from "../substrate/persona.ts";
+import { parseStPresetFile, parseStSettingsPreset, ST_PRESET_DIR, ST_PRESET_SETTINGS_KEY } from "../substrate/preset.ts";
 import { parseStTags } from "../substrate/tags.ts";
 import { parseStWorldFile } from "../substrate/world.ts";
 
@@ -36,7 +48,11 @@ interface CollectState {
   readonly skip: ReadonlySet<string>;
   readonly skippedHandles: Set<string>;
   readonly worlds: CollectedWorld[];
+  readonly presets: CollectedPreset[];
+  readonly groups: CollectedGroup[];
   readonly unreadableWorlds: string[];
+  readonly unreadablePresets: string[];
+  readonly unreadableGroups: string[];
   readonly unreadableCards: string[];
   readonly skippedChats: string[];
   readonly skippedCharacters: string[];
@@ -47,13 +63,30 @@ interface CollectState {
   readonly unhandledSettings: string[];
 }
 
+/** The flat profile-level dir holding EVERY group's transcripts (ST does not sub-directory them per group the
+ *  way solo chats are; a group's own `chats[]` list is the only thing that says which leaves are its own). */
+const GROUP_CHATS_DIR = "group chats";
+const GROUPS_DIR = "groups";
+
 // The top-level profile names the importer DOES consume — everything else in a user profile dir is reported
-// as unhandled so a whole-folder import never silently drops a plane (presets, quick replies, themes, …).
-const HANDLED_ENTRIES: ReadonlySet<string> = new Set(["characters", "chats", "worlds", "User Avatars", "settings.json"]);
+// as unhandled so a whole-folder import never silently drops a plane (quick replies, themes, extensions, …).
+// The CHAT-COMPLETION preset dir is handled; the three TEXT-completion families deliberately are not (owner
+// ruling 2026-08-08 — orb has no text-completion mode), so they keep reporting as unhandled with that reason.
+const HANDLED_ENTRIES: ReadonlySet<string> = new Set([
+  "characters",
+  "chats",
+  "worlds",
+  "User Avatars",
+  "settings.json",
+  GROUPS_DIR,
+  GROUP_CHATS_DIR,
+  ST_PRESET_DIR,
+]);
 // The settings.json sections the importer reads: `power_user` (personas) + `tags`/`tag_map` (library tags,
-// attached to imported characters by their card filename). Every other top-level key is reported as an
-// unimported setting (per-backend presets under oai_settings, world_info_settings globals, …).
-const HANDLED_SETTINGS: ReadonlySet<string> = new Set(["power_user", "tags", "tag_map"]);
+// attached to imported characters by their card filename) + `oai_settings` (the LIVE chat-completion preset —
+// the selected one WITH the author's unsaved edits). Every other top-level key is reported as an unimported
+// setting (the three text-completion blobs, world_info_settings globals, horde config, extension state, …).
+const HANDLED_SETTINGS: ReadonlySet<string> = new Set(["power_user", "tags", "tag_map", ST_PRESET_SETTINGS_KEY]);
 
 function group(state: CollectState, handle: CharacterHandle): Group {
   const existing = state.byHandle.get(handle);
@@ -107,7 +140,7 @@ async function collectCards(fs: ImportFsPort, profileDir: string, state: Collect
       continue;
     }
     const handle = disambiguate(state, slugifyHandle(stem), ent.name);
-    group(state, handle).card = { handle, cardBytes: bytes, filename: ent.name, chats: [] };
+    group(state, handle).card = { handle, cardBytes: bytes, filename: ent.name, cardName: parsed.card.name, chats: [] };
   }
 }
 
@@ -186,6 +219,103 @@ async function collectWorlds(fs: ImportFsPort, profileDir: string, state: Collec
   }
 }
 
+// ST saved CHAT-COMPLETION presets: `<profileDir>/OpenAI Settings/*.json`. Each is mapped to the orb-native
+// portable shape by the substrate (through the already-shipped `importStChatCompletionPreset`); an unparseable
+// file is recorded, never silent. A missing dir yields nothing (the port resolves [] for a missing dir).
+async function collectPresetDir(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
+  const dir = fs.join(profileDir, ST_PRESET_DIR);
+  for (const ent of await listDir(fs, dir)) {
+    if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
+      continue;
+    }
+    const sourceFile = fs.join(ST_PRESET_DIR, ent.name);
+    // biome-ignore lint/performance/noAwaitInLoops: preset files are read + parsed sequentially during the one-time collection scan, not a hot path.
+    const bytes = await fs.readFile(fs.join(dir, ent.name));
+    const parsed = parseStPresetFile(bytes, ent.name.replace(JSON_EXT, ""));
+    if (parsed === null) {
+      state.unreadablePresets.push(sourceFile);
+      continue;
+    }
+    state.presets.push({ parsed, sourceFile });
+  }
+}
+
+/** The LIVE `oai_settings` blob — the selected preset PLUS the author's unsaved edits, so dropping it would
+ *  lose real tuning. Named `OpenAI (active)`, which never collides with a file preset. A missing/corrupt
+ *  settings.json contributes nothing (the same best-effort posture as tags/personas). */
+async function collectSettingsPreset(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
+  let settingsRaw: unknown;
+  try {
+    const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
+    settingsRaw = JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return;
+  }
+  const parsed = parseStSettingsPreset(settingsRaw);
+  if (parsed !== null) {
+    state.presets.push({ parsed, sourceFile: `settings.json#${ST_PRESET_SETTINGS_KEY}` });
+  }
+}
+
+// One group's transcripts: the leaves ITS OWN `chats[]` claims, read out of the flat profile-level
+// `group chats/` dir. A claimed leaf with no readable/parseable file is recorded on the group, never silent.
+async function collectGroupChats(
+  fs: ImportFsPort,
+  profileDir: string,
+  leaves: readonly string[],
+  groupName: string,
+): Promise<Pick<CollectedGroup, "chats" | "missingChatLeaves">> {
+  const dir = fs.join(profileDir, GROUP_CHATS_DIR);
+  const chats: CollectedChat[] = [];
+  const missingChatLeaves: string[] = [];
+  for (const leaf of leaves) {
+    const fileName = `${leaf}.jsonl`;
+    const filePath = fs.join(dir, fileName);
+    let bytes: Uint8Array;
+    try {
+      // biome-ignore lint/performance/noAwaitInLoops: a group's transcripts are stat+read sequentially during the one-time collection scan.
+      const sz = await fs.stat(filePath);
+      if (sz.size > MAX_JSONL_BYTES) {
+        missingChatLeaves.push(fileName);
+        continue;
+      }
+      bytes = await fs.readFile(filePath);
+    } catch {
+      missingChatLeaves.push(fileName);
+      continue;
+    }
+    // `charDirName` is the GROUP name — the header-fallback ST writes as literal "unused" in a group file.
+    const parsed = parseChatJsonl(new TextDecoder().decode(bytes), { fileName, charDirName: groupName });
+    if (parsed === null) {
+      missingChatLeaves.push(fileName);
+      continue;
+    }
+    chats.push({ parsed, importedFrom: fileName, importHash: importFileHash(bytes) });
+  }
+  return { chats, missingChatLeaves };
+}
+
+// ST groups: `<profileDir>/groups/*.json`. Members stay UNRESOLVED here (card filenames) — the filename →
+// characterId mapping only exists after the character wave, so the driver owns the resolve.
+async function collectGroups(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
+  const groupsDir = fs.join(profileDir, GROUPS_DIR);
+  for (const ent of await listDir(fs, groupsDir)) {
+    if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
+      continue;
+    }
+    const sourceFile = fs.join(GROUPS_DIR, ent.name);
+    // biome-ignore lint/performance/noAwaitInLoops: group definitions are read sequentially during the one-time collection scan.
+    const bytes = await fs.readFile(fs.join(groupsDir, ent.name));
+    const parsed = parseStGroupFile(bytes, ent.name.replace(JSON_EXT, ""));
+    if (parsed === null) {
+      state.unreadableGroups.push(sourceFile);
+      continue;
+    }
+    const { chats, missingChatLeaves } = await collectGroupChats(fs, profileDir, parsed.chatLeaves, parsed.name);
+    state.groups.push({ parsed, sourceFile, chats, missingChatLeaves });
+  }
+}
+
 // Enumerate what the importer does NOT process: every top-level profile entry outside HANDLED_ENTRIES, plus
 // every settings.json top-level section outside HANDLED_SETTINGS. Feeds the import report so a whole-folder
 // import is honest about what it left behind (presets, quick replies, themes, extension configs, …).
@@ -253,7 +383,11 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: string
     skip: new Set(skipCharacterNames.map((s) => s.trim().toLowerCase()).filter((s) => s.length > 0)),
     skippedHandles: new Set<string>(),
     worlds: [],
+    presets: [],
+    groups: [],
     unreadableWorlds: [],
+    unreadablePresets: [],
+    unreadableGroups: [],
     unreadableCards: [],
     skippedChats: [],
     skippedCharacters: [],
@@ -264,6 +398,9 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: string
 
   await collectCards(fs, profileDir, state);
   await collectWorlds(fs, profileDir, state);
+  await collectPresetDir(fs, profileDir, state);
+  await collectSettingsPreset(fs, profileDir, state);
+  await collectGroups(fs, profileDir, state);
   await collectUnhandled(fs, profileDir, state);
 
   const chatsDir = fs.join(profileDir, "chats");
@@ -292,10 +429,14 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: string
     bundles,
     personas,
     worlds: state.worlds,
+    presets: state.presets,
+    groups: state.groups,
     tagsByEntityKey,
     orphanChatDirs,
     unreadableCards: state.unreadableCards,
     unreadableWorlds: state.unreadableWorlds,
+    unreadablePresets: state.unreadablePresets,
+    unreadableGroups: state.unreadableGroups,
     skippedChats: state.skippedChats,
     skippedCharacters: state.skippedCharacters,
     collidedCards: state.collidedCards,
