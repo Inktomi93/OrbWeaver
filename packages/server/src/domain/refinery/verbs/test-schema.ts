@@ -27,6 +27,9 @@ export function createTestSchema(ctx: RefineryContext): RefineryService["testSch
       throw new DomainNotFoundError("character", characterId);
     }
     const doc = refinerySchemaDocumentSchema.parse({ name: "draft_preview", description: "", stage, schema });
+    // `projectJsonSchema` is what CLOSES the object tree (`additionalProperties:false`) for the wire — the
+    // stored/draft schema is open by construction (task #41; see `stage-resolution.ts`). A raw send would ship
+    // open on the hosted wire; this projection is the enforcement, not a formality.
     const lifted = liftJsonSchema(doc.schema);
     const projected = projectJsonSchema(lifted);
     const [overrides, presetParams] = await Promise.all([ctx.resolveUserProse(ownerId), ctx.resolveUserPresetParams(ownerId)]);
