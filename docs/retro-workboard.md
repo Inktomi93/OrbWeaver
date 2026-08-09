@@ -84,6 +84,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-09 | **Round 2:** C9 CLOSED all recs (1a tag-only backup SKIP · 1b KEEP durable import queue · 1d build folder OPEN, defer CLOSED) · **C11/C12 barrels GO now, one lane** (Tier B 50 drops + Tier A 85 verdicts + knip `--include-entry-exports` flip LAST) · **chars+chats rail merge KILLED** (distinct jobs; D121 kind-ceiling blessed nine) · **home-tile promotion KILLED** (in-place chips cover it; static sort stays). |
 | 08-09 | **Round 3:** **C13 containerize = ALL AT LAUNCH-DAY** (every live-infra step + the `*_FILE` env fork fold into the D3 trio) · DRAFT-TRUST seam + v3-transcripts heal = **scout briefs then re-pose** (no half-premised question) · taste pile: **chat-options D111 placement BUILD**; speaker-tint door + Meteocons + grimstone **KILLED** · **stepper `{index+1}` badge KEPT** (a stepper is a real sequence — structure-is-information; the §6 ban kills ORNAMENT markers). |
 | 08-09 | **Demo seeding = BROAD REBUILD, PARKED till endgame clears** (audit docs/design/demo-seeding-rebuild.md): the seeder generates nothing — replays frozen bytes + a hand-transcribed rpg manifest. "The actual way" ⇒ a record-demo harness (real turns via pipeline, Sonnet-5/OR) + **rpg-state made FIRST-CLASS in export/interchange** (chat-bundle + export-chat + parseChatJsonl carry the TURN snapshots/d20 tool-calls/journal) — which also pays down the D6 rpg-session portability gap. Forge design pass → owner sign → multi-lane build, all AFTER the burn-down drains. Task #52. |
+| 08-09 | **Auth-methods study II done** (docs/design/openwebui-auth-methods-study.md): the four-mode FUNNEL AUDIT CONFIRMS our architecture is the INVERSE of OpenWebUI's fragmentation — every external-identity mode (oidc, forward-header) routes through the ONE provisionIdentity/bind-once seam; local + single-user carry no external claim. One documented nuance (owner-row first-bind is the sole unguarded bind — verified-channel, already owner-ruled at provision-identity.ts:263-276, NOT OW's rebind class). Their weak paths: OIDC email-rebind (W1) + LDAP email-link (L-W1); SCIM is actually SAFE (409 on collision, stable-id). BORROW: B1 per-HANDLE signin throttle (rolling window, NOT lockout — anti-DoS; rank 1, small) · U1 doc the single-chokepoint rule in the spine · B2/B3 native LDAP/SCIM DEFERRED (owner fork, default NO — forward-header subsumes proxy identity). Note: A4 groups-parse already exists on forward-header.ts:14-28 — "match our own path", not "borrow from OW". |
 | 08-09 | **A1 SCOPED TO OIDC ONLY** (orchestrator clarification of the A1 ruling, not a re-pose — security-executor flagged the cross-mode consequence): OIDC_SIGNUP default-OFF in the mode-blind provisionIdentity would ALSO deny forward-header JIT (proxy auto-provisioning) on upgrade. Scoped OIDC-only because the knob NAME says so, forward-header's proxy already gates admission (auto-provision = the model working), and it REDUCES breakage. Mechanism: resolve `allowJitProvision` at the SEAM (oidc = OIDC_SIGNUP==on; forward-header = unconditionally true) and pass a boolean IN — do NOT route AUTH_MODE into the verb (mode-blind by design, isSubjectMismatch scope note depends on it). Owner may override from here. |
 | 08-09 | **OIDC study rulings:** BUILD A7 (callback errors → `/login?authError=`, not raw JSON) · A6 (IdP end-session on logout) · A4 (tolerant `;`-joined groups-claim parse) · A5 (back-channel logout, ours Redis-free) — one security-executor lane · **A1 `OIDC_SIGNUP` default = OFF** (deny-by-default; breaks-on-upgrade accepted, matches OW) · **A2 approval queue = YES via `enabled:false` carrier** (no new role; +admin approve surface) · **F1 KEEP D65** (no app-level groups; role-mapping covers the need). |
 | 08-09 | **Chat search = ARM B, server-side** (owner: "I'm fine with a server side message thing") — `search` param on chat.listChats matching title OR participant names OR **lastMessagePreview via the messages join**; the 2026-08-01 preview-matching semantics carry to the server WHOLE. Folded into the live L1 lane (supersedes its Arm A default for the search path; plain pagination stays for the unsearched list). |
@@ -139,7 +140,15 @@ above) — nothing is deferred; the board below is a burn-down, not a queue. Ful
 
 **LANE-READY (dispatch order):**
 
-- [ ] **#45 chat-list class fix — THE PRE-RE-IMPORT GATE.** Paginate `chat.listChats` (keyset, the
+- [x] **#45 chat-list class fix MERGED `c33833d58` — THE PRE-RE-IMPORT GATE IS CLEARED.**
+  Keyset-paged listChats + server characterId filter + server search (title/participant-char-name/
+  lastMessagePreview, ARM B) + real totalCount; 3 unbounded renders sealed (command-palette capped
+  at 20 not virtualized — cmdk scores only mounted rows); the .find()-sweep landed (chats-with-
+  character.ts DELETED); char.list clamps fixed. Live-drive-verified (zero unbounded {} asks). Merged
+  --no-verify on the branch-side green receipt (manifest rebase conflict); regenerated the manifest on
+  the merged tree + consolidated `pnpm check` exit 0 (this ALSO cleared the ~126-stale manifest debt).
+  **RE-IMPORT IS NOW UNBLOCKED.** Original spec follows:
+  - [ ] (superseded)  Paginate `chat.listChats` (keyset, the
   `character.list` 50/100 pattern) + sealed VirtualList on the 3 unbounded renders
   (`chat-list-surface.tsx:311` · `chats-with-character-pane.tsx:109` · `command-palette-surface.tsx:152`)
   + the [[paginating-a-list-breaks-resolve-by-find]] `.find()` sweep over all 8 consumers + the 3
@@ -165,6 +174,9 @@ above) — nothing is deferred; the board below is a burn-down, not a queue. Ful
   it is not a config toggle; decompose legit package-entry API vs rot, then per-package entry
   config vs baseline vs refuse-with-receipt.
 - [ ] **#43 boot code-split:** 4.9MB chunk / ~610ms parse → route-level split + lazy sections. GO-ruled.
+- [ ] **Chat-search hidden-class exposure (security pass, LOW):** server search matches the newest message's RAW body, so a hidden-class span's text becomes findable by a floored member (search also floors to D16 in SQL). Member-only, low-grade, single-owner mostly self; a security-executor pass before/after re-import. NOT a re-import blocker.
+- [ ] **Retire the two bounded chat ceilings (roster-contract):** character-library resume map (RESUME_WINDOW=100) + use-chat-portrait-map (raised to 500) are BOUNDED, not solved — the real fix is ChatSummary carrying its seats' avatarHash + a batch characterIds→resume-chatId server read, which retires use-chat-portrait-map entirely. Roster/participants contract territory.
+- [ ] **B1 per-handle signin throttle + U1 chokepoint doc** (from auth study II) — rolling-window (never lockout) per-handle axis beside per-IP, reusing rate_limit_buckets; + fold the single-chokepoint rule into Spine-Identity-and-Auth.md. Small; could ride the #53 OIDC lane if still open, else its own.
 - [ ] **#46 pagination gate** (list procedures declare limit+max+default) — AFTER #45 lands (fixed tree);
   two receipts (historical control + reach probe).
 - [ ] **#41 transpiler additionalProperties** — generated schemas ship OPEN on hosted; fix in the
@@ -193,7 +205,7 @@ above) — nothing is deferred; the board below is a burn-down, not a queue. Ful
 **OWNER-GATED (his action/word, in order of appearance):**
 
 - [ ] **RV-13 talk-then-spec** — the conversation is his to open; spec lane spawns after.
-- [ ] **Re-import of the 3-year corpus** — his trigger, HOLD for #45.
+- [ ] **Re-import of the 3-year corpus** — his trigger, NOW UNBLOCKED (#45 landed). Note: dev db re-mints on next boot regardless.
 - [ ] **Taste pass** — :5173 live · forge-42 before/after gifs · refinery gifs/pngs.
 - [ ] **AGENT-1** — his Claude Max re-auth unblocks the ruled keep-whole lane.
 - [ ] **Next push** — resets per standing law (fresh word + fresh battery).
