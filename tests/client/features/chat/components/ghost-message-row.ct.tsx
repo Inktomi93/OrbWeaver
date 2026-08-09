@@ -47,10 +47,11 @@ test("pending shows the typing dots, then streaming reveals paced markdown", asy
 test("§6.4 phase affordances: dots pending-only, caret streaming-only, neither at rest", async ({ mount }) => {
   const component = await mount(<GhostRowStory />);
   const dots = component.locator('[data-slot="typing-dots"]');
-  // The caret is Streamdown's `::after` on the last streamed block, retinted 2px primary; assert it via
-  // its computed left border (Streamdown emits no caret element to query for, only a pseudo-element).
-  const caretBorder = (): Promise<string> =>
-    component.locator('[data-slot="ghost-stream-body"] > * > *:last-child > *:last-child').evaluate((el) => getComputedStyle(el, "::after").borderLeftWidth);
+  // The caret is OUR `::after` (globals.css owns it — #42 dropped Streamdown's caret prop) on the LAST
+  // LEAF BLOCK inside the dir wrapper, so the bar trails the final glyph instead of dropping to a new
+  // line. Assert via its computed left border (a pseudo-element — no caret element exists to query).
+  const caretHost = component.locator('[data-slot="ghost-stream-body"] > * > *:last-child > [dir]:last-child > *:last-child');
+  const caretBorder = (): Promise<string> => caretHost.evaluate((el) => getComputedStyle(el, "::after").borderLeftWidth);
 
   // At rest (idle): no ghost body at all.
   await expect(dots).toHaveCount(0);
@@ -66,6 +67,9 @@ test("§6.4 phase affordances: dots pending-only, caret streaming-only, neither 
   await expect(dots).toHaveCount(0);
   await expect(component.getByText("Hi")).toBeVisible();
   await expect.poll(caretBorder).toBe("2px");
+  // The #42 position pin: the carrier is the last LEAF block (the <p> holding the streamed text), not
+  // the display:contents dir wrapper — an ::after on the wrapper lands BELOW the paragraph (own line).
+  await expect.poll(() => caretHost.evaluate((el) => el.tagName)).toBe("P");
 
   // Settled (completeTurn → the slot leaves the live phases): the ghost row unmounts, no caret.
   await component.getByTestId("complete").click();
@@ -87,7 +91,7 @@ test("reduced motion: dots render static and the caret renders steady (no blink)
 
   await component.getByTestId("token").click();
   await expect(component.getByText("Hi")).toBeVisible();
-  const caret = component.locator('[data-slot="ghost-stream-body"] > * > *:last-child > *:last-child');
+  const caret = component.locator('[data-slot="ghost-stream-body"] > * > *:last-child > [dir]:last-child > *:last-child');
   // The caret bar still paints (2px primary), but its blink is frozen by the same floor.
   await expect.poll(() => caret.evaluate((el) => getComputedStyle(el, "::after").borderLeftWidth)).toBe("2px");
   await expect.poll(() => caret.evaluate((el) => getComputedStyle(el, "::after").animationDuration)).toBe("1e-05s");
