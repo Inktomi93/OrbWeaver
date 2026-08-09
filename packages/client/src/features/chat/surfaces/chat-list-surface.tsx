@@ -30,7 +30,7 @@ import { chatsWithCharacter, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, setChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRow } from "../components/chat-list-row.tsx";
-import { useChatPortraitMap } from "../hooks/use-chat-portrait-map.ts";
+import { useChatPortraitMap, useChatPortraitMapPending } from "../hooks/use-chat-portrait-map.ts";
 import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
 import { chatPortraits, chatRowQualifiers } from "../lib/chat-summary-row.ts";
 import { filterChats } from "../lib/filter-chats.ts";
@@ -64,8 +64,8 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
         {/* Mock order (side-eye P2b): FACES first, then the scope chip, then search — the faces are the
           shortcut you arrive for, and burying them under the search box made them read as a filter widget.
           The strip lives HERE rather than in the suspending body so it can sit above the chip; it reads the
-          SAME `chat.listChats` cache entry non-suspensefully (no new key, no second truth) and renders
-          nothing until it lands, which is its own empty posture anyway. */}
+          SAME `chat.listChats` cache entry non-suspensefully (no new key, no second truth) and RESERVES its
+          own box until it lands (`pending` below — it used to render nothing and shove the pane 74px). */}
         <FacesStrip characterFilter={characterFilter} />
         {characterFilter !== null ? <FilterChip filter={characterFilter} /> : null}
         <Input aria-label="Search chats" onValueChange={setQuery} placeholder="Search the weave…" value={query} />
@@ -95,7 +95,9 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
  *  "filtered by" (a chip you can clear) rather than a second list that owns her chats.
  *
  *  A plain `useQuery` on the chats key the body suspends on: a shortcut row must not gate the pane's chrome
- *  on a fetch, and an unresolved read renders NOTHING (the strip's own data-driven empty posture).
+ *  on a fetch. An unresolved read RESERVES the strip's box (`pending` — measured: rendering nothing shoved
+ *  the search field and the whole row list 74px on arrival); a resolved-but-faceless one still renders
+ *  nothing, which is the strip's own data-driven empty posture.
  *
  *  The curation hands over EVERY character you have chatted with, in recency order — the strip's own fold
  *  (FACEFILT) decides how many of them the pane can hold, so a cap here would only be a second, blinder
@@ -104,8 +106,12 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
  *  as a face — the strip must never be filtering by someone who is not in it. */
 function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCharacterFilter | null }): ReactElement | null {
   const trpc = useTRPC();
-  const { data: chats } = useQuery(trpc.chat.listChats.queryOptions({}));
+  const { data: chats, isPending: chatsPending } = useQuery(trpc.chat.listChats.queryOptions({}));
   const characterById = useChatPortraitMap();
+  // BOTH reads decide a face: a chat names a character id, the portrait map turns it into a face. Gating
+  // the reservation on the chats read alone still shifted, because entering the section refetches
+  // `character.list` at the portrait map's own limit and the strip popped in when THAT landed (measured).
+  const portraitsPending = useChatPortraitMapPending();
   const recent = recentFaces(chats ?? [], characterById);
   const scopedFace =
     characterFilter !== null && !recent.some((face) => face.id === characterFilter.id)
@@ -146,6 +152,11 @@ function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCha
       kicker="Filter by character"
       label="Recent characters"
       onSelect={scopeToFace}
+      // RESERVE THE BOX WHILE THE READ IS IN FLIGHT (measured 2026-08-09: the pane shifted 74px on data
+      // arrival — the strip mounted above the search field and pushed the field + the whole row list down,
+      // §4.3 rule 7). `isPending` is "no answer yet", never "no faces": a settled empty answer still renders
+      // nothing, which is this strip's own ruling.
+      pending={chatsPending || portraitsPending}
       overflow={{
         label: "Filter by another character",
         // EXCLUDE THE FACES ALREADY ON THE ROW (side-eye 2026-08-03 P3): the tile says `+N More` and then

@@ -442,6 +442,42 @@ test("Arm B: the strip is the pane's FIRST element (above chip + search) and its
     .toEqual({ stripBeforeChip: true, stripBeforeSearch: true });
 });
 
+// ── THE RESERVED STRIP BOX (shell-perf mop, measured 2026-08-09) ───────────────────────────────────
+// The strip mounted only once BOTH its reads landed (`chat.listChats` for the cast, `character.list` for
+// the portraits), so on arrival it pushed the search field and the entire row list down 74px — measured on
+// a live boot as a 0.0070–0.0102 layout shift, which is exactly what UI-Architecture-and-Layout §4.3 rule 7
+// forbids ("never layout shift on data arrival"). The strip's height is CHROME (a kicker line + one row of
+// face boxes), knowable before either read, so the pending strip now reserves it.
+//
+// The in-flight phase is a HELD, settled render here, never a flash to race: the route handler below sleeps
+// before falling through to `routeTrpc`, so the pending geometry is read from a page that cannot settle
+// early. Contention can only make that window longer.
+/** Long enough that the pending phase is unmistakably observable, short enough to keep the test quick. */
+const PENDING_HOLD_MS = 1200;
+/** Sub-pixel equality: the reserved box is built from the settled anatomy's own tokens, so any real
+ *  regression is a whole row (74px), never a rounding hair. */
+const NO_MOVE_PX = 1;
+
+test("Arm B: the strip RESERVES its box while its reads are in flight — the search field does not move on arrival", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.listChats": [ADVENTURE], "character.list": CHARACTERS });
+  await page.route("**/api/trpc/**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, PENDING_HOLD_MS));
+    await route.fallback();
+  });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  const search = component.getByRole("textbox", { name: "Search chats" });
+  await expect(search).toBeVisible();
+  const pendingBox = await search.boundingBox();
+
+  // SETTLED barrier: the faces are up AND the rows rendered — the pane is done moving.
+  await expect(component.getByRole("button", { name: "Show chats with Aria Nightshade", exact: true })).toBeVisible();
+  await expect(component.getByText("A grand adventure")).toBeVisible();
+  const settledBox = await search.boundingBox();
+
+  expect(Math.abs((settledBox?.y ?? 0) - (pendingBox?.y ?? -1))).toBeLessThan(NO_MOVE_PX);
+});
+
 // The face-verb ambiguity (home side-eye): one rail click away, on home, the same clickable character face
 // LAUNCHES a chat. The strip's kicker is therefore the VERB, not the contents — "Faces" named the picture
 // and left both readings open. It is the only line a sighted user gets BEFORE committing to a click.
