@@ -30,7 +30,7 @@ import { ChartColumn, ChevronRight, Gauge, Icon, Pencil } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { CharacterPicker } from "#components";
 import { testId } from "#lib";
 
@@ -74,7 +74,12 @@ export function TeachingState({ onStart, starting }: TeachingStateProps): ReactE
           arbitrary values; `justify-center` keeps a short final line centred under the promise sentence. */}
       <Row align="center" className="flex-wrap justify-center" data-testid={testId("refineryTeachingSteps")} gap="tight">
         {STEPS.map((step, index) => (
-          <Fragment key={step.name}>
+          // EACH CHEVRON+CARD IS ONE NON-WRAPPING UNIT (side-eye 2026-08-09 P2). A default `Row` never
+          // wraps, so a step's leading chevron travels WITH its card when that card reflows to the next
+          // line — instead of stranding at the end of line 1 pointing at nothing (the orphan the Fragment
+          // layout left when Analyze wrapped). The OUTER row still wraps between units; `gap="tight"` on
+          // both reproduces the flat spacing the Fragment layout had.
+          <Row align="center" gap="tight" key={step.name}>
             {index === 0 ? null : <Icon icon={ChevronRight} size="sm" />}
             <Card>
               <Stack gap="tight" padding="block">
@@ -85,7 +90,7 @@ export function TeachingState({ onStart, starting }: TeachingStateProps): ReactE
                 <Text voice="gloss">{step.detail}</Text>
               </Stack>
             </Card>
-          </Fragment>
+          </Row>
         ))}
       </Row>
       {picking ? (

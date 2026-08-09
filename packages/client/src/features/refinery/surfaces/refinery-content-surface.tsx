@@ -51,6 +51,7 @@ import {
 } from "../hooks/use-refinery-mutations.ts";
 import { useRefineryPreflight } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns, useRefinerySession } from "../hooks/use-refinery-sessions.ts";
+import { scopeChipLabelOf } from "../lib/render-plan.ts";
 import { reviewEntriesOf } from "../lib/review-entries.ts";
 import { scorePayloadOf, statusLineOf } from "../lib/run-views.ts";
 
@@ -90,13 +91,6 @@ function notRunStatusOf(stage: RefineryStage, latestOf: ReadonlyMap<RefineryStag
     return "runs best after a score";
   }
   return "not run yet";
-}
-
-function scopeChipLabelOf(field: string, greetingIndexes: readonly number[] | undefined): string {
-  if (field === "greetings" && greetingIndexes !== undefined) {
-    return `greetings ${greetingIndexes.join(",")}`;
-  }
-  return field;
 }
 
 // Re-derived locally from the wire (§7.4).
@@ -180,7 +174,11 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
         }}
       />
 
-      <Row align="center" gap="field">
+      {/* WRAPS (side-eye 2026-08-09 P2). A non-wrapping `Row` clipped the tail chips off the pane at the
+          3-pane / mobile container width — CREATOR NOTES / EXAMPLE MESSAGES were painted past the edge and
+          invisible. `flex-wrap` lets the strip reflow onto a second line (the teaching-steps precedent);
+          `gap="field"` supplies the between-line gap too. */}
+      <Row align="center" className="flex-wrap" gap="field">
         <Text voice="kicker">Scope</Text>
         {view.selection.fields.map((field) => (
           <RefineryChip key={field} tone="info">

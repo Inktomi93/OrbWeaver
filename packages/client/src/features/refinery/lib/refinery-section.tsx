@@ -14,7 +14,7 @@ import type { SectionDefinition } from "#state";
 import { refinerySectionSelection, useSelectedRefinerySessionId } from "#state";
 import { RefineryListAnchor } from "../anchors/refinery-list-anchor.tsx";
 import { RunsTabBody, SetupTabBody, VersionsTabBody } from "../components/refinery-context-tabs.tsx";
-import { useRefinerySession } from "../hooks/use-refinery-sessions.ts";
+import { useRefinerySession, useRefinerySessions } from "../hooks/use-refinery-sessions.ts";
 import { RefineryContentSurface } from "../surfaces/refinery-content-surface.tsx";
 import { RefineryListHeader, RefineryListSurface } from "../surfaces/refinery-list-surface.tsx";
 
@@ -47,14 +47,20 @@ function useRefineryContextState(): RefineryContextState | null {
   return sessionId === null || session.data === undefined ? null : { sessionId, characterId: session.data.characterId };
 }
 
-/** The open session's name for the mobile topbar (null heals to the section label — never a blank bar). */
+/** The open session's title for the mobile topbar (null heals to the section label — never a blank bar).
+ *  Falls back to the CHARACTER NAME, not "Untitled session" (side-eye 2026-08-09 P2): `session.name` is
+ *  null on every session today, so the placeholder was the ONLY thing the bar ever showed — while CONTENT's
+ *  header read the character. The name rides the roster summary server-side (the P1-4 fix), so this is the
+ *  exact fact the roster row shows, read from the same already-fetched `listSessions` cache (no new query,
+ *  no suspense — the list surface owns the fetch). */
 function useRefinerySelectionTitle(): string | null {
   const sessionId = useSelectedRefinerySessionId();
-  const session = useRefinerySession(sessionId);
+  const sessions = useRefinerySessions();
   if (sessionId === null) {
     return null;
   }
-  return session.data === undefined ? null : (session.data.name ?? "Untitled session");
+  const row = sessions.data?.find((s) => s.id === sessionId);
+  return row === undefined ? null : (row.name ?? row.characterName);
 }
 
 export const refinerySection: SectionDefinition = {

@@ -6,6 +6,10 @@
 
 export { AcceptReview } from "./components/accept-review.tsx";
 export { PayloadView } from "./components/payload-view.tsx";
+/** @public exported for the narrow-container CT that proves the fit-line no longer paints through the verb
+ *  cluster (side-eye 2026-08-09 P1) — the composition surface imports it relatively. */
+export type { RunControlsCardProps } from "./components/run-controls-card.tsx";
+export { RunControlsCard } from "./components/run-controls-card.tsx";
 export { SchemaEditorDialog } from "./components/schema-editor-dialog.tsx";
 /** @public exported for the CT story that drives the REAL first-run arm (run null + running → a run lands
  *  with `arrived`) — the composition surface imports it relatively; a story importing it relatively would
