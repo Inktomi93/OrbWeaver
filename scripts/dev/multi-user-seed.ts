@@ -30,16 +30,25 @@ const SESSION_COOKIE = "__Host-orb_session";
 
 // biome-ignore lint/style/noProcessEnv: dev-tooling script (not app config) — the fixture launcher passes its contract in as env.
 const env = process.env;
-const BASE = env["SEED_BASE_URL"] ?? "http://127.0.0.1:8788";
-const OWNER_HANDLE = env["FIXTURE_OWNER_HANDLE"] ?? "owner";
-const OWNER_PASSWORD = env["FIXTURE_OWNER_PASSWORD"] ?? "owner-dev-pass";
-const MEMBER_HANDLE = env["FIXTURE_MEMBER_HANDLE"] ?? "member";
-const MEMBER_PASSWORD = env["FIXTURE_MEMBER_PASSWORD"] ?? "member-dev-pass";
 
 function die(message: string): never {
   process.stderr.write(`multi-user-seed: ${message}\n`);
   process.exit(1);
 }
+
+// SEED_BASE_URL has no default: an unset-env default of the operator's LIVE dev stack (8788) is the exact
+// fail-open shape that once rewrote the operator's real `routing.roleDefaults` in globalSetup — one missing
+// export away from repeating. Both current callers (multi-user-fixture.sh, global-setup.ts) already set it;
+// require it here instead of silently seeding whatever happens to be listening on 8788.
+const BASE =
+  env["SEED_BASE_URL"] ??
+  die(
+    "SEED_BASE_URL is required (no default — an unset default would target the operator's live dev stack). Run via: bash scripts/dev/multi-user-fixture.sh up",
+  );
+const OWNER_HANDLE = env["FIXTURE_OWNER_HANDLE"] ?? "owner";
+const OWNER_PASSWORD = env["FIXTURE_OWNER_PASSWORD"] ?? "owner-dev-pass";
+const MEMBER_HANDLE = env["FIXTURE_MEMBER_HANDLE"] ?? "member";
+const MEMBER_PASSWORD = env["FIXTURE_MEMBER_PASSWORD"] ?? "member-dev-pass";
 
 /** A non-batched tRPC call as the fallback owner (no transformer server-side → raw input body). */
 async function trpc(proc: string, input?: unknown): Promise<unknown> {
