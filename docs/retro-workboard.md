@@ -166,7 +166,10 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 \#32 CLS/tab-strip/jank/flagger · #31 agents naming. Merge each on report, serially, log-verified.
 **PHASE 2 — on the IDOR merge:** re-run the cross-tenant suite; green → **`git push --no-verify`**
 (owner's standing word 08-08 + explicit 08-09 instruction; battery receipts already banked:
-11,055/11,056 + e2e-smoke + parity + cpd green, ratchet fixed `dedb7a897`).
+11,055/11,056 + e2e-smoke + parity + cpd green, ratchet fixed `dedb7a897`). **PUSH IS ONE-SHOT
+(owner, bedtime): if it fails for ANY reason, do NOT retry — record the failure on the board, park
+for morning (a retry can deadlock on a toolguard prompt with nobody at the keyboard). Never
+re-invoke `git push` tonight.**
 **PHASE 3 — graduation train (after all 5 merge):** ONE batched verifier over the 5 lanes' claims +
 ONE batched side-eye (R3 surface LIVE on merged main — its owed lens — + the CLS/jank fixes + corpus
 redesign re-verify). Fix-all-findings loop per side-eye law; smalls batch folds in #35's preset-CT
