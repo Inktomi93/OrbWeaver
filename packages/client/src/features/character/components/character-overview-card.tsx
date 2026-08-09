@@ -29,6 +29,9 @@ const FIRST_GREETING = 0;
 
 const REFINERY_SCORE_DECIMALS = 2;
 
+/** The card wants her CENSUS plus her newest thread's stamp — the smallest page that carries both. */
+const NEWEST_THREAD_ONLY = 1;
+
 /** How many tag names the gloss spells out before it summarizes the rest. */
 const TAG_GLOSS_LIMIT = 4;
 
@@ -41,18 +44,22 @@ export interface CharacterOverviewCardProps {
 export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProps): ReactElement {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.character.get.queryOptions({ characterId }));
-  const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
+  // HER page-of-one (2026-08-09): `totalCount` is the server's real census for this character's threads, and
+  // `items[0]` is her newest-updated one. This used to read the caller's WHOLE membership list and filter +
+  // reduce it here — an 872-row read to print one number and one relative stamp.
+  const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({ characterId, limit: NEWEST_THREAD_ONLY }));
 
   if (data === undefined) {
     return <Text tone="muted">Loading…</Text>;
   }
 
   const values = characterCardFormFromDetail(data);
-  const chats = (chatsQuery.data ?? []).filter((chat) => chat.participantCharacterIds.includes(data.id));
-  const lastMessageAt = chats.reduce<number | null>(
-    (latest, chat) => (chat.lastMessageAt === null || (latest ?? 0) >= chat.lastMessageAt ? latest : chat.lastMessageAt),
-    null,
-  );
+  const chatCount = chatsQuery.data?.totalCount ?? 0;
+  // The gloss is her NEWEST thread's stamp, not a max over every thread she is in: the list's own order is
+  // last-activity, so the newest-updated row IS the last time you two spoke — and it is the same row the
+  // chats projection's identity gloss reads, so the two surfaces cannot print different "last" times.
+  const newest = chatsQuery.data?.items[0];
+  const lastMessageAt = newest === undefined ? null : (newest.lastMessageAt ?? newest.updatedAt);
   const tagNames = data.tags.filter((tag) => !tag.isHiddenOnCard).map((tag) => tag.name);
 
   return (
@@ -75,9 +82,9 @@ export function CharacterOverviewCard({ characterId }: CharacterOverviewCardProp
         />
         <OverviewRow
           label="Chats"
-          value={chats.length === 0 ? "None yet" : String(chats.length)}
+          value={chatCount === 0 ? "None yet" : String(chatCount)}
           {...(lastMessageAt === null ? {} : { gloss: `last ${timeLib.formatRelative(lastMessageAt)}` })}
-          mono={chats.length > 0}
+          mono={chatCount > 0}
         />
       </Stack>
 

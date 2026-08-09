@@ -4,7 +4,7 @@
 
 import type { CastEntry, MessageView } from "@orb/contracts/chat";
 import type { ParticipantRole } from "@orb/contracts/identity";
-import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 
 /** The `chat.listMessages` wire shape (MessagesPage — packages/server/src/domain/chat/contract/
@@ -20,6 +20,44 @@ export interface MessagesPageFixture {
  *  `null`. */
 export function makeMessagesPage(messages: readonly MessageView[], cast: readonly CastEntry[] = []): MessagesPageFixture {
   return { messages, cast };
+}
+
+/** The `chat.listChats` wire shape (`ChatListPage`) — keyset page + the server's real census. */
+export interface ChatListPageFixture {
+  readonly items: readonly ChatSummaryFixture[];
+  readonly nextCursor: { readonly updatedAt: number; readonly id: string } | null;
+  readonly totalCount: number;
+}
+
+/**
+ * An INPUT-AWARE `chat.listChats` responder — the stub applies the same narrowing the server does
+ * (`characterId` · `search` · `limit`), so a CT drives the real semantics instead of a stub that hands back
+ * everything no matter what the surface asked. That distinction became load-bearing on 2026-08-09, when the
+ * per-character scope and the search predicate BOTH moved server-side: a fixed-array stub would have made
+ * every filter/search CT pass by ignoring the very input under test.
+ *
+ * The search arm matches title · `participantNames` · `lastMessagePreview`. The server's own name arm reads
+ * CHARACTER SEAT names, which this row shape does not carry separately — `participantNames` is its stand-in,
+ * and it is the same string the row renders.
+ */
+export function chatListResponder(all: readonly ChatSummaryFixture[]): (input: unknown) => ChatListPageFixture {
+  return (input: unknown): ChatListPageFixture => {
+    const args = (input ?? {}) as { characterId?: CharacterId; search?: string; limit?: number };
+    const needle = args.search?.trim().toLowerCase() ?? "";
+    const scoped = all.filter((chat) => args.characterId === undefined || chat.participantCharacterIds.includes(args.characterId));
+    const matched = scoped.filter(
+      (chat) =>
+        needle === "" ||
+        (chat.title?.toLowerCase().includes(needle) ?? false) ||
+        (chat.lastMessagePreview?.toLowerCase().includes(needle) ?? false) ||
+        chat.participantNames.some((name) => name.toLowerCase().includes(needle)),
+    );
+    return {
+      items: args.limit === undefined ? matched : matched.slice(0, args.limit),
+      nextCursor: null,
+      totalCount: matched.length,
+    };
+  };
 }
 
 /** The fixed chat the stories address — the CT's routeTrpc/routeOrbSocket key off this id. */

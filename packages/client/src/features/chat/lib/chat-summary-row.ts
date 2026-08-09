@@ -7,7 +7,7 @@ import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 
-type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
+type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 
 // `deriveChatTitle` MOVED to `#lib/chat-title` (2026-08-09) and is imported from there above, NOT re-exported
 // from here (a re-export would make this a barrel file, which biome forbids): the regex library's room

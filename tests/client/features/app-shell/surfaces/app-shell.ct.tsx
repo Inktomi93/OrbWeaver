@@ -17,7 +17,7 @@ import type { SectionId } from "../../../../../packages/client/src/state/shell-s
 import { MODAL_SLOT_IDS } from "../../../../../packages/client/src/state/shell-store.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { makeCharacterSummary } from "../../character/fixtures.ts";
-import { makeChatSummary } from "../../chat/fixtures.ts";
+import { chatListResponder, makeChatSummary } from "../../chat/fixtures.ts";
 import { ShellCascadeFixture } from "../_cascade-fixtures.tsx";
 import {
   AppShellDraftBackgroundStory,
@@ -657,7 +657,7 @@ test("at 900px (48-64rem) the recents FINDER is still reachable — it moved to 
   // can still find a recent chat without hunting for a hidden panel. Home is now that finder, and home
   // declares NO list pane, so there is nothing to auto-overlay away.
   await routeTrpc(page, {
-    "chat.listChats": [makeChatSummary({ id: "chat_recent_900", title: "A grand adventure" })],
+    "chat.listChats": chatListResponder([makeChatSummary({ id: "chat_recent_900", title: "A grand adventure" })]),
     "character.list": { items: [makeCharacterSummary()], nextCursor: null },
   });
   await page.setViewportSize(NARROW_DESKTOP);
@@ -1355,7 +1355,7 @@ test("a non-file drag is left entirely alone — the guard is files-only", async
 // ── PANE-LESS SECTIONS (side-eye F1/F2/F6) — no doors onto panes that do not exist ──────────────────
 
 test("a section with NO panes ships NO panel chrome: no list toggle, no detail-panel toggle, no focus toggle", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [], "character.list": { items: [], nextCursor: null } });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([]), "character.list": { items: [], nextCursor: null } });
   const shell = await mount(<AppShellOnSectionStory section="home" />);
 
   await expect(shell.locator('[data-home-tile="home.jump"]')).toBeVisible();

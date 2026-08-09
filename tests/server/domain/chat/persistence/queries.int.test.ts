@@ -28,6 +28,9 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { addVariant, seedCharacter, seedChat, seedChatEvent, seedMessage, seedParticipant, seedStreamEvent, seedUser } from "../_support.ts";
 
+/** A page bound comfortably above every fixture here — these arms are about the FILTERS, not the keyset. */
+const TEST_PAGE_LIMIT = 100;
+
 let db: Db;
 
 beforeEach(async () => {
@@ -136,10 +139,10 @@ describe("persistence/queries — chat-row reads (D18 membership scope)", () => 
     await seedParticipant(db, { chatId: archived, key: "ar", userId: me, role: "host" });
     await seedParticipant(db, { chatId: notMine, key: "o", userId: other, role: "host" });
 
-    const visible = await listMemberChats(db, me);
+    const visible = await listMemberChats(db, me, { limit: TEST_PAGE_LIMIT });
     expect(visible.map((c) => c.id)).toStrictEqual([b, a]);
 
-    const withArchived = await listMemberChats(db, me, true);
+    const withArchived = await listMemberChats(db, me, { includeArchived: true, limit: TEST_PAGE_LIMIT });
     expect(withArchived.map((c) => c.id)).toStrictEqual([archived, b, a]);
   });
 

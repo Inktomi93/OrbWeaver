@@ -21,7 +21,7 @@ import { QueryBoundary, QueryErrorState, useInvalidation, useTRPC } from "#data"
 import type { AppFormInstance, AutosaveSession } from "#forms";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms";
 import type { CharacterDetailContribution, CharacterDetailState, ContributorRegistry } from "#lib";
-import { chatsWithCharacter, useFocusOnMount } from "#lib";
+import { useFocusOnMount } from "#lib";
 import { clearCharacterFacet, listProjectionOwnsFocus, selectCharacterFacet, useNarrowViewport, useSelectedCharacterFacetId } from "#state";
 import { CharacterFacetEditor } from "../components/character-facet-editor.tsx";
 import { CharacterFacetList } from "../components/character-facet-list.tsx";
@@ -44,6 +44,9 @@ import { clearCharacterForm, publishCharacterForm } from "../lib/character-edito
 // have stable identities; the boundary owns the entity key, so a character switch remounts the form
 // (and the body's local drill-in/greeting state) — no consumer `key` to place wrong. NO `draft` mirror:
 // on autosave the confirmed server row IS the mirror (the persona/appearance precedent, obligation-5).
+/** The hero wants her CENSUS, not her rows — the smallest page the server serves still carries it. */
+const COUNT_ONLY_PAGE = 1;
+
 const CharacterForm = createAutosaveEntityForm<CharacterCardFormValues>({ defaultValues: DEFAULT_CHARACTER_CARD_FORM });
 
 export interface CharacterEditorSurfaceProps {
@@ -146,12 +149,12 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   // `trustHtml` column, which is only one input to it (see hooks/use-preview-render-policy.ts).
   const previewPolicy = usePreviewRenderPolicy(data);
 
-  // The bus-driven chat list — the hero's chat count derives from it in render, never an effect.
-  const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
-  const chats = chatsQuery.data ?? [];
-  // The ONE projection predicate (`#lib`) — the same one the chats-pane filter chip and the LIST projection
-  // ride, so the hero count can never disagree with the pane it points at.
-  const chatCount = chatsWithCharacter(chats, data.id).length;
+  // The bus-driven chat CENSUS for this character — the hero's "N chats ›" derives from it in render, never
+  // an effect. The SERVER counts (2026-08-09): the projection is a `characterId` argument to the one
+  // first-class chats read, so the hero can never disagree with the pane it points at, and it costs a
+  // page-of-one instead of the caller's entire membership list filtered on the client.
+  const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({ characterId: data.id, limit: COUNT_ONLY_PAGE }));
+  const chatCount = chatsQuery.data?.totalCount ?? 0;
 
   // Always a fresh chat with this character — the SAME writer the LIST band's New chat fires (one home,
   // `character-chat-intents.ts`), so the two primaries can't drift.

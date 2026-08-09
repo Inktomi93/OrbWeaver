@@ -1,14 +1,25 @@
 // The chats-list surface: a search field and the caller's chats as list-row rows
 // (avatar/title/participants/relative time), select-to-open, with a per-row kebab menu. The title +
 // count + New action live in the LIST chrome band now (`chat-list-header.tsx`, north-star §4 N2), not
-// here. chat.listChats
-// is a plain unpaged array, so this is a bounded useSuspenseQuery, not createCollectionSurface. Search
-// is a client-side useDeferredValue filter — there is no server-side search param. Portraits (F7/D3) resolve
-// HERE, not in the row: one non-blocking `character.list` read builds a characterId→seat map the rows index
-// with their `participantCharacterIds` (one seat = a portrait, two or more = an AvatarStack). Reads its OWN
-// selection (`useActiveChatId`) so the chats-section definition composing it stays a pure data object
-// (the character/preset/world-info library-surface precedent); writes the choice out via
-// onSelect/onNewChat/onDeletedChat.
+// here.
+//
+// PAGED + VIRTUALIZED (2026-08-09). `chat.listChats` is a keyset page, read through the shared
+// `useChatListCollection`, and the rows render into the sealed `<VirtualList>` — an 872-chat library used to
+// arrive as one array and paint one DOM row per chat. Two consequences the copy has to be honest about:
+//   • The per-character scope is a SERVER filter now (`characterId` on the query), not a client `.filter()`
+//     over the whole library — so scoping to a character costs one bounded read instead of pulling
+//     everything to keep three rows.
+//   • SEARCH is a SERVER param too (owner ruling 2026-08-09), not a client pass over the loaded pages: a
+//     client filter over a keyset list can only ever search what it has fetched, so "no matches" would have
+//     been a claim the surface had no standing to make. It carries the 2026-08-01 semantics whole — title OR
+//     a character seat's name OR the newest message's body — over the ENTIRE library. The value is
+//     DEBOUNCED, not just deferred: deferring picks a render, and every distinct string here is a round trip.
+//
+// Portraits (F7/D3) resolve HERE, not in the row: one non-blocking `character.list` read builds a
+// characterId→seat map the rows index with their `participantCharacterIds` (one seat = a portrait, two or
+// more = an AvatarStack). Reads its OWN selection (`useActiveChatId`) so the chats-section definition
+// composing it stays a pure data object (the character/preset/world-info library-surface precedent); writes
+// the choice out via onSelect/onNewChat/onDeletedChat.
 
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -19,26 +30,41 @@ import { Icon, MessagesSquare, Plus, X } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Row, Stack, Surface } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { VirtualList } from "@orb/ui/virtual-list";
+import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement } from "react";
-import { useDeferredValue, useRef, useState } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { useRef, useState } from "react";
 import { CharacterPicker, FaceStrip } from "#components";
 import type { Trpc } from "#data";
-import { QueryBoundary, QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { chatsWithCharacter, useFocusOnMount } from "#lib";
+import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { useDebouncedValue, useFocusOnMount } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import { clearChatListCharacterFilter, setChatListCharacterFilter, useActiveChatId, useChatListCharacterFilter } from "#state";
 import { ChatListRow } from "../components/chat-list-row.tsx";
+import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatPortraitMap, useChatPortraitMapPending } from "../hooks/use-chat-portrait-map.ts";
 import type { ChatRowPortrait } from "../lib/chat-summary-row.ts";
 import { chatPortraits, chatRowQualifiers } from "../lib/chat-summary-row.ts";
-import { filterChats } from "../lib/filter-chats.ts";
 import { recentFaces } from "../lib/recent-faces.ts";
 
-type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
+/** The list row, derived off the wire (the `chat-list-row.tsx` / `chat-summary-row.ts` spelling) — the
+ *  collection hook deliberately exports no second name for it. */
+type ChatListItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 
 const SKELETON_ROW_COUNT = 5;
+
+/** Row-height guess for the virtualizer; every row re-measures itself after mount. */
+const ESTIMATED_ROW_PX = 44;
+
+/** Keystroke→request damper for the server-side search. Long enough that typing a name is one query rather
+ *  than eight, short enough that the list answers while the user is still looking at the box. */
+const SEARCH_DEBOUNCE_MS = 250;
+
+/** How many recent chats the FACES curation reads. The strip answers "who was I just with", so a bounded
+ *  recents page IS its question — and it must stay UNFILTERED (it is the thing you pick the filter from), so
+ *  it cannot ride the scoped collection below. Matches the server's own page ceiling. */
+const FACES_SOURCE_LIMIT = 100;
 
 export interface ChatListSurfaceProps {
   readonly onSelect: (chatId: ChatId) => void;
@@ -49,7 +75,7 @@ export interface ChatListSurfaceProps {
 export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatListSurfaceProps): ReactElement {
   const activeChatId = useActiveChatId();
   const [query, setQuery] = useState("");
-  const deferredQuery = useDeferredValue(query, "");
+  const settledQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
   const clearSearch = (): void => setQuery("");
   const characterFilter = useChatListCharacterFilter();
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -62,28 +88,20 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
     <Surface tier="instrument">
       <Stack className="h-full min-h-0 outline-none" gap="row" ref={surfaceRef} tabIndex={-1}>
         {/* Mock order (side-eye P2b): FACES first, then the scope chip, then search — the faces are the
-          shortcut you arrive for, and burying them under the search box made them read as a filter widget.
-          The strip lives HERE rather than in the suspending body so it can sit above the chip; it reads the
-          SAME `chat.listChats` cache entry non-suspensefully (no new key, no second truth) and RESERVES its
-          own box until it lands (`pending` below — it used to render nothing and shove the pane 74px). */}
+          shortcut you arrive for, and burying them under the search box made them read as a filter widget. */}
         <FacesStrip characterFilter={characterFilter} />
         {characterFilter !== null ? <FilterChip filter={characterFilter} /> : null}
         <Input aria-label="Search chats" onValueChange={setQuery} placeholder="Search the weave…" value={query} />
         <Stack className="min-h-0 flex-1">
-          <QueryBoundary
-            fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
-            renderError={(_error, retry): ReactElement => <QueryErrorState label="your chats" onRetry={retry} />}
-          >
-            <ChatListBody
-              activeChatId={activeChatId}
-              characterFilter={characterFilter}
-              onClearSearch={clearSearch}
-              onDeletedChat={onDeletedChat}
-              onNewChat={onNewChat}
-              onSelect={onSelect}
-              query={deferredQuery}
-            />
-          </QueryBoundary>
+          <ChatListBody
+            activeChatId={activeChatId}
+            characterFilter={characterFilter}
+            onClearSearch={clearSearch}
+            onDeletedChat={onDeletedChat}
+            onNewChat={onNewChat}
+            onSelect={onSelect}
+            query={settledQuery}
+          />
         </Stack>
       </Stack>
     </Surface>
@@ -94,25 +112,27 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
  *  sets the LANDED per-character filter chip, so the same pane instantly becomes her threads, visibly
  *  "filtered by" (a chip you can clear) rather than a second list that owns her chats.
  *
- *  A plain `useQuery` on the chats key the body suspends on: a shortcut row must not gate the pane's chrome
- *  on a fetch. An unresolved read RESERVES the strip's box (`pending` — measured: rendering nothing shoved
- *  the search field and the whole row list 74px on arrival); a resolved-but-faceless one still renders
- *  nothing, which is the strip's own data-driven empty posture.
+ *  A plain bounded `useQuery`, NOT the scoped collection below: a shortcut row must not gate the pane's
+ *  chrome on a fetch, and the strip is what you pick the filter FROM — reading the character-scoped page
+ *  would collapse it to the one face already selected. An unresolved read RESERVES the strip's box
+ *  (`pending` — measured: rendering nothing shoved the search field and the whole row list 74px on
+ *  arrival); a resolved-but-faceless one still renders nothing, which is the strip's own data-driven
+ *  empty posture.
  *
- *  The curation hands over EVERY character you have chatted with, in recency order — the strip's own fold
- *  (FACEFILT) decides how many of them the pane can hold, so a cap here would only be a second, blinder
- *  answer to the same question. What the curation cannot know is the character you scoped the pane to from
- *  the picker: she may have no chats at all yet (that is the "No chats with X yet" arm), so she is prepended
- *  as a face — the strip must never be filtering by someone who is not in it. */
+ *  The curation hands over the characters you have chatted with MOST RECENTLY, in recency order — the
+ *  strip's own fold (FACEFILT) decides how many of them the pane can hold, so a cap here would only be a
+ *  second, blinder answer to the same question. What the curation cannot know is the character you scoped
+ *  the pane to from the picker: she may have no chats at all yet (that is the "No chats with X yet" arm), so
+ *  she is prepended as a face — the strip must never be filtering by someone who is not in it. */
 function FacesStrip({ characterFilter }: { readonly characterFilter: ChatListCharacterFilter | null }): ReactElement | null {
   const trpc = useTRPC();
-  const { data: chats, isPending: chatsPending } = useQuery(trpc.chat.listChats.queryOptions({}));
+  const { data: page, isPending: chatsPending } = useQuery(trpc.chat.listChats.queryOptions({ limit: FACES_SOURCE_LIMIT }));
   const characterById = useChatPortraitMap();
   // BOTH reads decide a face: a chat names a character id, the portrait map turns it into a face. Gating
   // the reservation on the chats read alone still shifted, because entering the section refetches
   // `character.list` at the portrait map's own limit and the strip popped in when THAT landed (measured).
   const portraitsPending = useChatPortraitMapPending();
-  const recent = recentFaces(chats ?? [], characterById);
+  const recent = recentFaces(page?.items ?? [], characterById);
   const scopedFace =
     characterFilter !== null && !recent.some((face) => face.id === characterFilter.id)
       ? [{ avatarHash: characterById.get(characterFilter.id)?.hash ?? null, id: characterFilter.id, name: characterFilter.name }]
@@ -209,12 +229,26 @@ interface ChatListBodyProps {
   readonly query: string;
 }
 
+/** The paged body. Non-suspending by construction (`createCollectionSurface` is a plain `useInfiniteQuery`),
+ *  so the pending / error / empty ladder is rendered here rather than by a `QueryBoundary` above — the
+ *  character-library precedent, and the reason the faces strip and the search field stay put across every
+ *  body state instead of being torn down by a suspense fallback. */
 function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, onNewChat, onClearSearch, query }: ChatListBodyProps): ReactElement {
   const trpc = useTRPC();
-  const { data: chats } = useSuspenseQuery(trpc.chat.listChats.queryOptions({}));
+  const collection = useChatListCollection({ trpc }, { characterId: characterFilter?.id ?? null, search: query });
   const characterById = useChatPortraitMap();
 
-  if (chats.length === 0) {
+  if (collection.isPending) {
+    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
+  }
+  if (collection.error !== null) {
+    return <QueryErrorState label="your chats" onRetry={collection.refetch} />;
+  }
+  // `isEmpty` alone would swallow the SEARCH-empty case: with the predicate on the server, a query that
+  // matches nothing comes back as a genuinely empty page, and the library-empty copy ("No chats yet — pick a
+  // character to start your first conversation") is then a flat lie over a library full of chats. Measured on
+  // a live drive against the real seed data, which is the only place the two states are distinguishable.
+  if (collection.isEmpty && query === "") {
     return (
       <EmptyState
         action={
@@ -223,73 +257,54 @@ function ChatListBody({ activeChatId, characterFilter, onSelect, onDeletedChat, 
             New chat
           </Button>
         }
-        description="Pick a character to start your first conversation."
+        description={
+          characterFilter === null
+            ? "Pick a character to start your first conversation."
+            : `No chats with ${characterFilter.name} yet. Start one, or clear the filter.`
+        }
         icon={<Icon icon={MessagesSquare} size="lg" />}
-        title="No chats yet"
+        title={characterFilter === null ? "No chats yet" : "No matches"}
       />
     );
   }
 
-  const scoped = characterFilter === null ? chats : chatsWithCharacter(chats, characterFilter.id);
-  const filtered = filterChats(scoped, query);
   return (
     <Stack className="h-full min-h-0" gap="block">
-      {/* The strip renders ABOVE this boundary (the surface), so it stays put across every body state —
+      {/* The strip renders ABOVE this body (in the surface), so it stays put across every body state —
           including an empty scope, where it is the way OUT. */}
       <Stack className="min-h-0 flex-1">
         <ChatRows
           activeChatId={activeChatId}
           characterById={characterById}
-          characterFilter={characterFilter}
-          filtered={filtered}
+          items={collection.items}
+          listProps={collection.listProps}
           onClearSearch={onClearSearch}
           onDeletedChat={onDeletedChat}
-          onNewChat={onNewChat}
           onSelect={onSelect}
           query={query}
-          scopedCount={scoped.length}
         />
       </Stack>
     </Stack>
   );
 }
 
-interface ChatRowsProps extends ChatListBodyProps {
+interface ChatRowsProps {
+  readonly activeChatId: ChatId | null;
   readonly characterById: ReadonlyMap<string, ChatRowPortrait>;
-  readonly filtered: readonly ChatSummaryItem[];
-  /** Rows left after the per-character scope, BEFORE the search — 0 means the scope itself is empty. */
-  readonly scopedCount: number;
+  readonly items: readonly ChatListItem[];
+  readonly listProps: ReturnType<typeof useChatListCollection>["listProps"];
+  readonly onSelect: (chatId: ChatId) => void;
+  readonly onDeletedChat?: ((chatId: ChatId) => void) | undefined;
+  readonly onClearSearch: () => void;
+  readonly query: string;
 }
 
-/** The scope-empty → search-empty → rows ladder under the faces strip. */
-function ChatRows({
-  activeChatId,
-  characterById,
-  characterFilter,
-  filtered,
-  onClearSearch,
-  onDeletedChat,
-  onNewChat,
-  onSelect,
-  query,
-  scopedCount,
-}: ChatRowsProps): ReactElement {
-  if (characterFilter !== null && scopedCount === 0) {
-    return (
-      <EmptyState
-        action={
-          <Button intent="primary" onClick={onNewChat} size="sm">
-            <Icon icon={Plus} size="sm" />
-            New chat
-          </Button>
-        }
-        description={`No chats with ${characterFilter.name} yet. Start one, or clear the filter.`}
-        icon={<Icon icon={MessagesSquare} size="lg" />}
-        title="No matches"
-      />
-    );
-  }
-  if (filtered.length === 0) {
+/** The search-empty → rows ladder. */
+function ChatRows({ activeChatId, characterById, items, listProps, onClearSearch, onDeletedChat, onSelect, query }: ChatRowsProps): ReactElement {
+  if (items.length === 0) {
+    // An HONEST claim now that the predicate is the server's: the whole library was searched, not the pages
+    // that happened to be loaded — so "no chat matches" is a statement this surface has standing to make, and
+    // the next step is clearing the search rather than fetching more.
     return (
       <EmptyState
         action={
@@ -305,20 +320,31 @@ function ChatRows({
   }
   // The action-name disambiguators, resolved across the WHOLE rendered list (side-eye P2c): rows that share
   // a title AND a shown stamp escalate to a longer one, so no two rows announce the same action name.
-  const qualifiers = chatRowQualifiers(filtered);
+  const qualifiers = chatRowQualifiers(items);
+  const renderRow = (chat: ChatListItem, index: number): ReactNode => (
+    <ChatListRow
+      chat={chat}
+      onDeletedChat={onDeletedChat}
+      onSelect={onSelect}
+      portraits={chatPortraits(chat.participantCharacterIds, characterById)}
+      qualifier={qualifiers[index]}
+      selected={chat.id === activeChatId}
+    />
+  );
   return (
-    <Stack aria-label="Chats" className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="tight" role="list">
-      {filtered.map((chat, index) => (
-        <ChatListRow
-          chat={chat}
-          key={chat.id}
-          onDeletedChat={onDeletedChat}
-          onSelect={onSelect}
-          portraits={chatPortraits(chat.participantCharacterIds, characterById)}
-          qualifier={qualifiers[index]}
-          selected={chat.id === activeChatId}
-        />
-      ))}
+    // The virtualizer's scroll element needs a BOUNDED height (`assertBoundedScrollHeight` throws at mount
+    // otherwise) — `h-full` inside the surface's `min-h-0 flex-1` column is where that bound comes from.
+    <Stack aria-label="Chats" className="h-full min-h-0" role="list">
+      <VirtualList
+        className="h-full"
+        endApproachRows={listProps.endApproachRows}
+        estimateSize={(): number => ESTIMATED_ROW_PX}
+        gapToken="tight"
+        getItemKey={(item): string => item.id}
+        items={items}
+        onEndApproach={listProps.onEndApproach}
+        renderItem={renderRow}
+      />
     </Stack>
   );
 }

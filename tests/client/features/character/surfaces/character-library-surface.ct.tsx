@@ -17,6 +17,7 @@ import type { Locator, Page } from "@playwright/test";
 import { dropFiles } from "../../../../support/ct/drop-files.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterLibrarySurfaceStory } from "../_ct-stories.tsx";
 import { makeCharacterSummary, makeTagFixture } from "../fixtures.ts";
 
@@ -124,7 +125,7 @@ const TAGGED = makeCharacterSummary({
 async function routeThree(page: Page): Promise<void> {
   await routeTrpc(page, {
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
   });
 }
 
@@ -273,7 +274,7 @@ test("D1 a favorites-chip empty over the loaded window offers Load more, reachin
       (input as { cursor?: unknown } | undefined)?.cursor === undefined
         ? { items: PAGE1_FILLERS, nextCursor: PAGE1_CURSOR_LATE }
         : { items: [LATE_FAVORITE], nextCursor: null },
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
   });
   const component = await mount(<CharacterLibrarySurfaceStory />);
   await expect(component.getByText("Filler 0")).toBeVisible();
@@ -319,7 +320,7 @@ const TAG_LIBRARY = [
 test("D2 the bulk Tag action opens a picker and applies a tag to the selection", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "character.bulkAddCardTag": () => ({ tagged: 1 }),
   });
@@ -351,7 +352,7 @@ test("D2 the bulk Tag action opens a picker and applies a tag to the selection",
 test("the tag picker suggests EXISTING tags as you type, and picking one attaches it", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "character.bulkAddCardTag": () => ({ tagged: 1 }),
   });
@@ -377,7 +378,7 @@ test("the tag picker suggests EXISTING tags as you type, and picking one attache
 test("a name that matches nothing makes CREATING the deliberate, labelled act", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "character.bulkAddCardTag": () => ({ tagged: 1 }),
   });
@@ -403,7 +404,7 @@ test("a name that matches nothing makes CREATING the deliberate, labelled act", 
 test("a no-match query opens NO popup — the confirm stays clickable and in the a11y tree", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "character.list": () => ({ items: [STARLA, BOLT2, TAGGED], nextCursor: null }),
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "tag.listTagsWithUsage": () => TAG_LIBRARY,
     "character.bulkAddCardTag": () => ({ tagged: 1 }),
   });

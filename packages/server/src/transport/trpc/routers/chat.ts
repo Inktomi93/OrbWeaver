@@ -12,6 +12,7 @@
 import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
 import {
   chatInjectionInputSchema,
+  chatListCursorSchema,
   groupConfigSchema,
   guidedSteerSchema,
   messageContentBlockSchema,
@@ -454,9 +455,34 @@ const forceCharacterTurnSchema = z.object({
 
 export const chatRouter = t.router({
   startChat: authedProcedure.input(startChatSchema).mutation(({ ctx, input }) => ctx.services.chat.startChat({ principal: ctx.auth, ...input })),
+  // Keyset-paged (the `character.list` precedent). `cursor` rides as ONE input field because tRPC's
+  // `infiniteQueryOptions` threads exactly one `cursor` through as the page param, overwriting it wholesale
+  // per next-page fetch. `.nullish()` on it because `getNextPageParam` hands back the page's own
+  // `nextCursor`, which is `null` at the end of the keyset (the `databank.list` precedent).
+  // `characterId` is the D18 PROJECTION filter — "her threads" resolved server-side, so a character screen
+  // stops pulling the whole library to find three rows.
   listChats: authedProcedure
-    .input(z.object({ includeArchived: z.boolean().optional() }).optional())
-    .query(({ ctx, input }) => ctx.services.chat.listChats({ principal: ctx.auth, ...(input || {}) })),
+    .input(
+      z
+        .object({
+          includeArchived: z.boolean().optional(),
+          characterId: brandedId<CharacterId>().optional(),
+          search: z.string().optional(),
+          limit: z.number().int().optional(),
+          cursor: chatListCursorSchema.nullish(),
+        })
+        .optional(),
+    )
+    .query(({ ctx, input }) =>
+      ctx.services.chat.listChats({
+        principal: ctx.auth,
+        ...(input?.includeArchived !== undefined ? { includeArchived: input.includeArchived } : {}),
+        ...(input?.characterId !== undefined ? { characterId: input.characterId } : {}),
+        ...(input?.search !== undefined ? { search: input.search } : {}),
+        ...(input?.limit !== undefined ? { limit: input.limit } : {}),
+        ...(input?.cursor !== undefined && input.cursor !== null ? { cursor: input.cursor } : {}),
+      }),
+    ),
   getChat: authedProcedure
     .input(z.object({ chatId: brandedId<ChatId>() }))
     .query(({ ctx, input }) => ctx.services.chat.getChat({ principal: ctx.auth, chatId: input.chatId })),

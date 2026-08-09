@@ -247,6 +247,19 @@ export const updateCharacterSchema = createCharacterSchema.partial().extend({
 });
 export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 
+// The library-list page bounds — ONE home, because the transport enforces the ceiling and the verb applies
+// the default, and a second spelling of either lets the two disagree.
+//
+// THE CEILING IS LOUD, NOT SILENT (2026-08-09). It used to be a `Math.min` inside the verb: four callers
+// asked for 200-500 rows to build id→name/portrait LOOKUP MAPS, silently got 100, and quietly under-covered
+// a 320-character library — the chats list simply stopped resolving portraits past the hundredth card, with
+// nothing anywhere saying so. The router now REFUSES an over-ceiling ask (a wire-level BAD_REQUEST naming
+// the bound), so an ask that cannot be served fails where it is written instead of being answered wrong.
+// 500 is the ceiling those lookup callers need; the right long-term shape for them is a read that carries
+// the seats it is about (a chat row naming its own portraits) rather than a whole-library map.
+export const CHARACTER_LIST_DEFAULT_LIMIT = 50;
+export const CHARACTER_LIST_MAX_LIMIT = 500;
+
 // Each sort needs its own keyset, so the wire cursor is discriminated by `sort`. Default = `recent`.
 // `bestScore`/`worstScore` read the derived refinery signal (`characters.refinery.score`, 1-10), which is
 // NULL until something scores the card — so both directions sink the unscored tail LAST (an unscored card is

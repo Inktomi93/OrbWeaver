@@ -10,7 +10,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { CommandPaletteSurfaceStory } from "../_ct-stories.tsx";
-import { makeChatSummary } from "../fixtures.ts";
+import { chatListResponder, makeChatSummary } from "../fixtures.ts";
 
 const ADVENTURE = makeChatSummary({
   id: "chat_adventure",
@@ -19,7 +19,7 @@ const ADVENTURE = makeChatSummary({
 });
 
 test("renders the Threads / Go to / Create groups with their rows", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [ADVENTURE] });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
 
   const component = await mount(<CommandPaletteSurfaceStory />);
 
@@ -36,7 +36,7 @@ test("renders the Threads / Go to / Create groups with their rows", async ({ mou
 });
 
 test("the search input filters rows across groups (matches on thread title)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [ADVENTURE] });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
 
   const component = await mount(<CommandPaletteSurfaceStory />);
   await expect(component.getByText("A grand adventure")).toBeVisible();
@@ -50,7 +50,7 @@ test("the search input filters rows across groups (matches on thread title)", as
 });
 
 test("an empty thread list still renders the Go to + Create groups", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [] });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
 
   const component = await mount(<CommandPaletteSurfaceStory />);
 
@@ -60,7 +60,7 @@ test("an empty thread list still renders the Go to + Create groups", async ({ mo
 });
 
 test("a contributed command appears in the palette and RUNS when picked", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [] });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
 
   const component = await mount(<CommandPaletteSurfaceStory commands="contributed" />);
 
@@ -76,7 +76,7 @@ test("a contributed command appears in the palette and RUNS when picked", async 
 });
 
 test("with ZERO registrations the palette shows exactly its native groups (no command groups at all)", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [ADVENTURE] });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([ADVENTURE]) });
 
   const component = await mount(<CommandPaletteSurfaceStory commands="none" />);
 
