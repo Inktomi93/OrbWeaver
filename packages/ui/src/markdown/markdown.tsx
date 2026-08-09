@@ -1,11 +1,13 @@
 import type { ErrorInfo, ReactElement, ReactNode } from "react";
-import { Component } from "react";
-import { Streamdown } from "streamdown";
+import { Component, useState } from "react";
+import type { StreamdownProps } from "streamdown";
+import { defaultRehypePlugins, Streamdown } from "streamdown";
 import { cn, usePrefersReducedMotion } from "#lib";
 import { DIALOGUE_COMPONENTS } from "./dialogue-paragraph.tsx";
 import { MARKDOWN_MATH_PLUGIN } from "./math.ts";
 import { MARKDOWN_MERMAID_OPTIONS } from "./mermaid.tsx";
 import { MARKDOWN_REMARK_PLUGINS, TIER_A_UNTRUSTED_ELEMENTS, TRUSTED_ALLOWED_TAGS, TRUSTED_LITERAL_TAG_CONTENT, untrustedUrlTransform } from "./policy.ts";
+import { createRevealPlugin } from "./reveal-plugin.ts";
 import { MARKDOWN_SHIKI_PLUGIN } from "./shiki-plugin.ts";
 
 const TRUSTS = ["trusted", "untrusted"] as const;
@@ -15,10 +17,6 @@ const MODES = ["static", "streaming"] as const;
 // block. Guarding on the whole input's length (not per-block, which would mean re-parsing markdown
 // ourselves) — above the threshold, fall back to a plain, scrollable, un-highlighted <pre>.
 const MAX_RENDER_LENGTH = 20_000;
-
-// Word granularity, not char — useSmoothText already paces the reveal by word cut-point in front
-// of this seal, so per-char here would double-animate the same reveal.
-const STREAMING_ANIMATION = { animation: "fadeIn", sep: "word" } as const;
 
 // Streamdown checks reduced-motion for nobody — this seal owns it via the shared usePrefersReducedMotion.
 
@@ -79,9 +77,13 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
 /**
  * `@orb/ui/markdown` — the one markdown renderer, sealing Streamdown 2.5 behind a 4-prop API: both
  * `mode`s, the token-sourced Shiki `code` plugin, the KaTeX `math` + token-styled `mermaid`
- * plugins, `controls`, `linkSafety`, the streaming caret, and the per-block fade. Two trust
- * policies, untrusted by default: `untrusted` applies the Tier-A element allowlist + url gate,
- * drops `<speaker>`, and withholds Mermaid; `trusted` restores Streamdown's permissive defaults.
+ * plugins, `controls`, `linkSafety`, and (#42) the seal-owned streamed-word reveal fade
+ * (`reveal-plugin.ts` + the `[data-orb-reveal]` CSS in ui globals) with the seal-owned caret
+ * (globals.css `ghost-stream-body` scope — Streamdown's `caret`/`animated` props are deliberately
+ * unused, see the render comments). Two trust policies, untrusted by default: `untrusted` applies
+ * the Tier-A element allowlist + url gate, drops `<speaker>`, and withholds Mermaid; `trusted`
+ * restores Streamdown's permissive defaults (and, having no streaming consumer, gets no reveal
+ * fade — the `allowedTags` schema merge is identity-gated on the default rehype pipeline).
  * Streamdown runs rehype-sanitize + rehype-harden by default under both policies. A pathologically
  * large input falls back to a plain `<pre>`.
  */
@@ -92,8 +94,25 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
   // heavy lazy engine (a resource-abuse surface), so it's passed only for trusted content. KaTeX
   // stays for both tiers — rehype-katex defaults trust:false, so it's math-only and inert.
   const mermaidProp = untrusted ? {} : { mermaid: MARKDOWN_MERMAID_OPTIONS };
-  // Animation is structurally inert in static mode anyway, but gate explicitly so intent is legible.
-  const animate = mode === "streaming" && !reducedMotion;
+  // #42 word-reveal fade (docs/design/streaming-reveal-42.md): our reveal plugin replaces Streamdown's
+  // `animated` arm (that knob was DEAD — its `streamdown/styles.css` was never imported — and its
+  // duration-0 re-render machinery snaps every fade at this app's commit cadence). UNTRUSTED-streaming
+  // only: passing a custom `rehypePlugins` array would defeat the identity-gated `allowedTags` schema
+  // merge the TRUSTED tier depends on (policy.ts documents the gate), and no trusted surface streams
+  // today. Reduced-motion (OS query) injects nothing at all — REMOVE, guide §3.9; the app-level
+  // `[data-reduced-motion="true"]` floor additionally collapses the fade to instant in CSS.
+  // One plugin instance per mount (its reveal-time log is the fade's memory), minted in a lazy
+  // useState initializer: identity-stable for the component's whole life — Streamdown's Block memo
+  // reference-compares `rehypePlugins`, so a fresh array per render would re-parse every settled
+  // block — and mode-flip-safe (a reasoning block flips streaming→static mid-mount). The mint is a
+  // closure + one array (no work happens until a streaming render passes it), so a static mount
+  // paying it is cheaper than the ref-branch the react-hooks/refs render ban forbids.
+  const reveal = mode === "streaming" && untrusted && !reducedMotion;
+  const [revealPlugins] = useState<NonNullable<StreamdownProps["rehypePlugins"]>>(() => [
+    ...Object.values(defaultRehypePlugins),
+    createRevealPlugin().rehypePlugin,
+  ]);
+  const revealProp = reveal ? { rehypePlugins: revealPlugins } : {};
 
   if (children.length > MAX_RENDER_LENGTH) {
     return (
@@ -133,8 +152,12 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
         // by key, so a stable absent value keeps the settled render byte-identical to the pre-knob one.
         {...(colorQuotes ? { components: DIALOGUE_COMPONENTS } : {})}
         className={cn("space-y-0 whitespace-normal break-words [&>*:first-child]:mt-0 [&>*:last-child]:mb-0 [&_em]:text-narration", className) ?? ""}
-        {...(animate ? { isAnimating: true, animated: STREAMING_ANIMATION } : {})}
-        {...(mode === "streaming" ? { caret: "block" as const } : {})}
+        // The word-reveal fade + the caret are OURS (#42): `animated`/`isAnimating` are deliberately NOT
+        // passed (dead knob, see above — and their absence routes streaming block updates through
+        // Streamdown's useTransition arm), and the `caret` prop is dropped because its `::after` attaches
+        // to the per-block `dir` wrapper and renders on a fresh line below the text; globals.css paints
+        // the caret on the true leaf block instead (`ghost-stream-body` scope).
+        {...revealProp}
         {...(untrusted
           ? { allowedElements: TIER_A_UNTRUSTED_ELEMENTS, urlTransform: untrustedUrlTransform }
           : {
