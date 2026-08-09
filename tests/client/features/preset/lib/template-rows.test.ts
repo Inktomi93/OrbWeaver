@@ -77,7 +77,7 @@ test("the delivery dispatch: the guided family rides the marker; every static ar
   expect(TEMPLATE_KIND_DELIVERY.steer.kind).toBe("marker");
   expect(TEMPLATE_KIND_DELIVERY.voice.kind).toBe("marker");
   expect(TEMPLATE_KIND_DELIVERY.studio.kind).toBe("marker");
-  for (const kind of ["nudge", "format", "teach", "extract"] as const) {
+  for (const kind of ["nudge", "format", "group", "teach", "extract"] as const) {
     const delivery = TEMPLATE_KIND_DELIVERY[kind];
     // Narrowed by expression, not a branch (noConditionalExpect): a marker-armed kind fails the first
     // assertion, and the copy assertions fail on `undefined` rather than passing vacuously.

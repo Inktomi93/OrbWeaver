@@ -299,9 +299,6 @@ export interface ChatComposeInput {
   /** The injected rpg turn ops (rpg-design/05 §0) — OPTIONAL; absent wires `ChatContext.rpg` to null
    *  (byte-identical no-op). Built at the composition root over the rpg service + its standalone gather op. */
   readonly rpg?: ChatContext["rpg"] | undefined;
-  /** The injected chat-crew director GATHER op (chat-crew-design/04 §1) — OPTIONAL; absent wires
-   *  `ChatContext.crew` to null (byte-identical no-op). A forward-ref delegate over the crew service. */
-  readonly crew?: ChatContext["crew"] | undefined;
 }
 
 /** The chat compose product: the service + the bus's durable-first emit, surfaced for other producers that
@@ -1120,9 +1117,6 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     // Null ⇒ rpg not wired (byte-identical no-op — the `expressions`/`tools` precedent). The 5 injected rpg
     // turn ops (rpg-design/05 §0) fire at GATHER / preset-resolve / send-commit / turn-end.
     rpg: input.rpg ?? null,
-    // Null ⇒ the crew's director isn't wired (byte-identical no-op). The GATHER op adds the director's guidance
-    // injection per turn (chat-crew-design/04 §1); a forward-ref delegate over the crew service (built after chat).
-    crew: input.crew ?? null,
     // The D50 PromptTransform apply op (04 §6) — the registry's `apply`. Zero registrants ⇒ byte-identical.
     promptTransforms: promptTransformRegistry.apply,
   };

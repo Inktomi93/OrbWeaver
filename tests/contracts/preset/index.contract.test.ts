@@ -897,7 +897,9 @@ test("the note guard is a WRITE boundary only — a stored broken frame still LO
 test("the guard did NOT widen to PROSE-1's requiredMacros: another slot's missing macro still saves", () => {
   // `chat.group.castMember` carries `{{name}}` in `requiredMacros` — VOICE guidance whose absence weakens
   // prose rather than deleting payload. Its posture is the unchanged ruling: a lint in the editor, never a
-  // block. (It is user-homed, so it also proves the guard reads the two carrier slots and nothing else.)
+  // block. (Since the F4 re-home it is a PRESET-homed group framing with its own Templates-tab row, so this
+  // is a real `promptConfig.prose` write target — proving the note guard reads the two carrier slots and
+  // nothing else, not even another preset-homed framing that drops its own required token.)
   const result = promptConfigWriteSchema.safeParse(withProse("chat.group.castMember", "A cast member is present."));
   expect(result.success).toBe(true);
 });

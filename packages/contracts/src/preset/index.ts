@@ -808,7 +808,13 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 // (populate) round's own header/teaching/user-turn blocks. Its own kind rather
 // than more `teach` rows because the two groups fire on different CALLS (the character turn vs the state
 // round) and a host tuning one has no reason to read the other.
-export const TEMPLATE_KINDS = ["steer", "voice", "studio", "format", "nudge", "teach", "extract"] as const satisfies readonly string[];
+// `group` (added 2026-08-08 with the F4 re-home) is the wire framings a GROUP round puts around content — the
+// co-speaker card headings and the per-speaker/narrator round nudges + speaker-tag instruction. Its own kind
+// rather than more `format` rows for the exact reason `teach` is: the kicker is what tells a preset author
+// "these seven only do anything on a MULTI-character round"; folding them into Format would bury group
+// vocabulary under the New-chat marker with nothing on screen saying so. Like `format`/`nudge` they fire on
+// the shape of the WIRE (a merged/narrator round), never on a user action.
+export const TEMPLATE_KINDS = ["steer", "voice", "studio", "format", "nudge", "group", "teach", "extract"] as const satisfies readonly string[];
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
 /** Sub-clusters for a kind whose row count outgrew a glance (the Actions-tab IA,
@@ -988,6 +994,70 @@ export const TEMPLATE_DEFS = [
     fires: "A turn you didn't type into, on a history that would otherwise end on the model's own reply",
     caps: [],
     defaultSlot: "chat.assembly.continuationNudge",
+  },
+  // ── THE GROUP-ROUND FRAMINGS (F4 re-home, owner ruling 2026-08-08 — D132(B) amendment) ─────────────────────
+  // The seven `chat.group.*` slots the MULTI-character round puts around content: the merged/narrator co-speaker
+  // card headings and the per-speaker/narrator round nudges + the speaker-tag instruction. Re-homed user →
+  // preset by the F4 ruling arm (a) — they resolve during the turn's own context build where the preset IS in
+  // scope, so their storage is `promptConfig.prose` and each ghosts its own slot's bytes (`defaultSlot === id`).
+  // `group` kind (not `format`) so the "Group rounds" kicker tells a preset author these only fire on a
+  // multi-character round. The `{{name}}`/`{{names}}` are PRE-SUBSTITUTION tokens the assembler splices per
+  // member — the editor offers them as chips and lints their absence; `speakerTags` carries no macro token.
+  {
+    id: "chat.group.alsoPresent",
+    kind: "group",
+    label: "Co-speaker heading",
+    fires: "A merged group turn — opens each other present member's card block",
+    caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
+    defaultSlot: "chat.group.alsoPresent",
+  },
+  {
+    id: "chat.group.castMember",
+    kind: "group",
+    label: "Cast heading",
+    fires: "A narrator round — opens each cast member's card block beside the primary",
+    caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
+    defaultSlot: "chat.group.castMember",
+  },
+  {
+    id: "chat.group.scenarioHeading",
+    kind: "group",
+    label: "Scenario heading",
+    fires: "A merged group turn — heads each present member's scenario",
+    caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
+    defaultSlot: "chat.group.scenarioHeading",
+  },
+  {
+    id: "chat.group.exampleHeading",
+    kind: "group",
+    label: "Example heading",
+    fires: "A merged group turn — heads each present member's example dialogue",
+    caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
+    defaultSlot: "chat.group.exampleHeading",
+  },
+  {
+    id: "chat.group.roundNudge",
+    kind: "group",
+    label: "Speaker nudge",
+    fires: "Every speaker of a MULTI-speaker group round — the per-speaker voice fence",
+    caps: [{ kind: "tokens", tokens: ["{{name}}"] }],
+    defaultSlot: "chat.group.roundNudge",
+  },
+  {
+    id: "chat.group.narratorNudge",
+    kind: "group",
+    label: "Narrator nudge",
+    fires: "A multi-member narrator round with the group nudge on — names the cast this one reply voices",
+    caps: [{ kind: "tokens", tokens: ["{{names}}"] }],
+    defaultSlot: "chat.group.narratorNudge",
+  },
+  {
+    id: "chat.group.speakerTags",
+    kind: "group",
+    label: "Speaker tags",
+    fires: 'A multi-member narrator round with "Label each speaker" on — asks for the <speaker> markers',
+    caps: [],
+    defaultSlot: "chat.group.speakerTags",
   },
   // ── THE GAME-TURN TEACHES (owner ruling 2026-08-08, "we are putting everything in presets") ────────────────
   // The eleven slots the rpg steering reminder composes. They were `rpg_games.config.prose` for one merge; the

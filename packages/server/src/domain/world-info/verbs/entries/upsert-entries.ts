@@ -3,11 +3,11 @@
 // writer all inject — none forks a compare/parse copy. Upserts entries by (bookId, title): an existing entry
 // with the same title is UPDATED in place (a keeper re-run over the same span replaces its own entry), a new
 // title is INSERTED. The hand-edit belt: an existing entry whose CURRENT content no longer hashes to the
-// `metadata.crew.contentHash` the writer last stamped was curated by a human — it is SKIPPED (the host's hand
+// `metadata.provenance.contentHash` the writer last stamped was curated by a human — it is SKIPPED (the host's hand
 // always wins). Caller policy (caps, merge-mode, span-stamped titles, mark advance) stays with the caller; the
 // SKIP semantic lives here so every consumer inherits it. Keyed entries fire through the normal keyword match.
 
-import type { EntryMetadata, LoreEntryCrewProvenance, UpsertLoreEntryInput, WorldInfoScope } from "@orb/contracts/world-info";
+import type { EntryMetadata, LoreEntryProvenance, UpsertLoreEntryInput, WorldInfoScope } from "@orb/contracts/world-info";
 import { entryMetadataSchema } from "@orb/contracts/world-info";
 import { worldEntries } from "@orb/db";
 import type { ChatId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
@@ -31,13 +31,13 @@ interface UpsertOutcome {
   readonly scope: WorldInfoScope;
 }
 
-function crewProvenance(input: UpsertLoreEntryInput): LoreEntryCrewProvenance {
+function provenanceOf(input: UpsertLoreEntryInput): LoreEntryProvenance {
   return { contentHash: sha256Hex(input.content), ...(input.span !== undefined ? { span: input.span } : {}) };
 }
 
 /** True when a prior entry was hand-edited since the writer last stamped it (stored hash ≠ current content). */
 function handEdited(prior: EntryRow): boolean {
-  const storedHash = entryMetadataSchema.nullable().catch(null).parse(prior.metadata)?.crew?.contentHash;
+  const storedHash = entryMetadataSchema.nullable().catch(null).parse(prior.metadata)?.provenance?.contentHash;
   return storedHash !== undefined && sha256Hex(prior.content) !== storedHash;
 }
 
@@ -48,18 +48,18 @@ async function upsertOne(
 ): Promise<UpsertOutcome> {
   const { bookId, input, prior, at } = args;
   const keys = input.keys.length > 0 ? [...input.keys] : null;
-  const provenance = crewProvenance(input);
+  const provenance = provenanceOf(input);
 
   if (prior !== undefined) {
     if (handEdited(prior)) {
       return { outcome: "skip", entryId: prior.id, scope: "keyword" };
     }
-    const metadata = entryMetadataSchema.parse({ ...(prior.metadata ?? {}), crew: provenance } satisfies EntryMetadata);
+    const metadata = entryMetadataSchema.parse({ ...(prior.metadata ?? {}), provenance } satisfies EntryMetadata);
     await ctx.db.update(worldEntries).set({ content: input.content, keys, enabled: true, metadata }).where(eq(worldEntries.id, prior.id));
     return { outcome: "update", entryId: prior.id, scope: resolveEntryScope(metadata, keys !== null) };
   }
 
-  const metadata = entryMetadataSchema.parse({ crew: provenance } satisfies EntryMetadata);
+  const metadata = entryMetadataSchema.parse({ provenance } satisfies EntryMetadata);
   const entryId = ctx.newEntryId();
   await ctx.db.insert(worldEntries).values({
     id: entryId,

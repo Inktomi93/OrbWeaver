@@ -234,7 +234,7 @@ function renderCoSpeakerBlock(member: AssembleCharacter, ctx: AssembleContext, r
   if (head.trim().length === 0) {
     return "";
   }
-  // The three headings are PROSE-1 slots (per-USER under the room host) carrying the `{{name}}` pre-
+  // The three headings are PROSE-1 slots (PRESET-homed since the F4 re-home) carrying the `{{name}}` pre-
   // substitution token; the card text beneath each is data, never authorable. Absent overrides ⇒ the
   // shipped frames.
   const heading = (id: ProseSlotId): string => resolveProseText(id, ctx.prose ?? {}, { name: member.name });

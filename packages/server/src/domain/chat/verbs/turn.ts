@@ -564,9 +564,6 @@ async function buildTurnContext(
           prose: composeProse({ preset: foreign.promptConfig.prose }),
         })
       : null;
-  // The chat-crew director's GATHER (chat-crew-design/04 §1): the current guidance as ONE injection. Null op /
-  // director off / no pass ⇒ null ⇒ a byte-identical non-crew turn (the byte-identity contract test pins it).
-  const crew = ctx.crew !== null ? await ctx.crew.gatherTurnContext(args.chatId) : null;
   // The per-turn user-macro registries (WAVE MU delivery) — resolved ONCE via the top-level helper (kept out
   // of this function's cognitive-complexity budget). `null` when no user macros are authored ⇒ every render
   // seam falls back to the process singletons (byte-identical); the registries ride `TurnPrep` (closures),
@@ -605,7 +602,6 @@ async function buildTurnContext(
       // §12), each omitted when absent so a non-game turn / a lite gather that stages none stays byte-identical
       // (⇒ `{{expr::rpg.…}}` errors-to-""). Extracted to keep this fn under the cognitive-complexity budget.
       ...rpgAssembleFields(rpg),
-      ...(crew !== null ? { crewInjections: crew.injections } : {}),
       // The per-turn user-macro RENDER + FREEZE registries (WAVE MU) — absent ⇒ the pure build's singleton fallback.
       ...gatherMacroRegistries(userMacros),
     },
@@ -726,7 +722,7 @@ async function arbitrate(
     readonly lastSpeaker: SpeakerRef | null;
     readonly recentHistory: string;
     readonly maxSpeakers?: number | undefined;
-    /** The turn's abort signal — threaded into the `smart` side-LLM call so a non-responsive director box
+    /** The turn's abort signal — threaded into the `smart` side-LLM call so a non-responsive arbiter box
      *  can't hang the turn. Absent on the paths that never reach the side-LLM. */
     readonly signal?: AbortSignal | undefined;
   },
@@ -735,7 +731,7 @@ async function arbitrate(
   let refs: readonly SpeakerRef[];
   // NARRATOR SHORT-CIRCUIT (owner ruling 2026-08-08): a narrator round voices the whole cast in ONE
   // generation authored by the synthetic group character and consumes NO arbitrated speaker (`round.ts`
-  // ignores `speakers` on that arm), so buying the side-LLM director there costs a real model call for a
+  // ignores `speakers` on that arm), so buying the side-LLM arbiter there costs a real model call for a
   // verdict nothing reads — and its degrade would warn the room about a decision that governs nothing. The
   // deterministic sampler still runs: the auto-chain's continue/stop probe reads its nominee (a nominee
   // exists ⇒ narrate again), which is the ONLY thing a narrator round takes from arbitration.
@@ -752,7 +748,7 @@ async function arbitrate(
       lastSpeaker: args.lastSpeaker,
       rng: deps.prng,
       sampling: arbiterSampling,
-      // PROSE-1 census 75 — the director prompt is the room HOST's slot, resolved beside its sampling.
+      // PROSE-1 census 75 — the arbiter prompt is the room HOST's slot, resolved beside its sampling.
       prose: await ctx.resolveChatProse(args.chatId),
       ...(args.signal !== undefined ? { signal: args.signal } : {}),
     });
@@ -834,7 +830,7 @@ async function runChain(
       // very window the primary `turnAccepted` fix opened the slot for. The loop only calls `nextSpeaker` when a
       // turn is genuinely about to be arbitrated (it guards `aborted()` before each step), so this is never a
       // speculative open. Re-open the slot NOW (completed→pending flicker between speakers is honest — the
-      // director IS working); `speakerCharacterId` is null until this arbitration resolves it, exactly like the
+      // arbiter IS working); `speakerCharacterId` is null until this arbitration resolves it, exactly like the
       // primary emit. Every exit below resolves this slot (turnStarted→terminal on the speaking path via
       // runTurn, turnAborted on a cancelled arbitration, turnCompleted on a no-next-speaker end).
       const chainIntent = KIND_TO_INTENT.auto;
@@ -909,7 +905,7 @@ async function runAiRound(
   },
 ): Promise<TurnOutcome> {
   // ACCEPT the turn to the room BEFORE arbitration: `turnStarted` fires only once the engine runs — AFTER the
-  // `smart` side-LLM arbitration below, which can HANG on a non-responsive director box. Without this emit the
+  // `smart` side-LLM arbitration below, which can HANG on a non-responsive arbiter box. Without this emit the
   // client's turn slot stayed idle through that hang, so the user had no Stop affordance while the turn was in
   // fact live and abortable (the abort signal already threads into arbitration). `turnAccepted` opens the slot
   // now; every exit below is TOTAL — it resolves that slot (turnStarted→terminal on the speaking path,

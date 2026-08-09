@@ -54,7 +54,7 @@ export function warningNotice(code: ChatWarningCode): NotifyNotice {
       };
     case "smart_arbitration_degraded":
       return {
-        description: "The turn director model wasn't available, so who speaks next was picked automatically.",
+        description: "The turn-arbiter model wasn't available, so who speaks next was picked automatically.",
         title: "Who speaks next was picked automatically",
       };
     case "guided_placed_as_injection":

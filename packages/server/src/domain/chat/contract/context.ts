@@ -230,7 +230,7 @@ type ResolveChatPresetParamsOp = (chatId: ChatId) => Promise<SideGenSampling>;
 /** The chat's app-tier PROSE overrides (PROSE-1 §4.3) — the ROOM HOST's `UserSettings.prose`, resolved at the
  *  entry root through the SAME `resolveChatHostUserId` seam `resolveChatPresetParams` uses. The host, not the
  *  triggering member, is the ruled principal (owner-decision 8, option (a)): these are ROOM-level side
- *  generations, so a chat's digests / director / summary marker must not change voice depending on who spoke.
+ *  generations, so a chat's digests / arbiter / summary marker must not change voice depending on who spoke.
  *  A hostless/stale room resolves `{}` ⇒ every slot falls to its shipped default, byte-identical. */
 type ResolveChatProseOp = (chatId: ChatId) => Promise<ProseOverrides>;
 
@@ -523,25 +523,6 @@ export interface ChatRpgGatherResult {
    *  completion, and the tool traffic stays server-internal exactly as the separate round's did.
    *  Absent/empty ⇒ byte-identical to a tool-less turn (every non-folded turn). */
   readonly terminalTools?: readonly WireTool[] | undefined;
-}
-
-/** The generic injection set the chat-crew's director GATHER contributes (chat-crew-design/04 §1). STRUCTURAL —
- *  chat names NO crew type: it merges `injections` into its single Injection[] list exactly as it does the rpg
- *  reminder. `null` from {@link ChatCrewOps.gatherTurnContext} ⇒ director off / no pass ⇒ byte-identical.
- *  File-local: consumed only by `ChatContext.crew` here (the compose delegate binds it structurally). */
-interface ChatCrewGatherResult {
-  readonly injections: readonly ChatInjection[];
-}
-
-/** The injected chat-crew turn ops (chat-crew-design/04 §1). `ChatContext.crew` is null when the crew isn't
- *  wired — a byte-identical no-op (the `tools`/`expressions`/`rpg` null-op precedent). Chat learns nothing
- *  crew-shaped: gather returns the generic {@link ChatCrewGatherResult} (the director's host-ring guidance as
- *  one injection); the audience gating + redaction of that injection is chat's own (04 §2), not crew's.
- *  File-local: `ChatContext.crew` is its only consumer; the compose delegate binds it structurally. */
-interface ChatCrewOps {
-  /** GATHER (after the WI pool): the director's guidance injection, or `null` for a non-director chat
-   *  (byte-identical). Principal-free — the turn already gated its caller. */
-  readonly gatherTurnContext: (chatId: ChatId) => Promise<ChatCrewGatherResult | null>;
 }
 
 /** The injected rpg turn ops (rpg-design/05 §0 / 10 §R4). `ChatContext.rpg` is null when rpg isn't wired — a
@@ -1066,9 +1047,6 @@ export interface ChatContext {
   readonly expressions: ChatExpressionsOps | null;
   /** The injected rpg turn ops (rpg-design/05 §0). Null when rpg isn't wired — byte-identical no-op. */
   readonly rpg: ChatRpgOps | null;
-  /** The injected chat-crew director GATHER op (chat-crew-design/04 §1). Null when the crew isn't wired —
-   *  byte-identical no-op (a non-director chat assembles identically). */
-  readonly crew: ChatCrewOps | null;
   /** The D50 PromptTransform apply op (automation-design/04 §6). Null when no registrar is wired —
    *  byte-identical no-op (a chat with zero transforms assembles + streams identically). */
   readonly promptTransforms: ApplyPromptTransformsOp | null;

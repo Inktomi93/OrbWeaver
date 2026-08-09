@@ -94,7 +94,7 @@ export const CHAT_WARNING_CODES = [
   // Degraded-and-loud, never error-and-dead. The client warning-notice mapper is a rotation-4 restoration; the
   // server emits this now so the pickup lands later.
   "context_trimmed_no_summary",
-  // The `smart` group policy's side-LLM turn director was unusable this round — the summarize role threw
+  // The `smart` group policy's side-LLM turn arbiter was unusable this round — the summarize role threw
   // (unwired/offline backend, HTTP error) or its reply named nobody on the eligible roster — so the speaking
   // order fell back to the deterministic talkativeness-weighted `natural` arbitration. Emitted from the turn
   // verb's arbitrate step: the round still happens, but the user is told the MATH picked, not the model.

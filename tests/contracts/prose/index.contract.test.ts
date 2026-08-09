@@ -391,10 +391,11 @@ test("every S1b slot's stored override wins, and the whole cohort ships an edita
   for (const id of ids) {
     const overrides: ProseOverrides = { [id]: { text: `host copy for ${id}`, baseVersion: PROSE_SLOTS[id].version } };
     expect(resolveProse(id, overrides), id).toStrictEqual({ text: `host copy for ${id}`, source: "override", stale: false });
-    // Was `toBe("user")` for the whole cohort until the 2026-08-07 ruling split the two injection frames off
-    // to the PRESET home. The invariant this row actually guards is "a host can reach these bytes SOMEWHERE",
-    // and the per-home membership is pinned exactly by the two derivation tests below — asserting `user` here
-    // as well only re-spelled one of them, wrongly.
+    // Was `toBe("user")` for the whole cohort until the 2026-08-07 ruling split the two injection frames off to
+    // the PRESET home, and the 2026-08-08 F4 re-home moved the seven group framings there too — so today only
+    // the discovery slots take the `user` arm. The invariant this row actually guards is "a host can reach these
+    // bytes SOMEWHERE", and the per-home membership is pinned exactly by the two derivation tests below —
+    // asserting `user` here as well only re-spelled one of them, wrongly.
     expect(PROSE_SLOTS[id].home === "user" || isPresetProseSlotId(id), id).toBe(true);
     // The framing slots carry a `{{name}}`/`{{note}}` PRE-SUBSTITUTION token, not a macro: the caller splices
     // it, the engine never runs. `none` is what makes that honest (and keeps any other `{{…}}` literal).
@@ -466,11 +467,19 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
   const expected = PROSE_SLOT_IDS.filter((id) => PROSE_SLOTS[id].home === "preset" && !legacyAdapted.has(id));
   expect(PRESET_PROSE_SLOT_IDS).toStrictEqual(expected);
   // Spelled out so a slot JOINING or LEAVING the preset-editable set is a decision somebody reads, not a silent
-  // derivation shift: the three turn-wire framings (2026-08-07), the eleven rpg game-turn teaches (the
+  // derivation shift: the seven GROUP-ROUND framings (the F4 re-home, 2026-08-08 — they precede the injection
+  // frames in the tuple), the three turn-wire framings (2026-08-07), the eleven rpg game-turn teaches (the
   // 2026-08-08 re-home), the forty-one EXTRACTION-seam slots (PROSE-1 S4 + census row 27, wired by the
   // 2026-08-08 decision-6 ruling), and the seven BORN-STATE round slots (the populate census rows 1-7), in
   // `PROSE_SLOT_IDS` tuple order.
   expect(PRESET_PROSE_SLOT_IDS).toStrictEqual([
+    "chat.group.alsoPresent",
+    "chat.group.castMember",
+    "chat.group.scenarioHeading",
+    "chat.group.exampleHeading",
+    "chat.group.roundNudge",
+    "chat.group.narratorNudge",
+    "chat.group.speakerTags",
     "chat.injection.systemNote",
     "chat.injection.userNote",
     "chat.assembly.continuationNudge",
@@ -642,7 +651,7 @@ test("stale = the shipped default moved on since this override was authored, and
   // Every slot ships at version 1 today, so `baseVersion: 0` is the only way to express "authored against an
   // older version" until a default is first revised — which is exactly the state a real `baseVersion: 1`
   // override lands in the day a slot bumps to 2.
-  const older: ProseOverride = { text: "my own director prompt", baseVersion: 0 };
+  const older: ProseOverride = { text: "my own arbiter prompt", baseVersion: 0 };
   expect(proseFooterState("chat.arbiter.system", older.text, older).stale).toBe(true);
   // Mid-edit the pending save re-stamps the version, so the chip must not linger over unsaved text.
   expect(proseFooterState("chat.arbiter.system", `${older.text} plus a thought`, older).stale).toBe(false);

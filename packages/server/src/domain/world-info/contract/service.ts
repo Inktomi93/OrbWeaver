@@ -116,7 +116,8 @@ export interface WorldInfoService {
 
   /** The SHARED machine-writer bulk upsert (chat-crew-design/02 §7; CC-D). Upserts entries by (bookId,
    *  title), owner-gated on the book; NEVER overwrites a human-curated entry (the stored
-   *  `metadata.crew.contentHash` guard). Injected into the chat/rpg crew + D46 automation — the ONE
+   *  `metadata.provenance.contentHash` guard). Injected into the D46 automation writer (and any future
+   *  machine keeper) — the ONE
    *  hand-edit-safe home. */
   readonly upsertEntries: (params: UpsertEntriesParams) => Promise<UpsertEntriesResult>;
   /** The lean per-book entry index a machine writer reads to build its merge prompt + count against a cap. */
