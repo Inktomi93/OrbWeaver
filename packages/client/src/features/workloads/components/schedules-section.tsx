@@ -154,7 +154,12 @@ function ScheduleRow({
 }): ReactElement {
   const kindLabel = WORKLOAD_KIND_LABELS[schedule.kind as WorkloadKind];
   const cadence = SCHEDULE_CADENCE_LABELS[schedule.cadence];
-  const nextRun = schedule.enabled ? `Next ${timeLib.formatRelative(schedule.nextRunAt)}` : "Paused";
+  // ONE CADENCE VOCABULARY (side-eye 2026-08-08 P3). `formatRelative` flips to an absolute date past its
+  // horizon, so two adjacent rows read "Next in 6d" and "Next Sep 7, 2026" — the same field in two
+  // languages, and the reader has to work out that they are the same kind of fact. The absolute stamp is the
+  // arm that is TOTAL: a schedule's next run is a wall-clock appointment at any distance, where "in 8 months"
+  // is not a thing anyone can act on.
+  const nextRun = schedule.enabled ? `Next ${timeLib.formatDateTime(schedule.nextRunAt)}` : "Paused";
   const subtitleParts = [`${cadence} · ${nextRun}`];
   if (ownerHandle !== null) {
     subtitleParts.push(`for ${ownerHandle}`);
@@ -170,7 +175,10 @@ function ScheduleRow({
           <Button intent="secondary" size="sm" aria-label={`Edit ${kindLabel} schedule`} onClick={onEdit}>
             Edit
           </Button>
-          <Button intent="ghost" size="sm" onClick={onDelete}>
+          {/* Qualified like its Switch/Edit siblings (WCAG 2.4.6 / 4.1.2, side-eye 2026-08-08 P1-3): a list
+              of rows whose only DESTRUCTIVE control announces the bare name "Delete" gives a screen-reader
+              user N identical buttons and no way to tell which row they are about to destroy. */}
+          <Button intent="ghost" size="sm" aria-label={`Delete ${kindLabel} schedule`} onClick={onDelete}>
             Delete
           </Button>
         </Row>

@@ -26,6 +26,7 @@ import { selectCorpusCharacter } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 import { ParamSelect } from "./corpus-controls.tsx";
+import { CorpusRunJobEmptyState } from "./corpus-run-job-empty-state.tsx";
 
 const ANY_VALUE = "";
 const SKELETON_ROW_COUNT = 5;
@@ -69,7 +70,17 @@ export function CorpusBrowseView(): ReactElement {
         <ParamSelect label="Tag" value={tag} items={tagItems} onValueChange={setTag} />
         <ParamSelect label="Sort" value={sort} items={SORT_ITEMS} onValueChange={setSort} />
       </Row>
-      <BrowseRows error={rows.error} isPending={rows.isPending} onRetry={rows.refetch} rows={rows.data ?? []} />
+      <BrowseRows
+        error={rows.error}
+        isPending={rows.isPending}
+        onRetry={rows.refetch}
+        rows={rows.data ?? []}
+        // An UNDISTILLED library and an over-narrow filter both produce zero rows and used to read the same
+        // ("No characters match — distill your library, or loosen the filters"), which asks a first-run user
+        // to loosen filters they never set (side-eye 2026-08-08 P1-2). `catalog.totalDistilled` is the
+        // already-suspended read that tells the two apart.
+        distilled={catalog.totalDistilled > 0}
+      />
     </Stack>
   );
 }
@@ -88,11 +99,13 @@ function BrowseRows({
   isPending,
   error,
   onRetry,
+  distilled,
 }: {
   readonly rows: readonly BrowseRow[];
   readonly isPending: boolean;
   readonly error: unknown | null;
   readonly onRetry: () => void;
+  readonly distilled: boolean;
 }): ReactElement {
   if (isPending) {
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
@@ -101,11 +114,13 @@ function BrowseRows({
     return <QueryErrorState label="the catalog" onRetry={onRetry} />;
   }
   if (rows.length === 0) {
-    return (
+    return distilled ? (
       <Stack align="center" className="p-block" gap="field">
         <Icon icon={Library} size="lg" />
-        <Text>No characters match — distill your library, or loosen the filters.</Text>
+        <Text>No characters match — loosen the filters.</Text>
       </Stack>
+    ) : (
+      <CorpusRunJobEmptyState title="No characters distilled yet" description="Run Distill characters to build this catalog." />
     );
   }
   return (

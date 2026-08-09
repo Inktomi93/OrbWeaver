@@ -312,9 +312,23 @@
 
 /* Jump-to-anchor flash ring (settings scroll-spy + any future anchor jump). An INSET box-shadow (not
  * outline) so the ring clips to the target's border-box instead of bleeding past a scroll container's
- * edge. Class-toggle, not imperative `el.style.*`, so it stays token-gated (no-off-token-inline-style). */
+ * edge. Class-toggle, not imperative `el.style.*`, so it stays token-gated (no-off-token-inline-style).
+ *
+ * THE RING NEEDS ROOM TO LAND IN (side-eye 2026-08-08 P2). The anchor targets a zero-padding section, so an
+ * INSET ring drew straight through the heading's cap-height at the top and the note's descenders at the
+ * bottom — the highlight struck the text it was highlighting. The padding buys that clearance and the equal
+ * NEGATIVE margin hands it straight back, so the flex item's margin-box is the size it always was and
+ * applying the class reflows nothing. The inset ring's whole point (it clips to the border-box and can
+ * never bleed past a scroll container's edge, unlike an `outline` + `outline-offset`) survives intact.
+ *
+ * BLOCK AXIS ONLY, deliberately. The defect is vertical — glyphs meet the ring at the top and bottom edges
+ * only; the inline edges sit a whole column away from the text. An inline pair would stretch the section
+ * `2 × --spacing-row` wider than its scroll container and flash a horizontal scrollbar for the ring's whole
+ * 1.2s life, trading a paint bug for a layout one. */
 .settings-flash-anchor {
   border-radius: var(--radius-card);
+  padding-block: var(--spacing-row);
+  margin-block: calc(var(--spacing-row) * -1);
   transition: box-shadow var(--motion-base) var(--ease-out-expo);
 }
 .settings-flash-anchor--lit {

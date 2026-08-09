@@ -118,7 +118,12 @@ export const listRowVariants = tv({
       block: {},
       inline: {
         title: "flex-none min-w-24 shrink",
-        subtitle: "min-w-0 flex-1 truncate",
+        // NO `truncate` here (2026-08-08): the base slot's own comment already says truncation belongs to
+        // the `subtitleWrap` axis "never baked in", and a `truncate` baked into the PLACEMENT arm silently
+        // beat the wrapping arm's `line-clamp-2` (`truncate` carries `whitespace-nowrap`, which collapses a
+        // clamp to one line — the two utilities are not in the same tailwind-merge conflict group, so
+        // neither dropped the other). Placement decides the COLUMN; `subtitleWrap` decides one line or two.
+        subtitle: "min-w-0 flex-1",
       },
       // `w-…` is the BASIS and `shrink` is kept deliberately: under a phone-width squeeze every row's name
       // cell shrinks by the same factor from the same basis, so the shared left edge survives the squeeze
@@ -126,7 +131,7 @@ export const listRowVariants = tv({
       // never vanish) that `flex-none` alone would have traded away for a horizontal scrollbar.
       column: {
         title: "w-(--width-label-col) flex-none min-w-24 shrink",
-        subtitle: "min-w-0 flex-1 truncate",
+        subtitle: "min-w-0 flex-1",
       },
     },
     // A one-line dense row TRUNCATES (the default — a list pane scans by column). A row whose subtitle is

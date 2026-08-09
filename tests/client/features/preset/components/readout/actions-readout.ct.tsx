@@ -89,7 +89,10 @@ test("an EXTRACT row's delivery path is the state round — its bytes never ente
   await expect(probe.getByText("never enter the chat prompt", { exact: false })).toBeVisible();
   await expect(probe.getByText("Guided instruction", { exact: false })).toHaveCount(0);
   // The RESOLVED kicker wears the row's HUMAN label (the P2 grammar fix) — never the wire name shouted.
-  await expect(probe.getByRole("heading", { name: "Resolved — Party update" })).toBeVisible();
+  // The panel's own HEADER wears the row's human label (side-eye 2026-08-08 P2 moved it there from the
+  // Resolved kicker's suffix — it is a fact about the whole readout, not about one section) — never the wire
+  // name shouted.
+  await expect(probe.getByRole("heading", { name: "Party update", exact: true })).toBeVisible();
   // The unbound gloss: seam-spliced DATA, not chat macros.
   await expect(probe.getByText("spliced from the game's own data", { exact: false })).toBeVisible();
   await expect(probe.getByText("Every macro here resolves in chat", { exact: false })).toHaveCount(0);
@@ -113,7 +116,10 @@ test("BOUND + extract — the deferred-token tail states the state-round splice,
   const probe = await mount(<PresetReadoutExtractBoundStory />);
 
   // The chat resolved identity; the seam's data tokens survived as tokens (the verb's real passthrough).
-  await expect(probe.getByRole("heading", { name: "Resolved — Party update" })).toBeVisible();
+  // The panel's own HEADER wears the row's human label (side-eye 2026-08-08 P2 moved it there from the
+  // Resolved kicker's suffix — it is a fact about the whole readout, not about one section) — never the wire
+  // name shouted.
+  await expect(probe.getByRole("heading", { name: "Party update", exact: true })).toBeVisible();
   await expect(probe.getByText("{{actorTrackers}}", { exact: true })).toBeVisible();
   // The tail names the real fill-in moment. The old copy said "they fill in when you click" — a click fires
   // nothing for an extraction row.

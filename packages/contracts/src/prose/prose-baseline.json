@@ -81,8 +81,8 @@
       "sha256": "2cc3f447c355e3722be2a11f3d36caf3149e177043dd3486cddfaf202faffb99"
     },
     "chat.arbiter.system": {
-      "version": 1,
-      "sha256": "dae73b77fd1d999ef978654c45814cbc56107ec4d6ac9b5ec25063d28b2b1739"
+      "version": 2,
+      "sha256": "403d9b5c836b185e2fce30521a41345e743084b1d27c7fa18b2bf4fa8fb09ca1"
     },
     "chat.compaction.system": {
       "version": 1,

@@ -15,7 +15,7 @@
 
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
-import { Icon, Package } from "@orb/ui/icons";
+import { ChevronRight, Icon, Package } from "@orb/ui/icons";
 import { Grid, Row, Stack } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
@@ -45,7 +45,11 @@ export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement
       {/* `auto` (16rem), not `cell` (8.5rem): these are LAUNCHER cards with a sentence and a verb, not dense
           item tiles, and at the cell width the count pushed `REGEX SCRIPTS` onto a second line while its
           one-word siblings stayed on one (side-eye P3). */}
-      <Grid cols="auto" gap="field">
+      {/* `w-full` (side-eye 2026-08-08 P3): the parent `Stack` is `align="center"`, so a grid with no width
+          of its own shrink-to-fits its auto-fit tracks — measured 473px under a 595px paragraph, giving the
+          same block of copy TWO left edges 61px apart. The Grid takes the `max-w-prose` column the sentence
+          above it already reads in. */}
+      <Grid className="w-full" cols="auto" gap="field">
         {orderCollections(collections).map((collection) => (
           <CollectionLauncher collection={collection} key={collection.id} />
         ))}
@@ -74,7 +78,11 @@ export function ConfigWelcome({ collections }: ConfigWelcomeProps): ReactElement
  *
  *  THE EMPTY CARD IS UNTOUCHED — count(0) + create stay. That is the 2026-08-03 "genuinely good teaching
  *  state" verdict, which was the cold-first-timer test: at zero the verb is the onboarding next step, not a
- *  restatement. `undefined` (a collection that declares no `useCount`, or a read that has not landed) takes
+ *  restatement. **That is also the ruling that decided the 2026-08-08 P2 triple-home finding**: at zero,
+ *  "New script" rendered THREE times on one screen — the roster band's `+`, the LIST group's dashed empty
+ *  box, and this card. The orchestrator ruled the C7 arm-2 verdict PRESERVED, so this card's verb is the one
+ *  that survives (it is the onboarding next step the ruling names) alongside the band's standing `+`; the
+ *  LIST empty box dropped its button (`collection-group.tsx`'s `CollectionGroupEmpty`). `undefined` (a collection that declares no `useCount`, or a read that has not landed) takes
  *  the SAME arm as zero: the card sheds only what it KNOWS is duplicated, so a future contribution without a
  *  count hook keeps its create verb rather than silently losing the only way into an empty library.
  *
@@ -104,12 +112,10 @@ function CollectionLauncher({ collection }: { readonly collection: CollectionCon
   }
   const populated = count !== undefined && count > 0;
   return (
-    <Card
-      data-slot="collection-launcher"
-      data-collection={collection.id}
-      interactive={populated}
-      onClick={populated ? (): void => goToCollection(collection.id) : undefined}
-    >
+    // No `data-slot` (side-eye 2026-08-08 P3): `Card` writes `data-slot="card-root"` AFTER `{...props}`, so
+    // a caller-supplied one was silently overwritten and the `collection-launcher` slot never existed in the
+    // DOM — a dead selector reading as a live one. `data-collection` is the real per-card hook and it works.
+    <Card data-collection={collection.id} interactive={populated} onClick={populated ? (): void => goToCollection(collection.id) : undefined}>
       <Stack gap="tight">
         <Row align="center" gap="field">
           <Icon icon={collection.icon} size="sm" />
@@ -121,6 +127,12 @@ function CollectionLauncher({ collection }: { readonly collection: CollectionCon
               {count}
             </Text>
           )}
+          {/* THE OPERABLE CARD SAYS SO AT REST (side-eye 2026-08-08 P2). `Card interactive` buys hover, focus
+              ring and keyboard operability — every one of which needs the pointer or the keyboard to have
+              already arrived. At rest the one launchable card was pixel-identical to its two inert siblings,
+              so a sighted scan had no way to learn it was a door. The chevron is the affordance the inert
+              arm structurally cannot have, and it is decorative: the accessible name stays label + blurb. */}
+          {populated ? <Icon className="ms-auto text-muted-foreground" icon={ChevronRight} size="sm" /> : null}
         </Row>
         <Text voice="gloss">{collection.blurb}</Text>
         {/* THE CARD'S VERB IS A BUTTON (side-eye 2026-08-06 P2). At `ghost` it was transparent, borderless
