@@ -1,12 +1,14 @@
-// Unit: `deriveChatTitle` + `chatSummaryRowView` (features/chat/lib/chat-summary-row) — the ONE chat
-// display-title fallback chain. Pins the side-eye P1-2 fix: stored titles are EMPTY STRINGS until
-// renamed (not just null), so the fallback must trim — `?? "Untitled chat"` was defeated by "" and
-// rendered blank rows/options everywhere. When the title falls back to participant names, the row
-// subtitle switches to the message count so the names never print twice.
+// Unit: `chatSummaryRowView` + `chatPortraits` (features/chat/lib/chat-summary-row) — the chats-list row
+// projection. When the title falls back to participant names, the row subtitle switches to the message
+// count so the names never print twice.
+//
+// `deriveChatTitle`'s OWN tests moved to tests/client/lib/chat-title.test.ts on 2026-08-09 with the function
+// (it is shared lib now — the regex room roster needs it and features cannot import each other). The
+// fallback still runs THROUGH this projection, so the arms below still exercise it end-to-end.
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { chatPortraits, chatSummaryRowView, deriveChatTitle } from "../../../../../packages/client/src/features/chat/lib/chat-summary-row.ts";
+import { chatPortraits, chatSummaryRowView } from "../../../../../packages/client/src/features/chat/lib/chat-summary-row.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 type SummaryItem = Parameters<typeof chatSummaryRowView>[0];
@@ -30,24 +32,6 @@ function makeSummary(overrides: Partial<SummaryItem>): SummaryItem {
     ...overrides,
   };
 }
-
-test("deriveChatTitle: an authored title wins, trimmed", () => {
-  expect(deriveChatTitle("  The Weave  ", ["You", "JFC"])).toBe("The Weave");
-});
-
-test("deriveChatTitle: an EMPTY-STRING title falls back to participant names (the blank-title bug)", () => {
-  expect(deriveChatTitle("", ["You", "JFC"])).toBe("You, JFC");
-  expect(deriveChatTitle("   ", ["You", "JFC"])).toBe("You, JFC");
-});
-
-test("deriveChatTitle: a null title falls back to participant names", () => {
-  expect(deriveChatTitle(null, ["You", "JFC"])).toBe("You, JFC");
-});
-
-test("deriveChatTitle: no title AND no participants → 'Untitled chat'", () => {
-  expect(deriveChatTitle(null, [])).toBe("Untitled chat");
-  expect(deriveChatTitle("", [])).toBe("Untitled chat");
-});
 
 test("chatSummaryRowView: authored title → names subtitle", () => {
   const view = chatSummaryRowView(makeSummary({ title: "The Weave", participantNames: ["You", "JFC"], messageCount: 3 }));

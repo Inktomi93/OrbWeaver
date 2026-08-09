@@ -29,7 +29,6 @@ export { chatMessageHandlingSection } from "./lib/chat-behavior-message-handling
 export { chatStreamingSection } from "./lib/chat-behavior-streaming-section.tsx";
 export { chatOptionsChrome } from "./lib/chat-options-chrome.tsx";
 export { chatSlashCommands } from "./lib/chat-slash-commands.ts";
-export { deriveChatTitle } from "./lib/chat-summary-row.ts";
 export { makeChatsSection } from "./lib/chats-section.tsx";
 export { commandModal } from "./lib/command-modal.tsx";
 export { isContinueEligible } from "./lib/continue-on-empty.ts";

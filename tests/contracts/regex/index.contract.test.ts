@@ -20,6 +20,7 @@ const FULL_ROW: RegexScriptRow = {
   runOnEdit: false,
   trimStrings: ["the "],
   substituteRegex: SubstituteFindRegex.none,
+  updatedAt: 1_760_000_000_000,
 };
 
 test("parses a fully-specified library row and round-trips byte-for-byte", () => {
@@ -33,6 +34,9 @@ test("fills the documented defaults when only the required fields are present", 
     findRegex: "\\bfoo\\b",
     replaceString: "bar",
     placement: ["USER_INPUT"],
+    // NOT defaulted, deliberately: the edit stamp is a stored column the server always supplies, and a
+    // schema default would let a reader silently invent "edited now" for a row it never read one from.
+    updatedAt: 1_760_000_000_000,
   };
   expect(regexScriptSchema.parse(minimal)).toEqual({
     ...minimal,

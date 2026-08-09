@@ -52,7 +52,7 @@ export function createImportCardScripts(ctx: RegexPortabilityContext): ImportCar
     const at = ctx.now();
     const stmts: BatchStmt[] = [
       ...plan.inserts.map((row) =>
-        ctx.db.insert(regexScripts).values({ id: row.id, ownerId, name: row.name, enabled: row.enabled, behavior: row.behavior, createdAt: at }),
+        ctx.db.insert(regexScripts).values({ id: row.id, ownerId, name: row.name, enabled: row.enabled, behavior: row.behavior, createdAt: at, updatedAt: at }),
       ),
       ...plan.attachIds.map((regexScriptId, position) =>
         ctx.db.insert(characterRegexScripts).values({ characterId, regexScriptId, position, createdAt: at }).onConflictDoNothing(),
@@ -148,7 +148,11 @@ export function createImportRegexScript(ctx: RegexPortabilityContext): ImportReg
     const id = match ?? ctx.newScriptId();
     const stmts: BatchStmt[] =
       match === null
-        ? [ctx.db.insert(regexScripts).values({ id, ownerId, name: candidate.name, enabled: candidate.enabled, behavior: candidate.behavior, createdAt: at })]
+        ? [
+            ctx.db
+              .insert(regexScripts)
+              .values({ id, ownerId, name: candidate.name, enabled: candidate.enabled, behavior: candidate.behavior, createdAt: at, updatedAt: at }),
+          ]
         : [];
     if (payload.global) {
       stmts.push(ctx.db.insert(globalRegexScripts).values({ regexScriptId: id, createdAt: at }).onConflictDoNothing());

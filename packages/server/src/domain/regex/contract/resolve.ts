@@ -11,7 +11,7 @@
 // caller's gate) — the `listChatBooks` precedent.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { RegexAttachmentRef, RegexScriptRow } from "@orb/contracts/regex";
+import type { RegexRoomRef, RegexScriptRow } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, PresetId, UserId } from "@orb/kit/ids";
 
@@ -52,16 +52,21 @@ export interface RoomDisplayPolicy {
 }
 
 /**
- * The REVERSE-roster room filter (`listScriptUsage`): of these rooms, the ones the caller may SEE, already
- * NAMED. Injected from chat for the same reason the guards are — rooms carry no `ownerId` (D18), so their
- * scope is `chat_participants`, and regex reads neither the roster nor the `chats` table.
+ * The REVERSE-roster room filter (`listScriptUsage`): of these rooms, the ones the caller may SEE, with
+ * everything a roster row needs to NAME them. Injected from chat for the same reason the guards are — rooms
+ * carry no `ownerId` (D18), so their scope is `chat_participants`, and regex reads neither the roster nor
+ * the `chats` table.
  *
  * It takes CANDIDATES rather than answering "every room this user is in": the candidates are the rooms the
  * script is already attached to, so the op filters a bounded set instead of enumerating a library. A room
  * the caller has left, or was never in, is simply absent from the answer — the same leak-free collapse the
  * guards make, without a throw (a roster of 3 where the owner can see 2 is a roster of 2, not an error).
  *
- * NAMING is the op's job, not the verb's: how a room is called (authored title, else the untitled fallback)
- * is chat's display vocabulary, and regex has no business owning a second copy of it.
+ * IT RESOLVES THE NAMING INPUTS, IT DOES NOT NAME (changed 2026-08-09, owner pick on REGROSTER's parked
+ * question). This op used to hand back a finished `name`, which meant re-deriving chat's display-title
+ * chain here — and it only ever implemented two of its three rungs, so an unnamed room read "Untitled chat"
+ * in the roster while the chats list called the same room by its cast. The chain has ONE home and it is on
+ * the client (`#lib`'s `deriveChatTitle`, which the chats list, the topbar and the palette all use); this op
+ * supplies its inputs (`title` · `participantNames` · `at`) and nothing re-spells the rule.
  */
-export type ResolveVisibleRooms = (principal: Principal, chatIds: readonly ChatId[]) => Promise<readonly RegexAttachmentRef<ChatId>[]>;
+export type ResolveVisibleRooms = (principal: Principal, chatIds: readonly ChatId[]) => Promise<readonly RegexRoomRef[]>;

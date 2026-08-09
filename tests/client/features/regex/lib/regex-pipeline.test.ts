@@ -17,6 +17,10 @@ import { describe } from "vitest";
 import { runRegexPipeline } from "../../../../../packages/client/src/features/regex/lib/regex-pipeline.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
+/** A fixed edit stamp — the pipeline projection never reads it, and an ambient wall-clock read here would
+ *  make the fixture non-deterministic for no gain (`test-determinism`). */
+const ROW_UPDATED_AT = 1_760_000_000_000;
+
 const BASE = {
   findRegex: "quiet",
   replaceString: "LOUD",
@@ -30,7 +34,7 @@ const BASE = {
 } satisfies Omit<CreateRegexScriptInput, "name">;
 
 function row(id: string, name: string, over: Partial<RegexScriptRow> = {}): RegexScriptRow {
-  return { id: castId<RegexScriptId>(id), name, ...BASE, ...over } satisfies RegexScriptRow;
+  return { id: castId<RegexScriptId>(id), name, updatedAt: ROW_UPDATED_AT, ...BASE, ...over } satisfies RegexScriptRow;
 }
 
 function subject(over: Partial<CreateRegexScriptInput> = {}): CreateRegexScriptInput {

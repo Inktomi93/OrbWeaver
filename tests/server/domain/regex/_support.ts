@@ -107,6 +107,10 @@ interface SeedScriptOverrides {
   readonly enabled?: boolean;
   readonly behavior?: RegexScriptBehavior;
   readonly createdAt?: number;
+  /** The X-16 edit stamp. Defaults to `createdAt` (a never-edited row reads as edited when it was born),
+   *  and is spelled EXPLICITLY rather than left to the column default so a fixture never carries wall-clock
+   *  time into an assertion (`test-determinism`). */
+  readonly updatedAt?: number;
 }
 
 /** Seed a library row DIRECTLY (bypassing the verb) — for the read/attach suites that need a fixture, not
@@ -120,6 +124,7 @@ export async function seedScript(db: Db, over: SeedScriptOverrides): Promise<Reg
     enabled: over.enabled ?? true,
     behavior: over.behavior ?? behavior(),
     createdAt: over.createdAt ?? FROZEN_AT,
+    updatedAt: over.updatedAt ?? over.createdAt ?? FROZEN_AT,
   });
   return id;
 }

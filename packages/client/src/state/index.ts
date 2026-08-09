@@ -85,7 +85,14 @@ export { CHROME_ZONES } from "./chrome-registry.ts";
 export type { ChromeRegistry } from "./chrome-registry-context.ts";
 export { useChromeRegistry } from "./chrome-registry-context.ts";
 export { ChromeRegistryProvider } from "./chrome-registry-provider.tsx";
-export { migrateComposerDraft, setComposerDraft, useComposerDraft } from "./composer-draft-store.ts";
+export {
+  __readComposerDraftsForTest,
+  __resetComposerDrafts,
+  COMPOSER_DRAFT_CAP,
+  migrateComposerDraft,
+  setComposerDraft,
+  useComposerDraft,
+} from "./composer-draft-store.ts";
 export { requestComposerFocus, useComposerFocusRequest } from "./composer-focus-store.ts";
 export { __resetCollectionGroupOpen, openCollectionGroup, toggleCollectionGroup, useCollectionGroupOpen } from "./config-group-open-store.ts";
 export {

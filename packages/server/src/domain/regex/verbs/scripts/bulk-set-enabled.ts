@@ -14,7 +14,10 @@ import { setScriptsEnabledBulk } from "../../persistence/queries.ts";
 export function createBulkSetEnabled(ctx: RegexContext): RegexService["bulkSetScriptsEnabled"] {
   return async ({ principal, scriptIds, enabled }: BulkSetScriptsEnabledParams) => {
     const ownerId = principal.userId;
-    const written = await setScriptsEnabledBulk(ctx.db, ownerId, scriptIds, enabled);
+    // ONE clock read for the whole operation: the write's `updatedAt` and the audit's timestamp are the same
+    // instant, so the list stamp can never disagree with the audit row that explains it.
+    const at = ctx.now();
+    const written = await setScriptsEnabledBulk(ctx.db, ownerId, scriptIds, { enabled, at });
     if (written.length > 0) {
       await ctx.audit(
         {
@@ -23,7 +26,7 @@ export function createBulkSetEnabled(ctx: RegexContext): RegexService["bulkSetSc
           entityType: "regex_script",
           metadata: { count: written.length, bulk: true },
         },
-        ctx.now(),
+        at,
       );
       ctx.emitUserEvent(ownerId, { type: "regexChanged" });
     }
