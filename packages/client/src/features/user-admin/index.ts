@@ -4,6 +4,7 @@
 
 export { adminApprovalsSection } from "./lib/admin-approvals-section.tsx";
 export { adminEnginesSection } from "./lib/admin-engines-section.tsx";
+export { adminLinkSsoSection } from "./lib/admin-link-sso-section.tsx";
 export { adminCatalogSection, adminEmbeddingsSection } from "./lib/admin-ops-sections.tsx";
 export { adminPane } from "./lib/admin-pane.tsx";
 export { adminUsersSection } from "./lib/admin-users-section.tsx";

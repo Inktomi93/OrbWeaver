@@ -9,6 +9,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { AdminApprovalsSection } from "../../../../packages/client/src/features/user-admin/components/admin-approvals-section.tsx";
 import { AdminEnginesSection } from "../../../../packages/client/src/features/user-admin/components/admin-engines-section.tsx";
+import { AdminLinkSsoSection } from "../../../../packages/client/src/features/user-admin/components/admin-link-sso-section.tsx";
 import { AdminCatalogSection, AdminEmbedCardSection } from "../../../../packages/client/src/features/user-admin/components/admin-ops-section.tsx";
 import { AdminUsersSection } from "../../../../packages/client/src/features/user-admin/components/admin-users-section.tsx";
 import { ComputeSection } from "../../../../packages/client/src/features/user-admin/components/compute-section.tsx";
@@ -44,6 +45,21 @@ export function AdminApprovalsSectionStory(): ReactElement {
       <TooltipProvider>
         <div style={{ height: 900, overflow: "auto", width: 960 }}>
           <AdminApprovalsSection />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
+/** B5 — the Link-SSO SECTION in isolation: `admin.listUsers` (filtered client-side to unbound, non-owner,
+ *  human accounts = the linkable set) + the per-row Link dialog's `admin.linkSsoIdentity` mutation, stubbed
+ *  per-test via routeTrpc. */
+export function AdminLinkSsoSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ height: 900, overflow: "auto", width: 960 }}>
+          <AdminLinkSsoSection />
         </div>
       </TooltipProvider>
     </CtDataProviders>

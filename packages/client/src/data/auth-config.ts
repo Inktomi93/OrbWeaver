@@ -20,6 +20,12 @@ export interface AuthConfig {
   readonly requiresLogin: boolean;
   readonly localEnabled: boolean;
   readonly oidcEnabled: boolean;
+  /** A8 — the human-facing IdP name for the login surface's "Continue with …" button (default "your identity provider"). */
+  readonly oidcProviderName: string;
+  /** B4 — TRUE ⇒ a fresh local box awaiting its in-app owner-password setup, AND this request is on a
+   *  local/trusted origin (the server scopes it, so the setup screen appears only where the endpoint works).
+   *  The login surface renders the first-run setup form instead of the credential form. */
+  readonly localFirstRun: boolean;
   /** ST `enableDiscreetLogin` parity — TRUE ⇒ blank form (`defaultHandle` is withheld as null). */
   readonly discreetLogin: boolean;
   readonly defaultHandle: string | null;

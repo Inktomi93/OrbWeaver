@@ -16,6 +16,8 @@ function config(overrides: Partial<AuthConfig>): AuthConfig {
     requiresLogin: true,
     localEnabled: true,
     oidcEnabled: false,
+    oidcProviderName: "Test IdP",
+    localFirstRun: false,
     discreetLogin: false,
     defaultHandle: "owner",
     multiHumanCapable: false,
@@ -38,6 +40,22 @@ test("oidc → the SSO redirect button (whole-window navigation arm)", async ({ 
   await expect(page.getByTestId("login-oidc")).toBeVisible();
   // A7 — no error param ⇒ no alert line above Continue.
   await expect(page.getByTestId("login-auth-error")).toHaveCount(0);
+});
+
+test("oidc → the Continue button + copy carry the OIDC_PROVIDER_NAME (A8)", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "oidc", localEnabled: false, oidcEnabled: true, oidcProviderName: "Acme SSO" })} />);
+  await expect(page.getByTestId("login-oidc")).toHaveText("Continue with Acme SSO");
+  await expect(page.getByText("You'll be redirected to Acme SSO, then back here.")).toBeVisible();
+});
+
+test("local + localFirstRun → the FIRST-RUN owner-password setup form, NOT the credential form (B4)", async ({ mount, page }) => {
+  await mount(<LoginArmStory config={config({ mode: "local", localFirstRun: true })} />);
+  await expect(page.getByRole("heading", { name: "Set up your server" })).toBeVisible();
+  await expect(page.getByTestId("first-run-setup-form")).toBeVisible();
+  await expect(page.getByTestId("first-run-password")).toBeVisible();
+  await expect(page.getByTestId("first-run-confirm")).toBeVisible();
+  // The normal credential form is NOT shown on a fresh box.
+  await expect(page.getByTestId("login-local-form")).toHaveCount(0);
 });
 
 test("oidc + authError → a role=alert message renders above the Continue button (A7)", async ({ mount, page }) => {

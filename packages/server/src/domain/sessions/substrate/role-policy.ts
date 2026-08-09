@@ -1,6 +1,6 @@
 import process from "node:process";
 import type { UserRole } from "@orb/contracts/identity";
-import type { Handle } from "@orb/kit/ids";
+import type { ExternalId, Handle } from "@orb/kit/ids";
 import { env } from "#foundation/env";
 import type { IdentityAccess } from "../contract/results.ts";
 
@@ -72,6 +72,18 @@ export function ownerHandles(): string[] {
  */
 export function isOwnerSeedHandle(handle: Handle): boolean {
   return ownerHandles().includes(handle);
+}
+
+/**
+ * THE bind-once predicate (spine U1: ONE linking rule, shared by every externalId writer). TRUE when a row
+ * is already BOUND to a stable subject that DIFFERS from the incoming one — the impostor / rebind refusal.
+ * Pure over the two subject fields so both the SSO seam (`provisionIdentity`) and the admin link capability
+ * (`linkExternalId`) reach it without a verb→verb import. A null on EITHER side is never a mismatch: a
+ * null-subject login carries no claim to contradict a binding (that residual is the SSO seam's scope note),
+ * and an unbound row is a first-link, not a rebind.
+ */
+export function isSubjectMismatch(existingExternalId: ExternalId | null, incomingExternalId: ExternalId | null): boolean {
+  return incomingExternalId !== null && existingExternalId !== null && existingExternalId !== incomingExternalId;
 }
 
 /** Whether the identity is the box OWNER by policy — in `OWNER_GROUP` OR its handle ∈ `OWNER_HANDLES` (group

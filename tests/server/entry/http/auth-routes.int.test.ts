@@ -6,7 +6,7 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator } from "@orb/server/entry/http";
+import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator } from "@orb/server/entry/http";
 import { registerAuthRoutes } from "@orb/server/entry/http";
 import { Hono } from "hono";
 import { describe } from "vitest";
@@ -139,6 +139,76 @@ describe("login body cap — 4 KiB", () => {
     const app = await appWith();
     const res = await postLogin(app, "198.51.100.6", { handle: "owner", password: "hunter2pw" });
     expect(res.status).toBe(200);
+  });
+});
+
+describe("first-run owner-password setup (B4) — real app + freshDb", () => {
+  const firstRunPath = "/api/auth/first-run";
+
+  /** A first-run deps recorder: `originAllowed` is fixed per-test; `setOwnerPassword` records its calls and
+   *  returns the configured claim outcome (a UserId = claimed, null = already-set / no owner). */
+  function firstRunStub(opts: { originAllowed: boolean; claim: UserId | null }): { deps: FirstRunRouteDeps; calls: string[] } {
+    const calls: string[] = [];
+    return {
+      calls,
+      deps: {
+        originAllowed: (): boolean => opts.originAllowed,
+        setOwnerPassword: (plain: string): Promise<UserId | null> => {
+          calls.push(plain);
+          return Promise.resolve(opts.claim);
+        },
+      },
+    };
+  }
+
+  async function postFirstRun(app: Hono, ip: string, password: string): Promise<Response> {
+    return await app.request(
+      firstRunPath,
+      { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ password }).toString() },
+      connEnv(ip),
+    );
+  }
+
+  test("virgin box on a LOCAL origin → 200 + the session cookie (claims the owner password)", async () => {
+    const fr = firstRunStub({ originAllowed: true, claim: castId<UserId>("usr_owner") });
+    const app = await appWith({ firstRun: fr.deps });
+    const res = await postFirstRun(app, "10.0.1.1", "hunter2password");
+    expect(res.status).toBe(200);
+    expect(res.headers.get("set-cookie") ?? "").toContain(`${COOKIE}=tok-123`);
+    expect(fr.calls).toEqual(["hunter2password"]);
+  });
+
+  test("ONE-SHOT: once the owner password is set, a second attempt → 409, no cookie (never overwrites)", async () => {
+    // `claim: null` models the atomic null-guarded claim finding the password already set.
+    const fr = firstRunStub({ originAllowed: true, claim: null });
+    const app = await appWith({ firstRun: fr.deps });
+    const res = await postFirstRun(app, "10.0.1.2", "hunter2password");
+    expect(res.status).toBe(409);
+    expect(res.headers.get("set-cookie")).toBeNull();
+  });
+
+  test("a NON-LOCAL origin → 403 BEFORE the claim is attempted (owner-fallback parity)", async () => {
+    const fr = firstRunStub({ originAllowed: false, claim: castId<UserId>("usr_owner") });
+    const app = await appWith({ firstRun: fr.deps });
+    const res = await postFirstRun(app, "203.0.113.50", "hunter2password");
+    expect(res.status).toBe(403);
+    expect(res.headers.get("set-cookie")).toBeNull();
+    // The password-set was never even attempted from an untrusted origin.
+    expect(fr.calls).toEqual([]);
+  });
+
+  test("a too-short password → 400, no claim attempted", async () => {
+    const fr = firstRunStub({ originAllowed: true, claim: castId<UserId>("usr_owner") });
+    const app = await appWith({ firstRun: fr.deps });
+    const res = await postFirstRun(app, "10.0.1.3", "short");
+    expect(res.status).toBe(400);
+    expect(fr.calls).toEqual([]);
+  });
+
+  test("the route is ABSENT when no firstRun dep is supplied (non-local modes) → 404", async () => {
+    const app = await appWith(); // no firstRun
+    const res = await postFirstRun(app, "10.0.1.4", "hunter2password");
+    expect(res.status).toBe(404);
   });
 });
 

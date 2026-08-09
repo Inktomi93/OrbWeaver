@@ -74,6 +74,7 @@ import {
   adminCatalogSection,
   adminEmbeddingsSection,
   adminEnginesSection,
+  adminLinkSsoSection,
   adminPane,
   adminUsersSection,
   computeSection,
@@ -305,6 +306,8 @@ const settingsSections = createContributorRegistry<SettingsSectionContribution>(
   adminUsersSection,
   // A2 — the OIDC_REQUIRE_APPROVAL account-approval queue, right after Users.
   adminApprovalsSection,
+  // B5 — the db-surgery-free "Link SSO identity" migration surface, right after Approvals.
+  adminLinkSsoSection,
   adminEnginesSection,
   adminCatalogSection,
   adminEmbeddingsSection,
