@@ -978,7 +978,9 @@ test("POPULATE: an empty round parses (a card that established nothing), and a n
 });
 
 test("POPULATE constraint pins inventory.targetRef to the ONE character and REQUIRES the sheet fields (the xgrammar lever)", () => {
-  const constrained = constrainPopulateSchema(projectJsonSchema(rpgPopulateSchema), "Mara") as {
+  // WireReady is an opaque branded Record; widen to the plain record (assignable, no cast) then read its shape.
+  const populated: Record<string, unknown> = constrainPopulateSchema(projectJsonSchema(rpgPopulateSchema), "Mara");
+  const constrained = populated as {
     required?: string[];
     properties: { sheet: { required?: string[] }; inventory: { items: { properties: { targetRef: { enum?: string[] } } } } };
   };

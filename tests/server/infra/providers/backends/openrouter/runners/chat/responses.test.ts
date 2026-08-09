@@ -12,6 +12,7 @@ import type { OpenRouterChatRequest } from "@orb/server/infra/providers";
 import { runResponsesTurn } from "@orb/server/infra/providers/backends/openrouter";
 import { describe, vi } from "vitest";
 import { expect, test } from "../../../../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../../../../support/wire-ready.ts";
 
 const FIXED_NOW = 1000;
 const ANTHROPIC_MODEL = "anthropic/claude-opus-4-5";
@@ -131,7 +132,7 @@ describe("runResponsesTurn — wire shaping", () => {
       makeRequest({
         capability: { ...CAPABILITY, verbosity: ["low", "medium", "high"] },
         params: { effort: "high", verbosity: "low" },
-        responseFormat: { name: "out", schema: { type: "object" } },
+        responseFormat: { name: "out", schema: wireSchema({ type: "object" }) },
       }),
       DEPS,
     );
@@ -145,7 +146,7 @@ describe("runResponsesTurn — wire shaping", () => {
 
   test("STRICTFMT: a caller that ASKS for strict gets it on the responses text.format", async () => {
     const { client, captured } = streamingClient(OK_EVENTS);
-    await runResponsesTurn(client, makeRequest({ responseFormat: { name: "out", schema: { type: "object" }, strict: true } }), DEPS);
+    await runResponsesTurn(client, makeRequest({ responseFormat: { name: "out", schema: wireSchema({ type: "object" }), strict: true } }), DEPS);
     expect((captured.body?.["text"] as Record<string, unknown>)["format"]).toMatchObject({ strict: true });
   });
 

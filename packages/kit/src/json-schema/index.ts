@@ -21,6 +21,28 @@
 
 import { z } from "zod";
 
+/** A raw JSON-Schema blob that has NOT been through {@link projectJsonSchema}: the stored refinery schema,
+ *  a lifted guest tool schema, an author's draft in the raw-JSON door. Plain by construction — structurally
+ *  a `Record<string, unknown>` and nothing more, so it can never satisfy {@link WireReady}. The name is the
+ *  documentation: a signature typed `Unprojected` is announcing "this is a stored/authored blob, not yet
+ *  wire-projected". */
+export type Unprojected = Record<string, unknown>;
+
+// Phantom brand — {@link projectJsonSchema} is the ONE mint (its single `as WireReady` below is the only
+// producer in the tree). Nothing else can name this symbol, so no other module can forge the brand in an
+// object literal; the brand-transparent transforms (`scrubWireSchema`, the rpg constrainers) are GENERIC
+// over the caller's brand and thread it through without minting it. The `ChatModelId`/`credentials` phantom
+// precedents (contracts) are the same shape.
+declare const wireReadyBrand: unique symbol;
+
+/** A JSON Schema that has provably been through {@link projectJsonSchema} — `additionalProperties:false`
+ *  pinned on every object node, ready for a provider wire (D79). It is the ONLY value `ResponseFormat.schema`
+ *  accepts, which turns "every structured-output send projects first" from a doc-note (task #41) into a
+ *  COMPILE-TIME invariant: a raw {@link Unprojected} at a send-site fails `tsc`. A `WireReady` is still a
+ *  `Record<string, unknown>` (the brand is phantom), so every downstream consumer that reads `.schema` as a
+ *  plain record — the per-wire subset scrubbers, the wire request builders — keeps working unchanged. */
+export type WireReady = Record<string, unknown> & { readonly [wireReadyBrand]: true };
+
 export { JsonSchemaLiftError, LIFTABLE_JSON_SCHEMA, liftJsonSchema, MAX_LIFT_DEPTH, RENDER_HINT_KEY } from "./lift.ts";
 // The per-WIRE keyword subset (what a given endpoint may legally receive) is a separate concern from the
 // projection rule and is applied at each request-build site, never here — see `./wire-subset`.
@@ -51,9 +73,11 @@ function pinObjectNodes(node: unknown): void {
   }
 }
 
-/** Project a zod schema (a tool's args OR a structured-output payload) to the wire JSON Schema. */
-export function projectJsonSchema(schema: z.ZodType): Record<string, unknown> {
+/** Project a zod schema (a tool's args OR a structured-output payload) to the wire JSON Schema. The ONE
+ *  producer of {@link WireReady} — the single `as WireReady` in the tree, so "was this projected?" has one
+ *  provable answer and a send-site cannot skip it. */
+export function projectJsonSchema(schema: z.ZodType): WireReady {
   const projected: Record<string, unknown> = { ...z.toJSONSchema(schema) };
   pinObjectNodes(projected);
-  return projected;
+  return projected as WireReady;
 }

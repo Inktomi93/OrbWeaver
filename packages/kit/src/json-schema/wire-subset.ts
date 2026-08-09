@@ -261,9 +261,12 @@ function requireAllProperties(node: Record<string, unknown>): void {
 }
 
 /** The scrub's result: the wire copy, plus every construct the mode cannot express (empty on the happy
- *  path). `refused` is deduped and in first-encounter order — a caller turns it into its own typed error. */
-export interface WireSchemaScrub {
-  readonly schema: Record<string, unknown>;
+ *  path). `refused` is deduped and in first-encounter order — a caller turns it into its own typed error.
+ *  Generic over the input schema's type so the scrub is BRAND-TRANSPARENT: a projected `WireReady` in yields
+ *  a `WireReady` out (the strict-compatible arm relies on this), an unbranded {@link Unprojected} draft in
+ *  yields an unbranded copy — the scrub never MINTS the brand, it only threads whatever it was handed. */
+export interface WireSchemaScrub<S extends Record<string, unknown> = Record<string, unknown>> {
+  readonly schema: S;
   readonly refused: readonly string[];
 }
 
@@ -331,9 +334,9 @@ function walkNameMap(node: unknown, subset: WireSubset, refused: Set<string>): u
  * never mutates the caller's cached `ResponseFormat.schema`, which the OTHER wires also send (they need the
  * keywords this one drops).
  */
-export function scrubWireSchema(schema: Record<string, unknown>, mode: WireSchemaMode): WireSchemaScrub {
+export function scrubWireSchema<S extends Record<string, unknown>>(schema: S, mode: WireSchemaMode): WireSchemaScrub<S> {
   const refused = new Set<string>();
-  const scrubbed = walk(schema, WIRE_SUBSETS[mode], refused) as Record<string, unknown>;
+  const scrubbed = walk(schema, WIRE_SUBSETS[mode], refused) as S;
   return { schema: scrubbed, refused: [...refused] };
 }
 
