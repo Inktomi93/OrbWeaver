@@ -56,9 +56,10 @@ export type RenderHintTone = (typeof RENDER_HINT_TONES)[number];
 
 /** The hint roles — elevations over the structure-keyed floor (schema-renderer §3.2/§4.2). */
 export const RENDER_HINT_ROLES = ["hero", "verdict", "axis", "prose", "title", "score", "body", "badge"] as const;
-/** @public member twin of `RENDER_HINT_ROLES` — every live consumer (`renderHintSchema`'s `z.enum(RENDER_HINT_ROLES)`,
- *  `packages/server/src/domain/refinery/substrate/schema-forge.ts`'s hint forge call) reads the tuple, never
- *  this alias; it belongs to whatever renders/authors a hint role by NAME (schema-renderer §4.2). */
+/** @public future: the R3 refinery schema-renderer role-authoring surface (schema-renderer §4.2, board C15,
+ *  design-gated/unbuilt) — the member twin of `RENDER_HINT_ROLES`, whose live consumers read the TUPLE (an
+ *  INTERNAL value), never this alias. It belongs to whatever renders/authors a hint role BY NAME; kept, not a
+ *  twin, because the tuple is same-package-only (apisurface INTERNAL). */
 export type RenderHintRole = (typeof RENDER_HINT_ROLES)[number];
 
 /** One node's `x-orb-ui` hint. `tone` maps enum MEMBERS to tone words (the verdict banner's good/warn/bad
@@ -229,9 +230,9 @@ export const refinerySchemaDocumentSchema = z
       ctx.addIssue({ code: "custom", path: ["schema"], message: `${issue.message} (at ${issue.path})` });
     }
   });
-/** @public type twin of `refinerySchemaDocumentSchema` — every live consumer (create/update/test-schema
- *  verbs, `packages/server/src/domain/refinery/substrate/schema-forge.ts`) calls `.parse`/`.safeParse` and
- *  never imports this alias; it belongs to whatever needs the STATIC document shape (the client editor). */
+/** @public twin: refinerySchemaDocumentSchema — the STATIC document shape; every live consumer
+ *  (create/update/test-schema verbs, the server refinery substrate) calls `.parse`/`.safeParse` on the
+ *  schema value (cross-package PUBLIC) and never imports this alias. */
 export type RefinerySchemaDocument = z.infer<typeof refinerySchemaDocumentSchema>;
 
 /** The schema-library wire row (the stage-config picker + the editor's library list). `version` bumps on

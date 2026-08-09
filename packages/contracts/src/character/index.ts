@@ -51,8 +51,6 @@ export const cardAssetSchema = z
     ext: z.string().catch(""),
   })
   .loose();
-/** @public type twin of `cardAssetSchema`, live in this file's card schema. */
-export type CardAsset = z.infer<typeof cardAssetSchema>;
 
 // Character's Note @ Depth: reuses the shared `@orb/kit/injection` `{depth, role?}` directive.
 export const cardDepthPromptSchema = injectionDirectiveSchema.extend({

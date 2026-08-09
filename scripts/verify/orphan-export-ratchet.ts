@@ -7,42 +7,64 @@
 // stage pins the swept tree: the CURRENT orphan set is the checked-in baseline, and any NEW orphan (or a
 // baseline row that is no longer one) is RED.
 //
-// WHY IT CANNOT LEAN ON KNIP (verified by probe, not assumed — dispositions doc, "Correction"). knip does
-// NOT flag any of these exports: each package's `exports` map already makes the subpath public API in
-// knip's eyes, so knip's `tags: ["-@public"]` exemption never even fires on them. Stripping `@public` off
-// four rows across three package tiers and re-running `npx knip --cache` reported NONE of them. Therefore
-// THIS stage reads the `@public <reason>` tag itself, off the declaration's leading comment ranges.
+// WHY IT CANNOT LEAN ON KNIP (verified by probe twice, not assumed). (1) 2026-08-03: knip does NOT flag any
+// of these exports — each package's `exports` map already makes the subpath public API in knip's eyes, so
+// knip's `tags: ["-@public"]` exemption never even fires; stripping `@public` off four rows and re-running
+// `npx knip --cache` reported NONE. (2) 2026-08-09 (the entry-exports pivot): flipping knip's
+// `includeEntryExports` on to force it to judge the barrel surface was evaluated and REJECTED — it reports
+// 146 "unused exports" in `contracts` alone (the entire INTERNAL same-package barrel surface, which is
+// architecturally-normal composition, NOT rot), it STILL exempts every bare `@public` (re-opening the exact
+// parking-permit vector), and its `tags` exemption is presence-only: it CANNOT verify the two-sided
+// `@public-twin` claim (that the named value is cross-package PUBLIC) nor the stale transitions. knip is a
+// reachability tool, not a policy engine. So THIS stage reads the `@public`-family markers itself and
+// consults apisurface's PUBLIC/INTERNAL/UNUSED classification to adjudicate them.
 //
-// THE EXEMPTIONS, both cited, both requiring a REASON:
-//   • `/** @public <reason> */` on the declaration — the deliberate-orphan intent recorded AT the
-//     declaration, where the next agent reads it. The reason is REQUIRED: a bare `@public` does NOT exempt
-//     (the `isUnwiredExempt` discipline — a marker with no rationale is not a legal exemption).
-//   • the `ui` PACKAGE, whole — R2 of docs/architecture/core/ui-package-design.md ("Expose the FULL native
-//     part + prop surface … a seal may omit a part ONLY [with a stated reason]"): every `@orb/ui` export is
+// THE MARKER GRAMMAR (the 2026-08-09 two-marker split — the parking-permit close; grammar + rationale at the
+// ONE home, scripts/codemods/ast.ts::publicMarkerOf). A bare `@public` ONLY ever lands on an UNUSED export
+// (a consumed export is not an orphan candidate at all), so it was never certifying "cross-package API" — it
+// certified "intended-but-unconsumed" behind a prose reason a barrels lane writes for genuine rot as easily
+// as for a real future surface. The split forces the claim to name a target the gate can CHECK:
+//   • `/** @public-twin: <ValueName> */` — the export is the type FACE of a value that IS cross-package
+//     PUBLIC. Exempt from the orphan arm ONLY when apisurface classifies `<ValueName>` PUBLIC. A twin of an
+//     INTERNAL (same-package-only) or UNUSED value is itself rot (an internal shape's type-face is not a
+//     cross-boundary surface) → RED, remedy DELETE (the value schema/tuple stays).
+//   • `/** @public-future: <named consumer/surface> */` — a deliberately-unconsumed export waiting for a
+//     NAMED, not-yet-built consumer. Exempt from the orphan arm; the reason is REQUIRED (an unnamed marker
+//     falls through to the bare arm and reds).
+//   • a BARE `/** @public <reason> */` on an UNUSED export → RED — the parking permit. Remedy: migrate to a
+//     named marker, or DELETE.
+//   • the `ui` PACKAGE, whole — R2 of docs/architecture/core/ui-package-design.md: every `@orb/ui` export is
 //     a sealed-surface handle that exists to be available, so "no consumer yet" is its designed state, not
-//     rot. Tagging ~45 of them one by one would be ceremony with no reader.
+//     rot. `ui` is simply absent from RATCHETED_PACKAGES (never scanned).
 //
-// EVERY EXEMPTION HERE IS TWO-SIDED FROM BIRTH (owner requirement 2026-08-03; the house shape is
-// `bus-coverage.ts`'s STALE arm and `dialog-via-composite.ts`'s stale-allowlist arm). A marker that only
-// ever ADDS permission is how "mark it and it falls off forever" rot starts, so both exemptions ratchet
-// DOWN as hard as they ratchet up:
-//   • a BASELINE ROW whose export is no longer an unexempted orphan (consumed, tagged, renamed, deleted)
+// EVERY EXEMPTION IS TWO-SIDED FROM BIRTH (owner requirement 2026-08-03; the house shape is
+// `bus-coverage.ts`'s STALE arm). A marker that only ever ADDS permission is how "mark it and it falls off
+// forever" rot starts, so the arms ratchet DOWN as hard as up:
+//   • a BASELINE ROW whose export is no longer an unexempted orphan (consumed, marked, renamed, deleted)
 //     is RED — the baseline must shrink in the same commit that cleans the row up;
-//   • a `@public`-tagged export that HAS PROD CONSUMERS is RED — the tag's whole claim is "no consumer yet,
-//     deliberately"; once something imports it, the tag is a lie that would silently exempt the export from
-//     the ratchet forever after (including when its consumer later departs and it becomes REAL rot).
+//   • a `@public`-family marker on an export that HAS PROD CONSUMERS is RED (the `staleTags` arm) — the
+//     claim "no consumer yet" is now false; a lingering marker would exempt it forever, including after its
+//     consumer departs and it becomes REAL rot;
+//   • a `@public-twin` whose named value is NO LONGER PUBLIC (dropped to INTERNAL, or deleted) is RED — the
+//     twin's whole claim is "faces a cross-boundary value."
 //
-// STAR-SUPPRESSED candidates are NOT judged here: reached only through an `export *` chain, they may have
-// a namespace consumer the resolution lens cannot name. They are reported (per symbol, `pnpm ast orphans`)
-// and counted, never ratcheted — a gate that reds on a maybe is a gate people delete.
+// STAR-SUPPRESSED candidates ARE judged here (the 2026-08-09 star arm; the report's "optional stronger arm").
+// The historical skip feared "a namespace consumer of the re-exporting barrel we cannot name." But
+// `buildLiveness` err-alives every namespace/dynamic import THROUGH `export *` chains
+// (`markImportConsumption` → `exposedNames` resolves `getExportedDeclarations()`, which follows `export *`),
+// so a candidate that SURVIVES to the orphan set is genuinely unreached even when its file is an `export *`
+// target — apisurface confirmed the 5 refinery star-twins UNUSED under exactly that arm. Judging them closes
+// the star blind spot the `@public-twin` markers now sit in.
 //
-// SCOPE / COST: whole-workspace, type-resolving (~30s) — a PUSH-tier stage, never the commit bar.
+// SCOPE / COST: whole-workspace, type-resolving (~30s; +apisurface's per-package consumption pass) — a
+// PUSH-tier stage, never the commit bar.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
-import type { Node } from "ts-morph";
-import { buildLiveness, collectOrphanCandidates, isProdConsumed, isPublicTagged, ownExports } from "../codemods/ast.ts";
+import type { Node, Project } from "ts-morph";
+import type { ApiSurfaceEntry } from "../codemods/ast.ts";
+import { buildLiveness, collectApiSurface, isProdConsumed, isPublicTagged, ownExports, publicMarkerOf } from "../codemods/ast.ts";
 import { getWorkspace } from "../ts-workspace.ts";
 
 const EXIT_CLEAN = 0;
@@ -54,20 +76,20 @@ const BASELINE_REL = "scripts/verify/orphan-export-ratchet.baseline.json";
 const RATCHETED_PACKAGES = ["kit", "contracts", "db", "server", "client"] as const;
 /** The R2-sealed package, exempt as a whole; named here so the exemption is legible, not implicit. */
 const SEALED_PACKAGE_REASON = "packages/ui — the R2 sealed surface (docs/architecture/core/ui-package-design.md R2): every export exists to be available";
-// The `@public <reason>` READER lives in scripts/codemods/ast.ts beside the orphan substrate this stage
-// already shares (`collectOrphanCandidates` / `isProdConsumed`), and is IMPORTED here — never re-spelled.
-// It is the same predicate the `chains` fixpoint reads to decide which declarations are alive roots, and two
-// spellings of it would let the two disagree about what "deliberately unconsumed" means. Its footgun (a naive
-// `/@public\s+\S/` is satisfied by the `*/` of a BARE `/** @public */`, silently turning the reason
-// requirement off) was probe-caught here on 2026-08-03 and is documented at that one home.
+// The `@public`-family READER (`publicMarkerOf`) + the PUBLIC/INTERNAL/UNUSED classifier (`collectApiSurface`)
+// both live in scripts/codemods/ast.ts beside the orphan substrate this stage shares, and are IMPORTED here —
+// never re-spelled. `publicMarkerOf` is the same grammar the `chains` fixpoint reads to decide alive roots;
+// two spellings would let the two disagree about what "deliberately unconsumed" means. Its footgun (a naive
+// `/@public\s+\S/` is satisfied by the `*/` of a BARE `/** @public */`) is handled at that one home.
 /** A test source file — never a prod export home (mirrors the lens's own rule). */
 const TEST_FILE_RE = /\.(?:test|ct)\.tsx?$/u;
 
 const REMEDY =
-  "CONSUME it (wire the consumer the export exists for) · TAG it `/** @public <reason> */` at the " +
-  "declaration (the reason is REQUIRED and must name the live sibling / the unbuilt surface it belongs to) · " +
-  "or DELETE it (declaration + every barrel re-export, in one commit). Do NOT add a baseline row for new " +
-  "rot — the baseline is the swept tree, not a permission slip.";
+  "For an UNUSED export: CONSUME it (wire the consumer) · mark it `/** @public-twin: <ValueName> */` when it " +
+  "is the type FACE of a value apisurface calls PUBLIC · mark it `/** @public-future: <named unbuilt consumer> */` " +
+  "when a NAMED not-yet-built surface will import it · or DELETE it (declaration + every barrel re-export, one " +
+  "commit). A bare `/** @public */` no longer exempts. Do NOT add a baseline row for new rot — the baseline is " +
+  "the swept tree, not a permission slip.";
 
 type Baseline = { readonly entries: Readonly<Record<string, string>> };
 
@@ -80,32 +102,43 @@ function repoRel(root: string, absolute: string): string {
   return absolute.startsWith(`${root}/`) ? absolute.slice(root.length + 1) : absolute;
 }
 
-type Orphan = { readonly key: string; readonly file: string; readonly line: number; readonly name: string };
+/** A flagged position: an export at its declaration, plus WHY it reds (the arm-specific remedy line). */
+type Orphan = { readonly key: string; readonly file: string; readonly line: number; readonly name: string; readonly why: string };
 type Scan = { readonly orphans: readonly Orphan[]; readonly staleTags: readonly Orphan[] };
 
 /** One position (an export at its declaration) in the report's vocabulary. */
-function positionOf(root: string, name: string, decl: Node): Orphan {
+function positionOf(root: string, name: string, decl: Node, why: string): Orphan {
   const sf = decl.getSourceFile();
   const file = repoRel(root, sf.getFilePath());
-  return { key: keyOf(file, name), file, line: sf.getLineAndColumnAtPos(decl.getStart()).line, name };
+  return { key: keyOf(file, name), file, line: sf.getLineAndColumnAtPos(decl.getStart()).line, name, why };
 }
 
-/** ONE pass, TWO verdicts (the exemptions are two-sided — see the header):
- *   • `orphans` — orphan candidates that are NOT star-suppressed, NOT in the sealed `ui` package, and NOT
- *     `@public`-tagged with a reason: the set the baseline pins;
- *   • `staleTags` — exports that ARE `@public`-tagged and DO have a prod consumer: the tag's claim
- *     ("deliberately unconsumed") is false, so it must come off. */
-function scanTree(root: string): Scan {
-  const project = getWorkspace({ root, types: true });
-  const live = buildLiveness(project);
-  const prefixes = RATCHETED_PACKAGES.map((p) => `/packages/${p}/src/`);
-  const inScope = (fp: string): boolean => prefixes.some((prefix) => fp.includes(prefix));
-  const orphans: Orphan[] = [];
-  for (const candidate of collectOrphanCandidates(project, live, inScope)) {
-    if (!(candidate.starSuppressed || isPublicTagged(candidate.decl))) {
-      orphans.push(positionOf(root, candidate.name, candidate.decl));
+const PLAIN_ORPHAN_WHY = "reached by nobody (prod or test) and unused in its own file";
+const BARE_TAG_WHY =
+  "bare `@public` on an UNUSED export — the parking-permit rot: migrate to `@public-twin: <PUBLIC value>` / `@public-future: <named consumer>`, or DELETE";
+const STALE_TAG_WHY = "the export HAS prod consumers, so its @public-family marker claim (deliberately unconsumed) is now false";
+
+/** Judge ONE UNUSED entry against its `@public`-family marker: `undefined` = legally exempt, else the flagged
+ *  Orphan. twin → exempt ONLY when its named value is apisurface-PUBLIC (a twin of an INTERNAL/UNUSED value is
+ *  itself rot); future → exempt (its reason names the unbuilt consumer); bare/absent → flagged. */
+function judgeUnused(root: string, apiEntry: ApiSurfaceEntry, publicValues: ReadonlySet<string>): Orphan | undefined {
+  const marker = publicMarkerOf(apiEntry.decl);
+  if (marker?.kind === "twin") {
+    if (publicValues.has(marker.value)) {
+      return;
     }
+    const why = `@public-twin names \`${marker.value}\`, which apisurface does NOT classify PUBLIC (INTERNAL/UNUSED/absent) — a twin of a non-cross-package value is rot: DELETE the alias (its schema/tuple value stays), or make that value real cross-package API`;
+    return positionOf(root, apiEntry.name, apiEntry.decl, why);
   }
+  if (marker?.kind === "future") {
+    return;
+  }
+  return positionOf(root, apiEntry.name, apiEntry.decl, marker?.kind === "bare" ? BARE_TAG_WHY : PLAIN_ORPHAN_WHY);
+}
+
+/** The stale arm: exports carrying ANY `@public`-family marker that DO have a prod consumer — the claim
+ *  "deliberately unconsumed" is false, so the marker must come off (a lingering marker would exempt it forever). */
+function collectStaleTags(project: Project, live: ReturnType<typeof buildLiveness>, root: string, inScope: (fp: string) => boolean): Orphan[] {
   const staleTags: Orphan[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
@@ -114,10 +147,39 @@ function scanTree(root: string): Scan {
     }
     for (const { name, decl } of ownExports(sf)) {
       if (isPublicTagged(decl) && isProdConsumed(live, decl)) {
-        staleTags.push(positionOf(root, name, decl));
+        staleTags.push(positionOf(root, name, decl, STALE_TAG_WHY));
       }
     }
   }
+  return staleTags;
+}
+
+/** ONE pass, TWO verdicts (the exemptions are two-sided — see the header):
+ *   • `orphans` — UNUSED exports (star-suppressed included) whose `@public`-family marker does NOT legally
+ *     exempt them: a bare/absent marker (the parking permit / plain orphan), or a `@public-twin` whose named
+ *     value apisurface does NOT classify PUBLIC. The set the baseline pins.
+ *   • `staleTags` — exports that carry a `@public`-family marker and DO have a prod consumer. */
+function scanTree(root: string): Scan {
+  const project = getWorkspace({ root, types: true });
+  const live = buildLiveness(project);
+  const prefixes = RATCHETED_PACKAGES.map((p) => `/packages/${p}/src/`);
+  const inScope = (fp: string): boolean => prefixes.some((prefix) => fp.includes(prefix));
+  // apisurface classifies every in-scope own-export PUBLIC / INTERNAL / TEST-ONLY / UNUSED. Its UNUSED arm IS
+  // `collectOrphanCandidates` verbatim (so the orphan set never forks), and its PUBLIC arm is what a
+  // `@public-twin` claim is verified against. Built once, sharing this stage's liveness.
+  const entries = collectApiSurface(project, inScope, live);
+  const publicValues = new Set(entries.filter((e) => e.klass === "public").map((e) => e.name));
+  const orphans: Orphan[] = [];
+  for (const apiEntry of entries) {
+    if (apiEntry.klass !== "unused") {
+      continue;
+    }
+    const flagged = judgeUnused(root, apiEntry, publicValues);
+    if (flagged !== undefined) {
+      orphans.push(flagged);
+    }
+  }
+  const staleTags = collectStaleTags(project, live, root, inScope);
   const byKey = (a: Orphan, b: Orphan): number => a.key.localeCompare(b.key);
   return { orphans: orphans.sort(byKey), staleTags: staleTags.sort(byKey) };
 }
@@ -140,18 +202,16 @@ function writeBaseline(root: string, orphans: readonly Orphan[], previous: Basel
 
 function report(added: readonly Orphan[], stale: readonly string[], staleTags: readonly Orphan[]): void {
   for (const orphan of added) {
-    process.stdout.write(
-      `  ✗ ${orphan.file}:${orphan.line}  NEW orphan export \`${orphan.name}\` — reached by nobody (prod or test) and unused in its own file\n`,
-    );
+    process.stdout.write(`  ✗ ${orphan.file}:${orphan.line}  \`${orphan.name}\` — ${orphan.why}\n`);
   }
   for (const key of stale) {
     process.stdout.write(
-      `  ✗ ${BASELINE_REL}  STALE row \`${key}\` — that export is no longer an unexempted orphan (consumed, tagged, or deleted): remove the row (ratchet down)\n`,
+      `  ✗ ${BASELINE_REL}  STALE row \`${key}\` — that export is no longer an unexempted orphan (consumed, marked, or deleted): remove the row (ratchet down)\n`,
     );
   }
   for (const tag of staleTags) {
     process.stdout.write(
-      `  ✗ ${tag.file}:${tag.line}  STALE @public tag on \`${tag.name}\` — the export HAS prod consumers, so the tag's claim ("deliberately unconsumed") is false: delete the \`@public\` line (ratchet down; a lingering tag would exempt it from this stage forever, including after its consumer departs)\n`,
+      `  ✗ ${tag.file}:${tag.line}  STALE @public marker on \`${tag.name}\` — ${tag.why}: delete the marker line (ratchet down; a lingering marker would exempt it from this stage forever, including after its consumer departs)\n`,
     );
   }
 }
@@ -176,14 +236,14 @@ function main(): void {
     process.exitCode = EXIT_CLEAN;
     return;
   }
-  const live = new Set(orphans.map((o) => o.key));
+  const liveKeys = new Set(orphans.map((o) => o.key));
   const added = orphans.filter((o) => !(o.key in baseline.entries));
-  const stale = Object.keys(baseline.entries).filter((key) => !live.has(key));
+  const stale = Object.keys(baseline.entries).filter((key) => !liveKeys.has(key));
   process.stdout.write(
-    `orphan-export-ratchet — ${orphans.length} unexempted orphan export(s) across ${RATCHETED_PACKAGES.join("/")} vs ${Object.keys(baseline.entries).length} baselined; ${staleTags.length} stale @public tag(s)\n`,
+    `orphan-export-ratchet — ${orphans.length} unexempted orphan export(s) across ${RATCHETED_PACKAGES.join("/")} vs ${Object.keys(baseline.entries).length} baselined; ${staleTags.length} stale @public marker(s)\n`,
   );
   if (added.length === 0 && stale.length === 0 && staleTags.length === 0) {
-    process.stdout.write("  ✓ the orphan-export surface matches the baseline, and every @public tag still names an unconsumed export\n");
+    process.stdout.write("  ✓ the orphan-export surface matches the baseline, and every @public-family marker still names a live-checkable claim\n");
     process.exitCode = EXIT_CLEAN;
     return;
   }
