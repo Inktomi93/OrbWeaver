@@ -5,6 +5,7 @@ import {
   deriveIdentityAccess,
   determineRole,
   groupRoleGovernanceActive,
+  isOwnerSeedHandle,
   ownerHandles,
   reDeriveRoleOnLogin,
 } from "../../../../../packages/server/src/domain/sessions/substrate/role-policy.ts";
@@ -139,6 +140,33 @@ describe("ownerHandles", () => {
     const handles = ownerHandles();
     expect(handles).toHaveLength(1);
     expect(determineRole(castId<Handle>(handles[0] ?? ""), [])).toBe("owner");
+  });
+});
+
+// `isOwnerSeedHandle` answers a DIFFERENT question from `determineRole`/`isOwnerByPolicy`: not "is this
+// identity the owner" (which a GROUP can answer) but "is this ROW's handle the key boot re-seeds through".
+// `provisionIdentity` asks it before renaming the owner row, so the group arm must NOT leak into it.
+describe("isOwnerSeedHandle — the boot RE-SEED key (handle-only, never group-derived)", () => {
+  test("true only for a handle in OWNER_HANDLES", () => {
+    vi.stubEnv(OWNER_HANDLES, " alice , bob ");
+    expect(isOwnerSeedHandle(castId<Handle>("alice"))).toBe(true);
+    expect(isOwnerSeedHandle(castId<Handle>("bob"))).toBe(true);
+    expect(isOwnerSeedHandle(castId<Handle>("carol"))).toBe(false);
+  });
+
+  test("OWNER_GROUP never makes a handle a seed key (an owner-by-GROUP handle is still renameable)", () => {
+    vi.stubEnv(OWNER_HANDLES, "owner");
+    vi.stubEnv(OWNER_GROUP, "owners");
+    // `determineRole` calls nate the owner via the group; his HANDLE is still not the re-seed key.
+    expect(determineRole(castId<Handle>("nate"), ["owners"])).toBe("owner");
+    expect(isOwnerSeedHandle(castId<Handle>("nate"))).toBe(false);
+    expect(isOwnerSeedHandle(castId<Handle>("owner"))).toBe(true);
+  });
+
+  test("unset OWNER_HANDLES ⇒ the DEFAULT_USER_HANDLE fallback IS the seed key (what boot resolves)", () => {
+    vi.stubEnv(OWNER_HANDLES, undefined);
+    const [fallback] = ownerHandles();
+    expect(isOwnerSeedHandle(castId<Handle>(fallback ?? ""))).toBe(true);
   });
 });
 

@@ -10,13 +10,15 @@
 // verb; a re-boot never clobbers a subsequently-rotated password; and without the password deps (single-user
 // / SSO) no hash is ever written.
 
+import type { ResolvedIdentity } from "@orb/contracts/identity";
 import { users } from "@orb/db";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsService } from "@orb/server/domain/sessions";
 import { seedOwner } from "@orb/server/entry/boot";
 import { createPasswordHasher } from "@orb/server/infra/auth";
 import { eq } from "drizzle-orm";
+import { afterEach, vi } from "vitest";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -26,6 +28,10 @@ const OTHER_ID = castId<UserId>("u_other");
 // ≥32 chars — the SESSION_SECRET pepper floor (mirrors the sessions harness).
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const INITIAL_PASSWORD = "correct horse battery";
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 test("backfills a non-owner OWNER-handle row to role=owner + returns its id", async ({ clock }) => {
   const db = await freshDb();
@@ -186,6 +192,54 @@ test("re-boot does NOT clobber a subsequently-rotated owner password", async ({ 
   // The env value no longer logs in; the rotated password does.
   expect(await sessions.authenticate(castId<Handle>("owner"), INITIAL_PASSWORD)).toBeNull();
   expect(await sessions.authenticate(castId<Handle>("owner"), rotatedPassword)).not.toBeNull();
+});
+
+// THE OIDC OWNER-ADOPTION CASCADE, end to end (boot → adopt → re-login → re-boot). Every hop below shipped
+// with its own local test; the DEFECT lived only in their composition:
+//   boot 1 seeds the owner at the OWNER_HANDLES key → the OIDC login ADOPTS that row (binds externalId, keeps
+//   the handle) → the SECOND login resolves by externalId into the owner-exemption branch, whose
+//   `updateExisting` RENAMED the row to the IdP handle → boot 2's `ensureUser("owner")` found nothing, its
+//   insert collided with `users_single_owner_unique`, `onConflictDoNothing` swallowed it, the re-read by
+//   handle missed, and `ensureUser` returned the id it had MINTED. `seedOwner` handed that PHANTOM id to
+//   `createServices` and to the boot Principal, which `principalFromRow` degrades to `role:"user"` on a
+//   missing row — so every owner-scoped seed (characters/persona/demo-chats/CAS schedules) ran against a
+//   non-existent, non-owner principal.
+test("the ADOPTED OIDC owner survives a re-boot: same owner id, same row, no phantom", async ({ clock }) => {
+  const db = await freshDb();
+  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  vi.stubEnv("OWNER_HANDLES", "owner");
+
+  const firstBootOwner = (await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now }))[0];
+  if (firstBootOwner === undefined) {
+    throw new Error("boot 1: seedOwner returned no owner id");
+  }
+
+  // The owner flips the box to OIDC and signs in TWICE under a different IdP handle (adopt, then re-login).
+  vi.stubEnv("OWNER_GROUP", "owners");
+  const oidc: ResolvedIdentity = {
+    externalId: castId<ExternalId>("authentik|nate"),
+    handle: castId<Handle>("nate"),
+    groups: ["owners"],
+    email: null,
+  };
+  await sessions.provisionIdentity(oidc);
+  await sessions.provisionIdentity(oidc);
+
+  const secondBootOwner = (await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now }))[0];
+  if (secondBootOwner === undefined) {
+    throw new Error("boot 2: seedOwner returned no owner id");
+  }
+  expect(secondBootOwner).toBe(firstBootOwner);
+
+  // Rows unchanged: ONE user, still keyed on the OWNER_HANDLES handle, still owner, subject still bound.
+  const rows = await db.select().from(users);
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.handle).toBe("owner");
+  expect(rows[0]?.role).toBe("owner");
+  expect(rows[0]?.externalId).toBe("authentik|nate");
+
+  // The id names a REAL row — so the boot Principal reads `owner` off the table instead of degrading to `user`.
+  expect(await sessions.loadUserById(secondBootOwner)).toEqual({ role: "owner", handle: "owner", externalId: "authentik|nate", enabled: true });
 });
 
 test("no initialPassword (single-user / SSO): the owner row is seeded WITHOUT a password", async ({ clock }) => {

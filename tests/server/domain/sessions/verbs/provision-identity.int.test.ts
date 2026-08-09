@@ -219,6 +219,55 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     expect(await rowCount()).toBe(1);
   });
 
+  // The adopted owner row's handle is the `OWNER_HANDLES` SEED KEY — boot's `seedOwner` → `ensureUser` and the
+  // auth seam's owner fallback both resolve the owner ROW through it. Pre-fix the SECOND login resolved by
+  // externalId into the owner-exemption branch, whose `updateExisting` renamed the row to the IdP handle; the
+  // next boot then found no row at "owner", its `insertUser` collided with `users_single_owner_unique`, and
+  // `ensureUser` returned a PHANTOM id (see the cascade test in tests/server/entry/boot/seed-owner.int.test.ts).
+  test("the adopted owner row keeps its OWNER_HANDLES handle across the 2nd login and N more (no IdP rename)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "owner");
+    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+    vi.stubEnv("OWNER_GROUP", "owners");
+    const oidc = identity({ externalId: castId<ExternalId>("authentik|nate"), handle: castId<Handle>("nate"), groups: ["owners"] });
+
+    /** One OIDC login → the owner row's handle afterwards (the value that must never drift). */
+    async function loginAndReadHandle(): Promise<string | undefined> {
+      const result = asProvisioned(await svc.provisionIdentity(oidc));
+      expect(result.userId).toBe(seeded.userId);
+      expect(result.role).toBe("owner");
+      return (await db.select().from(users).where(eq(users.id, seeded.userId)))[0]?.handle;
+    }
+
+    expect(await loginAndReadHandle()).toBe("owner"); // #1 ADOPTS (binds the subject onto the seeded row)
+    expect(await loginAndReadHandle()).toBe("owner"); // #2 — resolves by externalId into the owner exemption
+    expect(await loginAndReadHandle()).toBe("owner"); // #3
+    expect(await loginAndReadHandle()).toBe("owner"); // #4
+
+    const row = (await db.select().from(users).where(eq(users.id, seeded.userId)))[0];
+    expect(row?.externalId).toBe("authentik|nate");
+    expect(row?.role).toBe("owner");
+    expect(await rowCount()).toBe(1);
+  });
+
+  // The guard is scoped to the SEED KEY, not to "the owner is frozen forever": an operator who MOVES
+  // OWNER_HANDLES is migrating the key, and the login lands the row back on the new one (so the next boot's
+  // `ensureUser(ownerHandles()[0])` finds it instead of colliding).
+  test("an owner row whose handle is NOT an OWNER_HANDLES key still tracks the IdP rename (key migration)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "owner");
+    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+    vi.stubEnv("OWNER_GROUP", "owners");
+    const oidc = identity({ externalId: castId<ExternalId>("authentik|nate"), handle: castId<Handle>("nate"), groups: ["owners"] });
+    await svc.provisionIdentity(oidc);
+    // The operator moves the owner key to the IdP handle; the next login renames the row onto it.
+    vi.stubEnv("OWNER_HANDLES", "nate");
+    const migrated = asProvisioned(await svc.provisionIdentity(oidc));
+    expect(migrated.userId).toBe(seeded.userId);
+    const row = (await db.select().from(users).where(eq(users.id, seeded.userId)))[0];
+    expect(row?.handle).toBe("nate");
+    expect(row?.role).toBe("owner");
+    expect(await rowCount()).toBe(1);
+  });
+
   test("once the owner is BOUND, another OWNER_GROUP member does NOT adopt it — downgraded to `user` (singleton holds)", async () => {
     vi.stubEnv("OWNER_HANDLES", "owner");
     const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner") })));
@@ -231,6 +280,55 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     expect(other.role).toBe("user");
     expect(other.userId).not.toBe(seeded.userId);
     expect((await db.select().from(users)).filter((u) => u.role === "owner")).toHaveLength(1);
+  });
+});
+
+// THE HANDLE FALLBACK BINDS, IT NEVER REBINDS. `findExisting` falls back to `handle` so a pre-existing
+// UNBOUND row (single-user/local) gets linked to its SSO subject on first login. Applied to an already-BOUND
+// row it is an account takeover: the attacker only needs the victim's stored handle in the IdP, and
+// `updateExisting` would move `external_id` onto their subject — locking the victim out of their own row.
+describe("sessions.provisionIdentity — a handle match onto a BOUND row is an impostor, not a rename", () => {
+  test("OWNER takeover: a different subject presenting the owner's handle is DENIED (row untouched)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "owner");
+    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+    vi.stubEnv("OWNER_GROUP", "owners");
+    // The real owner adopts the row with their stable subject.
+    await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|nate"), handle: castId<Handle>("nate"), groups: ["owners"] }));
+
+    // mallory registers the (now stable, publicly guessable) OWNER_HANDLES handle in the IdP and signs in.
+    const attack = await svc.provisionIdentity(
+      identity({ externalId: castId<ExternalId>("authentik|mallory"), handle: castId<Handle>("owner"), groups: ["owners"] }),
+    );
+
+    expect(attack.outcome).toBe("denied");
+    const row = (await db.select().from(users).where(eq(users.id, seeded.userId)))[0];
+    expect(row?.externalId).toBe("authentik|nate");
+    expect(row?.handle).toBe("owner");
+    expect(row?.role).toBe("owner");
+    expect(await rowCount()).toBe(1);
+  });
+
+  test("USER takeover: a different subject presenting a bound user's handle is DENIED (row untouched)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const victim = asProvisioned(await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") })));
+
+    // alice renames herself in the IdP; our row still stores "alice", so the username is free to be re-taken.
+    const attack = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|mallory"), handle: castId<Handle>("alice") }));
+
+    expect(attack.outcome).toBe("denied");
+    const row = (await db.select().from(users).where(eq(users.id, victim.userId)))[0];
+    expect(row?.externalId).toBe("authentik|alice");
+    expect(await rowCount()).toBe(1);
+  });
+
+  test("but an UNBOUND row still BINDS on a handle match (the single-user → SSO first login)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") })));
+    const sso = asProvisioned(await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") })));
+    expect(sso.userId).toBe(local.userId);
+    const row = (await db.select().from(users).where(eq(users.id, local.userId)))[0];
+    expect(row?.externalId).toBe("authentik|alice");
+    expect(await rowCount()).toBe(1);
   });
 });
 

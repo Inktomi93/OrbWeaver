@@ -1,6 +1,6 @@
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
-import type { Handle } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
@@ -8,6 +8,9 @@ import { afterEach, beforeEach, describe, vi } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeService } from "../_support.ts";
+
+/** The phantom-id refusal message (hoisted — `useTopLevelRegex`). */
+const NO_ROW_AFTER_INSERT = /no users row for handle/u;
 
 let db: Db;
 let svc: SessionsService;
@@ -55,5 +58,27 @@ describe("sessions.ensureUser", () => {
     const normal = (await db.select().from(users).where(eq(users.id, userId)))[0];
     expect(owner?.role).toBe("owner");
     expect(normal?.role).toBe("user");
+  });
+
+  // THE PHANTOM-ID ARM. `insertUser` is `onConflictDoNothing`, which swallows a collision on ANY unique
+  // column — including `users_single_owner_unique` (the box already has its one `role='owner'` row, under a
+  // DIFFERENT handle). The re-read then keys on `handle` and misses. Pre-fix the verb returned the id it had
+  // MINTED, so boot's `seedOwner` carried an id that points at NO ROW into `createServices`, and
+  // `principalFromRow` degraded the boot Principal to `role:"user"` — every owner-scoped seed then ran
+  // against a non-existent non-owner principal. A fabricated id must be a loud failure, never a return value.
+  test("REFUSES to return an id that points at no row when the insert is swallowed (single-owner UNIQUE)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "owner");
+    await db.insert(users).values({ id: castId<UserId>("u_existing_owner"), handle: castId<Handle>("nate"), role: "owner" });
+
+    await expect(svc.ensureUser(castId<Handle>("owner"))).rejects.toThrow(NO_ROW_AFTER_INSERT);
+
+    // Nothing was written, and the pre-existing owner is untouched.
+    expect(
+      await db
+        .select()
+        .from(users)
+        .where(eq(users.handle, castId<Handle>("owner"))),
+    ).toHaveLength(0);
+    expect(await db.select().from(users)).toHaveLength(1);
   });
 });
