@@ -411,6 +411,16 @@ function propagateRequired(root: Record<string, unknown>): void {
 /**
  * Transpile a designed leaf list into the stored JSON Schema — TOTAL: every row either lands or appears in
  * `dropped` with its reason. The stage's well-known core is spliced last so it always wins (header).
+ *
+ * OPEN BY CONSTRUCTION — DELIBERATE (task #41): the object nodes minted here carry NO `additionalProperties`.
+ * The `additionalProperties:false` pin has ONE home — `projectJsonSchema` (`@orb/kit/json-schema`) — which
+ * every refinery WIRE send-site re-applies to this stored blob before it reaches a provider
+ * (`domain/refinery/substrate/stage-resolution.ts` and `verbs/test-schema.ts` both do
+ * `projectJsonSchema(liftJsonSchema(schema))`). Stamping the pin here too would be a SECOND source of truth
+ * for the same invariant and would MASK a future send-site that forgot to project (the stored blob would be
+ * incidentally-closed) — so wire-closure is proven at the projection choke point, not duplicated here. A
+ * probe (#41) confirmed the hosted wire (`hosted-common`/`anthropic-format`) ships CLOSED via that path; on
+ * the forced-tool hosted vehicle the pin is advisory regardless (grammar enforcement is guided-decoding only).
  */
 export function transpileForgeDesign(design: ForgeDesignEnvelope, stage: RefinerySchemaStage): ForgeTranspileResult {
   const core = REFINERY_FORGE_CORE_NODES[stage];
