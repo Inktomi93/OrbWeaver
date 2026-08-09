@@ -221,6 +221,12 @@ function writeFixtures(): void {
   fx("packages/server/src/__g_wirevocab.ts", 'export const drop = new Set(["minLength", "maxLength"]);\n');
   // no-direct-users-read: a domain outside sessions/admin importing the `users` table from @orb/db.
   fx(`${D}/__g_users/persistence/x.ts`, `import { users } from "@orb/db";\nexport const x = users;\n`);
+  // external-id-single-writer: a `users.externalId` column write (updateUser({ externalId })) outside the two
+  // sanctioned sessions verbs (provision-identity.ts + link-external-id.ts) — the U1 second-linking-site hole.
+  fx(
+    `${D}/__g_extidwrite/persistence/x.ts`,
+    "declare function updateUser(db: unknown, id: string, patch: unknown): Promise<void>;\nexport async function link(db: unknown, id: string, externalId: string): Promise<void> {\n  await updateUser(db, id, { externalId, updatedAt: 0 });\n}\n",
+  );
   // discovery-no-stats-rollups: a stats rollup table imported inside domain/discovery (the seam breach
   // the @orb/db barrel hides from dep-cruiser — the gate matches the ImportSpecifier).
   fx(`${D}/discovery/__g_rollup.ts`, `import { ownerStats } from "@orb/db";\nexport const x = ownerStats;\n`);
@@ -652,6 +658,9 @@ function writeFixtures(): void {
   fx("packages/client/src/features/__g_chattrpc/surfaces/__g_s.ts", "export const o = trpc.chat.send.mutationOptions();\n");
   // no-color-literals: an arbitrary hex color in a className.
   fx("packages/client/src/features/__g_colorlit/components/__g_c.tsx", 'export const C = () => <div className="text-[#fff000]" />;\n');
+  // no-raw-color-in-css: a raw hex color in a feature CSS file (outside the theme.css token home). Reads via
+  // fs.globSync, so the real-tree __g_ fixture is picked up regardless of tsconfig excludes.
+  fx("packages/client/src/features/__g_rawcsscolor/__g_rawcsscolor.css", ".g {\n  color: #abcdef;\n}\n");
   // no-context-provider: the React-19-deprecated <Context.Provider> form.
   fx("packages/client/src/features/__g_ctxprov/components/__g_c.tsx", "export const Host = () => <MyContext.Provider value={1} />;\n");
   // no-context-returntype: a ReturnType<> DI-bundle type in a context.ts.
