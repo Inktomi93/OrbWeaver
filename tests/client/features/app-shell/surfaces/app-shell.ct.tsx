@@ -10,6 +10,7 @@ import { blobUrl } from "@orb/contracts/assets";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
 import type { SectionId } from "../../../../../packages/client/src/state/shell-store.ts";
@@ -44,6 +45,12 @@ const FOCUS_TOGGLE_RE = /focus mode$/u;
 
 // Below the shell's `@media (max-width: 48rem)` breakpoint (768px) — the bottom-bar layout (L6/J12).
 const MOBILE = { width: 390, height: 844 };
+
+/** The You sheet's row floor in px, DERIVED from the token a `ListRow` body rides (`min-h-control-md`,
+ *  list-row/variants.ts) at its coarse value — never a hardcoded literal (§13.7 contract; the
+ *  tests/ui/tokens/index.ct.tsx precedent). 3rem → 48px under `pointer: coarse`. */
+const REM_PX = 16;
+const SHEET_ROW_FLOOR_PX = Number.parseFloat(TOKENS["spacing.control-md"].value) * REM_PX;
 
 /** The one persona the You-sheet lens projects — it must exist for the roster to have a CURRENT row, which
  *  is where "Playing as" lives (side-eye 2026-08-03 P2). Shaped as `persona.list` returns it. */
@@ -421,6 +428,51 @@ test("mobile: the You sheet hands off to Settings in the shared modal slot (sing
   await expect(dialog).toContainText("Settings");
   // The You-sheet overflow row is gone (the slot now holds Settings, not You).
   await expect(page.getByRole("button", { name: "Refinery" })).toHaveCount(0);
+});
+
+// ── THE REFINERY'S PHONE DOOR, AT A COARSE POINTER (owner ruling, board 2026-08-09) ────────────────
+// Verbatim: "mobile refinery entry = UNDER 'YOU' (no bar redesign)". The R3 graduation side-eye filed
+// "Refinery unreachable from the mobile bottom tab bar (crowning feature has no phone entry)" as an
+// OWNER question; the answer was the You sheet, not a fifth tab. The mechanism was already in place —
+// `refinerySection.rail.mobile = "sheet"` (refinery-section.tsx) makes `assembleChrome` project the
+// section into the sheet's overflow list — so what was MISSING was the proof at the pointer the ruling
+// is about. The tests above run at a mobile VIEWPORT with the CT's default FINE pointer, which renders
+// a layout no phone produces: the row a thumb actually lands on is 48px only under `pointer: coarse`
+// (min-h-control-md; the fine override narrows it), and a viewport-only CT is structurally blind to it.
+// So this block emulates touch, PROBES that the emulation landed before trusting any geometry, and pins
+// all three halves of the ruling: the row EXISTS, it meets the row floor, and it NAVIGATES.
+test.describe("the Refinery's phone door (coarse pointer)", () => {
+  // `hasTouch: true` is what flips `matchMedia("(pointer: coarse)")` in chromium — `page.emulateMedia`
+  // exposes no `pointer` feature (tests/ui/tokens/index.ct.tsx + the touch-target-floor suite precedent).
+  test.use({ hasTouch: true });
+
+  test("the You sheet carries a Refinery row that meets the coarse row floor and navigates to the section", async ({ mount, page }) => {
+    await page.setViewportSize(MOBILE);
+    // PROBE FIRST: a fine-pointer context would render 34px rows and pass nothing meaningful.
+    const coarse = await page.evaluate(() => matchMedia("(pointer: coarse)").matches);
+    expect(coarse, "hasTouch must flip the coarse-pointer branch — the row floor is a coarse-only guarantee").toBe(true);
+    // The sheet projects the persona identity widget's `body("sheet")` lens; stub its two reads so the
+    // sheet renders its real composition around the row under test.
+    await routeTrpc(page, {
+      "persona.list": () => [],
+      "settings.getUserSettings": () => ({ userId: "user_ct_refinery_door", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 }),
+    });
+    const shell = await mount(<AppShellStory />);
+    await shell.getByRole("button", { name: "You", exact: true }).click();
+
+    const row = page.getByRole("button", { name: "Refinery", exact: true });
+    await expect(row).toBeVisible();
+    // The floor is DERIVED from the token the row rides (ListRow's default body is `min-h-control-md`),
+    // never a hardcoded 48 — retuning the token retunes this assertion with it.
+    await expect
+      .poll(() => row.evaluate((el: Element) => el.getBoundingClientRect().height), { intervals: [20, 50, 100] })
+      .toBeGreaterThanOrEqual(SHEET_ROW_FLOOR_PX);
+
+    // …and it is a real destination: the sheet closes and the Refinery section becomes the screen.
+    await row.click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.getByText("Score → rewrite → analyze a character card without drifting from your original.")).toBeVisible();
+  });
 });
 
 // ── M10: auto-overlay — resolvePanel's 3-regime derivation (§4.1) ────────────────────────────────

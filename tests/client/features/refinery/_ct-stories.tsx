@@ -20,6 +20,7 @@ import {
   BUILTIN_STAGE_HINTS,
   buildRenderPlan,
   PayloadView,
+  TeachingState,
   useApplyRefineryFields,
   useDeleteRefinerySession,
   useIterateRefinery,
@@ -136,6 +137,26 @@ export function PayloadViewStory({ stage, schema, payload }: PayloadViewStoryPro
   const resolved = schema ?? projectJsonSchema(REFINERY_STAGE_PAYLOADS[stage ?? "score"]);
   const plan = buildRenderPlan(resolved, schema === undefined ? BUILTIN_STAGE_HINTS[stage ?? "score"] : {});
   return <PayloadView payload={payload} plan={plan} />;
+}
+
+/** The no-selection TEACHING state, mounted whole — the door the phone and the desktop both land on
+ *  when nothing is open. Wrapped in the data providers because its character door (rendered only after
+ *  "Pick a character") reads the roster; at rest nothing queries.
+ *
+ *  `width` mounts it in a FIXED-width container: a content-sized CT root agrees with an overflow bug, so
+ *  the narrowest-real-mount measurement needs a real box to overflow out of. Absent ⇒ content-sized. */
+export function TeachingStateStory({ width }: { readonly width?: number }): ReactElement {
+  return (
+    <CtAppDataProviders>
+      {width === undefined ? (
+        <TeachingState onStart={(): void => undefined} starting={false} />
+      ) : (
+        <div data-testid="teaching-frame" style={{ overflow: "visible", width }}>
+          <TeachingState onStart={(): void => undefined} starting={false} />
+        </div>
+      )}
+    </CtAppDataProviders>
+  );
 }
 
 export interface AcceptReviewStoryProps {
