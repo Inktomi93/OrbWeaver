@@ -171,15 +171,15 @@ export const forgePlanEnvelopeSchema = z.object({
     .min(1)
     .max(REFINERY_FORGE_MAX_PLAN_FIELDS),
 });
-/** @public type twin of `forgePlanEnvelopeSchema` — the live consumer (`schema-forge.ts`'s guided-arm
- *  runner) projects the schema through `projectJsonSchema`/`tolerant()` and never imports this alias; it
- *  belongs to whatever needs the STATIC plan-call shape (a future typed client-side forge preview). */
+/** @public twin: forgePlanEnvelopeSchema — the STATIC plan-call shape; the live guided-arm runner projects
+ *  the schema value through `projectJsonSchema`/`tolerant()` and never imports this alias (schema value is
+ *  cross-package PUBLIC — consumed by the server refinery forge). */
 export type ForgePlanEnvelope = z.infer<typeof forgePlanEnvelopeSchema>;
 
 /** The `guided` arm's PER-FIELD call: exactly one finished row. */
 export const forgeFieldEnvelopeSchema = z.object({ field: forgeFieldRowSchema });
-/** @public type twin of `forgeFieldEnvelopeSchema` — same class as `ForgePlanEnvelope` above: the live
- *  consumer projects/parses the schema value, never imports this alias. */
+/** @public twin: forgeFieldEnvelopeSchema — same class as `ForgePlanEnvelope` above: the live consumer
+ *  projects/parses the schema value (cross-package PUBLIC), never imports this alias. */
 export type ForgeFieldEnvelope = z.infer<typeof forgeFieldEnvelopeSchema>;
 
 /** The `two-stage` arm's SECOND call: display vocabulary only, keyed by the paths the FIRST call fixed. The
@@ -199,9 +199,8 @@ export const forgeHintRowSchema = z.object({
 export type ForgeHintRow = z.infer<typeof forgeHintRowSchema>;
 
 export const forgeHintEnvelopeSchema = z.object({ hints: z.array(forgeHintRowSchema).max(REFINERY_FORGE_MAX_FIELDS) });
-/** @public type twin of `forgeHintEnvelopeSchema` — same class as `ForgePlanEnvelope` above: the live
- *  consumer (`schema-forge.ts`'s two-stage-arm hint call) projects/parses the schema value, never imports
- *  this alias. */
+/** @public twin: forgeHintEnvelopeSchema — same class as `ForgePlanEnvelope` above: the live two-stage-arm
+ *  hint call projects/parses the schema value (cross-package PUBLIC), never imports this alias. */
 export type ForgeHintEnvelope = z.infer<typeof forgeHintEnvelopeSchema>;
 
 // ── the spliced well-known cores ─────────────────────────────────────────────────────────────────────────

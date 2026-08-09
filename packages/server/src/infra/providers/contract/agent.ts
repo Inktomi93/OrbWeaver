@@ -10,7 +10,9 @@ export type AgentToolServer = unknown;
 
 // A buddy turn is non-interactive — there is no human to answer, so every dialog kind fails closed.
 export const AGENT_DIALOG_KINDS = ["elicitation", "refusal_fallback_prompt"] as const;
-/** @public member twin of `AGENT_DIALOG_KINDS`, re-exported from the providers contract front door. */
+/** @public future: the unbuilt agent-principal dialog handling (D60 — agents are the model of record but NOT
+ *  BUILT; only dormant DDL survives) — the member type of `AGENT_DIALOG_KINDS`, whose tuple is same-package-only
+ *  (apisurface INTERNAL), so this is a kept future surface, not a twin. */
 export type AgentDialogKind = (typeof AGENT_DIALOG_KINDS)[number];
 
 /** SDK-free external MCP server spec the caller may attach to an agent turn (mapped to Options.mcpServers

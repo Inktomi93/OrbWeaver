@@ -43,9 +43,8 @@ export type RpgClockTime = z.infer<typeof rpgClockTimeSchema>;
  *  `@orb/kit/weather` (reachable by BOTH this schema and the ui primitive, which may not import contracts,
  *  D54); this is the rpg-facing NAME for the same tuple, never a second spelling. */
 export const RPG_WEATHER_TYPES = WEATHER_TYPES;
-/** @public locked shape — derived from the live `RPG_WEATHER_TYPES` tuple (whose current consumers read
- *  `rpgWeatherTypeSchema`/`RPG_WEATHER_TYPES` directly); this type is the full-mode weather-engine surface
- *  that ships as data from day one (rpg/index.ts KISS/YAGNI SUSPENDED). */
+/** @public twin: RPG_WEATHER_TYPES — the type face of the weather tuple (cross-package PUBLIC); the
+ *  full-mode weather-engine surface, shipped as data from day one (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RpgWeatherType = (typeof RPG_WEATHER_TYPES)[number];
 export const rpgWeatherTypeSchema = z.enum(RPG_WEATHER_TYPES);
 

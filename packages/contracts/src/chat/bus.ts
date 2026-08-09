@@ -128,7 +128,7 @@ export type TurnAbortReason = (typeof TURN_ABORT_REASONS)[number];
  *  dies to a stale lock rejects the awaited verb with this code; the client suppresses its generic
  *  "couldn't send" toast for it so the honest bus notice (`turnAbortNotice`) is the single stale surface. */
 export const TURN_ABORTED_OP_CODE = "aborted" as const;
-/** @public type twin of the live `TURN_ABORTED_OP_CODE` constant. */
+/** @public twin: TURN_ABORTED_OP_CODE — type twin of the live constant (cross-package PUBLIC). */
 export type TurnAbortedOpCode = typeof TURN_ABORTED_OP_CODE;
 
 // ── Turn origin — who/what started a turn + its cascade depth (automation-design/03 §4) ──

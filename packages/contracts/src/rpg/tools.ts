@@ -177,10 +177,9 @@ export type SetTrackerArgs = z.infer<typeof setTrackerArgsSchema>;
 /** `upsert_quest` — staged-volatile (post-ratification: quests live IN the snapshot, §2.5). Create /
  *  update / complete / fail all ride the one staged-state overlay; abort discards, commit clone-forwards. */
 export const RPG_QUEST_ACTIONS = ["create", "update", "complete", "fail"] as const;
-/** @public locked shape — derived from the live `RPG_QUEST_ACTIONS` tuple, which `upsertQuestArgsSchema`
- *  reads directly; this type is the narrowed surface a future typed quest-action dispatcher (e.g. an
- *  `applyUpsertQuest` switch keyed off the literal union) uses instead of `string` (rpg/index.ts KISS/YAGNI
- *  SUSPENDED). */
+/** @public future: a future typed quest-action dispatcher (e.g. an `applyUpsertQuest` switch keyed off the
+ *  literal union, unbuilt) — derived from the live `RPG_QUEST_ACTIONS` tuple, which `upsertQuestArgsSchema`
+ *  reads directly; the narrowed surface used instead of `string` (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RpgQuestAction = (typeof RPG_QUEST_ACTIONS)[number];
 export const upsertQuestArgsSchema = z.object({
   name: z.string().min(1),
@@ -267,7 +266,6 @@ export const rollDiceArgsSchema = z.object({
   notation: z.string().min(1),
   reason: z.string().optional(),
 });
-/** @public locked shape — inferred from the live `rollDiceArgsSchema`, which the roll_dice tool-call handling
- *  reads directly; this type is the typed-args surface a future typed tool-call dispatcher (keyed off
- *  `RpgToolRoundToolName`) uses instead of the raw JSON string (rpg/index.ts KISS/YAGNI SUSPENDED). */
+/** @public twin: rollDiceArgsSchema — the typed roll_dice args surface inferred from the schema, which is
+ *  cross-package PUBLIC (rpg/index.ts KISS/YAGNI SUSPENDED). */
 export type RollDiceArgs = z.infer<typeof rollDiceArgsSchema>;

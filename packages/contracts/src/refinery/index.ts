@@ -266,18 +266,14 @@ export const refineryCustomStageConfigSchema = z.object({
   kind: z.literal("custom"),
   schemaId: brandedId<RefinerySchemaId>(),
 });
-/** @public inference-twin of its schema — consumers parse via `refineryCustomStageConfigSchema`; the named type is the contract's stable spelling for the SF0 custom arm. */
+/** @public twin: refineryCustomStageConfigSchema — the contract's stable spelling for the SF0 custom arm (cross-package PUBLIC). */
 export type RefineryCustomStageConfig = z.infer<typeof refineryCustomStageConfigSchema>;
 
 /** Session score config: fixed mode, or a custom schema pointer. */
 export const refineryScoreConfigSchema = z.union([refineryScoreFixedConfigSchema, refineryCustomStageConfigSchema]);
-/** @public inference-twin of `refineryScoreConfigSchema` — the contract's named spelling of the score-stage config union. */
-export type RefineryScoreConfig = z.infer<typeof refineryScoreConfigSchema>;
 
 /** Session analyze config: fixed mode, or a custom schema pointer. */
 export const refineryAnalyzeConfigSchema = z.union([refineryAnalyzeFixedConfigSchema, refineryCustomStageConfigSchema]);
-/** @public inference-twin of `refineryAnalyzeConfigSchema` — the contract's named spelling of the analyze-stage config union. */
-export type RefineryAnalyzeConfig = z.infer<typeof refineryAnalyzeConfigSchema>;
 
 /** The session's in-force per-stage config (stored on `refinery_sessions.stage_config`). */
 export const refineryStageConfigSchema = z.object({
@@ -343,14 +339,13 @@ export const refineryFieldScoreSchema = z.object({
   weaknesses: critiqueProseSchema,
   suggestions: critiqueProseSchema,
 });
-/** @public type twin of `refineryFieldScoreSchema` — the per-field score ROW. Its consumer is the R3 refinery
- *  SURFACE (design-gated on the owner's mockup ruling, board C15), which maps
- *  `refineryScorePayloadSchema.fieldScores` into rendered per-field rows. R1 only ever handles the payload
- *  whole, and R2 (the client data tier, shipped) deliberately types through the tRPC WIRE types —
- *  `inferInput`/`inferOutput` off the options proxy, so a router reshape breaks at the hook rather than at a
- *  hand-picked alias — which is why the row type still has no importer. Do not re-try consuming it from the
- *  data tier: this alias belongs to whatever RENDERS a score row. (Amended 2026-08-08: the reason previously
- *  named R2 as the consumer; R2 landed without one.) */
+/** @public future: the R3 refinery score-render surface (board C15, design-gated on the owner's mockup ruling,
+ *  unbuilt) — the per-field score ROW that surface maps `refineryScorePayloadSchema.fieldScores` into. NOT a
+ *  twin: `refineryFieldScoreSchema` is apisurface-INTERNAL (same-package-only). R1 handles the payload whole,
+ *  and R2 (the client data tier, shipped) types through the tRPC WIRE types (`inferInput`/`inferOutput` off the
+ *  options proxy) so a router reshape breaks at the hook, not at a hand-picked alias — which is why the row
+ *  type still has no importer. Do not re-try consuming it from the data tier: it belongs to whatever RENDERS a
+ *  score row. (Amended 2026-08-08: the reason previously named R2; R2 landed without one.) */
 export type RefineryFieldScore = z.infer<typeof refineryFieldScoreSchema>;
 
 export const refineryScorePayloadSchema = z.object({
