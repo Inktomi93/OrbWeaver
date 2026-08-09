@@ -25,7 +25,7 @@ import {
   refineryVerdictSchema,
 } from "@orb/contracts/refinery";
 import type { Db } from "@orb/db";
-import { characters, refineryRuns, refinerySchemas, refinerySessions } from "@orb/db";
+import { assets, characters, refineryRuns, refinerySchemas, refinerySessions } from "@orb/db";
 import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { liftJsonSchema } from "@orb/kit/json-schema";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
@@ -65,15 +65,27 @@ export async function loadOwnedSessionRow(db: Db, ownerId: UserId, sessionId: Re
   return rows[0]?.session;
 }
 
-/** Every session of the owner's characters, newest-updated first (the roster read). */
-export async function listOwnedSessionRows(db: Db, ownerId: UserId): Promise<RefinerySessionRow[]> {
+/** A roster row + the two CHARACTER DISPLAY facts the summary carries. The ownership join was already
+ *  here (it is what scopes the read); naming the card is two more selected columns on it, not a second
+ *  query — and it is the only place that can name a card whose row sits past `character.list`'s 100-row
+ *  page (the ceiling the client-side join could not clear; see `refinerySessionSummarySchema`). */
+interface RefinerySessionRosterRow {
+  readonly session: RefinerySessionRow;
+  readonly characterName: string;
+  readonly characterAvatarHash: string | null;
+}
+
+/** Every session of the owner's characters, newest-updated first (the roster read), each carrying its
+ *  card's name + avatar hash. `assets` is a LEFT join — an avatar-less card is a normal card. */
+export async function listOwnedSessionRows(db: Db, ownerId: UserId): Promise<RefinerySessionRosterRow[]> {
   const rows = await db
-    .select({ session: refinerySessions })
+    .select({ session: refinerySessions, characterName: characters.name, characterAvatarHash: assets.hash })
     .from(refinerySessions)
     .innerJoin(characters, eq(refinerySessions.characterId, characters.id))
+    .leftJoin(assets, eq(characters.avatarAssetId, assets.id))
     .where(eq(characters.ownerId, ownerId))
     .orderBy(desc(refinerySessions.updatedAt));
-  return rows.map((r) => r.session);
+  return rows.map((r) => ({ session: r.session, characterName: r.characterName, characterAvatarHash: r.characterAvatarHash }));
 }
 
 /** The session's full run log, oldest first (the CONTEXT Runs ledger reads it forward). Callers reach
@@ -162,11 +174,15 @@ export function sessionViewOf(row: RefinerySessionRow): RefinerySessionView {
   };
 }
 
-/** Row → the roster summary (verdict joined by the caller via {@link latestVerdictsOf}). */
-export function sessionSummaryOf(row: RefinerySessionRow, latestVerdict: RefineryVerdict | null): RefinerySessionSummary {
+/** Roster row → the roster summary (verdict joined by the caller via {@link latestVerdictsOf}). Takes the
+ *  JOINED row, not the bare session row: the card's name and avatar are display facts the wire carries. */
+export function sessionSummaryOf(rosterRow: RefinerySessionRosterRow, latestVerdict: RefineryVerdict | null): RefinerySessionSummary {
+  const { session: row, characterName, characterAvatarHash } = rosterRow;
   return {
     id: row.id,
     characterId: row.characterId,
+    characterName,
+    characterAvatarHash,
     name: row.name,
     status: row.status,
     iterationCount: row.iterationCount,

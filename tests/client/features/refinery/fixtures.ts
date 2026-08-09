@@ -20,6 +20,10 @@ const DEFAULT_SESSION_ID = mintTypeId(ID_PREFIX.refinerySession);
 export interface RefinerySessionSummaryFixture {
   readonly id: string;
   readonly characterId: CharacterId;
+  /** Joined SERVER-SIDE since 2026-08-09 (the roster names every session it lists, past any
+   *  `character.list` page) — so a roster fixture carries the display name, not just the id. */
+  readonly characterName: string;
+  readonly characterAvatarHash: string | null;
   readonly name: string | null;
   readonly status: string;
   readonly iterationCount: number;
@@ -32,6 +36,8 @@ export function makeRefinerySessionSummary(overrides: Partial<RefinerySessionSum
   return {
     id: DEFAULT_SESSION_ID,
     characterId: DEFAULT_CHARACTER_ID,
+    characterName: "Seraphine",
+    characterAvatarHash: null,
     name: "Rev",
     status: "active",
     iterationCount: 0,

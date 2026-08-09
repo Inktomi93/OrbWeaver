@@ -173,6 +173,14 @@ export const TEST_IDS = {
   /** The collapsed character-picker trigger (`CharacterDoor`) — its accessible NAME is the chosen card,
    *  or the invitation while none is chosen, so a CT reads the selection off the trigger itself. */
   refineryCharacterDoor: "refinery-character-door",
+  /** The raw JSON door's PREFLIGHT block (stats line + advisories). Present only when the draft parses;
+   *  its absence is the honest "nothing to say about a schema that isn't one yet". */
+  refinerySchemaPreflight: "refinery-schema-preflight",
+  /** The preflight's accounting line — one node so a CT reads the numbers without the prose. */
+  refinerySchemaStats: "refinery-schema-stats",
+  /** ONE advisory row. Carries `data-advisory` = the advisory CODE, so a CT pins the CLASS that fired
+   *  rather than a sentence that copy edits will move. */
+  refinerySchemaAdvisory: "refinery-schema-advisory",
 } as const;
 
 export type TestIdKey = keyof typeof TEST_IDS;
