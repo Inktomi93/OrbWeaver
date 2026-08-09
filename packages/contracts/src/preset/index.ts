@@ -542,7 +542,7 @@ export const GREETING_TRANSFORM_IDS = [
   "she-her",
   "they-them",
 ] as const;
-/** @public id twin of `GREETING_TRANSFORMS`, the catalog the greeting studio renders. */
+/** Id twin of `GREETING_TRANSFORMS`, the catalog the greeting studio renders. */
 export type GreetingTransformId = (typeof GREETING_TRANSFORM_IDS)[number];
 
 export const GREETING_TRANSFORMS = [
