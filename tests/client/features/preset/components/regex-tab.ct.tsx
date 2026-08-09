@@ -30,6 +30,8 @@ const LIBRARY_SCRIPT = {
   promptOnly: false,
   runOnEdit: false,
   trimStrings: [],
+  // A fixed edit stamp (X-16's `RegexScriptRow.updatedAt`) — the wall clock never reaches a fixture.
+  updatedAt: 1_760_000_000_000,
   substituteRegex: 0,
 };
 

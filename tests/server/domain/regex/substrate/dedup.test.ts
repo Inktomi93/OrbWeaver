@@ -33,8 +33,11 @@ function idFor(label: string): RegexScriptId {
 
 // Both fixtures go through their REAL schema, so a field added to either wire shape breaks the fixture
 // here rather than surviving as a silent gap in the planner's coverage.
+/** The edit stamp DEFAULTS PER LABEL, so every fixture row carries a DIFFERENT one. That is the point: the
+ *  dedup key is content-equality, and a stamp is not content — two byte-identical scripts saved an hour
+ *  apart must still match (they did not, the day `updatedAt` landed on the row). */
 const row = (label: string, name: string, over: Record<string, unknown> = {}): RegexScriptRow =>
-  regexScriptSchema.parse({ id: idFor(label), name, enabled: true, ...body(over) });
+  regexScriptSchema.parse({ id: idFor(label), name, enabled: true, updatedAt: 1_760_000_000_000 + label.length, ...body(over) });
 
 const card = (id: string, name: string, over: Record<string, unknown> = {}): RegexScriptCard =>
   regexScriptCardSchema.parse({ id, name, enabled: true, ...body(over) });

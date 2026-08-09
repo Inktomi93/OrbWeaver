@@ -21,10 +21,15 @@ const STRIP_ACTIONS = /Actions for strip ooc/;
 /** The bulk delete confirm's body — the CASCADE, which is the consequence the roster cannot show. */
 const BULK_DELETE_CASCADE = /removes them from every preset, character, and room/;
 
+/** A fixed edit stamp for every fixture row — the assertions below read the "edited …" PREFIX, never the
+ *  relative text, so the suite is not coupled to the wall clock. */
+const FIXTURE_UPDATED_AT = 1_760_000_000_000;
+
 function script(id: string, name: string, over: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id,
     name,
+    updatedAt: FIXTURE_UPDATED_AT,
     findRegex: "\\(ooc\\)",
     replaceString: "",
     placement: ["AI_OUTPUT"],
@@ -103,6 +108,40 @@ test("the BAND carries the import door, named for what it takes", async ({ mount
   await page.getByRole("button", { name: "reset" }).click();
   // Band chrome — visible without expanding the group, like create.
   await expect(group.getByRole("button", { name: "Import a regex script" })).toBeVisible();
+});
+
+// ── X-16 · THE EDIT STAMP (the defect: `Add script` mints indistinguishable rows) ─────────────────────
+
+// The reported case, reproduced: two rows minted by `Add script`, both named "New script", both with an
+// empty pattern. Before the stamp their subtitles were byte-identical and the list was unreadable.
+//
+// The two stamps are three DAYS apart, not three minutes, because the fixture is deliberately clock-free:
+// `formatRelative` falls back to an absolute date once a row is older than its relative window, and two
+// same-day stamps would render the same date. Three days apart discriminates under BOTH forms, which is
+// the property the assertion is actually about.
+const THREE_DAYS_MS = 3 * 24 * 60 * 60 * 1000;
+/** Addresses the row SUBTITLES by the datum the fix adds — never by the relative text, which is clock-fed. */
+const EDITED_STAMP = /edited /;
+/** The whole subtitle of a just-added row: both authored discriminators are blank, then the stamp. */
+const NEW_SCRIPT_SUBTITLE = /^runs nowhere · no pattern yet · edited /;
+const NEW_SCRIPTS = [
+  script("regex_script_new0000000001", "New script", { findRegex: "", placement: [] }),
+  script("regex_script_new0000000002", "New script", { findRegex: "", placement: [], updatedAt: FIXTURE_UPDATED_AT - THREE_DAYS_MS }),
+];
+
+test("every library row carries an EDITED stamp, so freshly-added rows are not indistinguishable", async ({ mount, page }) => {
+  await stub(page, NEW_SCRIPTS);
+  const group = await mount(<RegexLibraryGroupStory />);
+  await page.getByRole("button", { name: "reset" }).click();
+  await group.getByRole("button", { name: BAND }).click();
+  await expect(group.getByText("New script", { exact: true }).first()).toBeVisible();
+
+  // Two rows, and the two subtitles must not be the same string — the stamps are three days apart.
+  const subtitles = await group.getByText(EDITED_STAMP).allTextContents();
+  expect(subtitles).toHaveLength(2);
+  expect(subtitles[0]).not.toBe(subtitles[1]);
+  // And it reads as an EDIT stamp, in the preset library's own words.
+  expect(subtitles[0] ?? "").toMatch(NEW_SCRIPT_SUBTITLE);
 });
 
 // ── BULK MODE ────────────────────────────────────────────────────────────────────────────────────────
