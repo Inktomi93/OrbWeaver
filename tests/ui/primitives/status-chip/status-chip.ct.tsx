@@ -1,4 +1,4 @@
-// CT: the status-chip seal — a background-job state chip composing Badge + Spinner
+// CT: the status-chip seal — a background-job state chip composing Badge + WebSpinner
 // (ui-primitive-carve-out-work-order item 7). role=status/aria-live=polite on transitions;
 // failed carries a non-color icon signal plus an optional real retry <Button>.
 import { StatusChip } from "@orb/ui/status-chip";
@@ -13,13 +13,13 @@ test("idle renders the neutral (muted) badge token with the Idle label", async (
   await expect(badge).toHaveCSS("background-color", TOKENS["color.muted"].value);
 });
 
-test("running renders the composed Spinner (role=status, spinning glyph)", async ({ mount, page }) => {
+test("running renders the composed WebSpinner (role=status, animating glyph)", async ({ mount, page }) => {
   const component = await mount(<StatusChip status="running" />);
   // The root IS the mounted element (component.locator only searches its DESCENDANTS — the
   // avatar.ct.tsx `page.locator` precedent for asserting on the mount root itself).
   const root = page.locator('[data-slot="status-chip-root"]');
   await expect(root).toContainText("Running");
-  await expect(component.locator("svg.animate-spin")).toBeVisible();
+  await expect(component.locator('[data-slot="web-spinner"][data-animate]')).toBeVisible();
 });
 
 test("succeeded carries the Check icon glyph plus the success token background", async ({ mount }) => {

@@ -8,7 +8,7 @@ import { Field } from "#primitives/field";
 import { Check, Icon } from "#primitives/icons";
 import { Input } from "#primitives/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "#primitives/popover";
-import { Spinner } from "#primitives/spinner";
+import { WebSpinner } from "#primitives/spinner";
 import { colorFieldVariants } from "./variants.ts";
 
 export interface ColorSwatchProps {
@@ -50,7 +50,7 @@ export interface ColorFieldProps {
   onValueChange: (value: string) => void;
   onOpenChange?: (open: boolean, details: ColorFieldOpenChangeDetails) => void;
   disabled?: boolean;
-  /** Busy state: swaps the swatch for a `<Spinner>` and inerts the trigger. Caller-driven, same shape as `Button.loading`. */
+  /** Busy state: swaps the swatch for a `<WebSpinner>` and inerts the trigger. Caller-driven, same shape as `Button.loading`. */
   loading?: boolean;
   /** Momentary success flash: a checkmark over the swatch. Caller clears it — this primitive holds no timer. */
   success?: boolean;
@@ -78,7 +78,7 @@ interface ColorFieldTriggerGlyphProps {
 /** The trigger's swatch/spinner/checkmark dispatch, split out to avoid a 3-way nested ternary. */
 function ColorFieldTriggerGlyph({ loading, success, isValid, value, slots }: ColorFieldTriggerGlyphProps): ReactElement {
   if (loading) {
-    return <Spinner label="Saving color…" size="sm" />;
+    return <WebSpinner label="Saving color…" size="sm" />;
   }
   if (success) {
     return <Icon icon={Check} label="Saved" size="sm" />;
