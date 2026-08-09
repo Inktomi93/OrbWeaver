@@ -36,8 +36,26 @@
 // `script-src` is `'self'`-only in prod (zero intentional inline scripts today). If an anti-FOUC inline
 // script ever lands in index.html, use a boot-time hash-allowlist — never `'unsafe-inline'`.
 
+import { CARD_FRAME_ROUTE } from "@orb/contracts/chat";
 import type { MiddlewareHandler } from "hono";
 import { secureHeaders } from "hono/secure-headers";
+
+// THE ONE EXEMPTION, and it is a MECHANICAL necessity, not a policy carve-out: `hono/secure-headers` sets
+// its headers AFTER `next()` with `.set()`, so it OVERWRITES whatever a handler wrote. The card-frame
+// DOCUMENT (`GET /api/card-frame/<id>`) exists precisely to carry its own, TIGHTER policy — a routed
+// document does not inherit ours, which is the only way a per-character trust grant can widen `img-src`
+// for a card (see `@orb/kit/card-frame`). Leaving this middleware on that path would silently replace the
+// frame policy with the APP policy: the frame would become a document with `script-src 'self'` and no
+// `sandbox` directive, i.e. the exact opposite of the intent, with nothing red.
+//
+// The exemption is the DOCUMENT path only — the `POST /api/card-frame` MINT is a JSON reply and keeps the
+// full app header set. The exempted responses are never un-policied: every return path in `card-frame.ts`
+// builds its headers from `frameHeaders()`, including the 401/404 arms.
+const CARD_FRAME_DOC_PREFIX = `${CARD_FRAME_ROUTE}/`;
+
+function servesOwnPolicy(path: string): boolean {
+  return path.startsWith(CARD_FRAME_DOC_PREFIX);
+}
 
 const SELF = "'self'";
 const NONE = "'none'";
@@ -88,5 +106,10 @@ export function securityHeaders(opts: SecurityHeadersOptions): MiddlewareHandler
   // Both arms are built ONCE at wiring time; the per-request work is the boolean read + a dispatch.
   const blocked = policy({ dev: opts.dev, external: false });
   const allowed = policy({ dev: opts.dev, external: true });
-  return (c, next) => (opts.allowExternalMedia() ? allowed : blocked)(c, next);
+  return (c, next) => {
+    if (servesOwnPolicy(c.req.path)) {
+      return next();
+    }
+    return (opts.allowExternalMedia() ? allowed : blocked)(c, next);
+  };
 }

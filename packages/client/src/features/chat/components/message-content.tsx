@@ -6,14 +6,16 @@
 // so a <speaker> NAME position never sees an unresolved {{char}}/{{user}}.
 
 import type { MessageContentBlock } from "@orb/contracts/chat";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import { parseSpeakerSpans } from "@orb/kit/speaker-label";
 import { ImmersiveCard, InertCard } from "@orb/ui/immersive-card";
 import { Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
+import { useSandboxTheme } from "@orb/ui/sandbox-frame";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ReactElement } from "react";
+import { useCardFrameSrc } from "#data";
 import type { MessageRenderContext, RowRenderPolicy } from "#lib";
 import { renderMessageForDisplay } from "#lib";
 import { toContentBlocks } from "../lib/content-blocks.ts";
@@ -28,19 +30,50 @@ function assertNever(value: never): never {
   throw new Error(`MessageContent: unhandled block ${JSON.stringify(value)}`);
 }
 
+/** The room a card was authored in — the card-frame doorway's POLICY SELECTOR (the server resolves this
+ *  character's `renderPolicy` and builds the frame CSP from it). Absent ⇒ the srcdoc floor renders.
+ *  Deliberately NOT exported — callers pass an object literal through `MessageContentProps.cardOrigin`. */
+interface CardOrigin {
+  readonly chatId: ChatId;
+  readonly characterId: CharacterId | null;
+}
+
+/** The tierB card, as a COMPONENT rather than a render helper: the routed card-frame handle is minted with
+ *  a hook, and the mint needs the theme-resolved tokens the frame will actually carry (a card that recolors
+ *  on a theme flip must re-mint, or the routed document would serve yesterday's palette). Without a
+ *  `cardOrigin` there is no room, hence no roster, hence no trust verdict — it renders the floor. */
+function TierBCard({
+  block,
+  allowExternal,
+  cardOrigin,
+}: {
+  readonly block: Extract<MessageContentBlock, { kind: "html-card" }>;
+  readonly allowExternal: boolean;
+  readonly cardOrigin: CardOrigin | undefined;
+}): ReactElement {
+  const { themeTokens, fontFamily } = useSandboxTheme();
+  const frameSrc = useCardFrameSrc(cardOrigin === undefined ? undefined : { ...cardOrigin, html: block.html, css: block.css, themeTokens, fontFamily });
+  return (
+    <ImmersiveCard
+      html={block.html}
+      allowExternalMedia={allowExternal}
+      {...(frameSrc === undefined ? {} : { frameSrc })}
+      {...(block.css === undefined ? {} : { css: block.css })}
+      {...(block.title === undefined ? {} : { title: block.title })}
+      {...(block.origin === undefined ? {} : { origin: block.origin })}
+    />
+  );
+}
+
 /** The `html-card` arm, extracted so `renderBlock` stays inside the cognitive-complexity budget. */
-function renderCardBlock(block: Extract<MessageContentBlock, { kind: "html-card" }>, key: string, allowExternal: boolean): ReactElement {
+function renderCardBlock(
+  block: Extract<MessageContentBlock, { kind: "html-card" }>,
+  key: string,
+  allowExternal: boolean,
+  cardOrigin: CardOrigin | undefined,
+): ReactElement {
   if (block.trust === "tierB") {
-    return (
-      <ImmersiveCard
-        key={key}
-        html={block.html}
-        allowExternalMedia={allowExternal}
-        {...(block.css === undefined ? {} : { css: block.css })}
-        {...(block.title === undefined ? {} : { title: block.title })}
-        {...(block.origin === undefined ? {} : { origin: block.origin })}
-      />
-    );
+    return <TierBCard key={key} block={block} allowExternal={allowExternal} cardOrigin={cardOrigin} />;
   }
   // Tier A: the sanitized body inside the inert frame. No `authorName` is threaded yet — the row policy
   // does not carry one, and InertCard degrades to "this character" rather than printing an empty name.
@@ -58,7 +91,7 @@ function renderCardBlock(block: Extract<MessageContentBlock, { kind: "html-card"
 // biome can't infer `z.infer` of the contracts discriminatedUnion (it reads `block` as `never` →
 // "unreachable case" on every arm); tsc resolves the union + the assertNever exhaustiveness correctly.
 // Same resolver gap as data/bus/apply-chat-bus-event.ts (which suppresses the identical rule).
-function renderBlock(block: MessageContentBlock, key: string, render: RowRenderPolicy): ReactElement {
+function renderBlock(block: MessageContentBlock, key: string, render: RowRenderPolicy, cardOrigin: CardOrigin | undefined): ReactElement {
   const { trust, allowExternal } = render;
   switch (block.kind) {
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
@@ -86,7 +119,7 @@ function renderBlock(block: MessageContentBlock, key: string, render: RowRenderP
     // refuse-VISIBLY posture MessageMedia's click-to-load gate has always had.
     // biome-ignore lint/suspicious/noUnnecessaryConditions: contracts z.infer resolver gap (see above).
     case "html-card":
-      return renderCardBlock(block, key, allowExternal);
+      return renderCardBlock(block, key, allowExternal, cardOrigin);
     // The parity-plus §5.2-5.3 choice set — clickable send-affordances: a click sends the option as the
     // user's next turn through the room's choice-send capability (P5; provider-less mounts render the
     // same buttons disabled). The block contract is untouched.
@@ -102,9 +135,10 @@ interface MessageSegmentProps {
   readonly text: string;
   readonly render: RowRenderPolicy;
   readonly keyPrefix: string;
+  readonly cardOrigin: CardOrigin | undefined;
 }
 
-function MessageSegment({ text, render, keyPrefix }: MessageSegmentProps): ReactElement {
+function MessageSegment({ text, render, keyPrefix, cardOrigin }: MessageSegmentProps): ReactElement {
   // §4.3 trust routing: ONE trust authority (`render-trust`) resolves BOTH the markdown trust and the card
   // TIER — this renderer only dispatches. The tier mapping was INVERTED here until 2026-08-04 (trusted rows
   // were sent to tierA, whose allowlist forbids `<style>`, so every trusted card rendered as unstyled HTML
@@ -114,7 +148,7 @@ function MessageSegment({ text, render, keyPrefix }: MessageSegmentProps): React
   // never re-tokenizes — and, with the index+kind keys below stable for an unchanged body, never reloads a
   // card's srcdoc.
   const blocks = toContentBlocks(text, { cardTrust: render.cardTier, lenientHtml: render.lenientCards });
-  return <Stack gap="row">{blocks.map((block, index) => renderBlock(block, `${keyPrefix}${index}-${block.kind}`, render))}</Stack>;
+  return <Stack gap="row">{blocks.map((block, index) => renderBlock(block, `${keyPrefix}${index}-${block.kind}`, render, cardOrigin))}</Stack>;
 }
 
 export interface MessageContentProps {
@@ -135,6 +169,9 @@ export interface MessageContentProps {
    *  could forge) and must never split. The `<speaker>` marker half is unconditional — it is markup, not
    *  prose, and cannot be typed into a body by accident. */
   readonly narratorVoiced?: boolean | undefined;
+  /** The room + author this body was written in — the card-frame doorway selector (see {@link CardOrigin}).
+   *  Absent (a story/preview mount with no room) ⇒ every tierB card renders the srcdoc floor. */
+  readonly cardOrigin?: CardOrigin | undefined;
 }
 
 export function MessageContent({
@@ -145,6 +182,7 @@ export function MessageContent({
   rowPersonaId,
   speakerThemes,
   narratorVoiced = false,
+  cardOrigin,
 }: MessageContentProps): ReactElement {
   const resolvedContent = renderContext === undefined ? content : renderMessageForDisplay(content, renderContext, rowCharacterId, rowPersonaId);
   const castNames = narratorVoiced && speakerThemes !== undefined ? [...speakerThemes.keys()] : NO_CAST_NAMES;
@@ -152,7 +190,7 @@ export function MessageContent({
 
   const [onlySpan] = spans;
   if (spans.length === 1 && onlySpan !== undefined && onlySpan.speaker === null) {
-    return <MessageSegment text={onlySpan.text} render={render} keyPrefix="" />;
+    return <MessageSegment text={onlySpan.text} render={render} keyPrefix="" cardOrigin={cardOrigin} />;
   }
 
   return (
@@ -160,12 +198,12 @@ export function MessageContent({
       {spans.map((span, index) => {
         const key = `${index}-${span.speaker ?? "narrator"}`;
         if (span.speaker === null) {
-          return <MessageSegment key={key} text={span.text} render={render} keyPrefix={`${key}-`} />;
+          return <MessageSegment key={key} text={span.text} render={render} keyPrefix={`${key}-`} cardOrigin={cardOrigin} />;
         }
         const spanTokens = speakerThemes?.get(span.speaker) ?? colorForCharacter(span.speaker);
         return (
           <ThemeScope key={key} tokens={spanTokens}>
-            <MessageSegment text={span.text} render={render} keyPrefix={`${key}-`} />
+            <MessageSegment text={span.text} render={render} keyPrefix={`${key}-`} cardOrigin={cardOrigin} />
           </ThemeScope>
         );
       })}

@@ -4,7 +4,8 @@
 // `getComputedStyle` on the document root and re-resolves on a `data-theme` flip, so a Light/Dark switch
 // recolors the card instead of baking a stale literal. Color values ride `themeTokens` (re-clamped by
 // `isSafeColor` at the frame boundary); the font value is a family LIST (`isSafeColor` rejects it), so it
-// rides its own `fontFamily` slot behind a font-list shape check here.
+// rides its own `fontFamily` slot behind the kit font-list shape check.
+import { clampCardFrameFontFamily } from "@orb/kit/card-frame";
 import { useSyncExternalStore } from "react";
 import { TOKENS } from "#tokens";
 
@@ -37,16 +38,6 @@ interface SandboxThemeGlobals {
 // these minimal locals, so a direct assertion is rejected (TS2352).
 const sandboxGlobals = globalThis as unknown as SandboxThemeGlobals;
 
-// A font-family LIST shape check (isSafeColor is color-only): letters/digits/space/comma/hyphen/quotes
-// only, and never an injection vector — so a hostile custom-theme `--font-sans` can't break out of the
-// body rule. A malformed value is dropped (the body falls back to `sans-serif`, never serif).
-const FONT_FAMILY_LIST = /^[\w ,'"-]{1,120}$/u;
-
-/** Re-validates a caller-supplied font-family list at the frame boundary; drops anything unsafe. */
-export function clampSandboxFontFamily(raw: string | undefined): string | undefined {
-  return raw !== undefined && FONT_FAMILY_LIST.test(raw) ? raw : undefined;
-}
-
 const COLOR_TOKENS = {
   "--sandbox-bg": TOKENS["color.card"],
   "--sandbox-fg": TOKENS["color.card-foreground"],
@@ -76,13 +67,12 @@ function resolveTokens(): SandboxThemeTokens {
   for (const [name, token] of Object.entries(COLOR_TOKENS)) {
     themeTokens[name] = resolveVar(token.cssVar, token.value);
   }
-  const font = resolveVar(FONT_TOKEN.cssVar, FONT_TOKEN.value);
-  return { themeTokens, fontFamily: FONT_FAMILY_LIST.test(font) ? font : undefined };
+  return { themeTokens, fontFamily: clampCardFrameFontFamily(resolveVar(FONT_TOKEN.cssVar, FONT_TOKEN.value)) };
 }
 
 const FALLBACK_TOKENS: SandboxThemeTokens = {
   themeTokens: { "--sandbox-bg": COLOR_TOKENS["--sandbox-bg"].value, "--sandbox-fg": COLOR_TOKENS["--sandbox-fg"].value },
-  fontFamily: FONT_FAMILY_LIST.test(FONT_TOKEN.value) ? FONT_TOKEN.value : undefined,
+  fontFamily: clampCardFrameFontFamily(FONT_TOKEN.value),
 };
 
 // useSyncExternalStore demands a referentially-stable getSnapshot between notifications.
