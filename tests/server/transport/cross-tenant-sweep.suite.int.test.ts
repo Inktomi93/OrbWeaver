@@ -1048,6 +1048,16 @@ const PROBES: readonly Probe[] = [
     path: "regex.bulkSetGlobal",
     call: (c, i) => c.regex.bulkSetGlobal({ scriptIds: [i.regexScriptId], global: true }),
   },
+  // The #57 bulk-placement arm — same silent owner-belt shape as bulkSetEnabled/bulkSetGlobal: every id is
+  // gated through `loadOwnedScriptsByIds` (WHERE owner_id = principal), so a foreign id is DROPPED and the
+  // verb answers a marker-free `{affected}` count (identical for "not yours" and "already gone" — never an
+  // ownership oracle). The `placement` differs from A's seeded `["AI_OUTPUT"]` so the post-sweep integrity
+  // re-read has teeth: a dropped belt would REPLACE A's placement set (and re-derive A's tier flags) and
+  // return the same benign count, so A's `placement` is the only evidence a silent write-IDOR would leave.
+  {
+    path: "regex.bulkSetPlacement",
+    call: (c, i) => c.regex.bulkSetPlacement({ scriptIds: [i.regexScriptId], placement: ["USER_INPUT"] }),
+  },
   { path: "regex.bulkRemove", call: (c, i) => c.regex.bulkRemove({ scriptIds: [i.regexScriptId] }) },
   // The single-entity EXPORT door — owner-gated by `loadOwnedScript`; a foreign/absent id collapses to `null`
   // inside the verb and the router turns that into NOT_FOUND (the `worldInfo.exportBook` posture). A resolved
@@ -1255,6 +1265,13 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "admin.listUsers": "admin-gated: role gate (not IDOR)",
   "admin.setRole": "admin-gated: role gate",
   "admin.setEnabled": "admin-gated: role gate",
+  // B5 SSO-identity link. Takes a `userId` + `externalId`, but it is `adminProcedure` (LAYER-1 owner∪admin)
+  // AND re-checks `requireAdmin` (LAYER-2): the sweep's stranger is a plain `user`, refused FORBIDDEN at the
+  // ladder BEFORE any user lookup — the admin.* role-gate pattern, tested by the admin-gate matrix, not IDOR.
+  // The cross-USER binding is admin-plane authority by design (an admin already acts on every user's row —
+  // there is no tenant boundary for a peer to cross), and the verb's own belts (owner-target immutable +
+  // bind-once/subject-taken, spine U1) are the binding-safety surface, exercised in the admin domain tests.
+  "admin.linkSsoIdentity": "admin-gated: role gate (identity-binding authority is admin-plane, not cross-tenant IDOR)",
   "admin.createUser": "admin-gated: role gate",
   "admin.resetPassword": "admin-gated: role gate",
   "admin.listSessions": "admin-gated: role gate",
@@ -1563,6 +1580,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     const regexScriptStill = await ownerCaller.regex.getScript({ scriptId: ids.regexScriptId });
     expect(regexScriptStill.name).toBe(MARK.regexScript); // untouched by the stranger's update/remove/attach/bulkRemove probes
     expect(regexScriptStill.enabled).toBe(true); // untouched by the stranger's regex.bulkSetEnabled probe
+    expect(regexScriptStill.placement).toEqual(["AI_OUTPUT"]); // A's seeded placement — untouched by the stranger's regex.bulkSetPlacement probe
     const regexGlobalStill = await ownerCaller.regex.listGlobal();
     expect(regexGlobalStill.map((s) => s.id)).not.toContain(ids.regexScriptId); // no stranger attachGlobal/bulkSetGlobal reached A's tier
     // refinery R3: A's schema row SURVIVED `deleteSchema` and is UNPATCHED by `updateSchema` — both return
