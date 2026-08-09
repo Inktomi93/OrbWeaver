@@ -7,7 +7,7 @@ import type { ImportChatsResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
 import type { ImportChatsInput } from "../contract/views.ts";
 import { requireProfile } from "../guard.ts";
-import { buildBulkImportChatInput, disambiguateChatTitles } from "../substrate/chat-input.ts";
+import { buildBulkImportChatInput, disambiguateChatTitles, unresolvedPinnedPersonas } from "../substrate/chat-input.ts";
 
 export function createImportChats(ctx: ImportContext): ImportService["importChats"] {
   return async (input: ImportChatsInput): Promise<ImportChatsResult> => {
@@ -44,6 +44,9 @@ export function createImportChats(ctx: ImportContext): ImportService["importChat
       variantsImported: counts.variantsImported,
       branchesLinked: counts.branchesLinked,
       backfillEnqueued: counts.realConversationWritten,
+      // §5.7: the chat-bound persona picks that named nothing on this install. Computed over the SAME batch
+      // the mapper consumed, so the report can never disagree with what was written.
+      unresolvedPinnedPersonas: unresolvedPinnedPersonas(input.chats, profile.personaByUserName),
     };
   };
 }

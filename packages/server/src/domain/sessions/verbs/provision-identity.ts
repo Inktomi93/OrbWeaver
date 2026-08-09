@@ -46,6 +46,23 @@ async function findExisting(ctx: SessionsContext, identity: ResolvedIdentity): P
  * Whether the matched row is already BOUND to a DIFFERENT stable subject than the one logging in. Only the
  * HANDLE fallback in {@link findExisting} can produce this — an `externalId` match is equal by construction —
  * so it means "someone else's login carries this row's handle". See the refusal at the verb.
+ *
+ * THE GUARD'S SCOPE IS SUBJECT-BEARING LOGINS ONLY (`identity.externalId !== null`), and that is the trust
+ * model, not an oversight. A NULL-subject login carries no claim that could contradict the row's binding, so
+ * there is nothing to compare and it walks past this onto the handle-matched row. Who produces one:
+ *   • `forward-header`, unsigned — the Authelia (`Remote-User`) and generic (`X-Forwarded-User`) arms carry no
+ *     uid header AT ALL, and the custom-override arm carries none unless `FORWARD_AUTH_UID_HEADER` is set
+ *     (`infra/auth/modes/forward-header.ts`). In that mode the PROXY is the identity authority — it asserted
+ *     the handle behind the trusted-peer gate — so trusting the handle IS the model.
+ *   • `oidc` — `identityFromClaims` yields null when `OIDC_UID_CLAIM` names a claim the IdP does not emit
+ *     (`entry/http/auth-routes.ts`). The default is `sub`, which OIDC Core REQUIRES in an ID token, so a
+ *     default-configured box never reaches this.
+ * RESIDUAL, and it is a MISCONFIGURATION not a default: an `oidc` box whose rows were bound while the uid
+ * claim worked, then pointed at a claim the IdP omits, silently loses this guard for every login — and the
+ * (b) attack below (an IdP handle re-registered after a rename) then reaches the bound row. Do NOT close it by
+ * widening the comparison to null: refusing a null-subject login would break `forward-header` entirely, where
+ * null is the normal shape. The fix belongs at the CONFIGURATION seam (an operator-visible signal that oidc
+ * logins are arriving subject-less), not here.
  */
 function isSubjectMismatch(existing: ExistingUser, identity: ResolvedIdentity): boolean {
   return identity.externalId !== null && existing.externalId !== null && existing.externalId !== identity.externalId;
@@ -76,9 +93,13 @@ async function updateExisting(
   // the next boot finds no row at the seed key, its `insertUser(role:"owner")` collides with
   // `users_single_owner_unique`, `onConflictDoNothing` swallows it, and the whole owner-scoped boot seed runs
   // under an id that names no row. Scoped to the SEED KEY on purpose, so it is a stability guard and not a
-  // freeze: an operator who MOVES `OWNER_HANDLES` is migrating the key, and the rename then lands the row
-  // back onto the new one. Every other row keeps full IdP rename tracking (`externalId` keys SSO, `handle`
-  // keys everything else — Spine-Identity "Esoterica").
+  // freeze: an operator who MOVES `OWNER_HANDLES` is migrating the key, and BOOT — not this login — performs
+  // that migration (`entry/boot/seed-owner.ts` `adoptMovedSeedKey` renames the owner row onto the new key
+  // before anything resolves by handle, refusing loudly if another user already holds it). This guard then
+  // stops pinning the OLD key, because it no longer IS one. (Until 2026-08-08 the migration was claimed here
+  // and implemented nowhere: the restart after the env edit died in `ensureUser` on that same single-owner
+  // UNIQUE, so no login ever ran to do the rename.) Every other row keeps full IdP rename tracking
+  // (`externalId` keys SSO, `handle` keys everything else — Spine-Identity "Esoterica").
   const handleIsPolicyOwned = policy.isBootstrapOwner && isOwnerSeedHandle(existing.handle);
   if (!handleIsPolicyOwned && existing.handle !== identity.handle) {
     changes.handle = identity.handle;
@@ -211,7 +232,8 @@ export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsServ
     // `OWNER_HANDLES` key, so the takeover handle is a publicly guessable constant; (b) ANY user, through the
     // window between an IdP rename and that user's next login, during which their old username is free to
     // re-register while our row still stores it. `externalId` is the identity (Spine-Identity "Esoterica");
-    // a login that contradicts it is refused, fail-closed, with no row written.
+    // a SUBJECT-BEARING login that contradicts it is refused, fail-closed, with no row written — read
+    // `isSubjectMismatch`'s scope note for which logins carry no subject and why they are trusted anyway.
     //
     // OPERATOR RECOVERY (the accepted trade, owner-ruled 2026-08-08): the ONE legitimate way to reach this
     // refusal is an IdP that genuinely RE-ISSUED a stable subject (an authentik migration/rebuild), which

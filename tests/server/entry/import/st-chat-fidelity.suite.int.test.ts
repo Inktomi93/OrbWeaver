@@ -18,7 +18,7 @@
 // title date are fixed literals rather than host-zone-dependent.
 
 import type { Db } from "@orb/db";
-import { chatInjections, chats, messageVariants, ownerStats } from "@orb/db";
+import { chatInjections, chats, messages, messageVariants, ownerStats } from "@orb/db";
 import type {
   AssetId,
   CharacterId,
@@ -38,10 +38,11 @@ import { describe } from "vitest";
 import type { ChatImportContext } from "../../../../packages/server/src/domain/chat/contract/import.ts";
 import { createBulkImportChats } from "../../../../packages/server/src/domain/chat/persistence/import-write.ts";
 import type { ImportContext } from "../../../../packages/server/src/domain/import/context.ts";
+import type { ImportChatsResult } from "../../../../packages/server/src/domain/import/contract/results.ts";
 import { createImportChats } from "../../../../packages/server/src/domain/import/verbs/import-chats.ts";
 import { reconcileStats } from "../../../../packages/server/src/domain/stats/write/rebuild-from-canon.ts";
 import { freshDb } from "../../../support/db.ts";
-import { seedCharacter, seedUser } from "../../../support/factories/index.ts";
+import { seedCharacter, seedPersona, seedUser } from "../../../support/factories/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
@@ -140,8 +141,9 @@ function stChatBytes(metaOver: Record<string, unknown> = {}): string {
 }
 
 /** An `ImportContext` whose ONLY live op is the REAL chat bulk-import write over `db` — the card ops are
- *  inert (the chats verb must never call one) and the two post-import hooks are no-ops. */
-function stImportContext(db: Db, ownerId: UserId): ImportContext {
+ *  inert (the chats verb must never call one) and the two post-import hooks are no-ops. `personas` is the
+ *  run's name→id attribution map, exactly as the persona wave hands it to the chat wave in production. */
+function stImportContext(db: Db, ownerId: UserId, personas: Map<string, PersonaId> = new Map()): ImportContext {
   const inert = (): never => {
     throw new Error("st-chat-fidelity: card op not wired (the chats verb must not call it)");
   };
@@ -155,7 +157,7 @@ function stImportContext(db: Db, ownerId: UserId): ImportContext {
     attachCardTag: inert,
     profile: {
       now: (): number => NOW,
-      personaByUserName: new Map<string, PersonaId>(),
+      personaByUserName: personas,
       bulkImportChats: createBulkImportChats(importCtx(db)),
       bulkImportPersonas: inert,
       enqueueBackfill: (): Promise<void> => Promise.resolve(),
@@ -165,8 +167,16 @@ function stImportContext(db: Db, ownerId: UserId): ImportContext {
 }
 
 /** Run the REAL `importChats` verb over the REAL write op for a batch of ST files. */
-async function importStChats(db: Db, ownerId: UserId, characterId: CharacterId, files: readonly { name: string; text: string }[]): Promise<void> {
-  const svc = createImportChats(stImportContext(db, ownerId));
+async function importStChats(args: {
+  db: Db;
+  ownerId: UserId;
+  characterId: CharacterId;
+  files: readonly { name: string; text: string }[];
+  /** The run's persona name→id attribution map (the persona wave's output). Absent ⇒ no personas exist. */
+  personas?: Map<string, PersonaId>;
+}): Promise<ImportChatsResult> {
+  const { db, ownerId, characterId, files, personas } = args;
+  const svc = createImportChats(stImportContext(db, ownerId, personas));
   const collected = files.map((f) => {
     const parsed = parseChatJsonl(f.text, { fileName: f.name, charDirName: CHARACTER_NAME });
     if (parsed === null) {
@@ -174,7 +184,7 @@ async function importStChats(db: Db, ownerId: UserId, characterId: CharacterId, 
     }
     return { parsed, importedFrom: f.name, importHash: `hash-${f.name}` };
   });
-  await svc({ characterId, chats: collected });
+  return await svc({ characterId, chats: collected });
 }
 
 describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the ugly-title report)", () => {
@@ -182,7 +192,7 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
-    await importStChats(db, owner.id, character.id, [{ name: UGLY_FILENAME, text: stChatBytes() }]);
+    await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: stChatBytes() }] });
 
     // The stored SHAPE: `reasoning_duration` is a TOP-LEVEL key of every variant metadata blob, which is the
     // one shape `rebuild-from-canon`'s `json_extract(v.metadata, '$.reasoning_duration')` can see. Pre-fix a
@@ -211,7 +221,7 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
-    await importStChats(db, owner.id, character.id, [{ name: UGLY_FILENAME, text: stChatBytes() }]);
+    await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: stChatBytes() }] });
 
     const row = (await db.select().from(chats))[0];
     expect(row?.variableValues).toEqual({ questGiver: "Marla", coins: "37" });
@@ -221,7 +231,7 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
-    await importStChats(db, owner.id, character.id, [{ name: UGLY_FILENAME, text: stChatBytes({ variables: {} }) }]);
+    await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: stChatBytes({ variables: {} }) }] });
 
     expect((await db.select().from(chats))[0]?.variableValues).toBeNull();
   });
@@ -230,7 +240,7 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
-    await importStChats(db, owner.id, character.id, [{ name: UGLY_FILENAME, text: stChatBytes() }]);
+    await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: stChatBytes() }] });
 
     const rows = await db.select().from(chatInjections);
     expect(rows).toHaveLength(1);
@@ -249,7 +259,7 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
     const bare = stChatBytes({ note_depth: undefined, note_position: undefined, note_role: undefined, note_interval: undefined });
-    await importStChats(db, owner.id, character.id, [{ name: UGLY_FILENAME, text: bare }]);
+    await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: bare }] });
 
     const rows = await db.select().from(chatInjections);
     expect(rows).toHaveLength(1);
@@ -261,7 +271,12 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
     // 1,065 of the 1,070 note-bearing corpus chats record exactly this: it must land where it always did.
-    await importStChats(db, owner.id, character.id, [{ name: UGLY_FILENAME, text: stChatBytes({ note_depth: 4, note_position: 1, note_role: 0 }) }]);
+    await importStChats({
+      db,
+      ownerId: owner.id,
+      characterId: character.id,
+      files: [{ name: UGLY_FILENAME, text: stChatBytes({ note_depth: 4, note_position: 1, note_role: 0 }) }],
+    });
 
     expect((await db.select().from(chatInjections))[0]).toMatchObject({ position: "in_chat", depth: 4, role: "system" });
   });
@@ -270,7 +285,7 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
-    await importStChats(db, owner.id, character.id, [{ name: UGLY_FILENAME, text: stChatBytes() }]);
+    await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: stChatBytes() }] });
 
     const row = (await db.select().from(chats))[0];
     expect(row?.title).toBe("Emily Singleton — May 7, 2025");
@@ -278,14 +293,118 @@ describe("ST chat import fidelity (the 2026-08-08 audit §5.1/§5.5/§5.6 + the 
     expect(row?.importedFrom).toBe(UGLY_FILENAME);
   });
 
+  // §5.7 — ST's chat-bound persona pick. CORPUS-DRIVEN (whole 1,097-file profile, both user dirs, this lane):
+  // the key is `chat_metadata.pinnedPersona` on 71 chats, its value is a persona NAME (`"Nate"` ×63,
+  // `"Ashley"` ×8, 71/71 strings), and on ALL 71 the header `user_name` is the literal sentinel `"unused"` —
+  // which is exactly why the pin matters: `personaByUserName.get("unused")` resolves nothing, so before this
+  // those 71 chats imported with NO anchor persona and NO user-turn attribution at all. (583 of the 1,097
+  // corpus chats carry that sentinel; the pin recovers the anchor for the 71 that also recorded a pick.)
+  // ST's OWN upstream key `chat_metadata.persona` is a different field with a different vocabulary — an AVATAR
+  // FILENAME, on 4 corpus chats, 2 of which also carry `pinnedPersona` — and is deliberately NOT read here.
+  test("§5.7 — chat_metadata.pinnedPersona resolves the anchor persona BY NAME (user_name is the `unused` sentinel)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
+    // A REAL row: `chats.anchor_persona_id` is an FK, so a minted id would fail the write rather than the
+    // assertion — the resolution has to land on a persona that exists.
+    const { id: nate } = await seedPersona(db, { ownerId: owner.id, name: "Nate" });
+    const personas = new Map<string, PersonaId>([["nate", nate]]);
+    // The real corpus header shape for a pinned chat.
+    const pinned = stChatBytes({ pinnedPersona: "Nate" }).replace('"user_name":"Nate"', '"user_name":"unused"');
+
+    await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: pinned }], personas });
+
+    const row = (await db.select().from(chats))[0];
+    expect(row?.anchorPersonaId).toBe(nate);
+    // …and the user turn is attributed to it, which is the whole point of an anchor.
+    const userRows = await db.select({ role: messages.role, personaId: messages.personaId }).from(messages).orderBy(asc(messages.seq));
+    expect(userRows.filter((m) => m.role === "user").map((m) => m.personaId)).toEqual([nate]);
+  });
+
+  test("§5.7 — the PIN wins over the header user_name (ST resolves a chat lock ahead of the ambient persona)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
+    const { id: nate } = await seedPersona(db, { ownerId: owner.id, name: "Nate" });
+    const { id: ashley } = await seedPersona(db, { ownerId: owner.id, name: "Ashley" });
+    const personas = new Map<string, PersonaId>([
+      ["nate", nate],
+      ["ashley", ashley],
+    ]);
+    // Both resolvable, and they disagree: the explicit chat-bound pick is the authoritative answer.
+    const pinned = stChatBytes({ pinnedPersona: "Ashley" });
+
+    await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: pinned }], personas });
+
+    expect((await db.select().from(chats))[0]?.anchorPersonaId).toBe(ashley);
+  });
+
+  test("§5.7 — an unresolvable pin is OMITTED and REPORTED, never guessed; the header user_name still applies", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
+    const { id: nate } = await seedPersona(db, { ownerId: owner.id, name: "Nate" });
+    const personas = new Map<string, PersonaId>([["nate", nate]]);
+    // The pin names a persona this install does not have. ST itself DROPS a dangling chat lock and falls back
+    // to the ambient persona (`personas.js` — `if (chat_metadata.persona && !userAvatars.includes(...)) delete`),
+    // so the header `user_name` still applies. What must never happen is a guess at a near-match.
+    const result = await importStChats({
+      db,
+      ownerId: owner.id,
+      characterId: character.id,
+      files: [{ name: UGLY_FILENAME, text: stChatBytes({ pinnedPersona: "Ghost" }) }],
+      personas,
+    });
+
+    expect((await db.select().from(chats))[0]?.anchorPersonaId).toBe(nate);
+    expect(result.unresolvedPinnedPersonas).toEqual([{ chat: UGLY_FILENAME, persona: "Ghost" }]);
+  });
+
+  test("§5.7 — an unresolvable pin with the `unused` sentinel anchors NOTHING (no fabricated persona)", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
+    const { id: nate } = await seedPersona(db, { ownerId: owner.id, name: "Nate" });
+    const personas = new Map<string, PersonaId>([["nate", nate]]);
+    const orphan = stChatBytes({ pinnedPersona: "Ghost" }).replace('"user_name":"Nate"', '"user_name":"unused"');
+
+    const result = await importStChats({ db, ownerId: owner.id, characterId: character.id, files: [{ name: UGLY_FILENAME, text: orphan }], personas });
+
+    expect((await db.select().from(chats))[0]?.anchorPersonaId).toBeNull();
+    expect(result.unresolvedPinnedPersonas).toEqual([{ chat: UGLY_FILENAME, persona: "Ghost" }]);
+  });
+
+  test("§5.7 — a chat with NO pin is unchanged: the header user_name still resolves the anchor", async () => {
+    const db = await freshDb();
+    const owner = await seedUser(db, {});
+    const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
+    const { id: nate } = await seedPersona(db, { ownerId: owner.id, name: "Nate" });
+
+    const result = await importStChats({
+      db,
+      ownerId: owner.id,
+      characterId: character.id,
+      files: [{ name: UGLY_FILENAME, text: stChatBytes() }],
+      personas: new Map([["nate", nate]]),
+    });
+
+    expect((await db.select().from(chats))[0]?.anchorPersonaId).toBe(nate);
+    expect(result.unresolvedPinnedPersonas).toEqual([]);
+  });
+
   test("two chats with the same character on the same DAY get a disambiguating suffix, never a merge", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: CHARACTER_NAME });
-    await importStChats(db, owner.id, character.id, [
-      { name: UGLY_FILENAME, text: stChatBytes() },
-      { name: UGLY_FILENAME_SAME_DAY, text: stChatBytes({ note_prompt: "" }) },
-    ]);
+    await importStChats({
+      db,
+      ownerId: owner.id,
+      characterId: character.id,
+      files: [
+        { name: UGLY_FILENAME, text: stChatBytes() },
+        { name: UGLY_FILENAME_SAME_DAY, text: stChatBytes({ note_prompt: "" }) },
+      ],
+    });
 
     const rows = await db.select({ title: chats.title }).from(chats).orderBy(asc(chats.id));
     expect(rows).toHaveLength(2);

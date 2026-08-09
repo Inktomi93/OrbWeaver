@@ -30,6 +30,13 @@ const OWNER: Principal = {
 };
 const NOW = 1_700_000_000_000;
 
+// The zone the fixtures' ST wall clocks were "written" on. ST's `2025-07-18@12h00m00s` form is ZONE-LESS
+// LOCAL, so the importer must resolve it in the snapshot's own zone — Denver is MDT (UTC-6) on that date.
+const ST_ZONE_DENVER = "America/Denver";
+/** `2025-07-18@12h00m00s` resolved in America/Denver. Six hours LATER than the UTC misreading it replaced. */
+const DENVER_CREATE_MS = Date.UTC(2025, 6, 18, 18, 0, 0);
+const ONE_SECOND_MS = 1000;
+
 // A minimal valid PNG (signature + zero-length IEND) to embed a card into via the kit codec.
 const MINIMAL_PNG = Uint8Array.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
 
@@ -43,13 +50,15 @@ function cardPng(name: string): Uint8Array {
   return writeCardChunk(MINIMAL_PNG, JSON.stringify(card));
 }
 
-/** One real_conversation ST chat .jsonl (a greeting + a user turn attributed to `userName`). */
-function chatJsonl(userName: string, characterName: string): string {
+/** One real_conversation ST chat .jsonl (a greeting + a user turn attributed to `userName`). `meta` is the
+ *  header's `chat_metadata` — omitted entirely when empty, so the default fixture stays byte-identical. */
+function chatJsonl(userName: string, characterName: string, meta: Record<string, unknown> = {}): string {
   return [
     JSON.stringify({
       user_name: userName,
       character_name: characterName,
       create_date: "2025-07-18@12h00m00s",
+      ...(Object.keys(meta).length > 0 ? { chat_metadata: meta } : {}),
     }),
     JSON.stringify({ is_user: false, mes: "Hello traveller.", send_date: "2025-07-18@12h00m01s" }),
     JSON.stringify({ is_user: true, mes: "Hi!", send_date: "2025-07-18@12h00m02s" }),
@@ -338,8 +347,13 @@ function fixtureFiles(root: string): Record<string, Uint8Array> {
   };
 }
 
-function deps(fs: ImportFsPort, f: ReturnType<typeof fakes>, over: Partial<Pick<ProfileDirImportDeps, "dryRun">> = {}): ProfileDirImportDeps {
+function deps(
+  fs: ImportFsPort,
+  f: ReturnType<typeof fakes>,
+  over: Partial<Pick<ProfileDirImportDeps, "dryRun" | "stWallClockZone">> = {},
+): ProfileDirImportDeps {
   return {
+    ...(over.stWallClockZone === undefined ? {} : { stWallClockZone: over.stWallClockZone }),
     fs,
     profileRoot: "root",
     principal: OWNER,
@@ -490,6 +504,46 @@ describe("runProfileDirImport", () => {
     await runProfileDirImport(deps(fs, f, { dryRun: true }));
 
     expect(f.tagAttaches).toHaveLength(0);
+  });
+
+  // §5.7 — ST's chat-bound persona pick, at the WHOLE-RUN tier: the persona wave must have populated the
+  // name map before the chat wave reads the pin, and an unresolvable pick has to reach the operator's report
+  // rather than dying in the mapper. (The column-level resolution proof lives in st-chat-fidelity.suite.)
+  test("a chat's ST pinnedPersona resolves against the personas this run imported", async () => {
+    const files = {
+      ...fixtureFiles("root"),
+      // ST's real shape on a pinned chat: the header user_name is the `unused` sentinel, so the PIN is the
+      // only signal of who the user was.
+      "root/userA/chats/Aria/pinned.jsonl": ENC.encode(chatJsonl("unused", "Aria", { pinnedPersona: "Nate" })),
+    };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(fs, f));
+
+    const written = f.chatWrites.flatMap((w) => w.chats);
+    const pinned = written.find((c) => c.importedFrom === "pinned.jsonl");
+    // The persona wave minted exactly one persona ("Nate"), and the pin resolved onto it.
+    expect(pinned?.anchorPersonaId).toBe(castId<PersonaId>(`persona_${"1".padStart(26, "0")}`));
+    expect(report.unresolvedPinnedPersonas).toEqual([]);
+  });
+
+  test("an UNRESOLVABLE pinnedPersona is reported, never guessed, and never blocks the chat", async () => {
+    const files = {
+      ...fixtureFiles("root"),
+      "root/userA/chats/Aria/orphan-pin.jsonl": ENC.encode(chatJsonl("unused", "Aria", { pinnedPersona: "Ghost" })),
+    };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(fs, f));
+
+    expect(report.unresolvedPinnedPersonas).toEqual([{ chat: "orphan-pin.jsonl", persona: "Ghost" }]);
+    // The chat still imported — an unresolved pick costs the pick, never the transcript. And no near-match:
+    // "Ghost" did NOT quietly land on the run's only persona.
+    const orphan = f.chatWrites.flatMap((w) => w.chats).find((c) => c.importedFrom === "orphan-pin.jsonl");
+    expect(orphan).toBeDefined();
+    expect(orphan?.anchorPersonaId).toBeNull();
   });
 
   test("idempotent: a byte-identical second run scans the same set, changes nothing", async () => {
@@ -674,6 +728,25 @@ describe("runProfileDirImport — ST groups", () => {
 
     expect(report.missingGroupChats).toEqual(["gone.jsonl"]);
     expect(report.groupChatsImported).toBe(1);
+  });
+
+  test("a group transcript's DATES resolve in the ST wall-clock zone, exactly like a solo one", async () => {
+    // The group wave used to read its transcripts as UTC while the solo wave threaded the injected zone: the
+    // collector forwarded `wallClockZone` to `collectChatsForDir` and NOT to `collectGroups`, so every
+    // imported ST group room (and every one of its messages) landed at the writing box's UTC offset — 6h
+    // early for this Denver snapshot. Counts alone never saw it; only the instants do.
+    const fs = memoryFs(presetAndGroupFiles("root"));
+    const f = fakes();
+
+    await runProfileDirImport(deps(fs, f, { stWallClockZone: ST_ZONE_DENVER }));
+
+    const groupChat = f.chatWrites.at(-1)?.chats[0];
+    expect(groupChat?.createdAt).toBe(DENVER_CREATE_MS);
+    // Every message instant rides the same parse, so the first line's `send_date` (+1s) must shift with it.
+    expect(groupChat?.messages[0]?.createdAt).toBe(DENVER_CREATE_MS + ONE_SECOND_MS);
+    // The title's date is rendered from the SAME instant in the SAME zone — it was already zone-correct
+    // (the group verb threads the zone to the mapper), which is exactly why the drift stayed invisible.
+    expect(groupChat?.title).toBe("Group: Aria + Bram — Jul 18, 2025");
   });
 
   test("a byte-identical second run is a clean idempotent no-op across BOTH new planes", async () => {

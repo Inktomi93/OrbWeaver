@@ -29,6 +29,9 @@ const OTHER_ID = castId<UserId>("u_other");
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const INITIAL_PASSWORD = "correct horse battery";
 
+/** The moved-seed-key refusal's tell — the message must name WHY it refused, not just fail. */
+const HANDLE_TAKEN_REFUSAL = /already held by another user/;
+
 afterEach(() => {
   vi.unstubAllEnvs();
 });
@@ -240,6 +243,59 @@ test("the ADOPTED OIDC owner survives a re-boot: same owner id, same row, no pha
 
   // The id names a REAL row — so the boot Principal reads `owner` off the table instead of degrading to `user`.
   expect(await sessions.loadUserById(secondBootOwner)).toEqual({ role: "owner", handle: "owner", externalId: "authentik|nate", enabled: true });
+});
+
+// THE MOVED SEED KEY. `OWNER_HANDLES` is the handle boot's `seedOwner` and the auth seam's owner fallback
+// BOTH resolve the owner ROW through, so an operator who edits it has moved the only key those two consumers
+// have. RED-first (the pre-fix tree): the restart hit `ensureUser("<new key>")` → no row at that handle →
+// `insertUser(role:"owner")` collided with `users_single_owner_unique` → `onConflictDoNothing` swallowed it →
+// the re-read missed → `ensureUser` threw. BOOT FATAL, before any login could rename anything — which is what
+// made `provision-identity`'s "the rename then lands the row back onto the new one" a promise nothing kept.
+test("an operator who MOVES OWNER_HANDLES: the owner row follows the new key, boot survives, role/subject intact", async ({ clock }) => {
+  const db = await freshDb();
+  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  vi.stubEnv("OWNER_HANDLES", "owner");
+
+  const firstBootOwner = (await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now }))[0];
+  // The realistic shape: the row is already SSO-bound (that binding is exactly what must survive the move).
+  await db
+    .update(users)
+    .set({ externalId: castId<ExternalId>("authentik|nate") })
+    .where(eq(users.handle, castId<Handle>("owner")));
+
+  // The operator's IdP username changed, so they edit OWNER_HANDLES and restart.
+  vi.stubEnv("OWNER_HANDLES", "nate");
+  const secondBootOwner = (await seedOwner({ db, sessions, ownerHandles: ["nate"], now: clock.now }))[0];
+
+  expect(secondBootOwner).toBe(firstBootOwner);
+  const rows = await db.select().from(users);
+  expect(rows).toHaveLength(1);
+  // Only the handle moved: the role and the durable SSO subject are untouched by the migration.
+  expect(rows[0]?.handle).toBe("nate");
+  expect(rows[0]?.role).toBe("owner");
+  expect(rows[0]?.externalId).toBe("authentik|nate");
+  // The id names a REAL row — the boot Principal reads `owner`, never the phantom-id degrade to `user`.
+  expect(await sessions.loadUserById(rows[0]?.id ?? OWNER_ID)).toEqual({ role: "owner", handle: "nate", externalId: "authentik|nate", enabled: true });
+});
+
+// The migration NEVER STEALS. A member already holding the new key means the operator picked a taken handle;
+// boot refuses with an actionable message instead of moving that member's row (or flipping it to owner, which
+// `users_single_owner_unique` would reject as an opaque SQLITE_CONSTRAINT — the pre-fix failure).
+test("moving OWNER_HANDLES onto a handle a MEMBER already holds refuses loudly and touches NEITHER row", async ({ clock }) => {
+  const db = await freshDb();
+  const sessions = createSessionsService({ db, now: clock.now, sessionSecret: PEPPER });
+  vi.stubEnv("OWNER_HANDLES", "owner");
+  await seedOwner({ db, sessions, ownerHandles: ["owner"], now: clock.now });
+  await db.insert(users).values({ id: OTHER_ID, handle: castId<Handle>("nate"), role: "user" });
+
+  vi.stubEnv("OWNER_HANDLES", "nate");
+  await expect(seedOwner({ db, sessions, ownerHandles: ["nate"], now: clock.now })).rejects.toThrow(HANDLE_TAKEN_REFUSAL);
+
+  const rows = await db.select().from(users);
+  expect(rows).toHaveLength(2);
+  expect(rows.find((r) => r.handle === "owner")?.role).toBe("owner");
+  // The member kept their handle AND their role — a refused migration is not a partial one.
+  expect(rows.find((r) => r.handle === "nate")?.role).toBe("user");
 });
 
 test("no initialPassword (single-user / SSO): the owner row is seeded WITHOUT a password", async ({ clock }) => {
