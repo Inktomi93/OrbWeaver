@@ -29,6 +29,11 @@ beforeAll(async () => {
   await writeFile(join(distDir, "index.html"), INDEX_HTML);
   await mkdir(join(distDir, "assets"));
   await writeFile(join(distDir, "assets", "app-abc123.js"), HASHED_JS);
+  // F1 belt teeth: a sourcemap + a raw source file that REALLY exist in the served dir — without the
+  // belt serveStatic would 200 them (a re-shipped map leaks all of `src/**` via sourcesContent). The
+  // belt must 404 them despite their presence on disk.
+  await writeFile(join(distDir, "assets", "app-abc123.js.map"), '{"version":3,"sourcesContent":["SECRET SOURCE"]}');
+  await writeFile(join(distDir, "assets", "leak.ts"), "export const secret = 1;");
   // public/-copied files are name-stable (NOT hashed) — must revalidate.
   await mkdir(join(distDir, "backgrounds"));
   await writeFile(join(distDir, "backgrounds", "day.png"), "png-bytes");
@@ -92,6 +97,29 @@ describe("registerSpa", () => {
   test("a stale hashed-asset request (no html Accept) 404s instead of receiving HTML-as-JS", async () => {
     const res = await app.request("/assets/app-gone999.js", { headers: { accept: "*/*" } });
     expect(res.status).toBe(NOT_FOUND);
+  });
+
+  // F1 (pre-auth-attack-surface audit 2026-08-09): a sourcemap that physically exists in the served dir
+  // must 404 at the SPA boundary — the belt fires before serveStatic, so a build-config regression that
+  // re-ships `.map` can't leak the first-party source via `sourcesContent`. Non-HTML 404 (the /api-miss
+  // posture), never index.html-as-JSON.
+  test("F1: an unauthed GET /assets/*.js.map is 404'd by the belt even though the file exists on disk", async () => {
+    const res = await app.request("/assets/app-abc123.js.map", { headers: { accept: "*/*" } });
+    expect(res.status).toBe(NOT_FOUND);
+    const body = await res.text();
+    expect(body).not.toContain("SECRET SOURCE");
+    expect(body).not.toContain("<!doctype");
+  });
+
+  test("F1: a raw .ts source path is 404'd by the belt (never served, never the HTML fallback)", async () => {
+    // No html Accept on the direct probe...
+    const asset = await app.request("/assets/leak.ts", { headers: { accept: "*/*" } });
+    expect(asset.status).toBe(NOT_FOUND);
+    expect(await asset.text()).not.toContain("secret");
+    // ...AND a navigation Accept must NOT smuggle the source in as the history fallback.
+    const nav = await app.request("/assets/leak.ts", { headers: NAV_HEADERS });
+    expect(nav.status).toBe(NOT_FOUND);
+    expect(await nav.text()).not.toContain("secret");
   });
 
   test("traversal through the static handler never escapes the bundle root", async () => {
