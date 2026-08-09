@@ -23,6 +23,7 @@ import { testId, timeLib, useFocusOnMount } from "#lib";
 import { selectCorpusCharacter } from "#state";
 import { CharacterAvatar } from "../components/character-avatar.tsx";
 import { AllThemes, FacetBars, KeywordExplorer, ThemeDrift } from "../components/corpus-home-charts.tsx";
+import { CorpusRunJobEmptyState } from "../components/corpus-run-job-empty-state.tsx";
 import { toBarItems } from "../lib/corpus-charts.ts";
 
 type ThemeLevel = "scene" | "arc";
@@ -43,7 +44,9 @@ export function CorpusHomeSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="h-full min-h-0 outline-none" data-testid={testId("corpusHomeSurface")}>
+    // No height/scroll/inset of its own — the CONTENT region owns all three for both corpus surfaces
+    // (`corpus-content.tsx`, the Configuration precedent).
+    <Stack ref={surfaceRef} tabIndex={-1} className="outline-none" data-testid={testId("corpusHomeSurface")}>
       <QueryBoundary
         fallback={<Text voice="gloss">Loading your corpus…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your corpus" onRetry={retry} />}
@@ -63,8 +66,15 @@ function CorpusHomeBody(): ReactElement {
   const { data: routing } = useSuspenseQuery(trpc.discovery.modelRouting.queryOptions());
   const [theme, setTheme] = useState<ThemeSelection | null>(null);
 
+  // FIRST RUN: every analysis plane on this surface is fed by the same two jobs, so when they have never run
+  // the five analysis sections have nothing but seven muted "No … computed yet." notes between them. Collapse
+  // them into ONE state that names the jobs and opens the door (side-eye 2026-08-08 P1-2). The read is the
+  // two ALREADY-SUSPENDED queries — themes at both levels and the distilled catalog — never a probe query:
+  // keywords and theme drift derive from the same distillation, so a separate read could only agree.
+  const analysed = home.topSceneThemes.length > 0 || home.topArcThemes.length > 0 || catalog.totalDistilled > 0;
+
   return (
-    <Stack className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
+    <Stack gap="section">
       <Section heading="Coverage">
         <Row gap="block" className="flex-wrap">
           <StatFigure label="Characters" value={home.coverage.characters.toString()} />
@@ -76,36 +86,42 @@ function CorpusHomeBody(): ReactElement {
         </Row>
       </Section>
 
-      <Section heading="Themes">
-        <Stack gap="block">
-          <ThemeGroup label="Scenes" themes={home.topSceneThemes} selected={theme} onSelect={setTheme} />
-          <ThemeGroup label="Arcs" themes={home.topArcThemes} selected={theme} onSelect={setTheme} />
-          {theme !== null ? <ThemeDetailCard selection={theme} onDismiss={(): void => setTheme(null)} /> : null}
-        </Stack>
-      </Section>
+      {analysed ? (
+        <>
+          <Section heading="Themes">
+            <Stack gap="block">
+              <ThemeGroup label="Scenes" themes={home.topSceneThemes} selected={theme} onSelect={setTheme} />
+              <ThemeGroup label="Arcs" themes={home.topArcThemes} selected={theme} onSelect={setTheme} />
+              {theme !== null ? <ThemeDetailCard selection={theme} onDismiss={(): void => setTheme(null)} /> : null}
+            </Stack>
+          </Section>
 
-      <AllThemes />
+          <AllThemes />
 
-      <KeywordExplorer />
+          <KeywordExplorer />
 
-      <Section heading="Catalog">
-        <Stack gap="block">
-          <FacetBars label="Genres" facets={catalog.genres} />
-          <FacetBars label="Tones" facets={catalog.tones} />
-          {catalog.topTags.length === 0 ? (
-            <Text voice="gloss">No tags distilled.</Text>
-          ) : (
-            <BarList
-              label="Top tags"
-              items={toBarItems(
-                catalog.topTags,
-                (tag) => tag.tag,
-                (tag) => tag.count,
+          <Section heading="Catalog">
+            <Stack gap="block">
+              <FacetBars label="Genres" facets={catalog.genres} />
+              <FacetBars label="Tones" facets={catalog.tones} />
+              {catalog.topTags.length === 0 ? (
+                <Text voice="gloss">No tags distilled.</Text>
+              ) : (
+                <BarList
+                  label="Top tags"
+                  items={toBarItems(
+                    catalog.topTags,
+                    (tag) => tag.tag,
+                    (tag) => tag.count,
+                  )}
+                />
               )}
-            />
-          )}
-        </Stack>
-      </Section>
+            </Stack>
+          </Section>
+        </>
+      ) : (
+        <CorpusRunJobEmptyState title="Nothing analysed yet" description="Run Distill characters and Compute themes to fill this in." />
+      )}
 
       <Section heading="Forgotten gems">
         {gems.length === 0 ? (
@@ -162,7 +178,7 @@ function CorpusHomeBody(): ReactElement {
         )}
       </Section>
 
-      <ThemeDrift />
+      {analysed ? <ThemeDrift /> : null}
     </Stack>
   );
 }

@@ -7,10 +7,16 @@ import type { SettingsSubcategory } from "#state";
 
 export const WORKLOADS_JOBS_SUBCATEGORY: SettingsSubcategory = {
   id: "jobs",
-  label: "Jobs",
-  // "workloads" stays a SEARCH keyword (the system noun + the old user-facing label) so the pane is still
-  // findable by it — the rendered copy says "job" everywhere (owner 08-02).
-  keywords: ["jobs", "workloads", "background", "queue", "tasks", "progress", "retry", "cancel"],
+  // "Runs", not "Jobs" (side-eye 2026-08-08 P3, a RULING FORK — see the fork note in `workloads-pane.tsx`):
+  // the pane is "Jobs" and this section used to be "Jobs" too, so the settings nav landmark carried two rows
+  // with the byte-identical accessible name and nothing to tell them apart. WCAG 2.5.3 (label-in-name)
+  // forbids papering that over with an `aria-label` the eye cannot see, so the VISIBLE name is what moves.
+  // "Runs" is also the more descriptive name (2.4.6): this section lists RUNS, beside Schedules and Analysis
+  // tuning. The `id` stays "jobs" — it is the anchor every deep link and search leaf resolves through.
+  label: "Runs",
+  // "jobs"/"workloads" stay SEARCH keywords (the old user-facing label + the system noun) so the section is
+  // still findable by either — the rendered copy says "job" everywhere, never "workload" (owner 08-02).
+  keywords: ["runs", "jobs", "workloads", "background", "queue", "tasks", "progress", "retry", "cancel"],
   settings: [
     {
       id: "run-workload",

@@ -247,6 +247,42 @@ test("a POPULATED launcher card is a real control — clicking it opens that col
   await expect(workspace.getByText(FIRST_ROW)).toBeVisible();
 });
 
+// …AND IT SAYS SO AT REST (side-eye 2026-08-08 P2). Hover, focus ring and keyboard operability all require
+// the pointer or the keyboard to have ALREADY arrived; at rest the one operable card was pixel-identical to
+// its two inert siblings, so a sighted scan had no way to learn which one was a door. The pin is the
+// DIFFERENCE — a glyph the populated card renders and the inert ones do not — because "give it an
+// affordance" is only satisfied by something the siblings lack.
+test("a POPULATED launcher card carries a resting affordance its inert siblings do not", async ({ mount, page }) => {
+  await stub(page, []);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+  await bandCount(workspace, "tags", 0);
+  await bandCount(workspace, "worldInfo", BOOKS.length);
+
+  // One frame, both arms: `tags` is empty (inert card), `regex`/`worldInfo` are populated (launchers).
+  const glyphCount = async (collectionId: string): Promise<number> => launcher(workspace, collectionId).locator("svg").count();
+  const [inert, populated] = await Promise.all([glyphCount("tags"), glyphCount("worldInfo")]);
+  expect(populated, "the launchable card draws a glyph the inert card does not").toBeGreaterThan(inert);
+});
+
+// …AND THE CARD GRID READS IN THE SAME COLUMN AS THE COPY ABOVE IT (side-eye 2026-08-08 P3). The grid had no
+// width of its own inside a centered Stack, so its auto-fit tracks shrink-to-fit — measured 473px under a
+// 595px paragraph, giving one block of teaching copy TWO left edges. The pin is the two boxes' left edges.
+test("the launcher grid shares the welcome paragraph's column — one left edge, not two", async ({ mount, page }) => {
+  await stub(page);
+  const workspace = await mount(<ConfigWorkspaceStory />);
+  await workspace.getByRole("button", { name: "reset groups" }).click();
+
+  const welcome = workspace.locator(WELCOME);
+  const paragraph = welcome.getByText("Tags label your library.", { exact: false });
+  await expect(paragraph).toBeVisible();
+  const [paragraphBox, cardBox] = await Promise.all([paragraph.boundingBox(), launcher(workspace, "tags").boundingBox()]);
+  if (paragraphBox === null || cardBox === null) {
+    throw new Error("the welcome paragraph or its first launcher card did not render a box");
+  }
+  expect(Math.abs(cardBox.x - paragraphBox.x), "the grid's first column starts on the paragraph's left edge").toBeLessThanOrEqual(1);
+});
+
 // …AND IT IS REACHABLE WITHOUT A POINTER (same finding). The card was a plain `<div>`: no tab stop, no
 // Enter/Space, no focus ring — the launcher pane was keyboard-dead in full. The pin is the rendered
 // affordance (focus lands, Enter operates), not the attribute that produces it.
@@ -464,16 +500,19 @@ test("the group create verb fires the OWNER's create mutation", async ({ mount, 
   await expect.poll(() => trpc.lastInput("tag.createTag"), { intervals: [20, 50, 100] }).toEqual({ input: { name: "New tag" } });
 });
 
-test("a zero-member group keeps its band and says so, with its own create verb", async ({ mount, page }) => {
+test("a zero-member group keeps its band and says so — with exactly ONE create verb in the roster", async ({ mount, page }) => {
   await stub(page, []);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   const roster = workspace.locator(ROSTER);
   await expect(roster.getByText("No tags yet.")).toBeVisible();
-  // The empty slot repeats the collection's OWN create verb as the inline next step, BESIDE the band's `+`
-  // (two affordances, one verb, both in the roster — the drawn design, `empty-states.html:191-193`).
-  await expect(roster.getByRole("button", { name: "New tag" })).toHaveCount(2);
+  // ONE, not two (side-eye 2026-08-08 P2). The empty slot used to repeat the band's verb — and with the
+  // Configuration launcher card carrying a third copy, "New tag" rendered three times on one screen. The
+  // band's `+` is the roster's standing create affordance at every count, so it is the one that stays here;
+  // the launcher card keeps the other (the owner's C7 arm-2 onboarding ruling). The COUNT is the assertion —
+  // a re-added inline verb reds this immediately.
+  await expect(roster.getByRole("button", { name: "New tag" })).toHaveCount(1);
   // …and the ZERO group's band offers NO disclosure (side-eye 2026-08-06 P2): the chevron used to open a
   // panel onto nothing, one row above the card that had already said the library was empty. Scoped to the
   // tags group — its populated siblings in this story keep their own toggles, which is the control.
@@ -519,61 +558,34 @@ test("a zero-member band renders its count", async ({ mount, page }) => {
   await expect(band.getByText("0", { exact: true })).toBeVisible();
 });
 
-// …AND IT IS A CARD, NOT A ROW (side-eye 2026-08-08). The copy and the create verb sat side-by-side on one
-// line inside the dashed box, which at the roster's real width read as a broken table row rather than as the
-// house empty-state grammar (copy, then the next step BELOW it, centered). The assertion is the two boxes'
-// GEOMETRY — stacked (the verb starts below the copy's last line) and sharing a centre — because "stacked and
-// centered" is a rendered fact and a class list is not.
-test("the zero-member slot is a centered CARD — the verb sits below its copy, not beside it", async ({ mount, page }) => {
+// …AND IT IS A CARD, NOT A ROW (side-eye 2026-08-08). The copy and the (then-present) create verb sat
+// side-by-side on one line inside the dashed box, which at the roster's real width read as a broken table row
+// rather than as the house empty-state grammar. RETARGETED 2026-08-08 P2: the verb left the slot entirely
+// (one action, one home — see the count assertion above), so the two sibling boxes it used to measure no
+// longer exist. What survives is the same CLAIM about the slot — a centered CARD, not a row — pinned on the
+// copy's box against its dashed frame: centered inside it, and given its own block band rather than sharing a
+// line. Both are rendered facts; a class list is not.
+//
+// This is deliberately NOT a deletion. The old assertion's subject was the affordance; the finding removed the
+// affordance, and a removed affordance whose geometry pin is simply deleted leaves the slot with NO shape
+// guard at all — which is how the "broken table row" shipped the first time.
+test("the zero-member slot is a centered CARD — its copy sits on its own centered band inside the frame", async ({ mount, page }) => {
   await stub(page, []);
   const workspace = await mount(<ConfigWorkspaceStory />);
   await workspace.getByRole("button", { name: "reset groups" }).click();
 
   const group = workspace.locator(ROSTER).locator('[data-collection="tags"]');
   const copy = group.getByText("No tags yet.");
-  // The band's `+` comes first in DOM order; the empty slot's repeat of the same verb is the trailing one.
-  const verb = group.getByRole("button", { name: "New tag" }).last();
   await expect(copy).toBeVisible();
-  await expect(verb).toBeVisible();
-  const [copyBox, verbBox] = await Promise.all([copy.boundingBox(), verb.boundingBox()]);
-  if (copyBox === null || verbBox === null) {
-    throw new Error("the empty slot's copy or its create verb did not render a box");
+  const frame = group.locator('[data-slot="collection-group-empty"]');
+  const [copyBox, frameBox] = await Promise.all([copy.boundingBox(), frame.boundingBox()]);
+  if (copyBox === null || frameBox === null) {
+    throw new Error("the empty slot's copy or its frame did not render a box");
   }
-  expect(verbBox.y, "the create verb starts below the copy's last line").toBeGreaterThanOrEqual(copyBox.y + copyBox.height);
-  expect(Math.abs(copyBox.x + copyBox.width / 2 - (verbBox.x + verbBox.width / 2)), "copy and verb share one centre line").toBeLessThanOrEqual(1);
-});
-
-// …AND IT WEARS BUTTON CHROME AT REST (side-eye 2026-08-08 P3, the landing-CTA finding class). The verb was
-// `intent="ghost"` — muted text with a hover fill and nothing else — sitting directly beneath a `gloss`
-// sentence inside a dashed card, so it read as the copy's second line rather than as the next step. The pin is
-// the RENDERED chrome: a border with real width, and foreground ink rather than the muted tone the sentence
-// above it uses. Both are computed values; a `ghost` button satisfies neither.
-test("the zero-member slot's create verb reads as a BUTTON at rest, not as prose", async ({ mount, page }) => {
-  await stub(page, []);
-  const workspace = await mount(<ConfigWorkspaceStory />);
-  await workspace.getByRole("button", { name: "reset groups" }).click();
-
-  const group = workspace.locator(ROSTER).locator('[data-collection="tags"]');
-  const verb = group.getByRole("button", { name: "New tag" }).last();
-  await expect(verb).toBeVisible();
-
-  const chrome = await verb.evaluate((el) => {
-    const probe = document.createElement("div");
-    document.body.append(probe);
-    const resolve = (token: string): string => {
-      probe.style.color = `var(${token})`;
-      return getComputedStyle(probe).color;
-    };
-    const tokens = { foreground: resolve("--color-foreground"), muted: resolve("--color-muted-foreground") };
-    probe.remove();
-    const style = getComputedStyle(el);
-    return { borderWidth: Number.parseFloat(style.borderTopWidth), borderStyle: style.borderTopStyle, color: style.color, ...tokens };
-  });
-  expect(chrome.borderWidth, "the verb draws a real border at rest").toBeGreaterThan(0);
-  expect(chrome.borderStyle).not.toBe("none");
-  // Guard the vacuous case, then pin the ink: foreground, not the muted tone a ghost button wears.
-  expect(chrome.foreground).not.toBe(chrome.muted);
-  expect(chrome.color).toBe(chrome.foreground);
+  expect(Math.abs(copyBox.x + copyBox.width / 2 - (frameBox.x + frameBox.width / 2)), "the copy is centered in its frame").toBeLessThanOrEqual(1);
+  // Its own band: the copy does not share a line with anything — nothing else in the frame overlaps its rows.
+  expect(copyBox.height, "the copy has a real line box").toBeGreaterThan(0);
+  expect(frameBox.height, "the frame is taller than its copy (the card's own padding)").toBeGreaterThan(copyBox.height);
 });
 
 // The band's KICKER at the pane it actually lives in (side-eye 2026-08-06 P3). "REGEX SCRIPTS" is the

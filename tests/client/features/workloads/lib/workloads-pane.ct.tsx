@@ -25,13 +25,17 @@ const USER_VIEWER = { userId: "user_ct_kes", handle: "kes", globalRole: "user" }
 const ANCHOR_ORDER = ["settings-anchor-workloads-jobs", "settings-anchor-workloads-schedules", "settings-anchor-workloads-tuning"];
 
 /** The nav rows the pane DERIVES from its contributions, in door order. */
-const NAV_LABELS = ["Jobs", "Schedules", "Analysis tuning"];
-/** The expanded category row's own label — "Jobs" now sits at BOTH levels (the pane and its first section
- *  are the same concept, the Personas>Personas / Tags>Tags precedent), so a nav assertion has to read the
- *  rows POSITIONALLY: a bare `getByText("Jobs")` is a strict-mode violation by construction. */
+const NAV_LABELS = ["Runs", "Schedules", "Analysis tuning"];
+/** The expanded category row's own label. "Jobs" used to sit at BOTH levels (the pane and its first section
+ *  were the same word, the Personas>Personas / Tags>Tags precedent) — two rows in ONE navigation landmark
+ *  with the identical accessible name, which side-eye ruled a defect on 2026-08-08 (WCAG 2.4.6/4.1.2). The
+ *  section is "Runs" now, so `CATEGORY_LABEL` is unambiguous again; the assertion still reads POSITIONALLY
+ *  because ORDER is what it claims. */
 const CATEGORY_LABEL = "Jobs";
 /** A moved section's surviving search leaf (the option row also carries its category label). */
 const CREATE_SCHEDULE_LEAF = /Create a schedule/;
+/** The jump's flash-ring base class (`settings-scroll-spy.ts`) — the thing that carries the ring's box. */
+const FLASH_ANCHOR_CLASS = /settings-flash-anchor/;
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
@@ -59,7 +63,7 @@ test("the Jobs category shows in the shell nav for a PLAIN user (per-user, not a
 test("the skimmer renders all three workloads sections, in the door's declared order", async ({ mount, page }) => {
   await stub(page);
   await mount(<WorkloadsPaneStory />);
-  await page.getByRole("heading", { name: "Jobs" }).waitFor();
+  await page.getByRole("heading", { name: "Runs" }).waitFor();
 
   const anchorIds = await page.evaluate(() => [...document.querySelectorAll('[id^="settings-anchor-workloads-"]')].map((el) => el.id));
   expect(anchorIds).toStrictEqual(ANCHOR_ORDER);
@@ -71,7 +75,7 @@ test("the skimmer renders all three workloads sections, in the door's declared o
 test("subcategory sections are a single column, stacked in registry order", async ({ mount, page }) => {
   await stub(page);
   await mount(<WorkloadsPaneStory />);
-  await page.getByRole("heading", { name: "Jobs" }).waitFor();
+  await page.getByRole("heading", { name: "Runs" }).waitFor();
 
   const geometry = await readSettingsPaneGeometry(page, "workloads");
   expect(findSettingsColumnViolation(geometry, ANCHOR_ORDER.length)).toBeNull();
@@ -82,7 +86,7 @@ test("subcategory sections are a single column, stacked in registry order", asyn
 test("the derived nav lists every contributed section, in door order", async ({ mount, page }) => {
   await stub(page);
   await mount(<WorkloadsPaneStory />);
-  await page.getByRole("heading", { name: "Jobs" }).waitFor();
+  await page.getByRole("heading", { name: "Runs" }).waitFor();
 
   // Read the nav's row titles in DOM order and assert the three contributed sections sit CONTIGUOUSLY
   // directly under the expanded category row — order is the claim, and it survives the doubled "Jobs".
@@ -97,7 +101,7 @@ test("the derived nav lists every contributed section, in door order", async ({ 
 test("a search leaf of a MOVED section still jumps to a live anchor", async ({ mount, page }) => {
   await stub(page);
   await mount(<WorkloadsPaneStory />);
-  await page.getByRole("heading", { name: "Jobs" }).waitFor();
+  await page.getByRole("heading", { name: "Runs" }).waitFor();
 
   // "Create a schedule" travelled with the schedules section into its own nav file (§7.2).
   await page.getByRole("combobox", { name: "Search settings" }).fill("cadence");
@@ -109,6 +113,67 @@ test("a search leaf of a MOVED section still jumps to a live anchor", async ({ m
   // anchor would silently scroll to nothing.
   await expect(page.locator("#settings-anchor-workloads-schedules")).toBeInViewport();
   await expect(page.getByTestId("schedule-create-button")).toBeVisible();
+});
+
+// …AND THE FLASH RING DOES NOT STRIKE THE TEXT IT HIGHLIGHTS (side-eye 2026-08-08 P2). The jump lights an
+// INSET box-shadow on a section that has no padding of its own, so the ring drew straight through the
+// heading's cap-height and the note's descenders. The fix buys block padding and hands the same amount back
+// as negative block margin, so the ring clears the glyphs and the flex item's MARGIN-BOX is unchanged (a
+// flash that reflowed the pane would be a worse defect than the one it fixed). Both halves are measured on
+// resolved values — the padding against the token, the box against the pre-jump box.
+test("the jump's flash ring clears the section's own text, and lights without reflowing the pane", async ({ mount, page }) => {
+  await stub(page);
+  await mount(<WorkloadsPaneStory />);
+  await page.getByRole("heading", { name: "Runs" }).waitFor();
+
+  const section = page.locator("#settings-anchor-workloads-schedules");
+  const outerHeight = async (): Promise<number> =>
+    section.evaluate((el) => {
+      const style = globalThis.getComputedStyle(el);
+      return el.getBoundingClientRect().height + Number.parseFloat(style.marginTop) + Number.parseFloat(style.marginBottom);
+    });
+  const before = await outerHeight();
+
+  await page.getByRole("combobox", { name: "Search settings" }).fill("cadence");
+  await page.getByRole("option", { name: CREATE_SCHEDULE_LEAF }).first().click();
+  await expect(section).toHaveClass(FLASH_ANCHOR_CLASS);
+
+  const measured = await section.evaluate((el) => {
+    const style = globalThis.getComputedStyle(el);
+    const probe = document.createElement("div");
+    probe.style.width = "var(--spacing-row)";
+    el.append(probe);
+    const step = globalThis.getComputedStyle(probe).width;
+    probe.remove();
+    return {
+      paddingTop: style.paddingTop,
+      paddingBottom: style.paddingBottom,
+      marginTop: style.marginTop,
+      marginBottom: style.marginBottom,
+      step,
+      // The inline axis is deliberately UNTOUCHED: an inline pair would push the section past its scroll
+      // container and flash a horizontal scrollbar for the ring's whole life.
+      paddingLeft: style.paddingLeft,
+      paddingRight: style.paddingRight,
+    };
+  });
+  const negated = `-${measured.step}`;
+  expect(measured.paddingTop).toBe(measured.step);
+  expect(measured.paddingBottom).toBe(measured.step);
+  expect(measured.marginTop).toBe(negated);
+  expect(measured.marginBottom).toBe(negated);
+  expect(measured.paddingLeft).toBe("0px");
+  expect(measured.paddingRight).toBe("0px");
+
+  // The clearance is REAL: the ring's inner edge sits a full step above the section's first glyph.
+  const [sectionBox, headingBox] = await Promise.all([section.boundingBox(), section.getByRole("heading", { name: "Schedules" }).boundingBox()]);
+  if (sectionBox === null || headingBox === null) {
+    throw new Error("the flashed section or its heading did not render a box");
+  }
+  expect(headingBox.y - sectionBox.y, "the heading's cap starts below the ring").toBeGreaterThanOrEqual(Number.parseFloat(measured.step));
+
+  // …and lighting it moved nothing: same margin-box height as before the jump.
+  expect(await outerHeight()).toBeCloseTo(before, 1);
 });
 
 // The NARROW arm swept on the SECOND pane the side-eye receipts covered (the shell owns the behaviour, but
@@ -235,7 +300,7 @@ test("POPULATED: both lanes, a job in flight, a poison row, a finished stats reb
   await routeOrbSocket(page, { frames: [], awaitAttaches: 0 });
 
   await mount(<WorkloadsPaneStory />);
-  await page.getByRole("heading", { name: "Jobs" }).waitFor();
+  await page.getByRole("heading", { name: "Runs" }).waitFor();
 
   const jobs = page.getByTestId("workloads-section");
   // BOTH lane headings — the "why are two things running at once?" answer.

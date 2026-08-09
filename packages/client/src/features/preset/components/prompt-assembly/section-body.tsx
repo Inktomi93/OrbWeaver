@@ -19,11 +19,12 @@
 import type { PromptConfig, PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_MARKER_TEMPLATES } from "@orb/contracts/preset";
 import { Button } from "@orb/ui/button";
-import { ExternalLink, Icon, Info } from "@orb/ui/icons";
+import { ChevronDown, ChevronRight, ExternalLink, Icon, Info } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MacroTextarea } from "@orb/ui/macro-textarea";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useId, useState } from "react";
 import type { AppFormInstance } from "#forms";
 import { goToCollection } from "#state";
 import { isTemplatedMarker } from "../../lib/assembly-model.ts";
@@ -100,6 +101,43 @@ function TemplatedMarkerBody({ form, section, index }: SectionBodyProps): ReactE
           this is the one place the narrator arm — and the fact that ONE typed template covers both — is
           visible from the surface that edits it. */}
       {copy.templateNote === undefined ? null : <Text voice="gloss">{copy.templateNote}</Text>}
+      {/* …AND THE BYTES IT NAMES (side-eye 2026-08-08 P2). The note said a narrator round gets a different
+          framing and never showed it — `NARRATOR_MAIN_PROMPT_TEMPLATE` had zero client consumers, so the arm
+          the author cannot see was the arm nothing printed. Disclosed rather than inlined, and ghosted like
+          the per-speaker default in the field above: same muted ink, same read-only posture, because neither
+          is editable here (one typed template replaces BOTH arms — which is exactly what the note says). */}
+      {copy.templateNoteDetail === undefined || copy.templateNote === undefined ? null : <TemplateNoteDetail detail={copy.templateNoteDetail} />}
+    </Stack>
+  );
+}
+
+/** The `templateNote`'s bytes behind a disclosure — the house band grammar (`aria-expanded` button +
+ *  `hidden` body) the Actions cluster bands and the Configuration roster groups already speak, rather than
+ *  the Accordion primitive: this is ONE row of read-only text, not a set of alternating panels. */
+function TemplateNoteDetail({ detail }: { readonly detail: { readonly label: string; readonly text: string } }): ReactElement {
+  const bodyId = useId();
+  const [open, setOpen] = useState(false);
+  return (
+    <Stack gap="tight">
+      <Button
+        aria-controls={bodyId}
+        aria-expanded={open}
+        className="self-start gap-tight"
+        intent="ghost"
+        onClick={(): void => setOpen((prev) => !prev)}
+        size="sm"
+        type="button"
+      >
+        <Icon icon={open ? ChevronDown : ChevronRight} size="sm" />
+        {detail.label}
+      </Button>
+      <div hidden={!open} id={bodyId}>
+        {open ? (
+          <Text className="whitespace-pre-wrap" voice="gloss">
+            {detail.text}
+          </Text>
+        ) : null}
+      </div>
     </Stack>
   );
 }

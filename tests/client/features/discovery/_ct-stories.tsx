@@ -2,7 +2,14 @@
 // module). Surfaces come through the feature front door, wrapped in the real client data layer
 // (CtDataProviders — Query + real tRPC over the routeTrpc-stubbed network).
 
-import { CorpusCompareTab, CorpusContextHeader, CorpusDossierSurface, CorpusListHeader, CorpusListSurface } from "@orb/client/features/discovery";
+import {
+  CorpusCompareTab,
+  CorpusContent,
+  CorpusContextHeader,
+  CorpusDossierSurface,
+  CorpusListHeader,
+  CorpusListSurface,
+} from "@orb/client/features/discovery";
 import type { CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
@@ -43,6 +50,19 @@ export function CorpusCompareTabStory(): ReactElement {
     <CtDataProviders>
       <div style={{ height: 640, width: 420 }}>
         <CorpusCompareTab />
+      </div>
+    </CtDataProviders>
+  );
+}
+
+/** The Corpus CONTENT REGION — the host that owns the pane's scroll and its inset for both surfaces, and
+ *  therefore the only honest mount for either a padding or a first-run assertion. Fixed size: the region
+ *  fills its host in production, and a content-sized mount root agrees with any inset bug. */
+export function CorpusContentStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <div style={{ height: 640, width: 720 }}>
+        <CorpusContent />
       </div>
     </CtDataProviders>
   );
