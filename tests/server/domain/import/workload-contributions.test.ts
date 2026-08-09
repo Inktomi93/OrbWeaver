@@ -37,6 +37,7 @@ function build(
     runBundleImport: vi.fn(async () => ({ imported: 7, skipped: 1, failed: 0 })),
     runStagedDirImport: vi.fn(async () => ({ imported: 3, skipped: 0, failed: 0 })),
     reconcileImportStats: vi.fn(async () => undefined),
+    emitLibraryChanged: vi.fn(),
     ...overrides,
   };
   return { deps, contributions: createImportWorkloadContributions(deps) };
@@ -129,19 +130,28 @@ describe("import-st — the run's own logic", () => {
     expect(deps.reconcileImportStats).toHaveBeenCalledExactlyOnceWith({ ownerId: OWNER_ID });
   });
 
-  test("a DRY run does not reconcile, and echoes dryRun in the result", async () => {
+  test("a real run that CHANGED rows fans the owner's library-changed refresh (#23)", async () => {
+    const { stagingRoot } = await makeStaging();
+    const { deps, contributions } = build(stagingRoot);
+    await contributions[0].run(ctx, {}, vi.fn(), sig());
+    expect(deps.emitLibraryChanged).toHaveBeenCalledExactlyOnceWith({ ownerId: OWNER_ID });
+  });
+
+  test("a DRY run does not reconcile or fan a refresh, and echoes dryRun in the result", async () => {
     const { stagingRoot } = await makeStaging();
     const { deps, contributions } = build(stagingRoot);
     const result = await contributions[0].run(ctx, { dryRun: true }, vi.fn(), sig());
     expect(deps.reconcileImportStats).not.toHaveBeenCalled();
+    expect(deps.emitLibraryChanged).not.toHaveBeenCalled();
     expect(result).toEqual({ scanned: 12, changed: 4, dryRun: true, failed: 0 });
   });
 
-  test("a real run that changed NOTHING does not reconcile", async () => {
+  test("a real run that changed NOTHING neither reconciles nor fans a refresh", async () => {
     const { stagingRoot } = await makeStaging();
     const { deps, contributions } = build(stagingRoot, { runProfileDirImport: vi.fn(async () => ({ scanned: 3, changed: 0, failed: 0 })) });
     await contributions[0].run(ctx, {}, vi.fn(), sig());
     expect(deps.reconcileImportStats).not.toHaveBeenCalled();
+    expect(deps.emitLibraryChanged).not.toHaveBeenCalled();
   });
 });
 
@@ -185,6 +195,23 @@ describe("import-bundle — staging containment", () => {
     const { stagingRoot } = await makeStaging();
     const { contributions } = build(stagingRoot);
     await expect(contributions[1].run({ ...ctx, ownerId: null }, { token: VALID_TOKEN }, vi.fn(), sig())).rejects.toThrow(NO_TARGET_OWNER);
+  });
+
+  test("a bundle that imported canon fans the owner's library-changed refresh; an empty import does not (#23)", async () => {
+    const { stagingRoot } = await makeStaging();
+    const stagedPath = join(stagingRoot, VALID_TOKEN);
+    await mkdir(stagedPath, { recursive: true });
+    const { deps, contributions } = build(stagingRoot);
+    await contributions[1].run(ctx, { token: VALID_TOKEN, source: "dir" }, vi.fn(), sig()); // runStagedDirImport ⇒ imported: 3
+    expect(deps.emitLibraryChanged).toHaveBeenCalledExactlyOnceWith({ ownerId: OWNER_ID });
+
+    const emptyStaged = join(stagingRoot, `${VALID_TOKEN}-empty`);
+    await mkdir(emptyStaged, { recursive: true });
+    const { deps: emptyDeps, contributions: emptyContributions } = build(stagingRoot, {
+      runStagedDirImport: vi.fn(async () => ({ imported: 0, skipped: 4, failed: 0 })),
+    });
+    await emptyContributions[1].run(ctx, { token: `${VALID_TOKEN}-empty`, source: "dir" }, vi.fn(), sig());
+    expect(emptyDeps.emitLibraryChanged).not.toHaveBeenCalled();
   });
 });
 

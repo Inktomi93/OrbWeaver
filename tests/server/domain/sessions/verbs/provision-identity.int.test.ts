@@ -185,6 +185,55 @@ describe("sessions.provisionIdentity — the OWNER exemption invariant (D17)", (
   });
 });
 
+describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17/D135)", () => {
+  test("an owner-by-policy OIDC login BINDS onto the existing unbound (single-user seeded) owner row — no second owner, no downgrade", async () => {
+    // Seed the single-user/local owner: externalId null, handle 'owner', role owner (the seed/fallback shape).
+    vi.stubEnv("OWNER_HANDLES", "owner");
+    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner"), groups: [] })));
+    expect(seeded.role).toBe("owner");
+    expect(await rowCount()).toBe(1);
+
+    // Flip to OIDC: the owner signs in via authentik with a DIFFERENT handle + a stable subject, owner-by-policy
+    // through OWNER_GROUP (so it does NOT resolve to the seeded row by handle or externalId).
+    vi.stubEnv("OWNER_GROUP", "owners");
+    const oidc = asProvisioned(
+      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] })),
+    );
+
+    // Bound onto the SAME row — pre-fix this minted a second row and downgraded the OIDC owner to `user`.
+    expect(oidc.userId).toBe(seeded.userId);
+    expect(oidc.role).toBe("owner");
+    expect(await rowCount()).toBe(1);
+    const row = (await db.select().from(users).where(eq(users.id, seeded.userId)))[0];
+    expect(row?.externalId).toBe("authentik|alex"); // subject bound → future logins key on it
+    expect(row?.handle).toBe("owner"); // handle left as the OWNER_HANDLES key (re-seed / mode-flip idempotency)
+    expect(row?.role).toBe("owner");
+    expect((await db.select().from(users)).filter((u) => u.role === "owner")).toHaveLength(1);
+
+    // A subsequent OIDC login now resolves the SAME row directly (by externalId → owner exemption).
+    const again = asProvisioned(
+      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] })),
+    );
+    expect(again.userId).toBe(seeded.userId);
+    expect(again.role).toBe("owner");
+    expect(await rowCount()).toBe(1);
+  });
+
+  test("once the owner is BOUND, another OWNER_GROUP member does NOT adopt it — downgraded to `user` (singleton holds)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "owner");
+    const seeded = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("owner") })));
+    vi.stubEnv("OWNER_GROUP", "owners");
+    await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alex"), handle: castId<Handle>("alex"), groups: ["owners"] }));
+    // The owner row is now BOUND (externalId set) → a different member is NOT adopted; the singleton downgrades it.
+    const other = asProvisioned(
+      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|bob"), handle: castId<Handle>("bob"), groups: ["owners"] })),
+    );
+    expect(other.role).toBe("user");
+    expect(other.userId).not.toBe(seeded.userId);
+    expect((await db.select().from(users)).filter((u) => u.role === "owner")).toHaveLength(1);
+  });
+});
+
 describe("sessions.provisionIdentity — rename stability (externalId is the key)", () => {
   test("a handle rename updates the SAME row (no duplicate tenant)", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");

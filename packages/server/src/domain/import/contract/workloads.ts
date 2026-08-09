@@ -38,4 +38,11 @@ export interface ImportWorkloadDeps {
   /** Rebuild the freshly-imported owner's stats rollups from canon (the post-settle). The same injected op
    *  the portability descriptors take — one slice, one home. */
   readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
+  /** Fan the "your library changed" user-bus events (`charactersChanged` + `chatsChanged`) to the target
+   *  owner ONCE at the end of a run that wrote canon (#23). A background import runs off-request, so the
+   *  import UI's own completion invalidation may never fire (the section was navigated away from) — and the
+   *  chat bulk-import write path emits nothing of its own. This terminal fan is the always-on driver that
+   *  refreshes the owner's character + chat lists with no manual cache clear. Injected (the domain
+   *  sideways-imports no transport); wired at the composition root. */
+  readonly emitLibraryChanged: (args: { readonly ownerId: UserId }) => void;
 }
