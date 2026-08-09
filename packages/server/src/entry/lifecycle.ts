@@ -19,7 +19,16 @@ import { discovery } from "openid-client";
 import { startAutomationWatcher } from "#domain/automation";
 import { createOidcStore, createSessionsService, ownerHandles } from "#domain/sessions";
 import { loadWorkload, nextRunnableWorkload, reapOrphanedWorkloads, runWorkload, subscribeWorkloadWake } from "#domain/workloads";
-import { effectiveVllmDisabled, enginesPostureInput, env, postureManages, resolveEnginesPosture } from "#foundation/env";
+import {
+  diagnosticsPostureInput,
+  diagnosticsPostureWarnings,
+  effectiveVllmDisabled,
+  enginesPostureInput,
+  env,
+  postureManages,
+  resolveDiagnosticsPosture,
+  resolveEnginesPosture,
+} from "#foundation/env";
 import { getLog, initTracing, wrapLibSqlClient } from "#foundation/observability";
 import { createForwardJwtVerifier, createPasswordHasher } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
@@ -212,6 +221,16 @@ export function createLifecycle(): Lifecycle {
     const posture = resolveEnginesPosture(enginesPostureInput(), (msg) => log.warn({ deprecation: true }, `boot: ${msg}`));
     const vllmDisabled = effectiveVllmDisabled(posture, gpuPresent);
     log.info({ gpuPresent, posture, vllmDisabled }, "boot: gpu-detect → engines posture → effective vLLM availability");
+
+    // The DIAGNOSTICS POSTURE report (foundation/env/diagnostics.ts holds the model): one line stating who
+    // can reach the box, who can open /api/_debug, and what the recorders are holding — then a WARN per
+    // exposure that needs closing, each naming the knob that closes it. A healthy posture logs the info
+    // line and nothing else, so a warn here is always a real standing item, never boot noise.
+    const diagnostics = resolveDiagnosticsPosture(diagnosticsPostureInput());
+    log.info({ diagnostics }, "boot: diagnostics posture (perimeter × credential × retention)");
+    for (const warning of diagnosticsPostureWarnings(diagnostics)) {
+      log.warn({ security: true, diagnostics: diagnostics.exposure }, `boot: ${warning}`);
+    }
 
     // The stable per-replica lock-holder tag — threaded into both compose (chat turn-lock) and the boot
     // reclaim (wipes this replica's own orphaned chat_locks).

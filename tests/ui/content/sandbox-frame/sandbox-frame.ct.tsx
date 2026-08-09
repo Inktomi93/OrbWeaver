@@ -45,6 +45,32 @@ test("a <script> inside the untrusted html does not reach the parent (sandboxed,
   expect(pwned).toBeUndefined();
 });
 
+// ── The TWO DELIVERIES ────────────────────────────────────────────────────────────────────────────────
+// `src` = the ROUTED card-frame document (its own response CSP — the only arm a per-character trust grant
+// can widen). Absent = the srcdoc FLOOR. They must never both be emitted: `srcdoc` WINS over `src` in the
+// HTML spec, so a frame carrying both would silently render the floor while the code claims the door.
+
+test("the ROUTED arm emits src and NO srcdoc — a frame carrying both would silently render the floor", async ({ mount }) => {
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="x" src="/api/card-frame/0123456789abcdef0123456789abcdef" />);
+  await expect(cmp).toHaveAttribute("src", "/api/card-frame/0123456789abcdef0123456789abcdef");
+  await expect(cmp).toHaveAttribute("data-delivery", "routed");
+  await expect.poll(() => cmp.getAttribute("srcdoc")).toBeNull();
+});
+
+test("the routed arm keeps the sandbox ATTRIBUTE too — belt-and-suspenders under the response's own sandbox directive", async ({ mount }) => {
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="x" src="/api/card-frame/0123456789abcdef0123456789abcdef" />);
+  const sandbox = await cmp.getAttribute("sandbox");
+  expect(sandbox).not.toBeNull();
+  expect(sandbox).not.toContain("allow-scripts");
+  expect(sandbox).not.toContain("allow-same-origin");
+});
+
+test("no src ⇒ the srcdoc FLOOR, marked as such", async ({ mount }) => {
+  const cmp = await mount(<SandboxFrame html="<p>x</p>" title="x" />);
+  await expect(cmp).toHaveAttribute("data-delivery", "srcdoc");
+  await expect.poll(() => cmp.getAttribute("src")).toBeNull();
+});
+
 test("render-on-complete: incomplete shows a skeleton, not the frame", async ({ mount }) => {
   const cmp = await mount(<SandboxFrame html="<p>x</p>" title="x" complete={false} />);
   await expect(cmp).toHaveAttribute("data-slot", "sandbox-frame-skeleton");

@@ -54,6 +54,8 @@ export { createTrpcClient, createTrpcProxy, TRPCProvider, useTRPC, useTRPCClient
 export { uploadAsset } from "./upload-asset.ts";
 export type { UploadDocumentResult } from "./upload-document.ts";
 export { uploadDocument } from "./upload-document.ts";
+export type { CardFrameRequest } from "./use-card-frame.ts";
+export { cardFrameMintBody, mintCardFrame, useCardFrameSrc } from "./use-card-frame.ts";
 export { useCarriedAppearanceCast } from "./use-carried-appearance.ts";
 export { useColorQuotedSpeech } from "./use-color-quoted-speech.ts";
 export { useDisplayScripts } from "./use-display-scripts.ts";

@@ -26,6 +26,9 @@ export interface ImmersiveCardProps {
   readonly origin?: CardSpanOrigin | undefined;
   /** The row's resolved external-media verdict — forwarded to the sandbox CSP. Default false (fail closed). */
   readonly allowExternalMedia?: boolean | undefined;
+  /** The ROUTED card-frame URL minted for these exact bytes (`SandboxFrame.src`). Absent ⇒ the srcdoc floor.
+   *  Resolved by the CLIENT feature, never here: `@orb/ui` performs no I/O, and the mint is a server call. */
+  readonly frameSrc?: string | undefined;
   readonly heightPx?: number | undefined;
   readonly className?: string | undefined;
 }
@@ -41,10 +44,11 @@ interface CardBodyProps {
   readonly label: string;
   readonly heightPx: number;
   readonly allowExternalMedia: boolean;
+  readonly frameSrc: string | undefined;
 }
 
 /** The card's content pane: the sandboxed render, or (view-raw) the exact stored source as a code echo. */
-function CardBody({ fill, showRaw, html, css, themeTokens, fontFamily, label, heightPx, allowExternalMedia }: CardBodyProps): ReactElement {
+function CardBody({ fill, showRaw, html, css, themeTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc }: CardBodyProps): ReactElement {
   const slots = immersiveCardVariants();
   if (showRaw) {
     return (
@@ -65,6 +69,7 @@ function CardBody({ fill, showRaw, html, css, themeTokens, fontFamily, label, he
       {...(fontFamily === undefined ? {} : { fontFamily })}
       title={label}
       allowExternalMedia={allowExternalMedia}
+      {...(frameSrc === undefined ? {} : { src: frameSrc })}
       {...(fill ? { fill: true } : { heightPx })}
       className={fill ? "min-h-0 w-full flex-1 rounded-card border border-border bg-card" : "w-full rounded-none border-0 bg-card"}
     />
@@ -88,6 +93,7 @@ export function ImmersiveCard({
   title,
   origin,
   allowExternalMedia = false,
+  frameSrc,
   heightPx = DEFAULT_HEIGHT_PX,
   className,
 }: ImmersiveCardProps): ReactElement {
@@ -99,7 +105,7 @@ export function ImmersiveCard({
   // The sandboxed iframe can't resolve the app's `var(--token)` cascade, so the base body rule is fed
   // CONCRETE theme-resolved surface/text/font values (recolors live on a theme switch).
   const { themeTokens, fontFamily } = useSandboxTheme();
-  const bodyProps = { showRaw, html, css, themeTokens, fontFamily, label, heightPx, allowExternalMedia };
+  const bodyProps = { showRaw, html, css, themeTokens, fontFamily, label, heightPx, allowExternalMedia, frameSrc };
 
   const rawToggle = (
     <Button

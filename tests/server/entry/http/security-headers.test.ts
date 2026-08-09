@@ -132,6 +132,43 @@ describe("securityHeaders", () => {
     expect(prod).toBe(await cspFor(false, false));
   });
 
+  // THE ONE EXEMPTION. `hono/secure-headers` sets its headers AFTER `next()` with `.set()`, so a handler
+  // that writes its own CSP is silently overwritten. The card-frame DOCUMENT must carry its own, tighter
+  // policy (a routed document does not inherit ours — that is the whole doorway), so this middleware skips
+  // it. These pin BOTH sides: the exemption reaches the document path and NOTHING else, and the handler's
+  // policy survives the round trip.
+  describe("card-frame exemption", () => {
+    async function servedFor(path: string): Promise<Headers> {
+      const app = new Hono();
+      app.use("*", securityHeaders({ dev: false, allowExternalMedia: () => false }));
+      app.all(path, (c) => c.body("<p>card</p>", 200, { "Content-Security-Policy": "sandbox; default-src 'none'" }));
+      return (await app.request(path, { method: "GET" })).headers;
+    }
+
+    test("the served DOCUMENT keeps the handler's own policy — the app CSP never lands on it", async () => {
+      const h = await servedFor("/api/card-frame/0123456789abcdef0123456789abcdef");
+      expect(h.get("content-security-policy")).toBe("sandbox; default-src 'none'");
+      // The app policy's own tells are absent — including the `X-Frame-Options: DENY` that would block
+      // framing the card at all, and the `frame-ancestors 'none'` that would do the same.
+      expect(h.get("content-security-policy")).not.toContain("script-src");
+      expect(h.get("x-frame-options")).toBeNull();
+    });
+
+    test("the MINT path is NOT exempt — a JSON reply keeps the full app header set", async () => {
+      const h = await servedFor("/api/card-frame");
+      expect(h.get("content-security-policy")).toContain("script-src 'self'");
+      expect(h.get("x-frame-options")).toBe("DENY");
+    });
+
+    test("no sibling route is exempted by the prefix check", async () => {
+      const paths = ["/api/card-frames/x", "/api/blob/abc", "/", "/api/trpc/x"];
+      const served = await Promise.all(paths.map(async (path) => [path, (await servedFor(path)).get("content-security-policy")] as const));
+      for (const [path, csp] of served) {
+        expect(csp, path).toContain("default-src 'self'");
+      }
+    });
+  });
+
   test("sibling headers: frame-deny, nosniff, referrer, COOP; NO HSTS (plain-http LAN self-host)", async () => {
     const h = await headersFor(false);
     expect(h.get("x-frame-options")).toBe("DENY");

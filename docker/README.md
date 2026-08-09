@@ -41,6 +41,28 @@ even from inside the network), `DEBUG_TOKEN` unset (the whole `/api/_debug/*` su
 `WIRE_CAPTURE=off`, `RPG_TRACE=off`, no `ports:` on any service, `TRUSTED_LOCAL_HOSTS` never set to a
 public FQDN.
 
+### Diagnostics posture — three planes of one door
+
+`IP_ALLOWLIST`, `DEBUG_TOKEN` and `WIRE_CAPTURE`/`RPG_TRACE` are not three unrelated switches; they are
+the three planes of who can look inside a running box and how much is there. Read the block in
+`docker/orbweaver.env` for the per-knob detail — the sentence that ties them together is:
+
+> The **perimeter** (`IP_ALLOWLIST`) bounds who may knock. The **credential** (`DEBUG_TOKEN`, or an
+> admin session) bounds who gets in. **Retention** (`WIRE_CAPTURE`/`RPG_TRACE`) decides what getting in
+> is worth — with a recorder on, the `/api/_debug` ring holds raw provider request bodies: system
+> prompts, full transcripts, persona and world text.
+
+So a recorder ON with no `IP_ALLOWLIST` is the one combination that always deserves a second look, and
+**turning a recorder on is a two-knob edit**. You do not have to remember this: the app resolves the
+composed posture at boot, logs one info line stating it, and logs a `security`-tagged WARN naming the
+exact knob for each exposure still open. The same verdict — plus its warnings, and never a secret value
+— is served live at `GET /api/_debug/info` under `diagnostics`. The model and its wording live in
+`packages/server/src/foundation/env/diagnostics.ts`.
+
+Not done for you, on purpose: the app does **not** refuse to wire a capture sink when the perimeter is
+open. Silently disabling capture on a box that has it on today is a posture flip the operator owns, so
+the warning names the fix instead of taking it.
+
 ## Wiring your reverse proxy
 
 Join the proxy to this compose network (or flip the `networks:` block per the comment at the bottom of

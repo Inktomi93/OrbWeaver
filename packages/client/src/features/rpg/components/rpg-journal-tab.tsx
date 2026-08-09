@@ -28,6 +28,7 @@
 
 import type { RpgJournalType } from "@orb/contracts/rpg";
 import { RPG_JOURNAL_TYPES } from "@orb/contracts/rpg";
+import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Icon, Pin } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -173,13 +174,13 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
           )}
         </Stack>
       ))}
-      <RpgCardLightbox cards={cards} openKey={openKey} onOpenChange={setOpenKey} />
+      <RpgCardLightbox cards={cards} openKey={openKey} onOpenChange={setOpenKey} chatId={state.chatId} />
     </Stack>
   );
 }
 
 /** The Cards scope (P4) — every archived card, newest first (the "find the wanted poster later" surface). */
-function JournalCards({ cards }: { readonly cards: readonly ArchivedCard[] }): ReactElement {
+function JournalCards({ cards, chatId }: { readonly cards: readonly ArchivedCard[]; readonly chatId: ChatId }): ReactElement {
   const [openKey, setOpenKey] = useState<string | null>(null);
   if (cards.length === 0) {
     return <Text>No cards yet — the story crafts them.</Text>;
@@ -190,7 +191,7 @@ function JournalCards({ cards }: { readonly cards: readonly ArchivedCard[] }): R
       {newestFirst.map((card) => (
         <RpgCardRow key={card.key} card={card} onOpen={setOpenKey} />
       ))}
-      <RpgCardLightbox cards={cards} openKey={openKey} onOpenChange={setOpenKey} />
+      <RpgCardLightbox cards={cards} openKey={openKey} onOpenChange={setOpenKey} chatId={chatId} />
     </Stack>
   );
 }
@@ -263,7 +264,7 @@ export interface RpgJournalTabProps {
 const SCOPE_BODY: Readonly<Record<JournalScope, (state: RpgPanelState, cards: readonly ArchivedCard[]) => ReactElement>> = {
   all: (state, cards) => <JournalEntries state={state} cards={cards} />,
   marks: (state) => <JournalMarks state={state} />,
-  cards: (_state, cards) => <JournalCards cards={cards} />,
+  cards: (state, cards) => <JournalCards cards={cards} chatId={state.chatId} />,
 };
 
 /** The Journal tab — the chronicle (All) + the checkpoint bookmarks (Marks) + the card archive (Cards). */
