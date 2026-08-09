@@ -189,6 +189,25 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 
 **LANE-READY (dispatch order):**
 
+- [ ] **PROD-LEAK — error-formatter stack strip + deploy-mode invariant (SECURITY, launch-critical).**
+  Live incident 2026-08-09: `orbweaver.inktomi.tech` was being served by a DEV/snap `node --watch`
+  process out of a worktree cache behind Caddy → `NODE_ENV` defaulted to `development` → every tRPC
+  error returned `data.stack` with absolute host paths (`/home/inktomi/…/packages/server/src/…`), the
+  OS username, and exact dep versions (`@trpc+server@11.18.0`) to any anon caller. Authz itself was
+  intact (401s correct); pure pre-auth info-disclosure. FIXED THIS SESSION by cutting over to
+  `pnpm stack up prod` (pid 3677836, NODE_ENV=production, prod dist, no vite) — leak verified gone
+  (`data.stack` absent, keys now `code/httpStatus/path`). Two PERMANENCE items remain (the cutover is
+  environmental, not structural):
+  - [ ] **errorFormatter belt:** `transport/trpc/trpc.ts:31` spreads `shape.data` forward, which carries
+    `stack` whenever env ≠ production. Strip it explicitly (`const { stack: _drop, ...data } = shape.data;`
+    then `data: { ...data, reason: domainReason(error) }`) so the leak is UNREPRESENTABLE regardless of
+    env. This is the doctrine fix; NODE_ENV is only the stopgap. Owes a red-first test (assert no `stack`
+    key on a UNAUTHORIZED error shape).
+  - [ ] **deploy-mode invariant:** a C13-sibling line in `docs/security` — *the public server runs via
+    `pnpm stack up prod` (NODE_ENV=production, prod dist), NEVER a dev/worktree/snap process* — plus a
+    boot-time REFUSE when `NODE_ENV !== "production"` on a public-interface bind, so this cannot silently
+    recur. Candidate gate arm: no public bind under a dev env.
+
 - [x] **#45 chat-list class fix MERGED `c33833d58` — THE PRE-RE-IMPORT GATE IS CLEARED.**
   Keyset-paged listChats + server characterId filter + server search (title/participant-char-name/
   lastMessagePreview, ARM B) + real totalCount; 3 unbounded renders sealed (command-palette capped

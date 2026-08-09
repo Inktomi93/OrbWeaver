@@ -34,9 +34,9 @@ export function LoginSurface(): ReactElement {
   // SPA boots fresh with the param present) and mapped to copy — never the raw token.
   const authError = authErrorMessage(new URLSearchParams(search).get("authError"));
 
-  // A9 — SSO-only auto-redirect: in oidc mode, send the browser straight to the IdP unless suppressed
-  // (?authError after a failed round-trip, or ?form to force the manual button). The route guard already
-  // keeps authed users off /login, so this only fires for the genuinely-unauthenticated case.
+  // A9 (default flipped 2026-08-09) — DEFAULT is to render the branded login card; auto-redirect to the IdP
+  // only on explicit ?sso (the instant-bounce opt-in), and never with ?authError (a failed round-trip). The
+  // route guard already keeps authed users off /login, so this only ever runs for the unauthenticated case.
   const autoRedirect = config.data !== undefined && shouldAutoRedirectToSso(config.data.mode, search);
   useEffect(() => {
     if (autoRedirect) {
