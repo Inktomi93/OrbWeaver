@@ -645,6 +645,15 @@ test("importStChatCompletionPreset: group_nudge_prompt still drops, with the cor
   expect(drop?.reason).toBe("group nudge is room-owned, not preset-owned");
 });
 
+test("importStChatCompletionPreset: new_group_chat_prompt still drops, with the corrected boundary-slot reason", () => {
+  // Same repair as `group_nudge_prompt` above, applied to the sibling that was missed then: the old reason
+  // "no group chats" was stale post-rooms and became flatly FALSE once the ST profile importer began building
+  // group rooms out of `groups/`. The drop itself stays — orb has no new-chat/new-group-chat injection slot.
+  const result = importStChatCompletionPreset(stBlob({ new_group_chat_prompt: "a fresh group scene" }));
+  const drop = result.dropped.find((d) => d.field === "new_group_chat_prompt");
+  expect(drop?.reason).toBe("no new-group-chat injection slot");
+});
+
 test("importStChatCompletionPreset: impersonation_prompt maps onto formatStrings.impersonateNudge (no longer dropped)", () => {
   const result = importStChatCompletionPreset(stBlob({ impersonation_prompt: "speak as the user" }));
   expect(result.config.formatStrings?.impersonateNudge).toBe("speak as the user");

@@ -12,7 +12,9 @@ import { createImportCharacter } from "./verbs/import-character.ts";
 import { createImportChatBundle } from "./verbs/import-chat-bundle.ts";
 import { createImportChatFile } from "./verbs/import-chat-file.ts";
 import { createImportChats } from "./verbs/import-chats.ts";
+import { createImportGroupChats } from "./verbs/import-group-chats.ts";
 import { createImportPersonas } from "./verbs/import-personas.ts";
+import { createImportPresets } from "./verbs/import-presets.ts";
 
 export function createImportService(ctx: ImportContext): ImportService {
   // The single-chat door is a thin arm over the two format verbs; all three are wired HERE (a verb never
@@ -26,5 +28,7 @@ export function createImportService(ctx: ImportContext): ImportService {
     importChatBundle,
     importChatFile: createImportChatFile(ctx, importChats, importChatBundle),
     importPersonas: createImportPersonas(ctx),
+    ...createImportPresets(ctx),
+    ...createImportGroupChats(ctx),
   };
 }

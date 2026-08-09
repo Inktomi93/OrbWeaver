@@ -1,6 +1,7 @@
 // domain/import/contract/results — the verb result shapes.
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { ImportPresetNote, ImportSkippedCard, ImportSkippedGroup, ImportSkippedGroupMember } from "./views.ts";
 
 export interface ImportedCharacterRef {
   readonly characterId: CharacterId;
@@ -27,6 +28,31 @@ export interface ImportChatsResult {
   readonly variantsImported: number;
   readonly branchesLinked: number;
   readonly backfillEnqueued: boolean;
+}
+
+/** The ST preset wave's tally. The two counts are deliberately DISTINCT: `presetsImported` is every preset the
+ *  preset domain ACCEPTED (created OR merged in place), which is what the operator wants to read; only
+ *  `presetsCreated` is NET-NEW canon, which is what the run's `changed` may count — a re-run of a whole-profile
+ *  import merges every preset, and counting those as new canon would make an idempotent no-op report as work.
+ *  (The world-book wave draws the same line with its `replaced` flag.) `notes` carries the per-preset
+ *  unmapped-field list, emitted even when empty so "landed whole" is legible. */
+export interface ImportPresetsResult {
+  readonly presetsImported: number;
+  readonly presetsCreated: number;
+  readonly skippedPresets: readonly ImportSkippedCard[];
+  readonly notes: readonly ImportPresetNote[];
+}
+
+/** The ST group wave's tally. `groupsImported` counts rooms that actually WROTE a transcript — a second
+ *  byte-identical run dedups every transcript by importHash and therefore reports zero, the same "net-new
+ *  canon" line the preset wave draws. `backfillNeeded` mirrors `realConversationWritten` — the driver owns the
+ *  ONE post-import enqueue, so this reports the need rather than acting on it. */
+export interface ImportGroupsResult {
+  readonly groupsImported: number;
+  readonly groupChatsImported: number;
+  readonly skippedGroups: readonly ImportSkippedGroup[];
+  readonly skippedMembers: readonly ImportSkippedGroupMember[];
+  readonly backfillNeeded: boolean;
 }
 
 export interface ImportPersonasResult {
