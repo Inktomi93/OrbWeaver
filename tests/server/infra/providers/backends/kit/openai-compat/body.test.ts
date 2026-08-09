@@ -17,6 +17,7 @@ import {
 } from "@orb/server/infra/providers/backends/kit/openai-compat";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../../../support/wire-ready.ts";
 
 describe("buildOpenAiSamplingFields", () => {
   test("emits only the set knobs, in snake_case wire form", () => {
@@ -179,11 +180,11 @@ describe("the D48 raw-wire builders (T2 — custom-byo + vLLM share these)", () 
   test("rawResponseFormat: json_schema dialect, strict ONLY when the caller set it, description only when set", () => {
     // STRICTFMT — a translator never defaults a caller's optional wire knob: `strict:true` is a 400 on
     // OpenAI-family endpoints for our optional-by-construction schemas. vLLM PINS it at its own call site.
-    expect(rawResponseFormat({ name: "s", schema: { type: "object" } })).toEqual({
+    expect(rawResponseFormat({ name: "s", schema: wireSchema({ type: "object" }) })).toEqual({
       type: "json_schema",
       json_schema: { name: "s", schema: { type: "object" } },
     });
-    expect(rawResponseFormat({ name: "s", schema: {}, strict: false, description: "d" })).toEqual({
+    expect(rawResponseFormat({ name: "s", schema: wireSchema({}), strict: false, description: "d" })).toEqual({
       type: "json_schema",
       json_schema: { name: "s", schema: {}, strict: false, description: "d" },
     });

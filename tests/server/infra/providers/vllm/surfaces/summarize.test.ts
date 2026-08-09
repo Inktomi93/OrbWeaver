@@ -14,6 +14,7 @@ import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe, vi } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../../support/wire-ready.ts";
 
 const CRED = makeResolvedCredential("vllm");
 const MODEL = "Qwen/Qwen3-VL-8B-Instruct" as ModelId;
@@ -197,7 +198,7 @@ describe("createVllmSummarize", () => {
 // while real summarization stays `provider.summarize-item` under `api:"summarize"`. Debugging an rpg extraction
 // never again greps "summarize".
 describe("createVllmStructured — observability (the structured role: api/event tagged 'structured')", () => {
-  const structFormat = { name: "rpg_state", schema: { type: "object" } };
+  const structFormat = { name: "rpg_state", schema: wireSchema({ type: "object" }) };
 
   test("captures the LITERAL wire body per item under api:'structured' (gated by captureWire)", async () => {
     const { client } = fakeClient();

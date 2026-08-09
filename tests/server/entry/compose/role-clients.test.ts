@@ -27,6 +27,7 @@ import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { bindRoleClientsForUser } from "@orb/server/entry/compose";
 import type { EmbedRequest, ProviderExecutor, StructuredRequest, SummarizeRequest } from "@orb/server/infra/providers";
 import { expect, test } from "../../../support/fixtures.ts";
+import { wireSchema } from "../../../support/wire-ready.ts";
 
 const OWNER = castId<UserId>("u_owner");
 
@@ -172,7 +173,7 @@ test("a summarize call with responseFormat routes to the STRUCTURED role, NOT su
   const { executor, summarizeCalls, structuredCalls } = recordingExecutor();
   const clients = await bindRoleClientsForUser(binderDeps(executor), OWNER);
 
-  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: { name: "x", schema: { type: "object" } } });
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: { name: "x", schema: wireSchema({ type: "object" }) } });
 
   expect(structuredCalls).toHaveLength(1);
   // …carrying the vehicle the binder RESOLVED (task #36): the deployment floor is `auto`, and this model's
@@ -191,7 +192,7 @@ test("auto resolves to the forced-tool vehicle when the resolved model has no st
     OWNER,
   );
 
-  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: { name: "x", schema: { type: "object" } } });
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: { name: "x", schema: wireSchema({ type: "object" }) } });
 
   expect(structuredCalls[0]?.responseFormat?.vehicle).toBe("forced-tool");
 });
@@ -210,7 +211,7 @@ test("the deployment knob overrides the capability read when it is not `auto`", 
     OWNER,
   );
 
-  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: { name: "x", schema: { type: "object" } } });
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: { name: "x", schema: wireSchema({ type: "object" }) } });
 
   expect(structuredCalls[0]?.responseFormat?.vehicle).toBe("response-format");
 });
@@ -230,7 +231,7 @@ test("a per-call vehicle ask beats the deployment knob and the capability", asyn
   );
 
   await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], {
-    responseFormat: { name: "x", schema: { type: "object" }, vehicle: "response-format" },
+    responseFormat: { name: "x", schema: wireSchema({ type: "object" }), vehicle: "response-format" },
   });
 
   expect(structuredCalls[0]?.responseFormat?.vehicle).toBe("response-format");

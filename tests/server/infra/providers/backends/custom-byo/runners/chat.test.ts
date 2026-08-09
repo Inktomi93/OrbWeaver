@@ -16,6 +16,7 @@ import { createCustomByoBackend, reshapeChunk } from "@orb/server/infra/provider
 import { afterEach, describe, vi } from "vitest";
 import { makeCustomOpenAiCredential, makeOpenRouterCredential } from "../../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../../../support/wire-ready.ts";
 
 const FIXED_NOW = 1000;
 const BASE_URL = "https://byo.example.com/v1";
@@ -181,7 +182,7 @@ describe("createCustomByoBackend — request mapping", () => {
       capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
       return sseResponse(['data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}', "data: [DONE]"]);
     });
-    await runTurn(makeRequest({ responseFormat: { name: "extract", schema: { type: "object" } } }));
+    await runTurn(makeRequest({ responseFormat: { name: "extract", schema: wireSchema({ type: "object" }) } }));
     expect(capturedBody["response_format"]).toEqual({
       type: "json_schema",
       json_schema: { name: "extract", schema: { type: "object" } },
@@ -194,7 +195,7 @@ describe("createCustomByoBackend — request mapping", () => {
       capturedBody = typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
       return sseResponse(['data: {"choices":[{"finish_reason":"stop"}],"usage":{"prompt_tokens":1,"completion_tokens":1}}', "data: [DONE]"]);
     });
-    await runTurn(makeRequest({ responseFormat: { name: "extract", schema: {}, strict: true, description: "d" } }));
+    await runTurn(makeRequest({ responseFormat: { name: "extract", schema: wireSchema({}), strict: true, description: "d" } }));
     expect(capturedBody["response_format"]).toEqual({
       type: "json_schema",
       json_schema: { name: "extract", schema: {}, strict: true, description: "d" },

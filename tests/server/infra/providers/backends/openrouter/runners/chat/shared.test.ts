@@ -20,6 +20,7 @@ import {
 } from "@orb/server/infra/providers/backends/openrouter";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../../../../support/wire-ready.ts";
 
 const ANTHROPIC_MODEL = "anthropic/claude-opus-4-5";
 
@@ -121,18 +122,18 @@ describe("the D48 request-field builders (chat-completions dialect)", () => {
   // pure translator invention — and it made the D79 structured-chat path a landmine for the family that
   // otherwise serves it fine non-strict.
   test("buildChatResponseFormat: json_schema dialect, and `strict` is OMITTED unless the caller set it", () => {
-    expect(buildChatResponseFormat({ name: "s", schema: { type: "object" } })).toEqual({
+    expect(buildChatResponseFormat({ name: "s", schema: wireSchema({ type: "object" }) })).toEqual({
       type: "json_schema",
       jsonSchema: { name: "s", schema: { type: "object" } },
     });
   });
 
   test("buildChatResponseFormat: a caller that ASKS for strict still gets it (both arms ride verbatim)", () => {
-    expect(buildChatResponseFormat({ name: "s", schema: {}, strict: true, description: "d" })).toEqual({
+    expect(buildChatResponseFormat({ name: "s", schema: wireSchema({}), strict: true, description: "d" })).toEqual({
       type: "json_schema",
       jsonSchema: { name: "s", schema: {}, strict: true, description: "d" },
     });
-    expect(buildChatResponseFormat({ name: "s", schema: {}, strict: false })).toEqual({
+    expect(buildChatResponseFormat({ name: "s", schema: wireSchema({}), strict: false })).toEqual({
       type: "json_schema",
       jsonSchema: { name: "s", schema: {}, strict: false },
     });

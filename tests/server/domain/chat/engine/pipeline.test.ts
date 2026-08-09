@@ -23,6 +23,7 @@ import { __spanToWirePartForTest, runTurnPipeline } from "../../../../../package
 import { resolveModelCapability } from "../../../../../packages/server/src/domain/connection/catalog/resolve-model-capability.ts";
 import { makeModelCapability } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../support/wire-ready.ts";
 
 const CAPABILITY = {
   reasoning: { mode: "none", enabled: false },
@@ -1593,7 +1594,7 @@ describe("runTurnPipeline — the D48 recurse loop", () => {
 });
 
 // A structured-output payload the request-builder gate either keeps (when supported) or drops (when not).
-const RESPONSE_FORMAT = { name: "narrative", schema: { type: "object", properties: {}, additionalProperties: false } } as const;
+const RESPONSE_FORMAT = { name: "narrative", schema: wireSchema({ type: "object", properties: {}, additionalProperties: false }) } as const;
 const STRUCTURED_CONNECTION: ResolvedConnection = {
   ...CONNECTION,
   capability: { ...CAPABILITY, output: { ...CAPABILITY.output, structured: true } } as unknown as ModelCapability,

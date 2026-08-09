@@ -27,6 +27,7 @@ import { providerErrorFromHttp } from "@orb/server/infra/providers/backends/kit"
 import { describe } from "vitest";
 import { makeOpenRouterCredential, makeResolvedCredential } from "../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../support/wire-ready.ts";
 
 // The agent-sdk×vllm rejection message (loopback skin retired) — hoisted for the callback-regex lint.
 const VLLM_AGENT_RETIRED_RE = /chat-completions api|retired/i;
@@ -193,7 +194,7 @@ function structuredReq(signal: AbortSignal): StructuredRequest {
     model: castId<ModelId>("m"),
     signal,
     inputs: [{ systemPrompt: "", userPrompt: "x" }],
-    responseFormat: { name: "x", schema: { type: "object" } },
+    responseFormat: { name: "x", schema: wireSchema({ type: "object" }) },
   };
 }
 

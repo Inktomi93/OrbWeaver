@@ -5,6 +5,7 @@ import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { cleanJsonSchema, runVllmChatCompletion } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
 import { expect, test } from "../../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../../support/wire-ready.ts";
 
 // Narrow an indexed-access result (possibly-undefined under noUncheckedIndexedAccess) or fail the test.
 function need<T>(value: T | undefined): T {
@@ -74,7 +75,7 @@ describe("runVllmChatCompletion", () => {
     const captured: Record<string, unknown>[] = [];
     await runVllmChatCompletion(
       client,
-      { model: "gen-model", messages: [{ role: "user", text: "hi" }], responseFormat: { name: "s", schema: { type: "object" } } },
+      { model: "gen-model", messages: [{ role: "user", text: "hi" }], responseFormat: { name: "s", schema: wireSchema({ type: "object" }) } },
       (body) => captured.push(body),
     );
     expect(captured).toHaveLength(1);
@@ -145,7 +146,7 @@ describe("runVllmChatCompletion", () => {
       messages: [{ role: "user", text: "x" }],
       // A DISTINCT schema name (not the old hardcoded "result") — the mapping must carry it through, so a
       // regression back to a constant name fails here.
-      responseFormat: { name: "character_distillation", schema: { type: "object", title: "Out", properties: { n: { type: "number" } } } },
+      responseFormat: { name: "character_distillation", schema: wireSchema({ type: "object", title: "Out", properties: { n: { type: "number" } } }) },
     });
 
     const rf = need(bodies[0])["response_format"] as Record<string, unknown>;
