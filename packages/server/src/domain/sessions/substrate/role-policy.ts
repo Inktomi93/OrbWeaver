@@ -61,6 +61,19 @@ export function ownerHandles(): string[] {
   return [env.DEFAULT_USER_HANDLE];
 }
 
+/**
+ * Whether `handle` is an owner SEED KEY — i.e. an `OWNER_HANDLES` entry. Deliberately NOT
+ * {@link isOwnerByPolicy}: that asks "is this IDENTITY the owner?" (groups OR handle) about a LOGIN, while
+ * this asks "is this ROW's handle the one boot re-seeds through?" — a handle-only question a group can never
+ * answer. Two consumers resolve the owner ROW by this handle rather than by id: boot's `seedOwner` →
+ * `ensureUser(ownerHandles()[0])` (`entry/boot/seed-owner.ts`) and the auth seam's owner fallback
+ * (`ownerHandleForFallback`, `entry/auth/seam.ts`). A login that moves the owner row OFF this key therefore
+ * strands both — `provisionIdentity`'s update path asks here before renaming.
+ */
+export function isOwnerSeedHandle(handle: Handle): boolean {
+  return ownerHandles().includes(handle);
+}
+
 /** Whether the identity is the box OWNER by policy — in `OWNER_GROUP` OR its handle ∈ `OWNER_HANDLES` (group
  *  preferred). This is owner POLICY (who the operator declared the owner is), NOT a privilege-lattice compare
  *  — it re-spells no `role === "owner"` (the `owner-role-split` gate's target), so a consumer that needs the

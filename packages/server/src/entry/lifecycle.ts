@@ -194,6 +194,15 @@ export function createLifecycle(): Lifecycle {
     if (ownerId === undefined) {
       throw new Error("boot: seedOwner returned no owner id (OWNER_HANDLES resolved empty)");
     }
+    // BELT: `ownerId` must name a REAL row, not merely be defined. Everything below binds to it — the owner
+    // role-clients bundle, the boot Principal, and every owner-scoped seed — and the boot Principal is
+    // ROW-DERIVED through `principalFromRow`, which deliberately DEGRADES an unknown id to `role:"user"`
+    // (the frozen-host bridge needs that; a boot does not). So a defined-but-dangling id would seed the whole
+    // box under a non-owner principal against a row that does not exist, silently. `ensureUser` now refuses
+    // to fabricate an id upstream; this is the boot-side floor beneath it — one read, fail-closed.
+    if ((await bootSessions.loadUserById(ownerId)) === null) {
+      throw new Error(`boot: seedOwner returned owner id ${ownerId} but no users row carries it — refusing to boot on a phantom owner`);
+    }
 
     // The one GPU/vLLM-availability fact: probe the host once, then resolve the ENGINES_POSTURE (A.4). The
     // deprecated VLLM_DISABLED/STACK_ENGINES pair maps to a posture with a VISIBLE log. `off` ⇒ disabled;

@@ -58,4 +58,18 @@ describe("recoverIfStaleSession (#23b)", () => {
     recover(new Error("network blip"));
     expect(assign).not.toHaveBeenCalled();
   });
+
+  // The QueryCache `onError` hands this whatever was thrown — `unknown` includes `null`/`undefined` and bare
+  // primitives. A bare `.data` read on those THROWS *inside* the cache callback, which takes the always-on
+  // recovery belt (and the surrounding error handling) down with it. It must be an ordinary no-op.
+  test("a null / undefined / primitive error is a no-op, never a throw inside the QueryCache callback", async () => {
+    const assign = stubLocation("/");
+    const recover = await freshRecover();
+    for (const value of [null, undefined, "UNAUTHORIZED", 0, false]) {
+      expect(() => {
+        recover(value);
+      }).not.toThrow();
+    }
+    expect(assign).not.toHaveBeenCalled();
+  });
 });
