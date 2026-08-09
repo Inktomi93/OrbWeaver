@@ -494,10 +494,12 @@ test("a run view round-trips, and payload/config narrow BY stage (a score payloa
   expect(refineryRunSchema.safeParse({ ...scoreRun, sessionId: RUN_ID }).success).toBe(false);
 });
 
-test("the session summary round-trips; latestVerdict is null before the first analyze", () => {
+test("the session summary round-trips; latestVerdict is null before the first analyze; character identity is REQUIRED on the row", () => {
   const summary = {
     id: SESSION_ID,
     characterId: CHARACTER_ID,
+    characterName: "Seraphine",
+    characterAvatarHash: null,
     name: null,
     status: "active",
     iterationCount: 0,
@@ -507,4 +509,12 @@ test("the session summary round-trips; latestVerdict is null before the first an
   };
   expect(refinerySessionSummarySchema.parse(summary)).toEqual(summary);
   expect(refinerySessionSummarySchema.safeParse({ ...summary, status: "paused" }).success).toBe(false);
+  // `characterName` is NON-nullable by construction: the roster read's ownership join is an INNER join on
+  // `characters`, so a summary cannot exist without its card. A wire row without it is a bug, not a
+  // "resolve it client-side" invitation — that mechanism had a 100-row page ceiling (schema header).
+  const { characterName: _dropped, ...nameless } = summary;
+  expect(refinerySessionSummarySchema.safeParse(nameless).success).toBe(false);
+  expect(refinerySessionSummarySchema.safeParse({ ...summary, characterName: null }).success).toBe(false);
+  // The avatar pointer IS nullable — an avatar-less card is a normal card.
+  expect(refinerySessionSummarySchema.safeParse({ ...summary, characterAvatarHash: "abc123" }).success).toBe(true);
 });

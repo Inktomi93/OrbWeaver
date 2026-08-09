@@ -14,12 +14,16 @@
 // strings because its ids come from a fixture's display data, not from a mint.
 
 import { useInvalidation, useTRPC } from "@orb/client/data";
-import type { ReviewEntry } from "@orb/client/features/refinery";
+import type { ReviewEntry, StageCell } from "@orb/client/features/refinery";
 import {
   AcceptReview,
   BUILTIN_STAGE_HINTS,
   buildRenderPlan,
   PayloadView,
+  RefineryListHeader,
+  RefineryListSurface,
+  SchemaEditorDialog,
+  StageStepper,
   TeachingState,
   useApplyRefineryFields,
   useDeleteRefinerySession,
@@ -31,13 +35,13 @@ import {
   useStartRefinerySession,
   useUpdateRefinerySession,
 } from "@orb/client/features/refinery";
-import type { RefineryStage } from "@orb/contracts/refinery";
+import type { RefinerySchemaStage, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
-import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
+import type { CharacterId, RefinerySchemaId, RefinerySessionId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { CtAppDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
@@ -161,6 +165,85 @@ export function TeachingStateStory({ width }: { readonly width?: number }): Reac
 
 export interface AcceptReviewStoryProps {
   readonly entries: readonly ReviewEntry[];
+}
+
+// --- The ROSTER surface (the server-side character-identity proof) ---
+
+/** The sessions roster on the REAL data tier. It reads `refinery.listSessions` and NOTHING else — that
+ *  is the point of the story: the row's title, avatar and search key all come off the summary the
+ *  server sent, so a card whose row sits past `character.list`'s 100-row page still names itself. Any
+ *  `character.list` call this surface made would be recorded by `routeTrpc` and is asserted absent. */
+export function RefineryRosterStory(): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <Suspense fallback={<p>loading roster</p>}>
+        <div>
+          <RefineryListHeader />
+          <RefineryListSurface />
+        </div>
+      </Suspense>
+    </CtAppDataProviders>
+  );
+}
+
+// --- The SCHEMA EDITOR (the raw door, the arm picker, the forge arms, edit-existing) ---
+
+export interface SchemaEditorStoryProps {
+  readonly stage?: RefinerySchemaStage;
+  /** Editing an EXISTING library row (P1-15's unlocked branch) vs authoring a new one. */
+  readonly editing?: { readonly id: RefinerySchemaId; readonly name: string; readonly description: string; readonly schema: Record<string, unknown> } | null;
+}
+
+/** The custom-schema editor, open, on the REAL app data tier + toast channel (its forge/save calls are
+ *  mutations whose refusals and pending arms are the observables). `onOpenChange`/`onSaved` are
+ *  swallowed here — closing is the caller's business and a CT asserts on what the dialog RENDERS. */
+export function SchemaEditorStory({ stage = "score", editing = null }: SchemaEditorStoryProps): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <SchemaEditorDialog editing={editing} onOpenChange={(): void => undefined} onSaved={(): void => undefined} open={true} stage={stage} />
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
+// --- The HERO COUNT-UP ramp (the money shot) ---
+
+export interface HeroRampStoryProps {
+  /** The payload the pane opens with. `null` = the pane opens PENDING with no payload, i.e. the
+   *  plan-shaped skeleton — the first-run arm, where the count-up is supposed to run 0 → score. */
+  readonly from: number | null;
+  /** The score that lands when "land" is pressed. */
+  readonly to: number;
+}
+
+/** The hero gauge's count-up, driven by a PRESS rather than a timer: the CT clicks "land" and then
+ *  reads every value the numeral printed (a MutationObserver in the test), so the ramp is proven by the
+ *  frames it actually painted instead of by racing one. */
+export function HeroRampStory({ from, to }: HeroRampStoryProps): ReactElement {
+  const [score, setScore] = useState<number | null>(from);
+  const plan = buildRenderPlan(projectJsonSchema(REFINERY_STAGE_PAYLOADS.score), BUILTIN_STAGE_HINTS.score);
+  return (
+    <div>
+      <button onClick={(): void => setScore(to)} type="button">
+        land
+      </button>
+      <PayloadView payload={score === null ? {} : { overallScore: score, summary: "A solid card." }} pending={score === null} plan={plan} />
+    </div>
+  );
+}
+
+// --- The stage stepper's RUNNING arm (the indeterminate hairline + its reduced-motion opt-out) ---
+
+export interface StageStepperStoryProps {
+  readonly cells: readonly StageCell[];
+  readonly active: RefineryStage;
+}
+
+/** The stepper at a chosen state — the running cell carries the indeterminate hairline whose whole
+ *  reduced-motion contract is that the travelling segment is REMOVED, not parked. */
+export function StageStepperStory({ cells, active }: StageStepperStoryProps): ReactElement {
+  return <StageStepper active={active} cells={cells} onSelect={(): void => undefined} />;
 }
 
 /** The accept review, controlled the way the content surface holds it: every entry opens UNDECIDED

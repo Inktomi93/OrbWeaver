@@ -6,6 +6,9 @@
 
 export { AcceptReview } from "./components/accept-review.tsx";
 export { PayloadView } from "./components/payload-view.tsx";
+export { SchemaEditorDialog } from "./components/schema-editor-dialog.tsx";
+export type { StageCell } from "./components/stage-stepper.tsx";
+export { StageStepper } from "./components/stage-stepper.tsx";
 export { TeachingState } from "./components/teaching-state.tsx";
 export {
   useApplyRefineryAsCopy,
@@ -34,3 +37,4 @@ export type { HintOverlay, PlanField, RenderPlan } from "./lib/render-plan.ts";
 export { buildRenderPlan, formatLabel } from "./lib/render-plan.ts";
 export type { ReviewEntry } from "./lib/review-entries.ts";
 export { reviewEntriesOf } from "./lib/review-entries.ts";
+export { RefineryListHeader, RefineryListSurface } from "./surfaces/refinery-list-surface.tsx";
