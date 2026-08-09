@@ -54,7 +54,7 @@ export interface PluginWorldEntryUpsert {
 
 /** What a handler/entry receives about ITS invocation context.
  *
- *  @public the guest-facing invocation-context shape of PluginHostV1 — the membrane does not deliver it yet (surface unbuilt, not dead). */
+ *  @public future: the PluginHostV1 membrane delivery (unbuilt) — the guest-facing invocation-context shape the membrane does not deliver yet (surface unbuilt, not dead). */
 export interface PluginInvocation {
   readonly chat: ChatHandle | null; // null for a non-chat-scoped invocation (e.g. install hook)
   readonly reason: "event" | "tool" | "transform" | "snippet" | "activate";

@@ -49,8 +49,6 @@ export const personaMetadataWriteSchema = z.record(z.string(), z.unknown()).supe
     }
   }
 });
-/** @public type twin of the live `personaMetadataWriteSchema` write guard. */
-export type PersonaMetadataWrite = z.infer<typeof personaMetadataWriteSchema>;
 
 // The FACE fields spread `cardFaceFields` (D137(E) — one home, reference-equality-pinned); the wraps
 // (`description` bare = REQUIRED, starred/avatarAssetId `.optional()`) are persona's write semantics.

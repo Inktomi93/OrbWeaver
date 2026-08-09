@@ -24,7 +24,7 @@ import type { ParticipantKind } from "./participants.ts";
  *  `ParticipantRole` type are DEFINED in `@orb/contracts/identity` (`can()` reads them; identity is the DAG
  *  root) — every consumer imports them from there (no second name, no alias); this only derives the schema.
  *
- *  @public schema twin of `PARTICIPANT_ROLES`, which drives the chat_participants role enum + CHECK. */
+ *  @public twin: PARTICIPANT_ROLES — drives the chat_participants role enum + CHECK (cross-package PUBLIC). */
 export const participantRoleSchema = z.enum(PARTICIPANT_ROLES);
 
 /** How much history a (re)joining member sees: `full` (the whole room canon — the COLUMN DEFAULT, owner
@@ -57,7 +57,8 @@ const TALKATIVENESS_MAX = 1;
 export const TALKATIVENESS_DEFAULT = 0.5;
 /** The 0–1 talkativeness weight schema (default {@link TALKATIVENESS_DEFAULT}).
  *
- *  @public the named 0-1 RANGE clamp for the live `TALKATIVENESS_DEFAULT` axis (cited by seatKnobs below). */
+ *  @public future: the roster-preset seat-knobs projection (D80, unbuilt) — the shared 0-1 RANGE clamp that
+ *  projection will reference; `seatKnobsSchema` currently INLINES the clamp, so this schema has no consumer yet. */
 export const talkativenessSchema = z.number().min(TALKATIVENESS_MIN).max(TALKATIVENESS_MAX).catch(TALKATIVENESS_DEFAULT).default(TALKATIVENESS_DEFAULT);
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -87,8 +88,6 @@ export const characterMemberSpecSchema = z.object({
   position: z.number().int().nonnegative(),
   ...seatKnobsSchema.shape,
 });
-/** @public type twin of `characterMemberSpecSchema`, round-trip-pinned by tests/contracts/chat/roster.contract.test.ts. */
-export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
 
 /** A seat the caller WANTS to exist — the ONE template/creation-time member vocabulary (D16/D61/D60). Every
  *  membership-template lifetime (roster presets, founding casts, saved-rosters v2 — none built today; the
@@ -98,8 +97,6 @@ export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
  *  purged 2026-07-25 (the rebuild re-adds their arms here if either domain returns) — `character` is the
  *  only live arm. */
 export const rosterMemberSpecSchema = z.discriminatedUnion("kind", [characterMemberSpecSchema]);
-/** @public type twin of `rosterMemberSpecSchema`, round-trip-pinned by tests/contracts/chat/roster.contract.test.ts. */
-export type RosterMemberSpec = z.infer<typeof rosterMemberSpecSchema>;
 
 /** The RESOLVED per-participant content-render policy (D44 §12.0/§12.3). The chat domain resolves each
  *  character's tri-state overrides against the deployment effective config at roster-build time (the ONE
@@ -401,7 +398,7 @@ const INVITE_TOKEN_MIN = 1;
 /** Invite lifecycle status (the db `chat_invites.status` column mirrors this). */
 export const INVITE_STATUSES = ["pending", "accepted", "declined", "revoked", "expired"] as const;
 export type InviteStatus = (typeof INVITE_STATUSES)[number];
-/** @public schema twin of `INVITE_STATUSES`, which drives the chat_invites status enum + CHECK. */
+/** @public twin: INVITE_STATUSES — drives the chat_invites status enum + CHECK (cross-package PUBLIC). */
 export const inviteStatusSchema = z.enum(INVITE_STATUSES);
 
 /** Create an invite (host action). Two creation paths: a share-link (no target) OR targeted-by-handle
@@ -436,7 +433,7 @@ export type RedeemInviteInput = z.infer<typeof redeemInviteSchema>;
 export const acceptInviteSchema = z.object({
   inviteId: brandedId<ChatInviteId>(),
 });
-/** @public type twin of `acceptInviteSchema`, the live `acceptInvite` tRPC input. */
+/** @public twin: acceptInviteSchema — the live `acceptInvite` tRPC input (cross-package PUBLIC). */
 export type AcceptInviteInput = z.infer<typeof acceptInviteSchema>;
 
 /** The preview-then-confirm result — deliberately MINIMAL: room name / host handle / member COUNT / mode

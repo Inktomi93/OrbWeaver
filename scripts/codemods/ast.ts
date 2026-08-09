@@ -982,6 +982,71 @@ export function isPublicTagged(decl: Node): boolean {
     });
 }
 
+// The two NAMED, gate-verifiable anti-rot markers that SPLIT the old blanket `@public` exemption
+// (docs/reviews/misc/2026-08-09-api-surface-classification.md — the parking-permit hole). A bare `@public`
+// only ever lands on an UNUSED export (a consumed export is not an orphan candidate), so `@public` was
+// certifying "intended-but-unconsumed" behind a prose reason a barrels lane writes for genuine rot as easily
+// as for real future API. The split forces the claim to name a CHECKABLE target:
+//   • `@public-twin: <ValueName>`   — the export is the type FACE of a value that is genuinely cross-package
+//     PUBLIC api. The ratchet reds it unless apisurface classifies `<ValueName>` PUBLIC — a twin of an
+//     INTERNAL (same-package-only) or UNUSED value is itself rot (an internal shape's type-face is not a
+//     cross-boundary surface), so it must be DELETED, not parked.
+//   • `@public-future: <named consumer/surface>` — a deliberately-unconsumed export waiting for a NAMED,
+//     not-yet-built consumer. The reason is REQUIRED and must name the unbuilt surface.
+// A BARE `@public <reason>` (the legacy spelling) is NO LONGER a legal orphan exemption — it reds, with the
+// remedy "migrate to `@public-twin:`/`@public-future:` naming the target, or DELETE." Both new markers are
+// two-sided from birth (the house shape): a twin whose value stops being PUBLIC reds; any `@public`-family
+// marker that GAINS a prod consumer reds via the existing stale arm. Read the marker's line stripped of the
+// JSDoc terminator (the `*/`-satisfies-`\S` footgun documented at PUBLIC_TAG_RE).
+// The separator between `@public` and the twin/future keyword tolerates a HYPHEN or a SPACE: `@public-twin:`
+// reads cleanest, but inside a `/** */` JSDoc block eslint's tsdoc/syntax rejects the hyphen (`@public` is a
+// real TSDoc modifier tag; `@public-twin` is a malformed one), so package markers are authored `@public twin:`
+// (the `@public` tag + text). Both spellings parse here; `//`-line markers may keep the hyphen.
+const PUBLIC_TWIN_RE = /@public[-\s]+twin:(?<value>[^\n]*)/u;
+const PUBLIC_FUTURE_RE = /@public[-\s]+future:(?<reason>[^\n]*)/u;
+/** Splits a twin marker's tail on whitespace so the FIRST token is the named value (prose may follow). */
+const MARKER_VALUE_SPLIT_RE = /\s+/u;
+
+/** A resolved `@public`-family marker on a declaration: the two named exemptions plus the legacy `bare` form
+ *  (kept distinct so the ratchet can red it with a precise remedy). `twin.value` is the NAMED value the type
+ *  faces (verified PUBLIC by the caller); `future.reason`/`bare.reason` carry the stated rationale. */
+export type PublicMarker =
+  | { readonly kind: "twin"; readonly value: string }
+  | { readonly kind: "future"; readonly reason: string }
+  | { readonly kind: "bare"; readonly reason: string };
+
+/** Strip the JSDoc terminator and surrounding space off a captured marker tail; empty ⇒ no legal reason. */
+function markerTail(raw: string | undefined): string {
+  return (raw ?? "").replace(JSDOC_TERMINATOR_RE, "").trim();
+}
+
+/** The `@public`-family marker in ONE comment's text, or undefined. Checks the two NAMED forms FIRST (a bare
+ *  `@public` regex also matches `@public-twin`/`@public-future`, so order is the disambiguator), then the
+ *  legacy bare form. `twin.value` is the FIRST token after the colon (prose may follow); a colon-marker with
+ *  an empty tail falls through to bare (an unnamed twin/future is not a legal named exemption). */
+function markerInComment(text: string): PublicMarker | undefined {
+  const twin = markerTail(PUBLIC_TWIN_RE.exec(text)?.groups?.["value"]);
+  if (twin.length > 0) {
+    return { kind: "twin", value: twin.split(MARKER_VALUE_SPLIT_RE)[0] ?? twin };
+  }
+  const future = markerTail(PUBLIC_FUTURE_RE.exec(text)?.groups?.["reason"]);
+  if (future.length > 0) {
+    return { kind: "future", reason: future };
+  }
+  const bare = markerTail(PUBLIC_TAG_RE.exec(text)?.groups?.["reason"]);
+  return bare.length > 0 ? { kind: "bare", reason: bare } : undefined;
+}
+
+/** The `@public`-family marker on `decl` (the first of its leading comments that carries one), or undefined.
+ *  ONE HOME beside {@link isPublicTagged} so the ratchet and any lens read the same grammar. Reads through
+ *  {@link commentHost} (a tagged `export const`'s JSDoc sits on the VariableStatement). */
+export function publicMarkerOf(decl: Node): PublicMarker | undefined {
+  return commentHost(decl)
+    .getLeadingCommentRanges()
+    .map((range) => markerInComment(range.getText()))
+    .find((marker) => marker !== undefined);
+}
+
 /** A candidate as a printable Hit — `<name>  —  <declaration line>`, the form both lists use. */
 function candidateHit(candidate: OrphanCandidate, kind: string): Hit {
   const h = hitOf(candidate.decl, kind);
@@ -3692,9 +3757,11 @@ function classifyApiExport(name: string, decl: Node, ctx: ApiScanCtx): ApiSurfac
 
 /** Every own-export whose declaring file is `inScope` (non-test), classified by package-boundary consumption.
  *  Pure enumeration — no printing, no scope policy (the verb owns both) — so the self-test drives the exact
- *  function the CLI does. The UNUSED arm is `collectOrphanCandidates` verbatim; the rest is the per-package pass. */
-export function collectApiSurface(project: Project, inScope: (filePath: string) => boolean): ApiSurfaceEntry[] {
-  const live = buildLiveness(project);
+ *  function the CLI does. The UNUSED arm is `collectOrphanCandidates` verbatim; the rest is the per-package pass.
+ *  `prebuilt` lets a caller that ALREADY built liveness (the push-tier ratchet, which also needs `isProdConsumed`
+ *  for its stale arm) pass it in rather than pay a second whole-workspace liveness pass. */
+export function collectApiSurface(project: Project, inScope: (filePath: string) => boolean, prebuilt?: Liveness): ApiSurfaceEntry[] {
+  const live = prebuilt ?? buildLiveness(project);
   const orphanStar = new Map(collectOrphanCandidates(project, live, inScope).map((candidate) => [declKey(candidate.decl), candidate.starSuppressed]));
   const ctx: ApiScanCtx = { consumption: buildApiConsumption(project), orphanStar };
   const out: ApiSurfaceEntry[] = [];

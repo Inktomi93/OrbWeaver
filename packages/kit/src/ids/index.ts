@@ -161,7 +161,7 @@ export type ThemeClusterId = TypeIdOf<"theme_cluster">;
 
 // --- Stats (precompute rollup rows) ------------------------------------------
 export type CharacterStatId = TypeIdOf<"character_stat">;
-/** @public the owner_stats table's id brand — one member of the per-table brand block; unused as a column type only because that table has a NATURAL PK. */
+/** @public future: the owner_stats typed-id surface (unbuilt) — one member of the per-table id-brand block, kept for block completeness; unused as a column type only because owner_stats has a NATURAL PK. */
 export type OwnerStatId = TypeIdOf<"owner_stat">;
 export type DailyStatId = TypeIdOf<"daily_stat">;
 export type ModelStatId = TypeIdOf<"model_stat">;

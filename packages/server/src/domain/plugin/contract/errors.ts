@@ -21,7 +21,7 @@ export class ManifestInvalidError extends DomainOperationError {
 /** The manifest pins a `hostVersion` this build does not serve (01 §3). Separate from a generic manifest
  *  fault so the caller can be told to rebuild against the served major, not "fix your manifest".
  *
- *  @public a member of the built lifecycle error taxonomy; zero throw sites because the hostVersion gate is unbuilt. */
+ *  @public future: the hostVersion gate (unbuilt) — a member of the built lifecycle error taxonomy; zero throw sites because that gate is not built yet. */
 export class HostVersionUnservedError extends DomainOperationError {
   constructor(requested: number, served: readonly number[]) {
     super("plugin_host_version_unserved", `plugin host version ${requested} not served (served: ${served.join(", ")})`);
