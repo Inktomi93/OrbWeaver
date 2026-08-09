@@ -60,6 +60,17 @@ test("a score run: prompt carries card {{macros}} VERBATIM (belt 5 both directio
   const rows = await db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, session.id));
   expect(rows).toHaveLength(1);
   expect(rows[0]?.payload).toEqual(run.payload);
+  // The Runs-ledger cargo the R3 mock promises (`… 4 210 in / 512 out · 6.1s`) has to EXIST on the row,
+  // not just in the view: provider usage lands, and the run's wall time has its own column. The injected
+  // clock is frozen, so the honest duration under test is 0 — the pin is that the column is WRITTEN
+  // (a null here is the "documented but never threaded" failure the ledger column class keeps hitting).
+  expect(rows[0]?.promptTokens).toBe(11);
+  expect(rows[0]?.outputTokens).toBe(7);
+  expect(rows[0]?.durationMs).toBe(0);
+  expect(run.durationMs).toBe(0);
+  // A score run consumes no prior run — it is a DAG root.
+  expect(rows[0]?.sourceRunId).toBeNull();
+  expect(run.sourceRunId).toBeNull();
 
   // F6: the SCORE half stamped, the analysis half untouched.
   const charRows = await db.select({ refinery: characters.refinery }).from(characters).where(eq(characters.id, characterId));
@@ -83,15 +94,23 @@ test("rewrite→analyze stamps the ANALYSIS half and preserves the stamped score
   const session = await h.svc.startSession({ principal: principal(owner), characterId });
 
   h.queueReply(scoreReply());
-  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "score" });
+  const score = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "score" });
   h.advance(10);
   h.queueReply(rewriteReply());
-  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+  const rewrite = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
   h.advance(10);
   h.queueReply(analyzeReply());
   const analyze = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "analyze" });
 
   expect(analyze.stage).toBe("analyze");
+  // The DAG parent edges (schema-renderer §21 edge 1): a timestamp-ordered list answers "which rewrite did
+  // this analyze judge?" only by "the latest at the time", which stops being true the moment step-back
+  // lands. Each row records the run it actually CONSUMED.
+  expect(score.sourceRunId).toBeNull();
+  expect(rewrite.sourceRunId).toBe(score.id);
+  expect(analyze.sourceRunId).toBe(rewrite.id);
+  const runRows = await db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, session.id));
+  expect(runRows.find((r) => r.stage === "analyze")?.sourceRunId).toBe(rewrite.id);
   // The analyze prompt anchors the ORIGINAL (anti-drift): original description text present under ORIGINAL.
   const analyzeCall = h.summarizeCalls.at(-1);
   expect(analyzeCall?.user).toContain("# ORIGINAL");

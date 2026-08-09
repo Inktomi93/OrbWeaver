@@ -86,6 +86,7 @@ test("latestRunRowOf picks the newest of THAT stage; latestVerdictsOf groups new
       payloadConfig: { kind: "fixed", mode: "full" },
       payload: SCORE,
       model,
+      durationMs: 0,
       createdAt: AT_EARLY,
     },
     {
@@ -95,6 +96,7 @@ test("latestRunRowOf picks the newest of THAT stage; latestVerdictsOf groups new
       payloadConfig: { kind: "fixed", mode: "quick" },
       payload: SCORE,
       model,
+      durationMs: 0,
       createdAt: AT_LATE,
     },
     {
@@ -104,6 +106,7 @@ test("latestRunRowOf picks the newest of THAT stage; latestVerdictsOf groups new
       payloadConfig: { kind: "fixed", mode: "full" },
       payload: analyze("NEEDS_REFINEMENT"),
       model,
+      durationMs: 0,
       createdAt: AT_EARLY,
     },
     {
@@ -113,6 +116,7 @@ test("latestRunRowOf picks the newest of THAT stage; latestVerdictsOf groups new
       payloadConfig: { kind: "fixed", mode: "full" },
       payload: analyze("ACCEPT"),
       model,
+      durationMs: 0,
       createdAt: AT_LATE,
     },
   ]);

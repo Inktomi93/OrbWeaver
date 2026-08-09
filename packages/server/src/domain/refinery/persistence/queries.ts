@@ -160,6 +160,8 @@ export function runViewOf(row: RefineryRunRow): RefineryRun | null {
     model: row.model,
     promptTokens: row.promptTokens,
     outputTokens: row.outputTokens,
+    durationMs: row.durationMs,
+    sourceRunId: row.sourceRunId,
     strippedKeys: strippedKeysParser.parse(row.strippedKeys),
     createdAt: row.createdAt,
   };

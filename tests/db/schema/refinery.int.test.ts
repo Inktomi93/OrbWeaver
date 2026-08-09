@@ -14,7 +14,7 @@ import { characters, refineryRuns, refinerySessions, users } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/kit";
 import type { CharacterHandle, CharacterId, Handle, ModelId, RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { freshDb } from "../../support/db.ts";
 import { expect, test } from "../../support/fixtures.ts";
 import { seedUser } from "./_support.ts";
@@ -118,6 +118,7 @@ test("refinery_runs insert→select round-trips (typed payload + provenance conf
     payloadConfig: { kind: "fixed", mode: "full" },
     payload: SCORE_PAYLOAD,
     model: MODEL,
+    durationMs: 6100,
   });
 
   const rows = await db.select().from(refineryRuns).where(eq(refineryRuns.id, runId));
@@ -129,6 +130,49 @@ test("refinery_runs insert→select round-trips (typed payload + provenance conf
   // Usage is nullable by design (stats parity — a backend may report none).
   expect(rows[0]?.promptTokens).toBeNull();
   expect(rows[0]?.outputTokens).toBeNull();
+  // The Runs-ledger economics: wall time is REQUIRED (un-backfillable, so it can never be absent), while
+  // the DAG parent edge is optional — a score run consumes nothing and is a root.
+  expect(rows[0]?.durationMs).toBe(6100);
+  expect(rows[0]?.sourceRunId).toBeNull();
+});
+
+test("duration_ms is NOT NULL at the DDL — a run row can never exist without its wall time", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_ref_dur", handle: castId<Handle>("ref-owner-dur") });
+  const characterId = await seedCharacter(db, ownerId, "character_ref_dur");
+  const sessionId = await seedSession(db, characterId, "refinery_session_dur");
+  // The column carries no default and cannot be backfilled honestly, so the DDL is the enforcer — not a
+  // convention the next producer has to remember (the planted control for the NOT NULL itself).
+  await expect(
+    db.run(
+      sql`INSERT INTO refinery_runs (id, session_id, stage, payload_config, payload, model)
+          VALUES ('refinery_run_nodur', ${sessionId}, 'score', '{}', '{}', ${MODEL})`,
+    ),
+  ).rejects.toThrow();
+});
+
+test("source_run_id records the DAG parent and survives the round-trip (nullable, no FK by design)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_ref_src", handle: castId<Handle>("ref-owner-src") });
+  const characterId = await seedCharacter(db, ownerId, "character_ref_src");
+  const sessionId = await seedSession(db, characterId, "refinery_session_src");
+  const parentId = castId<RefineryRunId>("refinery_run_src_parent");
+  const childId = castId<RefineryRunId>("refinery_run_src_child");
+  await db.insert(refineryRuns).values([
+    { id: parentId, sessionId, stage: "rewrite", payloadConfig: { kind: "fixed", mode: "balanced" }, payload: { fields: [] }, model: MODEL, durationMs: 10 },
+    {
+      id: childId,
+      sessionId,
+      stage: "analyze",
+      payloadConfig: { kind: "fixed", mode: "full" },
+      payload: { fields: [] },
+      model: MODEL,
+      durationMs: 20,
+      sourceRunId: parentId,
+    },
+  ]);
+  const rows = await db.select().from(refineryRuns).where(eq(refineryRuns.id, childId));
+  expect(rows[0]?.sourceRunId).toBe(parentId);
 });
 
 test("deleting a character CASCADEs sessions AND runs (the D23 derived-ownership chain, two levels)", async () => {
@@ -143,6 +187,7 @@ test("deleting a character CASCADEs sessions AND runs (the D23 derived-ownership
     payloadConfig: { kind: "fixed", mode: "quick" },
     payload: SCORE_PAYLOAD,
     model: MODEL,
+    durationMs: 0,
   });
 
   // Positive control BEFORE the delete (non-vacuity — the absence assert below can't pass vacuously).
@@ -176,6 +221,7 @@ test("deleting the USER cascades the whole chain (user → character → session
       recommendations: [],
     },
     model: MODEL,
+    durationMs: 0,
   });
   // Positive control on BOTH levels before the delete (the session row's own non-vacuity — the assert
   // below cannot pass because the session was never written).
@@ -204,6 +250,7 @@ test("the stage CHECK constraint rejects a foreign stage member", async () => {
       payloadConfig: { kind: "fixed", mode: "full" },
       payload: SCORE_PAYLOAD,
       model: MODEL,
+      durationMs: 0,
     });
   } catch (err) {
     caught = err;
@@ -247,6 +294,7 @@ test("a run against a phantom session is a foreign-key rejection (FK PRAGMA is O
       payloadConfig: { kind: "fixed", mode: "full" },
       payload: SCORE_PAYLOAD,
       model: MODEL,
+      durationMs: 0,
     });
   } catch (err) {
     caught = err;
@@ -268,6 +316,7 @@ test("latest-run-per-(session, stage): the append-only log's hot read returns th
       payloadConfig: { kind: "fixed", mode: "full" },
       payload: SCORE_PAYLOAD,
       model: MODEL,
+      durationMs: 0,
       createdAt: RUN_AT_EARLY,
     },
     // A different stage BETWEEN the two score runs — the stage filter must exclude it.
@@ -278,6 +327,7 @@ test("latest-run-per-(session, stage): the append-only log's hot read returns th
       payloadConfig: { kind: "fixed", mode: "balanced" },
       payload: { fields: [{ field: "description", text: "richer" }] },
       model: MODEL,
+      durationMs: 0,
       createdAt: RUN_AT_MID,
     },
     {
@@ -287,6 +337,7 @@ test("latest-run-per-(session, stage): the append-only log's hot read returns th
       payloadConfig: { kind: "fixed", mode: "quick" },
       payload: SCORE_PAYLOAD,
       model: MODEL,
+      durationMs: 0,
       createdAt: RUN_AT_LATE,
     },
   ]);

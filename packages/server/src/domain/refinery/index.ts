@@ -19,6 +19,14 @@ export type {
   UpdateSessionParams,
   UpdateSessionPatch,
 } from "./contract/params.ts";
-export type { AppliedFieldRef, ApplyDropReason, ApplyFieldsResult, DroppedField, IterateResult, RefinerySessionView } from "./contract/results.ts";
+export type {
+  AppliedFieldKind,
+  AppliedFieldRef,
+  ApplyDropReason,
+  ApplyFieldsResult,
+  DroppedField,
+  IterateResult,
+  RefinerySessionView,
+} from "./contract/results.ts";
 export type { RefineryService } from "./contract/service.ts";
 export { createRefineryService } from "./service.ts";
