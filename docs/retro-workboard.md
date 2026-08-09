@@ -143,7 +143,21 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   zone gap → fix lane) · side-eye batch pass: C6 submenu GRADUATED clean; findings (turn-director model
   text, Corpus first-run redesign, Delete aria, flash ring, + P2/P3 pile) ALL in a fix lane per the
   side-eye-authority rule.
-- **IN FLIGHT at the freeze (3 lanes) — RESURRECTION NOTE (owner-ordered, for after the usage reset).**
+- **✅ SITTING FULLY DRAINED (late 08-08): all 3 freeze-era lanes LANDED + merged — nothing to
+  resurrect.** Final merges: forge R3 `5727fcb12` (crown on main; the `refinery.schemaForge.system`
+  slot text is forge's DRAFT awaiting owner sign-off) · grad-fix `6672d4fc5` (conflict-resolved vs
+  #28 by union, format-only diff verified) · side-eye fixes `ca29eaeed` (all findings; "Runs" rename
+  owner-KEPT). **Main `ca29eaeed`, 23 hook-gated merges this sitting, zero worktrees, zero stray
+  branches, tree clean, UNPUSHED.** Mid-drain incident (recorded in memory): two overlapping
+  background merge chains collided on the index — main briefly mid-merge, zero work lost, recovery
+  by abort+serial-remerge; RULE: one chain at a time, `git log` is the receipt, never the exit code.
+  **OWED at reset:** side-eye re-verify pass on R3 live + the fix batch (fresh lens, per the re-verify
+  law) · full behavioral battery (`verify --push` tier) · THEN owner's word on push + the 3-year-corpus
+  re-import (now correctly dated/tokened/titled end-to-end). **PARKED tasks:** #30 R4 · #31 agents
+  naming · #32 CLS/tab-strip/panel-jank/CLS-flagger · #33 templating ARM B · #34 oidc null-subject
+  signal · #35 corpus-stage settle + preset CT flake.
+
+- **SUPERSEDED — IN FLIGHT at the freeze (3 lanes) — resurrection note (kept for history).**
   Worktree = the durable anchor; same-session resurrection = SendMessage to the agent; cross-session
   recovery = a fresh lane ADOPTS the worktree/branch (never tear down un-merged worktrees):
   · **forge R3** — `.claude/worktrees/agent-afabc86f4157916fe` (branch `wt/agent-afabc86f4157916fe`,
