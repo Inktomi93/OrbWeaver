@@ -1,11 +1,11 @@
 // The typed API surface: `SessionsService` is the authoritative verb listing, `SessionsContext` the DI
-// bundle. 12 verbs across the BFF session lifecycle + identity resolution.
+// bundle. 13 verbs across the BFF session lifecycle + identity resolution.
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
-import type { Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
-import type { CreateSessionParams } from "./params.ts";
+import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
+import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
 import type { CreateSessionResult, ProvisionResult, UserPrincipalFields, ValidatedSession } from "./results.ts";
 
 /** The DI bundle every verb closes over, wired at the composition root. */
@@ -43,13 +43,17 @@ export interface SessionsService {
   revoke: (sessionId: SessionId) => Promise<void>;
   /** Revoke all of a user's live sessions → count revoked. @internal */
   revokeAllForUser: (userId: UserId) => Promise<number>;
+  /** A5 — revoke every live session for the user(s) bound to a stable external subject (`sub`), for OIDC
+   *  back-channel logout → count revoked. Idempotent (re-delivered logout tokens re-revoke nothing). @internal */
+  revokeByExternalId: (externalId: ExternalId) => Promise<number>;
   /** A user's sessions for the admin device list. @internal */
   listForUser: (userId: UserId) => Promise<SessionView[]>;
   /** Resolve a handle → `UserId`, JIT-creating the row on first sight. @internal */
   ensureUser: (handle: Handle) => Promise<UserId>;
   /** The SSO seam upsert: keys on the stable `externalId`, seeds `role` from owner policy on insert,
-   *  preserves `role`/`enabled` on update (unless `RE_DERIVE_ROLE_ON_LOGIN`). @internal */
-  provisionIdentity: (identity: ResolvedIdentity) => Promise<ProvisionResult>;
+   *  preserves `role`/`enabled` on update (unless `RE_DERIVE_ROLE_ON_LOGIN`). `options` carries the
+   *  caller-resolved admission decisions (A1 JIT gate / A2 approval) — the verb stays mode-agnostic. @internal */
+  provisionIdentity: (identity: ResolvedIdentity, options?: ProvisionIdentityOptions) => Promise<ProvisionResult>;
   /** Resolve a bare row id → its live principal-fields, or `null` for an unknown id. @internal */
   loadUserById: (userId: UserId) => Promise<UserPrincipalFields | null>;
   /** Exact handle→userId. A disabled/unknown handle collapses to null (leak-free; exact match only). */

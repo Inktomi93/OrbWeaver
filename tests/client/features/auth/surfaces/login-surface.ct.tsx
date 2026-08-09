@@ -36,6 +36,23 @@ test("forward-header → the proxy-config EXPLAINER (reachable now — no login 
 test("oidc → the SSO redirect button (whole-window navigation arm)", async ({ mount, page }) => {
   await mount(<LoginArmStory config={config({ mode: "oidc", localEnabled: false, oidcEnabled: true })} />);
   await expect(page.getByTestId("login-oidc")).toBeVisible();
+  // A7 — no error param ⇒ no alert line above Continue.
+  await expect(page.getByTestId("login-auth-error")).toHaveCount(0);
+});
+
+test("oidc + authError → a role=alert message renders above the Continue button (A7)", async ({ mount, page }) => {
+  await mount(
+    <LoginArmStory
+      config={config({ mode: "oidc", localEnabled: false, oidcEnabled: true })}
+      authError="Your account isn't authorized to use this application. Contact your administrator."
+    />,
+  );
+  const alert = page.getByTestId("login-auth-error");
+  await expect(alert).toBeVisible();
+  await expect(alert).toHaveAttribute("role", "alert");
+  await expect(alert).toContainText("isn't authorized");
+  // Continue is still offered (the user can retry the SSO round-trip).
+  await expect(page.getByTestId("login-oidc")).toBeVisible();
 });
 
 test("local → the credential form (handle pre-filled)", async ({ mount, page }) => {

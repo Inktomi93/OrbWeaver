@@ -70,6 +70,7 @@ import { appearancePane, automationPane, chatBehaviorPane, settingsModal, themeM
 import { analyticsSection } from "#features/stats";
 import { tagCollection } from "#features/tag";
 import {
+  adminApprovalsSection,
   adminCatalogSection,
   adminEmbeddingsSection,
   adminEnginesSection,
@@ -302,6 +303,8 @@ const settingsSections = createContributorRegistry<SettingsSectionContribution>(
   // catalog · card embeddings), then the AppSettings admin-tier sections that were already contributions.
   // All twelve are owned by user-admin (it owns the admin verbs + the admin-tier config).
   adminUsersSection,
+  // A2 — the OIDC_REQUIRE_APPROVAL account-approval queue, right after Users.
+  adminApprovalsSection,
   adminEnginesSection,
   adminCatalogSection,
   adminEmbeddingsSection,

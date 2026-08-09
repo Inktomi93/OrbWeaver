@@ -72,6 +72,7 @@ function stubSessions(validate: SessionsService["validate"]): SessionsService {
     revokeByToken: unused("revokeByToken"),
     revoke: unused("revoke"),
     revokeAllForUser: unused("revokeAllForUser"),
+    revokeByExternalId: unused("revokeByExternalId"),
     listForUser: unused("listForUser"),
     ensureUser: unused("ensureUser") as SessionsService["ensureUser"],
     provisionIdentity: unused("provisionIdentity") as SessionsService["provisionIdentity"],
@@ -108,6 +109,7 @@ async function viaLogout(cookieLines: readonly string[]): Promise<string | null>
   const sessions: AuthSessionsPort = {
     create: () => Promise.reject(new Error("unexpected sessions.create")),
     provisionIdentity: () => Promise.reject(new Error("unexpected sessions.provisionIdentity")),
+    revokeByExternalId: () => Promise.reject(new Error("unexpected sessions.revokeByExternalId")),
     revokeByToken: (token) => {
       seen.push(token);
       return Promise.resolve();
@@ -119,7 +121,7 @@ async function viaLogout(cookieLines: readonly string[]): Promise<string | null>
   const headers = craft(cookieLines);
   headers.set(CSRF_HEADER, "1"); // logout is CSRF-gated; without it the route 403s before parsing
   const res = await app.fetch(new Request("http://localhost/api/auth/logout", { method: "POST", headers }));
-  expect(res.status).toBe(204);
+  expect(res.status).toBe(200); // A6 — logout returns 200 `{endSessionUrl}` (null with no oidc deps), not 204
   return seen[0] ?? null;
 }
 

@@ -29,12 +29,14 @@ export function AccountSurfaceStory(): ReactElement {
 
 /** The per-mode login arm (LoginBody) — mounted router-free with a stub `onDone`, so the CT can prove
  *  each mode renders its arm (esp. the forward-header explainer an unauthenticated broken-proxy request
- *  lands on). A partial config is enough — LoginBody reads only `mode` + `defaultHandle`. */
-export function LoginArmStory({ config }: { readonly config: AuthConfig }): ReactElement {
+ *  lands on). A partial config is enough — LoginBody reads only `mode` + `defaultHandle`. `authError` (A7)
+ *  is the already-resolved OIDC callback error message, rendered above the Continue button in the oidc arm. */
+export function LoginArmStory({ config, authError = null }: { readonly config: AuthConfig; readonly authError?: string | null }): ReactElement {
   return (
     <div style={{ width: 360, padding: 16 }}>
       <LoginBody
         config={config}
+        authError={authError}
         onDone={(): void => {
           // no-op in the story — the arm rendering is what the CT asserts.
         }}

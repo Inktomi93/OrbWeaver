@@ -24,7 +24,7 @@ import { bodyLimit } from "hono/body-limit";
 import type { Configuration } from "openid-client";
 import { authorizationCodeGrant, buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
 import { securityEvent } from "#foundation/observability";
-import type { OidcTransaction } from "#infra/auth";
+import type { BackchannelLogoutVerifier, OidcTransaction } from "#infra/auth";
 import { hasCsrfHeader, SESSION_COOKIE_NAME } from "#infra/auth";
 import { clientIp } from "#infra/network";
 import type { RateLimiter } from "../../transport/rate-limit.ts";
@@ -34,7 +34,7 @@ import { readSessionCookie } from "../auth/index.ts";
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
 const BAD_REQUEST = 400;
-const NO_CONTENT = 204;
+const OK = 200;
 const FOUND = 302;
 const MS_PER_SECOND = 1000;
 const PKCE_METHOD = "S256";
@@ -59,11 +59,28 @@ const UNKNOWN_IP_KEY = "unknown";
 const LOGIN_BODY_MAX_BYTES = LOGIN_BODY_KIB * BYTES_PER_KIB;
 const OIDC_LOGIN_ROUTE = "/api/auth/oidc/login";
 const OIDC_CALLBACK_ROUTE = "/api/auth/oidc/callback";
+const OIDC_BACKCHANNEL_LOGOUT_ROUTE = "/api/auth/oidc/backchannel-logout";
 const HANDLE_FIELD = "handle";
 const PASSWORD_FIELD = "password";
+const LOGOUT_TOKEN_FIELD = "logout_token";
+// A7 — the SPA login route the callback lands the browser back on with a sanitized ?authError= code (never
+// raw JSON on a top-level navigation). The codes below are a fixed lowercase snake_case set LoginSurface
+// maps to copy; the IdP-supplied ones are already sanitized to the same shape.
+const LOGIN_SURFACE_ROUTE = "/login";
+const AUTH_ERROR_INVALID_STATE = "invalid_state";
+const AUTH_ERROR_NO_IDENTITY = "no_identity";
+const AUTH_ERROR_NOT_AUTHORIZED = "not_authorized";
+const AUTH_ERROR_ACCOUNT_DISABLED = "account_disabled";
 // The IdP-supplied OAuth2/OIDC `error` param is a fixed lowercase snake_case enum; reflect it back only
 // when it matches this shape (and cap the length) so raw IdP text can never reach the response body.
 const OIDC_ERROR_CODE_RE = /^[a-z_]{1,64}$/;
+
+/** A7 — land the browser back on the SPA login surface with a sanitized error code. `code` is always either
+ *  a fixed literal above or an already-`sanitizeOidcErrorCode`d value, so it matches `[a-z_]{1,64}` and needs
+ *  no further encoding — a top-level navigation never sees raw JSON. */
+function loginErrorRedirect(c: Context, code: string): Response {
+  return c.redirect(`${LOGIN_SURFACE_ROUTE}?authError=${code}`, FOUND);
+}
 
 /** Sanitize the IdP's callback `error` code: return it only when it matches the fixed OAuth2 error shape,
  *  else a generic marker — never reflect attacker/IdP-supplied free text into the response. */
@@ -120,6 +137,22 @@ export function serializeClearedSessionCookie(): string {
   return `${SESSION_COOKIE_NAME}=; Max-Age=0; ${COOKIE_ATTRS}`;
 }
 
+/** A6 — the IdP end-session (RP-initiated logout) URL, read from the discovered openid-client Configuration
+ *  (`serverMetadata().end_session_endpoint`). Best-effort: null when there is no oidc config, discovery
+ *  fails, or the issuer exposes no endpoint. The client navigates there after the local revoke so the
+ *  upstream SSO session ends too. */
+async function resolveEndSessionUrl(oidc: OidcRoutesDeps | undefined): Promise<string | null> {
+  if (oidc === undefined) {
+    return null;
+  }
+  try {
+    const endpoint = (await oidc.getConfig()).serverMetadata().end_session_endpoint;
+    return typeof endpoint === "string" && endpoint.length > 0 ? endpoint : null;
+  } catch {
+    return null;
+  }
+}
+
 /** The `domain/sessions` slice the mint routes consume (the seam owns resolution; this is the write side). */
 export interface AuthSessionsPort {
   readonly create: (params: {
@@ -127,7 +160,15 @@ export interface AuthSessionsPort {
     readonly userAgent?: string | null;
   }) => Promise<{ readonly token: SessionToken; readonly expiresAt: number }>;
   readonly revokeByToken: (token: SessionToken) => Promise<void>;
-  readonly provisionIdentity: (identity: ResolvedIdentity) => Promise<ProvisionOutcome>;
+  /** `options` carries the caller-resolved admission decisions (A1 JIT gate / A2 approval). The OIDC callback
+   *  passes them from env; the verb stays mode-agnostic. */
+  readonly provisionIdentity: (
+    identity: ResolvedIdentity,
+    options?: { readonly allowJitProvision?: boolean; readonly requireApproval?: boolean },
+  ) => Promise<ProvisionOutcome>;
+  /** A5 — revoke every live session for the user(s) bound to an IdP subject (`sub`), for back-channel
+   *  logout. Returns the count revoked. */
+  readonly revokeByExternalId: (externalId: ExternalId) => Promise<number>;
 }
 
 /** The `provisionIdentity` result the OIDC callback dispatches on: `provisioned` (mint the session,
@@ -168,7 +209,22 @@ export interface OidcRoutesDeps {
   readonly redirectAllowlist: readonly string[];
   readonly scope: string;
   readonly claims: OidcClaimMap;
+  /** A4 — the groups-claim VALUE separator (`OIDC_GROUPS_SEPARATOR`, default ';'). A separator-joined
+   *  string claim is split on it; an array is taken as-is. */
+  readonly groupsSeparator: string;
+  /** A1 — whether a first-login OIDC identity may be JIT-provisioned (`OIDC_SIGNUP`, default off). Resolved
+   *  from env here (the oidc-only caller); passed into `provisionIdentity` so the verb stays mode-agnostic. */
+  readonly allowJitProvision: boolean;
+  /** A2 — whether a first-time OIDC user provisions `enabled:false` awaiting admin approval
+   *  (`OIDC_REQUIRE_APPROVAL`, default off). */
+  readonly requireApproval: boolean;
   readonly store: OidcMintStore;
+  /** A5 — present only when `OIDC_BACKCHANNEL_LOGOUT=on`; its presence registers the back-channel logout
+   *  endpoint. Carries the JWKS-verifying `verify` port + our client_id (the required `aud`). */
+  readonly backchannelLogout?: {
+    readonly verify: BackchannelLogoutVerifier["verify"];
+    readonly clientId: string;
+  };
 }
 
 export interface AuthRoutesDeps {
@@ -259,7 +315,10 @@ export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
       await deps.sessions.revokeByToken(token);
     }
     c.header("Set-Cookie", serializeClearedSessionCookie());
-    return c.body(null, NO_CONTENT);
+    // A6 — surface the IdP end-session URL so the client can end the UPSTREAM SSO session after the local
+    // revoke (else "sign out → Continue" logs straight back in). Best-effort + null when there is no oidc
+    // config or the issuer exposes no end_session_endpoint. The local session is already dead regardless.
+    return c.json({ endSessionUrl: await resolveEndSessionUrl(deps.oidc) }, OK);
   });
 
   const oidc = deps.oidc;
@@ -333,11 +392,14 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     return c.redirect(url.href, FOUND);
   });
 
+  // A7 — the callback is a TOP-LEVEL browser navigation, so every failure lands back on /login with a
+  // sanitized ?authError= code (never raw JSON in the address bar). The codes are already sanitized (fixed
+  // literals or `sanitizeOidcErrorCode` output), so this widens no leak surface over the prior 401/403 JSON.
   app.get(OIDC_CALLBACK_ROUTE, async (c) => {
     const incoming = new URL(c.req.url);
     const tx = await oidc.store.consume(incoming.searchParams.get("state") ?? "");
     if (tx === null) {
-      return c.json({ error: "invalid or expired oidc state" }, UNAUTHORIZED);
+      return loginErrorRedirect(c, AUTH_ERROR_INVALID_STATE);
     }
     // The txn is now consumed (single-use), so every path below fails closed without leaving a replayable
     // state. If the IdP redirected back with a standard `?error=` (e.g. the user declined consent), surface
@@ -346,7 +408,7 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     if (idpError !== null) {
       const code = sanitizeOidcErrorCode(idpError);
       securityEvent("oidc_callback_error", { error: code }, "security: OIDC callback carried an IdP error param — no token exchange, no session");
-      return c.json({ error: `oidc login failed: ${code}` }, UNAUTHORIZED);
+      return loginErrorRedirect(c, code);
     }
     const config = await oidc.getConfig();
     // Reconstruct the callback URL from the validated, stored redirect_uri + the incoming query, so the
@@ -360,18 +422,23 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
         { error: exchange.code },
         "security: OIDC code→token exchange failed (replay/expiry/mismatch/transient) — no session minted",
       );
-      return c.json({ error: `oidc login failed: ${exchange.code}` }, UNAUTHORIZED);
+      return loginErrorRedirect(c, exchange.code);
     }
-    const identity = identityFromClaims(exchange.claims, oidc.claims);
+    const identity = identityFromClaims(exchange.claims, oidc.claims, oidc.groupsSeparator);
     if (identity === null) {
-      return c.json({ error: "oidc token carried no usable identity" }, UNAUTHORIZED);
+      return loginErrorRedirect(c, AUTH_ERROR_NO_IDENTITY);
     }
-    const provisioned = await deps.sessions.provisionIdentity(identity);
+    // A1/A2 — the OIDC caller resolves admission from env and hands the verb resolved booleans (it stays
+    // mode-agnostic). forward-header never routes here, so its JIT is unaffected.
+    const provisioned = await deps.sessions.provisionIdentity(identity, {
+      allowJitProvision: oidc.allowJitProvision,
+      requireApproval: oidc.requireApproval,
+    });
     if (provisioned.outcome === "denied") {
-      return c.json({ error: "not authorized for this application" }, UNAUTHORIZED);
+      return loginErrorRedirect(c, AUTH_ERROR_NOT_AUTHORIZED);
     }
     if (!provisioned.enabled) {
-      return c.json({ error: "account disabled" }, FORBIDDEN);
+      return loginErrorRedirect(c, AUTH_ERROR_ACCOUNT_DISABLED);
     }
     const session = await deps.sessions.create({
       userId: provisioned.userId,
@@ -380,6 +447,65 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
     c.header("Set-Cookie", sessionCookieFor(session, deps.now()));
     return c.redirect("/", FOUND);
   });
+
+  // A5 — RP back-channel logout. Registered only when OIDC_BACKCHANNEL_LOGOUT=on (deps.backchannelLogout set).
+  // The IdP calls this server-to-server; the signed logout_token IS the authentication (no cookie, no CSRF).
+  if (oidc.backchannelLogout !== undefined) {
+    registerBackchannelLogout(app, deps, oidc, oidc.backchannelLogout);
+  }
+}
+
+/** A5 — POST /api/auth/oidc/backchannel-logout. Validates the IdP `logout_token` against the issuer JWKS
+ *  (the full OIDC BCL §2.4 checklist lives in `infra/auth/backchannel`), then revokes every session row for
+ *  the subject. Returns 200 on success, 400 on any validation failure (per spec), always no-store.
+ *  Idempotent — a re-delivered token re-revokes nothing (no Redis replay cache needed). */
+function registerBackchannelLogout(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDeps, bcl: NonNullable<OidcRoutesDeps["backchannelLogout"]>): void {
+  app.post(OIDC_BACKCHANNEL_LOGOUT_ROUTE, async (c) => {
+    c.header("Cache-Control", "no-store");
+    const body = await c.req.parseBody();
+    const logoutToken = typeof body[LOGOUT_TOKEN_FIELD] === "string" ? body[LOGOUT_TOKEN_FIELD] : "";
+    // Per OIDC BCL §2.7 a failed logout returns 400 with a JSON `error` (error_description is optional and
+    // omitted here — this is a server-to-server call, so a single machine code is enough and keeps the
+    // response body free of a snake_case wire field).
+    if (logoutToken.length === 0) {
+      return c.json({ error: "invalid_request" }, BAD_REQUEST);
+    }
+    const meta = (await oidc.getConfig()).serverMetadata();
+    const jwksUri = meta.jwks_uri;
+    if (typeof jwksUri !== "string" || jwksUri.length === 0) {
+      return c.json({ error: "server_error" }, BAD_REQUEST);
+    }
+    const subject = await bcl.verify({ logoutToken, jwks: jwksUri, issuer: meta.issuer, audience: bcl.clientId });
+    if (subject === null) {
+      // The verifier already emitted a securityEvent naming the exact violation.
+      return c.json({ error: "invalid_request" }, BAD_REQUEST);
+    }
+    if (subject.sub !== null) {
+      const revoked = await deps.sessions.revokeByExternalId(castId<ExternalId>(subject.sub));
+      securityEvent("oidc_backchannel_logout", { revoked }, "security: OIDC back-channel logout — revoked all sessions for the subject");
+    }
+    // sid-only (no sub): the token validated, but we key sessions on external_id==sub and store no per-session
+    // IdP sid, so there is nothing to action. Still a 200 (the token was well-formed and authentic).
+    return c.body(null, OK);
+  });
+}
+
+/** A4 — parse the groups-claim VALUE. An array yields its string members (unchanged prior behavior); a
+ *  single string is split on the configured separator (an authentik property mapping may emit a ';'-joined
+ *  string), trimmed, empties dropped — a string with no separator is one group. Anything else ⇒ []. Before
+ *  this, a joined string yielded [], which under `OIDC_ALLOWED_GROUPS` denied EVERY login (a fail-closed
+ *  misconfiguration that reads like a broken IdP). */
+function normalizeGroups(raw: unknown, separator: string): string[] {
+  if (Array.isArray(raw)) {
+    return raw.filter((g): g is string => typeof g === "string");
+  }
+  if (typeof raw === "string" && raw.length > 0) {
+    return raw
+      .split(separator)
+      .map((g) => g.trim())
+      .filter((g) => g.length > 0);
+  }
+  return [];
 }
 
 /** Resolve a claim name that may be a dot-path (e.g. `user.memberOf`) against the claims object. A flat
@@ -410,7 +536,11 @@ function readClaimPath(claims: { readonly [claim: string]: unknown }, path: stri
  *  `infra/auth/modes/forward-header.ts`), so the warn is mode-scoped by construction. It is OBSERVABILITY:
  *  the returned identity is byte-identical with or without it, because refusing a subject-less login would
  *  break forward-header entirely — see `isSubjectMismatch`'s scope note, which prescribes exactly this. */
-export function identityFromClaims(claims: { readonly [claim: string]: unknown } | undefined, claimMap: OidcClaimMap): ResolvedIdentity | null {
+export function identityFromClaims(
+  claims: { readonly [claim: string]: unknown } | undefined,
+  claimMap: OidcClaimMap,
+  groupsSeparator = ";",
+): ResolvedIdentity | null {
   if (claims === undefined) {
     return null;
   }
@@ -429,8 +559,7 @@ export function identityFromClaims(claims: { readonly [claim: string]: unknown }
       "security: an OIDC login carried no stable subject — OIDC_UID_CLAIM names a claim this IdP does not emit, so every login provisions externalId=null and the bind-once account-takeover guard cannot fire; point OIDC_UID_CLAIM at a claim the IdP emits (`sub` is required by OIDC Core)",
     );
   }
-  const rawGroups = readClaimPath(claims, claimMap.groupsClaim);
-  const groups = Array.isArray(rawGroups) ? rawGroups.filter((g): g is string => typeof g === "string") : [];
+  const groups = normalizeGroups(readClaimPath(claims, claimMap.groupsClaim), groupsSeparator);
   const rawEmail = readClaimPath(claims, claimMap.emailClaim);
   const email = typeof rawEmail === "string" && rawEmail.length > 0 ? rawEmail : null;
   return {

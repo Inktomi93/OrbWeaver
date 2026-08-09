@@ -55,10 +55,20 @@ export async function login(handle: Handle, password: string): Promise<void> {
   }
 }
 
+/** The logout response (A6): the IdP end-session URL to continue to, or null (non-oidc modes, or an issuer
+ *  with no end_session_endpoint). */
+export interface LogoutResult {
+  readonly endSessionUrl: string | null;
+}
+
 /** Revoke the session + clear the cookie (idempotent server-side). The caller owns the post-logout
- *  navigation/cache teardown (a hard redirect to /login is the sanctioned reset — the persona-panel
- *  precedent: a full document load drops every in-memory cache with zero leak surface). */
-export async function logout(): Promise<void> {
+ *  navigation/cache teardown (a hard redirect is the sanctioned reset — the persona-panel precedent: a full
+ *  document load drops every in-memory cache with zero leak surface).
+ *
+ *  A6 — returns the IdP `endSessionUrl` when the deployment is OIDC and the issuer exposes an end-session
+ *  endpoint, so the caller can end the UPSTREAM SSO session too (else clicking Continue signs straight back
+ *  in). Null ⇒ fall back to the local /login reset. */
+export async function logout(): Promise<LogoutResult> {
   const res = await fetch("/api/auth/logout", {
     method: "POST",
     credentials: "same-origin",
@@ -67,4 +77,6 @@ export async function logout(): Promise<void> {
   if (!res.ok) {
     throw new Error(`logout failed (HTTP ${res.status})`);
   }
+  const parsed = (await res.json().catch(() => ({}))) as { readonly endSessionUrl?: string | null };
+  return { endSessionUrl: parsed.endSessionUrl ?? null };
 }

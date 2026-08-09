@@ -32,6 +32,7 @@ function sessionsStub(over: Partial<AuthSessionsPort> = {}): AuthSessionsPort {
       _identity: ResolvedIdentity,
     ): Promise<{ outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole } | { outcome: "denied" }> =>
       Promise.resolve({ outcome: "provisioned", userId: castId<UserId>("usr_x"), enabled: true, role: "user" }),
+    revokeByExternalId: (): Promise<number> => Promise.resolve(0),
     ...over,
   };
 }
@@ -157,7 +158,7 @@ describe("logout — CSRF gate (real app)", () => {
     expect(revoked).toBeNull();
   });
 
-  test("with the CSRF header → revokes + clears (204)", async () => {
+  test("with the CSRF header → revokes + clears (200, A6)", async () => {
     let revoked: string | null = null;
     const app = await appWith({
       sessions: sessionsStub({
@@ -168,7 +169,7 @@ describe("logout — CSRF gate (real app)", () => {
       }),
     });
     const res = await app.request("/api/auth/logout", { method: "POST", headers: { cookie: `${COOKIE}=tok-123`, [CSRF]: "1" } }, connEnv("10.0.0.10"));
-    expect(res.status).toBe(204);
+    expect(res.status).toBe(200); // A6 — 200 `{endSessionUrl}` (null in local mode), no longer 204
     expect(revoked).toBe("tok-123");
     expect(res.headers.get("set-cookie") ?? "").toContain("Max-Age=0");
   });

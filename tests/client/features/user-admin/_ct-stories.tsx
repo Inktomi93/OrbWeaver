@@ -7,6 +7,7 @@ import { openSettingsTo } from "@orb/client/state";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { AdminApprovalsSection } from "../../../../packages/client/src/features/user-admin/components/admin-approvals-section.tsx";
 import { AdminEnginesSection } from "../../../../packages/client/src/features/user-admin/components/admin-engines-section.tsx";
 import { AdminCatalogSection, AdminEmbedCardSection } from "../../../../packages/client/src/features/user-admin/components/admin-ops-section.tsx";
 import { AdminUsersSection } from "../../../../packages/client/src/features/user-admin/components/admin-users-section.tsx";
@@ -29,6 +30,20 @@ export function AdminUsersSectionStory(): ReactElement {
       <TooltipProvider>
         <div style={{ height: 900, overflow: "auto", width: 960 }}>
           <AdminUsersSection />
+        </div>
+      </TooltipProvider>
+    </CtDataProviders>
+  );
+}
+
+/** A2 — the Approvals SECTION in isolation: `admin.listUsers` (filtered client-side to disabled non-owner
+ *  accounts = the pending queue) + the `admin.setEnabled` approve mutation, stubbed per-test via routeTrpc. */
+export function AdminApprovalsSectionStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <TooltipProvider>
+        <div style={{ height: 900, overflow: "auto", width: 960 }}>
+          <AdminApprovalsSection />
         </div>
       </TooltipProvider>
     </CtDataProviders>

@@ -3,7 +3,7 @@ import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import { sessions, users } from "@orb/db";
 import type { ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 
 // domain/sessions/persistence/sessions — all `sessions`-table access (queries only). Every timestamp
 // arrives as a param (no ambient Date.now()); the token is never stored, lookups key on `tokenHash`.
@@ -86,6 +86,19 @@ export async function revokeAllForUser(db: Db, userId: UserId, revokedAt: number
     .update(sessions)
     .set({ revokedAt })
     .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)))
+    .returning({ id: sessions.id });
+  return revoked.map((r) => r.id);
+}
+
+/** A5 — revoke every live session belonging to the user(s) bound to a stable external subject (`sub`). One
+ *  atomic UPDATE over a `userId IN (SELECT id FROM users WHERE external_id = sub)` subquery + the
+ *  `revokedAt IS NULL` guard, so a re-delivered back-channel logout token just re-revokes nothing (idempotent
+ *  — no Redis replay cache needed). Returns the revoked ids so only real revocations are logged/audited. */
+export async function revokeAllForExternalId(db: Db, externalId: ExternalId, revokedAt: number): Promise<SessionId[]> {
+  const revoked = await db
+    .update(sessions)
+    .set({ revokedAt })
+    .where(and(inArray(sessions.userId, db.select({ id: users.id }).from(users).where(eq(users.externalId, externalId))), isNull(sessions.revokedAt)))
     .returning({ id: sessions.id });
   return revoked.map((r) => r.id);
 }
