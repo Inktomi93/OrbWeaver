@@ -33,6 +33,7 @@ import {
 import {
   createBulkRemove,
   createBulkSetEnabled,
+  createBulkSetPlacement,
   createCreate,
   createDuplicate,
   createGet,
@@ -59,6 +60,7 @@ export function createRegexService(ctx: RegexContext): RegexService {
     listScriptUsage: createListScriptUsage(ctx),
     bulkSetScriptsEnabled: createBulkSetEnabled(ctx),
     bulkSetScriptsGlobal: createBulkSetGlobal(ctx),
+    bulkSetScriptsPlacement: createBulkSetPlacement(ctx),
     bulkRemoveScripts: createBulkRemove(ctx),
     exportScript: ({ principal, scriptId }) => exportScript({ ownerId: principal.userId, scriptId }),
     importScriptFile: ({ principal, fileText }) => importScript({ ownerId: principal.userId, bytes: ENC.encode(fileText) }),

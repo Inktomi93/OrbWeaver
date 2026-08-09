@@ -60,6 +60,14 @@ const placementSchema = z
   .transform((values): RegexPlacement[] => values.filter(isRegexPlacement))
   .pipe(z.array(z.enum(REGEX_PLACEMENTS)).max(REGEX_PLACEMENTS.length));
 
+/** The STRICT placement-list wire shape — the REGX2 bulk-placement verb's input. Unlike the lenient
+ *  {@link placementSchema} above (which drops unknown members for the ST card-boundary heal), this rejects a
+ *  non-member: the only caller is the first-party bulk dialog, which sends canonical `RegexPlacement`s off
+ *  the shared `REGEX_PLACEMENT_ITEMS`, so a garbage value is a bug to surface, not a card to salvage. The
+ *  server re-derives each script's tier flags + history-depth scope FROM this set (`@orb/kit/regex`), so no
+ *  flag or depth rides the wire. */
+export const regexPlacementListSchema = z.array(z.enum(REGEX_PLACEMENTS)).max(REGEX_PLACEMENTS.length);
+
 /** How deep in the assembled history a `PROMPT_HISTORY` script applies — DEPTH 0 IS THE NEWEST MESSAGE,
  *  counting backwards (the kit `RegexHistoryDepth` header cites the ST source for the semantic). The two
  *  bounds live in ONE nested object rather than beside each other on the body so they cannot half-exist:

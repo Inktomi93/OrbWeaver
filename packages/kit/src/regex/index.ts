@@ -46,6 +46,53 @@ export interface RegexHistoryDepth {
   readonly max: number | null;
 }
 
+// ── THE PLACEMENT-DERIVED FIELDS (the INVERSE of the executor masks below) ─────────────────────────────
+// `markdownOnly`/`promptOnly`/`historyDepth` are NEVER authored beside `placement` — they are decided BY it,
+// at the one save boundary that writes a script. These pure functions ARE that decision, homed here beside
+// the masks they mirror so BOTH callers derive identically: the client's save boundary
+// (`features/regex/lib/derive-tier-flags` `withDerivedTierFlags`) and the server's bulk-placement verb, which
+// re-derives every row's flags/scope after a bulk placement change. Isomorphic + zero-I/O + zero-domain, so
+// they live in kit and cannot import the `@orb/contracts` shapes they feed (the one-directional cake) — each
+// caller assembles the contract row from the plain shape returned here.
+//
+// WHY DERIVE AND NOT AUTHOR. Both tier flags are pure MASKS over `placement`: `skipsScript` (below) skips a
+// `markdownOnly` script on every non-`DISPLAY` leg and a `promptOnly` one on `DISPLAY`. As independent
+// switches they add no expressive power — they only subtract from the placement set — so a switch beside the
+// chips can only ever CONTRADICT them. Deriving makes the dead state unrepresentable (side-eye X-1/X-2,
+// owner-ratified 2026-08-03). `historyDepth` is not a mask but the same shape of fact: it has no meaning
+// without the `PROMPT_HISTORY` leg (the contract refuses either half alone), so it too is paired here.
+
+/** The tier flags a placement set implies. THREE ARMS, exhaustive over the set:
+ *  · `DISPLAY` alone            ⇒ `markdownOnly` — render-tier only.
+ *  · no `DISPLAY` at all        ⇒ `promptOnly`   — never touches what is rendered.
+ *  · `DISPLAY` + a prompt-side  ⇒ neither        — it runs on both sides, which is what the chips say.
+ *  An EMPTY set lands on the middle arm (`promptOnly`) and is inert either way: `skipsScript` already skips a
+ *  script whose placement list does not contain the running leg. The pair can never BOTH be true — the
+ *  contradiction the two old switches allowed is now unspellable. */
+export function deriveRegexTierFlags(placement: readonly RegexPlacement[]): { readonly markdownOnly: boolean; readonly promptOnly: boolean } {
+  const hasDisplay = placement.includes("DISPLAY");
+  const hasPromptSide = placement.some((member) => member !== "DISPLAY");
+  return { markdownOnly: hasDisplay && !hasPromptSide, promptOnly: !hasDisplay };
+}
+
+/** The depth scope a freshly-scoped history script gets: the WHOLE history. It is written out rather than
+ *  left absent because the contract pairs `historyDepth` with the `PROMPT_HISTORY` leg in BOTH directions —
+ *  the leg without a scope is as unrepresentable as a scope without the leg, so "everything" has exactly one
+ *  spelling instead of being inferred from a missing key. */
+export const WHOLE_HISTORY_DEPTH: RegexHistoryDepth = { min: 0, max: null };
+
+/** The history-depth scope a placement set implies — present IFF the set carries `PROMPT_HISTORY` (the one
+ *  leg {@link RegexHistoryDepth} scopes). A set that GAINED the leg keeps an authored scope or takes the
+ *  whole history; a set that LOST it drops the scope entirely, because a bound that governs no leg is invisible
+ *  state no reader can see or clear. Keeping a "remembered" scope across a toggle-off-and-back-on is
+ *  deliberately NOT attempted (the save boundary is autosaving; a hidden bound would be unclearable). */
+export function deriveRegexHistoryDepth(placement: readonly RegexPlacement[], current: RegexHistoryDepth | undefined): RegexHistoryDepth | undefined {
+  if (!placement.includes(HISTORY_DEPTH_PLACEMENT)) {
+    return;
+  }
+  return current ?? WHOLE_HISTORY_DEPTH;
+}
+
 /** Whether (and how) macros run on the FIND pattern before it is compiled: `none` = verbatim; `raw` =
  *  macros substituted as-is; `escaped` = substituted output regex-escaped (so `a.b` matches literally).
  *  The numeric values are the persisted/wire form (legacy ST card-format compat). */
