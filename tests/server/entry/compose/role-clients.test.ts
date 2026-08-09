@@ -17,6 +17,7 @@ import type { ChatApi, ModelCapability, ResolvedConnection } from "@orb/contract
 import type { ResolvedCredential } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
+import type { StructuredOutputVehicle } from "@orb/contracts/role-clients";
 import type { Handle, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { requireOwner } from "@orb/server/domain/admin";
@@ -28,6 +29,23 @@ import type { EmbedRequest, ProviderExecutor, StructuredRequest, SummarizeReques
 import { expect, test } from "../../../support/fixtures.ts";
 
 const OWNER = castId<UserId>("u_owner");
+
+/** The deployment's structured-output vehicle floor (task #36). `auto` is the shipped default, so these
+ *  bindings exercise the same resolution every deployment gets until an admin moves it. */
+const autoVehicle = (): StructuredOutputVehicle => "auto";
+
+/** The binder's deps, assembled in one place: every test but the vehicle-resolution trio wants the same
+ *  stub connection, the REAL row→Principal resolver, and the shipped `auto` vehicle floor. */
+function binderDeps(executor: ProviderExecutor): Parameters<typeof bindRoleClientsForUser>[0] {
+  return { connection: stubConnection(), executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle };
+}
+
+/** The binder's deps over a CALLER-supplied connection — the principal-provenance pins need to watch
+ *  what `resolveRole` was handed, so they bring their own recording connection. */
+function customDeps(connection: Pick<ConnectionService, "resolveRole">): Parameters<typeof bindRoleClientsForUser>[0] {
+  return { connection, executor: recordingExecutor().executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle };
+}
+
 /** The rule AUTHOR: a plain `user` row that holds D18 ROOM host authority in its own chat — the subject the
  *  `/autobg` arm binds a bundle for (`automation-plugin.ts` → `bindRoleClients(authorUserId)`). */
 const AUTHOR = castId<UserId>("u_author");
@@ -81,16 +99,20 @@ function recordingExecutor(): {
   return { executor, embedCalls, summarizeCalls, structuredCalls };
 }
 
-/** A `resolveRole` that returns a distinct `model-<role>` + a marker credential per role. */
-function stubConnection(): Pick<ConnectionService, "resolveRole"> {
+/** A `resolveRole` that returns a distinct `model-<role>` + a marker credential per role. `structured` is the
+ *  resolved model's structured-output capability — the bit the `auto` vehicle decision reads (task #36). */
+function stubConnection(opts: { readonly structured?: boolean } = {}): Pick<ConnectionService, "resolveRole"> {
   const conn: Pick<ConnectionService, "resolveRole"> = {
     resolveRole: ({ role }) => {
       const resolved: ResolvedConnection = {
         api: "chat-completions" as ChatApi,
         model: castId<ModelId>(`model-${role}`),
         credential: { source: "vllm" } as unknown as ResolvedCredential,
-        // The binder reads `capability.context.window` for the summarizer token-guard tag — supply a minimal one.
-        capability: { context: { window: 32_000 } } as unknown as ModelCapability,
+        // The binder reads `capability.context.window` for the summarizer token-guard tag AND
+        // `capability.output.structured` for the `auto` structured-output vehicle decision (task #36) —
+        // supply BOTH. A double that omits a field the binder reads is a false green waiting to happen: the
+        // vehicle arm read `undefined.structured` and threw, which is the double's bug, not the binder's.
+        capability: { context: { window: 32_000 }, output: { structured: opts.structured ?? true } } as unknown as ModelCapability,
       };
       return Promise.resolve(resolved);
     },
@@ -100,7 +122,7 @@ function stubConnection(): Pick<ConnectionService, "resolveRole"> {
 
 test("bindRoleClientsForUser dispatches embed through the executor with the resolved credential+model", async () => {
   const { executor, embedCalls } = recordingExecutor();
-  const clients = await bindRoleClientsForUser({ connection: stubConnection(), executor, resolvePrincipal: realResolver() }, OWNER);
+  const clients = await bindRoleClientsForUser(binderDeps(executor), OWNER);
 
   await clients.embed("hello", { inputType: "query" });
 
@@ -113,10 +135,7 @@ test("bindRoleClientsForUser dispatches embed through the executor with the reso
 });
 
 test("bindRoleClientsForUser carries provenance-correct *Model tags from the resolved connections", async () => {
-  const clients = await bindRoleClientsForUser(
-    { connection: stubConnection(), executor: recordingExecutor().executor, resolvePrincipal: realResolver() },
-    OWNER,
-  );
+  const clients = await bindRoleClientsForUser(binderDeps(recordingExecutor().executor), OWNER);
 
   expect(clients.embedModel).toBe("model-embed");
   expect(clients.rerankModel).toBe("model-rerank");
@@ -126,7 +145,7 @@ test("bindRoleClientsForUser carries provenance-correct *Model tags from the res
 
 test("bindRoleClientsForUser forwards the caller's AbortSignal onto the summarize request", async () => {
   const { executor, summarizeCalls } = recordingExecutor();
-  const clients = await bindRoleClientsForUser({ connection: stubConnection(), executor, resolvePrincipal: realResolver() }, OWNER);
+  const clients = await bindRoleClientsForUser(binderDeps(executor), OWNER);
   const controller = new AbortController();
 
   await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { temperature: 0.2, signal: controller.signal });
@@ -139,7 +158,7 @@ test("bindRoleClientsForUser forwards the caller's AbortSignal onto the summariz
 
 test("a summarize call with no signal sends none (no fabricated controller)", async () => {
   const { executor, summarizeCalls } = recordingExecutor();
-  const clients = await bindRoleClientsForUser({ connection: stubConnection(), executor, resolvePrincipal: realResolver() }, OWNER);
+  const clients = await bindRoleClientsForUser(binderDeps(executor), OWNER);
 
   await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }]);
 
@@ -151,18 +170,75 @@ test("a summarize call with no signal sends none (no fabricated controller)", as
 // `structured` role). Callers are unchanged; the WIRE role + its observability + firewall are now honest.
 test("a summarize call with responseFormat routes to the STRUCTURED role, NOT summarize", async () => {
   const { executor, summarizeCalls, structuredCalls } = recordingExecutor();
-  const clients = await bindRoleClientsForUser({ connection: stubConnection(), executor, resolvePrincipal: realResolver() }, OWNER);
+  const clients = await bindRoleClientsForUser(binderDeps(executor), OWNER);
 
   await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: { name: "x", schema: { type: "object" } } });
 
   expect(structuredCalls).toHaveLength(1);
-  expect(structuredCalls[0]?.responseFormat).toEqual({ name: "x", schema: { type: "object" } });
+  // …carrying the vehicle the binder RESOLVED (task #36): the deployment floor is `auto`, and this model's
+  // capability says its endpoints do structured output, so the enforcing wire is chosen here — not guessed
+  // inside the sealed backend, which may not read a domain's capability.
+  expect(structuredCalls[0]?.responseFormat).toEqual({ name: "x", schema: { type: "object" }, vehicle: "response-format" });
   expect(summarizeCalls).toHaveLength(0); // the summarize role did NOT fire
+});
+
+// The OTHER side of `auto` — the fence that keeps a model without structured-output endpoints on the
+// forced-tool vehicle it has always used. Same request, same knob, one capability bit different.
+test("auto resolves to the forced-tool vehicle when the resolved model has no structured-output capability", async () => {
+  const { executor, structuredCalls } = recordingExecutor();
+  const clients = await bindRoleClientsForUser(
+    { connection: stubConnection({ structured: false }), executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle },
+    OWNER,
+  );
+
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: { name: "x", schema: { type: "object" } } });
+
+  expect(structuredCalls[0]?.responseFormat?.vehicle).toBe("forced-tool");
+});
+
+// A DEPLOYMENT pin beats capability: an admin who forces the enforcing wire gets it on every model, and a
+// provider that cannot compile the schema answers with its own 400 rather than a silent downgrade.
+test("the deployment knob overrides the capability read when it is not `auto`", async () => {
+  const { executor, structuredCalls } = recordingExecutor();
+  const clients = await bindRoleClientsForUser(
+    {
+      connection: stubConnection({ structured: false }),
+      executor,
+      resolvePrincipal: realResolver(),
+      structuredOutputVehicle: (): StructuredOutputVehicle => "response-format",
+    },
+    OWNER,
+  );
+
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: { name: "x", schema: { type: "object" } } });
+
+  expect(structuredCalls[0]?.responseFormat?.vehicle).toBe("response-format");
+});
+
+// …and a PER-CALL ask beats both (the schema-forge asks for the enforcing wire: an author designing a schema
+// wants the hard guarantee, not a deployment posture).
+test("a per-call vehicle ask beats the deployment knob and the capability", async () => {
+  const { executor, structuredCalls } = recordingExecutor();
+  const clients = await bindRoleClientsForUser(
+    {
+      connection: stubConnection({ structured: true }),
+      executor,
+      resolvePrincipal: realResolver(),
+      structuredOutputVehicle: (): StructuredOutputVehicle => "forced-tool",
+    },
+    OWNER,
+  );
+
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], {
+    responseFormat: { name: "x", schema: { type: "object" }, vehicle: "response-format" },
+  });
+
+  expect(structuredCalls[0]?.responseFormat?.vehicle).toBe("response-format");
 });
 
 test("a plain summarize call (no responseFormat) stays on the SUMMARIZE role", async () => {
   const { executor, summarizeCalls, structuredCalls } = recordingExecutor();
-  const clients = await bindRoleClientsForUser({ connection: stubConnection(), executor, resolvePrincipal: realResolver() }, OWNER);
+  const clients = await bindRoleClientsForUser(binderDeps(executor), OWNER);
 
   await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }]);
 
@@ -195,7 +271,7 @@ function capturingConnection(): { connection: Pick<ConnectionService, "resolveRo
 test("D135: the binder's Principal is READ off the users row — a non-owner author stays `user`", async () => {
   const { connection, principals } = capturingConnection();
 
-  await bindRoleClientsForUser({ connection, executor: recordingExecutor().executor, resolvePrincipal: realResolver() }, AUTHOR);
+  await bindRoleClientsForUser(customDeps(connection), AUTHOR);
 
   expect(principals).toHaveLength(4); // embed · rerank · imageEmbed · summarize
   for (const principal of principals) {
@@ -209,7 +285,7 @@ test("D135: the binder's Principal is READ off the users row — a non-owner aut
 /** The binder's principal for `userId`, as the four `resolveRole` calls saw it. */
 async function boundPrincipal(userId: UserId): Promise<Principal | undefined> {
   const { connection, principals } = capturingConnection();
-  await bindRoleClientsForUser({ connection, executor: recordingExecutor().executor, resolvePrincipal: realResolver() }, userId);
+  await bindRoleClientsForUser(customDeps(connection), userId);
   return principals[0];
 }
 
@@ -242,7 +318,7 @@ test("D135: the owner gate the binder can reach REFUSES the non-owner author (re
       return stubConnection().resolveRole(params);
     },
   };
-  const deps = { connection: ownerGatedConnection, executor: recordingExecutor().executor, resolvePrincipal: realResolver() };
+  const deps = customDeps(ownerGatedConnection);
 
   await expect(bindRoleClientsForUser(deps, AUTHOR)).rejects.toThrow();
   // The same wiring under the real owner still binds — the gate discriminates on the ROW, not on the caller.
@@ -252,7 +328,7 @@ test("D135: the owner gate the binder can reach REFUSES the non-owner author (re
 test("D135: an unknown id degrades to the fail-closed floor, never to owner", async () => {
   const { connection, principals } = capturingConnection();
 
-  await bindRoleClientsForUser({ connection, executor: recordingExecutor().executor, resolvePrincipal: realResolver() }, castId<UserId>("u_ghost"));
+  await bindRoleClientsForUser(customDeps(connection), castId<UserId>("u_ghost"));
 
   expect(principals[0]?.role).toBe("user");
 });

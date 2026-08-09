@@ -5,6 +5,7 @@
 import type { Principal } from "@orb/contracts/identity";
 import type {
   RefinableField,
+  RefineryForgeArm,
   RefineryRewritePayload,
   RefinerySchemaStage,
   RefinerySelection,
@@ -163,10 +164,13 @@ export interface DeleteSchemaParams extends RefineryActorParams {
 
 export type ListSchemasParams = RefineryActorParams;
 
-/** `generateSchema` — NL → a draft schema document (never persisted; the client holds the draft). */
+/** `generateSchema` — NL → a draft schema document (never persisted; the client holds the draft). `arm`
+ *  picks the authoring PIPELINE (task #36 — single enforced call · stepwise · structure-then-hints); absent
+ *  = `REFINERY_FORGE_ARM_DEFAULT`. */
 export interface GenerateSchemaParams extends RefineryActorParams {
   readonly description: string;
   readonly stage: RefinerySchemaStage;
+  readonly arm?: RefineryForgeArm | undefined;
 }
 
 /** `refineSchema` — one conversational iteration over the CURRENT draft ("add a severity enum"). */
@@ -174,6 +178,7 @@ export interface RefineSchemaParams extends RefineryActorParams {
   readonly schema: Record<string, unknown>;
   readonly instruction: string;
   readonly stage: RefinerySchemaStage;
+  readonly arm?: RefineryForgeArm | undefined;
 }
 
 /** `testSchema` — a DRILL: run the stage once against an owned card under the draft schema; returns the

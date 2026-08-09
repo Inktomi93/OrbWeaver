@@ -35,6 +35,9 @@ export { REFINERY_VERDICTS, type RefineryVerdict, refineryVerdictSchema, SCORE_M
 // The refinery prose slot table (R1) — composed into `PROSE_SLOTS` by `#prose` through this front door.
 export { REFINERY_PROSE_SLOTS } from "./prose.ts";
 export * from "./schema-authoring.ts";
+// The forge's WIRE GRAMMAR (task #36 — the meta-schema every NL→schema call is constrained by). Imports
+// ./schema-authoring.ts for the caps it mirrors, so it is re-exported AFTER it.
+export * from "./schema-forge.ts";
 
 // The 1-10 rubric bounds + the verdict vocabulary live in ./core.ts (schema-authoring's well-known-core
 // check needs them and this file re-exports ./schema-authoring — importing them back out of here would

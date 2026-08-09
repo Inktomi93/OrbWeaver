@@ -6,7 +6,7 @@
 // The stateless remote chat backend + the non-chat roles OpenRouter serves (embed/rerank/imageEmbed/
 // generateImage) + the summarize shaper over chat. No `runAgentTurn` (agent mode is agent-sdk's).
 
-import type { ChatContentItems, ChatUserMessageContent, ChatRequest as SdkChatRequest } from "@openrouter/sdk/models";
+import type { ChatContentItems, ChatFormatJsonSchemaConfig, ChatUserMessageContent, ChatRequest as SdkChatRequest } from "@openrouter/sdk/models";
 import { ChatRequest$outboundSchema } from "@openrouter/sdk/models";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { errorMessage } from "@orb/kit/error-message";
@@ -208,10 +208,57 @@ function structuredReply(view: ChatCompletionResult, toolName: string): { readon
   return { text: call === undefined ? extractChatReply(view) : call.function.arguments, extra };
 }
 
+// ── THE SECOND VEHICLE — `response_format: json_schema`, re-opened by live probe (2026-08-09) ──────────
+// The block above records a 2026-08-02 probe as "`response_format` is NOT servable across its hosted
+// families". That wording is CORRECTED, not deleted, and the correction names the real variable: it is the
+// schema SHAPE, never the endpoint-routing knob.
+//
+// Measured 2026-08-09 with the owner's key, 23 live calls, three families (receipts:
+// `docs/reviews/misc/2026-08-09-openrouter-structured-output-probe.md`):
+//   • the SAME `response_format` field that 400'd in 2026-08-02 is 200 on anthropic-, openai- AND
+//     google-family endpoints when the schema rides the ALL-REQUIRED shape (`scrubWireSchema(…,
+//     "strict-compatible")`) with `strict:true`. openai's 400 was literally "'required' is required to be
+//     supplied and to be an array including every key in properties" — i.e. the D126 knob's own documented
+//     wall, and D126 is its own documented fix.
+//   • `provider.require_parameters` changed NO cell of the matrix in either direction. It rides anyway
+//     (routing to an endpoint that supports the parameter is correct hygiene), but it is NOT the fix, and
+//     any future note claiming it is should be checked against this table first.
+//   • the optional-COUNT wall the 2026-08-02 note reports for the rpg extraction schema is untouched by
+//     this: `strict-compatible` is exactly what clears it, at the cost of one explicit `null` per unset
+//     field. Which is why the vehicle is a KNOB and `auto` keeps the forced tool for callers who have not
+//     opted into the strict shape — the extraction rail's behaviour is unchanged by default.
+//
+// The forced tool therefore STAYS as the other arm and as `auto`'s fallback (nothing was ripped out); a
+// caller that needs a real grammar asks for `vehicle:"response-format"` per call, as the schema-forge does.
+
+/** The `response_format` vehicle's wire copy: the ALL-REQUIRED shape + `strict:true` — the ONE pairing the
+ *  probe found servable on all three families. Deliberately NOT `buildChatResponseFormat` (the chat runners'
+ *  builder, which carries the hosted-common shape and omits `strict` by ruling): that builder answers a
+ *  different question for a different rail, and merging them would make one of the two lie. */
+function structuredResponseFormat(format: ResponseFormat): ChatFormatJsonSchemaConfig {
+  return {
+    type: "json_schema",
+    jsonSchema: {
+      name: format.name,
+      schema: scrubWireSchema(format.schema, "strict-compatible").schema,
+      strict: true,
+      ...(format.description !== undefined ? { description: format.description } : {}),
+    },
+  };
+}
+
+/** Which vehicle THIS request rides. The per-call ask wins; `auto` resolves at the CALLER (role-clients
+ *  reads the resolved model's capability) and arrives here already decided, so an `auto` reaching this
+ *  point means nobody could answer — the forced tool is the servable-everywhere answer. */
+function vehicleOf(format: ResponseFormat): "response-format" | "forced-tool" {
+  return format.vehicle === "response-format" ? "response-format" : "forced-tool";
+}
+
 // Build ONE item's SDK chat request (system + the possibly-multimodal user content + the sampling knobs + —
-// on the structured role — the forced schema-carrying tool).
+// on the structured role — whichever schema vehicle this request rides).
 async function buildOrBatchRequest(deps: OrBatchDeps, req: OrBatchReq, input: SummarizeRequestItem): Promise<SdkChatRequest> {
-  const tool = req.responseFormat !== undefined ? structuredWireTool(req.responseFormat) : undefined;
+  const vehicle = req.responseFormat === undefined ? undefined : vehicleOf(req.responseFormat);
+  const tool = req.responseFormat !== undefined && vehicle === "forced-tool" ? structuredWireTool(req.responseFormat) : undefined;
   const userContent = await summarizeUserContent(input, deps.normalize);
   return {
     model: req.model,
@@ -221,6 +268,12 @@ async function buildOrBatchRequest(deps: OrBatchDeps, req: OrBatchReq, input: Su
     ],
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
     ...(req.maxTokens !== undefined ? { maxCompletionTokens: req.maxTokens } : {}),
+    // The `response_format` vehicle rides with `require_parameters`, so OpenRouter only routes it to an
+    // endpoint that advertises the parameter. (Probe note: this did not change any 400 in the matrix — it is
+    // routing hygiene, not the fix.)
+    ...(req.responseFormat !== undefined && vehicle === "response-format"
+      ? { responseFormat: structuredResponseFormat(req.responseFormat), provider: { requireParameters: true } }
+      : {}),
     // The forced structured call is a SINGLE-RESULT vehicle: the caller's schema describes one object, and a
     // second call's payload has nowhere to go. `parallel_tool_calls:false` is the vendor's own knob for that
     // (Anthropic spells it `disable_parallel_tool_use`; this wire is OpenAI-dialect and the SDK maps it), so

@@ -15,6 +15,26 @@
 import { z } from "zod";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "#providers";
 
+/** WHICH WIRE VEHICLE a structured-output request rides on a backend that has more than one. Minted here
+ *  beside `ResponseFormat` because it is a property of the structured-output REQUEST; the AppSettings tier
+ *  imports it DOWN for the deployment default (`structuredOutputVehicle`), and it composes with — never
+ *  entangles with — the D126 `structuredOutputShape` axis (shape = how we spell an optional; vehicle = which
+ *  endpoint feature carries the schema).
+ *
+ *  Only OpenRouter has a choice to make; vLLM has one enforcing wire (`response_format` + guided decoding)
+ *  and ignores this knob.
+ *  • `auto` — the DEFAULT: `response-format` when the resolved model's capability says the endpoint supports
+ *    structured output, else `forced-tool`; a 400 on the first falls back to the second for that call.
+ *  • `response-format` — force `response_format: {type:"json_schema"}` + `strict` + provider
+ *    `require_parameters`. Measured 2026-08-09 (23 live OpenRouter calls) as servable on anthropic-,
+ *    openai- and google-family endpoints for a schema in the all-required shape. The schema-forge asks for
+ *    this per call: an author designing a schema wants the hard guarantee, not a deployment posture.
+ *  • `forced-tool` — force the single-forced-tool vehicle (the 2026-08-02 shape). Servable everywhere,
+ *    compiles no grammar, and stays the fallback arm — nothing was ripped out. */
+export const STRUCTURED_OUTPUT_VEHICLES = ["auto", "response-format", "forced-tool"] as const;
+export type StructuredOutputVehicle = (typeof STRUCTURED_OUTPUT_VEHICLES)[number];
+export const structuredOutputVehicleSchema = z.enum(STRUCTURED_OUTPUT_VEHICLES);
+
 // @typeonly-ok: the wire vocabulary lives in `ResponseFormat` (the type consumers import); the runtime
 // schema itself is only referenced in type position here in contracts — infra's wire arms build their
 // OWN literal against the shape rather than calling this validator, so the schema stays the type anchor.
@@ -35,6 +55,9 @@ export const responseFormatSchema = z.object({
    *  where a strict grammar is the whole point) still default it on. Set it explicitly to pin either. */
   strict: z.boolean().optional(),
   description: z.string().optional(),
+  /** Per-CALL wire-vehicle request (see {@link STRUCTURED_OUTPUT_VEHICLES}). Absent = the deployment's
+   *  `structuredOutputVehicle` governs. Backends with one wire ignore it. */
+  vehicle: structuredOutputVehicleSchema.optional(),
 });
 export type ResponseFormat = z.infer<typeof responseFormatSchema>;
 

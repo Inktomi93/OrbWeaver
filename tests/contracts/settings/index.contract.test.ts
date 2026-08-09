@@ -504,9 +504,22 @@ test("a stored prose override round-trips, and a RETIRED slot id is stripped ins
   expect(parsed.prose).toEqual({ "chat.compaction.system": { text: "Summarize like a ship's log.", baseVersion: 1 } });
 });
 
-test("the pinned schema versions: AppSettings v6 (promptCacheMinDepth, findings §5), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
-  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V6);
+test("the pinned schema versions: AppSettings v7 (structuredOutputVehicle, task #36), UserSettings v8 (the regex section's DELETION, D121-E)", () => {
+  expect(APP_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V7);
   expect(USER_SETTINGS_SCHEMA_VERSION).toBe(SCHEMA_VERSION_V8);
+});
+
+// The AppSettings v6→v7 lift. `structuredOutputVehicle` is purely additive AND its floor (`auto`) resolves
+// to exactly the vehicle every request used before the knob existed, so a stored v6 blob must read back with
+// the field absent and every sibling override intact — the proof that no deployment's wire bodies moved.
+test("AppSettings v6→v7: a stored v6 blob keeps its overrides and reads back with NO structuredOutputVehicle", () => {
+  const parsed = parseAppSettings({ schemaVersion: SCHEMA_VERSION_V6, structuredOutputShape: "strict-compatible", promptCacheMinDepth: 2 });
+  expect(parsed.structuredOutputShape).toBe("strict-compatible");
+  expect(parsed.promptCacheMinDepth).toBe(2);
+  expect(parsed.structuredOutputVehicle).toBeUndefined();
+  // The two axes COMPOSE — setting the vehicle leaves the shape alone, and a bad value drops to the floor.
+  expect(parseAppSettings({ structuredOutputVehicle: "response-format" }).structuredOutputVehicle).toBe("response-format");
+  expect(parseAppSettings({ structuredOutputVehicle: "nonsense", logLevel: "debug" })).toEqual({ logLevel: "debug" });
 });
 
 // The AppSettings v5→v6 lift. `promptCacheMinDepth` is purely additive AND its floor 0 is the identity of the

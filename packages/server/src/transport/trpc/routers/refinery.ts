@@ -8,6 +8,7 @@
 import {
   REFINERY_SCHEMA_DESCRIPTION_MAX,
   refinableFieldSchema,
+  refineryForgeArmSchema,
   refineryGuidanceSchema,
   refineryRewriteFieldSchema,
   refinerySchemaStageSchema,
@@ -160,13 +161,21 @@ export const refineryRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.refinery.deleteSchema({ principal: ctx.auth, schemaId: input.schemaId })),
 
   generateSchema: authedProcedure
-    .input(z.object({ description: z.string().min(1).max(REFINERY_SCHEMA_DESCRIPTION_MAX), stage: refinerySchemaStageSchema }))
-    .mutation(({ ctx, input }) => ctx.services.refinery.generateSchema({ principal: ctx.auth, description: input.description, stage: input.stage })),
+    .input(
+      z.object({
+        description: z.string().min(1).max(REFINERY_SCHEMA_DESCRIPTION_MAX),
+        stage: refinerySchemaStageSchema,
+        arm: refineryForgeArmSchema.optional(),
+      }),
+    )
+    .mutation(({ ctx, input }) =>
+      ctx.services.refinery.generateSchema({ principal: ctx.auth, description: input.description, stage: input.stage, arm: input.arm }),
+    ),
 
   refineSchema: authedProcedure
-    .input(z.object({ schema: rawSchemaSchema, instruction: refineryGuidanceSchema, stage: refinerySchemaStageSchema }))
+    .input(z.object({ schema: rawSchemaSchema, instruction: refineryGuidanceSchema, stage: refinerySchemaStageSchema, arm: refineryForgeArmSchema.optional() }))
     .mutation(({ ctx, input }) =>
-      ctx.services.refinery.refineSchema({ principal: ctx.auth, schema: input.schema, instruction: input.instruction, stage: input.stage }),
+      ctx.services.refinery.refineSchema({ principal: ctx.auth, schema: input.schema, instruction: input.instruction, stage: input.stage, arm: input.arm }),
     ),
 
   testSchema: authedProcedure
