@@ -24,6 +24,7 @@ import type { RpgTraceInspector } from "#foundation/observability";
 import { observability, observabilityErrorHandler, registerDebugRoutes } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
 import { clientIp, ipAllowlistMiddleware, parseAllowlist, peerIp } from "#infra/network";
+import { fleetCapacitySnapshot } from "#infra/providers";
 import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "../transport/trpc/index.ts";
 import { appRouter, createContext } from "../transport/trpc/index.ts";
 import type { AuthSeam } from "./auth/index.ts";
@@ -277,6 +278,11 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     // R-OBS: registered only when the recorder exists (tracing on) — spread, so an untraced boot passes the
     // key at all rather than an `undefined` the route's `!== undefined` check would still have to read.
     ...(deps.rpgTrace === undefined ? {} : { rpgTrace: deps.rpgTrace }),
+    // #24: the vLLM contention scrape. Registered UNCONDITIONALLY — unlike rpgTrace there is no recorder to
+    // exist or not, and on an engine-less box every engine reports `null` (unreachable), which is the honest
+    // answer rather than a 404 the caller has to tell apart from a typo. Gating it would mean threading the
+    // resolved engines posture down here purely to withhold a truthful reading.
+    vllmMetrics: { snapshot: fleetCapacitySnapshot },
     auth: { expectedToken: env.DEBUG_TOKEN, adminAuth: { isAdmin: deps.seam.isAdmin } },
   });
 
