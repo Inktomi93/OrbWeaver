@@ -9,7 +9,9 @@
 //      this (an AI-authored `@Name` must never force a speaker).
 //   2. Eligible set — present and not muted and a character (humans are not scheduled).
 //   3. Ban-last-speaker (soft) — drop the last speaker from the pool; if that empties it, restore (yield
-//      rather than empty). A solo roster falls out here: the pool empties → restores → re-speaks.
+//      rather than empty). A solo roster falls out here: the pool empties → restores → re-speaks. SKIPPED
+//      when `banLast:false` (the room's `allowSelfResponses`): that toggle governs ELIGIBILITY only, and
+//      step 4 still reads `lastSpeaker` as its rotation origin.
 //   4. Policy — order/subset the pool: `list` (roster order, all), `natural` (talkativeness-weighted
 //      sample order, Efraimidis-Spirakis), `pooled` (ROUND-ROBIN — least-recently-spoken first: the roster
 //      rotated to start at the seat after the last speaker), `manual` (none — only forced drives it),
@@ -28,8 +30,16 @@ interface SelectSpeakersParams {
   /** The full present roster's AI-driven candidates (character/agent), in roster (join) order. */
   readonly candidates: readonly ArbiterCandidate[];
   readonly policy: GroupConfig["policy"];
-  /** The previous speaker (ban-last-speaker, soft); null at round 1 / after a human turn. */
+  /** The previous speaker; null at round 1 / after a human turn. TWO independent jobs ride this one value —
+   *  the soft ban-last-speaker (step 3) and the `pooled` ROTATION ORIGIN (step 4) — which is why the ban is
+   *  lifted by {@link SelectSpeakersParams.banLast}, never by nulling this. */
   readonly lastSpeaker: SpeakerRef | null;
+  /** Whether the last speaker is banned from the pool this round (soft — see step 3). Default TRUE; the
+   *  room's `allowSelfResponses` toggle passes `false`. It is an ELIGIBILITY question and nothing else: a
+   *  room that lets a character reply to itself still rotates, so lifting the ban must not cost the
+   *  rotation origin (nulling `lastSpeaker` to lift it made `pooled` re-pick the first roster seat every
+   *  beat — a "Round-robin" room in which one character monologued). */
+  readonly banLast?: boolean | undefined;
   /** Human-authored forced/`@-mention` targets — the hard override; empty ⇒ run the policy. `@mention`
    *  is character-only. */
   readonly forcedIds?: readonly CharacterId[] | undefined;
@@ -72,9 +82,10 @@ export function selectSpeakers(params: SelectSpeakersParams): SpeakerRef[] {
     return cap(dedupe(forced), params.maxSpeakers);
   }
 
-  // 2/3. Ban-last-speaker (soft): drop the last speaker; restore if that empties the pool.
+  // 2/3. Ban-last-speaker (soft): drop the last speaker; restore if that empties the pool. Skipped entirely
+  // when the room allows self-responses — the ROTATION below still reads `lastSpeaker` as its origin.
   let pool = eligible;
-  if (params.lastSpeaker !== null) {
+  if (params.lastSpeaker !== null && params.banLast !== false) {
     const lastKey = speakerKey(params.lastSpeaker);
     const banned = eligible.filter((c) => speakerKey(c.ref) !== lastKey);
     if (banned.length > 0) {
@@ -185,11 +196,15 @@ export function resolveMentions(triggerText: string, cast: readonly CastName[]):
   // @mention is character-only: only character seats resolve to a forced characterId.
   const characters = cast.map((c) => ({ characterId: c.ref.characterId, name: c.name }));
   const byLongest = characters.toSorted((a, b) => b.name.length - a.name.length);
-  // Longest-first with overlap masking: a longer name that matched CONSUMES its span, so a shorter name
-  // nested inside it (`@Aria` within `@Aria Stormborn`) cannot fire off that span. Masking is per-SPAN, not
-  // per-name: every occurrence is examined, so a later STANDALONE `@Aria` still forces her even though her
-  // first occurrence was swallowed by `@Aria Stormborn`. (A single `.search()` per name dropped that
-  // mention silently — the human typed it on purpose and the round fell back to policy order.)
+  // Longest-first with overlap masking: a longer name that matched CONSUMES its spans, so a shorter name
+  // nested inside one (`@Aria` within `@Aria Stormborn`) cannot fire off it. EVERY free span of a matched
+  // name is consumed, not just the first one it claimed — a human who emphasises a character by naming her
+  // twice ("@Aria Stormborn … @Aria Stormborn again") otherwise left the second occurrence unmasked, and
+  // the nested shorter name matched inside it: a second, never-named character forced into the round.
+  // Masking is per-NAME; SELECTION is still per-occurrence, so a later STANDALONE `@Aria` (a span no longer
+  // name covers) still forces her even though her first occurrence was swallowed by `@Aria Stormborn`. (A
+  // single `.search()` per name dropped that mention silently — the human typed it on purpose and the round
+  // fell back to policy order.)
   const found: { id: CharacterId; at: number }[] = [];
   const consumed: { at: number; end: number }[] = [];
   for (const member of byLongest) {
@@ -200,12 +215,13 @@ export function resolveMentions(triggerText: string, cast: readonly CastName[]):
       at: m.index,
       end: m.index + member.name.length + 1, // include the leading `@`
     }));
-    const free = spans.find((s) => !consumed.some((r) => s.at < r.end && s.end > r.at));
-    if (free === undefined) {
+    const free = spans.filter((s) => !consumed.some((r) => s.at < r.end && s.end > r.at));
+    const first = free[0];
+    if (first === undefined) {
       continue;
     }
-    consumed.push(free);
-    found.push({ id: member.characterId, at: free.at });
+    consumed.push(...free);
+    found.push({ id: member.characterId, at: first.at });
   }
   return dedupeIds(found.sort((a, b) => a.at - b.at).map((f) => f.id));
 }

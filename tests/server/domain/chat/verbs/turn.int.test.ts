@@ -264,6 +264,8 @@ async function seedRoom(
     output?: string;
     autoMode?: boolean;
     autoModeMaxTurns?: number;
+    /** The room's self-response toggle ("Let a character reply to itself") — lifts the ban-last, nothing else. */
+    allowSelfResponses?: boolean;
     /** Character keys seeded MUTED (`disabled: true`) — #29's force-turn-on-muted pin. */
     disabledKeys?: readonly string[];
   } = {},
@@ -273,6 +275,7 @@ async function seedRoom(
     output: opts.output ?? "per-speaker",
     policy,
     ...(opts.autoMode === true ? { autoMode: true, autoModeMaxTurns: opts.autoModeMaxTurns ?? 2, autoModeDelayMs: 0 } : {}),
+    ...(opts.allowSelfResponses === true ? { allowSelfResponses: true } : {}),
   };
   const chatId = await seedChat(db, "a", { metadata: { group } });
   await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
@@ -1017,6 +1020,24 @@ describe("send — auto-mode AI→AI chain", () => {
     const assistants = (await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant");
     // The human round is uncapped (all three, roster order); the three CHAINED turns then rotate past the
     // last speaker — aria, bryn, cara — instead of re-running aria/bryn.
+    expect(assistants.map((m) => m.characterId)).toEqual([...chars, ...chars]);
+  });
+
+  // The self-response toggle and the rotation are ORTHOGONAL: "Let a character reply to itself" lifts the
+  // ban on the last speaker (an ELIGIBILITY question); it says nothing about where the round-robin starts.
+  // Nulling the chain's `lastSpeaker` to lift the ban destroyed the rotation ORIGIN too, so every chained
+  // beat re-picked the first roster seat and the room labelled "Round-robin" monologued.
+  test("a pooled auto-chain still rotates with allowSelfResponses ON (the toggle governs the ban, not the origin)", async () => {
+    const { host, chatId, chars, names } = await seedRoom("pooled", ["aria", "bryn", "cara"], {
+      autoMode: true,
+      autoModeMaxTurns: 3,
+      allowSelfResponses: true,
+    });
+    const h = harness(db, names);
+
+    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+
+    const assistants = (await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant");
     expect(assistants.map((m) => m.characterId)).toEqual([...chars, ...chars]);
   });
 
