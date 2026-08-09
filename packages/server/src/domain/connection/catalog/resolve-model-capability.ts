@@ -355,7 +355,7 @@ export function resolveModelCapability(
       // Guided decoding is native ⇒ structured output. The gen engine launches with
       // --enable-auto-tool-choice --tool-call-parser hermes (scripts/dev/vllm-engine.sh) and emits
       // parallel tool calls, so advertise the tools axis (completes U0) — the generic runRecurseLoop
-      // then drives RPG/crew/buddy tool turns over the chat-completions surface.
+      // then drives RPG/agents/buddy tool turns over the chat-completions surface.
       // TRUTH ORDER (D68 absence-degrades): the engine's self-reported window (cached `/v1/models`
       // max_model_len) WINS; else the env-owned window (which also drives the launch flag); the env schema
       // default is the last resort. No hand-copied literal here — the engine or its env launch flag owns it.

@@ -302,7 +302,7 @@ export interface TurnPrep {
   /** rpg-design/05 §6 slot-adjacency verdict: is this turn (re)generating the assistant slot that DIRECTLY
    *  responds to the latest user message? The engine marks the turn dice-eligible (`ctx.rpg.markDicePreRollEligible`)
    *  after minting `turnId` when true, so the player's queued d20 feeds the FIRST skill check of a send /
-   *  deferred-drain / swipe-of-that-slot but never a later GM/auto/director round. Absent ⇒ false (ineligible). */
+   *  deferred-drain / swipe-of-that-slot but never a later GM/auto/arbiter round. Absent ⇒ false (ineligible). */
   readonly respondsToLatestUserTurn?: boolean | undefined;
   /** The caller's loaded membership for chat-scoped tool ceilings; absent until a chat-scoped registrant exists. */
   readonly toolRoster?: ChatRoster | undefined;

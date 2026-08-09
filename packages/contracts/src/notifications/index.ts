@@ -1,8 +1,8 @@
 // The notifications cross-boundary wire surface — the CLOSED `NotificationEvent` discriminated union and
 // the read-only `PresenceView`. Invite/kick/host-handoff/automation-notice/plugin-disabled ride a per-user
 // durable inbox (a non-member can't subscribe to a chat's bus), so this node is the wire shape that domain
-// persists. (agent-seat-request/crew-proposal were purged-domain members; the rebuild grafts here if either
-// domain returns.)
+// persists. (agent-seat-request/crew-proposal were purged-domain members; the agents feature grafts here if
+// it returns.)
 // `recipientUserId` is mandatory on every variant. Credentials/secrets/baseUrls are TYPE-LEVEL
 // unrepresentable: every `z.object` member strips unknown keys — no `.loose()`, no `z.unknown()`.
 

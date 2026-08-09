@@ -47,7 +47,7 @@ const CharacterForm = createAutosaveEntityForm<CharacterCardFormValues>({ defaul
 
 export interface CharacterEditorSurfaceProps {
   readonly characterId: CharacterId;
-  /** The character-DETAIL contributor registry (§6c) — the crew feature grafts card-evolution review
+  /** The character-DETAIL contributor registry (§6c) — the agents feature grafts card-evolution review
    *  sections into the editor body's `editor-sections` anchor without importing character. */
   readonly detailContributors: ContributorRegistry<CharacterDetailContribution>;
   /** Reveal the CONTEXT Field inspector — a facet-row click calls this after writing the selection. */
@@ -168,7 +168,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
     onRevealField?.();
   };
 
-  // The `editor-sections` contributor region (§6c): the crew feature's card-evolution review cards stack
+  // The `editor-sections` contributor region (§6c): the agents feature's card-evolution review cards stack
   // in the editor's existing flow. Layout is the SEAM's responsibility — the same centered column the form
   // uses — so nothing a contributor supplies can break it. Zero contributions ⇒ no wrapper, byte-identical
   // to today's editor (mirrors chat-room-surface.tsx's flank posture).

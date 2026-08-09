@@ -649,7 +649,7 @@ export interface ChatRpgOps {
   readonly gatherTurnContext: (args: GatherTurnContextArgs) => Promise<ChatRpgGatherResult | null>;
   /** Turn start (after the engine mints `turnId`): mark this turn eligible to feed the player's queued d20 into
    *  its FIRST skill check (rpg-design/05 §6). Called ONLY when `respondsToLatestUserTurn` — an ineligible turn
-   *  (later GM/auto/director round) is never marked, so `resolveCheck` refuses to re-read the stale die. A no-op
+   *  (later GM/auto/arbiter round) is never marked, so `resolveCheck` refuses to re-read the stale die. A no-op
    *  for a non-game chat. Sync (an in-memory per-turn flag); the engine has the `turnId` gather's prep phase lacks. */
   readonly markDicePreRollEligible: (turnId: ChatTurnId) => void;
   /** SEND path, after the user row commits — fires the snapshot COMMIT (+ consumes queued dice rolls). */
