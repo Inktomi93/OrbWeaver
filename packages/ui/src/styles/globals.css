@@ -240,6 +240,42 @@
   }
 }
 
+/* Indeterminate hairline (refinery stage stepper's RUNNING cell; side-eye 2026-08-09 polish item 1).
+ * A determinate <Progress> would be a lie — a stage run is one bounded model call with no progress to
+ * report — so this is the "working, duration unknown" affordance. A travelling segment on a hairline
+ * track, expressed as a ::after that translates across its own clipped box: compositor-only (guide
+ * §3.7, `translate` is a standalone Tailwind v4 property and composites like transform), never a
+ * width/left animation. Homed here rather than the client stylesheet for the CT-harness reason the
+ * ghost-row block below states: CT imports ui's globals, not main.tsx's.
+ *
+ * Reduced-motion REMOVES it (guide §3.9), and removes the SEGMENT too, not just its travel — a frozen
+ * bar parked at one end reads as a stalled determinate progress bar, which is a worse lie than no
+ * affordance. Both floors: the OS @media and the shell-stamped [data-reduced-motion="true"]. */
+@keyframes orb-indeterminate-hairline {
+  from {
+    translate: -100% 0;
+  }
+  to {
+    translate: 300% 0;
+  }
+}
+.orb-indeterminate-hairline::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inline-size: 33%;
+  background-color: var(--color-primary);
+  animation: orb-indeterminate-hairline var(--motion-shimmer) linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .orb-indeterminate-hairline::after {
+    content: none;
+  }
+}
+[data-reduced-motion="true"] .orb-indeterminate-hairline::after {
+  content: none;
+}
+
 /* Streaming ghost-row affordances (chat feature `ghost-message-row.tsx`). Two @keyframes a Tailwind
  * transition can't express: a three-dot "typing" pulse for the pending (pre-first-token) window, and
  * the block-caret blink riding the streamed text tail. Homed here (ui's unlayered floor) rather than

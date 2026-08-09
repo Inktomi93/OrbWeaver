@@ -145,20 +145,30 @@ export interface SetupTabProps {
   readonly anchorLine: string;
   readonly stageModesLine: string;
   readonly schemaLine: string;
+  readonly scopeLine: string;
   readonly guidance: string | null;
   readonly fitLine: string | null;
+  /** True ⇒ the fit estimate crosses a ceiling. CONTENT's run bar draws a ⚠ on the same fact; this pane
+   *  read `inputEstimate` alone and silently dropped it (P2: "CONTEXT drops the ⚠"). */
+  readonly fitWarn: boolean;
   readonly onViewOriginal: () => void;
-  readonly onEditConfig: () => void;
-  readonly onEditGuidance: () => void;
+  /** Opens the SCHEMA EDITOR. Named for what it opens — see the door note on `SetupTab`. */
+  readonly onEditSchema: () => void;
+  /** Opens the SCOPE dialog. Ditto. */
+  readonly onEditScope: () => void;
 }
 
-function SetupRow({ k, v, action, onAction }: { k: string; v: string; action?: string; onAction?: () => void }): ReactElement {
+/** One Setup row. A row with NO action is a READOUT — a deliberate arm, not an unfinished one: `note`
+ *  says where the value is changed instead, so a readout never reads as a dead control (side-eye
+ *  2026-08-09 P1-8's second arm, "make the row a readout"). */
+function SetupRow({ k, v, action, onAction, note }: { k: string; v: string; action?: string; onAction?: () => void; note?: string }): ReactElement {
   return (
     <Card>
       <Row align="center" gap="row" padding="row">
         <Stack className="min-w-0 flex-1" gap="tight">
           <Text voice="kicker">{k}</Text>
           <Text voice="label">{v}</Text>
+          {note === undefined ? null : <Text voice="gloss">{note}</Text>}
         </Stack>
         {action !== undefined && onAction !== undefined ? (
           <Button intent="ghost" onClick={onAction} size="sm">
@@ -170,28 +180,45 @@ function SetupRow({ k, v, action, onAction }: { k: string; v: string; action?: s
   );
 }
 
+/**
+ * The Setup readout (CONTEXT). EVERY ACTION HERE OPENS WHAT ITS LABEL SAYS — which was not true before
+ * (side-eye 2026-08-09 P1-7 + P1-8): one prop opened the schema editor and the other opened the scope
+ * dialog, and the four rows were wired across them almost at random. "Guidance → Edit" opened SCOPE;
+ * "Stage modes → Change" opened the SCHEMA EDITOR, which cannot change a stage mode at all. The props
+ * are now named for the surface they open (`onEditSchema` / `onEditScope`) so the next wiring mistake
+ * is visible at the call site rather than only on screen.
+ *
+ * Two rows are deliberate READOUTS:
+ *  - **Stage modes** has no editor anywhere in the app. A "Change" button that opens something else is
+ *    worse than no button; the row states the modes and says where they come from. Building the control
+ *    is a feature, not a polish fix, and is NOT smuggled in here.
+ *  - **Guidance** is edited in CONTENT's run bar, where it is a live textarea that applies to every
+ *    stage. A second editing home for one value is the "two homes" smell; the row points at the one.
+ */
 export function SetupTab({
   anchorLine,
   stageModesLine,
   schemaLine,
+  scopeLine,
   guidance,
   fitLine,
+  fitWarn,
   onViewOriginal,
-  onEditConfig,
-  onEditGuidance,
+  onEditSchema,
+  onEditScope,
 }: SetupTabProps): ReactElement {
   return (
     <Stack data-testid={testId("refinerySetupTab")} gap="tight">
       <SetupRow action="View" k="Original card" onAction={onViewOriginal} v={anchorLine} />
-      <SetupRow action="Change" k="Stage modes" onAction={onEditConfig} v={stageModesLine} />
-      <SetupRow action="Change" k="Payload schema" onAction={onEditConfig} v={schemaLine} />
+      <SetupRow action="Change" k="Scope" onAction={onEditScope} v={scopeLine} />
+      <SetupRow action="Change" k="Payload schema" onAction={onEditSchema} v={schemaLine} />
+      <SetupRow k="Stage modes" note="Set per stage when a run is configured." v={stageModesLine} />
       <SetupRow
-        action="Edit"
         k="Guidance"
-        onAction={onEditGuidance}
+        note="Edited in the run bar, beside the Run button — it applies to every stage."
         v={guidance === null || guidance.length === 0 ? "none — every stage runs unsteered" : `"${guidance}"`}
       />
-      {fitLine !== null ? <SetupRow k="Prompt fit" v={fitLine} /> : null}
+      {fitLine === null ? null : <SetupRow k="Prompt fit" v={fitWarn ? `${fitLine} ⚠` : fitLine} />}
     </Stack>
   );
 }

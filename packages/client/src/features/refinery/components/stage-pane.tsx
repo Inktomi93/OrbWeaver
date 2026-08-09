@@ -10,6 +10,7 @@ import { projectJsonSchema } from "@orb/kit/json-schema";
 import { Card } from "@orb/ui/card";
 import type { CompareDecision } from "@orb/ui/compare-blocks";
 import { Row, Stack } from "@orb/ui/layout";
+import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
@@ -45,10 +46,33 @@ export interface StagePaneProps {
   readonly decided: readonly CompareDecision[];
   readonly onDecide: (index: number, decision: CompareDecision) => void;
   readonly viewingBack: boolean;
+  /** A call for THIS stage is in flight. Drives the plan-shaped skeleton on a first run and the dimmed
+   *  shimmer on a re-run — and, critically, stops the not-run-yet arm from saying "nothing settled" at
+   *  the exact moment something is being computed (side-eye 2026-08-09 P1-10: "running status lies"). */
+  readonly running: boolean;
 }
 
-export function StagePane({ activeStage, run, entries, decided, onDecide, viewingBack }: StagePaneProps): ReactElement {
+/** The first-run arm WHILE A CALL IS IN FLIGHT. There is no plan to shape a skeleton from yet (the plan
+ *  comes off the run's own payload config), so this is the honest minimum: the stage's own teaching copy
+ *  replaced by what is actually happening. The stepper cell carries the indeterminate hairline. */
+function RunningPane({ activeStage }: { activeStage: RefineryStage }): ReactElement {
+  return (
+    <Card>
+      <Stack aria-busy={true} gap="row" padding="block">
+        <Text voice="label">Running {activeStage}…</Text>
+        <Skeleton className="h-control-lg w-full" />
+        <Skeleton className="h-control-md w-full" />
+        <Skeleton className="h-control-md w-2/3" />
+      </Stack>
+    </Card>
+  );
+}
+
+export function StagePane({ activeStage, run, entries, decided, onDecide, viewingBack, running }: StagePaneProps): ReactElement {
   if (run === null) {
+    if (running) {
+      return <RunningPane activeStage={activeStage} />;
+    }
     return (
       <Card>
         <Stack gap="tight" padding="block">
@@ -71,7 +95,7 @@ export function StagePane({ activeStage, run, entries, decided, onDecide, viewin
           <RefineryChip tone="warn">viewing round {run.iteration} · superseded</RefineryChip>
         </Row>
       ) : null}
-      <PayloadView payload={run.payload as Record<string, unknown>} plan={plan} />
+      <PayloadView payload={run.payload as Record<string, unknown>} pending={running} plan={plan} />
     </Stack>
   );
 }
