@@ -45,12 +45,24 @@ const APPLY_DROP_REASONS = [
   /** The LIVE card no longer carries the structure this entry needs (a depth-prompt rewrite with the
    *  note since deleted — the rewrite cannot invent the `{depth, role}` directive, which is authored). */
   "not_applicable",
+  /** A greeting CLEAR that would leave the card with zero greetings. Emptying a field is refining; leaving
+   *  a character with no first message is a worse authoring state than any empty field, so the last
+   *  surviving slot refuses rather than being written away (schema-renderer §15.2). */
+  "would_leave_no_greeting",
 ] as const;
 export type ApplyDropReason = (typeof APPLY_DROP_REASONS)[number];
+
+/** What an applied entry DID. The emptying arm makes this load-bearing: destruction must be itemized
+ *  separately from replacement so the outcome panel and the audit trail state it explicitly rather than
+ *  leaving a user to infer it from a diff with a blank side (schema-renderer §15.5). Same posture as the
+ *  drop reasons: the tuple stays unexported until a runtime consumer exists. */
+const APPLIED_FIELD_KINDS = ["replaced", "cleared"] as const;
+export type AppliedFieldKind = (typeof APPLIED_FIELD_KINDS)[number];
 
 export interface AppliedFieldRef {
   readonly field: RefinableField;
   readonly greetingIndex?: number | undefined;
+  readonly kind: AppliedFieldKind;
 }
 
 export interface DroppedField {

@@ -776,13 +776,17 @@ CREATE TABLE `refinery_runs` (
 	`model` text NOT NULL,
 	`prompt_tokens` integer,
 	`output_tokens` integer,
+	`duration_ms` integer NOT NULL,
+	`source_run_id` text,
 	`stripped_keys` text DEFAULT '[]' NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`session_id`) REFERENCES `refinery_sessions`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`source_run_id`) REFERENCES `refinery_runs`(`id`) ON UPDATE no action ON DELETE set null,
 	CONSTRAINT "refinery_runs_stage_check" CHECK(stage in ('score', 'rewrite', 'analyze'))
 );
 --> statement-breakpoint
 CREATE INDEX `refinery_runs_session_stage_idx` ON `refinery_runs` (`session_id`,`stage`,`created_at`);--> statement-breakpoint
+CREATE INDEX `refinery_runs_source_idx` ON `refinery_runs` (`source_run_id`);--> statement-breakpoint
 CREATE TABLE `refinery_sessions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`character_id` text NOT NULL,

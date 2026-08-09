@@ -254,7 +254,18 @@ export const DEFAULT_REFINERY_STAGE_CONFIG = {
 /** The per-RUN provenance snapshot (`refinery_runs.payload_config`) — the config arm that produced a
  *  run's payload. A TYPE union only: the arms' `kind` overlaps and modes collide across stages
  *  ("full"/"quick"), so a generic runtime union would mis-narrow — reads dispatch per stage through the
- *  run view / the per-stage schemas instead. */
+ *  run view / the per-stage schemas instead.
+ *
+ *  ⚠ THE SF0 CUSTOM ARM MUST BE SELF-CONTAINED — read this BEFORE adding it (P1-B, ruled pre-launch in
+ *  docs/design/refinery-schema-renderer.md §9.1). The obvious arm, `{kind:"custom", schemaId}`, is BANNED:
+ *  it dereferences a MUTABLE, DELETABLE `refinery_schemas` row from an APPEND-ONLY run log, so editing a
+ *  schema silently re-parses and re-renders every prior run under it wrong, and deleting one orphans them.
+ *  The arm to build is `{kind:"custom", schemaId, schemaVersion, schema}` — the lifted-subset schema
+ *  EMBEDDED by value (depth-capped objects are small; runs are per-user artifacts, so dedupe is not worth
+ *  a join) with a `version` counter bumped per schema update. The renderer and the read-seam re-parse then
+ *  never dereference a live row for a historical run, and "the schema is gone" becomes unrepresentable
+ *  rather than a state the run viewer has to survive. Landing the schemaId-only arm first is a data-loss
+ *  bug the moment the first custom run exists. */
 export type RefineryStagePayloadConfig = RefineryScoreConfig | RefineryRewriteConfig | RefineryAnalyzeConfig;
 
 // ── F3 stage payloads (fixed; wire-projected in R1 — NO refinements here, see the header) ───────────────
@@ -290,15 +301,46 @@ export const refineryScorePayloadSchema = z.object({
 });
 export type RefineryScorePayload = z.infer<typeof refineryScorePayloadSchema>;
 
-/** One rewritten field. `text` caps at the card TEXT_MAX twin so an accepted rewrite always satisfies
- *  `character.update`; min(1) — a rewrite never CLEARS a field (clearing is authoring, not refining).
- *  `greetingIndex` ⇔ `field === "greetings"` (see refineryFieldScoreSchema). */
-export const refineryRewriteFieldSchema = z.object({
+/** The addressing half every rewrite entry carries, whichever arm it takes. `greetingIndex` ⇔
+ *  `field === "greetings"` (see refineryFieldScoreSchema). */
+const rewriteFieldTarget = {
   field: refinableFieldSchema,
   greetingIndex: z.number().int().min(0).max(GREETING_INDEX_MAX).optional(),
-  text: z.string().min(1).max(REWRITE_TEXT_MAX),
-});
+};
+
+/** One rewritten field — a TWO-ARM union: replace the text, or EMPTY the field.
+ *
+ *  EMPTYING IS REFINING (owner ruling 2026-08-08, overruling the R0 stance that lived on this comment —
+ *  "why wouldn't they be able to empty personality? They can fill it therefore they can empty it").
+ *  Consolidating several fields into one REQUIRES clearing the donors, so the pipeline must be able to say
+ *  it. Design: docs/design/refinery-schema-renderer.md §15.
+ *
+ *  WHY A TAGGED ARM AND NOT `text: ""` (§15.1 — all three reasons are load-bearing):
+ *   • GRAMMAR HONESTY. `text` keeps `min(1)`, so the projected `minLength` is unchanged on every wire and
+ *     `""` never becomes a semantics-bearing token — "the model emitted nothing" stays distinguishable
+ *     from "the user's consolidation emptied this field".
+ *   • MODEL LEGIBILITY. A small model handles `{"field":"scenario","cleared":true}` far better than an
+ *     empty string that means something, and the guided-decoding grammar enforces the arm exactly.
+ *   • ANTI-SNIFFING. `""`-as-clear is one more data-sniffed convention — the failure class the whole
+ *     schema-driven design exists to kill.
+ *
+ *  `text` caps at the card TEXT_MAX twin so an accepted rewrite always satisfies `character.update`.
+ *  ARM ORDER IS THE NON-DESTRUCTIVE READ: a malformed entry carrying BOTH keys parses as a replacement and
+ *  the `cleared` key strips — which lands it in the run row's `strippedKeys` itemization rather than
+ *  silently destroying a field (belt 6). Spelled as a plain union, not a discriminated one: the tag is
+ *  optional on one arm, which `z.discriminatedUnion` cannot express. */
+export const refineryRewriteFieldSchema = z.union([
+  z.object({ ...rewriteFieldTarget, text: z.string().min(1).max(REWRITE_TEXT_MAX) }),
+  z.object({ ...rewriteFieldTarget, cleared: z.literal(true) }),
+]);
 export type RefineryRewriteField = z.infer<typeof refineryRewriteFieldSchema>;
+
+/** Is this entry the EMPTYING arm? The ONE recogniser — the apply verb's patch builder, the prompt
+ *  overlay and the R3 block renderer all ask through here rather than re-spelling `"cleared" in entry`
+ *  (a dynamic seam the language service cannot rename). */
+export function isClearedRewrite(entry: RefineryRewriteField): entry is Extract<RefineryRewriteField, { cleared: true }> {
+  return "cleared" in entry;
+}
 
 /** The structured rewrite — the single biggest correctness upgrade over the extension (which
  *  regex-parsed markdown back into fields): typed entries make compare + apply lossless by construction.
@@ -340,6 +382,28 @@ export const REFINERY_STAGE_PAYLOADS = {
   analyze: refineryAnalyzePayloadSchema,
 } as const satisfies Record<RefineryStage, z.ZodType>;
 
+// ── The stage-SYSTEM shape restatement (schema-renderer §9.3) ────────────────────────────────────────────
+// A weak-model courtesy that pairs with the real constraint (the structured-output `responseFormat`): the
+// system prompt names the JSON shape the payload above expects. It is SPLICED into the prose slots through
+// the `{{shape}}` pre-substitution token rather than written into them, so a host's prose override can
+// never freeze one payload's shape into owner-editable text — and so the SF custom arm has exactly ONE
+// seam to fill (`REFINERY_STAGE_SHAPES` becomes the fixed-arm default; a custom run splices its own
+// projected shape). It lives HERE, beside the schemas it restates, not in `./prose.ts`: prose.ts is
+// imported BY this file, so the reverse import would close a cycle.
+
+/** The `{{shape}}` token's NAME as `spliceProseTokens` keys it (the braces are the text's, not the key's). */
+export const REFINERY_SHAPE_TOKEN = "shape";
+
+/** What `{{shape}}` resolves to per stage under the FIXED payloads. The refinement-rewrite system slot
+ *  shares the `rewrite` entry — it produces the same payload. */
+export const REFINERY_STAGE_SHAPES = {
+  score:
+    '{"fieldScores":[{"field":"...","score":7,"strengths":"...","weaknesses":"...","suggestions":"..."}],"overallScore":7,"priorityImprovements":["..."],"summary":"..."}',
+  rewrite: '{"fields":[{"field":"...","text":"..."}]}',
+  analyze:
+    '{"preserved":["..."],"lost":["..."],"gained":["..."],"soulScore":9,"soulAssessment":"...","verdict":"ACCEPT","issues":["..."],"recommendations":["..."]}',
+} as const satisfies Record<RefineryStage, string>;
+
 // ── Wire views (tRPC outputs; the FULL session view with `originalCard` homes in domain/refinery's
 //    contract/ (R1) — it needs `#character`, which this file must not import) ───────────────────────────
 
@@ -352,6 +416,22 @@ const refineryRunBaseSchema = z.object({
   /** Provider-reported usage, or null when the backend reports none (stats parity). */
   promptTokens: z.number().int().min(0).nullable(),
   outputTokens: z.number().int().min(0).nullable(),
+  /** The run's WALL TIME in ms — the Runs ledger's third economic column beside the two token counts
+   *  (`qwen3-32b · 4 210 in / 512 out · 6.1s`). Measured by the injected clock across the whole stage
+   *  pass, so it includes prompt assembly and the bounded structured retry, which is what a user
+   *  comparing two runs actually waited. Never null: a run that produced a row took some time. */
+  durationMs: z.number().int().min(0),
+  /** The DAG PARENT: the run whose output this one CONSUMED — an analyze names the rewrite it judged, a
+   *  rewrite names the score (or, on a refinement round, the analyze) it worked from. Null on a run that
+   *  read no prior run.
+   *
+   *  WHY IT IS A COLUMN AND NOT AN INFERENCE (docs/design/refinery-schema-renderer.md §21 edge 1): the
+   *  append-only log is a timestamp-ordered list, so "which rewrite did this analyze judge?" is answerable
+   *  only by "the latest one at the time" — which stops being true the moment step-back lets an analyze
+   *  target round 1 while round 2 exists. Recorded, the ledger draws the true DAG instead of implying a
+   *  straight line. Session-scoped by construction (both rows hang off the same session); no FK, because
+   *  the only delete path is the session cascade that takes both rows together. */
+  sourceRunId: typeIdSchema(ID_PREFIX.refineryRun).nullable(),
   /** The keys the zod strip-mode parse silently REMOVED from the model's payload — dotted paths, never
    *  content (the strip-and-itemize posture: an invented key must appear in the run record instead of
    *  vanishing into a success; security pass §1 gap 5 / belt 6). Empty = the payload was shape-clean. */

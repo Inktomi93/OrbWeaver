@@ -126,13 +126,46 @@ test("scores hold the 1-10 rubric at the zod belt (0 and 11 rejected, fractional
   expect(refineryAnalyzePayloadSchema.safeParse({ ...ANALYZE_PAYLOAD, soulScore: SCORE_ABOVE_MAX }).success).toBe(false);
 });
 
-test("rewrite text caps at the card TEXT_MAX twin and never clears a field", () => {
+test("rewrite text caps at the card TEXT_MAX twin; an EMPTY STRING is still not a clear", () => {
   const at = { fields: [{ field: "description", text: "x".repeat(CARD_TEXT_MAX) }] };
   const over = { fields: [{ field: "description", text: "x".repeat(CARD_TEXT_MAX + 1) }] };
   const empty = { fields: [{ field: "description", text: "" }] };
   expect(refineryRewritePayloadSchema.safeParse(at).success).toBe(true);
   expect(refineryRewritePayloadSchema.safeParse(over).success).toBe(false);
+  // `min(1)` SURVIVES the emptying ruling (schema-renderer §15.1): `""` stays illegal precisely so that
+  // "the model emitted nothing" can never be mistaken for "the user's consolidation emptied this field".
   expect(refineryRewritePayloadSchema.safeParse(empty).success).toBe(false);
+});
+
+// ── The EMPTYING arm (owner overrule 2026-08-08 — "they can fill it therefore they can empty it";
+//    design: docs/design/refinery-schema-renderer.md §15) ────────────────────────────────────────────────
+
+test("a rewrite entry may CLEAR a field via the explicit tagged arm (never an empty string)", () => {
+  const cleared = { fields: [{ field: "personality", cleared: true }] };
+  expect(refineryRewritePayloadSchema.parse(cleared)).toEqual(cleared);
+  // The greeting arm carries its index like any other entry — the slot it removes is addressed by position.
+  const clearedGreeting = { fields: [{ field: "greetings", greetingIndex: 1, cleared: true }] };
+  expect(refineryRewritePayloadSchema.parse(clearedGreeting)).toEqual(clearedGreeting);
+  // Mixed rounds are the consolidation case: fill one field, empty its donors, in ONE payload.
+  const consolidation = {
+    fields: [
+      { field: "description", text: "Everything, now in one place." },
+      { field: "personality", cleared: true },
+      { field: "scenario", cleared: true },
+    ],
+  };
+  expect(refineryRewritePayloadSchema.parse(consolidation)).toEqual(consolidation);
+});
+
+test("the cleared arm is CLOSED: only literal true, and never beside text", () => {
+  // `cleared: false` is not "don't clear" — it is a shape the contract does not speak.
+  expect(refineryRewritePayloadSchema.safeParse({ fields: [{ field: "personality", cleared: false }] }).success).toBe(false);
+  // An entry carrying NEITHER text nor cleared says nothing at all.
+  expect(refineryRewritePayloadSchema.safeParse({ fields: [{ field: "personality" }] }).success).toBe(false);
+  // Both arms at once: the TEXT arm wins (the non-destructive read) and `cleared` is stripped, which is
+  // what makes it visible in the run row's `strippedKeys` itemization instead of vanishing into a success.
+  const both = refineryRewritePayloadSchema.parse({ fields: [{ field: "personality", text: "dry", cleared: true }] });
+  expect(both).toEqual({ fields: [{ field: "personality", text: "dry" }] });
 });
 
 // The behavioral twin of the cap: the CARD side accepts exactly the same length, so an at-cap rewrite
@@ -358,6 +391,10 @@ const RUN_META = {
   model: "vetted-model",
   promptTokens: 512,
   outputTokens: 256,
+  /** Wall time of the run that produced this row (schema-renderer §9.2 — the Runs ledger's `6.1s`). */
+  durationMs: 6100,
+  /** The DAG parent (schema-renderer §21 edge 1): the run this one CONSUMED. Null on a run that read none. */
+  sourceRunId: null,
   // The strip-and-itemize record (R1 belt 6): dotted paths only, never content; [] = shape-clean.
   strippedKeys: [],
   createdAt: CREATED_AT,
