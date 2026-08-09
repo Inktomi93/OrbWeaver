@@ -1,5 +1,5 @@
 // verb: listRules — a chat's rules in position order (host-only in v1). Rules can encode a hidden hand (the
-// crew-director `audience` lesson), so member transparency is a LEAN v2 (a clamped "N rules active" view,
+// agents-director `audience` lesson), so member transparency is a LEAN v2 (a clamped "N rules active" view,
 // not rule bodies). The read is lazy-parse fault-isolated per row (a corrupt arm blob degrades that ONE rule
 // to empty arms — never nukes the list).
 

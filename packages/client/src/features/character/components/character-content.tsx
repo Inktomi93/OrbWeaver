@@ -12,7 +12,7 @@ import { CharacterLibraryWelcome } from "./character-library-welcome.tsx";
 
 export interface CharacterContentProps {
   /** The character-DETAIL contributor registry (§6c) — threaded from `makeCharactersSection` at the door
-   *  so the crew feature can graft review sections into the editor body without importing character. */
+   *  so the agents feature can graft review sections into the editor body without importing character. */
   readonly detailContributors: ContributorRegistry<CharacterDetailContribution>;
 }
 

@@ -1,5 +1,5 @@
 // domain/automation/watcher — startAutomationWatcher: the supervised out-of-band lifecycle (the buddy-observer
-// / crew-scheduler precedent — 01 §3). NOT a service verb. The composition root calls it once with the
+// / agents-scheduler precedent — 01 §3). NOT a service verb. The composition root calls it once with the
 // assembled env; it wires the two injected event sources (the per-chat firehose + the domain-event bus) to the
 // service's `handleEvent` front door and returns stop() (run on SIGTERM). The subsystem stays DUMB: every
 // event is handed to `handleEvent`, which owns the pre-check, taxonomy filter, fact resolution, and dispatch.

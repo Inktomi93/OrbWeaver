@@ -7,7 +7,7 @@
 //
 // FORWARD-REF: chat composes BEFORE rpg (the keystone order), yet chat's turn hooks call into rpg's ops. The
 // `ChatRpgOps` object rpg builds here is a forward-ref delegate over the rpg service — it is handed to chat at
-// the same keystone step (the crew-delegate precedent). rpg's own chat-facing ops (getMembership/setRpgPointer/
+// the same keystone step (the agents-delegate precedent). rpg's own chat-facing ops (getMembership/setRpgPointer/
 // resolveRpgRoster/postNarratorMessage) flow the OTHER way, off `chatCompose.rpgChatOps` — chat learns nothing
 // rpg-shaped, rpg learns no chat tables (§2 one-directional flow, both directions principal-free).
 //
