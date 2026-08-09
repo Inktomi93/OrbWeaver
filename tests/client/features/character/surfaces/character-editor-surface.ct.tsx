@@ -17,6 +17,8 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import type { ChatSummaryFixture } from "../../chat/fixtures.ts";
+import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterDetailContributorStory, CharacterEditorSurfaceStory, CharacterFacetInspectorStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail, makeTagFixture } from "../fixtures.ts";
 
@@ -59,7 +61,7 @@ interface UpdateCall {
 async function routeEditor(page: Page): Promise<void> {
   await routeTrpc(page, {
     "character.get": () => CARD,
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,
   });
 }
@@ -138,7 +140,7 @@ test("§6.5/§7 the header carries the token split + AutosaveStatus, and editing
   let updateInput: UpdateCall | null = null;
   await routeTrpc(page, {
     "character.get": () => CARD,
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "character.update": (input: unknown) => {
       updateInput = input as UpdateCall;
       return CARD;
@@ -162,7 +164,7 @@ test("§7/D78 — adding an opening persists the structural push via the store d
   let updateInput: UpdateCall | null = null;
   await routeTrpc(page, {
     "character.get": () => CARD, // one greeting
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "character.update": (input: unknown) => {
       updateInput = input as UpdateCall;
       return CARD;
@@ -183,7 +185,7 @@ test("§7/D78 — removing an alternate persists the structural removal to the s
   let updateInput: UpdateCall | null = null;
   await routeTrpc(page, {
     "character.get": () => GREETINGS_CARD, // two greetings
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "character.update": (input: unknown) => {
       updateInput = input as UpdateCall;
       return GREETINGS_CARD;
@@ -253,7 +255,7 @@ test("§6.2 removing a tag chip fires bulkRemoveCardTag by name — an immediate
   let cardUpdated = false;
   await routeTrpc(page, {
     "character.get": () => tagged,
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "character.update": () => {
       cardUpdated = true;
       return tagged;
@@ -353,7 +355,7 @@ const SUGGESTIONS_CARD = makeCharacterDetail({
 async function routeSuggestions(page: Page): Promise<void> {
   await routeTrpc(page, {
     "character.get": () => SUGGESTIONS_CARD,
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "tag.listPendingSuggestions": () => suggestionFixtures(),
   });
 }
@@ -396,7 +398,7 @@ const OVERVIEW_CARD = makeCharacterDetail({
 });
 
 /** One chat with this character + one with somebody else (the count must scope to the open character). */
-const OVERVIEW_CHATS = [
+const OVERVIEW_CHATS: readonly ChatSummaryFixture[] = [
   {
     id: "chat_ct_1",
     title: "A rainy night",
@@ -407,6 +409,8 @@ const OVERVIEW_CHATS = [
     messageCount: 4,
     participantNames: ["Aria Nightshade"],
     participantCharacterIds: ["char_ct_1"],
+    lastMessagePreview: null,
+    isGame: false,
     viewerRole: "host",
     createdAt: 1_750_000_000_000,
     updatedAt: 1_750_000_100_000,
@@ -421,6 +425,8 @@ const OVERVIEW_CHATS = [
     messageCount: 2,
     participantNames: ["Someone else"],
     participantCharacterIds: ["char_other"],
+    lastMessagePreview: null,
+    isGame: false,
     viewerRole: "host",
     createdAt: 1_750_000_000_000,
     updatedAt: 1_750_000_200_000,
@@ -430,7 +436,7 @@ const OVERVIEW_CHATS = [
 test("F4 the Field tab rests on the overview card, not a full-height empty state", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.get": () => OVERVIEW_CARD,
-    "chat.listChats": () => OVERVIEW_CHATS,
+    "chat.listChats": chatListResponder(OVERVIEW_CHATS),
   });
   const component = await mount(<CharacterFacetInspectorStory />);
 
@@ -465,7 +471,7 @@ const MACRO_USER_GLOSS = "This game's tonal register.";
 test("MACU-2: a card facet completes against the ACTIVE PRESET's user macros", async ({ mount, page }) => {
   await routeTrpc(page, {
     "character.get": () => CARD,
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "character.update": () => CARD,
     "settings.getUserSettings": () => ({ config: { seeds: { defaultPresetId: "preset_ct_active" } } }),
     "preset.get": () => ({

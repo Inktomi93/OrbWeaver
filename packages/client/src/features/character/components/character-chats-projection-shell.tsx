@@ -29,9 +29,12 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
-import { chatsWithCharacter, timeLib } from "#lib";
+import { timeLib } from "#lib";
 import { listProjectionOwnsFocus } from "#state";
 import { CHARACTER_CHATS_PROJECTION_SLOT, startChatWithCharacter } from "../lib/character-chat-intents.ts";
+
+/** The recency gloss reads her newest thread; the pane below is the census. */
+const NEWEST_THREAD_ONLY = 1;
 
 export interface CharacterChatsProjectionShellProps {
   readonly characterId: CharacterId;
@@ -84,9 +87,11 @@ function IdentityRow({
   readonly avatarHash: string | null;
 }): ReactElement {
   const trpc = useTRPC();
-  const { data: chats } = useQuery(trpc.chat.listChats.queryOptions({}));
-  const projected = chatsWithCharacter(chats ?? [], characterId);
-  const newest = projected[0];
+  // ONE ROW, resolved SERVER-side (2026-08-09): the gloss needs her most-recent thread, and `listChats` is
+  // newest-updated-first — so the honest ask is her page-of-one, not the whole membership list filtered down
+  // to her on the client (which is what this did, and what the 872-chat import made unaffordable).
+  const { data: page } = useQuery(trpc.chat.listChats.queryOptions({ characterId, limit: NEWEST_THREAD_ONLY }));
+  const newest = page?.items[0];
   const gloss = newest === undefined ? null : `last ${timeLib.formatRelative(newest.lastMessageAt ?? newest.updatedAt)}`;
   const avatarSrc = avatarHash === null ? {} : { src: blobUrl(avatarHash) };
 

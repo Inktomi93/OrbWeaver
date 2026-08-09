@@ -15,7 +15,7 @@ import { chatRowActionName } from "../lib/chat-summary-row.ts";
 import { ChatListRowMenu } from "./chat-list-row-menu.tsx";
 import { ChatSummaryRow } from "./chat-summary-row.tsx";
 
-type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
+type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 
 export interface ChatListRowProps {
   readonly chat: ChatSummaryItem;

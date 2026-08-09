@@ -15,6 +15,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
+import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterEditorSuggestToastStory } from "../_ct-stories.tsx";
 import { makeCharacterDetail } from "../fixtures.ts";
 
@@ -26,7 +27,7 @@ const TOAST = '[data-slot="toast-root"]';
 async function routeEditorWithSuggestFailure(page: Page, failure: ReturnType<typeof trpcError>): Promise<void> {
   await routeTrpc(page, {
     "character.get": () => CARD,
-    "chat.listChats": () => [],
+    "chat.listChats": chatListResponder([]),
     "tag.listPendingSuggestions": () => [],
     "discovery.suggestCharacterTags": () => failure,
   });

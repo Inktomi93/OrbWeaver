@@ -2,9 +2,16 @@
 // selected-variant), and durable chat-bus + resumable SSE stream-log replay/cursor reads. No business
 // logic, no cross-feature calls, no I/O beyond `db`. `chats.metadata` is read only through
 // `parseChatMetadata`. `users` is never joined here — roster name/handle resolution is a verb concern.
+//
+// AMENDED 2026-08-09 (owner ruling: chat search moves server-side). `characters` is joined by ONE predicate,
+// the library-list search arm (`searchPredicate`), and only as a FILTER — no name is ever selected or
+// returned from this file. That is the `persistence/cast.ts` shape, and it leaves the law above intact in
+// the sense that matters: no display-name RESOLUTION happens here, and `users` is still never joined (which
+// is why the search's name arm covers character seats and not human members — see `searchPredicate`).
 
 import type {
   ChatBusEvent,
+  ChatListCursor,
   HandoffOffer,
   JoinHistoryVisibility,
   MessageView,
@@ -27,16 +34,23 @@ import type { ParticipantRole } from "@orb/contracts/identity";
 import type { UserMacroValues } from "@orb/contracts/preset";
 import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
+import { characters, chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messages, messageVariants } from "@orb/db";
 import type { CharacterId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
-import { and, asc, count, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNotNull, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
 import type { ChatMetadata } from "../contract/metadata.ts";
 import { parseChatMetadata } from "../contract/metadata.ts";
 import type { ChatStreamReplayEvent, StreamEventBounds, VariantWireView } from "../contract/views.ts";
 
 const LIMIT_ONE = 1;
+
+/** A SECOND handle on `chat_participants` for the per-character projection EXISTS — the library list already
+ *  joins the table as the caller's own membership row, and re-naming it there would make the subquery
+ *  correlate against that join instead of scanning the chat's seats. */
+const characterSeats = alias(chatParticipants, "character_seats");
 
 /** A resolved `chats` row with its `metadata` blob parsed. File-local: the verb maps it into the
  *  `ChatDetail`/`ChatSummary` view. */
@@ -214,18 +228,134 @@ export async function loadMemberChat(
   return { chat: toChatRow(rest), role, activePersonaId, joinSeq, joinHistoryVisibility };
 }
 
-/** The membership-scoped library list — every chat the user is a present member of, newest-updated first.
- *  Archived excluded unless `includeArchived`; temporary chats are always hidden (they persist so turns
- *  can run, but never surface in the library — `reapTemporaryChats` sweeps them once expired). */
-export async function listMemberChats(db: Db, userId: UserId, includeArchived = false): Promise<ChatRow[]> {
-  const base = db
+/** The library list's filter axes. File-local (the `ChatRow` precedent): the verb passes an object literal,
+ *  so nothing outside this module needs the name and `no-inline-types` keeps its one-home rule. */
+interface MemberChatFilter {
+  readonly includeArchived?: boolean | undefined;
+  readonly characterId?: CharacterId | undefined;
+  /** Already trimmed + lowercased by the verb; `undefined` = the unsearched list. */
+  readonly search?: string | undefined;
+}
+
+/** The caller's own canon READ FLOOR, in SQL, off the participant row this list already joins — the same
+ *  verdict `resolveHistoryFloorSeq` mints in TS (host is never clamped · `full` ⇒ 0 · `from-join` ⇒ joinSeq,
+ *  inclusive). It exists so the SEARCH cannot become the one read that reaches beneath D16: without it, a
+ *  member floored at their join could search for a phrase and learn it appears in a room's pre-join canon
+ *  they may not read. Kept beside {@link resolveHistoryFloorSeq}'s doc deliberately — two spellings of one
+ *  rule, and a change to that rule has to land in both. */
+function callerHistoryFloorSql(): SQL<number> {
+  return sql<number>`case when ${chatParticipants.role} <> 'host' and ${chatParticipants.joinHistoryVisibility} = 'from-join'
+    then max(${chatParticipants.joinSeq}, 0) else 0 end`;
+}
+
+/** The library-list SEARCH predicate (owner ruling 2026-08-09 — "I'm fine with a server-side message
+ *  thing"), matching the 2026-08-01 semantics: the chat TITLE, a participant NAME, or the newest message's
+ *  body — the snippet the row already shows, not full-transcript search.
+ *
+ *  TWO DEVIATIONS, both deliberate and both visible to the user as MORE results rather than fewer:
+ *  • The message arm matches the newest message's RAW body, while the rendered `lastMessagePreview` is that
+ *    body run through `projectBodyForPreview` (hidden-class + structured spans dropped, flattened, ~120
+ *    chars). So a hit can land on a room whose visible snippet does not contain the term.
+ *  • The name arm matches CHARACTER seats only. Human display names live in the identity publics table, and
+ *    THE HEADER LAW OF THIS FILE reserves `users` for the verb layer — resolving a human's name here would
+ *    be exactly the roster-name resolution that law keeps out. Character seats are joined the way
+ *    `persistence/cast.ts` already joins them (a filter, never a projection). Departed seats count, matching
+ *    `participantCharacterIds`' own promise. */
+function searchPredicate(db: Db, needle: string): SQL | undefined {
+  const like = `%${needle}%`;
+  return or(
+    sql`lower(${chats.title}) like ${like}`,
+    exists(
+      db
+        .select({ named: sql`1` })
+        .from(characterSeats)
+        .innerJoin(characters, eq(characters.id, characterSeats.characterId))
+        .where(and(eq(characterSeats.chatId, chats.id), sql`lower(${characters.name}) like ${like}`)),
+    ),
+    exists(
+      db
+        .select({ said: sql`1` })
+        .from(messages)
+        .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+        .where(
+          and(
+            eq(messages.chatId, chats.id),
+            // The chat's TAIL row. A nested drizzle sub-select (not an alias in a raw template — an alias
+            // only exists where drizzle emits its FROM, and a bare one renders as a reference to a table
+            // that was never declared: `no such table`).
+            sql`${messages.seq} = (${db
+              .select({ tail: max(messages.seq) })
+              .from(messages)
+              .where(eq(messages.chatId, chats.id))})`,
+            gte(messages.seq, callerHistoryFloorSql()),
+            sql`lower(${messageVariants.content}) like ${like}`,
+          ),
+        ),
+    ),
+  );
+}
+
+/** The `listMemberChats`/`countMemberChats` SCOPE — the one place the library list's membership + visibility
+ *  + projection predicates are spelled, so the page and its census can never disagree about what they count.
+ *
+ *  `characterId` is the D18 PROJECTION filter ("her threads"), and it deliberately matches DEPARTED seats
+ *  too: `ChatSummary.participantCharacterIds` promises "every chat you've had with them", so a room she has
+ *  since left is part of her history (`roster.characterSeatedInAnotherChat` counts past seats the same way).
+ *  It is an EXISTS over the junction rather than a second join — a chat with two seats for the same character
+ *  would otherwise duplicate the row and silently corrupt both the page and the count. */
+function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | undefined {
+  const characterId = opts.characterId;
+  return and(
+    eq(chatParticipants.chatId, chats.id),
+    eq(chatParticipants.userId, userId),
+    isNull(chatParticipants.leftSeq),
+    eq(chats.temporary, false),
+    opts.includeArchived === true ? undefined : eq(chats.archived, false),
+    characterId === undefined
+      ? undefined
+      : exists(
+          db
+            .select({ seated: sql`1` })
+            .from(characterSeats)
+            .where(and(eq(characterSeats.chatId, chats.id), eq(characterSeats.characterId, characterId))),
+        ),
+    opts.search === undefined ? undefined : searchPredicate(db, opts.search),
+  );
+}
+
+/** The membership-scoped library list — the chats the user is a present member of, newest-updated first,
+ *  KEYSET-PAGED. Archived excluded unless `includeArchived`; temporary chats are always hidden (they persist
+ *  so turns can run, but never surface in the library — `reapTemporaryChats` sweeps them once expired).
+ *
+ *  The order is `(updated_at DESC, id DESC)` and the cursor rides BOTH: `chats.updated_at` is a millisecond
+ *  stamp a bulk import writes identically across hundreds of rows, so an `updated_at`-only keyset would skip
+ *  or repeat whole runs at the page seam. Callers get `limit + 0` rows — the verb decides `nextCursor` from
+ *  a full page, so this never over-reads. */
+export async function listMemberChats(
+  db: Db,
+  userId: UserId,
+  opts: MemberChatFilter & { readonly limit: number; readonly cursor?: ChatListCursor | undefined },
+): Promise<ChatRow[]> {
+  const cursor = opts.cursor;
+  const rows = await db
     .select(chatRowSelection)
     .from(chats)
-    .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, chats.id), eq(chatParticipants.userId, userId), isNull(chatParticipants.leftSeq)))
-    .$dynamic();
-  const scoped = includeArchived ? base.where(eq(chats.temporary, false)) : base.where(and(eq(chats.archived, false), eq(chats.temporary, false)));
-  const rows = await scoped.orderBy(desc(chats.updatedAt));
+    .innerJoin(chatParticipants, memberChatScope(db, userId, opts))
+    .where(cursor === undefined ? undefined : or(lt(chats.updatedAt, cursor.updatedAt), and(eq(chats.updatedAt, cursor.updatedAt), lt(chats.id, cursor.id))))
+    .orderBy(desc(chats.updatedAt), desc(chats.id))
+    .limit(opts.limit);
   return rows.map(toChatRow);
+}
+
+/** The library list's CENSUS — how many chats match the same scope the page above is a window into. A real
+ *  `COUNT`, never `items.length`: a paged list's loaded-row count is a number that silently means something
+ *  else, and the chats band + the character card's "N chats" both print this to the user. */
+export async function countMemberChats(db: Db, userId: UserId, opts: MemberChatFilter): Promise<number> {
+  const rows = await db
+    .select({ total: count() })
+    .from(chats)
+    .innerJoin(chatParticipants, memberChatScope(db, userId, opts));
+  return rows.at(0)?.total ?? 0;
 }
 
 /** THE SEEDED-EXAMPLE DRESSING READ (the demo-chat pack heal): this user's HOSTED copy of one bundled

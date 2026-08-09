@@ -46,7 +46,8 @@ const RESOLVED = {
 };
 
 const SETTINGS_VIEW = { userId: "user_ct_readout", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
-const CHAT_SUMMARY = { id: CHAT, title: "Azarael & the Court", star: false, messageCount: 4, lastMessageAt: 1, parentChatId: null };
+// See readout-binding.ct.tsx — the binding names its room through `chat.getChat`.
+const CHAT_DETAIL = { id: CHAT, title: "Azarael & the Court", star: false, archived: false, temporary: false, parentChatId: null, participants: [] };
 
 /** The guided family's unbound-gloss tell — the sibling suite's own spelling (`readout-binding.ct.tsx`). */
 const RESOLVES_IN_CHAT_RE = /resolves in chat/i;
@@ -58,7 +59,7 @@ function readoutRoutes(): Record<string, unknown> {
     "settings.getUserSettings": () => SETTINGS_VIEW,
     "connection.resolveChatCapability": () => trpcError({ message: "no chat connection configured" }),
     "preset.resolveEffective": () => ({ presetId: PRESET, model: "qwen3-32b", knobs: {}, stale: [] }),
-    "chat.listChats": () => [CHAT_SUMMARY],
+    "chat.getChat": () => CHAT_DETAIL,
     "chat.previewActionTemplates": () => RESOLVED,
   };
 }

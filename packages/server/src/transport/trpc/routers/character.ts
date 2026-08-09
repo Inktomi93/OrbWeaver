@@ -3,7 +3,13 @@
 // `@orb/contracts/character`. The two synthetic group-character ops are chat-injected internals (act on a
 // resolved room `ownerId`, not a request principal) — NOT exposed here.
 
-import { characterListCursorSchema, characterListSortSchema, createCharacterSchema, updateCharacterSchema } from "@orb/contracts/character";
+import {
+  CHARACTER_LIST_MAX_LIMIT,
+  characterListCursorSchema,
+  characterListSortSchema,
+  createCharacterSchema,
+  updateCharacterSchema,
+} from "@orb/contracts/character";
 import { GREETING_TRANSFORM_IDS } from "@orb/contracts/preset";
 import type { CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -33,7 +39,9 @@ export const characterRouter = t.router({
         .object({
           sort: characterListSortSchema.optional(),
           cursor: characterListCursorSchema.optional(),
-          limit: z.number().int().optional(),
+          // The CEILING, enforced at the trust boundary: an over-bound ask is a BAD_REQUEST naming the
+          // bound, never a silently trimmed page (see `CHARACTER_LIST_MAX_LIMIT`'s note in contracts).
+          limit: z.number().int().min(1).max(CHARACTER_LIST_MAX_LIMIT).optional(),
         })
         .optional(),
     )

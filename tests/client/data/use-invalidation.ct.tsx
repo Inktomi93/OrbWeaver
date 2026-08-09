@@ -50,7 +50,12 @@ interface BurstChatRow {
 
 const BURST_ROUTES = {
   "chat.getChat": (input: unknown): { title: string } => ({ title: `room for ${(input as { chatId: ChatId }).chatId}` }),
-  "chat.listChats": (): readonly BurstChatRow[] => [{ id: CHAT_ID }],
+  // `listChats` is a keyset PAGE now — the probe reads `.items.length`, so the stub owes the page shape.
+  "chat.listChats": (): { items: readonly BurstChatRow[]; nextCursor: null; totalCount: number } => ({
+    items: [{ id: CHAT_ID }],
+    nextCursor: null,
+    totalCount: 1,
+  }),
 };
 
 /** Fire an event that MUST refetch `listChats` (`messageEdited` → the non-terminal canon arm, which never

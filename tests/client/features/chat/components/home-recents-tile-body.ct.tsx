@@ -11,7 +11,7 @@
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { ChatRecentsTileStory } from "../_ct-stories.tsx";
-import { makeChatSummary } from "../fixtures.ts";
+import { chatListResponder, makeChatSummary } from "../fixtures.ts";
 
 const RECENT = makeChatSummary({ id: "chat_recent", title: "A grand adventure", participantNames: ["Wren"] });
 const GAME = makeChatSummary({ id: "chat_game", title: "The Ashfell run", participantNames: ["Wren"], isGame: true });
@@ -19,7 +19,7 @@ const GAME = makeChatSummary({ id: "chat_game", title: "The Ashfell run", partic
 const GAME_MARKER_DATUM = /Game chat/u;
 
 test("renders the recents rows inside the tile frame", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [RECENT] });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const tile = home.locator('[data-home-tile="chat.recents"]');
@@ -31,7 +31,7 @@ test("renders the recents rows inside the tile frame", async ({ mount, page }) =
 });
 
 test("opening a recent selects the chat AND moves the rail to chats — assert the STORE", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [RECENT] });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const probe = home.locator("output");
@@ -42,7 +42,7 @@ test("opening a recent selects the chat AND moves the rail to chats — assert t
 });
 
 test("the trailing action jumps to the chats section", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [RECENT] });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   await home.getByRole("button", { name: "All chats →" }).click();
@@ -51,7 +51,7 @@ test("the trailing action jumps to the chats section", async ({ mount, page }) =
 });
 
 test("the rows are real LIST ITEMS, and the trailing action sits inside the tile's own named region", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [RECENT] });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([RECENT]) });
 
   const home = await mount(<ChatRecentsTileStory />);
 
@@ -67,7 +67,7 @@ test("the rows are real LIST ITEMS, and the trailing action sits inside the tile
 // so it inherits ListRow's title-line `markers` slot; this pins that it actually LANDED here (a tile that
 // hand-rolled its rows would silently keep the orphan) — the datum rides the body's description.
 test("a game row's marker is INSIDE the row's description, never an orphan beside it", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [GAME] });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([GAME]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const marker = home.getByRole("img", { name: "Game chat" });
@@ -82,7 +82,7 @@ test("a game row's marker is INSIDE the row's description, never an orphan besid
 });
 
 test("an empty chats list renders a TEACHING empty state with an action, not a blank tile", async ({ mount, page }) => {
-  await routeTrpc(page, { "chat.listChats": [] });
+  await routeTrpc(page, { "chat.listChats": chatListResponder([]) });
 
   const home = await mount(<ChatRecentsTileStory />);
   const tile = home.locator('[data-home-tile="chat.recents"]');
