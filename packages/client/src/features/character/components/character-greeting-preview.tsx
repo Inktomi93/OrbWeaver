@@ -29,7 +29,9 @@ export interface CharacterGreetingPreviewProps {
   /** THIS character's raw theme override (immediate-commit — server truth) painting the preview scope;
    *  `null` ⇒ inherit the ambient theme. */
   readonly themeOverride: ThemeOverride | null;
-  /** The resolved render-trust for this character's own content (§6.1 preview): `trustHtml === true`. */
+  /** The RESOLVED render-trust for this character's own content (§6.1 preview) — the deployment floor
+   *  combined with this card's override (`usePreviewRenderPolicy`), never the raw `trustHtml` column: an
+   *  INHERIT card takes the floor's answer, which is what the reader will actually get. */
   readonly trusted: boolean;
   /** §6.1 spoiler eye — blurs the preview text (never the edit textarea). */
   readonly spoilerBlur: boolean;

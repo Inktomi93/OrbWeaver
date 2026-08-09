@@ -42,7 +42,6 @@ import {
   appearanceMessageStyleSection,
   ChatsWithCharacterPane,
   chatMessageHandlingSection,
-  chatOptionsChrome,
   chatQuickPicksTile,
   chatRecentsTile,
   chatSlashCommands,
@@ -269,7 +268,7 @@ const chrome = createContributorRegistry(
   assembleChrome({
     sections: sections.list(),
     modals: modals.list(),
-    widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome, chatOptionsChrome, personaChrome],
+    widgets: [notificationsChrome, fullscreenChrome, contextToggleChrome, personaChrome],
   }),
 );
 

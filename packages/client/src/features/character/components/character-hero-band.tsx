@@ -24,6 +24,7 @@ import type { AppFormInstance } from "#forms";
 import { notify } from "#lib";
 import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
+import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import { CharacterGreetingPreview } from "./character-greeting-preview.tsx";
 import { CharacterTagSuggestions } from "./character-tag-suggestions.tsx";
@@ -36,7 +37,10 @@ export interface CharacterHeroDetail {
   readonly name: string;
   readonly starred: boolean;
   readonly archived: boolean;
+  /** The card's own render-policy OVERRIDE columns — inputs to the policy, never the policy itself: the
+   *  greeting preview resolves them against the deployment floor (`usePreviewRenderPolicy`). */
   readonly trustHtml: boolean | null;
+  readonly forbidExternalMedia: boolean | null;
   readonly avatarHash: string | null;
   readonly themeOverride: ThemeOverride | null;
   readonly tags: readonly Pick<TagView, "id" | "name" | "isHiddenOnCard">[];
@@ -68,6 +72,9 @@ export function CharacterHeroBand({
   onActiveGreetingIndexChange,
 }: CharacterHeroBandProps): ReactElement {
   const spoilerBlur = useSpoilerBlur();
+  // DRAFT-TRUST arm 1: the preview paints with the RESOLVED policy (deployment floor × this card's
+  // override), not the raw override column — see use-preview-render-policy.ts.
+  const previewPolicy = usePreviewRenderPolicy(detail);
   return (
     <Stack gap="section" data-slot="character-hero">
       <Row align="start" gap="block" className="flex-wrap">
@@ -93,7 +100,7 @@ export function CharacterHeroBand({
         characterId={detail.id}
         form={form}
         themeOverride={detail.themeOverride}
-        trusted={detail.trustHtml === true}
+        trusted={previewPolicy.trustHtml}
         spoilerBlur={spoilerBlur}
         activeIndex={activeGreetingIndex}
         onActiveIndexChange={onActiveGreetingIndexChange}

@@ -20,6 +20,7 @@ const CONFIG: AuthConfig = {
   defaultHandle: null,
   multiHumanCapable: true,
   forbidExternalMedia: true,
+  trustHtml: false,
   uploads: DEFAULT_UPLOAD_CAPS,
 };
 

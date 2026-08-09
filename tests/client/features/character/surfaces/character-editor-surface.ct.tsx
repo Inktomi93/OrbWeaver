@@ -74,6 +74,66 @@ test("renders the hero (name · handle · New chat) and the live greeting bubble
   await expect(component.getByText("Hello, traveler. What brings you to my door?")).toBeVisible();
 });
 
+// ── DRAFT-TRUST arm 1: the greeting preview resolves RENDER POLICY, it does not read the raw override ──
+// The editor has no server-resolved `renderPolicy` (there is no roster for a card you are editing), so it
+// used to render `trusted={card.trustHtml === true}` — the card's raw OVERRIDE column. That answers a
+// different question than the renderer does: `resolveRenderPolicy` is `override ?? deploymentFloor`, so an
+// INHERIT card (`trustHtml: null` — the fixture default, and every card's default) resolves to TRUSTED on a
+// deployment whose floor trusts HTML, while the preview rendered it untrusted. A preview whose entire job is
+// "show me what this will look like" must not disagree with the thing it previews.
+//
+// The discriminator is the IMAGE: `img` is the documented trusted-vs-untrusted element difference (the
+// untrusted allowlist is Tier-A MINUS img — `ui/src/markdown/policy.ts`, and `markdown.ct.tsx` pins the
+// untrusted arm at the primitive). Markdown image syntax, and a RELATIVE src, so neither the raw-HTML
+// question nor the untrusted URL gate is what is being measured — the element allowlist is.
+const HTML_GREETING_CARD = makeCharacterDetail({
+  name: "Aria Nightshade",
+  handle: castId<CharacterHandle>("aria"),
+  // trustHtml stays the fixture default of `null` = INHERIT — the whole point: the card defers to the floor.
+  greetings: [{ text: "A sketch of the road: ![hand-drawn map](/map.png)" }],
+});
+
+async function stubDeploymentFloor(page: Page, trustHtml: boolean): Promise<void> {
+  await page.route("**/api/auth/config", (httpRoute) =>
+    httpRoute.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        mode: "single-user",
+        requiresLogin: false,
+        localEnabled: false,
+        oidcEnabled: false,
+        discreetLogin: false,
+        defaultHandle: null,
+        multiHumanCapable: false,
+        forbidExternalMedia: false,
+        trustHtml,
+      }),
+    }),
+  );
+  await routeTrpc(page, { "character.get": () => HTML_GREETING_CARD, "chat.listChats": () => [], "character.update": () => HTML_GREETING_CARD });
+}
+
+// PRESENCE, not visibility: Streamdown mounts a rendered image `hidden` until its src loads and shows an
+// "Image not available" fallback beside it (verified against the real seal), and the CT server has no
+// /map.png. Whether the img ELEMENT exists at all is exactly the trust verdict — the untrusted allowlist
+// drops it before it can be mounted.
+const PREVIEW_IMAGE = 'img[alt="hand-drawn map"]';
+
+test("DRAFT-TRUST: an INHERIT card previews TRUSTED when the deployment floor trusts HTML", async ({ mount, page }) => {
+  await stubDeploymentFloor(page, true);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+  await expect(component.locator(PREVIEW_IMAGE)).toHaveCount(1);
+});
+
+test("DRAFT-TRUST: the same INHERIT card previews UNTRUSTED on a strict floor (the combine, not a constant)", async ({ mount, page }) => {
+  await stubDeploymentFloor(page, false);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+  // The greeting still renders — only the img is dropped by the untrusted element allowlist.
+  await expect(component.getByText("A sketch of the road:")).toBeVisible();
+  await expect(component.locator(PREVIEW_IMAGE)).toHaveCount(0);
+});
+
 test("§6.5/§7 the header carries the token split + AutosaveStatus, and editing debounce-persists a diff", async ({ mount, page }) => {
   let updateInput: UpdateCall | null = null;
   await routeTrpc(page, {

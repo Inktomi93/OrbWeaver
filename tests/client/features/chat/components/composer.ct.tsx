@@ -34,6 +34,29 @@ const TAIL_ASSISTANT_ID = castId<MessageId>("message_ct_tail_assistant");
 // The single clean accessible name for the Attach images row (P1-C — size-hinted, no doubled name).
 const ATTACH_NAME = /^Attach images, up to [\d.]+ MB per file$/u;
 
+// ── D111 ☰ RELOCATION: the ⋯ chat-options menu lives in the composer's LEFT gutter, and ONLY there ──
+// Owner ruling 2026-08-09 closed D111's parked "topbar vs composer" fork on the composer and removed the
+// topbar trail widget in the same change. These assert the PLACEMENT (the sibling composer-chat-options.ct
+// owns the menu's contents): present in both phases, and geometrically LEFT of the guided cluster — a
+// mount that landed it on the right would satisfy a presence-only assertion.
+test("D111: the ⋯ chat-options menu renders in the composer, LEFT of the guided cluster (committed)", async ({ mount, page }) => {
+  await routeTrpc(page, { "chat.getChat": () => ({ title: "Council", participants: [], viewerIsHost: true }) });
+  const component = await mount(<ComposerStory />);
+  const options = component.getByRole("button", { name: "Chat options" });
+  await expect(options).toBeVisible();
+
+  const optionsBox = await options.boundingBox();
+  const clusterBox = await component.locator('[data-slot="composer-guided-cluster"]').boundingBox();
+  expect(optionsBox).not.toBeNull();
+  expect(clusterBox).not.toBeNull();
+  expect(optionsBox?.x ?? 0).toBeLessThan(clusterBox?.x ?? 0);
+});
+
+test("D111: a DRAFT gets the SAME ⋯ in the same gutter (#8 — one options surface across both phases)", async ({ mount }) => {
+  const component = await mount(<ComposerStory committed={false} />);
+  await expect(component.getByRole("button", { name: "Chat options" })).toBeVisible();
+});
+
 test("Send is disabled on an empty draft", async ({ mount }) => {
   // A DRAFT (no committed chat) — the keyboard generate arm (W-E) is committed-only, so an empty draft has
   // nothing to send/continue/generate and Send stays disabled. (On a committed empty chat, generate-on-empty

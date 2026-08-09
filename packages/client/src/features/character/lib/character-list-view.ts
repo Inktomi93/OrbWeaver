@@ -3,6 +3,7 @@
 // minimal row/chat shape, not the full tRPC types) so they unit-test without a data layer. The surface
 // composes them in RENDER (§5.1 render-only reader taxonomy — no effect keyed on selection/prefs).
 
+import type { TagFolderType } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, TagId } from "@orb/kit/ids";
 import type { ActiveTagFilterState, TagFilterEntry } from "#lib";
 
@@ -11,6 +12,9 @@ export interface RowTag {
   readonly id: TagId;
   readonly name: string;
   readonly isHiddenOnCard: boolean;
+  /** C9-1d: the tags-as-folders axis. Read HERE (`groupStartsOpen`) — this is the column's one live
+   *  consumer; before it, `folderType` was written by the tag editor and read by nothing. */
+  readonly folderType: TagFolderType;
 }
 
 /** The character shape the filters read (a structural subset of `CharacterSummary`). */
@@ -85,6 +89,43 @@ export function groupByTag<T extends FilterableRow>(items: readonly T[]): readon
     groups.push({ tag: null, items: uncategorized });
   }
   return groups;
+}
+
+/** C9-1d — does this categorized group render EXPANDED on first paint?
+ *
+ *  `OPEN` is the tags-as-folders value that means "folder, members stay in the main list" (the
+ *  `@orb/contracts/tag` axis docblock), so an OPEN tag's section starts expanded; a plain `NONE` label is
+ *  not a folder and starts COLLAPSED — its name + count still read as a header, which is the whole point of
+ *  a folder you can scan without opening. That difference is what gives the column a live reader.
+ *
+ *  The Uncategorized bucket (`null`) has no tag and therefore no folder state: it stays expanded, because a
+ *  catch-all nobody can configure must never be a thing the user has to discover how to open.
+ *
+ *  DEFERRED BY RULING (owner 2026-08-09, `docs/design/parked-options-tag-contract.md` §1d): `CLOSED`'s
+ *  hide-until-entered drilldown (back button / breadcrumb) is a browsing-model change and is NOT built —
+ *  CLOSED therefore lands in the same collapsed-by-default arm as NONE rather than being scaffolded here.
+ *  An EXHAUSTIVE switch (not an `=== "OPEN"` test) is what makes that a DECISION per member: adding a
+ *  fourth folder type, or building CLOSED for real, is a tsc error here instead of a silent default. A
+ *  switch rather than the mapped Record the Spine's dispatch discipline also allows — the contract's
+ *  members are SCREAMING_CASE, and an uppercase object key is a `useNamingConvention` error (the sibling
+ *  `tags-model.ts` label table pays the same tax with a Map, which would lose the exhaustiveness). */
+export function groupStartsOpen(tag: RowTag | null): boolean {
+  if (tag === null) {
+    return true;
+  }
+  switch (tag.folderType) {
+    case "OPEN":
+      return true;
+    case "NONE":
+    case "CLOSED":
+      return false;
+    default:
+      return assertNeverFolderType(tag.folderType);
+  }
+}
+
+function assertNeverFolderType(folderType: never): never {
+  throw new Error(`groupStartsOpen: unhandled TagFolderType ${JSON.stringify(folderType)}`);
 }
 
 /** The chat shape the resume map reads (a structural subset of `ChatSummary`). */

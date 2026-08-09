@@ -29,6 +29,13 @@ export interface AuthMetaDeps {
    *  control) can tell the truth instead of offering an "Allow" that the tighten-only resolver + the CSP
    *  both ignore. Read per request, like every other flag here. */
   readonly forbidExternalMedia: () => boolean;
+  /** The deployment HTML-trust DEFAULT (`effectiveConfig.trustHtml`) — the other half of the render-policy
+   *  floor `resolveRenderPolicy` (`@orb/contracts/chat`) combines. Unlike `forbidExternalMedia` this one is a
+   *  default, not a ceiling: a card's `trustHtml` override wins either way (D44 §12.0, owner 2026-08-01).
+   *  Served because a client surface that PREVIEWS card content has to resolve the same policy the server
+   *  will — a preview that reads the raw override column renders an INHERIT card untrusted on a deployment
+   *  that trusts, which is a preview lying about the thing it exists to show. */
+  readonly trustHtml: () => boolean;
 }
 
 /** Register the public bootstrap routes `GET /api/auth/config` + `GET /api/auth/me` on `app`. */
@@ -44,6 +51,7 @@ export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): v
       defaultHandle: discreet ? null : deps.defaultHandle,
       multiHumanCapable: deps.multiHumanCapable(),
       forbidExternalMedia: deps.forbidExternalMedia(),
+      trustHtml: deps.trustHtml(),
       uploads: resolveUploadCaps({ maxImageBytes: deps.maxImageBytes(), maxDatabankBytes: deps.maxDatabankBytes() }),
     });
   });
