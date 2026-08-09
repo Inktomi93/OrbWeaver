@@ -19,7 +19,7 @@ import { expect, test } from "../../support/fixtures.ts";
 // ── The `WorkloadKind` axis (D34 — promoted to contracts so the db column derives it) ─────────────────
 // The ONE home for the union (§7.5). This literal list is the pinned canonical membership; a drift here
 // would mean the db enum / RUNNERS Record / tRPC wire have re-spelled it.
-test("WORKLOAD_KINDS is exactly the pinned 18-member kind axis (the parameterized `index` reindex, the assets GC/fsck maintenance kinds, the workload-backed import-bundle, the databank kinds + the reconcile-world-state stub)", () => {
+test("WORKLOAD_KINDS is exactly the pinned 19-member kind axis (the parameterized `index` reindex, the assets GC/fsck maintenance kinds, the workload-backed import-bundle, the databank kinds, the refinery library score sweep + the reconcile-world-state stub)", () => {
   expect(WORKLOAD_KINDS).toEqual([
     "index",
     "distill-characters",
@@ -39,6 +39,7 @@ test("WORKLOAD_KINDS is exactly the pinned 18-member kind axis (the parameterize
     "reconcile-world-state",
     "databank-ingest",
     "databank-reindex",
+    "refine-score-sweep",
   ]);
   expect(workloadKindSchema.options).toEqual(WORKLOAD_KINDS);
   // The two former embed kinds are GONE — collapsed into the parameterized `index` kind.
@@ -117,6 +118,7 @@ const KIND_SEEN: Record<WorkloadKind, true> = {
   "reconcile-world-state": true,
   "databank-ingest": true,
   "databank-reindex": true,
+  "refine-score-sweep": true,
 };
 test("WorkloadKind has no member beyond the tuple", () => {
   expect(Object.keys(KIND_SEEN).sort()).toEqual(WORKLOAD_KINDS.toSorted());
@@ -225,6 +227,9 @@ test("WORKLOAD_KIND_MODES classifies every kind to its expected mode policy", ()
     // mode:"singular" off upload/reindex, and the embed-model change enqueues a bulk `databank-reindex` sweep.
     "databank-ingest": sweepBoth,
     "databank-reindex": sweepBoth,
+    // The library score sweep: MY cards (singular) or every owner's (bulk); each card carries its own
+    // owner FK, so bulk designates no mint target.
+    "refine-score-sweep": sweepBoth,
   };
   expect(WORKLOAD_KIND_MODES).toEqual(expected);
 });

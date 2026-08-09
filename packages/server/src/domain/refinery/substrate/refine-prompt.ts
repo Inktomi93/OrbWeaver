@@ -29,7 +29,7 @@ import type {
   RefinerySelection,
   RefineryStage,
 } from "@orb/contracts/refinery";
-import { isClearedRewrite, REFINABLE_FIELDS, REFINERY_SHAPE_TOKEN, REFINERY_STAGE_SHAPES } from "@orb/contracts/refinery";
+import { isAppendedRewrite, isClearedRewrite, REFINABLE_FIELDS, REFINERY_SHAPE_TOKEN, REFINERY_STAGE_SHAPES } from "@orb/contracts/refinery";
 import type { AnalyzePromptArgs, RewritePromptArgs, ScorePromptArgs, StagePrompts } from "../contract/prompts.ts";
 
 // ── (stage, mode) → slot id — exhaustive mapped Records (spine §7.5; a new mode member fails tsc) ───────
@@ -120,6 +120,13 @@ export function buildCardSections(card: CharacterCard, selection: RefinerySelect
 export function overlayRewrite(card: CharacterCard, rewrite: RefineryRewritePayload): CharacterCard {
   let out: CharacterCard = card;
   for (const entry of rewrite.fields) {
+    if (isAppendedRewrite(entry)) {
+      // The F-T1 append arm — analyze must judge the card the apply would PRODUCE, which has one more
+      // greeting at the tail. (The apply belts may still refuse it at the ceiling; the overlay is the
+      // optimistic view, exactly as it is for an unaddressable index below.)
+      out = { ...out, greetings: [...out.greetings, { text: entry.text }] };
+      continue;
+    }
     if (entry.field === "greetings") {
       if (entry.greetingIndex === undefined || entry.greetingIndex >= out.greetings.length) {
         continue; // unaddressable — the apply belt itemizes these; the prompt overlay just skips.

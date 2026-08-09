@@ -14,14 +14,18 @@
 
 import type { CharacterCard, Greeting } from "@orb/contracts/character";
 import type { RefinableField, RefineryRewriteField, RefinerySelection } from "@orb/contracts/refinery";
-import { isClearedRewrite, REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
+import { appendedRewrites, GREETING_SLOTS_MAX, isAppendedRewrite, isClearedRewrite, REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { RefineryContext } from "../context.ts";
 import { RefineryStageNotReadyError } from "../contract/errors.ts";
 import type { AcceptedField } from "../contract/params.ts";
-import type { AcceptBelts, AcceptVerdict, AppliedFieldRef, DroppedField, RefinerySessionView } from "../contract/results.ts";
+import type { AcceptBelts, AcceptVerdict, AppliedFieldKind, AppliedFieldRef, ApplyDropReason, DroppedField, RefinerySessionView } from "../contract/results.ts";
 import { latestRunRowOf, loadOwnedSessionRow, loadSessionRewriteRunRow, sessionViewOf } from "../persistence/queries.ts";
+
+/** Where an accept POINTED, minus its verdict — carried between the classifier's arms so a drop and an
+ *  apply itemize the identical address. */
+type DroppedFieldRef = Omit<DroppedField, "reason">;
 
 /** How many greetings must SURVIVE an apply. A card with zero greetings has no first message to offer in
  *  chat — a worse authoring state than any empty field, so the last slot refuses to be cleared away. */
@@ -76,62 +80,108 @@ function divergedSincePin(belts: AcceptBelts, field: RefinableField, greetingInd
   return original !== live;
 }
 
+/** An APPEND accept's belt walk (F-T1) — a SHORTER walk than a slot accept's, and the differences are all
+ *  facts about a slot that does not exist yet:
+ *   • membership addresses the payload's own append list by ordinal (`appendedRewrites`), never the card;
+ *   • the selection fence is the FIELD only. `greetingIndexes` narrows which EXISTING slots ride the
+ *     pipeline; a new slot has no index to be in that set, so gating on it would make append unreachable
+ *     whenever a user narrowed at all. Belt 9 still holds where it matters: `greetings` must be selected,
+ *     so a steered append against a session that never put greetings in scope still dies (the brief's
+ *     ruling, stated here because the asymmetry is deliberate and reads like an omission otherwise);
+ *   • applicability is the CEILING rather than the slot's existence;
+ *   • divergence does not apply — there is no prior text for the card to have moved out from under. */
+function classifyAppendAccept(accept: AcceptedField, belts: AcceptBelts, at: DroppedFieldRef): AcceptVerdict {
+  if (accept.field !== "greetings" || accept.greetingIndex !== undefined) {
+    return { kind: "drop", drop: { ...at, reason: "greeting_index_forbidden" } };
+  }
+  const entry = belts.appendedFields[accept.appendIndex ?? -1];
+  if (entry === undefined) {
+    return { kind: "drop", drop: { ...at, reason: "not_in_rewrite" } };
+  }
+  if (!belts.selectedFields.includes("greetings")) {
+    return { kind: "drop", drop: { ...at, reason: "not_selected" } };
+  }
+  return { kind: "apply", entry };
+}
+
 /** One accept's belt walk (belts 9-11 + the divergence belt): the accept's OWN SHAPE first (a malformed
  *  index is the input's defect whatever the rewrite holds — the precise reason beats a generic
  *  not_in_rewrite), then rewrite-membership, then the selection fence, then live-card applicability,
  *  then the divergence check. Returns the matched rewrite entry or the typed drop. */
 function classifyAccept(accept: AcceptedField, belts: AcceptBelts): AcceptVerdict {
-  const at = { field: accept.field, greetingIndex: accept.greetingIndex };
+  const at = {
+    field: accept.field,
+    greetingIndex: accept.greetingIndex,
+    ...(accept.appendIndex === undefined ? {} : { appendIndex: accept.appendIndex }),
+  };
+  // (0) the APPEND address is its own walk (above). Both indexes at once is malformed and lands there too.
+  if (accept.appendIndex !== undefined) {
+    return classifyAppendAccept(accept, belts, at);
+  }
   // (1) shape — the greetingIndex biconditional's two arms.
-  if (accept.field === "greetings" && accept.greetingIndex === undefined) {
-    return { kind: "drop", drop: { ...at, reason: "greeting_index_missing" } };
+  const shape = slotAddressReasonOf(accept);
+  if (shape !== null) {
+    return { kind: "drop", drop: { ...at, reason: shape } };
   }
-  if (accept.field !== "greetings" && accept.greetingIndex !== undefined) {
-    return { kind: "drop", drop: { ...at, reason: "greeting_index_forbidden" } };
-  }
-  // (2) the rewrite actually produced this entry.
-  const entry = belts.rewriteFields.find((f) => f.field === accept.field && (accept.field !== "greetings" || f.greetingIndex === accept.greetingIndex));
+  // (2) the rewrite actually produced this entry. APPEND entries are excluded by construction: they carry
+  // no slot address, so a slot accept can never match one (and vice versa — the two address spaces are
+  // disjoint, which is the whole point of the separate ordinal).
+  const entry = belts.rewriteFields
+    .filter((f): f is Exclude<RefineryRewriteField, { append: true }> => !isAppendedRewrite(f))
+    .find((f) => f.field === accept.field && (accept.field !== "greetings" || f.greetingIndex === accept.greetingIndex));
   if (entry === undefined) {
     return { kind: "drop", drop: { ...at, reason: "not_in_rewrite" } };
   }
-  // (3) the SESSION's selection fence (belt 9 — the scope-widening stopper). Two arms: the FIELD must be
-  // selected, AND — when the selection narrowed greetings to specific indexes — the greeting INDEX must be
-  // among them. A steered rewrite fabricating an entry for an unselected greeting slot dies here even with
-  // an explicit accept (the index was never in the pipeline, so its "rewrite" is invented).
+  // (3-5) the fence, live-card applicability and the divergence belt, in that order.
+  const refused = slotBeltReasonOf(accept, belts);
+  return refused === null ? { kind: "apply", entry } : { kind: "drop", drop: { ...at, reason: refused } };
+}
+
+/** Belt (1) for a SLOT accept — the `greetingIndex` biconditional's two arms. `null` = well-addressed. */
+function slotAddressReasonOf(accept: AcceptedField): ApplyDropReason | null {
+  if (accept.field === "greetings" && accept.greetingIndex === undefined) {
+    return "greeting_index_missing";
+  }
+  return accept.field !== "greetings" && accept.greetingIndex !== undefined ? "greeting_index_forbidden" : null;
+}
+
+/** Belts (3)-(5) for a SLOT accept, in their ruled order. `null` = the entry applies.
+ *
+ *  (3) THE SELECTION FENCE (belt 9 — the scope-widening stopper), two arms: the FIELD must be selected, AND
+ *      — when the selection narrowed greetings to specific indexes — the greeting INDEX must be among them.
+ *      A steered rewrite fabricating an entry for an unselected slot dies here even with an explicit accept
+ *      (that index was never in the pipeline, so its "rewrite" is invented).
+ *  (4) LIVE-CARD APPLICABILITY (belt 11 — against the LIVE card, never the snapshot), BEFORE the divergence
+ *      belt deliberately: a deleted slot / removed depth note is unapplicable-and-diverged at once, and the
+ *      SPECIFIC verdict ("that slot no longer exists") beats the generic conflict.
+ *  (5) THE DIVERGENCE BELT (§21 edge 2): a still-applicable field that MOVED under the session needs the
+ *      explicit re-confirmation; an unconfirmed accept drops rather than fast-forwarding. */
+function slotBeltReasonOf(accept: AcceptedField, belts: AcceptBelts): ApplyDropReason | null {
   if (!belts.selectedFields.includes(accept.field)) {
-    return { kind: "drop", drop: { ...at, reason: "not_selected" } };
+    return "not_selected";
   }
-  if (
-    accept.field === "greetings" &&
-    belts.selectedGreetingIndexes !== undefined &&
-    accept.greetingIndex !== undefined &&
-    !belts.selectedGreetingIndexes.includes(accept.greetingIndex)
-  ) {
-    return { kind: "drop", drop: { ...at, reason: "not_selected" } };
-  }
-  // (4) live-card applicability (belt 11 — against the LIVE card, never the snapshot). BEFORE the
-  // divergence belt deliberately: a deleted slot / removed depth note is unapplicable-and-diverged at
-  // once, and the SPECIFIC verdict ("that slot no longer exists") beats the generic conflict.
-  if (accept.field === "greetings" && accept.greetingIndex !== undefined && accept.greetingIndex >= belts.liveGreetingCount) {
-    return { kind: "drop", drop: { ...at, reason: "greeting_index_invalid" } };
+  if (accept.field === "greetings" && accept.greetingIndex !== undefined) {
+    if (belts.selectedGreetingIndexes !== undefined && !belts.selectedGreetingIndexes.includes(accept.greetingIndex)) {
+      return "not_selected";
+    }
+    if (accept.greetingIndex >= belts.liveGreetingCount) {
+      return "greeting_index_invalid";
+    }
   }
   if (accept.field === "depthPrompt" && !belts.liveHasDepthPrompt) {
-    return { kind: "drop", drop: { ...at, reason: "not_applicable" } };
+    return "not_applicable";
   }
-  // (5) the divergence belt (§21 edge 2 — header): a still-applicable field that MOVED under the session
-  // needs the explicit re-confirmation; an unconfirmed accept drops rather than fast-forwarding.
-  if (accept.confirmDiverged !== true && divergedSincePin(belts, accept.field, accept.greetingIndex)) {
-    return { kind: "drop", drop: { ...at, reason: "diverged_since_session" } };
-  }
-  return { kind: "apply", entry };
+  return accept.confirmDiverged !== true && divergedSincePin(belts, accept.field, accept.greetingIndex) ? "diverged_since_session" : null;
 }
 
 /** Walk every accept through {@link classifyAccept}, splitting the applied set from the itemized drops.
  *
- *  The ONE belt that cannot live in the per-entry classifier is the greeting-clear budget: whether the
- *  NEXT removal is legal depends on how many earlier accepts in THIS batch already removed a slot. It is
- *  evaluated here, in accept order, so the outcome is deterministic and every refusal is itemized rather
- *  than the batch being refused whole. */
+ *  The belts that cannot live in the per-entry classifier are the two greeting BUDGETS: whether the next
+ *  removal is legal depends on how many earlier accepts in THIS batch already removed a slot, and whether
+ *  the next append fits depends on how many earlier accepts already added one. Both are evaluated here, in
+ *  accept order, so the outcome is deterministic and every refusal is itemized rather than the batch being
+ *  refused whole. The two budgets share one running count — a batch that removes two and adds two ends where
+ *  it started, and each entry is judged against the card the earlier accepts would have produced. */
 function partitionAccepts(
   accepts: readonly AcceptedField[],
   belts: AcceptBelts,
@@ -139,31 +189,55 @@ function partitionAccepts(
   const applied: AppliedFieldRef[] = [];
   const dropped: DroppedField[] = [];
   const chosen: RefineryRewriteField[] = [];
-  let greetingsRemoved = 0;
+  let greetingCount = belts.liveGreetingCount;
   for (const accept of accepts) {
     const verdict = classifyAccept(accept, belts);
     if (verdict.kind === "drop") {
       dropped.push(verdict.drop);
       continue;
     }
-    const cleared = isClearedRewrite(verdict.entry);
-    if (cleared && accept.field === "greetings") {
-      if (belts.liveGreetingCount - greetingsRemoved <= MIN_SURVIVING_GREETINGS) {
-        dropped.push({ field: accept.field, greetingIndex: accept.greetingIndex, reason: "would_leave_no_greeting" });
-        continue;
-      }
-      greetingsRemoved += 1;
+    const at = { field: accept.field, greetingIndex: accept.greetingIndex, ...(accept.appendIndex === undefined ? {} : { appendIndex: accept.appendIndex }) };
+    const budget = budgetVerdictOf(verdict.entry, accept.field, greetingCount);
+    if (budget.reason !== undefined) {
+      dropped.push({ ...at, reason: budget.reason });
+      continue;
     }
-    applied.push({ field: accept.field, greetingIndex: accept.greetingIndex, kind: cleared ? "cleared" : "replaced" });
+    greetingCount += budget.delta;
+    applied.push({ ...at, kind: budget.kind });
     chosen.push(verdict.entry);
   }
   return { applied, dropped, chosen };
+}
+
+/** The GREETING-BUDGET verdict for one applicable entry, against the count the earlier accepts in this
+ *  batch would have produced: what it does to the array's length (`delta`), what to itemize it as
+ *  (`kind`), or why it cannot land. The two budgets are opposite ends of the same number — a card may not
+ *  grow past the contract's ceiling, and it may not shrink below one surviving greeting. */
+function budgetVerdictOf(
+  entry: RefineryRewriteField,
+  field: RefinableField,
+  greetingCount: number,
+): { readonly kind: AppliedFieldKind; readonly delta: number; readonly reason?: ApplyDropReason } {
+  if (isAppendedRewrite(entry)) {
+    return greetingCount >= GREETING_SLOTS_MAX ? { kind: "added", delta: 0, reason: "greeting_cap_reached" } : { kind: "added", delta: 1 };
+  }
+  if (!isClearedRewrite(entry)) {
+    return { kind: "replaced", delta: 0 };
+  }
+  if (field !== "greetings") {
+    return { kind: "cleared", delta: 0 };
+  }
+  return greetingCount <= MIN_SURVIVING_GREETINGS ? { kind: "cleared", delta: 0, reason: "would_leave_no_greeting" } : { kind: "cleared", delta: -1 };
 }
 
 // The patch off the LIVE card, split by target: the per-field writes go through `fieldPatchValueOf`, and
 // the greetings array — the only entry class that can change the array's LENGTH — through
 // `applyGreetingEntries`, which also reports which slots it removed so the caller can remap the session.
 // Plain // comment: TSDoc chokes on brace-shape prose.
+//
+// APPEND lands in the same greetings pass, LAST (after replacement and removal): a new slot has no position
+// to compete for, and appending after the filter means the surviving array's own tail is where it goes —
+// which is what "append" means on the card the user is looking at, not on the pre-splice one.
 export function buildPatch(
   liveCard: CharacterCard,
   chosen: readonly RefineryRewriteField[],
@@ -204,7 +278,14 @@ function fieldPatchValueOf(liveCard: CharacterCard, entry: Exclude<RefineryRewri
 function applyGreetingEntries(liveCard: CharacterCard, entries: readonly RefineryRewriteField[]): { greetings: Greeting[]; removed: readonly number[] } {
   const greetings: Greeting[] = [...liveCard.greetings];
   const removed = new Set<number>();
+  const added: Greeting[] = [];
   for (const entry of entries) {
+    if (isAppendedRewrite(entry)) {
+      // A NEW slot carries text only: `groupOnly` is authored placement config, and a rewrite invents no
+      // config (the depthPrompt directive precedent) — a solo-visible greeting is the card's own default.
+      added.push({ text: entry.text });
+      continue;
+    }
     const i = entry.greetingIndex ?? -1;
     const current = greetings[i];
     if (current === undefined) {
@@ -216,7 +297,8 @@ function applyGreetingEntries(liveCard: CharacterCard, entries: readonly Refiner
     }
     greetings[i] = { ...current, text: entry.text };
   }
-  return { greetings: removed.size === 0 ? greetings : greetings.filter((_, i) => !removed.has(i)), removed: [...removed] };
+  const survivors = removed.size === 0 ? greetings : greetings.filter((_, i) => !removed.has(i));
+  return { greetings: added.length === 0 ? survivors : [...survivors, ...added], removed: [...removed] };
 }
 
 /** Re-point the session's selected greeting indexes across a removal: a removed index drops out, and every
@@ -281,6 +363,7 @@ export async function resolveApplyBasis(
     selectedGreetingIndexes: session.selection.greetingIndexes,
     liveGreetingCount: liveCard.greetings.length,
     liveHasDepthPrompt: liveCard.depthPrompt !== null,
+    appendedFields: appendedRewrites(rewrite.data.fields),
     originalCard: session.originalCard,
     liveCard,
   });

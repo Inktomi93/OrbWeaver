@@ -126,6 +126,12 @@ const ingestSummary: WorkloadResultRenderer<"databank-ingest"> = (result) =>
     countIfAny(Array.isArray(result.failed) ? result.failed.length : null, "document failed", "documents failed"),
   ]);
 
+/** The refinery library sweep: what it scored, and — separately — what it declined to score and what broke.
+ *  `skipped` and `failed` are DIFFERENT facts (already-scored vs nothing-usable-came-back), so neither is
+ *  allowed to hide inside the other. */
+const scoreSweepSummary: WorkloadResultRenderer<"refine-score-sweep"> = (result) =>
+  summarize([count(result.scanned, "card"), tally(result.scored, "scored"), tallyIfAny(result.skipped, "skipped"), tallyIfAny(result.failed, "failed")]);
+
 /** An inert v2 stub: `deferred:true` is not "zero work done", it is "this pass does not exist yet". */
 const deferredSummary: WorkloadResultRenderer<"reconcile-world-state"> = () => "Nothing to do — this pass isn't implemented yet.";
 
@@ -157,6 +163,7 @@ const WORKLOAD_RESULT_RENDERERS: { readonly [K in WorkloadKind]: ((result: Workl
   "reconcile-world-state": deferredSummary,
   "databank-ingest": ingestSummary,
   "databank-reindex": ingestSummary,
+  "refine-score-sweep": scoreSweepSummary,
 };
 
 /**

@@ -9,7 +9,11 @@ import type { CharacterCard } from "@orb/contracts/character";
 import { characterCardSchema } from "@orb/contracts/character";
 import type { RefineryAnalyzePayload, RefineryRewritePayload, RefineryScorePayload } from "@orb/contracts/refinery";
 import {
+  appendedRewrites,
   DEFAULT_REFINERY_STAGE_CONFIG,
+  GREETING_SLOTS_MAX,
+  isAppendedRewrite,
+  isClearedRewrite,
   REFINABLE_FIELDS,
   REFINERY_STAGE_PAYLOADS,
   REFINERY_STAGES,
@@ -166,6 +170,81 @@ test("the cleared arm is CLOSED: only literal true, and never beside text", () =
   // what makes it visible in the run row's `strippedKeys` itemization instead of vanishing into a success.
   const both = refineryRewritePayloadSchema.parse({ fields: [{ field: "personality", text: "dry", cleared: true }] });
   expect(both).toEqual({ fields: [{ field: "personality", text: "dry" }] });
+});
+
+// ── The APPEND arm (fork F-T1, owner-ruled IN for R4 — schema-renderer §7b's SPLIT case) ────────────────
+
+test("a rewrite entry may APPEND a NEW greeting via the tagged arm, with no slot index", () => {
+  const appended = { fields: [{ field: "greetings", append: true, text: "A brand-new opening." }] };
+  expect(refineryRewritePayloadSchema.parse(appended)).toEqual(appended);
+  // THE SPLIT: one greeting becomes two — the original slot is replaced and a new slot carries the rest.
+  const split = {
+    fields: [
+      { field: "greetings", greetingIndex: 0, text: "The first half." },
+      { field: "greetings", append: true, text: "The second half." },
+    ],
+  };
+  expect(refineryRewritePayloadSchema.parse(split)).toEqual(split);
+});
+
+test("the append arm is GREETINGS-only, literal-true, and index-free", () => {
+  // Every other refinable target already exists on the card — "add one" is meaningless, so the append arm
+  // does not speak it. The entry falls through to the TEXT arm and `append` strips (visible in strippedKeys).
+  const onDescription = refineryRewritePayloadSchema.parse({ fields: [{ field: "description", append: true, text: "x" }] });
+  expect(onDescription).toEqual({ fields: [{ field: "description", text: "x" }] });
+  // `append: false` is not a member of the append arm — the entry falls through to the TEXT arm and the
+  // key strips, so it reads as an ordinary (slot-less) replacement rather than as a quiet append.
+  expect(refineryRewritePayloadSchema.parse({ fields: [{ field: "greetings", append: false, text: "x" }] })).toEqual({
+    fields: [{ field: "greetings", text: "x" }],
+  });
+  // …and with no text there is no arm left to fall through to.
+  expect(refineryRewritePayloadSchema.safeParse({ fields: [{ field: "greetings", append: false }] }).success).toBe(false);
+  // A slot index on an append is meaningless (the slot does not exist yet) and STRIPS — the arm order is
+  // the non-destructive read: an ambiguous entry ADDS a greeting rather than overwriting one.
+  const withIndex = refineryRewritePayloadSchema.parse({ fields: [{ field: "greetings", append: true, greetingIndex: 3, text: "x" }] });
+  expect(withIndex).toEqual({ fields: [{ field: "greetings", append: true, text: "x" }] });
+  // An append with no text says nothing at all.
+  expect(refineryRewritePayloadSchema.safeParse({ fields: [{ field: "greetings", append: true }] }).success).toBe(false);
+});
+
+test("appendedRewrites is the ORDINAL address: payload order, appends only", () => {
+  const payload = refineryRewritePayloadSchema.parse({
+    fields: [
+      { field: "greetings", append: true, text: "first new" },
+      { field: "description", text: "replaced" },
+      { field: "greetings", greetingIndex: 0, cleared: true },
+      { field: "greetings", append: true, text: "second new" },
+    ],
+  });
+  const appends = appendedRewrites(payload.fields);
+  expect(appends).toHaveLength(2);
+  // The ordinal an accept sends is the INDEX INTO THIS LIST — never the position in `fields`, which would
+  // shift under any unrelated entry, and never a card slot, which does not exist yet.
+  expect(appends[0]?.text).toBe("first new");
+  expect(appends[1]?.text).toBe("second new");
+  expect(appendedRewrites(refineryRewritePayloadSchema.parse({ fields: [{ field: "description", text: "x" }] }).fields)).toEqual([]);
+});
+
+test("isAppendedRewrite and isClearedRewrite recognise exactly their own arm", () => {
+  const [append, replace, clear] = refineryRewritePayloadSchema.parse({
+    fields: [
+      { field: "greetings", append: true, text: "new" },
+      { field: "greetings", greetingIndex: 0, text: "same slot" },
+      { field: "greetings", greetingIndex: 1, cleared: true },
+    ],
+  }).fields;
+  expect(append !== undefined && isAppendedRewrite(append)).toBe(true);
+  expect(append !== undefined && isClearedRewrite(append)).toBe(false);
+  expect(replace !== undefined && isAppendedRewrite(replace)).toBe(false);
+  expect(clear !== undefined && isAppendedRewrite(clear)).toBe(false);
+  expect(clear !== undefined && isClearedRewrite(clear)).toBe(true);
+});
+
+test("GREETING_SLOTS_MAX is the CARD's greetings ceiling (the append belt's cap twin)", () => {
+  // The apply belt refuses an append at this count rather than building a patch `character.update` would
+  // throw on — so the two sides must agree, and the card constant is unexported (pinned by behavior).
+  expect(GREETING_SLOTS_MAX).toBe(CARD_GREETINGS_MAX);
+  expect(GREETING_SLOTS_MAX).toBe(GREETING_INDEX_MAX + 1);
 });
 
 // The behavioral twin of the cap: the CARD side accepts exactly the same length, so an at-cap rewrite

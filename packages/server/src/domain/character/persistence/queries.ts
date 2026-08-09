@@ -101,11 +101,22 @@ interface CharacterListRow extends CharacterWithAvatar {
   readonly elevatorPitch: string | null;
   readonly lastChattedAt: number | null;
   readonly chatCount: number | null;
+  /** The score the score sorts ORDERED BY — selected through the SAME expression, never re-derived from the
+   *  parsed row, so a page's cursor can never disagree with the ordering that produced it. */
+  readonly refineryScore: number | null;
 }
 
 const assertNever = (value: never): never => {
   throw new Error(`unhandled character list sort: ${String(value)}`);
 };
+
+/** The refinery score as a SORTABLE scalar (I2). `characters.refinery` is one JSON blob, so the score sorts
+ *  read the `score` member out of it in SQL rather than denormalizing a column: the value has exactly one
+ *  writer (the F6 stamp), so a second copy would be a second truth to keep coherent, and the ORDER BY is the
+ *  only reader that cannot go through the row parser. `json_extract` yields SQL NULL both when the column is
+ *  null and when the blob carries `"score": null` — the two states are the same fact here ("not scored"), so
+ *  collapsing them is correct rather than lossy. The sorts pay a table scan, exactly like `tokenSize`. */
+const refineryScoreExpr = sql`json_extract(${characters.refinery}, '$.score')`;
 
 // `recent` sinks never-chatted (null lastActivityAt) to the tail via the `is null` leading term, then DESC.
 function orderFor(sort: CharacterListSort): SQL[] {
@@ -129,6 +140,12 @@ function orderFor(sort: CharacterListSort): SQL[] {
       return [desc(characters.tokenSize), desc(characters.id)];
     case "smallestCards":
       return [asc(characters.tokenSize), asc(characters.id)];
+    case "bestScore":
+      return [sql`${refineryScoreExpr} is null`, desc(refineryScoreExpr), desc(characters.id)];
+    case "worstScore":
+      // Direction-flipped, but the unscored group still sinks LAST — an unscored card is unjudged, never
+      // "the worst" (the fewestChats null-group precedent).
+      return [sql`${refineryScoreExpr} is null`, asc(refineryScoreExpr), asc(characters.id)];
     default:
       return assertNever(sort);
   }
@@ -187,6 +204,31 @@ function tokenSizeKeysetAsc(tokenSize: number, id: CharacterId): SQL | undefined
   return or(gt(characters.tokenSize, tokenSize), and(eq(characters.tokenSize, tokenSize), gt(characters.id, id)));
 }
 
+// The two score keysets — the mostChats/fewestChats null-boundary shape over the JSON-extracted score: a
+// null-boundary cursor stays inside the unscored tail; a scored boundary is followed by the lower/equal
+// scored rows PLUS the whole unscored tail.
+function bestScoreKeyset(cursor: Extract<CharacterListCursor, { sort: "bestScore" }>): SQL | undefined {
+  if (cursor.score === null) {
+    return and(sql`${refineryScoreExpr} is null`, lt(characters.id, cursor.id));
+  }
+  return or(
+    sql`${refineryScoreExpr} is null`,
+    sql`${refineryScoreExpr} < ${cursor.score}`,
+    and(sql`${refineryScoreExpr} = ${cursor.score}`, lt(characters.id, cursor.id)),
+  );
+}
+
+function worstScoreKeyset(cursor: Extract<CharacterListCursor, { sort: "worstScore" }>): SQL | undefined {
+  if (cursor.score === null) {
+    return and(sql`${refineryScoreExpr} is null`, gt(characters.id, cursor.id));
+  }
+  return or(
+    sql`${refineryScoreExpr} is null`,
+    sql`${refineryScoreExpr} > ${cursor.score}`,
+    and(sql`${refineryScoreExpr} = ${cursor.score}`, gt(characters.id, cursor.id)),
+  );
+}
+
 function alphaKeyset(name: string, id: CharacterId): SQL | undefined {
   return or(gt(characters.name, name), and(eq(characters.name, name), gt(characters.id, id)));
 }
@@ -220,9 +262,15 @@ function keysetFor(cursor: CharacterListCursor): SQL | undefined {
   if (cursor.sort === "largestCards") {
     return tokenSizeKeysetDesc(cursor.tokenSize, cursor.id);
   }
-  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tautology after exhaustive narrowing; kept so assertNever still guards a future unhandled member.
   if (cursor.sort === "smallestCards") {
     return tokenSizeKeysetAsc(cursor.tokenSize, cursor.id);
+  }
+  if (cursor.sort === "bestScore") {
+    return bestScoreKeyset(cursor);
+  }
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- tautology after exhaustive narrowing; kept so assertNever still guards a future unhandled member.
+  if (cursor.sort === "worstScore") {
+    return worstScoreKeyset(cursor);
   }
   return assertNever(cursor);
 }
@@ -238,6 +286,7 @@ export async function listOwnedCharactersWithAvatar(db: Db, input: ListOwnedPage
       elevatorPitch: characterSummaries.elevatorPitch,
       lastChattedAt: characterStats.lastActivityAt,
       chatCount: characterStats.chats,
+      refineryScore: sql<number | null>`${refineryScoreExpr}`,
     })
     .from(characters)
     .leftJoin(assets, eq(characters.avatarAssetId, assets.id))

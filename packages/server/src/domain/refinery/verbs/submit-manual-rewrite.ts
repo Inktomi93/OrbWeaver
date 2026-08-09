@@ -10,7 +10,7 @@
 // (the apply-side intersection still runs at the terminal act regardless).
 
 import type { RefineryRewriteField } from "@orb/contracts/refinery";
-import { refineryRewritePayloadSchema } from "@orb/contracts/refinery";
+import { isAppendedRewrite, refineryRewritePayloadSchema } from "@orb/contracts/refinery";
 import { refineryRuns, refinerySessions } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import { eq } from "drizzle-orm";
@@ -21,15 +21,30 @@ import { latestRunRowOf, loadOwnedSessionRow, sessionViewOf } from "../persisten
 /** The coded reason for an out-of-selection manual entry (the client reads it off the BAD_REQUEST body). */
 export const MANUAL_REWRITE_OUT_OF_SCOPE_REASON = "refinery_manual_rewrite_out_of_scope";
 
-/** Is this entry inside the session's selection fence (field + narrowed greeting indexes)? */
+/** Is this entry inside the session's selection fence (field + narrowed greeting indexes)? An APPEND (F-T1)
+ *  is fenced on the FIELD only: a new slot has no index to be inside a narrowing — the same asymmetry the
+ *  apply belts carry, for the same reason (gating it on `greetingIndexes` would make hand-adding a greeting
+ *  impossible in any narrowed session). */
 function inSelection(entry: RefineryRewriteField, selection: { fields: readonly string[]; greetingIndexes?: readonly number[] | undefined }): boolean {
   if (!selection.fields.includes(entry.field)) {
     return false;
+  }
+  if (isAppendedRewrite(entry)) {
+    return true;
   }
   if (entry.field === "greetings" && selection.greetingIndexes !== undefined) {
     return entry.greetingIndex !== undefined && selection.greetingIndexes.includes(entry.greetingIndex);
   }
   return true;
+}
+
+/** The out-of-scope refusal's human target name. An append has no slot to name, so it reads as the act it
+ *  is — "greetings[new]" rather than a fabricated index or a bare `?`. */
+function targetNameOf(entry: RefineryRewriteField): string {
+  if (isAppendedRewrite(entry)) {
+    return "greetings[new]";
+  }
+  return entry.field === "greetings" ? `greetings[${entry.greetingIndex ?? "?"}]` : entry.field;
 }
 
 export function createSubmitManualRewrite(ctx: RefineryContext): RefineryService["submitManualRewrite"] {
@@ -45,7 +60,7 @@ export function createSubmitManualRewrite(ctx: RefineryContext): RefineryService
     const payload = refineryRewritePayloadSchema.parse({ fields });
     const outside = payload.fields.filter((entry) => !inSelection(entry, session.selection));
     if (outside.length > 0) {
-      const names = outside.map((e) => (e.field === "greetings" ? `greetings[${e.greetingIndex ?? "?"}]` : e.field)).join(", ");
+      const names = outside.map(targetNameOf).join(", ");
       throw new DomainOperationError(
         MANUAL_REWRITE_OUT_OF_SCOPE_REASON,
         `These fields are outside this session's scope: ${names}. Widen the scope first, or drop them.`,

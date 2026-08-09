@@ -248,7 +248,22 @@ export const updateCharacterSchema = createCharacterSchema.partial().extend({
 export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 
 // Each sort needs its own keyset, so the wire cursor is discriminated by `sort`. Default = `recent`.
-export const CHARACTER_LIST_SORTS = ["recent", "alpha", "starred", "newest", "oldest", "mostChats", "fewestChats", "largestCards", "smallestCards"] as const;
+// `bestScore`/`worstScore` read the derived refinery signal (`characters.refinery.score`, 1-10), which is
+// NULL until something scores the card — so both directions sink the unscored tail LAST (an unscored card is
+// not "the worst", it is unjudged; the `mostChats`/`fewestChats` null-group precedent).
+export const CHARACTER_LIST_SORTS = [
+  "recent",
+  "alpha",
+  "starred",
+  "newest",
+  "oldest",
+  "mostChats",
+  "fewestChats",
+  "largestCards",
+  "smallestCards",
+  "bestScore",
+  "worstScore",
+] as const;
 export type CharacterListSort = (typeof CHARACTER_LIST_SORTS)[number];
 export const characterListSortSchema = z.enum(CHARACTER_LIST_SORTS);
 
@@ -304,6 +319,19 @@ export const characterListCursorSchema = z.discriminatedUnion("sort", [
     sort: z.literal("smallestCards"),
     /** The `characters.token_size` denorm — notNull, so never null (no NULLS-LAST handling). */
     tokenSize: z.number().int(),
+    id: typeIdSchema(ID_PREFIX.character),
+  }),
+  z.object({
+    sort: z.literal("bestScore"),
+    /** `null` = the boundary row has no refinery score yet (the NULLS-LAST tail). Not an int: the refinery
+     *  rubric is a weighted average (`refineryScorePayloadSchema.overallScore`). */
+    score: z.number().nullable(),
+    id: typeIdSchema(ID_PREFIX.character),
+  }),
+  z.object({
+    sort: z.literal("worstScore"),
+    /** `null` = the boundary row has no refinery score yet (the NULLS-LAST tail) — see `bestScore`. */
+    score: z.number().nullable(),
     id: typeIdSchema(ID_PREFIX.character),
   }),
 ]);

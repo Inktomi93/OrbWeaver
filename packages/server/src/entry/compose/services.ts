@@ -481,7 +481,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // ── the refinery seam (R1) — the card-refinery pipeline over the summarize rung. Needs `character`
   // (the four injected ops) + the caller-scoped preset/prose resolvers; nothing composes on top of it.
-  const refinery = buildRefinery({
+  const { refinery, refineryWorkloads } = buildRefinery({
     db,
     now,
     roleClients,
@@ -763,6 +763,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     assets,
     databankIngest,
     importWorkloads,
+    refineryWorkloads,
     purgeDocumentVectors: async (): Promise<void> => {
       // The purge's row counts are advisory — the sweep's own counts are the workload result.
       await embeddings.purgeDocumentVectors();

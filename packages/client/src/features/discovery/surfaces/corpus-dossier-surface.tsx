@@ -11,6 +11,7 @@
 // server couldn't parse. Merging degraded into "Speculative" blamed the model for our parse failure and hid
 // that the text below was never validated at all.
 
+import { SCORE_MAX } from "@orb/contracts/refinery";
 import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { BarList } from "@orb/ui/bar-list";
@@ -33,6 +34,9 @@ import { characterFacetLine } from "../lib/character-facet.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
 
 const ALIGNMENT_PRECISION = 2;
+/** The refinery rubric is a weighted average, so one decimal is the honest resolution (the character
+ *  overview card's own `REFINERY_SCORE_DECIMALS` reads the same value the same way). */
+const SCORE_PRECISION = 1;
 const KEYWORD_LIMIT = 24;
 const SIMILAR_ART_TOP_N = 8;
 const SKELETON_ROW_COUNT = 3;
@@ -97,6 +101,22 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
           {dossier.elevatorPitch !== null ? <Text className="text-muted-foreground">{dossier.elevatorPitch}</Text> : null}
         </Stack>
       </Row>
+
+      <Section heading="Card quality">
+        {dossier.refineryScore === null ? (
+          // A load-bearing empty state: "no score" is a real, actionable state, and the door out of it is
+          // the sweep — so the copy names it rather than leaving a blank where a number lives on other cards.
+          <Text voice="gloss">Not scored yet — run the Refinery's library score sweep, or open a Refinery session on this card.</Text>
+        ) : (
+          <Text voice="gloss">
+            Refinery score:{" "}
+            <Text as="span" className="font-mono">
+              {dossier.refineryScore.toFixed(SCORE_PRECISION)}
+            </Text>{" "}
+            / {SCORE_MAX}
+          </Text>
+        )}
+      </Section>
 
       {dossier.portrait !== null ? (
         <Section heading="Portrait alignment">
