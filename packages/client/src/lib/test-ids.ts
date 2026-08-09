@@ -139,6 +139,9 @@ export const TEST_IDS = {
   // ── refinery (R3) — the pipeline surface + the schema-driven renderer ──────────────────────────────
   refineryContent: "refinery-content",
   refineryTeaching: "refinery-teaching",
+  /** The teaching state's three-step flow row. Scoped so a CT can assert the sequence is carried by the
+   *  stage glyphs + order (owner ruling 2026-08-09: no 01/02/03 markers), not by numerals. */
+  refineryTeachingSteps: "refinery-teaching-steps",
   refineryStepper: "refinery-stepper",
   /** One per stage cell — pair with `data-stage` to pick a cell. */
   refineryStep: "refinery-step",
