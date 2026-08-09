@@ -8,84 +8,31 @@
 // (`@orb/kit/tokens`' own doctrine); preflight WARNS, never blocks — truncation still surfaces as the
 // typed structured-output failure, this just prevents the paid-for retry. The reasoning-wire caveat
 // (max_completion_tokens covers THINKING+TEXT on reasoning models) is surface copy, not arithmetic.
+//
+// THE ARITHMETIC IS NOT PRIVATE TO THIS VERB (live e2e, 2026-08-09). It used to be, and the engine never
+// read it — so this readout could tell the user `out ≈ 980 / 768 tok ⚠` while `runStage` went ahead and
+// requested 768, truncated on both attempts and failed the stage. Both halves now derive from
+// `substrate/output-budget.ts`: `maxOutputTokens` below is the budget the NEXT RUN WILL ACTUALLY REQUEST,
+// not a static floor the run has no obligation to honour.
 
-import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
-import type { RefineryRewriteMode, RefineryRewritePayload, RefineryStage } from "@orb/contracts/refinery";
+import type { RefineryRewritePayload, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS, REFINERY_STAGES } from "@orb/contracts/refinery";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { RefineryContext } from "../context.ts";
 import type { StagePrompts } from "../contract/prompts.ts";
 import type { PreflightResult, RefinerySessionView, StagePreflight } from "../contract/results.ts";
 import type { RefineryService } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, sessionViewOf } from "../persistence/queries.ts";
-import { buildAnalyzePrompt, buildCardSections, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
+import { outputEstimateOf, resolveStageSampling } from "../substrate/output-budget.ts";
+import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
 import { resolveStageResolution } from "../substrate/stage-resolution.ts";
-
-// ── the §8 output arithmetic (measured-mode promises, stated in the design; all advisory) ───────────────
-
-/** What each rewrite MODE promises about length, as a factor over the selected input ("keep similar
- *  length" / "significantly expand" — the mode prose's own words). */
-const REWRITE_MODE_FACTORS: Record<RefineryRewriteMode, number> = {
-  conservative: 0.9,
-  balanced: 1.2,
-  expansive: 2.5,
-};
-/** JSON envelope overhead: the wrapper object + per-entry field/greetingIndex keys. */
-const ENVELOPE_BASE_TOKENS = 30;
-const ENVELOPE_PER_ENTRY_TOKENS = 15;
-/** Headroom for the fill-empty/split arms (§7) — new fields have no baseline to measure. */
-const REWRITE_HEADROOM = 1.15;
-/** A score reply's per-target cost (three short critique strings + the numbers). */
-const SCORE_TOKENS_PER_TARGET = 140;
-/** An analyze reply is near-fixed-size (three bullet lists + the soul block). */
-const ANALYZE_OUTPUT_TOKENS = 400;
-
-/** How many addressable targets the selection names (fields + per-index greetings). */
-function targetCountOf(session: RefinerySessionView): number {
-  let count = 0;
-  for (const field of session.selection.fields) {
-    if (field === "greetings") {
-      count += session.selection.greetingIndexes?.length ?? session.originalCard.greetings.length;
-      continue;
-    }
-    count += 1;
-  }
-  return count;
-}
-
-/** The selected content's own token mass — the rewrite estimate's base. Measured off the SAME section
- *  renderer the prompt uses, so the two never drift. */
-function selectedTokensOf(session: RefinerySessionView): number {
-  return estimateTokens(buildCardSections(session.originalCard, session.selection));
-}
-
-function outputEstimateOf(stage: RefineryStage, session: RefinerySessionView): number {
-  if (stage === "rewrite") {
-    const mode = session.stageConfig.rewrite.mode;
-    const targets = targetCountOf(session);
-    const base = selectedTokensOf(session) * REWRITE_MODE_FACTORS[mode] + ENVELOPE_BASE_TOKENS + ENVELOPE_PER_ENTRY_TOKENS * targets;
-    return Math.ceil(base * REWRITE_HEADROOM);
-  }
-  if (stage === "score") {
-    return targetCountOf(session) * SCORE_TOKENS_PER_TARGET;
-  }
-  return ANALYZE_OUTPUT_TOKENS;
-}
 
 function inputEstimateOf(prompts: StagePrompts): number {
   return estimateTokens(`${prompts.system}\n${prompts.user}`);
 }
-
-/** The per-stage side-gen posture (the F4 keys, spelled once). */
-const STAGE_POSTURE = {
-  score: SIDE_GEN_POSTURES.refine_score,
-  rewrite: SIDE_GEN_POSTURES.refine_rewrite,
-  analyze: SIDE_GEN_POSTURES.refine_analyze,
-} as const satisfies Record<RefineryStage, unknown>;
 
 interface PromptContext {
   readonly session: RefinerySessionView;
@@ -148,14 +95,17 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
     const resolutions = await Promise.all(REFINERY_STAGES.map((stage) => resolveStageResolution(ctx, { ownerId, stage, session })));
     const stages: StagePreflight[] = REFINERY_STAGES.map((stage, i) => {
       const resolution = resolutions[i] ?? { kind: "fixed" as const };
-      const sampling = resolveSideGenSampling(STAGE_POSTURE[stage], presetParams);
       const prompts = stagePromptsOf(stage, resolution, { session, working, rewritePayload, overrides });
+      const inputEstimate = inputEstimateOf(prompts);
+      // The SAME expression the engine evaluates for this stage (substrate/output-budget) — so this readout
+      // reports the budget the next run will request, never a floor the run is free to ignore.
+      const sampling = resolveStageSampling({ stage, session, presetParams, contextTokens: ctx.summarizerContextTokens, inputEstimate });
       return {
         stage,
         model,
         temperature: sampling.temperature ?? null,
         maxOutputTokens: sampling.maxOutputTokens ?? null,
-        inputEstimate: inputEstimateOf(prompts),
+        inputEstimate,
         outputEstimate: outputEstimateOf(stage, session),
       };
     });

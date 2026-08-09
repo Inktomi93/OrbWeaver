@@ -7,6 +7,13 @@
 // The pane never goes blank between stages (the surface mock's drawing call): each stage pane renders
 // the LATEST SETTLED payload of that stage — or the view-back run the ledger pinned — with the running
 // state carried on the stepper cell.
+//
+// THIS PANE OWNS ITS SCROLL (`h-full min-h-0 overflow-y-auto`) — the house requirement `databank-detail-
+// surface.tsx`'s header states verbatim: the shell's CONTENT region carries NO overflow, so a surface
+// without it "simply has its tail unreachable". It shipped without it and the tail here is the TERMINAL ACT
+// — live 2026-08-09 on a settled score+rewrite: content 3 981px in a 952px box, NO scrollable ancestor,
+// `scrollIntoView` a no-op, so Apply/Save-as-copy/run bar/Hand-edit were unreachable by mouse, key or
+// script. Invisible to every prior review: engines were adopt-only, and with no payload the pane fits.
 
 import type { RefinerySelection, RefineryStage } from "@orb/contracts/refinery";
 import { isAppendedRewrite } from "@orb/contracts/refinery";
@@ -54,7 +61,7 @@ export function RefineryContentSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
   return (
-    <Container className="h-full outline-none" name="refinery-content" ref={surfaceRef} tabIndex={-1}>
+    <Container className="h-full min-h-0 overflow-y-auto outline-none" name="refinery-content" ref={surfaceRef} tabIndex={-1}>
       {sessionId === null ? <RefineryStartPane /> : <RefinerySessionPane key={sessionId} sessionId={sessionId} />}
     </Container>
   );
@@ -115,6 +122,10 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
   const [scopeOpen, setScopeOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
   const [outcome, setOutcome] = useState<OutcomeState | null>(null);
+  // The run ids THIS view produced — the hero gauge's arrival signal (`useCountUp`'s `arrived`). Ids, not a
+  // boolean: the pane can show an OLDER run (view-back, a stage switch) while a newer one landed.
+  const [landedRunIds, setLandedRunIds] = useState<ReadonlySet<string>>(() => new Set());
+  const noteLanded = (...ids: readonly string[]): void => setLandedRunIds((prev) => new Set([...prev, ...ids]));
   const viewedRunId = useRefineryViewedRunId();
   const armedRewriteId = useRefineryArmedRewriteId();
 
@@ -190,13 +201,14 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
           }}
           onRerunRewrite={(): void => {
             setOutcome(null);
-            runStage.mutate({ sessionId, stage: "rewrite" });
+            runStage.mutate({ sessionId, stage: "rewrite" }, { onSuccess: (run): void => noteLanded(run.id) });
           }}
           snapshotLabel={outcome.snapshotLabel}
         />
       ) : (
         <StagePane
           activeStage={effectiveStage}
+          arrived={paneRun !== null && landedRunIds.has(paneRun.id)}
           decided={decided}
           entries={rewriteEntries}
           onDecide={(index, decision): void => decide(index, decision, rewriteEntries.length)}
@@ -212,9 +224,9 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
         effectiveStage={effectiveStage}
         guidance={view.guidance}
         hasRun={latestOf.get(effectiveStage) !== undefined}
-        onIterate={(): void => iterate.mutate({ sessionId })}
+        onIterate={(): void => iterate.mutate({ sessionId }, { onSuccess: (round): void => noteLanded(round.rewrite.id, round.analyze.id) })}
         onManualOpen={(): void => setManualOpen(true)}
-        onRun={(): void => runStage.mutate({ sessionId, stage: effectiveStage })}
+        onRun={(): void => runStage.mutate({ sessionId, stage: effectiveStage }, { onSuccess: (run): void => noteLanded(run.id) })}
         onScopeOpen={(): void => setScopeOpen(true)}
         running={running}
         sessionId={sessionId}

@@ -5,6 +5,7 @@
 // itemization on the run row, the independent signal-stamp halves, and the typed double-failure refusal
 // (no fallback write). Real freshDb + the REAL character service; the model is the ONE faked edge.
 
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { characters, refineryRuns } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle, RefinerySessionId } from "@orb/kit/ids";
@@ -186,10 +187,21 @@ test("a score run: prompt carries card {{macros}} VERBATIM (belt 5 both directio
   expect(call.user).toContain("says {{char}} likes {{user}}");
   expect(call.user.includes("\u200b")).toBe(false);
   expect(call.system.includes("\u200b")).toBe(false);
-  // The wire opts: the stage ResponseFormat + the refine_score posture floor (temp 0.2 / 768 out).
+  // The wire opts: the stage ResponseFormat + the refine_score posture (temp 0.2) with the PAYLOAD-AWARE
+  // output budget. This used to pin the static 768 floor, and that pin was the defect wearing a receipt:
+  // against the real fleet a default selection needed ~1 500 output tokens, both attempts came back
+  // `finish_reason:"length"`, and the stage 503'd — while the surface's fit line already read
+  // `out ≈ 980 / 768 ⚠`. The pin is now the LAW instead of the number: the budget never drops below the
+  // shipped floor, and it covers the stage's own §8 estimate (`substrate/output-budget`), which is the
+  // exact property whose absence caused the failure.
   expect(call.opts?.responseFormat?.name).toBe("refinery_score");
   expect(call.opts?.temperature).toBe(0.2);
-  expect(call.opts?.maxTokens).toBe(768);
+  const scoreBudget = call.opts?.maxTokens ?? 0;
+  expect(scoreBudget).toBeGreaterThanOrEqual(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);
+  const scorePre = (await h.svc.preflight({ principal: principal(owner), sessionId: session.id })).stages.find((s) => s.stage === "score");
+  expect(scoreBudget).toBeGreaterThanOrEqual(scorePre?.outputEstimate ?? Number.POSITIVE_INFINITY);
+  // …and it is the SAME number the surface shows: preflight and the engine evaluate one expression.
+  expect(scorePre?.maxOutputTokens).toBe(scoreBudget);
 
   // The run view + row: typed payload, provenance config, usage from the scripted item, shape-clean.
   expect(run.stage).toBe("score");
