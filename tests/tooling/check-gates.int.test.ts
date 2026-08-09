@@ -906,6 +906,13 @@ function writeFixtures(): void {
     'import { messageVariants } from "@orb/db";\nexport const gStmt = db.update(messageVariants).set({ content: "replaced" }).where(eq(messageVariants.id, id));\n',
   );
   fx("scripts/check/gates/__g_nodescriptor.ts", "export const notAGateDescriptor = 1;\n");
+  // bounded-list-limit: an inline `limit: z.number()…` with no `.max()` in the router tree (the #45/#46
+  // ceiling). The path is inside the gate's scanRoot (transport/trpc/routers); the fixture leaves every real
+  // bounded schema untouched, so the added finding is this gate's bite alone.
+  fx(
+    "packages/server/src/transport/trpc/routers/__g_boundedlimit.ts",
+    'import { z } from "zod";\nexport const gListInput = z.object({ limit: z.number().int().optional() });\n',
+  );
 }
 
 // Registered gates that CANNOT be driven by an injected `__g_` fixture — whole-corpus ratchets whose

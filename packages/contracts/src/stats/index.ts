@@ -7,6 +7,12 @@ import type { CharacterId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
+/** The page CEILING for the stats top-N reads (`leaderboard`, `byModel`, `momentum`), enforced at the
+ *  transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT` precedent). The same 200 the persistence
+ *  `rollups.ts` DoS clamp references (homed HERE so the wire ceiling and the clamp never drift); `momentum`
+ *  has no domain clamp, so this ceiling is its sole bound. An over-bound ask is a BAD_REQUEST. */
+export const STATS_LIST_MAX_LIMIT = 200;
+
 /** The per-canon-write increment payload, applied in the same `db.batch()` as the canon write. Three
  *  decoupled slices: SCALAR (monotonic per-character/per-owner totals), DAILY (`dailyTokensIn`/`Out`,
  *  decoupled so a swipe can bump `day.swipes` without touching `day.tokens`), MODEL (`modelGenerations`/…,

@@ -4,10 +4,13 @@
 // steeringNote cap rides through from the config contract, and the optional fields are genuinely optional.
 
 import {
+  RPG_JOURNAL_LIST_MAX_LIMIT,
   RPG_STEERING_NOTE_MAX,
+  RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT,
   rpgCreateGameInputSchema,
   rpgDismissActorInputSchema,
   rpgListJournalInputSchema,
+  rpgListTurnToolCallsInputSchema,
   rpgPatchActorInputSchema,
   rpgPatchSheetInputSchema,
   rpgPromoteActorInputSchema,
@@ -58,11 +61,23 @@ test("upsertQuest: status is enum-gated; questId + objectives are optional (a fr
   expect(rpgUpsertQuestInputSchema.safeParse({ chatId: CHAT_ID, name: "" }).success).toBe(false);
 });
 
-test("listJournal: the paging knobs are optional and bounded (limit ≥ 1, offset ≥ 0)", () => {
+test("listJournal: the paging knobs are optional and bounded (1 ≤ limit ≤ max, offset ≥ 0)", () => {
   expect(rpgListJournalInputSchema.safeParse({ chatId: CHAT_ID }).success).toBe(true);
   expect(rpgListJournalInputSchema.safeParse({ chatId: CHAT_ID, limit: 20, offset: 40 }).success).toBe(true);
   expect(rpgListJournalInputSchema.safeParse({ chatId: CHAT_ID, limit: 0 }).success).toBe(false);
   expect(rpgListJournalInputSchema.safeParse({ chatId: CHAT_ID, offset: -1 }).success).toBe(false);
+  // The CEILING (#46): an over-bound ask is refused at the wire, never an unbounded SQL `.limit()`.
+  expect(rpgListJournalInputSchema.safeParse({ chatId: CHAT_ID, limit: RPG_JOURNAL_LIST_MAX_LIMIT }).success).toBe(true);
+  expect(rpgListJournalInputSchema.safeParse({ chatId: CHAT_ID, limit: RPG_JOURNAL_LIST_MAX_LIMIT + 1 }).success).toBe(false);
+});
+
+test("listTurnToolCalls: limit is optional and bounded (1 ≤ limit ≤ max) — no offset by design", () => {
+  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID }).success).toBe(true);
+  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, limit: 10 }).success).toBe(true);
+  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, limit: 0 }).success).toBe(false);
+  // The CEILING (#46): an over-bound ask is refused at the wire, never an unbounded SQL `.limit()`.
+  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, limit: RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT }).success).toBe(true);
+  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, limit: RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT + 1 }).success).toBe(false);
 });
 
 // ── R1: the op-shaped actor door ─────────────────────────────────────────────────────────────────────────

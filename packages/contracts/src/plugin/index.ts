@@ -5,6 +5,11 @@
 // (P1, landed); the registry/lifecycle/grants lives in `domain/plugin` (P3). This node imports nothing above
 // contracts (the package cake) and is the ONE home for these shapes — P3/P4 derive, never re-spell.
 
+/** The `plugin.getLog` page CEILING, enforced at the transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT`
+ *  precedent) — a plugin's execution log is a growing per-plugin catalog, so an over-bound ask is a
+ *  BAD_REQUEST rather than an unbounded log fetch (the #45 class). */
+export const PLUGIN_LOG_LIST_MAX_LIMIT = 500;
+
 export type { InvocationChat, PluginBridge } from "./bridge.ts";
 export { HostVersionError, PluginCapabilityError } from "./errors.ts";
 export type {
