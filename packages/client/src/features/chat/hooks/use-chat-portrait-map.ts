@@ -21,3 +21,16 @@ export function useChatPortraitMap(): ReadonlyMap<string, ChatRowPortrait> {
   const characters = useQuery(trpc.character.list.queryOptions({ limit: PORTRAIT_MAP_LIMIT }));
   return new Map((characters.data?.items ?? []).map((character) => [character.id, { name: character.name, hash: character.avatarHash }] as const));
 }
+
+/**
+ * true ⇒ the portrait read has not answered YET, so an empty map means "unknown", not "no portraits".
+ *
+ * Its own hook rather than a second return field: three callers want only the map, and the ONE caller that
+ * needs the distinction is a surface reserving a box for faces that are still in flight (the chats pane's
+ * strip — `face-strip.tsx` `pending`). Same query options, so it is the SAME cache entry (react-query dedupes
+ * by key) and `PORTRAIT_MAP_LIMIT` keeps exactly one home; nothing here fires a second fetch.
+ */
+export function useChatPortraitMapPending(): boolean {
+  const trpc = useTRPC();
+  return useQuery(trpc.character.list.queryOptions({ limit: PORTRAIT_MAP_LIMIT })).isPending;
+}
