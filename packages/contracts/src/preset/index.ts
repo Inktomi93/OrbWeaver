@@ -2712,9 +2712,120 @@ function collectFormatStrings(rawObj: Record<string, unknown>): PromptConfig["fo
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
+// ── The ST `power_user` GENERATION-adjacent knobs (owner ruling 2026-08-08) ────────────────────────
+// ST scatters what orb calls "generation settings" across TWO sections: the per-family preset (`oai_settings`
+// / `OpenAI Settings/*.json`) AND the global `power_user` blob. orb homes generation config on the PRESET, so
+// the `power_user` half folds in HERE — the one ST→PromptConfig mapper — rather than growing a second answer
+// in the importer. They are GLOBAL in ST, so the caller only supplies them for the LIVE preset (see
+// `domain/import/substrate/preset.ts`): stamping one box's live stop-strings onto every SAVED preset file
+// would rewrite presets the author tuned for something else.
+//
+// Six seats, all exact: `custom_stopping_strings` → `params.stop`; the four ST post-processing switches →
+// `postProcess` (orb's four flags ARE these four, by meaning); `reasoning.{auto_parse,prefix,suffix}` →
+// `reasoningParse` (the `<think>` inline-reasoning fallback — the same three fields, same defaults).
+
+/** ST stores `custom_stopping_strings` as a JSON-array STRING. ST's own reader `JSON.parse`s it and yields
+ *  nothing on failure — mirrored exactly here (never a comma-split guess it does not make). */
+function stStopStrings(powerUser: Record<string, unknown>): string[] | undefined {
+  const raw = powerUser["custom_stopping_strings"];
+  if (typeof raw !== "string" || raw.trim().length === 0) {
+    return;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  if (!Array.isArray(parsed)) {
+    return;
+  }
+  const strings = parsed.filter((s): s is string => typeof s === "string" && s.length > 0);
+  return strings.length > 0 ? strings : undefined;
+}
+
+/** The four ST post-processing switches, only when at least one is ON (an all-false blob would persist an
+ *  explicit `postProcess` block that is byte-equivalent to absent). */
+function stPostProcess(powerUser: Record<string, unknown>): PromptConfig["postProcess"] {
+  const flag = (key: string): boolean => powerUser[key] === true;
+  const collapseNewlines = flag("collapse_newlines");
+  const dropIncompleteSentence = flag("trim_sentences");
+  const trimTrailingWhitespace = flag("trim_spaces");
+  const singleLine = flag("single_line");
+  if (!(collapseNewlines || dropIncompleteSentence || trimTrailingWhitespace || singleLine)) {
+    return;
+  }
+  return { collapseNewlines, dropIncompleteSentence, trimTrailingWhitespace, singleLine };
+}
+
+/** ST `power_user.reasoning` → orb `reasoningParse`. Only when ST had auto-parse ON: the tag pair alone is
+ *  inert (orb's parse is gated on `autoParse`), so importing an OFF blob would be noise. */
+function stReasoningParse(powerUser: Record<string, unknown>): PromptConfig["reasoningParse"] {
+  const reasoning = powerUser["reasoning"];
+  if (reasoning === null || typeof reasoning !== "object" || Array.isArray(reasoning)) {
+    return;
+  }
+  const r = reasoning as Record<string, unknown>;
+  if (r["auto_parse"] !== true) {
+    return;
+  }
+  const prefix = r["prefix"];
+  const suffix = r["suffix"];
+  return {
+    autoParse: true,
+    prefix: typeof prefix === "string" && prefix.length > 0 ? prefix : THINK_PREFIX_DEFAULT,
+    suffix: typeof suffix === "string" && suffix.length > 0 ? suffix : THINK_SUFFIX_DEFAULT,
+  };
+}
+
+// `power_user` keys that are GENERATION-adjacent (so they would belong on a preset) but have no orb seat at
+// all. Reported on the LIVE preset's dropped list so the operator sees them exactly where they'd have landed.
+const DROPPABLE_POWER_USER_FIELDS: readonly StDroppedField[] = [
+  { field: "token_padding", reason: "ST reserves context headroom for its own tokenizer's inaccuracy; orb budgets from provider-reported usage" },
+  { field: "tokenizer", reason: "the ST tokenizer set is reaffirmed OUT (D49) — orb counts through the provider" },
+  { field: "custom_stopping_strings_macro", reason: "macro substitution INSIDE stop strings — orb's stop list is literal (the strings themselves DO import)" },
+  { field: "auto_continue", reason: "ST's auto-continue-until-length loop — no orb counterpart" },
+  { field: "context", reason: "text-completion context template — needs an ST→orb template mapper (separate epic)" },
+  { field: "instruct", reason: "text-completion instruct template — needs an ST→orb template mapper (separate epic)" },
+  { field: "sysprompt", reason: "system-prompt template — needs an ST→orb template mapper (separate epic)" },
+];
+
+/** A `power_user` value worth reporting as dropped: a non-empty string, a `true`, a non-zero number, or a
+ *  non-empty object (the three template blobs are objects and are ALWAYS present in a real profile, so an
+ *  object counts only when it carries keys). */
+function isMeaningfulPowerUserValue(value: unknown): boolean {
+  if (value !== null && typeof value === "object") {
+    return Object.keys(value as Record<string, unknown>).length > 0;
+  }
+  return isMeaningful(value);
+}
+
+/** The whole `power_user` fold, as ONE call: the three config slices plus the seat-less keys to report.
+ *  Extracted so `importStChatCompletionPreset` keeps its shape (and clears the cognitive-complexity gate)
+ *  as this half grew. A non-object `powerUser` (the saved-preset-file path) folds nothing. */
+function stPowerUserGenerationKnobs(powerUser: unknown): {
+  readonly stop: string[] | undefined;
+  readonly postProcess: PromptConfig["postProcess"];
+  readonly reasoningParse: PromptConfig["reasoningParse"];
+  readonly dropped: StDroppedField[];
+} {
+  const pu: Record<string, unknown> =
+    powerUser !== null && typeof powerUser === "object" && !Array.isArray(powerUser) ? (powerUser as Record<string, unknown>) : {};
+  return {
+    stop: stStopStrings(pu),
+    postProcess: stPostProcess(pu),
+    reasoningParse: stReasoningParse(pu),
+    dropped: DROPPABLE_POWER_USER_FIELDS.filter(({ field }) => isMeaningfulPowerUserValue(pu[field])),
+  };
+}
+
 /** Import a SillyTavern Chat Completion preset (parsed JSON) into a validated PromptConfig. Throws when
- *  `raw` isn't a recognizable ST preset (no prompts AND no prompt_order). */
-export function importStChatCompletionPreset(raw: unknown): StImportResult {
+ *  `raw` isn't a recognizable ST preset (no prompts AND no prompt_order).
+ *
+ *  `powerUser` is ST's GLOBAL `settings.json.power_user` blob, supplied ONLY when importing the LIVE
+ *  `oai_settings` preset (see the section above): its generation-adjacent knobs fold onto the config, and its
+ *  seat-less ones join `dropped`. Omitted for a saved preset FILE, which carries none of them. */
+export function importStChatCompletionPreset(raw: unknown, powerUser?: unknown): StImportResult {
   const parsed = stPresetSchema.safeParse(raw);
   if (!(parsed.success && (parsed.data.prompts || parsed.data.prompt_order))) {
     throw new Error("Not a SillyTavern Chat Completion preset (expected prompts[] + prompt_order).");
@@ -2736,15 +2847,21 @@ export function importStChatCompletionPreset(raw: unknown): StImportResult {
   const continuePostfix = typeof rawPostfix === "string" ? ST_CONTINUE_POSTFIX[rawPostfix] : undefined;
   const formatStrings = collectFormatStrings(rawObj);
 
+  // The GLOBAL `power_user` half of ST's generation config (live preset only — see the section above).
+  const { stop, postProcess, reasoningParse, dropped: powerUserDropped } = stPowerUserGenerationKnobs(powerUser);
+  dropped.push(...powerUserDropped);
+
   // Construct + validate via the canonical (lenient) parser — fills defaults, runs the lift, drops
   // anything malformed to a safe shape so the importer can never emit an invalid PromptConfig.
   const config = parsePromptConfig({
     schemaVersion: PROMPT_CONFIG_SCHEMA_VERSION,
     sections,
-    params,
+    params: stop === undefined ? params : { ...params, stop },
     ...(namesBehavior !== undefined ? { namesBehavior } : {}),
     ...(continuePostfix !== undefined ? { continuePostfix } : {}),
     ...(formatStrings !== undefined ? { formatStrings } : {}),
+    ...(postProcess === undefined ? {} : { postProcess }),
+    ...(reasoningParse === undefined ? {} : { reasoningParse }),
   });
 
   return { config, dropped, sectionCount: sections.length };

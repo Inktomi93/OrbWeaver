@@ -15,6 +15,7 @@ import { createImportChats } from "./verbs/import-chats.ts";
 import { createImportGroupChats } from "./verbs/import-group-chats.ts";
 import { createImportPersonas } from "./verbs/import-personas.ts";
 import { createImportPresets } from "./verbs/import-presets.ts";
+import { createImportThemes } from "./verbs/import-themes.ts";
 
 export function createImportService(ctx: ImportContext): ImportService {
   // The single-chat door is a thin arm over the two format verbs; all three are wired HERE (a verb never
@@ -29,6 +30,7 @@ export function createImportService(ctx: ImportContext): ImportService {
     importChatFile: createImportChatFile(ctx, importChats, importChatBundle),
     importPersonas: createImportPersonas(ctx),
     ...createImportPresets(ctx),
+    ...createImportThemes(ctx),
     ...createImportGroupChats(ctx),
   };
 }

@@ -1,6 +1,7 @@
 // Security boundary for user/character theming: a custom-property VALUE must be parsed + clamped
 // here before it reaches the DOM (color must parse as a color, dimension snaps to the token scale,
 // font is allowlisted) — anything that fails is dropped, never applied raw.
+import { THEME_DERIVATION as KIT_THEME_DERIVATION } from "@orb/kit/theme-derivation";
 import { z } from "zod";
 import { isSafeColor } from "#lib";
 
@@ -99,14 +100,14 @@ export const THEME_SCOPE_EMIT_VARS = [
 
 // OKLCH lightness deltas of the neutral surface ramp relative to the base `background`, applied via
 // CSS relative-color-syntax so any base color format works and only L shifts (hue + chroma held).
-const RAMP_DL_SIDEBAR = -0.026;
-const RAMP_DL_SURFACE_RAISED = 0.027;
-const RAMP_DL_CARD = 0.047;
-const RAMP_DL_POPOVER = 0.087;
-const RAMP_DL_ACCENT = 0.127;
-const RAMP_DL_SIDEBAR_ACCENT = 0.077;
-const RAMP_DL_SECONDARY = 0.097;
-const RAMP_DL_MUTED = 0.097;
+const RAMP_DL_SIDEBAR = KIT_THEME_DERIVATION.ramp.sidebar;
+const RAMP_DL_SURFACE_RAISED = KIT_THEME_DERIVATION.ramp.surfaceRaised;
+const RAMP_DL_CARD = KIT_THEME_DERIVATION.ramp.card;
+const RAMP_DL_POPOVER = KIT_THEME_DERIVATION.ramp.popover;
+const RAMP_DL_ACCENT = KIT_THEME_DERIVATION.ramp.accent;
+const RAMP_DL_SIDEBAR_ACCENT = KIT_THEME_DERIVATION.ramp.sidebarAccent;
+const RAMP_DL_SECONDARY = KIT_THEME_DERIVATION.ramp.secondary;
+const RAMP_DL_MUTED = KIT_THEME_DERIVATION.ramp.muted;
 const SURFACE_RAMP_DELTAS: ReadonlyArray<readonly [name: string, deltaL: number]> = [
   ["--color-sidebar", RAMP_DL_SIDEBAR],
   ["--color-surface-raised", RAMP_DL_SURFACE_RAISED],
@@ -121,42 +122,30 @@ const SURFACE_RAMP_DELTAS: ReadonlyArray<readonly [name: string, deltaL: number]
 // Contrast-safe foreground derivation: L flips light↔dark around a pivot with a steep step, so any
 // surface lighter than the pivot gets near-black text and darker gets near-white — a foreground is
 // never picked directly, only derived, so "set everything white" can't produce invisible text.
-const FG_PIVOT_L = 0.62;
-const FG_STEEPNESS = 1000;
-const FG_L_MIN = 0.22;
-const FG_L_MAX = 0.96;
+const FG_PIVOT_L = KIT_THEME_DERIVATION.fgPivotL;
+const FG_STEEPNESS = KIT_THEME_DERIVATION.fgSteepness;
+const FG_L_MIN = KIT_THEME_DERIVATION.fgLMin;
+const FG_L_MAX = KIT_THEME_DERIVATION.fgLMax;
 const CONTRAST_L = `clamp(${FG_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${FG_L_MAX})`;
-const BORDER_ALPHA = 0.14;
-const INPUT_ALPHA = 0.12;
+const BORDER_ALPHA = KIT_THEME_DERIVATION.borderAlpha;
+const INPUT_ALPHA = KIT_THEME_DERIVATION.inputAlpha;
 // Muted foreground: same pivot flip, softer band, tuned to clear WCAG AA (>=4.5:1) against the
 // derived input fill on both light and dark bases.
-const MUTED_L_MIN = 0.34;
-const MUTED_L_MAX = 0.82;
+const MUTED_L_MIN = KIT_THEME_DERIVATION.mutedLMin;
+const MUTED_L_MAX = KIT_THEME_DERIVATION.mutedLMax;
 const MUTED_CONTRAST_L = `clamp(${MUTED_L_MIN}, (${FG_PIVOT_L} - l) * ${FG_STEEPNESS}, ${MUTED_L_MAX})`;
 /**
  * The numeric derivation constants, exported so the seed-palette-contrast test recomputes the
  * derived colors independently and proves every pairing clears WCAG AA against the real constants.
+ *
+ * ONE HOME, in `@orb/kit/theme-derivation` (2026-08-08). The numbers moved DOWN the cake because a second
+ * consumer appeared that `@orb/ui` cannot reach and that cannot reach `@orb/ui`: the SillyTavern theme
+ * importer (`@orb/server` `domain/import/substrate/theme.ts`) must PREDICT this derivation in node to decide
+ * whether a foreign palette converts safely — a base surface whose derived pairs would not clear WCAG AA is
+ * refused rather than imported. This alias keeps every existing consumer's name (`THEME_DERIVATION` off the
+ * clamp) while the values have exactly one declaration.
  */
-export const THEME_DERIVATION = {
-  fgPivotL: FG_PIVOT_L,
-  fgSteepness: FG_STEEPNESS,
-  fgLMin: FG_L_MIN,
-  fgLMax: FG_L_MAX,
-  mutedLMin: MUTED_L_MIN,
-  mutedLMax: MUTED_L_MAX,
-  borderAlpha: BORDER_ALPHA,
-  inputAlpha: INPUT_ALPHA,
-  ramp: {
-    sidebar: RAMP_DL_SIDEBAR,
-    surfaceRaised: RAMP_DL_SURFACE_RAISED,
-    card: RAMP_DL_CARD,
-    popover: RAMP_DL_POPOVER,
-    accent: RAMP_DL_ACCENT,
-    sidebarAccent: RAMP_DL_SIDEBAR_ACCENT,
-    secondary: RAMP_DL_SECONDARY,
-    muted: RAMP_DL_MUTED,
-  },
-} as const;
+export const THEME_DERIVATION = KIT_THEME_DERIVATION;
 
 // Strict L-parse of an `oklch(L C H[ / A])` literal — the form the theme editor emits. L is the first
 // component: a 0–1 number OR a percentage. Anything else (a named color, rgb()/hsl(), a var()) returns
