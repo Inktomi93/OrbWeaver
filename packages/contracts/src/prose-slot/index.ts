@@ -67,6 +67,35 @@ export const PROSE_SLOT_IDS = [
   // ── per-PRESET: the compaction steering (census 49) — ADAPTED like guided/format: the override is the
   //    pre-PROSE-1 `promptConfig.compaction.instructions` field, not a `promptConfig.prose` row. ──
   "preset.compaction.instructions",
+  // ── per-PRESET: the Rewrite modal's toggle fragments (census 53-59) — the templating fork ruled ARM B
+  //    (owner, 2026-08-09, `docs/design/templating-fork-rows-53-73.md`): the fragment BYTES are prose slots
+  //    resolved SERVER-side at the seam that already holds the preset blob, and the wire carries only the
+  //    toggle KINDS. NOT legacy-adapted: their storage is `promptConfig.prose`, so each has a Templates-tab
+  //    row. `macros:"none"` (PROSE-1 §6.1): a fragment is composed INTO the steer that becomes `{{input}}`
+  //    and is neutralized downstream, so a `{{…}}` here would reach the model as literal braces. ──
+  "preset.rewriteToggle.concise",
+  "preset.rewriteToggle.expand",
+  "preset.rewriteToggle.novella",
+  "preset.rewriteToggle.internetRp",
+  "preset.rewriteToggle.literary",
+  "preset.rewriteToggle.pastTense",
+  "preset.rewriteToggle.presentTense",
+  // ── per-PRESET: the greeting studio's transform fragments (census 60-73) — the same ARM B ruling. The
+  //    greeting seam resolves them from the caller's default-preset blob (`resolveGreetingTemplate`). ──
+  "preset.greetingTransform.firstPersonStandard",
+  "preset.greetingTransform.firstPersonByName",
+  "preset.greetingTransform.firstPersonAsYou",
+  "preset.greetingTransform.secondPerson",
+  "preset.greetingTransform.thirdPerson",
+  "preset.greetingTransform.pastTense",
+  "preset.greetingTransform.presentTense",
+  "preset.greetingTransform.novellaStyle",
+  "preset.greetingTransform.internetRpStyle",
+  "preset.greetingTransform.literaryStyle",
+  "preset.greetingTransform.scriptStyle",
+  "preset.greetingTransform.heHim",
+  "preset.greetingTransform.sheHer",
+  "preset.greetingTransform.theyThem",
   // ── per-USER: the imagery prompt catalog (census 82-90) ──
   "imagery.template.character",
   "imagery.template.face",

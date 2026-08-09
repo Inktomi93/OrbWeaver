@@ -11,6 +11,7 @@ import {
   DEFAULT_MARKER_TEMPLATES,
   DEFAULT_PROMPT_CONFIG,
   GREETING_TRANSFORM_AXES,
+  GREETING_TRANSFORM_IDS,
   GREETING_TRANSFORMS,
   GUIDED_ACTION_KINDS,
   guidedActionConfigSchema,
@@ -29,6 +30,8 @@ import {
   QUALITY_LEVELS,
   RECEIVE_POST_PROCESS_ORDER,
   REPLY_LANE_STEPS,
+  REWRITE_TOGGLE_IDS,
+  REWRITE_TOGGLES,
   SIDE_GEN_POSTURES,
   TEMPLATE_CLUSTERS,
   TEMPLATE_DEF_BY_ID,
@@ -404,15 +407,18 @@ test("GuidedActionKind is the canonical KIND name (the §7.5 axis), not neo's Gu
   expect(GUIDED_ACTION_KINDS.length).toBe(GUIDED_ACTION_COUNT);
 });
 
-// ── GREETING_TRANSFORMS catalog (audit §3) — the registry-as-data the client renders chips from blind ──
+// ── The one-click steer catalogs (census 53-73) — registry-as-data the client renders chips from blind,
+// whose FRAGMENT BYTES are prose slots since the templating fork's ARM B (owner 2026-08-09). These pin the
+// catalog↔slot join both seams walk: a row pointing at a missing/blank/macro-carrying slot would compose a
+// broken steer, and neither the wire enum nor the registry coverage test can see that.
 
 test("GREETING_TRANSFORMS has stable unique ids and every axis is a declared GREETING_TRANSFORM_AXES member", () => {
   const ids = GREETING_TRANSFORMS.map((t) => t.id);
   expect(new Set(ids).size).toBe(ids.length); // no dup ids
+  expect(ids).toStrictEqual([...GREETING_TRANSFORM_IDS]); // the wire vocabulary IS the catalog, in order
   for (const t of GREETING_TRANSFORMS) {
     expect(GREETING_TRANSFORM_AXES).toContain(t.axis);
     expect(t.label.length).toBeGreaterThan(0);
-    expect(t.fragment.length).toBeGreaterThan(0);
   }
 });
 
@@ -422,11 +428,29 @@ test("GREETING_TRANSFORMS covers all four axes (perspective/tense/style/gender)"
   }
 });
 
-test("GREETING_TRANSFORMS fragments carry NO macros (they are ZWSP-neutralized as {{input}} downstream)", () => {
+test("REWRITE_TOGGLES has stable unique ids matching the wire vocabulary, in order", () => {
+  const ids = REWRITE_TOGGLES.map((t) => t.id);
+  expect(new Set(ids).size).toBe(ids.length);
+  expect(ids).toStrictEqual([...REWRITE_TOGGLE_IDS]);
+  for (const t of REWRITE_TOGGLES) {
+    expect(t.label.length).toBeGreaterThan(0);
+  }
+});
+
+test("every one-click steer row points at a REAL preset-homed slot with authored, macro-free bytes", () => {
   // The composed steer becomes the template's {{input}}, which is macro-neutralized — a {{…}} in a fragment
-  // would render as literal braces. The catalog spells "the user"/"the character" in plain words instead.
-  for (const t of GREETING_TRANSFORMS) {
-    expect(t.fragment).not.toContain("{{");
+  // would render as literal braces. The catalogs spell "the user"/"the character" in plain words instead.
+  // (`macros:"none"` states the same fact in the type; this asserts the BYTES actually obey it.)
+  for (const row of [...REWRITE_TOGGLES, ...GREETING_TRANSFORMS]) {
+    const slot = PROSE_SLOTS[row.slot];
+    expect(slot, row.slot).toBeDefined();
+    expect(slot.home, row.slot).toBe("preset");
+    expect(slot.macros, row.slot).toBe("none");
+    expect(slot.text.length, row.slot).toBeGreaterThan(0);
+    expect(slot.text, row.slot).not.toContain("{{");
+    // Host-editable: preset-homed and NOT legacy-adapted, so it is in the `promptConfig.prose` editable set
+    // (which is what gives it a Templates-tab row — the two-sided coverage lives in tests/contracts/prose/).
+    expect(PRESET_PROSE_SLOT_IDS, row.slot).toContain(row.slot);
   }
 });
 

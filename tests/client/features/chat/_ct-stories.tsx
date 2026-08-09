@@ -81,7 +81,6 @@ import { buildCastAvatarMaps, buildCastNameContext, DEFAULT_GROUP_CONFIG } from 
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
-import { composeRewriteSteer } from "@orb/kit/guided";
 import type { AssetId, CharacterId, ChatId, DocumentId, Handle, MessageId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -999,10 +998,12 @@ export function ComposerStory(props: ComposerStoryProps): ReactElement {
 }
 
 // ── Rewrite dialog story (the guided-Rewrite modal in isolation) ─────────────────────────────────
-// Owns the instruction + toggle-selection state exactly as the wand does (the modal is controlled), and
-// composes the SAME `composeRewriteSteer` the wand fires on Apply — the composed steer is written to a
-// readout so the CT can assert the exact fired string WITHOUT a tRPC round-trip (the pure-component lane;
-// the wand's own CT proves the tRPC wire). `initialInstruction` seeds the field (the draft-preseed case).
+// Owns the instruction + toggle-selection state exactly as the wand does (the modal is controlled), and on
+// Apply writes what the wand FIRES to a readout — the picked toggle IDS in catalog order + the instruction,
+// so the CT can assert them WITHOUT a tRPC round-trip (the pure-component lane; the wand's own CT proves the
+// tRPC wire). It reports IDS, not composed bytes: since the templating fork's ARM B the fragments are preset
+// prose slots the SERVER joins, so composed bytes are not a thing this surface can honestly produce.
+// `initialInstruction` seeds the field (the draft-preseed case).
 
 export interface RewriteDialogStoryProps {
   /** Seeds the instruction field on mount (the composer-draft preseed case). @defaultValue "" */
@@ -1019,7 +1020,7 @@ function RewriteDialogStoryInner({ initialInstruction = "" }: RewriteDialogStory
       <button type="button" data-testid="reopen" onClick={(): void => setOpen(true)}>
         open
       </button>
-      <div data-testid="fired-steer">{fired}</div>
+      <div data-testid="fired-toggles">{fired}</div>
       <RewriteDialog
         open={open}
         onOpenChange={setOpen}
@@ -1038,8 +1039,9 @@ function RewriteDialogStoryInner({ initialInstruction = "" }: RewriteDialogStory
           })
         }
         onApply={(): void => {
-          const fragments = REWRITE_TOGGLES.filter((t) => selected.has(t.id)).map((t) => t.fragment);
-          setFired(composeRewriteSteer(fragments, instruction));
+          // What the wand fires: the picked ids in CATALOG order, then the instruction — the wire shape.
+          const picked = REWRITE_TOGGLES.filter((t) => selected.has(t.id)).map((t) => t.id);
+          setFired([...picked, instruction].filter((part) => part.length > 0).join(" | "));
           setOpen(false);
         }}
       />
@@ -1047,7 +1049,7 @@ function RewriteDialogStoryInner({ initialInstruction = "" }: RewriteDialogStory
   );
 }
 
-/** The Rewrite modal in isolation — controlled state + a composed-steer readout (`fired-steer`). */
+/** The Rewrite modal in isolation — controlled state + a fired-picks readout (`fired-toggles`). */
 export function RewriteDialogStory(props: RewriteDialogStoryProps): ReactElement {
   return (
     <CtDataProviders>

@@ -8,6 +8,7 @@
 
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -64,6 +65,9 @@ export interface CharacterHarness {
   setGreetingTemplate: (template: string) => void;
   /** Override the {text,costUsd} the generateGreetingText fake returns (default: echoes the prompt). */
   setGreetingText: (result: { readonly text: string; readonly costUsd: number | null }) => void;
+  /** Override the caller's preset prose the resolveGreetingTemplate fake returns (default: `{}` = the
+   *  shipped slot defaults, i.e. the pre-fork fragment bytes). */
+  setGreetingProse: (prose: ProseOverrides) => void;
 }
 
 /** Build the CharacterContext over a real db with deterministic + recording fakes. */
@@ -84,6 +88,9 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
   const greetingTextCalls: { caller: Principal; prompt: string }[] = [];
   let greetingTemplate = "[TPL {{base}} {{input}}]";
   let greetingText: { text: string; costUsd: number | null } | null = null;
+  // The caller's preset prose overrides (ARM B): the greeting studio's transform fragments are
+  // `preset.greetingTransform.*` slots the verb resolves through this op. `{}` = the shipped defaults.
+  let greetingProse: ProseOverrides = {};
 
   const ctx: CharacterContext = {
     db,
@@ -126,9 +133,9 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
     // Greeting studio (audit §3) — recording fakes: the template resolver records the caller+kind, the
     // completion records the caller+prompt (so a test asserts the owner-gate fired BEFORE any completion,
     // and the prompt carried the resolved template + neutralized base/steer). Default text echoes the prompt.
-    resolveGreetingTemplate: ({ caller, kind }): Promise<string> => {
+    resolveGreetingTemplate: ({ caller, kind }): Promise<{ template: string; prose: ProseOverrides }> => {
       greetingTemplateCalls.push({ caller, kind });
-      return Promise.resolve(greetingTemplate);
+      return Promise.resolve({ template: greetingTemplate, prose: greetingProse });
     },
     generateGreetingText: ({ caller, prompt }): Promise<{ text: string; costUsd: number | null }> => {
       greetingTextCalls.push({ caller, prompt });
@@ -162,6 +169,9 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
     },
     setGreetingText: (result: { text: string; costUsd: number | null }): void => {
       greetingText = result;
+    },
+    setGreetingProse: (prose: ProseOverrides): void => {
+      greetingProse = prose;
     },
   };
 }

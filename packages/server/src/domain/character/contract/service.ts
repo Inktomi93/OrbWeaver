@@ -4,6 +4,7 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type { DomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
@@ -57,10 +58,19 @@ export type DetachCardTagOp = (args: { readonly ownerId: UserId; readonly charac
  *  `ownerId` is the owned-source gate — the op re-checks BOTH ends rather than trusting the call site. */
 type CopyCharacterBooksOp = (args: { readonly ownerId: UserId; readonly fromCharacterId: CharacterId; readonly toCharacterId: CharacterId }) => Promise<void>;
 
-/** The editable greeting-studio template resolved from the CALLER's preset `guidedActions` (audit §3): the
- *  `greeting_rewrite`/`greeting_new` prompt string. Wired at compose to the preset domain's active-preset
- *  read; character never imports preset. */
-type ResolveGreetingTemplateOp = (args: { readonly caller: Principal; readonly kind: "greeting_rewrite" | "greeting_new" }) => Promise<string>;
+/** The editable greeting-studio prompt material resolved from the CALLER's preset (audit §3): the
+ *  `greeting_rewrite`/`greeting_new` `guidedActions` template PLUS that preset's `prose` overrides. Wired at
+ *  compose to the preset domain's active-preset read; character never imports preset.
+ *
+ *  The `prose` half landed with the templating fork's ARM B (owner 2026-08-09): the greeting studio's
+ *  transform fragments are `preset.greetingTransform.*` slots now, so the verb needs the same override bag
+ *  the chat assembly seam already composes — the wire carries the picked ids, the bytes are resolved HERE.
+ *  Absent overrides (`{}`) resolve every fragment to its shipped default, which is byte-identical to the
+ *  pre-fork client-composed steer. */
+type ResolveGreetingTemplateOp = (args: {
+  readonly caller: Principal;
+  readonly kind: "greeting_rewrite" | "greeting_new";
+}) => Promise<{ readonly template: string; readonly prose: ProseOverrides }>;
 
 /** The bounded side-LLM completion the greeting-studio verbs await (the imagery `captionImage` precedent —
  *  the summarize lane at compose). ONE prompt in, `{text, costUsd}` out; the caller's connection is resolved

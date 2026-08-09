@@ -531,3 +531,48 @@ test("game steers are ABSENT in the ✨ menu on a non-game chat", async ({ mount
   await component.getByRole("button", { name: "Message tools" }).click();
   await expect(page.getByRole("menuitem", { name: "Offer choices" })).toHaveCount(0);
 });
+
+// ARM B (the templating fork, rows 53-73): the Rewrite modal's toggle picks ride the wire as KINDS. The
+// composed fragment BYTES are the server's job now — the wire carries `guided.rewriteToggles` (the ids, in
+// catalog order) plus the user's own free text, exactly like `gameSteer` carries a kind and never a template
+// ("the wire carries only the kind, never template text", contracts/chat/metadata.ts). Asserted on the
+// DECODED REQUEST BODY, which is the only place the fork is observable from the client.
+test("Corrections fires the toggle KINDS on the wire — no composed fragment bytes leave the browser", async ({ mount, page }) => {
+  const tail = makeMessageView({ id: TAIL_ASSISTANT_ID, role: "assistant" });
+  const trpc = await routeTrpc(page, { "chat.listMessages": () => makeMessagesPage([tail]), "chat.swipe": () => ({ ok: true }) });
+  const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
+
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await page.getByRole("menuitem", { name: "Corrections…" }).click();
+  // Flip a LATER catalog member first — the wire list is CATALOG order, not click order.
+  await page.getByRole("switch", { name: "Past tense" }).click();
+  await page.getByRole("switch", { name: "More concise" }).click();
+  await page.getByRole("textbox", { name: "Correction instruction" }).fill("keep the plot beats");
+  await page.getByRole("button", { name: "Rewrite" }).click();
+
+  await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
+  // ONESHOT-OK: the poll settled the recorder at exactly 1 call.
+  const input = trpc.lastInput("chat.swipe") as { guided?: { action?: string; input?: string; rewriteToggles?: readonly string[] } };
+  expect(input.guided?.action).toBe("rewrite");
+  expect(input.guided?.rewriteToggles).toStrictEqual(["concise", "past-tense"]);
+  expect(input.guided?.input).toBe("keep the plot beats");
+  // The fragment bytes stayed on the server side of the boundary.
+  expect(JSON.stringify(input)).not.toContain("cut filler");
+});
+
+test("Corrections with ONLY toggles (no typed instruction) still fires — the kinds are the whole steer", async ({ mount, page }) => {
+  const tail = makeMessageView({ id: TAIL_ASSISTANT_ID, role: "assistant" });
+  const trpc = await routeTrpc(page, { "chat.listMessages": () => makeMessagesPage([tail]), "chat.swipe": () => ({ ok: true }) });
+  const component = await mount(<ComposerStory tailRole="assistant" tailAssistantMessageId={TAIL_ASSISTANT_ID} />);
+
+  await component.getByRole("button", { name: "Message tools" }).click();
+  await page.getByRole("menuitem", { name: "Corrections…" }).click();
+  await page.getByRole("switch", { name: "Literary style" }).click();
+  await page.getByRole("button", { name: "Rewrite" }).click();
+
+  await expect.poll(() => trpc.count("chat.swipe"), { intervals: [20, 50, 100] }).toBe(1);
+  // ONESHOT-OK: the poll settled the recorder at exactly 1 call.
+  const input = trpc.lastInput("chat.swipe") as { guided?: { input?: string; rewriteToggles?: readonly string[] } };
+  expect(input.guided?.rewriteToggles).toStrictEqual(["literary"]);
+  expect(input.guided?.input).toBeUndefined();
+});

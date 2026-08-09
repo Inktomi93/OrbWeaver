@@ -1,6 +1,20 @@
 # The templating fork — PROSE-1 census rows 53-73 (REWRITE\_TOGGLES / GREETING\_TRANSFORMS)
 
-**Status:** OPEN — awaiting an owner ruling. Nothing is built against it.
+**Status:** RULED **ARM B** (owner, 2026-08-09) and **BUILT** in the same pass. What landed, against §4's
+inherited list:
+
+| what | where |
+| - | - |
+| 21 slots (`preset.rewriteToggle.*` ×7, `preset.greetingTransform.*` ×14), `macros:"none"`, preset-homed and NOT legacy-adapted | `packages/contracts/src/preset/prose.ts` (two new tables) + `prose-slot/index.ts` (the id tuple) + `prose/index.ts` (composition) |
+| the catalogs keep `id`/`label`/`axis` and now carry a `slot` pointer INSTEAD of `fragment` — the bytes have one home | `packages/contracts/src/preset/index.ts` |
+| the wire carries KINDS: `guidedSteerSchema.rewriteToggles` (enum) + `transforms` on both greeting params/procedures | `contracts/chat/metadata.ts`, `server/domain/character/contract/params.ts`, `transport/trpc/routers/character.ts` |
+| ONE resolver for "picked ids → ordered resolved fragments" | `resolveSteerFragments`, `contracts/prose/index.ts` |
+| server composition at the two seams that already hold the prose blob | `chat/assembly/context.ts` (`composeSteerInput`, also feeding the WI haystack) · `character/substrate/greeting-studio.ts` (`composeGreetingSteer`), with `resolveGreetingTemplate` now returning `{template, prose}` |
+| 21 Templates-tab rows — `steer` kind for the toggles, `studio` for the transforms (no new kind: each cohort's delivery IS the kind's existing statement) | `TEMPLATE_DEFS`, `contracts/preset/index.ts` |
+| byte-parity proofs (server-composed bytes == the old client-composed bytes) + wire receipts | `tests/server/domain/chat/assembly/context.int.test.ts`, `tests/server/domain/character/verbs/rewrite-greeting.int.test.ts`, `tests/client/features/chat/components/composer-guided-cluster.ct.tsx`, `tests/client/components/greeting-studio.ct.tsx` |
+
+`composeRewriteSteer` (kit) is byte-unchanged — the fork moved its CALLER, never the join. The rest of this
+file is the reconstruction the ruling was made from; it is kept as the record of the arms.
 **Why this file exists:** the board carried the fork as one parenthetical (`docs/retro-workboard.md:601-603`
 — *"REWRITE\_TOGGLES/GREETING\_TRANSFORMS fragment bytes — client-composed via kit, a design fork"*) and the
 history board as one more (`docs/history/retro-workboard-2026-08-08.md:1133`). Neither states the arms, and

@@ -4,10 +4,14 @@
 // resolved room `ownerId`, not a request principal) — NOT exposed here.
 
 import { characterListCursorSchema, characterListSortSchema, createCharacterSchema, updateCharacterSchema } from "@orb/contracts/character";
+import { GREETING_TRANSFORM_IDS } from "@orb/contracts/preset";
 import type { CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
+
+/** The greeting studio's picked transform KINDS — DERIVED from the catalog's id tuple, never re-spelled. */
+const greetingTransformIds = z.array(z.enum(GREETING_TRANSFORM_IDS));
 
 export const characterRouter = t.router({
   create: authedProcedure
@@ -133,23 +137,30 @@ export const characterRouter = t.router({
 
   // Greeting studio (audit §3): owner-gated bounded completions that RETURN text and NEVER write — the
   // client appends the accepted result to `characters.greetings` via `character.update`. Honest wire schemas
-  // (no z.any): branded id + plain strings (the composed steer +, for rewrite, the base greeting text).
+  // (no z.any): branded id + plain strings (the host's free-text steer +, for rewrite, the base greeting
+  // text) + the picked transform KINDS. `transforms` is ENUM-validated, never prompt text: the fragment
+  // bytes are `preset.greetingTransform.*` prose slots the verb resolves from the caller's preset (the
+  // templating fork, ARM B — owner 2026-08-09), the same doctrine `guidedSteerSchema.gameSteer` states.
   rewriteGreeting: authedProcedure
-    .input(z.object({ characterId: brandedId<CharacterId>(), greeting: z.string(), steer: z.string() }))
+    .input(z.object({ characterId: brandedId<CharacterId>(), greeting: z.string(), steer: z.string(), transforms: greetingTransformIds.optional() }))
     .mutation(({ ctx, input }) =>
       ctx.services.character.rewriteGreeting({
         principal: ctx.auth,
         characterId: input.characterId,
         greeting: input.greeting,
         steer: input.steer,
+        ...(input.transforms === undefined ? {} : { transforms: input.transforms }),
       }),
     ),
 
-  generateGreeting: authedProcedure.input(z.object({ characterId: brandedId<CharacterId>(), steer: z.string() })).mutation(({ ctx, input }) =>
-    ctx.services.character.generateGreeting({
-      principal: ctx.auth,
-      characterId: input.characterId,
-      steer: input.steer,
-    }),
-  ),
+  generateGreeting: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>(), steer: z.string(), transforms: greetingTransformIds.optional() }))
+    .mutation(({ ctx, input }) =>
+      ctx.services.character.generateGreeting({
+        principal: ctx.auth,
+        characterId: input.characterId,
+        steer: input.steer,
+        ...(input.transforms === undefined ? {} : { transforms: input.transforms }),
+      }),
+    ),
 });

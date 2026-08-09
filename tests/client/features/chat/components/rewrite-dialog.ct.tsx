@@ -1,9 +1,10 @@
 // CT: the guided-Rewrite modal (rewrite-dialog.tsx) in isolation — the owner-ruled "rewrite needs a modal
 // because it has toggle options to guide it" surface. Mounts through the `RewriteDialogStory` (the CT rule:
 // mount only from a non-test module), which owns the controlled instruction + toggle state exactly as the
-// wand does and composes the SAME `composeRewriteSteer` into a `fired-steer` readout on Apply. Proves:
-// renders instruction + the toggle catalog, the draft pre-seed, toggles compose into the fired steer in
-// CATALOG order (not click order), the empty-steer Apply gate, and Esc/Cancel preserving state.
+// wand does and writes what Apply FIRES (the picked ids in catalog order + the instruction) into a
+// `fired-toggles` readout. Proves:
+// renders instruction + the toggle catalog, the draft pre-seed, toggles fire their IDS in CATALOG order
+// (not click order), the empty-steer Apply gate, and Esc/Cancel preserving state.
 //
 // The dialog renders through a Base UI Portal, so every field/switch/button assertion uses the PAGE
 // locator (`page.getByRole`), never `component` (the menu.ct.tsx split precedent).
@@ -25,18 +26,17 @@ test("the instruction field is pre-seeded from the composer draft", async ({ mou
   await expect(page.getByRole("textbox", { name: "Correction instruction" })).toHaveValue("drop the anachronism");
 });
 
-test("selected toggles compose their fragments + the free text into the fired steer, in catalog order", async ({ mount, page }) => {
+test("selected toggles fire their IDS + the free text, in catalog order", async ({ mount, page }) => {
   await mount(<RewriteDialogStory initialInstruction="keep the plot beats" />);
 
-  // Flip "Past tense" (later in the catalog) BEFORE "More concise" (first) — the composed order is CATALOG
-  // order regardless of click order.
+  // Flip "Past tense" (later in the catalog) BEFORE "More concise" (first) — the fired order is CATALOG
+  // order regardless of click order. IDS, not fragment bytes: since the templating fork's ARM B the
+  // fragments are preset prose slots the SERVER resolves and joins (the wire carries only the kind).
   await page.getByRole("switch", { name: "Past tense" }).click();
   await page.getByRole("switch", { name: "More concise" }).click();
   await page.getByRole("button", { name: "Rewrite" }).click();
 
-  await expect(page.getByTestId("fired-steer")).toHaveText(
-    "Make it more concise and tighter — cut filler while keeping the substance. Rewrite entirely in the past tense. keep the plot beats.",
-  );
+  await expect(page.getByTestId("fired-toggles")).toHaveText("concise | past-tense | keep the plot beats");
 });
 
 test("Apply is disabled with no instruction and no toggle (an empty steer is an unguided reroll)", async ({ mount, page }) => {
@@ -55,7 +55,7 @@ test("Esc closes the modal without firing, preserving the typed instruction on r
 
   // Nothing fired (the readout stays empty), and re-opening shows the preserved instruction (state is owned
   // above the dialog, so a cancel never destroys it).
-  await expect(page.getByTestId("fired-steer")).toHaveText("");
+  await expect(page.getByTestId("fired-toggles")).toHaveText("");
   await page.getByTestId("reopen").click();
   await expect(page.getByRole("textbox", { name: "Correction instruction" })).toHaveValue("fix the timeline and tone");
 });
