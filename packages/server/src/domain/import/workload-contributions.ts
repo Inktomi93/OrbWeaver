@@ -26,8 +26,9 @@ async function settleImportRun(args: {
   readonly ownerId: UserId;
   readonly report: ReportProgress;
   readonly reconcileImportStats: (a: { readonly ownerId: UserId }) => Promise<void>;
+  readonly emitLibraryChanged: (a: { readonly ownerId: UserId }) => void;
 }): Promise<void> {
-  const { result, dryRun, ownerId, report, reconcileImportStats } = args;
+  const { result, dryRun, ownerId, report, reconcileImportStats, emitLibraryChanged } = args;
   if (result.failed > 0) {
     // Per-card isolation surfaced: some cards were skipped but the batch completed (never a hard abort).
     report({ message: `imported with ${result.failed} card(s) skipped (validation)` });
@@ -38,6 +39,8 @@ async function settleImportRun(args: {
   if (!dryRun && result.changed > 0) {
     report({ message: "reconciling stats post-import" });
     await reconcileImportStats({ ownerId });
+    // #23: refresh the owner's character + chat lists (background import has no other client driver).
+    emitLibraryChanged({ ownerId });
   }
 }
 
@@ -105,7 +108,14 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
             await rmContained(deps.stagingRoot, profileRoot);
           }
         }
-        await settleImportRun({ result, dryRun, ownerId: targetOwnerId, report, reconcileImportStats: deps.reconcileImportStats });
+        await settleImportRun({
+          result,
+          dryRun,
+          ownerId: targetOwnerId,
+          report,
+          reconcileImportStats: deps.reconcileImportStats,
+          emitLibraryChanged: deps.emitLibraryChanged,
+        });
         return {
           scanned: result.scanned,
           changed: result.changed,
@@ -135,6 +145,11 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
             params.source === "dir"
               ? await deps.runStagedDirImport({ stagedPath, ownerId: targetOwnerId, signal })
               : await deps.runBundleImport({ archive: await readFile(stagedPath), ownerId: targetOwnerId, stagingRoot: deps.stagingRoot, signal });
+          // #23: a background bundle/tree import that wrote canon refreshes the owner's character + chat lists
+          // (the client's own completion invalidation only fires while the import UI stayed mounted).
+          if (report_.imported > 0) {
+            deps.emitLibraryChanged({ ownerId: targetOwnerId });
+          }
           return { imported: report_.imported, skipped: report_.skipped, failed: report_.failed };
         } finally {
           await rmContained(deps.stagingRoot, stagedPath);

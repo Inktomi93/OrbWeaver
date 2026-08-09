@@ -1,11 +1,14 @@
 // The pinned QueryClient. The SSE bus drives freshness; these knobs make that model correct: staleTime
 // Infinity (never 'static', which would silently ignore invalidateQueries), refetchOnReconnect true
 // (the SSE-gap catch-up), refetchOnWindowFocus false (the bus owns liveness), mutations retry 0.
-// Global error surfacing lives here: QueryCache/MutationCache onError read meta.errorToast.
+// Global error surfacing lives here: QueryCache/MutationCache onError read meta.errorToast, and every
+// settled error also passes the stale-session belt (#23b) — a mid-session UNAUTHORIZED re-auths instead of
+// silently rendering the per-user empty.
 
 import type { Query } from "@tanstack/react-query";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { notify } from "#lib";
+import { recoverIfStaleSession } from "./stale-session.ts";
 
 /** Per-query/mutation meta — the sanctioned v5 carrier for global-handler config. */
 export interface AppMeta {
@@ -58,11 +61,13 @@ export function createAppQueryClient(): QueryClient {
     },
     queryCache: new QueryCache({
       onError: (error, query: Query<unknown, unknown, unknown>): void => {
+        recoverIfStaleSession(error);
         toastFromMeta(query.meta, error);
       },
     }),
     mutationCache: new MutationCache({
       onError: (error, _variables, _onMutateResult, mutation): void => {
+        recoverIfStaleSession(error);
         toastFromMeta(mutation.meta, error);
       },
     }),

@@ -94,6 +94,7 @@ export function fakeContributions(): WorkloadContributions {
       runBundleImport: stub({ imported: 0, skipped: 0, failed: 0 }),
       runStagedDirImport: stub({ imported: 0, skipped: 0, failed: 0 }),
       reconcileImportStats: stub(undefined),
+      emitLibraryChanged: () => undefined,
     }),
     ...createReservedWorkloadContributions(),
   ];
