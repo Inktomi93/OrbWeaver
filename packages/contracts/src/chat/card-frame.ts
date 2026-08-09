@@ -56,7 +56,7 @@ export const cardFrameMintRequestSchema = z.strictObject({
   /** The resolved UI font-family list. Re-validated server-side against the font-list grammar. */
   fontFamily: z.string().max(MAX_FONT_FAMILY_CHARS).optional(),
 });
-/** @public type twin of `cardFrameMintRequestSchema`. */
+/** Type twin of `cardFrameMintRequestSchema`. */
 export type CardFrameMintRequest = z.infer<typeof cardFrameMintRequestSchema>;
 
 /** The mint response — the frame URL plus the handle's lifetime, so a long-lived tab can re-mint before a
@@ -68,5 +68,5 @@ export const cardFrameMintResponseSchema = z.strictObject({
    *  instead of inferring one from the trust tier it asked with. Never an input. */
   granted: z.strictObject({ externalMedia: z.boolean(), inlineData: z.boolean() }),
 });
-/** @public type twin of `cardFrameMintResponseSchema`. */
+/** Type twin of `cardFrameMintResponseSchema`. */
 export type CardFrameMintResponse = z.infer<typeof cardFrameMintResponseSchema>;
