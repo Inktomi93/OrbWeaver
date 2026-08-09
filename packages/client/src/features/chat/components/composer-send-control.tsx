@@ -6,7 +6,7 @@
 
 import { Button } from "@orb/ui/button";
 import { Icon, Send, Square } from "@orb/ui/icons";
-import { Spinner } from "@orb/ui/spinner";
+import { WebSpinner } from "@orb/ui/spinner";
 import type { ReactElement } from "react";
 import { testId } from "#lib";
 
@@ -34,7 +34,7 @@ export function ComposerSendControl(props: ComposerSendControlProps): ReactEleme
         onClick={props.onStop}
         className="rounded-full"
       >
-        {props.stopping ? <Spinner size="sm" label="Stopping…" /> : <Icon icon={Square} size="sm" />}
+        {props.stopping ? <WebSpinner size="sm" label="Stopping…" /> : <Icon icon={Square} size="sm" />}
       </Button>
     );
   }

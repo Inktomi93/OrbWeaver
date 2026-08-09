@@ -10,7 +10,7 @@ import { Badge } from "#primitives/badge";
 import { Button } from "#primitives/button";
 import type { LucideIcon } from "#primitives/icons";
 import { AlertTriangle, Check, Icon } from "#primitives/icons";
-import { Spinner } from "#primitives/spinner";
+import { WebSpinner } from "#primitives/spinner";
 import { statusChipVariants } from "./variants.ts";
 
 const STATUS_CHIP_STATUSES = ["idle", "running", "succeeded", "failed"] as const;
@@ -56,7 +56,7 @@ export function StatusChip({ className, status, summary, timestamp, onRetry, ret
     <div {...rest} aria-live="polite" className={cn(slots.root(), className)} data-slot="status-chip-root" role="status">
       <Badge data-slot="status-chip-badge" intent={meta.intent} size={size}>
         {status === "running" ? (
-          <Spinner label={meta.label} size="sm" />
+          <WebSpinner label={meta.label} size="sm" />
         ) : (
           <>
             {glyph === undefined ? null : <Icon icon={glyph} size="xs" />}
