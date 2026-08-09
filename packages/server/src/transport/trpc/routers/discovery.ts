@@ -11,7 +11,7 @@
 // produced nothing usable (SERVICE_UNAVAILABLE, retryable). `classifyDomainError` maps all three, and the
 // content verdicts are ordered AFTER the ownership belt so neither is an existence oracle.
 
-import { DISCOVERY_LIST_MAX_LIMIT, RELATIONS } from "@orb/contracts/discovery";
+import { DISCOVERY_GRAPH_MAX_NODES, DISCOVERY_LIST_MAX_LIMIT, RELATIONS } from "@orb/contracts/discovery";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -172,7 +172,7 @@ export const discoveryRouter = t.router({
       z
         .object({
           minSimilarity: z.number().optional(),
-          maxNodes: z.number().int().positive().optional(),
+          maxNodes: z.number().int().positive().max(DISCOVERY_GRAPH_MAX_NODES).optional(),
         })
         .optional(),
     )

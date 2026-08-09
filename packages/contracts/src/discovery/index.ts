@@ -22,6 +22,12 @@ export const duplicateRelationSchema = z.enum(RELATIONS);
  *  over-bound ask is a BAD_REQUEST rather than the #45-class unbounded fetch. Generous: clients ask ≤ ~40. */
 export const DISCOVERY_LIST_MAX_LIMIT = 500;
 
+/** The node CEILING for the `similarityGraph` read (`maxNodes`), enforced at the transport trust boundary.
+ *  Unlike the top-N reads above this is an ALL-PAIRS in-RAM projection (O(n²)), so an unbounded `maxNodes`
+ *  is a self-DoS: the verb defaults to 120 highest-degree characters; this caps an over-ask rather than
+ *  letting a huge library project a quadratic graph. Generous over the 120 default, bounded for the O(n²). */
+export const DISCOVERY_GRAPH_MAX_NODES = 500;
+
 /** The `suggestCharacterTags` REFUSAL discriminator — the card carries no content beyond its `Name:` line,
  *  so there is nothing to distill and any facets would be invented from the name alone. Homed here (not in
  *  the domain's `contract/errors.ts`) because BOTH ends key on the literal: the server error class rides it
