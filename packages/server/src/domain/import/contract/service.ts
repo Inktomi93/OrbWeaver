@@ -11,6 +11,7 @@ import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId }
 import type { ImportPreset } from "#domain/preset";
 import type { ImportCardScripts } from "#domain/regex";
 import type { ImportRpgGame } from "#domain/rpg";
+import type { SettingsImportOutcome } from "#domain/settings";
 import type { ImportCharacterInput } from "./params.ts";
 import type {
   ImportCharacterResult,
@@ -20,8 +21,9 @@ import type {
   ImportGroupsResult,
   ImportPersonasResult,
   ImportPresetsResult,
+  ImportThemesResult,
 } from "./results.ts";
-import type { CollectedPreset, ImportChatFileInput, ImportChatsInput, ImportGroupsInput, ImportPersonaInput } from "./views.ts";
+import type { CollectedPreset, CollectedTheme, ImportChatFileInput, ImportChatsInput, ImportGroupsInput, ImportPersonaInput } from "./views.ts";
 
 export type CreateImportedCharacter = (args: {
   readonly ownerId: UserId;
@@ -114,7 +116,15 @@ export interface ImportProfileDeps {
    *  the `importLorebook` precedent: absent ⇒ the preset plane simply does not restore (the profile-import
    *  composition always wires it; a card-only wiring has no use for it). */
   readonly importPreset?: ImportPreset;
+  /** Settings-owned theme import op — the ST theme wave hands it orb-native `orb.theme` BYTES, so the
+   *  settings domain keeps its one serde AND its one (ownerId, name) collision rule and import owns neither.
+   *  OPTIONAL on the `importPreset` precedent: absent ⇒ the theme plane simply does not restore. */
+  readonly importTheme?: ImportTheme;
 }
+
+/** Settings-owned theme-backup import write op (`domain/settings` `createImportTheme`). Spelled here as an
+ *  injected-op TYPE rather than imported, exactly like every other cross-domain op on this bundle. */
+type ImportTheme = (ownerId: UserId, bytes: Uint8Array) => Promise<SettingsImportOutcome>;
 
 /** DI bundle every import verb closes over. `profile` is absent for the card-only slice. */
 export interface ImportContext {
@@ -153,6 +163,9 @@ export interface ImportService {
   /** Imports a profile's ST presets (already mapped to the orb-native file by the collector) through the
    *  preset domain's own idempotent import op. Per-preset isolation. Requires ctx.profile. */
   readonly importPresets: (input: { readonly presets: readonly CollectedPreset[] }) => Promise<ImportPresetsResult>;
+  /** Imports a profile's ST UI themes (already mapped to an orb `ThemeOverride` by the collector) through the
+   *  settings domain's own idempotent theme-import op. Per-theme isolation. Requires ctx.profile. */
+  readonly importThemes: (input: { readonly themes: readonly CollectedTheme[] }) => Promise<ImportThemesResult>;
   /** Imports a profile's ST GROUPS as multi-character rooms — one room per group transcript, seated from the
    *  group's member cards resolved BY CARD FILENAME. Per-group and per-member isolation. Requires ctx.profile.
    *  Runs AFTER the character wave (the filename → characterId map is its input). */

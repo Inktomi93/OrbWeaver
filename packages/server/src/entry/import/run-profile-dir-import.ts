@@ -30,15 +30,18 @@ import type { Dirent } from "node:fs";
 import { readdir as readdirFs, readFile as readFileFs, stat as statFs } from "node:fs/promises";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
+import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import { hostTimeZone } from "@orb/kit/time";
 import type { BulkImportChats } from "#domain/chat";
 import type {
+  CollectedBackground,
   CollectedCard,
   CollectedGroup,
   CollectedPersona,
   CollectedPreset,
+  CollectedTheme,
   CollectedWorld,
   ImportFsPort,
   ImportPersonaInput,
@@ -47,13 +50,20 @@ import type {
   ImportSkippedCard,
   ImportSkippedGroup,
   ImportSkippedGroupMember,
+  ImportThemeNote,
 } from "#domain/import";
 import { collectBundlesFromDir, createImportService, importFileHash } from "#domain/import";
 import type { BulkImportPersonas } from "#domain/persona";
 import type { ImportPreset } from "#domain/preset";
+import type { ImportedAppearance, ImportedAppearanceOutcome, SettingsImportOutcome } from "#domain/settings";
 import type { ImportStandaloneLorebook } from "#domain/world-info";
 import type { ImportAssetPort, ImportCharacterPort, ImportTagPort, ImportWorldInfoPort } from "./build-import-context.ts";
 import { buildImportContext } from "./build-import-context.ts";
+
+/** The settings-owned theme-import op (`createImportTheme`) as the driver consumes it. */
+type ImportTheme = (ownerId: UserId, bytes: Uint8Array) => Promise<SettingsImportOutcome>;
+/** The settings-owned `appearance` landing op (`createApplyImportedAppearance`). */
+type ApplyImportedAppearance = (ownerId: UserId, imported: ImportedAppearance) => Promise<ImportedAppearanceOutcome>;
 
 const AVATAR_MIME = "image/png";
 
@@ -62,6 +72,18 @@ const AVATAR_MIME = "image/png";
 function stWallClockZone(deps: ProfileDirImportDeps): string {
   return deps.stWallClockZone ?? hostTimeZone();
 }
+
+/** The CAS store for BACKGROUND blobs. A separate port from the avatar one (which is deliberately narrowed to
+ *  `kind:"avatar"` and returns only an id): a `BackgroundLibraryEntry` needs the content HASH — the picker
+ *  builds `blobUrl(hash)` from it with no async id→hash round-trip — and the kind differs. `enforceMagic` is
+ *  bound TRUE at the composition root: a background's mime is only extension-derived here, so the bytes are
+ *  verified against the claim before they enter the CAS. */
+type ImportBackgroundStore = (params: {
+  readonly principal: Principal;
+  readonly bytes: Uint8Array;
+  readonly mime: string;
+  readonly maxBytes: number;
+}) => Promise<{ readonly assetId: AssetId; readonly hash: string }>;
 
 export interface ProfileDirImportDeps {
   readonly fs: ImportFsPort;
@@ -80,6 +102,18 @@ export interface ProfileDirImportDeps {
    *  on the `importLorebook` precedent: absent ⇒ the preset plane does not restore and every collected preset
    *  is reported skipped-with-reason, never silently dropped. */
   readonly importPreset?: ImportPreset;
+  /** The settings domain's own idempotent theme-import op (`createImportTheme`) — the ST theme wave hands it
+   *  orb-native `orb.theme` bytes. Optional on the `importPreset` precedent: absent ⇒ the theme plane does
+   *  not restore and every converted theme is reported skipped-with-reason, never silently dropped. */
+  readonly importTheme?: ImportTheme;
+  /** The CAS store for the ST `backgrounds/` plane. Optional: absent ⇒ no background imports (and every
+   *  collected file is reported skipped-with-reason). */
+  readonly storeBackground?: ImportBackgroundStore;
+  /** Lands the `appearance` plane (the background-library append + the `power_user` ergonomics patch) in ONE
+   *  serialized settings write. Optional alongside `storeBackground` — both come from the same composition. */
+  readonly applyImportedAppearance?: ApplyImportedAppearance;
+  /** Mints a `BackgroundLibraryEntry`'s stable per-row id (crypto uuid in prod; deterministic in tests). */
+  readonly newBackgroundEntryId?: () => string;
   readonly bulkImportChats: BulkImportChats;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<void>;
@@ -98,6 +132,10 @@ interface CollectRecords {
   readonly unreadableCards: string[];
   readonly unreadableWorlds: string[];
   readonly unreadablePresets: string[];
+  /** Themes the CONVERTER refused (with the reason) — merged with the settings domain's refusals in the report. */
+  readonly refusedThemes: ImportSkippedCard[];
+  /** `backgrounds/*` entries that are not importable media (with the reason). */
+  readonly skippedBackgrounds: ImportSkippedCard[];
   readonly unreadableGroups: string[];
   /** Transcript leaves a group's own `chats[]` claimed with no readable file, merged across every group. */
   readonly missingGroupChats: string[];
@@ -113,6 +151,10 @@ interface Collected extends CollectRecords {
   readonly personas: CollectedPersona[];
   readonly worlds: CollectedWorld[];
   readonly presets: CollectedPreset[];
+  readonly themes: CollectedTheme[];
+  readonly backgrounds: CollectedBackground[];
+  /** The ST `power_user` → orb `appearance` patch. FIRST profile dir that carries one wins (see the wave). */
+  readonly appearance: Record<string, unknown>;
   readonly groups: CollectedGroup[];
   /** ST library-tag assignments merged across every profile dir: card/avatar filename → tag names. */
   readonly tagsByEntityKey: ReadonlyMap<string, readonly string[]>;
@@ -141,6 +183,8 @@ function mergeRecords(into: CollectRecords, from: Awaited<ReturnType<typeof coll
   into.unreadableCards.push(...from.unreadableCards);
   into.unreadableWorlds.push(...from.unreadableWorlds);
   into.unreadablePresets.push(...from.unreadablePresets);
+  into.refusedThemes.push(...from.refusedThemes);
+  into.skippedBackgrounds.push(...from.skippedBackgrounds);
   into.unreadableGroups.push(...from.unreadableGroups);
   for (const g of from.groups) {
     into.missingGroupChats.push(...g.missingChatLeaves);
@@ -161,13 +205,20 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
   const personas: CollectedPersona[] = [];
   const worlds: CollectedWorld[] = [];
   const presets: CollectedPreset[] = [];
+  const themes: CollectedTheme[] = [];
+  const backgrounds: CollectedBackground[] = [];
   const groups: CollectedGroup[] = [];
+  // FIRST profile dir carrying a `power_user` section wins: an ST snapshot is one box's preferences, and
+  // letting a later dir's `fontScale` overwrite an earlier one would make the outcome depend on readdir order.
+  let appearance: Record<string, unknown> = {};
   // card/avatar filename → tag names, unioned across dirs (a filename can recur across profiles).
   const tagsByEntityKey = new Map<string, string[]>();
   const r: CollectRecords = {
     unreadableCards: [],
     unreadableWorlds: [],
     unreadablePresets: [],
+    refusedThemes: [],
+    skippedBackgrounds: [],
     unreadableGroups: [],
     missingGroupChats: [],
     skippedChats: [],
@@ -189,7 +240,12 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
     personas.push(...result.personas);
     worlds.push(...result.worlds);
     presets.push(...result.presets);
+    themes.push(...result.themes);
+    backgrounds.push(...result.backgrounds);
     groups.push(...result.groups);
+    if (Object.keys(appearance).length === 0) {
+      appearance = result.appearance;
+    }
     mergeTags(tagsByEntityKey, result.tagsByEntityKey);
     mergeRecords(r, result);
   }
@@ -197,19 +253,28 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
     r.unreadableCards.length +
     r.unreadableWorlds.length +
     r.unreadablePresets.length +
+    r.refusedThemes.length +
+    r.skippedBackgrounds.length +
     r.unreadableGroups.length +
     r.missingGroupChats.length +
     r.skippedChats.length +
     r.skippedCharacters.length +
     r.orphanChatDirs.length;
-  return { bundles, personas, worlds, presets, groups, tagsByEntityKey, skipped, ...r };
+  return { bundles, personas, worlds, presets, themes, backgrounds, appearance, groups, tagsByEntityKey, skipped, ...r };
 }
 
 /** scanned = every examined ST entity: happy-path bundles + personas + worlds + presets + groups (and their
  *  transcripts) + chat files, plus the recorded skips. */
 function tallyScanned(collected: Collected): number {
   let scanned =
-    collected.bundles.length + collected.personas.length + collected.worlds.length + collected.presets.length + collected.groups.length + collected.skipped;
+    collected.bundles.length +
+    collected.personas.length +
+    collected.worlds.length +
+    collected.presets.length +
+    collected.themes.length +
+    collected.backgrounds.length +
+    collected.groups.length +
+    collected.skipped;
   for (const b of collected.bundles) {
     scanned += b.chats.length;
   }
@@ -260,6 +325,48 @@ async function toPersonaInput(store: ImportAssetPort["store"], principal: Princi
   return { parsed: p.parsed, avatarAssetId };
 }
 
+/** The ST BACKGROUND wave: CAS-store each collected image/video under the owner (kind `background`, PD-94
+ *  capped, magic-verified because the mime is only extension-derived) and turn it into a ready
+ *  `BackgroundLibraryEntry`. PER-FILE ISOLATION — a background the store refuses (a `.jpg` that is not a JPEG,
+ *  an over-cap blob) is recorded with its reason and never aborts the batch, exactly like the card wave.
+ *
+ *  The entries are APPENDED to `appearance.backgroundLibrary` by the settings op below, which is what makes
+ *  them (a) GC-rooted — an unreferenced blob is reclaimed an hour after the import — and (b) pickable in the
+ *  background picker. The asset itself also shows up in `assets.listOwned`, the pool every character gallery
+ *  curates from (owner ruling: "backgrounds is our gallery — a media store for characters and etc"). */
+async function storeCollectedBackgrounds(
+  deps: ProfileDirImportDeps,
+  backgrounds: readonly CollectedBackground[],
+): Promise<{ readonly entries: BackgroundLibraryEntry[]; readonly skipped: ImportSkippedCard[] }> {
+  const entries: BackgroundLibraryEntry[] = [];
+  const skipped: ImportSkippedCard[] = [];
+  const store = deps.storeBackground;
+  const newEntryId = deps.newBackgroundEntryId;
+  if (store === undefined || newEntryId === undefined) {
+    return { entries, skipped: backgrounds.map((b) => ({ file: b.filename, reason: "background import is not wired into this composition" })) };
+  }
+  for (const background of backgrounds) {
+    if (deps.signal.aborted) {
+      break;
+    }
+    try {
+      // biome-ignore lint/performance/noAwaitInLoops: backgrounds are stored sequentially during the one-time bulk import — one CAS write each, isolated per file.
+      const stored = await store({
+        principal: deps.principal,
+        bytes: background.bytes,
+        mime: background.mime,
+        // One single-asset ceiling repo-wide — the profile importer deliberately shares the upload cap.
+        maxBytes: ASSET_UPLOAD_MAX_BYTES,
+      });
+      entries.push({ entryId: newEntryId(), assetId: stored.assetId, assetHash: stored.hash, mime: background.mime, name: background.name });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      skipped.push({ file: background.filename, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
+    }
+  }
+  return { entries, skipped };
+}
+
 /** Import the collected standalone ST worlds as UNATTACHED owner library books; returns the net-new count
  *  (a name-collision re-import replaces in place and is not counted). Aborts cleanly on signal. */
 async function importCollectedWorlds(deps: ProfileDirImportDeps, worlds: readonly CollectedWorld[]): Promise<number> {
@@ -287,6 +394,15 @@ interface WaveOutcomes {
   readonly presetsCreated: number;
   readonly skippedPresets: readonly ImportSkippedCard[];
   readonly presetNotes: readonly ImportPresetNote[];
+  readonly themesImported: number;
+  readonly themesCreated: number;
+  /** The settings domain's per-theme refusals ONLY — the converter's own are merged in `reportFrom`. */
+  readonly skippedThemes: readonly ImportSkippedCard[];
+  readonly themeNotes: readonly ImportThemeNote[];
+  readonly backgroundsImported: number;
+  /** Backgrounds the STORE refused (magic mismatch, over-cap) — the non-media ones are merged in `reportFrom`. */
+  readonly skippedBackgrounds: readonly ImportSkippedCard[];
+  readonly appearanceKeysApplied: readonly string[];
   readonly groupsImported: number;
   readonly groupChatsImported: number;
   readonly skippedGroups: readonly ImportSkippedGroup[];
@@ -298,6 +414,13 @@ const NO_WAVES: WaveOutcomes = {
   presetsCreated: 0,
   skippedPresets: [],
   presetNotes: [],
+  themesImported: 0,
+  themesCreated: 0,
+  skippedThemes: [],
+  themeNotes: [],
+  backgroundsImported: 0,
+  skippedBackgrounds: [],
+  appearanceKeysApplied: [],
   groupsImported: 0,
   groupChatsImported: 0,
   skippedGroups: [],
@@ -323,6 +446,11 @@ function reportFrom({ collected, scanned, changed, skippedCards, waves }: Report
     unreadableGroups: collected.unreadableGroups,
     missingGroupChats: collected.missingGroupChats,
     ...waves,
+    // ONE "did not import" list per plane, whichever stage refused: the CONVERTER's refusals (collect-time —
+    // unreadable / colour-less / a base surface the derivation cannot make legible; a non-media background
+    // file) joined with the WRITE stage's (the settings domain refused the theme; the CAS refused the blob).
+    skippedThemes: [...collected.refusedThemes, ...waves.skippedThemes],
+    skippedBackgrounds: [...collected.skippedBackgrounds, ...waves.skippedBackgrounds],
     skippedChats: collected.skippedChats,
     orphanChatDirs: collected.orphanChatDirs,
     skippedCharacters: collected.skippedCharacters,
@@ -440,6 +568,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
       enqueueBackfill: (): Promise<void> => Promise.resolve(),
       reconcileStats: deps.reconcileImportStats,
       ...(deps.importPreset !== undefined ? { importPreset: deps.importPreset } : {}),
+      ...(deps.importTheme !== undefined ? { importTheme: deps.importTheme } : {}),
     },
   });
   const service = createImportService(ctx);
@@ -470,6 +599,26 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
   // Only CREATES are net-new canon — a merged preset is the idempotent re-run path (see ImportPresetsResult),
   // exactly as `importCollectedWorlds` counts only a book it did not replace.
   changed += presetResult.presetsCreated;
+
+  // ST UI THEMES — independent of every other plane (a palette references nothing), so the wave runs beside
+  // the presets. Each was already converted (and safety-gated) by the collector; the settings domain owns the
+  // write and the (ownerId, name) merge rule. Only CREATES count as new canon, like every other wave.
+  const themeResult = await service.importThemes({ themes: collected.themes });
+  changed += themeResult.themesCreated;
+
+  // ST BACKGROUNDS — CAS-stored, then appended to `appearance.backgroundLibrary` together with the
+  // `power_user` ergonomics patch in ONE serialized settings write (the array append needs a
+  // read-modify-write that must sit INSIDE the per-user serializer). A re-run stores byte-identical blobs
+  // that dedup in the CAS and appends nothing (the entry dedup is by assetId), so `changed` stays honest.
+  const stored = await storeCollectedBackgrounds(deps, collected.backgrounds);
+  let backgroundsImported = 0;
+  let appearanceKeysApplied: readonly string[] = [];
+  if (deps.applyImportedAppearance !== undefined && (stored.entries.length > 0 || Object.keys(collected.appearance).length > 0)) {
+    const outcome = await deps.applyImportedAppearance(deps.principal.userId, { patch: collected.appearance, backgroundLibrary: stored.entries });
+    backgroundsImported = outcome.backgroundsAdded;
+    appearanceKeysApplied = outcome.patchedKeys;
+    changed += backgroundsImported;
+  }
 
   const bundleResult = await importCollectedBundles(deps, service, collected.bundles, collected.tagsByEntityKey);
   changed += bundleResult.changed;
@@ -502,6 +651,13 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
       presetsCreated: presetResult.presetsCreated,
       skippedPresets: presetResult.skippedPresets,
       presetNotes: presetResult.notes,
+      themesImported: themeResult.themesImported,
+      themesCreated: themeResult.themesCreated,
+      skippedThemes: themeResult.skippedThemes,
+      themeNotes: themeResult.notes,
+      backgroundsImported,
+      skippedBackgrounds: stored.skipped,
+      appearanceKeysApplied,
       groupsImported: groupResult.groupsImported,
       groupChatsImported: groupResult.groupChatsImported,
       skippedGroups: groupResult.skippedGroups,

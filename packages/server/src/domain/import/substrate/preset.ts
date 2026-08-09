@@ -24,6 +24,7 @@
 import { buildPresetFile, importStChatCompletionPreset } from "@orb/contracts/preset";
 import { isPlainObject } from "@orb/kit/guards";
 import type { ParsedStPreset } from "../contract/views.ts";
+import { ST_POWER_USER_KEY } from "./appearance.ts";
 
 /** The ST profile SUBDIRECTORY holding the chat-completion family's saved presets. */
 export const ST_PRESET_DIR = "OpenAI Settings";
@@ -45,13 +46,18 @@ export const ST_ACTIVE_PRESET_NAME = `${FAMILY_LABEL} (active)`;
 
 /** Map an already-JSON-parsed ST chat-completion preset → the portable orb file + its unmapped-field list, or
  *  null when the object is not a recognizable chat-completion preset. Never throws (the shared mapper DOES
- *  throw on a non-preset, which is contained here). */
-export function stPresetFromJson(raw: unknown, name: string): ParsedStPreset | null {
+ *  throw on a non-preset, which is contained here).
+ *
+ *  `powerUser` is ST's GLOBAL `settings.json.power_user` blob — the OTHER half of what orb calls generation
+ *  config (stop strings, the four post-process switches, the inline-reasoning tag pair). Supplied ONLY for the
+ *  LIVE preset below; a saved preset FILE gets none, because those knobs are one box's current tuning and
+ *  stamping them onto every saved preset would rewrite presets their author tuned for something else. */
+export function stPresetFromJson(raw: unknown, name: string, powerUser?: unknown): ParsedStPreset | null {
   if (!isPlainObject(raw)) {
     return null;
   }
   try {
-    const result = importStChatCompletionPreset(raw);
+    const result = importStChatCompletionPreset(raw, powerUser);
     return { name, file: buildPresetFile(name, result.config), unmapped: result.dropped };
   } catch {
     return null;
@@ -75,5 +81,8 @@ export function parseStSettingsPreset(settingsRaw: unknown): ParsedStPreset | nu
   if (!isPlainObject(settingsRaw)) {
     return null;
   }
-  return stPresetFromJson(settingsRaw[ST_PRESET_SETTINGS_KEY], ST_ACTIVE_PRESET_NAME);
+  // THE LIVE preset is the carrier for the `power_user` generation knobs (owner ruling 2026-08-08 — gen
+  // settings are preset-owned in orb, and ST's are split across `oai_settings` + the global `power_user`).
+  // This preset is by definition the author's CURRENT tuning, which is exactly what `power_user` holds.
+  return stPresetFromJson(settingsRaw[ST_PRESET_SETTINGS_KEY], ST_ACTIVE_PRESET_NAME, settingsRaw[ST_POWER_USER_KEY]);
 }

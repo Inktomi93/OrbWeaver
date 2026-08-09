@@ -28,6 +28,7 @@ import { createImportPresets } from "#domain/preset";
 import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
 import type { ImportRpgGame } from "#domain/rpg";
 import type { SettingsContext } from "#domain/settings";
+import { createApplyImportedAppearance, createImportTheme } from "#domain/settings";
 import { reconcileStats } from "#domain/stats";
 import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
@@ -184,6 +185,17 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
         // The ST chat-completion preset wave writes through the preset domain's OWN import verb (idempotent on
         // (ownerId, name), one serde, one collision rule) — the same op the zip-bundle descriptor uses.
         importPreset: createImportPresets(deps.presetCtx),
+        // The ST THEME wave does the same through the settings domain's own theme-backup import (idempotent on
+        // (ownerId, name); a SEED palette is `ownerId IS NULL` and structurally unreachable by that write).
+        importTheme: createImportTheme(deps.settingsCtx),
+        // The ST BACKGROUND wave: one CAS write per file under the caller, kind `background`, with the
+        // extension-derived mime VERIFIED against the bytes (`enforceMagic`) before anything is persisted.
+        storeBackground: async (params) => {
+          const storedAsset = await deps.assets.store({ ...params, kind: "background", enforceMagic: true });
+          return { assetId: storedAsset.assetId, hash: storedAsset.hash };
+        },
+        applyImportedAppearance: createApplyImportedAppearance(deps.settingsCtx),
+        newBackgroundEntryId: deps.settingsCtx.newBackgroundEntryId,
         now,
         dryRun,
         signal,
