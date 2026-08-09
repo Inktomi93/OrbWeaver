@@ -102,7 +102,52 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   lanes both mint. Lane briefs name their exact playwright CT files (a CT nobody names is a CT
   nobody ran).
 
-## ═══ LIVE STATE (2026-08-08, LATEST — ST-import epic + embeddings) ═══
+## ═══ LIVE STATE (2026-08-08 EVENING — THE BIG-LANE SITTING; supersedes every block below) ═══
+
+> **This block supersedes the morning's LIVE STATE + TRAIN STATE below** (kept for history). Merge flow
+> is now rebase-in-worktree → `--no-ff` (pre-merge-commit hook gates every merge; see RULINGS).
+
+**~18 hook-gated merges landed this sitting.** Everything below is ON MAIN, unpushed (battery owed first):
+
+- **Import program COMPLETE for matched planes:** #19 tags (`c921f5834`) · #25 chat-completion presets +
+  group chats (`5d05d0101`, NO text-completion by ruling) · #29 fidelity fixes (`d36101b9c` — ST wall-clock
+  zone [dates were 6-7h early on 49.6% of msgs], loose filename regex [3 chats stamped 2027], token_count
+  by role [35% tokensOut inflation killed]) · §5 fixes (canonical variant shape [3.1k real reasoning
+  durations, not 12.7k — key-presence ≠ value census], chat variables 480 chats/2,813 values, author's-note
+  ADAPT-to-injection [ST recorded value wins, house register fallback], clean titles 1,083/1,083 with 615
+  ` (2)` suffixes). **#28 in flight:** backgrounds→gallery (arm b: kind background + backgroundLibrary
+  entry), themes via the D71 converter ONLY (safe pairs), power_user multi-home classification (preset-owned
+  keys → the (active) preset), databank. **Re-import of the owner's 3-year corpus waits for the train.**
+- **Memory/vLLM:** #21 summarize samplers+batching MERGED+LIVE-PROVEN (4-6s stops, ~6-25x/item) ·
+  #24 `/api/_debug/vllm/metrics` (3 engines, KV headroom warn; gen 7.516x matches its startup line) ·
+  #11 CAS schedule seed (existence-gated per kind). Client path concurrent-clean — NO queue built, ruling:
+  vLLM's continuous batcher + scheduler queue are the mechanism; the "hang" was the summarize loop.
+- **Auth:** #8 OIDC owner adoption + #23 refresh/stale-session (`f663abeb8`) + the cascade fix
+  (`385d87776`: owner handle pinned to seed key, ensureUser loud-fail on phantom, **bind-once guard closing
+  a live pre-existing account takeover** — handle-fallback could rebind a BOUND row's externalId).
+  Verifier-graduated with 2 findings in a fix lane (OWNER_HANDLES move bricks boot — path being made
+  real-or-honest; null-subject guard scope comment).
+- **Refinery:** P1 contract fixes merged (`ebacd3c05` — emptying arm end-to-end within belt-9, greetings
+  replace/clear as DISTINCT writes + index remap, duration_ms/source_run_id [D24 self-FK], {{shape}}
+  splice; verifier CONFIRMED, no belt escape constructible) · **R3 + NL→schema: FORGE IN FLIGHT** —
+  all scope A-H built full-stack (refinery_schemas table, 10 service members, schema-driven render plan,
+  arm-B review, tri-axis tabs, preflight, manual arm, §21 divergence belt), finishing biome→visual-mock
+  loop→one commit. **R4 queued** (task #30: sweep + I2 + dossier + F6/F7 + F-T1 append [ruled in]).
+- **Engine/harness fixes:** #12 (`7544ffc6f` — pooled rotation vs allowSelfResponses, per-name @mention
+  masking, cache receipt now OBSERVES [2nd lying arm found+killed], unreachable-depth warn) · #7
+  (`85d8225a9` — 3 harnesses onto ORB_ENV_NO_FILE, runner rows) · #6 footer recognizer · #27 mop-up
+  (FK truth-repair+pin, derived KIND_HEADERS).
+- **Graduations:** C1/D137 CONFIRMED (phase gate byte-exact) · #8 · #12 · #25 · #29 (minus the group-chat
+  zone gap → fix lane) · side-eye batch pass: C6 submenu GRADUATED clean; findings (turn-director model
+  text, Corpus first-run redesign, Delete aria, flash ring, + P2/P3 pile) ALL in a fix lane per the
+  side-eye-authority rule.
+- **IN FLIGHT (5 lanes):** forge R3 · #28 import batch · graduation-findings fix (group zone thread,
+  OWNER_HANDLES path, + pinnedPersona [ruled]) · side-eye fix batch · templating fork (recon-first).
+  **Queued:** #30 R4 · #31 "agents" breadcrumb naming [ruled] · #32 CLS+ctx-tab-strip [owner-picked].
+- **Owner rulings this sitting:** ALL in the RULINGS table above (usage discipline / merge flow / no
+  text-completion / plane re-homes / §5 arms / NL-first-class / F-T1 / pinnedPersona / "agents" naming).
+
+## ═══ SUPERSEDED: LIVE STATE (2026-08-08 morning — ST-import epic + embeddings) ═══
 
 - **⚑ IMPORT EPIC COMMITTED `ba8b5fbe5` (NOT pushed — needs fresh word + full battery).** The whole
   ST-folder import, verified live on the owner's real 782M / 310-card / 872-chat / 22k-message library:
