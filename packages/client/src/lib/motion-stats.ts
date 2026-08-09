@@ -1,10 +1,30 @@
 // Motion/animation introspection, read via window.__orb.motion()/.animations(). Two observers feed a
 // bounded ring: long-animation-frame (blockingDuration, styleAndLayoutStart, attributed scripts) and
-// layout-shift (accumulated CLS + worst single shift). animations() classifies each active animation
-// compositor-clean (transform/translate/scale/rotate/opacity/filter) or not.
+// layout-shift (accumulated CLS + worst single shift + the attributed shift ring). animations()
+// classifies each active animation compositor-clean (transform/translate/scale/rotate/opacity/filter)
+// or not.
 //
 // Dev-only by construction: installed from agent-bridge.ts, which early-returns when !IS_DEV. Never
 // re-export from the lib barrel.
+//
+// ── THE CLS FLAGGER (push, not just pull) ────────────────────────────────────────────────────────────
+// The layout-shift observer also CONSOLE-WARNS each shift over the noise floor, naming the element that
+// moved and how far, plus the running totals. Rationale: a snapshot nobody calls is a metric nobody
+// reads, and CLS regressions are otherwise found by feel. This is the same posture as
+// long-task-tracer.ts — one dev-gated observer, one console surface.
+//
+// TWO TOTALS, AND THIS IS THE POINT. The Layout Instability spec zeroes `hadRecentInput` shifts
+// (anything within 500ms of real input) so the metric reports only surprise. That exclusion HIDES the
+// most expensive layout defect this shell has had. Measured 2026-08-09 on the docked LIST panel toggle:
+// `.shell-main` moved 272px across 7 entries at ~20ms cadence — 0.207 of instability, i.e. a full
+// relayout every frame for the whole 220ms transition — and EVERY entry carried `hadRecentInput: true`.
+// `__orb.motion().cls` read 0.0177 and `pnpm motion-audit` passed its CLS budget while the shell was
+// visibly thrashing (the cause: an animated `grid-template-columns`, guide §3.7). `activeAnimations()`
+// could not see it either — it samples at the END of the audit window, by which time a 220ms transition
+// is over. So: `cls` stays the spec metric (no consumer's meaning changes), `observedCls` counts every
+// shift, and an input-adjacent shift is TAGGED in the log line rather than dropped.
+
+import { logClock } from "./log-clock.ts";
 
 // translate/scale/rotate are CSS Transforms L2 individual properties that Tailwind v4 compiles its
 // scale-*/translate-* utilities to, and composite exactly like transform.
@@ -12,8 +32,18 @@ const COMPOSITOR_SAFE_PROPS = new Set(["transform", "opacity", "filter", "transl
 
 // Ring cap — a long session must not grow this unbounded.
 const LOAF_RING_CAP = 64;
+// The shift ring is the same idea for layout instability; smaller because each record carries its sources.
+const SHIFT_RING_CAP = 32;
 // CLS/shift scores are reported to 4 decimals — the CWV convention.
 const SHIFT_DECIMALS = 4;
+// Below this a shift is measurement noise (a settled boot measures ~0.0002) — still accumulated, never logged.
+const MIN_REPORTED_SHIFT = 0.002;
+// The CWV "good" ceiling. Crossing it reddens the log line; it is also motion-audit's own CLS budget.
+const CLS_BUDGET = 0.1;
+
+const SHIFT_STYLE = "color:#c60;font-weight:bold";
+const OVER_BUDGET_STYLE = "color:#c00;font-weight:bold";
+const MUTED_STYLE = "color:#888";
 
 interface LoafScript {
   readonly sourceURL: string;
@@ -29,14 +59,33 @@ interface LoafRecord {
 }
 const loafRing: LoafRecord[] = [];
 
+/** One attributed layout shift — what moved, how far, and whether the spec counts it. NOT exported (the
+ *  `LoafRecord` precedent): it is reachable through `MotionSnapshot.shifts`, and a second export would be
+ *  an unused public name knip reds. */
+interface ShiftRecord {
+  readonly startTime: number;
+  readonly value: number;
+  /** true ⇒ within 500ms of real input, so the CWV metric excludes it (but the relayout still happened). */
+  readonly hadRecentInput: boolean;
+  /** The elements whose start position moved, described + measured, worst-first as the entry reported them. */
+  readonly sources: readonly string[];
+}
+const shiftRing: ShiftRecord[] = [];
+
 let clsTotal = 0;
+let observedClsTotal = 0;
 let worstShift = 0;
 
 export interface MotionSnapshot {
   readonly loafs: readonly LoafRecord[];
+  /** The CWV metric: input-adjacent shifts excluded. Unchanged semantics — existing consumers read this. */
   readonly cls: number;
+  /** EVERY shift, input-adjacent included — the number that catches an interaction-driven relayout storm. */
+  readonly observedCls: number;
   readonly worstBlocking: number;
   readonly worstShift: number;
+  /** The recent attributed shifts — "what moved", which no CLS number carries. */
+  readonly shifts: readonly ShiftRecord[];
 }
 
 export interface AnimationRecord {
@@ -64,6 +113,36 @@ interface LoafEntry extends PerformanceEntry {
 interface LayoutShiftEntry extends PerformanceEntry {
   readonly value: number;
   readonly hadRecentInput: boolean;
+  readonly sources?: readonly { readonly node: Node | null; readonly previousRect: DOMRectReadOnly; readonly currentRect: DOMRectReadOnly }[];
+}
+
+/** "What moved, and how far" for one shift source — the surface label plus the start-corner delta. The
+ *  delta is what turns a score into an actionable line ("`.shell-main` moved 272px,0px"). */
+function describeShiftSource(node: Node | null, previousRect: DOMRectReadOnly, currentRect: DOMRectReadOnly): string {
+  if (!(node instanceof Element)) {
+    return "(detached)";
+  }
+  const dx = Math.round(currentRect.x - previousRect.x);
+  const dy = Math.round(currentRect.y - previousRect.y);
+  return `${surfaceLabelOf(node)} moved ${dx}px,${dy}px`;
+}
+
+/** The console half of the flagger: one line per shift over the noise floor. Input-adjacent shifts are
+ *  TAGGED, not dropped — see the header's two-totals note (the exclusion is what hid the shell defect). */
+function warnShift(record: ShiftRecord): void {
+  if (record.value < MIN_REPORTED_SHIFT) {
+    return;
+  }
+  const overBudget = clsTotal > CLS_BUDGET;
+  const tag = record.hadRecentInput ? "input-adjacent (excluded from CLS)" : "unexpected";
+  const who = record.sources.length === 0 ? "(no source attribution)" : record.sources.join(" · ");
+  console.warn(
+    `%c${logClock()} [cls]%c shift ${record.value.toFixed(SHIFT_DECIMALS)} ${tag} · ${who} · CLS ${clsTotal.toFixed(SHIFT_DECIMALS)}${
+      overBudget ? " OVER BUDGET" : ""
+    } · observed ${observedClsTotal.toFixed(SHIFT_DECIMALS)} · route ${globalThis.location.pathname}`,
+    overBudget ? OVER_BUDGET_STYLE : SHIFT_STYLE,
+    MUTED_STYLE,
+  );
 }
 
 /** Install both observers into their rings. Idempotence is the caller's concern (installed once). No-op
@@ -101,12 +180,24 @@ export function installMotionObservers(): void {
     const ls = new PerformanceObserver((list) => {
       for (const raw of list.getEntries()) {
         const e = raw as LayoutShiftEntry;
-        // CWV definition: shifts within 500ms of user input are excluded (an expected reflow, not jank).
-        if (e.hadRecentInput) {
-          continue;
+        observedClsTotal += e.value;
+        // CWV definition: shifts within 500ms of user input are excluded from the METRIC (an expected
+        // reflow, not surprise) — but they are still recorded and still logged, see the header.
+        if (!e.hadRecentInput) {
+          clsTotal += e.value;
+          worstShift = Math.max(worstShift, e.value);
         }
-        clsTotal += e.value;
-        worstShift = Math.max(worstShift, e.value);
+        const record: ShiftRecord = {
+          startTime: Math.round(e.startTime),
+          value: e.value,
+          hadRecentInput: e.hadRecentInput,
+          sources: (e.sources ?? []).map((s) => describeShiftSource(s.node, s.previousRect, s.currentRect)),
+        };
+        shiftRing.push(record);
+        if (shiftRing.length > SHIFT_RING_CAP) {
+          shiftRing.shift();
+        }
+        warnShift(record);
       }
     });
     ls.observe({ type: "layout-shift", buffered: true });
@@ -118,8 +209,10 @@ export function motionSnapshot(): MotionSnapshot {
   return {
     loafs: loafRing,
     cls: Number(clsTotal.toFixed(SHIFT_DECIMALS)),
+    observedCls: Number(observedClsTotal.toFixed(SHIFT_DECIMALS)),
     worstBlocking: loafRing.reduce((a, l) => Math.max(a, l.blockingDuration), 0),
     worstShift: Number(worstShift.toFixed(SHIFT_DECIMALS)),
+    shifts: shiftRing,
   };
 }
 
@@ -151,12 +244,9 @@ function nodeSurfaceMarker(node: Element): string | null {
   return LANDMARK_TAGS.has(node.tagName) ? `<${tag}>` : null;
 }
 
-function resolveSurfaceLabel(target: Animation["effect"]): string {
-  // Only KeyframeEffect carries a DOM target.
-  const el = target instanceof KeyframeEffect ? target.target : null;
-  if (!(el instanceof Element)) {
-    return "(no-element)";
-  }
+/** The nearest stable surface marker at or above `el`. Shared by the animation classifier and the shift
+ *  flagger: both answer "which surface is this?", and two walks would drift into two vocabularies. */
+function surfaceLabelOf(el: Element): string {
   let node: Element | null = el;
   for (let i = 0; node !== null && i < SURFACE_WALK_MAX; i += 1) {
     const marker = nodeSurfaceMarker(node);
@@ -168,6 +258,12 @@ function resolveSurfaceLabel(target: Animation["effect"]): string {
   // No stable marker on the chain — fall back to the leaf's own tag + first class.
   const cls = el.classList.item(0);
   return cls === null ? `<${el.tagName.toLowerCase()}>` : `<${el.tagName.toLowerCase()} .${cls}>`;
+}
+
+function resolveSurfaceLabel(target: Animation["effect"]): string {
+  // Only KeyframeEffect carries a DOM target.
+  const el = target instanceof KeyframeEffect ? target.target : null;
+  return el instanceof Element ? surfaceLabelOf(el) : "(no-element)";
 }
 
 // getKeyframes() injects computedOffset on every frame in addition to the authoring fields, so it must

@@ -806,15 +806,33 @@ test("Escape closes an open modal without any panel-dismiss side effect (the yie
   await expect(listPanel).not.toHaveAttribute("data-panel-mode", "overlay");
 });
 
-// ── Co-motion parity: the shell grid track + panel slide animate as ONE event (never-desync) ──────
-// BASEUI-MOTION-AUDIT.md §5 Layer 2 — the rendered-output guard the corpus desync needed. The grid
-// track (`grid-template-columns`) and the collapsed panel (`transform`) are one visual event; they MUST
-// carry the SAME transition duration + timing-function, and NEITHER may be `0s`/`none` (the `0s` arm is
-// what catches ABSENCE — the actual corpus bug, where the track had NO transition while the panel slid).
-// Layer 1's co-motion vars (`--shell-motion`/`--shell-ease` in shell.css) make divergence structurally
-// impossible; this test proves it at the COMPUTED-STYLE level (a source lint can't see a missing rule).
-// Had it existed pre-fix it fails on `0s !== 0.22s`. The panel is read in `collapsed` (an out-of-flow,
-// transform-animated mode) — `docked` has no transform transition, so the test collapses it first.
+// ── Co-motion parity: the shell push + panel slide animate as ONE event (never-desync) ────────────
+// BASEUI-MOTION-AUDIT.md §5 Layer 2 — the rendered-output guard the corpus desync needed. The track
+// change and the collapsed panel (`transform`) are one visual event; they MUST carry the SAME duration +
+// timing-function, and NEITHER may be `0s`/`none` (the `0s` arm is what catches ABSENCE — the actual
+// corpus bug, where the track had NO motion while the panel slid). Layer 1's co-motion vars
+// (`--shell-motion`/`--shell-ease` in shell.css) make divergence structurally impossible; this test
+// proves it at the COMPUTED-STYLE level (a source lint can't see a missing rule).
+//
+// ── THE RULING MOVED AXES (task #32, 2026-08-09) — BOTH TEXTS, so the next reader sees why ────────
+// This test used to read `transitionOf(grid, "grid-template-columns")` and assert it was not `0s`. Its
+// header said, verbatim: "The grid track (`grid-template-columns`) and the collapsed panel (`transform`)
+// are one visual event; they MUST carry the SAME transition duration + timing-function, and NEITHER may
+// be `0s`/`none`". That INVARIANT is preserved below and still fully asserted. What changed is which
+// property carries the track's half of the event, because the old carrier was the defect:
+// `grid-template-columns` is a LAYOUT property, so transitioning it re-ran layout over the whole content
+// subtree once per frame for 220ms. Measured on the live stack: docking the LIST panel scored 0.2774 of
+// layout instability, collapsing it 0.2166, a nine-section rail sweep 0.3067 — F-14's "shell CLS ~0.26".
+// The track now resizes in ONE frame and the motion is a compositor-only counter-`translate` FLIP on
+// `.shell-main` (shell.css "THE PANEL PUSH IS A FLIP" + use-list-track-flip.ts): prototyped on the live
+// shell at 0.2166 → 0.0205 (collapse), 0.2987 → 0.0205 (dock), rail nav 0.3067 → 0.0000.
+// So the parity assertions below read `animation-*` on `.shell-main` where they used to read
+// `transition-*` on `.shell-grid` — same two co-motion vars, same absence arm, same divergence arm — and
+// a THIRD arm was added: the grid track must NOT be transitioned any more, which is the regression this
+// lane actually fixed. The zero-shift test that follows is the user-visible half of the same proof.
+//
+// The panel is read in `collapsed` (an out-of-flow, transform-animated mode) — `docked` has no transform
+// transition, so the test collapses it first.
 
 /** The computed transition duration+easing of `prop` on the element behind `locator`. Reads the
  *  per-property longhands (a multi-property `transition` shorthand serializes duration/easing as a
@@ -836,28 +854,89 @@ function transitionOf(locator: Locator, prop: string): Promise<{ duration: strin
   }, prop);
 }
 
-test("co-motion parity: the grid track and the collapsed panel share one non-zero duration + easing", async ({ mount, page }) => {
+/** The computed animation duration+easing+name of the element behind `locator` — the FLIP's half of the
+ *  co-motion event, the twin of `transitionOf` above. */
+function animationOf(locator: Locator): Promise<{ duration: string; ease: string; name: string }> {
+  return locator.evaluate((el) => {
+    const s = getComputedStyle(el);
+    return {
+      duration: s.animationDuration.split(",")[0]?.trim() ?? "0s",
+      ease: s.animationTimingFunction.split(",")[0]?.trim() ?? "linear",
+      name: s.animationName.split(",")[0]?.trim() ?? "none",
+    };
+  });
+}
+
+test("co-motion parity: the content FLIP and the collapsed panel share one non-zero duration + easing", async ({ mount, page }) => {
   const shell = await mount(<AppShellStory />);
   const grid = page.locator(".shell-grid");
   const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  const main = page.locator(".shell-main");
 
   // Collapse the list panel so it enters the transform-animated `collapsed` mode (docked has no slide).
   await shell.getByRole("button", { name: "Hide list panel" }).click();
   await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
 
-  const gridMotion = await transitionOf(grid, "grid-template-columns");
+  // The FLIP direction is stamped in the SAME commit as the track change, so the rule matches by now.
+  await expect(grid).toHaveAttribute("data-list-flip", "out");
+  const pushMotion = await animationOf(main);
   const panelMotion = await transitionOf(listPanel, "transform");
 
-  // The absence arm (the corpus bug): neither side may be a no-transition. `220ms` = `--motion-base`.
-  expect(gridMotion.duration).not.toBe("0s");
+  // The absence arm (the corpus bug): neither side may be a no-motion. `220ms` = `--motion-base`.
+  expect(pushMotion.duration).not.toBe("0s");
   expect(panelMotion.duration).not.toBe("0s");
-  expect(gridMotion.ease).not.toBe("none");
+  expect(pushMotion.ease).not.toBe("none");
   expect(panelMotion.ease).not.toBe("none");
+  expect(pushMotion.name).not.toBe("none");
 
   // The divergence arm: they animate as ONE event — equal duration AND equal easing (the co-motion vars
   // guarantee this by construction; this asserts it landed in computed style, not just source).
-  expect(gridMotion.duration).toBe(panelMotion.duration);
-  expect(gridMotion.ease).toBe(panelMotion.ease);
+  expect(pushMotion.duration).toBe(panelMotion.duration);
+  expect(pushMotion.ease).toBe(panelMotion.ease);
+
+  // The THIRD arm (task #32): the track itself must no longer be TRANSITIONED. A non-zero duration here
+  // means the layout animation is back and the shell is thrashing again.
+  const gridMotion = await transitionOf(grid, "grid-template-columns");
+  expect(gridMotion.duration).toBe("0s");
+});
+
+// ── The user-visible half: toggling a docked panel must record NO meaningful layout shift ────────────
+// The defect proof for F-14, asserted the way a browser SCORES it rather than by reading CSS. Pre-fix
+// this measured ~0.2 per toggle on the live shell (`div.shell-main` moving 272px in 6-8 steps, one per
+// frame); post-fix the counter-translate cancels the layout move inside the same frame, so the browser
+// never records a start-position change at all. The remaining budget is the content gutter RE-CENTRING in
+// a column whose width also changed — one frame, and no transform can cancel a width change — measured at
+// ~0.02 on the live shell, well inside the 0.1 CWV ceiling.
+test("toggling the docked LIST panel is compositor-only: no meaningful layout shift is recorded", async ({ mount, page }) => {
+  const shell = await mount(<AppShellStory />);
+  const listPanel = page.locator('.shell-panel[data-panel-side="list"]');
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+
+  // Installed AFTER the mount settles, so boot/data-arrival shifts are never attributed to the toggle.
+  await page.evaluate(() => {
+    // FABRICATION-OK: a browser-context probe slot, written and read in this test alone.
+    const bag = globalThis as unknown as { __shiftTotal: number };
+    bag.__shiftTotal = 0;
+    // `hadRecentInput` is deliberately NOT filtered: a click drives this toggle, so the CWV metric would
+    // exclude every entry and this assertion would pass against a fully broken shell (see motion-stats.ts's
+    // two-totals note — that exclusion is precisely what hid this defect).
+    new PerformanceObserver((list) => {
+      for (const entry of list.getEntries()) {
+        bag.__shiftTotal += (entry as PerformanceEntry & { value: number }).value;
+      }
+    }).observe({ type: "layout-shift" });
+  });
+
+  await shell.getByRole("button", { name: "Hide list panel" }).click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "collapsed");
+  await shell.getByRole("button", { name: "Show list panel" }).click();
+  await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
+
+  const readTotal = (): Promise<number> =>
+    // FABRICATION-OK: reads back the probe slot installed above.
+    page.evaluate(() => (globalThis as unknown as { __shiftTotal: number }).__shiftTotal);
+  // Polls PAST the 220ms motion so a late entry cannot land after the read.
+  await expect.poll(readTotal, { intervals: [100, 200, 300, 400] }).toBeLessThan(0.1);
 });
 
 // ── BOOT: the FIRST committed grid template already carries the resolved tracks (F14) ───────────────
