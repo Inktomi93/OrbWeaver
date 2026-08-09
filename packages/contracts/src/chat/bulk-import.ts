@@ -38,10 +38,10 @@ export interface BulkImportVariantInput {
   readonly variableDelta?: readonly VarOp[] | null;
 }
 
-/** R6 — one `chat_injections` row carried by an orb-native chat bundle. The per-chat prose plane: since the
- *  room-override author's-note twin was retired (owner ruling 2026-08-01) this LIST is the one prose door,
- *  and ST's single `note_prompt` slot (see {@link BulkImportChatInput.authorsNote}) can carry exactly one of
- *  them, one-way. */
+/** One `chat_injections` row carried by an importing chat. The per-chat prose plane: since the room-override
+ *  author's-note twin was retired (owner ruling 2026-08-01) this LIST is the ONE prose door, for BOTH arms —
+ *  an orb-native bundle carries the whole list verbatim, and the ST arm converts its single `note_prompt`
+ *  (plus the `note_depth`/`note_position`/`note_role` knobs ST records beside it) into exactly one row. */
 export interface BulkImportInjectionInput {
   readonly position: (typeof CHAT_INJECTION_POSITIONS)[number];
   readonly depth: number;
@@ -88,11 +88,11 @@ export interface BulkImportMessageInput {
  *  `export/verbs/export-chat.ts` round-trips out of the db, so an orbweaver export re-imports losslessly
  *  (plain ST is the lossy subset: orb-only fields arrive empty). `importHash` is the per-chat dedup oracle
  *  (`chats.importHash`); `updatedAt` is the ST last-activity (import computes `Math.max(send_dates)`, not
- *  `now`); `parentRef` is the branch parent's source filename (resolved character-wide by the op);
- *  `authorsNote` is the ST `note_prompt`, landed as a `chat_injections` row — the ONE per-chat prose door
- *  since the room-override twin was retired (owner ruling 2026-08-01), so it does NOT round-trip back out
- *  (export has no unambiguous inverse from a LIST of injections into ST's single `note_prompt` slot);
- *  `isRealConversation` gates the memory-backfill enqueue (PD-78). */
+ *  `now`); `parentRef` is the branch parent's source filename (resolved character-wide by the op); per-chat
+ *  prose rides in {@link injections} from BOTH arms (an ST `note_prompt` is converted to one row by the ST
+ *  mapper), and does NOT round-trip back out through the jsonl leg (export has no unambiguous inverse from a
+ *  LIST of injections into ST's single `note_prompt` slot); `isRealConversation` gates the memory-backfill
+ *  enqueue (PD-78). */
 export interface BulkImportChatInput {
   readonly title: string;
   readonly importedFrom: string;
@@ -101,7 +101,6 @@ export interface BulkImportChatInput {
   readonly createdAt: number;
   readonly updatedAt: number;
   readonly parentRef: string | null;
-  readonly authorsNote: string | null;
   readonly isRealConversation: boolean;
   readonly messages: readonly BulkImportMessageInput[];
   /** The ADDITIONAL character seats beyond the run's primary (a GROUP room). Empty/absent ⇒ the founding
@@ -130,8 +129,11 @@ export interface BulkImportChatInput {
   readonly variableValues?: Record<string, string> | null;
   /** The per-chat user-macro input picks (`chats.userMacroValues`). Absent ⇒ null. */
   readonly userMacroValues?: UserMacroValues | null;
-  /** The chat's whole prose plane, verbatim. INDEPENDENT of {@link authorsNote}: an ST import supplies the
-   *  single migrated note, an orb-native bundle supplies the list — never both. Absent ⇒ none. */
+  /** The chat's whole prose plane, verbatim — the ONE per-chat prose door. An orb-native bundle supplies its
+   *  whole `chat_injections` list; the ST arm supplies the single row it converted `note_prompt` + ST's
+   *  recorded placement knobs into. Absent/empty ⇒ none. (This REPLACED a sibling `authorsNote: string|null`
+   *  field, which could carry only the text: with ST's placement honored, a bare string could no longer say
+   *  where the note goes, and two spellings of one plane is exactly what the 2026-08-01 ruling unwound.) */
   readonly injections?: readonly BulkImportInjectionInput[];
 }
 

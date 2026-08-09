@@ -316,54 +316,33 @@ interface OneChatArgs {
   readonly narratorCharacterId: CharacterId | null;
 }
 
-/** The imported ST `note_prompt`'s landing placement — the house author's-note register: "near enough to
- *  steer, far enough not to dominate" (chat-crew-design/04), delivered as a system note. */
-const IMPORTED_NOTE_DEPTH = 4;
-const IMPORTED_NOTE_ROLE = "system";
-
-/** The chat's whole PROSE plane. Two mutually-exclusive sources, deliberately not merged: the ST arm migrates
- *  its single `note_prompt` to the house author's-note register, while an orb-native bundle carries the
- *  `chat_injections` LIST verbatim (R6 — the plane the jsonl interchange structurally cannot express, since
- *  ST has one slot and this is a list with positions, depths, roles and ordering). */
+/** The chat's whole PROSE plane, written verbatim from the ONE carried list. Both arms arrive here already
+ *  resolved: an orb-native bundle carries its `chat_injections` rows as they stood, and the ST arm's mapper
+ *  (`domain/import/substrate/chat-input.ts`) has already converted `note_prompt` + ST's recorded placement
+ *  knobs into exactly one row, applying the house author's-note register as the fallback. This write op holds
+ *  no placement policy of its own — it used to hardcode `in_chat`/depth 4/`system` for the ST arm, which
+ *  silently overrode the placement 1,070 corpus chats actually recorded. */
 function injectionStmts(ctx: ChatImportContext, chatId: ChatId, ci: BulkImportChatInput): BatchStmt[] {
   const { db } = ctx;
-  if (ci.injections !== undefined) {
-    return ci.injections.map((injection) =>
-      batchStmt(
-        db.insert(chatInjections).values({
-          id: ctx.newChatInjectionId(),
-          chatId,
-          position: injection.position,
-          depth: injection.depth,
-          role: injection.role,
-          content: injection.content,
-          order: injection.order,
-          createdAt: injection.createdAt,
-        }),
-      ),
-    );
-  }
-  if (ci.authorsNote === null) {
-    return [];
-  }
-  return [
+  return (ci.injections ?? []).map((injection) =>
     batchStmt(
       db.insert(chatInjections).values({
         id: ctx.newChatInjectionId(),
         chatId,
-        position: "in_chat",
-        depth: IMPORTED_NOTE_DEPTH,
-        role: IMPORTED_NOTE_ROLE,
-        content: ci.authorsNote,
-        createdAt: ci.createdAt,
+        position: injection.position,
+        depth: injection.depth,
+        role: injection.role,
+        content: injection.content,
+        order: injection.order,
+        createdAt: injection.createdAt,
       }),
     ),
-  ];
+  );
 }
 
-/** The chat row + founding roster inserts for one imported chat. The ST `note_prompt` rides in as a
- *  `chat_injections` row — the ONE per-chat prose door (owner ruling 2026-08-01 retired the
- *  `roomOverrides.authorsNote` twin: both landed as the SAME at-depth splice). */
+/** The chat row + founding roster inserts for one imported chat. Per-chat prose rides in as `chat_injections`
+ *  rows — the ONE per-chat prose door (owner ruling 2026-08-01 retired the `roomOverrides.authorsNote` twin:
+ *  both landed as the SAME at-depth splice). */
 function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs): BatchStmt[] {
   const { db } = ctx;
   return [

@@ -161,9 +161,8 @@ function toChatInput(args: {
     // `importFile` per file, no cross-file state) cannot express. `parentRef` is the jsonl arm's filename
     // linkage and has no orb-native analogue.
     parentRef: null,
-    // The orb-native arm carries the whole `chat_injections` LIST instead of ST's single migrated note; the
-    // write op takes the list when present and never merges the two.
-    authorsNote: null,
+    // The orb-native arm carries the whole `chat_injections` LIST verbatim — the same door the ST arm's
+    // converted single note rides through.
     injections: bundle.injections,
     isRealConversation: isRealConversation(bundle),
     messages: bundle.messages.map((m) => toMessageInput(m, cast, personaIdByName)),

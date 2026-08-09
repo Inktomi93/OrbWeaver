@@ -7,18 +7,23 @@ import type { ImportChatsResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
 import type { ImportChatsInput } from "../contract/views.ts";
 import { requireProfile } from "../guard.ts";
-import { buildBulkImportChatInput } from "../substrate/chat-input.ts";
+import { buildBulkImportChatInput, disambiguateChatTitles } from "../substrate/chat-input.ts";
 
 export function createImportChats(ctx: ImportContext): ImportService["importChats"] {
   return async (input: ImportChatsInput): Promise<ImportChatsResult> => {
     const profile = requireProfile(ctx);
     const ownerId = ctx.ownerId;
 
-    const chats = input.chats.map((c) =>
-      buildBulkImportChatInput(c, {
-        now: profile.now,
-        personaByUserName: profile.personaByUserName,
-      }),
+    // Titles disambiguate across the WHOLE run, not per file: this verb receives one character's entire chat
+    // set, which is exactly the population that collides (N transcripts, one cast, one day).
+    const chats = disambiguateChatTitles(
+      input.chats.map((c) =>
+        buildBulkImportChatInput(c, {
+          now: profile.now,
+          personaByUserName: profile.personaByUserName,
+          ...(profile.stWallClockZone === undefined ? {} : { wallClockZone: profile.stWallClockZone }),
+        }),
+      ),
     );
     const counts = await profile.bulkImportChats({
       ownerId,

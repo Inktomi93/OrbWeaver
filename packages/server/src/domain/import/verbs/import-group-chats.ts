@@ -26,7 +26,7 @@ import type { ImportGroupsResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
 import type { CollectedGroup, ImportGroupsInput, ImportSkippedGroup, ImportSkippedGroupMember } from "../contract/views.ts";
 import { requireProfile } from "../guard.ts";
-import { buildGroupChatInput } from "../substrate/chat-input.ts";
+import { buildGroupChatInput, disambiguateChatTitles } from "../substrate/chat-input.ts";
 
 /** The room-behavior blob an imported ST group is born with. Only what ST actually states travels: its
  *  `generation_mode` (append ⇒ the whole cast in one narrated message) and `allow_self_responses`. Everything
@@ -107,16 +107,22 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
         speakerByName.set(name, s.characterId);
       }
     }
-    const chats: BulkImportChatInput[] = group.chats.map((c) =>
-      buildGroupChatInput(c, {
-        now: profile.now,
-        personaByUserName: profile.personaByUserName,
-        primaryCharacterId: primary.characterId,
-        roster,
-        speakerByFile,
-        speakerByName,
-        metadata,
-      }),
+    // Every transcript of ONE group shares the room's name, so same-day leaves collide by construction — the
+    // suffix pass runs over the group's whole set, exactly as the solo wave runs it over a character's.
+    const chats: BulkImportChatInput[] = disambiguateChatTitles(
+      group.chats.map((c) =>
+        buildGroupChatInput(c, {
+          now: profile.now,
+          ...(profile.stWallClockZone === undefined ? {} : { wallClockZone: profile.stWallClockZone }),
+          roomName: group.parsed.name,
+          personaByUserName: profile.personaByUserName,
+          primaryCharacterId: primary.characterId,
+          roster,
+          speakerByFile,
+          speakerByName,
+          metadata,
+        }),
+      ),
     );
     const counts = await profile.bulkImportChats({ ownerId: ctx.ownerId, characterId: primary.characterId, chats });
     return { chatsImported: counts.chatsImported, realConversation: counts.realConversationWritten };
