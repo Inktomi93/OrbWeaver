@@ -143,9 +143,22 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   zone gap → fix lane) · side-eye batch pass: C6 submenu GRADUATED clean; findings (turn-director model
   text, Corpus first-run redesign, Delete aria, flash ring, + P2/P3 pile) ALL in a fix lane per the
   side-eye-authority rule.
-- **IN FLIGHT (5 lanes):** forge R3 · #28 import batch · graduation-findings fix (group zone thread,
-  OWNER_HANDLES path, + pinnedPersona [ruled]) · side-eye fix batch · templating fork (recon-first).
-  **Queued:** #30 R4 · #31 "agents" breadcrumb naming [ruled] · #32 CLS+ctx-tab-strip [owner-picked].
+- **IN FLIGHT at the freeze (3 lanes) — RESURRECTION NOTE (owner-ordered, for after the usage reset).**
+  Worktree = the durable anchor; same-session resurrection = SendMessage to the agent; cross-session
+  recovery = a fresh lane ADOPTS the worktree/branch (never tear down un-merged worktrees):
+  · **forge R3** — `.claude/worktrees/agent-afabc86f4157916fe` (branch `wt/agent-afabc86f4157916fe`,
+    spawned off `7a81d81cb`): all scope A-H built, was finishing biome→knip→visual-mock-loop→ONE commit.
+    If resurrected: it has the post-compaction reading-list message + all standing corrections in-transcript.
+  · **grad-findings fix (security-executor)** — `.claude/worktrees/agent-ad73cbeaf85ef9f26`: fixes 1-4
+    (group-chat wallClockZone thread [the REFUTED one], OWNER_HANDLES migration real-or-honest,
+    null-subject guard comment, serde token comment) + fix 5 pinnedPersona [ruled]. No commit reported yet.
+  · **side-eye fix batch (executor)** — `.claude/worktrees/agent-a21d6366e6ef2762c`: ALL side-eye findings
+    (turn-director re-version, Corpus first-run redesign, Delete aria, flash ring, memory-note type,
+    launcher affordance, triple-home resolution, subtitle clamp, readout selection, + P3 pile; "Runs"
+    rename landed + owner-KEPT). No commit reported yet.
+  **#28 import batch + templating recon: LANDED + merged before the freeze note** (5d05… era superseded).
+  **Queued/PARKED:** #30 R4 · #31 "agents" naming [ruled] · #32 CLS+tab-strip+panel-jank+CLS-flagger ·
+  #33 templating ARM B [ruled].
 - **Owner rulings this sitting:** ALL in the RULINGS table above (usage discipline / merge flow / no
   text-completion / plane re-homes / §5 arms / NL-first-class / F-T1 / pinnedPersona / "agents" naming).
 
