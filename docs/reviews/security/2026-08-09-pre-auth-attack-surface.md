@@ -189,3 +189,135 @@ open gate (the AUTHFIX-2 regression is closed and pinned by
 - **`clientError` input handling** (what an anonymous caller can push into logs) was not audited for
   log-injection/DoS; it is fire-and-forget by design but the payload shape/size bounds were not
   checked.
+
+---
+
+# Appendix A — Edge layer (Caddy) review (2026-08-09, owner follow-up)
+
+The deploy-serving layer in front of the surface audited above. Read-only.
+
+## Location
+
+**There is NO Caddyfile in the orbweaver repo.** The real one lives in the sibling stack repo:
+`/home/inktomi/inktomi-stack/caddy/conf/Caddyfile`. The orbweaver site block is **lines 370-392**
+(`@orbweaver host orbweaver.inktomi.tech`). The stack compose
+(`/home/inktomi/inktomi-stack/docker-compose.yaml`) publishes Caddy on `80:80`, `443:443`,
+`443:443/udp` (lines 140-142) and gives it `extra_hosts: host.docker.internal:host-gateway`
+(line 151-152) — i.e. **orbweaver runs bare on the host and Caddy proxies
+`host.docker.internal:8788`.** The orbweaver repo's own `docker-compose.yaml` +
+`docs/design/containerize-prod-image-spec.md` describe the *target* containerized posture that has
+NOT yet been applied (Caddy still targets `host.docker.internal`).
+
+## Verdict: Caddyfile — adjust X · add carve-out Y · already-correct Z
+
+### Already-correct (Z) — leave as-is
+
+- **The public FQDN closes F3 (the core protection).** `@orbweaver host orbweaver.inktomi.tech`:
+  Caddy routes strictly by Host and forwards the real `Host` + `X-Forwarded-Proto/Host/For` by
+  default. A public request carries `Host: orbweaver.inktomi.tech` → app `isLocalOrigin` false →
+  owner-fallback **DENIED** → SSO (Authentik OIDC) mandatory. A remote client **cannot Host-spoof
+  through Caddy** — a `Host: localhost` request doesn't match `@orbweaver` and falls to the honeypot
+  handle. This is exactly the F3 invariant, and on the FQDN path it holds.
+- **OIDC carve-out is covered by default.** The app derives `redirect_uri` from `X-Forwarded-Proto`
+  (=https) + Host and validates against `OIDC_REDIRECT_URIS`; Caddy sets those headers by default, so
+  no `header_up` is needed (app-side: ensure `OIDC_REDIRECT_URIS` includes
+  `https://orbweaver.inktomi.tech/api/auth/oidc/callback`).
+- **Back-channel-logout passes.** The catch-all `reverse_proxy` covers
+  `POST /api/auth/oidc/backchannel-logout`; there is no `forward_auth` on orbweaver to block the
+  IdP's server-to-server call. Auth bootstrap / login / oidc-callback / join all pass (catch-all).
+- **CSP: NO clash — Caddy sets zero CSP on orbweaver; the app's strict policy passes through
+  untouched.** Verified across the whole file: the `handle @orbweaver` block (`:370-392`) sets no
+  CSP (comment `:373` — "CSP is set by the app… duplicating it here creates drift"); the
+  `security_headers` snippet (`:91-100`) sets only non-CSP siblings; the site-wide wildcard `header`
+  block (`:155-159`) sets HSTS/nosniff/`-Server`, no CSP. The ONLY `Content-Security-Policy` lines in
+  the file are scoped inside `handle @searxng` (`:327`, `:331`) — a different host. Caddy's `header`
+  directive only affects headers it names, so the app's `Content-Security-Policy` **and the
+  card-frame's tighter per-document CSP** (`/api/card-frame/:id`) flow through the reverse_proxy
+  unmodified. The app's script-src `'self'` policy is not weakened or overwritten at the edge.
+  **Do not** add a `header Content-Security-Policy …` to the snippet or the orbweaver block — keep CSP
+  app-owned. (SAMEORIGIN X-Frame-Options is compatible with the card-frame, which the app embeds
+  same-origin.)
+- **HSTS split is right.** Caddy owns HSTS (`max-age=31536000; includeSubDomains; preload`) at the
+  HTTPS edge; the app deliberately sets `strictTransportSecurity:false` (`security-headers.ts:96`)
+  because it is also served plain-http on LAN. Caddy is the correct owner of HSTS here.
+- **`/api/*` excluded from `encode`** (`@orbweaver_compressible not path /api/*`) + `flush_interval -1`
+  + `1800s` timeouts — the D118 multiplexed-SSE requirement (caddy#6293). Correct.
+- **Perimeter defenses front orbweaver:** CrowdSec bouncer + per-IP `rate_limit` (skips private
+  ranges) + the scanner honeypot fallback + `request_body max_size 1GB`.
+- **h3/QUIC in place** (launch checklist): global `protocols h1 h2 h3` (`Caddyfile:13`) + stack compose
+  publishes `443:443/udp`. **TLS:** DNS-01 wildcard via Cloudflare, auto-managed. Both satisfied.
+
+### Adjust (X)
+
+1. **[MEDIUM] Close the direct-port bypass — this is the live F3 hole.** Caddy targets
+   `host.docker.internal:8788`; the app is bound bare on the host. The Caddyfile's OWN comment
+   (`:365-366`) states it plainly: *"owner on the raw LAN IP (which bypasses caddy)."* Anyone on the
+   LAN hitting `http://<host-lan-ip>:8788` sends a private-range `Host` → `isLocalOrigin` true
+   (`dispatch.ts:59`) → minted **owner** via `AUTH_FALLBACK=owner` (`seam.ts:161`), bypassing Caddy,
+   CrowdSec, `rate_limit`, and OIDC entirely. The public FQDN is safe; **the LAN is not.** Rated
+   MEDIUM (trusted-LAN, single-user homelab) but it is precisely the F3 invariant.
+   **Fix (the orbweaver spec's own D4 recommendation):** containerize orbweaver onto `inktomi-net`
+   with `expose: 8788` (NEVER `ports:`) and repoint
+   `reverse_proxy host.docker.internal:8788` → `reverse_proxy orbweaver:8788` (keep `flush_interval -1`
+   + `1800s` timeouts). **Interim belts if the bare-host layout stays:** bind the app to
+   `127.0.0.1:8788` only (not `0.0.0.0`), OR set the app's `IP_ALLOWLIST` to loopback/proxy only, OR
+   run an SSO mode with `AUTH_FALLBACK=deny`.
+2. **[LOW] Header drift from the shared `security_headers` snippet (SET semantics = it replaces the
+   app's).** `X-Frame-Options: SAMEORIGIN` OVERRIDES the app's intended `DENY`
+   (`security-headers.ts:98`) — a legacy-header downgrade only; the app's `frame-ancestors 'none'`
+   CSP (which Caddy doesn't touch) still enforces DENY in modern browsers, so practical impact ≈ nil.
+   `Referrer-Policy: no-referrer` likewise overrides the app's `strict-origin-when-cross-origin`
+   (stricter, harmless). If tidying: drop these two from orbweaver's header set and let the app own
+   them. Not urgent.
+
+### Add carve-outs (Y) — defense-in-depth edge blocks
+
+Add inside `handle @orbweaver`, wrapped in a `route {}` so they fire BEFORE the catch-all
+`reverse_proxy` (Caddy's directive order sorts `respond` oddly relative to `reverse_proxy` — the
+Caddyfile's own honeypot lesson at `:453-455` documents this trap; `route` preserves written order).
+Build-ready shape:
+
+```caddy
+handle @orbweaver {
+    import security_headers
+    request_body { max_size 1GB }
+    route {
+        # F1 second belt: never serve sourcemaps from the public edge, even if a build re-ships them.
+        @orb_deny path *.map /@fs/* /@vite/* /@id/* /api/_debug/*
+        respond @orb_deny 404
+
+        @orbweaver_compressible not path /api/*
+        encode @orbweaver_compressible zstd gzip
+        reverse_proxy host.docker.internal:8788 {
+            flush_interval -1
+            transport http { read_timeout 1800s; write_timeout 1800s }
+        }
+    }
+}
+```
+
+- **`*.map`** — the second belt for F1 (sourcemap leak), alongside the app-side build fix. Cheap and
+  build-config-independent.
+- **`/@fs/*`, `/@vite/*`, `/@id/*`** — vite-dev routes; absent in a prod build, so this is pure
+  insurance against a dev-image misdeploy.
+- **`/api/_debug/*`** — the app already gates this on an admin session or `x-debug-token`; blocking it
+  at the public edge (404, preserving the no-existence-leak posture) means operators reach it only
+  over the LAN/loopback (or the containerized network), never the FQDN. **Only add this if no operator
+  workflow needs `_debug` via the public FQDN** — they shouldn't.
+
+## Honest floors — what I could NOT verify
+
+- **On-disk config ≠ running config.** I read the Caddyfile + stack compose as they sit on disk today;
+  I did not probe Caddy's admin API (localhost:2019, not reachable from here) to confirm the loaded
+  config matches, nor that Caddy was reloaded after the last edit.
+- **App bind address unconfirmed.** The LAN-bypass claim rests on the Caddyfile's own comment
+  (`:365-366`) + the containerize spec ("8788 is bound on the host and the owner hits the LAN IP") —
+  both first-party. I did NOT inspect the bare-host launch unit/systemd to see whether 8788 binds
+  `0.0.0.0` vs a specific interface; that lives outside the repo.
+- **No live remote/LAN Host-spoof test.** I have no LAN origin to `curl http://<lan-ip>:8788` with a
+  spoofed `Host` — the owner mint on that path is reasoned from `dispatch.ts:47,59` + `seam.ts:161`,
+  not reproduced.
+- **The D4 containerization has NOT happened yet** — the Caddyfile still targets
+  `host.docker.internal:8788`, so the recommended target posture is not the deployed one.
+- **Caddy `header` SET-vs-add** for X-Frame-Options is asserted from Caddy v2 default semantics, not
+  runtime-confirmed against the served orbweaver response.
