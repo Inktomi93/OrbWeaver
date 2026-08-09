@@ -386,8 +386,6 @@ export const guidedActionConfigSchema = z.object({
    *  role: that steer rides the `guided_instruction` marker inside the system block, which has no depth. */
   depth: z.number().int().min(MIN_INJECT_DEPTH).max(MAX_INJECTION_DEPTH).optional(),
 });
-/** @public type twin of `guidedActionConfigSchema`, which shapes all six guided actions in this file. */
-export type GuidedActionConfig = z.infer<typeof guidedActionConfigSchema>;
 
 export const guidedActionsSchema = z.object({
   response: guidedActionConfigSchema,

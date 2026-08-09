@@ -97,7 +97,7 @@ export {
 } from "./bus.ts";
 export type { CardFrameMintRequest, CardFrameMintResponse } from "./card-frame.ts";
 export { CARD_FRAME_ROUTE, cardFrameMintRequestSchema, cardFrameMintResponseSchema, cardFrameUrl } from "./card-frame.ts";
-export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock, MessageMediaKind, MessageMediaSrc } from "./content-blocks.ts";
+export type { CardTrust, ContentSpansToBlocksOptions, MessageContentBlock } from "./content-blocks.ts";
 export {
   cardTrustSchema,
   contentSpansToBlocks,
@@ -193,7 +193,6 @@ export type {
   CarriedAppearanceCast,
   CarriedAppearanceMember,
   CarriedBackground,
-  CharacterMemberSpec,
   CreateInviteInput,
   HandoffOffer,
   HistoryFloorSeq,
@@ -207,7 +206,6 @@ export type {
   RedeemInviteInput,
   RenderPolicy,
   RenderPolicyOverride,
-  RosterMemberSpec,
   SeatKnobs,
 } from "./roster.ts";
 export {
