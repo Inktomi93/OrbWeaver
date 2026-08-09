@@ -15,9 +15,13 @@ const LOGIN_PATH = "/login";
 
 /** UNAUTHORIZED is the TRANSPORT verdict "no principal was minted" (session invalid/absent). Per-procedure
  *  authz refusals are FORBIDDEN or the leak-free NOT_FOUND, never this — so keying on it is precisely "the
- *  session is stale", not "this one call was denied". */
+ *  session is stale", not "this one call was denied".
+ *
+ *  The `?.` on the CAST is load-bearing: the QueryCache `onError` hands us whatever was thrown, and `unknown`
+ *  includes `null`/`undefined`. A bare `.data` read on those throws a TypeError INSIDE the cache callback —
+ *  taking down the always-on recovery belt on exactly the errors it exists to survive. */
 function isUnauthorized(error: unknown): boolean {
-  return (error as { data?: { code?: string } }).data?.code === "UNAUTHORIZED";
+  return (error as { data?: { code?: string } } | null | undefined)?.data?.code === "UNAUTHORIZED";
 }
 
 let recovering = false;

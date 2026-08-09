@@ -12,13 +12,15 @@ import {
   selectOwnerUserId,
   updateUser,
 } from "../persistence/users.ts";
-import { deriveIdentityAccess, isOwnerByPolicy, reDeriveRoleOnLogin } from "../substrate/role-policy.ts";
+import { deriveIdentityAccess, isOwnerByPolicy, isOwnerSeedHandle, reDeriveRoleOnLogin } from "../substrate/role-policy.ts";
 
 // The SSO seam upsert. Keys on the stable `externalId` first (a username rename updates `handle` on the
-// same row), falling back to `handle`. The access-gate policy gates login and derives the global role. A
+// same row), falling back to `handle` — a fallback that may BIND an unbound row and may NEVER REBIND a bound
+// one (`isSubjectMismatch`, the impostor refusal). The access-gate policy gates login and derives the role. A
 // denied identity returns `{outcome:"denied"}` — no row is created or updated. `role` is seeded on insert;
 // on update it re-derives when group governance is active — except the owner, whose role is never
-// re-derived and who is never denied. `email` refreshes from the claim when carried (keep-on-null);
+// re-derived, whose HANDLE is never renamed off the `OWNER_HANDLES` seed key (see `updateExisting`), and who
+// is never denied. `email` refreshes from the claim when carried (keep-on-null);
 // `enabled` is never reset on update. Race-tolerant insert + re-read absorbs a concurrent first-login loser.
 //
 // OWNER-FLIP RECONCILIATION (#8): an owner-by-policy OIDC login whose subject/handle does NOT resolve to the
@@ -40,28 +42,54 @@ async function findExisting(ctx: SessionsContext, identity: ResolvedIdentity): P
   return await selectForProvisionByHandle(ctx.db, identity.handle);
 }
 
-/** Refresh `handle`/`externalId`/`email`; re-derive `role` only when `allowReDerive` and the re-derive
- *  policy is on; never touch `enabled`. Update only when something actually changed. */
+/**
+ * Whether the matched row is already BOUND to a DIFFERENT stable subject than the one logging in. Only the
+ * HANDLE fallback in {@link findExisting} can produce this — an `externalId` match is equal by construction —
+ * so it means "someone else's login carries this row's handle". See the refusal at the verb.
+ */
+function isSubjectMismatch(existing: ExistingUser, identity: ResolvedIdentity): boolean {
+  return identity.externalId !== null && existing.externalId !== null && existing.externalId !== identity.externalId;
+}
+
+/**
+ * Refresh `handle`/`externalId`/`email`; re-derive `role` only when the row is not the bootstrap owner and
+ * the re-derive policy is on; never touch `enabled`. Update only when something actually changed.
+ *
+ * `isBootstrapOwner` is ONE fact with TWO consequences, deliberately not two independent flags: the
+ * immutable bootstrap owner's `role` AND its `handle` are POLICY-owned, so a login re-derives neither. (The
+ * caller decides it by row IDENTITY — `existing.id === ownerId` — never by a role-literal compare.)
+ */
 async function updateExisting(
   ctx: SessionsContext,
   existing: ExistingUser,
   identity: ResolvedIdentity,
-  role: { resolved: UserRole; allowReDerive: boolean },
+  policy: { resolvedRole: UserRole; isBootstrapOwner: boolean },
 ): Promise<ProvisionResult> {
   const changes: { handle?: Handle; externalId?: ExternalId; email?: string; role?: UserRole } = {};
   if (identity.externalId !== null && existing.externalId !== identity.externalId) {
     changes.externalId = identity.externalId;
   }
-  if (existing.handle !== identity.handle) {
+  // THE OWNER'S HANDLE IS THE RE-SEED KEY, NOT AN IdP-TRACKED ATTRIBUTE (#8 cascade, D17/D135). The owner
+  // row's durable SSO key is `externalId`; its HANDLE is what boot's `seedOwner` → `ensureUser` and the auth
+  // seam's owner fallback resolve the owner ROW through (`isOwnerSeedHandle`). Renaming it to the IdP handle
+  // — which the owner-exemption branch did on every login AFTER the adoption bound the subject — strands both:
+  // the next boot finds no row at the seed key, its `insertUser(role:"owner")` collides with
+  // `users_single_owner_unique`, `onConflictDoNothing` swallows it, and the whole owner-scoped boot seed runs
+  // under an id that names no row. Scoped to the SEED KEY on purpose, so it is a stability guard and not a
+  // freeze: an operator who MOVES `OWNER_HANDLES` is migrating the key, and the rename then lands the row
+  // back onto the new one. Every other row keeps full IdP rename tracking (`externalId` keys SSO, `handle`
+  // keys everything else — Spine-Identity "Esoterica").
+  const handleIsPolicyOwned = policy.isBootstrapOwner && isOwnerSeedHandle(existing.handle);
+  if (!handleIsPolicyOwned && existing.handle !== identity.handle) {
     changes.handle = identity.handle;
   }
   if (identity.email !== null && existing.email !== identity.email) {
     changes.email = identity.email;
   }
   let effectiveRole = existing.role;
-  if (role.allowReDerive && reDeriveRoleOnLogin() && role.resolved !== existing.role) {
-    changes.role = role.resolved;
-    effectiveRole = role.resolved;
+  if (!policy.isBootstrapOwner && reDeriveRoleOnLogin() && policy.resolvedRole !== existing.role) {
+    changes.role = policy.resolvedRole;
+    effectiveRole = policy.resolvedRole;
   }
   if (Object.keys(changes).length > 0) {
     await updateUser(ctx.db, existing.id, { ...changes, updatedAt: ctx.now() });
@@ -175,13 +203,37 @@ function reconcileOwnerSingleton(derivedRole: UserRole, ownerId: UserId | undefi
 export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsService, "provisionIdentity"> {
   async function provisionIdentity(identity: ResolvedIdentity): Promise<ProvisionResult> {
     const existing = await findExisting(ctx, identity);
+    // THE HANDLE FALLBACK BINDS, IT NEVER REBINDS. `findExisting` falls back to `handle` so an UNBOUND row
+    // (the single-user/local/seeded shape) links to its SSO subject on first login. Reaching an already-BOUND
+    // row that way is not a rename — it is a different identity carrying this row's handle, and letting it
+    // through moved `external_id` onto the impostor's subject, handing them the row and locking the real
+    // owner of it out. Reachable both ways: (a) the OWNER row, whose handle is now deliberately PINNED to the
+    // `OWNER_HANDLES` key, so the takeover handle is a publicly guessable constant; (b) ANY user, through the
+    // window between an IdP rename and that user's next login, during which their old username is free to
+    // re-register while our row still stores it. `externalId` is the identity (Spine-Identity "Esoterica");
+    // a login that contradicts it is refused, fail-closed, with no row written.
+    //
+    // OPERATOR RECOVERY (the accepted trade, owner-ruled 2026-08-08): the ONE legitimate way to reach this
+    // refusal is an IdP that genuinely RE-ISSUED a stable subject (an authentik migration/rebuild), which
+    // locks that user — owner included — out of their own row. The repair is deliberately manual and
+    // out-of-band, because the alternative is a silent re-key we cannot distinguish from the impostor above:
+    //   sqlite> UPDATE users SET external_id = NULL WHERE handle = '<the locked-out handle>';
+    // The next login then takes the BIND path (unbound row + handle match) and links the new subject. This
+    // log line is the operator's tell — it names the handle and the rejected subject.
+    if (existing !== undefined && isSubjectMismatch(existing, identity)) {
+      getLog().warn(
+        { handle: identity.handle, externalId: identity.externalId },
+        "user: SSO login refused — the handle resolves to a row already bound to a DIFFERENT stable subject (impostor / handle re-registration); externalId is the identity key",
+      );
+      return { outcome: "denied" };
+    }
     const ownerId = await selectOwnerUserId(ctx.db);
     // Owner exemption: the immutable bootstrap owner is matched by the existing owner row's id, never by a
     // role-literal compare. The owner is never denied by the access gate and never re-derived downward.
     if (existing !== undefined && ownerId !== undefined && existing.id === ownerId) {
       return await updateExisting(ctx, existing, identity, {
-        resolved: existing.role,
-        allowReDerive: false,
+        resolvedRole: existing.role,
+        isBootstrapOwner: true,
       });
     }
 
@@ -204,10 +256,11 @@ export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsServ
 
     // Reconcile a policy-matched second owner against the singleton (downgrade to `user`) before writing.
     const resolvedRole = reconcileOwnerSingleton(access.role, ownerId, existing, identity);
+    // `existing` here is never the owner row — the exemption branch above returned for that case.
     return existing !== undefined
       ? await updateExisting(ctx, existing, identity, {
-          resolved: resolvedRole,
-          allowReDerive: true,
+          resolvedRole,
+          isBootstrapOwner: false,
         })
       : await insertNew(ctx, identity, resolvedRole);
   }
