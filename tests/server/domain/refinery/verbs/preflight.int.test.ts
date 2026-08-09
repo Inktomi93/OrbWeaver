@@ -4,6 +4,7 @@
 // mode factors. Advisory numbers — the pins here are about SEAMS (resolution freshness, monotonicity),
 // never about blessing a magic constant.
 
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -24,12 +25,21 @@ test("preflight resolves posture per call, measures the real prompt, and scales 
   expect(result.contextTokens).toBe(8192);
   expect(result.stages.map((s) => s.stage)).toEqual(["score", "rewrite", "analyze"]);
   const rewrite = result.stages.find((s) => s.stage === "rewrite");
-  // The floor posture (no preset params in the harness): the refine_rewrite catalog values.
+  // The floor posture (no preset params in the harness): the refine_rewrite catalog temperature.
   expect(rewrite?.temperature).toBe(0.7);
-  expect(rewrite?.maxOutputTokens).toBe(2048);
+  // THE BUDGET IS THE READOUT'S SUBJECT, and it is payload-aware (substrate/output-budget): never below the
+  // shipped floor, and never below this stage's own estimate. A readout that could print a ceiling SMALLER
+  // than the estimate right beside it — which is what the static floor did, live, before the 503 — is the
+  // defect this pin exists to keep out.
+  expect(rewrite?.maxOutputTokens ?? 0).toBeGreaterThanOrEqual(SIDE_GEN_POSTURES.refine_rewrite.maxOutputTokens);
+  expect(rewrite?.maxOutputTokens ?? 0).toBeGreaterThanOrEqual(rewrite?.outputEstimate ?? Number.POSITIVE_INFINITY);
   // The input estimate measures a REAL prompt — the card's own bytes make it nontrivial.
   expect(rewrite?.inputEstimate).toBeGreaterThan(50);
   expect(rewrite?.outputEstimate).toBeGreaterThan(0);
+  // Every stage, not just the one sampled above: no stage may advertise a ceiling under its own estimate.
+  for (const stage of result.stages) {
+    expect(stage.maxOutputTokens ?? 0).toBeGreaterThanOrEqual(stage.outputEstimate);
+  }
 
   // Mode arithmetic: expansive promises MORE output than balanced for the same selection.
   await h.svc.updateSession({
@@ -72,8 +82,11 @@ test("a preset-params edit reaches the NEXT preflight read (resolved per call, n
   // The harness's resolver is swappable through the context object — simulate a preset edit between reads.
   const ctx = h.ctx as { resolveUserPresetParams: (userId: unknown) => Promise<SideGenSampling> };
   const before = await h.svc.preflight({ principal: p, sessionId: session.id });
-  expect(before.stages.find((s) => s.stage === "score")?.maxOutputTokens).toBe(768);
+  expect(before.stages.find((s) => s.stage === "score")?.maxOutputTokens ?? 0).toBeGreaterThanOrEqual(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);
   ctx.resolveUserPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: 4096 });
   const after = await h.svc.preflight({ principal: p, sessionId: session.id });
+  // THE LADDER IS UNCHANGED by the payload-aware floor: an explicit preset cap still wins OUTRIGHT, even
+  // when it is lower than what the payload wants. Whether that overrun should then be confirmed or refused
+  // is a POLICY question and deliberately not decided here (owner queue, live-e2e 2026-08-09).
   expect(after.stages.find((s) => s.stage === "score")?.maxOutputTokens).toBe(4096);
 });
