@@ -74,6 +74,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-08 | **DISPATCH FREEZE (owner, late evening): no new agent dispatches until further notice — 5h session limit at 90%.** Running lanes finish + get merged by the orchestrator's own hands; queued tasks #30 (R4) / #31 (agents naming) / #32 (CLS+tab-strip) stay PARKED until the owner lifts it. |
 | 08-09 | **SCHEMA-FORGE STRUCTURED-OUTPUT VETO (owner, on the 13th-slot draft):** "asking the model to pretty-please output proper JSON is fragile as fuck and anti-everything about us" — the NL→schema generator must use ENFORCED structured output (xgrammar/tool-call grammar, the RP-extraction precedent), generalized so USER-BUILT schemas work by construction; the prompt describes the task, the grammar owns the shape. Rework = task #36, lands before the R3 graduation lens. |
 | 08-09 | **Schema-forge design elaboration (owner):** defaults are PRE-SUPPORTED (predefined shapes, full renderer treatment baked, zero model calls in the default path) · custom per-stage schemas = an authoring pipeline WITH OPTIONS — single enforced structured call / structured + tool calls / structured call → second call deriving format/render-hints via our TEACH machinery — "it's a one-time setup for them so they pay it once, but we should have options." vLLM local + OpenRouter env key + existing structured/tool support are the substrate. Folded into task #36. |
+| 08-09 | **Refinery session identity = SERVER-SIDE** (orchestrator ruling, ledgered on the reconciler's flag): `refinerySessionSummarySchema` carries `characterName` (non-null) + `characterAvatarHash` off the existing owner-scoping inner join — the client-side `character.list` resolve is DELETED (it capped at the 100-row page = the paginating-breaks-resolve-by-find class). Contract comment truth-repaired; landed in phase-2.5 `87fce8f15`. |
 | 08-09 | **MORNING SITTING (owner, via question tool):** PROSE ALL SIGNED (schemaForge design-task rewrite + rewrite/refine v3 append bullets = the shipped baselines) · **e2e PROCEED NOW** (wake the fleet) · **mobile refinery entry = UNDER "YOU"** (no bar redesign) · **01/02/03 markers = REDRAW without numbers** (the §6 ban stays absolute; mock loses this one) · lanes filled: #40 bounds→description + #35 corpus-stage instrument gap · re-import = OWNER-TRIGGERED (he runs it himself) · push = OWNER-RUN (he pushes himself; origin lags by the overnight merges until then). |
 | 08-09 | **Structured-output corrections (owner, late sitting — all folded into task #36):** (1) the 2026-08-02 "OR response\_format 400s" ruling is WRONG-OR-STALE — OR supports `response_format: json_schema` per-ENDPOINT; the probe missed `require_parameters: true` provider routing (lane owes a two-sided live re-probe before truth-repairing the header). (2) TWO seams only — vLLM xgrammar + the OpenRouter SDK (hosted EXCLUSIVELY; no agent-sdk arm); Anthropic's feature/complexity limits apply THROUGH OR as the routed-provider floor (no bounds, minItems 0\|1, ≤24 optionals, ≤16 unions). (3) The `structured` ROLE already exists (split from summarize 2026-07-27: roles/structured.ts, createVllmStructured guided = already enforced, OR structuredWireTool = the swap target) — EXTEND, never reinvent. (4) **VEHICLE KNOB ruling: three values beside the existing as-projected/strict-compatible shape knob — `auto` (default; resolve-model-capability decides, falls back to forced-tool) / `response-format` / `forced-tool`** — the knobs compose, rpg-lite protected by construction, rpg suites must stay green at ALL THREE values. |
 | 08-09 | **R3 POLISH MANDATE (owner, verbatim): "refinery should be sexy and modern and flow and have animations and shimmer bars where it tastefully fits, it should be buttery smooth"** — end-of-night: deep side-eye vs the rendered mocks → polish lane (motion/shimmer/flow, compositor-only, reduced-motion-respecting) → re-verify → EXHAUSTIVE e2e (refinery sessions against LIVE vLLM + smoke). Task #39. **Cap drops to 4 agents post-drain** (usage until morning). |
@@ -149,44 +150,50 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   zone gap → fix lane) · side-eye batch pass: C6 submenu GRADUATED clean; findings (turn-director model
   text, Corpus first-run redesign, Delete aria, flash ring, + P2/P3 pile) ALL in a fix lane per the
   side-eye-authority rule.
-## ═══ LIVE STATE (2026-08-09 MID-MORNING — compact-safety snapshot; supersedes the overnight plan below) ═══
+## ═══ LIVE STATE (2026-08-09 LATE-MORNING — supersedes the mid-morning snapshot; overnight plan below is history) ═══
 
-**Main `c5e2590e8`+ (~40 hook-gated merges since 08-08 morning), tree has NO uncommitted work, origin
-UNPUSHED (owner pushes himself).** All tasks ≤ #38 + #40 DONE. #39 in its final phases; #35 running.
+**Main `3eef8bdef`. Tree CLEAN, origin UNPUSHED (owner pushes himself). `tests:node` battery is GREEN
+again** (the X-16 `updatedAt` fixture red — 28 fails across 10 sites — swept + card-serde deviation
+fixed, merge `1422bf34c`). :5173 dev stack RESTARTED (pgid 1018495) after a zombie-vite white-screen
+(stale module graph missing the schema-advisory re-export) — serving fresh, 200.
 
-**UPDATE (94% sentinel): phase-2.5's rebase broke SEMANTICALLY (onGuidance vs the polish's two-row
-run bar) + its commit carries scratch debris (zzverify-contrast.ct.tsx, __g_*.test.ts) — a
-RECONCILER lane now owns landing it (true-merge, wire to main's shapes, delete debris, fix the 9
-structure violations; branch `wt/agent-a48724acf440a873a` intact, worktree pruned). #35 is DONE —
-commit `00003b7b7` on `wt/agent-acbeb6e6e44293ba8`, MERGE PENDING behind the reconciler (its finds:
-the corpus was NEVER broken — data-app-ready was a 3s hand-out, snap swallowed the readiness result,
-CREDENTIALS_KEY never crossed to stages; + LEAD: adoptMovedSeedKey may not persist its rename — a
-real boot-bug lead, needs a task). Gifs RESCUED to main's reports/recordings/. NEW owner report:
-text streaming feels choppy/ugly even with smooth streaming on → forge lane dispatching (task #42,
-full ast survey incl. node_modules of the streamer's API surface).**
+**MERGED since mid-morning (all hook-gated, foreground under the bg-task reaper):** phase-2.5
+reconciled `87fce8f15` (preflight advisories · editor CT suite · server-side session identity ·
+count-up fixes) — the reconciler found 3 of 4 briefed "breaks" were pre-rebase debris from my own
+aborts, only a barrel-sort was real · updatedAt sweep + [space]/[css] flagger fixes + #40 coupling
+test `1422bf34c` · shell-perf item 2 (chat faces-strip reserve, 74px→0.0001, gates on BOTH reads)
+`3eef8bdef`. **The whole refinery program (R0→R4 + forge + polish + preflight + CTs + session
+identity + enforced structured output) is on main.**
 
-**IN FLIGHT (5 lanes) — resurrection anchors (worktree = durable; never prune unmerged):**
-· **phase 2.5 DONE, MERGE PENDING** — commit `3a5d1cd08` on `wt/agent-a48724acf440a873a` (preflight
-  advisories derive-don't-declare · editor CT suite 28/28 · server-side session identity ·
-  count-up fixes [money-shot-never-ran + backwards-ramp 4→3.8] · gifs in its worktree's
-  reports/recordings/ — copy to main before any prune!). Merge next, foreground.
-· **e2e lane** — `wt/agent-a575817fbc6f3b701`: fixing the 768 output-budget class (one-home
-  substrate/output-budget.ts, payload-aware floor), then the full live checklist (engines healthy
-  8701/8702/8703). Item 5 (error arm) already PASS-live.
-· **#35 lane** — `wt/agent-acbeb6e6e44293ba8`: corpus-settle root-cause + preset CT flake.
-· **batched verifier** (no worktree): 5 chunks — #37 card-frame CSP adversarial · polish · #40 ·
-  #38 · mobile/markers.
-· **shell-perf mop** — `wt/agent-a9fe5f8ff49eb26be`: home 0.106 shift, chat-list 74px shift,
-  623ms section-entry LoAF profile.
-**THEN:** merge order as they land (ONE chain at a time, foreground-600s under the reaper, `git log`
-is the receipt) → side-eye RE-VERIFY (#39 close; carries: roster N-on-one-card labeling, the
-chevron-at-wrap nit, stepper-numeral judgment) → final board pass. NEW task #41: transpiler
-additionalProperties gap (generated schemas ship OPEN on hosted — fix in transpiler, not advisory).
-**OWNER QUEUE (unchanged + additions):** push (his) · re-import (his trigger) · taste pass (gifs:
-reports/recordings/ refinery-roster-and-stepper.gif + refinery-schema-door.gif + preflight png —
-caveat: schema-door gif pre-dates the preflight; shimmer/skeleton states need the e2e's model runs)
-· prose sign-offs DONE (all signed 08-09) · the user-capped-overrun policy fork (warn/confirm/refuse)
-· decision pile.
+**IN FLIGHT (2 lanes) — resurrection anchors (worktree = durable; never prune unmerged):**
+· **streaming forge (#42)** — agent `ab6675ffce60df35f`, own offset ports (5183/8798, engines
+  untouched). THREE owner symptoms consolidated in task #42: (1) CORE — text pops "blam!", no
+  per-token fade-in (target = the Claude-app buttery token reveal) · (2) cursor on a NEW LINE not
+  trailing the last char · (3) general choppiness. Full ast survey incl node_modules of the
+  streamdown option surface + live measure + build.
+· **#35 corpus-settle** — commit `00003b7b7` on `wt/agent-acbeb6e6e44293ba8`, MERGE PENDING. Finds:
+  corpus was NEVER broken — the INSTRUMENTS lied (data-app-ready a 3s unconditional hand-out; snap
+  swallowed the readiness result; CREDENTIALS_KEY never crossed to offset stages → healthz 503
+  forever). Fixes those + the preset CT flake. **Merge this next.**
+
+**PARKED TASKS:** #41 transpiler additionalProperties (generated schemas ship OPEN on hosted — fix in
+transpiler, not advisory) · #43 boot 4.9MB single chunk / ~610ms V8 parse (code-split/lazy — real
+lane) · **#44 chat-list unbounded-fetch + NO virtualizer (bare .map over ~872 rows post-import) —
+THE PRE-RE-IMPORT GATE; MUST use the SEALED virtual-core primitive [[virtual-core-paddingend-for-pins]],
+never raw @tanstack/react-virtual or hand-roll; also carries the home CLS skeleton 3-vs-8 reframe** ·
+plus LEADS needing tasks: adoptMovedSeedKey may not persist its rename (boot-bug lead from #35).
+
+**#39 CLOSE STILL OWED:** the RE-VERIFY side-eye on the merged refinery (carries: roster
+N-sessions-on-one-card labeling, the chevron-at-wrap nit, whether the stage-stepper's {index+1} badge
+falls under the numeral ban) + the e2e lane's live checklist result (the e2e lane was folded into
+#42's territory / its 768-budget fix — reconcile its state on resume: check for `wt/agent-a575817fbc6f3b701`).
+
+**OWNER QUEUE:** push (his; battery green now) · re-import (his trigger — HOLD for #44) · taste pass
+(:5173 live; gifs reports/recordings/ refinery-roster-and-stepper.gif + refinery-schema-door.gif +
+preflight png — caveat: schema-door gif pre-dates the preflight; shimmer/skeleton run-states need a
+model) · prose sign-offs DONE (all signed 08-09) · **home CLS fork** (reframed by #44 to skeleton
+3-vs-8; the B/D/accept arms likely dissolve) · **user-capped-overrun policy fork**
+(warn/confirm/refuse) · #43 code-split whether/when · decision pile.
 
 ## ═══ SUPERSEDED: OVERNIGHT PLAN (2026-08-09 post-reset) ═══
 
