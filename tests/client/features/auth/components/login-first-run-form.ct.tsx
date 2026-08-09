@@ -57,3 +57,23 @@ test("a successful setup posts an urlencoded password and fires onDone", async (
   await expect(page.getByTestId("ct-first-run-done")).toBeVisible();
   expect(postedBody).toBe(new URLSearchParams({ password: "hunter2password" }).toString());
 });
+
+// The AUTOFILL ANATOMY guard (owner flag, 2026-08-09 — the twin of login-local-form.ct.tsx's): a
+// REAL <form>, sealed inputs, `type="password"`, and BOTH fields carrying `autocomplete="new-password"`
+// — the token that makes Chrome OFFER TO SAVE the owner password instead of trying to fill an old one.
+test("AUTOFILL ANATOMY: owner + confirm are real password inputs inside a <form>, both new-password", async ({ mount, page }) => {
+  await mount(<LoginFirstRunFormStory ownerHandle="owner" />);
+  const form = page.locator("form");
+  await expect(form).toHaveCount(1);
+  const owner = form.getByTestId("first-run-password");
+  const confirm = form.getByTestId("first-run-confirm");
+  await expect(owner).toBeVisible();
+  await expect(confirm).toBeVisible();
+  await expect(owner).toHaveAttribute("type", "password");
+  await expect(confirm).toHaveAttribute("type", "password");
+  await expect(owner).toHaveAttribute("autocomplete", "new-password");
+  await expect(confirm).toHaveAttribute("autocomplete", "new-password");
+  const tags = await form.evaluate((el) => [...el.querySelectorAll("[data-testid=first-run-password],[data-testid=first-run-confirm]")].map((n) => n.tagName));
+  // ONESHOT-OK: static DOM structure, already awaited visible above.
+  expect(tags).toEqual(["INPUT", "INPUT"]);
+});

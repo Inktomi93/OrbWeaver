@@ -134,3 +134,7 @@ export type { FillableIcon } from "./fillable.ts";
 export { Bookmark, Circle, Droplet, Flag, Flame, Heart, Pause, Play, Shield, Square, Star, Zap } from "./fillable.ts";
 export type { IconProps } from "./icon.tsx";
 export { ICON_LG, ICON_MD, ICON_SM, ICON_XS, Icon } from "./icon.tsx";
+// The orb-web BRAND glyph — minted through this seal (createLucideIcon; see orb-web.ts) so the mark
+// renders like any curated icon without an inline <svg> anywhere in ui (§13.7). The GLYPH metric
+// exports carry the spiral arc length WebSpinner's silk-pulse dash period derives from.
+export { ORB_WEB_GLYPH, ORB_WEB_GLYPH_COMPACT, OrbWeb, OrbWebCompact } from "./orb-web.ts";

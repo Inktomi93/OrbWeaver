@@ -56,3 +56,25 @@ test("a successful login posts an urlencoded credential form and fires onLoggedI
   // The server route parses a FORM body (`parseBody`) — a JSON post would silently 400.
   expect(postedBody).toBe(new URLSearchParams({ handle: "owner", password: "hunter22" }).toString());
 });
+
+// The AUTOFILL ANATOMY guard (owner flag, 2026-08-09 — the visual layer must never break Chrome's
+// password-save heuristics). Chrome's form-identity heuristic keys on: a REAL <form> ancestor, real
+// <input> controls (the sealed @orb/ui Field+Input, not bespoke editables), the exact `autocomplete`
+// tokens, and `type="password"` on the secret. Pinned so a future skin can't silently kill autofill.
+test("AUTOFILL ANATOMY: real <form>, real inputs, autocomplete=username/current-password, type=password", async ({ mount, page }) => {
+  await mount(<LoginLocalFormStory defaultHandle="owner" />);
+  const form = page.locator("form");
+  await expect(form).toHaveCount(1);
+  const handle = form.getByTestId("login-handle");
+  const password = form.getByTestId("login-password");
+  await expect(handle).toBeVisible();
+  await expect(password).toBeVisible();
+  // The N9 identity tokens, verbatim (§13.10): username + current-password.
+  await expect(handle).toHaveAttribute("autocomplete", "username");
+  await expect(password).toHaveAttribute("autocomplete", "current-password");
+  await expect(password).toHaveAttribute("type", "password");
+  // Both are REAL <input> elements rendered by the sealed primitive — not styled editables.
+  const tags = await form.evaluate((el) => [...el.querySelectorAll("[data-testid=login-handle],[data-testid=login-password]")].map((n) => n.tagName));
+  // ONESHOT-OK: static DOM structure, already awaited visible above.
+  expect(tags).toEqual(["INPUT", "INPUT"]);
+});

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <title>orbweaver — mark (open orb)</title>
+  <!-- The DISPLAY mark, direction A (docs/design/login-loading-screen.md §8; source frozen at
+       docs/design/mocks/login-loading/orb-mark-a.svg): eight spokes + one OPEN 2.6-turn spiral +
+       the hub + a single dew drop. This served copy is ember-stroked (a static asset can't inherit
+       currentColor); the in-app mark is the WeaveGlyph component (client/src/lib/weave-glyph.tsx),
+       which inherits the theme. Raster brand icons in ../icons/ are generated from this file. -->
+  <g fill="none" stroke="#ec9145" stroke-linecap="round">
+    <g stroke-width="1.3" opacity="0.9"><path d="M 16 13.4 L 16 2.4"/><path d="M 17.84 14.16 L 25.62 6.38"/><path d="M 18.6 16 L 29.6 16"/><path d="M 17.84 17.84 L 25.62 25.62"/><path d="M 16 18.6 L 16 29.6"/><path d="M 14.16 17.84 L 6.38 25.62"/><path d="M 13.4 16 L 2.4 16"/><path d="M 14.16 14.16 L 6.38 6.38"/></g>
+    <path stroke-width="1.5" d="M 16 12 L 16.69 11.96 L 17.4 12.04 L 18.1 12.25 L 18.76 12.59 L 19.38 13.04 L 19.91 13.6 L 20.35 14.26 L 20.68 15.01 L 20.88 15.81 L 20.94 16.65 L 20.85 17.51 L 20.61 18.35 L 20.22 19.15 L 19.7 19.9 L 19.04 20.55 L 18.26 21.09 L 17.39 21.49 L 16.45 21.74 L 15.46 21.84 L 14.46 21.76 L 13.46 21.5 L 12.51 21.07 L 11.64 20.48 L 10.86 19.73 L 10.22 18.85 L 9.72 17.86 L 9.4 16.78 L 9.27 15.65 L 9.33 14.49 L 9.59 13.35 L 10.05 12.25 L 10.7 11.23 L 11.52 10.32 L 12.5 9.56 L 13.61 8.97 L 14.82 8.57 L 16.1 8.38 L 17.41 8.41 L 18.71 8.66 L 19.96 9.14 L 21.12 9.84 L 22.17 10.73 L 23.06 11.8 L 23.76 13.02 L 24.24 14.36 L 24.5 15.78 L 24.51 17.23 L 24.27 18.69 L 23.79 20.1 L 23.06 21.42 L 22.1 22.6 L 20.95 23.62 L 19.63 24.44 L 18.17 25.03 L 16.61 25.37 L 15.01 25.43 L 13.4 25.22 L 11.83 24.74 L 10.36 23.98 L 9.02 22.98 L 7.86 21.76 L 6.91 20.34 L 6.21 18.76 L 5.79 17.07 L 5.66 15.32 L 5.83 13.56 L 6.3 11.83 L 7.06 10.2 L 8.1 8.7 L 9.39 7.39 L 10.9 6.31 L 12.59 5.49 L 14.4 4.97 L 16.29 4.76 L 18.21 4.87 L 20.1 5.32 L 21.9 6.08 L 23.56 7.15 L 25.02 8.5 L 26.25 10.08 L 27.19 11.87 L 27.83 13.81 L 28.13 15.84 L 28.07 17.91 L 27.67 19.96 L 26.92 21.93 L 25.83 23.75 L 24.44 25.38 L 22.78 26.75 L 20.9 27.84 L 18.85 28.59 L 16.68 28.99 L 14.46 29.02 L 12.25 28.66 L 10.12 27.93 L 8.12 26.84"/>
+    <circle cx="16" cy="16" r="1.9" fill="#ec9145" stroke="none"/>
+    <circle cx="24.63" cy="8.09" r="1.5" fill="#ec9145" stroke="none" opacity="0.95"/>
+  </g>
+</svg>

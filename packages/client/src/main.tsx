@@ -30,6 +30,7 @@ import {
   appearanceEffectsSection,
   appearanceReadingSection,
   appearanceSizingSection,
+  BootVeil,
   contextToggleChrome,
   fullscreenChrome,
   youModal,
@@ -412,6 +413,10 @@ createRoot(rootEl).render(
             </SectionRegistryProvider>
           </AppErrorBoundary>
           <Toaster />
+          {/* The boot loading veil — covers route resolution + the initial reads, dissolves itself on
+              the `data-app-ready` stamp (installAppReadySignal below). Mounted beside the router so it
+              OWNS its exit transition (a router pending component is ripped out with no exit phase). */}
+          <BootVeil />
         </ToastProvider>
         {DevTools === null || isProbeMode() ? null : (
           <Suspense fallback={null}>
