@@ -2,7 +2,7 @@
 // "what this turn did" disclosure (TOOLCALLS-INVISIBLE, arm A).
 //
 // THE SEAM'S FIRST REAL TENANT. `chatSurfaceContributors` shipped EMPTY-but-typed with the note that
-// "rpg/crew append array members later"; this is that append. rpg never imports chat and chat never imports
+// "rpg/agents append array members later"; this is that append. rpg never imports chat and chat never imports
 // rpg — `main.tsx` owns both and injects this array member, exactly as it does for the context tabs and the
 // HUD region.
 //

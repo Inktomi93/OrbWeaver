@@ -94,7 +94,7 @@ interface RunTurnPipelineArgs {
   readonly terminalTools?: readonly WireTool[] | undefined;
   /** A structured-output request for this turn (D79). Absent on every turn today — the chat loop sets `tools`,
    *  never `responseFormat` (mutually exclusive by construction, 04 §8); a future structured chat consumer
-   *  (crew CW2) sets it, and the gate below drops+warns when the model can't honor it. */
+   *  (agents CW2) sets it, and the gate below drops+warns when the model can't honor it. */
   readonly responseFormat?: ResponseFormat | undefined;
   readonly toolRecurseLimit: number;
   /** The principal-blind identity frame `executeToolCalls` receives. */

@@ -1,5 +1,5 @@
 // verb: upsertEntries — the SHARED, hand-edit-safe machine-writer bulk upsert (D58 satellite; chat-crew-design
-// /02 §7, /03 §1; CC-D). The ONE home the chat crew keeper, the rpg lorebook upkeep, and the D46 automation
+// /02 §7, /03 §1; CC-D). The ONE home the chat agents keeper, the rpg lorebook upkeep, and the D46 automation
 // writer all inject — none forks a compare/parse copy. Upserts entries by (bookId, title): an existing entry
 // with the same title is UPDATED in place (a keeper re-run over the same span replaces its own entry), a new
 // title is INSERTED. The hand-edit belt: an existing entry whose CURRENT content no longer hashes to the

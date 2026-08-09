@@ -4,7 +4,7 @@
 // composes that sink onto `publishAutomationEvent` here, so a rule's `surface_quick_reply` arm (and the
 // host-only fire/error/disable events) reach every subscriber to that chat's channel. TRANSIENT by design:
 // unlike the notifications bus this half is the WHOLE story — there is no durable row, no resume cursor (the
-// chips are ephemeral, 03 §1.4). Rides `defineBusChannel` keyed by chatId (the rpg/crew own-bus precedent —
+// chips are ephemeral, 03 §1.4). Rides `defineBusChannel` keyed by chatId (the rpg/agents own-bus precedent —
 // NOT the frozen chat bus, D50), with NO firehose opt-in (client-architecture-lockdown.md §13/§16 G10).
 //
 // ASSUMES(single-replica): module-scope emitter, per-process — the enabled-index / rpg-bus annotation. The
