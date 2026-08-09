@@ -2,11 +2,16 @@
 // canonical BulkImportChatInput that chat's injected bulkImportChats op writes. Zero I/O; owning chat
 // domain never sees SillyTavern. updatedAt = max(send_dates), not last and not import `now`; the selected
 // variant's content is always the rendered `mes`, even when the active swipe was empty-dropped.
+//
+// TWO ARMS over ONE body: the solo arm (`buildBulkImportChatInput`) and the GROUP arm
+// (`buildGroupChatInput`), which is the solo result plus the room's extra seats, the per-slot speaker
+// attribution and the room-behavior blob. The group arm DELEGATES rather than re-deriving, so a change to
+// dates/variants/persona attribution can never apply to only one kind of room.
 
 import type { BulkImportChatInput, BulkImportMessageInput, BulkImportVariantInput } from "@orb/contracts/chat";
-import type { PersonaId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { ParsedChatMessage } from "#kit/serde/chat";
-import type { CollectedChat } from "../contract/views.ts";
+import type { CollectedChat, GroupChatInputDeps } from "../contract/views.ts";
 
 const JSONL_EXT = /\.jsonl$/i;
 
@@ -111,4 +116,38 @@ export function buildBulkImportChatInput(
     isRealConversation: pc.bucket === "real_conversation",
     messages: pc.messages.map((m) => toMessageInput(m, m.sendDate ?? created, chatPersonaId)),
   };
+}
+
+/** WHICH seat voices this assistant slot. `original_avatar` (the card filename ST stamps on every group line)
+ *  is the IDENTITY match and wins; a roster-scoped display-name match is the fallback; absent both, the slot
+ *  falls through to the room's primary by returning null (the write op's own documented "absent ⇒ primary").
+ *  Never resolves a `user` slot — attribution there is the persona. */
+function groupSpeakerFor(m: ParsedChatMessage, deps: GroupChatInputDeps): CharacterId | null {
+  if (m.role !== "assistant") {
+    return null;
+  }
+  const byFile = m.originalAvatar === undefined || m.originalAvatar === null ? undefined : deps.speakerByFile.get(m.originalAvatar);
+  if (byFile !== undefined) {
+    return byFile;
+  }
+  const name = m.speakerName?.trim().toLowerCase();
+  return (name !== undefined && deps.speakerByName.get(name)) || null;
+}
+
+/**
+ * Map one collected GROUP transcript onto the canonical bulk-import input: the same shape a solo chat produces,
+ * plus the room's extra seats (`roster`), the per-slot speaker attribution, and the room-behavior blob carried
+ * off the ST group definition. The write op ownership-gates every seat and refuses an unseated speaker, so this
+ * mapper only ever proposes ids the caller already resolved out of the room's own cast.
+ */
+export function buildGroupChatInput(ci: CollectedChat, deps: GroupChatInputDeps): BulkImportChatInput {
+  const base = buildBulkImportChatInput(ci, { now: deps.now, personaByUserName: deps.personaByUserName });
+  const messages = base.messages.map((message, i): BulkImportMessageInput => {
+    const parsed = ci.parsed.messages[i];
+    const speaker = parsed === undefined ? null : groupSpeakerFor(parsed, deps);
+    // ABSENT (not null) when unresolved: the field's own contract says absent ⇒ the run's primary, and an
+    // explicit null would say the same thing in a second spelling.
+    return speaker === null ? message : { ...message, characterId: speaker };
+  });
+  return { ...base, messages, roster: deps.roster, metadata: deps.metadata };
 }

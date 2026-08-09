@@ -56,6 +56,69 @@ function chatJsonl(userName: string, characterName: string): string {
   ].join("\n");
 }
 
+/** A real-shaped ST GROUP-CHAT `.jsonl`: the per-line `original_avatar` (the SPEAKING CARD'S FILENAME) is the
+ *  identity key an ST group export actually carries — verbatim from a real `group chats/*.jsonl` in the corpus,
+ *  where every assistant line stamps `original_avatar: "Bengal.png"` beside the display `name`. */
+function groupChatJsonl(userName: string): string {
+  return [
+    JSON.stringify({ user_name: userName, character_name: "unused", create_date: "2025-07-18@12h00m00s" }),
+    JSON.stringify({ name: "Aria", is_user: false, original_avatar: "Aria.png", mes: "Aria speaks.", send_date: "2025-07-18@12h00m01s" }),
+    JSON.stringify({ name: userName, is_user: true, mes: "Hi both!", send_date: "2025-07-18@12h00m02s" }),
+    // No `original_avatar` — the pre-group-era shape; resolves by the roster-SCOPED display name instead.
+    JSON.stringify({ name: "Bram", is_user: false, mes: "Bram answers.", send_date: "2025-07-18@12h00m03s" }),
+    // A speaker that is NEITHER seated NOR named in the roster → falls through to the room's primary.
+    JSON.stringify({ name: "Ghost", is_user: false, original_avatar: "Ghost.png", mes: "A stranger.", send_date: "2025-07-18@12h00m04s" }),
+  ].join("\n");
+}
+
+/** A real-shaped ST `groups/<id>.json`: members are CARD FILENAMES and `chats` names transcript leaves (no
+ *  extension), both verbatim from the corpus's own group definition. */
+function groupJson(members: readonly string[], chats: readonly string[], over: Record<string, unknown> = {}): string {
+  return JSON.stringify({
+    id: "1773514134935",
+    name: "Group: Aria + Bram",
+    members,
+    avatar_url: "/thumbnail?type=avatar&file=Aria.png",
+    allow_self_responses: false,
+    activation_strategy: 0,
+    generation_mode: 0,
+    disabled_members: [],
+    chat_id: chats[0],
+    chats,
+    ...over,
+  });
+}
+
+/** A real-shaped ST chat-completion preset (`OpenAI Settings/*.json`) — the marker/custom prompt + prompt_order
+ *  structure and the sampler/behaviour scalars, trimmed from a real corpus preset. `wrap_in_quotes` is a real
+ *  ST field with NO orb seat, so it exercises the unmapped-field reporting. */
+function openAiPresetJson(over: Record<string, unknown> = {}): string {
+  return JSON.stringify({
+    temperature: 1,
+    top_p: 1,
+    openai_max_tokens: 1200,
+    names_behavior: 2,
+    wrap_in_quotes: true,
+    impersonation_prompt: "Write as the user.",
+    prompt_order: [
+      {
+        character_id: 100_001,
+        order: [
+          { identifier: "charDescription", enabled: true },
+          { identifier: "main", enabled: false },
+          { identifier: "chatHistory", enabled: true },
+        ],
+      },
+    ],
+    prompts: [
+      { identifier: "charDescription", name: "|| Description", system_prompt: true, marker: true, role: "system", content: "" },
+      { identifier: "main", name: "| Prompt", system_prompt: true, role: "system", content: "You are a storyteller." },
+      { identifier: "chatHistory", name: "Chat History", system_prompt: true, marker: true },
+    ],
+    ...over,
+  });
+}
+
 const ENC = new TextEncoder();
 
 /** An in-memory ImportFsPort over a flat path→node map (dirs are the paths that have children). */
@@ -116,7 +179,13 @@ interface Fakes {
   readonly tag: ImportTagPort["attachCardTagByName"];
   readonly tagAttaches: TagAttach[];
   readonly bulkImportPersonas: (args: { readonly personas: readonly BulkImportPersonaInput[] }) => Promise<BulkImportPersonasResult>;
-  readonly bulkImportChats: (args: { readonly chats: readonly BulkImportChatInput[] }) => Promise<BulkImportChatsResult>;
+  readonly bulkImportChats: (args: { readonly characterId: CharacterId; readonly chats: readonly BulkImportChatInput[] }) => Promise<BulkImportChatsResult>;
+  /** Every bulk-chat write this run made, in order — the group wave's roster + per-slot speaker land here. */
+  readonly chatWrites: { readonly characterId: CharacterId; readonly chats: readonly BulkImportChatInput[] }[];
+  /** The preset domain's import op, faked: records the NAMES it was handed and dedups them like the real
+   *  (ownerId, name)-idempotent verb, so a second run reports `created:false` instead of a second preset. */
+  readonly importPreset: (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<{ ok: boolean; created?: boolean; error?: string }>;
+  readonly presetWrites: string[];
   readonly stores: StoreCall[];
   readonly log: string[];
   readonly backfills: UserId[];
@@ -198,8 +267,27 @@ function fakes(): Fakes {
     });
   };
 
-  const bulkImportChats = (args: { readonly chats: readonly BulkImportChatInput[] }): Promise<BulkImportChatsResult> => {
+  const chatWrites: { characterId: CharacterId; chats: readonly BulkImportChatInput[] }[] = [];
+  const presetWrites: string[] = [];
+  const presetNames = new Set<string>();
+
+  // The preset domain's real verb is idempotent on (ownerId, name): a same-named preset MERGES in place and
+  // reports created:false. The fake mirrors that so the double-run test proves a clean no-op, not a duplicate.
+  const importPreset = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }): Promise<{ ok: boolean; created?: boolean; error?: string }> => {
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(args.bytes));
+    const name = (parsed as { name?: unknown }).name;
+    if (typeof name !== "string") {
+      return Promise.resolve({ ok: false, error: "no name" });
+    }
+    presetWrites.push(name);
+    const created = !presetNames.has(name);
+    presetNames.add(name);
+    return Promise.resolve({ ok: true, created });
+  };
+
+  const bulkImportChats = (args: { readonly characterId: CharacterId; readonly chats: readonly BulkImportChatInput[] }): Promise<BulkImportChatsResult> => {
     log.push("bulkImportChats");
+    chatWrites.push({ characterId: args.characterId, chats: args.chats });
     let imported = 0;
     for (const c of args.chats) {
       if (!seenChatHashes.has(c.importHash)) {
@@ -226,6 +314,9 @@ function fakes(): Fakes {
     tagAttaches,
     bulkImportPersonas,
     bulkImportChats,
+    chatWrites,
+    importPreset,
+    presetWrites,
     stores,
     log,
     backfills,
@@ -257,6 +348,7 @@ function deps(fs: ImportFsPort, f: ReturnType<typeof fakes>, over: Partial<Pick<
     attachCardTag: f.tag,
     bulkImportChats: f.bulkImportChats,
     bulkImportPersonas: f.bulkImportPersonas,
+    importPreset: f.importPreset,
     importStandaloneLorebook: ({ book }): Promise<BulkImportLorebookResult> => {
       const replaced = f.standaloneBooks.includes(book.name);
       if (!replaced) {
@@ -412,6 +504,202 @@ describe("runProfileDirImport", () => {
     expect(second.changed).toBe(0);
     // The second run creates no new character (the importHash oracle short-circuits before any store).
     expect(f.log.filter((l) => l === "character.create")).toHaveLength(1);
+  });
+});
+
+/** A profile carrying BOTH new planes: two cards, an ST chat-completion preset (file + the live blob), and one
+ *  group whose members are those two cards with a single group transcript. */
+function presetAndGroupFiles(root: string): Record<string, Uint8Array> {
+  return {
+    [`${root}/userA/characters/Aria.png`]: cardPng("Aria"),
+    [`${root}/userA/characters/Bram.png`]: cardPng("Bram"),
+    [`${root}/userA/OpenAI Settings/Marinara.json`]: ENC.encode(openAiPresetJson()),
+    [`${root}/userA/settings.json`]: ENC.encode(JSON.stringify({ oai_settings: JSON.parse(openAiPresetJson({ temperature: 0.7 })) })),
+    [`${root}/userA/groups/1773514134935.json`]: ENC.encode(groupJson(["Aria.png", "Bram.png"], ["party-night"])),
+    [`${root}/userA/group chats/party-night.jsonl`]: ENC.encode(groupChatJsonl("Nate")),
+  };
+}
+
+describe("runProfileDirImport — ST chat-completion presets", () => {
+  test("the four preset planes leave the unhandled lists, and the saved file + live blob both import", async () => {
+    const fs = memoryFs(presetAndGroupFiles("root"));
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(fs, f));
+
+    // The affordance a user reads: the report no longer says these planes were left behind.
+    expect(report.unhandled).not.toContain("OpenAI Settings/");
+    expect(report.unhandledSettings).not.toContain("oai_settings");
+    // The saved preset is FAMILY-QUALIFIED (ST ships a `Default.json`; an unqualified name would merge onto an
+    // owner's own preset of that name), and the live blob lands under its own distinct name.
+    expect(f.presetWrites).toEqual(["Marinara (OpenAI)", "OpenAI (active)"]);
+    expect(report.presetsImported).toBe(2);
+    expect(report.skippedPresets).toEqual([]);
+  });
+
+  test("the TEXT-completion families stay unhandled, with the owner's ruling as the reason", async () => {
+    // Owner ruling 2026-08-08: orb has no text-completion mode, so these are a deliberate refusal, not a gap.
+    const files: Record<string, Uint8Array> = {
+      "root/userA/characters/Aria.png": cardPng("Aria"),
+      "root/userA/TextGen Settings/Universal-Creative.json": ENC.encode(JSON.stringify({ temp: 1.5, top_p: 1, min_p: 0.1, rep_pen: 1 })),
+      "root/userA/KoboldAI Settings/Universal-Creative.json": ENC.encode(JSON.stringify({ temp: 1.5, top_a: 0, typical: 1 })),
+      "root/userA/NovelAI Settings/Carefree-Kayra.json": ENC.encode(JSON.stringify({ temperature: 1.35, repetition_penalty: 2.8 })),
+      "root/userA/settings.json": ENC.encode(JSON.stringify({ textgenerationwebui_settings: {}, kai_settings: {}, nai_settings: {} })),
+    };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(fs, f));
+
+    expect(report.unhandled).toEqual(expect.arrayContaining(["TextGen Settings/", "KoboldAI Settings/", "NovelAI Settings/"]));
+    expect(report.unhandledSettings).toEqual(expect.arrayContaining(["textgenerationwebui_settings", "kai_settings", "nai_settings"]));
+    // Not one of them was written as a preset.
+    expect(f.presetWrites).toEqual([]);
+  });
+
+  test("a preset's ST fields with no orb seat are REPORTED, per preset", async () => {
+    const files: Record<string, Uint8Array> = { "root/userA/OpenAI Settings/Marinara.json": ENC.encode(openAiPresetJson()) };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(fs, f));
+
+    const note = report.presetNotes.find((n) => n.name === "Marinara (OpenAI)");
+    expect(note?.sourceFile).toBe("OpenAI Settings/Marinara.json");
+    // `wrap_in_quotes: true` is a real ST field orb has no knob for — it must appear with its reason.
+    expect(note?.fields.map((x) => x.field)).toContain("wrap_in_quotes");
+  });
+
+  test("an unparseable preset file is recorded, never silent, and never aborts the run", async () => {
+    const files: Record<string, Uint8Array> = {
+      "root/userA/characters/Aria.png": cardPng("Aria"),
+      "root/userA/OpenAI Settings/broken.json": ENC.encode("{not json"),
+      "root/userA/OpenAI Settings/Marinara.json": ENC.encode(openAiPresetJson()),
+    };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(fs, f));
+
+    expect(report.unreadablePresets).toEqual(["OpenAI Settings/broken.json"]);
+    expect(f.presetWrites).toEqual(["Marinara (OpenAI)"]);
+    // The good card still imported — one bad preset is not an aborted profile.
+    expect(f.log.filter((l) => l === "character.create")).toHaveLength(1);
+  });
+});
+
+describe("runProfileDirImport — ST groups", () => {
+  test("a group becomes ONE room per transcript: host + every member seated, speakers attributed per turn", async () => {
+    const fs = memoryFs(presetAndGroupFiles("root"));
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(fs, f));
+
+    expect(report.unhandled).not.toContain("groups/");
+    expect(report.unhandled).not.toContain("group chats/");
+    expect(report.groupsImported).toBe(1);
+    expect(report.groupChatsImported).toBe(1);
+
+    // The group write is the LAST chat write (the wave runs after the character wave, which is what makes the
+    // card-filename → characterId map exist at all).
+    const groupWrite = f.chatWrites.at(-1);
+    const chat = groupWrite?.chats[0];
+    // Aria is the room's PRIMARY (ST's first member); Bram is the extra roster seat.
+    expect(groupWrite?.characterId).toBe(castId<CharacterId>("chr_1"));
+    expect(chat?.roster).toEqual([castId<CharacterId>("chr_2")]);
+    // Per-turn attribution: `original_avatar` resolves Aria BY CARD FILENAME; Bram's line carries none, so the
+    // roster-scoped display name resolves it; the user turn is never character-attributed; and an off-roster
+    // speaker falls through to the primary by carrying NO characterId (absent ⇒ primary, per the op's contract).
+    expect(chat?.messages.map((m) => m.characterId)).toEqual([castId<CharacterId>("chr_1"), undefined, castId<CharacterId>("chr_2"), undefined]);
+    // The room is born with the group's own behaviour blob (ST generation_mode 0 = one speaker per turn).
+    expect((chat?.metadata as { group?: { output?: string } } | undefined)?.group?.output).toBe("per-speaker");
+  });
+
+  test("ST generation_mode 1 (append) becomes a NARRATOR room", async () => {
+    const files = {
+      ...presetAndGroupFiles("root"),
+      "root/userA/groups/g.json": ENC.encode(groupJson(["Aria.png", "Bram.png"], ["party-night"], { generation_mode: 1 })),
+    };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    await runProfileDirImport(deps(fs, f));
+
+    const outputs = f.chatWrites
+      .flatMap((w) => w.chats.map((c) => (c.metadata as { group?: { output?: string } } | undefined)?.group?.output))
+      .filter((o) => o !== undefined);
+    expect(outputs).toContain("narrator");
+  });
+
+  test("an ORPHAN member is skipped with a note; the room still imports around the members that resolved", async () => {
+    const files = {
+      ...presetAndGroupFiles("root"),
+      "root/userA/groups/1773514134935.json": ENC.encode(groupJson(["Aria.png", "Nobody.png"], ["party-night"])),
+    };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(fs, f));
+
+    expect(report.groupsImported).toBe(1);
+    expect(report.skippedGroupMembers).toEqual([
+      { group: "Group: Aria + Bram", member: "Nobody.png", reason: "no character with that card filename in the import set or the library" },
+    ]);
+    // One seat only — the room formed around the member that did resolve.
+    expect(f.chatWrites.at(-1)?.chats[0]?.roster).toEqual([]);
+  });
+
+  test("a group whose members ALL fail to resolve is skipped with a reason, never aborting the wave", async () => {
+    const files = { ...presetAndGroupFiles("root"), "root/userA/groups/1773514134935.json": ENC.encode(groupJson(["Nobody.png"], ["party-night"])) };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(fs, f));
+
+    expect(report.groupsImported).toBe(0);
+    expect(report.skippedGroups).toEqual([{ group: "Group: Aria + Bram", reason: "none of its member cards resolved to an imported or existing character" }]);
+    // The character wave still landed both cards.
+    expect(f.log.filter((l) => l === "character.create")).toHaveLength(2);
+  });
+
+  test("a transcript leaf the group claims but that has no file is recorded, never silent", async () => {
+    const files = {
+      ...presetAndGroupFiles("root"),
+      "root/userA/groups/1773514134935.json": ENC.encode(groupJson(["Aria.png", "Bram.png"], ["party-night", "gone"])),
+    };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    const report = await runProfileDirImport(deps(fs, f));
+
+    expect(report.missingGroupChats).toEqual(["gone.jsonl"]);
+    expect(report.groupChatsImported).toBe(1);
+  });
+
+  test("a byte-identical second run is a clean idempotent no-op across BOTH new planes", async () => {
+    // The owner's pre-commit check: family-qualified names must not double-qualify, and nothing may duplicate.
+    const fs = memoryFs(presetAndGroupFiles("root"));
+    const f = fakes();
+
+    const first = await runProfileDirImport(deps(fs, f));
+    expect(first.presetsImported).toBe(2);
+    expect(first.groupsImported).toBe(1);
+    expect(first.groupChatsImported).toBe(1);
+
+    const second = await runProfileDirImport(deps(fs, f));
+
+    // Same names both runs — no `(OpenAI) (OpenAI)`, and the (ownerId, name) merge means no second preset row.
+    expect(f.presetWrites).toEqual(["Marinara (OpenAI)", "OpenAI (active)", "Marinara (OpenAI)", "OpenAI (active)"]);
+    // The chat write op deduped by importHash, so the group transcript is NOT written a second time — and the
+    // room therefore reports as NOT imported (net-new canon, not "processed").
+    expect(second.groupChatsImported).toBe(0);
+    expect(second.groupsImported).toBe(0);
+    // The presets were ACCEPTED again (merged in place) but none is net-new canon.
+    expect(second.presetsImported).toBe(2);
+    expect(second.changed).toBe(0);
+    // The same set was examined; no new character canon.
+    expect(second.scanned).toBe(first.scanned);
+    expect(f.log.filter((l) => l === "character.create")).toHaveLength(2);
   });
 });
 

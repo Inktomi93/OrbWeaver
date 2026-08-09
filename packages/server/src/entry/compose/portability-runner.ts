@@ -24,6 +24,7 @@ import type { ImportWorkloadDeps } from "#domain/import";
 import type { BulkImportPersonas, PersonaService } from "#domain/persona";
 import { findOwnedPersonaByName } from "#domain/persona";
 import type { PresetContext } from "#domain/preset";
+import { createImportPresets } from "#domain/preset";
 import type { ExportRegexScripts, ImportCardScripts, ImportRegexScript } from "#domain/regex";
 import type { ImportRpgGame } from "#domain/rpg";
 import type { SettingsContext } from "#domain/settings";
@@ -180,6 +181,9 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
         principal,
         ...profileImport,
         importStandaloneLorebook: deps.importStandaloneLorebook,
+        // The ST chat-completion preset wave writes through the preset domain's OWN import verb (idempotent on
+        // (ownerId, name), one serde, one collision rule) — the same op the zip-bundle descriptor uses.
+        importPreset: createImportPresets(deps.presetCtx),
         now,
         dryRun,
         signal,

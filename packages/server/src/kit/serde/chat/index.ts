@@ -69,6 +69,14 @@ export interface ParsedChatMessage {
    *  {@link DEFAULT_MESSAGE_KIND} — see `kindOf`/`extraTypeFor`. */
   readonly kind: MessageKind;
   readonly speakerName: string | null;
+  /** ST's per-line `original_avatar` — the SPEAKING CHARACTER'S CARD FILENAME (`"Bengal.png"`), written by
+   *  ST on every group-chat assistant line. It is the ONLY per-turn speaker signal in the interchange that is
+   *  an IDENTITY rather than a display label: the group importer resolves it against the collect-time card
+   *  filename → characterId map, which is handle-suffix-safe (two cards named "Emily" disambiguate to
+   *  `emily`/`emily-2` but keep distinct filenames), where a `speakerName` match would seat the wrong card.
+   *  ABSENT on a solo transcript and on pre-group-era exports — the importer falls back to a roster-SCOPED
+   *  display-name match there. Emitted on build only when present, so a solo line stays byte-identical. */
+  readonly originalAvatar?: string | null;
   readonly content: string;
   readonly sendDate: number | null;
   readonly model: string | null;
@@ -161,6 +169,7 @@ const rawMessageSchema = z
     gen_started: z.unknown(),
     gen_finished: z.unknown(),
     agent_author: z.unknown(),
+    original_avatar: z.unknown(),
   })
   .partial()
   .loose();
@@ -531,10 +540,13 @@ function parseMessageLine(line: string): ParsedChatMessage | null {
   const { content, activeVariantIdx } = primary;
   const agentAuthor = parseAgentAuthor(parsed.agent_author);
   const role = roleOf(parsed);
+  const originalAvatar = nullIfEmpty(str(parsed.original_avatar));
   return {
     role,
     kind: kindOf(parsed, role),
     speakerName: nullIfEmpty(str(parsed.name)),
+    // Omitted (exactOptional) when the line carries none — a solo transcript declares no per-turn identity.
+    ...(originalAvatar !== null ? { originalAvatar } : {}),
     content,
     sendDate: parseStDate(parsed.send_date),
     model: ex.model,
@@ -652,6 +664,10 @@ export function buildChatJsonl(chat: ParsedChat): string {
       name: m.speakerName,
       is_user: m.role === "user",
       is_system: m.role === "system",
+      // The per-turn speaker IDENTITY (ST's own group-fidelity field). Emitted ONLY when the row carries one,
+      // so a solo transcript's line stays byte-identical to what this serde built before the field existed —
+      // which is also what keeps the round-trip drift guard honest (parse reads back exactly what build wrote).
+      ...(m.originalAvatar !== undefined && m.originalAvatar !== null ? { original_avatar: m.originalAvatar } : {}),
       mes: m.content,
       send_date: formatStDate(m.sendDate ?? chat.createDate),
       // `reasoning` is the ST thinking-trace field; only emitted when present so a no-reasoning turn stays
