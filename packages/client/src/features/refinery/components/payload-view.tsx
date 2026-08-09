@@ -29,6 +29,12 @@ export interface PayloadViewProps {
   /** A model call for THIS payload is in flight. Drives the plan-shaped skeleton / running dim (see
    *  `PayloadView`). Optional so every existing caller keeps its meaning. @defaultValue false */
   readonly pending?: boolean;
+  /** This payload LANDED from a mutation the surface itself just made (live e2e 2026-08-09): on a
+   *  session's FIRST run the pane shows `RunningPane` — a different component — so this view mounts
+   *  already settled and its own `awaited` latch (below) can never have fired. The surface knows which
+   *  run ids its mutations produced; a run the user just watched land animates, a session merely
+   *  opened does not. @defaultValue false */
+  readonly arrived?: boolean;
 }
 
 type GaugeWidget = Extract<PlanField["widget"], { kind: "gauge" }>;
@@ -95,7 +101,7 @@ function PlanSkeleton({ plan }: { plan: RenderPlan }): ReactElement {
   );
 }
 
-export function PayloadView({ plan, payload, pending = false }: PayloadViewProps): ReactElement {
+export function PayloadView({ plan, payload, pending = false, arrived = false }: PayloadViewProps): ReactElement {
   const { banners, hero, heroProse, rest } = fieldOrder(plan.fields);
   const settled = Object.keys(payload).length > 0;
   // Did this view show the plan-shaped skeleton before the payload landed? Then the payload ARRIVED and
@@ -124,7 +130,10 @@ export function PayloadView({ plan, payload, pending = false }: PayloadViewProps
       {banners.map((field) => (
         <VerdictBanner field={field} key={field.key} payload={payload} siblings={plan.fields} />
       ))}
-      {hero !== null ? <HeroGauge arrived={awaited} field={hero} payload={payload} prose={heroProse} /> : null}
+      {/* Two arrival signals, either suffices: `awaited` (this view showed its own skeleton — the CT-storied
+          path) or `arrived` (the surface vouches the run landed under the user — the REAL first-run path,
+          where the skeleton was `RunningPane`'s and this view never pended). */}
+      {hero !== null ? <HeroGauge arrived={arrived ? true : awaited} field={hero} payload={payload} prose={heroProse} /> : null}
       {rest.map((field) => (
         <FieldBlock field={field} key={field.key} value={payload[field.key]} />
       ))}

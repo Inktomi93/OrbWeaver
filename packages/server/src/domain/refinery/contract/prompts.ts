@@ -16,9 +16,12 @@ import type {
   RefineryScoreMode,
   RefineryScorePayload,
   RefinerySelection,
+  RefineryStage,
 } from "@orb/contracts/refinery";
 import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { z } from "zod";
+import type { RefinerySessionView } from "./results.ts";
 
 /** One stage call's parse seam (built fresh per run — the capture is per-call state). */
 export interface StageParse<T> {
@@ -101,4 +104,32 @@ export interface ForgeTurnArgs {
   readonly overrides: ProseOverrides;
   readonly sampleOpts: SummarizeOptions;
   readonly arm: RefineryForgeArm;
+}
+
+/** What sizing ONE stage call's output cap needs (`substrate/output-budget`). Homed here for the same
+ *  reason as {@link ForgeTurnArgs}: a domain's exported shapes live in its `contract/` (§7.4,
+ *  `no-inline-types`), and the substrate imports them back. */
+export interface StageOutputBudgetArgs {
+  /** The §8 prediction for this stage (`outputEstimateOf`). */
+  readonly estimate: number;
+  /** The stage's shipped `SIDE_GEN_POSTURES` floor — the budget never resolves BELOW it. */
+  readonly floor: number;
+  /** The summarize role's resolved context window, or null when the connection reports none. */
+  readonly contextTokens: number | null;
+  /** This call's assembled-prompt estimate (the same `estimateTokens` the fit line reads). */
+  readonly inputEstimate: number;
+}
+
+/** What resolving ONE stage call's whole sampling posture needs — the ladder plus the payload-aware floor
+ *  ({@link StageOutputBudgetArgs}). Both `preflight` and the stage engine pass this, which is what keeps
+ *  the fit line's advertised ceiling and the wire's `maxTokens` ONE expression instead of two that agreed
+ *  by luck (they did not agree, and the disagreement was a 503 — `substrate/output-budget`'s header). */
+export interface StageSamplingArgs {
+  readonly stage: RefineryStage;
+  readonly session: RefinerySessionView;
+  /** The caller's resolved preset generation params — the ladder's TOP rung, unchanged by any of this. */
+  readonly presetParams: SideGenSampling | undefined;
+  readonly contextTokens: number | null;
+  /** This call's assembled-prompt estimate. */
+  readonly inputEstimate: number;
 }
