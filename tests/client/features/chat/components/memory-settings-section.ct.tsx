@@ -22,6 +22,9 @@ const ENABLED_VIEW = { ...SETTINGS_VIEW, config: { ...DEFAULT_USER_SETTINGS, mem
 
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 
+const FORWARD_ONLY_NOTE = /affects new activity only/i;
+const BACKFILL_JOB_NOTE = /Memory backfill job/i;
+
 function stub(page: Page, view: typeof SETTINGS_VIEW = SETTINGS_VIEW): Promise<TrpcRecorder> {
   return routeTrpc(page, {
     "settings.getUserSettings": () => view,
@@ -39,6 +42,15 @@ test("mounts with the persisted default (memory OFF) rendered", async ({ mount, 
   await stub(page);
   await mount(<MemorySettingsSectionStory />);
   await expect(page.getByRole("switch", { name: "Remember earlier in long chats" })).not.toBeChecked();
+});
+
+test("states the manual-backfill model so enabling doesn't look broken", async ({ mount, page }) => {
+  // Enabling memory does NOT auto-run a backfill (server: updateUserSettingsSection only emits settingsChanged);
+  // the copy must say so and point at the manual Memory backfill job, or an enable looks like a no-op.
+  await stub(page);
+  await mount(<MemorySettingsSectionStory />);
+  await expect(page.getByText(FORWARD_ONLY_NOTE)).toBeVisible();
+  await expect(page.getByText(BACKFILL_JOB_NOTE)).toBeVisible();
 });
 
 test("flipping the switch ON fires updateUserSettingsSection('memory') with enabled=true", async ({ mount, page }) => {

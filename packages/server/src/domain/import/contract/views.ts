@@ -20,6 +20,13 @@ export interface ParsedPersonas {
   readonly defaultAvatarFile: string | null;
 }
 
+/** ST library-tag assignments resolved to per-entity tag NAMES. The key is the entity's card/avatar filename
+ *  (ST's `tag_map[character.avatar]`); ST's per-profile tag ids are resolved away here so the importer attaches
+ *  by name. Only entries with at least one resolvable name are present. */
+export interface ParsedStTags {
+  readonly byEntityKey: ReadonlyMap<string, readonly string[]>;
+}
+
 const FS_DIR_ENTRY_KINDS = ["file", "directory", "other"] as const;
 type FsDirEntryKind = (typeof FS_DIR_ENTRY_KINDS)[number];
 
@@ -70,6 +77,10 @@ export interface CollectResult {
   readonly personas: CollectedPersona[];
   /** ST-native standalone lorebooks from `<profileDir>/worlds/*.json` (parsed; unparseable ones in `unreadableWorlds`). */
   readonly worlds: CollectedWorld[];
+  /** ST library tags (`settings.tags` + `tag_map`) resolved to per-entity tag NAMES. The key is the entity's
+   *  card/avatar filename (ST's `tag_map[character.avatar]`) — the driver attaches these to the matching
+   *  imported character by filename. */
+  readonly tagsByEntityKey: ReadonlyMap<string, readonly string[]>;
   readonly orphanChatDirs: string[];
   readonly unreadableCards: string[];
   /** A `worlds/*.json` that did not parse as an ST world-info file (recorded, never silent). */

@@ -67,10 +67,14 @@ function MemorySettingsBody({ sectionId }: { readonly sectionId: string }): Reac
       <Stack gap="field">
         <SettingSwitchRow
           label="Remember earlier in long chats"
-          description="When on, the assistant recalls digests of earlier messages once a chat outgrows the recent window — so it stays consistent across a long thread."
+          description="Once a chat grows past its most recent messages, the assistant summarizes the older parts and recalls those summaries later — so it stays consistent across a long thread instead of losing the start. Summaries are built in the background as a chat grows, which spends extra model calls."
           checked={data.config.memory.enabled}
           onChange={(next): void => setEnabled.mutate({ section: "memory", patch: { enabled: next } })}
         />
+        <Text voice="gloss">
+          Turning this on affects new activity only — it doesn't reprocess chats you've already had, so nothing changes right away. To build memory for existing
+          chats, run the Memory backfill job under Settings → Jobs.
+        </Text>
       </Stack>
     </Section>
   );
