@@ -13,8 +13,9 @@
 import { execFile } from "node:child_process";
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { env } from "#foundation/env";
 import { engineBaseUrl } from "./engine-url.ts";
-import type { VLLM_ENGINES } from "./engines.ts";
+import { VLLM_ENGINES } from "./engines.ts";
 import type { EngineUtilFractions, GpuVram, WakeBudgetVerdict } from "./wake-budget.ts";
 import { decideWakeBudget, engineVramNeed } from "./wake-budget.ts";
 
@@ -157,6 +158,161 @@ export function isEngineIdle(prev: EngineMetrics | null, now: EngineMetrics): bo
     return false;
   }
   return now.running === 0 && now.waiting === 0 && now.successTotal === prev.successTotal;
+}
+
+// ── concurrency observability (#24) — the CONTENTION half of the same scrape ─────────────────────────────
+//
+// The auto-sleep snapshot above answers "is this engine doing nothing?". These answer the opposite question —
+// "is this engine over its head?" — which is what a queued/preempted backlog looks like from outside the
+// process. Same /metrics document, same `sumMetric`; a second scrape file would have duplicated the parser.
+//
+// KV HEADROOM is the one number that is not a gauge: vLLM prints it once at startup ("Maximum concurrency for
+// 32,768 tokens per request: 7.52x") and never exports it. It is DERIVED — `num_gpu_blocks × block_size /
+// max_model_len` — from the `vllm:cache_config_info` labels plus the engine's env-declared context length.
+// Verified against a live engine: 15393 × 16 / 32768 = 7.52x, matching that engine's own startup line.
+// Below 1.0x the cache cannot hold even ONE full-length request, so any request near the context limit
+// preempts by construction — that is the warn threshold, not a taste call.
+
+/** One engine's contention snapshot. `maxConcurrency` is null when `cache_config_info` was absent from the
+ *  scrape (a sleeping/starting engine) — an unknown headroom is reported as unknown, never as a passing 0. */
+export interface EngineCapacityMetrics {
+  readonly running: number;
+  /** Queued because the KV cache is full — the backlog that actually signals contention. Distinct from the
+   *  `deferred` reason (structured-output/grammar waits), which is not a capacity problem. */
+  readonly waitingCapacity: number;
+  /** Cumulative preemptions since engine start. Non-zero means the scheduler has evicted running work. */
+  readonly preemptionsTotal: number;
+  /** Fraction of the KV cache in use, 0–1. */
+  readonly kvCacheUsagePerc: number;
+  /** How many full-context requests the KV cache can hold at once (vLLM's "Maximum concurrency"). */
+  readonly maxConcurrency: number | null;
+  /** False when `maxConcurrency < 1` — the cache cannot fit one full-length request. Null headroom ⇒ null. */
+  readonly kvHeadroomOk: boolean | null;
+}
+
+const METRIC_WAITING_BY_REASON_CAPACITY = 'reason="capacity"';
+const METRIC_PREEMPTIONS = "vllm:num_preemptions_total";
+const METRIC_KV_USAGE = "vllm:kv_cache_usage_perc";
+const METRIC_CACHE_CONFIG = "vllm:cache_config_info";
+
+/** The env-declared context length per engine — the denominator of the headroom ratio. vLLM does not export
+ *  `max_model_len`, and these are the exact values the supervisor launches each engine with. */
+const MAX_MODEL_LEN: Record<VllmEngine, number> = {
+  embed: env.VLLM_EMBED_MAX_MODEL_LEN,
+  rerank: env.VLLM_RERANK_MAX_MODEL_LEN,
+  gen: env.VLLM_GEN_MAX_MODEL_LEN,
+};
+
+/** Sum a metric restricted to lines carrying `labelMatch` (e.g. one `reason=` of a by-reason split). */
+function sumMetricWithLabel(text: string, name: string, labelMatch: string): number {
+  let sum = 0;
+  for (const line of text.split("\n")) {
+    if (line.startsWith("#") || !line.startsWith(`${name}{`) || !line.includes(labelMatch)) {
+      continue;
+    }
+    const value = Number(line.slice(line.lastIndexOf(" ") + 1));
+    if (!Number.isNaN(value)) {
+      sum += value;
+    }
+  }
+  return sum;
+}
+
+/** Read one label off the `cache_config_info` line (`num_gpu_blocks="15393"` → 15393). Null when the metric
+ *  or the label is absent — the caller reports an unknown headroom rather than inventing a denominator.
+ *
+ *  The label is split out and compared EXACTLY, never substring-matched: a real `cache_config_info` line
+ *  carries `_block_size_resolved`, `hash_block_size`, `mamba_block_size` and `user_specified_block_size`
+ *  alongside `block_size`, so a contains-style read is one numeric mamba value away from silently sourcing
+ *  the headroom denominator from the wrong label. */
+function readCacheConfigLabel(text: string, label: string): number | null {
+  for (const line of text.split("\n")) {
+    const open = line.indexOf("{");
+    const close = line.lastIndexOf("}");
+    if (line.startsWith("#") || !line.startsWith(`${METRIC_CACHE_CONFIG}{`) || close <= open) {
+      continue;
+    }
+    for (const pair of line.slice(open + 1, close).split(",")) {
+      const eq = pair.indexOf("=");
+      if (eq === -1 || pair.slice(0, eq) !== label) {
+        continue;
+      }
+      const value = Number(pair.slice(eq + 1).replaceAll('"', ""));
+      if (Number.isFinite(value)) {
+        return value;
+      }
+    }
+  }
+  return null;
+}
+
+/** Parse a /metrics scrape into the contention snapshot. Pure — the fetch half is separate so tests can feed
+ *  a captured document. */
+export function parseEngineCapacity(text: string, engine: VllmEngine): EngineCapacityMetrics {
+  const blocks = readCacheConfigLabel(text, "num_gpu_blocks");
+  const blockSize = readCacheConfigLabel(text, "block_size");
+  const maxConcurrency = blocks === null || blockSize === null ? null : (blocks * blockSize) / MAX_MODEL_LEN[engine];
+  return {
+    running: sumMetric(text, METRIC_RUNNING),
+    waitingCapacity: sumMetricWithLabel(text, METRIC_WAITING_BY_REASON, METRIC_WAITING_BY_REASON_CAPACITY),
+    preemptionsTotal: sumMetric(text, METRIC_PREEMPTIONS),
+    kvCacheUsagePerc: sumMetric(text, METRIC_KV_USAGE),
+    maxConcurrency,
+    kvHeadroomOk: maxConcurrency === null ? null : maxConcurrency >= 1,
+  };
+}
+
+/** GET /metrics and parse the contention snapshot. Any failure ⇒ null (engine down/asleep/unreachable —
+ *  an absent answer, never a fabricated healthy one). */
+export async function fetchEngineCapacity(engine: VllmEngine): Promise<EngineCapacityMetrics | null> {
+  try {
+    const res = await fetch(`${engineBaseUrl(engine)}/metrics`, { signal: AbortSignal.timeout(HTTP_TIMEOUT_MS) });
+    if (!res.ok) {
+      return null;
+    }
+    return parseEngineCapacity(await res.text(), engine);
+  } catch {
+    return null;
+  }
+}
+
+/** Derive the human-legible warnings for one engine's snapshot. Separate from the fetch so the thresholds are
+ *  testable without an engine, and so the route can serve gauges + warnings from one pass. */
+export function capacityWarnings(engine: VllmEngine, m: EngineCapacityMetrics): string[] {
+  const warnings: string[] = [];
+  if (m.kvHeadroomOk === false && m.maxConcurrency !== null) {
+    warnings.push(
+      `${engine}: KV headroom ${m.maxConcurrency.toFixed(2)}x < 1x — the KV cache cannot hold one full-length ` +
+        `request (${MAX_MODEL_LEN[engine]} tokens), so a max-context request will preempt. Lower max_model_len ` +
+        "or raise gpu_memory_utilization.",
+    );
+  }
+  if (m.waitingCapacity > 0) {
+    warnings.push(`${engine}: ${m.waitingCapacity} request(s) queued for CAPACITY — the engine is at its KV limit.`);
+  }
+  if (m.preemptionsTotal > 0) {
+    warnings.push(`${engine}: ${m.preemptionsTotal} preemption(s) since start — running work has been evicted and recomputed.`);
+  }
+  return warnings;
+}
+
+/** The whole-fleet contention snapshot behind `/api/_debug/vllm/metrics`. An unreachable engine reports
+ *  `null` metrics (asleep/down) rather than dropping out of the map — "which engines answered" is itself the
+ *  answer to half the questions this route gets asked. */
+export async function fleetCapacitySnapshot(): Promise<{
+  engines: Record<string, EngineCapacityMetrics | null>;
+  warnings: string[];
+}> {
+  const results = await Promise.all(VLLM_ENGINES.map(async (engine) => [engine, await fetchEngineCapacity(engine)] as const));
+  const engines: Record<string, EngineCapacityMetrics | null> = {};
+  const warnings: string[] = [];
+  for (const [engine, metrics] of results) {
+    engines[engine] = metrics;
+    if (metrics !== null) {
+      warnings.push(...capacityWarnings(engine, metrics));
+    }
+  }
+  return { engines, warnings };
 }
 
 /** Per-engine auto-sleep timer state: the previous metrics snapshot + the epoch-ms the engine went
