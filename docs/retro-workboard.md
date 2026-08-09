@@ -126,14 +126,37 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   lanes both mint. Lane briefs name their exact playwright CT files (a CT nobody names is a CT
   nobody ran).
 
-## ═══ LIVE STATE (2026-08-09 AFTERNOON — ENDGAME draining; the queue below IS the remaining retro push) ═══
+## ═══ LIVE STATE (2026-08-09 EVENING CLOSE) ═══
 
-**Main `3a432603e` — PUSHED (`216725582..3a432603e`), one-shot clean. Zero lanes, zero worktrees,
-tree clean, battery 18/19-green incl. the whole behavioral tier** (the 19th was orphan-ratchet's 3
-stale `@public` tags — ratchet-down fixed pre-push; push-tier-only stage, budget ~1 stale tag per
-consumer-adding train). :5173 fresh (pgid 1232985). **ALL owner forks RULED** (the four 08-09 rows
-above) — nothing is deferred; the board below is a burn-down, not a queue. Full pre-rewrite board:
-[`history/retro-workboard-2026-08-09.md`](history/retro-workboard-2026-08-09.md).
+**Main `efd6b52b9` — GREEN (consolidated `pnpm check` PASS, all stages), zero worktrees, tree clean.
+Origin UNPUSHED (~70 ahead) — owner pushing himself, then DB WIPE + WHOLE FLEET RESTART (owner-driven
+endgame).** This session's big client/security train all merged: login/loading + brand-A forge
+`eb0e3d3a3` · #69 F1 sourcemaps-off + Caddy `*.map`/dev-route edge belts LIVE · gates batch (external-id
+chokepoint #64 + color-literal/CSS tighten) · #61 ResponseFormat WireReady brand · #68 bound 24 list/topN
+sites + `bounded-list-limit` gate #46 · #75 discovery.maxNodes bound · security cross-tenant IDOR sweep
+(admin.linkSsoIdentity EXEMPT / regex.bulkSetPlacement PROBE) · #65 Loader2→WebSpinner unify · #63
+boot-loader offscreen-cache (60fps software-raster, GPU-safe) + min-display floor + wordmark halo.
+Battery fixes landed: orphan-ratchet `fe4c45af9`. **Pre-push battery (`verify --push`) surfaced its two
+push-tier reds — orphan-ratchet + cross-tenant-sweep — BOTH now fixed & merged.**
+
+**⚠ #43 boot code-split PARKED on branch `park/43-code-split` (`b56fb78b6`)** — it skip-committed a
+`registry-assembly-at-door-only` violation (moved 11 registry assemblies into the lazy `authed-app.tsx`;
+lockdown = assemble only at `main.tsx`/`compose/`; 22 structure:full violations the consolidated drain
+check caught). PULLED from the drain (perf optimization, NOT correctness). Re-lane later: relocate
+assemblies to a `compose/` door while keeping the lazy split (or architecture ruling), and RUN THE FULL
+structure:full before commit (the skip is what let it in). See task #43.
+
+**OWNER endgame (in progress):** push `efd6b52b9` → `data/orbweaver.db` wipe → `pnpm stack restart`
+whole fleet. **AUTH LIVE:** OIDC verified end-to-end (issuer/redirect/sub_mode=hashed_user_id [#53
+closed]/groups/RS256), A5 back-channel logout LIVE both sides (only a real-login `sub` byte-proof
+outstanding). Ops facts → memory [[authentik-integration-ops]]. **DEV-SERVE GOTCHA:** the FQDN (`:8788`)
+serves prebuilt `dist/` — goes stale after client merges until `pnpm --filter @orb/client build`
+([[live-client-port-5173]]); rebuild after the push if dogfooding the web.
+
+**CARRY-FORWARD (next session):** #43 code-split re-lane (parked branch) · #52 demo-v4 · #62 all-white
+theme probe · #70 F3 Host-header/C13 (launch-day) · #74 home-shell boot CLS 0.106 · #63 real-GPU-foreground
+fps read (owner's eyes — 30fps was a headless SwiftShader artifact) · launch-day D3 trio + C13. Full
+pre-rewrite board: [`history/retro-workboard-2026-08-09.md`](history/retro-workboard-2026-08-09.md).
 
 **LATE-AFTERNOON (main `3d80bfb61`, all hook-gated, origin UNPUSHED — 49 ahead):**
 #48 smalls `a6133ffe4` · #50 barrels `02f0a91a0` · #54 apisurface `ef931ad45` · #45 chat-list `c33833d58`
