@@ -125,6 +125,20 @@ html[data-shadow] [data-slot="message-bubble"] {
   text-shadow: var(--shadow-prose);
 }
 
+/* Brand wordmark readability halo (side-eye P3): the near-white "orbweaver" wordmark floats over the
+ * live weave, where a bright strand/glow crossing behind a glyph drops worst-case framebuffer contrast
+ * (measured ~1.43:1). A dark, theme-aware halo (--color-scrim, the shell.css over-image precedent) beds
+ * the glyphs so the ink never abuts a bright strand directly — a framebuffer mock over a silk-bright
+ * strand measured the near-glyph worst-case lift from 1.53:1 → 1.84:1 and p05 1.55:1 → 2.78:1.
+ * Decoration (aria-hidden), so not an a11y fix — a look fix. text-shadow inherits, so one rule on the
+ * row reaches the wordmark text. */
+[data-slot="brand-wordmark"] {
+  text-shadow:
+    0 0 2px var(--color-scrim),
+    0 0 4px var(--color-scrim),
+    0 1px 2px var(--color-scrim);
+}
+
 /* Reading typography — line-height/letter-spacing/paragraph-spacing/scale. Spacing/sizing only. */
 [data-slot="message-bubble"] {
   font-size: calc(var(--text-body) * var(--reading-body-scale, 1));

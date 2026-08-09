@@ -73,6 +73,13 @@ function frameFingerprint(canvas: Locator): Promise<string> {
   });
 }
 
+/** Channel-sum distance between two "r:g:b" fingerprints (for the cache re-bake noise-floor check). */
+function fingerprintDelta(a: string, b: string): number {
+  const pa = a.split(":").map(Number);
+  const pb = b.split(":").map(Number);
+  return Math.abs((pa[0] ?? 0) - (pb[0] ?? 0)) + Math.abs((pa[1] ?? 0) - (pb[1] ?? 0)) + Math.abs((pa[2] ?? 0) - (pb[2] ?? 0));
+}
+
 test("the settled web PAINTS — and the probe itself can read a blank canvas (instrument control)", async ({ mount, page }) => {
   // The planted control FIRST: a fresh untouched canvas must probe to exactly zero — otherwise a
   // "painted" verdict below is the instrument failing open.
@@ -157,4 +164,35 @@ test("partial (the first-run half-woven web) carries visibly less silk than sett
   await component.update(<WeaveBox state="settled" />);
   // The state change rebuilds + repaints once (frames resets with the effect teardown).
   await expect.poll(async () => paintedPixels(canvas)).toBeGreaterThan(partialPixels);
+});
+
+test("settled ANIMATED runs off the offscreen cache — the loop advances AND the baked web recolors on a theme flip", async ({ mount, page }) => {
+  // NOT reduced motion → the animated resting path: the static web is baked once and blitted each
+  // frame, with only the live layers (dew/glint/spider) repainted. This is the P1 hot path.
+  await mount(<WeaveBox state="settled" />);
+  const canvas = page.locator('[data-slot="web-weave-canvas"]');
+  await expect.poll(async () => paintedPixels(canvas)).toBeGreaterThan(2000);
+  // The rAF loop is genuinely running (the counter climbs across real browser frames).
+  const framesEarly = Number(await canvas.getAttribute("data-orb-weave-frames"));
+  await waitFrames(page, 10);
+  const framesLater = Number(await canvas.getAttribute("data-orb-weave-frames"));
+  expect(framesLater).toBeGreaterThan(framesEarly);
+  // Establish the frame-to-frame motion NOISE floor (glint/dew/spider) with NO token change …
+  const noiseA = await frameFingerprint(canvas);
+  await waitFrames(page, 2);
+  const noiseB = await frameFingerprint(canvas);
+  const noise = fingerprintDelta(noiseA, noiseB);
+  // … then flip the FOREGROUND token dramatically. The silk (the bulk of the painted mass) is baked
+  // into the cache, so this recolor proves the cache INVALIDATES + RE-BAKES with the new palette — it
+  // would stay stale if the theme observer didn't clear `baked`. The recolor must dwarf motion noise.
+  await page.evaluate(
+    ([cssVar, value]) => {
+      document.documentElement.style.setProperty(cssVar as string, value as string);
+    },
+    [TOKENS["color.foreground"].cssVar, TOKENS["color.sky-day"].value],
+  );
+  await waitFrames(page, 3);
+  const recolored = await frameFingerprint(canvas);
+  const flip = Math.max(fingerprintDelta(noiseB, recolored), fingerprintDelta(noiseA, recolored));
+  expect(flip).toBeGreaterThan(noise * 3 + 1);
 });

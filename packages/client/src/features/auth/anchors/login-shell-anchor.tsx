@@ -36,8 +36,10 @@ export function LoginShellAnchor({ children }: LoginShellAnchorProps): ReactElem
       {/* relative: the content column stacks above the full-bleed web canvas. */}
       <Container name="login" className="relative w-full max-w-sm">
         <Stack gap="block">
-          <Row align="center" justify="center" gap="row" aria-hidden={true}>
-            {/* Decorative pair: the mark + name — the surface's <h1> carries the page's real name. */}
+          <Row align="center" justify="center" gap="row" aria-hidden={true} data-slot="brand-wordmark">
+            {/* Decorative pair: the mark + name — the surface's <h1> carries the page's real name. The
+                data-slot carries the readability halo (client globals.css) for the near-white wordmark
+                over the live weave, where a bright strand behind a glyph drops worst-case contrast. */}
             <WeaveGlyph decorative={true} size={WORDMARK_GLYPH_PX} className="text-primary" />
             <Text as="span" voice="monogram">
               orbweaver

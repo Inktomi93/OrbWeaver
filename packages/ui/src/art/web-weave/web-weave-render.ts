@@ -78,6 +78,18 @@ const DEW_HALO_ALPHA = 0.25;
 const STRAND_OUT_ALPHA = 0.9;
 const STRAND_OUT_WIDTH = 1.5;
 const STRAND_OUT_BLUR = 7;
+/** The two glow techniques for the moving highlights. `blur` = the canvas gaussian `shadowBlur` (the
+ *  most expensive 2D op — kept ONLY on the live WEAVING path, where the web is re-stroked anyway).
+ *  `soft` = a wide, faint under-stroke in the glow color that fakes the halo with plain line fill —
+ *  the RESTING cache path uses it so the settled steady-state carries ZERO per-frame gaussian and the
+ *  static glow rides baked in the back-buffer instead (design §1.2). */
+type GlowMode = "blur" | "soft";
+/** The soft under-glow: width + alpha that approximate each blurred highlight's halo (widths ≈ 2.6× /
+ *  2.4× the crisp stroke — GLINT_WIDTH 1.1, STRAND_OUT_WIDTH 1.5 — spelled as literals per no-magic). */
+const GLINT_GLOW_WIDTH = 2.86;
+const GLINT_GLOW_ALPHA = 0.5;
+const STRAND_OUT_GLOW_WIDTH = 3.6;
+const STRAND_OUT_GLOW_ALPHA = 0.5;
 
 /** Draw pts[0..upTo]; `swayNow` = wall-clock ms to sway with, or null for a rigid line. */
 function drawPolyline(ctx: CanvasRenderingContext2D, pts: readonly WeavePoint[], upTo: number, swayNow: number | null): void {
@@ -177,43 +189,68 @@ function drawStrands(ctx: CanvasRenderingContext2D, input: WeaveFrameInput): voi
   }
 }
 
-function drawGlint(ctx: CanvasRenderingContext2D, input: WeaveFrameInput): void {
+/** How lit a point is under the sweep (1 at the sweep center, 0 outside the window). */
+function glintLit(p: WeavePoint, hub: WeavePoint, sweep: number): number {
+  let d = Math.abs((((Math.atan2(p.y - hub.y, p.x - hub.x) - sweep) % TAU) + TAU) % TAU);
+  if (d > Math.PI) {
+    d = TAU - d;
+  }
+  return d < GLINT_HALF_WIDTH_RAD ? 1 - d / GLINT_HALF_WIDTH_RAD : 0;
+}
+
+/** One glint pass over a strand: the sweep window + the alpha scale for this pass (bright vs under-glow). */
+interface GlintPass {
+  readonly hub: WeavePoint;
+  readonly sweep: number;
+  readonly dim: number;
+  readonly alphaMul: number;
+}
+
+/** Stroke one strand's lit runs at the current color/width (the run is stroked with its last-set
+ *  per-segment alpha — the historical batching; preserved so `blur` mode is byte-for-byte the same). */
+function paintGlintRuns(ctx: CanvasRenderingContext2D, strand: WeaveStrand, pass: GlintPass): void {
+  const { hub, sweep, dim, alphaMul } = pass;
+  ctx.beginPath();
+  let open = false;
+  for (let i = 0; i < strand.pts.length - 1; i++) {
+    const p = strand.pts[i] as WeavePoint;
+    const glowAmount = glintLit(p, hub, sweep);
+    if (glowAmount > GLINT_MIN_LIT) {
+      ctx.globalAlpha = GLINT_ALPHA * glowAmount * dim * alphaMul;
+      if (!open) {
+        ctx.moveTo(p.x, p.y);
+        open = true;
+      }
+      const q = strand.pts[i + 1] as WeavePoint;
+      ctx.lineTo(q.x, q.y);
+    } else if (open) {
+      ctx.stroke();
+      ctx.beginPath();
+      open = false;
+    }
+  }
+  if (open) {
+    ctx.stroke();
+  }
+}
+
+function drawGlint(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, glow: GlowMode): void {
   const { web, now, palette, dim } = input;
   const sweep = ((now / GLINT_PERIOD_MS) % 1) * TAU;
-  ctx.lineWidth = GLINT_WIDTH;
-  ctx.strokeStyle = palette.silkBright;
-  ctx.shadowColor = palette.glow;
-  ctx.shadowBlur = GLINT_BLUR;
-  const lit = (p: WeavePoint): number => {
-    let d = Math.abs((((Math.atan2(p.y - web.hub.y, p.x - web.hub.x) - sweep) % TAU) + TAU) % TAU);
-    if (d > Math.PI) {
-      d = TAU - d;
-    }
-    return d < GLINT_HALF_WIDTH_RAD ? 1 - d / GLINT_HALF_WIDTH_RAD : 0;
-  };
+  if (glow === "blur") {
+    ctx.shadowColor = palette.glow;
+    ctx.shadowBlur = GLINT_BLUR;
+  }
   for (const strand of [web.capture, ...web.radii]) {
-    ctx.beginPath();
-    let open = false;
-    for (let i = 0; i < strand.pts.length - 1; i++) {
-      const p = strand.pts[i] as WeavePoint;
-      const glowAmount = lit(p);
-      if (glowAmount > GLINT_MIN_LIT) {
-        ctx.globalAlpha = GLINT_ALPHA * glowAmount * dim;
-        if (!open) {
-          ctx.moveTo(p.x, p.y);
-          open = true;
-        }
-        const q = strand.pts[i + 1] as WeavePoint;
-        ctx.lineTo(q.x, q.y);
-      } else if (open) {
-        ctx.stroke();
-        ctx.beginPath();
-        open = false;
-      }
+    // `soft`: a wide, faint glow-color under-stroke fakes the blur halo without the gaussian.
+    if (glow === "soft") {
+      ctx.strokeStyle = palette.glow;
+      ctx.lineWidth = GLINT_GLOW_WIDTH;
+      paintGlintRuns(ctx, strand, { hub: web.hub, sweep, dim, alphaMul: GLINT_GLOW_ALPHA });
     }
-    if (open) {
-      ctx.stroke();
-    }
+    ctx.strokeStyle = palette.silkBright;
+    ctx.lineWidth = GLINT_WIDTH;
+    paintGlintRuns(ctx, strand, { hub: web.hub, sweep, dim, alphaMul: 1 });
   }
   ctx.shadowBlur = 0;
 }
@@ -235,7 +272,7 @@ function drawDew(ctx: CanvasRenderingContext2D, input: WeaveFrameInput): void {
   }
 }
 
-function drawStrandOut(ctx: CanvasRenderingContext2D, input: WeaveFrameInput): void {
+function drawStrandOut(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, glow: GlowMode): void {
   const { palette, dim, now, strandOut, still } = input;
   if (strandOut === null) {
     return;
@@ -245,28 +282,40 @@ function drawStrandOut(ctx: CanvasRenderingContext2D, input: WeaveFrameInput): v
   if (upTo < 1) {
     return;
   }
+  // `soft`: a wide, faint glow-color under-stroke fakes the blur halo without the gaussian.
+  if (glow === "soft") {
+    ctx.globalAlpha = STRAND_OUT_ALPHA * STRAND_OUT_GLOW_ALPHA * dim;
+    ctx.strokeStyle = palette.glow;
+    ctx.lineWidth = STRAND_OUT_GLOW_WIDTH;
+    drawPolyline(ctx, strandOut.pts, upTo, null);
+  }
   ctx.globalAlpha = STRAND_OUT_ALPHA * dim;
   ctx.strokeStyle = palette.silkBright;
   ctx.lineWidth = STRAND_OUT_WIDTH;
-  ctx.shadowColor = palette.glow;
-  ctx.shadowBlur = STRAND_OUT_BLUR;
+  if (glow === "blur") {
+    ctx.shadowColor = palette.glow;
+    ctx.shadowBlur = STRAND_OUT_BLUR;
+  }
   drawPolyline(ctx, strandOut.pts, upTo, null);
   ctx.shadowBlur = 0;
 }
 
-/** Paint one whole frame. The component clears + DPR-scales the context before calling. */
+/** Paint one whole frame LIVE (the weaving build + the reduced-motion single static frame). The
+ *  component clears + DPR-scales the context before calling. Uses `blur` glow — the gaussian is only
+ *  affordable here because this path already re-strokes the growing web; the RESTING steady-state
+ *  goes through the offscreen cache below instead (bakeStaticWeb + drawLiveLayers). */
 export function renderWeaveFrame(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, tracker: SpiderTracker): void {
   const settled = input.t >= WEAVE_TIMELINE.settle;
   ctx.lineCap = "round";
   ctx.globalAlpha = 1;
   drawStrands(ctx, input);
   if (settled && !input.still) {
-    drawGlint(ctx, input);
+    drawGlint(ctx, input, "blur");
   }
   if (settled) {
     drawDew(ctx, input);
   }
-  drawStrandOut(ctx, input);
+  drawStrandOut(ctx, input, "blur");
   if (input.spider) {
     const pose = spiderPose(input, tracker);
     if (pose !== null) {
@@ -275,4 +324,45 @@ export function renderWeaveFrame(ctx: CanvasRenderingContext2D, input: WeaveFram
     }
   }
   ctx.globalAlpha = 1;
+}
+
+/** Bake the STATIC web once into the offscreen back-buffer (design §1.2): every strand at its resting
+ *  extent, the capture glow BAKED via `shadowBlur` here (paid a single time), no sway. The resting
+ *  loop then just `drawImage`s this buffer per frame instead of re-stroking ~all segments + a live
+ *  gaussian. Pass an input with `still: true` (kills sway) and `t` at/after settle (partial: PARTIAL_T).
+ *  Bake at `dim: 1` — the blit applies `dim` via `globalAlpha`, so a dim change needs no re-bake. */
+export function bakeStaticWeb(ctx: CanvasRenderingContext2D, input: WeaveFrameInput): void {
+  ctx.lineCap = "round";
+  ctx.globalAlpha = 1;
+  drawStrands(ctx, input);
+  ctx.globalAlpha = 1;
+}
+
+/** The genuinely-dynamic layers painted live OVER the cached blit each resting frame — no strand
+ *  re-stroke, no `shadowBlur` (glow is baked or soft-stroked): the glint sweep, the dew twinkle, the
+ *  A9 strand-out ride, and the spider. Mirrors renderWeaveFrame's settled/spider gating. */
+export function drawLiveLayers(ctx: CanvasRenderingContext2D, input: WeaveFrameInput, tracker: SpiderTracker): void {
+  const settled = input.t >= WEAVE_TIMELINE.settle;
+  ctx.lineCap = "round";
+  ctx.globalAlpha = 1;
+  if (settled) {
+    drawGlint(ctx, input, "soft");
+    drawDew(ctx, input);
+  }
+  drawStrandOut(ctx, input, "soft");
+  if (input.spider) {
+    const pose = spiderPose(input, tracker);
+    if (pose !== null) {
+      ctx.globalAlpha = input.dim;
+      drawSpiderBody(ctx, input.palette, pose, input.now);
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+
+/** The settled web's imperceptible breathing, as a whole-canvas translate offset (px) for the cached
+ *  blit — the design §1.2 "sway painted live" applied to the buffer instead of re-stroking every
+ *  point (2px amplitude, so the drop from per-point to rigid sway is invisible). */
+export function weaveSwayOffset(now: number): { dx: number; dy: number } {
+  return { dx: Math.sin(now * SWAY_X_HZ) * SWAY_X_PX, dy: Math.cos(now * SWAY_Y_HZ) * SWAY_Y_PX };
 }

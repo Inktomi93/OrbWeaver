@@ -57,8 +57,8 @@ interface OrbWebIconSpec {
 
 function orbWebIcon({ name, glyph, spokeWidth, spiralWidth, dew }: OrbWebIconSpec): LucideIcon {
   const nodes: [string, Record<string, string>][] = [
-    ["path", { d: spokesPath(glyph), "stroke-width": spokeWidth, opacity: SPOKE_OPACITY, className: "orb-web-spokes", key: "spokes" }],
-    ["path", { d: glyph.spiralPath, "stroke-width": spiralWidth, className: "orb-web-pulse", key: "spiral" }],
+    ["path", { d: spokesPath(glyph), strokeWidth: spokeWidth, opacity: SPOKE_OPACITY, className: "orb-web-spokes", key: "spokes" }],
+    ["path", { d: glyph.spiralPath, strokeWidth: spiralWidth, className: "orb-web-pulse", key: "spiral" }],
     ["circle", { cx: String(glyph.hub.x), cy: String(glyph.hub.y), r: String(glyph.hub.r), fill: "currentColor", stroke: "none", key: "hub" }],
   ];
   if (dew) {

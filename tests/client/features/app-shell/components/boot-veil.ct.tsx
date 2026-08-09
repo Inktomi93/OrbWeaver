@@ -3,9 +3,11 @@
 // (`data-app-ready` on <html> — installAppReadySignal's stamp), never a timer, so the CT drives that
 // exact attribute:
 //   • while the attribute is ABSENT the veil is up, weaving, captioned;
-//   • the INSTANT it appears the veil dissolves and unmounts — mid-weave (the graceful early cut);
+//   • once it appears the veil dissolves and unmounts — mid-weave (the graceful early cut), but never
+//     before the MINIMUM-DISPLAY floor (owner 2026-08-09): a fast-ready boot holds a coherent beat
+//     instead of flashing sub-second;
 //   • already-present at mount ⇒ the veil never renders at all (an in-session remount);
-//   • reduced motion: static web while waiting, instant removal on ready (§3.9).
+//   • reduced motion: static web while waiting, INSTANT removal on ready (§3.9 — the floor is inert).
 
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
@@ -33,7 +35,7 @@ function waitFrames(page: Page, frames: number): Promise<void> {
   );
 }
 
-test("up while the app is not ready; DISSOLVES AND UNMOUNTS the instant data-app-ready lands (mid-weave)", async ({ mount, page }) => {
+test("up while the app is not ready; DISSOLVES AND UNMOUNTS once data-app-ready lands (mid-weave, after the beat)", async ({ mount, page }) => {
   await mount(<BootVeil />);
   const veil = page.getByRole("status", { name: "Loading orbweaver" });
   await expect(veil).toBeVisible();
@@ -41,8 +43,22 @@ test("up while the app is not ready; DISSOLVES AND UNMOUNTS the instant data-app
   await expect(page.locator('[data-slot="web-weave"]')).toHaveAttribute("data-weave-state", "weaving");
   await expect(page.getByText("casting the bridge line")).toBeVisible();
   // The load gate opens — the REAL seam, stamped exactly as installAppReadySignal stamps it. The
-  // weave is nowhere near settled (~12s build), so this is the graceful EARLY cut.
+  // weave is nowhere near settled (~12s build), so this is the graceful EARLY cut (after the floor).
   await page.evaluate((attr) => document.documentElement.setAttribute(attr, ""), READY_ATTR);
+  await expect(veil).toHaveCount(0);
+});
+
+test("min-display floor: a fast-ready boot does NOT flash — the veil holds a beat, then dissolves", async ({ mount, page }) => {
+  await mount(<BootVeil />);
+  const veil = page.locator('[data-slot="weave-veil"]');
+  await expect(veil).toBeVisible();
+  // The app reports ready almost immediately (a warm/fast boot) …
+  await page.evaluate((attr) => document.documentElement.setAttribute(attr, ""), READY_ATTR);
+  // … but the veil must STILL be up a handful of frames later — the floor prevents the sub-second
+  // flash the owner flagged (the exit is gated on ready AND the ~1s beat, whichever is later).
+  await waitFrames(page, 5);
+  await expect(veil).toHaveCount(1);
+  // … and it does dissolve + unmount once the floor elapses (default timeout comfortably clears ~1s).
   await expect(veil).toHaveCount(0);
 });
 

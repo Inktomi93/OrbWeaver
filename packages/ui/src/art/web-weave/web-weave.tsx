@@ -5,9 +5,17 @@
 // computed style at mount and re-resolved on theme/scheme flips, the §1.3 wiring; every entry is a
 // token or a color-mix over tokens, zero literals).
 //
+// PERF (design §1.2 — the offscreen cache): once the web is STATIC (every resting state, and the
+// weaving build past settle) the loop stops re-stroking ~all segments + running a live gaussian every
+// frame. Instead the static web + its glow are BAKED ONCE into a detached back-buffer and each frame
+// just `drawImage`s it (sway = a whole-canvas translate) with only the genuinely-dynamic layers —
+// dew twinkle, glint sweep, spider — painted live on top. The ACTIVE build (weaving, t < settle) still
+// paints live via renderWeaveFrame. The cache re-bakes on resize/seed/dim (rebuild) and theme (palette).
+//
 // Reduced motion is REMOVE, not shorten (guide §3.9): no rAF loop at all — one static paint of the
-// state's resting frame (settled web, dew at rest, spider resting head-down at the hub). The frame
-// counter rides `data-orb-weave-frames` so a CT can assert the loop is genuinely absent.
+// state's resting frame (settled web, dew at rest, spider resting head-down at the hub), via the same
+// untouched renderWeaveFrame(still) path (the cache is loop-only). The frame counter rides
+// `data-orb-weave-frames` so a CT can assert the loop is genuinely absent.
 //
 // A11y: pure decoration — aria-hidden, pointer-transparent. The hosting surface carries the words.
 
@@ -18,7 +26,7 @@ import { webWeaveVariants } from "./variants.ts";
 import type { WeavePhase, WeaveState, WovenWeb } from "./web-weave-geometry.ts";
 import { buildStrandOut, buildWeb, WEAVE_TIMELINE, weavePhaseAt } from "./web-weave-geometry.ts";
 import type { WeavePalette } from "./web-weave-render.ts";
-import { renderWeaveFrame } from "./web-weave-render.ts";
+import { bakeStaticWeb, drawLiveLayers, renderWeaveFrame, weaveSwayOffset } from "./web-weave-render.ts";
 import type { SpiderTracker } from "./web-weave-spider.ts";
 
 export interface WebWeaveProps {
@@ -129,6 +137,12 @@ export function WebWeave({
     let dpr = 1;
     let strandOut: { pts: ReturnType<typeof buildStrandOut>; t0: number } | null = null;
     const tracker: SpiderTracker = { prev: null };
+    // The offscreen cache (design §1.2): the static settled web + baked glow, drawn ONCE and blitted
+    // each resting frame. A detached canvas (drawImage from it is as fast as OffscreenCanvas and needs
+    // no feature-detect). `baked` invalidates on rebuild (size/web) and theme (palette) — re-baked lazily.
+    const buffer = document.createElement("canvas");
+    const bufferCtx = buffer.getContext("2d");
+    let baked = false;
     const clock0 = performance.now();
     let rafId = 0;
     let frames = 0;
@@ -141,8 +155,11 @@ export function WebWeave({
       dpr = Math.min(globalThis.devicePixelRatio || 1, MAX_DPR);
       canvas.width = Math.max(1, Math.round(width * dpr));
       canvas.height = Math.max(1, Math.round(height * dpr));
+      buffer.width = canvas.width;
+      buffer.height = canvas.height;
       web = buildWeb({ width, height, hub: { x: hubX, y: hubY }, seed });
       strandOut = state === "strand-out" && !reduced ? { pts: buildStrandOut(web, width, height), t0: performance.now() + STRAND_OUT_DELAY_MS } : null;
+      baked = false;
     };
 
     const timelineAt = (now: number): number => {
@@ -177,14 +194,53 @@ export function WebWeave({
       }
     };
 
+    // The web is STATIC (cacheable) whenever it isn't actively being woven: every resting state, and
+    // the weaving build once it has passed settle (the boot veil's slow-boot hold). Reduced motion is
+    // excluded — it keeps the untouched single renderWeaveFrame(still) paint (§3.9, zero perf concern).
+    const staticNow = (t: number): boolean => state !== "weaving" || t >= WEAVE_TIMELINE.settle;
+
+    const bake = (now: number): void => {
+      if (web === null || bufferCtx === null) {
+        return;
+      }
+      const bakeT = state === "partial" ? PARTIAL_T : WEAVE_TIMELINE.rest;
+      bufferCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      bufferCtx.clearRect(0, 0, width, height);
+      bakeStaticWeb(bufferCtx, { web, state, t: bakeT, now, palette, dim: 1, still: true, spider, strandOut });
+      baked = true;
+    };
+
+    const composite = (now: number, t: number): void => {
+      if (web === null) {
+        return;
+      }
+      if (!baked) {
+        bake(now);
+      }
+      const { dx, dy } = weaveSwayOffset(now);
+      // Blit the cached web (native px, sway as a whole-canvas translate, dim via globalAlpha)…
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = dim;
+      ctx.drawImage(buffer, Math.round(dx * dpr), Math.round(dy * dpr));
+      ctx.globalAlpha = 1;
+      // …then paint only the live layers on top, in CSS-px space.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawLiveLayers(ctx, { web, state, t, now, palette, dim, still: false, spider, strandOut }, tracker);
+    };
+
     const paint = (now: number): void => {
       if (web === null) {
         return;
       }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, width, height);
       const t = timelineAt(now);
-      renderWeaveFrame(ctx, { web, state, t, now, palette, dim, still: reduced, spider, strandOut }, tracker);
+      if (!reduced && bufferCtx !== null && staticNow(t)) {
+        composite(now, t);
+      } else {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.clearRect(0, 0, width, height);
+        renderWeaveFrame(ctx, { web, state, t, now, palette, dim, still: reduced, spider, strandOut }, tracker);
+      }
       notify(t);
       frames += 1;
       canvas.dataset["orbWeaveFrames"] = String(frames);
@@ -222,6 +278,9 @@ export function WebWeave({
     // follow-up (§9.9); every in-app theme path touches the documentElement and is caught here.
     const themeObserver = new MutationObserver(() => {
       palette = resolvePalette(probe);
+      // Invalidate the cache so the resting loop re-bakes with the new palette (the raw string reads
+      // the fresh tokens next frame). Reduced motion has no loop, so repaint its one static frame now.
+      baked = false;
       if (reduced) {
         paint(performance.now());
       }
