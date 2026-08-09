@@ -170,5 +170,13 @@ export interface PreflightResult {
  *  offer it for hand-fixing (the extension's own show-the-partial policy, NL design §1.1.5/§2.1 — the raw
  *  never rides an error message). Provider faults still throw. */
 export type SchemaForgeResult =
-  | { readonly kind: "draft"; readonly name: string; readonly schema: Record<string, unknown> }
+  /** `dropped` itemizes design rows the transpiler could not place (a duplicate path, a path that collides
+   *  with a value). Never silence — a dropped row is data the editor shows (D112 (3)). */
+  | { readonly kind: "draft"; readonly name: string; readonly schema: Record<string, unknown>; readonly dropped: readonly string[] }
+  /** The HONEST-REFUSAL arm (task #36, owner: "think about the people who want to do weird scorings"): the
+   *  ask needs a construct the generator's guaranteed-servable leaf language cannot express (a union, a
+   *  heterogeneous array, deeper nesting). The RAW JSON-Schema door takes the full liftable vocabulary, so
+   *  the editor routes there with `skeleton` — whatever the design DID reach — as the starting point. A
+   *  lossy flat approximation of the author's idea would be the wrong answer. */
+  | { readonly kind: "needs-raw"; readonly message: string; readonly skeleton: Record<string, unknown> }
   | { readonly kind: "failed"; readonly message: string; readonly raw: string | null };

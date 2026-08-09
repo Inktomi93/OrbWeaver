@@ -297,8 +297,8 @@
       "sha256": "a0204dea1db08883a7105cee558b45a0ee5a6a29aade7222274f6ea4148c6548"
     },
     "refinery.schemaForge.system": {
-      "version": 1,
-      "sha256": "d19840ce8235d8163a43f4b878c50935d756112a83cd8a737ea0f9861e8774be"
+      "version": 2,
+      "sha256": "17db0dfdb5ffdb6b69b9963b6be2ce9f30f643ef0df632031a0a245223dfdcfc"
     },
     "rpg.reminder.steeringLicense": {
       "version": 1,

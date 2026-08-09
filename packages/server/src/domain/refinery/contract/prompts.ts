@@ -9,13 +9,15 @@ import type {
   RefineryAnalyzeMode,
   RefineryAnalyzePayload,
   RefineryCustomRunConfig,
+  RefineryForgeArm,
   RefineryRewriteMode,
   RefineryRewritePayload,
+  RefinerySchemaStage,
   RefineryScoreMode,
   RefineryScorePayload,
   RefinerySelection,
 } from "@orb/contracts/refinery";
-import type { ResponseFormat } from "@orb/contracts/role-clients";
+import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { z } from "zod";
 
 /** One stage call's parse seam (built fresh per run — the capture is per-call state). */
@@ -88,3 +90,15 @@ export type StageResolution =
       readonly shapeText: string;
       readonly instruction: string;
     };
+
+/** What one NL→schema FORGE turn needs (task #36). Homed here rather than beside the engine because a
+ *  domain's exported shapes live in its `contract/` (§7.4, `no-inline-types`) — `substrate/schema-forge.ts`
+ *  imports it back. `userPrompt` is the caller's own ask (describe-to-schema, or the modify-this-schema
+ *  instruction); each arm appends its own per-call material. */
+export interface ForgeTurnArgs {
+  readonly stage: RefinerySchemaStage;
+  readonly userPrompt: string;
+  readonly overrides: ProseOverrides;
+  readonly sampleOpts: SummarizeOptions;
+  readonly arm: RefineryForgeArm;
+}

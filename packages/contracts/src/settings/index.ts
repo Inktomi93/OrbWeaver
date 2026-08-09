@@ -12,6 +12,8 @@ import { chunkParamsSchema, databankRetrievalSettingsSchema } from "#databank";
 import type { ExtractionMode, MultimodalCaptionMode } from "#imagery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
 import { legacyProseOverrides, proseOverridesSchema, resolveProseText } from "#prose";
+import type { StructuredOutputVehicle } from "#role-clients";
+import { structuredOutputVehicleSchema } from "#role-clients";
 import { MEMORY_RETRIEVAL_MODES } from "#search";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS` / `BackgroundImageKind`) is homed in
 // `#theme` (shared with the carried `ThemeBackground` twin); consumers import it from `@orb/contracts/theme`.
@@ -31,7 +33,7 @@ export const logLevelSchema = z.enum(LOG_LEVELS);
 // AppSettings — the admin-runtime override tier. Every field nullable+optional (null=CLEAR).
 // ════════════════════════════════════════════════════════════════════════════════════════════════════
 
-export const APP_SETTINGS_SCHEMA_VERSION = 6;
+export const APP_SETTINGS_SCHEMA_VERSION = 7;
 
 const SCORE_FLOOR = 0;
 const SCORE_CEIL = 1;
@@ -310,6 +312,14 @@ export type StructuredOutputShape = (typeof STRUCTURED_OUTPUT_SHAPES)[number];
 export const DEFAULT_STRUCTURED_OUTPUT_SHAPE: StructuredOutputShape = "as-projected";
 const structuredOutputShapeSchema = z.enum(STRUCTURED_OUTPUT_SHAPES);
 
+// ── Structured-output WIRE VEHICLE (task #36) ────────────────────────────────────────────────────────────
+// The SECOND structured-output axis, and it COMPOSES with the shape above rather than entangling with it:
+// the shape decides how we spell an optional field, the vehicle decides which endpoint feature carries the
+// schema at all. Only OpenRouter has two; the vocabulary + its per-arm reasoning live beside `ResponseFormat`
+// (`#role-clients`), which is where the request shape is minted. Imported DOWN, never re-spelled here.
+/** The born-in-DB floor: `auto` — capability-led, with the forced-tool fallback that predates it. */
+export const DEFAULT_STRUCTURED_OUTPUT_VEHICLE: StructuredOutputVehicle = "auto";
+
 // ── Prompt-cache depth floor (findings §5) ───────────────────────────────────────────────────────────────
 // HOW DEEP into a conversation the Anthropic history `cache_control` breakpoint sits, counted in ROLE
 // SWITCHES from the end (`infra/providers/backends/kit/cache-control.ts` owns the axis; within-turn tool
@@ -367,6 +377,8 @@ export const appSettingsSchema = z.object({
   discreetLogin: z.boolean().nullable().optional().catch(undefined),
   // The JSON-Schema shape structured-output requests ride (D126) — see STRUCTURED_OUTPUT_SHAPES above.
   structuredOutputShape: structuredOutputShapeSchema.nullable().optional().catch(undefined),
+  // WHICH WIRE carries the schema on a backend with two (task #36) — see above. Composes with the shape.
+  structuredOutputVehicle: structuredOutputVehicleSchema.nullable().optional().catch(undefined),
   // The Anthropic prompt-cache breakpoint depth FLOOR (role switches from the end) — see above. Bounded at
   // parse: an out-of-range value drops to the floor rather than pushing a breakpoint past the lookback.
   promptCacheMinDepth: z.number().int().min(PROMPT_CACHE_MIN_DEPTH_FLOOR).max(PROMPT_CACHE_MIN_DEPTH_CEIL).nullable().optional().catch(undefined),
@@ -398,6 +410,10 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
   // its born-in-DB floor 0, which is the identity of the `Math.max` it feeds, so no stored blob changes
   // meaning and no wire body moves.
   5: (config) => ({ ...config, schemaVersion: 6 }),
+  // v6→v7: `structuredOutputVehicle` (task #36) is purely additive/optional — an absent field reads back as
+  // its born-in-DB floor (`auto`), which resolves to exactly the vehicle every request used before this
+  // knob existed, so no stored blob changes meaning and no wire body moves.
+  6: (config) => ({ ...config, schemaVersion: 7 }),
 };
 
 export const appSettingsConfig = defineVersionedConfig<AppSettings>({
@@ -1139,6 +1155,7 @@ export interface EffectiveAppConfig {
   catalogRefreshIntervalMs: number;
   imageVariantQuality: number;
   structuredOutputShape: StructuredOutputShape;
+  structuredOutputVehicle: StructuredOutputVehicle;
   promptCacheMinDepth: number;
 }
 

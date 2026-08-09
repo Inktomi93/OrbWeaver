@@ -21,6 +21,7 @@ import {
   DEFAULT_LOCAL_MULTI_USER,
   DEFAULT_MAX_IMAGE_BYTES,
   DEFAULT_STRUCTURED_OUTPUT_SHAPE,
+  DEFAULT_STRUCTURED_OUTPUT_VEHICLE,
   PROMPT_CACHE_MIN_DEPTH_FLOOR,
 } from "@orb/contracts/settings";
 import { DATABANK_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
@@ -145,7 +146,18 @@ export function layer(overrides: AppSettings): EffectiveAppConfig {
     ...resolveBornInDbScalars(overrides),
     localMultiUser: overrides.localMultiUser ?? DEFAULT_LOCAL_MULTI_USER,
     discreetLogin: overrides.discreetLogin ?? DEFAULT_DISCREET_LOGIN,
-    structuredOutputShape: overrides.structuredOutputShape ?? DEFAULT_STRUCTURED_OUTPUT_SHAPE,
+    ...resolveStructuredOutput(overrides),
     promptCacheMinDepth: overrides.promptCacheMinDepth ?? PROMPT_CACHE_MIN_DEPTH_FLOOR,
+  };
+}
+
+// The two structured-output axes, resolved together because they COMPOSE (shape = how we spell an optional
+// field; vehicle = which endpoint feature carries the schema) and a reader who finds one should find the
+// other beside it. Extracted rather than inlined for the same reason `resolveBornInDbScalars` is: `layer`
+// sits at the cognitive-complexity ceiling, and the honest fix for one more `??` is decomposition.
+function resolveStructuredOutput(overrides: AppSettings): Pick<EffectiveAppConfig, "structuredOutputShape" | "structuredOutputVehicle"> {
+  return {
+    structuredOutputShape: overrides.structuredOutputShape ?? DEFAULT_STRUCTURED_OUTPUT_SHAPE,
+    structuredOutputVehicle: overrides.structuredOutputVehicle ?? DEFAULT_STRUCTURED_OUTPUT_VEHICLE,
   };
 }
