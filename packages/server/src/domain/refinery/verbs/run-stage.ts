@@ -25,16 +25,25 @@
 // OPERATE-BACK (schema-renderer §16.1): `rewriteRunId` lets an analyze judge an EARLIER rewrite of this
 // session — the new analyze row appends with that run as its DAG parent, provenance stays true, nothing
 // mutates. Legal only with `stage:"analyze"`.
+//
+// THE OUTPUT CAP IS PAYLOAD-AWARE, AND IT IS RESOLVED PER ARM (live e2e, 2026-08-09). This engine used to
+// request the stage's STATIC `SIDE_GEN_POSTURES` floor, resolved once in `resolveStagePass` before any
+// prompt existed. On the default selection of an ordinary card that floor (768 for score) was smaller than
+// the payload the stage asks the model to produce, so both the first attempt and the bounded retry came back
+// `finish_reason:"length"` and the whole stage 503'd — while the surface's own fit line had already printed
+// `out ≈ 980 / 768 tok ⚠`. The budget now comes from `substrate/output-budget`, the same expression
+// `preflight` reports, and the fold happens at the ARM because the window clamp needs the assembled prompt.
+// The ladder is unchanged: a user's preset `maxOutputTokens` still wins outright.
 
-import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { RefineryRun, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
-import type { SummarizeOptions } from "@orb/contracts/role-clients";
+import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
 import { refineryRuns, refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ModelId, RefineryRunId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import type { SideGenSampling } from "@orb/kit/side-gen-posture";
+import { estimateTokens } from "@orb/kit/tokens";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import { eq } from "drizzle-orm";
@@ -46,9 +55,10 @@ import type { StagePrompts, StageResolution } from "../contract/prompts.ts";
 import type { RefinerySessionView } from "../contract/results.ts";
 import type { ExecuteStage, RefineryService, StageEngineDeps } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, loadSessionRewriteRunRow, sessionViewOf } from "../persistence/queries.ts";
+import { resolveStageSampling } from "../substrate/output-budget.ts";
 import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
 import { buildStageParse } from "../substrate/stage-parse.ts";
-import { REFINERY_POSTURE_BY_STAGE, REFINERY_RESPONSE_FORMATS, resolveStageResolution } from "../substrate/stage-resolution.ts";
+import { REFINERY_RESPONSE_FORMATS, resolveStageResolution } from "../substrate/stage-resolution.ts";
 import { traceStructuredRetry } from "../substrate/structured-retry-trace.ts";
 
 /** The custom-score stamp pluck — the well-known core the save belt guarantees. A drifted row skips the
@@ -65,7 +75,12 @@ export function createRunStage(_ctx: RefineryContext, deps: StageEngineDeps): Re
  *  Carried whole so the per-arm helpers and the bounded retry provably run the SAME pass. */
 interface StagePass {
   readonly session: RefinerySessionView;
-  readonly sampleOpts: SummarizeOptions;
+  /** The wire grammar this pass runs under (fixed contract or the custom schema's projection). */
+  readonly responseFormat: ResponseFormat;
+  /** The ladder's TOP rung, carried unresolved: the output budget can only be sized once the arm has
+   *  assembled its prompt, so the fold happens at the call ({@link sampleOptsFor}), not here. */
+  readonly presetParams: SideGenSampling | undefined;
+  readonly stage: RefineryStage;
   readonly overrides: Awaited<ReturnType<RefineryContext["resolveUserProse"]>>;
   readonly resolution: StageResolution;
   readonly meta: {
@@ -265,12 +280,11 @@ async function resolveStagePass(
   const resolution = await resolveStageResolution(ctx, { ownerId, stage, session });
   return {
     session,
+    stage,
     overrides,
     resolution,
-    sampleOpts: {
-      responseFormat: resolution.kind === "custom" ? resolution.responseFormat : REFINERY_RESPONSE_FORMATS[stage],
-      ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES[REFINERY_POSTURE_BY_STAGE[stage]], presetParams)),
-    },
+    presetParams,
+    responseFormat: resolution.kind === "custom" ? resolution.responseFormat : REFINERY_RESPONSE_FORMATS[stage],
     meta: {
       id: ctx.newRefineryRunId(),
       sessionId,
@@ -279,6 +293,22 @@ async function resolveStagePass(
       createdAt: ctx.now(),
     },
   };
+}
+
+/** This call's summarize options: the wire grammar plus the ladder folded against THIS pass's assembled
+ *  prompt, so the output cap is sized for the payload the stage is about to ask for rather than a static
+ *  floor (`substrate/output-budget` — the ONE expression `preflight` also evaluates, which is why the fit
+ *  line and the wire now carry the same number). Resolved per arm because the budget's window clamp needs
+ *  the prompt, and only the arm has it. */
+function sampleOptsFor(ctx: RefineryContext, pass: StagePass, prompts: StagePrompts): SummarizeOptions {
+  const sampling = resolveStageSampling({
+    stage: pass.stage,
+    session: pass.session,
+    presetParams: pass.presetParams,
+    contextTokens: ctx.summarizerContextTokens,
+    inputEstimate: estimateTokens(`${prompts.system}\n${prompts.user}`),
+  });
+  return { responseFormat: pass.responseFormat, ...toSummarizeOptions(sampling) };
 }
 
 /** The three ECONOMIC columns of a finished run, resolved identically for every stage: the provider's own
@@ -305,7 +335,7 @@ async function runScoreArm(ctx: RefineryContext, pass: StagePass): Promise<Refin
     shapeText: resolution.kind === "custom" ? resolution.shapeText : undefined,
   });
   if (resolution.kind === "custom") {
-    const turn = await runOne(ctx, { prompts, sampleOpts: pass.sampleOpts, lane: "refine-score", payloadSchema: resolution.payloadSchema });
+    const turn = await runOne(ctx, { prompts, sampleOpts: sampleOptsFor(ctx, pass, prompts), lane: "refine-score", payloadSchema: resolution.payloadSchema });
     const view = {
       ...pass.meta,
       ...runCost(ctx, pass, turn),
@@ -318,7 +348,12 @@ async function runScoreArm(ctx: RefineryContext, pass: StagePass): Promise<Refin
     await ctx.db.insert(refineryRuns).values(view);
     return view;
   }
-  const turn = await runOne(ctx, { prompts, sampleOpts: pass.sampleOpts, lane: "refine-score", payloadSchema: REFINERY_STAGE_PAYLOADS.score });
+  const turn = await runOne(ctx, {
+    prompts,
+    sampleOpts: sampleOptsFor(ctx, pass, prompts),
+    lane: "refine-score",
+    payloadSchema: REFINERY_STAGE_PAYLOADS.score,
+  });
   const view = {
     ...pass.meta,
     ...runCost(ctx, pass, turn),
@@ -363,7 +398,12 @@ async function runRewriteArm(ctx: RefineryContext, pass: StagePass, arm: Rewrite
     score: arm.score,
     analyzeFeedback: arm.analyzeFeedback,
   });
-  const turn = await runOne(ctx, { prompts, sampleOpts: pass.sampleOpts, lane: "refine-rewrite", payloadSchema: REFINERY_STAGE_PAYLOADS.rewrite });
+  const turn = await runOne(ctx, {
+    prompts,
+    sampleOpts: sampleOptsFor(ctx, pass, prompts),
+    lane: "refine-rewrite",
+    payloadSchema: REFINERY_STAGE_PAYLOADS.rewrite,
+  });
   const view = {
     ...pass.meta,
     ...runCost(ctx, pass, turn),
@@ -390,7 +430,7 @@ async function runAnalyzeArm(ctx: RefineryContext, pass: StagePass, rewrite: Pri
     shapeText: resolution.kind === "custom" ? resolution.shapeText : undefined,
   });
   if (resolution.kind === "custom") {
-    const turn = await runOne(ctx, { prompts, sampleOpts: pass.sampleOpts, lane: "refine-analyze", payloadSchema: resolution.payloadSchema });
+    const turn = await runOne(ctx, { prompts, sampleOpts: sampleOptsFor(ctx, pass, prompts), lane: "refine-analyze", payloadSchema: resolution.payloadSchema });
     const view = {
       ...pass.meta,
       ...runCost(ctx, pass, turn),
@@ -403,7 +443,12 @@ async function runAnalyzeArm(ctx: RefineryContext, pass: StagePass, rewrite: Pri
     await ctx.db.insert(refineryRuns).values(view);
     return view;
   }
-  const turn = await runOne(ctx, { prompts, sampleOpts: pass.sampleOpts, lane: "refine-analyze", payloadSchema: REFINERY_STAGE_PAYLOADS.analyze });
+  const turn = await runOne(ctx, {
+    prompts,
+    sampleOpts: sampleOptsFor(ctx, pass, prompts),
+    lane: "refine-analyze",
+    payloadSchema: REFINERY_STAGE_PAYLOADS.analyze,
+  });
   const view = {
     ...pass.meta,
     ...runCost(ctx, pass, turn),

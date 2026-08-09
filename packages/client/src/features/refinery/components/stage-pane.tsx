@@ -50,6 +50,9 @@ export interface StagePaneProps {
    *  shimmer on a re-run — and, critically, stops the not-run-yet arm from saying "nothing settled" at
    *  the exact moment something is being computed (side-eye 2026-08-09 P1-10: "running status lies"). */
   readonly running: boolean;
+  /** This pane's run LANDED from a mutation the surface just made — the hero gauge's arrival signal
+   *  (`useCountUp`'s `arrived`; a session merely opened must not animate). @defaultValue false */
+  readonly arrived?: boolean;
 }
 
 /** The first-run arm WHILE A CALL IS IN FLIGHT. There is no plan to shape a skeleton from yet (the plan
@@ -68,7 +71,7 @@ function RunningPane({ activeStage }: { activeStage: RefineryStage }): ReactElem
   );
 }
 
-export function StagePane({ activeStage, run, entries, decided, onDecide, viewingBack, running }: StagePaneProps): ReactElement {
+export function StagePane({ activeStage, run, entries, decided, onDecide, viewingBack, running, arrived = false }: StagePaneProps): ReactElement {
   if (run === null) {
     if (running) {
       return <RunningPane activeStage={activeStage} />;
@@ -95,7 +98,7 @@ export function StagePane({ activeStage, run, entries, decided, onDecide, viewin
           <RefineryChip tone="warn">viewing round {run.iteration} · superseded</RefineryChip>
         </Row>
       ) : null}
-      <PayloadView payload={run.payload as Record<string, unknown>} pending={running} plan={plan} />
+      <PayloadView arrived={arrived} payload={run.payload as Record<string, unknown>} pending={running} plan={plan} />
     </Stack>
   );
 }
