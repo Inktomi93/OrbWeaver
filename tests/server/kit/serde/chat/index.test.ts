@@ -118,6 +118,62 @@ describe("parseChatJsonl — the 2026-08-08 import-fidelity pins", () => {
     expect(parsed?.createDate).toBe(Date.UTC(2025, 10, 30, 18, 47, 20));
     expect(parsed?.messages[0]?.sendDate).toBe(Date.UTC(2025, 10, 3, 13, 43));
   });
+
+  test("§5.1 — a swipe's metadata is the FLAT extra shape, whatever the take's path", () => {
+    const swiped = line({
+      is_user: false,
+      mes: "take two",
+      extra: { model: "m", reasoning_duration: 900 },
+      swipes: ["take one", "take two"],
+      swipe_id: 1,
+      swipe_info: [
+        { send_date: "2025-07-18@11h00m00s", gen_started: 1, gen_finished: 2, extra: { model: "m1", reasoning_duration: 1200, bias: "x" } },
+        { send_date: "2025-07-18@12h00m00s", gen_started: 3, gen_finished: 4, extra: { model: "m2", reasoning_duration: 900 } },
+      ],
+    });
+    const parsed = parseChatJsonl(`${header()}\n${swiped}`, { fileName: "m.jsonl", charDirName: "Aria" });
+    const pool = parsed?.messages[0]?.variants ?? [];
+    // `reasoning_duration` sits at the TOP level — the only shape `json_extract(metadata,'$.reasoning_duration')`
+    // (domain/stats' rebuild + the live stats-delta twin) can resolve. The nested `{extra:{…}}` shape this
+    // stored until 2026-08-08 read NULL for all 12,718 swipe-bearing corpus rows.
+    expect(pool.map((v) => v.metadata?.["reasoning_duration"])).toEqual([1200, 900]);
+    expect(pool[0]?.metadata?.["bias"]).toBe("x");
+    // The swipe entry's non-sidecar residue rides along: flattening is not a drop (78,407 corpus send_dates).
+    expect(pool[0]?.metadata?.["send_date"]).toBe("2025-07-18@11h00m00s");
+    // …and the two timings are NOT duplicated into the blob — they are columns, exactly as a single-take
+    // row's line-level gen_started/gen_finished are.
+    expect(pool[0]?.metadata?.["gen_started"]).toBeUndefined();
+    expect(pool[0]?.genStarted).not.toBeNull();
+    // A single-take row's blob is unchanged — this IS the canonical shape both paths now write.
+    const single = parseChatJsonl(`${header()}\n${line({ extra: { model: "m", reasoning_duration: 42 } })}`, { fileName: "s.jsonl", charDirName: "Aria" });
+    expect(single?.messages[0]?.metadata).toEqual({ model: "m", reasoning_duration: 42 });
+  });
+
+  test("§5.6 — chat_metadata.variables parses to a flat string map; non-strings drop; empty ⇒ null", () => {
+    const withVars = parseChatJsonl(`${header({ chat_metadata: { variables: { questGiver: "Marla", coins: "37", tally: 5, blob: { a: 1 } } } })}\n${line()}`, {
+      fileName: "v.jsonl",
+      charDirName: "Aria",
+    });
+    // orb's seat is a flat `Record<string,string>`; a non-string from a foreign writer is dropped rather than
+    // stringified into a shape no reader could interpret.
+    expect(withVars?.variables).toEqual({ questGiver: "Marla", coins: "37" });
+    expect(parseChatJsonl(`${header({ chat_metadata: { variables: {} } })}\n${line()}`, { fileName: "v.jsonl", charDirName: "Aria" })?.variables).toBeNull();
+    expect(parseChatJsonl(`${header()}\n${line()}`, { fileName: "v.jsonl", charDirName: "Aria" })?.variables).toBeNull();
+  });
+
+  test("§5.5 — the author's-note placement knobs parse in ST's own numeric vocabulary", () => {
+    const meta = { note_prompt: "Keep it tense.", note_depth: 2, note_position: 0, note_role: 1, note_interval: 1 };
+    const parsed = parseChatJsonl(`${header({ chat_metadata: meta })}\n${line()}`, { fileName: "n.jsonl", charDirName: "Aria" });
+    // UNTRANSLATED here by design — the serde owns ST's grammar; the import mapper owns the conversion.
+    expect(parsed?.notePlacement).toEqual({ depth: 2, position: 0, role: 1, interval: 1 });
+    // Knobs are parsed INDEPENDENTLY of the note text: 1,070 of the 1,097 corpus chats record the knobs and
+    // ZERO carry note text, so a text-gated read would have found nothing to convert.
+    const knobsOnly = parseChatJsonl(`${header({ chat_metadata: { note_prompt: "", note_depth: 4 } })}\n${line()}`, { fileName: "n.jsonl", charDirName: "A" });
+    expect(knobsOnly?.notePrompt).toBeNull();
+    expect(knobsOnly?.notePlacement).toEqual({ depth: 4, position: null, role: null, interval: null });
+    // No knob at all ⇒ null, which is what tells the mapper to use orb's house register.
+    expect(parseChatJsonl(`${header()}\n${line()}`, { fileName: "n.jsonl", charDirName: "A" })?.notePlacement).toBeNull();
+  });
 });
 
 describe("parseChatJsonl", () => {
@@ -306,6 +362,8 @@ function pchat(messages: readonly ParsedChatMessage[], over: Partial<ParsedChat>
     isBranch: false,
     parentRef: null,
     notePrompt: null,
+    notePlacement: null,
+    variables: null,
     bucket: "real_conversation",
     sourceMetadata: null,
     messages,
@@ -529,5 +587,26 @@ describe("build → parse → build identity", () => {
     }
     const jsonl2 = buildChatJsonl(reparsed);
     expect(jsonl2).toBe(jsonl1);
+  });
+
+  test("the note PLACEMENT knobs + the variable store round-trip; a chat carrying neither is byte-identical", () => {
+    const bare = buildChatJsonl(pchat([pmsg({ content: "hi" })]));
+    const source = pchat([pmsg({ content: "hi" })], {
+      notePrompt: "keep it noir",
+      notePlacement: { depth: 2, position: 0, role: 1, interval: 3 },
+      variables: { questGiver: "Marla" },
+    });
+    const jsonl1 = buildChatJsonl(source);
+    const reparsed = parseChatJsonl(jsonl1, { fileName: "chat.jsonl", charDirName: "Aria" });
+    if (reparsed === null) {
+      throw new Error("reparse failed");
+    }
+    expect(reparsed.notePlacement).toEqual({ depth: 2, position: 0, role: 1, interval: 3 });
+    expect(reparsed.variables).toEqual({ questGiver: "Marla" });
+    expect(buildChatJsonl(reparsed)).toBe(jsonl1);
+    // The absent arm emits NO new key, so every orb-authored fixture (the demo seeder, this drift guard)
+    // stays exactly the bytes it was before the two fields existed.
+    const bareHeader = JSON.parse(bare.split("\n")[0] ?? "") as Record<string, Record<string, unknown>>;
+    expect(Object.keys(bareHeader["chat_metadata"] ?? {})).toEqual([]);
   });
 });

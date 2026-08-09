@@ -14,7 +14,13 @@
 //   • ST's ONE `extra.token_count` is the row's own text count, not API usage: it routes to tokensOut on an
 //     assistant line and tokensIn on a user/system line (`tokenColumns`), and un-routes on build.
 //   • swipe arrays build only when >1 variant, matching the parser's real-swipe gate.
-//   • main_chat/note_prompt round-trip the branch parent filename + author's note, omitted when null.
+//   • a variant's `metadata` is ONE canonical shape on both paths — ST's FLAT `extra`, with the swipe entry's
+//     non-sidecar residue merged under it (`variantMetadata`). The nested `swipe_info[i]` shape this used to
+//     store made the column's `$.reasoning_duration` readers resolve NULL on every swiped row.
+//   • main_chat/note_prompt round-trip the branch parent filename + author's note, omitted when null; the
+//     note's PLACEMENT knobs (note_depth/position/role/interval) and `chat_metadata.variables` round-trip
+//     beside them, each omitted when the chat records none. The knobs stay in ST's NUMERIC vocabulary here —
+//     translating them onto orb's injection axis is the import mapper's job.
 //
 // Round-trip drift guard: buildChatJsonl(parseChatJsonl(buildChatJsonl(p))) === buildChatJsonl(p).
 
@@ -33,7 +39,8 @@ export const CHAT_BUCKETS = ["header_only", "all_empty_msgs", "greeting_only", "
 export type ChatBucket = (typeof CHAT_BUCKETS)[number];
 
 /** One swipe in a message's variant pool (0-based `idx` after the empty-slot drop + re-index). `metadata` is
- *  the lossless full `swipe_info[idx]` sidecar (parse side; build ignores it — the economics ride the fields). */
+ *  the take's generation sidecar in the ONE canonical shape both import paths write — see
+ *  {@link variantMetadata} (parse side; build ignores it — the economics ride the fields). */
 export interface ParsedVariant {
   readonly idx: number;
   readonly content: string;
@@ -107,6 +114,21 @@ export interface ParsedChatMessage {
   readonly agentAuthor?: ParsedAgentAuthor;
 }
 
+/** The author's-note PLACEMENT knobs ST records beside `note_prompt`, in ST's OWN vocabulary — raw numbers,
+ *  untranslated. The serde owns the ST grammar; translating these onto orb's `chat_injections`
+ *  position/depth/role axis is the IMPORT mapper's job (`domain/import/substrate/chat-input.ts`), so the two
+ *  vocabularies never blur into one half-converted shape here. SOURCE-PINNED spellings (SillyTavern
+ *  `public/scripts/authors-note.js` `metadata_keys` + `public/script.js` `extension_prompt_types` /
+ *  `extension_prompt_roles`): `position` is `-1 NONE | 0 IN_PROMPT | 1 IN_CHAT | 2 BEFORE_PROMPT`; `role` is
+ *  `0 SYSTEM | 1 USER | 2 ASSISTANT`; `depth` is a message count from the tail; `interval` is "insert every N
+ *  messages". Each field is null when the file records none. */
+export interface ParsedNotePlacement {
+  readonly depth: number | null;
+  readonly position: number | null;
+  readonly role: number | null;
+  readonly interval: number | null;
+}
+
 /** One parsed/serializable ST chat. `createDate` is the FILENAME date first (survives ST re-save/migration),
  *  then the header `create_date`, then null. `parentRef` is the normalized `chat_metadata.main_chat` (the
  *  branch edge; falls back to the filename lineage). `bucket` is the memory-backfill gate (PD-78).
@@ -118,6 +140,15 @@ export interface ParsedChat {
   readonly isBranch: boolean;
   readonly parentRef: string | null;
   readonly notePrompt: string | null;
+  /** The recorded placement for {@link notePrompt}, in ST's vocabulary. Null when the file records no knob at
+   *  all (the mapper then uses orb's house register). Parsed even when `notePrompt` is empty — 1,070 of the
+   *  1,097 real-corpus chats carry the knobs and ZERO carry note TEXT, so the two are genuinely independent. */
+  readonly notePlacement: ParsedNotePlacement | null;
+  /** ST's `chat_metadata.variables` — the per-chat `{{setvar}}`/`{{getvar}}` store (494 of 1,097 corpus
+   *  chats). STRING VALUES ONLY: orb's seat (`chats.variableValues`) is a flat `Record<string,string>` and
+   *  ST's own macro engine stores strings, so a non-string value from a foreign/extension writer is dropped
+   *  rather than stringified into a shape no reader could interpret. Null when the chat records none. */
+  readonly variables: Record<string, string> | null;
   readonly bucket: ChatBucket;
   readonly sourceMetadata: Record<string, unknown> | null;
   readonly messages: readonly ParsedChatMessage[];
@@ -367,6 +398,48 @@ function parseFilenameDate(fileName: string, zone: string): number | null {
   return m ? parseStDate(m[0], zone) : null;
 }
 
+/** A `chat_metadata` numeric knob → a finite integer, else null. ST writes these as JSON numbers, but a
+ *  hand-edited profile can carry the string form, so both are accepted; anything else records "not set". */
+function parseNoteKnob(v: unknown): number | null {
+  if (typeof v !== "number" && typeof v !== "string") {
+    return null;
+  }
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.trunc(n) : null;
+}
+
+/** ST's author's-note placement knobs off `chat_metadata`, or null when the file records NONE of them (which
+ *  is what tells the import mapper to fall back to orb's house register rather than to a fabricated zero). */
+function parseNotePlacement(meta: Record<string, unknown> | null): ParsedNotePlacement | null {
+  if (meta === null) {
+    return null;
+  }
+  const placement: ParsedNotePlacement = {
+    depth: parseNoteKnob(meta["note_depth"]),
+    position: parseNoteKnob(meta["note_position"]),
+    role: parseNoteKnob(meta["note_role"]),
+    interval: parseNoteKnob(meta["note_interval"]),
+  };
+  return Object.values(placement).some((v) => v !== null) ? placement : null;
+}
+
+/** ST's `chat_metadata.variables` → the flat string map orb's `chats.variableValues` column is. Non-string
+ *  values are DROPPED (see {@link ParsedChat.variables}); an empty/absent/all-dropped bag is null, so the
+ *  column keeps meaning "this chat has no variable store" rather than gaining a second empty spelling. */
+function parseChatVariables(meta: Record<string, unknown> | null): Record<string, string> | null {
+  const raw = asObj(meta?.["variables"]);
+  if (raw === null) {
+    return null;
+  }
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw)) {
+    if (typeof v === "string") {
+      out[k] = v;
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
 /** Normalize a `chat_metadata.main_chat` ref to filename form (ST stores it without ".jsonl"). */
 function normalizeParentRef(mainChat: string): string | null {
   if (mainChat.length === 0) {
@@ -465,6 +538,37 @@ function kindOf(m: RawMessage, role: MessageRole): MessageKind {
   return str(e?.type) === ST_NARRATOR_TYPE ? "narrator" : DEFAULT_MESSAGE_KIND;
 }
 
+// The `swipe_info[i]` keys that are NOT part of the take's generation sidecar: `extra` is unwrapped INTO the
+// blob, and the two timings are promoted to their own columns (`genStarted`/`genFinished`), exactly as a
+// single-take row's line-level `gen_started`/`gen_finished` are. Everything else — `send_date` (78,407 corpus
+// entries) and any foreign residue — rides along untouched, so flattening is not a drop.
+const SWIPE_INFO_NON_SIDECAR_KEYS: ReadonlySet<string> = new Set(["extra", "gen_started", "gen_finished"]);
+
+/** ONE canonical shape for a variant's `metadata`, on BOTH parse paths: ST's FLAT `extra` blob, with the
+ *  swipe entry's non-sidecar residue merged underneath it.
+ *
+ *  This existed as TWO shapes until the 2026-08-08 import-fidelity audit: a single-take row stored `extra`
+ *  flat while a swipe-bearing row stored the whole `swipe_info[i]`, which NESTS `extra`. The column's readers
+ *  address it by PATH — `json_extract(metadata, '$.reasoning_duration')` in `domain/stats`'s rebuild and the
+ *  live `substrate/stats-delta` twin — so the nested shape resolved to NULL and reasoning time was lost for
+ *  every swipe-bearing imported message (12,718 of 24,824 corpus rows; `reasoning_duration` is present on
+ *  75,309 of 76,238 swipe entries). The fix is one shape at the WRITER, never dual-shape readers.
+ *
+ *  `extra` wins on a key collision: it is the authoritative generation sidecar, the residue is context. */
+function variantMetadata(swipeEntry: unknown): Record<string, unknown> | null {
+  const si = asObj(swipeEntry);
+  if (si === null) {
+    return null;
+  }
+  const merged: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(si)) {
+    if (!SWIPE_INFO_NON_SIDECAR_KEYS.has(k)) {
+      merged[k] = v;
+    }
+  }
+  return { ...merged, ...(asObj(si["extra"]) ?? {}) };
+}
+
 // Fewer than this many SURVIVING swipes ⇒ no real alternates (the lone generation lives on the message's
 // primary variant, not a redundant one-element pool).
 const MIN_REAL_SWIPES = 2;
@@ -498,7 +602,7 @@ function buildVariants(args: {
       reasoning: ex.reasoning,
       genStarted: si ? parseStDate(si.gen_started, zone) : null,
       genFinished: si ? parseStDate(si.gen_finished, zone) : null,
-      metadata: asObj(s.si),
+      metadata: variantMetadata(s.si),
     };
   });
   const newActive = kept.findIndex((s) => s.originIdx === activeSwipeId);
@@ -672,6 +776,8 @@ export function parseChatJsonl(
     isBranch: opts.fileName.includes("Branch #"),
     parentRef: normalizeParentRef(str(meta?.["main_chat"])) ?? deriveParentFromFilename(opts.fileName),
     notePrompt: nullIfEmpty(str(meta?.["note_prompt"])),
+    notePlacement: parseNotePlacement(meta),
+    variables: parseChatVariables(meta),
     bucket: classifyChat(messages),
     sourceMetadata: meta,
     messages,
@@ -777,6 +883,21 @@ function buildMessageLine(m: ParsedChatMessage, chatCreateDate: number | null, z
   };
 }
 
+/** The author's-note placement fragment for the built header — the inverse of {@link parseNotePlacement}, in
+ *  ST's own numeric vocabulary. Each knob is emitted ONLY when the chat records it, so a chat that carried
+ *  none stays byte-identical to what this serde built before the knobs were parsed. */
+function notePlacementFields(placement: ParsedNotePlacement | null): Record<string, number> {
+  if (placement === null) {
+    return {};
+  }
+  return {
+    ...(placement.depth !== null ? { note_depth: placement.depth } : {}),
+    ...(placement.position !== null ? { note_position: placement.position } : {}),
+    ...(placement.role !== null ? { note_role: placement.role } : {}),
+    ...(placement.interval !== null ? { note_interval: placement.interval } : {}),
+  };
+}
+
 export function buildChatJsonl(chat: ParsedChat, opts: { readonly wallClockZone?: string } = {}): string {
   // The same zone the parse half resolves in — an export door that emits UTC while the import door reads a
   // local wall clock drifts a round trip by the offset, and ST (whose reader is naive/local) would render the
@@ -789,6 +910,11 @@ export function buildChatJsonl(chat: ParsedChat, opts: { readonly wallClockZone?
     chat_metadata: {
       ...(chat.parentRef !== null ? { main_chat: chat.parentRef } : {}),
       ...(chat.notePrompt !== null ? { note_prompt: chat.notePrompt } : {}),
+      ...notePlacementFields(chat.notePlacement),
+      // The `{{setvar}}` store rides BOTH directions (the Defect-A precedent: an interchange field with a
+      // seat on each side travels both ways or the round trip is lossy in one). Omitted when null, so a
+      // variable-less chat's header stays byte-identical.
+      ...(chat.variables !== null ? { variables: chat.variables } : {}),
     },
   };
   const lines = [JSON.stringify(header), ...chat.messages.map((m) => JSON.stringify(buildMessageLine(m, chat.createDate, zone)))];
