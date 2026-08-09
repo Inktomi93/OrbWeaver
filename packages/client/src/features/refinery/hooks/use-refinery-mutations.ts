@@ -100,8 +100,7 @@ function stageOrderAwareToast(fallback: string): (error: unknown) => string {
 
 // ── session lifecycle ───────────────────────────────────────────────────────────────────────────────
 
-/** @public the R2 write tier for the R3 refinery SURFACE (board C15, design-gated on the owner's mockup
- *  ruling) — the session producer. No prod consumer until that surface lands; the CT drives it today. */
+/** The R2 write tier — the session producer (consumed by the R3 surface since `5727fcb12`). */
 export const useStartRefinerySession = createEntityMutation<inferInput<Trpc["refinery"]["startSession"]>, inferOutput<Trpc["refinery"]["startSession"]>>({
   options: (trpc) => trpc.refinery.startSession.mutationOptions(),
   // The roster only: `getSession`/`listRuns` for a session that did not exist are cold fetches of NEW keys.
@@ -109,8 +108,7 @@ export const useStartRefinerySession = createEntityMutation<inferInput<Trpc["ref
   errorToast: "Couldn't start a refinery session for that card.",
 });
 
-/** @public the R2 write tier for the R3 refinery surface (board C15) — the session patch (name · guidance ·
- *  selection · stageConfig · status). No prod consumer until R3; the CT drives it today. */
+/** The R2 write tier — the session patch (name · guidance · selection · stageConfig · status); consumed by the R3 surface. */
 export const useUpdateRefinerySession = createEntityMutation<inferInput<Trpc["refinery"]["updateSession"]>, inferOutput<Trpc["refinery"]["updateSession"]>>({
   options: (trpc) => trpc.refinery.updateSession.mutationOptions(),
   // All three: the patch is the CONTENT surface's own state, `name`/`status`/`updatedAt` are roster
@@ -131,8 +129,7 @@ export const useDeleteRefinerySession = createEntityMutation<inferInput<Trpc["re
 
 // ── the pipeline ────────────────────────────────────────────────────────────────────────────────────
 
-/** @public the R2 write tier for the R3 refinery surface (board C15) — one stage under the session's
- *  in-force config. No prod consumer until R3; the CT drives it today. */
+/** The R2 write tier — one stage under the session's in-force config; consumed by the R3 surface. */
 export const useRunRefineryStage = createEntityMutation<inferInput<Trpc["refinery"]["runStage"]>, inferOutput<Trpc["refinery"]["runStage"]>>({
   options: (trpc) => trpc.refinery.runStage.mutationOptions(),
   // A run APPENDS to the ledger, flips the session back to `active` with a fresh `updatedAt` (both roster
@@ -148,8 +145,7 @@ export const useRunRefineryStage = createEntityMutation<inferInput<Trpc["refiner
   errorToast: stageOrderAwareToast("That stage didn't finish — try again."),
 });
 
-/** @public the R2 write tier for the R3 refinery surface (board C15) — one refinement round (refine-rewrite
- *  then analyze). No prod consumer until R3; the CT drives it today. */
+/** The R2 write tier — one refinement round (refine-rewrite then analyze); consumed by the R3 surface. */
 export const useIterateRefinery = createEntityMutation<inferInput<Trpc["refinery"]["iterate"]>, inferOutput<Trpc["refinery"]["iterate"]>>({
   options: (trpc) => trpc.refinery.iterate.mutationOptions(),
   // A round writes TWO runs plus `iterationCount` (and, through its analyze half, the F6 analysis stamp) —

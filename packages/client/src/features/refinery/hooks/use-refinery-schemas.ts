@@ -48,6 +48,8 @@ export const useUpdateRefinerySchema = createEntityMutation<inferInput<Trpc["ref
   errorToast: "Couldn't update that schema.",
 });
 
+/** @public schema deletion for the R3 schema library — the editor's delete affordance is R4 polish scope
+ *  (task #30); the verb + belts shipped with R3 so the surface can wire it without a contract round-trip. */
 export const useDeleteRefinerySchema = createEntityMutation<inferInput<Trpc["refinery"]["deleteSchema"]>, unknown>({
   options: (trpc) => trpc.refinery.deleteSchema.mutationOptions(),
   invalidates: (trpc) => [libraryRead(trpc)],
