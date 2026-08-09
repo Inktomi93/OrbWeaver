@@ -9,6 +9,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { PortabilityRegistry, PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
+import { hostTimeZone } from "@orb/kit/time";
 import type { AssetsContext } from "#domain/assets";
 import { createExportAssets, createExportGallery, createImportAsset, createImportGallery } from "#domain/assets";
 import type { BulkImportChats } from "#domain/chat";
@@ -80,6 +81,9 @@ async function buildOwnerImport(deps: PortabilityDeps, ownerId: UserId): Promise
     importCardScripts: deps.importCardScripts,
     profile: {
       now: deps.now,
+      // An uploaded ST transcript's zone-less wall-clock dates were written against a local `Date`; the
+      // importing box's zone is the honest reading (and the exact one for the same-box case).
+      stWallClockZone: hostTimeZone(),
       personaByUserName: new Map(),
       bulkImportChats: deps.bulkImportChats,
       bulkImportPersonas: deps.bulkImportPersonas,

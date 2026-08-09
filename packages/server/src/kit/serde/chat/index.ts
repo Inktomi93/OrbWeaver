@@ -7,7 +7,12 @@
 // Load-bearing esoterica (carried verbatim from the corpus study — do not re-derive):
 //   • the filename date wins over the header create_date (ST re-save rewrites the header to migration time).
 //   • buildVariants drops empty swipe slots + remaps the active index; `mes` is authoritative regardless.
-//   • dates emit in the legacy human form (UTC, minute precision); parseStDate reads it back.
+//   • dates emit in the legacy human form (minute precision); parseStDate reads it back. That form is a
+//     ZONE-LESS LOCAL WALL CLOCK in ST, so both halves take a `wallClockZone` (default "UTC" — see
+//     ST_DEFAULT_WALL_CLOCK_ZONE); the ST interchange DOORS pass `hostTimeZone()`. Absolute encodings
+//     (epoch / ISO) ignore it.
+//   • ST's ONE `extra.token_count` is the row's own text count, not API usage: it routes to tokensOut on an
+//     assistant line and tokensIn on a user/system line (`tokenColumns`), and un-routes on build.
 //   • swipe arrays build only when >1 variant, matching the parser's real-swipe gate.
 //   • main_chat/note_prompt round-trip the branch parent filename + author's note, omitted when null.
 //
@@ -16,7 +21,7 @@
 import type { MessageKind } from "@orb/contracts/chat";
 import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { MessageRole } from "@orb/kit/message-role";
-import { epochToMs, isoToMs } from "@orb/kit/time";
+import { epochToMs, isoToMs, msToWallClock, wallClockToMs } from "@orb/kit/time";
 import { z } from "zod";
 
 // ── the canonical shape (NAME-level; the serde owns its wire shape, server/kit type-home-exempt) ──────────
@@ -34,6 +39,9 @@ export interface ParsedVariant {
   readonly content: string;
   readonly model: string | null;
   readonly provider: string | null;
+  /** ST's `extra.token_count` when this row's text is INBOUND (a user/system line) — see
+   *  {@link ParsedChatMessage.tokensIn}. Exactly one of `tokensIn`/`tokensOut` is ever non-null here. */
+  readonly tokensIn: number | null;
   readonly tokensOut: number | null;
   readonly reasoning: string | null;
   readonly genStarted: number | null;
@@ -81,6 +89,13 @@ export interface ParsedChatMessage {
   readonly sendDate: number | null;
   readonly model: string | null;
   readonly provider: string | null;
+  /** ST's `extra.token_count` for a row whose text is INBOUND to a generation — a `user` or `system` line.
+   *  ST's field is the token count of THIS ROW'S OWN TEXT, not an API usage figure (SOURCE-PINNED:
+   *  `script.js` `message.extra.token_count = await getTokenCountAsync(message.mes, 0)` on the user-send
+   *  path), so on a user/system line it is an INPUT count and landing it in `tokensOut` (which this did
+   *  until the 2026-08-08 import-fidelity audit) credits typed text as model OUTPUT in every economics
+   *  rollup. Exactly one of `tokensIn`/`tokensOut` is non-null: the axis is chosen by ROLE. */
+  readonly tokensIn: number | null;
   readonly tokensOut: number | null;
   readonly reasoning: string | null;
   readonly genStarted: number | null;
@@ -203,10 +218,19 @@ const MONTHS: Record<string, number> = {
 
 // Guard a numeric-string epoch to ≥10 digits so a bare "2025" isn't misread as 2025 epoch-seconds.
 const NUMERIC_EPOCH = /^\d{10,}$/;
-// ST create_date / message dates: "2025-07-03@14h56m48s" (+ optional "989ms"), whitespace-tolerant.
-const ST_AT_DATE = /(\d{4})-(\d{2})-(\d{2})\s*@\s*(\d{2})h\s*(\d{2})m\s*(\d{2})s/;
-// The filename creation token — same shape, embedded in "Char - 2023-11-11@09h41m32s538ms.jsonl".
-const FILENAME_DATE = /\d{4}-\d{2}-\d{2}\s*@\s*\d{2}h\d{2}m\d{2}s/;
+// ST create_date / message dates / chat filenames: "2025-07-03@14h56m48s" (+ optional "989ms").
+// The digit counts are 1-2 and EVERY separator is space-tolerant because ST itself writes several spellings
+// and reads all of them — SOURCE-PINNED to `public/scripts/utils.js parseTimestamp`, whose three "humanized"
+// patterns are `(\d{4})-(\d{1,2})-(\d{1,2})@…`, the same with a trailing ms group, and
+// `(\d{4})-(\d{1,2})-(\d{1,2}) @(\d{1,2})h (\d{1,2})m (\d{1,2})s (\d{1,3})ms`. A stricter 2-digit/no-space
+// pattern is NOT a safe subset: 76 of the 1,097 real-corpus chat files carry a form it rejects
+// ("Emily Singleton - 2025-5-7 @22h 52m 11s 856ms.jsonl"), and a filename miss silently degrades the chat's
+// createdAt to the first send_date or — with no dated message either — to the import clock.
+const ST_AT_DATE = /(\d{4})-\s*(\d{1,2})-\s*(\d{1,2})\s*@\s*(\d{1,2})h\s*(\d{1,2})m\s*(\d{1,2})s/;
+// The filename creation token — the same shape, embedded in "Char - 2023-11-11@09h41m32s538ms.jsonl". Kept
+// as a separate NON-capturing twin (it feeds its whole match back through parseStDate), so it must stay
+// exactly as permissive as ST_AT_DATE or a filename it matches would fail the re-parse.
+const FILENAME_DATE = /\d{4}-\s*\d{1,2}-\s*\d{1,2}\s*@\s*\d{1,2}h\s*\d{1,2}m\s*\d{1,2}s/;
 const NOON = 12;
 
 /** Numeric-string epoch (≥10 digits) → ms, else null. */
@@ -218,15 +242,14 @@ function parseNumericEpoch(s: string): number | null {
   return Number.isFinite(n) ? epochToMs(n) : null;
 }
 
-/** ST "2025-07-03\@14h56m48s" → ms (UTC), else null. */
-function parseAtDate(s: string): number | null {
+/** ST "2025-07-03\@14h56m48s" → ms, resolving the zone-less wall clock in `zone`, else null. */
+function parseAtDate(s: string, zone: string): number | null {
   const at = ST_AT_DATE.exec(s);
   if (!at) {
     return null;
   }
   const [, y, mo, d, h, mi, se] = at;
-  const t = Date.UTC(Number(y), Number(mo) - 1, Number(d), Number(h), Number(mi), Number(se));
-  return Number.isNaN(t) ? null : t;
+  return wallClockToMs({ year: Number(y), month: Number(mo), day: Number(d), hour: Number(h), minute: Number(mi), second: Number(se) }, zone);
 }
 
 /** 12h → 24h given the am/pm marker (ST's human date uses 12h). */
@@ -253,43 +276,55 @@ const MONTH_PATTERNS: {
   dateOnly: new RegExp(`${name}\\s+(\\d{1,2}),?\\s+(\\d{4})`),
 }));
 
-/** Parse "<Month> D, YYYY H:MMam/pm" → ms (UTC), else null. */
-function parseMonthWithTime(lower: string, pat: (typeof MONTH_PATTERNS)[number]): number | null {
+/** Parse "<Month> D, YYYY H:MMam/pm" → ms (wall clock resolved in `zone`), else null. */
+function parseMonthWithTime(lower: string, pat: (typeof MONTH_PATTERNS)[number], zone: string): number | null {
   const withTime = pat.withTime.exec(lower);
   if (!withTime) {
     return null;
   }
   const [, d, y, hh, mm, ap] = withTime;
-  const t = Date.UTC(Number(y), pat.mo - 1, Number(d), to24Hour(Number(hh), String(ap)), Number(mm));
-  return Number.isNaN(t) ? null : t;
+  return wallClockToMs({ year: Number(y), month: pat.mo, day: Number(d), hour: to24Hour(Number(hh), String(ap)), minute: Number(mm), second: 0 }, zone);
 }
 
-/** Parse the date-only "<Month> D, YYYY" → ms (UTC, midnight), else null. */
-function parseMonthDateOnly(lower: string, pat: (typeof MONTH_PATTERNS)[number]): number | null {
+/** Parse the date-only "<Month> D, YYYY" → ms (midnight of that wall-clock day in `zone`), else null. */
+function parseMonthDateOnly(lower: string, pat: (typeof MONTH_PATTERNS)[number], zone: string): number | null {
   const dateOnly = pat.dateOnly.exec(lower);
   if (!dateOnly) {
     return null;
   }
   const [, d, y] = dateOnly;
-  const t = Date.UTC(Number(y), pat.mo - 1, Number(d));
-  return Number.isNaN(t) ? null : t;
+  return wallClockToMs({ year: Number(y), month: pat.mo, day: Number(d), hour: 0, minute: 0, second: 0 }, zone);
 }
 
-/** "August 27, 2025 6:36pm" (with or without the time) → ms (UTC), else null. Once a month NAME is found, this
+/** "August 27, 2025 6:36pm" (with or without the time) → ms, else null. Once a month NAME is found, this
  *  commits to the human form (the neo `break`): a parse miss returns null. */
-function parseHumanDate(lower: string): number | null {
+function parseHumanDate(lower: string, zone: string): number | null {
   for (const pat of MONTH_PATTERNS) {
     if (lower.includes(pat.name)) {
-      return parseMonthWithTime(lower, pat) ?? parseMonthDateOnly(lower, pat);
+      return parseMonthWithTime(lower, pat, zone) ?? parseMonthDateOnly(lower, pat, zone);
     }
   }
   return null;
 }
 
-/** Parse ST's many date encodings → epoch ms (UTC). Numeric epoch (number OR ≥10-digit string) · ISO 8601 ·
- *  ST "2025-07-03\@14h56m48s[989ms]" · "August 27, 2025 6:36pm". ALL formats interpreted as UTC (the shared
- *  `@orb/kit/time` parsers / `Date.UTC`) — one canonical instant, no server-tz drift. */
-export function parseStDate(v: unknown): number | null {
+/** The wall-clock zone this serde reads/writes ST's zone-less date forms in when a caller names none.
+ *  `"UTC"` keeps the codec a PURE function of its arguments (no ambient zone read down here) and keeps every
+ *  orb-authored fixture — the demo-chat seeder's jsonl, the round-trip drift guard — byte-identical. The ST
+ *  INTERCHANGE DOORS (the import collectors, the single-file import routes, the chat export) override it with
+ *  {@link hostTimeZone}, because THOSE bytes were written by SillyTavern against a local clock. */
+export const ST_DEFAULT_WALL_CLOCK_ZONE = "UTC";
+
+/** Parse ST's many date encodings → epoch ms. Numeric epoch (number OR ≥10-digit string) · ISO 8601 ·
+ *  ST "2025-07-03\@14h56m48s[989ms]" · "August 27, 2025 6:36pm".
+ *
+ *  Two CLASSES, not one. An epoch and an offset-bearing/naive ISO are ABSOLUTE — they resolve through the
+ *  shared `@orb/kit/time` parsers exactly as before, and `zone` cannot move them. ST's two human forms are a
+ *  zone-less LOCAL WALL CLOCK (SOURCE-PINNED: `RossAscends-mods.js humanizedDateTime` builds them from
+ *  `Date.getHours()`, and ST reads the meridiem form back through a NAIVE moment in its own
+ *  `parseTimestamp`), so they resolve in `zone`. Reading them as UTC — which this did until the 2026-08-08
+ *  import-fidelity audit — shifts every such timestamp by the writing box's UTC offset; measured against the
+ *  real corpus, 231 files at exactly +7h and 110 at exactly +6h (America/Denver, both DST arms). */
+export function parseStDate(v: unknown, zone: string = ST_DEFAULT_WALL_CLOCK_ZONE): number | null {
   if (v === null || v === undefined || v === "") {
     return null;
   }
@@ -301,33 +336,35 @@ export function parseStDate(v: unknown): number | null {
     return null;
   }
   const iso = s.includes("T") ? isoToMs(s) : null;
-  return parseNumericEpoch(s) ?? iso ?? parseAtDate(s) ?? parseHumanDate(s.toLowerCase());
+  return parseNumericEpoch(s) ?? iso ?? parseAtDate(s, zone) ?? parseHumanDate(s.toLowerCase(), zone);
 }
 
 const NOON_HOUR = 12;
 
-/** Format an epoch-ms instant as ST's human send_date string, UTC (MINUTE precision). e.g. "August 27, 2025
- *  6:36pm". The inverse `parseStDate` reads it back (minute-aligned instants round-trip byte-identically). */
-export function formatStDate(ms: number | null): string | null {
+/** Format an epoch-ms instant as ST's human send_date string (MINUTE precision) e.g. "August 27, 2025 6:36pm".
+ *  The exact inverse of {@link parseStDate}'s human arm in the SAME `zone` — the two must agree or an
+ *  export→import round trip drifts by the offset, and ST itself would render an exported transcript shifted
+ *  (its reader resolves this form locally). */
+export function formatStDate(ms: number | null, zone: string = ST_DEFAULT_WALL_CLOCK_ZONE): string | null {
   if (ms === null || !Number.isFinite(ms)) {
     return null;
   }
-  const d = new Date(ms);
-  const month = ST_MONTHS[d.getUTCMonth()];
-  const day = d.getUTCDate();
-  const year = d.getUTCFullYear();
-  const hour24 = d.getUTCHours();
-  const minute = String(d.getUTCMinutes()).padStart(2, "0");
-  const ap = hour24 >= NOON_HOUR ? "pm" : "am";
-  const hour12 = hour24 % NOON_HOUR === 0 ? NOON_HOUR : hour24 % NOON_HOUR;
-  return `${month} ${day}, ${year} ${hour12}:${minute}${ap}`;
+  const wc = msToWallClock(ms, zone);
+  if (wc === null) {
+    return null;
+  }
+  const month = ST_MONTHS[wc.month - 1];
+  const minute = String(wc.minute).padStart(2, "0");
+  const ap = wc.hour >= NOON_HOUR ? "pm" : "am";
+  const hour12 = wc.hour % NOON_HOUR === 0 ? NOON_HOUR : wc.hour % NOON_HOUR;
+  return `${month} ${wc.day}, ${wc.year} ${hour12}:${minute}${ap}`;
 }
 
 /** ST encodes a chat's creation timestamp in its FILENAME — the most reliable ORIGINAL-creation signal
  *  (re-saving rewrites the header + every `send_date`; the filename token survives). Null when absent. */
-function parseFilenameDate(fileName: string): number | null {
+function parseFilenameDate(fileName: string, zone: string): number | null {
   const m = FILENAME_DATE.exec(fileName);
-  return m ? parseStDate(m[0]) : null;
+  return m ? parseStDate(m[0], zone) : null;
 }
 
 /** Normalize a `chat_metadata.main_chat` ref to filename form (ST stores it without ".jsonl"). */
@@ -347,10 +384,12 @@ function deriveParentFromFilename(fileName: string): string | null {
 
 // ── parse (JSONL string → ParsedChat) ────────────────────────────────────────────────────────────────────
 
+/** The economics off one `extra` blob. `tokenCount` is ST's ROLE-AGNOSTIC `extra.token_count` — the count of
+ *  the row's own text; {@link tokenColumns} decides which axis it belongs on. */
 function extractExtra(extra: unknown): {
   model: string | null;
   provider: string | null;
-  tokensOut: number | null;
+  tokenCount: number | null;
   reasoning: string | null;
   ttftMs: number | null;
 } {
@@ -360,10 +399,21 @@ function extractExtra(extra: unknown): {
   return {
     model: nullIfEmpty(str(e?.model)),
     provider: nullIfEmpty(str(e?.api)),
-    tokensOut: Number.isFinite(tc) && tc > 0 ? tc : null,
+    tokenCount: Number.isFinite(tc) && tc > 0 ? tc : null,
     reasoning: nullIfEmpty(str(e?.reasoning)),
     ttftMs: Number.isFinite(ttft) && ttft >= 0 ? Math.round(ttft) : null,
   };
+}
+
+/** Route ST's one `extra.token_count` onto the in/out axis by the row's ROLE: an `assistant` line's text was
+ *  GENERATED (output), a `user`/`system` line's text was typed/injected and only ever enters a prompt (input).
+ *  ST has exactly one field and no axis of its own, so the role is the only signal — and it is a reliable one
+ *  (`roleOf` reads ST's own `is_user`/`is_system`). */
+function tokenColumns(tokenCount: number | null, role: MessageRole): { tokensIn: number | null; tokensOut: number | null } {
+  if (tokenCount === null) {
+    return { tokensIn: null, tokensOut: null };
+  }
+  return role === "assistant" ? { tokensIn: null, tokensOut: tokenCount } : { tokensIn: tokenCount, tokensOut: null };
 }
 
 /** Coerce the `agent_author` sidecar → provenance, or null when absent/blank (PD-17). Both fields must be
@@ -422,7 +472,15 @@ const MIN_REAL_SWIPES = 2;
 /** Build the variant pool from a message's `swipes[]` + parallel `swipe_info[]`, DROPPING genuinely-empty
  *  swipe slots and remapping the active index onto what survives (esoterica 3). `mes` (the rendered content)
  *  is authoritative regardless — an active slot that was itself empty simply yields `activeVariantIdx: null`. */
-function buildVariants(swipes: unknown[], swipeInfo: unknown, activeSwipeId: number | null): { variants: ParsedVariant[]; activeVariantIdx: number | null } {
+function buildVariants(args: {
+  readonly swipes: readonly unknown[];
+  readonly swipeInfo: unknown;
+  readonly activeSwipeId: number | null;
+  /** The parent row's role — the token in/out axis is a per-ROW fact, so the pool inherits it. */
+  readonly role: MessageRole;
+  readonly zone: string;
+}): { variants: ParsedVariant[]; activeVariantIdx: number | null } {
+  const { swipes, swipeInfo, activeSwipeId, role, zone } = args;
   const info = Array.isArray(swipeInfo) ? swipeInfo : [];
   const kept = swipes.map((content, originIdx) => ({ content: str(content), originIdx, si: info[originIdx] })).filter((s) => s.content.trim().length > 0);
   if (kept.length < MIN_REAL_SWIPES) {
@@ -436,10 +494,10 @@ function buildVariants(swipes: unknown[], swipeInfo: unknown, activeSwipeId: num
       content: s.content,
       model: ex.model,
       provider: ex.provider,
-      tokensOut: ex.tokensOut,
+      ...tokenColumns(ex.tokenCount, role),
       reasoning: ex.reasoning,
-      genStarted: si ? parseStDate(si.gen_started) : null,
-      genFinished: si ? parseStDate(si.gen_finished) : null,
+      genStarted: si ? parseStDate(si.gen_started, zone) : null,
+      genFinished: si ? parseStDate(si.gen_finished, zone) : null,
       metadata: asObj(s.si),
     };
   });
@@ -522,24 +580,26 @@ function resolvePrimary(args: {
 
 /** Parse ONE message line → a `ParsedChatMessage`, or null for a corrupt line (skipped, not fatal) or a
  *  no-text-no-media debris row (see `resolvePrimary`). */
-function parseMessageLine(line: string): ParsedChatMessage | null {
+function parseMessageLine(line: string, zone: string): ParsedChatMessage | null {
   const parsed = asTyped(parseJson(line), rawMessageSchema);
   if (parsed === null) {
     return null;
   }
   const ex = extractExtra(parsed.extra);
+  const role = roleOf(parsed);
   const swipes = Array.isArray(parsed.swipes) ? parsed.swipes : [];
   // swipe_id is a position in the ORIGINAL swipes array; buildVariants remaps it onto the drop-filtered pool.
   const sid = parsed.swipe_id;
   const rawActive = typeof sid === "number" && sid >= 0 && sid < swipes.length ? sid : null;
-  const { variants, activeVariantIdx: remappedActive } = buildVariants(swipes, parsed.swipe_info, rawActive);
+  const { variants, activeVariantIdx: remappedActive } = buildVariants({ swipes, swipeInfo: parsed.swipe_info, activeSwipeId: rawActive, role, zone });
   const primary = resolvePrimary({ mes: str(parsed.mes), variants, remappedActive, swipes, extra: parsed.extra });
   if (primary === null) {
     return null;
   }
   const { content, activeVariantIdx } = primary;
   const agentAuthor = parseAgentAuthor(parsed.agent_author);
-  const role = roleOf(parsed);
+  // `role` is resolved EARLIER (above `buildVariants`) — the swipe pool and the token in/out axis both need
+  // it before the return object is built. This is the only reason it is not declared here beside its sibling.
   const originalAvatar = nullIfEmpty(str(parsed.original_avatar));
   return {
     role,
@@ -548,13 +608,13 @@ function parseMessageLine(line: string): ParsedChatMessage | null {
     // Omitted (exactOptional) when the line carries none — a solo transcript declares no per-turn identity.
     ...(originalAvatar !== null ? { originalAvatar } : {}),
     content,
-    sendDate: parseStDate(parsed.send_date),
+    sendDate: parseStDate(parsed.send_date, zone),
     model: ex.model,
     provider: ex.provider,
-    tokensOut: ex.tokensOut,
+    ...tokenColumns(ex.tokenCount, role),
     reasoning: ex.reasoning,
-    genStarted: parseStDate(parsed.gen_started),
-    genFinished: parseStDate(parsed.gen_finished),
+    genStarted: parseStDate(parsed.gen_started, zone),
+    genFinished: parseStDate(parsed.gen_finished, zone),
     ttftMs: ex.ttftMs,
     metadata: asObj(parsed.extra),
     activeVariantIdx,
@@ -572,7 +632,11 @@ const BOM = /^﻿/;
  * `charDirName` (the "unused"/empty `character_name` fallback) are caller context. Returns null ONLY when the
  * header line itself is unparseable. Resilient: a corrupt message line is SKIPPED, never fatal.
  */
-export function parseChatJsonl(text: string, opts: { readonly fileName: string; readonly charDirName: string }): ParsedChat | null {
+export function parseChatJsonl(
+  text: string,
+  opts: { readonly fileName: string; readonly charDirName: string; readonly wallClockZone?: string },
+): ParsedChat | null {
+  const zone = opts.wallClockZone ?? ST_DEFAULT_WALL_CLOCK_ZONE;
   const lines = text.replace(BOM, "").trim().split("\n");
   const first = lines[0];
   if (first === undefined || first.length === 0) {
@@ -593,7 +657,7 @@ export function parseChatJsonl(text: string, opts: { readonly fileName: string; 
     if (t.length === 0) {
       continue;
     }
-    const message = parseMessageLine(t);
+    const message = parseMessageLine(t, zone);
     if (message !== null) {
       messages.push(message);
     }
@@ -603,7 +667,7 @@ export function parseChatJsonl(text: string, opts: { readonly fileName: string; 
     characterName,
     userName: nullIfEmpty(str(header.user_name)),
     // Filename date FIRST (survives re-save/migration), then the header create_date, then null.
-    createDate: parseFilenameDate(opts.fileName) ?? parseStDate(header.create_date),
+    createDate: parseFilenameDate(opts.fileName, zone) ?? parseStDate(header.create_date, zone),
     // "Branch #" ANYWHERE — catches both "Branch #N - date.jsonl" AND "CharName - date - Branch #N.jsonl".
     isBranch: opts.fileName.includes("Branch #"),
     parentRef: normalizeParentRef(str(meta?.["main_chat"])) ?? deriveParentFromFilename(opts.fileName),
@@ -644,70 +708,90 @@ function assertNeverMessageKind(kind: never): never {
   throw new Error(`buildChatJsonl: unhandled MessageKind ${JSON.stringify(kind)}`);
 }
 
-export function buildChatJsonl(chat: ParsedChat): string {
+/** The `extra` blob for one built line. Split out of {@link buildChatJsonl} purely for legibility — the line
+ *  builder accreted three independently-optional fragments (reasoning, the D129 kind marker, the role-routed
+ *  token count) and crossed the cognitive-complexity bar once group fidelity landed beside them. */
+function buildExtra(m: ParsedChatMessage): Record<string, unknown> {
+  return {
+    model: m.model,
+    api: m.provider,
+    // ST has ONE token field and no in/out axis; the parse half routes it by role, so the build half
+    // un-routes it the same way. `??` (not `+`) because exactly one side is ever non-null.
+    token_count: m.tokensOut ?? m.tokensIn,
+    // `reasoning` is the ST thinking-trace field; only emitted when present so a no-reasoning turn stays
+    // clean and re-imports as null.
+    ...(m.reasoning !== null ? { reasoning: m.reasoning } : {}),
+    // The row's DECLARED purpose (D129), in ST's own `extra.type` vocabulary. Emitted ONLY for a narrator
+    // row, so every standard row's line stays BYTE-IDENTICAL to what this serde built before the kind axis
+    // existed (which is what keeps the round-trip drift guard and the ST golden corpus honest). `comment`
+    // has no ST spelling and no writer yet — when it gains one it declares its wire form HERE, in the one
+    // place both directions live, rather than as a second marker somewhere else.
+    ...extraTypeFor(m.kind),
+  };
+}
+
+/** The `swipes`/`swipe_id`/`swipe_info` triple, or `{}` for a single-take row (the \>1-variant gate — a lone
+ *  generation lives on the line itself, never a redundant one-element pool). */
+function buildSwipeFields(m: ParsedChatMessage): Record<string, unknown> {
+  if (m.variants.length <= 1) {
+    return {};
+  }
+  return {
+    swipes: m.variants.map((v) => v.content),
+    swipe_id: m.activeVariantIdx ?? 0,
+    swipe_info: m.variants.map((v) => ({
+      extra: {
+        model: v.model,
+        api: v.provider,
+        token_count: v.tokensOut ?? v.tokensIn,
+        ...(v.reasoning !== null ? { reasoning: v.reasoning } : {}),
+      },
+      gen_started: v.genStarted,
+      gen_finished: v.genFinished,
+    })),
+  };
+}
+
+/** ONE serialized message line. `zone` resolves the wall-clock `send_date`; `chatCreateDate` is the fallback
+ *  instant for a row that carries none. */
+function buildMessageLine(m: ParsedChatMessage, chatCreateDate: number | null, zone: string): Record<string, unknown> {
+  return {
+    // The PER-MESSAGE speaker (group fidelity) — the voicing character / authoring persona of THIS turn,
+    // resolved by the caller (export); NOT the single header `characterName`.
+    name: m.speakerName,
+    is_user: m.role === "user",
+    is_system: m.role === "system",
+    // The per-turn speaker IDENTITY (ST's own group-fidelity field). Emitted ONLY when the row carries one,
+    // so a solo transcript's line stays byte-identical to what this serde built before the field existed —
+    // which is also what keeps the round-trip drift guard honest (parse reads back exactly what build wrote).
+    ...(m.originalAvatar !== undefined && m.originalAvatar !== null ? { original_avatar: m.originalAvatar } : {}),
+    mes: m.content,
+    send_date: formatStDate(m.sendDate ?? chatCreateDate, zone),
+    extra: buildExtra(m),
+    gen_started: m.genStarted,
+    gen_finished: m.genFinished,
+    // PD-17 provenance sidecar — emitted ONLY for an agent-authored row, so every human/character turn
+    // stays byte-identical. NO owner id, NO soul prompt: just the agent's display name + its source kind.
+    ...(m.agentAuthor !== undefined ? { agent_author: { name: m.agentAuthor.name, source_kind: m.agentAuthor.sourceKind } } : {}),
+    ...buildSwipeFields(m),
+  };
+}
+
+export function buildChatJsonl(chat: ParsedChat, opts: { readonly wallClockZone?: string } = {}): string {
+  // The same zone the parse half resolves in — an export door that emits UTC while the import door reads a
+  // local wall clock drifts a round trip by the offset, and ST (whose reader is naive/local) would render the
+  // exported transcript shifted. One value, both directions.
+  const zone = opts.wallClockZone ?? ST_DEFAULT_WALL_CLOCK_ZONE;
   const header = {
     user_name: chat.userName,
     character_name: chat.characterName,
-    create_date: formatStDate(chat.createDate),
+    create_date: formatStDate(chat.createDate, zone),
     chat_metadata: {
       ...(chat.parentRef !== null ? { main_chat: chat.parentRef } : {}),
       ...(chat.notePrompt !== null ? { note_prompt: chat.notePrompt } : {}),
     },
   };
-
-  const lines = [JSON.stringify(header)];
-  for (const m of chat.messages) {
-    const hasVariants = m.variants.length > 1;
-    const line = {
-      // The PER-MESSAGE speaker (group fidelity) — the voicing character / authoring persona of THIS turn,
-      // resolved by the caller (export); NOT the single header `characterName`.
-      name: m.speakerName,
-      is_user: m.role === "user",
-      is_system: m.role === "system",
-      // The per-turn speaker IDENTITY (ST's own group-fidelity field). Emitted ONLY when the row carries one,
-      // so a solo transcript's line stays byte-identical to what this serde built before the field existed —
-      // which is also what keeps the round-trip drift guard honest (parse reads back exactly what build wrote).
-      ...(m.originalAvatar !== undefined && m.originalAvatar !== null ? { original_avatar: m.originalAvatar } : {}),
-      mes: m.content,
-      send_date: formatStDate(m.sendDate ?? chat.createDate),
-      // `reasoning` is the ST thinking-trace field; only emitted when present so a no-reasoning turn stays
-      // clean and re-imports as null.
-      extra: {
-        model: m.model,
-        api: m.provider,
-        token_count: m.tokensOut,
-        ...(m.reasoning !== null ? { reasoning: m.reasoning } : {}),
-        // The row's DECLARED purpose (D129), in ST's own `extra.type` vocabulary. Emitted ONLY for a narrator
-        // row, so every standard row's line stays BYTE-IDENTICAL to what this serde built before the kind axis
-        // existed (which is what keeps the round-trip drift guard and the ST golden corpus honest). `comment`
-        // has no ST spelling and no writer yet — when it gains one it declares its wire form HERE, in the one
-        // place both directions live, rather than as a second marker somewhere else.
-        ...extraTypeFor(m.kind),
-      },
-      gen_started: m.genStarted,
-      gen_finished: m.genFinished,
-      // PD-17 provenance sidecar — emitted ONLY for an agent-authored row, so every human/character turn
-      // stays byte-identical. NO owner id, NO soul prompt: just the agent's display name + its source kind.
-      ...(m.agentAuthor !== undefined ? { agent_author: { name: m.agentAuthor.name, source_kind: m.agentAuthor.sourceKind } } : {}),
-      ...(hasVariants
-        ? {
-            swipes: m.variants.map((v) => v.content),
-            swipe_id: m.activeVariantIdx ?? 0,
-            swipe_info: m.variants.map((v) => ({
-              extra: {
-                model: v.model,
-                api: v.provider,
-                token_count: v.tokensOut,
-                ...(v.reasoning !== null ? { reasoning: v.reasoning } : {}),
-              },
-              gen_started: v.genStarted,
-              gen_finished: v.genFinished,
-            })),
-          }
-        : {}),
-    };
-    lines.push(JSON.stringify(line));
-  }
+  const lines = [JSON.stringify(header), ...chat.messages.map((m) => JSON.stringify(buildMessageLine(m, chat.createDate, zone)))];
   return `${lines.join("\n")}\n`;
 }
 

@@ -89,6 +89,12 @@ type AttachChatTagByNameOp = (args: { readonly ownerId: UserId; readonly chatId:
 /** Profile-wave deps: no db handle or id minters here — each entity write is an injected owning-domain op. */
 export interface ImportProfileDeps {
   readonly now: () => number;
+  /** The IANA zone SillyTavern's zone-less wall-clock timestamps (`send_date`'s human forms, the filename /
+   *  header `create_date`) were written against — ST builds them off the local `Date` of the box it ran on.
+   *  INJECTED, never read ambiently down in the parser: the composition root resolves it (`hostTimeZone()`,
+   *  correct whenever a corpus is imported on the box that produced it) and a test pins it. Absent ⇒ the
+   *  serde's `"UTC"` default, i.e. exactly the pre-2026-08-08 behavior. */
+  readonly stWallClockZone?: string;
   readonly personaByUserName: Map<string, PersonaId>;
   readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonasOp;

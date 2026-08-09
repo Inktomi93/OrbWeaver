@@ -234,7 +234,8 @@ function messageStatements(args: MessageStatementsArgs): {
           content: v.content,
           model: v.model,
           provider: v.provider,
-          // R6 orb-native extras — absent on the ST arm, where the column stays null exactly as before.
+          // `tokensIn` is supplied by the orb-native bundle AND by the ST arm's user/system slots (the
+          // role-routed `extra.token_count`); `variableDelta` stays orb-native-only.
           tokensIn: v.tokensIn ?? null,
           tokensOut: v.tokensOut,
           reasoning: v.reasoning,
