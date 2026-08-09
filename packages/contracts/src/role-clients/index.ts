@@ -93,10 +93,23 @@ export interface SummarizeInput {
 }
 
 /** Per-call sampling overrides for `summarize` — applied uniformly to every input; runners that can't
- *  honor a knob drop it silently (cross-family summarize is fire-and-forget for these). */
+ *  honor a knob drop it silently (cross-family summarize is fire-and-forget for these). The penalty/nucleus
+ *  set MIRRORS the generate path's sampler knobs (`OpenAiSamplingInput`) so a summarize request can carry the
+ *  SAME loop-controls a chat request does — critically `presencePenalty`, which the memory build defaults to a
+ *  loop-stopping value for repetition_penalty=1.0 models (Qwen3-VL). A family that can't honor a knob drops it. */
 export interface SummarizeOptions {
   maxTokens?: number | undefined;
   temperature?: number | undefined;
+  /** Nucleus top-p (vLLM / OpenAI-compatible families). */
+  topP?: number | undefined;
+  /** Top-k truncation (vLLM family). */
+  topK?: number | undefined;
+  /** OpenAI-style frequency penalty. */
+  frequencyPenalty?: number | undefined;
+  /** OpenAI-style presence penalty — the summarize loop-guard for repetition_penalty=1.0 models (Qwen3-VL). */
+  presencePenalty?: number | undefined;
+  /** Multiplicative repetition penalty (vLLM family; 1 = no penalty). */
+  repetitionPenalty?: number | undefined;
   /** Min-p nucleus floor (vLLM family). */
   minP?: number | undefined;
   /** Structured-output constraint (D79) — vLLM enforces via guided decoding, the agent-sdk via its native

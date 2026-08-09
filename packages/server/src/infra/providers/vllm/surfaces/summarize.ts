@@ -43,6 +43,11 @@ interface BatchRequest {
   readonly responseFormat: ResponseFormat | undefined;
   readonly maxTokens: number | undefined;
   readonly temperature: number | undefined;
+  readonly topP: number | undefined;
+  readonly topK: number | undefined;
+  readonly frequencyPenalty: number | undefined;
+  readonly presencePenalty: number | undefined;
+  readonly repetitionPenalty: number | undefined;
   readonly minP: number | undefined;
   readonly repetitionDetection: SummarizeRequest["repetitionDetection"];
   readonly signal: AbortSignal | undefined;
@@ -89,6 +94,11 @@ async function runBatchItem(args: RunItemArgs): Promise<SummarizeResultItem> {
         ],
         maxTokens: req.maxTokens,
         temperature: req.temperature,
+        topP: req.topP,
+        topK: req.topK,
+        frequencyPenalty: req.frequencyPenalty,
+        presencePenalty: req.presencePenalty,
+        repetitionPenalty: req.repetitionPenalty,
         minP: req.minP,
         responseFormat: req.responseFormat,
         repetitionDetection: req.repetitionDetection,
@@ -163,6 +173,11 @@ export function createVllmSummarize(deps: VllmSummarizeDeps): (req: SummarizeReq
       responseFormat: undefined,
       maxTokens: req.maxTokens,
       temperature: req.temperature,
+      topP: req.topP,
+      topK: req.topK,
+      frequencyPenalty: req.frequencyPenalty,
+      presencePenalty: req.presencePenalty,
+      repetitionPenalty: req.repetitionPenalty,
       minP: req.minP,
       repetitionDetection: req.repetitionDetection,
       signal: req.signal,
@@ -180,6 +195,11 @@ export function createVllmStructured(deps: VllmSummarizeDeps): (req: StructuredR
       responseFormat: req.responseFormat,
       maxTokens: req.maxTokens,
       temperature: req.temperature,
+      topP: req.topP,
+      topK: req.topK,
+      frequencyPenalty: req.frequencyPenalty,
+      presencePenalty: req.presencePenalty,
+      repetitionPenalty: req.repetitionPenalty,
       minP: req.minP,
       repetitionDetection: req.repetitionDetection,
       signal: req.signal,

@@ -21,10 +21,11 @@ import { fakeEmbeddingsStore, fakeSummarize, GROUP_CHAR, MODEL, seedDigest, seed
 // carries no override, so the discriminator these tests key on is the resolved shipped default.
 const CONSOLIDATION_SYSTEM_PROMPT = consolidationSystemPrompt({});
 
-/** A summarizer that returns only whitespace — the empty-output degrade the F7 skip-and-flag guards against. */
-const emptySummarize = (): Promise<SummarizeResult> =>
+/** A summarizer that returns only whitespace — the empty-output degrade the F7 skip-and-flag guards against.
+ *  Returns ONE blank item per input so a BATCHED call resolves every slot (the build now batches). */
+const emptySummarize = (inputs: { systemPrompt: string; userPrompt: string }[]): Promise<SummarizeResult> =>
   Promise.resolve({
-    items: [{ text: "  \n ", usage: { tokensIn: 1, tokensOut: 0, costUsd: null } }],
+    items: inputs.map(() => ({ text: "  \n ", usage: { tokensIn: 1, tokensOut: 0, costUsd: null } })),
     model: MODEL,
   });
 
@@ -138,7 +139,7 @@ describe("memory/build/digests", () => {
     expect(consolidation?.userPrompt.startsWith("HOST LEAD:\n\n[1]\n")).toBe(true);
   });
 
-  test("the resolved AppSettings.memorySummarizer sampling rides every summarize call", async () => {
+  test("the resolved AppSettings.memorySummarizer sampling rides every summarize call (plus the loop-guard presence default)", async () => {
     const chatId = await seedChat(db, "sampling");
     await seedTurns(db, chatId, aria, 4);
     const sum = fakeSummarize();
@@ -150,14 +151,19 @@ describe("memory/build/digests", () => {
       config: { blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 },
     });
 
-    // every summarize call (both tier-0 blocks + the tier-1 consolidation) carries the admin's sampling.
+    // every summarize call (both tier-0 blocks + the tier-1 consolidation) carries the admin's sampling AND the
+    // Qwen3-VL loop-stopping presence-penalty default the memory build always rides.
     expect(sum.optsSeen).toHaveLength(3);
     for (const opts of sum.optsSeen) {
-      expect(opts).toEqual({ maxTokens: 512, temperature: 0.3 });
+      expect(opts).toEqual({ maxTokens: 512, temperature: 0.3, presencePenalty: 1.5 });
     }
   });
 
-  test("an unset memorySummarizer passes empty opts — the summarizer runs on its own defaults", async () => {
+  // RED-FIRST (the loop fix): with memorySummarizer UNSET, the summarize opts MUST still carry a loop-stopping
+  // presence penalty (Qwen3-VL card default 1.5) — the summarize wire does not inherit the vLLM chat surface's
+  // per-request presence default, so a repetition_penalty=1.0 model degenerates into a loop without this. Read
+  // via a Record cast so the assertion compiles against the OLD contract (which returned `{}`).
+  test("an unset memorySummarizer STILL rides the loop-stopping presence-penalty default (1.5)", async () => {
     const chatId = await seedChat(db, "sampling-default");
     await seedTurns(db, chatId, aria, 2);
     const sum = fakeSummarize();
@@ -168,8 +174,32 @@ describe("memory/build/digests", () => {
 
     expect(sum.optsSeen.length).toBeGreaterThan(0);
     for (const opts of sum.optsSeen) {
-      expect(opts).toEqual({});
+      expect((opts as Record<string, unknown> | undefined)?.["presencePenalty"]).toBe(1.5);
+      // No other knob is fabricated — an unset admin config rides ONLY the loop-guard default.
+      expect(opts).toEqual({ presencePenalty: 1.5 });
     }
+  });
+
+  // RED-FIRST (the throughput fix): the tier-0 block summarizes go out as ONE batched ctx.summarize call
+  // (inputs.length > 1) so the surface's worker pool feeds vLLM's continuous batcher. Under the OLD per-block
+  // loop every call carried exactly one input, so `batchSizes` was all 1s — this asserts a >1 batch exists.
+  test("the tier-0 block summarizes are issued as ONE batched call (inputs.length > 1)", async () => {
+    const chatId = await seedChat(db, "batched");
+    await seedTurns(db, chatId, aria, 8); // blockSize 2 → 4 tier-0 blocks in one pass
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+
+    await generateDigests(ctx, {
+      scope: sharedScope(chatId),
+      config: { blockSize: 2, verbatimWindow: 0, fanOut: 4, maxTier: 1 },
+    });
+
+    // 4 blocks summarized in ONE call, not four singles — the batch is what makes the worker pool concurrent.
+    expect(sum.batchSizes).toContain(4);
+    expect(Math.max(...sum.batchSizes)).toBeGreaterThan(1);
+    // all four blocks still built (batching preserves the per-block write + content-hash self-heal).
+    expect(store.digests.filter((d) => d.key.tier === 0).map((d) => d.key.blockIdx)).toEqual([0, 1, 2, 3]);
   });
 
   test("verbatimWindow protects the tip — only aged-out blocks digest", async () => {
@@ -740,7 +770,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     const entries: MemoryLogEntry[] = [];
     const counts1 = await generateDigests(
       makeChatContext(db, {
-        summarize: (inputs) => (inputs.at(0)?.systemPrompt === CONSOLIDATION_SYSTEM_PROMPT ? emptySummarize() : real.fn(inputs)),
+        summarize: (inputs) => (inputs.at(0)?.systemPrompt === CONSOLIDATION_SYSTEM_PROMPT ? emptySummarize(inputs) : real.fn(inputs)),
         embeddingsStore: store1.store,
         log: (e) => entries.push(e),
       }),

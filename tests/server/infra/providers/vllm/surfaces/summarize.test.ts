@@ -108,6 +108,28 @@ describe("createVllmSummarize", () => {
     expect(need(need(calls[0]).body.messages[1]).content).toBe("the text");
   });
 
+  // The loop-guard reaches the wire: a summarize request's presencePenalty (+ the rest of the sampler set)
+  // is emitted onto the gen chat-completion body. This is the seam the memory build's presence-penalty 1.5
+  // default rides to stop Qwen3-VL from looping.
+  test("the sampler set (presencePenalty et al.) reaches the gen chat-completion wire body", async () => {
+    const { client, calls } = fakeClient();
+    const summarize = createVllmSummarize({ ...deps(client), concurrency: 1 });
+    await summarize({
+      credential: CRED,
+      model: MODEL,
+      inputs: [{ systemPrompt: "s", userPrompt: "u" }],
+      presencePenalty: 1.5,
+      topP: 0.9,
+      repetitionPenalty: 1.05,
+    });
+
+    // FABRICATION-OK: reads the captured wire body
+    const body = need(calls[0]).body as unknown as Record<string, unknown>;
+    expect(body["presence_penalty"]).toBe(1.5);
+    expect(body["top_p"]).toBe(0.9);
+    expect(body["repetition_penalty"]).toBe(1.05);
+  });
+
   test("carries token usage; cost is null for local inference", async () => {
     const { client } = fakeClient();
     const summarize = createVllmSummarize({ ...deps(client), concurrency: 4 });

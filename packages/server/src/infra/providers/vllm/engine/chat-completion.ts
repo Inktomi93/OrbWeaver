@@ -19,6 +19,16 @@ export interface VllmChatCompletionRequest {
   readonly messages: readonly VllmChatMessage[];
   readonly maxTokens?: number | undefined;
   readonly temperature?: number | undefined;
+  /** Nucleus top-p. */
+  readonly topP?: number | undefined;
+  /** Top-k truncation. */
+  readonly topK?: number | undefined;
+  /** OpenAI-style frequency penalty. */
+  readonly frequencyPenalty?: number | undefined;
+  /** OpenAI-style presence penalty — the summarize loop-guard for repetition_penalty=1.0 models (Qwen3-VL). */
+  readonly presencePenalty?: number | undefined;
+  /** Multiplicative repetition penalty (1 = no penalty). */
+  readonly repetitionPenalty?: number | undefined;
   /** Min-p nucleus floor — trims the low-probability tail. */
   readonly minP?: number | undefined;
   /** Structured output (D79) — vLLM enforces via guided decoding; `cleanJsonSchema` strips the annotations a
@@ -91,6 +101,11 @@ function buildBody(req: VllmChatCompletionRequest, messages: unknown): Record<st
     messages,
     ...(req.maxTokens !== undefined ? { max_tokens: req.maxTokens } : {}),
     ...(req.temperature !== undefined ? { temperature: req.temperature } : {}),
+    ...(req.topP !== undefined ? { top_p: req.topP } : {}),
+    ...(req.topK !== undefined ? { top_k: req.topK } : {}),
+    ...(req.frequencyPenalty !== undefined ? { frequency_penalty: req.frequencyPenalty } : {}),
+    ...(req.presencePenalty !== undefined ? { presence_penalty: req.presencePenalty } : {}),
+    ...(req.repetitionPenalty !== undefined ? { repetition_penalty: req.repetitionPenalty } : {}),
     ...(req.minP !== undefined ? { min_p: req.minP } : {}),
     ...(req.repetitionDetection !== undefined ? { repetition_detection: repetitionBlock(req.repetitionDetection) } : {}),
     ...(req.responseFormat !== undefined

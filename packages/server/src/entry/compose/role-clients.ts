@@ -23,7 +23,7 @@ import type { ImageEmbedInput, RerankDocument, RerankQuery, SummarizeInput } fro
 import type { UserId } from "@orb/kit/ids";
 import type { ConnectionService } from "#domain/connection";
 import { env } from "#foundation/env";
-import type { ProviderExecutor, RoleClientsWithSignal, SummarizeCallOptions } from "#infra/providers";
+import type { ProviderExecutor, RoleClientsWithSignal, SummarizeCallOptions, SummarizeRequest } from "#infra/providers";
 
 // Summarizer context fallback (tokens) for when a resolved connection reports window 0 (no contextLength).
 // The default summarizer runs on the vLLM GEN engine, so its floor DERIVES from the gen window's single home
@@ -39,6 +39,29 @@ export interface RoleClientsBinderDeps {
    *  caller's signature is a bare `UserId` (the automation author / the boot owner) and letting a caller
    *  hand in a Principal would just move the forging one file up. */
   readonly resolvePrincipal: (userId: UserId) => Promise<Principal>;
+}
+
+/** Project the summarize CALL options' sampler/token knobs onto the infra request fields, each emitted ONLY
+ *  when the caller set it (an unset knob is absent, never a fabricated 0/null — no-op knob doctrine). Extracted
+ *  from the facade so the arrow stays under the cognitive-complexity gate. `responseFormat` + `signal` are
+ *  handled at the call site (they route the request / carry cancellation), so they are not projected here. */
+function summarizeSamplerFields(
+  opts: SummarizeCallOptions | undefined,
+): Pick<
+  SummarizeRequest,
+  "maxTokens" | "temperature" | "topP" | "topK" | "frequencyPenalty" | "presencePenalty" | "repetitionPenalty" | "minP" | "repetitionDetection"
+> {
+  return {
+    ...(opts?.maxTokens !== undefined ? { maxTokens: opts.maxTokens } : {}),
+    ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
+    ...(opts?.topP !== undefined ? { topP: opts.topP } : {}),
+    ...(opts?.topK !== undefined ? { topK: opts.topK } : {}),
+    ...(opts?.frequencyPenalty !== undefined ? { frequencyPenalty: opts.frequencyPenalty } : {}),
+    ...(opts?.presencePenalty !== undefined ? { presencePenalty: opts.presencePenalty } : {}),
+    ...(opts?.repetitionPenalty !== undefined ? { repetitionPenalty: opts.repetitionPenalty } : {}),
+    ...(opts?.minP !== undefined ? { minP: opts.minP } : {}),
+    ...(opts?.repetitionDetection !== undefined ? { repetitionDetection: opts.repetitionDetection } : {}),
+  };
 }
 
 /**
@@ -92,10 +115,7 @@ export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerI
         model: summarizeConn.model,
         inputs,
         ...(opts?.signal !== undefined ? { signal: opts.signal } : {}),
-        ...(opts?.maxTokens !== undefined ? { maxTokens: opts.maxTokens } : {}),
-        ...(opts?.temperature !== undefined ? { temperature: opts.temperature } : {}),
-        ...(opts?.minP !== undefined ? { minP: opts.minP } : {}),
-        ...(opts?.repetitionDetection !== undefined ? { repetitionDetection: opts.repetitionDetection } : {}),
+        ...summarizeSamplerFields(opts),
       };
       return opts?.responseFormat !== undefined
         ? deps.executor.structured({ ...common, responseFormat: opts.responseFormat })

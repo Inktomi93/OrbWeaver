@@ -126,9 +126,28 @@ export const DEFAULT_MEMORY_DEFAULTS: ResolvedMemoryDefaults = {
   recencyBias: 0,
 };
 
+// The memory summarizer's OWN sampler knobs (owner ruling 2026-08-08 — summarize keeps its own gen params,
+// NOT coupled to chat presets). Mirrors the generate path's sampler set so a summarize request carries the
+// SAME loop-controls a chat request does. `presencePenalty`/`frequencyPenalty` ride the OpenAI wire range
+// (-2..2); `topP`/`minP` are the 0..1 nucleus knobs; `topK` a positive int; `repetitionPenalty` a positive
+// multiplier (1 = no penalty). All optional — an absent knob falls to the engine default, EXCEPT the memory
+// build defaults `presencePenalty` to a loop-stopping value (see DEFAULT_MEMORY_SUMMARIZER_PRESENCE_PENALTY).
+const REPETITION_PENALTY_FLOOR = 0;
+const NUCLEUS_FLOOR = 0;
+const NUCLEUS_CEIL = 1;
+// OpenAI presence_penalty / frequency_penalty wire range — the ONE home shared by the summarizer's own knobs
+// AND the vLLM chat surface's per-request gen default (engineLaunch.genPresencePenalty, below).
+export const GEN_PRESENCE_PENALTY_MIN = -2;
+export const GEN_PRESENCE_PENALTY_MAX = 2;
 export const memorySummarizerSchema = z.object({
   maxTokens: z.number().int().positive().optional(),
   temperature: z.number().min(TEMPERATURE_FLOOR).max(TEMPERATURE_CEIL).optional(),
+  topP: z.number().min(NUCLEUS_FLOOR).max(NUCLEUS_CEIL).optional(),
+  topK: z.number().int().positive().optional(),
+  frequencyPenalty: z.number().min(GEN_PRESENCE_PENALTY_MIN).max(GEN_PRESENCE_PENALTY_MAX).optional(),
+  presencePenalty: z.number().min(GEN_PRESENCE_PENALTY_MIN).max(GEN_PRESENCE_PENALTY_MAX).optional(),
+  repetitionPenalty: z.number().gt(REPETITION_PENALTY_FLOOR).optional(),
+  minP: z.number().min(NUCLEUS_FLOOR).max(NUCLEUS_CEIL).optional(),
 });
 export type MemorySummarizerConfig = z.infer<typeof memorySummarizerSchema>;
 
@@ -138,6 +157,15 @@ export type MemorySummarizerConfig = z.infer<typeof memorySummarizerSchema>;
 // can't diverge. `temperature` has no fixed floor — unset ⇒ the summarizer provider's own default (the
 // surface shows "provider default", never a fabricated number), so it is omitted here.
 export const DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS = 1024;
+
+// The memory summarizer's DEFAULT presence penalty — the loop-fix (owner ruling 2026-08-08). The default gen
+// model Qwen3-VL ships generation_config.json repetition_penalty=1.0 (no repeat penalty), and the summarize
+// wire (engine/chat-completion) does NOT ride the vLLM chat surface's per-request presence default, so a
+// summarize turn with no presence penalty degenerates into a loop that runs to maxTokens / the request cut.
+// 1.5 is the Qwen3-VL-8B-Instruct model-card value (huggingface.co/Qwen/Qwen3-VL-8B-Instruct). Applied by the
+// memory build's summarizerOpts EVEN WHEN memorySummarizer.presencePenalty is unset — presence MUST default to
+// a loop-stopping value. An admin override (including a deliberate 0) wins. OpenAI presence range is -2..2.
+export const DEFAULT_MEMORY_SUMMARIZER_PRESENCE_PENALTY = 1.5;
 
 // Per-window request-cap bounds (a security control — see domain/settings/effective-config/layer.ts +
 // entry/rate-limit-gate.ts). MIN keeps an admin from setting a self-locking absurd-low cap (a cap of 1/min
@@ -210,9 +238,6 @@ const durationMs = (): z.ZodOptional<z.ZodNumber> => z.number().int().positive()
 const GPU_UTIL_FLOOR = 0;
 const GPU_UTIL_CEIL = 1;
 const gpuUtil = (): z.ZodOptional<z.ZodNumber> => z.number().gt(GPU_UTIL_FLOOR).max(GPU_UTIL_CEIL).optional();
-// OpenAI presence_penalty wire range (the vLLM chat surface's per-request default lives in engineLaunch).
-export const GEN_PRESENCE_PENALTY_MIN = -2;
-export const GEN_PRESENCE_PENALTY_MAX = 2;
 export const engineLaunchSchema = z.object({
   embedModel: z.string().min(1).optional(),
   rerankModel: z.string().min(1).optional(),
