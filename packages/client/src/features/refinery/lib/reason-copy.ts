@@ -65,6 +65,12 @@ export const DROP_REASON_COPY: Record<ApplyDropReason, DropReasonCopy> = {
     tone: "warn",
   },
   // biome-ignore lint/style/useNamingConvention: the key IS the canonical wire drop-reason member (refinery `applyFields.dropped[].reason`) — a camelCase respell would break the exhaustive Record.
+  greeting_cap_reached: {
+    chip: "no room for another greeting",
+    why: "This card already holds the maximum number of greetings. Remove one first, or keep this text somewhere else.",
+    tone: "warn",
+  },
+  // biome-ignore lint/style/useNamingConvention: the key IS the canonical wire drop-reason member (refinery `applyFields.dropped[].reason`) — a camelCase respell would break the exhaustive Record.
   diverged_since_session: {
     chip: "changed since the session started",
     why: "The live card's text moved under this session. Re-open the block and confirm which version wins — nothing is overwritten blind.",

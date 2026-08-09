@@ -82,3 +82,44 @@ test("a DIVERGED field renders the three-pane conflict — base, live, rewrite �
   await page.getByRole("button", { name: KEEP_DESCRIPTION }).click();
   await expect(page.getByText("1 kept", { exact: true })).toBeVisible();
 });
+
+// ── The ADDED block (fork F-T1 — a rewrite that ADDS a greeting rather than replacing one). The whole
+//    reason this arm exists visually: an added greeting has NO before side, and painting an empty left
+//    pane would tell the user "this was blank" about a slot that never existed. ────────────────────────
+
+const KEEP_NEW_GREETING = /^Keep greetings \[new\]$/;
+const KEEP_EMPTIES_ANY = /Keep \(empties field\)/;
+
+test("an APPENDED greeting renders the Added state panel — no fabricated empty before pane — and Keeps like any other block", async ({ mount, page }) => {
+  await mount(
+    <AcceptReviewStory
+      entries={[
+        // The SPLIT round: slot 0 is replaced (prose-length, so it takes the before/after PAIR — the
+        // control this test needs), and a NEW slot carries the rest.
+        { entry: { field: "greetings", greetingIndex: 0, text: `${LONG}The first half.` }, live: LONG, original: LONG, diverged: false },
+        { entry: { field: "greetings", append: true, text: "The second half." }, live: "", original: "", diverged: false, appendIndex: 0 },
+      ]}
+    />,
+  );
+
+  // The label says what the block DOES — there is no slot number to print for a greeting that does not
+  // exist yet, and inventing one would be a claim about a position the card has not got.
+  await expect(page.getByRole("heading", { name: "greetings [new]" })).toBeVisible();
+  // The ADDED state panel takes the BEFORE slot; the added text still paints in the after pane, because a
+  // review must show what it is deciding on.
+  const added = page.locator('[data-slot="compare-block-added"]');
+  await expect(added.getByText("Added", { exact: true })).toBeVisible();
+  await expect(added).toContainText("A new greeting is added at the end — no existing greeting is touched.");
+  // Exactly ONE before pane in the round — the REPLACEMENT's (a live control that the pair renders at all).
+  // The append fabricates none: an empty left pane would read as "this greeting was blank", which is a lie.
+  await expect(page.locator('[data-slot="compare-block-before"]')).toHaveCount(1);
+  await expect(page.getByText("The second half.")).toBeVisible();
+  // The verb copy is the NEUTRAL Keep, never the cleared arm's destructive wording: adding destroys nothing.
+  await expect(page.getByRole("button", { name: KEEP_NEW_GREETING })).toBeVisible();
+  await expect(page.getByRole("button", { name: KEEP_EMPTIES_ANY })).toHaveCount(0);
+
+  // …and it decides like every other block (belt 10 — fail-closed until an individual press).
+  await expect(page.getByText("2 undecided", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: KEEP_NEW_GREETING }).click();
+  await expect(page.getByText("1 kept", { exact: true })).toBeVisible();
+});

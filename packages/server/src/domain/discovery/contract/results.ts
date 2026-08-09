@@ -381,6 +381,11 @@ export interface CharacterDossier {
   readonly elevatorPitch: string | null;
   readonly tags: string[];
   readonly portrait: { readonly avatarHash: string; readonly alignment: number } | null;
+  /** The refinery's card-quality score (`characters.refinery.score`, the 1-10 rubric), or `null` when
+   *  nothing has scored this card yet — a library score sweep or a refinery session fills it. Read here
+   *  rather than fetched separately by the surface: the dossier IS the "everything we understand about this
+   *  character" view, and a second round-trip for one scalar the same join already passes over is waste. */
+  readonly refineryScore: number | null;
   readonly similar: DossierNeighbor[];
 }
 

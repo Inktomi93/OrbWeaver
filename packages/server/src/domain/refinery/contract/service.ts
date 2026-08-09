@@ -7,14 +7,14 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { RefineryRun, RefinerySchemaSummary, RefinerySessionSummary, RefineryStage } from "@orb/contracts/refinery";
+import type { RefineryRun, RefinerySchemaSummary, RefineryScoreSweepResult, RefinerySessionSummary, RefineryStage } from "@orb/contracts/refinery";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 // Type-only cross-feature SHAPE imports (depcruise domain-no-cross-feature: type-only across features is
 // allowed; the runtime ops are wired at the entry composition root).
-import type { CharacterService, LoadOwnedCardOp, StampRefinerySignalsOp } from "#domain/character";
+import type { CharacterService, ListRefineryScoreTargetsOp, LoadOwnedCardOp, StampRefinerySignalsOp } from "#domain/character";
 import type {
   ApplyAsCopyParams,
   ApplyFieldsParams,
@@ -30,6 +30,7 @@ import type {
   PreflightParams,
   RefineSchemaParams,
   RunStageParams,
+  ScoreSweepOptions,
   StartSessionParams,
   SubmitManualRewriteParams,
   TestSchemaParams,
@@ -79,6 +80,25 @@ export interface RefineryContext {
   /** `character.duplicate` — the `applyAsCopy` chassis (schema-renderer §17): what a duplicate carries
    *  (avatar ref, tags, attached books) FOLLOWS that verb's own rulings — one fork-copy law, not two. */
   readonly duplicateCharacter: CharacterService["duplicate"];
+}
+
+/** The LIBRARY score sweep pass (R4) — bound at `verbs/score-sweep.ts`, run by the `refine-score-sweep`
+ *  workload contribution. Principal-LESS by construction (a queue row is its own actor), so it is not a
+ *  `RefineryService` member: the service is the tRPC-facing, principal-taking surface. */
+export type ScoreSweep = (opts: ScoreSweepOptions) => Promise<RefineryScoreSweepResult>;
+
+/** What the refinery's OWN background work closes over at `entry/compose` (the contribution-factory seam:
+ *  domains raise seams, the worker skims them). Deliberately NOT the whole `RefineryContext`: a sweep has no
+ *  session, so it needs no session id minter, no clock, and none of the four apply-path character ops — it
+ *  reads the library, asks the model, and stamps. */
+export interface RefineryWorkloadDeps {
+  readonly summarize: Summarize;
+  readonly resolveUserPresetParams: ResolveUserPresetParams;
+  readonly resolveUserProse: ResolveUserProse;
+  /** The sweep's enumeration (injected character op — refinery reads no `characters` row itself). */
+  readonly listRefineryScoreTargets: ListRefineryScoreTargetsOp;
+  /** The F6 stamp — the sweep's ONE write, the same op every other score run stamps through. */
+  readonly stampRefinerySignals: StampRefinerySignalsOp;
 }
 
 /** The stage ENGINE — `runStage`'s working half, shared with `iterate` (which runs it twice per round).

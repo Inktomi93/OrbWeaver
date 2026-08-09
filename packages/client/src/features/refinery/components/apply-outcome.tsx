@@ -32,8 +32,19 @@ export interface ApplyOutcomeProps {
   readonly onDone: () => void;
 }
 
-function targetOf(ref: { field: string; greetingIndex?: number | undefined }): string {
+/** The itemized row's target words. An APPEND names the act, not a slot — the new greeting's position is
+ *  whatever the tail was at write time, so printing a number would be a fact we do not have. */
+function targetOf(ref: { field: string; greetingIndex?: number | undefined; appendIndex?: number | undefined }): string {
+  if (ref.appendIndex !== undefined) {
+    return `${ref.field} [new]`;
+  }
   return ref.greetingIndex === undefined ? ref.field : `${ref.field} [${ref.greetingIndex}]`;
+}
+
+/** A row's React key — the itemization can carry several entries for one field (two appends, or an append
+ *  beside a replacement), so the key must include whichever address the entry actually used. */
+function refKeyOf(ref: { field: string; greetingIndex?: number | undefined; appendIndex?: number | undefined }): string {
+  return `${ref.field}-${ref.greetingIndex ?? "f"}-${ref.appendIndex === undefined ? "n" : `a${ref.appendIndex}`}`;
 }
 
 export function ApplyOutcome({ applied, dropped, snapshotLabel, copyName, onEditScope, onRerunRewrite, onDone }: ApplyOutcomeProps): ReactElement {
@@ -62,7 +73,7 @@ export function ApplyOutcome({ applied, dropped, snapshotLabel, copyName, onEdit
       </Card>
       <Stack gap="tight">
         {applied.map((ref) => (
-          <Row align="center" gap="row" key={`${ref.field}-${ref.greetingIndex ?? "f"}`}>
+          <Row align="center" gap="row" key={refKeyOf(ref)}>
             <RefineryChip tone="good">{ref.kind}</RefineryChip>
             <Text voice="label">{targetOf(ref)}</Text>
           </Row>
@@ -70,7 +81,7 @@ export function ApplyOutcome({ applied, dropped, snapshotLabel, copyName, onEdit
         {dropped.map((drop) => {
           const copy = DROP_REASON_COPY[drop.reason];
           return (
-            <Stack gap="tight" key={`${drop.field}-${drop.greetingIndex ?? "f"}-${drop.reason}`}>
+            <Stack gap="tight" key={`${refKeyOf(drop)}-${drop.reason}`}>
               <Row align="center" gap="row">
                 <RefineryChip tone={copy.tone}>{copy.chip}</RefineryChip>
                 <Text voice="label">{targetOf(drop)}</Text>

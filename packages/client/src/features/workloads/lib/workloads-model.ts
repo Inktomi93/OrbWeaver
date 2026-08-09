@@ -47,6 +47,7 @@ export const WORKLOAD_KIND_LABELS: Record<WorkloadKind, string> = {
   "reconcile-world-state": "Reconcile world state",
   "databank-ingest": "Databank ingest",
   "databank-reindex": "Databank reindex",
+  "refine-score-sweep": "Score the library (Refinery)",
 };
 
 const RUNNABLE_KIND_OPTIONS: SelectItems<string> = WORKLOAD_KINDS.filter((kind) => (RUNNABLE_WORKLOAD_KINDS as readonly WorkloadKind[]).includes(kind)).map(
@@ -166,7 +167,7 @@ export function workloadFilterMatches(filter: (typeof WORKLOAD_FILTERS)[number],
 }
 
 /** The per-kind param control shape axis; the server re-parses every start against its own schema regardless. */
-export const WORKLOAD_PARAM_SHAPES = ["none", "force", "dryRun", "k", "managed", "index"] as const;
+export const WORKLOAD_PARAM_SHAPES = ["none", "force", "dryRun", "k", "managed", "index", "rescore"] as const;
 
 /** Kind → param-control shape (exhaustive). Stub kinds are `none` (real empty schemas server-side). */
 export const WORKLOAD_PARAM_SHAPE_BY_KIND: Record<WorkloadKind, (typeof WORKLOAD_PARAM_SHAPES)[number]> = {
@@ -189,6 +190,9 @@ export const WORKLOAD_PARAM_SHAPE_BY_KIND: Record<WorkloadKind, (typeof WORKLOAD
   "reconcile-world-state": "none",
   "databank-ingest": "none",
   "databank-reindex": "none",
+  // Its own shape, not `force`: the switch is FILL-vs-REFRESH over scores, and `force`'s copy speaks about
+  // re-embedding vectors — a control whose words describe a different subsystem is a lying control.
+  "refine-score-sweep": "rescore",
 };
 
 /** Narrow a form-string kind to a runnable (singular-capable) contract kind. */
@@ -259,6 +263,10 @@ export function buildStartInput(kind: WorkloadKind, values: WorkloadRunValues): 
     params = { k: values.k };
   } else if (shape === "index") {
     params = values.force ? { source: values.source, force: true } : { source: values.source };
+  } else if (shape === "rescore" && values.force) {
+    // The dialog's ONE boolean slot carries whichever re-do switch the active kind has; the wire NAME is the
+    // kind's own (`rescoreAll`), never the form's.
+    params = { rescoreAll: true };
   }
   return { kind, params } as StartWorkloadWire["input"];
 }

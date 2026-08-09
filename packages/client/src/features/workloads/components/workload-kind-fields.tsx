@@ -34,6 +34,15 @@ export function WorkloadParamFields<TValues extends WorkloadRunValues & { readon
             </form.AppField>
           );
         }
+        if (shape === "rescore") {
+          return (
+            <form.AppField name="force">
+              {(field): ReactElement => (
+                <field.SwitchField label="Re-score everything" description="Score every card again, including ones that already have a score." />
+              )}
+            </form.AppField>
+          );
+        }
         if (shape === "dryRun") {
           return (
             <form.AppField name="dryRun">

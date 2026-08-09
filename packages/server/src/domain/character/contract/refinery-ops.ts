@@ -20,6 +20,32 @@ export interface CharacterRefineryOpsContext {
  *  live array, never the snapshot). */
 export type LoadOwnedCardOp = (args: { readonly ownerId: UserId; readonly characterId: CharacterId }) => Promise<CharacterCard | undefined>;
 
+/** ONE card the score sweep may work on — the card itself plus the owner the stamp must be scoped to (a
+ *  bulk sweep spans owners, so the row's own owner rides with it; the stamp op re-asserts it in the WHERE). */
+export interface RefineryScoreTarget {
+  readonly characterId: CharacterId;
+  readonly ownerId: UserId;
+  readonly card: CharacterCard;
+}
+
+/** What the sweep's enumeration returns. TWO numbers, because the FILL arm's whole point is that `targets`
+ *  is SMALLER than the library: reporting only the targets would make a fill run over a fully-scored library
+ *  say "scanned 0 cards", which reads as "your library is empty" instead of "everything already has a
+ *  score". `inScope` is the whole candidate set (a COUNT, not a fetch — the cards themselves stay unread). */
+interface RefineryScoreTargets {
+  readonly targets: readonly RefineryScoreTarget[];
+  readonly inScope: number;
+}
+
+/** Enumerate the cards a `refine-score-sweep` run should consider (R4 / port study I3). `ownerId: null` is
+ *  the box-wide bulk pass (every owner's library); a `UserId` narrows to that one owner — the SAME
+ *  enumeration-scope contract the workload engine's `WorkloadRunContext.ownerId` carries. `unscoredOnly`
+ *  pushes the sweep's FILL arm into SQL rather than reading the whole library to discard most of it.
+ *
+ *  Synthetic (`__group__`) characters are excluded: they are chat plumbing, never authored cards, so a
+ *  quality score about one is meaningless — the same fence `list` applies to the library. */
+export type ListRefineryScoreTargetsOp = (args: { readonly ownerId: UserId | null; readonly unscoredOnly: boolean }) => Promise<RefineryScoreTargets>;
+
 /** One half of the derived signals — the two halves have INDEPENDENT producers (a score run stamps
  *  `score`, an analyze run stamps `analysis`; security pass §1 gap 2), so the patch is one arm, never
  *  both, and the stamp merges it over the currently-stored other half. */

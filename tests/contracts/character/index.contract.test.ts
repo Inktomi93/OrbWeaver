@@ -319,8 +319,23 @@ test("characterListSortSchema accepts every sort and rejects an unknown one", ()
   // Largest/Smallest cards ARE on the axis now — backed by the `characters.token_size` denorm column (a
   // keyset ORDER BY needs a persisted column, not the post-query estimate).
   expect(characterListSortSchema.safeParse("largestCards").success).toBe(true);
-  // The tuple IS the axis (no drift): the owner-ruled 9 (§4.5).
-  expect([...CHARACTER_LIST_SORTS]).toEqual(["recent", "alpha", "starred", "newest", "oldest", "mostChats", "fewestChats", "largestCards", "smallestCards"]);
+  // The two SCORE sorts (I2) read the derived refinery signal — on the axis, and null-tailed both ways.
+  expect(characterListSortSchema.safeParse("bestScore").success).toBe(true);
+  expect(characterListSortSchema.safeParse("worstScore").success).toBe(true);
+  // The tuple IS the axis (no drift): the owner-ruled 9 (§4.5) + the two R4 score sorts.
+  expect([...CHARACTER_LIST_SORTS]).toEqual([
+    "recent",
+    "alpha",
+    "starred",
+    "newest",
+    "oldest",
+    "mostChats",
+    "fewestChats",
+    "largestCards",
+    "smallestCards",
+    "bestScore",
+    "worstScore",
+  ]);
 });
 
 // A well-formed character TypeID (26-char Crockford-base32 suffix) — the cursor `id` is `typeIdSchema`-gated.
@@ -382,6 +397,13 @@ test("characterListCursorSchema parses each sort variant (recent carries a nulla
     id: CHAR_ID,
   });
   expect(smallest.sort).toBe("smallestCards");
+  // best/worstScore carry a NULLABLE, NON-INTEGER score: the refinery rubric is a weighted average, and
+  // null is the unscored boundary (the NULLS-LAST tail both directions).
+  const best = characterListCursorSchema.parse({ sort: "bestScore", score: 7.5, id: CHAR_ID });
+  expect(best.sort).toBe("bestScore");
+  const worst = characterListCursorSchema.parse({ sort: "worstScore", score: null, id: CHAR_ID });
+  expect(worst.sort).toBe("worstScore");
+  expect(characterListCursorSchema.safeParse({ sort: "bestScore", id: CHAR_ID }).success).toBe(false);
 });
 
 test("characterListCursorSchema rejects a cross-sort shape (an alpha cursor missing recent's keys)", () => {

@@ -57,6 +57,10 @@ const APPLY_DROP_REASONS = [
    *  a character with no first message is a worse authoring state than any empty field, so the last
    *  surviving slot refuses rather than being written away (schema-renderer §15.2). */
   "would_leave_no_greeting",
+  /** An APPEND that would push the card past the greetings ceiling (`GREETING_SLOTS_MAX`). Itemized rather
+   *  than thrown, and rather than letting the constructed patch fail `updateCharacterSchema`: a card at its
+   *  ceiling is a legal card, so a payload wanting one more slot is a refusal about THIS entry (F-T1). */
+  "greeting_cap_reached",
   /** The MERGE CONFLICT (schema-renderer §21 edge 2): the LIVE card's text for this field differs from
    *  the session's `original_card` pin — someone edited it under the session — and the accept carried no
    *  `confirmDiverged`. Never written blind: the surface re-opens the block as a BASE·LIVE·REWRITE
@@ -67,20 +71,27 @@ export type ApplyDropReason = (typeof APPLY_DROP_REASONS)[number];
 
 /** What an applied entry DID. The emptying arm makes this load-bearing: destruction must be itemized
  *  separately from replacement so the outcome panel and the audit trail state it explicitly rather than
- *  leaving a user to infer it from a diff with a blank side (schema-renderer §15.5). Same posture as the
- *  drop reasons: the tuple stays unexported until a runtime consumer exists. */
-const APPLIED_FIELD_KINDS = ["replaced", "cleared"] as const;
+ *  leaving a user to infer it from a diff with a blank side (schema-renderer §15.5). `added` is the F-T1
+ *  append arm's twin — a NEW greeting slot is not a replacement of anything, and reporting it as one would
+ *  make the outcome panel lie about which slot moved. Same posture as the drop reasons: the tuple stays
+ *  unexported until a runtime consumer exists. */
+const APPLIED_FIELD_KINDS = ["replaced", "cleared", "added"] as const;
 export type AppliedFieldKind = (typeof APPLIED_FIELD_KINDS)[number];
 
-export interface AppliedFieldRef {
+/** Where an itemized entry POINTED. The two indexes are mutually exclusive and neither is a spelling of the
+ *  other: `greetingIndex` names a slot the card HAS, `appendIndex` names the k-th NEW greeting a rewrite
+ *  payload asked for (`appendedRewrites`' ordinal — the only stable address a slot-less entry can carry). */
+interface RefineryFieldRef {
   readonly field: RefinableField;
   readonly greetingIndex?: number | undefined;
+  readonly appendIndex?: number | undefined;
+}
+
+export interface AppliedFieldRef extends RefineryFieldRef {
   readonly kind: AppliedFieldKind;
 }
 
-export interface DroppedField {
-  readonly field: RefinableField;
-  readonly greetingIndex?: number | undefined;
+export interface DroppedField extends RefineryFieldRef {
   readonly reason: ApplyDropReason;
 }
 
@@ -99,6 +110,9 @@ export interface AcceptBelts {
   readonly selectedGreetingIndexes: readonly number[] | undefined;
   readonly liveGreetingCount: number;
   readonly liveHasDepthPrompt: boolean;
+  /** The payload's APPEND entries in payload order (`appendedRewrites`) — the list an accept's
+   *  `appendIndex` addresses into. Derived once, up front, exactly like the rest of this bundle. */
+  readonly appendedFields: readonly Extract<RefineryRewriteField, { append: true }>[];
   /** The §21 divergence pair: the session's pin and the card the write would land on. */
   readonly originalCard: CharacterCard;
   readonly liveCard: CharacterCard;

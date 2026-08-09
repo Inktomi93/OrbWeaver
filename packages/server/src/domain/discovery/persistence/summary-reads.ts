@@ -5,7 +5,7 @@
 import type { Db } from "@orb/db";
 import { characterSummaries, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 interface CardFacetRow {
   readonly characterId: CharacterId;
@@ -14,7 +14,16 @@ interface CardFacetRow {
   readonly tone: string | null;
   readonly tags: string[];
   readonly elevatorPitch: string | null;
+  /** The refinery card-quality signal, read straight out of the `characters.refinery` JSON blob — one
+   *  scalar off a join this read already performs. `null` covers both an unstamped card and a stored
+   *  `"score": null`; here they are the same fact ("not scored"). The blob's OWNER is character (one
+   *  writer, F6) — this is a read, and it takes the SQL path for the same reason the score sorts do: the
+   *  column parser is a character-domain seam a sibling domain may not import. */
+  readonly refineryScore: number | null;
 }
+
+/** The score projection, spelled once for both reads below. */
+const refineryScoreExpr = sql<number | null>`json_extract(${characters.refinery}, '$.score')`;
 
 export async function readOwnedCardFacets(db: Db, ownerId: UserId): Promise<CardFacetRow[]> {
   return await db
@@ -25,6 +34,7 @@ export async function readOwnedCardFacets(db: Db, ownerId: UserId): Promise<Card
       tone: characterSummaries.tone,
       tags: characterSummaries.tags,
       elevatorPitch: characterSummaries.elevatorPitch,
+      refineryScore: refineryScoreExpr,
     })
     .from(characterSummaries)
     .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
@@ -42,6 +52,7 @@ export async function readOwnedCardFacet(db: Db, ownerId: UserId, characterId: C
       tone: characterSummaries.tone,
       tags: characterSummaries.tags,
       elevatorPitch: characterSummaries.elevatorPitch,
+      refineryScore: refineryScoreExpr,
     })
     .from(characterSummaries)
     .innerJoin(characters, eq(characters.id, characterSummaries.characterId))

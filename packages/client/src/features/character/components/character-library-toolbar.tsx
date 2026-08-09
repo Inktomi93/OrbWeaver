@@ -29,6 +29,10 @@ const SORT_LABELS: Record<CharacterListSort, string> = {
   fewestChats: "Fewest chats",
   largestCards: "Largest cards",
   smallestCards: "Smallest cards",
+  // The refinery signal (`characters.refinery.score`) — unscored cards sort LAST both ways, so the labels
+  // say "scoring", not "score", and never imply an unscored card is a bad one.
+  bestScore: "Best scoring",
+  worstScore: "Worst scoring",
 };
 
 const SORT_ITEMS = CHARACTER_LIST_SORTS.map((sort) => ({ label: SORT_LABELS[sort], value: sort }));

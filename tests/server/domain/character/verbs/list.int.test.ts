@@ -7,7 +7,7 @@
 import { characterTags, tags } from "@orb/db";
 import type { CharacterHandle, Handle, TagId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createCharacterService } from "@orb/server/domain/character";
+import { createCharacterService, createStampRefinerySignals } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { cardTokenSize } from "../../../../../packages/server/src/domain/character/substrate/card-tokens.ts";
 import { freshDb } from "../../../../support/db.ts";
@@ -345,6 +345,68 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
       tokenSize: leadSmall.tokenSize,
       id: leadSmall.id,
     });
+  });
+
+  // ── the two SCORE sorts (I2 — the refinery signal made sortable) ────────────────────────────────────
+  // The value is a member of the `characters.refinery` JSON blob, so these sorts read it through a SQL
+  // json_extract rather than a column. The pins that matter: an UNSCORED card sorts to the tail in BOTH
+  // directions (it is unjudged, never "the worst"), and the cursor carries the same extracted value the
+  // ORDER BY used, so a page boundary can never disagree with the page it came from.
+  test("bestScore/worstScore order by the refinery signal and sink the UNSCORED tail both ways", async () => {
+    const db = await freshDb();
+    const harness = makeHarness(db);
+    const svc = createCharacterService(harness.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const high = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("high"), name: "High", description: "a" } });
+    const low = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("low"), name: "Low", description: "b" } });
+    const unscored = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("none"), name: "None", description: "c" } });
+    // Stamp through the REAL refinery op — the same writer the sweep and a session's score run use.
+    const stamp = createStampRefinerySignals({ db });
+    await stamp({ ownerId: owner, characterId: high.id, patch: { score: 9.5 } });
+    await stamp({ ownerId: owner, characterId: low.id, patch: { score: 2 } });
+
+    const best = await svc.list({ principal: principal(owner), sort: "bestScore" });
+    expect(best.items.map((r) => r.id)).toEqual([high.id, low.id, unscored.id]);
+    const worst = await svc.list({ principal: principal(owner), sort: "worstScore" });
+    // Direction flips for the SCORED rows; the unscored card stays LAST rather than leading "worst".
+    expect(worst.items.map((r) => r.id)).toEqual([low.id, high.id, unscored.id]);
+  });
+
+  test("the score cursor carries the extracted score and pages through the unscored tail", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const high = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("h"), name: "H", description: "a" } });
+    const low = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("l"), name: "L", description: "b" } });
+    const unscored = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("u"), name: "U", description: "c" } });
+    const stamp = createStampRefinerySignals({ db });
+    await stamp({ ownerId: owner, characterId: high.id, patch: { score: 8 } });
+    await stamp({ ownerId: owner, characterId: low.id, patch: { score: 4 } });
+
+    const page1 = await svc.list({ principal: principal(owner), sort: "bestScore", limit: 1 });
+    expect(page1.items.map((r) => r.id)).toEqual([high.id]);
+    expect(page1.nextCursor).toEqual({ sort: "bestScore", score: 8, id: high.id });
+    const cursor1 = page1.nextCursor;
+    if (cursor1 === null) {
+      throw new Error("expected a next cursor");
+    }
+    const page2 = await svc.list({ principal: principal(owner), sort: "bestScore", limit: 1, cursor: cursor1 });
+    expect(page2.items.map((r) => r.id)).toEqual([low.id]);
+    // The boundary into the NULL tail: the cursor's score is null and the next page is the unscored card
+    // (an unscored boundary must stay INSIDE the tail — the mostChats null-boundary shape).
+    const cursor2 = page2.nextCursor;
+    if (cursor2 === null) {
+      throw new Error("expected a next cursor");
+    }
+    const page3 = await svc.list({ principal: principal(owner), sort: "bestScore", limit: 1, cursor: cursor2 });
+    expect(page3.items.map((r) => r.id)).toEqual([unscored.id]);
+    expect(page3.nextCursor).toEqual({ sort: "bestScore", score: null, id: unscored.id });
+    const cursor3 = page3.nextCursor;
+    if (cursor3 === null) {
+      throw new Error("expected a next cursor");
+    }
+    const page4 = await svc.list({ principal: principal(owner), sort: "bestScore", limit: 1, cursor: cursor3 });
+    expect(page4.items).toEqual([]);
   });
 
   test("a cursor minted under a DIFFERENT sort is rejected (never silently re-keyed)", async () => {

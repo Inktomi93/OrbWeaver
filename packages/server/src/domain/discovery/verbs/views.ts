@@ -73,6 +73,7 @@ async function characterDossier(db: Db, deps: ViewsDeps, args: { ownerId: UserId
     elevatorPitch: card.elevatorPitch,
     tags: card.tags,
     portrait,
+    refineryScore: card.refineryScore,
     similar,
   };
 }
