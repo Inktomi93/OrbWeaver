@@ -44,17 +44,15 @@ export function useRefinerySessions(): UseQueryResult<SessionRoster, TrpcReadErr
   return useQuery(trpc.refinery.listSessions.queryOptions());
 }
 
-/** @public the R2 read tier for the R3 refinery surface (board C15) — ONE session's full view (the anti-drift
- *  `originalCard` anchor, selection, stageConfig, guidance, iterationCount). `null` selects nothing and asks
- *  nothing. No prod consumer until R3; the CT drives it today. */
+/** The R2 read tier — ONE session's full view (the anti-drift `originalCard` anchor, selection, stageConfig,
+ *  guidance, iterationCount). `null` selects nothing and asks nothing. Consumed by the R3 surface. */
 export function useRefinerySession(sessionId: RefinerySessionId | null): UseQueryResult<SessionView, TrpcReadError> {
   const trpc = useTRPC();
   return useGatedQuery(sessionId, (id) => trpc.refinery.getSession.queryOptions({ sessionId: id }));
 }
 
-/** @public the R2 read tier for the R3 refinery surface (board C15) — ONE session's append-only run ledger,
- *  oldest first (the D62 CONTEXT Runs tab). `null` selects nothing and asks nothing. No prod consumer until
- *  R3; the CT drives it today. */
+/** The R2 read tier — ONE session's append-only run ledger, oldest first (the D62 CONTEXT Runs tab).
+ *  `null` selects nothing and asks nothing. Consumed by the R3 surface. */
 export function useRefineryRuns(sessionId: RefinerySessionId | null): UseQueryResult<RunLedger, TrpcReadError> {
   const trpc = useTRPC();
   return useGatedQuery(sessionId, (id) => trpc.refinery.listRuns.queryOptions({ sessionId: id }));

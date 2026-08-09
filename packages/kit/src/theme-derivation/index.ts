@@ -50,7 +50,8 @@ export const THEME_DERIVATION = {
 
 /** WCAG AA for normal-size text — the floor `palette-contrast.suite.test.ts` holds every orb pairing to. */
 export const AA_NORMAL_RATIO = 4.5;
-/** WCAG AA for large text / non-text UI (a solid control's label, a border). */
+/** @public WCAG AA for large text / non-text UI — the floor's sibling threshold beside `AA_NORMAL_RATIO`;
+ *  the theme importer gates on normal-size only today, this is the named constant the next gate reaches for. */
 export const AA_LARGE_RATIO = 3;
 
 /** An sRGB triple, channels 0–255. */

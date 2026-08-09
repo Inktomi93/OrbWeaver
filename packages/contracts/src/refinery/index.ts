@@ -245,14 +245,17 @@ export const refineryCustomStageConfigSchema = z.object({
   kind: z.literal("custom"),
   schemaId: brandedId<RefinerySchemaId>(),
 });
+/** @public inference-twin of its schema — consumers parse via `refineryCustomStageConfigSchema`; the named type is the contract's stable spelling for the SF0 custom arm. */
 export type RefineryCustomStageConfig = z.infer<typeof refineryCustomStageConfigSchema>;
 
 /** Session score config: fixed mode, or a custom schema pointer. */
 export const refineryScoreConfigSchema = z.union([refineryScoreFixedConfigSchema, refineryCustomStageConfigSchema]);
+/** @public inference-twin of `refineryScoreConfigSchema` — the contract's named spelling of the score-stage config union. */
 export type RefineryScoreConfig = z.infer<typeof refineryScoreConfigSchema>;
 
 /** Session analyze config: fixed mode, or a custom schema pointer. */
 export const refineryAnalyzeConfigSchema = z.union([refineryAnalyzeFixedConfigSchema, refineryCustomStageConfigSchema]);
+/** @public inference-twin of `refineryAnalyzeConfigSchema` — the contract's named spelling of the analyze-stage config union. */
 export type RefineryAnalyzeConfig = z.infer<typeof refineryAnalyzeConfigSchema>;
 
 /** The session's in-force per-stage config (stored on `refinery_sessions.stage_config`). */
