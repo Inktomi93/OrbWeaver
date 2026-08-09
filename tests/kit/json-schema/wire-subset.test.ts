@@ -4,7 +4,7 @@
 // silently disarm the local enforcing wire, and no strip at all is what shipped the banned keywords.
 
 import type { WireSchemaMode } from "@orb/kit/json-schema";
-import { dropNullValues, projectJsonSchema, scrubWireSchema, WIRE_SCHEMA_MODES } from "@orb/kit/json-schema";
+import { dropNullValues, projectJsonSchema, scrubWireSchema, WIRE_SCHEMA_MODES, WIRE_SUBSETS } from "@orb/kit/json-schema";
 import { z } from "zod";
 import { expect, test } from "../../support/fixtures.ts";
 
@@ -286,6 +286,17 @@ test("dropNullValues: a null-valued key lands IDENTICALLY to an omitted one (the
   expect(dropNullValues(strictShaped)).toEqual(omitShaped);
   // An ARRAY slot is positional — a null element is NOT erased (that would renumber the rest).
   expect(dropNullValues({ xs: [1, null, 2] })).toEqual({ xs: [1, null, 2] });
+});
+
+// ── the #40 coupling invariant (was prose-only: `WireSubset.clampMinItems`'s own doc comment) ──────────
+// A mode that clamps `minItems` instead of stripping it MUST leave the keyword out of its `strip` set —
+// `scrubKeywords` deletes a stripped keyword before the clamp step ever runs (it `continue`s past it), so
+// a mode carrying BOTH would silently never clamp anything: the keyword is gone before `clampMinItems` can
+// see it. The prose already stated this; nothing asserted it over the actual table.
+
+test("no mode both STRIPS minItems and CLAMPS it — the clamp would never see a keyword the strip already dropped", () => {
+  const offenders = WIRE_SCHEMA_MODES.filter((mode) => WIRE_SUBSETS[mode].clampMinItems && WIRE_SUBSETS[mode].strip.has("minItems"));
+  expect(offenders).toEqual([]);
 });
 
 test("the CLOSED-OBJECT pin is per-mode: on where the wire requires it, and byte-invisible where it does not", () => {

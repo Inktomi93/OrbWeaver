@@ -129,6 +129,8 @@ function regexScript(label: string, find: string, replace: string, placement: "U
     // D121-E: a row id is a real `regex_script_…` TypeID; the readable label rides on `name`.
     id: mintTypeId(ID_PREFIX.regexScript),
     name: label,
+    // X-16: `updatedAt` is REQUIRED on the row (the edited stamp) — a fixed instant keeps the double honest.
+    updatedAt: 1_700_000_000_000,
     findRegex: find,
     replaceString: replace,
     placement: [placement],

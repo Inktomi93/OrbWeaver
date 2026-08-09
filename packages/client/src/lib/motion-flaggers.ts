@@ -290,25 +290,46 @@ function scanDeadClasses(): void {
 }
 
 /** Throttled to `cssScanIntervalMs` and deferred to idle: the scan is a whole-DOM walk, and running it
- *  synchronously inside a MutationObserver callback would make it the jank it exists to find. */
+ *  synchronously inside a MutationObserver callback would make it the jank it exists to find.
+ *
+ *  TRAILING-EDGE, not drop: a mutation that lands INSIDE the throttle window still schedules exactly
+ *  one deferred scan for when the window clears, rather than being silently discarded. A dropping
+ *  throttle only ever scans again if a SECOND mutation happens to arrive after the window — a single
+ *  class change mid-window (the common case on a quiet surface) was never scanned at all. */
 function installDeadClassFlagger(): void {
   let lastScan = 0;
   let queued = false;
-  const maybeScan = (): void => {
-    if (queued || performance.now() - lastScan < MOTION_BUDGETS.cssScanIntervalMs) {
-      return;
-    }
+  let trailingPending = false;
+  const run = (): void => {
+    queued = false;
+    lastScan = performance.now();
+    scanDeadClasses();
+  };
+  const scheduleRun = (): void => {
     queued = true;
-    const run = (): void => {
-      queued = false;
-      lastScan = performance.now();
-      scanDeadClasses();
-    };
     if (typeof requestIdleCallback === "function") {
       requestIdleCallback(run, { timeout: MOTION_BUDGETS.cssScanIntervalMs });
       return;
     }
     setTimeout(run, 0);
+  };
+  const maybeScan = (): void => {
+    if (queued) {
+      return;
+    }
+    const elapsed = performance.now() - lastScan;
+    if (elapsed >= MOTION_BUDGETS.cssScanIntervalMs) {
+      scheduleRun();
+      return;
+    }
+    if (trailingPending) {
+      return;
+    }
+    trailingPending = true;
+    setTimeout(() => {
+      trailingPending = false;
+      maybeScan();
+    }, MOTION_BUDGETS.cssScanIntervalMs - elapsed);
   };
   new MutationObserver(maybeScan).observe(document.documentElement, {
     subtree: true,
@@ -323,17 +344,24 @@ function installDeadClassFlagger(): void {
 
 const REPLACED_SELECTOR = "img, video, iframe, canvas";
 
-/** true ⇒ the element's box is reserved before its content loads: width+height attributes, an
- *  aspect-ratio, or an explicit non-auto block size. Any ONE of those prevents the shift. */
+/** true ⇒ the element's box is reserved before its content loads: width+height attributes or an
+ *  aspect-ratio. Any ONE of those prevents the shift.
+ *
+ *  Deliberately NOT a resolved-height check (`getComputedStyle(el).height`): the computed style
+ *  reports a RESOLVED pixel value for any in-layout element regardless of whether that size came
+ *  from an authored reservation or the browser's own intrinsic/replaced-element fallback sizing —
+ *  so a bare `<img>` with no dims reads exactly like a properly reserved one, and the flagger never
+ *  fires. The honest signal is the AUTHORED intent (attribute/style), not the box the browser
+ *  already computed from it. */
 function hasReservedBox(el: Element): boolean {
-  if (el.hasAttribute("width") && el.hasAttribute("height")) {
+  if (el.getAttribute("width") !== null && el.getAttribute("height") !== null) {
+    return true;
+  }
+  if (el instanceof HTMLElement && el.style.aspectRatio !== "" && el.style.aspectRatio !== "auto") {
     return true;
   }
   const style = getComputedStyle(el);
-  if (style.aspectRatio !== "" && style.aspectRatio !== "auto") {
-    return true;
-  }
-  return style.height !== "" && style.height !== "auto" && style.height !== "0px";
+  return style.aspectRatio !== "" && style.aspectRatio !== "auto";
 }
 
 /** Sweep the live replaced elements for unreserved boxes. Capped (see `spaceScanCap`) — this rides the

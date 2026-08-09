@@ -79,6 +79,8 @@ function historyScript(args: { find: string; replace: string; min?: number; max?
   return regexScriptSchema.parse({
     id: mintTypeId(ID_PREFIX.regexScript),
     name: "history leg",
+    // X-16: `updatedAt` is REQUIRED on the row (the edited stamp) — a fixed instant keeps the double honest.
+    updatedAt: 1_700_000_000_000,
     findRegex: args.find,
     replaceString: args.replace,
     placement: [HISTORY_DEPTH_PLACEMENT],
@@ -190,6 +192,8 @@ test("a script on another leg never fires here — the persist-time legs and thi
   const sendOnly = regexScriptSchema.parse({
     id: mintTypeId(ID_PREFIX.regexScript),
     name: "send leg",
+    // X-16: `updatedAt` is REQUIRED on the row (the edited stamp) — a fixed instant keeps the double honest.
+    updatedAt: 1_700_000_000_000,
     findRegex: "secret",
     replaceString: "[cut]",
     placement: ["USER_INPUT"],

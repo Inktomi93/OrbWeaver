@@ -34,6 +34,8 @@ function script(label: string, over: Partial<RegexScriptRow> = {}): RegexScriptR
     // `idFor` gives each label a stable one.
     id: idFor(label),
     name: label,
+    // X-16: `updatedAt` is REQUIRED on the row (the edited stamp) — a fixed instant keeps the double honest.
+    updatedAt: 1_700_000_000_000,
     findRegex: label,
     replaceString: `<${label}>`,
     placement: ["USER_INPUT"],
