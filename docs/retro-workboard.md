@@ -137,10 +137,14 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   **Request-level concurrency is CLIENT-CLEAN** — unbounded undici dispatcher (no `connections` cap,
   egress.ts:154), wake-gate single-flights ONE cold wake per engine (not per-request), NO mutex/semaphore on
   inference calls, turn lock strictly per-chat (`chat_locks` PK=chatId). So chat+tool+rerank+memory+future
-  agents DO continuous-batch concurrently. **Wonky root is ENGINE-side, not client:** `--max-num-seqs`/KV-cache
-  budget (`engine/build-argv.ts`/`gpu.ts`) or DEFAULT\_ENGINE\_TIMEOUT\_MS=120\_000 under GPU pile-up.
-  DIAGNOSE via vLLM `GET :<port>/metrics` — `vllm:num_requests_running` (live batched concurrency),
-  `num_requests_waiting{reason=capacity}` (KV/max-seqs cap), `num_preemptions_total` (KV eviction thrash).
+  agents DO continuous-batch concurrently. **The HANG is the summarize LOOP (#21), NOT concurrency**
+  (verified in vLLM source): the scheduler QUEUES over-capacity (waiting queue + graceful preempt,
+  sched/scheduler.py) — it doesn't hang; the 120s fires downstream of loop-slow requests queued behind them.
+  `max_num_seqs`=per-iteration BATCH cap (default 128, EngineArgs-computed; orb doesn't set it), NOT the
+  KV-fit. Startup print "Maximum concurrency: Nx" (kv\_cache\_utils.py:1735)=KV-fit at MAX length (worst case)
+  \=a config HEALTH signal, NOT a value to mirror into max\_num\_seqs/send-concurrency (**#24 premise CORRECTED**).
+  DIAGNOSE via vLLM `GET :<port>/metrics` — `num_requests_running`, `num_requests_waiting{reason=capacity}`,
+  `num_preemptions_total`.
 
 - **⚑ #21 memory-summarize executor `a19e7d680f1bf5708` IN FLIGHT** (approved defaults): add generate's
   per-request samplers to the summarize path (presence\_penalty **1.5** default — the loop fix; Qwen3-VL ships
