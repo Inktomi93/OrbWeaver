@@ -154,6 +154,17 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 **Main `c5e2590e8`+ (~40 hook-gated merges since 08-08 morning), tree has NO uncommitted work, origin
 UNPUSHED (owner pushes himself).** All tasks ≤ #38 + #40 DONE. #39 in its final phases; #35 running.
 
+**UPDATE (94% sentinel): phase-2.5's rebase broke SEMANTICALLY (onGuidance vs the polish's two-row
+run bar) + its commit carries scratch debris (zzverify-contrast.ct.tsx, __g_*.test.ts) — a
+RECONCILER lane now owns landing it (true-merge, wire to main's shapes, delete debris, fix the 9
+structure violations; branch `wt/agent-a48724acf440a873a` intact, worktree pruned). #35 is DONE —
+commit `00003b7b7` on `wt/agent-acbeb6e6e44293ba8`, MERGE PENDING behind the reconciler (its finds:
+the corpus was NEVER broken — data-app-ready was a 3s hand-out, snap swallowed the readiness result,
+CREDENTIALS_KEY never crossed to stages; + LEAD: adoptMovedSeedKey may not persist its rename — a
+real boot-bug lead, needs a task). Gifs RESCUED to main's reports/recordings/. NEW owner report:
+text streaming feels choppy/ugly even with smooth streaming on → forge lane dispatching (task #42,
+full ast survey incl. node_modules of the streamer's API surface).**
+
 **IN FLIGHT (5 lanes) — resurrection anchors (worktree = durable; never prune unmerged):**
 · **phase 2.5 DONE, MERGE PENDING** — commit `3a5d1cd08` on `wt/agent-a48724acf440a873a` (preflight
   advisories derive-don't-declare · editor CT suite 28/28 · server-side session identity ·
