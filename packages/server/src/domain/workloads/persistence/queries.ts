@@ -12,7 +12,7 @@
 // of silently dropping it, while `nextRunnableWorkload` returns only `WorkloadRunnableRow`s.
 
 import type { WorkloadError, WorkloadKind, WorkloadLane, WorkloadMode, WorkloadProgress, WorkloadStatus } from "@orb/contracts/workloads";
-import { WORKLOAD_KINDS } from "@orb/contracts/workloads";
+import { WORKLOAD_KINDS, WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
@@ -66,7 +66,8 @@ async function resolveDependencyGate(db: Db, dependsOn: readonly WorkloadId[]): 
 const IN_FLIGHT_STATUSES = ["running", "cancelling"] as const satisfies readonly WorkloadStatus[];
 
 const QUEUE_HEAD_WINDOW = 10;
-const LIST_HARD_CAP = 500;
+// The internal-caller backstop; the shared ceiling `WORKLOAD_LIST_MAX_LIMIT` (`@orb/contracts/workloads`) is
+// also the transport `.max()` trust boundary, so the wire refusal and this hard cap never drift.
 
 interface WorkloadInsert {
   readonly id: WorkloadId;
@@ -315,7 +316,7 @@ export async function listWorkloads(db: Db, contributions: WorkloadContributions
   if (params.since !== undefined) {
     filters.push(gte(workloads.createdAt, params.since));
   }
-  const limit = Math.min(params.limit ?? LIST_HARD_CAP, LIST_HARD_CAP);
+  const limit = Math.min(params.limit ?? WORKLOAD_LIST_MAX_LIMIT, WORKLOAD_LIST_MAX_LIMIT);
   const rows = await db
     .select()
     .from(workloads)

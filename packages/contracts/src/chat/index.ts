@@ -108,7 +108,7 @@ export {
 export type { ContentClassPolicy } from "./content-classes.ts";
 export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 export type { ChatListCursor } from "./listing.ts";
-export { chatListCursorSchema } from "./listing.ts";
+export { CHAT_LIST_MAX_LIMIT, chatListCursorSchema } from "./listing.ts";
 // `MacroFreeze` (the single occurrence) is NOT re-exported here — kit owns that shape and consumers import it
 // from `@orb/kit/macro`; contracts owns only the persisted/wire ARRAY (`MacroFreezeRecord`) + its parse seam.
 export type {
@@ -121,6 +121,7 @@ export type {
   UserMacroDraws,
 } from "./messages.ts";
 export {
+  CHAT_MESSAGE_LIST_MAX_LIMIT,
   macroFreezeRecordSchema,
   macroFreezeSchema,
   messageSlotSchema,

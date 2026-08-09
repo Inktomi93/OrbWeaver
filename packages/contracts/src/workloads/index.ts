@@ -45,5 +45,6 @@ export {
   indexWorkloadParams,
   maintenanceWorkloadParams,
   startWorkloadEnvelope,
+  WORKLOAD_LIST_MAX_LIMIT,
 } from "./params.ts";
 export type { BundleImportWorkloadResult, DeferredResult, MaintenanceResult, WorkloadResultByKind } from "./result.ts";

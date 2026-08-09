@@ -14,19 +14,22 @@
 // PD-70 presence ref-count and the host-return `drainDeferredTurns` edge moved to the socket with it
 // (`routers/stream.ts`, spec §5.6 — owner-ruled §14.4).
 
+import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import type { NotificationId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { multiHumanProcedure, t } from "../trpc.ts";
 
 export const notificationsRouter = t.router({
-  list: multiHumanProcedure.input(z.object({ cursor: z.number().optional(), limit: z.number().optional() }).optional()).query(({ ctx, input }) =>
-    ctx.services.notifications.list({
-      principal: ctx.auth,
-      ...(input?.cursor !== undefined ? { cursor: input.cursor } : {}),
-      ...(input?.limit !== undefined ? { limit: input.limit } : {}),
-    }),
-  ),
+  list: multiHumanProcedure
+    .input(z.object({ cursor: z.number().optional(), limit: z.number().int().min(1).max(NOTIFICATIONS_LIST_MAX_LIMIT).optional() }).optional())
+    .query(({ ctx, input }) =>
+      ctx.services.notifications.list({
+        principal: ctx.auth,
+        ...(input?.cursor !== undefined ? { cursor: input.cursor } : {}),
+        ...(input?.limit !== undefined ? { limit: input.limit } : {}),
+      }),
+    ),
 
   markAllRead: multiHumanProcedure.mutation(({ ctx }) => ctx.services.notifications.markAllRead({ principal: ctx.auth })),
 

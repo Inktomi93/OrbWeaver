@@ -14,7 +14,7 @@
 // the install/list pane, never as unreachable rows to prune. A sweep reader who finds them caller-less is
 // looking at the right thing and should leave them alone.
 
-import { PLUGIN_CAPABILITIES } from "@orb/contracts/plugin";
+import { PLUGIN_CAPABILITIES, PLUGIN_LOG_LIST_MAX_LIMIT } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -53,7 +53,7 @@ export const pluginRouter = t.router({
   list: authedProcedure.query(({ ctx }) => ctx.services.plugin.list({ caller: ctx.auth })),
 
   getLog: authedProcedure
-    .input(z.object({ pluginId: pluginIdSchema, limit: z.number().int().positive().optional() }))
+    .input(z.object({ pluginId: pluginIdSchema, limit: z.number().int().positive().max(PLUGIN_LOG_LIST_MAX_LIMIT).optional() }))
     .query(({ ctx, input }) =>
       ctx.services.plugin.getLog({ caller: ctx.auth, pluginId: input.pluginId, ...(input.limit !== undefined ? { limit: input.limit } : {}) }),
     ),
