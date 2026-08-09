@@ -5,7 +5,7 @@ export type { ImportContext } from "./context.ts";
 export type { ImportCardErrorCode } from "./contract/errors.ts";
 export { ImportCardError } from "./contract/errors.ts";
 export type { ImportCardInput, ImportCharacterInput } from "./contract/params.ts";
-export type { ImportCharacterResult, ImportChatFileOutcome, ImportedCharacterRef } from "./contract/results.ts";
+export type { ImportCharacterResult, ImportChatFileOutcome, ImportedCharacterRef, ImportGroupsResult, ImportPresetsResult } from "./contract/results.ts";
 export type {
   CreateImportedCharacter,
   FindCharacterByImportHash,
@@ -17,18 +17,35 @@ export type {
 export type {
   CollectedCard,
   CollectedChat,
+  CollectedGroup,
   CollectedPersona,
+  CollectedPreset,
   CollectedWorld,
   CollectResult,
   ImportChatFileInput,
   ImportChatsInput,
   ImportFsPort,
+  ImportGroupsInput,
   ImportPersonaInput,
+  ImportPresetNote,
   ImportReport,
   ImportSkippedCard,
+  ImportSkippedGroup,
+  ImportSkippedGroupMember,
 } from "./contract/views.ts";
 export type { ImportWorkloadDeps } from "./contract/workloads.ts";
 export { collectBundlesFromDir } from "./loader/collect.ts";
 export { createImportService } from "./service.ts";
 export { importFileHash, parseCardJson, parseCardPng } from "./substrate/card.ts";
+export { buildGroupChatInput } from "./substrate/chat-input.ts";
+export { parseStGroupFile } from "./substrate/group.ts";
+export {
+  parseStPresetFile,
+  parseStSettingsPreset,
+  ST_ACTIVE_PRESET_NAME,
+  ST_PRESET_DIR,
+  ST_PRESET_SETTINGS_KEY,
+  stPresetFromJson,
+  stPresetName,
+} from "./substrate/preset.ts";
 export { createImportWorkloadContributions } from "./workload-contributions.ts";

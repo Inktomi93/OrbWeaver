@@ -8,11 +8,20 @@ import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/
 import type { BulkImportPersonaInput, BulkImportPersonasResult } from "@orb/contracts/persona";
 import type { BulkImportLorebookInput, BulkImportLorebookResult } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
+import type { ImportPreset } from "#domain/preset";
 import type { ImportCardScripts } from "#domain/regex";
 import type { ImportRpgGame } from "#domain/rpg";
 import type { ImportCharacterInput } from "./params.ts";
-import type { ImportCharacterResult, ImportChatFileOutcome, ImportChatsResult, ImportedCharacterRef, ImportPersonasResult } from "./results.ts";
-import type { ImportChatFileInput, ImportChatsInput, ImportPersonaInput } from "./views.ts";
+import type {
+  ImportCharacterResult,
+  ImportChatFileOutcome,
+  ImportChatsResult,
+  ImportedCharacterRef,
+  ImportGroupsResult,
+  ImportPersonasResult,
+  ImportPresetsResult,
+} from "./results.ts";
+import type { CollectedPreset, ImportChatFileInput, ImportChatsInput, ImportGroupsInput, ImportPersonaInput } from "./views.ts";
 
 export type CreateImportedCharacter = (args: {
   readonly ownerId: UserId;
@@ -94,6 +103,11 @@ export interface ImportProfileDeps {
   /** The chat-anchored rpg campaign's write half. Every message/variant ref is remapped by the bundle verb
    *  through the `ImportedChatIdentity` the chat write op returns, before this ever sees it. */
   readonly importRpgGame?: ImportRpgGame;
+  /** Preset-owned import write op — the ST preset wave hands it orb-native `orb.preset` BYTES, so the preset
+   *  domain keeps its one serde AND its one (ownerId, name) collision rule and import owns neither. OPTIONAL on
+   *  the `importLorebook` precedent: absent ⇒ the preset plane simply does not restore (the profile-import
+   *  composition always wires it; a card-only wiring has no use for it). */
+  readonly importPreset?: ImportPreset;
 }
 
 /** DI bundle every import verb closes over. `profile` is absent for the card-only slice. */
@@ -130,4 +144,11 @@ export interface ImportService {
   readonly importChatBundle: (input: ImportChatFileInput) => Promise<ImportChatFileOutcome>;
   /** Imports a profile's personas; must run before the chat importers (populates personaByUserName). */
   readonly importPersonas: (input: { readonly personas: readonly ImportPersonaInput[] }) => Promise<ImportPersonasResult>;
+  /** Imports a profile's ST presets (already mapped to the orb-native file by the collector) through the
+   *  preset domain's own idempotent import op. Per-preset isolation. Requires ctx.profile. */
+  readonly importPresets: (input: { readonly presets: readonly CollectedPreset[] }) => Promise<ImportPresetsResult>;
+  /** Imports a profile's ST GROUPS as multi-character rooms — one room per group transcript, seated from the
+   *  group's member cards resolved BY CARD FILENAME. Per-group and per-member isolation. Requires ctx.profile.
+   *  Runs AFTER the character wave (the filename → characterId map is its input). */
+  readonly importGroupChats: (input: ImportGroupsInput) => Promise<ImportGroupsResult>;
 }

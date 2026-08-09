@@ -2627,7 +2627,11 @@ const ST_CONTINUE_POSTFIX: Record<string, ContinuePostfix> = {
 const DROPPABLE_FIELDS: readonly StDroppedField[] = [
   { field: "group_nudge_prompt", reason: "group nudge is room-owned, not preset-owned" },
   { field: "new_chat_prompt", reason: "no new-chat injection slot" },
-  { field: "new_group_chat_prompt", reason: "no group chats" },
+  // Reason CORRECTED 2026-08-08: it read "no group chats", which was already stale post-rooms and became
+  // flatly false when the ST profile importer started building group rooms from `groups/`. The DROP stays —
+  // like its `new_chat_prompt` sibling, this is a history-START boundary string and orb has no injection slot
+  // for one. (The `group_nudge_prompt` row got this same repair earlier; this sibling was missed then.)
+  { field: "new_group_chat_prompt", reason: "no new-group-chat injection slot" },
   { field: "new_example_chat_prompt", reason: "no example-chat injection slot" },
   { field: "bias_preset_selected", reason: "no logit-bias presets" },
   { field: "assistant_prefill", reason: "response prefill unsupported across providers" },
