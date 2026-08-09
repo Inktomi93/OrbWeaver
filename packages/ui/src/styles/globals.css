@@ -309,16 +309,18 @@
   animation-delay: calc(var(--motion-breathe) / 3);
 }
 
-/* The streaming caret: Streamdown (mode="streaming", `caret: "block"`) paints its own `::after` at the
- * true text insertion point — the tail of the last rendered block — via a `--streamdown-caret` content
- * glyph (a muted, static ▋). Inside the ghost's `ghost-stream-body` wrapper we replace that glyph with
- * a 2px `--color-primary` bar and give it the blink. Scoping to `ghost-stream-body` (the wrapper around
- * the streamed Markdown only) leaves settled rows (mode="static", no caret) and the ghost's reasoning
- * block untouched; the caret still sits INSIDE `[data-slot="message-bubble"]`, so every §2b axis
- * (skin/elevation/glass/bg-image) reaches it for free. The selector walks wrapper → Streamdown root
- * div → the last block's `dir="auto"` contents-wrapper → the last leaf block (`<p>`/`<li>`/…), so the
- * inline-block bar sits AFTER the final glyph rather than dropping to a new line below the block (which
- * an `::after` on the contents-wrapper does). `content: ""` overrides Streamdown's own ▋ glyph. */
+/* The streaming caret is OURS ALONE (#42, docs/design/streaming-reveal-42.md — the seal deliberately
+ * does NOT pass Streamdown's `caret` prop): a 2px `--color-primary` blinking bar painted as an
+ * `::after` on the LAST LEAF BLOCK of the streamed Markdown. Scoping to `ghost-stream-body` (the
+ * wrapper around the streamed Markdown only) leaves settled rows (mode="static") and the ghost's
+ * reasoning block untouched; the caret still sits INSIDE `[data-slot="message-bubble"]`, so every §2b
+ * axis (skin/elevation/glass/bg-image) reaches it for free. THE DEPTH IS THE #42 FIX: the selector
+ * walks wrapper → Stack → the last Markdown's Streamdown root → the last block's `dir="auto"`
+ * contents-wrapper (`[dir]`, present because the seal passes dir="auto") → the LEAF block
+ * (`<p>`/`<ul>`/…). An `::after` one level shallower — the display:contents dir wrapper, which is
+ * where Streamdown's own caret attaches — flows AFTER the leaf's block box and renders the bar on a
+ * fresh line below the text (the owner-reported symptom). Pinned by the tagName assertion in
+ * tests/client/features/chat/components/ghost-message-row.ct.tsx. */
 @keyframes orb-stream-caret {
   0%,
   45% {
@@ -334,7 +336,7 @@
 [data-slot="ghost-stream-body"] {
   display: contents;
 }
-[data-slot="ghost-stream-body"][data-streaming] > * > *:last-child > *:last-child::after {
+[data-slot="ghost-stream-body"][data-streaming] > * > *:last-child > [dir]:last-child > *:last-child::after {
   content: "";
   display: inline-block;
   inline-size: 0;
@@ -344,6 +346,24 @@
   border-inline-start: 2px solid var(--color-primary);
   opacity: 1;
   animation: orb-stream-caret var(--motion-shimmer) ease-in-out infinite;
+}
+
+/* #42 — the streamed-word reveal fade (the render half of `ui/src/markdown/reveal-plugin.ts`; the
+ * design + measurements: docs/design/streaming-reveal-42.md). Each newly revealed word arrives as a
+ * `[data-orb-reveal]` span whose inline NEGATIVE `animation-delay` anchors fade progress to when the
+ * word was first revealed — so a React node replacement mid-fade (remend emphasis repair, a dialogue
+ * re-split) RESUMES at the right opacity instead of restarting or snapping. Opacity-only (compositor,
+ * guide §3.7), house tokens only (§3.5), `fill both` so a pre-delay/finished frame is never a flash.
+ * Reduced-motion: the OS query stops the seal injecting spans at all, and the app-level
+ * `[data-reduced-motion="true"]` + OS floors at the top of this file collapse any remaining animation
+ * to instant — words simply appear (REMOVE, §3.9). */
+@keyframes orb-word-reveal {
+  from {
+    opacity: 0;
+  }
+}
+[data-orb-reveal] {
+  animation: orb-word-reveal var(--motion-base) var(--ease-out-expo) both;
 }
 
 /* Jump-to-anchor flash ring (settings scroll-spy + any future anchor jump). An INSET box-shadow (not

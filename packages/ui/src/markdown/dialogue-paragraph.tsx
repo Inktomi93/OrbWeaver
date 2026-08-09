@@ -8,7 +8,7 @@
 // `className` on `code` only, so a span minted upstream of rehype-sanitize would arrive stripped. This
 // seam runs AFTER sanitize + harden, on already-safe React children — it can only re-wrap text that
 // already rendered, and can never introduce markup.
-import type { ComponentPropsWithoutRef, ReactElement, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, CSSProperties, ReactElement, ReactNode } from "react";
 // @orb-gate-ignore no-legacy-react-api: the markdown seal transforms ALREADY-RENDERED children
 // (this is a `components.p` override running after sanitize), so children ARE the library's interface here;
 // there is no data array to map instead. Ends if Streamdown ever hands the seam its source nodes.
@@ -17,19 +17,34 @@ import type { StreamdownProps } from "streamdown";
 import type { DialoguePart, DialoguePiece } from "./dialogue.ts";
 import { hasQuoteChar, splitDialogue } from "./dialogue.ts";
 
-/** An element child's participating text: only Streamdown's per-word streaming-reveal span, whose single
- *  string child IS the text (so a run still resolves mid-stream, not just after commit). Everything else
- *  is opaque — including inline `<code>`, which is why a quote inside code can't open a run. */
+/** An element child's participating text: only the seal's per-word streaming-reveal span
+ *  (`reveal-plugin.ts`, `data-orb-reveal`), whose single string child IS the text (so a run still
+ *  resolves mid-stream, not just after commit). Everything else is opaque — including inline
+ *  `<code>`, which is why a quote inside code can't open a run. */
 function atomicText(child: ReactNode): string {
   if (!isValidElement(child)) {
     return "";
   }
-  const props = child.props as { readonly children?: unknown; readonly "data-sd-animate"?: unknown };
-  return props["data-sd-animate"] === true && typeof props.children === "string" ? props.children : "";
+  const props = child.props as { readonly children?: unknown; readonly "data-orb-reveal"?: unknown };
+  return props["data-orb-reveal"] === true && typeof props.children === "string" ? props.children : "";
 }
 
 function partOf(child: ReactNode): DialoguePart {
   return typeof child === "string" ? { text: child, atomic: false } : { text: atomicText(child), atomic: true };
+}
+
+/** The reveal-fade props a re-split must CARRY (#42): a piece minted from a mid-fade word span keeps
+ *  `data-orb-reveal` + the span's negative `animation-delay`, so tinting a quote never restarts or
+ *  strips the word's fade (the reveal anchors progress to reveal TIME — reveal-plugin.ts header). */
+function revealPropsOf(child: ReactNode): { readonly "data-orb-reveal": true; readonly style?: CSSProperties } | null {
+  if (!isValidElement(child)) {
+    return null;
+  }
+  const props = child.props as { readonly "data-orb-reveal"?: unknown; readonly style?: CSSProperties };
+  if (props["data-orb-reveal"] !== true) {
+    return null;
+  }
+  return props.style === undefined ? { "data-orb-reveal": true } : { "data-orb-reveal": true, style: props.style };
 }
 
 function renderPieces(child: ReactNode, pieces: readonly DialoguePiece[], index: number): ReactNode {
@@ -46,19 +61,28 @@ function renderPieces(child: ReactNode, pieces: readonly DialoguePiece[], index:
   // Keyed by the piece's CHARACTER OFFSET within its child, not by array position: the pieces are a
   // re-split of one string, so the offset is the piece's real identity (and survives a re-split that
   // adds or drops a run earlier in the same paragraph).
+  const reveal = revealPropsOf(child);
   const out: ReactNode[] = [];
   let offset = 0;
   for (const piece of pieces) {
     const value = piece.text ?? "";
-    out.push(
-      piece.quoted ? (
-        <span key={`${index}:${offset}`} data-slot="dialogue" className="text-dialogue">
+    if (piece.quoted) {
+      out.push(
+        <span key={`${index}:${offset}`} data-slot="dialogue" className="text-dialogue" {...(reveal ?? {})}>
           {value}
-        </span>
-      ) : (
-        value
-      ),
-    );
+        </span>,
+      );
+    } else if (reveal !== null) {
+      // An unquoted piece cut out of a revealing word span keeps its fade — a bare string here would
+      // strip the animation and pop the word to full opacity mid-fade.
+      out.push(
+        <span key={`${index}:${offset}`} {...reveal}>
+          {value}
+        </span>,
+      );
+    } else {
+      out.push(value);
+    }
     offset += value.length;
   }
   return out;

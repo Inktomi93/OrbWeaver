@@ -393,15 +393,60 @@ test("colorQuotes ON: an emphasis run INSIDE the quotes keeps its narration tint
 });
 
 test("reduced motion: streaming content still renders fully (fade/caret suppressed, no lost text)", async ({ mount, page }) => {
-  // Under reduced-motion the seal forces animated=false/isAnimating=false; the content must land in
-  // full, visible, exactly as without motion (no reveal held back by a suppressed fade).
+  // Under reduced-motion the seal injects no reveal plugin at all (REMOVE, guide §3.9); the content
+  // must land in full, visible, exactly as without motion (no reveal held back by a suppressed fade).
   await page.emulateMedia({ reducedMotion: "reduce" });
   const body = "The whole message is present immediately under reduced motion.";
   const cmp = await mount(
-    <Markdown trust="trusted" mode="streaming">
+    <Markdown trust="untrusted" mode="streaming">
       {body}
     </Markdown>,
   );
   await expect(cmp.getByText(body)).toBeVisible();
+  await expect(cmp.locator("[data-orb-reveal]")).toHaveCount(0);
   await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
+});
+
+// ── #42 streamed-word reveal fade ──────────────────────────────────────────────────────────────────
+// The fence that would have caught the dead knob: it asserts the RESOLVED animation on a word span,
+// not the attribute. Pre-#42, word spans existed (`data-sd-animate`) but no stylesheet consumed them —
+// computed animation-name was "none" and every word hard-popped ("blam"). A green here requires the
+// plugin to mint the span AND the ui globals to animate it.
+const REVEAL_LINE = "The harbor lights flicker over the water";
+const REVEAL_FENCED = "before\n\n```js\nconst x = 1;\n```\n\nafter words";
+const REVEAL_SETTLED = "A settled message renders without reveal machinery.";
+
+test("streaming untrusted: newly revealed words carry a REAL fade (computed animation-name, not just an attr)", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="streaming">
+      {REVEAL_LINE}
+    </Markdown>,
+  );
+  const spans = cmp.locator("[data-orb-reveal]");
+  // Whitespace runs stay bare text; every word is one span.
+  await expect(spans).toHaveCount(7);
+  // Compositor-only (guide §3.7): the fade is opacity-only, resolved from the keyframe.
+  await expect.poll(() => spans.first().evaluate((el) => getComputedStyle(el).animationName)).toBe("orb-word-reveal");
+  await expect(cmp.getByText(ERROR_FALLBACK)).toHaveCount(0);
+});
+
+test("streaming: code fences are never word-wrapped (reveal spans skip code/pre)", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="streaming">
+      {REVEAL_FENCED}
+    </Markdown>,
+  );
+  await expect(cmp.locator("pre code")).toContainText("const x = 1;");
+  await expect(cmp.locator("pre [data-orb-reveal]")).toHaveCount(0);
+  // Prose around the fence still reveals word-by-word.
+  await expect(cmp.locator("[data-orb-reveal]").first()).toBeVisible();
+});
+
+test("static mode: no reveal spans ever (settled canon renders span-free)", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static">
+      {REVEAL_SETTLED}
+    </Markdown>,
+  );
+  await expect(cmp.locator("[data-orb-reveal]")).toHaveCount(0);
 });
