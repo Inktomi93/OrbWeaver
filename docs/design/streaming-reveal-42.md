@@ -146,8 +146,10 @@ Streamdown's glyph goes away.
 `MIN_TICK_MS` 30 → 85: commits at ~12/s reveal 1-3 words each, whose 220ms fades overlap and
 bridge the gaps — the Claude-app mechanism (chunk commits + per-chunk fade), while cutting the
 per-tick O(fullText) re-parse work ~2.5×. The fade rides `mode="streaming"` — NOT the
-`smoothStream` pref — so the default (raw-chunk) path gets the fade too; the pref keeps meaning
-"pace the reveal", exactly as before.
+`smoothStream` pref — so BOTH paths get the fade; the pref keeps meaning "pace the reveal", exactly as
+before. **Because that made the knob purely pacing, the owner flipped its default ON (2026-08-09):
+`UserSettings.chat.smoothStream` ships `true` — the old "smooth is jankier" objection was measured dead
+on this build (over-budget commits 205→55, LoAFs 18→11). Off is still raw network-chunk cadence, faded.**
 
 ### 3.4 Dialogue tint carries the reveal through (coupled seam)
 `dialogue-paragraph.tsx` reads `data-sd-animate` to treat word spans as splittable text and

@@ -200,9 +200,10 @@ export async function openNewestChat(page: Page): Promise<void> {
   await expect(page.getByRole("textbox", { name: "Message" })).toBeVisible({ timeout: 15_000 });
 }
 
-/** Open the active chat's ⋯ options menu (chat-header.tsx `ChatOptionsMenu`). Opened via KEYBOARD (focus +
- *  Enter) — the topbar ⋯ can be pointer-intercepted by an overlapping layer, and keyboard activation
- *  bypasses hit-testing (the same posture the per-row kebab needs). */
+/** Open the active chat's ⋯ options menu — since D111's relocation (owner ruling 2026-08-09) it is the
+ *  COMPOSER's left-gutter control (`composer-chat-options.tsx`), its one home; the topbar trail widget is
+ *  gone. Still opened via KEYBOARD (focus + Enter): keyboard activation bypasses hit-testing, which is the
+ *  posture that survived the move as well as it served the old topbar mount. */
 export async function openChatOptions(page: Page): Promise<void> {
   const options = page.getByRole("button", { name: "Chat options" });
   await expect(options).toBeVisible({ timeout: 15_000 });
@@ -212,7 +213,7 @@ export async function openChatOptions(page: Page): Promise<void> {
 
 /** Open the composer's ✨ UTILITY menu (composer-utility-menu.tsx — the wand-v2 home of Recover input /
  *  Corrections / Regenerate / Simple send / Undo · Revert / images / plot steers, D111 §3). Its trigger is
- *  a plain composer-bar button, so a pointer click lands it (no topbar overlay to dodge). */
+ *  a plain composer-bar button, so a pointer click lands it (nothing overlays the composer row). */
 export async function openUtilityMenu(page: Page): Promise<void> {
   const trigger = page.getByRole("button", { name: "Message tools" });
   await expect(trigger).toBeVisible({ timeout: 15_000 });

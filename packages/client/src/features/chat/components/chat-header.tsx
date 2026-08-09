@@ -1,7 +1,9 @@
 // The active chat's identity — reused across TWO shell surfaces from one cluster:
 //  · the topbar LEAD (`ChatHeaderSurface` / `DraftChatHeader`): lead avatar/AvatarStack, title, and the
-//    member-count chip (entry-only — always opens the Context panel on Members). The chat-options ⋯ moved
-//    to the END of the topbar TRAIL cluster (chatOptionsChrome → chat-options-topbar.tsx, north-star §4 N1).
+//    member-count chip (entry-only — always opens the Context panel on Members). The chat-options ⋯ is NOT
+//    here and no longer in the trail either: D111's drawn control map homes it in the COMPOSER's left
+//    gutter (`composer-chat-options.tsx`, owner ruling 2026-08-09), and the trail widget was removed with
+//    the move — one menu, one home. (It briefly lived at the end of the trail per north-star §4 N1.)
 // (The CONTEXT-panel band twin `ChatContextHeader` was DELETED with CP-1's header de-dup — the topbar
 // owns identity, the band is neutral chrome; Context-Panel-Program.md §1 Q3. CP-4's scene banner will be
 // a NEW component.)
@@ -275,7 +277,8 @@ const DRAFT_VIEWER_SEATS = 1;
  * panel is hiding. A SOLO draft therefore still lacks the chip its committed twin shows; that residue is
  * reported, not papered over with a second roster surface.
  *
- * No options menu: that lives in the topbar TRAIL (`chat-options-topbar.tsx`), which serves both phases.
+ * No options menu: that lives in the composer's left gutter (`composer-chat-options.tsx`), which serves
+ * both phases — a draft renders the same menu with the not-yet-available actions disabled.
  */
 export function DraftChatHeader({ characterIds }: DraftChatHeaderProps): ReactElement {
   // LIST-FIRST (side-eye 2026-08-07 §④ P2). This read N cold `character.get` queries, while the picker the

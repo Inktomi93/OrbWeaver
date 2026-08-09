@@ -5,7 +5,7 @@
 export type { AuthMe } from "./auth-bootstrap.ts";
 export { AUTH_ME_KEY, fetchAuthMe, login, logout } from "./auth-bootstrap.ts";
 export type { AuthConfig } from "./auth-config.ts";
-export { AUTH_CONFIG_KEY, fetchAuthConfig, useAuthConfig, useExternalMediaBlocked, useUploadCaps } from "./auth-config.ts";
+export { AUTH_CONFIG_KEY, fetchAuthConfig, useAuthConfig, useExternalMediaBlocked, useRenderPolicyFloor, useUploadCaps } from "./auth-config.ts";
 export type { BusRoomHandlers, ChatBusDeps, RoomSubscriber, RoomTransport, RpgBusDeps, UserBusDeps } from "./bus/index.ts";
 export {
   applyChatBusEvent,

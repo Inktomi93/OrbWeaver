@@ -65,6 +65,9 @@ function depsFor(mode: AuthMode, discreet = false, capable = false, forbidExtern
     maxImageBytes: () => MAX_IMAGE_BYTES,
     maxDatabankBytes: () => MAX_DATABANK_BYTES,
     forbidExternalMedia: () => forbidExternalMedia,
+    // The strict floor is the default here (a fifth positional would breach the max-params ceiling); the
+    // one test that needs a TRUSTING deployment spells its own deps literal, like the per-request tests do.
+    trustHtml: () => false,
   };
 }
 
@@ -87,8 +90,32 @@ describe("GET /api/auth/config", () => {
       defaultHandle: "owner",
       multiHumanCapable: false,
       forbidExternalMedia: true,
+      trustHtml: false,
       uploads: resolveUploadCaps({ maxImageBytes: MAX_IMAGE_BYTES, maxDatabankBytes: MAX_DATABANK_BYTES }),
     });
+  });
+
+  // DRAFT-TRUST arm 1: the OTHER render-policy floor axis. Served so a client surface that previews card
+  // content (the character editor, which has no server-resolved renderPolicy to read) can run the same
+  // `resolveRenderPolicy` combine the compose-time roster does, instead of reading the card's raw override.
+  // Per-request like every flag here, and NOT a ceiling: a card override wins over it in either direction.
+  test("serves the deployment trustHtml floor, read PER REQUEST", () => {
+    expect(run(handlers(depsFor("local")).config).body["trustHtml"]).toBe(false);
+
+    let trusts = false;
+    const { config } = handlers({
+      mode: "local",
+      defaultHandle: "owner",
+      discreetLogin: () => false,
+      multiHumanCapable: () => false,
+      maxImageBytes: () => MAX_IMAGE_BYTES,
+      maxDatabankBytes: () => MAX_DATABANK_BYTES,
+      forbidExternalMedia: () => true,
+      trustHtml: () => trusts,
+    });
+    expect(run(config).body["trustHtml"]).toBe(false);
+    trusts = true;
+    expect(run(config).body["trustHtml"]).toBe(true);
   });
 
   // The deployment external-media CEILING, served so the per-character "External media" control can render
@@ -106,6 +133,7 @@ describe("GET /api/auth/config", () => {
       maxImageBytes: () => MAX_IMAGE_BYTES,
       maxDatabankBytes: () => MAX_DATABANK_BYTES,
       forbidExternalMedia: () => forbid,
+      trustHtml: () => false,
     });
     expect(run(config).body["forbidExternalMedia"]).toBe(true);
     forbid = false;
@@ -147,6 +175,7 @@ describe("GET /api/auth/config", () => {
       maxImageBytes: () => MAX_IMAGE_BYTES,
       maxDatabankBytes: () => MAX_DATABANK_BYTES,
       forbidExternalMedia: () => true,
+      trustHtml: () => false,
     });
     expect(run(config).body["multiHumanCapable"]).toBe(false);
     capable = true;
@@ -163,6 +192,7 @@ describe("GET /api/auth/config", () => {
       maxImageBytes: () => MAX_IMAGE_BYTES,
       maxDatabankBytes: () => MAX_DATABANK_BYTES,
       forbidExternalMedia: () => true,
+      trustHtml: () => false,
     });
     expect(run(config).body["defaultHandle"]).toBe("owner");
     discreet = true;

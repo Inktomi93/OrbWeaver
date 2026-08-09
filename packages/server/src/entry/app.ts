@@ -274,6 +274,10 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     maxDatabankBytes: () => deps.services.settings.getEffectiveConfig().maxDatabankBytes,
     // The SAME live read the CSP is built from (see securityHeaders above) — one deployment ceiling, two consumers.
     forbidExternalMedia: () => deps.services.settings.getEffectiveConfig().forbidExternalMedia,
+    // The other floor axis, from the SAME effective config the compose-time roster resolver reads
+    // (`entry/compose/chat.ts` resolveSeatDeco) — so a client-side preview and the server's own render
+    // policy are derived from one value, never two guesses.
+    trustHtml: () => deps.services.settings.getEffectiveConfig().trustHtml,
   });
   registerJoin(plain, { multiHumanCapable });
 

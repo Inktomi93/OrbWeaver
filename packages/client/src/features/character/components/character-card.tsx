@@ -44,8 +44,10 @@ export interface CharacterCardItem {
   readonly themeOverride: ThemeOverride | null;
   /** Advisory card-heft estimate — the hover/:focus-within raw-metadata reveal (handle · tokenSize). */
   readonly tokenSize: number;
-  /** The accepted canonical tags (pending suggestions already excluded upstream). */
-  readonly tags: readonly Pick<TagView, "id" | "name" | "isHiddenOnCard">[];
+  /** The accepted canonical tags (pending suggestions already excluded upstream). `folderType` rides along
+   *  because the SAME rows feed the categorized view's grouping, where it decides a group's first paint
+   *  (C9-1d, `character-list-view.ts`'s `RowTag`) — the row itself never reads it. */
+  readonly tags: readonly Pick<TagView, "id" | "name" | "isHiddenOnCard" | "folderType">[];
 }
 
 export interface CharacterCardTileProps {

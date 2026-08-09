@@ -27,6 +27,7 @@ import { CharacterFacetEditor } from "../components/character-facet-editor.tsx";
 import { CharacterFacetList } from "../components/character-facet-list.tsx";
 import { CharacterHeroBand } from "../components/character-hero-band.tsx";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
+import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import type { CharacterCardFacet } from "../lib/character-card-facets.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import {
@@ -140,6 +141,11 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   // The greeting the hero is previewing — lifted here so the save-bar total agrees.
   const [activeGreetingIndex, setActiveGreetingIndex] = useState(0);
 
+  // DRAFT-TRUST arm 1: what the facet preview renders as is the RESOLVED render policy (deployment floor ×
+  // this card's override) — the same combine the server runs for committed content, not the card's raw
+  // `trustHtml` column, which is only one input to it (see hooks/use-preview-render-policy.ts).
+  const previewPolicy = usePreviewRenderPolicy(data);
+
   // The bus-driven chat list — the hero's chat count derives from it in render, never an effect.
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({}));
   const chats = chatsQuery.data ?? [];
@@ -216,7 +222,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
               form={form}
               characterId={data.id}
               facetId={selectedFacetId as CharacterCardFacet["id"]}
-              trusted={data.trustHtml === true}
+              trusted={previewPolicy.trustHtml}
               readOnly={{
                 importedFrom: data.importedFrom,
                 importHash: data.importHash,

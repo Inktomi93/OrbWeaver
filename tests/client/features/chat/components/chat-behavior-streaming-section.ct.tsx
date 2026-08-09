@@ -27,12 +27,14 @@ function lastPatch(trpc: TrpcRecorder): Record<string, unknown> | undefined {
   return input?.section === "chat" ? input.patch : undefined;
 }
 
-test("mounts with the persisted defaults rendered (Follow, smooth streaming off)", async ({ mount, page }) => {
+test("mounts with the persisted defaults rendered (Follow, smooth streaming ON)", async ({ mount, page }) => {
   await stub(page);
   await mount(<ChatStreamingSectionStory />);
   await expect(page.getByRole("heading", { name: "Streaming" })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "While a reply streams" })).toContainText("Follow the reply");
-  await expect(page.getByRole("switch", { name: "Smooth streaming" })).not.toBeChecked();
+  // Owner ruling 2026-08-09: `smoothStream` ships ON (the #42 fade rides streaming itself, so the knob is
+  // pure pacing). The seeded blob IS `DEFAULT_USER_SETTINGS`, so this pins the rendered default, not a stub.
+  await expect(page.getByRole("switch", { name: "Smooth streaming" })).toBeChecked();
 });
 
 test("picking Pin patches streamScrollMode with ONLY this section's three keys (PD-147)", async ({ mount, page }) => {
@@ -48,13 +50,18 @@ test("picking Pin patches streamScrollMode with ONLY this section's three keys (
   expect("enterSends" in (lastPatch(trpc) ?? {})).toBe(false);
 });
 
-test("the reveal-speed slider is gated behind the smooth-streaming toggle, then patches smoothStream", async ({ mount, page }) => {
+test("the reveal-speed slider is gated on the smooth-streaming toggle, in BOTH directions, and patches smoothStream", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<ChatStreamingSectionStory />);
+  // The default is now ON, so the gate's OPEN arm is what mounts — drive it OFF first (the direction the
+  // old test could not reach), then back ON. Both edges patch, and the slider follows the switch each way.
+  await expect(page.getByRole("slider", { name: "Reveal speed (chars/sec)" })).toBeVisible();
+  await page.getByRole("switch", { name: "Smooth streaming" }).click();
   await expect(page.getByRole("slider", { name: "Reveal speed (chars/sec)" })).toHaveCount(0);
+  await expect.poll(() => lastPatch(trpc)?.["smoothStream"], { intervals: [20, 50, 100] }).toBe(false);
+
   await page.getByRole("switch", { name: "Smooth streaming" }).click();
   await expect(page.getByRole("slider", { name: "Reveal speed (chars/sec)" })).toBeVisible();
-
   await expect.poll(() => lastPatch(trpc)?.["smoothStream"], { intervals: [20, 50, 100] }).toBe(true);
   expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
 });

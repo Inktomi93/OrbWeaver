@@ -4,11 +4,13 @@
 // (e.g. chat's context port) reads it without a cross-feature reach into auth (client-features-no-cross);
 // features/auth re-exports this for its own login/account surfaces.
 
+import type { RenderPolicy } from "@orb/contracts/chat";
 import type { AuthMode } from "@orb/contracts/identity";
 import type { UploadCaps } from "@orb/contracts/uploads";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { queryOptions, useQuery } from "@tanstack/react-query";
+import { SAFE_FLOOR } from "#lib";
 
 /** The `/api/auth/config` wire shape (mirrors `entry/http/auth-meta.ts` — mode-derived flags). */
 export interface AuthConfig {
@@ -31,6 +33,10 @@ export interface AuthConfig {
    *  resolver is tighten-only). Surfaces that offer the per-character opt-in read this so they can disable
    *  it honestly instead of shipping a dead switch. */
   readonly forbidExternalMedia: boolean;
+  /** The deployment HTML-trust DEFAULT — the other axis of the render-policy floor. NOT a ceiling: a card's
+   *  own `trustHtml` override wins in either direction (`resolveRenderPolicy`, D44 §12.0). A surface that
+   *  previews card content combines this with the card's override instead of reading the override alone. */
+  readonly trustHtml: boolean;
   /** The served deployment upload byte caps — the ONE source the client's dropzone hints + pre-checks
    *  derive from (resolved server-side, incl. the admin-tunable `maxImageBytes` clamp on the image cap).
    *  The `useUploadCaps` hook falls back to `DEFAULT_UPLOAD_CAPS` until this config has landed. */
@@ -82,4 +88,20 @@ export function useUploadCaps(): UploadCaps {
  *  it would be its own lie. The config is fetched once at app root, so in practice it is present. */
 export function useExternalMediaBlocked(): boolean {
   return useAuthConfig().data?.forbidExternalMedia === true;
+}
+
+/** The deployment RENDER-POLICY FLOOR — the pair `resolveRenderPolicy` (`@orb/contracts/chat`) combines a
+ *  per-character override over. The ONE client home for it: a surface that renders card content it has no
+ *  server-resolved `renderPolicy` for (the character editor's own previews, which read the `characters` row
+ *  directly) resolves policy the same way compose does, instead of reading the raw override column.
+ *
+ *  Falls back to the STRICT floor (`{ trustHtml: false, forbidExternalMedia: true }`) until the config lands
+ *  and if it never does — the same fail-closed posture `lib/render-trust.ts`'s `SAFE_FLOOR` takes. Guessing
+ *  a permissive floor to make a preview look richer is exactly the lie this hook exists to stop. */
+export function useRenderPolicyFloor(): RenderPolicy {
+  const config = useAuthConfig().data;
+  if (config === undefined) {
+    return SAFE_FLOOR;
+  }
+  return { trustHtml: config.trustHtml, forbidExternalMedia: config.forbidExternalMedia };
 }

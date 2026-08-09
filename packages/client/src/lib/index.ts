@@ -99,7 +99,7 @@ export type {
 export { CHAT_CONTEXT_TAB_IDS, defineContextRegion, defineContextTabs, resolveContextTabs, VOID_STATE } from "./registry-contracts.ts";
 export { RenderProfiler } from "./render-profiler.tsx";
 export type { ResolveRowRenderPolicyInput, RowRenderPolicy } from "./render-trust.ts";
-export { resolveRowRenderPolicy } from "./render-trust.ts";
+export { resolveRowRenderPolicy, SAFE_FLOOR } from "./render-trust.ts";
 export { rowQualifiers } from "./row-qualifiers.ts";
 export type { ActiveTagFilterState, TagFilterEntry, TagFilterState } from "./tag-filter-state.ts";
 export { cycleTagFilterEntries, NEXT_TAG_FILTER_STATE, TAG_FILTER_STATES, tagFilterStateOf } from "./tag-filter-state.ts";

@@ -38,7 +38,10 @@ export interface ReasoningBlockProps {
    *  because a canon-rehydrated row never measured the think window and must not invent one. */
   readonly label?: string | undefined;
   readonly showIcon?: boolean | undefined;
-  /** PD-146 — the `UserSettings.chat.smoothStream` pref: pace the reasoning reveal (default off ⇒ raw). */
+  /** PD-146 — the `UserSettings.chat.smoothStream` pref: pace the reasoning reveal. The PREF ships ON
+   *  (owner ruling 2026-08-09); the prop's own fallback stays OFF because an ABSENT prop means "this mount
+   *  never resolved the pref" (a story/anchor), not "the user wants pacing" — the surface always passes the
+   *  resolved value, so the contract keeps the ONE home of the default. */
   readonly smoothStream?: boolean | undefined;
   /** PD-146 — the `UserSettings.chat.smoothStreamCps` pref: the trickle floor when `smoothStream` is on. */
   readonly smoothStreamCps?: number | undefined;

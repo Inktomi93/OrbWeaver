@@ -288,15 +288,24 @@ test("USER_SETTINGS_SECTIONS includes prose — the PROSE-1 S2 editor's door, la
 
 // ── chat (PD-146) — the client-honored send/continue/stream behavior namespace ──
 
-test("UserSettings.chat reads the PD-146 defaults from an empty blob (Enter sends, smooth-stream off)", () => {
+test("UserSettings.chat reads the PD-146 defaults from an empty blob (Enter sends, smooth-stream ON)", () => {
   const parsed = parseUserSettings({});
   expect(parsed.chat.enterSends).toBe(true);
   expect(parsed.chat.continueOnSend).toBe(true);
   expect(parsed.chat.autoContinue).toBe(false);
-  expect(parsed.chat.smoothStream).toBe(false);
+  // Owner ruling 2026-08-09 (#42 forge): the fade rides `mode="streaming"` in BOTH modes, so this knob is
+  // pure pacing and ships ON. The flip is the whole point of the row — pin the VALUE, not the schema shape.
+  expect(parsed.chat.smoothStream).toBe(true);
   expect(parsed.chat.smoothStreamCps).toBe(80);
   expect(DEFAULT_USER_SETTINGS.chat.enterSends).toBe(true);
-  expect(DEFAULT_USER_SETTINGS.chat.smoothStream).toBe(false);
+  expect(DEFAULT_USER_SETTINGS.chat.smoothStream).toBe(true);
+});
+
+test("UserSettings.chat.smoothStream keeps an explicit OFF (the .catch(true) heal never overrides a real false)", () => {
+  // The knob is still a knob: a user who turned pacing off must not be re-defaulted ON by the flip. `false`
+  // is a valid boolean, so `.catch` never fires; only a NON-boolean heals to the new default.
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { smoothStream: false } }).chat.smoothStream).toBe(false);
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { smoothStream: "yes" } }).chat.smoothStream).toBe(true);
 });
 
 test("UserSettings.chat.smoothStreamCps self-heals an out-of-bounds value to the default (.catch)", () => {

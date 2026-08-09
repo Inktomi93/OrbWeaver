@@ -629,8 +629,11 @@ const chatSchema = z
       .max(TEMP_CHAT_TTL_HOURS_MAX)
       .catch(TEMP_CHAT_TTL_HOURS_DEFAULT)
       .default(TEMP_CHAT_TTL_HOURS_DEFAULT),
-    // Client-honored (the streaming ghost's `useSmoothText` pacer). Default OFF: raw chunk cadence.
-    smoothStream: z.boolean().catch(false).default(false),
+    // Client-honored (the streaming ghost's `useSmoothText` pacer). Default ON (owner ruling 2026-08-09):
+    // the #42 forge moved the per-word fade onto `mode="streaming"` itself, so this knob is now PURELY
+    // pacing — and the old "smooth is jankier" objection was measured dead on that build (over-budget
+    // commits 205→55, LoAFs 18→11). Off ⇒ raw network-chunk cadence, still faded.
+    smoothStream: z.boolean().catch(true).default(true),
     smoothStreamCps: z.number().int().min(SMOOTH_STREAM_CPS_MIN).max(SMOOTH_STREAM_CPS_MAX).catch(SMOOTH_STREAM_CPS_DEFAULT).default(SMOOTH_STREAM_CPS_DEFAULT),
     // Client-honored (the MessageList `scrollMode`). Default `follow`: today's sealed sticky-tail behavior.
     streamScrollMode: z.enum(STREAM_SCROLL_MODES).catch("follow").default("follow"),

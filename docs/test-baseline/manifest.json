@@ -92,9 +92,9 @@
     "tests/client/features/chat/components/chat-header.ct.tsx",
     "tests/client/features/chat/components/chat-import-dialog.ct.tsx",
     "tests/client/features/chat/components/chat-options-menu.ct.tsx",
-    "tests/client/features/chat/components/chat-options-topbar.ct.tsx",
     "tests/client/features/chat/components/choice-send-provider.ct.tsx",
     "tests/client/features/chat/components/compact-summary-peek.ct.tsx",
+    "tests/client/features/chat/components/composer-chat-options.ct.tsx",
     "tests/client/features/chat/components/composer-guided-cluster.ct.tsx",
     "tests/client/features/chat/components/composer.ct.tsx",
     "tests/client/features/chat/components/databank-settings-section.ct.tsx",
@@ -1571,6 +1571,9 @@
     },
     "tests/server/domain/chat/persistence/roster-avatars.int.test.ts": {
       "why": "merged into tests/server/domain/chat/persistence/cast.int.test.ts (D137 kind-polymorphic cast producer replaced the per-kind loaders; assertions ported intact) — un-delete only if the per-kind loaders return"
+    },
+    "tests/client/features/chat/components/chat-options-topbar.ct.tsx": {
+      "why": "renamed, not deleted: D111's ☰ relocation (owner ruling 2026-08-09) moved the ⋯ chat-options menu from the topbar trail to the composer's left gutter, so the source is composer-chat-options.tsx and the CT is tests/client/features/chat/components/composer-chat-options.ct.tsx — every assertion (the IA de-dup panel-homed guard, the host + member arms) moved verbatim. The PLACEMENT the old name claimed is asserted in composer.ct.tsx now."
     }
   }
 }

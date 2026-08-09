@@ -90,7 +90,9 @@ export function CharacterCardTileStory({
           elevatorPitch,
           themeOverride: null,
           tokenSize: 128,
-          tags: tags.map((tag) => ({ ...tag, id: castId<TagId>(tag.id) })),
+          // `folderType` defaults to the plain-tag value here: the ROW never reads it (it decides a
+          // categorized GROUP's first paint, C9-1d), so a story tag carries the neutral one.
+          tags: tags.map((tag) => ({ folderType: "NONE" as const, ...tag, id: castId<TagId>(tag.id) })),
         }}
         onChat={setChattedId}
         onDelete={(id): void => setDeletedId(id)}

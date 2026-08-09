@@ -24,8 +24,12 @@ export type TagSource = z.infer<typeof tagSourceSchema>;
 /** ST's tags-as-folders state. `NONE` = plain tag · `OPEN` = folder, members stay in the main list ·
  *  `CLOSED` = folder, members hidden until entered. */
 export const TAG_FOLDER_TYPES = ["NONE", "OPEN", "CLOSED"] as const;
-export const tagFolderTypeSchema = z.enum(TAG_FOLDER_TYPES);
-export type TagFolderType = z.infer<typeof tagFolderTypeSchema>;
+// DECLARED off the tuple, not `z.infer` of the schema — identical type, but biome's type service cannot see
+// through a zod inference, so an exhaustive `switch` over an inferred member is reported as UNREACHABLE
+// while tsc is happy (`character-list-view.ts`'s `groupStartsOpen` is the live dispatch). `satisfies` pins
+// the schema to the declared union so the two can never drift apart.
+export type TagFolderType = (typeof TAG_FOLDER_TYPES)[number];
+export const tagFolderTypeSchema = z.enum(TAG_FOLDER_TYPES) satisfies z.ZodType<TagFolderType>;
 
 /** The proposed/accepted surface for a `character_tags` junction row. `pending` = a suggestion awaiting
  *  "Accept"; `accepted` = the live tag; export reads `accepted` rows. Only `character_tags` carries a

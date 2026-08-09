@@ -30,7 +30,7 @@ test("reveals the growing reasoning trace as markdown while thinking", async ({ 
   await expect(component.getByText("best", { exact: false })).toBeVisible();
 });
 
-test("smoothStream off (the default): the full reasoning trace is revealed instantly, unpaced, while thinking", async ({ mount }) => {
+test("smoothStream off: the full reasoning trace is revealed instantly, unpaced, while thinking", async ({ mount }) => {
   // PD-146 — with `chat.smoothStream` off the reasoning block must NOT pace the reveal (useSmoothText is a
   // strict passthrough when disabled); the whole trace is present on the first render even mid-thinking.
   const full = "The complete reasoning trace shown all at once with no pacing whatsoever";
