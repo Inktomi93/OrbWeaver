@@ -1,6 +1,8 @@
-# Login + loading screen — the web-weave design + brand pack (MOCK PHASE)
+# Login + loading screen — the web-weave design + brand pack (BUILT — see §9)
 
-Status: **MOCK PHASE — nothing built.** The animated mock is `reports/mocks/login-loading-mock.html`;
+Status: **BUILT (2026-08-09, brand direction A owner-ruled).** §9 is the as-built record — the homing
+deviations (with their gate/ledger receipts), the owner tweaks applied, the coupled-site inventory as
+landed, and the test plan. §§0–8 are the design as approved; where §9 deviates, §9 wins. The animated mock is `reports/mocks/login-loading-mock.html`;
 the brand pack (scope-add, owner 2026-08-09) is `reports/mocks/brand-orbweaver.html` +
 `reports/mocks/brand/orb-mark-{a,b,c}.svg` / `orb-favicon-{a,b,c}.svg` (all self-contained, open
 directly; `/reports/` is gitignored ephemera — on a GO taste ruling, freeze the winners into
@@ -290,3 +292,171 @@ SVG asset). Lockups: horizontal (mark 40px + name) and stacked (mark 56px above 
 component in `@orb/ui` (the same geometry module `WebSpinner` uses) renders the mark in-app (wordmark
 row on login, About); raster favicon set + `manifest` icons; sweep: the `favicon.svg` header comment,
 `index.html` icon link (unchanged path), any test asserting the old favicon bytes.
+
+## 9. AS-BUILT (2026-08-09) — deviations, receipts, coupled sites, tests
+
+Build lane record. Brand = **direction A (Open Orb)**, owner-ruled. Everything below was re-derived
+against the live tree before building; three §-premises above died on contact.
+
+### 9.1 Premise kills (recon receipts)
+
+1. **"there is no spinner primitive today" (§4.2) — FALSE.** `packages/ui/src/primitives/spinner/`
+   ships a generic Loader2 `Spinner` (6 live consumers: color-field, status-chip, file-dropzone,
+   greeting-studio, add-credential-dialog, composer-send-control + `tests/ui/primitives/spinner/spinner.ct.tsx`).
+   It stays as the generic inline busy-state; the BRAND loader is a separate component (9.2).
+2. **A brand-glyph component already exists:** `packages/client/src/lib/weave-glyph.tsx` — re-homed
+   there by **D62 (§13.9: "brand, not a domain-agnostic primitive" — NOT @orb/ui)**, consumed by the
+   rail brand button, `routes/route-pending.tsx` (the router's boot-pending mark), and empty-state
+   heroes. The §8 install plan's "sigil component in @orb/ui" contradicts D62; the ledger wins.
+3. **Inline `<svg>` is gate-RED anywhere in `packages/ui/src` outside `charts/**`**
+   (`scripts/check/gates/ui-primitive-structure.ts` clause 7; §13.7: "the lucide seal … `<svg>` legal
+   ONLY in the data-viz allowlist"). An SVG WebSpinner cannot live at `primitives/spinner/` (or
+   `art/`) without a gate edit, and gate infra is out of this lane's fence.
+
+### 9.2 Homes as landed (the fork resolutions)
+
+| Piece | Home | Why (vs the §4 plan) |
+| - | - | - |
+| `WebWeave` (canvas) + `WeaveVeil` | `packages/ui/src/art/web-weave/` (+ export `"./web-weave"`) | per §4 (owner OK'd); canvas ≠ svg, so clause 7 does not bite; waystone pattern (pure geometry module + thin component) |
+| `web-weave-geometry.ts` / `web-weave-render.ts` | same dir | pure, vitest-unit-tested; render split keeps `web-weave.tsx` under the ACTIVE `component-size-ui` 450-line cap |
+| `WebSpinner` (the ONE loader — owner ruling 2026-08-09, §9.10) | `packages/ui/src/primitives/spinner/web-spinner.tsx` (exported `@orb/ui/spinner`) | 3 of Loader2-`Spinner`'s 6 consumers are ui-INTERNAL (color-field/status-chip/file-dropzone), so the one-loader must be ui-reachable — a client home can never serve them. Clause 7 (9.1.3) is honored WITHOUT a gate edit: the glyph is minted through the icon seal (`primitives/icons/orb-web.ts`, `createLucideIcon` — lucide's public custom-icon API, zero inline `<svg>` in ui) |
+| the glyph as an icon | `primitives/icons/orb-web.ts` — `OrbWeb` (display cut) + `OrbWebCompact` (16px cut) + the glyph metric exports | the sanctioned "lucide seal" channel §13.7 itself names; geometry emitted from the ONE `webGlyph()` module in 24-space (createLucideIcon hardcodes viewBox 24) |
+| the mark component | `weave-glyph.tsx` **re-skinned to direction A** (same size/anim/decorative contract) | one emblem: the rail button, route-pending, empty-states and the login wordmark all rebrand in one edit; its CT contract (labelled svg, size, shimmer class) is geometry-agnostic and stays green |
+| generic `Spinner` (Loader2) | untouched HERE; **LEGACY-SCHEDULED** (owner: no-legacy, one loader system) | the 6-site swap + Loader2 deletion is the immediate FOLLOW-UP lane (§9.10 is its mapping); this lane marked the export legacy-scheduled in `spinner/index.ts` |
+| boot veil mount | `features/app-shell/components/boot-veil.tsx`, rendered from `main.tsx` above the router | §13.9 lists app-splash as app-shell chrome; the veil must OWN its exit, which a router `defaultPendingComponent` cannot (unmount is instant) |
+
+### 9.3 The load-gate (owner tweak 3)
+
+The exit is gated on **`data-app-ready` on `<html>`** — the app's one readiness seam
+(`client/src/lib/agent-bridge.ts` `installAppReadySignal`: query-cache idle after initial reads,
+3s no-reads grace, 20s degraded ceiling; PRESENCE means stop waiting). `BootVeil` subscribes via
+MutationObserver + `useSyncExternalStore`; the veil dissolves the instant the attribute appears —
+mid-weave included (the graceful early cut IS the dissolve; the timeline never blocks the exit).
+Both destinations stamp it (AppRoot's initial reads; /login's `useAuthConfig` query), so login boots
+gate correctly too.
+
+### 9.4 Owner tweaks applied
+
+1. **Clean fade-out:** ONE veil layer (canvas + foot content inside a single fixed element) with one
+   named-property transition (`opacity` + `filter: blur(var(--blur-strength))`,
+   `--motion-layout`/`--ease-out-expo`); the mock's two-layer dissolve + 380ms pre-exit flash delay
+   choreography is dropped. transitionend → unmount (+ a safety timer for hidden tabs).
+   Reduced-motion = instant unmount (§3.9 REMOVE).
+2. **Calmed weave:** the mock timeline (settle @ 7.6s) is scaled ×1.6 (settle ≈ 12.2s) as DATA in the
+   geometry module; leg-gait wobble slowed to match. The weave holds in settle, never loops.
+3. **Load-gated, never imposed:** veil content fades IN at `--motion-layout` (360ms, in the owner's
+   300–400ms band); calmed weave fills the actual wait; exit per 9.3 — no minimum-beat hold.
+
+### 9.5 Login surface deviations (vs §3's table)
+
+- **`config pending` renders the settled web, not `weaving`:** during pending the BOOT VEIL still
+  covers the page (config resolves before/with app-ready), and a 12s build restarting behind the
+  skeleton would replay a beat the user already watched (guide §3.8 — motion the user didn't cause).
+- **Veil→login continuity is a crossfade, not one canvas:** the veil (weaving web) dissolves over the
+  login anchor's own settled dim web. Sharing one canvas instance across the router boundary was
+  rejected — cross-route imperative state for a ~400ms overlap.
+- **First-run "capture spiral completes on setup" is dropped:** `onDone` navigates home immediately,
+  so the beat is dead-on-arrival; the half-woven (`partial`) web itself ships.
+- The A9 strand-out beat, A7 calm error, forward-header dimmest, and the OIDC hero button ship as
+  designed. `LoginRedirecting` carries `WebSpinner`.
+
+### 9.6 Brand install (final served locations)
+
+- `packages/client/public/favicon.svg` ← `orb-favicon-a.svg` (the 16px cut: 6 spokes / 1.7 turns,
+  ember hardcoded — a tab icon can't inherit page color; replaces the octagonal "ship's helm" mark).
+- `packages/client/public/icons/`: `favicon-16.png` · `favicon-32.png` (from the favicon cut) ·
+  `apple-touch-icon.png` (180, display mark on the Hearth background — apple flattens transparency) ·
+  `icon-192.png` · `icon-512.png` (display mark, transparent) · `icon-512-maskable.png` (safe-zone
+  padded, opaque bg) — generated from the SVGs via sharp (librsvg), script under `scripts/` not kept
+  (one-shot; the PNGs are committed artifacts).
+- `packages/client/public/manifest.webmanifest` (NEW — no manifest existed): name/short_name
+  `orbweaver`, `display: standalone`, theme/background colors = Hearth ember/background hex, the
+  192/512/maskable icons.
+- `packages/client/index.html`: keeps the svg icon link; adds png 16/32 fallbacks, apple-touch-icon,
+  manifest link, and `theme-color` metas (light+dark).
+- Frozen sources: `docs/design/mocks/login-loading/` (the animated mock + `orb-mark-a.svg` +
+  `orb-favicon-a.svg`) — `reports/` is gitignored ephemera.
+
+### 9.7 Coupled sites as landed
+
+1. `packages/ui/package.json` export map (`"./web-weave"`) + `art/web-weave/` (geometry · glyph ·
+   math · render · spider · component · veil · variants · index — the geometry/render halves split
+   twice more under the ACTIVE `component-size-ui` 450-line cap, which scans every ui source file,
+   not just `.tsx`). 2. `packages/ui/src/primitives/icons/{orb-web.ts,index.ts}`
+   + `primitives/spinner/{web-spinner.tsx,index.ts}`. 3. `packages/ui/src/styles/globals.css` — the
+   weave-glow class (hub-positioned token gradient) + the `orb-web-spin`/`orb-web-pulse` spinner CSS
+   (`--motion-ambient` rotation, `--motion-shimmer` dash pulse, `linear` loops, `data-animate`-gated).
+4. client `lib/weave-glyph.tsx` (mark-A re-skin). 5. `features/auth/{anchors/login-shell-anchor,
+   components/login-weave-backdrop,surfaces/login-surface}` + `features/app-shell/{components/boot-veil,
+   index}` + `main.tsx`. 6. index.html + public assets (favicon.svg · brand/orb-mark.svg · icons/ ·
+   manifest.webmanifest). 7. The test tree (9.8). Token build untouched (zero new tokens — §5 holds).
+
+### 9.8 Test plan (the named floor)
+
+- `tests/ui/art/web-weave/web-weave-geometry.test.ts` — seeded determinism, radii count, capture
+  spiral respects the free zone, dew on the spiral, timeline monotonicity, glyph geometry.
+- `tests/ui/art/web-weave/web-weave.ct.tsx` — canvas painted (pixel probe, with an in-test
+  negative control region proving the probe can read blank), reduced-motion mounts NO rAF loop
+  (frame-counter seam stable across a wait), palette re-resolves on theme flip (sampled pixel changes).
+- `tests/ui/art/web-weave/weave-veil.ct.tsx` — exit plays on `open=false` and unmounts via
+  transitionend (`onExited` fires); reduced-motion = instant; veil surface rides the background token.
+- `tests/ui/primitives/spinner/web-spinner.ct.tsx` — role=status + label; the sm/md/lg px table
+  (the Loader2 parity contract §9.10); animates by default; reduced-motion renders the static glyph
+  (computed `animation-name: none` — the JS REMOVE arm, not the CSS floor).
+- `tests/client/features/auth/components/login-local-form.ct.tsx` +
+  `login-first-run-form.ct.tsx` — the AUTOFILL ANATOMY regression guards (owner flag): a real
+  `<form>` ancestor, `autocomplete="username"`/`"current-password"`/`"new-password"` verbatim,
+  `type="password"` — so a future skin can't silently break Chrome's password-save heuristics.
+- `tests/client/features/auth/anchors/login-shell-anchor.ct.tsx` — the §0 container-model law: the
+  anchored surface at a 390px fixed-width container AND at 1280px (card contained, no horizontal
+  overflow, weave canvas painted, wordmark present).
+- `tests/client/features/app-shell/components/boot-veil.ct.tsx` — **the load-gated exit**: veil
+  visible while `data-app-ready` is absent; stamping the attribute (settled OR `degraded`) dissolves
+  + unmounts it mid-weave; already-present at mount ⇒ renders nothing; reduced-motion ⇒ instant.
+- Existing suites re-run (shared-surface sweep): `tests/client/lib/weave-glyph.ct.tsx`,
+  `tests/client/routes/route-pending.ct.tsx`, `tests/ui/primitives/empty-state/empty-state.ct.tsx`,
+  `tests/client/features/auth/surfaces/login-surface.ct.tsx`, `tests/ui/primitives/spinner/spinner.ct.tsx`.
+
+### 9.9 Deferred (carried out of this lane)
+
+- The Loader2→WebSpinner swap + deletion — RULED (one loader system), executes as the immediate
+  follow-up lane per the §9.10 mapping (it touches 6 consumer files across a different fence).
+- The §4.3 pre-React inline-sigil first-paint beat — CLS-investigation territory, untouched here.
+- A deployment-level "reduce spiders" accessibility knob (§7) — not built; `WebWeave` ships the
+  `spider` prop so the knob is one boolean away; the reduced-motion static web keeps the resting
+  spider as designed.
+- D62 ledger touch-up: the MARK component stays client-side per D62; the LOADER is now a
+  domain-agnostic ui primitive whose skin is the brand glyph — the ledger's "brand ≠ @orb/ui"
+  parenthetical deserves a clarifying clause when the follow-up lands.
+- An OS `prefers-color-scheme` flip with NO attribute change does not re-resolve the canvas palette:
+  the `no-raw-matchmedia` gate homes matchMedia plumbing in the reduced-motion lib only, and gate
+  edits were out of this lane's fence. Follow-up: a `lib/color-scheme.ts` one-home seam + its gate
+  row (every in-app theme path touches documentElement and IS observed today).
+
+### 9.10 The ONE loader system (owner ruling 2026-08-09) — the Loader2→WebSpinner mapping
+
+`WebSpinner` (`@orb/ui/spinner`) spans the whole spectrum with ONE identity: slow orb rotation
+(`--motion-ambient`) + the silk pulse traveling the spiral (`--motion-shimmer`); reduced motion
+REMOVES both (JS `data-animate` gate → computed `animation-name: none`; the resting glyph is solid —
+the dash pattern only exists while the pulse runs). Sizes `sm|md|lg` are the SAME 16/20/24px as the
+icon table; `sm`/`md` ride the COMPACT (16px-cut) glyph, `lg`+ the display cut; `xl` (32) / `hero`
+(48) cover standalone waits. The HERO brand moment stays `WebWeave`/`WeaveVeil` — the inline spinner
+is deliberately NOT the weave shrunk.
+
+**The follow-up swap is call-shape identical** (`<Spinner size label className>` →
+`<WebSpinner size label className>`), then delete `Spinner` from `spinner/index.ts` + `spinner.tsx`,
+drop `Loader2` from the icons barrel, and update `tests/ui/primitives/spinner/spinner.ct.tsx`
+(asserts the `animate-spin` class + ICON size table — both die with Loader2; `web-spinner.ct.tsx`
+already covers the successor):
+
+| Site | Today | After |
+| - | - | - |
+| `ui/src/primitives/color-field/color-field.tsx:81` | `<Spinner label="Saving color…" size="sm" />` | `<WebSpinner label="Saving color…" size="sm" />` |
+| `ui/src/primitives/status-chip/status-chip.tsx:59` | `<Spinner label={meta.label} size="sm" />` | `<WebSpinner label={meta.label} size="sm" />` |
+| `ui/src/primitives/file-dropzone/file-dropzone.tsx:67` | `<Spinner label="Uploading…" size="sm" />` | `<WebSpinner label="Uploading…" size="sm" />` |
+| `client/src/components/greeting-studio.tsx:181` | `<Spinner size="sm" label="Generating…" />` | `<WebSpinner size="sm" label="Generating…" />` |
+| `client/src/features/credentials/components/add-credential-dialog.tsx:43` | `<Spinner label="Checking key storage…" />` | `<WebSpinner label="Checking key storage…" />` (md default matches) |
+| `client/src/features/chat/components/composer-send-control.tsx:37` | `<Spinner size="sm" label="Stopping…" />` | `<WebSpinner size="sm" label="Stopping…" />` |
+
+Intra-ui consumers import via the sibling-relative path (`../spinner/web-spinner.tsx` — the §13.7
+sibling-composition rule), client consumers via `@orb/ui/spinner`.

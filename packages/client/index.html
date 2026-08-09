@@ -10,9 +10,20 @@
       content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
     />
     <title>orbweaver</title>
-    <!-- The orb-web mark (public/favicon.svg). Declaring an icon also stops the browser's implicit
-         /favicon.ico probe — the 404-on-first-load it fired when no icon link existed. -->
+    <!-- The orb-web mark, direction A (docs/design/login-loading-screen.md §8/§9.6). The SVG is the
+         primary icon (crisp at every dpi); the PNG pair covers non-SVG-favicon chrome. Declaring an
+         icon also stops the browser's implicit /favicon.ico probe — the 404-on-first-load it fired
+         when no icon link existed. -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+    <!-- PWA/home-screen identity (icons 192/512 + maskable live in the manifest). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <!-- Browser-chrome tint = the Hearth background per OS scheme (values from the generated theme
+         tokens — oklch(0.158 0.006 60) / oklch(0.98 0.004 75) as sRGB hex; meta can't read CSS vars). -->
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0f0c0a" />
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#faf8f5" />
   </head>
   <body>
     <div id="root"></div>

@@ -1,0 +1,49 @@
+// Web-weave shared maths — the dependency-free floor under the family (geometry builds with it,
+// the render + spider painters interpolate with it). Split out under the component-size-ui cap;
+// structural `{x,y}` points so this module imports NOTHING (no type cycles).
+
+/** A 2D point, structurally compatible with the geometry module's WeavePoint. */
+export interface WeaveXY {
+  readonly x: number;
+  readonly y: number;
+}
+
+const CUBIC = 3;
+/** The house build easing (matches the mock): fast off the mark, gentle landing. */
+export const easeOutCubic = (p: number): number => 1 - (1 - p) ** CUBIC;
+export const clamp01 = (v: number): number => Math.min(1, Math.max(0, v));
+
+// The classic waystone sin-hash: two large unrelated multipliers into sin(), scaled past any float
+// grid. The constants carry no meaning beyond "big and unrelated" — that is the whole point.
+const HASH_A = 127.1;
+const HASH_B = 311.7;
+const HASH_SCALE = 43_758.545;
+
+/** Stable pseudo-random in [0,1) from two ints + the web's seed — identical web per seed. */
+export function weaveJitter(a: number, b: number, seed: number): number {
+  const n = Math.sin(a * HASH_A + b * HASH_B + seed) * HASH_SCALE;
+  return n - Math.floor(n);
+}
+
+/** A sagging strand: quadratic curve toward +y, sampled. */
+export function sagLine(a: WeaveXY, b: WeaveXY, sag: number, samples: number): WeaveXY[] {
+  const pts: WeaveXY[] = [];
+  const mx = (a.x + b.x) / 2;
+  const my = (a.y + b.y) / 2 + sag;
+  for (let i = 0; i <= samples; i++) {
+    const t = i / samples;
+    const u = 1 - t;
+    pts.push({ x: u * u * a.x + 2 * u * t * mx + t * t * b.x, y: u * u * a.y + 2 * u * t * my + t * t * b.y });
+  }
+  return pts;
+}
+
+/** Linear interpolation along a polyline at fraction `f` of its INDEX space. */
+export function pointAtFraction(pts: readonly WeaveXY[], f: number): WeaveXY {
+  const x = f * (pts.length - 1);
+  const i = Math.min(Math.floor(x), pts.length - 2);
+  const r = x - i;
+  const a = pts[i] as WeaveXY;
+  const b = pts[i + 1] as WeaveXY;
+  return { x: a.x + (b.x - a.x) * r, y: a.y + (b.y - a.y) * r };
+}
