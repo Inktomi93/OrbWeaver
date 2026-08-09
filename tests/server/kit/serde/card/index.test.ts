@@ -345,10 +345,17 @@ const REGEX_SCRIPT = regexScriptSchema.parse({
   // the old bare "r1" fixture stopped parsing (this file was red on the standing tree before this lane).
   id: "regex_script_00000000000000000000000001",
   name: "trim",
+  // X-16: `updatedAt` is REQUIRED on the row (the edited stamp) — a fixed instant keeps the double honest.
+  updatedAt: 1_700_000_000_000,
   findRegex: "a",
   replaceString: "b",
   placement: [],
 });
+
+// The card-wire shape (`RegexScriptCard`) carries no `updatedAt` — it is a library-row-only stamp
+// (X-16), never part of the ST card format — so a round-tripped script compares against the row
+// minus that field.
+const { updatedAt: _regexScriptUpdatedAt, ...REGEX_SCRIPT_CARD } = REGEX_SCRIPT;
 
 /** A fully-populated flat card (the typed-column source the export verb projects from). */
 function fullFields(): ExportCardFields {
@@ -393,7 +400,7 @@ describe("buildCardV3 → cardFromJson round-trip", () => {
     expect(back.creator).toBe("alex");
     expect(back.cardVersion).toBe("1.2");
     expect(back.depthPrompt).toEqual({ prompt: "remember the oath", depth: 3, role: "system" });
-    expect(back.regexScripts).toEqual([REGEX_SCRIPT]);
+    expect(back.regexScripts).toEqual([REGEX_SCRIPT_CARD]);
     // residual vendor extras survive; the promoted keys are NOT left behind in `extensions`.
     expect(back.extensions).toEqual({ vendorExtra: "kept" });
     // The V3 content promotions round-trip through their typed columns (not the residual blob).
@@ -454,14 +461,14 @@ describe("buildCardV3 wire shape", () => {
     const off = { ...REGEX_SCRIPT, enabled: false };
     const card = buildCardV3({ ...fullFields(), regexScripts: [off] }, []);
     expect(card.data.extensions["regex_scripts"]).toEqual([expect.objectContaining({ enabled: false, disabled: true })]);
-    expect(cardFromJson(card, "fallback").regexScripts).toEqual([off]);
+    expect(cardFromJson(card, "fallback").regexScripts).toEqual([{ ...REGEX_SCRIPT_CARD, enabled: false }]);
   });
 
   test("a foreign ST card's `disabled` script is read as switched off", () => {
     const card = buildCardV3(fullFields(), []);
     const foreign = { ...REGEX_SCRIPT, enabled: undefined, disabled: true };
     card.data.extensions["regex_scripts"] = [foreign];
-    expect(cardFromJson(card, "fallback").regexScripts).toEqual([{ ...REGEX_SCRIPT, enabled: false }]);
+    expect(cardFromJson(card, "fallback").regexScripts).toEqual([{ ...REGEX_SCRIPT_CARD, enabled: false }]);
   });
 
   test("character_book is emitted only when there are entries", () => {

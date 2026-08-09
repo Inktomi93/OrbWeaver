@@ -2214,6 +2214,8 @@ describe("send — SEND USER_INPUT regex (D53; chat.md §2/§7)", () => {
     const script = regexScriptSchema.parse({
       id: mintTypeId(ID_PREFIX.regexScript),
       name: "u",
+      // X-16: `updatedAt` is REQUIRED on the row (the edited stamp) — a fixed instant keeps the double honest.
+      updatedAt: 1_700_000_000_000,
       findRegex: "badword",
       replaceString: "****",
       placement: ["USER_INPUT"],
