@@ -670,6 +670,24 @@ function objectNodes(node: unknown, out: Record<string, unknown>[] = []): Record
 
 const propertyNames = (node: Record<string, unknown>): string[] => Object.keys(node["properties"] as Record<string, unknown>);
 const requiredNames = (node: Record<string, unknown>): string[] => (Array.isArray(node["required"]) ? (node["required"] as string[]) : []);
+/** Every KEYWORD in a schema tree — what the wire vocabulary actually is, as opposed to what its bytes spell. */
+function schemaKeywords(node: unknown, acc: Set<string> = new Set()): Set<string> {
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      schemaKeywords(item, acc);
+    }
+    return acc;
+  }
+  if (node === null || typeof node !== "object") {
+    return acc;
+  }
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    acc.add(key);
+    schemaKeywords(value, acc);
+  }
+  return acc;
+}
+
 /** Nodes spelled `anyOf:[…, {"type":"null"}]` — the strict-compatible optional. */
 function nullUnionCount(node: unknown, count = 0): number {
   if (Array.isArray(node)) {
@@ -732,7 +750,11 @@ test("D126 (switched): the admin knob's strict-compatible arm reaches scrubWireS
   expect(nullUnionCount(schema)).toBeGreaterThan(0);
   // The scrub also came off this wire copy: the dialect meta-key + the bound keywords both vendors refuse.
   expect(schema["$schema"]).toBeUndefined();
-  expect(JSON.stringify(schema)).not.toContain("minLength");
+  // KEYWORD-level: since task #40 a stripped bound is RELAYED in the node's `description`, so the word
+  // "minLength" appears in the payload as prose. The claim is that the KEY is gone from the wire vocabulary.
+  expect(schemaKeywords(schema).has("minLength")).toBe(false);
+  // …and the relay actually happened — the extraction schema's `minLength: 1` refs are stated to the model.
+  expect(JSON.stringify(schema)).toContain("[Constraints: minLength: 1]");
   expect(spy.strictFlags).toEqual([true]);
 
   // The CONTRACT is unchanged: the same canned reply still folds and lands (`null ≡ absent` at the salvage

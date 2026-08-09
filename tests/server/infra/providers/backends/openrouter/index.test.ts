@@ -23,6 +23,25 @@ const CRED = {
   credentialId: null,
 } as unknown as ResolvedCredential;
 
+/** Every KEYWORD appearing anywhere in a schema tree — the wire-vocabulary lens. Keyword presence is the
+ *  claim these pins make; a `JSON.stringify().toContain()` cannot tell a keyword from a word in a description. */
+function collectKeys(node: unknown, acc: Set<string> = new Set()): Set<string> {
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      collectKeys(item, acc);
+    }
+    return acc;
+  }
+  if (node === null || typeof node !== "object") {
+    return acc;
+  }
+  for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+    acc.add(key);
+    collectKeys(value, acc);
+  }
+  return acc;
+}
+
 // A summarize chat reply carrying CoT scaffolding the shaper must strip.
 function summarizeReply(content: string): unknown {
   return {
@@ -313,13 +332,22 @@ describe("createOpenRouterBackend — summarize shaper", () => {
       },
     });
     const sent = tracker.sentRequests[0] as { chatRequest?: { tools?: { function: { parameters: Record<string, unknown> } }[] } };
-    const wire = JSON.stringify(sent.chatRequest?.tools?.[0]?.function.parameters);
+    const parameters = sent.chatRequest?.tools?.[0]?.function.parameters ?? {};
+    // KEYWORD-level, not substring-level: since task #40 a stripped bound is RELAYED inside the node's
+    // `description`, so the word "minLength" legitimately appears in the payload as prose. What must not
+    // appear is the KEY — a substring pin here would have read the intent-preserving note as a regression.
+    const keys = collectKeys(parameters);
     for (const banned of ["minLength", "maxLength", "minimum", "maximum", "minItems", "$schema"]) {
-      expect(wire).not.toContain(banned);
+      expect({ banned, present: keys.has(banned) }).toEqual({ banned, present: false });
     }
-    // The steering the model actually reads survives.
+    const wire = JSON.stringify(parameters);
+    // The steering the model actually reads survives — the author's prose FIRST, the relayed bound behind it.
     expect(wire).toContain("targetRef");
-    expect(wire).toContain('"description":"who"');
+    expect(wire).toContain('"description":"who [Constraints: minLength: 1]"');
+    // `hp`'s ±MAX_SAFE_INTEGER pair is zod's `.int()` artifact, not an author's intent: stripped, never noted.
+    const properties = parameters["properties"] as Record<string, Record<string, unknown>>;
+    expect(properties["hp"]?.["description"]).toBeUndefined();
+    expect(properties["tags"]?.["description"]).toBe("[Constraints: minItems: 1]");
     expect(wire).toContain('"required"');
   });
 
