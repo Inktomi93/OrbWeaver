@@ -120,9 +120,17 @@ export function RunControlsCard({
             value={guidanceDraft ?? guidance ?? ""}
           />
         </Field>
-        <Row align="center" gap="row">
+        {/* FLEX-WRAP, AND THE VERB CLUSTER KEEPS ITS CONTENT FLOOR (side-eye 2026-08-09 P1). The cluster
+            was `min-w-0 flex-1`, so at the 3-pane / mobile CONTAINER width it shrank BELOW its own buttons
+            and they overflowed their box, painting the fit-line readout THROUGH the Hand-edit button
+            (measured 31px overlap at 3-pane, worse on mobile). Dropping `min-w-0` restores the cluster's
+            content floor so it can no longer collapse under its buttons, and `flex-wrap` on the parent
+            drops the cluster onto its OWN line the instant the fit-line + verbs stop fitting — the fit-line
+            no longer shares one line's slack with an action cluster it cannot out-shrink. `flex-1
+            justify-end` keeps the verbs right-aligned whether they sit beside the fit-line or wrap below. */}
+        <Row align="center" className="flex-wrap" gap="row">
           {stagePre !== undefined ? <FitLine contextTokens={contextTokens} stagePre={stagePre} warn={outputOver || inputOver} /> : null}
-          <Row className="min-w-0 flex-1" gap="row" justify="end">
+          <Row className="flex-1 justify-end" gap="row">
             <Button disabled={running} intent="ghost" onClick={onManualOpen} size="sm">
               Hand-edit
             </Button>
