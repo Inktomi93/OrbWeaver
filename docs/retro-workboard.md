@@ -135,7 +135,7 @@ consumer-adding train). :5173 fresh (pgid 1232985). **ALL owner forks RULED** (t
 above) — nothing is deferred; the board below is a burn-down, not a queue. Full pre-rewrite board:
 [`history/retro-workboard-2026-08-09.md`](history/retro-workboard-2026-08-09.md).
 
-**AFTERNOON merges (main now `56391328d`, all hook-gated, origin UNPUSHED — 35+ ahead):**
+**LATE-AFTERNOON (main `3d80bfb61`, all hook-gated, origin UNPUSHED — 49 ahead):**
 #48 smalls `a6133ffe4` · #50 barrels `02f0a91a0` · #54 apisurface `ef931ad45` · #45 chat-list `c33833d58`
 (pre-re-import gate CLEARED) · #53 OIDC cohesion `bd8c64f6d` · #57 regex bulk-placement `dd37bc8dd` ·
 #41 transpiler-premise-refuted (doc) `8e0e90cde` · #58 anti-rot gate `662cb49d4` (bare-@public-on-UNUSED
@@ -143,14 +143,14 @@ now REDS; 47 adjudicated) · #59 macro-DoS `6a319267c` (O(n²)→O(n) parser [10
 client DISPLAY ReDoS pre-filter) · #60 refinery narrow-container polish `cd6cf5e20` (#39 side-eye GRADUATED
 — holds at 3-pane+mobile, roster a11y) · **auth-entry `56391328d`** (the whole OpenWebUI-study auth arc:
 B5 admin link-SSO [one bind-once site] + B4 local first-run + A7/A8/A9 + unified mode-aware login all 4
-modes + MS-W1 collision hard-deny). **IN FLIGHT (1):** forge login/loading MOCK + FAVICON/LOGO pack (#63 —
+modes + MS-W1 collision hard-deny). **IN FLIGHT (1):** LOGIN/LOADING/BRAND BUILD FORGE (a364e0d5f21197e61, worktree) — mock APPROVED, brand dir **A (Open Orb)** ruled; building the real WebWeave/WeaveVeil + WebSpinner (homed ui/primitives/spinner as a lucide-icon in the icons seal — NOT client/lib, because 3 Loader2 consumers are ui-internal) + sexy layer over the shipped login-surface + icons in FINAL served spots (favicon SVG+raster/manifest/apple-touch). OWNER TWEAKS baked: fix odd fade-out · slow the turbo spider · loading = buttery ~300-400ms fade-in + LOAD-GATED exit (never force full weave). Responsive mobile+desktop. Login FORM preserves base-ui Field/Input + real <form> + autocomplete username/current-password/new-password (Chrome autofill) — skin-not-reimplement, +CT guard. (superseded mock note: #63 —
 animated spider-web-weave loader, ST-iconic beat, one mode-aware surface; owner "make it fuck / branding is
 awful"; orchestrator publishes as artifacts for taste). **LOGIN-MOCK RULINGS:** plain username+password (NO
 advertise-usernames picker — don't have/want it) · pre-session so default/brand theme + OS light-dark only
 (no login theme-picker). **QUEUED:** #61 ResponseFormat brand (codemod-kit, 60-file precedent) · GATES/PROBES
 batch [#46 pagination gate (UNBLOCKED) + ResponseFormat-provenance gate + #62 all-white-theme probe +
 no-color-literals tighten] · #43 code-split · #39 custom-schema e2e (needs fleet) · #52 demo-v4 (parked).
-**OWNER:** push (mine on your word, fresh battery first) · re-import (unblocked). **AUTH human-review notes
+**RULED THIS STRETCH:** brand dir A · login form = plain user/pass (no picker) · pre-session brand/OS theme only · NO-LEGACY: retire generic Loader2, ONE loader (WebSpinner) — #65 (after the build lands) · MS-W1 mode-switch = collision HARD-DENY (merged in auth-entry). **QUEUED LANES:** #61 ResponseFormat brand (codemod-kit) · GATES/PROBES batch [#46 pagination + #64 auth-single-chokepoint(external_id one writer) + ResponseFormat-provenance + #62 all-white-theme probe + no-color-literals tighten] · #43 code-split (ALSO a security win — shrinks the unauthed JS surface) · #39 custom-schema e2e · #52 demo-v4 (parked) · #65 Loader2 retirement (after forge). **OPEN OWNER-OFFERS (not boarded as tasks):** a PRE-AUTH ATTACK-SURFACE audit (what a no-session client can reach: routes + servable files incl. hidden `.map` in distDir + no prod dev/_debug routes — recommended security-executor) · #65-adjacent. **OWNER:** push (mine on your word, fresh battery first) · re-import (unblocked). **AUTH human-review notes
 (non-blocking):** agent-target link guard is dead-code today (USER_KINDS=["human"]; DB `users_agent_shape`
 CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/config fixture was missing
 `trustHtml` (from #48's DRAFT-TRUST wire) — aligned.
