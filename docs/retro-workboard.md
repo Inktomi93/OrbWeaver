@@ -152,15 +152,14 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   side-eye-authority rule.
 ## ═══ LIVE STATE (2026-08-09 MIDDAY — ALL LANES DRAINED; supersedes late-morning) ═══
 
-**Main `de72f8d9e`. ZERO lanes in flight, zero worktrees, tree clean. PUSH IN PROGRESS** (owner word
-granted this sitting: battery → read results → `git push --no-verify`, ONE-SHOT no-retry). The
-`verify --push` battery is running detached; static tier came back green EXCEPT
+**Main `3a432603e` — PUSHED to origin (`216725582..3a432603e`), one-shot clean.** ZERO lanes in
+flight, zero worktrees, tree clean. Battery receipt: `verify --push` 18/19 green INCLUDING the whole
+behavioral tier (tests:node 794s · e2e-smoke · cpd · parity); the one red was
 **`deps:orphan-ratchet` — 3 stale `@public` tags** whose exports gained consumers this train
-(`contracts/src/chat/card-frame.ts:60,72` [#37 made MintRequest/Response consumed] +
-`contracts/src/preset/index.ts:546` [#33 consumed GreetingTransformId]). Push-tier-only stage —
-invisible to every commit hook by design. FIX = delete the 3 tag lines (ratchet-down) after the
-battery drains, re-run the stage, then push. :5173 stack RESTARTED again (pgid 1232985) — the #42
-forge flagged the same zombie-vite stale-graph class.
+(`card-frame.ts` MintRequest/Response [#37] + `GreetingTransformId` [#33]) — push-tier-only stage,
+invisible to commit hooks by design; fixed by ratchet-down deletion `3a432603e`, stage re-run green
+before the push. :5173 stack RESTARTED (pgid 1232985) — the #42 forge flagged the same zombie-vite
+stale-graph class.
 
 **MERGED since late-morning (serial, foreground, hook-gated):**
 - **#35 corpus-settle `2073bbdc8`** — agent-bridge readiness hand-out, snap swallowing the readiness
