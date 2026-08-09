@@ -250,9 +250,14 @@ export default defineConfig({
     // (D44 `allowDataImages:false`). A few extra small-asset requests are fine on a self-hosted box;
     // a `data:` image would force loosening `img-src`, which D44 forbids.
     assetsInlineLimit: 0,
-    // 'hidden' — sourcemaps for our own debugging, NOT referenced from the shipped bundle (D21
-    // privacy: don't expose source layout to clients).
-    sourcemap: "hidden",
+    // false — emit NO sourcemaps into the served dist. `"hidden"` only drops the
+    // `//# sourceMappingURL` comment; the deterministic `<bundle>.js.map` still lands in the dir
+    // `serveStatic` serves, so any anonymous visitor could `GET /assets/<bundle>.js.map` and recover the
+    // entire first-party `src/**` via `sourcesContent` (pre-auth-attack-surface audit 2026-08-09, F1).
+    // No out-of-band symbolication is wired today, so `false` is the KISS root fix; the spa.ts `.map`
+    // belt is the defense-in-depth backstop. Reinstate `"hidden"` + a build-step map extraction only if
+    // symbolication is ever wired — never leave maps in the served tree.
+    sourcemap: false,
     // Emit the dependency-license artifact (AGPL hygiene). `{ fileName }` ending in `.json` gets the
     // RAW JSON metadata ({name, version, identifier, text}[]) instead of the `true` form's rendered
     // `.vite/license.md` — the licence set is an input to attribution tooling and audits, not prose to
