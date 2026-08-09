@@ -13,10 +13,11 @@
 
 import { Project } from "ts-morph";
 import { describe } from "vitest";
-import type { ChainCandidate, Liveness, SwallowedCandidate } from "../../scripts/codemods/ast.ts";
+import type { ApiSurfaceEntry, ChainCandidate, Liveness, SwallowedCandidate } from "../../scripts/codemods/ast.ts";
 import {
   assignabilityChecker,
   buildLiveness,
+  collectApiSurface,
   collectChainAudit,
   collectChainCandidates,
   collectClientConsumed,
@@ -1114,5 +1115,145 @@ describe("ast clientgap lens (liveness split)", () => {
     expect(contractKeys(live.usedTest)).toEqual(contractKeys(live.usedClientProd));
     // The union stays correct for orphans/testonly/prodonly (both shapes live in usedProd).
     expect(contractKeys(live.usedProd).sort(byString)).toEqual([...contractKeys(live.usedClientProd), ...contractKeys(live.usedServerProd)].sort(byString));
+  });
+});
+
+// ── apisurface: exports partitioned by PACKAGE-BOUNDARY consumption ────────────────────────────────
+// The barrel-bloat class `orphans` is binary-blind to. The fixture plants ONE positive control per class in
+// a single origin file so every arm is pinned on the same project: a cross-package consumer (PUBLIC), a
+// type-only cross-package consumer (PUBLIC + typeOnly), a same-package importer and an own-file use (both
+// INTERNAL — the arm no import-edge boundary check would separate from PUBLIC), a test-only importer
+// (TEST-ONLY, flagged distinctly), and a fresh unconsumed export (UNUSED). The load-bearing cross-check: the
+// UNUSED arm must equal `collectOrphanCandidates` on the SAME project, because this verb takes it verbatim.
+
+const API_ORIGIN = `
+export interface PublicShape { a: number; }
+export const publicValue = 1;
+export const publicTypeOnly = 2;
+export const internalShared = 3;
+export const internalOwnFileOnly = 4;
+export function ownFileConsumer(): number { return internalOwnFileOnly; }
+export const testOnly = 5;
+export const unusedRot = 6;
+`;
+
+// The client consumes four exports across the package boundary: PublicShape + publicTypeOnly as TYPES
+// (`import type`), publicValue + ownFileConsumer as VALUES — so the type-only note bites in both directions.
+const API_CLIENT_CONSUMER = `
+import type { PublicShape, publicTypeOnly } from "../../../../contracts/src/api/origin";
+import { publicValue, ownFileConsumer } from "../../../../contracts/src/api/origin";
+export type T = PublicShape;
+export type U = typeof publicTypeOnly;
+export const v = publicValue + ownFileConsumer();
+`;
+
+const API_FILES: Record<string, string> = {
+  "packages/contracts/src/api/origin.ts": API_ORIGIN,
+  "packages/client/src/features/api/panel.ts": API_CLIENT_CONSUMER,
+  // A SAME-PACKAGE importer: internalShared crosses no boundary, so it must stay INTERNAL, not PUBLIC.
+  "packages/contracts/src/api/sibling.ts": 'import { internalShared } from "./origin";\nconsole.log(internalShared);\n',
+  // A TEST-ONLY consumer: no prod consumer anywhere → flagged distinctly, never counted as PUBLIC.
+  "tests/api/origin.test.ts": 'import { testOnly } from "../../packages/contracts/src/api/origin";\nexport const t = testOnly;\n',
+};
+
+const inApiScope = (fp: string): boolean => fp.includes("/packages/contracts/src/api/");
+
+describe("ast apisurface lens (package-boundary classification)", () => {
+  test("partitions every export into PUBLIC / INTERNAL / TEST-ONLY / UNUSED by the PACKAGE of its consumers", () => {
+    const project = projectOf(API_FILES);
+    const byName = new Map(collectApiSurface(project, inApiScope).map((entry) => [entry.name, entry]));
+    const klass = (name: string): string | undefined => byName.get(name)?.klass;
+
+    // PUBLIC — a consumer in a DIFFERENT workspace package (the client). All four the client imports.
+    expect(klass("PublicShape")).toBe("public");
+    expect(klass("publicValue")).toBe("public");
+    expect(klass("publicTypeOnly")).toBe("public");
+    expect(klass("ownFileConsumer")).toBe("public");
+    // …and the PUBLIC row names the consuming package, so the report can print it.
+    expect(byName.get("publicValue")?.consumers).toEqual(["client"]);
+
+    // INTERNAL — consumed ONLY within its own package: one via a same-package import, one via own-file use.
+    // This is the exact arm a binary "any importer vs none" check (orphans/the ratchet) cannot separate from
+    // PUBLIC — internalShared HAS an importer, it just isn't across a package boundary.
+    expect(klass("internalShared")).toBe("internal");
+    expect(klass("internalOwnFileOnly")).toBe("internal");
+    expect(byName.get("internalShared")?.consumers).toEqual(["contracts"]);
+
+    // TEST-ONLY — a test imports it, nothing in prod does: cross-boundary yet NOT prod API, flagged distinctly.
+    expect(klass("testOnly")).toBe("test-only");
+
+    // UNUSED — reached by nobody.
+    expect(klass("unusedRot")).toBe("unused");
+  });
+
+  test("the type-only note fires iff EVERY cross-package consumer imported the export as a type", () => {
+    const project = projectOf(API_FILES);
+    const byName = new Map(collectApiSurface(project, inApiScope).map((entry) => [entry.name, entry]));
+    // `import type` consumers → type-only PUBLIC (a shape, not a runtime value); a value import clears it.
+    expect(byName.get("PublicShape")?.typeOnly).toBe(true);
+    expect(byName.get("publicTypeOnly")?.typeOnly).toBe(true);
+    expect(byName.get("publicValue")?.typeOnly).toBe(false);
+    expect(byName.get("ownFileConsumer")?.typeOnly).toBe(false);
+  });
+
+  test("a VALUE import ANYWHERE cross-package clears the type-only note (it is not import-form-per-file)", () => {
+    // publicTypeOnly is imported as a TYPE by the client and as a VALUE by the server — the note must clear,
+    // because the export ships a runtime value somebody reads. The arm an import-form-per-file check misses.
+    const project = projectOf({
+      ...API_FILES,
+      "packages/server/src/domain/api/service.ts": 'import { publicTypeOnly } from "../../../../contracts/src/api/origin";\nexport const s = publicTypeOnly;\n',
+    });
+    const byName = new Map(collectApiSurface(project, inApiScope).map((entry) => [entry.name, entry]));
+    expect(byName.get("publicTypeOnly")?.klass).toBe("public");
+    expect(byName.get("publicTypeOnly")?.typeOnly).toBe(false);
+    // …and the consuming packages are BOTH named (client + server), sorted.
+    expect([...(byName.get("publicTypeOnly")?.consumers ?? [])].sort(byString)).toEqual(["client", "server"]);
+  });
+
+  test("the UNUSED arm equals `collectOrphanCandidates` on the same project (taken verbatim, never re-derived)", () => {
+    const project = projectOf(API_FILES);
+    const apiUnused = collectApiSurface(project, inApiScope)
+      .filter((entry) => entry.klass === "unused")
+      .map((entry) => entry.name)
+      .sort(byString);
+    const orphans = collectOrphanCandidates(project, buildLiveness(project), inApiScope)
+      .map((candidate) => candidate.name)
+      .sort(byString);
+    // Same set, and it is the one export nobody reaches — the two lenses can never disagree about an orphan.
+    expect(apiUnused).toEqual(orphans);
+    expect(apiUnused).toEqual(["unusedRot"]);
+  });
+
+  test("a star-suppressed orphan (the refinery-twin shape) is UNUSED and carries the suppression caveat", () => {
+    // The exact shape of the 5 refinery `@public` twins: a type alias nobody imports, whose file is
+    // `export *`-re-exported by a barrel — so it is an orphan a NAMESPACE consumer of the barrel MIGHT reach,
+    // reported and flagged, never counted as a definite hit. apisurface must inherit that caveat from orphans.
+    const project = projectOf({
+      "packages/contracts/src/twin/schema.ts": "export type ForgeTwin = { a: number };\nexport type LiveTwin = { b: number };\n",
+      "packages/contracts/src/twin/index.ts": 'export * from "./schema";',
+      "packages/server/src/domain/twin/use.ts":
+        'import type { LiveTwin } from "../../../../contracts/src/twin/schema";\nexport const y: LiveTwin | null = null;',
+    });
+    const inTwin = (fp: string): boolean => fp.includes("/packages/contracts/src/twin/");
+    const byName = new Map(collectApiSurface(project, inTwin).map((entry) => [entry.name, entry]));
+    // The imported twin is PUBLIC (a real cross-package type); the unreached one is a star-suppressed UNUSED.
+    expect(byName.get("LiveTwin")?.klass).toBe("public");
+    const dead = byName.get("ForgeTwin") as ApiSurfaceEntry;
+    expect(dead.klass).toBe("unused");
+    expect(dead.starSuppressed).toBe(true);
+  });
+
+  test("a cross-package NAMESPACE import promotes the whole module to PUBLIC (err alive, as orphans does)", () => {
+    // `import * as ns` names no member statically, so — exactly like the orphan/liveness substrate — every
+    // export of the target is marked reached. A same-package namespace import must NOT cross the boundary.
+    const project = projectOf({
+      "packages/contracts/src/ns/origin.ts": "export const alpha = 1;\nexport const beta = 2;\n",
+      "packages/client/src/features/ns/panel.ts": 'import * as ns from "../../../../contracts/src/ns/origin";\nexport const u = ns.alpha;\n',
+    });
+    const inNs = (fp: string): boolean => fp.includes("/packages/contracts/src/ns/");
+    const byName = new Map(collectApiSurface(project, inNs).map((entry) => [entry.name, entry]));
+    // Both exports are PUBLIC — alpha is spelled, beta rode the whole-surface arm (the honest over-report).
+    expect(byName.get("alpha")?.klass).toBe("public");
+    expect(byName.get("beta")?.klass).toBe("public");
   });
 });
