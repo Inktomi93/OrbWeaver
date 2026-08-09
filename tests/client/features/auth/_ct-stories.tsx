@@ -4,7 +4,7 @@
 // and surfaces the `onLoggedIn` callback as rendered text so the test can assert the success path
 // without a navigation harness.
 
-import { AccountSurface } from "@orb/client/features/auth";
+import { AccountSurface, LoginShellAnchor } from "@orb/client/features/auth";
 import type { ReactElement } from "react";
 import { useState } from "react";
 // The form + the per-mode dispatcher are feature INTERNALS the front door doesn't re-export — the
@@ -43,6 +43,27 @@ export function LoginArmStory({ config, authError = null }: { readonly config: A
         }}
       />
     </div>
+  );
+}
+
+/** The WHOLE login scene (anchor + web backdrop + wordmark + card body) at a FIXED container width —
+ *  the §0 container-model law: phone-vs-desktop is proven at the CONTAINER, not the viewport. The
+ *  backdrop reads `/api/auth/config` through the query layer, so the story wraps CtDataProviders and
+ *  the CT stubs the route. `overflow: visible` so a horizontal overflow defect stays measurable. */
+export function LoginSceneStory({ width, config }: { readonly width: number; readonly config: AuthConfig }): ReactElement {
+  return (
+    <CtDataProviders>
+      <div data-testid="ct-login-scene" style={{ width, overflow: "visible" }}>
+        <LoginShellAnchor>
+          <LoginBody
+            config={config}
+            onDone={(): void => {
+              // no-op — the scene rendering is what the CT asserts.
+            }}
+          />
+        </LoginShellAnchor>
+      </div>
+    </CtDataProviders>
   );
 }
 

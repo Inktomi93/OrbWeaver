@@ -683,3 +683,46 @@
 [data-reduced-motion="true"] [data-slot="waystone"] [data-slot="waystone-bolt"] {
   opacity: 0.9;
 }
+
+/* ── WebWeave + WebSpinner (art/web-weave · primitives/spinner/web-spinner — the brand loader system,
+ * docs/design/login-loading-screen.md §9). Tokens + color-mix only; no raw motion values. ── */
+
+/* The web's ambient accent glow, centered on the hub. The component positions it via the two custom
+ * props (a radial-gradient over color-mix'd tokens has no utility spelling, so it lives here — the
+ * `.orb-weave-shimmer` precedent). */
+.orb-weave-glow {
+  background: radial-gradient(
+    circle at var(--orb-weave-hub-x, 50%) var(--orb-weave-hub-y, 42%),
+    color-mix(in oklab, var(--color-primary) 13%, transparent),
+    transparent 62%
+  );
+}
+
+/* WebSpinner: a slow orb rotation + the silk pulse traveling the spiral. Gated on `data-animate`
+ * (JS-removed under reduced motion — guide §3.9 REMOVE, so the resting glyph is SOLID: the dash
+ * pattern only exists while the pulse runs). The `orb-web-pulse`/`orb-web-spokes` classes are stamped
+ * by the icon seal's orb-web.ts — string-paired by name, grep both when renaming. The dash metrics
+ * ride custom props set by the component (the pulse period is the spiral's measured arc length —
+ * see web-spinner.tsx). Loops are `linear` per the motion taxonomy (guide §2 Loading). */
+@keyframes orb-web-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+@keyframes orb-web-pulse {
+  to {
+    stroke-dashoffset: calc(-1 * var(--orb-web-dash-period, 96px));
+  }
+}
+[data-slot="web-spinner"][data-animate] > svg {
+  animation: orb-web-spin var(--motion-ambient) linear infinite;
+}
+[data-slot="web-spinner"][data-animate] .orb-web-pulse {
+  stroke-dasharray: 12px var(--orb-web-dash-gap, 84px);
+  stroke-dashoffset: 0;
+  animation: orb-web-pulse var(--motion-shimmer) linear infinite;
+}
+/* Under spin the spokes recede so the traveling pulse carries the motion story. */
+[data-slot="web-spinner"][data-animate] .orb-web-spokes {
+  opacity: 0.32;
+}
