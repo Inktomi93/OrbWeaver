@@ -10,6 +10,7 @@
 // plain marker is a tsc error here rather than an empty body slot.
 
 import type { DEFAULT_MARKER_TEMPLATES, MarkerType } from "@orb/contracts/preset";
+import { NARRATOR_MAIN_PROMPT_TEMPLATE } from "@orb/contracts/preset";
 import type { LucideIcon } from "@orb/ui/icons";
 import { BookOpen, CircleUser, Drama, History, Library, MapPin, MessagesSquare, Scroll, ScrollText, Sparkles, Zap } from "@orb/ui/icons";
 
@@ -29,6 +30,16 @@ export interface MarkerCopy {
    *  the default on BOTH turn kinds. The ghost shows the per-speaker default, so without this line the
    *  narrator behaviour is invisible from the only surface that edits it. */
   readonly templateNote?: string;
+  /** The BYTES {@link templateNote} is about, behind a disclosure under it (side-eye 2026-08-08 P2). The note
+   *  said a narrator round "gets a narrator framing instead of this one" and then never showed it —
+   *  `NARRATOR_MAIN_PROMPT_TEMPLATE` had ZERO client consumers, so the one arm the author cannot see was
+   *  also the one arm nothing on any surface printed. Naming a text without showing it asks the reader to
+   *  take the mechanism on faith on the surface whose whole job is making the prompt legible.
+   *
+   *  It is DISCLOSED, not inlined: the per-speaker default is already ghosted in the field above, and a
+   *  second full paragraph at rest would double the note's weight for the minority of turns it describes.
+   *  Meaningful only beside a `templateNote` — bytes with no explanation are the mirror of the same defect. */
+  readonly templateNoteDetail?: { readonly label: string; readonly text: string };
   /** The ASSEMBLED PREVIEW's one-line pointer at {@link templateNote} (side-eye 2026-08-08 P2). The preview
    *  paints the built-in default verbatim — for `main_prompt` that is the PER-SPEAKER framing — so a reader
    *  who never opens the drill-in leaves believing the sentence on screen is the whole story. This cue is
@@ -53,6 +64,7 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
     glyph: Sparkles,
     templateNote:
       "The built-in default adapts to the turn: a narrator round gets a narrator framing instead of this one. Anything you write here replaces it on every turn, narrator and per-character alike.",
+    templateNoteDetail: { label: "See the narrator framing", text: NARRATOR_MAIN_PROMPT_TEMPLATE },
     previewCue: "Adapts on narrator turns — open it for what changes.",
   },
   ["char_description"]: {

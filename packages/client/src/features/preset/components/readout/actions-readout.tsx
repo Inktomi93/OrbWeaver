@@ -33,14 +33,13 @@
 //   ever true of the guided family.
 
 import type { PromptSection } from "@orb/contracts/preset";
-import { TEMPLATE_DEFS } from "@orb/contracts/preset";
 import type { ChatId, PresetId } from "@orb/kit/ids";
 import type { MacroRun } from "@orb/kit/macro";
 import { scanMacroRuns } from "@orb/kit/macro";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
@@ -48,7 +47,13 @@ import { testId } from "#lib";
 import { useSelectedPresetTemplateId } from "#state";
 import { openSectionInPrompt } from "../../lib/preset-nav.ts";
 import type { TemplateRow } from "../../lib/template-rows.ts";
-import { TEMPLATE_KIND_DELIVERY, TEMPLATE_KIND_FIRE_TIME, TEMPLATE_KIND_UNBOUND_GLOSS, templatePreview, templateRowById } from "../../lib/template-rows.ts";
+import {
+  inspectedTemplateRow,
+  TEMPLATE_KIND_DELIVERY,
+  TEMPLATE_KIND_FIRE_TIME,
+  TEMPLATE_KIND_UNBOUND_GLOSS,
+  templatePreview,
+} from "../../lib/template-rows.ts";
 import { MacroText } from "../macro-text.tsx";
 import { deriveZones } from "../prompt-assembly/derive-zones.ts";
 import { DatumRow } from "./readout-parts.tsx";
@@ -66,15 +71,27 @@ export interface ActionsReadoutProps {
   readonly templateText: (id: string) => string;
 }
 
-export function ActionsReadout({ sections, presetId, boundChatId, templateText }: ActionsReadoutProps): ReactElement | null {
-  const row = useSelectedTemplateRow();
-  if (row === undefined) {
-    // The registry is empty — an unreachable product state, and a kicker over nothing is chrome.
-    return null;
-  }
+export function ActionsReadout({ sections, presetId, boundChatId, templateText }: ActionsReadoutProps): ReactElement {
+  // The SHARED fallback (`inspectedTemplateRow`) — the same one the list highlights with, so the panel and
+  // the pane beside it always name the same row. `TEMPLATE_DEFS` is a non-empty tuple, so there is no
+  // empty-registry arm and no `null` return.
+  const row = inspectedTemplateRow(useSelectedPresetTemplateId());
   const delivery = TEMPLATE_KIND_DELIVERY[row.def.kind];
   return (
-    <Stack gap="section">
+    // THE PANEL SAYS WHAT IT IS ABOUT (side-eye 2026-08-08 P2). It rendered a delivery path and a resolved
+    // preview as authoritative CONTEXT with the row's name buried in the SECOND section's kicker — and, with
+    // nothing selected, with no row highlighted anywhere on screen. The region's accessible NAME carries the
+    // row, and the visible header below it says the same thing in the same words (WCAG 2.5.3: what is spoken
+    // is what is shown).
+    <Stack aria-label={`Action readout — ${row.def.label}`} gap="section" role="region">
+      {/* The PANEL's own header — a real `h2` above the section `h3`s, so the readout's subject is the first
+          thing the outline (and the eye) reaches instead of being a suffix on the second section's kicker.
+          The live announce is on it: selection is driven from the OTHER pane, so a screen-reader user who
+          clicks a row gets no focus change and — without this — no signal that the whole panel just
+          re-described itself. `polite` because it follows a deliberate act; it interrupts nothing. */}
+      <Heading aria-live="polite" className="truncate" level={2} voice="label">
+        {row.def.label}
+      </Heading>
       {delivery.kind === "marker" ? (
         <MarkerDeliveryPath sections={sections} />
       ) : (
@@ -89,7 +106,9 @@ export function ActionsReadout({ sections, presetId, boundChatId, templateText }
           <Text voice="gloss">This row — {row.def.fires}.</Text>
         </Section>
       )}
-      <Section kicker={`Resolved — ${row.def.label}`}>
+      {/* The row's name moved UP to the panel header (it is a fact about the whole readout, not about this
+          one section), so the kicker says what the section is again. */}
+      <Section kicker="Resolved">
         {boundChatId === null ? <UnboundPreview row={row} templateText={templateText} /> : <BoundPreview chatId={boundChatId} presetId={presetId} row={row} />}
       </Section>
     </Stack>
@@ -142,17 +161,6 @@ function MarkerDeliveryPath({ sections }: { readonly sections: readonly PromptSe
       </Text>
     </Section>
   );
-}
-
-/** WHICH template the panel describes: the row the reader selected, else the FIRST registry row. A default
- *  rather than an empty state, because the panel's job is to be useful before anything is clicked — and the
- *  registry's own order is the same one the list renders, so the default is the row at the top of the pane.
- *  A STALE id (a def that has since left the registry) falls to the same default rather than blanking. */
-function useSelectedTemplateRow(): TemplateRow | undefined {
-  const selected = useSelectedPresetTemplateId();
-  const picked = selected === null ? undefined : templateRowById(selected);
-  // `TEMPLATE_DEFS` is a non-empty const tuple, so the default row always exists — no empty-registry arm to fake.
-  return picked ?? templateRowById(TEMPLATE_DEFS[0].id);
 }
 
 /** The chat-free arm: the template as AUTHORED, macros chipped and unresolved, with the condition that fills

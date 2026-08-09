@@ -88,16 +88,23 @@ export const CHAT_PROSE_SLOTS = {
   "chat.arbiter.system": {
     id: "chat.arbiter.system",
     home: "user",
-    version: 1,
+    version: 2,
+    // v2 is a VOCABULARY fix, not a behavior change: the default text called the model a "turn director"
+    // while every control, id and symbol around it says ARBITER (`chat.arbiter.system`, `ArbiterCandidate`,
+    // `smartArbitrate`, the slot's own "Turn-arbiter prompt" title). Model-facing bytes are still bytes, so
+    // the change rides the lawful re-version path (D132(A)/§4.4) rather than a silent edit that would strand
+    // every host's `baseVersion` stamp.
     text:
-      "You are a turn director for a multi-character roleplay. Read the recent conversation and the list of " +
+      "You are a turn arbiter for a multi-character roleplay. Read the recent conversation and the list of " +
       "characters who may speak next, then choose the single character who should speak next. Respond with " +
       "ONLY that character's exact name from the list — no punctuation, no explanation.",
     macros: "none",
     requiredMacros: [],
     requiredTokens: [],
     title: "Turn-arbiter prompt",
-    fires: "Every group round under the `smart` speaker policy, on the summarize rail.",
+    // Editor copy is read as PLAIN TEXT (no markdown pass), so it carries no backticks and no internal
+    // nouns — the room's own control label and the model-role slot name instead of "`smart` policy" / "rail".
+    fires: 'Every group round while the room\'s speaker order is "Smart (side-LLM)" — the pick runs on the Summarize model.',
   },
   "chat.compaction.system": {
     id: "chat.compaction.system",

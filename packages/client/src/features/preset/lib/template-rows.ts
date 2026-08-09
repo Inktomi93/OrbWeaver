@@ -223,6 +223,23 @@ export function templateRowById(id: string): TemplateRow | undefined {
   return def === undefined ? undefined : templateRow(def);
 }
 
+/** WHICH row the Actions surface is INSPECTING, from the raw store id — the selected row, else the registry's
+ *  first (which is also the row at the top of the list, so the default is what the eye already lands on). A
+ *  STALE id takes the same fallback rather than blanking the panel.
+ *
+ *  ONE HOME, and that is the whole point (side-eye 2026-08-08 P2). The readout owned this fallback privately,
+ *  so with nothing selected it printed row 1's delivery path and resolved preview as authoritative CONTEXT
+ *  while the list beside it highlighted NOTHING — the reader was given a specific answer with no way to see
+ *  which question it answered. Both panes derive the inspected row from here now, so "the highlighted row"
+ *  and "the row the readout describes" cannot disagree, at open or ever.
+ *
+ *  `TEMPLATE_DEFS` is a non-empty const tuple, so the fallback always resolves — there is no empty-registry
+ *  arm to fake, and the return type says so. */
+export function inspectedTemplateRow(selectedId: string | null): TemplateRow {
+  const picked = selectedId === null ? undefined : templateRowById(selectedId);
+  return picked ?? templateRow(TEMPLATE_DEFS[0]);
+}
+
 /** The bytes a preset STORES for one template id — the same "which form path" answer this file already owns,
  *  applied to a saved config instead of a live form. The readout's unbound preview reads through here so it
  *  and the Actions row can never print two different templates for one row. `""` = nothing stored, which

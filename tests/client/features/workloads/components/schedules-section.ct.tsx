@@ -81,8 +81,10 @@ test("lists a schedule off its OWN read; toggle/delete fire the owner-scoped ver
   const toggled = trpc.lastInput("workloads.setScheduleEnabled") as { id?: unknown };
   expect(toggled.id).toBe("workload_schedule_ct_1");
 
-  // Delete fires deleteSchedule with the row id.
-  await section.getByRole("button", { name: "Delete" }).click();
+  // Delete fires deleteSchedule with the row id. The name is QUALIFIED (side-eye 2026-08-08 P1-3): the row's
+  // only destructive control used to announce the bare word "Delete", so N rows offered N identical buttons
+  // and no way to hear which one you were about to destroy. Asserting the qualified name is what keeps it.
+  await section.getByRole("button", { name: "Delete Index (embeddings) schedule" }).click();
   await expect.poll(() => trpc.count("workloads.deleteSchedule"), { intervals: [20, 50, 100] }).toBeGreaterThanOrEqual(1);
   const deleted = trpc.lastInput("workloads.deleteSchedule") as { id?: unknown };
   expect(deleted.id).toBe("workload_schedule_ct_1");

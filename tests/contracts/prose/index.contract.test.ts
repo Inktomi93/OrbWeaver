@@ -168,9 +168,11 @@ test("the adapted compaction slot ships the exact bytes DEFAULT_COMPACT_INSTRUCT
 const S1_FROZEN_DEFAULTS: Readonly<Partial<Record<ProseSlotId, string>>> = {
   // packages/server/src/domain/chat/assembly/context.ts — ANCHOR_IDENTITY_PREFIX
   "chat.assembly.anchorIdentity": "The person the character knows as the user is",
-  // packages/server/src/domain/chat/engine/smart-arbitrate.ts — SYSTEM_PROMPT
+  // packages/server/src/domain/chat/engine/smart-arbitrate.ts — SYSTEM_PROMPT. v2 is a one-word VOCABULARY
+  // fix ("turn director" → "turn arbiter", the name every id/symbol/control around this slot already uses);
+  // the rest of the bytes are the pre-PROSE-1 constant verbatim.
   "chat.arbiter.system":
-    "You are a turn director for a multi-character roleplay. Read the recent conversation and the list of " +
+    "You are a turn arbiter for a multi-character roleplay. Read the recent conversation and the list of " +
     "characters who may speak next, then choose the single character who should speak next. Respond with " +
     "ONLY that character's exact name from the list — no punctuation, no explanation.",
   // packages/server/src/domain/chat/verbs/compaction.ts — COMPACTION_SYSTEM_PROMPT
