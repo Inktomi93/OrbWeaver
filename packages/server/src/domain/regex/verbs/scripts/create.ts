@@ -15,7 +15,7 @@ export function createCreate(ctx: RegexContext): RegexService["createScript"] {
     const scriptId = ctx.newScriptId();
     const { name, enabled, ...behavior } = input;
 
-    await ctx.db.insert(regexScripts).values({ id: scriptId, ownerId, name, enabled, behavior, createdAt: at });
+    await ctx.db.insert(regexScripts).values({ id: scriptId, ownerId, name, enabled, behavior, createdAt: at, updatedAt: at });
 
     await ctx.audit(
       {
@@ -29,6 +29,6 @@ export function createCreate(ctx: RegexContext): RegexService["createScript"] {
     );
 
     ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
-    return { id: scriptId, name, enabled, ...behavior };
+    return { id: scriptId, name, enabled, updatedAt: at, ...behavior };
   };
 }

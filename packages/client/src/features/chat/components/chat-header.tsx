@@ -25,9 +25,9 @@ import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useAuthConfig, useDraftCastCards, useTRPC } from "#data";
 import type { ChatContextTabId } from "#lib";
-import { testId } from "#lib";
+import { deriveChatTitle, testId } from "#lib";
 import { revealContextPanel } from "#state";
-import { deriveChatTitle, draftChatTitle } from "../lib/chat-summary-row.ts";
+import { draftChatTitle } from "../lib/chat-summary-row.ts";
 import { draftMembersTabJustified, filterCharacters, membersTabJustified } from "../lib/roster.ts";
 import { AddMemberPopover } from "./add-member-popover.tsx";
 

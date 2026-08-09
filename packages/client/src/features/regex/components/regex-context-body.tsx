@@ -21,8 +21,8 @@
 // where its order is decided. The other three scopes author theirs in the shared picker, beside their own
 // attach switches.
 
-import type { RegexAttachmentRef, RegexScriptRow } from "@orb/contracts/regex";
-import type { CharacterId, ChatId, PresetId } from "@orb/kit/ids";
+import type { RegexAttachmentRef, RegexRoomRef, RegexScriptRow } from "@orb/contracts/regex";
+import type { CharacterId, PresetId } from "@orb/kit/ids";
 import { EmptyState } from "@orb/ui/empty-state";
 import type { LucideIcon } from "@orb/ui/icons";
 import { Code, Icon, MessagesSquare, SlidersHorizontal, Users } from "@orb/ui/icons";
@@ -33,7 +33,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { RegexScopeOrder } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { regexScriptTitle } from "#lib";
+import { deriveChatTitle, regexScriptTitle, rowQualifiers, timeLib } from "#lib";
 import { useAttachRegexGlobal, useDetachRegexGlobal } from "../hooks/use-regex-library.ts";
 
 export function RegexContextBody({ memberId }: { readonly memberId: string }): ReactElement {
@@ -107,12 +107,7 @@ function RegexScopePanel({
         noun="characters"
         rows={usage.characters}
       />
-      <AttachmentRoster
-        emptyText="No room attaches this script yet. Open a chat's This-chat panel to attach it there."
-        glyph={MessagesSquare}
-        noun="rooms"
-        rows={usage.rooms}
-      />
+      <RoomRoster rooms={usage.rooms} />
       {/* THE ROSTERS LEAD, THE ORDER FOLLOWS (side-eye 2026-08-03 P2 "panel burial"). The order editor used
           to sit directly under the global switch: at the owner's 34 global scripts its 34 rows pushed
           "Attached by presets / characters / rooms" ~1400px below the fold, in a panel whose entire stated
@@ -155,7 +150,7 @@ function AttachmentRoster({
 }: {
   readonly noun: string;
   readonly glyph: LucideIcon;
-  readonly rows: readonly RegexAttachmentRef<PresetId | CharacterId | ChatId>[];
+  readonly rows: readonly RegexAttachmentRef<PresetId | CharacterId>[];
   readonly emptyText: string;
 }): ReactElement {
   return (
@@ -174,6 +169,57 @@ function AttachmentRoster({
               </Text>
             </Row>
           ))}
+        </Stack>
+      )}
+    </Section>
+  );
+}
+
+/**
+ * THE ROOM ROSTER — the same roster, one rung richer, because a chat is not named the way a preset is.
+ *
+ * A preset and a character each HAVE a name. A room's title is a fallback CHAIN, and this roster used to
+ * implement only two of its three rungs server-side: every room nobody had renamed read "Untitled chat",
+ * which named nobody and, at three unnamed rooms, produced three identical rows. The chats list two panes
+ * over calls the same rooms by their cast. `deriveChatTitle` is that chain's ONE home (it moved into `#lib`
+ * for this), so the roster now runs it instead of receiving someone else's answer.
+ *
+ * AND THE STAMP, for the reason titling by cast CREATES: "Nate, Niko" is a perfectly good title for three
+ * different rooms. `rowQualifiers` is the house answer to exactly that collision on exactly this data (it
+ * disambiguates the chats list, whose N rows titled "Azarael" are the same shape), escalating only where it
+ * must — the short relative form when the rooms are distinguishable by it, the absolute date-time when they
+ * are not, an ordinal when nothing on screen can tell them apart. So a room row here reads the way a chats
+ * row does: who is in it, and when it last moved.
+ */
+function RoomRoster({ rooms }: { readonly rooms: readonly RegexRoomRef[] }): ReactElement {
+  const stamps = rowQualifiers(
+    rooms.map((room) => ({ name: deriveChatTitle(room.title, room.participantNames), at: room.at })),
+    timeLib.formatRelativeCompact,
+    timeLib.formatDateTime,
+  );
+  return (
+    <Section data-slot="regex-usage-rooms" kicker={`Attached by rooms · ${rooms.length}`}>
+      {rooms.length === 0 ? (
+        <Text voice="gloss">No room attaches this script yet. Open a chat's This-chat panel to attach it there.</Text>
+      ) : (
+        <Stack gap="tight">
+          {rooms.map((room, index) => {
+            const title = deriveChatTitle(room.title, room.participantNames);
+            const stamp = stamps[index] ?? "";
+            return (
+              // The stamp is `shrink-0` and the title takes the squeeze — this pane is the config rail's
+              // 320px context column, so the datum that must never wrap is the short one.
+              <Row align="center" className="min-w-0" gap="field" key={room.id}>
+                <Icon icon={MessagesSquare} size="xs" />
+                <Text as="span" className="truncate" title={title}>
+                  {title}
+                </Text>
+                <Text as="span" className="shrink-0" voice="datum">
+                  {stamp}
+                </Text>
+              </Row>
+            );
+          })}
         </Stack>
       )}
     </Section>

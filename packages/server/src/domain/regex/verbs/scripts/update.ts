@@ -21,7 +21,7 @@ export function createUpdate(ctx: RegexContext): RegexService["updateScript"] {
     }
 
     const { name: patchName, enabled: patchEnabled, ...behaviorPatch } = input;
-    const { id: _id, name: _name, enabled: _enabled, ...currentBehavior } = toRow(record);
+    const { id: _id, name: _name, enabled: _enabled, updatedAt: _updatedAt, ...currentBehavior } = toRow(record);
     // A `.partial()` patch carries EXPLICIT `undefined` for every omitted key; under
     // `exactOptionalPropertyTypes` a bare spread would therefore erase fields rather than leave them. Merge
     // only the DEFINED keys, then re-parse through the schema so the stored blob is always canonical.
@@ -38,12 +38,12 @@ export function createUpdate(ctx: RegexContext): RegexService["updateScript"] {
 
     await ctx.db
       .update(regexScripts)
-      .set({ name, enabled, behavior })
+      .set({ name, enabled, behavior, updatedAt: at })
       .where(and(eq(regexScripts.id, scriptId), eq(regexScripts.ownerId, ownerId)));
 
     await ctx.audit({ actorUserId: ownerId, action: "regex.updateScript", entityType: "regex_script", entityId: scriptId, metadata: { name } }, at);
 
     ctx.emitUserEvent(ownerId, { type: "regexChanged", scriptId });
-    return { id: scriptId, name, enabled, ...behavior };
+    return { id: scriptId, name, enabled, updatedAt: at, ...behavior };
   };
 }

@@ -125,11 +125,17 @@ export const regexScriptBehaviorSchema = regexScriptBehaviorFields.superRefine(h
 
 export type RegexScriptBehavior = z.infer<typeof regexScriptBehaviorSchema>;
 
-/** The flat library-row wire view — a `regex_scripts` row projected for every reader. */
+/** The flat library-row wire view — a `regex_scripts` row projected for every reader.
+ *
+ *  `updatedAt` is the EDITED stamp the library list renders (X-16: `Add script` mints every row named
+ *  "New script", so without a per-row discriminator a library of them is unreadable — the preset list has
+ *  carried this since its own F5 finding). It rides on the ROW rather than on a separate list-summary shape
+ *  because the library has no separate summary: `regex.listScripts` returns exactly this. */
 export const regexScriptSchema = regexScriptBehaviorSchema.extend({
   id: typeIdSchema(ID_PREFIX.regexScript),
   name: z.string().max(MAX_NAME_LENGTH),
   enabled: z.boolean().default(true),
+  updatedAt: z.number().int(),
 });
 
 export type RegexScriptRow = z.infer<typeof regexScriptSchema>;
@@ -253,15 +259,44 @@ export interface RegexAttachmentRef<TId extends PresetId | CharacterId | ChatId>
   readonly name: string;
 }
 
-/** Where one script already runs, read from the SCRIPT's side — the three roster scopes, each in name order.
+/**
+ * One ROOM that attaches a script — the roster's row, and deliberately NOT a `RegexAttachmentRef`.
+ *
+ * A preset and a character HAVE a name: one authored string, owned by the row, which the server can hand
+ * over finished. A chat does not. Its display title is a fallback CHAIN (authored title → the present cast's
+ * display names → "Untitled chat") that the client owns in one place, `#lib`'s `deriveChatTitle`, because
+ * the chats list, the topbar, the command palette and the landing strip all render it. So this ref carries
+ * the chain's INPUTS and lets the one derivation run, rather than shipping a name the server derived with a
+ * second copy of the rule — which is exactly what it used to do, and why an unnamed room read "Untitled
+ * chat" here while the chats list called the same room "Azarael" (REGROSTER's parked naming question, owner
+ * pick 2026-08-09).
+ *
+ * `at` is the room's last-activity instant — the same `chats.updatedAt` the chats list ORDERS by. It is on
+ * the row for the same reason the chats list carries it: once rooms are titled by their cast, several rooms
+ * legitimately share one title, and the recency stamp is the house disambiguator (`rowQualifiers`).
+ */
+export interface RegexRoomRef {
+  readonly id: ChatId;
+  /** The AUTHORED title, raw and untrimmed — null or blank means "never renamed", which the chain answers. */
+  readonly title: string | null;
+  /** The present cast's display names, in roster order, MINUS the caller's own seat (the chats list's own
+   *  `summaryCast` rule: the viewer is in every room they can see, so their name carries no information). */
+  readonly participantNames: readonly string[];
+  /** Last activity (`chats.updatedAt`), epoch-ms. */
+  readonly at: number;
+}
+
+/** Where one script already runs, read from the SCRIPT's side — the three roster scopes.
  *  GLOBAL is absent on purpose: it is a property of the script itself (`global_regex_scripts` PKs on the
  *  script id), so the context pane reads it off `listGlobal` and renders it as a switch, not a roster.
  *  ROOMS are membership-scoped (D18 — chats carry no ownerId): a room the caller cannot see is not listed,
- *  even when the script it attaches is the caller's own. */
+ *  even when the script it attaches is the caller's own. Presets and characters arrive in NAME order (the
+ *  server can sort what it can name); rooms arrive newest-first, because their name is the client's to
+ *  derive and `chats.updatedAt` is the order the chats list itself uses. */
 export interface RegexScriptUsage {
   readonly presets: readonly RegexAttachmentRef<PresetId>[];
   readonly characters: readonly RegexAttachmentRef<CharacterId>[];
-  readonly rooms: readonly RegexAttachmentRef<ChatId>[];
+  readonly rooms: readonly RegexRoomRef[];
 }
 
 /** The PORTABLE file shape — one script per `regex/*.json` in a backup bundle. `global` is the only

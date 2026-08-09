@@ -9,6 +9,7 @@ export { listSeededBackgrounds, resolveSeededBackgroundUrl } from "@orb/contract
 export { cn } from "@orb/ui/lib";
 export { BACKGROUND_KIND_ITEMS, BACKGROUND_KIND_LABELS } from "./background-kind-items.ts";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
+export { deriveChatTitle, UNTITLED_CHAT_TITLE } from "./chat-title.ts";
 export type { ChatWithCharacterSeats } from "./chats-with-character.ts";
 export { chatsWithCharacter } from "./chats-with-character.ts";
 export type { ClientErrorPayload } from "./client-error-report.ts";

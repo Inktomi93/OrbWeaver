@@ -40,7 +40,7 @@ import type { ReactElement } from "react";
 import { LibraryRow } from "#components";
 import { useInvalidation, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
-import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, downloadTextFile, notify, regexScriptScent, regexScriptTitle } from "#lib";
+import { COLLECTION_LARGE_GROUP, COLLECTION_WINDOW_MAX_HEIGHT, downloadTextFile, notify, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
 import {
   clearCollectionSelection,
   clearRegexBulkSelection,
@@ -181,7 +181,7 @@ function RegexCollectionRow({ script, isGlobal, selected, bulkActive, onSelect, 
         // list two "you are here" marks.
         selected={checked}
         stateToggle={<Checkbox aria-label={`Select ${title}`} checked={checked} onCheckedChange={(): void => toggleRegexScriptSelected(script.id)} />}
-        subtitle={regexScriptScent(script)}
+        subtitle={regexScriptScent(script, timeLib.formatRelative)}
         title={title}
       />
     );
@@ -206,7 +206,7 @@ function RegexCollectionRow({ script, isGlobal, selected, bulkActive, onSelect, 
       onSelect={onSelect}
       selected={selected}
       stateToggle={<GlobalScopeSwitch isGlobal={isGlobal} script={script} />}
-      subtitle={regexScriptScent(script)}
+      subtitle={regexScriptScent(script, timeLib.formatRelative)}
       title={title}
     />
   );

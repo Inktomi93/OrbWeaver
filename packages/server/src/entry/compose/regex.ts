@@ -10,12 +10,12 @@
 // only the DATA the engine runs on (AGENTS §1 "engine vs data").
 
 import type { Db } from "@orb/db";
-import { chatParticipants, chats } from "@orb/db";
-import type { ChatId } from "@orb/kit/ids";
+import { characters, chatParticipants, chats, personas, users } from "@orb/db";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { and, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull } from "drizzle-orm";
 import { can } from "#domain/admin";
-import { parseChatMetadata } from "#domain/chat";
+import { parseChatMetadata, REMOVED_MEMBER_LABEL } from "#domain/chat";
 import type {
   ExportCardScripts,
   ExportRegexScripts,
@@ -69,38 +69,108 @@ function makeResolveRoomDisplayPolicy(db: Db): RegexContext["resolveRoomDisplayP
 }
 
 /**
- * The REVERSE-roster room filter (REGROSTER) — "of these rooms, which may this caller see, and what are
- * they called". Built HERE for the same reason `resolveRoomDisplayPolicy` is: rooms carry no `ownerId`
- * (D18), so their scope is `chat_participants` and their NAME is chat's display vocabulary — regex reads
+ * The REVERSE-roster room filter (REGROSTER) — "of these rooms, which may this caller see, and what does a
+ * roster row need to name them". Built HERE for the same reason `resolveRoomDisplayPolicy` is: rooms carry
+ * no `ownerId` (D18), so their scope is `chat_participants` and their identity data is chat's — regex reads
  * neither.
  *
  * PRESENT membership only (`leftSeq IS NULL`): a room the caller has left keeps the attachment row, and
  * naming it would tell an ex-member a room they can no longer open still exists and still runs their
  * script. Absent from the answer is the same leak-free collapse `requireParticipant` makes, without a throw.
  *
- * The NAME is the authored title, trimmed, else the untitled fallback — the chats list's own first and last
- * rungs. Its MIDDLE rung (the participant-name projection, `deriveChatTitle`) is deliberately not re-derived
- * here: it is a per-caller roster+character join that exists to title a chat CARD, and a three-line roster
- * in a 320px context pane is not worth making regex's cheapest read pay for it.
+ * ── SUPERSEDED RULING, RECORDED (owner pick 2026-08-09, REGROSTER's parked naming question) ──
+ * This function used to return a finished `name` and its header said, verbatim, that the middle rung of the
+ * chats list's title chain — the participant-name projection — was "deliberately not re-derived here…not
+ * worth making regex's cheapest read pay for it". The consequence was the reported defect: every unnamed
+ * room in the regex roster read "Untitled chat" while the chats list two panes over called the same room
+ * "Azarael". The owner ruled the roster should name rooms the way the chats list does.
+ *
+ * THE COST ARGUMENT IS PRESERVED, not discarded — it is why this is TWO statements and not an N+1:
+ *   • the room read is unchanged (one filtered join over an already-bounded candidate id set);
+ *   • the cast read is ONE more statement over the ids that read returned, with the character/persona/user
+ *     joins inlined. There is no per-room query, and a script attached to no visible room asks nothing.
+ * What is NOT re-derived here is the title CHAIN itself: this hands back the chain's inputs and the client's
+ * one `deriveChatTitle` runs it (see `RegexRoomRef`). A second copy of the rule is what caused the defect.
+ *
+ * The order is `chats.updatedAt` DESC — the chats list's own ORDER BY. A name sort is no longer available
+ * (the server does not know the names), and recency is the honest column: it is the order the user already
+ * reads their rooms in. Id breaks the tie so a batch of same-instant rooms is stable.
  */
 function makeResolveVisibleRooms(db: Db): RegexContext["resolveVisibleRooms"] {
   return async (principal, chatIds) => {
-    const rows = await db
-      .select({ id: chats.id, title: chats.title })
+    const rooms = await db
+      .select({ id: chats.id, title: chats.title, at: chats.updatedAt })
       .from(chats)
       .innerJoin(chatParticipants, eq(chatParticipants.chatId, chats.id))
       .where(and(inArray(chats.id, [...chatIds]), eq(chatParticipants.userId, principal.userId), isNull(chatParticipants.leftSeq)));
-    // Sorted on the DERIVED name, not the raw column: ordering by `chats.title` would bunch every unnamed
-    // room at the top under a label the sort never saw. Id breaks the tie so two "Untitled chat"s are stable.
-    return rows
-      .map((row) => ({ id: row.id, name: (row.title ?? "").trim() || UNTITLED_ROOM }))
-      .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+    if (rooms.length === 0) {
+      return [];
+    }
+    const castByRoom = await loadRoomCasts(
+      db,
+      rooms.map((room) => room.id),
+      principal.userId,
+    );
+    return rooms
+      .map((room) => ({ id: room.id, title: room.title, participantNames: castByRoom.get(room.id) ?? [], at: room.at }))
+      .sort((a, b) => b.at - a.at || a.id.localeCompare(b.id));
   };
 }
 
-/** The roster's name for a room nobody has renamed. Matches the chats list's own last-rung string so one
- *  unnamed room reads the same in both places. */
-const UNTITLED_ROOM = "Untitled chat";
+/**
+ * The present cast of each visible room, as the CHATS LIST spells it — one statement, no fan-out.
+ *
+ * The per-seat display name is `domain/chat`'s ONE rule (`substrate/participant-name`): a character seat is
+ * its live card name, a human seat is their ACTIVE PERSONA's name, else their handle, else the removed-member
+ * label. It is reproduced here as JOINS rather than by calling chat's `loadParticipantViews`, because that
+ * read resolves avatars, render policies and theme overrides per seat — a per-room, per-seat fan-out this
+ * roster has no use for. Both FKs CASCADE (`chat_participants` header: "a deleted character leaves no roster
+ * ghost"), so a present seat always has its live row and the removed-* labels are unreachable through this
+ * path; they stay spelled for the persona-less human whose publics row is mid-delete.
+ *
+ * The persona join is OWNER-SCOPED to the seat's own user — the `resolveUserPublics` predicate verbatim, so a
+ * persona that somehow outlived its owner's seat can never lend its name to someone else's row.
+ *
+ * VIEWER SUPPRESSION is the chats list's `summaryCast` rule, floor included: drop the caller's own seat,
+ * unless dropping it would empty the cast (a solo room keeps its name instead of collapsing to "Untitled").
+ */
+async function loadRoomCasts(db: Db, roomIds: readonly ChatId[], viewerUserId: UserId): Promise<ReadonlyMap<ChatId, readonly string[]>> {
+  const seats = await db
+    .select({
+      chatId: chatParticipants.chatId,
+      userId: chatParticipants.userId,
+      characterName: characters.name,
+      personaName: personas.name,
+      handle: users.handle,
+    })
+    .from(chatParticipants)
+    .leftJoin(characters, eq(chatParticipants.characterId, characters.id))
+    .leftJoin(users, eq(chatParticipants.userId, users.id))
+    .leftJoin(personas, and(eq(chatParticipants.activePersonaId, personas.id), eq(personas.ownerId, chatParticipants.userId)))
+    .where(and(inArray(chatParticipants.chatId, [...roomIds]), isNull(chatParticipants.leftSeq)))
+    .orderBy(asc(chatParticipants.joinSeq));
+
+  const byRoom = new Map<ChatId, { readonly userId: UserId | null; readonly name: string }[]>();
+  for (const seat of seats) {
+    const name = seat.characterName ?? seat.personaName ?? seat.handle ?? REMOVED_MEMBER_LABEL;
+    const bucket = byRoom.get(seat.chatId);
+    if (bucket === undefined) {
+      byRoom.set(seat.chatId, [{ userId: seat.userId, name }]);
+    } else {
+      bucket.push({ userId: seat.userId, name });
+    }
+  }
+
+  const casts = new Map<ChatId, readonly string[]>();
+  for (const [chatId, bucket] of byRoom) {
+    const others = bucket.filter((seat) => seat.userId !== viewerUserId);
+    casts.set(
+      chatId,
+      (others.length > 0 ? others : bucket).map((seat) => seat.name),
+    );
+  }
+  return casts;
+}
 
 /** What the regex seam needs from the composition root. */
 export interface RegexComposeDeps {

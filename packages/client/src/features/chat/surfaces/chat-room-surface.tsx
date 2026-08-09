@@ -14,7 +14,7 @@ import { Fragment, useRef, useState } from "react";
 import type { ChatBusDeps } from "#data";
 import { useCarriedAppearanceCast, useGatedQuery, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { useFocusOnMount } from "#lib";
+import { deriveChatTitle, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle, ChatHandle } from "#state";
 import { committedChat, isCommitted, migrateComposerDraft, resolveDraftCharacterIds, useDraftConfig } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
@@ -24,7 +24,6 @@ import { Composer } from "../components/composer.tsx";
 import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
 import type { DraftSeed } from "../hooks/use-send-message.ts";
 import { resolveRoomTheme } from "../lib/attribution.ts";
-import { deriveChatTitle } from "../lib/chat-summary-row.ts";
 import { MessageListSurface } from "./message-list-surface.tsx";
 
 export interface ChatRoomSurfaceProps {

@@ -5,20 +5,15 @@
 // components/chat-summary-row.tsx (biome forbids a component + a plain export in one module).
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { rowQualifiers, timeLib } from "#lib";
+import { deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>[number];
 
-/** The ONE chat display-title fallback chain: authored title → participant display names →
- *  "Untitled chat". Stored titles are EMPTY STRINGS until renamed (not just null), so the fallback
- *  trims — a `?? "Untitled chat"` is defeated by `""` and renders a blank title. */
-export function deriveChatTitle(title: string | null, participantNames: readonly string[]): string {
-  const trimmed = (title ?? "").trim();
-  if (trimmed.length > 0) {
-    return trimmed;
-  }
-  return participantNames.length > 0 ? participantNames.join(", ") : "Untitled chat";
-}
+// `deriveChatTitle` MOVED to `#lib/chat-title` (2026-08-09) and is imported from there above, NOT re-exported
+// from here (a re-export would make this a barrel file, which biome forbids): the regex library's room
+// roster names chat rooms, features cannot import each other, and this file's own two-rung copy of the chain
+// is what put "Untitled chat" on rooms the chats list calls by their cast. Every consumer now imports it
+// from `#lib`.
 
 /** What a cast-less draft is called — one word, one home for every surface that prints a pre-send room. */
 const NEW_CHAT_TITLE = "New chat";

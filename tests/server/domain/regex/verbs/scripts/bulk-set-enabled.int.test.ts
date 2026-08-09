@@ -14,6 +14,9 @@ import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { makeHarness, principal, seedScript, seedUser } from "../../_support.ts";
 
+/** One hour of frozen-clock advance — enough to make a moved stamp unmistakable. */
+const ONE_HOUR_MS = 3_600_000;
+
 describe("bulkSetScriptsEnabled", () => {
   test("flips every named owned script in ONE write, with ONE audit and ONE emit", async () => {
     const db = await freshDb();
@@ -33,6 +36,31 @@ describe("bulkSetScriptsEnabled", () => {
     expect(h.audits).toHaveLength(1);
     expect(h.audits[0]?.entry.action).toBe("regex.bulkDisableScripts");
     expect(h.audits[0]?.entry.metadata).toEqual({ count: 2, bulk: true });
+  });
+
+  // X-16: a bulk switch IS an edit. A row whose list stamp did not move after the user changed it reads as
+  // a write that did not land — and the ROWS THE VERB DROPPED must keep their old stamp, or the batch would
+  // silently re-date scripts it never touched.
+  test("stamps updatedAt on every row it wrote, and on none that it did not", async () => {
+    const db = await freshDb();
+    const h = makeHarness(db);
+    const svc = createRegexService(h.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
+    const mine = await seedScript(db, { ownerId: owner, id: "regex_script_mine", name: "mine" });
+    const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
+    const [bornMine] = await db.select().from(regexScripts).where(eq(regexScripts.id, mine));
+    const [bornTheirs] = await db.select().from(regexScripts).where(eq(regexScripts.id, theirs));
+
+    h.advance(ONE_HOUR_MS);
+    await svc.bulkSetScriptsEnabled({ principal: principal(owner), scriptIds: [mine, theirs], enabled: false });
+
+    const [afterMine] = await db.select().from(regexScripts).where(eq(regexScripts.id, mine));
+    const [afterTheirs] = await db.select().from(regexScripts).where(eq(regexScripts.id, theirs));
+    expect(afterMine?.updatedAt).toBe((bornMine?.updatedAt ?? 0) + ONE_HOUR_MS);
+    expect(afterTheirs?.updatedAt).toBe(bornTheirs?.updatedAt); // the dropped foreign row is untouched
+    // ONE clock read for the whole operation: the stamp and the audit's instant are the same.
+    expect(h.audits[0]?.at).toBe(afterMine?.updatedAt);
   });
 
   test("a FOREIGN id is silently dropped — never an oracle, and never a foreign write", async () => {

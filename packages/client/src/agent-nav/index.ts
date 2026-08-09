@@ -10,7 +10,7 @@
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "#data";
-import { deriveChatTitle } from "#features/chat";
+import { deriveChatTitle } from "#lib";
 import type { ModalSlotId, SectionId, SettingsCategoryId } from "#state";
 import {
   closeModal,
