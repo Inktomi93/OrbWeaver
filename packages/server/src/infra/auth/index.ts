@@ -71,6 +71,12 @@ export async function resolve(headers: Headers, deps: ResolveDeps): Promise<Iden
 // NOTE: `Principal` is NOT re-exported — infra/auth never constructs one (that is `entry/auth/seam.ts`).
 export type { ResolvedIdentity } from "@orb/contracts/identity";
 export { CSRF_HEADER } from "@orb/contracts/identity";
+export {
+  type BackchannelLogoutVerifier,
+  type BackchannelVerifyArgs,
+  createBackchannelLogoutVerifier,
+  type LogoutTokenSubject,
+} from "./backchannel.ts";
 // ── Public surface ───────────────────────────────────────────────────────────────────────────────
 export { authConfigFromEnv } from "./config.ts";
 export type {

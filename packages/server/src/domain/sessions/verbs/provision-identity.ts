@@ -2,6 +2,7 @@ import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
 import { getLog, securityEvent } from "#foundation/observability";
+import type { ProvisionIdentityOptions } from "../contract/params.ts";
 import type { ProvisionResult } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import {
@@ -128,16 +129,27 @@ async function updateExisting(
   };
 }
 
-/** First-login INSERT (race-tolerant) + re-read by the keyed column to return the canonical row. */
-async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resolvedRole: UserRole): Promise<ProvisionResult> {
+/** First-login INSERT (race-tolerant) + re-read by the keyed column to return the canonical row.
+ *  `requireApproval` is the caller-resolved A2 flag (undefined ⇒ off). */
+async function insertNew(
+  ctx: SessionsContext,
+  identity: ResolvedIdentity,
+  resolvedRole: UserRole,
+  requireApproval: boolean | undefined,
+): Promise<ProvisionResult> {
   const now = ctx.now();
+  // A2 — OIDC_REQUIRE_APPROVAL (caller-resolved): a first-time NON-OWNER SSO user lands disabled (awaiting
+  // admin approval). The owner is never gated — a disabled owner would lock the box out of itself. This
+  // reuses the `enabled` control `validate` + the SSO callback already refuse on, rather than adding a
+  // `pending` role to the D17 lattice. An admin enables the row (Settings → Admin → Approvals) to grant access.
+  const enabled = resolvedRole === "owner" || requireApproval !== true;
   await insertUser(ctx.db, {
     id: newId<UserId>(),
     handle: identity.handle,
     externalId: identity.externalId,
     email: identity.email,
     role: resolvedRole,
-    enabled: true,
+    enabled,
     createdAt: now,
     updatedAt: now,
   });
@@ -149,7 +161,12 @@ async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resol
     // Unreachable: either our insert succeeded or a concurrent one did.
     throw new Error(`provisionIdentity: row missing after insert (handle=${identity.handle}, externalId=${identity.externalId ?? "null"})`);
   }
-  getLog().info({ handle: identity.handle, externalId: identity.externalId, role: settled.role }, "user: provisioned SSO identity (created)");
+  getLog().info(
+    { handle: identity.handle, externalId: identity.externalId, role: settled.role, enabled: settled.enabled },
+    settled.enabled
+      ? "user: provisioned SSO identity (created)"
+      : "user: provisioned SSO identity (created, DISABLED — awaiting admin approval, OIDC_REQUIRE_APPROVAL)",
+  );
   return {
     outcome: "provisioned",
     userId: settled.id,
@@ -252,8 +269,32 @@ function reportNullSubjectOnBoundRow(existing: ExistingUser | undefined, identit
   );
 }
 
+/**
+ * A1 — the JIT admission gate (caller-resolved `allowJitProvision`; for oidc that is OIDC_SIGNUP, off by
+ * default). A brand-new identity (no existing row) is refused when JIT is off, so the box admits only
+ * identities an admin already provisioned. The box OWNER by policy is EXEMPT — the owner is provisioned by
+ * boot seed / owner-flip adoption, never a "signup", and must never be locked out. Returns the denial or
+ * null to proceed. Mode-agnostic: forward-header passes `true` (the trusted proxy already gated who reaches
+ * us), so this never gates it.
+ */
+function denyJitIfBlocked(existing: ExistingUser | undefined, identity: ResolvedIdentity, allowJitProvision: boolean | undefined): ProvisionResult | null {
+  // `allowJitProvision` undefined ⇒ JIT allowed (the forward-header / non-oidc default); only an explicit
+  // `false` (OIDC_SIGNUP off) blocks a brand-new non-owner identity.
+  if (existing !== undefined || allowJitProvision !== false || isOwnerByPolicy(identity.handle, identity.groups)) {
+    return null;
+  }
+  getLog().warn(
+    { handle: identity.handle, externalId: identity.externalId },
+    "user: SSO login denied — JIT provisioning is off (OIDC_SIGNUP) and this identity has no existing account (deny-by-default; set OIDC_SIGNUP=on to allow it)",
+  );
+  return { outcome: "denied" };
+}
+
 export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsService, "provisionIdentity"> {
-  async function provisionIdentity(identity: ResolvedIdentity): Promise<ProvisionResult> {
+  async function provisionIdentity(identity: ResolvedIdentity, options: ProvisionIdentityOptions = {}): Promise<ProvisionResult> {
+    // Caller-resolved admission (the verb stays mode-agnostic). Both flags default OFF-of-gate when omitted
+    // (forward-header seam, tests): JIT allowed, no approval — resolved inside the helpers so this function
+    // stays flat.
     const existing = await findExisting(ctx, identity);
     reportNullSubjectOnBoundRow(existing, identity);
     // THE HANDLE FALLBACK BINDS, IT NEVER REBINDS. `findExisting` falls back to `handle` so an UNBOUND row
@@ -280,6 +321,12 @@ export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsServ
         "user: SSO login refused — the handle resolves to a row already bound to a DIFFERENT stable subject (impostor / handle re-registration); externalId is the identity key",
       );
       return { outcome: "denied" };
+    }
+    // A1 — JIT admission gate (see {@link denyJitIfBlocked}). Ordered AFTER the bind-once guard and BEFORE the
+    // allowed-groups gate so the deny reasons stay ordered (impostor > signup-off > not-in-allowed-group).
+    const jitDenied = denyJitIfBlocked(existing, identity, options.allowJitProvision);
+    if (jitDenied !== null) {
+      return jitDenied;
     }
     const ownerId = await selectOwnerUserId(ctx.db);
     // Owner exemption: the immutable bootstrap owner is matched by the existing owner row's id, never by a
@@ -316,7 +363,7 @@ export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsServ
           resolvedRole,
           isBootstrapOwner: false,
         })
-      : await insertNew(ctx, identity, resolvedRole);
+      : await insertNew(ctx, identity, resolvedRole, options.requireApproval);
   }
   return { provisionIdentity };
 }
