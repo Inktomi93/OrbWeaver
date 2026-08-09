@@ -12,8 +12,9 @@ import type { SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuthRoutesDeps, AuthSessionsPort, LocalAuthenticator, OidcClaimMap, OidcRoutesDeps } from "@orb/server/entry/http";
 import { deriveRedirectUri, identityFromClaims, registerAuthRoutes, serializeClearedSessionCookie, serializeSessionCookie } from "@orb/server/entry/http";
+import { logger } from "@orb/server/foundation/observability";
 import type { OidcTransaction } from "@orb/server/infra/auth";
-import { describe } from "vitest";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
 const NOW = 1_700_000_000_000;
@@ -278,6 +279,41 @@ describe("OIDC claim mapping (provider-agnostic — B2)", () => {
   test("no uid claim → externalId null (handle keys the row); no email → email null", () => {
     const identity = identityFromClaims({ preferred_username: "carol" }, authentikClaims);
     expect(identity).toEqual({ externalId: null, handle: "carol", groups: [], email: null });
+  });
+
+  // #34 — THE OPERATOR SIGNAL FOR A SILENTLY-DISABLED SECURITY CONTROL. `externalId` is the identity key,
+  // and the bind-once takeover refusal (`isSubjectMismatch`, domain/sessions/verbs/provision-identity.ts) is
+  // deliberately scoped to SUBJECT-BEARING logins — with a null subject there is nothing to contradict, so
+  // the guard cannot fire and a handle match walks straight onto whatever row holds that handle. In `oidc`
+  // mode a null subject is a MISCONFIGURATION, never a posture (OIDC Core REQUIRES `sub` in an ID token), so
+  // it means OIDC_UID_CLAIM names a claim this IdP does not emit — and the box then runs guard-less for
+  // EVERY login with nothing in the logs saying so. This mapper is the oidc-only seam (forward-header
+  // resolves in infra/auth/modes/forward-header.ts, where null IS the normal shape), so the warn is
+  // mode-scoped by construction. Observability only: the returned identity is byte-identical either way.
+  test("a uid claim the IdP omits WARNS (oidc runs with the bind-once guard inert) — identity unchanged", () => {
+    const spy = vi.spyOn(logger, "warn");
+    const identity = identityFromClaims({ preferred_username: "carol" }, authentikClaims);
+    expect(identity).toEqual({ externalId: null, handle: "carol", groups: [], email: null }); // NO behavior change
+    expect(spy).toHaveBeenCalledOnce();
+    const [bindings] = spy.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
+    expect(bindings["security"]).toBe(true);
+    expect(bindings["event"]).toBe("oidc_subject_claim_missing");
+    expect(bindings["uidClaim"]).toBe("sub"); // names the MISCONFIGURED knob, not just the symptom
+    expect(bindings["handle"]).toBe("carol");
+  });
+
+  test("a subject-bearing login is SILENT (the warn is not a per-login siren)", () => {
+    const spy = vi.spyOn(logger, "warn");
+    identityFromClaims({ preferred_username: "alice", sub: "sub-alice" }, authentikClaims);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  // The username claim missing already fails closed (null identity, no session) — there is no login to warn
+  // about, and firing here would drown the real signal in noise from probes/misdirected requests.
+  test("a MISSING username claim stays silent — it already fails closed, it is not a guard-disabled login", () => {
+    const spy = vi.spyOn(logger, "warn");
+    expect(identityFromClaims({ groups: [] }, authentikClaims)).toBeNull();
+    expect(spy).not.toHaveBeenCalled();
   });
 
   test("NESTED dot-path claims (Entra/AD FS) resolve — groups at `user.memberOf`, email nested", () => {

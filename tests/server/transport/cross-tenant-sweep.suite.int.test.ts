@@ -24,6 +24,7 @@ import type {
   MessageId,
   PersonaId,
   PresetId,
+  RefinerySchemaId,
   RefinerySessionId,
   RegexScriptId,
   RpgCheckpointId,
@@ -76,6 +77,12 @@ const MARK = {
   // The refinery session's NAME — a leaked SessionView/summary carries it verbatim (R1: sessions derive
   // ownership through the character join, D23 — no ownerId column, so the join IS the belt under probe).
   refinerySession: "AlphaSecretRefinery",
+  // R3: the custom-schema library row. Unlike sessions, `refinery_schemas` carries a DIRECT `ownerId`, so the
+  // belt under probe is `loadOwnedSchemaRow`'s owner predicate. The marker rides the schema's NAME and its
+  // DESCRIPTION — a leaked `updateSchema` returns the summary with the description verbatim even though the
+  // stranger's patch overwrote the name, so both spellings are load-bearing. (The name must satisfy the
+  // ResponseFormat identifier grammar `^[a-zA-Z_][a-zA-Z0-9_]*$` — hence no punctuation.)
+  refinerySchema: "AlphaSecretSchema",
 } as const;
 const MARKERS = Object.values(MARK);
 
@@ -105,6 +112,9 @@ interface OwnerIds {
   // refinery (R1) — A's real session id; every session verb derives ownership through the character join
   // (D23, no ownerId column), so a stranger passing it must collapse to leak-free NOT_FOUND.
   refinerySessionId: RefinerySessionId;
+  // refinery (R3) — A's real custom-schema id; the schema table carries its OWN ownerId, so the probe
+  // exercises `loadOwnedSchemaRow`'s direct owner predicate (read AND the owner-in-the-WHERE writes).
+  refinerySchemaId: RefinerySchemaId;
 }
 
 /** tRPC's cross-realm error duck-type (matchers.ts precedent): an Error named "TRPCError" with a code. */
@@ -167,6 +177,16 @@ const FAKE = {
   inviteToken: "stranger-guess-token",
 } as const;
 
+// A minimal schema that PASSES `refinerySchemaDocumentSchema` (liftable subset + the score stage's
+// well-known `overallScore` 1-10 core). Deliberately valid: it seeds A's library row AND rides the
+// `refinery.testSchema` probe, where a wire-invalid draft would BAD_REQUEST before the ownership belt and
+// make a broken belt read as a pass. If the authoring belt tightens, the SEED throws loudly here.
+const VALID_SCORE_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: { overallScore: { type: "number", minimum: 1, maximum: 10 } },
+  required: ["overallScore"],
+};
+
 const PROBES: readonly Probe[] = [
   // ── refinery (R1: ownership DERIVES through the character join — D23, no ownerId column; every probe
   //    must collapse to leak-free NOT_FOUND BEFORE any model call, so no stage probe ever reaches the
@@ -186,6 +206,46 @@ const PROBES: readonly Probe[] = [
     path: "refinery.applyFields",
     call: (c, i) => c.refinery.applyFields({ sessionId: i.refinerySessionId, accepts: [{ field: "description" }] }),
   },
+  // The BRANCH-OFF terminal act — same `resolveApplyBasis` preamble as applyFields, so the ownership belt
+  // (`loadOwnedSessionRow`) is the FIRST thing it runs: a stranger collapses to NOT_FOUND before the injected
+  // `character.duplicate` could mint a copy of A's card into the stranger's own library (the worst outcome
+  // here is a cross-tenant card EXFILTRATION, not just a state write).
+  {
+    path: "refinery.applyAsCopy",
+    call: (c, i) => c.refinery.applyAsCopy({ sessionId: i.refinerySessionId, accepts: [{ field: "description" }], name: "hacked" }),
+  },
+  // The HAND-AUTHORED rewrite door — a session-scoped WRITE (it inserts a `refinery_runs` row and flips the
+  // session to `active`), so a dropped belt would let a stranger inject content into A's pipeline. The
+  // ownership belt runs before the payload parse; post-sweep the session's run log is re-read for intactness.
+  {
+    path: "refinery.submitManualRewrite",
+    call: (c, i) => c.refinery.submitManualRewrite({ sessionId: i.refinerySessionId, fields: [{ field: "description", text: "hacked" }] }),
+  },
+  // The output-budget readout: a READ that assembles A's REAL stage prompts (A's whole selected card
+  // content) to MEASURE them. PROBED, but say the limit plainly: its result is numbers + the deployment's
+  // summarizer model name and carries NO free text, so the marker detector is toothless on it — a dropped
+  // belt would RESOLVE for the stranger (leaking A's card token-mass + resolved posture as a side channel)
+  // and this sweep would read that as leak-free. Its real teeth are the verb-tier foreign/absent NOT_FOUND
+  // pin added beside it in tests/server/domain/refinery/verbs/preflight.int.test.ts.
+  { path: "refinery.preflight", call: (c, i) => c.refinery.preflight({ sessionId: i.refinerySessionId }) },
+  // ── refinery R3 — the custom-schema library. `refinery_schemas` carries a DIRECT ownerId (not the D23
+  //    character join), so these three probe `loadOwnedSchemaRow`'s own predicate. update/delete also carry
+  //    the owner in the write's WHERE, so the post-sweep re-read is what proves the write-IDOR closed. ──
+  {
+    path: "refinery.updateSchema",
+    call: (c, i) => c.refinery.updateSchema({ schemaId: i.refinerySchemaId, patch: { name: "hacked" } }),
+  },
+  { path: "refinery.deleteSchema", call: (c, i) => c.refinery.deleteSchema({ schemaId: i.refinerySchemaId }) },
+  // testSchema is the ONE schema-library verb that takes a foreign-reachable id: a DRAFT schema (a caller
+  // VALUE, not a reference) run against a caller-supplied `characterId`. Its ownership belt (`loadOwnedCard`)
+  // is deliberately FIRST — before the draft belt and before any summarize spend (the existence-oracle
+  // ordering its own header states) — so a stranger aiming it at A's card collapses to NOT_FOUND and never
+  // funds a model call against A's content. A VALID draft is passed so the probe cannot die early on a wire
+  // refusal and read as a pass.
+  {
+    path: "refinery.testSchema",
+    call: (c, i) => c.refinery.testSchema({ schema: VALID_SCORE_SCHEMA, stage: "score", characterId: i.characterId }),
+  },
   // ── character (owner-scoped) ──
   { path: "character.get", call: (c, i) => c.character.get({ characterId: i.characterId }) },
   {
@@ -204,6 +264,16 @@ const PROBES: readonly Probe[] = [
   {
     path: "character.listSnapshots",
     call: (c, i) => c.character.listSnapshots({ characterId: i.characterId }),
+  },
+  // The per-snapshot CONTENT read (the refinery Versions walk). The teeth are maximal: the snapshot blob is
+  // the whole card as it stood, so a resolved result carries MARK.character verbatim. Owner-gated through the
+  // CHARACTER first (`loadOwnedCharacterRow`), then the snapshot is looked up chat—er, character-scoped; a
+  // the CHARACTER first (`loadOwnedCharacterRow`), and only then is the snapshot looked up character-scoped;
+  // a foreign character AND a snapshot outside it collapse to the SAME CharacterNotFoundError (leak-free — a
+  // stranger cannot distinguish "not yours" from "no such snapshot"). A's real snapshotId is passed.
+  {
+    path: "character.getSnapshot",
+    call: (c, i) => c.character.getSnapshot({ characterId: i.characterId, snapshotId: i.snapshotId }),
   },
   {
     path: "character.restore",
@@ -1040,6 +1110,15 @@ const EXEMPT: Readonly<Record<string, string>> = {
   "character.list": "self-scoped: lists the caller's own rows",
   "refinery.listSessions":
     "self-scoped: the roster reads through the caller's OWN character join (no id input); a stranger's roster is [] — proven in list-sessions.int.test.ts",
+  // ── refinery R3 schema library — the four verbs with NO cross-tenant-reachable id. Every id-taking one
+  //    (update/delete/testSchema) is PROBED above; these take only VALUES. ──
+  "refinery.listSchemas": "self-scoped: listOwnedSchemaRows filters WHERE refinery_schemas.owner_id = principal.userId; takes NO input at all",
+  "refinery.createSchema":
+    "self-scoped: mints a row stamping ownerId = principal.userId from VALUES only (name + description + stage + the schema blob) — no foreign id to reach through; the per-owner name-uniqueness check is itself owner-scoped",
+  "refinery.generateSchema":
+    "self-scoped model call: input is an NL description + a stage, no owned/foreign id. The forge resolves the CALLER's own prose overrides + preset params (resolveForgeCall(principal.userId)) and the draft is returned, never persisted — there is no tenant axis for a stranger to cross",
+  "refinery.refineSchema":
+    "self-scoped model call: input is a caller-supplied draft schema VALUE + an instruction + a stage — the draft is client-held, never a reference to a stored row, so a stranger can only ever iterate on bytes it already sent itself; same caller-scoped forge resolution as generateSchema, still never persisted",
   "persona.create": "self-scoped",
   "persona.list": "self-scoped",
   "persona.import": "self-scoped: imports into the caller's own namespace",
@@ -1259,6 +1338,15 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     // A refinery session on A's character (front door) — its NAME is A's marker; the anchor card inside
     // carries A's character marker too, so a leaked SessionView betrays itself twice.
     const refinerySession = await owner.refinery.startSession({ characterId: character.id, name: MARK.refinerySession });
+    // A custom payload-schema row owned by A (front door). Unlike the session, this table has its OWN
+    // ownerId — the marker rides BOTH the name and the description because a leaked `updateSchema` returns
+    // the summary AFTER the stranger's patch overwrote the name, leaving the description as the tell.
+    const refinerySchema = await owner.refinery.createSchema({
+      name: MARK.refinerySchema,
+      description: `${MARK.refinerySchema} — owned by A`,
+      stage: "score",
+      schema: VALID_SCORE_SCHEMA,
+    });
 
     // The credential is seeded DIRECTLY — the `app` fixture's SecretBox is keyless (CREDENTIALS_KEY unset),
     // so the front-door `credentials.add` is disabled. The ownership probes never decrypt; they gate on the
@@ -1420,6 +1508,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       rpgCheckpointId,
       regexScriptId,
       refinerySessionId: refinerySession.id,
+      refinerySchemaId: refinerySchema.id,
     };
   }
 
@@ -1476,5 +1565,20 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
     expect(regexScriptStill.enabled).toBe(true); // untouched by the stranger's regex.bulkSetEnabled probe
     const regexGlobalStill = await ownerCaller.regex.listGlobal();
     expect(regexGlobalStill.map((s) => s.id)).not.toContain(ids.regexScriptId); // no stranger attachGlobal/bulkSetGlobal reached A's tier
+    // refinery R3: A's schema row SURVIVED `deleteSchema` and is UNPATCHED by `updateSchema` — both return
+    // void/a summary, so the row itself is the only evidence a silent write-IDOR would leave. `version` is
+    // the sharpest of the three: updateSchema bumps it on any content change, so an unmoved 1 proves the
+    // stranger's patch never landed even if a future name/description carry made the text arms agree.
+    const schemasStill = await ownerCaller.refinery.listSchemas();
+    const schemaStill = schemasStill.find((s) => s.id === ids.refinerySchemaId);
+    expect(schemaStill?.name).toBe(MARK.refinerySchema); // survived deleteSchema; untouched by updateSchema
+    expect(schemaStill?.version).toBe(1); // no content bump — the stranger's patch never reached A's row
+    // refinery R1: A's session survived every stranger write. The run log is still EMPTY — no stranger
+    // `submitManualRewrite` injected a hand-authored rewrite into A's pipeline and no `runStage`/`iterate`
+    // appended a model run — and the status is still the born `active`, which is what proves `applyAsCopy`
+    // (whose terminal act flips it to `completed`) never reached A's session.
+    const sessionStill = await ownerCaller.refinery.getSession({ sessionId: ids.refinerySessionId });
+    expect(sessionStill.status).toBe("active");
+    expect(await ownerCaller.refinery.listRuns({ sessionId: ids.refinerySessionId })).toEqual([]);
   });
 });
