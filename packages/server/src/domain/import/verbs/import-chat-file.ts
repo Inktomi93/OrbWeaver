@@ -54,7 +54,12 @@ export function createImportChatFile(
     if (characterId === null) {
       return { ok: false, error: `no character with handle "${handle}" on this account` };
     }
-    const parsed = parseChatJsonl(DEC.decode(bytes), { fileName: leaf, charDirName: handle });
+    // These are SillyTavern's bytes, so its zone-less wall-clock dates resolve in the injected ST zone.
+    const parsed = parseChatJsonl(DEC.decode(bytes), {
+      fileName: leaf,
+      charDirName: handle,
+      ...(ctx.profile?.stWallClockZone !== undefined ? { wallClockZone: ctx.profile.stWallClockZone } : {}),
+    });
     if (parsed === null) {
       return { ok: false, error: "not a valid chat .jsonl file" };
     }

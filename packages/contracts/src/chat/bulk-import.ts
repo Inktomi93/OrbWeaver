@@ -26,8 +26,11 @@ export interface BulkImportVariantInput {
   readonly genStartedAt: number | null;
   readonly genFinishedAt: number | null;
   readonly metadata: Record<string, unknown> | null;
-  /** R6 (orb-native only) — the swipe's INPUT token count. ST carries no inbound count, so the jsonl arm
-   *  leaves this absent and the column stays null exactly as it does today. */
+  /** The variant's INPUT token count. An orb-native bundle carries the recorded usage figure. The ST jsonl
+   *  arm supplies it for a `user`/`system` slot: ST has ONE `extra.token_count` — the count of the row's own
+   *  TEXT, not an API usage split — so on a non-assistant row it is an inbound count and belongs here, not in
+   *  {@link tokensOut}. (Corrected by the 2026-08-08 import-fidelity audit; this doc previously claimed "ST
+   *  carries no inbound count", which was a claim about ST's FIELD NAMES, not about what the value means.) */
   readonly tokensIn?: number | null;
   /** R6 (orb-native only) — the swipe's runtime-variable ops (`message_variants.variable_delta`). Carrying
    *  the DELTAS is what lets a restore re-derive `chats.runtimeVariables`, which is a cache and therefore
