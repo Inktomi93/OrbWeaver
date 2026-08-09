@@ -1068,7 +1068,9 @@ describe("the chat runner's stateful tool + structured channels", () => {
     const opts = fakeQuery.mock.calls[0]?.[0]?.options as CapturedOptions | undefined;
     expect(opts?.outputFormat?.type).toBe("json_schema");
     // The Anthropic wire refuses bound keywords — sanitize strips `minimum` (D93); zod re-imposes post-parse.
-    expect(opts?.outputFormat?.schema).toEqual({ type: "object", properties: { hp: { type: "number" } } });
+    // The stripped bound is RELAYED in the node's description (task #40) rather than silently deleted, so the
+    // model is still told the floor it is being validated against.
+    expect(opts?.outputFormat?.schema).toEqual({ type: "object", properties: { hp: { type: "number", description: "[Constraints: minimum: 0]" } } });
     expect(opts?.maxTurns).toBe(2);
   });
 });

@@ -153,6 +153,125 @@ test("strict-compatible: nested objects are reshaped too, `description` is HOIST
   expect(sceneProps["note"]).toEqual({ anyOf: [{ type: "string" }, { type: "null" }] });
 });
 
+// ── the CONSTRAINT NOTE (task #40) ──────────────────────────────────────────────────────────────────────
+// A stripped bound is APPENDED to the node's `description`, never silently deleted: the wire loses the
+// keyword, the model keeps the intent, and the caller's zod belt still enforces the original.
+
+test("hosted: every stripped bound class lands in the node's description, existing prose PRESERVED", () => {
+  const scrubbed = scrubWireSchema(
+    {
+      type: "object",
+      properties: {
+        hp: { type: "integer", description: "current hit points", minimum: 1, maximum: 10, multipleOf: 2 },
+        name: { type: "string", minLength: 2, maxLength: 40 },
+        tags: { type: "array", items: { type: "string" }, minItems: 3, maxItems: 8 },
+        span: { type: "number", exclusiveMinimum: 0, exclusiveMaximum: 1 },
+      },
+      minProperties: 1,
+      maxProperties: 9,
+    },
+    "hosted-common",
+  ).schema;
+  const props = scrubbed["properties"] as Record<string, Record<string, unknown>>;
+  // Numeric bounds — appended after the author's own prose, with exactly one space.
+  expect(props["hp"]?.["description"]).toBe("current hit points [Constraints: minimum: 1, maximum: 10, multipleOf: 2]");
+  // String lengths — no prose of its own, so the note BECOMES the description.
+  expect(props["name"]?.["description"]).toBe("[Constraints: minLength: 2, maxLength: 40]");
+  // Array constraints, INCLUDING a `minItems` above 1 (the case the card-refinery precedent clamped; this
+  // wire drops the keyword outright, so the note is the whole carrier).
+  expect(props["tags"]?.["description"]).toBe("[Constraints: minItems: 3, maxItems: 8]");
+  expect(props["span"]?.["description"]).toBe("[Constraints: exclusiveMinimum: 0, exclusiveMaximum: 1]");
+  // Object bounds note on the node that carried them.
+  expect(scrubbed["description"]).toBe("[Constraints: minProperties: 1, maxProperties: 9]");
+  // …and the keywords themselves are still OFF the wire — the note is a description, never a reprieve.
+  const keys = collectKeys(scrubbed);
+  for (const banned of ["minimum", "maximum", "multipleOf", "minLength", "maxLength", "minItems", "maxItems", "minProperties", "maxProperties"]) {
+    expect(keys.has(banned)).toBe(false);
+  }
+});
+
+test("the note's spelling is DETERMINISTIC: keyword order is the table's, never the input object's", () => {
+  const noteOf = (node: Record<string, unknown>): unknown => scrubWireSchema(node, "hosted-common").schema["description"];
+  // The same constraints, authored in three different key orders, produce one byte-identical note.
+  expect(noteOf({ type: "integer", minimum: 1, maximum: 10 })).toBe("[Constraints: minimum: 1, maximum: 10]");
+  expect(noteOf({ type: "integer", maximum: 10, minimum: 1 })).toBe("[Constraints: minimum: 1, maximum: 10]");
+  expect(noteOf({ maximum: 10, type: "integer", minimum: 1 })).toBe("[Constraints: minimum: 1, maximum: 10]");
+});
+
+test("zod's `.int()` safe-integer bounds are NOT noted — a projection artifact is not the author's intent", () => {
+  const projected = projectJsonSchema(z.object({ n: z.number().int(), rated: z.number().int().min(1).max(5) }));
+  const props = scrubWireSchema(projected, "hosted-common").schema["properties"] as Record<string, Record<string, unknown>>;
+  // `z.number().int()` stamps ±Number.MAX_SAFE_INTEGER on EVERY integer node; noting it would put 34 bytes of
+  // machine noise in front of the model on every int field, and it says nothing the type does not.
+  expect(props["n"]?.["description"]).toBeUndefined();
+  // A REAL bound on the same node still notes.
+  expect(props["rated"]?.["description"]).toBe("[Constraints: minimum: 1, maximum: 5]");
+});
+
+test("guided-decoding notes NOTHING — the bounds ride the wire there, so a note would only duplicate them", () => {
+  const guided = scrubWireSchema(
+    { type: "object", properties: { hp: { type: "integer", description: "hp", minimum: 1, maximum: 10 } } },
+    "guided-decoding",
+  ).schema;
+  const props = guided["properties"] as Record<string, Record<string, unknown>>;
+  expect(props["hp"]).toEqual({ type: "integer", description: "hp", minimum: 1, maximum: 10 });
+});
+
+// ── the `minItems` CARVE-OUT (owner-supplied Anthropic structured-outputs doc, 2026-08-08: "Array minItems
+//    (only values 0 and 1 supported)") ──────────────────────────────────────────────────────────────────────
+// The ONE family-scoped exception to the bound strip. It must NOT leak to `hosted-common`, whose whole job is
+// the intersection of families whose support for the keyword is unestablished.
+
+test("anthropic-format KEEPS a supported minItems (0|1) verbatim — no clamp, no note, nothing to relay", () => {
+  const kept = scrubWireSchema(
+    { type: "object", properties: { a: { type: "array", minItems: 1 }, b: { type: "array", minItems: 0 } } },
+    "anthropic-format",
+  ).schema;
+  const props = kept["properties"] as Record<string, Record<string, unknown>>;
+  expect(props["a"]).toEqual({ type: "array", minItems: 1 });
+  expect(props["b"]).toEqual({ type: "array", minItems: 0 });
+});
+
+test("anthropic-format CLAMPS an unsupported minItems to 1 and relays the AUTHOR's number in the description", () => {
+  const clamped = scrubWireSchema(
+    { type: "object", properties: { tags: { type: "array", description: "at least three", minItems: 3, maxItems: 8 } } },
+    "anthropic-format",
+  ).schema;
+  const tags = (clamped["properties"] as Record<string, Record<string, unknown>>)["tags"];
+  // The wire carries the strongest thing the endpoint can express …
+  expect(tags?.["minItems"]).toBe(1);
+  // … `maxItems` is still an unsupported keyword and comes off …
+  expect(tags?.["maxItems"]).toBeUndefined();
+  // … and BOTH real numbers reach the model, the author's own prose first.
+  expect(tags?.["description"]).toBe("at least three [Constraints: minItems: 3, maxItems: 8]");
+});
+
+test("the carve-out is FAMILY-SCOPED: hosted-common still strips minItems outright (the intersection wire)", () => {
+  const hosted = scrubWireSchema({ type: "object", properties: { tags: { type: "array", minItems: 3 } } }, "hosted-common").schema;
+  const tags = (hosted["properties"] as Record<string, Record<string, unknown>>)["tags"];
+  expect(tags?.["minItems"]).toBeUndefined();
+  expect(tags?.["description"]).toBe("[Constraints: minItems: 3]");
+  // The strict-compatible wire is the hosted subset plus a reshape — it inherits the strip, not the carve-out.
+  const strict = scrubWireSchema({ type: "object", required: ["tags"], properties: { tags: { type: "array", minItems: 3 } } }, "strict-compatible").schema;
+  expect((strict["properties"] as Record<string, Record<string, unknown>>)["tags"]?.["minItems"]).toBeUndefined();
+});
+
+test("strict-compatible: the note is HOISTED with the description, so it sits AT the property, not in arm 0", () => {
+  const strict = scrubWireSchema({ type: "object", properties: { name: { type: "string", minLength: 2 } } }, "strict-compatible").schema;
+  const props = strict["properties"] as Record<string, Record<string, unknown>>;
+  expect(props["name"]).toEqual({ description: "[Constraints: minLength: 2]", anyOf: [{ type: "string" }, { type: "null" }] });
+});
+
+test("the BELT is untouched: the wire loses the keyword, the caller's zod still refuses the out-of-range reply", () => {
+  const belt = z.object({ rating: z.number().min(1).max(10) });
+  const wire = scrubWireSchema(projectJsonSchema(belt), "hosted-common").schema;
+  const props = wire["properties"] as Record<string, Record<string, unknown>>;
+  expect(props["rating"]?.["maximum"]).toBeUndefined(); // off the wire…
+  expect(props["rating"]?.["description"]).toBe("[Constraints: minimum: 1, maximum: 10]"); // …stated to the model…
+  expect(belt.safeParse({ rating: 11 }).success).toBe(false); // …and still enforced on the reply.
+  expect(belt.safeParse({ rating: 10 }).success).toBe(true);
+});
+
 test("dropNullValues: a null-valued key lands IDENTICALLY to an omitted one (the `null ≡ absent` half of strict)", () => {
   // The two payloads a strict wire vs an omit wire produce for the SAME extraction.
   const strictShaped = {
