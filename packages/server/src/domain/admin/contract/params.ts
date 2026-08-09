@@ -3,7 +3,7 @@
 // principal it is handed. Handle/password strings are raw here, validated at the verb/transport boundary.
 
 import type { Principal, UserKind, UserRole } from "@orb/contracts/identity";
-import type { CharacterId, Handle, SessionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 
 interface AdminActorParams {
   readonly principal: Principal;
@@ -35,6 +35,14 @@ export interface CreateUserParams extends AdminActorParams {
 export interface ResetPasswordParams extends AdminActorParams {
   readonly userId: UserId;
   readonly password: string;
+}
+
+/** B5 — link an existing (non-owner, human) row to a STABLE SSO subject. `externalId` is an IdP-stable id
+ *  (authentik `sub`/`uid`), NEVER an email — the verb refuses the owner/agent target and a subject already
+ *  bound elsewhere. */
+export interface LinkSsoIdentityParams extends AdminActorParams {
+  readonly userId: UserId;
+  readonly externalId: ExternalId;
 }
 
 export interface ListSessionsParams extends AdminActorParams {

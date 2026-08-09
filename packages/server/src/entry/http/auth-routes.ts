@@ -25,7 +25,7 @@ import type { Configuration } from "openid-client";
 import { authorizationCodeGrant, buildAuthorizationUrl, calculatePKCECodeChallenge, randomNonce, randomPKCECodeVerifier, randomState } from "openid-client";
 import { securityEvent } from "#foundation/observability";
 import type { BackchannelLogoutVerifier, OidcTransaction } from "#infra/auth";
-import { hasCsrfHeader, SESSION_COOKIE_NAME } from "#infra/auth";
+import { hasCsrfHeader, MIN_PASSWORD_LENGTH, SESSION_COOKIE_NAME } from "#infra/auth";
 import { clientIp } from "#infra/network";
 import type { RateLimiter } from "../../transport/rate-limit.ts";
 import { createRateLimiter } from "../../transport/rate-limit.ts";
@@ -34,6 +34,7 @@ import { readSessionCookie } from "../auth/index.ts";
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;
 const BAD_REQUEST = 400;
+const CONFLICT = 409;
 const OK = 200;
 const FOUND = 302;
 const MS_PER_SECOND = 1000;
@@ -42,6 +43,7 @@ const PKCE_METHOD = "S256";
 const COOKIE_ATTRS = "Path=/; HttpOnly; Secure; SameSite=Lax";
 
 const LOGIN_ROUTE = "/api/auth/login";
+const FIRST_RUN_ROUTE = "/api/auth/first-run";
 const LOGOUT_ROUTE = "/api/auth/logout";
 const TOO_MANY_REQUESTS = 429;
 const PAYLOAD_TOO_LARGE = 413;
@@ -70,6 +72,9 @@ const LOGIN_SURFACE_ROUTE = "/login";
 const AUTH_ERROR_INVALID_STATE = "invalid_state";
 const AUTH_ERROR_NO_IDENTITY = "no_identity";
 const AUTH_ERROR_NOT_AUTHORIZED = "not_authorized";
+// MS-W1 — the collision hard-deny: an SSO identity that matches an EXISTING account by email/handle. Distinct
+// from `not_authorized` so the login surface tells the user to ask an admin to LINK the account (B5).
+const AUTH_ERROR_ACCOUNT_EXISTS = "account_exists";
 const AUTH_ERROR_ACCOUNT_DISABLED = "account_disabled";
 // The IdP-supplied OAuth2/OIDC `error` param is a fixed lowercase snake_case enum; reflect it back only
 // when it matches this shape (and cap the length) so raw IdP text can never reach the response body.
@@ -80,6 +85,13 @@ const OIDC_ERROR_CODE_RE = /^[a-z_]{1,64}$/;
  *  no further encoding — a top-level navigation never sees raw JSON. */
 function loginErrorRedirect(c: Context, code: string): Response {
   return c.redirect(`${LOGIN_SURFACE_ROUTE}?authError=${code}`, FOUND);
+}
+
+/** MS-W1 — map a provision deny to its authError code: the collision deny (`account-exists`) gets its own
+ *  operator-actionable code so the login surface can tell the user to have an admin LINK the account (B5);
+ *  every other refusal is the generic not-authorized. */
+function oidcDenyErrorCode(reason: "account-exists" | undefined): string {
+  return reason === "account-exists" ? AUTH_ERROR_ACCOUNT_EXISTS : AUTH_ERROR_NOT_AUTHORIZED;
 }
 
 /** Sanitize the IdP's callback `error` code: return it only when it matches the fixed OAuth2 error shape,
@@ -172,7 +184,8 @@ export interface AuthSessionsPort {
 }
 
 /** The `provisionIdentity` result the OIDC callback dispatches on: `provisioned` (mint the session,
- *  gating on `enabled`) or `denied` (the login gate refused — 401, no session). */
+ *  gating on `enabled`) or `denied` (the login gate refused — no session). `reason:"account-exists"` is the
+ *  MS-W1 collision deny the callback surfaces as a DISTINCT, operator-actionable authError. */
 type ProvisionOutcome =
   | {
       readonly outcome: "provisioned";
@@ -180,7 +193,23 @@ type ProvisionOutcome =
       readonly enabled: boolean;
       readonly role: UserRole;
     }
-  | { readonly outcome: "denied" };
+  | { readonly outcome: "denied"; readonly reason?: "account-exists" };
+
+/**
+ * B4 — the local-mode FIRST-RUN owner-password setup deps. Present ONLY in local mode; its presence registers
+ * `POST /api/auth/first-run`. This is an UNAUTHENTICATED endpoint that sets the owner's initial password, so
+ * it is guarded like the owner-fallback, not like a normal route:
+ *   • `originAllowed` — the same origin gate the owner-fallback uses (`ownerFallbackAllowed`): local/trusted
+ *     origin only, so a fresh deploy's first-run window is not a remotely-hammerable password-set.
+ *   • `setOwnerPassword` — the ONE-SHOT claim (hashes with the injected PasswordHasher, then the null-guarded
+ *     `sessions.claimOwnerPassword`): returns the owner `UserId` iff it set a previously-null password, else
+ *     `null` (already claimed). It can NEVER overwrite an existing owner credential — that is the admin-gated
+ *     `resetPassword`'s job.
+ */
+export interface FirstRunRouteDeps {
+  readonly setOwnerPassword: (plainPassword: string) => Promise<UserId | null>;
+  readonly originAllowed: (headers: Headers) => boolean;
+}
 
 /** Local password verification, supplied from `sessions.authenticate` by the composition root in local mode. */
 export interface LocalAuthenticator {
@@ -237,6 +266,8 @@ export interface AuthRoutesDeps {
    *  the tRPC rate-limit-gate pattern). */
   readonly resolveLoginLimit: () => number;
   readonly authenticate?: LocalAuthenticator;
+  /** B4 — present in local mode; registers the first-run owner-password setup route. */
+  readonly firstRun?: FirstRunRouteDeps;
   readonly oidc?: OidcRoutesDeps;
 }
 
@@ -258,18 +289,24 @@ async function throttleLogin(limiter: RateLimiter, c: Context): Promise<Response
   }
 }
 
-/** Register `POST /api/auth/login` (local mode only): body cap → per-IP throttle → verify → mint cookie. */
-function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: LocalAuthenticator): void {
-  // DB-backed throttle (shared rate_limit_buckets → replica-correct). Body-limit belt runs first so a huge
-  // POST is rejected before the body buffers; the throttle then caps brute-force + scrypt-CPU-flood. The cap
-  // is the RESOLVED `AppSettings.rateLimits.login` (env floor RATE_LIMIT_LOGIN=10 ⊕ admin override), read
-  // FRESH per attempt so an admin edit is LIVE (the tRPC gate's live-cap pattern, entry/rate-limit-gate.ts).
-  const loginLimiter = createRateLimiter(deps.db, {
+/** The DB-backed per-IP login throttle (shared `rate_limit_buckets` → replica-correct). Both the login route
+ *  and the first-run route mint one over the SAME `login-ip` scope, so an attacker cannot dodge the cap by
+ *  alternating the two unauthenticated CPU-heavy (scrypt) endpoints. The cap is the RESOLVED
+ *  `AppSettings.rateLimits.login` (env floor ⊕ admin override), read FRESH per attempt. */
+function loginThrottler(deps: AuthRoutesDeps): RateLimiter {
+  return createRateLimiter(deps.db, {
     scope: LOGIN_RATE_SCOPE,
     points: () => deps.resolveLoginLimit(),
     windowMs: LOGIN_WINDOW_MS,
     now: deps.now,
   });
+}
+
+/** Register `POST /api/auth/login` (local mode only): body cap → per-IP throttle → verify → mint cookie. */
+function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: LocalAuthenticator): void {
+  // Body-limit belt runs first so a huge POST is rejected before the body buffers; the throttle then caps
+  // brute-force + scrypt-CPU-flood.
+  const loginLimiter = loginThrottler(deps);
   app.post(LOGIN_ROUTE, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
     const throttled = await throttleLogin(loginLimiter, c);
     if (throttled !== null) {
@@ -294,12 +331,58 @@ function registerLoginRoute(app: Hono, deps: AuthRoutesDeps, authenticate: Local
   });
 }
 
-/** Register the auth mint routes on `app`. Logout is always present; local login / OIDC are registered
- *  only when their injected op is supplied. */
+/** B4 — register `POST /api/auth/first-run` (local mode only): origin gate → body cap → per-IP throttle →
+ *  min-length → ONE-SHOT owner-password claim → mint cookie. Guarded like the owner-fallback (see
+ *  {@link FirstRunRouteDeps}): only reachable from a local/trusted origin, and it can never overwrite an
+ *  owner credential that is already set (the claim is null-guarded and atomic). */
+function registerFirstRunRoute(app: Hono, deps: AuthRoutesDeps, firstRun: FirstRunRouteDeps): void {
+  const limiter = loginThrottler(deps);
+  app.post(FIRST_RUN_ROUTE, bodyLimit({ maxSize: LOGIN_BODY_MAX_BYTES, onError: (c) => c.body(null, PAYLOAD_TOO_LARGE) }), async (c) => {
+    // Origin gate FIRST: an unauthenticated password-set must never be remotely hammerable (owner-fallback
+    // parity). A public-origin local deploy sets LOCAL_INITIAL_PASSWORD instead of using this screen.
+    if (!firstRun.originAllowed(c.req.raw.headers)) {
+      securityEvent(
+        "first_run_origin_rejected",
+        { host: c.req.raw.headers.get("host") },
+        "security: first-run owner-password setup from a non-local/untrusted origin — rejecting (set LOCAL_INITIAL_PASSWORD for a public-origin local deploy)",
+      );
+      return c.json({ error: "first-run setup is only available from a local/trusted origin" }, FORBIDDEN);
+    }
+    const throttled = await throttleLogin(limiter, c);
+    if (throttled !== null) {
+      return throttled;
+    }
+    const body = await c.req.parseBody();
+    const password = typeof body[PASSWORD_FIELD] === "string" ? body[PASSWORD_FIELD] : "";
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      return c.json({ error: `password must be at least ${MIN_PASSWORD_LENGTH} characters` }, BAD_REQUEST);
+    }
+    const userId = await firstRun.setOwnerPassword(password);
+    if (userId === null) {
+      // ONE-SHOT: the owner credential is already set (or no owner row exists). Never overwrite — rotating an
+      // existing owner password is the owner-gated `admin.resetPassword`.
+      securityEvent(
+        "first_run_already_claimed",
+        {},
+        "security: first-run owner-password setup attempted but the owner credential is already set — refusing (use admin reset-password to rotate)",
+      );
+      return c.json({ error: "the owner password is already set" }, CONFLICT);
+    }
+    const session = await deps.sessions.create({ userId, userAgent: c.req.header("user-agent") ?? null });
+    c.header("Set-Cookie", sessionCookieFor(session, deps.now()));
+    return c.json({ ok: true });
+  });
+}
+
+/** Register the auth mint routes on `app`. Logout is always present; local login / first-run / OIDC are
+ *  registered only when their injected op is supplied. */
 export function registerAuthRoutes(app: Hono, deps: AuthRoutesDeps): void {
   const authenticate = deps.authenticate;
   if (authenticate !== undefined) {
     registerLoginRoute(app, deps, authenticate);
+  }
+  if (deps.firstRun !== undefined) {
+    registerFirstRunRoute(app, deps, deps.firstRun);
   }
 
   app.post(LOGOUT_ROUTE, async (c) => {
@@ -435,7 +518,8 @@ function registerOidcRoutes(app: Hono, deps: AuthRoutesDeps, oidc: OidcRoutesDep
       requireApproval: oidc.requireApproval,
     });
     if (provisioned.outcome === "denied") {
-      return loginErrorRedirect(c, AUTH_ERROR_NOT_AUTHORIZED);
+      // MS-W1 — a collision deny gets its own operator-actionable code; every other refusal is generic.
+      return loginErrorRedirect(c, oidcDenyErrorCode(provisioned.reason));
     }
     if (!provisioned.enabled) {
       return loginErrorRedirect(c, AUTH_ERROR_ACCOUNT_DISABLED);

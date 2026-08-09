@@ -322,13 +322,78 @@ describe("sessions.provisionIdentity — a handle match onto a BOUND row is an i
     expect(await rowCount()).toBe(1);
   });
 
-  test("but an UNBOUND row still BINDS on a handle match (the single-user → SSO first login)", async () => {
+  test("MS-W1: a NON-OWNER unbound row is NOT auto-bound on a handle match — HARD-DENIED (admin links via B5)", async () => {
+    // Owner-ruled 2026-08-09: auto-linking a subject onto an existing row by the mutable handle IS the W1
+    // takeover. A non-owner unbound row reached by a subject-bearing handle match is DENIED, not bound — the
+    // row stays unbound until an admin links it with the stable subject (admin.linkSsoIdentity).
     vi.stubEnv("OWNER_HANDLES", "someone-else");
     const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") })));
-    const sso = asProvisioned(await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") })));
-    expect(sso.userId).toBe(local.userId);
+    const attempt = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") }));
+    expect(attempt.outcome).toBe("denied");
     const row = (await db.select().from(users).where(eq(users.id, local.userId)))[0];
-    expect(row?.externalId).toBe("authentik|alice");
+    expect(row?.externalId).toBeNull(); // NOT auto-linked
+    expect(await rowCount()).toBe(1); // no duplicate minted
+  });
+});
+
+// MS-W1 — the mode-switch collision hard-deny (owner-ruled 2026-08-09). A subject-bearing NON-OWNER identity
+// that collides with an existing account (handle OR email) is DENIED with the `account-exists` reason, never
+// auto-linked (W1) and never minted as a duplicate. Owner paths are unaffected; forward-header (null subject)
+// still binds/mints as the proxy is the authority.
+describe("sessions.provisionIdentity — MS-W1 collision hard-deny (mode-switch orphan guard)", () => {
+  test("HANDLE collision (unbound non-owner row, signup ON) ⇒ DENIED with reason account-exists, no bind", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") })));
+    const result = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice") }), {
+      allowJitProvision: true,
+    });
+    expect(result).toEqual({ outcome: "denied", reason: "account-exists" });
+    const row = (await db.select().from(users).where(eq(users.id, local.userId)))[0];
+    expect(row?.externalId).toBeNull();
+  });
+
+  test("EMAIL collision at the mint path (new handle, signup ON) ⇒ DENIED account-exists, NO duplicate row", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    // An existing account carries alice@corp.com (created via a prior login).
+    asProvisioned(
+      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|alice"), handle: castId<Handle>("alice"), email: "alice@corp.com" })),
+    );
+    const before = await rowCount();
+    // A DIFFERENT IdP identity (new subject + new handle) presents the SAME email → would mint a duplicate.
+    const result = await svc.provisionIdentity(
+      identity({ externalId: castId<ExternalId>("authentik|alias"), handle: castId<Handle>("alice-new"), email: "alice@corp.com" }),
+      { allowJitProvision: true },
+    );
+    expect(result).toEqual({ outcome: "denied", reason: "account-exists" });
+    expect(await rowCount()).toBe(before); // no duplicate minted
+  });
+
+  test("a genuinely-new NON-colliding identity still JITs under signup ON", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const before = await rowCount();
+    const result = asProvisioned(
+      await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|bob"), handle: castId<Handle>("bob"), email: "bob@corp.com" }), {
+        allowJitProvision: true,
+      }),
+    );
+    expect(result.outcome).toBe("provisioned");
+    expect(await rowCount()).toBe(before + 1);
+  });
+
+  test("the collision deny reason is DISTINCT from the plain signup-off deny", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    // signup-off deny for a brand-new identity carries NO account-exists reason (generic not-authorized).
+    const signupOff = await svc.provisionIdentity(identity({ externalId: castId<ExternalId>("authentik|new"), handle: castId<Handle>("new") }), {
+      allowJitProvision: false,
+    });
+    expect(signupOff).toEqual({ outcome: "denied" });
+  });
+
+  test("forward-header (NULL subject) still binds an unbound row by handle — the proxy is the authority (not a collision)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const local = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("carol") })));
+    const again = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("carol") })));
+    expect(again.userId).toBe(local.userId);
     expect(await rowCount()).toBe(1);
   });
 });

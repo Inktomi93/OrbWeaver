@@ -30,7 +30,7 @@ import {
   resolveEnginesPosture,
 } from "#foundation/env";
 import { getLog, initTracing, wrapLibSqlClient } from "#foundation/observability";
-import { createBackchannelLogoutVerifier, createForwardJwtVerifier, createPasswordHasher } from "#infra/auth";
+import { authConfigFromEnv, createBackchannelLogoutVerifier, createForwardJwtVerifier, createPasswordHasher, ownerFallbackAllowed } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
 import { detectGpu } from "#infra/providers";
@@ -56,7 +56,7 @@ import {
 } from "./boot/index.ts";
 import { createAutomationWatcherEnv } from "./compose/automation-watcher.ts";
 import { createServices } from "./compose/index.ts";
-import type { LocalAuthenticator, OidcRoutesDeps } from "./http/index.ts";
+import type { FirstRunRouteDeps, LocalAuthenticator, OidcRoutesDeps } from "./http/index.ts";
 import { createRateLimitGate } from "./rate-limit-gate.ts";
 
 const MS_PER_HOUR = 3_600_000;
@@ -367,8 +367,22 @@ export function createLifecycle(): Lifecycle {
     });
 
     let authenticate: LocalAuthenticator | undefined;
+    let firstRun: FirstRunRouteDeps | undefined;
+    let localFirstRun: ((headers: Headers) => Promise<boolean>) | undefined;
     if (env.AUTH_MODE === "local") {
       authenticate = (handle: Handle, password: string): Promise<UserId | null> => built.sessions.authenticate(handle, password);
+      // B4 — the in-app first-run owner-password setup (LOCAL_INITIAL_PASSWORD is now optional). The route +
+      // the config flag share ONE origin gate (`ownerFallbackAllowed`), so the setup screen appears exactly
+      // where the setup endpoint accepts a claim: a local/trusted origin. A public-origin local deploy still
+      // uses LOCAL_INITIAL_PASSWORD (seeded at boot ⇒ owner has a password ⇒ this never triggers).
+      const localAuthConfig = authConfigFromEnv();
+      const hasher = createPasswordHasher(env.SESSION_SECRET);
+      firstRun = {
+        setOwnerPassword: async (plain: string): Promise<UserId | null> => built.sessions.claimOwnerPassword(await hasher.hash(plain)),
+        originAllowed: (headers: Headers): boolean => ownerFallbackAllowed(headers, localAuthConfig),
+      };
+      localFirstRun = async (headers: Headers): Promise<boolean> =>
+        ownerFallbackAllowed(headers, localAuthConfig) ? await built.sessions.ownerNeedsPassword() : false;
     }
 
     // forward-header fail-closed belt: warn loudly at boot so a non-authentik proxy deploy (no signed
@@ -466,7 +480,10 @@ export function createLifecycle(): Lifecycle {
         void built.characterSeeder.ensureSeeded(principal).then((): Promise<void> => built.demoChatSeeder.ensureSeeded(principal));
         void built.personaSeeder.ensureSeeded(principal);
       },
+      oidcProviderName: env.OIDC_PROVIDER_NAME,
       ...(authenticate !== undefined ? { authenticate } : {}),
+      ...(firstRun !== undefined ? { firstRun } : {}),
+      ...(localFirstRun !== undefined ? { localFirstRun } : {}),
       ...(oidc !== undefined ? { oidc } : {}),
     });
 

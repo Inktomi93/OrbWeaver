@@ -12,6 +12,8 @@ const MESSAGES = new Map<string, string>([
   ["invalid_state", "Your sign-in link expired or was already used. Please try again."],
   ["no_identity", "Your identity provider didn't return a usable account. Contact your administrator."],
   ["not_authorized", "Your account isn't authorized to use this application. Contact your administrator."],
+  // MS-W1 — the collision hard-deny: the identity matches an existing account; an admin must LINK it (B5).
+  ["account_exists", "An account for this identity already exists. Ask your administrator to link it to your single sign-on, then try again."],
   ["account_disabled", "Your account is disabled or awaiting administrator approval."],
   ["access_denied", "Sign-in was cancelled or denied at your identity provider."],
   ["token_exchange_failed", "Sign-in couldn't be completed with your identity provider. Please try again."],

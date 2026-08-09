@@ -15,7 +15,7 @@ describe("authErrorMessage", () => {
   });
 
   test("each KNOWN code maps to a bespoke, non-empty message", () => {
-    for (const code of ["invalid_state", "no_identity", "not_authorized", "account_disabled", "access_denied", "token_exchange_failed"]) {
+    for (const code of ["invalid_state", "no_identity", "not_authorized", "account_exists", "account_disabled", "access_denied", "token_exchange_failed"]) {
       const msg = authErrorMessage(code);
       expect(msg).not.toBeNull();
       expect((msg ?? "").length).toBeGreaterThan(0);
@@ -24,6 +24,10 @@ describe("authErrorMessage", () => {
 
   test("account_disabled copy covers the awaiting-approval case (A2 lands here as enabled:false)", () => {
     expect(authErrorMessage("account_disabled")).toContain("approval");
+  });
+
+  test("account_exists copy (MS-W1) tells the user to have an admin LINK the account", () => {
+    expect(authErrorMessage("account_exists")).toContain("link");
   });
 
   test("an UNKNOWN (but shape-safe) code falls back to a generic line — never echoed raw", () => {

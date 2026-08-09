@@ -11,9 +11,12 @@
 // way). `adoptMovedSeedKey` migrates the row instead, which is also what makes `provision-identity`'s
 // "an operator who MOVES OWNER_HANDLES is migrating the key" a promise something actually keeps.
 //
-// Local password seed: a `local`-mode box behind a non-local origin has no owner-fallback, so a fresh owner
-// row must be form-loginable on first boot. `initialPassword`/`hashPassword` seed it once, guarded by
-// `isNull(password_hash)` so a later self-rotated password is never clobbered on reboot.
+// Local password seed (OPTIONAL since B4): when `LOCAL_INITIAL_PASSWORD` is set, `initialPassword`/
+// `hashPassword` seed the owner's password once, guarded by `isNull(password_hash)` so a later self-rotated
+// password is never clobbered on reboot. When it is UNSET, the owner row is left passwordless and the in-app
+// first-run setup (`POST /api/auth/first-run`, local-origin-gated, one-shot on that same null) claims it on
+// first visit — the path a public-origin local deploy still covers with `LOCAL_INITIAL_PASSWORD` (no
+// owner-fallback there, and first-run is local-origin only).
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";

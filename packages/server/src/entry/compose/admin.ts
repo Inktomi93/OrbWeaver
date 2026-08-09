@@ -28,7 +28,7 @@ export interface AdminComposeDeps {
   readonly newUserId: () => UserId;
   readonly hashPassword: (password: string) => Promise<string>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
-  readonly sessions: Pick<SessionsService, "listForUser" | "revoke" | "revokeAllForUser">;
+  readonly sessions: Pick<SessionsService, "listForUser" | "revoke" | "revokeAllForUser" | "linkExternalId">;
   readonly vllmEngine: VllmEngineHandle | null;
   readonly character: Pick<CharacterService, "getCard" | "loadCardText">;
   readonly embeddings: Pick<EmbeddingsService, "store">;
@@ -67,6 +67,8 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
       },
       revoke: (sessionId: SessionId): Promise<void> => sessions.revoke(sessionId),
       revokeAllForUser: (userId: UserId): Promise<number> => sessions.revokeAllForUser(userId),
+      // B5 — the bind-once linking capability (domain/sessions); admin gates + audits around it.
+      linkExternalId: (userId, externalId) => sessions.linkExternalId(userId, externalId),
     },
     vllm: {
       // Merge the live lifecycle record with each engine's env-only DEPLOYMENT facts (port + store path)

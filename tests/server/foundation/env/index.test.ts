@@ -165,10 +165,12 @@ describe("foundation/env — the AUTH_MODE superRefine boot-fatality", () => {
     expect(env.OIDC_GROUPS_CLAIM).toBe("roles");
   });
 
-  test("AUTH_MODE=local WITHOUT LOCAL_INITIAL_PASSWORD → boot FAILS", async () => {
-    await expect(reimportEnvWith({ AUTH_MODE: "local", SESSION_SECRET: VALID_SESSION_SECRET })).rejects.toThrow(
-      "LOCAL_INITIAL_PASSWORD is required when AUTH_MODE=local",
-    );
+  test("AUTH_MODE=local WITHOUT LOCAL_INITIAL_PASSWORD → boots (B4: the in-app first-run setup claims the owner password)", async () => {
+    // B4 made LOCAL_INITIAL_PASSWORD OPTIONAL: a fresh local box seeds the owner passwordless and the
+    // origin-gated one-shot `POST /api/auth/first-run` sets it on first visit. SESSION_SECRET stays required.
+    const { env } = await reimportEnvWith({ AUTH_MODE: "local", SESSION_SECRET: VALID_SESSION_SECRET });
+    expect(env.AUTH_MODE).toBe("local");
+    expect(env.LOCAL_INITIAL_PASSWORD).toBeUndefined();
   });
 
   test("AUTH_MODE=local WITHOUT SESSION_SECRET → boot FAILS", async () => {

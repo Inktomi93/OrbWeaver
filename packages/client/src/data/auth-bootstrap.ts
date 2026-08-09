@@ -55,6 +55,22 @@ export async function login(handle: Handle, password: string): Promise<void> {
   }
 }
 
+/** B4 — first-run owner-password setup (local mode, fresh box). POSTs the chosen password to the one-shot
+ *  `/api/auth/first-run`; the server claims the owner credential (only when it was null) and mints the
+ *  `__Host-orb_session` cookie. Throws {@link LoginFailedError} with the server's message on refusal (already
+ *  set → 409, non-local origin → 403, too short → 400). The route parses a FORM body, so this posts urlencoded. */
+export async function firstRunSetup(password: string): Promise<void> {
+  const res = await fetch("/api/auth/first-run", {
+    method: "POST",
+    credentials: "same-origin",
+    body: new URLSearchParams({ password }),
+  });
+  if (!res.ok) {
+    const parsed = (await res.json().catch(() => ({}))) as { readonly error?: string };
+    throw new LoginFailedError(parsed.error ?? `first-run setup failed (HTTP ${res.status})`);
+  }
+}
+
 /** The logout response (A6): the IdP end-session URL to continue to, or null (non-oidc modes, or an issuer
  *  with no end_session_endpoint). */
 export interface LogoutResult {
