@@ -470,3 +470,81 @@ describe("sessions.provisionIdentity — UPDATE role policy", () => {
     expect(row?.enabled).toBe(false);
   });
 });
+
+// A1 — the JIT admission gate is a CALLER-resolved boolean (`allowJitProvision`), NOT an env read in the
+// verb: the verb is mode-agnostic and the oidc callback passes OIDC_SIGNUP while forward-header passes the
+// default (true). When false, a NEW identity (no existing row) is refused; the box OWNER by policy is exempt;
+// an EXISTING user still logs in. Ordered after the bind-once guard, before the allowed-groups gate.
+describe("sessions.provisionIdentity — allowJitProvision gate (A1, OIDC_SIGNUP)", () => {
+  test("allowJitProvision:false ⇒ a brand-new identity is DENIED and NO row is created", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const before = await rowCount();
+    const result = await svc.provisionIdentity(identity(), { allowJitProvision: false });
+    expect(result.outcome).toBe("denied");
+    expect(await rowCount()).toBe(before); // fail-closed — no JIT row
+  });
+
+  test("allowJitProvision:false ⇒ an EXISTING user still logs in (the gate is on NEW rows only)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const first = asProvisioned(await svc.provisionIdentity(identity())); // created with the default (true)
+    const again = asProvisioned(await svc.provisionIdentity(identity(), { allowJitProvision: false }));
+    expect(again.userId).toBe(first.userId);
+  });
+
+  test("allowJitProvision:false ⇒ the box OWNER by handle is EXEMPT (a first owner login still provisions)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "alice");
+    const result = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), { allowJitProvision: false }));
+    expect(result.role).toBe("owner");
+  });
+
+  test("allowJitProvision:false ⇒ an owner-by-GROUP first login is EXEMPT too (not just by handle)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    vi.stubEnv("OWNER_GROUP", "owners");
+    const result = asProvisioned(await svc.provisionIdentity(identity({ groups: ["owners"] }), { allowJitProvision: false }));
+    expect(result.role).toBe("owner");
+  });
+
+  test("default (omitted, e.g. forward-header) ⇒ a brand-new non-owner identity is provisioned", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const result = asProvisioned(await svc.provisionIdentity(identity()));
+    expect(result.outcome).toBe("provisioned");
+    expect(result.enabled).toBe(true);
+  });
+});
+
+// A2 — the approval gate is a CALLER-resolved boolean (`requireApproval`). When true a first-time NON-OWNER
+// SSO user provisions enabled:false (awaiting admin approval); the owner is never gated. Reuses the `enabled`
+// control (no new role).
+describe("sessions.provisionIdentity — requireApproval gate (A2, OIDC_REQUIRE_APPROVAL)", () => {
+  test("requireApproval:true ⇒ a first-time non-owner user is created DISABLED (enabled:false)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const result = asProvisioned(await svc.provisionIdentity(identity(), { requireApproval: true }));
+    expect(result.enabled).toBe(false);
+    const row = (await db.select().from(users).where(eq(users.id, result.userId)))[0];
+    expect(row?.enabled).toBe(false);
+  });
+
+  test("requireApproval:true ⇒ the OWNER is never gated (a first owner login is enabled)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "alice");
+    const result = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("alice") }), { requireApproval: true }));
+    expect(result.role).toBe("owner");
+    expect(result.enabled).toBe(true);
+  });
+
+  test("requireApproval:true ⇒ once enabled by an admin, the user's next login is admitted (enabled preserved)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const created = asProvisioned(await svc.provisionIdentity(identity(), { requireApproval: true }));
+    expect(created.enabled).toBe(false);
+    // Admin approves (enable); update never re-derives enabled, so the next login stays enabled even if the
+    // approval flag is still on.
+    await db.update(users).set({ enabled: true }).where(eq(users.id, created.userId));
+    const again = asProvisioned(await svc.provisionIdentity(identity(), { requireApproval: true }));
+    expect(again.enabled).toBe(true);
+  });
+
+  test("default (omitted) ⇒ a first-time user is enabled immediately", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const result = asProvisioned(await svc.provisionIdentity(identity()));
+    expect(result.enabled).toBe(true);
+  });
+});

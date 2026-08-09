@@ -12,12 +12,18 @@ export const TEST_IDS = {
   loginSubmit: "login-submit",
   loginError: "login-error",
   loginOidc: "login-oidc",
+  // A7 — the OIDC callback error line rendered above the Continue button when /login?authError=<code> is set.
+  loginAuthError: "login-auth-error",
   accountSurface: "account-surface",
   accountLogout: "account-logout",
   firstRunPersonaDialog: "first-run-persona-dialog",
   firstRunPersonaName: "first-run-persona-name",
   firstRunPersonaCreate: "first-run-persona-create",
   adminUsersSection: "admin-users-section",
+  // A2 — the OIDC_REQUIRE_APPROVAL account-approval queue + its per-row Approve action + empty state.
+  adminApprovalsSection: "admin-approvals-section",
+  adminApproveButton: "admin-approve",
+  adminApprovalsEmpty: "admin-approvals-empty",
   adminCreateUserButton: "admin-create-user",
   adminCreateUserDialog: "admin-create-user-dialog",
   adminCreateUserSubmit: "admin-create-user-submit",

@@ -1,6 +1,6 @@
 import type { Db } from "@orb/db";
 import { auditLogs, users } from "@orb/db";
-import type { Handle, SessionToken, UserId } from "@orb/kit/ids";
+import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { eq } from "drizzle-orm";
@@ -71,5 +71,45 @@ describe("sessions.revokeAllForUser (kick-all)", () => {
 
   test("returns 0 when the user has no live sessions", async () => {
     expect(await svc.revokeAllForUser(USER_ID)).toBe(0);
+  });
+});
+
+// A5 — OIDC back-channel logout revokes by the stable external subject (`sub`), mapping sub→external_id→
+// user→sessions. Idempotent (re-delivered logout tokens re-revoke nothing).
+describe("sessions.revokeByExternalId (OIDC back-channel logout)", () => {
+  const External = castId<ExternalId>("authentik|alice");
+
+  beforeEach(async () => {
+    // Bind alice's row to the external subject the logout_token will carry.
+    await db.update(users).set({ externalId: External }).where(eq(users.id, USER_ID));
+  });
+
+  test("revokes every live session for the user bound to the subject → count, validate null", async () => {
+    const a = await svc.create({ userId: USER_ID });
+    const b = await svc.create({ userId: USER_ID });
+    expect(await svc.revokeByExternalId(External)).toBe(2);
+    expect(await svc.validate(a.token)).toBeNull();
+    expect(await svc.validate(b.token)).toBeNull();
+  });
+
+  test("is idempotent — a re-delivered token re-revokes nothing (atomic WHERE revokedAt IS NULL)", async () => {
+    await svc.create({ userId: USER_ID });
+    expect(await svc.revokeByExternalId(External)).toBe(1);
+    expect(await svc.revokeByExternalId(External)).toBe(0);
+  });
+
+  test("an UNKNOWN subject revokes nothing (0) — never another user's sessions", async () => {
+    await svc.create({ userId: USER_ID });
+    expect(await svc.revokeByExternalId(castId<ExternalId>("authentik|nobody"))).toBe(0);
+  });
+
+  test("only the SUBJECT's sessions are revoked, not a co-tenant's", async () => {
+    const other = castId<UserId>("user_bob");
+    await db.insert(users).values({ id: other, handle: castId<Handle>("bob"), externalId: castId<ExternalId>("authentik|bob") });
+    const aliceSession = await svc.create({ userId: USER_ID });
+    const bobSession = await svc.create({ userId: other });
+    expect(await svc.revokeByExternalId(External)).toBe(1); // alice only
+    expect(await svc.validate(aliceSession.token)).toBeNull();
+    expect(await svc.validate(bobSession.token)).not.toBeNull(); // bob untouched
   });
 });

@@ -15,6 +15,7 @@ import type { AuthConfig } from "#data";
 import { useAuthConfig } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import { LoginLocalForm } from "../components/login-local-form.tsx";
+import { authErrorMessage } from "../lib/auth-error.ts";
 
 /** The per-mode login card content (mounted inside `LoginShellAnchor` by the /login route). */
 export function LoginSurface(): ReactElement {
@@ -24,6 +25,11 @@ export function LoginSurface(): ReactElement {
   const navigate = useNavigate();
   const goHome = (): void => void navigate({ to: "/", replace: true });
 
+  // A7 — the OIDC callback lands here with ?authError=<sanitized code> on any failed sign-in; surface it as a
+  // human message above the Continue button. Read from location (the callback is a full-document 302, so the
+  // SPA boots fresh with the param present) and mapped to copy — never the raw token.
+  const authError = authErrorMessage(new URLSearchParams(globalThis.location.search).get("authError"));
+
   const body = ((): ReactElement => {
     if (config.isPending) {
       return <LoginLoading />;
@@ -31,7 +37,7 @@ export function LoginSurface(): ReactElement {
     if (config.data === undefined) {
       return <LoginUnreachable onRetry={(): void => void config.refetch()} />;
     }
-    return <LoginBody config={config.data} onDone={goHome} />;
+    return <LoginBody config={config.data} authError={authError} onDone={goHome} />;
   })();
 
   return (
@@ -41,8 +47,17 @@ export function LoginSurface(): ReactElement {
   );
 }
 
-/** The per-mode arm dispatcher — pure (config in, arm out), router-free and CT-mountable directly. */
-export function LoginBody({ config, onDone }: { readonly config: AuthConfig; readonly onDone: () => void }): ReactElement {
+/** The per-mode arm dispatcher — pure (config in, arm out), router-free and CT-mountable directly.
+ *  `authError` (A7) is the already-resolved OIDC callback error MESSAGE (or null); rendered above Continue. */
+export function LoginBody({
+  config,
+  authError = null,
+  onDone,
+}: {
+  readonly config: AuthConfig;
+  readonly authError?: string | null;
+  readonly onDone: () => void;
+}): ReactElement {
   switch (config.mode) {
     case "local":
       return (
@@ -58,6 +73,13 @@ export function LoginBody({ config, onDone }: { readonly config: AuthConfig; rea
           <Text size="label" tone="muted">
             You'll be redirected to your identity provider, then back here.
           </Text>
+          {authError === null ? null : (
+            // `voice="label"` is the feature type axis; the destructive color rides a semantic-token className
+            // (the same `text-destructive` the internal `tone` axis maps to) so this adds no density-tier debt.
+            <Text voice="label" className="text-destructive" role="alert" data-testid={testId("loginAuthError")}>
+              {authError}
+            </Text>
+          )}
           <Button
             intent="primary"
             data-testid={testId("loginOidc")}

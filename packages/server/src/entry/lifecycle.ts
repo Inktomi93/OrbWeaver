@@ -30,7 +30,7 @@ import {
   resolveEnginesPosture,
 } from "#foundation/env";
 import { getLog, initTracing, wrapLibSqlClient } from "#foundation/observability";
-import { createForwardJwtVerifier, createPasswordHasher } from "#infra/auth";
+import { createBackchannelLogoutVerifier, createForwardJwtVerifier, createPasswordHasher } from "#infra/auth";
 import { credentialsKeyFromEnv } from "#infra/crypto";
 import { installEgressFirewall } from "#infra/network";
 import { detectGpu } from "#infra/providers";
@@ -402,6 +402,12 @@ export function createLifecycle(): Lifecycle {
           groupsClaim: env.OIDC_GROUPS_CLAIM,
           emailClaim: env.OIDC_EMAIL_CLAIM,
         },
+        // A4 — split a separator-joined groups claim (authentik property mappings) into an array.
+        groupsSeparator: env.OIDC_GROUPS_SEPARATOR,
+        // A1/A2 — resolve the OIDC admission decisions from env HERE (the oidc-only caller) and pass them into
+        // provisionIdentity; the verb stays mode-agnostic and forward-header JIT is never gated by these.
+        allowJitProvision: env.OIDC_SIGNUP,
+        requireApproval: env.OIDC_REQUIRE_APPROVAL,
         store: oidcStore,
         getConfig: async (): Promise<Configuration> => {
           if (cachedConfig === undefined) {
@@ -409,6 +415,9 @@ export function createLifecycle(): Lifecycle {
           }
           return cachedConfig;
         },
+        // A5 — register the back-channel logout endpoint only when OIDC_BACKCHANNEL_LOGOUT=on. The verifier
+        // is the sealed infra/auth JWKS checker; clientId is the required `aud` on the logout_token.
+        ...(env.OIDC_BACKCHANNEL_LOGOUT ? { backchannelLogout: { verify: createBackchannelLogoutVerifier().verify, clientId } } : {}),
       };
 
       stopOidcGc = startOidcGcScheduler({
