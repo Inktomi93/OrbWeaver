@@ -16,6 +16,12 @@ const IMMUTABLE_CACHE = "public, max-age=31536000, immutable";
 const REVALIDATE_CACHE = "no-cache";
 const HASHED_ASSET_PREFIX = "/assets/";
 const API_PREFIX = "/api/";
+// F1 belt (pre-auth-attack-surface audit 2026-08-09): source artifacts must NEVER leave the edge, even
+// if a build regression re-ships them into the served dist. `.map` = sourcemaps (the root fix is
+// `vite.config.ts sourcemap:false`; this is defense-in-depth so a config flip can't re-leak the whole
+// first-party `src/**` via `sourcesContent`); `.ts`/`.tsx` = raw source that has no place in a prod
+// bundle. Non-global regex → no lastIndex state.
+const SOURCE_ARTIFACT_EXT = /\.(?:map|tsx?)$/;
 
 export interface SpaDeps {
   /** The built client bundle root (contains index.html); absolute or cwd-relative. */
@@ -53,6 +59,17 @@ export function registerSpa(app: Hono, deps: SpaDeps): void {
     res.headers.set("Cache-Control", value);
     return res;
   };
+
+  // F1 belt: 404 any non-/api request for a source artifact (`.map`/`.ts`/`.tsx`) BEFORE serveStatic can
+  // read it off disk — a plain (non-HTML) 404, matching the /api-miss posture. Fires ahead of the
+  // file-serve and history-fallback handlers below so a re-shipped map never lands. (/api/* .map paths
+  // don't exist, but stay a plain API 404 either way — the belt only owns the static tree.)
+  app.get("*", (c, next) => {
+    if (isApi(c.req.path) || !SOURCE_ARTIFACT_EXT.test(c.req.path)) {
+      return next();
+    }
+    return c.notFound();
+  });
 
   // Real files first. serveStatic's own guard rejects traversal (`..` / `\` / `//`, percent-decoded
   // included) and falls through to next() on a miss.
