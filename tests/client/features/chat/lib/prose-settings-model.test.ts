@@ -13,8 +13,9 @@ import {
 } from "../../../../../packages/client/src/features/chat/lib/prose-settings-model.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
-// A user-home slot carrying a required pre-substitution token — the lint's subject.
-const NUDGE = "chat.group.roundNudge";
+// A SECOND user-home slot ≠ ARBITER — the projection/patch exclusivity subject. (Was `chat.group.roundNudge`
+// until the F4 re-home moved the group framings to the preset home; any user-home side-generation slot serves.)
+const OTHER = "chat.compaction.system";
 const ARBITER = "chat.arbiter.system";
 
 test("the editable cohort is every user-home slot EXCEPT the legacy-adapted imagery template/caption fields", () => {
@@ -46,7 +47,7 @@ test("a virgin blob projects every slot to an empty field (empty = using the shi
 test("a stored override projects into its own field only", () => {
   const form = projectProseForm({ [ARBITER]: { text: "pick the quiet one", baseVersion: 1 } });
   expect(form[proseFieldName(ARBITER)]).toBe("pick the quiet one");
-  expect(form[proseFieldName(NUDGE)]).toBe("");
+  expect(form[proseFieldName(OTHER)]).toBe("");
 });
 
 test("a typed field is stamped with the CURRENT slot version; a blank one is the leaf null (a real reset)", () => {
@@ -58,7 +59,7 @@ test("the patch spells EVERY slot — an untouched slot rides as null, so cleari
   const patch = toProsePatch({ ...projectProseForm({}), [proseFieldName(ARBITER)]: "pick the quiet one" });
   expect(Object.keys(patch)).toHaveLength(USER_PROSE_SLOT_IDS.length);
   expect(patch[ARBITER]).toEqual({ text: "pick the quiet one", baseVersion: PROSE_SLOTS[ARBITER].version });
-  expect(patch[NUDGE]).toBeNull();
+  expect(patch[OTHER]).toBeNull();
 });
 
 // The footer-state tests MOVED to `tests/contracts/prose/index.contract.test.ts` with `proseFooterState`

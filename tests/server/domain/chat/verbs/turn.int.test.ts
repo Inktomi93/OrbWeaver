@@ -150,7 +150,7 @@ function harness(
     prng?: () => number;
     /** Replace the provider stream entirely (the return-based-abort pin injects one that honors the signal). */
     runChatTurn?: ChatContext["runChatTurn"];
-    /** The `smart` policy's side-LLM turn director (default = the throwing `notStubbed` — every non-smart
+    /** The `smart` policy's side-LLM turn arbiter (default = the throwing `notStubbed` — every non-smart
      *  room must never reach it). The smart-policy pins script it (a pick, or an outage). */
     summarize?: ChatContext["summarize"];
     /** The injected rpg turn ops (default null = not wired, byte-identical). The R1 folded-extraction pin
@@ -718,12 +718,12 @@ describe("send — the group round (N speakers via driveRound)", () => {
   });
 });
 
-// The `smart` policy routes the round through the side-LLM turn director (`engine/smart-arbitrate`) BEFORE
+// The `smart` policy routes the round through the side-LLM turn arbiter (`engine/smart-arbitrate`) BEFORE
 // the deterministic sampler is reached. The owner contract: when that call fails, the round degrades to the
 // `natural` math rather than stalling — and says so out loud (D41: no silent degrade).
-describe("send — the smart policy (side-LLM turn director + its visible fallback)", () => {
-  /** A scripted turn-director reply (the `summarize` role op the smart arbitration calls). */
-  function director(text: string): { op: ChatContext["summarize"]; calls: () => number } {
+describe("send — the smart policy (side-LLM turn arbiter + its visible fallback)", () => {
+  /** A scripted turn-arbiter reply (the `summarize` role op the smart arbitration calls). */
+  function arbiter(text: string): { op: ChatContext["summarize"]; calls: () => number } {
     let calls = 0;
     return {
       op: (): Promise<SummarizeResult> => {
@@ -738,7 +738,7 @@ describe("send — the smart policy (side-LLM turn director + its visible fallba
 
   test("the side-LLM's pick is honored (the happy path still works)", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
-    const chosen = director("bryn");
+    const chosen = arbiter("bryn");
     const h = harness(db, names, { summarize: chosen.op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
@@ -749,7 +749,7 @@ describe("send — the smart policy (side-LLM turn director + its visible fallba
     expect(warnings(h.events)).toHaveLength(0);
   });
 
-  test("a THROWING director (outage) still commits a turn, chosen by the natural math, with a warning", async () => {
+  test("a THROWING arbiter (outage) still commits a turn, chosen by the natural math, with a warning", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
     const h = harness(db, names, {
       summarize: () => Promise.reject(new Error("side-LLM down")),
@@ -765,7 +765,7 @@ describe("send — the smart policy (side-LLM turn director + its visible fallba
 
   // The small-hardware arm (plan-for-small-hardware): no summarize backend wired ⇒ the role dispatcher
   // fail-closes with a SYNCHRONOUS throw. Same outcome — the round happens and the user is told.
-  test("an UNWIRED director (sync fail-closed throw) degrades the same way", async () => {
+  test("an UNWIRED arbiter (sync fail-closed throw) degrades the same way", async () => {
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"]);
     const h = harness(db, names, {
       summarize: () => {
@@ -781,7 +781,7 @@ describe("send — the smart policy (side-LLM turn director + its visible fallba
 
   test("a GARBLED / off-roster reply degrades to the math (never schedules a non-member)", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
-    const h = harness(db, names, { summarize: director("Gandalf the Grey").op });
+    const h = harness(db, names, { summarize: arbiter("Gandalf the Grey").op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
 
@@ -791,9 +791,9 @@ describe("send — the smart policy (side-LLM turn director + its visible fallba
     expect(warnings(h.events)).toEqual([{ type: "warning", chatId, code: "smart_arbitration_degraded" }]);
   });
 
-  test("a human @mention hard-overrides smart entirely — the director is never called", async () => {
+  test("a human @mention hard-overrides smart entirely — the arbiter is never called", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
-    const chosen = director("aria");
+    const chosen = arbiter("aria");
     const h = harness(db, names, { summarize: chosen.op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "@bryn hello" });
@@ -804,9 +804,9 @@ describe("send — the smart policy (side-LLM turn director + its visible fallba
     expect(warnings(h.events)).toHaveLength(0);
   });
 
-  test("a MUTED member named by the director is never scheduled (untrusted model output)", async () => {
+  test("a MUTED member named by the arbiter is never scheduled (untrusted model output)", async () => {
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { disabledKeys: ["cara"] });
-    const h = harness(db, names, { summarize: director("cara").op });
+    const h = harness(db, names, { summarize: arbiter("cara").op });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
 
@@ -816,16 +816,16 @@ describe("send — the smart policy (side-LLM turn director + its visible fallba
     expect(warnings(h.events)).toEqual([{ type: "warning", chatId, code: "smart_arbitration_degraded" }]);
   });
 
-  // THE HANG (a hang is not a failure, so the degrade belt above cannot catch it): a director box that
+  // THE HANG (a hang is not a failure, so the degrade belt above cannot catch it): a arbiter box that
   // accepts the request and never answers holds the whole turn open. The turn's abort signal now rides INTO
   // the summarize op, so the user's Stop cuts it — and a cancelled arbitration is NOT a degrade: the round
   // ends with nothing generated and no warning (nothing degraded — the user stopped it).
   test("an abort mid-arbitration ends the turn: no fallback speaker, no generation, no degrade warning", async () => {
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"]);
     let generations = 0;
-    let directorEntered: () => void = () => undefined;
+    let arbiterEntered: () => void = () => undefined;
     const arrived = new Promise<void>((resolve) => {
-      directorEntered = resolve;
+      arbiterEntered = resolve;
     });
     const h = harness(db, names, {
       onChatRequest: () => {
@@ -836,7 +836,7 @@ describe("send — the smart policy (side-LLM turn director + its visible fallba
       summarize: (_inputs, opts): Promise<SummarizeResult> =>
         new Promise((_resolve, reject) => {
           opts?.signal?.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
-          directorEntered();
+          arbiterEntered();
         }),
     });
 
@@ -889,34 +889,34 @@ describe("send — narrator output (group character authors the turn)", () => {
 });
 
 // A NARRATOR round voices the whole cast in ONE generation authored by the synthetic group character — it
-// never consumes an arbitrated speaker. So the `smart` side-LLM turn director must not run there: it costs a
+// never consumes an arbitrated speaker. So the `smart` side-LLM turn arbiter must not run there: it costs a
 // real model call whose verdict is discarded, and its degrade would warn the room about a decision that
 // governs nothing. `policy` STAYS on the narrator arm (a mode toggle round-trips the host's choice) — it just
-// never buys a director call.
-describe("send — narrator × smart: the director is short-circuited (its verdict governs nothing)", () => {
+// never buys a arbiter call.
+describe("send — narrator × smart: the arbiter is short-circuited (its verdict governs nothing)", () => {
   const warnings = (events: readonly ChatBusEvent[]): readonly ChatBusEvent[] => events.filter((e) => e.type === "warning");
 
-  test("a narrator round makes ZERO side-LLM director calls and still commits the cast turn", async () => {
+  test("a narrator round makes ZERO side-LLM arbiter calls and still commits the cast turn", async () => {
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { output: "narrator" });
     const groupCharacterId = await seedCharacter(db, host, "group");
-    let directorCalls = 0;
+    let arbiterCalls = 0;
     const h = harness(db, names, {
       groupCharacterId,
       summarize: (): Promise<SummarizeResult> => {
-        directorCalls += 1;
+        arbiterCalls += 1;
         return Promise.resolve({ items: [{ text: "aria", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
       },
     });
 
     const outcome = await h.turn.send({ principal: principal(host), chatId, content: "narrate" });
 
-    expect(directorCalls).toBe(0);
+    expect(arbiterCalls).toBe(0);
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(1);
     expect(assistants[0]?.characterId).toBe(groupCharacterId);
   });
 
-  test("a DEAD director box never warns a narrator room (nothing degraded — nothing was asked)", async () => {
+  test("a DEAD arbiter box never warns a narrator room (nothing degraded — nothing was asked)", async () => {
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { output: "narrator" });
     const groupCharacterId = await seedCharacter(db, host, "group");
     const h = harness(db, names, {
@@ -932,25 +932,25 @@ describe("send — narrator × smart: the director is short-circuited (its verdi
 
   // The auto-chain in a narrator room must keep chaining: its continue/stop probe is the DETERMINISTIC
   // arbitration (a nominee exists ⇒ narrate again), never the side-LLM.
-  test("the auto-chain still runs in a narrator×smart room, with no director calls", async () => {
+  test("the auto-chain still runs in a narrator×smart room, with no arbiter calls", async () => {
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], {
       output: "narrator",
       autoMode: true,
       autoModeMaxTurns: 2,
     });
     const groupCharacterId = await seedCharacter(db, host, "group");
-    let directorCalls = 0;
+    let arbiterCalls = 0;
     const h = harness(db, names, {
       groupCharacterId,
       summarize: (): Promise<SummarizeResult> => {
-        directorCalls += 1;
+        arbiterCalls += 1;
         return Promise.resolve({ items: [{ text: "aria", usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }], model: "fake" });
       },
     });
 
     await h.turn.send({ principal: principal(host), chatId, content: "narrate" });
 
-    expect(directorCalls).toBe(0);
+    expect(arbiterCalls).toBe(0);
     // the human round's narrator turn + 2 chained narrator turns, all authored by the group character.
     const assistants = (await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(3);
@@ -1025,12 +1025,12 @@ describe("send — auto-mode AI→AI chain", () => {
   // BEFORE it arbitrates (so Stop renders during the hang), and the abort handle spans the WHOLE chain — so a
   // Stop mid-chain-arbitration cancels the chain, not just the current iteration.
   test("a hung chain arbitration mid-chain: Stop cancels the WHOLE chain (turnAborted lands, no further turn)", async () => {
-    // A `smart` room so the chain's continuation arbitration calls the side-LLM director each iteration.
+    // A `smart` room so the chain's continuation arbitration calls the side-LLM arbiter each iteration.
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], {
       autoMode: true,
       autoModeMaxTurns: 3,
     });
-    // The director answers the FIRST arbitrations (human round → aria, chain iter 1 → bryn), then HANGS on the
+    // The arbiter answers the FIRST arbitrations (human round → aria, chain iter 1 → bryn), then HANGS on the
     // next chain arbitration exactly like a non-responsive box — settling only when the turn signal fires.
     let calls = 0;
     let hungEntered: () => void = () => undefined;

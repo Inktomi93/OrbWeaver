@@ -8,7 +8,8 @@
 //   • `#preset` (preset/prose.ts)     — per-PRESET voice/nudge prose (census 38-48)
 //   • `#imagery`                      — per-USER image-prompt + negative-base prose (census 82-88)
 //   • `#chat` (chat/prose.ts)         — per-USER app-tier side-generation prose (census 74-81) + the
-//                                       group-round / injection FRAMING prose
+//                                       per-PRESET group-round / injection FRAMING prose (the framings home on
+//                                       the preset — the 2026-08-07 injection frames + the F4 group re-home)
 //   • `#automation` (automation/prose.ts) — per-USER quiet-pick prose (census 91)
 //   • `#discovery` (discovery/prose.ts)   — per-USER library-semantics system prompts
 // …and THIS file composes them into `PROSE_SLOTS` and owns the resolver. Later stages graft the per-game

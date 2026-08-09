@@ -179,7 +179,7 @@ function useSceneEdits(state: RpgPanelState): SceneEditCallbacks {
 /** Every lock path this tab can pin → the plane's name in the reader's words (side-eye 08-01: five pins on
  *  one tab all announced the same sentence). ONE map: a new lockable path fails `tsc` here, never ships mute. */
 const LOCK_PATH_NAME = {
-  presentCharacters: "the cast on stage",
+  presentCharacters: "the present cast",
   trackerValues: "the game trackers",
   location: "the location",
   calendarDate: "the date",

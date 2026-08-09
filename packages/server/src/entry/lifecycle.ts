@@ -139,7 +139,6 @@ export function createLifecycle(): Lifecycle {
   let stopOidcGc: (() => void) | null = null;
   let stopWorker: AbortController | null = null;
   let stopBuddyObserver: (() => void) | null = null;
-  let stopCrewScheduler: (() => void) | null = null;
   let stopAutomationWatcher: (() => void) | null = null;
   let drainVllm: (() => void) | null = null;
   let booted = false;
@@ -481,10 +480,6 @@ export function createLifecycle(): Lifecycle {
     if (stopBuddyObserver !== null) {
       stopBuddyObserver();
       stopBuddyObserver = null;
-    }
-    if (stopCrewScheduler !== null) {
-      stopCrewScheduler();
-      stopCrewScheduler = null;
     }
     if (stopAutomationWatcher !== null) {
       stopAutomationWatcher();
