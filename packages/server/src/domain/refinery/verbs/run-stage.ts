@@ -19,7 +19,7 @@ import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
 import { refineryRuns, refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { ModelId } from "@orb/kit/ids";
+import type { ModelId, RefineryRunId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
@@ -117,26 +117,46 @@ async function dispatchStage(
     return view;
   }
   if (stage === "rewrite") {
+    // The DAG parent of a rewrite is the run it WORKED FROM: the analyze it refines against on a
+    // refinement round, else the score it addresses. Null on a cold first pass.
+    const parent = isRefinement ? prior.analyze : prior.score;
     return runRewriteArm(ctx, pass, {
-      working: prior.rewrite === null ? session.originalCard : overlayRewrite(session.originalCard, prior.rewrite),
-      score: prior.score,
-      analyzeFeedback: isRefinement ? prior.analyze : null,
+      working: prior.rewrite === null ? session.originalCard : overlayRewrite(session.originalCard, prior.rewrite.payload),
+      score: prior.score?.payload ?? null,
+      analyzeFeedback: isRefinement ? (prior.analyze?.payload ?? null) : null,
+      sourceRunId: parent === null ? null : parent.id,
     });
   }
   // analyze — the precondition guaranteed the rewrite payload; the anchor is the ORIGINAL.
-  const view = await runAnalyzeArm(ctx, pass, prior.rewrite ?? { fields: [] });
+  const view = await runAnalyzeArm(ctx, pass, prior.rewrite);
   if (view.stage === "analyze") {
     await ctx.stampRefinerySignals({ ownerId, characterId: session.characterId, patch: { analysis: view.payload } });
   }
   return view;
 }
 
-/** The prior-run context every stage reads: the latest VALID payload per stage (an unparseable stored
- *  payload reads as absent — the read seam's posture). */
+/** One prior run a stage may consume: its payload AND its identity. The id rides ALONGSIDE the payload,
+ *  never separately, so a run can only ever cite a parent it actually READ — a row whose stored payload no
+ *  longer parses is absent on both halves at once (the read seam's posture). */
+interface PriorRun<T> {
+  readonly id: RefineryRunId;
+  readonly payload: T;
+}
+
+/** The prior-run context every stage reads: the latest VALID run per stage. */
 interface PriorRuns {
-  readonly score: z.infer<(typeof REFINERY_STAGE_PAYLOADS)["score"]> | null;
-  readonly rewrite: z.infer<(typeof REFINERY_STAGE_PAYLOADS)["rewrite"]> | null;
-  readonly analyze: z.infer<(typeof REFINERY_STAGE_PAYLOADS)["analyze"]> | null;
+  readonly score: PriorRun<z.infer<(typeof REFINERY_STAGE_PAYLOADS)["score"]>> | null;
+  readonly rewrite: PriorRun<z.infer<(typeof REFINERY_STAGE_PAYLOADS)["rewrite"]>> | null;
+  readonly analyze: PriorRun<z.infer<(typeof REFINERY_STAGE_PAYLOADS)["analyze"]>> | null;
+}
+
+/** Pair a row with its parsed payload, or null when the row is absent OR its payload no longer parses. */
+function priorRunOf<T>(row: { id: RefineryRunId; payload: unknown } | undefined, schema: z.ZodType<T>): PriorRun<T> | null {
+  if (row === undefined) {
+    return null;
+  }
+  const parsed = schema.safeParse(row.payload);
+  return parsed.success ? { id: row.id, payload: parsed.data } : null;
 }
 
 async function readPriorRuns(ctx: RefineryContext, sessionId: Parameters<ExecuteStage>[0]["sessionId"]): Promise<PriorRuns> {
@@ -145,13 +165,10 @@ async function readPriorRuns(ctx: RefineryContext, sessionId: Parameters<Execute
     latestRunRowOf(ctx.db, sessionId, "rewrite"),
     latestRunRowOf(ctx.db, sessionId, "analyze"),
   ]);
-  const scoreParsed = score === undefined ? null : REFINERY_STAGE_PAYLOADS.score.safeParse(score.payload);
-  const rewriteParsed = rewrite === undefined ? null : REFINERY_STAGE_PAYLOADS.rewrite.safeParse(rewrite.payload);
-  const analyzeParsed = analyze === undefined ? null : REFINERY_STAGE_PAYLOADS.analyze.safeParse(analyze.payload);
   return {
-    score: scoreParsed !== null && scoreParsed.success ? scoreParsed.data : null,
-    rewrite: rewriteParsed !== null && rewriteParsed.success ? rewriteParsed.data : null,
-    analyze: analyzeParsed !== null && analyzeParsed.success ? analyzeParsed.data : null,
+    score: priorRunOf(score, REFINERY_STAGE_PAYLOADS.score),
+    rewrite: priorRunOf(rewrite, REFINERY_STAGE_PAYLOADS.rewrite),
+    analyze: priorRunOf(analyze, REFINERY_STAGE_PAYLOADS.analyze),
   };
 }
 
@@ -197,6 +214,18 @@ async function resolveStagePass(
   };
 }
 
+/** The three ECONOMIC columns of a finished run, resolved identically for every stage: the provider's own
+ *  usage (null only when the backend reports none) and the pass's wall time. Measured from `meta.createdAt`
+ *  — the moment the pass was resolved — so the number covers prompt assembly and the bounded structured
+ *  retry, which is what a user comparing two runs actually waited through. */
+function runCost(
+  ctx: RefineryContext,
+  pass: StagePass,
+  turn: { readonly promptTokens: number | null; readonly outputTokens: number | null },
+): { promptTokens: number | null; outputTokens: number | null; durationMs: number } {
+  return { promptTokens: turn.promptTokens, outputTokens: turn.outputTokens, durationMs: ctx.now() - pass.meta.createdAt };
+}
+
 async function runScoreArm(ctx: RefineryContext, pass: StagePass): Promise<RefineryRun> {
   const { session } = pass;
   const prompts = buildScorePrompt({
@@ -209,8 +238,9 @@ async function runScoreArm(ctx: RefineryContext, pass: StagePass): Promise<Refin
   const turn = await runOne(ctx, { prompts, sampleOpts: pass.sampleOpts, lane: "refine-score", payloadSchema: REFINERY_STAGE_PAYLOADS.score });
   const view = {
     ...pass.meta,
-    promptTokens: turn.promptTokens,
-    outputTokens: turn.outputTokens,
+    ...runCost(ctx, pass, turn),
+    // A score critiques the ORIGINAL card and consumes no prior run — a DAG root, always.
+    sourceRunId: null,
     stage: "score" as const,
     payloadConfig: session.stageConfig.score,
     payload: turn.payload,
@@ -224,6 +254,8 @@ interface RewriteArmContext {
   readonly working: RefinerySessionView["originalCard"];
   readonly score: z.infer<(typeof REFINERY_STAGE_PAYLOADS)["score"]> | null;
   readonly analyzeFeedback: z.infer<(typeof REFINERY_STAGE_PAYLOADS)["analyze"]> | null;
+  /** The run this rewrite worked FROM (the DAG parent) — resolved by the dispatch, never re-derived here. */
+  readonly sourceRunId: RefineryRunId | null;
 }
 
 async function runRewriteArm(ctx: RefineryContext, pass: StagePass, arm: RewriteArmContext): Promise<RefineryRun> {
@@ -240,8 +272,8 @@ async function runRewriteArm(ctx: RefineryContext, pass: StagePass, arm: Rewrite
   const turn = await runOne(ctx, { prompts, sampleOpts: pass.sampleOpts, lane: "refine-rewrite", payloadSchema: REFINERY_STAGE_PAYLOADS.rewrite });
   const view = {
     ...pass.meta,
-    promptTokens: turn.promptTokens,
-    outputTokens: turn.outputTokens,
+    ...runCost(ctx, pass, turn),
+    sourceRunId: arm.sourceRunId,
     stage: "rewrite" as const,
     payloadConfig: session.stageConfig.rewrite,
     payload: turn.payload,
@@ -251,7 +283,7 @@ async function runRewriteArm(ctx: RefineryContext, pass: StagePass, arm: Rewrite
   return view;
 }
 
-async function runAnalyzeArm(ctx: RefineryContext, pass: StagePass, rewrite: z.infer<(typeof REFINERY_STAGE_PAYLOADS)["rewrite"]>): Promise<RefineryRun> {
+async function runAnalyzeArm(ctx: RefineryContext, pass: StagePass, rewrite: PriorRuns["rewrite"]): Promise<RefineryRun> {
   const { session } = pass;
   const prompts = buildAnalyzePrompt({
     originalCard: session.originalCard,
@@ -259,13 +291,15 @@ async function runAnalyzeArm(ctx: RefineryContext, pass: StagePass, rewrite: z.i
     mode: session.stageConfig.analyze.mode,
     guidance: session.guidance,
     overrides: pass.overrides,
-    rewrite,
+    rewrite: rewrite?.payload ?? { fields: [] },
   });
   const turn = await runOne(ctx, { prompts, sampleOpts: pass.sampleOpts, lane: "refine-analyze", payloadSchema: REFINERY_STAGE_PAYLOADS.analyze });
   const view = {
     ...pass.meta,
-    promptTokens: turn.promptTokens,
-    outputTokens: turn.outputTokens,
+    ...runCost(ctx, pass, turn),
+    // The DAG parent of an analyze is the rewrite it JUDGED — the edge that makes "which rewrite was this
+    // verdict about?" answerable once step-back exists.
+    sourceRunId: rewrite?.id ?? null,
     stage: "analyze" as const,
     payloadConfig: session.stageConfig.analyze,
     payload: turn.payload,

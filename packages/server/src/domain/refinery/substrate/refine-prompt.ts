@@ -27,8 +27,9 @@ import type {
   RefineryScoreMode,
   RefineryScorePayload,
   RefinerySelection,
+  RefineryStage,
 } from "@orb/contracts/refinery";
-import { REFINABLE_FIELDS } from "@orb/contracts/refinery";
+import { isClearedRewrite, REFINABLE_FIELDS, REFINERY_SHAPE_TOKEN, REFINERY_STAGE_SHAPES } from "@orb/contracts/refinery";
 import type { AnalyzePromptArgs, RewritePromptArgs, ScorePromptArgs, StagePrompts } from "../contract/prompts.ts";
 
 // ── (stage, mode) → slot id — exhaustive mapped Records (spine §7.5; a new mode member fails tsc) ───────
@@ -86,24 +87,29 @@ function assertNeverField(field: never): never {
   throw new Error(`unreachable refinable field: ${String(field)}`);
 }
 
+/** What a SELECTED-but-empty field renders as. EMPTINESS IS A STATE, NOT AN ABSENCE (schema-renderer §7c):
+ *  before this, an empty selected field was silently omitted, so the model could not tell "scenario is
+ *  blank" from "scenario was never in scope" — score never saw the hole, and a fill-empty rewrite could
+ *  only happen if the model VOLUNTEERED an entry for a field it had never been shown (unpromptable yet
+ *  applicable — an incoherent seam). The score system slot teaches this line as a scoreable OPPORTUNITY. */
+const EMPTY_SECTION_TEXT = "(this field is empty)";
+
 /** The SELECTED card fields as `## field` sections (greetings per index: `## greetings[i]`) — the shape
- *  the system slots teach the model to echo back as `field`/`greetingIndex`. Card bytes VERBATIM (header). */
+ *  the system slots teach the model to echo back as `field`/`greetingIndex`. Card bytes VERBATIM (header).
+ *  The fence is SELECTION, never emptiness: every selected target gets a section, empty or not, and an
+ *  unselected one never appears. */
 export function buildCardSections(card: CharacterCard, selection: RefinerySelection): string {
   const parts: string[] = [`Name: ${card.name}`];
   for (const field of selection.fields) {
     if (field === "greetings") {
       for (const i of selectedGreetingIndexes(card, selection)) {
-        const text = card.greetings[i]?.text;
-        if (text !== undefined && text.length > 0) {
-          parts.push(`## greetings[${i}]\n${text}`);
-        }
+        const text = card.greetings[i]?.text ?? "";
+        parts.push(`## greetings[${i}]\n${text.length > 0 ? text : EMPTY_SECTION_TEXT}`);
       }
       continue;
     }
     const text = fieldTextOf(card, field);
-    if (text !== null && text.length > 0) {
-      parts.push(`## ${field}\n${text}`);
-    }
+    parts.push(`## ${field}\n${text !== null && text.length > 0 ? text : EMPTY_SECTION_TEXT}`);
   }
   return parts.join("\n\n");
 }
@@ -118,16 +124,23 @@ export function overlayRewrite(card: CharacterCard, rewrite: RefineryRewritePayl
       if (entry.greetingIndex === undefined || entry.greetingIndex >= out.greetings.length) {
         continue; // unaddressable — the apply belt itemizes these; the prompt overlay just skips.
       }
-      const greetings = out.greetings.map((g, i) => (i === entry.greetingIndex ? { ...g, text: entry.text } : g));
+      const at = entry.greetingIndex;
+      // A cleared greeting is a slot REMOVAL, not a blank slot (schema-renderer §15.2) — the analyze side
+      // must see the card the apply would actually produce.
+      const greetings = isClearedRewrite(entry)
+        ? out.greetings.filter((_, i) => i !== at)
+        : out.greetings.map((g, i) => (i === at ? { ...g, text: entry.text } : g));
       out = { ...out, greetings };
       continue;
     }
-    out = overlayField(out, entry.field, entry.text);
+    out = overlayField(out, entry.field, isClearedRewrite(entry) ? null : entry.text);
   }
   return out;
 }
 
-function overlayField(card: CharacterCard, field: Exclude<RefinableField, "greetings">, text: string): CharacterCard {
+/** `text: null` = the field is EMPTIED (the cleared arm). Every card field here is nullable, so the
+ *  overlay speaks one spelling of empty; the apply verb owns the `description` write-wire asymmetry. */
+function overlayField(card: CharacterCard, field: Exclude<RefinableField, "greetings">, text: string | null): CharacterCard {
   switch (field) {
     case "description":
       return { ...card, description: text };
@@ -142,8 +155,12 @@ function overlayField(card: CharacterCard, field: Exclude<RefinableField, "greet
     case "postHistoryInstructions":
       return { ...card, postHistoryInstructions: text };
     case "depthPrompt":
-      // A card with NO note has no directive to hang one on — the belt drops the entry at apply; the
-      // overlay mirrors that by leaving the card untouched.
+      // Clearing drops the note AND its authored `{depth, role}` directive together — a dangling directive
+      // is the degenerate state. A card with NO note has nothing to hang a rewrite on, so the overlay
+      // leaves it untouched (mirroring the apply belt's `not_applicable` drop).
+      if (text === null) {
+        return { ...card, depthPrompt: null };
+      }
       return card.depthPrompt === null ? card : { ...card, depthPrompt: { ...card.depthPrompt, prompt: text } };
     case "creatorNotes":
       return { ...card, creatorNotes: text };
@@ -188,12 +205,20 @@ function renderAnalyzeFeedback(analyze: RefineryAnalyzePayload): string {
 const GUIDANCE_HEADER = "User guidance (apply to every stage):";
 const SECTION_JOIN = "\n\n---\n\n";
 
+/** The stage-SYSTEM slot's `{{shape}}` splice (schema-renderer §9.3): the JSON restatement is engine-fed,
+ *  never baked into the owner-editable text, so a host override keeps an honest shape and the SF custom
+ *  arm has exactly one seam to change. A plain pre-substitution replace — these slots are `macros:"none"`
+ *  and never enter the macro engine (belt 5). */
+function shapeTokens(stage: RefineryStage): Record<string, string> {
+  return { [REFINERY_SHAPE_TOKEN]: REFINERY_STAGE_SHAPES[stage] };
+}
+
 export function buildScorePrompt({ card, selection, mode, guidance, overrides }: ScorePromptArgs): StagePrompts {
   const parts = [resolveProseText(SCORE_MODE_SLOTS[mode], overrides), buildCardSections(card, selection)];
   if (guidance !== null && guidance.length > 0) {
     parts.push(`${GUIDANCE_HEADER}\n${guidance}`);
   }
-  return { system: resolveProseText("refinery.score.system", overrides), user: parts.join(SECTION_JOIN) };
+  return { system: resolveProseText("refinery.score.system", overrides, shapeTokens("score")), user: parts.join(SECTION_JOIN) };
 }
 
 export function buildRewritePrompt({ card, selection, mode, guidance, overrides, score, analyzeFeedback }: RewritePromptArgs): StagePrompts {
@@ -208,7 +233,8 @@ export function buildRewritePrompt({ card, selection, mode, guidance, overrides,
     parts.push(`${GUIDANCE_HEADER}\n${guidance}`);
   }
   const systemSlot: ProseSlotId = analyzeFeedback === null ? "refinery.rewrite.system" : "refinery.refine.system";
-  return { system: resolveProseText(systemSlot, overrides), user: parts.join(SECTION_JOIN) };
+  // Both rewrite system slots restate the SAME payload — the refinement round produces a rewrite too.
+  return { system: resolveProseText(systemSlot, overrides, shapeTokens("rewrite")), user: parts.join(SECTION_JOIN) };
 }
 
 export function buildAnalyzePrompt({ originalCard, selection, mode, guidance, overrides, rewrite }: AnalyzePromptArgs): StagePrompts {
@@ -221,5 +247,5 @@ export function buildAnalyzePrompt({ originalCard, selection, mode, guidance, ov
   if (guidance !== null && guidance.length > 0) {
     parts.push(`${GUIDANCE_HEADER}\n${guidance}`);
   }
-  return { system: resolveProseText("refinery.analyze.system", overrides), user: parts.join(SECTION_JOIN) };
+  return { system: resolveProseText("refinery.analyze.system", overrides, shapeTokens("analyze")), user: parts.join(SECTION_JOIN) };
 }
