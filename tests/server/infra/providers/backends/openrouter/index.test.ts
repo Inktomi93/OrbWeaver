@@ -14,6 +14,7 @@ import { createOpenRouterBackend } from "@orb/server/infra/providers/backends/op
 import { describe, vi } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../../support/wire-ready.ts";
 
 const FIXED_NOW = 1000;
 const OR_KEY = "sk-or-secret";
@@ -208,11 +209,11 @@ describe("createOpenRouterBackend — summarize shaper", () => {
   // test; the new vehicle is the two below it.
   test("STRUCTURED with no vehicle asked for rides the FORCED TOOL CALL — the extraction rail's fence", async () => {
     const { backend, tracker } = backendWith((n) => summarizeReply(`S${n}`));
-    const schema = {
+    const schema = wireSchema({
       type: "object",
       properties: { genre: { type: "string" } },
       required: ["genre"],
-    };
+    });
     await callStructured(backend, {
       credential: CRED,
       model: castId<ModelId>("anthropic/claude-haiku-4-5"),
@@ -236,12 +237,12 @@ describe("createOpenRouterBackend — summarize shaper", () => {
   // request to a shape one of the three families 400s on.
   test("STRUCTURED with vehicle:response-format rides response_format + strict + require_parameters, and drops the tool", async () => {
     const { backend, tracker } = backendWith(() => summarizeReply('{"genre":"noir"}'));
-    const schema = {
+    const schema = wireSchema({
       type: "object",
       properties: { genre: { type: "string" }, era: { type: "string" } },
       required: ["genre"],
       additionalProperties: false,
-    };
+    });
     await callStructured(backend, {
       credential: CRED,
       model: castId<ModelId>("anthropic/claude-haiku-4-5"),
@@ -273,7 +274,7 @@ describe("createOpenRouterBackend — summarize shaper", () => {
       credential: CRED,
       model: castId<ModelId>("anthropic/claude-haiku-4-5"),
       inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
-      responseFormat: { name: "result", schema: { type: "object" }, vehicle: "response-format" },
+      responseFormat: { name: "result", schema: wireSchema({ type: "object" }), vehicle: "response-format" },
     });
     expect(result?.items[0]?.text).toBe('{"genre":"noir"}');
   });
@@ -285,7 +286,7 @@ describe("createOpenRouterBackend — summarize shaper", () => {
       credential: CRED,
       model: castId<ModelId>("anthropic/claude-haiku-4-5"),
       inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
-      responseFormat: { name: "result", schema: { type: "object" } },
+      responseFormat: { name: "result", schema: wireSchema({ type: "object" }) },
     });
     expect(result?.items[0]?.text).toBe(args);
   });
@@ -300,7 +301,7 @@ describe("createOpenRouterBackend — summarize shaper", () => {
       credential: CRED,
       model: castId<ModelId>("anthropic/claude-haiku-4-5"),
       inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
-      responseFormat: { name: "result", schema: { type: "object" } },
+      responseFormat: { name: "result", schema: wireSchema({ type: "object" }) },
     });
     expect(result?.items[0]?.text).toBe(jsonWithThink); // <think> preserved verbatim
     expect(() => JSON.parse(result?.items[0]?.text ?? "")).not.toThrow(); // JSON intact
@@ -319,7 +320,7 @@ describe("createOpenRouterBackend — summarize shaper", () => {
       inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
       responseFormat: {
         name: "rpg_state",
-        schema: {
+        schema: wireSchema({
           $schema: "https://json-schema.org/draft/2020-12/schema",
           type: "object",
           required: ["targetRef"],
@@ -328,7 +329,7 @@ describe("createOpenRouterBackend — summarize shaper", () => {
             hp: { type: "integer", minimum: -9_007_199_254_740_991, maximum: 9_007_199_254_740_991 },
             tags: { type: "array", items: { type: "string", maxLength: 40 }, minItems: 1 },
           },
-        },
+        }),
       },
     });
     const sent = tracker.sentRequests[0] as { chatRequest?: { tools?: { function: { parameters: Record<string, unknown> } }[] } };
@@ -360,7 +361,7 @@ describe("createOpenRouterBackend — summarize shaper", () => {
       credential: CRED,
       model: castId<ModelId>("anthropic/claude-haiku-4-5"),
       inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
-      responseFormat: { name: "result", schema: { type: "object" } },
+      responseFormat: { name: "result", schema: wireSchema({ type: "object" }) },
     });
     const sent = tracker.sentRequests[0] as { chatRequest?: { parallelToolCalls?: unknown } };
     expect(sent.chatRequest?.parallelToolCalls).toBe(false);
@@ -403,7 +404,7 @@ describe("createOpenRouterBackend — summarize shaper", () => {
       credential: CRED,
       model: castId<ModelId>("anthropic/claude-haiku-4-5"),
       inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
-      responseFormat: { name: "result", schema: { type: "object" } },
+      responseFormat: { name: "result", schema: wireSchema({ type: "object" }) },
     });
     expect(result?.items[0]?.text).toBe('{"a":1}'); // the first still wins — the item is not thrown away
     const line = spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.structured-extra-call");
@@ -430,7 +431,7 @@ describe("createOpenRouterBackend — summarize shaper", () => {
         credential: CRED,
         model: castId<ModelId>("anthropic/claude-haiku-4-5"),
         inputs: [{ systemPrompt: "sys", userPrompt: "one" }],
-        responseFormat: { name: "result", schema: { type: "object" } },
+        responseFormat: { name: "result", schema: wireSchema({ type: "object" }) },
       }),
     ).rejects.toMatchObject({ kind: "refused", retryable: false, message: expect.stringContaining("I can't help with that request.") });
   });
@@ -519,7 +520,7 @@ describe("createOpenRouterBackend — summarize observability (wire capture + pr
       credential: CRED,
       model: haikuModel,
       inputs: [{ systemPrompt: "sys", userPrompt: "a" }],
-      responseFormat: { name: "rpg_state", schema: { type: "object" } },
+      responseFormat: { name: "rpg_state", schema: wireSchema({ type: "object" }) },
     });
     const line = spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.structured-item");
     expect(line).toBeDefined();

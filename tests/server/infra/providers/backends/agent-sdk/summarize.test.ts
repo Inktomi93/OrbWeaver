@@ -20,6 +20,7 @@ import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agen
 import { describe, vi } from "vitest";
 import { makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../../support/wire-ready.ts";
 
 const MODEL = "claude-haiku-test";
 const SESSION_ID = "sess-summarize";
@@ -156,11 +157,11 @@ describe("agent-sdk summarize", () => {
   });
 
   test("jsonSchema → outputFormat threaded + structured_output serialized COMPACT (vLLM byte-parity)", async () => {
-    const schema = {
+    const schema = wireSchema({
       type: "object",
       properties: { topic: { type: "string" }, sentiment: { type: "string" } },
       required: ["topic", "sentiment"],
-    };
+    });
     const structured = { topic: "fox", sentiment: "neutral" };
     const fakeQuery = vi.fn((_req: { prompt: string; options: Record<string, unknown> }) => streamOf(structuredTurn(structured)));
     const structuredRun = structuredOf(fakeQuery);
@@ -195,7 +196,7 @@ describe("agent-sdk summarize", () => {
     );
     const structuredRun = structuredOf(fakeQuery);
 
-    await expect(structuredRun(structReqOf({ name: "result", schema: { type: "object" } }))).rejects.toMatchObject({
+    await expect(structuredRun(structReqOf({ name: "result", schema: wireSchema({ type: "object" }) }))).rejects.toMatchObject({
       kind: "invalid",
     });
   });

@@ -13,6 +13,7 @@ import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
 import { makeModelCapability, makeResolvedCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../../support/wire-ready.ts";
 
 const CRED = makeResolvedCredential("vllm");
 const MODEL = "Qwen/Qwen3-VL-8B-Instruct" as ModelId;
@@ -130,7 +131,7 @@ describe("createVllmChat", () => {
       baseUrl: () => "http://127.0.0.1:0",
     };
     const chat = createVllmChat({ client, now: clock() });
-    await chat(chatReq({ responseFormat: { name: "extract", schema: { type: "object" } } }));
+    await chat(chatReq({ responseFormat: { name: "extract", schema: wireSchema({ type: "object" }) } }));
     expect(sentBody?.["response_format"]).toEqual({
       type: "json_schema",
       // biome-ignore lint/style/useNamingConvention: the OpenAI-compatible `response_format` wire field name.
@@ -149,7 +150,7 @@ describe("createVllmChat", () => {
       baseUrl: () => "http://127.0.0.1:0",
     };
     const chat = createVllmChat({ client, now: clock() });
-    await chat(chatReq({ responseFormat: { name: "extract", schema: {}, strict: false } }));
+    await chat(chatReq({ responseFormat: { name: "extract", schema: wireSchema({}), strict: false } }));
     expect(sentBody?.["response_format"]).toEqual({
       type: "json_schema",
       // biome-ignore lint/style/useNamingConvention: the OpenAI-compatible `response_format` wire field name.

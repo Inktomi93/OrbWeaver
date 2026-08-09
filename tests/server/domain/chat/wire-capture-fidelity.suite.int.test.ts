@@ -49,6 +49,7 @@ import { recallMemory } from "../../../../packages/server/src/domain/chat/memory
 import { loadCanonHistory } from "../../../../packages/server/src/domain/chat/persistence/queries.ts";
 import { freshDb } from "../../../support/db.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+import { wireSchema } from "../../../support/wire-ready.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedUser, stubRunCompaction, TEST_CAPABILITY, testConnection } from "./_support.ts";
 
 const HOST = castId<UserId>("user_host");
@@ -494,7 +495,7 @@ describe("TASK-24 four-layer round-trip fidelity (deterministic, real buildBody 
   // ── openrouter responses ─────────────────────────────────────────────────────────────────────────────
 
   test("openrouter responses — responseFormat lands on the responses wire `text.format`", async () => {
-    const responseFormat: ResponseFormat = { name: "verdict", schema: { type: "object", properties: { ok: { type: "boolean" } } }, strict: true };
+    const responseFormat: ResponseFormat = { name: "verdict", schema: wireSchema({ type: "object", properties: { ok: { type: "boolean" } } }), strict: true };
     const wire = await captureWireVia(
       openRouterSurface,
       wireTurnRequest({

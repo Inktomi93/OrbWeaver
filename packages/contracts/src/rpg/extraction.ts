@@ -294,7 +294,7 @@ function requireField(node: unknown, field: string): void {
  *   • `scene.presentRemove[]`     ⟵ actorRefs   (removing a present actor — must name a real one)
  *   • `trackers[]`                ⟵ gameTrackerKeys (R6 — the game-subject write surface, pruned when empty)
  */
-export function constrainExtractionSchema(schema: Record<string, unknown>, refs: ExtractionRefs): Record<string, unknown> {
+export function constrainExtractionSchema<S extends Record<string, unknown>>(schema: S, refs: ExtractionRefs): S {
   // Deep clone so the cached projected schema is never mutated (it also feeds other wires). A JSON round-trip
   // is the right clone here: `z.toJSONSchema` output is pure JSON (no functions/dates/cycles), and it avoids
   // `structuredClone` (not in the contracts package's isomorphic tsc lib — `@orb/contracts` is DOM/node-free).
@@ -340,7 +340,10 @@ export function constrainExtractionSchema(schema: Record<string, unknown>, refs:
   // heals to `note` + logs. `title` is deliberately NOT re-required — its absence is fully recoverable from the
   // content head, so forcing it would spend tokens on a field we derive for free (the 2026-07-27 ruling).
   requireField(itemsOf(propsOf(clone)?.["journal"]), "type");
-  return clone;
+  // Brand-transparent: the clone of a projected schema is still projected (enums/required/pruning never
+  // re-open an object node), so echo the caller's own type — a `WireReady` in stays `WireReady` out, without
+  // this function ever MINTING the brand (`projectJsonSchema` is the one producer).
+  return clone as S;
 }
 
 /**
@@ -752,14 +755,15 @@ export function salvagePopulate(raw: unknown): RpgPopulateSalvage {
  * whose entire point is "fill the born fields nobody else can write" has nothing to fall back on if it skips
  * them. Returns a fresh schema (never mutates the cached projection).
  */
-export function constrainPopulateSchema(schema: Record<string, unknown>, targetRef: string): Record<string, unknown> {
+export function constrainPopulateSchema<S extends Record<string, unknown>>(schema: S, targetRef: string): S {
   const clone = cloneNode(schema as JsonSchemaNode);
   constrainArrayItemRef(clone, "inventory", "targetRef", [targetRef]);
   const sheetNode = propsOf(clone)?.["sheet"];
   requireField(clone, "sheet");
   requireField(sheetNode, "title");
   requireField(sheetNode, "level");
-  return clone;
+  // Brand-transparent (see {@link constrainExtractionSchema}): echo the caller's type, never mint the brand.
+  return clone as S;
 }
 
 /**

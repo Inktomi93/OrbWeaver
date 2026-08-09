@@ -17,6 +17,7 @@ import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agen
 import { describe, vi } from "vitest";
 import { makeOpenRouterCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../../support/wire-ready.ts";
 import { streamOf as sharedStreamOf } from "./_support.ts";
 
 const MODEL = "claude-agent-x";
@@ -305,7 +306,7 @@ describe("runAgentTurn — external MCP servers (sealed optional seam; caller ow
 });
 
 describe("runAgentTurn — structured output (responseFormat → outputFormat)", () => {
-  const SCHEMA = { type: "object", properties: { verdict: { type: "string" } } };
+  const SCHEMA = wireSchema({ type: "object", properties: { verdict: { type: "string" } } });
 
   test("maps responseFormat.schema to the SDK outputFormat json_schema (schema only)", async () => {
     const { run, lastOptions } = harness();

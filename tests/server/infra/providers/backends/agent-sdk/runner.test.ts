@@ -17,6 +17,7 @@ import { seedSessionId } from "@orb/server/infra/providers/backends/agent-sdk/se
 import { describe, vi } from "vitest";
 import { makeModelCapability, makeOpenRouterCredential } from "../../../../../support/factories/resolved-connection.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
+import { wireSchema } from "../../../../../support/wire-ready.ts";
 import { streamOf as sharedStreamOf } from "./_support.ts";
 
 /** Pull the tagged `provider.*` lines a spied pino level captured (filters out other backend chatter). */
@@ -1062,7 +1063,7 @@ describe("the chat runner's stateful tool + structured channels", () => {
       ...buildToolReq(castId<ChatId>("chat-structured")),
       responseFormat: {
         name: "extraction",
-        schema: { type: "object", properties: { hp: { type: "number", minimum: 0 } } },
+        schema: wireSchema({ type: "object", properties: { hp: { type: "number", minimum: 0 } } }),
       },
     });
     const opts = fakeQuery.mock.calls[0]?.[0]?.options as CapturedOptions | undefined;
