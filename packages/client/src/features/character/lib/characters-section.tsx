@@ -2,7 +2,7 @@
 // section's rail identity, panel defaults, placeholder copy, list, content, and CONTEXT model in one
 // place. CONTEXT is minted via `defineContextTabs` (§6b): `useCharacterContextState` pairs with the tabs
 // so `S` (CharacterContextState) never crosses the shell seam. `makeCharactersSection` takes the
-// character-DETAIL contributor registry (§6c) so the crew feature can graft card-evolution review sections
+// character-DETAIL contributor registry (§6c) so the agents feature can graft card-evolution review sections
 // into the editor body at the door WITHOUT importing character (crew 07-client-ui §4.2 — the ONE named
 // seam gap). The composition root assembles this into the section registry (main.tsx); AppShell consumes
 // it via `useSectionRegistry`.

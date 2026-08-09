@@ -11,7 +11,7 @@
 import type { AssetId, CharacterId } from "@orb/kit/ids";
 
 // The discriminant axis (§7.5 one-union; a new event = a member here + a handler, nowhere else). The
-// crew/rpg domain-event mirrors (chat-crew-design/04 §4, rpg-design/05 §5 / 09b — curated, id-only subsets
+// agents/rpg domain-event mirrors (chat-crew-design/04 §4, rpg-design/05 §5 / 09b — curated, id-only subsets
 // of those domains' own bus events so D46 Tier-1 automation could trigger on their activity) were purged
 // with the 2026-07-25 rollback — no `crew.*`/`rpg.*` members exist today. The rebuild grafts them back onto
 // this union (+ the matching `DOMAIN_TRIGGER_TYPES` reservation in `@orb/contracts/automation`) if either

@@ -198,7 +198,7 @@ const messageToolsRenderers = createContributorRegistry<MessageToolsRenderer>("m
 const slashCommands = createContributorRegistry<SlashCommandContribution>("slash-commands", [...chatSlashCommands, ...characterSlashCommands]);
 
 // The character-detail contributor seam (§6c): EMPTY but typed — the door → factory → editor-body anchor
-// path is compiled and exercised with zero contributions; the crew feature appends its card-evolution
+// path is compiled and exercised with zero contributions; the agents feature appends its card-evolution
 // review section later (crew 07-client-ui §4.2), grafting into the editor WITHOUT importing character.
 const characterDetailContributors = createContributorRegistry<CharacterDetailContribution>("character-detail", []);
 

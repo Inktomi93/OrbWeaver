@@ -1,5 +1,5 @@
 // domain/automation/persistence/canon-reads — the NARROW, sanctioned schema-level reads of OTHER domains'
-// rows the rule verbs need (the crew canon-reads / buddy observer db-reads precedent). NOT cross-feature
+// rows the rule verbs need (the agents canon-reads / buddy observer db-reads precedent). NOT cross-feature
 // service calls: a bare membership select (the authority gate feeds the role to `can()`), a chat_books
 // attachment probe (the `insert_world_info_entry` arm's consent check — 03 §1.3), and a message count for
 // the CEL `chat` projection (02 §1). Reads only; automation never mutates another domain's canon here.

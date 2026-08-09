@@ -44,13 +44,13 @@ const FACT_SHAPE = {
 type TriggerType = keyof typeof FACT_SHAPE;
 type BusEvent = ChatBusEvent | DomainEvent;
 
-/** A DomainEvent (character.updated/asset.created + the crew/rpg mirrors) rides the domain bus — its type is
+/** A DomainEvent (character.updated/asset.created + the agents/rpg mirrors) rides the domain bus — its type is
  *  namespaced with a dot; every ChatBusEvent is a bare discriminant. */
 function busOf(event: BusEvent): TriggerFact["bus"] {
   return event.type.includes(".") ? "domain" : "chat";
 }
 
-/** The event's `chatId` when it has one (every ChatBusEvent + the crew/rpg domain mirrors), else null. */
+/** The event's `chatId` when it has one (every ChatBusEvent + the agents/rpg domain mirrors), else null. */
 function eventChatId(event: BusEvent): ChatId | null {
   return "chatId" in event ? event.chatId : null;
 }

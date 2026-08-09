@@ -4,7 +4,7 @@
 // projection, unifying the committed panel and its draft twin into one tab set; `useChatContextState`
 // pairs with the tabs so `S` never crosses the shell seam. `makeChatsSection` takes its four contributor
 // seams as ONE named-field bundle (§12 row 5, gate `section-factory-contribution-bundle`) — context tabs
-// (§6c) + REGION claims (HUD-1 §3.2) + surface anchors + tool renderers — so rpg/crew graft at the door
+// (§6c) + REGION claims (HUD-1 §3.2) + surface anchors + tool renderers — so rpg/agents graft at the door
 // without importing chat, and a fifth seam is a FIELD rather than an arity churn at every caller.
 
 import { Eye, MessagesSquare, SlidersHorizontal, Users } from "@orb/ui/icons";

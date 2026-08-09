@@ -61,7 +61,7 @@ export type ChatSurfaceContribution =
 /** The character-DETAIL surface-anchor vocabulary (§6c) — closed `as const` tuple, so an unlisted anchor
  *  is unspellable. `editor-sections` is the review-cards region in the character editor body: the ONE
  *  named cross-feature need (crew 07-client-ui §4.2 — pending card-evolution proposals render there as
- *  review cards, owned by the crew feature, WITHOUT importing the character feature). */
+ *  review cards, owned by the agents feature, WITHOUT importing the character feature). */
 export const CHARACTER_DETAIL_ANCHORS = ["editor-sections"] as const;
 export type CharacterDetailAnchor = (typeof CHARACTER_DETAIL_ANCHORS)[number];
 

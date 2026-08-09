@@ -557,7 +557,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const resolveHostPrincipal = createHostPrincipalResolver(sessions);
   // FORWARD-REF (rpg-design/05 §4.10): chat's turn hooks call rpg's `ChatRpgOps`, but rpg builds AFTER chat
   // (chat's `rpgChatOps` is rpg's dep). The delegate below forwards to a late-bound holder bound SYNCHRONOUSLY
-  // once rpg composes, a few lines down (the crew-delegate precedent) — no request can run before then, so the
+  // once rpg composes, a few lines down (the agents-delegate precedent) — no request can run before then, so the
   // holder is always live at call time (a null read would be a compose-order bug, hence the throw).
   let rpgOpsHolder: NonNullable<ChatContext["rpg"]> | null = null;
   const rpgOps = (): NonNullable<ChatContext["rpg"]> => {

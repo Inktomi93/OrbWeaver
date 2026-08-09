@@ -2,7 +2,7 @@
 // fires on every token-adjacent lifecycle beat; a DB probe per event on every chat is the wrong steady-state,
 // so the watcher gates on an in-RAM Set<ChatId> of chats with ≥1 enabled rule + a flag for "any enabled
 // domain-trigger rule anywhere" before it touches the DB. ASSUMES(single-replica) — the sets are per-process
-// (the same annotation the chat replay ring + crew scheduler carry). Rebuilt at boot and after every lifecycle
+// (the same annotation the chat replay ring + agents scheduler carry). Rebuilt at boot and after every lifecycle
 // mutation that can change enablement (setRuleEnabled/deleteRule/updateRule call `reload`).
 
 import type { Db } from "@orb/db";

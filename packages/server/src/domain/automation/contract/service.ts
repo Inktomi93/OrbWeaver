@@ -114,9 +114,9 @@ export interface AutomationService {
 }
 
 /** The injected event sources + the service front door the watcher subsystem consumes (assembled at
- *  entry/compose — the buddy-observer / crew-scheduler env precedent). */
+ *  entry/compose — the buddy-observer / agents-scheduler env precedent). */
 export interface AutomationWatcherEnv {
-  /** The per-chat firehose subscription (the buddy/crew `subscribeAllChatEvents` seam); returns unsubscribe. */
+  /** The per-chat firehose subscription (the buddy/agents `subscribeAllChatEvents` seam); returns unsubscribe. */
   readonly onChatEvent: (handler: (event: ChatBusEvent) => void) => () => void;
   /** The domain-event bus subscription (wired at entry/compose/event-bus.ts, D38); returns unsubscribe. */
   readonly onDomainEvent: (handler: (event: DomainEvent) => void) => () => void;

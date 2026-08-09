@@ -1,4 +1,4 @@
-// domain/automation/guard — the rule-authority chokepoint (the crew guard.ts precedent). Rule authoring IS
+// domain/automation/guard — the rule-authority chokepoint (the agents guard.ts precedent). Rule authoring IS
 // room-host authority in v1 (04 §2): every rule verb resolves to `can(principal, "host", {kind:"chat",
 // roster})` over the chat's PRESENT membership (never a bare `role === 'host'` — that lives inside `can()`).
 // Two entry points: chat-scoped verbs gate a chatId directly; rule-scoped verbs load the rule first and gate

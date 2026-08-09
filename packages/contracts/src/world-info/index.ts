@@ -41,7 +41,7 @@ export const updateBookSchema = z.object({
 export type UpdateBookInput = z.infer<typeof updateBookSchema>;
 
 /** Machine-writer provenance an automated upserter (the D46 automation writer today; the purged chat/rpg
- *  crew keepers were the other two intended consumers — the rebuild wires them onto the same shape if either
+ *  agents keepers were the other two intended consumers — the rebuild wires them onto the same shape if either
  *  domain returns) stamps onto an entry it owns. `contentHash` is the sha256-hex of the content AS THE WRITER
  *  LEFT IT — the hand-edit-safe belt: a `upsertEntries` re-run that finds the CURRENT content no longer
  *  hashing to this value knows a human curated the entry and SKIPS it (the host's hand always wins). `span`
@@ -203,7 +203,7 @@ export interface BulkImportLorebookResult {
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // upsertEntries — the SHARED machine-writer bulk op (D58 satellite; chat-crew-design/02 §7, /03 §1). The ONE
-// home for hand-edit-safe lore upkeep: the D46 automation writer injects it today (the chat crew keeper and
+// home for hand-edit-safe lore upkeep: the D46 automation writer injects it today (the chat agents keeper and
 // rpg lorebook upkeep were the other two intended consumers before the 2026-07-25 purge — the rebuild wires
 // them here too, never a fork of the fence-strip/compare copy). The op upserts by (bookId,
 // title) — a re-run REPLACES its own prior entry for the same title — and NEVER overwrites a human-curated

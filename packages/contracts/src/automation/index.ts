@@ -38,7 +38,7 @@ export const CHAT_TRIGGER_TYPES = [
 ] as const satisfies readonly ChatBusEvent["type"][];
 export type ChatTriggerType = (typeof CHAT_TRIGGER_TYPES)[number];
 
-/** `DomainEvent` types automation may trigger on. The crew/rpg members are reserved — they enter
+/** `DomainEvent` types automation may trigger on. The agents/rpg members are reserved — they enter
  *  service when their domains land their domain-event mirrors. */
 export const DOMAIN_TRIGGER_TYPES = [
   // v1 (wired)
@@ -146,7 +146,7 @@ export const LIVE_TRIGGERS = {
 
 // ── the action union (03) ───────────────────────────────────────────────────────────────────────
 // Every arm: a snake_case `type` discriminator, an inline arg schema, capped rendered outputs. Additional
-// arms for purged domains (crew/rpg/force-activate) are not typed here today — the rebuild mints them onto
+// arms for purged domains (agents/rpg/force-activate) are not typed here today — the rebuild mints them onto
 // `AUTOMATION_ACTION_TYPES` if those domains return. The `generate_image` arm does NOT own its shape — it
 // EXTENDS `@orb/contracts/imagery`'s `generateImageActionArgsSchema` (one home per shape —
 // `no-inline-union-redecl`).
@@ -330,7 +330,7 @@ export interface AutomationOrigin {
 export type AutomationEmitSource = { kind: "rule"; ruleId: AutomationRuleId } | { kind: "plugin"; pluginId: PluginId };
 
 /** The automation's OWN per-chat SSE feedback bus (04 §5 — its own bus, NOT the frozen chat bus; the
- *  purged rpg/crew designs set this precedent). `quickReplySurfaced` is the one MEMBER-visible event (rendered display strings, not
+ *  purged rpg/agents designs set this precedent). `quickReplySurfaced` is the one MEMBER-visible event (rendered display strings, not
  *  ids — the chips are transient, there is no row to re-read); everything else is host-only + id-only. The
  *  chips can be surfaced by a rule OR a plugin, so `quickReplySurfaced` carries the `AutomationEmitSource`
  *  union (the rest are rule-lifecycle events — rule-only by construction). */
