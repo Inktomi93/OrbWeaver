@@ -8,7 +8,7 @@ import type { RefinerySessionId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Field } from "@orb/ui/field";
-import { Row } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
@@ -101,8 +101,13 @@ export function RunControlsCard({
   const { outputOver, inputOver } = overBudgetOf(stagePre, contextTokens);
   return (
     <Card>
-      <Row align="center" gap="row" padding="row">
-        <Field className="min-w-0 flex-1" label="Guidance">
+      {/* TWO ROWS, NOT ONE (side-eye 2026-08-09 P1-2). One Row held the guidance Field, the fit line and
+          three verbs; the fit line and the verbs are min-content and `shrink-0`, so at the real 3-pane
+          desktop width the Field — the only flexible child — was squeezed to **26px**, i.e. the surface's
+          primary text input was unusable at the width it actually ships at. Splitting the row is the fix
+          the geometry demands: an input and its action cluster cannot share one line's slack. */}
+      <Stack gap="row" padding="row">
+        <Field label="Guidance">
           <Textarea
             onBlur={(): void => {
               if (guidanceDraft !== null && guidanceDraft !== (guidance ?? "")) {
@@ -111,23 +116,37 @@ export function RunControlsCard({
             }}
             onChange={(e): void => setGuidanceDraft(e.target.value)}
             placeholder="Guidance for every stage — e.g. keep her mean"
-            rows={1}
+            rows={2}
             value={guidanceDraft ?? guidance ?? ""}
           />
         </Field>
-        {stagePre !== undefined ? <FitLine contextTokens={contextTokens} stagePre={stagePre} warn={outputOver || inputOver} /> : null}
-        <Button disabled={running} intent="secondary" onClick={onManualOpen} size="sm">
-          Hand-edit
-        </Button>
-        <Button disabled={running} intent="secondary" onClick={onRun} size="sm">
-          {hasRun ? `Re-run ${effectiveStage}` : `Run ${effectiveStage}`}
-        </Button>
-        {effectiveStage === "analyze" ? (
-          <Button disabled={running || !canIterate} onClick={onIterate} size="sm">
-            Iterate
-          </Button>
-        ) : null}
-      </Row>
+        <Row align="center" gap="row">
+          {stagePre !== undefined ? <FitLine contextTokens={contextTokens} stagePre={stagePre} warn={outputOver || inputOver} /> : null}
+          <Row className="min-w-0 flex-1" gap="row" justify="end">
+            <Button disabled={running} intent="ghost" onClick={onManualOpen} size="sm">
+              Hand-edit
+            </Button>
+            {/* THE PANE'S ONE PRIMARY (P1-11). The run verb is the CTA; everything else in this card is
+                secondary or ghost, and the stage stepper no longer competes for the fill. `Iterate`
+                replaces it as the primary on analyze rather than sitting beside it — two filled buttons
+                in one cluster is the same inverted-hierarchy defect one row down. */}
+            {effectiveStage === "analyze" ? (
+              <>
+                <Button disabled={running} intent="secondary" onClick={onRun} size="sm">
+                  {hasRun ? "Re-run analyze" : "Run analyze"}
+                </Button>
+                <Button aria-busy={running} disabled={running || !canIterate} onClick={onIterate} size="sm">
+                  Iterate
+                </Button>
+              </>
+            ) : (
+              <Button aria-busy={running} disabled={running} onClick={onRun} size="sm">
+                {hasRun ? `Re-run ${effectiveStage}` : `Run ${effectiveStage}`}
+              </Button>
+            )}
+          </Row>
+        </Row>
+      </Stack>
       {(outputOver || inputOver) && stagePre !== undefined ? (
         <PreflightWarn effectiveStage={effectiveStage} onScopeOpen={onScopeOpen} outputOver={outputOver} stagePre={stagePre} />
       ) : null}

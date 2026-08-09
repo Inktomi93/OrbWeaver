@@ -142,9 +142,16 @@ export const TEST_IDS = {
   refineryStepper: "refinery-stepper",
   /** One per stage cell — pair with `data-stage` to pick a cell. */
   refineryStep: "refinery-step",
+  /** The RUNNING cell's indeterminate hairline — present iff that stage has a call in flight. */
+  refineryStepHairline: "refinery-step-hairline",
   refineryPayloadView: "refinery-payload-view",
+  /** The plan-shaped first-run skeleton. Mutually exclusive with `refineryPayloadView`: a CT asserting
+   *  the loading arm must barrier on THIS, and one asserting the settled arm on the view. */
+  refineryPayloadSkeleton: "refinery-payload-skeleton",
   refineryVerdictBanner: "refinery-verdict-banner",
   refineryHeroGauge: "refinery-hero-gauge",
+  /** The hero numeral itself — it COUNTS UP, so a CT reading it must poll to the settled figure. */
+  refineryHeroValue: "refinery-hero-value",
   /** One per assay row — pair with the row's own text. */
   refineryAssayRow: "refinery-assay-row",
   /** One per rendered field block — pair with `data-field` for the key. */
@@ -160,6 +167,9 @@ export const TEST_IDS = {
   refineryPreflightWarn: "refinery-preflight-warn",
   refineryForgeNote: "refinery-forge-note",
   refinerySchemaRefusal: "refinery-schema-refusal",
+  /** The collapsed character-picker trigger (`CharacterDoor`) — its accessible NAME is the chosen card,
+   *  or the invitation while none is chosen, so a CT reads the selection off the trigger itself. */
+  refineryCharacterDoor: "refinery-character-door",
 } as const;
 
 export type TestIdKey = keyof typeof TEST_IDS;

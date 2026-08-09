@@ -213,6 +213,82 @@ test("VOICE: each of the four voices resolves its own type step, and BEATS the s
   expect(gloss.size).toBe(resolved.micro);
 });
 
+test("VOICE: `hero` is THE number a surface exists to produce — display step, mono, tabular, and NOT `datum`", async ({ mount }) => {
+  // The sixth voice (added 2026-08-09, side-eye P1-13). `datum` is the voice for A value; `hero` is the
+  // voice for THE value — a run's overall score. It existed as `voice="datum"` at 13px, i.e. the
+  // refinery's entire reason-for-being set at the same step as the field labels beside it.
+  //
+  // `tabular-nums` is the load-bearing half and is asserted, not assumed: the hero numeral COUNTS UP on
+  // settle (`use-count-up.ts`), and proportional digits make the figure jitter horizontally mid-ramp —
+  // a per-frame layout, which is exactly what guide §3.7 forbids.
+  const mounted = await mount(
+    <div>
+      <Text data-testid="hero" as="span" voice="hero">
+        7.5
+      </Text>
+      <Text data-testid="hero-datum" as="span" voice="datum">
+        7.5
+      </Text>
+    </div>,
+  );
+  const resolved = await mounted.evaluate((root) => {
+    const probe = root.ownerDocument.createElement("div");
+    root.ownerDocument.body.append(probe);
+    const px = (value: string): string => {
+      probe.style.fontSize = value;
+      return getComputedStyle(probe).fontSize;
+    };
+    const out = { display: px("var(--text-display)"), label: px("var(--text-label)") };
+    probe.remove();
+    return out;
+  });
+  const hero = await mounted.getByTestId("hero").evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { size: style.fontSize, family: style.fontFamily, weight: style.fontWeight, variant: style.fontVariantNumeric };
+  });
+  expect(hero.size).toBe(resolved.display);
+  expect(hero.family).toContain("Mono");
+  expect(hero.weight).toBe("600");
+  expect(hero.variant).toContain("tabular-nums");
+  // The whole point of the voice: it is NOT the `datum` step. A regression that collapsed them would
+  // silently restore the 13px hero the review filed.
+  const datumSize = await mounted.getByTestId("hero-datum").evaluate((el) => getComputedStyle(el).fontSize);
+  expect(datumSize).toBe(resolved.label);
+  expect(hero.size).not.toBe(datumSize);
+});
+
+test('VOICE: `ink="inherit"` hands the color back to a filled control — the P1-1 contrast fix, at the root', async ({ mount }) => {
+  // Every voice re-spells its own COLOR, which is correct on a surface and wrong inside a filled
+  // control. Measured on the refinery stepper before the fix: `voice="label"` on `bg-primary` was
+  // **1.14:1**. `tone` cannot express the fix (it is declared BEFORE `voice`, so the voice wins the
+  // merge); `ink` is declared last precisely so it wins.
+  // The ancestor's ink is set by a TOKEN utility, never a literal: the assertion is "the child equals
+  // whatever its control decided", which is the actual contract — pinning a hex would only prove that
+  // one hex still exists.
+  const mounted = await mount(
+    <div className="text-primary">
+      <Text data-testid="inherited" as="span" ink="inherit" voice="gloss">
+        inherited
+      </Text>
+      <Text data-testid="own" as="span" voice="gloss">
+        own
+      </Text>
+    </div>,
+  );
+  const readColor = (id: string): Promise<string> => mounted.getByTestId(id).evaluate((el) => getComputedStyle(el).color);
+  // The mounted locator IS the ancestor — `getByTestId` scopes INSIDE it, so the wrapper's own color is
+  // read off `mounted` directly (reading it by testid times out looking for a descendant of itself).
+  const ancestor = await mounted.evaluate((el) => getComputedStyle(el).color);
+  const inherited = await readColor("inherited");
+  const own = await readColor("own");
+  // It takes the ancestor's currentColor, whatever the theme resolved that to…
+  expect(inherited).toBe(ancestor);
+  // …and the untouched sibling still paints the voice's own muted ink, so this is an OPT-IN, not a
+  // change to what every voice does. (This is also the assertion that would have caught the P1-1
+  // defect: `gloss` on a filled control painting its own muted ink at 1.14:1.)
+  expect(own).not.toBe(inherited);
+});
+
 test("VOICE: `monogram` is the decorative display glyph — title step, semibold, and it leaves COLOR to the skin", async ({ mount }) => {
   // The fifth voice (density-pass-spec.md §2.3 as amended, S6): a single-letter mark an immersive row skin
   // paints on its own band fill. None of the four CONTENT voices fits it — they would all shrink a glyph

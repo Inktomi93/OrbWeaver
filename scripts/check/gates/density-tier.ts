@@ -73,7 +73,7 @@ const FIX =
   "rounded-card → rounded-base (grouped content inside a surface) / rounded-control (anything you operate) / " +
   "rounded-inset (a sub-control mark), or wrap the surface in <Surface tier> and let tiers.css resolve it; " +
   "un-nest the inner box (hairlines + gaps separate INSIDE a box, never a nested card); <Text size=… weight=…> " +
-  '→ <Text voice="kicker|label|datum|gloss|monogram">; write data-surface-tier ONLY via <Surface>; compose the ' +
+  '→ <Text voice="kicker|label|datum|hero|gloss|monogram">; write data-surface-tier ONLY via <Surface>; compose the ' +
   "@orb/ui primitive that owns a mapped slot instead of hand-stamping its data-slot name.";
 
 const A1_TOKEN = "rounded-card";

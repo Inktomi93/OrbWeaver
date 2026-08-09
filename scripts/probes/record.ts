@@ -57,6 +57,11 @@ const MS_PER_S = 1000;
 const CLICK_STRIP_PRE_S = 0.05;
 const CLICK_STRIP_LEN_S = 0.75;
 const T_PAD = 6;
+// The console channels a motion recording transcribes. `[perf]` = render-profiler's slow REACT COMMIT;
+// the rest are the motion flagger pack's (motion-flaggers.ts + long-task-tracer.ts). Adding a channel
+// there means adding it here — a tag nobody transcribes is invisible in the artifact this probe exists
+// to produce.
+const PERF_TAGS = ["[perf]", "[frame]", "[reflow]", "[input]", "[anim]", "[css]", "[drop]", "[space]", "[cls]"] as const;
 
 type Step =
   | { readonly kind: "click" | "jsclick" | "hover"; readonly selector: string }
@@ -257,12 +262,15 @@ async function recordVideo(opts: Args, outDir: string): Promise<Recording> {
   });
   await session.context.addInitScript({ content: MARKER_INIT_JS });
 
-  // Timestamped [perf] console capture, aligned to the step timeline below.
+  // Timestamped perf/motion console capture, aligned to the step timeline below. The tag list is the
+  // MOTION FLAGGER PACK's vocabulary (packages/client/src/lib/motion-flaggers.ts header) plus `[perf]`
+  // (render-profiler's slow-commit channel) — a recording of a motion flow whose transcript drops the
+  // motion flags is exactly the receipt that proves nothing.
   const t0 = Date.now();
   const perfLines: TimedLine[] = [];
   session.page.on("console", (m) => {
     const text = m.text();
-    if (text.includes("[perf]") || m.type() === "error") {
+    if (PERF_TAGS.some((tag) => text.includes(tag)) || m.type() === "error") {
       perfLines.push({ t: Date.now() - t0, label: `[${m.type()}] ${text}` });
     }
   });
