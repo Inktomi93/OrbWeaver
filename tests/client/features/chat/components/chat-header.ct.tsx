@@ -1,6 +1,6 @@
 // CT: the topbar chat-identity header LEAD (chat-header.tsx) — the members ENTRY. Drives the production
 // path over the stubbed network (routeTrpc): `chat.getChat` supplies the roster the entry counts. The ⋯
-// options menu (and its server-resolved host gate) moved to the topbar TRAIL — see chat-options-topbar.ct.tsx.
+// options menu (and its server-resolved host gate) moved to the COMPOSER — see composer-chat-options.ct.tsx.
 //
 // The members entry ALWAYS renders now (every chat has a roster — Context-Panel-Program CP-1 owner ruling
 // 2026-07-25). It counts PRESENT participants (humans + cast, `leftSeq === null`); a departed seat is

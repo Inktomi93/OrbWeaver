@@ -1,24 +1,29 @@
-// The active chat's options ⋯ menu, rendered at the END of the topbar TRAIL cluster (moved out of the
-// identity row — chat-header.tsx — so the trail reads as one uniform ghost cluster, ui-cohesion-north-star
-// §4 N1). The chrome body (lib/chat-options-chrome.tsx) renders <ChatOptionsTopbar/>; it reads the active
-// committed chat from #state and resolves the roster + host gate from the same chat.getChat query the
-// identity header already suspends on (TanStack dedupes the two reads).
+// The chat options ⋯ menu at its ONE home: the composer's LEFT gutter (D111 §3's drawn control map — ☰ ✨
+// [textarea] 🎭 ⟳ ▷ ⏩ ➤; owner ruling 2026-08-09 closed the parked "topbar vs composer" fork on the
+// composer, and the topbar affordance was REMOVED in the same commit — never two homes for one menu).
+//
+// PURE RELOCATION, as D111 specifies: `ChatOptionsMenu` and every item in it are untouched, and the ⋯ glyph
+// stays ours (the map's ☰ is how the owner drew our three-dots, not a request to re-skin it). What changed
+// is the mount point and, with it, the phase read: the topbar wrapper resolved the active chat from the
+// shell store (`useActiveChatHandle`) because chrome has no props; the composer already HOLDS the handle it
+// renders for, so the phase comes down as a PROP and the landing case is unrepresentable here.
+//
+// ONE menu across draft + committed (#8): a DRAFT (no server row yet) renders the IDENTICAL item set with
+// the not-yet-available actions DISABLED — never a vanished or parallel reduced surface.
 
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { isCommitted, isLanding, resolveDraftCharacterIds, useActiveChatHandle, useActiveDraftSeed, useDraftConfig } from "#state";
+import type { ChatHandle } from "#state";
+import { isCommitted, isLanding, resolveDraftCharacterIds, useActiveDraftSeed, useDraftConfig } from "#state";
 import { filterCharacters } from "../lib/roster.ts";
 import { ChatOptionsMenu } from "./chat-options-menu.tsx";
 
-/** The chrome-body wrapper: renders the ONE options ⋯ menu for the active chat in BOTH phases. A COMMITTED
- *  chat resolves its roster + host gate from `chat.getChat`; a DRAFT resolves them from its seed/config (no
- *  server row) and renders the same menu with the not-yet-available actions DISABLED (#8 — no vanished or
- *  parallel reduced surface). chatOptionsChrome's `useVisible` gates this to a non-landing chats section, so
- *  `landing` is the belt case. */
-export function ChatOptionsTopbar(): ReactElement | null {
-  const handle = useActiveChatHandle();
+/** The composer-left ⋯: the ONE options menu for the room this composer belongs to, in BOTH phases.
+ *  `landing` is the belt case — the landing screen renders no composer at all, so there is no room to
+ *  carry options for; it renders nothing rather than an empty menu. */
+export function ComposerChatOptions({ handle }: { readonly handle: ChatHandle }): ReactElement | null {
   if (isCommitted(handle)) {
     return <ActiveChatOptionsMenu chatId={handle.id} />;
   }
@@ -44,7 +49,7 @@ function DraftChatOptionsMenu({ draftKey }: { readonly draftKey: string }): Reac
 }
 
 /** Resolves the active chat's roster + server host gate (`viewerIsHost`) from the shared getChat query and
- *  renders the ⋯ menu — the same wiring the identity row used before N1 moved the menu into the trail. */
+ *  renders the ⋯ menu — the same wiring the topbar trail used before the D111 relocation. */
 export function ActiveChatOptionsMenu({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const { data: chat } = useQuery(trpc.chat.getChat.queryOptions({ chatId }));

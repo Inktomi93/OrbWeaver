@@ -154,6 +154,45 @@ test("§4.3 the Group toggle switches to categorized view (an Uncategorized buck
   await expect(component.getByText("Uncategorized")).toBeVisible();
 });
 
+// The two group headers of the C9-1d case below. EXACT names: a group header's accessible name is the tag
+// name plus its member count ("noir 1"), and a substring match also catches the filter CHIP for the same
+// tag ("Filter by noir: off — …") — two different controls, one of which is not what this test is about.
+const OPEN_GROUP_HEADER = "noir 1";
+const PLAIN_GROUP_HEADER = "rpg 1";
+
+// C9-1d — TAGS AS FOLDERS, the OPEN arm. `folderType` was a write-only column until this: the tag editor
+// wrote it and no surface branched on it. The proof is RENDERED, not structural — a member of an OPEN
+// folder is on screen at first paint, a member of a plain tag's group is not until you open it.
+test("C9-1d an OPEN tag's group starts EXPANDED; a plain tag's group starts collapsed but opens on click", async ({ mount, page }) => {
+  const inOpenFolder = makeCharacterSummary({
+    id: "char_open",
+    name: "Marlowe",
+    createdAt: 3000,
+    tags: [makeTagFixture({ id: "tag_noir", name: "noir", folderType: "OPEN" })],
+  });
+  const inPlainGroup = makeCharacterSummary({
+    id: "char_plain",
+    name: "Cassius",
+    createdAt: 2000,
+    tags: [makeTagFixture({ id: "tag_rpg", name: "rpg", folderType: "NONE" })],
+  });
+  await routeTrpc(page, { "character.list": () => ({ items: [inOpenFolder, inPlainGroup], nextCursor: null }), "chat.listChats": () => [] });
+  const component = await mount(<CharacterLibrarySurfaceStory />);
+  await component.getByRole("button", { name: "Group by tag" }).click();
+
+  // Both HEADERS are always there — collapsing hides members, never the group itself. (The header's
+  // accessible name is the tag name PLUS its count, so both locators match by substring.)
+  await expect(component.getByRole("button", { name: OPEN_GROUP_HEADER, exact: true })).toBeVisible();
+  await expect(component.getByRole("button", { name: PLAIN_GROUP_HEADER, exact: true })).toBeVisible();
+
+  await expect(component.getByText("Marlowe")).toBeVisible();
+  await expect(component.getByText("Cassius")).toHaveCount(0);
+
+  // The collapsed group is not a dead end: its header opens it, and the user's toggle wins from then on.
+  await component.getByRole("button", { name: PLAIN_GROUP_HEADER, exact: true }).click();
+  await expect(component.getByText("Cassius")).toBeVisible();
+});
+
 // TAG EXCLUSION (the three-state chip) — "everything tagged X that ISN'T tagged Y" is a query shape a
 // pure-AND multi-select cannot express, and neither our lineage nor neo ever built it. The chip cycles
 // off → include → exclude → off, and it SAYS which state it is in (the state is the affordance's

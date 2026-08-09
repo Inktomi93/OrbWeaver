@@ -18,7 +18,11 @@ type RenderTrust = "trusted" | "untrusted";
  *  `tierB` = the OPT-IN sandboxed `ImmersiveCard` mini-UI that may carry the card's own CSS. */
 type CardTier = "tierA" | "tierB";
 
-const SAFE_FLOOR: RenderPolicy = { trustHtml: false, forbidExternalMedia: true };
+/** The fail-closed render policy: no trusted HTML, no external media. Used when a policy could not be
+ *  resolved at all — an unknown character (below), or a deployment config that has not landed yet
+ *  (`data/auth-config.ts`'s `useRenderPolicyFloor`). Exported so the two never drift into two spellings of
+ *  one security default; this file is the client's trust authority (see the header). */
+export const SAFE_FLOOR: RenderPolicy = { trustHtml: false, forbidExternalMedia: true };
 
 export interface RowRenderPolicy {
   readonly trust: RenderTrust;

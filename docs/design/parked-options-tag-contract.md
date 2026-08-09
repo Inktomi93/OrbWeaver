@@ -172,8 +172,18 @@ subsystem). That's a doc-freshness note, not a contradiction of the ruling.
 
 ### 1d. Folder OPEN (collapsible) vs CLOSED drilldown for character-library tag grouping
 
-**Current state (re-verified).** `folderType` is WRITE-ONLY. The enum and the editor exist; nothing reads
-the field to change list behavior.
+> **RULED + BUILT 2026-08-09 (owner): OPEN, CLOSED deferred.** `folderType` now has a live reader —
+> `character-list-view.ts`'s `groupStartsOpen` decides each categorized group's FIRST paint, and
+> `character-categorized-list.tsx` passes it to `Collapsible defaultOpen`: an OPEN tag's group starts
+> expanded, a plain (`NONE`) tag's starts collapsed behind its name + count, and the Uncategorized bucket
+> (no tag, nothing to configure) always starts expanded. The user's own toggle wins from then on
+> (`defaultOpen`, not `open`). CLOSED's hide-until-entered drilldown is DEFERRED by the same ruling and is
+> deliberately NOT scaffolded: it lands in the same collapsed-by-default arm as NONE, the folder-type
+> Select's description says so out loud, and the exhaustive switch makes building it a decision at one
+> site. The write-only state described below is the PRE-2026-08-09 record.
+
+**Current state at the time of writing (pre-ruling).** `folderType` was WRITE-ONLY. The enum and the
+editor existed; nothing read the field to change list behavior.
 
 - The field is authored: `tag-member-surface.tsx:182,185` — a Select bound to `patchStyle({ folderType })`,
   reading `tag.folderType`. That is the ONLY read, and it's the editor reading back its own written value.
@@ -310,5 +320,5 @@ enumerated above — the guided prompt is the one the brief named and the one th
 | 1a | Tag-only backup button | bundle-only; no tag router procedure (`tag.ts:11-102`) | **SKIP** — bundle already covers it; per-entity doors erode one-mechanism portability |
 | 1b | Import Ask/All/Existing/None | always-queue + provenance (`attach-card-tag-by-name.ts:16`); no setting | **KEEP ours** — strictly more capable; auto-accept fast-path only if triage fatigue is real |
 | 1c | Retire manual/`sortOrder` | LIVE, owner-ruled keep (`tag-sort.ts:9-10`); 5 server readers | **KEEP** (owner-ruled fork stated); reversible middle = drop the mode, keep the column |
-| 1d | Folder OPEN vs CLOSED | `folderType` write-only, zero consumers | **Build OPEN, defer CLOSED**; if OPEN also deferred, drop the field (it's debt) |
+| 1d | Folder OPEN vs CLOSED | ~~`folderType` write-only, zero consumers~~ → **BUILT 2026-08-09** (`groupStartsOpen`) | **Build OPEN, defer CLOSED** — owner-ruled and shipped; CLOSED still deferred |
 | 2 | guided prompt cap | uncapped `z.string()` (`preset/index.ts:333`); reaches DB + wire | **Shared `MAX_INJECTION_TEMPLATE_LENGTH`=10000** for formatStrings + guided; wire UI `maxLength` too |

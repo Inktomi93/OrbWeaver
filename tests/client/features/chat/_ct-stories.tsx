@@ -102,10 +102,10 @@ import { ChatDocumentsSection } from "../../../../packages/client/src/features/c
 import { ChatHeaderSurface } from "../../../../packages/client/src/features/chat/components/chat-header.tsx";
 import { ChatImportDialog } from "../../../../packages/client/src/features/chat/components/chat-import-dialog.tsx";
 import { ChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-menu.tsx";
-import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/chat-options-topbar.tsx";
 import { ChatsTopbarHeader } from "../../../../packages/client/src/features/chat/components/chats-topbar-header.tsx";
 import { ChoiceSendProvider } from "../../../../packages/client/src/features/chat/components/choice-send-provider.tsx";
 import { CompactSummaryPeek } from "../../../../packages/client/src/features/chat/components/compact-summary-peek.tsx";
+import { ActiveChatOptionsMenu } from "../../../../packages/client/src/features/chat/components/composer-chat-options.tsx";
 import { DatabankSettingsSection } from "../../../../packages/client/src/features/chat/components/databank-settings-section.tsx";
 import { GhostMessageRow } from "../../../../packages/client/src/features/chat/components/ghost-message-row.tsx";
 import { GreetingSwipeStrip } from "../../../../packages/client/src/features/chat/components/greeting-swipe-strip.tsx";
@@ -1627,7 +1627,7 @@ export function ChatCastBarStory(): ReactElement {
 
 /** The topbar chat-identity header LEAD (chat-header.tsx) — avatar/title + the member-count chip. The
  *  roster comes from the routeTrpc `chat.getChat` stub the `.ct.tsx` sets per case. (The ⋯ options menu
- *  moved to the topbar TRAIL — ChatOptionsTopbarStory owns its host-gate coverage now.) */
+ *  moved to the composer’s left gutter — ComposerChatOptionsStory owns its coverage now.) */
 export function ChatHeaderStory(): ReactElement {
   return (
     <CtDataProviders>
@@ -1655,12 +1655,12 @@ export function ChatHeaderNarrowStory(): ReactElement {
   );
 }
 
-/** The active chat's options ⋯ menu as it renders at the END of the topbar TRAIL (chat-options-topbar.tsx).
+/** The active chat's options ⋯ menu as it renders in the composer's left gutter (composer-chat-options.tsx).
  *  Drives the production path over the stubbed network: `chat.getChat` supplies the roster + the
  *  server-resolved host gate (`viewerIsHost` gates the ⋯ menu's host-only "Preview request…" item),
  *  `chat.listMessages` feeds the menu's guided turn actions. The inner `ActiveChatOptionsMenu` takes the id
  *  as a prop (the chrome wrapper's `useActiveChatId` narrowing needs no store seed here). */
-export function ChatOptionsTopbarStory(): ReactElement {
+export function ComposerChatOptionsStory(): ReactElement {
   return (
     <CtDataProviders>
       {/* A wrapping div so `component` is the WRAPPER (the ⋯ menu popup renders through a Portal — item

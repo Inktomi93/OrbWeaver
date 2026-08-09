@@ -20,6 +20,7 @@ function config(overrides: Partial<AuthConfig>): AuthConfig {
     defaultHandle: "owner",
     multiHumanCapable: false,
     forbidExternalMedia: true,
+    trustHtml: false,
     uploads: DEFAULT_UPLOAD_CAPS,
     ...overrides,
   };

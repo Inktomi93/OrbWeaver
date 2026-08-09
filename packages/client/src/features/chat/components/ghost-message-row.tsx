@@ -119,7 +119,10 @@ export interface GhostMessageRowProps {
   readonly showLLMReasoningIcon?: boolean | undefined;
   /** The `appearance.colorQuotedSpeech` pref — the live half of the settled row's identical tint. Absent ⇒ ON. */
   readonly colorQuotedSpeech?: boolean | undefined;
-  /** PD-146 — the `UserSettings.chat.smoothStream` pref: pace the reveal (default off ⇒ raw chunks). */
+  /** PD-146 — the `UserSettings.chat.smoothStream` pref: pace the reveal. The PREF ships ON (owner ruling
+   *  2026-08-09 — the #42 word fade rides `mode="streaming"` in BOTH modes, so this is pure pacing); the
+   *  prop's own fallback stays OFF because an ABSENT prop means "this mount never resolved the pref", not
+   *  "the user wants pacing" — the contract keeps the ONE home of the default. */
   readonly smoothStream?: boolean | undefined;
   /** PD-146 — the `UserSettings.chat.smoothStreamCps` pref: the trickle floor when `smoothStream` is on. */
   readonly smoothStreamCps?: number | undefined;
