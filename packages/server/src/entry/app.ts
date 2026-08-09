@@ -29,7 +29,7 @@ import type { PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "
 import { appRouter, createContext } from "../transport/trpc/index.ts";
 import type { AuthSeam } from "./auth/index.ts";
 import { readSessionCookie } from "./auth/index.ts";
-import type { AuthSessionsPort, BlobAssetsPort, BlobCasPort, LocalAuthenticator, OidcRoutesDeps, UploadAssetsPort } from "./http/index.ts";
+import type { AuthSessionsPort, BlobAssetsPort, BlobCasPort, FirstRunRouteDeps, LocalAuthenticator, OidcRoutesDeps, UploadAssetsPort } from "./http/index.ts";
 import {
   registerAuthMeta,
   registerAuthRoutes,
@@ -127,6 +127,12 @@ export interface AppDeps {
   readonly seedUserCharacters: (principal: Principal) => void;
   /** Present in local mode. */
   readonly authenticate?: LocalAuthenticator;
+  /** B4 — present in local mode; registers the first-run owner-password setup route + drives the config flag. */
+  readonly firstRun?: FirstRunRouteDeps;
+  /** B4 — present in local mode; the origin-scoped "owner needs a first-run password" read for /api/auth/config. */
+  readonly localFirstRun?: (headers: Headers) => Promise<boolean>;
+  /** A8 — the human-facing IdP name for the login surface's "Continue with …" button (served on /api/auth/config). */
+  readonly oidcProviderName: string;
   /** Present in oidc mode. */
   readonly oidc?: OidcRoutesDeps;
 }
@@ -263,11 +269,14 @@ export function createApp(deps: AppDeps): Hono<AppEnv> {
     db: deps.db,
     resolveLoginLimit: () => deps.services.settings.getEffectiveConfig().rateLimits.login,
     ...(deps.authenticate !== undefined ? { authenticate: deps.authenticate } : {}),
+    ...(deps.firstRun !== undefined ? { firstRun: deps.firstRun } : {}),
     ...(deps.oidc !== undefined ? { oidc: deps.oidc } : {}),
   });
   registerAuthMeta(app, {
     mode: env.AUTH_MODE,
     defaultHandle: env.DEFAULT_USER_HANDLE,
+    oidcProviderName: deps.oidcProviderName,
+    ...(deps.localFirstRun !== undefined ? { localFirstRun: deps.localFirstRun } : {}),
     discreetLogin: () => deps.services.settings.getEffectiveConfig().discreetLogin,
     multiHumanCapable,
     maxImageBytes: () => deps.services.settings.getEffectiveConfig().maxImageBytes,

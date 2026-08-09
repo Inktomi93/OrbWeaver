@@ -16,6 +16,14 @@ export interface AuthMetaDeps {
   readonly mode: AuthMode;
   readonly defaultHandle: string;
   readonly discreetLogin: () => boolean;
+  /** A8 — the human-facing IdP name for the login surface's "Continue with …" button (`OIDC_PROVIDER_NAME`,
+   *  default "your identity provider"). Served in every mode (inert off oidc) so the login surface reads one source. */
+  readonly oidcProviderName: string;
+  /** B4 — is this a fresh local box awaiting its in-app owner-password setup, FROM THIS REQUEST'S ORIGIN?
+   *  Present only in local mode; resolves true iff the owner row has no password AND the request is on a
+   *  local/trusted origin (the same gate the first-run route enforces), so the setup screen appears only
+   *  where the setup endpoint works. Absent (non-local modes) ⇒ the flag is served false. */
+  readonly localFirstRun?: (headers: Headers) => Promise<boolean>;
   /** Can ≥2 humans authenticate here? The same per-request derivation the tRPC context + /join/:token use. */
   readonly multiHumanCapable: () => boolean;
   /** The admin-tunable effective `maxImageBytes` — resolves the served image cap (min of route cap and this)
@@ -40,13 +48,18 @@ export interface AuthMetaDeps {
 
 /** Register the public bootstrap routes `GET /api/auth/config` + `GET /api/auth/me` on `app`. */
 export function registerAuthMeta(app: Hono<PrincipalEnv>, deps: AuthMetaDeps): void {
-  app.get("/api/auth/config", (c) => {
+  app.get("/api/auth/config", async (c) => {
     const discreet = deps.discreetLogin();
+    // B4 — the origin-scoped first-run flag (local mode only; false everywhere else). Resolved per request
+    // because it depends on both the owner-password state AND the request origin.
+    const localFirstRun = deps.localFirstRun !== undefined && (await deps.localFirstRun(c.req.raw.headers));
     return c.json({
       mode: deps.mode,
       requiresLogin: deps.mode === "local" || deps.mode === "oidc",
       localEnabled: deps.mode === "local",
       oidcEnabled: deps.mode === "oidc",
+      oidcProviderName: deps.oidcProviderName,
+      localFirstRun,
       discreetLogin: discreet,
       defaultHandle: discreet ? null : deps.defaultHandle,
       multiHumanCapable: deps.multiHumanCapable(),

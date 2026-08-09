@@ -11,4 +11,8 @@ export const ADMIN_OP_CODES = {
   weakPassword: "weak_password",
   cannotGrantOwner: "cannot_grant_owner",
   restartEngine: "restart_engine",
+  /** B5 — the row is already bound to a DIFFERENT stable SSO subject; bind-once refuses a rebind. */
+  ssoRowBound: "sso_row_bound",
+  /** B5 — the requested stable subject is already linked to another account (duplicate binding refused). */
+  ssoSubjectTaken: "sso_subject_taken",
 } as const;

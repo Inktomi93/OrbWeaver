@@ -10,9 +10,10 @@ import type { SessionsService } from "./contract/service.ts";
 import { createAuthenticate } from "./verbs/authenticate.ts";
 import { createCreate } from "./verbs/create.ts";
 import { createEnsureUser } from "./verbs/ensure-user.ts";
+import { createLinkExternalId } from "./verbs/link-external-id.ts";
 import { createList } from "./verbs/list.ts";
 import { createLoadUserById } from "./verbs/load-user-by-id.ts";
-
+import { createOwnerPassword } from "./verbs/owner-password.ts";
 import { createProvisionIdentity } from "./verbs/provision-identity.ts";
 import { createResolveHandle } from "./verbs/resolve-handle.ts";
 import { createRevoke } from "./verbs/revoke.ts";
@@ -38,5 +39,7 @@ export function createSessionsService(deps: SessionsServiceDeps): SessionsServic
     ...createLoadUserById(ctx),
     ...createResolveHandle(ctx),
     ...createAuthenticate(ctx),
+    ...createLinkExternalId(ctx),
+    ...createOwnerPassword(ctx),
   };
 }

@@ -85,6 +85,9 @@ function stubSessions(overrides: Partial<SessionsService>): SessionsService {
     loadUserById: unused("loadUserById") as SessionsService["loadUserById"],
     resolveHandle: unused("resolveHandle") as SessionsService["resolveHandle"],
     authenticate: unused("authenticate") as SessionsService["authenticate"],
+    linkExternalId: unused("linkExternalId") as SessionsService["linkExternalId"],
+    ownerNeedsPassword: unused("ownerNeedsPassword") as SessionsService["ownerNeedsPassword"],
+    claimOwnerPassword: unused("claimOwnerPassword") as SessionsService["claimOwnerPassword"],
     ...overrides,
   };
 }

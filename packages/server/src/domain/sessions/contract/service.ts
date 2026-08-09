@@ -6,7 +6,7 @@ import type { SessionView } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import type { CreateSessionParams, ProvisionIdentityOptions } from "./params.ts";
-import type { CreateSessionResult, ProvisionResult, UserPrincipalFields, ValidatedSession } from "./results.ts";
+import type { CreateSessionResult, LinkExternalIdResult, ProvisionResult, UserPrincipalFields, ValidatedSession } from "./results.ts";
 
 /** The DI bundle every verb closes over, wired at the composition root. */
 export interface SessionsContext {
@@ -62,4 +62,15 @@ export interface SessionsService {
    *  unknown/SSO-only/wrong-password/disabled — all collapse into one leak-free null with the same KDF
    *  time burned (no user-enumeration timing oracle). @internal */
   authenticate: (handle: Handle, password: string) => Promise<UserId | null>;
+  /** B5 — stamp a stable external subject onto an existing row (the admin "link SSO identity" capability).
+   *  The SECOND `externalId` writer after `provisionIdentity`; reuses the bind-once guard and refuses a
+   *  subject already bound elsewhere / a row already bound to a different subject (spine U1: one linking
+   *  site). Gating + audit are the admin wrapper's — this enforces only the identity invariant. @internal */
+  linkExternalId: (userId: UserId, externalId: ExternalId) => Promise<LinkExternalIdResult>;
+  /** B4 — is this a fresh local box whose owner row has no password yet (first-run setup pending)? Drives
+   *  the `localFirstRun` config flag. @internal */
+  ownerNeedsPassword: () => Promise<boolean>;
+  /** B4 — ONE-SHOT: claim the owner password (write the hash only when currently null). Returns the owner
+   *  `UserId` iff this call set it, else `null` (already claimed) — never overwrites an existing credential. @internal */
+  claimOwnerPassword: (passwordHash: string) => Promise<UserId | null>;
 }

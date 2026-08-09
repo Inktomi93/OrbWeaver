@@ -6,6 +6,7 @@ import type { AdminContext } from "./context.ts";
 import type { AdminService } from "./contract/service.ts";
 import { createCreateUser } from "./verbs/create-user.ts";
 import { createEmbed } from "./verbs/embed.ts";
+import { createLinkSsoIdentity } from "./verbs/link-sso-identity.ts";
 import { createListUsers } from "./verbs/list-users.ts";
 import { createResetPassword } from "./verbs/reset-password.ts";
 import { createSessions } from "./verbs/sessions.ts";
@@ -22,6 +23,7 @@ export function createAdminService(ctx: AdminContext): AdminService {
     setEnabled: createSetEnabled(ctx),
     createUser: createCreateUser(ctx),
     resetPassword: createResetPassword(ctx),
+    linkSsoIdentity: createLinkSsoIdentity(ctx),
     listSessions: sessions.listSessions,
     revokeSession: sessions.revokeSession,
     revokeUserSessions: sessions.revokeUserSessions,

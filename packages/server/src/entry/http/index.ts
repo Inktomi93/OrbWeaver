@@ -5,6 +5,7 @@ export { registerAuthMeta } from "./auth-meta.ts";
 export type {
   AuthRoutesDeps,
   AuthSessionsPort,
+  FirstRunRouteDeps,
   LocalAuthenticator,
   OidcClaimMap,
   OidcMintStore,

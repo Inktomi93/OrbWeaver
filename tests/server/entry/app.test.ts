@@ -99,6 +99,7 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
   return {
     now: (): number => FROZEN_NOW,
     db: {} as unknown as Db,
+    oidcProviderName: "your identity provider",
     seam: fakeSeam(null),
     services,
     rateLimit: { enforce: (): Promise<void> => Promise.resolve() },
@@ -192,12 +193,19 @@ describe("createApp", () => {
       requiresLogin: false,
       localEnabled: false,
       oidcEnabled: false,
+      // A8 — the human-facing IdP name (env default here; single-user never shows a login button, but the
+      // field is served in every mode so the client reads one source).
+      oidcProviderName: "your identity provider",
+      // B4 — single-user is never a local-first-run box (no owner-password to set); served false.
+      localFirstRun: false,
       discreetLogin: false,
       defaultHandle: "owner",
       // single-user can never seat a second human (the PD-106 MULTI_HUMAN_CAPABLE map's fixed arm).
       multiHumanCapable: false,
       // The deployment external-media ceiling (born-in-DB floor = blocked) — the same live read the CSP uses.
       forbidExternalMedia: true,
+      // The deployment HTML-trust default (born-in-DB floor = untrusted) — the render-policy floor's other axis.
+      trustHtml: false,
       // The served deployment byte caps (L5 uploads catalog): route caps + the effective image ceiling.
       uploads: { assetUpload: 67_108_864, image: 5_000_000, databankUpload: 20_971_520, importTotal: 268_435_456 },
     });

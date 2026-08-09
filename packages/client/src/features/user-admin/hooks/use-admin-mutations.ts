@@ -28,6 +28,14 @@ export const useSetEnabled = createEntityMutation<inferInput<Trpc["admin"]["setE
   errorToast: "Couldn't change the account's enabled state.",
 });
 
+/** B5 — link an existing non-owner human row to a stable SSO subject (owner/agent targets + a subject bound
+ *  elsewhere are refused server-side). Invalidates the user table so the linked row leaves the linkable set. */
+export const useLinkSsoIdentity = createEntityMutation<inferInput<Trpc["admin"]["linkSsoIdentity"]>, unknown>({
+  options: (trpc) => trpc.admin.linkSsoIdentity.mutationOptions(),
+  invalidates: (trpc) => [trpc.admin.listUsers.queryFilter()],
+  errorToast: "Couldn't link the SSO identity — that subject may already be linked to another account.",
+});
+
 /** Set a user's local password (revokes all of their live sessions server-side). */
 export const useResetPassword = createEntityMutation<inferInput<Trpc["admin"]["resetPassword"]>, unknown>({
   options: (trpc) => trpc.admin.resetPassword.mutationOptions(),

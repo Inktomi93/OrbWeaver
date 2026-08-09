@@ -4,11 +4,12 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import type { CharacterId, SessionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ExternalId, SessionId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type {
   CreateUserParams,
   EmbedCharacterCardParams,
+  LinkSsoIdentityParams,
   ListSessionsParams,
   ListUsersParams,
   ResetPasswordParams,
@@ -21,6 +22,8 @@ import type {
 } from "./params.ts";
 import type {
   CreateUserResult,
+  LinkExternalIdOutcome,
+  LinkSsoIdentityResult,
   ListSessionsResult,
   ListUsersResult,
   RevokeUserSessionsResult,
@@ -36,6 +39,9 @@ interface SessionAdminPort {
   readonly listForUser: (userId: UserId) => Promise<readonly SessionAdminView[]>;
   readonly revoke: (sessionId: SessionId) => Promise<void>;
   readonly revokeAllForUser: (userId: UserId) => Promise<number>;
+  /** B5 — the injected bind-once linking capability (canonical home domain/sessions `linkExternalId`). admin
+   *  gates + audits around it; the identity invariant (bind-once, U1 one-linking-site) is the verb's. */
+  readonly linkExternalId: (userId: UserId, externalId: ExternalId) => Promise<LinkExternalIdOutcome>;
 }
 
 /** The vLLM-supervisor slice admin needs — satisfied at the root by mapping `infra/providers`' supervisor
@@ -72,6 +78,9 @@ export interface AdminService {
   readonly setEnabled: (params: SetEnabledParams) => Promise<SetEnabledResult>;
   readonly createUser: (params: CreateUserParams) => Promise<CreateUserResult>;
   readonly resetPassword: (params: ResetPasswordParams) => Promise<void>;
+  /** B5 — link an existing non-owner human row to a stable SSO subject (the db-surgery-free mode-switch
+   *  migration path). Owner/agent targets and a subject bound elsewhere are refused. */
+  readonly linkSsoIdentity: (params: LinkSsoIdentityParams) => Promise<LinkSsoIdentityResult>;
   readonly listSessions: (params: ListSessionsParams) => Promise<ListSessionsResult>;
   readonly revokeSession: (params: RevokeSessionParams) => Promise<void>;
   readonly revokeUserSessions: (params: RevokeUserSessionsParams) => Promise<RevokeUserSessionsResult>;

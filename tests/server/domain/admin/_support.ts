@@ -7,11 +7,12 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
-import type { CharacterId, Handle, SessionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
 import { createAdminService } from "@orb/server/domain/admin";
 import type { AdminContext } from "../../../../packages/server/src/domain/admin/context.ts";
+import type { LinkExternalIdOutcome } from "../../../../packages/server/src/domain/admin/contract/results.ts";
 import type { AdminEngineStatus, SessionAdminView } from "../../../../packages/server/src/domain/admin/contract/views.ts";
 import { createFrozenClock } from "../../../support/clock.ts";
 import { principal as makePrincipal } from "../../../support/factories/principal.ts";
@@ -27,6 +28,10 @@ export interface AdminHarness {
   readonly audits: AuditCall[];
   readonly revokedAll: UserId[];
   readonly revokedSessions: string[];
+  /** B5 — the recorded `linkExternalId` port calls; the fake returns `{outcome:"linked"}` unless
+   *  `setLinkOutcome` forces a refusal outcome (to exercise the admin verb's outcome→code mapping). */
+  readonly linked: { userId: UserId; externalId: ExternalId }[];
+  readonly setLinkOutcome: (outcome: LinkExternalIdOutcome | null) => void;
   readonly restarted: string[];
   /** Make the fake vllm `restartEngine` reject (to exercise the error-translation path). */
   readonly setRestartError: (err: unknown) => void;
@@ -82,6 +87,8 @@ export function makeHarness(db: Db): AdminHarness {
   const audits: AuditCall[] = [];
   const revokedAll: UserId[] = [];
   const revokedSessions: string[] = [];
+  const linked: { userId: UserId; externalId: ExternalId }[] = [];
+  let linkOutcome: LinkExternalIdOutcome | null = null;
   const restarted: string[] = [];
   let restartError: unknown;
   const embedded: { principal: Principal; characterId: CharacterId }[] = [];
@@ -110,6 +117,10 @@ export function makeHarness(db: Db): AdminHarness {
         revokedAll.push(userId);
         return Promise.resolve(revokedAll.length);
       },
+      linkExternalId: (userId: UserId, externalId: ExternalId): Promise<LinkExternalIdOutcome> => {
+        linked.push({ userId, externalId });
+        return Promise.resolve(linkOutcome ?? { outcome: "linked", userId });
+      },
     },
     vllm: {
       allEngineStatuses: (): Record<string, AdminEngineStatus> => engineStatuses,
@@ -137,6 +148,10 @@ export function makeHarness(db: Db): AdminHarness {
     audits,
     revokedAll,
     revokedSessions,
+    linked,
+    setLinkOutcome: (outcome: LinkExternalIdOutcome | null): void => {
+      linkOutcome = outcome;
+    },
     restarted,
     setRestartError: (err: unknown): void => {
       restartError = err;
