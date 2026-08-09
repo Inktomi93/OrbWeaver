@@ -151,7 +151,7 @@ test("duration_ms is NOT NULL at the DDL — a run row can never exist without i
   ).rejects.toThrow();
 });
 
-test("source_run_id records the DAG parent and survives the round-trip (nullable, no FK by design)", async () => {
+test("source_run_id records the DAG parent and survives the round-trip (nullable self-FK, set null)", async () => {
   const db = await freshDb();
   const ownerId = await seedUser(db, { id: "user_ref_src", handle: castId<Handle>("ref-owner-src") });
   const characterId = await seedCharacter(db, ownerId, "character_ref_src");
@@ -173,6 +173,60 @@ test("source_run_id records the DAG parent and survives the round-trip (nullable
   ]);
   const rows = await db.select().from(refineryRuns).where(eq(refineryRuns.id, childId));
   expect(rows[0]?.sourceRunId).toBe(parentId);
+});
+
+test("source_run_id against a phantom run is a foreign-key rejection (self-FK, FK PRAGMA is ON)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_ref_src_fk", handle: castId<Handle>("ref-owner-src-fk") });
+  const characterId = await seedCharacter(db, ownerId, "character_ref_src_fk");
+  const sessionId = await seedSession(db, characterId, "refinery_session_src_fk");
+
+  let caught: unknown;
+  try {
+    await db.insert(refineryRuns).values({
+      id: castId<RefineryRunId>("refinery_run_src_fk_child"),
+      sessionId,
+      stage: "analyze",
+      payloadConfig: { kind: "fixed", mode: "full" },
+      payload: { fields: [] },
+      model: MODEL,
+      durationMs: 0,
+      sourceRunId: castId<RefineryRunId>("refinery_run_src_fk_phantom"),
+    });
+  } catch (err) {
+    caught = err;
+  }
+  expect(caught).toBeDefined();
+  expect(isConstraintViolation(caught)?.kind).toBe("foreign-key");
+});
+
+test("deleting the parent run SETS NULL on the child's source_run_id (not cascade — the child survives)", async () => {
+  const db = await freshDb();
+  const ownerId = await seedUser(db, { id: "user_ref_src_null", handle: castId<Handle>("ref-owner-src-null") });
+  const characterId = await seedCharacter(db, ownerId, "character_ref_src_null");
+  const sessionId = await seedSession(db, characterId, "refinery_session_src_null");
+  const parentId = castId<RefineryRunId>("refinery_run_src_null_parent");
+  const childId = castId<RefineryRunId>("refinery_run_src_null_child");
+  await db.insert(refineryRuns).values([
+    { id: parentId, sessionId, stage: "rewrite", payloadConfig: { kind: "fixed", mode: "balanced" }, payload: { fields: [] }, model: MODEL, durationMs: 10 },
+    {
+      id: childId,
+      sessionId,
+      stage: "analyze",
+      payloadConfig: { kind: "fixed", mode: "full" },
+      payload: { fields: [] },
+      model: MODEL,
+      durationMs: 20,
+      sourceRunId: parentId,
+    },
+  ]);
+
+  await db.delete(refineryRuns).where(eq(refineryRuns.id, parentId));
+
+  // The child ROW SURVIVES (not cascaded) — only the DAG edge is unset.
+  const rows = await db.select().from(refineryRuns).where(eq(refineryRuns.id, childId));
+  expect(rows).toHaveLength(1);
+  expect(rows[0]?.sourceRunId).toBeNull();
 });
 
 test("deleting a character CASCADEs sessions AND runs (the D23 derived-ownership chain, two levels)", async () => {
