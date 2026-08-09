@@ -429,8 +429,11 @@ const refineryRunBaseSchema = z.object({
    *  append-only log is a timestamp-ordered list, so "which rewrite did this analyze judge?" is answerable
    *  only by "the latest one at the time" — which stops being true the moment step-back lets an analyze
    *  target round 1 while round 2 exists. Recorded, the ledger draws the true DAG instead of implying a
-   *  straight line. Session-scoped by construction (both rows hang off the same session); no FK, because
-   *  the only delete path is the session cascade that takes both rows together. */
+   *  straight line. Session-scoped by construction (both rows hang off the same session). [OVERRULED:
+   *  D24 — this IS a self-FK, shipped as `refinery_runs.source_run_id`, references onDelete set null,
+   *  in packages/db/src/schema/refinery.ts: boundaries are physics, so the original "no FK needed beyond
+   *  session scope" design was rejected; set null (not cascade) because a parent's disappearance means
+   *  the DAG edge is UNKNOWN, not that the child should vanish.] */
   sourceRunId: typeIdSchema(ID_PREFIX.refineryRun).nullable(),
   /** The keys the zod strip-mode parse silently REMOVED from the model's payload — dotted paths, never
    *  content (the strip-and-itemize posture: an invented key must appear in the run record instead of
