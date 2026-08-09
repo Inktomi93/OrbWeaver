@@ -185,7 +185,13 @@ task per the structured-output veto — review the v-next text) AND `refinery.re
 it the arm is only reachable via manual rewrite). (4) re-import GO — note the dev db RE-MINTS on next
 boot (R4's WORKLOAD_KINDS addition regenerated the baseline; harmless, the re-import repopulates).
 (5) standing decision pile (RV-13 spec go · chars+chats rail merge · home-tile WHETHER · DRAFT-TRUST
-seam · taste pile). ALSO: strike the REGPAR owables row (#38 lane proved REGX2 shipped F3/F5/JSON-door
+seam · taste pile). (6) FROM THE R3 GRADUATION SIDE-EYE (docs/reviews/side-eye/2026-08-09-refinery-
+graduation.md — DO-NOT-SHIP, polish lane fixing everything): two OWNER questions it surfaced —
+**the Refinery has no phone entry** (mobile bottom bar is Home·Chats·Characters·You; crowning
+feature unreachable at coarse — add a 5th tab? reachable via You? owner design call) and the
+mock-sanctioned 01/02/03 numbered markers (a §6 house-ban the mock itself used — bless or redraw).
+Also FYI: the side-eye restarted the dev stack once (phantom vite dep-cache white screen, cleared
+node_modules/.vite — not a product defect). ALSO: strike the REGPAR owables row (#38 lane proved REGX2 shipped F3/F5/JSON-door
 08-07, F4 owner-refused — the row was an archive snapshot; residuals [bulk-placement kit lift, F6
 reasoning nit] stay parked where the board already has them).
 
