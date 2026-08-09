@@ -38,6 +38,48 @@ export function isoToMs(value: string): number | null {
   return dt.isValid ? dt.toMillis() : null;
 }
 
+// ─── WALL-CLOCK instants (a foreign corpus's zone-less local timestamps) ───────────────────────────
+// The paragraph above is about NAIVE ISO and numeric epochs, where "read it as UTC" is the honest
+// determinism call. It is NOT true of every foreign format: SillyTavern writes its two human date forms
+// off `Date.getHours()`/`getFullYear()` on the machine ST ran on (`RossAscends-mods.js`
+// `humanizedDateTime`) and reads the meridiem form back with a NAIVE (local) moment
+// (`utils.js parseTimestamp` → `"YYYY-MM-DDTHH:mm:00"`, no `Z`). Those strings are a LOCAL WALL CLOCK
+// with no zone recorded, so reading them as UTC silently shifts every imported timestamp by the writer's
+// UTC offset — measured 6h/7h across a 1,097-file ST corpus (America/Denver, both DST arms).
+// The recovery is to name the zone EXPLICITLY at the boundary that knows it, never to read an ambient
+// one down in a parser: hence a required `zone` argument here plus {@link hostTimeZone} as the single
+// sanctioned resolver for "the box this corpus came off".
+
+/** The IANA zone name of the host process — the ONE sanctioned ambient-zone read (this module is the
+ *  `no-raw-intl-time` exemption zone). For a foreign corpus whose wall-clock timestamps carry no zone,
+ *  the importing box's zone is the only honest guess and is exactly what the writing app used when the
+ *  corpus is imported where it was produced. Falls back to `"UTC"` on an ICU build that reports none. */
+export function hostTimeZone(): string {
+  return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+}
+
+/** A zone-less wall-clock reading (1-based `month`) resolved in `zone` → epoch ms; null when the parts
+ *  or the zone name are invalid. DST-aware per instant (a corpus spanning a transition gets each arm's
+ *  real offset, which a single fixed offset cannot express). */
+export function wallClockToMs(
+  parts: { readonly year: number; readonly month: number; readonly day: number; readonly hour: number; readonly minute: number; readonly second: number },
+  zone: string,
+): number | null {
+  const dt = DateTime.fromObject(parts, { zone });
+  return dt.isValid ? dt.toMillis() : null;
+}
+
+/** Format an epoch-ms instant as its wall-clock reading in `zone` (1-based `month`) — the inverse of
+ *  {@link wallClockToMs}, so an interchange that emits a zone-less local timestamp emits the SAME clock
+ *  its reader will resolve. Null when the instant or the zone name is invalid. */
+export function msToWallClock(
+  ms: number,
+  zone: string,
+): { readonly year: number; readonly month: number; readonly day: number; readonly hour: number; readonly minute: number; readonly second: number } | null {
+  const dt = DateTime.fromMillis(ms, { zone });
+  return dt.isValid ? { year: dt.year, month: dt.month, day: dt.day, hour: dt.hour, minute: dt.minute, second: dt.second } : null;
+}
+
 // ─── The DISPLAY half (the client edge) ────────────────────────────────────────────────────────────
 // Localization happens exactly ONCE, at the display edge, through this factory (UI-Gates §11.5 —
 // the timezone pipeline): the wire stays epoch-ms UTC; the viewer's locale/timezone applies here and

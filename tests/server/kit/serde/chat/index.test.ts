@@ -51,6 +51,73 @@ describe("parseStDate", () => {
     expect(parseStDate("2025")).toBeNull();
     expect(parseStDate("not a date")).toBeNull();
   });
+
+  // ── the 2026-08-08 import-fidelity audit: ST's zone-less forms are a LOCAL wall clock ──
+  // Defect proof (each of these read 6-7h early before the fix, which is exactly the owner-reported
+  // "times come out wrong"): both human forms resolve in the CALLER'S zone, and the ABSOLUTE encodings
+  // must stay immovable by it.
+  const DENVER = "America/Denver";
+
+  test("both wall-clock forms resolve in the supplied zone, not UTC", () => {
+    // MST (UTC-7) — the winter arm; 231 corpus files measured at exactly +7h.
+    expect(parseStDate("2025-11-30@11h47m20s989ms", DENVER)).toBe(Date.UTC(2025, 10, 30, 18, 47, 20));
+    expect(parseStDate("December 28, 2025 12:55pm", DENVER)).toBe(Date.UTC(2025, 11, 28, 19, 55));
+    // MDT (UTC-6) — the summer arm, resolved PER INSTANT (a fixed offset could not express both).
+    expect(parseStDate("August 27, 2025 6:36pm", DENVER)).toBe(Date.UTC(2025, 7, 28, 0, 36));
+  });
+
+  test("absolute encodings ignore the zone (epoch + ISO are already instants)", () => {
+    expect(parseStDate(1_690_000_000, DENVER)).toBe(1_690_000_000_000);
+    expect(parseStDate("2025-11-30T18:47:20.993Z", DENVER)).toBe(Date.parse("2025-11-30T18:47:20.993Z"));
+  });
+
+  test("formatStDate is the exact inverse in the same zone (round trip cannot drift)", () => {
+    const ms = Date.UTC(2025, 11, 28, 19, 55);
+    expect(formatStDate(ms, DENVER)).toBe("December 28, 2025 12:55pm");
+    expect(parseStDate(formatStDate(ms, DENVER), DENVER)).toBe(ms);
+  });
+
+  test("ST's spaced / single-digit @-date spellings parse (76 of 1097 corpus files carry one)", () => {
+    // SOURCE-PINNED to ST's own `utils.js parseTimestamp` patterns; a miss here silently degraded a chat's
+    // createdAt to the import clock.
+    expect(parseStDate("2025-5-7 @22h 52m 11s 856ms")).toBe(Date.UTC(2025, 4, 7, 22, 52, 11));
+    expect(parseStDate("2024-3-3@14h33m22s")).toBe(Date.UTC(2024, 2, 3, 14, 33, 22));
+  });
+});
+
+describe("parseChatJsonl — the 2026-08-08 import-fidelity pins", () => {
+  test("the filename date survives ST's spaced/single-digit spelling instead of degrading to null", () => {
+    const parsed = parseChatJsonl(`${header({ create_date: undefined })}\n${line({ send_date: undefined })}`, {
+      fileName: "Emily Singleton - 2025-5-7 @22h 52m 11s 856ms.jsonl",
+      charDirName: "Emily Singleton",
+    });
+    expect(parsed?.createDate).toBe(Date.UTC(2025, 4, 7, 22, 52, 11));
+  });
+
+  test("token_count routes by ROLE: user/system inbound, assistant outbound", () => {
+    const jsonl = [
+      header(),
+      line({ is_user: true, mes: "a long user turn", extra: { token_count: 409 } }),
+      line({ is_user: false, mes: "the reply", extra: { token_count: 657 } }),
+      line({ is_system: true, mes: "a system note", extra: { token_count: 3299 } }),
+    ].join("\n");
+    const parsed = parseChatJsonl(jsonl, { fileName: "m.jsonl", charDirName: "Aria" });
+    // ST's ONE field is the count of the row's OWN text, so a user's typed tokens are INBOUND. Crediting
+    // them to tokensOut put 1,247,278 corpus tokens of typed text into every "model output" rollup.
+    expect(parsed?.messages[0]).toMatchObject({ role: "user", tokensIn: 409, tokensOut: null });
+    expect(parsed?.messages[1]).toMatchObject({ role: "assistant", tokensIn: null, tokensOut: 657 });
+    expect(parsed?.messages[2]).toMatchObject({ role: "system", tokensIn: 3299, tokensOut: null });
+  });
+
+  test("the whole file's wall-clock dates resolve in the declared zone", () => {
+    const parsed = parseChatJsonl(`${header()}\n${line({ send_date: "November 3, 2025 6:43am" })}`, {
+      fileName: "Aria - 2025-11-30@11h47m20s989ms.jsonl",
+      charDirName: "Aria",
+      wallClockZone: "America/Denver",
+    });
+    expect(parsed?.createDate).toBe(Date.UTC(2025, 10, 30, 18, 47, 20));
+    expect(parsed?.messages[0]?.sendDate).toBe(Date.UTC(2025, 10, 3, 13, 43));
+  });
 });
 
 describe("parseChatJsonl", () => {
@@ -205,6 +272,7 @@ function pmsg(over: Partial<ParsedChatMessage> = {}): ParsedChatMessage {
     sendDate: BUILD_DATE,
     model: "m1",
     provider: "p1",
+    tokensIn: null,
     tokensOut: 5,
     reasoning: null,
     genStarted: null,
@@ -218,6 +286,7 @@ function pmsg(over: Partial<ParsedChatMessage> = {}): ParsedChatMessage {
         content: "hello",
         model: "m1",
         provider: "p1",
+        tokensIn: null,
         tokensOut: 5,
         reasoning: null,
         genStarted: null,
@@ -284,6 +353,7 @@ describe("buildChatJsonl", () => {
                 content: "take one",
                 model: "m1",
                 provider: "p1",
+                tokensIn: null,
                 tokensOut: 4,
                 reasoning: "hmm",
                 genStarted: null,
@@ -295,6 +365,7 @@ describe("buildChatJsonl", () => {
                 content: "take two",
                 model: "m2",
                 provider: "p2",
+                tokensIn: null,
                 tokensOut: 6,
                 reasoning: null,
                 genStarted: null,
@@ -425,6 +496,7 @@ describe("build → parse → build identity", () => {
               content: "take one",
               model: "m1",
               provider: "p1",
+              tokensIn: null,
               tokensOut: 4,
               reasoning: "hmm",
               genStarted: null,
@@ -436,6 +508,7 @@ describe("build → parse → build identity", () => {
               content: "take two",
               model: "m2",
               provider: "p2",
+              tokensIn: null,
               tokensOut: 6,
               reasoning: null,
               genStarted: null,

@@ -32,6 +32,7 @@ import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
+import { hostTimeZone } from "@orb/kit/time";
 import type { BulkImportChats } from "#domain/chat";
 import type {
   CollectedCard,
@@ -56,6 +57,12 @@ import { buildImportContext } from "./build-import-context.ts";
 
 const AVATAR_MIME = "image/png";
 
+/** The ST wall-clock zone for this run: the caller's pin, else the host's. ONE resolver so the collect pass
+ *  and the per-file import verbs can never disagree about which clock a snapshot's dates were written on. */
+function stWallClockZone(deps: ProfileDirImportDeps): string {
+  return deps.stWallClockZone ?? hostTimeZone();
+}
+
 export interface ProfileDirImportDeps {
   readonly fs: ImportFsPort;
   /** The root holding one subdir per ST user profile (the loader collects each subdir independently). */
@@ -78,6 +85,10 @@ export interface ProfileDirImportDeps {
   readonly enqueueBackfill: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly reconcileImportStats: (args: { readonly ownerId: UserId }) => Promise<void>;
   readonly now: () => number;
+  /** The zone the staged ST snapshot's wall-clock dates were written in. Omitted ⇒ {@link hostTimeZone} — a
+   *  profile snapshot is imported on the box that produced it in the ordinary case, and ST built those
+   *  strings off that box's local `Date`. Explicit here so a test pins it instead of inheriting the host's. */
+  readonly stWallClockZone?: string;
   readonly dryRun: boolean;
   readonly signal: AbortSignal;
 }
@@ -173,7 +184,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
       continue;
     }
     // biome-ignore lint/performance/noAwaitInLoops: user dirs are collected sequentially — a one-time bulk-import scan, not a hot path.
-    const result = await collectBundlesFromDir(fs, fs.join(profileRoot, ent.name));
+    const result = await collectBundlesFromDir(fs, fs.join(profileRoot, ent.name), [], stWallClockZone(deps));
     bundles.push(...result.bundles);
     personas.push(...result.personas);
     worlds.push(...result.worlds);
@@ -422,6 +433,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
     ...(deps.linkCarriedBooks !== undefined ? { linkCarriedBooks: deps.linkCarriedBooks } : {}),
     profile: {
       now: deps.now,
+      stWallClockZone: stWallClockZone(deps),
       personaByUserName: new Map(),
       bulkImportChats: deps.bulkImportChats,
       bulkImportPersonas: deps.bulkImportPersonas,

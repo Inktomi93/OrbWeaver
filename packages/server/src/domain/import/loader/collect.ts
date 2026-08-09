@@ -144,7 +144,14 @@ async function collectCards(fs: ImportFsPort, profileDir: string, state: Collect
   }
 }
 
-async function collectChatsForDir(fs: ImportFsPort, chatsDir: string, dirName: string, state: CollectState): Promise<void> {
+async function collectChatsForDir(args: {
+  readonly fs: ImportFsPort;
+  readonly chatsDir: string;
+  readonly dirName: string;
+  readonly state: CollectState;
+  readonly wallClockZone: string | undefined;
+}): Promise<void> {
+  const { fs, chatsDir, dirName, state, wallClockZone } = args;
   const handle = castId<CharacterHandle>(slugifyHandle(dirName));
   if (state.skippedHandles.has(handle)) {
     return;
@@ -165,6 +172,8 @@ async function collectChatsForDir(fs: ImportFsPort, chatsDir: string, dirName: s
     const parsed = parseChatJsonl(new TextDecoder().decode(bytes), {
       fileName: fileEnt.name,
       charDirName: dirName,
+      // ST wrote these wall clocks against ITS box's local zone (`humanizedDateTime`); the driver injects it.
+      ...(wallClockZone !== undefined ? { wallClockZone } : {}),
     });
     if (parsed === null) {
       continue;
@@ -377,7 +386,14 @@ async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<Co
   return out;
 }
 
-export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: string, skipCharacterNames: readonly string[] = []): Promise<CollectResult> {
+export async function collectBundlesFromDir(
+  fs: ImportFsPort,
+  profileDir: string,
+  skipCharacterNames: readonly string[] = [],
+  /** The zone ST's wall-clock chat dates were written in (see `ImportProfileDeps.stWallClockZone`); absent ⇒
+   *  the serde's `"UTC"` default. */
+  wallClockZone?: string,
+): Promise<CollectResult> {
   const state: CollectState = {
     byHandle: new Map<string, Group>(),
     skip: new Set(skipCharacterNames.map((s) => s.trim().toLowerCase()).filter((s) => s.length > 0)),
@@ -407,7 +423,7 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: string
   for (const dirEnt of await listDir(fs, chatsDir)) {
     if (dirEnt.kind === "directory") {
       // biome-ignore lint/performance/noAwaitInLoops: chat dirs are scanned sequentially (one-time collection), each its own bounded read loop.
-      await collectChatsForDir(fs, chatsDir, dirEnt.name, state);
+      await collectChatsForDir({ fs, chatsDir, dirName: dirEnt.name, state, wallClockZone });
     }
   }
 
