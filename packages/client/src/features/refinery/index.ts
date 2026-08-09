@@ -6,6 +6,7 @@
 
 export { AcceptReview } from "./components/accept-review.tsx";
 export { PayloadView } from "./components/payload-view.tsx";
+export { TeachingState } from "./components/teaching-state.tsx";
 export {
   useApplyRefineryAsCopy,
   useApplyRefineryFields,
