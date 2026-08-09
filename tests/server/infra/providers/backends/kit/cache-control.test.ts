@@ -249,3 +249,32 @@ describe("computeCacheBreakpointPlacements — the conversational depth axis", (
     expect(computeCacheBreakpointPlacements({ rows: [], systemStaticTokens: 9999, depthFromEnd: 0, cacheMinTokens: 1 })).toEqual([]);
   });
 });
+
+// A depth the history cannot reach places NOTHING — not a shallower breakpoint, not a partial pair — so
+// caching is off for that turn. The admin `promptCacheMinDepth` FLOOR is the realistic producer: raising it
+// to "cache harder" turns caching OFF on every room shorter than the knob, which is the opposite of the
+// intent and had no signal anywhere. The drop is loud now (D41 no-silent-degrade), like the ttl guard above.
+describe("computeCacheBreakpointPlacements — an unreachable depth degrades LOUDLY", () => {
+  const conv = (role: string): CacheBreakpointRow => ({ role, toolExchange: false, tokens: 600 });
+  const shortRoom = [conv("user"), conv("assistant"), conv("user")];
+
+  test("a depth deeper than the conversation places nothing AND warns provider.cache_depth_unreachable", () => {
+    const spy = vi.spyOn(logger, "warn");
+    expect(computeCacheBreakpointPlacements({ rows: shortRoom, systemStaticTokens: 0, depthFromEnd: 8, cacheMinTokens: 1 })).toEqual([]);
+    const line = spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.cache_depth_unreachable");
+    expect(line).toBeDefined();
+    const fields = line?.[0] as Record<string, unknown>;
+    expect(fields["depth"]).toBe(8);
+    expect(fields["conversationalRows"]).toBe(3);
+    expect(fields["applied"]).toBeNull();
+    expect(fields["provider"]).toBe(true);
+  });
+
+  // The DEEPER leg of the pair running off the front is the designed, everyday case — it must stay silent,
+  // or the signal is noise (`depth+2` is out of range on every short-but-cacheable room).
+  test("the `depth+2` leg running off the front is SILENT (only the requested depth warns)", () => {
+    const spy = vi.spyOn(logger, "warn");
+    expect(computeCacheBreakpointPlacements({ rows: shortRoom, systemStaticTokens: 0, depthFromEnd: 1, cacheMinTokens: 1 })).toEqual([{ depth: 1, index: 1 }]);
+    expect(spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.cache_depth_unreachable")).toBeUndefined();
+  });
+});
