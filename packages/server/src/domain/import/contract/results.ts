@@ -1,7 +1,7 @@
 // domain/import/contract/results — the verb result shapes.
 
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
-import type { ImportPresetNote, ImportSkippedCard, ImportSkippedGroup, ImportSkippedGroupMember } from "./views.ts";
+import type { ImportPresetNote, ImportSkippedCard, ImportSkippedGroup, ImportSkippedGroupMember, ImportThemeNote } from "./views.ts";
 
 export interface ImportedCharacterRef {
   readonly characterId: CharacterId;
@@ -41,6 +41,17 @@ export interface ImportPresetsResult {
   readonly presetsCreated: number;
   readonly skippedPresets: readonly ImportSkippedCard[];
   readonly notes: readonly ImportPresetNote[];
+}
+
+/** The ST theme wave's tally — the preset wave's shape exactly. `themesImported` is every theme the settings
+ *  domain ACCEPTED (created OR merged in place onto a same-named import); only `themesCreated` is NET-NEW
+ *  canon, so a re-run of a whole-profile import reports zero new work. `notes` carries the per-theme
+ *  unmapped-key list, emitted even when empty so "landed whole" is legible. */
+export interface ImportThemesResult {
+  readonly themesImported: number;
+  readonly themesCreated: number;
+  readonly skippedThemes: readonly ImportSkippedCard[];
+  readonly notes: readonly ImportThemeNote[];
 }
 
 /** The ST group wave's tally. `groupsImported` counts rooms that actually WROTE a transcript — a second

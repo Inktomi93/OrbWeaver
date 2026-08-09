@@ -11,20 +11,25 @@ import { castId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
 import { parseChatJsonl } from "#kit/serde/chat";
 import type {
+  CollectedBackground,
   CollectedCard,
   CollectedChat,
   CollectedGroup,
   CollectedPersona,
   CollectedPreset,
+  CollectedTheme,
   CollectedWorld,
   CollectResult,
   ImportFsPort,
 } from "../contract/views.ts";
+import { ST_POWER_USER_KEY, stAppearancePatch } from "../substrate/appearance.ts";
+import { ST_BACKGROUND_DIR, stBackgroundMime, stBackgroundName } from "../substrate/background.ts";
 import { importFileHash, parseCardPng } from "../substrate/card.ts";
 import { parseStGroupFile } from "../substrate/group.ts";
 import { parseStPersonas } from "../substrate/persona.ts";
 import { parseStPresetFile, parseStSettingsPreset, ST_PRESET_DIR, ST_PRESET_SETTINGS_KEY } from "../substrate/preset.ts";
 import { parseStTags } from "../substrate/tags.ts";
+import { parseStThemeFile, ST_THEME_DIR } from "../substrate/theme.ts";
 import { parseStWorldFile } from "../substrate/world.ts";
 
 // Ceiling so a hostile staging dir with a million empty entries can't pin the loop.
@@ -49,9 +54,13 @@ interface CollectState {
   readonly skippedHandles: Set<string>;
   readonly worlds: CollectedWorld[];
   readonly presets: CollectedPreset[];
+  readonly themes: CollectedTheme[];
+  readonly backgrounds: CollectedBackground[];
   readonly groups: CollectedGroup[];
   readonly unreadableWorlds: string[];
   readonly unreadablePresets: string[];
+  readonly refusedThemes: { file: string; reason: string }[];
+  readonly skippedBackgrounds: { file: string; reason: string }[];
   readonly unreadableGroups: string[];
   readonly unreadableCards: string[];
   readonly skippedChats: string[];
@@ -69,9 +78,11 @@ const GROUP_CHATS_DIR = "group chats";
 const GROUPS_DIR = "groups";
 
 // The top-level profile names the importer DOES consume — everything else in a user profile dir is reported
-// as unhandled so a whole-folder import never silently drops a plane (quick replies, themes, extensions, …).
+// as unhandled so a whole-folder import never silently drops a plane (quick replies, extensions, …).
 // The CHAT-COMPLETION preset dir is handled; the three TEXT-completion families deliberately are not (owner
 // ruling 2026-08-08 — orb has no text-completion mode), so they keep reporting as unhandled with that reason.
+// `themes/` and `backgrounds/` graduated 2026-08-08 (owner rulings: backgrounds ARE orb's media library; a
+// theme converts to the orb palette it safely maps to) — their old "no domain home" report reasons are gone.
 const HANDLED_ENTRIES: ReadonlySet<string> = new Set([
   "characters",
   "chats",
@@ -81,12 +92,15 @@ const HANDLED_ENTRIES: ReadonlySet<string> = new Set([
   GROUPS_DIR,
   GROUP_CHATS_DIR,
   ST_PRESET_DIR,
+  ST_THEME_DIR,
+  ST_BACKGROUND_DIR,
 ]);
-// The settings.json sections the importer reads: `power_user` (personas) + `tags`/`tag_map` (library tags,
-// attached to imported characters by their card filename) + `oai_settings` (the LIVE chat-completion preset —
-// the selected one WITH the author's unsaved edits). Every other top-level key is reported as an unimported
+// The settings.json sections the importer reads: `power_user` (personas + the viewer `appearance` ergonomics
+// + the GENERATION knobs that fold onto the live preset) + `tags`/`tag_map` (library tags, attached to
+// imported characters by their card filename) + `oai_settings` (the LIVE chat-completion preset — the
+// selected one WITH the author's unsaved edits). Every other top-level key is reported as an unimported
 // setting (the three text-completion blobs, world_info_settings globals, horde config, extension state, …).
-const HANDLED_SETTINGS: ReadonlySet<string> = new Set(["power_user", "tags", "tag_map", ST_PRESET_SETTINGS_KEY]);
+const HANDLED_SETTINGS: ReadonlySet<string> = new Set([ST_POWER_USER_KEY, "tags", "tag_map", ST_PRESET_SETTINGS_KEY]);
 
 function group(state: CollectState, handle: CharacterHandle): Group {
   const existing = state.byHandle.get(handle);
@@ -249,6 +263,49 @@ async function collectPresetDir(fs: ImportFsPort, profileDir: string, state: Col
   }
 }
 
+// ST saved UI THEMES: `<profileDir>/themes/*.json`. Each converts to the orb palette its colours SAFELY map
+// to — flattened, oklch-converted, and run through orb's own derivation-safety gate (`substrate/theme.ts`).
+// A refusal always carries its reason (unreadable, colour-less, or a base surface orb cannot derive a legible
+// foreground from), never a silent drop. A missing dir yields nothing.
+async function collectThemes(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
+  const dir = fs.join(profileDir, ST_THEME_DIR);
+  for (const ent of await listDir(fs, dir)) {
+    if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
+      continue;
+    }
+    const sourceFile = fs.join(ST_THEME_DIR, ent.name);
+    // biome-ignore lint/performance/noAwaitInLoops: theme files are read + parsed sequentially during the one-time collection scan, not a hot path.
+    const bytes = await fs.readFile(fs.join(dir, ent.name));
+    const result = parseStThemeFile(bytes, ent.name.replace(JSON_EXT, ""));
+    if (!result.ok) {
+      state.refusedThemes.push({ file: sourceFile, reason: result.reason });
+      continue;
+    }
+    state.themes.push({ parsed: result.parsed, sourceFile });
+  }
+}
+
+// ST app BACKGROUNDS: `<profileDir>/backgrounds/*`. The bytes ride through to the driver (the domain cannot
+// reach `domain/assets`); a non-media extension is recorded with its reason rather than guessed at. A missing
+// dir yields nothing.
+async function collectBackgrounds(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
+  const dir = fs.join(profileDir, ST_BACKGROUND_DIR);
+  for (const ent of await listDir(fs, dir)) {
+    if (ent.kind !== "file") {
+      continue;
+    }
+    const sourceFile = fs.join(ST_BACKGROUND_DIR, ent.name);
+    const mime = stBackgroundMime(ent.name);
+    if (mime === null) {
+      state.skippedBackgrounds.push({ file: sourceFile, reason: "not an importable image/video file (unrecognized extension)" });
+      continue;
+    }
+    // biome-ignore lint/performance/noAwaitInLoops: background files are read sequentially during the one-time collection scan, not a hot path.
+    const bytes = await fs.readFile(fs.join(dir, ent.name));
+    state.backgrounds.push({ filename: sourceFile, name: stBackgroundName(ent.name), mime, bytes });
+  }
+}
+
 /** The LIVE `oai_settings` blob — the selected preset PLUS the author's unsaved edits, so dropping it would
  *  lose real tuning. Named `OpenAI (active)`, which never collides with a file preset. A missing/corrupt
  *  settings.json contributes nothing (the same best-effort posture as tags/personas). */
@@ -349,6 +406,17 @@ async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: Col
   }
 }
 
+/** Best-effort: the orb `appearance` patch this profile's `power_user` section carries (the VIEWER half of
+ *  what ST bundles into a theme file). A missing/corrupt settings.json yields `{}` — nothing is patched. */
+async function collectAppearance(fs: ImportFsPort, profileDir: string): Promise<Record<string, unknown>> {
+  try {
+    const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
+    return stAppearancePatch(JSON.parse(new TextDecoder().decode(bytes)));
+  } catch {
+    return {};
+  }
+}
+
 // Best-effort: the ST library-tag assignments (`settings.tags` + `tag_map`) resolved to per-entity tag names.
 // A missing/corrupt settings.json yields an empty map. The driver attaches these to each imported character
 // by matching the card filename against the map key (ST's `tag_map[character.avatar]`).
@@ -400,9 +468,13 @@ export async function collectBundlesFromDir(
     skippedHandles: new Set<string>(),
     worlds: [],
     presets: [],
+    themes: [],
+    backgrounds: [],
     groups: [],
     unreadableWorlds: [],
     unreadablePresets: [],
+    refusedThemes: [],
+    skippedBackgrounds: [],
     unreadableGroups: [],
     unreadableCards: [],
     skippedChats: [],
@@ -416,6 +488,8 @@ export async function collectBundlesFromDir(
   await collectWorlds(fs, profileDir, state);
   await collectPresetDir(fs, profileDir, state);
   await collectSettingsPreset(fs, profileDir, state);
+  await collectThemes(fs, profileDir, state);
+  await collectBackgrounds(fs, profileDir, state);
   await collectGroups(fs, profileDir, state);
   await collectUnhandled(fs, profileDir, state);
 
@@ -430,6 +504,7 @@ export async function collectBundlesFromDir(
   const fuzzyPairedDirs = fuzzyPair(state);
   const personas = await collectPersonas(fs, profileDir);
   const tagsByEntityKey = await collectTags(fs, profileDir);
+  const appearance = await collectAppearance(fs, profileDir);
 
   const bundles: CollectedCard[] = [];
   const orphanChatDirs: string[] = [];
@@ -446,12 +521,17 @@ export async function collectBundlesFromDir(
     personas,
     worlds: state.worlds,
     presets: state.presets,
+    themes: state.themes,
+    backgrounds: state.backgrounds,
+    appearance,
     groups: state.groups,
     tagsByEntityKey,
     orphanChatDirs,
     unreadableCards: state.unreadableCards,
     unreadableWorlds: state.unreadableWorlds,
     unreadablePresets: state.unreadablePresets,
+    refusedThemes: state.refusedThemes,
+    skippedBackgrounds: state.skippedBackgrounds,
     unreadableGroups: state.unreadableGroups,
     skippedChats: state.skippedChats,
     skippedCharacters: state.skippedCharacters,
