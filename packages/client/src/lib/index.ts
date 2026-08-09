@@ -91,6 +91,7 @@ export type {
   ContextTabStrip,
   ContextTabsSpec,
   DraftChatContext,
+  RefineryContextState,
   ResolvedContextTab,
   ResolvedContextTabs,
 } from "./registry-contracts.ts";

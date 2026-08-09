@@ -112,6 +112,10 @@ export const characterRouter = t.router({
     .input(z.object({ characterId: brandedId<CharacterId>() }))
     .query(({ ctx, input }) => ctx.services.character.listSnapshots({ principal: ctx.auth, characterId: input.characterId })),
 
+  getSnapshot: authedProcedure
+    .input(z.object({ characterId: brandedId<CharacterId>(), snapshotId: brandedId<CharacterSnapshotId>() }))
+    .query(({ ctx, input }) => ctx.services.character.getSnapshot({ principal: ctx.auth, characterId: input.characterId, snapshotId: input.snapshotId })),
+
   restore: authedProcedure
     .input(
       z.object({

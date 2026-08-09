@@ -32,7 +32,7 @@ test("patches name/guidance/selection/stageConfig/status with per-member parses;
   expect(updated.name).toBeNull();
   expect(updated.guidance).toBe("keep her mean");
   expect(updated.selection).toEqual({ fields: ["greetings"], greetingIndexes: [0] });
-  expect(updated.stageConfig.score.mode).toBe("quick");
+  expect(updated.stageConfig.score).toEqual({ kind: "fixed", mode: "quick" });
   expect(updated.status).toBe("abandoned");
 
   // The guidance belt bites at the verb (over the PROSE_MAX_CHARS twin).

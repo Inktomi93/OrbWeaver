@@ -6,7 +6,11 @@ import type { CompareBlock } from "@orb/ui/compare-blocks";
 import { CompareBlocks } from "@orb/ui/compare-blocks";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { resolvedTokenColor } from "../../../support/ct/resolved-token-color.ts";
-import { AcceptHarness } from "./compare-blocks.fixtures.tsx";
+import { AcceptHarness, ReviewHarness } from "./compare-blocks.fixtures.tsx";
+
+const KEEP_NAME = /^Keep Name$/;
+const DISCARD_CLASS = /^Discard Class$/;
+const KEEP_EMPTIES_SCENARIO = /Keep \(empties field\) Scenario/;
 
 const TWO_BLOCKS: readonly CompareBlock[] = [
   { label: "Name", before: "Aria", after: "Aria Nightshade" },
@@ -63,4 +67,68 @@ test("accept-all accepts every block; partial acceptance reports as indeterminat
   await checkboxes.first().click();
   await expect(checkboxes.nth(1)).toHaveAttribute("aria-checked", "true");
   await expect(checkboxes.nth(2)).toHaveAttribute("aria-checked", "true");
+});
+
+// --- The R3 REVIEW variant (per-block Keep/Discard verbs, tri-state, fail-closed) ---
+
+test("review blocks open UNDECIDED with the will-not-apply chip, verbs instead of checkboxes, and NO bulk gesture", async ({ mount, page }) => {
+  await mount(<ReviewHarness blocks={TWO_BLOCKS} />);
+  // Belt 10 rendered: undecided is stated as a consequence, not a bare word.
+  await expect(page.getByText("Undecided · will not apply")).toHaveCount(2);
+  await expect(page.getByRole("checkbox")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: KEEP_NAME })).toBeVisible();
+  await expect(page.getByRole("button", { name: DISCARD_CLASS })).toBeVisible();
+  // Deliberately no accept-all row in the review grammar.
+  await expect(page.locator('[data-slot="compare-blocks-accept-all"]')).toHaveCount(0);
+});
+
+test("Keep collapses the block to header + Kept chip; pressing the collapsed row re-expands it; re-pressing Keep returns to undecided", async ({
+  mount,
+  page,
+}) => {
+  await mount(<ReviewHarness blocks={TWO_BLOCKS} />);
+  await page.getByRole("button", { name: KEEP_NAME }).click();
+  const collapsed = page.locator('[data-slot="compare-block-collapsed"]');
+  await expect(collapsed).toHaveCount(1);
+  await expect(collapsed).toHaveAttribute("data-decision", "kept");
+  await expect(collapsed.getByText("Kept")).toBeVisible();
+  // The other block stays expanded and undecided — decisions are individual presses.
+  await expect(page.getByText("Undecided · will not apply")).toHaveCount(1);
+  // Re-expand: the pair renders again, the decision STAYS kept (presentation-only expansion).
+  await collapsed.click();
+  await expect(page.locator('[data-slot="compare-block-collapsed"]')).toHaveCount(0);
+  const keepAgain = page.getByRole("button", { name: KEEP_NAME });
+  await expect(keepAgain).toHaveAttribute("aria-pressed", "true");
+  // Toggling Keep off returns the block to undecided (tri-state, never a two-state trap).
+  await keepAgain.click();
+  await expect(page.getByText("Undecided · will not apply")).toHaveCount(2);
+});
+
+test("Discard chips the block Discarded; a CLEARED block states the consequence on the state panel and the Keep verb", async ({ mount, page }) => {
+  await mount(
+    <ReviewHarness
+      blocks={[
+        { label: "Scenario", before: "Old text", stateNote: "This field will be emptied." },
+        { label: "Class", before: "Rogue", after: "Assassin" },
+      ]}
+      collapseDecided={false}
+    />,
+  );
+  // The cleared block: no after pane, a "Cleared" state panel with the consequence line, and the
+  // destructive-consent Keep wording.
+  const cleared = page.locator('[data-slot="compare-block-cleared"]');
+  await expect(cleared.getByText("Cleared")).toBeVisible();
+  await expect(page.getByText("This field will be emptied.")).toBeVisible();
+  await expect(page.getByRole("button", { name: KEEP_EMPTIES_SCENARIO })).toBeVisible();
+  await page.getByRole("button", { name: DISCARD_CLASS }).click();
+  await expect(page.getByText("Discarded", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: DISCARD_CLASS })).toHaveAttribute("aria-pressed", "true");
+});
+
+test("an ADDED block (after only) renders no fabricated before pane — the Added state panel instead", async ({ mount, page }) => {
+  await mount(<ReviewHarness blocks={[{ label: "greetings [2]", after: "A brand new greeting.", stateNote: "Appended as a new greeting slot." }]} />);
+  await expect(page.locator('[data-slot="compare-block-before"]')).toHaveCount(0);
+  await expect(page.locator('[data-slot="compare-block-added"]').getByText("Added")).toBeVisible();
+  await expect(page.getByText("A brand new greeting.")).toBeVisible();
+  await expect(page.getByText("Appended as a new greeting slot.")).toBeVisible();
 });

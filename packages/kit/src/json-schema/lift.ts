@@ -15,6 +15,14 @@
 
 import { z } from "zod";
 
+/** The ONE annotation keyword the lift ACCEPTS-AND-IGNOREs on any node: the refinery's render-hint
+ *  channel (`docs/design/refinery-schema-renderer.md` §4.2). Hints are DISPLAY metadata a stored schema
+ *  carries for the client renderer — they must never reach zod (so `projectJsonSchema` can never emit
+ *  them onto a wire) and must never make a hinted schema refuse. Golden proof beside the lift tests:
+ *  `lift(hinted) ≡ lift(stripOrbUi(hinted))`. Validating hint CONTENT is the refinery save belt's job
+ *  (a consumer concern), never kit's. Exactly this key — any other `x-*` keyword still refuses. */
+export const RENDER_HINT_KEY = "x-orb-ui";
+
 /** The JSON-Schema subset the lift supports, by node kind. The refusal error cites this so a rejected guest
  *  knows exactly what to author within. Deliberately narrow — widen only with a matching golden round-trip. */
 export const LIFTABLE_JSON_SCHEMA = {
@@ -79,9 +87,10 @@ const PER_TYPE_KEYS: Readonly<Record<string, readonly string[]>> = {
   [ARRAY_TYPE]: LIFTABLE_JSON_SCHEMA.array,
 };
 
-/** The keywords legal on a node of the given `type` (common ∪ per-type). A key outside this set is refused. */
+/** The keywords legal on a node of the given `type` (common ∪ per-type ∪ the ignored hint key). A key
+ *  outside this set is refused. */
 function allowedKeysFor(type: string): ReadonlySet<string> {
-  return new Set<string>([...LIFTABLE_JSON_SCHEMA.common, ...(PER_TYPE_KEYS[type] ?? [])]);
+  return new Set<string>([...LIFTABLE_JSON_SCHEMA.common, ...(PER_TYPE_KEYS[type] ?? []), RENDER_HINT_KEY]);
 }
 
 /** Refuse the FIRST key on `node` outside the allowed set for its type (deterministic — object key order). */
@@ -151,8 +160,9 @@ function liftConst(value: unknown, path: string): z.ZodType {
   throw new JsonSchemaLiftError("const (non-primitive)", path);
 }
 
-/** The only keys legal beside `anyOf` — the union node carries no `type` and no per-type constraints. */
-const UNION_KEYS: ReadonlySet<string> = new Set<string>([...LIFTABLE_JSON_SCHEMA.union, "description"]);
+/** The only keys legal beside `anyOf` — the union node carries no `type` and no per-type constraints
+ *  (plus the ignored hint key, legal on ANY node). */
+const UNION_KEYS: ReadonlySet<string> = new Set<string>([...LIFTABLE_JSON_SCHEMA.union, "description", RENDER_HINT_KEY]);
 
 /** Lift a `type`-less `anyOf` node into `z.union`. Each member is lifted through the SAME recursion (so an
  *  unsupported construct inside a member still refuses), and a sibling keyword is refused rather than ignored. */

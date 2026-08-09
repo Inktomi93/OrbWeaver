@@ -23,6 +23,7 @@ import type {
   GenerateGreetingParams,
   GetCardParams,
   GetCharacterParams,
+  GetSnapshotParams,
   ListCharactersParams,
   ListSnapshotsParams,
   MintGroupCharParams,
@@ -32,7 +33,7 @@ import type {
   SnapshotParams,
   UpdateCharacterParams,
 } from "./params.ts";
-import type { CharacterRef, GeneratedGreeting, ImportedFromMatch, ListCharactersResult, SnapshotRef, SnapshotSummary } from "./results.ts";
+import type { CharacterRef, GeneratedGreeting, ImportedFromMatch, ListCharactersResult, SnapshotRef, SnapshotSummary, SnapshotView } from "./results.ts";
 import type { CharacterDetail } from "./views.ts";
 
 /** Best-effort reap of avatar assets a deleted character may have orphaned (FK is onDelete: set null). */
@@ -114,6 +115,8 @@ export interface CharacterService {
 
   readonly snapshot: (params: SnapshotParams) => Promise<SnapshotRef>;
   readonly listSnapshots: (params: ListSnapshotsParams) => Promise<SnapshotSummary[]>;
+  /** One snapshot WITH its blob — the compare/inspect read (refinery Versions walk, §16.2). */
+  readonly getSnapshot: (params: GetSnapshotParams) => Promise<SnapshotView>;
   readonly restore: (params: RestoreParams) => Promise<CharacterDetail>;
 
   /** Live card for an owned character, or null for not-owned/mid-delete — never throws. */

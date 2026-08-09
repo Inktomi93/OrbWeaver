@@ -11,19 +11,23 @@
 // payload no longer parses is DROPPED from reads with the same observable heal (a corrupt append-only log
 // row must never fabricate a payload).
 
-import type { RefineryRun, RefinerySessionSummary, RefineryStage, RefineryVerdict } from "@orb/contracts/refinery";
+import type { RefineryRun, RefinerySchemaStage, RefinerySchemaSummary, RefinerySessionSummary, RefineryStage, RefineryVerdict } from "@orb/contracts/refinery";
 import {
   DEFAULT_REFINERY_STAGE_CONFIG,
   REFINERY_STAGE_PAYLOADS,
-  refineryAnalyzeConfigSchema,
+  refineryAnalyzeFixedConfigSchema,
+  refineryCustomRunConfigSchema,
+  refineryManualRewriteConfigSchema,
   refineryRewriteConfigSchema,
-  refineryScoreConfigSchema,
+  refineryScoreFixedConfigSchema,
   refinerySelectionSchema,
   refineryStageConfigSchema,
+  refineryVerdictSchema,
 } from "@orb/contracts/refinery";
 import type { Db } from "@orb/db";
-import { characters, refineryRuns, refinerySessions } from "@orb/db";
-import type { RefinerySessionId, UserId } from "@orb/kit/ids";
+import { characters, refineryRuns, refinerySchemas, refinerySessions } from "@orb/db";
+import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
+import { liftJsonSchema } from "@orb/kit/json-schema";
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
@@ -78,6 +82,18 @@ export function listRunRowsOf(db: Db, sessionId: RefinerySessionId): Promise<Ref
   return db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, sessionId)).orderBy(asc(refineryRuns.createdAt));
 }
 
+/** ONE named REWRITE run of THIS session (the §16.1 operate-back resolve): the session predicate rides
+ *  the WHERE, so a foreign/wrong-session/wrong-stage id is undefined — the caller's leak-free NOT_FOUND.
+ *  Same belt precondition as {@link listRunRowsOf} (the session already passed the ownership join). */
+export async function loadSessionRewriteRunRow(db: Db, sessionId: RefinerySessionId, runId: RefineryRunId): Promise<RefineryRunRow | undefined> {
+  const rows = await db
+    .select()
+    .from(refineryRuns)
+    .where(and(eq(refineryRuns.id, runId), eq(refineryRuns.sessionId, sessionId), eq(refineryRuns.stage, "rewrite")))
+    .limit(LIMIT_ONE);
+  return rows[0];
+}
+
 /** The newest run of ONE stage — "current result per stage" over the append-only log (the composite
  *  index's read). Same belt precondition as {@link listRunRowsOf}. */
 export async function latestRunRowOf(db: Db, sessionId: RefinerySessionId, stage: RefineryStage): Promise<RefineryRunRow | undefined> {
@@ -90,6 +106,11 @@ export async function latestRunRowOf(db: Db, sessionId: RefinerySessionId, stage
   return rows[0];
 }
 
+/** The verdict-core pluck for a CUSTOM analyze run: the well-known core (save belt) guarantees every
+ *  custom analyze schema a `verdict` with the three spellings, so the roster badge survives any custom
+ *  shape. Gated to custom-config rows — a corrupt FIXED payload must not half-parse into a badge. */
+const verdictCoreSchema = z.object({ verdict: refineryVerdictSchema });
+
 /** The newest analyze VERDICT per session (the roster badge) — one query, grouped in JS (a per-owner
  *  roster is small; the newest-first scan takes the first verdict it sees per session). */
 export async function latestVerdictsOf(db: Db, sessionIds: readonly RefinerySessionId[]): Promise<Map<RefinerySessionId, RefineryVerdict>> {
@@ -99,12 +120,19 @@ export async function latestVerdictsOf(db: Db, sessionIds: readonly RefinerySess
     return map;
   }
   const rows = await db
-    .select({ sessionId: refineryRuns.sessionId, payload: refineryRuns.payload })
+    .select({ sessionId: refineryRuns.sessionId, payload: refineryRuns.payload, payloadConfig: refineryRuns.payloadConfig })
     .from(refineryRuns)
     .where(and(inArray(refineryRuns.sessionId, sessionIds), eq(refineryRuns.stage, "analyze")))
     .orderBy(desc(refineryRuns.createdAt));
   for (const row of rows) {
     if (map.has(row.sessionId)) {
+      continue;
+    }
+    if (refineryCustomRunConfigSchema.safeParse(row.payloadConfig).success) {
+      const core = verdictCoreSchema.safeParse(row.payload);
+      if (core.success) {
+        map.set(row.sessionId, core.data.verdict);
+      }
       continue;
     }
     // The analyze payload schema is the one home for the verdict's shape — no field-plucking cast.
@@ -165,21 +193,57 @@ export function runViewOf(row: RefineryRunRow): RefineryRun | null {
     strippedKeys: strippedKeysParser.parse(row.strippedKeys),
     createdAt: row.createdAt,
   };
-  const healed = (): null => {
-    addSpanEvent(HEAL_EVENT, { arm: "runPayload", stage: row.stage });
-    return null;
-  };
+  // A CUSTOM run re-parses its payload against the schema EMBEDDED in its own provenance (P1-B — never a
+  // live schema row). A corrupt embed OR a payload that no longer parses is the same observable drop.
+  const custom = refineryCustomRunConfigSchema.safeParse(row.payloadConfig);
+  if (custom.success && (row.stage === "score" || row.stage === "analyze")) {
+    return customRunViewOf(row.stage, custom.data, row.payload, base);
+  }
+  return fixedRunViewOf(row, base);
+}
+
+type RunViewBase = Omit<Extract<RefineryRun, { stage: "score" }>, "stage" | "payload" | "payloadConfig">;
+
+function healedRun(stage: RefineryRunRow["stage"]): null {
+  addSpanEvent(HEAL_EVENT, { arm: "runPayload", stage });
+  return null;
+}
+
+function customRunViewOf(
+  stage: RefinerySchemaStage,
+  config: z.infer<typeof refineryCustomRunConfigSchema>,
+  rawPayload: unknown,
+  base: RunViewBase,
+): RefineryRun | null {
+  let lifted: z.ZodType;
+  try {
+    lifted = liftJsonSchema(config.schema);
+  } catch {
+    return healedRun(stage);
+  }
+  const payload = lifted.safeParse(rawPayload);
+  if (!payload.success) {
+    return healedRun(stage);
+  }
+  const data = payload.data as Record<string, unknown>;
+  return stage === "score"
+    ? { ...base, stage: "score", payloadConfig: config, payload: data }
+    : { ...base, stage: "analyze", payloadConfig: config, payload: data };
+}
+
+/** The FIXED arms — an if/else chain over the stage (the engine's own dispatch shape); the tail
+ *  annotation proves totality at compile time — a new stage member fails `tsc` on the narrowed
+ *  assignment. A drifted provenance config heals to the stage's default arm, observably. */
+function fixedRunViewOf(row: RefineryRunRow, base: RunViewBase): RefineryRun | null {
   const configHealed = (): void => {
     addSpanEvent(HEAL_EVENT, { arm: "runPayloadConfig", stage: row.stage });
   };
-  // An if/else chain over the stage (the engine's own dispatch shape); the tail annotation proves
-  // totality at compile time — a new stage member fails `tsc` on the narrowed assignment.
   if (row.stage === "score") {
     const payload = REFINERY_STAGE_PAYLOADS.score.safeParse(row.payload);
     if (!payload.success) {
-      return healed();
+      return healedRun(row.stage);
     }
-    const payloadConfig = refineryScoreConfigSchema.catch(() => {
+    const payloadConfig = refineryScoreFixedConfigSchema.catch(() => {
       configHealed();
       return { kind: "fixed", mode: "full" } as const;
     });
@@ -188,7 +252,12 @@ export function runViewOf(row: RefineryRunRow): RefineryRun | null {
   if (row.stage === "rewrite") {
     const payload = REFINERY_STAGE_PAYLOADS.rewrite.safeParse(row.payload);
     if (!payload.success) {
-      return healed();
+      return healedRun(row.stage);
+    }
+    // Manual provenance parses as itself; anything else heals to the fixed default arm.
+    const manual = refineryManualRewriteConfigSchema.safeParse(row.payloadConfig);
+    if (manual.success) {
+      return { ...base, stage: "rewrite", payloadConfig: manual.data, payload: payload.data };
     }
     const payloadConfig = refineryRewriteConfigSchema.catch(() => {
       configHealed();
@@ -201,11 +270,46 @@ export function runViewOf(row: RefineryRunRow): RefineryRun | null {
   const stage: "analyze" = row.stage;
   const payload = REFINERY_STAGE_PAYLOADS.analyze.safeParse(row.payload);
   if (!payload.success) {
-    return healed();
+    return healedRun(stage);
   }
-  const payloadConfig = refineryAnalyzeConfigSchema.catch(() => {
+  const payloadConfig = refineryAnalyzeFixedConfigSchema.catch(() => {
     configHealed();
     return { kind: "fixed", mode: "full" } as const;
   });
   return { ...base, stage, payloadConfig: payloadConfig.parse(row.payloadConfig), payload: payload.data };
+}
+
+// ── the custom-schema library (R3/SF0) — DIRECTLY owner-scoped rows (the schema table's own header) ─────
+
+type RefinerySchemaRow = typeof refinerySchemas.$inferSelect;
+
+/** One OWNED schema row, or undefined when absent OR foreign (collapsed — leak-free NOT_FOUND at the
+ *  caller). Direct owner predicate: schemas are library tooling, not per-character work product. */
+export async function loadOwnedSchemaRow(db: Db, ownerId: UserId, schemaId: RefinerySchemaId): Promise<RefinerySchemaRow | undefined> {
+  const rows = await db
+    .select()
+    .from(refinerySchemas)
+    .where(and(eq(refinerySchemas.id, schemaId), eq(refinerySchemas.ownerId, ownerId)))
+    .limit(LIMIT_ONE);
+  return rows[0];
+}
+
+/** The owner's schema library, newest-updated first. */
+export function listOwnedSchemaRows(db: Db, ownerId: UserId): Promise<RefinerySchemaRow[]> {
+  return db.select().from(refinerySchemas).where(eq(refinerySchemas.ownerId, ownerId)).orderBy(desc(refinerySchemas.updatedAt));
+}
+
+/** Row → the library wire view (the stored blob rides typed-as-written — liftable by the write belt's
+ *  invariant; consumers re-lift defensively at their own seams). */
+export function schemaSummaryOf(row: RefinerySchemaRow): RefinerySchemaSummary {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    stage: row.stage,
+    version: row.version,
+    schema: row.schema,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  };
 }

@@ -3,8 +3,16 @@
 // stamp no owner; docs/design/refinery-r0.md §3.1), never a caller-supplied ownerId.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { RefinableField, RefinerySelection, RefinerySessionStatus, RefineryStage, RefineryStageConfig } from "@orb/contracts/refinery";
-import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
+import type {
+  RefinableField,
+  RefineryRewritePayload,
+  RefinerySchemaStage,
+  RefinerySelection,
+  RefinerySessionStatus,
+  RefineryStage,
+  RefineryStageConfig,
+} from "@orb/contracts/refinery";
+import type { CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId } from "@orb/kit/ids";
 
 interface RefineryActorParams {
   readonly principal: Principal;
@@ -50,6 +58,10 @@ export interface DeleteSessionParams extends RefineryActorParams {
 export interface RunStageParams extends RefineryActorParams {
   readonly sessionId: RefinerySessionId;
   readonly stage: RefineryStage;
+  /** OPERATE-BACK (schema-renderer §16.1 — "checkout an earlier commit"): analyze THIS session rewrite
+   *  run instead of the latest. Legal only with `stage: "analyze"` (BAD_REQUEST otherwise); a
+   *  foreign/absent/wrong-stage id collapses to NOT_FOUND (leak-free). Absent ⇒ latest, unchanged. */
+  readonly rewriteRunId?: RefineryRunId | undefined;
 }
 
 export interface IterateParams extends RefineryActorParams {
@@ -59,15 +71,97 @@ export interface IterateParams extends RefineryActorParams {
   readonly guidance?: string;
 }
 
-/** One user-accepted rewrite entry (the CompareBlocks accept set). `greetingIndex` present ⇔
+/** One user-accepted rewrite entry (the Keep set of the arm-B review). `greetingIndex` present ⇔
  *  `field === "greetings"` — asserted at the verb against the LIVE card (§1 gap 3's verb-tier ruling). */
 export interface AcceptedField {
   readonly field: RefinableField;
   readonly greetingIndex?: number | undefined;
+  /** The MERGE-CONFLICT re-confirmation (schema-renderer §21 edge 2): the live card's text for this field
+   *  moved since the session's pin, the surface re-opened the block as a three-pane conflict, and the user
+   *  explicitly picked the rewrite anyway. Absent on a diverged field ⇒ the verb drops it
+   *  (`diverged_since_session`) rather than writing blind — no fast-forward-by-default. */
+  readonly confirmDiverged?: true | undefined;
 }
 
 export interface ApplyFieldsParams extends RefineryActorParams {
   readonly sessionId: RefinerySessionId;
   /** Explicit per-field accept — apply is NEVER automatic and never all-fields-by-default (belt 10). */
   readonly accepts: readonly AcceptedField[];
+  /** OPERATE-BACK (§16.1): apply THIS session rewrite run instead of the latest. Same resolution rules
+   *  as {@link RunStageParams.rewriteRunId}. */
+  readonly rewriteRunId?: RefineryRunId | undefined;
+}
+
+/** `applyAsCopy` — the branch-off terminal act (schema-renderer §17): the SAME reviewed accept set, but
+ *  the write arm creates a NEW character (duplicate chassis + patch overlay) and the live card is never
+ *  touched. `name` defaults to `"<name> (refined)"`. */
+export interface ApplyAsCopyParams extends RefineryActorParams {
+  readonly sessionId: RefinerySessionId;
+  readonly accepts: readonly AcceptedField[];
+  readonly name?: string | undefined;
+  readonly rewriteRunId?: RefineryRunId | undefined;
+}
+
+/** `submitManualRewrite` — the hand-authored rewrite arm (og-extension-feedback gap 1): the owner's WIP
+ *  edit lands as a rewrite RUN (`{kind:"manual"}` provenance) so analyze can judge it against the anchor
+ *  exactly like a model rewrite. Entries parse the SAME typed rewrite contract; an entry outside the
+ *  session's selection refuses LOUDLY (the author is the owner — an out-of-scope entry is a client
+ *  defect, not a steering attempt to itemize). */
+export interface SubmitManualRewriteParams extends RefineryActorParams {
+  readonly sessionId: RefinerySessionId;
+  readonly fields: RefineryRewritePayload["fields"];
+}
+
+/** `preflight` — the output-budget readout (schema-renderer §8): resolved per call so a preset edit
+ *  shows up on the next read (the D126 discipline). WARN-only; never blocks a run. */
+export interface PreflightParams extends RefineryActorParams {
+  readonly sessionId: RefinerySessionId;
+}
+
+// ── the custom-schema library (R3/SF — the NL design §4.4's verbs) ─────────────────────────────────────
+
+export interface CreateSchemaParams extends RefineryActorParams {
+  readonly name: string;
+  readonly description: string;
+  readonly stage: RefinerySchemaStage;
+  readonly schema: Record<string, unknown>;
+}
+
+export interface UpdateSchemaParams extends RefineryActorParams {
+  readonly schemaId: RefinerySchemaId;
+  /** Absent = unchanged. A `schema`/`stage`/`name`/`description` change re-runs the WHOLE document belt
+   *  and bumps `version`. */
+  readonly patch: {
+    readonly name?: string | undefined;
+    readonly description?: string | undefined;
+    readonly stage?: RefinerySchemaStage | undefined;
+    readonly schema?: Record<string, unknown> | undefined;
+  };
+}
+
+export interface DeleteSchemaParams extends RefineryActorParams {
+  readonly schemaId: RefinerySchemaId;
+}
+
+export type ListSchemasParams = RefineryActorParams;
+
+/** `generateSchema` — NL → a draft schema document (never persisted; the client holds the draft). */
+export interface GenerateSchemaParams extends RefineryActorParams {
+  readonly description: string;
+  readonly stage: RefinerySchemaStage;
+}
+
+/** `refineSchema` — one conversational iteration over the CURRENT draft ("add a severity enum"). */
+export interface RefineSchemaParams extends RefineryActorParams {
+  readonly schema: Record<string, unknown>;
+  readonly instruction: string;
+  readonly stage: RefinerySchemaStage;
+}
+
+/** `testSchema` — a DRILL: run the stage once against an owned card under the draft schema; returns the
+ *  payload for preview rendering. Writes NO run row, stamps NOTHING. */
+export interface TestSchemaParams extends RefineryActorParams {
+  readonly schema: Record<string, unknown>;
+  readonly stage: RefinerySchemaStage;
+  readonly characterId: CharacterId;
 }

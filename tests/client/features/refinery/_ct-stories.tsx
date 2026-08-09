@@ -14,7 +14,12 @@
 // strings because its ids come from a fixture's display data, not from a mint.
 
 import { useInvalidation, useTRPC } from "@orb/client/data";
+import type { ReviewEntry } from "@orb/client/features/refinery";
 import {
+  AcceptReview,
+  BUILTIN_STAGE_HINTS,
+  buildRenderPlan,
+  PayloadView,
   useApplyRefineryFields,
   useDeleteRefinerySession,
   useIterateRefinery,
@@ -25,7 +30,11 @@ import {
   useStartRefinerySession,
   useUpdateRefinerySession,
 } from "@orb/client/features/refinery";
+import type { RefineryStage } from "@orb/contracts/refinery";
+import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
+import { projectJsonSchema } from "@orb/kit/json-schema";
+import type { CompareDecision } from "@orb/ui/compare-blocks";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { CtAppDataProviders } from "../../../support/ct/ct-data-providers.tsx";
@@ -107,5 +116,41 @@ export function RefineryDataStory({ sessionId, characterId }: RefineryDataStoryP
         <RefineryDataProbe characterId={characterId} sessionId={sessionId} />
       </CtToastSurface>
     </CtAppDataProviders>
+  );
+}
+
+// --- R3 SURFACE stories (pure presentation — no wire; the props cross the CT boundary as JSON) ---
+
+export interface PayloadViewStoryProps {
+  /** A FIXED stage renders its projected contract + the built-in hint set (the blessed look IS the
+   *  general renderer applied to a hinted schema). */
+  readonly stage?: RefineryStage;
+  /** A CUSTOM schema renders hint-overlay-free — exactly the embedded-schema path `StagePane` runs. */
+  readonly schema?: Record<string, unknown>;
+  readonly payload: Record<string, unknown>;
+}
+
+/** The ONE payload renderer over either a fixed stage's projected contract or a custom schema — the
+ *  same derivation `StagePane` performs, minus the run chrome. */
+export function PayloadViewStory({ stage, schema, payload }: PayloadViewStoryProps): ReactElement {
+  const resolved = schema ?? projectJsonSchema(REFINERY_STAGE_PAYLOADS[stage ?? "score"]);
+  const plan = buildRenderPlan(resolved, schema === undefined ? BUILTIN_STAGE_HINTS[stage ?? "score"] : {});
+  return <PayloadView payload={payload} plan={plan} />;
+}
+
+export interface AcceptReviewStoryProps {
+  readonly entries: readonly ReviewEntry[];
+}
+
+/** The accept review, controlled the way the content surface holds it: every entry opens UNDECIDED
+ *  (belt 10 — fail-closed is the initial state, not a prop). */
+export function AcceptReviewStory({ entries }: AcceptReviewStoryProps): ReactElement {
+  const [decided, setDecided] = useState<readonly CompareDecision[]>(entries.map(() => null));
+  return (
+    <AcceptReview
+      decided={decided}
+      entries={entries}
+      onDecide={(index, decision): void => setDecided((prev) => prev.map((d, i) => (i === index ? decision : d)))}
+    />
   );
 }

@@ -207,18 +207,37 @@ const SECTION_JOIN = "\n\n---\n\n";
 
 /** The stage-SYSTEM slot's `{{shape}}` splice (schema-renderer §9.3): the JSON restatement is engine-fed,
  *  never baked into the owner-editable text, so a host override keeps an honest shape and the SF custom
- *  arm has exactly one seam to change. A plain pre-substitution replace — these slots are `macros:"none"`
- *  and never enter the macro engine (belt 5). */
-function shapeTokens(stage: RefineryStage): Record<string, string> {
-  return { [REFINERY_SHAPE_TOKEN]: REFINERY_STAGE_SHAPES[stage] };
+ *  arm has exactly one seam to change — `shapeText` IS that seam: a custom run splices its own projected
+ *  schema (labeled as a schema) in place of the fixed arm's example instance. A plain pre-substitution
+ *  replace — these slots are `macros:"none"` and never enter the macro engine (belt 5). */
+function shapeTokens(stage: RefineryStage, shapeText?: string): Record<string, string> {
+  return { [REFINERY_SHAPE_TOKEN]: shapeText ?? REFINERY_STAGE_SHAPES[stage] };
 }
 
-export function buildScorePrompt({ card, selection, mode, guidance, overrides }: ScorePromptArgs): StagePrompts {
-  const parts = [resolveProseText(SCORE_MODE_SLOTS[mode], overrides), buildCardSections(card, selection)];
+/** The custom arm's `{{shape}}` text — the projected JSON Schema itself, labeled so the model knows it is
+ *  reading a schema, not an example (the recorded R3 default; build plan §7.5). */
+export function customShapeTextOf(projected: Record<string, unknown>): string {
+  return `a JSON object matching this JSON Schema:\n${JSON.stringify(projected)}`;
+}
+
+/** The custom arm's instruction floor — read when the schema's own description is empty. */
+const CUSTOM_INSTRUCTION_FALLBACK = "Produce the structured assessment the response schema describes, grounded in the card fields you are given.";
+
+/** The instruction body: the fixed arm's mode slot, or the custom arm's authored description. */
+function instructionOf(modeSlot: ProseSlotId | null, customInstruction: string | undefined, overrides: ScorePromptArgs["overrides"]): string {
+  if (modeSlot !== null) {
+    return resolveProseText(modeSlot, overrides);
+  }
+  const authored = customInstruction?.trim() ?? "";
+  return authored.length > 0 ? authored : CUSTOM_INSTRUCTION_FALLBACK;
+}
+
+export function buildScorePrompt({ card, selection, mode, guidance, overrides, customInstruction, shapeText }: ScorePromptArgs): StagePrompts {
+  const parts = [instructionOf(mode === null ? null : SCORE_MODE_SLOTS[mode], customInstruction, overrides), buildCardSections(card, selection)];
   if (guidance !== null && guidance.length > 0) {
     parts.push(`${GUIDANCE_HEADER}\n${guidance}`);
   }
-  return { system: resolveProseText("refinery.score.system", overrides, shapeTokens("score")), user: parts.join(SECTION_JOIN) };
+  return { system: resolveProseText("refinery.score.system", overrides, shapeTokens("score", shapeText)), user: parts.join(SECTION_JOIN) };
 }
 
 export function buildRewritePrompt({ card, selection, mode, guidance, overrides, score, analyzeFeedback }: RewritePromptArgs): StagePrompts {
@@ -237,15 +256,24 @@ export function buildRewritePrompt({ card, selection, mode, guidance, overrides,
   return { system: resolveProseText(systemSlot, overrides, shapeTokens("rewrite")), user: parts.join(SECTION_JOIN) };
 }
 
-export function buildAnalyzePrompt({ originalCard, selection, mode, guidance, overrides, rewrite }: AnalyzePromptArgs): StagePrompts {
+export function buildAnalyzePrompt({
+  originalCard,
+  selection,
+  mode,
+  guidance,
+  overrides,
+  rewrite,
+  customInstruction,
+  shapeText,
+}: AnalyzePromptArgs): StagePrompts {
   const rewritten = overlayRewrite(originalCard, rewrite);
   const parts = [
-    resolveProseText(ANALYZE_MODE_SLOTS[mode], overrides),
+    instructionOf(mode === null ? null : ANALYZE_MODE_SLOTS[mode], customInstruction, overrides),
     `# ORIGINAL\n\n${buildCardSections(originalCard, selection)}`,
     `# REWRITTEN\n\n${buildCardSections(rewritten, selection)}`,
   ];
   if (guidance !== null && guidance.length > 0) {
     parts.push(`${GUIDANCE_HEADER}\n${guidance}`);
   }
-  return { system: resolveProseText("refinery.analyze.system", overrides, shapeTokens("analyze")), user: parts.join(SECTION_JOIN) };
+  return { system: resolveProseText("refinery.analyze.system", overrides, shapeTokens("analyze", shapeText)), user: parts.join(SECTION_JOIN) };
 }
