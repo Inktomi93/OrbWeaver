@@ -17,6 +17,10 @@ import { ContextDefaultTabStory, ContextTabStatesStory, ContextTabStripStory } f
 
 const TAB_NAMES = ["Members", "Settings", "Preview", "Injections"] as const;
 
+/** The D62 P1 coarse-pointer control floor (`--spacing-control-md` resolves to 48px there; the LAW's
+ *  floor is 44). Same constant the touch-target-floor suite asserts against. */
+const COARSE_TOUCH_FLOOR_PX = 44;
+
 test("narrow container: icon-mode — labels visually collapse, but every tab keeps its accessible name", async ({ mount }) => {
   // 291px = the real default-width tablist. The 4-tab reveal threshold is 28rem (448px), so labels collapse.
   const component = await mount(<ContextTabStripStory width={291} />);
@@ -153,4 +157,53 @@ test("badge: a boolean dot + a count, never on the active tab", async ({ mount }
   await component.getByRole("tab", { name: "Scene" }).click();
   await expect(component.getByRole("tab", { name: "Scene" })).toHaveAttribute("aria-selected", "true");
   await expect(component.getByRole("tab", { name: "Scene" }).locator("span.rounded-full")).toHaveCount(0);
+});
+
+// ── COARSE POINTER: the name must be ON SCREEN, because a touch device cannot hover a `title` ────────
+// UI-Architecture §4.3 rule 4 ("appears on hover AND :focus-within, ALWAYS-VISIBLE at `pointer: coarse`")
+// + §4b axis 3. Icon-mode's contract is "the icon carries the tab, tooltip/title + aria-label carry the
+// name" — and at `pointer: coarse` that leaves the name in a native `title` ALONE (Base UI also suppresses
+// tooltips on touch by design), which is a hover affordance the device cannot produce. The container
+// thresholds above can never rescue it either: the CONTEXT panel clamps to 26rem while the 5-tab reveal
+// threshold is 35rem, so a phone reaches icon-mode and STAYS there, nameless. shell.css answers at the
+// shell/token layer in the app's own coarse-tab form — icon over label, exactly as the rail becomes the
+// mobile bottom tab bar. `hasTouch: true` is the proven pointer emulation (tests/ui/touch-target-floor
+// .suite.ct.tsx R6: `page.emulateMedia` exposes no `pointer` feature and cannot drive this).
+test.describe("coarse pointer (touch)", () => {
+  test.use({ hasTouch: true });
+
+  test("the emulation actually landed — nothing below is trusted otherwise", async ({ mount }) => {
+    const component = await mount(<ContextTabStripStory width={291} />);
+    const coarse = await component.evaluate(() => matchMedia("(pointer: coarse)").matches);
+    expect(coarse).toBe(true);
+  });
+
+  test("at the shell's own panel width every tab shows its WORD — a title-only name is unreachable by touch", async ({ mount }) => {
+    // 291px = the real default tablist width, where a FINE pointer is icon-mode (proven above).
+    const component = await mount(<ContextTabStripStory width={291} showTrackers={true} />);
+
+    await Promise.all(
+      [...TAB_NAMES, "Trackers"].map(async (name) => {
+        const label = component.getByRole("tab", { name }).locator(".ctx-tab-label");
+        await expect(label).not.toHaveCSS("display", "none");
+        // Rendered, not merely un-hidden: a 0px box is the same unreachable name in different clothes.
+        await expect.poll(async () => ((await label.boundingBox())?.width ?? 0) > 0).toBe(true);
+      }),
+    );
+  });
+
+  test("the two-line cell still clears the ≥44px touch floor and the strip does not clip", async ({ mount }) => {
+    const component = await mount(<ContextTabStripStory width={291} showTrackers={true} />);
+
+    // Revealing the label grows the cell to two lines, so its block size is a FLOOR now rather than a
+    // fixed height — it must never fall under the D62 P1 coarse floor.
+    const boxes = await Promise.all([...TAB_NAMES, "Trackers"].map((name) => component.getByRole("tab", { name }).boundingBox()));
+    for (const box of boxes) {
+      expect(box?.height ?? 0).toBeGreaterThanOrEqual(COARSE_TOUCH_FLOOR_PX);
+    }
+    // Five word labels fit in 291px because each rides UNDER its icon (the rail's mobile-bar form), not
+    // beside it — the arrangement is what buys the width; `overflow-x-auto` is only the safety net.
+    const clipped = await component.getByRole("tablist").evaluate((el) => el.scrollWidth > el.clientWidth + 1);
+    expect(clipped).toBe(false);
+  });
 });

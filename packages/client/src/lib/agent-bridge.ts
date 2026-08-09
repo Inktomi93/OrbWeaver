@@ -143,12 +143,16 @@ declare global {
   var __orb: OrbDebugHandle | undefined;
 }
 
-/** The compact motion line for snap(): ring depth + the two headline jank numbers + the count of
- *  active animations that aren't compositor-clean. */
+/** The compact motion line for snap(): ring depth + the headline jank numbers + the count of active
+ *  animations that aren't compositor-clean. `observedCls` rides beside `cls` because the CWV metric
+ *  excludes input-adjacent shifts and therefore reads ~0 through the exact interaction-driven relayout
+ *  storms this line exists to surface (motion-stats.ts header) — a summary carrying only `cls` says
+ *  "clean" about a shell that is thrashing. */
 function motionSummary(): {
   loafs: number;
   worstBlocking: number;
   cls: number;
+  observedCls: number;
   dirtyAnimations: number;
 } {
   const m = motionSnapshot();
@@ -156,6 +160,7 @@ function motionSummary(): {
     loafs: m.loafs.length,
     worstBlocking: m.worstBlocking,
     cls: m.cls,
+    observedCls: m.observedCls,
     dirtyAnimations: activeAnimations().filter((a) => !a.compositorClean).length,
   };
 }
