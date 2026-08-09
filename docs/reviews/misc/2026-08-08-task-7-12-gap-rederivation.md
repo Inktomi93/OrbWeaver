@@ -287,6 +287,45 @@ their verifiers; the rows below are non-refuting residue found by a fresh advers
     *Consequence:* a future refactor that hoists the floor check out of the loop would silently drop the
     single-breakpoint arm with the suite green. *Fix:* one test case. *Effort:* **S**.
 
+### 2.3 FIX STATUS — §2.1 rows 1–2 + §2.2 rows 6–8, 10 (lane a8993af8, 2026-08-08)
+
+Fixed in one commit; each carries a red-first receipt (the failing assertion is quoted in the lane report).
+Two of this audit's own premises died on contact and are corrected here rather than left to rot.
+
+- **Row 1 — FIXED.** `selectSpeakers` gained `banLast` (default true) beside `lastSpeaker`; `turn.ts`'s chain
+  passes `lastSpeaker: last` ALWAYS and `banLast: !allowSelfResponses`, and `smartArbitrate` forwards it to
+  its `natural` fallback so the `smart` arm's behavior is unchanged. Red: the doc's probe reproduced at the
+  CHAIN tier (`turn.int.test.ts`) — `aria bryn cara / aria aria aria`, now `aria bryn cara / aria bryn cara`.
+- **Row 2 — FIXED.** `resolveMentions` consumes EVERY free span of a matched name (`consumed.push(...free)`),
+  not just the chosen one. The later-standalone-`@Aria` case is unchanged (selection is still per-occurrence).
+- **Row 3 — untouched** (recorded as a seam note; the `:945-949` comment is honest). **Row 4 — untouched**
+  (routed to `side-eye`). **Row 5 — no gap.** **Row 9 — untouched** (forward-looking, no second producer).
+- **Row 6 — FIXED, premise corrected.** Array-content rows now contribute their text parts to the
+  `cacheMinTokens` prefix (placement stays string-only). BUT the row's "tool-result rows … contribute
+  nothing" is **FALSE on this dialect**: `toolResultMessages` sets `content: part.content`, a STRING
+  (`ChatContentPart.tool-result.content` is `z.string`), so tool rows always counted. The zero-token class is
+  ARRAY content only, which `buildHistoryMessages` cannot produce today (`chatHistoryText` drops image parts
+  until D45 vision is wired) — so row 6 was LATENT, not live, and the fix is a correctness fix on a shared
+  primitive plus its pin.
+- **Row 7 — FIXED, and it was LIVE (not latent).** `placeHistoryCacheBreakpoint` now returns
+  `{ messages, placedDepths }` — the depths a block was ACTUALLY written at — and `buildChatBody` hands the
+  runner a `CacheWriteReceipt` the `provider.cache` line reports verbatim. The same re-derivation bug had a
+  SECOND, reachable arm the audit did not name: `breakpointsPlaced` added `isAnthropicModel(model) ? 1 : 0`
+  for the system block, while `buildSystemMessage` writes that block only when `systemPrompt.static` is
+  non-empty. Red receipt: an empty static prompt on an Anthropic model reported **3** breakpoints over a wire
+  carrying **2**. The system count is now observed off the built message too.
+- **Row 8 — FIXED, at the placer rather than at compose.** `computeCacheBreakpointPlacements` emits
+  `provider.cache_depth_unreachable` (warn, with `depth` + `conversationalRows`) when the REQUESTED depth
+  resolves no index — the deeper `depth+2` leg stays silent, since it runs off the front on every
+  short-but-cacheable room. `compose/chat.ts` cannot host this: it knows the knob but not the wire history's
+  conversational depth, and re-deriving that axis there would be a second home for it. The knob's help copy
+  now states that deeper-than-the-conversation means OFF (`contracts/settings/index.ts` + the admin hint).
+- **Row 10 — PREMISE DEAD, no test added.** Both boundaries the row asks for were ALREADY covered when it
+  was written: `cache-control.test.ts:153-156` is exactly the floor transition (clears at `depth`, not at
+  `depth+2` → exactly one placement) and `:158-161` is the off-the-front case. A duplicate would be padding.
+  The genuinely-uncovered adjacent boundary — the REQUESTED depth itself unreachable — is now covered by the
+  row-8 pins (placement `[]` + the loud line + a silent-happy-path control).
+
 ---
 
 ## What this audit did NOT cover

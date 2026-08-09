@@ -106,7 +106,7 @@ const KNOBS: readonly KnobDescriptor[] = [
   {
     id: "promptCacheMinDepth",
     label: "Prompt-cache depth floor (0–20)",
-    hint: "How many of the newest exchanges stay OUT of the Anthropic prompt cache. 0 uses each turn's own computed minimum.",
+    hint: "How many of the newest exchanges stay OUT of the Anthropic prompt cache. 0 uses each turn's own computed minimum. A value deeper than a conversation disables caching for that chat entirely — raise it sparingly.",
     step: 1,
     min: PROMPT_CACHE_MIN_DEPTH_FLOOR,
     max: PROMPT_CACHE_MIN_DEPTH_CEIL,

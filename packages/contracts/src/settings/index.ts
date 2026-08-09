@@ -325,6 +325,12 @@ const structuredOutputShapeSchema = z.enum(STRUCTURED_OUTPUT_SHAPES);
 // leaves every wire body byte-identical.
 //
 // Ceiling 20: Anthropic's cache lookback spans ~20 blocks, so a deeper breakpoint has nothing left to find.
+//
+// DEEPER THAN THE CONVERSATION MEANS OFF. "Only ever deeper" is not the same as "always safe": a depth a
+// room's history cannot reach resolves to no row at all, so NO breakpoint is placed and that turn is not
+// cached — an admin who raises this to 8 to "cache harder" turns caching off for every room shorter than
+// ~9 role groups. The placer says so out loud (`provider.cache_depth_unreachable`, warn) rather than
+// leaving it to be discovered on a bill.
 /** The schema bound AND the born-in-DB default, deliberately the same constant: 0 = "use the turn's own
  *  computed minimum" is both the shallowest meaningful value and the shipped behavior, byte-identical. */
 export const PROMPT_CACHE_MIN_DEPTH_FLOOR = 0;

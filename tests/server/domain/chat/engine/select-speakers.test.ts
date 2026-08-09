@@ -226,6 +226,21 @@ describe("selectSpeakers — pooled (round-robin: least-recently-spoken first)",
     expect(keys(out)).toEqual(keys([charRef("c"), charRef("d"), charRef("a")]));
   });
 
+  // `banLast:false` (the room's `allowSelfResponses`) lifts the ELIGIBILITY ban only. The rotation origin is
+  // the same `lastSpeaker` value, so a capped chain still visits every seat — it just may re-pick the last
+  // speaker when the rotation comes back around to him.
+  test("banLast:false keeps the rotation (the last speaker rejoins the pool, at the END of the cycle)", () => {
+    const out = selectSpeakers({
+      candidates: [cc("a"), cc("b"), cc("c")],
+      policy: "pooled",
+      lastSpeaker: charRef("b"),
+      banLast: false,
+      rng: seededRng(1),
+    });
+    // `b` is no longer dropped, but the order still starts at the seat AFTER him and wraps to him last.
+    expect(keys(out)).toEqual(keys([charRef("c"), charRef("a"), charRef("b")]));
+  });
+
   test("a last speaker who is no longer eligible (left/muted) leaves roster order untouched", () => {
     const out = selectSpeakers({
       candidates: [cc("a"), cc("b"), cc("gone", { leftSeq: 3 })],
@@ -265,6 +280,14 @@ describe("resolveMentions — @mention extraction (human-authored text only)", (
 
   test("the nested-only case is unchanged: @Aria Stormborn alone forces ONLY the longer name", () => {
     expect(resolveMentions("@Aria Stormborn opens the door.", cast)).toEqual([cid("ariastorm")]);
+  });
+
+  // The masking unit is the NAME, not the ONE span that name happened to claim. A human who emphasises a
+  // character by naming her twice left the second occurrence unmasked, so the nested shorter name matched
+  // INSIDE it and a second, never-named character was forced into the round (and in a narrator room that
+  // forced override also coerces the round to per-speaker — a round the host never asked for).
+  test("a REPEATED @Aria Stormborn never leaks the nested @Aria (masking is per-NAME, not per-span)", () => {
+    expect(resolveMentions("@Aria Stormborn opens the door… @Aria Stormborn kicks it shut.", cast)).toEqual([cid("ariastorm")]);
   });
 
   test("empty text / empty cast → no mentions", () => {

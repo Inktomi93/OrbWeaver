@@ -159,7 +159,8 @@ function indexAtDepth(rows: readonly CacheBreakpointRow[], wanted: number): numb
 // Returns the pair of placements at depths `depth` and `depth+2` whose cumulative prefix clears the
 // per-model cacheMinTokens floor. The deeper one keeps a cache hit inside Anthropic's 20-block lookback
 // window that a single breakpoint drops on a long conversation. Drops the deeper placement when it runs off
-// the front or is below the floor; drops both when even `depth` is below the floor.
+// the front or is below the floor; drops both when even `depth` is below the floor. A REQUESTED depth the
+// conversation cannot reach places nothing at all — that one is loud (`provider.cache_depth_unreachable`).
 export function computeCacheBreakpointPlacements(args: {
   readonly rows: readonly CacheBreakpointRow[];
   readonly systemStaticTokens: number;
@@ -171,6 +172,19 @@ export function computeCacheBreakpointPlacements(args: {
   for (const depth of [depthFromEnd, depthFromEnd + 2]) {
     const index = indexAtDepth(rows, depth);
     if (index === undefined) {
+      // The REQUESTED depth (never the deeper leg, which runs off the front on every short-but-cacheable
+      // room and would make this line noise) is deeper than the conversation: nothing is placed, so caching
+      // is OFF for this turn. The admin `promptCacheMinDepth` FLOOR is the realistic producer — it can only
+      // push the breakpoint deeper, and "deeper than the history" means off, which an admin who raised the
+      // knob to cache HARDER has no other way to learn (D41 no-silent-degrade; the `anthropicCacheDirective`
+      // precedent above).
+      if (depth === depthFromEnd) {
+        providerLog("openrouter", "warn", "provider.cache_depth_unreachable", {
+          depth,
+          conversationalRows: rows.filter((row) => !row.toolExchange && row.role !== TOOL_DEPTH_TRANSPARENT_ROLE).length,
+          applied: null,
+        });
+      }
       continue;
     }
     let prefixTokens = systemStaticTokens;

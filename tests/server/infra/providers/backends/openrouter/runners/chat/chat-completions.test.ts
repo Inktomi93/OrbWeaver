@@ -537,6 +537,13 @@ describe("the history cache breakpoint placement", () => {
     return items as unknown as Parameters<typeof placeHistoryCacheBreakpoint>[0];
   }
 
+  /** The same wire-shaped fixture with MULTIMODAL rows allowed: `content` is a part array, which the SDK's
+   *  role-discriminated union carries and the placer reads structurally. */
+  function asMixed(items: { role: string; content: unknown }[]): Parameters<typeof placeHistoryCacheBreakpoint>[0] {
+    // FABRICATION-OK: a wire-shaped fixture for a vendor union we do not own (the `asWire` sibling likewise).
+    return items as unknown as Parameters<typeof placeHistoryCacheBreakpoint>[0];
+  }
+
   test("converts the targeted message into a cache_control block when the prefix clears the floor", () => {
     const placed = placeHistoryCacheBreakpoint(
       asMessages([
@@ -547,7 +554,7 @@ describe("the history cache breakpoint placement", () => {
       1,
       CACHE_MIN,
     );
-    expect(Array.isArray(placed[0]?.content)).toBe(true);
+    expect(Array.isArray(placed.messages[0]?.content)).toBe(true);
   });
 
   test("emits the R1 PAIR — cache_control at `depth` AND `depth+2` on a long conversation", () => {
@@ -566,20 +573,59 @@ describe("the history cache breakpoint placement", () => {
       CACHE_MIN,
     );
     // depth = offset 1 → idx 4; depth+2 = offset 3 → idx 2. Exactly two blocks placed, no third.
-    const blocked = placed.filter((m) => Array.isArray(m.content)).length;
+    const blocked = placed.messages.filter((m) => Array.isArray(m.content)).length;
     expect(blocked).toBe(2);
-    expect(Array.isArray(placed[4]?.content)).toBe(true);
-    expect(Array.isArray(placed[2]?.content)).toBe(true);
+    expect(Array.isArray(placed.messages[4]?.content)).toBe(true);
+    expect(Array.isArray(placed.messages[2]?.content)).toBe(true);
+    // The REPORTED depths are the ones actually written — the pair, in placement order.
+    expect(placed.placedDepths).toEqual([1, 3]);
   });
 
   test("leaves the array unchanged when the prefix is below the floor", () => {
     const placed = placeHistoryCacheBreakpoint(asMessages([{ role: "user", content: "tiny" }]), "", 0, CACHE_MIN);
-    expect(placed[0]?.content).toBe("tiny");
+    expect(placed.messages[0]?.content).toBe("tiny");
+    expect(placed.placedDepths).toEqual([]);
   });
 
   test("leaves the array unchanged when the offset is out of range", () => {
     const messages = asMessages([{ role: "user", content: longText }]);
-    expect(placeHistoryCacheBreakpoint(messages, "", 5, CACHE_MIN)).toBe(messages);
+    expect(placeHistoryCacheBreakpoint(messages, "", 5, CACHE_MIN).messages).toBe(messages);
+  });
+
+  // THE LYING INSTRUMENT (the `provider.cache` receipt's source): a computed placement whose target row is
+  // not a plain string is SKIPPED by the writer. Re-deriving the placements for the receipt therefore
+  // reported breakpoints the body did not carry — over a cost regression, on the only signal that exists.
+  // What is written is what is reported: the depth whose target is multimodal never appears.
+  test("placedDepths reports only the depths actually WRITTEN (a non-string target is skipped, not reported)", () => {
+    const messages = asMixed([
+      { role: "user", content: longText },
+      { role: "assistant", content: longText },
+      { role: "user", content: [{ type: "text", text: longText }] },
+      { role: "assistant", content: longText },
+      { role: "user", content: longText },
+    ]);
+    // depth 1 → idx 3 (a string: written); depth 3 → idx 1... the multimodal row is idx 2, so pick the pair
+    // that lands on it: depth 2 → idx 2 (multimodal: computed, skipped).
+    const placed = placeHistoryCacheBreakpoint(messages, "", 2, CACHE_MIN);
+    expect(placed.placedDepths).toEqual([4]);
+    expect(Array.isArray(placed.messages[0]?.content)).toBe(true); // depth 4 → idx 0, written
+    expect(placed.messages[2]?.content).toEqual([{ type: "text", text: longText }]); // untouched
+  });
+
+  // A row whose content is an ARRAY (a multimodal part list) cannot RECEIVE a breakpoint on this dialect —
+  // but its bytes are on the wire and the `cacheMinTokens` floor is a measurement of the PREFIX. Counting
+  // such a row as zero tokens read a genuinely long prefix as below the floor and dropped BOTH breakpoints,
+  // i.e. caching silently off on exactly the expensive turns, with the error one-way (false negatives only).
+  test("array-content prefix rows COUNT toward the cacheMinTokens floor (only PLACEMENT is string-only)", () => {
+    const messages = asMixed([
+      { role: "user", content: [{ type: "text", text: longText }] },
+      { role: "assistant", content: "ok" },
+      { role: "user", content: "and?" },
+    ]);
+    // depth 1 → the assistant row: a plain string, so it CAN carry the block; the floor must see the
+    // multimodal user turn ahead of it.
+    const placed = placeHistoryCacheBreakpoint(messages, "", 1, CACHE_MIN);
+    expect(placed.messages[1]?.content).toEqual([{ type: "text", text: "ok", cacheControl: { type: "ephemeral", ttl: "1h" } }]);
   });
 });
 
@@ -631,7 +677,7 @@ describe("the history cache breakpoint is invariant across a within-turn tool ex
   /** The CONTENT of every row that came back carrying a cache_control block — identity by bytes, not index,
    *  so a pin says which conversational row was cached rather than which array slot. */
   function cachedRows(placed: ReturnType<typeof placeHistoryCacheBreakpoint>): string[] {
-    return placed.flatMap((message) => {
+    return placed.messages.flatMap((message) => {
       const content = message.content;
       if (!Array.isArray(content)) {
         return [];
@@ -668,7 +714,7 @@ describe("the history cache breakpoint is invariant across a within-turn tool ex
     const placed = placeHistoryCacheBreakpoint(asWire([...CANON, ...exchange(2)]), "", 1, CACHE_MIN);
     // Collected, then asserted once — a cached row is described by its role AND whether it carried tool
     // calls, and BOTH must be false for every block placed.
-    const cachedRowShapes = placed.flatMap((message) =>
+    const cachedRowShapes = placed.messages.flatMap((message) =>
       Array.isArray(message.content) ? [{ role: message.role, hadToolCalls: (message as { toolCalls?: unknown }).toolCalls !== undefined }] : [],
     );
     expect(cachedRowShapes).toEqual([
@@ -758,6 +804,36 @@ describe("the OR cache-placement gate reads the resolved turns flags (W3)", () =
     // OK_STREAM reports cachedTokens: 8, no cacheWrite ⇒ hitRatio 1.
     expect(fields["cacheReadTokens"]).toBe(8);
     expect(fields["hitRatio"]).toBe(1);
+  });
+
+  // THE RECEIPT IS AN OBSERVATION, NOT A RE-DERIVATION. It is the only signal a cache regression produces,
+  // so every number on it must be counted off the body that was sent. Two arms, both of which a recomputing
+  // receipt got wrong: the system block is reported only when one was WRITTEN (an empty static prompt gets
+  // no block, even on an Anthropic model — a bare `isAnthropicModel` check reported one anyway), and the
+  // history depths are the depths the writer actually wrote.
+  test("breakpointsPlaced counts the blocks ON THE WIRE — an empty static prompt reports NO system block", async () => {
+    const spy = vi.spyOn(logger, "info");
+    const { client } = streamingClient(OK_STREAM);
+    const wires: Record<string, unknown>[] = [];
+    await runChatCompletionTurn(
+      client,
+      makeRequest({
+        capability: { ...CAPABILITY, turns: CACHE_TURNS(1024) },
+        systemPrompt: { static: "", dynamic: "Be terse." },
+        history: longHistory(6),
+        historyCacheBreakpointFromEnd: 1,
+      }),
+      { ...DEPS, captureWire: (e): void => void wires.push(e.body) },
+    );
+    const messages = wires.at(0)?.["messages"] as { content: unknown }[];
+    const blocksOnWire = messages
+      .flatMap((m) => (Array.isArray(m.content) ? (m.content as Record<string, unknown>[]) : []))
+      .filter((b) => b["cache_control"] !== undefined);
+    const fields = spy.mock.calls.find((c) => (c[0] as { event?: string }).event === "provider.cache")?.[0] as Record<string, unknown>;
+    // The wire carries the R1 history pair and NO system block; the receipt says exactly that.
+    expect(blocksOnWire).toHaveLength(2);
+    expect(fields["breakpointsPlaced"]).toBe(2);
+    expect(fields["breakpointOffsets"]).toEqual([1, 3]);
   });
 
   test("a non-cache turn (explicitPromptCache false) emits NO provider.cache line", async () => {
