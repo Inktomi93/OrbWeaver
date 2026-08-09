@@ -16,6 +16,8 @@ const CONFIG: AuthConfig = {
   requiresLogin: true,
   localEnabled: true,
   oidcEnabled: false,
+  oidcProviderName: "your identity provider",
+  localFirstRun: false,
   discreetLogin: false,
   defaultHandle: null,
   multiHumanCapable: true,

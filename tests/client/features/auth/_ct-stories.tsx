@@ -10,6 +10,7 @@ import { useState } from "react";
 // The form + the per-mode dispatcher are feature INTERNALS the front door doesn't re-export — the
 // settings _ct-stories.tsx precedent for reaching one directly.
 import type { AuthConfig } from "../../../../packages/client/src/data/auth-config.ts";
+import { LoginFirstRunForm } from "../../../../packages/client/src/features/auth/components/login-first-run-form.tsx";
 import { LoginLocalForm } from "../../../../packages/client/src/features/auth/components/login-local-form.tsx";
 import { LoginBody } from "../../../../packages/client/src/features/auth/surfaces/login-surface.tsx";
 import { CtDataProviders } from "../../../support/ct/ct-data-providers.tsx";
@@ -50,6 +51,18 @@ export function LoginLocalFormStory({ defaultHandle }: { readonly defaultHandle:
   return (
     <div style={{ width: 360, padding: 16 }}>
       {loggedIn ? <p data-testid="ct-logged-in">logged in</p> : <LoginLocalForm defaultHandle={defaultHandle} onLoggedIn={(): void => setLoggedIn(true)} />}
+    </div>
+  );
+}
+
+/** B4 — the first-run owner-password setup form standalone (no router/query providers — plain controlled
+ *  state + a raw fetch to `/api/auth/first-run` the CT stubs via `page.route`). `onDone` surfaces as rendered
+ *  text so the CT asserts the success path without a navigation harness. */
+export function LoginFirstRunFormStory({ ownerHandle }: { readonly ownerHandle: string | null }): ReactElement {
+  const [done, setDone] = useState(false);
+  return (
+    <div style={{ width: 360, padding: 16 }}>
+      {done ? <p data-testid="ct-first-run-done">set up</p> : <LoginFirstRunForm ownerHandle={ownerHandle} onDone={(): void => setDone(true)} />}
     </div>
   );
 }

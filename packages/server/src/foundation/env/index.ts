@@ -155,7 +155,11 @@ function envBool(fallback: boolean): z.ZodDefault<z.ZodCodec<z.ZodString, z.ZodB
  *  and fails CLOSED on) rather than hard-fatal at parse. */
 const AUTH_MODE_REQUIRED_ENV = {
   "single-user": [],
-  local: ["SESSION_SECRET", "LOCAL_INITIAL_PASSWORD"],
+  // B4 — LOCAL_INITIAL_PASSWORD is NO LONGER required: a fresh local box seeds the owner row with a NULL
+  // password and the in-app first-run setup (`POST /api/auth/first-run`, gated on that null) claims it on
+  // first visit. SESSION_SECRET stays required (the scrypt pepper + session-token HMAC). Setting
+  // LOCAL_INITIAL_PASSWORD still works — it seeds the password at boot, so the first-run screen never appears.
+  local: ["SESSION_SECRET"],
   oidc: ["OIDC_ISSUER", "OIDC_CLIENT_ID", "OIDC_CLIENT_SECRET", "OIDC_REDIRECT_URIS", "SESSION_SECRET"],
   "forward-header": [],
 } as const satisfies Record<(typeof AUTH_MODES)[number], readonly string[]>;
@@ -367,6 +371,9 @@ const envSchema = z
     OIDC_CLIENT_ID: z.string().min(1).optional(),
     OIDC_CLIENT_SECRET: z.string().min(1).optional(),
     OIDC_REDIRECT_URIS: z.string().min(1).optional(),
+    // A8 — the human-facing IdP name shown on the login surface's "Continue with {name}" button. Served on
+    // /api/auth/config; default is generic so an un-branded oidc box still reads sensibly.
+    OIDC_PROVIDER_NAME: z.string().min(1).default("your identity provider"),
     // Provider-agnostic claim/scope mapping; defaults are authentik's shape. A claim name may be a
     // dot-path (e.g. user.memberOf) for nested claims.
     OIDC_SCOPES: z.string().min(1).default("openid profile email"),

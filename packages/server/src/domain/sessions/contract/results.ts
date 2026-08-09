@@ -29,10 +29,30 @@ export interface ValidatedSession {
  *  `allow` carries the derived global role. */
 export type IdentityAccess = { readonly outcome: "allow"; readonly role: UserRole } | { readonly outcome: "deny" };
 
+/** Why a `provisionIdentity` login was refused. Only `account-exists` (MS-W1 collision hard-deny) needs a
+ *  DISTINCT, operator-actionable message; the other refusals collapse to the generic "not authorized". Kept a
+ *  single-member union (extensible) rather than enumerating every deny site, so adding a distinct reason is a
+ *  local change. */
+type ProvisionDenyReason = "account-exists";
+
 /** `provisionIdentity` output — a discriminated union: `provisioned` (the upserted row's live login state)
  *  or `denied` (the login gate refused the identity — no row is created/updated). Distinct from
- *  `enabled:false` (a disabled account, surfaced as 403). */
-export type ProvisionResult = { readonly outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole } | { readonly outcome: "denied" };
+ *  `enabled:false` (a disabled account, surfaced as 403). `reason` is set only where the callback must emit a
+ *  DISTINCT authError (MS-W1 `account-exists`); absent ⇒ the generic not-authorized deny. */
+export type ProvisionResult =
+  | { readonly outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole }
+  | { readonly outcome: "denied"; readonly reason?: ProvisionDenyReason };
+
+/** B5 — `linkExternalId` output. `linked` = the subject was stamped onto the row; `already-linked` = the
+ *  row already carried exactly this subject (idempotent no-op); `not-found` = no such row; `target-bound` =
+ *  the row is already bound to a DIFFERENT stable subject (bind-once refusal — never rebound); `subject-taken`
+ *  = the subject already lives on another row. The admin wrapper maps each to a typed operation code. */
+export type LinkExternalIdResult =
+  | { readonly outcome: "linked"; readonly userId: UserId }
+  | { readonly outcome: "already-linked"; readonly userId: UserId }
+  | { readonly outcome: "not-found" }
+  | { readonly outcome: "target-bound" }
+  | { readonly outcome: "subject-taken" };
 
 /** `loadUserById` output: a bare row id's live principal-fields — the frozen-host → `Principal` bridge.
  *  The read itself gates NOTHING; it REPORTS `enabled` and each caller decides (the auth seam's REQUEST arm

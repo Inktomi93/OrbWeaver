@@ -10,12 +10,14 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactElement } from "react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { AuthConfig } from "#data";
 import { useAuthConfig } from "#data";
 import { testId, useFocusOnMount } from "#lib";
+import { LoginFirstRunForm } from "../components/login-first-run-form.tsx";
 import { LoginLocalForm } from "../components/login-local-form.tsx";
 import { authErrorMessage } from "../lib/auth-error.ts";
+import { shouldAutoRedirectToSso } from "../lib/sso-redirect.ts";
 
 /** The per-mode login card content (mounted inside `LoginShellAnchor` by the /login route). */
 export function LoginSurface(): ReactElement {
@@ -25,10 +27,21 @@ export function LoginSurface(): ReactElement {
   const navigate = useNavigate();
   const goHome = (): void => void navigate({ to: "/", replace: true });
 
+  const search = globalThis.location.search;
   // A7 — the OIDC callback lands here with ?authError=<sanitized code> on any failed sign-in; surface it as a
   // human message above the Continue button. Read from location (the callback is a full-document 302, so the
   // SPA boots fresh with the param present) and mapped to copy — never the raw token.
-  const authError = authErrorMessage(new URLSearchParams(globalThis.location.search).get("authError"));
+  const authError = authErrorMessage(new URLSearchParams(search).get("authError"));
+
+  // A9 — SSO-only auto-redirect: in oidc mode, send the browser straight to the IdP unless suppressed
+  // (?authError after a failed round-trip, or ?form to force the manual button). The route guard already
+  // keeps authed users off /login, so this only fires for the genuinely-unauthenticated case.
+  const autoRedirect = config.data !== undefined && shouldAutoRedirectToSso(config.data.mode, search);
+  useEffect(() => {
+    if (autoRedirect) {
+      globalThis.location.assign("/api/auth/oidc/login");
+    }
+  }, [autoRedirect]);
 
   const body = ((): ReactElement => {
     if (config.isPending) {
@@ -36,6 +49,11 @@ export function LoginSurface(): ReactElement {
     }
     if (config.data === undefined) {
       return <LoginUnreachable onRetry={(): void => void config.refetch()} />;
+    }
+    if (autoRedirect) {
+      // The effect above is navigating away — show a settled "redirecting" note, not the manual button that
+      // would flash-then-vanish.
+      return <LoginRedirecting providerName={config.data.oidcProviderName} />;
     }
     return <LoginBody config={config.data} authError={authError} onDone={goHome} />;
   })();
@@ -60,7 +78,15 @@ export function LoginBody({
 }): ReactElement {
   switch (config.mode) {
     case "local":
-      return (
+      // B4 — a fresh local box (owner has no password yet) renders the first-run setup form instead of the
+      // credential form; the server serves `localFirstRun` only on a local/trusted origin, so this arm is
+      // reachable exactly where the setup endpoint accepts a claim.
+      return config.localFirstRun ? (
+        <Stack gap="block">
+          <Heading level={1}>Set up your server</Heading>
+          <LoginFirstRunForm ownerHandle={config.defaultHandle} onDone={onDone} />
+        </Stack>
+      ) : (
         <Stack gap="block">
           <Heading level={1}>Sign in</Heading>
           <LoginLocalForm defaultHandle={config.defaultHandle} onLoggedIn={onDone} />
@@ -71,7 +97,7 @@ export function LoginBody({
         <Stack gap="block">
           <Heading level={1}>Sign in</Heading>
           <Text size="label" tone="muted">
-            You'll be redirected to your identity provider, then back here.
+            You'll be redirected to {config.oidcProviderName}, then back here.
           </Text>
           {authError === null ? null : (
             // `voice="label"` is the feature type axis; the destructive color rides a semantic-token className
@@ -88,7 +114,7 @@ export function LoginBody({
               globalThis.location.assign("/api/auth/oidc/login");
             }}
           >
-            Continue
+            Continue with {config.oidcProviderName}
           </Button>
         </Stack>
       );
@@ -122,6 +148,18 @@ export function LoginBody({
 /** Exhaustiveness backstop — a new `AUTH_MODES` member fails `tsc` here. */
 function assertNeverMode(mode: never): never {
   throw new Error(`unhandled auth mode: ${String(mode)}`);
+}
+
+/** A9 — the settled "redirecting to the IdP" note shown while the auto-redirect effect navigates away. */
+function LoginRedirecting({ providerName }: { readonly providerName: string }): ReactElement {
+  return (
+    <Stack gap="block">
+      <Heading level={1}>Signing in…</Heading>
+      <Text voice="label" className="text-muted-foreground">
+        Redirecting you to {providerName}.
+      </Text>
+    </Stack>
+  );
 }
 
 function LoginLoading(): ReactElement {

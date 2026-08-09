@@ -79,6 +79,9 @@ function stubSessions(validate: SessionsService["validate"]): SessionsService {
     loadUserById: unused("loadUserById") as SessionsService["loadUserById"],
     resolveHandle: unused("resolveHandle") as SessionsService["resolveHandle"],
     authenticate: unused("authenticate") as SessionsService["authenticate"],
+    linkExternalId: unused("linkExternalId") as SessionsService["linkExternalId"],
+    ownerNeedsPassword: unused("ownerNeedsPassword") as SessionsService["ownerNeedsPassword"],
+    claimOwnerPassword: unused("claimOwnerPassword") as SessionsService["claimOwnerPassword"],
   };
 }
 
@@ -160,6 +163,7 @@ function appDeps(): AppDeps {
   return {
     now: (): number => FROZEN_NOW,
     db: NO_DB,
+    oidcProviderName: "your identity provider",
     seam: {
       // The slide fires on every request: the middleware re-issues Set-Cookie ONLY from the token it
       // itself parsed off the Cookie header, so the header value is this probe's observable.

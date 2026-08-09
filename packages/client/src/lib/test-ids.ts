@@ -14,6 +14,13 @@ export const TEST_IDS = {
   loginOidc: "login-oidc",
   // A7 — the OIDC callback error line rendered above the Continue button when /login?authError=<code> is set.
   loginAuthError: "login-auth-error",
+  // B4 — the local-mode FIRST-RUN owner-password setup form (rendered in place of the credential form on a
+  // fresh local box: password + confirm + submit + inline error).
+  firstRunSetupForm: "first-run-setup-form",
+  firstRunPassword: "first-run-password",
+  firstRunConfirm: "first-run-confirm",
+  firstRunSubmit: "first-run-submit",
+  firstRunError: "first-run-error",
   accountSurface: "account-surface",
   accountLogout: "account-logout",
   firstRunPersonaDialog: "first-run-persona-dialog",
@@ -24,6 +31,14 @@ export const TEST_IDS = {
   adminApprovalsSection: "admin-approvals-section",
   adminApproveButton: "admin-approve",
   adminApprovalsEmpty: "admin-approvals-empty",
+  // B5 — the "Link SSO identity" admin section: lists linkable (unbound, non-owner, human) rows; each row's
+  // Link opens a dialog with a stable-subject field. Empty state when nothing is linkable.
+  adminLinkSsoSection: "admin-link-sso-section",
+  adminLinkSsoEmpty: "admin-link-sso-empty",
+  adminLinkButton: "admin-link-sso",
+  adminLinkSsoDialog: "admin-link-sso-dialog",
+  adminLinkSsoSubject: "admin-link-sso-subject",
+  adminLinkSsoSubmit: "admin-link-sso-submit",
   adminCreateUserButton: "admin-create-user",
   adminCreateUserDialog: "admin-create-user-dialog",
   adminCreateUserSubmit: "admin-create-user-submit",

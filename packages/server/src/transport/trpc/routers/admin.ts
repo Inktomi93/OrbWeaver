@@ -8,7 +8,7 @@
 // `infra/providers`; admin owns the port shape, transport just delegates).
 
 import { userRoleSchema } from "@orb/contracts/identity";
-import type { CharacterId, Handle, SessionId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { adminProcedure, t } from "../trpc.ts";
@@ -53,6 +53,13 @@ export const adminRouter = t.router({
     });
     return { ok: true } as const;
   }),
+
+  // B5 — link an existing non-owner human row to a stable SSO subject (the db-surgery-free mode-switch
+  // migration). `externalId` is the IdP-stable id (never an email); the verb refuses owner/agent targets and
+  // a subject already bound elsewhere (bind-once, spine U1).
+  linkSsoIdentity: adminProcedure
+    .input(z.object({ userId: brandedId<UserId>(), externalId: brandedId<ExternalId>() }))
+    .mutation(({ ctx, input }) => ctx.services.admin.linkSsoIdentity({ principal: ctx.auth, userId: input.userId, externalId: input.externalId })),
 
   listSessions: adminProcedure
     .input(z.object({ userId: brandedId<UserId>() }))

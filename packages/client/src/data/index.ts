@@ -3,7 +3,7 @@
 // factories every surface builds on (§13.2: a surface not using its primitive is the review flag).
 
 export type { AuthMe } from "./auth-bootstrap.ts";
-export { AUTH_ME_KEY, fetchAuthMe, login, logout } from "./auth-bootstrap.ts";
+export { AUTH_ME_KEY, fetchAuthMe, firstRunSetup, login, logout } from "./auth-bootstrap.ts";
 export type { AuthConfig } from "./auth-config.ts";
 export { AUTH_CONFIG_KEY, fetchAuthConfig, useAuthConfig, useExternalMediaBlocked, useRenderPolicyFloor, useUploadCaps } from "./auth-config.ts";
 export type { BusRoomHandlers, ChatBusDeps, RoomSubscriber, RoomTransport, RpgBusDeps, UserBusDeps } from "./bus/index.ts";
