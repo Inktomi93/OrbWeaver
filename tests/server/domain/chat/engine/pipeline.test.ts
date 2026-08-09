@@ -1039,6 +1039,8 @@ function script(label: string, find: string, replace: string, placement: "AI_OUT
     // D121-E: a row id is a real `regex_script_…` TypeID; the readable label rides on `name`.
     id: mintTypeId(ID_PREFIX.regexScript),
     name: label,
+    // X-16: `updatedAt` is REQUIRED on the row (the edited stamp) — a fixed instant keeps the double honest.
+    updatedAt: 1_700_000_000_000,
     findRegex: find,
     replaceString: replace,
     placement: [placement],
@@ -1824,6 +1826,7 @@ describe("runTurnPipeline — the §3 content-class wire plane", () => {
         regexScriptSchema.parse({
           id: mintTypeId(ID_PREFIX.regexScript),
           name: "s",
+          updatedAt: 1_700_000_000_000,
           enabled: true,
           placement: ["AI_OUTPUT"],
           findRegex: "alpha",
