@@ -34,11 +34,11 @@ const TRAILING_SLASHES_RE = /\/+$/u;
 // (declFile, declStart) identity separator — a NUL can never appear in a path or a decimal offset.
 const KEY_SEP = "\u0000";
 
-type Flags = { in: string | null; json: boolean; max: number; filesOnly: boolean };
+type Flags = { in: string | null; json: boolean; max: number; filesOnly: boolean; public: boolean };
 type Hit = { file: string; line: number; kind: string; text: string };
 
 function parseFlags(rest: string[]): Flags {
-  const flags: Flags = { in: null, json: false, max: DEFAULT_MAX, filesOnly: false };
+  const flags: Flags = { in: null, json: false, max: DEFAULT_MAX, filesOnly: false, public: false };
   for (let i = 0; i < rest.length; i += 1) {
     const t = rest[i];
     if (t === "--in") {
@@ -48,6 +48,8 @@ function parseFlags(rest: string[]): Flags {
       flags.json = true;
     } else if (t === "--files") {
       flags.filesOnly = true;
+    } else if (t === "--public") {
+      flags.public = true;
     } else if (t === "--max") {
       flags.max = Number(rest[i + 1] ?? DEFAULT_MAX) || DEFAULT_MAX;
       i += 1;
@@ -3473,6 +3475,301 @@ function cmdStringy(project: Project, arg: string, flags: Flags): void {
   emit(audit.candidates.map(stringyHit), flags, `stringy ${scope.label}`);
 }
 
+// ── apisurface: exports partitioned by PACKAGE-BOUNDARY consumption (PUBLIC / INTERNAL / UNUSED) ─────────
+// The barrel-bloat class every liveness lens above is blind to. `orphans` is BINARY — any importer (prod or
+// test) vs none — so an export imported all over its OWN package but by no other package reads exactly like a
+// real cross-boundary API. The push-tier ratchet inherits that blindness: it can pin "reached by nobody", it
+// cannot see "reached only from inside its own package", which is a barrel export that should be module-private.
+// This verb asks the question the ratchet cannot: for each export, is it consumed ACROSS a workspace-package
+// boundary (real public API), only WITHIN its own package (accidental public surface), or not at all (rot)?
+//
+// THE THREE CLASSES (plus one flagged arm of PUBLIC):
+//   • PUBLIC — ≥1 PROD consumer in a DIFFERENT workspace package (or a script/tooling consumer outside
+//     packages/). The real cross-boundary API. The consuming package(s) are printed. `(type-only)` is noted
+//     when every cross-package consumer imported it as a TYPE (`import type` / `import { type X }`) — still
+//     public API, but a shape not a runtime value.
+//   • INTERNAL — consumed ONLY within its own package (an other-file import in the same package, or a use in
+//     its own file). A candidate to un-export from the barrel / make module-private. A same-package consumer
+//     is printed.
+//   • UNUSED — reached by NOBODY, prod or test, and unused in its own file: the `orphans` set, re-surfaced
+//     here with boundary context. Delegated to `collectOrphanCandidates` VERBATIM so the two lenses can never
+//     disagree about what an orphan is (and star-suppressed candidates carry the same caveat orphans gives).
+//   • TEST-ONLY — the `testonly` arm, flagged distinctly: no PROD consumer anywhere, but a test imports it.
+//     Cross-boundary (tests live outside packages/ and import via `@orb/*`) but NOT prod API — never counted
+//     as PUBLIC, so a PUBLIC count is a real prod-API count.
+//
+// WHY A DEDICATED PER-PACKAGE PASS, not `Liveness.consumers` (the declaration-granular edge map `chains`
+// reads). Two reasons, both correctness: (1) that map only records an edge when the imported local binding is
+// SPELLED in the importing file, so an imported-but-unused cross-package export shows ZERO consumer edges
+// while `usedProd` (import-edge presence) says alive — which would desync the PUBLIC/INTERNAL split from the
+// UNUSED split this verb takes from `orphans`; (2) it carries no type-only bit. So this pass mirrors
+// `markImportConsumption`'s EXACT origin resolution (named specifiers through `getExportedDeclarations().get`,
+// namespace + dynamic imports as whole-surface err-alive — the same arms `orphans` trusts) but buckets by the
+// IMPORTING file's package instead of client/server/test, and records the type-only bit. It is the same
+// parallel-arm shape the file already carries (`buildLiveness` vs `recordDeclarationEdges`).
+//
+// KEYED ON `declKey`, NEVER A NAME — same rule as every liveness lens: a renaming barrel hop resolves to the
+// origin declaration through `getExportedDeclarations()`, so an alias cannot fork an export's identity.
+//
+// CANDIDATE lens, MANUAL tier — never a gate. The INTERNAL verdict is EVIDENCE for a policy call (un-export it),
+// never proof: a same-package-only export may be a deliberate seam wired at a composition root, and a
+// cross-package namespace consumer (`import * as ns`) promotes a whole module to PUBLIC exactly as `orphans`
+// errs alive — VERIFY with `swallowed` before acting. The report this feeds drives an owner ruling, not a delete.
+
+/** ONE workspace package's src prefix pattern — the seam that names the package a source file belongs to. */
+const PKG_SRC_RE = /\/packages\/(?<pkg>[^/]+)\/src\//u;
+
+/** The workspace package a source file belongs to (`server`, `contracts`, …), or undefined for a file outside
+ *  any package src tree (a script, a package's own build config) — a "tooling" consumer. */
+function packageOfSrcFile(fp: string): string | undefined {
+  return PKG_SRC_RE.exec(fp)?.groups?.["pkg"];
+}
+
+/** The consumer label for a script/tooling file (outside any package src) — a real prod consumer that is not
+ *  a workspace package, so it makes an export PUBLIC while naming that it is not a package boundary. */
+const TOOLING_CONSUMER_LABEL = "scripts/tooling";
+
+/** ONE origin's cross-workspace consumption, bucketed by the IMPORTING file's package. Built by mirroring
+ *  `markImportConsumption`'s resolution — so an import EDGE is consumption, matching `usedProd` (and thus the
+ *  UNUSED split taken from `orphans`), never the finer "was the binding spelled" question the edge map asks. */
+type ApiConsumption = {
+  /** consuming workspace package → the first prod import site (`file:line`) from it. May include the origin's own. */
+  readonly prodPkgs: Map<string, string>;
+  /** packages that consumed via at least one VALUE (non-`import type`) import — the type-only note's inverse. */
+  readonly valuePkgs: Set<string>;
+  /** first non-package, non-test prod consumer (a script / a package build config) — a tooling consumer. */
+  toolingSite: string | undefined;
+  /** first test-path consumer — the TEST-ONLY arm when no prod consumer exists. */
+  testSite: string | undefined;
+};
+
+/** `<repo-rel file>:<line>` for a node's own start — the site form every hit prints. */
+function nodeSite(node: Node): string {
+  const sf = node.getSourceFile();
+  return `${relPath(sf.getFilePath())}:${sf.getLineAndColumnAtPos(node.getStart()).line}`;
+}
+
+/** ONE consumer of an origin: the importing file, the import site, and whether the import was a VALUE (not
+ *  type-only). Bundled so the record function stays inside the house 4-parameter budget. */
+type ApiConsumer = { readonly fp: string; readonly site: string; readonly isValue: boolean };
+
+/** Record that `consumer` reaches `originKey`. Buckets exactly as the liveness does: test path → testSite;
+ *  a package src file → prodPkgs; anything else (scripts/config) → toolingSite. */
+function recordApiConsumer(map: Map<string, ApiConsumption>, originKey: string, consumer: ApiConsumer): void {
+  let rec = map.get(originKey);
+  if (rec === undefined) {
+    rec = { prodPkgs: new Map(), valuePkgs: new Set(), toolingSite: undefined, testSite: undefined };
+    map.set(originKey, rec);
+  }
+  if (isTestPath(consumer.fp)) {
+    rec.testSite ??= consumer.site;
+    return;
+  }
+  const pkg = packageOfSrcFile(consumer.fp);
+  if (pkg === undefined) {
+    rec.toolingSite ??= consumer.site;
+    return;
+  }
+  if (!rec.prodPkgs.has(pkg)) {
+    rec.prodPkgs.set(pkg, consumer.site);
+  }
+  if (consumer.isValue) {
+    rec.valuePkgs.add(pkg);
+  }
+}
+
+/** ONE static import's per-package consumption: named specifiers + default resolve to origins (type-only bit
+ *  per specifier / per `import type` clause); `import * as ns` marks the target's WHOLE surface (err alive,
+ *  value unless `import type * as`). `export { X } from` is a re-export pass-through, never consumption —
+ *  which is why only IMPORT declarations are walked, exactly as `markImportConsumption` does. */
+function recordImportApiConsumption(imp: ImportDeclaration, consumerFp: string, map: Map<string, ApiConsumption>): void {
+  const target = imp.getModuleSpecifierSourceFile();
+  if (target === undefined) {
+    return;
+  }
+  const site = nodeSite(imp);
+  const typeOnlyImport = imp.isTypeOnly();
+  const ns = imp.getNamespaceImport();
+  if (ns !== undefined) {
+    for (const key of exposedNames(target).keys()) {
+      recordApiConsumer(map, key, { fp: consumerFp, site, isValue: !typeOnlyImport });
+    }
+    return;
+  }
+  const exported = target.getExportedDeclarations();
+  for (const spec of imp.getNamedImports()) {
+    const isValue = !(typeOnlyImport || spec.isTypeOnly());
+    for (const decl of exported.get(spec.getName()) ?? []) {
+      recordApiConsumer(map, declKey(decl), { fp: consumerFp, site, isValue });
+    }
+  }
+  if (imp.getDefaultImport() !== undefined) {
+    for (const decl of exported.get("default") ?? []) {
+      recordApiConsumer(map, declKey(decl), { fp: consumerFp, site, isValue: !typeOnlyImport });
+    }
+  }
+}
+
+/** ONE file's dynamic `import()` targets: each keeps the whole target surface alive (err alive, value —
+ *  a runtime import can access any member), attributed to the importing file's package. */
+function recordDynamicApiConsumption(sf: SourceFile, project: Project, consumerFp: string, map: Map<string, ApiConsumption>): void {
+  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
+    const target = dynamicImportTargetOf(call, sf, project);
+    if (target === undefined) {
+      continue;
+    }
+    const site = `${relPath(consumerFp)}:${call.getStartLineNumber()}`;
+    for (const decls of target.getExportedDeclarations().values()) {
+      for (const decl of decls) {
+        recordApiConsumer(map, declKey(decl), { fp: consumerFp, site, isValue: true });
+      }
+    }
+  }
+}
+
+/** origin-key → per-package consumption, over the WHOLE workspace (imports + dynamic imports of every file). */
+function buildApiConsumption(project: Project): Map<string, ApiConsumption> {
+  const map = new Map<string, ApiConsumption>();
+  for (const sf of project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    for (const imp of sf.getImportDeclarations()) {
+      recordImportApiConsumption(imp, fp, map);
+    }
+    recordDynamicApiConsumption(sf, project, fp, map);
+  }
+  return map;
+}
+
+/** The boundary class of an export. TEST-ONLY is the flagged arm of PUBLIC (cross-boundary but not prod API). */
+export type ApiClass = "public" | "internal" | "test-only" | "unused";
+
+/** ONE classified export: its class, its home package, the consuming package(s) that decided a PUBLIC verdict
+ *  (or the same-package/tooling consumer that decided an INTERNAL one), a reader-facing evidence site, and the
+ *  two caveats a verdict is priced with (`typeOnly` for a PUBLIC shape only ever imported as a type;
+ *  `starSuppressed` for an UNUSED candidate reachable through an `export *` chain, as `orphans` reports). */
+export type ApiSurfaceEntry = {
+  readonly name: string;
+  readonly decl: Node;
+  readonly klass: ApiClass;
+  readonly ownPkg: string;
+  readonly consumers: readonly string[];
+  readonly evidence: string;
+  readonly typeOnly: boolean;
+  readonly starSuppressed: boolean;
+};
+
+/** The two workspace-wide maps `classifyApiExport` reads: the per-package consumption record, and the
+ *  `orphans` set (its key → star-suppressed flag). Bundled so the classifier stays inside the 4-param budget. */
+type ApiScanCtx = { readonly consumption: ReadonlyMap<string, ApiConsumption>; readonly orphanStar: ReadonlyMap<string, boolean> };
+
+/** Classify ONE own-export. UNUSED is decided FIRST, off the `orphans` set (so the two lenses never disagree);
+ *  otherwise the per-package consumption record splits PUBLIC (a cross-package/tooling prod consumer) from
+ *  INTERNAL (own-package prod use or own-file use) from TEST-ONLY (only a test reaches it). `sf`/`ownPkg` are
+ *  derived from the declaration, so the caller passes only the export and the scan context. */
+function classifyApiExport(name: string, decl: Node, ctx: ApiScanCtx): ApiSurfaceEntry {
+  const sf = decl.getSourceFile();
+  const ownPkg = packageOfSrcFile(sf.getFilePath()) ?? "(no-package)";
+  const key = declKey(decl);
+  const base = { name, decl, ownPkg, consumers: [] as string[], evidence: "", typeOnly: false, starSuppressed: false };
+  if (ctx.orphanStar.has(key)) {
+    return { ...base, klass: "unused", evidence: "reached by nobody (prod or test)", starSuppressed: ctx.orphanStar.get(key) === true };
+  }
+  const rec = ctx.consumption.get(key);
+  const crossPkgs = rec === undefined ? [] : [...rec.prodPkgs.keys()].filter((pkg) => pkg !== ownPkg).sort(byProdFirst);
+  const tooling = rec?.toolingSite !== undefined;
+  if (crossPkgs.length > 0 || tooling) {
+    const consumers = tooling ? [...crossPkgs, TOOLING_CONSUMER_LABEL] : crossPkgs;
+    const typeOnly = !tooling && crossPkgs.length > 0 && crossPkgs.every((pkg) => !(rec?.valuePkgs.has(pkg) ?? false));
+    const evidence = rec?.prodPkgs.get(crossPkgs[0] ?? "") ?? rec?.toolingSite ?? "";
+    return { ...base, klass: "public", consumers, evidence, typeOnly };
+  }
+  const ownPkgSite = rec?.prodPkgs.get(ownPkg);
+  if (ownPkgSite !== undefined || isReferencedInOwnFile(sf, name, decl)) {
+    return { ...base, klass: "internal", consumers: [ownPkg], evidence: ownPkgSite ?? `own-file use — ${nodeSite(decl)}` };
+  }
+  return { ...base, klass: "test-only", evidence: rec?.testSite ?? "a test import" };
+}
+
+/** Every own-export whose declaring file is `inScope` (non-test), classified by package-boundary consumption.
+ *  Pure enumeration — no printing, no scope policy (the verb owns both) — so the self-test drives the exact
+ *  function the CLI does. The UNUSED arm is `collectOrphanCandidates` verbatim; the rest is the per-package pass. */
+export function collectApiSurface(project: Project, inScope: (filePath: string) => boolean): ApiSurfaceEntry[] {
+  const live = buildLiveness(project);
+  const orphanStar = new Map(collectOrphanCandidates(project, live, inScope).map((candidate) => [declKey(candidate.decl), candidate.starSuppressed]));
+  const ctx: ApiScanCtx = { consumption: buildApiConsumption(project), orphanStar };
+  const out: ApiSurfaceEntry[] = [];
+  for (const sf of project.getSourceFiles()) {
+    const fp = sf.getFilePath();
+    if (!inScope(fp) || TEST_FILE_RE.test(fp)) {
+      continue;
+    }
+    for (const { name, decl } of ownExports(sf)) {
+      out.push(classifyApiExport(name, decl, ctx));
+    }
+  }
+  return out;
+}
+
+/** The four classes in report order — actionable rot first, healthy PUBLIC last. */
+const API_CLASS_ORDER: readonly ApiClass[] = ["unused", "internal", "test-only", "public"];
+/** Summary-table column widths: the package-name column and each right-aligned count column (wide enough for
+ *  the longest header, `INTERNAL`/`TESTONLY`). */
+const API_PKG_COL = 12;
+const API_COUNT_COL = 10;
+
+/** The per-package count table — the deliverable a reader wants above the hit list: how many exports of each
+ *  package are PUBLIC / INTERNAL / TEST-ONLY / UNUSED, so a ZERO is legible as clean rather than as blindness. */
+function printApiSummary(entries: readonly ApiSurfaceEntry[], scannedFiles: number, label: string): void {
+  const byPkg = new Map<string, ApiSurfaceEntry[]>();
+  for (const entry of entries) {
+    byPkg.set(entry.ownPkg, [...(byPkg.get(entry.ownPkg) ?? []), entry]);
+  }
+  const cell = (s: string): string => s.padStart(API_COUNT_COL);
+  console.log(`apisurface ${label}: ${entries.length} own-export(s) across ${byPkg.size} package(s), scanned ${scannedFiles} source file(s)`);
+  console.log(`  ${"package".padEnd(API_PKG_COL)}${cell("PUBLIC")}${cell("INTERNAL")}${cell("TESTONLY")}${cell("UNUSED")}`);
+  for (const [pkg, list] of [...byPkg.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const n = (klass: ApiClass): string => String(list.filter((entry) => entry.klass === klass).length);
+    const unusedStar = list.filter((entry) => entry.klass === "unused" && entry.starSuppressed).length;
+    const starNote = unusedStar === 0 ? "" : ` (${unusedStar} star-suppressed)`;
+    console.log(`  ${pkg.padEnd(API_PKG_COL)}${cell(n("public"))}${cell(n("internal"))}${cell(n("test-only"))}${cell(n("unused"))}${starNote}`);
+  }
+}
+
+/** ONE classified export as a printable Hit — the class in the [kind], the deciding evidence in the text. */
+function apiSurfaceHit(entry: ApiSurfaceEntry): Hit {
+  const h = hitOf(entry.decl, `api-${entry.klass}`);
+  const detail = ((): string => {
+    if (entry.klass === "public") {
+      return `PUBLIC — consumed by ${entry.consumers.join(", ")}${entry.typeOnly ? " (type-only)" : ""}  @ ${entry.evidence}`;
+    }
+    if (entry.klass === "internal") {
+      return `INTERNAL to ${entry.ownPkg} (consumed only within its own package)  @ ${entry.evidence}`;
+    }
+    if (entry.klass === "test-only") {
+      return `TEST-ONLY (no prod consumer; a test imports it — not prod API)  @ ${entry.evidence}`;
+    }
+    return `UNUSED (${entry.evidence})${entry.starSuppressed ? " [star-suppressed — may be reached via an export* namespace consumer]" : ""}`;
+  })();
+  h.text = `${entry.name}  —  ${detail}`;
+  return h;
+}
+
+/** Exports partitioned by package-boundary consumption: PUBLIC (cross-package prod API) / INTERNAL (own-package
+ *  only — barrel-bloat candidate) / TEST-ONLY (test-reached, not prod API) / UNUSED (the `orphans` set). Default
+ *  emits the actionable arms (INTERNAL + TEST-ONLY + UNUSED); `--public` adds the PUBLIC rows. Optional scope
+ *  (a package name / path); bare = every package. */
+function cmdApiSurface(project: Project, arg: string, flags: Flags): void {
+  const scope = arg === "" ? { prefix: PACKAGES_PREFIX, label: "(all packages)" } : resolveScope(project, arg, "apisurface");
+  const entries = collectApiSurface(project, (fp) => fp.includes(scope.prefix));
+  printApiSummary(entries, project.getSourceFiles().length, scope.label);
+  console.log(
+    "apisurface is a CANDIDATE lens — an INTERNAL verdict is EVIDENCE that an export could be made module-private, never proof (a same-package-only export may be a deliberate seam wired at a composition root). UNUSED is the `orphans` set verbatim; a namespace consumer (`import * as ns`) promotes a whole module to PUBLIC exactly as `orphans` errs alive — verify with `swallowed`. Default lists INTERNAL + TEST-ONLY + UNUSED (the actionable arms); pass `--public` to also list the cross-package PUBLIC rows.",
+  );
+  const shown = flags.public ? API_CLASS_ORDER : API_CLASS_ORDER.filter((klass) => klass !== "public");
+  const hits = shown.flatMap((klass) => entries.filter((entry) => entry.klass === klass).map(apiSurfaceHit));
+  emit(hits, flags, `apisurface ${scope.label}${flags.public ? "" : " (INTERNAL/TEST-ONLY/UNUSED — pass --public for PUBLIC)"}`);
+}
+
 const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => void> = {
   refs: cmdRefs,
   callers: cmdCallers,
@@ -3494,6 +3791,7 @@ const VERBS: Record<string, (project: Project, arg: string, flags: Flags) => voi
   regkeys: cmdRegKeys,
   chains: cmdChains,
   stringy: cmdStringy,
+  apisurface: cmdApiSurface,
 };
 
 // depcruise pass-throughs — the module-graph layer (the same config + rules the gates run), in
@@ -3532,10 +3830,11 @@ const TYPED_VERBS = new Set([
   "columns",
   "chains",
   "stringy",
+  "apisurface",
 ]);
 
 // Verbs whose scope arg is OPTIONAL (default to the whole surface) — run bare, arg defaults to "".
-const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell", "typeonly-alive", "columns", "regkeys", "chains", "stringy"]);
+const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell", "typeonly-alive", "columns", "regkeys", "chains", "stringy", "apisurface"]);
 
 const VERB_LIST = [...Object.keys(VERBS), ...Object.keys(DEPCRUISE_VERBS)].join("|");
 const USAGE = [
@@ -3564,6 +3863,7 @@ const USAGE = [
   "  pnpm ast regkeys TEMPLATE_DEFS     registry ROWS whose key is dispatched nowhere (HEURISTIC, informational)",
   "  pnpm ast chains server             WHOLE dead chains: declarations alive only via other DEAD declarations",
   "  pnpm ast stringy kit               type aliases that RESOLVE to bare `string` (no narrowing, no brand)",
+  "  pnpm ast apisurface contracts      exports by package boundary: PUBLIC (cross-pkg) / INTERNAL / UNUSED",
   "  pnpm ast flow chat/engine          module graph: X's direct edges both ways (depcruise, text)",
   "  pnpm ast reaches agent-sdk         every module that can transitively reach X (depcruise)",
   "",
@@ -3665,9 +3965,24 @@ const USAGE = [
   "  it, or DELETE the alias and use the primitive. No exemption marker and no gate (owner-ruled: the verdict is",
   "  a human's four-way call, and a marker no gate reads is dead vocabulary). Optional scope; bare = all packages.",
   "",
+  "apisurface (CANDIDATE lens, run on demand) = the BARREL-BLOAT class `orphans`/the ratchet are blind to.",
+  "  `orphans` is BINARY (any importer vs none), so an export used all over its OWN package but by no other",
+  "  package reads exactly like a real cross-boundary API. This verb partitions every export by the PACKAGE of",
+  "  its consumers: PUBLIC (≥1 PROD consumer in a DIFFERENT workspace package — the consuming package(s) are",
+  "  printed; `(type-only)` when every cross-pkg consumer imported it as a TYPE) · INTERNAL (consumed ONLY",
+  "  within its own package — a candidate to un-export from the barrel / make module-private) · UNUSED (the",
+  "  `orphans` set verbatim, so the two never disagree — star-suppressed candidates carry the same caveat) ·",
+  "  TEST-ONLY (no prod consumer anywhere, but a test imports it — cross-boundary yet NOT prod API, flagged",
+  "  distinctly so a PUBLIC count is a real prod-API count). It keys on the origin declaration (a renaming",
+  "  barrel hop cannot fork identity) and mirrors `orphans`' err-alive arms: a namespace consumer",
+  "  (`import * as ns`) or a dynamic import promotes a whole module to PUBLIC — VERIFY with `swallowed`.",
+  "  Default lists INTERNAL + TEST-ONLY + UNUSED (the actionable arms); `--public` adds the PUBLIC rows.",
+  "  Optional scope (a package name / path); bare = every package, grouped in a per-package count table.",
+  "",
   "Flags: --in <substr> path filter · --files per-file counts only (cheapest output) ·",
+  "       --public (apisurface) also list PUBLIC rows, not just the actionable arms ·",
   "       --max <n> raw-line cap (default 60; big result sets auto-collapse to per-file counts) ·",
-  "       --json machine output. Syntactic verbs load in ~10s; refs/cycles/orphans/testonly/prodonly/typeonly-alive/columns resolve types.",
+  "       --json machine output. Syntactic verbs load in ~10s; refs/cycles/orphans/testonly/prodonly/typeonly-alive/columns/apisurface resolve types.",
 ].join("\n");
 
 function main(): void {
