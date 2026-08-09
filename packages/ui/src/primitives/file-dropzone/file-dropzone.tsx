@@ -5,7 +5,7 @@ import { formatBytes } from "@orb/kit/strings";
 import type { ChangeEvent, ComponentPropsWithRef, DragEvent, ReactElement } from "react";
 import { useState } from "react";
 import { AlertTriangle, Check, Icon, Upload } from "#primitives/icons";
-import { Spinner } from "#primitives/spinner";
+import { WebSpinner } from "#primitives/spinner";
 import { fileDropzoneVariants } from "./variants.ts";
 
 /** A file dropped by the client-side `maxSizeBytes` pre-check (the only rejection reason today). */
@@ -25,7 +25,7 @@ export interface FileDropzoneProps extends Omit<ComponentPropsWithRef<"input">, 
   accept?: string;
   multiple?: boolean;
   disabled?: boolean;
-  /** Busy state: swaps the Upload glyph for a `<Spinner>` and inerts the input. Caller-driven, same shape as `Button.loading`. */
+  /** Busy state: swaps the Upload glyph for a `<WebSpinner>` and inerts the input. Caller-driven, same shape as `Button.loading`. */
   loading?: boolean;
   /** Momentary success flash: a checkmark glyph + the success border token. Caller clears it — this primitive holds no timer. */
   success?: boolean;
@@ -64,7 +64,7 @@ interface FileDropzoneGlyphProps {
 /** The content-stack glyph dispatch, split out to avoid a 3-way nested ternary in the render tree. */
 function FileDropzoneGlyph({ loading, success, slots }: FileDropzoneGlyphProps): ReactElement {
   if (loading) {
-    return <Spinner label="Uploading…" size="sm" />;
+    return <WebSpinner label="Uploading…" size="sm" />;
   }
   if (success) {
     return <Icon icon={Check} label="Uploaded" size="lg" />;

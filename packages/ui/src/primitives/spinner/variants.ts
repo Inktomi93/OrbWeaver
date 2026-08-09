@@ -6,7 +6,6 @@ import { tv } from "#lib";
 export const spinnerVariants = tv({
   slots: {
     root: "inline-flex items-center justify-center",
-    icon: "animate-spin",
     label: "sr-only",
   },
 });

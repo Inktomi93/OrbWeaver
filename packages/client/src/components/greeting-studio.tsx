@@ -27,7 +27,7 @@ import { Button } from "@orb/ui/button";
 import { Check, Icon, Sparkles, WandSparkles, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Markdown } from "@orb/ui/markdown";
-import { Spinner } from "@orb/ui/spinner";
+import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import { Toggle } from "@orb/ui/toggle";
@@ -178,7 +178,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
       />
 
       <Row gap="field" align="center" justify="end">
-        {isPending ? <Spinner size="sm" label="Generating…" /> : null}
+        {isPending ? <WebSpinner size="sm" label="Generating…" /> : null}
         <Button intent="secondary" size="sm" disabled={isPending} onClick={onGenerate}>
           <Icon icon={Sparkles} size="sm" />
           Make new
