@@ -7,7 +7,8 @@
 //
 // FLOW (real run): collect every user dir → store persona avatars + `importPersonas` FIRST (populates the
 // cross-verb `personaByUserName` map the chat importers attribute against) → per bundle `importCharacter`
-// (idempotent by importHash; the card PNG is CAS-stored inside the verb) then `importChats`. Counts follow
+// (idempotent by importHash; the card PNG is CAS-stored inside the verb) then `importChats`, then attach the
+// character's ST library tags (`settings.tag_map[card filename]` → resolve-or-create by name). Counts follow
 // the maintenance-pass shape: `scanned` = every ST entity the loader examined (bundles + personas + chat
 // files + the recorded non-happy-path skips), `changed` = net-new canon written (created characters +
 // created personas + imported chats). The runner reconciles stats post-run when `changed > 0` (PD-78); a
@@ -27,7 +28,7 @@ import { readdir as readdirFs, readFile as readFileFs, stat as statFs } from "no
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
 import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
-import type { AssetId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, UserId } from "@orb/kit/ids";
 import type { BulkImportChats } from "#domain/chat";
 import type { CollectedCard, CollectedPersona, CollectedWorld, ImportFsPort, ImportPersonaInput, ImportReport, ImportSkippedCard } from "#domain/import";
 import { collectBundlesFromDir, createImportService, importFileHash } from "#domain/import";
@@ -64,6 +65,8 @@ interface Collected {
   readonly bundles: CollectedCard[];
   readonly personas: CollectedPersona[];
   readonly worlds: CollectedWorld[];
+  /** ST library-tag assignments merged across every profile dir: card/avatar filename → tag names. */
+  readonly tagsByEntityKey: ReadonlyMap<string, readonly string[]>;
   /** examined-but-not-imported records (unreadable cards/worlds, oversized/orphan chats, skip-listed characters). */
   readonly skipped: number;
   /** The per-profile "not imported" records, merged across every user dir — the import report's raw material. */
@@ -84,6 +87,8 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
   const bundles: CollectedCard[] = [];
   const personas: CollectedPersona[] = [];
   const worlds: CollectedWorld[] = [];
+  // card/avatar filename → tag names, unioned across dirs (a filename can recur across profiles).
+  const tagsByEntityKey = new Map<string, string[]>();
   const r = {
     unreadableCards: [] as string[],
     unreadableWorlds: [] as string[],
@@ -105,6 +110,15 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
     bundles.push(...result.bundles);
     personas.push(...result.personas);
     worlds.push(...result.worlds);
+    for (const [key, names] of result.tagsByEntityKey) {
+      const merged = tagsByEntityKey.get(key) ?? [];
+      for (const name of names) {
+        if (!merged.includes(name)) {
+          merged.push(name);
+        }
+      }
+      tagsByEntityKey.set(key, merged);
+    }
     r.unreadableCards.push(...result.unreadableCards);
     r.unreadableWorlds.push(...result.unreadableWorlds);
     r.skippedChats.push(...result.skippedChats);
@@ -114,7 +128,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<Collected
     r.unhandledSettings.push(...result.unhandledSettings);
   }
   const skipped = r.unreadableCards.length + r.unreadableWorlds.length + r.skippedChats.length + r.skippedCharacters.length + r.orphanChatDirs.length;
-  return { bundles, personas, worlds, skipped, ...r };
+  return { bundles, personas, worlds, tagsByEntityKey, skipped, ...r };
 }
 
 /** scanned = every examined ST entity: happy-path bundles + personas + chat files, plus the recorded skips. */
@@ -203,8 +217,12 @@ function reportFrom(collected: Collected, scanned: number, changed: number, skip
 }
 
 /** Import one collected card bundle: the character (idempotent by importHash) then its chats. Returns the
- *  net-new count (created character + imported chats). Throws are the CALLER's to isolate. */
-async function importOneBundle(service: ReturnType<typeof createImportService>, bundle: CollectedCard): Promise<number> {
+ *  net-new count (created character + imported chats) and the resolved character id (for the tag attach).
+ *  Throws are the CALLER's to isolate. */
+async function importOneBundle(
+  service: ReturnType<typeof createImportService>,
+  bundle: CollectedCard,
+): Promise<{ readonly changed: number; readonly characterId: CharacterId }> {
   let changed = 0;
   const cardResult = await service.importCharacter({ card: { bytes: bundle.cardBytes, filename: bundle.filename } });
   if (cardResult.created) {
@@ -214,7 +232,17 @@ async function importOneBundle(service: ReturnType<typeof createImportService>, 
     const chatResult = await service.importChats({ characterId: cardResult.characterId, chats: bundle.chats });
     changed += chatResult.chatsImported;
   }
-  return changed;
+  return { changed, characterId: cardResult.characterId };
+}
+
+/** Attach the ST library tags for a just-imported character (`tag_map[card filename]` → resolve-or-create by
+ *  NAME). Source `manual`/status `accepted` — these are the user's own library tags, not a card-shipped
+ *  suggestion. The attaches are independent and the verb is race-safe/idempotent (try-insert, fall back on
+ *  conflict; never downgrades an accepted row), so they run together; `allSettled` isolates a single tag's
+ *  failure so one bad tag never loses the already-imported character. */
+function attachBundleTags(deps: ProfileDirImportDeps, characterId: CharacterId, tagNames: readonly string[]): Promise<unknown> {
+  const ownerId = deps.principal.userId;
+  return Promise.allSettled(tagNames.map((tagName) => deps.attachCardTag({ ownerId, characterId, tagName, source: "manual", status: "accepted" })));
 }
 
 /** Import every collected card bundle with PER-CARD ISOLATION: a bundle that throws (an oversized field, a
@@ -225,6 +253,7 @@ async function importCollectedBundles(
   deps: ProfileDirImportDeps,
   service: ReturnType<typeof createImportService>,
   bundles: readonly CollectedCard[],
+  tagsByEntityKey: ReadonlyMap<string, readonly string[]>,
 ): Promise<{ readonly changed: number; readonly skippedCards: ImportSkippedCard[] }> {
   let changed = 0;
   const skippedCards: ImportSkippedCard[] = [];
@@ -234,7 +263,12 @@ async function importCollectedBundles(
     }
     try {
       // biome-ignore lint/performance/noAwaitInLoops: bulk import is intentionally sequential — each card is one atomic idempotent write, isolated per bundle.
-      changed += await importOneBundle(service, bundle);
+      const result = await importOneBundle(service, bundle);
+      changed += result.changed;
+      const tagNames = tagsByEntityKey.get(bundle.filename);
+      if (tagNames !== undefined && tagNames.length > 0) {
+        await attachBundleTags(deps, result.characterId, tagNames);
+      }
     } catch (err) {
       // The concise refusal reason for the report — the last line of a ZodError prettify is the actionable
       // one ("Too big: expected string to have <=200 characters → at cardVersion").
@@ -302,7 +336,7 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
   // of the character wave so a future card name-link (`extensions.world`) can resolve an already-imported book.
   changed += await importCollectedWorlds(deps, collected.worlds);
 
-  const bundleResult = await importCollectedBundles(deps, service, collected.bundles);
+  const bundleResult = await importCollectedBundles(deps, service, collected.bundles, collected.tagsByEntityKey);
   changed += bundleResult.changed;
 
   // ONE post-import embed enqueue for the whole run, gated on new canon (characters/personas/chats/worlds) —

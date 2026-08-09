@@ -103,10 +103,18 @@ interface StoreCall {
   readonly maxBytes?: number;
 }
 
+interface TagAttach {
+  readonly characterId: CharacterId;
+  readonly tagName: string;
+  readonly source: string;
+  readonly status: string;
+}
+
 interface Fakes {
   readonly character: ImportCharacterPort;
   readonly storeAvatar: ImportAssetPort["store"];
   readonly tag: ImportTagPort["attachCardTagByName"];
+  readonly tagAttaches: TagAttach[];
   readonly bulkImportPersonas: (args: { readonly personas: readonly BulkImportPersonaInput[] }) => Promise<BulkImportPersonasResult>;
   readonly bulkImportChats: (args: { readonly chats: readonly BulkImportChatInput[] }) => Promise<BulkImportChatsResult>;
   readonly stores: StoreCall[];
@@ -128,6 +136,7 @@ function fakes(): Fakes {
   const log: string[] = [];
   const backfills: UserId[] = [];
   const standaloneBooks: string[] = [];
+  const tagAttaches: TagAttach[] = [];
   let charSeq = 0;
   let personaSeq = 0;
 
@@ -158,7 +167,10 @@ function fakes(): Fakes {
     return Promise.resolve({ assetId: castId<AssetId>("asset_00000000000000000000000000") });
   };
 
-  const tag: ImportTagPort["attachCardTagByName"] = () => Promise.resolve(true);
+  const tag: ImportTagPort["attachCardTagByName"] = ({ characterId, tagName, source, status }) => {
+    tagAttaches.push({ characterId, tagName, source, status });
+    return Promise.resolve(true);
+  };
 
   const bulkImportPersonas = (args: { readonly personas: readonly BulkImportPersonaInput[] }): Promise<BulkImportPersonasResult> => {
     log.push("bulkImportPersonas");
@@ -211,6 +223,7 @@ function fakes(): Fakes {
     character,
     storeAvatar,
     tag,
+    tagAttaches,
     bulkImportPersonas,
     bulkImportChats,
     stores,
@@ -345,6 +358,46 @@ describe("runProfileDirImport", () => {
     expect(result.changed).toBe(8); // 4 chars + 4 chats (no personas in this fixture)
     // EXACTLY ONE backfill for the whole import — not one per character, and never a thrown conflict.
     expect(f.backfills).toEqual([OWNER.userId]);
+  });
+
+  test("ST library tags (settings.tags + tag_map) attach to the matching character by card filename", async () => {
+    // ST assigns library tags by the character's avatar filename (the card PNG name). The importer resolves
+    // tag_map ids → names against `tags` and attaches them to the imported character as manual/accepted.
+    const files: Record<string, Uint8Array> = {
+      "root/userA/characters/Aria.png": cardPng("Aria"),
+      "root/userA/settings.json": ENC.encode(
+        JSON.stringify({
+          tags: [
+            { id: "10", name: "Fantasy" },
+            { id: "20", name: "Romance" },
+          ],
+          tag_map: { "Aria.png": ["10", "20"], "Ghost.png": ["10"] },
+        }),
+      ),
+    };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    await runProfileDirImport(deps(fs, f));
+
+    // Only Aria imported (no Ghost.png card) → only Aria's tags attach, both by NAME, manual/accepted.
+    expect(f.tagAttaches).toEqual([
+      { characterId: castId<CharacterId>("chr_1"), tagName: "Fantasy", source: "manual", status: "accepted" },
+      { characterId: castId<CharacterId>("chr_1"), tagName: "Romance", source: "manual", status: "accepted" },
+    ]);
+  });
+
+  test("dryRun attaches NO tags (zero writes)", async () => {
+    const files: Record<string, Uint8Array> = {
+      "root/userA/characters/Aria.png": cardPng("Aria"),
+      "root/userA/settings.json": ENC.encode(JSON.stringify({ tags: [{ id: "10", name: "Fantasy" }], tag_map: { "Aria.png": ["10"] } })),
+    };
+    const fs = memoryFs(files);
+    const f = fakes();
+
+    await runProfileDirImport(deps(fs, f, { dryRun: true }));
+
+    expect(f.tagAttaches).toHaveLength(0);
   });
 
   test("idempotent: a byte-identical second run scans the same set, changes nothing", async () => {
