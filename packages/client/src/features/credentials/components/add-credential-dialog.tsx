@@ -12,7 +12,7 @@ import { DialogClose } from "@orb/ui/dialog";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, LockOpen } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
-import { Spinner } from "@orb/ui/spinner";
+import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -40,7 +40,7 @@ export function AddCredentialDialog({ open, onOpenChange, trpc, invalidation }: 
       open={open}
       title="Add a provider key"
     >
-      <QueryBoundary fallback={<Spinner label="Checking key storage…" />}>
+      <QueryBoundary fallback={<WebSpinner label="Checking key storage…" />}>
         <AddCredentialGate trpc={trpc} invalidation={invalidation} onDone={(): void => onOpenChange(false)} />
       </QueryBoundary>
     </FormDialog>

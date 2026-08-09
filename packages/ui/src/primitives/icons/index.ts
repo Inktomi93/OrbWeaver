@@ -74,7 +74,6 @@ export {
   List,
   ListChecks,
   ListOrdered,
-  Loader2,
   Lock,
   LockOpen,
   LogOut,
