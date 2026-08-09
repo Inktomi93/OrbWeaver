@@ -1,7 +1,7 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { newId } from "@orb/kit/ids";
-import { getLog } from "#foundation/observability";
+import { getLog, securityEvent } from "#foundation/observability";
 import type { ProvisionResult } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
 import {
@@ -61,8 +61,11 @@ async function findExisting(ctx: SessionsContext, identity: ResolvedIdentity): P
  * claim worked, then pointed at a claim the IdP omits, silently loses this guard for every login — and the
  * (b) attack below (an IdP handle re-registered after a rename) then reaches the bound row. Do NOT close it by
  * widening the comparison to null: refusing a null-subject login would break `forward-header` entirely, where
- * null is the normal shape. The fix belongs at the CONFIGURATION seam (an operator-visible signal that oidc
- * logins are arriving subject-less), not here.
+ * null is the normal shape. The residual is now OPERATOR-VISIBLE instead (#34) — it stays a signal, never a
+ * gate: `entry/http/auth-routes.identityFromClaims` warns `oidc_subject_claim_missing` at the config tier
+ * (an oidc login arriving subject-less names the misconfigured `OIDC_UID_CLAIM`), and
+ * {@link reportNullSubjectOnBoundRow} warns `sso_null_subject_on_bound_row` at the state tier (this guard
+ * being inert for a login that reached a BOUND row).
  */
 function isSubjectMismatch(existing: ExistingUser, identity: ResolvedIdentity): boolean {
   return identity.externalId !== null && existing.externalId !== null && existing.externalId !== identity.externalId;
@@ -221,9 +224,38 @@ function reconcileOwnerSingleton(derivedRole: UserRole, ownerId: UserId | undefi
   return "user";
 }
 
+/**
+ * #34 — THE STATE HALF of the null-subject signal (the CONFIG half is the OIDC claim mapper's
+ * `oidc_subject_claim_missing` warn in `entry/http/auth-routes.ts`). Fires when a login carrying NO stable
+ * subject has resolved BY HANDLE onto a row that IS bound to one: {@link isSubjectMismatch} is structurally
+ * unable to speak about this login (it needs a subject to contradict), so the bind-once takeover refusal is
+ * INERT here and the handle alone is what authorizes the row — exactly the precondition the (b)
+ * handle-re-registration attack rides.
+ *
+ * DELIBERATELY MODE-BLIND. The verb cannot see `AUTH_MODE`, and it should not: a bound row reached by a
+ * subject-less login is anomalous in EVERY mode. Under `forward-header` it means the row carries a binding
+ * from an earlier `oidc` era while the proxy is now the sole authority — inert guard, worth saying out loud;
+ * under a misconfigured `oidc` box it is the residual `isSubjectMismatch`'s scope note names. It stays quiet
+ * on the normal forward-header / single-user shape, where the handle-matched row is UNBOUND.
+ *
+ * OBSERVABILITY ONLY — the login proceeds byte-identically. Widening the guard to refuse null-subject logins
+ * would break `forward-header`, where null is the normal shape (again, the scope note).
+ */
+function reportNullSubjectOnBoundRow(existing: ExistingUser | undefined, identity: ResolvedIdentity): void {
+  if (identity.externalId !== null || existing === undefined || existing.externalId === null) {
+    return;
+  }
+  securityEvent(
+    "sso_null_subject_on_bound_row",
+    { handle: identity.handle, userId: existing.id },
+    "security: a login carrying NO stable subject matched by HANDLE onto a row already bound to one — the bind-once account-takeover guard cannot evaluate this login, so the handle alone authorizes the row; expected under forward-header (the proxy is the identity authority), a MISCONFIGURATION under oidc (check OIDC_UID_CLAIM)",
+  );
+}
+
 export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsService, "provisionIdentity"> {
   async function provisionIdentity(identity: ResolvedIdentity): Promise<ProvisionResult> {
     const existing = await findExisting(ctx, identity);
+    reportNullSubjectOnBoundRow(existing, identity);
     // THE HANDLE FALLBACK BINDS, IT NEVER REBINDS. `findExisting` falls back to `handle` so an UNBOUND row
     // (the single-user/local/seeded shape) links to its SSO subject on first login. Reaching an already-BOUND
     // row that way is not a rename — it is a different identity carrying this row's handle, and letting it
