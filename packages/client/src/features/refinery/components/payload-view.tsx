@@ -98,6 +98,15 @@ function PlanSkeleton({ plan }: { plan: RenderPlan }): ReactElement {
 export function PayloadView({ plan, payload, pending = false }: PayloadViewProps): ReactElement {
   const { banners, hero, heroProse, rest } = fieldOrder(plan.fields);
   const settled = Object.keys(payload).length > 0;
+  // Did this view show the plan-shaped skeleton before the payload landed? Then the payload ARRIVED and
+  // the hero counts up from 0 (`useCountUp`'s `arrived`). This is React's own adjusting-state-during-
+  // render pattern, NOT an effect: an effect here would be a cascading render (react-hooks/
+  // set-state-in-effect), and a ref written during render is banned outright. It latches ON once — after
+  // a user has watched this pane wait, the number that fills it is an answer, not furniture.
+  const [awaited, setAwaited] = useState(false);
+  if (pending && !settled && !awaited) {
+    setAwaited(true);
+  }
   if (pending && !settled) {
     return <PlanSkeleton plan={plan} />;
   }
@@ -115,7 +124,7 @@ export function PayloadView({ plan, payload, pending = false }: PayloadViewProps
       {banners.map((field) => (
         <VerdictBanner field={field} key={field.key} payload={payload} siblings={plan.fields} />
       ))}
-      {hero !== null ? <HeroGauge field={hero} payload={payload} prose={heroProse} /> : null}
+      {hero !== null ? <HeroGauge arrived={awaited} field={hero} payload={payload} prose={heroProse} /> : null}
       {rest.map((field) => (
         <FieldBlock field={field} key={field.key} value={payload[field.key]} />
       ))}
@@ -174,10 +183,21 @@ function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload
  *  (`size="display"`, the rare hero moment the type scale reserves), and the Meter shape ALWAYS renders
  *  — at `min` with no value, which is the honest drawing of "this has not been scored yet" and keeps
  *  the card the same height before and after a run (so a settling score never shifts the pane). */
-function HeroGauge({ field, payload, prose }: { field: PlanField; payload: Record<string, unknown>; prose: PlanField | null }): ReactElement {
+function HeroGauge({
+  field,
+  payload,
+  prose,
+  arrived,
+}: {
+  field: PlanField;
+  payload: Record<string, unknown>;
+  prose: PlanField | null;
+  /** This pane showed a skeleton before this payload landed — so the figure counts up (`useCountUp`). */
+  arrived: boolean;
+}): ReactElement {
   const widget = field.widget as GaugeWidget;
   const value = typeof payload[field.key] === "number" ? (payload[field.key] as number) : null;
-  const shown = useCountUp(value);
+  const shown = useCountUp(value, arrived);
   return (
     <Card data-testid={testId("refineryHeroGauge")}>
       <Row align="center" gap="block" padding="block">

@@ -7,9 +7,15 @@
 //
 // The generator's `failed` arm renders the RAW reply into the JSON pane for hand-fixing (the
 // show-the-partial policy — errors-as-data, never a toast that eats the draft).
+//
+// THE RAW DOOR IS THREE-TIER (2026-08-09): a belt REFUSAL (`RefusalNote`, verbatim, blocks the save), a
+// PREFLIGHT ADVISORY (`PreflightNote` — valid, saves, but here is what a hosted wire will do to it), and
+// the accounting stats. The advisory tier derives every wire claim by running our own `scrubWireSchema`,
+// so it re-implements no vendor law (the design's §1 "client-side re-implementation of provider schema
+// law" ruling stays honoured — see the advisory module's header for the full fork statement).
 
 import type { RefineryForgeArm, RefinerySchemaStage } from "@orb/contracts/refinery";
-import { REFINERY_FORGE_ARM_DEFAULT, REFINERY_FORGE_ARMS } from "@orb/contracts/refinery";
+import { REFINERY_FORGE_ARM_DEFAULT, REFINERY_FORGE_ARMS, refinerySchemaAdvisoryOf } from "@orb/contracts/refinery";
 import type { CharacterId, RefinerySchemaId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -77,6 +83,37 @@ function parseDraft(text: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+/** The raw door's PREFLIGHT (the third tier — see `@orb/contracts/refinery/schema-advisory`'s header).
+ *  Tier 1 is `RefusalNote` below (the belt's verbatim refusal, unchanged); tier 2 is this, and it NEVER
+ *  blocks: the Save press does not consult it. It answers the question a valid-but-expensive schema
+ *  leaves hanging — "this saves, but what does it cost on a real wire?" — with the accounting the OG
+ *  extension put behind a validator, minus the client-side policing that validator also did. */
+function PreflightNote({ schema }: { schema: Record<string, unknown> }): ReactElement {
+  const { stats, advisories } = refinerySchemaAdvisoryOf(schema);
+  return (
+    <Stack data-testid={testId("refinerySchemaPreflight")} gap="tight">
+      <Text data-testid={testId("refinerySchemaStats")} voice="gloss">
+        {stats.properties} fields · {stats.optionalFields} optional · {stats.enums} choice lists · {stats.anyOfBlocks} unions · {stats.maxDepth} levels deep
+      </Text>
+      {/* The advisories need a CLASS above them or they read as a second, longer stats line — measured
+          on the rendered dialog: same voice, same tint, no separation, no way to tell that one is an
+          accounting and the other is a warning. The kicker is the cheapest honest separator, and it
+          names WHERE the warnings apply rather than shouting that they exist. */}
+      {advisories.length === 0 ? null : <Text voice="kicker">On a hosted model</Text>}
+      {advisories.map((advisory) => (
+        <Text
+          data-advisory={advisory.code}
+          data-testid={testId("refinerySchemaAdvisory")}
+          key={`${advisory.code}:${advisory.path}:${advisory.message}`}
+          voice="gloss"
+        >
+          {advisory.message}
+        </Text>
+      ))}
+    </Stack>
+  );
 }
 
 /** A save refusal, verbatim (the lift belt's construct + path text IS the teaching surface). */
@@ -381,6 +418,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
         <Field label="Schema (JSON — the full vocabulary)">
           <Textarea onChange={(e): void => setSchemaText(e.target.value)} rows={8} value={schemaText} />
         </Field>
+        {schema === null ? null : <PreflightNote schema={schema} />}
         <RefusalNote error={editing === null ? create.error : update.error} />
         {previewPlan !== null && schema !== null ? (
           <PreviewCard key={schemaText} outerBusy={busy} plan={previewPlan} schema={schema} stage={stage} />
