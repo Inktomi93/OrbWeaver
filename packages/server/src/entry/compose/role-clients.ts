@@ -19,7 +19,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "@orb/contracts/providers";
-import type { ImageEmbedInput, RerankDocument, RerankQuery, SummarizeInput } from "@orb/contracts/role-clients";
+import type { ImageEmbedInput, RerankDocument, RerankQuery, ResponseFormat, StructuredOutputVehicle, SummarizeInput } from "@orb/contracts/role-clients";
 import type { UserId } from "@orb/kit/ids";
 import type { ConnectionService } from "#domain/connection";
 import { env } from "#foundation/env";
@@ -39,6 +39,10 @@ export interface RoleClientsBinderDeps {
    *  caller's signature is a bare `UserId` (the automation author / the boot owner) and letting a caller
    *  hand in a Principal would just move the forging one file up. */
   readonly resolvePrincipal: (userId: UserId) => Promise<Principal>;
+  /** The deployment's structured-output WIRE VEHICLE (task #36), read PER CALL off the resolved AppSettings
+   *  tier — a thunk, never a captured value, for the same reason rpg's `structuredOutputShape` is one: an
+   *  admin flip must govern the very next request with no restart. */
+  readonly structuredOutputVehicle: () => StructuredOutputVehicle;
 }
 
 /** Project the summarize CALL options' sampler/token knobs onto the infra request fields, each emitted ONLY
@@ -62,6 +66,24 @@ function summarizeSamplerFields(
     ...(opts?.minP !== undefined ? { minP: opts.minP } : {}),
     ...(opts?.repetitionDetection !== undefined ? { repetitionDetection: opts.repetitionDetection } : {}),
   };
+}
+
+/** Decide a structured call's WIRE VEHICLE here, at the one place that holds both the caller's ask and the
+ *  RESOLVED MODEL'S CAPABILITY (task #36). `auto` — the deployment floor — means "the enforcing
+ *  `response_format` vehicle when this model's endpoints advertise structured output, else the
+ *  servable-everywhere forced tool", and `capability.output.structured` is exactly that fact, derived once in
+ *  `domain/connection/catalog/resolve-model-capability.ts`. A backend may not read a domain, so the decision
+ *  cannot live inside the sealed OpenRouter backend; it arrives there already made.
+ *
+ *  An explicit per-call `vehicle` (the schema-forge asks for `response-format`: a schema author wants the
+ *  hard guarantee) is passed through untouched — including onto a model whose capability is unknown, where
+ *  the backend's own 400 is the honest answer rather than a silent downgrade to an unenforced wire. */
+function resolveVehicle(format: ResponseFormat, deployment: StructuredOutputVehicle, modelDoesStructured: boolean): ResponseFormat {
+  const asked = format.vehicle ?? deployment;
+  if (asked !== "auto") {
+    return { ...format, vehicle: asked };
+  }
+  return { ...format, vehicle: modelDoesStructured ? "response-format" : "forced-tool" };
 }
 
 /**
@@ -118,7 +140,10 @@ export async function bindRoleClientsForUser(deps: RoleClientsBinderDeps, ownerI
         ...summarizeSamplerFields(opts),
       };
       return opts?.responseFormat !== undefined
-        ? deps.executor.structured({ ...common, responseFormat: opts.responseFormat })
+        ? deps.executor.structured({
+            ...common,
+            responseFormat: resolveVehicle(opts.responseFormat, deps.structuredOutputVehicle(), summarizeConn.capability.output.structured === true),
+          })
         : deps.executor.summarize(common);
     },
     embedModel: embedConn.model,

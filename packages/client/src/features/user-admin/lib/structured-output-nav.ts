@@ -11,5 +11,8 @@ export const STRUCTURED_OUTPUT_SUBCATEGORY: SettingsSubcategory = {
   id: "structured-output",
   label: "Structured output",
   keywords: ["schema", "json", "strict", "required", "optional", "nullable", "grammar", "extraction", "rejected", "400"],
-  settings: [{ id: "structuredOutputShape", label: "JSON-Schema shape", keywords: ["strict", "nullable", "required"] }],
+  settings: [
+    { id: "structuredOutputShape", label: "JSON-Schema shape", keywords: ["strict", "nullable", "required"] },
+    { id: "structuredOutputVehicle", label: "Schema delivery", keywords: ["response_format", "tool", "enforced", "grammar", "require_parameters"] },
+  ],
 };

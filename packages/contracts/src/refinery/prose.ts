@@ -48,31 +48,46 @@ const SHAPE_TOKEN = "{{shape}}";
  *  per call by the generation verb — the stage is a call-time fact, never baked into owner-editable text. */
 const CORE_TOKEN = "{{core}}";
 
-// The NL→schema generator's system prompt (SF — NL design §4.6). It TEACHES the liftable subset (short
-// and enumerable — the projection pins additionalProperties, so no "additionalProperties everywhere"
-// instruction survives from the extension's corpus) and the x-orb-ui hint vocabulary, so the
-// describe-in-English door yields camera-ready schemas without the author knowing hints exist
-// (schema-renderer §4.2). OWNER-SACRED baseline — ships for the owner to sign/veto like its siblings.
-const SCHEMA_FORGE_SYSTEM_TEXT = `You design JSON Schemas for structured LLM outputs about roleplay character cards.
+/** The schema-forge slot's second pre-substitution token: WHICH of the four forge calls this turn is (design
+ *  the whole schema · plan the paths · finish one field · choose the display hints). The arms are a call-time
+ *  fact — one owner-editable slot serves all four, and baking one call's job into the text would break the
+ *  other three (task #36). */
+const TASK_TOKEN = "{{task}}";
 
-Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <think>):
-{"name":"a_snake_case_identifier","schema":{ ...a JSON Schema object... }}
+// The NL→schema designer's system prompt (SF — NL design §4.6; REWRITTEN for task #36, the owner's
+// 2026-08-09 structured-output veto). It describes the DESIGN TASK and the display vocabulary, and NOTHING
+// about output format: the call rides an ENFORCED grammar (`#refinery`'s `forgeDesignEnvelopeSchema` and its
+// siblings), so shape-policing text here would be a second, weaker copy of a rule the wire already holds.
+// Every "respond with ONLY a JSON object" instruction the extension's corpus carried is deliberately gone.
+//
+// TWO PRE-SUBSTITUTION TOKENS, both spliced per call by the forge substrate (never the macro engine — this
+// slot is `macros:"none"`): `{{core}}` is the STAGE's automatically-added well-known field, and `{{task}}`
+// is WHICH of the four forge calls is in force (design the whole schema · plan the paths · finish one field ·
+// choose the display hints). Both are call-time facts; baking either into owner-editable text would freeze
+// one call's job into all four. OWNER-SACRED baseline — ships for the owner to sign/veto like its siblings.
+const SCHEMA_FORGE_SYSTEM_TEXT = `You design the readout a model will produce when it evaluates a roleplay character card.
 
-The schema must stay inside this vocabulary — anything else is rejected:
-- types: object, array, string, number, integer, boolean
-- string enums ("enum": ["A","B"]) and const values
-- object: properties, required, additionalProperties: false
-- string: minLength, maxLength; number: minimum, maximum; array: items, minItems, maxItems
-- a type-less "anyOf" union with 2+ members
-- NO pattern, NO $ref, NO oneOf/allOf/if/then, NO null types, at most 8 levels deep
+A design is a flat list of FIELDS. Each field is one row:
+- path — where the value lives. Dots nest ("author.name"); a "[]" suffix makes that level a list ("issues[].severity" = a list of issues, each with a severity).
+- type — string, number, integer or boolean. Lists and blocks come from the path, never from the type.
+- description — what the evaluating model should put there. This is the instruction it will actually read, so make it specific.
+- required — true when every result must carry this field.
+- enum — for a string with a fixed set of answers.
+- minimum / maximum — for numbers. Always give real bounds; an unbounded number cannot be drawn.
+- maxLength — for free prose, so one field cannot swallow the readout.
 
-Make the result render beautifully by adding "x-orb-ui" display hints:
-- give the one headline number "x-orb-ui": {"role":"hero"} and bounds (minimum/maximum) so it renders as a gauge
-- give a verdict-style enum "x-orb-ui": {"role":"verdict","tone":{"MEMBER":"good|warn|bad|info|neutral"}}
-- group related bounded numbers with "x-orb-ui": {"group":"axes"}
-- long free-text fields need no hint; give every number honest minimum/maximum bounds
+Then choose how each field DRAWS, so the result reads as a report instead of a data dump:
+- role: hero (the one headline number — give it bounds and it becomes the big gauge) · verdict (the one status word) · axis (a bounded sub-score) · score · title · prose (a paragraph) · body (a sentence or two) · badge (a short label)
+- group — put related fields under one heading ("axes", "issues").
+- label — a human title for the field, when the path is not one.
+- chart — bars or radar, on a group of bounded numbers.
+- tones — for an enum, one entry per member: good, warn, bad, info or neutral. Tones are authored, never guessed from the wording.
 
-Keep it minimal: model exactly what the user described, nothing speculative.{{core}}`;
+Design exactly what was asked for and nothing speculative. Prefer few strong fields over many thin ones.
+
+If the ask needs something this list cannot express — alternatives ("either a number or 'unknown'"), a list whose entries have different shapes, or nesting more than a few levels deep — set needsRaw and say plainly what is missing. The author is then handed the full schema editor, which accepts the whole vocabulary. Do not approximate their idea into fields that lose it.{{core}}
+
+{{task}}`;
 
 const SCORE_SYSTEM_TEXT = `You are a character card analyst. You help improve roleplay character cards with specific, actionable critique.
 
@@ -232,13 +247,14 @@ export const REFINERY_PROSE_SLOTS = {
   "refinery.schemaForge.system": {
     id: "refinery.schemaForge.system",
     home: "user",
-    version: 1,
+    version: 2,
     text: SCHEMA_FORGE_SYSTEM_TEXT,
     macros: "none",
-    requiredMacros: [CORE_TOKEN],
+    requiredMacros: [CORE_TOKEN, TASK_TOKEN],
     requiredTokens: [],
     title: "Refinery schema-designer system prompt",
-    fires: "Every NL→schema Generate/Refine call in the custom-schema editor — the stage's core requirement is spliced per call.",
+    fires:
+      "Every schema Generate/Refine call in the custom-schema editor. The wire GRAMMAR fixes the output shape (task #36), so this text describes the design task only; the stage's automatic field and which call is running are spliced per call.",
   },
   "refinery.score.system": {
     id: "refinery.score.system",

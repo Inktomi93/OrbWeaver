@@ -381,7 +381,16 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // the boot bundle on the next line needs it now; both are the same `createHostPrincipalResolver` closure.
   const resolveRoleClientPrincipal = createHostPrincipalResolver(sessions);
   const bindRoleClients = (ownerId: UserId): Promise<RoleClientsWithSignal> =>
-    bindRoleClientsForUser({ connection, executor, resolvePrincipal: resolveRoleClientPrincipal }, ownerId);
+    bindRoleClientsForUser(
+      {
+        connection,
+        executor,
+        resolvePrincipal: resolveRoleClientPrincipal,
+        // A thunk, like `structuredOutputShape` below: an admin flip governs the next structured call.
+        structuredOutputVehicle: () => effectiveConfig.getEffectiveConfig().structuredOutputVehicle,
+      },
+      ownerId,
+    );
   const roleClients = await bindRoleClients(deps.ownerId);
 
   // Built before character so character's by-name card-tag attach port wires to the real tag verb.
