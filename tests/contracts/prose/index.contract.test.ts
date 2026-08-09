@@ -632,6 +632,10 @@ test("a framing override that drops {{note}} LINTS — the token is the payload 
   // deliberate contrast with `FORMAT_STRING_CARRIER_TOKENS`, which refuses at the write boundary.
   expect(proseFooterState("chat.injection.userNote", "((the table says something))", undefined).missing).toEqual(["{{note}}"]);
   expect(proseFooterState("chat.injection.userNote", "((the table says: {{note}}))", undefined).missing).toEqual([]);
+  // The chip must not lie: `{{ note }}` (spaced) and `{{NOTE}}` (cased) are exactly what `spliceProseTokens`
+  // fills — the recognizer here is `hasProseToken`, the SAME regex the splice uses, not a raw `.includes`.
+  expect(proseFooterState("chat.injection.userNote", "((the table says: {{ note }}))", undefined).missing).toEqual([]);
+  expect(proseFooterState("chat.injection.userNote", "((the table says: {{NOTE}}))", undefined).missing).toEqual([]);
 });
 
 test("stale = the shipped default moved on since this override was authored, and only while it is unedited", () => {
