@@ -116,26 +116,31 @@ export async function seedSegment(
 }
 
 /** A deterministic fake `summarize` that echoes the input into a well-formed three-part digest + records the
- *  calls. The digest anchor encodes the input length so different blocks yield different digests. `optsSeen`
- *  captures the per-call sampling options (the `AppSettings.memorySummarizer` wire). */
+ *  calls. Returns ONE item per input (index-aligned) so a BATCHED call (`inputs.length > 1`) resolves every
+ *  slot — the memory build now batches its block/consolidation summarizes. `calls` + `optsSeen` are FLATTENED
+ *  (one entry per input across all calls) so the existing "N items summarized" assertions hold regardless of
+ *  batching; `batchSizes` records the per-CALL input count (the batching proof — every value is 1 under the
+ *  old per-block loop, >1 once a pass batches). `optsSeen` captures the `AppSettings.memorySummarizer` wire. */
 export function fakeSummarize(): {
   fn: (inputs: { systemPrompt: string; userPrompt: string }[], opts?: SummarizeOptions) => Promise<SummarizeResult>;
   calls: { systemPrompt: string; userPrompt: string }[];
   optsSeen: (SummarizeOptions | undefined)[];
+  batchSizes: number[];
 } {
   const calls: { systemPrompt: string; userPrompt: string }[] = [];
   const optsSeen: (SummarizeOptions | undefined)[] = [];
+  const batchSizes: number[] = [];
   const fn = (inputs: { systemPrompt: string; userPrompt: string }[], opts?: SummarizeOptions): Promise<SummarizeResult> => {
-    const input = inputs.at(0) ?? { systemPrompt: "", userPrompt: "" };
-    calls.push(input);
-    optsSeen.push(opts);
-    const text = `[entities — scene ${calls.length}]\nFacts about turn ${calls.length}.\nkeywords: alpha, beta, gamma`;
-    return Promise.resolve({
-      items: [{ text, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } }],
-      model: MODEL,
+    batchSizes.push(inputs.length);
+    const items = inputs.map((input) => {
+      calls.push(input);
+      optsSeen.push(opts);
+      const text = `[entities — scene ${calls.length}]\nFacts about turn ${calls.length}.\nkeywords: alpha, beta, gamma`;
+      return { text, usage: { tokensIn: 1, tokensOut: 1, costUsd: null } };
     });
+    return Promise.resolve({ items, model: MODEL });
   };
-  return { fn, calls, optsSeen };
+  return { fn, calls, optsSeen, batchSizes };
 }
 
 /** A fake `embeddingsStore` that RECORDS every call AND actually inserts the row (digest or segment) — so a

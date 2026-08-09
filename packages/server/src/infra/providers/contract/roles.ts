@@ -66,6 +66,16 @@ export interface SummarizeRequest extends RoleRequestCommon {
   readonly inputs: readonly SummarizeRequestItem[];
   readonly maxTokens?: number | undefined;
   readonly temperature?: number | undefined;
+  /** Nucleus top-p (vLLM family). */
+  readonly topP?: number | undefined;
+  /** Top-k truncation (vLLM family). */
+  readonly topK?: number | undefined;
+  /** OpenAI-style frequency penalty. */
+  readonly frequencyPenalty?: number | undefined;
+  /** OpenAI-style presence penalty — the summarize loop-guard for repetition_penalty=1.0 models. */
+  readonly presencePenalty?: number | undefined;
+  /** Multiplicative repetition penalty (vLLM family; 1 = no penalty). */
+  readonly repetitionPenalty?: number | undefined;
   /** Min-p nucleus floor (vLLM family). */
   readonly minP?: number | undefined;
   readonly repetitionDetection?: RepetitionDetection | undefined;
@@ -83,6 +93,16 @@ export interface StructuredRequest extends RoleRequestCommon {
   readonly responseFormat: ResponseFormat;
   readonly maxTokens?: number | undefined;
   readonly temperature?: number | undefined;
+  /** Nucleus top-p (vLLM family). */
+  readonly topP?: number | undefined;
+  /** Top-k truncation (vLLM family). */
+  readonly topK?: number | undefined;
+  /** OpenAI-style frequency penalty. */
+  readonly frequencyPenalty?: number | undefined;
+  /** OpenAI-style presence penalty. */
+  readonly presencePenalty?: number | undefined;
+  /** Multiplicative repetition penalty (vLLM family; 1 = no penalty). */
+  readonly repetitionPenalty?: number | undefined;
   readonly minP?: number | undefined;
   readonly repetitionDetection?: RepetitionDetection | undefined;
 }

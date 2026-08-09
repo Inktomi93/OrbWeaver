@@ -68,7 +68,7 @@
   "packages/server/src/domain/chat/engine/budget.ts": 1,
   "packages/server/src/domain/chat/engine/pipeline.ts": 1,
   "packages/server/src/domain/chat/engine/round.ts": 1,
-  "packages/server/src/domain/chat/memory/build/digests.ts": 3,
+  "packages/server/src/domain/chat/memory/build/digests.ts": 4,
   "packages/server/src/domain/chat/memory/build/segments.ts": 1,
   "packages/server/src/domain/chat/persistence/canon-write.ts": 1,
   "packages/server/src/domain/chat/persistence/import-write.ts": 1,

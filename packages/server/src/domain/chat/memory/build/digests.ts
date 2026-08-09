@@ -6,9 +6,12 @@
 // SELF-HEAL: a block is (re)digested only if missing or its content_hash changed — the protected tip
 // (maxSeq − verbatimWindow) never digests, so a swipe/edit at the live tip never touches a settled digest.
 
+import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
+import { DEFAULT_MEMORY_SUMMARIZER_PRESENCE_PENALTY } from "@orb/contracts/settings";
 import type { CharacterId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
+import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../../context.ts";
 import { resolveCfg } from "../constants.ts";
 import { loadCanonThroughSeq, loadChatMeta, loadDigestHashes, loadDigestSpeakers, loadDigestsForScope } from "../persistence/queries.ts";
@@ -30,13 +33,68 @@ interface GenerateDigestsArgs {
 }
 
 /** The admin-resolved summarize call options (`AppSettings.memorySummarizer`) — passed onto every `summarize`
- *  call. Both fields absent ⇒ `{}`, so the summarizer runs on its own defaults (byte-identical to pre-wire). */
-function summarizerOpts(ctx: ChatContext): { maxTokens?: number; temperature?: number } {
-  const { maxTokens, temperature } = ctx.memorySummarizer;
+ *  call. The summarizer keeps its OWN sampler knobs (owner ruling 2026-08-08 — NOT coupled to chat presets):
+ *  each admin-set knob rides; an unset knob falls to the engine default, EXCEPT `presencePenalty`, which
+ *  ALWAYS rides at the Qwen3-VL loop-stopping default when unset (the whole point of the fix — the summarize
+ *  wire does not inherit the vLLM chat surface's per-request presence default, so a repetition_penalty=1.0
+ *  model would loop to maxTokens / the request cut). A deliberate admin override (including 0) wins. */
+function summarizerOpts(ctx: ChatContext): SummarizeOptions {
+  const s = ctx.memorySummarizer;
   return {
-    ...(maxTokens !== undefined ? { maxTokens } : {}),
-    ...(temperature !== undefined ? { temperature } : {}),
+    ...(s.maxTokens !== undefined ? { maxTokens: s.maxTokens } : {}),
+    ...(s.temperature !== undefined ? { temperature: s.temperature } : {}),
+    ...(s.topP !== undefined ? { topP: s.topP } : {}),
+    ...(s.topK !== undefined ? { topK: s.topK } : {}),
+    ...(s.frequencyPenalty !== undefined ? { frequencyPenalty: s.frequencyPenalty } : {}),
+    presencePenalty: s.presencePenalty ?? DEFAULT_MEMORY_SUMMARIZER_PRESENCE_PENALTY,
+    ...(s.repetitionPenalty !== undefined ? { repetitionPenalty: s.repetitionPenalty } : {}),
+    ...(s.minP !== undefined ? { minP: s.minP } : {}),
   };
+}
+
+/**
+ * Summarize a batch through the ONE batched `ctx.summarize` call so the surface's bounded worker pool feeds
+ * vLLM's continuous batcher — the throughput fix (a per-block single ran ONE worker, no continuous batching).
+ * Returns each input's text index-aligned; `null` marks a hard per-item failure (and empty text is returned
+ * verbatim for the caller's own empty-skip guard).
+ *
+ * The vLLM summarize surface is DELIBERATELY all-or-nothing (a per-item throw rejects the whole batch — a
+ * contract chat-turn callers depend on and a pinned test asserts). So a batch rejection here falls back to
+ * ISOLATED per-item calls: a POISON item then loses only itself and the rest still build (the content-hash
+ * self-heal retries the dropped item next pass). The fallback runs only on failure, so the happy path stays a
+ * single batched call.
+ */
+async function summarizeBatchIsolated(
+  ctx: ChatContext,
+  inputs: readonly SummarizeInput[],
+  opts: SummarizeOptions,
+  onItemError: (index: number, err: unknown) => void,
+): Promise<(string | null)[]> {
+  if (inputs.length === 0) {
+    return [];
+  }
+  try {
+    const res = await ctx.summarize([...inputs], opts);
+    return inputs.map((_, i) => res.items.at(i)?.text ?? null);
+  } catch {
+    const out: (string | null)[] = [];
+    for (let i = 0; i < inputs.length; i += 1) {
+      const input = inputs[i];
+      if (input === undefined) {
+        out.push(null);
+        continue;
+      }
+      try {
+        // biome-ignore lint/performance/noAwaitInLoops: the isolation fallback runs ONLY after a batch rejection — each item is retried alone so a poison item loses only itself while its siblings persist.
+        const res = await ctx.summarize([input], opts);
+        out.push(res.items.at(0)?.text ?? null);
+      } catch (err) {
+        onItemError(i, err);
+        out.push(null);
+      }
+    }
+    return out;
+  }
 }
 
 /** The token-guard output reserve — the SAME `max_tokens` the summarize request sends (the one-home rule so
@@ -158,6 +216,10 @@ async function buildTier0(
   // token guard fits against the RESOLVED text (a longer override must shrink the block, not overflow it).
   const systemPrompt = digestSystemPrompt(await ctx.resolveChatProse(chatId));
   const systemPromptTokens = estimateTokens(systemPrompt);
+  // PASS 1 — walk the block grid: skip settled blocks (content-hash self-heal) and token-guard-doomed blocks,
+  // and COLLECT the rest as one batch (a per-block single ran the surface's worker pool at count 1 → no vLLM
+  // continuous batching; batching all block-summarizes fans them across the bounded pool → concurrent).
+  const pending: { readonly block: BlockSpan; readonly hash: string; readonly input: SummarizeInput }[] = [];
   for (const block of env.blocks) {
     args.signal?.throwIfAborted();
     const hash = blockHash(`${scopedCharacterId}:0:${block.blockIdx}`, block.rows);
@@ -170,25 +232,38 @@ async function buildTier0(
       counts.skippedTokenGuard += 1;
       continue;
     }
-    const transcript = renderTranscript(fitted, env.macroNames);
-    // biome-ignore lint/performance/noAwaitInLoops: the summarizer is metered + the in-flight set guards spend — blocks are summarized sequentially, not fanned out (core/Knowledge-Cluster.md esoteric).
-    const res = await ctx.summarize([{ systemPrompt, userPrompt: digestUserPrompt(transcript) }], summarizerOpts(ctx));
-    const raw = res.items.at(0)?.text ?? "";
-    // Don't store a blank digest — it'd skip forever under the content-hash staleness gate. Leave un-digested.
-    if (raw.trim().length === 0) {
+    pending.push({ block, hash, input: { systemPrompt, userPrompt: digestUserPrompt(renderTranscript(fitted, env.macroNames)) } });
+  }
+  // PASS 2 — ONE batched summarize (per-item-isolated on failure), then store each result index-aligned. The
+  // content-hash self-heal + empty-skip are preserved per block (a blank digest keyed by the block hash would
+  // skip forever, so it is left un-digested to retry next pass).
+  const texts = await summarizeBatchIsolated(ctx, pending.map((p) => p.input), summarizerOpts(ctx), (i, err) =>
+    getLog().error(
+      { err, chatId, scopedCharacterId, tier: 0, blockIdx: pending[i]?.block.blockIdx },
+      "memory digest: tier-0 block summarize FAILED (isolated — the block retries next pass)",
+    ),
+  );
+  for (let i = 0; i < pending.length; i += 1) {
+    const item = pending[i];
+    if (item === undefined) {
+      continue;
+    }
+    const raw = texts[i];
+    if (raw === null || raw === undefined || raw.trim().length === 0) {
       counts.skippedEmpty += 1;
       continue;
     }
     const parsed = parseDigest(raw);
+    // biome-ignore lint/performance/noAwaitInLoops: the LLM fan-out already happened as ONE batch above; this loop is only the metered/ordered embed-store upserts (idempotent per block).
     await ctx.embeddingsStore({
       lens: "digest",
-      key: { chatId, tier: 0, blockIdx: block.blockIdx, scopedCharacterId },
+      key: { chatId, tier: 0, blockIdx: item.block.blockIdx, scopedCharacterId },
       text: raw.trim(),
-      contentHash: hash,
+      contentHash: item.hash,
       topicAnchor: parsed.topicAnchor,
       keywords: parsed.keywords,
       isGroup,
-      speakerCharacterIds: blockSpeakerIds(block.rows),
+      speakerCharacterIds: blockSpeakerIds(item.block.rows),
     });
     counts.written += 1;
   }
@@ -281,6 +356,10 @@ async function writeConsolidations(
   const parentTier = env.tier + 1;
   // PROSE-1 census 80/81 — the consolidation system prompt + its user-prompt lead, the ROOM HOST's slots.
   const prose = await ctx.resolveChatProse(scope.chatId);
+  const consolidationSystem = consolidationSystemPrompt(prose);
+  // PASS 1 — collect every complete, stale (hash-changed) parent group as one batch (mirrors buildTier0:
+  // batching the consolidations fans them across the surface's worker pool instead of one-at-a-time singles).
+  const pending: { readonly parentBlockIdx: number; readonly ordered: readonly DigestRow[]; readonly parentHash: string; readonly input: SummarizeInput }[] = [];
   for (const [parentBlockIdx, group] of [...env.groups].sort((a, b) => a[0] - b[0])) {
     env.signal?.throwIfAborted();
     if (group.length < cfg.fanOut) {
@@ -295,38 +374,47 @@ async function writeConsolidations(
       skipped += 1;
       continue;
     }
-    const childFacets = ordered.map((c) => renderDigestFacets(c));
-    // biome-ignore lint/performance/noAwaitInLoops: the side-LLM is metered — parents are summarized sequentially (one consolidation at a time), mirroring the tier-0 spend guard.
-    const res = await ctx.summarize(
-      [
-        {
-          systemPrompt: consolidationSystemPrompt(prose),
-          userPrompt: consolidationUserPrompt(prose, childFacets),
-        },
-      ],
-      summarizerOpts(ctx),
-    );
-    const raw = res.items.at(0)?.text ?? "";
-    // Mirrors the tier-0 guard: don't store a blank arc digest — it'd skip forever under parentHash.
-    if (raw.trim().length === 0) {
+    pending.push({
+      parentBlockIdx,
+      ordered,
+      parentHash,
+      input: { systemPrompt: consolidationSystem, userPrompt: consolidationUserPrompt(prose, ordered.map((c) => renderDigestFacets(c))) },
+    });
+  }
+  // PASS 2 — ONE batched summarize (per-item-isolated on failure), then store each parent index-aligned. The
+  // blank-arc empty-skip is preserved (a blank digest keyed by parentHash would skip forever, so it retries).
+  const texts = await summarizeBatchIsolated(ctx, pending.map((p) => p.input), summarizerOpts(ctx), (i, err) =>
+    getLog().error(
+      { err, chatId: scope.chatId, scopedCharacterId: scope.scopedCharacterId, tier: parentTier, blockIdx: pending[i]?.parentBlockIdx },
+      "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)",
+    ),
+  );
+  for (let i = 0; i < pending.length; i += 1) {
+    const item = pending[i];
+    if (item === undefined) {
+      continue;
+    }
+    const raw = texts[i];
+    if (raw === null || raw === undefined || raw.trim().length === 0) {
       skippedEmpty += 1;
       continue;
     }
     const parsed = parseDigest(raw);
+    // biome-ignore lint/performance/noAwaitInLoops: the LLM fan-out already happened as ONE batch above; this loop is only the metered/ordered embed-store upserts (idempotent per parent).
     await ctx.embeddingsStore({
       lens: "digest",
       key: {
         chatId: scope.chatId,
         tier: parentTier,
-        blockIdx: parentBlockIdx,
+        blockIdx: item.parentBlockIdx,
         scopedCharacterId: scope.scopedCharacterId,
       },
       text: raw.trim(),
-      contentHash: parentHash,
+      contentHash: item.parentHash,
       topicAnchor: parsed.topicAnchor,
       keywords: parsed.keywords,
       isGroup: scope.isGroup,
-      speakerCharacterIds: unionSpeakers(ordered, env.speakerMap),
+      speakerCharacterIds: unionSpeakers(item.ordered, env.speakerMap),
     });
     written += 1;
   }

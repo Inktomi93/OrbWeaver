@@ -117,6 +117,27 @@ describe("runVllmChatCompletion", () => {
     expect(rd["min_count"]).toBe(3);
   });
 
+  test("emits the penalty/nucleus sampler set (top_p/top_k/frequency_penalty/presence_penalty/repetition_penalty) when provided", async () => {
+    const { client, bodies } = fakeClient();
+    await runVllmChatCompletion(client, {
+      model: "gen-model",
+      messages: [{ role: "user", text: "x" }],
+      topP: 0.9,
+      topK: 40,
+      frequencyPenalty: 0.2,
+      presencePenalty: 1.5,
+      repetitionPenalty: 1.05,
+    });
+
+    const body = need(bodies[0]);
+    expect(body["top_p"]).toBe(0.9);
+    expect(body["top_k"]).toBe(40);
+    expect(body["frequency_penalty"]).toBe(0.2);
+    // presence_penalty is the summarize loop-guard for repetition_penalty=1.0 models (Qwen3-VL).
+    expect(body["presence_penalty"]).toBe(1.5);
+    expect(body["repetition_penalty"]).toBe(1.05);
+  });
+
   test("a jsonSchema rides response_format with a guided-decoding-clean schema", async () => {
     const { client, bodies } = fakeClient();
     await runVllmChatCompletion(client, {
@@ -145,6 +166,10 @@ describe("runVllmChatCompletion", () => {
     expect("max_tokens" in body).toBe(false);
     expect("response_format" in body).toBe(false);
     expect("repetition_detection" in body).toBe(false);
+    // an unset penalty is ABSENT, never a fabricated 0/null (no-op knob doctrine).
+    expect("presence_penalty" in body).toBe(false);
+    expect("top_p" in body).toBe(false);
+    expect("repetition_penalty" in body).toBe(false);
   });
 });
 
