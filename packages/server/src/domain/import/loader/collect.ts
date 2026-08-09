@@ -12,6 +12,7 @@ import { parseChatJsonl } from "#kit/serde/chat";
 import type { CollectedCard, CollectedChat, CollectedPersona, CollectedWorld, CollectResult, ImportFsPort } from "../contract/views.ts";
 import { importFileHash, parseCardPng } from "../substrate/card.ts";
 import { parseStPersonas } from "../substrate/persona.ts";
+import { parseStTags } from "../substrate/tags.ts";
 import { parseStWorldFile } from "../substrate/world.ts";
 
 // Ceiling so a hostile staging dir with a million empty entries can't pin the loop.
@@ -49,9 +50,10 @@ interface CollectState {
 // The top-level profile names the importer DOES consume — everything else in a user profile dir is reported
 // as unhandled so a whole-folder import never silently drops a plane (presets, quick replies, themes, …).
 const HANDLED_ENTRIES: ReadonlySet<string> = new Set(["characters", "chats", "worlds", "User Avatars", "settings.json"]);
-// The ONE settings.json section the importer reads (personas live under `power_user`). Every other top-level
-// key is reported as an unimported setting (presets under oai_settings, world_info_settings, tags, …).
-const HANDLED_SETTINGS: ReadonlySet<string> = new Set(["power_user"]);
+// The settings.json sections the importer reads: `power_user` (personas) + `tags`/`tag_map` (library tags,
+// attached to imported characters by their card filename). Every other top-level key is reported as an
+// unimported setting (per-backend presets under oai_settings, world_info_settings globals, …).
+const HANDLED_SETTINGS: ReadonlySet<string> = new Set(["power_user", "tags", "tag_map"]);
 
 function group(state: CollectState, handle: CharacterHandle): Group {
   const existing = state.byHandle.get(handle);
@@ -208,6 +210,18 @@ async function collectUnhandled(fs: ImportFsPort, profileDir: string, state: Col
   }
 }
 
+// Best-effort: the ST library-tag assignments (`settings.tags` + `tag_map`) resolved to per-entity tag names.
+// A missing/corrupt settings.json yields an empty map. The driver attaches these to each imported character
+// by matching the card filename against the map key (ST's `tag_map[character.avatar]`).
+async function collectTags(fs: ImportFsPort, profileDir: string): Promise<ReadonlyMap<string, readonly string[]>> {
+  try {
+    const bytes = await fs.readFile(fs.join(profileDir, "settings.json"));
+    return parseStTags(JSON.parse(new TextDecoder().decode(bytes))).byEntityKey;
+  } catch {
+    return new Map();
+  }
+}
+
 // Best-effort: a missing/corrupt settings.json yields []; a missing avatar yields an avatar-less persona.
 async function collectPersonas(fs: ImportFsPort, profileDir: string): Promise<CollectedPersona[]> {
   let settingsRaw: unknown;
@@ -262,6 +276,7 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: string
 
   const fuzzyPairedDirs = fuzzyPair(state);
   const personas = await collectPersonas(fs, profileDir);
+  const tagsByEntityKey = await collectTags(fs, profileDir);
 
   const bundles: CollectedCard[] = [];
   const orphanChatDirs: string[] = [];
@@ -277,6 +292,7 @@ export async function collectBundlesFromDir(fs: ImportFsPort, profileDir: string
     bundles,
     personas,
     worlds: state.worlds,
+    tagsByEntityKey,
     orphanChatDirs,
     unreadableCards: state.unreadableCards,
     unreadableWorlds: state.unreadableWorlds,
