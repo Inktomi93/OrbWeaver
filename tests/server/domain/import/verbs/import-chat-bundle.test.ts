@@ -136,8 +136,6 @@ describe("importChatBundle (routed through the importChatFile door)", () => {
     expect(input.archived).toBe(true);
     expect(input.compactSummary).toBe("the first leg");
     expect(input.compactedAtSeq).toBe(2);
-    // The list is the ONE prose door — an orb bundle never also supplies the ST single-note field.
-    expect(input.authorsNote).toBeNull();
     // The assistant turn's voice re-links BY HANDLE, per turn (not the room's primary blanket-stamped).
     expect(input.messages[1]?.characterId).toBe(ARIA);
     // The orb-only variant economics ride too (`tokensIn` has no ST spelling at all).

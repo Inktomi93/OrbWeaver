@@ -192,6 +192,12 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
       // is a `chat_injections` LIST now, and ST's single `note_prompt` slot has no unambiguous inverse for a
       // list. Import still lands an inbound `note_prompt` as an injection; the export leg is one-way.
       notePrompt: null,
+      // No note text goes out, so there is no placement to describe either.
+      notePlacement: null,
+      // The per-chat `{{setvar}}` store DOES round-trip: `chat_metadata.variables` is the ST seat and
+      // `chats.variableValues` is ours, so an export→import cycle on one box preserves it (the same
+      // both-directions rule the date and token-axis fixes established).
+      variables: chat.variableValues,
       bucket: classifyChat(parsedMessages),
       sourceMetadata: null,
       messages: parsedMessages,

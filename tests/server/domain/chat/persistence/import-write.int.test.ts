@@ -87,7 +87,6 @@ function chatInput(importedFrom: string, over: Partial<BulkImportChatInput> = {}
     createdAt: CHAT_CREATED,
     updatedAt: CHAT_UPDATED,
     parentRef: null,
-    authorsNote: null,
     isRealConversation: true,
     messages: [
       {
@@ -136,7 +135,7 @@ function chatInput(importedFrom: string, over: Partial<BulkImportChatInput> = {}
 }
 
 describe("createBulkImportChats", () => {
-  test("writes chats→messages→variants + founding roster; the ST author's-note lands as an injection", async () => {
+  test("writes chats→messages→variants + founding roster; the carried prose plane lands as injections", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
@@ -145,7 +144,11 @@ describe("createBulkImportChats", () => {
     const result = await op({
       ownerId: owner.id,
       characterId: character.id,
-      chats: [chatInput("Aria.jsonl", { authorsNote: "stay in character" })],
+      chats: [
+        chatInput("Aria.jsonl", {
+          injections: [{ position: "in_chat", depth: 4, role: "system", content: "stay in character", order: null, createdAt: CHAT_CREATED }],
+        }),
+      ],
     });
 
     expect(result.chatsImported).toBe(1);
@@ -155,9 +158,9 @@ describe("createBulkImportChats", () => {
     const chatRows = await db.select().from(chats);
     expect(chatRows).toHaveLength(1);
     expect(chatRows[0]?.updatedAt).toBe(CHAT_UPDATED);
-    // The ST note lands in the ONE per-chat prose door — a `chat_injections` row at the house author's-note
-    // register (system @ depth 4). The `roomOverrides.authorsNote` twin was retired (owner ruling
-    // 2026-08-01), so `metadata` carries nothing.
+    // The carried prose lands in the ONE per-chat prose door — `chat_injections` rows written VERBATIM (this
+    // op holds no placement policy; the ST arm's mapper already resolved ST's knobs / the house register).
+    // The `roomOverrides.authorsNote` twin was retired (owner ruling 2026-08-01), so `metadata` carries nothing.
     expect(chatRows[0]?.metadata).toBeNull();
     const injectionRows = await db.select().from(chatInjections);
     expect(injectionRows).toHaveLength(1);
