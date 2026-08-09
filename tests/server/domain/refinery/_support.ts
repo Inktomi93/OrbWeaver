@@ -9,8 +9,8 @@ import type { Db } from "@orb/db";
 import type { CharacterHandle, CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { CharacterService } from "@orb/server/domain/character";
-import { createCharacterService, createLoadOwnedCard, createStampRefinerySignals } from "@orb/server/domain/character";
-import type { RefineryContext, RefineryService } from "@orb/server/domain/refinery";
+import { createCharacterService, createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "@orb/server/domain/character";
+import type { RefineryContext, RefineryService, RefineryWorkloadDeps } from "@orb/server/domain/refinery";
 import { createRefineryService } from "@orb/server/domain/refinery";
 import { createFrozenClock, FROZEN_AT_MS } from "../../../support/clock.ts";
 import { createSeededIds } from "../../../support/ids.ts";
@@ -85,6 +85,19 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
     advance: (ms: number): void => {
       clock.advance(ms);
     },
+  };
+}
+
+/** The R4 library-sweep DI bundle over the SAME harness: the same scripted summarize tape, the same real
+ *  injected character ops. Assembled here (not in a test file — no test may import another) so the sweep
+ *  suite and the contribution suite provably drive one bundle, exactly like compose builds one. */
+export function refineryWorkloadDepsOf(db: Db, h: RefineryHarness): RefineryWorkloadDeps {
+  return {
+    summarize: h.ctx.summarize,
+    resolveUserPresetParams: h.ctx.resolveUserPresetParams,
+    resolveUserProse: h.ctx.resolveUserProse,
+    listRefineryScoreTargets: createListRefineryScoreTargets({ db }),
+    stampRefinerySignals: h.ctx.stampRefinerySignals,
   };
 }
 

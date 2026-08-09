@@ -160,10 +160,11 @@ dashed+dim for discarded at measured ≥.62 opacity). Coupled site: `tests/ui/pr
    structured role — zero new compose machinery, same engine the stages already use (F-N1's rec
    noted; deviation reasoned here).
 5. Custom `{{shape}}` splice = the projected JSON Schema text (labeled), not a synthesized example.
-6. Fork F-T1 (greeting APPEND): **left out** — the accept UI never needs an Added-greeting block
-   (greetings have no "empty slot" state; fill-empty greeting deltas are unrepresentable without the
-   append arm, which stays R4+). The ADDED block treatment ships only for the absent-side primitive
-   arm (future-proof), not reachable from today's payloads.
+6. ~~Fork F-T1 (greeting APPEND): **left out**~~ — **SHIPPED IN R4** (owner ruled it IN; task #30). The
+   arm is `{field:"greetings", append:true, text}` — no index, because a new slot has no card position
+   yet; accepts address it by its ORDINAL among the payload's appends (`appendedRewrites`). The ADDED
+   block treatment is now reachable from real payloads, `AppliedFieldKind` carries `"added"`, and the
+   drop axis gained `greeting_cap_reached`. R3's own text stands as the record of what R3 shipped.
 7. FORK F's "Select what scored under 7" ships now (the mock's rec left only the timing open; it is
    one action on an already-built editor).
 

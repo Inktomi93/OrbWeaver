@@ -22,6 +22,7 @@ export type {
   PreflightParams,
   RefineSchemaParams,
   RunStageParams,
+  ScoreSweepOptions,
   StartSessionParams,
   SubmitManualRewriteParams,
   TestSchemaParams,
@@ -42,7 +43,9 @@ export type {
   SchemaForgeResult,
   StagePreflight,
 } from "./contract/results.ts";
-export type { RefineryService } from "./contract/service.ts";
+export type { RefineryService, RefineryWorkloadDeps, ScoreSweep } from "./contract/service.ts";
 export { createRefineryService } from "./service.ts";
 export { SCHEMA_NAME_TAKEN_REASON } from "./substrate/schema-library.ts";
+export { createScoreSweep } from "./verbs/score-sweep.ts";
 export { MANUAL_REWRITE_OUT_OF_SCOPE_REASON } from "./verbs/submit-manual-rewrite.ts";
+export { createRefineryWorkloadContributions } from "./workload-contributions.ts";

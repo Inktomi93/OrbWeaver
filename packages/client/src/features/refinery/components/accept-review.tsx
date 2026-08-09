@@ -9,7 +9,7 @@
 // Decided blocks COLLAPSE to header + state chip (the coarse-tax relief) — the primitive owns that.
 
 import type { RefinableField, RefineryRewriteField } from "@orb/contracts/refinery";
-import { isClearedRewrite } from "@orb/contracts/refinery";
+import { isAppendedRewrite, isClearedRewrite } from "@orb/contracts/refinery";
 import type { CompareBlock, CompareDecision } from "@orb/ui/compare-blocks";
 import { CompareBlocks } from "@orb/ui/compare-blocks";
 import { DiffView } from "@orb/ui/diff";
@@ -29,6 +29,11 @@ export interface AcceptReviewProps {
 const INLINE_DIFF_THRESHOLD = 200;
 
 function targetLabel(entry: RefineryRewriteField): string {
+  if (isAppendedRewrite(entry)) {
+    // No slot number exists yet — the label says what the block DOES rather than inventing a position the
+    // card does not have (and would not keep, since the slot lands at whatever the tail is at apply time).
+    return "greetings [new]";
+  }
   return entry.field === "greetings" ? `greetings [${entry.greetingIndex ?? "?"}]` : entry.field;
 }
 
@@ -46,6 +51,11 @@ function clearNoteOf(field: RefinableField): string {
 function blockOf(review: ReviewEntry): CompareBlock {
   const { entry, live, original, diverged } = review;
   const label = targetLabel(entry);
+  if (isAppendedRewrite(entry)) {
+    // The ADDED arm: `after` alone, so the primitive renders its Added state panel in the before slot
+    // instead of a fabricated empty pane. Nothing can have diverged — the slot has no history to move.
+    return { label, after: entry.text, stateNote: "A new greeting is added at the end — no existing greeting is touched." };
+  }
   if (isClearedRewrite(entry)) {
     return { label, before: live, stateNote: clearNoteOf(entry.field) };
   }

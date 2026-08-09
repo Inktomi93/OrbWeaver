@@ -26,16 +26,14 @@
 // session — the new analyze row appends with that run as its DAG parent, provenance stays true, nothing
 // mutates. Legal only with `stage:"analyze"`.
 
-import type { SideGenKind } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { RefineryRun, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
-import type { ResponseFormat, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import { refineryRuns, refinerySessions } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ModelId, RefineryRunId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { projectJsonSchema } from "@orb/kit/json-schema";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
@@ -50,22 +48,8 @@ import type { ExecuteStage, RefineryService, StageEngineDeps } from "../contract
 import { latestRunRowOf, loadOwnedSessionRow, loadSessionRewriteRunRow, sessionViewOf } from "../persistence/queries.ts";
 import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
 import { buildStageParse } from "../substrate/stage-parse.ts";
-import { resolveStageResolution } from "../substrate/stage-resolution.ts";
+import { REFINERY_POSTURE_BY_STAGE, REFINERY_RESPONSE_FORMATS, resolveStageResolution } from "../substrate/stage-resolution.ts";
 import { traceStructuredRetry } from "../substrate/structured-retry-trace.ts";
-
-// The wire grammar per FIXED stage — the SAME schemas the parse validates (D79's one-representation law).
-// Module-const like distill's: the D126 shaping is the backend's request-build concern, not ours.
-const RESPONSE_FORMATS: Record<RefineryStage, ResponseFormat> = {
-  score: { name: "refinery_score", schema: projectJsonSchema(REFINERY_STAGE_PAYLOADS.score) },
-  rewrite: { name: "refinery_rewrite", schema: projectJsonSchema(REFINERY_STAGE_PAYLOADS.rewrite) },
-  analyze: { name: "refinery_analyze", schema: projectJsonSchema(REFINERY_STAGE_PAYLOADS.analyze) },
-};
-
-const POSTURE_BY_STAGE: Record<RefineryStage, SideGenKind> = {
-  score: "refine_score",
-  rewrite: "refine_rewrite",
-  analyze: "refine_analyze",
-};
 
 /** The custom-score stamp pluck — the well-known core the save belt guarantees. A drifted row skips the
  *  stamp OBSERVABLY (banned-silent-fork), never fabricates a score. */
@@ -284,8 +268,8 @@ async function resolveStagePass(
     overrides,
     resolution,
     sampleOpts: {
-      responseFormat: resolution.kind === "custom" ? resolution.responseFormat : RESPONSE_FORMATS[stage],
-      ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES[POSTURE_BY_STAGE[stage]], presetParams)),
+      responseFormat: resolution.kind === "custom" ? resolution.responseFormat : REFINERY_RESPONSE_FORMATS[stage],
+      ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES[REFINERY_POSTURE_BY_STAGE[stage]], presetParams)),
     },
     meta: {
       id: ctx.newRefineryRunId(),

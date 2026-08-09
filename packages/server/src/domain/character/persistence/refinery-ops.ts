@@ -10,8 +10,14 @@
 
 import type { RefinerySignals } from "@orb/contracts/character";
 import { characters } from "@orb/db";
-import { and, eq } from "drizzle-orm";
-import type { CharacterRefineryOpsContext, LoadOwnedCardOp, StampRefinerySignalsOp } from "../contract/refinery-ops.ts";
+import { and, count, eq, sql } from "drizzle-orm";
+import type {
+  CharacterRefineryOpsContext,
+  ListRefineryScoreTargetsOp,
+  LoadOwnedCardOp,
+  RefineryScoreTarget,
+  StampRefinerySignalsOp,
+} from "../contract/refinery-ops.ts";
 import { cardOf, loadOwnedCharacterRow, refinerySignalsReadParser } from "./queries.ts";
 
 /** Build the owned-card read op — `loadOwnedCharacterRow` (owner IN the WHERE) + the one-homed `cardOf`
@@ -20,6 +26,30 @@ export function createLoadOwnedCard(ctx: CharacterRefineryOpsContext): LoadOwned
   return async ({ ownerId, characterId }) => {
     const row = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
     return row === undefined ? undefined : cardOf(row);
+  };
+}
+
+/** Build the sweep's enumeration op (R4). The owner narrow rides IN THE WHERE when one is given; `null` is
+ *  the deliberate box-wide bulk scope (the workload engine's own `ownerId: null` contract), which is why this
+ *  op takes `UserId | null` rather than defaulting to "everything" on a dropped argument.
+ *
+ *  The unscored filter is SQL, not a post-filter: `json_extract` reads the stamp the sweep itself writes, and
+ *  the FILL arm exists precisely so a 500-card library does not pay 500 model calls to re-score 497 cards it
+ *  already knows. `is null` covers both an absent blob and a stored `"score": null` — one fact, "not scored". */
+export function createListRefineryScoreTargets(ctx: CharacterRefineryOpsContext): ListRefineryScoreTargetsOp {
+  return async ({ ownerId, unscoredOnly }) => {
+    const scope = ownerId === null ? eq(characters.synthetic, false) : and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false));
+    const where = unscoredOnly ? and(scope, sql`json_extract(${characters.refinery}, '$.score') is null`) : scope;
+    // The candidate COUNT rides the same scope minus the unscored narrow — one cheap aggregate, so the
+    // sweep can say "500 in scope, 497 already scored" instead of "scanned 0".
+    const [rows, counted] = await Promise.all([
+      ctx.db.select().from(characters).where(where),
+      ctx.db.select({ inScope: count() }).from(characters).where(scope),
+    ]);
+    return {
+      targets: rows.map((row): RefineryScoreTarget => ({ characterId: row.id, ownerId: row.ownerId, card: cardOf(row) })),
+      inScope: counted[0]?.inScope ?? 0,
+    };
   };
 }
 

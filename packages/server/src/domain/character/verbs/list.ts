@@ -40,6 +40,10 @@ function nextCursorFor(sort: CharacterListSort, last: CharacterListRow): Charact
       return { sort: "largestCards", tokenSize, id };
     case "smallestCards":
       return { sort: "smallestCards", tokenSize, id };
+    case "bestScore":
+      return { sort: "bestScore", score: last.refineryScore, id };
+    case "worstScore":
+      return { sort: "worstScore", score: last.refineryScore, id };
     default:
       return assertNever(sort);
   }

@@ -3,6 +3,10 @@
 // caller-scoped prose/preset resolvers (the distill rung, verbatim) + the four CHARACTER ops — the two
 // persistence factories (card read + signal stamp; `characters.*` keeps one writer, F6) and the two
 // service verbs (snapshot + update + the zero-write get) the apply path rides.
+//
+// It also raises the domain's WORKLOAD deps (R4): the `refine-score-sweep` library pass closes over a
+// DIFFERENT, smaller bundle than the service (no session minters, no clock, none of the apply-path ops) —
+// so the two are assembled side by side here rather than the queue reaching into the service.
 
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RoleClients } from "@orb/contracts/role-clients";
@@ -12,8 +16,8 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import type { CharacterService } from "#domain/character";
-import { createLoadOwnedCard, createStampRefinerySignals } from "#domain/character";
-import type { RefineryService } from "#domain/refinery";
+import { createListRefineryScoreTargets, createLoadOwnedCard, createStampRefinerySignals } from "#domain/character";
+import type { RefineryService, RefineryWorkloadDeps } from "#domain/refinery";
 import { createRefineryService } from "#domain/refinery";
 import { minter } from "./minter.ts";
 
@@ -26,9 +30,17 @@ export interface RefineryComposeDeps {
   readonly loadUserSettings: (userId: UserId) => Promise<UserSettings>;
 }
 
-export function buildRefinery(deps: RefineryComposeDeps): RefineryService {
+/** The refinery seam's two halves: the principal-taking SERVICE (tRPC) and the principal-less WORKLOAD
+ *  deps (the queue's own actor). */
+export interface RefineryCompose {
+  readonly refinery: RefineryService;
+  readonly refineryWorkloads: RefineryWorkloadDeps;
+}
+
+export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
   const resolveUserProse = async (userId: UserId): Promise<ProseOverrides> => (await deps.loadUserSettings(userId)).prose;
-  return createRefineryService({
+  const stampRefinerySignals = createStampRefinerySignals({ db: deps.db });
+  const refinery = createRefineryService({
     db: deps.db,
     now: deps.now,
     newRefinerySessionId: minter(ID_PREFIX.refinerySession),
@@ -40,10 +52,20 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryService {
     resolveUserPresetParams: deps.resolveUserPresetParams,
     resolveUserProse,
     loadOwnedCard: createLoadOwnedCard({ db: deps.db }),
-    stampRefinerySignals: createStampRefinerySignals({ db: deps.db }),
+    stampRefinerySignals,
     snapshotCharacter: deps.character.snapshot,
     updateCharacter: deps.character.update,
     getCharacter: deps.character.get,
     duplicateCharacter: deps.character.duplicate,
   });
+  return {
+    refinery,
+    refineryWorkloads: {
+      summarize: deps.roleClients.summarize,
+      resolveUserPresetParams: deps.resolveUserPresetParams,
+      resolveUserProse,
+      listRefineryScoreTargets: createListRefineryScoreTargets({ db: deps.db }),
+      stampRefinerySignals,
+    },
+  };
 }

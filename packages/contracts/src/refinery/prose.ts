@@ -108,7 +108,8 @@ ${SHAPE_TOKEN}
 - field: exactly the field name as given in the section header.
 - For a greetings entry, also include "greetingIndex" with the number from the section header.
 - text: the complete rewritten text for that field.
-- To EMPTY a field - when you consolidate its content into another field, or the guidance asks for it - emit {"field":"...","cleared":true} for it instead of "text". Never send an empty "text".`;
+- To EMPTY a field - when you consolidate its content into another field, or the guidance asks for it - emit {"field":"...","cleared":true} for it instead of "text". Never send an empty "text".
+- To ADD a NEW greeting - when splitting one greeting into two, or the guidance asks for another - emit {"field":"greetings","append":true,"text":"..."} with NO "greetingIndex". Only greetings can be added.`;
 
 const REFINE_SYSTEM_TEXT = `You are refining a character card based on analysis feedback. Address identified issues while preserving what works.
 
@@ -125,7 +126,8 @@ ${SHAPE_TOKEN}
 - field: exactly the field name as given in the section header.
 - For a greetings entry, also include "greetingIndex" with the number from the section header.
 - text: the complete rewritten text for that field.
-- To EMPTY a field - when you consolidate its content into another field, or the guidance asks for it - emit {"field":"...","cleared":true} for it instead of "text". Never send an empty "text".`;
+- To EMPTY a field - when you consolidate its content into another field, or the guidance asks for it - emit {"field":"...","cleared":true} for it instead of "text". Never send an empty "text".
+- To ADD a NEW greeting - when splitting one greeting into two, or the guidance asks for another - emit {"field":"greetings","append":true,"text":"..."} with NO "greetingIndex". Only greetings can be added.`;
 
 const ANALYZE_SYSTEM_TEXT = `You are a character card analyst comparing an ORIGINAL card against a REWRITTEN version. Your job is drift detection: does the rewrite still feel like the same character?
 
@@ -252,7 +254,7 @@ export const REFINERY_PROSE_SLOTS = {
   "refinery.rewrite.system": {
     id: "refinery.rewrite.system",
     home: "user",
-    version: 2,
+    version: 3,
     text: REWRITE_SYSTEM_TEXT,
     macros: "none",
     requiredMacros: [SHAPE_TOKEN],
@@ -263,7 +265,7 @@ export const REFINERY_PROSE_SLOTS = {
   "refinery.refine.system": {
     id: "refinery.refine.system",
     home: "user",
-    version: 2,
+    version: 3,
     text: REFINE_SYSTEM_TEXT,
     macros: "none",
     requiredMacros: [SHAPE_TOKEN],

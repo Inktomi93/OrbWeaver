@@ -113,11 +113,17 @@ const LIST_MAX = 50;
  *  `REFINABLE_FIELDS.length` and `characterCardSchema` in the contract test (the card constant is
  *  unexported and unimportable from here — the REWRITE_TEXT_MAX precedent). */
 const ENTRIES_MAX = 108;
-/** The last greeting slot the CARD can hold (its `GREETINGS_MAX` minus one) — an index above it addresses
- *  a greeting that cannot exist, so a rewrite carrying one is unapplicable by construction. */
-const GREETING_INDEX_MAX = 99;
-/** Greeting slots one selection may name (the card's greetings ceiling). */
-const GREETING_INDEXES_MAX = 100;
+/** The card's greetings CEILING (`characterCardSchema`'s own `GREETINGS_MAX`) — the twin the append belt
+ *  caps against: a rewrite may grow a card's greetings, never past what the card contract accepts, so the
+ *  apply verb refuses the entry rather than letting `character.update` throw on a payload we constructed.
+ *  Pinned behaviorally against `characterCardSchema` in the contract test (the character constant is
+ *  unexported and unimportable from here — the `REWRITE_TEXT_MAX` precedent). */
+export const GREETING_SLOTS_MAX = 100;
+/** The last greeting slot the CARD can hold — an index above it addresses a greeting that cannot exist,
+ *  so a rewrite carrying one is unapplicable by construction. DERIVED, so the pair can never drift. */
+const GREETING_INDEX_MAX = GREETING_SLOTS_MAX - 1;
+/** Greeting slots one selection may name (every slot the card can hold). */
+const GREETING_INDEXES_MAX = GREETING_SLOTS_MAX;
 /** Host-authored session label (the card `NAME_MAX` twin — a roster row's label, not prose). */
 const SESSION_NAME_MAX = 200;
 
@@ -348,7 +354,7 @@ const rewriteFieldTarget = {
   greetingIndex: z.number().int().min(0).max(GREETING_INDEX_MAX).optional(),
 };
 
-/** One rewritten field — a TWO-ARM union: replace the text, or EMPTY the field.
+/** One rewritten field — a THREE-ARM union: replace the text, EMPTY the field, or APPEND a new greeting.
  *
  *  EMPTYING IS REFINING (owner ruling 2026-08-08, overruling the R0 stance that lived on this comment —
  *  "why wouldn't they be able to empty personality? They can fill it therefore they can empty it").
@@ -364,12 +370,26 @@ const rewriteFieldTarget = {
  *   • ANTI-SNIFFING. `""`-as-clear is one more data-sniffed convention — the failure class the whole
  *     schema-driven design exists to kill.
  *
+ *  APPENDING IS REFINING TOO (fork F-T1, owner-ruled IN for R4 — schema-renderer §7b): "split one greeting
+ *  into two" is squarely the owner's SPLIT case, and before this arm a payload could only ever address slots
+ *  the card already had (an entry naming `greetingIndex === liveGreetingCount` died at `greeting_index_invalid`).
+ *  The arm is GREETINGS-ONLY: every other refinable target is a single field that already exists on the card,
+ *  so "add one" is meaningless there — only the greetings array has slots to grow.
+ *
+ *  WHY THE APPEND ARM CARRIES NO INDEX: a new slot has no card position yet. An `index === liveGreetingCount`
+ *  convention would be exactly the data-sniffed addressing this contract exists to refuse (and it is not even
+ *  well-defined for two appends in one payload, or against a card that moved under the session). Appends are
+ *  addressed POSITIONALLY instead — by their ordinal among THIS payload's append entries, which is stable
+ *  forever because a run row is immutable. The accept side names that same ordinal (`appendIndex`).
+ *
  *  `text` caps at the card TEXT_MAX twin so an accepted rewrite always satisfies `character.update`.
- *  ARM ORDER IS THE NON-DESTRUCTIVE READ: a malformed entry carrying BOTH keys parses as a replacement and
- *  the `cleared` key strips — which lands it in the run row's `strippedKeys` itemization rather than
- *  silently destroying a field (belt 6). Spelled as a plain union, not a discriminated one: the tag is
+ *  ARM ORDER IS THE NON-DESTRUCTIVE READ: a malformed entry carrying several tags parses as the LEAST
+ *  destructive arm it matches and the surplus keys strip — landing in the run row's `strippedKeys`
+ *  itemization rather than silently destroying a field (belt 6). Hence append FIRST (adding a slot destroys
+ *  nothing), then replace, then clear. Spelled as a plain union, not a discriminated one: the tag is
  *  optional on one arm, which `z.discriminatedUnion` cannot express. */
 export const refineryRewriteFieldSchema = z.union([
+  z.object({ field: z.literal("greetings"), append: z.literal(true), text: z.string().min(1).max(REWRITE_TEXT_MAX) }),
   z.object({ ...rewriteFieldTarget, text: z.string().min(1).max(REWRITE_TEXT_MAX) }),
   z.object({ ...rewriteFieldTarget, cleared: z.literal(true) }),
 ]);
@@ -380,6 +400,20 @@ export type RefineryRewriteField = z.infer<typeof refineryRewriteFieldSchema>;
  *  (a dynamic seam the language service cannot rename). */
 export function isClearedRewrite(entry: RefineryRewriteField): entry is Extract<RefineryRewriteField, { cleared: true }> {
   return "cleared" in entry;
+}
+
+/** Is this entry the APPEND arm (a NEW greeting slot)? The {@link isClearedRewrite} twin — the same one
+ *  recogniser law, for the same reason: `"append" in entry` spelled at six call sites is a dynamic seam. */
+export function isAppendedRewrite(entry: RefineryRewriteField): entry is Extract<RefineryRewriteField, { append: true }> {
+  return "append" in entry;
+}
+
+/** The APPEND entries of a payload, in payload order — the ONE derivation of the ordinal every accept, every
+ *  itemized result and every review block addresses an appended greeting by. Homed here (not in the verb or
+ *  the client) because BOTH sides must compute it identically: the client picks `appendIndex` off this order
+ *  and the apply verb resolves it off the same order over the same immutable run row. */
+export function appendedRewrites(fields: readonly RefineryRewriteField[]): Extract<RefineryRewriteField, { append: true }>[] {
+  return fields.filter((entry) => isAppendedRewrite(entry));
 }
 
 /** The structured rewrite — the single biggest correctness upgrade over the extension (which
@@ -451,6 +485,35 @@ export const REFINERY_STAGE_SHAPES = {
   analyze:
     '{"preserved":["..."],"lost":["..."],"gained":["..."],"soulScore":9,"soulAssessment":"...","verdict":"ACCEPT","issues":["..."],"recommendations":["..."]}',
 } as const satisfies Record<RefineryStage, string>;
+
+// ── The library SCORE SWEEP (R4 — port study I3: the orb-native win the extension never had) ────────────
+// A `refine-score-sweep` workload scores the whole library with NO session: one score pass per card,
+// stamped straight into `characters.refinery.score` (the F6 signal channel), feeding the library's
+// score sorts and the dossier readout. Params + result home HERE, beside the payload the pass produces —
+// `@orb/contracts/workloads` references them by kind (the `IngestRunResult` precedent), never re-spells them.
+
+/** `refine-score-sweep` params. `rescoreAll` is the FILL-vs-REFRESH switch: absent (the default) the sweep
+ *  scores only cards with no score yet — the "fill the library" pass a user runs after importing, which must
+ *  not spend one model call per already-scored card. `true` re-scores everything (the card texts moved, or
+ *  the model did). Deliberately the only tunable: mode/selection are the SWEEP's own posture, not a knob —
+ *  a per-card session is where a user chooses those. */
+export const refineScoreSweepWorkloadParams = z.object({ rescoreAll: z.boolean().optional() });
+export type RefineScoreSweepWorkloadParams = z.infer<typeof refineScoreSweepWorkloadParams>;
+
+/** What one sweep pass did. FOUR counts, not the two `AnalyticsResult` carries: a sweep that skipped 400
+ *  already-scored cards and failed 3 must be able to SAY so — distill's own header records the cost of
+ *  squeezing a per-item failure plane into `{scanned, written}` (its `skipped` count survives only as a
+ *  progress sentence). Every card lands in exactly one of `scored`/`skipped`/`failed`. */
+export interface RefineryScoreSweepResult {
+  /** Cards the pass looked at (the owner's non-synthetic library, or every owner's on a bulk run). */
+  readonly scanned: number;
+  /** Cards whose score reached `characters.refinery.score`. */
+  readonly scored: number;
+  /** Cards the pass declined to score: no card text to critique, or already scored without `rescoreAll`. */
+  readonly skipped: number;
+  /** Cards whose score pass produced nothing usable (per-card containment — one bad card never aborts the sweep). */
+  readonly failed: number;
+}
 
 // ── Wire views (tRPC outputs; the FULL session view with `originalCard` homes in domain/refinery's
 //    contract/ (R1) — it needs `#character`, which this file must not import) ───────────────────────────

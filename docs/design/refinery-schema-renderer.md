@@ -342,6 +342,14 @@ UI copy must teach it. **Fix for greeting ADD:** an explicit append arm — sele
 "allow new greetings (max N)" flag; the payload's `greetingIndex` may then equal `liveGreetingCount`
 (append-only, no sparse indexes); apply appends instead of dropping. Fork F-T1 (REC: yes — "split
 one greeting into two" is squarely the owner's split case).
+[**RULED IN + SHIPPED (R4, 2026-08-09).** Two details of the sketch above were OVERRULED by the build:
+(1) NO selection flag — belt 9 fences an append on the FIELD (`greetings ∈ selection.fields`); a
+`greetingIndexes` narrowing cannot gate a slot that has no index, and gating on it would make append
+unreachable in every narrowed session. (2) NO `greetingIndex === liveGreetingCount` convention — that
+is the data-sniffed addressing this design exists to refuse, and it is undefined for two appends in one
+payload. The shipped arm is `{field:"greetings", append:true, text}` with NO index; accepts address it
+by ORDINAL among the payload's own appends (`appendedRewrites`). The card's greetings ceiling is
+enforced at apply with a new `greeting_cap_reached` drop reason, and `AppliedFieldKind` gained `added`.]
 
 **(c) Empty selected fields are INVISIBLE to the model — substrate.** The prompt renders only
 non-empty selected fields (`substrate/refine-prompt.ts:104` — `if (text !== null && text.length > 0)`), and `startSession` defaults selection to POPULATED fields (`refinery-r0.md:319`). So "scenario
@@ -964,4 +972,5 @@ the correct precedent, not fast-forward-by-default.
 
 *(Supersession-map addendum: §19.3 gains one row — refinery-r0.md §9.5's apply belt list acquires
 the divergence check + `source_run_id`; and §19.5's `apply-and-selection.html` drop-reason note now
-widens by TWO members: `would_leave_no_greeting`, `diverged_since_session`.)*
+widens by THREE members: `would_leave_no_greeting`, `diverged_since_session`, and — with F-T1 shipped
+in R4 — `greeting_cap_reached`. The closed-axis discipline is unchanged.)*

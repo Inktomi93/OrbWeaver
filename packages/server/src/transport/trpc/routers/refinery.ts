@@ -25,6 +25,10 @@ import { authedProcedure, t } from "../trpc.ts";
 const acceptedFieldSchema = z.object({
   field: refinableFieldSchema,
   greetingIndex: z.number().int().min(0).optional(),
+  // The F-T1 APPEND address: which of the chosen rewrite's NEW greetings this Keep is for (its ordinal
+  // among the payload's append entries). Mutually exclusive with `greetingIndex` — the verb's belts itemize
+  // a malformed pairing rather than the wire refusing the whole batch, so both stay optional here.
+  appendIndex: z.number().int().min(0).optional(),
   // The §21 merge-conflict re-confirmation — spelled as the literal so a plain `true` is the only value.
   confirmDiverged: z.literal(true).optional(),
 });
