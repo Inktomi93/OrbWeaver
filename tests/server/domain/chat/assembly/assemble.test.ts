@@ -617,7 +617,7 @@ describe("assemblePromptWithSlices — per-source budget attribution", () => {
   });
 
   test("the host's PROSE overrides re-word the three merged co-speaker headings, keeping each member's name", () => {
-    // PROSE-1: `chat.group.*` are per-USER slots resolved under the ROOM HOST and carried on the ctx. The
+    // PROSE-1: `chat.group.*` are PRESET-homed slots (F4 re-home) carried on the ctx via `composeProse`. The
     // member's card text underneath is data — only the heading is authorable, and `{{name}}` is what keeps
     // the per-member attribution the budget's slice split depends on.
     const config = configOf([marker({ marker: "char_description", name: "character description" }), marker({ marker: "chat_history" })]);

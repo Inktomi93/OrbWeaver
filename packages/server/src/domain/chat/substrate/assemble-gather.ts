@@ -295,9 +295,6 @@ export async function gatherAssembleContext(
     /** A game turn's depth-0 format-reminder injection(s) (rpg-design/05 §1) — merged into the chat injection
      *  list (recency-biased, nearest generation via their `depth:0`). Absent ⇒ no rpg injection. */
     readonly rpgInjections?: readonly ChatInjection[] | undefined;
-    /** The chat-crew director's guidance injection(s) (chat-crew-design/04 §1) — merged into the chat injection
-     *  list at the author's-note depth. Absent ⇒ director off / no pass ⇒ byte-identical non-crew turn. */
-    readonly crewInjections?: readonly ChatInjection[] | undefined;
     /** The per-turn user-macro RENDER + FREEZE registries (WAVE MU) — threaded verbatim to the pure build.
      *  Absent ⇒ the pure build falls back to the process singletons (byte-identical non-user-macro turn). */
     readonly macroRegistry?: MacroRegistry | undefined;
@@ -400,15 +397,10 @@ export async function gatherAssembleContext(
       // Threaded RAW — `buildAssembleContext` owns the `?? null` floor (one home for the fail-closed default).
       triggerUserId: args.triggerUserId,
       recentMessages,
-      // The user/WI injections + a game turn's depth-0 reminder injection(s) (05 §1) + the crew director's
-      // guidance injection (chat-crew-design/04 §1); absent rpg/crew ⇒ unchanged.
+      // The user/WI injections + a game turn's depth-0 reminder injection(s) (05 §1); absent rpg ⇒ unchanged.
       // The rpg reminder is stamped `game-state` HERE (the ONE merge site) so the BUILD walk can account the
       // state block as its own budget source without chat ever reading an rpg type.
-      userInjections: [
-        ...injectionRows.map(toChatInjection),
-        ...(args.rpgInjections ?? []).map((i): ChatInjection => ({ ...i, origin: "game-state" })),
-        ...(args.crewInjections ?? []),
-      ],
+      userInjections: [...injectionRows.map(toChatInjection), ...(args.rpgInjections ?? []).map((i): ChatInjection => ({ ...i, origin: "game-state" }))],
       memory,
       // Absent (op unwired / null result) ⇒ omitted ⇒ byte-identical to a non-databank turn (DB6 null-op pin).
       ...(databank !== undefined ? { databank } : {}),

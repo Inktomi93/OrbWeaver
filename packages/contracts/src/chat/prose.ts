@@ -1,6 +1,6 @@
 // @orb/contracts/chat — the APP-TIER chat prose slot table (PROSE-1 §4.1, census rows 74-81). The ONE home
 // for the BYTES of every chat SIDE-generation prompt: the anchor-persona identity lead-in, the smart-arbiter
-// director prompt, the compaction summarizer, and the memory digest/consolidation prompts. The server
+// prompt, the compaction summarizer, and the memory digest/consolidation prompts. The server
 // substrate reads these through `resolveProse` — it authors none of them.
 //
 // HOME — TWO of them, and the split is the point (the table is one home for the BYTES; `home` names the
@@ -8,23 +8,30 @@
 //
 //   • per-USER, resolved against the ROOM HOST (owner ruling on PROSE-1 owner-decision 8, option (a)): the
 //     SIDE-GENERATION prompts — arbiter, compaction, memory digest/consolidation, the recovery ask, the
-//     anchor identity lead-in, the group-round framings. These are ROOM-level generations, so a chat's memory
-//     corpus and its director stay internally consistent no matter which member spoke. Threading seam:
-//     `ChatContext.resolveChatProse(chatId)`, which resolves the present host exactly as
+//     anchor identity lead-in. These are ROOM-level generations that resolve where NO preset is in scope, so a
+//     chat's memory corpus and its arbiter stay internally consistent no matter which member spoke. Threading
+//     seam: `ChatContext.resolveChatProse(chatId)`, which resolves the present host exactly as
 //     `resolveChatPresetParams` does (`resolveChatHostUserId` → `loadUserSettings(host).prose`); a
 //     hostless/stale room degrades to `{}` ⇒ the shipped defaults.
 //   • per-PRESET (owner ruling 2026-08-07, verbatim: "templates need to have one home in presets not
-//     scattered between that and settings or hiding in code"): the three TURN-WIRE FRAMINGS — the two
-//     injection note frames and the continuation cue. Storage `promptConfig.prose`; authored in the preset
-//     Templates tab beside every other template. Decision 8 is NOT reversed by this: it answers "WHICH user
-//     when a slot is user-homed", and these three are not side generations at all — they are wrappers spliced
-//     into the MAIN turn's prompt, i.e. §3.2's per-USER rationale ("a property of how YOU run the app, not of
-//     one preset") never covered them. Threading seam: `composeProse` at `assembly/context`, which merges the
-//     host's user blob with the resolved preset's blob FILTERED BY HOME, so a slot still resolves from exactly
-//     one storage and the no-cascade law holds.
+//     scattered between that and settings or hiding in code"): the TURN-WIRE FRAMINGS — the two injection note
+//     frames, the continuation cue, and (F4 re-home, 2026-08-08, ruling arm (a) + D132(B) amendment) the seven
+//     GROUP-ROUND FRAMINGS: the merged/narrator co-speaker headings (`alsoPresent`/`castMember`/
+//     `scenarioHeading`/`exampleHeading`), the per-speaker and narrator round nudges (`roundNudge`/
+//     `narratorNudge`), and the speaker-tag instruction (`speakerTags`). Storage `promptConfig.prose`; authored
+//     in the preset Templates tab beside every other template. Decision 8 is NOT reversed by this: it answers
+//     "WHICH user when a slot is user-homed", and these framings are not side generations at all — they are
+//     wrappers spliced into the MAIN turn's prompt (the co-speaker card walk, the round's trailing user row),
+//     where the resolved preset IS in scope, so §3.2's per-USER rationale ("a property of how YOU run the app,
+//     not of one preset") never covered them. D132(B)'s own test — "does this text resolve where a preset is in
+//     scope?" — answers YES here, which is exactly why the F4 review found the old user-home enumeration
+//     self-contradictory. Threading seam: `composeProse` at `assembly/context`, which merges the host's user
+//     blob with the resolved preset's blob FILTERED BY HOME, so a slot still resolves from exactly one storage
+//     and the no-cascade law holds.
 //
-// NO DATA MIGRATION for the two re-homed frames (pre-launch NO-LEGACY): a `UserSettings.prose` override
-// written against them before 2026-08-07 stops applying and is re-entered in the preset Templates tab.
+// NO DATA MIGRATION for the re-homed frames (pre-launch NO-LEGACY): a `UserSettings.prose` override written
+// against the two injection frames (before 2026-08-07) or the seven group framings (before the F4 re-home)
+// stops applying — D132(D) leaves the stale user-blob key inert — and is re-entered in the preset Templates tab.
 //
 // MACRO MODE = "none" for every row (PROSE-1 §6.1): a summarizer / arbiter / digest prompt runs over a
 // TRANSCRIPT, not a character context — there is no `{{char}}` binding at these seams, so a `{{…}}` in an
@@ -89,7 +96,7 @@ export const CHAT_PROSE_SLOTS = {
     macros: "none",
     requiredMacros: [],
     requiredTokens: [],
-    title: "Turn-director prompt",
+    title: "Turn-arbiter prompt",
     fires: "Every group round under the `smart` speaker policy, on the summarize rail.",
   },
   "chat.compaction.system": {
@@ -146,7 +153,7 @@ export const CHAT_PROSE_SLOTS = {
   },
   "chat.group.alsoPresent": {
     id: "chat.group.alsoPresent",
-    home: "user",
+    home: "preset",
     version: 1,
     // The co-speaker card block's opening frame. The member's rendered description/personality follows on
     // the next line — that half is card data, never authorable here.
@@ -159,7 +166,7 @@ export const CHAT_PROSE_SLOTS = {
   },
   "chat.group.castMember": {
     id: "chat.group.castMember",
-    home: "user",
+    home: "preset",
     version: 1,
     // The NARRATOR twin of `alsoPresent`, and a separate slot rather than a re-version of it for one reason:
     // the two frames say opposite things. On a per-speaker merged turn the other members ARE bystanders —
@@ -176,7 +183,7 @@ export const CHAT_PROSE_SLOTS = {
   },
   "chat.group.scenarioHeading": {
     id: "chat.group.scenarioHeading",
-    home: "user",
+    home: "preset",
     version: 1,
     text: "[{{name}}'s scenario]",
     macros: "none",
@@ -187,7 +194,7 @@ export const CHAT_PROSE_SLOTS = {
   },
   "chat.group.exampleHeading": {
     id: "chat.group.exampleHeading",
-    home: "user",
+    home: "preset",
     version: 1,
     text: "[{{name}}'s example dialogue]",
     macros: "none",
@@ -198,7 +205,7 @@ export const CHAT_PROSE_SLOTS = {
   },
   "chat.group.roundNudge": {
     id: "chat.group.roundNudge",
-    home: "user",
+    home: "preset",
     version: 2,
     // The per-speaker fence on a MULTI-speaker round — the one line that stops the model voicing the whole
     // cast in one reply. Delivered as the round's trailing user row.
@@ -217,7 +224,7 @@ export const CHAT_PROSE_SLOTS = {
   },
   "chat.group.narratorNudge": {
     id: "chat.group.narratorNudge",
-    home: "user",
+    home: "preset",
     version: 1,
     // The NARRATOR twin of `roundNudge`. A narrator round is ONE generation voicing the whole cast, so the
     // per-speaker fence would be exactly wrong here — this line names the cast instead. Delivered as the
@@ -234,7 +241,7 @@ export const CHAT_PROSE_SLOTS = {
   },
   "chat.group.speakerTags": {
     id: "chat.group.speakerTags",
-    home: "user",
+    home: "preset",
     version: 1,
     // The PRODUCE half of per-speaker color in a merged bubble: the renderer splits a narrator body on
     // `<speaker>NAME</speaker>` markers and tints each span with that character's theme, so the markers

@@ -16,11 +16,15 @@ import { ProseSettingsSectionStory } from "../_ct-stories.tsx";
 
 const UPDATE_PROC = "settings.updateUserSettingsSection";
 const ARBITER = "chat.arbiter.system";
-const NUDGE = "chat.group.roundNudge";
+// A SECOND user-home slot that ALSO carries a required token, for the "untouched rides null" + lint proofs.
+// Was `chat.group.roundNudge` until the F4 re-home moved the group framings (and their `{{name}}`) to the
+// preset home; the digest prompt is now the section's token-carrying subject (required TOKENS, not a macro —
+// the footer lints both classes identically, `[...requiredMacros, ...requiredTokens]`).
+const DIGEST = "chat.memory.digestSystem";
 
 /** The MacroField renders a textarea playing `combobox` (ARIA); each card's label is the slot title. */
 const ARBITER_FIELD = PROSE_SLOTS[ARBITER].title;
-const NUDGE_FIELD = PROSE_SLOTS[NUDGE].title;
+const DIGEST_FIELD = PROSE_SLOTS[DIGEST].title;
 
 function settingsView(prose: Record<string, unknown> = {}): Record<string, unknown> {
   return { userId: "user_ct_prose", schemaVersion: 7, config: { ...DEFAULT_USER_SETTINGS, prose }, updatedAt: 0 };
@@ -59,21 +63,21 @@ test("typing an override fires updateUserSettingsSection('prose') stamped at the
     .poll(() => lastPatch(trpc)?.[ARBITER], { intervals: [20, 50, 100] })
     .toEqual({ text: "Pick whoever has been quiet longest.", baseVersion: PROSE_SLOTS[ARBITER].version });
   // An untouched slot rides as null (it has no override to preserve) — the patch spells every slot.
-  expect(lastPatch(trpc)?.[NUDGE]).toBeNull();
+  expect(lastPatch(trpc)?.[DIGEST]).toBeNull();
 });
 
 test("clearing an existing override sends the leaf null (reset to the shipped wording)", async ({ mount, page }) => {
-  const trpc = await stub(page, { [ARBITER]: { text: "an existing director prompt", baseVersion: 1 } });
+  const trpc = await stub(page, { [ARBITER]: { text: "an existing arbiter prompt", baseVersion: 1 } });
   await mount(<ProseSettingsSectionStory />);
   const arbiter = page.getByRole("textbox", { name: ARBITER_FIELD, exact: true });
-  await expect(arbiter).toHaveValue("an existing director prompt");
+  await expect(arbiter).toHaveValue("an existing arbiter prompt");
   await arbiter.fill("");
   await arbiter.blur();
   await expect.poll(() => lastPatch(trpc)?.[ARBITER], { intervals: [20, 50, 100] }).toBeNull();
 });
 
 test("the Reset-to-built-in button clears the field, and the write clears the override", async ({ mount, page }) => {
-  const trpc = await stub(page, { [ARBITER]: { text: "an existing director prompt", baseVersion: 1 } });
+  const trpc = await stub(page, { [ARBITER]: { text: "an existing arbiter prompt", baseVersion: 1 } });
   await mount(<ProseSettingsSectionStory />);
   const card = page.getByRole("group", { name: ARBITER_FIELD });
   await card.getByRole("button", { name: "Reset to built-in" }).click();
@@ -197,15 +201,17 @@ test("PROSE GEOMETRY — an over-cap value scrolls inside a capped box, and the 
   await expect(status).toContainText("Saved");
 });
 
-test("a required pre-substitution token dropped from an override lints — a warn, never a block", async ({ mount, page }) => {
+test("a required token dropped from an override lints — a warn, never a block", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<ProseSettingsSectionStory />);
-  const nudge = page.getByRole("textbox", { name: NUDGE_FIELD, exact: true });
-  await nudge.fill("Write the next reply.");
-  const card = page.getByRole("group", { name: NUDGE_FIELD });
-  await expect(card.getByText("Missing {{name}}")).toBeVisible();
+  const digest = page.getByRole("textbox", { name: DIGEST_FIELD, exact: true });
+  await digest.fill("Just summarize the block.");
+  const card = page.getByRole("group", { name: DIGEST_FIELD });
+  // The digest slot's `requiredTokens` are the retrieval unit's parse contract; dropping one lints (the same
+  // warn-never-block posture the group framings' `{{name}}` had before they re-homed to the preset editor).
+  await expect(card.getByText("Missing keywords:")).toBeVisible();
   // The lint never blocks: the edit still saves.
   await expect
-    .poll(() => lastPatch(trpc)?.[NUDGE], { intervals: [20, 50, 100] })
-    .toEqual({ text: "Write the next reply.", baseVersion: PROSE_SLOTS[NUDGE].version });
+    .poll(() => lastPatch(trpc)?.[DIGEST], { intervals: [20, 50, 100] })
+    .toEqual({ text: "Just summarize the block.", baseVersion: PROSE_SLOTS[DIGEST].version });
 });

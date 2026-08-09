@@ -82,7 +82,10 @@ export const PROSE_SLOT_IDS = [
   "chat.memory.digestSystem",
   "chat.memory.consolidationSystem",
   "chat.memory.consolidationLead",
-  // ── per-USER: the group-round FRAMING prose (the S1b inline stragglers) ──
+  // ── per-PRESET: the group-round FRAMING prose (the S1b inline stragglers) — RE-HOMED user → preset by the
+  //    F4 ruling arm (a) + the D132(B) amendment (2026-08-08). They resolve during the MAIN turn's context
+  //    build where the preset IS in scope (`composeProse` at `assembly/context`), so `promptConfig.prose` is
+  //    their storage and each has a Templates-tab `group`-kind row. ──
   "chat.group.alsoPresent",
   "chat.group.castMember",
   "chat.group.scenarioHeading",

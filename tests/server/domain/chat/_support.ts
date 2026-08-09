@@ -438,9 +438,6 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // test overrides with a recorder to assert the fire-and-forget after commit.
     expressions: null,
     rpg: null,
-    // Default = null ⇒ the chat-crew director isn't wired (byte-identical no-op — chat-crew-design/04 §1). A
-    // director test overrides with a stub returning the guidance injection.
-    crew: null,
     // Default = null ⇒ no PromptTransform registrar wired (byte-identical no-op — automation-design/04 §6). A
     // transform test overrides with a `createPromptTransformRegistry(...).apply`.
     promptTransforms: null,

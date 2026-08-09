@@ -129,7 +129,7 @@ function applyPolicy(
     case "natural":
     // `smart` is the side-LLM path (`engine/smart-arbitrate`), which the turn verb routes a per-speaker
     // smart round to — so this arm is reached only where it did NOT: a `smart` room whose human `@mention`
-    // resolved to nobody eligible (the named seat is muted/left), and a NARRATOR room, where the director
+    // resolved to nobody eligible (the named seat is muted/left), and a NARRATOR room, where the arbiter
     // call is short-circuited because its verdict governs nothing. No model was consulted in either case, so
     // this is a plain `natural` order, not the degrade path (the model FAILING is the degrade path, emitted
     // as `smart_arbitration_degraded` by the caller).

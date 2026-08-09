@@ -48,19 +48,21 @@ export type UpdateBookInput = z.infer<typeof updateBookSchema>;
  *  is the transcript window that produced the entry (display + re-run idempotency). Generic on purpose — the
  *  shared `upsertEntries` mint owns this shape so every machine consumer inherits the same guarantee
  *  (chat-crew-design/02 §7, /03 §1; CC-D). */
-export const loreEntryCrewProvenanceSchema = z.object({
+export const loreEntryProvenanceSchema = z.object({
   contentHash: z.string(),
   span: z.object({ fromSeq: z.number().int().nonnegative(), toSeq: z.number().int().nonnegative() }).optional(),
 });
-export type LoreEntryCrewProvenance = z.infer<typeof loreEntryCrewProvenanceSchema>;
+export type LoreEntryProvenance = z.infer<typeof loreEntryProvenanceSchema>;
 
 // Loose: unknown keys (e.g. preserved ST entry fields) ride through untouched; the load-bearing fields are
-// typed. `crew` is the machine-writer provenance (above) — present only on entries an upserter owns.
+// typed. `provenance` is the machine-writer provenance (above) — present only on entries an upserter owns.
+// (Renamed from `crew` by the 2026-08-08 vocab kill; pre-launch NO-LEGACY, so a pre-rename row's `crew` key
+// rides through as an inert unknown key and the writer re-stamps `provenance`.)
 export const entryMetadataSchema = z.looseObject({
   scopeMode: z.enum(ENTRY_SCOPE_MODES).optional(),
   inject: injectionDirectiveSchema.optional(),
   position: z.enum(ENTRY_POSITIONS).optional(),
-  crew: loreEntryCrewProvenanceSchema.optional(),
+  provenance: loreEntryProvenanceSchema.optional(),
 });
 export type EntryMetadata = z.infer<typeof entryMetadataSchema>;
 
@@ -199,14 +201,14 @@ export interface BulkImportLorebookResult {
 // rpg lorebook upkeep were the other two intended consumers before the 2026-07-25 purge — the rebuild wires
 // them here too, never a fork of the fence-strip/compare copy). The op upserts by (bookId,
 // title) — a re-run REPLACES its own prior entry for the same title — and NEVER overwrites a human-curated
-// entry (the stored `metadata.crew.contentHash` vs the current content is the guard). Caller policy (caps,
+// entry (the stored `metadata.provenance.contentHash` vs the current content is the guard). Caller policy (caps,
 // merge-mode, span-stamped names, mark advance) stays with the caller; the SKIP semantics live here so every
 // consumer inherits them (CC-D).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** One entry a machine writer upserts. `title` is the upsert key within the book; `keys` drive the keyword
  *  match (a keeper entry is keyed, not constant — chat-crew-design/03 §1). `span` is stamped into the entry's
- *  `metadata.crew.span` provenance. */
+ *  `metadata.provenance.span`. */
 export interface UpsertLoreEntryInput {
   readonly title: string;
   readonly keys: readonly string[];
