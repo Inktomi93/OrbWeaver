@@ -143,6 +143,36 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   zone gap → fix lane) · side-eye batch pass: C6 submenu GRADUATED clean; findings (turn-director model
   text, Corpus first-run redesign, Delete aria, flash ring, + P2/P3 pile) ALL in a fix lane per the
   side-eye-authority rule.
+## ═══ OVERNIGHT PLAN (2026-08-09, post-reset — FREEZE LIFTED, full-auto per overnight posture) ═══
+
+**METHOD (the session's ratified discipline — every step below follows it):**
+1. **Big lanes, ONE commit each**, worktree-isolated, briefs carry a READ-FIRST block (docs in full +
+   contracts in BOTH homes + drizzle schemas per table touched).
+2. **Commits/merges gate themselves**: pre-commit + pre-merge-commit hooks run `pnpm check` — a landed
+   commit IS the static receipt; never `--no-verify` on lane work; behavioral tests are the lane's own.
+3. **Merge flow: rebase-in-worktree → `--no-ff` onto main.** ONE merge chain at a time, backgrounded,
+   and **`git log` showing the merge commit is the receipt — never the chain's exit code.** Rebase-emergent
+   gate violations are expected; fix by decomposition. Conflicts resolve in the worktree (union for
+   both-additive), through the hook.
+4. Verification batched: ONE verifier per train, side-eye for surfaces, fix-ALL-findings, no small-item
+   lenses. Owner questions via the question tool, grepped against RULINGS first.
+
+**PHASE 1 (running now, 5 lanes):** IDOR probes+#34 (security, PUSH-BLOCKER) · #30 R4 · #33 arm B ·
+\#32 CLS/tab-strip/jank/flagger · #31 agents naming. Merge each on report, serially, log-verified.
+**PHASE 2 — on the IDOR merge:** re-run the cross-tenant suite; green → **`git push --no-verify`**
+(owner's standing word 08-08 + explicit 08-09 instruction; battery receipts already banked:
+11,055/11,056 + e2e-smoke + parity + cpd green, ratchet fixed `dedb7a897`).
+**PHASE 3 — graduation train (after all 5 merge):** ONE batched verifier over the 5 lanes' claims +
+ONE batched side-eye (R3 surface LIVE on merged main — its owed lens — + the CLS/jank fixes + corpus
+redesign re-verify). Fix-all-findings loop per side-eye law; smalls batch folds in #35's preset-CT
+one-word flake fix.
+**PHASE 4 — remainders:** #35 corpus-stage settle investigation (instrument gap) · board truth-up +
+memory flush at each milestone.
+**MORNING OWNER QUEUE (blocking-question class, parked for Nate):** R3 taste pass + the
+`refinery.schemaForge.system` slot draft sign-off · re-import GO (post-push, on the fixed pipeline) ·
+standing decision pile (RV-13 spec go · chars+chats rail merge · home-tile WHETHER · trust-gated card
+images · DRAFT-TRUST seam · token-unification offer · taste pile).
+
 - **✅ SITTING FULLY DRAINED (late 08-08): all 3 freeze-era lanes LANDED + merged — nothing to
   resurrect.** Final merges: forge R3 `5727fcb12` (crown on main; the `refinery.schemaForge.system`
   slot text is forge's DRAFT awaiting owner sign-off) · grad-fix `6672d4fc5` (conflict-resolved vs
