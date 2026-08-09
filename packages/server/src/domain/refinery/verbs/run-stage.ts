@@ -11,6 +11,20 @@
 // latest rewrite, so refinement rounds converge) with the latest score as context; ANALYZE always judges
 // the latest rewrite against the ORIGINAL — never rewrite-vs-rewrite (a steered rewrite must not
 // bootstrap itself across iterations).
+//
+// THE CUSTOM ARM (R3/SF — docs/design/refinery-r3-build-plan.md §4): a session whose score/analyze config
+// is `{kind:"custom", schemaId}` resolves the OWNED schema row PER CALL (a schema edit governs the next
+// run — the D126 discipline; a deleted schema is a leak-free NOT_FOUND), lifts it (`liftJsonSchema` — the
+// stored blob is liftable by the save belt's invariant, re-lifted defensively here), and runs the SAME
+// engine: the lifted zod is the validator, the projection is the wire grammar, and the run row EMBEDS
+// `{schemaId, schemaVersion, schema}` so the append-only log never dereferences a live row (P1-B).
+// F6 under custom: score still stamps `overallScore` (the well-known core pins the 1-10 scale); analyze
+// does NOT stamp `analysis` — canon's `characters.refinery.analysis` is the TYPED fixed payload, so a
+// custom analyze lives in the run ledger only (stated in the Setup tab's copy).
+//
+// OPERATE-BACK (schema-renderer §16.1): `rewriteRunId` lets an analyze judge an EARLIER rewrite of this
+// session — the new analyze row appends with that run as its DAG parent, provenance stays true, nothing
+// mutates. Legal only with `stage:"analyze"`.
 
 import type { SideGenKind } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
@@ -26,18 +40,20 @@ import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn, StructuredOutputError } from "@orb/server/kit/structured-turn";
 import { eq } from "drizzle-orm";
-import type { z } from "zod";
+import { z } from "zod";
+import { addSpanEvent } from "#foundation/observability";
 import type { RefineryContext } from "../context.ts";
 import { RefineryRunFailedError, RefineryStageNotReadyError } from "../contract/errors.ts";
-import type { StagePrompts } from "../contract/prompts.ts";
+import type { StagePrompts, StageResolution } from "../contract/prompts.ts";
 import type { RefinerySessionView } from "../contract/results.ts";
 import type { ExecuteStage, RefineryService, StageEngineDeps } from "../contract/service.ts";
-import { latestRunRowOf, loadOwnedSessionRow, sessionViewOf } from "../persistence/queries.ts";
+import { latestRunRowOf, loadOwnedSessionRow, loadSessionRewriteRunRow, sessionViewOf } from "../persistence/queries.ts";
 import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
 import { buildStageParse } from "../substrate/stage-parse.ts";
+import { resolveStageResolution } from "../substrate/stage-resolution.ts";
 import { traceStructuredRetry } from "../substrate/structured-retry-trace.ts";
 
-// The wire grammar per stage — the SAME schemas the parse validates (D79's one-representation law).
+// The wire grammar per FIXED stage — the SAME schemas the parse validates (D79's one-representation law).
 // Module-const like distill's: the D126 shaping is the backend's request-build concern, not ours.
 const RESPONSE_FORMATS: Record<RefineryStage, ResponseFormat> = {
   score: { name: "refinery_score", schema: projectJsonSchema(REFINERY_STAGE_PAYLOADS.score) },
@@ -51,18 +67,23 @@ const POSTURE_BY_STAGE: Record<RefineryStage, SideGenKind> = {
   analyze: "refine_analyze",
 };
 
+/** The custom-score stamp pluck — the well-known core the save belt guarantees. A drifted row skips the
+ *  stamp OBSERVABLY (banned-silent-fork), never fabricates a score. */
+const overallScoreCoreSchema = z.object({ overallScore: z.number() });
+
 /** The service verb — the engine below with `isRefinement:false` (the engine instance arrives via deps
  *  so `iterate` provably runs the SAME one; wired at `service.ts`). */
 export function createRunStage(_ctx: RefineryContext, deps: StageEngineDeps): RefineryService["runStage"] {
-  return ({ principal, sessionId, stage }) => deps.executeStage({ principal, sessionId, stage, isRefinement: false });
+  return ({ principal, sessionId, stage, rewriteRunId }) => deps.executeStage({ principal, sessionId, stage, isRefinement: false, rewriteRunId });
 }
 
-/** One resolved stage pass — belts done, prose + posture resolved, run identity minted. Carried whole so
- *  the per-arm helpers and the bounded retry provably run the SAME pass. */
+/** One resolved stage pass — belts done, prose + posture + payload arm resolved, run identity minted.
+ *  Carried whole so the per-arm helpers and the bounded retry provably run the SAME pass. */
 interface StagePass {
   readonly session: RefinerySessionView;
   readonly sampleOpts: SummarizeOptions;
   readonly overrides: Awaited<ReturnType<RefineryContext["resolveUserProse"]>>;
+  readonly resolution: StageResolution;
   readonly meta: {
     readonly id: ReturnType<RefineryContext["newRefineryRunId"]>;
     readonly sessionId: Parameters<ExecuteStage>[0]["sessionId"];
@@ -76,7 +97,7 @@ interface StagePass {
  *  `isRefinement:false`; `iterate` runs it twice per round. Reloads the session per call so an iterate
  *  round's analyze sees the rewrite that just landed. */
 export function createExecuteStage(ctx: RefineryContext): ExecuteStage {
-  return async ({ principal, sessionId, stage, isRefinement }) => {
+  return async ({ principal, sessionId, stage, isRefinement, rewriteRunId }) => {
     const ownerId = principal.userId;
     const row = await loadOwnedSessionRow(ctx.db, ownerId, sessionId);
     if (row === undefined) {
@@ -84,20 +105,47 @@ export function createExecuteStage(ctx: RefineryContext): ExecuteStage {
       throw new DomainNotFoundError("refinery session", sessionId);
     }
     const session = sessionViewOf(row);
+    if (rewriteRunId !== undefined && stage !== "analyze") {
+      throw new RefineryStageNotReadyError("Only the analyze stage can target an earlier rewrite run.");
+    }
     const prior = await readPriorRuns(ctx, sessionId);
-    assertStageReady(stage, isRefinement, prior);
-    const pass = await resolveStagePass(ctx, { ownerId, sessionId, stage, session });
-    const view = await dispatchStage(ctx, { ownerId, stage, isRefinement, prior, pass });
-
-    // A run makes the session live again (status is a roster label, never a lock — design §9.2).
-    await ctx.db.update(refinerySessions).set({ status: "active", updatedAt: pass.meta.createdAt }).where(eq(refinerySessions.id, sessionId));
-    return view;
+    // Operate-back: the explicit rewrite REPLACES "latest" for this analyze — same session, same belts.
+    if (rewriteRunId !== undefined) {
+      const named = await loadSessionRewriteRunRow(ctx.db, sessionId, rewriteRunId);
+      const parsed = named === undefined ? null : priorRunOf(named, REFINERY_STAGE_PAYLOADS.rewrite);
+      if (parsed === null) {
+        throw new DomainNotFoundError("refinery run", rewriteRunId);
+      }
+      return executeResolved(ctx, { ownerId, stage, isRefinement, prior: { ...prior, rewrite: parsed }, session, sessionId });
+    }
+    return executeResolved(ctx, { ownerId, stage, isRefinement, prior, session, sessionId });
   };
+}
+
+async function executeResolved(
+  ctx: RefineryContext,
+  args: {
+    readonly ownerId: Parameters<ExecuteStage>[0]["principal"]["userId"];
+    readonly stage: RefineryStage;
+    readonly isRefinement: boolean;
+    readonly prior: PriorRuns;
+    readonly session: RefinerySessionView;
+    readonly sessionId: Parameters<ExecuteStage>[0]["sessionId"];
+  },
+): Promise<RefineryRun> {
+  const { ownerId, stage, isRefinement, prior, session, sessionId } = args;
+  assertStageReady(stage, isRefinement, prior);
+  const pass = await resolveStagePass(ctx, { ownerId, sessionId, stage, session });
+  const view = await dispatchStage(ctx, { ownerId, stage, isRefinement, prior, pass });
+
+  // A run makes the session live again (status is a roster label, never a lock — design §9.2).
+  await ctx.db.update(refinerySessions).set({ status: "active", updatedAt: pass.meta.createdAt }).where(eq(refinerySessions.id, sessionId));
+  return view;
 }
 
 /** The §7.5 dispatch: one arm per stage, each appending its run and stamping the signals half it owns
  *  (F6: score → `score`, analyze → `analysis`; rewrite stamps nothing — its canon write is `applyFields`). */
-async function dispatchStage(
+function dispatchStage(
   ctx: RefineryContext,
   args: {
     readonly ownerId: Parameters<ExecuteStage>[0]["principal"]["userId"];
@@ -108,29 +156,59 @@ async function dispatchStage(
   },
 ): Promise<RefineryRun> {
   const { ownerId, stage, isRefinement, prior, pass } = args;
-  const session = pass.session;
   if (stage === "score") {
-    const view = await runScoreArm(ctx, pass);
-    if (view.stage === "score") {
-      await ctx.stampRefinerySignals({ ownerId, characterId: session.characterId, patch: { score: view.payload.overallScore } });
-    }
-    return view;
+    return dispatchScore(ctx, ownerId, pass);
   }
   if (stage === "rewrite") {
-    // The DAG parent of a rewrite is the run it WORKED FROM: the analyze it refines against on a
-    // refinement round, else the score it addresses. Null on a cold first pass.
-    const parent = isRefinement ? prior.analyze : prior.score;
-    return runRewriteArm(ctx, pass, {
-      working: prior.rewrite === null ? session.originalCard : overlayRewrite(session.originalCard, prior.rewrite.payload),
-      score: prior.score?.payload ?? null,
-      analyzeFeedback: isRefinement ? (prior.analyze?.payload ?? null) : null,
-      sourceRunId: parent === null ? null : parent.id,
-    });
+    return dispatchRewrite(ctx, { isRefinement, prior, pass });
   }
-  // analyze — the precondition guaranteed the rewrite payload; the anchor is the ORIGINAL.
+  return dispatchAnalyze(ctx, ownerId, pass, prior);
+}
+
+async function dispatchScore(ctx: RefineryContext, ownerId: Parameters<ExecuteStage>[0]["principal"]["userId"], pass: StagePass): Promise<RefineryRun> {
+  const view = await runScoreArm(ctx, pass);
+  const core = overallScoreCoreSchema.safeParse(view.payload);
+  if (core.success) {
+    await ctx.stampRefinerySignals({ ownerId, characterId: pass.session.characterId, patch: { score: core.data.overallScore } });
+  } else {
+    // Unreachable for a fixed run; for custom it means the core drifted past the save belt — observable.
+    addSpanEvent("refinery.stamp.skipped", { stage: "score", reason: "no-overall-score-core" });
+  }
+  return view;
+}
+
+function dispatchRewrite(
+  ctx: RefineryContext,
+  args: { readonly isRefinement: boolean; readonly prior: PriorRuns; readonly pass: StagePass },
+): Promise<RefineryRun> {
+  const { isRefinement, prior, pass } = args;
+  const session = pass.session;
+  // The DAG parent of a rewrite is the run it WORKED FROM: the analyze it refines against on a
+  // refinement round, else the score it addresses. Null on a cold first pass.
+  const parent = isRefinement ? prior.analyze : prior.score;
+  return runRewriteArm(ctx, pass, {
+    working: prior.rewrite === null ? session.originalCard : overlayRewrite(session.originalCard, prior.rewrite.payload),
+    score: prior.score?.payload ?? null,
+    analyzeFeedback: isRefinement ? (prior.analyze?.payload ?? null) : null,
+    sourceRunId: parent === null ? null : parent.id,
+  });
+}
+
+/** analyze — the precondition guaranteed the rewrite payload; the anchor is the ORIGINAL. The stamp is
+ *  FIXED-only (header): canon's `characters.refinery.analysis` is the typed fixed payload, so a custom
+ *  analyze lives in the run ledger alone. The re-parse is the type-honest narrow (cheap, one payload). */
+async function dispatchAnalyze(
+  ctx: RefineryContext,
+  ownerId: Parameters<ExecuteStage>[0]["principal"]["userId"],
+  pass: StagePass,
+  prior: PriorRuns,
+): Promise<RefineryRun> {
   const view = await runAnalyzeArm(ctx, pass, prior.rewrite);
-  if (view.stage === "analyze") {
-    await ctx.stampRefinerySignals({ ownerId, characterId: session.characterId, patch: { analysis: view.payload } });
+  if (view.payloadConfig.kind === "fixed") {
+    const fixedAnalyze = REFINERY_STAGE_PAYLOADS.analyze.safeParse(view.payload);
+    if (fixedAnalyze.success) {
+      await ctx.stampRefinerySignals({ ownerId, characterId: pass.session.characterId, patch: { analysis: fixedAnalyze.data } });
+    }
   }
   return view;
 }
@@ -143,7 +221,10 @@ interface PriorRun<T> {
   readonly payload: T;
 }
 
-/** The prior-run context every stage reads: the latest VALID run per stage. */
+/** The prior-run context every stage reads: the latest VALID run per stage. The score/analyze halves are
+ *  context PROSE (rendered into rewrite prompts), so a CUSTOM prior run — whose payload has no fixed
+ *  shape — is absent here by construction: the fixed parse below drops it, and the rewrite grounds on the
+ *  card + guidance alone. */
 interface PriorRuns {
   readonly score: PriorRun<z.infer<(typeof REFINERY_STAGE_PAYLOADS)["score"]>> | null;
   readonly rewrite: PriorRun<z.infer<(typeof REFINERY_STAGE_PAYLOADS)["rewrite"]>> | null;
@@ -183,8 +264,8 @@ function assertStageReady(stage: RefineryStage, isRefinement: boolean, prior: Pr
 }
 
 /** Resolve one pass (owner prose + the posture ladder — the caller IS the card owner, so the preset rung
- *  always applies) + mint the run identity. Carried whole (StagePass) so the arms and the bounded retry
- *  provably run the SAME pass. */
+ *  always applies) + the payload arm + mint the run identity. Carried whole (StagePass) so the arms and
+ *  the bounded retry provably run the SAME pass. */
 async function resolveStagePass(
   ctx: RefineryContext,
   args: {
@@ -197,11 +278,13 @@ async function resolveStagePass(
   const { ownerId, sessionId, stage, session } = args;
   const overrides = await ctx.resolveUserProse(ownerId);
   const presetParams = await ctx.resolveUserPresetParams(ownerId);
+  const resolution = await resolveStageResolution(ctx, { ownerId, stage, session });
   return {
     session,
     overrides,
+    resolution,
     sampleOpts: {
-      responseFormat: RESPONSE_FORMATS[stage],
+      responseFormat: resolution.kind === "custom" ? resolution.responseFormat : RESPONSE_FORMATS[stage],
       ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES[POSTURE_BY_STAGE[stage]], presetParams)),
     },
     meta: {
@@ -217,7 +300,7 @@ async function resolveStagePass(
 /** The three ECONOMIC columns of a finished run, resolved identically for every stage: the provider's own
  *  usage (null only when the backend reports none) and the pass's wall time. Measured from `meta.createdAt`
  *  — the moment the pass was resolved — so the number covers prompt assembly and the bounded structured
- *  retry, which is what a user comparing two runs actually waited through. */
+ *  retry, which is what a user comparing two runs actually waited. */
 function runCost(
   ctx: RefineryContext,
   pass: StagePass,
@@ -227,14 +310,30 @@ function runCost(
 }
 
 async function runScoreArm(ctx: RefineryContext, pass: StagePass): Promise<RefineryRun> {
-  const { session } = pass;
+  const { session, resolution } = pass;
   const prompts = buildScorePrompt({
     card: session.originalCard,
     selection: session.selection,
-    mode: session.stageConfig.score.mode,
+    mode: resolution.kind === "custom" ? null : sessionScoreMode(session),
     guidance: session.guidance,
     overrides: pass.overrides,
+    customInstruction: resolution.kind === "custom" ? resolution.instruction : undefined,
+    shapeText: resolution.kind === "custom" ? resolution.shapeText : undefined,
   });
+  if (resolution.kind === "custom") {
+    const turn = await runOne(ctx, { prompts, sampleOpts: pass.sampleOpts, lane: "refine-score", payloadSchema: resolution.payloadSchema });
+    const view = {
+      ...pass.meta,
+      ...runCost(ctx, pass, turn),
+      sourceRunId: null,
+      stage: "score" as const,
+      payloadConfig: resolution.runConfig,
+      payload: turn.payload as Record<string, unknown>,
+      strippedKeys: [...turn.strippedKeys],
+    };
+    await ctx.db.insert(refineryRuns).values(view);
+    return view;
+  }
   const turn = await runOne(ctx, { prompts, sampleOpts: pass.sampleOpts, lane: "refine-score", payloadSchema: REFINERY_STAGE_PAYLOADS.score });
   const view = {
     ...pass.meta,
@@ -242,12 +341,23 @@ async function runScoreArm(ctx: RefineryContext, pass: StagePass): Promise<Refin
     // A score critiques the ORIGINAL card and consumes no prior run — a DAG root, always.
     sourceRunId: null,
     stage: "score" as const,
-    payloadConfig: session.stageConfig.score,
+    payloadConfig: { kind: "fixed" as const, mode: sessionScoreMode(session) },
     payload: turn.payload,
     strippedKeys: [...turn.strippedKeys],
   };
   await ctx.db.insert(refineryRuns).values(view);
   return view;
+}
+
+/** The session's fixed score mode — the config parse guaranteed the arm when the resolution is fixed. */
+function sessionScoreMode(session: RefinerySessionView): Extract<RefinerySessionView["stageConfig"]["score"], { kind: "fixed" }>["mode"] {
+  const config = session.stageConfig.score;
+  return config.kind === "fixed" ? config.mode : "full";
+}
+
+function sessionAnalyzeMode(session: RefinerySessionView): Extract<RefinerySessionView["stageConfig"]["analyze"], { kind: "fixed" }>["mode"] {
+  const config = session.stageConfig.analyze;
+  return config.kind === "fixed" ? config.mode : "full";
 }
 
 interface RewriteArmContext {
@@ -284,15 +394,31 @@ async function runRewriteArm(ctx: RefineryContext, pass: StagePass, arm: Rewrite
 }
 
 async function runAnalyzeArm(ctx: RefineryContext, pass: StagePass, rewrite: PriorRuns["rewrite"]): Promise<RefineryRun> {
-  const { session } = pass;
+  const { session, resolution } = pass;
   const prompts = buildAnalyzePrompt({
     originalCard: session.originalCard,
     selection: session.selection,
-    mode: session.stageConfig.analyze.mode,
+    mode: resolution.kind === "custom" ? null : sessionAnalyzeMode(session),
     guidance: session.guidance,
     overrides: pass.overrides,
     rewrite: rewrite?.payload ?? { fields: [] },
+    customInstruction: resolution.kind === "custom" ? resolution.instruction : undefined,
+    shapeText: resolution.kind === "custom" ? resolution.shapeText : undefined,
   });
+  if (resolution.kind === "custom") {
+    const turn = await runOne(ctx, { prompts, sampleOpts: pass.sampleOpts, lane: "refine-analyze", payloadSchema: resolution.payloadSchema });
+    const view = {
+      ...pass.meta,
+      ...runCost(ctx, pass, turn),
+      sourceRunId: rewrite?.id ?? null,
+      stage: "analyze" as const,
+      payloadConfig: resolution.runConfig,
+      payload: turn.payload as Record<string, unknown>,
+      strippedKeys: [...turn.strippedKeys],
+    };
+    await ctx.db.insert(refineryRuns).values(view);
+    return view;
+  }
   const turn = await runOne(ctx, { prompts, sampleOpts: pass.sampleOpts, lane: "refine-analyze", payloadSchema: REFINERY_STAGE_PAYLOADS.analyze });
   const view = {
     ...pass.meta,
@@ -301,7 +427,7 @@ async function runAnalyzeArm(ctx: RefineryContext, pass: StagePass, rewrite: Pri
     // verdict about?" answerable once step-back exists.
     sourceRunId: rewrite?.id ?? null,
     stage: "analyze" as const,
-    payloadConfig: session.stageConfig.analyze,
+    payloadConfig: { kind: "fixed" as const, mode: sessionAnalyzeMode(session) },
     payload: turn.payload,
     strippedKeys: [...turn.strippedKeys],
   };

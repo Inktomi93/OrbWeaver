@@ -13,8 +13,8 @@ test("useSectionListIsScreen: a section that DECLARES a list with nothing select
 
   // config declares a list (and therefore a selection seam) and nothing is open ⇒ the arm.
   await expect(state).toContainText("config-screen=true");
-  // refinery declares no list at all — there is nothing to make the screen, in any viewport.
-  await expect(state).toContainText("refinery-screen=false");
+  // home declares no list at all — there is nothing to make the screen, in any viewport.
+  await expect(state).toContainText("home-screen=false");
 
   // Opening a member ENDS the arm (CONTENT is the screen on a phone), and clearing restores it — read
   // through the section's own intents, which is what its rows and the shell's back affordance both call.

@@ -77,6 +77,13 @@ export interface ListSnapshotsParams extends CharacterActorParams {
   readonly characterId: CharacterId;
 }
 
+/** `getSnapshot` — one snapshot's blob for compare/inspect (the refinery Versions walk). Both ids ride
+ *  so the owner belt and the parent scope collapse together (a foreign pair is one NOT_FOUND). */
+export interface GetSnapshotParams extends CharacterActorParams {
+  readonly characterId: CharacterId;
+  readonly snapshotId: CharacterSnapshotId;
+}
+
 export interface RestoreParams extends CharacterActorParams {
   readonly characterId: CharacterId;
   readonly snapshotId: CharacterSnapshotId;

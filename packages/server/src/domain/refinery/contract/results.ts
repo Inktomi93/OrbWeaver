@@ -5,8 +5,16 @@
 // flow from the router either way.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { RefinableField, RefineryRun, RefinerySelection, RefinerySessionStatus, RefineryStageConfig } from "@orb/contracts/refinery";
-import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
+import type {
+  RefinableField,
+  RefineryRewriteField,
+  RefineryRun,
+  RefinerySelection,
+  RefinerySessionStatus,
+  RefineryStage,
+  RefineryStageConfig,
+} from "@orb/contracts/refinery";
+import type { CharacterId, CharacterSnapshotId, ModelId, RefinerySessionId } from "@orb/kit/ids";
 import type { CharacterDetail } from "#domain/character";
 
 /** The full session (the CONTENT surface's state) — summary fields + the anti-drift anchor + config. */
@@ -49,6 +57,11 @@ const APPLY_DROP_REASONS = [
    *  a character with no first message is a worse authoring state than any empty field, so the last
    *  surviving slot refuses rather than being written away (schema-renderer §15.2). */
   "would_leave_no_greeting",
+  /** The MERGE CONFLICT (schema-renderer §21 edge 2): the LIVE card's text for this field differs from
+   *  the session's `original_card` pin — someone edited it under the session — and the accept carried no
+   *  `confirmDiverged`. Never written blind: the surface re-opens the block as a BASE·LIVE·REWRITE
+   *  conflict and the re-confirmed accept passes. */
+  "diverged_since_session",
 ] as const;
 export type ApplyDropReason = (typeof APPLY_DROP_REASONS)[number];
 
@@ -71,11 +84,44 @@ export interface DroppedField {
   readonly reason: ApplyDropReason;
 }
 
+/** One accept's belt verdict (the shared accept-belts substrate's output — both terminal verbs consume
+ *  it; homed here per §7.4, the one type home). */
+export type AcceptVerdict = { readonly kind: "apply"; readonly entry: RefineryRewriteField } | { readonly kind: "drop"; readonly drop: DroppedField };
+
+/** The belt inputs one apply call classifies every accept against (derived once, up front — the
+ *  accept-belts substrate's contract). */
+export interface AcceptBelts {
+  readonly rewriteFields: readonly RefineryRewriteField[];
+  readonly selectedFields: readonly string[];
+  /** The selection's greeting-index narrowing — `undefined` means every greeting is in scope (contracts
+   *  law). When it IS an array, an accept for a greeting index outside it is scope-widening past what the
+   *  user selected (belt 9). */
+  readonly selectedGreetingIndexes: readonly number[] | undefined;
+  readonly liveGreetingCount: number;
+  readonly liveHasDepthPrompt: boolean;
+  /** The §21 divergence pair: the session's pin and the card the write would land on. */
+  readonly originalCard: CharacterCard;
+  readonly liveCard: CharacterCard;
+}
+
 export interface ApplyFieldsResult {
   readonly applied: readonly AppliedFieldRef[];
   readonly dropped: readonly DroppedField[];
   /** The updated character detail (the injected `character.update`'s own return) — the client's refresh. */
   readonly character: CharacterDetail;
+  /** The pre-apply snapshot's id (schema-renderer §16.2's result widening) — the immediate "view the
+   *  rollback point" affordance. Null on exactly the zero-write arm, where NO snapshot was taken (the
+   *  surface states that plainly rather than leaving a missing rollback point unexplained). */
+  readonly snapshotId: CharacterSnapshotId | null;
+}
+
+/** `applyAsCopy` — the branch-off result: the same itemization, the FRESH character (never the live one),
+ *  and no snapshot by construction (nothing existing was written — the outcome copy says so). Null
+ *  `character` on the zero-write arm: every accept died on the belts, so no copy was minted. */
+export interface ApplyAsCopyResult {
+  readonly applied: readonly AppliedFieldRef[];
+  readonly dropped: readonly DroppedField[];
+  readonly character: CharacterDetail | null;
 }
 
 /** One `iterate` round: the refinement rewrite + the analyze that judged it, plus the bumped counter. */
@@ -84,3 +130,31 @@ export interface IterateResult {
   readonly analyze: RefineryRun;
   readonly iterationCount: number;
 }
+
+/** One stage's preflight readout (schema-renderer §8) — the RESOLVED posture (floor + the owner's preset
+ *  params, re-run per call) plus both fit estimates. Estimates are QuadChars-honest ADVISORIES: the copy
+ *  says "likely", never a hard number (`@orb/kit/tokens`' own doctrine). */
+export interface StagePreflight {
+  readonly stage: RefineryStage;
+  readonly model: ModelId;
+  readonly temperature: number | null;
+  readonly maxOutputTokens: number | null;
+  /** Estimated PROMPT tokens for this stage as currently configured (the real assembled prompt, measured). */
+  readonly inputEstimate: number;
+  /** Estimated OUTPUT tokens this stage's reply wants (§8's per-stage arithmetic). */
+  readonly outputEstimate: number;
+}
+
+export interface PreflightResult {
+  /** The summarize role's context window, when the backend declares one. */
+  readonly contextTokens: number | null;
+  readonly stages: readonly StagePreflight[];
+}
+
+/** `generateSchema`/`refineSchema` — ERRORS-AS-DATA (the applyRefusal precedent): a draft that failed the
+ *  belt on BOTH turns still RESOLVES, carrying the refusal + the model's raw last reply so the editor can
+ *  offer it for hand-fixing (the extension's own show-the-partial policy, NL design §1.1.5/§2.1 — the raw
+ *  never rides an error message). Provider faults still throw. */
+export type SchemaForgeResult =
+  | { readonly kind: "draft"; readonly name: string; readonly schema: Record<string, unknown> }
+  | { readonly kind: "failed"; readonly message: string; readonly raw: string | null };

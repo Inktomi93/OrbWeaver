@@ -212,6 +212,10 @@
       "version": 1,
       "sha256": "a0204dea1db08883a7105cee558b45a0ee5a6a29aade7222274f6ea4148c6548"
     },
+    "refinery.schemaForge.system": {
+      "version": 1,
+      "sha256": "d19840ce8235d8163a43f4b878c50935d756112a83cd8a737ea0f9861e8774be"
+    },
     "rpg.reminder.steeringLicense": {
       "version": 1,
       "sha256": "922650fc654a91000faedef2c6cf30ace94c5cbb7155d7cb0e01e6532fcc74e2"

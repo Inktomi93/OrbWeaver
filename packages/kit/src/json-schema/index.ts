@@ -21,7 +21,7 @@
 
 import { z } from "zod";
 
-export { JsonSchemaLiftError, LIFTABLE_JSON_SCHEMA, liftJsonSchema, MAX_LIFT_DEPTH } from "./lift.ts";
+export { JsonSchemaLiftError, LIFTABLE_JSON_SCHEMA, liftJsonSchema, MAX_LIFT_DEPTH, RENDER_HINT_KEY } from "./lift.ts";
 // The per-WIRE keyword subset (what a given endpoint may legally receive) is a separate concern from the
 // projection rule and is applied at each request-build site, never here — see `./wire-subset`.
 export type { WireSchemaMode, WireSchemaScrub } from "./wire-subset.ts";

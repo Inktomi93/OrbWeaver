@@ -8,25 +8,41 @@ export type { RefineryContext } from "./context.ts";
 export { RefineryRunFailedError, RefineryStageNotReadyError } from "./contract/errors.ts";
 export type {
   AcceptedField,
+  ApplyAsCopyParams,
   ApplyFieldsParams,
+  CreateSchemaParams,
+  DeleteSchemaParams,
   DeleteSessionParams,
+  GenerateSchemaParams,
   GetSessionParams,
   IterateParams,
   ListRunsParams,
+  ListSchemasParams,
   ListSessionsParams,
+  PreflightParams,
+  RefineSchemaParams,
   RunStageParams,
   StartSessionParams,
+  SubmitManualRewriteParams,
+  TestSchemaParams,
+  UpdateSchemaParams,
   UpdateSessionParams,
   UpdateSessionPatch,
 } from "./contract/params.ts";
 export type {
   AppliedFieldKind,
   AppliedFieldRef,
+  ApplyAsCopyResult,
   ApplyDropReason,
   ApplyFieldsResult,
   DroppedField,
   IterateResult,
+  PreflightResult,
   RefinerySessionView,
+  SchemaForgeResult,
+  StagePreflight,
 } from "./contract/results.ts";
 export type { RefineryService } from "./contract/service.ts";
 export { createRefineryService } from "./service.ts";
+export { SCHEMA_NAME_TAKEN_REASON } from "./substrate/schema-library.ts";
+export { MANUAL_REWRITE_OUT_OF_SCOPE_REASON } from "./verbs/submit-manual-rewrite.ts";

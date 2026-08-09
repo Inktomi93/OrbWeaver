@@ -22,6 +22,8 @@ export const OWNERID_ALLOWLIST: Readonly<Record<string, string>> = {
   presets: "D23 true producer (nullable — the shared system default)",
   world_books: "D23 true producer",
   regex_scripts: "D23 true producer (D121-E — the regex SCRIPT LIBRARY; a script is authored with no owning parent to derive through)",
+  refinery_schemas:
+    "D23 true producer (R3/SF0 — the custom payload-schema LIBRARY; a schema is authored library tooling with no owning parent to derive through, the presets shape)",
   tags: "D23 true producer",
   user_credentials: "D23 true producer",
   workloads: "D23 true producer",

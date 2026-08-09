@@ -184,3 +184,44 @@ test("a schema AT the depth cap still lifts (the cap is a ceiling, not an off-by
   const atLimit = nestObjects(MAX_LIFT_DEPTH);
   expect(() => liftJsonSchema(atLimit)).not.toThrow();
 });
+
+// ── the x-orb-ui render-hint channel (schema-renderer §4.2 — the ONE kit change the refinery needs) ──────
+
+test("x-orb-ui is ACCEPTED-AND-IGNORED on every node kind — hinted ≡ stripped (the golden)", () => {
+  const hinted = {
+    type: "object",
+    "x-orb-ui": { role: "hero" },
+    properties: {
+      overallScore: { type: "number", minimum: 1, maximum: 10, "x-orb-ui": { role: "hero" } },
+      verdict: { type: "string", enum: ["good", "bad"], "x-orb-ui": { role: "verdict", tone: { good: "good", bad: "bad" } } },
+      pick: { anyOf: [{ type: "string" }, { type: "number" }], "x-orb-ui": { label: "Pick" } },
+      done: { const: "yes", "x-orb-ui": { label: "Done" } },
+    },
+    required: ["overallScore"],
+  };
+  const stripOrbUi = (node: unknown): unknown => {
+    if (Array.isArray(node)) {
+      return node.map(stripOrbUi);
+    }
+    if (node === null || typeof node !== "object") {
+      return node;
+    }
+    return Object.fromEntries(
+      Object.entries(node as Record<string, unknown>)
+        .filter(([k]) => k !== "x-orb-ui")
+        .map(([k, v]) => [k, stripOrbUi(v)]),
+    );
+  };
+  const liftedHinted = liftJsonSchema(hinted);
+  const liftedStripped = liftJsonSchema(stripOrbUi(hinted) as Record<string, unknown>);
+  // Behavior-identical zod: same projection (so a hint can never reach any wire) …
+  expect(projectJsonSchema(liftedHinted)).toEqual(projectJsonSchema(liftedStripped));
+  // … and same accept/refuse behavior on data.
+  expect(liftedHinted.safeParse({ overallScore: 7, verdict: "good", pick: 3, done: "yes" }).success).toBe(true);
+  expect(liftedHinted.safeParse({ overallScore: 99 }).success).toBe(false);
+});
+
+test("only x-orb-ui is ignored — any OTHER x- keyword still refuses (the positive control)", () => {
+  const lift = refusalOf({ type: "object", properties: { a: { type: "string", "x-vendor-thing": true } } });
+  expect(lift.construct).toBe("x-vendor-thing");
+});

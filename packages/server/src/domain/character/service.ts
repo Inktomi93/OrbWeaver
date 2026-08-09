@@ -25,8 +25,8 @@ import { createFindSyntheticGroupCharacter } from "./verbs/find-synthetic-group-
 import { createGenerateGreeting } from "./verbs/generate-greeting.ts";
 import { createGet } from "./verbs/get.ts";
 import { createGetCard } from "./verbs/get-card.ts";
+import { createGetSnapshot } from "./verbs/get-snapshot.ts";
 import { createList } from "./verbs/list.ts";
-
 import { createListEmbeddableCharacterIds } from "./verbs/list-embeddable-character-ids.ts";
 import { createListSnapshots } from "./verbs/list-snapshots.ts";
 import { createLoadCardText } from "./verbs/load-card-text.ts";
@@ -53,6 +53,7 @@ export function createCharacterService(ctx: CharacterContext): CharacterService 
     bulkRemoveCardTag: createBulkRemoveCardTag(ctx),
     snapshot: createSnapshot(ctx),
     listSnapshots: createListSnapshots(ctx),
+    getSnapshot: createGetSnapshot(ctx),
     restore: createRestore(ctx),
     getCard: createGetCard(ctx),
     loadCardText: createLoadCardText(ctx),

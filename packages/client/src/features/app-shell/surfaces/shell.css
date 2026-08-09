@@ -866,17 +866,18 @@
     display: none;
   }
   /* NO SECOND RULE FOR THE CHILDLESS BAND — there is no such state to catch (side-eye 2026-08-08, RULED).
-   * A `:empty` twin of the rule above shipped here on 2026-08-06 for the childless case, aimed at refinery.
-   * Re-measured: at ≤48rem no section can paint an empty LIST band at all. Reaching `data-list-mode="docked"`
-   * on a phone requires the ONE-SHELL arm (`resolvePanelMode`, `regime.listIsScreen`), which requires the
-   * section to declare a `selection` seam — and every one of the seven that does (chats · characters ·
-   * corpus · config · databank · presets · analytics) also declares a `listHeader`. The two sections with no
-   * `listHeader` are `home` (`panels.list: "unavailable"`) and `refinery` (no `selection` — so its LIST
-   * resolves collapsed, or overlay when the topbar names it, never docked). An OVERLAY band is never childless
-   * either: `PanelChrome` wraps the slot and always adds its own dismiss. So the `:has()` chain above is the
-   * whole job, and its case IS reachable (config · corpus · analytics render an identity cluster that sheds
-   * its unscoped title — measured). A rule matching nothing is a fence over an empty field: it reads as
-   * covering a state, and the CT that "proved" it hand-authored a DOM the shell cannot produce. */
+   * A `:empty` twin of the rule above shipped here on 2026-08-06 for the childless case, aimed at the
+   * then-planned refinery. Re-measured: at ≤48rem no section can paint an empty LIST band at all. Reaching
+   * `data-list-mode="docked"` on a phone requires the ONE-SHELL arm (`resolvePanelMode`,
+   * `regime.listIsScreen`), which requires the section to declare a `selection` seam — and every one of the
+   * eight that does (chats · characters · corpus · config · databank · presets · refinery · analytics)
+   * also declares a `listHeader` (refinery joined both sets when R3 graduated it). The ONE section with no
+   * `listHeader` is `home` (`panels.list: "unavailable"` — its LIST can never dock). An OVERLAY band is
+   * never childless either: `PanelChrome` wraps the slot and always adds its own dismiss. So the `:has()`
+   * chain above is the whole job, and its case IS reachable (config · corpus · analytics render an identity
+   * cluster that sheds its unscoped title — measured). A rule matching nothing is a fence over an empty
+   * field: it reads as covering a state, and the CT that "proved" it hand-authored a DOM the shell cannot
+   * produce. */
 
   /* Mobile blur kill-switch — backdrop-filter is too costly on small/low-power devices.
    * surface list = BLUR_SURFACES (@orb/contracts/settings); sync-enforced by tests/ui/styles/css-structure.suite.test.ts */

@@ -7,26 +7,36 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import type { RefineryRun, RefinerySessionSummary, RefineryStage } from "@orb/contracts/refinery";
+import type { RefineryRun, RefinerySchemaSummary, RefinerySessionSummary, RefineryStage } from "@orb/contracts/refinery";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
-import type { RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
+import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 // Type-only cross-feature SHAPE imports (depcruise domain-no-cross-feature: type-only across features is
 // allowed; the runtime ops are wired at the entry composition root).
 import type { CharacterService, LoadOwnedCardOp, StampRefinerySignalsOp } from "#domain/character";
 import type {
+  ApplyAsCopyParams,
   ApplyFieldsParams,
+  CreateSchemaParams,
+  DeleteSchemaParams,
   DeleteSessionParams,
+  GenerateSchemaParams,
   GetSessionParams,
   IterateParams,
   ListRunsParams,
+  ListSchemasParams,
   ListSessionsParams,
+  PreflightParams,
+  RefineSchemaParams,
   RunStageParams,
   StartSessionParams,
+  SubmitManualRewriteParams,
+  TestSchemaParams,
+  UpdateSchemaParams,
   UpdateSessionParams,
 } from "./params.ts";
-import type { ApplyFieldsResult, IterateResult, RefinerySessionView } from "./results.ts";
+import type { ApplyAsCopyResult, ApplyFieldsResult, IterateResult, PreflightResult, RefinerySessionView, SchemaForgeResult } from "./results.ts";
 
 /** The bound `summarize` role thunk — refinery's only inference surface (F2: the summarize rung v1). */
 type Summarize = RoleClients["summarize"];
@@ -47,8 +57,12 @@ export interface RefineryContext {
   readonly now: () => number;
   readonly newRefinerySessionId: () => RefinerySessionId;
   readonly newRefineryRunId: () => RefineryRunId;
+  readonly newRefinerySchemaId: () => RefinerySchemaId;
   readonly summarize: Summarize;
   readonly summarizerModel: string;
+  /** The summarize role's context window (`RoleClients.summarizerContextTokens`) — the preflight's input
+   *  denominator; null when the backend declares none. */
+  readonly summarizerContextTokens: number | null;
   readonly resolveUserPresetParams: ResolveUserPresetParams;
   readonly resolveUserProse: ResolveUserProse;
   /** The owned-card read (character's `cardOf` projection, one-homed there) — session start + apply. */
@@ -62,6 +76,9 @@ export interface RefineryContext {
   /** `character.get` — the detail read for the zero-write apply arm (every accept dropped): a no-op
    *  `update({})` would still run character's whole write path for nothing. */
   readonly getCharacter: CharacterService["get"];
+  /** `character.duplicate` — the `applyAsCopy` chassis (schema-renderer §17): what a duplicate carries
+   *  (avatar ref, tags, attached books) FOLLOWS that verb's own rulings — one fork-copy law, not two. */
+  readonly duplicateCharacter: CharacterService["duplicate"];
 }
 
 /** The stage ENGINE — `runStage`'s working half, shared with `iterate` (which runs it twice per round).
@@ -75,6 +92,8 @@ export type ExecuteStage = (args: {
   /** True on `iterate`'s rewrite half — the `refinery.refine.system` slot + the latest analyze feedback
    *  ride the prompt (the extension's refinement discipline, study §1.2). */
   readonly isRefinement: boolean;
+  /** Operate-back (§16.1): analyze THIS rewrite run instead of the latest. Analyze-only. */
+  readonly rewriteRunId?: RefineryRunId | undefined;
 }) => Promise<RefineryRun>;
 
 /** The engine dep `runStage` and `iterate` share — ONE instance, wired at `service.ts`. */
@@ -104,7 +123,28 @@ export interface RefineryService {
   /** One refinement round: refine-rewrite (analyze feedback in-prompt) → analyze; `iterationCount`++.
    *  Requires an analyze run to refine against. */
   readonly iterate: (params: IterateParams) => Promise<IterateResult>;
-  /** Apply the user-accepted entries of the LATEST rewrite run to the LIVE card: intersection belts →
+  /** Apply the user-accepted entries of the chosen rewrite run (latest, or the operate-back
+   *  `rewriteRunId`) to the LIVE card: intersection belts (incl. the §21 divergence check) →
    *  `updateCharacterSchema` re-parse → snapshot-first → `character.update`; drops itemized. */
   readonly applyFields: (params: ApplyFieldsParams) => Promise<ApplyFieldsResult>;
+  /** The branch-off terminal act (§17): same belts, but the write mints a NEW character (duplicate
+   *  chassis + patch overlay + fresh signal stamp); the live card is untouched and nothing snapshots. */
+  readonly applyAsCopy: (params: ApplyAsCopyParams) => Promise<ApplyAsCopyResult>;
+  /** The hand-authored rewrite arm (og-feedback gap 1): the WIP edit lands as a `{kind:"manual"}` rewrite
+   *  run so analyze can judge it against the anchor exactly like a model rewrite. */
+  readonly submitManualRewrite: (params: SubmitManualRewriteParams) => Promise<RefineryRun>;
+  /** The output-budget readout (§8) — resolved posture + both fit estimates, WARN-only. */
+  readonly preflight: (params: PreflightParams) => Promise<PreflightResult>;
+  // ── the custom-schema library (R3/SF — NL design §4.4) ──────────────────────────────────────────────
+  readonly listSchemas: (params: ListSchemasParams) => Promise<RefinerySchemaSummary[]>;
+  readonly createSchema: (params: CreateSchemaParams) => Promise<RefinerySchemaSummary>;
+  readonly updateSchema: (params: UpdateSchemaParams) => Promise<RefinerySchemaSummary>;
+  readonly deleteSchema: (params: DeleteSchemaParams) => Promise<void>;
+  /** NL → a draft document (never persisted). A double belt failure RESOLVES as the `failed` arm with the
+   *  raw last reply — the show-the-partial policy (errors-as-data); provider faults still throw. */
+  readonly generateSchema: (params: GenerateSchemaParams) => Promise<SchemaForgeResult>;
+  readonly refineSchema: (params: RefineSchemaParams) => Promise<SchemaForgeResult>;
+  /** A drill: one stage pass against an owned card under the DRAFT schema; returns the payload for
+   *  preview rendering. No run row, no stamps. */
+  readonly testSchema: (params: TestSchemaParams) => Promise<Record<string, unknown>>;
 }

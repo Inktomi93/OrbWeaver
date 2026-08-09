@@ -773,7 +773,7 @@ CREATE TABLE `refinery_runs` (
 	`iteration` integer DEFAULT 0 NOT NULL,
 	`payload_config` text NOT NULL,
 	`payload` text NOT NULL,
-	`model` text NOT NULL,
+	`model` text,
 	`prompt_tokens` integer,
 	`output_tokens` integer,
 	`duration_ms` integer NOT NULL,
@@ -787,6 +787,21 @@ CREATE TABLE `refinery_runs` (
 --> statement-breakpoint
 CREATE INDEX `refinery_runs_session_stage_idx` ON `refinery_runs` (`session_id`,`stage`,`created_at`);--> statement-breakpoint
 CREATE INDEX `refinery_runs_source_idx` ON `refinery_runs` (`source_run_id`);--> statement-breakpoint
+CREATE TABLE `refinery_schemas` (
+	`id` text PRIMARY KEY NOT NULL,
+	`owner_id` text NOT NULL,
+	`name` text NOT NULL,
+	`description` text NOT NULL,
+	`stage` text NOT NULL,
+	`schema` text NOT NULL,
+	`version` integer DEFAULT 1 NOT NULL,
+	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE restrict,
+	CONSTRAINT "refinery_schemas_stage_check" CHECK(stage in ('score', 'analyze'))
+);
+--> statement-breakpoint
+CREATE INDEX `refinery_schemas_owner_idx` ON `refinery_schemas` (`owner_id`);--> statement-breakpoint
 CREATE TABLE `refinery_sessions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`character_id` text NOT NULL,
