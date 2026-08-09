@@ -66,8 +66,19 @@ Prefixed, low-noise, IS_DEV-gated — read via `preview_console_logs` or a conso
 - **`[bus]`** (`bus-devlog.ts`) — chat-bus subscription lifecycle + live count, each canon event → the
   query keys it invalidated, and a duplicate-invalidate storm alarm. The peer to `[trpc]`.
 - **`[trpc]`** (`trpc-devlog.ts`) — tRPC query/mutation round-trips.
-- **`[perf]`** (`render-profiler.tsx` + `long-task-tracer.ts`) — slow commits (>12ms, attributed to a
-  wrapped surface) + long tasks (>100ms main-thread blocks).
+- **`[perf]`** (`render-profiler.tsx`) — slow React commits (>12ms, attributed to a wrapped surface).
+- **The MOTION FLAGGER PACK** — every channel names an offender and states its budget verdict; each
+  dedupes per offender, so a repeating defect prints once. The pull half is `__orb.flags()`; budgets
+  live in ONE table, `MOTION_BUDGETS` (`motion-flaggers.ts`), which the CTs assert against.
+  - **`[frame]`** / **`[reflow]`** / **`[input]`** (`long-task-tracer.ts`) — a frame over 100ms with its
+    costliest script; whether that frame also ran style/layout (the forced-reflow diagnosis); an
+    interaction over 200ms with its target element.
+  - **`[anim]`** (`motion-flaggers.ts`) — an animation/transition animating a NON-compositor property,
+    caught at start (`__orb.animations()` samples, so it cannot see a finished 130ms transition).
+  - **`[drop]`** — a rAF gap over 50ms *while something is animating* (a stutter a user can feel).
+  - **`[css]`** — a class on a live element that no CSS rule defines (`snap --dead-css`, live).
+  - **`[space]`** — a replaced element with no reserved box: a layout shift that hasn't happened yet.
+  - **`[cls]`** (`motion-stats.ts`) — each layout shift over the noise floor, naming what moved.
 
 ## Perf marks (`perf-marks.ts`)
 

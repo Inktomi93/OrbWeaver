@@ -5,11 +5,21 @@
 // which `longtask` (deprecated, attribution-free, and emitting a console deprecation notice per entry)
 // cannot. Falls back to `longtask` only where LoAF is unsupported. Dynamically imported behind
 // import.meta.env.DEV — never re-export from the lib barrel, that would drag it into the prod bundle.
+//
+// THIS FILE IS THE `[frame]`/`[input]`/`[reflow]` THIRD OF THE MOTION FLAGGER PACK (task #39). It owned
+// the LoAF + event-timing observers before the pack existed, so the pack's tag vocabulary and budget
+// table were adopted HERE rather than a second observer being installed in `motion-flaggers.ts` — one
+// signal, one emitter (AGENTS §3). The channels, and why each is its own tag:
+//   [frame]   a frame over `longFrameMs`, attributed to its costliest script. WHAT blocked.
+//   [reflow]  that frame ALSO ran style/layout (`styleAndLayoutStart` > 0) — a forced synchronous
+//             reflow or a non-compositor animation. This is the diagnosis `[frame]` alone does not
+//             give you, and it is what turns "623ms blocking" into a file to open.
+//   [input]   an interaction over `interactionMs`, attributed to its target element.
+// `[perf]` survives on `render-profiler.tsx` alone, where it means a slow REACT COMMIT — a different
+// measurement with a different fix, which is why it kept its own tag rather than folding in here.
 
 import { logClock } from "./log-clock.ts";
-
-const LONG_FRAME_MS = 100;
-const SLOW_EVENT_MS = 200;
+import { MOTION_BUDGETS } from "./motion-flaggers.ts";
 
 const PERF_STYLE = "color:#c60;font-weight:bold";
 const MUTED_STYLE = "color:#888";
@@ -24,6 +34,8 @@ interface LoafScript {
 }
 interface LoafEntry extends PerformanceEntry {
   readonly blockingDuration?: number;
+  /** \>0 ⇒ style/layout ran inside this frame — the `[reflow]` tell (see the header). */
+  readonly styleAndLayoutStart?: number;
   readonly scripts?: readonly LoafScript[];
 }
 
@@ -84,15 +96,21 @@ export function installLongTaskTracer(): void {
     const loaf = new PerformanceObserver((list) => {
       for (const raw of list.getEntries()) {
         const entry = raw as LoafEntry;
-        if (entry.duration < LONG_FRAME_MS) {
+        if (entry.duration < MOTION_BUDGETS.longFrameMs) {
           continue;
         }
         const blocking = Math.round(entry.blockingDuration ?? 0);
+        const who = attributeFrame(entry.scripts ?? []);
         console.warn(
-          `%c${logClock()} [perf]%c long frame ${Math.round(entry.duration)}ms · blocking ${blocking}ms · ${attributeFrame(entry.scripts ?? [])} · route ${route()}`,
+          `%c${logClock()} [frame]%c long frame ${Math.round(entry.duration)}ms · blocking ${blocking}ms (budget ${MOTION_BUDGETS.longFrameMs}ms) · ${who} · route ${route()}`,
           PERF_STYLE,
           MUTED_STYLE,
         );
+        // The diagnosis half: this frame also ran style/layout, so the cost is a forced reflow or a
+        // non-compositor animation — not merely a long script. Same attribution, different fix.
+        if ((entry.styleAndLayoutStart ?? 0) > 0) {
+          console.warn(`%c${logClock()} [reflow]%c style/layout ran inside that frame · ${who} · route ${route()}`, PERF_STYLE, MUTED_STYLE);
+        }
       }
     });
     // Plain cast (not `as any`, which would trip the suppression ratchet): lib.dom types the observe
@@ -101,10 +119,10 @@ export function installLongTaskTracer(): void {
   } else if (supported.includes("longtask")) {
     const lt = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        if (entry.duration < LONG_FRAME_MS) {
+        if (entry.duration < MOTION_BUDGETS.longFrameMs) {
           continue;
         }
-        console.warn(`%c${logClock()} [perf]%c long task ${Math.round(entry.duration)}ms · route ${route()}`, PERF_STYLE, MUTED_STYLE);
+        console.warn(`%c${logClock()} [frame]%c long task ${Math.round(entry.duration)}ms · route ${route()}`, PERF_STYLE, MUTED_STYLE);
       }
     });
     lt.observe({ type: "longtask", buffered: true });
@@ -113,7 +131,7 @@ export function installLongTaskTracer(): void {
   if (supported.includes("event")) {
     const ev = new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        if (entry.duration < SLOW_EVENT_MS) {
+        if (entry.duration < MOTION_BUDGETS.interactionMs) {
           continue;
         }
         // PerformanceEventTiming, narrowed structurally: lib.dom types mixed-observer entries as base PerformanceEntry.
@@ -122,7 +140,9 @@ export function installLongTaskTracer(): void {
           readonly target?: Node | null;
         };
         console.warn(
-          `%c${logClock()} [perf]%c slow ${timing.name} ${Math.round(entry.duration)}ms · ${describeTarget(timing.target ?? null)} · route ${route()}`,
+          `%c${logClock()} [input]%c slow ${timing.name} ${Math.round(entry.duration)}ms (budget ${MOTION_BUDGETS.interactionMs}ms) · ${describeTarget(
+            timing.target ?? null,
+          )} · route ${route()}`,
           PERF_STYLE,
           MUTED_STYLE,
         );
@@ -132,7 +152,7 @@ export function installLongTaskTracer(): void {
     ev.observe({
       type: "event",
       buffered: true,
-      durationThreshold: SLOW_EVENT_MS,
+      durationThreshold: MOTION_BUDGETS.interactionMs,
     } as PerformanceObserverInit);
   }
 }

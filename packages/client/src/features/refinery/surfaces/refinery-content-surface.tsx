@@ -142,6 +142,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
   const running = runStage.isPending || iterate.isPending;
 
   const cells = stageCellsOf(latestOf, runStage, iterate.isPending);
+  const paneRunning = paneRunningOf({ running, iterating: iterate.isPending, pendingStage: runStage.pendingVariables?.stage, effectiveStage });
 
   const rewriteEntries = rewriteEntriesFor(rewriteRun, card, view);
   const decided = sheet ?? Array.from({ length: rewriteEntries.length }, (): CompareDecision => null);
@@ -200,6 +201,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
           entries={rewriteEntries}
           onDecide={(index, decision): void => decide(index, decision, rewriteEntries.length)}
           run={effectiveStage === "rewrite" ? rewriteRun : paneRun}
+          running={paneRunning}
           viewingBack={viewedRun !== null}
         />
       )}
@@ -290,6 +292,17 @@ function stageCellsOf(
     const status = latest === undefined ? notRunStatusOf(stage, latestOf) : statusLineOf(latest);
     return { stage, status, done: latest !== undefined, running: pendingStage === stage || (iterating && stage !== "score") };
   });
+}
+
+/** Is a call in flight FOR THE STAGE THE PANE IS SHOWING? `running` alone is true for any stage's call,
+ *  so dimming on it would shimmer the score pane while a rewrite runs — the same "the status lies" defect
+ *  the pending arm exists to fix, one pane over (side-eye 2026-08-09 P1-10). An `iterate` turn drives
+ *  whichever stage is effective, since that is the pane it will land in. */
+function paneRunningOf(args: { running: boolean; iterating: boolean; pendingStage: RefineryStage | undefined; effectiveStage: RefineryStage }): boolean {
+  if (!args.running) {
+    return false;
+  }
+  return (args.pendingStage ?? (args.iterating ? args.effectiveStage : null)) === args.effectiveStage;
 }
 
 /** The preflight slice the pane reads for the effective stage. */

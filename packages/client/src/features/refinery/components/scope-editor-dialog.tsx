@@ -12,6 +12,7 @@ import type { RefinableField, RefineryScorePayload, RefinerySelection } from "@o
 import { REFINABLE_FIELDS } from "@orb/contracts/refinery";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
+import { Field } from "@orb/ui/field";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -71,6 +72,38 @@ function fieldGlossOf(depthless: boolean, text: string | null): string {
   return `${text.length} chars`;
 }
 
+/** A scope row: the checkbox, its NAME, and its gloss — all inside one real `<label>` (side-eye
+ *  2026-08-09 P1-9). Twelve bare `<Checkbox>` controls sat beside sibling `<Text>` nodes, so every one
+ *  of them had NO accessible name (a screen reader read twelve unlabelled checkboxes) and an 18px hit
+ *  target far under the touch floor. Wrapping in a label fixes both at once: the association gives the
+ *  name, and the whole row becomes the target. `Field` is the primitive that owns this pairing — it
+ *  renders the real label element and wires the control's id, which a hand-rolled `<label>` in a
+ *  feature could not do without reaching for a raw intrinsic. */
+function ScopeCheckRow({
+  checked,
+  disabled = false,
+  indeterminate = false,
+  gloss,
+  name,
+  onToggle,
+}: {
+  checked: boolean;
+  disabled?: boolean;
+  indeterminate?: boolean;
+  gloss: string;
+  name: string;
+  onToggle: () => void;
+}): ReactElement {
+  return (
+    <Field className="w-full" label={name} orientation="horizontal">
+      <Row align="center" gap="row">
+        <Checkbox checked={checked} disabled={disabled} indeterminate={indeterminate} onCheckedChange={onToggle} />
+        <Text voice="gloss">{gloss}</Text>
+      </Row>
+    </Field>
+  );
+}
+
 function GreetingsScopeRow({
   card,
   on,
@@ -87,27 +120,27 @@ function GreetingsScopeRow({
   const selectedCount = greetingIndexes?.length ?? card.greetings.length;
   return (
     <Stack gap="tight">
-      <Row align="center" gap="row">
-        <Checkbox
-          checked={on}
-          indeterminate={on && greetingIndexes !== undefined && greetingIndexes.length < card.greetings.length}
-          onCheckedChange={onToggleField}
-        />
-        <Text voice="label">greetings</Text>
-        <Text voice="gloss">{card.greetings.length === 0 ? "no greetings" : `${on ? selectedCount : 0} of ${card.greetings.length} slots selected`}</Text>
-      </Row>
+      <ScopeCheckRow
+        checked={on}
+        gloss={card.greetings.length === 0 ? "no greetings" : `${on ? selectedCount : 0} of ${card.greetings.length} slots selected`}
+        indeterminate={on && greetingIndexes !== undefined && greetingIndexes.length < card.greetings.length}
+        name="greetings"
+        onToggle={onToggleField}
+      />
       {on
         ? card.greetings.map((g, i) => {
             const slotOn = greetingIndexes === undefined || greetingIndexes.includes(i);
             return (
-              // biome-ignore lint/suspicious/noArrayIndexKey: the greeting INDEX is the slot's identity — the whole selection model (greetingIndexes) addresses by index.
-              <Row align="center" gap="row" key={i}>
-                <Checkbox checked={slotOn} onCheckedChange={(): void => onToggleGreeting(i)} />
-                <Text voice="datum">[{i}]</Text>
-                <Text className="min-w-0 flex-1 truncate" voice="gloss">
-                  {g.text.length > 0 ? g.text : "(empty)"}
-                </Text>
-              </Row>
+              <ScopeCheckRow
+                checked={slotOn}
+                gloss={g.text.length > 0 ? g.text : "(empty)"}
+                // biome-ignore lint/suspicious/noArrayIndexKey: the greeting INDEX is the slot's identity — the whole selection model (greetingIndexes) addresses by index.
+                key={i}
+                // The slot's name is its ADDRESS. "Greeting 0" (not "[0]") because the accessible name is
+                // read aloud, and a bracketed index is not a sentence.
+                name={`Greeting ${i}`}
+                onToggle={(): void => onToggleGreeting(i)}
+              />
             );
           })
         : null}
@@ -167,11 +200,14 @@ export function ScopeEditorDialog({ open, onOpenChange, card, selection, score, 
           const text = fieldTextOf(card, field);
           const depthless = field === "depthPrompt" && card.depthPrompt === null;
           return (
-            <Row align="center" gap="row" key={field}>
-              <Checkbox checked={on && !depthless} disabled={depthless} onCheckedChange={(): void => toggleField(field)} />
-              <Text voice="label">{field}</Text>
-              <Text voice="gloss">{fieldGlossOf(depthless, text)}</Text>
-            </Row>
+            <ScopeCheckRow
+              checked={on && !depthless}
+              disabled={depthless}
+              gloss={fieldGlossOf(depthless, text)}
+              key={field}
+              name={field}
+              onToggle={(): void => toggleField(field)}
+            />
           );
         })}
         <Row align="center" gap="row">

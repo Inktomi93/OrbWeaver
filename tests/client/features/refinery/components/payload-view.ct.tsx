@@ -35,8 +35,13 @@ test("the SCORE mock anatomy derives: hero gauge with docked summary, assay rows
 }) => {
   await mount(<PayloadViewStory payload={SCORE_PAYLOAD} stage="score" />);
   // The hero: the printed numeral at the schema's OWN scale + the label + the docked prose.
+  // The numeral is its own node (display voice) beside a quiet `/max`, and it COUNTS UP on settle
+  // (use-count-up.ts) — so this polls to the settled figure rather than reading one frame of the ramp.
+  // The exact string matters: `overallScore` is FRACTIONAL, and a ramp that quantized to integers would
+  // settle this on "8". That is a live regression guard, not a formatting assertion.
   const hero = page.getByTestId("refinery-hero-gauge");
-  await expect(hero.getByText("7.5/10")).toBeVisible();
+  await expect(hero.getByTestId("refinery-hero-value")).toHaveText("7.5");
+  await expect(hero.getByText("/10")).toBeVisible();
   await expect(hero.getByText("Overall score")).toBeVisible();
   await expect(hero.getByText("A solid card with a thin backstory.")).toBeVisible();
   // The per-field assay: one accordion row per entry, closed by default, the body opens on press.
@@ -104,7 +109,9 @@ test("a CUSTOM schema the build has never seen renders designed widgets — the 
     />,
   );
   // The single both-bounded number elevates structurally — /5 stays /5 (scale honesty, rendered).
-  await expect(page.getByTestId("refinery-hero-gauge").getByText("4/5")).toBeVisible();
+  const customHero = page.getByTestId("refinery-hero-gauge");
+  await expect(customHero.getByTestId("refinery-hero-value")).toHaveText("4");
+  await expect(customHero.getByText("/5")).toBeVisible();
   // The enum chips with its authored tone; the scalar list bullets; the unbounded string proses.
   await expect(page.locator('[data-field="mood"]').getByText("cozy")).toBeVisible();
   await expect(page.getByRole("listitem").filter({ hasText: "slow burn" })).toBeVisible();

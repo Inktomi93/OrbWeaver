@@ -13,6 +13,14 @@
 // reads, and CLS regressions are otherwise found by feel. This is the same posture as
 // long-task-tracer.ts — one dev-gated observer, one console surface.
 //
+// The rest of the flagger pack ([anim] · [css] · [drop] · [space]) lives in `motion-flaggers.ts` —
+// this file is at the client 450-line cap, and those flaggers need no LoAF/CLS ring. They import the
+// surface-label + compositor vocabulary FROM HERE so both halves speak one language (the
+// `surfaceLabelOf` note below is the same reasoning, one level up). `[frame]`/`[input]`/`[reflow]` are
+// NOT here either: `long-task-tracer.ts` already owned the LoAF-over-budget and slow-interaction
+// channels before this pack existed, so they were extended in place rather than re-implemented (a
+// second emitter for one signal is the "two homes for one concept" the constitution merges, AGENTS §3).
+//
 // TWO TOTALS, AND THIS IS THE POINT. The Layout Instability spec zeroes `hadRecentInput` shifts
 // (anything within 500ms of real input) so the metric reports only surprise. That exclusion HIDES the
 // most expensive layout defect this shell has had. Measured 2026-08-09 on the docked LIST panel toggle:
@@ -28,7 +36,7 @@ import { logClock } from "./log-clock.ts";
 
 // translate/scale/rotate are CSS Transforms L2 individual properties that Tailwind v4 compiles its
 // scale-*/translate-* utilities to, and composite exactly like transform.
-const COMPOSITOR_SAFE_PROPS = new Set(["transform", "opacity", "filter", "translate", "scale", "rotate"]);
+export const COMPOSITOR_SAFE_PROPS: ReadonlySet<string> = new Set(["transform", "opacity", "filter", "translate", "scale", "rotate"]);
 
 // Ring cap — a long session must not grow this unbounded.
 const LOAF_RING_CAP = 64;
@@ -244,9 +252,10 @@ function nodeSurfaceMarker(node: Element): string | null {
   return LANDMARK_TAGS.has(node.tagName) ? `<${tag}>` : null;
 }
 
-/** The nearest stable surface marker at or above `el`. Shared by the animation classifier and the shift
- *  flagger: both answer "which surface is this?", and two walks would drift into two vocabularies. */
-function surfaceLabelOf(el: Element): string {
+/** The nearest stable surface marker at or above `el`. Shared by the animation classifier, the shift
+ *  flagger, and the whole `motion-flaggers.ts` half: they all answer "which surface is this?", and two
+ *  walks would drift into two vocabularies (which is also why it is exported rather than copied). */
+export function surfaceLabelOf(el: Element): string {
   let node: Element | null = el;
   for (let i = 0; node !== null && i < SURFACE_WALK_MAX; i += 1) {
     const marker = nodeSurfaceMarker(node);
@@ -270,8 +279,9 @@ function resolveSurfaceLabel(target: Animation["effect"]): string {
 // be dropped too or every animation reads as "dirty".
 const FRAME_CONTROL_KEYS = new Set(["offset", "computedOffset", "easing", "composite"]);
 
-/** The animated CSS-property set (union across keyframes, minus the frame-control fields). */
-function animatedProperties(effect: Animation["effect"]): string[] {
+/** The animated CSS-property set (union across keyframes, minus the frame-control fields). Exported for
+ *  `motion-flaggers.ts`'s `[anim]` channel, which classifies at animation START rather than by sampling. */
+export function animatedProperties(effect: Animation["effect"]): string[] {
   const props = new Set<string>();
   if (!(effect instanceof KeyframeEffect)) {
     return [];

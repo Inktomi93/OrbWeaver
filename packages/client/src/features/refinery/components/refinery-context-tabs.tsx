@@ -69,6 +69,29 @@ function fitLineOf(preflight: PreflightView): string | null {
   return `≈ ${inputFit.inputEstimate}${ceiling} tok`;
 }
 
+/** BOTH over-budget verdicts, exactly as the run bar derives them (P2: "prompt-fit two homes, CONTEXT
+ *  drops the ⚠" — this pane read `inputEstimate` alone, so a run whose OUTPUT blew its ceiling read as
+ *  fine here and warned one pane over). Same two facts, same threshold, one word. */
+function fitWarnOf(preflight: PreflightView): boolean {
+  const stage = preflight?.stages.find((s) => s.stage === "score");
+  if (stage === undefined) {
+    return false;
+  }
+  const outputOver = stage.maxOutputTokens !== null && stage.outputEstimate > stage.maxOutputTokens;
+  const contextTokens = preflight?.contextTokens ?? null;
+  return outputOver || (contextTokens !== null && stage.inputEstimate > contextTokens);
+}
+
+/** The scope row's readout — the selected fields, with the greeting slots spelled out when the
+ *  selection narrows them (the roster line the row previously did not carry at all). */
+function scopeLineOf(view: SessionView): string {
+  const { fields, greetingIndexes } = view.selection;
+  if (fields.length === 0) {
+    return "nothing selected — a run has nothing to work on";
+  }
+  return fields.map((f) => (f === "greetings" && greetingIndexes !== undefined ? `greetings ${greetingIndexes.join(",")}` : f)).join(" · ");
+}
+
 export function SetupTabBody({ state }: { state: RefineryContextState }): ReactElement | null {
   const trpc = useTRPC();
   const session = useRefinerySession(state.sessionId);
@@ -77,7 +100,7 @@ export function SetupTabBody({ state }: { state: RefineryContextState }): ReactE
   const character = useGatedQuery(session.data?.characterId ?? null, (id) => trpc.character.get.queryOptions({ characterId: id }));
   const invalidation = useInvalidation();
   const updateSession = useUpdateRefinerySession({ trpc, invalidation });
-  const [configOpen, setConfigOpen] = useState(false);
+  const [scopeOpen, setScopeOpen] = useState(false);
   const [schemaEditorOpen, setSchemaEditorOpen] = useState(false);
   if (session.data === undefined) {
     return null;
@@ -88,19 +111,21 @@ export function SetupTabBody({ state }: { state: RefineryContextState }): ReactE
       <SetupTab
         anchorLine={`Pinned at session start · ${view.originalCard.greetings.length} greetings`}
         fitLine={fitLineOf(preflight.data)}
+        fitWarn={fitWarnOf(preflight.data)}
         guidance={view.guidance}
-        onEditConfig={(): void => setSchemaEditorOpen(true)}
-        onEditGuidance={(): void => setConfigOpen(true)}
+        onEditSchema={(): void => setSchemaEditorOpen(true)}
+        onEditScope={(): void => setScopeOpen(true)}
         onViewOriginal={(): void => setRefineryViewedRun(null)}
         schemaLine={schemaLineOf(customNameOf(view.stageConfig.score, schemas.data), customNameOf(view.stageConfig.analyze, schemas.data))}
+        scopeLine={scopeLineOf(view)}
         stageModesLine={stageModesLineOf(view)}
       />
       {character.data !== undefined ? (
         <ScopeEditorDialog
           card={character.data}
-          onOpenChange={setConfigOpen}
+          onOpenChange={setScopeOpen}
           onSave={(selection): void => updateSession.mutate({ sessionId: state.sessionId, patch: { selection } })}
-          open={configOpen}
+          open={scopeOpen}
           score={null}
           selection={view.selection}
         />

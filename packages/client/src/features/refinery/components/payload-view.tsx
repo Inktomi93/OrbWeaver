@@ -13,10 +13,12 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { Meter } from "@orb/ui/meter";
+import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { testId } from "#lib";
+import { useCountUp } from "../hooks/use-count-up.ts";
 import type { PlanField, RenderPlan, RowPlan } from "../lib/render-plan.ts";
 import { armFits } from "../lib/render-plan.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
@@ -24,6 +26,9 @@ import { RefineryChip } from "./refinery-chip.tsx";
 export interface PayloadViewProps {
   readonly plan: RenderPlan;
   readonly payload: Record<string, unknown>;
+  /** A model call for THIS payload is in flight. Drives the plan-shaped skeleton / running dim (see
+   *  `PayloadView`). Optional so every existing caller keeps its meaning. @defaultValue false */
+  readonly pending?: boolean;
 }
 
 type GaugeWidget = Extract<PlanField["widget"], { kind: "gauge" }>;
@@ -63,10 +68,50 @@ function fieldOrder(fields: readonly PlanField[]): { banners: PlanField[]; hero:
   return { banners, hero, heroProse, rest: fields.filter((f) => !claimed.has(f)) };
 }
 
-export function PayloadView({ plan, payload }: PayloadViewProps): ReactElement {
-  const { banners, hero, heroProse, rest } = fieldOrder(plan.fields);
+/** THE TWO PENDING ARMS (side-eye 2026-08-09 P1-10 + polish items 1 & 2). The feature had ZERO loading
+ *  affordance and a status line that read "not run yet" while a run was in flight.
+ *
+ *  FIRST RUN → the PLAN-SHAPED SKELETON. The plan decided every widget from the SCHEMA alone, so the
+ *  anatomy of the answer is fully known BEFORE the model returns: hero block, N verdict banners, one
+ *  block per field. A generic spinner throws that away; a skeleton built from the same plan the payload
+ *  will render through shows the user the shape of what is coming, and the content lands INTO its own
+ *  outline instead of shoving the pane down.
+ *
+ *  RE-RUN → the previous payload stays, dimmed under a shimmer. The surface's founding law is that the
+ *  pane never goes blank between stages, and replacing a settled result with a skeleton would break it
+ *  in the one place it matters most (comparing a re-run against what you had). */
+function PlanSkeleton({ plan }: { plan: RenderPlan }): ReactElement {
+  const { banners, hero, rest } = fieldOrder(plan.fields);
   return (
-    <Stack data-testid={testId("refineryPayloadView")} gap="block">
+    <Stack aria-busy={true} data-testid={testId("refineryPayloadSkeleton")} gap="block">
+      {banners.map((field) => (
+        <Skeleton className="h-control-lg w-full" key={field.key} />
+      ))}
+      {hero === null ? null : <Skeleton className="h-avatar-hero w-full" />}
+      {rest.map((field) => (
+        <Skeleton className="h-control-md w-full" key={field.key} />
+      ))}
+    </Stack>
+  );
+}
+
+export function PayloadView({ plan, payload, pending = false }: PayloadViewProps): ReactElement {
+  const { banners, hero, heroProse, rest } = fieldOrder(plan.fields);
+  const settled = Object.keys(payload).length > 0;
+  if (pending && !settled) {
+    return <PlanSkeleton plan={plan} />;
+  }
+  return (
+    <Stack
+      aria-busy={pending}
+      // The re-run arm: the settled payload recedes rather than vanishing. Compositor-only (`opacity`)
+      // and reduced-motion-safe by construction — the globals.css duration floor neutralizes the
+      // transition, and a static 60% dim is a legitimate resting state, not a frozen animation frame.
+      className={pending ? "opacity-60 transition-opacity duration-(--motion-base) ease-out-expo" : "transition-opacity duration-(--motion-base) ease-out-expo"}
+      data-pending={pending}
+      data-testid={testId("refineryPayloadView")}
+      gap="block"
+    >
       {banners.map((field) => (
         <VerdictBanner field={field} key={field.key} payload={payload} siblings={plan.fields} />
       ))}
@@ -120,19 +165,35 @@ function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload
 }
 
 /** The hero gauge (§3.2's structural elevation): the printed numeral is the signal, the meter fill is
- *  the tint, and the docked prose is the payload's own summary. Scale = the schema's OWN bounds. */
+ *  the tint, and the docked prose is the payload's own summary. Scale = the schema's OWN bounds.
+ *
+ *  SIZE AND ANATOMY (side-eye 2026-08-09 P1-13). The numeral was `voice="datum"` — 13px mono, the same
+ *  step as every other value on the surface — for the ONE number the whole run exists to produce, and
+ *  the null arm returned `null` for the meter, collapsing the card's anatomy against this file's own
+ *  "empty values are LOAD-BEARING designed states, never collapses" header. Now: a display-size numeral
+ *  (`size="display"`, the rare hero moment the type scale reserves), and the Meter shape ALWAYS renders
+ *  — at `min` with no value, which is the honest drawing of "this has not been scored yet" and keeps
+ *  the card the same height before and after a run (so a settling score never shifts the pane). */
 function HeroGauge({ field, payload, prose }: { field: PlanField; payload: Record<string, unknown>; prose: PlanField | null }): ReactElement {
   const widget = field.widget as GaugeWidget;
   const value = typeof payload[field.key] === "number" ? (payload[field.key] as number) : null;
+  const shown = useCountUp(value);
   return (
     <Card data-testid={testId("refineryHeroGauge")}>
       <Row align="center" gap="block" padding="block">
         <Stack align="center" gap="tight">
-          <Text voice="datum">{value === null ? ABSENT_TEXT : `${value}/${widget.max}`}</Text>
+          <Row align="baseline" gap="tight">
+            <Text as="span" data-testid={testId("refineryHeroValue")} voice="hero">
+              {value === null ? ABSENT_TEXT : String(shown)}
+            </Text>
+            <Text as="span" voice="gloss">
+              /{widget.max}
+            </Text>
+          </Row>
           <Text voice="kicker">{field.label}</Text>
         </Stack>
-        <Stack gap="field">
-          {value === null ? null : <Meter kind="linear" label={field.label} max={widget.max} min={widget.min} value={value} />}
+        <Stack className="min-w-0 flex-1" gap="field">
+          <Meter kind="linear" label={field.label} max={widget.max} min={widget.min} value={value === null ? widget.min : shown} />
           {prose !== null ? <Text prose={true}>{scalarText(payload[prose.key])}</Text> : null}
         </Stack>
       </Row>
