@@ -343,6 +343,21 @@ export async function listOwnerHandles(db: Db, ownerId: UserId): Promise<string[
 }
 
 /** Browse a character's snapshot history, newest first (the opaque blob is read only on restore). */
+/** One snapshot row scoped to ITS character (both predicates in the WHERE — a snapshot id under a
+ *  different character is undefined, which the verb collapses leak-free). */
+export async function loadSnapshotRow(
+  db: Db,
+  characterId: CharacterId,
+  snapshotId: CharacterSnapshotId,
+): Promise<typeof characterSnapshots.$inferSelect | undefined> {
+  const rows = await db
+    .select()
+    .from(characterSnapshots)
+    .where(and(eq(characterSnapshots.id, snapshotId), eq(characterSnapshots.characterId, characterId)))
+    .limit(1);
+  return rows[0];
+}
+
 export async function listSnapshotSummaries(db: Db, characterId: CharacterId): Promise<SnapshotSummary[]> {
   const rows = await db
     .select({

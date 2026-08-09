@@ -153,7 +153,11 @@ const STATIC: Record<string, string> = {
   "refinery.getSession":
     "ONE session's full view (selection · stageConfig · guidance · iterationCount · status; the `originalCard` anchor is frozen at session start and cannot go stale). Driven query-level by every write that touches its row: `updateSession`, `deleteSession`, `runStage`, `iterate`, `applyFields`. `startSession` is absent by construction — the session did not exist, so its first read is a cold fetch of a NEW key.",
   "refinery.listRuns":
-    "ONE session's append-only run ledger (the CONTEXT Runs tab). Driven query-level by the two verbs that append to it — `runStage` (one run) and `iterate` (a rewrite + an analyze) — and by `deleteSession`, whose DB cascade drops the rows. Nothing else can write a run.",
+    "ONE session's append-only run ledger (the CONTEXT Runs tab). Driven query-level by the three verbs that append to it — `runStage` (one run), `iterate` (a rewrite + an analyze) and `submitManualRewrite` (a hand-authored rewrite) — and by `deleteSession`, whose DB cascade drops the rows. Nothing else can write a run.",
+  "refinery.listSchemas":
+    "the owner's custom payload-schema library (R3/SF — the stage-config picker + the editor's list). Driven by the three CRUD writes — `createSchema`/`updateSchema`/`deleteSchema` in use-refinery-schemas.ts, each naming `refinery.listSchemas.pathFilter()`. The forge pair (`generateSchema`/`refineSchema`) and `testSchema` are DRAFT verbs that persist nothing and deliberately name an EMPTY invalidates list.",
+  "refinery.preflight":
+    "ONE session's output-budget readout (schema-renderer §8). Driven query-level by every write that changes what the next run assembles: `updateSession` (scope/config/guidance), `runStage`/`iterate`/`submitManualRewrite` (the working overlay a fresh rewrite changes). A PRESET edit also moves the arithmetic — that path rides the preset writes' own settle plus the fact the readout re-resolves per fetch; the surface additionally refetches on the run bar's own focus loop, so the number is at most one interaction stale (the WARN-only §8 posture tolerates that honestly).",
 
   // ── the upload seam: a RAW multipart POST, so its freshness lives outside the seam (blind spot 4) ────────
   "assets.listOwned":

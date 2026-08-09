@@ -134,7 +134,8 @@ import { CtDataProviders, CtFakeSectionRegistry, CtRealSectionRegistry } from ".
 // whenever a story injects a `list`), so the projection is proven against the production store rather than
 // a double — and beside a section that declares NO list, which must never enter the list-as-screen arm.
 
-/** The projection probe: config (a list-bearing section, real seam) vs refinery (no list at all). */
+/** The projection probe: config (a list-bearing section, real seam) vs home (no list at all — the one
+ *  section that stayed list-less after refinery graduated in R3). */
 export function SectionListProjectionProbe(): ReactElement {
   return (
     <CtFakeSectionRegistry sections={{ config: { list: <p>config roster</p> } }}>
@@ -145,12 +146,12 @@ export function SectionListProjectionProbe(): ReactElement {
 
 function SectionListProjectionBody(): ReactElement {
   const configIsScreen = useSectionListIsScreen("config");
-  const refineryIsScreen = useSectionListIsScreen("refinery");
+  const homeIsScreen = useSectionListIsScreen("home");
   const configDocked = useListDocked("config", "docked");
   const overlay = useOpenOverlayPanel();
   return (
     <div>
-      <output>{`config-screen=${configIsScreen} refinery-screen=${refineryIsScreen} config-docked=${configDocked} overlay=${overlay ?? "none"}`}</output>
+      <output>{`config-screen=${configIsScreen} home-screen=${homeIsScreen} config-docked=${configDocked} overlay=${overlay ?? "none"}`}</output>
       <button type="button" onClick={(): void => setOpenOverlayPanel("list")}>
         open list overlay
       </button>

@@ -1,7 +1,8 @@
 // @orb/contracts/refinery — the refinery prose slot table (PROSE-1 §4.1; refinery R1 —
-// docs/design/refinery-r0.md §9.7). TWELVE slots, F4's own arithmetic: four stage-SYSTEM prompts
+// docs/design/refinery-r0.md §9.7). THIRTEEN slots, F4's own arithmetic: four stage-SYSTEM prompts
 // (score/rewrite/refine/analyze — `refine` is the refinement-rewrite system, the extension's
-// BASE_REFINEMENT_PROMPT) + eight (stage × mode) INSTRUCTION bodies — the source extension's 8 builtin
+// BASE_REFINEMENT_PROMPT) + the NL→schema generator's system prompt (R3/SF — `refinery.schemaForge.system`)
+// + eight (stage × mode) INSTRUCTION bodies — the source extension's 8 builtin
 // presets ARE the F4 modes, carried as individually-overridable slots (PROSE-1's one-override-per-slot is
 // the sanctioned tuning surface). Baselines are seeded from the extension corpus
 // (card-refinery `defaults.ts:35-233`) and adapted to orb's STRUCTURED output (the extension's markdown
@@ -41,6 +42,37 @@ import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
  *  override that drops it is linted (the `{{input}}`/`{{base}}` guided precedent). The splice VALUES and
  *  the bare token name live in `./index.ts`, beside the payload schemas they restate. */
 const SHAPE_TOKEN = "{{shape}}";
+
+/** The schema-forge slot's pre-substitution token: the STAGE's well-known-core requirement (a custom
+ *  score must keep the 1-10 `overallScore`; a custom analyze the three-spelling `verdict` enum), spliced
+ *  per call by the generation verb — the stage is a call-time fact, never baked into owner-editable text. */
+const CORE_TOKEN = "{{core}}";
+
+// The NL→schema generator's system prompt (SF — NL design §4.6). It TEACHES the liftable subset (short
+// and enumerable — the projection pins additionalProperties, so no "additionalProperties everywhere"
+// instruction survives from the extension's corpus) and the x-orb-ui hint vocabulary, so the
+// describe-in-English door yields camera-ready schemas without the author knowing hints exist
+// (schema-renderer §4.2). OWNER-SACRED baseline — ships for the owner to sign/veto like its siblings.
+const SCHEMA_FORGE_SYSTEM_TEXT = `You design JSON Schemas for structured LLM outputs about roleplay character cards.
+
+Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <think>):
+{"name":"a_snake_case_identifier","schema":{ ...a JSON Schema object... }}
+
+The schema must stay inside this vocabulary — anything else is rejected:
+- types: object, array, string, number, integer, boolean
+- string enums ("enum": ["A","B"]) and const values
+- object: properties, required, additionalProperties: false
+- string: minLength, maxLength; number: minimum, maximum; array: items, minItems, maxItems
+- a type-less "anyOf" union with 2+ members
+- NO pattern, NO $ref, NO oneOf/allOf/if/then, NO null types, at most 8 levels deep
+
+Make the result render beautifully by adding "x-orb-ui" display hints:
+- give the one headline number "x-orb-ui": {"role":"hero"} and bounds (minimum/maximum) so it renders as a gauge
+- give a verdict-style enum "x-orb-ui": {"role":"verdict","tone":{"MEMBER":"good|warn|bad|info|neutral"}}
+- group related bounded numbers with "x-orb-ui": {"group":"axes"}
+- long free-text fields need no hint; give every number honest minimum/maximum bounds
+
+Keep it minimal: model exactly what the user described, nothing speculative.{{core}}`;
 
 const SCORE_SYSTEM_TEXT = `You are a character card analyst. You help improve roleplay character cards with specific, actionable critique.
 
@@ -195,6 +227,17 @@ const ANALYZE_QUICK_TEXT = `Quick comparison of the rewrite against the original
 One short sentence per point.`;
 
 export const REFINERY_PROSE_SLOTS = {
+  "refinery.schemaForge.system": {
+    id: "refinery.schemaForge.system",
+    home: "user",
+    version: 1,
+    text: SCHEMA_FORGE_SYSTEM_TEXT,
+    macros: "none",
+    requiredMacros: [CORE_TOKEN],
+    requiredTokens: [],
+    title: "Refinery schema-designer system prompt",
+    fires: "Every NL→schema Generate/Refine call in the custom-schema editor — the stage's core requirement is spliced per call.",
+  },
   "refinery.score.system": {
     id: "refinery.score.system",
     home: "user",

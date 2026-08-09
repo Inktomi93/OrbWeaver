@@ -24,19 +24,21 @@
 // string — it silently DROPS the refinement and keeps `maxLength`, so the projection stays whole. The
 // cost is stated plainly: an over-token blob is now a FAILED RUN rather than an ungeneratable one.
 
-import type { ModelId } from "@orb/kit/ids";
+import type { ModelId, RefinerySchemaId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { liftJsonSchema } from "@orb/kit/json-schema";
 import { estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
+import { refineryVerdictSchema, SCORE_MAX, SCORE_MIN } from "./core.ts";
 
+export { REFINERY_VERDICTS, type RefineryVerdict, refineryVerdictSchema, SCORE_MAX, SCORE_MIN } from "./core.ts";
 // The refinery prose slot table (R1) — composed into `PROSE_SLOTS` by `#prose` through this front door.
 export { REFINERY_PROSE_SLOTS } from "./prose.ts";
+export * from "./schema-authoring.ts";
 
-// The extension's 1-10 rubric ("Rate this character card on a scale of 1-10"; the soul check is the
-// same scale). Non-int: the overall score is a weighted average. Post-parse zod is the belt the
-// per-wire scrubs cannot lose.
-const SCORE_MIN = 1;
-const SCORE_MAX = 10;
+// The 1-10 rubric bounds + the verdict vocabulary live in ./core.ts (schema-authoring's well-known-core
+// check needs them and this file re-exports ./schema-authoring — importing them back out of here would
+// close a cycle).
 // The card TEXT_MAX twin (contracts/character) — an applied rewrite flows into `character.update`,
 // whose text fields cap at 100 000; an uncapped payload would make the apply verb partial. Pinned
 // behaviorally in the contract test (the character constant is unexported and unimportable from here).
@@ -139,11 +141,7 @@ export const REFINERY_STAGES = ["score", "rewrite", "analyze"] as const;
 export type RefineryStage = (typeof REFINERY_STAGES)[number];
 export const refineryStageSchema = z.enum(REFINERY_STAGES);
 
-/** The analyze verdict — carried VERBATIM from the source extension (its prompt corpus teaches these
- *  exact uppercase spellings, and REGRESSION is the iterate loop's stop condition). */
-export const REFINERY_VERDICTS = ["ACCEPT", "NEEDS_REFINEMENT", "REGRESSION"] as const;
-export type RefineryVerdict = (typeof REFINERY_VERDICTS)[number];
-export const refineryVerdictSchema = z.enum(REFINERY_VERDICTS);
+// (REFINERY_VERDICTS / refineryVerdictSchema re-homed to ./core.ts — see the note above.)
 
 export const REFINERY_SESSION_STATUSES = ["active", "completed", "abandoned"] as const;
 export type RefinerySessionStatus = (typeof REFINERY_SESSION_STATUSES)[number];
@@ -211,17 +209,21 @@ export const refineryGuidanceSchema = z.string().max(HOST_PROSE_MAX_CHARS);
  *  `name`: it is a row label rendered in the D62 LIST pane, not a prose field. */
 export const refinerySessionNameSchema = z.string().max(SESSION_NAME_MAX);
 
-// ── Per-stage payload config — the kind-tagged SINGLE-ARM union (the SF extension seam) ─────────────────
-// F3 v1 is fixed payloads, so today the one arm is `{kind:"fixed", mode}`. The sanctioned NL→schema
-// extension arm (SF0) adds `{kind:"custom", schemaId}` as a UNION MEMBER — zero DDL, zero stored-row
-// migration (sessions/runs store these as JSON). Locked kind-tagged from birth so that widening is
-// additive (lock-the-extensible-shape).
+// ── Per-stage payload config — the kind-tagged union (the SF seam, now TWO-ARMED on score/analyze) ──────
+// The SESSION-side custom arm is a POINTER (`{kind:"custom", schemaId}`): the session's in-force schema
+// is mutable state, re-resolved at every run so a schema edit governs the next call (the D126 per-call
+// discipline). The RUN-side provenance arm EMBEDS the schema (further down — the P1-B header ruling);
+// the two arms are deliberately different shapes for different lifetimes. REWRITE has no custom arm
+// (F-N3: the apply path's semantics ARE the fixed typed contract) — its second RUN-side arm is `manual`
+// (a hand-authored rewrite, og-extension-feedback gap 1).
 
-export const refineryScoreConfigSchema = z.object({
+/** The fixed arm, score. Exported apart from the session union: run rows and the read-seam heal speak
+ *  the ARM, not the union (a strip-mode union parse would silently eat a custom embed's schema). */
+export const refineryScoreFixedConfigSchema = z.object({
   kind: z.literal("fixed"),
   mode: refineryScoreModeSchema,
 });
-export type RefineryScoreConfig = z.infer<typeof refineryScoreConfigSchema>;
+export type RefineryScoreFixedConfig = z.infer<typeof refineryScoreFixedConfigSchema>;
 
 export const refineryRewriteConfigSchema = z.object({
   kind: z.literal("fixed"),
@@ -229,10 +231,28 @@ export const refineryRewriteConfigSchema = z.object({
 });
 export type RefineryRewriteConfig = z.infer<typeof refineryRewriteConfigSchema>;
 
-export const refineryAnalyzeConfigSchema = z.object({
+export const refineryAnalyzeFixedConfigSchema = z.object({
   kind: z.literal("fixed"),
   mode: refineryAnalyzeModeSchema,
 });
+export type RefineryAnalyzeFixedConfig = z.infer<typeof refineryAnalyzeFixedConfigSchema>;
+
+/** The SESSION-side custom arm — a pointer at an owned `refinery_schemas` row. `brandedId`, not
+ *  `typeIdSchema`: the id is an INPUT the verb immediately resolves against the owned table (the lookup
+ *  is the real belt), and stored config blobs re-parse through this at the read seam — a length-strict
+ *  parse would heal a whole session config over an id-shape nit. */
+export const refineryCustomStageConfigSchema = z.object({
+  kind: z.literal("custom"),
+  schemaId: brandedId<RefinerySchemaId>(),
+});
+export type RefineryCustomStageConfig = z.infer<typeof refineryCustomStageConfigSchema>;
+
+/** Session score config: fixed mode, or a custom schema pointer. */
+export const refineryScoreConfigSchema = z.union([refineryScoreFixedConfigSchema, refineryCustomStageConfigSchema]);
+export type RefineryScoreConfig = z.infer<typeof refineryScoreConfigSchema>;
+
+/** Session analyze config: fixed mode, or a custom schema pointer. */
+export const refineryAnalyzeConfigSchema = z.union([refineryAnalyzeFixedConfigSchema, refineryCustomStageConfigSchema]);
 export type RefineryAnalyzeConfig = z.infer<typeof refineryAnalyzeConfigSchema>;
 
 /** The session's in-force per-stage config (stored on `refinery_sessions.stage_config`). */
@@ -251,22 +271,39 @@ export const DEFAULT_REFINERY_STAGE_CONFIG = {
   analyze: { kind: "fixed", mode: "full" },
 } as const satisfies RefineryStageConfig;
 
-/** The per-RUN provenance snapshot (`refinery_runs.payload_config`) — the config arm that produced a
- *  run's payload. A TYPE union only: the arms' `kind` overlaps and modes collide across stages
- *  ("full"/"quick"), so a generic runtime union would mis-narrow — reads dispatch per stage through the
- *  run view / the per-stage schemas instead.
- *
- *  ⚠ THE SF0 CUSTOM ARM MUST BE SELF-CONTAINED — read this BEFORE adding it (P1-B, ruled pre-launch in
- *  docs/design/refinery-schema-renderer.md §9.1). The obvious arm, `{kind:"custom", schemaId}`, is BANNED:
- *  it dereferences a MUTABLE, DELETABLE `refinery_schemas` row from an APPEND-ONLY run log, so editing a
- *  schema silently re-parses and re-renders every prior run under it wrong, and deleting one orphans them.
- *  The arm to build is `{kind:"custom", schemaId, schemaVersion, schema}` — the lifted-subset schema
- *  EMBEDDED by value (depth-capped objects are small; runs are per-user artifacts, so dedupe is not worth
- *  a join) with a `version` counter bumped per schema update. The renderer and the read-seam re-parse then
- *  never dereference a live row for a historical run, and "the schema is gone" becomes unrepresentable
- *  rather than a state the run viewer has to survive. Landing the schemaId-only arm first is a data-loss
- *  bug the moment the first custom run exists. */
-export type RefineryStagePayloadConfig = RefineryScoreConfig | RefineryRewriteConfig | RefineryAnalyzeConfig;
+/** The RUN-side custom provenance arm — SELF-CONTAINED per the P1-B ruling
+ *  (docs/design/refinery-schema-renderer.md §9.1): the run log is append-only forever, so a run EMBEDS
+ *  the schema it was produced under (depth-capped objects are small; runs are per-user artifacts, dedupe
+ *  is not worth a join) plus the schema row's `version` at run time. The renderer and the read-seam
+ *  re-parse never dereference a live `refinery_schemas` row for a historical run — "the schema is gone"
+ *  is unrepresentable rather than a state the run viewer has to survive. The session-side POINTER arm
+ *  above is the mutable half; the resolve-and-embed happens inside `runStage`. */
+export const refineryCustomRunConfigSchema = z.object({
+  kind: z.literal("custom"),
+  schemaId: brandedId<RefinerySchemaId>(),
+  schemaVersion: z.number().int().min(1),
+  schema: z.record(z.string(), z.unknown()),
+});
+export type RefineryCustomRunConfig = z.infer<typeof refineryCustomRunConfigSchema>;
+
+/** The RUN-side manual-rewrite provenance arm — a HAND-authored rewrite (og-extension-feedback gap 1,
+ *  the ShadowKyogre fork: score → hand-edit → analyze). No mode, no model, no schema: the payload is the
+ *  same typed rewrite contract, authored by the owner in the WIP edit area instead of a model. */
+export const refineryManualRewriteConfigSchema = z.object({
+  kind: z.literal("manual"),
+});
+export type RefineryManualRewriteConfig = z.infer<typeof refineryManualRewriteConfigSchema>;
+
+/** The per-RUN provenance union (`refinery_runs.payload_config`) — the config arm that produced a run's
+ *  payload. A TYPE union only: the arms' `kind` overlaps and modes collide across stages ("full"/"quick"),
+ *  so a generic runtime union would mis-narrow — reads dispatch per stage through the run view / the
+ *  per-ARM schemas instead. */
+export type RefineryStagePayloadConfig =
+  | RefineryScoreFixedConfig
+  | RefineryRewriteConfig
+  | RefineryAnalyzeFixedConfig
+  | RefineryCustomRunConfig
+  | RefineryManualRewriteConfig;
 
 // ── F3 stage payloads (fixed; wire-projected in R1 — NO refinements here, see the header) ───────────────
 
@@ -373,14 +410,22 @@ export type RefineryAnalyzePayload = z.infer<typeof refineryAnalyzePayloadSchema
 
 export type RefineryStagePayload = RefineryScorePayload | RefineryRewritePayload | RefineryAnalyzePayload;
 
-/** The exhaustive per-stage payload-schema dispatch (spine §7.5 mapped-Record) — the ONE home R1's run
- *  writes/reads and the client's payload rendering resolve a stage's schema through. A new stage member
- *  fails tsc here before anything else. */
+/** The exhaustive per-stage FIXED payload-schema dispatch (spine §7.5 mapped-Record). Since the custom
+ *  arm landed this is no longer the whole dispatch home — {@link payloadSchemaFor} is: fixed/manual runs
+ *  resolve here, custom runs lift their EMBEDDED schema. A new stage member fails tsc here first. */
 export const REFINERY_STAGE_PAYLOADS = {
   score: refineryScorePayloadSchema,
   rewrite: refineryRewritePayloadSchema,
   analyze: refineryAnalyzePayloadSchema,
 } as const satisfies Record<RefineryStage, z.ZodType>;
+
+/** THE payload-schema dispatch (schema-renderer §9.6 — the honest one-home once the custom arm exists):
+ *  a fixed or manual run parses the stage's typed contract; a custom run parses the schema EMBEDDED in
+ *  its own provenance (never a live row — P1-B). Throws `JsonSchemaLiftError` only on a corrupt embed,
+ *  which the read seam treats as the payload-no-longer-parses heal. */
+export function payloadSchemaFor(stage: RefineryStage, payloadConfig: RefineryStagePayloadConfig): z.ZodType {
+  return payloadConfig.kind === "custom" ? liftJsonSchema(payloadConfig.schema) : REFINERY_STAGE_PAYLOADS[stage];
+}
 
 // ── The stage-SYSTEM shape restatement (schema-renderer §9.3) ────────────────────────────────────────────
 // A weak-model courtesy that pairs with the real constraint (the structured-output `responseFormat`): the
@@ -412,7 +457,9 @@ const refineryRunBaseSchema = z.object({
   sessionId: typeIdSchema(ID_PREFIX.refinerySession),
   /** Which refinement round produced this run (0 = the initial pass; `iterate` increments). */
   iteration: z.number().int().min(0),
-  model: brandedId<ModelId>(),
+  /** Null on exactly the `manual` provenance arm — a hand-authored rewrite has no model, and an honest
+   *  null beats a sentinel spelling (the anti-sniffing law). */
+  model: brandedId<ModelId>().nullable(),
   /** Provider-reported usage, or null when the backend reports none (stats parity). */
   promptTokens: z.number().int().min(0).nullable(),
   outputTokens: z.number().int().min(0).nullable(),
@@ -442,23 +489,39 @@ const refineryRunBaseSchema = z.object({
   createdAt: z.number().int(),
 });
 
-/** One append-only pipeline run, discriminated on `stage` so the payload AND the provenance config
- *  narrow together ("current result per stage" = latest run per (session, stage)). */
-export const refineryRunSchema = z.discriminatedUnion("stage", [
+/** A custom run's payload on the wire: shape-valid against its EMBEDDED schema at write AND at the read
+ *  seam — the wire type is the honest "an object of the run's own schema" (the client renders it through
+ *  the render plan derived from that same embed, never through the fixed contracts). */
+const customPayloadSchema = z.record(z.string(), z.unknown());
+
+/** One append-only pipeline run. A plain union (not `z.discriminatedUnion`): score/analyze each carry TWO
+ *  arms per stage literal (fixed + custom), which a single-key discriminator cannot spell. Narrow by
+ *  `stage`, then by `payloadConfig.kind` — the provenance and the payload type move together. */
+export const refineryRunSchema = z.union([
   refineryRunBaseSchema.extend({
     stage: z.literal("score"),
-    payloadConfig: refineryScoreConfigSchema,
+    payloadConfig: refineryScoreFixedConfigSchema,
     payload: refineryScorePayloadSchema,
   }),
   refineryRunBaseSchema.extend({
+    stage: z.literal("score"),
+    payloadConfig: refineryCustomRunConfigSchema,
+    payload: customPayloadSchema,
+  }),
+  refineryRunBaseSchema.extend({
     stage: z.literal("rewrite"),
-    payloadConfig: refineryRewriteConfigSchema,
+    payloadConfig: z.union([refineryRewriteConfigSchema, refineryManualRewriteConfigSchema]),
     payload: refineryRewritePayloadSchema,
   }),
   refineryRunBaseSchema.extend({
     stage: z.literal("analyze"),
-    payloadConfig: refineryAnalyzeConfigSchema,
+    payloadConfig: refineryAnalyzeFixedConfigSchema,
     payload: refineryAnalyzePayloadSchema,
+  }),
+  refineryRunBaseSchema.extend({
+    stage: z.literal("analyze"),
+    payloadConfig: refineryCustomRunConfigSchema,
+    payload: customPayloadSchema,
   }),
 ]);
 export type RefineryRun = z.infer<typeof refineryRunSchema>;

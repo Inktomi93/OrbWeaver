@@ -22,7 +22,7 @@
 
 import type { ParticipantView, RoomOverrides } from "@orb/contracts/chat";
 import type { ThemeBackground } from "@orb/contracts/theme";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
 import type { ContributorRegistry } from "./registry.ts";
@@ -258,6 +258,15 @@ export const VOID_STATE = undefined as undefined;
 /** The Characters CONTEXT-panel state projection (O5 strict — a real named type, never void/any): the
  *  selected character every context tab drills into. */
 export interface CharacterContextState {
+  readonly characterId: CharacterId;
+}
+
+/** The Refinery CONTEXT-panel state projection (R3 — the Runs · Setup · Versions tabs' shared drill):
+ *  the open session every tab reads through its own cache hooks. Deliberately minimal — the tabs fetch
+ *  their own data by these ids (the cache dedupes); `characterId` rides so the Versions walk (the D28
+ *  snapshot plane) needs no second resolve. */
+export interface RefineryContextState {
+  readonly sessionId: RefinerySessionId;
   readonly characterId: CharacterId;
 }
 

@@ -11,8 +11,9 @@ import { addSpanEvent } from "#foundation/observability";
 
 const STRUCTURED_RETRY_EVENT = "provider.structured.retry";
 
-/** Which refinery lane retried — file-local vocabulary (the discovery precedent). */
-const STRUCTURED_LANES = ["refine-score", "refine-rewrite", "refine-analyze"] as const;
+/** Which refinery lane retried — file-local vocabulary (the discovery precedent). The two forge lanes
+ *  joined at R3 (the NL→schema Generate/Refine call + the testSchema drill). */
+const STRUCTURED_LANES = ["refine-score", "refine-rewrite", "refine-analyze", "refine-schema-forge", "refine-schema-test"] as const;
 type StructuredLane = (typeof STRUCTURED_LANES)[number];
 
 /** Build the `onRetry` closure for a refinery stage lane — annotates the ACTIVE span; a silent no-op

@@ -2,6 +2,7 @@
 // (one home, §7.4). The CRUD reads return `CharacterDetail` (views.ts); the bulk mutators return `void`.
 // Only the history + synthetic-identity verbs carry their own small shapes.
 
+import type { CharacterCard } from "@orb/contracts/character";
 import type { CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
 import type { CharacterListCursor } from "./params.ts";
 import type { CharacterSummary } from "./views.ts";
@@ -34,11 +35,20 @@ export interface SnapshotRef {
   readonly createdAt: number;
 }
 
-/** A browse-history row (the git "commit log" entry); the opaque blob itself is read only on `restore`. */
+/** A browse-history row (the git "commit log" entry); the opaque blob itself is read only on `restore`
+ *  and through {@link SnapshotView} (the refinery Versions walk's compare read — schema-renderer §16.2:
+ *  the LIST stays trimmed; content is fetched per selected snapshot). */
 export interface SnapshotSummary {
   readonly id: CharacterSnapshotId;
   readonly label: string | null;
   readonly createdAt: number;
+}
+
+/** One snapshot WITH its card blob — the compare/inspect read (`getSnapshot`). Read-only: the blob is the
+ *  D28 opaque history entry, never re-validated against today's schema (it describes the card as it
+ *  stood). */
+export interface SnapshotView extends SnapshotSummary {
+  readonly content: CharacterCard;
 }
 
 /** A cursor page of the caller's own character library — sorted per the request's `sort` (default recent),

@@ -123,6 +123,8 @@ export const PROSE_SLOT_IDS = [
   "refinery.analyze.mode.full",
   "refinery.analyze.mode.iteration",
   "refinery.analyze.mode.quick",
+  // The NL→schema generator's system prompt (R3/SF — the custom-schema editor's Generate/Refine calls).
+  "refinery.schemaForge.system",
   // ── per-PRESET: the game-turn steering-reminder TEACHES (census 1-7) — stored in `promptConfig.prose`,
   //    authored in the preset Templates tab, and threaded to `LiteReminderInput.prose` by chat's rpg gather
   //    args (`domain/rpg/substrate/reminder.ts` resolves them). `names-only` macro mode (§6.1): a host

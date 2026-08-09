@@ -199,6 +199,20 @@ export {
   useRecentModels,
 } from "./recent-models-store.ts";
 export {
+  clearRefinerySelection,
+  refinerySectionSelection,
+  selectRefinerySession,
+  selectRefinerySessionFromList,
+  useSelectedRefinerySessionId,
+} from "./refinery-selection-store.ts";
+export {
+  __peekRefineryViewForTest,
+  setRefineryArmedRewrite,
+  setRefineryViewedRun,
+  useRefineryArmedRewriteId,
+  useRefineryViewedRunId,
+} from "./refinery-view-store.ts";
+export {
   __readRegexBulkForTest,
   clearRegexBulkSelection,
   exitRegexBulkMode,
