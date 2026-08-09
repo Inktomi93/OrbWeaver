@@ -144,8 +144,14 @@ above) — nothing is deferred; the board below is a burn-down, not a queue. Ful
   through StagePane (task #47) · capped-overrun **REFUSE + fit receipt** mechanism (task #49, ruled).
 - [ ] **#48 ruled-smalls batch (one lane):** smoothStream default → true (suites at both values —
   value-changing, owes the battery) · chat-options D111 placement · C9-1d folder OPEN.
-- [ ] **#50 barrels (mech):** Tier B 50 zero-risk drops → Tier A 85 verdicts → knip
-  `--include-entry-exports` flip last. GO-ruled.
+- [x] **#50 barrels Tier-A/B — VERIFIED NO-OP** (evidence: `orphan-export-ratchet` exit 0, 0/0/0, a
+  live-positive-controlled instrument [it bit 3 stale tags the same morning]; all 36 fresh orphan
+  candidates hand-checked already `@public`-with-reason). The 08-08 135-symbol worklist was dead —
+  correct lane refusal, then a verified already-done. REMAINING LEG (warm agent idle in its
+  worktree, fires after the refinery lane merges): refinery-cluster verdicts (5 star-suppressed + 4
+  index hits) + **C12 feasibility VERDICT only** — the flip surfaces 720 entry-export findings, so
+  it is not a config toggle; decompose legit package-entry API vs rot, then per-package entry
+  config vs baseline vs refuse-with-receipt.
 - [ ] **#43 boot code-split:** 4.9MB chunk / ~610ms parse → route-level split + lazy sections. GO-ruled.
 - [ ] **#46 pagination gate** (list procedures declare limit+max+default) — AFTER #45 lands (fixed tree);
   two receipts (historical control + reach probe).
