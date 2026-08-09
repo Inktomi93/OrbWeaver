@@ -29,21 +29,41 @@ is sanitized-and-stripped or rendered trusted. The original board framing (histo
 Should the editor's live preview of an unsaved draft resolve render policy the way committed content
 does, or keep trusting the draft's own `trustHtml` field for preview purposes?
 
+## RESOLVED 2026-08-09 — ARM 1 BUILT, and the brief's mechanism was INVERTED
+
+The #48 lane (`a6133ffe4`) built arm 1 but proved the framing below was wrong in two ways
+(verified, not assumed):
+
+1. `data` at `character-editor-surface.tsx:219` is `useSuspenseQuery(character.get)` — the **saved
+   server row**, not the unsaved draft form model (`trustHtml` isn't in the card form at all).
+2. `resolveRenderPolicy` is `override ?? deployment` for `trustHtml` — a deployment floor **cannot
+   forbid** a card that opted in (its own docblock: "a DEFAULT, not a block", owner 2026-08-01). So
+   the "previews trusted, saves untrusted" over-render below is **unreachable**.
+
+**The real lie is the mirror image:** an `inherit` card (`trustHtml: null` — every card's default)
+previews **untrusted** on a deployment whose floor *trusts*. UNDER-render, not over-render. And the
+"no new wire" premise died: `/api/auth/config` served `forbidExternalMedia` but **not** `trustHtml`,
+so the floor was not client-knowable.
+
+**Fix shipped:** added `trustHtml` to `/api/auth/config` (same per-request read the CSP uses) +
+`useRenderPolicyFloor` (fail-closed to the shared `SAFE_FLOOR`, now exported from
+`lib/render-trust.ts` so the strict default has one spelling) + `usePreviewRenderPolicy`. Fixed
+**both** sites of the class — the facet editor AND `character-hero-band.tsx:96`. Durable lesson: *a
+preview surface with no server-resolved verdict must run the contract resolver, not read the raw
+override column — the editor preview was answering a different question than the renderer for every
+`inherit` card.*
+
+---
+
+## Original framing (kept for the record — mechanism was inverted; see above)
+
 Note the exposure honestly: the preview is the editing owner previewing their OWN unsaved draft —
 same principal, nothing persisted, nothing served to anyone else. The real risk is a **lying
-preview**, not a leak: on a deployment whose floor forbids trusted HTML, the preview renders
-trusted while the saved card never will.
+preview**, not a leak.
 
-## Arms
-
-1. **Client-side floor combine (the lite server-seam).** `resolveRenderPolicy` lives in CONTRACTS —
-   importable client-side. Combine the known deployment floor with the draft's flag in the preview;
-   no new wire, one call site, one test asserting drafts preview at-floor. Fixes the lying-preview
-   without a round-trip.
-2. **Full server round-trip** ("what policy would this card get") — mirrors card-frame exactly, but
-   buys nothing over arm 1 unless policy inputs exist that the client can't know (none found).
-3. **Leave as editor-local convenience** — zero cost; the board row closes as "preview is
-   same-principal, boundary holds at read time"; a reviewer must keep re-confirming that.
+Arms as originally posed: (1) client-side floor combine [BUILT, with the correction above] · (2)
+full server round-trip [not needed] · (3) leave as editor-local convenience [rejected — the
+under-render was a real fidelity bug worth the ~1-wire fix].
 
 **Scout's not-covered:** other `trustHtml` render sites (hero band, appearance tab) untraced;
 rpg/persona-card parallels unchecked.

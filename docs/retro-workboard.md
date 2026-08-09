@@ -145,9 +145,17 @@ above) — nothing is deferred; the board below is a burn-down, not a queue. Ful
   silently-clamped `character.list` callers. Receipts in task #45.
 - [ ] **#47+#49 refinery pair (one lane):** delete the prod-unreachable `awaited` latch + honest CT
   through StagePane (task #47) · capped-overrun **REFUSE + fit receipt** mechanism (task #49, ruled).
-- [ ] **#48 ruled-smalls batch (one lane):** smoothStream default → true (suites at both values —
-  value-changing, owes the battery) · chat-options D111 placement · C9-1d folder OPEN.
-- [x] **#50 barrels Tier-A/B — VERIFIED NO-OP** (evidence: `orphan-export-ratchet` exit 0, 0/0/0, a
+- [x] **#48 ruled-smalls MERGED `a6133ffe4`** — smoothStream default→true (3 coupled sites swept) ·
+  chat-options D111 relocated to composer gutter (topbar chrome deleted) · tag folders OPEN
+  (folderType now has a live reader) · DRAFT-TRUST arm 1 (brief mechanism was INVERTED — the real
+  lie is an `inherit` card UNDER-rendering on a trusting floor; fixed both class sites, added the
+  `trustHtml` wire to /api/auth/config; doc corrected).
+- [x] **#50 barrels FULLY DONE (leg merged `02f0a91a0`)** — Tier-A/B was a verified no-op; the
+  post-refinery-merge leg found 5 genuinely-untagged star-suppressed schema-forge/authoring type
+  twins → tagged `@public`-with-reason. **C12 VERDICT: refuse the global `--include-entry-exports`
+  flip** (720+1276 dominated by legit package-boundary API; ui's 231 already R2-sealed-exempt); a
+  narrow per-package variant is a possible future config lane, not a resurrection. Original no-op
+  detail: (evidence: `orphan-export-ratchet` exit 0, 0/0/0, a
   live-positive-controlled instrument [it bit 3 stale tags the same morning]; all 36 fresh orphan
   candidates hand-checked already `@public`-with-reason). The 08-08 135-symbol worklist was dead —
   correct lane refusal, then a verified already-done. REMAINING LEG (warm agent idle in its
