@@ -192,7 +192,11 @@ graduation.md — DO-NOT-SHIP, polish lane fixing everything): two OWNER questio
 feature unreachable at coarse — add a 5th tab? reachable via You? owner design call) and the
 mock-sanctioned 01/02/03 numbered markers (a §6 house-ban the mock itself used — bless or redraw).
 Also FYI: the side-eye restarted the dev stack once (phantom vite dep-cache white screen, cleared
-node_modules/.vite — not a product defect). ALSO: strike the REGPAR owables row (#38 lane proved REGX2 shipped F3/F5/JSON-door
+node_modules/.vite — not a product defect). (7) NEW POLICY FORK from the live e2e (mechanism landing
+in-lane, policy yours): after the payload-aware output-budget fix, the only remaining
+guaranteed-truncation case is an EXPLICIT USER PRESET CAP below the payload's need — should such a
+run **warn-and-proceed** (today's shape), **require confirm**, or **refuse with the fit receipt**?
+The e2e proved warn-alone spends two model calls to fail exactly as predicted. ALSO: strike the REGPAR owables row (#38 lane proved REGX2 shipped F3/F5/JSON-door
 08-07, F4 owner-refused — the row was an archive snapshot; residuals [bulk-placement kit lift, F6
 reasoning nit] stay parked where the board already has them).
 
