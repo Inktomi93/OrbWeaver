@@ -4,6 +4,7 @@ import { users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
+import { logger } from "@orb/server/foundation/observability";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import { freshDb } from "../../../../support/db.ts";
@@ -329,6 +330,54 @@ describe("sessions.provisionIdentity — a handle match onto a BOUND row is an i
     const row = (await db.select().from(users).where(eq(users.id, local.userId)))[0];
     expect(row?.externalId).toBe("authentik|alice");
     expect(await rowCount()).toBe(1);
+  });
+});
+
+// #34 — THE STATE HALF of the null-subject signal (the config half is the claim mapper's warn in
+// entry/http/auth-routes). A login carrying NO stable subject has resolved BY HANDLE onto a row that IS
+// bound to one: `isSubjectMismatch` is structurally unable to speak (it needs a subject to contradict), so
+// the bind-once takeover refusal is INERT for this login and the handle alone authorizes the row — which is
+// precisely the precondition the handle-re-registration attack rides. Observability only: the login
+// proceeds byte-identically, because refusing null-subject logins would break `forward-header`, where null
+// is the normal shape.
+describe("sessions.provisionIdentity — a null-subject login onto a BOUND row is operator-visible (#34)", () => {
+  test("WARNS naming the row, and the login still succeeds onto the same row (no behavior change)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const bound = asProvisioned(await svc.provisionIdentity(identity({ externalId: EXTERNAL, handle: castId<Handle>("alice") })));
+    const spy = vi.spyOn(logger, "warn");
+    // The same handle arrives with NO subject — the guard that would have refused an IMPOSTOR here can't run.
+    const nullSubject = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") })));
+    expect(nullSubject.userId).toBe(bound.userId); // unchanged outcome — this is a signal, not a gate
+    expect(spy).toHaveBeenCalledOnce();
+    const [bindings] = spy.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
+    expect(bindings["security"]).toBe(true);
+    expect(bindings["event"]).toBe("sso_null_subject_on_bound_row");
+    expect(bindings["handle"]).toBe("alice");
+    expect(bindings["userId"]).toBe(bound.userId);
+    // The row's binding is NOT moved or cleared by the subject-less login.
+    const row = (await db.select().from(users).where(eq(users.id, bound.userId)))[0];
+    expect(row?.externalId).toBe(EXTERNAL);
+  });
+
+  // THE SILENT-PATH CONTROL. In `forward-header` (Authelia's `Remote-User`, the generic `X-Forwarded-User`)
+  // every login is subject-less by construction and the rows it provisions are UNBOUND — the proxy is the
+  // identity authority. That shape must stay silent or the signal is a per-login siren nobody reads.
+  test("a null-subject login onto an UNBOUND row is SILENT (the normal forward-header / single-user shape)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    const first = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("proxied") })));
+    const spy = vi.spyOn(logger, "warn");
+    const again = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("proxied") })));
+    expect(again.userId).toBe(first.userId);
+    expect(spy).not.toHaveBeenCalled();
+  });
+
+  // And the subject-BEARING path is silent too — that is the login the guard actually protects.
+  test("a subject-bearing login onto its own bound row is SILENT", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    await svc.provisionIdentity(identity());
+    const spy = vi.spyOn(logger, "warn");
+    await svc.provisionIdentity(identity());
+    expect(spy).not.toHaveBeenCalled();
   });
 });
 

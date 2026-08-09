@@ -397,17 +397,38 @@ function readClaimPath(claims: { readonly [claim: string]: unknown }, path: stri
 
 /** Map verified OIDC ID-token claims → a `ResolvedIdentity`, or `null` when the configured username claim
  *  is absent/empty. Claim names are injected (`OidcClaimMap`) so a non-authentik IdP maps without a code
- *  change; each name may be a nested dot-path. */
+ *  change; each name may be a nested dot-path.
+ *
+ *  #34 — THIS IS ALSO THE CONFIG-TIER SIGNAL FOR A SILENTLY-DISABLED CONTROL. `externalId` is the identity
+ *  key, and the bind-once takeover refusal (`isSubjectMismatch`, `domain/sessions/verbs/provision-identity`)
+ *  is scoped to SUBJECT-BEARING logins on purpose — a null subject carries no claim that could contradict a
+ *  row's binding, so the guard cannot fire and a handle match walks onto whatever row holds that handle. In
+ *  `forward-header` that IS the model (the proxy asserted the handle behind the trusted-peer gate); in
+ *  `oidc` it is a MISCONFIGURATION, because OIDC Core REQUIRES `sub` in an ID token, so a null here means
+ *  `OIDC_UID_CLAIM` names a claim this IdP does not emit — and the box then runs guard-less for every login
+ *  with nothing saying so. This mapper is the oidc-only seam (forward-header resolves in
+ *  `infra/auth/modes/forward-header.ts`), so the warn is mode-scoped by construction. It is OBSERVABILITY:
+ *  the returned identity is byte-identical with or without it, because refusing a subject-less login would
+ *  break forward-header entirely — see `isSubjectMismatch`'s scope note, which prescribes exactly this. */
 export function identityFromClaims(claims: { readonly [claim: string]: unknown } | undefined, claimMap: OidcClaimMap): ResolvedIdentity | null {
   if (claims === undefined) {
     return null;
   }
   const username = readClaimPath(claims, claimMap.usernameClaim);
   if (typeof username !== "string" || username.length === 0) {
+    // Already fail-closed (no identity ⇒ no session), so there is no guard-less login to report — and
+    // warning here would drown the real signal in noise from probes and misdirected requests.
     return null;
   }
   const rawUid = readClaimPath(claims, claimMap.uidClaim);
   const uid = typeof rawUid === "string" && rawUid.length > 0 ? rawUid : null;
+  if (uid === null) {
+    securityEvent(
+      "oidc_subject_claim_missing",
+      { handle: username, uidClaim: claimMap.uidClaim },
+      "security: an OIDC login carried no stable subject — OIDC_UID_CLAIM names a claim this IdP does not emit, so every login provisions externalId=null and the bind-once account-takeover guard cannot fire; point OIDC_UID_CLAIM at a claim the IdP emits (`sub` is required by OIDC Core)",
+    );
+  }
   const rawGroups = readClaimPath(claims, claimMap.groupsClaim);
   const groups = Array.isArray(rawGroups) ? rawGroups.filter((g): g is string => typeof g === "string") : [];
   const rawEmail = readClaimPath(claims, claimMap.emailClaim);
