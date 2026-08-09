@@ -129,7 +129,11 @@ test("a PARTIAL apply toasts NOTHING — the write landed, and its per-entry dro
     // `rows=2` proves the refusal decision has already been made and made silently.
     "refinery.listSessions": () => (rosterCalls++ === 0 ? [rosterRow("Rev")] : [rosterRow("Rev"), rosterRow("Second")]),
     "refinery.applyFields": () => ({
-      applied: [{ field: "description" }],
+      // A consolidation round as the server itemizes it: one field took new text, one was EMPTIED.
+      applied: [
+        { field: "description", kind: "replaced" },
+        { field: "personality", kind: "cleared" },
+      ],
       dropped: [{ field: "greetings", greetingIndex: 1, reason: "greeting_index_invalid" }],
       character: makeCharacterDetail(),
     }),
@@ -140,6 +144,9 @@ test("a PARTIAL apply toasts NOTHING — the write landed, and its per-entry dro
 
   await component.getByRole("button", { name: "apply" }).click();
 
+  // The per-entry KIND reaches the client typed, off a real response — the emptying arm's outcome cargo
+  // is not something the R3 surface will have to re-derive from a blank diff side.
+  await expect(component.getByTestId("applied")).toHaveText("applied=description:replaced,personality:cleared");
   await expect(component.getByTestId("roster")).toHaveText("rows=2");
   await expect(page.locator(TOAST)).toHaveCount(0);
 });

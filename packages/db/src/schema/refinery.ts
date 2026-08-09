@@ -31,6 +31,7 @@ import type {
 import { REFINERY_SESSION_STATUSES, REFINERY_STAGES } from "@orb/contracts/refinery";
 import type { CharacterId, ModelId, RefineryRunId, RefinerySessionId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
+import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { characters } from "./character.ts";
 
@@ -94,9 +95,29 @@ export const refineryRuns = sqliteTable(
     // The typed stage payload (F3) — parsed at the read seam per `stage` via REFINERY_STAGE_PAYLOADS.
     payload: text("payload", { mode: "json" }).$type<RefineryStagePayload>().notNull(),
     model: text("model").$type<ModelId>().notNull(),
-    // Provider-reported usage; null when the backend reports none (stats parity, study §5.2).
+    // Provider-reported usage; null when the backend reports none (stats parity, study §5.2). The
+    // summarize result DOES carry usage and the engine threads it — a null here is a silent backend.
     promptTokens: integer("prompt_tokens"),
     outputTokens: integer("output_tokens"),
+    // The run's WALL TIME — the Runs ledger's third economic column beside the token counts
+    // (schema-renderer §9.2). NOT NULL and un-backfillable, which is why it lands in the baseline window:
+    // a run that produced a row took some measurable time, and there is no honest value to invent later.
+    durationMs: integer("duration_ms").notNull(),
+    // The DAG parent: the run whose output this one CONSUMED (schema-renderer §21 edge 1) — an analyze
+    // names the rewrite it judged, a rewrite names the score/analyze it worked from. Without it the log is
+    // a timestamp-ordered LIST, so "which rewrite did this analyze judge?" is answerable only by "the
+    // latest at the time" — false the moment step-back targets an earlier run.
+    //
+    // SELF-FK, not a bare id. The design doc proposed "nullable text, no FK constraint needed beyond the
+    // session scope"; D24 overrules it (boundaries are physics, FK-enforced) and the `no-untyped-soft-ref`
+    // gate makes that mechanical — an id-shaped column with no `.references()` is RED. It is also simply
+    // the better answer: the edge is now unforgeable rather than a convention the next writer must honor.
+    // `set null` because a parent's disappearance means the edge is UNKNOWN, never that the child should
+    // vanish — a run is independent append-only history whichever run it read (in practice the session
+    // cascade takes both together, so the arm is a correctness statement more than a live path).
+    sourceRunId: text("source_run_id")
+      .$type<RefineryRunId>()
+      .references((): AnySQLiteColumn => refineryRuns.id, { onDelete: "set null" }),
     // The keys the strip-mode payload parse silently REMOVED — dotted paths, never content (the
     // strip-and-itemize posture, security pass §1 gap 5 / belt 6: an invented key must appear in the run
     // record instead of vanishing into a success). Always a list; `[]` = shape-clean.
@@ -107,6 +128,9 @@ export const refineryRuns = sqliteTable(
     // sessionId LEADS (`fk-columns-indexed`: the cascade child scan) and the composite serves the
     // latest-run-per-(session, stage) read — the append-only log's ONE hot query.
     index("refinery_runs_session_stage_idx").on(t.sessionId, t.stage, t.createdAt),
+    // The self-FK's own child-scan index (`fk-columns-indexed`) — and the read the ledger's DAG view runs
+    // to answer "what was derived FROM this run?".
+    index("refinery_runs_source_idx").on(t.sourceRunId),
     check("refinery_runs_stage_check", sql.raw(`stage in (${RUN_STAGE_CHECK_LIST})`)),
   ],
 );

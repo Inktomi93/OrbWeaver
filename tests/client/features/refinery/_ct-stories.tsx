@@ -27,6 +27,7 @@ import {
 } from "@orb/client/features/refinery";
 import type { CharacterId, RefinerySessionId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { CtAppDataProviders } from "../../../support/ct/ct-data-providers.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 
@@ -52,6 +53,11 @@ function RefineryDataProbe({ sessionId, characterId }: RefineryDataStoryProps): 
   const runStage = useRunRefineryStage(deps);
   const iterate = useIterateRefinery(deps);
   const apply = useApplyRefineryFields(deps);
+  // The apply OUTCOME, rendered. `applyFields` itemizes per entry — and since the emptying arm landed it
+  // itemizes the KIND too ("replaced" vs "cleared"), because destruction has to be stated, not inferred
+  // from a diff with a blank side. The hooks type through the tRPC wire types, so the only honest proof
+  // that the field survives the whole chain is reading it off a real response and painting it.
+  const [outcome, setOutcome] = useState<string | null>(null);
 
   return (
     <div>
@@ -75,7 +81,16 @@ function RefineryDataProbe({ sessionId, characterId }: RefineryDataStoryProps): 
       <button type="button" onClick={(): void => iterate.mutate({ sessionId })}>
         iterate
       </button>
-      <button type="button" onClick={(): void => apply.mutate({ sessionId, accepts: [{ field: "description" }] })}>
+      <p data-testid="applied">{`applied=${outcome ?? "…"}`}</p>
+      <button
+        type="button"
+        onClick={(): void =>
+          apply.mutate(
+            { sessionId, accepts: [{ field: "description" }] },
+            { onSuccess: (data): void => setOutcome(data.applied.map((entry) => `${entry.field}:${entry.kind}`).join(",")) },
+          )
+        }
+      >
         apply
       </button>
     </div>

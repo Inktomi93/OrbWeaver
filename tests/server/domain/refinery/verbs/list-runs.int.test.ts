@@ -33,6 +33,7 @@ test("the ledger reads oldest-first; a stranger gets NOT_FOUND; a corrupt row is
     payloadConfig: { kind: "fixed", mode: "full" },
     payload: score.payload,
     model: castId<ModelId>("vetted-model"),
+    durationMs: 0,
   });
   await db.run(sql`UPDATE refinery_runs SET payload = '{"totally":"wrong"}' WHERE id = 'refinery_run_corrupt'`);
 

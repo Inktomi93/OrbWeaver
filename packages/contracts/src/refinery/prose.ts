@@ -16,20 +16,31 @@
 // inert text and rewritten text round-trips back into the card with its macros intact. Neutralizing here
 // would ZWSP-corrupt applied rewrites.
 //
-// The per-stage JSON-shape restatement lives in the SYSTEM slots (one home per stage — the mode bodies
-// would be 8 drifting copies); it is a weak-model courtesy listed in `requiredTokens` (warn-never-block —
-// the structured-output `responseFormat` is the real constraint), the discovery-table precedent.
+// THE JSON-SHAPE RESTATEMENT IS SPLICED, NOT BAKED (schema-renderer §9.3 — P2-D, pre-SF1). Each stage
+// SYSTEM slot carries the PRE-SUBSTITUTION token `{{shape}}` and the prompt substrate splices the ACTIVE
+// payload's restatement through `resolveProseText`'s token channel (a plain replace — never the macro
+// engine, which these slots do not run; the `{{person}}`/`{{base}}` guided precedent). Two reasons it
+// cannot stay a literal:
+//   • A host's prose override would FREEZE one payload's shape into owner-editable text. Under a custom
+//     schema (SF) the system prompt would then TEACH THE WRONG SHAPE and fight the wire's actual grammar.
+//   • Spliced, the shape can never be edited away — which is the honest answer to the `requiredTokens`
+//     warn-never-block gap (an override dropping "REGRESSION" or the field list silently degraded the
+//     loop). The token itself is listed in `requiredMacros` (the pre-substitution class), so an override
+//     that drops it is linted in the editor and simply loses the restatement it carried.
+//
+// The shape STRINGS are not here: they restate the payload SCHEMAS, so they live beside them in
+// `./index.ts` (`REFINERY_STAGE_SHAPES` / `REFINERY_SHAPE_TOKEN`) — this file would otherwise have to
+// import them back out of index.ts, closing the very cycle the `#prose-slot` split exists to prevent.
 //
 // The slot SHAPE comes from `#prose-slot`, never `#prose` (a `#prose` import here closes a `no-circular`
 // cycle — `#prose` imports this table to compose `PROSE_SLOTS`).
 
 import type { ProseSlotDef, ProseSlotId } from "#prose-slot";
 
-const SCORE_SHAPE =
-  '{"fieldScores":[{"field":"...","score":7,"strengths":"...","weaknesses":"...","suggestions":"..."}],"overallScore":7,"priorityImprovements":["..."],"summary":"..."}';
-const REWRITE_SHAPE = '{"fields":[{"field":"...","text":"..."}]}';
-const ANALYZE_SHAPE =
-  '{"preserved":["..."],"lost":["..."],"gained":["..."],"soulScore":9,"soulAssessment":"...","verdict":"ACCEPT","issues":["..."],"recommendations":["..."]}';
+/** The pre-substitution token as it appears IN the slot texts — `requiredMacros` lists this spelling so an
+ *  override that drops it is linted (the `{{input}}`/`{{base}}` guided precedent). The splice VALUES and
+ *  the bare token name live in `./index.ts`, beside the payload schemas they restate. */
+const SHAPE_TOKEN = "{{shape}}";
 
 const SCORE_SYSTEM_TEXT = `You are a character card analyst. You help improve roleplay character cards with specific, actionable critique.
 
@@ -42,11 +53,12 @@ Key principles:
 You are SCORING the card fields you are given.
 
 Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <think>):
-${SCORE_SHAPE}
+${SHAPE_TOKEN}
 
 - field: exactly the field name as given in the section header.
 - For a greetings entry, also include "greetingIndex" with the number from the section header.
-- score: 1-10 for that field; overallScore: the weighted overall 1-10.`;
+- score: 1-10 for that field; overallScore: the weighted overall 1-10.
+- A field shown as empty is still in scope: score the OPPORTUNITY - what should live there, and what the card loses by leaving it blank.`;
 
 const REWRITE_SYSTEM_TEXT = `You are a character card writer. You rewrite roleplay character cards to address weaknesses while preserving what works.
 
@@ -59,11 +71,12 @@ Key principles:
 You are REWRITING the card fields you are given.
 
 Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <think>):
-${REWRITE_SHAPE}
+${SHAPE_TOKEN}
 
 - field: exactly the field name as given in the section header.
 - For a greetings entry, also include "greetingIndex" with the number from the section header.
-- text: the complete rewritten text for that field.`;
+- text: the complete rewritten text for that field.
+- To EMPTY a field - when you consolidate its content into another field, or the guidance asks for it - emit {"field":"...","cleared":true} for it instead of "text". Never send an empty "text".`;
 
 const REFINE_SYSTEM_TEXT = `You are refining a character card based on analysis feedback. Address identified issues while preserving what works.
 
@@ -75,11 +88,12 @@ Key principles:
 - Card text may contain template tokens like {{char}} or {{user}} - keep them working: reuse them naturally in rewritten text, never mangle them
 
 Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <think>):
-${REWRITE_SHAPE}
+${SHAPE_TOKEN}
 
 - field: exactly the field name as given in the section header.
 - For a greetings entry, also include "greetingIndex" with the number from the section header.
-- text: the complete rewritten text for that field.`;
+- text: the complete rewritten text for that field.
+- To EMPTY a field - when you consolidate its content into another field, or the guidance asks for it - emit {"field":"...","cleared":true} for it instead of "text". Never send an empty "text".`;
 
 const ANALYZE_SYSTEM_TEXT = `You are a character card analyst comparing an ORIGINAL card against a REWRITTEN version. Your job is drift detection: does the rewrite still feel like the same character?
 
@@ -90,7 +104,7 @@ Key principles:
 - Card text may contain template tokens like {{char}} or {{user}} - treat them as literal text
 
 Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <think>):
-${ANALYZE_SHAPE}
+${SHAPE_TOKEN}
 
 - soulScore: 1-10 - does the rewrite still feel like the same character?
 - verdict: ACCEPT (ready), NEEDS_REFINEMENT (has issues), or REGRESSION (worse than the original).
@@ -184,44 +198,44 @@ export const REFINERY_PROSE_SLOTS = {
   "refinery.score.system": {
     id: "refinery.score.system",
     home: "user",
-    version: 1,
+    version: 2,
     text: SCORE_SYSTEM_TEXT,
     macros: "none",
-    requiredMacros: [],
-    requiredTokens: [SCORE_SHAPE],
+    requiredMacros: [SHAPE_TOKEN],
+    requiredTokens: [],
     title: "Refinery score system prompt",
     fires: "Every SCORE stage run — the stage's system prompt; the mode body rides the user prompt.",
   },
   "refinery.rewrite.system": {
     id: "refinery.rewrite.system",
     home: "user",
-    version: 1,
+    version: 2,
     text: REWRITE_SYSTEM_TEXT,
     macros: "none",
-    requiredMacros: [],
-    requiredTokens: [REWRITE_SHAPE],
+    requiredMacros: [SHAPE_TOKEN],
+    requiredTokens: [],
     title: "Refinery rewrite system prompt",
     fires: "Every first-pass REWRITE stage run (an `iterate` refinement uses the refinement system prompt instead).",
   },
   "refinery.refine.system": {
     id: "refinery.refine.system",
     home: "user",
-    version: 1,
+    version: 2,
     text: REFINE_SYSTEM_TEXT,
     macros: "none",
-    requiredMacros: [],
-    requiredTokens: [REWRITE_SHAPE],
+    requiredMacros: [SHAPE_TOKEN],
+    requiredTokens: [],
     title: "Refinery refinement system prompt",
     fires: "The REWRITE half of every `iterate` round — the analyze feedback rides the user prompt.",
   },
   "refinery.analyze.system": {
     id: "refinery.analyze.system",
     home: "user",
-    version: 1,
+    version: 2,
     text: ANALYZE_SYSTEM_TEXT,
     macros: "none",
-    requiredMacros: [],
-    requiredTokens: [ANALYZE_SHAPE],
+    requiredMacros: [SHAPE_TOKEN],
+    requiredTokens: [],
     title: "Refinery analyze system prompt",
     fires: "Every ANALYZE stage run — always original-vs-rewrite (the anti-drift invariant).",
   },
