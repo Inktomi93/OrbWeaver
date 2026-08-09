@@ -17,25 +17,33 @@
 // member of one JSON column, through the SAME injected character op every other stamp goes through
 // (`characters.*` keeps exactly one writer, F6).
 //
+// THE OUTPUT CAP IS PAYLOAD-AWARE HERE TOO (live e2e 2026-08-09, open fork 3). This pass used to resolve the
+// RAW `refine_score` posture floor — the same static number whose being smaller than the payload 503'd the
+// session path twice against the real fleet. A sweep's failure mode is quieter and worse: a truncated card
+// just counts `failed`, so a library-wide under-budget reads as "the model is bad at this" instead of as a
+// misconfiguration. It now folds the SAME `substrate/output-budget` expression (`sweepOutputSamplingOf`).
+//
 // TWO FAILURE POSTURES, one pass — the distill batch pattern verbatim (`discovery/verbs/distill.ts`):
 // per-card containment (one bad card must never abort the other 500 — the pass stamps every valid score and
 // REPORTS `failed`), and a bounded per-card retry fan-out (a schema failure is CORRELATED: a summarize model
 // that ignores the json_schema fails EVERY card identically, so a naive `Promise.all` over the library would
 // fire N retry calls at once — the exact 429 storm the wave size bounds).
 
-import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { RefineryScorePayload, RefineryScoreSweepResult, RefinerySelection } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { ReportProgress } from "@orb/contracts/workloads";
-import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
+import type { SideGenSampling } from "@orb/kit/side-gen-posture";
+import { estimateTokens } from "@orb/kit/tokens";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import type { RefineryScoreTarget } from "#domain/character";
 import type { ScoreSweepOptions } from "../contract/params.ts";
+import type { StageEstimateSubject } from "../contract/prompts.ts";
 import type { RefineryWorkloadDeps, ScoreSweep } from "../contract/service.ts";
+import { outputEstimateOf, resolveStageSampling } from "../substrate/output-budget.ts";
 import { buildScorePrompt, defaultSelectionOf } from "../substrate/refine-prompt.ts";
-import { REFINERY_POSTURE_BY_STAGE, REFINERY_RESPONSE_FORMATS } from "../substrate/stage-resolution.ts";
+import { REFINERY_RESPONSE_FORMATS } from "../substrate/stage-resolution.ts";
 import { traceStructuredRetry } from "../substrate/structured-retry-trace.ts";
 
 /** The sweep's score MODE, recorded as a default rather than a knob: a library pass is TRIAGE — it keeps
@@ -54,6 +62,30 @@ interface SweepItem {
   readonly target: RefineryScoreTarget;
   readonly system: string;
   readonly user: string;
+  /** What this card will ask the model to produce — the §8 estimate's input (`substrate/output-budget`). */
+  readonly subject: StageEstimateSubject;
+}
+
+/**
+ * THE BATCH'S ONE OUTPUT CAP, payload-aware (live e2e 2026-08-09, open fork 3 — this pass shipped on the raw
+ * `refine_score` posture floor, which is the exact defect that 503'd the session path: a floor smaller than
+ * the payload truncates on both attempts and fails the card). Same expression the session engine and the fit
+ * line evaluate — one home for the number, never a second arithmetic that agrees by luck.
+ *
+ * ONE cap serves N cards, so it is resolved against the WORST card on each axis independently: the HUNGRIEST
+ * payload sets what the cap must cover, and the BIGGEST prompt sets the window clamp (room shrinks as input
+ * grows, so the largest prompt yields the tightest — i.e. the only safe — room). A cap is a ceiling, not an
+ * allocation: the small cards simply do not spend it.
+ *
+ * No REFUSAL arm here, deliberately. The ruled refusal (`run-stage.ts`) is for an interactive run whose
+ * caller capped their own preset; a sweep is a bulk pass with per-card containment, no fit line to have
+ * warned anyone, and under the BULK arm no single caller at all (`presetParams` is `undefined` there).
+ */
+function sweepOutputSamplingOf(items: readonly SweepItem[], presetParams: SideGenSampling | undefined, contextTokens: number | null): SideGenSampling {
+  // Non-empty by the caller's `ready.length === 0` early return.
+  const hungriest = items.reduce((a, b) => (outputEstimateOf(b.subject) > outputEstimateOf(a.subject) ? b : a));
+  const widestInput = items.reduce((max, item) => Math.max(max, estimateTokens(`${item.system}\n${item.user}`)), 0);
+  return resolveStageSampling({ subject: hungriest.subject, presetParams, contextTokens, inputEstimate: widestInput });
 }
 
 /** Bind the library score sweep over the workload DI bundle (the verb-naming factory the workload
@@ -82,16 +114,17 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
   // single owner, so it stays on the floor and reads the shipped prose (`{}`).
   const presetParams = ownerId === null ? undefined : await deps.resolveUserPresetParams(ownerId);
   const overrides = ownerId === null ? {} : await deps.resolveUserProse(ownerId);
-  const sampleOpts: SummarizeOptions = {
-    responseFormat: REFINERY_RESPONSE_FORMATS.score,
-    ...toSummarizeOptions(resolveSideGenSampling(SIDE_GEN_POSTURES[REFINERY_POSTURE_BY_STAGE.score], presetParams)),
-  };
   // The prompts come from the SAME pure builder a session's score stage uses — one prompt discipline, so a
-  // sweep score and a session score are the same question asked of the same model.
+  // sweep score and a session score are the same question asked of the same model. Assembled BEFORE the
+  // sampling opts because the output cap is sized off these payloads (see `sweepOutputSamplingOf`).
   const items = ready.map(({ target, selection }): SweepItem => {
     const prompts = buildScorePrompt({ card: target.card, selection, mode: SWEEP_SCORE_MODE, guidance: null, overrides });
-    return { target, system: prompts.system, user: prompts.user };
+    return { target, system: prompts.system, user: prompts.user, subject: { stage: "score", card: target.card, selection } };
   });
+  const sampleOpts: SummarizeOptions = {
+    responseFormat: REFINERY_RESPONSE_FORMATS.score,
+    ...toSummarizeOptions(sweepOutputSamplingOf(items, presetParams, deps.summarizerContextTokens)),
+  };
 
   signal?.throwIfAborted();
   report({ message: `scoring ${items.length} card${items.length === 1 ? "" : "s"}`, current: 0, total: items.length });

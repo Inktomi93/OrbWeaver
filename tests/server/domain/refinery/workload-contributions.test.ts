@@ -29,6 +29,7 @@ function fakeDeps(): RefineryWorkloadDeps {
   const summarize = vi.fn() as unknown as RefineryWorkloadDeps["summarize"];
   return {
     summarize,
+    summarizerContextTokens: 8192,
     resolveUserPresetParams: vi.fn(async () => ({})),
     resolveUserProse: vi.fn(async () => ({})),
     listRefineryScoreTargets: vi.fn(async () => ({ targets: [], inScope: 0 })),

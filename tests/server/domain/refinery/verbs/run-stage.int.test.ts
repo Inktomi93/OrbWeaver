@@ -10,7 +10,8 @@ import { characters, refineryRuns } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { Handle, RefinerySessionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { RefineryRunFailedError, RefineryStageNotReadyError } from "@orb/server/domain/refinery";
+import type { SideGenSampling } from "@orb/kit/side-gen-posture";
+import { RefineryOutputBudgetError, RefineryRunFailedError, RefineryStageNotReadyError } from "@orb/server/domain/refinery";
 import { eq } from "drizzle-orm";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
@@ -237,6 +238,51 @@ test("analyze before any rewrite is the typed stage-order refusal (after the own
   const characterId = await seedOwnedCharacter(h, owner, "rs-card-b");
   const session = await h.svc.startSession({ principal: principal(owner), characterId });
   await expect(h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "analyze" })).rejects.toBeInstanceOf(RefineryStageNotReadyError);
+});
+
+// THE RULED BUDGET REFUSAL (owner ruling on the live-e2e 2026-08-09 open fork 1). The payload-aware floor
+// fixed the DEFAULT case; the case left standing was a caller whose OWN preset cap sits under their payload,
+// where the live drive proved what "warn and proceed" buys: two model calls, `finish_reason:"length"` on
+// both, a 503 twenty-one seconds later, and the fit line had said so before the button was pressed. The pin
+// that matters is the SPEND — a refusal that still burned the call would be the same defect with nicer copy.
+test("a run whose own preset cap sits under its payload is REFUSED with the fit receipt — before any model call", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_rs_budget" });
+  const h = makeRefineryHarness(db);
+  const characterId = await seedOwnedCharacter(h, owner, "rs-card-budget");
+  const p = principal(owner);
+  const session = await h.svc.startSession({ principal: p, characterId });
+  const pre = (await h.svc.preflight({ principal: p, sessionId: session.id })).stages.find((s) => s.stage === "score");
+  const need = pre?.outputEstimate ?? 0;
+  expect(need).toBeGreaterThan(1);
+
+  // The caller's explicit cap, one token under what the surface already told them the run needs.
+  const cap = need - 1;
+  const ctx = h.ctx as { resolveUserPresetParams: (userId: unknown) => Promise<SideGenSampling> };
+  ctx.resolveUserPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: cap });
+
+  // NOTHING is queued on the summarize tape: an under-scripted call throws LOUD, so a refusal that still
+  // reached the model would fail here with the tape's own error instead of the typed refusal.
+  await expect(h.svc.runStage({ principal: p, sessionId: session.id, stage: "score" })).rejects.toBeInstanceOf(RefineryOutputBudgetError);
+  expect(h.summarizeCalls).toHaveLength(0);
+  // Nothing landed either — a refused run appends no ledger row.
+  expect(await db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, session.id))).toHaveLength(0);
+
+  // THE RECEIPT IS THE DELIVERABLE: both numbers and the knob ride the message the client quotes verbatim.
+  const refusal = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "score" }).catch((err: unknown) => err);
+  expect(refusal).toBeInstanceOf(RefineryOutputBudgetError);
+  const message = refusal instanceof Error ? refusal.message : "";
+  expect(message).toContain(String(need));
+  expect(message).toContain(String(cap));
+  expect(message).toContain("Raise max output in the preset");
+
+  // …AND THE ARM IS NARROW. A cap AT the need fits, and the same run then goes through — so the refusal is
+  // a statement about the caller's own number, never a new floor under every run.
+  ctx.resolveUserPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: need });
+  h.queueReply(scoreReply());
+  const run = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "score" });
+  expect(run.stage).toBe("score");
+  expect(h.summarizeCalls.at(-1)?.opts?.maxTokens).toBe(need);
 });
 
 test("rewrite→analyze stamps the ANALYSIS half and preserves the stamped score (independent halves)", async () => {

@@ -29,11 +29,23 @@ export interface PayloadViewProps {
   /** A model call for THIS payload is in flight. Drives the plan-shaped skeleton / running dim (see
    *  `PayloadView`). Optional so every existing caller keeps its meaning. @defaultValue false */
   readonly pending?: boolean;
-  /** This payload LANDED from a mutation the surface itself just made (live e2e 2026-08-09): on a
-   *  session's FIRST run the pane shows `RunningPane` — a different component — so this view mounts
-   *  already settled and its own `awaited` latch (below) can never have fired. The surface knows which
-   *  run ids its mutations produced; a run the user just watched land animates, a session merely
-   *  opened does not. @defaultValue false */
+  /** This payload LANDED from a mutation the surface itself just made — the hero gauge's ONE arrival
+   *  signal (`useCountUp`'s `arrived`). The surface tracks the run ids its own mutations produced and
+   *  `StagePane` threads the verdict down: a run the user just watched land animates, a session merely
+   *  opened does not.
+   *
+   *  WHY IT IS THE ONLY SIGNAL (live e2e 2026-08-09, then #47). This view briefly also carried a local
+   *  `awaited` latch — "did I show my own skeleton before this payload landed?" — as a second arrival
+   *  signal, and on the RUN PANE, the one path the animation exists for, that latch could never fire:
+   *  `StagePane` renders `RunningPane` (a different component) while the run is null, and a settled run
+   *  carries a non-empty payload, so this view mounts already settled every time. It kept the money-shot
+   *  CT green by serving a mount shape the run pane does not produce — the lying-instrument shape — so
+   *  the latch is gone and the story drives `StagePane` on the real arm instead.
+   *
+   *  The pending arms below are NOT dead with it: `SchemaEditorDialog`'s test preview mounts this view
+   *  with `pending` and an empty payload while a forge run is in flight, which is the plan-skeleton's live
+   *  production caller (and is CT-pinned). What that caller loses with the latch is a count-up on a schema
+   *  PREVIEW — decoration, not the answer to something the user ran. @defaultValue false */
   readonly arrived?: boolean;
 }
 
@@ -104,15 +116,6 @@ function PlanSkeleton({ plan }: { plan: RenderPlan }): ReactElement {
 export function PayloadView({ plan, payload, pending = false, arrived = false }: PayloadViewProps): ReactElement {
   const { banners, hero, heroProse, rest } = fieldOrder(plan.fields);
   const settled = Object.keys(payload).length > 0;
-  // Did this view show the plan-shaped skeleton before the payload landed? Then the payload ARRIVED and
-  // the hero counts up from 0 (`useCountUp`'s `arrived`). This is React's own adjusting-state-during-
-  // render pattern, NOT an effect: an effect here would be a cascading render (react-hooks/
-  // set-state-in-effect), and a ref written during render is banned outright. It latches ON once — after
-  // a user has watched this pane wait, the number that fills it is an answer, not furniture.
-  const [awaited, setAwaited] = useState(false);
-  if (pending && !settled && !awaited) {
-    setAwaited(true);
-  }
   if (pending && !settled) {
     return <PlanSkeleton plan={plan} />;
   }
@@ -130,10 +133,9 @@ export function PayloadView({ plan, payload, pending = false, arrived = false }:
       {banners.map((field) => (
         <VerdictBanner field={field} key={field.key} payload={payload} siblings={plan.fields} />
       ))}
-      {/* Two arrival signals, either suffices: `awaited` (this view showed its own skeleton — the CT-storied
-          path) or `arrived` (the surface vouches the run landed under the user — the REAL first-run path,
-          where the skeleton was `RunningPane`'s and this view never pended). */}
-      {hero !== null ? <HeroGauge arrived={arrived ? true : awaited} field={hero} payload={payload} prose={heroProse} /> : null}
+      {/* ONE arrival signal: the surface vouches that this run landed under the user (see `arrived` above —
+          the local latch that used to sit beside it was unreachable in production). */}
+      {hero !== null ? <HeroGauge arrived={arrived} field={hero} payload={payload} prose={heroProse} /> : null}
       {rest.map((field) => (
         <FieldBlock field={field} key={field.key} value={payload[field.key]} />
       ))}
@@ -201,7 +203,7 @@ function HeroGauge({
   field: PlanField;
   payload: Record<string, unknown>;
   prose: PlanField | null;
-  /** This pane showed a skeleton before this payload landed — so the figure counts up (`useCountUp`). */
+  /** The user watched this run land — so the figure counts up (`useCountUp`). */
   arrived: boolean;
 }): ReactElement {
   const widget = field.widget as GaugeWidget;

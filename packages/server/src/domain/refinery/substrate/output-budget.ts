@@ -17,9 +17,11 @@
 // cosmetic inaccuracy here — it is the truncation, one step removed. The constants below carry the run that
 // set them; re-measure and re-state them rather than nudging a number without a receipt.
 //
-// EVERY NUMBER HERE IS ADVISORY BY CONSTRUCTION (`@orb/kit/tokens`' QuadChars doctrine) and the design's own
-// stance is that preflight WARNS, never blocks. That stance is unchanged: this file makes the budget adapt so
-// the ordinary case stops overrunning at all — it does not gate, refuse, or confirm anything.
+// EVERY NUMBER HERE IS ADVISORY BY CONSTRUCTION (`@orb/kit/tokens`' QuadChars doctrine) and PREFLIGHT still
+// WARNS, never blocks — a readout that refused would be a readout nobody could read. The one place a number
+// here DECIDES anything is `stageBudgetMisfitOf` (below): the owner-ruled refusal for a run whose caller has
+// explicitly capped `maxOutputTokens` under its own payload. That arm is narrow on purpose — it fires only on
+// the user's OWN cap, never on the payload-aware floor this file resolves for everyone else.
 
 import type { SideGenPosture } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
@@ -27,7 +29,7 @@ import type { RefineryRewriteMode, RefineryStage } from "@orb/contracts/refinery
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
 import { resolveSideGenSampling } from "@orb/kit/side-gen-posture";
 import { estimateTokens } from "@orb/kit/tokens";
-import type { StageOutputBudgetArgs, StageSamplingArgs } from "../contract/prompts.ts";
+import type { StageBudgetFitArgs, StageBudgetMisfit, StageEstimateSubject, StageOutputBudgetArgs, StageSamplingArgs } from "../contract/prompts.ts";
 import type { RefinerySessionView } from "../contract/results.ts";
 import { buildCardSections } from "./refine-prompt.ts";
 import { REFINERY_POSTURE_BY_STAGE } from "./stage-resolution.ts";
@@ -60,11 +62,11 @@ const SCORE_ENVELOPE_TOKENS = 200;
 const ANALYZE_OUTPUT_TOKENS = 700;
 
 /** How many addressable targets the selection names (fields + per-index greetings). */
-function targetCountOf(session: RefinerySessionView): number {
+function targetCountOf(subject: StageEstimateSubject): number {
   let count = 0;
-  for (const field of session.selection.fields) {
+  for (const field of subject.selection.fields) {
     if (field === "greetings") {
-      count += session.selection.greetingIndexes?.length ?? session.originalCard.greetings.length;
+      count += subject.selection.greetingIndexes?.length ?? subject.card.greetings.length;
       continue;
     }
     count += 1;
@@ -74,22 +76,32 @@ function targetCountOf(session: RefinerySessionView): number {
 
 /** The selected content's own token mass — the rewrite estimate's base. Measured off the SAME section
  *  renderer the prompt uses, so the two never drift. */
-function selectedTokensOf(session: RefinerySessionView): number {
-  return estimateTokens(buildCardSections(session.originalCard, session.selection));
+function selectedTokensOf(subject: StageEstimateSubject): number {
+  return estimateTokens(buildCardSections(subject.card, subject.selection));
 }
 
-/** The §8 per-stage output PREDICTION — what the fit line shows and what the budget below is derived from.
- *  A CUSTOM score/analyze schema is predicted with the fixed arithmetic (the shape is user-authored and its
- *  prose mass is unknowable ahead of a run); the budget resolver's floor and headroom carry that case. */
-export function outputEstimateOf(stage: RefineryStage, session: RefinerySessionView): number {
+/** THE session→subject derivation, in one place: every session-backed caller (`preflight`, the stage
+ *  engine) reads its payload facts through this, so "what the estimate is about" cannot drift between the
+ *  readout and the wire. The sweep builds its own subject per card — it has no session. */
+export function stageSubjectOf(stage: RefineryStage, session: RefinerySessionView): StageEstimateSubject {
   if (stage === "rewrite") {
-    const mode = session.stageConfig.rewrite.mode;
-    const targets = targetCountOf(session);
-    const base = selectedTokensOf(session) * REWRITE_MODE_FACTORS[mode] + ENVELOPE_BASE_TOKENS + ENVELOPE_PER_ENTRY_TOKENS * targets;
+    return { stage, card: session.originalCard, selection: session.selection, mode: session.stageConfig.rewrite.mode };
+  }
+  return { stage, card: session.originalCard, selection: session.selection };
+}
+
+/** The §8 per-stage output PREDICTION — what the fit line shows, what the budget below is derived from, and
+ *  what the ruled refusal measures a caller's cap against. A CUSTOM score/analyze schema is predicted with
+ *  the fixed arithmetic (the shape is user-authored and its prose mass is unknowable ahead of a run); the
+ *  budget resolver's floor and headroom carry that case. */
+export function outputEstimateOf(subject: StageEstimateSubject): number {
+  if (subject.stage === "rewrite") {
+    const targets = targetCountOf(subject);
+    const base = selectedTokensOf(subject) * REWRITE_MODE_FACTORS[subject.mode] + ENVELOPE_BASE_TOKENS + ENVELOPE_PER_ENTRY_TOKENS * targets;
     return Math.ceil(base * REWRITE_HEADROOM);
   }
-  if (stage === "score") {
-    return targetCountOf(session) * SCORE_TOKENS_PER_TARGET + SCORE_ENVELOPE_TOKENS;
+  if (subject.stage === "score") {
+    return targetCountOf(subject) * SCORE_TOKENS_PER_TARGET + SCORE_ENVELOPE_TOKENS;
   }
   return ANALYZE_OUTPUT_TOKENS;
 }
@@ -119,9 +131,8 @@ const CONTEXT_RESERVE_TOKENS = 256;
  * payload plus headroom, clamped so prompt + output still fit the resolved window.
  *
  * This is the FLOOR rung of the side-gen ladder, not a new rung above it — the caller folds the result
- * through `resolveSideGenSampling`, so a user's own preset `maxOutputTokens` still wins outright. A user who
- * caps the budget below their payload keeps the truncation they asked for, and the fit line keeps warning
- * about it; that policy call is the owner's, and nothing here decides it.
+ * through `resolveSideGenSampling`, so a user's own preset `maxOutputTokens` still wins outright. What
+ * happens when that explicit cap sits UNDER the payload is now ruled: see {@link stageBudgetMisfitOf}.
  */
 function resolveStageOutputBudget(args: StageOutputBudgetArgs): number {
   const { estimate, floor, contextTokens, inputEstimate } = args;
@@ -145,10 +156,10 @@ function resolveStageOutputBudget(args: StageOutputBudgetArgs): number {
  * file's header.)
  */
 export function resolveStageSampling(args: StageSamplingArgs): SideGenSampling {
-  const { stage, session, presetParams, contextTokens, inputEstimate } = args;
-  const posture: SideGenPosture = SIDE_GEN_POSTURES[REFINERY_POSTURE_BY_STAGE[stage]];
+  const { subject, presetParams, contextTokens, inputEstimate } = args;
+  const posture: SideGenPosture = SIDE_GEN_POSTURES[REFINERY_POSTURE_BY_STAGE[subject.stage]];
   const floor = resolveStageOutputBudget({
-    estimate: outputEstimateOf(stage, session),
+    estimate: outputEstimateOf(subject),
     // `maxOutputTokens` is optional on `SideGenPosture` (compaction/caption ship without one), so the
     // absent arm is real at the type level. Zero is its correct reading here — "no shipped minimum" —
     // and leaves the payload estimate as the whole budget.
@@ -157,4 +168,40 @@ export function resolveStageSampling(args: StageSamplingArgs): SideGenSampling {
     inputEstimate,
   });
   return resolveSideGenSampling({ ...posture, maxOutputTokens: floor }, presetParams);
+}
+
+// ── the RULED refusal (owner ruling on live-e2e 2026-08-09 open fork 1) ──────────────────────────────────
+
+/**
+ * The one arm where a number here DECIDES: a run whose caller has EXPLICITLY capped `maxOutputTokens` below
+ * what this stage's payload needs is refused with the fit receipt, instead of proceeding to fail exactly as
+ * predicted. Returns the receipt, or `null` when the run fits.
+ *
+ * WHY THIS IS NOT A SECOND WARNING (measured, live e2e 2026-08-09). The pre-ruling behaviour was: the fit
+ * line printed `out ≈ 980 / 768 tok ⚠`, the run went anyway, the first attempt AND the bounded structured
+ * retry both came back `finish_reason:"length"`, and the stage 503'd after ~21s of paid decode. The payload-
+ * aware floor above removed that outcome for the DEFAULT case; the remaining case is a cap the user set
+ * themselves, where the arithmetic is just as certain and the outcome just as useless.
+ *
+ * THE ARM IS NARROW, DELIBERATELY, and both halves of that matter:
+ *  · `presetParams.maxOutputTokens === undefined` ⇒ never refuses. Everyone without an explicit cap rides
+ *    the payload-aware floor, which is sized to fit by construction — refusing them would be refusing our
+ *    own arithmetic, and the window CLAMP can legitimately hold that floor under the estimate on a card
+ *    whose prompt nearly fills the window. That is the INPUT-side overrun the fit line's other half warns
+ *    about, and narrowing the selection is its fix, not raising a cap.
+ *  · The predicate is the fit line's OWN predicate (`outputEstimate > maxOutputTokens`, `RunControlsCard`)
+ *    evaluated against the same `outputEstimateOf`, because an explicit cap wins the ladder outright — so
+ *    the run refuses exactly when, and only when, the surface was already showing the ⚠.
+ *
+ * The SWEEP does not consult this: a library pass has per-card containment, no interactive receipt surface,
+ * and (mixed-owner/bulk) frequently no single caller whose preset could be the cap. It rides the payload-
+ * aware budget alone.
+ */
+export function stageBudgetMisfitOf(args: StageBudgetFitArgs): StageBudgetMisfit | null {
+  const capTokens = args.presetParams?.maxOutputTokens;
+  if (capTokens === undefined) {
+    return null;
+  }
+  const needTokens = outputEstimateOf(args.subject);
+  return capTokens < needTokens ? { needTokens, capTokens } : null;
 }

@@ -5,6 +5,7 @@
 // lands in exactly one of scored/skipped/failed) because a sweep whose numbers don't add up is a sweep
 // that lied about what it did.
 
+import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import { characters, refineryRuns, refinerySessions } from "@orb/db";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -52,6 +53,52 @@ test("the sweep scores every card in the library and stamps the score into canon
   // The other signals half is untouched: the stamp is a per-arm MERGE, never a whole-object overwrite.
   expect(rows.every((row) => row.refinery?.analysis === null)).toBe(true);
   expect(sink.messages.at(-1)).toBe("scored 2 of 2");
+});
+
+// THE OUTPUT CAP (live-e2e 2026-08-09, open fork 3). The sweep used to ask for the raw `refine_score`
+// posture floor — the exact static number that truncated the SESSION path on both attempts and 503'd it
+// against the real fleet. Here the same shortfall is quieter and worse: a truncated card just counts
+// `failed`, so a library-wide under-budget reads as a bad model rather than as a bad number. The pin is the
+// LAW, not the constant: one cap for the batch, never below the shipped floor, and never below the
+// HUNGRIEST card's own §8 estimate (`substrate/output-budget` — the same expression the session engine and
+// the fit line evaluate).
+test("the batch's output cap is PAYLOAD-AWARE and covers the hungriest card, not the raw posture floor", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_sw_budget" });
+  const h = makeRefineryHarness(db);
+  await seedOwnedCharacter(h, owner, "sw-card-budget-a");
+  // A second card with far more selected text: the batch shares ONE cap, so it must be sized for this one.
+  // Sized to move the OUTPUT axis (six scored targets vs the plain card's four) while leaving the harness's
+  // 8 192-token window room to spare: a card whose PROMPT alone overruns the window is the input-side
+  // overrun, where the budget correctly clamps back to the shipped floor — a different arm, not this one.
+  const fat = "A meticulous keeper of records. ".repeat(20);
+  const verbose = await h.character.create({
+    principal: principal(owner),
+    input: {
+      handle: castId<CharacterHandle>("sw-card-budget-b"),
+      name: "Verbose",
+      description: fat,
+      personality: fat,
+      scenario: fat,
+      greetings: [{ text: fat }, { text: fat }, { text: fat }],
+    },
+  });
+  const sweep = createScoreSweep(refineryWorkloadDepsOf(db, h));
+  h.queueReply(scoreReply());
+  h.queueReply(scoreReply());
+
+  await sweep({ ownerId: owner, rescoreAll: false, report: reporter().report, signal: undefined });
+
+  const cap = h.summarizeCalls[0]?.opts?.maxTokens ?? 0;
+  expect(cap).toBeGreaterThanOrEqual(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);
+  // The hungriest card's need, read through the ONE estimator rather than re-spelled here: a SESSION on that
+  // same card derives the same default selection, so its preflight prints exactly the number the sweep sized
+  // its cap for. Both calls in the batch carry it — a cap is per generation, and every card shares this one.
+  const session = await h.svc.startSession({ principal: principal(owner), characterId: verbose.id });
+  const need = (await h.svc.preflight({ principal: principal(owner), sessionId: session.id })).stages.find((s) => s.stage === "score")?.outputEstimate ?? 0;
+  expect(need).toBeGreaterThan(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);
+  expect(cap).toBeGreaterThanOrEqual(need);
+  expect(h.summarizeCalls[1]?.opts?.maxTokens).toBe(cap);
 });
 
 test("the FILL arm skips already-scored cards; rescoreAll re-scores them", async () => {
