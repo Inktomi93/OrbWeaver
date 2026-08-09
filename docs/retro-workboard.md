@@ -130,6 +130,39 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   read-only). New open work: #19 ST plane importers (tags→presets→backgrounds→groups, homes mapped), #20
   memory-settings UX (copy 'meh' + enabling memory doesn't auto-backfill), #21 (above).
 
+- **⚑ LANE RESULTS (2026-08-08 late):** #14 C1 D137 CONFIRMED (verifier — sacred suite byte-untouched 7/7,
+  CAST\_KINDS/POLICY live no discriminator col, card-face one home, no leak; graduated CODE axis — owes a
+  side-eye on 3 persona-cast render CTs). · #22 vLLM batching RESOLVED (scout): rerank = one /v1/rerank POST
+  (server-side batch); generate = single streamed turn, group rounds intentionally serial (per-chat lock).
+  **Request-level concurrency is CLIENT-CLEAN** — unbounded undici dispatcher (no `connections` cap,
+  egress.ts:154), wake-gate single-flights ONE cold wake per engine (not per-request), NO mutex/semaphore on
+  inference calls, turn lock strictly per-chat (`chat_locks` PK=chatId). So chat+tool+rerank+memory+future
+  agents DO continuous-batch concurrently. **Wonky root is ENGINE-side, not client:** `--max-num-seqs`/KV-cache
+  budget (`engine/build-argv.ts`/`gpu.ts`) or DEFAULT\_ENGINE\_TIMEOUT\_MS=120\_000 under GPU pile-up.
+  DIAGNOSE via vLLM `GET :<port>/metrics` — `vllm:num_requests_running` (live batched concurrency),
+  `num_requests_waiting{reason=capacity}` (KV/max-seqs cap), `num_preemptions_total` (KV eviction thrash).
+
+- **⚑ #21 memory-summarize executor `a19e7d680f1bf5708` IN FLIGHT** (approved defaults): add generate's
+  per-request samplers to the summarize path (presence\_penalty **1.5** default — the loop fix; Qwen3-VL ships
+  rep\_penalty 1.0 + loops) + batch the digest build (collect→one batched summarize→per-item FALLBACK, surface
+  contract untouched) + live-verify on the 872-chat corpus. Segments EMBED (not summarize) — left untouched.
+  See \[\[vllm-memory-summarize-samplers-and-batching]].
+
+- **⚑ EMBEDDINGS STATE:** chars 320 + avatars 646 embedded ✅. Chat memory built 0 because `memoryEnabled`
+  defaults FALSE (owner enabled it) + the summarize LOOP (fix #21). Degenerate 44-seg/8-digest run WIPED;
+  chars/chats kept. Owner ordering ruling: base-embed → tiers → embed → elevator-pitch LAST (in-lane order
+  already base→tier; the elevator-pitch/discovery step is a cross-workload follow-up, could extend the
+  import embed chain index→memory-backfill→discovery).
+
+- **⚑ CHAR-LIST-NOT-SHOWING (#23, not urgent):** server CLEAN — 1 user owns all 323 chars, client queries as
+  that user. Trigger was MY \~4 db-wipes leaving a stale session cookie (cookie-clear fixed it). Real latent
+  bugs to fix: stale-session-for-defunct-user should re-auth not serve empty; background-import should
+  invalidate the client character list. \[\[per-user-scoped-empty-is-about-the-asker]].
+
+- **⚑ NEW open tasks:** #19 ST plane importers (tags→presets→backgrounds→groups; homes mapped, report lists
+  unhandled planes) · #20 memory-settings UX (copy meh + no auto-backfill on enable) · #23 char-list (above).
+  Dispatching RE-ENABLED. Import epic import-details lessons: \[\[st-import-name-collision-repair-isolate]].
+
 - **⚑ SUPERSEDED:** the "UNCOMMITTED ON THE TREE" block below is CLOSED — all committed in `ba8b5fbe5`.
 
 - **⚑ PUSHED 2026-08-08: `d34a6702c..c635798d3 main → main`** (229 commits, hook skipped on the
