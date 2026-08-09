@@ -93,7 +93,11 @@ function StageCellButton({ cell, index, stage, isActive, onSelect }: StageCellPr
   return (
     <Button
       aria-current={isActive ? "step" : undefined}
-      className={`relative flex-1 justify-start ${isActive ? ACTIVE_CELL : ""}`}
+      // `@max-lg:flex-none` releases the horizontal `flex-1` when the stepper stacks (see `StageStepper`):
+      // a `flex-1` child in a flex-COLUMN grows on the vertical axis, which would stretch every cell to the
+      // tallest one's height. `flex-none` gives each stacked cell its natural height; `items-stretch` on the
+      // column parent takes them to full width.
+      className={`relative flex-1 justify-start @max-lg:flex-none ${isActive ? ACTIVE_CELL : ""}`}
       data-active={isActive}
       data-running={running}
       data-stage={stage}
@@ -131,8 +135,14 @@ interface StageCellProps {
 }
 
 export function StageStepper({ cells, active, onSelect }: StageStepperProps): ReactElement {
+  // STACKS VERTICALLY IN A NARROW CONTAINER (side-eye 2026-08-09 P2). Three rich cells (badge · name ·
+  // status line) need ~500px to sit side by side; below that the third cell (Analyze) fell off the pane's
+  // edge at the 430px mobile CONTENT width. `@max-lg:flex-col` reflows them into a one-column list when the
+  // enclosing `@container` (the refinery-content surface) is under 32rem, so every cell keeps its full
+  // status line instead of clipping — the container-model fix, not a viewport breakpoint. Wider panes keep
+  // the horizontal flow. (Mounted bare in a CT it has no `@container` ancestor, so it stays horizontal.)
   return (
-    <Row data-testid={testId("refineryStepper")} gap="tight">
+    <Row className="@max-lg:flex-col @max-lg:items-stretch" data-testid={testId("refineryStepper")} gap="tight">
       {REFINERY_STAGES.map((stage, i) => (
         <StageCellButton cell={cells.find((c) => c.stage === stage)} index={i} isActive={active === stage} key={stage} onSelect={onSelect} stage={stage} />
       ))}
