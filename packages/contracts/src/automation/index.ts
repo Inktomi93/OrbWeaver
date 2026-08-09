@@ -76,6 +76,11 @@ export const AUTOMATION_FIRE_OUTCOMES = [
 export type AutomationFireOutcome = (typeof AUTOMATION_FIRE_OUTCOMES)[number];
 export const automationFireOutcomeSchema = z.enum(AUTOMATION_FIRE_OUTCOMES);
 
+/** The `automation.listFires` fire-log page CEILING, enforced at the transport trust boundary (the
+ *  `CHARACTER_LIST_MAX_LIMIT` precedent) — the host-only debug surface is a growing per-rule catalog, so an
+ *  over-bound ask is a BAD_REQUEST rather than an unbounded log fetch. */
+export const AUTOMATION_FIRES_LIST_MAX_LIMIT = 200;
+
 // ── the per-user global-variable plane (02 §4) ────────────────────────────────────────────────────
 // The KV substrate caps live here (the ONE home) — `@orb/db`'s CHECK-generating DDL imports them so the
 // SQL bound and the app-validation bound can never drift. `key` is char-capped; `value` is a string with

@@ -11,6 +11,8 @@
 
 import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
 import {
+  CHAT_LIST_MAX_LIMIT,
+  CHAT_MESSAGE_LIST_MAX_LIMIT,
   chatInjectionInputSchema,
   chatListCursorSchema,
   groupConfigSchema,
@@ -85,7 +87,10 @@ const getMemberCardSchema = z.object({
 const listMessagesSchema = z.object({
   chatId: brandedId<ChatId>(),
   beforeSeq: z.number().optional(),
-  limit: z.number().optional(),
+  // The CEILING, enforced at the trust boundary (the `character.list` precedent): an over-bound ask is a
+  // BAD_REQUEST naming the bound, never an unbounded canon fetch (`CHAT_MESSAGE_LIST_MAX_LIMIT`). The domain
+  // still applies its own DoS backstop for internal callers.
+  limit: z.number().int().min(1).max(CHAT_MESSAGE_LIST_MAX_LIMIT).optional(),
 });
 
 // The swipe strip's step-target resolver (chat-surface-lane follow-up to #19): `ChatService.listMessageVariants`
@@ -468,7 +473,9 @@ export const chatRouter = t.router({
           includeArchived: z.boolean().optional(),
           characterId: brandedId<CharacterId>().optional(),
           search: z.string().optional(),
-          limit: z.number().int().optional(),
+          // The CEILING, enforced at the trust boundary (the `character.list` precedent): an over-bound ask
+          // is a BAD_REQUEST naming the bound, never an unbounded library fetch (`CHAT_LIST_MAX_LIMIT`).
+          limit: z.number().int().min(1).max(CHAT_LIST_MAX_LIMIT).optional(),
           cursor: chatListCursorSchema.nullish(),
         })
         .optional(),

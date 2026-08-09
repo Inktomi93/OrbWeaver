@@ -262,10 +262,16 @@ export const rpgReadGameInputSchema = z.object({
   chatId: chatIdField,
 });
 
+/** The `listJournal` / `listTurnToolCalls` page CEILINGS, enforced at the transport trust boundary (the
+ *  `CHARACTER_LIST_MAX_LIMIT` precedent) — both are growing per-game catalogs whose verbs page an unbounded
+ *  SQL `.limit()`, so an over-bound ask is a BAD_REQUEST naming the bound, never an unbounded fetch. */
+export const RPG_JOURNAL_LIST_MAX_LIMIT = 200;
+export const RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT = 200;
+
 /** `listJournal` — the paged lineage-projected archive (member). */
 export const rpgListJournalInputSchema = z.object({
   chatId: chatIdField,
-  limit: z.number().int().min(1).optional(),
+  limit: z.number().int().min(1).max(RPG_JOURNAL_LIST_MAX_LIMIT).optional(),
   offset: z.number().int().min(0).optional(),
 });
 
@@ -274,5 +280,5 @@ export const rpgListJournalInputSchema = z.object({
  *  half-populate that index (see `ListTurnToolCallsParams`). */
 export const rpgListTurnToolCallsInputSchema = z.object({
   chatId: chatIdField,
-  limit: z.number().int().min(1).optional(),
+  limit: z.number().int().min(1).max(RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT).optional(),
 });

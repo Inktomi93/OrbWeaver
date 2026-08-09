@@ -31,7 +31,7 @@ import type {
   MessageView,
   ParticipantView,
 } from "@orb/contracts/chat";
-import { buildCastNameContext, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
+import { buildCastNameContext, CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import type { ChatSendAvailability, ModelCapability, ResolvedConnection } from "@orb/contracts/connection";
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { GuidedActionKind, PromptConfig, TemplateDefId, UserMacroSpec } from "@orb/contracts/preset";
@@ -277,10 +277,10 @@ function toChatSummary({ row, stat, participants, participantCharacterIds, viewe
 const EMPTY_STATS = { messageCount: 0, lastMessageAt: null } as const;
 
 /** `listChats` page size when the caller names none — the `character.list` pair (50/100), deliberately the
- *  same numbers so the two library reads cost the same per page. The MAX is a real ceiling, not advice: each
- *  row costs `buildSummaries` a participant resolve, so 100 rows is already ~100 extra queries. */
+ *  same numbers so the two library reads cost the same per page. The MAX ceiling is the shared
+ *  `CHAT_LIST_MAX_LIMIT` (`@orb/contracts/chat` — the transport trust boundary references the same value); the
+ *  `Math.min` below is the DoS backstop for internal callers that bypass the transport. */
 const CHAT_LIST_DEFAULT_LIMIT = 50;
-const CHAT_LIST_MAX_LIMIT = 100;
 
 /**
  * The per-caller SCENT line for one listed chat — the newest visible row, projected to one plain-text line.
@@ -809,9 +809,10 @@ async function resolveAnchorPersona(
   return foreign.personas.anchor;
 }
 
-// An unclamped `limit` is a DoS surface (an unbounded SQL `.limit()`), not an authz hole.
+// An unclamped `limit` is a DoS surface (an unbounded SQL `.limit()`), not an authz hole. The ceiling is the
+// shared `CHAT_MESSAGE_LIST_MAX_LIMIT` (`@orb/contracts/chat`); the `Math.min` is the backstop for internal
+// callers that bypass the transport `.max()` trust boundary.
 const DEFAULT_LIMIT = 50;
-const MAX_LIMIT = 100;
 
 /** `listMessages` — a paged canon read (each slot joined to its selected variant), chronological, + the
  *  page's cast producer (`MessagesPage.cast`, D137). The `excludedFromPrompt` flag rides each `MessageView`.
@@ -823,7 +824,7 @@ const MAX_LIMIT = 100;
 function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["listMessages"] {
   return async ({ principal, chatId, beforeSeq, limit }: ListMessagesParams): Promise<MessagesPage> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    const pageSize = Math.min(limit ?? DEFAULT_LIMIT, MAX_LIMIT);
+    const pageSize = Math.min(limit ?? DEFAULT_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT);
     const page = await loadMessagesPage(ctx.db, chatId, { beforeSeq, limit: pageSize, floorSeq: membership.historyFloorSeq });
     // `loadMessagesPage` returns newest-first (the backward window); reverse for chronological display.
     // The §3.6 MEMBER-STRIP trust boundary: hidden-class spans never reach a NON-HOST viewer's payload

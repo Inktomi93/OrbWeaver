@@ -6,6 +6,7 @@
 // `latencyScopeSchema` discriminated union — both come off the `stats` front door (§7.5 derive-don't-respell;
 // a transport router must NOT deep-import `contract/params` nor re-spell the union inline).
 
+import { STATS_LIST_MAX_LIMIT } from "@orb/contracts/stats";
 import type { CharacterId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -24,7 +25,7 @@ export const statsRouter = t.router({
       z
         .object({
           sort: z.enum(LEADERBOARD_SORTS).optional(),
-          limit: z.number().int().positive().optional(),
+          limit: z.number().int().positive().max(STATS_LIST_MAX_LIMIT).optional(),
         })
         .optional(),
     )
@@ -35,7 +36,7 @@ export const statsRouter = t.router({
     .query(({ ctx, input }) => ctx.services.stats.timeseries(ctx.auth.userId, { from: input?.from, to: input?.to })),
 
   byModel: authedProcedure
-    .input(z.object({ limit: z.number().int().positive().optional() }).optional())
+    .input(z.object({ limit: z.number().int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional())
     .query(({ ctx, input }) => ctx.services.stats.byModel(ctx.auth.userId, { limit: input?.limit })),
 
   freshness: authedProcedure.query(({ ctx }) => ctx.services.stats.freshness(ctx.auth.userId)),
@@ -49,7 +50,7 @@ export const statsRouter = t.router({
   activityHeatmap: authedProcedure.query(({ ctx }) => ctx.services.stats.activityHeatmap(ctx.auth.userId)),
 
   momentum: authedProcedure
-    .input(z.object({ limit: z.number().int().positive().optional() }).optional())
+    .input(z.object({ limit: z.number().int().positive().max(STATS_LIST_MAX_LIMIT).optional() }).optional())
     .query(({ ctx, input }) => ctx.services.stats.momentum(ctx.auth.userId, input?.limit)),
 
   latency: authedProcedure.input(latencyScopeSchema).query(({ ctx, input }) => ctx.services.stats.latency(ctx.auth.userId, input)),
