@@ -35,8 +35,11 @@ interface SmartArbitrateParams {
   readonly castNames: readonly CastName[];
   /** Recent transcript text the arbiter reads to decide who speaks next. */
   readonly recentHistory: string;
-  /** The previous speaker (ban-last in the fallback; the prompt notes it). */
+  /** The previous speaker (the fallback's ban-last AND its rotation origin). */
   readonly lastSpeaker: SpeakerRef | null;
+  /** Whether the fallback bans the last speaker (the room's `allowSelfResponses`, inverted). Default TRUE —
+   *  forwarded verbatim to `selectSpeakers`, which keeps the ban and the rotation origin separate. */
+  readonly banLast?: boolean | undefined;
   /** The injected PRNG (D46) — drives the `natural` fallback's weighted pick. */
   readonly rng: () => number;
   /** The ROOM HOST's prose overrides (PROSE-1 census row 75, `chat.arbiter.system`), resolved by the caller
@@ -82,6 +85,7 @@ export async function smartArbitrate(params: SmartArbitrateParams): Promise<Smar
       candidates: params.candidates,
       policy: "natural",
       lastSpeaker: params.lastSpeaker,
+      ...(params.banLast !== undefined ? { banLast: params.banLast } : {}),
       rng: params.rng,
       maxSpeakers: 1,
     }),

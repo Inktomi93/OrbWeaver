@@ -58,14 +58,36 @@ function isToolExchangeRow(message: ChatMessages): boolean {
   return message.role === "assistant" && message.toolCalls !== undefined && message.toolCalls.length > 0;
 }
 
+/** The bytes a wire row contributes to the `cacheMinTokens` PREFIX measurement. PLACEMENT is string-only on
+ *  this dialect (an array-content row cannot carry the block) but the FLOOR is a measurement of everything
+ *  ahead of the target, and an array row ships real bytes: counting it as zero read a genuinely long
+ *  multimodal prefix as BELOW the floor, so `computeCacheBreakpointPlacements` returned nothing and both
+ *  breakpoints silently dropped — caching off on exactly the expensive turns, and one-way (false negatives
+ *  only). Every text-bearing part counts; a part with no `text` (an `image_url`) contributes none. */
+function rowTokens(content: unknown): number {
+  if (typeof content === "string") {
+    return estimateTokens(content);
+  }
+  if (!Array.isArray(content)) {
+    return 0;
+  }
+  let total = 0;
+  for (const part of content) {
+    const text: unknown = (part as { readonly text?: unknown }).text;
+    if (typeof text === "string") {
+      total += estimateTokens(text);
+    }
+  }
+  return total;
+}
+
 /** The wire history projected onto the placer's row view: role (the depth axis), tool-exchange transparency,
- *  and the token contribution the `cacheMinTokens` floor sums. Non-string content contributes 0 — it also
- *  cannot receive a breakpoint on this dialect. */
+ *  and the token contribution the `cacheMinTokens` floor sums. */
 function breakpointRows(messages: readonly ChatMessages[]): CacheBreakpointRow[] {
   return messages.map((message) => ({
     role: message.role,
     toolExchange: isToolExchangeRow(message),
-    tokens: typeof message.content === "string" ? estimateTokens(message.content) : 0,
+    tokens: rowTokens(message.content),
   }));
 }
 
@@ -75,25 +97,34 @@ function breakpointRows(messages: readonly ChatMessages[]): CacheBreakpointRow[]
  * the end with within-turn tool exchanges transparent — see `backends/kit/cache-control.ts` for why the raw
  * array offset is the wrong unit here. Returns the array unchanged when no depth clears the floor or its
  * target content isn't a plain string.
+ *
+ * Returns `placedDepths` — the depths a block was ACTUALLY written at, which is not the same list as the
+ * computed placements (a placement whose target row is not a plain string is skipped here). The
+ * `provider.cache` receipt reports THESE: re-deriving them made the only cost-regression instrument we have
+ * report breakpoints the writer had dropped.
  */
-export function placeHistoryCacheBreakpoint(messages: ChatMessages[], systemStatic: string, depthFromEnd: number, cacheMinTokens: number): ChatMessages[] {
+export function placeHistoryCacheBreakpoint(
+  messages: ChatMessages[],
+  systemStatic: string,
+  depthFromEnd: number,
+  cacheMinTokens: number,
+): { readonly messages: ChatMessages[]; readonly placedDepths: readonly number[] } {
   const placements = computeCacheBreakpointPlacements({
     rows: breakpointRows(messages),
     systemStaticTokens: estimateTokens(systemStatic),
     depthFromEnd,
     cacheMinTokens,
   });
-  if (placements.length === 0) {
-    return messages;
-  }
   const replaced = messages.slice();
-  for (const { index } of placements) {
+  const placedDepths: number[] = [];
+  for (const { index, depth } of placements) {
     const target = replaced.at(index);
     if (target !== undefined && typeof target.content === "string") {
       replaced[index] = { ...target, content: [cacheControlBlock(target.content)] };
+      placedDepths.push(depth);
     }
   }
-  return replaced;
+  return placedDepths.length === 0 ? { messages, placedDepths: [] } : { messages: replaced, placedDepths };
 }
 
 // Fail-closed to CACHE_MIN_FLOOR when the capability didn't seed an exact floor.
@@ -111,28 +142,26 @@ function historyCacheGateOffset(req: OpenRouterChatRequest): number | undefined 
   return req.historyCacheBreakpointFromEnd;
 }
 
-// Recomputes the same positional decision `buildChatBody` applied, for the `provider.cache` receipt. Reports
-// the placed DEPTHS (the axis the knob + SHAPE both speak), not the resolved array indices — a depth is
-// stable across a tool exchange and an index is not, so the depth pair is what a drift diagnosis compares.
-function historyCacheOffsets(req: OpenRouterChatRequest): readonly number[] {
-  const depthFromEnd = historyCacheGateOffset(req);
-  if (depthFromEnd === undefined) {
-    return [];
-  }
-  return computeCacheBreakpointPlacements({
-    rows: breakpointRows(buildHistoryMessages(req.history)),
-    systemStaticTokens: estimateTokens(req.systemPrompt.static),
-    depthFromEnd,
-    cacheMinTokens: historyCacheMinTokens(req),
-  }).map((placement) => placement.depth);
+/** What the body BUILDER observed itself writing — the receipt's only source (see `emitCacheReceipt`). */
+interface CacheWriteReceipt {
+  /** The conversational depths a history block was written at (the axis the knob + SHAPE both speak; an
+   *  array INDEX is not stable across a tool exchange, so a drift diagnosis compares depths). */
+  readonly historyDepths: readonly number[];
+  /** Cache blocks actually written into the system message (0 or 1 — the static prefix block). */
+  readonly systemBlocks: number;
 }
 
-// A collapsed hitRatio with a spiked cacheWriteTokens is the cache-rot re-bill signal.
-function emitCacheReceipt(req: OpenRouterChatRequest, turn: ChatResult, turnId: string): void {
+const NO_CACHE_WRITES: CacheWriteReceipt = { historyDepths: [], systemBlocks: 0 };
+
+// A collapsed hitRatio with a spiked cacheWriteTokens is the cache-rot re-bill signal. The counts are
+// OBSERVED off the body the runner actually sent, never re-derived: this line is the ONLY signal a cache
+// regression produces, and an instrument that re-runs the placement decision reports what SHOULD have
+// happened — a placement the writer skipped (a non-string target row) read as "2 breakpoints placed" over a
+// body carrying zero (D41 no-silent-degrade; `instruments lie — verify the verifier`).
+function emitCacheReceipt(req: OpenRouterChatRequest, turn: ChatResult, turnId: string, written: CacheWriteReceipt): void {
   if (req.capability.turns?.explicitPromptCache !== true) {
     return;
   }
-  const offsets = historyCacheOffsets(req);
   const cacheReadTokens = turn.usage.cacheReadTokens;
   const cacheWriteTokens = turn.usage.cacheWriteTokens;
   const total = cacheReadTokens + cacheWriteTokens;
@@ -140,8 +169,8 @@ function emitCacheReceipt(req: OpenRouterChatRequest, turn: ChatResult, turnId: 
     turnId,
     cacheReadTokens,
     cacheWriteTokens,
-    breakpointsPlaced: (isAnthropicModel(req.model) ? 1 : 0) + offsets.length,
-    breakpointOffsets: offsets,
+    breakpointsPlaced: written.systemBlocks + written.historyDepths.length,
+    breakpointOffsets: written.historyDepths,
     hitRatio: total > 0 ? cacheReadTokens / total : 0,
     minCacheTokens: historyCacheMinTokens(req),
   });
@@ -160,13 +189,18 @@ function emitCapabilityReceipt(req: OpenRouterChatRequest, resolved: ResolvedCha
 
 // OpenRouter's wire is official-only: the body is the runner-owned fields alone. A preset's `customParameters`
 // escape hatch is BYOK/custom-byo-only and never reaches this wire (D41 drop surfaced as a loud warning).
-function buildChatBody(req: OpenRouterChatRequest, resolved: ResolvedChatKnobs, includeReasoning: boolean): ChatRequest {
+function buildChatBody(
+  req: OpenRouterChatRequest,
+  resolved: ResolvedChatKnobs,
+  includeReasoning: boolean,
+): { readonly body: ChatRequest; readonly written: CacheWriteReceipt } {
   const systemMessage = buildSystemMessage(req.systemPrompt, isAnthropicModel(req.model));
   const cacheOffset = historyCacheGateOffset(req);
-  const history =
+  const placed =
     cacheOffset !== undefined
       ? placeHistoryCacheBreakpoint(buildHistoryMessages(req.history), req.systemPrompt.static, cacheOffset, historyCacheMinTokens(req))
-      : buildHistoryMessages(req.history);
+      : { messages: buildHistoryMessages(req.history), placedDepths: [] as readonly number[] };
+  const history = placed.messages;
   const messages: ChatMessages[] = systemMessage !== null ? [systemMessage, ...history] : history;
   const provider = resolveProviderPreferences(req.model, req.providerRouting);
   const fallbackModels = resolveFallbackModels(req.providerRouting);
@@ -185,7 +219,10 @@ function buildChatBody(req: OpenRouterChatRequest, resolved: ResolvedChatKnobs, 
     ...(req.responseFormat !== undefined ? { responseFormat: buildChatResponseFormat(req.responseFormat) } : {}),
     plugins: withContextCompressionPlugin(req.params),
   };
-  return owned;
+  // OBSERVED, not re-derived: the system block is counted off the message that was built (an empty static
+  // prompt yields no block even on an Anthropic model, which a bare `isAnthropicModel` check over-reported).
+  const systemBlocks = Array.isArray(systemMessage?.content) ? systemMessage.content.filter((block) => "cacheControl" in block).length : 0;
+  return { body: owned, written: { historyDepths: placed.placedDepths, systemBlocks } };
 }
 
 // `markCommitted` fires on the first streamed delta so a retry can never replay tokens.
@@ -260,10 +297,15 @@ export async function runChatCompletionTurn(client: OpenRouterChatClient, req: O
   };
   const resolved = resolveChat(req.params, req.capability);
   const reasoning = effortToOpenAIReasoning(buildReasoningRequest(resolved.reasoning));
+  // What the LAST built body actually wrote — the `provider.cache` receipt reports this, so a strip-and-replay
+  // (or a retried attempt) reports the body that was really sent rather than a re-derivation of the first one.
+  let written: CacheWriteReceipt = NO_CACHE_WRITES;
   const run = (includeReasoning: boolean): Promise<{ view: ChatCompletionResult; reasoning: string }> =>
     runWithPreCommitRetry(
       (markCommitted) => {
-        const body = buildChatBody(req, resolved, includeReasoning);
+        const built = buildChatBody(req, resolved, includeReasoning);
+        const body = built.body;
+        written = built.written;
         // Capture the TRUE wire: the SDK's own outbound schema renames camelCase→snake_case and strips unknown
         // keys before the real HTTP send, so parsing here records the literal bytes, not the pre-serialize input.
         deps.captureWire?.({
@@ -303,7 +345,7 @@ export async function runChatCompletionTurn(client: OpenRouterChatClient, req: O
     maxOutputTokens: req.capability.output.maxTokens.max,
     reasoning: result.reasoning,
   });
-  emitCacheReceipt(req, turn, resolved.turnId);
+  emitCacheReceipt(req, turn, resolved.turnId, written);
   emitCapabilityReceipt(req, resolved);
   emitSamplingReceipt(req.params, resolved);
   // chat-completions has NO verbosity field, so a resolved verbosity is dropped loudly here; a customParameters

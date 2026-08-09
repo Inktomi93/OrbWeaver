@@ -720,6 +720,10 @@ async function arbitrate(
     readonly castNames: readonly CastName[];
     readonly forcedIds?: readonly CharacterId[] | undefined;
     readonly lastSpeaker: SpeakerRef | null;
+    /** Whether the last speaker is banned from this round's pool (the room's `allowSelfResponses`,
+     *  inverted). Default TRUE. It rides BESIDE `lastSpeaker` rather than nulling it because the two are
+     *  different questions: the ban is ELIGIBILITY, `lastSpeaker` is also the `pooled` ROTATION ORIGIN. */
+    readonly banLast?: boolean | undefined;
     readonly recentHistory: string;
     readonly maxSpeakers?: number | undefined;
     /** The turn's abort signal — threaded into the `smart` side-LLM call so a non-responsive arbiter box
@@ -746,6 +750,7 @@ async function arbitrate(
       castNames: args.castNames,
       recentHistory: args.recentHistory,
       lastSpeaker: args.lastSpeaker,
+      ...(args.banLast !== undefined ? { banLast: args.banLast } : {}),
       rng: deps.prng,
       sampling: arbiterSampling,
       // PROSE-1 census 75 — the arbiter prompt is the room HOST's slot, resolved beside its sampling.
@@ -764,6 +769,7 @@ async function arbitrate(
       candidates: args.candidates,
       policy: args.group.policy,
       lastSpeaker: args.lastSpeaker,
+      ...(args.banLast !== undefined ? { banLast: args.banLast } : {}),
       forcedIds: forced,
       rng: deps.prng,
       maxSpeakers: args.maxSpeakers,
@@ -841,7 +847,11 @@ async function runChain(
         group: args.group,
         candidates: args.room.candidates,
         castNames: args.room.castNames,
-        lastSpeaker: args.group.allowSelfResponses ? null : last,
+        // `allowSelfResponses` lifts the BAN, nothing else: `last` still rides as the arbitration's rotation
+        // origin, or `pooled` (the "Round-robin" room) re-picks the first roster seat every beat and the
+        // chain becomes one character monologuing under a control that promises a rotation.
+        lastSpeaker: last,
+        banLast: !args.group.allowSelfResponses,
         recentHistory: facts.recentHistory,
         maxSpeakers: 1,
         signal: args.signal,
