@@ -29,7 +29,7 @@ import { DISCOVERY_PROSE_SLOTS } from "#discovery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_PROSE_SLOTS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
 import { PRESET_PROSE_SLOTS } from "#preset";
 import type { ProseHome, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
-import { isProseSlotId, PROSE_SLOT_IDS, proseOverBy, proseOverrideFromLegacy, resolveProseFrom, spliceProseTokens } from "#prose-slot";
+import { hasProseToken, isProseSlotId, PROSE_SLOT_IDS, proseOverBy, proseOverrideFromLegacy, resolveProseFrom, spliceProseTokens } from "#prose-slot";
 import { REFINERY_PROSE_SLOTS } from "#refinery";
 import { RPG_PROSE_SLOTS } from "#rpg";
 
@@ -179,12 +179,26 @@ export function proseFooterState(id: ProseSlotId, value: string, stored: ProseOv
     isDefault,
     stale: !isDefault && stored !== undefined && stored.text === trimmed && stored.baseVersion < slot.version,
     // A required macro/token is only meaningful against text the host actually wrote — the shipped default
-    // carries them all by construction.
-    missing: isDefault ? [] : [...slot.requiredMacros, ...slot.requiredTokens].filter((token) => !trimmed.includes(token)),
+    // carries them all by construction. `{{name}}`-shaped entries are recognised by `hasProseToken` (the
+    // SAME whitespace-tolerant, case-insensitive splice `spliceProseTokens` fills) — a raw `.includes` here
+    // would report `{{ note }}`/`{{Note}}` as missing when the splice fills them fine (the borrowed-recognizer
+    // bug, see `hasProseToken`'s header). Bare literal tokens (no braces) stay a plain substring check.
+    missing: isDefault ? [] : [...slot.requiredMacros, ...slot.requiredTokens].filter((token) => !tokenPresent(trimmed, token)),
     // NOT gated on `isDefault`: an empty field is under the cap by construction, so the guard would be
     // decoration — and `proseOverBy` already measures the trimmed bytes that actually get stored.
     over: proseOverBy(value),
   };
+}
+
+const BRACED_TOKEN = /^\{\{(.+)\}\}$/;
+
+/** Is `token` present in `text`? `{{name}}`-shaped tokens defer to `hasProseToken` (the splice's own
+ *  recognizer); everything else is a plain substring check (JSON/XML-shaped `requiredTokens` carry no
+ *  macro semantics to tolerate whitespace in). */
+function tokenPresent(text: string, token: string): boolean {
+  const braced = BRACED_TOKEN.exec(token);
+  const name = braced?.[1];
+  return name !== undefined ? hasProseToken(text, name) : text.includes(token);
 }
 
 /** Build a one-key override record from a legacy bare-string field, for the adapted slots (§4.6). */
