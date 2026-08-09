@@ -37,6 +37,7 @@
 // honest fix lives in the transpiler, not in the editor's readout — raised to the orchestrator, not
 // papered over here.
 
+import type { Unprojected } from "@orb/kit/json-schema";
 import { RENDER_HINT_KEY, scrubWireSchema } from "@orb/kit/json-schema";
 
 /** One advisory CLASS. A closed union so the editor's copy is a mapped Record and a new class cannot ship
@@ -237,7 +238,7 @@ function fanAdvisories(stats: RefinerySchemaStats): readonly RefinerySchemaAdvis
  * Errors are NOT here: a refusal is the save belt's (`refinerySchemaDocumentSchema`), verbatim, and this
  * function never duplicates one.
  */
-export function refinerySchemaAdvisoryOf(schema: Record<string, unknown>): RefinerySchemaAssessment {
+export function refinerySchemaAdvisoryOf(schema: Unprojected): RefinerySchemaAssessment {
   const state: WalkState = {
     properties: 0,
     optionalFields: 0,

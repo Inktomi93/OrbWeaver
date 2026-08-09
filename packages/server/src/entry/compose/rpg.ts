@@ -68,6 +68,7 @@ import { chats } from "@orb/db";
 import { errorMessage } from "@orb/kit/error-message";
 import type { CharacterHandle, ChatId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, newId } from "@orb/kit/ids";
+import type { WireReady } from "@orb/kit/json-schema";
 import { projectJsonSchema, scrubWireSchema } from "@orb/kit/json-schema";
 import { eq } from "drizzle-orm";
 import { can } from "#domain/admin";
@@ -131,7 +132,7 @@ const EXTRACTION_SCHEMA_NAME = "rpg_state_extraction";
  *  NUMBER of optionals a schema may carry.
  *
  *  A mapped Record, not a ternary: a new `StructuredOutputShape` without an arm is a tsc error (§5.5). */
-const EXTRACTION_RESPONSE_FORMATS: Readonly<Record<StructuredOutputShape, (schema: Record<string, unknown>) => ResponseFormat>> = {
+const EXTRACTION_RESPONSE_FORMATS: Readonly<Record<StructuredOutputShape, (schema: WireReady) => ResponseFormat>> = {
   "as-projected": (schema) => ({ name: EXTRACTION_SCHEMA_NAME, schema }),
   "strict-compatible": (schema) => ({ name: EXTRACTION_SCHEMA_NAME, schema: scrubWireSchema(schema, "strict-compatible").schema, strict: true }),
 };
@@ -140,7 +141,7 @@ const EXTRACTION_RESPONSE_FORMATS: Readonly<Record<StructuredOutputShape, (schem
  *  two arms (`extractViaChat` / `extractViaStructured`) can never disagree about what was sent. Resolved
  *  PER CALL (not captured at compose time) so an admin flip governs the very next extraction — the
  *  `getEffectiveConfig` cache is rebuilt on every admin write. */
-function extractionResponseFormat(deps: RpgComposeDeps, schema: Record<string, unknown>): ResponseFormat {
+function extractionResponseFormat(deps: RpgComposeDeps, schema: WireReady): ResponseFormat {
   return EXTRACTION_RESPONSE_FORMATS[deps.structuredOutputShape()](schema);
 }
 
@@ -428,7 +429,7 @@ interface ExtractCtx {
   readonly ownerConsented: boolean;
   readonly systemPrompt: string;
   readonly userPrompt: string;
-  readonly schema: Record<string, unknown>;
+  readonly schema: WireReady;
   /** The round's cancellation, threaded onto the provider request so a Stop actually kills the socket instead of
    *  letting a turn the user abandoned finish billing (`RpgStateRoundInput.signal`; minted by the flush barrier).
    *  `undefined` on the two HOST doors (`resyncFromStory` / `populateFromCharacter`): those are verb-initiated,

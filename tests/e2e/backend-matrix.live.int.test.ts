@@ -33,6 +33,7 @@ import { createAgentToolServer, createBackendRegistry, createProviderExecutor, d
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
 import { makeModelCapability, makeOpenRouterCredential, makeResolvedCredential } from "../support/factories/resolved-connection.ts";
+import { wireSchema } from "../support/wire-ready.ts";
 
 const LIVE = processEnv["E2E_LIVE"] === "1";
 const TURN_TIMEOUT_MS = 300_000;
@@ -82,12 +83,12 @@ function diceTool(invocations: Record<string, unknown>[]): ReturnType<typeof cre
 const TOOL_PROMPT = "Roll a 20-sided die using the roll_dice tool, then state the exact number rolled.";
 // Typed as the wire `schema` shape so `responseFormat.schema` assigns directly (no double-cast — the schema
 // is real JSON Schema, not a fabricated typed value).
-const STRUCTURED_SCHEMA: Record<string, unknown> = {
+const STRUCTURED_SCHEMA = wireSchema({
   type: "object",
   properties: { mood: { type: "string" }, hp: { type: "number" } },
   required: ["mood", "hp"],
   additionalProperties: false,
-};
+});
 const STRUCTURED_PROMPT = 'Report the character status: mood is "fierce" and hp is 42. Output only the structured object.';
 const structuredZ = z.object({ mood: z.string(), hp: z.number() });
 

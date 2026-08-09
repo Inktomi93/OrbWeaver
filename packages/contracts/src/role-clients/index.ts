@@ -12,6 +12,7 @@
 // FLAG: only the four DERIVE roles below are buildable — chat/agent/generateImage join when their
 // result contracts land (confirm with lead before wiring a chat member here).
 
+import type { WireReady } from "@orb/kit/json-schema";
 import { z } from "zod";
 import type { EmbedResult, ImageEmbedResult, RerankResult, SummarizeResult } from "#providers";
 
@@ -44,7 +45,9 @@ export const structuredOutputVehicleSchema = z.enum(STRUCTURED_OUTPUT_VEHICLES);
 export const responseFormatSchema = z.object({
   /** Schema name (OpenAI `json_schema.name`; Anthropic tool name). */
   name: z.string(),
-  /** JSON Schema — projected by `projectJsonSchema` (`additionalProperties:false` pinned). */
+  /** JSON Schema — projected by `projectJsonSchema` (`additionalProperties:false` pinned). The exported TS
+   *  type PINS this to {@link WireReady}; the zod stays a loose `z.record` (a type-only anchor — nothing
+   *  `.parse`s a `ResponseFormat`, `@typeonly-ok` above). */
   schema: z.record(z.string(), z.unknown()),
   /** Grammar STRICTNESS, opt-in: absent = the BACKEND's own default, and each backend owns that call
    *  (Tier-3b — "each backend internalizes ALL its own quirks"). This used to read "Default true", and every
@@ -59,7 +62,10 @@ export const responseFormatSchema = z.object({
    *  `structuredOutputVehicle` governs. Backends with one wire ignore it. */
   vehicle: structuredOutputVehicleSchema.optional(),
 });
-export type ResponseFormat = z.infer<typeof responseFormatSchema>;
+/** `schema` is PINNED to {@link WireReady} (the rest rides the zod infer): only `projectJsonSchema` output
+ *  can fill it, so a raw/stored/unprojected schema at any structured-output send-site fails to typecheck —
+ *  the compile-time enforcement of task #41's wire-closure convention. */
+export type ResponseFormat = Omit<z.infer<typeof responseFormatSchema>, "schema"> & { schema: WireReady };
 
 /** Image bytes or a filesystem path. Lib-clean: `Uint8Array | string` (a node `Buffer` IS a
  *  `Uint8Array`, so it still satisfies this; `string` = a path the image family reads). */

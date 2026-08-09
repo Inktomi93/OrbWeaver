@@ -158,7 +158,7 @@ test("strict-compatible: nested objects are reshaped too, `description` is HOIST
 // keyword, the model keeps the intent, and the caller's zod belt still enforces the original.
 
 test("hosted: every stripped bound class lands in the node's description, existing prose PRESERVED", () => {
-  const scrubbed = scrubWireSchema(
+  const scrubbed = scrubWireSchema<Record<string, unknown>>(
     {
       type: "object",
       properties: {
