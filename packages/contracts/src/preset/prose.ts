@@ -7,7 +7,12 @@
 // The slot SHAPE comes from `#prose-slot`, never `#prose`: `#prose` imports this table at runtime to compose
 // `PROSE_SLOTS`, so importing it here — even for a type — would close a `no-circular` cycle.
 //
-// Storage note (PROSE-1 §4.6): these slots are ADAPTED, not re-homed. The override still lives in the
+// TWO MORE TABLES live below (census 53-73, the templating fork's ARM B): the Rewrite modal's toggle
+// fragments and the greeting studio's transform fragments. They are NOT adapted — their override is a
+// `promptConfig.prose` row like any other preset-homed slot — which is exactly why they are separate consts
+// (see their own header for what that separation buys).
+//
+// Storage note (PROSE-1 §4.6): the slots in {@link PRESET_PROSE_SLOTS} are ADAPTED, not re-homed. The override still lives in the
 // existing `promptConfig.guidedActions.*.prompt` / `promptConfig.formatStrings.*` fields — the wire, the ST
 // import mapper and the existing editors are untouched. The slot row is what gives them a version, a
 // staleness signal and a required-macro lint from ONE place.
@@ -156,6 +161,267 @@ export const PRESET_PROSE_SLOTS = {
     requiredTokens: [],
     title: "Compaction steering",
     fires: "Each managed-compaction pass — the chat's own model rebuilding the portable summary marker.",
+  },
+} as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;
+
+// ══════════════════════════════════════════════════════════════════════════════════════════════════
+// THE ONE-CLICK STEER VOCABULARY (PROSE-1 census 53-73) — the templating fork, ruled ARM B by the owner
+// (2026-08-09; `docs/design/templating-fork-rows-53-73.md`). The 21 fragment strings the Rewrite modal and
+// the greeting studio compose into a steer used to be `as const` DATA on the two catalogs in `./index.ts`
+// and were joined IN THE BROWSER. Now they are slots: the bytes live here, the composition runs SERVER-side
+// at the two seams that already hold the preset's prose blob, and the wire carries only the picked KINDS
+// (the `gameSteer` doctrine — "the wire carries only the kind, never template text", `chat/metadata.ts`).
+//
+// A SEPARATE table from {@link PRESET_PROSE_SLOTS} above, and that separation is load-bearing: `#prose`
+// treats every key of that table as LEGACY-ADAPTED (its override is a pre-PROSE-1 `promptConfig` field, so
+// it is excluded from the `promptConfig.prose` editable set). These 21 have no legacy field — their storage
+// IS `promptConfig.prose` — so they must land in `PRESET_PROSE_SLOT_IDS`, which is what opens their
+// Templates-tab door the same commit they land (each has a `TEMPLATE_DEFS` row; two-sided coverage is
+// asserted in `tests/contracts/prose/`).
+//
+// `macros: "none"` for the whole cohort (PROSE-1 §6.1): a fragment is joined into the steer that becomes
+// `{{input}}` inside the guided template, and `{{input}}` is ZWSP-neutralized — so a `{{user}}` written into
+// one of these would reach the model as literal braces. The catalogs spell "the user" / "the character" in
+// plain words; the guided template's OWN macros resolve the names.
+
+/** The Rewrite modal's toggle fragments (census 53-59) — keyed by `REWRITE_TOGGLES[].slot`. */
+export const PRESET_REWRITE_TOGGLE_PROSE_SLOTS = {
+  "preset.rewriteToggle.concise": {
+    id: "preset.rewriteToggle.concise",
+    home: "preset",
+    version: 1,
+    text: "Make it more concise and tighter — cut filler while keeping the substance",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "More concise",
+    fires: 'The Rewrite modal with "More concise" picked — joined into the correction steer.',
+  },
+  "preset.rewriteToggle.expand": {
+    id: "preset.rewriteToggle.expand",
+    home: "preset",
+    version: 1,
+    text: "Expand it with more detail and description, keeping the same events",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Expand",
+    fires: 'The Rewrite modal with "Expand" picked — joined into the correction steer.',
+  },
+  "preset.rewriteToggle.novella": {
+    id: "preset.rewriteToggle.novella",
+    home: "preset",
+    version: 1,
+    text: "Rewrite in a novella prose style: full paragraphs and proper dialogue punctuation, no asterisks for narration",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Novella prose",
+    fires: 'The Rewrite modal with "Novella prose" picked — joined into the correction steer.',
+  },
+  "preset.rewriteToggle.internetRp": {
+    id: "preset.rewriteToggle.internetRp",
+    home: "preset",
+    version: 1,
+    text: "Rewrite in internet-RP style: asterisks for actions and narration, dialogue kept in quotes",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Internet-RP style",
+    fires: 'The Rewrite modal with "Internet-RP style" picked — joined into the correction steer.',
+  },
+  "preset.rewriteToggle.literary": {
+    id: "preset.rewriteToggle.literary",
+    home: "preset",
+    version: 1,
+    text: "Rewrite in a richer literary style: vivid metaphor and description while keeping proper formatting",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Literary style",
+    fires: 'The Rewrite modal with "Literary style" picked — joined into the correction steer.',
+  },
+  "preset.rewriteToggle.pastTense": {
+    id: "preset.rewriteToggle.pastTense",
+    home: "preset",
+    version: 1,
+    text: "Rewrite entirely in the past tense",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Past tense",
+    fires: 'The Rewrite modal with "Past tense" picked — joined into the correction steer.',
+  },
+  "preset.rewriteToggle.presentTense": {
+    id: "preset.rewriteToggle.presentTense",
+    home: "preset",
+    version: 1,
+    text: "Rewrite entirely in the present tense",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Present tense",
+    fires: 'The Rewrite modal with "Present tense" picked — joined into the correction steer.',
+  },
+} as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;
+
+/** The greeting studio's transform fragments (census 60-73) — keyed by `GREETING_TRANSFORMS[].slot`. Four
+ *  axes (perspective / tense / style / gender); the axis lives on the CATALOG row (it groups the chips),
+ *  never here — a slot knows its bytes, not the studio's layout. */
+export const PRESET_GREETING_TRANSFORM_PROSE_SLOTS = {
+  "preset.greetingTransform.firstPersonStandard": {
+    id: "preset.greetingTransform.firstPersonStandard",
+    home: "preset",
+    version: 1,
+    text: "Rewrite the greeting in first person, where the user is the narrator using I/me, keeping the character's references consistent",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "First person (I/me)",
+    fires: 'The greeting studio with "First person (I/me)" picked — joined into the greeting steer.',
+  },
+  "preset.greetingTransform.firstPersonByName": {
+    id: "preset.greetingTransform.firstPersonByName",
+    home: "preset",
+    version: 1,
+    text: "Rewrite the greeting in first person, but refer to the user by their name instead of I/me, as if the narrator refers to themselves in the third person",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "First person (by name)",
+    fires: 'The greeting studio with "First person (by name)" picked — joined into the greeting steer.',
+  },
+  "preset.greetingTransform.firstPersonAsYou": {
+    id: "preset.greetingTransform.firstPersonAsYou",
+    home: "preset",
+    version: 1,
+    text: "Rewrite the greeting in first person, but refer to the user as 'you', creating a self-addressing perspective",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "First person (as 'you')",
+    fires: "The greeting studio with \"First person (as 'you')\" picked — joined into the greeting steer.",
+  },
+  "preset.greetingTransform.secondPerson": {
+    id: "preset.greetingTransform.secondPerson",
+    home: "preset",
+    version: 1,
+    text: "Rewrite the greeting in second person, addressing the user directly as 'you' and referring to the character accordingly",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Second person",
+    fires: 'The greeting studio with "Second person" picked — joined into the greeting steer.',
+  },
+  "preset.greetingTransform.thirdPerson": {
+    id: "preset.greetingTransform.thirdPerson",
+    home: "preset",
+    version: 1,
+    text: "Rewrite the greeting in third person, referring to the user and the character by name and appropriate pronouns, described from an outside observer",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Third person",
+    fires: 'The greeting studio with "Third person" picked — joined into the greeting steer.',
+  },
+  "preset.greetingTransform.pastTense": {
+    id: "preset.greetingTransform.pastTense",
+    home: "preset",
+    version: 1,
+    text: "Rewrite the greeting entirely in the past tense, as if these events had already occurred",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Past tense",
+    fires: 'The greeting studio with "Past tense" picked — joined into the greeting steer.',
+  },
+  "preset.greetingTransform.presentTense": {
+    id: "preset.greetingTransform.presentTense",
+    home: "preset",
+    version: 1,
+    text: "Rewrite the greeting in present tense, making it feel immediate and ongoing",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Present tense",
+    fires: 'The greeting studio with "Present tense" picked — joined into the greeting steer.',
+  },
+  "preset.greetingTransform.novellaStyle": {
+    id: "preset.greetingTransform.novellaStyle",
+    home: "preset",
+    version: 1,
+    text: "Change the greeting to a novella prose style: full paragraphs and proper dialogue punctuation, no asterisks for narration, keeping all links and images unchanged — a style change only, do not invent new sentences",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Novella prose",
+    fires: 'The greeting studio with "Novella prose" picked — joined into the greeting steer.',
+  },
+  "preset.greetingTransform.internetRpStyle": {
+    id: "preset.greetingTransform.internetRpStyle",
+    home: "preset",
+    version: 1,
+    text: "Change the greeting to internet-RP style: asterisks for actions and narration, dialogue kept in quotes",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Internet-RP style",
+    fires: 'The greeting studio with "Internet-RP style" picked — joined into the greeting steer.',
+  },
+  "preset.greetingTransform.literaryStyle": {
+    id: "preset.greetingTransform.literaryStyle",
+    home: "preset",
+    version: 1,
+    text: "Rewrite the greeting in a richer literary style: vivid metaphor and description while keeping proper formatting",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Literary style",
+    fires: 'The greeting studio with "Literary style" picked — joined into the greeting steer.',
+  },
+  "preset.greetingTransform.scriptStyle": {
+    id: "preset.greetingTransform.scriptStyle",
+    home: "preset",
+    version: 1,
+    text: "Rewrite the greeting in a script style: minimal narration, character names followed by dialogue lines, brief scene directions in parentheses",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "Script style",
+    fires: 'The greeting studio with "Script style" picked — joined into the greeting steer.',
+  },
+  "preset.greetingTransform.heHim": {
+    id: "preset.greetingTransform.heHim",
+    home: "preset",
+    version: 1,
+    text: "Change all references to the user to use he/him pronouns",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "He/him",
+    fires: 'The greeting studio with "He/him" picked — joined into the greeting steer.',
+  },
+  "preset.greetingTransform.sheHer": {
+    id: "preset.greetingTransform.sheHer",
+    home: "preset",
+    version: 1,
+    text: "Change all references to the user to use she/her pronouns",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "She/her",
+    fires: 'The greeting studio with "She/her" picked — joined into the greeting steer.',
+  },
+  "preset.greetingTransform.theyThem": {
+    id: "preset.greetingTransform.theyThem",
+    home: "preset",
+    version: 1,
+    text: "Change all references to the user to use they/them pronouns",
+    macros: "none",
+    requiredMacros: [],
+    requiredTokens: [],
+    title: "They/them",
+    fires: 'The greeting studio with "They/them" picked — joined into the greeting steer.',
   },
 } as const satisfies Partial<Record<ProseSlotId, ProseSlotDef>>;
 

@@ -23,7 +23,14 @@ import { hasProseToken, proseOverridesSchema } from "#prose-slot";
 import { defineVersionedConfig } from "#versioned-config";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
 
-export { PRESET_COMPACTION_SLOT_ID, PRESET_FORMAT_SLOT_IDS, PRESET_GUIDED_SLOT_IDS, PRESET_PROSE_SLOTS } from "./prose.ts";
+export {
+  PRESET_COMPACTION_SLOT_ID,
+  PRESET_FORMAT_SLOT_IDS,
+  PRESET_GREETING_TRANSFORM_PROSE_SLOTS,
+  PRESET_GUIDED_SLOT_IDS,
+  PRESET_PROSE_SLOTS,
+  PRESET_REWRITE_TOGGLE_PROSE_SLOTS,
+} from "./prose.ts";
 
 const MAX_NAME_LENGTH = 200;
 const MIN_ID_LENGTH = 1;
@@ -436,36 +443,49 @@ export const DEFAULT_GUIDED_ACTIONS: GuidedActionsConfig = {
 // correction-length fragments the Corrections OOC prompt implies ("change it to reflect …").
 //
 // Registry-as-data (the databank SCRAPER_KINDS / steer-library precedent — "substrate not a type home":
-// contracts owns the shape+data both the client chips and the pure composer need). Each toggle = a stable
-// `id`, a display `label`, and the instruction `fragment` it contributes. The pure composition lives in
-// `@orb/kit/guided` (`composeRewriteSteer`) — selected fragments join `. ` (the source's exact editIntros
-// join) in CATALOG ORDER, then the user's free-text instruction is appended, producing the ONE steer
-// string that becomes `{{input}}` inside the preset's `rewrite` template. Layering:
-//   preset rewrite template  ⊃  (catalog fragments joined) + free-text instruction
+// contracts owns the shape+data both the client chips and the server's composer need). Each toggle = a
+// stable `id`, a display `label`, and the PROSE SLOT holding the instruction sentence it contributes.
+//
+// THE FRAGMENT BYTES ARE NOT HERE (the templating fork, ARM B — owner ruling 2026-08-09,
+// `docs/design/templating-fork-rows-53-73.md`). They are host-editable prose slots
+// (`PRESET_REWRITE_TOGGLE_PROSE_SLOTS`, ./prose.ts), resolved by the SERVER at the assembly seam that
+// already holds the preset's prose blob, and joined there by the same pure `composeRewriteSteer`
+// (`@orb/kit/guided`) — selected fragments join `. ` (the source's exact editIntros join) in CATALOG
+// ORDER, then the user's free-text instruction is appended, producing the ONE steer string that becomes
+// `{{input}}` inside the preset's `rewrite` template. Layering:
+//   preset rewrite template  ⊃  (resolved slot fragments joined) + free-text instruction
 // which mirrors the source's editIntros layering (options joined `". "` → filled into the task template).
+// The WIRE carries only the picked ids (`guidedSteerSchema.rewriteToggles`), never the fragment text — the
+// `gameSteer` doctrine, so a host's override is the bytes the model actually got and the capture proves it.
 export interface RewriteToggle {
-  readonly id: string;
+  readonly id: RewriteToggleId;
   readonly label: string;
-  /** The instruction sentence this toggle contributes to the composed steer (no trailing period — the
-   *  composer joins with `. ` and terminates the whole steer, matching the source's editIntros join). */
-  readonly fragment: string;
+  /** The prose slot whose resolved text this toggle contributes to the composed steer (no trailing period —
+   *  the composer joins with `. ` and terminates the whole steer, matching the source's editIntros join). */
+  readonly slot: ProseSlotId;
 }
 
+/** The wire vocabulary (`guidedSteerSchema.rewriteToggles` derives its enum from this). Declared as its own
+ *  tuple rather than inferred off the catalog so the schema gets a literal union; the catalog covers it
+ *  exactly, both directions, by `satisfies` + the exhaustiveness pin below. */
+export const REWRITE_TOGGLE_IDS = ["concise", "expand", "novella", "internet-rp", "literary", "past-tense", "present-tense"] as const;
+export type RewriteToggleId = (typeof REWRITE_TOGGLE_IDS)[number];
+
 export const REWRITE_TOGGLES = [
-  { id: "concise", label: "More concise", fragment: "Make it more concise and tighter — cut filler while keeping the substance" },
-  { id: "expand", label: "Expand", fragment: "Expand it with more detail and description, keeping the same events" },
-  {
-    id: "novella",
-    label: "Novella prose",
-    fragment: "Rewrite in a novella prose style: full paragraphs and proper dialogue punctuation, no asterisks for narration",
-  },
-  { id: "internet-rp", label: "Internet-RP style", fragment: "Rewrite in internet-RP style: asterisks for actions and narration, dialogue kept in quotes" },
-  { id: "literary", label: "Literary style", fragment: "Rewrite in a richer literary style: vivid metaphor and description while keeping proper formatting" },
-  { id: "past-tense", label: "Past tense", fragment: "Rewrite entirely in the past tense" },
-  { id: "present-tense", label: "Present tense", fragment: "Rewrite entirely in the present tense" },
+  { id: "concise", label: "More concise", slot: "preset.rewriteToggle.concise" },
+  { id: "expand", label: "Expand", slot: "preset.rewriteToggle.expand" },
+  { id: "novella", label: "Novella prose", slot: "preset.rewriteToggle.novella" },
+  { id: "internet-rp", label: "Internet-RP style", slot: "preset.rewriteToggle.internetRp" },
+  { id: "literary", label: "Literary style", slot: "preset.rewriteToggle.literary" },
+  { id: "past-tense", label: "Past tense", slot: "preset.rewriteToggle.pastTense" },
+  { id: "present-tense", label: "Present tense", slot: "preset.rewriteToggle.presentTense" },
 ] as const satisfies readonly RewriteToggle[];
 
-export type RewriteToggleId = (typeof REWRITE_TOGGLES)[number]["id"];
+/** tsc-forced exhaustiveness: a wire id with no catalog row surfaces HERE (the `TEMPLATE_DEFS` precedent).
+ *  The other direction is `satisfies` — a catalog row whose id is not in the tuple fails to assign. */
+type UncataloguedRewriteToggleId = Exclude<RewriteToggleId, (typeof REWRITE_TOGGLES)[number]["id"]>;
+const _rewriteTogglesAreExhaustive: [UncataloguedRewriteToggleId] extends [never] ? true : UncataloguedRewriteToggleId = true;
+void _rewriteTogglesAreExhaustive;
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Greeting transform catalog — the greeting studio's one-click steer set (audit §3). Adapted (not ported)
@@ -476,108 +496,77 @@ export type RewriteToggleId = (typeof REWRITE_TOGGLES)[number]["id"];
 // an opening, which is exactly the greeting-authoring surface.
 //
 // Registry-as-data (the REWRITE_TOGGLES / databank SCRAPER_KINDS precedent — "substrate not a type home":
-// contracts owns the shape+data both the client chips and the composed steer need). Each transform = a
-// stable `id`, an `axis` (the group it belongs to — the client can render chips grouped), a display
-// `label`, and the instruction `fragment` it contributes. The client renders chips BLIND from this data;
-// the selected fragments join `. ` in CATALOG ORDER (the source's exact editIntros join, via
-// `composeRewriteSteer` in @orb/kit/guided), then the free-text instruction is appended — the ONE steer
-// string that becomes `{{input}}` inside the preset's `greeting_rewrite`/`greeting_new` template. Fragments
-// carry NO macros (the composed steer is ZWSP-neutralized downstream as `{{input}}`, so a `{{user}}` in a
-// fragment would render as literal braces — the REWRITE_TOGGLES posture): "the user" / "the character" are
+// contracts owns the shape+data both the client chips and the server's composer need). Each transform = a
+// stable `id`, an `axis` (the group it belongs to — the client renders chips grouped), a display `label`,
+// and the PROSE SLOT holding the instruction sentence it contributes.
+//
+// THE FRAGMENT BYTES ARE NOT HERE — same ARM B ruling as REWRITE_TOGGLES above: they are host-editable
+// slots (`PRESET_GREETING_TRANSFORM_PROSE_SLOTS`, ./prose.ts) resolved SERVER-side by the greeting verbs
+// against the caller's default-preset blob, then joined by `composeRewriteSteer` (@orb/kit/guided) in
+// CATALOG ORDER with the free-text instruction appended — the ONE steer string that becomes `{{input}}`
+// inside the preset's `greeting_rewrite`/`greeting_new` template. The client renders chips BLIND from this
+// data and sends the picked IDS (`RewriteGreetingParams.transforms`), never fragment text. Fragments carry
+// NO macros (`macros:"none"` on every slot: the composed steer is ZWSP-neutralized downstream as
+// `{{input}}`, so a `{{user}}` in one would render as literal braces): "the user" / "the character" are
 // spelled in plain words; the template's OWN {{char}}/{{user}} macros resolve the names.
 export const GREETING_TRANSFORM_AXES = ["perspective", "tense", "style", "gender"] as const satisfies readonly string[];
 export type GreetingTransformAxis = (typeof GREETING_TRANSFORM_AXES)[number];
 
 export interface GreetingTransform {
-  readonly id: string;
+  readonly id: GreetingTransformId;
   readonly axis: GreetingTransformAxis;
   readonly label: string;
-  /** The instruction sentence this transform contributes to the composed steer (no trailing period — the
-   *  composer joins with `. ` and terminates the whole steer, matching the source's editIntros join). */
-  readonly fragment: string;
+  /** The prose slot whose resolved text this transform contributes to the composed steer (no trailing
+   *  period — the composer joins with `. ` and terminates the whole steer, the source's editIntros join). */
+  readonly slot: ProseSlotId;
 }
+
+/** The wire vocabulary (`RewriteGreetingParams.transforms` / `GenerateGreetingParams.transforms` validate
+ *  against this). Its own tuple, for the same reason `REWRITE_TOGGLE_IDS` is one. */
+export const GREETING_TRANSFORM_IDS = [
+  "first-person-standard",
+  "first-person-by-name",
+  "first-person-as-you",
+  "second-person",
+  "third-person",
+  "past-tense",
+  "present-tense",
+  "novella-style",
+  "internet-rp-style",
+  "literary-style",
+  "script-style",
+  "he-him",
+  "she-her",
+  "they-them",
+] as const;
+/** @public id twin of `GREETING_TRANSFORMS`, the catalog the greeting studio renders. */
+export type GreetingTransformId = (typeof GREETING_TRANSFORM_IDS)[number];
 
 export const GREETING_TRANSFORMS = [
   // ── perspective ──
-  {
-    id: "first-person-standard",
-    axis: "perspective",
-    label: "First person (I/me)",
-    fragment: "Rewrite the greeting in first person, where the user is the narrator using I/me, keeping the character's references consistent",
-  },
-  {
-    id: "first-person-by-name",
-    axis: "perspective",
-    label: "First person (by name)",
-    fragment:
-      "Rewrite the greeting in first person, but refer to the user by their name instead of I/me, as if the narrator refers to themselves in the third person",
-  },
-  {
-    id: "first-person-as-you",
-    axis: "perspective",
-    label: "First person (as 'you')",
-    fragment: "Rewrite the greeting in first person, but refer to the user as 'you', creating a self-addressing perspective",
-  },
-  {
-    id: "second-person",
-    axis: "perspective",
-    label: "Second person",
-    fragment: "Rewrite the greeting in second person, addressing the user directly as 'you' and referring to the character accordingly",
-  },
-  {
-    id: "third-person",
-    axis: "perspective",
-    label: "Third person",
-    fragment:
-      "Rewrite the greeting in third person, referring to the user and the character by name and appropriate pronouns, described from an outside observer",
-  },
+  { id: "first-person-standard", axis: "perspective", label: "First person (I/me)", slot: "preset.greetingTransform.firstPersonStandard" },
+  { id: "first-person-by-name", axis: "perspective", label: "First person (by name)", slot: "preset.greetingTransform.firstPersonByName" },
+  { id: "first-person-as-you", axis: "perspective", label: "First person (as 'you')", slot: "preset.greetingTransform.firstPersonAsYou" },
+  { id: "second-person", axis: "perspective", label: "Second person", slot: "preset.greetingTransform.secondPerson" },
+  { id: "third-person", axis: "perspective", label: "Third person", slot: "preset.greetingTransform.thirdPerson" },
   // ── tense ──
-  {
-    id: "past-tense",
-    axis: "tense",
-    label: "Past tense",
-    fragment: "Rewrite the greeting entirely in the past tense, as if these events had already occurred",
-  },
-  {
-    id: "present-tense",
-    axis: "tense",
-    label: "Present tense",
-    fragment: "Rewrite the greeting in present tense, making it feel immediate and ongoing",
-  },
+  { id: "past-tense", axis: "tense", label: "Past tense", slot: "preset.greetingTransform.pastTense" },
+  { id: "present-tense", axis: "tense", label: "Present tense", slot: "preset.greetingTransform.presentTense" },
   // ── style ──
-  {
-    id: "novella-style",
-    axis: "style",
-    label: "Novella prose",
-    fragment:
-      "Change the greeting to a novella prose style: full paragraphs and proper dialogue punctuation, no asterisks for narration, keeping all links and images unchanged — a style change only, do not invent new sentences",
-  },
-  {
-    id: "internet-rp-style",
-    axis: "style",
-    label: "Internet-RP style",
-    fragment: "Change the greeting to internet-RP style: asterisks for actions and narration, dialogue kept in quotes",
-  },
-  {
-    id: "literary-style",
-    axis: "style",
-    label: "Literary style",
-    fragment: "Rewrite the greeting in a richer literary style: vivid metaphor and description while keeping proper formatting",
-  },
-  {
-    id: "script-style",
-    axis: "style",
-    label: "Script style",
-    fragment: "Rewrite the greeting in a script style: minimal narration, character names followed by dialogue lines, brief scene directions in parentheses",
-  },
+  { id: "novella-style", axis: "style", label: "Novella prose", slot: "preset.greetingTransform.novellaStyle" },
+  { id: "internet-rp-style", axis: "style", label: "Internet-RP style", slot: "preset.greetingTransform.internetRpStyle" },
+  { id: "literary-style", axis: "style", label: "Literary style", slot: "preset.greetingTransform.literaryStyle" },
+  { id: "script-style", axis: "style", label: "Script style", slot: "preset.greetingTransform.scriptStyle" },
   // ── gender ──
-  { id: "he-him", axis: "gender", label: "He/him", fragment: "Change all references to the user to use he/him pronouns" },
-  { id: "she-her", axis: "gender", label: "She/her", fragment: "Change all references to the user to use she/her pronouns" },
-  { id: "they-them", axis: "gender", label: "They/them", fragment: "Change all references to the user to use they/them pronouns" },
+  { id: "he-him", axis: "gender", label: "He/him", slot: "preset.greetingTransform.heHim" },
+  { id: "she-her", axis: "gender", label: "She/her", slot: "preset.greetingTransform.sheHer" },
+  { id: "they-them", axis: "gender", label: "They/them", slot: "preset.greetingTransform.theyThem" },
 ] as const satisfies readonly GreetingTransform[];
 
-/** @public id twin of `GREETING_TRANSFORMS`, the catalog the greeting studio renders. */
-export type GreetingTransformId = (typeof GREETING_TRANSFORMS)[number]["id"];
+/** tsc-forced exhaustiveness, both directions (the `REWRITE_TOGGLES` pin). */
+type UncataloguedGreetingTransformId = Exclude<GreetingTransformId, (typeof GREETING_TRANSFORMS)[number]["id"]>;
+const _greetingTransformsAreExhaustive: [UncataloguedGreetingTransformId] extends [never] ? true : UncataloguedGreetingTransformId = true;
+void _greetingTransformsAreExhaustive;
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Custom parameters — Layer-1 boundary guard (schema). Layer-2 runtime defense (`deepMergeRequestBody`,
@@ -902,6 +891,70 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "preset.guided.rewrite",
   },
   { id: "opening", kind: "steer", label: "Opening", fires: "A new chat's first message", caps: STEER_CAPS, defaultSlot: "preset.guided.opening" },
+  // ── THE REWRITE MODAL'S ONE-CLICK STEER VOCABULARY (the templating fork, ARM B — owner 2026-08-09) ────
+  // The seven toggle sentences the Rewrite modal joins into the correction steer. `steer` kind, and they sit
+  // under the Rewrite row they compose into: their bytes reach the model INSIDE that steer, by exactly the
+  // delivery `TEMPLATE_KIND_DELIVERY.steer` already states (a system-role steer rides the
+  // `{{guided_instruction}}` marker). A new kind would have had to restate that sentence, which is the
+  // doubling one-home forbids — the kicker "Steers" is true of these rows too.
+  // `caps: []` — a fragment is a plain sentence: no role, no depth (the Rewrite ACTION owns delivery) and no
+  // token vocabulary (`macros:"none"`; a `{{…}}` here would ship as literal braces past the neutralizer).
+  {
+    id: "preset.rewriteToggle.concise",
+    kind: "steer",
+    label: "More concise",
+    fires: 'The Rewrite modal with "More concise" picked',
+    caps: [],
+    defaultSlot: "preset.rewriteToggle.concise",
+  },
+  {
+    id: "preset.rewriteToggle.expand",
+    kind: "steer",
+    label: "Expand",
+    fires: 'The Rewrite modal with "Expand" picked',
+    caps: [],
+    defaultSlot: "preset.rewriteToggle.expand",
+  },
+  {
+    id: "preset.rewriteToggle.novella",
+    kind: "steer",
+    label: "Novella prose",
+    fires: 'The Rewrite modal with "Novella prose" picked',
+    caps: [],
+    defaultSlot: "preset.rewriteToggle.novella",
+  },
+  {
+    id: "preset.rewriteToggle.internetRp",
+    kind: "steer",
+    label: "Internet-RP style",
+    fires: 'The Rewrite modal with "Internet-RP style" picked',
+    caps: [],
+    defaultSlot: "preset.rewriteToggle.internetRp",
+  },
+  {
+    id: "preset.rewriteToggle.literary",
+    kind: "steer",
+    label: "Literary style",
+    fires: 'The Rewrite modal with "Literary style" picked',
+    caps: [],
+    defaultSlot: "preset.rewriteToggle.literary",
+  },
+  {
+    id: "preset.rewriteToggle.pastTense",
+    kind: "steer",
+    label: "Past tense",
+    fires: 'The Rewrite modal with "Past tense" picked',
+    caps: [],
+    defaultSlot: "preset.rewriteToggle.pastTense",
+  },
+  {
+    id: "preset.rewriteToggle.presentTense",
+    kind: "steer",
+    label: "Present tense",
+    fires: 'The Rewrite modal with "Present tense" picked',
+    caps: [],
+    defaultSlot: "preset.rewriteToggle.presentTense",
+  },
   {
     id: "continue",
     kind: "steer",
@@ -933,6 +986,123 @@ export const TEMPLATE_DEFS = [
     fires: "You generate a fresh greeting in the character studio",
     caps: STEER_CAPS,
     defaultSlot: "preset.guided.greetingNew",
+  },
+  // ── THE GREETING STUDIO'S ONE-CLICK STEER VOCABULARY (the same ARM B ruling) ──────────────────────────
+  // The fourteen transform sentences the studio joins into the greeting steer, across its four axes
+  // (perspective / tense / style / gender — the axis groups the CHIPS, so it lives on the catalog row, not
+  // here). `studio` kind for the same reason the toggles are `steer`: these bytes reach the model inside the
+  // `greeting_rewrite`/`greeting_new` steer, which is the delivery that kind already states. `caps: []`.
+  {
+    id: "preset.greetingTransform.firstPersonStandard",
+    kind: "studio",
+    label: "First person (I/me)",
+    fires: 'The greeting studio with "First person (I/me)" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.firstPersonStandard",
+  },
+  {
+    id: "preset.greetingTransform.firstPersonByName",
+    kind: "studio",
+    label: "First person (by name)",
+    fires: 'The greeting studio with "First person (by name)" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.firstPersonByName",
+  },
+  {
+    id: "preset.greetingTransform.firstPersonAsYou",
+    kind: "studio",
+    label: "First person (as 'you')",
+    fires: "The greeting studio with \"First person (as 'you')\" picked",
+    caps: [],
+    defaultSlot: "preset.greetingTransform.firstPersonAsYou",
+  },
+  {
+    id: "preset.greetingTransform.secondPerson",
+    kind: "studio",
+    label: "Second person",
+    fires: 'The greeting studio with "Second person" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.secondPerson",
+  },
+  {
+    id: "preset.greetingTransform.thirdPerson",
+    kind: "studio",
+    label: "Third person",
+    fires: 'The greeting studio with "Third person" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.thirdPerson",
+  },
+  {
+    id: "preset.greetingTransform.pastTense",
+    kind: "studio",
+    label: "Past tense",
+    fires: 'The greeting studio with "Past tense" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.pastTense",
+  },
+  {
+    id: "preset.greetingTransform.presentTense",
+    kind: "studio",
+    label: "Present tense",
+    fires: 'The greeting studio with "Present tense" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.presentTense",
+  },
+  {
+    id: "preset.greetingTransform.novellaStyle",
+    kind: "studio",
+    label: "Novella prose",
+    fires: 'The greeting studio with "Novella prose" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.novellaStyle",
+  },
+  {
+    id: "preset.greetingTransform.internetRpStyle",
+    kind: "studio",
+    label: "Internet-RP style",
+    fires: 'The greeting studio with "Internet-RP style" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.internetRpStyle",
+  },
+  {
+    id: "preset.greetingTransform.literaryStyle",
+    kind: "studio",
+    label: "Literary style",
+    fires: 'The greeting studio with "Literary style" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.literaryStyle",
+  },
+  {
+    id: "preset.greetingTransform.scriptStyle",
+    kind: "studio",
+    label: "Script style",
+    fires: 'The greeting studio with "Script style" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.scriptStyle",
+  },
+  {
+    id: "preset.greetingTransform.heHim",
+    kind: "studio",
+    label: "He/him",
+    fires: 'The greeting studio with "He/him" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.heHim",
+  },
+  {
+    id: "preset.greetingTransform.sheHer",
+    kind: "studio",
+    label: "She/her",
+    fires: 'The greeting studio with "She/her" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.sheHer",
+  },
+  {
+    id: "preset.greetingTransform.theyThem",
+    kind: "studio",
+    label: "They/them",
+    fires: 'The greeting studio with "They/them" picked',
+    caps: [],
+    defaultSlot: "preset.greetingTransform.theyThem",
   },
   // A `formatStrings` slot is a plain string: no role, no depth (nothing to deliver it as — the assembler
   // owns where each one lands), so its drill-in renders text-only by declaring no such capability.

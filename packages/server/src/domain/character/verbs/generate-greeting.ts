@@ -10,16 +10,16 @@ import { CharacterNotFoundError } from "../contract/errors.ts";
 import type { GenerateGreetingParams } from "../contract/params.ts";
 import type { CharacterService } from "../contract/service.ts";
 import { cardOf, loadOwnedCharacterRow } from "../persistence/queries.ts";
-import { buildGreetingPrompt } from "../substrate/greeting-studio.ts";
+import { buildGreetingPrompt, composeGreetingSteer } from "../substrate/greeting-studio.ts";
 
 export function createGenerateGreeting(ctx: CharacterContext): CharacterService["generateGreeting"] {
-  return async ({ principal, characterId, steer }: GenerateGreetingParams) => {
+  return async ({ principal, characterId, steer, transforms }: GenerateGreetingParams) => {
     const row = await loadOwnedCharacterRow(ctx.db, principal.userId, characterId);
     if (row === undefined) {
       throw new CharacterNotFoundError(characterId);
     }
-    const template = await ctx.resolveGreetingTemplate({ caller: principal, kind: "greeting_new" });
-    const prompt = buildGreetingPrompt({ card: cardOf(row), template, steer });
+    const { template, prose } = await ctx.resolveGreetingTemplate({ caller: principal, kind: "greeting_new" });
+    const prompt = buildGreetingPrompt({ card: cardOf(row), template, steer: composeGreetingSteer(transforms, steer, prose) });
     return ctx.generateGreetingText({ caller: principal, prompt });
   };
 }

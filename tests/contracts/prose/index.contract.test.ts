@@ -473,8 +473,31 @@ test('PRESET_PROSE_SLOT_IDS is every `home:"preset"` slot whose override is stor
   // frames in the tuple), the three turn-wire framings (2026-08-07), the eleven rpg game-turn teaches (the
   // 2026-08-08 re-home), the forty-one EXTRACTION-seam slots (PROSE-1 S4 + census row 27, wired by the
   // 2026-08-08 decision-6 ruling), and the seven BORN-STATE round slots (the populate census rows 1-7), in
-  // `PROSE_SLOT_IDS` tuple order.
+  // `PROSE_SLOT_IDS` tuple order. The twenty-one ONE-CLICK STEER slots lead: census 53-73, the templating
+  // fork's ARM B (owner 2026-08-09) — the Rewrite modal's seven toggle sentences and the greeting studio's
+  // fourteen transform sentences, which used to be `as const` catalog data joined in the browser.
   expect(PRESET_PROSE_SLOT_IDS).toStrictEqual([
+    "preset.rewriteToggle.concise",
+    "preset.rewriteToggle.expand",
+    "preset.rewriteToggle.novella",
+    "preset.rewriteToggle.internetRp",
+    "preset.rewriteToggle.literary",
+    "preset.rewriteToggle.pastTense",
+    "preset.rewriteToggle.presentTense",
+    "preset.greetingTransform.firstPersonStandard",
+    "preset.greetingTransform.firstPersonByName",
+    "preset.greetingTransform.firstPersonAsYou",
+    "preset.greetingTransform.secondPerson",
+    "preset.greetingTransform.thirdPerson",
+    "preset.greetingTransform.pastTense",
+    "preset.greetingTransform.presentTense",
+    "preset.greetingTransform.novellaStyle",
+    "preset.greetingTransform.internetRpStyle",
+    "preset.greetingTransform.literaryStyle",
+    "preset.greetingTransform.scriptStyle",
+    "preset.greetingTransform.heHim",
+    "preset.greetingTransform.sheHer",
+    "preset.greetingTransform.theyThem",
     "chat.group.alsoPresent",
     "chat.group.castMember",
     "chat.group.scenarioHeading",

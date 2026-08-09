@@ -42,20 +42,27 @@ test("Rewrite generates, then Accept fires the character-update mutation exactly
   await expect.poll(() => trpc.count("character.update"), { intervals: [20, 50, 100] }).toBe(1);
 });
 
-test("the composed steer rides the rewrite input (selected transform fragment + base greeting)", async ({ mount, page }) => {
+// ARM B (the templating fork, rows 53-73): the transform picks ride the wire as KINDS — the fragment BYTES
+// are resolved and joined SERVER-side from the preset's prose slots. The wire carries `transforms` (ids, in
+// catalog order) + the host's own free text, never composed template text.
+test("the transform picks ride the rewrite input as KINDS — no fragment bytes leave the browser", async ({ mount, page }) => {
   const trpc = await routeTrpc(page, {
     "character.rewriteGreeting": { text: "done", costUsd: null },
   });
   await mount(<GreetingStudioStory />);
 
+  // Flip a LATER catalog member first — the wire list is CATALOG order, not click order.
   await page.getByRole("button", { name: "Present tense", exact: true }).click();
+  await page.getByRole("button", { name: "Second person", exact: true }).click();
   await page.getByRole("button", { name: "Rewrite", exact: true }).click();
   await expect.poll(() => trpc.count("character.rewriteGreeting")).toBe(1);
 
-  // The wire input carries the base greeting + the composed steer (the present-tense fragment).
-  const input = trpc.lastInput("character.rewriteGreeting") as { greeting?: string; steer?: string };
+  const input = trpc.lastInput("character.rewriteGreeting") as { greeting?: string; steer?: string; transforms?: readonly string[] };
   expect(input.greeting).toBe("Hello there, traveller.");
-  expect(input.steer).toContain("present tense");
+  expect(input.transforms).toStrictEqual(["second-person", "present-tense"]);
+  // The free-text box was untouched, so the steer is empty — and the fragment bytes stayed server-side.
+  expect(input.steer).toBe("");
+  expect(JSON.stringify(input)).not.toContain("immediate and ongoing");
 });
 
 // ── QUOTE-1: the studio PREVIEW is chat prose, so it obeys `appearance.colorQuotedSpeech` ──────────

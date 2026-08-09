@@ -1,6 +1,8 @@
 // domain/character/substrate/greeting-studio — the pure prompt-build shared by the two greeting-studio verbs
-// (audit §3). NO I/O: it turns an owned card + the caller's editable template + the composed steer (+ the
-// optional base greeting for a rewrite) into the ONE bounded-completion prompt string.
+// (audit §3). NO I/O: it turns an owned card + the caller's editable template + the picked transform kinds +
+// the host's free text (+ the optional base greeting for a rewrite) into the ONE bounded-completion prompt
+// string. The steer COMPOSITION lives here too since the fork moved it server-side — see
+// `composeGreetingSteer`.
 //
 // Macro resolution mirrors the automation arm-render precedent (`automation/substrate/macro-render`): a
 // minimal `ProcessMacroOptions` built from the CARD (a greeting is authored against the card, not a live
@@ -10,7 +12,11 @@
 // resolve against the card so the template reads naturally.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import { resolveGuidedInstruction } from "@orb/kit/guided";
+import type { GreetingTransformId } from "@orb/contracts/preset";
+import { GREETING_TRANSFORMS } from "@orb/contracts/preset";
+import type { ProseOverrides } from "@orb/contracts/prose";
+import { resolveSteerFragments } from "@orb/contracts/prose";
+import { composeRewriteSteer, resolveGuidedInstruction } from "@orb/kit/guided";
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 
 // The user-facing name in an authoring-time greeting (no persona is bound at card-editing time — a greeting
@@ -33,6 +39,22 @@ function cardMacroOptions(card: CharacterCard): ProcessMacroOptions {
     exampleMessages: card.exampleMessages ?? undefined,
     env: {},
   };
+}
+
+/**
+ * The steer text a greeting-studio request's `{{input}}` receives: the picked transform KINDS resolved to
+ * their `preset.greetingTransform.*` prose sentences and joined — in CATALOG order — ahead of the host's own
+ * free text (the templating fork's ARM B, owner 2026-08-09). No picks ⇒ the free text VERBATIM.
+ *
+ * The join is the SAME pure `composeRewriteSteer` the browser ran before the fork, over the same fragment
+ * bytes (now the slots' shipped defaults), so an un-overridden preset composes a byte-identical steer. What
+ * changed is that a host CAN override them, and that the wire no longer carries prompt text.
+ */
+export function composeGreetingSteer(transforms: readonly GreetingTransformId[] | undefined, freeText: string, prose: ProseOverrides): string {
+  if (transforms === undefined || transforms.length === 0) {
+    return freeText;
+  }
+  return composeRewriteSteer(resolveSteerFragments(GREETING_TRANSFORMS, transforms, prose), freeText);
 }
 
 /** Resolve the final bounded-completion prompt for a greeting-studio request. `base` (the existing greeting)

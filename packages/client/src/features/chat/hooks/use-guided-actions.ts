@@ -4,7 +4,7 @@
 // impersonate. swipe/continue's tail-assistant target is resolved via a separate gated query on the
 // same listMessages key the surface already reads — one shared cache entry, not a second round-trip.
 
-import type { GuidedActionKind, GuidedImpersonatePerson } from "@orb/contracts/preset";
+import type { GuidedActionKind, GuidedImpersonatePerson, RewriteToggleId } from "@orb/contracts/preset";
 import type { GuidedGameSteerKind } from "@orb/kit/guided";
 import type { CharacterId, ChatId, MessageId, PersonaId } from "@orb/kit/ids";
 import { useState } from "react";
@@ -24,6 +24,9 @@ interface GuidedSteerInput {
   /** A P5 one-shot GAME steer KIND (the wand's Plot submenu / "Offer choices") — the server resolves the
    *  kit template by kind; `input` is ignored on this arm. */
   readonly gameSteer?: GuidedGameSteerKind | undefined;
+  /** The Rewrite modal's picked toggle KINDS (the templating fork's ARM B) — the server resolves each id's
+   *  preset prose slot and joins the sentences ahead of `input`. No fragment text crosses the wire. */
+  readonly rewriteToggles?: RewriteToggleId[] | undefined;
 }
 
 interface GuidedTurnVars {
@@ -136,8 +139,11 @@ export interface UseGuidedActionsResult {
   readonly fireGameSteer: (kind: GuidedGameSteerKind) => void;
   readonly fireSwipe: (input: string) => void;
   readonly fireContinue: (input: string) => void;
-  /** F1 — rewrite the tail assistant reply out of character (lands as a variant via `chat.swipe`). */
-  readonly fireRewrite: (input: string) => void;
+  /** F1 — rewrite the tail assistant reply out of character (lands as a variant via `chat.swipe`). `toggles`
+   *  are the Rewrite modal's picked KINDS: the wire carries the ids, the server resolves each one's preset
+   *  prose slot and joins them ahead of `input` (the templating fork's ARM B). Either half may be empty; both
+   *  empty is a no-op (that would be an unguided reroll, which Regenerate already covers). */
+  readonly fireRewrite: (input: string, toggles?: readonly RewriteToggleId[]) => void;
   /** Guided impersonate (NON-PERSISTING — owner ruling): drafts the user's next line and hands it back via
    *  `onDrafted` for the composer to FILL (the ST review flow); nothing is committed. On a DRAFT chat it first
    *  commits the room with no auto-opening (fallback: an empty chat exists even if discarded) then drafts the
@@ -375,16 +381,25 @@ export function useGuidedActions(opts: UseGuidedActionsOptions): UseGuidedAction
         perFire(input),
       );
     },
-    fireRewrite: (input): void => {
-      // Rewrite requires a steer (the correction instruction) AND a tail assistant reply to rewrite — an
-      // empty steer would be an unguided reroll, which the guided-swipe item already covers.
+    fireRewrite: (input, toggles = []): void => {
+      // Rewrite requires a steer AND a tail assistant reply to rewrite — an empty steer would be an unguided
+      // reroll, which the guided-swipe item already covers. A steer is now EITHER half: picked toggle kinds
+      // alone are a complete instruction once the server resolves them (ARM B), so `steerFor`'s text-only
+      // emptiness rule cannot decide this one.
       if (chatId === null || tailAssistantMessageId === null) {
         return;
       }
-      const guided = steerFor("rewrite", input);
-      if (guided === undefined) {
+      const trimmed = input.trim();
+      if (trimmed === "" && toggles.length === 0) {
         return;
       }
+      const guided: GuidedSteerInput = {
+        action: "rewrite",
+        ...(trimmed === "" ? {} : { input: trimmed }),
+        ...(toggles.length === 0 ? {} : { rewriteToggles: [...toggles] }),
+      };
+      // `perFire` records the TYPED text into the recovery ring — the picked kinds are chips the modal keeps
+      // (D57 state ownership), so there is nothing of them to lose or restore.
       rewrite.mutate({ chatId, messageId: tailAssistantMessageId, guided }, perFire(input));
     },
     fireImpersonate: (input, person, onDrafted): void => {

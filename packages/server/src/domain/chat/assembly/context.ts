@@ -16,11 +16,11 @@ import type {
 } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { GenerationType, PromptConfig } from "@orb/contracts/preset";
-import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS } from "@orb/contracts/preset";
+import { DEFAULT_FORMAT_STRINGS, DEFAULT_GUIDED_ACTIONS, PRESET_FORMAT_SLOT_IDS, REWRITE_TOGGLES } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
-import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contracts/prose";
+import { composeProse, legacyProseOverrides, resolveProseText, resolveSteerFragments } from "@orb/contracts/prose";
 import type { RegexScriptRow } from "@orb/contracts/regex";
-import { GUIDED_GAME_STEERS } from "@orb/kit/guided";
+import { composeRewriteSteer, GUIDED_GAME_STEERS } from "@orb/kit/guided";
 import type { CharacterId, ChatId, PersonaId, UserId, WorldEntryId } from "@orb/kit/ids";
 import type { MacroContext, MacroFreeze, MacroRegistry } from "@orb/kit/macro";
 import { globalMacroRegistry } from "@orb/kit/macro";
@@ -486,6 +486,21 @@ function guidedInjectionCandidate(resolved: string, role: ChatInjection["role"],
   };
 }
 
+/** The steer text a guided action's `{{input}}` receives: the picked Rewrite-modal toggle KINDS resolved to
+ *  their prose-slot sentences and joined ahead of the host's own free text (the templating fork, ARM B —
+ *  owner 2026-08-09). No picks ⇒ the free text VERBATIM, so every non-Rewrite fire and every plain steered
+ *  rewrite is byte-identical to the pre-fork wire.
+ *
+ *  The join is the SAME pure `composeRewriteSteer` the browser used to run — it moved seams, not semantics —
+ *  so the composed bytes for a given pick set are identical to what the client produced, minus the part that
+ *  is now a host's to edit: the fragments come from `resolveProseText`, two rungs, override-beats-default. */
+function composeSteerInput(toggles: readonly string[] | undefined, freeText: string, prose: ProseOverrides): string {
+  if (toggles === undefined || toggles.length === 0) {
+    return freeText;
+  }
+  return composeRewriteSteer(resolveSteerFragments(REWRITE_TOGGLES, toggles, prose), freeText);
+}
+
 /** Resolves the one-turn guided steer against the built base ctx: `steer.placement`, else the action
  *  config's role (system → marker; user/assistant → depth-0 injection). No steer is a no-op.
  *
@@ -495,7 +510,7 @@ function guidedInjectionCandidate(resolved: string, role: ChatInjection["role"],
  *  channel every other steer rides (the audit's convergence design) — and flips `guidedPlacedAsInjection`
  *  so the engine emits a LOUD `guided_placed_as_injection` warning (D41; the config-editor marker chip
  *  keeps warning at author time). PD-63's one-placement rule holds: still exactly one delivery. */
-function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextInput): { candidates: InjectionCandidate[] } {
+function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextInput, steerInput: string): { candidates: InjectionCandidate[] } {
   const steer = input.guided;
   if (steer === undefined) {
     return { candidates: [] };
@@ -512,7 +527,7 @@ function resolveGuidedSteer(base: AssembleContext, input: BuildAssembleContextIn
   const config = input.promptConfig.guidedActions?.[steer.action] ?? DEFAULT_GUIDED_ACTIONS[steer.action];
   const resolved = resolveGuidedActionText(base, {
     action: steer.action,
-    input: steer.input ?? "",
+    input: steerInput,
     model: input.model,
     chatId: input.chatId,
     person: steer.person,
@@ -823,6 +838,13 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     (n): n is string => typeof n === "string" && n.length > 0,
   );
 
+  // The ONE composition of this turn's steer text (ARM B): the picked Rewrite toggles resolved from the
+  // preset's prose + the host's free text. Composed HERE, before the WI convert, because BOTH consumers
+  // want the same bytes — the keyword haystack below and the guided injection further down. Pre-fork the
+  // browser sent the already-joined string and both read it off `guided.input`; keeping one value keeps that
+  // identity (a fragment that happens to match a WI keyword still wakes the entry, as it always did).
+  const guidedSteerText = input.guided === undefined ? undefined : composeSteerInput(input.guided.rewriteToggles, input.guided.input ?? "", prose);
+
   const wi = convertWorldInfo(
     pool,
     base,
@@ -840,7 +862,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       // F4: the raw steer line joins the WI keyword haystack (source `scan=true`). Available here before
       // the convert call, so no resolution-order shift — macro-resolution-before-scan is untouched (the
       // raw steer never participates in macro resolution for scanning).
-      guidedSteerText: input.guided?.input,
+      guidedSteerText,
       names,
       lastUserMessage: input.lastUserMessage,
       hasBeforeAnchor: hasMarker(input.promptConfig, "world_info_before"),
@@ -850,7 +872,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
     buildTurnMacroContext({ assembleCtx: base, model: input.model, chatId: input.chatId, registry: input.macroRegistry }),
   );
 
-  const guided = resolveGuidedSteer(base, input);
+  const guided = resolveGuidedSteer(base, input, guidedSteerText ?? "");
 
   const userCandidates: InjectionCandidate[] = input.userInjections.map((injection, idx) => ({
     injection,

@@ -126,7 +126,9 @@ test("neutralizeMacros leaves brace-free text unchanged", () => {
   expect(neutralizeMacros(plain)).toBe(plain);
 });
 
-// --- composeRewriteSteer: the Rewrite modal's toggle-fragments + free-text → ONE steer string ---
+// --- composeRewriteSteer: the resolved toggle-fragments + free-text → ONE steer string ---
+// PURE and unchanged by the templating fork (ARM B moved the CALLER from the browser to the two server
+// seams, and the fragments from `as const` data to preset prose slots — the join itself never moved).
 
 test("composeRewriteSteer joins fragments in given order, then appends the free text, terminated once", () => {
   const out = composeRewriteSteer(["Make it more concise", "Rewrite entirely in the past tense"], "drop the anachronism");

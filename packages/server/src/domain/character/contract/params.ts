@@ -5,6 +5,7 @@
 import type { CharacterListCursor, CharacterListSort, CreateCharacterInput, UpdateCharacterInput } from "@orb/contracts/character";
 
 import type { Principal } from "@orb/contracts/identity";
+import type { GreetingTransformId } from "@orb/contracts/preset";
 import type { CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, UserId } from "@orb/kit/ids";
 
 export type { CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
@@ -94,24 +95,30 @@ export interface GetCardParams extends CharacterActorParams {
 }
 
 /** Greeting studio (audit §3) — the guided-action machinery pointed at a BASE greeting, owner-gated. Both
- *  verbs RETURN text and NEVER write; the client appends the accepted result via `character.update`. The
- *  transform ids + free-text are already composed into ONE `steer` string client-side (`composeRewriteSteer`
- *  over `GREETING_TRANSFORMS`), which becomes `{{input}}` inside the resolved preset template. `greeting` is
- *  the current greeting TEXT for a rewrite (the `{{base}}` token); a new-greeting request omits it. The
- *  editable template comes from the caller's preset `guidedActions` (resolved at compose via the injected op).
- */
+ *  verbs RETURN text and NEVER write; the client appends the accepted result via `character.update`.
+ *
+ *  The steer is composed HERE, not in the browser (the templating fork's ARM B — owner 2026-08-09): the wire
+ *  carries the picked transform KINDS plus the host's own free text, and the verb resolves each kind's
+ *  `preset.greetingTransform.*` prose slot against the caller's preset overrides before joining them with
+ *  `composeRewriteSteer` — the ONE steer that becomes `{{input}}` inside the resolved preset template.
+ *  `greeting` is the current greeting TEXT for a rewrite (the `{{base}}` token); a new-greeting request omits
+ *  it. Template + prose both come from the caller's preset (resolved at compose via the injected op). */
 export interface RewriteGreetingParams extends CharacterActorParams {
   readonly characterId: CharacterId;
   /** The existing greeting text to rewrite (the `{{base}}` token). */
   readonly greeting: string;
-  /** The composed steer (transform fragments + free-text, joined) → the template's `{{input}}`. May be empty. */
+  /** The host's own free-text instruction — appended AFTER the resolved transform fragments. May be empty. */
   readonly steer: string;
+  /** The picked transform KINDS (`GREETING_TRANSFORMS` ids). Absent/empty ⇒ the free text alone. */
+  readonly transforms?: readonly GreetingTransformId[];
 }
 
 export interface GenerateGreetingParams extends CharacterActorParams {
   readonly characterId: CharacterId;
-  /** The composed steer (transform fragments + free-text, joined) → the template's `{{input}}`. May be empty. */
+  /** The host's own free-text instruction — appended AFTER the resolved transform fragments. May be empty. */
   readonly steer: string;
+  /** The picked transform KINDS (`GREETING_TRANSFORMS` ids). Absent/empty ⇒ the free text alone. */
+  readonly transforms?: readonly GreetingTransformId[];
 }
 
 /** Synthetic group-character mint/find (chat-injected, internal); owns the `__group__${chatId}` handle namespace. */

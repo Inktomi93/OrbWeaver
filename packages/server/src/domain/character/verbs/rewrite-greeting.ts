@@ -9,18 +9,18 @@ import { CharacterNotFoundError } from "../contract/errors.ts";
 import type { RewriteGreetingParams } from "../contract/params.ts";
 import type { CharacterService } from "../contract/service.ts";
 import { cardOf, loadOwnedCharacterRow } from "../persistence/queries.ts";
-import { buildGreetingPrompt } from "../substrate/greeting-studio.ts";
+import { buildGreetingPrompt, composeGreetingSteer } from "../substrate/greeting-studio.ts";
 
 export function createRewriteGreeting(ctx: CharacterContext): CharacterService["rewriteGreeting"] {
-  return async ({ principal, characterId, greeting, steer }: RewriteGreetingParams) => {
+  return async ({ principal, characterId, greeting, steer, transforms }: RewriteGreetingParams) => {
     // OWNER GATE FIRST — a non-owner (or missing) row collapses to a leak-free NOT_FOUND before any preset
     // read or LLM spend (the cross-tenant sweep's owner-gate probe path).
     const row = await loadOwnedCharacterRow(ctx.db, principal.userId, characterId);
     if (row === undefined) {
       throw new CharacterNotFoundError(characterId);
     }
-    const template = await ctx.resolveGreetingTemplate({ caller: principal, kind: "greeting_rewrite" });
-    const prompt = buildGreetingPrompt({ card: cardOf(row), template, steer, base: greeting });
+    const { template, prose } = await ctx.resolveGreetingTemplate({ caller: principal, kind: "greeting_rewrite" });
+    const prompt = buildGreetingPrompt({ card: cardOf(row), template, steer: composeGreetingSteer(transforms, steer, prose), base: greeting });
     return ctx.generateGreetingText({ caller: principal, prompt });
   };
 }

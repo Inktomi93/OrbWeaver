@@ -116,6 +116,13 @@ function inputOf(chatId: ChatId, ownerId: UserId, castIds: CharacterId[], over: 
   };
 }
 
+/** The two `preset.rewriteToggle.*` shipped defaults the ARM B parity proofs quote — the EXACT bytes the
+ *  browser used to join before the templating fork moved the composition server-side (owner 2026-08-09).
+ *  Spelled as literals, never read from the catalog: a proof that sources its expectation from the thing
+ *  under test cannot catch the thing changing. */
+const PARITY_CONCISE = "Make it more concise and tighter — cut filler while keeping the substance";
+const PARITY_PAST = "Rewrite entirely in the past tense";
+
 /** A fully-defaulted host-tier `RegexScript` (via the parse seam) for the given placement. */
 function regexScript(label: string, find: string, replace: string, placement: "USER_INPUT" | "WORLD_INFO"): RegexScriptRow {
   return regexScriptSchema.parse({
@@ -871,6 +878,69 @@ describe("buildAssembleContext — guided steering (chat.md §6, PD-63)", () => 
     // Neither arm fires: no `{{guided_instruction}}` value and no depth-0 guided injection.
     expect(out.guidedInstruction).toBeUndefined();
     expect(out.chatInjections?.some((i) => i.content.includes("special consideration"))).toBe(false);
+  });
+
+  // ── ARM B: the Rewrite modal's toggle KINDS compose SERVER-side (the templating fork, owner 2026-08-09) ──
+  // The client used to join `REWRITE_TOGGLES[].fragment` in the browser and ship the composed string. It now
+  // ships the picked ids; assembly resolves each id's `preset.rewriteToggle.*` slot against the turn's prose
+  // and runs the SAME pure join. These three pin the whole property set: BYTE PARITY with what the browser
+  // used to send, CATALOG order regardless of wire order, and a host override actually reaching the model.
+  test("ARM B byte parity: server-composed toggle bytes equal the old client-composed steer, in CATALOG order", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      // WIRE ORDER is reversed on purpose — the composed order is the CATALOG's.
+      guided: { action: "rewrite", input: "keep the plot beats", rewriteToggles: ["past-tense", "concise"] },
+    });
+    // The exact string `composeRewriteSteer` produced in the browser pre-fork, now spliced as the rewrite
+    // template's `{{input}}` (system role ⇒ the marker value). The DOUBLE period after the free text is
+    // byte-parity, not a defect: the composer terminates the steer and the template's own `{{input}}.`
+    // follows it — the same two characters the pre-fork wire produced.
+    expect(out.guidedInstruction).toBe(
+      `[OOC: Answer me out of character. Don't continue the RP. Instead, rewrite Aria's last response to reflect the following: ${PARITY_CONCISE}. ${PARITY_PAST}. keep the plot beats.. Don't make any other changes besides this.]`,
+    );
+  });
+
+  test("ARM B: toggles alone (no typed text) compose a complete steer; no toggles is byte-identical to a plain steer", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    const togglesOnly = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      guided: { action: "rewrite", rewriteToggles: ["concise"] },
+    });
+    expect(togglesOnly.guidedInstruction).toContain(`${PARITY_CONCISE}.`);
+
+    // The un-toggled path is the pre-fork path, unchanged: the free text rides verbatim.
+    const plain = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId]),
+      guided: { action: "rewrite", input: "keep the plot beats" },
+    });
+    expect(plain.guidedInstruction).toContain("following: keep the plot beats.");
+    expect(plain.guidedInstruction).not.toContain("concise");
+  });
+
+  test("ARM B: a preset's prose OVERRIDE of a toggle slot reaches the model — which is the point of slotting them", async () => {
+    const host = await seedUser(db, castId<Handle>("host"));
+    const chatId = await seedChat(db, "a");
+    const charId = await seedCharacter(db, host, "aria");
+    const ctx = ctxWithCard(cardOf("Aria"));
+    // Parsed from an untyped literal so this tier also compiles against the pre-fork source (where the wire
+    // has no `rewriteToggles` and the slot does not exist) — there it fails on the BYTES, not on types.
+    const promptConfig = promptConfigSchema.parse({
+      ...DEFAULT_PROMPT_CONFIG,
+      prose: { "preset.rewriteToggle.concise": { text: "Cut it to the bone", baseVersion: 1 } },
+    });
+    const out = await buildAssembleContext(ctx, {
+      ...inputOf(chatId, host, [charId], { promptConfig }),
+      guided: { action: "rewrite", rewriteToggles: ["concise"] },
+    });
+    expect(out.guidedInstruction).toContain("Cut it to the bone.");
+    expect(out.guidedInstruction).not.toContain(PARITY_CONCISE);
   });
 
   test("F2: a standalone action (impersonate) with a BLANK steer STILL fires unsteered", async () => {

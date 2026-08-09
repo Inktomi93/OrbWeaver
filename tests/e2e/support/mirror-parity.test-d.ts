@@ -317,7 +317,9 @@ test("GroupConfigView mirrors BOTH GroupConfig arms (the narrator arm omits `car
 });
 
 test("the SEND-side inputs mirror their contract shapes (optionality-normalized — the mirror declares what a spec always passes)", () => {
-  pin<Subset<"placement" | "person" | "gameSteer">>(keys<GuidedSteerInput, GuidedSteer>());
+  // `rewriteToggles` (the templating fork's ARM B) is deliberately unmirrored: the e2e harness fires steers
+  // by TEXT, and the toggle picks are a modal affordance the CT lane proves at the wire.
+  pin<Subset<"placement" | "person" | "gameSteer" | "rewriteToggles">>(keys<GuidedSteerInput, GuidedSteer>());
   expectTypeOf<Total<GuidedSteer>>().toExtend<Total<GuidedSteerInput>>();
   pin<Subset<"verbatimTail">>(keys<CompactionIntent, NonNullable<UserIntent["compaction"]>>());
   expectTypeOf<Total<NonNullable<UserIntent["compaction"]>>>().toExtend<Total<CompactionIntent>>();
