@@ -10,15 +10,18 @@
 // The two studio verbs (`character.rewriteGreeting`/`character.generateGreeting`) RETURN text and NEVER
 // write — on Accept the component calls `onAccept(text)`, and the MOUNT owns persistence: the editor appends
 // via `form.pushFieldValue("greetings", …)` (autosaves through character.update), the draft row appends via
-// the character.update mutation. The composed steer (selected transform fragments joined + free-text) is
-// built by `composeRewriteSteer` (kit) over the catalog — the exact editIntros join the source uses.
+// the character.update mutation.
 //
 // Both generations are `busDriven` (the verbs emit no bus event and touch no cache — the returned text is
 // displayed, not cached), so no invalidation is wired.
+//
+// FORK NOTE (ARM B, owner 2026-08-09): the steer is no longer composed here. The chips' fragment bytes are
+// `preset.greetingTransform.*` prose slots a host can edit in the preset Templates tab, so the studio sends
+// the picked KINDS + the free text and the greeting verbs resolve+join them against the caller's preset.
+// This component therefore never needs a preset blob — which is exactly why arm B beat arm A.
 
-import type { GreetingTransformAxis } from "@orb/contracts/preset";
+import type { GreetingTransformAxis, GreetingTransformId } from "@orb/contracts/preset";
 import { GREETING_TRANSFORM_AXES, GREETING_TRANSFORMS } from "@orb/contracts/preset";
-import { composeRewriteSteer } from "@orb/kit/guided";
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Check, Icon, Sparkles, WandSparkles, X } from "@orb/ui/icons";
@@ -37,7 +40,7 @@ import { createEntityMutation, useColorQuotedSpeech, useInvalidation, useTRPC } 
 
 /** The rewrite generation — returns the revised greeting text (no cache/bus effect; the result is previewed). */
 const useRewriteGreetingMutation = createEntityMutation<
-  { characterId: CharacterId; greeting: string; steer: string },
+  { characterId: CharacterId; greeting: string; steer: string; transforms?: GreetingTransformId[] | undefined },
   inferOutput<Trpc["character"]["rewriteGreeting"]>
 >({
   options: (trpc) => trpc.character.rewriteGreeting.mutationOptions(),
@@ -46,7 +49,10 @@ const useRewriteGreetingMutation = createEntityMutation<
 });
 
 /** The new-greeting generation — returns a fresh greeting text (no cache/bus effect; the result is previewed). */
-const useGenerateGreetingMutation = createEntityMutation<{ characterId: CharacterId; steer: string }, inferOutput<Trpc["character"]["generateGreeting"]>>({
+const useGenerateGreetingMutation = createEntityMutation<
+  { characterId: CharacterId; steer: string; transforms?: GreetingTransformId[] | undefined },
+  inferOutput<Trpc["character"]["generateGreeting"]>
+>({
   options: (trpc) => trpc.character.generateGreeting.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't generate the greeting.",
@@ -92,20 +98,20 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
   const generate = useGenerateGreetingMutation({ trpc, invalidation });
   const isPending = rewrite.isPending || generate.isPending;
 
-  // The composed steer: the selected transforms' fragments (in CATALOG ORDER — filter preserves it) joined,
-  // then the free-text instruction appended — the exact editIntros layering (`composeRewriteSteer`, kit).
-  const composeSteer = (): string => {
-    const fragments = GREETING_TRANSFORMS.filter((t) => selected.includes(t.id)).map((t) => t.fragment);
-    return composeRewriteSteer(fragments, instruction);
-  };
+  // The picked transform KINDS in CATALOG ORDER (filter preserves it) — the server resolves each one's
+  // prose slot and joins the sentences with the free text (ARM B); no fragment bytes are composed here.
+  const pickedTransforms = (): GreetingTransformId[] => GREETING_TRANSFORMS.filter((t) => selected.includes(t.id)).map((t) => t.id);
 
   const canRewrite = baseGreeting.trim().length > 0;
 
   const onRewrite = (): void => {
-    rewrite.mutate({ characterId, greeting: baseGreeting, steer: composeSteer() }, { onSuccess: (result): void => setPreview(result.text) });
+    rewrite.mutate(
+      { characterId, greeting: baseGreeting, steer: instruction, transforms: pickedTransforms() },
+      { onSuccess: (result): void => setPreview(result.text) },
+    );
   };
   const onGenerate = (): void => {
-    generate.mutate({ characterId, steer: composeSteer() }, { onSuccess: (result): void => setPreview(result.text) });
+    generate.mutate({ characterId, steer: instruction, transforms: pickedTransforms() }, { onSuccess: (result): void => setPreview(result.text) });
   };
 
   if (preview !== null) {
