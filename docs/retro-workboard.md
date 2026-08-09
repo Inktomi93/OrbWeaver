@@ -135,15 +135,25 @@ consumer-adding train). :5173 fresh (pgid 1232985). **ALL owner forks RULED** (t
 above) — nothing is deferred; the board below is a burn-down, not a queue. Full pre-rewrite board:
 [`history/retro-workboard-2026-08-09.md`](history/retro-workboard-2026-08-09.md).
 
-**AFTERNOON merges since MIDDAY (main now `6a319267c`, all hook-gated, origin UNPUSHED — 30+ ahead):**
+**AFTERNOON merges (main now `56391328d`, all hook-gated, origin UNPUSHED — 35+ ahead):**
 #48 smalls `a6133ffe4` · #50 barrels `02f0a91a0` · #54 apisurface `ef931ad45` · #45 chat-list `c33833d58`
 (pre-re-import gate CLEARED) · #53 OIDC cohesion `bd8c64f6d` · #57 regex bulk-placement `dd37bc8dd` ·
 #41 transpiler-premise-refuted (doc) `8e0e90cde` · #58 anti-rot gate `662cb49d4` (bare-@public-on-UNUSED
-now REDS; 47 adjudicated) · #59 macro-DoS `6a319267c` (O(n²)→O(n) parser [100KB 4386ms→4.7ms] + 2MB engine belt + client DISPLAY ReDoS pre-filter). **IN FLIGHT (2):** auth-entry build (B5 link + first-run-all-modes + unified login) · #60 refinery
-narrow-container polish (#39 side-eye close). **QUEUED:** #61 ResponseFormat brand via codemod-kit (the #41 enforcement,
-now viable — 2026-08-03 60-file brand-campaign precedent) · #46 pagination gate (UNBLOCKED, #58 gate-infra
-merged) + a ResponseFormat-provenance gate (batch) · #43 code-split (after auth) · #39 custom-schema e2e
-(needs fleet). **OWNER:** push (mine on your word, fresh battery first) · re-import (unblocked) · B5-vs-operator-contract decision.
+now REDS; 47 adjudicated) · #59 macro-DoS `6a319267c` (O(n²)→O(n) parser [100KB 4386ms→4.7ms] + 2MB belt +
+client DISPLAY ReDoS pre-filter) · #60 refinery narrow-container polish `cd6cf5e20` (#39 side-eye GRADUATED
+— holds at 3-pane+mobile, roster a11y) · **auth-entry `56391328d`** (the whole OpenWebUI-study auth arc:
+B5 admin link-SSO [one bind-once site] + B4 local first-run + A7/A8/A9 + unified mode-aware login all 4
+modes + MS-W1 collision hard-deny). **IN FLIGHT (1):** forge login/loading MOCK + FAVICON/LOGO pack (#63 —
+animated spider-web-weave loader, ST-iconic beat, one mode-aware surface; owner "make it fuck / branding is
+awful"; orchestrator publishes as artifacts for taste). **LOGIN-MOCK RULINGS:** plain username+password (NO
+advertise-usernames picker — don't have/want it) · pre-session so default/brand theme + OS light-dark only
+(no login theme-picker). **QUEUED:** #61 ResponseFormat brand (codemod-kit, 60-file precedent) · GATES/PROBES
+batch [#46 pagination gate (UNBLOCKED) + ResponseFormat-provenance gate + #62 all-white-theme probe +
+no-color-literals tighten] · #43 code-split · #39 custom-schema e2e (needs fleet) · #52 demo-v4 (parked).
+**OWNER:** push (mine on your word, fresh battery first) · re-import (unblocked). **AUTH human-review notes
+(non-blocking):** agent-target link guard is dead-code today (USER_KINDS=["human"]; DB `users_agent_shape`
+CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/config fixture was missing
+`trustHtml` (from #48's DRAFT-TRUST wire) — aligned.
 
 **RECORDED (findings + owner design intent, so it isn't lost — full write-up in docs/design/config-ia-the-junk-drawer-problem.md §9):** templates check — D132 DONE (prose/prompt-assembly templates live ONLY in PRESETS); the "templates in Settings" the owner remembered are the IMAGERY templates (image-gen prompt config, chat-feature contribution rendered in the settings host — settings/index.ts:668 + features/chat/components/imagery-templates-section.tsx), a DIFFERENT concept, NOT a D132 leftover. Owner: imagery = functional-but-ugly, Presets Templates section unwieldy-but-functional — both FINE for now. **Config panel revamp is COMING (owner intent, not a lane):** relocations are cheap because most surfaces are REGISTRY-BASED (settings sections / home tiles / workloads-tuning are contributions) — add/remove/relocate = a registry edit at the door, not surgery. The optional taste fix (rename imagery "templates" so the word means one thing) rides that revamp.
 
