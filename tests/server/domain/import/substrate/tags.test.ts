@@ -50,4 +50,18 @@ describe("parseStTags", () => {
     });
     expect(byEntityKey.has("b.png")).toBe(false);
   });
+
+  // Old ST profiles store NUMERIC tag ids. A string-only read resolved ZERO tags for the whole profile
+  // (verifier finding — a silent whole-feature no-op, not a per-tag drop), so numbers coerce on both sides.
+  test("numeric ids resolve (old ST profiles) — on the tag, the map, and mixed", () => {
+    const { byEntityKey } = parseStTags({
+      tags: [
+        { id: 10, name: "Fantasy" }, // numeric tag id
+        { id: "20", name: "Romance" },
+      ],
+      tag_map: { "c.png": [10, "20"], "d.png": ["10"] }, // numeric + string map ids cross-resolve
+    });
+    expect(byEntityKey.get("c.png")).toEqual(["Fantasy", "Romance"]);
+    expect(byEntityKey.get("d.png")).toEqual(["Fantasy"]);
+  });
 });

@@ -152,6 +152,16 @@ describe("parseEngineCapacity / capacityWarnings — contention + KV headroom (#
     expect(m.maxConcurrency ?? 0).toBeCloseTo(7.52, 2);
   });
 
+  // The live line's decoys are all non-numeric ("True"/"None"/"False"), which Number() rejects — so the test
+  // above passes even under a substring-matching read (verifier planted that exact mutant: green). A NUMERIC
+  // decoy sorted before `block_size` is what actually discriminates exact-label from substring matching:
+  // a `.includes("block_size")` read takes 512 here and reports 240.5x instead of 7.52x.
+  test("a NUMERIC decoy label does not poison the denominator (kills the substring-match mutant)", () => {
+    const numericDecoy = 'vllm:cache_config_info{_block_size_resolved="1024",block_size="16",engine="0",mamba_block_size="512",num_gpu_blocks="15393"} 1.0';
+    const m = parseEngineCapacity(numericDecoy, "gen");
+    expect(m.maxConcurrency ?? 0).toBeCloseTo(7.52, 2);
+  });
+
   test("absent cache_config_info → UNKNOWN headroom (null), never a passing zero", () => {
     const m = parseEngineCapacity('vllm:num_requests_running{engine="0"} 0.0', "gen");
     expect(m.maxConcurrency).toBeNull();
