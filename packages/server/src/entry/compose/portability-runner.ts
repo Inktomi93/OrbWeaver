@@ -32,6 +32,7 @@ import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { stageDirectory } from "#infra/storage";
+import { publishChatChanged, publishUserEvent } from "../../transport/trpc/index.ts";
 import { writeImportReport } from "../import/import-report.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import {
@@ -202,6 +203,14 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
       return { imported: report.imported, skipped: report.skipped, failed: report.failed };
     },
     reconcileImportStats,
+    // #23: the terminal "your library changed" fan for a background import. `chatsChanged` (chatId absent)
+    // already drives BOTH the chat list AND `character.list` in the client's user-bus map; `charactersChanged`
+    // is emitted too so a characters-only import (no chats) still refreshes. The always-on client user-bus
+    // receives these regardless of whether the import UI is still mounted — the gap a background import left.
+    emitLibraryChanged: ({ ownerId }) => {
+      publishUserEvent(ownerId, { type: "charactersChanged" });
+      publishChatChanged(ownerId, undefined);
+    },
   };
 
   return { portability, importWorkloads };

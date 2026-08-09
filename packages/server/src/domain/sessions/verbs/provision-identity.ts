@@ -4,8 +4,15 @@ import { newId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ProvisionResult } from "../contract/results.ts";
 import type { SessionsContext, SessionsService } from "../contract/service.ts";
-import { insertUser, selectForProvisionByExternalId, selectForProvisionByHandle, selectOwnerUserId, updateUser } from "../persistence/users.ts";
-import { deriveIdentityAccess, reDeriveRoleOnLogin } from "../substrate/role-policy.ts";
+import {
+  insertUser,
+  selectForProvisionByExternalId,
+  selectForProvisionByHandle,
+  selectForProvisionById,
+  selectOwnerUserId,
+  updateUser,
+} from "../persistence/users.ts";
+import { deriveIdentityAccess, isOwnerByPolicy, reDeriveRoleOnLogin } from "../substrate/role-policy.ts";
 
 // The SSO seam upsert. Keys on the stable `externalId` first (a username rename updates `handle` on the
 // same row), falling back to `handle`. The access-gate policy gates login and derives the global role. A
@@ -13,6 +20,11 @@ import { deriveIdentityAccess, reDeriveRoleOnLogin } from "../substrate/role-pol
 // on update it re-derives when group governance is active — except the owner, whose role is never
 // re-derived and who is never denied. `email` refreshes from the claim when carried (keep-on-null);
 // `enabled` is never reset on update. Race-tolerant insert + re-read absorbs a concurrent first-login loser.
+//
+// OWNER-FLIP RECONCILIATION (#8): an owner-by-policy OIDC login whose subject/handle does NOT resolve to the
+// existing seeded (single-user/local) owner row binds ONTO that row (`bindOwnerSubject`) rather than minting
+// a second row the singleton then downgrades to `user`. This is what lets the owner flip single-user → OIDC
+// without db surgery; see the guarded branch below for the exact adoptability conditions.
 
 // The matched-row shape, derived from the persistence query. File-local.
 type ExistingUser = NonNullable<Awaited<ReturnType<typeof selectForProvisionByHandle>>>;
@@ -94,6 +106,55 @@ async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resol
   };
 }
 
+/**
+ * OWNER-FLIP RECONCILIATION (#8, D17/D135). An owner-by-policy SSO identity whose stable subject did not
+ * resolve to the owner row ADOPTS the existing UNBOUND owner row — the single-user/local seeded (or
+ * owner-fallback-created) owner, whose `externalId` is still null — instead of minting a SECOND row that
+ * `reconcileOwnerSingleton` would downgrade to `user`, stranding the owner's whole library under an
+ * un-loginable row (the owner's daily dogfood pain: a mode flip → OIDC sign-in collides with the seeded
+ * owner). Returns the bound `ProvisionResult`, or `null` when this login is NOT such an adoption (the caller
+ * falls through to the normal write). Owner-by-policy is asked through `isOwnerByPolicy` — the role-policy
+ * home — never a `role === "owner"` lattice compare. Guarded so it can never steal a bound identity or crash
+ * on the UNIQUE `external_id`: it needs a subject to bind, an UNBOUND owner to bind onto, and a subject that
+ * does not already live on another row (`existing` matched by externalId ⇒ normal update, not adoption).
+ */
+async function tryAdoptUnboundOwner(
+  ctx: SessionsContext,
+  identity: ResolvedIdentity,
+  existing: ExistingUser | undefined,
+  ownerId: UserId | undefined,
+): Promise<ProvisionResult | null> {
+  if (identity.externalId === null || ownerId === undefined || !isOwnerByPolicy(identity.handle, identity.groups)) {
+    return null;
+  }
+  if (existing !== undefined && existing.externalId === identity.externalId) {
+    return null;
+  }
+  const owner = await selectForProvisionById(ctx.db, ownerId);
+  if (owner === undefined || owner.externalId !== null) {
+    return null;
+  }
+  return await bindOwnerSubject(ctx, owner, identity, identity.externalId);
+}
+
+/** Bind an OIDC subject onto the existing UNBOUND owner row (owner-flip reconciliation, #8/D17/D135). Links
+ *  the stable `externalId` (+ refreshes email) and keeps `role=owner`; the owner's HANDLE is deliberately
+ *  left as seeded — it is the `OWNER_HANDLES` key the boot owner-seed and the owner-fallback both resolve on,
+ *  so keeping it makes `externalId` the durable OIDC key while re-seed / mode-flip stay idempotent (no
+ *  duplicate owner row, no db surgery). The caller has already guaranteed `externalId !== null`. */
+async function bindOwnerSubject(ctx: SessionsContext, owner: ExistingUser, identity: ResolvedIdentity, externalId: ExternalId): Promise<ProvisionResult> {
+  const patch: { externalId: ExternalId; email?: string; updatedAt: number } = { externalId, updatedAt: ctx.now() };
+  if (identity.email !== null && owner.email !== identity.email) {
+    patch.email = identity.email;
+  }
+  await updateUser(ctx.db, owner.id, patch);
+  getLog().info(
+    { handle: identity.handle, externalId, ownerId: owner.id },
+    "user: bound OIDC subject to the existing owner row (owner-flip reconciliation, D17)",
+  );
+  return { outcome: "provisioned", userId: owner.id, enabled: owner.enabled, role: "owner" };
+}
+
 /** The box has exactly one owner. When the owner policy would mint a second owner, downgrade to `user`
  *  (warned) so the write never surfaces as a raw unique violation. A re-login of the same owner row keeps
  *  `owner`. */
@@ -134,6 +195,13 @@ export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsServ
       );
       return { outcome: "denied" };
     }
+    // OWNER-FLIP RECONCILIATION (#8): bind an owner-by-policy login onto the existing unbound seeded owner row
+    // rather than minting a second row the singleton downgrades to `user` (see `tryAdoptUnboundOwner`).
+    const adopted = await tryAdoptUnboundOwner(ctx, identity, existing, ownerId);
+    if (adopted !== null) {
+      return adopted;
+    }
+
     // Reconcile a policy-matched second owner against the singleton (downgrade to `user`) before writing.
     const resolvedRole = reconcileOwnerSingleton(access.role, ownerId, existing, identity);
     return existing !== undefined
