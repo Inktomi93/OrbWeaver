@@ -8,6 +8,15 @@
 import { isPlainObject } from "@orb/kit/guards";
 import type { ParsedStTags } from "../contract/views.ts";
 
+// Ids coerce numbers too: old ST profiles stored numeric tag ids, and a string-only read would silently
+// resolve ZERO tags for the whole profile (verifier finding — a whole-feature no-op, not a per-tag drop).
+function idStr(v: unknown): string {
+  if (typeof v === "string") {
+    return v;
+  }
+  return typeof v === "number" && Number.isFinite(v) ? String(v) : "";
+}
+
 function str(v: unknown): string {
   return typeof v === "string" ? v : "";
 }
@@ -22,7 +31,7 @@ function tagNamesById(raw: unknown): Map<string, string> {
     if (!isPlainObject(entry)) {
       continue;
     }
-    const id = str(entry["id"]).trim();
+    const id = idStr(entry["id"]).trim();
     const name = str(entry["name"]).trim();
     if (id.length === 0 || name.length === 0) {
       continue;
@@ -52,7 +61,7 @@ export function parseStTags(settingsRaw: unknown): ParsedStTags {
     // Preserve tag order, drop unknown/blank ids, and de-dupe (ST can list a tag twice).
     const names: string[] = [];
     for (const rawId of rawIds) {
-      const name = namesById.get(str(rawId).trim());
+      const name = namesById.get(idStr(rawId).trim());
       if (name !== undefined && !names.includes(name)) {
         names.push(name);
       }
