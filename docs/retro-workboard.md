@@ -176,10 +176,18 @@ redesign re-verify). Fix-all-findings loop per side-eye law; smalls batch folds 
 one-word flake fix.
 **PHASE 4 — remainders:** #35 corpus-stage settle investigation (instrument gap) · board truth-up +
 memory flush at each milestone.
-**MORNING OWNER QUEUE (blocking-question class, parked for Nate):** R3 taste pass + the
-`refinery.schemaForge.system` slot draft sign-off · re-import GO (post-push, on the fixed pipeline) ·
-standing decision pile (RV-13 spec go · chars+chats rail merge · home-tile WHETHER · trust-gated card
-images · DRAFT-TRUST seam · token-unification offer · taste pile).
+**MORNING OWNER QUEUE (blocking-question class, parked for Nate):** (1) the morning `git push`
+(origin lags local by the overnight merges; one command, pre-authorized posture). (2) R3 taste pass —
+with the polish applied + gif receipts to watch. (3) PROSE SIGN-OFFS, owner-sacred, shipped as
+drafts-for-sign/veto: the `refinery.schemaForge.system` slot (being REWRITTEN by #36 to the design
+task per the structured-output veto — review the v-next text) AND `refinery.rewrite.system` +
+`refinery.refine.system` v2→v3 (R4 added ONE bullet each teaching the greeting-append arm — without
+it the arm is only reachable via manual rewrite). (4) re-import GO — note the dev db RE-MINTS on next
+boot (R4's WORKLOAD_KINDS addition regenerated the baseline; harmless, the re-import repopulates).
+(5) standing decision pile (RV-13 spec go · chars+chats rail merge · home-tile WHETHER · DRAFT-TRUST
+seam · taste pile). ALSO: strike the REGPAR owables row (#38 lane proved REGX2 shipped F3/F5/JSON-door
+08-07, F4 owner-refused — the row was an archive snapshot; residuals [bulk-placement kit lift, F6
+reasoning nit] stay parked where the board already has them).
 
 - **✅ SITTING FULLY DRAINED (late 08-08): all 3 freeze-era lanes LANDED + merged — nothing to
   resurrect.** Final merges: forge R3 `5727fcb12` (crown on main; the `refinery.schemaForge.system`
