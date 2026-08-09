@@ -65,7 +65,7 @@ export {
 export { logClock } from "./log-clock.ts";
 export { messageBubbleClass } from "./message-bubble-class.ts";
 export type { MessageRenderContext } from "./message-render.ts";
-export { renderMessageForDisplay } from "./message-render.ts";
+export { isDisplayRegexTooComplex, renderMessageForDisplay } from "./message-render.ts";
 export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.ts";
 export type { Notify, NotifyAction, NotifyInput, NotifyNotice } from "./notify.ts";
 export { bindNotify, notify, toNotice } from "./notify.ts";
