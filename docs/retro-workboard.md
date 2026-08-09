@@ -150,50 +150,81 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   zone gap → fix lane) · side-eye batch pass: C6 submenu GRADUATED clean; findings (turn-director model
   text, Corpus first-run redesign, Delete aria, flash ring, + P2/P3 pile) ALL in a fix lane per the
   side-eye-authority rule.
-## ═══ LIVE STATE (2026-08-09 LATE-MORNING — supersedes the mid-morning snapshot; overnight plan below is history) ═══
+## ═══ LIVE STATE (2026-08-09 MIDDAY — ALL LANES DRAINED; supersedes late-morning) ═══
 
-**Main `3eef8bdef`. Tree CLEAN, origin UNPUSHED (owner pushes himself). `tests:node` battery is GREEN
-again** (the X-16 `updatedAt` fixture red — 28 fails across 10 sites — swept + card-serde deviation
-fixed, merge `1422bf34c`). :5173 dev stack RESTARTED (pgid 1018495) after a zombie-vite white-screen
-(stale module graph missing the schema-advisory re-export) — serving fresh, 200.
+**Main `de72f8d9e`. ZERO lanes in flight, zero worktrees, tree clean. PUSH IN PROGRESS** (owner word
+granted this sitting: battery → read results → `git push --no-verify`, ONE-SHOT no-retry). The
+`verify --push` battery is running detached; static tier came back green EXCEPT
+**`deps:orphan-ratchet` — 3 stale `@public` tags** whose exports gained consumers this train
+(`contracts/src/chat/card-frame.ts:60,72` [#37 made MintRequest/Response consumed] +
+`contracts/src/preset/index.ts:546` [#33 consumed GreetingTransformId]). Push-tier-only stage —
+invisible to every commit hook by design. FIX = delete the 3 tag lines (ratchet-down) after the
+battery drains, re-run the stage, then push. :5173 stack RESTARTED again (pgid 1232985) — the #42
+forge flagged the same zombie-vite stale-graph class.
 
-**MERGED since mid-morning (all hook-gated, foreground under the bg-task reaper):** phase-2.5
-reconciled `87fce8f15` (preflight advisories · editor CT suite · server-side session identity ·
-count-up fixes) — the reconciler found 3 of 4 briefed "breaks" were pre-rebase debris from my own
-aborts, only a barrel-sort was real · updatedAt sweep + [space]/[css] flagger fixes + #40 coupling
-test `1422bf34c` · shell-perf item 2 (chat faces-strip reserve, 74px→0.0001, gates on BOTH reads)
-`3eef8bdef`. **The whole refinery program (R0→R4 + forge + polish + preflight + CTs + session
-identity + enforced structured output) is on main.**
+**MERGED since late-morning (serial, foreground, hook-gated):**
+- **#35 corpus-settle `2073bbdc8`** — agent-bridge readiness hand-out, snap swallowing the readiness
+  result, CREDENTIALS_KEY not crossing to offset stages, preset CT flake. (Merge-conflict lesson: my
+  first union resolve left the closing `>>>>>>>` marker — the merge hook caught it; repaired,
+  branch-side check green.)
+- **#39 live e2e `275f5ea83`** — the refinery pipeline now runs end-to-end against the real fleet, it
+  did NOT before: payload-aware output budget (every score run 503'd at the 768 floor while the fit
+  line predicted it — one expression both callers evaluate now, `substrate/output-budget.ts`) ·
+  content-pane scroll (`h-full min-h-0 overflow-y-auto` — Apply/Save-as-copy were UNREACHABLE, 3981px
+  in a 952px box) · count-up arrival. Report: `docs/reviews/misc/2026-08-09-refinery-live-e2e.md`.
+  **Merge judgment ledgered:** main's phase-2.5 `awaited` latch is PROD-UNREACHABLE (StagePane shows
+  RunningPane while run===null, so PayloadView never mounts pending; its CT mounts PayloadView
+  directly = instruments-lie). Kept BOTH signals as merge-expedience; **task #47 (owner-agreed)
+  deletes the latch post-push + rewrites the CT to drive the real arm.**
+- **#42 streaming reveal `de72f8d9e`** (forge) — root causes measured live: Streamdown's fade knob
+  was DEAD (styles.css imported nowhere → the "blam"), caret `::after` on a `display:contents` dir
+  wrapper (→ new line), 17-33ms commits truncate any 150ms fade. Fix: seal-owned rehype word-reveal
+  plugin (fade anchored to reveal time via negative animation-delay — re-splits RESUME mid-fade),
+  caret on the last leaf, pacer 30→85ms so fades bridge commits. 53/53 CT + red-first receipts.
+  Design doc `docs/design/streaming-reveal-42.md`. Gifs:
+  `reports/recordings/forge-42-{before,after}-smooth-{off,on}.gif` (owner taste pass).
 
-**IN FLIGHT (2 lanes) — resurrection anchors (worktree = durable; never prune unmerged):**
-· **streaming forge (#42)** — agent `ab6675ffce60df35f`, own offset ports (5183/8798, engines
-  untouched). THREE owner symptoms consolidated in task #42: (1) CORE — text pops "blam!", no
-  per-token fade-in (target = the Claude-app buttery token reveal) · (2) cursor on a NEW LINE not
-  trailing the last char · (3) general choppiness. Full ast survey incl node_modules of the
-  streamdown option surface + live measure + build.
-· **#35 corpus-settle** — commit `00003b7b7` on `wt/agent-acbeb6e6e44293ba8`, MERGE PENDING. Finds:
-  corpus was NEVER broken — the INSTRUMENTS lied (data-app-ready a 3s unconditional hand-out; snap
-  swallowed the readiness result; CREDENTIALS_KEY never crossed to offset stages → healthz 503
-  forever). Fixes those + the preset CT flake. **Merge this next.**
+**SCOUT SWEEP RESULTS (unbounded-fetch/render, 423/494 + 268/431 files, two-method):**
+`chat.listChats` is THE unbounded procedure — NO limit input, no `.limit()` in `listMemberChats`
+(routers/chat.ts:457-459 · verbs/read.ts:531-536 · persistence/queries.ts:220-229); 8 client sites
+all pass `{}` (one shared cache entry, 872 rows to every consumer at re-import scale). THREE
+unvirtualized unbounded renders: `chat-list-surface.tsx:311` · `chats-with-character-pane.tsx:109` ·
+`command-palette-surface.tsx:152` (872 CommandItems per palette open). `character.list` properly
+paged (50/100) BUT 3 sites request 200-500 and get silently clamped to 100 (silent-undercount).
+Small-catalog list procedures (tag/regex/worldInfo/persona/preset/plugin/credentials) share the
+no-limit shape at harmless scale. **→ task #45** (the class fix: server keyset pagination + sealed
+VirtualList on the 3 renders + the [[paginating-a-list-breaks-resolve-by-find]] `.find()` sweep) —
+**THE PRE-RE-IMPORT GATE, replacing #44** (whose home-skeleton half was verified ALREADY FIXED:
+home-tile-box-store measured-box reservation; fixed-3-rows survives only a memoryless first boot).
+**→ task #46** (gate: list procedures declare limit+max+default; mint AFTER #45 lands on a fixed
+tree). Virtualizer seal enforcement itself verified airtight (ui-satellite-seals dep-cruiser ·
+no-manual-memo compiler-denylist tripwire · thrown assertBoundedScrollHeight).
 
-**PARKED TASKS:** #41 transpiler additionalProperties (generated schemas ship OPEN on hosted — fix in
-transpiler, not advisory) · #43 boot 4.9MB single chunk / ~610ms V8 parse (code-split/lazy — real
-lane) · **#44 chat-list unbounded-fetch + NO virtualizer (bare .map over ~872 rows post-import) —
-THE PRE-RE-IMPORT GATE; MUST use the SEALED virtual-core primitive [[virtual-core-paddingend-for-pins]],
-never raw @tanstack/react-virtual or hand-roll; also carries the home CLS skeleton 3-vs-8 reframe** ·
-plus LEADS needing tasks: adoptMovedSeedKey may not persist its rename (boot-bug lead from #35).
-
-**#39 CLOSE STILL OWED:** the RE-VERIFY side-eye on the merged refinery (carries: roster
-N-sessions-on-one-card labeling, the chevron-at-wrap nit, whether the stage-stepper's {index+1} badge
-falls under the numeral ban) + the e2e lane's live checklist result (the e2e lane was folded into
-#42's territory / its 768-budget fix — reconcile its state on resume: check for `wt/agent-a575817fbc6f3b701`).
-
-**OWNER QUEUE:** push (his; battery green now) · re-import (his trigger — HOLD for #44) · taste pass
-(:5173 live; gifs reports/recordings/ refinery-roster-and-stepper.gif + refinery-schema-door.gif +
-preflight png — caveat: schema-door gif pre-dates the preflight; shimmer/skeleton run-states need a
-model) · prose sign-offs DONE (all signed 08-09) · **home CLS fork** (reframed by #44 to skeleton
-3-vs-8; the B/D/accept arms likely dissolve) · **user-capped-overrun policy fork**
-(warn/confirm/refuse) · #43 code-split whether/when · decision pile.
+**PENDING / HELD (the full remainder):**
+- **#45 chat-list class fix** — PRE-RE-IMPORT GATE, dispatchable now (brief written into the task).
+- **#46 pagination gate** — after #45.
+- **#47 count-up single-mechanism cleanup** — after push (owner-agreed).
+- **#41 transpiler additionalProperties** — generated schemas ship OPEN on hosted; fix in
+  transpiler, not advisory. Parked.
+- **#43 boot 4.9MB chunk / ~610ms V8 parse** — code-split/lazy; real lane, owner whether/when.
+- **#39 CLOSE:** e2e phase DONE (this merge). Still owed: the RE-VERIFY side-eye on merged refinery
+  (roster N-sessions labeling · chevron-at-wrap · stage-stepper {index+1} badge vs numeral ban) —
+  plus the e2e's own NOT-EXERCISED tail: **checklist item 4 (custom schema, ALL arms) entirely
+  undriven — wants its own lane, nothing blocks it** · manual-rewrite dialog · OR reasoning×structured
+  probe · REGRESSION verdict arm.
+- **LEADS:** adoptMovedSeedKey rename persistence (boot-bug, from #35) · 12px scroll-step march in
+  follow-mode streaming (forge design doc §4 has mechanism + risk — touching it risks the
+  virtualizer follow-intent detector) · `roleDefaults.chat={model:null}` inert residue (forge
+  restored owner state; resolution verified identical) · scoreSweep still on the raw output floor
+  (shares the #39 768 class, named in its report).
+- **OWNER QUEUE:** push (in progress, mine this sitting) · **re-import — HOLD FOR #45** · taste
+  pass (:5173 fresh; the four forge-42 gifs + refinery gifs/pngs in reports/recordings + snaps) ·
+  **smoothStream default fork** (forge: with the fade riding streaming itself, `smoothStream=false`
+  is purely pacing — flip to true?) · **user-capped-overrun policy fork** (warn/confirm/refuse —
+  e2e proved warn-alone spends two calls to fail exactly as predicted) · home CLS fork (largely
+  DISSOLVED — skeleton half verified fixed; only the first-ever-boot nothing-to-reserve arm remains,
+  deliberate) · #43 whether/when · standing decision pile (RV-13 spec · chars+chats rail merge ·
+  DRAFT-TRUST seam · C9/C13 etc. in C-section).
 
 ## ═══ SUPERSEDED: OVERNIGHT PLAN (2026-08-09 post-reset) ═══
 
