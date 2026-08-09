@@ -325,12 +325,14 @@ async function collectSettingsPreset(fs: ImportFsPort, profileDir: string, state
 
 // One group's transcripts: the leaves ITS OWN `chats[]` claims, read out of the flat profile-level
 // `group chats/` dir. A claimed leaf with no readable/parseable file is recorded on the group, never silent.
-async function collectGroupChats(
-  fs: ImportFsPort,
-  profileDir: string,
-  leaves: readonly string[],
-  groupName: string,
-): Promise<Pick<CollectedGroup, "chats" | "missingChatLeaves">> {
+async function collectGroupChats(args: {
+  readonly fs: ImportFsPort;
+  readonly profileDir: string;
+  readonly leaves: readonly string[];
+  readonly groupName: string;
+  readonly wallClockZone: string | undefined;
+}): Promise<Pick<CollectedGroup, "chats" | "missingChatLeaves">> {
+  const { fs, profileDir, leaves, groupName, wallClockZone } = args;
   const dir = fs.join(profileDir, GROUP_CHATS_DIR);
   const chats: CollectedChat[] = [];
   const missingChatLeaves: string[] = [];
@@ -351,7 +353,14 @@ async function collectGroupChats(
       continue;
     }
     // `charDirName` is the GROUP name — the header-fallback ST writes as literal "unused" in a group file.
-    const parsed = parseChatJsonl(new TextDecoder().decode(bytes), { fileName, charDirName: groupName });
+    // The zone rides in for the SAME reason the solo path threads it: a group transcript's `create_date` and
+    // every `send_date` are ST's zone-less LOCAL wall clocks, so reading them as UTC lands the whole room at
+    // the writing box's offset (measured: -6h on a Denver snapshot).
+    const parsed = parseChatJsonl(new TextDecoder().decode(bytes), {
+      fileName,
+      charDirName: groupName,
+      ...(wallClockZone !== undefined ? { wallClockZone } : {}),
+    });
     if (parsed === null) {
       missingChatLeaves.push(fileName);
       continue;
@@ -363,7 +372,7 @@ async function collectGroupChats(
 
 // ST groups: `<profileDir>/groups/*.json`. Members stay UNRESOLVED here (card filenames) — the filename →
 // characterId mapping only exists after the character wave, so the driver owns the resolve.
-async function collectGroups(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
+async function collectGroups(fs: ImportFsPort, profileDir: string, state: CollectState, wallClockZone: string | undefined): Promise<void> {
   const groupsDir = fs.join(profileDir, GROUPS_DIR);
   for (const ent of await listDir(fs, groupsDir)) {
     if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
@@ -377,7 +386,7 @@ async function collectGroups(fs: ImportFsPort, profileDir: string, state: Collec
       state.unreadableGroups.push(sourceFile);
       continue;
     }
-    const { chats, missingChatLeaves } = await collectGroupChats(fs, profileDir, parsed.chatLeaves, parsed.name);
+    const { chats, missingChatLeaves } = await collectGroupChats({ fs, profileDir, leaves: parsed.chatLeaves, groupName: parsed.name, wallClockZone });
     state.groups.push({ parsed, sourceFile, chats, missingChatLeaves });
   }
 }
@@ -490,7 +499,7 @@ export async function collectBundlesFromDir(
   await collectSettingsPreset(fs, profileDir, state);
   await collectThemes(fs, profileDir, state);
   await collectBackgrounds(fs, profileDir, state);
-  await collectGroups(fs, profileDir, state);
+  await collectGroups(fs, profileDir, state, wallClockZone);
   await collectUnhandled(fs, profileDir, state);
 
   const chatsDir = fs.join(profileDir, "chats");

@@ -364,6 +364,7 @@ function pchat(messages: readonly ParsedChatMessage[], over: Partial<ParsedChat>
     notePrompt: null,
     notePlacement: null,
     variables: null,
+    pinnedPersonaName: null,
     bucket: "real_conversation",
     sourceMetadata: null,
     messages,

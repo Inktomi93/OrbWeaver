@@ -198,6 +198,10 @@ export function createExportChat(ctx: ExportContext): ExportService["exportChat"
       // `chats.variableValues` is ours, so an export→import cycle on one box preserves it (the same
       // both-directions rule the date and token-axis fixes established).
       variables: chat.variableValues,
+      // ALWAYS null: orb's anchor persona already leaves through the header `user_name` (resolved above), and
+      // the serde emits no `pinnedPersona` — one fact, one spelling. The import leg reads ST's key so a
+      // foreign profile's chat-bound pick survives; the export leg has nothing extra to say.
+      pinnedPersonaName: null,
       bucket: classifyChat(parsedMessages),
       sourceMetadata: null,
       messages: parsedMessages,

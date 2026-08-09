@@ -24,9 +24,9 @@ import type { CharacterId } from "@orb/kit/ids";
 import type { ImportContext } from "../context.ts";
 import type { ImportGroupsResult } from "../contract/results.ts";
 import type { ImportService } from "../contract/service.ts";
-import type { CollectedGroup, ImportGroupsInput, ImportSkippedGroup, ImportSkippedGroupMember } from "../contract/views.ts";
+import type { CollectedGroup, ImportGroupsInput, ImportSkippedGroup, ImportSkippedGroupMember, ImportUnresolvedPinnedPersona } from "../contract/views.ts";
 import { requireProfile } from "../guard.ts";
-import { buildGroupChatInput, disambiguateChatTitles } from "../substrate/chat-input.ts";
+import { buildGroupChatInput, disambiguateChatTitles, unresolvedPinnedPersonas } from "../substrate/chat-input.ts";
 
 /** The room-behavior blob an imported ST group is born with. Only what ST actually states travels: its
  *  `generation_mode` (append ⇒ the whole cast in one narrated message) and `allow_self_responses`. Everything
@@ -156,10 +156,14 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
     let backfillNeeded = false;
     const skippedGroups: ImportSkippedGroup[] = [];
     const skippedMembers: ImportSkippedGroupMember[] = [];
+    // §5.7: collected across EVERY group's transcripts, including a group that is later refused — the pick
+    // still did not travel, and the report says so.
+    const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
 
     for (const group of input.groups) {
       const { seated, skipped } = resolveMembers(group, input.characterIdByCardFilename);
       skippedMembers.push(...skipped);
+      unresolvedPins.push(...unresolvedPinnedPersonas(group.chats, profile.personaByUserName));
       // biome-ignore lint/performance/noAwaitInLoops: groups import sequentially — one atomic isolated room per group, matching the per-bundle character wave.
       const outcome = await runGroup(group, input, profile, seated.length);
       if (!outcome.ok) {
@@ -173,7 +177,7 @@ export function createImportGroupChats(ctx: ImportContext): Pick<ImportService, 
       backfillNeeded = backfillNeeded || outcome.realConversation;
     }
 
-    return { groupsImported, groupChatsImported, skippedGroups, skippedMembers, backfillNeeded };
+    return { groupsImported, groupChatsImported, skippedGroups, skippedMembers, backfillNeeded, unresolvedPinnedPersonas: unresolvedPins };
   }
   return { importGroupChats };
 }

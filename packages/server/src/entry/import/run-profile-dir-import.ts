@@ -51,6 +51,7 @@ import type {
   ImportSkippedGroup,
   ImportSkippedGroupMember,
   ImportThemeNote,
+  ImportUnresolvedPinnedPersona,
 } from "#domain/import";
 import { collectBundlesFromDir, createImportService, importFileHash } from "#domain/import";
 import type { BulkImportPersonas } from "#domain/persona";
@@ -407,6 +408,9 @@ interface WaveOutcomes {
   readonly groupChatsImported: number;
   readonly skippedGroups: readonly ImportSkippedGroup[];
   readonly skippedGroupMembers: readonly ImportSkippedGroupMember[];
+  /** §5.7, MERGED across the solo bundle loop and the group wave — one report line per chat whose ST
+   *  chat-bound persona pick named nobody here, wherever the transcript came from. */
+  readonly unresolvedPinnedPersonas: readonly ImportUnresolvedPinnedPersona[];
 }
 
 const NO_WAVES: WaveOutcomes = {
@@ -425,6 +429,7 @@ const NO_WAVES: WaveOutcomes = {
   groupChatsImported: 0,
   skippedGroups: [],
   skippedGroupMembers: [],
+  unresolvedPinnedPersonas: [],
 };
 
 interface ReportArgs {
@@ -465,17 +470,18 @@ function reportFrom({ collected, scanned, changed, skippedCards, waves }: Report
 async function importOneBundle(
   service: ReturnType<typeof createImportService>,
   bundle: CollectedCard,
-): Promise<{ readonly changed: number; readonly characterId: CharacterId }> {
+): Promise<{ readonly changed: number; readonly characterId: CharacterId; readonly unresolvedPins: readonly ImportUnresolvedPinnedPersona[] }> {
   let changed = 0;
   const cardResult = await service.importCharacter({ card: { bytes: bundle.cardBytes, filename: bundle.filename } });
   if (cardResult.created) {
     changed += 1;
   }
-  if (bundle.chats.length > 0) {
-    const chatResult = await service.importChats({ characterId: cardResult.characterId, chats: bundle.chats });
-    changed += chatResult.chatsImported;
+  if (bundle.chats.length === 0) {
+    return { changed, characterId: cardResult.characterId, unresolvedPins: [] };
   }
-  return { changed, characterId: cardResult.characterId };
+  const chatResult = await service.importChats({ characterId: cardResult.characterId, chats: bundle.chats });
+  changed += chatResult.chatsImported;
+  return { changed, characterId: cardResult.characterId, unresolvedPins: chatResult.unresolvedPinnedPersonas };
 }
 
 /** Attach the ST library tags for a just-imported character (`tag_map[card filename]` → resolve-or-create by
@@ -504,11 +510,14 @@ async function importCollectedBundles(
    *  see `verbs/import-group-chats.ts` for why a handle or a display name cannot substitute. */
   readonly characterIdByCardFilename: Map<string, CharacterId>;
   readonly characterNameByCardFilename: Map<string, string>;
+  /** §5.7 — the solo wave's half of the unresolved chat-bound persona picks. */
+  readonly unresolvedPins: ImportUnresolvedPinnedPersona[];
 }> {
   let changed = 0;
   const skippedCards: ImportSkippedCard[] = [];
   const characterIdByCardFilename = new Map<string, CharacterId>();
   const characterNameByCardFilename = new Map<string, string>();
+  const unresolvedPins: ImportUnresolvedPinnedPersona[] = [];
   for (const bundle of bundles) {
     if (deps.signal.aborted) {
       break;
@@ -517,6 +526,7 @@ async function importCollectedBundles(
       // biome-ignore lint/performance/noAwaitInLoops: bulk import is intentionally sequential — each card is one atomic idempotent write, isolated per bundle.
       const result = await importOneBundle(service, bundle);
       changed += result.changed;
+      unresolvedPins.push(...result.unresolvedPins);
       characterIdByCardFilename.set(bundle.filename, result.characterId);
       characterNameByCardFilename.set(bundle.filename, bundle.cardName);
       const tagNames = tagsByEntityKey.get(bundle.filename);
@@ -530,7 +540,7 @@ async function importCollectedBundles(
       skippedCards.push({ file: bundle.filename, reason: message.split("\n").filter(Boolean).at(-1) ?? message });
     }
   }
-  return { changed, skippedCards, characterIdByCardFilename, characterNameByCardFilename };
+  return { changed, skippedCards, characterIdByCardFilename, characterNameByCardFilename, unresolvedPins };
 }
 
 /**
@@ -662,6 +672,8 @@ export async function runProfileDirImport(deps: ProfileDirImportDeps): Promise<I
       groupChatsImported: groupResult.groupChatsImported,
       skippedGroups: groupResult.skippedGroups,
       skippedGroupMembers: groupResult.skippedMembers,
+      // Both waves' unresolved chat-bound persona picks in ST's own order: solo bundles, then group rooms.
+      unresolvedPinnedPersonas: [...bundleResult.unresolvedPins, ...groupResult.unresolvedPinnedPersonas],
     },
   });
 }
