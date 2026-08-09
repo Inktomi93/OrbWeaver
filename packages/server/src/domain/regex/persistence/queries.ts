@@ -29,7 +29,7 @@ const INERT_BEHAVIOR: RegexScriptBehavior = regexScriptBehaviorSchema.parse({ fi
 const behaviorParser = regexScriptBehaviorSchema.catch(INERT_BEHAVIOR);
 
 export function toRow(record: ScriptRecord): RegexScriptRow {
-  return { id: record.id, name: record.name, enabled: record.enabled, ...behaviorParser.parse(record.behavior) };
+  return { id: record.id, name: record.name, enabled: record.enabled, updatedAt: record.updatedAt, ...behaviorParser.parse(record.behavior) };
 }
 
 export async function loadOwnedScript(db: Db, ownerId: UserId, scriptId: RegexScriptId): Promise<ScriptRecord | undefined> {
@@ -63,14 +63,21 @@ export async function listOwnedScripts(db: Db, ownerId: UserId): Promise<ScriptR
 // not match the WHERE and is silently dropped — the `applyScopeOrder` posture, and the leak-free one: a bulk
 // verb that threw on the first id the caller no longer owns would be an ownership oracle over a whole list.
 
-/** Flip `enabled` on many owned scripts. Returns the ids actually written. */
-export async function setScriptsEnabledBulk(db: Db, ownerId: UserId, scriptIds: readonly RegexScriptId[], enabled: boolean): Promise<RegexScriptId[]> {
+/** Flip `enabled` on many owned scripts. Returns the ids actually written. Stamps `updatedAt` for the same
+ *  reason the single verb does — a bulk switch IS an edit, and a row whose list stamp did not move after the
+ *  user changed it reads as a write that did not land. */
+export async function setScriptsEnabledBulk(
+  db: Db,
+  ownerId: UserId,
+  scriptIds: readonly RegexScriptId[],
+  patch: { readonly enabled: boolean; readonly at: number },
+): Promise<RegexScriptId[]> {
   if (scriptIds.length === 0) {
     return [];
   }
   const updated = await db
     .update(regexScripts)
-    .set({ enabled })
+    .set({ enabled: patch.enabled, updatedAt: patch.at })
     .where(and(eq(regexScripts.ownerId, ownerId), inArray(regexScripts.id, [...scriptIds])))
     .returning({ id: regexScripts.id });
   return updated.map((r) => r.id);

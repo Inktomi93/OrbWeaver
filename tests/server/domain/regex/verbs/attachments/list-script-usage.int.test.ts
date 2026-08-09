@@ -23,6 +23,10 @@ import { freshDb } from "../../../../../support/db.ts";
 import { expect, test } from "../../../../../support/fixtures.ts";
 import { allowChat, makeHarness, principal, seedCharacter, seedChat, seedPreset, seedScript, seedUser } from "../../_support.ts";
 
+/** A fixed last-activity instant for the stubbed room refs — the verb passes `at` through untouched, so its
+ *  value is only ever compared to itself. */
+const ROOM_AT = 1_760_000_000_000;
+
 describe("listScriptUsage", () => {
   test("names every carrier that attaches the script, per scope, in name order", async () => {
     const db = await freshDb();
@@ -46,7 +50,7 @@ describe("listScriptUsage", () => {
       makeHarness(db, {
         resolveVisibleRooms: (_principal, chatIds) => {
           roomsSeen.push([...chatIds]);
-          return Promise.resolve([{ id: chatId, name: "The Long Dark" }]);
+          return Promise.resolve([{ id: chatId, title: "The Long Dark", participantNames: ["Azarael"], at: ROOM_AT }]);
         },
       }).ctx,
     ).listScriptUsage({ principal: principal(owner), scriptId });
@@ -56,7 +60,9 @@ describe("listScriptUsage", () => {
       { id: presetZ, name: "Preset z" },
     ]);
     expect(usage.characters).toEqual([{ id: character, name: "Char" }]);
-    expect(usage.rooms).toEqual([{ id: chatId, name: "The Long Dark" }]);
+    // The verb PASSES CHAT'S ANSWER THROUGH untouched — it never names, trims or re-sorts a room (the
+    // title chain is the client's one `deriveChatTitle`).
+    expect(usage.rooms).toEqual([{ id: chatId, title: "The Long Dark", participantNames: ["Azarael"], at: ROOM_AT }]);
     // The room CANDIDATES handed to chat are exactly the junction's chat ids — regex resolves no visibility
     // of its own, and it does not hand chat the whole library to filter.
     expect(roomsSeen).toEqual([[chatId]]);
@@ -121,9 +127,11 @@ describe("listScriptUsage", () => {
 
     // Chat's answer is the ONLY room authority: it returns the one room the caller is still present in.
     const usage = await createRegexService(
-      makeHarness(db, { resolveVisibleRooms: () => Promise.resolve([{ id: stillIn, name: "Still here" }]) }).ctx,
+      makeHarness(db, {
+        resolveVisibleRooms: () => Promise.resolve([{ id: stillIn, title: "Still here", participantNames: [], at: ROOM_AT }]),
+      }).ctx,
     ).listScriptUsage({ principal: principal(owner), scriptId });
 
-    expect(usage.rooms).toEqual([{ id: stillIn, name: "Still here" }]);
+    expect(usage.rooms).toEqual([{ id: stillIn, title: "Still here", participantNames: [], at: ROOM_AT }]);
   });
 });

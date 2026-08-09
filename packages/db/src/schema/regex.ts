@@ -59,6 +59,11 @@ export const regexScripts = sqliteTable(
     // The typed behavior blob (see header). NOT NULL — a script with no behavior is not a script.
     behavior: text("behavior", { mode: "json" }).$type<RegexScriptBehavior>().notNull(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    // The EDITED stamp (X-16). `Add script` mints every row named "New script", so a library fills with
+    // rows the list cannot tell apart; "edited 4m ago" is the discriminator the preset list already has and
+    // this one did not. Maintained by every write verb from the injected clock (never a DB trigger) — the
+    // `presets.updatedAt` twin.
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
     // Owner-scoped list (`fetchOwned`).

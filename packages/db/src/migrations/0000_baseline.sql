@@ -866,6 +866,7 @@ CREATE TABLE `regex_scripts` (
 	`enabled` integer DEFAULT true NOT NULL,
 	`behavior` text NOT NULL,
 	`created_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
+	`updated_at` integer DEFAULT (unixepoch() * 1000) NOT NULL,
 	FOREIGN KEY (`owner_id`) REFERENCES `users`(`id`) ON UPDATE no action ON DELETE cascade
 );
 --> statement-breakpoint

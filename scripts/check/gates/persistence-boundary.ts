@@ -29,6 +29,13 @@ const STORAGE_IDENTIFIER_RE = /^(?:localStorage|sessionStorage|indexedDB)$/u;
  *  it belongs in the synced `user_settings` blob instead, and this is the wrong tool). */
 const DEVICE_LOCAL_REGISTRY: Record<string, string> = {
   shell: "panel dock/collapse + active section — per-device layout chrome (§12.1 carve-out)",
+  "composer-draft":
+    "unsent composer text per room, so a refresh/crash/tab-restore does not eat a message the user typed " +
+    "(owner pick 2026-08-09). DEVICE-local on purpose: a half-written line is a THIS-tab artifact, and " +
+    "syncing it would make two open devices fight over one composer — the user_settings blob is for " +
+    "settled preferences, not for keystrokes (it also writes on every keypress, traffic that blob must " +
+    "never carry). Bounded + sanitized at the persist seam (empty drafts dropped, MRU-capped) because a " +
+    "scopeKey→text map is unbounded by construction",
   "character-library":
     "library sort/view/filter-chip/bulk-mode/spoiler-blur browse prefs — per-device LIST/editor chrome, " +
     "not a synced setting (a returning user on another device does not expect their tag-filter OR their " +

@@ -66,16 +66,27 @@ function placementPhrase(placement: readonly RegexPlacement[]): string {
  *  authored field that tells two of them apart. So the line carries both, stage first — the mock's
  *  `AI output · …` reading order.
  *
+ *  AND THE EDIT STAMP CLOSES IT (X-16, built 2026-08-09 once `RegexScriptRow` grew an `updatedAt` — the
+ *  contracts+db half the finding was parked on). The pattern discriminates two rows that were AUTHORED
+ *  differently; it does nothing for the actual reported case, `Add script` pressed four times, where every
+ *  row is "New script" with an empty pattern and the four subtitles are byte-identical. "edited 4m ago" is
+ *  what tells those apart, and it is the `presetRowSubtitle` shape verbatim (kind/scent first, stamp last),
+ *  so the two libraries read the same. `formatRelative` is INJECTED for the same reason the preset row
+ *  injects it: this stays pure and deterministically testable, and probe mode can freeze the clock.
+ *
  *  SCOPE (global/attached) stays ABSENT, refusing the mock's second half: X-6 moved scope onto the row's own
  *  switch, which sits 40px to the right of this very line, and a state printed beside the control that edits
  *  it is the doubling that pass removed. `placement` is not scope — it is which text STREAM the script
  *  rewrites, which nothing else on the row says.
  *
  *  The enable state rides in front because an `off` row's presence in a list is otherwise unexplained. */
-export function regexScriptScent(script: { readonly enabled: boolean; readonly findRegex: string; readonly placement: readonly RegexPlacement[] }): string {
+export function regexScriptScent(
+  script: { readonly enabled: boolean; readonly findRegex: string; readonly placement: readonly RegexPlacement[]; readonly updatedAt: number },
+  formatRelative: (epochMs: number) => string,
+): string {
   const pattern = script.findRegex.trim();
   const shown = pattern === "" ? "no pattern yet" : pattern.slice(0, SCENT_PATTERN_CHARS) + (pattern.length > SCENT_PATTERN_CHARS ? "…" : "");
-  const scent = `${placementPhrase(script.placement)} · ${shown}`;
+  const scent = `${placementPhrase(script.placement)} · ${shown} · edited ${formatRelative(script.updatedAt)}`;
   return script.enabled ? scent : `off · ${scent}`;
 }
 

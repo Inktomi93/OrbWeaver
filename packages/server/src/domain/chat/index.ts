@@ -103,6 +103,11 @@ export { backfillGroupCharacters, backfillMemory } from "./substrate/backfill.ts
 // fan-out (transport) must apply the identical per-subscriber strip the durable replay applies, off the
 // `viewerIsHost` flag `chatEventBounds` resolves; the verdict is chat's ONE implementation everywhere.
 export { scrubDeltaEventForMember, stripChatEventForMember, stripMessagesForViewer, viewerReadsHidden } from "./substrate/member-visibility.ts";
+// The ONE participant display-name terminal (R10 + owner ruling: no raw id ever renders). Exported for the
+// same reason the guards are: the regex compose seam (`entry/compose/regex.ts`) resolves the cast that names
+// a room in the reverse roster, and it must land on the SAME word chat's own roster read does for a seat
+// whose backing actor is gone — a second spelling would be a second vocabulary for one sentinel.
+export { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "./substrate/participant-name.ts";
 // The D50 PromptTransform registrar (automation-design/04 §6) — created ONCE at compose; its `apply` is wired
 // as `ChatContext.promptTransforms`, its `register`/`unregister` onto automation's rule lifecycle + the plugin
 // host (a later chunk). Zero registrants ⇒ byte-identical no-op. (`PromptTransformRegistry` type is homed in

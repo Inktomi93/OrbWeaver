@@ -28,7 +28,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { COLLECTION_LARGE_GROUP, regexScriptScent, regexScriptTitle } from "#lib";
+import { COLLECTION_LARGE_GROUP, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
 import { RegexScopeOrder } from "./regex-scope-order.tsx";
 import { scopeOrderShowsGrips } from "./regex-scope-order-model.ts";
 
@@ -265,7 +265,7 @@ function PickerRow({
         <RankCell position={position} reserve={reserveRank} />
         <Stack gap="tight" className="min-w-0">
           <Text>{name}</Text>
-          <Text voice="gloss">{regexScriptScent(script)}</Text>
+          <Text voice="gloss">{regexScriptScent(script, timeLib.formatRelative)}</Text>
         </Stack>
       </Row>
       <Switch

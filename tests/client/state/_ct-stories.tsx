@@ -12,10 +12,13 @@ import { createContributorRegistry } from "@orb/client/lib";
 import type { SectionDefinition, SettingsSectionContribution } from "@orb/client/state";
 import {
   __dismissPresetSectionForTest,
+  __readComposerDraftsForTest,
   __resetCollectionGroupOpen,
+  __resetComposerDrafts,
   __resetPresetSection,
   __resetPresetSelection,
   __resetTagFilter,
+  COMPOSER_DRAFT_CAP,
   chatDeletedFromList,
   clearAnalyticsSelection,
   clearCharacterFacet,
@@ -786,6 +789,9 @@ function SettingsPaneRegistryReader(): ReactElement {
 export function ComposerDraftProbe(): ReactElement {
   // A local mount toggle so the test can unmount+remount the reader and prove the store outlives it.
   const [mounted, setMounted] = useState(true);
+  // The LIVE map's size, surfaced as text — the cap is a PERSIST bound, so the session map and the stored
+  // blob are two different numbers and the CT must be able to read both.
+  const [liveCount, setLiveCount] = useState(0);
   return (
     <div>
       <button type="button" onClick={(): void => setComposerDraft("cd_scope", "typed but not sent")}>
@@ -794,6 +800,39 @@ export function ComposerDraftProbe(): ReactElement {
       <button type="button" onClick={(): void => migrateComposerDraft("cd_scope", "cd_committed")}>
         migrate to committed
       </button>
+      {/* The SEND-CLEAR (an empty `onChange("")`) — the arm that must leave NOTHING behind in the persisted
+          blob, so a reload after sending does not resurrect the message the user already sent. */}
+      <button type="button" onClick={(): void => setComposerDraft("cd_scope", "")}>
+        clear draft
+      </button>
+      {/* Types in three MORE rooms than the persist cap, oldest first, so the CT can read the real stored
+          blob and see which rooms the bound evicted. Reports the LIVE map's size beside it: the cap is a
+          persist bound, and every draft typed this session must still be readable while the tab is alive. */}
+      <button
+        type="button"
+        onClick={(): void => {
+          for (let i = 0; i < COMPOSER_DRAFT_CAP + 3; i++) {
+            setComposerDraft(`cd_flood_${i}`, `flood ${i}`);
+          }
+          setLiveCount(Object.keys(__readComposerDraftsForTest()).length);
+        }}
+      >
+        flood drafts
+      </button>
+      {/* Now that drafts PERSIST, a probe's "starts empty" reading is storage-dependent — the reset is the
+          hygiene that makes it a statement about the store rather than about the previous test. */}
+      <button
+        type="button"
+        onClick={(): void => {
+          __resetComposerDrafts();
+          setLiveCount(0);
+        }}
+      >
+        reset drafts
+      </button>
+      {/* A plain <p>, not an <output>: the reader below is the probe's ONE `output` and every test in this
+          suite addresses it as such. */}
+      <p>{`live=${String(liveCount)}`}</p>
       <button type="button" onClick={(): void => setMounted(false)}>
         unmount reader
       </button>
