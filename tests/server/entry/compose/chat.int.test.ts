@@ -47,6 +47,8 @@ const REDOS_SCRIPT = (): RegexScriptRow =>
   regexScriptSchema.parse({
     id: mintTypeId(ID_PREFIX.regexScript),
     name: "redos",
+    // X-16: `updatedAt` is REQUIRED on the row (the edited stamp) — a fixed instant keeps the double honest.
+    updatedAt: 1_700_000_000_000,
     findRegex: "(a+)+$",
     replaceString: "SHOULD_NOT_APPLY",
     placement: ["USER_INPUT"],
@@ -59,6 +61,8 @@ const BENIGN_SCRIPT = (): RegexScriptRow =>
   regexScriptSchema.parse({
     id: mintTypeId(ID_PREFIX.regexScript),
     name: "benign",
+    // X-16: `updatedAt` is REQUIRED on the row (the edited stamp) — a fixed instant keeps the double honest.
+    updatedAt: 1_700_000_000_000,
     findRegex: "badword",
     replaceString: "****",
     placement: ["USER_INPUT"],

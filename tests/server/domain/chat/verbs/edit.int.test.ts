@@ -164,6 +164,8 @@ describe("editMessage — runOnEdit regex re-apply (PD-110; D53 host-tier)", () 
     regexScriptSchema.parse({
       id: mintTypeId(ID_PREFIX.regexScript),
       name: "s1",
+      // X-16: `updatedAt` is REQUIRED on the row (the edited stamp) — a fixed instant keeps the double honest.
+      updatedAt: 1_700_000_000_000,
       findRegex: "badword",
       replaceString: "****",
       ...over,
