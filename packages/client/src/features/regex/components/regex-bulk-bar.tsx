@@ -5,11 +5,13 @@
 // `character-bulk-bar` precedent, whose anatomy this mirrors: one grammar for "act on the things I checked"
 // across the whole app).
 //
-// THE FOUR VERBS A SELECTION CAN MEAN HERE: on/off (the row's own `enabled`), in/out of every chat (the one
-// scope this library owns), and delete. Placement is NOT among them and that is a RULING, not an omission —
-// the display/prompt tier flags and the `historyDepth` scope are DERIVED from a placement set at ONE write
-// boundary (`../lib/derive-tier-flags.ts`, the owner-ratified X-1/X-2 finding), so a bulk placement edit
-// would need that derivation on the server and there must not be two homes for it.
+// THE VERBS A SELECTION CAN MEAN HERE: on/off (the row's own `enabled`), CHANGE WHERE THEY RUN (the placement
+// set), in/out of every chat (the one scope this library owns), and delete. Placement joined the bar when D2
+// was unblocked — the display/prompt tier flags and the `historyDepth` scope it implies are DERIVED (not sent)
+// from the chosen set through the SHARED `@orb/kit/regex` derivations, the SAME ones the per-script editor's
+// save boundary uses (`../lib/derive-tier-flags.ts`), so there is one derivation home, not two. It is the one
+// verb whose target is a SET rather than a scalar, so it opens a chip picker (`RegexBulkPlacementDialog`)
+// rather than firing inline — which is why it rides the kebab, where an action that needs a dialog belongs.
 //
 // THE LAYOUT IS MEASURED, NOT CHOSEN. This bar's host is the config roster's 330px LIST column — narrower
 // than the ~337px panel whose clipped trailing Delete is written into `character-bulk-bar`'s own header, and
@@ -25,18 +27,21 @@
 
 import type { RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import type { RegexPlacement } from "@orb/kit/regex";
 import { Button } from "@orb/ui/button";
-import { Ban, Globe, Icon } from "@orb/ui/icons";
+import { Ban, Globe, Icon, SlidersHorizontal } from "@orb/ui/icons";
 import { MenuItem } from "@orb/ui/menu";
 import { SelectionBar } from "@orb/ui/selection-bar";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { notify } from "#lib";
 import { exitRegexBulkMode } from "#state";
-import { useBulkRemoveRegexScripts, useBulkSetRegexEnabled, useBulkSetRegexGlobal } from "../hooks/use-regex-library.ts";
+import { useBulkRemoveRegexScripts, useBulkSetRegexEnabled, useBulkSetRegexGlobal, useBulkSetRegexPlacement } from "../hooks/use-regex-library.ts";
+import { RegexBulkPlacementDialog } from "./regex-bulk-placement-dialog.tsx";
 
 /** The batch verbs' shared answer, re-derived from the same proc rather than imported (the house shape for
  *  a client-feature derived type — a shared alias would be an exported type outside a type home). */
@@ -65,9 +70,11 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
   const invalidation = useInvalidation();
   const setEnabled = useBulkSetRegexEnabled({ trpc, invalidation });
   const setGlobal = useBulkSetRegexGlobal({ trpc, invalidation });
+  const setPlacement = useBulkSetRegexPlacement({ trpc, invalidation });
   const remove = useBulkRemoveRegexScripts({ trpc, invalidation });
   const scriptIds = ids.map((id) => castId<RegexScriptId>(id));
   const count = ids.length;
+  const [placementOpen, setPlacementOpen] = useState(false);
 
   const report =
     (verb: string) =>
@@ -75,65 +82,78 @@ export function RegexBulkBar({ ids, onClear, trpc }: RegexBulkBarProps): ReactEl
       notify.success(bulkToast(verb, affected));
     };
 
+  const applyPlacement = (placement: RegexPlacement[]): void => {
+    void setPlacement.mutateAsync({ scriptIds, placement }).then(report("updated"));
+    onClear();
+  };
+
   return (
-    <SelectionBar count={count} onClear={onClear}>
-      <Button
-        intent="secondary"
-        onClick={(): void => {
-          void setEnabled.mutateAsync({ scriptIds, enabled: true }).then(report("switched on"));
-          onClear();
-        }}
-        size="sm"
-      >
-        Enable
-      </Button>
-      <Button
-        intent="secondary"
-        onClick={(): void => {
-          void setEnabled.mutateAsync({ scriptIds, enabled: false }).then(report("switched off"));
-          onClear();
-        }}
-        size="sm"
-      >
-        Disable
-      </Button>
-      {/* The menu's accessible name and its destructive copy both carry the COUNT: a bar-level menu acts on
-          a selection the reader can no longer see once the popup covers the rows. The GLOBAL pair is named
-          the way the row's own switch names it ("runs in every chat") — one vocabulary for one junction, so
-          the bar and the row can never read as different features. */}
-      <RowActionsMenu
-        destructive={{
-          title: `Delete ${scriptCount(count)}?`,
-          description: "Deleting these removes them from every preset, character, and room they're attached to. This can't be undone.",
-          onConfirm: (): void => {
-            void remove.mutateAsync({ scriptIds }).then(report("deleted"));
-            // Leave bulk mode entirely: the rows the mode was operating on are gone, so a still-armed mode
-            // over an emptier list is a surface pointing at nothing.
-            exitRegexBulkMode();
-          },
-        }}
-        label={`More actions for ${scriptCount(count)}`}
-        triggerSize="icon"
-      >
-        <MenuItem
+    <>
+      <SelectionBar count={count} onClear={onClear}>
+        <Button
+          intent="secondary"
           onClick={(): void => {
-            void setGlobal.mutateAsync({ scriptIds, global: true }).then(report("now run in every chat"));
+            void setEnabled.mutateAsync({ scriptIds, enabled: true }).then(report("switched on"));
             onClear();
           }}
+          size="sm"
         >
-          <Icon icon={Globe} size="sm" />
-          Run in every chat
-        </MenuItem>
-        <MenuItem
+          Enable
+        </Button>
+        <Button
+          intent="secondary"
           onClick={(): void => {
-            void setGlobal.mutateAsync({ scriptIds, global: false }).then(report("no longer run in every chat"));
+            void setEnabled.mutateAsync({ scriptIds, enabled: false }).then(report("switched off"));
             onClear();
           }}
+          size="sm"
         >
-          <Icon icon={Ban} size="sm" />
-          Stop running everywhere
-        </MenuItem>
-      </RowActionsMenu>
-    </SelectionBar>
+          Disable
+        </Button>
+        {/* The menu's accessible name and its destructive copy both carry the COUNT: a bar-level menu acts on
+            a selection the reader can no longer see once the popup covers the rows. The GLOBAL pair is named
+            the way the row's own switch names it ("runs in every chat") — one vocabulary for one junction, so
+            the bar and the row can never read as different features. CHANGE WHERE THEY RUN opens a picker (its
+            target is a SET, not a scalar), so it homes here where a dialog-backed action belongs. */}
+        <RowActionsMenu
+          destructive={{
+            title: `Delete ${scriptCount(count)}?`,
+            description: "Deleting these removes them from every preset, character, and room they're attached to. This can't be undone.",
+            onConfirm: (): void => {
+              void remove.mutateAsync({ scriptIds }).then(report("deleted"));
+              // Leave bulk mode entirely: the rows the mode was operating on are gone, so a still-armed mode
+              // over an emptier list is a surface pointing at nothing.
+              exitRegexBulkMode();
+            },
+          }}
+          label={`More actions for ${scriptCount(count)}`}
+          triggerSize="icon"
+        >
+          <MenuItem onClick={(): void => setPlacementOpen(true)}>
+            <Icon icon={SlidersHorizontal} size="sm" />
+            Change where they run
+          </MenuItem>
+          <MenuItem
+            onClick={(): void => {
+              void setGlobal.mutateAsync({ scriptIds, global: true }).then(report("now run in every chat"));
+              onClear();
+            }}
+          >
+            <Icon icon={Globe} size="sm" />
+            Run in every chat
+          </MenuItem>
+          <MenuItem
+            onClick={(): void => {
+              void setGlobal.mutateAsync({ scriptIds, global: false }).then(report("no longer run in every chat"));
+              onClear();
+            }}
+          >
+            <Icon icon={Ban} size="sm" />
+            Stop running everywhere
+          </MenuItem>
+        </RowActionsMenu>
+      </SelectionBar>
+      <RegexBulkPlacementDialog count={count} onApply={applyPlacement} onOpenChange={setPlacementOpen} open={placementOpen} />
+    </>
   );
 }

@@ -8,9 +8,8 @@
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import type { RegexPlacement } from "@orb/kit/regex";
-import { SubstituteFindRegex } from "@orb/kit/regex";
+import { deriveRegexTierFlags, SubstituteFindRegex } from "@orb/kit/regex";
 import { createAutosaveEntityForm } from "#forms";
-import { deriveRegexTierFlags } from "../lib/derive-tier-flags.ts";
 
 /** THE DEFAULT SCOPE OF A NEW SCRIPT — the two conversational streams, and only those (side-eye X-9,
  *  2026-08-03). It used to be EVERY placement, which meant pressing `Add script` created a live, enabled
@@ -23,7 +22,7 @@ import { deriveRegexTierFlags } from "../lib/derive-tier-flags.ts";
 const DEFAULT_PLACEMENTS: readonly RegexPlacement[] = ["USER_INPUT", "AI_OUTPUT"];
 
 /** A fresh script seeded with the schema defaults. The tier flags are DERIVED from the placement set like
- *  everywhere else (`../lib/derive-tier-flags`), never spelled independently — a hand-written pair here
+ *  everywhere else (`@orb/kit/regex`), never spelled independently — a hand-written pair here
  *  would be the fourth home for a fact that has one. */
 export function makeRegexScriptDefaults(): CreateRegexScriptInput {
   return {
