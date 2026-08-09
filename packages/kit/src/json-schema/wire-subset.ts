@@ -170,8 +170,10 @@ interface WireSubset {
 const ANTHROPIC_STRIPPED_BOUNDS = BOUND_KEYWORDS.filter((keyword) => keyword !== "minItems");
 
 /** The per-mode vocabulary. A mapped Record, not a switch — a new `WireSchemaMode` without a row is a tsc
- *  error, so a wire can never silently inherit another wire's subset (§5.5 dispatch discipline). */
-const WIRE_SUBSETS: Readonly<Record<WireSchemaMode, WireSubset>> = {
+ *  error, so a wire can never silently inherit another wire's subset (§5.5 dispatch discipline). Exported
+ *  so the #40 coupling invariant (a mode can't both strip `minItems` AND clamp it — the clamp would never
+ *  see the keyword) is a real assertion over the table, not prose. */
+export const WIRE_SUBSETS: Readonly<Record<WireSchemaMode, WireSubset>> = {
   // Hosted proxies (OpenRouter's forced structured tool + its `response_format`): the strictest COMMON
   // subset, because the endpoint the request lands on is not knowable at build time. `oneOf` is NOT refused —
   // this wire carries it (the forced-tool vehicle compiles no grammar; live 200 on all three families).
