@@ -85,8 +85,17 @@ test("a preset-params edit reaches the NEXT preflight read (resolved per call, n
   expect(before.stages.find((s) => s.stage === "score")?.maxOutputTokens ?? 0).toBeGreaterThanOrEqual(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);
   ctx.resolveUserPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: 4096 });
   const after = await h.svc.preflight({ principal: p, sessionId: session.id });
-  // THE LADDER IS UNCHANGED by the payload-aware floor: an explicit preset cap still wins OUTRIGHT, even
-  // when it is lower than what the payload wants. Whether that overrun should then be confirmed or refused
-  // is a POLICY question and deliberately not decided here (owner queue, live-e2e 2026-08-09).
+  // THE LADDER IS UNCHANGED by the payload-aware floor: an explicit preset cap still wins OUTRIGHT, and
+  // preflight REPORTS it even when it is lower than what the payload wants. The policy question this line
+  // used to park ("confirm or refuse?") is now ruled — the RUN refuses (`RefineryOutputBudgetError`,
+  // run-stage.int) — and the ruling lands on the run, not here: preflight is a readout, so it must keep
+  // showing the number the next run would request rather than becoming a second gate.
   expect(after.stages.find((s) => s.stage === "score")?.maxOutputTokens).toBe(4096);
+  // A cap UNDER the payload is still reported, ⚠-side and all — the readout that the refusal quotes back.
+  const score = after.stages.find((s) => s.stage === "score");
+  ctx.resolveUserPresetParams = (): Promise<SideGenSampling> => Promise.resolve({ maxOutputTokens: (score?.outputEstimate ?? 2) - 1 });
+  const capped = await h.svc.preflight({ principal: p, sessionId: session.id });
+  const cappedScore = capped.stages.find((s) => s.stage === "score");
+  expect(cappedScore?.maxOutputTokens).toBe((score?.outputEstimate ?? 2) - 1);
+  expect(cappedScore?.outputEstimate).toBeGreaterThan(cappedScore?.maxOutputTokens ?? Number.POSITIVE_INFINITY);
 });

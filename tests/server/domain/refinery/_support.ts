@@ -94,6 +94,7 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
 export function refineryWorkloadDepsOf(db: Db, h: RefineryHarness): RefineryWorkloadDeps {
   return {
     summarize: h.ctx.summarize,
+    summarizerContextTokens: h.ctx.summarizerContextTokens,
     resolveUserPresetParams: h.ctx.resolveUserPresetParams,
     resolveUserProse: h.ctx.resolveUserProse,
     listRefineryScoreTargets: createListRefineryScoreTargets({ db }),

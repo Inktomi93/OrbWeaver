@@ -93,6 +93,10 @@ export type ScoreSweep = (opts: ScoreSweepOptions) => Promise<RefineryScoreSweep
  *  reads the library, asks the model, and stamps. */
 export interface RefineryWorkloadDeps {
   readonly summarize: Summarize;
+  /** The summarize role's resolved context window (null when the connection reports none) — the sweep's
+   *  output cap is payload-aware like every other score call, and the window is what clamps it
+   *  (`substrate/output-budget`). Present here for exactly that reason: the sweep has no `RefineryContext`. */
+  readonly summarizerContextTokens: number | null;
   readonly resolveUserPresetParams: ResolveUserPresetParams;
   readonly resolveUserProse: ResolveUserProse;
   /** The sweep's enumeration (injected character op — refinery reads no `characters` row itself). */

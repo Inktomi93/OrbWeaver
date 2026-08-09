@@ -125,6 +125,16 @@ test("a CUSTOM schema the build has never seen renders designed widgets — the 
 // present, which is a value that did not arrive and must not animate. These three pin the ramp itself —
 // proven by the frames the numeral actually painted, collected by a MutationObserver, so nothing here
 // races a 360ms animation.
+//
+// THEY DRIVE `StagePane`, NOT `PayloadView` (#47). The original trio mounted `PayloadView` directly with
+// `pending` and no payload — a state the RUN PANE never produces, because the first-run wait is rendered
+// by `RunningPane`, a DIFFERENT component, so `PayloadView` always mounts there holding its final number.
+// (That mount shape does exist elsewhere — the schema editor's test preview — which is exactly why the
+// story looked legitimate.) Those tests passed against a local `awaited` latch inside `PayloadView` that
+// no run-pane render could reach; the live drive found the real surface printing exactly one value
+// (`["0ms=8.7"]`, no ramp, ever).
+// Driving the pane means the mount-with-value skip is INSIDE the test's arc: the run lands from the story's
+// own "mutation", `arrived` is the surface's `landedRunIds` verdict, and neutering that thread reds these.
 
 /** Record every distinct value the hero numeral prints from now on. Installed BEFORE the press, and it
  *  survives the node being created later (it observes the document, not the node). */
@@ -151,10 +161,15 @@ function heroTrace(page: Page): Promise<string[]> {
 }
 
 test("the money shot: a score landing into a pane that was WAITING counts up from 0 and settles EXACTLY on 7.5", async ({ mount, page }) => {
-  // `from: null` = the pane opens pending with no payload, i.e. the plan-shaped skeleton — the first-run
-  // arm. Before this lane the gauge mounted holding its final number and the count never ran at all.
-  await mount(<HeroRampStory from={null} to={7.5} />);
-  await expect(page.getByTestId("refinery-payload-skeleton")).toBeVisible();
+  // The REAL first-run arc, in the pane's own components: nothing settled → the running pane → the run
+  // lands from the story's mutation. The gauge MOUNTS holding 7.5 — which is precisely why it needs the
+  // surface's `arrived` verdict to know it should count, and why the deleted `awaited` latch never fired.
+  await mount(<HeroRampStory to={7.5} />);
+  await expect(page.getByText("Nothing settled for score yet")).toBeVisible();
+  await page.getByRole("button", { name: "run" }).click();
+  await expect(page.getByText("Running score…")).toBeVisible();
+  // The gauge does not exist yet — a first run has no `PayloadView` on screen to have shown a skeleton.
+  await expect(page.getByTestId("refinery-hero-value")).toHaveCount(0);
   await traceHeroValues(page);
 
   await page.getByRole("button", { name: "land" }).click();
@@ -169,10 +184,13 @@ test("the money shot: a score landing into a pane that was WAITING counts up fro
 });
 
 test("a RE-RUN retargets from the score on screen — it never snaps back to 0 (that would read as 'discarded')", async ({ mount, page }) => {
+  // `from` is a run the session was merely OPENED on, so it is absent from the story's `landedRunIds` and
+  // must not animate at mount — the other half of the arrival contract, pinned by the trace below.
   await mount(<HeroRampStory from={4} to={7.5} />);
   await expect(page.getByTestId("refinery-hero-value")).toHaveText("4");
   await traceHeroValues(page);
 
+  await page.getByRole("button", { name: "run" }).click();
   await page.getByRole("button", { name: "land" }).click();
   await expect(page.getByTestId("refinery-hero-value")).toHaveText("7.5");
 
@@ -185,9 +203,10 @@ test("a RE-RUN retargets from the score on screen — it never snaps back to 0 (
 
 test("REDUCED MOTION removes the ramp rather than shortening it — the figure is correct on the first frame", async ({ mount, page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await mount(<HeroRampStory from={null} to={7.5} />);
+  await mount(<HeroRampStory to={7.5} />);
   await traceHeroValues(page);
 
+  await page.getByRole("button", { name: "run" }).click();
   await page.getByRole("button", { name: "land" }).click();
   await expect(page.getByTestId("refinery-hero-value")).toHaveText("7.5");
 

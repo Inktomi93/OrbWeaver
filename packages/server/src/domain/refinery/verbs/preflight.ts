@@ -5,9 +5,12 @@
 // and output (the §8 per-stage arithmetic vs the resolved max-output budget).
 //
 // ADVISORY BY DESIGN: QuadChars is an estimate and the copy says "likely", never a hard number
-// (`@orb/kit/tokens`' own doctrine); preflight WARNS, never blocks — truncation still surfaces as the
-// typed structured-output failure, this just prevents the paid-for retry. The reasoning-wire caveat
-// (max_completion_tokens covers THINKING+TEXT on reasoning models) is surface copy, not arithmetic.
+// (`@orb/kit/tokens`' own doctrine); preflight WARNS, never blocks. That is unchanged by the 2026-08-09
+// ruling that the RUN refuses a caller-capped overrun (`verbs/run-stage.ts` → `RefineryOutputBudgetError`):
+// the readout's job is to show the fit BEFORE anyone commits, and a readout that refused would be a readout
+// nobody could read. The two agree by construction — the refusal's predicate is this line's own predicate
+// over this line's own numbers. The reasoning-wire caveat (max_completion_tokens covers THINKING+TEXT on
+// reasoning models) is surface copy, not arithmetic.
 //
 // THE ARITHMETIC IS NOT PRIVATE TO THIS VERB (live e2e, 2026-08-09). It used to be, and the engine never
 // read it — so this readout could tell the user `out ≈ 980 / 768 tok ⚠` while `runStage` went ahead and
@@ -26,7 +29,7 @@ import type { StagePrompts } from "../contract/prompts.ts";
 import type { PreflightResult, RefinerySessionView, StagePreflight } from "../contract/results.ts";
 import type { RefineryService } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, sessionViewOf } from "../persistence/queries.ts";
-import { outputEstimateOf, resolveStageSampling } from "../substrate/output-budget.ts";
+import { outputEstimateOf, resolveStageSampling, stageSubjectOf } from "../substrate/output-budget.ts";
 import { buildAnalyzePrompt, buildRewritePrompt, buildScorePrompt, overlayRewrite } from "../substrate/refine-prompt.ts";
 import { resolveStageResolution } from "../substrate/stage-resolution.ts";
 
@@ -99,14 +102,15 @@ export function createPreflight(ctx: RefineryContext): RefineryService["prefligh
       const inputEstimate = inputEstimateOf(prompts);
       // The SAME expression the engine evaluates for this stage (substrate/output-budget) — so this readout
       // reports the budget the next run will request, never a floor the run is free to ignore.
-      const sampling = resolveStageSampling({ stage, session, presetParams, contextTokens: ctx.summarizerContextTokens, inputEstimate });
+      const subject = stageSubjectOf(stage, session);
+      const sampling = resolveStageSampling({ subject, presetParams, contextTokens: ctx.summarizerContextTokens, inputEstimate });
       return {
         stage,
         model,
         temperature: sampling.temperature ?? null,
         maxOutputTokens: sampling.maxOutputTokens ?? null,
         inputEstimate,
-        outputEstimate: outputEstimateOf(stage, session),
+        outputEstimate: outputEstimateOf(subject),
       };
     });
     return { contextTokens: ctx.summarizerContextTokens, stages } satisfies PreflightResult;
