@@ -1,7 +1,16 @@
 import type { ProcessMacroOptions } from "@orb/kit/macro";
 import type { RegexScriptInput } from "@orb/kit/regex";
-import { executeRegexScripts, HISTORY_DEPTH_PLACEMENT, MAX_FIND_REGEX_LENGTH, REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
-import { vi } from "vitest";
+import {
+  deriveRegexHistoryDepth,
+  deriveRegexTierFlags,
+  executeRegexScripts,
+  HISTORY_DEPTH_PLACEMENT,
+  MAX_FIND_REGEX_LENGTH,
+  REGEX_PLACEMENTS,
+  SubstituteFindRegex,
+  WHOLE_HISTORY_DEPTH,
+} from "@orb/kit/regex";
+import { describe, vi } from "vitest";
 import { expect, test } from "../../support/fixtures.ts";
 
 // Fixed macro context — no Date/random, per the determinism gate.
@@ -315,4 +324,71 @@ test("the depth gate only SUBTRACTS — it can never run a script the placement 
     ctx: macroOpts(),
   });
   expect(out).toBe("a secret");
+});
+
+// ── THE PLACEMENT-DERIVED FIELDS (lifted from the client's save boundary so the server derives identically,
+// D2 — side-eye X-1/X-2). These pin the three tier arms + the property that motivated them (the pair can
+// never BOTH be true), and the history-depth pairing (scope IFF the leg). Every subset of the tuple is
+// exercised, so a new placement member re-runs the exhaustiveness rather than sneaking past a fixed case.
+
+/** Every subset of a tuple, including the empty one — grown one member at a time (the house bans bitwise
+ *  operators, and a power-set built by doubling reads better than a bit-mask anyway). */
+function subsetsOf<T>(members: readonly T[]): readonly (readonly T[])[] {
+  const out: T[][] = [[]];
+  for (const member of members) {
+    for (const subset of [...out]) {
+      out.push([...subset, member]);
+    }
+  }
+  return out;
+}
+
+describe("deriveRegexTierFlags — the three arms, exhaustive over the placement set", () => {
+  test("DISPLAY alone ⇒ markdownOnly (render-tier only)", () => {
+    expect(deriveRegexTierFlags(["DISPLAY"])).toEqual({ markdownOnly: true, promptOnly: false });
+  });
+
+  test("no DISPLAY ⇒ promptOnly (never touches what is rendered)", () => {
+    expect(deriveRegexTierFlags(["USER_INPUT", "AI_OUTPUT"])).toEqual({ markdownOnly: false, promptOnly: true });
+  });
+
+  test("DISPLAY plus a prompt-side stream ⇒ neither flag — it runs on both sides, as the chips say", () => {
+    expect(deriveRegexTierFlags(["AI_OUTPUT", "DISPLAY"])).toEqual({ markdownOnly: false, promptOnly: false });
+  });
+
+  test("the empty set lands on the promptOnly arm and stays inert (the executor skips it either way)", () => {
+    expect(deriveRegexTierFlags([])).toEqual({ markdownOnly: false, promptOnly: true });
+  });
+
+  test("the contradiction is UNREPRESENTABLE — no placement set yields both flags", () => {
+    const subsets = subsetsOf(REGEX_PLACEMENTS);
+    expect(subsets).toHaveLength(2 ** REGEX_PLACEMENTS.length);
+    for (const placement of subsets) {
+      const flags = deriveRegexTierFlags(placement);
+      expect(flags.markdownOnly && flags.promptOnly, `both flags true for [${placement.join(",")}]`).toBe(false);
+    }
+  });
+});
+
+describe("deriveRegexHistoryDepth — the scope exists IFF the PROMPT_HISTORY leg is in the set", () => {
+  test("adding the history leg with no authored scope takes the WHOLE history", () => {
+    expect(deriveRegexHistoryDepth([HISTORY_DEPTH_PLACEMENT], undefined)).toEqual(WHOLE_HISTORY_DEPTH);
+    expect(WHOLE_HISTORY_DEPTH).toEqual({ min: 0, max: null });
+  });
+
+  test("an authored scope survives when the leg stays in the set", () => {
+    expect(deriveRegexHistoryDepth(["AI_OUTPUT", HISTORY_DEPTH_PLACEMENT], { min: 2, max: 6 })).toEqual({ min: 2, max: 6 });
+  });
+
+  test("dropping the leg DROPS the scope — a bound that governs nothing is never returned", () => {
+    expect(deriveRegexHistoryDepth(["AI_OUTPUT"], { min: 3, max: null })).toBeUndefined();
+    expect(deriveRegexHistoryDepth([], { min: 0, max: null })).toBeUndefined();
+  });
+
+  test("the pairing holds for EVERY subset — scope defined iff the leg is present", () => {
+    for (const placement of subsetsOf(REGEX_PLACEMENTS)) {
+      const scope = deriveRegexHistoryDepth(placement, { min: 1, max: null });
+      expect(scope !== undefined, `scope/leg disagree for [${placement.join(",")}]`).toBe(placement.includes(HISTORY_DEPTH_PLACEMENT));
+    }
+  });
 });

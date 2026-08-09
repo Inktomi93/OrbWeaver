@@ -7,9 +7,9 @@
 //     updateScript, removeScript, duplicateScript, attachGlobal, detachGlobal, listGlobal,
 //     attachToCharacter, detachFromCharacter, listForCharacter, attachToPreset, detachFromPreset,
 //     listForPreset, applyScopeOrder. A foreign id collapses to `RegexNotFoundError` — never an oracle.
-//   • PROBED, SILENTLY (the REGX2 bulk arm + the export door): bulkSetEnabled, bulkSetGlobal, bulkRemove
-//     put `ownerId` in the WHERE / gate every id through `loadOwnedScriptsByIds`, and a foreign id is
-//     DROPPED rather than thrown on — the answer is the `affected` count, which is the same number for
+//   • PROBED, SILENTLY (the REGX2 bulk arm + the export door): bulkSetEnabled, bulkSetGlobal, bulkSetPlacement,
+//     bulkRemove put `ownerId` in the WHERE / gate every id through `loadOwnedScriptsByIds`, and a foreign id
+//     is DROPPED rather than thrown on — the answer is the `affected` count, which is the same number for
 //     "you don't own it" and "it's already gone", so the list can never be probed for membership.
 //     `exportScript` collapses a foreign/absent id to `null` for the same reason (the `exportBook` posture).
 //   • PROBED by CONSTRUCTION: importScriptFile writes under `principal.userId` only — the portable file
@@ -25,7 +25,7 @@
 //     scripts to a non-host member — that is the feature, and the room's opt-in flag is the gate. Off ⇒ [].
 //   • EXEMPT: none.
 
-import { createRegexScriptSchema, regexAttachScopeSchema, updateRegexScriptSchema } from "@orb/contracts/regex";
+import { createRegexScriptSchema, regexAttachScopeSchema, regexPlacementListSchema, updateRegexScriptSchema } from "@orb/contracts/regex";
 import type { CharacterId, ChatId, PresetId, RegexScriptId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { TRPCError } from "@trpc/server";
@@ -73,6 +73,13 @@ export const regexRouter = t.router({
   bulkSetGlobal: authedProcedure
     .input(z.object({ scriptIds: scriptIdsInput, global: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.regex.bulkSetScriptsGlobal({ principal: ctx.auth, scriptIds: input.scriptIds, global: input.global })),
+
+  // REPLACE the placement set across the selection — the flags + depth scope are RE-DERIVED server-side from
+  // `placement` (`@orb/kit/regex`), so the wire carries no flags. `regexPlacementListSchema` is the STRICT
+  // enum-array (a garbage member is rejected, not salvaged — the card-boundary heal is the import lift's).
+  bulkSetPlacement: authedProcedure
+    .input(z.object({ scriptIds: scriptIdsInput, placement: regexPlacementListSchema }))
+    .mutation(({ ctx, input }) => ctx.services.regex.bulkSetScriptsPlacement({ principal: ctx.auth, scriptIds: input.scriptIds, placement: input.placement })),
 
   bulkRemove: authedProcedure
     .input(z.object({ scriptIds: scriptIdsInput }))

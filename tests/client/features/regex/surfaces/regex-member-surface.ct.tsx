@@ -6,9 +6,9 @@
 // The autosave writes are asserted at the WIRE (busDriven — the stubbed response doesn't refetch), the same
 // way the retired pane CT did.
 
+import { deriveRegexTierFlags } from "@orb/kit/regex";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { deriveRegexTierFlags } from "../../../../../packages/client/src/features/regex/lib/derive-tier-flags.ts";
 import type { TrpcRecorder } from "../../../../support/ct/route-trpc.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
 import { RegexMemberStory } from "../_ct-stories.tsx";

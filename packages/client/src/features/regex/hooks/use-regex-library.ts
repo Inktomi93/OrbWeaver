@@ -7,6 +7,7 @@
 
 import type { CreateRegexScriptInput, RegexScriptRow, UpdateRegexScriptInput } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
+import type { RegexPlacement } from "@orb/kit/regex";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
@@ -75,6 +76,15 @@ export const useBulkSetRegexGlobal = createEntityMutation<RegexBulkArgs & { read
   options: (trpc) => trpc.regex.bulkSetGlobal.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't change those scripts' global scope.",
+});
+
+// `placement` is a MUTABLE array for the same reason `scriptIds` is (above) — it matches the wire input tsc
+// infers from the router's `z.array(z.enum(REGEX_PLACEMENTS))`. The tier flags + depth scope are NOT here:
+// the server re-derives them from this set (`@orb/kit/regex`), so the whole point is that no flag rides along.
+export const useBulkSetRegexPlacement = createEntityMutation<RegexBulkArgs & { readonly placement: RegexPlacement[] }, RegexBulkOutcome>({
+  options: (trpc) => trpc.regex.bulkSetPlacement.mutationOptions(),
+  busDriven: true,
+  errorToast: "Couldn't change where those scripts run.",
 });
 
 export const useBulkRemoveRegexScripts = createEntityMutation<RegexBulkArgs, RegexBulkOutcome>({

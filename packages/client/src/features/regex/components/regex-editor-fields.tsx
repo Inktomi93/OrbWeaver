@@ -20,7 +20,7 @@
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import type { RegexPlacement } from "@orb/kit/regex";
-import { HISTORY_DEPTH_PLACEMENT, SubstituteFindRegex } from "@orb/kit/regex";
+import { HISTORY_DEPTH_PLACEMENT, SubstituteFindRegex, WHOLE_HISTORY_DEPTH } from "@orb/kit/regex";
 import { Field } from "@orb/ui/field";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { NumberField } from "@orb/ui/number-field";
@@ -30,7 +30,6 @@ import type { ChangeEvent, ReactElement } from "react";
 import { lazy, Suspense, useId } from "react";
 import type { AppFormInstance } from "#forms";
 import { REGEX_PLACEMENT_ITEMS } from "#lib";
-import { WHOLE_HISTORY_DEPTH } from "../lib/derive-tier-flags.ts";
 import { RegexPipelinePanel } from "./regex-pipeline-panel.tsx";
 import { RegexTestPanel } from "./regex-test-panel.tsx";
 
