@@ -61,10 +61,10 @@ export const GROUP_POLICIES = ["natural", "list", "pooled", "manual", "smart"] a
 export type GroupPolicy = (typeof GROUP_POLICIES)[number];
 /** Arbitration policy (WHO speaks each round). `@mention` is NOT a policy value — it is a hard override
  *  applied BEFORE the policy (and in a NARRATOR room it COERCES the round to per-speaker for the named
- *  character, like the other two forced doors). `smart` is LIVE: the side-LLM turn director
+ *  character, like the other two forced doors). `smart` is LIVE: the side-LLM turn arbiter
  *  (`domain/chat/engine/smart-arbitrate`) picks the one next speaker, roster-validated; `natural` is its
  *  DEGRADE arm — a thrown/garbled/off-roster reply falls back to the weighted math and says so out loud
- *  (`smart_arbitration_degraded`, D41). A NARRATOR round never buys that director call (see the arm below). */
+ *  (`smart_arbitration_degraded`, D41). A NARRATOR round never buys that arbiter call (see the arm below). */
 export const groupPolicySchema = z.enum(GROUP_POLICIES).catch("natural").default("natural");
 
 // Auto-mode (opt-in AI→AI chaining) — MUST live on BOTH union arms (both arms are strict).
@@ -119,7 +119,7 @@ export const groupConfigSchema = z.discriminatedUnion("output", [
      *  generation authored by the synthetic group character, so it consumes no arbitrated speaker. The field
      *  STAYS on this arm so flipping output narrator→per-speaker→narrator round-trips the host's choice
      *  instead of resetting it to `natural`. What it must NOT do is BUY anything: the turn verb
-     *  short-circuits the `smart` side-LLM director here (no model call, no `smart_arbitration_degraded`
+     *  short-circuits the `smart` side-LLM arbiter here (no model call, no `smart_arbitration_degraded`
      *  warning about a verdict nothing reads). Nor does it gate the ROUND: a narrator room narrates every
      *  send, `manual` included (the cast turn is the room's output, not a scheduled speaker) — the one thing
      *  it still governs here is the auto-chain's cheap deterministic continue/stop probe, so `manual` ends a

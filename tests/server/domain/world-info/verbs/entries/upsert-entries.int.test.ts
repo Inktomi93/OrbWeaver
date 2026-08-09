@@ -1,6 +1,6 @@
 // verb: upsertEntries — the SHARED hand-edit-safe machine-writer bulk upsert (chat-crew-design/02 §7, CC-D).
 // Load-bearing: insert-by-title, replace-same-title (idempotent re-run), and the HAND-EDIT GUARD — an entry a
-// human curated (its content no longer hashes to the stored `metadata.crew.contentHash`) is SKIPPED, never
+// human curated (its content no longer hashes to the stored `metadata.provenance.contentHash`) is SKIPPED, never
 // overwritten. A foreign book is NotFound.
 
 import type { UpsertEntriesResult } from "@orb/contracts/world-info";
@@ -15,7 +15,7 @@ import { makeHarness, principal, seedUser } from "../../_support.ts";
 const SPAN = { fromSeq: 10, toSeq: 40 };
 
 describe("upsertEntries", () => {
-  test("inserts new keyed entries, stamping crew provenance (contentHash + span)", async () => {
+  test("inserts new keyed entries, stamping provenance (contentHash + span)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
@@ -31,8 +31,8 @@ describe("upsertEntries", () => {
     expect(result).toEqual({ inserted: 1, updated: 0, skippedHandEdited: 0 });
     const [entry] = await svc.listEntries({ principal: principal(owner), bookId: book.id });
     expect(entry?.keys).toEqual(["greenhouse", "promise"]);
-    expect(entry?.metadata?.crew?.span).toEqual(SPAN);
-    expect(entry?.metadata?.crew?.contentHash).toEqual(expect.any(String));
+    expect(entry?.metadata?.provenance?.span).toEqual(SPAN);
+    expect(entry?.metadata?.provenance?.contentHash).toEqual(expect.any(String));
   });
 
   test("a re-run over the same title UPDATES in place (idempotent replace-same-span)", async () => {
@@ -59,7 +59,7 @@ describe("upsertEntries", () => {
     const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
     await svc.upsertEntries({ principal: principal(owner), bookId: book.id, entries: [{ title: "Fact", keys: ["k"], content: "machine text", span: SPAN }] });
 
-    // The host curates it by hand (its content now diverges from the stored crew.contentHash).
+    // The host curates it by hand (its content now diverges from the stored provenance.contentHash).
     const [entry] = await svc.listEntries({ principal: principal(owner), bookId: book.id });
     if (entry === undefined) {
       throw new Error("entry missing");

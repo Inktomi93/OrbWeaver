@@ -88,8 +88,8 @@ function buildSpeakerPrep(base: RoundBase, group: GroupConfig, speaker: CastName
     speakerName: speaker.name,
     speakerRef: speaker.ref,
   };
-  // The per-speaker fence is a PROSE-1 slot (`chat.group.roundNudge`, per-USER under the room host) with the
-  // speaker's name as its `{{name}}` pre-substitution token; the host prose rode onto the round's one
+  // The per-speaker fence is a PROSE-1 slot (`chat.group.roundNudge`, PRESET-homed since the F4 re-home) with
+  // the speaker's name as its `{{name}}` pre-substitution token; the host prose rode onto the round's one
   // immutable assemble ctx at build. Unset ⇒ the shipped line, byte-identical. NARRATOR takes the other
   // arm: its round is ONE speaker by construction (so `multi` is always false), and the fence it needs is
   // the opposite one — voice the WHOLE cast, tagged per speaker.

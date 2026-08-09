@@ -370,9 +370,9 @@ describe("smartArbitrate — cancellation (a HANG is not a failure)", () => {
   });
 });
 
-// PROSE-1 census 75 — the director prompt is a per-USER slot resolved against the ROOM HOST. The engine is
+// PROSE-1 census 75 — the arbiter prompt is a per-USER slot resolved against the ROOM HOST. The engine is
 // pure: the caller hands it the resolved overrides, and the slot's bytes are what land on the summarize call.
-describe("the director prompt is a prose slot", () => {
+describe("the arbiter prompt is a prose slot", () => {
   test("no override ⇒ the shipped default rides the summarize call", async () => {
     const summarize = summarizeReturning("Bran");
     await smartArbitrate({
@@ -388,7 +388,7 @@ describe("the director prompt is a prose slot", () => {
     expect(summarize).toHaveBeenCalledWith([{ systemPrompt: PROSE_SLOTS["chat.arbiter.system"].text, userPrompt: expect.any(String) }], expect.anything());
   });
 
-  test("a host override REPLACES the director prompt on the wire", async () => {
+  test("a host override REPLACES the arbiter prompt on the wire", async () => {
     const summarize = summarizeReturning("Bran");
     await smartArbitrate({
       summarize,

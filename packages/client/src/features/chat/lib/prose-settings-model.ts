@@ -19,7 +19,7 @@ export const PROSE_SETTINGS_SUBCATEGORY: SettingsSubcategory = {
   id: "prose",
   label: "Model-facing prose",
   navLabel: "Prose",
-  keywords: ["prose", "prompt", "instruction", "wording", "summarizer", "digest", "memory", "arbiter", "director", "injection", "background", "distill"],
+  keywords: ["prose", "prompt", "instruction", "wording", "summarizer", "digest", "memory", "arbiter", "injection", "background", "distill"],
 };
 
 /** The TanStack-addressable field name for a slot (dots are path separators — see the header). */

@@ -141,9 +141,9 @@ function ProseBody({ sectionId, session, stored, onKeepMine }: ProseBodyProps): 
     >
       <Stack gap="block">
         <Text voice="gloss">
-          The wording the app sends to a model on your behalf — summarizers, the memory writer, the group turn director, and the group-round nudges. Leave a
-          field blank to use the built-in wording (shown as the placeholder). In a shared room, the host's wording is the one that runs. The framings that wrap
-          a turn's own prompt — the note frames and the continuation cue — live with your preset's templates, not here.
+          The wording the app sends to a model on your behalf — summarizers, the memory writer, and the group turn arbiter. Leave a field blank to use the
+          built-in wording (shown as the placeholder). In a shared room, the host's wording is the one that runs. The framings that wrap a turn's own prompt —
+          the note frames, the continuation cue, and the group-round nudges — live with your preset's templates, not here.
         </Text>
         <Grid cols="auto" gap="field">
           {USER_PROSE_SLOT_IDS.map((id) => (
