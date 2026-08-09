@@ -23,12 +23,33 @@ type FlatNode = MacroNode | FlatClose;
 // char → flag key, derived from the ONE flag vocabulary (types.ts) so the parser can never drift from it.
 const FLAG_KEY_BY_CHAR: ReadonlyMap<string, MacroFlagKey> = new Map(MACRO_FLAG_DEFS.map((def) => [def.char, def.key]));
 
-// The 1-based line/col of `offset` in `text`, paired with the tag's byte length — the diagnostic span
-// (02 §5). Linear in `offset`; a prompt template is tiny so this per-tag scan never matters.
-function spanAt(text: string, offset: number, length: number): MacroSpan {
-  let line = 1;
-  let col = 1;
-  for (let i = 0; i < offset; i += 1) {
+// Amortized-O(1) line/col derivation. The OLD `spanAt(text, offset)` re-scanned from index 0 on EVERY
+// recognized tag (once per `{{…}}`), making the parser O(tags·length) = O(L²) over a macro-dense input:
+// a 100 KB card field of `{{a}}` macros blocked the shared event loop ~4.4 s (2026-08-09 DoS audit) — a
+// full-instance denial-of-service on any input that reaches assembly's `renderMacros` (card fields,
+// greetings, world-info `content` — all capped at 100 KB, all attacker-influenceable via an imported ST
+// card / shared lorebook / member persona). Because the scanner only ever requests spans at
+// MONOTONICALLY INCREASING offsets (tags parse left-to-right, and the main loop's `pos` never rewinds),
+// a running cursor advances only over the bytes SINCE the previous span, so the whole parse counts each
+// byte at most once → O(L). Byte output is UNCHANGED and every emitted span (offset/line/col/length) is
+// IDENTICAL to the old full re-scan — only the cost of deriving it moves.
+interface SpanCursor {
+  index: number;
+  line: number;
+  col: number;
+}
+
+function createSpanCursor(): SpanCursor {
+  return { index: 0, line: 1, col: 1 };
+}
+
+// Advance `cursor` from its current index to `offset` (which is >= cursor.index by construction — spans
+// are requested in document order), accumulating the 1-based line/col over the newly-scanned bytes, and
+// return the tag's diagnostic span. Mutates the cursor so the next (later) tag resumes from here rather
+// than re-scanning from 0.
+function spanFrom(cursor: SpanCursor, text: string, offset: number, length: number): MacroSpan {
+  let { line, col } = cursor;
+  for (let i = cursor.index; i < offset; i += 1) {
     if (text.startsWith("\n", i)) {
       line += 1;
       col = 1;
@@ -36,6 +57,9 @@ function spanAt(text: string, offset: number, length: number): MacroSpan {
       col += 1;
     }
   }
+  cursor.index = offset;
+  cursor.line = line;
+  cursor.col = col;
   return { offset, line, col, length };
 }
 
@@ -48,7 +72,12 @@ const DOUBLE_COLON_PREFIX_LEN = 2;
 // `indexOf` / "no closing delimiter" sentinel.
 const NOT_FOUND = -1;
 // Leading char of an identifier, then word-chars or `-` (`\w` already covers `_`/digits/letters).
-const MACRO_IDENT = /^[a-zA-Z][\w-]*/;
+// STICKY (`y`), not anchored (`^`): the scanner matches the identifier at an OFFSET into the full string
+// (`readTag`), and a sticky match at `lastIndex` avoids allocating a fresh `text.slice(pos)` tail on every
+// tag — that slice was the SECOND O(n²) parse source (alongside the old spanAt), together ~4.4 s on a
+// 100 KB macro-dense field (2026-08-09 DoS audit). Sticky exec is used with an explicit `lastIndex` set on
+// every call, so its statefulness is deterministic (parse is synchronous and non-reentrant).
+const MACRO_IDENT = /[a-zA-Z][\w-]*/y;
 
 /** The fully-anchored form of {@link MACRO_IDENT} — "is this whole string a parseable macro name?".
  *  ONE vocabulary home: `registerUserMacros` (user-macros.ts) and the contracts-side authoring schema
@@ -147,7 +176,7 @@ function readFlagRun(text: string, from: number): FlagRun {
 // Parse one tag whose `{{` begins at `tagStart`; `bodyPos` = tagStart + BRACE_LEN points just past the
 // opener. Handles comments, the flag run, the identifier, and the arg span. The comment check PRECEDES
 // the flag run so `{{//…}}` is always a comment, never a doubled `/` closing flag.
-function readTag(text: string, tagStart: number, bodyPos: number): TagResult {
+function readTag(text: string, tagStart: number, bodyPos: number, cursor: SpanCursor): TagResult {
   // Comment macro: {{// … }} — consumed whole, emits nothing.
   if (text.startsWith("//", bodyPos)) {
     const commentEnd = scanCommentEnd(text, bodyPos + COMMENT_MARKER_LEN);
@@ -165,7 +194,8 @@ function readTag(text: string, tagStart: number, bodyPos: number): TagResult {
   const { flags, run, pos: afterFlags } = readFlagRun(text, bodyPos);
   let pos = afterFlags;
 
-  const idMatch = text.slice(pos).match(MACRO_IDENT);
+  MACRO_IDENT.lastIndex = pos;
+  const idMatch = MACRO_IDENT.exec(text);
   if (!idMatch) {
     // No identifier after the flags — the opener + flag chars are literal text; scanning resumes right
     // after them so a later valid `{{` still parses.
@@ -190,7 +220,7 @@ function readTag(text: string, tagStart: number, bodyPos: number): TagResult {
     return { nodes: [{ type: "blockClose", name, raw }], pos, stop: false };
   }
   const args = parseArgs(argStr);
-  const span = spanAt(text, tagStart, raw.length);
+  const span = spanFrom(cursor, text, tagStart, raw.length);
   const node: MacroCallNode = { type: "macro", name, args, raw, span, ...(flags !== undefined ? { flags } : {}) };
   return { nodes: [node], pos, stop: false };
 }
@@ -249,6 +279,9 @@ export function scanMacroRuns(text: string): readonly MacroRun[] {
 
 export function parseMacros(text: string): MacroAST {
   const flatAst: FlatNode[] = [];
+  // One monotonic line/col cursor for the whole parse — see spanFrom. Fresh per call, so nested
+  // evaluate-time re-parses (ctx.evaluateString) never share a cursor with their parent.
+  const cursor = createSpanCursor();
   let pos = 0;
 
   while (pos < text.length) {
@@ -277,7 +310,7 @@ export function parseMacros(text: string): MacroAST {
       flatAst.push({ type: "text", value: text.slice(pos, tagStart) });
     }
 
-    const result = readTag(text, tagStart, tagStart + BRACE_LEN);
+    const result = readTag(text, tagStart, tagStart + BRACE_LEN, cursor);
     for (const node of result.nodes) {
       flatAst.push(node);
     }
@@ -352,16 +385,27 @@ interface StackFrame {
   children: MacroAST;
 }
 
-// The tip candidate never saw a matching close in its scope — it was an INLINE call all along. Splice
-// the tag + its accumulated children back into the parent in document order. (Under the universal
-// grammar this is the common case: every `{{setvar::k::v}}` is a candidate until proven inline.)
-function revertTip(stack: StackFrame[]): void {
-  const frame = stack.pop();
-  const parent = stack.at(-1);
-  if (frame === undefined || parent === undefined || frame.open === null) {
-    return;
+// Flush a run of never-closed candidate frames into `target`, in document order — each was an INLINE call
+// all along (its tag + its accumulated children splice back where they were parsed; under the universal
+// grammar this is the common case: every `{{setvar::k::v}}` is a candidate until proven inline).
+//
+// LINEAR, not a per-tip cascade. The old `revertTip` popped ONE tip and did
+// `parent.children.push(open, ...children)`, called in a loop; because each revert re-copied the
+// accumulating tail one frame up, unwinding K frames was O(K²). For a flat run of inline macros
+// (`{{a}}{{a}}…` — the DoS shape, or a wide crossing like `{{a}}{{b}}…{{b}}{{/a}}`) K = the tag count, so
+// the unwind alone was ~2 s on a 100 KB field (2026-08-09 audit; the OTHER half was `spanAt`). A full
+// unwind is just each frame's `open` followed by its own children, concatenated in order after the target's
+// existing prefix — one pass, O(total nodes). Byte-identical AST to the cascade.
+function flushFrames(target: StackFrame, frames: readonly StackFrame[]): void {
+  for (const frame of frames) {
+    if (frame.open === null) {
+      continue;
+    }
+    target.children.push(frame.open);
+    for (const child of frame.children) {
+      target.children.push(child);
+    }
   }
-  parent.children.push(frame.open, ...frame.children);
 }
 
 // A `/`-flagged close: pair it with the NEAREST same-name candidate (innermost-first, so nested
@@ -380,12 +424,17 @@ function closeBlock(stack: StackFrame[], close: FlatClose): void {
     stack.at(-1)?.children.push({ type: "text", value: close.raw });
     return;
   }
-  while (stack.length - 1 > openIdx) {
-    revertTip(stack);
+  const frame = stack[openIdx];
+  if (frame === undefined || frame.open === null) {
+    return;
   }
-  const frame = stack.pop();
+  // Every candidate stacked ABOVE the match crossed its scope — revert them to inline calls, in ONE linear
+  // pass (the old `while (…) revertTip` cascade was O(K²) for a wide crossing). `splice` removes them from
+  // the stack and hands them to flushFrames in document order; the matched frame is then popped + blocked.
+  flushFrames(frame, stack.splice(openIdx + 1));
+  stack.pop();
   const parent = stack.at(-1);
-  if (frame === undefined || frame.open === null || parent === undefined) {
+  if (parent === undefined) {
     return;
   }
   const { name, args, raw, span, flags } = frame.open;
@@ -418,8 +467,10 @@ function buildBlocks(flatAst: FlatNode[]): MacroAST {
     }
   }
 
-  while (stack.length > 1) {
-    revertTip(stack);
+  // EOF: every still-open candidate was inline all along — flush them all into root in ONE linear pass.
+  const rootFrame = stack[0];
+  if (rootFrame !== undefined) {
+    flushFrames(rootFrame, stack.splice(1));
   }
   return root;
 }

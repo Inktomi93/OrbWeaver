@@ -15,6 +15,15 @@ import type { MacroAST, MacroBudget, MacroContext, MacroRegistry } from "./types
 const MAX_DEPTH = 64;
 const MAX_OUTPUT_BYTES = 1_000_000;
 
+// Defense-in-depth INPUT belt (2026-08-09 DoS audit). The parser is now O(n) (parser.ts spanFrom), but the
+// engine must not TRUST that all ~10 call sites capped their input — a caller that forgets its schema cap
+// would hand an unbounded string straight to the parser. Every legitimate macro input is tiny; the largest
+// a write-boundary schema admits is a 100 KB card field / world-info `content` (TEXT_MAX = CONTENT_MAX =
+// 100_000). This cap sits at 2 MB — 20× that ceiling and 2× the output cap — so any real input (a maxed
+// card field, or a section concatenating several) passes, while a pathological multi-megabyte input is
+// refused before it is parsed. Measured in `.length` (UTF-16 units) to match MAX_OUTPUT_BYTES's accounting.
+const MAX_INPUT_BYTES = 2_000_000;
+
 // Intra-file helper — `createMacroContext` below is its only caller. Off the public surface (the
 // "share a budget across multiple createMacroContext calls" use case has no consumer today).
 function createMacroBudget(): MacroBudget {
@@ -78,6 +87,12 @@ export function createMacroContext(options: ProcessMacroOptions, registry: Macro
 }
 
 export function processMacros(text: string, options: ProcessMacroOptions, registry: MacroRegistry = globalMacroRegistry): string {
+  // Input belt (see MAX_INPUT_BYTES): refuse a pathological input before parsing. Degrade-don't-throw —
+  // the engine's posture on every cap — so a hostile field can never block the shared event loop.
+  if (text.length > MAX_INPUT_BYTES) {
+    options.onWarn?.(`[Macro Engine] input limit ${MAX_INPUT_BYTES} bytes exceeded — rendering skipped`);
+    return "";
+  }
   const ctx = createMacroContext(options, registry);
 
   const ast = parseMacros(text);
