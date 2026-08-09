@@ -61,8 +61,11 @@ export function ownerHandles(): string[] {
   return [env.DEFAULT_USER_HANDLE];
 }
 
-/** `owner` iff the identity is in `OWNER_GROUP` OR its handle ∈ `OWNER_HANDLES` (group preferred). */
-function isOwnerByPolicy(handle: Handle, groups: string[]): boolean {
+/** Whether the identity is the box OWNER by policy — in `OWNER_GROUP` OR its handle ∈ `OWNER_HANDLES` (group
+ *  preferred). This is owner POLICY (who the operator declared the owner is), NOT a privilege-lattice compare
+ *  — it re-spells no `role === "owner"` (the `owner-role-split` gate's target), so a consumer that needs the
+ *  binary "is this the owner?" question calls THIS instead of comparing a derived role literal. */
+export function isOwnerByPolicy(handle: Handle, groups: string[]): boolean {
   const ownerGroup = process.env["OWNER_GROUP"];
   if (ownerGroup !== undefined && ownerGroup.length > 0 && groups.includes(ownerGroup)) {
     return true;
