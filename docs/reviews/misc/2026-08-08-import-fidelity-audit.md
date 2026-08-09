@@ -277,7 +277,9 @@ not about what the value means.
 | `chat_metadata.note_depth/position/role` (1,070) | `notePlacement` | `injections[0].depth/position/role` | same | **FIXED (§5.5)** — converted onto orb's injection axis; house register is the fallback |
 | `chat_metadata.note_interval` (1,070) | `notePlacement.interval` | — | — | **DROP@3, DELIB** — orb has no periodic-injection concept; see 5.5 |
 | `chat_metadata.variables` (494) | `variables` | `variableValues` | `chats.variable_values` | **FIXED (§5.6)** |
-| `chat_metadata.pinnedPersona` (71) · `scenario`/`mes_example`/`system_prompt` (5) · `timedWorldInfo` · `chat_id_hash` · `lastInContextMessageId` · `script_injects` (581) · `tainted` · `integrity` | `sourceMetadata` | — | — | **DROP@3** — see 5.7 |
+| `chat_metadata.pinnedPersona` (71) | `pinnedPersonaName` | → `anchorPersonaId` by NAME, ahead of `user_name` | `chats.anchor_persona_id` | **FIXED (§5.7)** — those 71 chats carry `user_name: "unused"`, so this was their ONLY persona signal; unresolvable ⇒ omitted + reported |
+| `chat_metadata.persona` (4) | — | — | — | **DROP@2, DELIB** — ST's own key, an AVATAR FILENAME (a different vocabulary from `pinnedPersona`); see 5.7 |
+| `scenario`/`mes_example`/`system_prompt` (5) · `timedWorldInfo` · `chat_id_hash` · `lastInContextMessageId` · `script_injects` (581) · `tainted` · `integrity` | `sourceMetadata` | — | — | **DROP@3** — see 5.7 |
 | (classifier) | `bucket` | `isRealConversation` | — | ✓ gates the PD-78 backfill |
 
 ### 4.3 Character card
@@ -439,11 +441,28 @@ could interpret otherwise) — but the shape check found nothing to worry about.
 
 ### 5.7 The rest of `chat_metadata` is dropped
 
-`pinnedPersona` (71 — orb has `chats.anchorPersonaId` and could resolve it by name),
 `scenario`/`mes_example`/`system_prompt` per-chat overrides (5), `script_injects` (581), `timedWorldInfo`,
 `lastInContextMessageId`, `chat_id_hash`, `tainted`, `integrity`. All survive in `ParsedChat.sourceMetadata`
 at hop 2 and are discarded at hop 3; `chats` has no lossless sidecar column for them. Note `sourceMetadata`
 is *parsed and then thrown away* — that is the cheapest thing to change if a sidecar is ever wanted.
+
+**`pinnedPersona` (71) is FIXED** (2026-08-08 follow-up lane). It now resolves onto `chats.anchorPersonaId`
+by persona NAME, through the same `personaByUserName` map `user_name` already keys on, and it WINS over
+`user_name`. An unresolvable name resolves to nothing, is recorded on
+`ImportReport.unresolvedPinnedPersonas`, and is rendered in the operator's import report — never near-matched.
+
+**Premise corrections from this lane's own corpus re-drive** (whole 1,097-file profile, both user dirs;
+positive control: the `variables` count re-derived to exactly the 494 §5.6 states):
+
+| Claim | Re-derived | Consequence |
+| - | - | - |
+| the pick is a name | **CONFIRMED** — 71/71 string values, `"Nate"` ×63 / `"Ashley"` ×8, both declared in `power_user.personas` | resolve by NAME, as spec'd |
+| (unstated) the header `user_name` on those chats | **`"unused"` on 71/71** — the sentinel, not a persona | the pin is not a *better* signal, it is the ONLY one: those 71 chats imported with NO anchor persona and NO user-turn attribution at all. 583 of the 1,097 corpus chats carry that sentinel |
+| (unstated) ST's OWN `chat_metadata.persona` key | present on **4** chats, value is an AVATAR FILENAME (`"user-default.png"`); 2 of those also carry `pinnedPersona` | a DIFFERENT field with a different vocabulary. Deliberately NOT read: resolving it needs a filename→persona map the chat mapper is not given, and the marginal payoff is 2 chats. **Open follow-up**, with this receipt |
+
+Ordering rule, both from ST and from the corpus: ST's own resolver prefers the chat lock over the ambient
+persona (`public/scripts/personas.js` — "Using locked persona"), and it DROPS a dangling lock rather than
+guessing (`if (chat_metadata.persona && !userAvatars.includes(...)) delete`). Both behaviours are mirrored.
 
 ### 5.8 Character authorship dates do not exist in this corpus
 
@@ -496,8 +515,13 @@ note goes now that ST's placement is honored. Both arms now use the one prose do
    When cross-box import becomes a real case, the setting lands on `ImportProfileDeps.stWallClockZone`,
    which is already injected end-to-end — no further plumbing.
 7. **§5.8** — decide whether "character acquired at" should read the card file's mtime.
-8. **§5.7 the rest of `chat_metadata`** — `pinnedPersona` (71) is the highest-value remainder (orb has
-   `chats.anchorPersonaId` and could resolve it by name, exactly as `user_name` already is).
+8. ~~**§5.7 `pinnedPersona`**~~ — **DONE** (2026-08-08 follow-up lane, red-first: 4 of 5 new §5.7 specs failed
+   against a `git show HEAD:` copy of the serde — `expected null to be 'persona_…'` on a pinned chat, the
+   ambient `user_name` winning over the pin, and `[]` where the unresolved-pin report was expected; the
+   fifth is a FENCE, it passed pre-fix). Resolves by NAME onto `chats.anchorPersonaId`, pin ahead of
+   `user_name`, unresolvable ⇒ omitted + reported. See §5.7 for the corpus re-drive and its two premise
+   corrections. **Still open in §5.7:** ST's own `chat_metadata.persona` key (4 chats, avatar-filename
+   valued) and the rest of the `chat_metadata` residue.
 
 ## Verification
 

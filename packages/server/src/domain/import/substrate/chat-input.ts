@@ -14,7 +14,7 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { msToWallClock } from "@orb/kit/time";
 import type { ParsedChat, ParsedChatMessage, ParsedNotePlacement } from "#kit/serde/chat";
 import { ST_DEFAULT_WALL_CLOCK_ZONE } from "#kit/serde/chat";
-import type { CollectedChat, GroupChatInputDeps } from "../contract/views.ts";
+import type { CollectedChat, GroupChatInputDeps, ImportUnresolvedPinnedPersona } from "../contract/views.ts";
 
 const JSONL_EXT = /\.jsonl$/i;
 
@@ -203,6 +203,54 @@ export function disambiguateChatTitles(inputs: readonly BulkImportChatInput[]): 
   });
 }
 
+// ── the anchor persona (§5.7 — ST's chat-bound persona pick) ─────────────────────────────────────────────
+//
+// orb has ONE seat, `chats.anchorPersonaId`, and ST offers TWO signals for it. The header `user_name` is the
+// ambient persona at save time; `chat_metadata.pinnedPersona` is the author's explicit chat-bound pick. The
+// PIN WINS, for two independent reasons: ST's own resolver prefers the chat lock over the ambient persona
+// (`public/scripts/personas.js` — "Using locked persona"), and on the real corpus the ambient signal is not
+// even present on a pinned chat (71/71 pinned chats carry the literal sentinel `user_name: "unused"`, so
+// those chats had NO anchor and NO user-turn attribution before this).
+//
+// An UNRESOLVABLE pin — a name no persona in this run or library carries — resolves to NOTHING and is
+// REPORTED. It never near-matches, and it never blocks the chat: ST likewise drops a dangling lock and falls
+// back to the ambient persona, so `user_name` is still consulted underneath.
+
+/** Lowercased name → the run's persona-id key. One spelling, so the pin and `user_name` can never key
+ *  differently. */
+function personaKey(name: string | null): string | undefined {
+  const key = name?.trim().toLowerCase();
+  return key !== undefined && key.length > 0 ? key : undefined;
+}
+
+/** The chat's anchor persona: the chat-bound PIN first, then the header `user_name`, then none. */
+function resolveAnchorPersona(pc: ParsedChat, personaByUserName: ReadonlyMap<string, PersonaId>): PersonaId | null {
+  const pinned = personaKey(pc.pinnedPersonaName);
+  const byPin = pinned === undefined ? undefined : personaByUserName.get(pinned);
+  if (byPin !== undefined) {
+    return byPin;
+  }
+  const ambient = personaKey(pc.userName);
+  return (ambient === undefined ? undefined : personaByUserName.get(ambient)) ?? null;
+}
+
+/**
+ * The chats in this batch whose ST pin named a persona that does not exist here — the report's raw material.
+ * Computed at the VERB over the whole batch (the same place the group wave computes its skipped members),
+ * so the mapper below stays a pure `CollectedChat → BulkImportChatInput` function with no second return
+ * channel. A chat with no pin, or a pin that resolved, contributes nothing.
+ */
+export function unresolvedPinnedPersonas(chats: readonly CollectedChat[], personaByUserName: ReadonlyMap<string, PersonaId>): ImportUnresolvedPinnedPersona[] {
+  return chats.flatMap((ci) => {
+    const name = ci.parsed.pinnedPersonaName;
+    const key = personaKey(name);
+    if (name === null || key === undefined || personaByUserName.get(key) !== undefined) {
+      return [];
+    }
+    return [{ chat: ci.importedFrom, persona: name }];
+  });
+}
+
 /** The chat-level facts every arm shares: the resolved instants, the anchor persona, the prose plane and the
  *  display title. `displayName` is the room's own name for the title — the header character for a solo
  *  transcript, the ST group's name for a room. */
@@ -215,8 +263,7 @@ function chatShell(
   const created = pc.createDate ?? pc.messages.find((m) => m.sendDate !== null)?.sendDate ?? deps.now();
   const sendDates = pc.messages.flatMap((m) => (m.sendDate !== null ? [m.sendDate] : []));
   const updatedAt = sendDates.length > 0 ? Math.max(...sendDates) : created;
-  const key = pc.userName?.trim().toLowerCase();
-  const chatPersonaId: PersonaId | null = (key !== undefined && deps.personaByUserName.get(key)) || null;
+  const chatPersonaId = resolveAnchorPersona(pc, deps.personaByUserName);
   const note = importedNoteInjection(pc.notePrompt, pc.notePlacement, created);
 
   return {
