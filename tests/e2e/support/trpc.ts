@@ -16,13 +16,15 @@
 
 import process from "node:process";
 import type { CharacterHandle, CharacterId, ChatId, MessageId, PersonaId, UserId } from "@orb/kit/ids";
-import { E2E_DEBUG_TOKEN, SINGLE_USER } from "./modes.ts";
+import { DEV_TARGET_ALLOWED, E2E_DEBUG_TOKEN, SINGLE_USER } from "./modes.ts";
 
 // The vite front door (the specs' baseURL). Every consumer of this module is a single-user-project spec, so
-// the default is SINGLE_USER.baseUrl — derived, never a literal: the project moved off the dev ports (a
-// hardcoded :5173 would have aimed these reads/writes at the operator's dev stack). `E2E_BASE_URL` overrides.
-// biome-ignore lint/style/noProcessEnv: e2e node support reads the base-URL env exactly as global-setup.ts does (its sanctioned peer).
-const BASE_URL = process.env["E2E_BASE_URL"] ?? SINGLE_USER.baseUrl;
+// this is always SINGLE_USER.baseUrl — the actor clients target their stack via the spec's per-project
+// Playwright `baseURL`, not an env (playwright.config.ts:45-46), and no mode sets `E2E_BASE_URL`. A
+// formerly-read `E2E_BASE_URL` override is deleted (2026-08-08): a stale shell export left over from a
+// dev-target drive silently pointed this support client at a DIFFERENT stack than the browser specs drove,
+// producing DOM-vs-DB "parity failures" that were really two stacks disagreeing, not a product defect.
+const BASE_URL = SINGLE_USER.baseUrl;
 
 const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));
 
@@ -36,11 +38,14 @@ const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringif
  * request bodies included — so the gate now requires a credential and the harness carries the token its
  * stack booted with (`modes.ts::E2E_DEBUG_TOKEN`, threaded into every mode's `webServerEnv`).
  *
- * `DEBUG_TOKEN` from the runner's own env wins: that is the `E2E_ALLOW_DEV_TARGET=1` path, where the stack
- * is the operator's dev instance running its own `.env` token rather than ours.
+ * `DEBUG_TOKEN` from the runner's own env wins ONLY under `E2E_ALLOW_DEV_TARGET=1` (`modes.ts:71`
+ * instructs the operator to export it for that drive) — gated on `DEV_TARGET_ALLOWED`, not on the bare env
+ * key: an unconditional read let a DEV_TOKEN export left over from a dev-target drive silently carry into
+ * the NEXT ordinary `pnpm e2e` (which boots with `E2E_DEBUG_TOKEN`), 401-ing every debug witness for a
+ * reason invisible in the diff.
  */
-// biome-ignore lint/style/noProcessEnv: e2e node support reads its env directly, exactly as BASE_URL above does (its sanctioned peer).
-const DEBUG_TOKEN = process.env["DEBUG_TOKEN"] ?? E2E_DEBUG_TOKEN;
+// biome-ignore lint/style/noProcessEnv: e2e node support reads its env directly, exactly as the dev-target gate above does (its sanctioned peer).
+const DEBUG_TOKEN = DEV_TARGET_ALLOWED ? (process.env["DEBUG_TOKEN"] ?? E2E_DEBUG_TOKEN) : E2E_DEBUG_TOKEN;
 
 const debugHeaders = (): Record<string, string> => ({ "x-debug-token": DEBUG_TOKEN });
 

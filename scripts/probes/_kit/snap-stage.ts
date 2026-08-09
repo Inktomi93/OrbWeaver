@@ -43,11 +43,15 @@
 // `node --watch` on the stage picks up the synced diff itself. `--fresh` still forces the full rebuild.
 
 import { execFileSync, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { parseEnv } from "node:util";
 import { errorMessage } from "@orb/kit/error-message";
 import { print } from "./result.ts";
+
+const DEBUG_TOKEN_BYTES = 16;
 
 // The canonical dev ports (mirrors stack.sh BACKEND_PORT + vite.config strictPort). The stage offsets both.
 export const DEV_SERVER_PORT = 8788;
@@ -287,7 +291,22 @@ function stopStage(dir: string): void {
   }
 }
 
-function bootStage(paths: StagePaths, ports: StagePorts): void {
+/** The dev `.env`'s `OWNER_HANDLES`, read straight off disk (NOT via process.env — under `ORB_ENV_NO_FILE`
+ *  the stage's own boot never loads the file at all). The stage boots on a COPY of the dev DB
+ *  (`seedStageData`), so its owner row already sits at whatever handle the dev deploy provisioned; declaring
+ *  the SAME handle here keeps `seedOwner` idempotent instead of colliding with D17's single-owner unique
+ *  index. Absent `.env` or key ⇒ undefined, matching the schema's own OWNER_HANDLES-unset fallback. */
+function devOwnerHandle(root: string): string | undefined {
+  const p = join(root, ".env");
+  if (!existsSync(p)) {
+    return;
+  }
+  const parsed = parseEnv(readFileSync(p, "utf8"));
+  return parsed["OWNER_HANDLES"];
+}
+
+function bootStage(root: string, paths: StagePaths, ports: StagePorts): void {
+  const ownerHandle = devOwnerHandle(root);
   const env: NodeJS.ProcessEnv = {
     // biome-ignore lint/style/noProcessEnv: the stage stack inherits the operator's ambient env (PATH etc) — harness plumbing, not app config.
     ...process.env,
@@ -302,9 +321,22 @@ function bootStage(paths: StagePaths, ports: StagePorts): void {
     // manager fighting the primary). The stage runs no supervisor management; exactly one auto-sleep
     // timer exists (the dev/prod server's) — the single-manager assumption made true by construction.
     ENGINES_POSTURE: "adopt-only",
-    // A stray .env in the worktree must never clobber these explicit stage knobs (foundation/env's .env
-    // loader runs override:true).
-    ORB_ENV_NO_OVERRIDE: "1",
+    // Skip the repo-root .env ENTIRELY (the strong hatch) — ORB_ENV_NO_OVERRIDE only flipped precedence,
+    // so OWNER_HANDLES/DEBUG_TOKEN/WIRE_CAPTURE/RPG_TRACE/OIDC_* all filled from the operator's real `.env`,
+    // arming the stage's /api/_debug/* surface under the operator's REAL DEBUG_TOKEN with WIRE_CAPTURE=on,
+    // behind a copy of the dev DB, on a second port. The keys the copied DB actually needs are declared
+    // explicitly below instead.
+    ORB_ENV_NO_FILE: "1",
+    // The stage's DB is a COPY of the dev DB (seedStageData) — its owner row is already provisioned at
+    // whatever handle the dev deploy used, so this must match or seedOwner's idempotent-insert collides
+    // with D17's single-owner unique index. Undefined (no dev .env / no OWNER_HANDLES key) falls through to
+    // the schema's own default, exactly like an unset key always has.
+    ...(ownerHandle === undefined ? {} : { OWNER_HANDLES: ownerHandle }),
+    // Minted per stage boot (like probe-fire.ts) rather than inherited — the operator's real token must
+    // never arm a second, less-guarded /api/_debug/* surface. WIRE_CAPTURE stays at its schema default
+    // (off) under ORB_ENV_NO_FILE; a caller who wants the wire-capture surface on the stage can still
+    // export WIRE_CAPTURE=on in their own shell (process.env spread above), same as any other opt-in.
+    DEBUG_TOKEN: randomBytes(DEBUG_TOKEN_BYTES).toString("hex"),
   };
   const stackSh = join(paths.dir, "scripts", "dev", "stack.sh");
   const res = spawnSync("bash", [stackSh, "start"], { cwd: paths.dir, env, stdio: "inherit" });
@@ -405,7 +437,7 @@ export function ensureStage(opts: EnsureStageOpts): ActiveStage {
   seedStageData(root, paths);
 
   print(`[snap-stage] booting isolated stack — server:${ports.server} vite:${ports.vite}`);
-  bootStage(paths, ports);
+  bootStage(root, paths, ports);
 
   const built: ActiveStage = {
     sha: targetSha,

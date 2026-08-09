@@ -103,11 +103,13 @@ function serverEnv(port: number, dbPath: string, debugToken: string): NodeJS.Pro
     PORT: String(port),
     DEBUG_TOKEN: debugToken,
     DATABASE_URL: `file:${dbPath}`,
-    // The header has always PROMISED these pins beat a repo-root `.env`; nothing made it true (found
-    // 2026-08-03 sweeping the dotenv kill). foundation/env loads `.env` with override:true by default, so
-    // a checked-in PORT/DATABASE_URL/DEBUG_TOKEN would silently clobber the ephemeral ones and the probe
-    // would fire at the dev stack's DB. Same hatch snap-stage + multi-user-fixture.sh already use.
-    ORB_ENV_NO_OVERRIDE: "1",
+    // The header has always PROMISED these pins beat a repo-root `.env`; ORB_ENV_NO_OVERRIDE only flipped
+    // PRECEDENCE, so OWNER_HANDLES (never pinned here) still filled from the operator's `.env` and the
+    // probe's throwaway DB was seeded with the operator's owner identity instead of the harness one — a
+    // probe of any identity/role-shaped route answered per-box, not per-code. Skip the file ENTIRELY and
+    // declare the identity contract explicitly (mirrors tests/e2e/support/modes.ts's HARNESS_OWNER_HANDLE).
+    ORB_ENV_NO_FILE: "1",
+    OWNER_HANDLES: "owner",
     // single-user: the probe debugs server behaviour, not auth flows — no IdP ceremony.
     AUTH_MODE: "single-user",
     // Container-safe (and normalizes the pre-rebuild container's invalid `1` spelling —
