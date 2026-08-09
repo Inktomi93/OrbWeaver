@@ -338,7 +338,150 @@ second linking site.
 
 ---
 
-## 7. Honest floors — what I did not read or verify
+## 7. First-run bootstrap + auth-mode switch (the owner's #8 pain)
+
+Two flows the owner asked to mine specifically: how the VERY FIRST account is born + becomes admin,
+and what happens to EXISTING accounts when the operator turns on / switches auth mode later.
+
+### 7.1 First-run — their flow
+
+There is no single "first run" in Open WebUI; the first admin can arrive **three ways**, and first-run
+IS different from later signup (open registration, then auto-locked):
+
+1. **Env-seeded at boot.** If `WEBUI_ADMIN_EMAIL` + `WEBUI_ADMIN_PASSWORD` are set, startup calls
+   `create_admin_user` (`OW:backend/open_webui/main.py:349-352`), which **skips if any user exists**
+   (`has_users()`, `OW:backend/open_webui/utils/auth.py:548-550`), inserts directly at `role='admin'`
+   (`:524-556`), and then persists `ui.enable_signup=False` (`OW:main.py:352`).
+2. **The onboarding screen.** `onboarding = not await Users.has_users()` is served on the config
+   (`OW:main.py:2094-2096,2150`); the frontend flips the auth card to "Create Admin Account"
+   (`OW:src/routes/auth/+page.svelte:405-407`). The first signup goes through the normal
+   `signup_handler`, which post-insert promotes `get_num_users()==1 → admin` and sets
+   `ui.enable_signup=False` (`OW:routers/auths.py:862-865`). `ENABLE_INITIAL_ADMIN_SIGNUP` lets that
+   first signup through even when the login form is disabled (`OW:routers/auths.py:899`).
+3. **First SSO / LDAP login.** Same post-insert `get_num_users()==1 → admin` bootstrap
+   (`OW:oauth.py:1984-1989`; LDAP `OW:routers/auths.py:661-663`).
+
+So first-run = **open registration for exactly one account, which auto-becomes admin, after which
+signup auto-locks.** `admin` is NOT a singleton — multiple admins are a normal, supported state.
+
+**The race.** The defended race is two concurrent first-signups. Their mitigation: insert at the
+default role FIRST, then check `get_num_users()==1` (`OW:routers/auths.py:844-864`), rather than
+checking an empty table before insert (which would let both become admin). But there is **no DB
+constraint** enforcing "exactly one admin" (admin is a plain role), so the mitigation only *narrows*
+the window — it does not close it. Interleaving: `insert A commit → insert B commit → count A sees 2 →
+count B sees 2` promotes **neither**, leaving a box with two `pending`/default users and no admin until
+an operator uses the env-seed or `ENABLE_INITIAL_ADMIN_SIGNUP` recovery. Narrow, but real, and
+structurally unavoidable without a uniqueness constraint.
+
+### 7.2 First-run — ours
+
+Our owner is a **declarative singleton, DDL-enforced, seeded at boot** — there is no "whoever signs up
+first" and no open-registration window:
+
+- `seedOwner` runs at boot (`entry/boot/seed-owner.ts:84-122`): ensures the `OWNER_HANDLES` row exists
+  at `role='owner'`, self-heals a disabled owner, and (AUTH_MODE=local) seeds `LOCAL_INITIAL_PASSWORD`
+  once, guarded by `isNull(password_hash)` (`:124-142`; env `foundation/env/index.ts:158,325`).
+- **Race-safety is a DDL invariant, not a check-then-write.** `users_single_owner_unique` is a partial
+  unique index over `role='owner'` (`packages/db/src/schema/users.ts:73`) — a second owner row is
+  **unrepresentable**, so no interleaving can produce two owners *or* zero. `ensureUser` re-reads after
+  its `onConflictDoNothing` and **fails loudly** rather than returning a fabricated id if the insert hit
+  that index (`domain/sessions/verbs/ensure-user.ts:12-19,42-47`). Boot is a single process, so there
+  is no concurrent-first-signup race to begin with.
+- `single-user` mode: the owner row is JIT-created by the origin-gated fallback →
+  `ensureUser(ownerHandle)` → `determineRole(handle,[]) → owner` for the `OWNER_HANDLES` handle
+  (`entry/auth/seam.ts:161-167`; `role-policy.ts:95-98`). No password, no signup.
+
+### 7.3 First-run gap table
+
+| # | Capability | Open WebUI | Orbweaver | Verdict | Security stance |
+|---|---|---|---|---|---|
+| FR1 | First-admin origin | open registration → first user auto-admin, then locked (`OW:routers/auths.py:862-865`) | declarative `OWNER_HANDLES`, boot-seeded (`seed-owner.ts:84-122`) | **ALREADY-BETTER** | No open-registration window; owner is not "whoever got there first" |
+| FR2 | Race-safety | post-insert `count==1`, no constraint — window leaves 0 or 2 admins (`OW:routers/auths.py:844-864`) | DDL partial-unique + loud-fail re-read (`schema/users.ts:73`; `ensure-user.ts:42-47`) | **ALREADY-BETTER** | Two owners / zero owners both unrepresentable |
+| FR3 | Env-seeded admin | `WEBUI_ADMIN_EMAIL`/`_PASSWORD` (`OW:main.py:349-352`) | `LOCAL_INITIAL_PASSWORD` for the `OWNER_HANDLES` owner (`seed-owner.ts:124-142`) | **PARITY** | Both seed from env, once, idempotent |
+| FR4 | First-run UX | onboarding "Create Admin Account" screen (`OW:+page.svelte:405-407`) | none — owner seeded from env; login shows the normal form/redirect | **IMPROVE (B4)** | A local-mode first-run setup screen beats requiring `LOCAL_INITIAL_PASSWORD` in env |
+| FR5 | Post-bootstrap lock | `ui.enable_signup=False` persisted (`OW:main.py:352`) | N/A — no self-signup exists to lock | **ALREADY-BETTER** | Nothing to leave accidentally open |
+
+### 7.4 Mode-switch — their flow (the switch-on takeover trigger)
+
+Open WebUI has no single `AUTH_MODE`; methods are independent toggles, so "switching on SSO" means
+**enabling OIDC/LDAP beside an existing local-user population.** The consequential moment is those
+users' NEXT login through the newly-enabled method:
+
+- **OIDC, merge ON:** sub-lookup misses (the local row has no OAuth sub) → `OAUTH_MERGE_ACCOUNTS_BY_EMAIL`
+  links by email and **rebinds** the sub onto the local row (`OW:oauth.py:1894-1899`). This is **W1**,
+  and the mode-switch is precisely when it fires most — sub-misses-but-email-hits is the *normal* state
+  for every pre-existing local account. Any IdP identity presenting a local user's email takes that
+  account over.
+- **OIDC, merge OFF:** sub-lookup misses → signup path sees the email already taken → **400
+  `EMAIL_TAKEN`** (`OW:oauth.py:1951-1953`). The local user is **locked out of SSO** — they must keep
+  using their password; there is no link path at all.
+- **LDAP:** always links by email (`OW:routers/auths.py:643`), so enabling LDAP silently merges every
+  local account whose email matches an LDAP `mail` — **L-W1**, no opt-in, no verification.
+
+So the switch-on choice is **take-over-by-unverified-email (merge on) or orphan (merge off)**. There is
+no safe, stable-id-based migration of an existing local account onto an SSO identity.
+
+### 7.5 Mode-switch — ours
+
+We flip a single `AUTH_MODE` (single-user/local → oidc/forward-header). The owner path is solved
+db-surgery-free; the non-owner path has an honest gap.
+
+- **Owner (SOLVED, task #8).** `tryAdoptUnboundOwner` binds the OIDC subject onto the existing
+  **unbound** owner row instead of minting a second (`provision-identity.ts:173-208`). It keys on
+  **owner POLICY** (`isOwnerByPolicy`: `OWNER_GROUP` membership OR handle ∈ `OWNER_HANDLES`,
+  `role-policy.ts:81-87`), so it works even if the owner's IdP username differs from the seeded owner
+  handle — as long as they match by group or handle policy. Guarded three ways (needs a subject, needs
+  the owner row still unbound, bails if the subject already lives on another row). **No DB surgery.**
+- **Non-owner local user (the honest edge).** Traced: on the first OIDC login, `findExisting` matches
+  by externalId (miss) then by **handle** (`provision-identity.ts:35-43`). If the OIDC
+  `preferred_username` **equals the local handle**, it hits the unbound local row; `isSubjectMismatch`
+  can't fire (`existing.externalId === null`, `:70-72`), so `updateExisting` **binds the subject onto
+  the existing row** and the user **migrates cleanly, keeping all their data** (`:89-91,314-318`) —
+  db-surgery-free — provided they also pass the `OIDC_ALLOWED_GROUPS` gate. **But if the OIDC username
+  ≠ the local handle, `findExisting` misses entirely → `insertNew` mints a NEW row → the old local row
+  (and everything under it) is orphaned.** And because flipping to `oidc` unregisters the local
+  password route (`authenticate` is wired only when `AUTH_MODE==='local'`, `entry/lifecycle.ts:370-372`),
+  that user **cannot fall back to their password** — they are locked out of their old data.
+- **No in-app remedy for the mismatch case.** There is **no admin verb that sets `externalId` or
+  renames a `handle`** — the admin surface is create-user / set-role / set-enabled / reset-password /
+  list / sessions (`domain/admin/verbs/`); `externalId` appears only in read-side views/queries, never a
+  setter. So the mismatch case's only fix today is DB surgery — the exact thing task #8 wanted to avoid,
+  solved for the owner but not for non-owner locals.
+
+### 7.6 New finding — MS-W1 · the switch-on bind window · MEDIUM (ours) / HIGH (theirs)
+
+The mode-switch turns every pre-existing handle into an **unbound row adoptable by the first login that
+presents it**. This is the (b) class already documented at `provision-identity.ts:263-268`, but the
+mode-switch is its **bulk trigger**: right after the flip, every local handle is guessable and
+first-login-bindable.
+
+- **Theirs (HIGH):** gated on **unverified email** (merge on) — an attacker needs only an IdP identity
+  carrying the victim's email. This is W1/L-W1 at population scale.
+- **Ours (MEDIUM, defence-depth):** gated on the **verified channel** — an attacker needs to present the
+  victim's *handle* as their OIDC `preferred_username` (operator-controlled in single-tenant Authentik)
+  or a proxy-asserted header behind the trusted-peer gate. Not a runtime-guarded case (binding an
+  unbound row is intended), so it rests on IdP account control, not on `isSubjectMismatch`. Materially
+  stronger than theirs, but it IS the window an operator should close by switching modes *before*
+  exposing the OIDC callback, and by pre-seeding `externalId` on known accounts (B5).
+
+### 7.7 Ranked borrow-list (first-run + switch)
+
+| Rank | Item | What | Cost | Owner fork |
+|---|---|---|---|---|
+| 1 | **B5 · admin "link SSO identity" verb (set `externalId` on a row)** | The db-surgery-free fix for the non-owner mismatch case (§7.5) AND the pre-close for MS-W1: an owner/admin-gated verb that stamps a **stable subject** onto an existing local row, so the user's first SSO login hits by `externalId` directly (no handle-guess, no orphan). MUST take a stable id, never an email; MUST refuse a subject already bound elsewhere (reuse `isSubjectMismatch`). This generalizes the owner-flip adoption to non-owners **safely**, keyed on the stable id the admin vouches for. | M (~40 LOC verb + admin surface + int tests) | **Yes.** Is admin-vouched SSO linking wanted, or is "handle must equal IdP username" an acceptable operator contract? My default: **build B5** — it is the only db-surgery-free path for non-owner locals and closes MS-W1's window deliberately. |
+| 2 | **B6 · boot warning when flipping to SSO with local users present** | At boot under `oidc`/`forward-header`, if any `users` row carries a `passwordHash` (a pre-existing local account), warn that accounts whose IdP username ≠ handle will orphan unless linked (B5). Cheap operator tell; mirrors the forward-header fail-closed boot warn already at `entry/lifecycle.ts:376-380`. | S (~15 LOC) | none |
+| 3 | **B4 · local-mode first-run setup screen** | Instead of requiring `LOCAL_INITIAL_PASSWORD` in env, let the first unauthenticated visit to a fresh local box set the owner password once (gated on "owner row has null `password_hash`", the same guard `seed-owner.ts:131-134` uses). Mirrors OW's onboarding without their open-registration race (our owner is already the seeded singleton — this only sets its password). | M (~50 LOC + CT) | Minor: is env-seed sufficient, or is a setup screen wanted for non-container deploys? |
+
+### 7.8 Explicitly NOT borrowed (switch)
+
+- **Email-based account merge on switch-on** (W1/L-W1) — B5's stable-id linking is the safe replacement.
+- **Open-registration-then-lock first-run** (their FR1) — our declarative seeded singleton is stronger;
+  do not add a self-signup path just to mirror the onboarding screen (B4 sets a password, it does not
+  open registration).
+
+---
+
+## 8. Honest floors — what I did not read or verify
 
 - **Their `Groups` model internals** (`create_groups_by_group_names` / `sync_groups_by_group_names` /
   the permissions blob) — read where LDAP/OIDC call them, not end to end. G8's "no app-groups for us"
@@ -352,6 +495,17 @@ second linking site.
 - **The `RateLimiter` in-memory fallback's correctness across workers** — I read the class
   (`OW:utils/rate_limit.py:7-60`); I did not test that the memory fallback is per-process (it appears
   to be a class-level dict, so multi-worker deployments would under-count — noted, not verified).
+- **The mode-switch non-owner traces (§7.5) are read from source, not live-driven.** I traced
+  `provisionIdentity`'s branches for a non-owner unbound row by handle match/mismatch
+  (`provision-identity.ts:35-43,89-91,314-318`) but did not run a real single-user→oidc flip against a
+  populated DB to confirm the orphan behavior end to end. The "no admin `externalId`/`handle` setter"
+  claim is from an exhaustive listing of `domain/admin/verbs/` + a grep showing `externalId` only in
+  read-side views/queries — a verb absence, not a live test.
+- **OW's first-signup race (§7.1)** is reasoned from the code path (`OW:routers/auths.py:844-864`) and
+  the absence of a single-admin constraint; I did not reproduce the interleaving. The "neither becomes
+  admin" outcome is the worst-case interleave, not an observed failure.
+- **OW's onboarding frontend** — I read the config flag (`OW:main.py:2094-2096`) and the auth-page
+  branch (`OW:+page.svelte:405-407`); I did not audit the full onboarding component tree.
 - **No live drive.** Every sequencing claim is read from source; nothing was run against a real IdP,
   LDAP directory, or SCIM client.
 - **Our forward-header mode in full** — read only where it intersects the bind-once scope note and the
