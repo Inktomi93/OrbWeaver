@@ -4,7 +4,7 @@
 // per-row `{{char}}`/`{{user}}` re-targeting via the row's OWN stamps; frozen clock injected
 // (determinism).
 
-import { renderMessageForDisplay } from "@orb/client/lib";
+import { isDisplayRegexTooComplex, renderMessageForDisplay } from "@orb/client/lib";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
@@ -83,5 +83,64 @@ describe("renderMessageForDisplay", () => {
     // the output is no longer the raw broken input.
     expect(out).not.toBe("*She pauses");
     expect(out).toContain("She pauses");
+  });
+});
+
+// ── DISPLAY-tier ReDoS guard (2026-08-09 DoS audit, finding #3) ────────────────────────────────────────
+// The browser DISPLAY tier runs regex UNWATCHED (no node:vm). The shared `tooComplex` pre-filter admits the
+// canonical `(a+)+` catastrophic shape, so a shared/imported character's DISPLAY regex could freeze a
+// co-member's tab. `renderMessageForDisplay` now injects an applyReplace that rejects the nested-quantifier
+// family before it runs; the executor skips the failing script silently.
+describe("DISPLAY-tier ReDoS guard", () => {
+  test("isDisplayRegexTooComplex flags the nested-quantifier family and spares benign groups", () => {
+    // Exponential-backtracking family — a quantifier applied to a group already carrying one.
+    for (const evil of ["(a+)+", "(a*)*", "(a+)*", "(a+){2,}", "([a-z]+)+", "(\\w+)+$"]) {
+      expect(isDisplayRegexTooComplex(evil)).toBe(true);
+    }
+    // Benign: a group with no INNER quantifier, alternation, or a plain pattern — must NOT be rejected.
+    for (const ok of ["(abc)+", "(a|b)+", "sword", "\\d+", "a+b+", "(foo)?"]) {
+      expect(isDisplayRegexTooComplex(ok)).toBe(false);
+    }
+  });
+
+  test("a catastrophic `(a+)+$` DISPLAY script over a long subject is SKIPPED, not run — never hangs", () => {
+    // Without the guard, native `String.replace` backtracks effectively forever on this input (40 000
+    // `a`s that can never satisfy the trailing `$` because of the `!`) — the test would blow the timeout.
+    // The guard rejects the pattern pre-run, so the script is skipped and the text returns unchanged, fast.
+    // The BOUND is the vitest timeout (2 s), not an ambient-clock reading (the test-determinism gate
+    // bans ambient clocks in test source): the O(n) guarded path clears it by orders of magnitude.
+    const subject = `${"a".repeat(40_000)}!`;
+    const out = renderMessageForDisplay(subject, {
+      ...CTX,
+      displayScripts: [
+        {
+          enabled: true,
+          findRegex: "(a+)+$",
+          replaceString: "X",
+          placement: ["DISPLAY"],
+          markdownOnly: true,
+          promptOnly: false,
+        },
+      ],
+    });
+    // Script skipped ⇒ the (macro-free) subject is unchanged; and it never hung.
+    expect(out).toBe(subject);
+  }, 2000);
+
+  test("a benign DISPLAY regex with a quantifier still runs (the guard is not over-broad)", () => {
+    const out = renderMessageForDisplay("The sword gleams.", {
+      ...CTX,
+      displayScripts: [
+        {
+          enabled: true,
+          findRegex: "(sword)+", // group, no inner quantifier — safe, must still fire
+          replaceString: "blade",
+          placement: ["DISPLAY"],
+          markdownOnly: true,
+          promptOnly: false,
+        },
+      ],
+    });
+    expect(out).toBe("The blade gleams.");
   });
 });
