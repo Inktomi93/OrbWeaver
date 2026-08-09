@@ -167,9 +167,13 @@ above) — nothing is deferred; the board below is a burn-down, not a queue. Ful
   rides lane #48; v3 heal dissolved into **#52 demo-pack v4 REGENERATION** (six transcripts through
   the current pipeline, version bump, delivery design that honors the user-deleted latch — needs the
   live fleet; dispatch when a slot frees).
-- [ ] **OIDC/Authentik study (owner-authorized, in flight):** Open WebUI mined for
-  creation/login/group-assignment + precautions → adopt/improve proposal
-  (docs/design/oidc-authentik-openwebui-study.md); security-executor lane.
+- [x] **OIDC/Authentik study DONE** — `docs/design/oidc-authentik-openwebui-study.md` (owner-review-
+  required). Headline: OUR flow is ALREADY-BETTER at every identity-binding boundary (bind-once vs
+  their email-merge takeover; fail-closed groups vs their 2 fail-opens; HttpOnly DB-session vs
+  JS-readable JWT). 10 ranked adopt/improve items A1-A10; nothing at the binding layer copied. Awaits
+  owner forks below, then a security-executor BUILD lane for the ruled subset (A7/A6/A4/A5 are the
+  no-fork wins — errors-to-/login, IdP end-session, tolerant groups parse, back-channel logout).
+  3 owner forks: A1 signup-default · A2 approval-queue whether · F1 group-sync vs D65.
 - [x] **Chat server-search — RULED ARM B, folded into the live L1 lane** (see rulings; the
   follow-up row dissolved).
 - [ ] **scoreSweep on the raw output floor** — same 768 class #39 fixed for runStage; small server fix,
