@@ -172,7 +172,16 @@ function TagColorReadout({ value }: { readonly value: string | null }): ReactEle
 function TagBehaviorControls({ tag, patchStyle }: { readonly tag: TagWithUsage; readonly patchStyle: PatchStyle }): ReactElement {
   return (
     <Stack gap="block">
-      <Field description="Whether this label also groups the library, and whether it opens by default." label="Folder type" name="tag-folder-type">
+      {/* C9-1d: the description says what the value DOES today, including the part that isn't built. An
+          Open folder starts expanded in the library's categorized view; a Plain tag still groups, it just
+          starts collapsed behind its name + count. Closed's hide-until-you-enter drilldown is deferred by
+          ruling (2026-08-09), so the option is named as what it currently is rather than promising
+          navigation that does not exist. */}
+      <Field
+        description="In the library's grouped view, an Open folder starts expanded and a Plain tag starts collapsed behind its name and count. Closed folders (hidden until you enter them) aren't built yet — they behave like Plain."
+        label="Folder type"
+        name="tag-folder-type"
+      >
         {/* eslint-disable-next-line jsx-a11y/control-has-associated-label -- the Field names the control (aria-labelledby); the rule can't see the association — the bound SelectField carries the same suppression. */}
         <Select
           items={FOLDER_TYPE_ITEMS}

@@ -1,6 +1,6 @@
-// The chat composer: a TWO-ROW footer (wand v2). Row 1 = the guided-action cluster (four dual-mode icons
-// impersonate·swipe·response·continue + the ✨ utility menu) so the busy controls sit ABOVE the textarea,
-// not crammed beside it. Row 2 = the growing textarea + SpeakAs + one right-side control that toggles Send
+// The chat composer: a TWO-ROW footer (wand v2). Row 1 = the ⋯ chat-options menu at the LEFT (D111's drawn
+// map, owner-ruled 2026-08-09 — its ONE home; the topbar trail widget went with it) + the guided-action
+// cluster (impersonate·swipe·response·continue + the ✨ menu) at the right, above the textarea. Row 2 = the growing textarea + SpeakAs + one right-side control that toggles Send
 // <-> Stop off the live turn phase. The IMAGE controls (attach + generate-from-text) live INSIDE the ✨ menu,
 // not loose on the bar; attach still uploads local images to CAS and rides the send as attachmentAssetIds.
 //
@@ -43,6 +43,7 @@ import { useStopTurn } from "../hooks/use-stop-turn.ts";
 import { shouldSendOnEnter } from "../lib/composer-send-keys.ts";
 import { resolveEmptySendAction } from "../lib/continue-on-empty.ts";
 import { matchSlashCommands, nextSlashHighlight, resolveSlashHighlight, resolveSlashKey, slashComboboxAria } from "../lib/slash-command.ts";
+import { ComposerChatOptions } from "./composer-chat-options.tsx";
 import { ComposerGuidedCluster } from "./composer-guided-cluster.tsx";
 import { ComposerSendControl } from "./composer-send-control.tsx";
 import { ComposerSlashStrip } from "./composer-slash-strip.tsx";
@@ -385,11 +386,13 @@ export function Composer({ handle, scopeKey, draftSeed, onCommitted, tailRole = 
           // interaction LIFT survives on the opaque `bg-muted` step + the border/ring/shadow focus cues.
           className="mx-auto w-full max-w-(--width-shell-content) rounded-card border border-border bg-card px-field py-field transition-colors duration-(--motion-fast) ease-out-expo hover:border-input hover:bg-muted focus-within:border-input focus-within:bg-muted focus-within:shadow-glow focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2 focus-within:ring-offset-background"
         >
-          {/* ROW 1 — the guided cluster (wand v2): four always-visible dual-mode icons (impersonate·swipe·
-              response·continue) + the ✨ utility menu (Input · Reply · Continuation · Images · Plot groups). The
-              composer text is the steer. `justify="end"` anchors the cluster over the Send corner (row 2's right
-              edge) instead of floating flush-left with a dead gutter — side-eye UGLY-1 (detached-toolbar impression). */}
-          <Row gap="field" align="center" justify="end" data-slot="composer-actions">
+          {/* ROW 1 — D111 §3's control map, drawn left→right: the ⋯ chat-options menu in the LEFT gutter, then
+              the guided cluster (four dual-mode icons impersonate·swipe·response·continue + the ✨ utility
+              menu). The composer text is the steer. `justify="between"` keeps the cluster over the Send corner
+              (side-eye UGLY-1, the detached-toolbar impression) and fills the gutter that left empty with the
+              ⋯'s ONE home — the topbar trail widget was removed in the same change, never two. */}
+          <Row gap="field" align="center" justify="between" data-slot="composer-actions">
+            <ComposerChatOptions handle={handle} />
             <ComposerGuidedCluster
               handle={handle}
               value={value}
