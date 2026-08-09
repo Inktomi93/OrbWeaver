@@ -16,7 +16,9 @@
 // construction, D62 P1) with the avatar centered inside it. The avatar display token stays 32px.
 //
 // Data-driven: an empty `items` renders NOTHING, never an empty shell (the strip is a shortcut, and a
-// shortcut to nowhere is chrome).
+// shortcut to nowhere is chrome). UNLESS the caller declares its read still `pending` — "no faces" and
+// "no answer yet" are different facts, and only the second one owes a reserved box (`FaceStripPlaceholder`,
+// which carries the measurement that bought it).
 //
 // THE FOLD (FACEFILT — owner report: nine faces already scrolling on a six-character library). A strip
 // that scrolls sideways is a second thing to navigate, and the shortcut it was supposed to be is gone. A
@@ -40,6 +42,7 @@ import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
+import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
@@ -104,6 +107,13 @@ export interface FaceStripProps {
    * preset row's activate toggle already follows.
    */
   readonly selectMode?: "current" | "toggle";
+  /**
+   * The caller's read has not landed yet, so `items` is empty because nothing is KNOWN — not because the
+   * answer is "no faces". The strip then reserves its own box (see `FaceStripPlaceholder`) instead of
+   * rendering nothing and shoving the pane down when the read lands. Omitted, an empty strip is an empty
+   * strip, exactly as before.
+   */
+  readonly pending?: boolean;
 }
 
 /** What the fold decided, plus whether the selected face had to be hoisted to survive it. */
@@ -236,7 +246,67 @@ function FaceButton({ item, selected, verb, caption, squeezed, selectMode, onSel
   );
 }
 
-/** A scrolling (or, with `overflow`, a self-folding) row of clickable faces; renders nothing when empty. */
+/** Both strip arms wear the same optional KICKER, so they are wrapped by ONE function: a placeholder that
+ *  reserved only the face row would be short by the kicker's line, which is the shift it exists to stop. */
+function withKicker(kicker: string | undefined, row: ReactElement): ReactElement {
+  if (kicker === undefined) {
+    return row;
+  }
+  return (
+    <Stack gap="tight">
+      {/* The `kicker` VOICE — the strip's NAME (density-pass §2.3); it was already this exact skin spelled
+          out of four internal axes. */}
+      <Text voice="kicker">{kicker}</Text>
+      {row}
+    </Stack>
+  );
+}
+
+/** How many face-shaped placeholders the reserved row paints. It is a LOOK, never a measurement: the strip
+ *  is ONE row, so the height being reserved is identical at any count. */
+const PLACEHOLDER_FACES = 4;
+const PLACEHOLDER_SLOTS = Array.from({ length: PLACEHOLDER_FACES }, (_unused, index) => index);
+/** The caption placeholder is an EMPTY LINE OF THE CAPTION'S OWN TEXT, not a sized bar: a bar's height is a
+ *  guess at `gloss`'s line box (measured 13.13px against an `h-3` guess of 12px — a 1.13px residual shift),
+ *  while the real `Text` element reserves it exactly, by construction, at any font scale. */
+const CAPTION_PLACEHOLDER = " ";
+
+/**
+ * THE RESERVED BOX (measured 2026-08-09: the chats LIST pane shifted 74px on data arrival, CLS 0.0070–0.0102
+ * — the strip mounted ABOVE the search field and pushed the field and the whole row list down).
+ *
+ * The strip's height is CHROME, not data: a kicker line plus one row of `min-h-control-md` face boxes,
+ * known before the read lands. So while the caller is `pending` the strip paints that exact box with
+ * face-shaped skeletons, and the faces land INTO their own outline instead of shoving the pane
+ * (UI-Architecture-and-Layout §4.3 rule 7 — "never layout shift on data arrival").
+ *
+ * This does NOT reopen the "an empty `items` renders NOTHING" ruling in this file's header: a settled empty
+ * answer still renders nothing. The reservation exists only for the window where the answer is UNKNOWN, and
+ * an account that genuinely has no faces collapses the placeholder once — the one case that cannot be
+ * reserved without inventing a shortcut row to nowhere.
+ */
+function FaceStripPlaceholder({ caption, kicker }: { readonly caption: boolean; readonly kicker: string | undefined }): ReactElement {
+  return withKicker(
+    kicker,
+    <Row aria-busy={true} className="overflow-hidden" data-face-pending="" gap="field">
+      {PLACEHOLDER_SLOTS.map((slot) => (
+        // The settled face's own box: `FaceButton`'s per-pointer MIN box (`size="media"` is `p-0`, so the
+        // button adds nothing else) around the avatar token and its caption line.
+        <Stack align="center" className="min-h-control-md min-w-control-md shrink-0" gap="tight" key={slot}>
+          <Skeleton className="size-avatar-md rounded-control" />
+          {caption ? (
+            <Text aria-hidden={true} className="text-transparent" voice="gloss">
+              {CAPTION_PLACEHOLDER}
+            </Text>
+          ) : null}
+        </Stack>
+      ))}
+    </Row>,
+  );
+}
+
+/** A scrolling (or, with `overflow`, a self-folding) row of clickable faces; renders nothing when empty —
+ *  unless the caller says its read is still `pending`, which reserves the strip's box instead. */
 export function FaceStrip({
   items,
   selectedId,
@@ -247,6 +317,7 @@ export function FaceStrip({
   kicker,
   overflow,
   selectMode = "current",
+  pending = false,
 }: FaceStripProps): ReactElement | null {
   const rowRef = useRef<HTMLDivElement>(null);
   const widthsRef = useRef<Map<string, number>>(new Map());
@@ -289,7 +360,7 @@ export function FaceStrip({
   }, [folding, items, measuring, selectedId]);
 
   if (items.length === 0) {
-    return null;
+    return pending ? <FaceStripPlaceholder caption={caption} kicker={kicker} /> : null;
   }
 
   const ordered = fold?.hoisted === true ? hoistSelected(items, selectedId) : items;
@@ -336,15 +407,5 @@ export function FaceStrip({
       ) : null}
     </Row>
   );
-  if (kicker === undefined) {
-    return faces;
-  }
-  return (
-    <Stack gap="tight">
-      {/* The `kicker` VOICE — the strip's NAME (density-pass §2.3); it was already this exact skin spelled
-          out of four internal axes. */}
-      <Text voice="kicker">{kicker}</Text>
-      {faces}
-    </Stack>
-  );
+  return withKicker(kicker, faces);
 }
