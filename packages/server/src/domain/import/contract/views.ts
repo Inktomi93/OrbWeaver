@@ -4,6 +4,7 @@
 
 import type { ChatMetadata } from "@orb/contracts/chat";
 import type { PresetFile, StDroppedField } from "@orb/contracts/preset";
+import type { ThemeOverride } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { AssetId, CharacterHandle, CharacterId, PersonaId } from "@orb/kit/ids";
 import type { ParsedChat } from "#kit/serde/chat";
@@ -134,6 +135,48 @@ export interface CollectedPreset {
   readonly sourceFile: string;
 }
 
+/** One ST `themes/*.json` mapped to an orb theme: the QUALIFIED name (`Azure (SillyTavern)` — the theme import
+ *  op merges on (ownerId, name), so an unqualified name could overwrite the owner's own theme), the clamped
+ *  token set, and the ST keys that carry a meaningful value but produce no orb theme token. */
+export interface ParsedStTheme {
+  readonly name: string;
+  readonly override: ThemeOverride;
+  /** ST theme keys present with a meaningful value that orb's THEME model has no seat for — several are
+   *  homed on the viewer's `appearance` namespace instead and import from `power_user` (see the reasons). */
+  readonly unmapped: readonly StDroppedField[];
+}
+
+/** An sRGB colour with straight (non-premultiplied) alpha; channels 0–255, alpha 0–1. The ST theme plane's
+ *  intermediate: ST writes `rgba()` tints, `substrate/color.ts` flattens them here, and only the flattened
+ *  result becomes an OKLCH token. Homed in the contract because two substrate files share it. */
+export interface SrgbColor {
+  readonly r: number;
+  readonly g: number;
+  readonly b: number;
+  readonly a: number;
+}
+
+/** One ST theme file's parse: the converted palette, or the REASON it could not convert safely. A refusal
+ *  always carries its reason — "unreadable JSON", "no base surface colour", or the derivation verdict (a base
+ *  surface orb cannot derive a legible foreground from). The report prints the reason verbatim. */
+export type StThemeParse = { readonly ok: true; readonly parsed: ParsedStTheme } | { readonly ok: false; readonly reason: string };
+
+/** One collected ST theme + the `themes/<file>` path the report names. */
+export interface CollectedTheme {
+  readonly parsed: ParsedStTheme;
+  readonly sourceFile: string;
+}
+
+/** One ST `backgrounds/<file>` staged for the CAS. `domain/import` can't reach `domain/assets`, so the bytes
+ *  ride through to the driver that stores them (the `CollectedCard` precedent). `name` is what the imported
+ *  background-library entry is called; `mime` is the extension-derived claim the store magic-verifies. */
+export interface CollectedBackground {
+  readonly filename: string;
+  readonly name: string;
+  readonly mime: string;
+  readonly bytes: Uint8Array;
+}
+
 /** One ST group definition + the transcripts its own `chats[]` list claimed, already parsed. Members are
  *  UNRESOLVED here (card filenames) — the driver resolves them to characterIds after the character wave, which
  *  is the only point at which the mapping exists. `sourceFile` is the `groups/<id>.json` name for the report. */
@@ -155,6 +198,15 @@ export interface CollectResult {
    *  already mapped to the orb-native portable file (unparseable ones in `unreadablePresets`). The three
    *  text-completion families are deliberately NOT here (owner ruling 2026-08-08). */
   readonly presets: CollectedPreset[];
+  /** ST saved UI themes from `<profileDir>/themes/*.json`, mapped to the orb palette each safely converts to
+   *  (unparseable / colour-less ones in `unreadableThemes`). */
+  readonly themes: CollectedTheme[];
+  /** ST app backgrounds from `<profileDir>/backgrounds/*`, with their bytes (non-media entries land in
+   *  `skippedBackgrounds` with a reason). */
+  readonly backgrounds: CollectedBackground[];
+  /** The orb `appearance` patch this profile's `power_user` section carries — the VIEWER half of what ST
+   *  bundles into a theme file (`substrate/appearance.ts`). `{}` when the profile carries none. */
+  readonly appearance: Record<string, unknown>;
   /** ST groups from `<profileDir>/groups/*.json`, each carrying the transcripts its own `chats[]` claimed
    *  out of the flat `group chats/` dir (unparseable definitions in `unreadableGroups`). */
   readonly groups: CollectedGroup[];
@@ -168,6 +220,11 @@ export interface CollectResult {
   readonly unreadableWorlds: string[];
   /** An `OpenAI Settings/*.json` that did not parse as an ST chat-completion preset (recorded, never silent). */
   readonly unreadablePresets: string[];
+  /** A `themes/*.json` the converter REFUSED, with its reason (unreadable, colour-less, or a base surface
+   *  orb's derivation cannot make legible). Recorded, never silent. */
+  readonly refusedThemes: { readonly file: string; readonly reason: string }[];
+  /** A `backgrounds/*` entry that is not importable media, with the reason (recorded, never silent). */
+  readonly skippedBackgrounds: { readonly file: string; readonly reason: string }[];
   /** A `groups/*.json` that did not parse as an ST group definition (recorded, never silent). */
   readonly unreadableGroups: string[];
   /** Top-level profile entries the importer does not process (assets/backgrounds/presets/themes/…). */
@@ -197,6 +254,15 @@ export interface ImportSkippedCard {
  *  travel (each with the reason). Present even when `fields` is empty — the operator learns the preset landed
  *  losslessly rather than being told nothing. */
 export interface ImportPresetNote {
+  readonly name: string;
+  readonly sourceFile: string;
+  readonly fields: readonly { readonly field: string; readonly reason: string }[];
+}
+
+/** One imported ST theme's honest lossiness note — the same shape (and the same "present even when empty"
+ *  rule) as {@link ImportPresetNote}: the operator must be able to tell "this palette landed whole" apart
+ *  from "this palette was never looked at". */
+export interface ImportThemeNote {
   readonly name: string;
   readonly sourceFile: string;
   readonly fields: readonly { readonly field: string; readonly reason: string }[];
@@ -237,6 +303,25 @@ export interface ImportReport {
   readonly skippedPresets: readonly ImportSkippedCard[];
   /** Per-imported-preset: which ST fields had no orb seat. The honest half of "presets are imported now". */
   readonly presetNotes: readonly ImportPresetNote[];
+  /** ST themes ACCEPTED by this run (created OR merged in place onto a same-named imported theme). */
+  readonly themesImported: number;
+  /** The net-new subset of {@link themesImported} — the only part `changed` counts. */
+  readonly themesCreated: number;
+  /** A `themes/*.json` that did NOT become an orb theme, with the reason — both the converter's refusals
+   *  (unreadable / colour-less / a base surface the derivation cannot make legible) and the settings
+   *  domain's (per-theme isolation). */
+  readonly skippedThemes: readonly ImportSkippedCard[];
+  /** Per-imported-theme: which ST keys had no orb THEME seat, INCLUDING any individual colour dropped as
+   *  unsafe with its measured contrast ratio. The honest half of "themes convert now". */
+  readonly themeNotes: readonly ImportThemeNote[];
+  /** ST background images CAS-stored and appended to `appearance.backgroundLibrary` (a re-run adds none —
+   *  the CAS is content-addressed and the append dedups by assetId). */
+  readonly backgroundsImported: number;
+  /** A `backgrounds/*` entry that did not import, with the reason (non-media, magic mismatch, over-cap). */
+  readonly skippedBackgrounds: readonly ImportSkippedCard[];
+  /** The `appearance` keys the ST `power_user` section actually claimed on this install (empty when the
+   *  profile carried none, or when the user had already chosen those keys — first-writer-wins). */
+  readonly appearanceKeysApplied: readonly string[];
   /** Group rooms created, and the group transcripts written into them. */
   readonly groupsImported: number;
   readonly groupChatsImported: number;

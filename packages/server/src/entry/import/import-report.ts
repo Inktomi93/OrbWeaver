@@ -22,10 +22,13 @@ const REPORTS_DIR = "data/import-reports";
 // whole-tree sweep for a `v1/completions` wire returns zero), so a TextGen/Kobold/NovelAI sampler set has
 // nothing here to be spent by. The CHAT-COMPLETION family DOES import (`OpenAI Settings/` + `oai_settings`) —
 // neither appears below any more.
+// GRADUATED 2026-08-08 (owner rulings) — these two are IMPORTED now and no longer appear here at all:
+//   `backgrounds/` → CAS assets (kind `background`) appended to `appearance.backgroundLibrary`;
+//   `themes/`      → converted palettes, through orb's own derivation-safety gate.
+// A reason row for a handled plane would be a lie the report tells forever, so the rows were deleted rather
+// than reworded. `HANDLED_ENTRIES` in `domain/import/loader/collect.ts` is the other half of that graduation.
 const UNHANDLED_REASONS = new Map<string, string>([
   // Top-level profile planes
-  ["backgrounds/", "chat background images — no domain home (UI cosmetic, not import canon)"],
-  ["themes/", "UI theme JSON — client theming is not import canon"],
   ["movingUI/", "saved UI layout state — no domain home"],
   ["context/", "prompt-format templates — need an ST→orb template mapper (separate epic)"],
   ["instruct/", "instruct templates — need an ST→orb template mapper (separate epic)"],
@@ -51,7 +54,7 @@ const UNHANDLED_REASONS = new Map<string, string>([
   ["world_info_settings", "global world-info activation knobs — per-book WI is imported; these globals have no home"],
   ["horde_settings", "Horde backend config — no import canon"],
   ["extension_settings", "extension config — out of scope"],
-  ["background", "selected UI background — cosmetic, not import canon"],
+  ["background", "which background was SELECTED — selection state; the background IMAGES themselves import"],
   ["proxies", "connection proxy config — no import canon"],
   ["selected_proxy", "selected proxy — no import canon"],
   // The eleven a verifier found rendering BARE (2026-08): ST install/session/selection state, plus the legacy
@@ -88,7 +91,12 @@ function section(title: string, lines: readonly string[]): string {
  *  the reassuring "everything mapped" line rather than nothing at all — the operator has to be able to tell
  *  "landed whole" apart from "was never looked at". */
 function presetNoteLines(report: ImportReport): string[] {
-  return report.presetNotes.map((note) => {
+  return noteLines(report.presetNotes);
+}
+
+/** The shared renderer for a per-entity lossiness note (presets + themes carry the identical shape). */
+function noteLines(notes: ImportReport["presetNotes"] | ImportReport["themeNotes"]): string[] {
+  return notes.map((note) => {
     const head = `\`${note.name}\` (from \`${note.sourceFile}\`)`;
     if (note.fields.length === 0) {
       return `${head} — everything mapped`;
@@ -111,6 +119,8 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
     `- New canon written (characters + personas + chats + world books + presets + group rooms): ${report.changed}`,
     `- Cards skipped (could not import): ${report.skippedCards.length}`,
     `- Presets imported: ${report.presetsImported} (${report.presetsCreated} new, ${report.presetsImported - report.presetsCreated} merged onto an existing preset)`,
+    `- Themes converted: ${report.themesImported} (${report.themesCreated} new, ${report.themesImported - report.themesCreated} merged onto an existing imported theme)`,
+    `- Background images imported: ${report.backgroundsImported}`,
     `- Group rooms imported: ${report.groupsImported} (${report.groupChatsImported} group transcript(s))`,
     "",
     section(
@@ -142,6 +152,19 @@ function formatImportReport(report: ImportReport, generatedAt: number): string {
     section(
       "Preset files that failed to parse",
       report.unreadablePresets.map((f) => `\`${f}\``),
+    ),
+    section("Themes converted — what did NOT map", noteLines(report.themeNotes)),
+    section(
+      "Theme files NOT converted",
+      report.skippedThemes.map((t) => `\`${t.file}\` — ${t.reason}`),
+    ),
+    section(
+      "Background files NOT imported",
+      report.skippedBackgrounds.map((b) => `\`${b.file}\` — ${b.reason}`),
+    ),
+    section(
+      "Appearance settings taken from ST `power_user`",
+      report.appearanceKeysApplied.map((k) => `\`${k}\``),
     ),
     section(
       "Groups skipped — NO room created",

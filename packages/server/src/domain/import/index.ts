@@ -15,11 +15,13 @@ export type {
   StoreImportAsset,
 } from "./contract/service.ts";
 export type {
+  CollectedBackground,
   CollectedCard,
   CollectedChat,
   CollectedGroup,
   CollectedPersona,
   CollectedPreset,
+  CollectedTheme,
   CollectedWorld,
   CollectResult,
   ImportChatFileInput,
@@ -32,6 +34,9 @@ export type {
   ImportSkippedCard,
   ImportSkippedGroup,
   ImportSkippedGroupMember,
+  ImportThemeNote,
+  ParsedStTheme,
+  StThemeParse,
 } from "./contract/views.ts";
 export type { ImportWorkloadDeps } from "./contract/workloads.ts";
 export { collectBundlesFromDir } from "./loader/collect.ts";
@@ -48,4 +53,5 @@ export {
   stPresetFromJson,
   stPresetName,
 } from "./substrate/preset.ts";
+export { parseStThemeFile, ST_THEME_DIR, stThemeFromJson, stThemeName } from "./substrate/theme.ts";
 export { createImportWorkloadContributions } from "./workload-contributions.ts";
