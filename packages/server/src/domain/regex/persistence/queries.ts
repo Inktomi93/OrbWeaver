@@ -83,6 +83,37 @@ export async function setScriptsEnabledBulk(
   return updated.map((r) => r.id);
 }
 
+/** Write a NEW behavior blob to many owned scripts in ONE batch (REGX2 · bulk placement). The `updates` are
+ *  `{ id, behavior }` pairs the VERB computed (placement replaced, tier flags + depth re-derived, re-parsed
+ *  through the behavior schema); this file only writes them — an inline param shape, like `setScriptsEnabledBulk`'s
+ *  `patch`. Per-row because the bodies differ (each keeps its own find/replace + any authored depth), so it is
+ *  a BATCH of owner-scoped updates, not one `.set()`. Reads happen in the VERB (before this call), never here:
+ *  the batch is pure writes, so it takes the write lock at its first statement and rides `busy_timeout` (the
+ *  `db/kit/batch` DEFERRED note — do not batch a SELECT ahead of writes). Stamps `updatedAt` for the same reason
+ *  the single verb does: a bulk placement change IS an edit. Returns the count actually written — a row another
+ *  device deleted between the verb's read and this write matches no WHERE and drops silently. */
+export async function setScriptsBehaviorBulk(
+  db: Db,
+  ownerId: UserId,
+  updates: readonly { readonly id: RegexScriptId; readonly behavior: RegexScriptBehavior }[],
+  at: number,
+): Promise<number> {
+  if (updates.length === 0) {
+    return 0;
+  }
+  const results = await db.batch(
+    batchMany(
+      updates.map((update) =>
+        db
+          .update(regexScripts)
+          .set({ behavior: update.behavior, updatedAt: at })
+          .where(and(eq(regexScripts.id, update.id), eq(regexScripts.ownerId, ownerId))),
+      ),
+    ),
+  );
+  return results.reduce((sum: number, r) => sum + r.rowsAffected, 0);
+}
+
 /** Delete many owned scripts. The DB CASCADE clears every junction row, exactly as the single verb's does. */
 export async function removeScriptsBulk(db: Db, ownerId: UserId, scriptIds: readonly RegexScriptId[]): Promise<RegexScriptId[]> {
   if (scriptIds.length === 0) {

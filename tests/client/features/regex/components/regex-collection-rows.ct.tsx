@@ -61,6 +61,7 @@ function stub(page: Page, scripts: readonly unknown[] = SCRIPTS, globals: readon
     "regex.removeScript": () => ({ deleted: true }),
     "regex.bulkSetEnabled": () => ({ affected: 2 }),
     "regex.bulkSetGlobal": () => ({ affected: 2 }),
+    "regex.bulkSetPlacement": () => ({ affected: 1 }),
     "regex.bulkRemove": () => ({ affected: 2 }),
     "regex.exportScript": () => EXPORTED,
     "regex.importScriptFile": () => ({ created: true }),
@@ -266,4 +267,47 @@ test("bulk Delete confirms with the CASCADE named, then batches", async ({ mount
   await expect(page.getByText(BULK_DELETE_CASCADE)).toBeVisible();
   await page.getByRole("button", { name: "Delete", exact: true }).last().click();
   await expect.poll(() => trpc.lastInput("regex.bulkRemove"), { intervals: [20, 50, 100] }).toEqual({ scriptIds: [STRIP["id"], NARRATE["id"]] });
+});
+
+// ── D2 · BULK PLACEMENT (the one bulk verb whose target is a SET, so it opens a picker) ────────────────
+
+test("Change where they run opens the placement picker, guarding Apply until a stream is chosen", async ({ mount, page }) => {
+  await stub(page);
+  const group = await mount(<RegexLibraryGroupStory />);
+  await openGroup(page, group);
+  await group.getByRole("button", { name: "Select scripts" }).click();
+  await group.getByRole("checkbox", { name: "Select strip ooc" }).click();
+
+  // It rides the bar's kebab — its target is a placement SET, so it needs a dialog, not an inline button.
+  await group.getByRole("button", { name: "More actions for 1 script" }).click();
+  await page.getByRole("menuitem", { name: "Change where they run" }).click();
+
+  // The picker offers the SAME streams the per-script editor's `Runs on` chips do (the shared label map).
+  await expect(page.getByRole("button", { name: "Model output" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Rendered transcript" })).toBeVisible();
+  // Empty selection is a guarded dead end here (unlike the autosaving editor): "set every one to run nowhere"
+  // is never what a deliberate Apply means.
+  await expect(page.getByRole("button", { name: "Apply" })).toBeDisabled();
+  await page.getByRole("button", { name: "Model output" }).click();
+  await expect(page.getByRole("button", { name: "Apply" })).toBeEnabled();
+});
+
+test("applying the picked streams sends ONE bulkSetPlacement — placement only, no flags on the wire", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  const group = await mount(<RegexLibraryGroupStory />);
+  await openGroup(page, group);
+  await group.getByRole("button", { name: "Select scripts" }).click();
+  await group.getByRole("checkbox", { name: "Select strip ooc" }).click();
+
+  await group.getByRole("button", { name: "More actions for 1 script" }).click();
+  await page.getByRole("menuitem", { name: "Change where they run" }).click();
+  await page.getByRole("button", { name: "Model output" }).click();
+  await page.getByRole("button", { name: "Apply" }).click();
+
+  // The wire carries the checked script and the chosen stream — and NOTHING else: the server re-derives the
+  // tier flags + depth scope from `placement`, which is the whole reason D2 lifted the derivation to kit.
+  await expect
+    .poll(() => trpc.lastInput("regex.bulkSetPlacement"), { intervals: [20, 50, 100] })
+    .toEqual({ scriptIds: [STRIP["id"]], placement: ["AI_OUTPUT"] });
+  await expect.poll(() => trpc.count("regex.bulkSetPlacement"), { intervals: [50, 100, 200] }).toBe(1);
 });

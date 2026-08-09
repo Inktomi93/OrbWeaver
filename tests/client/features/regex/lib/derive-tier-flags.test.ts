@@ -1,18 +1,14 @@
-// The DISPLAY/PROMPT tier derivation (side-eye X-1 + X-2, owner-ratified 2026-08-03).
-//
-// `markdownOnly` and `promptOnly` shipped as two independent switches that could BOTH be on, telling the
-// user the script both does and does not touch the prompt — while "Display only" was simultaneously the
-// label of a `Runs on` chip in the same dialog. Reading the executor settled the shape: both flags are pure
-// MASKS over `placement` (`@orb/kit/regex` skips a `markdownOnly` script on every non-DISPLAY leg and a
-// `promptOnly` one on DISPLAY), so any independent control keeps the dead state authorable. Deriving makes
-// it unrepresentable.
-//
-// These pin the three arms AND the property that motivated them: the pair can never both be true.
+// The client SAVE BOUNDARY — `withDerivedTierFlags`, the CONTRACT-shaped assembly (side-eye X-1 + X-2,
+// owner-ratified 2026-08-03). The PURE derivations it folds on (`deriveRegexTierFlags` /
+// `deriveRegexHistoryDepth` / `WHOLE_HISTORY_DEPTH`) moved to `@orb/kit/regex` when the server's bulk-placement
+// verb needed to derive identically (D2); their three-arm + pairing pins live in `tests/kit/regex`. What is
+// pinned HERE is the part that names a `CreateRegexScriptInput`: that a whole authored row comes back with the
+// tier flags re-derived and the depth scope paired to its leg, and that an ST-imported contradiction HEALS on
+// the first save without disturbing anything else on the row.
 
 import type { CreateRegexScriptInput } from "@orb/contracts/regex";
 import { REGEX_PLACEMENTS, SubstituteFindRegex } from "@orb/kit/regex";
-import { describe } from "vitest";
-import { deriveRegexTierFlags, withDerivedTierFlags } from "../../../../../packages/client/src/features/regex/lib/derive-tier-flags.ts";
+import { withDerivedTierFlags } from "../../../../../packages/client/src/features/regex/lib/derive-tier-flags.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 
 /** Exactly what an ST card carrying BOTH tier flags lifts into: stored as imported (deliberately — see the
@@ -30,20 +26,6 @@ const IMPORTED_CONTRADICTION: CreateRegexScriptInput = {
   substituteRegex: SubstituteFindRegex.none,
 };
 
-describe("deriveRegexTierFlags — the three arms", () => {
-  test("DISPLAY alone ⇒ markdownOnly (render-tier only)", () => {
-    expect(deriveRegexTierFlags(["DISPLAY"])).toEqual({ markdownOnly: true, promptOnly: false });
-  });
-
-  test("no DISPLAY ⇒ promptOnly (never touches what is rendered)", () => {
-    expect(deriveRegexTierFlags(["USER_INPUT", "AI_OUTPUT"])).toEqual({ markdownOnly: false, promptOnly: true });
-  });
-
-  test("DISPLAY plus a prompt-side stream ⇒ neither flag — it runs on both sides, as the chips say", () => {
-    expect(deriveRegexTierFlags(["AI_OUTPUT", "DISPLAY"])).toEqual({ markdownOnly: false, promptOnly: false });
-  });
-});
-
 /** Every subset of a tuple, including the empty one — grown one member at a time (no bit masks: the house
  *  bans bitwise operators, and a power-set built by doubling reads better anyway). */
 function subsetsOf<T>(members: readonly T[]): readonly (readonly T[])[] {
@@ -56,24 +38,11 @@ function subsetsOf<T>(members: readonly T[]): readonly (readonly T[])[] {
   return out;
 }
 
-test("the contradiction is UNREPRESENTABLE — no placement set yields both flags", () => {
-  const subsets = subsetsOf(REGEX_PLACEMENTS);
-  expect(subsets).toHaveLength(2 ** REGEX_PLACEMENTS.length);
-  for (const placement of subsets) {
-    const flags = deriveRegexTierFlags(placement);
-    expect(flags.markdownOnly && flags.promptOnly, `both flags true for [${placement.join(",")}]`).toBe(false);
-  }
-});
-
-test("the empty set lands on the promptOnly arm and stays inert (the executor skips it either way)", () => {
-  expect(deriveRegexTierFlags([])).toEqual({ markdownOnly: false, promptOnly: true });
-});
-
-// ── The SECOND derivation: the ephemeral leg's depth scope ───────────────────────────────────────────────
-// `historyDepth` is not a mask — it is a field that has no meaning without `PROMPT_HISTORY`, and the
-// contract refuses either half alone. So the save boundary owns the pairing exactly as it owns the flags:
-// the scope appears with the chip and leaves with it, and the editor renders its controls on the same
-// condition, so the screen and the row cannot disagree.
+// ── The ephemeral leg's depth scope, folded through the save boundary ─────────────────────────────────────
+// `historyDepth` is not a mask — it is a field that has no meaning without `PROMPT_HISTORY`, and the contract
+// refuses either half alone. So the save boundary owns the pairing exactly as it owns the flags: the scope
+// appears with the chip and leaves with it, and the editor renders its controls on the same condition, so the
+// screen and the row cannot disagree.
 
 test("adding the history leg mints the whole-history scope; the authored bounds survive a later save", () => {
   const scoped = withDerivedTierFlags({ ...IMPORTED_CONTRADICTION, placement: ["PROMPT_HISTORY"] });
