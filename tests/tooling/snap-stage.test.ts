@@ -12,9 +12,11 @@ import {
   DIRTY_STAGE_KEY,
   ISOLATION_TRIPWIRE,
   SHORT_SHA_LEN,
+  STAGE_INHERITED_ENV_KEYS,
   shortSha,
   stageBaseUrl,
   stageDecision,
+  stageInheritedEnv,
   stagePaths,
   stagePorts,
 } from "../../scripts/probes/_kit/snap-stage.ts";
@@ -118,6 +120,51 @@ test("stageDecision treats a warm dirty stage exactly like any other sha for sta
   const dirtyActive = active({ sha: DIRTY_STAGE_KEY, shortSha: DIRTY_STAGE_KEY, dir: "/repo/.cache/snap-stage/dirty" });
   expect(stageDecision({ targetSha: DIRTY_STAGE_KEY, active: dirtyActive, fresh: false, healthy: true })).toBe("reuse");
   expect(stageDecision({ targetSha: SHA, active: dirtyActive, fresh: false, healthy: true })).toBe("rebuild");
+});
+
+// ── the DB-BOUND env allowlist ──────────────────────────────────────────────────────────────────────────
+//
+// The stage boots under ORB_ENV_NO_FILE (it never reads the operator's .env) on a COPY of the dev DB, so a
+// value the copied rows are bound to has to be re-declared or the stage boots against data it cannot read.
+// CREDENTIALS_KEY was the miss that made `snap --isolated` blind: no key ⇒ the boot decrypt-probe fails ⇒
+// /healthz answers 503 forever ⇒ `stageHealthy` is never true ⇒ every call rebuilds and fights its own
+// orphaned processes for the ports (measured 2026-08-09; same stage + same DB with the key ⇒ healthz=200).
+
+const DEV_ENV_SAMPLE = [
+  "OWNER_HANDLES=inktomi93@gmail.com",
+  "CREDENTIALS_KEY=3d0f1a2b3c4d5e6f",
+  "DEBUG_TOKEN=abadcafeabadcafe",
+  "SESSION_SECRET=hunter2hunter2hunter2",
+  "OPENROUTER_API_KEY=sk-or-v1-not-a-real-key",
+  "WIRE_CAPTURE=on",
+].join("\n");
+
+test("stageInheritedEnv forwards the DB-BOUND keys — the owner handle AND the credentials key", () => {
+  const inherited = stageInheritedEnv(DEV_ENV_SAMPLE);
+  expect(inherited["OWNER_HANDLES"]).toBe("inktomi93@gmail.com");
+  expect(inherited["CREDENTIALS_KEY"]).toBe("3d0f1a2b3c4d5e6f");
+  // The exact key SET, so a future addition has to come through the allowlist and its reason, not by accident.
+  expect(Object.keys(inherited)).toStrictEqual(["OWNER_HANDLES", "CREDENTIALS_KEY"]);
+});
+
+test("stageInheritedEnv forwards NOTHING else — the ORB_ENV_NO_FILE hatch stays narrow", () => {
+  // The negative half of the same claim: an operator's real DEBUG_TOKEN / provider key / capture switch must
+  // never arm a second, less-guarded surface on the stage port. That is the whole point of the hatch, so the
+  // allowlist is pinned by NAME, not merely by the two positives above.
+  expect([...STAGE_INHERITED_ENV_KEYS]).toStrictEqual(["OWNER_HANDLES", "CREDENTIALS_KEY"]);
+  const inherited = Object.keys(stageInheritedEnv(DEV_ENV_SAMPLE));
+  for (const leaked of ["DEBUG_TOKEN", "SESSION_SECRET", "OPENROUTER_API_KEY", "WIRE_CAPTURE"]) {
+    expect(inherited).not.toContain(leaked);
+  }
+});
+
+test("stageInheritedEnv omits a key the dev .env does not declare (no empty-string hand-out)", () => {
+  // An absent key must be ABSENT, not "" — the server's schema has its own unset fallback for each, and an
+  // empty CREDENTIALS_KEY would be a different, worse failure than no key at all.
+  const partial = stageInheritedEnv("OWNER_HANDLES=owner\n");
+  expect(Object.keys(partial)).toStrictEqual(["OWNER_HANDLES"]);
+  expect(partial["OWNER_HANDLES"]).toBe("owner");
+  expect(Object.keys(stageInheritedEnv(""))).toStrictEqual([]);
 });
 
 test("the isolation tripwire is the exact env var vite.config reads for its proxy target", () => {
