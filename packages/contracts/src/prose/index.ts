@@ -5,7 +5,8 @@
 //
 // Layout (PROSE-1 §4.1): the slot SHAPE + the closed id tuple live in `#prose-slot`; the per-domain slot
 // TABLES live beside the vocabulary they teach —
-//   • `#preset` (preset/prose.ts)     — per-PRESET voice/nudge prose (census 38-48)
+//   • `#preset` (preset/prose.ts)     — per-PRESET voice/nudge prose (census 38-48) + the one-click steer
+//                                       vocabulary the Rewrite modal / greeting studio compose (53-73)
 //   • `#imagery`                      — per-USER image-prompt + negative-base prose (census 82-88)
 //   • `#chat` (chat/prose.ts)         — per-USER app-tier side-generation prose (census 74-81) + the
 //                                       per-PRESET group-round / injection FRAMING prose (the framings home on
@@ -28,7 +29,7 @@ import { AUTOMATION_PROSE_SLOTS } from "#automation";
 import { CHAT_PROSE_SLOTS } from "#chat";
 import { DISCOVERY_PROSE_SLOTS } from "#discovery";
 import { IMAGERY_CAPTION_SLOT_IDS, IMAGERY_PROSE_SLOTS, IMAGERY_TEMPLATE_SLOT_IDS } from "#imagery";
-import { PRESET_PROSE_SLOTS } from "#preset";
+import { PRESET_GREETING_TRANSFORM_PROSE_SLOTS, PRESET_PROSE_SLOTS, PRESET_REWRITE_TOGGLE_PROSE_SLOTS } from "#preset";
 import type { ProseHome, ProseOverride, ProseOverrides, ProseResolution, ProseSlotDef, ProseSlotId } from "#prose-slot";
 import { hasProseToken, isProseSlotId, PROSE_SLOT_IDS, proseOverBy, proseOverrideFromLegacy, resolveProseFrom, spliceProseTokens } from "#prose-slot";
 import { REFINERY_PROSE_SLOTS } from "#refinery";
@@ -56,6 +57,8 @@ export {
  *  `tsc` error at THIS line. */
 export const PROSE_SLOTS: Record<ProseSlotId, ProseSlotDef> = {
   ...PRESET_PROSE_SLOTS,
+  ...PRESET_REWRITE_TOGGLE_PROSE_SLOTS,
+  ...PRESET_GREETING_TRANSFORM_PROSE_SLOTS,
   ...IMAGERY_PROSE_SLOTS,
   ...CHAT_PROSE_SLOTS,
   ...AUTOMATION_PROSE_SLOTS,
@@ -140,6 +143,29 @@ export function resolveProse(id: ProseSlotId, overrides: ProseOverrides): ProseR
  */
 export function resolveProseText(id: ProseSlotId, overrides: ProseOverrides, tokens?: Readonly<Record<string, string>>): string {
   return spliceProseTokens(resolveProse(id, overrides).text, tokens);
+}
+
+/** A one-click steer catalog row: a picked id plus the slot holding the sentence it contributes. Structural
+ *  (not the `RewriteToggle`/`GreetingTransform` names) so ONE resolver serves both catalogs — they differ in
+ *  their display fields, never in what {@link resolveSteerFragments} needs. */
+export interface SteerCatalogEntry {
+  readonly id: string;
+  readonly slot: ProseSlotId;
+}
+
+/**
+ * The picked one-click steer ids → their resolved fragment sentences, in CATALOG ORDER (census 53-73, the
+ * templating fork's ARM B). The ONE home for that resolution: both seams that compose a steer — chat's
+ * guided assembly (`REWRITE_TOGGLES`) and the greeting studio's two verbs (`GREETING_TRANSFORMS`) — walk the
+ * CATALOG and keep what was picked, so the composed steer is deterministic regardless of the order the host
+ * clicked the chips in, and neither seam can re-spell either the ordering rule or the two-rung resolution.
+ *
+ * An id with no catalog row is silently absent (it cannot be picked through the wire enum; a stale id from a
+ * hand-rolled request must not fabricate a fragment). The result feeds kit's pure `composeRewriteSteer`.
+ */
+export function resolveSteerFragments(catalog: readonly SteerCatalogEntry[], picked: readonly string[], overrides: ProseOverrides): readonly string[] {
+  const pickedSet = new Set<string>(picked);
+  return catalog.filter((entry) => pickedSet.has(entry.id)).map((entry) => resolveProseText(entry.slot, overrides));
 }
 
 /** One prose field's derived footer state — Default/Customized plus the two WARN-NEVER-BLOCK signals every

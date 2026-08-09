@@ -8,7 +8,7 @@ import { GUIDED_GAME_STEER_KINDS } from "@orb/kit/guided";
 import { z } from "zod";
 import type { OpenRouterProviderRouting } from "#connection";
 import type { ChatDocumentVisibility } from "#databank";
-import { GUIDED_IMPERSONATE_PERSONS, guidedActionKindSchema } from "#preset";
+import { GUIDED_IMPERSONATE_PERSONS, guidedActionKindSchema, REWRITE_TOGGLE_IDS } from "#preset";
 import type { ChatRpgPointer } from "#rpg";
 import type { ThemeBackground } from "#theme";
 import { messageRoleSchema } from "./participants.ts";
@@ -221,6 +221,13 @@ export const guidedSteerSchema = z.strictObject({
    *  injection — `input`/the action config are ignored. Enum-validated: the wire carries only the kind,
    *  never template text (a member cannot smuggle macros onto the trusted template side). */
   gameSteer: z.enum(GUIDED_GAME_STEER_KINDS).optional(),
+  /** The Rewrite modal's picked toggle KINDS (the templating fork, ARM B — owner 2026-08-09). Enum-validated
+   *  for the same reason `gameSteer` is: the wire carries the kind, the SERVER holds the bytes. Each id names
+   *  a `preset.rewriteToggle.*` prose slot the assembly resolves against the turn's preset overrides and
+   *  joins — in CATALOG order, never wire order — ahead of `input` (the host's own free text) into the ONE
+   *  steer that becomes `{{input}}`. Absent/empty ⇒ `input` alone, byte-identical to a plain steered rewrite.
+   *  Riding a non-`rewrite` action is harmless and composes the same way; only the Rewrite modal sends it. */
+  rewriteToggles: z.array(z.enum(REWRITE_TOGGLE_IDS)).optional(),
 });
 export type GuidedSteer = z.infer<typeof guidedSteerSchema>;
 

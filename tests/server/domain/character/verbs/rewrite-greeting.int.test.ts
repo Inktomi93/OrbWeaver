@@ -11,6 +11,11 @@ import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
+/** Two `preset.greetingTransform.*` shipped defaults the ARM B parity proofs quote — the EXACT bytes the
+ *  studio used to join in the browser before the fork. Literals on purpose (see the chat-side twin). */
+const PARITY_SECOND_PERSON = "Rewrite the greeting in second person, addressing the user directly as 'you' and referring to the character accordingly";
+const PARITY_PRESENT_TENSE = "Rewrite the greeting in present tense, making it feel immediate and ongoing";
+
 describe("rewriteGreeting", () => {
   test("owner: runs ONE bounded completion and returns its text", async () => {
     const db = await freshDb();
@@ -45,6 +50,48 @@ describe("rewriteGreeting", () => {
     // {{char}} (template) resolves to the card name; {{input}} = steer; {{base}} = neutralized greeting.
     expect(prompt).toBe(`Revise {${ZWSP}{user}${ZWSP}} waves per warmer for Nyx`);
     expect(prompt).not.toContain("{{user}} waves"); // proof the base did not re-trigger macro eval
+  });
+
+  // ── ARM B: the transform KINDS compose SERVER-side (the templating fork, owner 2026-08-09) ────────────
+  // The studio used to join `GREETING_TRANSFORMS[].fragment` in the browser and send the composed steer. It
+  // now sends the picked ids; the verb resolves each id's `preset.greetingTransform.*` slot against the
+  // CALLER's preset prose and runs the same pure join. Byte parity + catalog order + the override reaching
+  // the prompt are the three properties that make the move honest.
+  test("ARM B byte parity: the verb composes the transform slots + free text in CATALOG order, as the browser did", async () => {
+    const db = await freshDb();
+    const harness = makeHarness(db);
+    harness.setGreetingTemplate("{{input}}"); // the prompt IS the steer — the bytes under test, undiluted
+    const svc = createCharacterService(harness.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+
+    await svc.rewriteGreeting({
+      principal: principal(owner),
+      characterId: created.id,
+      greeting: "hey there",
+      steer: "keep it short",
+      // WIRE ORDER reversed on purpose — the composed order is the CATALOG's.
+      transforms: ["present-tense", "second-person"],
+    });
+
+    expect(harness.greetingTextCalls[0]?.prompt).toBe(`${PARITY_SECOND_PERSON}. ${PARITY_PRESENT_TENSE}. keep it short.`);
+  });
+
+  test("ARM B: a preset's prose OVERRIDE of a transform slot reaches the prompt; no picks rides the free text verbatim", async () => {
+    const db = await freshDb();
+    const harness = makeHarness(db);
+    harness.setGreetingTemplate("{{input}}");
+    harness.setGreetingProse({ "preset.greetingTransform.secondPerson": { text: "Talk straight at the reader", baseVersion: 1 } });
+    const svc = createCharacterService(harness.ctx);
+    const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+
+    await svc.rewriteGreeting({ principal: principal(owner), characterId: created.id, greeting: "g", steer: "", transforms: ["second-person"] });
+    expect(harness.greetingTextCalls[0]?.prompt).toBe("Talk straight at the reader.");
+
+    // No picks ⇒ the pre-fork path: the host's own text, unjoined and untouched.
+    await svc.rewriteGreeting({ principal: principal(owner), characterId: created.id, greeting: "g", steer: "warmer" });
+    expect(harness.greetingTextCalls[1]?.prompt).toBe("warmer");
   });
 
   test("non-owner: throws leak-free CharacterNotFoundError BEFORE any template read or completion", async () => {

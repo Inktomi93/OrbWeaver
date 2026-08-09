@@ -48,6 +48,90 @@
       "version": 1,
       "sha256": "654c5781f7283f10fc8fc24b664b7fbc5871ebdf40ef84f4d4c6b5caff62794c"
     },
+    "preset.rewriteToggle.concise": {
+      "version": 1,
+      "sha256": "b5d37012a9a7348f86a4f3718d7085f7d376459e80b650093962f0deacf7afd8"
+    },
+    "preset.rewriteToggle.expand": {
+      "version": 1,
+      "sha256": "d96b82e838c9e0fe4eaf8a1858478cafa7bfa8056fa151c72570aff5dd5e0e5c"
+    },
+    "preset.rewriteToggle.novella": {
+      "version": 1,
+      "sha256": "ad611528072afd695f5430e2735eeb7bbe61ae66f3081f835c0686116389067e"
+    },
+    "preset.rewriteToggle.internetRp": {
+      "version": 1,
+      "sha256": "8de66d7c2a46779696f46f99b0ad4acaece3724a183b1abdda03a9e6431d90ef"
+    },
+    "preset.rewriteToggle.literary": {
+      "version": 1,
+      "sha256": "d50d2265e233dca806b35e9ec6e7d945affaa051f2e23ff09475c570bbae4a9b"
+    },
+    "preset.rewriteToggle.pastTense": {
+      "version": 1,
+      "sha256": "e5bf770dfaaf8a9a0ef58dc0e6fb1a6aaedb084bb8c4ad00fae091714f0aa904"
+    },
+    "preset.rewriteToggle.presentTense": {
+      "version": 1,
+      "sha256": "c6c6cd485792bf4ca9795780f21f42e21d927082be7ba6362348867ca361a71b"
+    },
+    "preset.greetingTransform.firstPersonStandard": {
+      "version": 1,
+      "sha256": "ce6fcbc7912891f81f5624ac310e2bf1da1ad3901ae75e05eabc9a8ef282863e"
+    },
+    "preset.greetingTransform.firstPersonByName": {
+      "version": 1,
+      "sha256": "bf97ed377476a2dfd3d73dcfd76b2e2b50979713e7aa4b771765bcf2b68a6974"
+    },
+    "preset.greetingTransform.firstPersonAsYou": {
+      "version": 1,
+      "sha256": "4dd1df2cea51e2672d36500559374168560baac01a89ce549497ceac44c7ea1c"
+    },
+    "preset.greetingTransform.secondPerson": {
+      "version": 1,
+      "sha256": "e7e6e8f0d6a6d88458595ce46a9c8a5934ce0e8a24821cfd165f2f79bc3e2cd6"
+    },
+    "preset.greetingTransform.thirdPerson": {
+      "version": 1,
+      "sha256": "8cf3d83c7c96804e55997252bd0fd10b99b7242deab4cf82f1351564a3d8d1cb"
+    },
+    "preset.greetingTransform.pastTense": {
+      "version": 1,
+      "sha256": "8b23a6ce883558190e356e6b59627d997b4ef993ae2baaa6d583180a20393c30"
+    },
+    "preset.greetingTransform.presentTense": {
+      "version": 1,
+      "sha256": "be28229bb28093c5d6c1f862c28189400dd4c5e11736e6fc3675d6a064a05c55"
+    },
+    "preset.greetingTransform.novellaStyle": {
+      "version": 1,
+      "sha256": "c789636e7974618b52b1d3c869a95941b1dc20ebbcb31d5dd606de3a492e11d9"
+    },
+    "preset.greetingTransform.internetRpStyle": {
+      "version": 1,
+      "sha256": "62eec133e5825b0463a9f3a308380e277d70491ff170106d997224bbcba316ae"
+    },
+    "preset.greetingTransform.literaryStyle": {
+      "version": 1,
+      "sha256": "81f380e506b5e6e6a56038e4b613638044d5ab01323e8c57aa3ff12c0ecb5fd0"
+    },
+    "preset.greetingTransform.scriptStyle": {
+      "version": 1,
+      "sha256": "ede37b7cf54fecc1776fb03cfdaf180a07db25d301898fdf34e3fc077829d4a0"
+    },
+    "preset.greetingTransform.heHim": {
+      "version": 1,
+      "sha256": "0034c66c313024330070fe4362df9aa0662585fffbb5e6897ea364d07458a77a"
+    },
+    "preset.greetingTransform.sheHer": {
+      "version": 1,
+      "sha256": "8d7ae62603023f10deaa1a22bd2fb54302635a0bdf7a0b99fa08bb7f892b0617"
+    },
+    "preset.greetingTransform.theyThem": {
+      "version": 1,
+      "sha256": "71b3326ace65d8d16934c1421249b12a9b0400f4b0fa21e50c332640481b836e"
+    },
     "imagery.template.character": {
       "version": 1,
       "sha256": "afbdc4416d5a8eb201e5ef8941620343847cca285da3b71e7d8bb0ec3d25d713"

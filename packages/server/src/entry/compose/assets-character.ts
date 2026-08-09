@@ -12,6 +12,7 @@
 //      resolver deref services built LATER (search-discovery). The keystone threads them as request-time getters.
 
 import { DEFAULT_GUIDED_ACTIONS, SIDE_GEN_POSTURES } from "@orb/contracts/preset";
+import type { ProseOverrides } from "@orb/contracts/prose";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import {
@@ -233,17 +234,23 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // completion over the summarize lane (the imagery captionImage precedent) at quiet-generate's floor
     // (temp 0.3, 1024 out — a bounded rewrite, not an open turn); the caller IS the request owner so
     // roleClients (bound for deps.ownerId) is the caller's connection.
-    resolveGreetingTemplate: async ({ caller, kind }): Promise<string> => {
+    resolveGreetingTemplate: async ({ caller, kind }): Promise<{ template: string; prose: ProseOverrides }> => {
       const defaultPresetId = (await settings.getUserSettings({ principal: caller })).config.seeds.defaultPresetId;
       const fallback = DEFAULT_GUIDED_ACTIONS[kind].prompt;
+      // No preset (or an unreadable one) ⇒ the contract default template and NO prose overrides, which
+      // resolves every transform fragment to its shipped default — the pre-fork bytes exactly.
       if (defaultPresetId === null) {
-        return fallback;
+        return { template: fallback, prose: {} };
       }
       try {
         const detail = await deps.getPreset().get({ userId: caller.userId, id: castId<PresetId>(defaultPresetId) });
-        return detail.config.guidedActions?.[kind].prompt ?? fallback;
+        // The SAME `promptConfig.prose` blob the chat assembly seam composes for a turn (the fork's ARM B):
+        // the studio's transform fragments are preset-homed slots, so the caller's preset is their storage.
+        // `config.prose` is `prefault({})` at the schema, so a preset that never carried one still resolves
+        // every transform fragment to its shipped default.
+        return { template: detail.config.guidedActions?.[kind].prompt ?? fallback, prose: detail.config.prose };
       } catch {
-        return fallback;
+        return { template: fallback, prose: {} };
       }
     },
     generateGreetingText: async ({ caller, prompt }): Promise<{ text: string; costUsd: number | null }> => {

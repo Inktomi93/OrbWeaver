@@ -1,12 +1,15 @@
 // The Rewrite (Corrections) modal state hook (W-D — extracted from the old composer-wand so the guided
 // cluster's ✨ Corrections item and the dialog share ONE state home). State is OWNED here (not the dialog)
 // so an Esc/Cancel preserves the typed instruction + toggle selection (D57 input-recovery posture): closing
-// never destroys state; only an explicit Apply (fire + reset) clears it. Apply composes the selected toggle
-// fragments + the free text into ONE steer (composeRewriteSteer) and fires guided.fireRewrite.
+// never destroys state; only an explicit Apply (fire + reset) clears it.
+//
+// Apply fires the picked toggle IDS + the free text — it does NOT compose (the templating fork's ARM B,
+// owner 2026-08-09). The fragment bytes are preset prose slots the SERVER resolves and joins at the assembly
+// seam that holds the preset blob, so the wire carries kinds only ("the wire carries only the kind, never
+// template text"). Catalog ORDER is the server's to enforce too — this hook sends the ids the host picked.
 
 import type { RewriteToggleId } from "@orb/contracts/preset";
 import { REWRITE_TOGGLES } from "@orb/contracts/preset";
-import { composeRewriteSteer } from "@orb/kit/guided";
 import { useState } from "react";
 
 export interface RewriteModal {
@@ -20,7 +23,11 @@ export interface RewriteModal {
   readonly apply: () => void;
 }
 
-export function useRewriteModal(trimmed: string, fireRewrite: (steer: string) => void, onChange: (text: string) => void): RewriteModal {
+export function useRewriteModal(
+  trimmed: string,
+  fireRewrite: (steer: string, toggles: readonly RewriteToggleId[]) => void,
+  onChange: (text: string) => void,
+): RewriteModal {
   const [isOpen, setOpen] = useState(false);
   const [instruction, setInstruction] = useState("");
   const [toggles, setToggles] = useState<ReadonlySet<RewriteToggleId>>(new Set<RewriteToggleId>());
@@ -45,14 +52,13 @@ export function useRewriteModal(trimmed: string, fireRewrite: (steer: string) =>
     });
   };
   const apply = (): void => {
-    // Compose in CATALOG ORDER so the fired steer is deterministic regardless of click order — the composed
-    // string becomes {{input}} inside the preset's rewrite template.
-    const fragments = REWRITE_TOGGLES.filter((t) => toggles.has(t.id)).map((t) => t.fragment);
-    const steer = composeRewriteSteer(fragments, instruction);
-    if (steer.length === 0) {
+    // The picked ids in CATALOG ORDER — the server composes in catalog order too, so this only makes the
+    // captured wire body read the way the modal does (click order would be noise in a capture).
+    const picked = REWRITE_TOGGLES.filter((t) => toggles.has(t.id)).map((t) => t.id);
+    if (instruction.trim().length === 0 && picked.length === 0) {
       return; // belt: the dialog's Apply button is disabled until instruction OR a toggle is set (W-D §c)
     }
-    fireRewrite(steer);
+    fireRewrite(instruction, picked);
     setOpen(false);
     setInstruction("");
     setToggles(new Set<RewriteToggleId>());
