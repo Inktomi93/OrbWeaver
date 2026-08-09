@@ -161,3 +161,31 @@ separate axis from the Config problem; recorded so it isn't conflated with it.**
 — they leave the rail, their editor becomes an in-place popover, their bird's-eye lives in Corpus,
 and the dead CONTEXT pane dies with the section. Regex/world-info are things — run the CONTEXT test on
 each before deciding their home. "Config vs Settings" is a naming collision to resolve after the sort.**
+
+## 9. Addendum (2026-08-09 — templates-in-settings finding + the registry lever)
+
+Owner asked whether templates still live in Settings (memory of "a bunch in there"). Looked with
+own eyes — the honest picture, so it isn't re-chased:
+
+- **Prose / prompt-assembly templates: D132 is DONE.** They live ONLY in PRESETS —
+  `features/preset/` (`TemplatesTab` `preset-structure-tabs.tsx:200`, `TemplateDrillIn`, the
+  prompt-assembly templated markers). Zero prose templates in the settings feature.
+- **What's still "in Settings" is the IMAGERY templates — a DIFFERENT concept, not a D132 leftover.**
+  Contract `contracts/src/settings/index.ts:668` (`imagery.templates`: character/face/scenario/
+  background + caption slots); UI is a chat-feature CONTRIBUTION the settings host renders
+  (`features/chat/components/imagery-templates-section.tsx`, per `chat-behavior-pane.tsx:6`). These
+  are image-generation prompt templates (imagery config), legitimately settings-homed — NOT the
+  prompt-assembly templates D132 moved.
+- **The itch is real but it's IA/naming, not a home violation:** two things called "templates" in
+  two homes. Optional fix = rename the imagery side ("Image prompts" / "Portrait prompts") so
+  "template" means one thing (Presets). Owner: **fine for now — imagery is functional (ugly), the
+  Presets Templates section is getting unwieldy but functional.** Not a lane; a taste call for the
+  revamp.
+
+**Owner intent recorded (the direction, not a lane):** the Config panel is likely to be REVAMPED and
+things relocated at some point. The thing that makes this cheap is that most surfaces are now
+**REGISTRY-BASED** (settings-section contributions, home-tile contributors, the workloads/tuning
+registries) — adding, removing, or RELOCATING a section is a registry edit at the composition door,
+not a surgical move. So the §7 "when Config is actually reworked" build is de-risked: the sort this
+doc prescribes (thing-vs-facet, tags→popover, regex/world-info CONTEXT test) can be executed as
+registry re-homings rather than rewrites. Build toward this doc's conclusions when the revamp lands.
