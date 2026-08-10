@@ -128,6 +128,16 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 
 ## ═══ LIVE STATE (2026-08-09 EVENING CLOSE) ═══
 
+**REPORT-CARD SESSION (2026-08-09, post-close, read-only):** owner-ordered package report cards —
+db/kit/ui source read IN FULL by the orchestrator (393 files, ~33k lines; no lanes, no code
+changes, tree stays clean at `efd6b52b9` + docs). **Grades: db A · kit A · ui A.** Complete
+follow-up punch list (17 items incl. the quick-win set: kit truthiness ×3, kit isRecord vs
+#guards, ui avatar-stack initials vs kit, db checkList hoist, kit stale barrel comment; plus db
+star/starred + updatedAt-policy schema renames [baseline-squash caveat], ui token-resolver
+triplet consolidation, ui/kit sin-hash + emphasis-regex + hint-anatomy dedups) lives in
+[`docs/reviews/misc/2026-08-09-package-report-cards-worklist.md`](reviews/misc/2026-08-09-package-report-cards-worklist.md)
+— next session picks work from THERE, don't re-derive from the transcript.
+
 **Main `efd6b52b9` — GREEN (consolidated `pnpm check` PASS, all stages), zero worktrees, tree clean.
 Origin UNPUSHED (~70 ahead) — owner pushing himself, then DB WIPE + WHOLE FLEET RESTART (owner-driven
 endgame).** This session's big client/security train all merged: login/loading + brand-A forge
