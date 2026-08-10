@@ -118,36 +118,48 @@ interface PassCounts {
   skippedEmpty: number;
 }
 
-/** Generate (and self-heal) the digests for ONE chat + scope bucket. Never blocks a reply — the caller runs
- *  it off the hot path. `mode: 'off'` → a no-op. */
-export async function generateDigests(ctx: ChatContext, args: GenerateDigestsArgs): Promise<MemoryPassCounts> {
+const EMPTY_TIER0_COUNTS: Tier0Counts = { written: 0, skipped: 0, skippedTokenGuard: 0, skippedEmpty: 0 };
+
+/** One pending tier-0 block: everything the STORE needs, plus the summarize `input`. */
+interface Tier0Pending {
+  readonly block: BlockSpan;
+  readonly hash: string;
+  readonly input: SummarizeInput;
+}
+
+/** The prep + tier-0 COLLECT for ONE chat + scope bucket — everything up to (not including) the summarize.
+ *  Backfill gathers a plan per bucket across the WHOLE corpus, runs ONE `summarizeDigestBatch` for every
+ *  bucket's blocks at once (length-sorted → vLLM's continuous batcher packs them) rather than a tiny batch
+ *  per bucket, then `commitDigestPlan`s each. `null` for the no-op cases (mode off, no aged-out block). */
+interface DigestPlan {
+  readonly scope: MemoryScope;
+  readonly cfg: ReturnType<typeof resolveCfg>;
+  readonly existing: ReadonlyMap<string, string>;
+  readonly startedAt: number;
+  readonly pending: readonly Tier0Pending[];
+  readonly skipped: number;
+  readonly skippedTokenGuard: number;
+  readonly signal: AbortSignal | undefined;
+}
+
+export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): Promise<DigestPlan | null> {
   const startedAt = ctx.now();
   const cfg = resolveCfg(args.config);
   const { chatId, scopedCharacterId } = args.scope;
-  const emptyCounts: Tier0Counts = {
-    written: 0,
-    skipped: 0,
-    skippedTokenGuard: 0,
-    skippedEmpty: 0,
-  };
   if (cfg.mode === "off") {
-    logBuild(ctx, args.scope, { startedAt, counts: emptyCounts, note: "mode off" });
-    return { written: 0, skipped: 0 };
+    logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "mode off" });
+    return null;
   }
   if (ctx.summarizerContextTokens < SUMMARIZER_CONTEXT_FLOOR) {
-    logBuild(ctx, args.scope, {
-      startedAt,
-      counts: emptyCounts,
-      note: "summarizer context below floor",
-    });
+    logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "summarizer context below floor" });
   }
   const macroNames = args.macroNames ?? EMPTY_MACRO_NAMES;
 
   const { maxSeq } = await loadChatMeta(ctx.db, chatId);
   const cutoff = maxSeq - cfg.verbatimWindow;
   if (cutoff < cfg.blockSize) {
-    logBuild(ctx, args.scope, { startedAt, counts: emptyCounts, note: "no aged-out block" });
-    return { written: 0, skipped: 0 };
+    logBuild(ctx, args.scope, { startedAt, counts: EMPTY_TIER0_COUNTS, note: "no aged-out block" });
+    return null;
   }
 
   const canon = await loadCanonThroughSeq(ctx.db, chatId, cutoff);
@@ -161,20 +173,56 @@ export async function generateDigests(ctx: ChatContext, args: GenerateDigestsArg
   await ctx.embeddingsPruneBlocks({ lens: "digest", chatId, scopedCharacterId, keepPerTier: blockCeilings(allBlocks.length, cfg.fanOut, cfg.maxTier) });
   const existing = await loadDigestHashes(ctx.db, chatId, scopedCharacterId);
 
-  const counts = await buildTier0(ctx, args, { blocks, existing, macroNames });
-  const consolidated = await consolidateTiers(ctx, args.scope, {
+  const collected = await collectTier0(ctx, args, { blocks, existing, macroNames });
+  return {
+    scope: args.scope,
     cfg,
     existing,
+    startedAt,
+    pending: collected.pending,
+    skipped: collected.skipped,
+    skippedTokenGuard: collected.skippedTokenGuard,
     signal: args.signal,
-  });
-  const total: Tier0Counts = {
-    written: counts.written + consolidated.written,
-    skipped: counts.skipped + consolidated.skipped,
-    skippedTokenGuard: counts.skippedTokenGuard,
-    skippedEmpty: counts.skippedEmpty + consolidated.skippedEmpty,
   };
-  logBuild(ctx, args.scope, { startedAt, counts: total });
+}
+
+/** Commit a plan: store the summarized tier-0 blocks (`texts` index-aligned to `plan.pending`), consolidate
+ *  upward, and emit the build trace. Separated from `planDigests` so backfill can summarize corpus-wide first. */
+export async function commitDigestPlan(ctx: ChatContext, plan: DigestPlan, texts: readonly (string | null)[]): Promise<MemoryPassCounts> {
+  const stored = await storeTier0(ctx, plan, texts);
+  const consolidated = await consolidateTiers(ctx, plan.scope, { cfg: plan.cfg, existing: plan.existing, signal: plan.signal });
+  const total: Tier0Counts = {
+    written: stored.written + consolidated.written,
+    skipped: plan.skipped + consolidated.skipped,
+    skippedTokenGuard: plan.skippedTokenGuard,
+    skippedEmpty: stored.skippedEmpty + consolidated.skippedEmpty,
+  };
+  logBuild(ctx, plan.scope, { startedAt: plan.startedAt, counts: total });
   return { written: total.written, skipped: total.skipped };
+}
+
+/** The ONE place both the live per-turn build and the corpus-wide backfill feed vLLM: a batched, per-item-
+ *  isolated summarize of digest inputs with the admin summarizer opts. Index-aligned; `null` = per-item fail
+ *  (the content-hash self-heal retries it next pass). Length-sort the inputs before this for the big backfill
+ *  batch — similar-length sequences pack with less ragged-batch padding waste. */
+export async function summarizeDigestBatch(ctx: ChatContext, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
+  return summarizeBatchIsolated(ctx, inputs, summarizerOpts(ctx), (i, err) =>
+    getLog().error({ err, index: i }, "memory digest: block summarize FAILED (isolated — the block retries next pass)"),
+  );
+}
+
+/** Generate (and self-heal) the digests for ONE chat + scope bucket — the LIVE per-turn path. Plan → one
+ *  summarize of THIS bucket's blocks → commit. Never blocks a reply. `mode: 'off'` / no aged block → a no-op. */
+export async function generateDigests(ctx: ChatContext, args: GenerateDigestsArgs): Promise<MemoryPassCounts> {
+  const plan = await planDigests(ctx, args);
+  if (plan === null) {
+    return { written: 0, skipped: 0 };
+  }
+  const texts = await summarizeDigestBatch(
+    ctx,
+    plan.pending.map((p) => p.input),
+  );
+  return commitDigestPlan(ctx, plan, texts);
 }
 
 /**
@@ -200,8 +248,10 @@ function blockCeilings(blockCount: number, fanOut: number, maxTier: number): num
   return ceilings;
 }
 
-/** The tier-0 pass: one digest per complete, aged-out, witnessed block. */
-async function buildTier0(
+/** The tier-0 COLLECT (PASS 1): walk the block grid, skip settled blocks (content-hash self-heal) and
+ *  token-guard-doomed blocks, and COLLECT the rest as pending summarize inputs. NO LLM call, NO writes —
+ *  so backfill can gather pending across every bucket before one corpus-wide summarize. */
+async function collectTier0(
   ctx: ChatContext,
   args: GenerateDigestsArgs,
   env: {
@@ -209,52 +259,51 @@ async function buildTier0(
     readonly existing: ReadonlyMap<string, string>;
     readonly macroNames: RowMacroNameContext;
   },
-): Promise<Tier0Counts> {
-  const { chatId, scopedCharacterId, isGroup } = args.scope;
-  const counts: Tier0Counts = { written: 0, skipped: 0, skippedTokenGuard: 0, skippedEmpty: 0 };
+): Promise<{ pending: Tier0Pending[]; skipped: number; skippedTokenGuard: number }> {
+  const { chatId, scopedCharacterId } = args.scope;
+  let skipped = 0;
+  let skippedTokenGuard = 0;
   // PROSE-1 census 78 — the digest instruction is the ROOM HOST's slot. Resolved ONCE per pass, and the
   // token guard fits against the RESOLVED text (a longer override must shrink the block, not overflow it).
   const systemPrompt = digestSystemPrompt(await ctx.resolveChatProse(chatId));
   const systemPromptTokens = estimateTokens(systemPrompt);
-  // PASS 1 — walk the block grid: skip settled blocks (content-hash self-heal) and token-guard-doomed blocks,
-  // and COLLECT the rest as one batch (a per-block single ran the surface's worker pool at count 1 → no vLLM
-  // continuous batching; batching all block-summarizes fans them across the bounded pool → concurrent).
-  const pending: { readonly block: BlockSpan; readonly hash: string; readonly input: SummarizeInput }[] = [];
+  const pending: Tier0Pending[] = [];
   for (const block of env.blocks) {
     args.signal?.throwIfAborted();
     const hash = blockHash(`${scopedCharacterId}:0:${block.blockIdx}`, block.rows);
     if (env.existing.get(`0:${block.blockIdx}`) === hash) {
-      counts.skipped += 1;
+      skipped += 1;
       continue;
     }
     const fitted = fitBlockToBudget(block.rows, env.macroNames, ctx.summarizerContextTokens, systemPromptTokens, outputReserve(ctx));
     if (fitted === null) {
-      counts.skippedTokenGuard += 1;
+      skippedTokenGuard += 1;
       continue;
     }
     pending.push({ block, hash, input: { systemPrompt, userPrompt: digestUserPrompt(renderTranscript(fitted, env.macroNames)) } });
   }
-  // PASS 2 — ONE batched summarize (per-item-isolated on failure), then store each result index-aligned. The
-  // content-hash self-heal + empty-skip are preserved per block (a blank digest keyed by the block hash would
-  // skip forever, so it is left un-digested to retry next pass).
-  const texts = await summarizeBatchIsolated(ctx, pending.map((p) => p.input), summarizerOpts(ctx), (i, err) =>
-    getLog().error(
-      { err, chatId, scopedCharacterId, tier: 0, blockIdx: pending[i]?.block.blockIdx },
-      "memory digest: tier-0 block summarize FAILED (isolated — the block retries next pass)",
-    ),
-  );
-  for (let i = 0; i < pending.length; i += 1) {
-    const item = pending[i];
+  return { pending, skipped, skippedTokenGuard };
+}
+
+/** The tier-0 STORE (PASS 2): for each pending block, parse its summarized text and embed-store it. `texts` is
+ *  index-aligned to `plan.pending`. The content-hash self-heal + empty-skip are preserved per block (a blank
+ *  digest keyed by the block hash would skip forever, so it is left un-digested to retry next pass). */
+async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: readonly (string | null)[]): Promise<{ written: number; skippedEmpty: number }> {
+  const { chatId, scopedCharacterId, isGroup } = plan.scope;
+  let written = 0;
+  let skippedEmpty = 0;
+  for (let i = 0; i < plan.pending.length; i += 1) {
+    const item = plan.pending[i];
     if (item === undefined) {
       continue;
     }
     const raw = texts[i];
     if (raw === null || raw === undefined || raw.trim().length === 0) {
-      counts.skippedEmpty += 1;
+      skippedEmpty += 1;
       continue;
     }
     const parsed = parseDigest(raw);
-    // biome-ignore lint/performance/noAwaitInLoops: the LLM fan-out already happened as ONE batch above; this loop is only the metered/ordered embed-store upserts (idempotent per block).
+    // biome-ignore lint/performance/noAwaitInLoops: the LLM fan-out already happened as ONE batch; this loop is only the metered/ordered embed-store upserts (idempotent per block).
     await ctx.embeddingsStore({
       lens: "digest",
       key: { chatId, tier: 0, blockIdx: item.block.blockIdx, scopedCharacterId },
@@ -265,9 +314,9 @@ async function buildTier0(
       isGroup,
       speakerCharacterIds: blockSpeakerIds(item.block.rows),
     });
-    counts.written += 1;
+    written += 1;
   }
-  return counts;
+  return { written, skippedEmpty };
 }
 
 /** Emit the `memory.build` structured trace. */
