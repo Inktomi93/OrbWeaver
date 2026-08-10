@@ -126,7 +126,24 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   lanes both mint. Lane briefs name their exact playwright CT files (a CT nobody names is a CT
   nobody ran).
 
-## ═══ LIVE STATE (2026-08-09 EVENING CLOSE) ═══
+## ═══ LIVE STATE (2026-08-10 — vLLM tuning + memory-backfill reorder) ═══
+
+**Main `4805fb0ba` — 4 ahead of origin (UNPUSHED), tree clean, zero worktrees.** THIS SESSION (08-10):
+**(1) memory backfill reorder `90b3a821e`** — corpus-wide summarize-ALL-then-embed-ALL (was per-(chat×scope)-bucket
+interleave); spike **6.64×** (23.1s→3.5s / 30 blocks; 8B summarize ~95%, embed ~5%). `digests.ts` split into
+`planDigests`/`commitDigestPlan`/`summarizeDigestBatch` (DigestPlan build-internal, backfill derives by inference);
+`backfill.ts` 3-phase (plan all → summarize all length-sorted → commit all); 41 mem tests green; embed stays per-item.
+**(2) vLLM tuning `4805fb0ba`** — rerank→GPU0 with embed (BOTH homes: build-argv `engineCudaVisibleDevices` +
+wake-budget `engineVramNeed`), gen util 0.55→0.60, **summarize concurrency 32→8** (BOTH homes: layer.ts
+`VLLM_SUMMARIZE_CONCURRENCY_FLOOR` + vllm/index.ts `DEFAULT_SUMMARIZE_CONCURRENCY`); embed conc stays 4.
+**FLEET REBOOTED + VERIFIED:** embed+rerank on GPU0, gen both @0.60, `Maximum concurrency 8.57x` (was 7.52x@0.55),
+all healthy, **GPU0 TIGHT 98% (48.1/49.1 GB)** — clean boot, little margin. Concurrency finding: 32 overshot (vLLM ran
+~3-7 during load, KV ceiling ~7.5-8.5x) → excess queued → tail-latency into the ~120s timeout; 8 matches. **OPS GOTCHA:
+`pnpm engines:start` blocks >2min (synchronous reap+health-wait) — run DETACHED/backgrounded, NEVER foreground.** The
+summarize-conc change is SERVER-side (applies on app-server boot, not the engine reboot). PEER commits on main (other
+session, unpushed): `cf38eebce` login-polish · `d2478aaf7` report-card. Ops facts → [[vllm-concurrency-topology-tuning]].
+
+### ═══ (2026-08-09 EVENING CLOSE — superseded on tip/fleet only; carry-forward + #43-parked `park/43-code-split` still valid) ═══
 
 **REPORT-CARD SESSION (2026-08-09, post-close, read-only):** owner-ordered package report cards —
 db/kit/ui source read IN FULL by the orchestrator (393 files, ~33k lines; no lanes, no code
