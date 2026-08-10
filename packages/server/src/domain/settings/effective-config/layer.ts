@@ -31,7 +31,10 @@ import { env } from "#foundation/env";
 const FORBID_EXTERNAL_MEDIA_FLOOR = true;
 const TRUST_HTML_FLOOR = false;
 const VLLM_EMBED_CONCURRENCY_FLOOR = 4;
-const VLLM_SUMMARIZE_CONCURRENCY_FLOOR = 32;
+// 8 matches the gen engine's KV ceiling (it logs `Maximum concurrency … 7.52x` at max-model-len; ~8.2x at the
+// 0.6 util). 32 overshot what vLLM actually runs (~3-7 concurrent), so the excess just queued in vLLM's waiting
+// list — no throughput gain, only tail latency into the request timeout. Mirrored in the vllm/index.ts fallback.
+const VLLM_SUMMARIZE_CONCURRENCY_FLOOR = 8;
 // null = unbounded (supervisor-limited); an admin override (positive int) caps it.
 const NON_OWNER_LOCAL_COMPUTE_BUDGET_FLOOR: number | null = null;
 const MS_PER_HOUR = 3_600_000;

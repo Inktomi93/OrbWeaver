@@ -46,10 +46,10 @@ export { createVllmStructured, createVllmSummarize } from "./surfaces/summarize.
 type VllmEngine = (typeof VLLM_ENGINES)[number];
 
 // Fallback concurrency when compose doesn't inject the effective-config floor (tests / GPU-less). These
-// MIRROR the layer.ts born-in-DB floors (embed 4, summarize 32) — the old `4`/`4` drifted from the summarize
-// floor of 32. Compose always injects the real resolved values; these only apply when it doesn't.
+// MIRROR the layer.ts born-in-DB floors (embed 4, summarize 8) — keep them in sync (a drift here is the
+// two-home bug). Compose always injects the real resolved values; these only apply when it doesn't.
 const DEFAULT_EMBED_CONCURRENCY = 4;
-const DEFAULT_SUMMARIZE_CONCURRENCY = 32;
+const DEFAULT_SUMMARIZE_CONCURRENCY = 8;
 
 /** Engine lifecycle handle `entry/` + the admin panel wire; separate from the role surface (surfaces
  *  EXECUTE, this OWNS the supervised processes). */

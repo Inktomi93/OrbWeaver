@@ -49,7 +49,7 @@ const VLLM_RERANK_GPU_UTIL_SINGLE_DEFAULT = 0.22;
 // slow turn starved every other. ComfyUI's GPU residency ended; gen claims the freed VRAM for KV headroom
 // (~6x full-context concurrency on 2×A6000). Owner-directed re-provision — drop back toward 0.28 if a
 // ComfyUI-class GPU tenant returns.
-const VLLM_GEN_GPU_UTIL_MULTI_DEFAULT = 0.55;
+const VLLM_GEN_GPU_UTIL_MULTI_DEFAULT = 0.6;
 const VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT = 0.5;
 // --mm-processor-kwargs max_pixels caps: pooling engines (embed/rerank) at the reference 1.84M-px vision
 // regime; the gen VL engine at its 4.2M-px cap. ONE home for the two literals the shell hand-carried.

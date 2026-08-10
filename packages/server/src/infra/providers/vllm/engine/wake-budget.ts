@@ -66,8 +66,8 @@ export function engineVramNeed(engine: VllmEngine, gpuCount: number, util: Engin
     return { fractionByGpu: new Map([[0, util.embedGpuUtil]]) };
   }
   if (engine === "rerank") {
-    const gpu = multiGpu ? 1 : 0;
-    return { fractionByGpu: new Map([[gpu, multiGpu ? util.rerankGpuUtilMulti : util.rerankGpuUtilSingle]]) };
+    // rerank pins to GPU0 (with embed) in BOTH single- and multi-GPU (2026-08-10) — mirrors engineCudaVisibleDevices.
+    return { fractionByGpu: new Map([[0, multiGpu ? util.rerankGpuUtilMulti : util.rerankGpuUtilSingle]]) };
   }
   // gen: TP spans every card multi-GPU, else GPU0 only.
   const fraction = multiGpu ? util.genGpuUtilMulti : util.genGpuUtilSingle;
