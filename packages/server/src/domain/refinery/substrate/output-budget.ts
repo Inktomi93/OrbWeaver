@@ -122,9 +122,22 @@ export function outputEstimateOf(subject: StageEstimateSubject): number {
  *  whole new greetings that have no selected input to scale from. Until that arm is modelled, the cap is
  *  what absorbs it. */
 const OUTPUT_BUDGET_HEADROOM = 2;
-/** Window slack held back when clamping: the bounded structured RETRY re-sends the prompt with the zod
- *  issues appended, so the second attempt's input is strictly larger than the first's. */
-const CONTEXT_RESERVE_TOKENS = 256;
+/** Window slack held back when clamping, as a FIXED floor plus a band PROPORTIONAL to the input. Two sources
+ *  of real input that the estimate misses, and only the second scales: the bounded structured RETRY re-sends
+ *  the prompt with the zod issues appended (a small fixed addition — the floor), and `estimateTokens`
+ *  (QuadChars, advisory) UNDER-counts the true tokenization by a fraction that grows with input length.
+ *
+ *  RECEIPT (live score sweep, 2026-08-10): a ~31.5k-token card prompt estimated ~31 312 tokens but tokenized
+ *  to 31 569 — a 257-token (0.82%) undercount, ONE more than the fixed 256 reserve — so the clamp landed the
+ *  output cap exactly on the context boundary and the wire 400'd by a single token (`32769 > 32768`). A fixed
+ *  reserve cannot cover an error that scales with input; the proportional band does. 5% is generous over the
+ *  observed 0.82% to absorb content that tokenizes DENSER than QuadChars (code, punctuation, CJK). */
+const CONTEXT_RESERVE_FLOOR_TOKENS = 256;
+const INPUT_ESTIMATE_UNDERCOUNT_FRACTION = 0.05;
+
+function windowReserveOf(inputEstimate: number): number {
+  return CONTEXT_RESERVE_FLOOR_TOKENS + Math.ceil(inputEstimate * INPUT_ESTIMATE_UNDERCOUNT_FRACTION);
+}
 
 /**
  * The output cap a stage call should REQUEST: the shipped floor, raised to cover the stage's own predicted
@@ -140,7 +153,7 @@ function resolveStageOutputBudget(args: StageOutputBudgetArgs): number {
   if (contextTokens === null) {
     return want;
   }
-  const room = contextTokens - inputEstimate - CONTEXT_RESERVE_TOKENS;
+  const room = contextTokens - inputEstimate - windowReserveOf(inputEstimate);
   // A window with no room left for the floor is the INPUT-side overrun the fit line's other half warns
   // about — clamping below the shipped floor would silently turn that into a truncated output instead.
   return room <= floor ? floor : Math.min(want, room);

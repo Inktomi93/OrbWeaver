@@ -38,6 +38,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { toSummarizeOptions } from "@orb/server/kit/side-gen-posture";
 import { runStructuredTurn } from "@orb/server/kit/structured-turn";
 import type { RefineryScoreTarget } from "#domain/character";
+import { getLog } from "#foundation/observability";
 import type { ScoreSweepOptions } from "../contract/params.ts";
 import type { StageEstimateSubject } from "../contract/prompts.ts";
 import type { RefineryWorkloadDeps, ScoreSweep } from "../contract/service.ts";
@@ -129,12 +130,9 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
   signal?.throwIfAborted();
   report({ message: `scoring ${items.length} card${items.length === 1 ? "" : "s"}`, current: 0, total: items.length });
   // One batched call fills the role's parallel-slot pipeline; `items[i]` pairs 1:1 with `result.items[i]`.
-  const replies = await deps.summarize(
-    items.map((item) => ({ systemPrompt: item.system, userPrompt: item.user })),
-    sampleOpts,
-  );
+  const replies = await fetchBatchReplies(deps, items, sampleOpts);
 
-  const { scored, failed } = await stampParsedScores(deps, { items, replies: replies.items, sampleOpts }, { report, signal });
+  const { scored, failed } = await stampParsedScores(deps, { items, replies, sampleOpts }, { report, signal });
   // `failed` cards were READY (they reached the model), so they are not skipped — the four counts partition
   // the candidate set exactly: scanned = scored + skipped + failed.
   return { scanned: inScope, scored, skipped, failed };
@@ -151,6 +149,28 @@ function readyTargetsOf(targets: readonly RefineryScoreTarget[]): { target: Refi
     const selection = defaultSelectionOf(target.card);
     return selection.fields.length === 0 ? [] : [{ target, selection }];
   });
+}
+
+/** Fetch the batch's replies, CONTAINED. The vLLM summarize surface is all-or-nothing (one item's infra
+ *  error — e.g. a card whose prompt overruns the model window — rejects the WHOLE batch), and this pass is a
+ *  library sweep with per-card containment: one bad card must never fail the other N. So a batch rejection
+ *  degrades to empty replies, and the bounded, per-card-contained retry path below re-fetches each card one at
+ *  a time (`SWEEP_RETRY_CONCURRENCY`-bounded) — the poison card fails alone (counted `failed`), the rest score.
+ *  This is the same isolation the memory backfill's `summarizeBatchIsolated` gives its digest batch. */
+async function fetchBatchReplies(deps: RefineryWorkloadDeps, items: readonly SweepItem[], sampleOpts: SummarizeOptions): Promise<{ text: string }[]> {
+  try {
+    const res = await deps.summarize(
+      items.map((item) => ({ systemPrompt: item.system, userPrompt: item.user })),
+      sampleOpts,
+    );
+    return res.items.map((item) => ({ text: item.text }));
+  } catch (err) {
+    getLog().warn(
+      { err, cards: items.length },
+      "refinery score sweep: batch fetch rejected — degrading to per-card retry (one card's infra error must not fail the whole sweep)",
+    );
+    return items.map(() => ({ text: "" }));
+  }
 }
 
 /** Parse every reply in bounded waves and stamp each card that produced a score. The FIRST attempt reuses

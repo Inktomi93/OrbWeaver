@@ -158,6 +158,27 @@ test("per-card containment: one card's unusable reply fails ALONE — the rest s
   expect(retryPass).toEqual({ scanned: 2, scored: 1, skipped: 1, failed: 0 });
 });
 
+test("batch containment: an infra rejection on the batch fetch fails those cards, never the whole sweep (crash guard)", async () => {
+  const db = await freshDb();
+  const owner = await seedUser(db, { id: "user_sw_batchfail" });
+  const h = makeRefineryHarness(db);
+  await seedOwnedCharacter(h, owner, "sw-card-x");
+  await seedOwnedCharacter(h, owner, "sw-card-y");
+  const sweep = createScoreSweep(refineryWorkloadDepsOf(db, h));
+  // Queue NOTHING: the batch summarize call throws (tape exhausted) — standing in for the real infra failure
+  // that motivated the fix. A card whose prompt overruns the model window 400s, and the vLLM summarize surface
+  // is all-or-nothing, so one bad card rejects the WHOLE batch. The OLD raw `deps.summarize` let that throw
+  // escape `runScoreSweep` (failing the workload, and — uncontained upstream — taking the fleet/server down);
+  // the contained fetch degrades to the bounded per-card retry, where each card fails ALONE and the sweep
+  // still resolves. Under the pre-fix code this `await sweep(...)` would REJECT; it must now resolve.
+  const sink = reporter();
+
+  const result = await sweep({ ownerId: owner, rescoreAll: false, report: sink.report, signal: undefined });
+
+  // Resolves (no throw): both cards counted failed, the four counts still partition the candidate set.
+  expect(result).toEqual({ scanned: 2, scored: 0, skipped: 0, failed: 2 });
+});
+
 test("the CONTENT FLOOR counts a name-only card as skipped, never as scored or failed", async () => {
   const db = await freshDb();
   const owner = await seedUser(db, { id: "user_sw_floor" });
