@@ -7,7 +7,7 @@
 // (maxSeq − verbatimWindow) never digests, so a swipe/edit at the live tip never touches a settled digest.
 
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
-import { DEFAULT_MEMORY_SUMMARIZER_PRESENCE_PENALTY } from "@orb/contracts/settings";
+import { DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS, DEFAULT_MEMORY_SUMMARIZER_PRESENCE_PENALTY } from "@orb/contracts/settings";
 import type { CharacterId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -34,14 +34,16 @@ interface GenerateDigestsArgs {
 
 /** The admin-resolved summarize call options (`AppSettings.memorySummarizer`) — passed onto every `summarize`
  *  call. The summarizer keeps its OWN sampler knobs (owner ruling 2026-08-08 — NOT coupled to chat presets):
- *  each admin-set knob rides; an unset knob falls to the engine default, EXCEPT `presencePenalty`, which
- *  ALWAYS rides at the Qwen3-VL loop-stopping default when unset (the whole point of the fix — the summarize
- *  wire does not inherit the vLLM chat surface's per-request presence default, so a repetition_penalty=1.0
- *  model would loop to maxTokens / the request cut). A deliberate admin override (including 0) wins. */
+ *  each admin-set knob rides; an unset knob falls to the engine default, EXCEPT `maxTokens` and
+ *  `presencePenalty`, which ALWAYS ride at their memory-build defaults when unset. Both are the same loop fix:
+ *  the summarize wire does NOT inherit the vLLM chat surface's per-request presence default, so a
+ *  repetition_penalty=1.0 model with no presence penalty AND no max_tokens ceiling loops UNBOUNDED to the
+ *  120s request timeout. `presencePenalty` discourages the loop; `maxTokens` hard-caps it (and is the SAME
+ *  value `outputReserve` fits the input against — one home, see there). A deliberate admin override (incl 0) wins. */
 function summarizerOpts(ctx: ChatContext): SummarizeOptions {
   const s = ctx.memorySummarizer;
   return {
-    ...(s.maxTokens !== undefined ? { maxTokens: s.maxTokens } : {}),
+    maxTokens: s.maxTokens ?? DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS,
     ...(s.temperature !== undefined ? { temperature: s.temperature } : {}),
     ...(s.topP !== undefined ? { topP: s.topP } : {}),
     ...(s.topK !== undefined ? { topK: s.topK } : {}),
@@ -129,8 +131,9 @@ interface Tier0Pending {
 
 /** The prep + tier-0 COLLECT for ONE chat + scope bucket — everything up to (not including) the summarize.
  *  Backfill gathers a plan per bucket across the WHOLE corpus, runs ONE `summarizeDigestBatch` for every
- *  bucket's blocks at once (length-sorted → vLLM's continuous batcher packs them) rather than a tiny batch
- *  per bucket, then `commitDigestPlan`s each. `null` for the no-op cases (mode off, no aged-out block). */
+ *  bucket's tier-0 blocks at once (length-sorted → vLLM's continuous batcher packs them), then stores them
+ *  (`storeTier0`) and consolidates corpus-wide tier-by-tier (`collectConsolidationTier`/`storeConsolidationTier`)
+ *  rather than committing a bucket at a time. `null` for the no-op cases (mode off, no aged-out block). */
 interface DigestPlan {
   readonly scope: MemoryScope;
   readonly cfg: ReturnType<typeof resolveCfg>;
@@ -186,9 +189,11 @@ export async function planDigests(ctx: ChatContext, args: GenerateDigestsArgs): 
   };
 }
 
-/** Commit a plan: store the summarized tier-0 blocks (`texts` index-aligned to `plan.pending`), consolidate
- *  upward, and emit the build trace. Separated from `planDigests` so backfill can summarize corpus-wide first. */
-export async function commitDigestPlan(ctx: ChatContext, plan: DigestPlan, texts: readonly (string | null)[]): Promise<MemoryPassCounts> {
+/** Commit a plan (the LIVE per-turn path): store the summarized tier-0 blocks (`texts` index-aligned to
+ *  `plan.pending`), consolidate upward, and emit the build trace. The corpus backfill does NOT use this — it
+ *  stores tier-0 (PHASE 3) and consolidates corpus-wide (PHASE 4) via the split `storeTier0` +
+ *  `collectConsolidationTier`/`storeConsolidationTier` seams so it can batch each tier across every bucket. */
+async function commitDigestPlan(ctx: ChatContext, plan: DigestPlan, texts: readonly (string | null)[]): Promise<MemoryPassCounts> {
   const stored = await storeTier0(ctx, plan, texts);
   const consolidated = await consolidateTiers(ctx, plan.scope, { cfg: plan.cfg, existing: plan.existing, signal: plan.signal });
   const total: Tier0Counts = {
@@ -288,7 +293,7 @@ async function collectTier0(
 /** The tier-0 STORE (PASS 2): for each pending block, parse its summarized text and embed-store it. `texts` is
  *  index-aligned to `plan.pending`. The content-hash self-heal + empty-skip are preserved per block (a blank
  *  digest keyed by the block hash would skip forever, so it is left un-digested to retry next pass). */
-async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: readonly (string | null)[]): Promise<{ written: number; skippedEmpty: number }> {
+export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: readonly (string | null)[]): Promise<{ written: number; skippedEmpty: number }> {
   const { chatId, scopedCharacterId, isGroup } = plan.scope;
   let written = 0;
   let skippedEmpty = 0;
@@ -319,8 +324,10 @@ async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: readonly (s
   return { written, skippedEmpty };
 }
 
-/** Emit the `memory.build` structured trace. */
-function logBuild(
+/** Emit the `memory.build` structured trace. Exported so the corpus backfill can emit the SAME per-bucket
+ *  trace after it stores tier-0 (PHASE 3) + consolidates corpus-wide (PHASE 4) — observability parity with
+ *  the live per-turn path, which emits it via `commitDigestPlan`. */
+export function logBuild(
   ctx: ChatContext,
   scope: MemoryScope,
   args: {
@@ -347,6 +354,25 @@ function logBuild(
   });
 }
 
+/** One complete, stale parent group awaiting consolidation: the target parent + its ordered children + the
+ *  summarize input built from their facets. */
+interface ConsPending {
+  readonly parentBlockIdx: number;
+  readonly ordered: readonly DigestRow[];
+  readonly parentHash: string;
+  readonly input: SummarizeInput;
+}
+
+/** One tier's collected consolidation work for a scope: the pending parent writes + the speaker map for their
+ *  children + the tally of already-current parents skipped. `parentTier` is the tier the writes land in.
+ *  Non-exported — backfill derives it by inference (no-inline-types: no build-internal type in an export). */
+interface ConsolidationTierPlan {
+  readonly parentTier: number;
+  readonly pending: readonly ConsPending[];
+  readonly speakerMap: ReadonlyMap<string, CharacterId[]>;
+  readonly skipped: number;
+}
+
 /** Walk tiers 0..maxTier-1, consolidating each complete `fanOut`-group of tier-k digests into a tier-(k+1)
  *  digest; reads each tier from the db so tier-(k+1) consolidates the tier-k rows this pass just wrote. */
 async function consolidateTiers(
@@ -365,20 +391,10 @@ async function consolidateTiers(
   for (let tier = 0; tier < cfg.maxTier; tier += 1) {
     signal?.throwIfAborted();
     // biome-ignore lint/performance/noAwaitInLoops: a tier consolidates the PRIOR tier's rows — the read at tier k depends on the writes at tier k-1, so the walk is inherently sequential.
-    const children = await loadDigestsForScope(ctx.db, scope.chatId, scope.scopedCharacterId, tier);
-    if (children.length < cfg.fanOut) {
-      break; // no complete group above this tier → the consolidation ceiling
+    const pass = await consolidateOneTier(ctx, scope, cfg, { tier, existing, signal });
+    if (pass === null) {
+      break; // fewer than fanOut children at this tier → the consolidation ceiling
     }
-    const groups = groupByParent(children, cfg.fanOut);
-    const childIds = children.map((c) => c.id);
-    const speakerMap = await loadDigestSpeakers(ctx.db, childIds);
-    const pass = await writeConsolidations(ctx, scope, cfg, {
-      tier,
-      groups,
-      speakerMap,
-      existing,
-      signal,
-    });
     written += pass.written;
     skipped += pass.skipped;
     skippedEmpty += pass.skippedEmpty;
@@ -386,31 +402,60 @@ async function consolidateTiers(
   return { written, skipped, skippedEmpty };
 }
 
-/** One parent digest per complete `fanOut`-group; the parent's blockIdx = `floor(childBlockIdx/fanOut)`. */
-async function writeConsolidations(
+/** One tier of the LIVE per-turn walk: collect this tier's complete/stale parents, summarize them in ONE
+ *  batch, store each. `null` ⇒ fewer than `fanOut` children (the ceiling — the caller stops climbing). Same
+ *  three moves the corpus backfill splits apart, kept composed here so the live path is one call per tier. */
+async function consolidateOneTier(
   ctx: ChatContext,
   scope: MemoryScope,
   cfg: ReturnType<typeof resolveCfg>,
-  env: {
-    readonly tier: number;
-    readonly groups: ReadonlyMap<number, DigestRow[]>;
-    readonly speakerMap: ReadonlyMap<string, CharacterId[]>;
-    readonly existing: ReadonlyMap<string, string>;
-    readonly signal: AbortSignal | undefined;
-  },
-): Promise<PassCounts> {
-  let written = 0;
-  let skipped = 0;
-  let skippedEmpty = 0;
-  const parentTier = env.tier + 1;
+  args: { readonly tier: number; readonly existing: ReadonlyMap<string, string>; readonly signal: AbortSignal | undefined },
+): Promise<PassCounts | null> {
+  const plan = await collectConsolidationTier(ctx, scope, cfg, args);
+  if (plan === null) {
+    return null;
+  }
+  // The live path keeps the RICH per-parent error context (it has it); the corpus backfill's flat batch can't,
+  // so it uses `summarizeConsolidationBatch` (flat index). Same summaries, same opts — only the error tag differs.
+  const texts = await summarizeBatchIsolated(ctx, plan.pending.map((p) => p.input), summarizerOpts(ctx), (i, err) =>
+    getLog().error(
+      { err, chatId: scope.chatId, scopedCharacterId: scope.scopedCharacterId, tier: plan.parentTier, blockIdx: plan.pending[i]?.parentBlockIdx },
+      "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)",
+    ),
+  );
+  const stored = await storeConsolidationTier(ctx, scope, plan, texts);
+  return { written: stored.written, skipped: plan.skipped, skippedEmpty: stored.skippedEmpty };
+}
+
+/** COLLECT one tier's consolidations for a scope (no LLM, no writes): read the tier-k rows, group by parent,
+ *  and gather every COMPLETE, stale (hash-changed) group as a pending parent write. `null` ⇒ fewer than
+ *  `fanOut` children exist at this tier (the consolidation ceiling — the caller stops climbing). A non-null
+ *  plan with empty `pending` means the tier is complete but every parent is already up to date. Split from
+ *  the store + summarize so the corpus backfill can gather pending across EVERY bucket before one big batch. */
+export async function collectConsolidationTier(
+  ctx: ChatContext,
+  scope: MemoryScope,
+  cfg: ReturnType<typeof resolveCfg>,
+  args: { readonly tier: number; readonly existing: ReadonlyMap<string, string>; readonly signal: AbortSignal | undefined },
+): Promise<ConsolidationTierPlan | null> {
+  const { tier, existing, signal } = args;
+  const children = await loadDigestsForScope(ctx.db, scope.chatId, scope.scopedCharacterId, tier);
+  if (children.length < cfg.fanOut) {
+    return null; // no complete group above this tier → the consolidation ceiling
+  }
+  const parentTier = tier + 1;
+  const groups = groupByParent(children, cfg.fanOut);
+  const speakerMap = await loadDigestSpeakers(
+    ctx.db,
+    children.map((c) => c.id),
+  );
   // PROSE-1 census 80/81 — the consolidation system prompt + its user-prompt lead, the ROOM HOST's slots.
   const prose = await ctx.resolveChatProse(scope.chatId);
   const consolidationSystem = consolidationSystemPrompt(prose);
-  // PASS 1 — collect every complete, stale (hash-changed) parent group as one batch (mirrors buildTier0:
-  // batching the consolidations fans them across the surface's worker pool instead of one-at-a-time singles).
-  const pending: { readonly parentBlockIdx: number; readonly ordered: readonly DigestRow[]; readonly parentHash: string; readonly input: SummarizeInput }[] = [];
-  for (const [parentBlockIdx, group] of [...env.groups].sort((a, b) => a[0] - b[0])) {
-    env.signal?.throwIfAborted();
+  const pending: ConsPending[] = [];
+  let skipped = 0;
+  for (const [parentBlockIdx, group] of [...groups].sort((a, b) => a[0] - b[0])) {
+    signal?.throwIfAborted();
     if (group.length < cfg.fanOut) {
       continue; // incomplete group — defer until it fills
     }
@@ -419,7 +464,7 @@ async function writeConsolidations(
       `${scope.scopedCharacterId}:${parentTier}:${parentBlockIdx}`,
       ordered.map((c) => c.contentHash),
     );
-    if (env.existing.get(`${parentTier}:${parentBlockIdx}`) === parentHash) {
+    if (existing.get(`${parentTier}:${parentBlockIdx}`) === parentHash) {
       skipped += 1;
       continue;
     }
@@ -430,16 +475,26 @@ async function writeConsolidations(
       input: { systemPrompt: consolidationSystem, userPrompt: consolidationUserPrompt(prose, ordered.map((c) => renderDigestFacets(c))) },
     });
   }
-  // PASS 2 — ONE batched summarize (per-item-isolated on failure), then store each parent index-aligned. The
-  // blank-arc empty-skip is preserved (a blank digest keyed by parentHash would skip forever, so it retries).
-  const texts = await summarizeBatchIsolated(ctx, pending.map((p) => p.input), summarizerOpts(ctx), (i, err) =>
-    getLog().error(
-      { err, chatId: scope.chatId, scopedCharacterId: scope.scopedCharacterId, tier: parentTier, blockIdx: pending[i]?.parentBlockIdx },
-      "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)",
-    ),
+  return { parentTier, pending, speakerMap, skipped };
+}
+
+/** The consolidation summarize batch (per-item-isolated on failure) — same wire home as `summarizeDigestBatch`
+ *  but its own error tag. In the corpus backfill the flat batch loses per-parent context, so the log carries
+ *  only the flat index; the content-hash self-heal retries the dropped parent next pass regardless. */
+export async function summarizeConsolidationBatch(ctx: ChatContext, inputs: readonly SummarizeInput[]): Promise<(string | null)[]> {
+  return summarizeBatchIsolated(ctx, inputs, summarizerOpts(ctx), (i, err) =>
+    getLog().error({ err, index: i }, "memory digest: consolidation summarize FAILED (isolated — the parent retries next pass)"),
   );
-  for (let i = 0; i < pending.length; i += 1) {
-    const item = pending[i];
+}
+
+/** STORE one tier's consolidations: `texts` index-aligned to `plan.pending`; embed-store each parent (blank-arc
+ *  empty-skip preserved — a blank digest keyed by parentHash would skip forever, so it retries next pass). The
+ *  returned `skipped` is always 0 (the hash-skip tally lives on the plan from the collect); callers add that. */
+export async function storeConsolidationTier(ctx: ChatContext, scope: MemoryScope, plan: ConsolidationTierPlan, texts: readonly (string | null)[]): Promise<PassCounts> {
+  let written = 0;
+  let skippedEmpty = 0;
+  for (let i = 0; i < plan.pending.length; i += 1) {
+    const item = plan.pending[i];
     if (item === undefined) {
       continue;
     }
@@ -449,12 +504,12 @@ async function writeConsolidations(
       continue;
     }
     const parsed = parseDigest(raw);
-    // biome-ignore lint/performance/noAwaitInLoops: the LLM fan-out already happened as ONE batch above; this loop is only the metered/ordered embed-store upserts (idempotent per parent).
+    // biome-ignore lint/performance/noAwaitInLoops: the LLM fan-out already happened as ONE batch; this loop is only the metered/ordered embed-store upserts (idempotent per parent).
     await ctx.embeddingsStore({
       lens: "digest",
       key: {
         chatId: scope.chatId,
-        tier: parentTier,
+        tier: plan.parentTier,
         blockIdx: item.parentBlockIdx,
         scopedCharacterId: scope.scopedCharacterId,
       },
@@ -463,11 +518,11 @@ async function writeConsolidations(
       topicAnchor: parsed.topicAnchor,
       keywords: parsed.keywords,
       isGroup: scope.isGroup,
-      speakerCharacterIds: unionSpeakers(item.ordered, env.speakerMap),
+      speakerCharacterIds: unionSpeakers(item.ordered, plan.speakerMap),
     });
     written += 1;
   }
-  return { written, skipped, skippedEmpty };
+  return { written, skipped: 0, skippedEmpty };
 }
 
 /** Group tier-k digests by their parent index (`floor(blockIdx / fanOut)`) — a complete group (length ===

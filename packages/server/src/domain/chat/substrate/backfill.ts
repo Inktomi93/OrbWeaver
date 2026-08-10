@@ -27,7 +27,15 @@ import { and, eq, isNull } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
 import type { BackfillPassCounts, MemoryBackfillCounts, MemoryScope, ResolveBackfillMemoryConfig } from "../contract/memory.ts";
-import { commitDigestPlan, planDigests, summarizeDigestBatch } from "../memory/build/digests.ts";
+import {
+  collectConsolidationTier,
+  logBuild,
+  planDigests,
+  storeConsolidationTier,
+  storeTier0,
+  summarizeConsolidationBatch,
+  summarizeDigestBatch,
+} from "../memory/build/digests.ts";
 import { generateSegments } from "../memory/build/segments.ts";
 import { loadWitnessHorizons } from "../memory/persistence/queries.ts";
 import { loadChatCastProducer } from "../persistence/cast.ts";
@@ -93,8 +101,9 @@ async function scopesFor(ctx: ChatContext, chatId: ChatId, cast: readonly Charac
   return scopes;
 }
 
-/** The digest plan handed from `planDigests` to `commitDigestPlan` — derived by inference so this build-internal
- *  orchestration type stays out of a substrate export (no-inline-types: exported types live in a type home). */
+/** The digest plan `planDigests` produces (PHASE 1) and PHASE 3/4 consume (`storeTier0` + consolidation) —
+ *  derived by inference so this build-internal orchestration type stays out of a substrate export
+ *  (no-inline-types: exported types live in a type home). */
 type DigestPlan = NonNullable<Awaited<ReturnType<typeof planDigests>>>;
 
 /** The PHASE-1 fold: the collected plans + the running segment/digest scan counts + failure tally. */
@@ -199,36 +208,197 @@ async function summarizeAllPending(ctx: ChatContext, plans: readonly DigestPlan[
   return perPlanTexts;
 }
 
-/** PHASE 3 — commit each plan (store its tier-0 blocks index-aligned to its texts, then consolidate upward).
- *  Per-bucket isolation: a poisoned bucket is counted + logged, the rest still build (self-heal retries next). */
+/** The per-bucket commit tally accumulated across PHASE 3 (tier-0 store) + PHASE 4 (consolidation), emitted as
+ *  the bucket's `memory.build` trace at the end — observability parity with the live path's per-turn trace.
+ *  Shape mirrors the digest build's tier-0 counts so it feeds `logBuild` directly. */
+interface PlanCommit {
+  written: number;
+  skipped: number;
+  skippedTokenGuard: number;
+  skippedEmpty: number;
+}
+
+/** The mutable commit state threaded through PHASE 3 + PHASE 4 (bundled to keep the helpers at ≤4 params). */
+interface CommitState {
+  readonly plans: readonly DigestPlan[];
+  readonly perPlan: PlanCommit[];
+  readonly signal: AbortSignal;
+}
+
+/** One bucket's collected tier-k consolidation work, derived by inference (no-inline-types). */
+type ConsTierPlan = NonNullable<Awaited<ReturnType<typeof collectConsolidationTier>>>;
+
+/** A collected bucket at one tier, tagged with its plan index + scope for the store scatter. */
+interface CollectedTier {
+  readonly planIdx: number;
+  readonly scope: MemoryScope;
+  readonly cons: ConsTierPlan;
+}
+
+/** PHASE 3 — store every bucket's tier-0 blocks (embed-store of the PHASE-2 summaries; NO LLM). Per-bucket
+ *  isolation: a poisoned store is counted + logged, the rest still land. Seeds each bucket's commit tally with
+ *  the plan-time skip counts (tier-0 settled + token-guard). Returns the failure count. */
+async function storeAllTier0(ctx: ChatContext, state: CommitState, perPlanTexts: readonly (string | null)[][]): Promise<number> {
+  let failed = 0;
+  for (let pi = 0; pi < state.plans.length; pi += 1) {
+    if (state.signal.aborted) {
+      break;
+    }
+    const plan = state.plans[pi];
+    const texts = perPlanTexts[pi];
+    const acc = state.perPlan[pi];
+    if (plan === undefined || texts === undefined || acc === undefined) {
+      continue;
+    }
+    acc.skipped += plan.skipped;
+    acc.skippedTokenGuard += plan.skippedTokenGuard;
+    try {
+      // biome-ignore lint/performance/noAwaitInLoops: sequential embed-store — the tier-0 writes must not race the db.
+      const stored = await storeTier0(ctx, plan, texts);
+      acc.written += stored.written;
+      acc.skippedEmpty += stored.skippedEmpty;
+    } catch (err) {
+      failed += 1;
+      getLog().error(
+        { err, chatId: plan.scope.chatId, scopedCharacterId: plan.scope.scopedCharacterId },
+        "memory backfill: bucket FAILED during tier-0 store (unexpected error)",
+      );
+    }
+  }
+  return failed;
+}
+
+/** COLLECT tier k across every bucket that reaches it (reads tier-k rows; NO LLM). Folds each bucket's
+ *  hash-skip tally into `perPlan` and returns only the buckets with pending parents to summarize. */
+async function collectTierAcrossBuckets(ctx: ChatContext, state: CommitState, tier: number): Promise<{ collected: CollectedTier[]; failed: number }> {
+  const collected: CollectedTier[] = [];
+  let failed = 0;
+  for (let pi = 0; pi < state.plans.length; pi += 1) {
+    if (state.signal.aborted) {
+      break;
+    }
+    const plan = state.plans[pi];
+    const acc = state.perPlan[pi];
+    if (plan === undefined || acc === undefined || tier >= plan.cfg.maxTier) {
+      continue;
+    }
+    try {
+      // biome-ignore lint/performance/noAwaitInLoops: per-bucket tier-k reads precede this tier's writes; parallel would race the db.
+      const cons = await collectConsolidationTier(ctx, plan.scope, plan.cfg, { tier, existing: plan.existing, signal: state.signal });
+      if (cons === null) {
+        continue; // this bucket's consolidation ceiling
+      }
+      acc.skipped += cons.skipped;
+      if (cons.pending.length > 0) {
+        collected.push({ planIdx: pi, scope: plan.scope, cons });
+      }
+    } catch (err) {
+      failed += 1;
+      getLog().error(
+        { err, chatId: plan.scope.chatId, scopedCharacterId: plan.scope.scopedCharacterId, tier },
+        "memory backfill: bucket FAILED during consolidation collect (unexpected error)",
+      );
+    }
+  }
+  return { collected, failed };
+}
+
+/** SUMMARIZE every collected bucket's tier-k parents in ONE length-sorted batch, then STORE each bucket's
+ *  tier-(k+1) parents (sequential embed-store). Returns the failure count; write/skip tallies fold into perPlan. */
+async function summarizeAndStoreTier(ctx: ChatContext, collected: readonly CollectedTier[], state: CommitState): Promise<number> {
+  const flat: { readonly ci: number; readonly input: SummarizeInput }[] = [];
+  collected.forEach((c, ci) => {
+    for (const p of c.cons.pending) {
+      flat.push({ ci, input: p.input });
+    }
+  });
+  const order = flat.map((_, i) => i).sort((a, b) => inputLen(flat[a]?.input) - inputLen(flat[b]?.input));
+  const sortedTexts = await summarizeConsolidationBatch(ctx, orderedInputs(flat, order));
+  const flatTexts: (string | null)[] = new Array(flat.length).fill(null);
+  order.forEach((origIdx, k) => {
+    flatTexts[origIdx] = sortedTexts[k] ?? null;
+  });
+  const perCollected: (string | null)[][] = collected.map(() => []);
+  flat.forEach((f, i) => {
+    perCollected[f.ci]?.push(flatTexts[i] ?? null);
+  });
+  let failed = 0;
+  for (let ci = 0; ci < collected.length; ci += 1) {
+    if (state.signal.aborted) {
+      break;
+    }
+    const c = collected[ci];
+    const texts = perCollected[ci];
+    const acc = c === undefined ? undefined : state.perPlan[c.planIdx];
+    if (c === undefined || texts === undefined || acc === undefined) {
+      continue;
+    }
+    try {
+      // biome-ignore lint/performance/noAwaitInLoops: sequential embed-store — the consolidation writes must not race the db.
+      const stored = await storeConsolidationTier(ctx, c.scope, c.cons, texts);
+      acc.written += stored.written;
+      acc.skippedEmpty += stored.skippedEmpty;
+    } catch (err) {
+      failed += 1;
+      getLog().error(
+        { err, chatId: c.scope.chatId, scopedCharacterId: c.scope.scopedCharacterId, tier: c.cons.parentTier },
+        "memory backfill: bucket FAILED during consolidation store (unexpected error)",
+      );
+    }
+  }
+  return failed;
+}
+
+/** One corpus tier: collect across all buckets, then (if any pending) summarize corpus-wide + store. Folded to
+ *  ONE await per tier in the caller so the read-your-writes tier barrier stays a single sequential step. */
+async function consolidateCorpusTier(ctx: ChatContext, state: CommitState, tier: number): Promise<number> {
+  const { collected, failed } = await collectTierAcrossBuckets(ctx, state, tier);
+  if (collected.length === 0) {
+    return failed; // nothing complete at this tier anywhere
+  }
+  return failed + (await summarizeAndStoreTier(ctx, collected, state));
+}
+
+/** PHASE 4 — consolidate the whole corpus tier by tier (up to the max `maxTier` across buckets). For each tier
+ *  k: COLLECT every bucket's complete/stale parent groups, SUMMARIZE them all in ONE length-sorted batch, then
+ *  STORE each bucket's tier-(k+1) parents. Tier k FULLY stores before tier k+1 collects — the read-your-writes
+ *  dependency the live per-bucket walk gets for free (tier k+1 consolidates the rows tier k just wrote). The
+ *  summarize batches corpus-wide (no db, saturates vLLM); the stores stay per-bucket sequential (db). */
+async function consolidateAllTiers(ctx: ChatContext, state: CommitState): Promise<number> {
+  const maxTier = state.plans.reduce((m, p) => Math.max(m, p.cfg.maxTier), 0);
+  let failed = 0;
+  for (let tier = 0; tier < maxTier; tier += 1) {
+    if (state.signal.aborted) {
+      break;
+    }
+    // biome-ignore lint/performance/noAwaitInLoops: tier k+1 reads tier k's rows — the corpus walk is sequential BY TIER (buckets within a tier are the batch).
+    failed += await consolidateCorpusTier(ctx, state, tier);
+  }
+  return failed;
+}
+
+/** PHASES 3 + 4 — store every bucket's tier-0 (PHASE 3), consolidate the whole corpus tier-by-tier (PHASE 4),
+ *  then emit each bucket's `memory.build` trace. The per-bucket isolation of the old commit loop is preserved:
+ *  a poisoned store/collect is counted + logged, the rest still build (the content-hash self-heal retries next
+ *  pass). Returns the corpus digest-change + failure tallies. */
 async function commitAllPlans(
   ctx: ChatContext,
   plans: readonly DigestPlan[],
   perPlanTexts: readonly (string | null)[][],
   signal: AbortSignal,
 ): Promise<{ changed: number; failed: number }> {
+  const state: CommitState = { plans, perPlan: plans.map(() => ({ written: 0, skipped: 0, skippedTokenGuard: 0, skippedEmpty: 0 })), signal };
+  let failed = await storeAllTier0(ctx, state, perPlanTexts);
+  failed += await consolidateAllTiers(ctx, state);
   let changed = 0;
-  let failed = 0;
   for (let pi = 0; pi < plans.length; pi += 1) {
-    if (signal.aborted) {
-      break;
-    }
     const plan = plans[pi];
-    const texts = perPlanTexts[pi];
-    if (plan === undefined || texts === undefined) {
+    const acc = state.perPlan[pi];
+    if (plan === undefined || acc === undefined) {
       continue;
     }
-    try {
-      // biome-ignore lint/performance/noAwaitInLoops: sequential commit — a bucket's embed-store + consolidation writes must not race the db.
-      const c = await commitDigestPlan(ctx, plan, texts);
-      changed += c.written;
-    } catch (err) {
-      failed += 1;
-      getLog().error(
-        { err, chatId: plan.scope.chatId, scopedCharacterId: plan.scope.scopedCharacterId },
-        "memory backfill: bucket FAILED during commit and was skipped (unexpected error)",
-      );
-    }
+    logBuild(ctx, plan.scope, { startedAt: plan.startedAt, counts: acc });
+    changed += acc.written;
   }
   return { changed, failed };
 }

@@ -79,7 +79,7 @@
   "packages/server/src/domain/chat/persistence/canon-write.ts": 1,
   "packages/server/src/domain/chat/persistence/import-write.ts": 1,
   "packages/server/src/domain/chat/persistence/queries.ts": 1,
-  "packages/server/src/domain/chat/substrate/backfill.ts": 4,
+  "packages/server/src/domain/chat/substrate/backfill.ts": 7,
   "packages/server/src/domain/chat/substrate/stats-delta.ts": 1,
   "packages/server/src/domain/chat/verbs/start-chat.ts": 1,
   "packages/server/src/domain/chat/verbs/turn.ts": 7,

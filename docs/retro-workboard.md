@@ -126,9 +126,30 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
   lanes both mint. Lane briefs name their exact playwright CT files (a CT nobody names is a CT
   nobody ran).
 
-## ═══ LIVE STATE (2026-08-10 — vLLM tuning + memory-backfill reorder) ═══
+## ═══ LIVE STATE (2026-08-10 — vLLM tuning + backfill reorder + PHASE-4 consolidation batch) ═══
 
-**Main `4805fb0ba` — 4 ahead of origin (UNPUSHED), tree clean, zero worktrees.** THIS SESSION (08-10):
+**Main `08b47fb6e` — 5 ahead of origin (UNPUSHED). UNCOMMITTED this turn (verifier-CONFIRMED, awaiting owner
+commit word):** `digests.ts` + `backfill.ts` + 2 tests + suppressions baseline (backfill 4→7). Zero worktrees.
+
+**THIS TURN (08-10 continued) — two backfill bugs the reorder left, both fixed + fresh-verifier CONFIRMED (7/7):**
+**(3) summarize wire had NO max_tokens on a fresh db** (`memorySummarizer={}` → unbounded gen → 120s-timeout loop
+that collapsed the 8-wide batch to Running:1). Fix: `summarizerOpts` rides `maxTokens ?? DEFAULT_MEMORY_SUMMARIZER_MAX_TOKENS`
+(1024) ALWAYS, like presencePenalty — 1024 is ALREADY the token-guard reserve (one home, no new truncation).
+**(4) PHASE 4 — consolidation now batches corpus-wide** (the reorder only did tier-0; consolidation still ran serial
+per-bucket = the real Running:1 tail). `backfill.ts` `commitAllPlans` → `storeAllTier0` (PHASE 3) + `consolidateAllTiers`
+(PHASE 4: per tier k, collect every bucket's parents → ONE length-sorted `summarizeConsolidationBatch` → per-bucket
+store; tier k fully stores before k+1 collects). `digests.ts` split `writeConsolidations` → `collectConsolidationTier`+
+`storeConsolidationTier`; live path byte-identical. Battery: 1736 chat-domain + 10 backfill (new cross-bucket test:
+`batchSizes∋4`) + `pnpm check` all green. **HF check: Qwen3-VL card sampling (0.7/0.8/20/1.0/presence 1.5) already
+fully wired** (override-generation-config + summarizerOpts presence). **SEGMENTS spike DONE → DON'T build a batch
+embed+store seam (~1× no-op):** live :8701 N=32 ~3k-tok blocks — serial 194ms/block vs batched 199ms vs conc 192ms =
+0.97-1.01×. COMPUTE-bound (13ms round-trip / 181ms GPU forward-pass), NOT round-trip-bound like gen. Segment "slowness"
+= real embedding × many blocks, irreducible by batching; accept as small-hardware cost (GPU0 98%, no headroom to give
+embed more util). Detail → [[vllm-concurrency-topology-tuning]].
+
+### ═══ PRIOR THIS SESSION (08-10, committed) ═══
+
+**Main `08b47fb6e`/`90b3a821e`/`4805fb0ba` — committed earlier 08-10:**
 **(1) memory backfill reorder `90b3a821e`** — corpus-wide summarize-ALL-then-embed-ALL (was per-(chat×scope)-bucket
 interleave); spike **6.64×** (23.1s→3.5s / 30 blocks; 8B summarize ~95%, embed ~5%). `digests.ts` split into
 `planDigests`/`commitDigestPlan`/`summarizeDigestBatch` (DigestPlan build-internal, backfill derives by inference);

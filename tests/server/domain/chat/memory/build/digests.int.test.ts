@@ -175,8 +175,10 @@ describe("memory/build/digests", () => {
     expect(sum.optsSeen.length).toBeGreaterThan(0);
     for (const opts of sum.optsSeen) {
       expect((opts as Record<string, unknown> | undefined)?.["presencePenalty"]).toBe(1.5);
-      // No other knob is fabricated — an unset admin config rides ONLY the loop-guard default.
-      expect(opts).toEqual({ presencePenalty: 1.5 });
+      // An unset admin config rides the TWO loop-guard defaults and nothing else: the presence penalty (1.5)
+      // AND a hard max_tokens ceiling (1024) — both bound the Qwen3-VL repetition_penalty=1.0 loop that would
+      // otherwise run unbounded to the 120s request timeout. The other samplers stay at provider default.
+      expect(opts).toEqual({ maxTokens: 1024, presencePenalty: 1.5 });
     }
   });
 

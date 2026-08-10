@@ -98,6 +98,47 @@ describe("backfillMemory — the chat × scope enumeration", () => {
     expect(groupBlocks).toEqual([0, 1, 2, 3]);
   });
 
+  test("PHASE 4: consolidation is batched ACROSS buckets, tier-by-tier — the corpus cascade equals the per-bucket build", async () => {
+    // Two solo rooms, each with 8 turns → blockSize 2 = 4 tier-0 blocks per bucket. fanOut 2, maxTier 2 forces
+    // the FULL cascade: tier-0 (4) → tier-1 (2 parents) → tier-2 (1 parent). The old sweep consolidated one
+    // bucket at a time (serial); PHASE 4 collects BOTH buckets' tier-k parents and summarizes them in ONE batch.
+    const host = await seedUser(db, castId<Handle>("host"));
+    const cA = await seedCharacter(db, host, "aria");
+    const cB = await seedCharacter(db, host, "borin");
+    const roomA = await seedChat(db, "roomA");
+    const roomB = await seedChat(db, "roomB");
+    await seedParticipant(db, { chatId: roomA, key: "a_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: roomA, key: "a_c", characterId: cA });
+    await seedParticipant(db, { chatId: roomB, key: "b_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId: roomB, key: "b_c", characterId: cB });
+    await seedTurns(db, roomA, cA, 8);
+    await seedTurns(db, roomB, cB, 8);
+
+    const sum = fakeSummarize();
+    const store = fakeEmbeddingsStore(db);
+    const ctx = makeChatContext(db, { summarize: sum.fn, embeddingsStore: store.store });
+    const cfg: ResolveBackfillMemoryConfig = () => Promise.resolve({ blockSize: 2, verbatimWindow: 0, fanOut: 2, maxTier: 2 });
+
+    const counts = await backfillMemory(ctx, { signal: new AbortController().signal }, cfg);
+
+    expect(counts.failed).toBe(0);
+    // Each solo bucket builds the identical cascade the live per-turn path would — corpus REORDER ≠ different result.
+    const byTier = (c: CharacterId, tier: number): number[] =>
+      store.digests
+        .filter((d) => d.key.scopedCharacterId === c && d.key.tier === tier)
+        .map((d) => d.key.blockIdx)
+        .sort((x, y) => x - y);
+    for (const c of [cA, cB]) {
+      expect(byTier(c, 0)).toEqual([0, 1, 2, 3]);
+      expect(byTier(c, 1)).toEqual([0, 1]);
+      expect(byTier(c, 2)).toEqual([0]);
+    }
+    // The load-bearing PHASE-4 assertion: the tier-1 consolidation summarizes BOTH buckets' parents in ONE call
+    // (2 buckets × 2 parents = 4). The OLD per-bucket serial path could only ever batch 2 at a time here — a 4
+    // proves the cross-bucket corpus batch. (Tier-0 also batches to 8; tier-2 to 2.)
+    expect(sum.batchSizes).toContain(4);
+  });
+
   test("MINT-ON-DEMAND (#41): a group chat with NO pre-existing synthetic-char row builds its shared bucket — the sweep mints the FK target inline, so the digest write never dangles", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const g1 = await seedCharacter(db, host, "g1");
