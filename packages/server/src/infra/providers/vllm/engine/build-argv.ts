@@ -331,15 +331,16 @@ export function buildEngineArgv(engine: VllmEngine, config: EngineLaunchConfig, 
   return [...ARGV_BUILDERS[engine](config, ctx), ...commonSuffixArgv(config)];
 }
 
-/** The GPU pinning per engine: embed on GPU0; rerank on GPU1 (multi-GPU) else GPU0; gen spans both via TP.
- *  Returned as the CUDA_VISIBLE_DEVICES value the caller exports. gen omits it (TP claims all visible cards). */
-export function engineCudaVisibleDevices(engine: VllmEngine, gpuCount: number): string | null {
-  const multiGpu = gpuCount >= MULTI_GPU_THRESHOLD;
+/** The GPU pinning per engine: embed + rerank BOTH on GPU0; gen spans both via TP. (rerank moved off GPU1 onto
+ *  GPU0 with embed 2026-08-10 — owner: consolidate the two small pooling models on one card so gen's TP halves
+ *  get more util headroom. The wake-budget's `engineVramNeed` pins rerank to GPU0 too — kept in sync.) Returned
+ *  as the CUDA_VISIBLE_DEVICES value the caller exports; gen omits it (TP claims all visible cards). */
+export function engineCudaVisibleDevices(engine: VllmEngine, _gpuCount: number): string | null {
   switch (engine) {
     case "embed":
       return "0";
     case "rerank":
-      return multiGpu ? "1" : "0";
+      return "0";
     case "gen":
       return null;
   }

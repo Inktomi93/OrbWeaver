@@ -317,9 +317,9 @@ describe("buildEngineArgv — GPU-count topology", () => {
     expect(flagVal(buildEngineArgv("rerank", config, ctx), "--gpu-memory-utilization")).toBe("0.22");
   });
 
-  test("engineCudaVisibleDevices pins embed→0, rerank→1 (multi) / 0 (single), gen→null (TP spans)", () => {
+  test("engineCudaVisibleDevices pins embed→0, rerank→0 (co-located with embed), gen→null (TP spans)", () => {
     expect(engineCudaVisibleDevices("embed", 2)).toBe("0");
-    expect(engineCudaVisibleDevices("rerank", 2)).toBe("1");
+    expect(engineCudaVisibleDevices("rerank", 2)).toBe("0");
     expect(engineCudaVisibleDevices("rerank", 1)).toBe("0");
     expect(engineCudaVisibleDevices("gen", 2)).toBeNull();
   });
