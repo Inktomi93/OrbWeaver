@@ -26,12 +26,28 @@ const MAX_STEP_PX = 30;
 /** The heading turn rate is a fraction of the shortest angle to the target, so the per-frame change is
  *  bounded by π × that rate; 0.7 is π × 0.22 rounded up. */
 const MAX_TURN_RAD = 0.7;
-/** The scaffold entry (the hub → the spiral's inner end) is a gap in the itinerary DATA — a free-zone
- *  radius wide, ~0.18 × mean reach. Anything bigger is a leg-switch bug, not the entry. */
-const HANDOFF_GAP_MAX_PX = 140;
 const TAU = Math.PI * 2;
 
+/** She walks the silk itself, so her distance to the strand under her is sub-pixel — a whole pixel of
+ *  tolerance covers the sagged polyline's chord error and nothing else. */
+const ON_SILK_PX = 1;
+
 const wrapToPi = (a: number): number => ((((a + Math.PI) % TAU) + TAU) % TAU) - Math.PI;
+
+/** Distance from a point to a polyline (min over its segments). */
+function distanceToPolyline(p: { x: number; y: number }, pts: readonly { x: number; y: number }[]): number {
+  let best = Number.POSITIVE_INFINITY;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i] as { x: number; y: number };
+    const b = pts[i + 1] as { x: number; y: number };
+    const vx = b.x - a.x;
+    const vy = b.y - a.y;
+    const lenSq = vx * vx + vy * vy;
+    const u = lenSq === 0 ? 0 : Math.min(1, Math.max(0, ((p.x - a.x) * vx + (p.y - a.y) * vy) / lenSq));
+    best = Math.min(best, Math.hypot(p.x - (a.x + vx * u), p.y - (a.y + vy * u)));
+  }
+  return best;
+}
 
 interface Sample {
   readonly t: number;
@@ -61,7 +77,7 @@ describe("spiderPose — the build walk", () => {
     expect(blank).toEqual([]);
   });
 
-  test("her position is continuous — the ONE hand-off gap is the scaffold entry, and nothing else", () => {
+  test("her position is continuous — no hand-off gap anywhere on the build", () => {
     const jumps: { t: number; step: number }[] = [];
     for (let i = 1; i < samples.length; i++) {
       const a = samples[i - 1]?.pose;
@@ -74,12 +90,10 @@ describe("spiderPose — the build walk", () => {
         jumps.push({ t: samples[i]?.t as number, step: Math.round(step) });
       }
     }
-    // The scaffold leg begins at the spiral's INNER end (a free-zone radius out from the hub) while the
-    // last radius leg left her AT the hub — a gap in the itinerary DATA, not in the pose engine, and the
-    // only one. Pinned here so it stays single and bounded; closing it needs a walk-out leg (and the
-    // scaffold's own birth times shifted with it), which is a choreography change, not a motion fix.
-    expect(jumps.map((j) => j.t)).toEqual([WEAVE_TIMELINE.aux[0] + FRAME_MS]);
-    expect(jumps[0]?.step).toBeLessThan(HANDOFF_GAP_MAX_PX);
+    // The last gap — the scaffold entry, where she used to jump ~100px from the hub to the spiral's
+    // inner end — closed when she got a walk-out leg (weave-lab §3). Every leg now hands off where the
+    // next one begins, for the whole build.
+    expect(jumps).toEqual([]);
   });
 
   test("her heading turns at a bounded rate — it never snaps", () => {
@@ -96,6 +110,27 @@ describe("spiderPose — the build walk", () => {
       }
     }
     expect(snaps).toEqual([]);
+  });
+
+  test("she is ON the silk while it is being laid — no strand appears unattended", () => {
+    // The strand's drawn extent eases differently from her walk, so she is not AT the drawn tip every
+    // frame — but she must never leave the strand she is spinning.
+    const web = buildWeb(BOX);
+    const tracker: SpiderTracker = { prev: null };
+    const offSilk: { kind: string; t: number; away: number }[] = [];
+    // One tracker, walked in order, so the pose engine sees the real frame sequence.
+    for (let t = web.itinerary[0]?.t0 as number; t < WEAVE_TIMELINE.rest; t += FRAME_MS) {
+      const pose = spiderPose({ web, state: "weaving", t, now: t, still: false, strandOut: null }, tracker);
+      const laying = web.strands.filter((s) => t >= s.t0 && t <= s.t1 && s.kind !== "bridge");
+      if (pose === null || laying.length === 0) {
+        continue;
+      }
+      const away = Math.min(...laying.map((s) => distanceToPolyline(pose, s.pts)));
+      if (away > ON_SILK_PX) {
+        offSilk.push({ kind: laying.map((s) => s.kind).join("+"), t, away: Number(away.toFixed(1)) });
+      }
+    }
+    expect(offSilk).toEqual([]);
   });
 
   test("at the rest beat she settles head-down at the hub", () => {

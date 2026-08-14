@@ -202,6 +202,35 @@ describe("buildWeb — the silk actually connects", () => {
     expect(verdicts.filter((v) => v.verdict === "cropped" && v.edgeGap > ATTACHED_PX)).toEqual([]);
   });
 
+  test("the weaver lays every frame edge herself — each edge's birth window IS a walking leg", () => {
+    // weave-lab §3: silk that appears unattended reads as a screensaver. Each frame edge must have an
+    // itinerary leg over the SAME window walking THAT polyline end to end.
+    const web = buildWeb(BOX);
+    const edges = web.strands.filter((s) => s.kind === "frame" && s.t0 >= WEAVE_TIMELINE.frame[0]);
+    expect(edges).toHaveLength(4);
+    const unwalked = edges.filter(
+      (edge) => !web.itinerary.some((leg) => leg.pts === edge.pts && leg.t0 === edge.t0 && leg.t1 === edge.t1 && leg.from === 0 && leg.to === 1),
+    );
+    expect(unwalked).toEqual([]);
+    // …and she WALKS BACK: the gaps between the laying windows are legs on already-laid silk, so the
+    // frame beat is covered end to end (the itinerary-continuity test proves there is no jump).
+    const covered = web.itinerary.filter((leg) => leg.t0 >= WEAVE_TIMELINE.frame[0] && leg.t1 <= WEAVE_TIMELINE.frame[1]);
+    const span = covered.reduce((sum, leg) => sum + (leg.t1 - leg.t0), 0);
+    expect(span).toBeCloseTo(WEAVE_TIMELINE.frame[1] - WEAVE_TIMELINE.frame[0], 6);
+  });
+
+  test("every strand carries its true arc length (the physics module's wave travels in px)", () => {
+    const web = buildWeb(BOX);
+    for (const strand of web.strands) {
+      let measured = 0;
+      for (let i = 0; i < strand.pts.length - 1; i++) {
+        measured += dist(strand.pts[i] as WeavePoint, strand.pts[i + 1] as WeavePoint);
+      }
+      expect(strand.length).toBeCloseTo(measured, 6);
+      expect(strand.length).toBeGreaterThan(0);
+    }
+  });
+
   test("both spirals stay inside the host box at extreme aspect ratios", () => {
     // Radii cross the edge on purpose (above); the SPIRALS never do, or the canvas chops rings out of
     // the web — the wide-short and tall-narrow hosts are where that showed.

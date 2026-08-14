@@ -6,8 +6,8 @@
 // owner's timeline ruling (§9.4 tweak 2).
 
 import type { SpiderLeg, WeavePoint, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
-import { BRIDGE_WALK_START, WEAVE_TIMELINE } from "./web-weave-geometry.ts";
 import { clamp01, easeInOutQuad, easeOutCubic, pointAtFraction, wrapToPi } from "./web-weave-math.ts";
+import { BRIDGE_WALK_START, WEAVE_TIMELINE } from "./web-weave-timeline.ts";
 
 /** The palette slice the spider paints with (the render module's WeavePalette satisfies it
  *  structurally — declared here, narrow, to keep spider ↔ render import-cycle-free). */
