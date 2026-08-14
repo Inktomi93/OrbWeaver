@@ -26,7 +26,7 @@ import type { NotificationEvent, NotificationType } from "@orb/contracts/notific
 import type { NotificationId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "./_shared.ts";
+import { checkList } from "#kit";
 import { users } from "./users.ts";
 
 // The delivery-reason discriminant set. `satisfies readonly NotificationType[]` ties every member to the

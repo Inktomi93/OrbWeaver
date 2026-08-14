@@ -73,7 +73,7 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "./_shared.ts";
+import { checkList } from "#kit";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { personas } from "./persona.ts";

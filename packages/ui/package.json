@@ -38,6 +38,7 @@
     "./fuzzy-search": "./src/fuzzy-search/index.ts",
     "./heatmap": "./src/charts/heatmap/index.ts",
     "./highlighted-text": "./src/primitives/highlighted-text/index.ts",
+    "./hint-trigger": "./src/primitives/hint-trigger/index.ts",
     "./histogram": "./src/charts/histogram/index.ts",
     "./icons": "./src/primitives/icons/index.ts",
     "./immersive-card": "./src/content/immersive-card/index.ts",

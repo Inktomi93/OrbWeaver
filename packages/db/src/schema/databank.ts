@@ -34,7 +34,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
-import { checkList } from "./_shared.ts";
+import { checkList } from "#kit";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
