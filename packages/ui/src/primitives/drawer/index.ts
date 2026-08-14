@@ -20,5 +20,4 @@ export {
   DrawerTrigger,
   DrawerVirtualKeyboardProvider,
 } from "./drawer.tsx";
-export type { DrawerHandle } from "./handle.ts";
 export { createDrawerHandle } from "./handle.ts";

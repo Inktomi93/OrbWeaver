@@ -13,5 +13,4 @@ export {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "./alert-dialog.tsx";
-export type { AlertDialogHandle } from "./handle.ts";
 export { createAlertDialogHandle } from "./handle.ts";

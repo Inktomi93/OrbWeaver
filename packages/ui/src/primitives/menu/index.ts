@@ -1,4 +1,3 @@
-export type { MenuHandle } from "./handle.ts";
 export { createMenuHandle } from "./handle.ts";
 export type {
   MenuArrowProps,
