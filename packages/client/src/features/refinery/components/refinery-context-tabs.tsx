@@ -4,6 +4,8 @@
 // ids (the cache dedupes across panes); the Runs tab's actions drive CONTENT's walker through the state
 // commons (`refinery-view-store` — the feature's Content↔Context channel).
 
+import type { RefinerySchemaStage, RefineryStageConfig } from "@orb/contracts/refinery";
+import type { RefinerySchemaId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useGatedQuery, useInvalidation, useTRPC } from "#data";
@@ -13,6 +15,7 @@ import { useRunRefineryStage, useUpdateRefinerySession } from "../hooks/use-refi
 import { useRefineryPreflight, useRefinerySchemas } from "../hooks/use-refinery-schemas.ts";
 import { useRefineryRuns, useRefinerySession } from "../hooks/use-refinery-sessions.ts";
 import { RunsTab, SetupTab, VersionsTab } from "./context-tabs.tsx";
+import type { SchemaEditorDialogProps } from "./schema-editor-dialog.tsx";
 import { SchemaEditorDialog } from "./schema-editor-dialog.tsx";
 import { ScopeEditorDialog } from "./scope-editor-dialog.tsx";
 
@@ -47,11 +50,29 @@ function customNameOf(config: SessionView["stageConfig"]["score"] | SessionView[
   return schemas?.find((s) => s.id === config.schemaId)?.name ?? "custom (missing)";
 }
 
-function schemaLineOf(scoreName: string | null, analyzeName: string | null): string {
-  if (scoreName === null && analyzeName === null) {
-    return "Fixed (built-in)";
+/** ONE stage's payload-schema readout — the custom row's name, or the fixed-built-in state. Per stage now
+ *  (each has its own Setup row + editor door); the old combined `score: X · analyze: Y` string could only
+ *  read out, never route the two verbs to their stages. */
+function stageSchemaLineOf(customName: string | null): string {
+  return customName ?? "Fixed (built-in)";
+}
+
+/** Resolve the EDITING target for a stage: the saved library row behind a `custom` config (so the editor
+ *  opens in EDIT mode over its real name/description/schema), or `null` to author a fresh one. */
+function editingRowOf(config: RefineryStageConfig["score"] | RefineryStageConfig["analyze"], schemas: SchemaSummaries): SchemaEditorDialogProps["editing"] {
+  if (config.kind !== "custom") {
+    return null;
   }
-  return `score: ${scoreName ?? "fixed"} · analyze: ${analyzeName ?? "fixed"}`;
+  const row = schemas?.find((s) => s.id === config.schemaId);
+  return row === undefined ? null : { id: row.id, name: row.name, description: row.description, schema: row.schema };
+}
+
+/** Point a stage's config at a newly-saved custom schema. Literal-key branch (not a computed `[stage]`),
+ *  the shell-store `patchPanels` precedent — a computed key widens to a string index that won't assign to
+ *  the discriminated stage-config record. */
+function stageCustomPatch(stageConfig: RefineryStageConfig, stage: RefinerySchemaStage, schemaId: RefinerySchemaId): RefineryStageConfig {
+  const custom = { kind: "custom", schemaId } as const;
+  return stage === "score" ? { ...stageConfig, score: custom } : { ...stageConfig, analyze: custom };
 }
 
 function stageModesLineOf(view: SessionView): string {
@@ -101,23 +122,31 @@ export function SetupTabBody({ state }: { state: RefineryContextState }): ReactE
   const invalidation = useInvalidation();
   const updateSession = useUpdateRefinerySession({ trpc, invalidation });
   const [scopeOpen, setScopeOpen] = useState(false);
-  const [schemaEditorOpen, setSchemaEditorOpen] = useState(false);
+  // The schema editor is opened AT A STAGE (score / analyze) and possibly over an existing row to EDIT.
+  // `null` = closed. Conditionally mounted (not an always-mounted `open` bool) so switching stage/target
+  // gives the dialog fresh internal state — its description/schemaText seed from `editing` at mount only.
+  const [schemaEditor, setSchemaEditor] = useState<{ readonly stage: RefinerySchemaStage; readonly editing: SchemaEditorDialogProps["editing"] } | null>(null);
   if (session.data === undefined) {
     return null;
   }
   const view = session.data;
+  function openSchemaEditor(stage: RefinerySchemaStage): void {
+    const config = stage === "score" ? view.stageConfig.score : view.stageConfig.analyze;
+    setSchemaEditor({ stage, editing: editingRowOf(config, schemas.data) });
+  }
   return (
     <>
       <SetupTab
+        analyzeSchemaLine={stageSchemaLineOf(customNameOf(view.stageConfig.analyze, schemas.data))}
         anchorLine={`Pinned at session start · ${view.originalCard.greetings.length} greetings`}
         fitLine={fitLineOf(preflight.data)}
         fitWarn={fitWarnOf(preflight.data)}
         guidance={view.guidance}
-        onEditSchema={(): void => setSchemaEditorOpen(true)}
+        onEditSchema={openSchemaEditor}
         onEditScope={(): void => setScopeOpen(true)}
         onViewOriginal={(): void => setRefineryViewedRun(null)}
-        schemaLine={schemaLineOf(customNameOf(view.stageConfig.score, schemas.data), customNameOf(view.stageConfig.analyze, schemas.data))}
         scopeLine={scopeLineOf(view)}
+        scoreSchemaLine={stageSchemaLineOf(customNameOf(view.stageConfig.score, schemas.data))}
         stageModesLine={stageModesLineOf(view)}
       />
       {character.data !== undefined ? (
@@ -130,15 +159,21 @@ export function SetupTabBody({ state }: { state: RefineryContextState }): ReactE
           selection={view.selection}
         />
       ) : null}
-      <SchemaEditorDialog
-        editing={null}
-        onOpenChange={setSchemaEditorOpen}
-        onSaved={(schemaId): void => {
-          updateSession.mutate({ sessionId: state.sessionId, patch: { stageConfig: { ...view.stageConfig, score: { kind: "custom", schemaId } } } });
-        }}
-        open={schemaEditorOpen}
-        stage="score"
-      />
+      {schemaEditor !== null ? (
+        <SchemaEditorDialog
+          editing={schemaEditor.editing}
+          onOpenChange={(open): void => {
+            if (!open) {
+              setSchemaEditor(null);
+            }
+          }}
+          onSaved={(schemaId): void => {
+            updateSession.mutate({ sessionId: state.sessionId, patch: { stageConfig: stageCustomPatch(view.stageConfig, schemaEditor.stage, schemaId) } });
+          }}
+          open={true}
+          stage={schemaEditor.stage}
+        />
+      ) : null}
     </>
   );
 }

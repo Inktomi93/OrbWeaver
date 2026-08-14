@@ -6,6 +6,11 @@
 
 export { AcceptReview } from "./components/accept-review.tsx";
 export { PayloadView } from "./components/payload-view.tsx";
+/** @public exported for the CT that proves the Setup tab reaches BOTH schema verbs the live drive found
+ *  UI-unreachable — authoring a custom ANALYZE schema and EDITING a saved one (2026-08-14). `refinerySection`
+ *  mounts it relatively in the CONTEXT panel; a story importing it relatively would mount against a different
+ *  React context instance (this door's own header). */
+export { SetupTabBody } from "./components/refinery-context-tabs.tsx";
 /** @public exported for the narrow-container CT that proves the fit-line no longer paints through the verb
  *  cluster (side-eye 2026-08-09 P1) — the composition surface imports it relatively. */
 export type { RunControlsCardProps } from "./components/run-controls-card.tsx";
