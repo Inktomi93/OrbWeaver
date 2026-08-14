@@ -128,6 +128,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-14 | **Client cross-feature calls (owner, verbatim): "chat and character can call whatever they want on the client if they use proper channels/methods like trpc or etc."** Features still never import each other's INTERNALS, but any feature may fire any tRPC verb through the proper tiers (#data hooks / createEntityMutation) — no capability ceremony, no registry indirection required for a plain cross-feature mutation. Applied live to R1's use-start-chat.ts home. |
 | 08-14 | **BRIDGE FORKS F-A..F-G = ALL SEVEN ON RECS (question tool, midday):** gate-free `chatDeleted` to still-attached pumps (F-A, unblocks LANE 2) · bulk quiet window silences the room fan w/ coarse terminal per (room, kind) · ONE `roomEntityChanged` member with an `entity` enum · migrate the built character fan in the SAME wave (no double-fan) · databank/regex twins deferred as candidate rows under the SEATED-red gate arm · preset "host changed model" notice = registry-row end condition only, no build · rename `withQuietUserEvents` when it learns room pairs. LANE 1 dispatched (doc §10 1-7 = the spec). **SHAPE-CHURN = PROBE FIRST** (doc §4 live probe settles M1 table-promotion vs M4 reasoning-mount before any arm builds; probe lane dispatched). |
 | 08-14 | **EVENING SITTING (question tool):** guard **D GO** (quoted rm-rf target fix, own A/B leg — lane `guard-quoted-rm` dispatched); A/B narrowings NOT taken (stay strict — absence of a pick is not consent to loosen); E stays defer · **M4 probe config AUTHORIZED** (reasoning-emitting connection on a scratch room, restore after; lane queued next slot) · **client second belt SKIP** (server boundary suffices, twin-pinned) · **max-output KEEP 2048** (longer-outputs row CLOSES as ruled-keep). Also: **lanes-full posture re-affirmed** (owner: "stop worrying so much about draining, keep them lanes full"). |
+| 08-14 | **QUOTED-RM = STRICT + SAME-COMMAND VAR EXPANSION, in-lane (question tool):** the tighten ships (122,880-cmd A/B, 130 stricter/0 looser) AND variables assigned earlier in the same command resolve before the safe-test (evidence-gated, never a blanket $-hint; own A/B owed); comment-span false positive NOT taken (stays the standing owner item). |
 | standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE (re-affirmed 08-08 after full walkthrough) · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
 | open | *(none — every fork ruled as of the 08-09 midday sitting; new forks append here)* |
 
@@ -384,7 +385,13 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   rot.
 - [ ] **R1-4a residual false-emit** (accepted-documented): closing needs a durable-append-free live
   fan on the chat bus — pairs with the bridge item above, one bus-surface design.
-- [ ] **F6 addMember-greets-before-freeze arm** (roster verb, out of R1/R3 scope).
+- [x] **F6 addMember-greets arm: BUILT (chat-smalls, red-first 3/5 arms).** Greeting-seed builder
+  lifted to `domain/chat/substrate/greeting-seed.ts` (one home; byte-identity receipt vs start-chat
+  — one statement differs, `startSeq` param), roster verb seeds at maxSeq+1 behind the same
+  `loadHasUserMessage` freeze predicate, claim-then-delta stats discipline. Coupled-site catch: two
+  test DOUBLES omitted `greetings` (first reader on this path) — doubles fixed, dispatch untouched;
+  lesson = a NEW READER of an entity field is a test-double sweep obligation. forceCharacterTurn
+  accept landed same commit (`e526602ba`; 4/5 red-first; opening turn stays bus-silent).
 - [x] **Guard follow-up family — LEG LANDED (security-executor, merging):** four holes closed
   red-first — `bash -c` operand extracted+classified (the HEADLINE: the push-word control was
   bypassable by `bash -c 'git push …'`, 3 real corpus commands did it) · `$()`/backtick
@@ -1086,11 +1093,19 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 
 - [ ] **#43 boot code-split:** 4.9MB chunk / \~610ms parse → route-level split + lazy sections. GO-ruled.
 
-- [ ] **Chat-search hidden-class exposure (security pass, LOW):** server search matches the newest message's RAW body, so a hidden-class span's text becomes findable by a floored member (search also floors to D16 in SQL). Member-only, low-grade, single-owner mostly self; a security-executor pass before/after re-import. NOT a re-import blocker.
+- [x] **Chat-search hidden-class exposure: WAS LIVE, FIXED (sec-smalls `a3d9db8aa`, red receipt =
+  a floored member FOUND a lie's truth-text via the search oracle at queries.ts:317 raw-body LIKE).**
+  `memberHiddenBodyGuard()`: non-host body-match arm withheld on any tail carrying a hidden tag
+  (derived from HIDDEN\_TAGS, fail-closed); host verbatim. RECEIPTED NARROWING (pinned as a test,
+  not incidental): members can't body-match even the visible half of a hidden-tag tail — SQL can't
+  express the real strip; upgrade path = a registered scalar fn if parity is ever wanted. B1
+  per-handle throttle BUILT same commit (second axis on rate\_limit\_buckets, cap = login×3, never
+  lockout, identical 429 both axes, planted trim control) + U1 = Spine invariant #10 w/ honest
+  enforcer residual (entry-tier is census-held, not gate-held).
 
 - [ ] **Retire the two bounded chat ceilings (roster-contract):** character-library resume map (RESUME\_WINDOW=100) + use-chat-portrait-map (raised to 500) are BOUNDED, not solved — the real fix is ChatSummary carrying its seats' avatarHash + a batch characterIds→resume-chatId server read, which retires use-chat-portrait-map entirely. Roster/participants contract territory.
 
-- [ ] **B1 per-handle signin throttle + U1 chokepoint doc** (from auth study II) — rolling-window (never lockout) per-handle axis beside per-IP, reusing rate\_limit\_buckets; + fold the single-chokepoint rule into Spine-Identity-and-Auth.md. Small; could ride the #53 OIDC lane if still open, else its own.
+- [x] **B1 + U1: BUILT (sec-smalls — receipts on the chat-search row above).**
 
 - [ ] **#46 pagination gate** (list procedures declare limit+max+default) — AFTER #45 lands (fixed tree);
   two receipts (historical control + reach probe).
@@ -1274,7 +1289,11 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   table · turnAccepted gap / fence-close spoof / turnLimit rename = TEST-PINNED by design (emit
   sites too varied, kit-internal, contract pin) · stale-row class = RITUAL-owned (6-for-6 today,
   ungateable) · documented-field-no-producer = LEAD only (the G-E semantic-discriminator trap; if
-  it recurs, a typed obligations table is the cheap form).
+  it recurs, a typed obligations table is the cheap form). **RATCHET-ADMITTED 275 (owner-asked):**
+  density-tier 224 (the 07-31 taste audit's per-file budgets — radius-by-class, box-in-box,
+  text-voice; shrink-only, stale-arm bidirectional since `64110bcc5`) + finding-overload-provenance
+  51 (gate-harness ignore-machinery bypass — BURN LANE RUNNING `overload-burn`). Standing brief
+  policy adopted: a lane touching a density-baselined file burns that file's rows in-lane.
 - [x] **MEMBER-STRIP CARD-FENCE HOLE — FIXED + MERGED (`79fdc30fb`; red-first on BOTH planes incl.
   the member's literal listMessages payload carrying the truth).** ONE fence-blind hidden-scan pass
   in kit; `stripHiddenSpans` + the host reveal (`scanHiddenSpans`) are twins off it — reveal-equals-
