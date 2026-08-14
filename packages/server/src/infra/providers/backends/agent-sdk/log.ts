@@ -24,6 +24,12 @@ export interface ProviderTurnLog {
   readonly servedModel?: string;
   readonly disposition?: SeededSessionDecision["disposition"];
   readonly terminalReason?: string | null;
+  /** How many MODEL CALLS the agentic loop made for this ONE turn (the SDK's `num_turns`) — the DENOMINATOR
+   *  for `usage.tokensOut`, which is the SUM over those calls (`accumulateUsage`), NOT one completion. A
+   *  live `ok:false` line read `tokensOut:8192` against a 2048 per-call cap and was filed as a cost bug on
+   *  that arithmetic alone (docs/design/streaming-shape-churn.md §7.5); the count is what makes the line
+   *  self-interpreting. Rides on BOTH the success and the failure line. */
+  readonly numTurns?: number;
   readonly durationMs?: number;
   readonly ttftMs?: number | null;
   readonly ok: boolean;

@@ -221,6 +221,16 @@ export interface TurnEconomics {
   readonly costUsd?: number | null;
   readonly contextWindow?: number | null;
   readonly maxOutputTokens?: number | null;
+  /** How many MODEL CALLS the backend made for this ONE chat turn (the provider contract's `numTurns` —
+   *  the agent-sdk's agentic loop reports more than one whenever tools/structured/terminal channels ride; a plain
+   *  single-shot completion reports 1). Renamed at this seam ON PURPOSE: "turn" already means a CHAT turn
+   *  in every domain vocabulary, and the two counts are different things.
+   *
+   *  Its job is to make `tokensOut` READABLE: `tokensOut` is the SUM across those calls while
+   *  `maxOutputTokens` is the PER-CALL ceiling, so without the denominator a multi-call turn looks like a
+   *  backend ignoring the output cap (`docs/design/streaming-shape-churn.md` §7.5). Consumed by the
+   *  wire-outcome debug ring; absent/null on a runner that reports none. */
+  readonly modelCalls?: number | null;
   readonly reasoningEffort?: string | null;
   readonly ttftMs?: number | null;
   readonly finishReason?: string | null;

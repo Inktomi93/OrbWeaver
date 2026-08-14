@@ -14,6 +14,7 @@ import type { ChatService } from "@orb/server/domain/chat";
 import type { NotificationsService } from "@orb/server/domain/notifications";
 import type { PersonaService } from "@orb/server/domain/persona";
 import type { SettingsService } from "@orb/server/domain/settings";
+import { logger } from "@orb/server/foundation/observability";
 import type { Context, PresenceRegistry, Services } from "@orb/server/transport/trpc";
 import { appRouter, classifyDomainError } from "@orb/server/transport/trpc";
 import type { Mock } from "vitest";
@@ -116,6 +117,50 @@ describe("CSRF gate (cookie-authed mutations only)", () => {
     });
     await caller(ctx).persona.list();
     expect(list).toHaveBeenCalledTimes(1);
+  });
+});
+
+// ── THE SILENT 500 (docs/design/streaming-shape-churn.md §7.5) ──────────────────────────────────────────
+//
+// A live turn threw a provider fault, tRPC serialised it as an INTERNAL_SERVER_ERROR, and the whole ladder
+// logged NOTHING of its own: `classifyDomainError` returned null, `domainErrorMiddleware` just returned the
+// result, and the caller got a bare 500 with no server-side trace. `/api/_debug/errors` had nothing to show
+// because nothing was written for it. Every 500 now lands one error line naming the procedure.
+//
+// Pino is silenced in the test env (`LOG_LEVEL: "silent"`), so — the `securityEvent` idiom in this suite's
+// sibling — the assertion is on the CALL, not on the ring.
+describe("the unmapped-error 500 log (silent-500 belt)", () => {
+  /** A verb that throws something the domain classifier does not model — the genuine-fault shape. */
+  function faultingCaller(err: Error): { ctx: Context; log: ReturnType<typeof vi.spyOn> } {
+    const list = vi.fn<PersonaService["list"]>().mockRejectedValue(err);
+    return {
+      ctx: makeContext({ auth: principal("user"), services: { persona: { list } } }),
+      log: vi.spyOn(logger, "error"),
+    };
+  }
+
+  test("an unmapped throw logs ONE error line naming the procedure, and still surfaces as a 500", async () => {
+    const boom = new Error("provider exploded");
+    const { ctx, log } = faultingCaller(boom);
+    await expect(caller(ctx).persona.list()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    expect(log).toHaveBeenCalledOnce();
+    const [bindings] = log.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
+    expect(bindings["event"]).toBe("trpc.unhandled");
+    expect(bindings["path"]).toBe("persona.list");
+    // The CAUSE, not tRPC's wrapper — the wrapper's message is generic, the cause is the actual failure.
+    expect(bindings["err"]).toBe(boom);
+  });
+
+  test("a MAPPED domain error is NOT logged as a fault — it is a modelled outcome, not a bug", async () => {
+    const { ctx, log } = faultingCaller(new DomainOperationError("no_continuation", "nothing to continue"));
+    await expect(caller(ctx).persona.list()).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    expect(log).not.toHaveBeenCalled();
+  });
+
+  test("an expected GATE refusal is NOT logged either — 401 noise would bury the real faults", async () => {
+    const log = vi.spyOn(logger, "error");
+    await expect(caller(makeContext({ auth: null })).persona.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(log).not.toHaveBeenCalled();
   });
 });
 
