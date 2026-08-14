@@ -6,8 +6,8 @@
 // owner's timeline ruling (§9.4 tweak 2).
 
 import type { SpiderLeg, WeavePoint, WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
-import { WEAVE_TIMELINE } from "./web-weave-geometry.ts";
-import { clamp01, easeOutCubic, pointAtFraction } from "./web-weave-math.ts";
+import { BRIDGE_WALK_START, WEAVE_TIMELINE } from "./web-weave-geometry.ts";
+import { clamp01, easeInOutQuad, easeOutCubic, pointAtFraction, wrapToPi } from "./web-weave-math.ts";
 
 /** The palette slice the spider paints with (the render module's WeavePalette satisfies it
  *  structurally — declared here, narrow, to keep spider ↔ render import-cycle-free). */
@@ -52,6 +52,9 @@ const REST_BOB_HZ = 0.0009;
 const HEAD_DOWN = Math.PI / 2;
 /** Squared px a pose must move per frame before the heading re-aims (kills jitter at rest). */
 const HEADING_MIN_MOVE_SQ = 0.05;
+/** Fraction of the remaining turn taken per frame — a real weaver swings her body round, she does not
+ *  snap to the new bearing (a raw per-frame atan2 flipped her 180° in one frame on every zip home). */
+const HEADING_TURN_RATE = 0.22;
 const TAU = Math.PI * 2;
 
 /** Last spiral sample born by `t` (binary search over the per-point birth times). Shared with the
@@ -113,13 +116,30 @@ function strandOutPose(scene: SpiderScene): SpiderPose | null {
 }
 
 function spiderLegPosition(web: WovenWeb, leg: SpiderLeg, t: number): WeavePoint {
+  const p = clamp01((t - leg.t0) / (leg.t1 - leg.t0));
   if (leg.tip !== undefined) {
+    // The laying tip, CONTINUOUSLY: a spiral's per-point birth times are linear in its sample index, so
+    // the index-space fraction IS the birth-time fraction — exact, and free of the stepwise crawl the
+    // discrete `spiralUpTo` index produced (the drawn extent still snaps to whole samples; only the
+    // spider interpolates, and she rides the last drawn sample's segment).
     const strand = leg.tip === "aux" ? web.aux : web.capture;
-    const i = Math.max(spiralUpTo(strand, t), 0);
-    return strand.pts[i] as WeavePoint;
+    return pointAtFraction(strand.pts, p);
   }
-  const f = leg.from + (leg.to - leg.from) * easeOutCubic(clamp01((t - leg.t0) / (leg.t1 - leg.t0)));
-  return pointAtFraction(leg.pts, f);
+  return pointAtFraction(leg.pts, leg.from + (leg.to - leg.from) * easeInOutQuad(p));
+}
+
+/** Swing the heading a fraction of the way toward the direction of travel — bounded, and held through
+ *  a near-zero move (which has no meaningful direction and would otherwise jitter her). */
+function turnToward(prev: NonNullable<SpiderTracker["prev"]> | null, pos: WeavePoint): number {
+  if (prev === null) {
+    return HEAD_DOWN;
+  }
+  const dx = pos.x - prev.x;
+  const dy = pos.y - prev.y;
+  if (dx * dx + dy * dy <= HEADING_MIN_MOVE_SQ) {
+    return prev.angle;
+  }
+  return prev.angle + wrapToPi(Math.atan2(dy, dx) - prev.angle) * HEADING_TURN_RATE;
 }
 
 /** The weaver's pose on the BUILD itinerary (weaving state, mid-build). */
@@ -128,18 +148,15 @@ function itineraryPose(scene: SpiderScene, tracker: SpiderTracker): SpiderPose |
   for (const leg of web.itinerary) {
     if (t >= leg.t0 && t <= leg.t1) {
       const pos = spiderLegPosition(web, leg, t);
-      let angle = HEAD_DOWN;
-      const prev = tracker.prev;
-      if (prev !== null) {
-        const dx = pos.x - prev.x;
-        const dy = pos.y - prev.y;
-        angle = dx * dx + dy * dy > HEADING_MIN_MOVE_SQ ? Math.atan2(dy, dx) : prev.angle;
-      }
+      const angle = turnToward(tracker.prev, pos);
       tracker.prev = { x: pos.x, y: pos.y, angle };
       return { ...pos, angle, moving: true };
     }
   }
-  return null;
+  // No leg claims this instant (a rounding sliver at a beat boundary): HOLD the last pose. Returning
+  // null here blinks the weaver out of existence mid-build, which is worse than a frame of stillness.
+  const prev = tracker.prev;
+  return prev !== null && t > BRIDGE_WALK_START ? { x: prev.x, y: prev.y, angle: prev.angle, moving: false } : null;
 }
 
 /** Where the weaver is right now — or null (off-screen after the handoff / between legs). */
