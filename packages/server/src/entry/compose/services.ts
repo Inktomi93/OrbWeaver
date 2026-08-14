@@ -745,6 +745,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     sessions,
     emitChatBusEvent,
     emitDomainEvent: eventBus.emit,
+    emitChatEventLive,
     assets,
     character,
   });

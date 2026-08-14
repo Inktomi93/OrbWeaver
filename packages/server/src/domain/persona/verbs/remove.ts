@@ -20,6 +20,12 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
     if (owned.length === 1 && owned[0]?.id === personaId) {
       throw new LastPersonaError(personaId);
     }
+
+    // PRE-WRITE reach capture (entity→room bridge §3.6 residual): the delete below NULLs every seat's
+    // activePersonaId + every chat's anchorPersonaId, so a post-write reach resolves ∅. Snapshot the rooms this
+    // persona is live in NOW, fan the captured set AFTER the row is gone (fanReach() past the NotFound guard).
+    const fanReach = await ctx.captureRoomReachForDelete(personaId);
+
     const deleted = await ctx.db
       .delete(personas)
       .where(and(eq(personas.id, personaId), eq(personas.ownerId, ownerId)))
@@ -41,6 +47,10 @@ export function createRemove(ctx: PersonaContext): PersonaService["remove"] {
       ctx.now(),
     );
     ctx.emitUserEvent(ownerId, { type: "personasChanged", personaId });
+    // The ROOM plane (§3.6 residual): every co-member seated on / anchored by this persona now re-reads the
+    // clamped roster and finds the seat fell back — the captured-set fan repaints them. Live-only + past the
+    // delete's success path, so it cannot fault the write that already committed.
+    fanReach();
     return { deleted: true };
   };
 }

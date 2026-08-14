@@ -33,6 +33,7 @@ import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, chatParticipants, chats, globalBooks, personaBooks, worldBooks } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, WorldBookId } from "@orb/kit/ids";
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import { getLog } from "#foundation/observability";
 
 /** The id each kind's reach lookup is keyed on — the entity's OWN identity, never a chat's. Keyed by
  *  `RoomEntityKind` so the table below is exhaustive AND per-kind precise (one `Record<K, (db, id) => …>`
@@ -145,6 +146,54 @@ function fanTo(emitRoomEvent: (event: LiveOnlyChatBusEvent) => void, entity: Roo
   for (const chatId of new Set(rooms)) {
     emitRoomEvent({ type: "roomEntityChanged", chatId, entity });
   }
+}
+
+// ─── PRE-WRITE DELETE REACH CAPTURE (design §3.6 residual) ───────────────────────────────────────────────
+// The subscriber above resolves rooms AFTER the domain event fires — correct for a CONTENT edit, but a DELETE
+// tears the seating junction down as it commits: `personas` delete NULLs every `chat_participants.activePersonaId`
+// and `chats.anchorPersonaId` (`onDelete:"set null"`), a `world_books` delete CASCADEs all four scope junctions
+// (`onDelete:"cascade"`). So a fire-and-forget post-write reach for a delete resolves ∅ ALWAYS — the co-member's
+// roster identity / assembly pool stays stale until they reload. The fix is the emits-precede-deletes shape run
+// backwards: resolve the seated rooms BEFORE the delete (junction intact), hold the set, and fan `roomEntityChanged`
+// to it AFTER the row is confirmed gone. This factory hands each deletable domain a `(id) => Promise<() => void>`:
+// call it before the delete to snapshot, call the returned thunk after — a live-only, non-durable, non-rejecting
+// publish that cannot fault the write it follows.
+
+/** A pre-write reach capture per deletable entity kind. Each arm resolves the entity's seated rooms NOW and
+ *  returns a THUNK that fans `roomEntityChanged{entity}` to that captured set. The verb calls the thunk only
+ *  after its own delete confirms rows were removed; discarding the thunk (a NotFound delete) fans nothing.
+ *  Character is absent by design — a `characters` delete has no member-visible residual on this bridge (a
+ *  departed/vanished seat repaints through the roster's own membership fan). */
+export interface DeleteReachCapture {
+  readonly persona: (personaId: PersonaId) => Promise<() => void>;
+  readonly "world-info": (bookId: WorldBookId) => Promise<() => void>;
+}
+
+/** Resolve one kind's rooms and return the fan thunk, ERROR-ISOLATED like the domain-event subscriber
+ *  (`event-bus.ts`): a reach-query failure degrades to fanning nothing (the pre-fix stale behavior) and NEVER
+ *  rejects, so the delete that is about to run can never be faulted by the freshness lookup that precedes it. */
+async function captureRooms(
+  resolve: () => Promise<ChatId[]>,
+  entity: RoomEntityKind,
+  emitRoomEvent: (event: LiveOnlyChatBusEvent) => void,
+): Promise<() => void> {
+  const rooms = await resolve().catch((err: unknown): ChatId[] => {
+    getLog().warn({ err, entity }, "room-reach: pre-write delete capture failed; the delete proceeds unannounced");
+    return [];
+  });
+  return (): void => {
+    fanTo(emitRoomEvent, entity, rooms);
+  };
+}
+
+/** Build the pre-write delete-reach capture, bound to the same live-only emit surface the content fan uses.
+ *  Injected into the persona + world-info domains as `captureRoomReachForDelete` — the delete verbs snapshot
+ *  through it before their delete and fan the returned thunk after (design §3.6 residual). */
+export function createDeleteReachCapture(db: Db, emitRoomEvent: (event: LiveOnlyChatBusEvent) => void): DeleteReachCapture {
+  return {
+    persona: (personaId) => captureRooms(() => resolvePersonaRooms(db, personaId), "persona", emitRoomEvent),
+    "world-info": (bookId) => captureRooms(() => resolveWorldInfoRooms(db, bookId), "world-info", emitRoomEvent),
+  };
 }
 
 /** Exhaustiveness guard for the closed `DomainEvent` union (the `search-discovery.ts` precedent) — a new member

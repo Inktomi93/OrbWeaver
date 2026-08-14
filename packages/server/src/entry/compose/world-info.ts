@@ -8,7 +8,7 @@
 // role-sensitive ops; the owner resolver serves the automation/plugin/portability author-ownership gates. Two
 // distinct call sites, kept distinct.
 
-import type { DurableChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -29,6 +29,7 @@ import { publishUserEvent } from "../../transport/trpc/index.ts";
 import { createHostPrincipalResolver } from "../auth/index.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import { minter } from "./minter.ts";
+import { createDeleteReachCapture } from "./room-reach.ts";
 
 /** What the world-info seam needs from the composition root. */
 export interface WorldInfoComposeDeps {
@@ -43,6 +44,10 @@ export interface WorldInfoComposeDeps {
    *  whose assembly pool reads the book. Distinct plane from both `emitChatBusEvent` (one chat's ATTACHMENT
    *  view) and `publishUserEvent` (the owner's own library list). */
   readonly emitDomainEvent: EmitDomainEvent;
+  /** chat's DURABLE-APPEND-FREE live fan (design §3.4) — the entity→room bridge's emit surface. Threaded here
+   *  so `removeBook`'s PRE-WRITE reach capture (§3.6 residual) can fan `roomEntityChanged` to the rooms whose
+   *  assembly pool read the deleted book, snapshotted before the CASCADE tore the junctions down. */
+  readonly emitChatEventLive: (event: LiveOnlyChatBusEvent) => void;
   readonly assets: Pick<AssetsService, "resolveOwnedAssetRefs">;
   /** character's find-or-mint of a room's synthetic `__group__<chatId>` narrator identity — the SAME op
    *  chat's turn verb runs for a live `output:"narrator"` round. The bulk-import write needs it so an
@@ -73,6 +78,9 @@ export function buildWorldInfo(deps: WorldInfoComposeDeps): WorldInfoComposeResu
     emitWiEvent: deps.emitChatBusEvent,
     emitUserEvent: publishUserEvent,
     emit: deps.emitDomainEvent,
+    // The DELETE residual (§3.6): `removeBook` snapshots the book's rooms through this BEFORE the delete
+    // CASCADEs its four scope junctions, then fans the captured set — a post-write reach would see ∅.
+    captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive)["world-info"],
   });
 
   // Wired here so the live card-import path actually writes an imported card's embedded character_book.

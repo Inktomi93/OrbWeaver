@@ -76,6 +76,9 @@ export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): Pe
     emit: (event: DomainEvent): void => {
       domainEvents.push(event);
     },
+    // The DELETE-residual reach capture (§3.6). Default = a no-op thunk (no rooms); a room-plane test injects
+    // the REAL `createDeleteReachCapture(db, spy).persona` via `overrides` to assert the seated-room fan.
+    captureRoomReachForDelete: () => Promise.resolve(() => undefined),
     requireChatAuthorOrHost: () => Promise.resolve(),
     setChatActivePersona: () => Promise.resolve(),
     repointSeedsAfterPersonaDelete: (ownerId: UserId, deletedId: PersonaId): Promise<void> => {
