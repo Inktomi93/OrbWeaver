@@ -34,6 +34,14 @@ const MIN_KEYS = 2;
 const SECTION_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-section\.tsx?$/;
 /** A co-located modal definition file: `features/<owner>/lib/<id>-modal.{ts,tsx}`. */
 const MODAL_FILE_RE = /\/features\/[^/]+\/lib\/[^/]+-modal\.tsx?$/;
+/** THE DOOR IS TWO MODULES, not one file: `main.tsx` boots and `compose/*` composes (the #43 boot
+ *  code-split put every registry assembly behind the `/` route's lazy boundary, so an unauthenticated
+ *  client never parses the feature graph). Same allowance `registry-assembly-at-door-only` (G8) already
+ *  makes, and the same one the home-tile/collection completeness gates already spell — a door-keyed
+ *  allowlist that names only main.tsx would red the assemblies it is supposed to sanction. */
+function isDoorFile(repoRelPath: string): boolean {
+  return repoRelPath.endsWith("/client/src/main.tsx") || repoRelPath.includes("/client/src/compose/");
+}
 
 /** A vocabulary the parallel-map ban covers: its ids, its `Record<Name>` type regexes, its sanctioned
  *  homes, and the registry name for the fix message. */
@@ -124,7 +132,7 @@ function readVocabs(project: Project): readonly Vocab[] {
 /** The sanctioned homes for a vocab-keyed map: the vocabulary tuple + door (shell-store/main.tsx, shared
  *  by both vocabs) and the vocab's own co-located definition files. */
 function isAllowlisted(repoRelPath: string, vocab: Vocab): boolean {
-  return repoRelPath.endsWith("/state/shell-store.ts") || repoRelPath.endsWith("/client/src/main.tsx") || vocab.isDefFile(repoRelPath);
+  return repoRelPath.endsWith("/state/shell-store.ts") || isDoorFile(repoRelPath) || vocab.isDefFile(repoRelPath);
 }
 
 /** A parallel vocab map = an object literal whose NAMED keys are ALL vocab ids, ≥2 of them. Requiring
@@ -253,7 +261,7 @@ function scanFileForVocab(sf: SourceFile, vocab: Vocab, out: Violation[]): void 
 /** The sanctioned homes for a hand-assembled chrome list: the door (main.tsx), the pure assembler, and the
  *  co-located widget def files matched by CHROME_FILE_RE. */
 function isChromeAllowlisted(repoRelPath: string): boolean {
-  return repoRelPath.endsWith("/client/src/main.tsx") || repoRelPath.endsWith("/state/assemble-chrome.ts") || CHROME_FILE_RE.test(repoRelPath);
+  return isDoorFile(repoRelPath) || repoRelPath.endsWith("/state/assemble-chrome.ts") || CHROME_FILE_RE.test(repoRelPath);
 }
 
 /** An object literal's `zone:` value when it is a CHROME_ZONES member, else undefined (a non-chrome `zone`
@@ -469,6 +477,20 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/x/lib/preset-zones.ts": 'export const PZ = [\n  { id: "a", zone: "setup" },\n  { id: "b", zone: "post" },\n];\n',
       },
       why: "an array whose `zone`s are NOT CHROME_ZONES members (the preset assembly's setup/post) isn't chrome-space — the chrome false-positive guard, passes",
+    },
+    {
+      files: {
+        "packages/client/src/state/shell-store.ts": 'export const SECTION_IDS = ["chats", "characters", "corpus"] as const;\n',
+        "packages/client/src/compose/authed-app.tsx": "export const sections = { chats: 1, characters: 2 };\n",
+      },
+      why: "the door's OTHER half — a `compose/` module carries the real section assembly since the #43 code-split (G8 already names compose/ a door home), must pass",
+    },
+    {
+      files: {
+        "packages/client/src/state/chrome-registry.ts": 'export const CHROME_ZONES = ["rail.nav", "rail.end", "topbar.trail"] as const;\n',
+        "packages/client/src/compose/authed-app.tsx": 'export const widgets = [\n  { id: "a", zone: "rail.end" },\n  { id: "b", zone: "topbar.trail" },\n];\n',
+      },
+      why: "the door's chrome WIDGET list, in the compose/ half — the chrome arm's door allowance must follow the assembly, passes",
     },
   ],
 };
