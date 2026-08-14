@@ -25,7 +25,7 @@ export function ConfigRosterSurface({ collections }: ConfigRosterSurfaceProps): 
     // region is a bounded flex box with no overflow of its own, so without a definite height here an
     // expanded 400-row group grows the pane instead of scrolling inside it.
     <Container className="h-full min-h-0">
-      <Stack className="h-full min-h-0 overflow-y-auto outline-none" data-slot="config-roster" gap="field" ref={surfaceRef} tabIndex={-1}>
+      <Stack className="relative h-full min-h-0 overflow-y-auto outline-none" data-slot="config-roster" gap="field" ref={surfaceRef} tabIndex={-1}>
         {orderCollections(collections).map((collection) => (
           <CollectionGroup collection={collection} key={collection.id} />
         ))}

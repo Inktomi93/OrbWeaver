@@ -181,7 +181,7 @@ async function distillCharacters(db: Db, deps: DistillCharactersDeps, opts: Dist
 
   const writes = await buildDistillWrites(deps, ready, result.items, {
     db,
-    model: deps.summarizerModel,
+    model: deps.summarizerModel(),
     now: deps.now(),
     sampleOpts,
     system: distillSystem,

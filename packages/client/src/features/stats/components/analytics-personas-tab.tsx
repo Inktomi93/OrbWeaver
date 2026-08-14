@@ -28,7 +28,7 @@ function PersonasBody(): ReactElement {
   const { data: personas } = useSuspenseQuery(trpc.stats.personaUsage.queryOptions());
 
   return (
-    <Stack className="min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsPersonasTab")}>
+    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="section" data-testid={testId("analyticsPersonasTab")}>
       <Section heading="Messages by persona">
         <BarList items={personaBarItems(personas)} label="Messages by persona" valueFormatter={formatCompact} />
       </Section>

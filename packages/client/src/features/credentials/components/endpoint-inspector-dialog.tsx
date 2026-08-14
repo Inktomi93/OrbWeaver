@@ -176,7 +176,7 @@ function CodeBlock({ ariaLabel, children }: { readonly ariaLabel: string; readon
       as="div"
       voice="datum"
       aria-label={ariaLabel}
-      className="max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-control border border-border bg-muted p-field"
+      className="relative max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-control border border-border bg-muted p-field"
     >
       {children}
     </Text>

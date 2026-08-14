@@ -184,7 +184,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   const detailSections = resolveDetailSections(detailContributors, { characterId: data.id });
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="h-full overflow-y-auto outline-none">
+    <Stack ref={surfaceRef} tabIndex={-1} className="relative h-full overflow-y-auto outline-none">
       <form
         onSubmit={(event): void => {
           event.preventDefault();

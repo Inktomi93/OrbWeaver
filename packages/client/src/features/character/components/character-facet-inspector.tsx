@@ -105,7 +105,7 @@ function InspectorBody({
     return <FacetContextEmpty arm={arm} glyph={facet.glyph} />;
   }
   return (
-    <Stack gap="section" className="min-h-0 overflow-y-auto">
+    <Stack gap="section" className="relative min-h-0 overflow-y-auto">
       <Stack gap="field">
         <Text size="title" weight="semibold">
           {facet.label}

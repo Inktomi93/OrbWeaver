@@ -52,8 +52,11 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
     newRefineryRunId: minter(ID_PREFIX.refineryRun),
     newRefinerySchemaId: minter(ID_PREFIX.refinerySchema),
     summarize: deps.roleClients.summarize,
-    summarizerModel: deps.roleClients.summarizerModel,
-    summarizerContextTokens: deps.roleClients.summarizerContextTokens,
+    // Thunks over the live getters, never the values: `roleClients.summarizerModel` /
+    // `summarizerContextTokens` follow a role re-point per call, and reading them HERE would re-freeze at
+    // compose exactly what `role-clients.ts` stopped freezing.
+    summarizerModel: () => deps.roleClients.summarizerModel,
+    summarizerContextTokens: () => deps.roleClients.summarizerContextTokens,
     resolveUserPresetParams: deps.resolveUserPresetParams,
     resolveUserProse,
     emitUserEvent: publishUserEvent,
@@ -68,7 +71,7 @@ export function buildRefinery(deps: RefineryComposeDeps): RefineryCompose {
     refinery,
     refineryWorkloads: {
       summarize: deps.roleClients.summarize,
-      summarizerContextTokens: deps.roleClients.summarizerContextTokens,
+      summarizerContextTokens: () => deps.roleClients.summarizerContextTokens,
       resolveUserPresetParams: deps.resolveUserPresetParams,
       resolveUserProse,
       listRefineryScoreTargets: createListRefineryScoreTargets({ db: deps.db }),

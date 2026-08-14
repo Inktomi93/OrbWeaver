@@ -18,7 +18,7 @@ export function CorpusContent(): ReactElement {
   const selectedCorpusCharacterId = useSelectedCorpusCharacterId();
   return (
     <Container className="h-full min-h-0">
-      <Stack className="h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="corpus-content" padding="section">
+      <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" data-slot="corpus-content" padding="section">
         {selectedCorpusCharacterId === null ? (
           <CorpusHomeSurface />
         ) : (

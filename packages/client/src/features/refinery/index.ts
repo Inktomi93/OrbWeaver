@@ -11,6 +11,11 @@ export { PayloadView } from "./components/payload-view.tsx";
 export type { RunControlsCardProps } from "./components/run-controls-card.tsx";
 export { RunControlsCard } from "./components/run-controls-card.tsx";
 export { SchemaEditorDialog } from "./components/schema-editor-dialog.tsx";
+/** @public exported for the CT that proves the scope image RE-SEEDS on every open (a server-side
+ *  `applyFields` remap used to be invisible to a permanently-mounted dialog) — both composition sites
+ *  import it relatively, and a story importing it relatively would mount against a different React
+ *  context instance (this door's own header). */
+export { ScopeEditorDialog } from "./components/scope-editor-dialog.tsx";
 /** @public exported for the CT story that drives the REAL first-run arm (run null + running → a run lands
  *  with `arrived`) — the composition surface imports it relatively; a story importing it relatively would
  *  mount against a different React context instance (this door's own header). */

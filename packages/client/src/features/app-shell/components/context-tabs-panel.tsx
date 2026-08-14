@@ -73,7 +73,7 @@ export function ContextTabsPanel({ tabs: entries, actions }: ContextTabsPanelPro
           `flex-1 min-h-0 overflow-y-auto`, so a tall body scrolls in place rather than via the shell body.
           Base UI hides the inactive panels (display:none), so exactly one ever takes the flex space. */}
       {entries.map((entry) => (
-        <TabsPanel key={entry.id} value={entry.id} className="min-h-0 flex-1 overflow-y-auto">
+        <TabsPanel key={entry.id} value={entry.id} className="relative min-h-0 flex-1 overflow-y-auto">
           {entry.node}
         </TabsPanel>
       ))}
