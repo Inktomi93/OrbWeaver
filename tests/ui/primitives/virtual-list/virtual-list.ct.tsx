@@ -1,5 +1,16 @@
 import { expect, test } from "@playwright/experimental-ct-react";
-import { BoundedList, CustomRangeExtractorList, DerivedItemsList, LanesList, UnboundedList } from "./virtual-list.fixtures.tsx";
+import {
+  AriaLabelList,
+  BoundedList,
+  CustomRangeExtractorList,
+  DerivedItemsList,
+  EndApproachList,
+  FadeEdgeList,
+  LanesList,
+  OverscanList,
+  ScrollToIndexList,
+  UnboundedList,
+} from "./virtual-list.fixtures.tsx";
 
 const ITEM_COUNT = 1000;
 const ROW_HEIGHT_PX = 40;
@@ -69,4 +80,62 @@ test("rangeExtractor passthrough: a custom extractor's forced index stays mounte
   // The normal overscan window has scrolled well past index 0 — only the custom rangeExtractor
   // forcing it into the range keeps it mounted.
   await expect(component.getByText("Item 0", { exact: true })).toHaveCount(1);
+});
+
+// Split across two tests — playwright-ct mounts exactly one root per test. 200px window / 20px rows
+// ≈ 10 visible; the seal's own default overscan (1) pads a couple rows past that on each side, while
+// overscan=20 pads well past it — the two bounds below distinguish the branches without a cross-test
+// comparison.
+test("overscan default: renders roughly the visible window + the seal's own default padding", async ({ mount }) => {
+  const component = await mount(<OverscanList itemCount={500} />);
+  const rendered = await component.locator("[data-index]").count();
+  expect(rendered).toBeGreaterThan(0);
+  expect(rendered).toBeLessThan(20);
+});
+
+test("overscan=20 renders MORE off-screen rows than the seal's own default window", async ({ mount }) => {
+  const component = await mount(<OverscanList itemCount={500} overscan={20} />);
+  const rendered = await component.locator("[data-index]").count();
+  expect(rendered).toBeGreaterThanOrEqual(30);
+});
+
+test("fadeEdge=false never writes the data-more cue, even with more list below the fold", async ({ mount }) => {
+  const component = await mount(<FadeEdgeList itemCount={100} fadeEdge={false} />);
+  const scroller = component.locator('[data-slot="virtual-list-scroll"]');
+  await expect(scroller).not.toHaveAttribute("data-more", "");
+});
+
+test("fadeEdge=true: data-more is set while more list is below the fold, and lifts at the bottom", async ({ mount, page }) => {
+  const component = await mount(<FadeEdgeList itemCount={100} fadeEdge={true} />);
+  const scroller = component.locator('[data-slot="virtual-list-scroll"]');
+  await expect(scroller).toHaveAttribute("data-more", "");
+
+  await component.getByText("Item 0", { exact: true }).hover();
+  await page.mouse.wheel(0, 100 * 40);
+  await expect(scroller).not.toHaveAttribute("data-more", "");
+});
+
+test("scrollToIndex pins the last item into view (end-aligned) once the prop is set", async ({ mount }) => {
+  const component = await mount(<ScrollToIndexList itemCount={300} />);
+  await expect(component.getByText("Item 299", { exact: true })).toHaveCount(0);
+  await component.getByTestId("pin-to-end").click();
+  await expect(component.getByText("Item 299", { exact: true })).toBeVisible();
+});
+
+test("onEndApproach fires when the rendered window is within endApproachRows of the tail", async ({ mount }) => {
+  // A list entirely within the default endApproachRows (8) of its own tail fires on/shortly after
+  // mount (it may re-fire once more as rows settle from estimated to measured size — still gated,
+  // never the "does not fire" zero of the sibling test below).
+  const component = await mount(<EndApproachList itemCount={5} />);
+  await expect(component.getByTestId("calls")).not.toHaveText("0");
+});
+
+test("onEndApproach does NOT fire when the window is farther from the tail than endApproachRows", async ({ mount }) => {
+  const component = await mount(<EndApproachList itemCount={500} endApproachRows={2} />);
+  await expect(component.getByTestId("calls")).toHaveText("0");
+});
+
+test("aria-label passes through to the role=list scroll container", async ({ mount }) => {
+  const component = await mount(<AriaLabelList itemCount={20} ariaLabel="Fixture rows" />);
+  await expect(component.getByRole("list", { name: "Fixture rows" })).toBeVisible();
 });
