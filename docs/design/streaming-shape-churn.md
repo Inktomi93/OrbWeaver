@@ -165,7 +165,7 @@ Two `<PROMPT>` values, run both:
   the `slots` output, not `sig`: a reasoning block or a tool chip appears as a new `data-slot`, and the
   timestamp of that change is when the message reshaped.
 
-`--eval` output is capped at ~2000 chars (truncation is announced on its own line) — split a long
+`--eval` output is capped at \~2000 chars (truncation is announced on its own line) — split a long
 signature list across two `--eval`s rather than trusting one.
 
 ### Two traps this probe already paid for
@@ -175,3 +175,108 @@ signature list across two `--eval`s rather than trusting one.
   body wrapper.
 - **`snap --eval` needs the BARE async arrow.** An arrow IIFE `(()=>{…})()` is double-invoked by the
   harness's auto-invoke regex.
+- **A probe prompt may not start with `/`.** The M4 arm's first attempt opened with `/think …`; the
+  composer parsed it as a slash command and swallowed the turn — zero `chat.send` in the console, the
+  ghost never mounted, and the probe read as "generation failed". Reworded without the prefix, it sent.
+- **Track row HEIGHT, not just `left`/`width`.** §1's "the row's geometry changed exactly ONCE" is true
+  and misleading: the sampler recorded only `left`/`width`, which are genuinely constant. Height is not,
+  and the height series is where M5 lives.
+
+## 5. PROBE RESULTS 2026-08-14
+
+Five live turns against the running dev stack (`:5173` → `:8788`, vLLM fleet, app defaults untouched —
+no connection, preset or setting was changed). Chat: "Example — The Ashen Spire" (11 existing rows, 4
+members). Sampler as §4, extended to also record row height, tail-block tag+rect, and the prose top
+measured RELATIVE to the ghost row top (`firstBlock.top − ghostRow.top`) so autoscroll cannot confound
+the shift measurement.
+
+**VERDICT: both M1 and a new M5 reproduce; M5 is the better match for the owner's sentence. M4 is NOT
+EXERCISED — not cleared.** M1 is real but is a ONE-TIME settle per ambiguous block. M5 — a code-block
+container born 94px too tall and collapsing \~20-100ms later — is an overshoot-and-snap-back, which is
+literally "adjusts size and fluctuates, then settles". Ranked for symptom-match: **M5 > M1 > M4**.
+
+### Arm 1 — the structure-forcing prompt (M1): REPRODUCED, slower than §1
+
+| run | `P,PRE,P` | `P,PRE,TABLE` | flip window |
+| - | - | - | - |
+| §1 run A (08-14 am) | 14662 | 14765 | 103ms |
+| §1 run B (08-14 am) | 12521 | 12682 | 161ms |
+| **§5 run A** | **9656** | **10021** | **365ms** |
+| **§5 run B** | **9550** | **9850** | **300ms** |
+
+The tail block flips `P:534×23` → `TABLE:530×48` (run A) / `TABLE:530×23` then `530×48` 100ms later (run
+B) — the tail loses 4px of width and gains 25px of height at the promotion. Full run-A signature series:
+`6986 P` → `8672 P,PRE` → `9656 P,PRE,P` → `10021 P,PRE,TABLE` → `10871 …,UL` → `12438 …,UL,P`.
+
+The window is **2-3× wider than §1 measured**, so M1 is if anything more visible today than when it was
+first characterised. §1's `left`/`width` finding holds exactly: 484 / 1424, unchanged across every frame
+of both runs.
+
+Arm 2 additionally caught the same promotion at the HEAD block, not just the tail: `6515 UL` → `6549 P`,
+a 34ms flip. M1's mechanism is per-ambiguous-block, not per-message-tail.
+
+### Arm 2 — reasoning + tool call in one turn (M4): NOT EXERCISED
+
+Prompt forced step-by-step reasoning and offered tools. The turn generated normally (two consecutive
+speaker turns — the room is a group chat), but neither M4 constituent appeared:
+
+- **No reasoning block.** `[data-slot=collapsible-panel]` was absent for the entire turn (the sampler
+  logged `panelH=none` once and never changed) — the connection emitted no reasoning tokens, so
+  `ghost-message-row.tsx`'s `reasoning.length > 0` arm never mounted.
+- **No tool chip.** The settled row carried zero `tool*`/`collapsible*`/`reason*` slots, and
+  `rpg.listTurnToolCalls` returned 0 rows.
+- **The prose never shifted.** `proseTopInRow` was **constant at 8px** for the whole turn — one sample,
+  never changed. Nothing mounted above the prose.
+
+So M4 stays **UNMEASURED**, exactly as §1 left it. It cannot be exercised from the app's current
+defaults: it needs a connection pointed at a model that emits reasoning tokens and a tool armed for the
+room, and this probe was scoped not to change settings. A structural note that survives regardless:
+`ghost-message-row.tsx` renders `<ReasoningBlock>` ABOVE `<GhostBubbleBody>`, and the block is
+force-open while `thinking` then auto-collapses on the first answer token (`reasoning-block.tsx`,
+`expanded = override ?? thinking`) — so when M4 does fire, the predicted churn is not the mount but the
+COLLAPSE, which drops the whole prose column by the trace's rendered height in one frame. That is the
+shape to measure when a reasoning-capable connection is configured.
+
+One unranked observation: a `dialogue` `data-slot` mounts mid-stream inside the ghost body (t=10353 turn
+one, t=32016 turn two). It did NOT shift the prose top, so it is not an M4-class reflow.
+
+### M5 — code-block container overshoot-and-collapse (MEASURED, NEW)
+
+The instant a fenced code block mounts, the ghost row jumps to **265px**, then collapses to **170px**.
+Reproduced **5 runs out of 5**, at exactly those two values every time:
+
+| run | overshoot t | collapse t | window |
+| - | - | - | - |
+| arm1 A | 8672 | 8769 | 97ms |
+| arm1 B | 7884 | 7905 | 21ms |
+| arm1c | 9272 | 9372 | 100ms |
+| arm1d | 8020 | 8041 | 21ms |
+| arm1e | 9559 | 9579 | 20ms |
+
+The element is **Streamdown's code-block container, `div.my-4.flex`** — born 202px, settles to 108px, a
+**−94px** self-collapse. Every child it contains is byte-identical in geometry across the collapse:
+
+```text
+t=9559 h=265  div.flex.flex-col=249 div.space-y-0=249 p=47 div.my-4.flex=202
+              div.flex.h-8=23 … div.language-javascript.overflow-x-auto=25 pre=23
+t=9579 h=170  div.flex.flex-col=154 div.space-y-0=154 p=47 div.my-4.flex=108
+              div.flex.h-8=23 … div.language-javascript.overflow-x-auto=25 pre=23
+```
+
+The preceding `<p>` (47), the header bar (23), the scroller (25) and the `<pre>` (23) are unchanged. The
+94px is entirely in the CONTAINER's own box, not in its content — which is why §1's tail-block sampler
+could not see it (the tail read `PRE:530×23` on both frames) and why the `<pre>`-never-churns finding in
+§1 is correct AND incomplete: the `<pre>` does not churn, the box around it does.
+
+Two leads, neither proven, both with a console receipt from the same window:
+
+1. `[frame] long frame 254ms · @ shiki-plugin.ts 251ms` fires inside the collapse window — consistent
+   with the async highlighter resolving and replacing a reserved placeholder, but correlation only.
+2. Streamdown's own utility classes on that subtree are DEAD in our CSS — `[css] dead class — no rule
+   defines it … .my-4 on [data-slot=message-bubble]`, and likewise `.h-8`, `.p-1`, `.rounded-lg`,
+   `.text-sm`. If the container's settled box depends on a Streamdown utility our seal never defines,
+   the pre-collapse height may be the UNSTYLED box. Worth one read of the seal before any fix.
+
+M5 slots into §3 as a cheaper target than M1: it needs no change to block-type decidability and no
+change to the repair layer the caret and the #42 reveal ride on. It is one container's height, and the
+content that container ends up holding is already known at mount.
