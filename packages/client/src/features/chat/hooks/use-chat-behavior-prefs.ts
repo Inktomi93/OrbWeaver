@@ -18,6 +18,9 @@ export interface ChatBehaviorPrefs {
   readonly smoothStream: ChatSettings["smoothStream"];
   readonly smoothStreamCps: ChatSettings["smoothStreamCps"];
   readonly streamScrollMode: ChatSettings["streamScrollMode"];
+  /** Whether the live reasoning disclosure auto-collapses on the first answer token (the ghost's
+   *  `<ReasoningBlock>` — a committed row is unaffected). */
+  readonly reasoningAutoCollapse: ChatSettings["reasoningAutoCollapse"];
 }
 
 export function useChatBehaviorPrefs(): ChatBehaviorPrefs {
@@ -31,5 +34,6 @@ export function useChatBehaviorPrefs(): ChatBehaviorPrefs {
     smoothStream: chat.smoothStream,
     smoothStreamCps: chat.smoothStreamCps,
     streamScrollMode: chat.streamScrollMode,
+    reasoningAutoCollapse: chat.reasoningAutoCollapse,
   };
 }

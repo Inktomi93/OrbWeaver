@@ -5,6 +5,15 @@
 // reads), and the trace renders untrusted for the same live-model-output reason the ghost answer body
 // does.
 //
+// TWO KNOBS on the auto arm (both live-ghost only — the settled mount is `thinking={false}`):
+//   • `autoCollapse` (`UserSettings.chat.reasoningAutoCollapse`, default ON, ST parity) — OFF holds the
+//     trace open after the answer, so the disclosure never collapses on its own and the prose is never
+//     flung; the reader closes it by hand.
+//   • The auto open/close is INSTANT (`CollapsiblePanel instant` — the reduced-motion-mirroring 0.01ms
+//     snap), so the answer prose paints at its final position in ONE commit instead of travelling the whole
+//     trace height as a smooth fold drags it up (`streaming-shape-churn.md` §8, the measured 350–677px prose
+//     fling). A MANUAL toggle (`override` non-null) restores the smooth Base UI fold.
+//
 // TWO MOUNTS, one component. The LIVE mount is the streaming ghost (`ghost-message-row.tsx`) — it owns the
 // ticking label. The SETTLED mount is the committed transcript row (`message-row.tsx`), reading the durable
 // `MessageView.reasoning` a completed turn persisted: it mounts with `thinking={false}` (collapsed by default,
@@ -45,6 +54,12 @@ export interface ReasoningBlockProps {
   readonly smoothStream?: boolean | undefined;
   /** PD-146 — the `UserSettings.chat.smoothStreamCps` pref: the trickle floor when `smoothStream` is on. */
   readonly smoothStreamCps?: number | undefined;
+  /** The `UserSettings.chat.reasoningAutoCollapse` pref — fold the trace on the first answer token. Default
+   *  ON (today's behavior). Off ⇒ the trace stays open after the answer until the reader closes it, so the
+   *  disclosure never auto-collapses and the prose is never flung. The SETTLED (committed-row) mount leaves
+   *  it default ON, which is inert there — that mount is `thinking={false}`, already collapsed and
+   *  host-expandable, so the auto arm is never the deciding factor. */
+  readonly autoCollapse?: boolean | undefined;
 }
 
 export function ReasoningBlock({
@@ -54,6 +69,7 @@ export function ReasoningBlock({
   showIcon = false,
   smoothStream = false,
   smoothStreamCps = DEFAULT_SMOOTH_STREAM_CPS,
+  autoCollapse = true,
 }: ReasoningBlockProps): ReactElement {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   // null = no manual toggle yet; once clicked this pins to the user's choice for this row's life.
@@ -67,7 +83,15 @@ export function ReasoningBlock({
     return (): void => clearInterval(id);
   }, [thinking]);
 
-  const expanded = override ?? thinking;
+  // The auto arm: open while thinking, and — when the user has NOT turned auto-collapse off — collapse the
+  // instant the answer lands (`thinking` false). `autoCollapse` OFF holds the trace open after the answer
+  // (`thinking || true`), leaving the close to a manual click. A manual toggle (`override` non-null) pins the
+  // user's choice for the row's life and beats both.
+  const expanded = override ?? (thinking || !autoCollapse);
+  // SNAP the AUTO open/close (no manual toggle yet) so the answer prose paints at its final position in one
+  // commit rather than travelling the trace's height as the panel folds (`streaming-shape-churn.md` §8). Once
+  // the user has clicked, `override` is non-null and the smooth Base UI fold returns.
+  const instant = override === null;
   const label = labelOverride ?? (thinking ? `Thinking… ${elapsedSeconds}s` : `Thought for ${elapsedSeconds}s`);
   const paced = useSmoothText(reasoning, { enabled: thinking && smoothStream, cps: smoothStreamCps });
   const held = speakerTagsToPlain(thinking ? holdTornSpeaker(paced) : paced);
@@ -84,7 +108,7 @@ export function ReasoningBlock({
           <Text voice="label">{label}</Text>
         </Row>
       </CollapsibleTrigger>
-      <CollapsiblePanel>
+      <CollapsiblePanel instant={instant}>
         {held.length === 0 ? (
           <StreamShimmer label="Reading the reasoning trace…" />
         ) : (

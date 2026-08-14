@@ -314,6 +314,15 @@ test("UserSettings.chat.smoothStreamCps self-heals an out-of-bounds value to the
   expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { smoothStreamCps: 150 } }).chat.smoothStreamCps).toBe(150);
 });
 
+test("UserSettings.chat.reasoningAutoCollapse defaults ON (today's behavior) and keeps an explicit OFF", () => {
+  // Default ON = the live reasoning disclosure folds on the first answer token, as it always has.
+  expect(parseUserSettings({}).chat.reasoningAutoCollapse).toBe(true);
+  expect(DEFAULT_USER_SETTINGS.chat.reasoningAutoCollapse).toBe(true);
+  // A user who turns it off (keep the trace open) must not be re-defaulted ON; only a non-boolean heals.
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { reasoningAutoCollapse: false } }).chat.reasoningAutoCollapse).toBe(false);
+  expect(parseUserSettings({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION, chat: { reasoningAutoCollapse: "nope" } }).chat.reasoningAutoCollapse).toBe(true);
+});
+
 test("UserSettings.chat.streamScrollMode defaults to follow (byte-identical) and accepts pin-prompt (PD-147)", () => {
   expect(parseUserSettings({}).chat.streamScrollMode).toBe("follow");
   expect(DEFAULT_USER_SETTINGS.chat.streamScrollMode).toBe("follow");

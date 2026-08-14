@@ -116,6 +116,14 @@ function StreamingBody({ sectionId, session }: { readonly sectionId: string; rea
             ) : null
           }
         </form.Subscribe>
+        <form.AppField name="reasoningAutoCollapse">
+          {(field): ReactElement => (
+            <field.SwitchField
+              label="Auto-collapse reasoning"
+              description="Fold a reasoning-capable model's thinking trace to a 'Thought for Ns' summary the moment its answer starts. Off keeps the trace open until you close it."
+            />
+          )}
+        </form.AppField>
       </FieldLayout>
       <Row gap="field" align="center">
         <SectionSaveStatus id={sectionId} state={saveState} onRetry={retrySave} caption="Synced across your devices." />

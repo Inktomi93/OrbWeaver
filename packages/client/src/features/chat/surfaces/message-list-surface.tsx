@@ -227,6 +227,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         cardTier={ghostCardTier}
         smoothStream={behaviorPrefs.smoothStream}
         smoothStreamCps={behaviorPrefs.smoothStreamCps}
+        reasoningAutoCollapse={behaviorPrefs.reasoningAutoCollapse}
         enterMotion={newArrivalKeys.has(item.id)}
       />
     ) : (
