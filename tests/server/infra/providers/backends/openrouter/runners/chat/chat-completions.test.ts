@@ -737,6 +737,7 @@ describe("the history cache breakpoint is invariant across a within-turn tool ex
 const CACHE_TURNS = (cacheMinTokens: number): NonNullable<ModelCapability["turns"]> => ({
   assistantPrefill: false,
   midConversationSystem: false,
+  historySystemRows: false,
   roleHandlingFloor: "strict",
   explicitPromptCache: true,
   cacheMinTokens,

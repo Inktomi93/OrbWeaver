@@ -53,6 +53,7 @@ const MID_CONV_CAPABILITY = makeModelCapability({
   turns: {
     assistantPrefill: false,
     midConversationSystem: true,
+    historySystemRows: false,
     roleHandlingFloor: "strict",
     explicitPromptCache: true,
   },

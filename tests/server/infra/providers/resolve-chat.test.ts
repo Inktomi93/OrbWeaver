@@ -422,6 +422,7 @@ describe("resolveChat — the dynamic-context channel (D66)", () => {
     turns: {
       assistantPrefill: false,
       midConversationSystem: true,
+      historySystemRows: false,
       roleHandlingFloor: "strict",
       explicitPromptCache: true,
     },

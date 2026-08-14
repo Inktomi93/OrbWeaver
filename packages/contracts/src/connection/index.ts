@@ -186,6 +186,22 @@ export const modelCapabilitySchema = z.object({
       assistantPrefill: z.boolean(),
       /** A mid-conversation system-authority channel exists and this model honors it, placement-correct. */
       midConversationSystem: z.boolean(),
+      /** MEASURED truth: does this (model × wire-shape) accept `system` rows INSIDE the delivered history —
+       *  i.e. mid-array, not just the tail channel {@link midConversationSystem} covers? Deliberately a
+       *  SIBLING fact rather than a second reader of that bit: `midConversationSystem` is wire-tested for the
+       *  DEPTH-0 TAIL only (`assembly/injections`: "the only wire-tested channel is tail-positioned, and a real
+       *  system row inside the stable prefix would mutate cached bytes"), and a narrator row is MID-HISTORY —
+       *  shipping history rows as system on the strength of a tail-tested bit is the category error the
+       *  capability axis exists to prevent (D69).
+       *
+       *  The ONE consumer is the D129(B) narrator mapping: a `narrator`-kind canon row (which stays
+       *  `role:'assistant'` in CANON forever — canon is provider-independent) DELIVERS as a wire `system` row
+       *  where this is true. Read through {@link acceptsHistorySystemRows}, never re-spelled per consumer.
+       *
+       *  FAIL-CLOSED: `false` everywhere until a live wire probe measures it per (model × wire-shape)
+       *  — `pnpm probe:history-system-rows` (`scripts/probes/history-system-rows.ts`), the same
+       *  measure-then-declare seam `tools.silencesProse` rides. Never a model-name regex (D69). */
+      historySystemRows: z.boolean(),
       /** The model/wire floor for adjacent-same-role handling; the user knob may go stricter, never looser. */
       roleHandlingFloor: roleHandlingSchema,
       /** Whether explicit prompt caching (rolling breakpoint pair + per-block cache_control) is worth
@@ -209,11 +225,24 @@ export function coEmitsProseWithTools(capability: ModelCapability): boolean {
   return capability.tools !== undefined && capability.tools.silencesProse !== true;
 }
 
+/** MAY this wire carry `system` rows INSIDE the delivered history (mid-array, not the tail channel)? The ONE
+ *  home of the mid-history system read (`capability.turns.historySystemRows`) — the D129(B) narrator mapping's
+ *  only gate. Absent `turns` ⇒ `TURNS_FLOOR` ⇒ false: a model whose cell was never measured delivers narrator
+ *  rows assistant-voiced, exactly as every model does today (D68 fail-closed — absence means the behavior does
+ *  not engage, never a guessed default).
+ *
+ *  Homed in `contracts` beside {@link coEmitsProseWithTools} for the same reason: the SHAPE dispatch reads it
+ *  and any future consumer must read the identical fact rather than re-spell `turns?.historySystemRows`. */
+export function acceptsHistorySystemRows(capability: ModelCapability): boolean {
+  return capability.turns?.historySystemRows === true;
+}
+
 /** The conservative today-behavior `turns` cell every model defaults to when the resolver can't refine
  *  a per-shape cell. */
 export const TURNS_FLOOR: NonNullable<ModelCapability["turns"]> = {
   assistantPrefill: false,
   midConversationSystem: false,
+  historySystemRows: false,
   roleHandlingFloor: "strict",
   explicitPromptCache: false,
 } as const;

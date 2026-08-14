@@ -54,6 +54,16 @@ interface CanonRow {
   kind?: MessageKind | undefined;
 }
 
+/** A canon row AFTER the delivered-role dispatch ({@link deliveredRole}) — identical to {@link CanonRow}
+ *  except that its role has been widened to the DELIVERED axis, because a `narrator`-kind row may ship as a
+ *  wire `system` row on a model whose measured `turns.historySystemRows` says so (D129(B)). Kept as its own
+ *  type rather than widening `CanonRow`: CANON rows are never system (that is the law `toShapeCanon` enforces
+ *  on the role plane), and the whole point of the D129(B) mapping is that DELIVERY changes while canon does
+ *  not — one type per plane keeps that provable instead of asserted. */
+interface ShapeRow extends Omit<CanonRow, "role"> {
+  role: DeliveredRole;
+}
+
 /** A name-stamped wire row (the SHAPE output row). */
 interface WireRow {
   role: DeliveredRole;
@@ -87,6 +97,12 @@ interface ShapeInput {
    *  REAL system wire row (the model honors a tail system-authority channel); `false`/absent (the
    *  `TURNS_FLOOR` safe default) ⇒ it demotes to the visible `[Note from system: …]` user note. */
   midConversationSystem?: boolean;
+  /** The resolved `turns.historySystemRows` (read through `acceptsHistorySystemRows`): `true` ⇒ a
+   *  `narrator`-kind canon row DELIVERS as a wire `system` row (D129(B)); `false`/absent (the `TURNS_FLOOR`
+   *  fail-closed default, i.e. every model today) ⇒ narrator ships assistant-voiced, byte-identically to
+   *  before this dispatch existed. A SIBLING of {@link midConversationSystem}, never the same bit — that one
+   *  is wire-tested for the depth-0 TAIL and this is mid-history (see the contract's field docs). */
+  historySystemRows?: boolean;
   /** The user role-handling knob (from preset `params.advanced.roleHandling`); clamped against the floor. */
   roleHandling?: RoleHandling | undefined;
   /** The model/wire adjacent-same-role floor. Unset ⇒ `strict`. SHAPE runs the stricter of floor + knob. */
@@ -107,9 +123,9 @@ interface ShapeOutput {
   /** Per-stage snapshots — the host/admin trace + differential-oracle diff surface. */
   stages: {
     multiCharacter: boolean;
-    withTail: CanonRow[];
-    injected: (CanonRow | { role: DeliveredRole; content: string })[];
-    squashed: (CanonRow | { role: DeliveredRole; content: string })[];
+    withTail: ShapeRow[];
+    injected: (ShapeRow | { role: DeliveredRole; content: string })[];
+    squashed: (ShapeRow | { role: DeliveredRole; content: string })[];
     named: WireRow[];
     /** The FINAL stage's content-free projection: `history` as order + role + voice + provenance + size.
      *  The only stage snapshot that is already wire-shaped, because it is the one a host READS
@@ -302,6 +318,50 @@ function traceDeliveredRows(args: {
   });
 }
 
+/**
+ * THE DELIVERED-ROLE DISPATCH (D129(B)) — which wire role does a canon row of this DECLARED purpose take,
+ * given the model's MEASURED mid-history-system capability? Total over `MESSAGE_KIND_POLICY[kind].prompt`
+ * with an `assertNever` tail (spine §5.5), so a fourth kind cannot build until it declares its delivery.
+ *
+ *   • `conversation`   — the row's own canon role. Every standard row, always.
+ *   • `system-channel` — the narrator arm. `system` where the model's `turns.historySystemRows` says the wire
+ *     takes mid-array system rows; otherwise the row's own role (assistant-voiced), which is every model
+ *     today. THIS is the arm `entersPrompt`'s doc-comment reserved: the policy row said "system-channel" and
+ *     nothing performed it, so the record described a behavior no code did.
+ *   • `never`          — unreachable: `toShapeCanon` dropped the row. Answered for totality; a row that
+ *     somehow arrives keeps its own role rather than being invented into the system channel.
+ *
+ * CANON IS UNTOUCHED (the §14 provider-independence invariant, D129's own shaping constraint): this maps a
+ * COPY at delivery. The stored row stays `role:'assistant'` forever, which is why the same committed turn
+ * driven through two capability profiles must persist byte-identical rows and differ only on the wire.
+ *
+ * GATED ON `assistant`: the egocentric scoped fold rewrites another character's narrator row into a `user`
+ * line addressed to the target and DELIBERATELY preserves its kind ("the fold moves DELIVERY, never
+ * PURPOSE"). That row is no longer the narrator's voice on the wire, so promoting it to system would put a
+ * folded participant line into the operator channel.
+ */
+function toDeliveredRow(row: CanonRow, historySystemRows: boolean): ShapeRow {
+  const role = deliveredRoleFor(row, historySystemRows);
+  return role === row.role ? row : { ...row, role };
+}
+
+/** The role half of {@link toDeliveredRow} — split out so the policy dispatch reads as one expression. */
+function deliveredRoleFor(row: CanonRow, historySystemRows: boolean): DeliveredRole {
+  // ANNOTATED, not inferred — the same biome type-service limitation `entersPrompt` documents: through the
+  // cross-package `Readonly<Record<MessageKind, …>>` index biome narrows the subject to `never` and calls
+  // every arm unreachable. tsc is fine either way.
+  const policy: MessageKindPolicy["prompt"] = MESSAGE_KIND_POLICY[row.kind ?? "standard"].prompt;
+  switch (policy) {
+    case "conversation":
+    case "never":
+      return row.role;
+    case "system-channel":
+      return historySystemRows && row.role === "assistant" ? "system" : row.role;
+    default:
+      return assertNeverPromptPolicy(policy);
+  }
+}
+
 /** The SHAPE transform. Pure given its input. Group behaviors are all data-driven (roster size,
  *  resolved scoped target, multi-speaker nudge) so a solo roster-of-1 chat ships an unmodified history. */
 export function shape(input: ShapeInput): ShapeOutput {
@@ -317,7 +377,11 @@ export function shape(input: ShapeInput): ShapeOutput {
 
   // The volatile tail is always the last element: the verb-inserted user row (send), or the appended
   // synthetic user turn (regen/draft/continue).
-  const withTail: CanonRow[] = input.appendUserTurn !== null ? [...scopedCanon, { role: "user", content: input.appendUserTurn }] : [...scopedCanon];
+  // …and the DELIVERED-ROLE dispatch rides the same build (D129(B)): a narrator row takes the wire `system`
+  // role on a model measured to accept mid-history system rows, and its own role on every model today. The
+  // appended synthetic tail declares no kind, so it reads `standard` → `conversation` → `user`, unchanged.
+  const voiced = scopedCanon.map((row): ShapeRow => toDeliveredRow(row, input.historySystemRows === true));
+  const withTail: ShapeRow[] = input.appendUserTurn !== null ? [...voiced, { role: "user", content: input.appendUserTurn }] : voiced;
 
   // Effective role-handling strategy: the stricter of the model floor + the user knob, clamped here
   // (where the merge physically happens). `none` skips merging; every other strategy squashes.

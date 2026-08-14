@@ -28,6 +28,7 @@
     "sdk:dynamic-probe": "node scripts/probes/sdk-dynamic-content-probe.ts",
     "sdk:injection-cache-probe": "node scripts/probes/sdk-injection-cache-probe.ts",
     "sdk:session-probe": "node scripts/probes/sdk-session-probe.ts",
+    "probe:history-system-rows": "node scripts/probes/history-system-rows.ts",
     "sse-tap": "node scripts/probes/sse-tap.ts",
     "trace:render": "node scripts/probes/trace-render.ts",
     "trace:tail": "node scripts/probes/trace-tail.ts",

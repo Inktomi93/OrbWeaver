@@ -136,6 +136,9 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
     emit: deps.emit,
     resolveForeignInputs: deps.resolveForeignInputs,
     claimChat,
+    // The D129-F freeze-at-selection bake draws from the SAME service PRNG a turn's freeze does — a greeting
+    // alternate baked at selection is the same kind of draw as one baked at the first user turn.
+    prng: deps.prng,
   });
   const fork = createFork(ctx, { emit: deps.emit, loadParticipantViews });
   const imageGen = createGenerateImage(ctx, { emit: deps.emit, claimChat });

@@ -65,12 +65,25 @@ function anthropicMidConvSystem(id: string, wireShape: WireShape): boolean {
   return wireShape === "anthropic-cli" && OPUS_48_RE.test(id);
 }
 
+/** MID-HISTORY system rows per (id × wire-shape) — the D129(B) narrator-mapping gate.
+ *
+ *  UNMEASURED EVERYWHERE, so `false` everywhere, and that is the whole content of this function today: the
+ *  fact is a LIVE-WIRE MEASUREMENT (`pnpm probe:history-system-rows`), never a model-name regex (D69), and
+ *  never an inference from {@link anthropicMidConvSystem} — that bit is wire-tested for the DEPTH-0 TAIL only
+ *  and a narrator row is mid-history. It exists as a named function rather than an inline `false` so the
+ *  measured table lands HERE, in the ONE (wire-shape × model) derivation, when the probe produces one — the
+ *  same measure-then-declare seam `tools.silencesProse` rides in `resolve-model-capability`. */
+function historySystemRows(_id: string, _wireShape: WireShape): boolean {
+  return false;
+}
+
 /** The curated Claude shortlist `turns` cell for the resolved wire-shape. Every Claude arm is
  *  `roleHandlingFloor:"strict"` + `explicitPromptCache:true` with the per-version `cacheMinTokens`. */
 export function refineCuratedTurns(id: string, wireShape: WireShape): Turns {
   return {
     assistantPrefill: anthropicPrefill(id, wireShape),
     midConversationSystem: anthropicMidConvSystem(id, wireShape),
+    historySystemRows: historySystemRows(id, wireShape),
     roleHandlingFloor: "strict",
     explicitPromptCache: true,
     cacheMinTokens: anthropicCacheMin(id),
@@ -83,6 +96,7 @@ export function synthesizeAnthropicTurns(id: string, wireShape: WireShape): Turn
   return {
     assistantPrefill: anthropicPrefill(id, wireShape),
     midConversationSystem: anthropicMidConvSystem(id, wireShape),
+    historySystemRows: historySystemRows(id, wireShape),
     roleHandlingFloor: "strict",
     explicitPromptCache: true,
     cacheMinTokens: anthropicCacheMin(id),

@@ -19,10 +19,12 @@ import type { MessageRole } from "@orb/kit/message-role";
  *  `ShapeTrace`). */
 interface ShapeStages {
   multiCharacter: boolean;
-  // `withTail` is the pre-splice canon subset (never `system`); the post-splice stages carry the full
-  // `MessageRole` axis (`system` = a capability-kept depth-0 injection, `turns.midConversationSystem`).
-  // Both DERIVED from the homed `MessageRole` tuple, never re-spelled.
-  withTail: readonly { role: Exclude<MessageRole, "system"> }[];
+  // Every stage carries the full `MessageRole` axis, DERIVED from the homed tuple, never re-spelled. Two
+  // ways a `system` row is in here, and `withTail` (pre-splice) can now carry the second: a capability-kept
+  // depth-0 INJECTION (`turns.midConversationSystem`, post-splice only), and a narrator canon row DELIVERED
+  // as system on a model measured for mid-history system rows (`turns.historySystemRows`, D129(B) — the
+  // dispatch runs while `withTail` is built). This stage was `Exclude<…,"system">` until that landed.
+  withTail: readonly { role: MessageRole }[];
   injected: readonly { role: MessageRole }[];
   squashed: readonly { role: MessageRole }[];
   named: readonly { role: MessageRole }[];

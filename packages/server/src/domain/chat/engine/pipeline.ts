@@ -21,7 +21,7 @@ import type {
   ToolCallRecord,
 } from "@orb/contracts/chat";
 import type { ResolvedConnection } from "@orb/contracts/connection";
-import { coEmitsProseWithTools } from "@orb/contracts/connection";
+import { acceptsHistorySystemRows, coEmitsProseWithTools } from "@orb/contracts/connection";
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_NAMES_BEHAVIOR } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
@@ -477,6 +477,10 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
     // midConversationSystem gates the depth-0 system-injection delivery: a declaring model gets a REAL
     // system wire row; the TURNS_FLOOR default demotes to the visible `[Note from system: …]` user note.
     midConversationSystem: args.connection.capability.turns?.midConversationSystem === true,
+    // historySystemRows gates the D129(B) narrator delivery: a MEASURED mid-history-system model ships a
+    // narrator canon row as a wire `system` row; unmeasured (every model today) ⇒ assistant-voiced, byte-
+    // identical. Read through the contract helper — never a second spelling of the capability field.
+    historySystemRows: acceptsHistorySystemRows(args.connection.capability),
     roleHandling: effectiveIntent.advanced?.roleHandling,
     roleHandlingFloor: args.connection.capability.turns?.roleHandlingFloor,
     squashSystemMessages: effectiveIntent.advanced?.squashSystemMessages,

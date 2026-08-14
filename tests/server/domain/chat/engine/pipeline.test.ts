@@ -254,7 +254,7 @@ describe("runTurnPipeline — request shaping + fit", () => {
         ...CONNECTION,
         capability: {
           ...CAPABILITY,
-          turns: { assistantPrefill: false, midConversationSystem: false, roleHandlingFloor: "none", explicitPromptCache: false },
+          turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "none", explicitPromptCache: false },
         },
       },
       assembleContext: ctxOf({
@@ -764,6 +764,7 @@ describe("runTurnPipeline — roleHandling is the PRESET knob, clamped at SHAPE"
       turns: {
         assistantPrefill: false,
         midConversationSystem: false,
+        historySystemRows: false,
         roleHandlingFloor: floor,
         explicitPromptCache: false,
       },
@@ -921,7 +922,7 @@ describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
         ...CONNECTION,
         capability: {
           ...CAPABILITY,
-          turns: { assistantPrefill: false, midConversationSystem: false, roleHandlingFloor: "none", explicitPromptCache: false },
+          turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "none", explicitPromptCache: false },
         },
       },
       assembleContext: ctxOf({
@@ -955,7 +956,7 @@ describe("runTurnPipeline — the wire name-stamp axis (F4)", () => {
         ...CONNECTION,
         capability: {
           ...CAPABILITY,
-          turns: { assistantPrefill: false, midConversationSystem: false, roleHandlingFloor: "none", explicitPromptCache: false },
+          turns: { assistantPrefill: false, midConversationSystem: false, historySystemRows: false, roleHandlingFloor: "none", explicitPromptCache: false },
         },
       },
       assembleContext: ctxOf({
