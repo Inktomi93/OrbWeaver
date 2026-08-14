@@ -201,7 +201,7 @@ export async function personaRows(db: Db, ownerId?: UserId): Promise<PersonaRow[
 export interface ChatConfigRow {
   id: ChatId;
   title: string | null;
-  star: boolean;
+  starred: boolean;
   archived: boolean;
   temporary: boolean;
   anchorPersonaId: string | null;
@@ -244,7 +244,7 @@ export async function chatConfigRow(db: Db, chatId: ChatId): Promise<ChatConfigR
   return {
     id: r.id,
     title: r.title,
-    star: r.star,
+    starred: r.starred,
     archived: r.archived,
     temporary: r.temporary,
     anchorPersonaId: r.anchorPersonaId,

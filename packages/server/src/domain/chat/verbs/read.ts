@@ -253,7 +253,7 @@ function toChatSummary({ row, stat, participants, participantCharacterIds, viewe
   return {
     id: row.id,
     title: row.title,
-    star: row.star,
+    starred: row.starred,
     archived: row.archived,
     parentChatId: row.parentChatId,
     lastMessageAt: stat.lastMessageAt,

@@ -31,9 +31,10 @@ export async function insertCharacter(db: Db, values: CharacterInsert): Promise<
 }
 
 /** Edit the live card row in place (owner-scoped). Returns `true` if a row was updated (i.e. owned/found).
- *  No `updatedAt` column exists (D28) — the caller recomputes `contentHash` and includes it in `edits`. A
- *  `handle` edit can trip the per-owner `(ownerId, handle)` unique index → the same typed
- *  `CharacterOperationError("handle_conflict")` `insertCharacter` raises (never a raw DB error surfacing). */
+ *  `updatedAt` is NOT stamped here — the caller includes it in `edits` from its own injected clock (the
+ *  X-16 precedent), same as `contentHash`. A `handle` edit can trip the per-owner `(ownerId, handle)`
+ *  unique index → the same typed `CharacterOperationError("handle_conflict")` `insertCharacter` raises
+ *  (never a raw DB error surfacing). */
 export async function writeCardInPlace(db: Db, characterId: CharacterId, ownerId: UserId, edits: CharacterEdits): Promise<boolean> {
   try {
     const updated = await db
@@ -67,14 +68,21 @@ export async function deleteOwnedCharacter(db: Db, characterId: CharacterId, own
   return deleted.length > 0;
 }
 
-/** Archive / un-archive many owned characters in one statement. Returns the ids actually flipped. */
-export async function setArchivedBulk(db: Db, ownerId: UserId, characterIds: readonly CharacterId[], archived: boolean): Promise<CharacterId[]> {
+/** Archive / un-archive many owned characters in one statement. Returns the ids actually flipped.
+ *  Stamps `updatedAt` (the X-16 edited-stamp precedent — a flag flip is still an edit the list re-sorts
+ *  on) from the caller's injected clock. */
+export async function setArchivedBulk(
+  db: Db,
+  ownerId: UserId,
+  characterIds: readonly CharacterId[],
+  patch: { readonly archived: boolean; readonly updatedAt: number },
+): Promise<CharacterId[]> {
   if (characterIds.length === 0) {
     return [];
   }
   const updated = await db
     .update(characters)
-    .set({ archived })
+    .set(patch)
     .where(and(eq(characters.ownerId, ownerId), inArray(characters.id, [...characterIds])))
     .returning({ id: characters.id });
   return updated.map((r) => r.id);

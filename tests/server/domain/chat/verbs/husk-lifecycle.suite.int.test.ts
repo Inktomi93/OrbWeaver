@@ -144,7 +144,7 @@ describe("claim — the one-way, idempotent stamp", () => {
     const later = FROZEN_AT + 5000;
     const life = lifecycle(makeChatContext(db));
 
-    await life.star({ principal: principal(host), chatId, star: true });
+    await life.star({ principal: principal(host), chatId, starred: true });
     expect(await startedAtOf(chatId)).toBe(FROZEN_AT);
 
     await lifecycle(makeChatContext(db, { now: () => later })).archive({ principal: principal(host), chatId, archived: true });
@@ -176,7 +176,7 @@ describe("claim — the one-way, idempotent stamp", () => {
       },
     });
 
-    await lifecycle(ctx).star({ principal: principal(host), chatId, star: true });
+    await lifecycle(ctx).star({ principal: principal(host), chatId, starred: true });
     expect(deltas).toStrictEqual([]);
   });
 });

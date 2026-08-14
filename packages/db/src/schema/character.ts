@@ -128,6 +128,12 @@ export const characters = sqliteTable(
     // CardRefinery pipeline signals (derived, not user-authored).
     refinery: text("refinery", { mode: "json" }).$type<RefinerySignals>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    // The EDITED stamp (the regex_scripts X-16 precedent — "any user-edited-in-place entity a list pane
+    // sorts/discriminates gets `updated_at`, maintained by write verbs"). Distinct from `modificationDate`
+    // (ST import provenance, a one-time authorship fact never rewritten) and from `contentHash`/`tokenSize`
+    // (content-shape denorms, not a clock): this is the write CLOCK, restamped by every update verb from the
+    // injected clock (never a DB trigger) so the library list can sort/show "edited Nm ago".
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
     // Per-owner handle namespace (neo `characters_owner_handle_unq`) — the `__group__${chatId}` synthetic-

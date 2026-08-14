@@ -168,7 +168,7 @@ function toChatInput(args: {
     messages: bundle.messages.map((m) => toMessageInput(m, cast, personaIdByName)),
     roster: cast.seats,
     ...(bundle.metadata === null ? {} : { metadata: bundle.metadata }),
-    star: bundle.star,
+    starred: bundle.starred,
     archived: bundle.archived,
     compactSummary: bundle.compactSummary,
     compactedAtSeq: bundle.compactedAtSeq,

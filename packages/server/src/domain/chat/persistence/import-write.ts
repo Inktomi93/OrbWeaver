@@ -366,7 +366,7 @@ function chatHeaderStmts({ ctx, chatId, ci, ownerId, characterId }: OneChatArgs)
         // DELIBERATELY ABSENT: `runtimeVariables` (DERIVED — re-folded from the carried per-variant deltas),
         // `temporary` (an ephemeral room its own TTL sweeper already decided to reap), and the pending-handoff
         // pair (it names a USER that does not exist on this box).
-        star: ci.star ?? false,
+        starred: ci.starred ?? false,
         archived: ci.archived ?? false,
         compactSummary: ci.compactSummary ?? null,
         compactedAtSeq: ci.compactedAtSeq ?? null,

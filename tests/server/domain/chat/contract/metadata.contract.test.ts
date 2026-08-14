@@ -203,7 +203,7 @@ describe("representative contract shapes", () => {
     const summary = {
       id: "chat_1" as ChatId,
       title: null,
-      star: false,
+      starred: false,
       archived: false,
       parentChatId: null,
       lastMessageAt: null,

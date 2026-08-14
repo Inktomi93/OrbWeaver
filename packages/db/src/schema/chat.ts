@@ -102,7 +102,9 @@ export const chats = sqliteTable(
     id: text("id").$type<ChatId>().primaryKey(),
     title: text("title"),
     // D18: NO `ownerId`. Membership (`chat_participants`) is the scope; the host is the authority.
-    star: integer("star", { mode: "boolean" }).notNull().default(false),
+    // D66: renamed from `star` — matches `characters.starred`/`personas.starred` (the report-cards
+    // punch list item 6 rename; the RPC verb NAME `chat.star` is unchanged, only the data field).
+    starred: integer("starred", { mode: "boolean" }).notNull().default(false),
     archived: integer("archived", { mode: "boolean" }).notNull().default(false),
     // ST "Temporary Chat" (PD-65): an ephemeral room — persisted so turns can run, but HIDDEN from the
     // recent list (`listMemberChats` excludes it) and swept by `reapTemporaryChats` once expired. Set only

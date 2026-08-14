@@ -49,7 +49,7 @@ function chat(fields: { id: string; title: string; seats: readonly string[]; las
   return {
     id: fields.id,
     title: fields.title,
-    star: false,
+    starred: false,
     archived: false,
     parentChatId: null,
     lastMessageAt: fields.lastMessageAt,
