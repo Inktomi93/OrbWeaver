@@ -55,8 +55,13 @@ const DELAY_MS_STEP = 250;
 export interface GroupConfigFormProps {
   readonly entityId: string;
   readonly config: GroupConfig;
-  /** Gets the whole rebuilt GroupConfig, never a field patch. Absent ⇒ read-only. */
-  readonly save?: ((config: GroupConfig) => Promise<unknown>) | undefined;
+  /**
+   * Gets the whole rebuilt GroupConfig, never a field patch. REQUIRED (client-forms-01): this editor used
+   * to declare "absent ⇒ read-only", but no caller ever mounted it that way and the boundary had no way to
+   * honor it — an omitted seam silently discarded edits under a "Saved" status. A genuine read-only Group
+   * tab would mount the boundary's declared `readOnly` arm, not an absent save.
+   */
+  readonly save: (config: GroupConfig) => Promise<unknown>;
 }
 
 // The session-boundary autosave form (D78 L3). Built at MODULE scope (stable component identity, §13.1) —
@@ -80,11 +85,10 @@ const GroupConfigFormBoundary = createAutosaveEntityForm<GroupConfigFormValues>(
  * (the committed Group tab and the draft arm in `draft-context-tabs.tsx`) are protected.
  */
 export function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): ReactElement {
-  const factorySave = save === undefined ? undefined : (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));
+  const factorySave = (values: GroupConfigFormValues): Promise<unknown> => save(fromGroupConfigForm(values));
 
   return (
-    // `save` spread, not passed as `undefined` — exactOptionalPropertyTypes; absent ⇒ the boundary is read-only.
-    <GroupConfigFormBoundary entityId={entityId} serverValues={toGroupConfigForm(config)} {...(factorySave === undefined ? {} : { save: factorySave })}>
+    <GroupConfigFormBoundary entityId={entityId} serverValues={toGroupConfigForm(config)} save={factorySave}>
       {({ form }): ReactElement => (
         <Stack gap="section" data-slot="group-config-form">
           <form.AppField name="output">

@@ -11,7 +11,7 @@
   "scripts/check/gates/member-card-clamped.ts": 1,
   "scripts/check/gates/modal-registry-completeness.ts": 2,
   "scripts/check/gates/monotonic-tests.ts": 1,
-  "scripts/check/gates/no-form-reset-in-autosave.ts": 3,
+  "scripts/check/gates/no-form-reset-in-autosave.ts": 2,
   "scripts/check/gates/no-parallel-section-map.ts": 5,
   "scripts/check/gates/persist-partialize-and-total-migrate.ts": 2,
   "scripts/check/gates/scrubber-home.ts": 1,

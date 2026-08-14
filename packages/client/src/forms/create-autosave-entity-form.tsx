@@ -7,6 +7,10 @@
 // call-site array flush; `no-form-reset-in-autosave` / `no-direct-useform` / `form-factory-for-multifield`
 // hold the rest. `noComponentHookFactories` is off for this file via a biome.json override (see the bottom).
 //
+// EXACTLY ONE PERSISTENCE SEAM is a COMPILE fact, not prose (Codex audit client-forms-01): the factory is
+// overloaded so a config WITHOUT `save` returns a boundary whose `save` prop is REQUIRED. A seamless mount
+// used to report "Saved" over an edit it had thrown away — see the factory TSDoc + the onSubmit refusal.
+//
 // WHY a boundary component and not a hook (D78 §0–§2): the old factory delegated entity IDENTITY to an
 // invisible consumer convention ("put a React `key` above the component that calls the hook"). When a lane
 // composed the key wrong, it rendered the previous entity under the new one and one keystroke persisted A
@@ -25,21 +29,22 @@
 import { revalidateLogic } from "@tanstack/react-form";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
-import type { EntityDraftStore, SAVE_LIFECYCLE_STATES } from "#state";
+// The TYPE home (the seam law + the session surface) is the `-model.ts` sibling — this JSX module carries
+// the factory and its closure components (`component-size`; the capped-field-model precedent).
+import type {
+  AutosaveBoundaryImplProps,
+  AutosaveBoundaryProps,
+  AutosaveBoundaryPropsSeamRequired,
+  AutosaveEntityBoundaryConfig,
+  AutosaveEntityBoundaryConfigWithoutSave,
+  AutosaveEntityBoundaryConfigWithSave,
+  AutosaveForm,
+  AutosaveSaveState,
+  AutosaveSession,
+} from "./create-autosave-entity-form-model.ts";
 import { DEFAULT_DEBOUNCE_MS, focusFirstInvalidField, formValuesEqual, hashServerBaseline, mirrorDraft, readDraftSeed } from "./entity-form-base.ts";
 import { createSaveCircuitBreaker, DEFAULT_SAVE_BREAKER } from "./save-circuit-breaker.ts";
-import type { AppFormInstance, AppFormOptions } from "./use-app-form.ts";
 import { useAppForm } from "./use-app-form.ts";
-
-/** The autosave lifecycle the shared `AutosaveStatus` affordance renders (north-star §7 / D66 A4).
- *  DERIVED from the state-tier tuple (`SAVE_LIFECYCLE_STATES`) — the settings save-status store carries the
- *  same lifecycle and lives BELOW forms, so the tuple homes there and this alias derives rather than
- *  re-spells it (`no-inline-union-redecl`). */
-export type AutosaveSaveState = (typeof SAVE_LIFECYCLE_STATES)[number];
-
-/** The AppForm surface the session hands its body, `reset` type-removed (calling it re-baselines defaults,
- *  which on a live autosave draft is the isDirty loop `no-form-reset-in-autosave` also bans). */
-type AutosaveForm<TValues extends object> = Omit<AppFormInstance<TValues>, "reset">;
 
 /** Structural inequality of live values vs the last-saved baseline (§3) — the ONE unsaved-edit predicate the
  *  save driver, the clean-echo reseed, and the teardown flush share. NEVER `isDefaultValue` (permanently-true
@@ -56,67 +61,39 @@ function takeDiscard(discardRef: RefObject<boolean>): boolean {
   return discard;
 }
 
-/** The per-render surface a boundary hands its render-prop body. One session = one entity epoch. */
-export interface AutosaveSession<TValues extends object> {
-  /** The widened AppForm surface (same as the old factory's), minus `reset` at the type level. */
-  readonly form: AutosaveForm<TValues>;
-  /** The live save lifecycle for `AutosaveStatus`, per SESSION (resets on entity switch / reseed). Folds the
-   *  driver's own lifecycle together with form VALIDITY: an invalid form reads `blocked`, because the driver
-   *  is holding that write and a status line saying "Saved" over it is simply false. */
-  readonly saveState: AutosaveSaveState;
-  /** Explicit user retry (the AutosaveStatus affordance) — submits the current values unconditionally. */
-  readonly retrySave: () => void;
-  /**
-   * The ONE reset path (§5): tear the session down WITHOUT the teardown flush and remount seeded from
-   * `next` (a mutation-response row or a contract default — NEVER a post-invalidation cache read, which
-   * races the refetch). Discard-flagged so the pre-reseed edit is dropped, not written back.
-   */
-  readonly reseed: (next: TValues) => void;
-}
-
-export interface AutosaveEntityBoundaryConfig<TValues extends object> {
-  readonly defaultValues: TValues;
-  /**
-   * Persist the values (fire-and-forget from the save driver). Optional because a module-scope factory
-   * can't reach the runtime tRPC client; a surface needing it supplies `save` per-instance via
-   * `AutosaveBoundaryProps.save` (which wins). Supply save at exactly one of the two seams.
-   */
-  readonly save?: (values: TValues) => Promise<unknown>;
-  /** The crash-survival mirror. Omit only for genuinely ephemeral panels. */
-  readonly draft?: EntityDraftStore<TValues>;
-  /** @defaultValue 500 */
-  readonly debounceMs?: number;
-  readonly options?: Partial<Omit<AppFormOptions<TValues>, "defaultValues" | "onSubmit">>;
-}
-
-export interface AutosaveBoundaryProps<TValues extends object> {
-  /** The entity under edit — keys the Session; a change is a full teardown/remount seeded from server. */
-  readonly entityId: string;
-  /** The server row (undefined while loading). A structural change while clean re-baselines (§5). */
-  readonly serverValues: TValues | undefined;
-  /**
-   * Per-instance persist fn closing over the live tRPC client the surface holds. Wins over `config.save`.
-   */
-  readonly save?: (values: TValues) => Promise<unknown>;
-  /** The body — a render prop given the live session (form + saveState + retrySave + reseed). */
-  readonly children: (session: AutosaveSession<TValues>) => ReactNode;
-}
-
 /**
  * The autosave session-boundary factory (D78). Returns a COMPONENT, not a hook: a consumer mounts an
  * autosave form ONLY as `<XForm entityId serverValues save>{(session) => …}</XForm>`, and the factory —
  * not the consumer — owns the entity key. The internal Session is a closure component (never exported), so
  * wrong key placement is unspellable.
+ *
+ * EXACTLY ONE PERSISTENCE SEAM, ENFORCED AT COMPILE TIME (Codex audit `client-forms-01`, 2026-08-13).
+ * Both seams used to be optional and the driver ran `await save?.(value)` — a boundary mounted with
+ * NEITHER re-baselined, cleared the crash-survival draft, and reported "Saved" over an edit that had gone
+ * nowhere. Autosave that can lie is worse than no autosave. A mint-time throw cannot decide this (all 25
+ * live consumers legitimately mint WITHOUT `config.save` and supply the seam per-instance, because the
+ * tRPC client is a runtime value), so the enforcement is one rung higher than a throw: these overloads
+ * make the seam declaration REQUIRED exactly when the config omitted it — `save`, or the explicit
+ * `readOnly` arm for the display-only member views. `tsc` is the enforcer; the onSubmit refusal below is
+ * the runtime backstop for a caller that erases the type.
  */
 export function createAutosaveEntityForm<TValues extends object>(
+  config: AutosaveEntityBoundaryConfigWithSave<TValues>,
+): (props: AutosaveBoundaryProps<TValues>) => ReactElement;
+export function createAutosaveEntityForm<TValues extends object>(
+  config: AutosaveEntityBoundaryConfigWithoutSave<TValues>,
+): (props: AutosaveBoundaryPropsSeamRequired<TValues>) => ReactElement;
+export function createAutosaveEntityForm<TValues extends object>(
   config: AutosaveEntityBoundaryConfig<TValues>,
-): (props: AutosaveBoundaryProps<TValues>) => ReactElement {
+): (props: AutosaveBoundaryImplProps<TValues>) => ReactElement {
   const debounceMs = config.debounceMs ?? DEFAULT_DEBOUNCE_MS;
 
   interface SessionProps {
     readonly entityId: string;
     readonly serverValues: TValues | undefined;
     readonly save: ((values: TValues) => Promise<unknown>) | undefined;
+    /** The declared read-only arm (props.readOnly) — the save driver never arms and nothing mirrors. */
+    readonly readOnly: boolean;
     /** The reseed payload for this epoch (undefined = seed from defaults ⊕ server ⊕ draft). */
     readonly pendingSeed: TValues | undefined;
     /**
@@ -136,7 +113,7 @@ export function createAutosaveEntityForm<TValues extends object>(
    * (entity switch or reseed), so every ref here is genuinely fresh per entity (the cross-entity
    * stale-`error` bleed of the old hook-resident state is gone — §4).
    */
-  function Session({ entityId, serverValues, save, pendingSeed, discardRef, reseed, children }: SessionProps): ReactElement {
+  function Session({ entityId, serverValues, save, readOnly, pendingSeed, discardRef, reseed, children }: SessionProps): ReactElement {
     // The identity of the server snapshot this epoch mounts over — the baseline a surviving draft must
     // have been begun on to still outrank it (retro-workboard #11). Computed at mount and held stable for
     // the epoch (a structural change to `serverValues` remounts via the boundary key or re-baselines the
@@ -182,7 +159,17 @@ export function createAutosaveEntityForm<TValues extends object>(
       onSubmit: async ({ value }: { value: TValues }) => {
         setSaveState("saving");
         try {
-          await save?.(value);
+          if (save === undefined) {
+            // THE RUNTIME BACKSTOP for the compile-time law on the factory (client-forms-01). Reaching
+            // here means the props type was erased (a cast, a JS caller). REFUSE before the sequence
+            // below: `await save?.(value)` resolved on `undefined`, so the edit was re-baselined away,
+            // its crash-survival draft cleared, and the status set to "saved" — the UI reported success
+            // for a write that never happened. Throwing routes into the catch: no re-baseline, no
+            // clearDraft (the draft SURVIVES for retry), status `error`, retry affordance lit. Same
+            // shape as the button-gated sibling's refusal (create-saved-entity-form.ts onSubmit).
+            throw new Error(`createAutosaveEntityForm: no save function supplied for entity "${entityId}" (neither config.save nor a call-time save)`);
+          }
+          await save(value);
           // Re-baseline to the just-saved snapshot AFTER save resolves (§4) — all guards now read clean.
           lastSavedRef.current = value;
           config.draft?.clearDraft(entityId);
@@ -217,6 +204,12 @@ export function createAutosaveEntityForm<TValues extends object>(
     // onFieldUnmount is gone: its job (don't lose a pending edit on field unmount) was always covered by
     // the form-level debounce — the FormApi + its timer outlive any field — and its real effect was F2.
     useEffect(() => {
+      if (readOnly) {
+        // The DECLARED read-only arm (client-forms-01): no driver, no debounce, and no draft mirror — a
+        // display-only mount must not write anywhere, and a crash draft it can never save is only a
+        // future stale-draft heal. The status fold below keeps it from ever reading "Saved" over an edit.
+        return;
+      }
       // The oscillation backstop (§11 / retro-workboard #11): a store-values change that came from a
       // REAL field edit clears the breaker's edit-free run; a submit that fires with no intervening edit
       // (a save→echo→re-submit loop) counts toward the trip. `values !== prevValues` is exactly "a values
@@ -272,7 +265,7 @@ export function createAutosaveEntityForm<TValues extends object>(
       return (): void => subscription.unsubscribe();
       // `hasUnsavedEdits` is a plain function over `form` + a ref (D54 — no manual memo), so `form` already
       // IS its dependency; naming the callback identity would only re-arm on every render.
-    }, [form, entityId, baselineHash]);
+    }, [form, entityId, baselineHash, readOnly]);
 
     // Clean server-echo reseed (§5, two-device freshness): when `serverValues` changes STRUCTURALLY
     // (deep-compare vs the last-seen snapshot — identity is the mapper-fresh-object trap) and the form is
@@ -358,13 +351,19 @@ export function createAutosaveEntityForm<TValues extends object>(
     // (a feature's own `form.Subscribe`) infer fine; this is a factory-generic-only wrinkle. Subscribing to
     // `isValid` ALONE and not to the whole state is deliberate: the body here is the consumer's entire
     // editor, and a whole-state subscription would re-render it on every keystroke.
+    //
+    // The READ-ONLY arm folds in at the same seam and for the same reason: a declared-read-only mount has
+    // no driver at all, so a form that is somehow dirty (a field that forgot its `disabled`) is a write
+    // that will never be made — `blocked`, never "Saved" (client-forms-01). `isDirty` is the right
+    // predicate here: it is exactly "this form has been edited", and in the read-only arm no save can
+    // ever clear it.
     const FormSubscribe = form.Subscribe;
     return (
-      <FormSubscribe<boolean> selector={(state): boolean => state.isValid}>
-        {(isValid: boolean): ReactNode =>
+      <FormSubscribe<boolean> selector={(state): boolean => state.isValid && !(readOnly && state.isDirty)}>
+        {(writable: boolean): ReactNode =>
           children({
             form: form as AutosaveForm<TValues>,
-            saveState: saveState === "error" || isValid ? saveState : "blocked",
+            saveState: saveState === "error" || writable ? saveState : "blocked",
             retrySave,
             reseed,
           })
@@ -377,8 +376,10 @@ export function createAutosaveEntityForm<TValues extends object>(
   // pattern — this factory runs at MODULE scope, `const PresetForm = createAutosaveEntityForm(...)`, so
   // both Session and AutosaveBoundary have stable identities; a per-render factory call is what the rule
   // fears and cannot happen here — mirrors create-registry-context.tsx / create-drill-selection-store.ts).
-  return function AutosaveBoundary({ entityId, serverValues, save: callTimeSave, children }: AutosaveBoundaryProps<TValues>): ReactElement {
-    const save = callTimeSave ?? config.save;
+  return function AutosaveBoundary({ entityId, serverValues, save: callTimeSave, readOnly, children }: AutosaveBoundaryImplProps<TValues>): ReactElement {
+    // A DECLARED read-only mount never persists, even if the mint config carried a seam — the arm the
+    // surface declared at the mount site is the stronger statement about this instance.
+    const save = readOnly === true ? undefined : (callTimeSave ?? config.save);
     // The epoch + the reseed payload are ONE state cell so a reseed bumps the key AND stages the winning
     // seed atomically — read at render (state, not a ref), consumed once by the remounted Session's seed
     // initializer. The discard flag telling the OUTGOING session's teardown to skip its flush is a ref
@@ -399,6 +400,7 @@ export function createAutosaveEntityForm<TValues extends object>(
         entityId={entityId}
         serverValues={serverValues}
         save={save}
+        readOnly={readOnly === true}
         pendingSeed={reseedState.seed}
         discardRef={discardRef}
         reseed={reseed}

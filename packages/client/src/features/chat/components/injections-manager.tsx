@@ -105,8 +105,10 @@ function InjectionRow({ row, isHost, onSave, onDelete }: InjectionRowProps): Rea
   const save = isHost ? (values: InjectionFormValues): Promise<unknown> => onSave(row.key, values) : undefined;
 
   return (
-    // `save` spread, not passed as `undefined` — exactOptionalPropertyTypes; a non-host row is read-only.
-    <InjectionRowBoundary entityId={row.key} serverValues={toInjectionForm(row.value)} {...(save === undefined ? {} : { save })}>
+    // The seam is DECLARED, never omitted (client-forms-01): a host row persists, a member row says
+    // `readOnly` — which is what makes the boundary itself refuse to autosave, instead of relying on
+    // every field below remembering `disabled={!isHost}`.
+    <InjectionRowBoundary entityId={row.key} serverValues={toInjectionForm(row.value)} {...(save === undefined ? ({ readOnly: true } as const) : { save })}>
       {({ form }): ReactElement => (
         <Section>
           <Stack gap="block">
