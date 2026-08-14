@@ -417,12 +417,12 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   every resolved target mechanically audit-verified substring-safe; `node_modules=/real/path`
   laundering now ASKS — a tighten the arm added), 20 int tests, two planted controls. Owner
   over-matches confirmed untouched (14 of 26 new asks are the `rm -f "$probe"` class = the ruling
-  working). **GUARD LEG-5 LANDED (`351a5af2d`, merging w/ its K follow-on):** quoted-flags + `/bin/rm`
+  working). **GUARD LEG-5 MERGED (`351a5af2d` + `f3e487ed5`, H/I/J/K all CLOSED):** quoted-flags + `/bin/rm`
   prefix + escaped-quote paren-walk all closed (123,462-cmd A/B, 1 mover, stricter; 26 new rows,
   11 red on base; one PINNED directional reclassification — a quoted r/f FLAG stops counting as a
-  TARGET, receipted, 0 corpus). **Item K ruled-in by orchestrator (0-mover tighten):**
-  uppercase/long rm flags join the vocabulary (warm leg, second commit). REMAINING owner-worded:
-  item G comment-span only.
+  TARGET, receipted, 0 corpus). Item K DONE (uppercase `-R`/long `--recursive`/`--force` join the vocab, 0-mover, warm leg).
+  DECLARED LIMIT (lane, 1-char if wanted): short `-d` doesn't engage (no r/f; unlinks empty dir
+  only). REMAINING owner-worded: item G comment-span + the A-F loosening pile.
 - [ ] **GUARD OWNER-CALL PILE (surfaced by the first leg, each would LOOSEN a control — rule when
   convenient):** (A) 6 corpus cmds `$(sqlite3 "file:…backup-*?mode=ro" …)` now ask — a ro/backup
   safe-hint is a loosening · (B) 4 cmds `"$(curl localhost | node -e …)"` now deny via the
@@ -1331,6 +1331,17 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   touching it risks the follow-intent detector)" as a lead. Owner drive CONFIRMS it. It is now a row.
 - [ ] **Regex scripts do not import** with the ST user-data import. Folds into the deferred import lane
   (#28) with databank/user-settings/backgrounds/themes.
+- [ ] **ROLE→CONNECTION SWITCHING IS CLUNKY (owner dogfood 08-14 evening, verbatim: "that shit
+  needs to get fixed or boarded that is clunky as fuck"):** reaching a different backend for a role
+  (chat / structured / summarize / etc.) requires a GLOBAL settings flip of that role's connection —
+  there is NO per-room or per-session connection override (presets deliberately carry generation
+  config only, never the connection; D132/C5). Surfaced by two probe lanes both blocked on the same
+  wall (M4 reasoning needed OR chat-completions; refinery arm 8 needed OR structured — the
+  structured role resolves to local vLLM, chat to the agent-sdk sub, and neither is reachable
+  without the global flip). Two candidate shapes for a design pass: a fast role-connection SWITCHER
+  in the UI (the flip is buried), or a genuine per-room/per-session connection OVERRIDE lane
+  (bigger — crosses the preset-owns-generation-only boundary, needs an owner ruling on where a
+  connection override HOMES). Design-then-build; stickler-class if the override arm is taken.
 - [ ] **vLLM is forced into strict mode at all times.** Receipt: `strictByDefault(format: ResponseFormat)`
   in `packages/server/src/infra/providers/vllm/surfaces/chat.ts`. Decide whether strict is a floor, a
   default, or a knob — it interacts with the #36 structured-output vehicle work.
