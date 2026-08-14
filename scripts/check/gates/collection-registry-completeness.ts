@@ -231,13 +231,24 @@ function doorRegistered(sf: SourceFile): Set<string> {
 
 /** The ORPHAN arm: a co-located, exported collection the door never registers. It runs only against the
  *  REAL door (a synthetic mini-project has no main.tsx, and a `scope.kind` guard would fire inside the
- *  gate's own conformance run — GATE-AUTHORING §4 rule 5). */
+ *  gate's own conformance run — GATE-AUTHORING §4 rule 5).
+ *
+ *  THE DOOR IS A SET, NOT A FILE (#43): the boot code-split moved the assemblies into `compose/`, which
+ *  DOOR_RE has always sanctioned — so the registered-name derivation must read every door module, not just
+ *  `main.tsx`. Reading one file would have come back EMPTY and flagged every live collection as an orphan
+ *  (loud, not silent — but wrong). `main.tsx`'s presence stays the real-project sentinel. */
 function checkOrphans(ctx: GateRunCtx, defSites: ReadonlyMap<string, DefSite>, out: Violation[]): void {
-  const door = ctx.project.getSourceFile(`${ctx.root}/${DOOR_REL}`);
-  if (!fileLoaded(ctx, DOOR_REL) || door === undefined) {
+  if (!fileLoaded(ctx, DOOR_REL) || ctx.project.getSourceFile(`${ctx.root}/${DOOR_REL}`) === undefined) {
     return;
   }
-  const registered = doorRegistered(door);
+  const registered = new Set<string>();
+  for (const sf of ctx.project.getSourceFiles()) {
+    if (DOOR_RE.test(sf.getFilePath())) {
+      for (const name of doorRegistered(sf)) {
+        registered.add(name);
+      }
+    }
+  }
   for (const [name, site] of defSites) {
     if (!registered.has(name)) {
       out.push({
@@ -360,6 +371,11 @@ export const gate: GateDescriptor = {
       files: "export const collections = createContributorRegistry('config-collections', [tagCollection]);\n",
       at: "packages/client/src/main.tsx",
       why: "the ONE assembly, at the composition root — passes",
+    },
+    {
+      files: "export const collections = createContributorRegistry('config-collections', [tagCollection]);\n",
+      at: "packages/client/src/compose/authed-app.tsx",
+      why: "the door's OTHER half — the assembly lives in compose/ since the #43 code-split, and DOOR_RE has always sanctioned it; passes",
     },
     {
       files:
