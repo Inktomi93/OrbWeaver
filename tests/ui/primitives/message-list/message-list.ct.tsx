@@ -2,6 +2,8 @@
 // §6.1/§9, un-parked). Asserts virtualization + bottom-anchor + stick-to-bottom (+ the no-yank flip
 // side, + reduced-motion), matching virtual-list.ct.tsx's tripwire test for the shared discipline.
 import { expect, test } from "@playwright/experimental-ct-react";
+import type { Locator, Page } from "@playwright/test";
+import type { ReactElement } from "react";
 import {
   AppendableList,
   CachedMeasurementsList,
@@ -11,6 +13,7 @@ import {
   PinPromptList,
   PrependableList,
   RangeExtractorMessageList,
+  StreamingTailList,
   TailGrowthList,
   UnboundedMessageList,
 } from "./message-list.fixtures.tsx";
@@ -424,4 +427,113 @@ test("useCachedMeasurements discards a real resize while true, and resumes measu
   await component.getByTestId("toggle-frozen").click();
   await component.getByTestId("bump-row0").click();
   await expect.poll(viewportHeight, { intervals: [20, 50, 100] }).toBeGreaterThan(grownHeight);
+});
+
+// ── FOLLOW-MODE YIELDS TO THE READER (owner dogfood 2026-08-13) ───────────────────────────────────
+//
+// "Follow-mode is jumpy when you manually scroll up to read the top mid-generation." Root-caused on a
+// LIVE streaming turn (2026-08-14, :5173, with `scrollTo`/`scrollTop` patched to capture stacks): the
+// yanker is NOT this seal's ResizeObserver — it is virtual-core's own end-anchor reconciliation,
+// reaching the DOM through our `scrollToFn`:
+//
+//   Object.scrollToFn (packages/ui/src/primitives/message-list/message-list.tsx)
+//     | Virtualizer._scrollToOffset | Virtualizer.reconcileScroll
+//
+// A 500px up-scroll was dragged back by FOUR such writes inside 385ms. Worse, each one records
+// `programmaticTopRef`, so the scroll event it produces MATCHES `expected` and the follow-intent
+// detector early-returns — the reader's move is never seen at all. The fix is a YIELD keyed on real
+// user INPUT (wheel/touch/keys/pointer), not on intent: while the reader's hand is on the axis every
+// programmatic write is dropped. Intent detection itself is byte-unchanged.
+const STREAM_TAIL_ROWS = 60;
+/** A real streaming reply is thousands of px tall — see `StreamingTailListProps.tailStartPx` for why a
+ *  SHORT tail makes this whole block green-by-absence. */
+const STREAM_TAIL_START_PX = 1600;
+/** The fixture re-publishes the container's real scrollTop every frame, so a CT can watch the fight. */
+const readScrollTop = async (host: Locator): Promise<number> => Number(await host.getByTestId("scroll-top").innerText());
+
+const streamingTail = (): ReactElement => (
+  <StreamingTailList initialCount={STREAM_TAIL_ROWS} listHeightPx={LIST_HEIGHT_PX} rowHeightPx={ROW_HEIGHT_PX} tailStartPx={STREAM_TAIL_START_PX} />
+);
+
+/** Park the mouse over the scroll container so `page.mouse.wheel` lands on it. */
+async function hoverScroller(host: Locator, page: Page): Promise<void> {
+  const box = await host.locator('[data-slot="message-list-scroll"]').boundingBox();
+  if (box === null) {
+    throw new Error("message-list CT: no box for the streaming scroll container");
+  }
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+}
+
+/**
+ * The highest scrollTop seen over a fixed sampling trace. THE ASSERTION THAT MATTERS IS STABILITY, not
+ * "below where I started": an earlier draft asserted only `max < beforeTheWheel` and passed on the OLD
+ * source while the reader was being dragged 12px every 100ms — 1.5s of that is still below a 400px
+ * wheel. "Nothing moved me while the stream ran" has no state to wait FOR; the trace IS the assertion.
+ */
+async function highestScrollTopSeen(host: Locator, page: Page): Promise<number> {
+  let highest = Number.NEGATIVE_INFINITY;
+  // biome-ignore-start lint/performance/noAwaitInLoops: a settle trace is inherently sequential.
+  for (let i = 0; i < SETTLE_SAMPLES; i += 1) {
+    // biome-ignore lint/nursery/noPlaywrightWaitForTimeout: the sampling interval of a stability trace — there is no state to wait FOR, the absence of movement is the assertion.
+    await page.waitForTimeout(SETTLE_SAMPLE_MS);
+    highest = Math.max(highest, await readScrollTop(host));
+  }
+  // biome-ignore-end lint/performance/noAwaitInLoops: end of the settle trace.
+  return highest;
+}
+
+const SETTLE_SAMPLE_MS = 75;
+/** 20 × 75ms = 1.5s — well past the measured yank window (four writes inside 385ms). */
+const SETTLE_SAMPLES = 20;
+/** Sub-pixel slack: a fractional scrollTop rounding one px is not a yank. */
+const PARKED_SLACK_PX = 2;
+
+test("an up-scroll during streaming is NOT dragged back by the tail march", async ({ mount, page }) => {
+  const component = await mount(streamingTail());
+  const atMount = await readScrollTop(component);
+  await component.getByTestId("start-stream").click();
+  // The premise, asserted not assumed: the march is genuinely running before the wheel (the tail keeps
+  // growing and the viewport keeps following it down).
+  await expect.poll(async (): Promise<number> => readScrollTop(component)).toBeGreaterThan(atMount);
+
+  await hoverScroller(component, page);
+  const before = await readScrollTop(component);
+  await page.mouse.wheel(0, -400);
+  await expect.poll(async (): Promise<number> => readScrollTop(component)).toBeLessThan(before);
+  const parked = await readScrollTop(component);
+
+  expect(await highestScrollTopSeen(component, page)).toBeLessThanOrEqual(parked + PARKED_SLACK_PX);
+});
+
+// A FENCE, not a defect proof: this one passes on the pre-fix source too (the yank re-pinned the reader
+// anyway). It is here because the fix's whole risk is over-yielding — a march that never comes back is
+// the regression this catches.
+test("following RESUMES once the reader returns to the tail", async ({ mount, page }) => {
+  const component = await mount(streamingTail());
+  await component.getByTestId("start-stream").click();
+  await hoverScroller(component, page);
+  const before = await readScrollTop(component);
+  await page.mouse.wheel(0, -400);
+  await expect.poll(async (): Promise<number> => readScrollTop(component)).toBeLessThan(before);
+  const away = await readScrollTop(component);
+
+  // Back to the tail by hand: the geometry-based intent detector re-arms and the march takes over
+  // again — the list keeps climbing on its own, past anything the wheel could have produced.
+  await page.mouse.wheel(0, 4000);
+  await expect.poll(async (): Promise<number> => readScrollTop(component), { intervals: [100, 200, 300, 500], timeout: 8000 }).toBeGreaterThan(away);
+  const resumed = await readScrollTop(component);
+  await expect.poll(async (): Promise<number> => readScrollTop(component), { intervals: [100, 200, 300, 500], timeout: 8000 }).toBeGreaterThan(resumed);
+});
+
+test("the yield holds under prefers-reduced-motion", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const component = await mount(streamingTail());
+  await component.getByTestId("start-stream").click();
+  await hoverScroller(component, page);
+  const before = await readScrollTop(component);
+  await page.mouse.wheel(0, -400);
+  await expect.poll(async (): Promise<number> => readScrollTop(component)).toBeLessThan(before);
+  const parked = await readScrollTop(component);
+
+  expect(await highestScrollTopSeen(component, page)).toBeLessThanOrEqual(parked + PARKED_SLACK_PX);
 });

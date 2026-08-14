@@ -9,9 +9,16 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
-import { readClippedNavLabels, readSettingsShellColumns } from "../../../../support/ct/settings-geometry.ts";
+import { readClippedNavLabels, readEscapedAbsolutes, readSettingsShellColumns } from "../../../../support/ct/settings-geometry.ts";
 import { makeResolvedChatCapability } from "../../../../support/factories/resolved-connection.ts";
-import { SettingsModalStory, SettingsShellDeepLinkStory, SettingsShellFitsStory, SettingsShellNarrowStory, SettingsShellStory } from "../_ct-stories.tsx";
+import {
+  SettingsModalStory,
+  SettingsShellDeepLinkStory,
+  SettingsShellFitsStory,
+  SettingsShellInScrollingHostStory,
+  SettingsShellNarrowStory,
+  SettingsShellStory,
+} from "../_ct-stories.tsx";
 
 /** The getUserSettings read-model the Appearance pane suspends on — defaults are enough to render it. */
 const USER_SETTINGS_VIEW = {
@@ -371,6 +378,44 @@ test("both settings columns fill the row height (own their scroll axis; nav can'
   expect(Math.abs(heights.paneColumn - heights.row)).toBeLessThan(2);
   // The scroller never EXCEEDS its column (it caps at the space the footer leaves).
   expect(heights.content).toBeLessThanOrEqual(heights.paneColumn);
+});
+
+// OWNER DOGFOOD 2026-08-13, "the settings screen scrolls past the end of its results — blank space below
+// the last row for no reason". Root cause (measured live on :5173, 2026-08-14): Base UI form primitives put
+// `sr-only` boxes at `position:absolute` (NumberField's `[data-slot=number-field-bounds]`, Switch's hidden
+// `<input>`) — 35 of them in the Appearance pane. Neither column of the shell established a CONTAINING
+// BLOCK, so those boxes resolved theirs all the way up to the modal popup: `overflow-y:auto` on the pane
+// only clips descendants whose containing block is inside it, so their static positions (deep in a 2804px
+// pane) were added to the POPUP's scrollable area instead. Live receipt: popup clientHeight 1014 /
+// scrollHeight **2900** → the whole modal scrolled 1886px into an empty card. Toggling `position:relative`
+// on the pane region in the live page collapsed popup scrollHeight 2900 → 1014 on the spot.
+//
+// Two pins, because they fail for different reasons: the MECHANISM (nothing escapes either scroller) and
+// the SYMPTOM (a positioned scrolling host around the shell gains no phantom scroll). The symptom pin needs
+// its own story: in the CT harness `[data-slot=dialog-popup]` computes `position: static`, so the escapees
+// land on the fixed viewport and the modal story cannot see the defect at all.
+test("no absolutely-positioned box escapes either settings scroller (the containing-block pin)", async ({ mount, page }) => {
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  const component = await mount(<SettingsShellStory />);
+  await component.getByRole("heading", { name: "Message style" }).waitFor();
+
+  expect(await readEscapedAbsolutes(page, '[role="region"][aria-label="Appearance settings"]')).toEqual([]);
+  expect(await readEscapedAbsolutes(page, '[role="navigation"][aria-label="Settings sections"]')).toEqual([]);
+});
+
+test("a positioned scrolling host around the shell gains NO phantom scroll (the owner's blank space)", async ({ mount, page }) => {
+  await routeTrpc(page, { "settings.getUserSettings": () => USER_SETTINGS_VIEW });
+  const component = await mount(<SettingsShellInScrollingHostStory />);
+  await component.getByRole("heading", { name: "Message style" }).waitFor();
+
+  const host = await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>('[data-testid="scrolling-host"]');
+    return el === null ? null : { clientHeight: el.clientHeight, scrollHeight: el.scrollHeight };
+  });
+  expect(host).not.toBeNull();
+  // The pane owns its scroll axis; the host around it must have nothing to scroll. Pre-fix this measured
+  // scrollHeight ≫ clientHeight with no content down there — the blank card the owner scrolled into.
+  expect((host?.scrollHeight ?? 0) - (host?.clientHeight ?? 0)).toBeLessThanOrEqual(1);
 });
 
 // Scroll-spy (owner ruling): scrolling the pane updates which subcategory row is aria-current, and a
