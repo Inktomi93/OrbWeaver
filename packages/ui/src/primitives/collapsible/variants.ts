@@ -16,4 +16,17 @@ export const collapsibleVariants = tv({
     panel:
       "h-(--collapsible-panel-height) overflow-hidden text-body leading-body text-muted-foreground transition-all duration-(--motion-layout) ease-out-expo data-starting-style:h-0 data-ending-style:h-0",
   },
+  variants: {
+    // `instant` snaps the panel to its target height with no perceptible fold. The duration mirrors the
+    // reduced-motion floor (`globals.css` — 0.01ms, NOT 0s: a >0 duration keeps a `transitionend` firing so
+    // Base UI still unmounts the closed panel; a 0s transition emits no event). The reasoning disclosure's
+    // AUTO-collapse uses it so the answer prose paints at its final position in one commit rather than being
+    // flung up the trace's height (`streaming-shape-churn.md` §8); a manual toggle keeps the smooth fold.
+    instant: {
+      true: { panel: "duration-[0.01ms]" },
+    },
+  },
+  defaultVariants: {
+    instant: false,
+  },
 });

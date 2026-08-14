@@ -15,13 +15,14 @@ export const CHAT_STREAMING_SUBCATEGORY: SettingsSubcategory = {
   settings: [
     { id: "smooth-stream", label: "Smooth streaming", keywords: ["smooth", "reveal", "pace", "fade", "typing"] },
     { id: "smooth-stream-cps", label: "Reveal speed", keywords: ["speed", "cps", "rate", "characters"] },
+    { id: "reasoning-auto-collapse", label: "Auto-collapse reasoning", keywords: ["reasoning", "thinking", "collapse", "trace"] },
   ],
 };
 
 /** The `chat` keys this section — and ONLY this section — WRITES (SET-SEAMS §2.3 S1/S2). ONE spelling,
  *  four consumers: the body's `pickKeys` projection + seeded defaults, its `Pick`-derived form type, and the
  *  contribution's `owns` claim. */
-export const CHAT_STREAMING_KEYS = ["streamScrollMode", "smoothStream", "smoothStreamCps"] as const;
+export const CHAT_STREAMING_KEYS = ["streamScrollMode", "smoothStream", "smoothStreamCps", "reasoningAutoCollapse"] as const;
 
 export const SMOOTH_STREAM_CPS_MIN = 15;
 export const SMOOTH_STREAM_CPS_MAX = 300;

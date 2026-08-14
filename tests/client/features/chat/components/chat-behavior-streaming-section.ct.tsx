@@ -2,7 +2,7 @@
 // chat-behavior pane. Drives the production autosave path: `getUserSettings` seeds the form, each control
 // change debounces then fires `updateUserSettingsSection("chat")`.
 //
-// P1 — PATCH MINIMALITY (SET-SEAMS §9): the wire payload carries EXACTLY this section's three owned keys and
+// P1 — PATCH MINIMALITY (SET-SEAMS §9): the wire payload carries EXACTLY this section's four owned keys and
 // none of the sibling message-handling section's. The expected key set is re-spelled here on purpose —
 // importing the section's own `OWNS` tuple would make the test agree with the code by construction.
 
@@ -15,7 +15,7 @@ import { ChatStreamingSectionStory } from "../_ct-stories.tsx";
 
 const SETTINGS_VIEW = { userId: "user_ct_streaming", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 const UPDATE_PROC = "settings.updateUserSettingsSection";
-const OWNED_KEYS = ["smoothStream", "smoothStreamCps", "streamScrollMode"];
+const OWNED_KEYS = ["reasoningAutoCollapse", "smoothStream", "smoothStreamCps", "streamScrollMode"];
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_PROC]: () => ({}) });
@@ -35,9 +35,22 @@ test("mounts with the persisted defaults rendered (Follow, smooth streaming ON)"
   // Owner ruling 2026-08-09: `smoothStream` ships ON (the #42 fade rides streaming itself, so the knob is
   // pure pacing). The seeded blob IS `DEFAULT_USER_SETTINGS`, so this pins the rendered default, not a stub.
   await expect(page.getByRole("switch", { name: "Smooth streaming" })).toBeChecked();
+  // Default ON — the live reasoning disclosure auto-collapses on the first answer token, as it always has.
+  await expect(page.getByRole("switch", { name: "Auto-collapse reasoning" })).toBeChecked();
 });
 
-test("picking Pin patches streamScrollMode with ONLY this section's three keys (PD-147)", async ({ mount, page }) => {
+test("toggling auto-collapse reasoning patches reasoningAutoCollapse with ONLY this section's owned keys", async ({ mount, page }) => {
+  const trpc = await stub(page);
+  await mount(<ChatStreamingSectionStory />);
+  await page.getByRole("switch", { name: "Auto-collapse reasoning" }).click();
+
+  await expect.poll(() => lastPatch(trpc)?.["reasoningAutoCollapse"], { intervals: [20, 50, 100] }).toBe(false);
+  // Patch minimality (SET-SEAMS §2.1): no sibling message-handling key rides along.
+  expect(Object.keys(lastPatch(trpc) ?? {}).sort()).toStrictEqual(OWNED_KEYS);
+  expect("enterSends" in (lastPatch(trpc) ?? {})).toBe(false);
+});
+
+test("picking Pin patches streamScrollMode with ONLY this section's owned keys (PD-147)", async ({ mount, page }) => {
   const trpc = await stub(page);
   await mount(<ChatStreamingSectionStory />);
   await page.getByRole("combobox", { name: "While a reply streams" }).click();
