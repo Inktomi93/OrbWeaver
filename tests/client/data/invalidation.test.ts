@@ -264,6 +264,11 @@ const USER_TRACKED_KEYS = [
   // An input-keyed live search (`search.search`) — tracked ONLY as the negative control for the row above:
   // it must stay untouched by every member, including `corpusRecomputed`.
   "searchQuery",
+  // The VIEWER'S identity (`sessions.me` — userId/handle/globalRole). Before `identityChanged` (W7b) this key
+  // was in ZERO rows: an `admin.setRole` grant, or an SSO login elsewhere that renamed the handle, reached a
+  // live client only on a full page reload. Tracked separately from `userSettings`/`persona` — the other two
+  // legs of the viewer triple — because those two have their own members and would mask a missing row here.
+  "sessionsMe",
 ] as const;
 type UserTrackedKey = (typeof USER_TRACKED_KEYS)[number];
 
@@ -301,6 +306,11 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
   // input-keyed (the typed query IS the cache key), so invalidating them on a background recompute would
   // re-run someone's search for no freshness gain. That exclusion is the point of the negative control.
   corpusRecomputed: ["discovery", "similarArt"],
+  // The VIEWER TRIPLE and nothing else (W7b) — `sessions.me` plus the two composites `use-viewer.ts` derives
+  // `currentPersona` from. It routes through the SAME `identityFilters` helper the recovery ladder's resume
+  // rung calls, so this row is also the pin that the bus half and the ladder half cannot drift apart.
+  // Deliberately NOT the character/chat roots: a role grant changes what the viewer may DO, not what they own.
+  identityChanged: ["sessionsMe", "userSettings", "persona"],
   // DEFERRED member — never emitted, but the map entry is live; it path-invalidates the WHOLE connection
   // router, so the capability read under it goes stale too.
   connectionsChanged: ["connection", "chatCapability"],
@@ -343,6 +353,7 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
         discovery: trpc.discovery.home.queryKey(),
         similarArt: trpc.search.similarArt.queryKey({ characterId: CHARACTER_ID }),
         searchQuery: trpc.search.search.queryKey({ query: "anything" }),
+        sessionsMe: trpc.sessions.me.queryKey(),
       };
       for (const key of Object.values(keys)) {
         queryClient.setQueryData([...key], [] as never);
@@ -405,6 +416,13 @@ describe("invalidation — the USER-bus half (invalidateUser)", () => {
       trpc.databank.list.queryKey({}),
       trpc.discovery.home.queryKey(),
       trpc.search.similarArt.queryKey({ characterId: CHARACTER_ID }),
+      // THE VIEWER'S OWN IDENTITY (W7b). Red-first pin, and the one root whose absence was the whole D5 gap:
+      // `sessions.me` had NO bus member, so it was unreachable through this DERIVED heal set — a device that
+      // was offline while an admin granted it a role came back, reconnected, healed every other root, and
+      // still rendered the pre-grant role forever (staleTime is Infinity; nothing else re-reads it). The
+      // reconnect case matters more for identity than for any other member because the write happens on
+      // SOMEBODY ELSE'S request, so this device never had a local signal at all.
+      trpc.sessions.me.queryKey(),
     ];
     for (const key of roots) {
       queryClient.setQueryData([...key], [] as never);

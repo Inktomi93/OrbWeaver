@@ -466,6 +466,43 @@ describe("sessions.provisionIdentity — rename stability (externalId is the key
   });
 });
 
+// W7b — `identityChanged` is the fact the ENTRY callers turn into a user-bus fan (`entry/auth/seam.ts`,
+// `entry/http/auth-routes.ts`), so an IdP rename or a login-time role demotion reaches the human's OTHER live
+// devices instead of sitting behind `staleTime: Infinity` until a reload. The precision matters in both
+// directions: too eager and the forward-header seam — which re-provisions on EVERY request — becomes a
+// per-request storm on the plane W8 exists to keep quiet; too shy and a demotion is invisible.
+describe("sessions.provisionIdentity — identityChanged (W7b: what the entry callers fan on)", () => {
+  test("a handle RENAME reports identityChanged; the idempotent re-login right after does NOT", async () => {
+    vi.stubEnv("OWNER_HANDLES", "x");
+    const first = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("old-name") })));
+    expect(first.identityChanged).toBe(false); // the INSERT — no other device holds a read of a row that did not exist
+    const renamed = asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("new-name") })));
+    expect(renamed.identityChanged).toBe(true);
+    // The NEXT login writes nothing, so it must not fan again — this is the assertion that keeps the
+    // per-request forward-header arm quiet.
+    expect(asProvisioned(await svc.provisionIdentity(identity({ handle: castId<Handle>("new-name") }))).identityChanged).toBe(false);
+  });
+
+  test("a login-time role DEMOTION reports identityChanged (the security-relevant half)", async () => {
+    vi.stubEnv("OWNER_HANDLES", "someone-else");
+    vi.stubEnv("OIDC_ADMIN_GROUPS", "Orb Admins");
+    const promoted = asProvisioned(await svc.provisionIdentity(identity({ groups: ["Orb Admins"] })));
+    expect(promoted.role).toBe("admin");
+    const demoted = asProvisioned(await svc.provisionIdentity(identity({ groups: ["eng"] })));
+    expect(demoted.role).toBe("user");
+    expect(demoted.identityChanged).toBe(true);
+  });
+
+  test("an EMAIL-only refresh does NOT report identityChanged — no identity read projects email", async () => {
+    vi.stubEnv("OWNER_HANDLES", "x");
+    await svc.provisionIdentity(identity({ email: "old@example.com" }));
+    const refreshed = asProvisioned(await svc.provisionIdentity(identity({ email: "new@example.com" })));
+    // The row DID change (see the email describe below) — the flag is about what `sessions.me` projects
+    // (userId/handle/globalRole), not about whether any column moved.
+    expect(refreshed.identityChanged).toBe(false);
+  });
+});
+
 describe("sessions.provisionIdentity — email (mutable attribute, keep-on-null)", () => {
   test("persists the email claim on INSERT", async () => {
     vi.stubEnv("OWNER_HANDLES", "x");

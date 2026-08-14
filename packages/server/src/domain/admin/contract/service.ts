@@ -3,6 +3,7 @@
 // cross-feature/infra dep arrives as an injected op — admin sideways-imports nothing.
 
 import type { Principal } from "@orb/contracts/identity";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { CharacterId, ExternalId, SessionId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
@@ -65,6 +66,24 @@ export interface AdminContext {
   readonly newUserId: () => UserId;
   readonly hashPassword: (plain: string) => Promise<string>;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  /**
+   * The per-user freshness plane (`identityChanged`) — injected, never a sideways reach at the bus (D38).
+   *
+   * THE ARGUMENT IS THE **TARGET**, NOT THE ACTOR. Every other user-bus producer emits to
+   * `principal.userId` because the writer owns the row it wrote; admin is the one domain whose writes land on
+   * SOMEBODY ELSE'S identity, so the channel is `params.userId` and the acting admin is told nothing (their
+   * own `admin.listUsers` is writer-local and `invalidates` itself — see that key's cited
+   * `query-freshness-coverage` entry). Getting this backwards would announce a grant to everyone except the
+   * person who received it, which is precisely the D5 gap this closes
+   * (docs/design/staleness-and-session-freshness.md §2.3.4/§4.4.3, W7b).
+   *
+   * FLAG[emit-is-total] — satisfied BY CONSTRUCTION: the op is synchronous, `void`-returning and
+   * non-throwing (transport's `publishUserEvent` → `defineBusChannel.publish`, live-only, no durable row, no
+   * FK), so the user-bus rule is the simple one every producer follows — emit AFTER the durable write
+   * commits. No classify-and-drop wrapper (that is the chat bus's problem, where a `void emit()` over a
+   * rejectable durable insert is a process kill).
+   */
+  readonly emitUserEvent: EmitUserEvent;
   readonly sessions: SessionAdminPort;
   readonly vllm: VllmSupervisorPort;
   readonly embed: EmbedProducerPort;

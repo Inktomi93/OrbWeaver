@@ -35,9 +35,10 @@ export interface Invalidation {
    *  first connect of a page load: that mount's own reads ARE the fresh state (`use-user-bus.ts`). */
   readonly invalidateAllUserRoots: () => void;
   /** The IDENTITY reads — `sessions.me` plus the two composites `use-viewer.ts` derives the viewer from.
-   *  Called by the session-recovery ladder's resume rung: a tab that just re-authenticated may be a
-   *  different principal (or the same one with a changed role), and NO user-bus member covers identity
-   *  today, so this is not reachable through `invalidateAllUserRoots`. */
+   *  Called by the session-recovery ladder's resume rung, which has NO event to route: a tab that just
+   *  re-authenticated may be a different principal (or the same one with a changed role), and the probe that
+   *  discovered it is an `/api/auth/me` fetch, not a bus tick. The SERVER-announced half of the same three
+   *  reads rides the `identityChanged` member (W7b) — one filter helper, two entry points. */
   readonly invalidateIdentity: () => void;
   /** The mutation half — `createEntityMutation.onSettled` routes its filters through here. */
   readonly invalidateFilters: (filters: readonly InvalidateFilter[]) => void;
@@ -315,6 +316,15 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
   // query text, so every ask is already a cold fetch of a new entry — invalidating them on a recompute
   // would re-run someone's typed search for no freshness gain.
   corpusRecomputed: (_e, trpc) => [trpc.discovery.pathFilter(), trpc.search.similarArt.pathFilter()],
+  // The VIEWER'S OWN identity, through the one `identityFilters` helper the recovery ladder also calls (W7b).
+  // Closes the staleness design's D5 gap: `sessions.me` had NO bus driver, so an `admin.setRole` grant — or an
+  // SSO login elsewhere that renamed the handle / re-derived the role — reached a live client only on a full
+  // reload, which at `staleTime: Infinity` may never come. It joins the reconnect gap-heal by DERIVATION, and
+  // that half matters most here: the write happens on somebody ELSE'S request, so a device that was offline
+  // for the grant has no local signal at all. NOT `admin.listUsers`/`listSessions` — those are the ACTING
+  // admin's reads (writer-local, per their own cited `query-freshness-coverage` entries); this member only
+  // ever reaches the AFFECTED user's channel.
+  identityChanged: (_e, trpc) => identityFilters(trpc),
   // Deferred member — never emitted today; the map entry is ready for when it lands.
   connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter()],
 };
@@ -374,8 +384,9 @@ function allRpgGameFilters(trpc: Trpc, chatId: ChatId): readonly InvalidateFilte
 }
 
 /** The viewer triple (`use-viewer.ts`): the server identity plus the two reads its `currentPersona`
- *  derivation composes. Named explicitly rather than derived from the user map — the map has NO identity
- *  member (the design's D5 gap; the `identityChanged` event that would add one is a server lane, W7b). */
+ *  derivation composes. TWO callers share this ONE spelling — the `identityChanged` row above (the
+ *  cross-device driver; W7b retired this docblock's old "the map has NO identity member" note) and
+ *  `invalidateIdentity()` below, the recovery ladder's rung that fires with no event at all. */
 function identityFilters(trpc: Trpc): readonly InvalidateFilter[] {
   return [trpc.sessions.me.pathFilter(), trpc.settings.getUserSettings.pathFilter(), trpc.persona.list.pathFilter()];
 }
