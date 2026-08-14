@@ -36,6 +36,7 @@ import type { SessionsService, UserPrincipalFields } from "#domain/sessions";
 import { ownerHandles } from "#domain/sessions";
 import type { AuthConfig, ForwardJwtVerifier, IdentityResolution, OidcTransactionStore } from "#infra/auth";
 import { authConfigFromEnv, hasCsrfHeader, resolve, SESSION_COOKIE_NAME } from "#infra/auth";
+import { publishUserEvent } from "../../transport/trpc/index.ts";
 
 /** The boot-time deps the seam binds once. `config` is the test/override seam — production parses
  *  `authConfigFromEnv()` once at construction. `verifyForwardJwt`/`oidcStore` are the ports the SSO paths
@@ -192,6 +193,15 @@ async function resolveHeaderOrFallbackPrincipal(
   }
   if (!provisioned.enabled) {
     return null;
+  }
+  // W7b — an SSO login that RENAMED the handle or RE-DERIVED the role moved a field `sessions.me` projects,
+  // and the QueryClient runs `staleTime: Infinity`, so this human's OTHER live devices would render the
+  // pre-change identity until they happened to reload. The verb reports the fact (the caller cannot compute
+  // it — see `ProvisionResult.identityChanged`); the fan happens HERE because a domain may not import
+  // transport. Gated on the flag, never unconditional: this arm runs on EVERY forward-header request, so an
+  // unconditional emit would be a per-request storm on the plane W8 exists to keep quiet.
+  if (provisioned.identityChanged) {
+    publishUserEvent(provisioned.userId, { type: "identityChanged" });
   }
   return {
     userId: provisioned.userId,

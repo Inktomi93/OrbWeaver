@@ -4,6 +4,19 @@
 //   • existence-before-audit — `loadUser` throws DomainNotFoundError BEFORE the write, so a write to a
 //     missing id never leaves a phantom audit row
 // Disabling revokes all of the target's live sessions (the kick tail) via the injected SessionAdminPort.
+//
+// NO `identityChanged` EMIT HERE, deliberately — and the staleness design's §4.4.3 names this verb as a
+// producer, so read the receipt before "fixing" the omission (W7b lane, 2026-08-14). Two independent reasons,
+// either of which is sufficient:
+//   • The target has no channel to reach. `validate` gates a disabled row to null on EVERY request
+//     (`sessions/verbs/validate.ts:18` — "gating `enabled` to null here IS how disable takes effect next
+//     request"), the SSO-header arm refuses on `!provisioned.enabled` and the owner-fallback arm applies the
+//     same gate (`entry/auth/seam.ts`), so a disabled user cannot hold a live socket. On the DISABLE arm the
+//     kick tail below revokes every session and the entry wrapper evicts the live sockets with it (W7a,
+//     `entry/compose/admin.ts`); on the ENABLE arm there was no live client to announce to in the first place.
+//   • Nothing an identity read PROJECTS moved. `sessions.me` is userId/handle/globalRole
+//     (`transport/trpc/routers/sessions.ts`); `enabled` appears in none of them.
+// `setRole` is the arm that genuinely strands a live tab, and it emits.
 
 import { users } from "@orb/db";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";

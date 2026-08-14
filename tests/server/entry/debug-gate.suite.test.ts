@@ -135,7 +135,7 @@ function cookieSessions(role: UserRole): SessionsService {
 /** A forward-header users table: `provisionIdentity` admits the SSO identity at the given role. */
 function forwardSessions(role: UserRole): SessionsService {
   return stubSessions({
-    provisionIdentity: () => Promise.resolve({ outcome: "provisioned" as const, userId: castId<UserId>("u_sso"), role, enabled: true }),
+    provisionIdentity: () => Promise.resolve({ outcome: "provisioned" as const, userId: castId<UserId>("u_sso"), role, enabled: true, identityChanged: false }),
   });
 }
 

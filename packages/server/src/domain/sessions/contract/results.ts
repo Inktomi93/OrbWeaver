@@ -53,7 +53,29 @@ type ProvisionDenyReason = "account-exists";
  *  `enabled:false` (a disabled account, surfaced as 403). `reason` is set only where the callback must emit a
  *  DISTINCT authError (MS-W1 `account-exists`); absent ⇒ the generic not-authorized deny. */
 export type ProvisionResult =
-  | { readonly outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole }
+  | {
+      readonly outcome: "provisioned";
+      userId: UserId;
+      enabled: boolean;
+      role: UserRole;
+      /**
+       * W7b — did this upsert MOVE a field the viewer's identity reads project (`sessions.me`:
+       * handle/globalRole)? The verb reports it because THE CALLER CANNOT KNOW IT: entry hands in a
+       * `ResolvedIdentity` and gets back a settled row, with no visibility into whether the handle was
+       * renamed or the role re-derived (`RE_DERIVE_ROLE_ON_LOGIN`). The same "report WHO/WHICH, the caller
+       * has no way to compute it" shape as `revokeByToken → SessionId | null`.
+       *
+       * The two entry callers turn a `true` into an `identityChanged` fan on the provisioned user's channel,
+       * which is what makes an IdP rename — or a login-time role DEMOTION — reach that human's OTHER live
+       * devices. It must stay a REPORTED FACT rather than an unconditional emit at the caller:
+       * `entry/auth/seam.ts` calls this on EVERY forward-header request, so an unconditional fan would be a
+       * per-request storm on the very plane W8 exists to keep quiet.
+       *
+       * `false` on a first-login INSERT (nobody is watching a row that did not exist) and on the owner-flip
+       * subject BIND (it writes `externalId`/`email`, neither of which any identity read projects).
+       */
+      readonly identityChanged: boolean;
+    }
   | { readonly outcome: "denied"; readonly reason?: ProvisionDenyReason };
 
 /** B5 — `linkExternalId` output. `linked` = the subject was stamped onto the row; `already-linked` = the

@@ -28,6 +28,13 @@
 //     The per-chat RACK's freshness is a different question and stays where it was — that surface is
 //     member-visible and rides `chatUpdated` on the chat bus (`membership-fan-guard`: member-visible state
 //     fans to the roster, never to one user), so this member covers the OWNER's library, not the room's view.
+//   • `identityChanged` is the staleness design's D5 gap (docs/design/staleness-and-session-freshness.md
+//     §2.3.4/§4.4.3, W7b): the viewer's OWN identity — `sessions.me`'s userId/handle/globalRole plus the two
+//     reads `use-viewer.ts` composes — was in ZERO invalidation rows, so an `admin.setRole` grant (or an SSO
+//     login-time handle rename / role re-derive on another device) reached a live client only on a full page
+//     reload. It is the one member whose subject is the SUBSCRIBER rather than a thing they own, which is why
+//     it carries NO id: the channel key IS the affected user, so a `userId` hint would restate the address.
+//     Emitted by the identity-mutating verbs with the AFFECTED user's id, never the acting admin's.
 //   • `corpusRecomputed` is the ONE member for every background library-semantics pass (§2.5/F6 — themes,
 //     distillation, co-occurrence, near-duplicates, hub scores, the embeddings index sweep). It is the only
 //     member NOT named after a noun the user edits: nothing here has a user-facing WRITE at all, the writer
@@ -81,6 +88,10 @@ export type UserBusEvent =
   // recomputed", the client maps it to the discovery root + `search.similarArt`, and a per-pass or per-card
   // hint would be a targeting promise none of these passes can keep (they rewrite whole derived tables).
   | { type: "corpusRecomputed" }
+  // The VIEWER'S OWN identity changed (staleness design W7b): a role grant/revoke, an enable/disable, or an
+  // SSO login that renamed the handle / re-derived the role. NO id — the channel key IS the affected user
+  // (see the MEMBERSHIP note), so there is no sub-entity to hint at and nothing for a hint to target.
+  | { type: "identityChanged" }
   // DEFERRED (no server emit yet — see the MEMBERSHIP note + the `user-bus-coverage` DEFERRED allowlist): a
   // user's connection config lives in settings today, so nothing emits this. Declared so the client map +
   // the ratchet track it for the day a per-user connection store lands.
@@ -103,8 +114,42 @@ export const USER_BUS_EVENT_TYPES = {
   refineryChanged: true,
   databankChanged: true,
   corpusRecomputed: true,
+  identityChanged: true,
   connectionsChanged: true,
 } satisfies Record<UserBusEvent["type"], true>;
+
+/**
+ * The COARSE (hint-less) form of every member — what a bulk run's TERMINAL fan publishes when the per-item
+ * emits have been coalesced (`withQuietUserEvents`, W8/F5). A bulk gesture touched too many entities for any
+ * one id to be an honest hint, which is the same reasoning the owner-wide `databank` reindex sweep already
+ * follows by omitting `documentId`; the client map path-invalidates the domain root regardless.
+ *
+ * It lives HERE, beside the union and the belt, for two reasons. One home: "the id-less form of member X" is
+ * a fact about the union, not about whichever consumer needs it. And the emit-coverage ratchet
+ * (`user-bus-coverage`) reads a LITERAL CORPUS of every string in `server/src/{domain,transport}` — a
+ * totality table parked in transport would have made every member, including the DEFERRED
+ * `connectionsChanged`, read as emitted, turning the dead-wire belt permanently green (measured: it did,
+ * the run before this const moved).
+ *
+ * `satisfies Record<…>` is the belt: a new member fails `tsc` HERE until it declares its coarse form.
+ */
+export const COARSE_USER_BUS_EVENT = {
+  charactersChanged: { type: "charactersChanged" },
+  personasChanged: { type: "personasChanged" },
+  presetsChanged: { type: "presetsChanged" },
+  worldInfoChanged: { type: "worldInfoChanged" },
+  regexChanged: { type: "regexChanged" },
+  tagsChanged: { type: "tagsChanged" },
+  themesChanged: { type: "themesChanged" },
+  settingsChanged: { type: "settingsChanged" },
+  credentialsChanged: { type: "credentialsChanged" },
+  chatsChanged: { type: "chatsChanged" },
+  refineryChanged: { type: "refineryChanged" },
+  databankChanged: { type: "databankChanged" },
+  corpusRecomputed: { type: "corpusRecomputed" },
+  identityChanged: { type: "identityChanged" },
+  connectionsChanged: { type: "connectionsChanged" },
+} satisfies Record<UserBusEvent["type"], UserBusEvent>;
 
 /** The INJECTED emit op every mutating domain verb closes over (the house cross-feature-op pattern — the verb
  *  declares this TYPE in its `contract/`, the entry root wires the runtime to transport's `publishUserEvent`).

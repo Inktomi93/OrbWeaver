@@ -18,6 +18,7 @@ import { createToolUseService } from "#domain/tool-use";
 import { env } from "#foundation/env";
 import type { AuditEntry } from "#foundation/observability";
 import type { EngineDeploymentFacts, RoleClientsWithSignal, VllmEngineHandle } from "#infra/providers";
+import { publishUserEvent } from "../../transport/trpc/index.ts";
 import type { SessionSocketEviction } from "../http/index.ts";
 
 /** What the admin seam needs from the composition root: boot primitives + the sibling services admin's
@@ -66,6 +67,9 @@ export function buildAdmin(deps: AdminComposeDeps): AdminComposeResult {
     newUserId: deps.newUserId,
     hashPassword: deps.hashPassword,
     audit,
+    // W7b — the identity freshness plane. The house injected-emit pattern (the domain never reaches at
+    // transport, D38); admin is the one producer whose channel is the TARGET user's, never the actor's.
+    emitUserEvent: publishUserEvent,
     sessions: {
       // SessionView deliberately omits userId; re-stamp it onto each row.
       listForUser: async (userId: UserId): Promise<readonly (SessionView & { userId: UserId })[]> => {

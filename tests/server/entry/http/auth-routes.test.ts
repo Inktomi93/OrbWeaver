@@ -176,12 +176,13 @@ function recordingSessions(): SessionRecorder {
       },
       provisionIdentity: (
         _identity: ResolvedIdentity,
-      ): Promise<{ outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole } | { outcome: "denied" }> =>
+      ): Promise<{ outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole; identityChanged: boolean } | { outcome: "denied" }> =>
         Promise.resolve({
           outcome: "provisioned",
           userId: castId<UserId>("usr_x"),
           enabled: true,
           role: "user",
+          identityChanged: false,
         }),
       revokeByExternalId: (): Promise<RevokedSessionsSummary> => Promise.resolve({ revoked: 0, userIds: [] }),
     },
