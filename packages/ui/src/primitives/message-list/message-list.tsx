@@ -412,7 +412,7 @@ export function MessageList<T>({
       role="log"
       aria-live="polite"
       onScroll={onScrollTracked}
-      className={cn("overflow-auto overscroll-contain", className)}
+      className={cn("relative overflow-auto overscroll-contain", className)}
       data-slot="message-list-scroll"
     >
       <div ref={setViewportRef} className="relative w-full" data-slot="message-list-viewport">

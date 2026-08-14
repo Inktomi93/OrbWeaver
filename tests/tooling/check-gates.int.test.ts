@@ -429,6 +429,31 @@ function writeFixtures(): void {
   // emit site in domain/rpg/**). With no deferred member, neither STALE (needs a deferred member) nor MISSING (a
   // `__g_` file can't add a REAL member to the single-home union) is fixturable, so it joins UNFIXTURABLE_GATES
   // (the `bus-coverage` twin's exact posture); the STALE mechanism stays proven by the `user-bus-coverage` twin.
+  // automation-bus-coverage / domain-events-coverage: NO fixture — both DEFERRED maps are EMPTY at mint
+  // (every AutomationBusEvent and DomainEvent member has a real emit literal in domain scope), so neither
+  // STALE (needs a deferred member) nor MISSING (a `__g_` file cannot add a REAL member to the single-home
+  // union) is fixturable. They join UNFIXTURABLE_GATES on the `bus-coverage`/`rpg-bus-coverage` precedent;
+  // the shared reconcile's STALE mechanism stays proven by the `user-bus-coverage` twin above.
+  // domain-freshness-plane: a mutating domain with no DOMAIN_FRESHNESS row — the refinery arm, which is the
+  // state the tree was actually in before 2026-08-14.
+  fx(
+    `${D}/__g_fresh/verbs/write-thing.ts`,
+    'import { chats } from "@orb/db";\nexport async function writeThing(ctx: { db: { update: (t: unknown) => { set: (v: unknown) => { where: (w: unknown) => Promise<void> } } } }): Promise<void> {\n  await ctx.db.update(chats).set({ title: "g" }).where(1);\n}\n',
+  );
+  // json-column-write-parity: a WHOLE-RECORD replace of `chats.metadata` (a JSON column whose seven live
+  // writers all merge key-wise off a loaded row) — the straddle, from the side the gate reports.
+  fx(
+    `${D}/chat/__g_jsonstraddle.ts`,
+    'import { chats } from "@orb/db";\nexport async function clobber(ctx: { db: { update: (t: unknown) => { set: (v: unknown) => { where: (w: unknown) => Promise<void> } } } }, patch: { metadata: unknown }): Promise<void> {\n  await ctx.db.update(chats).set({ metadata: patch.metadata }).where(1);\n}\n',
+  );
+  // scroll-container-positioned: a vertical scroller class string with no positioning class. Written as a
+  // bare const (not JSX) on purpose — it also exercises the UNFENCED arm the gate is built around.
+  fx("packages/client/src/features/__g_scroller/lib/__g_scroller.ts", 'export const paneClass = "min-h-0 flex-1 overflow-y-auto overscroll-contain";\n');
+  // windowed-infinite-query: `maxPages` with no recoverable rewind — the 2026-08-13 dogfood P1 shape.
+  fx(
+    "packages/client/src/features/__g_window/lib/__g_window.ts",
+    "export const q = (trpc: { character: { list: { infiniteQueryOptions: (i: unknown, o: unknown) => unknown } } }): unknown =>\n  trpc.character.list.infiniteQueryOptions({ limit: 30 }, { maxPages: 5, getPreviousPageParam: () => undefined });\n",
+  );
   // member-card-clamped: a re-spelled MemberCardView declaration outside contracts (D22/PD-111).
   fx(`${D}/character/__g_mcv.ts`, "export interface MemberCardView {\n  readonly name: string;\n}\n");
   // diagnostic-legibility: a gate-corpus `message:` string carrying no doc/code-home pointer (the
@@ -975,6 +1000,9 @@ const UNFIXTURABLE_GATES = new Set([
   "tsconfig-routing-parity",
   "bus-coverage",
   "rpg-bus-coverage",
+  // Both minted 2026-08-14 with EMPTY deferred maps — see the note beside their fixture slot above.
+  "automation-bus-coverage",
+  "domain-events-coverage",
   "bus-payload-allowlist",
   "knob-wire-coverage",
   "message-kind-policy-coverage",

@@ -636,13 +636,47 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   6. engines.ts parses empty boot lock as PID 0 → `process.kill(0,0)` wedges future starts — reuse
      `_kit/spawn-lock.ts` positive-PID discipline + fs regression test — **T2 smalls bundle**
      (memory \[\[kill-signal-zero-pid-zero-always-succeeds]] predicted this exact class).
-- [ ] **GATE CANDIDATES (evaluate, two-receipt law each):** (G-C) whole-record-replace-on-JSON-column
-  where any writer is key-wise — ast-grep `X: {...patch.X}` shape over patch/update verbs; historical
-  control = mergeSheet + refinery selection · (G-D) `maxPages`/windowed infinite query paired with
-  client-side filter/search in the same surface — historical control = character tab + databank ·
-  (G-E) floor-synthesis (`?? 0`/`|| min` feeding numeric DISPLAY from optional data) — likely TOO
-  heuristic for a gate, verdict may honestly be "no gate, memory + review lens only" — record whichever
-  verdict with receipts. G-A/G-B (bus) already GO'd.
+- [x] **GATE CANDIDATES — CLOSED 2026-08-14. Five gates BUILT, one REFUSED with receipts; whole-tree
+  `check:structure` exit-0 + `gate-conformance` + `check-gates.int` green, 201 → 207 registered gates.**
+  Two receipts each: every gate went RED on a violation planted at a REAL path and GREEN on the clean tree.
+  - **G-A `domain-freshness-plane`** — every mutating domain declares its freshness plane in ONE registry
+    (26 rows, `none` is a cited verdict with an end condition). Mutating domains DERIVED (`@orb/db` import
+    AND a drizzle write call — the `@orb/db` half is what kept `search`'s in-memory MiniSearch index out
+    of the roster; `export`/`import`/`search`/`tool-use` correctly carry NO row). Four arms: MISSING ·
+    STALE (`none` + emits) · ORPHAN · BLINDNESS. Probe: `domain/__probe/verbs/write-thing.ts` → MISSING-red.
+  - **G-B belt existence** — `bus-definition-belts` ARM C: every exported `*BusEvent` in contracts (plus
+    `DomainEvent` by name) owes a belt. Forced the real work: `AUTOMATION_BUS_EVENT_TYPES` minted +
+    `automation-bus-coverage` spec, `DOMAIN_EVENT_TYPES` gained its `satisfies` +
+    `domain-events-coverage` spec. Two typed two-sided tables carry the architecture facts —
+    `BELT_EXEMPT` (`WiBusEvent`, a sub-union belted by its parent) and `SERVER_INTERNAL_REACH`
+    (`DomainEvent`, `AutomationBusEvent` — the survey's MEASURED client-map unsatisfiability, §2.3).
+    Probe: a beltless `ProbeBusEvent` in contracts → red.
+  - **G-C `json-column-write-parity`** — the straddle gate. Historical control REPLAYED: `git show
+    57fb8595b^:…/update-session.ts` planted over the fixed file → RED at the exact
+    `set.selection = refinerySelectionSchema.parse(patch.selection)` line; restored, green. It is a TAINT
+    test, not a shape test, because both the defect and the fix mention `.selection` — a `X: {…patch.X}`
+    matcher would have been a lying proof. Corpus today: 4 multi-writer JSON columns, 0 straddles.
+  - **G-D `windowed-infinite-query`** — EXTINCT-class tripwire, built lean. Two arms named by finding
+    TOKEN (`maxPages/no-rewind` · `maxPages/client-lens`) + a zero-`infiniteQueryOptions` blindness
+    tripwire. Zero `maxPages` on the tree, so the baseline is unambiguous.
+  - **G-E floor-synthesis — REFUSED, with receipts.** (1) The discriminator is SEMANTIC, not syntactic,
+    and the tree proves it in ONE FILE: `rpg-takeover-header.tsx:97` had to lose its synthesized `:00`
+    (`64110bcc5`) while `:108`'s `clock.minute ?? 0` eleven lines below is CORRECT — it feeds a clock-hand
+    ANGLE, not a reading. No AST shape separates "a number a human reads" from "a number a renderer does
+    maths with". (2) Corpus: 65 `?? 0` in client+ui, 14 inside a JSX expression container — 13 of those 14
+    are `count={… ?? 0}` on a list header, where 0 is the TRUE count of an empty list. A shape gate would
+    land ~93% false and need 13 allowlist rows at birth, which GATE-AUTHORING §4.7 bans. (3) The obvious
+    narrowing (fence to JSX containers) MISSES the historical control outright — `clockTime` built its
+    string in a plain helper two calls from any JSX, so the fence would ship a confident false clean.
+    Verdict: no gate. The class stays owned by the memory lesson + `side-eye`, and the em-dash/unset
+    reading precedent stays a `StatCell` convention.
+  - **G-F `scroll-container-positioned`** — the ripest one, and it found live defects the 469be29d6
+    client sweep never reached: **15 unpositioned vertical scrollers, 13 of them in `packages/ui`**
+    (dialog popup · drawer content · menu/popover/autocomplete/command popups · `POPUP_SURFACE` ·
+    log-viewer · virtual-list · message-list · immersive-card `pre` · markdown oversized `pre` ·
+    textarea) plus 2 in `discovery/corpus-search-results.tsx`. All fixed with `relative` in the same
+    class string; the five containing-block CT pins re-run green (49/49, cache cleared). `overflow-x-*`
+    is deliberately out of scope — the instrument's own `isScroller` reads overflowY only.
 - **Already-actioned receipts:** class 5 clean (recent-models IS the W5 exemplar — `model-picker-model.ts:262`) ·
   class 2 clean (meter-row + apply.ts ruled-in-header) · chat-list eviction-only (server lenses already
   correct) · bus-survey wave + gates = owner GO (ledger).

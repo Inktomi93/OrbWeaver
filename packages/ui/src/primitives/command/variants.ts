@@ -14,7 +14,7 @@ export const commandVariants = tv({
     root: "flex flex-col overflow-hidden rounded-card border border-border bg-popover text-popover-foreground",
     inputWrapper: "flex h-control-sm items-center gap-row border-b border-border px-row",
     input: "h-full w-full min-w-0 flex-1 bg-transparent text-body leading-body text-foreground outline-none placeholder:text-muted-foreground",
-    list: "flex flex-col gap-field overflow-y-auto p-field",
+    list: "relative flex flex-col gap-field overflow-y-auto p-field",
     empty: "px-row py-block text-center text-body leading-body text-muted-foreground",
     group: "flex flex-col",
     groupHeading: "px-row py-field text-label leading-label text-muted-foreground",

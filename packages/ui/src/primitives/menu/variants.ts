@@ -42,7 +42,7 @@ export const menuVariants = tv({
     // bottom rows become unreachable (no scroll: the popup itself has no overflow). Every long-list seal
     // already gets this via `POPUP_SURFACE`; Menu spells its own surface, so it had neither the cap nor
     // the scroller. Overscroll is contained so wheeling past the last item does not scroll the page.
-    popup: `max-h-(--available-height) overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-field text-popover-foreground shadow-overlay ${OVERLAY_MOTION.anchoredPopup}`,
+    popup: `relative max-h-(--available-height) overflow-y-auto overscroll-contain rounded-card border border-border bg-popover p-field text-popover-foreground shadow-overlay ${OVERLAY_MOTION.anchoredPopup}`,
     item: `${itemBase} ${LEADING_GUTTER}`,
     checkboxItem: itemBase,
     radioItem: itemBase,
