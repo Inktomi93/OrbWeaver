@@ -57,6 +57,7 @@ export function makeCharacter(overrides: Partial<CharacterRow> = {}): CharacterR
     avatarAssetId: null,
     refinery: null,
     createdAt: FROZEN_AT_MS,
+    updatedAt: FROZEN_AT_MS,
     ...overrides,
   };
 }
