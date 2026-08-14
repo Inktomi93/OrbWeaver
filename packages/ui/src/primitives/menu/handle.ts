@@ -5,5 +5,3 @@ import { Menu as BaseMenu } from "@base-ui/react/menu";
 // openWithPayload: attach `payload`+`id` to a (possibly detached) trigger and call
 // handle.open(triggerId).
 export const createMenuHandle = BaseMenu.createHandle;
-
-export type MenuHandle<Payload = unknown> = BaseMenu.Handle<Payload>;
