@@ -11,7 +11,7 @@
 // the kit module that DEFINES the engine.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { Finding, GateDescriptor } from "../contract.ts";
+import type { GateDescriptor } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
 
 const PNG_CHUNK_SYMBOLS = new Set(["readCardChunk", "writeCardChunk", "isPng"]);
@@ -30,10 +30,6 @@ const STALE_PREFIX =
 
 const MESSAGE =
   'the PNG card-chunk engine (@orb/kit/png-card-chunk) imported outside the sanctioned serde homes — it is shared byte surgery for domain/import (read) and domain/export (write) only (Core-Enforcement-Deferred-Dropped.md "serde-core"; Spine-Config-and-Serialization.md §Serialization/serde core).';
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
 
 /** Is this ImportSpecifier a card-chunk engine symbol imported from @orb/kit/png-card-chunk? */
 function pngChunkImport(node: Node): string {
@@ -66,14 +62,7 @@ export const gate: GateDescriptor = {
     if (symbol === "") {
       return;
     }
-    const finding: Finding = {
-      file: relPath(ctx.root, sf.getFilePath()),
-      line: node.getStartLineNumber(),
-      column: sf.getLineAndColumnAtPos(node.getStart()).column,
-      message: MESSAGE,
-      token: symbol,
-    };
-    ctx.report(finding);
+    ctx.report(node, { token: symbol, offset: 0 });
   },
   finalize: (ctx) => {
     if (ctx.scope.kind !== "project" || !fileLoaded(ctx, ANCHOR)) {

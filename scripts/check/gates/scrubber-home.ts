@@ -26,7 +26,7 @@
 // the kit module that DEFINES the factory.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { Finding, GateDescriptor } from "../contract.ts";
+import type { GateDescriptor } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
 
 const SCRUBBER_SYMBOL = "createHiddenSpanStreamScrubber";
@@ -46,10 +46,6 @@ const STALE_PREFIX =
 
 const MESSAGE =
   "hidden-span stream scrubber constructed outside its producer home — per-subscription scrub state cannot survive replay→live handoffs (a cold scrubber mid-`<lie>` forwards the secret's tail; ed2aafc5); the producer stamp is the one home: domain/chat/substrate/member-visibility.ts.";
-
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
 
 /** Arm 1: an ImportSpecifier of the scrubber factory from @orb/kit/content. */
 function scrubberImport(node: Node): boolean {
@@ -88,18 +84,11 @@ export const gate: GateDescriptor = {
   fix: "read the already-stamped `memberText` (createMemberDeltaStamper, domain/chat/substrate/member-visibility.ts) — a read seam is a STATELESS field read; never build a scrubber of your own.",
   scanRoot: (p) => PACKAGES_SRC.test(`/${p}`) && !SANCTIONED_ZONES.some((zone) => zone.test(`/${p}`)),
   kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression],
-  visit: (node, sf, ctx) => {
+  visit: (node, _sf, ctx) => {
     if (!(scrubberImport(node) || scrubberCall(node))) {
       return;
     }
-    const finding: Finding = {
-      file: relPath(ctx.root, sf.getFilePath()),
-      line: node.getStartLineNumber(),
-      column: sf.getLineAndColumnAtPos(node.getStart()).column,
-      message: MESSAGE,
-      token: SCRUBBER_SYMBOL,
-    };
-    ctx.report(finding);
+    ctx.report(node, { token: SCRUBBER_SYMBOL, offset: 0 });
   },
   // The sanctioned zones are scanRoot-EXCLUDED, so the walk never sees them — the stale arm reads them off
   // the shared project directly, with the SAME two predicates the walk uses.

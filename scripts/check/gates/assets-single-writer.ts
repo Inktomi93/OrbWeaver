@@ -19,7 +19,7 @@
 // when an example materializes it deliberately.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";
+import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 import { fileLoaded } from "../pass.ts";
 
 const SERVER_SRC = /\/packages\/server\/src\//u;
@@ -36,25 +36,17 @@ const STALE_MESSAGE =
   "reads as a blanket write permission for whatever lives there (ratchet down). Re-point the zone at the " +
   "real writer's home in scripts/check/gates/assets-single-writer.ts";
 
-const STOREBLOB_MESSAGE =
-  'storeBlob imported outside domain/assets — it is the one writer of the blob↔row pair (the CAS coherence primitive); every asset write goes through it (Core-Enforcement-Deferred-Dropped.md "assets-single-writer").';
-const WRITE_MESSAGE =
-  'a raw insert/update/delete on the `assets` table outside domain/assets — bypasses storeBlob\'s CAS+row coherence write (Core-Enforcement-Deferred-Dropped.md "assets-single-writer").';
+// A single combined group message: the two arms (a bare storeBlob import, a raw table write) both bypass
+// the same CAS+row coherence primitive — the node overload (§1, GATE-AUTHORING.md) carries no per-finding
+// message, so the `token` (either "storeBlob" or the `.insert/.update/.delete(assets)` label) is what
+// distinguishes an occurrence; see mustFlag below.
+const GROUP_MESSAGE =
+  "storeBlob bypassed outside domain/assets — it is the one writer of the blob↔row pair (the CAS coherence " +
+  "primitive); every asset write goes through it, whether by importing storeBlob directly or by a raw " +
+  'insert/update/delete on the `assets` table (Core-Enforcement-Deferred-Dropped.md "assets-single-writer").';
 
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
-function reportAt(ctx: GateRunCtx, node: Node, message: string, token: string): void {
-  const sf = node.getSourceFile();
-  const finding: Finding = {
-    file: relPath(ctx.root, sf.getFilePath()),
-    line: node.getStartLineNumber(),
-    column: sf.getLineAndColumnAtPos(node.getStart()).column,
-    message,
-    token,
-  };
-  ctx.report(finding);
+function reportAt(ctx: GateRunCtx, node: Node, token: string): void {
+  ctx.report(node, { token, offset: 0 });
 }
 
 /** Is this ImportSpecifier `storeBlob` imported from its persistence home (server/kit-reachable path)? */
@@ -101,7 +93,7 @@ export const gate: GateDescriptor = {
   docRow: 'Core-Enforcement-Deferred-Dropped.md "assets-single-writer" row (D21 context)',
   status: "active",
   scopeSafety: "incremental-safe",
-  message: STOREBLOB_MESSAGE,
+  message: GROUP_MESSAGE,
   fix: "route the write through domain/assets' storeBlob (the one CAS+row coherence primitive) instead of importing storeBlob or inserting/updating/deleting the assets table directly.",
   scanRoot: (p) => SERVER_SRC.test(`/${p}`),
   kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression],
@@ -111,12 +103,12 @@ export const gate: GateDescriptor = {
       return;
     }
     if (storeBlobImport(node)) {
-      reportAt(ctx, node, STOREBLOB_MESSAGE, "storeBlob");
+      reportAt(ctx, node, "storeBlob");
       return;
     }
     const write = assetsWrite(node);
     if (write !== "") {
-      reportAt(ctx, node, WRITE_MESSAGE, write);
+      reportAt(ctx, node, write);
     }
   },
   // The sanctioned zone is skipped by `visit`, so the stale arm reads it off the shared project directly.
@@ -136,13 +128,13 @@ export const gate: GateDescriptor = {
     {
       files: 'import { storeBlob } from "../assets/persistence/queries.ts";\nexport const s = storeBlob;\n',
       at: "packages/server/src/domain/hub/x.ts",
-      expect: { messageIncludes: "storeBlob" },
+      expect: { token: "storeBlob" },
       why: "storeBlob imported outside domain/assets — the one CAS coherence writer, dodged",
     },
     {
       files: 'import { assets } from "@orb/db";\nexport const w = (db: { insert: (t: unknown) => void }) => db.insert(assets);\n',
       at: "packages/server/src/domain/hub/y.ts",
-      expect: { messageIncludes: "bypasses storeBlob" },
+      expect: { token: ".insert(assets)" },
       why: "a raw `.insert(assets)` write outside domain/assets — bypasses the CAS+row coherence primitive",
     },
     {
