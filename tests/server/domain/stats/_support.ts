@@ -73,7 +73,7 @@ export async function seedPersona(db: Db, ownerId: UserId, opts: { id?: string; 
 export async function seedChat(
   db: Db,
   characterId: CharacterId,
-  opts: { id?: string; createdAt?: number; updatedAt?: number; anchorPersonaId?: PersonaId } = {},
+  opts: { id?: string; createdAt?: number; updatedAt?: number; anchorPersonaId?: PersonaId; startedAt?: number | null } = {},
 ): Promise<ChatId> {
   const id = castId<ChatId>(opts.id ?? "chat_a");
   await db.insert(chats).values({
@@ -81,6 +81,10 @@ export async function seedChat(
     createdAt: opts.createdAt ?? T0,
     updatedAt: opts.updatedAt ?? T0,
     anchorPersonaId: opts.anchorPersonaId ?? null,
+    // Born CLAIMED (R0): the rebuild EXCLUDES husks (`started_at IS NULL`) exactly as the live delta plane
+    // does, so a stats fixture must be a real, started chat or it contributes nothing to either writer.
+    // biome-ignore lint/nursery/useNullishCoalescing: an EXPLICIT null IS the husk (the whole opt-in), and `??` would coalesce it back into the claimed default — only an OMITTED field may fall through.
+    startedAt: opts.startedAt === undefined ? T0 : opts.startedAt,
   });
   await db.insert(chatParticipants).values({
     id: castId<ChatParticipantId>(`chat_participant_${id}`),

@@ -35,7 +35,7 @@ export function createReorder(ctx: WorldInfoContext): WorldInfoService["applyEnt
     const stmts = ids.map((id, i) =>
       ctx.db
         .update(worldEntries)
-        .set({ priority: total - i })
+        .set({ priority: total - i, updatedAt: at })
         .where(eq(worldEntries.id, id)),
     );
     await ctx.db.batch(batchMany(stmts));

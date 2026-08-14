@@ -43,7 +43,7 @@ import {
   sqliteTable,
   text,
 } from "drizzle-orm/sqlite-core";
-import { checkList } from "./_shared.ts";
+import { checkList } from "../kit/check-list.ts";
 import { chats } from "./chat.ts";
 import { users } from "./users.ts";
 

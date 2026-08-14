@@ -182,7 +182,7 @@ export interface PortableChat {
   readonly title: string;
   readonly createdAt: number;
   readonly updatedAt: number;
-  readonly star: boolean;
+  readonly starred: boolean;
   readonly archived: boolean;
   readonly compactSummary: string | null;
   readonly compactedAtSeq: number | null;
@@ -308,7 +308,7 @@ const wireChatSchema = z.object({
   title: z.string().catch(""),
   createdAt: z.number().int(),
   updatedAt: z.number().int(),
-  star: z.boolean().catch(false),
+  starred: z.boolean().catch(false),
   archived: z.boolean().catch(false),
   compactSummary: z.string().nullish().catch(null),
   compactedAtSeq: z.number().int().nullish().catch(null),
@@ -490,7 +490,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
     title: chat.title,
     createdAt: chat.createdAt,
     updatedAt: chat.updatedAt,
-    star: chat.star,
+    starred: chat.starred,
     archived: chat.archived,
     compactSummary: chat.compactSummary,
     compactedAtSeq: chat.compactedAtSeq,
@@ -536,7 +536,7 @@ const chatBundleSerde = defineJsonObjectSerde<PortableChat, WireChat>({
       title: body.title,
       createdAt: body.createdAt,
       updatedAt: body.updatedAt,
-      star: body.star,
+      starred: body.starred,
       archived: body.archived,
       compactSummary: body.compactSummary ?? null,
       compactedAtSeq: body.compactedAtSeq ?? null,

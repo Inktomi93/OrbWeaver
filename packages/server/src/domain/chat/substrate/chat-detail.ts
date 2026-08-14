@@ -16,7 +16,7 @@ import { viewerHoldsHost } from "./member-visibility.ts";
 interface ChatDetailRow {
   readonly id: ChatId;
   readonly title: string | null;
-  readonly star: boolean;
+  readonly starred: boolean;
   readonly archived: boolean;
   readonly temporary: boolean;
   readonly parentChatId: ChatId | null;
@@ -52,7 +52,7 @@ export function toChatDetail({ chat, participants, cast, viewerUserId, viewerHis
   return {
     id: chat.id,
     title: chat.title,
-    star: chat.star,
+    starred: chat.starred,
     archived: chat.archived,
     temporary: chat.temporary,
     parentChatId: chat.parentChatId,

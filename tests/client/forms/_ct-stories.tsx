@@ -461,6 +461,90 @@ export function BoundaryUnmountFlushStory(): ReactElement {
   );
 }
 
+// ---- CT-11: a mount with NO persistence seam REFUSES — the draft survives and the status says error ---
+// The Codex-audit defect (client-forms-01): both seams were optional and the driver ran `await save?.()`,
+// so a seamless mount re-baselined, CLEARED the crash-survival draft, and set "saved" — the UI reported
+// success for a write that never happened. The seam is now a compile fact (see the .test-d sibling), so
+// this story has to ERASE the props type to reach the runtime backstop at all: the path a cast or a JS
+// caller could still take. What it pins is the refusal — no clearDraft, status `error`, edit retained.
+const SEAMLESS_ENTITY_ID = "seamless-entity";
+const seamlessDraftStore = createEntityDraftStore<BoundaryValues>({ name: "boundary-ct-seamless" });
+const seamlessBoundary = createAutosaveEntityForm<BoundaryValues>({
+  defaultValues: { text: "" },
+  draft: seamlessDraftStore,
+  debounceMs: 50,
+});
+// The ONE deliberate erasure, at the mount: the real component with its seam requirement removed. The
+// seam is compile-REQUIRED (create-autosave-entity-form-model.ts), so the invalid mount this story exists
+// to drive is unspellable in TS — the double-cast IS the probe, reproducing what a cast or a JS caller can
+// still hand the boundary at runtime.
+// FABRICATION-OK: invalid-input probe — the seamless mount the compile-time seam law forbids.
+const SeamlessBoundary = seamlessBoundary as unknown as (props: {
+  readonly entityId: string;
+  readonly serverValues: BoundaryValues;
+  readonly children: (session: AutosaveSession<BoundaryValues>) => ReactElement;
+}) => ReactElement;
+
+/** CT-11: edit a boundary that can persist nowhere → status `error`, the draft still holds the edit. */
+export function BoundarySeamlessRefusalStory(): ReactElement {
+  return (
+    <div>
+      <SeamlessBoundary entityId={SEAMLESS_ENTITY_ID} serverValues={{ text: "server value" }}>
+        {(session): ReactElement => (
+          <div>
+            <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Seamless text" />}</session.form.AppField>
+            <output data-testid="seamless-state">{session.saveState}</output>
+          </div>
+        )}
+      </SeamlessBoundary>
+      <SeamlessDraftObserver />
+    </div>
+  );
+}
+
+/** SIBLING observer — reactive read of the crash draft the refusal must NOT clear (story convention). */
+function SeamlessDraftObserver(): ReactElement {
+  const draft = seamlessDraftStore.useDraft(SEAMLESS_ENTITY_ID);
+  return <output data-testid="seamless-draft">{draft.text ?? ""}</output>;
+}
+
+// ---- CT-12: the DECLARED read-only arm never reports "Saved" over an edit ---------------------------
+// The member/display-only mount (chat Group tab, Field overrides, Injections rows). It is honest today
+// only because every field carries `disabled={!isHost}` — a per-field convention the next added field can
+// forget. With `readOnly` declared at the boundary the guarantee is structural: no save driver, no draft
+// mirror, and a form that IS somehow dirty reads `blocked`. This story's field is deliberately ENABLED —
+// it plays the forgotten `disabled` — so the fold is what is under test, not the field.
+const READ_ONLY_ENTITY_ID = "read-only-entity";
+const readOnlyDraftStore = createEntityDraftStore<BoundaryValues>({ name: "boundary-ct-read-only" });
+const ReadOnlyBoundary = createAutosaveEntityForm<BoundaryValues>({
+  defaultValues: { text: "" },
+  draft: readOnlyDraftStore,
+  debounceMs: 50,
+});
+
+/** CT-12: a declared read-only mount whose field got edited → `blocked`, never "saved"; nothing mirrored. */
+export function BoundaryReadOnlyStory(): ReactElement {
+  return (
+    <div>
+      <ReadOnlyBoundary entityId={READ_ONLY_ENTITY_ID} serverValues={{ text: "server value" }} readOnly={true}>
+        {(session): ReactElement => (
+          <div>
+            <session.form.AppField name="text">{(field): ReactElement => <field.TextField label="Read-only text" />}</session.form.AppField>
+            <output data-testid="read-only-state">{session.saveState}</output>
+          </div>
+        )}
+      </ReadOnlyBoundary>
+      <ReadOnlyDraftObserver />
+    </div>
+  );
+}
+
+/** SIBLING observer — a read-only mount must mirror NOTHING (it could never save what it mirrored). */
+function ReadOnlyDraftObserver(): ReactElement {
+  const draft = readOnlyDraftStore.useDraft(READ_ONLY_ENTITY_ID);
+  return <output data-testid="read-only-draft">{draft.text ?? ""}</output>;
+}
+
 // A parameterized spy observer (the switch observer above is hard-bound to switchSpy). Distinct testids
 // per prefix so multiple stories in one page context never collide.
 function SwitchSpyObserverFor({ spy, prefix }: { readonly spy: ReturnType<typeof createSaveSpy>; readonly prefix: string }): ReactElement {

@@ -33,7 +33,7 @@ import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId 
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
 import { check, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { checkList } from "./_shared.ts";
+import { checkList } from "../kit/check-list.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
 import { personas } from "./persona.ts";
@@ -65,6 +65,10 @@ export const worldBooks = sqliteTable(
     // BookAttachmentView), "only meaningful on the character scope" (contracts/world-info). One book can be
     // primary for char A and auxiliary for char B, so role cannot live on the book.
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    // The EDITED stamp (the regex_scripts X-16 precedent — "any user-edited-in-place entity a list pane
+    // sorts/discriminates gets `updated_at`, maintained by write verbs"). Restamped by every update verb
+    // from the injected clock (never a DB trigger).
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
     // Owner-scoped list (`fetchOwned`).
@@ -106,6 +110,8 @@ export const worldEntries = sqliteTable(
     // resolvers, never trusted raw.
     metadata: text("metadata", { mode: "json" }).$type<EntryMetadata>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
+    // The EDITED stamp (the regex_scripts X-16 precedent — see `worldBooks.updatedAt`'s comment).
+    updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
     // Entry-by-book hot path + the `worldBookId` FK cascade child (delete book → its entries).

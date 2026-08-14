@@ -38,7 +38,7 @@ import { DomainError, DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
-import type { ResolveCreatorGroupDefaultsOp } from "../contract/context.ts";
+import type { ClaimChatOp, ResolveCreatorGroupDefaultsOp } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
 import type { ResolveForeignInputsOp } from "../contract/foreign.ts";
 import type { GuidedSteer, StartChatParams } from "../contract/params.ts";
@@ -47,12 +47,11 @@ import type { ChatService } from "../contract/service.ts";
 import { buildCommittedMessageView, insertCanonMessageStatements } from "../persistence/canon-write.ts";
 import { loadChatCastProducer } from "../persistence/cast.ts";
 import { loadChatRow } from "../persistence/queries.ts";
-import { buildInitialRosterRows, characterSeatedInAnotherChat } from "../persistence/roster.ts";
+import { buildInitialRosterRows } from "../persistence/roster.ts";
 import { gatherAssembleContext } from "../substrate/assemble-gather.ts";
 import { resolveGuidedActionText } from "../substrate/assembly-access.ts";
 import { NO_HISTORY_FLOOR } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
-import { canonMessageDelta, chatCreatedDelta, newCharacterDelta } from "../substrate/stats-delta.ts";
 
 /** The collaborators not on `ChatContext`. `emit` is the chat bus; `loadParticipantViews` resolves the
  *  returned `ChatDetail` roster; the engine + the two assemble resolvers back the `generate` opening only. */
@@ -68,6 +67,10 @@ interface StartChatDeps {
   /** The creator's per-user default GroupConfig — seeds a new chat's `metadata.group` when the caller supplies
    *  no `groupConfig` draft AND the creator customized their default (the FOREIGN-inputs seam). */
   readonly resolveCreatorGroupDefaults: ResolveCreatorGroupDefaultsOp;
+  /** The husk→real transition (R0). `startChat` mints a HUSK and never claims it -- except on the ONE
+   *  arm that is itself real activity: a `generate` opening, claimed BEFORE the engine runs (the ordering
+   *  invariant -- the engine's own commit pushes that row's delta, so a claim after it double-counts). */
+  readonly claimChat: ClaimChatOp;
 }
 
 type StartChatVerbs = Pick<ChatService, "startChat">;
@@ -196,70 +199,6 @@ function buildGreetingSeed(
   return { stmts, views };
 }
 
-/** The creation-batch stats push: the chat-created counters (+ first-chat character bumps) and each
- *  verbatim greeting's contribution, all riding the same atomic creation batch. A `generate` opening's
- *  delta is the engine's own persist arm. */
-function pushCreationStatsDeltas(
-  ctx: ChatContext,
-  stmts: BatchStmt[],
-  args: {
-    readonly hostUserId: UserId;
-    readonly characterIds: readonly CharacterId[];
-    readonly firstChat: readonly boolean[];
-    readonly greetings: readonly MessageViewSeed[];
-    readonly now: number;
-  },
-): void {
-  const { hostUserId, now } = args;
-  ctx.applyStatsDelta(
-    stmts,
-    ctx.db,
-    chatCreatedDelta({
-      ownerId: hostUserId,
-      characterId: args.characterIds[0] ?? null,
-      forked: false,
-      newCharacter: args.firstChat[0] === true,
-      now,
-    }),
-  );
-  for (const isFirst of args.firstChat.slice(1)) {
-    if (isFirst) {
-      ctx.applyStatsDelta(stmts, ctx.db, newCharacterDelta({ ownerId: hostUserId, now }));
-    }
-  }
-  for (const g of args.greetings) {
-    ctx.applyStatsDelta(
-      stmts,
-      ctx.db,
-      canonMessageDelta({
-        ownerId: hostUserId,
-        row: {
-          characterId: g.characterId,
-          role: "assistant",
-          createdAt: now,
-          content: g.content,
-          tokensIn: null,
-          tokensOut: null,
-          costUsd: null,
-          cacheReadTokens: null,
-          cacheWriteTokens: null,
-          contextWindow: null,
-          genStartedAt: null,
-          genFinishedAt: null,
-          model: null,
-          provider: null,
-          reasoning: null,
-          metadata: null,
-          selectedIdx: 0,
-          variantCount: 1,
-        },
-        sign: 1,
-        now,
-      }),
-    );
-  }
-}
-
 /** The `generate` opening — delegate a single `kind:"opening"` turn to the engine. Builds the assemble
  *  ctx through the substrate bridge, then runs the primary character's opening turn (no user row; the
  *  opening instruction rides `appendUserTurn`). */
@@ -337,6 +276,13 @@ async function runOpeningOrDegrade(
   deps: StartChatDeps,
   args: Parameters<typeof runGeneratedOpening>[2],
 ): Promise<{ readonly outcome: TurnOutcome | null; readonly failure: OpeningFailure | null }> {
+  // The generated opening IS real activity, so it CLAIMS the room (R0 F4(a)) — here rather than at the verb
+  // body's call site, which keeps the claim on the ONE arm that earns it without adding a branch to the
+  // already-dense verb. BEFORE the engine runs, per the ordering invariant: the engine's own commit pushes
+  // the opening row's delta, so a claim placed after it would count that row twice (claim-chat.ts header).
+  // A FAILED opening still leaves the room CLAIMED and visible — the caller gets a real, empty room it can
+  // retry in, which is precisely the START-1 orphan this degrade posture exists to make survivable.
+  await deps.claimChat(args.chatId);
   try {
     return { outcome: await runGeneratedOpening(ctx, deps, args), failure: null };
   } catch (err) {
@@ -381,10 +327,6 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
     const policy = resolveOpeningPolicy(opening, characterIds.length);
 
     await requireFoundingCast(ctx, hostUserId, characterIds);
-
-    // First-chat probe, per founding character, before the roster rows commit: a character seated in no
-    // other chat makes this its first chat → the newCharacter bump rides the creation batch below.
-    const firstChat = await Promise.all(characterIds.map(async (characterId) => !(await characterSeatedInAnotherChat(ctx.db, characterId, chatId))));
 
     const rosterRows = buildInitialRosterRows({
       chatId,
@@ -444,13 +386,10 @@ function createStartChatVerb(ctx: ChatContext, deps: StartChatDeps): ChatService
         ),
       ),
     ];
-    pushCreationStatsDeltas(ctx, stmts, {
-      hostUserId,
-      characterIds,
-      firstChat,
-      greetings: seed.views,
-      now,
-    });
+    // NO STATS HERE (R0 §4.7): the chat-created counters, the per-character first-chat bumps and the seeded
+    // greetings' contributions all fire at CLAIM (`verbs/claim-chat.ts`), replayed over exactly this canon.
+    // Creation-time economics would count every husk nobody ever started — and the firstness probe run here
+    // would let a husk consume a character's one `newCharacter` bump, unrecoverably, even after the reap.
     await ctx.db.batch(batchMany(stmts));
 
     // #40 DRAFT-TIME game birth: a `startAsGame` carry mints the lite game NOW — after the chat+roster

@@ -157,7 +157,11 @@ test("EDITING the body back onto its own raw clears the provenance — never a n
   const beforeEdit = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));
   expect(beforeEdit.rawContent).toBe("I roll {{roll::1d1}}");
 
-  const edit = createEdit(scn.ctx, { emit: () => Promise.resolve(), resolveForeignInputs: foreignInputsStub });
+  const edit = createEdit(scn.ctx, {
+    claimChat: (): Promise<void> => Promise.resolve(),
+    emit: () => Promise.resolve(),
+    resolveForeignInputs: foreignInputsStub,
+  });
   // The exact convergence the finding drove: the host types the raw text back in.
   await edit.editMessage({ principal: scn.principal(), chatId: scn.chatId, messageId: userRow?.id ?? ("x" as MessageId), content: "I roll {{roll::1d1}}" });
 
@@ -173,7 +177,11 @@ test("an edit to UNRELATED text also drops the record — a bake that is no long
   await scn.send("I roll {{roll::1d1}}");
 
   const userRow = (await scn.loadCanon()).find((m) => m.role === "user");
-  const edit = createEdit(scn.ctx, { emit: () => Promise.resolve(), resolveForeignInputs: foreignInputsStub });
+  const edit = createEdit(scn.ctx, {
+    claimChat: (): Promise<void> => Promise.resolve(),
+    emit: () => Promise.resolve(),
+    resolveForeignInputs: foreignInputsStub,
+  });
   await edit.editMessage({ principal: scn.principal(), chatId: scn.chatId, messageId: userRow?.id ?? ("x" as MessageId), content: "actually I hold still" });
 
   const after = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));

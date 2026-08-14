@@ -9,6 +9,7 @@
 import type { ChatBusEvent, ChatWarningCode, MessageView } from "@orb/contracts/chat";
 import { batchMany } from "@orb/db/kit";
 import type { ChatContext } from "../context.ts";
+import type { ClaimChatOp } from "../contract/context.ts";
 import type { GenerateImageParams } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireParticipant } from "../guard.ts";
@@ -32,12 +33,15 @@ function toChatWarningCode(imageryCode: string): ChatWarningCode | null {
 /** The collaborators not on `ChatContext` (the chat bus emit — chat's own collaborator, wired at the root). */
 interface GenerateImageDeps {
   readonly emit: (event: ChatBusEvent) => Promise<void>;
+  /** The husk→real transition (R0) -- an image generation commits a caller-authored row, so it claims. */
+  readonly claimChat: ClaimChatOp;
 }
 
 export function createGenerateImage(ctx: ChatContext, deps: GenerateImageDeps): Pick<ChatService, "generateImage"> {
   return {
     generateImage: async ({ principal, chatId, mode, prompt, n, size }: GenerateImageParams): Promise<MessageView> => {
       await requireParticipant(ctx, principal, chatId);
+      await deps.claimChat(chatId);
       const picture = await ctx.generatePicture({
         caller: principal,
         chatId,

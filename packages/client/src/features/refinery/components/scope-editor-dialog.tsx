@@ -1,14 +1,23 @@
 // The SCOPE editor (the apply-and-selection mock, frame 1 — FORK G: a panel over CONTENT): which card
 // content rides the pipeline. The field list is `REFINABLE_FIELDS` VERBATIM in canonical-card order; the
 // greetings row is a TRI-STATE parent with a per-slot list under it (orb greetings are ONE
-// index-addressable array). LAW: an all-checked greetings parent saves as ABSENT `greetingIndexes`
-// (absent = every greeting, so a slot added later stays in scope). A card with no depth note renders a
+// index-addressable array). LAW: an all-checked greetings parent means EVERY greeting, so a slot added
+// later stays in scope — on the wire that is `greetingIndexes: null` (the patch shape's spelling of the
+// stored shape's ABSENT; `refinerySelectionPatchSchema` states the three states).
+//
+// THE SAVE IS A DELTA, AND THE GREETING AXIS RIDES ONLY WHEN THE USER TOUCHED IT. `selection` has a
+// SECOND writer: `applyFields` remaps `greetingIndexes` server-side when an accepted rewrite removes a
+// greeting. This dialog's state is seeded once at mount, so a save that re-sent an untouched greeting
+// image would undo that remap. Omitting the axis is how the user says "I did not address greetings" —
+// do not "simplify" the save back to always sending both axes.
+//
+// A card with no depth note renders a
 // DISABLED depthPrompt row (a checkbox that leads to a `not_applicable` drop is a trap). Empty fields
 // stay selectable (§7c — emptiness is a scoreable state). FORK F: "Reset to populated" + the
 // "Select what scored under 7" sibling once a score run exists.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { RefinableField, RefineryScorePayload, RefinerySelection } from "@orb/contracts/refinery";
+import type { RefinableField, RefineryScorePayload, RefinerySelection, RefinerySelectionPatch } from "@orb/contracts/refinery";
 import { REFINABLE_FIELDS } from "@orb/contracts/refinery";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
@@ -26,7 +35,9 @@ export interface ScopeEditorDialogProps {
   readonly selection: RefinerySelection;
   /** The latest score payload when one exists — powers the FORK-F quality action. */
   readonly score: RefineryScorePayload | null;
-  readonly onSave: (selection: RefinerySelection) => void;
+  /** The DELTA the Save press produces (see the header): `fields` always, the greeting axis only when the
+   *  user actually addressed it — omitting it is what preserves `applyFields`' server-side remap. */
+  readonly onSave: (patch: RefinerySelectionPatch) => void;
 }
 
 const LOW_SCORE_BAR = 7;
@@ -152,6 +163,9 @@ export function ScopeEditorDialog({ open, onOpenChange, card, selection, score, 
   const [fields, setFields] = useState<readonly RefinableField[]>(selection.fields);
   // undefined = EVERY greeting (the contracts law the mock's law note pins).
   const [greetingIndexes, setGreetingIndexes] = useState<readonly number[] | undefined>(selection.greetingIndexes);
+  // Did this session of the dialog ADDRESS the greeting axis at all? Only then does the save carry it
+  // (the header's delta law — an untouched axis left to the server keeps `applyFields`' remap).
+  const [greetingsTouched, setGreetingsTouched] = useState(false);
 
   function toggleField(field: RefinableField): void {
     setFields((prev) => (prev.includes(field) ? prev.filter((f) => f !== field) : [...REFINABLE_FIELDS.filter((f) => f === field || prev.includes(f))]));
@@ -160,8 +174,9 @@ export function ScopeEditorDialog({ open, onOpenChange, card, selection, score, 
   function toggleGreeting(index: number): void {
     const current = greetingIndexes ?? card.greetings.map((_, i) => i);
     const next = current.includes(index) ? current.filter((i) => i !== index) : [...current, index].sort((a, b) => a - b);
-    // All slots checked ⇒ save as ABSENT (the law note above).
+    // All slots checked ⇒ EVERY greeting (the law note above), which the save spells `null`.
     setGreetingIndexes(next.length === card.greetings.length ? undefined : next);
+    setGreetingsTouched(true);
   }
 
   function selectUnderBar(): void {
@@ -174,6 +189,7 @@ export function ScopeEditorDialog({ open, onOpenChange, card, selection, score, 
       .map((f) => f.greetingIndex as number);
     setFields(REFINABLE_FIELDS.filter((f) => low.has(f)));
     setGreetingIndexes(lowGreetings.length === card.greetings.length ? undefined : lowGreetings);
+    setGreetingsTouched(true);
   }
 
   return (
@@ -217,6 +233,8 @@ export function ScopeEditorDialog({ open, onOpenChange, card, selection, score, 
               const populated = populatedSelection(card);
               setFields(populated.fields);
               setGreetingIndexes(undefined);
+              // "Reset" is an explicit statement about the greeting axis too: every slot, back in scope.
+              setGreetingsTouched(true);
             }}
             size="sm"
           >
@@ -230,7 +248,13 @@ export function ScopeEditorDialog({ open, onOpenChange, card, selection, score, 
           <Row className="flex-1" gap="row" justify="end">
             <Button
               onClick={(): void => {
-                onSave({ fields: [...fields], ...(greetingIndexes === undefined ? {} : { greetingIndexes: [...greetingIndexes] }) });
+                // The delta (header): `fields` always; the greeting axis only when addressed, and then
+                // `null` for "every greeting" — absence on the wire means KEEP, which is not what a user
+                // who just checked every slot is saying.
+                onSave({
+                  fields: [...fields],
+                  ...(greetingsTouched ? { greetingIndexes: greetingIndexes === undefined ? null : [...greetingIndexes] } : {}),
+                });
                 onOpenChange(false);
               }}
               size="sm"

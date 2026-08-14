@@ -44,7 +44,6 @@ const UI_SRC = "packages/ui/src/";
 /** Files where `rounded-card` is CORRECT: the elevated/floating families (§2.1 — modal, popover, drawer,
  *  toast, composer, the chat bubble, the `elevated` opt-in itself). Everything else ratchets. */
 const ELEVATED_ALLOW: readonly string[] = [
-  "packages/ui/src/lib/popup-surface.ts",
   "packages/ui/src/primitives/card/",
   "packages/ui/src/primitives/command/",
   "packages/ui/src/primitives/macro-textarea/",
@@ -57,8 +56,6 @@ const ELEVATED_ALLOW: readonly string[] = [
   // THE chat bubble's box, single-homed here so the theme editor's preview paints the same one (a runtime
   // cross-feature import is dep-cruiser RED, so lib/ is the shared home). The row skins consume it.
   "packages/client/src/lib/message-bubble-class.ts",
-  "packages/client/src/features/chat/lib/message-row-variants.ts",
-  "packages/client/src/features/chat/lib/message-row-backing.ts",
   "packages/client/src/features/chat/surfaces/command-palette-surface.tsx",
 ];
 
@@ -145,20 +142,35 @@ function jsxElements(sf: SourceFile): JsxTag[] {
   return [...sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement), ...sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)];
 }
 
+const CLASS_STRING_KINDS = [
+  SyntaxKind.StringLiteral,
+  SyntaxKind.NoSubstitutionTemplateLiteral,
+  SyntaxKind.TemplateHead,
+  SyntaxKind.TemplateMiddle,
+  SyntaxKind.TemplateTail,
+];
+
+/** Does this file carry a `rounded-card` occurrence at a class-string site — independent of the
+ *  ELEVATED_ALLOW suppression below. The A5b stale-arm tracker (finalize) uses this: a suppressed file
+ *  never enters `radiusFindings`'s reported set, so ELEVATED_ALLOW liveness has to be measured separately. */
+function hasRoundedCardClassSite(sf: SourceFile): boolean {
+  for (const kind of CLASS_STRING_KINDS) {
+    for (const node of sf.getDescendantsOfKind(kind)) {
+      if (isClassStringSite(node) && radiusHits(node.getText()).length > 0) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 /** A1 — `rounded-card` outside the elevated allowlist. */
 function radiusFindings(sf: SourceFile, rel: string): Finding[] {
   if (ELEVATED_ALLOW.some((allowed) => rel.startsWith(allowed))) {
     return [];
   }
   const out: Finding[] = [];
-  const kinds = [
-    SyntaxKind.StringLiteral,
-    SyntaxKind.NoSubstitutionTemplateLiteral,
-    SyntaxKind.TemplateHead,
-    SyntaxKind.TemplateMiddle,
-    SyntaxKind.TemplateTail,
-  ];
-  for (const kind of kinds) {
+  for (const kind of CLASS_STRING_KINDS) {
     for (const node of sf.getDescendantsOfKind(kind)) {
       if (!isClassStringSite(node)) {
         continue;
@@ -327,6 +339,10 @@ let passBaseline: Record<string, number> = {};
 const passActualCounts = new Map<string, number>();
 let passMappedSlots: ReadonlyMap<string, number> = new Map();
 const passSeenSlotEmitters = new Set<string>();
+// A5b — ELEVATED_ALLOW liveness (GATE-AUTHORING §4 rule 4: every exemption vocabulary is two-sided from
+// birth). Populated in visitFile with the allow-prefix of every file that STILL carries a live
+// `rounded-card` class site; a prefix absent here at finalize matches ZERO live sites and is stale.
+const passSeenElevatedAllow = new Set<string>();
 
 export const gate: GateDescriptor = {
   name: "density-tier",
@@ -346,6 +362,7 @@ export const gate: GateDescriptor = {
     passActualCounts.clear();
     passMappedSlots = mappedSlots(ctx.root);
     passSeenSlotEmitters.clear();
+    passSeenElevatedAllow.clear();
   },
   visitFile: (sf, ctx) => {
     const rel = repoRel(sf.getFilePath());
@@ -356,6 +373,10 @@ export const gate: GateDescriptor = {
       for (const { slot } of slotAttributes(sf)) {
         passSeenSlotEmitters.add(slot);
       }
+    }
+    const elevatedPrefix = ELEVATED_ALLOW.find((allowed) => rel.startsWith(allowed));
+    if (elevatedPrefix !== undefined && hasRoundedCardClassSite(sf)) {
+      passSeenElevatedAllow.add(elevatedPrefix);
     }
     for (const finding of rogueSlotFindings(sf, rel, passMappedSlots)) {
       ctx.report(finding);
@@ -387,6 +408,21 @@ export const gate: GateDescriptor = {
           column: 0,
           message: `${TIER_MAP_REL} maps [data-slot="${slot}"] but no file under ${UI_SRC} emits that slot — a mapped-but-dead rule paints nothing while the stylesheet reads as load-bearing (density-pass-spec.md §4.2). Emit the slot from the primitive that owns it, or drop the rule.`,
         });
+      }
+    }
+    // A5b — ELEVATED_ALLOW liveness. REAL-TREE ANCHOR (GATE-AUTHORING §4 rule 5): `existsSync(BASELINE_REL)`
+    // is absent in every conformance mini-project (no fixture below creates the baseline file), so this arm
+    // only ever fires against the real workspace — never inside the gate's own self-proof.
+    if (existsSync(join(ctx.root, BASELINE_REL))) {
+      for (const allowed of ELEVATED_ALLOW) {
+        if (!passSeenElevatedAllow.has(allowed)) {
+          ctx.report({
+            file: GATE_SELF,
+            line: 1,
+            column: 0,
+            message: `ELEVATED_ALLOW entry "${allowed}" (${GATE_SELF}) matches ZERO live \`rounded-card\` class sites — the elevated-radius exemption there is no longer used; delete the row (GATE-AUTHORING.md §4 rule 4, the ratchet only goes down, both ways).`,
+          });
+        }
       }
     }
     for (const [rel, budget] of Object.entries(passBaseline)) {

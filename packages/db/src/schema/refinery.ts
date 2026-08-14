@@ -34,7 +34,7 @@ import type { CharacterId, ModelId, RefineryRunId, RefinerySchemaId, RefinerySes
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { checkList } from "./_shared.ts";
+import { checkList } from "../kit/check-list.ts";
 import { characters } from "./character.ts";
 import { users } from "./users.ts";
 

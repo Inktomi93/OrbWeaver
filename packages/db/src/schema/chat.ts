@@ -73,7 +73,7 @@ import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-import { checkList } from "./_shared.ts";
+import { checkList } from "../kit/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { personas } from "./persona.ts";
@@ -102,12 +102,27 @@ export const chats = sqliteTable(
     id: text("id").$type<ChatId>().primaryKey(),
     title: text("title"),
     // D18: NO `ownerId`. Membership (`chat_participants`) is the scope; the host is the authority.
-    star: integer("star", { mode: "boolean" }).notNull().default(false),
+    // D66: renamed from `star` — matches `characters.starred`/`personas.starred` (the report-cards
+    // punch list item 6 rename; the RPC verb NAME `chat.star` is unchanged, only the data field).
+    starred: integer("starred", { mode: "boolean" }).notNull().default(false),
     archived: integer("archived", { mode: "boolean" }).notNull().default(false),
     // ST "Temporary Chat" (PD-65): an ephemeral room — persisted so turns can run, but HIDDEN from the
     // recent list (`listMemberChats` excludes it) and swept by `reapTemporaryChats` once expired. Set only
     // at `startChat` (a fork is born non-temporary). Expiry is a domain TTL over `createdAt`, not a column.
     temporary: integer("temporary", { mode: "boolean" }).notNull().default(false),
+    // THE HUSK COLUMN (chat-creation draft-mode replacement, R0). NULL = a HUSK: the room was created but
+    // never CLAIMED — nobody sent a line, ran a turn, or wrote any config into it. A husk is hidden from
+    // `listMemberChats` for EVERYONE (the `temporary` lens twin, one arm below it in `memberChatScope`) and
+    // is reap-eligible: best-effort on nav-away (`reapHusk`) and by the TTL belt inside `reapTemporaryChats`.
+    // Non-null = the epoch-MS instant the room was claimed; a claimed room is a normal, listed chat forever.
+    // The stamp is IDEMPOTENT and one-way (`domain/chat/persistence/claim.ts` — `UPDATE … WHERE started_at
+    // IS NULL`), so the claim instant is the FIRST real activity, never the latest.
+    // Born NULL at `startChat` ONLY. A fork and an ST import are born CLAIMED (they copy/write canon at mint,
+    // so there is no unstarted state to represent) — both stamp it in their creation batch.
+    // Also the FIRSTNESS gate: `characterSeatedInAnotherChat` requires a NOT-NULL `started_at` on the other
+    // seat's chat, so a husk can never consume a character's "first chat" bump; the stats rebuild's chat
+    // aggregations carry the SAME arm (the drift-gate contract — both writers must agree a husk counts zero).
+    startedAt: integer("started_at"),
     // Two-party host handoff (Part III §2): the PENDING nominee, carried between `nominateHostHandoff` (the
     // host sets it) and `acceptHostHandoff` (the nominee — and ONLY the nominee — clears it on the atomic
     // role swap). One pending nomination per chat (a re-nominate overwrites). Null = no pending handoff.

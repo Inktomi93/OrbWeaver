@@ -76,6 +76,15 @@ interface EmitChatChangedOptions {
  *  chat-list recency driver. Best-effort, never throws into the turn. */
 export type EmitChatChanged = (chatId: ChatId, options?: EmitChatChangedOptions) => Promise<void>;
 
+/** CLAIM a chat — the husk→real transition (R0 §4.2). Idempotent, one-way, and a no-op on an already-claimed
+ *  or vanished room, so a verb calls it unconditionally and never asks whether the room is a husk. Built by
+ *  `verbs/claim-chat.ts` at the chat composition root and injected into every qualifying verb bundle; the
+ *  callers stay ignorant of `chats.started_at`, the stats replay and the list fan.
+ *
+ *  CALL IT BEFORE YOUR WRITE — the claim replays the creation stats over the canon present at claim, so a
+ *  claim placed after the caller's own canon write counts that row twice (`verbs/claim-chat.ts` header). */
+export type ClaimChatOp = (chatId: ChatId) => Promise<void>;
+
 /** The injected chat role: the engine builds a {@link TurnRequest} and streams chunks back. */
 export type RunChatTurnOp = (req: TurnRequest) => AsyncIterable<TurnStreamChunk>;
 
@@ -350,6 +359,8 @@ export type PostNarratorMessage = (
  *  (the `GenerateImageDeps` shape; not on `ChatContext`). */
 export interface PostNarratorMessageDeps {
   readonly emit: (event: ChatBusEvent) => Promise<void>;
+  /** The husk→real transition (R0) -- a narrator post is canon, so it claims. */
+  readonly claimChat: ClaimChatOp;
 }
 
 /** The narrow membership read (rpg-design/02 §1.1 #3): the caller's PRESENT role in a chat, or `null` (not a

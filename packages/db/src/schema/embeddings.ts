@@ -66,7 +66,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { vector32 } from "../custom-types/index.ts";
-import { checkList } from "./_shared.ts";
+import { checkList } from "../kit/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";

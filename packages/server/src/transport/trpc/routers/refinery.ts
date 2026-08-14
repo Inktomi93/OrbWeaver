@@ -12,7 +12,7 @@ import {
   refineryGuidanceSchema,
   refineryRewriteFieldSchema,
   refinerySchemaStageSchema,
-  refinerySelectionSchema,
+  refinerySelectionPatchSchema,
   refinerySessionNameSchema,
   refinerySessionStatusSchema,
   refineryStageConfigSchema,
@@ -66,7 +66,9 @@ export const refineryRouter = t.router({
         patch: z.object({
           name: refinerySessionNameSchema.nullable().optional(),
           guidance: refineryGuidanceSchema.nullable().optional(),
-          selection: refinerySelectionSchema.optional(),
+          // A DELTA, not the value shape — `selection` has a second writer (`applyFields`' greeting remap),
+          // so the wire carries only what the caller is addressing (three-state greetings; see the schema).
+          selection: refinerySelectionPatchSchema.optional(),
           stageConfig: refineryStageConfigSchema.optional(),
           status: refinerySessionStatusSchema.optional(),
         }),

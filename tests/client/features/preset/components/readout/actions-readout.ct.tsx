@@ -47,7 +47,7 @@ const RESOLVED = {
 
 const SETTINGS_VIEW = { userId: "user_ct_readout", schemaVersion: 1, config: DEFAULT_USER_SETTINGS, updatedAt: 0 };
 // See readout-binding.ct.tsx — the binding names its room through `chat.getChat`.
-const CHAT_DETAIL = { id: CHAT, title: "Azarael & the Court", star: false, archived: false, temporary: false, parentChatId: null, participants: [] };
+const CHAT_DETAIL = { id: CHAT, title: "Azarael & the Court", starred: false, archived: false, temporary: false, parentChatId: null, participants: [] };
 
 /** The guided family's unbound-gloss tell — the sibling suite's own spelling (`readout-binding.ct.tsx`). */
 const RESOLVES_IN_CHAT_RE = /resolves in chat/i;

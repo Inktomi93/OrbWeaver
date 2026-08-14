@@ -28,7 +28,7 @@ function participant(userId: UserId, role: string): ParticipantView {
 const ROW = {
   id: chatId,
   title: "A room",
-  star: false,
+  starred: false,
   archived: false,
   temporary: false,
   parentChatId: null,

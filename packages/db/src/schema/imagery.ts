@@ -23,7 +23,7 @@ import { PROMPT_TEMPLATE_MODES } from "@orb/contracts/imagery";
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
-import { checkList } from "./_shared.ts";
+import { checkList } from "../kit/check-list.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
