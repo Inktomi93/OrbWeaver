@@ -1464,11 +1464,14 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   sites too varied, kit-internal, contract pin) · stale-row class = RITUAL-owned (6-for-6 today,
   ungateable) · documented-field-no-producer = LEAD only (the G-E semantic-discriminator trap; if
   it recurs, a typed obligations table is the cheap form). **RATCHET-ADMITTED 275 (owner-asked):**
-  density-tier 224 → **BURN LANE RUNNING** `density-burn` (owner-flung 08-14; A1 radius/A2 box-in-box
-  - obvious A3 per density-pass-spec §5.1, taste-ambiguous A3 left for design; side-eye owed;
-    the 07-31 taste audit's per-file budgets, shrink-only) + finding-overload-provenance
-    **36** (gate-harness ignore-machinery bypass — two burn lanes 51→41→36; \~12 files/36 rows remain, fresh lane per 3-4 gates). Standing brief
-    policy adopted: a lane touching a density-baselined file burns that file's rows in-lane.
+  density-tier **189** (was 224; `density-burn` MERGED, side-eye MERGE-CLEAN — hierarchy improved,
+  contrast passes; \~35 files/189 rows remain. **P3-A owner-discretion:** history-tab empty-state
+  shrank 15→10.5px, one-line revert if wanted \[history-tab.tsx:46 gloss→muted]. **P3-B
+  follow-up:** `rounded-*` on a `<Button>` is INERT \[tailwind-merge doesn't dedupe custom radius
+  tokens, `rounded-control` wins] so the A1 gate over-counts Button demotions — register the radius
+  tokens in tw-merge config before the next Button-touching burn) + finding-overload-provenance
+  **36** (gate-harness ignore-machinery bypass — two burn lanes 51→41→36; \~12 files/36 rows remain, fresh lane per 3-4 gates). Standing brief
+  policy adopted: a lane touching a density-baselined file burns that file's rows in-lane.
 - [ ] **CODEX DOC-SWEEP MISSES (their git-additions method beat the board's dir-walk — 2 real, both
   verified on tree 08-14 evening):** (1) **D129's two UNBUILT commitments never rowed:** the
   narrator→wire-`system` mapping gated on a live per-model capability probe (`historySystemRows` —
