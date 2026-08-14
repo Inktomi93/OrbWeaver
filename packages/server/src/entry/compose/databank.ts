@@ -31,8 +31,10 @@ export interface DatabankComposeDeps {
   readonly loadAssetBytes: (assetId: Parameters<DatabankContext["loadAssetBytes"]>[0]) => Promise<Uint8Array | null>;
   readonly embeddings: Pick<EmbeddingsService, "store" | "pruneDocumentChunks" | "countDocumentChunks">;
   readonly extractText: DatabankContext["extractText"];
-  /** The active embed-space model tag — `roleClients.embedModel` (the same source `getActiveEmbedSpace` read). */
-  readonly embedModel: string;
+  /** The active embed-space model tag — `roleClients.embedModel` (the same source `getActiveEmbedSpace` read).
+   *  A THUNK: that field is a live getter that follows a role re-point, so capturing the string at compose
+   *  would hand ingest a boot-frozen space tag after the owner moves the embed role. */
+  readonly embedModel: () => string;
   readonly search: Pick<SearchService, "documents">;
   readonly workloads: Pick<WorkloadService, "start">;
   /** The per-user settings loader — `getDatabankSettings(ownerId)` reads the user's `databank` section
@@ -78,7 +80,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     // The DB7 scrapeWeb port: infra/network's `fetchWebDocument` (the ANY_HOST arbitrary-URL class — no host
     // pin, but https + private-range denial run per hop; throws on refusal/non-2xx/cap, the verb maps it).
     fetchUrl: fetchWebDocument,
-    getActiveEmbedSpace: () => ({ model: deps.embedModel, dim: env.VLLM_EMBED_DIM }),
+    getActiveEmbedSpace: () => ({ model: deps.embedModel(), dim: env.VLLM_EMBED_DIM }),
     // The OWNER's real databank settings (chunk params ingest uses + retrieval params gather passes to
     // search.documents) — the extracted binding (below), replacing the compose-stub-goes-stale 0-param stub.
     getDatabankSettings: bindGetDatabankSettings(loadUserSettings),
