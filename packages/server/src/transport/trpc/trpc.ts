@@ -10,7 +10,7 @@
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { initTRPC, TRPCError } from "@trpc/server";
 import { requireAdmin } from "#domain/admin";
-import { securityEvent, setSpanAttrs, span } from "#foundation/observability";
+import { getLog, securityEvent, setSpanAttrs, span } from "#foundation/observability";
 import type { Context } from "./context.ts";
 import { classifyDomainError, domainReason } from "./error-mapping.ts";
 
@@ -69,12 +69,29 @@ const tracingMiddleware = t.middleware(({ path, type, next }) =>
 
 // A subscription generator throws after this middleware has returned, so it bypasses this map —
 // subscriptions wrap their source in withSubscriptionErrors instead.
-const domainErrorMiddleware = t.middleware(async ({ next }) => {
+//
+// IT ALSO LOGS THE UNMAPPED ONES — the other half of the silent-500 (docs/design/streaming-shape-churn.md
+// §7.5). `classifyDomainError` returning null means the throw is NOT a modelled domain outcome, so tRPC
+// serialises it as INTERNAL_SERVER_ERROR: a genuine fault. Nothing in the ladder logged that, so a 500 whose
+// cause never happened to log for itself (a DB fault, a bug, a provider error on a path infra did not
+// classify) reached the browser with ZERO server-side trace. Now every 500 lands in pino + the log ring +
+// `/api/_debug/errors`, carrying the procedure that produced it.
+//
+// GATED ON THE CODE, not on `mapped === null`: an UNAUTHORIZED/FORBIDDEN/NOT_FOUND thrown by the gates above
+// is also un-mappable here (it is already a TRPCError, not a DomainError), and those are expected refusals
+// with their own `securityEvent` line — logging them at error would bury the real faults in 401 noise.
+const domainErrorMiddleware = t.middleware(async ({ path, type, next }) => {
   const result = await next();
   if (!result.ok) {
     const mapped = classifyDomainError(result.error);
     if (mapped !== null) {
       throw mapped;
+    }
+    if (result.error.code === "INTERNAL_SERVER_ERROR") {
+      getLog().error(
+        { err: result.error.cause ?? result.error, event: "trpc.unhandled", path, type },
+        `trpc: unmapped error on ${path} — surfaced to the caller as a 500`,
+      );
     }
   }
   return result;

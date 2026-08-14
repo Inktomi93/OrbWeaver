@@ -62,6 +62,32 @@ function levelValue(name: string | undefined): number {
   return name === undefined ? 0 : (LOG_LEVEL_VALUES[name] ?? 0);
 }
 
+/**
+ * The numeric severity of ONE ring line — and the fix for a total, silent blindness in both readers below.
+ *
+ * `logger.ts` configures `formatters: { level: (label) => ({ level: label }) }` so every serialized line
+ * carries `"level":"error"`, the STRING LABEL, not pino's numeric 50. Both filters here used to do
+ * `Number(record["level"] ?? 0)`, and `Number("error")` is **NaN** — every comparison against NaN is false.
+ * The consequences ran in opposite directions and only one of them was visible:
+ *   • `collectErrors` (`NaN >= 50` → false) returned `[]` for EVERY input. `/api/_debug/errors` was
+ *     structurally incapable of ever reporting an error, which is how a live turn produced an ERROR-level
+ *     `provider.error` line, an HTTP 500, and a blank panel (docs/design/streaming-shape-churn.md §7.5).
+ *   • `collectLogs` (`NaN < minLevel` → false) excluded NOTHING, so `?level=` silently returned every line
+ *     and read as a working filter.
+ * The ring WRITE was never the problem — pino's multistream fed it correctly the whole time.
+ *
+ * Reads BOTH spellings on purpose: the label is what our formatter emits, and the number is what pino emits
+ * by default — so this stays correct if the formatter is ever removed, rather than swapping which half of
+ * the bug is live.
+ */
+function recordLevel(record: Record<string, unknown>): number {
+  const raw = record["level"];
+  if (typeof raw === "number") {
+    return raw;
+  }
+  return typeof raw === "string" ? levelValue(raw) : 0;
+}
+
 /** @internal — pure timing-safe equality (exported for tests; the middleware closes over env.DEBUG_TOKEN). */
 export function tokenMatches(provided: string | undefined, expected: string | undefined): boolean {
   if (expected === undefined || provided === undefined) {
@@ -104,7 +130,7 @@ function collectLogs(query: LogQuery): Record<string, unknown>[] {
     if (record === null) {
       continue;
     }
-    if (Number(record["level"] ?? 0) < query.minLevel) {
+    if (recordLevel(record) < query.minLevel) {
       continue;
     }
     if (query.requestId !== undefined && record["requestId"] !== query.requestId) {
@@ -122,7 +148,7 @@ function collectErrors(limit: number): Record<string, unknown>[] {
   const errors: Record<string, unknown>[] = [];
   for (const line of logRing.recent(MAX_RING_READ)) {
     const record = parseLine(line);
-    if (record !== null && Number(record["level"] ?? 0) >= ERROR_LEVEL) {
+    if (record !== null && recordLevel(record) >= ERROR_LEVEL) {
       errors.push(record);
     }
     if (errors.length >= limit) {

@@ -867,6 +867,11 @@ describe("provider.* observability taxonomy", () => {
     const turns = providerLines(info, "provider.turn");
     expect(turns).toHaveLength(1);
     expect((turns[0] as Record<string, unknown>)["ok"]).toBe(false);
+    // THE DENOMINATOR (docs/design/streaming-shape-churn.md §7.5). `usage.tokensOut` on this line is the SUM
+    // over the loop's model calls, `maxOutputTokens` is the PER-CALL ceiling — a live `ok:false` line read
+    // `tokensOut:8192` against a 2048 cap and got filed as a cost bug on that arithmetic. Without
+    // `numTurns` the line cannot be read correctly, and the FAILURE line is exactly where it is read.
+    expect((turns[0] as Record<string, unknown>)["numTurns"]).toBe(1);
     const errs = providerLines(error, "provider.error");
     expect(errs).toHaveLength(1);
     // The backend-internal sessionId rides the error log line (never the SDK-free result).
