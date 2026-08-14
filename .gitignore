@@ -114,3 +114,11 @@ scratch/
 
 # Codex CLI's own config/scratch dir (its audit copies live here — never ours to lint or track)
 .codex/
+
+# design-sync (staged converter + build output + machine state)
+.ds-sync/
+ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+packages/ui/.ds-preview-tokens.css
