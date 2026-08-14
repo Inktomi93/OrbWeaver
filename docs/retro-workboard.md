@@ -1517,7 +1517,13 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   exactly one reader (the `summarize`→`structured` facade), the rpg rail mints its own `ResponseFormat` and
   asks for no vehicle, and `tests/server/entry/compose/rpg.int.test.ts`'s "#36 (vehicle knob)" test holds that
   premise on both arms (planted-control verified). **R3's graduation lens is unblocked.**
-- [ ] **#37 trust-gated card images + token-concepts unification** — one security lane; "BUILDS GO" 08-09.
+- [x] **#37 trust-gated card images + token-concepts unification — REFUSED-STALE, ALREADY BUILT
+  08-09 (`b46cf3c30`; the card-image-trust lane's re-derive caught it, receipt-verified).** Half 1 =
+  the card-frame doorway (`entry/http/card-frame.ts`: src-routed doc w/ own tight CSP, server-side
+  membership-gated trust, allowExternalMedia tighten-only, CSPRNG handles, wired card-block +
+  rpg-scene-cards). Half 2 = token unification on both readings (diagnostics env one-model +
+  resolveRenderPolicy already the ONE trust home). Today's fence/strip lanes were orthogonal; D16
+  untouched. The 08-09 board flagged the stale risk (line 619) and it was right.
 - [ ] **#38 ruled smalls, all four** — Untitled-chat rosters · X-16 edited-ago · REGPAR F3/F4/F5 ·
   unsent-draft reload persistence. "SMALLS GO" 08-09.
 - [x] **C1 PERSONA PROGRAM — STATUS ESTABLISHED 08-14: the forge lane LANDED before the ban (sixth
@@ -1713,6 +1719,11 @@ promotion · speaker-tint door · Meteocons · grimstone · tag-only backup (C9-
   `enableGlobalVirtualStore`. ONE committer on main; lanes commit with pathspec.
 - **Probe harnesses:** `scripts/probes/rpg-extraction/` (probes are lint-free scratch by ruling).
   Score against OPPORTUNITIES through the PRODUCTION tokenizer.
+- **REASONING / LIVE-MODEL PROBES USE STRONG MODELS (owner, 08-14 evening):** any reasoning,
+  structured-output, or churn probe that drives a LIVE model uses **Sonnet 5 + Google Pro 3.1**
+  (or comparable frontier reasoning models), NEVER a weak/old Haiku-class SKU — a prior probe on
+  deepseek-flash drew the owner's "someone was using an ancient haiku model" flag. The model is
+  part of the probe's validity; a weak model produces a non-representative reasoning trace.
 - **The extraction-mode map is EMPIRICAL** (spike §4f-§4h): hosted strong × folded = default ·
   agent-sdk = LOUD fallback round · local vLLM × folded prose-silenced → cheap round is the local
   champion (`tool_choice:"required"`).
