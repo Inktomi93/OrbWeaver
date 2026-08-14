@@ -332,7 +332,24 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
 
 **OPEN ITEMS (the real list, everything else below is archive):**
 
-- [ ] **ENTITY→ROOM MEMBER-FRESHNESS BRIDGE — DESIGN DELIVERED + MERGED (08-14 midday):**
+- [x] **BRIDGE LANE 1 BUILT + MERGED (`7df073db5`, 08-14 evening; 519 tests, red-first on the
+  owner's exact symptom — the getMemberCard row).** A character/persona/world-info edit now reaches
+  OTHER humans' open rooms on the null-seq live lane. NO SQUASH, dev db NOT dropped (225v225
+  baseline parity proof — the durable-subset derive removed no CHECK key; squash rides LANE 2).
+  As-built deltas receipted in the design doc (§3.4/§3.5/§3.6/§10): four world-info arms ·
+  chat\_events column types STAY `ChatBusEvent` (narrowing would re-type the D16-frozen §3.6
+  stamper for zero coverage; CHECK is the second belt) · invalidation.ts SPLIT (reads →
+  `invalidation-reads.ts`, component-size) which forced a one-hop walk fix on
+  query-freshness-coverage (two-sided conformance) + 2 BELT\_EXEMPT grammar rows.
+  **QUEUED — LANE 2 (dispatch when ghost-tail lands; bus.ts collision fence):** chatDeleted
+  live-only + both delete paths DELETE-first (R1-4a closes) + the baseline SQUASH (⚠ next boot
+  wipes then) + quiet (room,kind) generalization + F-G rename + the G-A roomReach SEATED-red gate
+  lane. **NEW ROW — ENTITY-DELETE FRESHNESS (named by the lane, boarded as promised):** deleting a
+  seated persona / attached book reaches NO member (SET NULL/CASCADE fires with no verb emit; reach
+  resolves ∅ post-write by construction) — fix shape = pre-write reach capture, per the
+  emits-precede-deletes law; recorded in contracts/events member headers + doc §3.6. **Follow-up
+  small:** `forceCharacterTurn` still opens its slot only at turnStarted (the aux-accepted lane's
+  \~6-line leftover; `slotAccepted` machinery exists). Original design row:
   `docs/design/entity-room-member-freshness-bridge.md` (stickler lane, 427 lines, check:docs green).
   TWO PREMISE CORRECTIONS from the tree (doc §0/§3.2): the character→room fan ALREADY EXISTS
   (`entry/compose/emit-character-updated.ts`, always-on at search-discovery.ts:162-170) — the owner's
