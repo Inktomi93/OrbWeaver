@@ -18,6 +18,17 @@ file=$(jq -r '.tool_input.file_path // empty')
 [ -z "$file" ] && exit 0
 
 root="${CLAUDE_PROJECT_DIR:-$PWD}"
+# WORKTREE-CORRECT ROOT (2026-08-14, smalls-client lane find): CLAUDE_PROJECT_DIR always names the
+# MAIN checkout, but lanes edit files in their own worktrees — running the tools from main against a
+# foreign absolute path makes biome lose the monorepo config (package.json unfindable → the built-in
+# default ruleset fires on lines nobody touched) and the rel-normalization below silently no-ops.
+# Walk up from the FILE to the nearest checkout root (biome.json + package.json together only exist
+# there); CLAUDE_PROJECT_DIR stays the fallback for paths outside any checkout.
+d=$(dirname "$file")
+while [ "$d" != "/" ]; do
+  if [ -f "$d/biome.json" ] && [ -f "$d/package.json" ]; then root="$d"; break; fi
+  d=$(dirname "$d")
+done
 cd "$root" || exit 0
 rel="${file#"$root/"}"                       # normalize the (usually absolute) path to repo-relative
 cfg=".dependency-cruiser.cjs"

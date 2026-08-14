@@ -299,10 +299,13 @@ schema (`chats.starred`, `characters.updated_at`), 11 characters / 6 chats = fre
 boot; the 10:21 stack restart was a no-op boot (hashes matched, migrate.ts:62 latch quiet). Stack UP
 :8788 loopback + vite :5173, engines all adopted.**
 
-**RUNNING (4, dispatched \~10:30 — ⚠ isolation was NOT passed at dispatch; all four were redirected
-to self-made worktrees off `0351b8a37` before any writes, under `orbweaver-wt/` on `wt/*` branches;
-exact dir/branch names come from each lane's report (smalls-client confirmed at
-`orbweaver-wt/smalls-client`) — sweep these by hand at drain):** `gates-gg-exports`
+**RUNNING (2 — `orbweaver-wt/{gg-gates,gf-guard}` self-made worktrees, sweep by hand at drain;
+plus Codex on its own worktree now, owner-relayed):** MERGED FROM THIS WAVE: deps-mermaid
+`c05a2e45d` (swept) · bridge design doc (wt/bd-bridge, worktree still up pending fork answers) ·
+smalls-client `1abbaf62f` (post-merge types:graph 0; worktree pending sweep). **PostToolUse biome
+hook FIXED for worktrees** (root now walked up from the FILE — CLAUDE\_PROJECT\_DIR always names
+MAIN; the false-positive wall on every lane edit is dead; verified both tree kinds).
+**Original dispatch note (4 lanes, \~10:30):** `gates-gg-exports`
 (executor — G-G testid-liveness + ui exports-map arm + density-tier ratchet-arm port) ·
 `bridge-design` (stickler — entity→room member-freshness bridge + R1-4a, design doc only) ·
 `guard-followup` (security-executor — bash -c operand + double-quoted `$()` + pipe-rewrite tail;
@@ -713,14 +716,20 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   chats-with-character-pane deliberately NOT separately pinned (window is a property of the shared
   hook — one fact, one assertion). Lesson pinned: board rows citing file:line owe a re-derive AT
   DISPATCH (\[\[audit-lists-are-snapshots]]).
-- [ ] **World-info small:** `book-attachments.tsx:97` reads `character.list` with no limit (50-row
-  default) and its kicker counts ALL characters as "Attached by" — wrong count + silent 50-cap.
-- [ ] **Smalls batch (sweep tail):** `turn-tool-calls.ts:45-52` window-budget (50 slots shared with
-  unviewable sibling rows; add the lineage filter its sibling journal.ts:36-50 already has) ·
-  `rpg-takeover-header.tsx:95` minute `?? 0` synthesis (latent; contract permits the reach — align with
-  its own hour arm one line up) · doc truth-repairs: staleness design §1.1 `orb-draft:*` inventory is
-  STALE (`createEntityDraftStore` has ZERO call sites, 429+503 scanned w/ control — W6 is smaller than
-  written).
+- [x] **World-info small: FIXED in the smalls-client merge (`1abbaf62f`):** the real defect was only
+  the unpaged picker read (`:108`, one silent 50-row page) — fixed with the add-chat-document-dialog
+  precedent (debounced server search + limit 100 + honest empty/loading states). The kicker claim was
+  STALE (it counts the ATTACHED set off listBooksWithUsage, never the library). Red-first CT ×2.
+- [x] **Smalls batch (sweep tail): ALL RESOLVED (smalls-client lane, receipts in its report):**
+  turn-tool-calls window-budget FIXED via per-MESSAGE window — newest N slots, every record of each
+  (`limit`→`turnLimit` rename so the re-denomination is a compile error, not a silent unit change;
+  contract pin that the old spelling no longer binds; header carries BOTH texts — the no-projection
+  ruling STANDS, the budget is per-slot now; eviction pin hardcodes 51 so raising the default REDs
+  it) · rpg-takeover-header `:95` was ALREADY-FIXED (`64110bcc5`; only the correct `:108` angle-feed
+  survives) · staleness §1.1 was ALREADY-REPAIRED (W10 lane 1, doc:61). **LESSON (board law): the
+  row's "add the lineage filter" instruction INVERTED the dogfood sweep's own finding ("window-budget
+  defect, NOT wrong-row") — when compressing a review into a row, carry the review's framing
+  verbatim, never a remembered fix. Lane caught it by reading the target file's header.**
 - [ ] **"LONGER OUTPUTS" LEVER (owner ruling, cap inventory landed by the residue lane):** the two binding
   constants are `DEFAULT_MAX_OUTPUT_TOKENS` = **2048** (`contracts/preset/index.ts:238` — BOTH the wire
   max\_tokens AND the history-fit reserve: `history-budget.ts:65,112`, every output token is a prompt
@@ -734,9 +743,10 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 - [ ] **Low-scan gates, human eye when convenient (denominators visible for the first time):**
   bus-payload-allowlist 5 files · modal-body-not-placeholder 7 · selection-store-via-factory 9 ·
   turn-identity 10 — presumably intended-narrow; no invented threshold added, just now readable.
-- [ ] **Residue-lane smalls:** move the `genRepetitionPenalty` editor row out of the restart-gated
-  Engines section to sit beside its now-hot twin in admin-system-tuning (client + CT) · tighten
-  `no-test-fabrication.baseline.json` for chat.test.ts 2→1 (gate-ledger edit, do at a quiet moment).
+- [ ] **Residue-lane smalls:** ~~genRepetitionPenalty relocation~~ ALREADY-DONE (smalls-client
+  receipt: system-tuning-section.tsx:32 owns it, negative marker at engine-launch-fields.ts:35-37,
+  CT :94) · REMAINING: tighten `no-test-fabrication.baseline.json` for chat.test.ts 2→1
+  (gate-ledger edit, do at a quiet moment).
 - [ ] **AST TWO-CORPORA ASYMMETRY (ruling needed; surfaced by the scan ledger, deliberately NOT fixed
   in-lane — it changes match semantics):** syntactic verbs (callers/importers/exports/jsx/ident/aliases/
   regkeys) load harness-globs and are structurally BLIND to `scripts/**`, `packages/*/*.ts`, `*.mts`,
