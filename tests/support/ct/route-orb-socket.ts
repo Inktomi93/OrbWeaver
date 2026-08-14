@@ -25,6 +25,18 @@ import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
 import type { Page, Request } from "@playwright/test";
 
+/** The typed TERMINAL frame `withSubscriptionErrors` yields when a subscription's source throws a
+ *  DomainError (`transport/trpc/subscriptions.ts`). Spelled here rather than imported: the client
+ *  discriminates it structurally, and a CT stub must be able to author one without pulling the server in. */
+export interface SubscriptionErrorPayload {
+  readonly __subscriptionError: true;
+  readonly code: string;
+  readonly message: string;
+}
+
+/** Anything the stub can put on the wire — a room frame, or the socket's typed terminal error. */
+export type ScriptedFrame = StreamFrame | SubscriptionErrorPayload;
+
 /** One SSE frame in the tRPC shape (fields each `\n`-terminated, then a blank line dispatches it). */
 function sseFrame(fields: { event?: string; data: string; id?: string }): string {
   let frame = "";
@@ -39,7 +51,7 @@ function sseFrame(fields: { event?: string; data: string; id?: string }): string
 }
 
 /** connected → each frame with its per-socket ORDINAL id → return (clean close). */
-function socketBody(frames: readonly StreamFrame[], includeReturn: boolean): string {
+function socketBody(frames: readonly ScriptedFrame[], includeReturn: boolean): string {
   const out: string[] = [sseFrame({ event: "connected", data: JSON.stringify({}) })];
   for (const [i, frame] of frames.entries()) {
     out.push(sseFrame({ data: JSON.stringify(frame), id: String(i + 1) }));
@@ -71,7 +83,7 @@ export interface OrbSocketRecorder {
 
 export interface RouteOrbSocketOptions {
   /** The frames to serve, in order, on EVERY connect. Author them as `{ channel, …, event }`. */
-  readonly frames?: readonly StreamFrame[];
+  readonly frames?: readonly ScriptedFrame[];
   /** Serve the body only once this many attaches have been recorded (the handshake). @defaultValue 0 */
   readonly awaitAttaches?: number;
   /** Emit the terminal `return` frame so the EventSource closes cleanly. @defaultValue true */

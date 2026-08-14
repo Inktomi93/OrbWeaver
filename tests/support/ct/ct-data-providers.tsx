@@ -25,7 +25,7 @@ import {
   fullscreenChrome,
   youModal,
 } from "@orb/client/features/app-shell";
-import { accountModal } from "@orb/client/features/auth";
+import { accountModal, reauthModal } from "@orb/client/features/auth";
 import { librarySettingsSection, makeCharactersSection } from "@orb/client/features/character";
 import {
   appearanceAvatarsSection,
@@ -230,6 +230,7 @@ const REAL_MODALS: Record<ModalSlotId, ModalDefinition> = {
   newChat: newChatModal,
   addDocument: addDocumentModal,
   you: youModal,
+  reauth: reauthModal,
 };
 
 const realModalRegistry: ModalRegistry = createRegistry<ModalSlotId, ModalDefinition>("modals", MODAL_SLOT_IDS, REAL_MODALS);

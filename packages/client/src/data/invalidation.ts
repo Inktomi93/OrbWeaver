@@ -34,6 +34,11 @@ export interface Invalidation {
   /** Gap-heal — on user-bus RE-connect, blanket-invalidate every filter the user map covers. Never on the
    *  first connect of a page load: that mount's own reads ARE the fresh state (`use-user-bus.ts`). */
   readonly invalidateAllUserRoots: () => void;
+  /** The IDENTITY reads — `sessions.me` plus the two composites `use-viewer.ts` derives the viewer from.
+   *  Called by the session-recovery ladder's resume rung: a tab that just re-authenticated may be a
+   *  different principal (or the same one with a changed role), and NO user-bus member covers identity
+   *  today, so this is not reachable through `invalidateAllUserRoots`. */
+  readonly invalidateIdentity: () => void;
   /** The mutation half — `createEntityMutation.onSettled` routes its filters through here. */
   readonly invalidateFilters: (filters: readonly InvalidateFilter[]) => void;
 }
@@ -336,6 +341,13 @@ function allRpgGameFilters(trpc: Trpc, chatId: ChatId): readonly InvalidateFilte
   ];
 }
 
+/** The viewer triple (`use-viewer.ts`): the server identity plus the two reads its `currentPersona`
+ *  derivation composes. Named explicitly rather than derived from the user map — the map has NO identity
+ *  member (the design's D5 gap; the `identityChanged` event that would add one is a server lane, W7b). */
+function identityFilters(trpc: Trpc): readonly InvalidateFilter[] {
+  return [trpc.sessions.me.pathFilter(), trpc.settings.getUserSettings.pathFilter(), trpc.persona.list.pathFilter()];
+}
+
 /** Every filter the user map covers — derived so a new member can't drift the gap-heal set. */
 function allUserRootFilters(trpc: Trpc): readonly InvalidateFilter[] {
   return (Object.keys(USER_BUS_EVENT_TYPES) as UserBusEvent["type"][]).flatMap((type) => {
@@ -381,6 +393,9 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
     },
     invalidateAllUserRoots: (): void => {
       invalidateFilters(allUserRootFilters(deps.trpc));
+    },
+    invalidateIdentity: (): void => {
+      invalidateFilters(identityFilters(deps.trpc));
     },
     gapHealRpg: (chatId): void => {
       invalidateFilters(allRpgGameFilters(deps.trpc, chatId));

@@ -11,11 +11,16 @@
 //
 // It never reads a domain event (the byte-blind rule is a client property too — `applyChatBusEvent` and the
 // invalidation maps stay the ONLY translators) and never writes a store (gate `bus-onData-no-store-write`).
+//
+// The one thing it DOES read off a fault is the tRPC error CODE, and only to answer "is the session dead?"
+// (W1). A warm tab under D54's pins issues no reads, so the QueryCache belt has nothing to fire on — this
+// socket is the only place a revoked/expired session announces itself, and it used to end at a toast.
 
 import type { StreamFrame } from "@orb/contracts/stream";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { useEffect } from "react";
 import { notify } from "#lib";
+import { recoverIfUnauthorizedCode } from "../stale-session.ts";
 import { useTRPC, useTRPCClient } from "../trpc.ts";
 import { roomRegistry } from "./room-registry.ts";
 import { socketId } from "./socket-id.ts";
@@ -29,6 +34,10 @@ function routeFrame(payload: SocketPayload): void {
     // The whole socket is over. Every room loses freshness, so every room's consumer hears it; the
     // reconnect's gap-heal closes the data gap when the client re-subscribes.
     roomRegistry.failed(payload.message);
+    // W1 — and if the reason was the SESSION, this frame is the only signal a warm tab will ever get: with
+    // `staleTime: Infinity` it issues no reads, so the QueryCache belt has nothing to fire on. Route the
+    // code into the recovery ladder; every other code keeps its room-failure handling and nothing else.
+    recoverIfUnauthorizedCode(payload.code);
     return;
   }
   if (payload.channel !== "control") {
@@ -88,6 +97,13 @@ export function useOrbSocket(): void {
           roomRegistry.socketDown();
         },
         onError: (error) => {
+          // `stream.connect` is an `authedProcedure`, so a dead cookie refuses the CONNECT REQUEST — the
+          // principal is never minted and the generator never runs, which is why this arm (not the terminal
+          // frame above) is where an expired/revoked session actually surfaces. Recovery replaces the toast:
+          // a "UNAUTHORIZED" notice the user can do nothing about is worse than the re-auth prompt.
+          if (recoverIfUnauthorizedCode(error.data?.code)) {
+            return;
+          }
           notify.error(error.message);
         },
       },

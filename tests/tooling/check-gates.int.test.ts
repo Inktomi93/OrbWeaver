@@ -784,6 +784,8 @@ function writeFixtures(): void {
     "packages/client/src/features/__g_rawpersist/lib/__g_store.ts",
     "declare function create(x: unknown): unknown;\ndeclare function persist(init: unknown): unknown;\nexport const useGRogueStore = create(persist(() => ({})));\n",
   );
+  // session-channel-boundary: a second cross-tab channel outside lib/session-channel.ts (the ONE home).
+  fx("packages/client/src/features/__g_bchan/lib/__g_sync.ts", 'export const c = new BroadcastChannel("chat:sync");\n');
   // no-static-staletime: the banned `staleTime: "static"` (the bus drives freshness).
   fx("packages/client/src/features/__g_staletime/hooks/__g_h.ts", 'export const o = { staleTime: "static" };\n');
   // no-untrusted-html-in-main-dom: dangerouslySetInnerHTML outside the sanctioned seals (D44).

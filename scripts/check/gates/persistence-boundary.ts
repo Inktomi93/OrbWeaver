@@ -15,8 +15,16 @@ const RAW_STORAGE_ALLOWLIST = new Set([
   // the two persistence factories — the doors themselves
   "packages/client/src/state/create-persisted-store.ts",
   "packages/client/src/state/create-entity-draft-store.ts",
+  // the doors' SHARED half: the per-user durable-local namespace. Its only raw-storage touch is the
+  // last-bound-userId POINTER a cold boot mints keys against (store blobs move through each store's own
+  // persist storage, never through this) — boot machinery, the same carve-out as main.tsx
+  "packages/client/src/state/durable-local.ts",
   // dev-only probe flag seeded by `pnpm snap --probe` BEFORE the app boots — not app state
   "packages/client/src/lib/probe-mode.ts",
+  // the OIDC re-auth resume snapshot: TAB-scoped by requirement (a sibling tab must not inherit another
+  // tab's redirect round trip) and written across a full-document navigation, so it cannot ride a store
+  // door — session machinery, not a device-local preference
+  "packages/client/src/data/session-resume.ts",
   // the composition root's vite:preloadError reload-once guard — boot machinery, not app state
   "packages/client/src/main.tsx",
 ]);
