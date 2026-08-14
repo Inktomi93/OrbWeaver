@@ -256,7 +256,12 @@ function generationConfigOverrides(config: EngineLaunchConfig): Record<VllmEngin
   return {
     embed: null,
     rerank: null,
-    gen: { temperature: 1.0, top_p: 0.95, top_k: 20, repetition_penalty: config.genRepetitionPenalty },
+    // PENALTY-ONLY (owner's serve.sh design, adopted 2026-08-14): this checkpoint's generation_config.json
+    // already ships temperature/top_p/top_k = 1.0/0.95/20 (thinking-mode card values); re-emitting them here
+    // was redundant today and would silently CLOBBER a future checkpoint's shipped samplers. The penalty is
+    // the one value the checkpoint does NOT carry usefully (ships 1.0 = no penalty → the sampler-less
+    // /v1/messages path loops to the output cap), so it alone is launch-baked.
+    gen: { repetition_penalty: config.genRepetitionPenalty },
   };
 }
 
@@ -309,12 +314,17 @@ function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
     `${ctx.repoRoot}/${GEN_CHAT_TEMPLATE_REL}`,
     "--default-chat-template-kwargs",
     '{"enable_thinking": false, "preserve_thinking": true}',
-    //    (b) enable_in_reasoning — vLLM 0.26 defaults it FALSE (verified against StructuredOutputsConfig).
-    //        Left false, xgrammar SKIPS constraining whenever reasoning is present and the whole
-    //        extraction/tool layer (json_schema + tool_choice) dies INVISIBLY — valid-looking prose, zero
-    //        enforcement. MANDATORY on a thinking checkpoint; the rpg extraction path depends on it.
+    //    (b) enable_in_reasoning — FALSE, and the old "MANDATORY true" claim (playbook + the cc serve.sh)
+    //        had the semantics INVERTED. Live A/B on THIS checkpoint, vLLM 0.26, 2026-08-14:
+    //          true  → thinking+json_schema traps the grammar INSIDE the think block (the grammar forbids
+    //                  `</think>`): content='' and the schema JSON lands in the reasoning field
+    //                  (measured: reasoning was exactly the 35-char JSON, finish=stop).
+    //          false → reasoning is free prose (2,962ch measured), content = valid schema JSON. Thinking-off
+    //                  structured + tool_choice:required both enforce fine under false too.
+    //        The flag means "apply the grammar DURING reasoning", not "keep enforcement alive when
+    //        reasoning exists". Receipts: the 08-14 overnight probes (P3-on/P3-off/P4, board LIVE STATE).
     "--structured-outputs-config",
-    JSON.stringify({ enable_in_reasoning: true }),
+    JSON.stringify({ enable_in_reasoning: false }),
     //    (c) tool parser: `hermes` was correct for Qwen3-VL and is WRONG here. This checkpoint's
     //        chat_template.jinja emits `<tool_call><function=NAME><parameter=NAME>` — the qwen3_coder shape
     //        (Qwen's own card specifies it). In 0.26 `qwen3_coder` and `qwen3_xml` resolve to the SAME class
@@ -331,6 +341,12 @@ function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
     // across TP ranks (full encoder per rank — +0.46GB/card here, measured), and the preprocessed-input
     // cache in shared memory rather than mirrored per process (it defaults to 4GiB PER process).
     "--enable-prefix-caching",
+    // ⚠ KV CACHE DTYPE: fp8 is OWNER-BANNED — "DO NOT ADOPT FP8 EVER" (verbatim, 2026-08-14, overriding
+    // his own cc serve.sh's suggestion of it; that script's "measure quality before trusting blind" caveat
+    // evidently resolved AGAINST). The pool math (head_dim 256 → 256 KiB/token bf16, fp8 would double the
+    // 623,957-token / 19.04x pool) is real and stays recorded here so nobody re-derives it as a "find" —
+    // the ban is a QUALITY ruling, not an oversight. KV stays default (auto/bf16). Do not emit
+    // --kv-cache-dtype at all.
     "--mm-encoder-tp-mode",
     "data",
     "--mm-processor-cache-type",
