@@ -357,11 +357,13 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 > the actionable residue + the convergences with tonight's work. Final synthesis lands when its
 > remaining 51 lanes finish — re-sweep this block then.
 
-- [ ] **P2 (Codex SID-01): custom-endpoint health FALSE GREEN** — `test-health.ts:75` returns
-  `{status:"ok"}` for `custom_openai` WITHOUT invoking `ctx.probe`; their int test PROVES the probe
-  ledger stays empty. Fix: probe through the existing redacted boundary OR return an explicit
-  `unchecked` state — never `ok` unprobed. Small server lane, red-first. (Their words: "is bullshit and
-  will mislead someone" — correct.)
+- [x] **SID-01 FIXED + MERGED** (`6cf7ffc68`): custom\_openai dials its own endpoint through the
+  host-pin/safeFetch boundary; anthropic/openai report an honest `unchecked` arm; reachable-but-non-auth
+  answers (404/405/500) are `unchecked` so a BYO endpoint without /models can't be 3-strike-revoked out
+  from under the user. LIVE three-arm control vs the real engine (ok · unreachable-scrubbed ·
+  unchecked). **Codex verify:** `pnpm vitest run tests/server/domain/credentials/` (their own test file
+  now proves the truth). FOLLOW-UP one-liner: the client "Test" button on custom rows still calls
+  fetchModels, not testHealth — switch it (rides any client small).
 - [ ] **P2 (GA-H-02): structure artifact owes PER-GATE scan denominators** — candidate/scanned/skipped
   per gate in normal output, else a predicate regression is a zero-scan placebo (OUR
   \[\[instruments-lie-verify-the-verifier]] law at gate scale). Pairs with the G-A/G-B gate lane — same
