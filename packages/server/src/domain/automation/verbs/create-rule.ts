@@ -47,6 +47,12 @@ export function createCreateRule(ctx: AutomationContext): AutomationService["cre
     if (row === undefined) {
       throw new Error(`createRule: row ${id} vanished immediately after insert`);
     }
+    // THE RULE ROSTER ANNOUNCES ITSELF (event-bus coverage survey H2/F5). `rulesChanged` was declared on
+    // `AutomationBusEvent` and emitted NOWHERE — the D50 dead-wire class, alive on the bus built AFTER the
+    // ratchets. Emitted AFTER the durable insert, through the SAME injected `notify` sink the four other
+    // members ride (D38: the domain never reaches at transport). Host-only at the room by classification —
+    // `transport/trpc/automation-bus.ts` filters everything but `quickReplySurfaced` per subscriber tier.
+    ctx.notify({ type: "rulesChanged", chatId: params.chatId });
     return toRuleView(row);
   };
 }

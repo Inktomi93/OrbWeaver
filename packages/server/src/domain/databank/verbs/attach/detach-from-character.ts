@@ -25,5 +25,7 @@ export function createDetachFromCharacter(ctx: DatabankContext): DatabankService
       { actorUserId: ownerId, action: "databank.detachFromCharacter", entityType: "document", entityId: documentId, metadata: { characterId } },
       ctx.now(),
     );
+    // Owner-scoped on both sides — real detach only (see `attach-to-character`).
+    ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };
 }

@@ -25,5 +25,10 @@ export function createAttachToChat(ctx: DatabankContext): DatabankService["attac
       return; // already attached — idempotent
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.attachToChat", entityType: "document", entityId: documentId, metadata: { chatId } }, ctx.now());
+    // The HOST's own bank view (the attachment chips) announces itself here, on a real attach only. The
+    // ROOM's view of what feeds its prompts (`listActiveForChat`) is member-visible state and does NOT ride a
+    // user-bus event — `membership-fan-guard` reserves that for a roster fan on the chat bus, and the rack
+    // already rides `chatUpdated`. Widening this member to the room would be the exact leak that guard bans.
+    ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };
 }

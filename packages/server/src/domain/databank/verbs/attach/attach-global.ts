@@ -25,5 +25,8 @@ export function createAttachGlobal(ctx: DatabankContext): DatabankService["attac
       return; // already global — idempotent, no audit
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.attachGlobal", entityType: "document", entityId: documentId }, ctx.now());
+    // Announced only on a REAL scope change: the idempotent re-attach returns above, so a no-op toggle sends
+    // nothing (survey H3). This is the driver behind the library row's Everywhere toggle on a second tab.
+    ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };
 }

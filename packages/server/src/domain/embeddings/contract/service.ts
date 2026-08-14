@@ -4,6 +4,7 @@
 
 import type { AssetCreatedEvent, CharacterUpdatedEvent } from "@orb/contracts/events";
 import type { RoleClients } from "@orb/contracts/role-clients";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type {
   AssetId,
@@ -125,7 +126,25 @@ export interface EmbeddingsIndexer {
 }
 
 /** What the domain's `WorkloadContribution` factory needs from the composition root (the `index` kind) —
- *  this domain's own verbs, nothing cross-feature. */
+ *  this domain's own verbs, plus the freshness plane the sweep's terminal fans on. */
 export interface EmbeddingsWorkloadDeps {
   readonly embeddings: Pick<EmbeddingsService, "embedCorpus" | "embedAssets">;
+  /**
+   * The per-user freshness plane (`corpusRecomputed`) — injected, never a sideways reach at the bus (D38).
+   * The `index` sweep rewrites the vectors every `discovery.*` read and `search.similarArt` are derived from,
+   * and it is a WORKLOAD: no mutation exists for any client to hang an `invalidates` on (survey §2.5). Fanned
+   * at the pass TERMINAL, once per owner in scope — never per embedded row (that is a corpus-sized storm).
+   *
+   * The MEMBER is `corpusRecomputed`, shared with discovery's five analytics passes rather than an
+   * `embeddingsChanged` of its own: no client read projects a raw vector, so what a subscriber is being told
+   * is "the analytics over your corpus moved", which is one fact with one member (survey F6).
+   *
+   * FLAG[emit-is-total] — by construction: synchronous, `void`-returning, non-throwing (transport's
+   * `publishUserEvent`, live-only, no durable row, no FK).
+   */
+  readonly emitUserEvent: EmitUserEvent;
+  /** The bulk arm's announce audience — every owner with corpus rows. Only consulted when the run context's
+   *  `ownerId` is `null`; wired at compose to discovery's `distinctCorpusOwners` (whose header states the
+   *  deliberate over-inclusiveness), which is why it arrives as an op rather than a local query. */
+  readonly listCorpusOwners: () => Promise<UserId[]>;
 }

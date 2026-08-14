@@ -6,9 +6,10 @@
 //   • prune-on-shrink: re-ingesting with a bigger chunkSize (fewer chunks) deletes the stranded tail rows
 //     (store-then-prune), leaving exactly the new set.
 
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { documentChunks, documents } from "@orb/db";
-import type { DocumentId, Handle } from "@orb/kit/ids";
+import type { DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createExtractText, EXTRACTOR_VERSION } from "@orb/server/infra/extraction";
 import { asc, eq } from "drizzle-orm";
@@ -29,12 +30,64 @@ const CANON = [
 ].join(" ");
 const SMALL_CHUNKS = { chunk: { chunkSize: 200, overlapPercent: 0, wholeFileThreshold: 100 }, retrieval: {} } as const;
 
-async function seedDoc(db: Db, ownerHandle: string): Promise<{ h: DatabankHarness; documentId: DocumentId }> {
+async function seedDoc(db: Db, ownerHandle: string): Promise<{ h: DatabankHarness; documentId: DocumentId; owner: UserId }> {
   const h = makeDatabankHarness(db, { settings: SMALL_CHUNKS });
   const owner = await seedUser(db, { handle: castId<Handle>(ownerHandle) });
   const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "scrolls.md", text: CANON });
-  return { h, documentId: document.id };
+  return { h, documentId: document.id, owner };
 }
+
+/** The terminal fan's events only — the create's per-document announce is not what these tests are about. */
+function terminalFans(h: DatabankHarness): readonly { readonly userId: UserId; readonly event: UserBusEvent }[] {
+  return h.userEvents.filter((call) => call.event.type === "databankChanged" && call.event.documentId === undefined);
+}
+
+// ── THE TERMINAL FAN (event-bus coverage survey H3/§2.5) ─────────────────────────────────────────────
+// This is the freshness half no mutation could ever supply: the writer is a WORKLOAD, so not even the tab
+// that hit Reindex had an `invalidates` to hang on, and what moves is the `chunkCount`/`embeddedCount` every
+// library row projects. One event per pass per touched owner — never per document, never per chunk.
+
+test("ingestDocument announces ONCE at its terminal, to the document's owner, with no id", async () => {
+  const db = await freshDb();
+  const { h, documentId, owner } = await seedDoc(db, "owner");
+
+  await h.ingest.ingestDocument({ documentId, signal: new AbortController().signal });
+
+  // No `documentId` on a pass event: `reindex` shares this fan and touches many, so the grain is the pass.
+  expect(terminalFans(h)).toEqual([{ userId: owner, event: { type: "databankChanged" } }]);
+});
+
+// FENCE, not a defect proof: this one PASSES against the pre-fix source too (nothing emitted anywhere, so
+// "announces nothing" was trivially true). It guards the audience rule going forward — the set is the owners
+// a document actually LOADED for, never "whoever the pass was pointed at".
+test("an ingest of a VANISHED document announces nothing — the audience is owners actually touched", async () => {
+  const db = await freshDb();
+  const { h, documentId, owner } = await seedDoc(db, "owner");
+  await h.service.remove({ principal: principalFor(owner), id: documentId });
+  h.userEvents.length = 0;
+
+  // The delete-between-enqueue-and-dispatch path: `loadDocument` misses, so no owner enters the audience.
+  await h.ingest.ingestDocument({ documentId, signal: new AbortController().signal });
+  expect(h.userEvents).toEqual([]);
+});
+
+test("a BULK reindex (ownerId null) fans PER OWNER — one each, never one for the pass", async () => {
+  const db = await freshDb();
+  const h = makeDatabankHarness(db, { settings: SMALL_CHUNKS });
+  const alpha = await seedUser(db, { handle: castId<Handle>("alpha") });
+  const beta = await seedUser(db, { handle: castId<Handle>("beta") });
+  await h.service.createFromText({ principal: principalFor(alpha), name: "a.md", text: CANON });
+  await h.service.createFromText({ principal: principalFor(beta), name: "b.md", text: `${CANON} and one more line for beta.` });
+  h.userEvents.length = 0;
+
+  await h.ingest.reindex({ ownerId: null, scope: { kind: "owner" }, mode: "chunk-embed", signal: new AbortController().signal });
+
+  // A user-bus event reaches exactly ONE user's channel, so a single fan on a cross-owner sweep would leave
+  // every owner but one frozen. Order follows the enumeration; compare as a set.
+  const fans = terminalFans(h);
+  expect(fans).toHaveLength(2);
+  expect(new Set(fans.map((call) => call.userId))).toEqual(new Set([alpha, beta]));
+});
 
 test("ingestDocument derives contiguous chunks whose spans partition the canon, tagged with the active space", async () => {
   const db = await freshDb();

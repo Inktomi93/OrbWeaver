@@ -16,6 +16,7 @@ import type { StoredAsset } from "@orb/contracts/assets";
 import type { DatabankSettings, IngestRunResult, ReindexMode, ReindexScope } from "@orb/contracts/databank";
 import type { ExtractTextOp } from "@orb/contracts/extraction";
 import type { Principal } from "@orb/contracts/identity";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { AssetId, ChatId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 import type { EmbeddingsService } from "#domain/embeddings";
@@ -96,6 +97,24 @@ export interface DatabankContext {
   readonly now: () => number;
   readonly newDocumentId: () => DocumentId;
   readonly audit: (entry: AuditEntry, at: number) => Promise<void>;
+  /**
+   * The per-user freshness plane (`databankChanged`) — injected, never a sideways reach at the bus (D38).
+   * Every persisting verb calls it with the OWNER after its durable write commits, and the ingest subsystem
+   * fans it per touched owner at a pass terminal. The client's `USER_BUS_FILTERS` row path-invalidates
+   * `trpc.databank`, which is what makes a second tab/device reconcile at all (event-bus coverage survey H3 —
+   * before this the whole bank was writer-local `invalidates` at `staleTime: Infinity`).
+   *
+   * SCOPE — the OWNER's library, never the room's view. A chat/character attach also changes what a
+   * PARTICIPANT sees (`listActiveForChat`); that half is member-visible state and fans to the roster on the
+   * chat bus, never to one user (`membership-fan-guard`). This op announces the bank you own.
+   *
+   * FLAG[emit-is-total] — satisfied BY CONSTRUCTION, not by a classifier: the op is synchronous,
+   * `void`-returning and non-throwing (transport's `publishUserEvent` → `defineBusChannel.publish`,
+   * live-only, no durable row, no FK). The chat bus needs a classify-and-drop wrapper because a `void emit()`
+   * over a REJECTABLE durable insert is an unhandled rejection — a process kill. Nothing here can reject, so
+   * the rule is the simple one every user-bus producer follows: emit AFTER the commit.
+   */
+  readonly emitUserEvent: EmitUserEvent;
   // injected cross-feature ops (types from the owning contracts; wired at compose)
   readonly assetsStore: AssetsStoreOp;
   readonly loadAssetBytes: LoadAssetBytesOp;

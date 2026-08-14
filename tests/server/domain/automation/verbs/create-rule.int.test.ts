@@ -11,41 +11,50 @@ import { seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR, seedUser } from "../_support.ts";
 
 describe("createRule — authority", () => {
-  test("a host creates a rule born disabled at position 0", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+  test("a host creates a rule born disabled at position 0, and the roster announces itself", async () => {
+    const { host, chatId, svc, events } = await ruleFixture();
     const rule = await svc.createRule({ principal: principal(host), chatId, name: "greet", trigger: MSG_COMMITTED, actions: [SET_VAR] });
     expect(rule.enabled).toBe(false);
     expect(rule.position).toBe(0);
     expect(rule.trigger).toEqual(MSG_COMMITTED);
     expect(rule.actions).toEqual([SET_VAR]);
     expect(rule.createdAt).toBe(FIXED_NOW_MS);
+    // H2 — the dead wire, now live: `rulesChanged` was DECLARED on `AutomationBusEvent` and emitted from
+    // nowhere in the tree (event-bus coverage survey §2.3). Id-only + chat-scoped, exactly as the room's
+    // host-only filter classifies it.
+    expect(events).toEqual([{ type: "rulesChanged", chatId }]);
   });
 
-  test("a present member who is not host is forbidden", async () => {
-    const { db, chatId, svc } = await ruleFixture();
+  test("a present member who is not host is forbidden — and a refused write announces nothing", async () => {
+    const { db, chatId, svc, events } = await ruleFixture();
     const member = await seedUser(db, "user_member");
     await seedParticipant(db, { chatId, key: "mem", userId: member, role: "member" });
     await expect(svc.createRule({ principal: principal(member), chatId, name: "x", trigger: MSG_COMMITTED, actions: [SET_VAR] })).rejects.toThrow(
       DomainForbiddenError,
     );
+    expect(events).toHaveLength(0);
   });
 
-  test("a non-member gets a leak-free chat-not-found", async () => {
-    const { db, chatId, svc } = await ruleFixture();
+  test("a non-member gets a leak-free chat-not-found — and announces nothing", async () => {
+    const { db, chatId, svc, events } = await ruleFixture();
     const stranger = await seedUser(db, "user_stranger");
     await expect(svc.createRule({ principal: principal(stranger), chatId, name: "x", trigger: MSG_COMMITTED, actions: [SET_VAR] })).rejects.toThrow(
       AutomationChatNotFoundError,
     );
+    expect(events).toHaveLength(0);
   });
 });
 
 describe("createRule — validation refusals", () => {
-  test("refuses a reserved trigger", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+  test("refuses a reserved trigger — and a validation refusal announces nothing", async () => {
+    const { host, chatId, svc, events } = await ruleFixture();
     const trigger: AutomationTrigger = { bus: "chat", type: "messageHidden" };
     await expect(svc.createRule({ principal: principal(host), chatId, name: "x", trigger, actions: [SET_VAR] })).rejects.toThrow(
       AutomationReservedTriggerError,
     );
+    // The emit sits AFTER the insert, so every gauntlet refusal is silent by construction — nothing was
+    // written, so there is nothing for a second host tab to re-read.
+    expect(events).toHaveLength(0);
   });
 
   test("refuses an unparseable CEL predicate", async () => {

@@ -9,7 +9,10 @@
 // consumer is legal TypeScript). Every such const found in `@orb/contracts` must have BOTH: a
 // `scripts/check/gates/*.ts` coverage-gate file naming it, AND a mapped-type total map over its event union
 // somewhere in `packages/client/src` (the ONE invalidation seam `data/invalidation.ts` for the global
-// chat/user buses; `features/rpg/hooks/use-rpg-stream.ts` for the per-chat rpg SSE bus).
+// chat/user buses; a bus's own stream hook otherwise — the belt is located client-wide BY SHAPE, never by
+// path). (Truth-repair 2026-08-14, event-bus coverage survey §1.2: this line used to name
+// `features/rpg/hooks/use-rpg-stream.ts` as the rpg map's home. That file does not exist — `RPG_BUS_FILTERS`
+// lives in `data/invalidation.ts` with the other two maps, and the gate never looked at a path anyway.)
 import type { SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
@@ -88,10 +91,11 @@ function isIndexedOverUnion(node: TsNode | undefined, unionName: string): boolea
 
 /** Does SOME `packages/client/src` file declare a mapped type (`[K in Union["type"]]`) OR a
  *  `Record<Union["type"], …>` type reference over this exact union — the client consumer-exhaustiveness
- *  belt. The global buses (chat/user) home it in the ONE invalidation seam `data/invalidation.ts`; the
- *  per-chat rpg SSE bus homes its `EVENT_INVALIDATIONS` total map in `features/rpg/hooks/use-rpg-stream.ts`
- *  (a different transport, not the global invalidation seam), so the belt is located client-wide by shape,
- *  not by a fixed file. */
+ *  belt. All three live maps (chat/user/rpg) happen to sit in the ONE invalidation seam
+ *  `data/invalidation.ts` today, but the search is BY SHAPE and client-wide on purpose: a feature bus may
+ *  legitimately home its total map in its own stream hook, and a path-keyed gate dies on a rename.
+ *  (Truth-repair 2026-08-14: this comment used to assert the rpg map lived in
+ *  `features/rpg/hooks/use-rpg-stream.ts` — no such file exists.) */
 function fileHasTotalMap(sf: SourceFile, unionName: string): boolean {
   const mappedHit = sf.getDescendantsOfKind(SyntaxKind.MappedType).some((m) => isIndexedOverUnion(m.getTypeParameter().getConstraint(), unionName));
   if (mappedHit) {

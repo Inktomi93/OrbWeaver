@@ -13,5 +13,8 @@ export function createReorderRules(ctx: AutomationContext): AutomationService["r
     await applyReorder(ctx.db, chatId, orderedIds, ctx.now());
     // Position IS a transform_draft rule's `PromptTransform.order` (A7) — a reorder re-ranks the pipeline.
     await ctx.transforms.reload();
+    // Order IS semantics here (arms mutate the shared env in position order), so a reorder is a real change
+    // to what the chat's rule set DOES — it announces exactly like a create/edit (survey H2/F5).
+    ctx.notify({ type: "rulesChanged", chatId });
   };
 }
