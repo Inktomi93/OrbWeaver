@@ -428,8 +428,11 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
      (GA-H-01/02); **priority-bumped, next harness slot** (T3).
   4. Newline/line-count alignment — the one byte that was OURS is DONE (`f18314e1d`, gen jinja trailing
      newline; 331→331 agree). Their receipt-counting convention is their tooling.
-  5. export-rot-cleanup.ts aborts dry-run on stale PersonaMetadataWrite disposition — reconcile row +
-     rerun full no-write preview — **T2 smalls bundle**.
+  5. export-rot dry-run abort — **REFUSED BY LEDGER LAW, correctly** (T2 lane receipt): the disposition
+     file is a ONE-SHOT APPLIED RECORD whose own header rules the abort CORRECT and forbids "fixing" its
+     staleness; `PersonaMetadataWrite` no longer exists in the tree (`pnpm ast refs` → no declaration).
+     **Message for Codex:** to act on export rot again, re-run the lenses (`pnpm ast orphans|testonly`)
+     and write a NEW dated table with its own executor — never edit the 2026-08-03 record.
   6. engines.ts parses empty boot lock as PID 0 → `process.kill(0,0)` wedges future starts — reuse
      `_kit/spawn-lock.ts` positive-PID discipline + fs regression test — **T2 smalls bundle**
      (memory \[\[kill-signal-zero-pid-zero-always-succeeds]] predicted this exact class).
