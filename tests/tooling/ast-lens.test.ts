@@ -11,6 +11,7 @@
 // `deps:orphan-ratchet` also reads — so that suite pins the six liveness sets identical with the edge flag
 // off and on. Perturbing them is a GATE regression, not a lens change. Do not weaken it.
 
+import { fileURLToPath } from "node:url";
 import { Project } from "ts-morph";
 import { describe } from "vitest";
 import type { ApiSurfaceEntry, ChainCandidate, Liveness, SwallowedCandidate } from "../../scripts/codemods/ast.ts";
@@ -37,6 +38,9 @@ import {
   isUnwiredExempt,
   respellHitsFor,
   scanRowReads,
+  scriptEntryPaths,
+  testOnlyClassOf,
+  toolingConfigNames,
 } from "../../scripts/codemods/ast.ts";
 import { expect, test } from "../support/fixtures.ts";
 
@@ -128,6 +132,40 @@ describe("ast unwired lens", () => {
     const consumed = collectClientConsumed(project, valid);
     expect(consumed.has("worldInfo.listBooks")).toBe(true);
     expect(consumed.has("chat.listBooks")).toBe(false);
+  });
+
+  test("sees a BRACKET or OPTIONAL-CHAINED proxy read, and never invents one from a computed key", () => {
+    // LENS CALIBRATION (2026-08-13): the proxy is an ordinary object at the value level, so `trpc.ns["proc"]`,
+    // `trpc["ns"].proc` and `trpc?.ns?.proc` all reach a procedure. A dot-only matcher calls each of them
+    // UNWIRED, and the natural response — delete the verb — breaks the client. Four routers, one spelling each.
+    const project = projectOf({
+      "packages/server/src/transport/trpc/routers/world-info.ts": `
+export const worldInfoRouter = t.router({ bracketTail: authedProcedure.query(() => []), optionalChained: authedProcedure.query(() => []) });
+`,
+      "packages/server/src/transport/trpc/routers/chat.ts": `
+export const chatRouter = t.router({ bracketNs: authedProcedure.query(() => []), computedOnly: authedProcedure.query(() => []) });
+`,
+      "packages/server/src/transport/trpc/router.ts": `
+import { worldInfoRouter } from "./routers/world-info";
+import { chatRouter } from "./routers/chat";
+export const appRouter = t.router({ worldInfo: worldInfoRouter, chat: chatRouter });
+`,
+      "packages/client/src/features/world/reads.ts": `
+declare const trpc: any;
+declare const key: string;
+export const a = trpc.worldInfo["bracketTail"].queryOptions({});
+export const b = trpc?.worldInfo?.optionalChained.queryOptions({});
+export const c = trpc["chat"].bracketNs.queryOptions({});
+export const d = trpc.chat[key].queryOptions({});
+`,
+    });
+    const procs = collectServerProcedures(project);
+    const consumed = collectClientConsumed(project, new Set(procs.map((p) => p.full)));
+    // The three static spellings are consumption — the planted positive controls.
+    expect([...consumed].sort(byString)).toEqual(["chat.bracketNs", "worldInfo.bracketTail", "worldInfo.optionalChained"]);
+    // The NEGATIVE control: `trpc.chat[key]` names no procedure statically. A lens that "resolved" it would
+    // be fabricating a consumer for every proc in the namespace — `computedOnly` stays unwired, correctly.
+    expect(consumed.has("chat.computedOnly")).toBe(false);
   });
 
   test("a `@server-only:` or `@test-fixture:` reason filters an otherwise-unwired procedure; a bare marker does not", () => {
@@ -290,6 +328,59 @@ describe("ast orphan-candidate substrate", () => {
     const declOf = (name: string): Parameters<typeof isProdConsumed>[1] => shapes.getInterfaceOrThrow(name);
     expect(isProdConsumed(live, declOf("LiveShape"))).toBe(true);
     expect(isProdConsumed(live, declOf("RotShape"))).toBe(false);
+  });
+});
+
+describe("ast prodonly lens (tooling entry points)", () => {
+  test("a package-root `*.config.ts` is an entry; a `.config.ts` INSIDE src is not", () => {
+    // LENS CALIBRATION (2026-08-13): `drizzle.config.ts` / `vite.config.ts` are loaded BY A TOOL, by
+    // filename — no import edge points at them by design, and the lens called all of them prod-unreachable
+    // rot. The negative arm matters as much: the entry glob resolver lets `*` cross slashes (Node exports
+    // semantics), so a naive `*.config.ts` glob would also promote a real module to an unreachable-by-nobody
+    // entry and hide whatever it imports.
+    const project = new Project({ useInMemoryFileSystem: true });
+    for (const path of ["/repo/packages/db/drizzle.config.ts", "/repo/packages/db/src/lib/table.config.ts", "/repo/packages/db/src/index.ts"]) {
+      project.createSourceFile(path, "export const x = 1;\n");
+    }
+    expect(toolingConfigNames(project, "/repo/packages/db")).toEqual(["drizzle.config.ts"]);
+  });
+
+  test("a package script's `.ts` target is an entry — derived from the REAL package.json, never hardcoded", () => {
+    // The defect this replaces: ONE hardcoded anchor named `src/tokens/tokens.build.ts`, a path that stopped
+    // existing when the file moved to the package root, and a hardcoded `add()` on a missing file is a silent
+    // no-op. `packages/ui`'s own `tokens:build` script names the file; reading the script cannot go stale.
+    expect(scriptEntryPaths(fileURLToPath(new URL("../../packages/ui", import.meta.url)))).toContain("tokens.build.ts");
+  });
+});
+
+describe("ast testonly lens (declared test seams)", () => {
+  test("a `__`-prefixed export is a BUCKETED declared seam; an ordinary test-only export is still a hit", () => {
+    // LENS CALIBRATION (2026-08-13): 21 of the 31 client rows were `__resetX` / `__readXForTest` — the
+    // repo's self-identifying test-seam convention. Reporting one restates its own name back at the reader.
+    const project = projectOf({
+      "packages/client/src/state/store.ts": `
+export function useStore(): number { return 1; }
+export function __resetStore(): void {}
+export function __readStoreForTest(): number { return 1; }
+export function sneakyHelper(): number { return 2; }
+`,
+      "packages/client/src/features/panel.ts": 'import { useStore } from "../state/store";\nexport const v = useStore();\n',
+      "tests/client/state/store.test.ts": `
+import { __readStoreForTest, __resetStore, sneakyHelper } from "../../../packages/client/src/state/store";
+export const k = [__resetStore, __readStoreForTest, sneakyHelper];
+`,
+    });
+    const live = buildLiveness(project);
+    const store = project.getSourceFileOrThrow(`${ROOT}/packages/client/src/state/store.ts`);
+    const classOf = (name: string): string => testOnlyClassOf(store, name, store.getFunctionOrThrow(name), live);
+
+    // The two declared seams are bucketed — named in the report, never counted as findings.
+    expect(classOf("__resetStore")).toBe("seam");
+    expect(classOf("__readStoreForTest")).toBe("seam");
+    // The CONTROL: same liveness (only a test imports it), no declared intent in the name — still a hit.
+    expect(classOf("sneakyHelper")).toBe("hit");
+    // And a prod-reached export is neither.
+    expect(classOf("useStore")).toBe("alive");
   });
 });
 
@@ -501,6 +592,46 @@ describe("ast typeonly-alive lens (reference-position liveness)", () => {
     }
   });
 
+  test("the `as const` UNION-SOURCE idiom is bucketed — including the `as const satisfies …` spelling", () => {
+    // LENS CALIBRATION (2026-08-13): 46 of 47 real-tree hits were this idiom — the repo's standard way to
+    // give a string union a runtime source of truth (§5.5). Bucketed rows are still CANDIDATES (the
+    // `@typeonly-ok` stale arm keys on the candidate set); they are simply not counted as hits.
+    const project = projectOf({
+      "packages/server/src/typeonly/origin.ts": `
+export const AXIS = ["a", "b"] as const;
+export const CONFIG = { a: 1 } as const;
+export const SATISFIED = ["a", "b"] as const satisfies readonly string[];
+export const schemaLike = { parse: (v: unknown) => v };
+export const plainTuple = ["a", "b"];
+`,
+      "packages/client/src/features/typeonly/panel.ts": `
+import type { AXIS, CONFIG, plainTuple, SATISFIED, schemaLike } from "../../../../server/src/typeonly/origin";
+export type Axis = (typeof AXIS)[number];
+export type ConfigKey = keyof typeof CONFIG;
+export type Satisfied = (typeof SATISFIED)[number];
+export type Inferred = ReturnType<typeof schemaLike.parse>;
+export type Tuple = (typeof plainTuple)[number];
+`,
+    });
+    const byName = new Map(collectTypeOnlyCandidates(project, inTypeOnlyScope).map((c) => [c.name, c]));
+
+    // THE IDIOM, in both index forms and — the arm the first cut of this lens MISSED, which left
+    // `SIDE_GEN_KINDS` and `POST_PROCESS_LANE` reported as rot — through the `satisfies` wrapper.
+    expect(byName.get("AXIS")?.unionSource).toBe(true);
+    expect(byName.get("CONFIG")?.unionSource).toBe(true);
+    expect(byName.get("SATISFIED")?.unionSource).toBe(true);
+
+    // THE CONTROL — a `typeof` reference WITHOUT the `as const`: a runtime object whose type is merely
+    // inferred declared nothing, so a zod-schema-shaped export stays a real finding (on the real tree,
+    // `refinerySchemaSummarySchema` is exactly this and is the one row of 47 still reported).
+    expect(byName.get("schemaLike")?.unionSource).toBe(false);
+    expect(byName.get("plainTuple")?.unionSource).toBe(false);
+
+    // The bucket never changes CANDIDACY — all five are still type-only-alive, which is what keeps the
+    // two-sided `@typeonly-ok` stale arm honest.
+    expect([...byName.keys()].sort(byString)).toEqual(["AXIS", "CONFIG", "plainTuple", "SATISFIED", "schemaLike"]);
+  });
+
   test("names the type-position sites, and sees through a RENAMING barrel", () => {
     // The alias trap that forked the liveness key in 2026-08-02: the consumer spells the BARREL's name.
     // Reference resolution keys on the origin declaration, so the hop must not hide the type-only verdict.
@@ -586,6 +717,7 @@ const MINI_DRIZZLE = `
 export declare function sqliteTable<T>(name: string, cols: T): T & { $inferSelect: { [K in keyof T]: string } };
 export declare function text(name: string): string;
 export declare function integer(name: string): number;
+export declare function stamp(name: string): { default: (v: number) => number };
 export declare const db: {
   insert: (t: unknown) => { values: (v: unknown) => { onConflictDoUpdate: (c: unknown) => void } };
   update: (t: unknown) => { set: (v: unknown) => { where: (w: unknown) => void } };
@@ -594,7 +726,7 @@ export declare const db: {
 `;
 
 const WIDGET_SCHEMA = `
-import { integer, sqliteTable, text } from "../drizzle";
+import { integer, sqliteTable, stamp, text } from "../drizzle";
 export const widgets = sqliteTable("widgets", {
   id: text("id"),
   label: text("label"),
@@ -602,6 +734,8 @@ export const widgets = sqliteTable("widgets", {
   origin: text("origin"),
   tally: integer("tally"),
   ghost: text("ghost"),
+  createdAt: stamp("created_at").default(0),
+  touchedAt: integer("updated_at"),
 });
 `;
 
@@ -618,7 +752,7 @@ export function readAll(): string[] {
   return rows.map((row) => row.tally + widgets.label);
 }
 export function write(): void {
-  db.insert(widgets).values({ id: "a", label: "b", origin: "import", tally: "1" });
+  db.insert(widgets).values({ id: "a", label: "b", origin: "import", tally: "1", createdAt: 0, touchedAt: 0 });
   db.update(widgets).set({ tally: "2" }).where(widgets.id);
 }
 `,
@@ -699,6 +833,23 @@ export function bulk(row: { id: string }): void {
     expect(audit.opaqueTables.has("widgets")).toBe(true);
   });
 
+  test("a DEFAULTED created_at/updated_at nobody reads is `provenance`, not the RV-11 write-only class", () => {
+    // LENS CALIBRATION (2026-08-13): every write-only row the real tree produced was a junction table's
+    // audit stamp, and the audit that consumed them wrote "safe to kill". An audit stamp nothing reads back
+    // is doing its job. BOTH halves of the rule are pinned here — the second row is the control that keeps
+    // the first from being a blanket name-based exemption.
+    const project = projectOf(COLUMN_FILES);
+    const byName = new Map(collectColumnCandidates(project, collectSchemaTables(project)).candidates.map((c) => [c.column.jsProp, c]));
+    // `created_at`, written by the insert literal, read by nobody, value stamped by `.default(…)`.
+    expect(byName.get("createdAt")?.klass).toBe("provenance");
+    // The CONTROL: same convention NAME (`updated_at`), written the same way, but NO schema default — a
+    // value some writer chose to store, so it stays a finding.
+    expect(byName.get("touchedAt")?.column.sqlColumn).toBe("updated_at");
+    expect(byName.get("touchedAt")?.klass).toBe("write-only");
+    // And the class is scoped to the WRITE-ONLY verdict: `origin` (not a timestamp) is untouched.
+    expect(byName.get("origin")?.klass).toBe("write-only");
+  });
+
   test("`@column-ok: <reason>` on the column property exempts it; the marker reads off the PropertyAssignment", () => {
     const project = projectOf(COLUMN_FILES);
     const tables = collectSchemaTables(project);
@@ -736,6 +887,40 @@ export const which = (r: { settings: number }): number => r.settings;
     const registries = collectRegistries(project);
     expect(registries.map((r) => r.name)).toEqual(["PANE_REGISTRY"]);
     expect(registries[0]?.rows.map((r) => r.key)).toEqual(["chat", "settings", "retired", "alsoRetired"]);
+  });
+
+  test("derives the ROW-ARRAY shape (the TEMPLATE_DEFS drift) and reads through a computed string key", () => {
+    // LENS CALIBRATION (2026-08-13): the verb's OWN usage example is `regkeys TEMPLATE_DEFS`, and that table
+    // is an ARRAY of `{ id, … }` rows — so the example derived zero registries and exited 2. The second file
+    // is the `MARKER_COPY` shape: a computed `["literal"]` key whose extracted text used to be `["main_prompt"]`,
+    // a spelling nothing on earth dispatches, so 100% of that table's rows reported dead.
+    const project = projectOf({
+      "packages/contracts/src/preset/templates.ts": `
+export const TEMPLATE_DEFS = [
+  { id: "response", label: "Response" },
+  { id: "swipe", label: "Swipe" },
+  { id: "retiredTemplate", label: "Retired" },
+] as const;
+`,
+      "packages/client/src/features/preset/marker-copy.ts": `
+export const MARKER_COPY: Record<string, string> = {
+  ["main_prompt"]: "Main prompt",
+  ["retired_marker"]: "Retired",
+  plain_key: "Plain",
+};
+`,
+      "packages/client/src/features/preset/panel.ts": `
+export const pick = (): string => "response";
+export const also = (): string => "main_prompt";
+export const third = (): string => "plain_key";
+export const fourth = (r: { swipe: number }): number => r.swipe;
+`,
+    });
+    const byName = new Map(collectRegistries(project).map((r) => [r.name, r]));
+    // The row-array table derives, keyed on each row's `id` — not on nothing.
+    expect(byName.get("TEMPLATE_DEFS")?.rows.map((r) => r.key)).toEqual(["response", "swipe", "retiredTemplate"]);
+    // The computed key is unwrapped to the string it actually is.
+    expect(byName.get("MARKER_COPY")?.rows.map((r) => r.key)).toEqual(["main_prompt", "retired_marker", "plain_key"]);
   });
 
   test("a 2-row table is below the registry floor, and a non-exported / lowercase-untyped const is not a registry", () => {
