@@ -643,6 +643,14 @@ const chatSchema = z
     smoothStreamCps: z.number().int().min(SMOOTH_STREAM_CPS_MIN).max(SMOOTH_STREAM_CPS_MAX).catch(SMOOTH_STREAM_CPS_DEFAULT).default(SMOOTH_STREAM_CPS_DEFAULT),
     // Client-honored (the MessageList `scrollMode`). Default `follow`: today's sealed sticky-tail behavior.
     streamScrollMode: z.enum(STREAM_SCROLL_MODES).catch("follow").default("follow"),
+    // Client-honored (the streaming ghost's `<ReasoningBlock>`). Default ON = today's behavior: the live
+    // reasoning disclosure auto-collapses to the "Thought for Ns" header the instant the first answer token
+    // lands. Off ⇒ the trace stays open after the answer (the reader closes it), which the SillyTavern
+    // reasoning setting also exposes. When ON, the collapse is SNAP (no fold) so the answer prose paints at
+    // its final position in one commit rather than being flung up the trace's height
+    // (`streaming-shape-churn.md` §8; the 350–677px prose fling). Live-ghost only — a committed row already
+    // mounts collapsed + host-expandable.
+    reasoningAutoCollapse: z.boolean().catch(true).default(true),
   })
   .prefault({});
 

@@ -22,6 +22,7 @@ const populated: ChatSettings = {
   smoothStream: true,
   smoothStreamCps: 150,
   streamScrollMode: "pin-prompt",
+  reasoningAutoCollapse: true,
 };
 
 test("projectMessageHandlingForm flattens the nest and newline-joins the two list fields", () => {
@@ -84,7 +85,14 @@ test("list text: blank lines + surrounding whitespace are trimmed away", () => {
 });
 
 test("the defaults round-trip unchanged (minus the keys this section does not own)", () => {
-  const { smoothStream: _smooth, smoothStreamCps: _cps, streamScrollMode: _mode, autoSwipe, ...owned } = DEFAULT_CHAT_SETTINGS;
+  const {
+    smoothStream: _smooth,
+    smoothStreamCps: _cps,
+    streamScrollMode: _mode,
+    reasoningAutoCollapse: _autoCollapse,
+    autoSwipe,
+    ...owned
+  } = DEFAULT_CHAT_SETTINGS;
   const { maxRetries: _retries, ...autoSwipeSlice } = autoSwipe;
   expect(toMessageHandlingPatch(projectMessageHandlingForm(DEFAULT_CHAT_SETTINGS))).toEqual({ ...owned, autoSwipe: autoSwipeSlice });
 });

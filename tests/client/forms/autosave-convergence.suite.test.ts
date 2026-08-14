@@ -74,6 +74,7 @@ describe("convergence: chat-behavior message handling", () => {
       smoothStream: true,
       smoothStreamCps: 150,
       streamScrollMode: "pin-prompt",
+      reasoningAutoCollapse: true,
     },
   ];
   test.each(rows.map((r, i) => [i, r] as const))("row %i is a project/save/echo fixed point", (_i, row) => {
