@@ -28,8 +28,22 @@ const SSE_RECONNECT_AFTER_INACTIVITY_MS = 45_000;
 // The error formatter rides the honest domain reason code on `data.reason` (only a DomainOperationError
 // carries one — see domainReason). Additive: `data.reason` is typed `string | undefined` end-to-end, so
 // the inferred client error shape gains the optional field; a codeless error serialises without the key.
+//
+// IT ALSO STRIPS `stack` — UNCONDITIONALLY, in every env. tRPC's `getErrorShape` attaches the raw
+// `Error.stack` to `shape.data` whenever `config.isDev`, and `isDev` defaults to
+// `NODE_ENV !== "production"` resolved ONCE at `create()` below. On 2026-08-09 the public deployment was
+// being served by a DEV process (a `node --watch` out of a worktree behind the proxy), so every tRPC error
+// — including the pre-auth 401 an anonymous prober gets — returned absolute host paths, the OS username and
+// exact dep versions. Authz was intact; this was pure info-disclosure. Cutting the process over to
+// production fixed the INSTANCE; this line fixes the STRUCTURE, so no env, no launch mistake and no future
+// `isDev` default can put a stack frame on the wire. The strip is a rest-destructure rather than a
+// conditional so the leaking state is unrepresentable, not merely unlikely. Server-side stacks stay
+// reachable where they belong: pino + the request ring + /api/_debug (host-gated).
 export const t = initTRPC.context<Context>().create({
-  errorFormatter: ({ shape, error }) => ({ ...shape, data: { ...shape.data, reason: domainReason(error) } }),
+  errorFormatter: ({ shape, error }) => {
+    const { stack: _neverOnTheWire, ...data } = shape.data;
+    return { ...shape, data: { ...data, reason: domainReason(error) } };
+  },
   sse: {
     ping: { enabled: true, intervalMs: SSE_PING_MS },
     client: { reconnectAfterInactivityMs: SSE_RECONNECT_AFTER_INACTIVITY_MS },

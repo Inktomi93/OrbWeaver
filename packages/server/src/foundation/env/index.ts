@@ -12,10 +12,14 @@ import { parseEnv } from "node:util";
 import { AUTH_MODES } from "@orb/contracts/identity";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { z } from "zod";
+import type { BindPostureInput } from "./bind.ts";
+import { resolveBindPosture } from "./bind.ts";
 import type { DiagnosticsPostureInput } from "./diagnostics.ts";
 import type { EnginesPosture } from "./posture.ts";
 import { ENGINES_POSTURES } from "./posture.ts";
 
+export type { BindPosture, BindPostureInput } from "./bind.ts";
+export { bindPostureWarnings, resolveBindPosture } from "./bind.ts";
 export type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput } from "./diagnostics.ts";
 export { DIAGNOSTICS_EXPOSURES, diagnosticsPostureWarnings, resolveDiagnosticsPosture } from "./diagnostics.ts";
 export type { EnginesPosture } from "./posture.ts";
@@ -180,6 +184,16 @@ const envSchema = z
   .object({
     PORT: z.coerce.number().int().positive().default(DEFAULT_PORT),
     NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+    // The listen interface (`serve({ hostname })`). UNSET is the meaningful default and differs by build:
+    // production ⇒ node's own default (every interface — what the reverse proxy target needs); NON-production
+    // ⇒ loopback only, because a dev build must not be reachable off-box (bind.ts holds the model + the
+    // 2026-08-09 incident it exists for). An EXPLICIT non-loopback value on a non-production build is
+    // boot-fatal below unless ALLOW_DEV_PUBLIC_BIND says otherwise.
+    BIND_HOST: z.string().min(1).optional(),
+    // The deliberate-LAN-dev opt-in for the rule above. Default false. Never set this on the box that serves
+    // the public FQDN: the public deployment runs `pnpm stack up prod` (NODE_ENV=production), where this knob
+    // is inert by construction.
+    ALLOW_DEV_PUBLIC_BIND: envBool(false),
 
     // OpenRouter (chat-completions + responses runners, non-Claude models). Optional — omit when running
     // on agent-sdk/max-pro-sub only.
@@ -456,6 +470,16 @@ const envSchema = z
           "AUTH_FALLBACK=deny with AUTH_MODE=single-user leaves NO way to authenticate — single-user's only credential IS the owner fallback. Set AUTH_FALLBACK=owner, or pick an SSO mode (local/oidc/forward-header) where deny is the secure default.",
       });
     }
+    // THE DEPLOY-MODE INVARIANT (PROD-LEAK, 2026-08-09) — same fail-fast class again: a NON-PRODUCTION build
+    // may not be bound where an untrusted network reaches it. Refusing at PARSE (rather than at the bind
+    // site) is what makes the state unrepresentable: no code path can hold an `env` that says
+    // "development + public interface". The rule itself lives in ONE home — `bind.ts::resolveBindPosture`,
+    // which `entry/lifecycle` also calls for the host it actually binds — so the refusal and the bind can
+    // never disagree.
+    const bind = resolveBindPosture({ nodeEnv: val.NODE_ENV, bindHost: val.BIND_HOST, allowDevPublicBind: val.ALLOW_DEV_PUBLIC_BIND });
+    if (bind.refusal !== null) {
+      ctx.addIssue({ code: "custom", path: ["BIND_HOST"], message: bind.refusal });
+    }
     // The box has exactly one owner. A multi-handle list would seed >1 owner row and hit the DB unique
     // index as a raw violation later — fail fast here with a clear message instead.
     if (val.OWNER_HANDLES !== undefined) {
@@ -537,6 +561,14 @@ export function engineLaunchEnvFloor(): {
  *  deprecation line lands in the boot log; foundation/env stays the pure process.env reader. */
 export function enginesPostureInput(): { readonly posture: EnginesPosture | undefined; readonly vllmDisabled: boolean; readonly stackEngines: "yes" | "no" } {
   return { posture: env.ENGINES_POSTURE, vllmDisabled: env.VLLM_DISABLED, stackEngines: env.STACK_ENGINES };
+}
+
+/** The raw inputs the BIND posture resolver reads (the deploy-mode invariant). Same seam shape as
+ *  `enginesPostureInput` / `diagnosticsPostureInput`: this file stays the pure `process.env` reader, the
+ *  rule lives in `bind.ts`, and `entry/lifecycle` composes + logs. The env parse above has ALREADY refused
+ *  any combination whose posture carries a refusal, so a caller here is guaranteed a bindable verdict. */
+export function bindPostureInput(): BindPostureInput {
+  return { nodeEnv: env.NODE_ENV, bindHost: env.BIND_HOST, allowDevPublicBind: env.ALLOW_DEV_PUBLIC_BIND };
 }
 
 /** The raw inputs the DIAGNOSTICS posture resolver reads — the three ops knobs that together decide who can
