@@ -450,3 +450,110 @@ test("static mode: no reveal spans ever (settled canon renders span-free)", asyn
   );
   await expect(cmp.locator("[data-orb-reveal]")).toHaveCount(0);
 });
+
+// ── M1 · the tail-hold pre-pass (docs/design/streaming-shape-churn.md §2/§3 arm 1) ─────────────────
+// The grammar is pinned deterministically in tail-hold.test.ts; these are the RENDERED half — that the
+// seal wires the pre-pass on the streaming path only, and that the withheld construct arrives as the
+// right block on its FIRST paint instead of flipping type under the reader.
+const M1_PIPE_PREFIX = "Intro line.\n\n| Name | Role |";
+const M1_TABLE_SETTLED = "Intro line.\n\n| Name | Role |\n| --- | --- |\n| Ada | lead |\n";
+const M1_BARE_MARKER = "*";
+
+test("M1 streaming: a lone pipe row never paints as prose (the P→TABLE flip's first half)", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="streaming">
+      {M1_PIPE_PREFIX}
+    </Markdown>,
+  );
+  await expect(cmp).toContainText("Intro line.");
+  // The raw row text must not be on screen at all — pre-fix it rendered as a paragraph reading
+  // "| Name | Role |", which is what then got replaced by a <table> 300-365ms later.
+  await expect(cmp).not.toContainText("Name");
+  await expect(cmp.locator("table")).toHaveCount(0);
+});
+
+test("M1 streaming: once the delimiter row lands, the table paints as a TABLE (the hold releases)", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="streaming">
+      {M1_TABLE_SETTLED}
+    </Markdown>,
+  );
+  await expect(cmp.locator("table")).toBeVisible();
+  await expect(cmp.locator("th").first()).toHaveText("Name");
+  await expect(cmp.locator("td").first()).toHaveText("Ada");
+});
+
+test("M1 static: the SAME pipe prefix renders as authored (the pre-pass is streaming-only)", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="static">
+      {M1_PIPE_PREFIX}
+    </Markdown>,
+  );
+  await expect(cmp).toContainText("Name");
+});
+
+test("M1 streaming: a message that is ONLY an ambiguous marker still paints (never a blank body)", async ({ mount }) => {
+  // The floor that keeps the ghost bubble from collapsing and the caret from stranding: holding here
+  // would leave the seal with an empty string, so the pre-pass stands down and a LEAF BLOCK still
+  // mounts. (The marker's own glyph is consumed by Streamdown's emphasis repair, which is upstream of
+  // this seal and unchanged — what this pins is that a block box survives for the caret to attach to.)
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="streaming">
+      {M1_BARE_MARKER}
+    </Markdown>,
+  );
+  await expect.poll(() => cmp.locator("p, ul, ol, h1, h2, h3, blockquote, pre").count()).toBeGreaterThan(0);
+});
+
+// ── M5 · code-block birth geometry (docs/design/streaming-shape-churn.md §5) ───────────────────────
+const CODE_BLOCK = '[data-streamdown="code-block"]';
+const M5_FENCE = "Intro line.\n\n```js\nconst a = 1;\nconst b = 2;\nconst c = 3;\n```";
+const M5_OFFSCREEN = `${"Filler paragraph.\n\n".repeat(120)}\`\`\`js\nconst a = 1;\nconst b = 2;\nconst c = 3;\n\`\`\``;
+
+/** The in-page sampler's handle. An INTERSECTION with `typeof globalThis` so reading it back is one
+ * assertion, not the `as unknown as` double-cast the no-test-fabrication gate (rightly) reds. */
+type HeightProbe = typeof globalThis & { __csHeights: number[] };
+
+test("M5: a mounting code block never overshoots its settled height", async ({ mount, page }) => {
+  // page.evaluate, NOT addInitScript: the CT `page` fixture has already navigated to the harness by the
+  // time a test body runs, so an init script never fires. The sampler must be installed before `mount`.
+  await page.evaluate(() => {
+    const heights: number[] = [];
+    (globalThis as HeightProbe).__csHeights = heights;
+    const tick = (): void => {
+      const el = document.querySelector('[data-streamdown="code-block"]');
+      if (el !== null) {
+        heights.push(Math.round(el.getBoundingClientRect().height));
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="streaming">
+      {M5_FENCE}
+    </Markdown>,
+  );
+  await expect(cmp.locator("pre code")).toContainText("const c = 3;");
+  await expect.poll(() => page.evaluate(() => (globalThis as HeightProbe).__csHeights.length)).toBeGreaterThan(20);
+  const heights = await page.evaluate(() => (globalThis as HeightProbe).__csHeights);
+  const settled = heights.at(-1) ?? 0;
+  expect(settled).toBeGreaterThan(0);
+  expect(Math.max(...heights) - settled).toBeLessThanOrEqual(4);
+});
+
+test("M5: an OFF-SCREEN code block is laid out at its content height, not a 200px placeholder", async ({ mount }) => {
+  const cmp = await mount(
+    <Markdown trust="untrusted" mode="streaming">
+      {M5_OFFSCREEN}
+    </Markdown>,
+  );
+  const block = cmp.locator(CODE_BLOCK);
+  await expect(block).toHaveCount(1);
+  const box = await block.evaluate((el) => ({
+    own: Math.round(el.getBoundingClientRect().height),
+    children: Math.round([...el.children].reduce((sum, c) => sum + c.getBoundingClientRect().height, 0)),
+  }));
+  expect(box.children).toBeGreaterThan(0);
+  expect(box.own).toBeLessThan(200);
+});

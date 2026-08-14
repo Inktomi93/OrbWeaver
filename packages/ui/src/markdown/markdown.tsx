@@ -9,6 +9,7 @@ import { MARKDOWN_MERMAID_OPTIONS } from "./mermaid.tsx";
 import { MARKDOWN_REMARK_PLUGINS, TIER_A_UNTRUSTED_ELEMENTS, TRUSTED_ALLOWED_TAGS, TRUSTED_LITERAL_TAG_CONTENT, untrustedUrlTransform } from "./policy.ts";
 import { createRevealPlugin } from "./reveal-plugin.ts";
 import { MARKDOWN_SHIKI_PLUGIN } from "./shiki-plugin.ts";
+import { holdAmbiguousTail } from "./tail-hold.ts";
 
 const TRUSTS = ["trusted", "untrusted"] as const;
 const MODES = ["static", "streaming"] as const;
@@ -85,7 +86,8 @@ class MarkdownErrorBoundary extends Component<BoundaryProps, BoundaryState> {
  * restores Streamdown's permissive defaults (and, having no streaming consumer, gets no reveal
  * fade — the `allowedTags` schema merge is identity-gated on the default rehype pipeline).
  * Streamdown runs rehype-sanitize + rehype-harden by default under both policies. A pathologically
- * large input falls back to a plain `<pre>`.
+ * large input falls back to a plain `<pre>`. Streaming input additionally passes the seal-owned M1
+ * tail-hold pre-pass (`tail-hold.ts`, docs/design/streaming-shape-churn.md) before Streamdown parses it.
  */
 export function Markdown({ trust, mode, children, className, colorQuotes = false }: MarkdownProps): ReactElement {
   const reducedMotion = usePrefersReducedMotion();
@@ -113,6 +115,14 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
     createRevealPlugin().rehypePlugin,
   ]);
   const revealProp = reveal ? { rehypePlugins: revealPlugins } : {};
+
+  // M1 tail-hold (docs/design/streaming-shape-churn.md §2/§3 arm 1, tail-hold.ts): streaming only, and a
+  // pure PREFIX of the input — the still-undecidable trailing construct (a lone pipe row, a bare list
+  // marker, a setext-underline candidate) is withheld for one commit so the tail paints as the block it
+  // already is instead of flipping type under the reader. Runs before the repair layer; remend still sees
+  // a well-formed prefix, and the caret keeps landing on a real leaf block (the pre-pass never empties
+  // the body).
+  const body = mode === "streaming" ? holdAmbiguousTail(children) : children;
 
   if (children.length > MAX_RENDER_LENGTH) {
     return (
@@ -165,7 +175,7 @@ export function Markdown({ trust, mode, children, className, colorQuotes = false
               literalTagContent: [...TRUSTED_LITERAL_TAG_CONTENT],
             })}
       >
-        {children}
+        {body}
       </Streamdown>
     </MarkdownErrorBoundary>
   );

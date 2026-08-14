@@ -280,3 +280,62 @@ Two leads, neither proven, both with a console receipt from the same window:
 M5 slots into §3 as a cheaper target than M1: it needs no change to block-type decidability and no
 change to the repair layer the caret and the #42 reveal ride on. It is one container's height, and the
 content that container ends up holding is already known at mount.
+
+## 6. BUILT 2026-08-14 — M5 root-caused, M1 shipped as a seal pre-pass
+
+Owner ruling: build both. Both landed in the `@orb/ui` markdown seal; `parseIncompleteMarkdown` (remend)
+was not patched or vendored.
+
+### M5 — the mechanism, and why BOTH §5 leads were wrong
+
+**Root cause (source-pinned):** Streamdown's code-block container hardcodes, on its own element,
+
+```js
+// node_modules/streamdown/dist/chunk-BO2N2NFS.js — component `ot`, the div[data-streamdown="code-block"]
+style: { contentVisibility: "auto", containIntrinsicSize: "auto 200px", ...o }
+```
+
+A `content-visibility: auto` element is SKIPPED on its very first layout — relevance-to-the-user is not
+known until after that layout — so the browser sizes it from `contain-intrinsic-size`: **200px content +
+the 1px border pair = the measured 202px birth box**, re-laid out at its real height one frame later.
+That is the −94px self-collapse, and it explains the detail §5 flagged as strange: every child was
+"byte-identical in geometry across the jump" because on the first frame the children were **not laid out
+at all**.
+
+Both recorded leads are dead. Lead 1 (the 254ms shiki-plugin long frame) is a coincident cost of the
+same first render — the highlighter swap does not change the container's box. Lead 2 (Streamdown's dead
+`.my-4`/`.p-1` utilities) is true but not causal: the 202 comes from an INLINE style, not a class, and
+the dead `p-2` is only why the birth box is 202 rather than 218.
+
+**Fix:** `[data-streamdown="code-block"] { content-visibility: visible !important }` in
+`packages/ui/src/styles/globals.css`. `!important` is not a shortcut here — the container is internal to
+Streamdown (`CodeBlock` forwards neither `style` nor `className` to it), so CSS is the only seam and an
+inline style is only beatable this way. With no size containment, `contain-intrinsic-size` goes inert.
+Priced cost: offscreen code blocks are now laid out. Shiki tokenizes at mount regardless of visibility,
+the transcript is not virtualized, and the seal already owns the pathological-input policy
+(`MAX_RENDER_LENGTH`) — so the skip was buying offscreen layout and charging a 94px snap on the first
+render of every code block, mid-stream AND on scroll-in.
+
+**Proof (`tests/ui/markdown/markdown.ct.tsx`):** a mount-frame rAF sampler (max height minus settled
+height ≤ 4px) and a deterministic offscreen pin. Against the pre-fix tree the offscreen pin read exactly
+**202** and the sampler measured a **48px** overshoot; both green after.
+
+### M1 — `packages/ui/src/markdown/tail-hold.ts`, arm 1 as a pre-pass
+
+`holdAmbiguousTail(source)` runs on the STREAMING input only and returns the longest **prefix** whose
+trailing block type is already decidable — a truncation, never a rewrite, so this layer cannot corrupt
+content. Withheld while undecidable: a trailing pipe run (released once its second line is
+newline-terminated — GFM only accepts the delimiter row on line two, so the block's type is settled from
+that point), and a final in-progress line that is nothing but an ambiguous block marker (`-`/`*`/`+`/`_`
+runs, which also covers the setext-underline candidate, and a bare `1.`/`1)`). Two hard floors: it stands
+down inside an open fence, and it never returns a blank body (the ghost bubble must not collapse and the
+caret must have a leaf block to attach to). Accepted cost, as §3 arm 1 priced it: a table's first row
+appears one line later.
+
+**Scope verdict on §5's head-block flip:** COVERED for free. The `UL → P` 34ms flip is a bare `*`/`-`
+marker line, which the marker rule holds wherever it sits — the rule is per-ambiguous-line, not
+per-message-tail.
+
+**Residual:** M4 (reasoning block / tool chip) stays UNMEASURED and unfixed — it still needs a
+reasoning-capable connection and an armed tool, which no probe has configured. M3 (commit cadence)
+untouched, deliberately — re-tuning `MIN_TICK_MS` is an owner call (§3 arm 3).
