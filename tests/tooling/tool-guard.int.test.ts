@@ -9,12 +9,13 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "../support/fixtures.ts";
 
 const HOOK = fileURLToPath(new URL("../../.claude/hooks/tool-guard.mjs", import.meta.url));
+const REPO = dirname(dirname(dirname(HOOK)));
 const PINNED_NOW = "1700000000000";
 // every batch case gets an EMPTY proc root by default so a real `git push` running on this box while the
 // suite executes can never leak a push-in-flight context into an unrelated row
@@ -173,6 +174,10 @@ const ROWS: Row[] = [
   ["allow", "playwright-ct", "rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx 2>&1 | tail -40"],
   ["deny", "playwright-ct", "for i in 1 2 3; do npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx; done"],
   ["pass", null, "rm -rf playwright/.cache && npx playwright test -c playwright-ct.config.ts tests/client/x.ct.tsx"],
+  // …and the same recipe with its absolute paths QUOTED, which is how every real lane wrapper spells it.
+  // Sanction was read off the blanked text while intent was read off the raw, so quoting made the
+  // sanctioned recipe deny itself (39+10 real corpus invocations; found by the script-body A/B).
+  ["pass", null, 'rm -rf "$WT/playwright/.cache" && npx playwright test -c "$WT/playwright-ct.config.ts" tests/client/x.ct.tsx'],
   ["pass", null, "npx playwright test tests/e2e/login.spec.ts"],
   // ---- push tiers ----
   ["ask", "git-push-force", "git push --force origin main"],
@@ -327,6 +332,97 @@ test("push-in-flight: a live `git push` process turns a commit into a warn (neve
   expect(withoutPush.contexts).toEqual([]);
 });
 
+// ── script bodies: a wrapper file is not a shield ─────────────────────────────────────────────────────
+// The owner-spotted sibling of AGENT-TOOLING-01, and the same defect CLASS (visibility, not rule
+// weakness): lanes legitimately wrap work in a scratchpad `.sh` (logging + the 120s Bash ceiling), and
+// `bash /tmp/…/lane-run.sh` reached the classifier as ONE opaque line — 986 such invocations in a single
+// day's decisions.jsonl, every rule judging the wrapper instead of what ran. Nothing enforced that the
+// bodies were sanctioned; they happened to be. Every bite row below returned `pass/null` before the fix.
+
+/** the sanctioned CT recipe, lifted VERBATIM from a real lane wrapper (scratchpad/r1draft-ct.sh,
+ *  2026-08-14) — line continuations and all. It must keep passing: a guard that blocks the RIGHT way of
+ *  doing a job teaches agents to route around it. Note the shape that kills line-by-line classification —
+ *  the cache clear is on its own line and the CT invocation spans four more via `\`. */
+const REAL_CT_WRAPPER = `#!/usr/bin/env bash
+WT=/home/x/orbweaver/.claude/worktrees/agent-a662d9e17adb6dc35
+SP=/tmp/claude/-home-x-orbweaver/db7648b6/scratchpad
+cd "$WT" || exit 2
+rm -rf playwright/.cache
+npx playwright test -c playwright-ct.config.ts \\
+  client/features/chat/surfaces/chat-room-surface.ct.tsx \\
+  client/state/active-chat-store.ct.tsx \\
+  --reporter=list > "$SP/r1draft-ct.log" 2>&1
+echo "CT EXIT=$?"
+tail -40 "$SP/r1draft-ct.log"
+`;
+const EVIL_BODY = "#!/usr/bin/env bash\ncd /repo || exit 2\ngit stash\npnpm check\n";
+
+function writeScript(dir: string, name: string, body: string): string {
+  const file = join(dir, name);
+  writeFileSync(file, body);
+  return file;
+}
+
+test("script bodies: an untracked wrapper is judged by its CONTENTS, a tracked one is never read", () => {
+  const dir = mkdtempSync(join(tmpdir(), "tg-scripts-"));
+  const evil = writeScript(dir, "lane-run.sh", EVIL_BODY);
+  const ct = writeScript(dir, "lane-ct.sh", REAL_CT_WRAPPER);
+  const clean = writeScript(dir, "lane-clean.sh", "#!/usr/bin/env bash\necho hello\nls packages\n");
+  const nested = writeScript(dir, "lane-nested.sh", `#!/usr/bin/env bash\nbash ${evil}\n`);
+  // the depth cap is about UNREVIEWED bodies: a wrapper that ends in `exec bash scripts/dev/stack.sh`
+  // reaches a TRACKED script, and asking about that is pure wolf-crying (25 corpus false positives)
+  const nestedTracked = writeScript(dir, "lane-stage.sh", `#!/usr/bin/env bash\nexec bash ${REPO}/scripts/dev/stack.sh start\n`);
+  const big = writeScript(dir, "lane-big.sh", `#!/usr/bin/env bash\n${"# pad\n".repeat(20_000)}git stash\n`);
+  // tracked-ness is the ONLY variable here: a throwaway repo holding the SAME bytes as `evil`. (`git add`
+  // is enough — ls-files reads the index.) No script tracked in THIS repo classifies dirty, so an in-repo
+  // fixture could not prove the branch; this isolates it.
+  const repo = mkdtempSync(join(tmpdir(), "tg-repo-"));
+  const tracked = writeScript(repo, "tracked-run.sh", EVIL_BODY);
+  spawnSync("git", ["-C", repo, "init", "-q"], { encoding: "utf8" });
+  spawnSync("git", ["-C", repo, "add", "tracked-run.sh"], { encoding: "utf8" });
+
+  const rows: [string, BatchResult["decision"], string | null, BatchCase?][] = [
+    // MUST BITE — the body is what runs
+    [`bash ${evil} 2>&1 | tail -40`, "deny", "script:git-destructive"],
+    [`bash "${evil}"`, "deny", "script:git-destructive"], // quoting the path is the same file
+    [`sh ${evil}`, "deny", "script:git-destructive"],
+    [`${evil} --some-arg`, "deny", "script:git-destructive"], // direct invocation via the shebang
+    ["./lane-run.sh", "deny", "script:git-destructive", { cwd: dir }], // resolved against the Bash cwd
+    // compound: the script's verdict merges with the other stages under strictest-wins
+    [`echo hi && bash ${evil} && echo done`, "deny", "script:git-destructive"],
+    // bounded by construction
+    [`bash ${nested}`, "ask", "script:script-depth-cap"],
+    [`bash ${nestedTracked}`, "pass", null],
+    [`bash ${big}`, "ask", "script-too-large"],
+    // MUST PASS — the sanctioned forms and the fail-open paths
+    [`bash ${ct} 2>&1 | tail -40`, "pass", null],
+    [`bash ${clean} arg1 arg2`, "pass", null],
+    [`bash ${join(dir, "does-not-exist.sh")}`, "pass", null], // the command would fail anyway
+    [`bash ${dir}`, "pass", null], // a directory is not a script
+    [`bash ${tracked}`, "pass", null], // TRACKED: reviewed code, body not read — same bytes as `evil`
+    [`bash ${REPO}/scripts/dev/stack.sh restart`, "pass", null], // the real-world tracked case
+    // `bash -c '<string>'` is a DIFFERENT visibility gap (the inline command is quoted, so blanking
+    // erases it before any rule sees it) — 73 sightings in one day's log. Pinned here as KNOWN and
+    // unclosed so it is not mistaken for coverage this fix provides.
+    ['bash -c "git stash"', "pass", null],
+  ];
+  const results = runBatch(rows.map(([command, , , ctx]) => ({ command, ...ctx })));
+  const failures: string[] = [];
+  rows.forEach(([command, decision, rule], i) => {
+    const got = at(results, i);
+    if (got.decision !== decision || got.rule !== rule) {
+      failures.push(`[${i}] want ${decision}/${rule} got ${got.decision}/${got.rule} :: ${command}`);
+    }
+  });
+  expect(failures).toEqual([]);
+  // the offending LINE is quoted back, so the agent fixes the script instead of guessing
+  expect(at(results, 0).reason).toContain("\n    git stash");
+  expect(at(results, 0).reason).toContain(evil);
+  // the tracked pass-through is a real decision, not an accident of a clean body: the same bytes,
+  // classified directly, are a deny
+  expect(at(runBatch([{ command: EVIL_BODY }]), 0).rule).toBe("git-destructive");
+});
+
 // ── the hook contract (real stdin/stdout wire shape) ──────────────────────────────────────────────────
 
 test("contract: deny emits the PreToolUse wire shape with the teaching reason", () => {
@@ -382,6 +478,35 @@ test("contract: a filename mention never exempts — deny/ask still reach the wi
   expect(self.out.hookSpecificOutput?.permissionDecision).toBe("allow");
   const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as { rule: string };
   expect(logged.rule).toBe("self-exempt");
+});
+
+// The script-body fix through the SAME wire protocol the AGENT-TOOLING-01 audit used: what the host acts
+// on is the EMITTED decision, not the classifier's. The payload script is written to disk and CLASSIFIED,
+// never executed — nothing here runs `git stash`.
+test("contract: an untracked wrapper script's body reaches the wire as a deny, and is logged as such", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "tg-hook-"));
+  const dir = mkdtempSync(join(tmpdir(), "tg-scripts-"));
+  const evil = writeScript(dir, "lane-run.sh", EVIL_BODY);
+  const r = runHook(bashInput(`bash ${evil} 2>&1 | tail -40`), [["CLAUDE_PROJECT_DIR", tmp]]);
+  expect(r.status).toBe(0);
+  expect(r.out.hookSpecificOutput?.permissionDecision).toBe("deny");
+  expect(r.out.hookSpecificOutput?.permissionDecisionReason).toContain("git show HEAD:"); // the teaching text survives
+  expect(r.out.hookSpecificOutput?.permissionDecisionReason).toContain(evil); // …named to the file
+  const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as {
+    rule: string;
+    decision: string;
+  };
+  expect([logged.decision, logged.rule]).toEqual(["deny", "script:git-destructive"]);
+  // a lane gets the same deny plus the escalation path (an unanswerable ask kills a lane mid-turn)
+  const lane = runHook(
+    bashInput(`bash ${writeScript(dir, "lane-big.sh", `#!/usr/bin/env bash\n${"# pad\n".repeat(20_000)}`)}`, [
+      ["agent_id", "agent-123"],
+      ["agent_type", "executor"],
+    ]),
+    [["CLAUDE_PROJECT_DIR", tmp]],
+  );
+  expect(lane.out.hookSpecificOutput?.permissionDecision).toBe("deny");
+  expect(lane.out.hookSpecificOutput?.permissionDecisionReason).toContain("SendMessage");
 });
 
 // The load-bearing pair. A command this guard does not object to must RUN — `defer` sends it to a

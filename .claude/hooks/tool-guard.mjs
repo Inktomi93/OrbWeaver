@@ -71,6 +71,18 @@
 //     unanchored MENTION of those filenames, tested BEFORE blanking and BEFORE the hard floor, so
 //     `git stash # tool-guard.mjs` emitted an explicit `allow` and every rule below was skipped
 //     (docs/reviews/repository-audit-2026-08-13/SECURITY-VALIDATION.md §AGENT-TOOLING-01, R5).
+//   · SCRIPT BODIES ARE CLASSIFIED — the same defect class as AGENT-TOOLING-01: visibility, not rule
+//     weakness. Lanes legitimately wrap work in a scratchpad `.sh` (logging + the 120s Bash ceiling), and
+//     `bash /tmp/…/lane-run.sh` used to pass as ONE opaque line — every rule below judged the wrapper, not
+//     what ran (986 such invocations in one day's decision log; today's were all sanctioned recipes, and
+//     nothing enforced that). Now a `bash <path>` / `sh <path>` / bare `<path>.sh` stage resolves its
+//     path: a REPO-TRACKED script passes through to the normal rules (it is reviewed code — re-linting
+//     the repo on every call is not this hook's job), an UNTRACKED one (scratchpad, worktree-local, /tmp)
+//     has its CONTENTS classified through this same `classify` and the strictest verdict merges with the
+//     rest of the command. The body is classified WHOLE, not line-by-line: real wrappers use `\`
+//     continuations and put `rm -rf playwright/.cache` on its own line, so per-line judgement would deny
+//     the sanctioned CT recipe. Bounded by construction — one level deep (a script invoked from a script
+//     body is `ask`, never a recursive walk) and a 64KB read cap.
 //
 // OBSERVABILITY: every decision appends one JSONL line to reports/tool-guard/decisions.jsonl (gitignored
 // via /reports/) with rule, decision, latency and a command prefix — tune from evidence, not vibes.
@@ -89,7 +101,8 @@
 // TEST SEAMS (env, test-only, self-identifying): ORB_TOOL_GUARD_NOW_FOR_TEST (pins the rewrite-log
 // timestamp), ORB_TOOL_GUARD_CRASH_FOR_TEST (forces an internal throw — proves fail-open).
 
-import { appendFileSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { appendFileSync, mkdirSync, readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import process from "node:process";
 
@@ -301,6 +314,39 @@ const UNSAFE_STAGE0 = /[<>()`&]/;
 const UNSAFE_READER = /[<()`&]/;
 const ENV_KILL = /^(?:off|0|false)$/i;
 
+// ── script-body inspection (the wrapper hole) ──
+// Cheap per-stage pre-filter: a shell name at a word boundary, or a `.sh` operand. Everything below only
+// runs for a stage that passes this.
+const SCRIPT_STAGE_HINT = /(?:^|[\s/])(?:sh|bash|zsh|ksh|dash)\s|\.sh(?:\s|$)/;
+const SCRIPT_SHELL_EXEC = /^(?:\S*\/)?(?:sh|bash|zsh|ksh|dash)$/;
+// `-c` / `-s` (alone or combined, e.g. `-xc`) mean the operand is an inline command STRING, not a file —
+// there is no body to read, so the stage is not a script invocation. `--norc`-style long flags are not
+// this (single dash only). NOTE: the inline string itself stays invisible (it is quoted, so blanking
+// erases it) — that is a SEPARATE visibility gap from this one, deliberately not addressed here.
+const SCRIPT_INLINE_FLAG = /^-[a-zA-Z]*[cs][a-zA-Z]*$/;
+// The operand must resolve LITERALLY: no glob, no expansion. `bash $SP/run.sh` reaches here but cannot be
+// resolved, so it is skipped (fail-open).
+const SCRIPT_OPERAND = /^[\w./@:+-]+$/;
+// …and the same path in quotes (`bash "/tmp/run.sh"`) is the SAME file, so quoting must not hide the body.
+// Read off the RAW stage, which is safe only because the exec head was found in the BLANKED text: a
+// heredoc body or a comment has no head there, so this line is never reached for them.
+const SCRIPT_QUOTED_OPERAND = /(['"])([\w./@:+-]+)\1/;
+const SCRIPT_WRAPPER_TOKEN = /^(?:timeout|nice|setsid|nohup|env|exec)$/;
+const SCRIPT_WRAPPER_ARG = /^(?:-n\s*)?\d+[a-z]?$/;
+const SCRIPT_MAX_BYTES = 64 * 1024;
+// Depth of the OUTER command is 1; a script body classified from it runs at 2 == the cap, where a further
+// script invocation is `ask` instead of another read. So: exactly one level of body is ever read.
+const SCRIPT_DEPTH_CAP = 2;
+const SCRIPT_LINE_MAX = 160;
+const SCRIPT_LINE_SCAN_MAX = 400;
+const GIT_LS_TIMEOUT_MS = 2_000;
+// the line locator re-classifies single lines; point the /proc scan at nothing so it stays O(1) there
+const NO_PROC_ROOT = "/nonexistent-proc-root";
+// deny > ask > allow(rewrite) > defer > pass. `defer` sits UNDER `allow` on purpose: it means "the guard
+// did not judge the script body", which must never cancel a judgement the guard DID make (and a defer
+// emitted at the hook boundary kills a subagent mid-turn — see the box at the top).
+const DECISION_RANK = { deny: 4, ask: 3, allow: 2, defer: 1, pass: 0 };
+
 const REWRITE_TIMEOUT_MS = 600_000;
 const CMD_LOG_MAX = 240;
 const STDIN_DEADLINE_MS = 2_500;
@@ -333,6 +379,12 @@ const REASONS = {
     "`rm -rf` on a target that is not scratch (/tmp, scratchpad, node_modules, reports/, .claude/worktrees/, dist, coverage, .cache, *.bak, playwright/.cache). This used to reach the permission layer on its way past; it no longer does, so it stops here. Re-read the path — if it is right, confirm.",
   sqliteLive:
     "Never run bare `sqlite3` against the LIVE db — a stray write or a held lock corrupts the running stack's state, and WAL makes the damage non-obvious. Probe a COPY, or use `/api/_debug/*`. If this really is a scratch/:memory: db, confirm.",
+  scriptBody: (script, line, inner) =>
+    `This runs the untracked script ${script}, and tool-guard read its CONTENTS — a wrapper file is not a shield, the rules judge what actually executes.${line === null ? "" : `\nThe line that decided it:\n    ${line}`}\n\n${inner}`,
+  scriptTooLarge: (script, bytes) =>
+    `${script} is ${bytes} bytes, past the ${SCRIPT_MAX_BYTES}-byte body-inspection cap, so tool-guard cannot see what it runs and will not wave it through blind. Split the wrapper, or run the commands directly.`,
+  scriptDepthCap: (script) =>
+    `A wrapper script that invokes another wrapper script (${script}) — tool-guard reads ONE level of script body, so what this ultimately runs is unseen. Flatten it: invoke the inner script directly from your Bash call, or inline its commands.`,
 };
 
 const CONTEXTS = {
@@ -366,6 +418,9 @@ const CONTEXTS = {
     "Piping a playwright run risks the harness hang (browser/ctViteDev descendants inherit the pipe's write end) — prefer `> file 2>&1` then read the file.",
   cdWorktreeLaneCtx:
     "cd pins your cwd to that worktree for every later call, and your cwd can silently reset between calls — prefer absolute paths and `git -C <worktree>` so each command names its own ground.",
+  scriptAdvisory: (script, note) => `From inside the untracked script ${script} (tool-guard classifies wrapper bodies, not just the command line): ${note}`,
+  scriptRewriteHint: (script, note) =>
+    `The untracked script ${script} contains a shape tool-guard would have REWRITTEN had you typed it directly — it cannot rewrite a file, so fix the script itself: ${note}`,
 };
 
 // ── helpers ──
@@ -617,24 +672,214 @@ function collectStageWarns(command, blank, clauses, contexts) {
   return { sqlite, rmrf };
 }
 
+// ── script bodies: a wrapper file is not a shield ──
+// A lane's `bash /tmp/…/lane-run.sh` is ONE opaque line to every rule above. These helpers give the
+// classifier eyes on what that line actually executes. Order of cheapness is deliberate: a per-stage
+// regex hint → token scan → path resolve → stat (size cap) → `git ls-files` (tracked = reviewed code,
+// stop) → read → classify. Nothing spawns unless a stage really names a resolvable script file.
+
+/** An unquoted operand token, verified to read identically in the ORIGINAL text. */
+function literalOperand(command, stage, token) {
+  if (!SCRIPT_OPERAND.test(token[0])) {
+    return null;
+  }
+  const from = stage.start + token.index;
+  return command.slice(from, from + token[0].length) === token[0] ? token[0] : null;
+}
+
+/** The literal script paths a command would EXECUTE, one per pipeline stage: `bash <path>`, `sh <path>`
+ *  (leading env assignments and timeout/nice/setsid/nohup/env/exec wrappers allowed, flags and trailing
+ *  args ignored), or a bare `<path>.sh` head. The executable is read off the BLANKED text — so a shell
+ *  name sitting in a comment, a heredoc body or a quoted argument is never mistaken for an invocation. */
+export function scriptTargets(command, blank, clauses) {
+  const found = [];
+  for (const clause of clauses) {
+    for (const stage of clause.stages) {
+      const text = blank.slice(stage.start, stage.end);
+      if (!SCRIPT_STAGE_HINT.test(text)) {
+        continue;
+      }
+      const tokens = [...text.matchAll(/\S+/g)];
+      let i = 0;
+      while (tokens[i] !== undefined && (SELF_ENV_ASSIGN.test(tokens[i][0]) || SCRIPT_WRAPPER_TOKEN.test(tokens[i][0]) || SCRIPT_WRAPPER_ARG.test(tokens[i][0]))) {
+        i += 1;
+      }
+      const exec = tokens[i];
+      if (exec === undefined) {
+        continue;
+      }
+      let script = null;
+      if (SCRIPT_SHELL_EXEC.test(exec[0])) {
+        const rest = tokens.slice(i + 1);
+        if (rest.some((t) => SCRIPT_INLINE_FLAG.test(t[0]))) {
+          continue; // `-c`/`-s`: the operand is an inline command string, not a file
+        }
+        const operand = rest.find((t) => !t[0].startsWith("-"));
+        const afterHead = command.slice(stage.start + exec.index + exec[0].length, stage.end);
+        script = operand === undefined ? (afterHead.match(SCRIPT_QUOTED_OPERAND)?.[2] ?? null) : literalOperand(command, stage, operand);
+      } else if (exec[0].endsWith(".sh")) {
+        script = literalOperand(command, stage, exec);
+      }
+      if (script !== null) {
+        found.push(script);
+      }
+    }
+  }
+  return found;
+}
+
+/** Is this path a file git TRACKS? Tracked scripts are reviewed code and pass through to the normal rules
+ *  — classifying their bodies would re-lint the repository on every call. Fails toward UNTRACKED (read
+ *  it) on any git error: the strict direction, and reading a body blocks nothing by itself.
+ *  ASSUMPTION, stated so it can be challenged: tracked ⇒ reviewed. A tracked script with UNCOMMITTED local
+ *  edits is still passed through — index membership is a read-only one-call test (`ls-files`), while
+ *  dirty-detection needs `git status`, which refreshes (writes) the index and would contend for the lock
+ *  on every Bash call across a multi-lane box. The edit itself is visible in `git status` at merge. */
+function isTrackedScript(file) {
+  try {
+    const r = spawnSync("git", ["-C", path.dirname(file), "ls-files", "--error-unmatch", "--", file], {
+      encoding: "utf8",
+      timeout: GIT_LS_TIMEOUT_MS,
+      stdio: ["ignore", "pipe", "ignore"],
+    });
+    return r.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+/** Which line of the body earned the verdict — quoted back so the agent can fix the script instead of
+ *  guessing. Re-classifies single lines at the SAME depth the body ran at (so a nested-script line
+ *  reproduces its depth-cap ask), with the /proc scan disabled and the scan bounded. */
+function offendingLine(body, rule, ctx, depth) {
+  const lines = body.split("\n").slice(0, SCRIPT_LINE_SCAN_MAX);
+  const lineCtx = { ...ctx, scriptDepth: depth + 1, procRoot: NO_PROC_ROOT };
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (trimmed.length === 0 || trimmed.startsWith("#")) {
+      continue;
+    }
+    try {
+      if (classify(line, lineCtx).rule === rule) {
+        return trimmed.length > SCRIPT_LINE_MAX ? `${trimmed.slice(0, SCRIPT_LINE_MAX)}…` : trimmed;
+      }
+    } catch {
+      // a line the classifier chokes on is not the quote we are hunting — keep scanning
+    }
+  }
+  return null;
+}
+
+/** Turn a body's own classification into a verdict about the OUTER command. A deny/ask carries through
+ *  (rule prefixed `script:` so triage can tell body-sourced verdicts from typed ones); a rewrite becomes
+ *  a teaching context, because the guard can rewrite a command and not a file; advisories carry through
+ *  attributed. */
+function liftScriptVerdict(script, body, inner, ctx, depth) {
+  if (inner.decision === "deny" || inner.decision === "ask") {
+    return {
+      decision: inner.decision,
+      rule: `script:${inner.rule}`,
+      reason: REASONS.scriptBody(script, offendingLine(body, inner.rule, ctx, depth), inner.reason ?? ""),
+      contexts: [],
+    };
+  }
+  if (inner.decision === "defer") {
+    return { decision: "defer", rule: `script:${inner.rule}`, contexts: [] };
+  }
+  const notes = inner.contexts.map((c) => CONTEXTS.scriptAdvisory(script, c));
+  if (inner.decision === "allow" && inner.rewrite) {
+    notes.unshift(CONTEXTS.scriptRewriteHint(script, inner.contexts[0] ?? inner.rule));
+  }
+  return { decision: "pass", rule: null, contexts: notes };
+}
+
+/** @returns {{decision: string, rule: string|null, reason?: string, contexts: string[]}|null} */
+function oneScriptVerdict(operand, ctx, depth) {
+  const base = path.isAbsolute(operand) ? "/" : (ctx.cwd ?? ctx.projectDir ?? process.cwd());
+  const file = path.resolve(base, operand);
+  let body;
+  try {
+    const stat = statSync(file);
+    if (!stat.isFile()) {
+      return null;
+    }
+    if (stat.size > SCRIPT_MAX_BYTES) {
+      return { decision: "ask", rule: "script-too-large", reason: REASONS.scriptTooLarge(file, stat.size), contexts: [] };
+    }
+    if (isTrackedScript(file)) {
+      return null; // reviewed code — the normal rules judge the command line, nothing more
+    }
+    // Past the read depth: there IS an unreviewed body here and the guard is choosing not to open it, so
+    // say so rather than wave it through. Reached only for a resolvable, untracked, readable file — a
+    // wrapper ending in `exec bash scripts/dev/stack.sh` (tracked) is not this, and must not be asked
+    // about (25 such corpus commands were false-positive asks before this guard clause).
+    if (depth >= SCRIPT_DEPTH_CAP) {
+      return { decision: "ask", rule: "script-depth-cap", reason: REASONS.scriptDepthCap(file), contexts: [] };
+    }
+    body = readFileSync(file, "utf8");
+  } catch {
+    // missing / unreadable / a directory: the command would fail anyway, so the guard has nothing to
+    // judge and says so by staying silent (fail-open — the guard breaking must never block work).
+    return null;
+  }
+  return liftScriptVerdict(file, body, classify(body, { ...ctx, scriptDepth: depth + 1 }), ctx, depth);
+}
+
+/** The pre-pass. Any UNEXPECTED throw becomes `defer` per the header's fail-open law — but `defer` ranks
+ *  below every real judgement in mergeVerdicts, so it can only ever surface on a command nothing else
+ *  objected to. */
+function scriptBodyVerdict(command, blank, clauses, ctx) {
+  try {
+    const depth = ctx.scriptDepth ?? 1;
+    const targets = [...new Set(scriptTargets(command, blank, clauses))]; // `bash x.sh && bash x.sh` reads once
+    if (targets.length === 0) {
+      return null;
+    }
+    let worst = null;
+    for (const target of targets) {
+      const verdict = oneScriptVerdict(target, ctx, depth);
+      if (verdict === null) {
+        continue;
+      }
+      worst = worst === null || DECISION_RANK[verdict.decision] > DECISION_RANK[worst.decision] ? { ...verdict, contexts: [...(worst?.contexts ?? []), ...verdict.contexts] } : { ...worst, contexts: [...worst.contexts, ...verdict.contexts] };
+    }
+    return worst;
+  } catch (err) {
+    return { decision: "defer", rule: "script-scan-error", contexts: [], error: String(err) };
+  }
+}
+
+/** Strictest-wins merge of the command-line verdict and the script-body verdict, contexts unioned. */
+function mergeVerdicts(outer, script) {
+  if (script === null) {
+    return outer;
+  }
+  const contexts = [...new Set([...outer.contexts, ...script.contexts])];
+  const winner = DECISION_RANK[script.decision] > DECISION_RANK[outer.decision] ? script : outer;
+  const merged = { ...winner, contexts };
+  if (merged.decision === "pass") {
+    merged.rule = outer.rule ?? (contexts.length > 0 ? "advisory" : null);
+  }
+  return merged;
+}
+
 // ── the classifier ──
 
 /**
  * @param {string} command  the raw Bash command
  * @param {{cwd?: string, agentId?: string|null, projectDir: string, timeout?: number, now: number,
- *          procRoot?: string}} ctx
+ *          procRoot?: string, scriptDepth?: number}} ctx
  * @returns {{decision: "deny"|"ask"|"allow"|"defer", rule: string|null, reason?: string,
  *           rewrite?: {command: string, timeout?: number, log?: string}, contexts: string[]}}
  */
 export function classify(command, ctx) {
   const blank = blankHeredocs(command, blankComments(command, blankQuoted(command)));
   const clauses = parseStructure(blank);
-  const contexts = [];
 
   // 0. THE HARD FLOOR — first, so neither a later rewrite tier NOR the self-exemption can route around it.
   const floor = detectHardFloor(blank, clauses);
   if (floor) {
-    return { ...floor, contexts };
+    return { ...floor, contexts: [] };
   }
 
   // 0b. SELF-EXEMPTION — the guard's own validation tooling, by IDENTITY (isSelfToolInvocation): a sole
@@ -643,8 +888,21 @@ export function classify(command, ctx) {
   //     test: the unanchored raw-string version of this check turned any command containing one of the
   //     filenames into an explicit `allow` (AGENT-TOOLING-01).
   if (isSelfToolInvocation(command, blank, clauses)) {
-    return { decision: "pass", rule: "self-exempt", contexts };
+    return { decision: "pass", rule: "self-exempt", contexts: [] };
   }
+
+  // 0c. SCRIPT BODIES — same class as 0b: visibility, not rule weakness. A `bash <untracked>.sh` stage is
+  //     otherwise one opaque line, so the rules below would judge the wrapper instead of what it runs.
+  //     Its verdict merges strictest-wins with the command line's own (rules 1-11), which keeps every
+  //     existing precedence intact: a deny down there still outranks an ask from a body, and a body can
+  //     only ever make a command STRICTER, never wave one through.
+  return mergeVerdicts(classifyCommandLine(command, blank, clauses, ctx), scriptBodyVerdict(command, blank, clauses, ctx));
+}
+
+/** Rules 1-11: the judgement of the command TEXT itself. Split out of `classify` only so the script-body
+ *  pre-pass can merge with a complete verdict rather than being threaded through every early return. */
+function classifyCommandLine(command, blank, clauses, ctx) {
+  const contexts = [];
 
   // 1. destructive git (doctrine ban; near-zero legitimate sightings) — DENY. Read-only forms pass:
   //    `stash list`/`stash show` destroy nothing, and `restore --staged` (no --worktree) only unstages.
@@ -729,7 +987,14 @@ export function classify(command, ctx) {
   //    what is unambiguous: missing prefix → prepend it; piped → redirect + re-read; both → both.
   //    e2e invocations (no CT hint) are not this rule's business.
   if (PLAYWRIGHT_TEST.test(blank)) {
-    const sanctioned = PLAYWRIGHT_CACHE_CLEAR.test(blank) && CT_CONFIG.test(blank);
+    // Sanction is read off the RAW command, exactly like `ctIntent` below and for the same reason: a path
+    // is the same path quoted or not, and `-c "$WT/playwright-ct.config.ts"` + `rm -rf "$WT/playwright/
+    // .cache"` IS the sanctioned recipe. Testing sanction on the BLANKED text (where a quoted path is
+    // spaces) while testing intent on the raw made the recipe deny itself the moment a lane quoted its
+    // absolute paths — 49 real wrapper invocations in the corpus, every one of them correct (surfaced by
+    // the script-body A/B, 2026-08-14). The rule still only ENGAGES on a real playwright stage in the
+    // blanked text, so a comment can never conjure this branch out of nothing.
+    const sanctioned = PLAYWRIGHT_CACHE_CLEAR.test(command) && CT_CONFIG.test(command);
     const ctIntent = CT_CONFIG.test(command) || CT_FILE_HINT.test(command);
     const piped = clauses.some((cl) => cl.stages.length > 1 && PW_CLAUSE_HEAD.test(blank.slice(cl.stages[0].start, cl.stages[0].end)));
     if (ctIntent && (!sanctioned || piped)) {
@@ -852,6 +1117,9 @@ const BRIEFING = [
   "  `cd` into a worktree (the Bash cwd PERSISTS across calls — use `git -C <abs-path>`).",
   "· DENIES `git push` from a lane: you do not push. Commit on your branch and report; the orchestrator",
   "  merges and the owner gives an explicit word per push.",
+  "· READS THE BODY of an untracked wrapper script you run (`bash /tmp/…/lane-run.sh`) and judges its",
+  "  contents by these same rules — wrapping work in a scratchpad .sh for logging or the 120s timeout is",
+  "  encouraged, but it is not a way around them. Repo-tracked scripts (scripts/dev/*.sh) are not read.",
   "· WARNS on bare `npx vitest` (drops the json reporter), `grep -r` without --exclude-dir=node_modules,",
   "  and `sg` (use `ast-grep` — `sg` is deprecated upstream and is `newgrp` on most boxes). A warn RUNS.",
   "· EVERYTHING ELSE RUNS. This guard is about HOW you run a command, never about what you are allowed",
