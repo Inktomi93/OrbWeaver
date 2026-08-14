@@ -125,7 +125,10 @@ test("auto-collapse SNAPS: the answer prose paints at its anchored position, not
   // The trace has snapped shut (its text is gone from the DOM — Base UI unmounts the closed panel).
   await expect(component.getByText("Reasoning step 0", { exact: false })).toBeHidden();
 
-  const rowBox = await component.getByTestId("anchor-row").boundingBox();
+  // `anchor-row` IS the mounted story root, and `component` points AT that root — a
+  // `component.getByTestId("anchor-row")` searches only DESCENDANTS and never matches (30s timeout).
+  // Probe the root directly; `anchor-prose` is a genuine descendant so it stays a getByTestId.
+  const rowBox = await component.boundingBox();
   const proseBox = await component.getByTestId("anchor-prose").boundingBox();
   expect(rowBox).not.toBeNull();
   expect(proseBox).not.toBeNull();
