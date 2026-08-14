@@ -442,6 +442,21 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   Codex-verify line for the scan-denominators item names exactly that command. Standing consequence:
   while Codex is active, a structure red taken mid-window can be their `__g_` fixture race (phantom
   `domain/hub` reds) — re-run on a quiet tree before believing it.
+- [x] **D129 PAIR DONE + ON MAIN (cherry-picked past the Codex block; 218 suite tests green):**
+  freeze-at-selection (first caller of the pinned replay engine — greeting swipes bake volatiles at
+  selection, A→B→A byte-stable, no more literal `{{roll}}` to the model) + narrator wire-mapping
+  (historySystemRows capability, FAIL-CLOSED — false until a human lands a measured true cell,
+  `pnpm probe:history-system-rows` the instrument). Host-plane untouched, D16 byte-clean.
+- [ ] **OR STRUCTURED-OUTPUT 500 (m4-or-probe arm-8 finding, NOT a refinery defect):** OpenRouter
+  structured routing resolves correctly (`backend:openrouter`) but the call 500s in 83-174ms — too
+  fast to be generation, so an upstream reject our response schema can't parse (vLLM succeeds in
+  7.1s on the same shape). Suspect `provider.require_parameters:true` + `json_schema.strict:true`.
+  Own lane w/ response-body capture; unblocks the refinery custom-schema on hosted OR.
+- [ ] **HARNESS BUG (m4-or-probe hit it): a subagent's SendMessage back-channel to the orchestrator
+  was BLOCKED by the auto-mode classifier** ("Permission denied by the Claude Code auto mode
+  classifier") — the lane could not surface its mid-run fork and proceeded on default (safe here,
+  but a lane needing a real ruling would be stranded). Boarded as a tooling issue to raise; the
+  \[\[subagent-bash-permission-defer]] class, new surface.
 - [ ] **SILENT-500 TURN DEATH (m4-probe find, 3/3 repro — FIX LANE `silent-500` RUNNING):** an
   agent-sdk terminal provider error leaves NO outcome row (`recordTurnOutcome`'s one call site runs
   only on pipeline RESOLVE, engine.ts:1055), NO errors-ring row (empty through a pino ERROR + a
@@ -449,13 +464,18 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   agent-sdk path is not honoring the output ceiling on the paid sub. Four-hop trace + two candidate
   arms in shape-churn doc §7/§7.5. Lane fixes: throw-path outcome row · errors-ring capture at the
   chokepoint · the cap verdict (never-passed / wrong-field / documented-refusal).
-- [ ] **SHAPE-CHURN M4 — OWNER CORRECTION (verbatim: "agent sdk cant report reasoning when using
-  the sub, use the openrouter key and test that shit on chat completions"):** §7's "the model
-  declined to think" framing was WRONG — the max-pro-sub wire never REPORTS reasoning bytes
-  (transport opacity, not model behavior). Probe RE-DISPATCHED on an OR chat-completions reasoning
-  model (`m4-or-probe`, scratch connection off the env key, per-room scoped, small run); §8 will
-  carry the real M4 verdict + the §7 amendment. Prior row text (M5>M1 fixed, vLLM parser trap,
-  M5 re-receipt gap) otherwise stands:
+- [ ] **SHAPE-CHURN M4 — REAL, LARGEST CHURN, MEASURED (owner correction was right; §8 merged).**
+  The sub's agent-sdk wire is reasoning-OPAQUE — §7's "model declined to think" was transport, not
+  behavior. On OR chat-completions (deepseek-v4-flash) M4 reproduces 3/3: mount is a harmless +54px
+  grow, the **auto-collapse on first answer token** (`reasoning-block.tsx:70`) drags the whole prose
+  column up **350-677px** over \~19 frames — 4-7× M5, the biggest of the three. FIX ARM (owner ruling
+  owed, §8.6): #1 = don't auto-collapse, the frozen "Thought for Ns" label already carries the state
+  (ONE-LINE edit, 100% of the churn). M5 birth-snap re-confirmed DEAD (108, never 202); M1 holds.
+  **NEW FINDING — ARM 8 is NOT a pass, it's a defect:** OR structured-output routing WORKS
+  (`backend:openrouter`) but EXECUTION 500s in 83-174ms (too fast to be generation = upstream
+  reject our response schema can't parse; prime suspect `require_parameters:true`+`json_schema.strict`;
+  vLLM succeeds in 7.1s) — needs its own lane w/ response-body capture. Prior row (M5>M1 fixed, vLLM
+  parser trap) stands:
   defaults (adaptive Opus declines to think; effort reached the wire, reasoningChars 0; no
   user-reachable force — buildThinking reads mode off capability). Final ranking M5 > M1 > M4,
   first two FIXED + merged. vLLM unblock documented-not-taken (parser gated on request
