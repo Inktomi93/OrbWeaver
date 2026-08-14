@@ -1,7 +1,7 @@
 ---
 kind: reference
 status: active
-updated: 2026-07-13
+updated: 2026-08-14
 ---
 
 # Core — SillyTavern Feature Slot Map (the one clear reference)
@@ -16,12 +16,12 @@ updated: 2026-07-13
 >
 > **The closed-inventory rule (D49):** the ST feature set is FROZEN. Every ST feature orbweaver would ever build is below or in [`Core-ST-Feature-Gap-Register.md`](Core-ST-Feature-Gap-Register.md). **Do not re-audit ST or propose a feature without a row.**
 >
-> **Not a to-do board.** A `STILL-GAP` row names the staging program that owns it or says `unscheduled`. The ONLY live UI work board is [`../proposed/ui-cohesion-north-star.md`](../proposed/ui-cohesion-north-star.md). Unscheduled future design sets are parked in `../proposed/` (see `../proposed/INDEX.md`) (D66).
+> **Not a to-do board.** A `STILL-GAP` row may name a durable program shape or say `unscheduled`. [`../proposed/INDEX.md`](../proposed/INDEX.md) maps programs to sprint issues; GitHub Project 1 owns current work state (D140).
 
 ## 1. Build status at a glance
 
 **Phase spine:** `kit → contracts → db → server → client`, chat + memory LAST.
-**Today (2026-07-13):** Phases 0–5 BUILT (the whole chat/memory/roster engine, tool loop included). Phase 6 client: L0–L6 shell landed; remaining UI owned by the north-star. Phase 7: `imagery`, gallery v1/v2, `tool-use`, `hub`, direct providers BUILT; `databank`/`expressions`/`roster-preset` reserved (schema born, runners stubbed). Phase 8 (scripting/plugin) not started.
+**Current work:** GitHub Project 1 owns lifecycle; the tables below are a reconciled status map, not a build sequence.
 
 **Status legend:** `BUILT` (shipped) · `RESERVED` (born-compliant schema/contract seam in-tree, impl deferred) · `STILL-GAP` (not built; names its staging owner or `unscheduled`) · `OUT` (by-design rejected, D47/D49 — never build).
 

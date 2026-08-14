@@ -149,6 +149,7 @@
     "typescript-eslint": "catalog:",
     "undici": "catalog:",
     "vitest": "catalog:",
+    "yaml": "2.9.0",
     "zod": "catalog:",
     "zustand": "catalog:"
   }

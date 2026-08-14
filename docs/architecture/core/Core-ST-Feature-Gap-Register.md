@@ -1,7 +1,7 @@
 ---
 kind: reference
 status: active
-updated: 2026-07-13
+updated: 2026-08-14
 ---
 
 # Orbweaver — SillyTavern Feature-Gap Register
@@ -14,7 +14,7 @@ updated: 2026-07-13
 >
 > **Dispositions are law; STATUS below is verified against the code 2026-07-13.** On any status disagreement, trust the code, then the PD registry (`Core-Audits-and-Debt.md`); [`Core-SillyTavern-Feature-Map.md`](Core-SillyTavern-Feature-Map.md) is the reconciled build map.
 >
-> **Not a to-do board.** A `STILL-GAP` disposition names the staging program that owns it or says `unscheduled`; the ONLY live UI work board is [`../proposed/ui-cohesion-north-star.md`](../proposed/ui-cohesion-north-star.md). Audit provenance (the 2026-06-28 5-agent sweep) + the planning-snapshot essays are frozen in [`../history/st-feature-map-archaeology-record.md`](../history/st-feature-map-archaeology-record.md).
+> **Not a to-do board.** A `STILL-GAP` disposition may name its durable program shape or say `unscheduled`; [`../proposed/INDEX.md`](../proposed/INDEX.md) maps programs to sprint issues. GitHub Project 1 owns current work state (D140). Audit provenance is frozen in [`../history/st-feature-map-archaeology-record.md`](../history/st-feature-map-archaeology-record.md).
 >
 > **Cold-read orientation:** orbweaver is a maximal-rigor remake of *neo-tavern*, itself a remake of *ST*. Neo already cut ST down to a focused chat/character/memory engine, so most gaps were created at the **ST→neo** step — not new orbweaver deletions. Constitution: the package cake `kit ← contracts ← db ← server ← client`, sealed provider backends, two ownership categories (D18/D23), no extension/scripting runtime.
 
