@@ -1,7 +1,9 @@
 // WebSpinner — THE loader (owner ruling 2026-08-09: ONE loader system, no legacy pair; docs/design/
 // login-loading-screen.md §2/§4.2/§9). The brand glyph with a slow orb rotation (--motion-ambient)
-// and a silk pulse traveling its spiral (--motion-shimmer) — the ST "spinning loader" quality at
-// every size, NOT the hero weave shrunk (the hero moment is `@orb/ui/web-weave`).
+// and — since weave-lab-upgrades.md §4 — a WEAVE loop on its spiral (--motion-shimmer): the silk
+// draws out from the hub, holds, then pays out, forever. The loader IS a web being spun, which is the
+// same story as the hero weave told in one glyph, NOT the hero weave shrunk (that is
+// `@orb/ui/web-weave`).
 //
 // One identity, a size spectrum: sm/md/lg are the SAME 16/20/24px as the icon table, so the legacy
 // Loader2 `Spinner`'s call sites map onto this 1:1 (`<Spinner size label>` → `<WebSpinner size label>`
@@ -11,6 +13,8 @@
 //
 // The glyph is the icon-seal's own `OrbWeb`/`OrbWebCompact` (no inline <svg> — §13.7); the motion is
 // CSS in globals.css keyed on `data-animate` + the stamped `orb-web-pulse`/`orb-web-spokes` classes
+// (the `pulse` class name predates the weave loop it now carries — renaming it is a three-file
+// string-paired edit, deliberately not bundled into a motion change)
 // (string-paired by name — grep both on rename). `data-animate` is JS-removed under reduced motion
 // (guide §3.9 REMOVE: computed `animation-name: none`, not a frozen dash), which also keeps the
 // resting glyph SOLID — the dash pattern only exists while the pulse animates.
@@ -24,8 +28,9 @@ import { spinnerVariants } from "./variants.ts";
 const WEB_SPINNER_SIZES = { sm: 16, md: 20, lg: 24, xl: 32, hero: 48 } as const;
 /** The compact-cut ceiling: at and below this px the 16px cut renders (above it, the display mark). */
 const COMPACT_MAX_PX = 20;
-/** The traveling pulse's lit length, in the icon's 24-space user units. */
-const PULSE_DASH = 12;
+/** Dash lengths are rounded UP to a whole user unit: a dasharray a hair shorter than the path leaves a
+ *  sliver of silk showing at the "empty" end of the loop. */
+const SPIRAL_LENGTH_PRECISION = 0;
 
 export interface WebSpinnerProps {
   size?: keyof typeof WEB_SPINNER_SIZES;
@@ -43,11 +48,10 @@ export function WebSpinner({ size = "md", label, className }: WebSpinnerProps): 
   const compact = px <= COMPACT_MAX_PX;
   const Glyph = compact ? OrbWebCompact : OrbWeb;
   const spiralLength = (compact ? ORB_WEB_GLYPH_COMPACT : ORB_WEB_GLYPH).spiralLength;
-  // The pulse period rides the actual spiral arc length (icon user units) — a CSS constant can't
-  // know it, so the component hands it over as custom properties the globals.css rules consume.
+  // The weave loop rides the actual spiral arc length (icon user units) — a CSS constant can't know
+  // it, so the component hands it over as the custom property the globals.css rules consume.
   const dashVars = {
-    "--orb-web-dash-gap": `${spiralLength.toFixed(1)}px`,
-    "--orb-web-dash-period": `${(spiralLength + PULSE_DASH).toFixed(1)}px`,
+    "--orb-web-spiral-length": `${spiralLength.toFixed(SPIRAL_LENGTH_PRECISION)}px`,
   } as CSSProperties;
   return (
     <span data-slot="web-spinner" role="status" data-animate={reduced ? undefined : ""} className={slots.root({ className })} style={dashVars}>
