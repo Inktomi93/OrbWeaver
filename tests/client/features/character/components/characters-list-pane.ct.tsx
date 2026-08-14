@@ -192,9 +192,7 @@ test("New chat fires the REAL startChat with her id and enters the minted room (
   await page.getByTestId("list-band").getByRole("button", { name: "New chat", exact: true }).click();
 
   // The wire carried HER id (the store action's payload, not a UI echo)…
-  await expect
-    .poll(() => trpc.lastInput("chat.startChat"), { intervals: [20, 50, 100] })
-    .toMatchObject({ characterIds: [AZARAEL] });
+  await expect.poll(() => trpc.lastInput("chat.startChat"), { intervals: [20, 50, 100] }).toMatchObject({ characterIds: [AZARAEL] });
   // …and the store entered the REAL minted room + switched the section.
   await expect(component.getByTestId("started-chat")).toHaveText(CREATED_CHAT_ID);
   await expect(component.getByTestId("active-section")).toHaveText("chats");

@@ -182,11 +182,14 @@ describe("the chat room — durable delta replay over a real reads-slice (the #1
     const read = createRead(ctx, readDeps());
     const replaySpy = vi.fn(read.replayChatEvents);
     const iterator = await openChatRoom({ ...read, replayChatEvents: replaySpy }, host, chatId);
-    // The pump subscribes live, then synthesizes `chatOpened` at attach (PD-134; seq 0, the null-cursor
-    // floor) BEFORE entering the live tail — no replay (no cursor).
+    // ⚠ RECONCILED (R3, caa06972c — the unit twin carries the full note): this pin used to assert
+    // seq 0 on the cursor-less synthetic, and that 0 WAS the fresh-room message-loss window. The
+    // synthetic now carries bounds.maxSeq (the durable high-water, here 1 — the seeded head delta)
+    // as the client's resume floor. The REAL invariant this test protects is unchanged and asserted
+    // below: replayChatEvents is never consulted on a cursor-less attach.
     const opened = await iterator.next();
     expect(dataOf(opened).type).toBe("chatOpened");
-    expect(seqOf(opened)).toBe(0);
+    expect(seqOf(opened)).toBe(1);
 
     const firstYield = iterator.next(); // resumes into the live loop
     // A live event published AFTER the attach (seq past the durable head) is the only thing that flows —
