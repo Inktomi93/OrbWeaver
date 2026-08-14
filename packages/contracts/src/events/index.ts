@@ -16,7 +16,14 @@ import type { AssetId, CharacterId } from "@orb/kit/ids";
 // with the 2026-07-25 rollback — no `crew.*`/`rpg.*` members exist today. The rebuild grafts them back onto
 // this union (+ the matching `DOMAIN_TRIGGER_TYPES` reservation in `@orb/contracts/automation`) if either
 // domain returns.
-export const DOMAIN_EVENT_TYPES = ["character.updated", "asset.created"] as const;
+// BELTED 2026-08-14 (G-B, event-bus coverage survey §3.3): the `satisfies readonly DomainEvent["type"][]`
+// is what brings this bus inside the coverage ratchets' quantifier — it was a plain `as const` precisely so
+// `bus-definition-belts` would skip it, because belting it used to demand a CLIENT total map this
+// server-internal bus can never have. That arm now carries a declared SERVER_INTERNAL reach lane (the
+// `assertNever` subscriber at entry/compose/search-discovery.ts is the consumer belt), so the belt is
+// honest. Both members emit today; the belt guards the NEXT one (this header already plans the
+// `crew.*`/`rpg.*` grafts).
+export const DOMAIN_EVENT_TYPES = ["character.updated", "asset.created"] as const satisfies readonly DomainEvent["type"][];
 export type DomainEventType = (typeof DOMAIN_EVENT_TYPES)[number];
 
 /** A character card was created/edited — the indexer re-embeds the card (`store(kind='card', lens='card-text')`).

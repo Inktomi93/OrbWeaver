@@ -83,7 +83,7 @@ function UnifiedResults({ query, over, label }: { readonly query: string; readon
   return (
     <Stack
       aria-label={`Search results — ${label}`}
-      className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
       data-testid={testId("corpusSearchResults")}
       gap="row"
       role="list"
@@ -114,7 +114,7 @@ function FieldsResults({ query, label }: { readonly query: string; readonly labe
   return (
     <Stack
       aria-label={`Search results — ${label}`}
-      className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain"
       data-testid={testId("corpusSearchResults")}
       gap="row"
       role="list"
