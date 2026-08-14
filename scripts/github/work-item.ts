@@ -1,4 +1,5 @@
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
@@ -7,9 +8,22 @@ const REPOSITORY = "Inktomi93/orbweaver";
 const PROJECT_OWNER = "Inktomi93";
 const PROJECT_NUMBER = "1";
 const ISSUE_RE = /^\d+$/u;
+const ISSUE_URL_RE = /\/issues\/(\d+)$/u;
 const EXIT_TOOL = 2;
 const EXIT_MISUSE = 3;
+const CREATE_OPTION_COUNT = 4;
 const LIFECYCLE_FIELDS = new Set(["status", "evidence", "lane", "wake condition", "disposition"]);
+const REQUIRED_READY_METADATA = ["Kind", "Priority", "Area", "Review"];
+const TERMINAL_DISPOSITIONS = new Set(["killed", "already resolved"]);
+const ISSUE_CLASSES = {
+  work: { labels: ["kind:build", "triage"], projectKind: "Work", review: undefined, status: "Triage" },
+  bug: { labels: ["bug", "triage"], projectKind: "Work", review: undefined, status: "Triage" },
+  decision: { labels: ["kind:decision", "needs-owner", "triage"], projectKind: "Decision", review: "Owner", status: "Needs owner" },
+  program: { labels: ["kind:design", "triage"], projectKind: "Program", review: undefined, status: "Triage" },
+  evidence: { labels: ["kind:finding", "triage"], projectKind: "Evidence", review: undefined, status: "Triage" },
+} as const;
+
+type IssueClass = keyof typeof ISSUE_CLASSES;
 
 class WorkItemUsageError extends Error {}
 
@@ -46,14 +60,21 @@ interface WorkItemContext {
 
 type LifecycleCommand =
   | { readonly kind: "claim"; readonly issue: number; readonly lane: string }
-  | { readonly kind: "ready"; readonly issue: number }
+  | { readonly kind: "ready" | "review" | "needs-owner"; readonly issue: number }
   | { readonly kind: "set"; readonly issue: number; readonly field: string; readonly value: string }
   | { readonly kind: "verify" | "done"; readonly issue: number; readonly evidence: string }
   | { readonly kind: "park"; readonly issue: number; readonly wake: string }
   | { readonly kind: "block"; readonly issue: number; readonly blocker: number }
   | { readonly kind: "unblock"; readonly issue: number; readonly blocker: number };
 
-export type WorkCommand = { readonly kind: "show"; readonly issue: number } | LifecycleCommand;
+interface CreateCommand {
+  readonly kind: "create";
+  readonly issueClass: IssueClass;
+  readonly title: string;
+  readonly bodyFile: string;
+}
+
+export type WorkCommand = { readonly kind: "help" } | { readonly kind: "show"; readonly issue: number } | CreateCommand | LifecycleCommand;
 
 function gh(args: readonly string[]): string {
   return execFileSync("gh", args, { encoding: "utf8", stdio: ["ignore", "pipe", "inherit"] }).trim();
@@ -93,10 +114,35 @@ function parseSet(issue: number, args: readonly string[]): WorkCommand {
   return { kind: "set", issue, field: fieldName, value };
 }
 
-export function parseWorkCommand(argv: readonly string[]): WorkCommand {
-  const [name, rawIssue, ...rest] = argv;
-  const issue = issueNumber(rawIssue);
-  if (name === "show" || name === "ready") {
+function issueClass(value: string | undefined): IssueClass {
+  if (value !== undefined && value in ISSUE_CLASSES) {
+    return value as IssueClass;
+  }
+  throw new WorkItemUsageError("create kind must be work, bug, decision, program, or evidence");
+}
+
+function createOption(args: readonly string[], flag: string): string {
+  const index = args.indexOf(flag);
+  const value = args[index + 1];
+  if (index === -1 || value === undefined || value.startsWith("--") || value.trim() === "") {
+    throw new WorkItemUsageError(`${flag} requires a value`);
+  }
+  return value;
+}
+
+function createOptions(args: readonly string[]): Pick<CreateCommand, "title" | "bodyFile"> {
+  if (
+    args.length !== CREATE_OPTION_COUNT ||
+    args.filter((value) => value === "--title").length !== 1 ||
+    args.filter((value) => value === "--body-file").length !== 1
+  ) {
+    throw new WorkItemUsageError("create requires --title and --body-file");
+  }
+  return { title: createOption(args, "--title").trim(), bodyFile: createOption(args, "--body-file") };
+}
+
+function parseLifecycle(name: string | undefined, issue: number, rest: readonly string[]): WorkCommand {
+  if (name === "show" || name === "ready" || name === "review" || name === "needs-owner") {
     if (rest.length > 0) {
       throw new WorkItemUsageError(`${name} does not accept additional arguments`);
     }
@@ -117,7 +163,21 @@ export function parseWorkCommand(argv: readonly string[]): WorkCommand {
   if (name === "block" || name === "unblock") {
     return { kind: name, issue, blocker: issueNumber(option(rest, "--by")) };
   }
-  throw new WorkItemUsageError("command must be show, claim, ready, set, verify, done, park, block, or unblock");
+  throw new WorkItemUsageError("command must be help, show, create, claim, ready, review, needs-owner, set, verify, done, park, block, or unblock");
+}
+
+export function parseWorkCommand(argv: readonly string[]): WorkCommand {
+  const [name, rawIssue, ...rest] = argv;
+  if (name === "help" || name === "--help") {
+    if (rawIssue !== undefined) {
+      throw new WorkItemUsageError(`${name} does not accept additional arguments`);
+    }
+    return { kind: "help" };
+  }
+  if (name === "create") {
+    return { kind: name, issueClass: issueClass(rawIssue), ...createOptions(rest) };
+  }
+  return parseLifecycle(name, issueNumber(rawIssue), rest);
 }
 
 function loadIssue(number: number): Issue {
@@ -150,10 +210,12 @@ function ensureItem(target: Issue, project: Project, fields: readonly Field[]): 
   const item =
     loadItems().find((candidate) => candidate.content?.number === target.number) ??
     ghJson<ProjectItem>(["project", "item-add", PROJECT_NUMBER, "--owner", PROJECT_OWNER, "--url", target.url, "--format", "json"]);
-  if (currentValue(item, "Status") !== undefined) {
+  if (currentValue(item, "Status") !== undefined && currentValue(item, "Disposition") !== undefined) {
     return item;
   }
-  setField({ target, item, project, fields }, "Status", "Triage");
+  const work = { target, item, project, fields };
+  setField(work, "Disposition", "Untriaged");
+  setField(work, "Status", "Triage");
   const initialized = loadItems().find((candidate) => candidate.content?.number === target.number);
   if (initialized === undefined) {
     throw new Error(`Project ${PROJECT_NUMBER} did not return #${target.number} after initialization`);
@@ -210,7 +272,7 @@ function clearField(work: WorkItemContext, name: string): void {
 
 function transitionToReady(work: WorkItemContext): void {
   clearField(work, "Wake condition");
-  clearField(work, "Disposition");
+  setField(work, "Disposition", "Action");
   setField(work, "Status", "Ready");
 }
 
@@ -239,6 +301,13 @@ function requireStatus(work: WorkItemContext, allowed: readonly string[], messag
   }
 }
 
+function requireReadyMetadata(work: WorkItemContext, action: string): void {
+  const missing = REQUIRED_READY_METADATA.filter((field) => (currentValue(work.item, field)?.trim() ?? "") === "");
+  if (missing.length > 0) {
+    throw new Error(`work item must set ${missing.join(", ")} before ${action}`);
+  }
+}
+
 function requireUnblocked(target: Issue, message: string): void {
   if (blockers(target).length > 0) {
     throw new Error(message);
@@ -262,6 +331,7 @@ function mutateDependency(target: Issue, blocker: Issue, remove: boolean): void 
 function claim(work: WorkItemContext, command: Extract<WorkCommand, { readonly kind: "claim" }>): void {
   requireStatus(work, ["Ready"], "work item must be Ready before claim");
   requireUnblocked(work.target, "work item cannot be claimed while blocked");
+  requireReadyMetadata(work, "claim");
   gh(["issue", "edit", String(work.target.number), "--repo", REPOSITORY, "--add-assignee", "@me"]);
   setField(work, "Lane", command.lane);
   setField(work, "Status", "Running");
@@ -270,11 +340,30 @@ function claim(work: WorkItemContext, command: Extract<WorkCommand, { readonly k
 function ready(work: WorkItemContext): void {
   requireStatus(work, ["Triage", "Needs owner", "Blocked", "Parked"], "work item must be Triage, Needs owner, Blocked, or Parked before Ready");
   requireUnblocked(work.target, "work item cannot become Ready while blocked");
+  requireReadyMetadata(work, "Ready");
   transitionToReady(work);
 }
 
+function needsOwner(work: WorkItemContext): void {
+  requireStatus(work, ["Triage", "Ready", "Running", "Blocked"], "work item must be Triage, Ready, Running, or Blocked before Needs owner");
+  if (TERMINAL_DISPOSITIONS.has(currentValue(work.item, "Disposition")?.toLowerCase() ?? "")) {
+    throw new Error("work item with a terminal Disposition cannot enter Needs owner");
+  }
+  setField(work, "Review", "Owner");
+  clearField(work, "Lane");
+  clearField(work, "Wake condition");
+  setField(work, "Disposition", "Untriaged");
+  setField(work, "Status", "Needs owner");
+}
+
+function review(work: WorkItemContext): void {
+  requireStatus(work, ["Running"], "work item must be Running before Review");
+  requireUnblocked(work.target, "work item cannot enter Review while blocked");
+  setField(work, "Status", "Review");
+}
+
 function verify(work: WorkItemContext, evidence: string): void {
-  requireStatus(work, ["Running"], "work item must be Running before Verify");
+  requireStatus(work, ["Review"], "work item must be Review before Verify");
   requireUnblocked(work.target, "work item cannot be verified while blocked");
   setField(work, "Evidence", evidence);
   setField(work, "Status", "Verify");
@@ -322,6 +411,57 @@ function show(issue: number): void {
   process.stdout.write(`${JSON.stringify(item, null, 2)}\n`);
 }
 
+function createdIssueNumber(output: string): number {
+  const number = ISSUE_URL_RE.exec(output)?.[1];
+  if (number === undefined) {
+    throw new Error("gh issue create did not return an issue URL");
+  }
+  return issueNumber(number);
+}
+
+function create(command: CreateCommand): void {
+  const bodyFile = resolve(command.bodyFile);
+  if (readFileSync(bodyFile, "utf8").trim() === "") {
+    throw new Error("body file must not be empty");
+  }
+  const issueConfig = ISSUE_CLASSES[command.issueClass];
+  const output = gh([
+    "issue",
+    "create",
+    "--repo",
+    REPOSITORY,
+    "--title",
+    command.title,
+    "--body-file",
+    bodyFile,
+    ...issueConfig.labels.flatMap((label) => ["--label", label]),
+  ]);
+  const number = createdIssueNumber(output);
+  process.stdout.write(`created #${number} ${output}\n`);
+  const target = loadIssue(number);
+  const project = loadProject();
+  const fields = loadFields();
+  const item = ensureItem(target, project, fields);
+  setField({ target, item, project, fields }, "Kind", issueConfig.projectKind);
+  if (issueConfig.review !== undefined) {
+    setField({ target, item, project, fields }, "Review", issueConfig.review);
+  }
+  setField({ target, item, project, fields }, "Status", issueConfig.status);
+  const next = command.issueClass === "decision" ? "set Priority, Area, and resolve the owner decision before ready" : "set Priority, Area, Review, then ready";
+  process.stdout.write(`work-item — #${target.number} Project metadata initialized; ${next}\n`);
+}
+
+function help(): void {
+  process.stdout.write(`work:item — Project 1 operator path
+show <issue>
+create <work|bug|decision|program|evidence> --title <title> --body-file <file>
+ready <issue> | claim <issue> --lane <lane> | review <issue> | needs-owner <issue> | set <issue> <field> <value>
+block <issue> --by <blocker> | unblock <issue> --by <blocker> | park <issue> --wake <condition>
+verify <issue> --evidence <receipt> | done <issue> --evidence <same-receipt>
+
+Lifecycle: Triage → Ready → Running → Review → Verify → Done. Set Priority, Area, and Review before Ready. Decisions enter Needs owner. Use .github/ISSUE_TEMPLATE/*.yml for canonical issue bodies; Project holds mutable lifecycle state.\n`);
+}
+
 function runLifecycle(command: LifecycleCommand): void {
   const target = loadIssue(command.issue);
   if (target.state === "CLOSED" && command.kind !== "done") {
@@ -334,6 +474,12 @@ function runLifecycle(command: LifecycleCommand): void {
       break;
     case "ready":
       ready(work);
+      break;
+    case "review":
+      review(work);
+      break;
+    case "needs-owner":
+      needsOwner(work);
       break;
     case "set":
       setField(work, command.field, command.value);
@@ -360,8 +506,16 @@ function runLifecycle(command: LifecycleCommand): void {
 }
 
 function run(command: WorkCommand): void {
+  if (command.kind === "help") {
+    help();
+    return;
+  }
   if (command.kind === "show") {
     show(command.issue);
+    return;
+  }
+  if (command.kind === "create") {
+    create(command);
     return;
   }
   runLifecycle(command);
