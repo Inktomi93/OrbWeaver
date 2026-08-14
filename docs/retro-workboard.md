@@ -125,6 +125,8 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-14 | **OVERNIGHT CAP RAISED 3 → 5 (owner, mid-night: "since we have codex and can make progress your orchestrator limit is five agents now").** Matches the daytime standing law again; lanes stay FILLED. |
 | 08-14 | **MORNING RULINGS (question tool):** DRAFT-MODE = **ALL SEVEN RECS RATIFIED + R0 GO NOW** (server substrate; takes first free slot; R1-R3 follow; db squash rides R0) · LONGER-OUTPUTS = **PARKED, owner picks numbers** (row stays, no lane) · THEME-EDITOR = **DRIFT — convert to autosave** (smalls) · SID-01 tails = **BOTH GO**: local/loopback endpoints exempt from 3-strike auto-revoke + custom Test button switches to testHealth (smalls). |
 | 08-14 | **W7b/W8 in-lane rulings (orchestrator, receipted premise-deltas):** W8 sweep found every named bulk verb ALREADY single-emit — the ONLY real per-item storm is the IMPORT per-card path; quiet mode ships as a GENERAL primitive `withQuietUserEvents` at the one publish funnel (ALS-scoped so concurrent same-user edits pass; first emit = start marker, coarse terminal per silenced type from finally, satisfies-Record totality). W7b: no self-service profile verb exists; `identityChanged` emits from setRole/setEnabled (AdminContext) **+ the provisionIdentity updateExisting arm APPROVED** (ProvisionResult flag, entry callers emit — login-time demotion must reach live devices). Hint-less member, plain-TS+belt grammar (zod directive targets the dead-twin class, not this file). |
+| 08-14 | **DAYTIME SITTING (question tool, all four):** `chats.star`→`starred` = **RENAME EVERYWHERE** incl. the chat-bundle export/import wire key (NO-LEGACY; RPC mutation name `chat.star` stays per the archive precedent) · **updatedAt = ALL THREE** (characters/world\_books/world\_entries) via baseline squash · **33 unwired procs = PARK ALL** (dormant product surface by design; row closes as parked, NO deletions, no sitting — supersedes the intent-sitting row) · **max-output = KEEP 2048** (longer-outputs row stays parked until the owner names a number). Sequencing law for the two schema rulings: R0's squash lands FIRST, then ONE db-rename leg (star→starred + updatedAt + bundle-key rename) re-squashes on the merged tree — never two concurrent baseline regens. |
+| 08-14 | **R0 in-lane rulings (orchestrator, receipted):** squash rides R0 per tree law (Tier-1-DB regime 1 + baseline-single-migration gate — the brief's "additive only" line was WRONG, lane correctly refused) · stats rebuild-from-canon gets the SAME husk exclusion as the live delta (drift-gate contract; fence extended, no stats lane live) · host writes CLAIM incl. pre-first-turn greeting edits (F4(a) letter; losing hand-edits > premature visibility) · R0-early delta accepted: refused send → hidden husk reaped at 24h, recorded as-built. |
 | standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE (re-affirmed 08-08 after full walkthrough) · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
 | open | *(none — every fork ruled as of the 08-09 midday sitting; new forks append here)* |
 
@@ -209,17 +211,49 @@ CODEX'S, leave alone). STACK UP (localhost:5173→200, :8788 healthz ok) + FLEET
 (19.04x concurrency, fixed jinja template, enable\_in\_reasoning:false — flag semantics were INVERTED,
 A/B receipts in build-argv.ts). ComfyUI stopped idle → `docker start comfyui` to restore.\*\*
 
-**STILL RUNNING (5 lanes, second rotation — dispatched post-battery on owner word "there's work to be
-done"):** lens-calibration ac86ef0c995636eef (ast.ts 6-class fixes, corpus=regression suite) ·
-Qwen \[V]-row cleanup acceb2e3a54f11127 (rows 1-33; VERIFY-FIRST per owner; **owner directive: the dead
-TYPE TWINS likely want an ELEGANT ZOD solution — schema-first derivation, one home — not blind deletion;
-trust but verify each row**) · report-cards punch list afd5458183e0c973f (all 17 incl. db renames,
-db expendable) · W7b+W8 a9bc951d32337de3a · smalls batch aff94015fa7585f43 (7 items). Battery PASS is
-banked; push still owner's. OLD RUNNING BLOCK (drained): **previously running (2 lanes):** databank lenses+bankHealth (agent a811b7784ada5cb32 — rebases onto bus-2's
-use-databank-mutations.ts rewrite at merge; helpers listRead/detailRead/globalRead are DELETED, answer
-is busDriven) · staleness-2 W5+W7a (agent a11533cee105f8c80). **QUEUED:** W7b identityChanged + W8
-quiet-mode (unblocked NOW — bus-2 merged) · gates G-A/G-B/G-C/G-D (G-B starts from survey §2.3's
-plant-receipt; belt const is NEVER inert) · smalls batch · Codex final-synthesis re-sweep.
+**STILL RUNNING (second rotation + backfills):** lens-calibration ac86ef0c995636eef (**class-2 PREMISE
+DEATH, lane-verified:** rows 101-133 are VERIFIED-REAL — 33 server procs with ZERO client-prod
+consumers, grep + typed-proxy receipts; owner then ruled PARK ALL 33. Lane hardens the blind matcher
+shapes — element-access + optional-chain — with planted controls; count delta 0 BY DESIGN; classes
+1/3-6 continue) · W7b+W8 a9bc951d32337de3a · **R0 draft-mode server substrate (executor, in flight —
+squash + husk lens + claim + reap; three in-lane rulings ledgered)** · **AGENT-TOOLING-01 P1 guard
+fix (security-executor, in flight)** · **DEPLOCK dep lane (mech, in flight — sharp≥0.35 +
+pdfjs-dist bump + peers + dedupe; TS/ESLint version bumps FENCED out)**. Report-cards lane
+afd5458183e0c973f idles WARM for the items-6/7 db-rename leg (sequenced behind R0's squash;
+worktree alive, do not sweep).
+
+**MERGED/LANDED SINCE:** smalls batch `ce7e9dac1` (9 of 10; turn-tool-calls SKIPPED-BY-LAW — header
+documents per-row disclosure as deliberate; theme-editor now autosaves per ruling; density-tier stale
+arm 226→224 with both receipts; loopback 3-strike exemption + universal testHealth button live) ·
+Codex audit committed `0de9e087d` (330 files, verbatim, hashes verified) · W7b+W8 `b85e82e24`
+(identityChanged + withQuietUserEvents; setEnabled REFUSED w/ receipt; **CT-broken claim vs sibling
+green CT receipts = CONTRADICTION, arbitrate on quiesced tree at drain — es2025/esbuild-0.25 suspicion,
+see 67d7805d0's dead premise**) · DEPLOCK `5d0105e72` (sharp 0.35 + pdfjs 6.2, audit highs 12→10,
+jsx-a11y/eslint-10 peer REFUSED-unfixable-upstream) · **AGENT-TOOLING-01 P1 CLOSED `27aad9d18`**
+(guard self-exemption identity-based post-blanking post-hard-floor; corpus A/B 119,845 real calls:
+self-exempt 106→1; 3 residual guard findings for review: quoted rm-rf target blind \[pre-existing] ·
+double-quoted `$()` invisible guard-wide · pipe-rewrite comment tail) · **design-sync first import
+`6598c489d`** (weave motion cluster → claude.ai/design "Orbweaver UI" project 2ec379a2-…; 3 components
+10 graded cells; owner's 4 motion defects ride the README conventions brief; app-level find: token
+stack names Geist but NO @font-face ever ships — app renders system fonts silently).
+
+**DRAIN DEBT (found by consolidated check:structure, exit 1, 9 violations — ALL routed to the warm
+report-cards lane as a cleanup leg):** db schema/\_shared.ts is-not-a-schema (re-home checkList →
+db/src/kit) ×3 · density-tier ELEVATED\_ALLOW no-STALE-arm (gate-modernization arm B) ×1 · stale
+suppressions baseline rows (consolidation deleted markers — regen ratchets down) ×3 · hint-trigger
+primitive missing §13.7 trio + CT ×3-ish. Structure must be exit-0 before the drain battery.
+
+**MERGED THIS ROTATION:** Qwen \[V]-cleanup `8fd771c4c` — **verdict REVERSED by full-comment read:**
+only 6 of 33 rows genuinely dead (UI \*Handle aliases, deleted; factories kept). Rows 1-21+24-27
+SKIPPED-BY-MARKER (`@public twin/future` ratifications ON the decl, added post-08-12-scan — deleting
+a marked decl undoes a ratification); rows 22/23 SKIPPED-LIVE (real client consumers; corpus \[V]
+wrong). **Owner's zod hypothesis: verified, NOTHING to restructure** — every schema is already the
+tRPC `.input()` single source of truth. Lesson: `ast refs` + `grep -B2`/`tail` are BLIND to multi-line
+JSDoc markers; a delete verdict owes a full leading-comment read.
+
+**QUEUED:** R0 draft-mode server substrate (owner-ratified GO — dispatching into the freed slot) ·
+gates G-A/G-B/G-C/G-D/G-E (G-B from survey §2.3's plant-receipt) · report-cards items 13-16 (ui
+consolidations, CT-capable lane) · Codex final-synthesis re-sweep.
 
 **MERGED OVERNIGHT (all hook-gated or branch-receipted, chronological):** WAVE-0 vLLM swap statics
 `c46e282ea` + tooling `348d3fa7a` · agents revamp (then maxTurns owner-BANNED, reverted `579f28161`) ·
@@ -235,9 +269,14 @@ theme-editor fork for morning.
 **CLOSE-OUT OWED (after last 2 lanes):** consolidated `pnpm check` (read every exit) · `verify --push`
 FULL battery (value-changing lanes merged; owner HOLDS the push himself) · selector live receipt (restart
 → flip summarize selector → wire-capture) · staleness live revoke probe · morning delta at board top.
-**MORNING OWNER PILE:** draft-mode F1-F7 · 33-proc intent sitting · longer-outputs numbers (cap
-inventory on board) · theme-editor autosave fork · fp8 stays BANNED · 3-strike auto-revoke on local
-endpoints (one-liner if unwanted) · Codex reply ledger (5 SHAs + verify commands, on the punch-list row).
+**MORNING OWNER PILE:** 33-proc intent (now lane-VERIFIED real: 33 genuinely unwired verbs — wire,
+purge, or backlog? receipts in lens lane report) · **chats.star→starred wire-format call** (report-cards
+item 6: renaming the field also renames the chat-bundle EXPORT/IMPORT on-disk JSON key — pre-launch
+"don't care" is the likely answer but it's a wire format, so it's yours) · **updatedAt policy** (item 7:
+characters/world\_books/world\_entries lack it — rule the policy, then baseline-squash carries it) ·
+longer-outputs numbers (cap inventory on board) · theme-editor autosave fork · fp8 stays BANNED ·
+3-strike auto-revoke on local endpoints (one-liner if unwanted) · Codex reply ledger (5 SHAs + verify
+commands, on the punch-list row). Draft-mode F1-F7 RULED (all recs; R0 GO — ledger row 043620320).
 
 ### ═══ PRIOR (2026-08-10 — backfill PHASE-4 + refinery score-sweep fix) ═══
 
@@ -362,12 +401,53 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 
 ## ═══ THE ENDGAME (complete remainder — tagged by what unblocks each) ═══
 
-**═══ CODEX AUDIT — INTERIM SYNTHESIS ACTIONED (27/78 lanes, read in full 08-14; owner law: nothing falls into obscurity) ═══**
+**═══ CODEX AUDIT — FINAL SYNTHESIS LANDED + COMMITTED `0de9e087d` (78/78 lanes, 312 artifacts, read in full 08-14) ═══**
 
-> Source: `docs/reviews/repository-audit-2026-08-13/INTERIM-SYNTHESIS-2026-08-13.md`. Verdict at the
-> barrier: NO P0, NO proven P1; tenant/lifecycle/gate machinery "behaviorally serious". Items below are
-> the actionable residue + the convergences with tonight's work. Final synthesis lands when its
-> remaining 51 lanes finish — re-sweep this block then.
+> Source of law: `docs/reviews/repository-audit-2026-08-13/SYNTHESIS.md` (SHA-256 `c02802fd…` verified
+> at commit) + FINAL-VERIFICATION + PORTFOLIO-QA + SECURITY-VALIDATION — all four read IN FULL by the
+> orchestrator 08-14. Verdict: **1 current P1 · 8 current P2 · 1 partial P2 (deps) · 6 current P3**;
+> static 14/14 green at `5783331`; behavioral/push/full/live graduation UNPROVEN by the audit (their
+> scope; our own 08-14 `verify --push` PASS is a fresher behavioral receipt they did not count).
+> Resolved-at-close: DEVRT-01/02, GA-H-02, SID-01 (all ours, already boarded). The 33-proc STK-01 =
+> candidate-only, now owner-ruled PARK ALL. Snapshot-only families: revalidate only when touched.
+
+- [ ] **P1 AGENT-TOOLING-01 — guard self-exemption bypass. LANE RUNNING (security-executor):** the
+  unanchored `SELF_EXEMPT` raw-string match (tool-guard.mjs:213) fires before blanking + hard floor
+  (:544-554), so `git stash # tool-guard.mjs` → explicit hook ALLOW (R5 wire-protocol receipt,
+  SECURITY-VALIDATION §1). Fix = parse/blank first, sole-invocation exemption only, must-bite rows
+  (comment · quoted arg · earlier &&-stage) + wire-protocol receipts.
+
+- [ ] **P2 DEPLOCK-01 bounded upgrades:** `sharp` 0.34.5→≥0.35.0 (authed untrusted-image decode path,
+  GHSA-f88m-g3jw-g9cj) + `pdfjs-dist` 6.1.200 bump (untrusted PDF server extraction; browser-context
+  preconditions absent here). Regen lock, rerun the 42 focused upload/image/PDF tests + online
+  `pnpm audit --json`. NOT twelve exploits — audit's own bounding. Small dep lane.
+
+- [ ] **P2 client-forms-01 — autosave can lie:** both persistence seams optional (`save?.` then
+  unconditional rebaseline + draft clear + "saved") — invalid config discards edits while reporting
+  success. Fix: require exactly one seam or REJECT before rebaseline; CT proving missing-persistence
+  retains the draft + reports error. create-autosave-entity-form.tsx:77-102,182-189,380-404.
+
+- [ ] **P2 UI-RENDERING-01 — code-editor completion nondeterminism** (3 fail/2 pass on target,
+  43/2 at repeat-each=3; root cause unassigned). Trace + stabilize; watch-list row graduates to a lane.
+
+- [ ] **P2 client-preset-refinery-01/02 — refinery content surface has ZERO mounted CT** + stale story
+  prose claiming no production surface exists. One routed CT: load → view-back → rewrite
+  decision/apply → terminal result; fix the story header same change.
+
+- [ ] **P2 RC-01/RC-02 — mutation "gate" cannot fail** (`thresholds.break: null`) and scans the foreign
+  gitignored ST runtime (7,707 files for a 4-target run). Finish one clean run, set a calibrated
+  non-null break, exclude the foreign tree, low-threshold positive control — or stop calling it a gate.
+
+- [ ] **P2 PROBES-RUNTIME-02 + PPR-01 / P3 PROBES-RUNTIME-01 + PPR-02 — probe evidence hygiene:**
+  golden-demo scripts suppress capture failures then compare (stale-as-fresh); 8 RPG probe entries
+  hard-code one checkout's `.env`; parseViewport truthiness admits negatives; OR README says 5 probes,
+  code runs 7. One probes lane: fail-closed + repo-root resolver + viewport tests + README sync.
+
+- [ ] **P2 DEPLOCK-02 / P3 DEPLOCK-03 — peer + dedupe hygiene:** ESLint/TS peer-range violations
+  (`pnpm peers check` exits 1) + one `enhanced-resolve` dedupe lift. Maintenance, rides the dep lane.
+
+- [x] **GA-H-01 ratchet debt now 276** (224 density + 52 provenance — our density-tier stale-arm small
+  landed post-audit, 226→224) — visible-by-design, keep burning.
 
 - [x] **SID-01 FIXED + MERGED** (`6cf7ffc68`): custom\_openai dials its own endpoint through the
   host-pin/safeFetch boundary; anthropic/openai report an honest `unchecked` arm; reachable-but-non-auth
@@ -376,29 +456,35 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   unchecked). **Codex verify:** `pnpm vitest run tests/server/domain/credentials/` (their own test file
   now proves the truth). FOLLOW-UP one-liner: the client "Test" button on custom rows still calls
   fetchModels, not testHealth — switch it (rides any client small).
+
 - [ ] **P2 (GA-H-02): structure artifact owes PER-GATE scan denominators** — candidate/scanned/skipped
   per gate in normal output, else a predicate regression is a zero-scan placebo (OUR
   \[\[instruments-lie-verify-the-verifier]] law at gate scale). Pairs with the G-A/G-B gate lane — same
   harness region, fold in. Includes surfacing the **278 ratchet-admitted sites** (226 density + 52
   finding-overload) as visible debt in the report (GA-H-01).
+
 - [ ] **33-proc tRPC INTENT reconciliation (their P2-candidate queue + our lens-calibration row = one
   program):** their classification stands — 10 automation (P1-candidate pending client lanes + INTENT) ·
   7 plugin = closed-intentional-dormancy · 1 regex.getScript · 5 content · 10 unclassified. The LENS
   half (proxy-consumption resolution) is our lens-calibration lane; the INTENT half is an OWNER sitting
   ("which server surfaces are product commitments vs parked") — added to OWNER-GATED. No bulk-wire, no
   bulk-delete (their caution = the owner's 08-13 lens ruling, independently converged).
+
 - [x] **SPR-01 vLLM live receipt — CLOSED TONIGHT, receipts on this board:** their #4 blunt priority
   (live flags/template/GPU/one-request proof) was satisfied hours after their cutoff — fleet booted on
   the 27B, GPU topology verified (19.04x), probes P1-P4 green, enable\_in\_reasoning A/B'd live. Their
   four vLLM argv "failures" in the accidental whole-suite run were the WAVE-0 statics, since fixed.
+
 - [ ] **Smalls batch (Codex tail):** wire-capture.ts:100 stale function contract (says never persisted,
   spills at :106 — truth-repair the law, header is already honest) · imagery `PROMPT_TEMPLATES`/
   `CAPTION_INSTRUCTIONS` compat re-exports are test-only (fold into lens-calibration verdicts) ·
   GQZ-01 rpg-bus gate arm lacks a local positive control (gate-authoring debt) · local-light
   `ORB_LOCAL_LIGHT_E2E=1` opt-in run (LIVE-WINDOW list; disposable networked env, never CI).
+
 - [ ] **bounded-list-limit KNOWN-NARROW verdict (GA-H-03):** it names only `limit`, misses topN/named
   schemas BY DESIGN with passing controls preserving the bypass. Record verdict: acceptable-as-scoped
   or widen — gate lane decides with the two-receipt law.
+
 - **Cross-refs, no new rows:** their 15 write-only DB columns = our lens-calibration `columns` class
   (ORDER-BY blindness caveat stands) · their 27 contract orphan candidates = our Qwen corpus rows 1-33
   overlap · chat-component/DB mirror-count debt = allocation signal only, their own caution — no
