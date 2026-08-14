@@ -1,3 +1,22 @@
+# ☀️ MORNING DELTA (2026-08-14 — read this in 30 seconds)
+
+**Everything you reported is fixed or designed. Main is \~60 commits ahead (push is YOURS). Consolidated
+check PASS on the drained tree; the full `verify --push` battery is running detached — its verdict lands
+in reports/verify.json (READ IT before pushing).**
+
+- **FIXED + merged:** stats revert · rpg rewind (your arm A) · character tab (all lenses server-side) ·
+  chats + databank eviction twins · selector restarts · settings scroll (phantom-scroll class) ·
+  follow-mode jumpiness · stale sessions (detect → in-app modal → resume, cross-tab single-flight) ·
+  per-user localStorage + dead-id drop (your import repro's root) · per-session logout eviction ·
+  refinery/automation/databank/discovery all EMIT now · SID-01 false-green health · 27B swap live-verified
+  (fixed jinja; enable\_in\_reasoning was INVERTED — A/B receipts).
+- **DESIGNED, your forks pending:** draft-mode replacement (7 forks, recs marked) · shape churn (measured
+  plan, remend is the fix home) · theme-editor autosave (drift or intent?) · longer-outputs numbers ·
+  33-proc intent sitting · 3-strike auto-revoke on local endpoints (one-liner if unwanted).
+- **Codex reply ready:** 5 SHAs + verify commands on the punch-list row; item 5 refused by ledger law.
+- **Ops notes:** stack+fleet UP · ComfyUI stopped idle (`docker start comfyui`) · dev binds LOOPBACK now
+  (FQDN needs `pnpm stack up prod`) · selector live receipt + W3 revoke probe owed after YOUR restart.
+
 # Retro Workboard — the live board
 
 > **THIS IS THE WORKING DOC** (owner-stated). Not law, not a deliverable — the durable state an
