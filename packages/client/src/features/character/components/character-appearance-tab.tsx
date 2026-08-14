@@ -373,11 +373,11 @@ function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => vo
 function ThemePreview({ override }: { readonly override: ReturnType<typeof overrideFromCharacterThemeForm> }): ReactElement {
   return (
     <ThemeScope tokens={override ?? {}}>
-      <Stack gap="row" className="rounded-card border border-border bg-background p-block">
-        <Text size="label" weight="medium" className="text-speaker">
+      <Stack gap="row" className="rounded-base border border-border bg-background p-block">
+        <Text voice="label" className="text-speaker">
           Aria
         </Text>
-        <Stack gap="field" className="rounded-card bg-ai-bubble p-block">
+        <Stack gap="field" className="rounded-base bg-ai-bubble p-block">
           <Text as="span" className="text-dialogue">
             “Welcome to the archive,” she said.
           </Text>{" "}
