@@ -182,7 +182,7 @@ export type ScopedResult = {
  *  whole-project gates are returned as `deferred`, never run. */
 export function runScopedPass(
   gates: readonly GateDescriptor[],
-  base: Omit<GateRunCtx, "report">,
+  base: Omit<GateRunCtx, "report" | "scan">,
   selection: Pick<ScopeSelection, "scope" | "inScope">,
 ): ScopedResult {
   const { incremental, deferred } = partitionGates(gates);

@@ -12,7 +12,7 @@ import { expect, test } from "../support/fixtures.ts";
 
 const ROOT = "/repo";
 
-function render(files: Readonly<Record<string, string>>): string {
+function render(files: Readonly<Record<string, string>>, opts?: { readonly zeroScanAlarm: boolean }): string {
   const project = new Project({ useInMemoryFileSystem: true });
   for (const [rel, text] of Object.entries(files)) {
     project.createSourceFile(`${ROOT}/${rel}`, text);
@@ -25,7 +25,7 @@ function render(files: Readonly<Record<string, string>>): string {
     files: project.getSourceFiles(),
     checker: () => project.getTypeChecker(),
   });
-  return renderPass(result, new Map(gates.map((g) => [g.name, g])));
+  return renderPass(result, new Map(gates.map((g) => [g.name, g])), opts);
 }
 
 test("the reporter groups by gate, prints the reason ONCE, and lists every token as path:line:col", () => {
@@ -57,4 +57,43 @@ test("a clean tree renders a ✓ per gate and a clean footer", () => {
   expect(out).toContain("✓ no-off-token-radius-shadow");
   expect(out).toContain("✓ no-caller-user-id");
   expect(out).toContain("single-pass: clean");
+});
+
+// ── per-gate SCAN HEALTH (Codex GA-H-01) ──────────────────────────────────────────────────────────────
+// A verdict with no denominator is unauditable: ✓ reads the same whether the gate examined the file or
+// never saw it. Every gate line therefore carries `scanned <admitted>/<offered> files`.
+
+test("every gate line carries the scan denominator behind its verdict", () => {
+  const out = render({
+    "packages/ui/src/ok/ok.tsx": 'export const OK = <div className="rounded-card" />;\n',
+    "packages/server/src/domain/chat/engine/turn.ts": "export function f(userId: string) {}\n",
+  });
+  // The off-token gate is scoped to the UI/client class strings: one of the two files is in its scanRoot.
+  expect(out).toContain("✓ no-off-token-radius-shadow  ·  scanned 1/2 files");
+  // no-caller-user-id scans the whole packages+tests corpus: both files.
+  expect(out).toContain("✓ no-caller-user-id  ·  scanned 2/2 files");
+});
+
+test("a gate that scanned NOTHING renders LOUD, not green — and is counted in the footer", () => {
+  // The zero-scan placebo, planted with a REAL gate: hand the UI-scoped gate a tree with no UI file, so
+  // its scanRoot admits nothing. Its ✓ would be vacuous — every scanRoot regression looks exactly like it.
+  const out = render(
+    {
+      "packages/server/src/domain/chat/engine/turn.ts": "export function f(userId: string) {}\n",
+    },
+    { zeroScanAlarm: true },
+  );
+  expect(out).toContain("⚠ no-off-token-radius-shadow  ·  scanned 0/1 files — SCANNED ZERO FILES");
+  expect(out).not.toContain("✓ no-off-token-radius-shadow");
+  expect(out).toContain("single-pass: 1 gate(s) SCANNED ZERO FILES — the checker is BLIND, not clean");
+  // The gate that DID read the file is untouched by the alarm.
+  expect(out).toContain("✓ no-caller-user-id  ·  scanned 1/1 files");
+});
+
+test("the zero-scan alarm is OFF by default — a scoped run legitimately hands a gate no files", () => {
+  const out = render({
+    "packages/server/src/domain/chat/engine/turn.ts": "export function f(userId: string) {}\n",
+  });
+  expect(out).toContain("✓ no-off-token-radius-shadow  ·  scanned 0/1 files");
+  expect(out).not.toContain("SCANNED ZERO FILES");
 });

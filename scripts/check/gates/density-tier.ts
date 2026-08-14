@@ -361,6 +361,9 @@ export const gate: GateDescriptor = {
       passSeenViolating.add(rel);
     }
     const budget = passBaseline[rel] ?? 0;
+    // The budget-absolved head is DECLARED DEBT, not absence: without this the ratchet's live population
+    // is invisible behind a ✓ and only the generator ever knows the number (Codex GA-H-02).
+    ctx.scan({ admitted: Math.min(budget, findings.length) });
     for (const finding of findings.slice(budget)) {
       ctx.report(finding);
     }
