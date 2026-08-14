@@ -1,25 +1,31 @@
 // The card-refinery WRITE tier (R2) — one `createEntityMutation` per write verb of the R1 router
 // (`transport/trpc/routers/refinery.ts`), never an inline `useMutation` at a call site (§13.1).
 //
-// FRESHNESS IS EXPLICIT HERE, BY NECESSITY — the databank precedent, for the same reason: there is NO
-// refinery bus event. `USER_BUS_EVENT_TYPES` has no refinery member and `domain/refinery/**` emits nothing
-// at all, so a row in the central seam would have no event to hang on. Every refinery read is therefore
-// reconciled by a named `invalidates` row below, and the three keys carry cited `STATIC` entries in
-// `scripts/check/gates/query-freshness-coverage.ts` naming THIS file as their driver (the writer-local class).
+// FRESHNESS IS THE BUS NOW, and that is a REVERSAL of this file's founding note — the event-bus coverage
+// survey's H1 (docs/design/event-bus-coverage-survey.md §2.2) is closed. Refinery used to emit nothing on any
+// plane, so every write here carried its own `invalidates` and the reads carried cited STATIC rows in
+// `scripts/check/gates/query-freshness-coverage.ts`. That was writer-local freshness: it reconciled the tab
+// that wrote and NOTHING else, so at `staleTime: Infinity` a second tab or device sat on the pre-write
+// roster/session/ledger forever. Every persisting refinery verb now emits the `refineryChanged` user-bus
+// member (contracts `user-bus`), the seam maps it to `trpc.refinery` + `trpc.character.get`
+// (`data/invalidation.ts`), and the STATIC rows were deleted in the same commit (the ratchet REDs a cited key
+// that gains a row). So every write below is `busDriven: true` — the compile-time XOR in
+// `data/create-entity-mutation.ts` forbids carrying both, and doing both is the double-invalidate storm.
 //
-// THE TWO CHARACTER-SIDE HALVES ARE NOT THE SAME, and the difference is the whole reason `character.get`
-// appears here at all:
-//   · THE APPLY WRITE IS BUS-COVERED. `applyFields` lands the accepted rewrite through the injected
-//     `character.update`, which emits `charactersChanged` on the user bus (`domain/character/verbs/update.ts`)
-//     — the seam's `charactersChanged` row path-invalidates `trpc.character.*`. Re-spelling it here would be
-//     the double-invalidate storm, so `applyFields` names only the refinery reads its own row moved.
-//   · THE F6 SIGNAL STAMP IS SILENT. `stampRefinerySignals` (`domain/character/persistence/refinery-ops.ts`)
-//     is deliberately event-free — "no audit entry, no user-bus event, no snapshot", its own header — yet a
-//     score run rewrites `characters.refinery.score` and an analyze run rewrites `characters.refinery.analysis`,
-//     which is exactly what the card's provenance readout renders (`CharacterProvenanceSection`). With the app
-//     QueryClient's `staleTime: Infinity` that readout has NO driver but the mutation that caused the stamp, so
-//     `runStage` and `iterate` name `character.get` themselves. Path-level: the stamp's characterId lives on the
-//     SESSION, not in these vars, and the read is free to invalidate when nothing observes it.
+// WHAT THE SEAM ROW COVERS, so nothing here has to re-spell it:
+//   · THE REFINERY READS — roster, session view, run ledger, schema library, preflight — the whole router
+//     root, which is why a coarse member is enough for a surface that opens one session at a time.
+//   · THE F6 SIGNAL STAMP, which is SILENT by design (`domain/character/persistence/refinery-ops.ts`: "no
+//     audit entry, no user-bus event"). A score/analyze run rewrites `characters.refinery.*` — exactly what
+//     `CharacterProvenanceSection` renders — so `character.get` is a row on `refineryChanged` itself. It used
+//     to be an `invalidates` entry on `runStage`/`iterate` here; on the bus it now repaints the OTHER devices
+//     too, which the mutation never could.
+//   · THE APPLY'S CARD HALF, which was never this file's: `character.update`/`duplicate` emit
+//     `charactersChanged` inside the verb, and the seam already routes that to `trpc.character.*`.
+//
+// THE DRAFT VERBS (`generateSchema`/`refineSchema`/`testSchema`, in use-refinery-schemas.ts) stay on an
+// explicit EMPTY `invalidates`, not `busDriven`: they persist nothing, so the server emits nothing, and
+// "this write moves no read" is a statement the empty list makes and `busDriven` would falsify.
 //
 // ERROR COPY IS DISCRIMINATED, NEVER ASSERTED — the `use-tag-suggestion-mutations` / `resolve-failure`
 // precedent. Refinery mints three typed errors (`domain/refinery/contract/errors.ts`): two CODED refusals
@@ -31,38 +37,8 @@
 
 import { REFINERY_OUTPUT_BUDGET_REASON, REFINERY_STAGE_NOT_READY_REASON } from "@orb/contracts/refinery";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { InvalidateFilter, Trpc } from "#data";
+import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
-
-// ── the reads each write moves ──────────────────────────────────────────────────────────────────────
-
-/** The sessions roster (D62 LIST) — every lifecycle write moves a row on it, and a run/apply moves its
- *  `status`/`latestVerdict`/`updatedAt` columns. */
-function rosterRead(trpc: Trpc): InvalidateFilter {
-  return trpc.refinery.listSessions.pathFilter();
-}
-
-/** ONE session's full view (the CONTENT surface's state: selection, stageConfig, guidance, iterationCount,
- *  status). Query-level — a write names the session it touched, so a second open session never refetches. */
-function sessionRead(trpc: Trpc, sessionId: inferInput<Trpc["refinery"]["getSession"]>["sessionId"]): InvalidateFilter {
-  return trpc.refinery.getSession.queryFilter({ sessionId });
-}
-
-/** ONE session's append-only run ledger (the CONTEXT Runs tab). Query-level, same argument as `sessionRead`. */
-function runsRead(trpc: Trpc, sessionId: inferInput<Trpc["refinery"]["listRuns"]>["sessionId"]): InvalidateFilter {
-  return trpc.refinery.listRuns.queryFilter({ sessionId });
-}
-
-/** The card detail carrying the F6 `refinery` signals — see the header's SILENT STAMP note. */
-function cardSignalsRead(trpc: Trpc): InvalidateFilter {
-  return trpc.character.get.pathFilter();
-}
-
-/** ONE session's preflight readout (§8) — moved by anything that changes scope/config/guidance or the
- *  working overlay (a rewrite run changes what the next rewrite prompt assembles). */
-function preflightRead(trpc: Trpc, sessionId: inferInput<Trpc["refinery"]["preflight"]>["sessionId"]): InvalidateFilter {
-  return trpc.refinery.preflight.queryFilter({ sessionId });
-}
 
 // ── the discriminated failure copy ──────────────────────────────────────────────────────────────────
 
@@ -111,17 +87,18 @@ function codedRefusalAwareToast(fallback: string): (error: unknown) => string {
 /** The R2 write tier — the session producer (consumed by the R3 surface since `5727fcb12`). */
 export const useStartRefinerySession = createEntityMutation<inferInput<Trpc["refinery"]["startSession"]>, inferOutput<Trpc["refinery"]["startSession"]>>({
   options: (trpc) => trpc.refinery.startSession.mutationOptions(),
-  // The roster only: `getSession`/`listRuns` for a session that did not exist are cold fetches of NEW keys.
-  invalidates: (trpc) => [rosterRead(trpc)],
+  // `startSession` emits `refineryChanged` with the new session's id; the seam's row refetches the roster on
+  // every device. (`getSession`/`listRuns` for a session that did not exist are cold fetches of NEW keys.)
+  busDriven: true,
   errorToast: "Couldn't start a refinery session for that card.",
 });
 
 /** The R2 write tier — the session patch (name · guidance · selection · stageConfig · status); consumed by the R3 surface. */
 export const useUpdateRefinerySession = createEntityMutation<inferInput<Trpc["refinery"]["updateSession"]>, inferOutput<Trpc["refinery"]["updateSession"]>>({
   options: (trpc) => trpc.refinery.updateSession.mutationOptions(),
-  // All three: the patch is the CONTENT surface's own state, `name`/`status`/`updatedAt` are roster
-  // columns, and a scope/config/guidance change moves the preflight arithmetic.
-  invalidates: (trpc, vars) => [sessionRead(trpc, vars.sessionId), rosterRead(trpc), preflightRead(trpc, vars.sessionId)],
+  // The patch moves the session view, two roster columns and the preflight arithmetic — all three live under
+  // the `trpc.refinery` root the member path-invalidates.
+  busDriven: true,
   errorToast: "Couldn't save the session.",
 });
 
@@ -129,9 +106,10 @@ export const useUpdateRefinerySession = createEntityMutation<inferInput<Trpc["re
  *  with it). No prod consumer until R3; the CT drives it today. */
 export const useDeleteRefinerySession = createEntityMutation<inferInput<Trpc["refinery"]["deleteSession"]>, unknown>({
   options: (trpc) => trpc.refinery.deleteSession.mutationOptions(),
-  // All three: a cached detail/ledger for a deleted session would otherwise be served verbatim to whatever
-  // still observes it (staleTime is Infinity). The refetch resolves NOT_FOUND, which is the truth.
-  invalidates: (trpc, vars) => [rosterRead(trpc), sessionRead(trpc, vars.sessionId), runsRead(trpc, vars.sessionId)],
+  // The verb emits AFTER the delete (the user bus is live-only — no durable event row to orphan). A cached
+  // detail/ledger for a deleted session would otherwise be served verbatim to whatever still observes it
+  // (staleTime is Infinity); the root refetch resolves NOT_FOUND, which is the truth.
+  busDriven: true,
   errorToast: "Couldn't delete the session.",
 });
 
@@ -141,15 +119,10 @@ export const useDeleteRefinerySession = createEntityMutation<inferInput<Trpc["re
 export const useRunRefineryStage = createEntityMutation<inferInput<Trpc["refinery"]["runStage"]>, inferOutput<Trpc["refinery"]["runStage"]>>({
   options: (trpc) => trpc.refinery.runStage.mutationOptions(),
   // A run APPENDS to the ledger, flips the session back to `active` with a fresh `updatedAt` (both roster
-  // columns), on score/analyze silently re-stamps the card's F6 signals (the header's note), and a fresh
-  // rewrite changes the next round's working overlay — the preflight arithmetic moves with it.
-  invalidates: (trpc, vars) => [
-    runsRead(trpc, vars.sessionId),
-    sessionRead(trpc, vars.sessionId),
-    rosterRead(trpc),
-    cardSignalsRead(trpc),
-    preflightRead(trpc, vars.sessionId),
-  ],
+  // columns), on score/analyze silently re-stamps the card's F6 signals, and a fresh rewrite changes the next
+  // round's working overlay (the preflight arithmetic). The verb emits in a `finally`, so the tick survives a
+  // stage that stamped and then threw — the same totality `onSettled` used to give this hook.
+  busDriven: true,
   errorToast: codedRefusalAwareToast("That stage didn't finish — try again."),
 });
 
@@ -157,15 +130,10 @@ export const useRunRefineryStage = createEntityMutation<inferInput<Trpc["refiner
 export const useIterateRefinery = createEntityMutation<inferInput<Trpc["refinery"]["iterate"]>, inferOutput<Trpc["refinery"]["iterate"]>>({
   options: (trpc) => trpc.refinery.iterate.mutationOptions(),
   // A round writes TWO runs plus `iterationCount` (and, through its analyze half, the F6 analysis stamp) —
-  // the same read set as `runStage`, and it must survive the MID-ROUND failure arm: when the analyze half
-  // throws, the rewrite run already landed, and `onSettled` runs on error too, so the ledger still repaints.
-  invalidates: (trpc, vars) => [
-    runsRead(trpc, vars.sessionId),
-    sessionRead(trpc, vars.sessionId),
-    rosterRead(trpc),
-    cardSignalsRead(trpc),
-    preflightRead(trpc, vars.sessionId),
-  ],
+  // the same read set as `runStage`. The MID-ROUND failure arm is preserved on the bus: the verb emits ONE
+  // tick per round from a `finally`, so when the analyze half throws the already-landed rewrite still
+  // repaints the ledger (one tick per round, never one per stage — that would be the storm).
+  busDriven: true,
   errorToast: codedRefusalAwareToast("That refinement round didn't finish — try again."),
 });
 
@@ -194,10 +162,11 @@ function applyRefusal(data: ApplyFieldsResult): string | null {
 /** The accepted rewrite entries onto the LIVE card — the merge terminal act. */
 export const useApplyRefineryFields = createEntityMutation<inferInput<Trpc["refinery"]["applyFields"]>, ApplyFieldsResult>({
   options: (trpc) => trpc.refinery.applyFields.mutationOptions(),
-  // The refinery half ONLY — an apply completes the session (`status`/`updatedAt`, both roster columns). The
-  // CARD half rides the user bus: `character.update` emits `charactersChanged`, which the seam already routes
-  // to `trpc.character.*` (see the header — re-spelling it here is the double-invalidate storm).
-  invalidates: (trpc, vars) => [sessionRead(trpc, vars.sessionId), rosterRead(trpc)],
+  // TWO events, both from the server, neither re-spelled here: `refineryChanged` for the completed session
+  // (`status`/`updatedAt`, both roster columns) and `charactersChanged` from the injected `character.update`
+  // for the card. The TOTAL-DROP arm writes nothing and emits nothing — correct: no row moved, and the
+  // refusal below is the whole outcome.
+  busDriven: true,
   refusal: applyRefusal,
   errorToast: codedRefusalAwareToast("Couldn't apply that rewrite."),
 });
@@ -215,7 +184,7 @@ function copyRefusal(data: ApplyAsCopyResult): string | null {
  *  `charactersChanged`), so only the refinery half is named here. */
 export const useApplyRefineryAsCopy = createEntityMutation<inferInput<Trpc["refinery"]["applyAsCopy"]>, ApplyAsCopyResult>({
   options: (trpc) => trpc.refinery.applyAsCopy.mutationOptions(),
-  invalidates: (trpc, vars) => [sessionRead(trpc, vars.sessionId), rosterRead(trpc)],
+  busDriven: true,
   refusal: copyRefusal,
   errorToast: codedRefusalAwareToast("Couldn't save the copy."),
 });
@@ -227,6 +196,6 @@ export const useSubmitManualRewrite = createEntityMutation<
   inferOutput<Trpc["refinery"]["submitManualRewrite"]>
 >({
   options: (trpc) => trpc.refinery.submitManualRewrite.mutationOptions(),
-  invalidates: (trpc, vars) => [runsRead(trpc, vars.sessionId), sessionRead(trpc, vars.sessionId), rosterRead(trpc), preflightRead(trpc, vars.sessionId)],
+  busDriven: true,
   errorToast: "Couldn't save the hand edit — check it stays inside the session's scope.",
 });

@@ -39,6 +39,9 @@ test("a hand edit lands as a {kind:manual} run analyze can judge; out-of-scope e
   const analyze = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "analyze" });
   expect(analyze.sourceRunId).toBe(run.id);
   expect(h.summarizeCalls.at(-1)?.user).toContain("Hand-polished");
+  // Three ticks: start · the hand edit · the analyze run. The out-of-scope refusal announced nothing —
+  // it threw at the fence, before the insert.
+  expect(h.userEvents.map((e) => e.event.type)).toEqual(["refineryChanged", "refineryChanged", "refineryChanged"]);
 });
 
 test("a manual CLEAR entry rides the cleared arm; a model run beside it still records its model", async () => {

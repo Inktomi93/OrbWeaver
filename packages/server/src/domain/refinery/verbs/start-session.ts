@@ -35,6 +35,8 @@ export function createStartSession(ctx: RefineryContext): RefineryService["start
       updatedAt: at,
     };
     await ctx.db.insert(refinerySessions).values(row);
+    // After the durable write (the user-bus posture): the roster gained a row on every device.
+    ctx.emitUserEvent(ownerId, { type: "refineryChanged", sessionId: row.id });
     return {
       id: row.id,
       characterId: row.characterId,

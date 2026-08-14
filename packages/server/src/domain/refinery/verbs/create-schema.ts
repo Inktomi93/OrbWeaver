@@ -28,6 +28,9 @@ export function createCreateSchema(ctx: RefineryContext): RefineryService["creat
       updatedAt: at,
     };
     await ctx.db.insert(refinerySchemas).values(row);
+    // No session id: the schema library is the domain's OTHER noun and the member is coarse (contracts
+    // `user-bus` — the client path-invalidates the refinery root either way).
+    ctx.emitUserEvent(ownerId, { type: "refineryChanged" });
     return schemaSummaryOf(row);
   };
 }

@@ -67,6 +67,10 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
         ...(removedGreetingIndexes.length === 0 ? {} : { selection: remapSelection(session.selection, removedGreetingIndexes) }),
       })
       .where(eq(refinerySessions.id, sessionId));
+    // The REFINERY half only. The card half already fanned `charactersChanged` inside the injected
+    // `character.update` (one event per surface — re-emitting it here is the double-invalidate storm), and
+    // the zero-write arm above returns BEFORE this line because it moved no row at all.
+    ctx.emitUserEvent(ownerId, { type: "refineryChanged", sessionId });
     return { applied, dropped, character: detail, snapshotId: snapshot.id };
   };
 }

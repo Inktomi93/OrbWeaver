@@ -75,8 +75,19 @@ const overallScoreCoreSchema = z.object({ overallScore: z.number() });
 
 /** The service verb — the engine below with `isRefinement:false` (the engine instance arrives via deps
  *  so `iterate` provably runs the SAME one; wired at `service.ts`). */
-export function createRunStage(_ctx: RefineryContext, deps: StageEngineDeps): RefineryService["runStage"] {
-  return ({ principal, sessionId, stage, rewriteRunId }) => deps.executeStage({ principal, sessionId, stage, isRefinement: false, rewriteRunId });
+export function createRunStage(ctx: RefineryContext, deps: StageEngineDeps): RefineryService["runStage"] {
+  return async ({ principal, sessionId, stage, rewriteRunId }) => {
+    try {
+      return await deps.executeStage({ principal, sessionId, stage, isRefinement: false, rewriteRunId });
+    } finally {
+      // ONE emit per VERB, in a `finally` — the freshness event must be TOTAL over the outcomes, because the
+      // run ledger is append-only: a stage that stamped signals and then threw still moved reads. This is
+      // exactly the parity the client had before the bus (`createEntityMutation.onSettled` fires on error
+      // too). The emit is NOT inside the shared engine: `iterate` runs it twice per round, and three ticks
+      // for one round is the double-invalidate storm (an invalidate CANCELS and restarts an in-flight fetch).
+      ctx.emitUserEvent(principal.userId, { type: "refineryChanged", sessionId });
+    }
+  };
 }
 
 /** One resolved stage pass — belts done, prose + posture + payload arm resolved, run identity minted.

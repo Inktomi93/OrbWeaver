@@ -18,5 +18,6 @@ export function createDeleteSchema(ctx: RefineryContext): RefineryService["delet
     // The owner rides the WHERE (owner-scoped-writes arm 1): a non-owner's delete moves 0 rows even if
     // the load-belt above ever drifted.
     await ctx.db.delete(refinerySchemas).where(and(eq(refinerySchemas.id, schemaId), eq(refinerySchemas.ownerId, principal.userId)));
+    ctx.emitUserEvent(principal.userId, { type: "refineryChanged" });
   };
 }

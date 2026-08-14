@@ -36,11 +36,18 @@ export function createIterate(ctx: RefineryContext, deps: StageEngineDeps): Refi
       await ctx.db.update(refinerySessions).set({ guidance: parsed, updatedAt: ctx.now() }).where(eq(refinerySessions.id, sessionId));
     }
 
-    const rewrite = await deps.executeStage({ principal, sessionId, stage: "rewrite", isRefinement: true });
-    const analyze = await deps.executeStage({ principal, sessionId, stage: "analyze", isRefinement: true });
+    try {
+      const rewrite = await deps.executeStage({ principal, sessionId, stage: "rewrite", isRefinement: true });
+      const analyze = await deps.executeStage({ principal, sessionId, stage: "analyze", isRefinement: true });
 
-    const iterationCount = row.iterationCount + 1;
-    await ctx.db.update(refinerySessions).set({ iterationCount, updatedAt: ctx.now() }).where(eq(refinerySessions.id, sessionId));
-    return { rewrite, analyze, iterationCount };
+      const iterationCount = row.iterationCount + 1;
+      await ctx.db.update(refinerySessions).set({ iterationCount, updatedAt: ctx.now() }).where(eq(refinerySessions.id, sessionId));
+      return { rewrite, analyze, iterationCount };
+    } finally {
+      // ONE tick per ROUND (never per stage), and TOTAL over the mid-round failure arm named in this file's
+      // header: when the analyze half throws, the rewrite run ALREADY LANDED, so the ledger moved and every
+      // device — including the acting one, which is now bus-driven — has to hear about it.
+      ctx.emitUserEvent(ownerId, { type: "refineryChanged", sessionId });
+    }
   };
 }

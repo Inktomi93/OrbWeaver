@@ -55,6 +55,10 @@ test("accepted entries land on the LIVE card, snapshot-first, per-entry drops it
   // An apply completes the session (a label, not a lock).
   const updated = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
   expect(updated.status).toBe("completed");
+  // The REFINERY half announces exactly once per write (start · rewrite run · this apply) and NOTHING
+  // else: the card half is `charactersChanged`, fanned from inside the injected `character.update` on
+  // character's OWN emit port (its suite pins it). Re-spelling it here would be the double-invalidate storm.
+  expect(h.userEvents.map((e) => e.event.type)).toEqual(["refineryChanged", "refineryChanged", "refineryChanged"]);
 });
 
 test("the selection intersection stops scope-widening: a rewritten-but-UNSELECTED field is dropped", async () => {

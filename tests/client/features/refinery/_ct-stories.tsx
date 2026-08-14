@@ -87,6 +87,13 @@ function RefineryDataProbe({ sessionId, characterId }: RefineryDataStoryProps): 
       <button type="button" onClick={(): void => start.mutate({ characterId })}>
         start session
       </button>
+      {/* The FRESHNESS DRIVER, exercised through the real seam. Every refinery write is `busDriven` now —
+          the server emits `refineryChanged` and `use-user-bus` routes it to `invalidateUser`. This button is
+          that last hop and nothing more (the SSE socket itself is `use-user-bus`'s own CT), so a CT can prove
+          the tick a SECOND DEVICE's write produces actually repaints this tab's roster. */}
+      <button type="button" onClick={(): void => invalidation.invalidateUser({ type: "refineryChanged" })}>
+        user bus tick
+      </button>
       <button type="button" onClick={(): void => update.mutate({ sessionId, patch: { name: "Renamed" } })}>
         save session
       </button>
