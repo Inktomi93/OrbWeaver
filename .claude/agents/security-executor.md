@@ -3,6 +3,8 @@ name: security-executor
 description: Security-sensitive implementation and analysis in orbweaver — authentication/authorization (OIDC, sessions, session-admin), CSRF enforcement, secrets handling, crypto usage, input validation at trust boundaries, hardening, dependency-vuln triage, security-relevant review (e.g. the /api/assets/upload CSRF hardening, the auth feature). Use for ANY task where the word "security" applies, instead of `executor` or the main session.
 model: opus
 effort: high
+maxTurns: 80
+mcpServers: ["authentik"]
 color: magenta
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage
 ---
