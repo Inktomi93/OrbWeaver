@@ -101,6 +101,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-14 | **RPG HEAD-LADDER ARM A RATIFIED (owner, awake mid-run: "im fine with the decision, the whole vibe with everything is do it right once even if it means more work")** — the orchestrator's overnight ruling (walk the selected lineage; B half-fix rejected; C dead as a law-reversal) is now OWNER LAW, not provisional. Same sitting: **paged-list lens law ratified** ("if i search then it should not just search on virtual stuff yeah? same for sort etc") → \[\[paged-list-lenses-go-server-side]]; the character-tab lane brief carries search+sort+tag-filter+favorites ALL server-side, chip vocabulary from a server tags query, and the .find() consumer sweep. |
 | 08-14 | **STALENESS FORKS RULED (owner, via question tool, all four on recommended arms):** F1 per-USER localStorage namespacing · F2 in-app re-auth MODAL (state-preserving, single-flight, resume-in-place) · F4 logout = per-SESSION eviction (admin revoke stays per-user via back-channel) · F5 bulk ops = server QUIET-MODE emits (the #23 terminal-fan precedent generalized). F3 taken on stickler rec as stated assumption: OIDC silent renewal = redirect-bounce. **PREMISE CORRECTION (owner): multi-HUMAN-same-box is NOT a scenario — one human per box; the binding requirement is ONE user, many tabs, many devices.** Lane-B design doc's "multi-human install" phrasing needs truth-repair when W-items build; the W-items themselves survive re-motivated (F1 by db-remint identity splits, F4 by multi-device). **W1/W2/W3/W5/W6/W7/W8 now fully unblocked** — implementation lanes dispatch as slots free. |
 | 08-14 | **SECOND OVERNIGHT SITTING (owner, via question tool):** F4/F5 **CONFIRMED as ruled** with the stickler's counter-rationale surfaced (per-SESSION eviction accepting the D135 sessionId-threading cost · server quiet-mode emits) — framing debt discharged, doc §7 truth-repaired. **EVENT-BUS FIX WAVE: FULL GO** (refineryChanged + rulesChanged + databankChanged + sweep terminals, E4 ritual each, THEN gates G-A + G-B). **ALL NINE ruled-never-rowed programs STILL WANTED** (nothing killed; C1 = status-check INVESTIGATION first, forge-ban means re-dispatch to a permitted role if stranded). **PUSH: HELD — owner pushes himself**; verify --push battery still runs at close-out and its verdict lands here. W4 clarified for the owner: the cross-tab session channel + single-flight primitive; full plan is W1-W10, W9 fenced to the live character lane. |
+| 08-14 | **SWEEP RESULTS MUST BE ACTIONED OR GATE-EVALUATED (owner, standing): "when we do sweeps the results need to be actioned or seen if a gate can be made — board things."** Every sweep/survey deliverable now owes board rows: each finding → a lane/small/kill decision, each CLASS → an explicit gate-candidate verdict. Applied retroactively to tonight's class sweep + bus survey (rows below). **Also recorded (owner): the PRESET/PARAM system "is feeling crunchy — not like the registry system that is easy to grow"** — a design smell on the books, paired with the sampler-defaults MAYBE row; any future preset-area lane reads this first. |
 | standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE (re-affirmed 08-08 after full walkthrough) · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
 | open | *(none — every fork ruled as of the 08-09 midday sitting; new forks append here)* |
 
@@ -347,6 +348,36 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 `reports/recordings/forge-42-*.gif`; design `docs/design/streaming-reveal-42.md`).
 
 ## ═══ THE ENDGAME (complete remainder — tagged by what unblocks each) ═══
+
+**═══ SWEEP ACTIONS (owner law: actioned or gate-evaluated — nothing falls into obscurity) ═══**
+
+- [ ] **MAYBE (owner-parked, do NOT let rot): per-launched-model SAMPLER-DEFAULTS map** — one generic
+  `preset[k] ?? modelDefaults[k]` rung replacing the per-sampler env-const surgery (\~6 coupled sites per
+  knob; presence + repetition both paid it). Small-medium, server-only, CT-provable; queue behind the
+  bus wave unless the owner promotes. Context: the preset-crunchiness smell (ledger row above).
+- [ ] **Databank lenses lane** (class-sweep P1): `databank-library-surface.tsx:65,83-84,142-143` is the
+  character-tab defect TWIN — `MAX_PAGES=5` + unrecoverable head eviction + client-side name/phase lens
+  over a server contract with NO search (`routers/databank.ts:55-64`). Build with the character lane's
+  landed shapes as precedent (\[\[paged-list-lenses-go-server-side]]).
+- [ ] **Refinery `selection` two-writer** (class-sweep P2): `update-session.ts:50` whole-replaces from a
+  client image while `apply-fields.ts:67` server-remaps indexes — a scope-dialog save straddling an
+  applyFields undoes the remap. The mergeSheet class server-side; small, rides any refinery lane.
+- [ ] **Smalls batch (sweep tail):** `turn-tool-calls.ts:45-52` window-budget (50 slots shared with
+  unviewable sibling rows; add the lineage filter its sibling journal.ts:36-50 already has) ·
+  `rpg-takeover-header.tsx:95` minute `?? 0` synthesis (latent; contract permits the reach — align with
+  its own hour arm one line up) · doc truth-repairs: staleness design §1.1 `orb-draft:*` inventory is
+  STALE (`createEntityDraftStore` has ZERO call sites, 429+503 scanned w/ control — W6 is smaller than
+  written).
+- [ ] **GATE CANDIDATES (evaluate, two-receipt law each):** (G-C) whole-record-replace-on-JSON-column
+  where any writer is key-wise — ast-grep `X: {...patch.X}` shape over patch/update verbs; historical
+  control = mergeSheet + refinery selection · (G-D) `maxPages`/windowed infinite query paired with
+  client-side filter/search in the same surface — historical control = character tab + databank ·
+  (G-E) floor-synthesis (`?? 0`/`|| min` feeding numeric DISPLAY from optional data) — likely TOO
+  heuristic for a gate, verdict may honestly be "no gate, memory + review lens only" — record whichever
+  verdict with receipts. G-A/G-B (bus) already GO'd.
+- **Already-actioned receipts:** class 5 clean (recent-models IS the W5 exemplar — `model-picker-model.ts:262`) ·
+  class 2 clean (meter-row + apply.ts ruled-in-header) · chat-list eviction-only (server lenses already
+  correct) · bus-survey wave + gates = owner GO (ledger).
 
 **═══ OVERNIGHT PLAN 2026-08-13 → 08-14 (owner-ordered; wake-up armed for 23:03) ═══**
 
