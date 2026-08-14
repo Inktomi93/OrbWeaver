@@ -17,10 +17,9 @@ import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { createEntityMutation, useInvalidation, useTRPC, useTRPCClient } from "#data";
-import { GENERATION_FAILED_DETAIL } from "#lib";
+import { GENERATION_FAILED_DETAIL, isSilencedTurnAbort, turnMutationToast } from "#lib";
 import { pushFiredSteer } from "#state";
 import { notifyImpersonateFailure } from "../lib/guided-failure-notices.ts";
-import { isSilencedTurnAbort, turnMutationToast } from "../lib/turn-abort-notice.ts";
 
 interface GuidedSteerInput {
   readonly action: GuidedActionKind;

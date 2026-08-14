@@ -15,7 +15,7 @@
 import type { SeatKnobs } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, ChatParticipantId } from "@orb/kit/ids";
 import { createEntityMutation } from "#data";
-import { turnMutationToast } from "../lib/turn-abort-notice.ts";
+import { turnMutationToast } from "#lib";
 
 /** `chat.addCharacterToChat` vars — add one host-owned character to the roster (J7 add-member, host-only). */
 interface AddCharacterToChatVars {

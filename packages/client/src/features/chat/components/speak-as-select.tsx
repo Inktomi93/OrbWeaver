@@ -20,10 +20,9 @@ import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
-import { testId } from "#lib";
+import { testId, turnMutationToast } from "#lib";
 import { useTurnPhase } from "#state";
 import { filterCharacters } from "../lib/roster.ts";
-import { turnMutationToast } from "../lib/turn-abort-notice.ts";
 
 /** `chat.generate` vars — an on-demand turn, optionally forced to a specific speaker (null ⇒ arbitrate). */
 interface SpeakAsGenerateVars {

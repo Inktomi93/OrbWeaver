@@ -17,6 +17,7 @@ import { castId } from "@orb/kit/ids";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { turnMutationToast } from "#lib";
 
 /** The four HAND DOORS' shared verdict (`HandDoorResult`) read off the wire, never re-spelled: the server
  *  refuses legibly as DATA, so a reshape of that contract breaks here at compile time. Local + underived by
@@ -329,7 +330,10 @@ export const usePopulateFromCharacter = createEntityMutation<inferInput<Trpc["rp
 export const useSendChoice = createEntityMutation<inferInput<Trpc["chat"]["send"]>, unknown>({
   options: (trpc) => trpc.chat.send.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't send your choice.",
+  // The shared turn-notice mapper (#lib, re-homed 2026-08-14): a contention reject gets the honest
+  // locked copy and a stale abort stays silent (the bus notice owns it) — same surface every other
+  // turn-starting mutation has; the bare string here was the one unmapped call site.
+  errorToast: (error) => turnMutationToast(error, "Couldn't send your choice."),
 });
 
 /** `rpg.deleteQuest` — remove a quest from the current snapshot AND clear its `quests.<id>` lock (Quests

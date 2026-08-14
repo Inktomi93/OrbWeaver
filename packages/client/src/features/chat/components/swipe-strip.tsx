@@ -14,7 +14,7 @@ import type { ReactElement } from "react";
 import { createEntityMutation, useInvalidation, useTRPC } from "#data";
 import { useSwipeKeyboardNav } from "../hooks/use-swipe-keyboard-nav.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
-import { turnMutationToast } from "../lib/turn-abort-notice.ts";
+import { turnMutationToast } from "#lib";
 
 interface SwipeVars {
   readonly chatId: ChatId;
