@@ -1,3 +1,9 @@
+---
+kind: design
+status: parked
+updated: 2026-08-14
+---
+
 # 07 — Migration + Build Plan: Baseline Riders, Chunks AP1–AP4, and the Containment Suite
 
 > **Status: COMMITTED (D60, 2026-07-01) — prescriptive design; the ledger D-entry wins on any

@@ -1,3 +1,9 @@
+---
+kind: index
+status: active
+updated: 2026-08-14
+---
+
 # proposed/ Index — verified dispositions (2026-07-13)
 
 Every parked program in this directory, verified against orbweaver code by a 5-agent Opus wave (read-only,

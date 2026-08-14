@@ -1,3 +1,9 @@
+---
+kind: design
+status: parked
+updated: 2026-08-14
+---
+
 # 05 — The Seats It Unlocks: Party Member, GM Seat, and the Crew Bright Line
 
 > **Status: COMMITTED (D60, 2026-07-01) — prescriptive design; the ledger D-entry wins on any

@@ -1,3 +1,9 @@
+---
+kind: design
+status: parked
+updated: 2026-08-14
+---
+
 # Agent-Principal Design — the prescriptive plan for agents as first-class principals (doc-set index)
 
 > **Status: COMMITTED (D60, 2026-07-01). Build state (trued 2026-07-09): AP0–AP2 LANDED; AP3 is

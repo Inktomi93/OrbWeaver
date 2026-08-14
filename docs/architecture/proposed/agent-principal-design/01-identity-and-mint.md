@@ -1,3 +1,9 @@
+---
+kind: design
+status: parked
+updated: 2026-08-14
+---
+
 # 01 — Identity and the Mint: `users.kind`, the Owner Link, and `provisionAgentPrincipal`
 
 > **Status: COMMITTED (D60, 2026-07-01) — prescriptive design; the ledger D-entry wins on any

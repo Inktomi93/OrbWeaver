@@ -1,7 +1,7 @@
 ---
-kind: audit
-status: draft
-updated: 2026-07-22
+kind: review
+status: active
+updated: 2026-08-14
 ---
 
 # Agent & Composition — Pain-Point Inventory

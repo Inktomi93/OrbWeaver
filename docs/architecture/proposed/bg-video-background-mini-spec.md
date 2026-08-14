@@ -1,3 +1,9 @@
+---
+kind: design
+status: parked
+updated: 2026-08-14
+---
+
 # BG-E mini-spec: video chat-backgrounds, 2026 approach
 
 ## Bottom line

@@ -1,3 +1,9 @@
+---
+kind: design
+status: parked
+updated: 2026-08-14
+---
+
 # 02 — Participants and Attribution: the Kind Split, Live `authorUserId`, and the D19 Reconcile
 
 > **Status: COMMITTED (D60, 2026-07-01) — prescriptive design; the ledger D-entry wins on any

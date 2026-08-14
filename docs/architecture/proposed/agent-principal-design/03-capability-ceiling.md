@@ -1,3 +1,9 @@
+---
+kind: design
+status: parked
+updated: 2026-08-14
+---
+
 # 03 — The Capability Ceiling: Two Walls, One Seam, One-Flip Containment
 
 > **Status: COMMITTED (D60, 2026-07-01) — prescriptive design; the ledger D-entry wins on any
