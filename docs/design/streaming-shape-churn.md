@@ -82,9 +82,12 @@ as the thing it is becoming."
 This does not by itself change shapes, but it sets how many frames a wrong shape is visible for and it
 is why the wrong shape is legible rather than a one-frame flash.
 
-**M4 — reasoning block / tool chip mount (UNMEASURED).** A block appearing above the prose would shift
-everything below it. Ranked last only because two turns did not produce one; a turn that does is a
-one-line prompt change away (§4).
+**M4 — reasoning block auto-COLLAPSE (MEASURED 2026-08-14 evening, §8 — now ranked FIRST).** Not the
+mount: the disclosure is force-open while thinking and collapses to zero the instant the first answer
+token lands, dropping the prose column by the whole trace height. Measured 3/3 on an OpenRouter
+chat-completions reasoning model: **350–677px in \~300ms**, 4–7× M5. The tool-chip half of this arm is
+still unexercised. Revised whole-document ranking: **M4 > M5 > M1**. (§2's original text ranked M4 last
+because no turn had produced one; §7 then wrongly demoted it to unreachable — see §8.1.)
 
 ## 3. Candidate fixes, with what each costs
 
@@ -342,6 +345,14 @@ untouched, deliberately — re-tuning `MIN_TICK_MS` is an owner call (§3 arm 3)
 
 ## §7 M4 PROBE RESULTS 2026-08-14
 
+> **AMENDED by §8 (owner correction, 2026-08-14 evening) — read §8 before acting on this section.** §7's
+> verdict below ("M4 does NOT reproduce ... structurally unreachable") is WITHDRAWN. The measurements in
+> §7.3 are correct and the §7.2 lever is correct; the CONCLUSION drawn from `reasoningChars:0` is not.
+> Owner, verbatim: *"agent sdk cant report reasoning when using the sub — use the openrouter key and test
+> that shit on chat completions."* On an OpenRouter chat-completions connection **M4 reproduces 3/3 and is
+> the LARGEST churn in this document** (§8). What §7 measured was TRANSPORT OPACITY on the max-pro-sub
+> agent-sdk wire, not a model that declined to think.
+
 Seven live turns against the running dev stack, on a SCRATCH room the probe created and deleted
 (`__orb.seed.game({profile:"d20"})` → a fresh chat + a fresh `orb-seed-hero` card; the owner's six
 example chats were never opened). Reasoning was turned fully ON through the app's own API, scoped to
@@ -553,3 +564,213 @@ sibling lane or a harness step resets the dev DB, a live-drive probe cannot hold
 a synthetic `div[data-streamdown="code-block"]` computes `contentVisibility: "visible"`. The 202→108
 mid-stream snap was NOT re-measured: no probe turn in this lane produced a fenced code block (the arm
 is narrative rpg prose), so the height series has nothing to say about it.
+
+## §8 M4 MEASURED ON OPENROUTER CHAT-COMPLETIONS 2026-08-14 (evening)
+
+**VERDICT: M4 REPRODUCES, 3 runs out of 3, exactly as §7.4 predicted — the churn is the auto-COLLAPSE on
+the first answer token, not the mount. It is also the BIGGEST reflow this document has measured: the prose
+column drops 350–677px in \~300ms, 4–7× M5's 94px. Revised symptom-match ranking: M4 > M5 > M1.**
+
+M4 is no longer a tail-of-the-list "unmeasured" arm. On any reasoning-capable chat-completions connection
+it is the dominant "changes shapes and goes wonky, then settles" event in a turn.
+
+### §8.1 The §7 framing amendment — the sub does not REPORT reasoning, it did not DECLINE to
+
+Owner correction, verbatim (2026-08-14 evening): *"agent sdk cant report reasoning when using the sub —
+use the openrouter key and test that shit on chat completions."*
+
+§7.2 read `reasoningChars: 0` off `/api/_debug/wire/outcomes` on a max-pro-sub agent-sdk turn and
+concluded (§7.4) that *"the MODEL decides whether to think"* and *"Opus 4.8 declined on all four completed
+turns"*. That is the wrong middle. `thinking:{type:"adaptive"}` was genuinely engaged — §7.2's
+`reasoningEffort:"high"` receipt is real — but the max-pro-sub agent-sdk wire does not surface reasoning
+bytes to us at all, so `reasoningChars:0` measures OUR VISIBILITY, not the model's behaviour. §7's
+"structurally unreachable" demotion was therefore drawn from a transport blind spot.
+
+What survives from §7 unchanged: every §7.3 number (the panel was genuinely absent on that path, so the
+prose genuinely never moved), the §7.2 scratch-scoping recipe, the §7.5 silent-500 defect, and the §7.4
+claim that the CHURN, when it fires, is the collapse rather than the mount. §7.4's proposed unblock (a
+vLLM `chat_template_kwargs:{enable_thinking:true}` preset) is still a valid second path but was NOT the
+one taken — OpenRouter chat-completions needed no custom parameter at all.
+
+### §8.2 THE BLOCKER §7 HIT, source-pinned: there is no per-room CONNECTION scoping
+
+§7 was refused a global connection flip and could reach only the PRESET per room. That was correct, and
+the reason is structural — worth recording so no future probe re-derives it:
+
+- `connection/verbs/resolve-chat.ts:19-27` — the only per-chat input is `routableChat:
+  RouteChatAssignment`, forwarded as a `routeOverride` of `{api, source, model}`.
+- `entry/compose/chat.ts:1142` and `entry/compose/rpg.ts:1652-1656` — BOTH derive that assignment as
+  `meta.providerRouting !== undefined ? { providerRouting } : {}`. **`api`/`source`/`model` are never
+  populated from the chat row**, and `contracts/src/chat/metadata.ts:243` confirms `providerRouting` is the
+  only routing field chat metadata carries. `resolve-chat.ts:10-13` additionally states that the
+  providerRouting hop is deliberately unwired.
+- So the chat-role connection resolves ONLY from `UserSettings.routing.roleDefaults.chat`
+  (`connection/verbs/resolve-role.ts:62-67`). A preset cannot move it (`db/src/schema/preset.ts:3`), and
+  `rpg_games.gmPresetId` reaches generation params only.
+
+The owner authorised the supervised flip of that per-user setting for this probe; §8.7 is its restore
+receipt. **A future M4/connection probe has exactly two levers: the per-user role default, or a second
+user — and a second user is a dead end, because `credentials/verbs/resolve.ts:23-33` gives OpenRouter no
+host fallback (the env key is seeded onto the OWNER's credential row by `entry/boot/seed-credential.ts`).**
+
+### §8.3 The connection, and the wire capture that qualified it
+
+Model chosen by a raw-wire pre-check against OpenRouter before any app change (cheap, streams reasoning
+deltas first and answer text second — the exact sequence M4 needs):
+
+| model | reasoning deltas / chars | first reasoning | first content |
+| - | - | - | - |
+| `deepseek/deepseek-v4-flash` | 173 / 1205 | 660ms | 28131ms |
+| `openai/gpt-oss-120b` | 697 / 2114 | 1247ms | never (hit the 700-token cap) |
+
+Flip applied through the app's own API — `settings.updateUserSettingsSection({section:"routing", patch:
+{roleDefaults:{chat:{api:"chat-completions", source:"openrouter", model:"deepseek/deepseek-v4-flash"}}}})`
+— after which `connection.resolveChatCapability` returned
+`chat-completions/openrouter/deepseek/deepseek-v4-flash` with
+`reasoning:{mode:"effort", enabled:true, effortLevels:["xhigh","high"], defaultEffort:"high"}`. No preset
+was needed: OR advertises `default_effort:"high"` with no `defaultEnabled:false`, so
+`infra/providers/resolve-chat.ts:58-68`'s `effectiveEffort` fills the effort from the capability itself.
+
+Wire receipts from `/api/_debug/wire/outcomes` on the measured turns — the thing §7 could not get:
+`reasoningChars: 998` / `1280` against `contentChars: 305` / `299`. Reasoning bytes are on the wire and
+`infra/providers/backends/kit/openai-compat/stream.ts:127-139` maps them to `kind:"reasoning"` exactly as
+predicted.
+
+Room: a SCRATCH plain chat (`chat.startChat`, no rpg game — so no tool folding to confound §7.3's
+`finishReason:"tool"` noise) with a scratch `mo-probe-narrator` character. Both deleted (§8.7).
+
+### §8.4 The measurements — mount, growth, collapse
+
+Sampler as §4/§5/§7.3, extended to record the `[data-slot=collapsible-panel]` height (`-1` = absent — Base
+UI removes the panel from the DOM while closed, `ui/src/primitives/collapsible/collapsible.tsx:43-46`), the
+disclosure label, the ghost row height, `proseTopInRow = firstBlock.top − ghostRow.top`, and the
+`[data-streamdown=code-block]` height. `ghost-stream-body` is `display:contents`, so the CHILD is measured,
+never the wrapper.
+
+**Three phases, identical in all three runs:**
+
+1. **Mount (a small step, not the churn).** The ghost mounts at row height **32** on typing dots. The first
+   reasoning delta mounts `<ReasoningBlock>`: panel **30px**, row **32 → 86** (+54), label `Thinking… 0s`,
+   with a one-frame `stream-shimmer` before the trace's first text. Nothing is below the block yet, so
+   nothing is displaced — this is a grow, not a jump.
+2. **Growth (slow, monotonic, legible).** The panel grows in \~23px line steps as the trace streams, ticking
+   `Thinking… 1s … 9s`. Peak panel height 350–677px depending on how long the model thought.
+3. **THE CHURN — collapse on the first answer token.** `useGhostThinking` flips false the instant answer
+   text lands (`use-ghost-stream.ts:37-45`), `expanded = override ?? thinking` closes the Collapsible
+   (`reasoning-block.tsx:70`), the label freezes to `Thought for Ns`, and the whole panel animates to zero
+   and unmounts — dragging the prose column up by the full trace height.
+
+| run | panel peak | prose top at first paint | settled prose top | **prose drop** | collapse window | label at flip |
+| - | - | - | - | - | - | - |
+| r1 | 677 | 709 | 32 | **677px** | 13985 → 14365 = 380ms | `Thought for 4s` |
+| r2 | 350 | 382 | 32 | **350px** | 13812 → 14194 = 382ms | `Thought for 6s` |
+| r4 | 525 | 557 | 32 | **525px** | 14445 → 14837 = 392ms | `Thought for 9s` |
+
+**Run provenance, stated because the labels skip a number.** Five turns were fired; three are in the table.
+r3 died to an `Execution context was destroyed` — the dev stack churned mid-run (an HMR + a server restart
+window that also 502'd two later requests), so its DOM series is void. Its retry generated server-side but
+the client's bus never attached through the 502s, so the ghost never mounted; that run contributes the
+`reasoningChars:998` wire receipt in §8.3 and nothing else. r1/r2/r4 are three clean, independent turns.
+
+The ghost ROW height agrees exactly: r1 741 → 64, r2 414 → 64, r4 589 → 64 — the same 677/350/525.
+`proseTopInRow` settles at **32** in every run, which is the same constant §5 and §7.3 recorded for a
+reasoning-free turn: the collapse returns the layout to precisely where a non-thinking turn starts.
+
+Full r1 panel series (ms since load): `-1 @6902` → `30 @9332` → … → `512 @13883` → **`677 @13985`** →
+`499 @14016` → `361` → `259` → `186` → `134` → `97` → `70` → `50` → `36` → `25` → `18` → `12` → `8` → `5`
+→ `3` → `2` → `1` → `0 @14298` → `-1 @14365` (removed from the DOM). The collapse is ANIMATED, \~19 sampled
+frames — so it is not a one-frame snap the eye can miss; it is a legible \~300ms slide of everything below.
+
+Two secondary observations:
+
+- **The prose is painted at its PRE-collapse position for one frame.** r1: `proseTopInRow` is first
+  sampled at **709** (13999) — the first prose block renders below the still-open trace, then travels
+  677px up. The reveal and the collapse are not coordinated.
+- **The row then GROWS again** as the answer streams (r1 64 → 241; r4 64 → 311), so the settle is
+  down-then-up, not a single settle. That is the "fluctuates, then settles" half of the owner's sentence.
+
+### §8.5 BONUS re-receipts (M5 dead, M1 fence finding intact, ARM 8 unblocked)
+
+**M5 birth-snap stays DEAD — re-measured, not inferred.** Runs r2 and r4 both produced a fenced javascript
+block mid-stream. `[data-streamdown=code-block]` height series: r2 `-1 → 108 @14226 → 154 @14445`; r4
+`-1 → 108 @15006 → 154 → 177 → 201 → 247`. **The container is BORN at 108 and only ever grows.** The
+202→108 self-collapse §5 measured 5/5 does not occur — §6's `content-visibility: visible !important` seal
+rule holds on the live tree, now with a mid-stream height series behind it rather than a CSSOM read.
+
+**M1's fence finding holds on this path too.** r2's block signature series is `none → P @13825 → P,PRE
+@14226` — an APPEND, never a promotion. No table/list prompt was run here, so §6's `tail-hold.ts` pre-pass
+is untouched by this section.
+
+**ARM 8 (the refinery structured-on-OpenRouter fact the refinery-e2e lane left BLOCKED): routing WORKS,
+execution FAILS.** `structured` is not its own routing role — it rides the resolved `summarize` connection
+(`entry/compose/role-clients.ts:121-123`), so the lever is `roleDefaults.summarize`. With it pointed at
+OpenRouter, one `refinery.generateSchema` produced a real capture:
+
+```json
+{ "api": "structured", "backend": "openrouter", "model": "deepseek/deepseek-v4-flash" }
+```
+
+— so the seam is wired end-to-end. The call itself failed: `openrouter structured item 0 failed: Response
+validation failed`, HTTP 500 to the client, and `provider.structured-item` logged
+`ok:false, errorKind:"unknown", durationMs:174`. Re-fired on `openai/gpt-oss-120b`: identical failure,
+`durationMs:83`. **Not a reasoning×structured conflict** — the captured request body carries NO `reasoning`
+field on either model. Both durations are far too short for a generation, so this is an upstream REJECT
+our response schema then fails to parse. The captured body:
+
+```json
+{ "provider": { "require_parameters": true }, "max_completion_tokens": 2048, "temperature": 0.2,
+  "stream": false, "response_format": { "type": "json_schema",
+  "json_schema": { "name": …, "schema": …, "strict": true } } }
+```
+
+`provider.require_parameters:true` + `json_schema.strict:true` is the pairing to investigate first (it asks
+OpenRouter to route only to endpoints supporting every parameter, and a no-endpoint answer is not a
+completion shape). UNPROVEN — the ring stores requests, not responses; the next probe should capture the
+upstream body. The same call on the restored vLLM connection succeeds in 7.1s (`ok:true, tokensOut:238`),
+so the refinery path itself is healthy.
+
+### §8.6 Ranked fix candidates for M4 — nothing built, the owner rules the arm
+
+Ranked by symptom-match per pixel of churn removed, not by effort.
+
+1. **Do not auto-collapse; freeze the trace open and let the answer render below it.** The disclosure
+   already flips its label to `Thought for Ns`, which is the whole state change a reader needs — the height
+   change is gratuitous. Cost: a long trace keeps eating vertical space until the user closes it, which is
+   exactly what the auto-collapse was written to prevent. Cheapest possible edit (`expanded = override ??
+   thinking` → `override ?? (thinking || neverCollapsed)` in `reasoning-block.tsx:70`), and it removes 100%
+   of the measured churn.
+2. **Collapse to a FIXED preview height instead of to zero.** Keep the first \~2 lines of the trace mounted
+   after the flip. Cost: still a jump, just a bounded one (\~677px → \~60px), and it needs a real design
+   call about what the settled row shows. Preserves the auto-collapse intent.
+3. **Anchor the scroll instead of the block** — let the collapse happen but compensate the message list's
+   scrollTop by the delta in the same frame so the PROSE stays put and the transcript above moves instead.
+   Cost: touches the autoscroll/keystone, the most contended surface in the chat client; and it fixes the
+   perceived jump only while pinned to the bottom.
+4. **Do nothing.** Defensible only if the owner reads the collapse as informative motion. It is 4–7× M5,
+   which was judged worth fixing.
+
+Not recommended: animating the collapse more slowly. It is ALREADY animated over \~300ms/19 frames — the
+churn is the 677px of travel, not its abruptness.
+
+### §8.7 Scratch state — every change and its restore receipt
+
+| what | before | after |
+| - | - | - |
+| `routing.roleDefaults.chat` | `{}` (absent) → resolved `agent-sdk/max-pro-sub/claude-opus-4-8` | restored — resolves `agent-sdk/max-pro-sub/claude-opus-4-8` |
+| `routing.roleDefaults.summarize` (= the `structured` role) | `{}` (absent) → vLLM | restored — a live structured call logs `backend:"vllm", ok:true, 7153ms` |
+| chat `mo-probe scratch` | did not exist | `chat.delete` → gone; absent from `listChats` (6 chats) |
+| character `mo-probe-narrator` | did not exist | `character.remove` → gone; absent from `character.list` (12 characters) |
+| every other settings section | untouched | untouched — only the `routing` section was ever patched |
+| owner chats / presets / the system Default preset | untouched | never read, never written |
+
+**The restore is FUNCTIONAL, not byte-identical, and that is forced.** The stored blob now reads
+`{"roleDefaults":{"chat":{"model":null},"summarize":{"model":null}}}` where it read `{"roleDefaults":{}}`.
+A settings patch cannot DELETE a key: `deepMergePlain` treats `undefined` as "don't touch", and a `null`
+role fails the whole-blob re-parse (`contracts/src/settings/index.ts:478` — `chat:
+chatRoleConfigSchema.optional()`, no `.nullable()`, no `.catch()`), which `versioned-config/index.ts:68`
+answers by returning `def.default`, i.e. **wiping every user setting**. That last step is READ FROM SOURCE,
+deliberately not probed — nobody detonates a settings-wipe to confirm it. So the safe clear is per-leaf nulls, which
+`chatRoleConfigSchema`'s `.catch(undefined)` heals to unset for `api`/`source` and keeps as `null` for
+`model` — the exact value `resolve-role.ts:62-67` and `healToChatDefault(null)` already treat as "no pin".
+The resolution receipt above is what proves equivalence. **Do not attempt a `{chat:null}` patch to get the
+bytes back; it is a settings-wipe grenade.**
