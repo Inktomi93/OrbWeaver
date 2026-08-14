@@ -131,6 +131,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-14 | **QUOTED-RM = STRICT + SAME-COMMAND VAR EXPANSION, in-lane (question tool):** the tighten ships (122,880-cmd A/B, 130 stricter/0 looser) AND variables assigned earlier in the same command resolve before the safe-test (evidence-gated, never a blanket $-hint; own A/B owed); comment-span false positive NOT taken (stays the standing owner item). |
 | 08-14 | **CODEX DOC-MISS SITTING (question tool, evening):** D129 = **TRUTH-REPAIR + BUILD BOTH** (ledger annotated owner-authorized same hour; one chat-area lane builds the narrator wire-mapping capability probe + the swipe re-resolution verb wiring — QUEUED next free slot) · **Charlotte live-validation = KILLED** (handoff doc superseded-whole, link repaired). Sweep-method lesson adopted: git additions, not dir walks. |
 | 08-14 | **DOCUMENTATION CONTROL PLANE = GITHUB PROJECT 1 + REPO TRUTH, NO WIKI (owner, Codex sitting).** Issue #1 is the migration parent; #2–#11 are native sub-issues for the fact-check/tooling lanes. `docs/retro-workboard.md` stays intact as recovery + standing operations. During migration, an item has exactly one mutable home: unmigrated legacy rows stay here; migrated rows move once to Project and leave a pointer rather than mirrored status. D139 owns the boundary. |
+| 08-14 | **REASONING AUTO-COLLAPSE (question tool):** ST-parity toggle `reasoningAutoCollapse` (bool, default true) HOME = **Streaming** chat-behavior subcategory (not Appearance) · churn fix = **#1 snap-collapse** (auto-collapse drops to the "Thought for Ns" header in the same commit the prose mounts → churn≈0; manual clicks keep the smooth fold; reduced-motion instant). Both axes ONE commit, warm-leg building. #2 overlay-exit was the elegant-glide alt, not taken; #3 scroll-comp rejected (keystone risk). **DENSITY GLUT: owner flung a mech at it** ("might as well fling a mech executor at that glut of 250 things") — density-burn lane on the 224 ratchet, A1/A2 + obvious A3 per density-pass-spec §5.1, side-eye owed. |
 | standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE (re-affirmed 08-08 after full walkthrough) · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
 | open | *(none — every fork ruled as of the 08-09 midday sitting; new forks append here)* |
 
@@ -1416,10 +1417,11 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   sites too varied, kit-internal, contract pin) · stale-row class = RITUAL-owned (6-for-6 today,
   ungateable) · documented-field-no-producer = LEAD only (the G-E semantic-discriminator trap; if
   it recurs, a typed obligations table is the cheap form). **RATCHET-ADMITTED 275 (owner-asked):**
-  density-tier 224 (the 07-31 taste audit's per-file budgets — radius-by-class, box-in-box,
-  text-voice; shrink-only, stale-arm bidirectional since `64110bcc5`) + finding-overload-provenance
-  51 (gate-harness ignore-machinery bypass — BURN LANE RUNNING `overload-burn`). Standing brief
-  policy adopted: a lane touching a density-baselined file burns that file's rows in-lane.
+  density-tier 224 → **BURN LANE RUNNING** `density-burn` (owner-flung 08-14; A1 radius/A2 box-in-box
+  - obvious A3 per density-pass-spec §5.1, taste-ambiguous A3 left for design; side-eye owed;
+    the 07-31 taste audit's per-file budgets, shrink-only) + finding-overload-provenance
+    51 (gate-harness ignore-machinery bypass — BURN LANE RUNNING `overload-burn`). Standing brief
+    policy adopted: a lane touching a density-baselined file burns that file's rows in-lane.
 - [ ] **CODEX DOC-SWEEP MISSES (their git-additions method beat the board's dir-walk — 2 real, both
   verified on tree 08-14 evening):** (1) **D129's two UNBUILT commitments never rowed:** the
   narrator→wire-`system` mapping gated on a live per-model capability probe (`historySystemRows` —
