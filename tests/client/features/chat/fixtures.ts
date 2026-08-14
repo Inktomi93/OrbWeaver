@@ -31,18 +31,23 @@ export interface ChatListPageFixture {
 
 /**
  * An INPUT-AWARE `chat.listChats` responder — the stub applies the same narrowing the server does
- * (`characterId` · `search` · `limit`), so a CT drives the real semantics instead of a stub that hands back
- * everything no matter what the surface asked. That distinction became load-bearing on 2026-08-09, when the
- * per-character scope and the search predicate BOTH moved server-side: a fixed-array stub would have made
- * every filter/search CT pass by ignoring the very input under test.
+ * (`characterId` · `search` · `limit` · `cursor`), so a CT drives the real semantics instead of a stub that
+ * hands back everything no matter what the surface asked. That distinction became load-bearing on 2026-08-09,
+ * when the per-character scope and the search predicate BOTH moved server-side: a fixed-array stub would have
+ * made every filter/search CT pass by ignoring the very input under test.
  *
  * The search arm matches title · `participantNames` · `lastMessagePreview`. The server's own name arm reads
  * CHARACTER SEAT names, which this row shape does not carry separately — `participantNames` is its stand-in,
  * and it is the same string the row renders.
+ *
+ * It PAGES (2026-08-14, the `character.list` twin's shape): the stub used to answer every request with the
+ * first `limit` rows and `nextCursor: null`, so no CT could ever reach a second page — which is precisely why
+ * the client-side page-window eviction (`maxPages: 5`, head page unrecoverable) lived behind a green chat CT
+ * suite. Ordering is the ARRAY's; the cursor is the last served row's `(updatedAt, id)`, the real wire shape.
  */
 export function chatListResponder(all: readonly ChatSummaryFixture[]): (input: unknown) => ChatListPageFixture {
   return (input: unknown): ChatListPageFixture => {
-    const args = (input ?? {}) as { characterId?: CharacterId; search?: string; limit?: number };
+    const args = (input ?? {}) as { characterId?: CharacterId; search?: string; limit?: number; cursor?: { id?: string } };
     const needle = args.search?.trim().toLowerCase() ?? "";
     const scoped = all.filter((chat) => args.characterId === undefined || chat.participantCharacterIds.includes(args.characterId));
     const matched = scoped.filter(
@@ -52,9 +57,17 @@ export function chatListResponder(all: readonly ChatSummaryFixture[]): (input: u
         (chat.lastMessagePreview?.toLowerCase().includes(needle) ?? false) ||
         chat.participantNames.some((name) => name.toLowerCase().includes(needle)),
     );
+    const cursorId = args.cursor?.id;
+    const from = cursorId === undefined ? 0 : matched.findIndex((chat) => chat.id === cursorId) + 1;
+    const limit = args.limit ?? matched.length;
+    const items = matched.slice(from, from + limit);
+    const last = items.at(-1);
     return {
-      items: args.limit === undefined ? matched : matched.slice(0, args.limit),
-      nextCursor: null,
+      items,
+      // A FULL page always carries a cursor — the verb mints one from a full page without a lookahead peek
+      // (`domain/chat/verbs/read.ts`), so exhaustion is discovered on the next (short) fetch. Reproduced here
+      // or the tail-fetch guard stops one page early.
+      nextCursor: items.length === limit && last !== undefined ? { updatedAt: last.updatedAt, id: last.id } : null,
       totalCount: matched.length,
     };
   };

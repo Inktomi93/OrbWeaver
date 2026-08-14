@@ -1,9 +1,10 @@
 // CT: the Chats-section LIST surface end-to-end (UIP-301/302/303 + J5). Drives the PRODUCTION path —
-// `chat.listChats` (routeTrpc, an UNPAGED `ChatSummary[]`) → `useSuspenseQuery` in `<QueryBoundary>` →
-// the `@orb/ui/list-row` rows. Asserts: rows render (title + participant names); selecting a row fires
-// `onSelect` with the chat id; the empty-state New button fires `onNewChat` (the header New moved to the
-// LIST chrome band — chat-list-header.tsx); the search field filters client-side; the active row paints
-// `aria-current`; the per-row kebab opens the actions menu; an empty list shows its own state.
+// `chat.listChats` (routeTrpc, the KEYSET page `chatListResponder` serves) → `useChatListCollection`'s
+// non-suspending `useInfiniteQuery` → the `@orb/ui/list-row` rows inside `<VirtualList>`. Asserts: rows
+// render (title + participant names); selecting a row fires `onSelect` with the chat id; the empty-state New
+// button fires `onNewChat` (the header New moved to the LIST chrome band — chat-list-header.tsx); the search
+// field narrows via the SERVER query; the active row paints `aria-current`; the per-row kebab opens the
+// actions menu; an empty list shows its own state; and a deep scroll never evicts the head page.
 //
 // Also pins F7 (visual-blech audit): a real participant PORTRAIT resolved off `participantCharacterIds` ×
 // the character list, the initials fallback when nothing resolves, and the star/archived state markers.
@@ -744,4 +745,63 @@ test("a fine pointer keeps the inline star toggle on the roster row", async ({ m
 
   const component = await mount(<ChatListSurfaceStory />);
   await expect(component.getByRole("button", { name: UNSTAR_TOGGLE_RE }).first()).toBeAttached();
+});
+
+// ── THE EVICTION TRAP (the character library's "rows vanish as I scroll", live here too) ─────────────
+// `useChatListCollection` shipped `maxPages: 5` (× 50 rows) beside `getPreviousPageParam: () => undefined`:
+// past 250 rows TanStack dropped page 1 and NOTHING could ever fetch it back, so the top of a deep-scrolled
+// chat library was gone until the query key changed. The character tab retired its identical cap on
+// 2026-08-13 and left this one annotated for the chat lane; this is the pin that keeps it retired.
+//
+// The proof is the SCROLL BACK, not a row count at the bottom: at the tail of a virtualized list the head
+// rows are legitimately unmounted either way, so "is row 1 in the DOM" cannot tell eviction from
+// virtualization. Returning to the top can — an evicted head page makes chat 51 the first row of the library,
+// permanently. (The chats pane prints no loaded-vs-census readout — the band's count is its own `limit: 1`
+// census read — so the character library's live-region instrument does not exist here.)
+const EVICTION_CHATS = 300;
+const EVICTION_SCROLL_STEP_PX = 2000;
+/** The poll IS the scroll loop: each attempt wheels one step and reports whether the target row has arrived,
+ *  so the walk needs no `waitForTimeout` and no awaits inside a `for` (both banned in CTs, and both would be
+ *  a fixed sleep standing in for the settle this actually waits on). */
+const EVICTION_POLL = { intervals: [100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100], timeout: 20_000 };
+const HEAD_CHAT = "Chat 000";
+const TAIL_CHAT = "Chat 299";
+
+test("the head page is NEVER evicted — a deep scroll and back still lands on the first chat", async ({ mount, page }) => {
+  // Six pages of the collection's fixed 50 — one more than the old five-page window, which is where the head
+  // page used to disappear.
+  const library = Array.from({ length: EVICTION_CHATS }, (_unused, at) =>
+    makeChatSummary({
+      id: `chat_deep_${String(at)}`,
+      title: `Chat ${String(at).padStart(3, "0")}`,
+      participantNames: [],
+      participantCharacterIds: [],
+      updatedAt: 100_000_000 - at,
+    }),
+  );
+  await routeTrpc(page, { "chat.listChats": chatListResponder(library), "character.list": { items: [], nextCursor: null } });
+
+  const component = await mount(<ChatListSurfaceStory />);
+  await expect(component.getByText(HEAD_CHAT)).toBeVisible();
+
+  // Walk to the tail the way a user does — each step lets the tail-fetch guard pull the next page.
+  const list = component.getByRole("list", { name: "Chats" });
+  await list.hover();
+  const tail = component.getByText(TAIL_CHAT);
+  await expect
+    .poll(async () => {
+      await page.mouse.wheel(0, EVICTION_SCROLL_STEP_PX);
+      return tail.count();
+    }, EVICTION_POLL)
+    .toBeGreaterThan(0);
+
+  // …and back. With the cap in place this poll can never succeed: page 1 is not in the cache and there is no
+  // backward fetch to bring it back, so the library now starts at "Chat 050".
+  const head = component.getByText(HEAD_CHAT);
+  await expect
+    .poll(async () => {
+      await page.mouse.wheel(0, -EVICTION_SCROLL_STEP_PX);
+      return head.count();
+    }, EVICTION_POLL)
+    .toBeGreaterThan(0);
 });

@@ -26,15 +26,6 @@ import { createCollectionSurface } from "#data";
  *  library reads cost the same per page. */
 const CHAT_LIST_PAGE_SIZE = 50;
 
-/** Pages kept mounted before TanStack's window drops the HEAD page.
- *
- *  NOTE (2026-08-13): the character library dropped its identical cap, because with
- *  `getPreviousPageParam: () => undefined` an evicted head page is unrecoverable — rows vanish off the top
- *  of a deep scroll. The same trap is live here (250 rows deep); it is left for the chat lane to retire
- *  rather than changed from the character-tab lane, and this note exists so the next reader does not take
- *  the cap for a considered chats-side decision. */
-const MAX_PAGES = 5;
-
 // Derived, not exported: `no-inline-types` keeps a feature's exported shapes in its contract home, and the
 // row type is a one-line `inferOutput` every consumer already spells for itself (chat-list-row.tsx,
 // chat-summary-row.ts) — a second exported name for the same wire row would be the doubling that rule exists
@@ -42,6 +33,15 @@ const MAX_PAGES = 5;
 type ChatListPage = inferOutput<Trpc["chat"]["listChats"]>;
 type ChatListItem = ChatListPage["items"][number];
 
+// NO `maxPages`, and no `getPreviousPageParam` (2026-08-14). It used to be 5 pages — 250 rows — beside a
+// `getPreviousPageParam: () => undefined` that made an evicted head page UNRECOVERABLE: past the cap TanStack
+// dropped page 1, nothing could fetch it back, and the top of a deep-scrolled library was gone until the
+// query key changed. The character library retired the identical pair the day before (the 2026-08-13 dogfood
+// P1, `character-library-surface.tsx`); this is the same trap on the same shape of read. Windowing a
+// virtualized list buys nothing here — the DOM cost is already bounded by `<VirtualList>` and the rows are
+// light summaries — so the cache keeps every page and the list only ever grows. The backward hook goes with
+// it: this read is forward-only by construction (one keyset order, `initialCursor: null`), so a callback
+// whose whole job was to say "there is no previous page" is a decoration once nothing evicts one.
 export const useChatListCollection = createCollectionSurface({
   query: (trpc: Trpc, params: { readonly characterId: CharacterId | null; readonly search: string }) =>
     trpc.chat.listChats.infiniteQueryOptions(
@@ -53,8 +53,6 @@ export const useChatListCollection = createCollectionSurface({
       {
         initialCursor: null,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
-        getPreviousPageParam: () => undefined,
-        maxPages: MAX_PAGES,
       },
     ),
   itemsOf: (page: ChatListPage) => page.items,
