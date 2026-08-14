@@ -1537,7 +1537,12 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const emit = async (): Promise<void> => undefined;
     // "Playing as Alex" — the REAL write `persona.setActivePersona` delegates to (verbs/roster.ts).
     await setParticipantActivePersona(db, emit, { chatId, targetUserId: me, personaId: newPersona });
-    const life = createChatLifecycle(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit, activeTurns: createActiveTurns() });
+    const life = createChatLifecycle(ctx, {
+      claimChat: (): Promise<void> => Promise.resolve(),
+      emit,
+      emitLive: (): void => undefined,
+      activeTurns: createActiveTurns(),
+    });
     return {
       me,
       chatId,
@@ -2114,14 +2119,14 @@ describe("read — durable chat-bus log (the chat room SSE resume)", () => {
     const ctx = makeChatContext(db);
     const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
     await bus.emit({ type: "chatUpdated", chatId });
-    await bus.emit({ type: "chatDeleted", chatId });
+    await bus.emit({ type: "chatCreated", chatId });
     await bus.emit({ type: "chatUpdated", chatId });
 
     const { replayChatEvents, chatEventBounds } = createRead(ctx, makeDeps());
 
     const tail = await replayChatEvents({ principal: principal(me), chatId, afterSeq: 1 });
     expect(tail.map((e) => e.seq)).toEqual([2, 3]);
-    expect(tail.map((e) => e.event.type)).toEqual(["chatDeleted", "chatUpdated"]);
+    expect(tail.map((e) => e.event.type)).toEqual(["chatCreated", "chatUpdated"]);
 
     // The attach probe carries the caller's own D16 floor alongside the window (the SSE live loop clamps on
     // it) — `me` is the born-here host, so it is the unclamped 0.
@@ -2138,7 +2143,7 @@ describe("read — durable chat-bus log (the chat room SSE resume)", () => {
   // the server replays the head deltas that raced past the fresh SSE attach. This proves the exact path
   // that silently re-breaks — a fresh chat's DELTA events, written through the REAL durable-first bus,
   // are returned by `replayChatEvents({afterSeq:0})` in seq order with their nested payload intact. The
-  // sibling events.int.test only round-trips flat `chatUpdated`/`chatDeleted`; nothing else exercises a
+  // sibling events.int.test only round-trips flat `chatUpdated`/`chatCreated`; nothing else exercises a
   // real-bus-emitted `delta` (the token-carrying member) through the member-gated replay verb.
   test("a replay from afterSeq 0 returns a fresh chat's head deltas in order, payload intact (the #1 first-turn-race pin)", async () => {
     const me = await seedUser(db, castId<Handle>("me"));

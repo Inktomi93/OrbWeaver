@@ -40,7 +40,11 @@ function nextSocket(): SocketId {
   return castId<SocketId>(`socket_chat_${socketSeq}`);
 }
 
-const event = (type: "chatUpdated" | "chatDeleted" = "chatUpdated", chatId: ChatId = CHAT): ChatBusEvent => ({
+/** Two interchangeable id-only DURABLE members, so an arm can tell "this frame" from "that frame" without
+ *  caring what either means. `chatDeleted` used to be the second one and can no longer be: it is live-only
+ *  now, and — the reason a swap was not optional — it BYPASSES the per-yield member gate (fork F-A), so the
+ *  withhold arm below would have been quietly asserting the opposite of what it says. */
+const event = (type: "chatUpdated" | "chatCreated" = "chatUpdated", chatId: ChatId = CHAT): ChatBusEvent => ({
   type,
   chatId,
 });
@@ -81,7 +85,7 @@ async function openChatRoom(ctx: Context, opts: { readonly chatId?: ChatId; read
 describe("the chat room — durable-first resume", () => {
   test("replays durable rows newer than the cursor, ascending, before going live (after the chatOpened attach synthesis)", async () => {
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async ({ afterSeq }) => [
-      { seq: (afterSeq ?? 0) + 1, event: event("chatDeleted") },
+      { seq: (afterSeq ?? 0) + 1, event: event("chatCreated") },
       { seq: (afterSeq ?? 0) + 2, event: event() },
     ]);
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => BOUNDS);
@@ -109,7 +113,7 @@ describe("the chat room — durable-first resume", () => {
     // …and the missed events replay ASCENDING with their durable seq as the frame cursor (no
     // `historyTruncated`: cursor 5 is INSIDE the retained window minSeq=1).
     expect(seqOf(first)).toBe(6);
-    expect(dataOf(first).type).toBe("chatDeleted");
+    expect(dataOf(first).type).toBe("chatCreated");
     expect(seqOf(second)).toBe(7);
   });
 
@@ -135,10 +139,10 @@ describe("the chat room — durable-first resume", () => {
     const firstYield = iterator.next();
 
     // Publish 4 live events; the gate withholds 1 and 3.
-    publishChatEvent({ seq: 1, event: event("chatDeleted") });
+    publishChatEvent({ seq: 1, event: event("chatCreated") });
     publishChatEvent({ seq: 2, event: event() });
     const first = await firstYield;
-    publishChatEvent({ seq: 3, event: event("chatDeleted") });
+    publishChatEvent({ seq: 3, event: event("chatCreated") });
     publishChatEvent({ seq: 4, event: event() });
     const second = await iterator.next();
     await iterator.return?.(undefined);
@@ -221,12 +225,12 @@ describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", (
 
     const pending = iterator.next();
     // Seq 2 is BELOW the stamped high-water of 3, and this subscriber has not received it.
-    publishChatEvent({ seq: 2, event: event("chatDeleted") });
+    publishChatEvent({ seq: 2, event: event("chatCreated") });
     const first = await pending;
     await iterator.return?.(undefined);
 
     expect(seqOf(first)).toBe(2);
-    expect(dataOf(first).type).toBe("chatDeleted");
+    expect(dataOf(first).type).toBe("chatCreated");
   });
 
   test("a RESUMING attach keeps its OWN cursor — the high-water never overrides a client that has one", async () => {
@@ -257,7 +261,7 @@ describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", (
       reasoningHostOnly: false,
     }));
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => [
-      { seq: 5, event: event("chatDeleted") },
+      { seq: 5, event: event("chatCreated") },
       { seq: 6, event: event() },
     ]);
     const ctx = makeContext({
@@ -277,7 +281,7 @@ describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", (
     expect(dataOf(truncated).type).toBe("historyTruncated");
     expect(seqOf(truncated)).toBe(1);
     // Then the retained rows the client can still resume replay ascending with their durable seqs.
-    expect(dataOf(firstRow).type).toBe("chatDeleted");
+    expect(dataOf(firstRow).type).toBe("chatCreated");
     expect(seqOf(firstRow)).toBe(5);
     expect(seqOf(secondRow)).toBe(6);
   });
@@ -291,7 +295,7 @@ describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", (
       viewerIsHost: false,
       reasoningHostOnly: false,
     }));
-    const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => [{ seq: 4, event: event("chatDeleted") }]);
+    const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => [{ seq: 4, event: event("chatCreated") }]);
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
       services: { chat: { replayChatEvents, chatEventBounds } },
@@ -304,7 +308,7 @@ describe("the chat room — synthesized attach/resume events (PD-134/PD-135)", (
 
     expect(dataOf(opened).type).toBe("chatOpened");
     // The very next frame is the retained row — NOT a historyTruncated one.
-    expect(dataOf(next).type).toBe("chatDeleted");
+    expect(dataOf(next).type).toBe("chatCreated");
     expect(seqOf(next)).toBe(4);
   });
 

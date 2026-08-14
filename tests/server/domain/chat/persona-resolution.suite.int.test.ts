@@ -284,7 +284,12 @@ describe("canon freeze — swapping the Chat persona (#3) or the Anchor (#4) NEV
       personaId: alex,
       content: "{{user}} waves",
     });
-    const life = createChatLifecycle(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit, activeTurns: NO_TURNS });
+    const life = createChatLifecycle(makeChatContext(db), {
+      claimChat: (): Promise<void> => Promise.resolve(),
+      emit,
+      emitLive: (): void => undefined,
+      activeTurns: NO_TURNS,
+    });
 
     // The Anchor re-pin: this chat's card {{user}} moves Alex → Steve.
     await life.setChatAnchorPersona({ principal: principal(host), chatId, personaId: steve });

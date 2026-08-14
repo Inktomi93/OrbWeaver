@@ -443,6 +443,14 @@ function writeFixtures(): void {
     `${D}/__g_fresh/verbs/write-thing.ts`,
     'import { chats } from "@orb/db";\nexport async function writeThing(ctx: { db: { update: (t: unknown) => { set: (v: unknown) => { where: (w: unknown) => Promise<void> } } } }): Promise<void> {\n  await ctx.db.update(chats).set({ title: "g" }).where(1);\n}\n',
   );
+  // domain-freshness-plane, SECOND arm (room reach): a chat-anchored junction that seats a `settings` row in
+  // a room. `settings` answers `roomReach: none`, so the schema now contradicts the row → SEATED-red. This
+  // fixture is a REAL-TREE one on purpose: the seating derivation reads `packages/db/src/schema/*.ts`, which
+  // no conformance mini-project can populate without also arming the whole-roster ORPHAN sweep.
+  fx(
+    "packages/db/src/schema/__g_seat.ts",
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nimport { chats } from "./chat.ts";\nimport { userSettings } from "./settings.ts";\n\nexport const chatSeatProbe = sqliteTable("chat_seat_probe", {\n  chatId: text("chat_id").references(() => chats.id),\n  settingId: text("setting_id").references(() => userSettings.id),\n});\n',
+  );
   // json-column-write-parity: a WHOLE-RECORD replace of `chats.metadata` (a JSON column whose seven live
   // writers all merge key-wise off a loaded row) — the straddle, from the side the gate reports.
   fx(

@@ -1,9 +1,24 @@
 // domain/chat/verbs/chat-lifecycle — the chat-row lifecycle + variables + persisted injections. The
 // low-payload, non-canon mutations: chat-row flags (title/star/archive/delete), the two-plane variables,
-// and the `chat_injections` CRUD. Most emit the `chatUpdated` catch-all; `delete` emits `chatDeleted`.
+// and the `chat_injections` CRUD. Most emit the `chatUpdated` catch-all; the three removing verbs fan
+// `chatDeleted` on the LIVE-ONLY lane.
 //
 // Authority: title/star/archive/delete + injection write/delete → host; variables + injection list →
 // member; `reapTemporaryChats` is per-user maintenance (non-chat-scoped); `reapHusk` is host-only.
+//
+// ⚠ DELETE-FIRST IS THE LAW HERE, AND IT IS THE ONE THING THIS FILE GOT WRONG FOR A WHOLE ERA (R1-4a,
+// closed 2026-08-14 — design §4). All three removing verbs used to EMIT `chatDeleted` and THEN delete,
+// because a durable append after the row is gone FK-fails and the total bus refuses to fan an unlogged
+// event. That ordering was forced, and it left a FALSE-EMIT window: a conditional delete that declines
+// (a husk claimed under the reaper, a room that stopped qualifying) had already announced its own death,
+// bouncing every open device to landing on a room that survives. The window is now GONE, not narrowed:
+// `chatDeleted` is a LIVE-ONLY bus member (`LIVE_ONLY_CHAT_EVENT_TYPES`), which writes no `chat_events`
+// row — so there is no FK to lose and nothing to append. Every removing verb therefore runs
+//   DELETE … RETURNING  →  fan `emitLive` for exactly the rows that came back.
+// The emits-precede-deletes rule survives INVERTED, not repealed: the fan must not be droppable by the
+// delete's own success path, so it is unconditional over `RETURNING` and never nested in a later branch.
+// Nothing was lost by dropping the durable row: `chat_events.chat_id` CASCADES, so the `chatDeleted` row
+// was cascaded away by the very delete it announced — it was never replayable.
 //
 // HUSKS (R0 §4.2/§4.6). Every WRITE here CLAIMS the room first (`deps.claimChat`, before the write — the
 // ordering invariant in `verbs/claim-chat.ts`): configuring a room is "doing something with it" (F4(a)), so a
@@ -12,7 +27,7 @@
 // This file owns BOTH reap arms (§4.6): `reapHusk` is the best-effort nav-away drop (host-only, and the
 // SERVER re-checks `started_at IS NULL` — the client's "it's a husk" is never trusted), and the TTL belt
 // inside `reapTemporaryChats` is what catches the crash / tab-kill / never-came-back cases a web client
-// cannot signal. Both emit `chatDeleted` per reaped room — see the reaper's own note for why that
+// cannot signal. Both fan `chatDeleted` per REAPED room — see the reaper's own note for why that
 // deliberately diverges from the temporary sweep's historical silence.
 //
 // Every chat-row change rides the `chatUpdated` catch-all — there is no dedicated
@@ -22,14 +37,14 @@
 // `getVariables` returns the effective config-plane view: stored ChoiceBlock picks merged over the active
 // preset's declared defaults, with `withRandomPick: false` so the read is stable.
 
-import type { DurableChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import { chatInjections, chatParticipants, chats } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { MacroSourceRef } from "@orb/kit/macro";
 import type { SQL } from "drizzle-orm";
-import { and, eq, exists, inArray, isNotNull, isNull, lt, ne, not, or } from "drizzle-orm";
+import { and, eq, exists, isNotNull, isNull, lt, ne, not, or } from "drizzle-orm";
 import type { ChatContext } from "../context.ts";
 import type { ActiveTurns } from "../contract/active-turns.ts";
 import type { ClaimChatOp } from "../contract/context.ts";
@@ -65,9 +80,17 @@ import { resolveChoiceVariables } from "../substrate/variables.ts";
 /** The emit op the lifecycle verbs close over. */
 type EmitChatEvent = (event: DurableChatBusEvent) => Promise<void>;
 
+/** The LIVE-ONLY fan (`entry/compose/services::emitChatEventLive`) — the door `chatDeleted` takes. Not
+ *  async and never rejecting: a no-listener publish is a free in-process `EventEmitter.emit`, which is what
+ *  makes it safe to call AFTER the DELETE without a failure mode to classify. */
+type EmitChatEventLive = (event: LiveOnlyChatBusEvent) => void;
+
 /** The collaborators not on `ChatContext`. */
 interface ChatLifecycleDeps {
   readonly emit: EmitChatEvent;
+  /** The durable-append-free fan the three removing verbs announce a dead room on (see the file header's
+   *  DELETE-FIRST block). Separate from `emit` because they are different LANES, not two spellings of one. */
+  readonly emitLive: EmitChatEventLive;
   /** The in-flight turn registry — `delete` sweeps the deleted room's turns (see {@link createDelete}). */
   readonly activeTurns: ActiveTurns;
   /** The husk→real transition (R0) — every write here calls it BEFORE writing. */
@@ -173,17 +196,19 @@ function createSetChatAnchorPersona(ctx: ChatContext, emit: EmitChatEvent, claim
   };
 }
 
-/** `delete` — host-only. Drop the chat row; every child cascades (FK). Emits `chatDeleted` + writes the
- *  best-effort audit row after the delete lands.
+/** `delete` — host-only. Drop the chat row; every child cascades (FK). Fans `chatDeleted` on the live-only
+ *  lane + writes the best-effort audit row after the delete lands.
  *
- *  ORDER IS LOAD-BEARING (the delete-mid-turn crash):
- *  1. ABORT every in-flight turn (owner-blind — the room is going away, so a still-generating turn can commit
+ *  ORDER IS LOAD-BEARING (the delete-mid-turn crash + R1-4a):
+ *  1. READ the roster BEFORE the write — the FK cascade drops it, and every present human needs the deleted
+ *     chat to fall out of their live list (`extraUserIds`).
+ *  2. ABORT every in-flight turn (owner-blind — the room is going away, so a still-generating turn can commit
  *     nothing and only produces dropped writes). This stops the delta emits at the SOURCE.
- *  2. EMIT `chatDeleted` BEFORE the row delete — `chat_events.chat_id` FKs to `chats`, so an append after the
- *     delete can never land (it FK-fails and the bus drops it, bus.ts FLAG[emit-is-total]) and no live
- *     subscriber would ever learn the chat is gone. Emitting first fans it; the log row then cascades away
- *     with the chat, which is correct — there is nothing left to replay. */
-function createDelete(ctx: ChatContext, emit: EmitChatEvent, abortTurns: (chatId: ChatId) => number): ChatService["delete"] {
+ *  3. DELETE, then fan. `RETURNING` is the authority for whether a death happened at all; the fan is
+ *     unconditional over it and precedes every later step, so no branch can swallow it (the emits-are-total
+ *     rule, inverted by the live-only lane — file header). Being append-free is what allows this order: the
+ *     old durable `chatDeleted` had to precede the delete or FK-fail, and paid for it with the false-emit. */
+function createDelete(ctx: ChatContext, emitLive: EmitChatEventLive, abortTurns: (chatId: ChatId) => number): ChatService["delete"] {
   return async ({ principal, chatId }: DeleteChatParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     // Enumerate present human members before the FK cascade drops the roster — each must have the
@@ -191,8 +216,10 @@ function createDelete(ctx: ChatContext, emit: EmitChatEvent, abortTurns: (chatId
     const roster = await loadRoster(ctx.db, chatId);
     const members = [...new Set(roster.flatMap((r) => (r.kind === "human" && r.userId !== null ? [r.userId] : [])))];
     abortTurns(chatId);
-    await emit({ type: "chatDeleted", chatId });
-    await ctx.db.delete(chats).where(eq(chats.id, chatId));
+    const removed = await ctx.db.delete(chats).where(eq(chats.id, chatId)).returning({ id: chats.id });
+    if (removed.length > 0) {
+      emitLive({ type: "chatDeleted", chatId });
+    }
     await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: members });
     await ctx.audit(
       {
@@ -253,22 +280,23 @@ function hasNoOtherHuman(ctx: ChatContext, userId: UserId): SQL {
  *  user actually started deletes nothing (the client's "it's a husk" is never trusted — it may be a frame
  *  behind the claim). Idempotent: a second call, or a call at an already-reaped room, removes nothing.
  *
- *  A reaped husk EMITS `chatDeleted`, deliberately diverging from the temporary sweep's original silence
+ *  A reaped husk FANS `chatDeleted`, deliberately diverging from the temporary sweep's original silence
  *  (§1/§4.5): a temporary room is list-invisible everywhere, but a HUSK can be the OPEN room on the creating
  *  device — without the event that device sits pointed at a chat that no longer exists instead of taking the
- *  `chatDeleted` → landing seam (`apply-chat-bus-event.ts`, wired R3). Emitted BEFORE the row delete for the
- *  `createDelete` reason: a `chat_events` append after the delete FK-fails and reaches nobody.
+ *  `chatDeleted` → landing seam (`apply-chat-bus-event.ts`, wired R3).
  *
  *  ⚠️ THE PREDICATE IS THE DELETE'S, NOT THE SELECT'S (R3 — the verifier's R1-4a). The `started_at IS NULL`
  *  test rides the DELETE's own WHERE, so a claim that lands between the read and the write CANNOT lose the
- *  room: the DELETE simply removes nothing, and `RETURNING` says so. What the ordering law leaves standing is
- *  a narrow FALSE-EMIT window — `chatDeleted` was already fanned by the time the DELETE declines — and it
- *  cannot be closed by reordering: `bus.ts` FLAG[emit-is-total] returns `null` for an append whose chat row is
- *  gone and the root then refuses to fan it, so a post-delete emit reaches nobody at all. Closing it properly
- *  needs a durable-append-free live fan for `chatDeleted` (whose log row provably cascades away anyway) —
- *  a bus surface change, reported rather than smuggled in here. The residual is self-correcting: the room
- *  survives, `emitChatChanged` repaints the list, and a device that bounced to landing finds it there. */
-function createReapHusk(ctx: ChatContext, emit: EmitChatEvent): ChatService["reapHusk"] {
+ *  room: the DELETE simply removes nothing, and `RETURNING` says so. R1-4a — THE FALSE-EMIT — IS NOW CLOSED
+ *  TOO, and this is where it lived: the announcement used to precede the DELETE (forced, because a durable
+ *  append after the row is gone FK-fails), so a claim landing in that window left every open device told the
+ *  room had died while it survived. `chatDeleted` is live-only now, so the fan happens AFTER `RETURNING` and
+ *  a declined reap announces nothing at all. The window is gone, not narrowed.
+ *
+ *  The pre-SELECT stays, and it is not a redundant read: it is what distinguishes "this was never a husk"
+ *  (idempotent no-op, no list repaint owed — the client fires this on every nav-away) from "it WAS a husk and
+ *  someone claimed it under us" (the survivor case, which still repaints). */
+function createReapHusk(ctx: ChatContext, emitLive: EmitChatEventLive): ChatService["reapHusk"] {
   return async ({ principal, chatId }: ReapHuskParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);
     const [row] = await ctx.db
@@ -278,18 +306,17 @@ function createReapHusk(ctx: ChatContext, emit: EmitChatEvent): ChatService["rea
     if (row === undefined) {
       return;
     }
-    await emit({ type: "chatDeleted", chatId });
-    // The predicate rides the DELETE, so a claim racing in after the SELECT costs the reap, never the room.
+    // The predicate rides the DELETE, so a claim racing in after the SELECT costs the reap, never the room —
+    // and `RETURNING` is what the fan below is conditioned on, so it can never announce a survivor.
     const removed = await ctx.db
       .delete(chats)
       .where(and(eq(chats.id, chatId), isNull(chats.startedAt)))
       .returning({ id: chats.id });
-    if (removed.length === 0) {
-      // The race happened: the room was claimed under us and survives. The list repaint below is what makes
-      // that recoverable for a device the (already-fanned) `chatDeleted` bounced to landing.
-      await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: [principal.userId] });
-      return;
+    if (removed.length > 0) {
+      emitLive({ type: "chatDeleted", chatId });
     }
+    // Both arms repaint: the reaped room must leave the list, and a room that survived the race must come
+    // BACK to a list the client had already dropped it from optimistically.
     await ctx.emitChatChanged(chatId, { detail: true, extraUserIds: [principal.userId] });
   };
 }
@@ -303,58 +330,37 @@ function createReapHusk(ctx: ChatContext, emit: EmitChatEvent): ChatService["rea
  *  The TTL is the caller's own `UserSettings.chat.tempChatTtlHours` (⑧a, default 24h), resolved via the
  *  FOREIGN-inputs op. Children cascade (FK). Returns the count.
  *
- *  EVERY reaped room emits `chatDeleted` now, including the temporary ones: the two classes ride one delete
+ *  EVERY reaped room fans `chatDeleted` now, including the temporary ones: the two classes ride one delete
  *  and splitting the emit by class would mean re-reading the rows to classify them, for a silence that was
  *  only ever justified by "nothing could be looking at it" — which stopped being true when husks joined the
  *  sweep. An extra event for a room no device has open is inert.
  *
- *  SELECT → EMIT → DELETE, in that order, for `createDelete`'s reason: `chat_events.chat_id` FKs to `chats`,
- *  so an append after the row is gone can never land (it FK-fails, the total bus drops it) and no live
- *  subscriber would learn the room went away. This is why the sweep is not a single `DELETE … RETURNING`.
- *
- *  ⚠️ THE DELETE RE-STATES THE WHOLE PREDICATE (R3 — the verifier's R1-4b, REAL DATA LOSS). It used to delete
- *  by the id list alone, so a room CLAIMED between the SELECT and the DELETE — a user returning to a
- *  day-old husk and typing, exactly the case the composer-text skip exists to protect — was deleted anyway,
- *  with its canon. Re-stating the ttl/class/host conjunction in the DELETE's own WHERE makes the decision
- *  atomic with the write: a room that stopped qualifying survives, and `RETURNING` reports the honest count
- *  (so `reaped` counts what was removed, never what was doomed). The id list stays as the emit set + a
- *  narrowing key; the WHERE is the authority. Same false-emit residual as `reapHusk` above, same reason. */
-function createReapTemporaryChats(ctx: ChatContext, emit: EmitChatEvent): ChatService["reapTemporaryChats"] {
+ *  ⚠️ ONE `DELETE … RETURNING`, AND THE PREDICATE IS ITS OWN (R3 — the verifier's R1-4b, REAL DATA LOSS; and
+ *  R1-4a). Two defects were fixed here, in that order. It used to delete by an id list read from a prior
+ *  SELECT, so a room CLAIMED between the two — a user returning to a day-old husk and typing, exactly the
+ *  case the composer-text skip protects — was deleted anyway, with its canon; the conjunction moved into the
+ *  DELETE's own WHERE, which makes the decision atomic with the write. The SELECT then survived only as the
+ *  EMIT set, because a durable `chatDeleted` had to be appended BEFORE the row it names disappeared — and
+ *  that ordering was R1-4a: a room that stopped qualifying had already been announced dead. With the fan on
+ *  the live-only lane there is nothing to append and nothing to pre-read: the sweep IS a single
+ *  `DELETE … RETURNING`, and `RETURNING` is simultaneously the honest `reaped` count and the exact fan set. */
+function createReapTemporaryChats(ctx: ChatContext, emitLive: EmitChatEventLive): ChatService["reapTemporaryChats"] {
   return async ({ principal }: ReapTemporaryChatsParams): Promise<ReapResult> => {
     const ttlHours = await ctx.resolveTempChatTtlHours(principal.userId);
     const cutoff = ctx.now() - ttlHours * MS_PER_HOUR;
-    const doomed = await ctx.db
-      .select({ id: chats.id })
-      .from(chats)
-      .where(
-        and(
-          lt(chats.createdAt, cutoff),
-          or(eq(chats.temporary, true), and(isNull(chats.startedAt), hasNoOtherHuman(ctx, principal.userId))),
-          callerHostsChat(ctx, principal.userId),
-        ),
-      );
-    if (doomed.length === 0) {
-      return { reaped: 0 };
-    }
-    // Concurrent, deliberately: the bus assigns seq PER CHAT, and these are N DISTINCT chats, so there is
-    // no cross-room order to preserve (unlike `startChat`'s greeting seed, which is N events in ONE room's
-    // seq space and must stay sequential).
-    await Promise.all(doomed.map(async ({ id }) => await emit({ type: "chatDeleted", chatId: id })));
     const removed = await ctx.db
       .delete(chats)
       .where(
         and(
-          inArray(
-            chats.id,
-            doomed.map((d) => d.id),
-          ),
-          // The SAME conjunction the SELECT used — re-evaluated at write time, per row.
           lt(chats.createdAt, cutoff),
           or(eq(chats.temporary, true), and(isNull(chats.startedAt), hasNoOtherHuman(ctx, principal.userId))),
           callerHostsChat(ctx, principal.userId),
         ),
       )
       .returning({ id: chats.id });
+    for (const { id } of removed) {
+      emitLive({ type: "chatDeleted", chatId: id });
+    }
     return { reaped: removed.length };
   };
 }
@@ -526,15 +532,15 @@ function createDeleteChatInjection(ctx: ChatContext, emit: EmitChatEvent, claimC
 
 /** The chat-lifecycle verb bundle. `deps` carries the chat bus `emit`. */
 export function createChatLifecycle(ctx: ChatContext, deps: ChatLifecycleDeps): ChatLifecycleVerbs {
-  const { emit, claimChat } = deps;
+  const { emit, emitLive, claimChat } = deps;
   return {
     updateTitle: createUpdateTitle(ctx, emit, claimChat),
     star: createStar(ctx, emit, claimChat),
     archive: createArchive(ctx, emit, claimChat),
     setChatAnchorPersona: createSetChatAnchorPersona(ctx, emit, claimChat),
-    delete: createDelete(ctx, emit, (chatId) => deps.activeTurns.abortAll(chatId)),
-    reapHusk: createReapHusk(ctx, emit),
-    reapTemporaryChats: createReapTemporaryChats(ctx, emit),
+    delete: createDelete(ctx, emitLive, (chatId) => deps.activeTurns.abortAll(chatId)),
+    reapHusk: createReapHusk(ctx, emitLive),
+    reapTemporaryChats: createReapTemporaryChats(ctx, emitLive),
     getVariables: createGetVariables(ctx),
     setVariables: createSetVariables(ctx, emit, claimChat),
     setUserMacroValues: createSetUserMacroValues(ctx, emit, claimChat),

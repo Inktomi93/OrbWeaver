@@ -36,12 +36,22 @@ import type { ChatId } from "@orb/kit/ids";
  *  bypass the seq dedup entirely or be dropped forever. Two sources, one rule:
  *    • the attach SYNTHESES (`chatOpened`/`historyTruncated`) — re-fired per attach as the reopen catch-up
  *      (see the EXEMPTION note above);
- *    • the LIVE-ONLY bus lane (`roomEntityChanged` — the entity→room member-freshness bridge): published on
- *      the room but never appended to `chat_events`, so the pump yields it at the CURRENT cursor.
+ *    • the LIVE-ONLY bus lane (`roomEntityChanged`, `chatDeleted`): published on the room but never appended
+ *      to `chat_events`, so the pump yields it at the CURRENT cursor.
  *  Keyed by `ChatBusEvent["type"]` so a rename fails tsc here rather than silently un-exempting a member.
  *  (Named `SYNTHESIZED_EXEMPT` until the live-only lane landed — the old name claimed a source that is now
- *  only half the set.) */
-const NON_DURABLE_EXEMPT: ReadonlySet<ChatBusEvent["type"]> = new Set<ChatBusEvent["type"]>(["chatOpened", "historyTruncated", "roomEntityChanged"]);
+ *  only half the set.)
+ *
+ *  `chatDeleted` is the one member whose exemption can never regress into a re-replay: no durable
+ *  `chatDeleted` row can exist to be re-delivered (its log row cascades away with the chat), and the landing
+ *  action it drives (`apply-chat-bus-event::onChatDeleted`) is idempotent. Dropping it would be the worst
+ *  possible loss — a device left pointed at a room that is gone. */
+const NON_DURABLE_EXEMPT: ReadonlySet<ChatBusEvent["type"]> = new Set<ChatBusEvent["type"]>([
+  "chatOpened",
+  "historyTruncated",
+  "roomEntityChanged",
+  "chatDeleted",
+]);
 
 /** Cap the per-session mark map so a long-lived session that opens many chats cannot grow it unboundedly;
  *  eviction only ever drops a chat's OLD mark (a later re-open re-baselines from its live tail, still

@@ -3,7 +3,7 @@
 // CRUD, and the emitted bus events. Reached through the BUNDLE `createChatLifecycle(ctx, { emit })`.
 
 import process from "node:process";
-import type { DurableChatBusEvent } from "@orb/contracts/chat";
+import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, UserMacroSpec } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
@@ -31,10 +31,15 @@ import { FROZEN_AT, makeChatContext, noClaim, seedChat, seedParticipant, seedPer
 
 let db: Db;
 let emitted: DurableChatBusEvent[];
+/** The LIVE-ONLY lane's recorder — the door `chatDeleted` takes since R1-4a. Kept SEPARATE from `emitted`
+ *  on purpose: "which lane did this go out on" is half of what the reorder changed, and one merged buffer
+ *  would let a durable regression pass every assertion below. */
+let fannedLive: LiveOnlyChatBusEvent[];
 
 beforeEach(async () => {
   db = await freshDb();
   emitted = [];
+  fannedLive = [];
 });
 
 const emit = (event: DurableChatBusEvent): Promise<void> => {
@@ -42,10 +47,14 @@ const emit = (event: DurableChatBusEvent): Promise<void> => {
   return Promise.resolve();
 };
 
-/** The bundle deps: the recorder emit + a private (empty) turn registry. `delete` sweeps the registry, so the
+const emitLive = (event: LiveOnlyChatBusEvent): void => {
+  fannedLive.push(event);
+};
+
+/** The bundle deps: the two recorders + a private (empty) turn registry. `delete` sweeps the registry, so the
  *  delete-mid-turn arm below wires the SCENARIO's live one instead. */
-function lifecycleDeps(): { emit: typeof emit; activeTurns: ActiveTurns; claimChat: ClaimChatOp } {
-  return { emit, activeTurns: createActiveTurns(), claimChat: noClaim };
+function lifecycleDeps(): { emit: typeof emit; emitLive: typeof emitLive; activeTurns: ActiveTurns; claimChat: ClaimChatOp } {
+  return { emit, emitLive, activeTurns: createActiveTurns(), claimChat: noClaim };
 }
 
 function principal(userId: UserId): Principal {
@@ -92,7 +101,7 @@ describe("chat-row flags (host-only)", () => {
     expect(row?.starred).toBe(true);
   });
 
-  test("delete drops the chat + emits chatDeleted + writes the chat.delete audit row", async () => {
+  test("delete drops the chat + fans chatDeleted on the LIVE-ONLY lane + writes the chat.delete audit row", async () => {
     const { host, chatId } = await seedRoom();
     const audits: AuditEntry[] = [];
     const life = createChatLifecycle(
@@ -108,7 +117,10 @@ describe("chat-row flags (host-only)", () => {
     await life.delete({ principal: principal(host), chatId });
     const rows = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(rows).toHaveLength(0);
-    expect(emitted).toEqual([{ type: "chatDeleted", chatId }]);
+    // R1-4a: the announcement rides the LIVE-ONLY lane and NOTHING durable is appended — a `chatDeleted`
+    // row would be cascaded away by this very delete, so writing one was always pure log pollution.
+    expect(fannedLive).toEqual([{ type: "chatDeleted", chatId }]);
+    expect(emitted).toEqual([]);
     // The best-effort forensic row (entity_id is the D24-sanctioned soft ref — it outlives the chat).
     expect(audits).toEqual([{ actorUserId: host, action: "chat.delete", entityType: "chat", entityId: chatId }]);
   });
@@ -138,13 +150,15 @@ describe("chat-row flags (host-only)", () => {
     // The REAL durable bus (not the recorder) — this test exists to exercise the `chat_events` FK itself.
     const bus = createChatBus(makeChatContext(db));
     const sc = await scenario.chat(tape(), { db, emit: bus.emit, ctx: { runChatTurn: () => gatedStream() } });
-    // The verb emits through the SAME durable bus the turn does — `chatDeleted` is itself an append into the
-    // chat it is deleting, so its ordering against the row drop is part of what this test pins.
+    // The verb's DURABLE emit goes through the SAME bus the turn does (that shared FK is the crash's
+    // substrate); its `chatDeleted` now rides the live lane instead, which is exactly what lets the delete
+    // run FIRST — so the ordering against the row drop is still what this test pins, inverted.
     const life = createChatLifecycle(makeChatContext(db), {
       claimChat: (): Promise<void> => Promise.resolve(),
       emit: async (event: DurableChatBusEvent): Promise<void> => {
         await bus.emit(event);
       },
+      emitLive,
       activeTurns: sc.activeTurns,
     });
     const rejections: unknown[] = [];
@@ -171,13 +185,14 @@ describe("chat-row flags (host-only)", () => {
     expect(outcome.aborted).toBe(true);
     expect(sc.activeTurns.countActive(sc.chatId)).toBe(0);
     expect(await sc.loadCanon()).toEqual([]);
-    // The row is gone and no orphan event survived (`chatDeleted` rode the cascade, as it must).
+    // The row is gone and no orphan event survived.
     expect(await db.select().from(chats).where(eq(chats.id, sc.chatId))).toEqual([]);
     expect(await db.select().from(chatEvents).where(eq(chatEvents.chatId, sc.chatId))).toEqual([]);
-    // `chatDeleted` was still DELIVERED: it is emitted before the row drop, so it got a real durable seq and
-    // reached the ring the transport fans from (emitting after the delete would silently drop it).
-    // (Ring ORDER is not asserted: the in-flight delta emits are fire-and-forget, so one can settle after it.)
-    expect(bus.readRing(sc.chatId).map((e) => e.event)).toContainEqual({ type: "chatDeleted", chatId: sc.chatId });
+    // `chatDeleted` was still DELIVERED — on the live lane, AFTER the row went away. It never touches the
+    // durable ring now, which is the point: the old ordering had to append-then-delete, and that is what
+    // produced R1-4a. Delivery here is a fan the pump gates for nobody (F-A), not a replayable row.
+    expect(fannedLive).toEqual([{ type: "chatDeleted", chatId: sc.chatId }]);
+    expect(bus.readRing(sc.chatId).map((e) => e.event)).not.toContainEqual({ type: "chatDeleted", chatId: sc.chatId });
   });
 
   test("a member's refused delete writes NO audit row (existence-before-audit order)", async () => {
@@ -581,11 +596,14 @@ describe("reapTemporaryChats — the caller's expired temp chats (PD-65)", () =>
     // R0 §4.5 REVERSED the old silence: the sweep now also reaps HUSKS, and a husk can be the OPEN room on
     // the creating device, so every reaped room emits `chatDeleted` (the temporary arm rides the same emit
     // rather than re-reading the rows to classify them — an extra event for a room nobody has open is inert).
-    expect(emitted).toEqual([{ type: "chatDeleted", chatId: reapable }]);
-    // Idempotent: a second sweep finds nothing.
-    emitted.length = 0;
-    expect(await life.reapTemporaryChats({ principal: principal(host) })).toEqual({ reaped: 0 });
+    // The fan set is `RETURNING`, so it is exactly the rooms that actually died: the three survivors are
+    // never announced, which is the R1-4a property this sweep used to violate by fanning its SELECT set.
+    expect(fannedLive).toEqual([{ type: "chatDeleted", chatId: reapable }]);
     expect(emitted).toEqual([]);
+    // Idempotent: a second sweep finds nothing.
+    fannedLive.length = 0;
+    expect(await life.reapTemporaryChats({ principal: principal(host) })).toEqual({ reaped: 0 });
+    expect(fannedLive).toEqual([]);
   });
 
   // ⑧(a) — the reap TTL is the caller's `UserSettings.chat.tempChatTtlHours` (via the FOREIGN op), not a

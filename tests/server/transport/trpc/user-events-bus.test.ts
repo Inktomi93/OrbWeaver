@@ -4,15 +4,17 @@
 // channel key is `ctx.auth.userId`, never client input). Pure module test over the process-local
 // `EventEmitter` (`on()` buffers from subscribe, so publishing after subscribe loses nothing).
 //
-// Second surface, same module: QUIET MODE (`withQuietUserEvents`, W8 / owner fork F5) — the bulk-emit
-// coalescer. The pins below are written as A/B against the UNWRAPPED control in the same run, because that
-// control IS the defect: N per-item emits deliver N events, which is what churned the visible library for
-// the length of an ST import (staleness design §2.5).
+// Second surface, ADJACENT module: QUIET MODE (`withQuietBulkFanout`, W8 / owner fork F5) — the bulk-emit
+// coalescer, which moved to `transport/trpc/quiet-fanout.ts` when it learned ROOM pairs as well as user ones
+// (bridge design §5 / fork F-G; the room-plane half is pinned in `quiet-fanout.test.ts`). Its USER-plane
+// behaviour is still proven here, against this bus's own wire. The pins below are written as A/B against the
+// UNWRAPPED control in the same run, because that control IS the defect: N per-item emits deliver N events,
+// which is what churned the visible library for the length of an ST import (staleness design §2.5).
 
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { publishUserEvent, subscribeUserEvents, withQuietUserEvents } from "@orb/server/transport/trpc";
+import { publishUserEvent, subscribeUserEvents, withQuietBulkFanout } from "@orb/server/transport/trpc";
 import { describe } from "vitest";
 import { expect, test } from "../../../support/fixtures.ts";
 
@@ -114,7 +116,7 @@ describe("user-events-bus — quiet mode (W8: bulk emits coalesce to start + ter
     control.stop();
 
     const quiet = collect(USER_A);
-    await withQuietUserEvents(async () => {
+    await withQuietBulkFanout(async () => {
       for (let i = 0; i < STORM; i += 1) {
         publishUserEvent(USER_A, { type: "charactersChanged" });
       }
@@ -128,7 +130,7 @@ describe("user-events-bus — quiet mode (W8: bulk emits coalesce to start + ter
 
   test("coalescing is per (user, TYPE) — a mixed-domain import fans one terminal per type, and the terminal is COARSE", async () => {
     const seen = collect(USER_A);
-    await withQuietUserEvents(async () => {
+    await withQuietBulkFanout(async () => {
       // Two types, interleaved, with ID HINTS — the shape a real import produces (per-card create, per-book
       // lorebook import). The hints must survive on the start marker and be DROPPED on the terminal: a bulk
       // run touched too many entities for any one id to be an honest hint.
@@ -155,7 +157,7 @@ describe("user-events-bus — quiet mode (W8: bulk emits coalesce to start + ter
     let releaseImport = (): void => {
       // Replaced synchronously by the promise executor below; never called in this shape.
     };
-    const importDone = withQuietUserEvents(async () => {
+    const importDone = withQuietBulkFanout(async () => {
       publishUserEvent(USER_A, { type: "charactersChanged" });
       publishUserEvent(USER_A, { type: "charactersChanged" });
       await new Promise<void>((resolve) => {
@@ -181,7 +183,7 @@ describe("user-events-bus — quiet mode (W8: bulk emits coalesce to start + ter
     const seen = collect(USER_A);
     const boom = new Error("import aborted mid-sweep");
     await expect(
-      withQuietUserEvents(async () => {
+      withQuietBulkFanout(async () => {
         publishUserEvent(USER_A, { type: "charactersChanged" });
         publishUserEvent(USER_A, { type: "charactersChanged" });
         await Promise.resolve();
@@ -197,9 +199,9 @@ describe("user-events-bus — quiet mode (W8: bulk emits coalesce to start + ter
 
   test("a NESTED scope joins the outer one — one terminal for the whole gesture, not one per sub-batch", async () => {
     const seen = collect(USER_A);
-    await withQuietUserEvents(async () => {
+    await withQuietBulkFanout(async () => {
       publishUserEvent(USER_A, { type: "charactersChanged" });
-      await withQuietUserEvents(async () => {
+      await withQuietBulkFanout(async () => {
         publishUserEvent(USER_A, { type: "charactersChanged" });
         publishUserEvent(USER_A, { type: "charactersChanged" });
         return await Promise.resolve();
@@ -214,7 +216,7 @@ describe("user-events-bus — quiet mode (W8: bulk emits coalesce to start + ter
   test("quiet mode is per-USER: a storm for A leaves B's channel untouched, and B's own storm coalesces on B", async () => {
     const a = collect(USER_A);
     const b = collect(USER_B);
-    await withQuietUserEvents(async () => {
+    await withQuietBulkFanout(async () => {
       for (let i = 0; i < STORM; i += 1) {
         publishUserEvent(USER_A, { type: "charactersChanged" });
         publishUserEvent(USER_B, { type: "charactersChanged" });
