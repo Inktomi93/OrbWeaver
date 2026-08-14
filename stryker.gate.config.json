@@ -12,7 +12,8 @@
   "checkers": ["typescript"],
   "tsconfigFile": "tsconfig.json",
 
-  "reporters": ["html", "clear-text"],
+  "_reporters_comment": "`progress` is NOT optional here, unlike in the exploratory config where it was already present. The mutant phase over 1,115 mutants emits NOTHING without it: a 2026-08-14 calibration run sat 56+ minutes past a successful dry run with zero output, indistinguishable from a wedge, and there was no way to tell a slow run from a hung one. A gate whose expensive phase is a black box cannot be operated.",
+  "reporters": ["html", "clear-text", "progress"],
   "htmlReporter": { "fileName": "reports/mutation/gate.html" },
 
   "_mutate_comment": "EXACTLY the highest-stakes files — no globs. Keep tight: break is calibrated to this set's measured score. (PD-114 dropped the phantom domain/chat/routing.ts — prompt assembly is assembly/assemble.ts.) The AP-C2 rider (D60, agent-principal-design/07 §4) adds the AGENT CEILING (domain/admin/guard.ts — canAgent, the closed allow-union kill switch) + the SPEAKER→ATTRIBUTION map (domain/chat/engine/round.ts — buildSpeakerPrep, the agent self-attribution arm authorUserId=speaker.ref.userId): a surviving mutant there means the containment/attribution tests assert presence-of-behavior without asserting correctness. Covered by tests/server/domain/admin/guard.test.ts (unit) + tests/server/domain/chat/engine/round.int.test.ts (integration).",
@@ -24,7 +25,7 @@
     "!packages/**/*.d.ts"
   ],
 
-  "_ignore_comment": "Prune the sandbox copy — same shape as the base config. .cache/** (8.8G vLLM venv; its lib64 symlink crashes copyfile EISDIR) and .models/** (25G HF weights) MUST be excluded or the sandbox copy explodes. data/** + *.db* (the dev database) are pruned too — ignorePatterns is ACTIVE now that the sandbox patch makes a NORMAL sandbox work (it was a no-op under the old --inPlace).",
+  "_ignore_comment": "Prune the sandbox copy — same shape as the base config. .cache/** (8.8G vLLM venv; its lib64 symlink crashes copyfile EISDIR) and .models/** (25G HF weights) MUST be excluded or the sandbox copy explodes. data/** + *.db* (the dev database) are pruned too — ignorePatterns is ACTIVE now that the sandbox patch makes a NORMAL sandbox work (it was a no-op under the old --inPlace). Stryker does NOT read .gitignore, so every gitignored artifact tree needs an explicit entry here: the scripts/probes/st-goldens/** block is the ST-parity probe's captured FOREIGN SillyTavern install + its generated fixtures/outputs (.gitignore:104-108, and excluded the same way by tsconfig.json:135-141) — 2,196 runtime files that the 4 mutation targets have nothing to do with, and whose unterminated-tag HTML made the DisableTypeChecksPreprocessor emit a parse warning on every run (audit RC-02, 2026-08-13). Measured: 7358 -> 5162 project files at startup, warning gone.",
   "ignorePatterns": [
     ".stryker-tmp/**",
     ".git/**",
@@ -43,10 +44,17 @@
     "data/**",
     "*.db*",
     "playwright/**",
+    "scripts/probes/st-goldens/sillytavern-runtime/**",
+    "scripts/probes/st-goldens/fixtures/**",
+    "scripts/probes/st-goldens/output/**",
+    "scripts/probes/st-goldens/orbweaver-output/**",
     "FINAL-*.md"
   ],
 
   "_coverage_comment": "coverageAnalysis NOT set — the vitest-runner ignores it and always uses perTest.",
+
+  "_dryruntimeout_comment": "Stryker's DEFAULT dryRunTimeoutMinutes is 5, and the initial run blew through it at exactly 5:02 (05:14:40 -> 05:19:42, `Initial test run timed out!`) — the third of three invisible blockers that kept this gate from EVER producing a score. The dry run executes the whole unit+integration+contract set to collect perTest coverage, and the runner pins `maxThreads:1`/`maxConcurrency:1` (vitest-test-runner.js:36-49), so ~1,300 files that take 7.3 min of wall time across 14 parallel forks run ONE AT A TIME here. This is the documented knob for exactly that; keep it comfortably above the measured dry-run duration recorded in the thresholds comment.",
+  "dryRunTimeoutMinutes": 45,
 
   "ignoreStatic": true,
   "_concurrency_comment": "24-core / 125GB box; default is n-1 (=23). 16 → ~8 checker + ~8 runner processes with headroom. Bump toward 20 for a dedicated run.",
@@ -56,6 +64,6 @@
   "incremental": true,
   "incrementalFile": "reports/stryker-gate-incremental.json",
 
-  "_thresholds_comment": "break is the GATE — Stryker exits non-zero when the AGGREGATE score across the pinned files drops below it. RUNNABLE as of 2026-07-12 (V4): the dry-run blocker is fixed — vitest.stryker.config.ts now excludes the tokens generated-file freshness meta-test (tests/ui/tokens/**), which failed the initial run because Stryker's disableTypeChecks preprocessor injects a `// @ts-nocheck` header the freshness regen doesn't produce. TO CALIBRATE: run ONE full uninterrupted `pnpm test:mutation:gate` (it needs > the 10-min single-command budget: ~2.1G first-run rsync + dry-run + the mutant matrix over 2 files), read the aggregate mutation score, set break ~6pts under it, then ratchet UP as suites gain real assertions (neo's history: aggregate climbed 55.41%→66.31% over a hardening pass; break sat at 60). Stays null until that measured run lands — a null break never fails, and guessing a break without the measured baseline would falsely fail or vacuously pass. The gate LANDS in the verify --full tier (quality:mutation-gate) either way.",
+  "_thresholds_comment": "break is the GATE — Stryker exits non-zero when the AGGREGATE score across the pinned files drops below it. STILL NULL, and the 2026-08-14 RC-01 lane is why the old note here was wrong about the reason. The claim 'RUNNABLE as of 2026-07-12' was FALSE: this gate had never completed a run, and could not have. Four independent, individually-fatal blockers sat between the command and any score — (1) the typescript checker compiles the WHOLE root program at init, so any type error anywhere in tests/ or scripts/ aborts the gate before instrumentation; (2) the vitest-runner hardcodes pool:'threads' and 85 test files died on the non-context-aware onnxruntime NAPI addon (root-caused: local-light/model-cache.ts had a static @huggingface/transformers import; now dynamic) plus 2 more on process.chdir (excluded in vitest.stryker.config.ts); (3) dryRunTimeoutMinutes defaulted to 5 and the dry run needs 22m42s (measured: 10,962 tests, net 160s of test time against 1,202s of serialization overhead — the runner pins maxWorkers/maxConcurrency to 1); (4) no progress reporter, so the mutant phase was an unobservable black box. All four are fixed. TO CALIBRATE from here: run `pnpm test:mutation:gate` to completion on a QUIET box (the 2026-08-14 attempt ran the mutant phase 56+ min under load 40-60 from sibling lanes and was banked unfinished), read the aggregate score off the clear-text summary, set break a few points under it, then ratchet UP as suites gain real assertions (neo's history: 55.41% -> 66.31% over a hardening pass, break sat at 60). It stays null until a COMPLETED run yields a number: a null break never fails, but inventing a threshold without the measured baseline would either falsely fail or vacuously pass, and calibrating against a curated subset of tests would measure the curation instead of the code. The gate LANDS in the verify --full tier (quality:mutation-gate) either way.",
   "thresholds": { "high": 80, "low": 60, "break": null }
 }

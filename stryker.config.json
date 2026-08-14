@@ -28,7 +28,7 @@
     "!packages/**/*.d.ts"
   ],
 
-  "_ignore_comment": "ignorePatterns prune the sandbox copy — Stryker COPIES the project tree into .stryker-tmp, so without this it tries to copy node_modules (huge), .stryker-tmp (recursive!), AND the in-repo model/venv caches: .cache/ holds the 8.8G vLLM venv (whose lib64 symlink crashes copyfile with EISDIR) and .models/ holds 25G of HF weights. Keep packages/ + tests/ + the configs. (Now that the sandbox patch makes a NORMAL sandbox work, ignorePatterns is ACTIVE — it was a no-op under the old --inPlace; hence data/** + *.db* are pruned here too.)",
+  "_ignore_comment": "ignorePatterns prune the sandbox copy — Stryker COPIES the project tree into .stryker-tmp, so without this it tries to copy node_modules (huge), .stryker-tmp (recursive!), AND the in-repo model/venv caches: .cache/ holds the 8.8G vLLM venv (whose lib64 symlink crashes copyfile with EISDIR) and .models/ holds 25G of HF weights. Keep packages/ + tests/ + the configs. (Now that the sandbox patch makes a NORMAL sandbox work, ignorePatterns is ACTIVE — it was a no-op under the old --inPlace; hence data/** + *.db* are pruned here too.) Stryker does NOT read .gitignore, so the scripts/probes/st-goldens/** block is explicit: it is the ST-parity probe's captured FOREIGN SillyTavern install + its generated fixtures/outputs (.gitignore:104-108; tsconfig.json:135-141 excludes it the same way) — 2,196 files of someone else's runtime, whose unterminated-tag HTML made the DisableTypeChecksPreprocessor warn on every run (audit RC-02; measured on the gate config: 7358 -> 5162 startup files, warning gone).",
   "ignorePatterns": [
     ".stryker-tmp/**",
     ".git/**",
@@ -47,10 +47,17 @@
     "data/**",
     "*.db*",
     "playwright/**",
+    "scripts/probes/st-goldens/sillytavern-runtime/**",
+    "scripts/probes/st-goldens/fixtures/**",
+    "scripts/probes/st-goldens/output/**",
+    "scripts/probes/st-goldens/orbweaver-output/**",
     "FINAL-*.md"
   ],
 
   "_coverage_comment": "coverageAnalysis is deliberately NOT set — the @stryker-mutator/vitest-runner IGNORES it and always uses perTest (verified in its docs + the installed runner). Each mutant runs only its covering tests; the libSQL native binding survives the runner's forced pool:'threads'.",
+
+  "_dryruntimeout_comment": "Same reason as the gate config: Stryker's default dryRunTimeoutMinutes of 5 is far under this project's serial dry run. The runner pins maxThreads:1/maxConcurrency:1, so the whole unit+integration+contract set (~1,300 files, 7.3 min of wall time across 14 parallel forks) runs one at a time before any mutant is tested.",
+  "dryRunTimeoutMinutes": 45,
 
   "ignoreStatic": true,
   "_concurrency_comment": "Box = 24 logical cores / 125GB. Stryker's own default is n-1 (=23); the old pinned 4 used a sixth of the box. 16 → ~8 checker + ~8 runner processes, leaving headroom for the OS + GPU engines / dev work. Bump toward 20 for a dedicated run.",
