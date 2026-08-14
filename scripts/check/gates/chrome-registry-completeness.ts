@@ -9,8 +9,7 @@
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { readStringValue } from "../ast-read.ts";
-import type { GateDescriptor } from "../contract.ts";
-import type { Violation } from "../harness.ts";
+import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
 /** A co-located chrome-widget definition file: `features/<owner>/lib/<id>-chrome.tsx`. */
@@ -44,31 +43,29 @@ type Seen = { readonly name: string; readonly file: string };
 type ChromeDef = {
   readonly name: string;
   readonly path: string;
-  readonly line: number;
   readonly init: ObjectLiteralExpression;
 };
 
-function checkChromeEntry(def: ChromeDef, out: Violation[], seenIds: Map<string, Seen>): void {
+// Node-anchored: every arm reports the OBJECT LITERAL directly (`ctx.report(node, {token, offset})`), never
+// an explicit `Finding` — that overload bypasses `hasGateIgnore` (GATE-AUTHORING.md §1). The per-arm prose
+// that used to ride the Finding's `message` field is folded into the gate's ONE `message` below; the
+// dynamic identity (id / zone / name / prior claimant) moves into `token`.
+function checkChromeEntry(def: ChromeDef, ctx: GateRunCtx, seenIds: Map<string, Seen>): void {
   const id = chromeId(def.init);
   if (id !== undefined) {
     const firstOwner = seenIds.get(id);
     if (firstOwner === undefined) {
       seenIds.set(id, { name: def.name, file: rel(def.path) });
     } else {
-      out.push({
-        file: rel(def.path),
-        line: def.line,
-        message: `ChromeEntry "${def.name}" declares id "${id}", already claimed by "${firstOwner.name}" (${firstOwner.file}) — two entries for one id is a shadow def the contributor registry's dupe-id throw only catches at RUNTIME — shell-chrome-unification.md §A.`,
+      ctx.report(def.init, {
+        token: `duplicate id "${id}" (${def.name}) — first claimed by "${firstOwner.name}" (${firstOwner.file})`,
+        offset: 0,
       });
     }
   }
   const zone = chromeZone(def.init);
   if (zone !== undefined && !CHROME_ZONES.has(zone)) {
-    out.push({
-      file: rel(def.path),
-      line: def.line,
-      message: `ChromeEntry "${def.name}" declares zone "${zone}", not one of CHROME_ZONES (rail.nav/rail.end/topbar.trail) — shell-chrome-unification.md §A.`,
-    });
+    ctx.report(def.init, { token: `zone "${zone}" (${def.name})`, offset: 0 });
   }
   // The mobile-curation axis: a rail.* widget MUST declare its mobile-tab-vs-You-sheet fate
   // (`mobile: "tab"|"sheet"`); a topbar.* widget MAY.
@@ -82,15 +79,11 @@ function checkChromeEntry(def: ChromeDef, out: Violation[], seenIds: Map<string,
   // controls, and forcing every trail widget to spell it would be ceremony, not a decision.
   const hasMobile = def.init.getProperty("mobile") !== undefined;
   if (zone?.startsWith("rail.") && !hasMobile) {
-    out.push({
-      file: rel(def.path),
-      line: def.line,
-      message: `ChromeEntry "${def.name}" is a rail widget (zone "${zone}") but declares no \`mobile\` — a rail.* widget's tab-vs-You-sheet fate is EXPLICIT (mobile: "tab"|"sheet") — shell-chrome-unification.md §D.`,
-    });
+    ctx.report(def.init, { token: `missing mobile (${def.name}, zone "${zone}")`, offset: 0 });
   }
 }
 
-function checkChromeDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, Seen>): void {
+function checkChromeDefs(sf: SourceFile, ctx: GateRunCtx, seenIds: Map<string, Seen>): void {
   const path = sf.getFilePath();
   const coLocated = CHROME_FILE_RE.test(path);
   for (const decl of sf.getVariableDeclarations()) {
@@ -98,20 +91,15 @@ function checkChromeDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, 
     if (typeNode === undefined || !typeNode.getText().startsWith("ChromeEntry")) {
       continue;
     }
-    const line = decl.getStartLineNumber();
     if (!coLocated) {
-      out.push({
-        file: rel(path),
-        line,
-        message: `ChromeEntry "${decl.getName()}" is not co-located — a chrome widget definition lives only in a feature's lib chrome file (features/*/lib/*-chrome.tsx) — shell-chrome-unification.md §A.`,
-      });
+      ctx.report(decl, { token: `not co-located: ${decl.getName()}`, offset: 0 });
       continue;
     }
     const init = decl.getInitializer();
     if (init === undefined || !Node.isObjectLiteralExpression(init)) {
       continue;
     }
-    checkChromeEntry({ name: decl.getName(), path, line, init }, out, seenIds);
+    checkChromeEntry({ name: decl.getName(), path, init }, ctx, seenIds);
   }
 }
 
@@ -124,24 +112,20 @@ export const gate: GateDescriptor = {
     "a chrome widget is dishonest: a ChromeEntry not co-located in a feature chrome file, a duplicate id across defs, a zone outside CHROME_ZONES, or a rail.* widget missing `mobile` — shell-chrome-unification.md §A/§D.",
   fix: 'co-locate the definition at features/<owner>/lib/<id>-chrome.tsx; give every ChromeEntry a unique id; use a real CHROME_ZONES member; declare `mobile` on every rail.* widget (topbar.* may declare it too — the You sheet projects `"sheet"`-curated trail widgets).',
   run: (ctx) => {
-    const out: Violation[] = [];
     const seenIds = new Map<string, Seen>();
     for (const sf of ctx.project.getSourceFiles()) {
       const path = sf.getFilePath();
       if (!path.includes(CLIENT_SRC)) {
         continue;
       }
-      checkChromeDefs(sf, out, seenIds);
-    }
-    for (const v of out) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+      checkChromeDefs(sf, ctx, seenIds);
     }
   },
   mustFlag: [
     {
       files: "export const xChrome: ChromeEntry = { id: 'x', zone: 'topbar.trail' };\n",
       at: "packages/client/src/features/x/lib/not-a-chrome-file.ts",
-      expect: { messageIncludes: "not co-located" },
+      expect: { token: "not co-located: xChrome" },
       why: "a ChromeEntry outside a `*-chrome` file — the co-location arm",
     },
     {
@@ -149,25 +133,25 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/a/lib/a-chrome.tsx": "export const aChrome: ChromeEntry = { id: 'dup', zone: 'topbar.trail' };\n",
         "packages/client/src/features/b/lib/b-chrome.tsx": "export const bChrome: ChromeEntry = { id: 'dup', zone: 'topbar.trail' };\n",
       },
-      expect: { messageIncludes: "already claimed by" },
+      expect: { token: 'duplicate id "dup" (bChrome) — first claimed by "aChrome" (packages/client/src/features/a/lib/a-chrome.tsx)' },
       why: "two co-located ChromeEntry defs declaring the SAME id — the shadow-def duplicate-id arm",
     },
     {
       files: "export const xChrome: ChromeEntry = { id: 'x', zone: 'sidebar.top' };\n",
       at: "packages/client/src/features/x/lib/x-chrome.tsx",
-      expect: { messageIncludes: "not one of CHROME_ZONES" },
+      expect: { token: 'zone "sidebar.top" (xChrome)' },
       why: "a zone string outside CHROME_ZONES — the zone arm",
     },
     {
       files: "export const xChrome: ChromeEntry = { id: 'x', zone: 'sidebar.top' as never };\n",
       at: "packages/client/src/features/x/lib/x-chrome.tsx",
-      expect: { messageIncludes: "not one of CHROME_ZONES" },
+      expect: { token: 'zone "sidebar.top" (xChrome)' },
       why: "a bad zone written `'sidebar.top' as never` (AsExpression) — the wrapped-literal shape the plain StringLiteral reader passed before hardening",
     },
     {
       files: "export const railChrome: ChromeEntry = { id: 'r', zone: 'rail.nav', label: 'R', behavior: { kind: 'widget', body: () => null } };\n",
       at: "packages/client/src/features/x/lib/rail-chrome.tsx",
-      expect: { messageIncludes: "declares no `mobile`" },
+      expect: { token: 'missing mobile (railChrome, zone "rail.nav")' },
       why: "a rail.* widget with no `mobile` — the rail-mobile-required arm (§D)",
     },
   ],
