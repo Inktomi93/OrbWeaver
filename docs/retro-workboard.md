@@ -292,6 +292,17 @@ brief's convention wiring — every lane's scoped check missed it, all branched 
 `7994de156` (schema imports the LEAF, depcruise 80→0). Drain small: knip flags
 LiveResolverRootElement unused in live-token-resolver.ts.
 
+**FOURTH ROTATION — FULLY DRAINED (zero lanes, zero worktrees). BATTERY IN FLIGHT** (launched
+09:35:36, `pnpm verify --push` detached, watch armed on reports/verify.json tier:push; verdict +
+morning delta on landing). Landed this rotation: gate batch `7ebe3a12c` (201→207; G-E refused w/
+receipts; G-C is a TAINT test; G-F fixed 15 live scrollers) · guard script-bodies `b5b1db9c7`
+(196/115,894 corpus moves, ALL stricter) · R3 leg `caa06972c` (alternate-step verb + the verifier's
+message-loss window closed red-first + reap races dead + PD-134 reconciled) · heal-wave over-fetch
+`dc72ac325`-merge (collapseFilters at the funnel) · draft-cast ghost pins `595b8a5f6` · guard
+tuple-type `f42f3ea3c` · lint drain `62e7aa6bc` (pnpm check GREEN 14/14). R0+R1 verifier: REFUTED→
+all findings closed same-day. Residual accepted-documented: R1-4a false-emit (bus-surface change
+boarded). OPEN LEAD: use-user-bus eslint-ignore note + F6 addMember-greets arm (roster verb).
+
 **THIRD ROTATION — CLOSED except R1 (running: R1 draft-mode a662d9e17adb6dc35, the R1+R2-client
 one-commit arm w/ the channels ruling; alternate-step verb = its next leg).** Landed:
 
