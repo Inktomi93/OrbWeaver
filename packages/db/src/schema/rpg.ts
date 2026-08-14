@@ -47,16 +47,11 @@ import type {
 } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 import { characters } from "./character.ts";
 import { chats, messages, messageVariants } from "./chat.ts";
 import { presets } from "./preset.ts";
 import { users } from "./users.ts";
-
-// A CHECK list is a static DDL fragment derived from the canonical tuple (NOT re-spelled). A CHECK cannot
-// carry bound parameters (the users.ts/chat.ts precedent).
-function checkList(values: readonly string[]): string {
-  return values.map((v) => `'${v}'`).join(", ");
-}
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // rpg_games — the TRUTH (§2.1). One row per chat (chatId UNIQUE, CASCADE): mode/status/config/state.

@@ -25,6 +25,7 @@
 // frozen-draw record through `resolveUserMacroInputs` and hands the bindings to `registerUserMacros`.
 
 import { neutralizeMacros } from "./content.ts";
+import { isIfTruthy } from "./metadata.ts";
 import { MACRO_NAME_RE, parseMacros } from "./parser.ts";
 import type { MacroArgDef, MacroContext, MacroHandler, MacroRegistry, MacroSourceRef } from "./types.ts";
 
@@ -112,8 +113,7 @@ export interface ResolvedUserMacroInputs {
  *  SHOW an unpicked toggle's resolved state ("Use default (On)") — that label has to read the same
  *  vocabulary the turn resolves against, never a client re-spelling of it. */
 export function userMacroToggleDefaultsOn(value: string): boolean {
-  const v = value.trim().toLowerCase();
-  return v !== "" && v !== "false" && v !== "off" && v !== "0";
+  return isIfTruthy(value);
 }
 
 // The random-pick pool: the user's selected values filtered to the DECLARED options in options order

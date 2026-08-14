@@ -30,6 +30,7 @@
 // read it as "card images work from the CAS": under the current cookie policy they cannot, and the model
 // cannot author a blob hash anyway. `data:` on a trusted card is the path that actually paints.
 
+import { isPlainObject } from "#guards";
 import { isSafeColor } from "#safe-color";
 
 /** The sandbox directive's value. EMPTY = every restriction on (no scripts, no forms, no popups, no
@@ -79,7 +80,7 @@ const FONT_FAMILY_LIST = /^[\w ,'"-]{1,120}$/u;
  *  SAME predicate `<ThemeScope>` uses, never a second weaker one. Applied at BOTH boundaries (the client
  *  before minting, the server before assembling): the server's call is the trust boundary. */
 export function clampCardFrameThemeTokens(raw: unknown): Readonly<Record<string, string>> {
-  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+  if (!isPlainObject(raw)) {
     return {};
   }
   const out: Record<string, string> = {};

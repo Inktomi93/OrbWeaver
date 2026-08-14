@@ -20,14 +20,14 @@ import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 
 // The default global role for a freshly-provisioned user (owner/admin are granted explicitly — D17).
 const DEFAULT_ROLE = "user";
 // CHECK list derived from the canonical tuple (NOT re-spelled): `role in ('owner', 'admin', 'user')`.
-// Built as a raw fragment because a CHECK is static DDL and cannot carry bound parameters.
-const ROLE_CHECK_LIST = USER_ROLES.map((role) => `'${role}'`).join(", ");
+const ROLE_CHECK_LIST = checkList(USER_ROLES);
 // CHECK list derived from the canonical KIND tuple (D60, NOT re-spelled): `kind in ('human', 'agent')`.
-const KIND_CHECK_LIST = USER_KINDS.map((kind) => `'${kind}'`).join(", ");
+const KIND_CHECK_LIST = checkList(USER_KINDS);
 
 export const users = sqliteTable(
   "users",

@@ -14,11 +14,11 @@ import { ASSET_KINDS } from "@orb/contracts/assets";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 import { users } from "./users.ts";
 
 // CHECK list derived from the canonical tuple (NOT re-spelled): `kind in ('card', 'avatar', 'export')`.
-// A CHECK is static DDL and cannot carry bound parameters, so it is built as a raw fragment.
-const ASSET_KIND_CHECK_LIST = ASSET_KINDS.map((kind) => `'${kind}'`).join(", ");
+const ASSET_KIND_CHECK_LIST = checkList(ASSET_KINDS);
 
 export const assets = sqliteTable(
   "assets",

@@ -23,12 +23,13 @@ import { PROMPT_TEMPLATE_MODES } from "@orb/contracts/imagery";
 import type { AssetId, CharacterId, ChatId, ImageryGenerationId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
 
 // CHECK list derived from the canonical tuple (NOT re-spelled) — a static DDL fragment (no bound params).
-const MODE_CHECK_LIST = PROMPT_TEMPLATE_MODES.map((mode) => `'${mode}'`).join(", ");
+const MODE_CHECK_LIST = checkList(PROMPT_TEMPLATE_MODES);
 
 export const imageryGenerations = sqliteTable(
   "imagery_generations",
