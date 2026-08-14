@@ -3905,7 +3905,7 @@ const ARGLESS_VERBS = new Set(["unwired", "clientgap", "swallowed", "respell", "
 
 const VERB_LIST = [...Object.keys(VERBS), ...Object.keys(DEPCRUISE_VERBS)].join("|");
 const USAGE = [
-  `usage: pnpm ast <${VERB_LIST}> <arg> [--in substr] [--files] [--json] [--max n]`,
+  `usage: pnpm ast <${VERB_LIST}> <arg> [--in substr] [--files] [--public] [--json] [--max n]`,
   "",
   "Symbol-aware workspace search (ts-morph). Prefer this over grep for CODE questions:",
   "it follows aliases/re-exports and ignores comments + string contents.",

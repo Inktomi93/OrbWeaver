@@ -49,6 +49,9 @@
       }
     ]
   },
+  "worktree": {
+    "baseRef": "head"
+  },
   "permissions": {
     "allow": [
       "Bash(pnpm check)",
