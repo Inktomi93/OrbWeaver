@@ -2,9 +2,10 @@
 // break an e2e selector; a typed map makes the typo a `tsc` error on BOTH sides (the component
 // stamping the id and the Playwright test selecting it). Add ids HERE, never inline — grow the map
 // as surfaces land. Values are the literal DOM attribute strings (kebab-case, stable API for e2e).
+// A row lives only as long as a component STAMPS it: the `testid-liveness` gate reds a row no producer
+// spends (and a test selecting one), so add the row and its `data-testid` in the same commit.
 
 export const TEST_IDS = {
-  appShell: "app-shell",
   loginPage: "login-page",
   loginLocalForm: "login-local-form",
   loginHandle: "login-handle",
@@ -81,7 +82,6 @@ export const TEST_IDS = {
   messageChoiceOption: "message-choice-option",
   composerGenerateImage: "composer-generate-image",
   speakAsSelect: "speak-as-select",
-  messageList: "message-list",
   chatCastBar: "chat-cast-bar",
   notificationsInbox: "notifications-inbox",
   workloadsSection: "workloads-section",
@@ -120,7 +120,6 @@ export const TEST_IDS = {
   variantWireTrigger: "variant-wire-trigger",
   variantWireViewer: "variant-wire-viewer",
   corpusListSurface: "corpus-list-surface",
-  corpusSearchInput: "corpus-search-input",
   corpusSearchTarget: "corpus-search-target",
   corpusSearchResults: "corpus-search-results",
   corpusSearchHit: "corpus-search-hit",
@@ -209,7 +208,7 @@ export const TEST_IDS = {
 
 export type TestIdKey = keyof typeof TEST_IDS;
 
-/** `<div data-testid={testId("appShell")}>` / `page.getByTestId(testId("appShell"))`. */
+/** `<div data-testid={testId("composer")}>` / `page.getByTestId(testId("composer"))`. */
 export function testId(key: TestIdKey): (typeof TEST_IDS)[TestIdKey] {
   return TEST_IDS[key];
 }
