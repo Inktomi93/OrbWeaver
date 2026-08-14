@@ -62,10 +62,7 @@ test("a current receipt rejects self-attestation and an unbound verification com
       localEvidence: new Map([["docs/example.md", 1]]),
       provenanceCommits: new Set(),
     }),
-  ).toEqual([
-    "docs/example.md: ruling evidence target has the wrong root: docs/example.md:1",
-    "docs/example.md: verifiedCommit is not an ancestor of HEAD",
-  ]);
+  ).toEqual(["docs/example.md: ruling evidence target has the wrong root: docs/example.md:1", "docs/example.md: verifiedCommit is not an ancestor of HEAD"]);
 });
 
 test("a reviewed receipt binds verified hash, commit blob, and current document bytes", () => {
@@ -78,10 +75,7 @@ test("a reviewed receipt binds verified hash, commit blob, and current document 
       localEvidence: new Map([["packages/example.ts", 1]]),
       provenanceCommits: new Set(),
     }),
-  ).toEqual([
-    "docs/example.md: verifiedSha256 does not match the verified commit blob",
-    "docs/example.md: verifiedCommit does not resolve to a commit",
-  ]);
+  ).toEqual(["docs/example.md: verifiedSha256 does not match the verified commit blob", "docs/example.md: verifiedCommit does not resolve to a commit"]);
 });
 
 test("typed claim evidence resolves its role-specific local targets", () => {
@@ -150,7 +144,26 @@ test("the debt ratchet rejects substitution even when the total count stays flat
   const oldDebt = { pending: ["docs/old.md"], missingFrontmatter: [], invalidFrontmatter: [], malformedFrontmatter: [] };
   const substituted = { pending: ["docs/new.md"], missingFrontmatter: [], invalidFrontmatter: [], malformedFrontmatter: [] };
   expect(debtPathErrors(oldDebt, oldDebt)).toEqual([]);
-  expect(debtPathErrors(substituted, oldDebt)).toEqual(["pending: new debt path docs/new.md is not in the ratchet allowance"]);
+  expect(debtPathErrors(substituted, oldDebt)).toEqual([
+    "pending: new debt path docs/new.md is not in the ratchet allowance",
+    "pending: stale debt path docs/old.md remains in the ratchet allowance",
+  ]);
+});
+
+test("the debt ratchet rejects stale allowances in every debt category", () => {
+  const current = { pending: [], missingFrontmatter: [], invalidFrontmatter: [], malformedFrontmatter: [] };
+  const stale = {
+    pending: ["docs/pending.md"],
+    missingFrontmatter: ["docs/missing.md"],
+    invalidFrontmatter: ["docs/invalid.md"],
+    malformedFrontmatter: ["docs/malformed.md"],
+  };
+  expect(debtPathErrors(current, stale)).toEqual([
+    "pending: stale debt path docs/pending.md remains in the ratchet allowance",
+    "missingFrontmatter: stale debt path docs/missing.md remains in the ratchet allowance",
+    "invalidFrontmatter: stale debt path docs/invalid.md remains in the ratchet allowance",
+    "malformedFrontmatter: stale debt path docs/malformed.md remains in the ratchet allowance",
+  ]);
 });
 
 test("a newly tracked document reports a missing receipt instead of crashing catalog rendering", () => {
