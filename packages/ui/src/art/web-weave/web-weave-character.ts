@@ -53,7 +53,7 @@ export const SPRINT_GAIT = { gaitHz: 0.034, gaitAmp: 0.36 } as const;
 export const REST_GAIT_AMP = 0.05;
 
 /** Burst locomotion: a forward-only speed pulse over an eased walk. The derivative of
- *  `p − a·sin(4πp)/(4π)` is `1 − a·cos(4πp)`, which stays positive for a < 1 — so she surges and
+ *  `p − a·sin(4πp)/(4π)` is `1 − a·cos(4πp)`, which stays positive whenever a stays below 1 — so she surges and
  *  eases but never stalls or walks backwards. */
 const BURST_CYCLES = 2;
 const BURST_RADIANS = Math.PI * 2 * BURST_CYCLES;

@@ -138,7 +138,7 @@
             "paths": {
               "tailwind-variants": {
                 "importNames": ["cn", "cnMerge", "tv"],
-                "message": "These three read tailwind-variants' MODULE-LEVEL twMerge config, which only a called tv() factory writes — so they merge with an UNCONFIGURED tailwind-merge until some unrelated module happens to load, silently dropping our custom --text-*/--leading-*/--tracking-* classes. Import cn/tv from @orb/ui/lib (packages/ui/src/lib/class-merge.ts owns the ONE config). createTV is deliberately NOT banned — class-merge.ts is its one caller."
+                "message": "These three read tailwind-variants' MODULE-LEVEL twMerge config, which only a called tv() factory writes \u2014 so they merge with an UNCONFIGURED tailwind-merge until some unrelated module happens to load, silently dropping our custom --text-*/--leading-*/--tracking-* classes. Import cn/tv from @orb/ui/lib (packages/ui/src/lib/class-merge.ts owns the ONE config). createTV is deliberately NOT banned \u2014 class-merge.ts is its one caller."
               }
             },
             "patterns": [
@@ -148,11 +148,11 @@
               },
               {
                 "group": ["@dnd-kit/core", "@dnd-kit/core/**", "@dnd-kit/sortable", "@dnd-kit/sortable/**", "@dnd-kit/utilities", "@dnd-kit/utilities/**"],
-                "message": "Dead legacy dnd-kit stack. Use @dnd-kit/react + @dnd-kit/helpers (ui-package-design §3, work-order item 15)."
+                "message": "Dead legacy dnd-kit stack. Use @dnd-kit/react + @dnd-kit/helpers (ui-package-design \u00a73, work-order item 15)."
               },
               {
                 "group": ["dotenv", "dotenv/**", "dotenv-expand", "dotenv-expand/**"],
-                "message": "dotenv was killed 2026-08-03 (node-26 adoption program §3) and is no longer installed. node:util's parseEnv IS the platform .env parser; foundation/env/index.ts owns the ONE loader (and the override merge process.loadEnvFile() cannot express). Nothing else reads a .env."
+                "message": "dotenv was killed 2026-08-03 (node-26 adoption program \u00a73) and is no longer installed. node:util's parseEnv IS the platform .env parser; foundation/env/index.ts owns the ONE loader (and the override merge process.loadEnvFile() cannot express). Nothing else reads a .env."
               }
             ]
           }
@@ -694,6 +694,21 @@
             "useAwait": "off",
             "noEmptyBlockStatements": "off",
             "noShadow": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": [
+        "packages/server/src/infra/image/index.ts",
+        "tests/server/infra/image/index.int.test.ts",
+        "tests/server/infra/providers/backends/local-light/image-embed.int.test.ts",
+        "scripts/probes/snap.ts"
+      ],
+      "linter": {
+        "rules": {
+          "nursery": {
+            "useAwaitThenable": "off"
           }
         }
       }

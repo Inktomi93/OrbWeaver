@@ -174,11 +174,17 @@ describe("testHealth", () => {
     });
 
     h.setEndpointProbeResult({ status: "unreachable", checkedAt: 0, reason: "ECONNREFUSED" });
-    for (let i = 0; i < 3; i++) {
-      const result = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
-      expect(result.status).toBe("unreachable");
-      h.advance(MINUTE_MS);
-    }
+    // Three sequential strikes, unrolled: each depends on the clock advancing past the probe window,
+    // so the awaits are ordered by design (noAwaitInLoops would mis-read a loop as parallelizable).
+    const strike1 = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
+    expect(strike1.status).toBe("unreachable");
+    h.advance(MINUTE_MS);
+    const strike2 = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
+    expect(strike2.status).toBe("unreachable");
+    h.advance(MINUTE_MS);
+    const strike3 = await svc.testHealth({ principal: principal(owner), credentialId: cred.id });
+    expect(strike3.status).toBe("unreachable");
+    h.advance(MINUTE_MS);
     const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
     // A box being offline is not a credential fact — the strike counter never fires for it.
     expect(rows[0]?.revokedAt).toBeNull();
