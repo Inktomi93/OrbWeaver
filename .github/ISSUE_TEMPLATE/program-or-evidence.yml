@@ -1,0 +1,71 @@
+name: Program or evidence
+description: Plan one distinct future program, or route re-derived review evidence to its disposition.
+title: "program/evidence: "
+labels: ["triage"]
+projects: ["Inktomi93/1"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Choose the role first. A Program is one committed future sprint-shaped outcome. Evidence is a current, falsifiable review/audit/report finding that must route to Work, Decision, or Program; it is not a parallel backlog.
+  - type: dropdown
+    id: role
+    attributes:
+      label: Role
+      description: Program records the future outcome. Evidence records a re-derived finding; record its source artifact and provenance below.
+      options:
+        - Program
+        - Evidence
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Program outcome or finding
+      description: For Program: the observable sprint outcome. For Evidence: one falsifiable claim; separate unrelated findings.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and current substrate
+      description: Path:line receipts, runtime/test proof, laws, source artifact, files scanned, exclusions, and positive controls for negative claims.
+    validations:
+      required: true
+  - type: textarea
+    id: rederived
+    attributes:
+      label: Current-tree re-derivation
+      description: Prove this program shape or evidence still holds against current code, tests, and recent commits before filing.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints, forks, and non-goals
+      description: State existing law, compatibility boundaries, mutually exclusive owner calls, and excluded work. Write none when genuinely absent.
+    validations:
+      required: true
+  - type: dropdown
+    id: disposition
+    attributes:
+      label: Proposed disposition
+      description: Evidence must route to a Work, Decision, or Program issue. Parked means committed but unscheduled; it is not abandonment.
+      options:
+        - Create or update Work issue
+        - Create or update Decision issue
+        - Create or update Program issue
+        - Parked program
+        - Killed
+        - Already resolved
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Graduation or resolution evidence
+      description: For Program: owner rulings, slices, and verification needed at activation. For Evidence: the exact issue, ruling, implementation, test, or wake condition that closes it.
+    validations:
+      required: true
