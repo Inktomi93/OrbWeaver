@@ -1,0 +1,78 @@
+name: Review or audit finding
+description: Evidence-backed output from an audit, review, sweep, probe, or test.
+title: "finding: "
+labels: ["kind:finding", "triage"]
+projects: ["Inktomi93/1"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A report is not reconciled until every finding receives Action, Parked, Killed, or Already resolved.
+  - type: input
+    id: source
+    attributes:
+      label: Source artifact
+      description: Repository path plus heading/line, or an external receipt URL.
+      placeholder: docs/reviews/example.md:42
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - P0
+        - P1
+        - P2
+        - P3
+      default: 2
+    validations:
+      required: true
+  - type: textarea
+    id: finding
+    attributes:
+      label: Finding
+      description: One falsifiable claim. Separate unrelated defects into separate issues.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and coverage
+      description: Path:line receipts, runtime/test proof, files scanned, exclusions, and positive controls for negative claims.
+    validations:
+      required: true
+  - type: textarea
+    id: rederived
+    attributes:
+      label: Current-tree re-derivation
+      description: Prove the source report has not already gone stale or been fixed.
+    validations:
+      required: true
+  - type: dropdown
+    id: disposition
+    attributes:
+      label: Proposed disposition
+      options:
+        - Action
+        - Parked
+        - Killed
+        - Already resolved
+        - Needs owner
+      default: 0
+    validations:
+      required: true
+  - type: textarea
+    id: gate
+    attributes:
+      label: Gate candidate verdict
+      description: Name the preventable defect class and possible gate, or explain why automation would be dishonest.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Resolution evidence
+      description: What exact implementation, ruling, test, or wake condition closes reconciliation?
+    validations:
+      required: true

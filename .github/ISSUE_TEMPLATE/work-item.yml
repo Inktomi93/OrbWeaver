@@ -1,0 +1,60 @@
+name: Build or operational work
+description: A bounded implementation, refactor, maintenance, or operations outcome.
+title: "work: "
+labels: ["kind:build", "triage"]
+projects: ["Inktomi93/1"]
+body:
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: State the observable result, not the implementation idea.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why now
+      description: Link the finding, design, ruling, user report, or operational evidence creating the work.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and exclusions
+      description: Owned paths/systems, explicit non-goals, and sibling work that must not collide.
+    validations:
+      required: true
+  - type: textarea
+    id: rederived
+    attributes:
+      label: Re-derivation receipt
+      description: Current code/tests and recent commits checked before declaring this work necessary.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done criteria
+      description: Concrete behavior, artifact, and behavioral verification required for Done.
+    validations:
+      required: true
+  - type: textarea
+    id: hazards
+    attributes:
+      label: Hazards and coupled sites
+      description: Trust boundaries, literal/value changes, fixtures, gates, worktrees, shared reports, or live dependencies.
+  - type: dropdown
+    id: review
+    attributes:
+      label: Required review
+      options:
+        - Technical
+        - Security
+        - UX
+        - Technical and UX
+        - Owner
+        - None
+      default: 0
+    validations:
+      required: true

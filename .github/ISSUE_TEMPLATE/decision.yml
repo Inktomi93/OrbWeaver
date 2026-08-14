@@ -1,0 +1,48 @@
+name: Owner decision
+description: A bounded choice that blocks or materially redirects work.
+title: "decision: "
+labels: ["kind:decision", "needs-owner", "triage"]
+projects: ["Inktomi93/1"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: Decision
+      description: One sentence naming the exact choice Alex is making.
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence and constraints
+      description: Current paths, behavior, laws, costs, and prior rulings that bound the choice.
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options
+      description: Two or three mutually exclusive arms with concrete consequences.
+    validations:
+      required: true
+  - type: textarea
+    id: recommendation
+    attributes:
+      label: Recommendation
+      description: Lead with the recommended arm and the strongest counterargument.
+    validations:
+      required: true
+  - type: textarea
+    id: blocked
+    attributes:
+      label: Work waiting on this
+      description: Link blocked issues or state that no work is blocked.
+    validations:
+      required: true
+  - type: textarea
+    id: disposition
+    attributes:
+      label: Durable landing point
+      description: Name the law, design, runbook, or issue field that will record the ruling after Alex decides.
+    validations:
+      required: true
