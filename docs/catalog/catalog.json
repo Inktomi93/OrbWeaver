@@ -284,7 +284,7 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Docs-Formatting-Law.md",
-        "assignedSha256": "585224830eb26a60d3a22365d612a3f003bb3f3b7cc46818e3299765781701f0",
+        "assignedSha256": "f938899aa340a3508e954c211393f1590cda6c12ea2e97bd0f09f870f0222df6",
         "disposition": "pending",
         "authority": "unclassified",
         "fullRead": false,
@@ -377,7 +377,7 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
-        "assignedSha256": "ae2e68c4ddb168584e0295ac2a70e5cd37ba8250265ca7d913d8e4d0f24f9722",
+        "assignedSha256": "a30d6ca8b846c5b048f794c5e70ff422d40f11dd8d7dc0d9d842880bee9cda68",
         "disposition": "pending",
         "authority": "unclassified",
         "fullRead": false,
@@ -424,9 +424,9 @@
       "path": "docs/architecture/core/Core-Path-Registry.md",
       "lane": "architecture-core",
       "issue": 2,
-      "lines": 524,
-      "bytes": 231993,
-      "sha256": "1985374024b16a8a6f89ee1f0877945fc74045867ea3e4ab007fe576c79d7281",
+      "lines": 525,
+      "bytes": 234483,
+      "sha256": "220365043d72b6219967723ea0a9faafe20ac53da2f816a6bd1b1c73f8d69153",
       "frontmatter": {
         "present": true,
         "malformed": false,
@@ -439,7 +439,7 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Core-Path-Registry.md",
-        "assignedSha256": "10d1c0c07d60db1cf0766f8ef5eb15a99f6d21fca7df0b21a9301ddfb0c87254",
+        "assignedSha256": "1985374024b16a8a6f89ee1f0877945fc74045867ea3e4ab007fe576c79d7281",
         "disposition": "pending",
         "authority": "unclassified",
         "fullRead": false,
@@ -625,7 +625,7 @@
       },
       "receipt": {
         "path": "docs/architecture/core/Documentation-Law.md",
-        "assignedSha256": "001be1f71b8af7954ebc7406cf8e01d0d66a087693c00fed352b22136dcf40ef",
+        "assignedSha256": "e0a441e5ad0e63a3df99287cd09c2091b71a75040131171f1f291a4bd3355105",
         "disposition": "pending",
         "authority": "unclassified",
         "fullRead": false,
@@ -7738,7 +7738,7 @@
       },
       "receipt": {
         "path": "docs/design/streaming-shape-churn.md",
-        "assignedSha256": "6cb3a72730629c37a26cdf8a13ce4a2e0dbde4240dac3ef74d73d202e97cedc9",
+        "assignedSha256": "1e6b30a26e45d7bee3f39b814861fbe5e97172e11a616a0cf5c6c411bb64b8ad",
         "disposition": "pending",
         "authority": "unclassified",
         "fullRead": false,
@@ -9464,7 +9464,7 @@
       },
       "receipt": {
         "path": "docs/retro-workboard.md",
-        "assignedSha256": "191f567fceaa1563a03c7e17ee451b6cd140eba74398a96e28bec630404ccbec",
+        "assignedSha256": "d8f6ef306ab2c0d187d6bf0166f2b7fc4a8311d2c313562a12ad9cac8666776d",
         "disposition": "pending",
         "authority": "unclassified",
         "fullRead": false,
@@ -14927,7 +14927,7 @@
       },
       "receipt": {
         "path": "docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md",
-        "assignedSha256": "f71d56ba0a591297e70a1e70372cc11535ca3c11f81128be0c79e6edcef3ab8c",
+        "assignedSha256": "63494355515ae9aaf127d6dddc99c10a4e549f33b60289ba3d7fa0bc95437eae",
         "disposition": "pending",
         "authority": "unclassified",
         "fullRead": false,

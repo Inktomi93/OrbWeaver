@@ -53,7 +53,7 @@
     },
     {
       "path": "docs/architecture/core/Core-Docs-Formatting-Law.md",
-      "assignedSha256": "585224830eb26a60d3a22365d612a3f003bb3f3b7cc46818e3299765781701f0",
+      "assignedSha256": "f938899aa340a3508e954c211393f1590cda6c12ea2e97bd0f09f870f0222df6",
       "disposition": "pending",
       "authority": "unclassified",
       "fullRead": false,
@@ -89,7 +89,7 @@
     },
     {
       "path": "docs/architecture/core/Core-Laws-and-Precedents.md",
-      "assignedSha256": "ae2e68c4ddb168584e0295ac2a70e5cd37ba8250265ca7d913d8e4d0f24f9722",
+      "assignedSha256": "a30d6ca8b846c5b048f794c5e70ff422d40f11dd8d7dc0d9d842880bee9cda68",
       "disposition": "pending",
       "authority": "unclassified",
       "fullRead": false,
@@ -113,7 +113,7 @@
     },
     {
       "path": "docs/architecture/core/Core-Path-Registry.md",
-      "assignedSha256": "10d1c0c07d60db1cf0766f8ef5eb15a99f6d21fca7df0b21a9301ddfb0c87254",
+      "assignedSha256": "1985374024b16a8a6f89ee1f0877945fc74045867ea3e4ab007fe576c79d7281",
       "disposition": "pending",
       "authority": "unclassified",
       "fullRead": false,
@@ -185,7 +185,7 @@
     },
     {
       "path": "docs/architecture/core/Documentation-Law.md",
-      "assignedSha256": "001be1f71b8af7954ebc7406cf8e01d0d66a087693c00fed352b22136dcf40ef",
+      "assignedSha256": "e0a441e5ad0e63a3df99287cd09c2091b71a75040131171f1f291a4bd3355105",
       "disposition": "pending",
       "authority": "unclassified",
       "fullRead": false,
