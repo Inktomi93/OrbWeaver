@@ -16,6 +16,7 @@
 //   • The default sharp `limitInputPixels` (~268 MP) guards against decompression-bomb inputs.
 
 import { floodMatte } from "@orb/server/kit/image-matte";
+import type { Sharp } from "sharp";
 import sharp from "sharp";
 
 /** The output container formats this adapter can normalize to. `webp` is the only one the client ever
@@ -97,7 +98,7 @@ function asBytes(buf: Buffer): Uint8Array {
   return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
 }
 
-function encode(pipeline: sharp.Sharp, format: ImageFormat, quality: number): sharp.Sharp {
+function encode(pipeline: Sharp, format: ImageFormat, quality: number): Sharp {
   switch (format) {
     case "webp":
       return pipeline.webp({ quality });
