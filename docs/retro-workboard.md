@@ -425,6 +425,14 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 - [ ] **Residue-lane smalls:** move the `genRepetitionPenalty` editor row out of the restart-gated
   Engines section to sit beside its now-hot twin in admin-system-tuning (client + CT) · tighten
   `no-test-fabrication.baseline.json` for chat.test.ts 2→1 (gate-ledger edit, do at a quiet moment).
+- [ ] **AST TWO-CORPORA ASYMMETRY (ruling needed; surfaced by the scan ledger, deliberately NOT fixed
+  in-lane — it changes match semantics):** syntactic verbs (callers/importers/exports/jsx/ident/aliases/
+  regkeys) load harness-globs and are structurally BLIND to `scripts/**`, `packages/*/*.ts`, `*.mts`,
+  `playwright/**`; typed verbs see them via search-globs. `pnpm ast ident X --in scripts/` scans only
+  the 219 gate files. Every historical syntactic-verb NEGATIVE over those trees is suspect. Fix fork:
+  ONE corpus everywhere vs an explicit `--corpus` flag — small lane after a ruling; the epilogue now at
+  least NAMES the corpus per run. (Also: `regkeys TEMPLATE_DEFS` — the USAGE block's own example —
+  derives zero registries on today's tree; folded into the boarded lens-calibration lane.)
 - [ ] **CODEX TOOLING PUNCH LIST (owner-relayed 08-14, priority-ordered; audit dir is READ-ONLY law;
   deliverable back to Codex = commit SHAs + exact verification commands):**
   1. `pnpm ast` negative-output auditability — **LANE RUNNING** (one reporting seam, stderr epilogue +
