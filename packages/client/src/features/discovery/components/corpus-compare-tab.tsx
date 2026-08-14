@@ -54,7 +54,7 @@ function CompareBody(): ReactElement {
   };
 
   return (
-    <Stack className="min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("corpusCompareTab")} gap="section">
+    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" data-testid={testId("corpusCompareTab")} gap="section">
       <ComparePickers itemsA={items} itemsB={items} a={a} b={b} onA={onPickA} onB={onPickB} />
       {ready ? (
         <CompareResult idA={idA} idB={idB} deep={deep} onDeep={(): void => setDeep(true)} />

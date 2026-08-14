@@ -246,7 +246,9 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
     newCharacterKeywordProfileId: minter(ID_PREFIX.characterKeywordProfile),
     newDuplicateChatPairId: minter(ID_PREFIX.duplicateChatPair),
     summarize: roleClients.summarize,
-    summarizerModel: roleClients.summarizerModel,
+    // A thunk over the live getter — never the value: reading it here would bake the boot resolution
+    // (`entry/compose/role-clients.ts` header), and a distill row would stamp a stale model tag.
+    summarizerModel: () => roleClients.summarizerModel,
     attachCardTagByName: deps.attachCardTagByName,
     resolveUserPresetParams: deps.resolveUserPresetParams,
     // PROSE-1 — the compare / ask / distill system prompts off the CARD OWNER's `UserSettings.prose` (the

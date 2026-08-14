@@ -17,6 +17,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { resolvedTokenColor } from "../../../../support/ct/resolved-token-color.ts";
 import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { readPhantomScrollers } from "../../../../support/ct/scroll-containing-block.ts";
 import type { ChatSummaryFixture } from "../../chat/fixtures.ts";
 import { chatListResponder } from "../../chat/fixtures.ts";
 import { CharacterDetailContributorStory, CharacterEditorSurfaceStory, CharacterFacetInspectorStory } from "../_ct-stories.tsx";
@@ -488,4 +489,23 @@ test("MACU-2: a card facet completes against the ACTIVE PRESET's user macros", a
 
   await expect(page.getByRole("option", { name: MACRO_USER_ROW })).toBeVisible();
   await expect(page.getByText(MACRO_USER_GLOSS)).toBeVisible();
+});
+
+// THE CONTAINING-BLOCK PIN (phantom-scroll CLASS sweep, 2026-08-14). This surface owns its scroll axis (`h-full overflow-y-auto`).
+// An `overflow` scroller only clips — and only absorbs the scrollable overflow of — an absolutely-positioned
+// descendant whose CONTAINING BLOCK is inside it. A `position: static` scroller establishes none, so the
+// `sr-only` boxes Base UI form primitives emit (`position: absolute` — NumberField's bounds announcer,
+// Switch/Checkbox's hidden input, the combobox status line) resolve theirs further up and add their static
+// positions to a POSITIONED ancestor's scrollable area instead. That is the owner's 2026-08-13 "scrolls past
+// the end of its results" defect (fixed once for the settings pane region, swept as a class here), and
+// `relative` on the scroller is the whole fix. `readPhantomScrollers` measures the MECHANISM document-wide —
+// the SYMPTOM needs a positioned scrolling host, which is the settings shell CT's own story.
+test("no absolutely-positioned box escapes the character editor's scroller (the containing-block pin)", async ({ mount, page }) => {
+  await routeEditor(page);
+  const component = await mount(<CharacterEditorSurfaceStory />);
+  // SETTLED: the hero's draft field is the surface's own last paint, so every facet row (and its form
+  // primitives' sr-only boxes) exists by the time the sweep walks the document.
+  await expect(component.getByRole("textbox", { name: "Name" })).toHaveValue("Aria Nightshade");
+
+  expect(await readPhantomScrollers(page)).toEqual([]);
 });

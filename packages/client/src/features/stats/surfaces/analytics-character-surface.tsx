@@ -67,7 +67,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
   }
 
   return (
-    <Stack className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
+    <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
       <Button intent="ghost" size="sm" onClick={onBack} className="self-start">
         <Icon icon={ArrowLeft} size="sm" />
         Back

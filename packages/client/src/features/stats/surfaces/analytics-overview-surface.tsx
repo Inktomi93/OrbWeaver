@@ -60,7 +60,7 @@ function OverviewBody(): ReactElement {
   const falling = momentumBarItems(momentum.falling);
 
   return (
-    <Stack className="h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
+    <Stack className="relative h-full min-h-0 overflow-y-auto overscroll-contain" gap="section">
       <Row align="center" justify="between" gap="row">
         <Text voice="gloss">{freshness.computedAt === null ? "Not computed yet" : `Updated ${timeLib.formatRelative(freshness.computedAt)}`}</Text>
         <RecomputeButton />

@@ -84,7 +84,7 @@ function JsonViewer({ label, value }: { readonly label: string; readonly value: 
     <Collapsible>
       <CollapsibleTrigger>{label}</CollapsibleTrigger>
       <CollapsiblePanel>
-        <Text as="div" size="code" tone="muted" className="overflow-auto whitespace-pre-wrap font-mono">
+        <Text as="div" size="code" tone="muted" className="relative overflow-auto whitespace-pre-wrap font-mono">
           {JSON.stringify(value, null, 2)}
         </Text>
       </CollapsiblePanel>

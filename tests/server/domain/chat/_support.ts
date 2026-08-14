@@ -432,7 +432,7 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // verbs push on every write path now; a test that asserts stats overrides with a recorder).
     applyStatsDelta: () => undefined,
     summarize: notStubbed,
-    summarizerContextTokens: 32_000,
+    summarizerContextTokens: () => 32_000,
     memorySummarizer: {},
     // The emit-op CONTRACT (PD-24): the op OWNS the commit of the producer's co-statements (the verb hands
     // them UNEXECUTED). The default fake honors that half (executes them; drops the event) so a membership

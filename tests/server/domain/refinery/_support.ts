@@ -75,8 +75,8 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
     newRefineryRunId: (): RefineryRunId => castId<RefineryRunId>(ids.next("refinery_run")),
     newRefinerySchemaId: (): RefinerySchemaId => castId<RefinerySchemaId>(ids.next("refinery_schema")),
     summarize,
-    summarizerModel: TEST_SUMMARIZER_MODEL,
-    summarizerContextTokens: 8192,
+    summarizerModel: () => TEST_SUMMARIZER_MODEL,
+    summarizerContextTokens: () => 8192,
     resolveUserPresetParams: () => Promise.resolve({}),
     resolveUserProse: () => Promise.resolve({}),
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {

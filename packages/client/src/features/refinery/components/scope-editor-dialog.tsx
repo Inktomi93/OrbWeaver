@@ -7,9 +7,18 @@
 //
 // THE SAVE IS A DELTA, AND THE GREETING AXIS RIDES ONLY WHEN THE USER TOUCHED IT. `selection` has a
 // SECOND writer: `applyFields` remaps `greetingIndexes` server-side when an accepted rewrite removes a
-// greeting. This dialog's state is seeded once at mount, so a save that re-sent an untouched greeting
-// image would undo that remap. Omitting the axis is how the user says "I did not address greetings" —
-// do not "simplify" the save back to always sending both axes.
+// greeting. Omitting the axis is how the user says "I did not address greetings" — do not "simplify" the
+// save back to always sending both axes.
+//
+// SEEDING IS PER-OPEN, NOT PER-MOUNT. Both call sites (`surfaces/refinery-content-surface.tsx`,
+// `components/refinery-context-tabs.tsx`) mount this dialog PERMANENTLY and gate it with `open`, so the
+// editable image used to be captured once when the pane mounted and never re-synced. After an
+// `applyFields` (or any other `updateSession`) rewrote `view.selection` underneath, reopening Scope showed
+// the pane-mount image and the next Save wrote that ancient `fields` array straight back — the axis the
+// delta rule does NOT protect. The state therefore lives in `ScopeEditorBody`, which is rendered ONLY
+// while `open`, so every open is a fresh seed from the CURRENT `selection` prop. That is stated here and
+// gated by an explicit `open ? … : null` rather than left to Base UI's portal unmounting by default: a
+// later `keepMounted` for an exit animation must not silently restore the stale image.
 //
 // A card with no depth note renders a
 // DISABLED depthPrompt row (a checkbox that leads to a `not_applicable` drop is a trap). Empty fields
@@ -160,6 +169,16 @@ function GreetingsScopeRow({
 }
 
 export function ScopeEditorDialog({ open, onOpenChange, card, selection, score, onSave }: ScopeEditorDialogProps): ReactElement {
+  return (
+    <FormDialog onOpenChange={onOpenChange} open={open} size="md" title="Scope">
+      {open ? <ScopeEditorBody card={card} onOpenChange={onOpenChange} onSave={onSave} score={score} selection={selection} /> : null}
+    </FormDialog>
+  );
+}
+
+/** The editable image + its controls. Mounted only while the dialog is open (see the header), so its
+ *  `useState` seeds re-read `selection` on every open instead of freezing the pane-mount image. */
+function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<ScopeEditorDialogProps, "open">): ReactElement {
   const [fields, setFields] = useState<readonly RefinableField[]>(selection.fields);
   // undefined = EVERY greeting (the contracts law the mock's law note pins).
   const [greetingIndexes, setGreetingIndexes] = useState<readonly number[] | undefined>(selection.greetingIndexes);
@@ -193,77 +212,75 @@ export function ScopeEditorDialog({ open, onOpenChange, card, selection, score, 
   }
 
   return (
-    <FormDialog onOpenChange={onOpenChange} open={open} size="md" title="Scope">
-      <Stack gap="row">
-        <Text voice="gloss">
-          Only what you select is sent to the model — and only what you selected can ever be applied back. Widening the scope later re-runs the pipeline; it
-          does not retro-fit an old rewrite.
-        </Text>
-        {REFINABLE_FIELDS.map((field) => {
-          const on = fields.includes(field);
-          if (field === "greetings") {
-            return (
-              <GreetingsScopeRow
-                card={card}
-                greetingIndexes={greetingIndexes}
-                key={field}
-                on={on}
-                onToggleField={(): void => toggleField(field)}
-                onToggleGreeting={toggleGreeting}
-              />
-            );
-          }
-          const text = fieldTextOf(card, field);
-          const depthless = field === "depthPrompt" && card.depthPrompt === null;
+    <Stack gap="row">
+      <Text voice="gloss">
+        Only what you select is sent to the model — and only what you selected can ever be applied back. Widening the scope later re-runs the pipeline; it does
+        not retro-fit an old rewrite.
+      </Text>
+      {REFINABLE_FIELDS.map((field) => {
+        const on = fields.includes(field);
+        if (field === "greetings") {
           return (
-            <ScopeCheckRow
-              checked={on && !depthless}
-              disabled={depthless}
-              gloss={fieldGlossOf(depthless, text)}
+            <GreetingsScopeRow
+              card={card}
+              greetingIndexes={greetingIndexes}
               key={field}
-              name={field}
-              onToggle={(): void => toggleField(field)}
+              on={on}
+              onToggleField={(): void => toggleField(field)}
+              onToggleGreeting={toggleGreeting}
             />
           );
-        })}
-        <Row align="center" gap="row">
+        }
+        const text = fieldTextOf(card, field);
+        const depthless = field === "depthPrompt" && card.depthPrompt === null;
+        return (
+          <ScopeCheckRow
+            checked={on && !depthless}
+            disabled={depthless}
+            gloss={fieldGlossOf(depthless, text)}
+            key={field}
+            name={field}
+            onToggle={(): void => toggleField(field)}
+          />
+        );
+      })}
+      <Row align="center" gap="row">
+        <Button
+          intent="ghost"
+          onClick={(): void => {
+            const populated = populatedSelection(card);
+            setFields(populated.fields);
+            setGreetingIndexes(undefined);
+            // "Reset" is an explicit statement about the greeting axis too: every slot, back in scope.
+            setGreetingsTouched(true);
+          }}
+          size="sm"
+        >
+          Reset to populated
+        </Button>
+        {score !== null ? (
+          <Button intent="ghost" onClick={selectUnderBar} size="sm">
+            Select what scored under {LOW_SCORE_BAR}
+          </Button>
+        ) : null}
+        <Row className="flex-1" gap="row" justify="end">
           <Button
-            intent="ghost"
             onClick={(): void => {
-              const populated = populatedSelection(card);
-              setFields(populated.fields);
-              setGreetingIndexes(undefined);
-              // "Reset" is an explicit statement about the greeting axis too: every slot, back in scope.
-              setGreetingsTouched(true);
+              // The delta (header): `fields` always; the greeting axis only when addressed, and then
+              // `null` for "every greeting" — absence on the wire means KEEP, which is not what a user
+              // who just checked every slot is saying.
+              onSave({
+                fields: [...fields],
+                ...(greetingsTouched ? { greetingIndexes: greetingIndexes === undefined ? null : [...greetingIndexes] } : {}),
+              });
+              onOpenChange(false);
             }}
             size="sm"
           >
-            Reset to populated
+            Save scope
           </Button>
-          {score !== null ? (
-            <Button intent="ghost" onClick={selectUnderBar} size="sm">
-              Select what scored under {LOW_SCORE_BAR}
-            </Button>
-          ) : null}
-          <Row className="flex-1" gap="row" justify="end">
-            <Button
-              onClick={(): void => {
-                // The delta (header): `fields` always; the greeting axis only when addressed, and then
-                // `null` for "every greeting" — absence on the wire means KEEP, which is not what a user
-                // who just checked every slot is saying.
-                onSave({
-                  fields: [...fields],
-                  ...(greetingsTouched ? { greetingIndexes: greetingIndexes === undefined ? null : [...greetingIndexes] } : {}),
-                });
-                onOpenChange(false);
-              }}
-              size="sm"
-            >
-              Save scope
-            </Button>
-          </Row>
         </Row>
-      </Stack>
-    </FormDialog>
+      </Row>
+    </Stack>
   );
 }

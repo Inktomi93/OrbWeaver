@@ -65,7 +65,7 @@ function LeaderboardRows({ sort }: { readonly sort: SortId }): ReactElement {
   }
 
   return (
-    <Stack className="min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="row" role="list">
+    <Stack className="relative min-h-0 flex-1 overflow-y-auto overscroll-contain" gap="row" role="list">
       {rows.map((row, index) => (
         <ListRow
           key={row.characterId}

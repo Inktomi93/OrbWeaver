@@ -367,7 +367,7 @@ describe("memory/build/digests", () => {
     const ctx = makeChatContext(db, {
       summarize: sum.fn,
       embeddingsStore: store.store,
-      summarizerContextTokens: 64, // far too small — even one message overflows
+      summarizerContextTokens: () => 64, // far too small — even one message overflows
     });
 
     const counts = await generateDigests(ctx, {
@@ -661,7 +661,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     const ctx = makeChatContext(db, {
       summarize: sum.fn,
       embeddingsStore: store.store,
-      summarizerContextTokens: 6000, // above the floor, but the giant oldest message overflows it
+      summarizerContextTokens: () => 6000, // above the floor, but the giant oldest message overflows it
       log: (e) => entries.push(e),
     });
     const counts = await generateDigests(ctx, {
@@ -686,7 +686,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
     const ctx = makeChatContext(db, {
       summarize: sum.fn,
       embeddingsStore: store.store,
-      summarizerContextTokens: 3000, // below the floor (4096) but the tiny block still fits the budget
+      summarizerContextTokens: () => 3000, // below the floor (4096) but the tiny block still fits the budget
       log: (e) => entries.push(e),
     });
     const counts = await generateDigests(ctx, {
@@ -707,7 +707,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
       makeChatContext(db, {
         summarize: fakeSummarize().fn,
         embeddingsStore: wide.store,
-        summarizerContextTokens: 200_000,
+        summarizerContextTokens: () => 200_000,
       }),
       { scope: sharedScope(chatId), config: cfg },
     );
@@ -718,7 +718,7 @@ describe("memory/build/digests — adversarial (self-heal re-digest, tiering, to
       makeChatContext(db, {
         summarize: fakeSummarize().fn,
         embeddingsStore: tight.store,
-        summarizerContextTokens: 6000,
+        summarizerContextTokens: () => 6000,
       }),
       { scope: sharedScope(chatId2), config: cfg },
     );
