@@ -36,7 +36,7 @@ export const ENGINE_LAUNCH_NUMERIC_FIELDS = [
     key: "genRepetitionPenalty",
     label: "Gen repetition penalty",
     step: 0.01,
-    hint: "vLLM --override-generation-config repetition_penalty. Qwen3-VL ships 1.0 (no penalty → the agent-sdk wire can loop to the output cap); 1.05 stops it. 1 = off.",
+    hint: "Sent as repetition_penalty on every gen request whose preset doesn't set one — applies immediately, no restart. 1 = off.",
   },
 ] as const satisfies readonly { key: keyof ResolvedEngineLaunch; label: string; step: number; hint?: string }[];
 

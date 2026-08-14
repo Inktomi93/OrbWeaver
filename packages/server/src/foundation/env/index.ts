@@ -66,13 +66,15 @@ const VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT = 0.5;
 // regime; the gen VL engine at its 4.2M-px cap. ONE home for the two literals the shell hand-carried.
 const VLLM_POOLING_MAX_PIXELS_DEFAULT = 1_843_200;
 const VLLM_GEN_MAX_PIXELS_DEFAULT = 4_194_304;
-// The gen engine's --override-generation-config repetition_penalty (#23). Qwen3-VL ships
-// generation_config.json repetition_penalty=1.0 (no repeat penalty → the agent-sdk /v1/messages path
-// loops to the output cap → api_error, live turn_127). The Anthropic Messages wire carries NO per-request
-// penalty, so the sdk path can't self-correct — it MUST be a LAUNCH default baked into the serve command.
-// 1.0 is the Qwen3-VL-8B-Instruct model-card value (huggingface.co/Qwen/Qwen3-VL-8B-Instruct) — the
-// loop is fixed by pairing this base with the card's presence_penalty 1.5 (applied per-request), not by
-// over-penalizing repetition. ONE home for the literal; env-layered so an admin can retune + restart.
+// The gen engine's default repetition_penalty, applied PER REQUEST by the vLLM chat surface when a preset is
+// silent (#23; the per-request move landed 2026-08-14). It was a `--override-generation-config` LAUNCH flag
+// while the sampler-less agent-sdk /v1/messages wire existed — that wire carried no per-request penalty, so a
+// 1.0-penalty model could loop to the output cap with no way to self-correct. The agent-sdk×vllm pairing was
+// retired 2026-07-27 (roles/dispatch.ts fail-closes it) and every surviving vLLM surface sends samplers on
+// the request, so baking it at launch only meant silently outranking the checkpoint's own
+// generation_config.json on every call. 1.0 = the Qwen card value = no penalty (a preset value always wins;
+// the loop-guard the prose path actually uses is presence_penalty). ONE home for the literal; env-layered ⊕
+// AppSettings so an admin retune applies to the NEXT REQUEST — no engine restart.
 const VLLM_GEN_REPETITION_PENALTY_DEFAULT = 1.0;
 // The gen engine's default PRESENCE penalty applied per-REQUEST by the vLLM chat surface when a preset is
 // silent (Phase B ⑩ item 7). Env-layered ⊕ AppSettings override so an admin can retune the per-launched-model
@@ -280,8 +282,8 @@ const envSchema = z
     VLLM_GEN_GPU_UTIL_SINGLE: z.coerce.number().positive().default(VLLM_GEN_GPU_UTIL_SINGLE_DEFAULT),
     VLLM_POOLING_MAX_PIXELS: z.coerce.number().int().positive().default(VLLM_POOLING_MAX_PIXELS_DEFAULT),
     VLLM_GEN_MAX_PIXELS: z.coerce.number().int().positive().default(VLLM_GEN_MAX_PIXELS_DEFAULT),
-    // The gen engine's --override-generation-config repetition_penalty (#23) — the LAUNCH default that stops
-    // the Qwen3-VL 1.0-penalty output-cap loop on the sampler-less agent-sdk wire. Admin-layerable + restart.
+    // The gen engine's per-REQUEST repetition-penalty default (#23) — applied by the vLLM chat surface when a
+    // preset is silent. Admin-layerable ⊕ AppSettings override; applies on the next request, no restart.
     VLLM_GEN_REPETITION_PENALTY: z.coerce.number().positive().default(VLLM_GEN_REPETITION_PENALTY_DEFAULT),
     // The gen engine's per-REQUEST presence-penalty default (Phase B ⑩ item 7) — applied by the vLLM chat
     // surface when a preset is silent. Admin-layerable ⊕ AppSettings override; OpenAI presence_penalty range.

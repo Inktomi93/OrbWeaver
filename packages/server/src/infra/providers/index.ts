@@ -67,6 +67,9 @@ export interface BackendRegistryDeps {
   /** Live getter for the vLLM chat surface's per-request presence-penalty default (item 7 — engineLaunch
    *  .genPresencePenalty). Read per request so an admin retune applies without a restart. Absent ⇒ the card floor. */
   readonly genPresencePenalty?: VllmBackendDeps["genPresencePenalty"];
+  /** Live getter for the vLLM chat surface's per-request repetition-penalty default (engineLaunch
+   *  .genRepetitionPenalty). Read per request — it stopped being a launch flag 2026-08-14. Absent ⇒ the 1.0 no-op. */
+  readonly genRepetitionPenalty?: VllmBackendDeps["genRepetitionPenalty"];
   /** TASK-24: the provider wire-capture sink. When present, threaded into the agent-sdk + vLLM backends so
    *  their send boundaries record the final request body; absent ⇒ no capture (the prod default). */
   readonly captureWire?: WireCaptureSink;
@@ -112,6 +115,7 @@ function vllmDeps(deps: BackendRegistryDeps): VllmBackendDeps {
     ...(deps.vllmConcurrency !== undefined ? { concurrency: deps.vllmConcurrency } : {}),
     ...(deps.engineLaunch !== undefined ? { engineLaunch: deps.engineLaunch } : {}),
     ...(deps.genPresencePenalty !== undefined ? { genPresencePenalty: deps.genPresencePenalty } : {}),
+    ...(deps.genRepetitionPenalty !== undefined ? { genRepetitionPenalty: deps.genRepetitionPenalty } : {}),
     ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
     ...(deps.repoRoot !== undefined ? { repoRoot: deps.repoRoot } : {}),
     ...(deps.vllmClient !== undefined ? { client: deps.vllmClient } : {}),
@@ -231,6 +235,7 @@ export type {
   ToolCallInput,
   ToolChoice,
   VerifyAuthRequest,
+  VllmChatRequest,
   WarningCode,
   WireCaptureSink,
   WireTool,

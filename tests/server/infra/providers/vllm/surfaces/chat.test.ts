@@ -1,13 +1,14 @@
 // Unit tests for the vLLM streaming CHAT surface — drains a fake SSE byte stream through the SHARED kit
 // reducer. Asserts: text reply accumulation, `reasoning_content` → the CoT channel, live onDelta dispatch,
-// finish-reason + usage mapping, deterministic turn timing (injected `now`), and that a prompt-only
-// (agent-sdk) request is fail-closed. Independent — it only calls `client.engineStream`.
+// finish-reason + usage mapping, deterministic turn timing (injected `now`), and the per-request sampler
+// defaults (presence + repetition) that fill a preset-silent turn. Independent — it only calls
+// `client.engineStream`. The agent-sdk fail-close now lives at the composition seam (`vllm/index.test.ts`):
+// this surface takes {@link VllmChatRequest}, so the state is unrepresentable here.
 
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import type { ChatRequest } from "@orb/server/infra/providers";
-import { ProviderError } from "@orb/server/infra/providers";
+import type { VllmChatRequest } from "@orb/server/infra/providers";
 import { createVllmChat } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
@@ -49,7 +50,7 @@ function clock(): () => number {
   return () => stamps[Math.min(i++, stamps.length - 1)] ?? 1500;
 }
 
-function chatReq(overrides: Partial<ChatRequest> = {}): ChatRequest {
+function chatReq(overrides: Partial<VllmChatRequest> = {}): VllmChatRequest {
   return {
     api: "chat-completions",
     credential: CRED,
@@ -59,7 +60,23 @@ function chatReq(overrides: Partial<ChatRequest> = {}): ChatRequest {
     systemPrompt: { static: "you are terse", dynamic: "" },
     history: [{ role: "user", content: [{ type: "text", text: "hi" }] }],
     ...overrides,
-  } as ChatRequest;
+  } as VllmChatRequest;
+}
+
+// The body-recording client the sampler/wire assertions share (each test reads `sent.body` after the turn).
+function recordingClient(): { client: VllmEngineClient; read: () => Record<string, unknown> | undefined } {
+  let body: Record<string, unknown> | undefined;
+  return {
+    client: {
+      enginePost: () => Promise.reject(new Error("chat must stream")),
+      engineStream: (_lane, _path, sent): Promise<ReadableStream<Uint8Array>> => {
+        body = sent as Record<string, unknown>;
+        return Promise.resolve(sseStream(['{"choices":[{"finish_reason":"stop"}]}']));
+      },
+      baseUrl: () => "http://127.0.0.1:0",
+    },
+    read: () => body,
+  };
 }
 
 describe("createVllmChat", () => {
@@ -252,19 +269,39 @@ describe("createVllmChat", () => {
     expect(seen[0]).toBe(castId<ChatId>("chat_123"));
   });
 
-  test("fail-closes a prompt-only (agent-sdk) request — vLLM speaks only the history wire", async () => {
-    const client = streamingClient([]);
+  // ── the per-request REPETITION-penalty default (engineLaunch.genRepetitionPenalty). This value used to be
+  // baked into the serve command as `--override-generation-config` — a second home that outranked the
+  // checkpoint's own generation_config.json on every request, kept alive only by the retired sampler-less
+  // agent-sdk /v1/messages wire. Preset FIRST, admin default fills the silence, 1.0 (no-op) when neither. ──
+  test("a preset's repetition_penalty reaches the wire body verbatim (preset params are the first authority)", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock(), genRepetitionPenalty: () => 1.05 });
+    await chat(chatReq({ params: { repetitionPenalty: 1.2 } }));
+    expect(read()?.["repetition_penalty"]).toBe(1.2);
+  });
+
+  test("applies the INJECTED genRepetitionPenalty default when the preset is silent (admin retune, per request, no restart)", async () => {
+    const { client, read } = recordingClient();
+    const chat = createVllmChat({ client, now: clock(), genRepetitionPenalty: () => 1.05 });
+    await chat(chatReq({ params: {} }));
+    expect(read()?.["repetition_penalty"]).toBe(1.05);
+  });
+
+  test("re-reads the getter per request — an admin retune governs the NEXT turn with no restart", async () => {
+    const { client, read } = recordingClient();
+    let value = 1.05;
+    const chat = createVllmChat({ client, now: clock(), genRepetitionPenalty: () => value });
+    await chat(chatReq({ params: {} }));
+    expect(read()?.["repetition_penalty"]).toBe(1.05);
+    value = 1.15;
+    await chat(chatReq({ params: {} }));
+    expect(read()?.["repetition_penalty"]).toBe(1.15);
+  });
+
+  test("falls back to the 1.0 no-op when neither the preset nor a getter supplies one", async () => {
+    const { client, read } = recordingClient();
     const chat = createVllmChat({ client, now: clock() });
-    await expect(
-      chat({
-        api: "agent-sdk",
-        credential: CRED,
-        model: MODEL,
-        capability: CAP,
-        params: {},
-        systemPrompt: { static: "s", dynamic: "" },
-        prompt: "hello",
-      } as ChatRequest),
-    ).rejects.toBeInstanceOf(ProviderError);
+    await chat(chatReq({ params: {} }));
+    expect(read()?.["repetition_penalty"]).toBe(1.0);
   });
 });

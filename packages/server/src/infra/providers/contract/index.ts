@@ -70,6 +70,7 @@ export type {
   ResponseFormat,
   ToolCallInput,
   ToolChoice,
+  VllmChatRequest,
   WireTool,
 } from "./chat.ts";
 // ── Infra-internal: the chat role (request/result/usage/finish vocab + the D48 wire-role axis) ───
