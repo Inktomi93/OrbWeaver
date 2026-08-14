@@ -115,7 +115,7 @@ test("StatCell read-only: big value over the caps label, hint on title", async (
 });
 
 test("StatCell editable: display-at-rest big value → click reveals the field; commit fires", async ({ mount, page }) => {
-  let committed = -1;
+  let committed: number | null = -1;
   await mount(
     <StatCell
       label="STR"
@@ -132,6 +132,55 @@ test("StatCell editable: display-at-rest big value → click reveals the field; 
   await field.fill("18");
   await field.blur();
   expect(committed).toBe(18);
+});
+
+// RPG-STAT-CLOBBER's rendered half — an attribute this sheet carries NO value for is the em-dash arm, never a
+// number the host never typed. The kit's never-synthesize-a-reading law applied to the one block that broke
+// it: the panel used to print `profile.range.min` for an unset key, which is how a server-side wipe of a typed
+// `20` read to the owner as "it reverted to 1" instead of "the value is gone".
+test("StatCell unset (read-only): the em-dash arm, not a zero and not a floor", async ({ mount }) => {
+  const component = await mount(<StatCell label="STR" value={null} hint="Strength" />);
+  await expect(component).toContainText("—");
+  await expect(component).not.toContainText("0");
+  await expect(component).toContainText("STR");
+});
+
+test("StatCell unset (editable): the rest cell reads em-dash and opens an EMPTY field", async ({ mount, page }) => {
+  await mount(
+    <StatCell
+      label="STR"
+      value={null}
+      onEditValue={(): void => {
+        // The presence of a handler is what makes the cell EDITABLE; this test asserts the rest/open render
+        // of the unset arm, not the commit (the blank-clears commit is the test below).
+      }}
+    />,
+  );
+  const rest = page.getByRole("button", { name: "STR value" });
+  await expect(rest).toContainText("—");
+  await rest.click();
+  // The editor starts blank — there is no invented floor value for the host to select and delete first.
+  await expect(page.getByRole("textbox", { name: "STR value" })).toHaveValue("");
+});
+
+test("StatCell: BLANKING a set attribute commits null — the clear that un-references the key", async ({ mount, page }) => {
+  // Without this door a filled-in attribute can never leave a sheet, and `updateConfig` then refuses to remove
+  // that attribute from the profile forever (`rpg_profile_referenced_remove` reads the sheets).
+  let committed: number | null = -1;
+  await mount(
+    <StatCell
+      label="STR"
+      value={16}
+      onEditValue={(next): void => {
+        committed = next;
+      }}
+    />,
+  );
+  await page.getByRole("button", { name: "STR value" }).click();
+  const field = page.getByRole("textbox", { name: "STR value" });
+  await field.fill("");
+  await field.blur();
+  expect(committed).toBeNull();
 });
 
 // ── TrackerChip ───────────────────────────────────────────────────────────────────────────────────

@@ -54,9 +54,16 @@ const UNCOMMITTED = 0;
  *  comes back empty and the game-wide `fallback` walk answers with the PREVIOUS speaker's still-uncommitted
  *  draft — a row at an EARLIER slot. Editing that in place put the host's edit on a row the in-flight flush's
  *  own row then strictly outranked, and the edit vanished silently, auto-lock and all (a group round is the
- *  live shape: two assistants speak back-to-back, so no `onUserCommit` has locked the first row in). Requiring
- *  the `turn` ARM makes `inPlace` mean what its name says; the fallback case correctly clones forward instead,
- *  where the hand row's ladder rung protects it. */
+ *  live shape: two assistants speak back-to-back, so no `onUserCommit` has locked the first row in).
+ *
+ *  THE `turn` ARM ALONE NO LONGER CARRIES THAT MEANING, AND THE SEQ CHECK RESTORES IT (RPG-REWIND-STUCK,
+ *  2026-08-13). The 08-07 fix read "`arm === "turn"`" as "this row is at the ladder's TIP", which was true only
+ *  because the turn arm inspected exactly ONE slot: an in-flight flush made it go dark, and the earlier row came
+ *  back wearing `fallback`. The turn arm now WALKS DOWN the selected lineage (`persistence/snapshots.ts`), so
+ *  that very same earlier uncommitted draft comes back wearing `turn` — which would have silently reopened the
+ *  2026-08-07 loss. The tip test is therefore made EXPLICIT rather than inferred from the arm: the head must sit
+ *  at the story's CURRENT beat. `findLatestAssistantSlotSeq` is the same "which beat is the story on" reader the
+ *  flush's fold uses, so the two cannot disagree about the tip. */
 async function resolveHead(
   ctx: RpgContext,
   game: RpgGameRow,
@@ -70,8 +77,10 @@ async function resolveHead(
     return { inPlace: null, state: defaultSnapshotState(), locks: null };
   }
   const { row } = head;
+  const atCurrentBeat = head.seq === (await findLatestAssistantSlotSeq(ctx.db, game.chatId));
   return {
-    inPlace: head.arm === "turn" && row.variantId !== null && row.committed === UNCOMMITTED ? { snapshotId: row.id, variantId: row.variantId } : null,
+    inPlace:
+      head.arm === "turn" && atCurrentBeat && row.variantId !== null && row.committed === UNCOMMITTED ? { snapshotId: row.id, variantId: row.variantId } : null,
     state: snapshotRowToState(row),
     locks: row.fieldLocks,
   };

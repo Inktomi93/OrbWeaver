@@ -188,7 +188,9 @@ export interface PatchSheetParams {
   readonly actorRef: RpgActorRef;
   readonly patch: {
     readonly className?: string | undefined;
-    readonly attributes?: Readonly<Record<string, number>> | undefined;
+    // A [merge-clear] sub-patch, NOT an image (RPG-STAT-CLOBBER): a named key writes, an omitted key keeps, an
+    // explicit `null` clears. The panel writes one cell at a time, so a whole-record replace erased the rest.
+    readonly attributes?: Readonly<Record<string, number | null>> | undefined;
     // The per-actor TRACKER EXCEPTIONS (the applicability model) — tracker KEYS granted to / revoked from
     // THIS actor against its carrier class. Whole-list replace; defs themselves live in `config.trackers`.
     // HOST-ONLY (grants are the host's call): a member naming either field is refused at the verb, even on
