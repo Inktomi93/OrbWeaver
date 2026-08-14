@@ -14,9 +14,6 @@
   },
   "cssEntry": ".ds-preview-tokens.css",
   "buildCmd": "cp ../client/dist/assets/index-*.css .ds-preview-tokens.css",
-  "runtimeFontPrefixes": [
-    "Geist"
-  ],
   "dtsPropsFor": {
     "WebWeave": "state?: \"weaving\" | \"settled\" | \"partial\" | \"strand-out\"; seed?: number; hub?: { x: number; y: number }; dim?: number; spider?: boolean; glow?: boolean; onSettled?: () => void; onPhaseChange?: (phase: string) => void; className?: string;",
     "WeaveVeil": "open: boolean; onExited?: () => void; label: string; children?: React.ReactNode; className?: string;",
@@ -31,5 +28,9 @@
       "cardMode": "column"
     }
   },
-  "readmeHeader": ".design-sync/conventions.md"
+  "readmeHeader": ".design-sync/conventions.md",
+  "extraFonts": [
+    ".ds-preview-fonts/katex.css",
+    ".ds-preview-fonts/geist.css"
+  ]
 }

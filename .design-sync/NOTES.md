@@ -51,3 +51,20 @@ These go to the design agent via the conventions header; fixes land back in
   (expected-absent statically) · [FONT_DANGLING] 12 KaTeX faces (math fonts, /assets urls not in
   bundle — irrelevant to the weave scope) · [EXPORT_COLLISION] WebSpinner via extraEntries + pin =
   same source file, same binding, harmless.
+
+## Design-agent requests honored / carried (2026-08-14, post-first-review)
+
+- **Fonts SHIPPED mid-session** (the design side was blocked on them): KaTeX woff2/woff/ttf staged
+  from client dist with STABLE names (hash stripped) in `packages/ui/.ds-preview-fonts/` +
+  `katex.css`; Geist + Geist Mono VARIABLE woff2s downloaded from the official vercel/geist-font
+  repo (OFL-1.1) + `geist.css`. Both wired via `extraFonts`; `runtimeFontPrefixes` dropped (Geist
+  is real now). RE-STAGE after a client rebuild: re-run the katex extraction (stable-name copy from
+  `packages/client/dist/assets/KaTeX_*`) — the geist files never rot.
+- **Carried to next sync (design-agent request, not yet done):** mark the ~49 `--tw-*` custom
+  properties as `/* @kind other */` or exclude them from token classification (they're Tailwind
+  runtime plumbing, not theme tokens); hoist any REAL theme tokens out of component-scoped
+  selectors repo-side (4 flagged under component selectors).
+- The motion-review handoff was fetched back: spec at `docs/design/web-weave-motion-fixes.md`,
+  reference impl at `docs/design/mocks/fixed-weave-reference.js` (read-only evidence). The project's
+  `templates/motion-review/` dir is the DESIGN AGENT'S working area — never delete it in a
+  reconciliation pass without checking for new handoffs first.
