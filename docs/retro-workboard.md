@@ -127,6 +127,7 @@ injected ops). Read `docs/architecture/core/AGENTS.md` IN FULL before any work.
 | 08-14 | **R0 in-lane rulings (orchestrator, receipted):** squash rides R0 per tree law (Tier-1-DB regime 1 + baseline-single-migration gate — the brief's "additive only" line was WRONG, lane correctly refused) · stats rebuild-from-canon gets the SAME husk exclusion as the live delta (drift-gate contract; fence extended, no stats lane live) · host writes CLAIM incl. pre-first-turn greeting edits (F4(a) letter; losing hand-edits > premature visibility) · R0-early delta accepted: refused send → hidden husk reaped at 24h, recorded as-built. |
 | 08-14 | **Client cross-feature calls (owner, verbatim): "chat and character can call whatever they want on the client if they use proper channels/methods like trpc or etc."** Features still never import each other's INTERNALS, but any feature may fire any tRPC verb through the proper tiers (#data hooks / createEntityMutation) — no capability ceremony, no registry indirection required for a plain cross-feature mutation. Applied live to R1's use-start-chat.ts home. |
 | 08-14 | **BRIDGE FORKS F-A..F-G = ALL SEVEN ON RECS (question tool, midday):** gate-free `chatDeleted` to still-attached pumps (F-A, unblocks LANE 2) · bulk quiet window silences the room fan w/ coarse terminal per (room, kind) · ONE `roomEntityChanged` member with an `entity` enum · migrate the built character fan in the SAME wave (no double-fan) · databank/regex twins deferred as candidate rows under the SEATED-red gate arm · preset "host changed model" notice = registry-row end condition only, no build · rename `withQuietUserEvents` when it learns room pairs. LANE 1 dispatched (doc §10 1-7 = the spec). **SHAPE-CHURN = PROBE FIRST** (doc §4 live probe settles M1 table-promotion vs M4 reasoning-mount before any arm builds; probe lane dispatched). |
+| 08-14 | **EVENING SITTING (question tool):** guard **D GO** (quoted rm-rf target fix, own A/B leg — lane `guard-quoted-rm` dispatched); A/B narrowings NOT taken (stay strict — absence of a pick is not consent to loosen); E stays defer · **M4 probe config AUTHORIZED** (reasoning-emitting connection on a scratch room, restore after; lane queued next slot) · **client second belt SKIP** (server boundary suffices, twin-pinned) · **max-output KEEP 2048** (longer-outputs row CLOSES as ruled-keep). Also: **lanes-full posture re-affirmed** (owner: "stop worrying so much about draining, keep them lanes full"). |
 | standing | persona↔rpg linkage DO-NOT-BUILD (persona-pin flavor recorded) · persona reading-B OFF THE TABLE (re-affirmed 08-08 after full walkthrough) · presets are GLOBAL, never per-room · WIRE\_CAPTURE on = deliberate debugging posture |
 | open | *(none — every fork ruled as of the 08-09 midday sitting; new forks append here)* |
 
@@ -814,10 +815,11 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
 - [ ] **Low-scan gates, human eye when convenient (denominators visible for the first time):**
   bus-payload-allowlist 5 files · modal-body-not-placeholder 7 · selection-store-via-factory 9 ·
   turn-identity 10 — presumably intended-narrow; no invented threshold added, just now readable.
-- [ ] **Residue-lane smalls:** ~~genRepetitionPenalty relocation~~ ALREADY-DONE (smalls-client
-  receipt: system-tuning-section.tsx:32 owns it, negative marker at engine-launch-fields.ts:35-37,
-  CT :94) · REMAINING: tighten `no-test-fabrication.baseline.json` for chat.test.ts 2→1
-  (gate-ledger edit, do at a quiet moment).
+- [x] **Residue-lane smalls: FULLY CLOSED (both halves already-done):** genRepetitionPenalty
+  relocation (smalls-client receipt) · the baseline 2→1 ratchet ALREADY LANDED in `64110bcc5`
+  (chat-smalls lane receipt: `git log -p -- …baseline.json`; the row's path was a guess — the real
+  row `vllm/surfaces/chat.test.ts` is already 1, no domain-chat row exists). Eighth stale
+  row/half-row of 08-14.
 - [ ] **AST TWO-CORPORA ASYMMETRY (ruling needed; surfaced by the scan ledger, deliberately NOT fixed
   in-lane — it changes match semantics):** syntactic verbs (callers/importers/exports/jsx/ident/aliases/
   regkeys) load harness-globs and are structurally BLIND to `scripts/**`, `packages/*/*.ts`, `*.mts`,
@@ -1372,9 +1374,10 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   worth ONE scoped check at leisure: whether every PHASE of the program (D then C then the agent
   wave) completed, or only the C1 substrate legs — the ledger entry covers the substrate; the agent
   wave was always a later phase.
-- [ ] **#33 templating rows 53-73 (ARM B, server composes)** — wire carries toggle KINDS only, server
-  joins the 21 fragments via prose slots. Spec exists: `docs/design/templating-fork-rows-53-73.md`.
-  Parked under the 08-08 dispatch freeze.
+- [x] **#33 templating: CLOSED — BUILT (seventh stale row of 08-14).** The spec's own header:
+  "RULED ARM B and BUILT in the same pass" — `af46eeda7` merge + `90ae6aa30` ("the 21 steer
+  fragments become server-composed preset slots"). The row outlived its build by days; caught at
+  dispatch re-derive.
 - [ ] **#30 R4** · **#31 agents naming** · **#32 CLS + tab-strip** — all three "stay PARKED until the owner
   lifts it" (08-08 freeze).
 - [ ] **#52 demo-pack v4 + record-demo harness** — regenerate six transcripts through the current
