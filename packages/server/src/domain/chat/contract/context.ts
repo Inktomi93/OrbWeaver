@@ -487,9 +487,9 @@ export type PresenceReadOp = (userId: UserId) => Promise<PresenceView>;
  *  WHO registers: it invokes the two fixed points, the registry owns the ordering + deadline discipline. */
 export type ApplyPromptTransformsOp = (point: PromptTransformPoint, chatId: ChatId, draft: string, vars: Record<string, string>) => Promise<string>;
 
-/** The D50 PromptTransform registrar surface (automation-design/04 §6) — created ONCE at the composition root
+/** The D50 PromptTransform registrar surface — created ONCE at the composition root
  *  (`createPromptTransformRegistry`). Its `apply` is injected as {@link ApplyPromptTransformsOp}
- *  (`ChatContext.promptTransforms`); `register`/`unregister` are wired to automation's rule lifecycle (A7) +
+ *  (`ChatContext.promptTransforms`); `register`/`unregister` are wired to automation's rule lifecycle +
  *  the plugin host as `transform_draft` rules enable/disable. */
 export interface PromptTransformRegistry {
   readonly apply: ApplyPromptTransformsOp;

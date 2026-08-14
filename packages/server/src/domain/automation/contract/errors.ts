@@ -1,12 +1,12 @@
 // domain/automation/contract/errors — the automation slice's typed errors. A cap/shape/validation violation
 // is an INVALID operation (`DomainOperationError` → BAD_REQUEST); a missing rule collapses to a leak-free
 // not-found (`DomainNotFoundError` → NOT_FOUND). The DB CHECK is the ultimate guard for stored shapes; the
-// pre-validation here gives a clean, typed refusal before the write. A4 adds the rule-lifecycle errors.
+// pre-validation here gives a clean, typed refusal before the write. The rule-lifecycle errors are added below.
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { AutomationRuleId, ChatId } from "@orb/kit/ids";
 
-/** A global-variable key/value violates its cap (02 §4 — key ≤ 128 chars, value ≤ 64 KiB, key non-empty). */
+/** A global-variable key/value violates its cap (key ≤ 128 chars, value ≤ 64 KiB, key non-empty). */
 export class GlobalVariableInvalidError extends DomainOperationError {
   constructor(reason: string) {
     super("global_variable_invalid", reason);
@@ -14,7 +14,7 @@ export class GlobalVariableInvalidError extends DomainOperationError {
 }
 
 /** `createRule`/`updateRule` refused: the trigger is a RESERVED tuple member (typed but not wired v1 —
- *  01 §1). A user-visible refusal, never a silent no-op. */
+ *  never wired in v1). A user-visible refusal, never a silent no-op. */
 export class AutomationReservedTriggerError extends DomainOperationError {
   constructor(triggerType: string) {
     super("automation_reserved_trigger", `trigger '${triggerType}' is reserved (not wired in v1)`);
@@ -24,7 +24,7 @@ export class AutomationReservedTriggerError extends DomainOperationError {
 
 /** `createRule`/`updateRule` refused for a validation reason other than a reserved trigger: a reserved
  *  action arm, an unparseable CEL predicate, an out-of-range arm cap, a cooldown floor violation, or an
- *  unattached world-info book (03 §1 / 02 §1). Carries a machine `code` for the editor's inline surface. */
+ *  unattached world-info book. Carries a machine `code` for the editor's inline surface. */
 export class RuleValidationError extends DomainOperationError {
   constructor(code: string, reason: string) {
     super(`automation_rule_${code}`, reason);

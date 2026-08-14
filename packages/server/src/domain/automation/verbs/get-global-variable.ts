@@ -1,4 +1,4 @@
-// verb: getGlobalVariable — owner-scoped read of the per-user global plane (02 §4). A foreign-owned or
+// verb: getGlobalVariable — owner-scoped read of the per-user global plane. A foreign-owned or
 // absent key reads as `null` (the owner predicate is in the query — a caller never learns another user's
 // keys exist).
 

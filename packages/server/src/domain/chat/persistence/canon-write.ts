@@ -239,7 +239,7 @@ export function insertCanonMessageStatements(db: Db, params: InsertCanonMessageP
         personaId: params.personaId ?? null,
         selectedVariantId: null,
         excludedFromPrompt: params.excludedFromPrompt ?? false,
-        // Origin (03 §4) — omitted stays the DB default ('human'/0), so a human/character commit is
+        // Origin — omitted stays the DB default ('human'/0), so a human/character commit is
         // byte-identical; an automation new-slot turn threads its initiator + cascade depth.
         ...(params.initiator !== undefined ? { initiator: params.initiator } : {}),
         ...(params.automationDepth !== undefined ? { automationDepth: params.automationDepth } : {}),

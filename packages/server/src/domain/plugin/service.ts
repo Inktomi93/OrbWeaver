@@ -22,7 +22,7 @@ export function createPluginService(ctx: PluginContext): PluginService {
   // here so activate/deactivate + getLog share the same live map.
   const registry: PluginRegistry = new Map();
   const deactivate = createDeactivate(ctx, registry);
-  // The crash policy (03 §4) drives the resident-tool invoke loop inside activation: a handler throw bumps the
+  // The crash policy drives the resident-tool invoke loop inside activation: a handler throw bumps the
   // counter (auto-disable + owner-notify at the threshold), a clean run resets it.
   const crashPolicy = createCrashPolicy(ctx, deactivate);
   const activate = createActivate(ctx, registry, crashPolicy);

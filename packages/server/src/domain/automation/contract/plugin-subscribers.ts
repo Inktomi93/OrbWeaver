@@ -1,5 +1,5 @@
-// domain/automation/contract/plugin-subscribers — the plugin `events.on` fan-out SEAM types (plugin-design/04
-// §P4). Homed in its OWN contract file (not `ops.ts`) so the membrane-host wiring seam is disjoint from the
+// domain/automation/contract/plugin-subscribers — the plugin `events.on` fan-out SEAM types.
+// Homed in its OWN contract file (not `ops.ts`) so the membrane-host wiring seam is disjoint from the
 // injected cross-feature op bundle. The IMPLEMENTATION (registry + fan-out with the three gates) is
 // `substrate/plugin-subscribers`; this is the type-only contract the compose root + the membrane host share.
 
@@ -18,10 +18,10 @@ export interface PluginTriggerSubscriber {
    *  no admitted opaque handle, so the fan-out itself is the caller-gate (INFO-5 / injected-op-caller-gate). */
   readonly installer: UserId;
   /** The trigger types this plugin DECLARED (its `events.on(type,…)` registrations) — only these deliver
-   *  (the declared-match gate). A plugin gets no private event vocabulary — the SAME closed taxonomy (01 §1). */
+   *  (the declared-match gate). A plugin gets no private event vocabulary — the SAME closed taxonomy. */
   readonly declaredEvents: ReadonlySet<AutomationTrigger["type"]>;
   /** Cascade opt-in — mirrors the rule's `matchAutomationEvents` column so ONE depth guard serves both
-   *  (04 §P4 flag 3). `false` ⇒ only human-plane (depth 0) facts reach this plugin; a depth ≥ 1 cascade fact
+   *  `false` ⇒ only human-plane (depth 0) facts reach this plugin; a depth ≥ 1 cascade fact
    *  is suppressed. The HARD depth cap (`AUTOMATION_DEPTH_HARD_CAP`) applies regardless of this opt-in. */
   readonly matchAutomationEvents: boolean;
   /** Deliver one matched, authorized fact into the guest, tagged with the fact's resolved cascade depth (the

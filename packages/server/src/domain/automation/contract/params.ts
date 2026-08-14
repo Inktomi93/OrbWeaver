@@ -1,6 +1,6 @@
 // domain/automation/contract/params — the *Params for the automation verbs. Each wraps the acting
-// `principal`; the global-variable verbs (A3) scope by `principal.userId` (single-owned plane, 02 §4 / D18);
-// the rule-lifecycle verbs (A4) gate `can(principal, "host", …)` over the chat's membership. The wire
+// `principal`; the global-variable verbs scope by `principal.userId` (single-owned plane, D18);
+// the rule-lifecycle verbs gate `can(principal, "host", …)` over the chat's membership. The wire
 // vocabulary (trigger/action shapes) lives in `@orb/contracts/automation`; these are server-internal call
 // shapes.
 
@@ -31,9 +31,9 @@ export interface ListGlobalVariablesParams extends AutomationActorParams {
   readonly prefix?: string;
 }
 
-// ── rule-lifecycle verb params (A4) ─────────────────────────────────────────────────────────────
-// Every rule verb gates `can(principal, "host", {kind:"chat", roster})` over the chat's membership (04 §2 —
-// rule authoring IS room authority in v1). The editable field set is shared by create + update (a PUT-style
+// ── rule-lifecycle verb params ──────────────────────────────────────────────────────────────────
+// Every rule verb gates `can(principal, "host", {kind:"chat", roster})` over the chat's membership
+// (rule authoring IS room authority in v1). The editable field set is shared by create + update (a PUT-style
 // replace; `updateRule` re-runs the same validation and resets `consecutive_errors`).
 
 /** The editable rule fields shared by `createRule` + `updateRule`. Defaults (born disabled, position, the
@@ -50,7 +50,7 @@ interface RuleEditableParams {
 }
 
 export interface CreateRuleParams extends AutomationActorParams, RuleEditableParams {
-  /** v1 rules are chat-scoped (the nullable owner-global column is born-not-wired — 04 §1). */
+  /** v1 rules are chat-scoped (the nullable owner-global column is born-not-wired). */
   readonly chatId: ChatId;
 }
 
@@ -93,13 +93,13 @@ export interface SetBudgetsParams extends AutomationActorParams {
 }
 
 /** The dry-run: a host-supplied `sampleEvent` (or a synthesized minimal fact from the rule's trigger) is
- *  evaluated + every arm rendered, executing nothing (04 §2). */
+ *  evaluated + every arm rendered, executing nothing. */
 export interface TestRuleParams extends AutomationActorParams {
   readonly ruleId: AutomationRuleId;
   readonly sampleEvent?: TriggerFact;
 }
 
-/** The `automation.stream` subscribe-time authority resolve (04 §5): the caller's tier over the chat, or a
+/** The `automation.stream` subscribe-time authority resolve: the caller's tier over the chat, or a
  *  leak-free NOT_FOUND for a non-present member. Member-level (NOT host-gated) — the room-visible
  *  `quickReplySurfaced` chips reach every participant; the tier only decides whether the host-only events
  *  (fire/error/disable) also flow. */

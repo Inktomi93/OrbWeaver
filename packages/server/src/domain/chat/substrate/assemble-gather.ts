@@ -397,7 +397,7 @@ export async function gatherAssembleContext(
       // Threaded RAW — `buildAssembleContext` owns the `?? null` floor (one home for the fail-closed default).
       triggerUserId: args.triggerUserId,
       recentMessages,
-      // The user/WI injections + a game turn's depth-0 reminder injection(s) (05 §1); absent rpg ⇒ unchanged.
+      // The user/WI injections + a game turn's depth-0 reminder injection(s); absent rpg ⇒ unchanged.
       // The rpg reminder is stamped `game-state` HERE (the ONE merge site) so the BUILD walk can account the
       // state block as its own budget source without chat ever reading an rpg type.
       userInjections: [...injectionRows.map(toChatInjection), ...(args.rpgInjections ?? []).map((i): ChatInjection => ({ ...i, origin: "game-state" }))],

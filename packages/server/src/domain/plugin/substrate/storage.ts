@@ -1,4 +1,4 @@
-// domain/plugin/substrate/storage — the `storage.kv` host op (01 §2 / 02 §3): the plugin-PRIVATE KV wrapping
+// domain/plugin/substrate/storage — the `storage.kv` host op: the plugin-PRIVATE KV wrapping
 // `persistence/plugin-kv` with the HOST-SIDE caps the DDL cannot express. Every op is keyed by BOTH pluginId AND
 // ownerId (the persistence guard filter), so plugin A can never read plugin B's keys and no cross-owner read is
 // possible. The value/key BYTE caps are DDL CHECKs (persistence surfaces them); this layer owns the 256-key cap
@@ -11,7 +11,7 @@ import type { PluginId, UserId } from "@orb/kit/ids";
 import type { PluginHostOps } from "../contract/ops.ts";
 import { countKeys, deleteKv, getKv, listKv, upsertKv } from "../persistence/plugin-kv.ts";
 
-/** The per-plugin key ceiling (02 §3 — "≤ 256 keys/plugin"). Enforced HERE (a count the DDL cannot do); the
+/** The per-plugin key ceiling ("≤ 256 keys/plugin"). Enforced HERE (a count the DDL cannot do); the
  *  value/key BYTE caps are DDL CHECKs. ONE home for the count cap. */
 export const PLUGIN_KV_MAX_KEYS = 256;
 

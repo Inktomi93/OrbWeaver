@@ -1,4 +1,4 @@
-// verb: resolveStreamAuthority — the `automation.stream` subscribe-time visibility gate (04 §5). The
+// verb: resolveStreamAuthority — the `automation.stream` subscribe-time visibility gate. The
 // automation bus is member-visible for ONE event (`quickReplySurfaced` — the room's transient chips); the
 // rule fire/error/disable events are the host's hidden hand (host only). So this is a MEMBER gate, not the
 // host gate the rule-lifecycle verbs use: a NON-present member collapses to a leak-free AutomationChatNotFound

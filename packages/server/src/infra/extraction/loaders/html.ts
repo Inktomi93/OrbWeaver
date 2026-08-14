@@ -1,8 +1,8 @@
-// infra/extraction/loaders/html.ts — the html loader (html-to-text, 04 §2). script/style/head are dropped by
+// infra/extraction/loaders/html.ts — the html loader (html-to-text). script/style/head are dropped by
 // html-to-text's defaults; we additionally SKIP nav/footer chrome, render links → their text (drop hrefs), and
 // turn wordwrap OFF so lines aren't hard-wrapped mid-sentence. Headings are NOT uppercased (html-to-text's
-// default) — the pipeline does not case-fold; the text is canon (04 §2). `title` comes from `<title>`.
-// LEAN (04 §2): if scraped-page nav/footer noise measurably pollutes retrieval, add a Readability isolation
+// default) — the pipeline does not case-fold; the text is canon. `title` comes from `<title>`.
+// LEAN: if scraped-page nav/footer noise measurably pollutes retrieval, add a Readability isolation
 // pass in FRONT of this same loader — deferred until a retrieval-quality complaint traces to it.
 
 import { convert } from "html-to-text";

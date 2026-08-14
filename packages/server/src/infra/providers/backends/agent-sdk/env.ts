@@ -230,7 +230,7 @@ export function buildClaudeOpenRouterEnv(
   };
 }
 
-// mode-4: first-party Anthropic direct — the bundled runtime's NATIVE `x-api-key` path (W11 owner ruling:
+// mode-4: first-party Anthropic direct — the bundled runtime's NATIVE `x-api-key` path (owner ruling:
 // a user may run their AGENTS on their own paid Anthropic key). ANTHROPIC_API_KEY carries the real key;
 // ANTHROPIC_BASE_URL is deliberately NOT set, so the runtime talks to api.anthropic.com directly (its
 // default). Ambient-credential discipline: every OAuth/identity/

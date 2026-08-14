@@ -1,4 +1,4 @@
-// verb: deleteGlobalVariable — owner-scoped removal of a per-user global (02 §4). Idempotent: deleting an
+// verb: deleteGlobalVariable — owner-scoped removal of a per-user global. Idempotent: deleting an
 // absent (or foreign-owned) key is a no-op — the owner predicate is in the query.
 
 import type { DeleteGlobalVariableParams } from "../contract/params.ts";

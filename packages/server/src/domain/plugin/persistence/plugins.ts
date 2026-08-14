@@ -1,7 +1,7 @@
-// domain/plugin/persistence/plugins — all `plugins`-row db access (02 §3). Owner-scoped by construction: every
+// domain/plugin/persistence/plugins — all `plugins`-row db access. Owner-scoped by construction: every
 // read filters `ownerId` (the single-owner partition key), so a foreign/missing id is indistinguishable
 // (leak-free). The row's FULL manifest json is the provenance source `PluginView.builtAgainst` lifts from
-// (no denormalized column — 02 §3). Queries only: authority (`can`), grant math, and CAS ordering live in the
+// (no denormalized column). Queries only: authority (`can`), grant math, and CAS ordering live in the
 // verbs.
 
 import type { PluginCapability, PluginManifest, PluginOrigin, PluginStatus } from "@orb/contracts/plugin";
@@ -14,8 +14,8 @@ import type { PluginView } from "../contract/results.ts";
 /** The stored `plugins` row. Homed as the db `$inferSelect` (the RuleRow precedent) — persistence's unit. */
 type PluginRow = typeof plugins.$inferSelect;
 
-/** Project a row to the owner-facing `PluginView` (02 §4). `builtAgainst` is lifted from the persisted manifest
- *  json (provenance rides INSIDE the manifest — no column, 02 §3); `null` when the manifest declared none. */
+/** Project a row to the owner-facing `PluginView`. `builtAgainst` is lifted from the persisted manifest
+ *  json (provenance rides INSIDE the manifest — no column); `null` when the manifest declared none. */
 export function toPluginView(row: PluginRow): PluginView {
   return {
     id: row.id,
@@ -96,7 +96,7 @@ export async function listOwned(db: Db, ownerId: UserId): Promise<PluginRow[]> {
 }
 
 /** Set the lifecycle status (+ `lastError`), stamping `updatedAt`. `lastError` clears to null on a clean
- *  enable/disable; carries the failure detail on an activation error (03 §4). */
+ *  enable/disable; carries the failure detail on an activation error. */
 // @owner-scope-write-ok: the lifecycle write. The `plugins` row's owner is the installing principal;
 // every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped
 // `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a
@@ -109,7 +109,7 @@ export async function setStatus(
   await db.update(plugins).set({ status: update.status, lastError: update.lastError, updatedAt: update.updatedAt }).where(eq(plugins.id, pluginId));
 }
 
-/** The upgrade write (02 §4): swap the manifest-derived fields + the re-stored bundle asset + the recomputed
+/** The upgrade write: swap the manifest-derived fields + the re-stored bundle asset + the recomputed
  *  grant, and set the resulting status (`disabled` when new caps were declared, else the prior status). Local
  *  (the upgrade verb builds it inline). */
 interface UpgradePluginRow {
@@ -142,7 +142,7 @@ export async function applyUpgrade(db: Db, pluginId: PluginId, row: UpgradePlugi
     .where(eq(plugins.id, pluginId));
 }
 
-/** Increment the consecutive-crash counter (03 §4), returning the NEW count so the crash policy can decide the
+/** Increment the consecutive-crash counter, returning the NEW count so the crash policy can decide the
  *  auto-disable threshold. Stamps `updatedAt`. */
 // @owner-scope-write-ok: the crash-policy counter, written by the activation plane over the id it was activated with. The `plugins` row's owner is the installing principal;
 // every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped
@@ -157,7 +157,7 @@ export async function incrementCrashes(db: Db, pluginId: PluginId, updatedAt: nu
   return rows[0]?.consecutiveCrashes ?? 0;
 }
 
-/** Reset the consecutive-crash counter to 0 (a clean invocation — 03 §4). */
+/** Reset the consecutive-crash counter to 0 (a clean invocation). */
 // @owner-scope-write-ok: the crash-policy reset, written by the activation plane over the id it was activated with. The `plugins` row's owner is the installing principal;
 // every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped
 // `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a
@@ -166,7 +166,7 @@ export async function resetCrashes(db: Db, pluginId: PluginId, updatedAt: number
   await db.update(plugins).set({ consecutiveCrashes: 0, updatedAt }).where(eq(plugins.id, pluginId));
 }
 
-/** Record an activation/invocation failure detail (03 §4) without touching status. */
+/** Record an activation/invocation failure detail without touching status. */
 // @owner-scope-write-ok: the activation error detail, written by the activation plane over the id it was activated with. The `plugins` row's owner is the installing principal;
 // every user-facing plugin verb (`set-enabled`/`upgrade`/`uninstall`) loads it through the owner-scoped
 // `getById(db, caller.userId, pluginId)` and throws `PluginNotFoundError` before any write. Ends the day a

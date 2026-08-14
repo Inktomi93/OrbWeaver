@@ -38,7 +38,7 @@ import { currentSnapshotState, snapshotStateBeforeSlot } from "../snapshot-edit.
  *  cap drops the host's own lowest-priority pins, never an arbitrary set). */
 const TRACKER_ORB_MAX = 6;
 
-/** Slice the durable append-only `recentEvents` log to the last N for the reminder (P3 fold — `keepLast === 0`
+/** Slice the durable append-only `recentEvents` log to the last N for the reminder (`keepLast === 0`
  *  drops the block; the durable log is untouched, the journal keeps the full record).
  *
  *  EXPORTED for ONE other consumer: the member→host fork's beat strip (`fork-game.ts::stripBeatsForForker`).

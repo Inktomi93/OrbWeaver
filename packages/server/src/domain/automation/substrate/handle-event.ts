@@ -1,4 +1,4 @@
-// domain/automation/substrate/handle-event — the watcher front door (A5; 01 §3 step 2). SUBSTRATE mediates
+// domain/automation/substrate/handle-event — the watcher front door. SUBSTRATE mediates
 // the verbs↔subsystem seam (the engine is a named subsystem verbs can't reach directly). The watcher subsystem
 // stays dumb and hands every bus event here; this does the cheap in-process pre-check (skip a chat with no
 // enabled rule / a domain event with no enabled domain rule — no DB touch), resolves the taxonomy fact ONCE,
@@ -25,7 +25,7 @@ function isDomainEvent(event: BusEvent): event is DomainEvent {
   return event.type.includes(".");
 }
 
-/** The cheap in-process gate (01 §3 step 1) — whether ANY enabled RULE could match this event without a DB
+/** The cheap in-process gate — whether ANY enabled RULE could match this event without a DB
  *  read. The plugin fan-out has its own (also in-process) interest pre-check (`hasSubscriberFor`). */
 function rulesInterested(ctx: AutomationContext, domain: boolean, chatId: ChatId | null): boolean {
   if (domain) {
@@ -51,7 +51,7 @@ function loadMatchedRules(
 }
 
 /** The resolve → fan-out + dispatch core (throws propagate to the self-safe wrapper). The resolved fact feeds
- *  TWO independent consumers: the rule dispatch AND the plugin `events.on` fan-out (plugin-design/04 §P4).
+ *  TWO independent consumers: the rule dispatch AND the plugin `events.on` fan-out.
  *  Either alone is enough to resolve the fact — a chat with no rules but a plugin subscriber still delivers,
  *  and vice versa. When NEITHER is interested the event is dropped before any DB read (the pre-check no-op). */
 async function handle(ctx: AutomationContext, event: BusEvent): Promise<void> {

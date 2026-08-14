@@ -1,7 +1,7 @@
 // domain/automation/contract/ops — the injected cross-feature op TYPES (domain-no-cross-feature; wired at
-// entry/compose) + the dispatch seam A6 plugs its arm executors into. A5 declares ONLY the READ ops the
+// entry/compose) + the dispatch seam the arm executors plug into. `AutomationOps` declares the READ ops the
 // watcher/fact-resolver/CEL-env need (chat-owned projections — turn origin, the selected-variant message
-// fact, the runtime fold cache, the config-plane picks). A6 WIDENS `AutomationOps` with the action ops
+// fact, the runtime fold cache, the config-plane picks) WIDENED with the action ops
 // (applyVariableOps, worldInfo, notifications, imagery) and wires the `runArm` dispatcher — no stubs,
 // no reserved slots here. Principal minting stays at the entry seam (`resolveAuthor`) — the domain never
 // constructs a Principal (the tier-collapse the constitution forbids).
@@ -33,14 +33,14 @@ export interface ResolvedTrigger {
  *  per-rule-hour / per-chat-hour loop-safety belt). */
 export type BudgetVerdict = { readonly ok: true } | { readonly ok: false; readonly detail: string };
 
-/** A turn's origin as the cascade guard reads it (chat's `getTurnOrigin`, 03 §4) — the initiator + the depth
+/** A turn's origin as the cascade guard reads it (chat's `getTurnOrigin`) — the initiator + the depth
  *  the turn ran at. `null` when the ref names no committed reply slot in the chat. */
 export interface TurnOriginRead {
   readonly initiator: TurnInitiator;
   readonly automationDepth: number;
 }
 
-/** The `generate_image` arm's request onto imagery (03 §1.7). Carries the FULL IC-C args — INCLUDING
+/** The `generate_image` arm's request onto imagery. Carries the FULL IC-C args — INCLUDING
  *  `subjectCharacterId`/`useAvatarReference`, which the D48 TOOL schema had to omit (JSON-Schema projection,
  *  the I4 lesson): the automation action args are human/config-authored and NOT projected, so this arm is the
  *  non-projected home those fields live in. Compose maps this onto imagery's `GeneratePictureParams` (resolving
@@ -51,11 +51,11 @@ export interface AutomationImageRequest {
   /** The firing rule's cascade depth (`origin.automationDepth` = parentDepth + 1). When compose POSTS the
    *  non-quiet result into chat, it stamps this + `initiator:"automation"` onto the posted image's slot, so the
    *  resulting `messageCommitted` fact resolves at depth ≥ 1 and `runGates` cascade-suppresses a non-opted
-   *  re-fire (the F1 → N1 self-loop belt; the F5 mechanism on the image-post path). Quiet posts nothing, so the
+   *  re-fire (the cascade self-loop guard; the image-post depth-stamp mechanism). Quiet posts nothing, so the
    *  stamp is inert there. */
   readonly automationDepth: number;
   readonly mode: PromptTemplateMode;
-  /** The macro-RENDERED prompt (the arm renders its template first — §0). Absent ⇒ imagery extracts from chat. */
+  /** The macro-RENDERED prompt (the arm renders its template first). Absent ⇒ imagery extracts from chat. */
   readonly prompt?: string | undefined;
   readonly negative?: string | undefined;
   readonly n?: number | undefined;
@@ -63,7 +63,7 @@ export interface AutomationImageRequest {
   readonly subjectCharacterId?: CharacterId | undefined;
   readonly useAvatarReference?: boolean | undefined;
   readonly reuse?: "prefer" | "never" | undefined;
-  /** 03 §1.7's "one `/imagine` path": `quiet` ⇒ generate SILENTLY (store-only; reachable via the gallery);
+  /** ONE `/imagine` path: `quiet` ⇒ generate SILENTLY (store-only; reachable via the gallery);
    *  the default (`false`) POSTS the generated image into the chat as a message. The arm consumes `quiet`
    *  itself (imagery has no posting concept) — compose routes the non-quiet path through chat's existing
    *  image-post seam (`postNarratorMessage`), never a second posting path. */
@@ -77,7 +77,7 @@ export interface AutomationImageResult {
   readonly imageCount: number;
 }
 
-/** The `trigger_turn` arm's request onto chat's non-human turn seam (03 §1.6 / §4). `authorUserId` = the rule
+/** The `trigger_turn` arm's request onto chat's non-human turn seam. `authorUserId` = the rule
  *  author (→ chat's `funderUserId`/`triggeredBy` — spend attribution + the D17 by-proxy consent subject);
  *  `automationDepth` = the cascade depth (parentDepth + 1), stamped on the reply slot so the guard bounds the
  *  chain. Compose maps this onto chat's `requestTurn` with `initiator:"automation"` HARDCODED (automation
@@ -86,9 +86,9 @@ export interface AutomationTurnRequest {
   readonly authorUserId: UserId;
   readonly chatId: ChatId;
   readonly automationDepth: number;
-  /** Force the speaker (03 §1.6); absent ⇒ normal arbitration. */
+  /** Force the speaker; absent ⇒ normal arbitration. */
   readonly speakerCharacterId?: CharacterId | undefined;
-  /** The macro-RENDERED guided steer (the arm renders `guidedTemplate` first — §0). Absent ⇒ no steer. */
+  /** The macro-RENDERED guided steer (the arm renders `guidedTemplate` first). Absent ⇒ no steer. */
   readonly guided?: string | undefined;
 }
 
@@ -108,7 +108,7 @@ export interface BackgroundChoice {
   readonly background: ThemeBackground;
 }
 
-/** The injected cross-feature ops (04 §4). A5 wired the chat READ projections; A6 WIDENS with the action
+/** The injected cross-feature ops: the chat READ projections WIDENED with the action
  *  write ops (the fact resolver + CEL-env builder stay chat-blind — the D26 selected-variant join, the delta
  *  fold). Every op is wired at `entry/compose` (one-directional flow); the domain declares only the TYPE. */
 export interface AutomationOps {
@@ -116,7 +116,7 @@ export interface AutomationOps {
     /** The triggering message projected to the CEL fact (the SELECTED variant's content, D26). `null` when
      *  the id names no live slot (a raced delete). */
     readonly getMessageFact: (chatId: ChatId, messageId: MessageId) => Promise<NonNullable<TriggerFact["message"]> | null>;
-    /** The cascade-guard depth read off a committed reply slot (03 §4). `null` = no such slot / a human turn. */
+    /** The cascade-guard depth read off a committed reply slot. `null` = no such slot / a human turn. */
     readonly getTurnOrigin: (chatId: ChatId, messageId: MessageId) => Promise<TurnOriginRead | null>;
     /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`, compose-wired) — the ONLY way
      *  this domain may answer "may this human see that chat's CONTENT". It hands back membership AND the D16
@@ -130,8 +130,8 @@ export interface AutomationOps {
     readonly readVariables: (chatId: ChatId) => Promise<Record<string, string>>;
     /** The chat's config-plane ChoiceBlock picks (CEL `choice`). */
     readonly readChoicePicks: (chatId: ChatId) => Promise<Record<string, string>>;
-    /** A6 — the standalone (out-of-turn) runtime-variable write a `set_variable` chat-scope arm dispatches
-     *  through (03 §1.1); wired to chat's `applyStandaloneVariableOps` at compose. Principal-free — the
+    /** The standalone (out-of-turn) runtime-variable write a `set_variable` chat-scope arm dispatches
+     *  through; wired to chat's `applyStandaloneVariableOps` at compose. Principal-free — the
      *  author's host authority was re-verified at the dispatch gate. */
     readonly applyVariableOps: (chatId: ChatId, ops: readonly VarOp[]) => Promise<void>;
     /** BG-F — the `set_chat_background` arm's CANDIDATE set: the author's owned background library projected
@@ -148,15 +148,15 @@ export interface AutomationOps {
      *  Writes the per-chat carried background — INERT for every viewer outside a true-solo room (BG-C), which
      *  is exactly what makes this automation write scope-safe. */
     readonly setChatBackground: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly background: ThemeBackground }) => Promise<void>;
-    /** A6 — the `trigger_turn` arm's autonomous chat turn (03 §1.6 / §4), wired to chat's `requestTurn` at
+    /** The `trigger_turn` arm's autonomous chat turn, wired to chat's `requestTurn` at
      *  compose (`initiator:"automation"`, the funder = the rule author, the funding host resolved from the
      *  room). Loop-safety belts: the engine's per-member turn RATE budget INSIDE `requestTurn` + the cascade-depth
      *  guard + the dispatch rate gate above. Consent-gated by the engine's `assertMaxProSubConsent` (a by-proxy
      *  hosted turn without owner consent is refused — the refusal surfaces as an `arm_error`). */
     readonly requestTurn: (req: AutomationTurnRequest) => Promise<AutomationTurnResult>;
   };
-  /** A6 — the SHARED, hand-edit-safe world-info writer (CC-D; the ONE write path — consumed, never forked —
-   *  03 §1.3). `authorUserId` resolves to the book owner's Principal at compose. */
+  /** The SHARED, hand-edit-safe world-info writer (CC-D; the ONE write path — consumed, never forked).
+   *  `authorUserId` resolves to the book owner's Principal at compose. */
   readonly worldInfo: {
     readonly upsertEntries: (args: {
       readonly authorUserId: UserId;
@@ -164,12 +164,12 @@ export interface AutomationOps {
       readonly entries: readonly UpsertLoreEntryInput[];
     }) => Promise<UpsertEntriesResult>;
   };
-  /** A6 — the unified-inbox delivery for a `post_notification` arm (the `automation-notice` member — 03 §1.5);
+  /** The unified-inbox delivery for a `post_notification` arm (the `automation-notice` member);
    *  wired to the composed durable-first `notifications.emit` at compose (never a re-rolled inbox). */
   readonly notifications: {
     readonly emit: (event: NotificationEvent) => Promise<void>;
   };
-  /** A6 — the `/imagine` engine for a `generate_image` arm (03 §1.7); wired to `imagery.generatePicture`. */
+  /** The `/imagine` engine for a `generate_image` arm; wired to `imagery.generatePicture`. */
   readonly imagery: {
     readonly generatePicture: (req: AutomationImageRequest) => Promise<AutomationImageResult>;
   };
@@ -182,16 +182,16 @@ export interface AutomationOps {
   readonly summarizeQuiet: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly prompt: string }) => Promise<{ readonly text: string }>;
 }
 
-/** Resolve a rule AUTHOR's `Principal` for the dispatch-time authority re-check (03 §2). Minted at the entry
+/** Resolve a rule AUTHOR's `Principal` for the dispatch-time authority re-check. Minted at the entry
  *  seam (the constitution: only entry constructs a Principal) and injected; `null` when the user is gone. */
 export type ResolveAuthorPrincipal = (userId: UserId) => Promise<Principal | null>;
 
-/** The automation feedback-bus sink (04 §5). Injected; wired at compose to `publishAutomationEvent` (A8b) —
+/** The automation feedback-bus sink. Injected; wired at compose to `publishAutomationEvent` —
  *  fans the event to the chat's `automation.stream` subscribers (the transport-owned per-chat live bus). The
  *  `surface_quick_reply` arm's `quickReplySurfaced` is the one MEMBER-visible event; the rest are host-only. */
 export type EmitAutomationEvent = (event: AutomationBusEvent) => void;
 
-/** The in-process pre-check index (01 §3) — chats with ≥1 enabled rule + whether any enabled DOMAIN-trigger
+/** The in-process pre-check index — chats with ≥1 enabled rule + whether any enabled DOMAIN-trigger
  *  rule exists. `ASSUMES(single-replica)`: the sets are per-process, reloaded at boot + on every lifecycle
  *  mutation. The watcher's handler returns without a DB read when the event's chat is unwatched. */
 export interface EnabledRuleIndex {
@@ -206,7 +206,7 @@ export interface EnabledRuleIndex {
 /** One arm-template render request (the shared render seam `substrate/macro-render` consumes). The CEL
  *  activation, the injected clock/PRNG (determinism), the template, and an optional `macroEnv` seeding the
  *  `{{name}}` catch-all — the `transform_draft` arm passes `{ draft }` so `{{draft}}` renders the current
- *  target text (A7); every other arm omits it (the empty default). */
+ *  target text; every other arm omits it (the empty default). */
 export interface ArmTemplateRender {
   readonly env: AutomationCelEnv;
   readonly nowMs: number;
@@ -215,7 +215,7 @@ export interface ArmTemplateRender {
   readonly macroEnv?: Record<string, string>;
 }
 
-/** The A7 prompt-transform index's reconciled deps (`engine/prompt-transforms`) — db + the injected chat READ
+/** The prompt-transform index's reconciled deps (`engine/prompt-transforms`) — db + the injected chat READ
  *  ops (`readChoicePicks`) + the injected clock/PRNG for the deterministic template render + the chat
  *  registry's register/unregister (wired at entry/compose; the chat domain owns the registry, automation
  *  declares only the TYPE — one-directional flow). */
@@ -228,7 +228,7 @@ export interface PromptTransformIndexDeps {
   readonly unregister: (id: string) => void;
 }
 
-/** The A7 prompt-transform index — the automation side of the D50 `PromptTransform` seam (04 §6). A
+/** The prompt-transform index — the automation side of the D50 `PromptTransform` seam. A
  *  `transform_draft` rule does NOT watcher-dispatch (its arm records a typed refusal there); it REGISTERS a
  *  `PromptTransform` into chat's compose-wired registry, applied synchronously at the turn pipeline's two
  *  fixed points. `reload` recomputes the registered set from canon (boot + after every lifecycle mutation
@@ -239,7 +239,7 @@ export interface PromptTransformIndex {
   readonly reload: () => Promise<void>;
 }
 
-// ── the dispatch seam A6 plugs into ───────────────────────────────────────────────────────────────
+// ── the dispatch seam the arm executors plug into ─────────────────────────────────────────────────
 /** The per-rule dispatch frame handed to an arm executor: the resolved fact + the built CEL env (for
  *  `{{expr::…}}` + template render) + the write origin (`{ ruleId, childDepth }`) + the injected clock stamp. */
 export interface DispatchFrame {
@@ -253,14 +253,14 @@ export interface DispatchFrame {
 
 /** One arm's execution outcome. `ok` on success; else a typed `arm_error` refusal → the `action_error` fire
  *  terminal (increments `consecutive_errors`, aborts the rule's remaining arms). The first non-`ok` outcome
- *  aborts the rule's remaining arms (04 §3). */
+ *  aborts the rule's remaining arms. */
 export type ArmOutcome = { readonly ok: true } | { readonly ok: false; readonly kind: "arm_error"; readonly detail: string };
 
-/** The arm dispatcher (04 §4). ONE function that runs any arm — dispatch is a `switch(action.type)` (the
+/** The arm dispatcher. ONE function that runs any arm — dispatch is a `switch(action.type)` (the
  *  RUNNERS discipline realized as a switch, NOT an object map: no snake_case property keys, a `default: never`
- *  exhaustiveness pin). A5 wired a not-yet-filled default (every arm records `action_error`); A6 wires the
- *  real one via `createArmExecutors`. `trigger_turn` is WIRED (§AC-B landed); the sole v1-unwired arm
- *  (`transform_draft` — pipeline-registered, A7) + the reserved arms return a typed refusal, NOT a fabricated
+ *  exhaustiveness pin). A not-yet-filled default records `action_error` for every arm until `createArmExecutors`
+ *  wires the real one. `trigger_turn` is WIRED; the sole v1-unwired arm
+ *  (`transform_draft` — pipeline-registered) + the reserved arms return a typed refusal, NOT a fabricated
  *  success. */
 export type ArmDispatch = (action: AutomationAction, frame: DispatchFrame) => Promise<ArmOutcome>;
 

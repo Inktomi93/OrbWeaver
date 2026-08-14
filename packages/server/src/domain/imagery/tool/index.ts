@@ -1,7 +1,7 @@
-// tool — the D48 `generate_image` tool projection (imagery-design/04 §1). Registered ONCE at entry/compose
+// tool — the D48 `generate_image` tool projection. Registered ONCE at entry/compose
 // (the owning-domain closure idiom — tool-use never imports imagery); the handler closes over the injected
 // `imagery.generatePicture` op and reads the acting principal + chat from the exec context per invocation.
-// The automation `generate_image` action arm (A6) is a SEPARATE consumer of the SAME `generateImageActionArgsSchema`
+// The automation `generate_image` action arm is a SEPARATE consumer of the SAME `generateImageActionArgsSchema`
 // + op; this file only wires the tool. The capability ceiling is `null` (member floor — any present member may
 // generate).
 //

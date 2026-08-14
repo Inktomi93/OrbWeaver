@@ -1,4 +1,4 @@
-// Assembles the automation cross-feature READ ops (the A5 `AutomationOps` the fact resolver + CEL env consume)
+// Assembles the automation cross-feature READ ops (the `AutomationOps` the fact resolver + CEL env consume)
 // and the `AutomationWatcherEnv` for `startAutomationWatcher` (the buddy-observer compose adapter precedent).
 // Automation stays chat-blind: this is the ONE place the chat domain's turn-origin/message/variable projections
 // are narrowed onto automation's injected op shape (turn-origin rides chat's own `loadTurnOrigin` export — the
@@ -55,7 +55,7 @@ async function readChatColumn(db: Db, chatId: ChatId, column: "runtime" | "choic
   return rows[0]?.[column] ?? {};
 }
 
-/** The action WRITE ops (A6), pre-bound at `entry/compose` (the automation domain declares only the TYPE —
+/** The action WRITE ops, pre-bound at `entry/compose` (the automation domain declares only the TYPE —
  *  one-directional flow). Each closes over its owning sibling service; `authorUserId` resolves to a Principal
  *  where the sibling gates on ownership (world-info book owner, imagery caller). */
 export interface AutomationActionOpsDeps {
@@ -76,7 +76,7 @@ export interface AutomationActionOpsDeps {
   readonly emitNotification: EmitNotification;
   /** the `/imagine` engine — `imagery.generatePicture` narrowed to automation's request/result. */
   readonly generatePicture: (req: AutomationImageRequest) => Promise<AutomationImageResult>;
-  /** the `trigger_turn` arm's autonomous chat turn (03 §1.6 / §4) — chat's `requestTurn` bound with
+  /** the `trigger_turn` arm's autonomous chat turn — chat's `requestTurn` bound with
    *  `initiator:"automation"` + the funder resolved from the rule author, narrowed to automation's request/result. */
   readonly requestTurn: (req: AutomationTurnRequest) => Promise<AutomationTurnResult>;
   /** BG-F — the author's owned background library projected to `(name, source)` pairs (settings read). */
@@ -89,9 +89,9 @@ export interface AutomationActionOpsDeps {
   readonly summarizeQuiet: (args: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly prompt: string }) => Promise<{ readonly text: string }>;
 }
 
-/** Assemble the FULL `AutomationOps` (04 §4): the A5 chat READ projections (turn origin via chat's own
+/** Assemble the FULL `AutomationOps`: the chat READ projections (turn origin via chat's own
  *  `loadTurnOrigin`; the rest narrow canon reads the entry root is sanctioned to do — the buddy-observer
- *  precedent) + the A6 action WRITE ops. */
+ *  precedent) + the action WRITE ops. */
 export function createAutomationOps(deps: AutomationActionOpsDeps): AutomationOps {
   const { db } = deps;
   return {

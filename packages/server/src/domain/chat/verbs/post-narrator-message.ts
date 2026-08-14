@@ -1,6 +1,6 @@
-// The narrator-post op (rpg-design/02 §1.1 #2): persist ONE assistant-role narrator message through chat's
-// canon-write path — recaps (06 §3), scene-merge summaries (07 §2), the server-minted `[check: …]` result
-// line (12 §3), illustration posts (08 §2). Authored by the synthetic group character (D16 inv-9 — a real
+// The narrator-post op: persist ONE assistant-role narrator message through chat's
+// canon-write path — recaps, scene-merge summaries, the server-minted `[check: …]` result
+// line, illustration posts. Authored by the synthetic group character (D16 inv-9 — a real
 // authoring identity, never a user id: `authorUserId` is only ever a principal that ACTED, the D19 rule; the
 // group char is minted lazily if the room has none). `media` ride the body as embedded `![alt](asset:<id>)`
 // refs (D51) with `message_assets` retaining rows (the asset-ref registry's GC anchor). Returns the new
@@ -82,7 +82,7 @@ export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMe
       personaId: null,
       now,
       variant: { content: body },
-      // Origin (03 §4) — absent for rpg posts (byte-identical DB defaults 'human'/0); the automation
+      // Origin — absent for rpg posts (byte-identical DB defaults 'human'/0); the automation
       // `generate_image` non-quiet post threads its firing rule's initiator + cascade depth so the posted
       // image's `messageCommitted` fact resolves at depth ≥ 1 and a non-opted re-fire is cascade-suppressed.
       ...(origin !== undefined ? { initiator: origin.initiator, automationDepth: origin.automationDepth } : {}),

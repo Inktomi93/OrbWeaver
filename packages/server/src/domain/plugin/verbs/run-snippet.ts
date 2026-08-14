@@ -1,4 +1,4 @@
-// verb: runSnippet — the inline mode (03 §1). A member types code in the chat box; it runs ONCE as the CALLER
+// verb: runSnippet — the inline mode. A member types code in the chat box; it runs ONCE as the CALLER
 // in a FRESH transient instance (no residency, no manifest, no registration) under the 5 s wall, then disposes.
 // The snippet gate is leak-free: `resolveChatAuthority` (compose-injected `loadPresentRole` under the caller)
 // admits the chat only when the caller can READ it — a foreign/unknown chat resolves `{false,false}` and the

@@ -174,10 +174,10 @@ export function buildImagery(deps: ImageryComposeDeps): ImageryService {
     },
   });
 
-  // The D48 `generate_image` tool (imagery-design/04 §1) — registered into the SAME one registry buddy joined
+  // The D48 `generate_image` tool — registered into the SAME one registry buddy joined
   // above (additive; rpg registers its own tools later). The handler closes over `imagery.generatePicture` and
-  // reads the acting principal + chat from the per-turn exec context. The automation arm (A6) is a separate
-  // consumer of the same op + schema.
+  // reads the acting principal + chat from the per-turn exec context. The automation `generate_image` action
+  // arm is a separate consumer of the same op + schema.
   for (const def of imageryToolDefinitions({ generatePicture: imagery.generatePicture })) {
     deps.toolUse.register(def);
   }

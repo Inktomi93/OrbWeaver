@@ -1,6 +1,6 @@
-// domain/plugin/contract/errors — the lifecycle error taxonomy (02 §5), extending the kit domain-error base
+// domain/plugin/contract/errors — the lifecycle error taxonomy, extending the kit domain-error base
 // so the transport boundary maps them. Coded refusals (BAD_REQUEST) for the install/upgrade validation gates;
-// PluginCrashedError (SERVICE_UNAVAILABLE) for the auto-disable crash policy (03 §4). Distinct from the
+// PluginCrashedError (SERVICE_UNAVAILABLE) for the auto-disable crash policy. Distinct from the
 // membrane's guest-observable `PluginCapabilityError`/`HostVersionError` (`@orb/contracts/plugin`) — these are
 // host-side lifecycle failures a CALLER sees, never a guest.
 
@@ -18,7 +18,7 @@ export class ManifestInvalidError extends DomainOperationError {
   }
 }
 
-/** The manifest pins a `hostVersion` this build does not serve (01 §3). Separate from a generic manifest
+/** The manifest pins a `hostVersion` this build does not serve. Separate from a generic manifest
  *  fault so the caller can be told to rebuild against the served major, not "fix your manifest".
  *
  *  @public future: the hostVersion gate (unbuilt) — a member of the built lifecycle error taxonomy; zero throw sites because that gate is not built yet. */
@@ -28,7 +28,7 @@ export class HostVersionUnservedError extends DomainOperationError {
   }
 }
 
-/** The confirmed grant is NOT ⊆ the manifest's declared capabilities (02 §2/§4) — the install/upgrade refuses
+/** The confirmed grant is NOT ⊆ the manifest's declared capabilities — the install/upgrade refuses
  *  a grant the manifest never asked for. */
 export class CapabilityNotGrantedError extends DomainOperationError {
   constructor(ungrantable: readonly string[]) {
@@ -45,7 +45,7 @@ export class PluginDowngradeRefusedError extends DomainOperationError {
   }
 }
 
-/** The instance auto-disabled after the crash threshold (03 §4). Maps to SERVICE_UNAVAILABLE. */
+/** The instance auto-disabled after the crash threshold. Maps to SERVICE_UNAVAILABLE. */
 export class PluginCrashedError extends DomainUnavailableError {}
 
 /** An owned-plugin verb (upgrade/setEnabled/uninstall/getLog) was handed a pluginId that is missing OR not the

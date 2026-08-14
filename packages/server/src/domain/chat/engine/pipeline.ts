@@ -99,7 +99,7 @@ interface RunTurnPipelineArgs {
   readonly toolRecurseLimit: number;
   /** The principal-blind identity frame `executeToolCalls` receives. */
   readonly toolExecFrame: ChatToolExecFrame;
-  /** The D50 PromptTransform apply op (04 §6) — applied at the `assembled_dynamic` point (end of BUILD, over
+  /** The D50 PromptTransform apply op — applied at the `assembled_dynamic` point (end of BUILD, over
    *  the dynamic half only). Null/absent (unwired / no registrar) ⇒ the dynamic half passes through
    *  byte-identical (the engine threads `ChatContext.promptTransforms` straight through, `null` and all). */
   readonly applyPromptTransforms?: ApplyPromptTransformsOp | null | undefined;
@@ -441,7 +441,7 @@ export async function runTurnPipeline(args: RunTurnPipelineArgs): Promise<TurnPi
   const effectiveIntent = materializeMaxOutput(foldGenerationParams(ctx.promptConfig.params, args.intent, args.extraStopSequences));
 
   // BUILD — the system-prompt halves + the after-history (in_chat) section splices — then the D50
-  // `assembled_dynamic` PromptTransform point (04 §6): rewrite the dynamic half only (static is untransformable).
+  // `assembled_dynamic` PromptTransform point: rewrite the dynamic half only (static is untransformable).
   const assembled = await applyDynamicTransform(args, buildPrompt(ctx.promptConfig, ctx, args.macroRegistry));
 
   // SHAPE — the wire history + the cache breakpoint.
@@ -696,7 +696,7 @@ async function runRecurseLoop(input: { readonly args: RunTurnPipelineArgs; reado
   let depth = 0;
   for (;;) {
     // Sequential by design: each recursion depends on the previous depth's executed results.
-    // biome-ignore lint/performance/noAwaitInLoops: the recurse loop is inherently sequential (03 §2).
+    // biome-ignore lint/performance/noAwaitInLoops: the recurse loop is inherently sequential.
     const reduced = await reduceStream(args.runChatTurn({ ...input.request, history }), args);
     content += reduced.content;
     for (const code of reduced.warnings) {

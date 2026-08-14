@@ -1,5 +1,5 @@
 // domain/automation/guard — the rule-authority chokepoint (the agents guard.ts precedent). Rule authoring IS
-// room-host authority in v1 (04 §2): every rule verb resolves to `can(principal, "host", {kind:"chat",
+// room-host authority in v1: every rule verb resolves to `can(principal, "host", {kind:"chat",
 // roster})` over the chat's PRESENT membership (never a bare `role === 'host'` — that lives inside `can()`).
 // Two entry points: chat-scoped verbs gate a chatId directly; rule-scoped verbs load the rule first and gate
 // its chat. A non-member collapses to a leak-free not-found; a member-who-is-not-host is a KNOWN existence,

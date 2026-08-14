@@ -14,7 +14,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { PromptTransformRegistry } from "../contract/context.ts";
 
-/** The per-call deadline FLOOR each transform apply is bounded by (04 §6 LEAN — the plugin bridge is async by
+/** The per-call deadline FLOOR each transform apply is bounded by (a LEAN — the plugin bridge is async by
  *  nature). A transform that outruns it is SKIPPED (the draft passes through unchanged). Now the born-in-DB
  *  admin floor (AppSettings.promptTransformDeadlineMs); compose injects a live getter, this is the fallback. */
 export const PROMPT_TRANSFORM_DEADLINE_MS = 250;

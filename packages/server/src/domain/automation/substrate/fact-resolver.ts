@@ -1,7 +1,7 @@
-// domain/automation/substrate/fact-resolver — the taxonomy filter + `TriggerFact` builder (01 §2). CEL never
+// domain/automation/substrate/fact-resolver — the taxonomy filter + `TriggerFact` builder. CEL never
 // reads raw bus payloads: before predicate evaluation the watcher resolves an event into a typed fact by
 // re-reading canon through the injected chat ops (the D38 discipline). The resolve happens ONCE per event
-// (shared across every matching rule of that chat). It ALSO computes the event's cascade DEPTH (03 §4) — read
+// (shared across every matching rule of that chat). It ALSO computes the event's cascade DEPTH — read
 // off the committed reply slot through `getTurnOrigin` — which the dispatch depth gate + child-write origin
 // consume (the fact carries it only for turn events; message/other events surface it here).
 //
@@ -15,7 +15,7 @@ import type { DomainEvent } from "@orb/contracts/events";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { AutomationOps, ResolvedTrigger } from "../contract/ops.ts";
 
-/** How each trigger's fact is shaped (01 §2 table). A homed tuple → derived union (no re-spelled literals). */
+/** How each trigger's fact is shaped (the table below). A homed tuple → derived union (no re-spelled literals). */
 const FACT_SHAPES = ["chatScope", "message", "turn", "worldInfo", "persona", "characterId", "assetId"] as const;
 type FactShape = (typeof FACT_SHAPES)[number];
 
@@ -55,7 +55,7 @@ function eventChatId(event: BusEvent): ChatId | null {
   return "chatId" in event ? event.chatId : null;
 }
 
-/** Read the cascade depth off a committed reply slot (03 §4) — 0 when the slot is human-plane / absent. */
+/** Read the cascade depth off a committed reply slot — 0 when the slot is human-plane / absent. */
 async function depthOf(ops: AutomationOps, chatId: ChatId | null, messageId: MessageId | null): Promise<number> {
   if (chatId === null || messageId === null) {
     return 0;
@@ -101,7 +101,7 @@ async function resolveTurn(ops: AutomationOps, event: BusEvent): Promise<Resolve
     // An aborted turn commits NO reply slot, so depth can't be read via `getTurnOrigin` (the sibling paths' way).
     // It rides the event instead (chat's engine threads the aborting turn's own depth) — so a depth ≥ 1 abort
     // (an automation turn that failed) yields a depth ≥ 1 fact, and `runGates` suppresses non-opted `turnAborted`
-    // rules. Hardcoding 0 here let a depth-0 "retry on failure" rule self-loop (03 §4's default-no-retrigger hole).
+    // rules. Hardcoding 0 here let a depth-0 "retry on failure" rule self-loop (the default-no-retrigger hole).
     const automationDepth = event.automationDepth;
     const turn = { intent: event.intent, api: "", source: "", model: "", speakerCharacterId: null, abortReason: event.reason, automationDepth };
     return { fact: { ...base, turn }, automationDepth };

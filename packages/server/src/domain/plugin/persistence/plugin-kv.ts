@@ -1,8 +1,8 @@
-// domain/plugin/persistence/plugin-kv — the `storage.kv` plane (02 §3): the plugin-PRIVATE KV, per plugin ×
+// domain/plugin/persistence/plugin-kv — the `storage.kv` plane: the plugin-PRIVATE KV, per plugin ×
 // installing owner. Every query filters BOTH `plugin_id` AND `owner_id` (the denormalized guard column — belt
 // vs a cross-owner read even if a plugin id were somehow reused). The value/key size CHECKs are DDL (schema);
-// the 256-key cap is enforced host-side (P4) off `countKeys`. Queries only; the caps + validation live in the
-// host functions that call these (03 §3).
+// the 256-key cap is enforced host-side off `countKeys`. Queries only; the caps + validation live in the
+// host functions that call these.
 
 import type { Db } from "@orb/db";
 import { pluginKv } from "@orb/db";

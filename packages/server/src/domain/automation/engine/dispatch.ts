@@ -1,15 +1,15 @@
-// domain/automation/engine/dispatch — the per-event dispatch sequence (04 §3). For each matched enabled rule,
+// domain/automation/engine/dispatch — the per-event dispatch sequence. For each matched enabled rule,
 // SEQUENTIALLY (arms mutate the shared variable env — order IS semantics): parse the actions (corrupt blob →
 // disable that ONE rule), gate cascade depth → author authority → the fire-rate cap → the CEL predicate, then
-// run the arms through the injected `runArm` dispatcher seam (A6 fills it; a refused arm records `action_error`).
+// run the arms through the injected `runArm` dispatcher seam (a refused arm records `action_error`).
 // Every rule body is independent — a throw/failure never touches
 // sibling rules, the watcher loop, or the turn (the handler is fire-and-forget off the bus).
 // `consecutive_errors` increments on predicate/action/authority errors, resets on a clean fire, and
-// auto-disables the rule at 20 (02 §1) with a DURABLE `automation-notice` to the author (so a rotting rule is
+// auto-disables the rule at 20 with a DURABLE `automation-notice` to the author (so a rotting rule is
 // visible even if the author has no live `automation.stream` open) PLUS the transient `ruleAutoDisabled` bus
-// event (host-only on the A8b member-stream).
+// event (host-only on the member-stream).
 //
-// A5 owns the ENGINE + the typed dispatch seam; A6 wires the arm dispatcher in. Reserved arms never reach here
+// This module owns the ENGINE + the typed dispatch seam + the arm dispatcher. Reserved arms never reach here
 // (createRule refuses them); the v1-unwired arms return a typed refusal.
 
 import type { AutomationAction, AutomationCelEnv, AutomationFireOutcome } from "@orb/contracts/automation";
@@ -30,8 +30,8 @@ import { checkBudget } from "./budget-gate.ts";
 // The hard cascade-depth cap is homed ONCE in `@orb/contracts/chat` (turn-origin depth vocabulary, below both
 // chat + automation — chat's `requestTurn` write-side belt cannot import automation, so the shared home must
 // sit under both, and every consumer imports it from there: rule dispatch (here) + chat requestTurn + the
-// plugin subscriber fan-out — ONE cascade guard, per plugin-design/04 §P4 flag 3).
-/** Consecutive predicate/action/authority errors that auto-disable a rule (02 §1). */
+// plugin subscriber fan-out — ONE cascade guard).
+/** Consecutive predicate/action/authority errors that auto-disable a rule. */
 const CONSECUTIVE_ERROR_DISABLE_AT = 20;
 
 /** Whether a rule was disabled this dispatch (a corrupt blob or the 20-error ceiling) — the caller reloads
@@ -73,8 +73,8 @@ function record(rc: RuleCtx, outcome: AutomationFireOutcome, detail: Record<stri
   });
 }
 
-/** The DURABLE author notice on auto-disable (02 §1 / 04 §3): the transient `ruleAutoDisabled` bus event only
- *  reaches an author with a live `automation.stream` open (A8b), so a rule could rot unseen. This emits an
+/** The DURABLE author notice on auto-disable: the transient `ruleAutoDisabled` bus event only
+ *  reaches an author with a live `automation.stream` open, so a rule could rot unseen. This emits an
  *  `automation-notice` to the rule AUTHOR through the SAME durable inbox path `post_notification` uses, so the
  *  author learns their rule stopped even with no live stream. Best-effort: a notify fault must never abort the
  *  (already-committed) disable — the rule IS disabled regardless of whether the notice delivered. */
@@ -112,7 +112,7 @@ async function onRuleError(rc: RuleCtx, outcome: AutomationFireOutcome, detail: 
   return NOT_DISABLED;
 }
 
-/** The author still holds host on the chat (03 §2) — a demoted/removed ex-host's rule stops firing. `null`
+/** The author still holds host on the chat — a demoted/removed ex-host's rule stops firing. `null`
  *  role or a `can()` throw ⇒ refused. */
 async function holdsAuthority(rc: RuleCtx): Promise<boolean> {
   const [author, role] = await Promise.all([rc.ctx.resolveAuthor(rc.rule.ownerId), loadCallerRole(rc.ctx.db, rc.chatId, rc.rule.ownerId)]);
@@ -132,8 +132,8 @@ interface ArmsResult {
   readonly detail: Record<string, unknown>;
 }
 
-/** Run a rule's arms sequentially through the injected seam; the FIRST non-ok outcome aborts the rest (04 §3
- *  step 5 — arms may depend on each other). Recursion (not a loop) expresses the sequential-with-early-abort:
+/** Run a rule's arms sequentially through the injected seam; the FIRST non-ok outcome aborts the rest
+ *  (arms may depend on each other). Recursion (not a loop) expresses the sequential-with-early-abort:
  *  arms share + mutate the env, order IS semantics. */
 async function runArms(ctx: AutomationContext, actions: readonly AutomationAction[], frame: DispatchFrame, i = 0): Promise<ArmsResult | null> {
   const arm = actions[i];
@@ -147,7 +147,7 @@ async function runArms(ctx: AutomationContext, actions: readonly AutomationActio
   return runArms(ctx, actions, frame, i + 1);
 }
 
-/** The env for a rule's chat — built once per chat per dispatch batch (03 §3 fold cache read). */
+/** The env for a rule's chat — built once per chat per dispatch batch (fold cache read). */
 async function envFor(rc: RuleCtx): Promise<AutomationCelEnv> {
   const cached = rc.deps.envCache.get(rc.chatId);
   if (cached !== undefined) {
@@ -173,7 +173,7 @@ async function runGates(rc: RuleCtx): Promise<RuleResult | null> {
     return NOT_DISABLED;
   }
   if (eventDepth >= 1 && !rc.rule.matchAutomationEvents) {
-    return NOT_DISABLED; // default-suppressed cascade event — record NOTHING (04 §3 step 1).
+    return NOT_DISABLED; // default-suppressed cascade event — record NOTHING (dispatch step 1).
   }
   if (!(await holdsAuthority(rc))) {
     return onRuleError(rc, "authority_refused", { code: "author-lost-authority" });
@@ -223,7 +223,7 @@ async function dispatchRule(rc: RuleCtx, actions: readonly AutomationAction[]): 
   return finalizeRule(rc, armsResult);
 }
 
-/** Record the rule's terminal fire (04 §3 step 6). `armsResult` null ⇒ every arm ok (fired); else the
+/** Record the rule's terminal fire (dispatch step 6). `armsResult` null ⇒ every arm ok (fired); else the
  *  aborting arm's `action_error` detail. */
 async function finalizeRule(rc: RuleCtx, armsResult: ArmsResult | null): Promise<RuleResult> {
   if (armsResult !== null) {
@@ -248,7 +248,7 @@ async function runRule(ctx: AutomationContext, rule: RuleRow, deps: DispatchDeps
     return DISABLED;
   }
   // A transform-only rule (validate guarantees a `transform_draft` arm ⇒ ALL arms transform + turnStarted) is
-  // NOT watcher-dispatched — it registers into the turn pipeline (A7, `engine/prompt-transforms`). Skip it here
+  // NOT watcher-dispatched — it registers into the turn pipeline (`engine/prompt-transforms`). Skip it here
   // silently: running its arms would record a spurious `action_error` (the arm's typed refusal) every turn.
   if (parsed.data.every((action) => action.type === "transform_draft")) {
     return NOT_DISABLED;

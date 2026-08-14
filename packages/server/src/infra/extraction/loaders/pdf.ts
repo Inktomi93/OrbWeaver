@@ -1,12 +1,12 @@
-// infra/extraction/loaders/pdf.ts — the pdf loader (pdfjs-dist, 04 §2). THE long pole. Server-side, DOM-less,
+// infra/extraction/loaders/pdf.ts — the pdf loader (pdfjs-dist). THE long pole. Server-side, DOM-less,
 // WORKER-LESS: the default build needs a DOM (DOMMatrix) and is rejected under node — the `legacy` build runs
 // on the main thread with a fake worker (no `GlobalWorkerOptions.workerSrc` set) and reads text content only,
 // never rasterizing (no canvas/fonts needed for `getTextContent`). Verified extracting under plain node 24.
 //
-// Text assembly (04 §2): per page, text items joined with spaces, `hasEOL` items end a line, lines joined
+// Text assembly: per page, text items joined with spaces, `hasEOL` items end a line, lines joined
 // `\n`; pages joined `\n\n`. `pageCount` from the document; `title` from the info-dict when present. Encrypted
 // / corrupt / truncated pdfs throw (PasswordException / InvalidPDFException) — the dispatch wraps them as
-// ExtractionFailedError. Empty text is truthful (a scanned image-only pdf has no text layer; no OCR, 04 §1).
+// ExtractionFailedError. Empty text is truthful (a scanned image-only pdf has no text layer; no OCR).
 
 import type { PDFDocumentProxy, PDFPageProxy } from "pdfjs-dist";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";

@@ -1027,15 +1027,15 @@ export async function loadCanonHistoryAfter(db: Db, chatId: ChatId, afterSeq: nu
 
 /** One entry in the runtime-variable fold source: a `seq` + the parsed delta. `messageId` is the slot for a
  *  per-variant message delta, or `null` for a STANDALONE (out-of-turn) delta batch — which carries no slot,
- *  so the fold mutators' by-`messageId` override/filter/remap pass it through untouched (03 §1.1). */
+ *  so the fold mutators' by-`messageId` override/filter/remap pass it through untouched. */
 interface VariableDeltaRow {
   readonly seq: number;
   readonly messageId: MessageId | null;
   readonly delta: readonly VarOp[];
 }
 
-/** The chat's standalone (out-of-turn) runtime-variable delta batches (`chats.standalone_variable_deltas`,
- *  03 §1.1), seq-ordered as stored. Parsed at the read seam; a malformed blob degrades to `[]`, never throws. */
+/** The chat's standalone (out-of-turn) runtime-variable delta batches (`chats.standalone_variable_deltas`),
+ *  seq-ordered as stored. Parsed at the read seam; a malformed blob degrades to `[]`, never throws. */
 async function loadStandaloneVariableDeltas(db: Db, chatId: ChatId): Promise<StandaloneVariableDelta[]> {
   const rows = await db.select({ standaloneVariableDeltas: chats.standaloneVariableDeltas }).from(chats).where(eq(chats.id, chatId)).limit(LIMIT_ONE);
   const parsed = standaloneVariableDeltasSchema.safeParse(rows.at(0)?.standaloneVariableDeltas);
@@ -1043,7 +1043,7 @@ async function loadStandaloneVariableDeltas(db: Db, chatId: ChatId): Promise<Sta
 }
 
 /** The runtime-cache fold SOURCE, seq-ordered: the per-variant message deltas along the selected-variant
- *  chain UNIONED with the chat's standalone (out-of-turn) delta batches (03 §1.1). Each blob is parsed at the
+ *  chain UNIONED with the chat's standalone (out-of-turn) delta batches. Each blob is parsed at the
  *  read seam; a malformed blob degrades to `[]`, never throws. `foldChain` re-sorts by `seq`, so the two
  *  sources interleave in real-apply order (a standalone stamped at maxSeq folds after that message, before
  *  the next turn's). */
@@ -1068,7 +1068,7 @@ export async function loadVariableDeltas(db: Db, chatId: ChatId): Promise<Variab
   return [...messageEntries, ...standalone.map((s): VariableDeltaRow => ({ seq: s.seq, messageId: null, delta: s.delta }))];
 }
 
-/** The turn origin stamped on a reply SLOT (03 §4) — the `getTurnOrigin` read backing the automation cascade
+/** The turn origin stamped on a reply SLOT — the `getTurnOrigin` read backing the automation cascade
  *  guard's depth counter. Chat-scoped: a `messageId` from another chat matches nothing (`null`). */
 export async function loadTurnOrigin(db: Db, chatId: ChatId, messageId: MessageId): Promise<TurnOrigin | null> {
   const rows = await db

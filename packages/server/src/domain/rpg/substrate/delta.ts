@@ -89,7 +89,7 @@ function perActor(
 }
 
 /** An actor row's display label. A roster actor (character/user) resolves to its display NAME through
- *  `ctx.rosterNames` (P0 fold-in #5 — "Kael Vitality 12→16", not "character Vitality 12→16"); a `cast` NPC
+ *  `ctx.rosterNames` ("Kael Vitality 12→16", not "character Vitality 12→16"); a `cast` NPC
  *  carries her own (`identity.name`, R2 — the slug key is deliberately NOT a display name). The roster join
  *  arrives as DATA (the gather resolved it), so the diff stays pure. Falls back to the generic label when the
  *  roster map has no name for the key (a gone member — never a crash). */
@@ -423,7 +423,7 @@ function actLabel(plot: NonNullable<RpgSnapshotState["plot"]>, act: number): str
   return title !== "" ? `act ${act} "${title}"` : `act ${act}`;
 }
 
-/** Plot (P5) — the campaign-scale transitions: the plane appearing (`plot begins`), an act ADVANCE
+/** Plot — the campaign-scale transitions: the plane appearing (`plot begins`), an act ADVANCE
  *  (`act 1 → act 2 "The Bone Key"`), and a story retitle. Act title/summary edits within the same act are
  *  silent (authoring polish, not a beat the prose must land). */
 const plotRenderer: PlaneDiffRenderer<RpgSnapshotState["plot"]> = {

@@ -1,13 +1,13 @@
-// Realm setup — the membrane's floor (01 §1). A fresh QuickJSContext starts with the standard globals;
+// Realm setup — the membrane's floor. A fresh QuickJSContext starts with the standard globals;
 // this module turns it into a guest realm: ambient non-determinism is OVERWRITTEN with throwing stubs
 // (Date / Math.random — the only time/entropy sources), and the ONLY thing installed is `orb`, whose
 // single method `host(1)` returns the versioned surface. setTimeout / fetch / process / require are
 // already absent from a bare QuickJS-ng context (spike-verified — no timers, no I/O, no ambient
-// authority); the escape suite (04 P4/P6) pins that they stay absent.
+// authority); the escape suite pins that they stay absent.
 //
-// P1 SCOPE: the surface `orb.host(1)` returns is the DETERMINISM FLOOR only — clock/random/ids/log +
-// version negotiation. The full `PluginHostV1` (chat/worldInfo/tools/net/… — 01 §2) is P2's contract +
-// P4's wiring; this spike proves the realm + seam-injection + version gate the rest hangs off.
+// SCOPE: the surface `orb.host(1)` returns is the DETERMINISM FLOOR only — clock/random/ids/log +
+// version negotiation. The full `PluginHostV1` (chat/worldInfo/tools/net/…) is the membrane's contract
+// and wiring; this spike proves the realm + seam-injection + version gate the rest hangs off.
 
 import type { PluginLogLevel } from "@orb/contracts/plugin";
 import { HostVersionError, PLUGIN_LOG_LEVELS } from "@orb/contracts/plugin";
@@ -33,7 +33,7 @@ export interface HostSeams {
 const LOG_LEVELS = PLUGIN_LOG_LEVELS;
 type LogLevel = PluginLogLevel;
 
-/** Per-invocation log ring — bounded by line count AND byte volume (03 §3); overflow drops silently
+/** Per-invocation log ring — bounded by line count AND byte volume; overflow drops silently
  *  (the guest cannot DoS the host log by flooding). Drained into the invocation outcome. */
 export class LogRing {
   private readonly lines: string[] = [];
@@ -52,7 +52,7 @@ export class LogRing {
     return [...this.lines];
   }
 
-  /** Clear the ring for the next invocation (logs are per-invocation — 03 §3). */
+  /** Clear the ring for the next invocation (logs are per-invocation). */
   reset(): void {
     this.lines.length = 0;
     this.bytes = 0;
@@ -72,8 +72,8 @@ const AMBIENT_STUBS = `
 
 /** Build the host surface fresh (clean handle ownership — a plugin calls host(1) once). Every leaf host fn
  *  bridges to an injected seam or the log ring; the returned object handle transfers to the VM. When a
- *  `membrane` is supplied, the P4b-CORE gated namespaces (chat/variables/worldInfo/imagery/tools + `grants`)
- *  are attached onto the same surface (membrane.ts) — else it is the determinism-floor-only P1 shape. */
+ *  `membrane` is supplied, the capability-gated namespaces (chat/variables/worldInfo/imagery/tools + `grants`)
+ *  are attached onto the same surface (membrane.ts) — else it is the determinism-floor-only shape. */
 function buildHostSurface(ctx: QuickJSContext, seams: HostSeams, log: LogRing, membrane: MembraneRuntime | undefined): QuickJSHandle {
   const surface = ctx.newObject();
 
@@ -116,7 +116,7 @@ function buildHostSurface(ctx: QuickJSContext, seams: HostSeams, log: LogRing, m
   return surface;
 }
 
-/** The host majors this runtime serves (01 §3 — V1 only today). `orb.host(major)` throws the typed
+/** The host majors this runtime serves (V1 only today). `orb.host(major)` throws the typed
  *  `HostVersionError{requested, served}` for anything else; the CLASS NAME crosses the boundary so a guest's
  *  activation can `catch (e) { e.name === "HostVersionError" }` — feature-detection by type, not by message
  *  substring (the D46 "fails loudly on V2" clause, made a typed contract). */
@@ -139,7 +139,7 @@ export function installRealm(ctx: QuickJSContext, seams: HostSeams, log: LogRing
     const major = majorHandle === undefined ? Number.NaN : ctx.getNumber(majorHandle);
     if (major !== 1) {
       // Throw the TYPED class (not a plain Error) so `.name` crosses the boundary as "HostVersionError" — a
-      // guest feature-detects by `e.name`, and `served` rides along as data (01 §3).
+      // guest feature-detects by `e.name`, and `served` rides along as data.
       throw new HostVersionError(major, SERVED_HOST_MAJORS);
     }
     return buildHostSurface(ctx, seams, log, membrane);

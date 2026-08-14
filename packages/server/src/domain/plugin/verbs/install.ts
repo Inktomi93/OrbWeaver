@@ -1,9 +1,9 @@
-// verb: install — the trust edge (02 §4). Authority = `can(caller,"admin",{kind:"global"})` (owner ∪ admin in
-// v1 — the membrane is new security-load-bearing code; 02 §4). Flow: gate → `parseBundle` (unzip+validate the
+// verb: install — the trust edge. Authority = `can(caller,"admin",{kind:"global"})` (owner ∪ admin in
+// v1 — the membrane is new security-load-bearing code). Flow: gate → `parseBundle` (unzip+validate the
 // untrusted bytes — throws `ManifestInvalidError` on a bad zip/bomb/manifest) → the grant ⊆ declared check →
 // slug-collision check → store the WHOLE bundle in the caller's CAS (kind `"plugin"`) → insert a `disabled`
 // row (enabling is a second explicit act, like rules). The row lands `origin:"upload"` (the reserved single-arm
-// — a future catalog fetcher feeds the SAME bundle funnel, 02 §4 rider).
+// — a future catalog fetcher feeds the SAME bundle funnel).
 
 import { CapabilityNotGrantedError, PluginAlreadyInstalledError } from "../contract/errors.ts";
 import type { InstallPluginParams } from "../contract/params.ts";

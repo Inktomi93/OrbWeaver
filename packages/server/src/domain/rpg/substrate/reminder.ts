@@ -79,14 +79,14 @@ import { buildDeltaBlock } from "./delta.ts";
  *  happens; NEVER recite the raw numbers back at the player. */
 export const RPG_STEERING_LICENSE = PROSE_SLOTS["rpg.reminder.steeringLicense"].text;
 
-/** The DECEPTION teaching block (P3 §3.3 feature 3) — a VERSIONED constant (a bump = a legible copy revision;
+/** The DECEPTION teaching block — a VERSIONED constant (a bump = a legible copy revision;
  *  the marinara-derived tag grammar the tokenizer's `HIDDEN_TAGS` `lie` registrant recognizes). Teaches the
  *  self-closing `<lie …/>` tag: it is HIDDEN from the reader but REMEMBERED by you (it rides the wire verbatim),
  *  so a lie stays consistent across the scene. The attrs (`character type truth reason`) match the reveal
  *  surface's field order. Composed ONLY when `config.features.deception` is on. */
 export const RPG_DECEPTION_TEACH = PROSE_SLOTS["rpg.reminder.deceptionTeach"].text;
 
-/** The OMNISCIENCE-FILTER teaching block (P3 §3.3 feature 4) — a VERSIONED constant (the marinara-derived
+/** The OMNISCIENCE-FILTER teaching block — a VERSIONED constant (the marinara-derived
  *  `<ofilter …/>` grammar the tokenizer's `ofilter` registrant recognizes). Teaches the perception gate: when
  *  something happens the player's character could NOT perceive, record it in a hidden tag and narrate only what
  *  they CAN perceive. The attrs (`event reason`) match the reveal surface. The optional `who` attr (per-player
@@ -111,7 +111,7 @@ const RPG_CARD_TEACH_EXAMPLE = PROSE_SLOTS["rpg.card.example"].text;
 const RPG_CARD_TEACH_ASK = PROSE_SLOTS["rpg.card.askInteractive"].text;
 export const RPG_CARD_TEACH = RPG_CARD_TEACH_ASK + RPG_CARD_TEACH_EXAMPLE;
 
-// The CYOA teaching block (P5 §5.4 feature 5) — a versioned constant (the RPG_STEERING_LICENSE pattern).
+// The CYOA teaching block — a versioned constant (the RPG_STEERING_LICENSE pattern).
 // Teaches the `:::choices` directive fence the tokenizer's `choices` registrant recognizes; the reading
 // surface renders the options as clickable send-affordances (§5.2-5.3). Composed ONLY when
 // `config.features.cyoa` is on; the wand's one-shot "Offer choices" covers the this-turn-only ask.

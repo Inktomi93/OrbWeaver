@@ -2521,7 +2521,7 @@ export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurn
       triggeredBy: identity.triggeredBy,
       runAsUserId: identity.runAsUserId,
       kind: "auto",
-      // The turn origin (03 §4) — the engine stamps both onto the new-slot reply; `getTurnOrigin` reads them
+      // The turn origin — the engine stamps both onto the new-slot reply; `getTurnOrigin` reads them
       // back for the cascade guard. NEVER a bus-event field (the D19/D50 allowlist).
       initiator,
       automationDepth,

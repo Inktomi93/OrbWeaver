@@ -1,4 +1,4 @@
-// verb: listPlugins — the caller's OWN installed plugins (02 §4), newest-installed first (fetchOwned). No
+// verb: listPlugins — the caller's OWN installed plugins, newest-installed first (fetchOwned). No
 // authority beyond ownership: the owner-scoped read is the gate (a foreign plugin is simply not in the result).
 
 import type { ListPluginsParams } from "../contract/params.ts";

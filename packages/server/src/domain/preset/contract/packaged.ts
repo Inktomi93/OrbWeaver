@@ -26,16 +26,16 @@ export interface PackagedPreset {
   readonly config: PromptConfig;
 }
 
-// ── The "RPG Game Master" packaged preset (rpg-design/02 §1.1, 06 §1) ────────────────────────────────
+// ── The "RPG Game Master" packaged preset ────────────────────────────────
 // GM-TUNE: the 8 `rpg*` data-fed macros (domain/rpg/substrate/gather-macros.ts, feeding `RpgGatherResult`)
-// are now wired into their 06 §1 section slots — `game-frame`(#2)/`server-context`(#5)/`gm-secrets`(#6)/
+// are wired into their section slots — `game-frame`(#2)/`server-context`(#5)/`gm-secrets`(#6)/
 // `continuity`(#7)/`cast`(#8) — inserted around the earned marinara GM-law prose (still macro-free, still
-// ported verbatim). RPG-RATING: `rating_guidelines` (06 §1 #4) is now added as a STATIC section (NOT a 9th
-// macro — the doc's table row carries no `{{rpg…}}` token and the pairing test asserts exactly 8). It keys off
+// ported verbatim). RPG-RATING: `rating_guidelines` (#4) is a STATIC section (NOT a 9th
+// macro — its content carries no `{{rpg…}}` token and the pairing test asserts exactly 8). It keys off
 // `config.rating`, which the game frame surfaces to the model (`buildWorld` appends `Rating: <sfw|nsfw>`), so
 // the block states both policies and the GM applies the one matching the game's rating. The
-// DEFAULT_PROMPT_CONFIG-derived world-info/card/persona/memory sections are kept as-is (06 §1's 10-slot
-// table doesn't forbid them and dropping them is a separate design call, not a macro-wiring one).
+// DEFAULT_PROMPT_CONFIG-derived world-info/card/persona/memory sections are kept as-is (the 10-slot
+// layout doesn't forbid them and dropping them is a separate design call, not a macro-wiring one).
 
 const GM_ROLE_SECTION: PromptSection = {
   type: "marker",
@@ -65,7 +65,7 @@ const GM_INSTRUCTIONS_SECTION: PromptSection = {
   ].join("\n\n"),
 };
 
-/** SFW/NSFW block keyed off config.rating — section #4 (06 §1). Static: the game frame (`{{rpgWorld}}`) surfaces
+/** SFW/NSFW block keyed off config.rating — section #4. Static: the game frame (`{{rpgWorld}}`) surfaces
  *  the game's rating to the model, so this block states both policies and the GM applies the matching one. */
 const RATING_GUIDELINES_SECTION: PromptSection = {
   type: "literal",
@@ -80,7 +80,7 @@ const RATING_GUIDELINES_SECTION: PromptSection = {
   ].join("\n\n"),
 };
 
-/** genre/setting/tone/difficulty frame — section #2 (06 §1). */
+/** genre/setting/tone/difficulty frame — section #2. */
 const GAME_FRAME_SECTION: PromptSection = {
   type: "literal",
   id: "game-frame",
@@ -90,7 +90,7 @@ const GAME_FRAME_SECTION: PromptSection = {
   content: "{{rpgWorld}}",
 };
 
-/** The server-computed state block the model narrates but never recalculates — section #5 (06 §1). */
+/** The server-computed state block the model narrates but never recalculates — section #5. */
 const SERVER_CONTEXT_SECTION: PromptSection = {
   type: "literal",
   id: "server-context",
@@ -100,7 +100,7 @@ const SERVER_CONTEXT_SECTION: PromptSection = {
   content: "Server-Computed Context (narrate these, don't recalculate):\n\n{{rpgSceneState}}\n\n{{rpgMorale}}\n\n{{rpgPerception}}\n\n{{rpgMap}}",
 };
 
-/** The GM-only spine — story arc, twist bank, hidden clocks — section #6 (06 §1). */
+/** The GM-only spine — story arc, twist bank, hidden clocks — section #6. */
 const GM_SECRETS_SECTION: PromptSection = {
   type: "literal",
   id: "gm-secrets",
@@ -111,7 +111,7 @@ const GM_SECRETS_SECTION: PromptSection = {
     "{{rpgSecrets}}\n\nOptional pacing scaffolding. Use it when it fits; ignore clocks or seeds when the current game is meant to stay chill, domestic, or low-pressure.",
 };
 
-/** Session summaries + latest carryover detail — section #7 (06 §1). */
+/** Session summaries + latest carryover detail — section #7. */
 const CONTINUITY_SECTION: PromptSection = {
   type: "literal",
   id: "continuity",
@@ -121,7 +121,7 @@ const CONTINUITY_SECTION: PromptSection = {
   content: "{{rpgContinuity}}",
 };
 
-/** Party sheets/arcs + tracked NPCs — section #8 (06 §1). */
+/** Party sheets/arcs + tracked NPCs — section #8. */
 const CAST_SECTION: PromptSection = {
   type: "literal",
   id: "cast",

@@ -70,7 +70,7 @@ export interface ToolDefinition<A = unknown> {
 export type ToolCallBatch = readonly ToolCallInput[];
 
 /** A RUNTIME plugin-tool registration (D48 source (b); plugin-design PL-A). Distinct from the compose-time
- *  `ToolDefinition` in three ways the landed shape forced (03 §5): the args schema arrives as raw JSON Schema
+ *  `ToolDefinition` in three ways the landed shape forced: the args schema arrives as raw JSON Schema
  *  from an untrusted GUEST (lifted host-side to zod via `@orb/kit/json-schema` `liftJsonSchema` — PL-B; a
  *  guest cannot author zod); the ceiling runs as the INSTALLING principal, not the turn caller (PL-C); and
  *  registration is activation-time, so a collision is activation-fatal (not boot-fatal) and returns a

@@ -1,7 +1,7 @@
-// domain/automation/substrate/cel-env — build the LIVE CEL activation for a dispatch (02 §1). Where the
+// domain/automation/substrate/cel-env — build the LIVE CEL activation for a dispatch. Where the
 // dry-run runs over an empty/host-supplied env, this reads the REAL planes for a firing rule: the chat's
 // runtime fold cache (`vars`) + config-plane picks (`choice`) through the injected chat ops, the rule AUTHOR's
-// per-user globals (never the triggering member's namespace — 02 §4), the narrow chat projection, and the
+// per-user globals (never the triggering member's namespace), the narrow chat projection, and the
 // once-per-dispatch clock. The resolved `event` fact rides `event`. The predicate then evaluates via the
 // dry-run's `evaluatePredicate` (one CEL path for test + live).
 
@@ -13,7 +13,7 @@ import { countChatMessages } from "../persistence/canon-reads.ts";
 import { listGlobalVariables } from "../persistence/queries.ts";
 import { nowFields } from "./dry-run.ts";
 
-/** The author's per-user globals as the CEL `global` map (02 §4). */
+/** The author's per-user globals as the CEL `global` map. */
 export async function authorGlobals(db: Db, authorUserId: UserId): Promise<Record<string, string>> {
   const rows = await listGlobalVariables(db, authorUserId);
   const out: Record<string, string> = {};

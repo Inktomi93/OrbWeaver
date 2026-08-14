@@ -22,7 +22,7 @@ import type {
 } from "./params.ts";
 import type { PluginLogView, PluginView, SnippetResult } from "./results.ts";
 
-/** The caller's leak-free chat authority for the snippet gate (03 §1): `canRead` admits the chat at all,
+/** The caller's leak-free chat authority for the snippet gate: `canRead` admits the chat at all,
  *  `canWrite` unlocks the write half of the fixed profile (host authority). An unknown/foreign chat resolves
  *  to `{false,false}` — indistinguishable from a no-access chat (the loadPresentRole compose-gate semantics),
  *  so a snippet against a chat the caller cannot see is refused NOT_FOUND, never given an existence oracle. */
@@ -32,17 +32,17 @@ interface ChatAuthority {
 }
 
 /** Per-instance DoS budget (structural twin of `infra/plugin-host`'s `SandboxLimits` — the domain never imports
- *  `#infra`; the port defaults these from `budgets.ts` when omitted). A snippet (P5) passes the wider wall. */
+ *  `#infra`; the port defaults these from `budgets.ts` when omitted). A snippet passes the wider wall. */
 export interface PluginBudgets {
   readonly cpuDeadlineMs: number;
   readonly memoryLimitBytes: number;
 }
 
-/** The input to `createInstance` (02 §5): the guest source + the confirmed grants + the authority-agnostic
+/** The input to `createInstance`: the guest source + the confirmed grants + the authority-agnostic
  *  membrane BRIDGE the domain built (per-installer: `substrate/bridge.ts` closes global-vars over the installer
  *  and passes chat ops through) + the activation-run chat scope + the optional budget override. The domain
  *  gated the invocation-chat-context (`can(installer,"read",chat)`) + folded host-authority into `grants` /
- *  `chat.canWrite` BEFORE this call — infra is authority-blind (a plugin can never exceed its installer — 02 §2).
+ *  `chat.canWrite` BEFORE this call — infra is authority-blind (a plugin can never exceed its installer).
  *  `chat` is `null` for an installed plugin's registration-only `main.js`; set for a snippet run. Constructed
  *  ONCE at the trust boundary, never guest-supplied. */
 export interface CreateInstanceInput {
@@ -57,7 +57,7 @@ export interface CreateInstanceInput {
   readonly budgets?: PluginBudgets;
 }
 
-/** The outcome of an activation run (03 §2): a healthy resident instance, OR a contained activation failure
+/** The outcome of an activation run: a healthy resident instance, OR a contained activation failure
  *  (a `main.js` throw, an unserved `orb.host(2)`, a budget blow) surfaced as data — NEVER a partial activation
  *  (registrations from a failed run are discarded). `log` carries the activation-run host.log lines (the
  *  `last_error` context + the log ring's first fill). */
@@ -65,18 +65,18 @@ export type CreateInstanceOutcome =
   | { readonly ok: true; readonly instance: PluginInstance }
   | { readonly ok: false; readonly error: string; readonly log: readonly PluginLogView[] };
 
-/** The infra seam the sandbox runtime implements (`infra/plugin-host`'s front door — 01 §4). `domain/plugin`
- *  DRIVES it; the port never sees a DB row. TYPED here at P3; the createInstance/invoke bodies (host-fn wiring
- *  over the P1 `Sandbox`) are P4. */
+/** The infra seam the sandbox runtime implements (`infra/plugin-host`'s front door). `domain/plugin`
+ *  DRIVES it; the port never sees a DB row. TYPED here; the createInstance/invoke bodies (host-fn wiring
+ *  over the `Sandbox`) live in infra. */
 export interface PluginHostPort {
   /** Boot a guest instance, install the realm, run `main.js` under the invocation budget, collect its
-   *  registrations. Activation failure is contained → `ok:false` (the host process is never fatal — 03 §4). */
+   *  registrations. Activation failure is contained → `ok:false` (the host process is never fatal). */
   readonly createInstance: (input: CreateInstanceInput) => Promise<CreateInstanceOutcome>;
   /** Invoke a collected guest handler (a tool/transform/event callback) with JSON-encoded args under the
-   *  per-invocation budget (§3). `chat` sets the handler's invocation-chat scope (a resident tool runs in the
+   *  per-invocation budget. `chat` sets the handler's invocation-chat scope (a resident tool runs in the
    *  chat it was called from — the domain resolves read/host authority before threading it; `null` = no scope). */
   readonly invoke: (instance: PluginInstance, handler: PluginHandlerRef, argsJson: string, chat: InvocationChat | null) => Promise<string>;
-  /** Run an inline snippet (03 §1): a FRESH transient instance, run once as the caller under the 5 s wall, then
+  /** Run an inline snippet: a FRESH transient instance, run once as the caller under the 5 s wall, then
    *  disposed — no residency. The fixed capability profile + the admitted chat scope are the domain's; the port
    *  returns the drained log + a contained `error` (a snippet crash is data, never a resident-crash counter). */
   readonly runSnippet: (input: {
@@ -85,7 +85,7 @@ export interface PluginHostPort {
     readonly bridge: PluginBridge;
     readonly chat: InvocationChat;
   }) => Promise<SnippetResult>;
-  /** A non-destructive snapshot of the instance's per-plugin host.log ring (03 §3). */
+  /** A non-destructive snapshot of the instance's per-plugin host.log ring. */
   readonly readLog: (instance: PluginInstance) => readonly PluginLogView[];
   /** Tear down the instance (disposes the guest context + all realm handles). Idempotent-safe. */
   readonly dispose: (instance: PluginInstance) => void;
@@ -110,7 +110,7 @@ export interface ActivationDeps {
   readonly deactivate: (pluginId: PluginId) => void;
 }
 
-/** The crash-policy surface the P4 invocation loop drives (auto-disable posture, 03 §4). Homed here (not
+/** The crash-policy surface the invocation loop drives (auto-disable posture). Homed here (not
  *  `activation/crash-policy.ts`) so the `activate` factory imports the seam type from the domain's type home —
  *  the factory `createCrashPolicy` stays in activation/, this is only its shape. */
 export interface CrashPolicy {
@@ -122,12 +122,12 @@ export interface CrashPolicy {
     readonly recipientUserId: UserId;
     readonly error: string;
   }) => Promise<{ readonly disabled: boolean; readonly count: number }>;
-  /** A clean invocation resets the consecutive-crash counter (03 §4). */
+  /** A clean invocation resets the consecutive-crash counter. */
   readonly recordCleanRun: (pluginId: PluginId) => Promise<void>;
 }
 
 /** One resident enabled plugin: its live instance + the registrar handles (`deactivate`/`uninstall`
- *  `unregister`s each — no ghost registrations, 03 §5). */
+ *  `unregister`s each — no ghost registrations). */
 interface ResidentPlugin {
   readonly instance: PluginInstance;
   readonly handles: readonly PluginRegistrationHandle[];
@@ -142,12 +142,12 @@ export interface PluginContext {
   readonly db: Db;
   readonly now: () => number;
   readonly newPluginId: () => PluginId;
-  /** The `can()` privilege seam (install authority = `can(caller,"admin",{kind:"global"})` — owner ∪ admin,
-   *  02 §4). Injected (the domain never imports `admin`). */
+  /** The `can()` privilege seam (install authority = `can(caller,"admin",{kind:"global"})` — owner ∪ admin).
+   *  Injected (the domain never imports `admin`). */
   readonly can: Can;
   /** The per-user CAS ops the bundle bytes ride: `store` (kind fixed `"plugin"`), the owner-gated `readBytes`
    *  (activation re-reads + re-parses — "re-validated on load"), and `reapOrphans` (uninstall reaps the bundle
-   *  asset AFTER the row's FK reference is deleted — the RESTRICT/`reapIfOrphan` posture, 02 §3). */
+   *  asset AFTER the row's FK reference is deleted — the RESTRICT/`reapIfOrphan` posture). */
   readonly assets: {
     readonly store: (caller: Principal, bytes: Uint8Array, mime: string) => Promise<StoredAsset>;
     readonly readBytes: (caller: Principal, assetId: AssetId) => Promise<{ readonly bytes: Uint8Array; readonly mime: string }>;
@@ -155,28 +155,27 @@ export interface PluginContext {
   };
   readonly host: PluginHostPort;
   readonly ops: PluginHostOps;
-  /** The snippet gate (03 §1): resolve the caller's leak-free read/host authority for a chat. Caller-in-params
+  /** The snippet gate: resolve the caller's leak-free read/host authority for a chat. Caller-in-params
    *  (the injected-op-caller-gate rule); a foreign/unknown chat yields `{false,false}` — no existence oracle.
    *  Injected at compose (the domain never imports chat) — `loadPresentRole` under the caller. */
   readonly resolveChatAuthority: (caller: Principal, chatId: ChatId) => Promise<ChatAuthority>;
 }
 
-/** The plugin lifecycle surface (02 §4). `runSnippet` (the inline mode) is P5 — its params/result type home
- *  ships now, the verb does not. */
+/** The plugin lifecycle surface, incl. `runSnippet` (the inline mode). */
 export interface PluginService {
-  /** Unzip+validate the bundle → grant ⊆ declared → store bytes in the CAS → `disabled` row (02 §4). */
+  /** Unzip+validate the bundle → grant ⊆ declared → store bytes in the CAS → `disabled` row. */
   readonly install: (params: InstallPluginParams) => Promise<PluginView>;
   /** Replace the bundle for an installed plugin (slug must match; downgrade refused; new caps ⇒ disabled). */
   readonly upgrade: (params: UpgradePluginParams) => Promise<PluginView>;
   /** Activate (run `main.js`, register) or deactivate (dispose + deregister) — idempotent per target state. */
   readonly setEnabled: (params: SetPluginEnabledParams) => Promise<void>;
-  /** Deactivate → delete the row (KV cascades) → reap the bundle asset (02 §4). */
+  /** Deactivate → delete the row (KV cascades) → reap the bundle asset. */
   readonly uninstall: (params: UninstallPluginParams) => Promise<void>;
   /** The caller's OWN installed plugins (fetchOwned), newest-installed first. */
   readonly list: (params: ListPluginsParams) => Promise<readonly PluginView[]>;
-  /** The host.log ring for an owned plugin (03 §3) — empty for a plugin with no resident instance. */
+  /** The host.log ring for an owned plugin — empty for a plugin with no resident instance. */
   readonly getLog: (params: GetPluginLogParams) => Promise<readonly PluginLogView[]>;
-  /** The inline mode (03 §1): run `code` once as the caller in `chatId` under the fixed capability profile ∩
+  /** The inline mode: run `code` once as the caller in `chatId` under the fixed capability profile ∩
    *  the caller's chat authority (read admits, host unlocks writes), disposed after. Refuses NOT_FOUND when the
    *  caller cannot read the chat (leak-free). */
   readonly runSnippet: (params: RunSnippetParams) => Promise<SnippetResult>;

@@ -61,7 +61,7 @@ import { loadPluginMessages } from "./plugin-chat-reads.ts";
 const AUTOBG_SYSTEM =
   "You choose the single best-matching background for a scene. Reply with ONLY the exact background name from the provided list, nothing else.";
 const PLUGIN_MESSAGE_CONTENT_CAP = 16_384;
-// The plugin prompt-transform ORDER BAND (04 §6 — automation 0–999, plugins 1000+; host policy wraps guest).
+// The plugin prompt-transform ORDER BAND (automation 0–999, plugins 1000+; host policy wraps guest).
 const PLUGIN_TRANSFORM_ORDER_BASE = 1000;
 
 /** What the automation+plugin seam needs from the composition root. */
@@ -136,7 +136,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         ...(req.size !== undefined ? { size: req.size } : {}),
         ...(req.subjectCharacterId !== undefined ? { subjectCharacterId: req.subjectCharacterId } : {}),
       });
-      // 03 §1.7 "one /imagine path": the DEFAULT (`quiet:false`) surfaces the image IN-CHAT — otherwise a
+      // ONE /imagine path: the DEFAULT (`quiet:false`) surfaces the image IN-CHAT — otherwise a
       // `generate_image` rule's output is only ever reachable via the gallery. Post through chat's EXISTING
       // server-side image-post seam (`postNarratorMessage`), never a second posting path. `quiet:true` stays
       // store-only (gallery only).
@@ -189,11 +189,11 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     },
   });
   const automationEnabled = createEnabledRuleIndex(db);
-  // The plugin `events.on` fan-out registry (plugin-design/04 §P4) — ONE per-process instance, injected into the
+  // The plugin `events.on` fan-out registry — ONE per-process instance, injected into the
   // automation context (the watcher fan-out reads it) AND handed to the membrane host's `subscribeEvent` seam.
   const pluginSubscribers = createPluginSubscriberRegistry();
-  // The A7 prompt-transform index — `transform_draft` rules register into chat's compose-wired
-  // `promptTransformRegistry` (the D50 seam, 04 §6) as they enable/disable/reorder.
+  // The prompt-transform index — `transform_draft` rules register into chat's compose-wired
+  // `promptTransformRegistry` (the D50 seam) as they enable/disable/reorder.
   const automationTransforms = createPromptTransformIndex({
     db,
     ops: automationOps,
@@ -217,7 +217,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     resolveAuthor: resolveOwnerPrincipal,
     notify: automationNotify,
   });
-  // Prime the watcher's in-process enabled index + the A7 transform registry from canon (01 §3 / 04 §6) —
+  // Prime the watcher's in-process enabled index + the transform registry from canon —
   // before the watcher starts consuming and before the first turn assembles.
   await automationEnabled.reload();
   await automationTransforms.reload();
@@ -231,14 +231,14 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     // INVARIANT (injected-op-caller-gate, INFO-5): every chat op below takes a BARE chatId and does NOT re-check
     // caller authority — it TRUSTS that admission already happened. The membrane is the ONLY caller and the gate.
     chat: {
-      // The reduced plugin view (01 §2), FLOOR-CLAMPED in SQL — `plugin-chat-reads.ts` (extracted so the
+      // The reduced plugin view, FLOOR-CLAMPED in SQL — `plugin-chat-reads.ts` (extracted so the
       // predicate deciding which canon bytes reach an untrusted guest realm has a reachable test seam).
       listMessages: (chatId, opts) => loadPluginMessages(db, chatId, opts),
       // The bridge asks this BEFORE `listMessages` and hands the resolved floor down (a non-member ⇒ `[]`).
       resolveViewerVisibility: deps.resolveViewerVisibility,
       getVariables: automationOps.chat.readVariables,
       applyVariableOps: automationOps.chat.applyVariableOps,
-      // turn.trigger (01 §2) → chat's principal-free `requestTurn`. `initiator:"plugin"` is HARDCODED.
+      // turn.trigger → chat's principal-free `requestTurn`. `initiator:"plugin"` is HARDCODED.
       requestTurn: async ({ funderUserId, chatId, automationDepth, speakerCharacterId, guided }) => {
         await chatCompose.requestTurn({
           chatId,
@@ -251,7 +251,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
       },
     },
     worldInfo: automationOps.worldInfo,
-    // storage.kv (01 §2) — the plugin-PRIVATE KV.
+    // storage.kv — the plugin-PRIVATE KV.
     storage: buildPluginStorage(db, now),
     // The durable inbox seam.
     notifications: {
@@ -270,7 +270,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         );
       },
     },
-    // chat.quick_reply (01 §2) — transient chips onto the chat's automation bus.
+    // chat.quick_reply — transient chips onto the chat's automation bus.
     quickReply: {
       surface: ({ pluginId, chatId, choices }) => {
         const projected = choices.map((c) => ({ label: c.label, sendText: c.sendText }));
@@ -278,7 +278,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
         return Promise.resolve();
       },
     },
-    // The membrane's imagery returns the primary image's `{assetId}` (01 §2).
+    // The membrane's imagery returns the primary image's `{assetId}`.
     imagery: {
       generatePicture: async ({ authorUserId, chatId, args }) => {
         const p = generateImageActionArgsSchema.parse(args);
@@ -391,7 +391,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     },
     host: pluginHost,
     ops: pluginHostOps,
-    // The snippet gate (03 §1): the caller's leak-free read/host authority for a chat.
+    // The snippet gate: the caller's leak-free read/host authority for a chat.
     resolveChatAuthority: async (caller, chatId) => {
       const role = await loadPresentRole(db, chatId, caller.userId);
       return { canRead: role !== null, canWrite: role === "host" };

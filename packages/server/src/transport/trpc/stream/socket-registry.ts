@@ -2,7 +2,7 @@
 // three live buses (`bus-channel.ts`) and `presence-registry.ts`. A second replica would need cells behind a
 // shared store keyed the same way — nothing else about this module changes.
 //
-// The socket registry (SSE-1 §5.1/§5.4): which rooms a tab's ONE socket wants, surviving across the socket's
+// The socket registry: which rooms a tab's ONE socket wants, surviving across the socket's
 // own reconnects. The cell — not the live generator — is the durable half, which is what makes three
 // otherwise-racy things simple:
 //   • ORDER-INDEPENDENT CREATION. Whichever of `attach` / `connect` arrives first mints the cell. That kills
@@ -16,13 +16,13 @@
 //     stopped. The client does not re-attach for correctness (it does re-announce on the live edge — see
 //     `room-registry.ts` — which is idempotent here).
 //
-// RECONCILIATION vs the spec's §5.1: the spec models pending work as a `commands: AsyncQueue<…>` drained by
+// RECONCILIATION: an earlier design modeled pending work as a `commands: AsyncQueue<…>` drained by
 // the live generator. There is nothing for such a queue to carry: while the socket is DARK the desired state
 // IS `cell.rooms` (a queue would only re-derive it), and while the socket is LIVE the mutation can notify the
 // generator SYNCHRONOUSLY, which preserves in-order application trivially. So the queue collapses to
 // `cell.rooms` + one optional listener, with identical observable behavior.
 //
-// TRUST BOUNDARY (§4.1): `socketId` is CLIENT-MINTED and is NOT a capability. The cell records its owner and
+// TRUST BOUNDARY: `socketId` is CLIENT-MINTED and is NOT a capability. The cell records its owner and
 // EVERY entry point takes the caller's `userId`; a mismatch is the repo's standard leak-free `NOT_FOUND`
 // collapse — never a hijack, never a `FORBIDDEN` that would confirm the socket exists. (The spec describes
 // the same property as a composite `${userId}:${socketId}` key; keying on `socketId` with an explicit owner
@@ -38,7 +38,7 @@
 //
 // THE CELL IS SINGLE-OWNER, AND OWNERSHIP TRANSFERS AT `goLive` — NOT at the predecessor's death. A server
 // learns a socket died when a write to it fails: on a clean close that is immediate, but on a HALF-OPEN TCP
-// (NAT rebind, sleep/wake, a silently-dead proxy — §8's whole motivating class) the writes buffer in the
+// (NAT rebind, sleep/wake, a silently-dead proxy — the whole motivating class for this module) the writes buffer in the
 // kernel and the error surfaces after the retransmission timeout, minutes later. The client meanwhile
 // reconnects at 45s (`reconnectAfterInactivityMs`), so two generators legitimately overlap on one cell. Three
 // things follow, and all three are properties of THIS module:
@@ -48,10 +48,10 @@
 //     zombie dying on time.
 //   • EVICTION — `goLive` tells the outgoing generator to stop (`onEvicted`) before installing the new one,
 //     so a zombie cannot keep pumping into a dead socket (and advancing shared cursors with it).
-//   • EVICTION IS ALSO THE CREDENTIAL EDGE (W7a, staleness-and-session-freshness.md §4.4.3). A socket freezes
+//   • EVICTION IS ALSO THE CREDENTIAL EDGE. A socket freezes
 //     its Principal at connect and lives for the connection's lifetime, so before this NOTHING server-side
 //     killed a live stream when its session was revoked: a logged-out or disabled tab kept receiving events
-//     until the socket died of natural causes. `evictSession` (logout — per-SESSION, F4) and `evictUser`
+//     until the socket died of natural causes. `evictSession` (logout — per-SESSION) and `evictUser`
 //     (admin revoke-all / disable / back-channel logout) reuse the SAME `onEvicted` signal the takeover path
 //     uses, composed at ENTRY (the cake holds: `domain/sessions` never imports transport).
 //   • OWNERSHIP-CHECKED TEARDOWN — `goDark` takes the listener that is finishing and no-ops unless it is
@@ -64,7 +64,7 @@ import { roomKey } from "@orb/contracts/stream";
 import { DomainNotFoundError, DomainRateLimitError } from "@orb/kit/errors";
 import type { SessionId, SocketId, UserId } from "@orb/kit/ids";
 
-/** Ratified hygiene bounds (§14.6). None is load-bearing; they exist so a client bug cannot grow the maps. */
+/** Ratified hygiene bounds. None is load-bearing; they exist so a client bug cannot grow the maps. */
 export const SOCKET_REAP_MS = 60_000;
 export const ROOMS_PER_SOCKET = 32;
 export const SOCKETS_PER_USER = 8;
@@ -113,7 +113,7 @@ export interface SocketCell {
    * evict per-session). Re-stamped on every `adopt`, because a reconnect is a fresh request with a fresh
    * cookie: the cell survives a re-login, and it must not keep pointing at the session that just ended.
    *
-   * WHY IT LIVES HERE AND NOT ON THE PRINCIPAL (F4, owner-ruled 2026-08-14): logout is per-SESSION — signing
+   * WHY IT LIVES HERE AND NOT ON THE PRINCIPAL (owner-ruled 2026-08-14): logout is per-SESSION — signing
    * out on the phone must not kill the desktop — and the socket is the only long-lived thing that outlives the
    * request its Principal was minted from. D135 says the ROLE verdict has one home; a session id is not a
    * role, and threading it through the Principal would put a per-connection fact into the immutable identity
@@ -149,19 +149,19 @@ export interface SocketRegistry {
   readonly goLive: (cell: SocketCell, listener: SocketListener) => void;
   readonly goDark: (cell: SocketCell, listener: SocketListener) => void;
   /**
-   * SESSION DEATH → SOCKET DEATH, for ONE session (W7a; logout). Ends every live generator whose cell
+   * SESSION DEATH → SOCKET DEATH, for ONE session (logout). Ends every live generator whose cell
    * authenticated with `sessionId` and returns how many it ended. The other devices of the same human are
-   * untouched — that is the whole point of the per-SESSION arm (F4).
+   * untouched — that is the whole point of the per-SESSION arm.
    *
    * Eviction is a STOP signal, not a state edit: it calls the generator's `onEvicted`, and the generator's own
    * `finally` runs `goDark`, which is the ownership-checked transition (a cell darked from the outside would
    * race a takeover and undercount `liveSocketCount`). The ROOMS are deliberately left in place: a reconnect
    * on a still-valid cookie resumes them through the existing barrier, and a reconnect on the revoked one
-   * fails `authedProcedure` with UNAUTHORIZED, which is what reaches the client's recovery ladder (W1).
+   * fails `authedProcedure` with UNAUTHORIZED, which is what reaches the client's recovery ladder.
    * A `null` `sessionId` matches nothing — a sessionless connection cannot be signed out of.
    */
   readonly evictSession: (sessionId: SessionId) => number;
-  /** SESSION DEATH → SOCKET DEATH, for a whole USER (W7a; admin revoke-all / disable / password reset / the
+  /** SESSION DEATH → SOCKET DEATH, for a whole USER (admin revoke-all / disable / password reset / the
    *  OIDC back-channel logout). Same mechanism as {@link SocketRegistry.evictSession}, wider net — and the
    *  net has to be wider here: a disable is a statement about the human, and it must also reach the sockets
    *  that authenticated with NO session (the owner fallback, forward-header SSO) which no session id names. */

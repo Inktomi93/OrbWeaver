@@ -1,11 +1,11 @@
-// verb: registerPluginTool — the RUNTIME registrar (plugin-design PL-A; D48 source (b)). A plugin's
+// verb: registerPluginTool — the RUNTIME registrar (D48 source (b)). A plugin's
 // activation hands a guest-registered tool here; it lands in the ONE process registry (never a parallel
-// plugin-tool map) and returns a deregistration handle the plugin's deactivation calls (no ghost tools,
-// 03 §5). Three deltas from the compose-time `register` the landed shape forced:
+// plugin-tool map) and returns a deregistration handle the plugin's deactivation calls (no ghost tools).
+// Three deltas from the compose-time `register` the landed shape forced:
 //
 //   (a) COLLISION IS ACTIVATION-FATAL, not boot-fatal — a runtime source can't be boot-fatal (nothing runs
 //       at boot). A duplicate name throws `ToolNameCollisionError`, which the plugin activation catches and
-//       treats as a contained activation failure (row → errored), never a process crash (03 §5).
+//       treats as a contained activation failure (row → errored), never a process crash.
 //   (b) The args schema is UNTRUSTED GUEST JSON Schema (a guest can't author zod). It is LIFTED to zod
 //       host-side via `@orb/kit/json-schema` `liftJsonSchema` (PL-B — conservative-or-refuse: an unsupported
 //       construct throws `JsonSchemaLiftError`, also activation-fatal), then the wire `parameters` is DERIVED
@@ -15,7 +15,7 @@
 //       cross-tenant read. The guest handler itself runs host-side under each host-fn's own installer gate,
 //       so the effects are installer-bounded by construction; this belt is the invocation-time read ceiling.
 //
-// The guest handler returns a raw string that IS the tool result (03 §7) — it flows back verbatim (NOT
+// The guest handler returns a raw string that IS the tool result — it flows back verbatim (NOT
 // re-JSON-stringified), so a guest that returns `JSON.stringify(...)` yields exactly that JSON to the model.
 
 import type { Can, Principal } from "@orb/contracts/identity";

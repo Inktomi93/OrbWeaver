@@ -1,4 +1,4 @@
-// verb: setGlobalVariable — owner-scoped upsert of the per-user global plane (02 §4), last-write-wins.
+// verb: setGlobalVariable — owner-scoped upsert of the per-user global plane, last-write-wins.
 // Validates the caps BEFORE the write (empty/over-long key, over-64-KiB value) for a typed refusal ahead
 // of the DB CHECK; stamps the injected clock onto `updated_at` (overwriting the DDL default).
 
