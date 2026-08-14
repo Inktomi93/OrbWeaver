@@ -16,7 +16,7 @@ import type { RefinerySchemaId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-import { routeTrpc } from "../../../../support/ct/route-trpc.ts";
+import { routeTrpc, trpcError } from "../../../../support/ct/route-trpc.ts";
 import { SchemaEditorStory } from "../_ct-stories.tsx";
 
 /** The JSON pane's landed draft always carries the well-known core — the cheapest "the draft arrived"
@@ -170,6 +170,36 @@ test("the test drill's SKELETON is plan-shaped: the preview shows the answer's a
   await expect(skeleton).toBeVisible();
   await expect(skeleton).toHaveAttribute("aria-busy", "true");
   await expect(page.getByRole("button", { name: "Running…" })).toBeDisabled();
+});
+
+/** A belt refusal reaches the client as a tRPC input-validation rejection whose `.message` is the
+ *  ZodError's SERIALIZED ISSUE ARRAY — the teaching sentence is each issue's own `.message`, and the D3
+ *  scar was the note printing the whole array (brackets, `"code"`/`"path"` keys, escaped quotes) instead. */
+const ZOD_REFUSAL = JSON.stringify([
+  { code: "custom", path: ["name"], message: "name must match ^[a-zA-Z_][a-zA-Z0-9_]*$" },
+  {
+    code: "custom",
+    path: ["schema"],
+    message: '"pattern" is not allowed in a refinery schema (an LLM payload needs no regex) (at #/properties/handle)',
+  },
+]);
+
+test("a belt REFUSAL shows the teaching SENTENCES, not the raw serialized zod issue array (D3)", async ({ mount, page }) => {
+  await routeTrpc(page, { "refinery.createSchema": () => trpcError({ code: "BAD_REQUEST", message: ZOD_REFUSAL }) });
+  await mount(<SchemaEditorStory />);
+
+  await page.getByRole("textbox", SCHEMA_PANE).fill(JSON.stringify(BOUNDED_SCHEMA));
+  await page.getByRole("textbox", { name: "Name" }).fill("handles");
+  await page.getByRole("button", { name: "Save schema" }).click();
+
+  const refusal = page.getByTestId("refinery-schema-refusal");
+  // Each issue's authored sentence surfaces as its own line…
+  await expect(refusal).toContainText("name must match");
+  await expect(refusal).toContainText('"pattern" is not allowed in a refinery schema');
+  // …and the JSON scaffolding is GONE — no leaked keys, no array brackets.
+  await expect(refusal).not.toContainText('"code"');
+  await expect(refusal).not.toContainText('"path"');
+  await expect(refusal).not.toContainText("[{");
 });
 
 test("EDIT-EXISTING opens populated and saves through the UPDATE verb — the branch P1-15 found unreachable", async ({ mount, page }) => {

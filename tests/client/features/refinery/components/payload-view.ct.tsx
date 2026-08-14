@@ -58,6 +58,42 @@ test("the SCORE mock anatomy derives: hero gauge with docked summary, assay rows
   // The improvements render as a designed list, and nothing on the surface is a JSON dump.
   await expect(page.getByRole("listitem").filter({ hasText: "Deepen the backstory" })).toBeVisible();
   await expect(page.getByTestId("refinery-payload-view")).not.toContainText("{");
+  // D1 (built-in arm, AUDIBLE): every meter announces on the schema's OWN 1-10 scale — a screen-reader
+  // user hears "7.5 of 10" for the hero, never "72%". This reaches the shipped built-in payload, which
+  // is why the fix lives at the @orb/ui Meter primitive.
+  await expect(hero.getByRole("meter")).toHaveAttribute("aria-valuetext", "7.5 of 10");
+  // No meter on the surface announces a percent. Asserted as a FILTERED ARRAY so a failure names the
+  // offending readouts rather than printing a bare `false`.
+  const valueTexts = await page.getByRole("meter").evaluateAll((els) => els.map((el) => el.getAttribute("aria-valuetext")));
+  expect(valueTexts.filter((t) => t?.includes("%"))).toEqual([]);
+});
+
+test("D1/D2: a non-hero bounded score meters on its OWN scale and labels exactly ONCE — no percent, no double-label", async ({ mount, page }) => {
+  // Two both-bounded root numbers ⇒ no structural hero; both render as GaugeRows (showValue meters) —
+  // the exact shape the live custom-schema drive hit when the forge spliced a second score
+  // (`re_vividness`, where the demoted gauge printed "Overall score  Overall score  89%").
+  await mount(
+    <PayloadViewStory
+      payload={{ overallScore: 8, clarity: 6 }}
+      schema={{
+        type: "object",
+        properties: {
+          overallScore: { type: "integer", minimum: 1, maximum: 10 },
+          clarity: { type: "integer", minimum: 1, maximum: 10 },
+        },
+        required: ["overallScore", "clarity"],
+      }}
+    />,
+  );
+  await expect(page.getByTestId("refinery-hero-gauge")).toHaveCount(0);
+  const gauge = page.locator('[data-field="overallScore"]');
+  // D1 (custom arm, VISIBLE + AUDIBLE): own scale, never "78%".
+  await expect(gauge.getByRole("meter")).toHaveAttribute("aria-valuetext", "8 of 10");
+  await expect(gauge.locator('[data-slot="meter-value"]')).toHaveText("8/10");
+  await expect(gauge).not.toContainText("%");
+  // D2: the field label paints exactly ONCE — the showValue Meter's own label is the accessible name;
+  // the outer duplicate <Text> that double-printed it is gone.
+  await expect(gauge.getByText("Overall score")).toHaveCount(1);
 });
 
 test("the ANALYZE mock anatomy derives: the verdict banner leads word-first with its authored tone and the docked soul axis pill", async ({ mount, page }) => {
