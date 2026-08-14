@@ -402,7 +402,15 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   find). Corpus A/B 122,062 cmds: 61 moved, 17 stricter, 0 LOOSER; depth-cap 6 after a cap-2 run
   cried wolf on benign `$(dirname $(readlink …))`; 16.9µs/cmd. 19 int tests. A/B report landing at
   `docs/reviews/security/2026-08-14-tool-guard-operand-visibility-ab.md`.
-- [ ] **GUARD OWNER-CALL PILE (all surfaced by the leg, each would LOOSEN a control — rule when
+- [x] **GUARD D + EXPANSION: MERGED (`80207c864`)** — quoted rm targets bite (head anchored to
+  FLAGS, monotone-by-proof: the token set only grows), same-command var expansion (17 ask→pass,
+  every resolved target mechanically audit-verified substring-safe; `node_modules=/real/path`
+  laundering now ASKS — a tighten the arm added), 20 int tests, two planted controls. Owner
+  over-matches confirmed untouched (14 of 26 new asks are the `rm -f "$probe"` class = the ruling
+  working). **GUARD LEG-5 QUEUE (each its own tighten + A/B):** `rm "-rf"` quoted-flags blindness ·
+  `/bin/rm` path-prefix head miss · the escaped-quote substitution skip (`"$(rm -rf \"…\")"`
+  never parses) · item G comment-span (owner-worded, agenda'd in the A/B doc).
+- [ ] **GUARD OWNER-CALL PILE (surfaced by the first leg, each would LOOSEN a control — rule when
   convenient):** (A) 6 corpus cmds `$(sqlite3 "file:…backup-*?mode=ro" …)` now ask — a ro/backup
   safe-hint is a loosening · (B) 4 cmds `"$(curl localhost | node -e …)"` now deny via the
   net-pipe-shell floor arm — `node -e` doesn't exec fetched bytes, narrowing is a loosening ·
