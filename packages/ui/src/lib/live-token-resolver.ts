@@ -11,7 +11,7 @@
 // `globalThis` cast through minimal STRUCTURAL types rather than the ambient `Document`/`Window`
 // shapes (which don't structurally overlap these locals under a direct assertion, TS2352).
 
-export interface LiveResolverRootElement {
+interface LiveResolverRootElement {
   readonly getPropertyValue?: unknown;
 }
 interface LiveResolverComputedStyle {

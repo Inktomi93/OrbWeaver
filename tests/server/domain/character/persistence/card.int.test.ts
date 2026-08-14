@@ -17,6 +17,7 @@ import {
   writeCardInPlace,
 } from "../../../../../packages/server/src/domain/character/persistence/card.ts";
 import { buildGroupCard } from "../../../../../packages/server/src/domain/character/substrate/group-character.ts";
+import { FROZEN_AT_MS } from "../../../../support/clock.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
 import { seedUser } from "../_support.ts";
@@ -88,7 +89,7 @@ describe("persistence/card", () => {
     const b = castId<CharacterId>("character_b");
     await insertCharacter(db, makeRow(owner, "character_a", castId<CharacterHandle>("a")));
     await insertCharacter(db, makeRow(owner, "character_b", castId<CharacterHandle>("b")));
-    const flipped = await setArchivedBulk(db, owner, [a, b], { archived: true, updatedAt: Date.now() });
+    const flipped = await setArchivedBulk(db, owner, [a, b], { archived: true, updatedAt: FROZEN_AT_MS });
     expect(flipped).toHaveLength(2);
     const rows = await db.select().from(characters);
     expect(rows.every((r) => r.archived)).toBe(true);
