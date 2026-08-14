@@ -66,19 +66,37 @@ test("value is clamped into the min/max domain for ARIA", async ({ mount }) => {
   await expect(component).toHaveAttribute("aria-valuenow", "100");
 });
 
-test("aria-valuetext comes from the Base UI shell for free (locale-aware)", async ({ mount }) => {
+test("aria-valuetext announces the value on its OWN scale by default, never a percent of the range", async ({ mount }) => {
   const component = await mount(<Meter kind="linear" value={30} max={60} label="HP" />);
-  // 30/60 → 50% of the range; Base UI Meter.Root formats aria-valuetext — we don't hand-roll it.
+  // Scale honesty (schema-renderer §3.4; live-drive D1): a 30/60 meter announces "30 of 60", NOT "50%".
+  // Base UI's percent-of-range default is the exact defect this pins.
   const valueText = await component.getAttribute("aria-valuetext");
-  expect(valueText).toContain("50");
+  expect(valueText).toBe("30 of 60");
+  expect(valueText).not.toContain("%");
 });
 
-test("showValue renders the visible label + value readout and names the meter", async ({ mount, page }) => {
+test("a schema-bounded 1-10 score announces on its own bounds, not as a percent (the D1 shape)", async ({ mount }) => {
+  const component = await mount(<Meter kind="linear" value={8} max={10} min={1} label="Overall score" />);
+  // The live scar: aria-valuenow=8 on a 1-10 scale used to announce aria-valuetext="78%".
+  const valueText = await component.getAttribute("aria-valuetext");
+  expect(valueText).toBe("8 of 10");
+  expect(valueText).not.toContain("78%");
+});
+
+test("readout='percent' opts back into Base UI's fraction-of-range announcement", async ({ mount }) => {
+  const component = await mount(<Meter kind="linear" value={30} max={60} label="HP" readout="percent" />);
+  // The escape hatch for a surface where a 0-100% reading IS the honest one.
+  const valueText = await component.getAttribute("aria-valuetext");
+  expect(valueText).toContain("50");
+  expect(valueText).toContain("%");
+});
+
+test("showValue renders the visible label + value readout on the meter's own scale and names the meter", async ({ mount, page }) => {
   const component = await mount(<Meter kind="linear" label="HP" max={60} showValue={true} value={30} />);
   await expect(component).toHaveRole("meter");
   // The visible label renders and names the meter via aria-labelledby.
   await expect(component.locator('[data-slot="meter-label"]')).toHaveText("HP");
   await expect(page.getByRole("meter", { name: "HP" })).toBeVisible();
-  // The value readout renders Base UI's formatted position (50%).
-  await expect(component.locator('[data-slot="meter-value"]')).toContainText("50");
+  // The value readout speaks the meter's OWN scale (30/60), never a percent.
+  await expect(component.locator('[data-slot="meter-value"]')).toHaveText("30/60");
 });

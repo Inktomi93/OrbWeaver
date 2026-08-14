@@ -26,6 +26,12 @@ export interface MeterProps {
   label: string;
   /** Render the visible label + value readout row above the geometry. @defaultValue false */
   showValue?: boolean;
+  /** How the value is ANNOUNCED (aria-valuetext) and shown (the `showValue` readout). `"scale"` (the
+   *  default) speaks the value on its OWN bounds — `8/10`, `8 of 10` — so a schema-bounded score never
+   *  announces as a percentage of its range; `"percent"` opts back into Base UI's fraction-of-(min,max)
+   *  readout for the rare surface where a 0-100% reading is the honest one. An explicit `formatValue` /
+   *  `getAriaValueText` overrides either. @defaultValue "scale" */
+  readout?: "scale" | "percent";
   formatValue?: (formattedValue: string, value: number) => ReactNode;
   format?: BaseMeterRootProps["format"];
   locale?: BaseMeterRootProps["locale"];
@@ -149,6 +155,7 @@ export function Meter({
   dangerBelow,
   label,
   showValue = false,
+  readout = "scale",
   formatValue,
   format,
   locale,
@@ -162,6 +169,19 @@ export function Meter({
   const wrap = meterVariants({ kind });
   const geometry = renderGeometry(kind, { fraction, ticks, danger }, toFraction(0, lower, max));
 
+  // SCALE-HONEST BY DEFAULT (schema-renderer §3.4 "scale honesty"; live-drive D1 2026-08-14). Base UI's
+  // Meter.Root formats BOTH aria-valuetext AND the Meter.Value readout as a PERCENT of (min,max) when it is
+  // handed no formatter — so a 1-10 score announces "89%" while its numeral reads 9. The meter must speak
+  // its OWN bounds: `readout="scale"` (the default) shows `value/max` and announces `value of max`;
+  // `readout="percent"` (undefined formatters ⇒ Base UI's fraction-of-range) is the opt-in. An explicit
+  // `formatValue` / `getAriaValueText` still wins over the default.
+  const onScale = readout === "scale";
+  const clampToScale = (v: number): number => Math.min(max, Math.max(lower, v));
+  const scaleAriaText: BaseMeterRootProps["getAriaValueText"] =
+    getAriaValueText ?? (onScale ? (_formatted: string, v: number): string => `${clampToScale(v)} of ${max}` : undefined);
+  const scaleValueText: MeterProps["formatValue"] =
+    formatValue ?? (onScale ? (_formatted: string, v: number): ReactNode => `${clampToScale(v)}/${max}` : undefined);
+
   return (
     <BaseMeter.Root
       // With the visible label shown, Meter.Label names the meter; otherwise the name rides aria-label.
@@ -169,7 +189,7 @@ export function Meter({
       className={wrap.root({ className })}
       data-slot="meter"
       format={format}
-      getAriaValueText={getAriaValueText}
+      getAriaValueText={scaleAriaText}
       locale={locale}
       max={max}
       min={lower}
@@ -181,7 +201,7 @@ export function Meter({
             {label}
           </BaseMeter.Label>
           <BaseMeter.Value className={wrap.value()} data-slot="meter-value">
-            {formatValue ?? null}
+            {scaleValueText ?? null}
           </BaseMeter.Value>
         </div>
       ) : null}
