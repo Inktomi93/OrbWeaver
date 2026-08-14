@@ -254,6 +254,24 @@ describe("createRunChatTurnBridge — the runner-warning carry", () => {
     expect(chunks.filter((c) => c.kind === "warning")).toHaveLength(1);
   });
 
+  // The DENOMINATOR carry (docs/design/streaming-shape-churn.md §7.5's phantom cost bug). `tokensOut` is a
+  // SUM over the turn's model calls; `maxOutputTokens` is the PER-CALL ceiling. A live 4-call turn reported
+  // `tokensOut:8192` against `maxOutputTokens:2048` and read as a backend ignoring the output cap — it was
+  // a missing unit, not an ignored cap. The bridge is where the count crosses (`numTurns` → `modelCalls`),
+  // so it is where the carry is pinned; without it the outcome ring can only ever record `null`.
+  test("the provider's per-turn MODEL-CALL count rides the final economics as `modelCalls`", async () => {
+    const bridge = createRunChatTurnBridge({
+      runChatTurn: (): Promise<ChatResult> => Promise.resolve({ ...baseResult, numTurns: 4, events: [] }),
+      getOrSkinTierModels: (): Promise<OrSkinTierModels> => Promise.resolve({ opus: "o", sonnet: "s", haiku: "h" }),
+    });
+    const chunks: TurnStreamChunk[] = [];
+    for await (const chunk of bridge(wireRequest)) {
+      chunks.push(chunk);
+    }
+    const final = chunks.find((c) => c.kind === "final");
+    expect(final?.kind === "final" && final.economics.modelCalls).toBe(4);
+  });
+
   test("non-warning runner events (rate_limit, model_downgrade) never become chunks", async () => {
     const chunks = await chunksFor([
       { kind: "rate_limit", at: 1000, status: "ok", rateLimitType: undefined, resetsAt: undefined, utilization: undefined, isUsingOverage: undefined },

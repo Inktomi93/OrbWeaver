@@ -32,11 +32,17 @@
 // ── THE OUTCOME ARM (added after a live session spent hours guessing) ────────────────────────────────────
 // The request ring alone cannot answer "what came back", so a prose-less turn, a tool-terminated turn and a
 // provider that returned nothing are indistinguishable after the fact — the operator ends up reading the
-// browser console aloud. `recordTurnOutcome` closes that: ONE call site in the engine, after the pipeline
-// resolves, covering EVERY backend and every chat turn without touching a runner. Deliberately NOT threaded
-// through the five per-surface `captureWire` sinks — those fire at SEND time (a streamed response completes
-// far later), so an outcome there would mean pre/post correlation in every runner for the same data the
-// engine already holds.
+// browser console aloud. `recordTurnOutcome` closes that: TWO call sites in the engine — one after the
+// pipeline RESOLVES, one on its post-start THROW — covering EVERY backend and every chat turn without
+// touching a runner. Deliberately NOT threaded through the five per-surface `captureWire` sinks — those fire
+// at SEND time (a streamed response completes far later), so an outcome there would mean pre/post
+// correlation in every runner for the same data the engine already holds.
+//
+// THE FAULT ARM IS THE ROW A READER ACTUALLY HUNTS (added 2026-08-14 after a live 110s agent-sdk turn died
+// as an HTTP 500 with EVERY debug surface blank — `docs/design/streaming-shape-churn.md` §7.5, reproduced
+// 3/3). Until then the recorder ran only after `runTurnPipeline` resolved, so a THROWN turn could not leave
+// a row BY CONSTRUCTION: the one comment claiming a "REFUSED turn still leaves the record that explains it"
+// was true for a refusal and false for a FAULT. `disposition` is the discriminator that separates them.
 //
 // METADATA ONLY — finish/stop reason, token counts, tool-call names + args, content/reasoning LENGTHS. Never
 // the reply text: the ring is a debug surface, and the canon row already holds the prose.
@@ -159,14 +165,37 @@ export interface WireOutcome {
   readonly chatId: ChatId;
   readonly at: number;
   readonly model: string | null;
+  /** How the turn ENDED, from the engine's own lifecycle classification. `"completed"` = `runTurnPipeline`
+   *  RESOLVED (the historical only case — note that a REFUSED empty generation is still `"completed"`: the
+   *  pipeline returned, the guard refused after). The other three are the POST-START THROW arms and mirror
+   *  the domain's `TurnAbortReason` value-for-value: `"error"` a provider/DB fault · `"user"` a caller
+   *  cancel · `"stale"` the heartbeat's lock-loss. Foundation cannot import the domain union (it reaches UP
+   *  to nothing), so ASSIGNABILITY at the engine's two call sites is the enforcer — a new abort reason
+   *  fails `tsc` here rather than landing as an unrecognized string. */
+  readonly disposition: "completed" | "error" | "user" | "stale";
   /** The provider's own terminator — the single most diagnostic field, and the tell for a tool-only
    *  completion on a folded turn (whose tool calls land no `ToolCallRecord`, so `toolCalls` reads 0). */
   readonly finishReason: string | null;
   readonly stopReason: string | null;
+  /** The RAW backend terminal/subtype string this turn ended on (`ProviderError.terminalReason` — the
+   *  agent-sdk dialect, e.g. `"api_error"`/`"prompt_too_long"`), falling back to the normalized
+   *  `ProviderError.kind`. On a fault it is threaded from the error the provider layer ALREADY classified
+   *  — never re-derived here. `null` when the backend reported none. */
+  readonly terminalReason: string | null;
   readonly contentChars: number;
   readonly reasoningChars: number;
   readonly tokensOut: number | null;
   readonly maxOutputTokens: number | null;
+  /** How many MODEL CALLS the backend made for this ONE turn (the agent-sdk's `num_turns`; 1 on a plain
+   *  single-shot completion, `null` when a backend reports none).
+   *
+   *  LOAD-BEARING FOR READING `tokensOut`, and the reason this field exists: `tokensOut` is the SUM over
+   *  every call in the turn, while `maxOutputTokens` is the PER-CALL ceiling. Without the denominator a
+   *  four-call turn reads as `tokensOut:8192` against `maxOutputTokens:2048` and looks exactly like a
+   *  backend ignoring the output cap — the misread that put a phantom cost bug on the board
+   *  (`docs/design/streaming-shape-churn.md` §7.5). The cap is honored per call; the row was missing its
+   *  unit. */
+  readonly modelCalls: number | null;
   readonly reasoningEffort: string | null;
   readonly toolCalls: readonly WireToolCall[];
 }

@@ -548,6 +548,10 @@ export function createRunChatTurnBridge(deps: {
             contextWindow: result.usage.contextWindow,
             costUsd: result.usage.costUsd,
             maxOutputTokens: result.usage.maxOutputTokens,
+            // The provider's per-turn MODEL-CALL count, renamed across the seam (`numTurns` → `modelCalls`)
+            // because "turn" already means a CHAT turn on this side. It is what makes `tokensOut` (a sum
+            // over the calls) legible against `maxOutputTokens` (a per-call ceiling).
+            modelCalls: result.numTurns,
             reasoningEffort: req.intent.effort ?? null,
             ttftMs: result.ttftMs,
             finishReason: result.finishReason,

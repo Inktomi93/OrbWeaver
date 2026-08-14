@@ -71,21 +71,28 @@ describe("wire-capture OUTCOME arm + spill (WIRE-OUTCOMES)", () => {
       chatId: CHAT_A,
       at: 0,
       model: "test-model",
+      disposition: "completed",
       finishReason: "tool",
       stopReason: "tool_calls",
+      terminalReason: null,
       contentChars: 0,
       reasoningChars: 42,
       tokensOut: 157,
       maxOutputTokens: 4096,
+      modelCalls: 2,
       reasoningEffort: "medium",
       toolCalls: [{ name: "update_scene", args: '{"location":"the ford"}' }],
     });
     const [outcome] = wc.recentTurnOutcomes({ chatId: CHAT_A });
     expect(outcome).toMatchObject({
       chatId: CHAT_A,
+      disposition: "completed",
       finishReason: "tool",
       stopReason: "tool_calls",
       contentChars: 0,
+      // The DENOMINATOR for `tokensOut` (a sum across the turn's model calls) against `maxOutputTokens`
+      // (a per-call ceiling) — without it a multi-call turn reads as an ignored output cap.
+      modelCalls: 2,
       toolCalls: [{ name: "update_scene", args: '{"location":"the ford"}' }],
     });
   });
@@ -99,12 +106,15 @@ describe("wire-capture OUTCOME arm + spill (WIRE-OUTCOMES)", () => {
       chatId: CHAT_A,
       at: 0,
       model: null,
+      disposition: "completed",
       finishReason: "stop",
       stopReason: null,
+      terminalReason: null,
       contentChars: 0,
       reasoningChars: 0,
       tokensOut: null,
       maxOutputTokens: null,
+      modelCalls: null,
       reasoningEffort: null,
       toolCalls: [],
     });
@@ -132,12 +142,15 @@ describe("wire-capture OUTCOME arm + spill (WIRE-OUTCOMES)", () => {
       chatId: CHAT_A,
       at: 0,
       model: "m",
+      disposition: "completed",
       finishReason: "stop",
       stopReason: null,
+      terminalReason: null,
       contentChars: 5,
       reasoningChars: 0,
       tokensOut: 1,
       maxOutputTokens: null,
+      modelCalls: 1,
       reasoningEffort: null,
       toolCalls: [],
     });

@@ -508,6 +508,8 @@ class TurnAccumulator {
       ...(this.servedModel !== null ? { servedModel: this.servedModel } : {}),
       ...(this.ctx.disposition !== undefined ? { disposition: this.ctx.disposition } : {}),
       terminalReason: this.terminalReason,
+      // The denominator for `usage.tokensOut` below (a SUM across the loop's calls, not one completion).
+      numTurns: this.numTurns,
       durationMs: this.ctx.now() - this.startedAt,
       ttftMs: this.ttftMs,
       ok,

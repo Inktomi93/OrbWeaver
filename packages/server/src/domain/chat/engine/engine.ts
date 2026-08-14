@@ -36,7 +36,12 @@ import type { CharacterId, ChatId, ChatTurnId, MessageId, UserId } from "@orb/ki
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { estimateTokens } from "@orb/kit/tokens";
 import { getLog, recordTurnOutcome, withRequestSpan } from "#foundation/observability";
+// A VALUE import from infra, unlike this file's other `#infra/providers` type-only imports: the fault-outcome
+// arm needs `instanceof` against the real class to read a thrown turn's OWN classification (see
+// `providerTerminalReason`). Legal in the tier order (domain sits ABOVE infra); the reverse edge is what
+// `infra-below-domain` bans.
 import type { WarningCode } from "#infra/providers";
+import { ProviderError } from "#infra/providers";
 import type { ChatContext } from "../context.ts";
 import type { DebitBudgetOp, ResolveTurnPolicyOp, RpgTurnContext, RpgTurnTranscriptMessage } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
@@ -1049,22 +1054,89 @@ function abortReasonFor(err: unknown, signal: AbortSignal | undefined): TurnAbor
  */
 /** The RESPONSE half of wire capture (`/api/_debug/wire/outcomes`). Called BEFORE the empty-generation guard
  *  so a REFUSED turn still leaves the record that explains it — the case the request-only ring could never
- *  answer. Self-gated inside the recorder (no-op with capture off); metadata + tool-call args, never prose. */
+ *  answer. Self-gated inside the recorder (no-op with capture off); metadata + tool-call args, never prose.
+ *  Its FAULT twin is {@link captureTurnFault} — this arm can only ever run on a pipeline that RESOLVED. */
 function captureTurnOutcome(prep: TurnPrep, result: Awaited<ReturnType<typeof runTurnPipeline>>, at: number): void {
   const economics = result.economics;
   recordTurnOutcome({
     chatId: prep.chatId,
     at,
     model: economics?.model ?? null,
+    disposition: "completed",
     finishReason: economics?.finishReason ?? null,
     stopReason: economics?.stopReason ?? null,
+    terminalReason: economics?.terminalReason ?? null,
     contentChars: result.content.length,
     reasoningChars: result.reasoning?.length ?? 0,
     tokensOut: economics?.tokensOut ?? null,
     maxOutputTokens: economics?.maxOutputTokens ?? null,
+    modelCalls: economics?.modelCalls ?? null,
     reasoningEffort: economics?.reasoningEffort ?? null,
     toolCalls: result.toolRecords.map((record) => ({ name: record.name, args: record.arguments })),
   });
+}
+
+/**
+ * The provider's OWN classification of a thrown turn, or `null` when the throw did not come from the
+ * provider layer at all (a DB fault, a bug, a `ChatOperationError`). NEVER re-derived: the fact is minted
+ * inside infra (`ProviderError.terminalReason` is the raw backend terminal/subtype string, `kind` the
+ * normalized collapse) and only threaded out here.
+ *
+ * Walks the `.cause` chain rather than dereferencing once — the `classifyDomainError` precedent: a re-wrap
+ * layer anywhere between the runner and this catch would otherwise erase the whole classification. The
+ * `seen` set makes a cyclic cause chain terminate.
+ */
+function providerTerminalReason(err: unknown): string | null {
+  let cause: unknown = err;
+  const seen = new Set<unknown>();
+  while (cause instanceof Error && !(cause instanceof ProviderError) && cause.cause !== undefined && !seen.has(cause)) {
+    seen.add(cause);
+    cause = cause.cause;
+  }
+  return cause instanceof ProviderError ? (cause.terminalReason ?? cause.kind) : null;
+}
+
+/**
+ * The FAULT half of the outcome ring — the row an operator actually goes looking for.
+ *
+ * WHY IT EXISTS (docs/design/streaming-shape-churn.md §7.5, reproduced 3/3): `captureTurnOutcome` runs only
+ * after `runTurnPipeline` RESOLVES, so a turn that THREW could not leave a `/api/_debug/wire/outcomes` row
+ * by construction. A live 110-second agent-sdk turn ended `terminalReason:"api_error"`, logged loudly to
+ * pino — and left the outcome ring at `count:0` while the client got a bare 500. Every field the reader
+ * needs already existed one layer down; nothing recorded it.
+ *
+ * WHAT IT CAN HONESTLY SAY: the turn's identity + route + the error's own classification. It deliberately
+ * does NOT fabricate the generation numbers (`tokensOut`/`maxOutputTokens`/`modelCalls`/finish reasons) —
+ * a faulted turn produced no `final` chunk, so the engine holds none of them, and a zero here would read as
+ * a measurement rather than an absence (the "absent data renders absent, never floor-synthesized" rule).
+ * `model` + `reasoningEffort` come off `prep` (the REQUESTED route), which is exactly what the success arm
+ * records too — compose sources `economics.reasoningEffort` from the same `intent.effort`.
+ *
+ * THROW-SAFE BY CONSTRUCTION (emits-are-total): an observability write must never mask or replace the
+ * original error, so the whole body is wrapped. A recorder failure degrades to a warn line and the caller's
+ * rethrow proceeds untouched.
+ */
+function captureTurnFault(prep: TurnPrep, err: unknown, reason: TurnAbortReason, at: number): void {
+  try {
+    recordTurnOutcome({
+      chatId: prep.chatId,
+      at,
+      model: prep.connection.model,
+      disposition: reason,
+      finishReason: null,
+      stopReason: null,
+      terminalReason: providerTerminalReason(err) ?? reason,
+      contentChars: 0,
+      reasoningChars: 0,
+      tokensOut: null,
+      maxOutputTokens: null,
+      modelCalls: null,
+      reasoningEffort: prep.intent.effort ?? null,
+      toolCalls: [],
+    });
+  } catch (recordErr) {
+    getLog().warn({ err: recordErr, chatId: prep.chatId }, "chat: the turn-fault outcome record failed (the original turn error is unaffected)");
+  }
 }
 
 function assertGeneratedContent(result: Awaited<ReturnType<typeof runTurnPipeline>>, chatId: ChatId): void {
@@ -1504,6 +1576,10 @@ async function executeTurn(ctx: ChatContext, deps: EngineDeps, prep: TurnPrep): 
     //       still see a hard throw. This branch only settles the abandoned body cleanly (no unhandled reject).
     //   • "error" (provider/DB fault — signal NOT aborted) → THROW: a real failure must stay a failure.
     const reason = abortReasonFor(err, prep.signal);
+    // The FAULT row in the wire-outcome ring. FIRST in the catch, before the bus emit and the rpg flush:
+    // those are awaited/injected and can themselves fail, and the row explaining WHY the turn died must not
+    // be hostage to them. Itself throw-safe (see `captureTurnFault`).
+    captureTurnFault(prep, err, reason, ctx.now());
     // Carry the aborting turn's OWN cascade depth (automation-design/03 §4): an aborted turn commits no reply
     // slot, so the automation fact-resolver cannot read this back through `getTurnOrigin` — it must ride the
     // event. A depth ≥ 1 abort (this turn was itself automation-initiated) makes the `turnAborted` fact depth
