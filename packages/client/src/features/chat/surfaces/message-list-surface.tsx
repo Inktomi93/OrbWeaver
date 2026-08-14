@@ -26,7 +26,7 @@ import { useEffect, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { QueryBoundary, QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { useFocusOnMount } from "#lib";
+import { resolveRowRenderPolicy, useFocusOnMount } from "#lib";
 import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
 import { JumpToLatestPill } from "../components/jump-to-latest-pill.tsx";
@@ -133,6 +133,19 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
     characterAvatarsById,
     kind: ghostKind,
   });
+  // The ghost's CARD TIER, resolved through the ONE trust authority with the SAME inputs `MessageRow` will
+  // use once this turn settles — so a card that mounts mid-stream (at its fence CLOSE, §4.5) does not change
+  // tier at commit. Only the tier crosses: the ghost pins its markdown trust, external-media verdict and
+  // frame delivery at the stream floor (`ghost-message-row.tsx`'s header states why). `authorUserId: null`
+  // is the assistant arm — a generation is never the viewer's own input.
+  const ghostCardTier = resolveRowRenderPolicy({
+    role: "assistant",
+    authorUserId: null,
+    characterId: ghostSpeakerCharacterId,
+    viewerUserId,
+    participants,
+    lenientHtmlCards,
+  }).cardTier;
   // THE GREETING WINDOW (§4.8/F6, R3) — resolved HERE, once, from canon this surface already holds plus the
   // roster it already read: a room with no user row is still steppable, and the seated characters' cards say
   // what the alternates are. Per-row it is a map lookup (`resolveGreetingBinding`), so the N card reads are N
@@ -211,6 +224,7 @@ function ChatThread({ chatId, chatStyle, onChatForked, surfaceContributors, tool
         showInChatAvatars={messageAppearance.showInChatAvatars}
         showLLMReasoningIcon={messageAppearance.showLLMReasoningIcon}
         colorQuotedSpeech={messageAppearance.colorQuotedSpeech}
+        cardTier={ghostCardTier}
         smoothStream={behaviorPrefs.smoothStream}
         smoothStreamCps={behaviorPrefs.smoothStreamCps}
         enterMotion={newArrivalKeys.has(item.id)}

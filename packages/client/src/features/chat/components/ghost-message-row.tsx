@@ -2,7 +2,31 @@
 // this row alone. Stream content is UNTRUSTED (live model output; indirect prompt-injection can emit
 // exfil-shaped markup that a paced reveal would fetch before commit-time sanitization runs) — always
 // rendered `untrusted` regardless of the settled row's per-message trust resolution.
+//
+// ── THE GHOST'S CARD POSTURE (2026-08-14 security review; the §4.5 granularity fix) ───────────────────
+// A card whose fence has CLOSED mid-stream mounts the REAL card here, through the shared `CardBlock` —
+// the same component, the same `SandboxFrame`, the same `SANDBOX_ATTR`/frame CSP the settled row uses.
+// Holding the chip until the whole message settled was the defect (owner dogfood: "they won't render
+// fully until the message is done ... even when the html is done being written"); a closed fence's bytes
+// are provably immutable under append (`@orb/kit/content`'s ghost-scan note states the proof), so this
+// is NOT the "speculatively render partial HTML" the §4.5 design rejected — a still-FORMING card carries
+// no bytes on its segment at all and can only render the chip.
+//
+// THREE AXES, and only ONE of them is read from the row policy:
+//   • TIER  — from the ONE trust authority (`render-trust.ts`), threaded as `cardTier` by the surface,
+//     which resolves it with the same inputs `MessageRow` will use at commit. Never re-derived here.
+//   • MARKDOWN TRUST — pinned `untrusted`, as above. Unchanged.
+//   • EXTERNAL MEDIA + FRAME DELIVERY — pinned to the FLOOR: `allowExternal={false}` and no `cardOrigin`,
+//     so the frame is the srcdoc floor (which additionally inherits the app document's `img-src`) and no
+//     routed mint fires. This is the SAME fail-closed lattice the markdown-trust pin already applies,
+//     extended to the one capability mounting-earlier would actually grant: a model-authored outbound
+//     media fetch inside the pre-commit window. Today the ghost makes ZERO model-controlled requests
+//     (the untrusted markdown allowlist drops `<img>` entirely) and this keeps it that way; the row's
+//     real media verdict + the routed door arrive with the settled row, one second later. Widening
+//     either axis here is a security decision, not a polish item.
 
+import type { CardTrust } from "@orb/contracts/chat";
+import type { GhostContentSegment } from "@orb/kit/content";
 import { scanGhostContent } from "@orb/kit/content";
 import { holdTornSpeaker } from "@orb/kit/fix-markdown";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -22,6 +46,7 @@ import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { useGhostReasoning, useGhostText, useGhostThinking } from "../hooks/use-ghost-stream.ts";
 import type { RowAttribution } from "../lib/attribution.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
+import { CardBlock } from "./card-block.tsx";
 import { renderRowAvatar } from "./message-row-parts.tsx";
 import { ReasoningBlock } from "./reasoning-block.tsx";
 
@@ -42,8 +67,9 @@ function ghostFallbackTile(attribution: RowAttribution | undefined): {
 
 // The §4.5 FORMING-CARD placeholder (parity-plus P4, ghost arm only): once a `:::card` OPEN line completes
 // in the ghost text, the accumulating raw HTML is suppressed behind a pretty building-state chip (skeleton
-// shimmer + the title); the real card mounts only at commit (chip → card, one hard cut — NO iframe, NO
-// partial HTML ever renders mid-stream). An aborted stream drops with the ghost row (no false card).
+// shimmer + the title) — NO iframe, NO partial HTML, for exactly as long as the body is still arriving. The
+// chip is replaced by the real card at FENCE CLOSE (see the header), not at message commit. A card whose
+// close never arrives stays a chip and drops with the ghost row on abort (no false card).
 function FormingCardChip({ title }: { readonly title: string | null }): ReactElement {
   return (
     // DENSITY S6: the chip is the placeholder ISLAND for the card it becomes, so it stays a box — but a
@@ -59,6 +85,38 @@ function FormingCardChip({ title }: { readonly title: string | null }): ReactEle
   );
 }
 
+/** One ghost segment → its element. The KEY is `index-kind`, the settled path's precedent
+ *  (`message-content.tsx`): stable for an unchanged body, so a closed card's iframe is never remounted by
+ *  the prose that keeps streaming BELOW it — a remount would reload the srcdoc and re-run the card's paint
+ *  on every token. Kept honest by the "prose after a closed card never reloads the iframe" CT. */
+function ghostSegment(
+  segment: GhostContentSegment,
+  index: number,
+  opts: { readonly isTail: boolean; readonly streaming: boolean; readonly colorQuotes: boolean; readonly cardTier: CardTrust },
+): ReactElement {
+  const key = `${index}-${segment.kind}`;
+  if (segment.kind === "forming-card") {
+    return <FormingCardChip key={key} title={segment.title} />;
+  }
+  if (segment.kind === "card") {
+    // FLOOR, deliberately (see the file header): tier from the ONE resolver; external media OFF and no
+    // `cardOrigin`, so the frame is the srcdoc floor and no routed mint fires mid-stream.
+    return (
+      <CardBlock
+        key={key}
+        block={{ kind: "html-card", html: segment.body, trust: opts.cardTier, origin: "fence", ...(segment.title === null ? {} : { title: segment.title }) }}
+        allowExternal={false}
+      />
+    );
+  }
+  // Only the TAIL segment is live (the caret + incomplete-markdown repair); earlier segments are settled text.
+  return (
+    <Markdown key={key} trust="untrusted" mode={opts.streaming && opts.isTail ? "streaming" : "static"} colorQuotes={opts.colorQuotes}>
+      {segment.text}
+    </Markdown>
+  );
+}
+
 // The bubble's streamed body: typing dots before the first token, else the paced Markdown. Extracted to
 // module scope so `GhostMessageRow` stays under the cognitive-complexity ceiling. The streaming caret is
 // SEAL-OWNED CSS (#42 — ui globals.css paints a 2px `--color-primary` blinking bar as an `::after` on
@@ -69,33 +127,24 @@ function GhostBubbleBody({
   held,
   streaming,
   colorQuotes,
+  cardTier,
 }: {
   readonly held: string;
   readonly streaming: boolean;
   readonly colorQuotes: boolean;
+  readonly cardTier: CardTrust;
 }): ReactElement {
   if (held.length === 0) {
     return <TypingDots label="Generating a reply…" />;
   }
-  // §4.5: split the accumulating text on completed `:::card` opens — text streams as markdown, a forming
-  // card shows the chip (its body bytes accumulate invisibly behind it). The common no-card path is one
-  // text segment (byte-identical to the pre-P4 render).
+  // §4.5: split the accumulating text on completed `:::card` opens — text streams as markdown, a card whose
+  // body is still arriving shows the chip, and a card whose fence CLOSED renders for real. The common
+  // no-card path is one text segment (byte-identical to the pre-P4 render).
   const segments = scanGhostContent(held);
   return (
     <div data-slot="ghost-stream-body" data-streaming={streaming ? "" : undefined}>
       <Stack gap="row">
-        {segments.map((segment, index) =>
-          segment.kind === "forming-card" ? (
-            // biome-ignore lint/suspicious/noArrayIndexKey: segments are positional within one accumulating stream render — no ids exist mid-stream, and the list only ever appends (the recentBeats positional precedent).
-            <FormingCardChip key={index} title={segment.title} />
-          ) : (
-            // Only the TAIL segment is live (the caret + incomplete-markdown repair); earlier segments are settled text.
-            // biome-ignore lint/suspicious/noArrayIndexKey: see above — positional, append-only mid-stream.
-            <Markdown key={index} trust="untrusted" mode={streaming && index === segments.length - 1 ? "streaming" : "static"} colorQuotes={colorQuotes}>
-              {segment.text}
-            </Markdown>
-          ),
-        )}
+        {segments.map((segment, index) => ghostSegment(segment, index, { isTail: index === segments.length - 1, streaming, colorQuotes, cardTier }))}
       </Stack>
     </div>
   );
@@ -119,6 +168,12 @@ export interface GhostMessageRowProps {
   readonly showLLMReasoningIcon?: boolean | undefined;
   /** The `appearance.colorQuotedSpeech` pref — the live half of the settled row's identical tint. Absent ⇒ ON. */
   readonly colorQuotedSpeech?: boolean | undefined;
+  /** The CARD TIER this turn's row will settle at, resolved by the surface through the ONE trust authority
+   *  (`resolveRowRenderPolicy`) with the same inputs `MessageRow` uses — so a card closed mid-stream does not
+   *  change tier at commit. ONLY the tier is threaded: see the file header for why the ghost's markdown
+   *  trust, external-media verdict and frame delivery stay pinned at the stream floor. Absent ⇒ `tierA`, the
+   *  same fail-closed value the resolver returns for a mount with no roster. */
+  readonly cardTier?: CardTrust | undefined;
   /** PD-146 — the `UserSettings.chat.smoothStream` pref: pace the reveal. The PREF ships ON (owner ruling
    *  2026-08-09 — the #42 word fade rides `mode="streaming"` in BOTH modes, so this is pure pacing); the
    *  prop's own fallback stays OFF because an ABSENT prop means "this mount never resolved the pref", not
@@ -144,6 +199,7 @@ export function GhostMessageRow({
   showInChatAvatars = true,
   showLLMReasoningIcon = false,
   colorQuotedSpeech = true,
+  cardTier = "tierA",
   smoothStream = false,
   smoothStreamCps = DEFAULT_SMOOTH_STREAM_CPS,
   enterMotion = false,
@@ -204,7 +260,7 @@ export function GhostMessageRow({
           smoothStreamCps={smoothStreamCps}
         />
       ) : null}
-      <GhostBubbleBody held={held} streaming={streaming} colorQuotes={colorQuotedSpeech} />
+      <GhostBubbleBody held={held} streaming={streaming} colorQuotes={colorQuotedSpeech} cardTier={cardTier} />
     </Stack>
   );
   const decoratedBubble =
