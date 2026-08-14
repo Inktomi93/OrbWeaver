@@ -20,10 +20,10 @@
 // that needs an imperative refetch keeps a session selected, which is the only state where a refetch means
 // anything here.
 //
-// FRESHNESS: there is no refinery bus event of any kind, so these three keys are driven ENTIRELY by the
-// write tier's `invalidates` rows (`use-refinery-mutations.ts`) — the writer-local class, cited per key in
-// `scripts/check/gates/query-freshness-coverage.ts`. The app QueryClient runs `staleTime: Infinity`, so a
-// read with no such row would be frozen at its first fetch; every write verb that can move one names it.
+// FRESHNESS: the `refineryChanged` user-bus member drives all three (seam row in `data/invalidation.ts` —
+// it path-invalidates the whole `trpc.refinery` root). This REPLACED the writer-local `invalidates` rows the
+// write tier used to carry: those reconciled only the tab that wrote, so with `staleTime: Infinity` a second
+// tab or device sat on the pre-write roster forever (event-bus coverage survey H1).
 
 import type { RefinerySessionId } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";

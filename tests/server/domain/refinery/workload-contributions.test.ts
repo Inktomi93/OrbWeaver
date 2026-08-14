@@ -34,6 +34,9 @@ function fakeDeps(): RefineryWorkloadDeps {
     resolveUserProse: vi.fn(async () => ({})),
     listRefineryScoreTargets: vi.fn(async () => ({ targets: [], inScope: 0 })),
     stampRefinerySignals: vi.fn(async () => undefined),
+    // The terminal fan's port. Never called in this suite by construction: no targets ⇒ nothing stamped ⇒
+    // no owner to announce to (the sweep's own int suite pins the fan itself, both arms).
+    emitUserEvent: vi.fn(),
   };
 }
 

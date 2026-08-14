@@ -28,6 +28,9 @@ test("create runs the whole belt and returns the library row at version 1", asyn
   expect(created.version).toBe(1);
   expect(created.stage).toBe("score");
   expect(created.schema).toEqual(validScoreSchema());
+  // The library announced itself. NO id on the schema arm: the member is coarse and the client
+  // path-invalidates the refinery root (contracts `user-bus`), so a schemaId would be a hint nobody reads.
+  expect(h.userEvents).toEqual([{ userId: owner, event: { type: "refineryChanged" } }]);
 });
 
 test("the belt refuses: out-of-subset, pattern, over-depth, malformed hint, missing core — each typed", async () => {

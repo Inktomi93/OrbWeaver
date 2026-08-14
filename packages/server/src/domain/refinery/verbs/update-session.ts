@@ -33,6 +33,7 @@ export function createUpdateSession(ctx: RefineryContext): RefineryService["upda
     if (updated === undefined) {
       throw new DomainNotFoundError("refinery session", sessionId);
     }
+    ctx.emitUserEvent(ownerId, { type: "refineryChanged", sessionId });
     return sessionViewOf(updated);
   };
 }

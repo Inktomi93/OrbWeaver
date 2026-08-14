@@ -283,6 +283,18 @@ const USER_BUS_FILTERS: UserBusFilterMap = {
     e.chatId === undefined
       ? [trpc.chat.listChats.pathFilter(), trpc.character.list.pathFilter(), trpc.stats.pathFilter()]
       : [trpc.chat.listChats.pathFilter(), trpc.chat.getChat.queryFilter({ chatId: e.chatId }), trpc.character.list.pathFilter(), trpc.stats.pathFilter()],
+  // The refinery workspace — the whole router root (roster · session view · run ledger · schema library ·
+  // preflight): the member is coarse by design, every one of those reads moves on some write, and the
+  // surface never has more than one session open, so a narrower map would be five rows for one refetch.
+  //
+  // `character.get` rides here, and it is the non-obvious row: a score/analyze run rewrites
+  // `characters.refinery.score`/`.analysis` through the F6 stamp op, which is SILENT BY DESIGN (no audit,
+  // no user-bus event — `character/persistence/refinery-ops.ts`). That is exactly what the card's
+  // provenance readout renders, so without this row the readout has no driver at all once the write tier
+  // stopped naming it (the R2 hooks are busDriven now). Narrow, not the character ROOT: the library list
+  // did not change — a refinery run touches derived signals on ONE card, and `charactersChanged` already
+  // covers everything that moves the roster.
+  refineryChanged: (_e, trpc) => [trpc.refinery.pathFilter(), trpc.character.get.pathFilter()],
   // Deferred member — never emitted today; the map entry is ready for when it lands.
   connectionsChanged: (_e, trpc) => [trpc.connection.pathFilter()],
 };

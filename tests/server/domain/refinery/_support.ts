@@ -5,6 +5,7 @@
 
 import type { RefineryAnalyzePayload, RefineryRewritePayload, RefineryScorePayload } from "@orb/contracts/refinery";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
+import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { CharacterHandle, CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -24,12 +25,22 @@ interface SummarizeCall {
   readonly opts: SummarizeOptions | undefined;
 }
 
+/** One recorded user-bus emit — the per-user freshness plane the verbs fan `refineryChanged` on (and the
+ *  sweep fans `charactersChanged` on at its terminal). */
+interface UserEventCall {
+  readonly userId: UserId;
+  readonly event: UserBusEvent;
+}
+
 export interface RefineryHarness {
   readonly svc: RefineryService;
   readonly character: CharacterService;
   readonly ctx: RefineryContext;
   /** Every scripted `summarize` call, in order — assert prompt bytes/postures against these. */
   readonly summarizeCalls: SummarizeCall[];
+  /** Every recorded `emitUserEvent` call, in order (shared with the workload bundle below, so a sweep's
+   *  terminal fan and a verb's tick land in ONE ledger — exactly as compose wires one publisher). */
+  readonly userEvents: UserEventCall[];
   /** Queue the next reply text (FIFO). Under-scripting throws LOUD at the call site. */
   readonly queueReply: (text: string) => void;
   /** Advance the injected frozen clock (ms) — break createdAt ties for latest-per-stage ordering. */
@@ -45,6 +56,7 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
   const ids = createSeededIds();
   const replies: string[] = [];
   const summarizeCalls: SummarizeCall[] = [];
+  const userEvents: UserEventCall[] = [];
   const summarize: RefineryContext["summarize"] = (inputs: SummarizeInput[], opts?: SummarizeOptions) => {
     const items = inputs.map((input) => {
       summarizeCalls.push({ system: input.systemPrompt, user: input.userPrompt, opts });
@@ -67,6 +79,9 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
     summarizerContextTokens: 8192,
     resolveUserPresetParams: () => Promise.resolve({}),
     resolveUserProse: () => Promise.resolve({}),
+    emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
+      userEvents.push({ userId, event });
+    },
     loadOwnedCard: createLoadOwnedCard({ db }),
     stampRefinerySignals: createStampRefinerySignals({ db }),
     snapshotCharacter: character.snapshot,
@@ -79,6 +94,7 @@ export function makeRefineryHarness(db: Db): RefineryHarness {
     character,
     ctx,
     summarizeCalls,
+    userEvents,
     queueReply: (text: string): void => {
       replies.push(text);
     },
@@ -99,6 +115,7 @@ export function refineryWorkloadDepsOf(db: Db, h: RefineryHarness): RefineryWork
     resolveUserProse: h.ctx.resolveUserProse,
     listRefineryScoreTargets: createListRefineryScoreTargets({ db }),
     stampRefinerySignals: h.ctx.stampRefinerySignals,
+    emitUserEvent: h.ctx.emitUserEvent,
   };
 }
 

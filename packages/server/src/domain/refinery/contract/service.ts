@@ -9,6 +9,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RefineryRun, RefinerySchemaSummary, RefineryScoreSweepResult, RefinerySessionSummary, RefineryStage } from "@orb/contracts/refinery";
 import type { RoleClients } from "@orb/contracts/role-clients";
+import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { SideGenSampling } from "@orb/kit/side-gen-posture";
@@ -66,6 +67,21 @@ export interface RefineryContext {
   readonly summarizerContextTokens: number | null;
   readonly resolveUserPresetParams: ResolveUserPresetParams;
   readonly resolveUserProse: ResolveUserProse;
+  /**
+   * The per-user freshness plane (`refineryChanged`) — injected, never a sideways reach at the bus
+   * (D38). EVERY persisting verb calls it with the acting owner AFTER its durable write commits; the
+   * client's `USER_BUS_FILTERS` row path-invalidates `trpc.refinery` (+ `character.get`, whose F6 signal
+   * stamp is deliberately silent), which is what makes a second tab/device reconcile at all.
+   *
+   * FLAG[emit-is-total] — the emit law, satisfied BY CONSTRUCTION rather than by a classifier: this op is
+   * synchronous, `void`-returning and non-throwing (`transport/trpc/user-events-bus.publishUserEvent` →
+   * `defineBusChannel.publish`, live-only, no durable row, no FK). The chat bus needs a classify-and-drop
+   * wrapper because a `void emit()` over a REJECTABLE durable insert is an unhandled rejection — i.e. a
+   * process kill (the delete-mid-turn `chat_events` FK trip). Nothing here can reject, so the ordering rule
+   * is the simple one every user-bus producer follows: emit AFTER the commit (a delete emits after the row
+   * is gone — there is no durable event row to orphan).
+   */
+  readonly emitUserEvent: EmitUserEvent;
   /** The owned-card read (character's `cardOf` projection, one-homed there) — session start + apply. */
   readonly loadOwnedCard: LoadOwnedCardOp;
   /** The `characters.refinery` merge-stamp (F6) — score runs stamp `score`, analyze runs `analysis`. */
@@ -103,6 +119,15 @@ export interface RefineryWorkloadDeps {
   readonly listRefineryScoreTargets: ListRefineryScoreTargetsOp;
   /** The F6 stamp — the sweep's ONE write, the same op every other score run stamps through. */
   readonly stampRefinerySignals: StampRefinerySignalsOp;
+  /**
+   * The sweep's TERMINAL fan (survey F2 + the #23 import-terminal precedent): ONE `charactersChanged` per
+   * owner whose cards this pass actually stamped, emitted once at the end — never per card. The stamp
+   * itself stays SILENT (F6, `character/persistence/refinery-ops.ts`); what this announces is that the
+   * library's `refineryScore` SORT axis moved, which no mutation exists to hang an `invalidates` on
+   * (the writer is a workload). `charactersChanged`, not `refineryChanged`: a sweep opens no session,
+   * appends no run and writes no refinery row — the only thing it moved is a character projection.
+   */
+  readonly emitUserEvent: EmitUserEvent;
 }
 
 /** The stage ENGINE — `runStage`'s working half, shared with `iterate` (which runs it twice per round).

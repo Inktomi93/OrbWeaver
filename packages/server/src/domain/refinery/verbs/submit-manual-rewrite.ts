@@ -91,6 +91,7 @@ export function createSubmitManualRewrite(ctx: RefineryContext): RefineryService
     };
     await ctx.db.insert(refineryRuns).values(view);
     await ctx.db.update(refinerySessions).set({ status: "active", updatedAt: at }).where(eq(refinerySessions.id, sessionId));
+    ctx.emitUserEvent(ownerId, { type: "refineryChanged", sessionId });
     return view;
   };
 }

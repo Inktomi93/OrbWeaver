@@ -229,6 +229,13 @@ test("a score run: prompt carries card {{macros}} VERBATIM (belt 5 both directio
   // F6: the SCORE half stamped, the analysis half untouched.
   const charRows = await db.select({ refinery: characters.refinery }).from(characters).where(eq(characters.id, characterId));
   expect(charRows[0]?.refinery).toEqual({ score: 6.5, analysis: null });
+  // ONE freshness tick for the run (start · this run). It is what carries the SILENT F6 stamp to every
+  // device: the stamp op deliberately emits nothing, and the seam maps `refineryChanged` to
+  // `character.get` for exactly this reason.
+  expect(h.userEvents).toEqual([
+    { userId: owner, event: { type: "refineryChanged", sessionId: session.id } },
+    { userId: owner, event: { type: "refineryChanged", sessionId: session.id } },
+  ]);
 });
 
 test("analyze before any rewrite is the typed stage-order refusal (after the ownership belt)", async () => {
