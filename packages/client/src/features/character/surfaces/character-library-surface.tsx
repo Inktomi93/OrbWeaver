@@ -1,6 +1,22 @@
 // The character library surface — the Characters list. `createCollectionSurface` over `character.list`
-// (keyset-paged) with header/search, sort, client-side filter chips, favorites strip, flat/categorized
-// view, and bulk mode. The Chat CTA resumes the most-recent chat with a character or starts a new one.
+// (keyset-paged) with header/search, sort, filter chips, favorites strip, flat/categorized view, and bulk
+// mode. The Chat CTA resumes the most-recent chat with a character or starts a new one.
+//
+// EVERY LENS IS THE SERVER'S (owner ruling 2026-08-13: "if i search then it should not just search on
+// virtual stuff yeah? same for sort etc"; the `chat-list-surface` precedent, 2026-08-09). Search, the
+// Favorites/Archived toggles and the three-state tag chips ride as query INPUT — so they are part of the
+// key, and changing one resets the pages instead of filtering a stale window. What that fixed:
+//   • The window was ≤150 rows (`maxPages: 5` × 30) with `getPreviousPageParam: () => undefined`, so a deep
+//     scroll EVICTED the head pages unrecoverably and every predicate ran over whatever survived. The cap is
+//     gone: pages accumulate, the DOM stays bounded by `<VirtualList>`, and nothing vanishes from the top.
+//   • "No matches" is now a claim this surface has standing to make — the whole library was searched.
+//   • The counts print the server's `totalCount`, not "loaded so far".
+//
+// The two reads that deliberately do NOT ride the lens: the FAVORITES strip (its own `starred: true` page —
+// it is a shortcut across the library, not a view of the filtered set, and reading the filtered page would
+// empty it the moment you typed) and the TAG VOCABULARY (`tag.listTagsWithUsage` — the chips must offer
+// tags the loaded rows don't happen to carry, and an ACTIVE filter has to render its chip even when its tag
+// matches nothing at all: a filter you cannot see is a filter you cannot turn off).
 
 import type { CharacterListSort } from "@orb/contracts/character";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -14,13 +30,14 @@ import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
-import type { ReactElement, ReactNode, RefObject } from "react";
-import { useDeferredValue, useEffect, useRef, useState } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { useRef, useState } from "react";
 import { FaceStrip } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { useFocusOnMount } from "#lib";
+import { useDebouncedValue, useFocusOnMount } from "#lib";
 import {
+  clearCharacterFilters,
   clearCharacterSelection,
   cycleTagFilter,
   selectCharacter,
@@ -47,36 +64,70 @@ import { CharacterFilterChips } from "../components/character-filter-chips.tsx";
 import { CharacterLibraryToolbar } from "../components/character-library-toolbar.tsx";
 import { useDuplicateCharacter, useRemoveCharacter } from "../hooks/use-character-context-mutations.ts";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
-import { filterByChips, groupByTag, resumeTargets } from "../lib/character-list-view.ts";
-import { filterCharacters } from "../lib/filter-characters.ts";
+import { useRestoreRowFocus } from "../hooks/use-restore-row-focus.ts";
+import { resultCountLabel, tagIdsInState, tagVocabulary } from "../lib/character-library-lens.ts";
+import { groupByTag, resumeTargets } from "../lib/character-list-view.ts";
 
 const ESTIMATED_ROW_PX = 80;
-/** How many frames the back-focus restore waits for the virtualizer to mount her row before giving up. */
-const MAX_ROW_FOCUS_FRAMES = 30;
 const SKELETON_ROW_COUNT = 6;
-const MAX_PAGES = 5;
 
 /** How deep the resume-or-new map looks back. The server's own page ceiling — one read, no keyset walk. */
 const RESUME_WINDOW = 100;
 
+/** Keystroke→request damper for the server-side search (the chats pane's value). Long enough that typing a
+ *  name is one query rather than eight, short enough that the list answers while you are still looking. */
+const SEARCH_DEBOUNCE_MS = 250;
+
+/** How many favorites the strip reads. Its own bounded page, UNFILTERED by the pane's lenses. */
+const FAVORITES_STRIP_LIMIT = 24;
+
 type CharacterListPage = inferOutput<Trpc["character"]["list"]>;
 type CharacterLibraryItem = CharacterListPage["items"][number];
 
+/** The pane's whole lens, as query INPUT. Every field is part of the query key. */
+interface CharacterLibraryParams {
+  readonly sort: CharacterListSort;
+  readonly pageSize: number;
+  /** DEBOUNCED + trimmed; `""` is the unsearched library. */
+  readonly search: string;
+  readonly favoritesOnly: boolean;
+  readonly showArchived: boolean;
+  /** SORTED id lists — the chips' own order changes as they cycle, and an unsorted array would re-key the
+   *  query (and refetch the whole run) on a reorder that means nothing. */
+  readonly includeTagIds: readonly TagId[];
+  readonly excludeTagIds: readonly TagId[];
+}
+
 // ⑪ — `pageSize` is a PARAM the consumer supplies (from `UserSettings.library.pageSize`), never a
 // factory-internal settings read (tier direction: the collection-surface factory takes it as data).
+//
+// NO `maxPages`. It used to be 5, with `getPreviousPageParam: () => undefined` — so past 150 rows TanStack
+// evicted the HEAD page and nothing could ever fetch it back: rows disappeared off the top of the owner's
+// library as he scrolled (the 2026-08-13 dogfood P1). Windowing a virtualized list buys nothing here — the
+// DOM cost is already bounded by `<VirtualList>`, and the rows are light summaries.
 const useCharacterLibraryCollection = createCollectionSurface({
-  query: (trpc: Trpc, params: { sort: CharacterListSort; pageSize: number }) =>
+  query: (trpc: Trpc, params: CharacterLibraryParams) =>
     trpc.character.list.infiniteQueryOptions(
-      { limit: params.pageSize, sort: params.sort },
+      {
+        limit: params.pageSize,
+        sort: params.sort,
+        ...(params.search === "" ? {} : { search: params.search }),
+        ...(params.favoritesOnly ? { starred: true } : {}),
+        // Tri-state on the wire: the toggle's ON state is the UNFILTERED library (archived rows shown
+        // BESIDE the rest, the client predicate's own semantics), so it sends nothing at all.
+        ...(params.showArchived ? {} : { archived: false }),
+        ...(params.includeTagIds.length === 0 ? {} : { includeTagIds: [...params.includeTagIds] }),
+        ...(params.excludeTagIds.length === 0 ? {} : { excludeTagIds: [...params.excludeTagIds] }),
+      },
       {
         initialCursor: null,
         getNextPageParam: (lastPage) => lastPage.nextCursor,
         getPreviousPageParam: () => undefined,
-        maxPages: MAX_PAGES,
       },
     ),
   itemsOf: (page: CharacterListPage) => page.items,
   idOf: (item: CharacterLibraryItem) => item.id,
+  totalOf: (page: CharacterListPage) => page.totalCount,
 });
 
 export interface CharacterLibrarySurfaceProps {
@@ -93,7 +144,9 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const [query, setQuery] = useState("");
-  const deferredQuery = useDeferredValue(query, "");
+  // DEBOUNCED, not deferred: deferring picks a render, and every distinct string here is a round trip now
+  // that the predicate is the server's (the chats pane's ruling, `chat-list-surface.tsx`).
+  const settledQuery = useDebouncedValue(query.trim(), SEARCH_DEBOUNCE_MS);
   const sortMode = useCharacterSortMode();
   const viewMode = useCharacterViewMode();
   const favoritesOnly = useFavoritesOnly();
@@ -104,7 +157,18 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   // resolves, fall back to the schema default so the first page fetches at the same size as pre-wire.
   const settingsQuery = useQuery(trpc.settings.getUserSettings.queryOptions());
   const pageSize = settingsQuery.data?.config.library.pageSize ?? DEFAULT_USER_SETTINGS.library.pageSize;
-  const collection = useCharacterLibraryCollection({ trpc }, { sort: sortMode, pageSize });
+  const collection = useCharacterLibraryCollection(
+    { trpc },
+    {
+      sort: sortMode,
+      pageSize,
+      search: settledQuery,
+      favoritesOnly,
+      showArchived,
+      includeTagIds: tagIdsInState(tagFilter, "include"),
+      excludeTagIds: tagIdsInState(tagFilter, "exclude"),
+    },
+  );
   const selectedId = useSelectedCharacterId();
   const update = useUpdateCharacter({ trpc, invalidation });
   const duplicate = useDuplicateCharacter({ trpc, invalidation });
@@ -118,14 +182,16 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   const chatsQuery = useQuery(trpc.chat.listChats.queryOptions({ limit: RESUME_WINDOW }));
   const resumeMap = resumeTargets(chatsQuery.data?.items ?? []);
 
-  const items = collection.items;
-  const favorites = items.filter((c) => c.starred);
-  const availableTags = tagVocabulary(items);
-  const filtered: readonly CharacterCardItem[] = filterByChips(filterCharacters(items, deferredQuery), {
-    favoritesOnly,
-    showArchived,
-    tagFilter,
-  });
+  // The rows are the SERVER's answer whole — no client pass. The only thing left to derive is the view fold.
+  const items: readonly CharacterCardItem[] = collection.items;
+  // The strip's own read: the caller's starred characters, independent of the pane's current lens (a
+  // shortcut must not vanish because you typed in the search box).
+  const favoritesQuery = useQuery(trpc.character.list.queryOptions({ starred: true, limit: FAVORITES_STRIP_LIMIT }));
+  const favorites = favoritesQuery.data?.items ?? [];
+  // The chip vocabulary is the OWNER'S TAG LIBRARY, not the loaded rows' tags (the dead-filter class): a
+  // chip that only exists once a matching row happens to be loaded is a filter you cannot turn off.
+  const tagLibraryQuery = useQuery(trpc.tag.listTagsWithUsage.queryOptions());
+  const availableTags = tagVocabulary(tagLibraryQuery.data ?? [], tagFilter);
 
   // A pick FROM THE PICKER (a card click / a favorites face): the same selection write, plus the focus
   // decision the pane swap needs — the projection that replaces this library takes focus (§3.7).
@@ -201,9 +267,10 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
             said nothing, so a screen-reader user operating a three-state control got no feedback that it
             had done anything. `role="status"` is polite by default; the line is always mounted (a region
             that appears WITH its first message announces nothing) and always states the count, because a
-            count that only exists while filtered is a layout that shifts on every chip press. */}
+            count that only exists while filtered is a layout that shifts on every chip press.
+            It counts the SERVER's matches now, not the loaded rows — and says so when the two differ. */}
         <Text role="status" voice="gloss">
-          {resultCountLabel(filtered.length)}
+          {resultCountLabel(items.length, collection.totalCount)}
         </Text>
         {/* The favorites strip is the shared `FaceStrip` composite now (list-pane-projection §11.2) — the
           private avatar-in-Button copy it used to carry is retired, not duplicated. Portraits only: the
@@ -214,15 +281,15 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
             ariaLabel={ariaLabel}
             categorized={viewMode === "categorized"}
             error={collection.error}
-            filtered={filtered}
+            filtered={items}
+            filtersActive={favoritesOnly || tagFilter.length > 0}
             hasNextPage={collection.hasNextPage}
-            isEmpty={collection.isEmpty}
             isFetchingNextPage={collection.isFetchingNextPage}
             isPending={collection.isPending}
             listProps={collection.listProps}
             onClearSearch={(): void => setQuery("")}
             onRetry={collection.refetch}
-            query={deferredQuery}
+            query={settledQuery}
             renderRow={renderRow}
           />
         </Stack>
@@ -234,84 +301,14 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   );
 }
 
-/** What the filter row's live region says — the count of rows the current search + chips leave standing. */
-function resultCountLabel(count: number): string {
-  return `${String(count)} character${count === 1 ? "" : "s"}`;
-}
-
-/** Restore keyboard focus to one character's ROW once the list has actually rendered it (§3.7 back-focus).
- *  The rows arrive with the paged query, not at mount, so this keys on `items` and gives up silently when
- *  the row isn't in the loaded window (a later page, or filtered out) — the surface container already holds
- *  focus in that case, which is the honest fallback, never a focus trap on nothing.
- *
- *  The row is located by the `ListRow` body's accessible NAME (the primitive takes no ref, and its
- *  `aria-label` IS the character name) inside this surface's own container — the scoped-querySelector
- *  precedent from `context-tabs-panel` / `settings-shell-surface`, never a document-wide reach. */
-function useRestoreRowFocus(surfaceRef: RefObject<HTMLDivElement | null>, focusCharacterId: CharacterId | null, items: readonly CharacterCardItem[]): void {
-  const [pendingId, setPendingId] = useState<CharacterId | null>(focusCharacterId);
-  useEffect(() => {
-    if (pendingId === null) {
-      return;
-    }
-    const name = items.find((item) => item.id === pendingId)?.name;
-    if (name === undefined) {
-      return;
-    }
-    // The row lands a FRAME after its data does — the flat list is virtualized, so the item's node appears
-    // only once the virtualizer has measured. A bounded rAF poll (the settings-anchor precedent) waits for
-    // it and then gives up silently rather than spinning.
-    let frames = 0;
-    let raf = 0;
-    const attempt = (): void => {
-      const row = surfaceRef.current?.querySelector<HTMLElement>(`[data-slot="list-row-body"][aria-label=${CSS.escape(name)}]`);
-      if (row !== null && row !== undefined) {
-        row.focus();
-        setPendingId(null);
-        return;
-      }
-      frames += 1;
-      if (frames <= MAX_ROW_FOCUS_FRAMES) {
-        raf = globalThis.requestAnimationFrame(attempt);
-      }
-    };
-    // eslint-disable-next-line react-you-might-not-need-an-effect/no-external-store-subscription -- no render state is derived here: this is a bounded rAF retry loop that IMPERATIVELY focuses a virtualized row once the virtualizer mounts it; the setPendingId(null) is the loop's own stop signal, not a mirror of an external store.
-    attempt();
-    return (): void => globalThis.cancelAnimationFrame(raf);
-  }, [pendingId, items, surfaceRef]);
-}
-
-/** The visible-tag vocabulary across the loaded rows (deduped by id) — the tag-filter chip set, MOST-USED
- *  FIRST (ties alphabetical).
- *
- *  The order is what makes the chip row's cap honest (side-eye 2026-08-03 P2): the row shows the first N,
- *  so ranking by how many loaded characters actually carry a tag puts the filters that can DO something at
- *  this moment in the visible slice, where alphabetical order put whatever started with "a". */
-function tagVocabulary(items: readonly CharacterLibraryItem[]): readonly { readonly id: TagId; readonly name: string }[] {
-  const seen = new Map<TagId, { readonly name: string; count: number }>();
-  for (const item of items) {
-    for (const tag of item.tags) {
-      if (!tag.isHiddenOnCard) {
-        const entry = seen.get(tag.id);
-        if (entry === undefined) {
-          seen.set(tag.id, { name: tag.name, count: 1 });
-        } else {
-          entry.count += 1;
-        }
-      }
-    }
-  }
-  return [...seen]
-    .map(([id, entry]) => ({ id, name: entry.name, count: entry.count }))
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-    .map(({ id, name }) => ({ id, name }));
-}
-
 interface CharacterLibraryBodyProps {
   readonly ariaLabel: string;
   readonly query: string;
+  /** Any chip narrowing the SERVER read (favorites / tag include-exclude). Archived is deliberately not one:
+   *  its OFF state is the resting library, so an empty library is not "the Archived toggle did this". */
+  readonly filtersActive: boolean;
   readonly categorized: boolean;
   readonly isPending: boolean;
-  readonly isEmpty: boolean;
   readonly error: unknown | null;
   readonly filtered: readonly CharacterCardItem[];
   readonly hasNextPage: boolean;
@@ -322,13 +319,18 @@ interface CharacterLibraryBodyProps {
   readonly renderRow: (item: CharacterCardItem) => ReactNode;
 }
 
-/** Loading → error → empty → no-matches → the flat virtual list OR the categorized grouped list. */
+/** Loading → error → empty → no-matches → the flat virtual list OR the categorized grouped list.
+ *
+ *  The three empties are DIFFERENT CLAIMS and the server now lets each be honest: with the predicates on the
+ *  server an empty page means "nothing in the whole library matches", so the search arm no longer has to
+ *  hedge and the chip arm's old "load more to keep looking" affordance is gone — there is nothing further to
+ *  load, and offering it would be a dead end pretending to be a next step. */
 function CharacterLibraryBody({
   ariaLabel,
   query,
+  filtersActive,
   categorized,
   isPending,
-  isEmpty,
   error,
   filtered,
   hasNextPage,
@@ -344,18 +346,8 @@ function CharacterLibraryBody({
   if (error !== null) {
     return <QueryErrorState label="the character library" onRetry={onRetry} />;
   }
-  if (isEmpty) {
-    return (
-      <EmptyState
-        action={<CharacterCreateButton />}
-        description="Weave your first one to begin."
-        icon={<Icon icon={Users} size="lg" />}
-        title="No characters yet"
-      />
-    );
-  }
   if (filtered.length === 0) {
-    if (query.trim() !== "") {
+    if (query !== "") {
       return (
         <EmptyState
           action={
@@ -369,20 +361,26 @@ function CharacterLibraryBody({
         />
       );
     }
+    if (filtersActive) {
+      return (
+        <EmptyState
+          action={
+            <Button intent="secondary" onClick={clearCharacterFilters} size="sm">
+              Clear filters
+            </Button>
+          }
+          description="No character in your library matches the current filters."
+          icon={<Icon icon={Users} size="lg" />}
+          title="No matches"
+        />
+      );
+    }
     return (
       <EmptyState
-        {...(hasNextPage
-          ? {
-              action: (
-                <Button disabled={isFetchingNextPage} intent="secondary" onClick={listProps.onEndApproach}>
-                  Load more
-                </Button>
-              ),
-            }
-          : {})}
-        description={hasNextPage ? "None among the loaded characters — load more to keep looking." : "No characters match the current filters."}
+        action={<CharacterCreateButton />}
+        description="Weave your first one to begin."
         icon={<Icon icon={Users} size="lg" />}
-        title="No matches in view"
+        title="No characters yet"
       />
     );
   }

@@ -34,6 +34,7 @@ export type { CharacterViewMode } from "./character-library-store.ts";
 export {
   __resetTagFilter,
   CHARACTER_VIEW_MODES,
+  clearCharacterFilters,
   cycleTagFilter,
   setBulkMode,
   setCharacterSortMode,

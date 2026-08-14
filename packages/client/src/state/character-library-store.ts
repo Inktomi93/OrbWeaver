@@ -138,6 +138,12 @@ export function toggleShowArchived(): void {
 export function cycleTagFilter(tagId: TagId): void {
   useCharacterLibraryStore.setState((s) => ({ tagFilter: cycleTagFilterEntries(s.tagFilter, tagId) }), false, "character-library/cycleTagFilter");
 }
+/** Drop every NARROWING chip in one act — the way out of a filtered-empty library (the empty state's own
+ *  next action, UI-Arch §4.3 rule 1). `showArchived` is deliberately untouched: its OFF state is the resting
+ *  library, not a narrowing the user has to be rescued from. */
+export function clearCharacterFilters(): void {
+  useCharacterLibraryStore.setState({ favoritesOnly: false, tagFilter: [] }, false, "character-library/clearFilters");
+}
 export function __resetTagFilter(): void {
   useCharacterLibraryStore.setState({ tagFilter: [] }, false, "character-library/__resetTagFilter");
 }

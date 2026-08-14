@@ -23,14 +23,8 @@ export type { CharacterOptionsTabProps } from "./components/character-options-ta
 export { CharacterOptionsTab } from "./components/character-options-tab.tsx";
 export type { CharacterRelationsTabProps } from "./components/character-relations-tab.tsx";
 export { CharacterRelationsTab } from "./components/character-relations-tab.tsx";
-export type {
-  FilterableRow,
-  LibraryFilters,
-  ResumableChat,
-  RowTag,
-  TagGroup,
-} from "./lib/character-list-view.ts";
-export { filterByChips, groupByTag, resumeTargets } from "./lib/character-list-view.ts";
+export type { FilterableRow, ResumableChat, RowTag, TagGroup } from "./lib/character-list-view.ts";
+export { groupByTag, resumeTargets } from "./lib/character-list-view.ts";
 export { characterSlashCommands } from "./lib/character-slash-commands.ts";
 export { makeCharactersSection } from "./lib/characters-section.tsx";
 export { librarySettingsSection } from "./lib/library-settings-section.tsx";

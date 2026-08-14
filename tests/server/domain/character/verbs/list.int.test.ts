@@ -5,14 +5,14 @@
 // tiebreak the `domain/assets` precedent exists for (a frozen clock stamps ties on `createdAt`).
 
 import { characterTags, tags } from "@orb/db";
-import type { CharacterHandle, Handle, TagId } from "@orb/kit/ids";
+import type { CharacterHandle, CharacterId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService, createStampRefinerySignals } from "@orb/server/domain/character";
 import { describe } from "vitest";
 import { cardTokenSize } from "../../../../../packages/server/src/domain/character/substrate/card-tokens.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeHarness, principal, seedCharacterStats, seedRawCharacter, seedUser } from "../_support.ts";
+import { makeHarness, principal, seedCharacterStats, seedCharacterSummary, seedRawCharacter, seedUser } from "../_support.ts";
 
 describe("list", () => {
   test("returns the owner's characters newest-first, excluding other owners", async () => {
@@ -425,6 +425,206 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
         cursor: { sort: "alpha", name: "Ada", id: made.id },
       }),
     ).rejects.toThrow("does not match");
+  });
+});
+
+// ── THE SERVER-SIDE LENSES (owner ruling 2026-08-13: "if i search then it should not just search on
+// virtual stuff yeah? same for sort etc") ───────────────────────────────────────────────────────────
+// Every narrowing the library toolbar offers is a predicate on the SAME scope the page windows and the
+// census counts, so a term/chip that matches nothing on the loaded page still finds its row. The chat
+// precedent (`listChats`, 2026-08-09) is the shape these mirror.
+
+/** Seed one owner with the four rows every lens test narrows over. */
+async function seedLensLibrary(
+  db: Awaited<ReturnType<typeof freshDb>>,
+): Promise<{ owner: UserId; aria: CharacterId; bolt: CharacterId; cass: CharacterId; dusk: CharacterId; rpg: TagId; noir: TagId }> {
+  const owner = await seedUser(db, { handle: castId<Handle>("owner") });
+  const rpg = castId<TagId>("tag_rpg");
+  const noir = castId<TagId>("tag_noir");
+  await db.insert(tags).values([
+    { id: rpg, ownerId: owner, name: "rpg" },
+    { id: noir, ownerId: owner, name: "noir" },
+  ]);
+  const aria = await seedRawCharacter(db, {
+    id: "character_aria",
+    ownerId: owner,
+    handle: castId<CharacterHandle>("aria"),
+    name: "Aria Nightshade",
+    starred: true,
+    createdAt: 4000,
+  });
+  const bolt = await seedRawCharacter(db, { id: "character_bolt", ownerId: owner, handle: castId<CharacterHandle>("bolt"), name: "Bolt", createdAt: 3000 });
+  const cass = await seedRawCharacter(db, {
+    id: "character_cass",
+    ownerId: owner,
+    handle: castId<CharacterHandle>("cassius"),
+    name: "Cassius",
+    createdAt: 2000,
+  });
+  const dusk = await seedRawCharacter(db, {
+    id: "character_dusk",
+    ownerId: owner,
+    handle: castId<CharacterHandle>("dusk"),
+    name: "Dusk",
+    archived: true,
+    createdAt: 1000,
+  });
+  await db.insert(characterTags).values([
+    { characterId: aria, tagId: rpg, status: "accepted" },
+    { characterId: cass, tagId: rpg, status: "accepted" },
+    { characterId: cass, tagId: noir, status: "accepted" },
+  ]);
+  return { owner, aria, bolt, cass, dusk, rpg, noir };
+}
+
+describe("list — server-side search", () => {
+  test("matches the NAME over the whole library, not the loaded page", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const { owner, cass } = await seedLensLibrary(db);
+
+    // A one-row page: the match lives BEYOND it, which is exactly the case a client-side filter cannot serve.
+    const page = await svc.list({ principal: principal(owner), search: "cassi", limit: 1 });
+    expect(page.items.map((r) => r.id)).toEqual([cass]);
+    expect(page.totalCount).toBe(1);
+    // A FULL page always mints a cursor (no lookahead peek); the SEARCH rides the next fetch too, so the
+    // page after it is empty rather than the rest of the unfiltered library.
+    const cursor = page.nextCursor;
+    if (cursor === null) {
+      throw new Error("expected a page cursor");
+    }
+    const second = await svc.list({ principal: principal(owner), search: "cassi", limit: 1, cursor });
+    expect(second.items).toEqual([]);
+  });
+
+  test("matches the handle, the distilled pitch, and an ACCEPTED tag name — case-insensitively", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const { owner, aria, bolt, cass } = await seedLensLibrary(db);
+    await seedCharacterSummary(db, { characterId: bolt, elevatorPitch: "A courier who runs the lightning road." });
+
+    const byHandle = await svc.list({ principal: principal(owner), search: "CASSIUS" });
+    expect(byHandle.items.map((r) => r.id)).toEqual([cass]);
+
+    const byPitch = await svc.list({ principal: principal(owner), search: "lightning road" });
+    expect(byPitch.items.map((r) => r.id)).toEqual([bolt]);
+
+    // The tag arm: "rpg" is on Aria + Cassius and on neither's name.
+    const byTag = await svc.list({ principal: principal(owner), search: "rpg", sort: "alpha" });
+    expect(byTag.items.map((r) => r.id)).toEqual([aria, cass]);
+  });
+
+  test("a PENDING tag suggestion is not searchable (the accepted-tags projection is the search scope)", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const { owner, bolt } = await seedLensLibrary(db);
+    const staged = castId<TagId>("tag_staged");
+    await db.insert(tags).values([{ id: staged, ownerId: owner, name: "staged-only" }]);
+    await db.insert(characterTags).values([{ characterId: bolt, tagId: staged, status: "pending" }]);
+
+    const page = await svc.list({ principal: principal(owner), search: "staged-only" });
+    expect(page.items).toEqual([]);
+  });
+
+  test("a whitespace-only search is the UNSEARCHED library, never a search for a space", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const { owner } = await seedLensLibrary(db);
+
+    const page = await svc.list({ principal: principal(owner), search: "   " });
+    expect(page.items).toHaveLength(4);
+  });
+});
+
+describe("list — server-side chip filters (starred · archived · tags)", () => {
+  // BOTH axes are TRI-STATE (`undefined` = unfiltered), which is what keeps the four lookup-map callers
+  // whole: an omitted `archived` still serves the archived rows a portrait map needs, while the library's
+  // own "Archived" toggle sends `archived: false` to hide them.
+  test("starred:true is the favorites lens; archived:false is the Archived toggle's OFF state", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const { owner, aria, dusk } = await seedLensLibrary(db);
+
+    const favorites = await svc.list({ principal: principal(owner), starred: true });
+    expect(favorites.items.map((r) => r.id)).toEqual([aria]);
+
+    const unfiltered = await svc.list({ principal: principal(owner) });
+    expect(unfiltered.items.map((r) => r.id)).toContain(dusk);
+
+    const hidden = await svc.list({ principal: principal(owner), archived: false });
+    expect(hidden.items.map((r) => r.id)).not.toContain(dusk);
+    expect(hidden.totalCount).toBe(3);
+  });
+
+  test("include tags are AND-semantics and exclude tags subtract — over the whole library", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const { owner, aria, bolt, cass, dusk, rpg, noir } = await seedLensLibrary(db);
+
+    // rpg AND noir ⇒ only Cassius carries both.
+    const both = await svc.list({ principal: principal(owner), includeTagIds: [rpg, noir] });
+    expect(both.items.map((r) => r.id)).toEqual([cass]);
+
+    // rpg, NOT noir ⇒ Aria only.
+    const excluded = await svc.list({ principal: principal(owner), includeTagIds: [rpg], excludeTagIds: [noir] });
+    expect(excluded.items.map((r) => r.id)).toEqual([aria]);
+
+    // A pure exclusion still returns the rows that carry no rpg tag at all (Bolt, and archived Dusk).
+    const notRpg = await svc.list({ principal: principal(owner), excludeTagIds: [rpg], sort: "alpha" });
+    expect(notRpg.items.map((r) => r.id)).toEqual([bolt, dusk]);
+  });
+
+  test("a dead tag id in the include list matches nothing (it is a real predicate, not a no-op)", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const { owner } = await seedLensLibrary(db);
+
+    const page = await svc.list({ principal: principal(owner), includeTagIds: [castId<TagId>("tag_deleted")] });
+    expect(page.items).toEqual([]);
+    expect(page.totalCount).toBe(0);
+  });
+
+  test("filters compose with the keyset: page 2 of a FILTERED list continues the same scope", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const { owner, aria, cass, rpg } = await seedLensLibrary(db);
+
+    const first = await svc.list({ principal: principal(owner), includeTagIds: [rpg], sort: "alpha", limit: 1 });
+    expect(first.items.map((r) => r.id)).toEqual([aria]);
+    const cursor = first.nextCursor;
+    if (cursor === null) {
+      throw new Error("expected a page cursor");
+    }
+    const second = await svc.list({ principal: principal(owner), includeTagIds: [rpg], sort: "alpha", limit: 1, cursor });
+    expect(second.items.map((r) => r.id)).toEqual([cass]);
+  });
+});
+
+describe("list — totalCount (the census the readouts print)", () => {
+  test("totalCount counts the whole FILTERED scope, never the page", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const { owner } = await seedLensLibrary(db);
+
+    const page = await svc.list({ principal: principal(owner), limit: 1 });
+    expect(page.items).toHaveLength(1);
+    // Four rows in scope, one on the page.
+    expect(page.totalCount).toBe(4);
+
+    const searched = await svc.list({ principal: principal(owner), search: "a", limit: 1 });
+    expect(searched.totalCount).toBe((await svc.list({ principal: principal(owner), search: "a" })).items.length);
+  });
+
+  test("the census is owner-scoped (another owner's rows never count)", async () => {
+    const db = await freshDb();
+    const svc = createCharacterService(makeHarness(db).ctx);
+    const { owner } = await seedLensLibrary(db);
+    const other = await seedUser(db, { handle: castId<Handle>("other") });
+    await seedRawCharacter(db, { id: "character_foreign", ownerId: other, handle: castId<CharacterHandle>("foreign"), name: "Aria Nightshade" });
+
+    const page = await svc.list({ principal: principal(owner), search: "aria" });
+    expect(page.items).toHaveLength(1);
+    expect(page.totalCount).toBe(1);
   });
 });
 
