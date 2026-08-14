@@ -310,6 +310,14 @@ function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | 
     eq(chatParticipants.userId, userId),
     isNull(chatParticipants.leftSeq),
     eq(chats.temporary, false),
+    // THE HUSK LENS (R0 §4.3) — the `temporary` arm's twin, deliberately spelled beside it. A room nobody
+    // CLAIMED (`chats.started_at` NULL — no line sent, no turn run, no config written) is hidden from the
+    // library for EVERYONE including its creator: the creating device holds it through the active handle,
+    // exactly as it held a draft, and the reaper takes it if nothing ever happens. Hiding it here rather than
+    // client-side is the paged-list law (a client filter mis-sizes every page) and buys export exclusion free
+    // (bulk export enumerates through this path). NOT gated by `includeArchived`: archived is a state of a
+    // real chat, unstarted is the absence of one.
+    isNotNull(chats.startedAt),
     opts.includeArchived === true ? undefined : eq(chats.archived, false),
     characterId === undefined
       ? undefined

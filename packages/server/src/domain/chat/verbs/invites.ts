@@ -18,6 +18,7 @@ import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ChatContext } from "../context.ts";
+import type { ClaimChatOp } from "../contract/context.ts";
 import { ChatNotFoundError } from "../contract/errors.ts";
 import type {
   AcceptInviteParams,
@@ -50,6 +51,10 @@ import { hostSeatOf } from "../substrate/roster-host.ts";
 /** The collaborators the invite verbs close over (see the file header). */
 interface InviteDeps {
   readonly emit: (event: ChatBusEvent) => Promise<void>;
+  /** The husk→real transition (R0). Only `createInvite` claims: opening a room to another human is
+   *  effort put into it (F4(a)). The redeem/accept/revoke/decline arms cannot reach an unclaimed room
+   *  -- an invite has to exist first, and minting it claimed. */
+  readonly claimChat: ClaimChatOp;
   readonly loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
 }
 
@@ -59,7 +64,7 @@ type InviteVerbs = Pick<ChatService, "createInvite" | "previewInvite" | "redeemI
 /** The invite-lifecycle verb bundle. `deps` carries the two collaborators deliberately not on `ChatContext`. */
 export function createInvites(ctx: ChatContext, deps: InviteDeps): InviteVerbs {
   return {
-    createInvite: createCreateInvite(ctx),
+    createInvite: createCreateInvite(ctx, deps.claimChat),
     previewInvite: createPreviewInvite(ctx, deps),
     redeemInvite: createRedeemInvite(ctx, deps),
     acceptInvite: createAcceptInvite(ctx, deps),
@@ -96,9 +101,10 @@ function modeLabel(group: GroupConfig): string {
  *  A targeted invite additionally delivers the durable `invite` notification (the per-user inbox the
  *  per-chat bus can't reach — the invitee isn't a member yet). Fired after persist; carries `inviteId`,
  *  never the raw token. A share-link invite has no single recipient to notify — skipped. */
-function createCreateInvite(ctx: ChatContext): ChatService["createInvite"] {
+function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatService["createInvite"] {
   return async ({ principal, chatId, input }: CreateInviteParams) => {
     await requireHost(ctx, principal, chatId);
+    await claimChat(chatId);
     // Resolve the exact target handle → userId (sessions' injected resolver; disabled == unknown).
     let invitedUserId: UserId | null = null;
     if (input.invitedHandle !== null && input.invitedHandle !== undefined) {

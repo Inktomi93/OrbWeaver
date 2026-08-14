@@ -291,4 +291,49 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     expect(live.owner).toMatchObject({ assistantTurns: 2, tokensIn: 19, tokensOut: 35 });
     expect(live.chars).toHaveLength(1);
   });
+
+  // R0 §4.7 — THE HUSK IS A TWO-WRITER CONTRACT, and this is the arm that pins it. A husk (`chats.started_at`
+  // NULL) is a room nobody started: the LIVE plane pushes nothing for it, because the creation deltas moved
+  // off `startChat` onto the claim chokepoint and the claim never fired. The REBUILD had to learn the same
+  // rule (`rebuild-from-canon.ts::ownerChatIds` + `loadChatMeta`) or it would keep counting the room, its
+  // seeded greeting and its character seat — and the gate above would red the first time a user bounced off
+  // the picker. Fixing one side of a two-writer contract and not the other is the failure this asserts
+  // against, so the husk here carries EVERYTHING a real room would (a seat, canon with economics, a
+  // creation day) and still must move neither writer by a single column.
+  test("a HUSK moves NEITHER writer: an unclaimed room with a full canon contributes zero to both", async () => {
+    // The husk seats the SAME character the started room does — deliberately: that makes the husk's only
+    // possible effect the chat/canon counts under test, and keeps `owner_stats.characters` (which the rebuild
+    // derives from the characters TABLE, not from seats) out of the comparison.
+    const husk = await seedChat(db, characterId, { id: "chat_husk", createdAt: T0, updatedAt: T0, startedAt: null });
+    await seedMessage(db, {
+      chatId: husk,
+      seq: 1,
+      role: "assistant",
+      characterId,
+      createdAt: T0,
+      variants: [{ ...CHAR_ASSIST, content: "an unstarted room's seeded greeting" }],
+    });
+
+    // Writer A over a canon that now includes the husk.
+    const clock = createFrozenClock(T0 + 5000);
+    await reconcileStats(db, { ownerId, now: clock.now });
+    const reconciled = await snapshotRollups(db, ownerId);
+
+    // Writer B — the SAME live replay as the arm above, deliberately unchanged: the husk contributes no
+    // delta because nothing ever claimed it, so if the rebuild counted it the two would diverge.
+    await wipeRollups(db);
+    const batch: BatchStmt[] = [];
+    for (const delta of liveDeltas()) {
+      applyStatsDelta(batch, db, delta);
+    }
+    await db.batch(batchMany(batch));
+    const live = await snapshotRollups(db, ownerId);
+
+    expect(reconciled).toEqual(live);
+    // …and not vacuously: the husk's own character never gets a rollup row, and the owner's chat count is
+    // still the ONE started room.
+    expect(reconciled.chars).toHaveLength(1);
+    expect(reconciled.chars[0]).toMatchObject({ chats: 1, assistantTurns: 1 });
+    expect(reconciled.owner).toMatchObject({ chats: 1, assistantTurns: 2 });
+  });
 });

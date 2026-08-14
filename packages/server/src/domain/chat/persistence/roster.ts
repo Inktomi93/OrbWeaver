@@ -6,9 +6,9 @@
 
 import type { ParticipantRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { chatParticipants } from "@orb/db";
+import { chatParticipants, chats } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
-import { and, asc, eq, inArray, isNull, ne } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import { assertForcedCharacterMember } from "./participant.ts";
 
 /** How many rows an existence probe needs. */
@@ -92,14 +92,21 @@ export async function loadRoster(db: Db, chatId: ChatId, includePast = false): P
  * probe: `startChat` asks it BEFORE the new room's roster rows commit, so `false` ⇒ this creation is the
  * character's FIRST chat (`StatsDelta.newCharacter`). PAST seats count (`leftSeq` is NOT filtered) — the
  * stats rebuild's per-character chat aggregation joins `chat_participants` without a presence filter, and
- * the live delta must mirror the rebuild (the drift-gate contract). `excludeChatId` is a belt: at the
- * `startChat` call site the new room's rows are not yet inserted.
+ * the live delta must mirror the rebuild (the drift-gate contract). `excludeChatId` is a belt: the claim
+ * chokepoint asks AFTER the room's own seats exist, so excluding them is what makes the answer "any OTHER".
+ *
+ * HUSKS DO NOT COUNT (R0 §4.7): the seat's chat must be CLAIMED (`chats.started_at` NOT NULL). Without this
+ * join a husk seating a character would make the next REAL chat read "not first" and the `newCharacter` bump
+ * would be lost forever — even after the husk reaps. The rebuild's chat aggregations carry the SAME arm
+ * (`domain/stats/write/rebuild-from-canon.ts`), because the drift-gate contract above binds BOTH writers:
+ * fixing one side alone is a guaranteed reconcile diff the moment any husk exists.
  */
 export async function characterSeatedInAnotherChat(db: Db, characterId: CharacterId, excludeChatId: ChatId): Promise<boolean> {
   const rows = await db
     .select({ id: chatParticipants.id })
     .from(chatParticipants)
-    .where(and(eq(chatParticipants.characterId, characterId), ne(chatParticipants.chatId, excludeChatId)))
+    .innerJoin(chats, eq(chats.id, chatParticipants.chatId))
+    .where(and(eq(chatParticipants.characterId, characterId), ne(chatParticipants.chatId, excludeChatId), isNotNull(chats.startedAt)))
     .limit(LIMIT_ONE);
   return rows.length > 0;
 }

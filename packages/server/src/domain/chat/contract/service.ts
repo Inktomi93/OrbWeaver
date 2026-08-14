@@ -67,6 +67,7 @@ import type {
   PreviewContextFitParams,
   PreviewInviteParams,
   PreviewSectionParams,
+  ReapHuskParams,
   ReapTemporaryChatsParams,
   ReattributeMessagesParams,
   ReattributePersonaParams,
@@ -285,8 +286,12 @@ export interface ChatService {
   // ── chat-row ──────────────────────────────────────────────────────────────────
   /** Delete the chat (host-only; cascades messages/roster/invites/etc.). */
   readonly delete: (params: DeleteChatParams) => Promise<void>;
-  /** Sweep the caller's expired temporary chats (maintenance lever). */
+  /** Sweep the caller's expired temporary chats AND expired husks (the TTL belt — R0 §4.6). */
   readonly reapTemporaryChats: (params: ReapTemporaryChatsParams) => Promise<ReapResult>;
+  /** Drop ONE unclaimed room on nav-away (host-only; R0 §4.6). A no-op unless the server still sees
+   *  `chats.started_at IS NULL` — the client's husk verdict is a request, never a fact. Emits `chatDeleted`
+   *  so the creating device, which may still have the room open, returns to landing. */
+  readonly reapHusk: (params: ReapHuskParams) => Promise<void>;
   readonly updateTitle: (params: UpdateTitleParams) => Promise<void>;
   readonly star: (params: StarChatParams) => Promise<void>;
   readonly archive: (params: ArchiveChatParams) => Promise<void>;

@@ -37,12 +37,19 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { can } from "@orb/server/domain/admin";
 import { and, eq, isNull } from "drizzle-orm";
 import type { ChatContext } from "../../../../packages/server/src/domain/chat/context.ts";
+import type { ClaimChatOp } from "../../../../packages/server/src/domain/chat/contract/context.ts";
 import type { TurnRequest, TurnStreamChunk } from "../../../../packages/server/src/domain/chat/contract/results.ts";
 import { pruneChatDigests, pruneChatSegments } from "../../../../packages/server/src/domain/embeddings/persistence/clear.ts";
 import { FROZEN_AT_MS } from "../../../support/clock.ts";
 import { seedUser as seedUserRow } from "../../../support/factories/user.ts";
 
 export const FROZEN_AT = FROZEN_AT_MS;
+
+/** A CLAIM chokepoint that does nothing (R0). Every chat these suites seed is born CLAIMED (the `seedChat`
+ *  default), so the real `createClaimChat` would be a no-op on them and this keeps them byte-identical to
+ *  their pre-R0 behavior. The husk lifecycle itself is proved with the REAL chokepoint in
+ *  `verbs/husk-lifecycle.suite.int.test.ts` — never stub it in a suite whose point is the claim. */
+export const noClaim: ClaimChatOp = () => Promise.resolve();
 
 /** Insert a `users` row; returns its branded id. Thin adapter over the canonical
  *  `factories/user.ts::seedUser` — chat's ~316 call sites pass a bare `handle` string and take the id back
@@ -125,6 +132,11 @@ export async function seedChat(
     readonly createdAt?: number;
     readonly updatedAt?: number;
     readonly id?: ChatId;
+    /** The husk column (R0). Omitted ⇒ born CLAIMED (`FROZEN_AT`) — a seeded chat stands for a room that
+     *  really exists, which is what every list/stats/rebuild assertion in the tree means by "a chat". Pass
+     *  `null` EXPLICITLY for a HUSK; the unstarted state is opt-in and is never what an omitted field gives
+     *  you (the `joinHistoryVisibility` precedent above). */
+    readonly startedAt?: number | null;
   } = {},
 ): Promise<ChatId> {
   // `overrides.id` accepts a REAL minted TypeID (the `seedCharacter` precedent) for a test whose chat id
@@ -139,6 +151,8 @@ export async function seedChat(
     anchorPersonaId: overrides.anchorPersonaId ?? null,
     // The JSON column is `$type<ChatMetadata>()`; tests inject raw blobs (incl. malformed) — cast at the seam.
     metadata: (overrides.metadata ?? null) as never,
+    // biome-ignore lint/nursery/useNullishCoalescing: an EXPLICIT null IS the husk (the whole opt-in), and `??` would coalesce it back into the claimed default — only an OMITTED field may fall through.
+    startedAt: overrides.startedAt === undefined ? FROZEN_AT : overrides.startedAt,
     createdAt: overrides.createdAt ?? FROZEN_AT,
     updatedAt: overrides.updatedAt ?? FROZEN_AT,
   });

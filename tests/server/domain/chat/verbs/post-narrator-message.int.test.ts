@@ -14,7 +14,7 @@ import { beforeEach, describe } from "vitest";
 import { createPostNarratorMessage } from "../../../../../packages/server/src/domain/chat/verbs/post-narrator-message.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { makeChatContext, seedAsset, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { makeChatContext, noClaim, seedAsset, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -40,7 +40,7 @@ describe("postNarratorMessage", () => {
     const groupChar = await seedCharacter(db, host, "narrator");
 
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
-    const postNarratorMessage = createPostNarratorMessage(ctx, { emit });
+    const postNarratorMessage = createPostNarratorMessage(ctx, { emit, claimChat: noClaim });
 
     const { messageId, variantId } = await postNarratorMessage(chatId, "The bell tolls over the drowned city.");
 
@@ -73,7 +73,7 @@ describe("postNarratorMessage", () => {
     const asset = await seedAsset(db, host, "illustration");
 
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
-    const postNarratorMessage = createPostNarratorMessage(ctx, { emit });
+    const postNarratorMessage = createPostNarratorMessage(ctx, { emit, claimChat: noClaim });
 
     const { messageId } = await postNarratorMessage(chatId, "A leviathan breaches.", [asset]);
 
@@ -93,7 +93,7 @@ describe("postNarratorMessage", () => {
     const groupChar = await seedCharacter(db, host, "narrator");
 
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
-    const postNarratorMessage = createPostNarratorMessage(ctx, { emit });
+    const postNarratorMessage = createPostNarratorMessage(ctx, { emit, claimChat: noClaim });
 
     const { messageId } = await postNarratorMessage(chatId, "An rpg recap line.");
 
@@ -109,7 +109,7 @@ describe("postNarratorMessage", () => {
     const groupChar = await seedCharacter(db, host, "narrator");
 
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
-    const postNarratorMessage = createPostNarratorMessage(ctx, { emit });
+    const postNarratorMessage = createPostNarratorMessage(ctx, { emit, claimChat: noClaim });
 
     // The F1 image-post path: the compose op threads the firing rule's origin so a non-opted re-fire is
     // cascade-suppressed (depth ≥ 1). Here depth 1 = a rule fired off a human message (parentDepth 0 + 1).
@@ -133,7 +133,7 @@ describe("postNarratorMessage", () => {
     const groupChar = await seedCharacter(db, host, "narrator");
 
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
-    const postNarratorMessage = createPostNarratorMessage(ctx, { emit });
+    const postNarratorMessage = createPostNarratorMessage(ctx, { emit, claimChat: noClaim });
 
     await expect(postNarratorMessage(chatId, "")).rejects.toThrow(BLANK_POST_RE);
     // Whitespace-only is the same nothing — the old SQL/JS `trim()` divergence has no row class left to split.
@@ -151,7 +151,7 @@ describe("postNarratorMessage", () => {
     const assetId = await seedAsset(db, host, "narrator_media");
 
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
-    const postNarratorMessage = createPostNarratorMessage(ctx, { emit });
+    const postNarratorMessage = createPostNarratorMessage(ctx, { emit, claimChat: noClaim });
 
     // The refusal reads the ASSEMBLED body, so an illustration post with no prose still lands (D51 embedded
     // refs). Refusing on the raw `content` argument would have killed this real path.
@@ -163,7 +163,7 @@ describe("postNarratorMessage", () => {
   test("a chat with no host cannot mint the narrator identity", async () => {
     const chatId = await seedChat(db, "a");
     const ctx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.reject(new Error("should not mint")) });
-    const postNarratorMessage = createPostNarratorMessage(ctx, { emit });
+    const postNarratorMessage = createPostNarratorMessage(ctx, { emit, claimChat: noClaim });
     await expect(postNarratorMessage(chatId, "orphaned")).rejects.toThrow("no host");
   });
 });
