@@ -238,14 +238,22 @@ claim vs sibling green CT = CONTRADICTION — arbitrate on the quiesced tree at 
 es2025/esbuild-0.25 suspicion, 67d7805d0's dead premise**) · DEPLOCK `5d0105e72` (sharp 0.35 + pdfjs
 6.2; audit highs 12→10; jsx-a11y/eslint-10 REFUSED-unfixable-upstream) · **AGENT-TOOLING-01 P1 CLOSED
 `27aad9d18`** (identity-based self-exemption post-blanking post-hard-floor; corpus A/B 119,845 calls:
-self-exempt 106→1; 3 residual guard findings for owner review: quoted rm-rf target blind
-\[pre-existing] · double-quoted `$()` invisible guard-wide · pipe-rewrite comment tail) ·
-**design-sync `6598c489d`** (weave cluster → claude.ai/design "Orbweaver UI" 2ec379a2-…; 3 components
-10 graded cells; motion brief in the README; find: app names Geist but ships NO @font-face) ·
-**lens calibration `defc033f2`** (six classes fixed AT THE LENS: typeonly 47→1, prodonly→derived,
-testonly \_\_-seams, columns→provenance, regkeys row-array shapes; rows 101-133 VERIFIED-REAL →
-owner ruled PARK ALL; 57 lens tests, stdout parity ×4 verbs) · **probes hygiene `dd8683627`**
-(fail-closed goldens, REPO\_ROOT resolver ×8, viewport >0, README 5→7).
+self-exempt 106→1) · **GUARD SCRIPT-BODIES CLOSED `b5b1db9c7`** (owner-spotted hole: untracked
+wrapper bodies now classify through the same rules, strictest wins; corpus A/B 115,894 cmds — 196
+move, ALL stricter; live lanes warned re: 68 wrapper shapes that now refuse) · **GUARD FOLLOW-UP
+FAMILY, one future security-executor leg:** `bash -c '<string>'` operand invisible (73/day — extract
+
+- classify recursively; not bundled because setsid-nohup-bash-c is a live sanctioned shape) ·
+  quoted rm-rf target blind \[pre-existing] · RM\_RF\_HEAD matches plain `rm -f` + counts
+  `2>/dev/null` as a target (narrowing WEAKENS a control — owner call) · `packages/**/__probe` not
+  in RM\_SAFE\_TARGET (doctrine's own probe cleanup is ask-tier; one token, loosens — OWNER call) ·
+  double-quoted `$()` invisible guard-wide · pipe-rewrite comment tail ·
+  **design-sync `6598c489d`** (weave cluster → claude.ai/design "Orbweaver UI" 2ec379a2-…; 3 components
+  10 graded cells; motion brief in the README; find: app names Geist but ships NO @font-face) ·
+  **lens calibration `defc033f2`** (six classes fixed AT THE LENS: typeonly 47→1, prodonly→derived,
+  testonly \_\_-seams, columns→provenance, regkeys row-array shapes; rows 101-133 VERIFIED-REAL →
+  owner ruled PARK ALL; 57 lens tests, stdout parity ×4 verbs) · **probes hygiene `dd8683627`**
+  (fail-closed goldens, REPO\_ROOT resolver ×8, viewport >0, README 5→7).
 
 **REFINERY BUNDLE MERGED `57fb8595b`** (arm C patch grammar: absent=keep · null=all · array=exact —
 "I didn't touch this" is now sayable on the wire; content surface has routed CT 41/41; straddle
