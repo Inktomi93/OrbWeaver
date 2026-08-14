@@ -418,13 +418,19 @@ lanes write reviews/ by role even when the output is a spec — collection-contr
 config-rail contract law) — every future design sweep covers both dirs; briefs name docs/design as
 the deliverable path for design-shaped outputs.
 
-- [ ] **SHAPE-CHURN ARM PICK (owner fork, info updated 08-14):** the caret risk premise in the plan
-  doc is CORRECTED — the caret and reveal fade are OURS (#42; `markdown.tsx:155-159` drops
-  Streamdown's caret prop deliberately; ours is CSS in the seal-owned ghost-stream-body scope), and
-  "remend" is Streamdown's `parseIncompleteMarkdown` (upstream). So arm 1 lands as a tail PRE-PASS
-  in OUR markdown seal (neutralize the ambiguous trailing pipe-row before Streamdown sees it) — no
-  upstream fork, blast radius = our seal + our caret/reveal CTs. Cheaper than the doc priced it.
-  Owner has the arm menu (tail-hold · +height-reserve · probe-first · park); lane on his word.
+- [ ] **SHAPE-CHURN — PROBED (owner: probe-first), then RULED: one seal lane builds M5+M1 (LANE
+  RUNNING).** §5 probe results merged: **M5 NEW + the best symptom match** — the code-block
+  container is born 202px and snaps to 108px (−94px) in 20-100ms, 5/5 runs at exactly those values,
+  children byte-identical (the churn is the container's OWN box; leads: shiki 254ms long frame in
+  the window · Streamdown's `.my-4`/`.h-8`/`.p-1`/`.rounded-lg` DEAD in our CSS). **M1 confirmed**,
+  2-3× slower than first measured (300-365ms), per-ambiguous-block (a HEAD UL→P flip too). **M4 NOT
+  EXERCISED** (defaults emit no reasoning tokens; when it fires the churn will be the
+  auto-COLLAPSE on first answer token, reasoning-block.tsx:70 — needs a reasoning-emitting
+  connection, one-line re-dispatch then). Caret risk premise corrected (caret+reveal are OURS, #42,
+  markdown.tsx:155-159; "remend" is upstream parseIncompleteMarkdown; M1 fix = tail PRE-PASS in our
+  seal). Probe traps banked in §4: sample HEIGHT not just left/width (a container can churn while
+  every child holds still) · probe prompts must not start with `/` (composer eats it as a slash
+  command).
 - [x] **LIST-PANE PROJECTION — CLOSED, BUILT-AS-SPECCED (scout, live-path rung):** the pane is
   live-wired — `ChatsWithCharacterPane` (chats-with-character-pane.tsx:57, chat front door) mounted
   at `main.tsx:243` via `makeCharactersSection(…, chatsProjection)`; picker⇄projection swap in
