@@ -18,6 +18,7 @@ import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { createEmbeddingsIndexer } from "@orb/server/domain/embeddings";
 import { createDomainEventBus, createServices } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
+import { DEFAULT_EMBED_MODEL } from "@orb/server/infra/providers";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
@@ -135,6 +136,47 @@ test("with vLLM unavailable (no GPU) the boot-global derive bundle falls back to
 
   expect(result.roleClients.embedModel).toBe(""); // local-light self-default (jina-clip-v2, 1024-dim)
   expect(result.roleClients.summarizerModel).toBe(env.VLLM_GEN_MODEL);
+});
+
+// SELECTOR HOT-RELOAD (owner dogfood 2026-08-13). HONEST LABEL: this is a FENCE, not the defect proof — it
+// passes against the pre-fix source, because the hop it covers was never the broken one. The DEFECT proof is
+// `role-clients.test.ts`'s re-point suite (6 reds against HEAD), which pins that the `RoleClients` binder
+// re-resolves PER CALL instead of baking four boot-time closures.
+// What this fence is worth: the binder's proof runs on a double, and the chain settings-write → resolveRole →
+// wire is only closed if the hop UNDER the binder is genuinely live. That hop is a "is the settings read
+// cached?" question no double can answer — so it is asserted here, against the REAL settings service, the REAL
+// `loadUserSettings`, and the REAL resolver over a real row, in one process with no restart. If someone ever
+// puts a cache in front of `loadUserSettings`, this reds and the owner's symptom comes back without it.
+test("a REAL settings re-point changes what the REAL resolveRole answers — same process, no restart", async () => {
+  const db = await freshDb();
+  const clock = createFrozenClock();
+  const ownerId = await seedUser(db, { role: "owner" });
+  const result = await createServices({
+    db,
+    now: clock.now,
+    ownerId,
+    secretBoxKey: null,
+    casDir: tmpdir(),
+    variantDir: tmpdir(),
+    sessionSecret: "test-session-secret-at-least-32-chars",
+    vllmDisabled: false,
+  });
+  const owner = principal(ownerId, "owner");
+
+  // Boot: empty settings ⇒ the embed role sits on the local vLLM engine's configured model.
+  expect(result.roleClients.embedModel).toBe(env.VLLM_EMBED_MODEL);
+
+  // The owner moves the embed role in Settings › Connections. `local-light` is the one alternative that needs
+  // no stored credential, so this stays hermetic — the point is the SELECTION changing, not which target.
+  await result.services.settings.updateUserSettingsSection({
+    principal: owner,
+    input: { section: "routing", patch: { roleDefaults: { embed: { source: "local-light" } } } },
+  });
+
+  const after = await result.services.connection.resolveRole({ role: "embed", principal: owner });
+  expect(after.credential.source).toBe("local-light");
+  // The config-derived heal resolves local-light's own configured model, not the stale vLLM pin.
+  expect(after.model).toBe(DEFAULT_EMBED_MODEL);
 });
 
 test("the backend registry sources the resolved vLLM concurrency from AppSettings (PD-14)", async () => {

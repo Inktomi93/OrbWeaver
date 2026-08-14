@@ -1,8 +1,14 @@
 // entry/compose/role-clients — THE single RoleClients binder. Pins the wiring the gold-standard composition
-// seam depends on: the ASYNC per-user binder resolves each derive-role via `connection.resolveRole` and binds
-// a thunk that dispatches through the executor with the RESOLVED credential+model (provenance correct on the
-// `*Model` fields). There is no sync vLLM floor — a sync floor silently routed workload roles to vLLM,
-// breaking providers.md invariant #6. Stub executor + stub resolveRole isolate the wiring.
+// seam depends on: the ASYNC per-user binder dispatches each derive-role through the executor with the
+// RESOLVED credential+model (provenance correct on the `*Model` fields). There is no sync vLLM floor — a sync
+// floor silently routed workload roles to vLLM, breaking providers.md invariant #6. Stub executor + stub
+// resolveRole isolate the wiring.
+//
+// …and the SELECTOR HOT-RELOAD block in the middle pins the resolution TIMING: `connection.resolveRole` runs
+// per CALL, not once at bind. Those are the defect proofs for the owner's 2026-08-13 dogfood report
+// ("summarization and other selectors besides chat-completion require a server restart"), and they are red
+// against the pre-fix source. Their double is INPUT-AWARE on purpose — a `resolveRole` stub that answers the
+// same thing forever passes while the bug lives, which is exactly why the rest of this suite was green.
 // Also pins the CANCELLATION forward: the bound `summarize` puts the caller's AbortSignal onto the provider
 // request. `@orb/contracts` is DOM/node-free, so the signal rides `SummarizeCallOptions` (infra) and this
 // binder is the only place it becomes `SummarizeRequest.signal` — a dropped forward would leave the chat
@@ -26,6 +32,7 @@ import type { SessionsService, UserPrincipalFields } from "@orb/server/domain/se
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { bindRoleClientsForUser } from "@orb/server/entry/compose";
 import type { EmbedRequest, ProviderExecutor, StructuredRequest, SummarizeRequest } from "@orb/server/infra/providers";
+import { makeModelCapability, makeOpenRouterCredential, makeResolvedConnection, makeResolvedCredential } from "../../../support/factories/index.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 import { wireSchema } from "../../../support/wire-ready.ts";
 
@@ -245,6 +252,128 @@ test("a plain summarize call (no responseFormat) stays on the SUMMARIZE role", a
 
   expect(summarizeCalls).toHaveLength(1);
   expect(structuredCalls).toHaveLength(0);
+});
+
+// ── SELECTOR HOT-RELOAD ───────────────────────────────────────────────────────────────────────────────────
+// Owner dogfood 2026-08-13: "summarization and other selectors besides chat-completion require a server
+// restart to take effect". `connection.resolveRole` was already per-call hot (it reads the user's
+// `routing.roleDefaults` off an uncached DB read), so chat re-routed live — but THIS binder called it four
+// times, at boot, and baked `{credential, model}` into four closures for the process lifetime.
+//
+// These pins are DEFECT PROOFS, not fences: the double below is INPUT-AWARE (it answers from a mutable
+// "stored settings" cell, exactly as `resolveRole` answers from the settings row). A stub that ignores the
+// settings read passes while the bug lives, which is the whole reason the old suite was green.
+
+/** A `resolveRole` double backed by a MUTABLE settings cell — the test's stand-in for the `roleDefaults`
+ *  row. `pin(role, model)` is the settings WRITE; every subsequent resolve answers from the new value. */
+function settingsBackedConnection(): {
+  connection: Pick<ConnectionService, "resolveRole">;
+  pin: (role: string, model: string) => void;
+} {
+  const pinned = new Map<string, string>();
+  return {
+    pin: (role: string, model: string): void => {
+      pinned.set(role, model);
+    },
+    connection: {
+      resolveRole: ({ role }): Promise<ResolvedConnection> => {
+        const repointed = pinned.get(role);
+        return Promise.resolve(
+          makeResolvedConnection({
+            model: castId<ModelId>(repointed ?? `model-${role}`),
+            // The credential follows the selection too — a re-point that changes the SOURCE must change the
+            // credential the executor is handed, not just the model string.
+            credential: repointed === undefined ? makeResolvedCredential("vllm") : makeOpenRouterCredential(),
+            capability: makeModelCapability({ context: { window: repointed === undefined ? 32_000 : 128_000 } }),
+          }),
+        );
+      },
+    },
+  };
+}
+
+test("a settings re-point of the embed role governs the NEXT embed call — no restart", async () => {
+  const { executor, embedCalls } = recordingExecutor();
+  const { connection, pin } = settingsBackedConnection();
+  const clients = await bindRoleClientsForUser({ connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle }, OWNER);
+
+  await clients.embed("before");
+  pin("embed", "repointed-embed"); // the owner moves the embed role in Settings › Connections
+  await clients.embed("after");
+
+  expect(embedCalls.map((c) => c.model)).toEqual(["model-embed", "repointed-embed"]);
+  // The credential moves with the selection — a model-only hot-reload would still send the OLD key.
+  expect(embedCalls[1]?.credential.source).toBe("openrouter");
+});
+
+test("a settings re-point of the summarize role governs the NEXT summarize call — no restart", async () => {
+  const { executor, summarizeCalls } = recordingExecutor();
+  const { connection, pin } = settingsBackedConnection();
+  const clients = await bindRoleClientsForUser({ connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle }, OWNER);
+
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }]);
+  pin("summarize", "repointed-summarize");
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }]);
+
+  expect(summarizeCalls.map((c) => c.model)).toEqual(["model-summarize", "repointed-summarize"]);
+});
+
+test("the STRUCTURED arm of the summarize facade re-points too (it rides the summarize selection)", async () => {
+  const { executor, structuredCalls } = recordingExecutor();
+  const { connection, pin } = settingsBackedConnection();
+  const clients = await bindRoleClientsForUser({ connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle }, OWNER);
+  const format = { name: "x", schema: wireSchema({ type: "object" }) };
+
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: format });
+  pin("summarize", "repointed-structured");
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }], { responseFormat: format });
+
+  expect(structuredCalls.map((c) => c.model)).toEqual(["model-summarize", "repointed-structured"]);
+});
+
+test("rerank and imageEmbed re-point on their next call — every derive role is hot, not just the two loud ones", async () => {
+  const { executor } = recordingExecutor();
+  const { connection, pin } = settingsBackedConnection();
+  const clients = await bindRoleClientsForUser({ connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle }, OWNER);
+
+  pin("rerank", "repointed-rerank");
+  pin("imageEmbed", "repointed-image-embed");
+  await clients.rerank("q", [{ id: "d1", text: "t" }]);
+  await clients.imageEmbed({ kind: "text", input: "t" });
+
+  expect(clients.rerankModel).toBe("repointed-rerank");
+  expect(clients.imageEmbedModel).toBe("repointed-image-embed");
+});
+
+test("the *Model provenance tags follow the re-point, so a vector row is stamped with the model that made it", async () => {
+  const { executor } = recordingExecutor();
+  const { connection, pin } = settingsBackedConnection();
+  const clients = await bindRoleClientsForUser({ connection, executor, resolvePrincipal: realResolver(), structuredOutputVehicle: autoVehicle }, OWNER);
+
+  expect(clients.embedModel).toBe("model-embed"); // the bind seeds it — compose reads this synchronously
+  pin("embed", "repointed-embed");
+  pin("summarize", "repointed-summarize");
+  await clients.embed("x");
+  await clients.summarize([{ systemPrompt: "s", userPrompt: "u" }]);
+
+  expect(clients.embedModel).toBe("repointed-embed");
+  expect(clients.summarizerModel).toBe("repointed-summarize");
+  // The token guard's window is part of the same resolution — a re-point to a bigger model must not keep
+  // trimming memory blocks to the old window.
+  expect(clients.summarizerContextTokens).toBe(128_000);
+});
+
+test("one resolution pass reads ONE principal — a call never straddles two verdicts", async () => {
+  const { connection, principals } = capturingConnection();
+  const clients = await bindRoleClientsForUser(customDeps(connection), AUTHOR);
+  const afterBind = principals.length;
+
+  await clients.embed("x");
+
+  // Exactly one additional resolveRole for the one role the call used — not a fan-out over all four.
+  expect(principals.length).toBe(afterBind + 1);
+  expect(principals[afterBind]?.userId).toBe(AUTHOR);
+  expect(principals[afterBind]?.role).toBe("user");
 });
 
 // ── D135 clause G — PRINCIPAL PROVENANCE ─────────────────────────────────────────────────────────────────
