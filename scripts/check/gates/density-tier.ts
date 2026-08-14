@@ -320,7 +320,11 @@ export function loadBaseline(root: string): Record<string, number> {
 }
 
 let passBaseline: Record<string, number> = {};
-const passSeenViolating = new Set<string>();
+// Per-file LIVE count (not just a violating/clean boolean) — the finding-overload-provenance
+// `judgeBaseline` shape (GATE-AUTHORING §4.4a mode A): a stale baseline row is any budget the live count
+// no longer SPENDS, not just a budget spending zero. A file that improved from 5 violations to 2 stayed
+// invisible to the old zero-only arm; this catches it too.
+const passActualCounts = new Map<string, number>();
 let passMappedSlots: ReadonlyMap<string, number> = new Map();
 const passSeenSlotEmitters = new Set<string>();
 
@@ -339,7 +343,7 @@ export const gate: GateDescriptor = {
   fsBacked: true,
   begin: (ctx: GateRunCtx) => {
     passBaseline = loadBaseline(ctx.root);
-    passSeenViolating.clear();
+    passActualCounts.clear();
     passMappedSlots = mappedSlots(ctx.root);
     passSeenSlotEmitters.clear();
   },
@@ -357,9 +361,7 @@ export const gate: GateDescriptor = {
       ctx.report(finding);
     }
     const findings = densityFindings(sf, rel);
-    if (findings.length > 0) {
-      passSeenViolating.add(rel);
-    }
+    passActualCounts.set(rel, findings.length);
     const budget = passBaseline[rel] ?? 0;
     // The budget-absolved head is DECLARED DEBT, not absence: without this the ratchet's live population
     // is invisible behind a ✓ and only the generator ever knows the number (Codex GA-H-02).
@@ -387,13 +389,14 @@ export const gate: GateDescriptor = {
         });
       }
     }
-    for (const rel of Object.keys(passBaseline)) {
-      if (!passSeenViolating.has(rel)) {
+    for (const [rel, budget] of Object.entries(passBaseline)) {
+      const actual = passActualCounts.get(rel) ?? 0;
+      if (actual < budget) {
         ctx.report({
           file: GATE_SELF,
           line: 1,
           column: 0,
-          message: `${BASELINE_REL} budgets "${rel}" but that file no longer violates — the ratchet only goes down: regenerate it (pnpm tsx scripts/check/gen-density-baseline.ts) and commit the shrink.`,
+          message: `${BASELINE_REL} budgets ${budget} finding(s) for "${rel}" but only ${actual} remain — the ratchet only goes down: regenerate it (pnpm tsx scripts/check/gen-density-baseline.ts) and commit the shrink.`,
         });
       }
     }

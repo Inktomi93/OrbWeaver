@@ -15,7 +15,7 @@
   "packages/client/src/features/character/components/character-appearance-tab.tsx": 15,
   "packages/client/src/features/character/components/character-chats-projection-shell.tsx": 2,
   "packages/client/src/features/character/components/character-facet-editor.tsx": 8,
-  "packages/client/src/features/character/components/character-facet-inspector.tsx": 15,
+  "packages/client/src/features/character/components/character-facet-inspector.tsx": 13,
   "packages/client/src/features/character/components/character-facet-list.tsx": 4,
   "packages/client/src/features/character/components/character-facet-row.tsx": 6,
   "packages/client/src/features/character/components/character-greeting-preview.tsx": 8,

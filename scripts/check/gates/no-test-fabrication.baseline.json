@@ -57,7 +57,7 @@
   "tests/server/infra/providers/roles/agent.test.ts": 3,
   "tests/server/infra/providers/roles/chat.test.ts": 3,
   "tests/server/infra/providers/vllm/index.test.ts": 3,
-  "tests/server/infra/providers/vllm/surfaces/chat.test.ts": 2,
+  "tests/server/infra/providers/vllm/surfaces/chat.test.ts": 1,
   "tests/server/infra/providers/vllm/surfaces/embed.test.ts": 1,
   "tests/server/infra/providers/vllm/surfaces/image-embed.test.ts": 1,
   "tests/server/infra/providers/vllm/surfaces/rerank.test.ts": 1,
