@@ -1,4 +1,4 @@
-// @orb/kit/chunk — the pure recursive text splitter (databank-design/03). A pure ENGINE in the kit/macro /
+// @orb/kit/chunk — the pure recursive text splitter. A pure ENGINE in the kit/macro /
 // kit/regex class: zero I/O, zero domain deps, isomorphic (the client chunk-count preview imports the same
 // function). Gate: kit-purity + test-determinism. The zod wire twin of {@link ChunkParams} lives in
 // `@orb/contracts/databank` (chunkParamsSchema) and is pinned to this shape by a `satisfies` check THERE —
@@ -6,8 +6,8 @@
 //
 // Char-based sizing (not tokens): token counting needs a model-coupled tokenizer heavier than this job
 // warrants; ST's char contract (~2500 chars ≈ 600–700 tokens) is field-proven for embed inputs, and coupling
-// the chunk layout to a tokenizer would spuriously reindex every document on a tokenizer swap (03 §1). The
-// slices are canon-verbatim — the chunker normalizes NOTHING (extraction normalizes newlines first, 04 §2).
+// the chunk layout to a tokenizer would spuriously reindex every document on a tokenizer swap. The
+// slices are canon-verbatim — the chunker normalizes NOTHING (extraction normalizes newlines first).
 
 import { splitRecursive } from "./split.ts";
 

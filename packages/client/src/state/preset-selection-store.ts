@@ -1,4 +1,4 @@
-// The preset-SELECTION store (W10 Panel A · UI-Arch §4.2 rule 1: LIST selection drives CONTENT). Holds
+// The preset-SELECTION store (UI-Arch §4.2 rule 1: LIST selection drives CONTENT). Holds
 // which preset the Presets section has open (CONTENT renders its tabbed editor, else the teaching welcome)
 // + which rack SECTION the CONTEXT inspector shows (The Assembly §2.2). Its own per-section concern,
 // remembered independently. A secondary-drill `createDrillSelectionStore` with the LIST/CONTEXT overlay

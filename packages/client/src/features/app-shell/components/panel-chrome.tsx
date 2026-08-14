@@ -3,7 +3,7 @@
 // entirely in shell.css — no width math in JS.
 //
 // The `.shell-panel-header` band ALWAYS renders (D66 A1, ui-cohesion-north-star §4 N1): both panels carry
-// a chrome-row-tall band on the one shared horizon (P1), even when a panel supplies no `header` content —
+// a chrome-row-tall band on the one shared horizon, even when a panel supplies no `header` content —
 // the band is the BASELINE (the LIST surface's title/action move INTO it at N2). `header` content is an
 // optional slot the band wraps.
 //

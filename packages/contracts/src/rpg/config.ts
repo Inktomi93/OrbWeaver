@@ -14,7 +14,7 @@ import { RPG_HINT_MAX, rpgTrackerDefSchema } from "./tracker.ts";
 /** The steering-note cap — a short always-wins user slot (the reminder tail, §4.7). */
 export const RPG_STEERING_NOTE_MAX = 500;
 
-/** The recent-beats keep-last default (P3 fold): `snapshot.recentEvents` is an append-only durable log (the
+/** The recent-beats keep-last default: `snapshot.recentEvents` is an append-only durable log (the
  *  journal keeps the full record); the REMINDER read slices it to the last N so the steering injection never
  *  bloats the prompt with the whole scene history. A sane floor — enough beats for continuity, bounded for
  *  budget/cache. `0` = keep none (the reminder drops the "Recent beats" block); the durable log is untouched. */

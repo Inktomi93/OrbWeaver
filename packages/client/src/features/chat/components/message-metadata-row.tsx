@@ -19,7 +19,7 @@
 //
 // PD-130 (generation timer): the turn engine writes `message_variants.gen_started_at`/`gen_finished_at`
 // on the real turn path (live since eb5d6b3c) and the read seam surfaces them as `genStartedAt`/
-// `genFinishedAt`. Its readout was already quiet micro-mono text (P5) — untouched here.
+// `genFinishedAt`. Its readout was already quiet micro-mono text — untouched here.
 
 import type { MessageView } from "@orb/contracts/chat";
 import { Row } from "@orb/ui/layout";

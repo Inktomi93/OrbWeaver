@@ -12,7 +12,7 @@
 //   • "No matches" is now a claim this surface has standing to make — the whole library was searched.
 //   • The counts print the server's `totalCount`, not "loaded so far".
 //
-// THE TAG LIBRARY IS ALSO THE FILTER'S REFERENTIAL AUTHORITY (W5, staleness-and-session-freshness.md §4.2.2).
+// THE TAG LIBRARY IS ALSO THE FILTER'S REFERENTIAL AUTHORITY (staleness-and-session-freshness.md §4.2.2).
 // `orb:character-library` persists raw `TagId`s that outlive the rows they name — a deleted tag, or a whole
 // previous dev era's db. Because the server's tag predicate is AND on both arms, ONE such include-id matches
 // zero rows and empties the entire library, invisibly and across every reload: the owner's import repro, whose
@@ -166,12 +166,12 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library", focus
   const pageSize = settingsQuery.data?.config.library.pageSize ?? DEFAULT_USER_SETTINGS.library.pageSize;
   // The chip vocabulary is the OWNER'S TAG LIBRARY, not the loaded rows' tags (the dead-filter class): a
   // chip that only exists once a matching row happens to be loaded is a filter you cannot turn off. It is
-  // ALSO the referential authority for the persisted filter (W5) — hoisted above the collection because the
+  // ALSO the referential authority for the persisted filter — hoisted above the collection because the
   // collection's query INPUT now depends on it.
   const tagLibraryQuery = useQuery(trpc.tag.listTagsWithUsage.queryOptions());
   const tagLibrary = tagLibraryQuery.data ?? [];
   const availableTags = tagVocabulary(tagLibrary, tagFilter);
-  // W5 — a persisted entry whose tag the library does not know can never match a row, and the server's tag
+  // A persisted entry whose tag the library does not know can never match a row, and the server's tag
   // predicate is AND on both arms, so leaving it on the wire vetoes the ENTIRE library with nothing on screen
   // explaining it (the owner's import repro). The authority is the SETTLED read: pending (and errored) is
   // `null` = "not answered", which is NOT the same as "knows nothing" — trusting the blob until the answer
@@ -326,7 +326,7 @@ interface CharacterLibraryBodyProps {
   readonly query: string;
   /** Any chip narrowing the SERVER read (favorites / tag include-exclude). Archived is deliberately not one:
    *  its OFF state is the resting library, so an empty library is not "the Archived toggle did this". Nor is
-   *  a tag entry W5 dropped as unknown: it reaches no request, so blaming an empty library on it — and
+   *  a tag entry dropped as unknown: it reaches no request, so blaming an empty library on it — and
    *  offering "Clear filters" as the way out — would be a claim the pane has no standing to make. */
   readonly filtersActive: boolean;
   readonly categorized: boolean;

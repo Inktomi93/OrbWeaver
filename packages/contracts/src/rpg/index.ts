@@ -14,7 +14,7 @@
 //   • config.ts   — the `rpg_games.config` blob (statProfile + lite dials, §4.1)
 //   • pointer.ts  — the opaque `chats.metadata.rpg` sync pointer, mode-free `{gameId}` (§2.1)
 //   • views.ts    — the CP read-view projections (getGame/getTrackerView/getConfigView, §4.8)
-//   • inputs.ts   — the transport WIRE input schemas for the `rpg.*` verb procs (W2 — derived, chatId-scoped)
+//   • inputs.ts   — the transport WIRE input schemas for the `rpg.*` verb procs (derived, chatId-scoped)
 //   • tools.ts    — the 7 cheap-mode D48 tool ARG schemas (projection-clean, §4.5)
 //   • extraction.ts — the structured-output extraction schema, DERIVED from the tool args (§4.6)
 //   • extraction-prompt.ts — the per-plane PROMPT-FRAGMENT REGISTRY both system prompts compose from (§1.6)

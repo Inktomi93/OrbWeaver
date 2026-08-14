@@ -16,7 +16,7 @@
 
 import type { SlashCommandContribution } from "#lib";
 
-/** The completion strip's combobox wiring (P2 a11y): the listbox the textarea's `aria-controls` names —
+/** The completion strip's combobox wiring: the listbox the textarea's `aria-controls` names —
  *  one strip per composer, so a constant is fine — and the DOM id of an offer row, shared between the strip
  *  (which renders it) and the composer (which points `aria-activedescendant` at it). Registry ids are the
  *  lowercased kebab tokens {@link parseSlashDraft} validates, so they compose into a valid, unique id. */

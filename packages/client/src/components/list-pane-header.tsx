@@ -37,7 +37,7 @@ export interface ListPaneHeaderProps {
    *  the cap, this band just prints what it is handed. */
   readonly count?: number | string;
   readonly back?: ListPaneHeaderBack;
-  /** The panel's ONE primary action (A2). Omit for a browse-shaped pane with no create verb. */
+  /** The panel's ONE primary action. Omit for a browse-shaped pane with no create verb. */
   readonly action?: ReactNode;
 }
 

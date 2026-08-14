@@ -1,20 +1,19 @@
-// schema/automation — the D46 automation slice (producer: domain/automation, Phase 8; DDL specced in
-// automation-design/04 §1 + 02 §4). Four tables born into the `0000_baseline` (decide-before-launch —
-// the domain lands later with NO table rebuilds): automation_rules · automation_budgets ·
-// automation_fires · global_variables.
+// schema/automation — the D46 automation slice (producer: domain/automation). Four tables born into
+// the `0000_baseline` (decide-before-launch — the domain lands later with NO table rebuilds):
+// automation_rules · automation_budgets · automation_fires · global_variables.
 //
-// THE LOAD-BEARING DECISIONS encoded here (automation-design/04 §1):
+// THE LOAD-BEARING DECISIONS encoded here:
 //   • `automation_rules.chat_id` is NULLABLE FROM BIRTH; v1 verbs refuse NULL. An owner-global rule is a
 //     plausible v2 — the nullable column makes it additive (the D37 born-whole posture).
 //   • Rules are born DISABLED (`enabled` default 0) — enabling is the consent act.
 //   • Actions are ONE json column, not a child table: an ordered value-object list (1..8) with no
 //     independent identity. Zod-validated at write, LAZY-parsed at read with the chat-metadata
 //     fault-isolation pattern (a corrupt row disables that rule with `last_error`, never nukes the
-//     chat's rule list). Typed opaque here — the `AutomationAction` union lands with the domain (doc 03).
+//     chat's rule list). Typed opaque here — the `AutomationAction` union lands with the domain.
 //   • The fire log is a REAL TABLE, not counters: it IS the per-hour budget source (indexed COUNT), the
 //     host's "why didn't my rule fire" answer, and testRun provenance — three consumers, one table.
 //   • `global_variables` has NO TypeID/surrogate id: nothing FKs it; the natural key (owner_id, key) IS
-//     the identity (02 §4). Single-owned `fetchOwned` plane — a user can never read another's globals.
+//     the identity. Single-owned `fetchOwned` plane — a user can never read another's globals.
 //
 // The `trigger_bus`/`trigger_type` pair derives the closed trigger taxonomy from
 // `@orb/contracts/automation` (the D34 promotion — db deps are kit + contracts only): a PAIRED CHECK
@@ -47,7 +46,7 @@ import { checkList } from "../kit/check-list.ts";
 import { chats } from "./chat.ts";
 import { users } from "./users.ts";
 
-// Named numeric bounds/defaults (`noMagicNumbers`) — automation-design/04 §1 + 02 §4 values.
+// Named numeric bounds/defaults (`noMagicNumbers`).
 const RULE_NAME_MAX_CHARS = 120;
 const RULE_MAX_FIRES_PER_HOUR_DEFAULT = 30;
 // The chat budget + global-variable caps derive from @orb/contracts/automation (the ONE home — the
@@ -58,7 +57,7 @@ const RULE_MAX_FIRES_PER_HOUR_DEFAULT = 30;
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // automation_rules — one row per host-authored rule: trigger + CEL predicate + ordered action arms.
 // Ordering is the explicit `position` (host-reorderable total order — ST users reason positionally);
-// `consecutive_errors`/`last_error` back the auto-disable-at-20 + the host debug surface (04 §3).
+// `consecutive_errors`/`last_error` back the auto-disable-at-20 + the host debug surface.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const automationRules = sqliteTable(
@@ -66,7 +65,7 @@ export const automationRules = sqliteTable(
   {
     // TypeID PK (`automation_rule_…`); brand is type-only, SQL is plain TEXT. App-minted; no DB default.
     id: text("id").$type<AutomationRuleId>().primaryKey(),
-    // The AUTHOR (v1: the host). Rules run as their author (03 §2) — authority is re-checked per fire.
+    // The AUTHOR (v1: the host). Rules run as their author — authority is re-checked per fire.
     ownerId: text("owner_id")
       .$type<UserId>()
       .notNull()
@@ -80,24 +79,24 @@ export const automationRules = sqliteTable(
     // Born disabled — enabling is the consent act.
     enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
     // Explicit order among a chat's rules (list-reorderable; order is SEMANTICS — arms mutate the
-    // shared variable env, 04 §3).
+    // shared variable env).
     position: integer("position").notNull(),
     // chat | domain — derives AUTOMATION_TRIGGER_BUSES; the paired CHECK below binds bus ↔ type tuple.
     triggerBus: text("trigger_bus", { enum: AUTOMATION_TRIGGER_BUSES }).notNull(),
-    // A member of the bus's trigger tuple (the source event discriminator — 01 §0: no third
-    // vocabulary). Typed to the union; the paired CHECK is the SQL-side guard (no single-tuple `enum`
-    // fits a two-tuple column).
+    // A member of the bus's trigger tuple (the source event discriminator — no third vocabulary).
+    // Typed to the union; the paired CHECK is the SQL-side guard (no single-tuple `enum` fits a
+    // two-tuple column).
     triggerType: text("trigger_type").$type<ChatTriggerType | DomainTriggerType>().notNull(),
-    // NULL = always fire (trigger + budgets still gate). Parse-validated at write (02 §1).
+    // NULL = always fire (trigger + budgets still gate). Parse-validated at write.
     predicateCel: text("predicate_cel"),
-    // The ordered action arms — `AutomationAction[]` (doc 03; the union lands with the domain).
+    // The ordered action arms — `AutomationAction[]` (the union lands with the domain).
     // Zod-validated at write + lazy-parsed at read (fault-isolation — see header).
     actions: text("actions", { mode: "json" }).$type<readonly Record<string, unknown>[]>().notNull(),
-    // The cascade opt-in (03 §4) — without it, automation-initiated events never re-trigger rules.
+    // The cascade opt-in — without it, automation-initiated events never re-trigger rules.
     matchAutomationEvents: integer("match_automation_events", { mode: "boolean" }).notNull().default(false),
     cooldownSeconds: integer("cooldown_seconds").notNull().default(0),
     maxFiresPerHour: integer("max_fires_per_hour").notNull().default(RULE_MAX_FIRES_PER_HOUR_DEFAULT),
-    // Increments on predicate_error/action_error, resets on a clean fire; auto-disable at 20 (02 §1).
+    // Increments on predicate_error/action_error, resets on a clean fire; auto-disable at 20.
     consecutiveErrors: integer("consecutive_errors").notNull().default(0),
     // The last skip reason (host debug surface).
     lastError: text("last_error"),
@@ -106,7 +105,7 @@ export const automationRules = sqliteTable(
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // The dispatch hot path: enabled rules of a chat for one trigger (04 §1).
+    // The dispatch hot path: enabled rules of a chat for one trigger.
     index("automation_rules_chat_enabled").on(t.chatId, t.enabled, t.triggerType),
     // The owner CASCADE parent + the owner-global rule list: SQLite auto-indexes no child FK, so a user
     // hard-delete would scan every rule (`fk-columns-indexed` gate).
@@ -162,16 +161,16 @@ export const automationFires = sqliteTable(
       .references(() => chats.id, { onDelete: "cascade" }),
     // The trigger that fired — denormalized for the debug surface (the rule row may since be edited).
     triggerType: text("trigger_type").$type<ChatTriggerType | DomainTriggerType>().notNull(),
-    // The dispatch terminal — derives AUTOMATION_FIRE_OUTCOMES (04 §1).
+    // The dispatch terminal — derives AUTOMATION_FIRE_OUTCOMES.
     outcome: text("outcome", { enum: AUTOMATION_FIRE_OUTCOMES }).notNull(),
     // Per-arm results / the error / the rendered previews (test_run) — open JSON, read-seam parsed.
     detail: text("detail", { mode: "json" }).$type<Record<string, unknown>>(),
-    // 0 = human-initiated; the cascade-depth ledger (03 §4).
+    // 0 = human-initiated; the cascade-depth ledger.
     automationDepth: integer("automation_depth").notNull().default(0),
     firedAt: integer("fired_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // The per-hour budget COUNT + the host's per-rule fire history, one indexed read (04 §1).
+    // The per-hour budget COUNT + the host's per-rule fire history, one indexed read.
     index("automation_fires_rule_time").on(t.ruleId, t.firedAt),
     // The chat CASCADE parent — a chat delete would scan the whole fire log without it, and the
     // (ruleId, firedAt) index cannot serve a chatId-only predicate (`fk-columns-indexed` gate).
@@ -181,7 +180,7 @@ export const automationFires = sqliteTable(
 );
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// global_variables — the per-user cross-chat KV plane (automation-design/02 §4). String plane;
+// global_variables — the per-user cross-chat KV plane. String plane;
 // JSON-in-a-string for structure. NO chat/variant/fork semantics by D46 law — a swipe never rewinds a
 // global. `fetchOwned` scoping (ownerId in WHERE); no admin bypass surface (the D18 single-owned posture).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
@@ -198,7 +197,7 @@ export const globalVariables = sqliteTable(
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // The natural key IS the identity — no TypeID, no surrogate (02 §4).
+    // The natural key IS the identity — no TypeID, no surrogate.
     primaryKey({ columns: [t.ownerId, t.key] }),
     check("global_variables_key_check", sql.raw(`length(key) <= ${GLOBAL_VARIABLE_KEY_MAX_CHARS}`)),
     // ≤ 64 KiB of BYTES — length() on TEXT counts characters, so cast to BLOB for the byte cap.

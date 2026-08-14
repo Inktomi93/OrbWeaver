@@ -1,9 +1,9 @@
 // RelationManagerSection — the client-shared "titled section + summary list + add-picker Dialog" for a
-// character's cross-entity links (W1 rollup). The two CharacterRelationsTab sections (linked world books ·
+// character's cross-entity links. The two CharacterRelationsTab sections (linked world books ·
 // connected personas) were byte-shape twins: a <Section> listing related items (each ListRow with a remove
 // action) + a picker Dialog (trigger → popup listing the available items, each with an add action + Done).
 // Real divergences (labels, id type, the mutations) ride props; the world-info attachment-rows toggle is a
-// genuinely different cousin and stays per-site (the W2a diverged-twins doctrine). OWNER RULING: lives
+// genuinely different cousin and stays per-site (the diverged-twins doctrine). OWNER RULING: lives
 // client-shared (a generic relation manager — the RowActionsMenu precedent; NOT @orb/ui, ui stays parts-only).
 
 import { Button } from "@orb/ui/button";

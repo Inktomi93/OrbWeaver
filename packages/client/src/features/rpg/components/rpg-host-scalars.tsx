@@ -105,7 +105,7 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
                 <field.SwitchField label="CYOA choices" hint="Every reply ends with a clickable set of choices — pick one to play it as your turn." />
               )}
             </form.AppField>
-            {/* The compose|send choice-click knob (P5) — a SEGMENTED toggle with its consequence line,
+            {/* The compose|send choice-click knob — a SEGMENTED toggle with its consequence line,
                 APPLICABILITY-shown only while CYOA is on (never a disabled twin). */}
             <form.AppField name="cyoa">
               {(cyoaField): ReactElement | null =>
@@ -248,7 +248,7 @@ export function HostConsoleScalars({ chatId, config }: { readonly chatId: ChatId
             </form.AppField>
           </Stack>
 
-          {/* PROMPT BUDGET — the reminder's own slice knob (P3 fold). The durable log is untouched by it: the
+          {/* PROMPT BUDGET — the reminder's own slice knob. The durable log is untouched by it: the
               journal keeps every beat, this only bounds what the steering injection re-states each turn. */}
           <Stack gap="field">
             <Kicker>Prompt budget</Kicker>

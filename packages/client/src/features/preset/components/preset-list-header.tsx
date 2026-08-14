@@ -3,7 +3,7 @@
 // preset count, and the pane's create affordances now ride the `.shell-panel-header` band through the
 // section definition's `listHeader` slot, like chats/corpus/analytics already did.
 //
-// Exactly ONE primary (A2): New. Import sits beside it as a GHOST icon — a secondary entry into the same
+// Exactly ONE primary action: New. Import sits beside it as a GHOST icon — a secondary entry into the same
 // "get a preset" job, ember-free, exactly as it was in the retired in-pane header. Both create paths (and
 // the ONE import dialog they open) live here, because the band owns the pane's create verbs.
 //

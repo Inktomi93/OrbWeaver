@@ -10,9 +10,9 @@
 export const PLUGIN_ORIGINS = ["upload"] as const;
 export type PluginOrigin = (typeof PLUGIN_ORIGINS)[number];
 
-/** A plugin row's lifecycle status (02 §3). `disabled` = installed/granted but not activated (the default —
+/** A plugin row's lifecycle status. `disabled` = installed/granted but not activated (the default —
  *  enabling is a second explicit act, like rules); `enabled` = resident + activated; `errored` = an
- *  activation failure or the crash-policy auto-disable (03 §4). The `@orb/db` plugins-row CHECK derives from
+ *  activation failure or the crash-policy auto-disable. The `@orb/db` plugins-row CHECK derives from
  *  this tuple (ASSET_KINDS precedent — one home). */
 export const PLUGIN_STATUSES = ["disabled", "enabled", "errored"] as const;
 export type PluginStatus = (typeof PLUGIN_STATUSES)[number];

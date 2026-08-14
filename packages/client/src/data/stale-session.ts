@@ -176,7 +176,7 @@ export function recoverIfStaleSession(error: unknown): void {
   }
 }
 
-/** The SUBSCRIPTION-path belt (W1). The socket's faults arrive as a tRPC error code or as the typed terminal
+/** The SUBSCRIPTION-path belt. The socket's faults arrive as a tRPC error code or as the typed terminal
  *  `__subscriptionError` frame's `code` — a bare string, with no error object to shape-match. Every other
  *  code keeps its toast-only handling; only UNAUTHORIZED is a session verdict. */
 export function recoverIfUnauthorizedCode(code: string | undefined): boolean {

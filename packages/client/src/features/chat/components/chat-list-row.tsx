@@ -48,7 +48,7 @@ export function ChatListRow({ chat, selected, onSelect, onDeletedChat, portraits
       chat={chat}
       onToggleStar={(next): void => starChat.mutate({ chatId: chat.id, starred: next })}
       portraits={portraits}
-      // `group` roots the row so the kebab's + the star's hover/focus-within reveal (P3) fires on row hover
+      // `group` roots the row so the kebab's + the star's hover/focus-within reveal fires on row hover
       // (the character-card precedent); the reveal lives on RowActionsMenu's `reveal` / ROW_REVEAL.
       className="group"
       // The DERIVED display title (participant names when unauthored) names the kebab menu ("Chat actions

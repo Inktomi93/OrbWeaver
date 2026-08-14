@@ -2,7 +2,7 @@
 // section's rail identity, panel defaults, placeholder copy, list, list-band header, content, and CONTEXT
 // model in one place. CONTEXT is minted via `defineContextTabs<AnalyticsContextState>` (§6b): the three
 // dimension tabs (Models/Time/Personas) are owner-scoped and IGNORE the state; the state exists only so
-// the definition-owned `header` slot names the leaderboard-drilled character (north-star §6.3 / P4 — the
+// the definition-owned `header` slot names the leaderboard-drilled character (north-star §6.3 — the
 // Content ↔ Context bind). `useAnalyticsContextState` reads the drill selection from #state and is
 // always-present (never `null`), so the owner-scoped tabs stay unconditionally available. The composition
 // root assembles this into the section registry (main.tsx); AppShell consumes it via `useSectionRegistry`.
@@ -24,7 +24,7 @@ import { useAnalyticsSelectionTitle } from "./analytics-selection-title.ts";
 
 /** The Analytics context-state projection: the leaderboard-drilled character (`null` = the overview
  *  dashboard). Always-present so the owner-scoped tabs stay unconditionally available; the `header` slot
- *  is its only reader (P4). A module-level named hook — the `defineContextTabs` rules-of-hooks contract. */
+ *  is its only reader. A module-level named hook — the `defineContextTabs` rules-of-hooks contract. */
 function useAnalyticsContextState(): AnalyticsContextState {
   return { characterId: useSelectedAnalyticsCharacterId() };
 }
@@ -43,7 +43,7 @@ export const analyticsSection: SectionDefinition = {
     </AnalyticsListAnchor>
   ),
   // The LIST chrome-band content (§4 N1/N2, §6.3): "ANALYTICS" title + leaderboard count. Read-only ⇒ no
-  // create action (A2 — the band is a census, not an addition).
+  // create action (the band is a census, not an addition).
   listHeader: () => <AnalyticsListHeader />,
   // How the SHELL reads "is a character drilled?" — the mobile ONE-SHELL rule's input + back affordance.
   selection: analyticsSectionSelection,
@@ -51,7 +51,7 @@ export const analyticsSection: SectionDefinition = {
   useSelectionTitle: useAnalyticsSelectionTitle,
   content: () => <AnalyticsContent />,
   // Three owner-scoped dimension tabs, always available: Models / Time / Personas. The `header` slot names
-  // the drilled character (P4); the tabs ignore the state (owner-scoped).
+  // the drilled character; the tabs ignore the state (owner-scoped).
   context: defineContextTabs<AnalyticsContextState>({
     useContextState: useAnalyticsContextState,
     tabs: [

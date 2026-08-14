@@ -1,5 +1,5 @@
 // FormDialog — the client-shared composite over @orb/ui/dialog for FORM + single-control PROMPT dialogs
-// (W1 rollup, hoisted from the Workloads scaffold). Owns the Dialog→DialogPopup(test-id/size)→Stack→
+// (hoisted from the Workloads scaffold). Owns the Dialog→DialogPopup(test-id/size)→Stack→
 // Title + Description + body anatomy so it can't drift (the ConfirmDialog precedent, for the non-alert
 // species). Two footer shapes:
 //   • FORM body — the submit lives INSIDE `children` via FormSubmitButton (it calls form.handleSubmit()).

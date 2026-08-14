@@ -323,7 +323,7 @@ export type ChatContextTabId = (typeof CHAT_CONTEXT_TAB_IDS)[number];
 
 /** The Analytics CONTEXT-panel state projection (O5 strict — a real named type, never void/any). The
  *  three dimension tabs (Models/Time/Personas) are owner-scoped and IGNORE this state; it exists only so
- *  the definition-owned `header` slot (P4) can name the leaderboard-drilled character. `null` = the
+ *  the definition-owned `header` slot can name the leaderboard-drilled character. `null` = the
  *  overview dashboard (nothing drilled) ⇒ the band shows the neutral "Analytics" identity. The projection
  *  is ALWAYS present (never `null` from `useContextState`) so the owner-scoped tabs stay unconditionally
  *  available whether or not a character is drilled. */

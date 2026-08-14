@@ -3,7 +3,7 @@
 // group — THE hierarchy the audit found missing ("nine same-weight fields, nothing chunked"). It reads the
 // live draft form to compute each facet's filled-state + content preview in render (`form.Subscribe` over
 // the whole values object — the blessed live read, character-advanced-tab precedent). Token counts live in
-// the editor header readout (P5), never per-row.
+// the editor header readout, never per-row.
 //
 // Clicking a row calls `onSelect(facetId)` — the surface writes the local selection AND reveals the CONTEXT
 // Field tab (two-things-at-once, mirroring the preset rack's `onSelectSection`).

@@ -1,4 +1,4 @@
-// @orb/contracts/rpg/inputs — the TRANSPORT WIRE input schemas for the `rpg.*` verb procs (W2). The rpg
+// @orb/contracts/rpg/inputs — the TRANSPORT WIRE input schemas for the `rpg.*` verb procs. The rpg
 // router is a thin pass-through (`ctx.services.rpg.<verb>({ principal: ctx.auth, ...input })`), so each proc
 // needs a wire schema for the caller-supplied fields (chatId + the authored payload) MINUS the `principal`
 // (the transport seam mints that from the resolved identity — never client input). These are the cross-
@@ -59,9 +59,9 @@ export const rpgUpdateConfigInputSchema = z.object({
       // record REPLACES it.
       relationshipHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).optional(),
       journalTypeHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).optional(),
-      // P3 hidden-channel knobs (§3.3/§3.6) + the recent-beats cap (P3 fold). Omit keeps the current value; a
+      // The hidden-channel knobs + the recent-beats cap. Omit keeps the current value; a
       // passed scalar REPLACES it. `deception`/`omniscience` gate the teaching block + the member reasoning-strip;
-      // `hiddenContentReveal` (M4) governs the host's reveal eye; `recentBeatsKeepLast` bounds the reminder slice.
+      // `hiddenContentReveal` governs the host's reveal eye; `recentBeatsKeepLast` bounds the reminder slice.
       deception: z.boolean().optional(),
       omniscience: z.boolean().optional(),
       hiddenContentReveal: z.boolean().optional(),

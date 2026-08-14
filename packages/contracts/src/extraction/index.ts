@@ -1,10 +1,10 @@
-// `@orb/contracts/extraction` — the cross-boundary contract for text extraction (databank-design/04 §1). The
+// `@orb/contracts/extraction` — the cross-boundary contract for text extraction. The
 // op TYPE + result + error pair live HERE (not in `infra/extraction`, not in `domain/databank`): infra
 // IMPLEMENTS the op, the domain INJECTS it — the exact `EmbedRequest`/`@orb/contracts/providers` precedent. A
 // domain must never import `infra/*` for a type, and the client needs the error IDENTITIES to render
 // "unsupported type" vs "extraction failed" distinctly.
 //
-// The error taxonomy is load-bearing (04 §1): `UnsupportedDocTypeError` = the caller sent a type the system
+// The error taxonomy is load-bearing: `UnsupportedDocTypeError` = the caller sent a type the system
 // does not do (thrown BEFORE any parse; a 415-class, never retried, never wrapped); `ExtractionFailedError` =
 // a supported format's loader threw (corrupt/encrypted/invalid file) — retryable only in the sense that a
 // FUTURE `EXTRACTOR_VERSION` may succeed. Empty text is NOT an error (a scanned image-only PDF extracts to
@@ -29,7 +29,7 @@ export interface ExtractionMeta {
 }
 
 export interface ExtractionResult {
-  /** UTF-8 clean, newlines normalized to `\n`, NFC-normalized (04 §2 rules). */
+  /** UTF-8 clean, newlines normalized to `\n`, NFC-normalized. */
   readonly text: string;
   readonly meta: ExtractionMeta;
 }

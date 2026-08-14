@@ -21,8 +21,8 @@ export interface MacroSpan {
 }
 
 /** A single macro-DX diagnostic — an arg-validation / parse / expr failure carrying the source span of
- *  the offending macro call so editors render it inline and assembly threads it into `AssembleTrace`
- *  (02 §5). Lives here (not metadata.ts) because MacroContext's diagnostics sink references it and only
+ *  the offending macro call so editors render it inline and assembly threads it into `AssembleTrace`.
+ *  Lives here (not metadata.ts) because MacroContext's diagnostics sink references it and only
  *  needs MacroSpan — keeping the metadata.ts → types.ts import one-directional. */
 export interface MacroDiagnostic {
   readonly severity: "error" | "warning";
@@ -31,13 +31,13 @@ export interface MacroDiagnostic {
   readonly span: MacroSpan;
 }
 
-// ── macro-DX vocabulary (02 §5) ──────────────────────────────────────────────────────────────────
+// ── macro-DX vocabulary ──────────────────────────────────────────────────────────────────────────
 // The metadata type surface + the category union home here (with the other macro types) so both the
 // registry (types.ts's MacroRegisterOptions/MacroRegistry) and the DX functions (metadata.ts:
 // validateMacroArgs/queryMacros) reference them without an import cycle — metadata.ts imports DOWN
 // from here only.
 
-// ── the reserved flags grammar (M4, parity-plus §12A.4 — the FINAL launch grammar, locked) ────────
+// ── the reserved flags grammar (the FINAL launch grammar, locked) ──────────────────────────────────
 // Flags sit BETWEEN `{{` and the identifier as a flag RUN (`{{<flags><name>::args}}`). ONE table is the
 // vocabulary home: the parser derives its char→key map from it, the evaluator re-emits flag chars from it,
 // and the macro browser documents the set from it — a new flag is one row here, never a parallel list.
@@ -69,16 +69,16 @@ export const MACRO_CATEGORIES = [
   "random", // roll/random/pick…
   "expression", // expr
   "system", // memory/compact_summary/guided_instruction/original/structural…
-  "user", // preset/game-authored template macros (M5, §12A.5) — registered via registerUserMacros
+  "user", // preset/game-authored template macros — registered via registerUserMacros
 ] as const;
 export type MacroCategory = (typeof MACRO_CATEGORIES)[number];
 
-/** The declared-arg type vocabulary (M3, §12A.3) — ONE tuple so `MacroArgDef.type` and the contracts-side
+/** The declared-arg type vocabulary — ONE tuple so `MacroArgDef.type` and the contracts-side
  *  user-macro authoring schema (`z.enum(MACRO_ARG_TYPES)`) derive from the same home, never re-spell it. */
 export const MACRO_ARG_TYPES = ["string", "number", "boolean"] as const;
 export type MacroArgType = (typeof MACRO_ARG_TYPES)[number];
 
-/** Where a non-builtin macro came from (M5 source attribution, §12A.5) — the macro browser names it.
+/** Where a non-builtin macro came from — the macro browser names it.
  *  Absent on a metadata record ⇒ a builtin. `id` is the owning preset id / game chat id as a string
  *  (kit stays below the branded-id homes). */
 export interface MacroSourceRef {
@@ -87,7 +87,7 @@ export interface MacroSourceRef {
 }
 
 /** One positional argument of a macro. `optional` + `default` drive the arity check and the browser copy.
- *  M3 (§12A.3): these declarations are the RUNTIME contract too — the evaluator pads a missing optional
+ *  These declarations are the RUNTIME contract too — the evaluator pads a missing optional
  *  arg with its `default` before the handler runs, and `type` is enforced in the execution path
  *  (violations degrade per `MacroArgViolation`, never throw). Optional args form a CONTIGUOUS SUFFIX
  *  after the required ones (the arity check counts on it; a metadata-shape test pins the builtins). */
@@ -101,7 +101,7 @@ export interface MacroArgDef {
   readonly description?: string | undefined;
 }
 
-/** Bounds on a variadic macro's TOTAL arg count (§12A.3's LIST spec — `{{pick}}` declares min 1 so a
+/** Bounds on a variadic macro's TOTAL arg count (the LIST spec — `{{pick}}` declares min 1 so a
  *  pick-of-nothing is an authoring diagnostic). Only meaningful with `variadic: true`; either bound may
  *  be absent (unbounded on that side). */
 export interface MacroListSpec {
@@ -109,7 +109,7 @@ export interface MacroListSpec {
   readonly max?: number;
 }
 
-// ── typed arg-violation classing (M3, §12A.3) ────────────────────────────────────────────────────
+// ── typed arg-violation classing ─────────────────────────────────────────────────────────────────
 // The runtime-enforcement error CLASS — richer than the two MacroDiagnostic codes it maps onto
 // ("bad-arity"/"bad-arg-type", kept narrow so no diagnostic consumer churns). checkMacroArgs
 // (metadata.ts) produces these; validateMacroArgs derives the diagnostics FROM them (one home for the
@@ -132,7 +132,7 @@ export interface MacroArgViolation {
 }
 
 /** The FULL browser/autocomplete record for a macro. `volatile` is composed by the registry from the
- *  `registerVolatileMacros` set (never hand-authored — see 02 §5 reconciliation note + registry.ts). */
+ *  `registerVolatileMacros` set (never hand-authored — see registry.ts). */
 export interface MacroMetadata {
   readonly name: string;
   readonly description: string; // one sentence; the autocomplete/browser copy
@@ -143,17 +143,17 @@ export interface MacroMetadata {
   /** Accepts an unbounded tail of args (`{{random::a::b::c}}`, `{{pick}}`) — suppresses the too-many
    *  arity diagnostic and validates the tail against the last arg def. */
   readonly variadic: boolean;
-  /** Total-arg-count bounds for a variadic macro (M3 LIST spec) — absent ⇒ unbounded. */
+  /** Total-arg-count bounds for a variadic macro (the LIST spec) — absent ⇒ unbounded. */
   readonly list?: MacroListSpec;
   /** `true` ⇒ this macro's arg violations render "" even under a LENIENT context (per-macro strict
-   *  mode, §12A.3) — still a degrade, never a throw; the author-time surface gets the error report.
+   *  mode) — still a degrade, never a throw; the author-time surface gets the error report.
    *  Absent/false ⇒ the context's `strictArgs` governs. No builtin sets it (available to extensions
-   *  and the M5 user-macro surface). */
+   *  and the user-macro surface). */
   readonly strict?: boolean;
   /** Renders a different value across calls/turns (time/random/conversation/var-mutation) — the assembly
    *  cache-buster trace reads this. DERIVED from the volatile registration path, never authored here. */
   readonly volatile: boolean;
-  /** M5 source attribution (§12A.5): where a user macro came from (`preset:<id>` / `game:<chatId>`),
+  /** Source attribution: where a user macro came from (`preset:<id>` / `game:<chatId>`),
    *  rendered by the macro browser. Absent ⇒ a builtin. Composed by `registerUserMacros`. */
   readonly source?: MacroSourceRef;
 }
@@ -170,10 +170,10 @@ export interface MacroCallNode {
    *  for unrecognized macros, since parsed args normalize colon/whitespace forms. Absent →
    *  reconstructed `{{name::args}}` fallback. */
   raw?: string;
-  /** Positional span of this call — offset/line/col/length (02 §5 diagnostics). Set by the parser;
+  /** Positional span of this call — offset/line/col/length, for diagnostics. Set by the parser;
    *  absent on hand-built AST nodes (tests/callers that construct nodes directly). */
   span?: MacroSpan;
-  /** The parsed flag run (`{{#name}}`, `{{~name}}` — §12A.4). Absent when no flags were written; the
+  /** The parsed flag run (`{{#name}}`, `{{~name}}`). Absent when no flags were written; the
    *  raw re-emit carries the original flag bytes via `raw`. */
   flags?: MacroFlags;
 }
@@ -231,7 +231,7 @@ export interface MacroFreeze {
   readonly value: string;
 }
 
-/** One `{{setglobalvar}}` write collected during a render (D46, 02 §4). UNLIKE {@link VarOp}, globals are
+/** One `{{setglobalvar}}` write collected during a render (D46). UNLIKE {@link VarOp}, globals are
  *  NOT variant-scoped — these are drained + upserted into the per-user `global_variables` plane at TURN
  *  COMMIT, last-write-wins; a swipe never rewinds a global. */
 export interface GlobalVarWrite {
@@ -277,7 +277,7 @@ export interface MacroContext {
   // The {{databank}} slot — undefined ⇒ nothing retrieved ⇒ the marker renders empty
   // (byte-identical non-databank turn).
   databank?: string | undefined;
-  // The 8 rpg* data-fed macros (rpg-design/06 §1) — a game turn's GATHER stages this map, keyed by the
+  // The 8 rpg* data-fed macros — a game turn's GATHER stages this map, keyed by the
   // RpgGatherMacros field names ({{rpgWorld}}/{{rpgSceneState}}/…). Each rpg macro reads its value or "".
   // ONE map (not 8 fields) so the channel is a single seam; a non-game chat / unstaged turn ⇒ every rpg
   // macro renders empty (byte-identical non-game turn).
@@ -305,7 +305,7 @@ export interface MacroContext {
   evaluateString: (text: string) => string;
   // Evaluate an AST directly (e.g. for block macro children)
   evaluateAST: (ast: MacroAST) => string;
-  // The M2 generalized lazy contract (§12A.2): the first-class per-call resolution handle a LAZY
+  // The generalized lazy contract: the first-class per-call resolution handle a LAZY
   // handler (delayArgResolution / the `?` flag) uses to resolve its raw args or body itself.
   // THREADS the parent context UNCHANGED — same injected ctx.random/nowMs (never re-seeded, never a
   // child PRNG), same opLog, same MacroBudget (depth + output fire on the lazy path identically) — so
@@ -344,21 +344,21 @@ export interface MacroContext {
   frozenMacros?: readonly MacroFreeze[] | undefined;
   // Cursor into {@link frozenMacros}; parked at the record's end once a replay diverges. @internal.
   __freezeCursor?: number;
-  // Global-variable plane (D46, 02 §4) — a SEPARATE store from `env` (runtime vars): cross-chat,
+  // Global-variable plane (D46) — a SEPARATE store from `env` (runtime vars): cross-chat,
   // single-owned, NOT variant-scoped. `globalVars` is the author's staged globals (a read cache the
   // domain fetches before render); `{{getglobalvar}}` reads it. `{{setglobalvar}}` collects writes onto
   // `globalVarWrites` AND reflects them into `globalVars` (so a later same-render `{{getglobalvar}}` sees
   // them) — the domain drains + upserts the writes at TURN COMMIT (last-write-wins; a swipe never rewinds).
   globalVars?: Record<string, string>;
   globalVarWrites?: GlobalVarWrite[];
-  // The CEL activation the `{{expr::…}}` macro evaluates against (02 §3) — the §1 env minus `event`
+  // The CEL activation the `{{expr::…}}` macro evaluates against — the env minus `event`
   // (vars/choice/global/chat/now), staged by the assembler/dispatcher. Absent ⇒ `{{expr}}` evaluates
   // against an empty binding (any field reference then errors → "" + an expr-error diagnostic).
   celBindings?: CelBindings;
   // The span of the macro call CURRENTLY being handled — set by the evaluator right before invoking a
   // handler so a handler that emits diagnostics ({{expr::…}}) can locate itself. @internal.
   __currentSpan?: MacroSpan | undefined;
-  // Arg-validation mode (02 §5). `true` → a bad-arity/bad-arg-type call renders "" + an `error`
+  // Arg-validation mode. `true` → a bad-arity/bad-arg-type call renders "" + an `error`
   // diagnostic (the rule/template EDITORS hold new authorship to the bar); `false`/undefined
   // (default) → best-effort render + a `warning` diagnostic (imported ST content is sloppy).
   strictArgs?: boolean;
@@ -397,7 +397,7 @@ export type MacroHandler = (args: string[], ctx: MacroContext, children?: MacroA
  *  that need to disambiguate "bare identifier" (look up) from "resolved sub-macro value"
  *  (literal). The evaluator skips arg-resolution and the handler decides what to resolve, using
  *  ctx.resolve (or ctx.evaluateString) as needed. This is the handler's DEFAULT only — the `!`
- *  (IMMEDIATE) and `?` (DELAYED) flags override it per-call (§12A.2/§12A.4); a conflicting `{{!?…}}`
+ *  (IMMEDIATE) and `?` (DELAYED) flags override it per-call; a conflicting `{{!?…}}`
  *  run resolves IMMEDIATE (eager delivery is safe for every handler; a lazy delivery to a
  *  lazy-unaware handler passes raw bytes through).
  *
@@ -411,12 +411,12 @@ export interface MacroRegisterOptions {
   delayArgResolution?: boolean;
   volatile?: boolean;
   /** `true` → in scoped-block form this handler receives the raw body AST as its third param and controls
-   *  resolution itself (`if` branch-picks, `trim`/case-fold transform) — the M1 content-as-last-arg
-   *  delivery is SKIPPED. Absent (the universal default, §12A.1): a block body resolves through
+   *  resolution itself (`if` branch-picks, `trim`/case-fold transform) — the content-as-last-arg
+   *  delivery is SKIPPED. Absent (the universal default): a block body resolves through
    *  `ctx.evaluateAST`, is trimmed + indent-dedented (verbatim under the `#` flag), and arrives as the
    *  handler's LAST unnamed argument — any macro takes a body with zero registration work. */
   blockChildren?: boolean;
-  /** The macro-DX browser/validation record (02 §5) — REQUIRED for new (extension) registrations; the
+  /** The macro-DX browser/validation record — REQUIRED for new (extension) registrations; the
    *  builtin set is backfilled in registry.ts so no metadata-less macro survives (a completeness test
    *  is the enforcer). AUTHORED shape (no `volatile`): the registry composes `volatile` from this
    *  macro's `volatile` option so the two can't drift. Optional here only because the restricted freeze
@@ -442,12 +442,12 @@ export interface MacroRegistry {
    *  cache-busters in static-half templates without a parallel hand-maintained list. */
   volatileNames: () => string[];
   /** Every registered macro name (lowercase lookup keys). The metadata-completeness gate cross-checks
-   *  this against `getMetadata` so no registered macro ships without DX metadata (02 §5). */
+   *  this against `getMetadata` so no registered macro ships without DX metadata. */
   names: () => string[];
   /** Returns the registered `requires` flag for a macro, or undefined if context-free. Preview
    *  uses this to mark "this macro was substituted with a placeholder, not real data". */
   requirementsOf: (name: string) => "chat" | "char" | undefined;
-  /** The composed DX metadata for a macro (02 §5) — the authored record plus `volatile` DERIVED from
+  /** The composed DX metadata for a macro — the authored record plus `volatile` DERIVED from
    *  the registration's `volatile` option (one volatile home, D51). Undefined for names registered
    *  without metadata (the restricted freeze registries). */
   getMetadata: (name: string) => MacroMetadata | undefined;

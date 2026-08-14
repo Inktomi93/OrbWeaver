@@ -179,7 +179,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
   );
 }
 
-/** The Cards scope (P4) — every archived card, newest first (the "find the wanted poster later" surface). */
+/** The Cards scope — every archived card, newest first (the "find the wanted poster later" surface). */
 function JournalCards({ cards, chatId }: { readonly cards: readonly ArchivedCard[]; readonly chatId: ChatId }): ReactElement {
   const [openKey, setOpenKey] = useState<string | null>(null);
   if (cards.length === 0) {
