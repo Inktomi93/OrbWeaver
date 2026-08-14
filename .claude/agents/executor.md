@@ -3,6 +3,8 @@ name: executor
 description: Implementation requiring judgment in the orbweaver repo — feature work, bug fixes, refactors with design decisions, integration. The default executor for real development that is more than mechanical but doesn't need the frontier model. Give it the goal, constraints, done-criteria, and the WHY; it makes reasonable local design decisions itself and escalates genuine architecture forks. For security-sensitive work use `security-executor` instead.
 model: opus
 effort: medium
+permissionMode: acceptEdits
+maxTurns: 80
 color: blue
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage
 ---
