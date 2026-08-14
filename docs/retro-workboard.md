@@ -398,6 +398,16 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
 - [ ] Codex snapshot-only doc families = revalidate-when-touched (their own instruction) · owner
   pile: longer-outputs numbers · theme/dogfood live receipts (selector wire-capture flip, W3 revoke
   probe) · re-import (owner-run). ~~the push~~ (PUSHED 08-14 midday, owner word).
+- [ ] **CODEX DOCS CLEANUP LANDED `a2fb3d950` (58/58 classified: 15 fixed · 33 archive-no-action ·
+  10 NEEDS-OWNER).** Disposition tables under
+  `docs/reviews/repository-audit-2026-08-13/doc-cleanup/`. The 10 owner calls, distilled: (1)
+  Documentation-Law's size ceiling vs two over-limit core docs — permanent exception or split? ·
+  (2-3) a review-record disposition convention (frontmatter can't say historical/current/superseded;
+  don't mass-rewrite dated findings) · (4-10) vendor-corpus policy — base-ui carries 333 site-root
+  links + no refresh producer, vite 173/255 root/relative links + no pinned fetch command; needs a
+  link-rewrite mapping + snapshot-provenance ruling. Orchestrator delta on top of their patch:
+  Core-Laws §7 range bumped D137→D138 (patch predated the W10 mint); their de-dup of the §7
+  D-synopsis line to a registry pointer ACCEPTED as the one-home fix.
 - [ ] **CODEX RECONCILIATION RESIDUE (their final verdict, 08-14 midday — routed items excluded):**
   test-coverage cluster as ONE future lane (LOWER-DB-01 four schema behavioral tests · UI-AI-01
   AriaAnnouncer · UI-SZ-01 VirtualList branches · LOWER-KIT-01 card-frame browser/iframe proof ·
