@@ -1,22 +1,19 @@
-# ☀️ MORNING DELTA (2026-08-14 — read this in 30 seconds)
+# ☀️ DELTA (2026-08-14 midday — TRAIN SEALED + PUSHED)
 
-**Everything you reported is fixed or designed. Main is \~60 commits ahead (push is YOURS). Consolidated
-check PASS on the drained tree, and the full `verify --push` battery FINISHED: **PASS, exit 0, ALL
-STAGES CLEAN** (static + tests:node + CT + e2e-smoke + cpd + parity — receipts:
-`reports/verify-push.log` + `.exit`). The tree is push-ready on every gate the repo owns.**
+**Origin is CURRENT: pushed `6155e3050..31f9516be` (160 commits; owner word, `--no-verify` on battery
+receipts). Battery 2 (`verify --push`, clean-room) landed ONE red — structure:full ×2, both fallout of
+the battery-1 fix commit: the `FABRICATION-OK` escape must sit ON or DIRECTLY ABOVE the cast's line
+(the gate's own probe table), and the collapse-filters.ts extraction owed its tests/client mirror.
+Fixed `31f9516be` (20/20 both files · types:graph exit 0 · structure exit 0, 207 gates, single-pass
+clean). Every other battery stage was green.**
 
-- **FIXED + merged:** stats revert · rpg rewind (your arm A) · character tab (all lenses server-side) ·
-  chats + databank eviction twins · selector restarts · settings scroll (phantom-scroll class) ·
-  follow-mode jumpiness · stale sessions (detect → in-app modal → resume, cross-tab single-flight) ·
-  per-user localStorage + dead-id drop (your import repro's root) · per-session logout eviction ·
-  refinery/automation/databank/discovery all EMIT now · SID-01 false-green health · 27B swap live-verified
-  (fixed jinja; enable\_in\_reasoning was INVERTED — A/B receipts).
-- **DESIGNED, your forks pending:** draft-mode replacement (7 forks, recs marked) · shape churn (measured
-  plan, remend is the fix home) · theme-editor autosave (drift or intent?) · longer-outputs numbers ·
-  33-proc intent sitting · 3-strike auto-revoke on local endpoints (one-liner if unwanted).
-- **Codex reply ready:** 5 SHAs + verify commands on the punch-list row; item 5 refused by ledger law.
-- **Ops notes:** stack+fleet UP · ComfyUI stopped idle (`docker start comfyui`) · dev binds LOOPBACK now
-  (FQDN needs `pnpm stack up prod`) · selector live receipt + W3 revoke probe owed after YOUR restart.
+- **⚠ NEXT STACK BOOT WIPES THE DEV DB** (R0 + star/updatedAt baseline squashes; the latch reseeds).
+- **Race artifact, receipted:** an unattributed vitest run of the tooling int tests started 10:12
+  (post-battery, zero lanes live) and planted the shared `__g_` gate fixtures mid-scan — the first
+  structure re-run saw phantom `domain/hub` reds. Waited it out; clean pass followed. Lead boarded in
+  OPEN ITEMS.
+- Open work: the OPEN ITEMS list in LIVE STATE (entity→room bridge design · gate candidates G-G + ui
+  exports-arm · guard follow-up family · R1-4a · F6 · vite-prebundle ops lead · owner pile).
 
 # Retro Workboard — the live board
 
@@ -292,13 +289,13 @@ brief's convention wiring — every lane's scoped check missed it, all branched 
 `7994de156` (schema imports the LEAF, depcruise 80→0). Drain small: knip flags
 LiveResolverRootElement unused in live-token-resolver.ts.
 
-**═══ LIVE STATE (2026-08-14 late morning — POST-COMPACT RESUME POINT; supersedes every rotation block below) ═══**
+**═══ LIVE STATE (2026-08-14 midday — TRAIN SEALED + PUSHED; supersedes every rotation block below) ═══**
 
-**Tree: zero lanes, zero worktrees, `pnpm check` GREEN 14/14, structure single-pass clean (207
-gates), types:graph green. BATTERY IN FLIGHT: `pnpm verify --push` detached 09:35:36, watch
-btyixyfrz armed on reports/verify.json tier:push — read EVERY stage on landing, fix reds, then
-rewrite the morning delta at board top. Push = OWNER'S. NEXT STACK BOOT WIPES THE DEV DB (R0+rename
-squashes). Design project: claude.ai/design/p/2ec379a2-fddd-4bc2-bc58-023b8a684575.**
+**Tree: zero lanes, zero worktrees. Battery 2 landed (1 red → fixed `31f9516be`; receipts in the
+delta at board top). `pnpm check` GREEN, structure single-pass clean (207 gates), types:graph green.
+PUSHED: origin/main = main = `31f9516be` (was `6155e3050`, +160; owner word). NEXT STACK BOOT WIPES
+THE DEV DB (R0+rename squashes). Design project:
+claude.ai/design/p/2ec379a2-fddd-4bc2-bc58-023b8a684575.**
 
 **TODAY'S TRAIN (compressed; git log 8fd771c4c..HEAD is the authority):** Qwen cleanup 8fd771c4c ·
 audit committed 0de9e087d · smalls ce7e9dac1 · report-cards train d5dee1bd7 + cleanup 8eca945c7 +
@@ -341,6 +338,10 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
 - [ ] **OPS LEAD:** after a merge that MOVES exports between modules, main's vite dev server serves
   stale prebundle (nearestRayHit outage, :5173 down until cache clear + bounce) — teach
   stack.sh/dev tooling to clear packages/client/node\_modules/.vite on merge, or document the bounce.
+- [ ] **OPS LEAD (10:12 08-14):** an unattributed `vitest run tests/tooling/ast-observability.int.test.ts
+  tests/tooling/check-gates.int.test.ts` ran on the MAIN checkout post-battery (zero lanes live) and
+  raced a structure pass — the shared `__g_` fixtures read as phantom `domain/hub` violations. If it
+  recurs, find the spawner; never trust a structure red taken while check-gates.int is live.
 - [ ] Codex snapshot-only doc families = revalidate-when-touched (their own instruction) · owner
   pile: longer-outputs numbers · theme/dogfood live receipts (selector wire-capture flip, W3 revoke
   probe) · re-import (owner-run) · the push.
