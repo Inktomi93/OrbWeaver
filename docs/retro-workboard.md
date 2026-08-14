@@ -1,8 +1,9 @@
 # ☀️ MORNING DELTA (2026-08-14 — read this in 30 seconds)
 
 **Everything you reported is fixed or designed. Main is \~60 commits ahead (push is YOURS). Consolidated
-check PASS on the drained tree; the full `verify --push` battery is running detached — its verdict lands
-in reports/verify.json (READ IT before pushing).**
+check PASS on the drained tree, and the full `verify --push` battery FINISHED: **PASS, exit 0, ALL
+STAGES CLEAN** (static + tests:node + CT + e2e-smoke + cpd + parity — receipts:
+`reports/verify-push.log` + `.exit`). The tree is push-ready on every gate the repo owns.**
 
 - **FIXED + merged:** stats revert · rpg rewind (your arm A) · character tab (all lenses server-side) ·
   chats + databank eviction twins · selector restarts · settings scroll (phantom-scroll class) ·
