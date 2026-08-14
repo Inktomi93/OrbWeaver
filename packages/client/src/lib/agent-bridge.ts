@@ -136,7 +136,9 @@ export interface OrbNavHandle {
   readonly openModal: (slot: string) => NavResult;
   /** Open the settings modal at a category (validated against SETTINGS_CATEGORY_IDS). */
   readonly openSettings: (category: string) => NavResult;
-  /** Ask the active content's context surface to open a named tab (opaque string; always ok). */
+  /** Reveal the active content's context panel on a named tab. Refuses an empty name, and — when a tabbed
+   *  context surface is mounted — a name outside its published tab ids (a typo, not a tab). Otherwise it
+   *  opens the panel AND sets the tab, so the switch is visible rather than a silently-ignored request. */
   readonly contextTab: (name: string) => NavResult;
   /** Switch to the Chats section + make an existing chat active by chat id OR exact display title, OR the
    *  positional sentinels `"first"`/`"latest"` (the list's TOP row — `listChats` is newest-updated-first, so

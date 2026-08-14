@@ -100,16 +100,37 @@ test("openSettings() dispatches openSettingsTo; an unknown category refuses", ()
   expect(spy).not.toHaveBeenCalled();
 });
 
-test("contextTab() dispatches setContextTab for a non-empty name; refuses the empty string", () => {
-  const spy = vi.spyOn(state, "setContextTab");
+test("contextTab() REVEALS the panel on a tab the mounted surface published; refuses empty + unknown", () => {
+  // `revealContextPanel` is the real UI deep-link action (opens the panel AND sets the tab); the bridge
+  // composes it instead of a bare `setContextTab`, so a collapsed panel actually switches. It is mocked so
+  // the DECISION (dispatch vs loud refusal) is the subject, exactly as the openChat arm spies `selectChat`.
+  const spy = vi.spyOn(state, "revealContextPanel").mockImplementation((): void => undefined);
+  const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
+
+  // Empty is refused before anything is read.
+  expect(nav.contextTab("").ok).toBe(false);
+  expect(spy).not.toHaveBeenCalled();
+
+  // A tabbed surface is mounted → its ids are the vocabulary. A published tab reveals; a typo refuses loud.
+  state.publishContextTabIds(["runs", "setup", "versions"]);
+  expect(nav.contextTab("setup")).toEqual({ ok: true });
+  expect(spy).toHaveBeenCalledExactlyOnceWith("setup");
+
+  spy.mockClear();
+  const rejected = nav.contextTab("stpu");
+  expect(rejected.ok).toBe(false);
+  expect(rejected.ok ? "" : rejected.reason).toContain("runs, setup, versions");
+  expect(spy).not.toHaveBeenCalled();
+});
+
+test("contextTab() best-effort reveals when NO tabbed context surface is mounted (nothing to validate against)", () => {
+  const spy = vi.spyOn(state, "revealContextPanel").mockImplementation((): void => undefined);
+  // No published tabs — the panel is closed or the context is `single`-kind, so the opaque request stands.
+  state.publishContextTabIds([]);
   const nav = buildAgentNav(fakeTrpc([], []), new RealQueryClient() as QueryClient);
 
   expect(nav.contextTab("lore")).toEqual({ ok: true });
   expect(spy).toHaveBeenCalledExactlyOnceWith("lore");
-
-  spy.mockClear();
-  expect(nav.contextTab("").ok).toBe(false);
-  expect(spy).not.toHaveBeenCalled();
 });
 
 test("closeModal() dispatches the real closeModal action", () => {

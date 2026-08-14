@@ -8,7 +8,7 @@
 //   · VERSIONS — the D28 snapshot walk (§16.2): label-classified rows (Refinery / Manual / Pre-restore)
 //     + Compare (DiffView vs the live card) + the existing `restore` verb (itself reversible).
 
-import type { RefineryStage, RenderHintTone } from "@orb/contracts/refinery";
+import type { RefinerySchemaStage, RefineryStage, RenderHintTone } from "@orb/contracts/refinery";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { DiffView } from "@orb/ui/diff";
@@ -144,7 +144,10 @@ export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrit
 export interface SetupTabProps {
   readonly anchorLine: string;
   readonly stageModesLine: string;
-  readonly schemaLine: string;
+  /** The SCORE stage's payload schema, named — the custom row's name, or the fixed-built-in readout. */
+  readonly scoreSchemaLine: string;
+  /** The ANALYZE stage's payload schema, named — same convention as `scoreSchemaLine`. */
+  readonly analyzeSchemaLine: string;
   readonly scopeLine: string;
   readonly guidance: string | null;
   readonly fitLine: string | null;
@@ -152,8 +155,11 @@ export interface SetupTabProps {
    *  read `inputEstimate` alone and silently dropped it (P2: "CONTEXT drops the ⚠"). */
   readonly fitWarn: boolean;
   readonly onViewOriginal: () => void;
-  /** Opens the SCHEMA EDITOR. Named for what it opens — see the door note on `SetupTab`. */
-  readonly onEditSchema: () => void;
+  /** Opens the SCHEMA EDITOR for a specific STAGE (score / analyze) — see the door note on `SetupTab`. The
+   *  BODY resolves whether that stage is currently on a custom schema and hands the editor the existing row
+   *  to EDIT, or `null` to author a new one; both verbs were UI-unreachable before this took a stage
+   *  (live custom-schema drive, 2026-08-14 — only score authoring had a door). */
+  readonly onEditSchema: (stage: RefinerySchemaStage) => void;
   /** Opens the SCOPE dialog. Ditto. */
   readonly onEditScope: () => void;
 }
@@ -198,7 +204,8 @@ function SetupRow({ k, v, action, onAction, note }: { k: string; v: string; acti
 export function SetupTab({
   anchorLine,
   stageModesLine,
-  schemaLine,
+  scoreSchemaLine,
+  analyzeSchemaLine,
   scopeLine,
   guidance,
   fitLine,
@@ -211,7 +218,12 @@ export function SetupTab({
     <Stack data-testid={testId("refinerySetupTab")} gap="tight">
       <SetupRow action="View" k="Original card" onAction={onViewOriginal} v={anchorLine} />
       <SetupRow action="Change" k="Scope" onAction={onEditScope} v={scopeLine} />
-      <SetupRow action="Change" k="Payload schema" onAction={onEditSchema} v={schemaLine} />
+      {/* ONE ROW PER STAGE (live custom-schema drive, 2026-08-14): the single "Payload schema" row wired
+          ONLY the score stage's editor, so custom-ANALYZE authoring and editing a saved analyze schema had
+          no door at all. Each stage now carries its own "Change" → the editor at that stage; the body
+          resolves edit-vs-author. */}
+      <SetupRow action="Change" k="Score schema" onAction={(): void => onEditSchema("score")} v={scoreSchemaLine} />
+      <SetupRow action="Change" k="Analyze schema" onAction={(): void => onEditSchema("analyze")} v={analyzeSchemaLine} />
       <SetupRow k="Stage modes" note="Set per stage when a run is configured." v={stageModesLine} />
       <SetupRow
         k="Guidance"
