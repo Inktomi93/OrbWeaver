@@ -103,7 +103,7 @@ export function PresetEditorSurface({ presetId, onRevealSection }: PresetEditorS
   return (
     <Stack ref={surfaceRef} tabIndex={-1} className="relative h-full min-h-0 overflow-y-auto overflow-x-hidden outline-none">
       <QueryBoundary
-        fallback={<Text tone="muted">Loading the preset…</Text>}
+        fallback={<Text voice="gloss">Loading the preset…</Text>}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="the preset" onRetry={retry} />}
       >
         <PresetEditor presetId={presetId} onRevealSection={onRevealSection} />

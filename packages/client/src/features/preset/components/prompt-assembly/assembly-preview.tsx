@@ -49,9 +49,7 @@ export function AssemblyPreview({ preview, onSelectBlock }: AssemblyPreviewProps
       ))}
 
       {preview.setup.length === 0 && preview.post.length === 0 && preview.splices.length === 0 ? (
-        <Text size="micro" tone="muted">
-          Nothing to preview yet — enable some sections in Compose.
-        </Text>
+        <Text voice="gloss">Nothing to preview yet — enable some sections in Compose.</Text>
       ) : null}
     </Stack>
   );
@@ -66,9 +64,7 @@ function groupKey(zone: string, index: number, group: RoleGroup): string {
 function RoleGroupView({ group, onSelect }: { readonly group: RoleGroup; readonly onSelect: (sectionId: string) => void }): ReactElement {
   return (
     <Stack gap="field">
-      <Text size="micro" tone="muted" transform="caps" weight="semibold">
-        {ROLE_HEADER[group.role]}
-      </Text>
+      <Text voice="kicker">{ROLE_HEADER[group.role]}</Text>
       {group.blocks.map((block) => (
         <BlockView key={block.section.id} block={block} onSelect={onSelect} />
       ))}
@@ -86,22 +82,16 @@ function ConversationBand({ preview, onSelect }: { readonly preview: AssembledPr
     );
   }
   return (
-    <Stack gap="field" className="rounded-card border border-border bg-muted p-block">
+    <Stack gap="field" className="rounded-base border border-border bg-muted p-block">
       <Row gap="row" align="center">
         <Icon icon={MessagesSquare} size="sm" />
         <Text size="body" weight="semibold" transform="caps" className="flex-1">
           Chat history
         </Text>
-        {preview.historyEnabled ? null : (
-          <Text size="micro" tone="muted">
-            (disabled)
-          </Text>
-        )}
+        {preview.historyEnabled ? null : <Text voice="gloss">(disabled)</Text>}
       </Row>
       {preview.splices.length === 0 ? (
-        <Text size="micro" tone="muted">
-          your conversation splices in here
-        </Text>
+        <Text voice="gloss">your conversation splices in here</Text>
       ) : (
         preview.splices.map((entry) => <SpliceView key={entry.section.id} block={entry} depth={entry.depth} order={entry.order} onSelect={onSelect} />)
       )}
@@ -140,7 +130,7 @@ function BlockView({ block, onSelect }: { readonly block: PreviewBlock; readonly
       className="min-w-0 flex-1 flex-col items-start gap-field rounded-control border border-border p-row text-left"
       onClick={(): void => onSelect(block.section.id)}
     >
-      <Text size="micro" tone="muted" transform="caps" weight="semibold" className="truncate">
+      <Text voice="kicker" className="truncate">
         {block.name}
       </Text>
       <BlockBody block={block} />
@@ -157,19 +147,11 @@ function BlockView({ block, onSelect }: { readonly block: PreviewBlock; readonly
 /** The block's body — the macro-chipped display text, the plain-marker hint, or a "sends nothing" note. */
 function BlockBody({ block }: { readonly block: PreviewBlock }): ReactElement {
   if (block.plainHint !== undefined) {
-    return (
-      <Text size="micro" tone="muted">
-        {block.plainHint}
-      </Text>
-    );
+    return <Text voice="gloss">{block.plainHint}</Text>;
   }
   const tokens = block.tokens ?? [];
   if (tokens.length === 0) {
-    return (
-      <Text size="micro" tone="muted">
-        Sends nothing.
-      </Text>
-    );
+    return <Text voice="gloss">Sends nothing.</Text>;
   }
   // `frame="bare"` — the block button already IS the box (`rounded-control border`); the quoted frame here
   // would be the box-in-box CD2 defect.

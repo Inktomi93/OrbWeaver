@@ -281,7 +281,7 @@ function InputEditor({
   const base = `userMacros[${macroIndex}].inputs[${inputIndex}]` as const;
   const hasOptions = kind !== "boolean-toggle";
   return (
-    <Stack gap="field" padding="field" className="rounded-card border border-border bg-card">
+    <Stack gap="field" padding="field" className="rounded-base border border-border bg-card">
       <Row gap="field" align="end" justify="between">
         <form.AppField name={`${base}.kind`}>{(field): ReactElement => <field.SelectField label="Kind" items={USER_MACRO_INPUT_KIND_ITEMS} />}</form.AppField>
         <Button intent="ghost" size="sm" onClick={onRemove}>
