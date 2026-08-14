@@ -102,11 +102,17 @@ Standing conventions:
   also what unlocks the sibling roster.
 - **Security-dominant work never runs on a Fable-tier agent**, and never in the main session.
 
-Fields we do **not** yet use and should evaluate per role: `permissionMode` (a lane cannot answer a
-permission prompt — this is the targeted fix for stalls), `memory` (persistent cross-session learning,
-strongest case is `stickler` accumulating this repo's law), `mcpServers` (scoping a server to one role
-stops every other agent paying its tool schemas in context), `disallowedTools`, `maxTurns` as a runaway
-guard, and `isolation: worktree` in-file rather than passed at dispatch.
+Adopted 2026-08-14 (the agents-revamp lane): `permissionMode` on the build roles (a lane cannot answer
+a permission prompt — the targeted fix for stalls), `memory: project` on stickler/verifier,
+`mcpServers: ["authentik"]` scoped to security-executor. Still unevaluated: `disallowedTools`,
+in-file `isolation: worktree`.
+
+**`maxTurns` is BANNED on every agent in this fleet (owner ruling, 2026-08-14, verbatim "hell no").**
+The dispatch model is bigger chunks per agent — area-lanes, 4-8 items, warm continuation legs — chosen
+FOR cache economics and wider dispatch. A turn cap decapitates exactly the long lanes that model
+produces, and a lane killed mid-area re-pays its whole cold read on redo. Runaway protection is the
+orchestrator's job (it watches lanes and can TaskStop), never a per-agent ceiling. Do not re-add this
+field; do not "helpfully" suggest it in reviews of agent files.
 
 ## §6 Writing the body
 

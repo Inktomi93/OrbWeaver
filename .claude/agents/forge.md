@@ -4,7 +4,6 @@ description: Frontier-tier THINKER-THEN-BUILDER for the orbweaver repo's hardest
 model: fable
 effort: xhigh
 permissionMode: acceptEdits
-maxTurns: 80
 color: orange
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage
 ---

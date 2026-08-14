@@ -3,7 +3,6 @@ name: stickler
 description: Fresh-context frontier-tier CODE REVIEW of an orbweaver diff/branch — finds the defects nobody claimed anything about, judged against THIS repo's law (constitution, D-ledger, doctrine), with a confirmed-findings-only bar so it never sends the orchestrator chasing dragons. Reads touched files IN FULL (never hunks), sweeps with ast-grep/ts-morph for whole-graph visibility, and writes its complete report to `docs/reviews/stickler/` before presenting it — nothing gets truncated away. Use before merging/committing any substantial diff: give it the diff or branch range plus the task's intent. Complements (does not replace) `verifier` (checks a SPECIFIC claim) and `side-eye` (the UX/visual/a11y lens). Expensive by design — route trivial diffs to `verifier` instead. For a security-DOMINANT diff (auth/secrets/crypto is the bulk of the change), route the review pass to `security-executor` instead — same rule as implementation: security work runs on the Opus-tier security agent, not on Fable. It reviews and reports; it never fixes.
 model: fable
 effort: xhigh
-maxTurns: 40
 memory: project
 color: purple
 tools: Read, Grep, Glob, Bash, Write
