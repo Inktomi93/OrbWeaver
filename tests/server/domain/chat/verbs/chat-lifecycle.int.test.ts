@@ -86,10 +86,10 @@ describe("chat-row flags (host-only)", () => {
     const life = createChatLifecycle(makeChatContext(db), lifecycleDeps());
 
     await life.archive({ principal: principal(host), chatId, archived: true });
-    await life.star({ principal: principal(host), chatId, star: true });
+    await life.star({ principal: principal(host), chatId, starred: true });
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.archived).toBe(true);
-    expect(row?.star).toBe(true);
+    expect(row?.starred).toBe(true);
   });
 
   test("delete drops the chat + emits chatDeleted + writes the chat.delete audit row", async () => {

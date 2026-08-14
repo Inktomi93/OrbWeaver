@@ -566,7 +566,7 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
     chat: {
       id: ForkedChat,
       title: "Forked chat",
-      star: false,
+      starred: false,
       archived: false,
       // A fork is born non-temporary (PD-65 — the flag is set only at `startChat`).
       temporary: false,
@@ -1127,19 +1127,19 @@ describe("chat.updateTitle — the LIST-row rename verb (J5 wire-through, host-o
 });
 
 describe("chat.star — the LIST-row star toggle (J5 wire-through, host-only)", () => {
-  test("a thin pass-through: chatId/star reach the verb with the resolved Principal", async () => {
+  test("a thin pass-through: chatId/starred reach the verb with the resolved Principal", async () => {
     const star = vi.fn<ChatService["star"]>(async () => undefined);
     const ctx = makeContext({
       auth: principal("user", { userId: MEMBER }),
       services: { chat: { star } },
     });
 
-    await caller(ctx).chat.star({ chatId: CHAT, star: true });
+    await caller(ctx).chat.star({ chatId: CHAT, starred: true });
 
     expect(star).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: MEMBER }),
       chatId: CHAT,
-      star: true,
+      starred: true,
     });
   });
 
@@ -1150,7 +1150,7 @@ describe("chat.star — the LIST-row star toggle (J5 wire-through, host-only)", 
       services: { chat: { star } },
     });
 
-    await expect(caller(ctx).chat.star({ chatId: CHAT, star: true })).rejects.toMatchObject({
+    await expect(caller(ctx).chat.star({ chatId: CHAT, starred: true })).rejects.toMatchObject({
       code: "NOT_FOUND",
     });
   });

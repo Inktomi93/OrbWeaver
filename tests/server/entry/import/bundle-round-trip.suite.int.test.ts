@@ -239,7 +239,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
     await db.insert(chatsTable).values({
       id: chatId,
       title: "P8 Chat",
-      star: false,
+      starred: false,
       archived: false,
       temporary: false,
       pendingHostUserId: null,
@@ -748,7 +748,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
     await db.insert(chatsTable).values({
       id: chatId,
       title: "R6 Two-Turn Chat",
-      star: false,
+      starred: false,
       archived: false,
       temporary: false,
       pendingHostUserId: null,

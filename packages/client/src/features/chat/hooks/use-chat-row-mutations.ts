@@ -29,7 +29,7 @@ export const useUpdateChatTitle = createEntityMutation<UpdateTitleVars, unknown>
 
 interface StarChatVars {
   readonly chatId: ChatId;
-  readonly star: boolean;
+  readonly starred: boolean;
 }
 
 export const useStarChat = createEntityMutation<StarChatVars, unknown>({

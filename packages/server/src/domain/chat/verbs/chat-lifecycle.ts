@@ -139,8 +139,8 @@ function createUpdateTitle(ctx: ChatContext, emit: EmitChatEvent, claimChat: Cla
 
 /** `star` — host-only (a room-level flag — see the matrix FLAG). */
 function createStar(ctx: ChatContext, emit: EmitChatEvent, claimChat: ClaimChatOp): ChatService["star"] {
-  return async ({ principal, chatId, star }: StarChatParams): Promise<void> => {
-    await hostRowUpdate(ctx, emit, claimChat, { principal, chatId, patch: { star } });
+  return async ({ principal, chatId, starred }: StarChatParams): Promise<void> => {
+    await hostRowUpdate(ctx, emit, claimChat, { principal, chatId, patch: { starred } });
   };
 }
 

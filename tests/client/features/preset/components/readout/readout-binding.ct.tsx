@@ -115,7 +115,7 @@ const SETTINGS_VIEW = { userId: "user_ct_readout", schemaVersion: 1, config: DEF
 // The binding NAMES the room off `chat.getChat` (2026-08-09) — the readout binds to the OPEN chat, so the
 // room read is the exact, already-warm answer; it used to scan the whole `listChats` array for a title,
 // which a keyset page can no longer promise carries it.
-const CHAT_DETAIL = { id: CHAT, title: CHAT_TITLE, star: false, archived: false, temporary: false, parentChatId: null, participants: [] };
+const CHAT_DETAIL = { id: CHAT, title: CHAT_TITLE, starred: false, archived: false, temporary: false, parentChatId: null, participants: [] };
 
 /** Every read the readout fires. `connection.resolveChatCapability` deliberately FAILS (no model connected):
  *  the binding must not depend on a connection, and the Actions panel has no capability half. */

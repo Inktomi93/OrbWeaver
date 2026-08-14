@@ -402,7 +402,7 @@ const OVERVIEW_CHATS: readonly ChatSummaryFixture[] = [
   {
     id: "chat_ct_1",
     title: "A rainy night",
-    star: false,
+    starred: false,
     archived: false,
     parentChatId: null,
     lastMessageAt: 1_750_000_100_000,
@@ -418,7 +418,7 @@ const OVERVIEW_CHATS: readonly ChatSummaryFixture[] = [
   {
     id: "chat_ct_2",
     title: "Elsewhere",
-    star: false,
+    starred: false,
     archived: false,
     parentChatId: null,
     lastMessageAt: 1_750_000_200_000,

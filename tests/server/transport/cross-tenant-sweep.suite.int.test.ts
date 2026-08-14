@@ -618,7 +618,7 @@ const PROBES: readonly Probe[] = [
     path: "chat.listMessageVariants",
     call: (c, i) => c.chat.listMessageVariants({ chatId: i.chatId, messageId: i.messageId }),
   },
-  { path: "chat.star", call: (c, i) => c.chat.star({ chatId: i.chatId, star: true }) },
+  { path: "chat.star", call: (c, i) => c.chat.star({ chatId: i.chatId, starred: true }) },
   { path: "chat.archive", call: (c, i) => c.chat.archive({ chatId: i.chatId, archived: true }) },
   {
     path: "chat.updateTitle",

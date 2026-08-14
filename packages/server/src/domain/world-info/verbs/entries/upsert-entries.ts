@@ -55,7 +55,7 @@ async function upsertOne(
       return { outcome: "skip", entryId: prior.id, scope: "keyword" };
     }
     const metadata = entryMetadataSchema.parse({ ...(prior.metadata ?? {}), provenance } satisfies EntryMetadata);
-    await ctx.db.update(worldEntries).set({ content: input.content, keys, enabled: true, metadata }).where(eq(worldEntries.id, prior.id));
+    await ctx.db.update(worldEntries).set({ content: input.content, keys, enabled: true, metadata, updatedAt: at }).where(eq(worldEntries.id, prior.id));
     return { outcome: "update", entryId: prior.id, scope: resolveEntryScope(metadata, keys !== null) };
   }
 
@@ -73,6 +73,7 @@ async function upsertOne(
     ignoreBudget: false,
     metadata,
     createdAt: at,
+    updatedAt: at,
   });
   return { outcome: "insert", entryId, scope: resolveEntryScope(metadata, keys !== null) };
 }

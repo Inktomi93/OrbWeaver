@@ -413,7 +413,7 @@ export interface UpdateTitleParams extends ChatScopedParams {
 }
 
 export interface StarChatParams extends ChatScopedParams {
-  readonly star: boolean;
+  readonly starred: boolean;
 }
 
 export interface ArchiveChatParams extends ChatScopedParams {

@@ -38,7 +38,7 @@ export function makeChat(overrides: Partial<ChatRow> = {}): ChatRow {
   return {
     id: castId<ChatId>(ids.next("chat")),
     title: null,
-    star: false,
+    starred: false,
     archived: false,
     temporary: false,
     // Born CLAIMED — a factory chat stands for a room that really exists (the `_support.ts::seedChat`

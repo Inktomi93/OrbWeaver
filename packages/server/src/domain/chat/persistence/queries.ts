@@ -57,7 +57,7 @@ const characterSeats = alias(chatParticipants, "character_seats");
 interface ChatRow {
   id: ChatId;
   title: string | null;
-  star: boolean;
+  starred: boolean;
   archived: boolean;
   /** ST "Temporary Chat" (PD-65) — hidden from `listMemberChats`, swept once past the host's TTL. */
   temporary: boolean;
@@ -83,7 +83,7 @@ interface ChatEventLogRow {
 const chatRowSelection = {
   id: chats.id,
   title: chats.title,
-  star: chats.star,
+  starred: chats.starred,
   archived: chats.archived,
   temporary: chats.temporary,
   parentChatId: chats.parentChatId,
