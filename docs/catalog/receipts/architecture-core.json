@@ -17,6 +17,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Package layout gate.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/package-layout.ts:35" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -33,6 +34,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Closed cast axis.", "evidence": [{ "kind": "code", "target": "packages/contracts/src/chat/producers.ts:22" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -49,6 +51,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Package layout gate.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/package-layout.ts:35" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -81,6 +84,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Docs formatting writer.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/verify-registry-parity.ts:31" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -97,6 +101,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Package layout gate.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/package-layout.ts:35" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -129,6 +134,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Registry wins conflicts.", "evidence": [{ "kind": "ruling", "target": "docs/architecture/core/Core-Path-Registry.md:9" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -153,8 +159,8 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "220365043d72b6219967723ea0a9faafe20ac53da2f816a6bd1b1c73f8d69153",
-      "verifiedCommit": "3595939ba864e111838a09c4d0ddc9e2b7108f2f",
+      "verifiedSha256": "6c360d7cfd645328e3d901f262e11f759732c8ff89142279afe45f57d27e3ac0",
+      "verifiedCommit": "dbabc6151539485c657ce6ad957c27662612e8b9",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/core/Core-Path-Registry.md:389 (D129(B) current implementation status)",
@@ -162,6 +168,7 @@
         "packages/contracts/src/connection/index.ts:204; packages/server/src/domain/chat/verbs/edit.ts:327; tests/server/domain/chat/assembly/shape.test.ts:1052 (current code/test corroboration)",
         "git log --oneline -5 -- docs/architecture/core/Core-Path-Registry.md (cc3a9e886 latest current-doc change)"
       ],
+      "claims": [{ "claim": "D129 is live.", "evidence": [{ "kind": "code", "target": "packages/contracts/src/connection/index.ts:204" }] }],
       "summary": "Re-read after main rebase: D129(B) narrator wire-shape and D129(F) freeze-at-selection status claims match current contracts, verbs, and targeted tests; frozen assigned hash retained."
     },
     {
@@ -250,14 +257,15 @@
       "disposition": "current",
       "authority": "normative",
       "fullRead": true,
-      "verifiedSha256": "e0a441e5ad0e63a3df99287cd09c2091b71a75040131171f1f291a4bd3355105",
-      "verifiedCommit": "34213cdddd6b032d8014f5042b853b6001f3c5a0",
+      "verifiedSha256": "275f94d972e0b5458b67695efb35abf51b18323ff7ec14e468243b786103ac56",
+      "verifiedCommit": "dbabc6151539485c657ce6ad957c27662612e8b9",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/core/Documentation-Law.md:1 (full read; header/status evaluated)",
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "D139 receipt law.", "evidence": [{ "kind": "ruling", "target": "docs/architecture/core/Core-Path-Registry.md:523" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -290,6 +298,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Versioned app settings.", "evidence": [{ "kind": "code", "target": "packages/contracts/src/settings/index.ts:425" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -306,6 +315,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Auth seam mint.", "evidence": [{ "kind": "code", "target": "packages/server/src/entry/auth/seam.ts:304" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -322,6 +332,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Central test layout.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/test-layout.ts:118" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -338,6 +349,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Closed participant union.", "evidence": [{ "kind": "code", "target": "packages/contracts/src/chat/participants.ts:21" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -354,6 +366,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Baseline schema parity.", "evidence": [{ "kind": "test", "target": "tests/tooling/schema-baseline-parity.int.test.ts:18" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -370,6 +383,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Foundation env parse.", "evidence": [{ "kind": "code", "target": "packages/server/src/foundation/env/index.ts:588" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -386,6 +400,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "SecretBox adapter.", "evidence": [{ "kind": "code", "target": "packages/server/src/infra/crypto/secrets.ts:43" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -402,6 +417,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Provider executor.", "evidence": [{ "kind": "code", "target": "packages/server/src/infra/providers/index.ts:30" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -418,6 +434,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "tRPC transport router.", "evidence": [{ "kind": "code", "target": "packages/server/src/transport/trpc/routers/persona.ts:17" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -434,6 +451,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Entry starts lifecycle.", "evidence": [{ "kind": "code", "target": "packages/server/src/entry/index.ts:11" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -450,6 +468,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "UI dialog primitive.", "evidence": [{ "kind": "code", "target": "packages/ui/src/primitives/dialog/dialog.tsx:18" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -466,6 +485,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "UI primitive gate.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/ui-primitive-structure.ts:410" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -482,6 +502,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Primitive structure gate.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/ui-primitive-structure.ts:410" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -498,6 +519,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Untrusted markdown policy.", "evidence": [{ "kind": "code", "target": "packages/ui/src/markdown/policy.ts:77" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -514,6 +536,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Verification registry gate.", "evidence": [{ "kind": "gate", "target": "scripts/check/gates/verify-registry-parity.ts:31" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -530,6 +553,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Session channel home.", "evidence": [{ "kind": "code", "target": "packages/client/src/lib/session-channel.ts:110" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -546,6 +570,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Shared overlay motion.", "evidence": [{ "kind": "code", "target": "packages/ui/src/lib/overlay-motion.ts:25" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     },
     {
@@ -562,6 +587,7 @@
         "git log --oneline -5 -- docs/architecture/core (2026-08-14; foundation 34213cddd)",
         "pnpm check:docs (2026-08-14: 104 file(s) formatted)"
       ],
+      "claims": [{ "claim": "Dialog package API.", "evidence": [{ "kind": "code", "target": "packages/ui/src/primitives/dialog/dialog.tsx:18" }] }],
       "summary": "Active core reference reviewed against the pinned foundation tree; local Markdown formatting/link validation passed."
     }
   ]

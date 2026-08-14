@@ -13,6 +13,7 @@
       "verifiedCommit": "2d0807247befdd5e615711bf0abf2c177f534561",
       "verifiedAt": "2026-08-14",
       "evidence": ["docs/Mission.md:1", "git log --oneline -5 -- docs", "docs/architecture/core/Documentation-Law.md: catalog receipt requirements"],
+      "claims": [{ "claim": "Durable truth is in Git.", "evidence": [{ "kind": "ruling", "target": "docs/architecture/core/Core-Path-Registry.md:523" }] }],
       "summary": "Full-read current authority; fact-check receipt refreshed against current main."
     },
     {
@@ -81,14 +82,15 @@
       "disposition": "current",
       "authority": "operational",
       "fullRead": true,
-      "verifiedSha256": "c013fded52dbc2e5584a1af90ebb004fd9e1be359108fc7f9415629b7b94c7d0",
-      "verifiedCommit": "7bc8c05139452af9f2f695c79984660a52b222a3",
+      "verifiedSha256": "d673de7e64ffa18c3876bcf56fdbabeeb46b7b2e7bdddfc0733f896ad105ae7c",
+      "verifiedCommit": "f8bf31c9ccea900e3a4277b3c31fc5e31bb420ee",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/retro-workboard.md:1-18: GitHub Project is the sole mutable work home",
         "docs/retro-workboard.md:230-257: current Project pointers and frozen-snapshot boundary",
         "GitHub REST re-derivation of issues #13-#58 on 2026-08-14; stale duplicates #41/#42 closed and R2 residue created as #58"
       ],
+      "claims": [{ "claim": "GitHub owns mutable work.", "evidence": [{ "kind": "ruling", "target": "docs/architecture/core/Core-Path-Registry.md:523" }] }],
       "summary": "Full-read operational spine migrated to Project pointers; rulings and recovery history remain in place while mutable status has one GitHub home."
     }
   ]
