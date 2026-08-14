@@ -25,16 +25,26 @@ import { cn, usePrefersReducedMotion } from "#lib";
 import { webWeaveVariants } from "./variants.ts";
 import type { CharacterPreset, WeaveCharacter } from "./web-weave-character.ts";
 import { WEAVE_CHARACTER_PRESETS } from "./web-weave-character.ts";
-import type { WeaveState, WeaveStrand, WovenWeb } from "./web-weave-geometry.ts";
+import type { WeaveState, WovenWeb } from "./web-weave-geometry.ts";
 import { buildStrandOut, buildWeb } from "./web-weave-geometry.ts";
-import type { WeavePluck } from "./web-weave-physics.ts";
-import { decayShiver, findStrandHit, PLUCK_LIFE_MS, PLUCK_MAX_PER_STRAND, raiseShiver } from "./web-weave-physics.ts";
-import { createPreyState, disturbPrey } from "./web-weave-prey.ts";
-import type { WeavePalette, WeavePluckMap, WeaveWeather } from "./web-weave-render.ts";
-import { bakeStaticWeb, drawLiveLayers, renderWeaveFrame, weaveSwayOffset } from "./web-weave-render.ts";
+import { createPreyState } from "./web-weave-prey.ts";
+import type { WeavePalette } from "./web-weave-render.ts";
+import { bakeStaticWeb, drawLiveLayers, renderWeaveFrame } from "./web-weave-render.ts";
 import type { SpiderTracker } from "./web-weave-spider.ts";
+import type { WeavePluckMap, WeaveWeather } from "./web-weave-sway.ts";
+import { weaveSwayOffset } from "./web-weave-sway.ts";
 import type { WeavePhase } from "./web-weave-timeline.ts";
 import { WEAVE_TIMELINE, weavePhaseAt } from "./web-weave-timeline.ts";
+import type { WeaveTouch, WeaveTouchInput } from "./web-weave-touch.ts";
+import { createWeaveTouch } from "./web-weave-touch.ts";
+
+/** The pointer seam, when the host asked for one (module-scope so the effect stays legible). */
+function makeTouch(interactive: boolean, input: WeaveTouchInput): WeaveTouch | null {
+  return interactive ? createWeaveTouch(input) : null;
+}
+
+/** What a non-interactive frame reports instead of stepping the physics. */
+const QUIET = { shiver: 0, ringing: false } as const;
 
 /** The per-frame motion bundle the three painters share. */
 interface FrameMotion {
@@ -95,12 +105,6 @@ const CALM_WEATHER: WeaveWeather = { wind: 0, shiver: 0 };
 /** Frame-delta ceiling: a backgrounded tab returns a multi-second delta, which would teleport the
  *  weaver across the web on the first frame back. */
 const MAX_FRAME_MS = 50;
-/** Pluck strengths: brushing past vs pressing on the silk (px of transverse displacement). */
-const PLUCK_AMP_BRUSH = 4.5;
-const PLUCK_AMP_PRESS = 10;
-/** How near the cursor must pass a strand to ring it, and how far a DRAG must travel to ring again. */
-const PLUCK_HIT_RADIUS_PX = 10.5;
-const PLUCK_RETRIGGER_PX = 18;
 
 /** The §1.3 palette — token derivations ONLY (resolved via computed style; no raw colors). */
 const PALETTE_EXPRESSIONS: Readonly<Record<keyof WeavePalette, string>> = {
@@ -183,11 +187,13 @@ export function WebWeave({
     // The physics + character state (weave-lab §1/§2/§3). Inert unless a host opts in: no wind, no
     // shiver and no plucks is exactly the sway the web shipped with.
     const characterPreset = WEAVE_CHARACTER_PRESETS[character];
-    const plucks: Map<WeaveStrand, WeavePluck[]> | null = interactive ? new Map() : null;
     const prey = interactive ? createPreyState() : null;
+    const listening = (now: number): boolean => !reduced && (state !== "weaving" || timelineAt(now) >= WEAVE_TIMELINE.settle);
+    const touch = makeTouch(interactive, { host: wrapper, getWeb: () => web, accepts: listening, prey: spider ? prey : null });
+    const plucks: WeavePluckMap = touch?.plucks ?? null;
     let shiver = 0;
+    let ringing = false;
     let lastNow = performance.now();
-    let lastHit: { x: number; y: number } | null = null;
     // The offscreen cache (design §1.2): the static settled web + baked glow, drawn ONCE and blitted
     // each resting frame. A detached canvas (drawImage from it is as fast as OffscreenCanvas and needs
     // no feature-detect). `baked` invalidates on rebuild (size/web) and theme (palette) — re-baked lazily.
@@ -249,38 +255,11 @@ export function WebWeave({
     // the weaving build once it has passed settle (the boot veil's slow-boot hold). Reduced motion is
     // excluded — it keeps the untouched single renderWeaveFrame(still) paint (§3.9, zero perf concern).
     //
-    // WIND and a LIVE PLUCK both un-static it: the cached blit can only sway as one rigid sheet, and a
-    // ringing strand is a per-point deformation the buffer cannot express. Both are opt-in and
+    // WIND and a LIVE RING both un-static the frame: the cached blit can only sway as one rigid sheet,
+    // and a ringing strand is a per-point deformation the buffer cannot express. Both are opt-in and
     // transient — the default (no wind, nothing touched) keeps the bake/composite split intact, and a
     // plucked web returns to the cache the moment its last ring dies.
-    /** Drop dead plucks so a long session doesn't accumulate them (and so `ringing` stays cheap). */
-    const reapPlucks = (now: number): void => {
-      if (plucks === null) {
-        return;
-      }
-      for (const [strand, list] of plucks) {
-        const live = list.filter((pluck) => now - pluck.t0 <= PLUCK_LIFE_MS);
-        if (live.length === 0) {
-          plucks.delete(strand);
-        } else if (live.length !== list.length) {
-          plucks.set(strand, live);
-        }
-      }
-    };
-
-    const ringing = (now: number): boolean => {
-      if (plucks === null) {
-        return false;
-      }
-      for (const list of plucks.values()) {
-        if (list.some((pluck) => now - pluck.t0 <= PLUCK_LIFE_MS)) {
-          return true;
-        }
-      }
-      return false;
-    };
-    const calm = (now: number): boolean => wind === 0 && shiver === 0 && !ringing(now);
-    const staticNow = (t: number, now: number): boolean => (state !== "weaving" || t >= WEAVE_TIMELINE.settle) && calm(now);
+    const staticNow = (t: number): boolean => (state !== "weaving" || t >= WEAVE_TIMELINE.settle) && wind === 0 && shiver === 0 && !ringing;
 
     const bake = (now: number): void => {
       if (web === null || bufferCtx === null) {
@@ -336,11 +315,12 @@ export function WebWeave({
       // tab hands back a multi-second `dt`, which would teleport her across the web on the first frame.
       const dt = Math.min(MAX_FRAME_MS, Math.max(0, now - lastNow));
       lastNow = now;
-      shiver = decayShiver(shiver, dt);
-      reapPlucks(now);
+      const physics = touch === null ? QUIET : touch.step(now, dt);
+      shiver = physics.shiver;
+      ringing = physics.ringing;
       const weather: WeaveWeather = { wind, shiver };
       const frame = { weather, plucks, dt, character: characterPreset, prey };
-      if (!reduced && bufferCtx !== null && staticNow(t, now)) {
+      if (!reduced && bufferCtx !== null && staticNow(t)) {
         composite(now, t, frame);
       } else {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -357,59 +337,7 @@ export function WebWeave({
       rafId = requestAnimationFrame(loop);
     };
 
-    /** Is the web listening right now? Not while she is still BUILDING it — a hand through a half-spun
-     *  web does not redirect her — and never under reduced motion. */
-    const acceptsTouch = (now: number): boolean => {
-      if (web === null || plucks === null || reduced) {
-        return false;
-      }
-      return state !== "weaving" || timelineAt(now) >= WEAVE_TIMELINE.settle;
-    };
-
-    /** Ring a strand and raise the web-wide shiver. */
-    const ring = (strand: WeaveStrand, s0: number, now: number, amp: number): void => {
-      if (plucks === null) {
-        return;
-      }
-      const live = plucks.get(strand) ?? [];
-      live.push({ s0, t0: now, amp });
-      if (live.length > PLUCK_MAX_PER_STRAND) {
-        live.shift();
-      }
-      plucks.set(strand, live);
-      shiver = raiseShiver(shiver);
-    };
-
-    /** A pointer crossed the web: ring the strand it touched and tell the weaver where. */
-    const touch = (event: PointerEvent, amp: number): void => {
-      const now = performance.now();
-      if (web === null || !acceptsTouch(now)) {
-        return;
-      }
-      const box = wrapper.getBoundingClientRect();
-      const at = { x: event.clientX - box.left, y: event.clientY - box.top };
-      // Throttle a DRAG: one ring per re-trigger distance, or a sweep lays down a continuous smear.
-      const smear = lastHit !== null && amp < PLUCK_AMP_PRESS && Math.hypot(at.x - lastHit.x, at.y - lastHit.y) < PLUCK_RETRIGGER_PX;
-      const hit = smear ? null : findStrandHit(web.strands, at, PLUCK_HIT_RADIUS_PX);
-      if (hit === null) {
-        return;
-      }
-      ring(hit.strand, hit.s0, now, amp);
-      lastHit = at;
-      if (prey !== null && spider && state !== "strand-out") {
-        disturbPrey(prey, hit.point, web.hub, now);
-      }
-    };
-    const onMove = (event: PointerEvent): void => touch(event, PLUCK_AMP_BRUSH);
-    const onDown = (event: PointerEvent): void => touch(event, PLUCK_AMP_PRESS);
-    const onLeave = (): void => {
-      lastHit = null;
-    };
-    if (interactive) {
-      wrapper.addEventListener("pointermove", onMove);
-      wrapper.addEventListener("pointerdown", onDown);
-      wrapper.addEventListener("pointerleave", onLeave);
-    }
+    touch?.attach();
 
     rebuild();
     if (reduced) {
@@ -451,9 +379,7 @@ export function WebWeave({
       cancelAnimationFrame(rafId);
       resizeObserver.disconnect();
       themeObserver.disconnect();
-      wrapper.removeEventListener("pointermove", onMove);
-      wrapper.removeEventListener("pointerdown", onDown);
-      wrapper.removeEventListener("pointerleave", onLeave);
+      touch?.detach();
       probe.remove();
     };
   }, [state, seed, hubX, hubY, dim, spider, reduced, interactive, wind, character, tempo]);

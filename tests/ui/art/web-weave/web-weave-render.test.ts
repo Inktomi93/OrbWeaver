@@ -12,8 +12,11 @@ import type { WeavePoint, WovenWeb } from "@orb/ui/web-weave";
 import { buildWeb, WEAVE_TIMELINE } from "@orb/ui/web-weave";
 import { describe } from "vitest";
 import { WEAVE_CHARACTER_PRESETS } from "../../../../packages/ui/src/art/web-weave/web-weave-character.ts";
-import type { WeavePalette, WeavePluckMap } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
-import { glintSegmentLit, glintSweepAngle, renderWeaveFrame, swayPt, weaveSwayOffset } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
+import { glintSegmentLit, glintSweepAngle } from "../../../../packages/ui/src/art/web-weave/web-weave-glint.ts";
+import type { WeavePalette } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
+import { renderWeaveFrame } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
+import type { WeavePluckMap } from "../../../../packages/ui/src/art/web-weave/web-weave-sway.ts";
+import { swayPt, weaveSwayOffset } from "../../../../packages/ui/src/art/web-weave/web-weave-sway.ts";
 import { expect, test } from "../../../support/fixtures.ts";
 
 /** One browser frame — the delta the prey machine would integrate over. */
