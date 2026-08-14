@@ -13,7 +13,7 @@
     "WebSpinner": "src/primitives/spinner/index.ts"
   },
   "cssEntry": ".ds-preview-tokens.css",
-  "buildCmd": "cp ../client/dist/assets/index-*.css .ds-preview-tokens.css",
+  "buildCmd": "cp ../client/dist/assets/index-*.css .ds-preview-tokens.css && python3 ../../.design-sync/annotate-tokens.py .ds-preview-tokens.css",
   "dtsPropsFor": {
     "WebWeave": "state?: \"weaving\" | \"settled\" | \"partial\" | \"strand-out\"; seed?: number; hub?: { x: number; y: number }; dim?: number; spider?: boolean; glow?: boolean; onSettled?: () => void; onPhaseChange?: (phase: string) => void; className?: string;",
     "WeaveVeil": "open: boolean; onExited?: () => void; label: string; children?: React.ReactNode; className?: string;",

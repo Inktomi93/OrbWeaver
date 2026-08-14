@@ -68,3 +68,10 @@ These go to the design agent via the conventions header; fixes land back in
   reference impl at `docs/design/mocks/fixed-weave-reference.js` (read-only evidence). The project's
   `templates/motion-review/` dir is the DESIGN AGENT'S working area — never delete it in a
   reconciliation pass without checking for new handoffs first.
+- **Token classification HANDLED (not just carried):** `.design-sync/annotate-tokens.py` (committed,
+  runs from `buildCmd`) stamps `/* @kind other */` on all `@property --tw-*` rules AND on every
+  custom property defined only under component selectors (computed dynamically each restage — 119
+  marker sites shipped 2026-08-14). VERDICT on the "hoist real theme tokens" half: all 21
+  component-scoped properties are DELIBERATE parameterization (--orb-tier-* density cascade,
+  shell-grid layout vars, scroll-fade stops) — hoisting would break their cascades; none are
+  misplaced theme tokens. Repo-side hoist = correctly refused.
