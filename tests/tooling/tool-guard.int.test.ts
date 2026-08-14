@@ -135,6 +135,62 @@ const ROWS: Row[] = [
   ["ask", "rm-rf-unsafe", "rm -rf ~/homelab"],
   ["ask", "rm-rf-unsafe", "rm -rf packages/server/src"],
   ["ask", "sqlite-live", 'sqlite3 data/orb.db "delete from chats"'],
+  // ---- QUOTED rm TARGETS (the blindness closed 2026-08-14; every bite row here was pass/none before).
+  // `RM_RF_HEAD`'s trailing `\s+` was greedy and a quoted target is all spaces in the blanked text, so the
+  // head matched the flag PLUS the whole target, the tail slice came out empty, the target list came out
+  // `[]`, and the ask never fired — i.e. quoting the path walked straight past the rule. Anchoring the head
+  // to the FLAGS only makes the raw tail visible; targets keep their quote characters because RM_SAFE_TARGET
+  // matches by substring (see the must-pass block below). 29 of 32,171 rows in one decision log carried a
+  // quoted rm target. ----
+  ["ask", "rm-rf-unsafe", 'rm -rf "packages/server/src"'],
+  ["ask", "rm-rf-unsafe", "rm -rf 'packages/kit'"], // single quotes are the same blind span
+  ["ask", "rm-rf-unsafe", 'rm -f "packages/server/src/index.ts"'],
+  ["ask", "rm-rf-unsafe", 'rm -r -f "packages/server/src"'], // the flags-as-separate-words spelling
+  // the mixed case, both ways round: today the unquoted target is what saves the first row, and the second
+  // row is the one that mattered — a quoted UNSAFE target hiding beside a safe unquoted one passed clean
+  ["ask", "rm-rf-unsafe", 'rm -rf packages/a "packages/b"'],
+  ["ask", "rm-rf-unsafe", 'rm -rf "packages/a" /tmp/b'],
+  // not head-anchored to the command: a later clause is a stage of its own
+  ["ask", "rm-rf-unsafe", 'cd /repo && rm -rf "packages/server/src" && echo done'],
+  // the nested passes inherited the same blindness, so closing it closes them too
+  ["ask", "inline:rm-rf-unsafe", `sh -c 'rm -rf "packages/server/src"'`],
+  // …and the self-exemption's mention row has a quoted twin (AGENT-TOOLING-01 stays closed either way)
+  ["ask", "rm-rf-unsafe", 'rm -rf "packages/server/src" # tool-guard.mjs'],
+  // MUST-PASS: a sanctioned target stays sanctioned IN QUOTES — that is the point of judging the raw tail.
+  // Breaking these would deny the everyday cache/scratch sweeps and teach lanes to route around the guard.
+  ["pass", null, 'rm -rf "/tmp/scratch"'],
+  ["pass", null, 'rm -rf "node_modules/.cache"'],
+  ["pass", null, 'rm -rf "playwright/.cache"'],
+  ["pass", null, "rm -rf '.claude/worktrees/agent-abc'"],
+  ["pass", null, 'rm -rf "reports/tool-guard"'],
+  ["pass", null, 'rm -rf "/tmp/a" "/tmp/b"'],
+  // ---- …and the other half of the same question (owner ruling 2026-08-14, taken WITH the tighten above):
+  // an rm target is resolved against the variables THE COMMAND ITSELF ASSIGNED EARLIER before the safe-list
+  // is applied. `SP=/tmp/…/scratchpad; rm -f "$SP/x.log"` is the everyday long-run launch idiom — 52 of the
+  // 53 quoted-rm rows in a live decision log are that shape, and the identical unquoted spelling was already
+  // asking. This is EVIDENCE, not a hint: the value comes from the command's own text. ----
+  ["pass", null, 'SP=/tmp/claude/x/scratchpad\nrm -f "$SP/check2.log" "$SP/check2.exit"\necho launched'],
+  ["pass", null, 'export SP="/tmp/claude/x/scratchpad"; rm -rf "$SP/y"'],
+  ["pass", null, "SP='/tmp/a b/scratchpad'; rm -rf \"$SP/x\""], // a quoted value with a space is ONE value
+  // the unquoted twin of the live-log shape — it asked before this leg, which is why lanes learned to quote
+  ["pass", null, "WT=/home/x/orb/.claude/worktrees/agent-ab75; rm -f $WT/.claude/verifier-run-husk.sh"],
+  ["pass", null, 'R=/home/x/orb; W=$R/.claude/worktrees/agent-a; rm -rf "$W"'], // resolved through a chain
+  ["pass", null, `SP=/tmp/claude/x/scratchpad; rm -rf "\${SP}/y"`], // the braced spelling resolves alike
+  // MUST BITE — resolution is what makes the pass safe, so everything it cannot prove still asks
+  ["ask", "rm-rf-unsafe", 'R=~/dev/orbweaver; rm -rf "$R"'],
+  ["ask", "rm-rf-unsafe", 'R=/home/x/orb; W=$R/packages/server; rm -rf "$W"'],
+  ["ask", "rm-rf-unsafe", 'rm -rf "$UNSET_VAR/foo"'], // never assigned here ⇒ unknowable ⇒ unsafe
+  ["ask", "rm-rf-unsafe", 'SP=$(mktemp -d); rm -rf "$SP"'], // a value that is itself an expansion is DROPPED
+  ["ask", "rm-rf-unsafe", 'SP=/tmp/a; SP=~/real; rm -rf "$SP"'], // last assignment wins, as bash
+  ["ask", "rm-rf-unsafe", 'echo "SP=/tmp/x" && rm -rf "$SP/y"'], // an assignment inside an ARGUMENT is not one
+  ["ask", "rm-rf-unsafe", '# SP=/tmp/x\nrm -rf "$SP/y"'], // …nor is one in a comment
+  ["ask", "rm-rf-unsafe", 'rm -rf "$SP/y"; SP=/tmp/x'], // …nor one that happens AFTER the rm
+  // the resolution TIGHTENS here, which is the point: a variable NAMED after a safe token used to launder a
+  // real path through the substring list (`"$node_modules"` contains `node_modules`), and now it cannot.
+  ["ask", "rm-rf-unsafe", 'node_modules=~/real; rm -rf "$node_modules"'],
+  ["ask", "rm-rf-unsafe", 'SP=/tmp/x/scratchpad; rm -rf "$SPARE"'], // longest name wins — no prefix confusion
+  // a nested body builds its OWN map from its OWN text, so the sanctioned wrapper shape still runs
+  ["pass", null, `bash -c 'SP=/tmp/s/scratchpad; rm -f "$SP/x.log"'`],
   // MUST-PASS: the floor must not eat the sanctioned forms it sits next to
   ["pass", null, "rm -rf /tmp/scratch"],
   ["pass", null, "rm -rf node_modules/.cache"],
@@ -304,7 +360,18 @@ const ROWS: Row[] = [
   // benign substitutions stay silent — the overwhelming majority of real `$( … )` use
   ["pass", null, 'echo "$(date)"'],
   ["pass", null, 'cd "$(git rev-parse --show-toplevel)" && pnpm check'],
-  ["pass", null, 'rm -rf "$(mktemp -d)"'],
+  // CHANGED 2026-08-14 (was pass/null). This row used to prove "a benign substitution stays silent" while
+  // ALSO encoding the quoted-target blindness: the ask never fired because the target was invisible, not
+  // because `$(mktemp -d)` was judged safe. The unquoted `rm -rf $(mktemp -d)` has always asked (its
+  // `$(mktemp` token is not on RM_SAFE_TARGET), so the quoted form asking is the CONSISTENT answer — and the
+  // alternative, exempting substitution-shaped targets, is a laundering route (`rm -rf "$(echo
+  // packages/server/src)"`). The original claim is still pinned by the two rows above and the ones below.
+  // Making this pass again means adding a safe hint that would ALSO loosen the unquoted form: an owner call.
+  ["ask", "rm-rf-unsafe", 'rm -rf "$(mktemp -d)"'],
+  // Same class, same answer: a `$VAR` target the guard cannot resolve is judged in quotes exactly as it is
+  // bare (`rm -rf $SCRATCH/foo` asks today). 52 of 53 quoted-rm rows in a live decision log are this shape,
+  // so this is where the leg's cry-wolf cost sits — and it is the price of quoting not being an escape.
+  ["ask", "rm-rf-unsafe", 'rm -rf "$SCRATCH/foo"'],
   // …including the three-deep path idiom, which a depth cap of 2 asked about (4 real corpus commands —
   // the reason the cap is a runaway fence at 6, not a budget)
   ["pass", null, "ls -la $(dirname $(readlink -f $(which claude)))/ 2>/dev/null | head -20"],
@@ -656,6 +723,42 @@ test("contract: a command hidden in a quoted string reaches the wire as a deny, 
   const sanctioned = runHook(bashInput("setsid nohup bash -c 'pnpm check > /tmp/c.log 2>&1' < /dev/null &"), [["CLAUDE_PROJECT_DIR", tmp]]);
   expect(sanctioned.out.hookSpecificOutput?.permissionDecision).toBe("allow");
   expect(sanctioned.out.hookSpecificOutput?.additionalContext).toBeUndefined();
+});
+
+// The quoted rm target through the SAME wire protocol — what the host acts on is the EMITTED decision, and
+// for this rule the two differ by caller: the main session gets a real `ask`, a lane gets `deny` + the
+// escalation path (an unanswerable ask kills a lane mid-turn). Every bite below emitted a bare `allow`
+// before 2026-08-14, i.e. `rm -rf "packages/server/src"` reached the shell with nothing in front of it.
+// The payload strings are CLASSIFIED, never executed — no path here is ever deleted.
+test("contract: a QUOTED rm target reaches the wire, and a quoted scratch target still runs", () => {
+  const tmp = mkdtempSync(join(tmpdir(), "tg-hook-"));
+  for (const command of ['rm -rf "packages/server/src"', "rm -rf 'packages/kit'", 'rm -rf packages/a "packages/b"', 'rm -rf "packages/a" /tmp/b']) {
+    const r = runHook(bashInput(command), [["CLAUDE_PROJECT_DIR", tmp]]);
+    expect([command, r.out.hookSpecificOutput?.permissionDecision]).toEqual([command, "ask"]);
+    expect(r.out.hookSpecificOutput?.permissionDecisionReason).toContain("Re-read the path");
+  }
+  const logged = JSON.parse(readFileSync(`${tmp}/reports/tool-guard/decisions.jsonl`, "utf8").trim().split("\n").slice(-1).join("")) as { rule: string };
+  expect(logged.rule).toBe("rm-rf-unsafe");
+  // a lane cannot answer a prompt, so it gets the deny + who to escalate to
+  const lane = runHook(
+    bashInput('rm -rf "packages/server/src"', [
+      ["agent_id", "agent-123"],
+      ["agent_type", "executor"],
+    ]),
+    [["CLAUDE_PROJECT_DIR", tmp]],
+  );
+  expect(lane.out.hookSpecificOutput?.permissionDecision).toBe("deny");
+  expect(lane.out.hookSpecificOutput?.permissionDecisionReason).toContain("SendMessage");
+  // MUST PASS on the wire: the sanctioned sweep, quoted — including the CT recipe every lane wrapper spells
+  // with quoted absolute paths. A guard that blocks the right way of doing a job gets routed around.
+  for (const command of [
+    'rm -rf "/tmp/scratch"',
+    'rm -rf "playwright/.cache"',
+    'rm -rf "$WT/playwright/.cache" && npx playwright test -c "$WT/playwright-ct.config.ts" tests/client/x.ct.tsx',
+  ]) {
+    const ok = runHook(bashInput(command), [["CLAUDE_PROJECT_DIR", tmp]]);
+    expect([command, ok.out.hookSpecificOutput?.permissionDecision]).toEqual([command, "allow"]);
+  }
 });
 
 // The load-bearing pair. A command this guard does not object to must RUN — `defer` sends it to a
