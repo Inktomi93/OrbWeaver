@@ -1690,10 +1690,10 @@
   ],
   "deletions": {
     "tests/client/features/world-info/surfaces/world-info-library-surface.ct.tsx": {
-      "why": "the World Info RAIL SECTION retired with the config rail's R2 (2026-08-02): the library is a CollectionContribution in the Configuration workspace, so there is no list SURFACE or LIST band to mount. Its coverage moved wholesale — rows/scent/Global marker/kebab+Export to tests/client/features/world-info/components/world-info-collection-rows.ct.tsx, and the band's count + create + import to the config host's roster CT (tests/client/features/config/surfaces/config-roster-surface.ct.tsx), which mounts the real door array."
+      "why": "the World Info RAIL SECTION retired with the config rail's R2 (2026-08-02): the library is a CollectionContribution in the Configuration workspace, so there is no list SURFACE or LIST band to mount. Its coverage moved wholesale \u2014 rows/scent/Global marker/kebab+Export to tests/client/features/world-info/components/world-info-collection-rows.ct.tsx, and the band's count + create + import to the config host's roster CT (tests/client/features/config/surfaces/config-roster-surface.ct.tsx), which mounts the real door array."
     },
     "tests/client/features/world-info/surfaces/world-info-editor-surface.ct.tsx": {
-      "why": "renamed, not deleted: the same editor is the collection's `detail` now, and every assertion it carried (the sortable entry list's keyboard drag → worldInfo.applyEntryOrder) moved verbatim into tests/client/features/world-info/surfaces/world-info-member-surface.ct.tsx, which additionally pins the GONE arm and the entry drill."
+      "why": "renamed, not deleted: the same editor is the collection's `detail` now, and every assertion it carried (the sortable entry list's keyboard drag \u2192 worldInfo.applyEntryOrder) moved verbatim into tests/client/features/world-info/surfaces/world-info-member-surface.ct.tsx, which additionally pins the GONE arm and the entry drill."
     },
     "tests/client/state/world-info-selection-store.ct.tsx": {
       "why": "renamed to tests/client/state/world-entry-selection-store.ct.tsx with its store (R2): the BOOK half of the drill became the config workspace's kinded member selection, already covered by tests/client/state/config-selection-store.ct.tsx (select/switch-kind/clear + the goToCollection deep link) and by the roster CT's routing test. The ENTRY half's select/clear coverage moved verbatim."
@@ -1708,7 +1708,7 @@
       "why": "the fat settings ROW whose controls it measured no longer exists (F-11 moved them into the member editor). The 32px tap-target floor is measured on the controls' NEW home in tag-member-surface.ct.tsx ('every control clears the 32px tap-target floor')."
     },
     "tests/client/features/regex/lib/regex-pane.ct.tsx": {
-      "why": "the regex SETTINGS PANE retired with the config rail's R1 (2026-08-02) — a script library is workspace anatomy, not a settings pane. Its registration coverage is the config roster CT; the editor coverage is regex-member-surface.ct.tsx."
+      "why": "the regex SETTINGS PANE retired with the config rail's R1 (2026-08-02) \u2014 a script library is workspace anatomy, not a settings pane. Its registration coverage is the config roster CT; the editor coverage is regex-member-surface.ct.tsx."
     },
     "tests/client/features/regex/surfaces/regex-settings-surface.ct.tsx": {
       "why": "the pane's list+dialog anatomy became the collection's rows + a MOUNTED member editor at R1. The field set, the autosave write and the delete verb are asserted in tests/client/features/regex/surfaces/regex-member-surface.ct.tsx; the row anatomy (global switch, scent subtitle) in the config roster CT."
@@ -1717,10 +1717,10 @@
       "why": "@orb/ui/setting-row primitive deleted with zero importers after the Base UI 1.7 SettingRow-to-Field migration; its CT and fixtures die with it (label wiring is now Field context, covered by tests/ui/primitives/field/field.ct.tsx)"
     },
     "tests/server/domain/chat/persistence/macro-names.int.test.ts": {
-      "why": "merged into tests/server/domain/chat/persistence/cast.int.test.ts (D137 kind-polymorphic cast producer replaced the per-kind loaders; assertions ported intact) — un-delete only if the per-kind loaders return"
+      "why": "merged into tests/server/domain/chat/persistence/cast.int.test.ts (D137 kind-polymorphic cast producer replaced the per-kind loaders; assertions ported intact) \u2014 un-delete only if the per-kind loaders return"
     },
     "tests/server/domain/chat/persistence/roster-avatars.int.test.ts": {
-      "why": "merged into tests/server/domain/chat/persistence/cast.int.test.ts (D137 kind-polymorphic cast producer replaced the per-kind loaders; assertions ported intact) — un-delete only if the per-kind loaders return"
+      "why": "merged into tests/server/domain/chat/persistence/cast.int.test.ts (D137 kind-polymorphic cast producer replaced the per-kind loaders; assertions ported intact) \u2014 un-delete only if the per-kind loaders return"
     },
     "tests/client/lib/chats-with-character.test.ts": {
       "why": "its subject (packages/client/src/lib/chats-with-character.ts) was deleted 2026-08-09 when the chats-with-this-character projection moved SERVER-side (chat.listChats characterId). The predicate no longer exists to unit-test; the behaviour is pinned by tests/server/domain/chat/verbs/read.int.test.ts (the characterId projection arms, incl. departed + double seats). Un-deletes if a client-side chat projection predicate ever returns."
@@ -1732,19 +1732,16 @@
       "why": "its subject (packages/client/src/features/character/lib/filter-characters.ts) was deleted 2026-08-13 when the character library's search moved SERVER-side (character.list search, owner ruling: 'if i search then it should not just search on virtual stuff yeah? same for sort etc'). The client predicate could only ever match the <=150-row window the surface had paged in; the name/handle/pitch/tag-name semantics are pinned by tests/server/domain/character/verbs/list.int.test.ts ('server-side search'). Un-deletes if a client-side character search filter ever returns."
     },
     "tests/client/state/draft-config-store.test.ts": {
-      "why": "the store it covered is DELETED with chat-creation draft mode (chat-creation-draft-mode-replacement.md §4.9, R1): `draft-config-store` held a whole second config model — greetings, roster overrides, group config, room overrides, injections, startAsGame — for a room with no server row. A chat row exists from the creation click, so every one of those is now the COMMITTED verb it shadowed, and each of those verbs carries its own coverage (settings-context-tab.ct.tsx, group-config-form, injections-manager, roster mutations)."
+      "why": "the store it covered is DELETED with chat-creation draft mode (chat-creation-draft-mode-replacement.md \u00a74.9, R1): `draft-config-store` held a whole second config model \u2014 greetings, roster overrides, group config, room overrides, injections, startAsGame \u2014 for a room with no server row. A chat row exists from the creation click, so every one of those is now the COMMITTED verb it shadowed, and each of those verbs carries its own coverage (settings-context-tab.ct.tsx, group-config-form, injections-manager, roster mutations)."
     },
     "tests/client/features/chat/lib/draft-commit.test.ts": {
-      "why": "`draft-commit.ts` is DELETED with draft mode (R1): it resolved a draft's pre-send edits into `chat.startChat`'s nine-field carry, and mirrored the server's anchor-persona chain client-side. Creation carries CREATION INTENT only now (`useStartChat`), and the anchor is resolved once, server-side, where it always belonged — so there is no carry to unit-test and no mirror to keep in lockstep. The creation path's own coverage is tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx."
+      "why": "`draft-commit.ts` is DELETED with draft mode (R1): it resolved a draft's pre-send edits into `chat.startChat`'s nine-field carry, and mirrored the server's anchor-persona chain client-side. Creation carries CREATION INTENT only now (`useStartChat`), and the anchor is resolved once, server-side, where it always belonged \u2014 so there is no carry to unit-test and no mirror to keep in lockstep. The creation path's own coverage is tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx."
     },
     "tests/client/features/chat/components/draft-context-tabs.ct.tsx": {
       "why": "`draft-context-tabs.tsx` is DELETED with draft mode (R1): it rendered draft-config-store-backed twins of the Members / Field-overrides / Injections / Group-behavior tab bodies for a rowless room. The room has a chat row from the creation click, so the COMMITTED bodies serve every phase and their coverage is tests/client/features/chat/components/settings-context-tab.ct.tsx + members-panel.ct.tsx."
     },
-    "tests/client/features/chat/components/greeting-swipe-strip.ct.tsx": {
-      "why": "`greeting-swipe-strip.tsx` is DELETED with draft mode (R1) and its affordance is DARK until R3 — see the ⚠️ note in message-row-parts.tsx. A seeded greeting is real canon now, so stepping it needs a host-gated verb that refuses after `freezeGreetingVolatiles` (R3's `chat.setSeededGreeting`); the client store the strip wrote to no longer exists. The chrome is in git history and R3 repoints it at the verb, restoring this file's coverage."
-    },
     "tests/client/data/use-draft-cast-cards.ct.tsx": {
-      "why": "`use-draft-cast-cards.ts` is DELETED with draft mode (R1): it was a list-first peek over warm `character.list` pages, built to kill the ~2s '? | ? | ? | New chat' placebo window a pre-send room showed while N cold `character.get` reads landed. There is no such window — `useStartChat` seeds `chat.getChat` from `startChat`'s own response, so the room's first frame is warm off the read it actually uses (tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx drives that path end-to-end)."
+      "why": "`use-draft-cast-cards.ts` is DELETED with draft mode (R1): it was a list-first peek over warm `character.list` pages, built to kill the ~2s '? | ? | ? | New chat' placebo window a pre-send room showed while N cold `character.get` reads landed. There is no such window \u2014 `useStartChat` seeds `chat.getChat` from `startChat`'s own response, so the room's first frame is warm off the read it actually uses (tests/client/features/chat/surfaces/new-chat-picker-surface.ct.tsx drives that path end-to-end)."
     }
   }
 }

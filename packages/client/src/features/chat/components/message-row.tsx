@@ -19,6 +19,7 @@ import { toggleMessageSelected, useIsEditingMessage, useIsMessageSelected, useSe
 import { AttachmentUrlProvider } from "../hooks/attachment-url-provider.tsx";
 import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { isNarratorVoiced, resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
+import type { GreetingBinding } from "../lib/greeting-window.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import { splitIntoTrainParagraphs } from "../lib/split-paragraphs.ts";
@@ -66,6 +67,10 @@ export interface MessageRowProps {
    *  resolved once by the surface, folded into this row's render policy. Absent ⇒ off. */
   readonly lenientHtmlCards?: boolean | undefined;
   readonly onChatForked?: ((chatId: ChatId) => void) | undefined;
+  /** Present ⇒ this row is a SEEDED GREETING still inside its malleability window: the swipe slot pages the
+   *  card's alternates through `chat.setSeededGreeting` instead of the row's own generated variants
+   *  (chat-creation-draft-mode-replacement.md §4.8/F6). Absent ⇒ the ordinary variant strip. */
+  readonly greeting?: GreetingBinding | undefined;
   readonly autoFixMarkdown?: boolean | undefined;
   /** D121-E/F1: the VIEWER's own enabled DISPLAY-placement scripts, resolved ONCE by the list surface
    *  (never per row — one query, N rows). Absent ⇒ the display leg is a no-op, exactly as before. */
@@ -144,6 +149,7 @@ export function MessageRow({
   viewerUserId,
   lenientHtmlCards,
   onChatForked,
+  greeting,
   autoFixMarkdown,
   displayScripts,
   colorQuotedSpeech,
@@ -298,7 +304,7 @@ export function MessageRow({
             })}
             {editing ? null : <MessageToolCalls records={message.toolCalls} renderers={toolRenderers} />}
             {editing ? null : <MessageMetadataRow message={message} visibility={metadataVisibility} />}
-            {renderRowSwipe({ editing, showSwipes, role, message })}
+            {renderRowSwipe({ editing, showSwipes, role, greeting, message })}
             {footerContributions.length === 0 ? null : (
               <Stack gap="field" data-slot="message-footer">
                 {footerContributions.map((c) => (

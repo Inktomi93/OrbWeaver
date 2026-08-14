@@ -48,6 +48,7 @@ import type {
   ReattributePersonaParams,
   SelectVariantParams,
   SetMessageHiddenParams,
+  SetSeededGreetingParams,
 } from "../contract/params.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireAuthorOrHost, requireHost, requireParticipant } from "../guard.ts";
@@ -67,6 +68,7 @@ import {
 import {
   loadAuthoredUserMessageIds,
   loadCanonStatRows,
+  loadHasUserMessage,
   loadMaxMessageSeq,
   loadMessageSeqs,
   loadMessageView,
@@ -104,6 +106,7 @@ type EditVerbs = Pick<
   ChatService,
   | "selectVariant"
   | "editMessage"
+  | "setSeededGreeting"
   | "setMessageHidden"
   | "deleteMessages"
   | "editReasoning"
@@ -381,6 +384,76 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
     await ctx.db.batch(batchMany(statements));
     const view = await reloadSlot(ctx, chatId, messageId);
     await deps.emit({ type: "messageEdited", chatId, messageId, view });
+    return await projectEditReturn(ctx, view, membership);
+  };
+}
+
+/**
+ * `setSeededGreeting` — HOST-only. Steps a seeded greeting row onto another of its character card's
+ * alternates (chat-creation-draft-mode-replacement.md §4.8, fork F6).
+ *
+ * WHY IT IS ITS OWN VERB and not an arm of `editMessage`: the two differ on every axis that matters. This one
+ * is HOST-only where edit is author-or-host, it is WINDOWED where edit is always-on, and — the load-bearing
+ * one — it takes an INDEX, so the content it writes is the card's own bytes rather than the caller's. Folding
+ * it into edit would have meant a host-gated free-text path with a `greetingIndex` beside it, i.e. two
+ * authorities and two content sources in one verb.
+ *
+ * THE THREE BELTS, all before any write:
+ *  (a) the slot is a character-voiced ASSISTANT row in THIS chat — a user/system/narrator row has no card
+ *      alternates to step among (`not_greeting_row`; a foreign/missing slot is the usual leak-free NOT_FOUND);
+ *  (b) the room has NO user-role canon row — the first user turn is the FREEZE
+ *      (`freezeGreetingVolatiles`, verbs/turn.ts) after which the greeting's volatile macros are baked into
+ *      the variant, so stepping it would discard drawn values and rewrite settled canon (`greeting_frozen`);
+ *  (c) the index resolves against the card, read under the HOST's ownership exactly as `startChat` seeded it
+ *      (`greeting_alternate_not_found`).
+ *
+ * The write itself is the ordinary content edit — the same statements, the same `editMessageDelta`, the same
+ * `messageEdited` event — so a stepped greeting is indistinguishable downstream from an edited one, which is
+ * what keeps stats, the bus and the read path from needing a third shape.
+ */
+function createSetSeededGreeting(ctx: ChatContext, emit: EmitChatEvent): ChatService["setSeededGreeting"] {
+  return async ({ principal, chatId, messageId, greetingIndex }: SetSeededGreetingParams) => {
+    const membership = await requireHost(ctx, principal, chatId);
+    const slot = await loadSlotInChat(ctx, chatId, messageId);
+    if (slot.role !== "assistant" || slot.characterId === null) {
+      throw new ChatOperationError(CHAT_OP_CODES.notGreetingRow, `chat ${chatId}: only a character-voiced greeting row has alternates to step`);
+    }
+    if (await loadHasUserMessage(ctx.db, chatId)) {
+      throw new ChatOperationError(CHAT_OP_CODES.greetingFrozen, `chat ${chatId}: the greeting froze at the first user turn`);
+    }
+    const roster = await loadRoster(ctx.db, chatId);
+    const hostUserId = hostUserIdOf(roster);
+    if (hostUserId === null) {
+      throw new ChatNotFoundError(chatId);
+    }
+    const card = await ctx.getCard({ ownerId: hostUserId, characterId: slot.characterId });
+    const alternate = card?.greetings[greetingIndex]?.text;
+    if (alternate === undefined) {
+      throw new ChatOperationError(CHAT_OP_CODES.greetingAlternateNotFound, `chat ${chatId}: greeting ${String(greetingIndex)} is not on this card`);
+    }
+    const now = ctx.now();
+    const statements = editMessageContentStatements(ctx.db, {
+      messageId,
+      variantId: slot.selectedVariantId,
+      content: alternate,
+      editedAt: now,
+    });
+    ctx.applyStatsDelta(
+      statements,
+      ctx.db,
+      editMessageDelta({
+        ownerId: hostUserId,
+        characterId: slot.characterId,
+        role: slot.role,
+        createdAt: slot.createdAt,
+        oldContent: slot.content,
+        newContent: alternate,
+        now,
+      }),
+    );
+    await ctx.db.batch(batchMany(statements));
+    const view = await reloadSlot(ctx, chatId, messageId);
+    await emit({ type: "messageEdited", chatId, messageId, view });
     return await projectEditReturn(ctx, view, membership);
   };
 }
@@ -772,6 +845,7 @@ export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
   return {
     selectVariant: claim(createSelectVariant(ctx, emit)),
     editMessage: claim(createEditMessage(ctx, deps)),
+    setSeededGreeting: claim(createSetSeededGreeting(ctx, emit)),
     setMessageHidden: claim(createSetMessageHidden(ctx, emit)),
     deleteMessages: claim(createDeleteMessages(ctx, emit)),
     editReasoning: claim(createEditReasoning(ctx, emit)),

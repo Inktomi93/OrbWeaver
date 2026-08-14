@@ -11,7 +11,7 @@
 // gap-heal probe wraps in it too: since SSE-1 the user bus has no subscription of its own, it JOINS a room
 // on the tab's one socket, so the socket has to exist for the bus to be live at all.
 
-import { QueryBoundary, useInvalidation, useOrbSocket, useRpgBus, useTRPC, useUserBus } from "@orb/client/data";
+import { QueryBoundary, useChatBus, useChatBusDeps, useInvalidation, useOrbSocket, useRpgBus, useTRPC, useUserBus } from "@orb/client/data";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
@@ -121,6 +121,27 @@ export function UserBusRemountStory(): ReactElement {
     <CtDataProviders>
       <SocketHost>
         <RemountableRoomProbe />
+      </SocketHost>
+    </CtDataProviders>
+  );
+}
+
+// ── R1-2: the chat room's ATTACH CURSOR FLOOR. A room whose SSE dies before this client has applied any
+//    durable frame used to re-announce with `sinceSeq: null`, which requests no replay — so anything the
+//    server committed while the socket was dark stayed invisible until a reload. The floor comes off the
+//    server's `chatOpened` synthetic, so the probe needs nothing but the real hook over the real socket:
+//    the assertion is on the WIRE (`attachRequests()`), not on rendered state.
+function ChatBusAttachFloorProbe({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  useChatBus(chatId, useChatBusDeps());
+  return <output data-testid="chat-bus-mounted">{chatId}</output>;
+}
+
+/** The chat room joined for real, so its re-announce carries whatever cursor the hook decided on. */
+export function ChatBusAttachFloorStory({ chatId }: { readonly chatId: ChatId }): ReactElement {
+  return (
+    <CtDataProviders>
+      <SocketHost>
+        <ChatBusAttachFloorProbe chatId={chatId} />
       </SocketHost>
     </CtDataProviders>
   );

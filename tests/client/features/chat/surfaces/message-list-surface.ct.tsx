@@ -308,13 +308,19 @@ test("the ghost row stays mounted with its streamed text after Stop (stopping ph
 // the just-created chat's room attached with `sinceSeq: 0` so the server replayed the head deltas that had
 // raced past the fresh attach. That transition is now unrepresentable (a chat row exists from the creation
 // click; `useChatBus` takes a required `ChatId`), and the `sinceSeq: 0` seed it pinned is deleted with it.
-// What covers the same gap is the test BELOW plus the canon read: a fresh room attaches with NO cursor, and
-// the greeting rows `startChat` seeded before the client could attach arrive through `listMessages`.
+// What covers the same gap is the test BELOW plus the canon read: a room's FIRST attach carries no cursor,
+// and the greeting rows `startChat` seeded before the client could attach arrive through `listMessages`.
 
-// The complement: an EXISTING chat opened directly attaches with NO replay request (never re-replays a
-// finished turn as a ghost — the re-animate glitch the capture-once transition-detection guard closes) —
-// and the whole tab holds exactly ONE socket, which is the multiplex's own claim.
-test("an existing committed chat attaches its room with NO replay cursor (never re-replays prior turns)", async ({ mount, page }) => {
+// The complement: an EXISTING chat opened directly makes its FIRST attach with no replay request (never
+// re-replays a finished turn as a ghost — the re-animate glitch the capture-once transition-detection guard
+// closes) — and the whole tab holds exactly ONE socket, which is the multiplex's own claim.
+//
+// FIRST attach only, and the qualifier is load-bearing (R3 — R1-2). A RE-announce of the same room carries a
+// cursor: this client's applied high-water once it has one, and before that the floor the server stamped on
+// the `chatOpened` synthetic. A room that stayed cursor-less across a reconnect asked for no replay at all,
+// which is a real message-loss window — pinned in `tests/client/data/bus/use-chat-bus.ct.tsx`. This CT scripts
+// no frames and never drops the connection, so what it sees is the first attach, and null is still correct.
+test("an existing committed chat makes its FIRST attach with NO replay cursor (never re-replays prior turns)", async ({ mount, page }) => {
   await routeTrpc(page, {
     ...PREVIEW_FIT_STUB,
     "chat.listMessages": () => makeMessagesPage([USER_VIEW]),
@@ -331,8 +337,9 @@ test("an existing committed chat attaches its room with NO replay cursor (never 
 });
 
 // REOPEN-CATCH-UP regression (the seq-guard blast-radius fix). `chatOpened`/`historyTruncated` are
-// attach-SYNTHESIZED signals stamped with the NON-advancing resume cursor as their frame `seq` (a numeric
-// `cursor ?? 0`), and their per-attach re-fire is the SOLE reopen invalidate (staleTime is
+// attach-SYNTHESIZED signals stamped with a NON-advancing frame `seq` (a resuming attach's own cursor, or —
+// since R3/R1-2 — the room's durable high-water on a cursor-less one; either way a number the client already
+// holds, never a fresh row), and their per-attach re-fire is the SOLE reopen invalidate (staleTime is
 // Infinity — the SSE bus is the only freshness path). The monotonic seq guard must NOT run them through the
 // high-water mark: a naive guard would drop `chatOpened(seq 0)` once the chat's durable mark had climbed in
 // an earlier session, swallowing the reopen `chat.getChat` refetch → a stale surface until some new live
