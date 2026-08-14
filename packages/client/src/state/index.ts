@@ -272,9 +272,11 @@ export { SettingsSectionRegistryProvider } from "./settings-section-registry-pro
 export type { ModalSlotId, SectionId, SettingsCategoryId } from "./shell-store.ts";
 export {
   closeModal,
+  getAvailableContextTabIds,
   MODAL_SLOT_IDS,
   openModal,
   openSettingsTo,
+  publishContextTabIds,
   revealContextPanel,
   revealContextPanelBesideContent,
   SECTION_IDS,

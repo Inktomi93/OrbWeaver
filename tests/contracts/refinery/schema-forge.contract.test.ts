@@ -81,6 +81,30 @@ test("the well-known core is SPLICED, so the belt's core refusal is unreachable 
   expect(byHand.success).toBe(false);
 });
 
+test("the spliced core is the ONLY hero — an author row claiming role:hero is re-roled, never a second headline", () => {
+  // The live custom-schema drive (2026-08-14) hit this: the model, asked for a "rating 1-10", designed its
+  // OWN overall-rating field AND got the spliced well-known core, BOTH hinted `role:"hero"`. Two heroes in
+  // one design let the renderer's order-dependent "first hero wins" demote the canonical `overallScore` (the
+  // card's score stamp) behind the model's field. The transpiler now guarantees exactly one hero — the core.
+  const { schema } = transpileForgeDesign(
+    design([
+      row({ path: "vividness", type: "number", minimum: 1, maximum: 10, role: "hero", label: "Vividness" }),
+      row({ path: "mood", enum: ["calm", "tense"] }),
+    ]),
+    "score",
+  );
+  // Exactly one `role:"hero"` survives in the whole document, and it is the canonical core node.
+  const heroCount = (JSON.stringify(schema).match(/"role":"hero"/g) ?? []).length;
+  expect(heroCount).toBe(1);
+  const properties = schema["properties"] as Record<string, Record<string, unknown>>;
+  expect(properties["overallScore"]?.["x-orb-ui"]).toEqual({ role: "hero" });
+  // The author's field SURVIVES (re-role, not drop) — its bounds and label stand; only the hero elevation is
+  // stripped, so it renders as a plain bounded gauge instead of stealing the headline.
+  expect(properties["vividness"]).toMatchObject({ type: "number", minimum: 1, maximum: 10 });
+  expect((properties["vividness"]?.["x-orb-ui"] as Record<string, unknown> | undefined)?.["role"]).toBeUndefined();
+  expect((properties["vividness"]?.["x-orb-ui"] as Record<string, unknown> | undefined)?.["label"]).toBe("Vividness");
+});
+
 test("the belt's OTHER refusal classes are unreachable from the grammar — by refusal or by strip", () => {
   // The CLOSED vocabularies refuse outright: a hint role or leaf type outside its enum is not a design.
   // This is what "the retry bridge shrank" rests on — these can no longer produce a belt round trip.

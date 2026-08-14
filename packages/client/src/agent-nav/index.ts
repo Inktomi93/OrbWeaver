@@ -3,9 +3,9 @@
 // app-root.tsx) — because it wires the app's client-state navigation actions together, and the lib/ floor
 // that homes agent-bridge.ts may not import #state/#features/#data. So the handle's IMPL is built here and
 // injected into installAgentDebugHandle. Every arm calls the EXACT store action the real UI calls
-// (setActiveSection, openModal, openSettingsTo, setContextTab, selectChat) — never a parallel mutation
-// path — and validates ids against the canonical vocabulary tuples, returning a loud {ok:false} on a
-// bad target instead of a silent no-op.
+// (setActiveSection, openModal, openSettingsTo, revealContextPanel, selectChat) — never a parallel mutation
+// path — and validates ids against the canonical vocabulary tuples (the context tab against the mounted
+// surface's PUBLISHED ids), returning a loud {ok:false} on a bad target instead of a silent no-op.
 
 import { CHARACTER_LIST_MAX_LIMIT } from "@orb/contracts/character";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -15,15 +15,16 @@ import { deriveChatTitle } from "#lib";
 import type { ModalSlotId, SectionId, SettingsCategoryId } from "#state";
 import {
   closeModal,
+  getAvailableContextTabIds,
   MODAL_SLOT_IDS,
   openModal,
   openSettingsTo,
+  revealContextPanel,
   SECTION_IDS,
   SETTINGS_CATEGORY_IDS,
   selectCharacter,
   selectChat,
   setActiveSection,
-  setContextTab,
 } from "#state";
 import type { NavResult, OrbNavHandle } from "../lib/agent-bridge.ts";
 
@@ -91,12 +92,23 @@ export function buildAgentNav(trpc: Trpc, queryClient: QueryClient): OrbNavHandl
       return OK;
     },
     contextTab(name: string): NavResult {
-      // The context tab is an opaque request the active surface interprets — no closed vocabulary to
-      // validate against, so a non-empty name always dispatches.
       if (name === "") {
         return { ok: false, reason: "context tab name is empty" };
       }
-      setContextTab(name);
+      // The context tab is a cross-surface OPAQUE request, but the mounted surface publishes its tab ids
+      // (`useContextTabSelection` → `publishContextTabIds`). When that set is KNOWN (a tabbed context panel
+      // is mounted), a name outside it is a typo, not a tab — refuse loudly, exactly like the closed-vocab
+      // arms above, instead of writing the request and reporting a false `ok` (the 2026-08-09 + 2026-08-14
+      // drives both hit this: `{ok:true}` with the tab never switching). When the set is EMPTY the panel is
+      // closed / single-kind, so there is nothing to validate against — best-effort dispatch stands.
+      const available = getAvailableContextTabIds();
+      if (available.length > 0 && !available.includes(name)) {
+        return { ok: false, reason: `unknown context tab "${name}" — the mounted context surface offers: ${available.join(", ")}` };
+      }
+      // COMPOSE the reveal, never a bare request (the `openChatIn` precedent: an arm that cannot take effect
+      // must open what it needs). `setContextTab` alone left a collapsed panel unmounted, so the stored tab
+      // was read by nothing — `revealContextPanel` opens the panel AND sets the tab, so the switch is visible.
+      revealContextPanel(name);
       return OK;
     },
     async openChat(idOrTitle: string): Promise<NavResult> {

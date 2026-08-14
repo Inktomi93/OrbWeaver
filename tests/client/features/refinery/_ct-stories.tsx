@@ -32,6 +32,7 @@ import {
   RunControlsCard,
   SchemaEditorDialog,
   ScopeEditorDialog,
+  SetupTabBody,
   StagePane,
   StageStepper,
   TeachingState,
@@ -265,6 +266,28 @@ export function SchemaEditorStory({ stage = "score", editing = null }: SchemaEdi
     <CtAppDataProviders>
       <CtToastSurface>
         <SchemaEditorDialog editing={editing} onOpenChange={(): void => undefined} onSaved={(): void => undefined} open={true} stage={stage} />
+      </CtToastSurface>
+    </CtAppDataProviders>
+  );
+}
+
+// --- The SETUP context tab (the two schema-verb doors: author-analyze + edit-saved) ---
+
+export interface SetupTabBodyStoryProps {
+  /** The open session the tab reads (its `stageConfig` decides which stage rows are custom vs fixed). */
+  readonly sessionId: RefinerySessionId;
+  /** The card the tab's gated `character.get` resolves (the scope dialog + anchor line need it). */
+  readonly characterId: CharacterId;
+}
+
+/** The LIVE Setup context-tab body on the REAL data tier, exactly as the CONTEXT panel mounts it, over a
+ *  `page.route`-stubbed network. The subject is the SCHEMA-EDITOR DOORS: one row per stage, each opening
+ *  the editor at that stage — over the saved row when the stage is custom (EDIT), or fresh when fixed. */
+export function SetupTabBodyStory({ sessionId, characterId }: SetupTabBodyStoryProps): ReactElement {
+  return (
+    <CtAppDataProviders>
+      <CtToastSurface>
+        <SetupTabBody state={{ sessionId, characterId }} />
       </CtToastSurface>
     </CtAppDataProviders>
   );

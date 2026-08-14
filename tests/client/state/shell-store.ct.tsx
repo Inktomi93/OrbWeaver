@@ -80,6 +80,17 @@ test("setContextTab sets the opaque CONTEXT tab request", async ({ mount }) => {
   await expect(state).toContainText("contextTab=members");
 });
 
+test("publishContextTabIds / getAvailableContextTabIds round-trip the mounted surface's tab ids for the dev bridge", async ({ mount }) => {
+  const probe = await mount(<ShellStoreProbe />);
+  // The read-back starts empty — nothing has published a tab set yet.
+  await expect(probe.getByText("ctxTabIds=unread")).toBeVisible();
+
+  // Publishing writes the set; the non-reactive getter reads exactly what was stored (the honest signal the
+  // `__orb.nav.contextTab` bridge validates a requested tab against, instead of a false `ok`).
+  await probe.getByRole("button", { name: "publish context tabs" }).click();
+  await expect(probe.getByText("ctxTabIds=runs,setup,versions")).toBeVisible();
+});
+
 test("revealContextPanel dual-writes: contextTab + openOverlayPanel + the CONTEXT panel dock", async ({ mount }) => {
   const probe = await mount(<ShellStoreProbe />);
   const state = probe.locator("output");

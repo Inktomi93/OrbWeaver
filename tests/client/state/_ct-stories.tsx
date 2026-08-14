@@ -34,6 +34,7 @@ import {
   closeModal,
   cycleTagFilter,
   enterCreatedChat,
+  getAvailableContextTabIds,
   goToCollection,
   goToLanding,
   isCommitted,
@@ -41,6 +42,7 @@ import {
   openModal,
   openNewChatPicker,
   openSettingsTo,
+  publishContextTabIds,
   readComposerDraft,
   reportSectionSaveStatus,
   requestComposerFocus,
@@ -235,11 +237,25 @@ function ShellStoreProbeBody(): ReactElement {
   // The ONE focus flag (item 20) — the probe prints it BESIDE the raw overrides so a CT can assert the two
   // never disagree, and that focus mode never writes into the overrides it is hiding.
   const focus = useFocusMode();
+  // The context-tab REGISTRY the mounted surface publishes for the dev bridge — read back through the
+  // non-reactive getter right after a publish, so a CT proves the store held what was written. A `p`, not
+  // the `<output>` line, so the exact-text layout assertions above are untouched.
+  const [ctxTabIds, setCtxTabIds] = useState("unread");
   return (
     <div>
       <output>
         {`section=${section} list=${list} context=${context} modal=${modal ?? "none"} docked=${docked} settingsTarget=${settingsTarget ?? "none"} contextTab=${contextTab ?? "none"} openOverlayPanel=${openOverlayPanel ?? "none"} narrowViewport=${narrowViewport} focus=${focus}`}
       </output>
+      <p>{`ctxTabIds=${ctxTabIds}`}</p>
+      <button
+        type="button"
+        onClick={(): void => {
+          publishContextTabIds(["runs", "setup", "versions"]);
+          setCtxTabIds(getAvailableContextTabIds().join(","));
+        }}
+      >
+        publish context tabs
+      </button>
       <button type="button" onClick={(): void => setActiveSection("corpus")}>
         go corpus
       </button>
