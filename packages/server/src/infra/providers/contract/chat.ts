@@ -153,6 +153,13 @@ export type AgentSdkChatRequest = ChatRequest & { readonly api: "agent-sdk" };
 export type OpenRouterChatRequest = ChatRequest & {
   readonly api: "chat-completions" | "responses";
 };
+/** vLLM serves the HISTORY wire only — the `agent-sdk` arm is excluded from the TYPE (its loopback skin was
+ *  retired 2026-07-27 and `roles/dispatch.ts` fail-closes the pairing), so the surface has no unreachable
+ *  runtime branch to carry. Structurally identical to {@link OpenRouterChatRequest} today and deliberately
+ *  NOT an alias of it: the two backends narrow for different reasons and will diverge independently. */
+export type VllmChatRequest = ChatRequest & {
+  readonly api: "chat-completions" | "responses";
+};
 
 /** Normalized cross-backend "why did generation stop?" vocab. Raw value rides on `ChatResult.stopReason` as provenance. */
 export const NORMALIZED_FINISH_REASONS = ["stop", "length", "filter", "tool", "other"] as const;

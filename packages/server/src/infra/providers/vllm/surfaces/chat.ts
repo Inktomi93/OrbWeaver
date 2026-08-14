@@ -20,8 +20,7 @@ import {
   reduceChatCompletionStream,
   turnAbortSignal,
 } from "../../backends/kit/index.ts";
-import type { ChatHistoryMessage, ChatRequest, ChatResult, HistoryRole, ResponseFormat, WireCaptureSink } from "../../contract/index.ts";
-import { ProviderError } from "../../contract/index.ts";
+import type { ChatHistoryMessage, ChatResult, HistoryRole, ResponseFormat, VllmChatRequest, WireCaptureSink } from "../../contract/index.ts";
 import type { VllmEngineClient } from "../engine/index.ts";
 
 // Qwen3-VL-8B-Instruct card default applied when the preset is silent (not in generation_config.json). The
@@ -32,6 +31,16 @@ import type { VllmEngineClient } from "../engine/index.ts";
 // disagrees with the env floor is a second home for the same value waiting to be read as authoritative.
 // Qwen's card gives presence_penalty 0.0 for both thinking modes; 1.5 is its non-thinking number.
 const CARD_DEFAULT_PRESENCE_PENALTY = 0.0;
+
+// The repetition_penalty applied when the preset is silent AND compose didn't inject the resolved getter
+// (tests only — compose always injects `deps.genRepetitionPenalty`, engineLaunch.genRepetitionPenalty =
+// VLLM_GEN_REPETITION_PENALTY ⊕ AppSettings). 1.0 = NO penalty, which is what every Qwen checkpoint we serve
+// ships in its own generation_config.json — so the fallback is a no-op multiplier, never a second opinion
+// about the model's sampling. This value USED to be baked into the serve command as
+// `--override-generation-config` because the retired agent-sdk /v1/messages wire carried no per-request
+// sampler; that wire is gone (dispatch.ts rejects agent-sdk×vllm), every surviving surface carries samplers
+// per request, and a launch bake silently outranked the checkpoint's own config on EVERY request.
+const CARD_DEFAULT_REPETITION_PENALTY = 1.0;
 
 const CHAT_PATH = "/v1/chat/completions";
 
@@ -44,9 +53,11 @@ export interface VllmChatDeps {
   /** Live getter for the per-request presence-penalty default applied when a preset is silent (item 7). Read
    *  per request so an admin retune applies immediately. Absent ⇒ the card-default fallback. */
   readonly genPresencePenalty?: (() => number) | undefined;
+  /** Live getter for the per-request repetition-penalty default applied when a preset is silent. Same shape
+   *  and same reason as {@link VllmChatDeps.genPresencePenalty}: read per request so an admin retune applies
+   *  immediately, with NO engine restart (this default used to be a launch flag). Absent ⇒ the 1.0 no-op. */
+  readonly genRepetitionPenalty?: (() => number) | undefined;
 }
-
-type VllmChatTurn = ChatRequest & { readonly api: "chat-completions" | "responses" };
 
 interface WireMessage {
   readonly role: HistoryRole | "system";
@@ -95,7 +106,7 @@ function wireTurnMessage(turn: ChatHistoryMessage): WireMessage | null {
   };
 }
 
-function toMessages(req: VllmChatTurn): WireMessage[] {
+function toMessages(req: VllmChatRequest): WireMessage[] {
   const system = [req.systemPrompt.static, req.systemPrompt.dynamic].filter((s) => s.trim().length > 0).join("\n\n");
   const history: WireMessage[] = [];
   for (const turn of req.history) {
@@ -111,15 +122,23 @@ function toMessages(req: VllmChatTurn): WireMessage[] {
   return system.length > 0 ? [{ role: "system", content: system }, ...history] : history;
 }
 
-function buildBody(req: VllmChatTurn, presencePenaltyDefault: number): Record<string, unknown> {
+/** The admin-tier sampler defaults that fill a PRESET-SILENT request (engineLaunch.gen*Penalty, resolved per
+ *  request by the caller). A preset value always wins — these only reach the wire when the preset said
+ *  nothing, which is the whole reason they are not baked into the serve command. */
+interface SamplerDefaults {
+  readonly presencePenalty: number;
+  readonly repetitionPenalty: number;
+}
+
+function buildBody(req: VllmChatRequest, defaults: SamplerDefaults): Record<string, unknown> {
   const p = req.params;
   const sampling = buildOpenAiSamplingFields({
     temperature: p.temperature,
     topP: p.topP,
     topK: p.topK,
     frequencyPenalty: p.frequencyPenalty,
-    presencePenalty: p.presencePenalty ?? presencePenaltyDefault,
-    repetitionPenalty: p.repetitionPenalty,
+    presencePenalty: p.presencePenalty ?? defaults.presencePenalty,
+    repetitionPenalty: p.repetitionPenalty ?? defaults.repetitionPenalty,
     minP: p.minP,
     topA: p.topA,
     seed: p.seed,
@@ -200,16 +219,8 @@ async function* toChunks(raw: AsyncIterable<unknown>): AsyncGenerator<ChatComple
   }
 }
 
-export function createVllmChat(deps: VllmChatDeps): (req: ChatRequest) => Promise<ChatResult> {
+export function createVllmChat(deps: VllmChatDeps): (req: VllmChatRequest) => Promise<ChatResult> {
   return async (req) => {
-    if (req.api === "agent-sdk") {
-      throw new ProviderError({
-        kind: "invalid",
-        retryable: false,
-        message: `vllm chat surface does not serve the "${req.api}" api`,
-      });
-    }
-    const turn: VllmChatTurn = req;
     const startedAt = deps.now();
     // A rolling idle timeout so a stalled loopback socket can't pin the chat slot forever.
     const { signal, reset, dispose } = turnAbortSignal(req.signal, IDLE_TIMEOUT_MS);
@@ -224,7 +235,10 @@ export function createVllmChat(deps: VllmChatDeps): (req: ChatRequest) => Promis
     };
 
     try {
-      const wireBody = buildBody(turn, deps.genPresencePenalty?.() ?? CARD_DEFAULT_PRESENCE_PENALTY);
+      const wireBody = buildBody(req, {
+        presencePenalty: deps.genPresencePenalty?.() ?? CARD_DEFAULT_PRESENCE_PENALTY,
+        repetitionPenalty: deps.genRepetitionPenalty?.() ?? CARD_DEFAULT_REPETITION_PENALTY,
+      });
       // TASK-24: capture the LITERAL openai-compat body right before it goes on the wire (the harness reads
       // this to prove the FE setting propagated truthfully into the real bytes). Only fires when compose
       // wired a sink (capture enabled); otherwise absent → zero cost.

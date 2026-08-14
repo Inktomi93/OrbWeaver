@@ -36,8 +36,8 @@ import type { RpgTraceEvent, RpgTraceSink } from "@orb/server/domain/rpg";
 import { createRpgTraceRecorder } from "@orb/server/domain/rpg";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { logger, recentWireCaptures, recordWireCapture, resetWireCaptures } from "@orb/server/foundation/observability";
-import type { ChatResult } from "@orb/server/infra/providers";
-import { createVllmChat } from "@orb/server/infra/providers/vllm";
+import type { ChatRequest, ChatResult } from "@orb/server/infra/providers";
+import { createVllmChat, toVllmChatRequest } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
@@ -435,6 +435,18 @@ function toolRoundEngineClient(): VllmEngineClient {
   };
 }
 
+/** The REAL vLLM chat arm behind the composition seam: the surface takes only the history-wire arm
+ *  ({@link VllmChatRequest}), so a whole-union `runChatTurn` slot crosses `toVllmChatRequest` — exactly what
+ *  `createVllmBackend` does. Wire capture is the real ring sink, as `createServices` wires it. */
+function vllmChatArm(): (req: ChatRequest) => Promise<ChatResult> {
+  const surface = createVllmChat({
+    client: toolRoundEngineClient(),
+    now: () => FROZEN_AT,
+    captureWire: (entry) => recordWireCapture({ ...entry, at: FROZEN_AT }),
+  });
+  return async (req) => await surface(toVllmChatRequest(req));
+}
+
 /** The tool NAMES on a captured openai-compat body (`tools[].function.name`). */
 function capturedToolNames(body: Record<string, unknown>): string[] {
   const tools = (body["tools"] as readonly { function?: { name?: string } }[] | undefined) ?? [];
@@ -451,14 +463,10 @@ test("WIRE-SINK: the dedicated tool round's request lands in the wire ring UNDER
     api: "chat-completions",
     spy,
     cannedText: "{}",
-    // The REAL surface, wired with the REAL ring sink exactly as `createServices` wires it when capture is on.
-    chatArm: createVllmChat({
-      client: toolRoundEngineClient(),
-      now: () => FROZEN_AT,
-      // The sink `createServices` injects, verbatim in shape: the boundary hands the entry, the sink stamps
-      // `at` from the injected clock and forwards to the process ring.
-      captureWire: (entry) => recordWireCapture({ ...entry, at: FROZEN_AT }),
-    }),
+    // The REAL surface, wired with the REAL ring sink exactly as `createServices` wires it when capture is on
+    // — including `toVllmChatRequest`, the production api-narrowing seam `createVllmBackend` binds (the surface
+    // itself takes only the history-wire arm).
+    chatArm: vllmChatArm(),
   });
 
   await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
