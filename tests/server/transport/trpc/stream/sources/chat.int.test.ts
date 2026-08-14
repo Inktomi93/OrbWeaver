@@ -15,7 +15,7 @@
 import type { ChatBusEvent, DurableChatBusEvent, JoinHistoryVisibility } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { Db } from "@orb/db";
-import { chatParticipants } from "@orb/db";
+import { chatParticipants, chats } from "@orb/db";
 import type { ChatId, ChatParticipantId, Handle, MessageId, SocketId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { publishChatEvent } from "@orb/server/transport/trpc";
@@ -515,5 +515,45 @@ describe("the chat room — the LIVE-ONLY lane (durable-append-free fan)", () =>
     // queues `return()` BEHIND an outstanding `next()`, and this one is outstanding forever precisely
     // because the gate withheld the frame. Awaiting it deadlocks the test (measured: a 5s timeout).
     void memberIt.return?.(undefined);
+  });
+
+  // ── F-A: `chatDeleted` is the ONE gate-free member (design §4) ────────────────────────────────────────
+  //
+  // R1-4a is closed by fanning the room's death AFTER `DELETE … RETURNING` proves it happened — which means
+  // the fan lands when the `chats` row is already gone. At that instant the pump's per-yield probe
+  // (`chatEventBounds`) can only answer NOT_FOUND, for EVERYONE: the host, every member, the lot. Run
+  // through the ordinary gate, the death notice would therefore be withheld from every subscriber and every
+  // open device would sit pointed at a chat that no longer exists. So this member bypasses the gate.
+  //
+  // The audience that WIDENS is exactly one party — a member kicked while still attached — and the pin below
+  // makes that deliberate rather than incidental: it is the SAME room, the SAME still-attached kicked member,
+  // and the SAME publish shape as the withhold case directly above, differing only in the event type. One
+  // bit ("the room died"), no bytes, for a chat id they already hold.
+  test("F-A: a chatDeleted published AFTER the row is gone reaches a KICKED-but-attached member — the gate-free death notice", async () => {
+    const host = await seedUser(db, castId<Handle>("del_host"));
+    const kicked = await seedUser(db, castId<Handle>("del_member"));
+    const chatId: ChatId = await seedChat(db, "del_room");
+    await seedParticipant(db, { chatId, key: "del_h", userId: host, role: "host" });
+    await seedParticipant(db, { chatId, key: "del_m", userId: kicked, role: "member" });
+
+    const read = createRead(makeChatContext(db), readDeps());
+    const memberIt = await openChatRoom(read, kicked, chatId);
+    expect(dataOf(await memberIt.next()).type).toBe("chatOpened");
+
+    // The kick lands, and THEN the room is deleted — the two conditions that each independently make the
+    // member probe answer NOT_FOUND. Their socket is still attached through both.
+    await db
+      .update(chatParticipants)
+      .set({ leftSeq: 1 })
+      .where(eq(chatParticipants.id, castId<ChatParticipantId>("chat_participant_del_m")));
+    const pending = memberIt.next();
+    await db.delete(chats).where(eq(chats.id, chatId));
+
+    // The fan the lifecycle verb performs after `RETURNING`: live-only, no durable row (there is no chat row
+    // left to FK to, which is the whole reason the durable form had to go).
+    publishChatEvent({ seq: null, event: { type: "chatDeleted", chatId } });
+
+    expect(dataOf(await pending)).toEqual({ type: "chatDeleted", chatId });
+    await memberIt.return?.(undefined);
   });
 });

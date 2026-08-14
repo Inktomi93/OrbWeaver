@@ -34,7 +34,7 @@ import type { TagContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { ImportStandaloneLorebook, WorldInfoExportContext } from "#domain/world-info";
 import { stageDirectory } from "#infra/storage";
-import { publishChatChanged, publishUserEvent, withQuietUserEvents } from "../../transport/trpc/index.ts";
+import { publishChatChanged, publishUserEvent, withQuietBulkFanout } from "../../transport/trpc/index.ts";
 import { writeImportReport } from "../import/import-report.ts";
 import type { ImportWorldInfoPort } from "../import/index.ts";
 import {
@@ -183,7 +183,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
     // `emitLibraryChanged` deliberately stays OUTSIDE these scopes — it fires after the runner returns, from
     // the workload contribution's settle step, and it is the belt that covers a run which wrote canon.
     runProfileDirImport: async ({ profileRoot, ownerId, dryRun, signal }) =>
-      await withQuietUserEvents(async () => {
+      await withQuietBulkFanout(async () => {
         const principal = await deps.resolveOwnerPrincipal(ownerId);
         const report = await runProfileDirImport({
           fs,
@@ -214,7 +214,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
         return { scanned: report.scanned, changed: report.changed, failed: report.skippedCards.length, ...(reportPath !== undefined ? { reportPath } : {}) };
       }),
     runBundleImport: async ({ archive, ownerId, stagingRoot: root, signal }) =>
-      await withQuietUserEvents(async () => {
+      await withQuietBulkFanout(async () => {
         const report = await runBundleImport({
           registry: portability,
           ownerId,
@@ -225,7 +225,7 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
         return { imported: report.imported, skipped: report.skipped, failed: report.failed };
       }),
     runStagedDirImport: async ({ stagedPath, ownerId, signal }) =>
-      await withQuietUserEvents(async () => {
+      await withQuietBulkFanout(async () => {
         const report = await importStagedArchive({ registry: portability, ownerId, staged: await stageDirectory(stagedPath), signal });
         return { imported: report.imported, skipped: report.skipped, failed: report.failed };
       }),

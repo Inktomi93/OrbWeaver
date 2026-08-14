@@ -30,11 +30,11 @@ describe("createChatBus.emit — durable-first + the replay ring", () => {
     const bus = createChatBus(makeChatContext(db));
 
     await bus.emit({ type: "chatUpdated", chatId });
-    await bus.emit({ type: "chatDeleted", chatId });
+    await bus.emit({ type: "chatCreated", chatId });
 
     const rows = await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId)).orderBy(asc(chatEvents.seq));
     expect(rows.map((r) => r.seq)).toEqual([1, 2]);
-    expect(rows.map((r) => r.type)).toEqual(["chatUpdated", "chatDeleted"]);
+    expect(rows.map((r) => r.type)).toEqual(["chatUpdated", "chatCreated"]);
     // The full room-public event is persisted as the payload (the replay carrier).
     expect(rows[0]?.payload).toEqual({ type: "chatUpdated", chatId });
   });
@@ -56,14 +56,14 @@ describe("createChatBus.emit — durable-first + the replay ring", () => {
     const bus = createChatBus(makeChatContext(db));
 
     await bus.emit({ type: "chatUpdated", chatId });
-    await bus.emit({ type: "chatDeleted", chatId });
+    await bus.emit({ type: "chatCreated", chatId });
 
     expect(bus.readRing(chatId)).toEqual([
       { seq: 1, event: { type: "chatUpdated", chatId } },
-      { seq: 2, event: { type: "chatDeleted", chatId } },
+      { seq: 2, event: { type: "chatCreated", chatId } },
     ]);
     // The late-subscriber ramp-up: resume strictly after seq 1.
-    expect(bus.readRing(chatId, 1)).toEqual([{ seq: 2, event: { type: "chatDeleted", chatId } }]);
+    expect(bus.readRing(chatId, 1)).toEqual([{ seq: 2, event: { type: "chatCreated", chatId } }]);
     // An empty ring for an unknown chat is not an error.
     expect(bus.readRing(await seedChat(db, "z"))).toEqual([]);
   });

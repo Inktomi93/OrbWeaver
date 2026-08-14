@@ -318,6 +318,14 @@ export type ChatBusEvent =
   // ── World-info attachment changes (chat-surface only; embedded from #world-info) ──
   | WiBusEvent
   | { type: "chatCreated"; chatId: ChatId }
+  // ── The room DIED. LIVE-ONLY (see LIVE_ONLY_CHAT_EVENT_TYPES), and it is the one member for which that
+  //    lane is not an optimisation but the only correct shape: `chat_events.chat_id` FKs to `chats` with
+  //    ON DELETE CASCADE, so a durable `chatDeleted` row either FK-fails (appended after the delete) or is
+  //    cascaded away by the very delete it announces — no `chatDeleted` was EVER replayable. Being
+  //    append-free is what lets both delete paths run the DELETE FIRST and fan only on `RETURNING` rows,
+  //    which CLOSES the R1-4a false-emit (a raced reap used to announce the death of a room that survived)
+  //    rather than narrowing it. Owner fork F-A: the pump delivers this one GATE-FREE to every attached
+  //    subscriber, because after the row is gone the member probe can only answer "not a member".
   | { type: "chatDeleted"; chatId: ChatId }
   // ── Chat session open (subscription-synthesized at participant stream-attach, like `historyTruncated`;
   //    per-viewer, NOT a canon mutation, never logged — the ST CHAT_CHANGED automation trigger: "on chat
@@ -390,9 +398,14 @@ export function isChatBusEventType(t: string): t is ChatBusEvent["type"] {
  *  the heal is the attach synthesis), and a mandatory seat in the client's `NON_DURABLE_EXEMPT` set (a
  *  non-advancing seq is dropped by the seq guard otherwise).
  *
- *  `chatDeleted` is the NEXT member (design §4 / R1-4a — it is unreplayable by construction, the row delete
- *  cascades its own `chat_events` away), and it lands with the delete-first reorder that needs it, not here. */
-export const LIVE_ONLY_CHAT_EVENT_TYPES = ["roomEntityChanged"] as const;
+ *  THE TWO MEMBERS JOIN FOR DIFFERENT REASONS, and both are stated so a third is classified rather than
+ *  guessed: `roomEntityChanged` is live-only as an ECONOMY (a durable row per seated room per card edit buys
+ *  nothing — the heal is the attach synthesis); `chatDeleted` is live-only by PHYSICS (its log row cascades
+ *  away with the very chat it announces, so it was never replayable at all — design §4 / R1-4a), and being
+ *  append-free is precisely what lets its two producers DELETE FIRST and fan only what `RETURNING` proves
+ *  gone. Only `roomEntityChanged` is quiet-coalescable (`transport/trpc/quiet-fanout.ts`): a room death is
+ *  one terminal event per room, never a storm, and silencing it would strand an open room on a dead chat. */
+export const LIVE_ONLY_CHAT_EVENT_TYPES = ["roomEntityChanged", "chatDeleted"] as const;
 export type LiveOnlyChatEventType = (typeof LIVE_ONLY_CHAT_EVENT_TYPES)[number];
 
 /** A `ChatBusEvent` that MAY be appended to the durable `chat_events` log — the union minus the live-only

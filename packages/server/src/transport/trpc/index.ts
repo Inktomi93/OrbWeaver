@@ -11,6 +11,7 @@ export { classifyDomainError, domainReason } from "./error-mapping.ts";
 export { publishNotification } from "./notifications-bus.ts";
 export type { PresenceRegistry } from "./presence-registry.ts";
 export { createPresenceRegistry } from "./presence-registry.ts";
+export { silenceRoomEntityFan, withQuietBulkFanout } from "./quiet-fanout.ts";
 export type { AppRouter } from "./router.ts";
 export { appRouter, createCaller } from "./router.ts";
 export type { FrameQueue } from "./stream/frame-queue.ts";
@@ -21,4 +22,4 @@ export type { SocketCell, SocketListener, SocketRegistry, SocketRoom } from "./s
 export { createSocketRegistry, ROOMS_PER_SOCKET, SOCKET_REAP_MS, SOCKETS_PER_USER } from "./stream/socket-registry.ts";
 export type { SubscriptionErrorFrame } from "./subscriptions.ts";
 export { withSubscriptionErrors } from "./subscriptions.ts";
-export { publishChatChanged, publishUserEvent, subscribeUserEvents, withQuietUserEvents } from "./user-events-bus.ts";
+export { publishChatChanged, publishUserEvent, subscribeUserEvents } from "./user-events-bus.ts";

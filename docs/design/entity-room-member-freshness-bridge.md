@@ -296,15 +296,25 @@ re-import touching N seated entities fans N×rooms `roomEntityChanged`, and each
 cancels+restarts in-flight member refetches (`invalidation.ts:66`) — the same storm W8 contained on the
 user plane (`user-events-bus.ts:23-29`).
 
-Mechanics: `QuietScope` (currently user-pair-keyed, `user-events-bus.ts:52-59`) generalizes into one
+Mechanics: `QuietScope` (was user-pair-keyed, `user-events-bus.ts:52-59`) generalizes into one
 transport module (`transport/trpc/quiet-fanout.ts`) carrying a second map keyed `(chatId, entity)`.
 `emitChatEventLive` (only the `roomEntityChanged` member — never `chatDeleted`) consults it: first fan
 per pair passes (start marker), later fans silenced, one coarse terminal per silenced pair from the
 `finally`. AsyncLocalStorage propagation holds: the domain-event dispatch runs inside the emitting
 request's async context (`event-bus.ts:34-38` — `emit` is called synchronously by the verb;
-`void dispatch(…)` captures the ambient context), so a bulk run under `withQuietUserEvents` covers the
-bridge with no new plumbing at the call sites (`portability-runner.ts:186,217,228` unchanged). The
-export keeps its name unless the owner wants the rename (fork F-G).
+`void dispatch(…)` captures the ambient context), so a bulk run covers the bridge with no new plumbing
+at the call sites (`portability-runner.ts:186,217,228` re-pointed at the new name, nothing else).
+
+**BUILT (LANE 2, 2026-08-14) — two as-built deltas.** F-G is RULED and DONE: the export is
+`withQuietBulkFanout` (this section's original "keeps its name unless the owner wants the rename" is
+superseded). And the terminal is a CALLER-SUPPLIED THUNK rather than a coarse-form lookup the coalescer
+performs: a module that published would have to import `user-events-bus` (which imports IT) and
+`chat-events-bus`, so each plane hands in its own terminal — which also lets each state its own terminal
+FORM (the user plane's is `COARSE_USER_BUS_EVENT[type]`; the room plane's is the event verbatim, because
+a `roomEntityChanged` is already id-free and therefore already its own coarse form). Which members are
+coalescable is a `satisfies Record<LiveOnlyChatEventType, boolean>` at the emit surface, so a THIRD
+live-only member fails tsc until someone decides — `chatDeleted` is `false` there (a terminal, not churn:
+silencing even its first tick would strand an open device on a dead room).
 
 ## 6. Cost summary
 
