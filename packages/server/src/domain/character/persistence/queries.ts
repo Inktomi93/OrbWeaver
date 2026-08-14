@@ -18,6 +18,7 @@ import { and, asc, count, desc, eq, exists, gt, inArray, isNull, lt, not, or, sq
 import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
 import { AssetNotFoundError } from "../contract/errors.ts";
+import type { CharacterListFilter } from "../contract/params.ts";
 import type { SnapshotSummary } from "../contract/results.ts";
 import type { CharacterDetail, CharacterSummary } from "../contract/views.ts";
 
@@ -88,22 +89,6 @@ export async function loadOwnedCharacterWithAvatar(db: Db, ownerId: UserId, char
     .where(and(eq(characters.id, characterId), eq(characters.ownerId, ownerId)))
     .limit(LIMIT_ONE);
   return rows[0];
-}
-
-/** The library list's LENS axes — every narrowing the toolbar offers, as SQL predicates over the same scope
- *  the page windows and the census counts (owner ruling 2026-08-13; the `MemberChatFilter` precedent in
- *  `domain/chat/persistence/queries.ts`). Exported for the ONE caller that builds it — the verb normalizes
- *  the request into this shape once and hands the SAME object to both the page read and the census.
- *
- *  `starred`/`archived` are TRI-STATE — `undefined` is unfiltered, which is what lets the four lookup-map
- *  callers keep reading the whole library while the library pane's own chips narrow it. */
-export interface CharacterListFilter {
-  /** Already trimmed + lowercased by the verb; `undefined` = the unsearched list. */
-  readonly search?: string | undefined;
-  readonly starred?: boolean | undefined;
-  readonly archived?: boolean | undefined;
-  readonly includeTagIds?: readonly TagId[] | undefined;
-  readonly excludeTagIds?: readonly TagId[] | undefined;
 }
 
 interface ListOwnedPageInput extends CharacterListFilter {
