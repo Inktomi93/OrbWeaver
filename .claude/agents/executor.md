@@ -4,7 +4,6 @@ description: Implementation requiring judgment in the orbweaver repo — feature
 model: opus
 effort: medium
 permissionMode: acceptEdits
-maxTurns: 80
 color: blue
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage
 ---

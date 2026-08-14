@@ -4,7 +4,6 @@ description: Mechanical execution of FULLY-SPECIFIED work in the orbweaver repo 
 model: sonnet
 effort: low
 permissionMode: acceptEdits
-maxTurns: 80
 color: green
 tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage
 ---

@@ -3,7 +3,6 @@ name: verifier
 description: Fresh-context adversarial CODE-CORRECTNESS verification of completed orbweaver work — logic, tests, edge cases, trust boundaries, the seam between changed and unchanged code. This is the CODE lens; side-eye is the separate UX / visual / a11y lens (route anything users SEE to side-eye instead, or in addition). Use after any non-trivial change, before reporting it done: give it the claimed outcome and the diff/paths. Returns CONFIRMED or REFUTED with evidence. Read-and-run only — it never fixes what it finds.
 model: opus
 effort: medium
-maxTurns: 25
 memory: project
 color: yellow
 tools: Read, Grep, Glob, Bash
