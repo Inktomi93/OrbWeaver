@@ -428,8 +428,20 @@ lanes write reviews/ by role even when the output is a spec — collection-contr
 config-rail contract law) — every future design sweep covers both dirs; briefs name docs/design as
 the deliverable path for design-shaped outputs.
 
-- [ ] **SHAPE-CHURN — PROBED (owner: probe-first), then RULED: one seal lane builds M5+M1 (LANE
-  RUNNING).** §5 probe results merged: **M5 NEW + the best symptom match** — the code-block
+- [x] **SHAPE-CHURN — M5 + M1 BOTH FIXED + MERGED (`f24abd1cb`; doc §6 carries the source-pinned
+  mechanism).** M5's real cause: Streamdown ships the code-block container with INLINE
+  `content-visibility:auto` + `contain-intrinsic-size:auto 200px` — the browser SKIPS the first
+  layout and births the box at 202px from the hint, real layout one frame later = the 94px snap
+  (both §5 leads dead: shiki was coincident cost, the dead utilities only set 202-vs-218). Fix =
+  `content-visibility:visible !important` in globals.css (the component forwards no style/className
+  — CSS is the only seam), global not ghost-scoped (also kills the scroll-in snap on settled
+  blocks), cost priced (transcript not virtualized, MAX\_RENDER\_LENGTH already bounds). M1 =
+  `holdAmbiguousTail` prefix-truncation pre-pass, streaming-only, remend untouched, head-block
+  UL→P covered free; red-first defect proof + honest fences-vs-proofs labeling; 169 CT + 59 unit
+  green. RESIDUAL: M4 still unmeasured (needs a reasoning connection) · M3 cadence = owner call ·
+  live §4 re-shoot post-merge worth one snap · **:5173 may serve the STALE prebundle until a
+  client .vite clear + stack bounce (new module inside @orb/ui — the nearestRayHit class); bounce
+  is owner-timed, he is mid-drive.** Original probed row: §5 probe results merged: **M5 NEW + the best symptom match** — the code-block
   container is born 202px and snaps to 108px (−94px) in 20-100ms, 5/5 runs at exactly those values,
   children byte-identical (the churn is the container's OWN box; leads: shiki 254ms long frame in
   the window · Streamdown's `.my-4`/`.h-8`/`.p-1`/`.rounded-lg` DEAD in our CSS). **M1 confirmed**,
