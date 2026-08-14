@@ -6,14 +6,11 @@
 // Authority: title/star/archive/delete + injection write/delete → host; variables + injection list →
 // member; `reapTemporaryChats` is per-user maintenance (non-chat-scoped); `reapHusk` is host-only.
 //
-// ⚠ DELETE-FIRST IS THE LAW HERE, AND IT IS THE ONE THING THIS FILE GOT WRONG FOR A WHOLE ERA (R1-4a,
-// closed 2026-08-14 — design §4). All three removing verbs used to EMIT `chatDeleted` and THEN delete,
-// because a durable append after the row is gone FK-fails and the total bus refuses to fan an unlogged
-// event. That ordering was forced, and it left a FALSE-EMIT window: a conditional delete that declines
-// (a husk claimed under the reaper, a room that stopped qualifying) had already announced its own death,
-// bouncing every open device to landing on a room that survives. The window is now GONE, not narrowed:
+// ⚠ DELETE-FIRST IS THE LAW HERE. Emitting `chatDeleted` BEFORE the delete would open a FALSE-EMIT window:
+// a conditional delete that declines (a husk claimed under the reaper, a room that stopped qualifying)
+// would have already announced its own death, bouncing every open device onto a room that survives.
 // `chatDeleted` is a LIVE-ONLY bus member (`LIVE_ONLY_CHAT_EVENT_TYPES`), which writes no `chat_events`
-// row — so there is no FK to lose and nothing to append. Every removing verb therefore runs
+// row — so there is no FK to lose and nothing to append ahead of the delete. Every removing verb therefore runs
 //   DELETE … RETURNING  →  fan `emitLive` for exactly the rows that came back.
 // The emits-precede-deletes rule survives INVERTED, not repealed: the fan must not be droppable by the
 // delete's own success path, so it is unconditional over `RETURNING` and never nested in a later branch.

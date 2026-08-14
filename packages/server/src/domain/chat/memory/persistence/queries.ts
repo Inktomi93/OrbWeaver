@@ -28,21 +28,20 @@ export async function loadChatMeta(db: Db, chatId: ChatId): Promise<{ maxSeq: nu
  *  oldest→newest, projected to {@link MsgRow}. The build slices this into fixed `blockSize` blocks.
  *  `throughSeq` is the aged-out cutoff (`maxSeq − verbatimWindow`) — the protected tip is never read here.
  *
- *  THIS LOAD IS THE ONE INGEST DISPATCH (stickler 2026-08-08 §11 / F-A). Everything derived from memory —
+ *  THIS LOAD IS THE ONE INGEST DISPATCH. Everything derived from memory —
  *  digests, segments, the speaker joins, and therefore `{{memory}}` recall — comes through here, so the three
  *  exclusions live at this single site rather than N knob-reads downstream:
  *
- *   1. `excludedFromPrompt` rows are DROPPED. Until 2026-08-07 they were not, and that was a live leak, not a
- *      nicety: a row the host had hidden FROM THE PROMPT was digested anyway, and recall could re-surface its
- *      content into the very prompt it was held out of. Compaction has filtered these since it shipped
- *      (`verbs/compaction.ts` — its marker is member-peekable, same reasoning); the owner ruled the two must
- *      agree (2026-08-07: hidden means hidden EVERYWHERE derived).
+ *   1. `excludedFromPrompt` rows are DROPPED — a row the host has hidden FROM THE PROMPT must not be digested,
+ *      or recall could re-surface its content into the very prompt it was held out of. Compaction filters
+ *      these too (`verbs/compaction.ts` — its marker is member-peekable, same reasoning); hidden means hidden
+ *      EVERYWHERE derived.
  *   2. HIDDEN-CLASS SPANS are stripped from each body via `projectBodyForSummary` — the same summary-plane
  *      projection compaction applies. A digest is a durable artifact whose text lands in a shared prompt, so
  *      folding a `<lie>`'s covered truth into it re-opens the D110 §3.6 class. Cards collapse to their stub in
  *      the same pass, which the summarizer wanted anyway (it never ate the multi-KB blob).
  *      A row that is ENTIRELY hidden-class projects to an EMPTY body and is DELIBERATELY KEPT rather than
- *      dropped (decided 2026-08-07, on a review finding). It costs one labelled-but-empty line in the
+ *      dropped. It costs one labelled-but-empty line in the
  *      summarizer input; dropping it would cost block-position STABILITY, which is far more expensive than
  *      the noise: `blockIdx` is the storage key, so removing a row mid-history re-slices every block after it,
  *      changing every downstream hash and re-summarizing the rest of the chat — and, now that a shrink is
@@ -52,9 +51,8 @@ export async function loadChatMeta(db: Db, chatId: ChatId): Promise<{ maxSeq: nu
  *      (`MEMORY_INGEST_KINDS`) rather than re-spelled: `standard`/`narrator` are story canon (a narrator
  *      recap is precisely what a digest wants), an OOC `comment` is not story.
  *
- *  TRUTH-REPAIR (2026-08-07, a fresh-lens refutation of this comment's own prior claim). It used to say "the
- *  staleness machinery needs no help with any of this: hiding a row changes the block's content, so
- *  `blockHash` changes, so the block re-digests". That is true for a block that still EXISTS and FALSE for a
+ *  THE STALENESS MACHINERY DOES NOT COVER A VANISHING BLOCK. "Hiding a row changes the block's content, so
+ *  `blockHash` changes, so the block re-digests" is true for a block that still EXISTS and FALSE for a
  *  block that VANISHES — which is precisely what these exclusions do at the tail. Blocks are sliced by
  *  POSITION and stored keyed `(tier, blockIdx)`; hide a trailing span and the trailing block stops being
  *  produced, no surviving block's rows move, no hash changes, and the content-hash self-heal — which can only

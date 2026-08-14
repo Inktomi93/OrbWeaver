@@ -3,7 +3,7 @@
 // logic, no cross-feature calls, no I/O beyond `db`. `chats.metadata` is read only through
 // `parseChatMetadata`. `users` is never joined here — roster name/handle resolution is a verb concern.
 //
-// AMENDED 2026-08-09 (owner ruling: chat search moves server-side). `characters` is joined by ONE predicate,
+// Chat search runs SERVER-SIDE: `characters` is joined by ONE predicate,
 // the library-list search arm (`searchPredicate`), and only as a FILTER — no name is ever selected or
 // returned from this file. That is the `persistence/cast.ts` shape, and it leaves the law above intact in
 // the sense that matters: no display-name RESOLUTION happens here, and `users` is still never joined (which
@@ -260,7 +260,7 @@ function callerHistoryFloorSql(): SQL<number> {
  *  strip a span (no regex in SQLite, and the strip is a real tokenizer — `tokenizeForHiddenScan`), so matching
  *  the visible half would mean matching the raw bytes; the honest SQL-expressible verdict is fail-CLOSED. The
  *  cost is FEWER results on exactly the rooms that run the deception grammar, never a leak — and it lands the
- *  member's search back on the 2026-08-01 ruling's own words ("the snippet the row shows"), because the snippet
+ *  member's search back onto exactly "the snippet the row shows" — the snippet
  *  a member is shown is the stripped one.
  *
  *  DERIVED FROM THE REGISTRY, not a hardcoded pair: `HIDDEN_TAGS` is the open hidden-channel registry (graft
@@ -272,8 +272,7 @@ function memberHiddenBodyGuard(): SQL | undefined {
   return or(eq(chatParticipants.role, "host"), and(...HIDDEN_TAGS.map((def) => sql`lower(${messageVariants.content}) not like ${`%<${def.tag}%`}`)));
 }
 
-/** The library-list SEARCH predicate (owner ruling 2026-08-09 — "I'm fine with a server-side message
- *  thing"), matching the 2026-08-01 semantics: the chat TITLE, a participant NAME, or the newest message's
+/** The library-list SEARCH predicate: matches the chat TITLE, a participant NAME, or the newest message's
  *  body — the snippet the row already shows, not full-transcript search.
  *
  *  TWO DEVIATIONS, both deliberate and both visible to the user as MORE results rather than fewer:
@@ -440,8 +439,8 @@ export async function loadForkChildren(db: Db, parentChatId: ChatId): Promise<Ch
  *  VISIBLE rows only: the `innerJoin` to the SELECTED variant is the visibility predicate (a slot whose
  *  selected variant was deleted has nothing to count or preview) — the same join every canon read does.
  *  D124 retired the second half of this predicate: rpg no longer mints content-less "state anchor" slots, so
- *  there is no non-message canon row left to exclude (the count inflation the owner hit on 2026-07-31 —
- *  "7 messages" over 3 real ones — is unrepresentable now, not filtered). */
+ *  there is no non-message canon row left to exclude (a count-inflation class — "7 messages" over 3 real
+ *  ones — is unrepresentable now, not filtered). */
 export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, { messageCount: number; lastMessageAt: number | null }>> {
   // @orb-gate-ignore persistence-no-in-memory-state: query-local lookup map for chat message stats
   const out = new Map<ChatId, { messageCount: number; lastMessageAt: number | null }>();

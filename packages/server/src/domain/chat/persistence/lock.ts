@@ -6,7 +6,7 @@
 // eligible. Determinism: `now`/`expiresAt` arrive as PARAMS (the verb's injected clock + the LOCK_TTL_MS it
 // owns — the TTL constant is a domain concern, not a schema one).
 //
-// Home DECIDED (PD-62, closed 2026-07-01): the old "candidate → infra" target was ILLEGAL under the
+// Home DECIDED (PD-62): the old "candidate → infra" target was ILLEGAL under the
 // `infra-no-db` dep-cruiser law (a DB-backed primitive cannot live in infra — the proof case is
 // `oidc-store.ts`, which moved OUT of infra for exactly this). The lock stays domain-local; promote to
 // `@orb/db/kit` ONLY iff a second domain ever needs a DB lock (Nate-doctrine YAGNI).

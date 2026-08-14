@@ -93,8 +93,8 @@ export interface StartChatParams extends ChatActorParams {
 export interface ListChatsParams extends ChatActorParams {
   readonly includeArchived?: boolean | undefined;
   readonly characterId?: CharacterId | undefined;
-  /** SERVER-SIDE search (owner ruling 2026-08-09). Matches the chat title, a character seat's name, or the
-   *  newest message's body — the 2026-08-01 semantics, now over the WHOLE library instead of the page the
+  /** SERVER-SIDE search. Matches the chat title, a character seat's name, or the
+   *  newest message's body, over the WHOLE library instead of the page the
    *  client happens to hold. Blank/whitespace is the unsearched list. */
   readonly search?: string | undefined;
   readonly limit?: number | undefined;
@@ -580,7 +580,7 @@ export interface SelfLeaveParams extends ChatScopedParams {}
 /** `nominateHostHandoff` — host-only, step 1 of the two-party handoff: nominates a member as the new host. */
 export interface NominateHostHandoffParams extends ChatScopedParams {
   readonly userId: UserId;
-  /** The departing host's OPT-IN property offer (stickler 2026-08-03 §5), persisted beside the nominee and
+  /** The departing host's OPT-IN property offer, persisted beside the nominee and
    *  executed at ACCEPT. Absent ⇒ no offer ⇒ the built D64 drop, byte-identical to a pre-offer handoff. */
   readonly offer?: HandoffOffer | undefined;
 }

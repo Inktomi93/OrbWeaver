@@ -1,13 +1,11 @@
-// domain/chat/engine/recover-narrative — the PROSE-LESS COMPLETION recovery pass (dogfood EMPTYGEN-REASONING,
-// owner ruling 2026-08-07: RECOVER, do not discard).
+// domain/chat/engine/recover-narrative — the PROSE-LESS COMPLETION recovery pass: RECOVER, do not discard.
 //
 // THE DEFECT. A folded rpg turn attaches the extraction tools with `tool_choice:"auto"` (D112 TERMINAL-tools)
 // and, with reasoning ON, a hosted model regularly concludes that emitting those calls DISCHARGES the beat:
 // it thinks, it calls the tools, it writes no prose. `assertGeneratedContent` then refuses the turn — correctly,
 // an empty variant is not a reply — and the whole turn is discarded, the model's good state writes with it.
 // What the operator sees is the reasoning stream rendering and then stopping dead, early, with "the model
-// returned no text". Measured live at 14.9s / 15.8s / 30.6s on both Gemini and Sonnet-5 skins; those durations
-// are the length of the REASONING PHASE, not a timeout (`backends/kit/idle-timeout.ts` is 180s and resets on
+// returned no text". The stall is the length of the REASONING PHASE, not a timeout (`backends/kit/idle-timeout.ts` is 180s and resets on
 // every received chunk — the idle-stall theory was falsified against source before this was built).
 //
 // THE RECOVERY. The tool calls are the expensive, hard-to-reproduce half of the turn and they are ALREADY

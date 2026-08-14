@@ -57,7 +57,7 @@ function quietHistory(userText: string): readonly TurnMessage[] {
  *  1024 out — a summary is not creative writing) ← the chat host's default-preset params, with the CALLER's
  *  `intent` (compaction's code-pinned low temp, sourced from `SIDE_GEN_POSTURES.compaction`) merged over the
  *  params rung. The merge — not a third ladder rung — is deliberate: the ladder carries exactly two rungs
- *  since the per-template sampling override was deleted (owner ruling 2026-08-01), and this is an
+ *  since the per-template sampling override was deleted, and this is an
  *  INTERNAL per-pass intent, never a user-facing override. The resolved sampling is spread OVER the caller's
  *  intent so its other fields (e.g. `compaction`) survive, then temperature/maxOutputTokens carry the answer. */
 function quietIntent(intent: UserIntent | undefined, chatParams: SideGenSampling): UserIntent {

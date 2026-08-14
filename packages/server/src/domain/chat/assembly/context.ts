@@ -487,8 +487,8 @@ function guidedInjectionCandidate(resolved: string, role: ChatInjection["role"],
 }
 
 /** The steer text a guided action's `{{input}}` receives: the picked Rewrite-modal toggle KINDS resolved to
- *  their prose-slot sentences and joined ahead of the host's own free text (the templating fork, ARM B —
- *  owner 2026-08-09). No picks ⇒ the free text VERBATIM, so every non-Rewrite fire and every plain steered
+ *  their prose-slot sentences and joined ahead of the host's own free text (the templating fork, ARM B).
+ *  No picks ⇒ the free text VERBATIM, so every non-Rewrite fire and every plain steered
  *  rewrite is byte-identical to the pre-fork wire.
  *
  *  The join is the SAME pure `composeRewriteSteer` the browser used to run — it moved seams, not semantics —
@@ -706,7 +706,7 @@ function depthNoteSource(contributorNames: readonly string[]): string {
 }
 
 /** The author's-note depth injections for this turn — the seated cast's card notes, and ONLY those. The
- *  per-chat author's note is NOT a second producer here (owner ruling 2026-08-01): a room-level note is a
+ *  per-chat author's note is NOT a second producer here: a room-level note is a
  *  `chat_injections` row, which reaches this same list through `userInjections` on the identical at-depth
  *  splice. `authorsNoteSource` therefore names card contributors or is absent. */
 function authorsNoteCandidates(
@@ -803,7 +803,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   // disjoint sets, never a cascade). USER = the room host's app-tier overrides, resolved from the chatId
   // rather than the input literal so the ~50 hand-built assemble inputs stay honest (a caller cannot forget
   // it, and a hostless room degrades to `{}`). PRESET = the resolved preset's own blob, which is where the
-  // turn-wire FRAMINGS live since the 2026-08-07 ruling. Both absent ⇒ the shipped defaults, byte-identical.
+  // turn-wire FRAMINGS live. Both absent ⇒ the shipped defaults, byte-identical.
   const prose = composeProse({ user: await ctx.resolveChatProse(input.chatId), preset: input.promptConfig.prose });
 
   // ── GATHER — the 4-scope WI pool (memory/recall/vars are engine-supplied inputs). ──

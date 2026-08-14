@@ -83,7 +83,7 @@ type TemplatedMarkerSection = Extract<MarkerSection, { marker: keyof typeof DEFA
  * The `main_prompt` DEFAULT is MODE-AWARE, and this is its ONE resolution home. A narrator round is one
  * generation voicing the whole cast, so the per-speaker default — `You are {{char}} … write {{char}}'s perspective only`,
  * with `{{char}}` bound to the JOINED cast on that arm — instructs the model to do something the round
- * cannot do; the 2026-08-07 live drive read it back as "write Charlotte, JFC's perspective only". Keyed on `speaker.kind === "cast"`, the same axis {@link memberHeadingSlot} picks the
+ * cannot do (a live drive once read it back as "write Charlotte, JFC's perspective only"). Keyed on `speaker.kind === "cast"`, the same axis {@link memberHeadingSlot} picks the
  * co-speaker card frame on, and for the same reason: the SHAPE already decided what this turn voices, so
  * nothing here re-derives it from `cardScope`/`isGroup`. Every other arm — solo, per-speaker, and a FORCED
  * speaker in a narrator room (`verbs/turn` asPerSpeaker coerces it to the single arm) — reads the same

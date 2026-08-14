@@ -14,13 +14,12 @@
 // per-speaker×merged, per-speaker×scoped, and narrator — so the pack demonstrates the axis rather than one
 // point on it.
 //
-// WHICH example wears WHICH grammar changed at v3 (owner ruling, 2026-08-03): "one game needs to legitimately
-// be an actual rpg turn by turn with multiple characters NOT in narrator mode." The rpg flagship is the one
-// example that has to be a REAL session — separate seats acting on their own turns while the board moves — so
-// the Ashen Spire took `per-speaker`, and the NARRATOR grammar moved to Second Opinion (a chaired two-expert
-// round-table is exactly a merged-voice scene). All three grammars still ship; only their hosts swapped.
+// WHICH example wears WHICH grammar: the rpg flagship needs to be a REAL session — separate seats acting on
+// their own turns while the board moves, not narrator mode — so the Ashen Spire takes `per-speaker`, and the
+// NARRATOR grammar sits on Second Opinion (a chaired two-expert round-table is exactly a merged-voice scene).
+// All three grammars ship, each on the example it actually fits.
 //
-// THE CURATED ROOM BACKGROUNDS (v2). A SOLO example needs none: its one card's `backgroundOverride` paints
+// THE CURATED ROOM BACKGROUNDS. A SOLO example needs none: its one card's `backgroundOverride` paints
 // through the BG-C card arm. A GROUP example has two or three cards and therefore no non-arbitrary card to
 // pick from, so the card arm stays true-solo-only by ruling and the room paints only what its HOST chose —
 // which for a shipped example is this manifest. The pick is the PRIMARY seat's own plate (the room is that
@@ -41,21 +40,9 @@ export const DEMO_CHAT_TITLE_PREFIX = "Example — ";
 /** The shipped EXAMPLE pack's version, stamped at `onboarding.demoChatsPackVersion` once a library holds it.
  *  BUMP IT whenever the manifest's DRESSING changes (a curated background, the game setup) — the seeder's
  *  heal then fills those fields on already-seeded copies that still sit at their seeded default. The
- *  transcripts themselves are immutable and are NOT what this version tracks.
- *
- *  v2 (2026-08-03): the three group examples gained a curated room background (the BG-C takeover reaches a
- *  single-human GROUP room as of the same day's widening — before it, a group example could paint nothing at
- *  all and read as "no character background"), every example seats the receiving user's own persona, and the
- *  flagship carries a real authored game state instead of a born-empty panel.
- *
- *  v3 (2026-08-03): ALL SIX TRANSCRIPTS RE-GENERATED on a persona'd stack. The shipped set was produced before
- *  the Traveler persona existed, so every user row and the export header read `"You"` — the exact no-persona
- *  display fallback the Traveler rename was minted to kill — and the model, shown that identity, wrote it into
- *  the prose as a vocative ("You don't volunteer your weaknesses in a lie, You"). That is baked into transcript
- *  BYTES, so the owner's own re-generate-never-edit law is the only fix (stickler 2026-08-03 §Q1, FORK Q1-A★).
- *  Riding with it: the grammar swap above (rpg flagship → per-speaker, narrator → Second Opinion) and the
- *  flagship's authored board, which is no longer hand-written but CAPTURED from the real session the new
- *  transcript is the prose of. */
+ *  transcripts themselves are immutable and are NOT what this version tracks: a transcript baked with a
+ *  stale display identity (e.g. the persona rename) can ONLY be fixed by re-generating it — the
+ *  re-generate-never-edit law applies to transcript bytes, never a hand patch. */
 export const DEMO_CHAT_PACK_VERSION = 3;
 
 /** A bundled seeded-plate background source. Built through the CONTRACT schema (which defaults the six

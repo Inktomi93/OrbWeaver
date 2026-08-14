@@ -1,10 +1,7 @@
 // domain/chat/assembly/names — the SHAPE name-stamp pass. It runs on the SPLICED history and its output is
 // what gets squashed: `shape.ts` is `runSquash(applyNamesBehavior(injected, …))` — NAME FIRST, THEN SQUASH.
-// (This header claimed "Applied AFTER squash" until 2026-08-07. It was false in the other direction, and the
-// ordering is the whole subject of the paragraph below — a reader who believed the header would conclude the
-// `completion`-mode exception could not be needed. The invariant it was reaching for is still true and is the
-// reason the pass sits here at all: the label is applied by the ASSEMBLY, at a step no USER_INPUT/AI_OUTPUT
-// regex can reach, so a `Name:` prefix on the wire is un-forgeable by chat content.)
+// The label is applied by the ASSEMBLY, at a step no USER_INPUT/AI_OUTPUT regex can reach, so a `Name:`
+// prefix on the wire is un-forgeable by chat content.
 //
 // The MODE decides HOW a labellable row is labelled; the row's DECLARED KIND decides WHETHER it may be
 // labelled at all (`mayBeLabelled`, D129) — two questions, two dispatches, and the kind one runs first.

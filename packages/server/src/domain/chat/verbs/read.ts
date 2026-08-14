@@ -9,8 +9,8 @@
 // cards at FULL fidelity, so a plain member reading one bypasses the D22 `memberCardVisibility` clamp. That
 // holds per-SECTION, not just for the whole prompt — `main_prompt` renders `character.systemPrompt` (+ every
 // co-speaker's), `post_history` the postHistoryInstructions, `char_description`/`scenario`/`dialogue_examples`
-// the card text, and the `persona` marker another human's persona description (security fix 2026-08-01:
-// `previewSection` was `member`, which made naming a section the cheap way around the two host-gated doors).
+// the card text, and the `persona` marker another human's persona description — naming a section is not a
+// cheap way around the two host-gated doors above.
 // The two member-gated reads on this path build NO rendered bytes: `getActivePresetConfig` returns the bare
 // `PromptConfig` (preset templates, no assemble ctx), and `previewContextFit` returns only the boundary id +
 // budget numbers off a ctx it never serializes.
@@ -342,14 +342,13 @@ async function buildSummaries(db: Db, deps: ReadDeps, rows: readonly ChatRowView
  *  to the HOST's own active persona (the `human` trigger) — the preview already resolves everything else under
  *  the host (`runAsUserId`, the connection, the preset). A host with NO active persona takes the `none` arm ⇒
  *  the chat ANCHOR. Both arms are deterministic and host-scoped; neither can surface another member's persona
- *  on the host's own instrument, which the retired `personaIds[0]` fallback could (2026-08-07).
+ *  on the host's own instrument.
  *
  *  It also runs the turn's GM-PRESET REDIRECT (see the block at the `resolveForeignInputs` call), so every
  *  surface built on these inputs — `previewAssembly`, `peekPrompt`, `getShapeTrace`, `previewContextFit`,
  *  `previewSection`, `previewActionTemplates`, `getActivePresetConfig` — answers about the preset the TURN
- *  assembles on a game chat. That was a lie until 2026-08-08 and nothing caught it, because the one storage the
- *  rpg teaches used to live in (`config.prose`) was shared by both paths and so was byte-identical by
- *  construction; re-homing the teaches to the preset moved them onto the unfaithful side and exposed it. */
+ *  assembles on a game chat — the same preset-redirect hop as the turn, so a preview never renders a preset
+ *  the turn wouldn't. */
 async function resolvePreviewInputs(
   ctx: ChatContext,
   deps: ReadDeps,
@@ -388,10 +387,10 @@ async function resolvePreviewInputs(
   const hostPersonaId = roster.find((r) => r.kind === "human" && r.userId === hostUserId)?.activePersonaId ?? null;
   const connection = await deps.resolveConnection({ runAsUserId: hostUserId, chatId });
   // THE GM-PRESET REDIRECT — the SAME early hop the turn runs (`verbs/turn.ts`: `resolvePresetOverride` before
-  // the foreign read). A game chat assembles its `gmPresetId`, not the host's default preset, and until now no
-  // preview ran that hop: every preview surface on a game chat rendered the host's DEFAULT preset's templates
-  // while the turn shipped the GM preset's — the sections, the guided prompts, the format strings, the framings
-  // and (since the 2026-08-08 prose re-home) the eleven rpg teaches. A preview is an HONESTY INSTRUMENT; a
+  // the foreign read). A game chat assembles its `gmPresetId`, not the host's default preset; without this hop
+  // every preview surface on a game chat would render the host's DEFAULT preset's templates
+  // while the turn ships the GM preset's — the sections, the guided prompts, the format strings, the framings,
+  // and the eleven rpg teaches. A preview is an HONESTY INSTRUMENT; a
   // preview that resolves a different preset than the turn is not a partial answer, it is a wrong one.
   //
   // PRECEDENCE mirrors the turn's, with one addition the turn has no analogue for: an EXPLICIT `presetOverride`
@@ -658,7 +657,7 @@ function configuredCardVisibility(chat: { readonly metadata: ChatMetadata }): Me
 }
 
 /** Build the MINIMAL render context for the D22 card DISPLAY. The `AssembleCharacter` is built from the
- *  ALREADY-CLAMPED view, NEVER the full card — this is the clamp-bypass fix (security review, 2026-07-28):
+ *  ALREADY-CLAMPED view, NEVER the full card — this is the clamp-bypass defense:
  *  `macroOptionsFor` binds this character's fields onto card-field MACROS (`{{charsysinfo}}` ← systemPrompt,
  *  `{{charposthistory}}` ← postHistoryInstructions, `{{description}}`/`{{personality}}`/`{{scenario}}`/
  *  `{{exampleMessages}}`), and those macros resolve UNCONDITIONALLY. If the render context carried the full
@@ -762,7 +761,7 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
     const clamped = clampMemberCard({ characterId, card, tags, lore, avatarHash, visibility });
     // Render display macros on the SURVIVING text fields against the anchor persona (a null field was clamped
     // away and passes through). Greetings render per-entry. `lore`/`tags` are stored resolved (no macro pass).
-    // The render context is built from the CLAMPED view, NOT the full card (the 2026-07-28 clamp-bypass fix):
+    // The render context is built from the CLAMPED view, NOT the full card (the clamp-bypass defense):
     // an above-level card-field macro (`{{charsysinfo}}`/`{{charposthistory}}`/…) inside a surviving field can
     // ONLY resolve to the clamped (empty) value, so no macro can smuggle a nulled secret back onto the wire.
     const renderCtx = cardRenderContext(clamped, anchorPersona);
@@ -832,7 +831,7 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
     // eye / standing-lie inventory are host-plane reads over the full body. P3: on a DECEPTION-active game the
     // member also loses the reasoning channel (resolved once per read via the injected rpg op — `false` for a
     // non-game / non-deception chat, so no regression). The host bit is the PROJECTION class's
-    // `viewerReadsHidden` (D110 / the 2026-08-03 F1 ruling): a byte-selection verdict is homed ONCE, so this
+    // `viewerReadsHidden` (D110 — the DATA-PROJECTION class): a byte-selection verdict is homed ONCE, so this
     // page's strip can never drift from the bus replay's or the turn return's.
     const chronological = page.reverse();
     const readsHidden = viewerReadsHidden(membership);
@@ -1084,7 +1083,7 @@ function createGetShapeTrace(ctx: ChatContext, deps: ReadDeps): ChatService["get
  * roster's cards at FULL fidelity, the hidden-class spans the member strip removes (the wire projection rides
  * them verbatim), and the whole assembled history — including slots below a clamped member's D16 floor.
  * Reading a PAST prompt must not be the cheap way around the three host-gated doors (the same hole
- * `previewSection` was closed for on 2026-08-01).
+ * `previewSection` is closed for).
  *
  * TENANCY: `loadVariantWire` scopes the variant through its `messages.chatId` join, so a variant belonging to
  * ANOTHER chat is unreachable even for a caller who legitimately hosts the chatId they passed — it collapses
@@ -1226,7 +1225,7 @@ function actionTemplateText(config: PromptConfig, id: TemplateDefId): string {
   if (isGuidedActionKind(id)) {
     return (config.guidedActions?.[id] ?? DEFAULT_GUIDED_ACTIONS[id]).prompt;
   }
-  // The framing rows (2026-08-07): stored in `promptConfig.prose`, resolved through the ONE PROSE-1 resolver
+  // The framing rows: stored in `promptConfig.prose`, resolved through the ONE PROSE-1 resolver
   // so the readout can never disagree with what `assembly` actually ships.
   if (isPresetProseSlotId(id)) {
     return resolveProseText(id, config.prose);
@@ -1321,8 +1320,8 @@ function createReplayChatEvents(ctx: ChatContext): ChatService["replayChatEvents
     const membership = await requireParticipant(ctx, principal, chatId);
     const rows = await loadChatEventReplay(ctx.db, chatId, afterSeq);
     // The host verdict here SELECTS BYTES (verbatim replay vs the §3.6 member projection) — the DATA-PROJECTION
-    // class, homed ONCE at `member-visibility::viewerReadsHidden` (D110; the 2026-08-03 F1 ruling, which chose
-    // this class over the enforcement arm precisely because a lens that may later diverge from operation
+    // class, homed ONCE at `member-visibility::viewerReadsHidden` (D110 — chosen over the enforcement arm
+    // precisely because a lens that may later diverge from operation
     // authority — a co-GM who commands the room but must not read deception truth — needs its own home).
     // Deliberately NOT `auth::permitsHost`: that is the ENFORCEMENT arm (it gates whether an operation may
     // proceed, e.g. the fork gate), and routing a byte-selection through it would thread a Principal + `can()`
