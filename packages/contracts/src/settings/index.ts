@@ -235,8 +235,10 @@ const durationMs = (): z.ZodOptional<z.ZodNumber> => z.number().int().positive()
 // The vLLM engine LAUNCH-config override tier (#14): the per-engine serve flags an admin can retune on
 // another box (models / context windows / gpu-util fractions / vision max_pixels) and apply via the admin
 // Engines section's "restart to apply" affordance. Every field optional — unset falls to the env floor
-// (foundation/env) resolved by resolveEngineLaunchConfig. This is a LAUNCH tier (applies on engine restart),
-// distinct from vllmConcurrency (a HOT policy, applies on next use). GPU-util fractions are 0<u≤1.
+// (foundation/env) resolved by resolveEngineLaunchConfig. Mostly a LAUNCH tier (applies on engine restart),
+// distinct from vllmConcurrency (a HOT policy, applies on next use) — with TWO deliberate hot leaves that ride
+// this section because they configure the same gen engine: `genPresencePenalty` and `genRepetitionPenalty` are
+// per-REQUEST sampler defaults and apply on the next request. GPU-util fractions are 0<u≤1.
 const GPU_UTIL_FLOOR = 0;
 const GPU_UTIL_CEIL = 1;
 const gpuUtil = (): z.ZodOptional<z.ZodNumber> => z.number().gt(GPU_UTIL_FLOOR).max(GPU_UTIL_CEIL).optional();
@@ -254,9 +256,11 @@ export const engineLaunchSchema = z.object({
   genGpuUtilSingle: gpuUtil(),
   poolingMaxPixels: z.number().int().positive().optional(),
   genMaxPixels: z.number().int().positive().optional(),
-  // The gen engine's --override-generation-config repetition_penalty (#23). Qwen3-VL ships 1.0 (loops on the
-  // sampler-less agent-sdk /v1/messages wire → output-cap api_error); the launch default (env floor 1.05)
-  // stops the loop. Admin-retunable; applies on engine restart. 0<p (a positive multiplier; 1 = no penalty).
+  // The gen engine's default repetition_penalty, applied PER REQUEST by the vLLM chat surface when a preset is
+  // silent (#23). Was a `--override-generation-config` launch flag until 2026-08-14 — it existed for the
+  // retired sampler-less agent-sdk /v1/messages wire, and baking it clobbered the checkpoint's own
+  // generation_config.json on every call. Admin-retunable; applies on the NEXT REQUEST, no engine restart
+  // (genPresencePenalty is the exact precedent). 0<p (a positive multiplier; 1 = no penalty).
   genRepetitionPenalty: z.number().gt(GPU_UTIL_FLOOR).optional(),
   // The gen engine's default PRESENCE penalty applied per-REQUEST whenever the vLLM chat surface serves (main
   // chat AND role/side-gen traffic, e.g. when main chat rides agent-sdk and a swapped genModel runs on vLLM).

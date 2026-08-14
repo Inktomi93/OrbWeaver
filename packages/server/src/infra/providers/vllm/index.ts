@@ -6,7 +6,8 @@
 import process from "node:process";
 import type { ResolvedEngineLaunch } from "@orb/contracts/settings";
 import { engineDeploymentEnv, engineLaunchEnvFloor, env } from "#foundation/env";
-import type { ProviderBackend, WireCaptureSink } from "../contract/index.ts";
+import type { ChatRequest, ChatResult, ProviderBackend, VllmChatRequest, WireCaptureSink } from "../contract/index.ts";
+import { ProviderError } from "../contract/index.ts";
 import type { EngineDeploymentEnv, EngineDeploymentFacts, EngineStatusRecord, VLLM_ENGINES, VllmEngineClient } from "./engine/index.ts";
 import {
   allEngineStatuses,
@@ -89,9 +90,37 @@ export interface VllmBackendDeps {
    *  (item 7 — engineLaunch.genPresencePenalty). Read per request so an admin retune applies without a restart.
    *  Omitted (tests) ⇒ the surface's card-default fallback (byte-identical to the former CARD_DEFAULT). */
   readonly genPresencePenalty?: (() => number) | undefined;
+  /** Live getter for the per-REQUEST repetition-penalty default the chat surface applies when a preset is
+   *  silent (engineLaunch.genRepetitionPenalty). Read per request so an admin retune applies without a
+   *  restart — this value was a `--override-generation-config` LAUNCH flag until 2026-08-14 (the flag existed
+   *  only for the retired sampler-less agent-sdk /v1/messages wire, and it outranked the checkpoint's own
+   *  generation_config.json on every request). Omitted (tests) ⇒ the surface's 1.0 no-op fallback. */
+  readonly genRepetitionPenalty?: (() => number) | undefined;
   /** TASK-24 wire-capture sink — compose injects it only when capture is enabled; absent ⇒ the chat surface
    *  never records (zero cost). Captures the LITERAL openai-compat /v1/chat/completions body it POSTs. */
   readonly captureWire?: WireCaptureSink | undefined;
+}
+
+/** THE api narrowing seam (2026-08-14 — DISPATCH-REGRESSION BELT, NOT A LIVE PATH: do not report the throw
+ *  below as dead code, and do not "simplify" it away). {@link ProviderBackend.runChatTurn} is typed over the
+ *  WHOLE {@link ChatRequest}
+ *  union (one contract for every backend), while the vLLM chat surface takes only the history-wire arm
+ *  ({@link VllmChatRequest}) — so the conversion happens exactly here, once, at the composition boundary and not
+ *  inside the surface. The `agent-sdk` arm is already fail-closed one layer up (`roles/dispatch.ts`
+ *  `deriveRunner` throws on agent-sdk×vllm — the loopback skin was retired 2026-07-27), so this throw is a
+ *  belt for a future dispatch regression, never a path a request reaches today. EXPORTED because any caller
+ *  that binds the raw chat surface into a whole-union `runChatTurn` slot (the wire-capture + rpg integration
+ *  harnesses do exactly what compose does) must cross the SAME seam — a second hand-rolled narrowing, or a
+ *  cast, would be a second answer to "which arms does vLLM serve?". */
+export function toVllmChatRequest(req: ChatRequest): VllmChatRequest {
+  if (req.api === "agent-sdk") {
+    throw new ProviderError({
+      kind: "invalid",
+      retryable: false,
+      message: `vllm chat surface does not serve the "${req.api}" api`,
+    });
+  }
+  return req;
 }
 
 /** Builds the vLLM subsystem: the five surfaces bound to one engine + the lifecycle handle. */
@@ -131,14 +160,20 @@ export function createVllmBackend(deps: VllmBackendDeps): VllmBackend {
     },
   };
 
+  const chat = createVllmChat({
+    client,
+    now: deps.now,
+    ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
+    ...(deps.genPresencePenalty !== undefined ? { genPresencePenalty: deps.genPresencePenalty } : {}),
+    ...(deps.genRepetitionPenalty !== undefined ? { genRepetitionPenalty: deps.genRepetitionPenalty } : {}),
+  });
+
   return {
     key: "vllm",
-    runChatTurn: createVllmChat({
-      client,
-      now: deps.now,
-      ...(deps.captureWire !== undefined ? { captureWire: deps.captureWire } : {}),
-      ...(deps.genPresencePenalty !== undefined ? { genPresencePenalty: deps.genPresencePenalty } : {}),
-    }),
+    // `async` so the SYNCHRONOUS narrowing guard surfaces as a rejected promise, never a thrown-before-await
+    // (the contract's role methods are awaitable — the custom-byo `inspect` precedent; the surface's own
+    // guard used to be inside an async body and every caller expects a rejection).
+    runChatTurn: async (req: ChatRequest): Promise<ChatResult> => await chat(toVllmChatRequest(req)),
     embed: createVllmEmbed({ client, embedDim, chunkSize, concurrency: embedConcurrency, requestTimeoutMs: env.VLLM_EMBED_REQUEST_TIMEOUT_MS }),
     rerank: createVllmRerank({ client }),
     imageEmbed: createVllmImageEmbed({ client, embedDim, concurrency: embedConcurrency }),

@@ -37,7 +37,7 @@ import { createAgentSdkBackend } from "@orb/server/infra/providers/backends/agen
 import { createCustomByoBackend } from "@orb/server/infra/providers/backends/custom-byo";
 import type { OrClient } from "@orb/server/infra/providers/backends/openrouter";
 import { createOpenRouterBackend } from "@orb/server/infra/providers/backends/openrouter";
-import { createVllmChat } from "@orb/server/infra/providers/vllm";
+import { createVllmChat, toVllmChatRequest } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe, vi } from "vitest";
 import type { AssembledPrompt } from "../../../../packages/contracts/src/chat/index.ts";
@@ -109,14 +109,19 @@ function capturingClient(sink: { body?: Record<string, unknown> }): VllmEngineCl
 /** The DEFAULT surface: the REAL vllm infra surface (buildBody + the TASK-24 capture sink → WIRE layer). The
  *  capturing client records the FINAL posted body (the fidelity target) into the sink. Non-rejecting — its
  *  canned SSE reply completes the turn so the DB layer persists. */
-const vllmSurface: SurfaceFactory = (sink) =>
-  createVllmChat({
+// The chat SURFACE takes only the history-wire arm; `toVllmChatRequest` is the production narrowing seam
+// (`vllm/index.ts`, the same one `createVllmBackend` binds) — crossing it here keeps the harness honest about
+// which arms vLLM serves instead of casting the whole union in.
+const vllmSurface: SurfaceFactory = (sink) => {
+  const surface = createVllmChat({
     client: capturingClient(sink),
     now: () => 1000,
     captureWire: (entry) => {
       sink.body = entry.body;
     },
   });
+  return async (req) => await surface(toVllmChatRequest(req));
+};
 
 /** A minimal REAL {@link OrSkinTierModels} map for the agent-sdk arm (the bridge derives it from live catalogs
  *  in prod; here a hermetic constant — the map's contents don't ride the captured SDK query body). */

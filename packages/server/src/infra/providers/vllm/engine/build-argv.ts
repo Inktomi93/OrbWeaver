@@ -17,10 +17,18 @@
 //           query+doc to fit it, so a long doc can never exceed --max-model-len.
 //   gen   : TP=2 on 2-GPU boxes (NVLink ~1.8×), gen max_pixels; --enable-auto-tool-choice +
 //           --tool-call-parser qwen3_coder (was `hermes` under Qwen3-VL; the thinking checkpoint's chat
-//           template emits the qwen3_coder <tool_call><function=…> shape) for the buddy agent's
-//           /v1/messages tool loop; --reasoning-parser qwen3 + structured-outputs enable_in_reasoning;
-//           --served-model-name
-//           registers BOTH the full HF id AND the slash-free leaf alias (Claude Code can't resolve a "/").
+//           template emits the qwen3_coder <tool_call><function=…> shape) so the engine PARSES tool calls
+//           out of the completion — LIVE for rpg extraction, which sends tool_choice:"required" over
+//           chat-completions; --reasoning-parser qwen3 + structured-outputs enable_in_reasoning;
+//           --served-model-name registers BOTH the served id AND a slash-free leaf alias (the alias is the
+//           canonical echoed name — see genModelAlias).
+//
+// SAMPLERS ARE NOT LAUNCH VALUES (2026-08-14, owner: "vllm should accept args from our preset params").
+// There is no `--override-generation-config` here on purpose: every live vLLM surface carries its samplers
+// PER REQUEST (chat → surfaces/chat.ts buildBody; summarize/structured → engine/chat-completion.ts
+// buildBody), so a launch-baked sampler is a second home that silently wins over a checkpoint's own
+// generation_config.json for every request. The gen repetition-penalty default now rides the request path
+// (VLLM_GEN_REPETITION_PENALTY ⊕ AppSettings → chat surface, mirroring genPresencePenalty). Do not re-add it.
 // GPU budget (2-card): GPU0 = embed + gen-half; GPU1 = gen-half + rerank (rerank OFF GPU0 so an
 // embed-then-rerank search doesn't serialize on one card). Single-GPU: everything on GPU0.
 
@@ -45,10 +53,6 @@ export interface EngineLaunchConfig {
   readonly genGpuUtilSingle: number;
   readonly poolingMaxPixels: number;
   readonly genMaxPixels: number;
-  /** The gen engine's repetition_penalty, emitted as `--override-generation-config` (#23). The Qwen3-VL card
-   *  ships 1.0 (no penalty → the sampler-less agent-sdk wire loops to the output cap); 1.05 is the launch
-   *  default that stops it. Only gen carries a value today — see GENERATION_CONFIG_OVERRIDES. */
-  readonly genRepetitionPenalty: number;
   /** Emit `--enable-sleep-mode` on every engine (force-enables vLLM's cumem allocator so /sleep can pin
    *  weights→CPU and free VRAM on idle). Resolved `override ?? env floor` (VLLM_SLEEP_MODE), default true.
    *  Paired with `VLLM_SERVER_DEV_MODE=1` on the child (spawn-engine.ts) to register the loopback /sleep,
@@ -80,7 +84,6 @@ export interface EngineLaunchEnvFloor {
   readonly VLLM_GEN_GPU_UTIL_SINGLE: number;
   readonly VLLM_POOLING_MAX_PIXELS: number;
   readonly VLLM_GEN_MAX_PIXELS: number;
-  readonly VLLM_GEN_REPETITION_PENALTY: number;
   readonly VLLM_SLEEP_MODE: boolean;
   readonly VLLM_DEBUG_REQUESTS: boolean;
   readonly VLLM_SHUTDOWN_TIMEOUT_S: number;
@@ -105,7 +108,6 @@ export interface EngineLaunchOverride {
   readonly genGpuUtilSingle?: number | null | undefined;
   readonly poolingMaxPixels?: number | null | undefined;
   readonly genMaxPixels?: number | null | undefined;
-  readonly genRepetitionPenalty?: number | null | undefined;
   readonly sleepMode?: boolean | null | undefined;
   readonly debugRequests?: boolean | null | undefined;
   readonly shutdownTimeoutS?: number | null | undefined;
@@ -144,7 +146,6 @@ export function resolveEngineLaunchConfig(floor: EngineLaunchEnvFloor, override?
     genGpuUtilSingle: o.genGpuUtilSingle ?? floor.VLLM_GEN_GPU_UTIL_SINGLE,
     poolingMaxPixels: o.poolingMaxPixels ?? floor.VLLM_POOLING_MAX_PIXELS,
     genMaxPixels: o.genMaxPixels ?? floor.VLLM_GEN_MAX_PIXELS,
-    genRepetitionPenalty: o.genRepetitionPenalty ?? floor.VLLM_GEN_REPETITION_PENALTY,
     ...extra,
     ports: { embed: floor.VLLM_EMBED_PORT, rerank: floor.VLLM_RERANK_PORT, gen: floor.VLLM_GEN_PORT },
   };
@@ -232,44 +233,14 @@ function rerankArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[
   ];
 }
 
-/** The slash-free leaf alias vLLM registers as the PRIMARY served id (Claude Code can't resolve a "/", and
- *  a local-checkpoint path would otherwise be echoed as the model name). Works for both shapes: the last
- *  segment of `Qwen/Qwen3-VL-8B-Instruct` and of an absolute checkpoint path. */
+/** The slash-free leaf alias vLLM registers as the PRIMARY served id. LIVE REASON (2026-08-10, the local-
+ *  checkpoint swap): `genModel` is now a filesystem PATH, and the FIRST --served-model-name value is what
+ *  /v1/models advertises and every response body echoes — without the alias the catalog and every turn would
+ *  carry `/media/.../…-W8A8-Dynamic-Per-Token`. (Its original reason — the retired agent-sdk loopback skin
+ *  couldn't resolve a "/" in a model id — is dead; the flag is not.) Works for both shapes: the last segment
+ *  of `Qwen/Qwen3-VL-8B-Instruct` and of an absolute checkpoint path. */
 function genModelAlias(genModel: string): string {
   return genModel.split("/").pop() ?? genModel;
-}
-
-/** The per-engine `--override-generation-config` payload (#23) — vLLM merges this over the model's shipped
- *  generation_config.json at serve time, so it applies to EVERY request regardless of the wire (the fix for
- *  the sampler-less agent-sdk /v1/messages path, which can't carry a per-request penalty). Keyed per engine
- *  so embed/rerank could gain their own overrides; only `gen` needs one today. temperature/top_p/top_k are
- *  the model-card recommended base — static card constants, not admin knobs — inlined here as the launch-time
- *  base a silent preset falls back to; an explicit per-request sampler value still overrides this base.
- *  `null` = no override flag emitted for that engine.
- *
- *  2026-08-10: retuned 0.7/0.8/20 → 1.0/0.95/20 with the THINKING-checkpoint swap. Those were Qwen's
- *  INSTRUCT-mode numbers; the card gives 1.0/0.95/20 for "thinking mode, general tasks" and 0.7/0.80/20 only
- *  for non-thinking. This matters because vLLM MERGES this payload over the checkpoint's shipped
- *  generation_config.json — the W8A8 checkpoint already carries 1.0/0.95/20, and the old values would have
- *  silently clobbered them back to instruct sampling on every request. */
-function generationConfigOverrides(config: EngineLaunchConfig): Record<VllmEngine, Record<string, number> | null> {
-  return {
-    embed: null,
-    rerank: null,
-    // PENALTY-ONLY (owner's serve.sh design, adopted 2026-08-14): this checkpoint's generation_config.json
-    // already ships temperature/top_p/top_k = 1.0/0.95/20 (thinking-mode card values); re-emitting them here
-    // was redundant today and would silently CLOBBER a future checkpoint's shipped samplers. The penalty is
-    // the one value the checkpoint does NOT carry usefully (ships 1.0 = no penalty → the sampler-less
-    // /v1/messages path loops to the output cap), so it alone is launch-baked.
-    gen: { repetition_penalty: config.genRepetitionPenalty },
-  };
-}
-
-/** Append `--override-generation-config '<json>'` for an engine when it has one, else nothing. Kept beside
- *  the map so every arm shares one emit shape (embed/rerank stay flag-free until they gain an override). */
-function overrideGenerationConfigArgv(engine: VllmEngine, config: EngineLaunchConfig): string[] {
-  const override = generationConfigOverrides(config)[engine];
-  return override === null ? [] : ["--override-generation-config", JSON.stringify(override)];
 }
 
 function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
@@ -353,7 +324,6 @@ function genArgv(config: EngineLaunchConfig, ctx: EngineArgvContext): string[] {
     "shm",
     "--mm-processor-kwargs",
     `{"max_pixels": ${config.genMaxPixels}}`,
-    ...overrideGenerationConfigArgv("gen", config),
   ];
 }
 

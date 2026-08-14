@@ -5,6 +5,8 @@
 // when the supervisor isn't running.
 
 import type { ModelId } from "@orb/kit/ids";
+import type { ChatRequest } from "@orb/server/infra/providers";
+import { ProviderError } from "@orb/server/infra/providers";
 import { createVllmBackend } from "@orb/server/infra/providers/vllm";
 import type { VllmEngineClient } from "@orb/server/infra/providers/vllm/engine";
 import { describe } from "vitest";
@@ -118,6 +120,27 @@ describe("createVllmBackend", () => {
     expect(hits).toContainEqual({ engine: "embed", path: "/v1/embeddings" });
     expect(hits).toContainEqual({ engine: "rerank", path: "/v1/rerank" });
     expect(hits).toContainEqual({ engine: "gen", path: "/v1/chat/completions" });
+  });
+
+  // The api narrowing seam: the chat SURFACE takes only the history-wire arm, so the agent-sdk fail-close
+  // lives here — the one place a whole-union `ChatRequest` becomes a `VllmChatRequest`. Unreachable in practice
+  // (roles/dispatch.ts rejects agent-sdk×vllm first, since the loopback skin was retired 2026-07-27); this
+  // pins the belt so a future dispatch regression can't hand the surface a prompt-only turn.
+  test("the composition seam fail-closes a prompt-only (agent-sdk) request — vLLM speaks only the history wire", async () => {
+    const { client } = fakeClient();
+    const backend = createVllmBackend({ client, now });
+
+    await expect(
+      // FABRICATION-OK: this IS the invalid input under test — the arm the seam must refuse (a factory would satisfy the agent-sdk arm, the opposite of the probe).
+      backend.runChatTurn?.({
+        api: "agent-sdk",
+        credential: CRED,
+        model: MODEL,
+        params: {},
+        systemPrompt: { static: "s", dynamic: "" },
+        prompt: "hello",
+      } as ChatRequest),
+    ).rejects.toBeInstanceOf(ProviderError);
   });
 
   test("restart is a safe no-op message when the supervisor isn't running", async () => {
