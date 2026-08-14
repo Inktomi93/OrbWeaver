@@ -447,11 +447,16 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   selection, A→B→A byte-stable, no more literal `{{roll}}` to the model) + narrator wire-mapping
   (historySystemRows capability, FAIL-CLOSED — false until a human lands a measured true cell,
   `pnpm probe:history-system-rows` the instrument). Host-plane untouched, D16 byte-clean.
-- [ ] **OR STRUCTURED-OUTPUT 500 (m4-or-probe arm-8 finding, NOT a refinery defect):** OpenRouter
-  structured routing resolves correctly (`backend:openrouter`) but the call 500s in 83-174ms — too
-  fast to be generation, so an upstream reject our response schema can't parse (vLLM succeeds in
-  7.1s on the same shape). Suspect `provider.require_parameters:true` + `json_schema.strict:true`.
-  Own lane w/ response-body capture; unblocks the refinery custom-schema on hosted OR.
+- [ ] **OR STRUCTURED-OUTPUT 500 — LIKELY CONFIG, NOT A BUG (owner reframe 08-14):** the probe
+  ran on the DEFAULT `as-projected` shape (`DEFAULT_STRUCTURED_OUTPUT_SHAPE`, settings/index.ts:318),
+  which OpenAI-strict/OR rejects for "all fields must be required" — the \~100ms 500 is exactly the
+  wall the D126 **`strict-compatible`** shape knob (Settings › Admin › Structured output) exists to
+  clear ("the documented route past BOTH hosted walls", settings/index.ts:308). ACTION (no code lane
+  yet): flip the shape to `strict-compatible` + re-run the arm-8 call; if it clears, it's a
+  config/default question (does the hosted path need strict-compatible as its floor?), not a defect.
+  Only if it STILL 500s on strict-compatible does it become a code lane w/ response-body capture.
+  Owner may also have used an over-complex probe schema — a simpler one on strict-compatible is the
+  first test. Folds into the OR-window follow-up, not a fresh dispatch.
 - [ ] **HARNESS BUG (m4-or-probe hit it): a subagent's SendMessage back-channel to the orchestrator
   was BLOCKED by the auto-mode classifier** ("Permission denied by the Claude Code auto mode
   classifier") — the lane could not surface its mid-run fork and proceeded on default (safe here,
