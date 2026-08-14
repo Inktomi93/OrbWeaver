@@ -85,12 +85,29 @@ const NO_CHATS_YET = /no chats yet/i;
 const FROZEN_NOW = FROZEN_AT_MS;
 const HOUR_MS = 3_600_000;
 
+/** R1: New chat mints a REAL room — the minimal ChatDetail the startChat responder returns. */
+const CREATED_CHAT_ID = "chat_pane_created";
+const CREATED_CHAT = {
+  id: CREATED_CHAT_ID,
+  title: null,
+  participants: [],
+  anchorPersonaId: null,
+  cast: [],
+  group: { mode: "single" },
+  temporary: false,
+  viewerIsHost: true,
+  roomOverrides: {},
+  background: null,
+  rpg: null,
+};
+
 function routeAll(page: Parameters<typeof routeTrpc>[0], chats: readonly ChatSummaryFixture[]): ReturnType<typeof routeTrpc> {
   return routeTrpc(page, {
     "character.list": () => CHARACTER_PAGE,
     "character.get": () => AZARAEL_DETAIL,
     "character.update": () => AZARAEL_DETAIL,
     "chat.listChats": chatListResponder(chats),
+    "chat.startChat": { chat: CREATED_CHAT, opening: null, openingFailure: null },
     "settings.getUserSettings": () => SETTINGS,
   });
 }
@@ -167,14 +184,19 @@ test("the band swaps with the pane (D9): back + CHATS · <name> + the New-chat p
   await expect(band.getByRole("button", { name: "New chat", exact: true })).toBeVisible();
 });
 
-test("New chat fires the STORE action with her id (a seeded draft + the section switch), not a UI echo", async ({ mount, page }) => {
-  await routeAll(page, CHATS);
+test("New chat fires the REAL startChat with her id and enters the minted room (R1), not a UI echo", async ({ mount, page }) => {
+  const trpc = await routeAll(page, CHATS);
   const component = await mount(<CharactersListPaneStory selectedCharacterId={AZARAEL} />);
   await expect(component.getByText("Winter court")).toBeVisible();
 
   await page.getByTestId("list-band").getByRole("button", { name: "New chat", exact: true }).click();
 
-  await expect(component.getByTestId("draft-cast")).toHaveText(AZARAEL);
+  // The wire carried HER id (the store action's payload, not a UI echo)…
+  await expect
+    .poll(() => trpc.lastInput("chat.startChat"), { intervals: [20, 50, 100] })
+    .toMatchObject({ characterIds: [AZARAEL] });
+  // …and the store entered the REAL minted room + switched the section.
+  await expect(component.getByTestId("started-chat")).toHaveText(CREATED_CHAT_ID);
   await expect(component.getByTestId("active-section")).toHaveText("chats");
 });
 
@@ -273,9 +295,9 @@ test("an EMPTY projection is ONE statement with ONE primary — and the empty st
   const paneAction = component.getByLabel("Chats with Azarael").getByRole("button", { name: "New chat", exact: true });
   await expect(paneAction).not.toHaveAttribute("data-cta", "");
   await expect(page.getByTestId("list-band").getByRole("button", { name: "New chat", exact: true })).toHaveAttribute("data-cta", "");
-  // Demoted is not disarmed: it still fires the same store write (empty is never a dead end).
+  // Demoted is not disarmed: it still mints the same real room (empty is never a dead end).
   await paneAction.click();
-  await expect(component.getByTestId("draft-cast")).toHaveText(AZARAEL);
+  await expect(component.getByTestId("started-chat")).toHaveText(CREATED_CHAT_ID);
 });
 
 // NR5: the pane BELOW the identity row is the census, so the gloss doesn't repeat the count — it carries the
