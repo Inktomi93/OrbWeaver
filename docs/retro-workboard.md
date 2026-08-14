@@ -1345,17 +1345,17 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   nodes · the Setup tab hardcodes stage=score/editing=null so custom-analyze schemas + edit-saved-
   schema are UI-unreachable though both verbs work · `__orb.nav.contextTab()` returns ok without
   switching (bridge gap, second sighting).
-- [ ] **ROLE→CONNECTION SWITCHING IS CLUNKY (owner dogfood 08-14 evening, verbatim: "that shit
-  needs to get fixed or boarded that is clunky as fuck"):** reaching a different backend for a role
-  (chat / structured / summarize / etc.) requires a GLOBAL settings flip of that role's connection —
-  there is NO per-room or per-session connection override (presets deliberately carry generation
-  config only, never the connection; D132/C5). Surfaced by two probe lanes both blocked on the same
-  wall (M4 reasoning needed OR chat-completions; refinery arm 8 needed OR structured — the
-  structured role resolves to local vLLM, chat to the agent-sdk sub, and neither is reachable
-  without the global flip). Two candidate shapes for a design pass: a fast role-connection SWITCHER
-  in the UI (the flip is buried), or a genuine per-room/per-session connection OVERRIDE lane
-  (bigger — crosses the preset-owns-generation-only boundary, needs an owner ruling on where a
-  connection override HOMES). Design-then-build; stickler-class if the override arm is taken.
+- [ ] **CONFIG DISAGGREGATION SMELL — FOLLOW-UP ONLY, owner-owned (08-14 evening).** Owner's actual
+  point (corrected before it solidified — DO NOT re-inflate): connection / preset / role config is
+  too SEPARATED and scattered rather than UNIFIED; it's stupid that changing where a role points is
+  spread across disaggregated surfaces. This is a "might look into moving some stuff around" note,
+  **NOT** a per-room/per-session-override feature and NOT a preset-boundary question — the
+  orchestrator wrongly scoped it that way first pass. No lane, no design-then-build, no owner
+  ruling owed; the owner may relocate surfaces himself (relocations are cheap — most are
+  registry-based). Context that PROMPTED the gripe, not the ask: reaching a non-default backend
+  for a role today needs a global settings flip (the OR window's wall), which is what made the
+  scatter visible. If the owner ever promotes this, it pairs with the existing preset/param
+  "crunchy" registry-ification smell.
 - [ ] **vLLM is forced into strict mode at all times.** Receipt: `strictByDefault(format: ResponseFormat)`
   in `packages/server/src/infra/providers/vllm/surfaces/chat.ts`. Decide whether strict is a floor, a
   default, or a knob — it interacts with the #36 structured-output vehicle work.

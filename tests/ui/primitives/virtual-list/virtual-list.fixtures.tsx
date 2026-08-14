@@ -2,7 +2,7 @@
 // props (getItemKey/estimateSize/renderItem) live HERE; the tests pass only numbers/strings.
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement, ReactNode } from "react";
-import { Component, useRef, useState } from "react";
+import { Component, useState } from "react";
 
 interface FixtureItem {
   readonly id: string;
@@ -230,10 +230,11 @@ export function EndApproachList({ itemCount, endApproachRows }: { readonly itemC
   // Stable identity: `onEndApproach` is an effect dependency on the seal side (VirtualList's own
   // useLayoutEffect deps list), so an inline arrow recreated on every re-render would retrigger the
   // effect every time `calls` changes — an infinite update loop, not a defect in the seal itself.
-  // A ref (not useCallback — the Compiler already memoizes compiled code, D54/no-manual-memo) keeps
-  // the SAME function identity across renders: the initializer runs once, `setCalls` is itself
-  // React-guaranteed stable, so the closure never needs to be recreated.
-  const handleEndApproachRef = useRef((): void => setCalls((n) => n + 1));
+  // State's lazy initializer (not useCallback — D54/no-manual-memo) creates one function for the fixture's
+  // lifetime. `setCalls` is React-guaranteed stable, so the closure never needs to be recreated.
+  const [handleEndApproach] = useState<() => void>(function createEndApproachHandler(): () => void {
+    return (): void => setCalls((n) => n + 1);
+  });
   return (
     <div>
       <div data-testid="calls">{calls}</div>
@@ -242,7 +243,7 @@ export function EndApproachList({ itemCount, endApproachRows }: { readonly itemC
           items={items}
           getItemKey={(item): string => item.id}
           estimateSize={(): number => 40}
-          onEndApproach={handleEndApproachRef.current}
+          onEndApproach={handleEndApproach}
           {...(endApproachRows === undefined ? {} : { endApproachRows })}
           renderItem={(item): ReactElement => <div style={{ height: 40 }}>{item.label}</div>}
           className="h-full"
