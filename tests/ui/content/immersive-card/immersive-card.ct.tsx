@@ -79,3 +79,39 @@ test("expand opens the lightbox dialog labelled by the title, with its own sandb
   await expect(dialog.locator('[data-slot="immersive-card-lightbox-header"]')).toContainText("Poster");
   await expect(dialog.locator('iframe[data-slot="sandbox-frame"]')).toHaveCount(1);
 });
+
+// ── The ROUTED delivery, end to end in a real browser ────────────────────────────────────────────────
+// `frameSrc` threads to `SandboxFrame.src` (the `/api/card-frame/<id>` mint) — the other 14 sandbox-frame
+// tests pin the ATTRIBUTE-level contract (src/no-srcdoc, sandbox="", CSP is the response's own); this
+// pins that a real navigation to that URL actually PAINTS content inside the sandboxed frame, which
+// attribute assertions alone cannot prove (a routed src could 404 or be blocked by the CSP and every
+// attribute assertion above would still pass).
+
+test("the ROUTED delivery: a real navigation to frameSrc renders the served page inside the sandboxed iframe", async ({ mount, page }) => {
+  const routedUrl = "/api/card-frame/0123456789abcdef0123456789abcdef";
+  await page.route(routedUrl, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      headers: { "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'" },
+      body: "<!doctype html><html><body><p>routed card body</p></body></html>",
+    });
+  });
+
+  const cmp = await mount(<ImmersiveCard html={HTML} title="Routed" origin="fence" frameSrc={routedUrl} />);
+  const frame = cmp.locator('iframe[data-slot="sandbox-frame"]');
+  await expect(frame).toHaveCount(1);
+  await expect(frame).toHaveAttribute("src", routedUrl);
+  const sandbox = await frame.getAttribute("sandbox");
+  expect(sandbox).not.toBeNull();
+  expect(sandbox).not.toContain("allow-scripts");
+  expect(sandbox).not.toContain("allow-same-origin");
+  // srcdoc would win over src per the HTML spec if both were emitted — prove the routed arm never does.
+  await expect.poll(() => frame.getAttribute("srcdoc")).toBeNull();
+
+  // The actual navigation completed and the served bytes painted — the content check attribute
+  // assertions can't give: reach INTO the null-origin iframe's own document.
+  const frameHandle = await frame.elementHandle();
+  const contentFrame = await frameHandle?.contentFrame();
+  await expect(contentFrame?.locator("p")).toHaveText("routed card body");
+});
