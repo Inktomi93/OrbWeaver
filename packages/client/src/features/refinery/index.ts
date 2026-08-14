@@ -46,4 +46,8 @@ export type { HintOverlay, PlanField, RenderPlan } from "./lib/render-plan.ts";
 export { buildRenderPlan, formatLabel } from "./lib/render-plan.ts";
 export type { ReviewEntry } from "./lib/review-entries.ts";
 export { reviewEntriesOf } from "./lib/review-entries.ts";
+/** @public exported for the routed CT that mounts the LIVE content workflow whole (load → view-back → a
+ *  per-block rewrite decision → apply → the terminal outcome) — `refinerySection` imports it relatively,
+ *  and a story importing it relatively would mount against a different React context instance (header). */
+export { RefineryContentSurface } from "./surfaces/refinery-content-surface.tsx";
 export { RefineryListHeader, RefineryListSurface } from "./surfaces/refinery-list-surface.tsx";
