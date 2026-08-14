@@ -1755,6 +1755,39 @@ function speakerShapeFor(room: Room, characterId: CharacterId | null): TurnPrep[
   };
 }
 
+// FLAG[aux-turns-have-no-accept]: THE AUXILIARY TURNS OPEN THEIR CLIENT SLOT LATE, AND THE READER SEES THE
+// OLD VARIANT UNTIL THEY DO. Diagnosed 2026-08-14 against the live stack from the owner's dogfood report
+// ("when we swipe it disappears the old message shows until the new one finishes sometimes"). NOT FIXED —
+// the fix is a fork the orchestrator owns (below). This block is the receipt, not a plan.
+//
+// `send` emits `turnAccepted` the instant the turn is accepted, BEFORE arbitration, for exactly this reason
+// (see `runAiRound` above: "the client's turn slot stayed idle through that hang"). The three verbs that go
+// straight to `runRegistered` — `swipe` here, `continueTurn`, `generate` — emit NOTHING until the engine's
+// `turnStarted` (`engine/engine.ts`), which lands only after `resolveTurnBase`: room + identity + connection
+// resolve, context assembly, MEMORY RECALL (embed → vector search → rerank), the macro registry, then the
+// per-chat lock. Until that event the client slot is `idle`, so `isLiveTurnPhase` is false, so
+// `useMessageItems` returns the plain canon list and the ghost never mounts — the committed OLD variant just
+// sits there with no feedback that anything is happening.
+//
+// MEASURED (5 clean drives, one 56-message rpg chat, warm fleet, click → ghost mount): 151 / 341 / 1075 /
+// 1719 / 1887 ms. The window is unbounded by construction and scales with server load, recall latency and
+// lock contention — which is the reported "sometimes". Two amplifiers of the same window, both measured:
+// a swipe REJECTED with "a turn is already in flight for this chat" never gets a `turnStarted` at all, so
+// the old text holds for the whole of the OTHER turn and then changes anyway when that turn's
+// `turnCompleted` invalidates `listMessages` (the verbatim symptom); and at the far end `turnCompleted`
+// closes the slot BEFORE the refetch lands, repainting the old variant for 100-400 ms on every drive.
+//
+// THE FORK (why this is a comment and not a patch). `ChatBusEvent.turnAccepted` already carries
+// `targetMessageId` and its contract doc names the swipe/continue ghost-slot as the reason — the field has
+// never had a producer (both emit sites hardcode `null`). So the shape is ratified; the cost is not. Emitting
+// it here, before `resolveTurnBase`, collides with the invariant that every acceptance is TOTAL-RESOLVED
+// (see `runAiRound`: an accepted-but-unresolved slot is a stuck Stop button, already paid for once). Each new
+// strand path must then close the slot with a `turnAborted`: the NOT_FOUND target throw below, a
+// `resolveTurnBase` throw, the lock-contention refusal, and the engine's shared pre-start consent/budget
+// refusals (which deliberately emit nothing today, and are shared with `send`). Hoisting the emit into
+// `runRegistered` does NOT close the window — that helper is entered AFTER `resolveTurnBase`, which is the
+// expensive part. Three verbs x the strand set, plus an engine-level change, red-first: its own lane.
+
 /** `swipe` — reroll an assistant slot: regenerate from the context before the slot and append the result as
  *  a new selected variant. `regenerate` is swipe on the last assistant message. A non-assistant / missing
  *  target is NOT_FOUND. */
