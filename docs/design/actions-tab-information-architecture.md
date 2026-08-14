@@ -1,3 +1,9 @@
+---
+kind: design
+status: active
+updated: 2026-08-14
+---
+
 # The Actions tab at 67 rows — information architecture (FORGE lane, 2026-08-08)
 
 > **Status: BUILT (this lane, branch `wt/agent-forge-actions`).** The side-eye's gap-closure verdict on
@@ -138,7 +144,7 @@ The header's marker cross-link chip STAYS as standing tab chrome — its label a
 `update_scene`→"Scene update" · `set_tracker`→"Set tracker" · `upsert_quest`→"Quest upsert" →
 DEFAULT "Quest update" · `add_journal_entry`→"Journal entry" · `no_changes`→"No changes". The wire
 name is NOT lost: every one of these rows' `fires` gloss already carries it verbatim ("The
-update_party tool's description…"), which is exactly the secondary/code-voice ride the finding asked
+update\_party tool's description…"), which is exactly the secondary/code-voice ride the finding asked
 for — no new registry field needed. ("Journal entry", deliberately not "Add journal entry": the CT's
 fixed-enum probe is `/^Add\b/`, and a label starting with "Add" would collide with the absence it
 pins.) The drill-in header and the readout kicker inherit the human label for free.
@@ -187,7 +193,7 @@ Windowing therefore does NOT join the design (rejected-alternative #4 stays reje
    belongs with the party teaching, which no string-split can know; a typo'd prefix would mint a
    silent new group. Declared data + a two-sided contract test instead.
 4. **Virtualizing the list now** — machinery (windowed rows inside a form-subscribed list) for a
-   commit the collapse already cuts by ~60%. Joins only on a red re-measure.
+   commit the collapse already cuts by \~60%. Joins only on a red re-measure.
 5. **Splitting the tab (Actions / Game)** — a sixth editor view is an owner call, D132 named ONE
    home, and the two-call split (teach vs extract) is already the kind grammar's job.
 6. **A persisted expansion store** — no cross-region reader exists (the readout doesn't care what is
@@ -209,11 +215,11 @@ Windowing therefore does NOT join the design (rejected-alternative #4 stays reje
   vocabulary Record (tsc-exhaustive) · cluster grouping + filter matching as pure functions (unit
   tested at `tests/client/features/preset/lib/template-rows.test.ts` — a NEW path, absent from the
   test-baseline deletions ledger, verified).
-- **CT coupled sites** (`actions-view.ct.tsx`): KIND_HEADERS stays (kickers unchanged) · F-01/R-7
+- **CT coupled sites** (`actions-view.ct.tsx`): KIND\_HEADERS stays (kickers unchanged) · F-01/R-7
   geometry now measures with all clusters EXPANDED first (collapsed rows are unmounted) · the
   fixed-enum absences must hold WITH the new bands mounted · the Customized-chip census unchanged ·
   new pins: clusters collapsed at mount, band expand reveals rows, filter narrows + auto-expands,
-  drill survives an entityId remount (the fork), no snake_case row names.
+  drill survives an entityId remount (the fork), no snake\_case row names.
 - **Readout CTs** (`readout-binding.ct.tsx` + new `actions-readout.ct.tsx`): the default selection
   is the FIRST registry row (a steer), so the existing "Delivery path" + "resolves in chat"
   assertions stay green by construction; new cases select a teach and an extract row and pin the

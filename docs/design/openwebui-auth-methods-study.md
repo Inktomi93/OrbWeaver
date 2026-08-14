@@ -1,8 +1,7 @@
 ---
 kind: design
 status: draft
-owner-review: REQUIRED (forks in §6)
-updated: 2026-08-09
+updated: 2026-08-14
 ---
 
 # Open WebUI's other login methods (local / LDAP / SCIM), read against ours — the unification study
@@ -103,7 +102,7 @@ Signup `POST /api/v1/auths/signup` → `signup_handler` (`OW:backend/open_webui/
 ### 1.3 Local gap table
 
 | # | Capability | Open WebUI | Orbweaver | Verdict | Security stance |
-|---|---|---|---|---|---|
+| - | - | - | - | - | - |
 | L1 | Password KDF | bcrypt cost-12 (lib default, unpinned), no pepper (`OW:utils/auth.py:174-175`) | scrypt 2¹⁵ pinned + salt + `SESSION_SECRET` pepper (`password.ts:24-89`) | **ALREADY-BETTER** | Pepper defeats offline brute-force of a stolen DB; explicit cost pin can't drift |
 | L2 | Enumeration timing | placeholder-hash floor (`OW:models/auths.py:20-23`) | dummy-hash floor (`authenticate.ts:16`) | **PARITY** | Both defeat CWE-208 |
 | L3 | Email verification | **none** (verified absent) | none (email is not an identity key — `schema/users.ts:41-44`) | **ALREADY-BETTER by design** | For them unverified email is the W1 takeover key; for us it's a non-key attribute |
@@ -217,12 +216,12 @@ Every path re-implements JIT insert, first-user-admin, and (where relevant) grou
 its **own** answer to "an identity collides with an existing account":
 
 | Path | Identity key it links on | Collision policy | Bind-once? | Receipt |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | OIDC callback | `sub`, then **email → rebind** | **REBIND** (silent) | **No** | `OW:oauth.py:1891-1899` |
 | token-exchange | `sub`, then **email → rebind** | **REBIND** | **No** | `OW:routers/auths.py:1669-1676` |
 | LDAP | **email only** | JIT / land-on-row | **No** | `OW:routers/auths.py:643` |
 | trusted-header | **email only** | JIT | n/a (proxy is authority) | `OW:routers/auths.py:743-757` |
-| local signup | email *is* the account | 400 EMAIL_TAKEN | n/a | `OW:routers/auths.py:908-909` |
+| local signup | email *is* the account | 400 EMAIL\_TAKEN | n/a | `OW:routers/auths.py:908-909` |
 | SCIM create | `externalId`/`sub`, email as dup-check | **409 REFUSE** | **Yes (create)** | `OW:scim.py:571-594` |
 
 Five copies of `get_num_users()==1 → admin`; three copies of the group-name sync; **two different
@@ -245,7 +244,7 @@ OW's SCIM/LDAP/OIDC each carry their own.
 **I traced all four modes to their user-row-touching site.** Result:
 
 | Mode | Resolver | Carries an EXTERNAL claim? | Where a user row is minted/linked at login | Through `provisionIdentity`? |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | **oidc** | `resolveOidc` → cookie/null (`modes/oidc.ts:10-12`) | **Yes** (ID-token claims) | callback → `provisionIdentity` (`entry/http/auth-routes.ts:369`) | **YES** — bind-once applies |
 | **forward-header** | `resolveForwardHeader` → `via:"header"` (`modes/forward-header.ts:32-46`) | **Yes** (header/JWT: handle+uid+groups) | seam → `provisionIdentity` (`entry/auth/seam.ts:169`) | **YES** — bind-once applies (null-subject scope caveat, `provision-identity.ts:60-68`) |
 | **local** | `resolveLocal` → null (`modes/local.ts:11-13`) | **No** — the row pre-exists | login route: `authenticate` (verify only) → `sessions.create` (`auth-routes.ts:228-236`); rows come from boot `seedOwner` + `admin.createUser` | **N/A** — no external claim to link |
@@ -320,8 +319,8 @@ second linking site.
 ## 6. Ranked borrow-list
 
 | Rank | Item | What | Cost | Owner fork |
-|---|---|---|---|---|
-| 1 | **B1 · per-account signin throttle (a second axis)** | Add a per-**handle** failed-login counter alongside the existing per-IP throttle (`auth-routes.ts:205-239`). Today a distributed attacker (botnet, many IPs) defeats the per-IP cap against a single account; a per-handle rolling window closes that. **Copy OW's rolling-window choice, NOT a hard lockout** — a per-account *lockout* is a victim-DoS (`OW:routers/auths.py:90` is deliberately a limiter, not a lock). Reuse the same DB-backed `rate_limit_buckets` + `createRateLimiter` we already have, scope `login-handle`. | S (~30 LOC + int test) | none |
+| - | - | - | - | - |
+| 1 | **B1 · per-account signin throttle (a second axis)** | Add a per-**handle** failed-login counter alongside the existing per-IP throttle (`auth-routes.ts:205-239`). Today a distributed attacker (botnet, many IPs) defeats the per-IP cap against a single account; a per-handle rolling window closes that. **Copy OW's rolling-window choice, NOT a hard lockout** — a per-account *lockout* is a victim-DoS (`OW:routers/auths.py:90` is deliberately a limiter, not a lock). Reuse the same DB-backed `rate_limit_buckets` + `createRateLimiter` we already have, scope `login-handle`. | S (\~30 LOC + int test) | none |
 | 2 | **U1 · document the single-chokepoint rule as law** | Fold §5's rule into the identity spine's "Esoterica" so the next method builder can't miss it: *external identity → `ResolvedIdentity` → `provisionIdentity`, one linking site, stable-id-only, deprovision = `enabled=false`.* No code — a doc edit to `Spine-Identity-and-Auth.md`. | XS (doc) | Confirm the wording belongs in the spine vs the D-ledger |
 | 3 | **B2 · (only if native LDAP is ever wanted) link on `entryUUID`/`objectGUID`, via `provisionIdentity`** | Not proposed for build now — recorded as the safe shape so L-W1 is never reintroduced: an LDAP arm resolves a stable directory GUID as `externalId` and funnels through the chokepoint; empty-password rejection (`OW:routers/auths.py:493-494`) and filter-char escaping (`OW:auths.py:557`) are the two of their belts worth copying verbatim. | (deferred) | Do we want native LDAP at all, given forward-header already covers proxy-asserted identity? My default: **no** — forward-header subsumes it |
 | 4 | **B3 · (only if SCIM is ever wanted) SCIM DELETE → `enabled=false`; `active:false` admin-protection** | Recorded shape: map SCIM `DELETE` to a soft disable (never a row delete — S-W2), and copy OW's "don't let a sync demote an admin" belt (`OW:scim.py:684`), which for us is already the owner-immutability guard extended to admins. | (deferred) | Do we want push-provisioning at all? |
@@ -379,7 +378,7 @@ Our owner is a **declarative singleton, DDL-enforced, seeded at boot** — there
 first" and no open-registration window:
 
 - `seedOwner` runs at boot (`entry/boot/seed-owner.ts:84-122`): ensures the `OWNER_HANDLES` row exists
-  at `role='owner'`, self-heals a disabled owner, and (AUTH_MODE=local) seeds `LOCAL_INITIAL_PASSWORD`
+  at `role='owner'`, self-heals a disabled owner, and (AUTH\_MODE=local) seeds `LOCAL_INITIAL_PASSWORD`
   once, guarded by `isNull(password_hash)` (`:124-142`; env `foundation/env/index.ts:158,325`).
 - **Race-safety is a DDL invariant, not a check-then-write.** `users_single_owner_unique` is a partial
   unique index over `role='owner'` (`packages/db/src/schema/users.ts:73`) — a second owner row is
@@ -394,7 +393,7 @@ first" and no open-registration window:
 ### 7.3 First-run gap table
 
 | # | Capability | Open WebUI | Orbweaver | Verdict | Security stance |
-|---|---|---|---|---|---|
+| - | - | - | - | - | - |
 | FR1 | First-admin origin | open registration → first user auto-admin, then locked (`OW:routers/auths.py:862-865`) | declarative `OWNER_HANDLES`, boot-seeded (`seed-owner.ts:84-122`) | **ALREADY-BETTER** | No open-registration window; owner is not "whoever got there first" |
 | FR2 | Race-safety | post-insert `count==1`, no constraint — window leaves 0 or 2 admins (`OW:routers/auths.py:844-864`) | DDL partial-unique + loud-fail re-read (`schema/users.ts:73`; `ensure-user.ts:42-47`) | **ALREADY-BETTER** | Two owners / zero owners both unrepresentable |
 | FR3 | Env-seeded admin | `WEBUI_ADMIN_EMAIL`/`_PASSWORD` (`OW:main.py:349-352`) | `LOCAL_INITIAL_PASSWORD` for the `OWNER_HANDLES` owner (`seed-owner.ts:124-142`) | **PARITY** | Both seed from env, once, idempotent |
@@ -467,10 +466,10 @@ first-login-bindable.
 ### 7.7 Ranked borrow-list (first-run + switch)
 
 | Rank | Item | What | Cost | Owner fork |
-|---|---|---|---|---|
-| 1 | **B5 · admin "link SSO identity" verb (set `externalId` on a row)** | The db-surgery-free fix for the non-owner mismatch case (§7.5) AND the pre-close for MS-W1: an owner/admin-gated verb that stamps a **stable subject** onto an existing local row, so the user's first SSO login hits by `externalId` directly (no handle-guess, no orphan). MUST take a stable id, never an email; MUST refuse a subject already bound elsewhere (reuse `isSubjectMismatch`). This generalizes the owner-flip adoption to non-owners **safely**, keyed on the stable id the admin vouches for. | M (~40 LOC verb + admin surface + int tests) | **Yes.** Is admin-vouched SSO linking wanted, or is "handle must equal IdP username" an acceptable operator contract? My default: **build B5** — it is the only db-surgery-free path for non-owner locals and closes MS-W1's window deliberately. |
-| 2 | **B6 · boot warning when flipping to SSO with local users present** | At boot under `oidc`/`forward-header`, if any `users` row carries a `passwordHash` (a pre-existing local account), warn that accounts whose IdP username ≠ handle will orphan unless linked (B5). Cheap operator tell; mirrors the forward-header fail-closed boot warn already at `entry/lifecycle.ts:376-380`. | S (~15 LOC) | none |
-| 3 | **B4 · local-mode first-run setup screen** | Instead of requiring `LOCAL_INITIAL_PASSWORD` in env, let the first unauthenticated visit to a fresh local box set the owner password once (gated on "owner row has null `password_hash`", the same guard `seed-owner.ts:131-134` uses). Mirrors OW's onboarding without their open-registration race (our owner is already the seeded singleton — this only sets its password). | M (~50 LOC + CT) | Minor: is env-seed sufficient, or is a setup screen wanted for non-container deploys? |
+| - | - | - | - | - |
+| 1 | **B5 · admin "link SSO identity" verb (set `externalId` on a row)** | The db-surgery-free fix for the non-owner mismatch case (§7.5) AND the pre-close for MS-W1: an owner/admin-gated verb that stamps a **stable subject** onto an existing local row, so the user's first SSO login hits by `externalId` directly (no handle-guess, no orphan). MUST take a stable id, never an email; MUST refuse a subject already bound elsewhere (reuse `isSubjectMismatch`). This generalizes the owner-flip adoption to non-owners **safely**, keyed on the stable id the admin vouches for. | M (\~40 LOC verb + admin surface + int tests) | **Yes.** Is admin-vouched SSO linking wanted, or is "handle must equal IdP username" an acceptable operator contract? My default: **build B5** — it is the only db-surgery-free path for non-owner locals and closes MS-W1's window deliberately. |
+| 2 | **B6 · boot warning when flipping to SSO with local users present** | At boot under `oidc`/`forward-header`, if any `users` row carries a `passwordHash` (a pre-existing local account), warn that accounts whose IdP username ≠ handle will orphan unless linked (B5). Cheap operator tell; mirrors the forward-header fail-closed boot warn already at `entry/lifecycle.ts:376-380`. | S (\~15 LOC) | none |
+| 3 | **B4 · local-mode first-run setup screen** | Instead of requiring `LOCAL_INITIAL_PASSWORD` in env, let the first unauthenticated visit to a fresh local box set the owner password once (gated on "owner row has null `password_hash`", the same guard `seed-owner.ts:131-134` uses). Mirrors OW's onboarding without their open-registration race (our owner is already the seeded singleton — this only sets its password). | M (\~50 LOC + CT) | Minor: is env-seed sufficient, or is a setup screen wanted for non-container deploys? |
 
 ### 7.8 Explicitly NOT borrowed (switch)
 

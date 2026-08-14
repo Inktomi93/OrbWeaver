@@ -1,3 +1,9 @@
+---
+kind: design
+status: draft
+updated: 2026-08-14
+---
+
 # Tracked-field unification + panel IA repair — the pool/meter/cast-field untangle
 
 > **STATUS (2026-08-01): STAGES 1+2 SHIPPED** — stage 2 `98ee6da2` (merged): Sheet-tab dissolved,
@@ -6,26 +12,28 @@
 > gloss read-halves closed. Remaining on the board: W-H side-eye pass, EXT-4.
 > Original stage-1 note: **STAGE 1 SHIPPED** — `ea99b0e3`, merged to main `22cf37ea`, law minted as **D113** (`Core-Path-Registry.md`). §5 shapes are live; stage 2 (Status-absorbs-Sheet takeover view, GM editor polish, RV-8 primitives) remains open on the workboard.
 
-
 **Status:** direction + spec APPROVED (owner, 2026-07-31 late — noun = **TRACKER**; widgets full-fold
-+ hud_widgets table drop approved; appliesTo carrier classes approved; R4c journal-custom batches into
-this lane's baseline regen). Nothing built.
-**Scope:** rpg panel Status/Sheet/Game tabs + band, the field def contracts, the 7-tools write surface.
-**Evidence:** eyes-on live drive 2026-07-31 (`reports/snaps/untangle-*.png`, dogfood konbini game +
-seeded d20/freeform games) + code recon. Supersedes **RV-14** (the rename) — the name problem dissolves
-in the merge. Reshapes **RV-8** (CRUD program) and **R6** (tool assembly).
+
+- hud\_widgets table drop approved; appliesTo carrier classes approved; R4c journal-custom batches into
+  this lane's baseline regen). Nothing built.
+  **Scope:** rpg panel Status/Sheet/Game tabs + band, the field def contracts, the 7-tools write surface.
+  **Evidence:** eyes-on live drive 2026-07-31 (`reports/snaps/untangle-*.png`, dogfood konbini game +
+  seeded d20/freeform games) + code recon. Supersedes **RV-14** (the rename) — the name problem dissolves
+  in the merge. Reshapes **RV-8** (CRUD program) and **R6** (tool assembly).
 
 ---
 
 ## 1. The tangle, as observed (receipts)
 
 **One concept, four names.** The same "labelled number tracked on someone" is called:
+
 - **pool** — Sheet tab section header POOLS
 - **meter** — Sheet tab's add affordance ("Add meter" → creates a pool named "Pool N")
 - **meter field** — Game tab, CAST FIELDS — TRACKED ON NPCS ("+ Text field / + Meter field")
 - **band orb** — Game tab BAND ORBS section (a pinned pool) + 3-letter abbreviations in the band
 
 **One lifecycle, three tabs.** For a single pool:
+
 - DEFINE (name, hint "what this pool means…", max) → **Sheet** (`sheet.poolDefs`, per-actor)
 - LIVE VALUES (current/max bars, conditions, status) → **Status** roster card
 - VISIBILITY (pin to band) → **Game** tab BAND ORBS ("define pools on the Sheet tab, then pin them
@@ -34,10 +42,11 @@ in the merge. Reshapes **RV-8** (CRUD program) and **R6** (tool assembly).
   are per-GAME (`features.castFields`) while pool defs are per-ACTOR (`sheet.poolDefs`)
 
 **Sheet is almost useless** (owner verdict, confirmed on sight): subject picker + Level + wallet chips
-+ pool DEF rows. On freeform it even punts its own content away ("This game steers on prose —
-attributes are defined in the Game tab") while on d20 it shows six attribute value tiles (all "1",
-no add, no rename, no hint editing — RV-4/RV-12). A tab whose content migrates to another tab
-depending on profile is not a home, it's a hallway.
+
+- pool DEF rows. On freeform it even punts its own content away ("This game steers on prose —
+  attributes are defined in the Game tab") while on d20 it shows six attribute value tiles (all "1",
+  no add, no rename, no hint editing — RV-4/RV-12). A tab whose content migrates to another tab
+  depending on profile is not a home, it's a hallway.
 
 **Observed rot the tangle causes:** the seeded game carries a live **"Pool 4", max 10** — an
 "Add meter" default-name orphan persisted into state. And the same class live-reproduced on the GM
@@ -45,6 +54,7 @@ tab: clicking "+ Meter field" instantly persists **"Meter 3", max 100** with onl
 focused after the fact. Default-named defs are what both add flows produce by design.
 
 **Live-drive findings (2026-07-31, claude-in-chrome on :5173, seeded freeform game):**
+
 - **Status roster IS already the living table** — value AND max are click-to-edit per pool
   (`"Mana value — Click to edit"` / `"Mana max — Click to edit"` in the a11y tree). The §3 direction
   strengthens: Status needs absorption, not creation.
@@ -58,7 +68,7 @@ focused after the fact. Default-named defs are what both add flows produce by de
 - Stat-profile arm text varies by profile ("Freeform — this game steers on prose, with no attribute
   vocabulary" vs d20's chip row) — fine per RV-13, but the freeform arm offers no path TO d20,
   which RV-13's branch-and-save direction will need.
-- Minor (W-H): at panel widths below ~1280 the meta tabs render icon-only and the game-tab strip
+- Minor (W-H): at panel widths below \~1280 the meta tabs render icon-only and the game-tab strip
   x-scrolls with a visible scrollbar.
 
 ## 2. The unified concept
@@ -67,7 +77,7 @@ focused after the fact. Default-named defs are what both add flows produce by de
 placeholder). Axes, not siblings:
 
 | Axis | Values | Today's concepts it absorbs |
-|---|---|---|
+| - | - | - |
 | `subject` | applicability model (SETTLED, owner 2026-07-31): def-level default `appliesTo: all \| [actors]` **+ per-actor `grants` + per-actor `revokes`**; effective carriers = (all ? whole ROSTER : list) + grants − revokes. Covers column fields (everyone), personal fields (named actors), and one-off ad-hoc grants (the act-3 demon's "Bound Will") with ONE mechanism. Game-scoped widgets = `subject: game` (no carrier resolution). **Vocabulary ruling (owner): the people-group is the ROSTER — "cast" is not canon anywhere in the new surface.** | pools (per-actor) vs "cast fields" (per-game, legacy name) vs widgets (game-scoped) |
 | `shape` | meter (value/max) · text · list | meter fields, text fields, widget lists |
 | `write` | **delta** (spend/restore — a resource) vs **set** (observe — a state) | poolDeltas vs set-value; KEEP THIS LOUD — it drives the tool arg shape, the model's mental model, and the panel read (bar you drain vs gauge that tracks) |
@@ -120,8 +130,8 @@ values = host (existing permission grammar, unchanged).
   offers Mana on an actor that doesn't carry it — stronger prevent-at-schema than today.
 - **RV-4/RV-12** — become "attributes get the same label+hint editor," not bespoke work.
 - Migration reality: contracts + db (poolDefs/castFields/widgets converge), the 7-tools schema
-  (poolDeltas + set_widget_value + castField writes converge or alias), reminder segs (one gloss
-  path — fixes the R4b class for every axis at once), panel components, ~7 writable-field coupled
+  (poolDeltas + set\_widget\_value + castField writes converge or alias), reminder segs (one gloss
+  path — fixes the R4b class for every axis at once), panel components, \~7 writable-field coupled
   sites. A LANE, not an evening. Old wire vocab may need read-compat for existing game rows.
 
 ## 5. The schema-level spec (drafted 2026-07-31 overnight — owner review pending)
@@ -170,8 +180,8 @@ max duplication dies).
 
 ### 5.3 Migration map (pre-launch reality: blobs + ONE squashed baseline — no incremental SQL)
 
-- **`rpg_games.config` lift** (versioned, [[versioned-config-lift-drops-overrides]] discipline —
-  stamp SCHEMA_VERSION): `features.castFields[]` → `fields[]` with `{subject:"actor",
+- **`rpg_games.config` lift** (versioned, \[\[versioned-config-lift-drops-overrides]] discipline —
+  stamp SCHEMA\_VERSION): `features.castFields[]` → `fields[]` with `{subject:"actor",
   appliesTo:"npcs", write:"set"}`; statProfile untouched.
 - **`rpg_sheets.sheet` lift**: each actor's `poolDefs[]` → game-level `fields[]` with
   `{subject:"actor", write:"delta", appliesTo:[thatActor]}`; identical defs (name,max,hint) across
@@ -180,7 +190,7 @@ max duplication dies).
 - **`rpg_hud_widgets` table DROPPED at baseline regen**: `binding:custom` rows → game-subject defs;
   `binding:pool`/`hp` rows → `pinned:true` on the corresponding actor field (they were always just
   pins); chrome (icon/accent/position/sort) folds into the def. Baseline regen only on a quiesced
-  tree ([[baseline-regen-on-shared-tree]]).
+  tree (\[\[baseline-regen-on-shared-tree]]).
 - **NO legacy machinery (owner ruling 2026-08-01: "we haven't launched — there shouldn't be legacy
   anything").** The snapshot schema changes CLEANLY to `fieldValues`; no lift-at-parse, no dual-shape
   era. Old dev-DB rows: wipe/reseed (the DB is expendable pre-launch), or a ONE-TIME throwaway
@@ -193,7 +203,7 @@ max duplication dies).
   dev DB don't constrain the design.
 - **Reminder**: ONE gloss seg builder for all fields (label value/max (hint)) — R4b's pattern
   generalized; per-plane special-casing dies.
-- Coupled-site sweep: the ~7 writable-field sites ([[rpg-writable-field-coupled-sites]]) + panel
+- Coupled-site sweep: the \~7 writable-field sites (\[\[rpg-writable-field-coupled-sites]]) + panel
   components + `mergeFeatures` threading + gates (knob-wire/bus-coverage rows).
 
 ### 5.4 Sizing + sequencing

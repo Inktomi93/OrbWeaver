@@ -1,8 +1,7 @@
 ---
-kind: design-options
-status: decision-input
-updated: 2026-08-08
-scope: config-rail + portability cluster — three parked items
+kind: design
+status: parked
+updated: 2026-08-14
 ---
 
 # Parked options — config-rail + portability
@@ -14,6 +13,7 @@ the do-it-right-once arm with its WHY. KISS/YAGNI are SUSPENDED for architecture
 with no committed consumer is still YAGNI, and that distinction decides items 1 and 3.
 
 Coverage limits stated up front:
+
 - Item 2's two originating side-eye docs were not pinned by grep (the "deferred tonight" filings). The
   load-bearing artifacts I cite instead are authoritative and current: the code comment, the mock, the CT,
   and the 2026-08-03 combined-nightly verdict.
@@ -40,8 +40,7 @@ Two different seams are in play, and the owner's phrase blurs them:
 
 - **The config workspace hosts COLLECTIONS**, a different contributor family (`CollectionContribution`,
   the eleventh family — `packages/client/src/lib/collection-contracts.ts:91`).
-  - The door array: `configCollections = createContributorRegistry<CollectionContribution>("config-collections",
-    [tagCollection, regexCollection, worldInfoCollection])` — `packages/client/src/main.tsx:231`.
+  - The door array: `configCollections = createContributorRegistry<CollectionContribution>("config-collections", [tagCollection, regexCollection, worldInfoCollection])` — `packages/client/src/main.tsx:231`.
   - `makeConfigSection(configCollections)` consumes it blind — `packages/client/src/features/config/lib/config-section.tsx:30`.
   - The seam's own header states the "one array line to move a library between rail and roster" property —
     but that property is defined for **collections**, not for a full section: `collection-contracts.ts:6-9`,
@@ -102,7 +101,7 @@ When the owner feels it, the right-once shape is: extend `CollectionContribution
 view-projected context arm carrying a header COMPONENT (not a title string), and (b) an optional
 per-collection panel-default hint; then convert `presetsSection` into a preset collection and delete the
 standalone section in the same commit (no half-migration — AGENTS §4 banned escape hatches). That is a
-real ~day of work across the seam + presets, not one array member — and stating that honestly now is worth
+real \~day of work across the seam + presets, not one array member — and stating that honestly now is worth
 more than either premature arm.
 
 ---
@@ -199,13 +198,13 @@ shipped — the server side is DONE. The only gap is a client affordance to reac
   is standard interchange, not an orb invention.
 - **THE GAP — no client affordance.** The character kebab has ONE "Export card" link with no `?format`, so it
   always hits the PNG default: `packages/client/src/features/character/components/character-card.tsx:187-190`
-  (`href={`${EXPORT_CHARACTER_PATH}${character.id}`}`, `EXPORT_CHARACTER_PATH` at `:25`). JSON is reachable only
+  (`href={`${EXPORT\_CHARACTER\_PATH}${character.id}`}`, `EXPORT_CHARACTER_PATH` at `:25`). JSON is reachable only
   by hand-typing the query.
 
 ### Options
 
 1. **Build the client affordance on the existing json arm.** Replace the single "Export card" link with a
-   two-item submenu (PNG / JSON) hitting `?format=json` for the JSON arm. The server is done; this is ~10 lines.
+   two-item submenu (PNG / JSON) hitting `?format=json` for the JSON arm. The server is done; this is \~10 lines.
 2. **Separate export door.** Rejected — duplicates the built, correct door.
 3. **Skip.** Leave JSON as an API-only capability (power users hit the URL).
 

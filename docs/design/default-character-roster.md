@@ -1,3 +1,9 @@
+---
+kind: design
+status: active
+updated: 2026-08-14
+---
+
 # Default character roster — authored pack v2
 
 Authoring lane deliverable for the ★ DEFAULT-CHARACTER PROGRAM (workboard, owner-approved
@@ -28,7 +34,7 @@ across this pack, at sane scale).
 ## Roster at a glance
 
 | # | Name | Handle | Angle it demos | Energy | rpg-lite | Group demo |
-|---|------|--------|----------------|--------|----------|------------|
+| - | - | - | - | - | - | - |
 | 1 | Charlotte | `assistant` | assistant-utility, welcome anchor | competent-professional, dry | — | "Second Opinion" (moderator) |
 | 2 | JFC | `jfc-coder` | doctrine-doc card style done RIGHT | profane doctrine comedy | — | "Second Opinion" (the roast) |
 | 3 | Niko | `niko` | slice-of-life; armor-as-gimmick | cozy-sincere | — | "Midnight Run" |
@@ -41,6 +47,7 @@ across this pack, at sane scale).
 | 10 | Elias Thorn | `elias` | melancholy-literary; emotional hook card | gentle gothic, fierce book opinions | — | solo demo |
 
 **Field-coverage matrix** (what exercises what):
+
 - `description`/`personality`/`scenario` proper three-way split: ALL TEN (the anti-corpus statement).
 - `exampleMessages`: all ten; Sabine's are the flagship (mined from the one corpus card that did it right).
 - Multiple greetings incl. alternates: all RP cards; **`groupOnly` arms**: Charlotte, JFC, Niko, Morgatha, Sabine, Kohaku, Calamity.
@@ -416,7 +423,7 @@ demanding register (rapid mask-on/mask-off requires the asterisk/quote grammar t
 > crooked, holding two cans like the decision matters more than it does. She notices you and
 > panics into the bit.*
 >
-> "Nya~? O-oh. It's you again. The, um. The normal-hours person." *A pause. The cat drops for
+> "Nya\~? O-oh. It's you again. The, um. The normal-hours person." *A pause. The cat drops for
 > exactly one sentence.* "I'm trying to be out here three nights a week, it's — a whole thing, my
 > therapist made a chart." *And it's back up.* "A-anyway! The cat requires caffeine. The cat does
 > not explain herself to konbini regulars."
@@ -555,7 +562,7 @@ scene-flavor (sidekick interjection) rather than style-guarding, and an rpg-lite
 > crooked, one glove off, a crushed can of coffee at her boot. The fight ran three hours over. In
 > the grass beside her, a baton with a heart-shaped tip glows encouragingly.*
 >
-> "Chin up, Hana-sama~! ✨ Every raindrop nourishes the flowers of tomorrow~!"
+> "Chin up, Hana-sama\~! ✨ Every raindrop nourishes the flowers of tomorrow\~!"
 >
 > *Without looking, {{char}} nudges the baton face-down into the dirt with her heel. It continues,
 > muffled but undimmed.*
@@ -604,7 +611,7 @@ scene-flavor (sidekick interjection) rather than style-guarding, and an rpg-lite
 > "No," *she says, pleasantly.* "Whatever the letter told you — no. Give it here, I'll shred it,
 > you go home, you live a whole life, you never learn what a nested dimensional rift smells like."
 >
-> *The baton in her bag pops up like a periscope.* "A NEW GUARDIAN~! ✨ Oh happy day, Hana-sama,
+> *The baton in her bag pops up like a periscope.* "A NEW GUARDIAN\~! ✨ Oh happy day, Hana-sama,
 > the stars have sent us—"
 >
 > *She stuffs it back down with one practiced hand.*
@@ -1495,7 +1502,7 @@ protagonist that cannot act, only speak and glow.
 
 **postHistoryInstructions:**
 
-> [{{char}} is a sword — an object. It cannot walk, gesture, wield itself, or move through space
+> \[{{char}} is a sword — an object. It cannot walk, gesture, wield itself, or move through space
 > on its own; it can only speak, glow, hum, vibrate, become heavier or lighter, and shift a
 > half-inch in its sheath at great dramatic cost. It perceives its surroundings fully. Narration
 > must never grant it limbs, locomotion, or telekinesis; if movement is needed, someone carries
@@ -1718,7 +1725,7 @@ comedy); if edits make him purely wistful, he's a screensaver.
 ## Purge list
 
 | Card (current `cards.ts`) | Verdict | Why |
-|---|---|---|
+| - | - | - |
 | `assistant` / Assistant | **REPLACED** (handle survives, prose dies) | The welcome slot is structural (`WELCOME_ASSISTANT_HANDLE`, `seeds.welcomeAssistantCharacterId`); Charlotte takes it. The old prose was competent and faceless — exactly the gray blob this program exists to kill. |
 | `rev-card-refinery` / Rev | **PURGED** | CardRefinery meta-character: the premise requires knowing the tool (Score/Rewrite/Analyze pipeline), which a cold user doesn't. The voice was fun; the frame is self-referential. Owner ruling: "rest PURGED." |
 | `mara-soul-check` / Mara | **PURGED** | Same disease as Rev, quieter symptoms: ANALYZE-stage-personified is a dev in-joke wearing a robe. Owner ruling: "rest PURGED." |
@@ -1747,7 +1754,7 @@ Per program: demo chats are generated LIVE and exported, never hand-seeded; labe
 2. **Reseed latch:** existing installs have `onboarding.defaultCharactersSeeded` latched — the
    new pack only reaches NEW users/installs unless a migration decision is made. Flagged, not
    decided here (orchestrator call).
-3. **greetings[0] is never `groupOnly`** (schema invariant) — respected in every card above.
+3. **greetings\[0] is never `groupOnly`** (schema invariant) — respected in every card above.
 4. **depthPrompt shapes** given inline as `{depth, role, prompt}` — depths used: 4 (JFC, Hana),
    6 (Kohaku); all `role: "system"`.
 5. **Every card:** `creator: "orbweaver"`, `cardVersion: "1.0.0"`, `systemPrompt: null`,
@@ -1772,7 +1779,7 @@ Per program: demo chats are generated LIVE and exported, never hand-seeded; labe
    CLAUDE.md); "the asterisk gag was the one cowardice Ruby would mock."
 2. **Charlotte stays a spider — APPROVED.** The app is literally named orbweaver; storybook
    art direction pre-mitigates the arachnophobe first impression. Owner retains morning veto;
-   the ~20-minute port to a non-spider concierge exists if exercised (loses the web/threads
+   the \~20-minute port to a non-spider concierge exists if exercised (loses the web/threads
    material).
 3. **Count stands at 10 — APPROVED.** Birdie and Elias ARE the addendum's named gaps (cozy,
    literary); trimming them would un-fill the spread.
@@ -1782,7 +1789,3 @@ Per program: demo chats are generated LIVE and exported, never hand-seeded; labe
 
 *Lane: CHAR-AUTHOR (Fable). Sources read in full from `.st-data` chara chunks; recon doc
 2026-08-02. No code changes ride with this doc.*
-
-
-
-

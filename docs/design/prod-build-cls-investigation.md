@@ -1,3 +1,9 @@
+---
+kind: design
+status: active
+updated: 2026-08-14
+---
+
 # Prod-build CLS lead — investigation only, no fix
 
 **Status:** INVESTIGATION. Confirms the prod launcher exists; does NOT run a prod measurement — blocked
@@ -19,7 +25,7 @@ Yes. `scripts/dev/stack.sh` mode-dispatches to `scripts/dev/stack-prod.ts` for
 - `scripts/dev/stack.sh:8` — `pnpm stack up|down|restart|status [dev|prod] [--debug]`
 - `scripts/dev/stack.sh:112-114` — "PROD routes the WHOLE invocation to scripts/dev/stack-prod.ts and
   never returns... nothing below this block runs in prod mode, because prod has no vite, no engines
-  management, and no [dev machinery]"
+  management, and no \[dev machinery]"
 - `scripts/dev/stack-prod.ts:15` — "detached production server, no vite, no build step" at the
   supervisor level — i.e. `stack-prod.ts` ADOPTS/manages a running server but does not itself run the
   client build; a client-dist preflight is a documented precondition, so a prod run needs a pre-built

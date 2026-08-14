@@ -1,8 +1,7 @@
 ---
 kind: design
 status: draft
-owner-fork: REQUIRED (shape + the rpg-in-export strategic call)
-updated: 2026-08-09
+updated: 2026-08-14
 ---
 
 # Demo seeding — the jank, and what "the actual way" costs
@@ -11,7 +10,7 @@ updated: 2026-08-09
 > instruction when "the actual way" proved to need machinery outside the seeder fence. No files
 > touched, no OpenRouter tokens burned. Receipts are repo-relative (identical worktree↔main).
 > This doc preserves the audit so it does not die in the transcript
-> ([[lane-deliverable-text-must-land-in-a-file]]).
+> (\[\[lane-deliverable-text-must-land-in-a-file]]).
 
 ## The owner's ask
 
@@ -63,7 +62,7 @@ The seeder GENERATES NOTHING. It replays committed static bytes + a hand-authore
   pipeline against Sonnet-5/OR, then a capture path serializing GENUINE resulting state into the
   seed. Reaches `domain/chat` services + `infra/providers`; NOT in `seeder/**`.
 - **The rpg demo additionally:** an rpg-state-aware capture+serialize+replay spanning
-  `domain/export` + `kit/serde/chat` + `domain/rpg` (snapshots TURN arm, turn_tool_calls, sheets,
+  `domain/export` + `kit/serde/chat` + `domain/rpg` (snapshots TURN arm, turn\_tool\_calls, sheets,
   journal, checkpoints, committed lifecycle) — none representable by chat-JSONL or the seeder's
   bulk-import+hand-replay delivery today.
 

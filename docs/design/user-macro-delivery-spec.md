@@ -1,3 +1,9 @@
+---
+kind: design
+status: active
+updated: 2026-08-14
+---
+
 # User-macro INPUT-VALUE DELIVERY — implementation blueprint
 
 > **Status: design-complete spec (2026-07-27).** Executes the MU-wave follow-on the exec flagged BLOCKED:
@@ -75,7 +81,7 @@ column read/write seam (chat wire), and the ledger's read-parse precedent homes 
 column's other blob schemas. (`UserMacroValues` stays in contracts/preset — it is authoring-plane
 vocabulary; the two shapes are different concepts: picks vs draws.)
 
-### 1.3 DB column — `packages/db/src/schema/chat.ts` (`messageVariants`, after `variableDelta` ~line 316)
+### 1.3 DB column — `packages/db/src/schema/chat.ts` (`messageVariants`, after `variableDelta` \~line 316)
 
 ```ts
 // MU user-macro delivery — the per-turn random-pick draw record (macro → input → drawn value). Written
@@ -204,6 +210,7 @@ export function buildTurnUserMacros(args: BuildTurnUserMacrosArgs): TurnUserMacr
 ```
 
 Implementation notes for the builder:
+
 - Resolve inputs ONCE: for each def, `resolveUserMacroInputs(def.inputs, args.values[def.name] ?? {},
   { prng, frozenDraws: args.frozenDraws?.[def.name] })`; accumulate
   `inputBindings[def.name] = bindings` and `draws[def.name] = { ...frozen-used, ...fresh }` — the
@@ -227,6 +234,7 @@ referencing a user macro would passthrough. Add to its trailing options object:
 ### 2.4 Exact signature changes — the threading (all defaults = the current singleton ⇒ every untouched caller is byte-identical)
 
 **`assembly/macros.ts`**
+
 ```ts
 export function renderMacros(text: string, ctx: AssembleContext, persona: AssemblePersona | null | undefined,
   original?: string, registry: MacroRegistry = globalMacroRegistry): string;          // + processMacros(text, opts, registry)
@@ -243,6 +251,7 @@ export function buildTurnMacroContext(args: { …existing…;
 ```
 
 **`assembly/assemble.ts`**
+
 - `interface BuildEnv` gains `readonly registry: MacroRegistry;` — every `renderMacros(...)` call that has
   `env` in scope passes `env.registry` as the 5th arg.
 - The env-less helpers gain an explicit param: `renderMemberField(field, member, ctx, registry)`,
@@ -259,6 +268,7 @@ export function buildTurnMacroContext(args: { …existing…;
   the turn.)
 
 **`assembly/context.ts`**
+
 - `interface BuildAssembleContextInput` gains
   `readonly macroRegistry?: MacroRegistry | undefined;` and
   `readonly freezeMacroRegistry?: MacroRegistry | undefined;`
@@ -276,6 +286,7 @@ threaded verbatim into `buildAssembleContext`'s input. (`substrate/assembly-acce
 `Parameters<>` — no edit.)
 
 **`verbs/turn.ts`**
+
 - `buildTurnContext` args gain `readonly frozenUserMacroDraws?: UserMacroDraws | undefined;`. Body, after
   `resolveForeignInputs`:
   ```ts
@@ -307,6 +318,7 @@ threaded verbatim into `buildAssembleContext`'s input. (`substrate/assembly-acce
   bindings/draws.
 
 **`contract/results.ts`** — `TurnPrep` gains:
+
 ```ts
 /** The per-turn user-macro registry (MU delivery) — closures, server-only, NEVER on the serializable
  *  AssembleContext. Absent ⇒ the preset authored no user macros ⇒ every render seam falls back to the
@@ -315,6 +327,7 @@ readonly macroRegistry?: MacroRegistry | undefined;
 /** The turn's effective draw record (frozen ∪ fresh) — persisted onto every committed variant (§1.6). */
 readonly userMacroDraws?: UserMacroDraws | undefined;
 ```
+
 (`RoundBase = Parameters<typeof driveRoundVia>[0]["base"]` — round.ts's base type inherits these; verify
 `driveRoundVia` spreads the base onto each speaker prep, which it does today for
 `assembleContext`/`memoryRecall`.)
@@ -323,7 +336,7 @@ readonly userMacroDraws?: UserMacroDraws | undefined;
 
 **`engine/pipeline.ts`** — `RunTurnPipelineArgs` gains
 `readonly macroRegistry?: MacroRegistry | undefined;`; `buildPrompt(ctx.promptConfig, ctx, args.macroRegistry ?? globalMacroRegistry)`
-(:338); the AI_OUTPUT/REASONING `buildTurnMacroContext` (:218) gains `registry: args.macroRegistry`.
+(:338); the AI\_OUTPUT/REASONING `buildTurnMacroContext` (:218) gains `registry: args.macroRegistry`.
 
 **`verbs/read.ts` (previews)** — `previewAssembly`/`peekPrompt`/`previewSection` build a PREVIEW registry:
 `buildTurnUserMacros({ defs, sourceId, values, prng: () => 0 })` (no frozenDraws; the fixed prng gives the
@@ -365,6 +378,7 @@ one line:
 
 **Arm A — per-chat store (RECOMMENDED).** Exact parity with the ChoiceBlock-variables plane, which is the
 same product concept (preset-declared typed knobs, user-picked per room, consumed at assembly):
+
 - `chats.userMacroValues: text("user_macro_values", { mode: "json" }).$type<UserMacroValues>()` — the
   `variableValues` sibling (db/schema/chat.ts:138; baseline squash again).
 - Verb `setUserMacroValues` — member-gated, mirrors `createSetVariables`
@@ -384,10 +398,12 @@ same product concept (preset-declared typed knobs, user-picked per room, consume
 `UserSettings.macros.inputValues: UserMacroValues` arm (settings schema + `USER_SETTINGS_SCHEMA_VERSION`
 bump per the versioned-config-lift rule), resolved in compose `resolveForeignInputs` from
 `loadUserSettings(runAsUserId)` and delivered as:
+
 ```ts
 /** The host's per-user user-macro input picks — absent ⇒ {} (defaults posture; byte-identical). */
 readonly userMacroValues?: UserMacroValues | undefined;   // on ForeignInputs
 ```
+
 `buildTurnContext` then sources `values: foreign.userMacroValues ?? {}`. Simpler plumbing; global-per-user
 picks (same pick in every room), host-plane only (a member's picks never apply — the turn resolves under
 `runAsUserId`).
@@ -433,6 +449,7 @@ would be a wrong-home (chat reads its own `chats` row — the `variableValues` p
 **THE LOAD-BEARING PIN — swipe replays the identical draw through the REAL assembly + persistence path.**
 `tests/server/domain/chat/verbs/turn.int.test.ts` (extend the existing turn int suite; real db factory,
 fake `runChatTurn` capturing the built `TurnRequest`):
+
 1. Preset with a user macro `{{mood}}` = one `random-pick` input (options a/b/c/d), referenced from an
    enabled literal section. `send` with a seeded prng pinned to draw a known option.
    - assert the captured `request.prompt` (static/dynamic) contains the drawn value (registry reached the
@@ -447,6 +464,7 @@ fake `runChatTurn` capturing the built `TurnRequest`):
 5. Pre-feature slot (variant with `macro_draws` null): swipe draws fresh and records.
 
 **Unit/contract, per touched module:**
+
 - `tests/server/domain/chat/assembly/user-macros.test.ts` — builder: null on empty defs; bindings for all
   four kinds; frozen∪fresh union; rejected propagation; both registries carry the defs; prng consumption
   order stable; only random-pick entries recorded.

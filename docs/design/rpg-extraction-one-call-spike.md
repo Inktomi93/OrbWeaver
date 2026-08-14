@@ -1,9 +1,15 @@
+---
+kind: design
+status: active
+updated: 2026-08-14
+---
+
 # RPG state extraction — one-call-tools spike & recommendations
 
 **Status:** R1 DECIDED · R4b/R4c open · **Date:** 2026-07-29, substantially revised 2026-07-30
 **Scope:** hosted (OpenRouter) strong-model rpg turns. Local vLLM 8B path is explicitly out of scope (see §6).
 **Evidence:** live spikes against `anthropic/claude-sonnet-5` via OpenRouter + the Anthropic native
-Messages API (~$3.6 total spend, 8 harnesses). Raw artifacts under `scripts/probes/rpg-extraction/` — see
+Messages API (\~$3.6 total spend, 8 harnesses). Raw artifacts under `scripts/probes/rpg-extraction/` — see
 Appendix B. Results directories are gitignored; **this document is the durable record.**
 
 > **OUTCOME 2026-08-01 (owner ruling): the `reliable` MODE IS DELETED.** §4f–§4h measured it WORST on the exact
@@ -44,7 +50,7 @@ Appendix B. Results directories are gitignored; **this document is the durable r
    **GM persona prompt + the existing 7 rpg tools + `tool_choice:"auto"`**, keeping BOTH the message
    `content` (narrative) and the `tool_calls` (state). This replaces today's *two* model calls (narrative
    turn + separate post-commit state round) with **one**. Verified: Sonnet 5 co-emits a full narrative AND
-   1–3 strict-validated tool calls in a single completion on **6/6** turns. **~43% cheaper, ~34% faster.**
+   1–3 strict-validated tool calls in a single completion on **6/6** turns. **\~43% cheaper, \~34% faster.**
 2. **No schema work.** The 7 tools are already the per-plane split of the state; the fold is a **wiring
    change**, not a schema change.
 3. **Ship enriched tool descriptions + a state-tracking guide.** An A/B proved terse descriptions cause
@@ -55,7 +61,7 @@ Appendix B. Results directories are gitignored; **this document is the durable r
    of six runs** and `hpDelta` **4/4 in six of six**, with thinking **off**. The original 0/8 measured a
    game that never clearly ends a condition, scored per-turn instead of per-opportunity (§4b). **R4 and R4a
    are withdrawn**; no effort change, write-surface redesign, or reconcile step is needed. (Incidental:
-   `low` effort measured *cheaper* than `none` — $0.197 vs $0.233 on ~7 fewer tool calls — so switching is
+   `low` effort measured *cheaper* than `none` — $0.197 vs $0.233 on \~7 fewer tool calls — so switching is
    defensible on cost, just not on correctness.)
 5. **Tools + a response schema compose only across two rounds** (§2, measured 2026-07-30) — in one call you
    get the tool call and empty text (the turn is unfinished, `stop_reason: "tool_use"`); feeding the
@@ -100,6 +106,7 @@ Per-turn, `cheap` mode runs **two model calls**:
 ```
 
 Key seams (server):
+
 - `flushTurn(ctx, game, mode, turn)` — `chat-ops/flush.ts:156`. At `onTurnCompleted`, gated by
   `deriveTrackersReadOnly(mode, capability)` (`:157`), calls `stageStateRound` (`:68`).
 - `reliable` → `buildRunExtraction` (structured `response_format: json_schema`);
@@ -110,7 +117,7 @@ Key seams (server):
 - The reminder state-fold + pure diff: `chat-ops/gather.ts` + `substrate/delta.ts` (deterministic, no I/O).
 
 **Cost shape:** the big input prompt is paid **twice per turn** (two calls, different system prompts → no
-shared prompt cache). Verified: an isolated tool round = ~6.6k input + ~700 output ≈ **$0.023–0.032**.
+shared prompt cache). Verified: an isolated tool round = \~6.6k input + \~700 output ≈ **$0.023–0.032**.
 
 **Why we're changing it:** two calls is the sad-path-8B accommodation (owner ruling 2026-07-27: "char turn
 is tool-less prose; state captured by its own request"). Hosted strong models don't need the split — and
@@ -138,9 +145,9 @@ is lost by collapsing it.
   (`low` = "skips thinking for simple tasks"), so it is consistent, not anomalous. See §7a for the
   non-terminal variant, the only shape where this would matter.
 - **Our OR path = `client.chat.send`** (OpenAI-compat), which already streams back reasoning + content +
-  tool_calls from one completion and we already capture all three (`chat-completions.ts`). Reasoning depth
+  tool\_calls from one completion and we already capture all three (`chat-completions.ts`). Reasoning depth
   there is `effort` only (no token budget — that's the `responses` surface, unused).
-- **The monolithic `rpg_state_extraction` json_schema is DEAD on Sonnet 5's strict-grammar path.**
+- **The monolithic `rpg_state_extraction` json\_schema is DEAD on Sonnet 5's strict-grammar path.**
   Anthropic strict caps: 24 optional params / 16 union-type params / internal "grammar too large" ceiling.
   All-required → grammar too large; sparse → 41 optionals > 24-cap. It still compiles on local vLLM/xgrammar
   (4.6 too). **Structured extraction cannot ship on hosted Sonnet without a redesigned lean schema.** Tools
@@ -149,7 +156,7 @@ is lost by collapsing it.
   be enforced — strict-validated tool args or a strict grammar. This eliminates the `json_object` fallback
   entirely and narrows "guaranteed on hosted" to **tools** or **a lean strict schema**.
 - **Tools + a response schema compose — but across TWO rounds, never one.** (Measured 2026-07-30;
-  `native-wire-probe.mjs` + `native-format-roundtrip.mjs`, ~$0.03.) Sending `tools` together with a
+  `native-wire-probe.mjs` + `native-format-roundtrip.mjs`, \~$0.03.) Sending `tools` together with a
   response schema in ONE call returns the tool call and **empty text** — `finish_reason: tool_calls` on the
   OR wire, `stop_reason: "tool_use"` on native, with adaptive thinking on *and* off. That is not a dropped
   narrative: **`tool_use` means the turn is unfinished.** Feed the `tool_result` back and round 2 returns
@@ -186,7 +193,7 @@ they document is one we don't have to make.
 One fixed 6-turn game, every candidate method, `anthropic/claude-sonnet-5`. All mechanisms **enforced**.
 
 | Method | Cost | Latency | Narrative | Cards | State health |
-|---|---|---|---|---|---|
+| - | - | - | - | - | - |
 | 2call-strict-lean *(structured)* | $0.113 | 92s | ✅ 6/6 | 0/6 | ⚠️ stale-overwrites |
 | 2call-cheap *(today)* | $0.131 | 91s | ✅ 6/6 | 1/6 | ✅ sparse |
 | **① 1call-tools** | **$0.075** | **60s** | **✅ 6/6** | 0/6 | ✅ **0 dropped** |
@@ -199,13 +206,14 @@ One fixed 6-turn game, every candidate method, `anthropic/claude-sonnet-5`. All 
 (631–1334 chars) **and** 1–3 tool calls in one completion (`finish_reason: tool_calls`).
 
 Why tools beat structured/wrapper (not just cheaper):
+
 - Structured schema is dead on Sonnet 5 (§2).
 - **Full-snapshot structured stale-overwrites**: re-emitting full state each turn made the model *drop*
   carry-over — worst case wiped both starting items AND both NPCs in one turn. Its higher "completeness"
   is an artifact of re-emitting all planes, not better tracking. Sparse tool-deltas never clobbered.
 - **The strict wrapper can emit valid JSON with an empty narrative** — silent prose failure.
 - **Reasoning is a latency trap** (248s/6 turns, no quality gain). ⚠️ **Re-labelled by §4a:** that arm ran
-  OR-`high`, which delivers ~297 thinking tokens — *below* native-`medium`. It shows a small amount of
+  OR-`high`, which delivers \~297 thinking tokens — *below* native-`medium`. It shows a small amount of
   thinking costing a lot of latency on this wire, **not** that high effort fails to pay.
 - **`tool_choice:"required"` kills prose** (0/6). Must be `auto`.
 
@@ -222,7 +230,7 @@ artifact of the spike, not a tools regression — but card frequency needs its o
 **Enrichment materially helped** (verified tallies, /8 turns):
 
 | field | A | B |
-|---|---|---|
+| - | - | - |
 | party.status | 1 | 5 |
 | present.emoji | 0 | 3 |
 | present.outfit | 1 | 3 |
@@ -235,12 +243,14 @@ Distinct fields ever populated **33→37/43**; total field-writes **101→128 (+
 never touched; **+$0.008/game**. The lifted fields are exactly the "rich" ones the owner flagged as chronically empty.
 
 > ## ⛔ SUPERSEDED — the "two gaps" below are a TEST ARTIFACT, not a model defect. See §4c.
+>
 > A 12-turn game scripted with five *unambiguous* condition retirements gets **5/5 recall in six of six
 > runs**, and `hpDelta` **4/4 in six of six** — with thinking OFF. "The Sanctified Map" simply never clearly
 > ends a condition, so §4 measured the game, not the model. Everything in §4a/§4a-bis that chases a fix for
 > these gaps is chasing a bug that does not exist; it is retained for the methodology lessons only.
 
 **Two gaps enrichment could NOT fix (structural):**
+
 - **`removeCondition` = 0/8 in BOTH arms.** The model adds conditions but never retires them — even on the
   turn that explicitly stops the bleeding, even though Arm B's guide says "removeCondition when it ends."
   Conditions accumulate forever. **Prose can't fix subtractive bookkeeping.**
@@ -253,7 +263,7 @@ Spikes 1–2 measured only the **ends** of the effort ladder (`none` everywhere;
 held constant — only `reasoning.effort` varies. `none` was run **twice** as a variance control:
 
 | run | cost | latency | tool calls | fields touched | `removeCondition` | `hpDelta` |
-|---|---|---|---|---|---|---|
+| - | - | - | - | - | - | - |
 | `none` (orig 07-29) | $0.149 | 119.5s | 29 | 37/43 | **0**/8ᵗ | 1 |
 | `none` (re-run) | $0.158 | 127.2s | 30 | 38/43 | **0**/5 | 2 |
 | **`low`** | **$0.152** | 125.5s | 28 | 38/43 | **1**/5 | 2 |
@@ -272,11 +282,11 @@ coverage lift from `medium`; the variance control retracts that.
 `medium`**. That's the only column where the arms separate cleanly and the control reproduces.
 
 **And the denominator matters.** `addCondition` fires twice all game and the story ends exactly one effect,
-so `removeCondition`'s true ceiling here is ~1 — "0/8" was never a rate. The decisive comparison is the same
+so `removeCondition`'s true ceiling here is \~1 — "0/8" was never a rate. The decisive comparison is the same
 fixed turn 6 ("*I press a cloth to the wound to stop the bleeding…*"):
 
 | | emitted |
-|---|---|
+| - | - |
 | `effort: none` | `status: "shallow cut across the ribs, bleeding slowed, steadied by draught"` — **no `removeCondition`, no `hpDelta`** |
 | `effort: medium` | `removeCondition: "Bleeding"` · `hpDelta: +2` · `poolDeltas: Stamina +3` · status line |
 
@@ -289,8 +299,8 @@ what makes it pay the structured field.
 
 **Economics — `low` is effectively FREE.** At $0.152 it sits between the two `none` runs ($0.149 / $0.158),
 i.e. inside the noise band, with the same latency and *fewer* tool calls — and it flips `removeCondition`
-just as `medium` does. `medium` costs ~+15% over the `none` mean for no measured benefit beyond what `low`
-already gives. **Take `low`.** Scaled to the 6-turn game that keeps `1call-tools` at ~$0.076 vs today's
+just as `medium` does. `medium` costs \~+15% over the `none` mean for no measured benefit beyond what `low`
+already gives. **Take `low`.** Scaled to the 6-turn game that keeps `1call-tools` at \~$0.076 vs today's
 `2call-cheap` $0.131 — the §3 win is untouched.
 
 **Mechanism confirmed — `low` really does deliberate** (`effort-reasoning-probe.mjs`, GM prompt + the 7 real
@@ -298,7 +308,7 @@ tools, single turn). `run-coverage.mjs` did not record `reasoning_tokens`, so §
 deliberation from the request parameter. Measured on our actual workload shape:
 
 | `reasoning.effort` | `reasoning_tokens` | returned reasoning text |
-|---|---|---|
+| - | - | - |
 | `none` | **0** | none |
 | `low` | 53–78 | 208–306 chars |
 | `medium` | 57–72 | 222–287 chars |
@@ -311,7 +321,7 @@ wire. `usageOf` now records `reasoning_tokens` so future runs carry this evidenc
 `reasoning_tokens` were recorded through a full 8-turn run, the correlation failed:
 
 | run | fired on | `reasoning_tokens` that turn |
-|---|---|---|
+| - | - | - |
 | `low` (no nudge) | **turn 8** | not recorded |
 | `low` + reconcile nudge | **turn 6** | **0** |
 | `medium` | turn 6 | not recorded |
@@ -332,8 +342,8 @@ would be far cheaper to reproduce directly.
 full ladder (n=1 per cell, `claude-sonnet-5`):
 
 | effort | native `thinking_tokens` | OR `reasoning_tokens` | native ÷ OR |
-|---|---|---|---|
-| `low` | 122 | 128 | ~1× |
+| - | - | - | - |
+| `low` | 122 | 128 | \~1× |
 | `medium` | **419** | 108 | **3.9×** |
 | `high` | **1858** | 297 | **6.2×** |
 | `xhigh` | **2791** | 932 | 3.0× |
@@ -384,7 +394,7 @@ the same way a `budget_tokens` change does. Two consequences for R1+R4:
 Six runs of the same 8-turn game, Arm B, varying only reasoning effort and per-message steering:
 
 | run | `removeCondition` | fired on |
-|---|---|---|
+| - | - | - |
 | `none` (orig) | 0 | — |
 | `none` (re-run) | 0/5 | — |
 | `none` + "think hard" nudge | 0/5 | — |
@@ -396,6 +406,7 @@ Six runs of the same 8-turn game, Arm B, varying only reasoning effort and per-m
 more than a coin flip and is the reason this line of investigation stays open.
 
 **What does not hold:**
+
 1. *Deliberation as the mechanism* — disproven above (firing turn spent zero reasoning tokens; the firing
    turn moves between runs).
 2. *Per-message steering (R4a)* — **tested, no effect.** The "think hard" nudge at `none` changed nothing
@@ -411,7 +422,7 @@ known-large variance floor. **F1 decides it** — a multi-opportunity game with 
 should not be shipped as settled.
 
 **Correctly sparse (not neglect):** `plot.title` (seeded), `calendarDate`/`day` (no concrete in-fiction
-date), `set_widget.items` (Suspicion is scalar), `inventory.remove`/`walletDeltas` (~1 event each). Note
+date), `set_widget.items` (Suspicion is scalar), `inventory.remove`/`walletDeltas` (\~1 event each). Note
 Arm B *correctly* stopped redundantly restating `set_widget.max`.
 
 **Verified bonus catch — ghost characters.** The model treats the `targetRef`/`presentRemove` enum as a
@@ -426,12 +437,12 @@ mid-add character leaks ghosts into state. Needs a guard.
 
 The original matrix scored every field `n/8` (turns). That is wrong for **subtractive / conditional** fields:
 `removeCondition` can only fire on a turn where a condition is actually active. Reporting "0/8" made a field
-with a ceiling of ~1 look like a 0% rate, which is what sent §4 hunting for a prose fix.
+with a ceiling of \~1 look like a 0% rate, which is what sent §4 hunting for a prose fix.
 
 `run-coverage.mjs` now derives a per-field opportunity denominator from the state **at turn start**:
 
 | field | precondition |
-|---|---|
+| - | - |
 | `update_party.removeCondition` | some actor has ≥1 active condition |
 | `update_inventory.remove` | some actor holds ≥1 item |
 | `update_scene.presentRemove` | ≥1 character on screen |
@@ -452,13 +463,13 @@ Measured effect on the same game: `removeCondition` reads **0/5** at `none` and 
 
 ### 4c. F1 DECIDED — there is no `removeCondition` bug and no `hpDelta` bug (2026-07-30)
 
-The whole §4 → §4a line rested on games that offered ~1 ambiguous retirement. **"The Ford Road"**
+The whole §4 → §4a line rested on games that offered \~1 ambiguous retirement. **"The Ford Road"**
 (`SPIKE_GAME=afflictions`) scripts **five explicit retirements** and **four explicit damage beats** across
 12 turns, each with per-turn ground truth, so recall is measured against what the fiction actually demanded.
 Arm B, three runs per effort level:
 
 | effort | `removeCondition` (scored) | naming-mismatch corrected | `hpDelta` | avg cost | avg tool calls |
-|---|---|---|---|---|---|
+| - | - | - | - | - | - |
 | `none` | 4/5 · 5/5 · 4/5 | **5/5 · 5/5 · 5/5** | **4/4 · 4/4 · 4/4** | $0.233 | 48 |
 | `low` | 5/5 · 5/5 · 5/5 | **5/5 · 5/5 · 5/5** | **4/4 · 4/4 · 4/4** | $0.197 | 41 |
 
@@ -475,7 +486,7 @@ turn 9 it retired `Warded Blade` rather than our `Blessed`. In both cases it ret
 2. **`hpDelta` works — 4/4 in 6/6 runs, both levels.** Not "inconsistent."
 3. **Effort makes no difference to either.** The `none`-vs-`low` split in §4a-bis (0,0,0 vs 1,1,1) was a
    single ambiguous event in a game with no real opportunities. **R4 and R4a are withdrawn.**
-4. **`low` was CHEAPER, not dearer** — $0.197 vs $0.233, on ~7 fewer tool calls per run. That matches the
+4. **`low` was CHEAPER, not dearer** — $0.197 vs $0.233, on \~7 fewer tool calls per run. That matches the
    documented behaviour ("lower effort → fewer tool calls"), and it inverts §4a's cost framing.
 5. It also **over-fires benignly**: 1–6 extra retirements per run, nearly all legitimate (a full night's
    rest clearing `Winded`, `Bruised Shoulder`, `Twisted Ankle`). Thorough, not wrong — but worth a look if
@@ -498,7 +509,7 @@ Three arms, identical system prompt, identical player actions, **nothing anywher
 no arm label and no turn index.
 
 | turn | Wits | HIGH (pinned 95) | DECAY (bare number) | DECAY + gloss |
-|---|---|---|---|---|
+| - | - | - | - | - |
 | 1 | 95 | 8 | 8 | 8 |
 | 4 | 55 | 8 | 9 | 8 |
 | 6 | 30 | 8 | 8 | 7 |
@@ -533,6 +544,7 @@ constraint), and R6's tool-description threading isn't built. **A host-authored 
 panel-tooltip-only.**
 
 This is inconsistent with its own neighbours, which gloss correctly:
+
 - pools — `reminder.ts:127` → `Stamina 9/14 (wind you spend pushing on)`
 - relationships — `reminder.ts:172` → `vassal (sworn to serve but resentful)`
 
@@ -588,11 +600,11 @@ and let `config.features` hold per-game hints for host-defined types (so they gl
 > (§5/R3's "GROUND-TRUTH RUN vs the 8B") is still un-remeasured.**
 
 **The three delivery vehicles are THREE DIFFERENT ENFORCEMENT CLASSES on this backend — not one mechanism
-delivered three ways.** [[xgrammar-enforced-schema-is-the-populate-lever]] says the enforced schema, not the
+delivered three ways.** \[\[xgrammar-enforced-schema-is-the-populate-lever]] says the enforced schema, not the
 prompt, is what makes the 8B populate. On the folded path that lever is simply **absent**:
 
 | vehicle | what we put on the wire | vLLM 0.22.1 behaviour | args grammar-enforced? |
-|---|---|---|---|
+| - | - | - | - |
 | `reliable` | `response_format: {type:"json_schema"}` | `chat_completion/protocol.py:585-588` → `StructuredOutputsParams(json=…)` | **YES** (xgrammar) |
 | `cheap` (dedicated round) | tools + `tool_choice:"required"` | `tool_parsers/utils.py:250-251` → `_get_json_schema_from_tools(tools)` → `structured_outputs.json` | **YES** |
 | **`folded` (R1)** | tools + `tool_choice:"auto"` | `tool_parsers/utils.py:252-253` — literally `# tool_choice: "auto"` / `return None` | **NO** |
@@ -655,14 +667,14 @@ explanation for any under-firing the run measures.
 The measurement §4f was opened for, now run: `Qwen3-VL-8B-Instruct` on the gen engine, the CURRENT surface
 (R5a `7d0e6f60` + R6 grouped per-actor schemas + EXT-4 per-entry salvage `9b140933`), the §4c "Ford Road"
 ground-truth game (12 turns, 5 scripted retirements, 4 explicit damage beats), **3 runs per arm, 9 games,
-~200 completions, $0**. Harness: `local-8b-vehicles.ts` — it drives the REAL exported builders
+\~200 completions, $0**. Harness: `local-8b-vehicles.ts` — it drives the REAL exported builders
 (`constrainExtractionSchema` · `buildRpgToolDescriptions` · `composePlaneTeaching` · `buildTrackerWriteGroups`
 · the production `buildLiteReminder` · `extractionToStateDelta` · `salvageExtraction`), not the frozen
 pre-unification capture `run-coverage.mjs` still speaks. Raw: `scripts/probes/rpg-extraction/v2/`
 (`wire-surface.json` is the receipt of exactly what the builders hand the model).
 
 | | **folded** | **cheap** | **reliable** | Sonnet §4c | stale 8B baseline |
-|---|---|---|---|---|---|
+| - | - | - | - | - | - |
 | calls/turn | 1 | 2 | 2 | 1 | 2 |
 | grammar on the args (§4f) | **none** | tool union | full schema | — | — |
 | `removeCondition` (opportunity-scored) | **0/15** (0,0,0) | **4/15** (2,2,0) | 2/15 (0,0,2) | **5/5 in 6/6** | 0/5 |
@@ -746,7 +758,7 @@ An earlier report of mine flagged R5a's per-turn enum (a fresh grammar every cal
 production perf item. **Measured, and it does not hold at our schema size.** Same request, cold vs warm, on the
 live engine: no-schema baseline 748–812ms · schema A cold 866ms / warm 843ms · a novel enum cold 3128ms / warm
 3405ms (n=1), 3940/3917 (n=8), 3951/3050 (n=40). The cold-warm delta is inside generation noise (±300ms, and
-the owner's dogfood turns were interleaving), nowhere near the ~0.7s §2 cited. The schema constraint costs
+the owner's dogfood turns were interleaving), nowhere near the \~0.7s §2 cited. The schema constraint costs
 roughly **+90ms over no schema at all**. No action; do not carry this forward as a concern.
 
 #### Recommendation — `reliable` does NOT earn its keep for local, and `folded` must never reach the 8B
@@ -861,7 +873,7 @@ partly recovered).
 IGNORED, never fatal (version-tolerant, graft #V4)."* A malformed *rest* is fatal today. For a REGISTERED
 fence name (`card`/`choices`), an unparseable rest should fall back to best-effort attrs rather than rejecting
 the line — recovering the trailing `>`, the single-quoted title, and the leading-space open in one change.
-That converts every arm in the table to its `emitted` column: **~95% of opportunities, up from 73%.** (Not
+That converts every arm in the table to its `emitted` column: **\~95% of opportunities, up from 73%.** (Not
 built here — this probe is read-only; it needs its own ticket + tokenizer tests for the three shapes above.)
 
 Copy, second: **keep the current permission framing and the anti-recitation tail, and append the worked
@@ -889,7 +901,7 @@ opportunities is not a normal session), so treat the emission rates as a ceiling
 (6 of 12 runs carried ≥1 eaten card) as the durable number. Narrative quality was judged by reading, not by a
 judge pass: **no arm degraded it** — the cards are genuinely good (period-correct directory plates, water-
 stained receipts, a login screen with a stale session banner) and the prose reacts to them; the example arms
-read tightest, C/D the most florid (2565 avg chars vs D/G's ~2000).
+read tightest, C/D the most florid (2565 avg chars vs D/G's \~2000).
 
 Artifacts: `scripts/probes/rpg-extraction/card-teach-probe.ts` (12 arm-runs, $2.16 total). `CARD_DRY=1` prints
 each arm's assembled injection without spending; `CARD_SCORE=<transcript.json>` re-scores a saved run for free.
@@ -953,14 +965,12 @@ existing reliable round. (`deriveTrackersReadOnly` / the mode branch is where th
 recall every time with thinking OFF, and `hpDelta` 4/4 every time.** The gap §4 reported was an artifact of
 a game that never unambiguously ended a condition, compounded by a turns-based denominator (§4b). No effort
 change, no write-surface redesign, and no reconcile step is needed. Keep `reasoning.effort: "none"` unless
-something else argues for a change — though note §4c measured `low` as *cheaper* ($0.197 vs $0.233, ~7 fewer
+something else argues for a change — though note §4c measured `low` as *cheaper* ($0.197 vs $0.233, \~7 fewer
 tool calls/run), so a cost-motivated switch to `low` is defensible on its own terms.
 
-
-**R4a — WITHDRAWN.** Tested (16 calls, ~$0.30) and had no effect at either effort level — and §4c then
+**R4a — WITHDRAWN.** Tested (16 calls, \~$0.30) and had no effect at either effort level — and §4c then
 showed there was no defect for it to fix. The `SPIKE_NUDGE` machinery stays in the harness; build nothing
 on it.
-
 
 > **✅ R4b SHIPPED + LIVE-VERIFIED (2026-07-31, commit `7604bd6f`).** `castFieldSegs` now glosses both
 > kinds; `steer-probe-real.ts` re-ran the §4d probe through the REAL `buildLiteReminder` (whole
@@ -1006,7 +1016,7 @@ TEMPLATES that interpolate the game's custom definitions — not static ship str
 (`toolCallsToExtraction` → `extractionToStateDelta` → snapshot) are REUSED verbatim.**
 
 | Area | Today | Proposed |
-|---|---|---|
+| - | - | - |
 | Calls/turn (hosted) | 2 (narrative + state round) | **1** (narrative WITH tools) |
 | Narrative turn | persona prompt, **no tools** | persona prompt **+ 7 tools, `tool_choice:auto`** |
 | State capture | separate `runToolRound`, `required`, content discarded | **read `tool_calls` off the narrative completion**; keep `content` as the narrative |
@@ -1015,16 +1025,17 @@ TEMPLATES that interpolate the game's custom definitions — not static ship str
 | `removeCondition`/`hpDelta` | unreliable | structural fix (R4, follow-up) |
 | Cast enum | live-seeded | live-seeded **+ ghost-actor guard** |
 | Local 8B path | reliable/structured round | **unchanged** |
-| Reminder pure-diff (`substrate/delta.ts`) | deterministic app code | **unchanged** — still diffs prev→new snapshot; the tool_calls ARE the sparse delta |
+| Reminder pure-diff (`substrate/delta.ts`) | deterministic app code | **unchanged** — still diffs prev→new snapshot; the tool\_calls ARE the sparse delta |
 
 **Unchanged / preserved:** the pure snapshot-diff and "CHANGES SINCE LAST BEAT" reminder (it's
-source-agnostic — folded tool_calls apply to a snapshot exactly like a separate round did, and it still
+source-agnostic — folded tool\_calls apply to a snapshot exactly like a separate round did, and it still
 catches host hand-edits); the `apply`/staging/flush persistence; swipe-consistency; the member-strip and
 consent seams (the folded call inherits the character turn's connection + consent, same as the round did).
 
 **Build-time confirmations (flagged, not yet verified):**
+
 - The narrative-turn executor path must surface `tool_calls` to the flush (today only the state round
-  reads them). Confirm where the character turn's completion is handled and thread the tool_calls into
+  reads them). Confirm where the character turn's completion is handled and thread the tool\_calls into
   `stageStateRound`'s delta instead of firing a second round.
 - Graceful degrade: today a failed round can't lose the narrative (post-commit). Folded, a malformed tool
   arg must NOT fail the turn — commit the narrative, treat tool failures as errors-as-data (mirror the
@@ -1041,6 +1052,7 @@ cast-fields, widgets, and relationship kinds, each with host-authored descriptio
 model may touch. The tool schema + descriptions + prompt must be a **per-game assembly** driven by config.
 
 **What production already does (reuse):**
+
 - Tool **args** are per-game constrained: `buildToolRoundWireTools` → `constrainExtractionSchema(…, refs)`
   injects the live cast/pool/widget enums (this is why the frozen-enum spike leaked "Aldric Vane").
 - Custom-plane **teaching** is dynamic: `composePlaneTeaching(config, refs)` folds widgets/customFields/plot
@@ -1049,6 +1061,7 @@ model may touch. The tool schema + descriptions + prompt must be a **per-game as
   to a locked field AFTER the model emits it.
 
 **What the build must add:**
+
 1. **Read-surface vs write-surface split.** The reminder (read context) ALWAYS shows the full state —
    including locked stats — so the model can narrate around them. The tools (write surface) expose only the
    **writable** subset: a **locked** field is REMOVED from the tool schema; a **disabled** feature's tool is
@@ -1085,12 +1098,15 @@ that custom-def descriptions are threaded into the per-tool description, not onl
   more robust than any single row, and `title` 0→5 / `customFields` 3→6 are large enough to likely survive —
   but the small rows shouldn't be quoted individually without repeats. Cheap fix: run each arm 3× and report
   medians.
+
 - **F2 — immersive cards:** card emission was rare across all methods in the spike. Separate investigation:
   is it the prompt, the seed, or does attaching tools suppress the card? (M3 = 0/6, but so was the pure
   narrative call — points at prompt/seed, not tools.)
+
 - **F3 — hosted structured, if ever wanted:** would require authoring a lean all-required, union-free
   schema that compiles under Anthropic's strict caps. Not needed while tools win; documented so nobody
   re-discovers the "grammar too large" wall.
+
 - **F5 — how does OpenRouter translate `reasoning: {effort}`, and can real effort be reached at all?**
   §4a measured OR delivering 3–6× less thinking than native at the same nominal level (`high`: 297 vs 1858
   tokens). Worth establishing: does OR map effort onto a `budget_tokens` fraction of `max_tokens` (which
@@ -1100,6 +1116,7 @@ that custom-def descriptions are threaded into the per-tool description, not onl
   If neither reaches native depth, then **any recommendation that depends on deliberation is capped by the
   wire** — which is a genuine argument for the Anthropic skin that §7a currently dismisses. Re-open §7a's
   "not pursued" entry on native migration if this lands.
+
 - **F4a — does an `effort` change invalidate the prompt cache on the OR wire?** Anthropic documents that
   the resolved effort value is rendered into the prompt and that changing it busts cache breakpoints. Our
   path sends `reasoning: {effort}` through OpenRouter's OpenAI-compat shim — whether that behaves the same
@@ -1107,6 +1124,7 @@ that custom-def descriptions are threaded into the per-tool description, not onl
   ruinous. Cheap to measure: two requests with an identical cached prefix, differing only in effort, and
   read `cache_read_input_tokens` on the second (the §4a runs already pin `cache_control` on the system
   block).
+
 - **F4 — cost of enrichment at scale:** +$0.008/game is trivial, but the enriched descriptions add input
   tokens every turn; confirm the prompt-cache prefix still holds.
 
@@ -1122,7 +1140,7 @@ Recorded so a future reader can tell "we decided against this" from "nobody thou
   narrative. It is also the only shape where interleaved thinking has anything to interleave between, and
   the natural home for the reconcile step §4 concluded prose can't provide ("state still shows Bleeding
   active — anything you missed?"). **Not pursued: it reintroduces the second call**, which is the entire
-  §3 win (~43% cheaper, ~34% faster) — and `low` effort (§4a) already fixes the bug that would have
+  §3 win (\~43% cheaper, \~34% faster) — and `low` effort (§4a) already fixes the bug that would have
   justified paying for it. Note the honest comparison though: it is 2 calls with *both* surfaces enforced,
   versus today's `2call-cheap` which is 2 calls with only state enforced and the second call's prose
   discarded. **No §3 arm measured this.** Revisit if F1 shows `low` doesn't hold and the R4 write-surface
@@ -1145,15 +1163,15 @@ Recorded so a future reader can tell "we decided against this" from "nobody thou
 
 ## 8. Reference numbers (Sonnet 5 via OR)
 
-- 1call-tools: **$0.075 / 6-turn game, ~60s, 1 call/turn.** vs 2call-cheap $0.131 / 91s / 2 calls.
-- Isolated tool round (today's call #2): ~6.6k input + ~700 output ≈ $0.023–0.032.
+- 1call-tools: **$0.075 / 6-turn game, \~60s, 1 call/turn.** vs 2call-cheap $0.131 / 91s / 2 calls.
+- Isolated tool round (today's call #2): \~6.6k input + \~700 output ≈ $0.023–0.032.
 - Enrichment: +$0.008 / 8-turn game, +3 tool calls. Coverage 33→37/43 fields.
 - Reasoning at `high` (§3, 6-turn): +latency, no quality payoff (skip).
 - Reasoning ladder on the 8-turn coverage game, Arm B (§4a) — `none` $0.149 / $0.158 (two runs) ·
   **`low` $0.152** · `medium` $0.178. `removeCondition` 0 · 0 · **1** · 1.
 - **Variance floor (same config, two runs): 15/43 fields move, cost ±6%, tool calls ±1.** Any single-field
   delta of ±1–2 from one run per arm is noise. Budget 3 runs per arm for anything field-level.
-- Total spend across all spikes: ~$2.5 (matrix + coverage A/B) + ~$0.51 (composition probe, effort ladder).
+- Total spend across all spikes: \~$2.5 (matrix + coverage A/B) + \~$0.51 (composition probe, effort ladder).
 
 ---
 
@@ -1171,18 +1189,18 @@ with the right `type`. Sparse tracking makes the panel feel dead.
 Per-tool enriched descriptions with worked examples (the verbatim Arm-B strings — port into
 `tools/index.ts` at build time):
 
-- **update_party** — "Record changes to any actor's body/condition. hpDelta: damage (negative) or healing
+- **update\_party** — "Record changes to any actor's body/condition. hpDelta: damage (negative) or healing
   (positive). poolDeltas: spend/restore named pools like Mana/Stamina/Focus (negative=spent). addCondition:
   a new status effect (e.g. Blessed, Bleeding, Poisoned) with an optional numeric modifier. removeCondition:
   when an effect ends. status: a short current-state line ('bleeding, on edge'). EXAMPLE — took a cut and
   spent wind fighting: `{targetRef:'player', hpDelta:-5, poolDeltas:[{name:'Stamina',delta:-3}],
   addCondition:{name:'Bleeding',modifier:-1}, status:'bleeding, breathing hard'}`."
-- **update_inventory** — "Items and coin on an actor. add: new items — ALWAYS give a `description` and a
+- **update\_inventory** — "Items and coin on an actor. add: new items — ALWAYS give a `description` and a
   `location` (where it's carried: 'belt pouch', 'sheathed'), plus quantity. remove: items used/lost/given
   away. walletDeltas: coin gained/spent (negative=spent). EXAMPLE — gifted an oil vial, paid 20 gold:
   `{targetRef:'player', add:[{name:'Vial of Sanctified Oil', description:'warded holy oil, faintly glowing',
   quantity:1, location:'belt pouch'}], walletDeltas:[{name:'gold', delta:-20}]}`."
-- **update_scene** — "The scene + who is present. Set location/timeOfDay/weather when they change;
+- **update\_scene** — "The scene + who is present. Set location/timeOfDay/weather when they change;
   calendarDate/day as days pass; advance plot.act/title/actSummary as the story moves. presentUpsert: for
   EACH character on screen set mood (every demeanor shift), appearance + outfit (when described), thoughts
   (their implied inner state), relationship {kind,label}, and customFields trust/role. recentEvent: a
@@ -1191,17 +1209,17 @@ Per-tool enriched descriptions with worked examples (the verbatim Arm-B strings 
   habit', thoughts:'weighing whether to trust you', relationship:{kind:'ally',label:'wary priest'},
   customFields:[{name:'trust',value:'40'},{name:'role',value:'chapel keeper'}]}], recentEvent:'Vesna
   softened as you shared road news'}`."
-- **set_widget_value** — "Set a custom meter the game defines (e.g. Suspicion). value: the new reading; max:
+- **set\_widget\_value** — "Set a custom meter the game defines (e.g. Suspicion). value: the new reading; max:
   if the ceiling changes; items: for list-type widgets. EXAMPLE — suspicion rises as she watches you:
   `{widgetRef:'Suspicion', value:35}`."
-- **upsert_quest** — "Create/update/complete/fail a quest. Give a description and objectives[] on create;
+- **upsert\_quest** — "Create/update/complete/fail a quest. Give a description and objectives\[] on create;
   use action 'complete'/'fail' when it resolves. EXAMPLE — a new task opens: `{name:'Reach the Vault of
   Ash', action:'create', description:'Get to the vault before the new moon', objectives:['Find the road
   north','Enter the vault']}`."
-- **add_journal_entry** — "Log a notable beat with the right type (location/npc/combat/quest/item/event/
+- **add\_journal\_entry** — "Log a notable beat with the right type (location/npc/combat/quest/item/event/
   note) + a short title + content. EXAMPLE: `{type:'combat', title:'Ambush at the Chapel', content:'Corvin
   drew on you at the altar; you took a cut but stayed up.'}`."
-- **no_changes** — "Call ONLY when nothing trackable changed. Do NOT use this to avoid filling fields — if
+- **no\_changes** — "Call ONLY when nothing trackable changed. Do NOT use this to avoid filling fields — if
   anything in the fiction moved, record it."
 
 ## Appendix B — artifacts
@@ -1221,18 +1239,18 @@ All under **`scripts/probes/rpg-extraction/`** (moved off the session scratchpad
   `SPIKE_EFFORT`, `SPIKE_OUT`), `replay-toolround.mjs` (the required-vs-auto content probe),
   `native-wire-probe.mjs` (§2 — Anthropic native Messages API: tools × `output_config.format` ×
   adaptive thinking), `native-format-roundtrip.mjs` (§2 — the two-round proof that the schema lands on the
-  final text turn). Both use `ANTHROPIC_API_KEY`, ~$0.03 and ~$0.01/run, print results only, write nothing.
+  final text turn). Both use `ANTHROPIC_API_KEY`, \~$0.03 and \~$0.01/run, print results only, write nothing.
 - **`steer-probe.mjs` (§4d)** — the READ half of the loop: silently decays a tracked NPC meter across 8
   turns in three arms (pinned / bare number / glossed) and scores each turn with a blind judge. Writes
-  `steer-out.json` (full transcripts). ~$0.23/run, OpenRouter key.
+  `steer-out.json` (full transcripts). \~$0.23/run, OpenRouter key.
 - **`card-teach-probe.ts` (§4h)** — the F2 card-teach matrix: 10 scripted card OPPORTUNITIES, the real
   `buildLiteReminder` with only the teach block swapped per arm (A–H), scored `emitted` vs **`rendered`** (a
   `card` span out of the production tokenizer — the split that found the defect). `CARD_ARMS` picks arms,
-  `CARD_DRY=1` prints the injections free, `CARD_SCORE=<file>` re-scores a saved run free. ~$0.18/arm,
+  `CARD_DRY=1` prints the injections free, `CARD_SCORE=<file>` re-scores a saved run free. \~$0.18/arm,
   OpenRouter key. Transcripts `card-teach-out{,-run2,-run3,-run4}.json` (gitignored); samples in
   `CARD-TEACH-SAMPLES.md`.
 - `effort-ladder-native-vs-or.mjs` (§4a) — native `output_config.effort` vs OR `reasoning:{effort}` on
-  identical input, thinking tokens as the signal. ~$0.39/run, needs BOTH keys.
+  identical input, thinking tokens as the signal. \~$0.39/run, needs BOTH keys.
 - `effort-reasoning-probe.mjs` (§4a) — does `reasoning:{effort}` emit reasoning on our workload shape.
 - Real templates: `real-cheap-toolround.json` (7 tools), `real-reliable-structured.json` (monolith
   schema), `real-narrative-turn.json` (persona + reminder format), `captures.json`.

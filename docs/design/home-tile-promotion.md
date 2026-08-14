@@ -1,7 +1,7 @@
 ---
 kind: design
-status: open — owner decision pending
-updated: 2026-08-08
+status: draft
+updated: 2026-08-14
 ---
 
 # Conditional HOME-tile promotion (the databank `useOrder` follow-up)
@@ -21,8 +21,7 @@ not how, it is whether.** This file is the design if the answer is "build it".
 
 - `packages/client/src/features/home/lib/order-home-tiles.ts` — `orderHomeTiles(tiles)` is a pure
   `(order ?? 0, id)` total sort over the door-frozen registry list. No data, no hooks.
-- `packages/client/src/features/home/surfaces/home-surface.tsx` — calls it once, then `list.map(tile =>
-  <HomeTile key tile />)`.
+- `packages/client/src/features/home/surfaces/home-surface.tsx` — calls it once, then `list.map(tile => <HomeTile key tile />)`.
 - `packages/client/src/features/home/components/home-tile.tsx` — a **component per entry**, which is the
   sanctioned site for a per-tile hook: it already calls `tile.useVisible?.()` at its own top level. Its
   header states the rule: *"A component per entry (never a hook call in a `.map()` body)."*

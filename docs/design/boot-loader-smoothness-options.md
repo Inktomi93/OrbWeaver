@@ -1,10 +1,16 @@
+---
+kind: design
+status: active
+updated: 2026-08-14
+---
+
 # Boot-loader smoothness — options matrix + recommendation
 
 Status: **research/synthesis, no code changed.** Answers the owner's ask ("look at React 19.2 and Base
 UI animation… get it super smooth") for `docs/design/login-loading-screen.md`'s `WebWeave`/`WeaveVeil`
-(as-built, §9). A live side-eye measured **~30fps on retina desktop** (1440×900 DPR2, backing 2880×1800;
+(as-built, §9). A live side-eye measured **\~30fps on retina desktop** (1440×900 DPR2, backing 2880×1800;
 median 33.3ms/frame) — pixel-fill-bound, caused by `shadowBlur` (CPU gaussian) + a full `clearRect` +
-re-stroke of every strand every frame (`web-weave-render.ts` — see receipts below). Mobile is ~55fps
+re-stroke of every strand every frame (`web-weave-render.ts` — see receipts below). Mobile is \~55fps
 (lower DPR, fine).
 
 ## Framing — two layers, don't conflate them
@@ -14,7 +20,7 @@ faster — that's GPU/CPU raster work outside React's scheduler entirely. So:
 
 - **Layer A — the weave PAINT** (the actual 30fps bug): a rendering-tech choice. React/Base UI are
   irrelevant here.
-- **Layer B — the veil ENTER/EXIT transition** (`WeaveVeil`'s ~360ms mount-fade + dissolve-on-exit):
+- **Layer B — the veil ENTER/EXIT transition** (`WeaveVeil`'s \~360ms mount-fade + dissolve-on-exit):
   where React 19.2 / Base UI *are* the right tools to evaluate.
 
 Confirmed stack versions (read from `pnpm-workspace.yaml` catalog, not assumed):
@@ -25,7 +31,7 @@ Code receipts for the diagnosis: `packages/ui/src/art/web-weave/web-weave-render
 `ctx.shadowColor`/`ctx.shadowBlur = CAPTURE_GLOW_BLUR` on the capture strand every frame;
 `:185-186` sets `shadowBlur = GLINT_BLUR` for the glint sweep; `:251` sets `shadowBlur = STRAND_OUT_BLUR`
 for the A9 handoff beat. `web-weave.tsx:184-187`'s `paint()` does `ctx.clearRect(...)` then
-`renderWeaveFrame(...)` — a full clear + full re-stroke of every strand (`drawStrands`, all ~4k
+`renderWeaveFrame(...)` — a full clear + full re-stroke of every strand (`drawStrands`, all \~4k
 segments) on every rAF tick, unconditionally, even in the `settled` steady state where only sway/dew/
 glint actually change. This matches design doc §1.2's own admission: *"Performance. Segments batched
 into a few beginPath buckets… settled web can be blitted from an offscreen cache with only sway/dew/
@@ -38,7 +44,7 @@ cache coupled site).
 
 ### A1. Optimized Canvas 2D (offscreen/back-buffer cache + `drawImage`, drop `shadowBlur`)
 
-**What changes:** render the settled web's static strands (frame + radii + aux + capture, ~4k segments)
+**What changes:** render the settled web's static strands (frame + radii + aux + capture, \~4k segments)
 once into an offscreen `<canvas>` (or `OffscreenCanvas`), including any glow baked in as a *pre-blurred
 sprite* (draw the glow layer once with `shadowBlur`, or better, pre-blur via a cheap box-blur pass, then
 cache it as a bitmap). Each live frame becomes: `clearRect` + one `drawImage` of the cached bitmap (a
@@ -58,7 +64,7 @@ low-frequency sway term instead of per-point sway (visually indistinguishable at
 still leaves room for a *few* strands drawn live if per-point sway must be kept exactly); or (b) cache
 the settled web pre-sway and re-composite dew/glint/spider (already drawn live) on top, accepting that
 sway freezes into the cached layer's coarse translate. Given the segment count (≤4k) is what made
-`shadowBlur` + full restroke expensive, and blit cost is ~flat regardless of segment count, this should
+`shadowBlur` + full restroke expensive, and blit cost is \~flat regardless of segment count, this should
 comfortably clear 60fps at DPR2 — the fill-bound cost (shadowBlur gaussian × every strand × every frame)
 is eliminated, leaving a single texture blit + a handful of live-painted small primitives (dew circles,
 lit glint segments, spider). **Ceiling: 60fps at DPR2, high confidence** — this is the textbook fix for
@@ -133,7 +139,7 @@ distinction that matters:
   every point is re-stroked every tick regardless of whether it changed.
 - **The real budget is *animated element/layer count*, not point count.** Each CSS-animated
   transform/opacity target is a compositor layer; dozens of them is exactly the waystone's proven
-  envelope (6 dial-arc paths + 2 cardinal glyphs + ~10 star circles with individually offset
+  envelope (6 dial-arc paths + 2 cardinal glyphs + \~10 star circles with individually offset
   twinkle phases (`globals.css:569-593`, the `nth-child(7n+k)` coprime-phase trick — 7 buckets over 10
   stars so no two stars sync) + cloud slots + particle-lattice motes + 2 wind/fog band groups — all
   ticking concurrently today at 96×96, unmeasured-but-unflagged by any side-eye pass). Hundreds of
@@ -152,11 +158,11 @@ discipline:**
    build phase than what ships today, not just an equally-fast one.
 2. **16 radii = 16 elements, not 352.** Each radius is ONE `<path>` (its 22 sample points baked into a
    single `d`); sway/dashoffset apply per-path, not per-point. Same for frame/bridge (1 path each).
-3. **Capture spiral (~514 points) split into ~6-8 arc-ring `<path>` groups**, not one path per point and
+3. **Capture spiral (\~514 points) split into \~6-8 arc-ring `<path>` groups**, not one path per point and
    not one path for the whole spiral (a single path can't carry per-ring phase-offset sway). Each ring
    gets a phase-offset `orb-ws-sway`-style transform (coprime `animation-delay` fractions, the star
    precedent at `globals.css:569-593`), so the sway reads organic without per-point sine math. Total
-   animated groups for the whole web: 16 radii + ~8 spiral rings + ~1 frame + ~1 bridge + dew drops
+   animated groups for the whole web: 16 radii + \~8 spiral rings + \~1 frame + \~1 bridge + dew drops
    (≈20-30, same order as the design's own dew-density spec) + spider ≈ **60-70 concurrently animated
    elements at peak (weaving phase)**, settling to a much smaller ambient set (sway groups + dew + glint
    overlay + resting spider ≈ 30-40) once settled — both comfortably inside the compositor's practical
@@ -214,7 +220,7 @@ that the waystone precedent shows wasn't even necessary here.
 ### Layer A verdict table
 
 | Option | fps ceiling @ DPR2 | Complexity | Dep cost | Stack fit |
-| --- | --- | --- | --- | --- |
+| - | - | - | - | - |
 | **A3 Animated SVG + CSS keyframes (waystone pattern)** | **60fps, high confidence, if grouped per-unit not per-point** | High (real rearchitecture, but a proven in-house pattern) | None | **Best — the house pattern for exactly this problem shape** |
 | A1 Canvas 2D + offscreen cache, drop live `shadowBlur` | 60fps, high confidence | Medium (speced already, smaller diff) | None | Good — solid fallback, keeps the current imperative-canvas shape |
 | A2 WebGL (OGL/regl/Pixi/three) | 60fps, guaranteed | High | New dep (even OGL) | Poor–neutral, solves an already-solved problem |
@@ -302,14 +308,13 @@ waystone independently confirms this is the house answer for enter/exit too: its
 keyframe (`globals.css:633-634`, `animation: orb-ws-enter var(--motion-transit) ease-out both;`,
 applied per-layer in `waystone-layers.tsx:118,164,177,282` — precipitation, wind/fog bands, and the
 celestial body each wrap their own `orb-ws-enter` group) is a plain CSS keyframe entrance, and reduced
-motion collapses it the same REMOVE way (`globals.css:669-680`, `[data-reduced-motion="true"]
-[data-slot="waystone"] * { animation: none; }` with the one necessary resting-frame exception). No
+motion collapses it the same REMOVE way (`globals.css:669-680`, `[data-reduced-motion="true"] [data-slot="waystone"] * { animation: none; }` with the one necessary resting-frame exception). No
 animation library anywhere in this codebase's two richest ambient-motion surfaces.
 
 ### Layer B verdict table
 
 | Option | What it's for | Stable in our stack? | Verdict |
-| --- | --- | --- | --- |
+| - | - | - | - |
 | `<Activity>` | keep-alive/pre-render alternate screens | Yes (19.2) | Not applicable — loader has one mount, no alternate screen to pre-render |
 | `useEffectEvent` | effect dependency-array correctness | Yes (19.2) | Applicable as an opportunistic polish of the existing ref pattern; not a smoothness fix |
 | `<ViewTransition>` | cross-DOM-state animated transitions | **No — Canary/experimental only, `unstable_` prefix** | Do not use; not on our `^19.2.7` line |
@@ -331,7 +336,7 @@ this weave's exact failure mode (full `clearRect` + full restroke + live `shadow
 `web-weave-render.ts:169-186,251`, `web-weave.tsx:184-187`) — the SVG version structurally *cannot*
 reproduce that mistake, because unanimated paths never repaint regardless of point count. The concrete
 engineering plan (detailed above, A3): 16 radii as 16 static `<path>` elements, the capture spiral split
-into ~6-8 phase-offset ring groups (never per-point), the weave-in draw-on driven by
+into \~6-8 phase-offset ring groups (never per-point), the weave-in draw-on driven by
 `stroke-dashoffset` keyframes timed from the strands' already-existing `t0`/`t1` birth-window data (zero
 JS per frame — a strict improvement over today's `Math.sin`-every-tick loop), the spider's walk on CSS
 `offset-path`/`offset-distance` over the existing `SpiderLeg` polylines, glow baked as a static

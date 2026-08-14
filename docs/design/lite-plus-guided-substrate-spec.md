@@ -1,3 +1,9 @@
+---
+kind: design
+status: draft
+updated: 2026-08-14
+---
+
 # LITE + GUIDED SUBSTRATE — the fresh-build carve spec
 
 > **Deliverable of the max-effort design pass commissioned 2026-07-26** (owner rulings that night, all
@@ -221,12 +227,12 @@ export interface RpgModePolicy {
 }
 ```
 
-  lite = `{ tools: RPG_LITE_TOOL_NAMES, prompt: "injection", quests: true, journal: true,
+lite = `{ tools: RPG_LITE_TOOL_NAMES, prompt: "injection", quests: true, journal: true,
   requireToolCapable: "soft", every engine axis false }`. full = all-true, `"gm-preset"`, `"hard"` —
-  **present as data even though unmintable**: `createGame(mode: "full")` throws the typed
-  `RpgModeUnbuiltError` (PHASE disable-with-reason — the honest-arms doctrine at the verb tier; the
-  refusal names the graft, never pretends full doesn't exist). Verb guards read the record via ONE
-  `requireModeCapability(game, axis)` — never `if (mode === …)` in verb bodies.
+**present as data even though unmintable**: `createGame(mode: "full")` throws the typed
+`RpgModeUnbuiltError` (PHASE disable-with-reason — the honest-arms doctrine at the verb tier; the
+refusal names the graft, never pretends full doesn't exist). Verb guards read the record via ONE
+`requireModeCapability(game, axis)` — never `if (mode === …)` in verb bodies.
 
 *WHY `quests`/`journal` stay POLICY AXES at all when both modes are true:* the axis is where full's
 ENGINE halves key their guards later (GM notes, quest clocks, session-wrap journal types) — deleting
@@ -253,7 +259,7 @@ require zero references; `range`/`modifier` host-editable. Enforced in `updateCo
 **Packaged profiles: ship all three** (`freeform` — lite's create default · `d20` · `special`) as
 contract data constants. *WHY ship the two mechanical profiles lite can't exercise:* they are pure
 vocabulary data (labels + hints + dials) that lite users genuinely want as attribute TEMPLATES
-("give me the D&D six to color my chat"), they cost bytes, and shipping them makes the graft map's
+("give me the D\&D six to color my chat"), they cost bytes, and shipping them makes the graft map's
 profile row literally "full adds nothing." Authored FRESH from D86 §2.1's published table (the six /
 S·P·E·C·I·A·L / bounds / `{center,step}` values — spec-stated, common-knowledge content), not copied
 from legacy source. NO differential golden vs legacy constants is owed (that was L0's migration
@@ -285,7 +291,7 @@ oracle:
 - **`applyLockedPatch` + edit-auto-lock** — manual-edit-wins: `fieldLocks` is a presence-key record
   (`Record<string, true>`); ONLY `editSnapshot` (the hand-edit verb) writes locks (auto-locking every
   field it touches); tools HONOR locks (the merge drops locked paths); locks carry forward on
-  clone-forward. Merge semantics carry the [merge-clear] contract: `{}` = no-op, explicit `null` =
+  clone-forward. Merge semantics carry the \[merge-clear] contract: `{}` = no-op, explicit `null` =
   leaf clear — with a transition test.
 
 *Rejected (all re-argued, not inherited):* keying staging by bare `chatId` — a lock-free `generate`
@@ -302,7 +308,7 @@ accumulator exists to kill).
 > swipe-consistent, quests and journal included. The revised planes:
 
 | Plane | Contents | Writers | Rewind |
-|---|---|---|---|
+| - | - | - | - |
 | **IDENTITY** | `statProfile`, sheet attributes/`poolDefs`/`maxHp`/flavor, widget DEFINITIONS, game config (incl. the `gmPresetId` knob) | humans only (host everywhere; a member their own row) — **no tool ever** | n/a (config plane) |
 | **SWIPE-VOLATILE** | snapshot state: ambient, cast + customFields, pools/hp values, conditions, inventory, **wallet**, widget VALUES, `recentEvents`, **quests + objectives** | model (tools, staged) + humans (`editSnapshot`-family, auto-lock) | per-swipe by construction (variant-keyed snapshot) |
 | **VARIANT-AWARE ARCHIVE** | journal entries | model (`add_journal_entry`, staged → flushed stamped with the producing `variantId`) + humans (hand verbs, stamped NULL) | **lineage-projected**: an entry renders iff its producing variant is the SELECTED variant of its slot (NULL = every lineage); a swipe hides/reveals entries with zero writes |
@@ -426,7 +432,7 @@ the `ChatDetail` projection · the op on `ChatComposeResult.rpgChatOps` (§6.3 l
 ### 3.2 The `ChatRpgOps` implementation matrix (lite arms, graft arms named)
 
 | Op (contract, already wired) | Lite implementation | Full graft |
-|---|---|---|
+| - | - | - |
 | `resolvePresetOverride` | **KNOB-DRIVEN, MODE-BLIND** (ratification #2): returns `game.gmPresetId` unconditionally — lite's born default is NULL (the user's own preset runs untouched, the D86 posture as DEFAULT), a host-set preset overrides from the next turn | the same code path, untouched — full's `createGame` merely SEEDS the knob (the GM-preset clone) |
 | `gatherTurnContext` | the lite gather (§4.7): state block → ONE depth-0 injection + the 7-tool subset + `macros: {}` | ADDS the gm-preset arm (8 macros, GM reminder) behind the same dispatch |
 | `markDicePreRollEligible` | no-op (lite has no checks to feed a die into) | the staging store's eligibility set |
@@ -496,12 +502,12 @@ chat_participants` (D18/D20); every enum column derives its contracts tuple with
 CHECK; every JSON column `$type<>`d and parse-on-read.
 
 | Table | Columns (lite v1) | Notes |
-|---|---|---|
+| - | - | - |
 | `rpg_games` | id · chatId (UNIQ, CASCADE) · mode (CHECK, notNull, no default) · status (CHECK, notNull, no default) · sessionNumber (int, notNull, default 1) · **gmUserId (nullable, SET NULL)** · **gmPresetId (nullable, SET NULL)** · config JSON notNull · createdAt/updatedAt | `gmUserId` is a born-whole SPINE slot: lite's own invariants read it (`gmUserId IS NULL` = seatless — the legacy `requireGmSeat` transparency full's tool gates will reuse). `gmPresetId` is a LIVE lite KNOB (§4.11 #1 — the preset-override storage, born NULL = augment; full's create later SEEDS it). Engine-state columns (morale/activeState/lootTable/activeMapId/world+story text/illustration counters) graft as ADD COLUMNs with their engines (§C) |
-| `rpg_snapshots` | id · gameId (CASCADE) · messageId (CASCADE) · variantId (CASCADE, **UNIQUE**) · clock JSON **nullable** · calendarDate nullable · location text notNull default "" · weather JSON nullable · presentCharacters JSON · recentEvents JSON · actorState JSON · widgetValues JSON · **quests JSON default []** (§2.5 — the swipe-consistent quest plane) · fieldLocks JSON nullable · committed int notNull default 0 · createdAt | the FULL volatile plane, born whole — full grafts ZERO columns here |
+| `rpg_snapshots` | id · gameId (CASCADE) · messageId (CASCADE) · variantId (CASCADE, **UNIQUE**) · clock JSON **nullable** · calendarDate nullable · location text notNull default "" · weather JSON nullable · presentCharacters JSON · recentEvents JSON · actorState JSON · widgetValues JSON · **quests JSON default \[]** (§2.5 — the swipe-consistent quest plane) · fieldLocks JSON nullable · committed int notNull default 0 · createdAt | the FULL volatile plane, born whole — full grafts ZERO columns here |
 | `rpg_sheets` | id · gameId (CASCADE) · characterId (nullable, CASCADE) · userId (nullable, CASCADE) · sheet JSON notNull · createdAt/updatedAt · CHECK actor XOR · UNIQ (gameId, characterId) · UNIQ (gameId, userId) | **replaces legacy `rpg_party` — deliberately** (§4.3). Full grafts `arc` as ADD COLUMN with session wraps |
 | `rpg_hud_widgets` | id · gameId (CASCADE) · type (CHECK) · label · icon nullable · position (CHECK) · accent nullable · sort int default 0 · binding JSON notNull · createdAt | legacy shape adopted whole |
-| `rpg_journal` | id · gameId (CASCADE) · type (CHECK) · title · content · **variantId (nullable, CASCADE → message_variants)** — NULL = hand/room entry, every lineage; non-null = model entry, rendered only while its variant is the slot's selected variant (§2.5) · sourceMessageId (nullable, SET NULL) · createdAt · index (gameId, variantId) | the VARIANT-AWARE archive (ratification #1). CASCADE on variant delete is deliberate: an entry whose swipe died is unreachable forever — keeping it is a leak, not history |
+| `rpg_journal` | id · gameId (CASCADE) · type (CHECK) · title · content · **variantId (nullable, CASCADE → message\_variants)** — NULL = hand/room entry, every lineage; non-null = model entry, rendered only while its variant is the slot's selected variant (§2.5) · sourceMessageId (nullable, SET NULL) · createdAt · index (gameId, variantId) | the VARIANT-AWARE archive (ratification #1). CASCADE on variant delete is deliberate: an entry whose swipe died is unreachable forever — keeping it is a leak, not history |
 | `rpg_checkpoints` | id · gameId (CASCADE) · snapshotId (**RESTRICT**) · label · trigger (CHECK) · createdAt | RESTRICT adopted: "restore broken because the snapshot vanished" must be a constraint error |
 
 Coupled: `schema/index.ts` barrel re-export + the `db-structure` gate's producer mapping row + ONE
@@ -522,7 +528,7 @@ way down:
   Sheet views; a participant without a row renders the DEFAULT sheet (derive-don't-stamp); the row
   is created on FIRST WRITE (a hand edit or `patchSheet`). Zero roster-sync machinery, zero
   drift — the roster change needs no rpg listener. A sheet row whose actor LEFT the roster is
-  retained but not projected (their data survives a re-invite; the [stamped-id write-boundary]
+  retained but not projected (their data survives a re-invite; the \[stamped-id write-boundary]
   posture: presence gates the WRITE, the read derives).
 - Full-mode encounters/checks later read the same projection (roster-as-cast + sheets) — the graft
   adds engines, not a membership plane. If full ever needs "active adventurers ⊂ roster", that is a
@@ -544,11 +550,11 @@ RESOLVED-CURRENT state (the ladder head + durable rows) — no snapshot-history 
 no D106 floor surface opens (checkpoint labels are room-activity metadata).
 
 | Verb | Gate | Notes |
-|---|---|---|
+| - | - | - |
 | `createGame(chatId, mode)` | host | mode ∈ tuple; `"full"` → `RpgModeUnbuiltError` (PHASE). Mints the game row (status `"active"`, `gmPresetId` NULL — the knob's lite default, §4.11 #1; config prefault: `freeform` profile or a caller-picked packaged/imported profile), seeds the BORN snapshot (committed=1, empty state, `quests: []`, null clock — rung-3 base for turn 1), calls `setRpgPointer`. Soft capability arm: succeeds on a non-tool connection; the create RESULT carries `trackersReadOnly` so the client says so at birth (D86 §4.2) |
 | `updateConfig(chatId, { patch?, gmPresetId? })` | host | the ONE config write door: profile mutability matrix (§2.3) + `lite.steeringNote` + **the `gmPresetId` KNOB** (§4.11 #1 — set = validated owned/alive preset; explicit null = clear back to augment); typed errors |
 | `patchSheet(chatId, actorRef, patch)` | host any; member their OWN `user` ref | MA-4 patch semantics (every field optional, NO defaults — omit = keep); attribute keys validated ∈ profile vocabulary + range |
-| `editSnapshot(chatId, patch, opts)` | host any field; member their own actor's volatile | the hand-edit door: writes volatile state on the CURRENT resolved snapshot (clone-forward if the head is committed), auto-locks touched fields; the [merge-clear] `{}`/null contract |
+| `editSnapshot(chatId, patch, opts)` | host any field; member their own actor's volatile | the hand-edit door: writes volatile state on the CURRENT resolved snapshot (clone-forward if the head is committed), auto-locks touched fields; the \[merge-clear] `{}`/null contract |
 | `createWidget` / `updateWidget` / `deleteWidget` | host | defs are identity-plane |
 | `upsertQuest(chatId, …)` / `deleteQuest` | host | the hand arm of the quest plane — SNAPSHOT-PLANE ops post-ratification (§2.5): they write the `quests` array on the current resolved snapshot via the same clone-forward + `fieldLocks` machinery as `editSnapshot` (per-quest lock path `quests.<id>`), so a hand edit is swipe-consistent and survives the model exactly like every other tracker edit |
 | `addJournalEntry` / `editJournalEntry` / `deleteJournalEntry` | host | the hand arm of the journal — hand entries stamp `variantId: NULL` (every-lineage room notes, §2.5); edit/delete address model entries too (the recovery path the lineage projection makes safe) |
@@ -565,12 +571,12 @@ seat/encounter/clock/map/session/npc verb families.
 Registered at `entry/compose` into the ONE `toolUse` registry (the imagery precedent,
 `compose/imagery.ts:163-170`); handlers close over the rpg service; `capability: null` (member
 floor — the turn runs as the host principal; the owning verbs re-gate); args PROJECTION-CLEAN (no
-`.transform()`/branded ids — [tool-schema-no-branded-transform]; every entity reference is a
+`.transform()`/branded ids — \[tool-schema-no-branded-transform]; every entity reference is a
 NAME/label the server alias-resolves); top-level `z.object` always. `MODE_POLICY.lite.tools` is the
 7-tuple; the gather withholds the whole set on a read-only turn.
 
 | Tool | Args (schema sketch) | Writes |
-|---|---|---|
+| - | - | - |
 | `update_party` | `{ targetRef, poolDeltas?: [{name, delta}], addCondition?, removeCondition?, hpDelta?, status? }` — `targetRef` resolves party-side actors AND cast keys (the wallet/inventory-on-every-actor ruling); `hpDelta` on a null-hp actor → `ok:false` legality result (the errors-as-data lane) | staged volatile |
 | `update_inventory` | `{ targetRef, add?: [{name, description?, quantity?, location?}], remove?: [{name, quantity?}], walletDeltas?: [{name, delta}] }` | staged volatile (incl. wallet) |
 | `update_scene` | `{ location?, calendarDate?, day?, timeOfDay?, weather?, presentUpsert?: [{name, emoji?, mood?, appearance?, outfit?, thoughts?, customFields?: [{name, value}]}], presentRemove?: [name], recentEvent? }` — ambient fields per §2.7; `customFields` array-of-pairs (D79 `additionalProperties:false` regime); presentUpsert is a PATCH (MA-4: omit = keep, null = clear) | staged volatile |
@@ -709,13 +715,13 @@ the ops object is a forward-ref delegate over the rpg service (the crew-delegate
    surface, not a missing half.
 5. **`trackersReadOnly`** — NOT a posture: derived per-turn from connection capability (§4.6).
    A knob here would let users silently break the loop; the honest-arms doctrine forbids it.
-6. **TIME_OF_DAY→hour mapping, beats-window size, state-block entity caps** — ARGUED NO-KNOB:
+6. **TIME\_OF\_DAY→hour mapping, beats-window size, state-block entity caps** — ARGUED NO-KNOB:
    internal vocabulary + prompt-shape stability constants (domain constants, named in code); no
    user-tuning demand exists, and prompt-budget shape is an engineering concern, not preference.
    Any future demand lands them in `config.lite` additively.
 7. **The create-time profile pick** — already user-chosen at the dialog (freeform default,
    packaged/import picks); not hardcoded.
-8. **`roll_dice` availability** — MODE_POLICY data, host-visible via the tool list; a per-game
+8. **`roll_dice` availability** — MODE\_POLICY data, host-visible via the tool list; a per-game
    tool toggle is a FULL-mode house-rules concern (legacy's `overworldToolNames` swap precedent)
    and grafts with it. ARGUED defer.
 
@@ -724,7 +730,7 @@ the ops object is a forward-ref delegate over the rpg service (the crew-delegate
 ## 5. SECTION D — what lite does NOT build (gating class + doorway, per the CP assignments)
 
 | Not built | Class | Doorway kept |
-|---|---|---|
+| - | - | - |
 | Full mode itself (`createGame mode:"full"`, `setMode`) | **PHASE** — typed `RpgModeUnbuiltError` with the reason; the CP `rpg.game` tab's "Graduate to full" control renders PHASE-disabled | `MODE_POLICY.full` as data · `mode` column · the reserved verb names (§4.4) |
 | GM seat / GM console / hidden ring | APPLICABILITY (mode shape) | `gmUserId` born nullable · `resolveGmSeatHolderKind` implemented-null · the seatless (`IS NULL`) invariant lite already obeys. (`gmPresetId` is NOT a dormant doorway — it is a LIVE lite knob, §4.11 #1) |
 | d20 checks / DC spine / dice feed | APPLICABILITY | profile `modifier`/`skillGoverning`/`perceptionAttribute`/`resolution` fields shipped + validated (§2.3) · `markDicePreRollEligible` no-op arm |
@@ -737,6 +743,7 @@ the ops object is a forward-ref delegate over the rpg service (the crew-delegate
 | Per-player-private trackers, profile library table, per-NPC structured meters | reserved (D86's named deferrals, unchanged) | recorded here; no schema cost |
 
 **CP-doc deltas to record at ratification (this spec does NOT edit `Context-Panel-Program.md`):**
+
 1. **§4.4 AMENDED (owner, 2026-07-26):** lite top strip = Status · Sheet · Inventory · Scene ·
    **Quests · Journal** (6 tabs); Quests/Journal render the same §3.2 blocks (goal lines with `n/m`
    from objectives; beat lines as the archive); Map alone stays full/MA-3 PHASE. The §4.4
@@ -755,11 +762,11 @@ the ops object is a forward-ref delegate over the rpg service (the crew-delegate
 ### 6.1 Waves (sized for executor stints; L-numbers fresh — this is not D86's L0..L3)
 
 | Wave | Contents | Size | Gate |
-|---|---|---|---|
-| **W0 — contracts + schema floor** | `@orb/contracts/rpg` whole (§4.1) · kit id brands · `db/schema/rpg.ts` (§4.2) + barrel + db-structure mapping · **the ONE baseline regen** + fixtures + `seed:demo` · `chatMetadataSchema.rpg` sub-blob + parser + `ChatDetail` projection | M | contract tests + schema mirror tests green; regen on a QUIESCED tree only ([baseline-regen-on-a-shared-tree]) |
-| **W1 — the domain vertical** | persistence (games/snapshots incl. the ladder/sheets/widgets/quests/journal/checkpoints) · staging accumulator · locks merge · verbs (§4.4) · gather + `buildLiteReminder` · the `ChatRpgOps` implementation (§3.2) · `setRpgPointer` chat verb · tool defs + handlers · bus + belts · compose block + tool registration | L (split: W1a persistence+staging+locks · W1b verbs+gather+ops · W1c tools+bus+compose) | int tests per §6.2; the composed-real int test proves the compose wiring ([compose-stub-goes-stale]) |
-| **W2 — transport + client data plumbing** | `rpg` tRPC router (verbs + `stream` subscription) + appRouter registration · **cross-tenant sweep classification: every proc PROBED** ([new-router-needs-sweep-classification]) · client `defineBusChannel` + `EVENT_INVALIDATIONS` · the tRPC hooks the CP build consumes | M | sweep green; router zod schemas (no `z.any()` — the F6 lesson is pre-paid here) |
-| **W3 — the CP-4 lite takeover client** | owned by the Context-Panel program (CP §4 + the §5 deltas above) — consumes W2's surface; NOT specced here | — | side-eye AFTER the mockup-first loop, per [mockup-first-build-loop] |
+| - | - | - | - |
+| **W0 — contracts + schema floor** | `@orb/contracts/rpg` whole (§4.1) · kit id brands · `db/schema/rpg.ts` (§4.2) + barrel + db-structure mapping · **the ONE baseline regen** + fixtures + `seed:demo` · `chatMetadataSchema.rpg` sub-blob + parser + `ChatDetail` projection | M | contract tests + schema mirror tests green; regen on a QUIESCED tree only (\[baseline-regen-on-a-shared-tree]) |
+| **W1 — the domain vertical** | persistence (games/snapshots incl. the ladder/sheets/widgets/quests/journal/checkpoints) · staging accumulator · locks merge · verbs (§4.4) · gather + `buildLiteReminder` · the `ChatRpgOps` implementation (§3.2) · `setRpgPointer` chat verb · tool defs + handlers · bus + belts · compose block + tool registration | L (split: W1a persistence+staging+locks · W1b verbs+gather+ops · W1c tools+bus+compose) | int tests per §6.2; the composed-real int test proves the compose wiring (\[compose-stub-goes-stale]) |
+| **W2 — transport + client data plumbing** | `rpg` tRPC router (verbs + `stream` subscription) + appRouter registration · **cross-tenant sweep classification: every proc PROBED** (\[new-router-needs-sweep-classification]) · client `defineBusChannel` + `EVENT_INVALIDATIONS` · the tRPC hooks the CP build consumes | M | sweep green; router zod schemas (no `z.any()` — the F6 lesson is pre-paid here) |
+| **W3 — the CP-4 lite takeover client** | owned by the Context-Panel program (CP §4 + the §5 deltas above) — consumes W2's surface; NOT specced here | — | side-eye AFTER the mockup-first loop, per \[mockup-first-build-loop] |
 
 Commit bar per the standing rule: lanes verify scoped; the orchestrator runs `pnpm check` + the
 battery on the quiesced tree; artifacts read from `reports/`, never re-run.
@@ -775,13 +782,13 @@ battery on the quiesced tree; artifacts read from `reports/`, never re-run.
   `{variantId, sourceMessageId}`) · **abort clears everything** (the dead-turn-never-flushes pin) ·
   two concurrent turns on one chat don't share a bucket (the ChatTurnId keying pin).
 - **Locks**: manual-edit-wins (edit → auto-lock → tool write drops the locked path) · the
-  [merge-clear] `{}`-noop / null-clear transition test.
-- **Mode**: the MODE_POLICY matrix (every guarded verb × mode; full arms → typed errors) ·
+  \[merge-clear] `{}`-noop / null-clear transition test.
+- **Mode**: the MODE\_POLICY matrix (every guarded verb × mode; full arms → typed errors) ·
   `createGame("full")` → `RpgModeUnbuiltError`.
 - **Profile**: mutability matrix (add / referenced-remove refused / range edits) · packaged
   profiles parse + validate · sheet attribute-key∈vocabulary enforcement.
 - **Gather**: injection content (state block entities incl. quests+journal lines, license, guidance
-  present/absent by capability, steeringNote last) · `trackersReadOnly` derivation (tools:[] +
+  present/absent by capability, steeringNote last) · `trackersReadOnly` derivation (tools:\[] +
   guidance omitted) · non-game chat → null (byte-identical — the existing contract test's pattern) ·
   **the preset knob's default-identity pin**: `gmPresetId` NULL ⇒ override null ⇒ the turn
   assembles byte-identical to a no-game preset resolve; knob SET ⇒ the override preset assembles
@@ -789,7 +796,7 @@ battery on the quiesced tree; artifacts read from `reports/`, never re-run.
 - **Tools**: every arg schema projects (the `z.toJSONSchema` throw class) · alias resolution
   (targetRef → character/user/cast) · MA-4 patch semantics (omitted field preserves, null clears —
   the returning-NPC pin) · hpDelta-on-null-hp → errors-as-data · walletDeltas · **the mutation-fired
-  assertion style** ([assert-the-mutation-fired]).
+  assertion style** (\[assert-the-mutation-fired]).
 - **Authority**: the per-verb matrix (host / member-own-row / member-foreign / non-member) — the
   cross-tenant discipline; leak-free refusals.
 - **Swipe-consistency, ALL panel planes** (the ratification pin): pool + wallet + quest write on
@@ -801,7 +808,7 @@ battery on the quiesced tree; artifacts read from `reports/`, never re-run.
 - **Pointer**: createGame writes it once; corrupt blob heals to absent; `ChatDetail` projects it.
 - **Bus**: producer-coverage belt + the client total-map tsc belt + a stream int test.
 - **Composed-real**: one `tests/server/entry/compose/rpg.int.test.ts` driving createGame → a tool
-  turn → flush through the REAL compose graph (the [ct-stub-lie] class antidote).
+  turn → flush through the REAL compose graph (the \[ct-stub-lie] class antidote).
 
 ### 6.3 Coupled-site inventories (one change = all sites, per the standing memories)
 
@@ -810,7 +817,7 @@ battery on the quiesced tree; artifacts read from `reports/`, never re-run.
 - **New ids**: `ID_PREFIX` entries + brand exports + (used-by) `typeIdSchema` mints.
 - **New domain**: domain dir (8-slot) + compose block + `services.ts` wiring + contracts barrel +
   the AGENTS.md §6 additive-domains line + a workboard row + knip/ast liveness sweep.
-- **New tools**: compose registration + the MODE_POLICY tuple + the projection tests + the
+- **New tools**: compose registration + the MODE\_POLICY tuple + the projection tests + the
   05-§3-style count note in `contract/tools.ts`'s header (the count home convention).
 - **New bus**: contract union + satisfies-belt + coverage-gate arm + client channel + invalidation
   Record + the subscription proc.
@@ -875,8 +882,8 @@ clone) — the knob's storage, write door, and read end are byte-stable (§4.11 
 **Tools full ADDS:** `skill_check`, `request_check`, `advance_time`, `tick_clock`, `upsert_npc`,
 `update_reputation`, `create_clock`, `move_party`, `add_map_node`, `resolve_combat_round`,
 `grant_loot`, `start_encounter`, `offer_choices`, `request_illustration`, … — additive
-registrations into the same registry; the 7 lite defs are byte-stable (update_scene's ambient args
-and update_inventory's walletDeltas are already full-compatible — the engines WRITE the same
+registrations into the same registry; the 7 lite defs are byte-stable (update\_scene's ambient args
+and update\_inventory's walletDeltas are already full-compatible — the engines WRITE the same
 planes).
 
 **Verbs full ADDS:** `setMode` · wizard/`startGame` family · seat family · encounter/clock/map/

@@ -1,3 +1,9 @@
+---
+kind: design
+status: parked
+updated: 2026-08-14
+---
+
 # Parked options — ops + posture cluster (investigate-only)
 
 Owner-facing decision doc for three parked items that were sequenced-after-the-board or are
@@ -37,7 +43,7 @@ reverse-proxies the public domain to the host process:
 - `docker-compose.yaml:151-152` — Caddy gets `extra_hosts: host.docker.internal:host-gateway` for
   exactly this host-hosted reach. The block's own comment (`:149-150`) calls it a neo-tavern relic:
   *"drop this once neo-tavern moves into the compose network."*
-- The app owns its own auth (Caddyfile:364-366: *"NO forward_auth here … the app owns auth"*), so
+- The app owns its own auth (Caddyfile:364-366: *"NO forward\_auth here … the app owns auth"*), so
   the reverse-proxy is a dumb pass-through — no identity is injected at the proxy.
 
 **The blast radius the board names is real** (`docs/retro-workboard.md:1367-1370`): a file-write or
@@ -87,7 +93,8 @@ script). No server transpile — keep the type-stripping runtime.
 
 **D3 — What goes in the container vs stays on the host.**
 → **RECOMMEND:**
-- **vLLM fleet STAYS on the host** — GPU-bound, ~34GiB/card, weights under `.models/` (memory:
+
+- **vLLM fleet STAYS on the host** — GPU-bound, \~34GiB/card, weights under `.models/` (memory:
   vllm-sleep-fleet-facts). The container reaches it via `host.docker.internal`/host-gateway. Fleet
   ports are 8701/8702/8703 (`stack.sh:100`) plus the compose comment's host `:8081`
   (`docker-compose.yaml:540-541`). Enumerate exactly which the app dials and allow only those.
@@ -159,7 +166,7 @@ tradeoff that made it an owner ruling, not a lane default.
 
 ### Options
 
-- **(a) Enable repo-wide NOW.** Pro: the ~85 Tier-A names surface mechanically and future barrel rot
+- **(a) Enable repo-wide NOW.** Pro: the \~85 Tier-A names surface mechanically and future barrel rot
   is auto-caught. Con: it floods the current findings — every legitimate entry export across all
   five packages reports at once, on top of the 85, before the amputation lands. A noise cliff on a
   tree that hasn't done the surgery yet.
@@ -198,8 +205,9 @@ already knows this; a naive post-flag sweep would not.
 ### What AGENT-1 actually IS (receipts)
 
 Two related board entries, same subject:
+
 - Standing owner item #7 (`retro-workboard.md:1837-1844`): **agent-sdk first-class for rpg-lite.**
-  Plumbing is ~complete; four remaining arms in **ruled order 2→3→1→4** — (2) reasoning-visibility
+  Plumbing is \~complete; four remaining arms in **ruled order 2→3→1→4** — (2) reasoning-visibility
   parity, (3) usage/context accounting parity, (1) knob honesty, (4) the live rpg-lite loop scored
   on the SDK wire. Closes: *"Claude Max OAuth expired — the agent-sdk backend is dead until he
   re-auths."*

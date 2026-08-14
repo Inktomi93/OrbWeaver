@@ -1,3 +1,9 @@
+---
+kind: design
+status: active
+updated: 2026-08-14
+---
+
 # v3 demo-transcripts heal — decision brief
 
 > Scout-reconstructed 2026-08-09 (lane #51, receipts verified in-lane). The standing board item

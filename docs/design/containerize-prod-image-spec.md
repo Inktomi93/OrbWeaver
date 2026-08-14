@@ -1,8 +1,7 @@
 ---
 kind: design
 status: draft
-owner-review: REQUIRED (forks in §7)
-updated: 2026-08-08
+updated: 2026-08-14
 ---
 
 # Production container image + deployment spec (all auth modes)
@@ -54,6 +53,7 @@ a misconfigured `oidc`/`local`/`OWNER_HANDLES` deploy at module load — a misco
 degrades to owner-on-the-public-FQDN.
 
 The identity pipeline is three tiers, and the split matters for what the container must get right:
+
 - **VERIFICATION** (`infra/auth`, db-free, sealed): headers → pre-row `ResolvedIdentity` + the origin-gated
   owner-fallback discriminant. No role, no userId, no upsert (`infra/auth/index.ts:37-65`).
 - **RESOLUTION** (`domain/sessions`): role policy + users-row upsert.
@@ -70,13 +70,12 @@ that share all app code and differ only in whether the vLLM fleet is baked in:
 | For | the owner + any GPU self-hoster who wants turnkey | cloud-only / CPU-only / GPU-less deployers |
 | `ENGINES_POSTURE` | `adopt-or-start` (the container spawns the fleet) | `off` (D3) or `adopt-only` + external URL (D2) |
 | `VLLM_ENGINE_HOST` | `127.0.0.1` (default — fleet shares the namespace) | unset (off) or the external engine host |
-| GPU | MANDATORY (`--gpus all`; ~34 GiB VRAM/card, 2×A6000 class) | none |
+| GPU | MANDATORY (`--gpus all`; \~34 GiB VRAM/card, 2×A6000 class) | none |
 | Image size | HUGE (CUDA + vLLM + model weights, many GB) | small (node + app + client dist) |
 | Base image | an NVIDIA CUDA runtime base + node 26 | `node:26-slim` |
 
 **The honest tradeoff:** the all-in-one is the OPPOSITE of universal — GPU-mandatory and multi-GB — which is
-exactly why it cannot be the *only* image. Profile 1 is the owner's default because it is turnkey (`docker run
---gpus all` and the whole stack, engines included, comes up). Profile 2 is the documented alternative that
+exactly why it cannot be the *only* image. Profile 1 is the owner's default because it is turnkey (`docker run --gpus all` and the whole stack, engines included, comes up). Profile 2 is the documented alternative that
 keeps the "everyone" contract: a cloud/CPU deployer gets a small image that runs cloud models (OpenRouter /
 agent-sdk) or points at an external engine. The `VLLM_ENGINE_HOST` env lever (§3.6) is what lets ONE codebase
 serve both — it defaults to `127.0.0.1` for profile 1 at zero cost and is the external-engine pointer for
@@ -115,6 +114,7 @@ CUDA runtime image with node 26 layered on (Fork A: base image, now per-profile)
 ```
 
 **Non-negotiables baked into the image design:**
+
 - **Non-root** (`USER node`). The app needs write only to the data volume; own that path to `node:node`.
 - **`data/` is a MOUNTED VOLUME, never baked.** All state is cwd-relative under `./data`:
   `DATABASE_URL=file:./data/orbweaver.db` (+ `-wal`/`-shm`), `ASSETS_DIR=./data/assets` (CAS blobs),
@@ -216,7 +216,7 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
     (`lifecycle.ts:344-348`).
 - **Container posture — the peer-IP gotcha:** inside the compose network the TCP peer the app sees is the
   reverse-proxy's container IP (Caddy is pinned to `172.18.0.100`, `docker-compose.yaml:157`), which is in
-  `172.16.0.0/12` (RFC1918, DEFAULT_TRUSTED_RANGES `ip-ranges.ts:181`). So for the UNSIGNED path
+  `172.16.0.0/12` (RFC1918, DEFAULT\_TRUSTED\_RANGES `ip-ranges.ts:181`). So for the UNSIGNED path
   `FORWARD_AUTH_TRUSTED_PROXIES` must be set to the proxy's exact container IP — recommend `172.18.0.100/32`,
   **NOT** the whole subnet (any container on the net would otherwise forge `Remote-User: owner`). For the
   SIGNED path the peer gate is irrelevant (crypto replaces it); prefer signed.
@@ -244,11 +244,12 @@ invariant across all four: a stranger who picks the mode and sets nothing exotic
 
 orb and the three engines (`gen`/`embed`/`rerank`) run in ONE container, one PID + network namespace, one
 GPU passthrough. This replicates the bare-host `pnpm stack up prod` topology, which is: `stack-prod.ts` spawns
-the SERVER detached (`node entry/index.ts`, NODE_ENV=production, `stack-prod.ts:431`), and the SERVER — under
+the SERVER detached (`node entry/index.ts`, NODE\_ENV=production, `stack-prod.ts:431`), and the SERVER — under
 `ENGINES_POSTURE=adopt-or-start` — runs the in-process supervisor that triggers a **detached `setsid` fleet
 spawn** when an engine is down (`supervisor.ts:2-5`). The container inherits that exact flow.
 
 **Config for profile 1:**
+
 - **`ENGINES_POSTURE=adopt-or-start`** — the container IS the fleet's owner and spawns it (NOT `adopt-only`:
   that is the passive-consumer posture for a fleet someone else runs). `postureManages` is true, so the
   supervisor owns spawn + auto-sleep (`foundation/env/posture.ts`).
@@ -259,6 +260,7 @@ spawn** when an engine is down (`supervisor.ts:2-5`). The container inherits tha
 - **`--gpus all`** at runtime (NVIDIA Container Toolkit on the host); `--shm-size` raised for vLLM.
 
 **Do the §-earlier "remote engine" findings bite profile 1? CONFIRMED against the code: NO.**
+
 - **The `VLLM_ENGINE_HOST` URL change — NOT needed.** `engineBaseUrl` → `http://127.0.0.1:<port>`
   (`engine-url.ts:17-20`) is literally correct when the fleet is in the same namespace.
 - **The egress app→vllm hop — NOT an issue.** `internalBackendHostPorts` already bypasses the firewall for
@@ -275,12 +277,13 @@ spawn** when an engine is down (`supervisor.ts:2-5`). The container inherits tha
   for profile 1 (`adopt-or-start` ⇒ `postureManages` true ⇒ the local-GPU requirement still applies, exactly
   as today).
 
-**Fleet-launch reconciliation (`never-run-engine-launcher-live` + ~34 GiB/card):**
+**Fleet-launch reconciliation (`never-run-engine-launcher-live` + \~34 GiB/card):**
+
 - The detached-`setsid` design makes the fleet "nobody's child" so a SERVER restart reuses a warm fleet via
   adopt (`supervisor.ts:2-5`). Inside a container this is naturally bounded: a *server-process* restart keeps
   the fleet warm (same PID namespace), while `docker stop` reaps the whole namespace — fleet included. So the
   container is a clean lifecycle boundary for the immortal-launcher class, not a leak.
-- ~34 GiB VRAM/card (2×A6000 class, `foundation/env` header) is a HARD runtime floor: profile 1 refuses to be
+- \~34 GiB VRAM/card (2×A6000 class, `foundation/env` header) is a HARD runtime floor: profile 1 refuses to be
   useful without adequate GPU. Cold fleet spawn is slow (the stack.sh boot-readiness bounds exist for exactly
   this) — the container's healthcheck must allow a long `start_period` (minutes) so the orchestrator doesn't
   kill the container while the fleet warms. Engines bind loopback (`--host 127.0.0.1`, `build-argv.ts:155`),
@@ -289,6 +292,7 @@ spawn** when an engine is down (`supervisor.ts:2-5`). The container inherits tha
 #### Profile 2 — external engine URL or engines-off (the "everyone" arm)
 
 The slim app-only image, no CUDA/vLLM/models. Two arms, both via env, no fleet in the image:
+
 - **D3 engines-off (default for a GPU-less deployer): `ENGINES_POSTURE=off`** — cloud/OpenRouter/agent-sdk
   models only; the supervisor is never registered (`postureRegistersBackend` false, `lifecycle.ts:203`).
 - **D2 external engine: `ENGINES_POSTURE=adopt-only` + `VLLM_ENGINE_HOST=<host>`** pointing at a vLLM/
@@ -297,8 +301,7 @@ The slim app-only image, no CUDA/vLLM/models. Two arms, both via env, no fleet i
   1. **`engine-url.ts:17-20`** — make `engineBaseUrl` read `VLLM_ENGINE_HOST` (default `127.0.0.1`), host-only
      so `VLLM_*_PORT` stays intact.
   2. **`egress.ts:81-83`** — `internalBackendHostPorts` must read the same `VLLM_ENGINE_HOST` (else an external
-     private-IP host is blocked by the egress DNS-lookup gate, `egress.ts:118-124`); fallback `EGRESS_ALLOWLIST
-     =<host>`.
+     private-IP host is blocked by the egress DNS-lookup gate, `egress.ts:118-124`); fallback `EGRESS_ALLOWLIST =<host>`.
   3. **the GPU-detect fix** above (`lifecycle.ts:201-203`) — else the GPU-less app container never registers
      the external engine under `adopt-only`.
 
@@ -326,7 +329,7 @@ never grant it" (`dispatch.ts:9-10,47-51`).
   `DEBUG_GATE_CREDENTIALED.fallback = false`) makes the origin-gated fallback NOT a credential, so even a
   Host-spoofed owner fallback cannot open the principal-blind whole-db debug reads. The debug gate still
   requires a real admin cookie/JWT or `DEBUG_TOKEN`. Enforcer: `tests/server/entry/debug-gate.suite.test.ts`
-  (every AUTH_MODE × Host × token state).
+  (every AUTH\_MODE × Host × token state).
 
 **The secure-default answer (belt AND suspenders):**
 
@@ -429,7 +432,7 @@ and per-IP rate limits see the REAL client IP — provided Caddy sets XFF (defau
 
 - **Fork A — base image.** *Recommend `node:26` builder + `node:26-slim` runtime (Debian/glibc).* Rejected:
   Alpine/musl (native `@libsql` + TS-strip risk, no proven path); distroless (loses the shell the healthcheck
-  and debugging want, and node-distroless lags the 26 tag). Cost: slim image is ~200-300 MB larger than
+  and debugging want, and node-distroless lags the 26 tag). Cost: slim image is \~200-300 MB larger than
   distroless; worth it for operability.
 
 - **Fork B — single-image-all-modes vs per-mode images.** *Recommend ONE image, mode selected by
@@ -449,7 +452,7 @@ and per-IP rate limits see the REAL client IP — provided Caddy sets XFF (defau
   as the default the owner runs and Profile 2 as the documented "everyone" alternative.*
   - **Profile 1 (DEFAULT): all-in-one GPU image** — orb + the 3-engine fleet + CUDA + models, one namespace,
     loopback, `ENGINES_POSTURE=adopt-or-start`, `--gpus all`. Turnkey for the owner + GPU self-hosters. HUGE
-    and GPU-mandatory (~34 GiB VRAM/card). None of the remote-engine plumbing bites it (§3.6 confirmed).
+    and GPU-mandatory (\~34 GiB VRAM/card). None of the remote-engine plumbing bites it (§3.6 confirmed).
   - **Profile 2 (alternative for GPU-less/cloud deployers): slim app-only image** — `ENGINES_POSTURE=off`
     (D3), or `adopt-only` + `VLLM_ENGINE_HOST` at an external engine (D2). Small. This arm is what keeps the
     "designing for everyone" contract, and it is why the `VLLM_ENGINE_HOST` lever + the GPU-detect fix earn
@@ -459,8 +462,7 @@ and per-IP rate limits see the REAL client IP — provided Caddy sets XFF (defau
 
 - **Fork E — production dependency pruning for a source-run TS workspace.** The server runs `.ts` source and
   imports workspace packages as source, so a naive `--prod` install can drop something node needs at runtime,
-  while the full install drags in vitest/playwright/stryker. *Recommend `pnpm deploy --filter @orb/server
-  --prod` into a self-contained dir* (resolves the workspace graph, prunes dev deps), verified by a boot smoke
+  while the full install drags in vitest/playwright/stryker. *Recommend `pnpm deploy --filter @orb/server --prod` into a self-contained dir* (resolves the workspace graph, prunes dev deps), verified by a boot smoke
   test in the build lane. Fallback arm: carry the full `--frozen-lockfile` install and accept the size. The
   build lane must PROVE the runtime image boots (`/healthz` 200) before this fork is closed.
 

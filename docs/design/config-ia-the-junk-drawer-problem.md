@@ -1,3 +1,9 @@
+---
+kind: design
+status: active
+updated: 2026-08-14
+---
+
 # Config IA — the junk-drawer problem, and the tag model that falls out of it
 
 > **Status: DESIGN THINKING, owner-driven (2026-08-08, live app tour). No build. No lane.** Captured

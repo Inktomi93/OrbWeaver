@@ -1,3 +1,9 @@
+---
+kind: design
+status: active
+updated: 2026-08-14
+---
+
 # `{{note}}` — original intent & classification archaeology
 
 **Status:** INVESTIGATION ONLY. No fix recommended. The owner rules once he has the intent.
@@ -97,6 +103,7 @@ because anyone assessed that a lost note is an acceptable outcome. At this point
 
 **Critical:** §6.3's entire rationale is about **VOICE-LOCK DRIFT (weakening prose), not payload loss.**
 Its three worked examples are:
+
 - `impersonateNudge` dropping `{{user}}`/`{{char}}` → "impersonation may bleed" (`:355`);
 - `guidedActions.*` dropping `{{input}}` → a lint that "EXISTS already" and is "generalized, not
   invented" (`:356`);
@@ -125,7 +132,7 @@ is warned in the field rather than blocked mid-edit or rejected at the server. T
 ## 3. The `wiFormat` / `{{entry}}` contrast — when & why it became a block
 
 Commit **`5d71e287e`** `feat(preset,contracts): PRESET-1 server seams …` (**2026-08-01 14:36:42 -0600**,
-~24 min after S1b) introduced `FORMAT_STRING_CARRIER_TOKENS`. The commit message records the ruling:
+\~24 min after S1b) introduced `FORMAT_STRING_CARRIER_TOKENS`. The commit message records the ruling:
 
 > "OWNER GUARD (2026-08-02): `promptConfigWriteSchema` refuses a format string that dropped its CARRIER
 > token (`wiFormat` without `{{entry}}`) — at the WRITE boundary only, so a preset already carrying a
@@ -135,7 +142,7 @@ The reasoning in code (`packages/contracts/src/preset/index.ts:716-730`):
 
 > "CARRIER tokens … A carrier format string WRAPS content, so a non-empty value that drops its token
 > renders the wrapper with the content GONE … That write is REFUSED with a message naming the token —
-> never accepted and quietly ignored. … **DELIBERATELY DISTINCT from PROSE-1's `requiredMacros** …
+> never accepted and quietly ignored. … **DELIBERATELY DISTINCT from PROSE-1's \`requiredMacros** …
 > Those are voice guidance whose absence weakens prose (the identity macros in the impersonate nudge);
 > **these are carriers whose absence DELETES content.**"
 
@@ -248,6 +255,7 @@ does not make it.
 | Comments asserting deliberate distinction | `packages/client/src/features/preset/components/template-drill-in.tsx:188-193`; `packages/contracts/src/preset/index.ts:723-729` |
 
 ### Could not trace / out of scope
+
 - I did not exercise `wrapWiFormat`'s exact drop-`{{entry}}` behavior (whether the entry ships unwrapped
   or is fully dropped) — the question takes `{{entry}}`'s block-on-loss as given, and the `{{note}}`
   loss mechanism is source-pinned independently (§1). If the owner wants the two mechanisms proven

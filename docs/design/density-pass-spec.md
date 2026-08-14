@@ -1,7 +1,7 @@
 ---
 kind: spec
-status: approved (owner-ruled 2026-08-01)
-updated: 2026-07-31
+status: active
+updated: 2026-08-14
 ---
 
 # The density pass — tier map, mechanism, enforcement
@@ -29,8 +29,8 @@ largest step, and one defined step has never had a consumer. That is the assignm
 number.
 
 **Correction to the briefing receipt:** the claim "the five-step spacing scale has ZERO direct utility
-uses in tsx" is FALSE as measured. `packages/client/src/**/*.tsx` uses the intent utilities ~108 times
-(`px-block` 25 · `px-field` 22 · `py-row` 17 · `p-block` 15 · …) and `packages/ui/src` ~200 times. The
+uses in tsx" is FALSE as measured. `packages/client/src/**/*.tsx` uses the intent utilities \~108 times
+(`px-block` 25 · `px-field` 22 · `py-row` 17 · `p-block` 15 · …) and `packages/ui/src` \~200 times. The
 scale is adopted; what is missing is which step goes where. The rest of the brief's diagnosis holds.
 
 Industry conventions this spec ratifies against: the 8pt grid with a 4pt sub-grid (Material 3 /

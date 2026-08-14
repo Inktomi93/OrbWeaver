@@ -1,3 +1,9 @@
+---
+kind: design
+status: parked
+updated: 2026-08-14
+---
+
 # Parked options — persona / prose cluster (I-8)
 
 > **Status: DECISION INPUT, not a plan.** Investigate-only lane. No code touched. This is opinionated
@@ -20,7 +26,7 @@
 **This is the one where "do it right once" matters most, and the one most constrained by owner law.** Two
 separate owner-sacred fences sit on top of it — flag both before any build:
 
-- **[[persona-is-owner-sacred]]** — the pin CONCEPT + mechanics (anchor/active/current/default precedence,
+- **\[\[persona-is-owner-sacred]]** — the pin CONCEPT + mechanics (anchor/active/current/default precedence,
   `{{user}}` resolution) change only with Nate's sign-off. Validation-at-boundary is fine; behavior is his.
   The behavioral contract that must pass untouched: `tests/server/domain/chat/verbs/persona-resolution.suite.int.test.ts`.
 - **Workboard I-8** (`docs/retro-workboard.md:1321-1327`) parks a RELATED item ("mid-session persona-change
@@ -29,7 +35,7 @@ separate owner-sacred fences sit on top of it — flag both before any build:
 
 ### 1.1 What a persona IS vs what a character IS, in code
 
-They are **separate producer-owned tables that already share ~80% of their content shape but diverge hard on
+They are **separate producer-owned tables that already share \~80% of their content shape but diverge hard on
 identity, history, and resolution role.**
 
 | Axis | Persona (`db/schema/persona.ts`) | Character (`db/schema/character.ts`) |
@@ -69,7 +75,7 @@ one-description subset of a character, minted by a lossy one-way copy.**
 
 ### 1.3 What "persona = character" could MEAN architecturally — four readings
 
-1. **Unify the TYPES** — one `entities` table with a `kind` discriminator (`character`|`persona`[|`agent`]),
+1. **Unify the TYPES** — one `entities` table with a `kind` discriminator (`character`|`persona`\[|`agent`]),
    character-only columns nullable on persona rows.
 2. **Persona becomes a character-with-a-flag** — personas stored IN `characters` with `role:"human"`, the
    persona pointer layer keying on character ids.
@@ -80,6 +86,7 @@ one-description subset of a character, minted by a lossy one-way copy.**
 ### 1.4 The options, with what breaks / unlocks
 
 **Option A — Leave split (status quo).**
+
 - Unlocks: nothing new; zero risk to the pin machine and the owner-sacred contract.
 - Breaks: nothing. The `create-from-character` bridge already covers the one real user need ("make a persona
   that looks like this character"). Cost: the A.8 "cast-producer smell" (`FINAL-Persona…md:167-181`) stays —
@@ -87,6 +94,7 @@ one-description subset of a character, minted by a lossy one-way copy.**
   historical-fidelity asymmetry. This is a REAL papercut but it is orthogonal to type unification.
 
 **Option B — Persona-as-character-with-a-flag (readings 1/2).**
+
 - Unlocks: one cast producer, one editor, one history model, a natural `agent` third kind.
 - Breaks: EVERYTHING the pin layer assumes. `{{user}}` vs `{{char}}` routing keys on the type boundary today
   (`assembly/context.ts` feeds card sections `pinnedPersona`, user sections `activePersona`). Personas would
@@ -98,6 +106,7 @@ one-description subset of a character, minted by a lossy one-way copy.**
 **Option C — Shared card substrate, separate homes (reading 3). ⟵ RECOMMENDED (see 1.5).**
 
 **Option D — Kind-polymorphic CAST at the resolution layer only, tables untouched.**
+
 - This is the answer FINAL-Persona already committed to (`:175-181`): a per-kind cast producer
   (`characterCastById`/`personaCastById` over active ∪ stamped ids) projecting name/description, built
   **KIND-READY** so the `agent` third axis (D60) is a one-arm add, not a rework. Decision recorded there: land
@@ -125,7 +134,7 @@ not a storage problem. D fixes it, is already ruled, and is agent-principal-read
 unify types mostly evaporates — which is itself evidence that B/reading-1 was solving the wrong problem.
 
 **FLAG:** Every arm except D touches persona identity semantics → **owner sign-off required per
-[[persona-is-owner-sacred]]**, and B specifically contradicts D122/D131. My recommendation to the owner: bless
+\[\[persona-is-owner-sacred]]**, and B specifically contradicts D122/D131. My recommendation to the owner: bless
 D now (it's already yours), and treat C as a "shape hygiene" follow-on that a lane can spec but not land without
 your explicit word that the substrate stays SHAPE-ONLY. Do not touch B.
 
@@ -218,6 +227,7 @@ resolveProseText(originalRole === "system" ? "chat.injection.systemNote" : "chat
 ```
 
 The slots (`chat/prose.ts:257-282`):
+
 - `chat.injection.systemNote` → `"[Note from system: {{note}}]"`, `requiredMacros: ["{{note}}"]`, home `preset`.
 - `chat.injection.userNote` → `"[Note from user: {{note}}]"`, `requiredMacros: ["{{note}}"]`, home `preset`.
 
