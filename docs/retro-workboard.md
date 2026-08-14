@@ -742,6 +742,16 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   we never started or did something with, we're fine — we can clean up."** Stickler research lane
   (dispatched): modern top-tier patterns (instant-create + empty-husk GC is the hypothesis to beat) vs
   our draft complexity inventory; deliverable = design + migration plan + cleanup semantics.
+- [ ] **DRAFT-MODE REPLACEMENT — DESIGNED, awaiting owner sitting (7 forks, all with recs):**
+  `docs/design/chat-creation-draft-mode-replacement.md` (merged). Verdict: draft mode is a parallel
+  client-side chat runtime (\~1,207 LOC pure-draft + branches in 25+ shared files + a server-logic MIRROR
+  - 7 dated shipped defects rooted in the split). Rec: **CREATE-ON-START-CLICK** — Start mints the real
+    row, room mounts committed-only, husks hidden by a server-side listChats lens, claimed by first
+    activity, reaped nav-away + 24h TTL belt. NEW BUG found en route (§2.7): draftKey module-counter
+    collision repopulates a PREVIOUS session's composer text into a DIFFERENT room after reload — instant-
+    create dissolves it. Forks F1-F7 (creation moment · visibility · reap · claim predicate · TTL ·
+    greeting window · husk reload) each carry recs; D123 + PD-65 + stats-poisoning prior law resolved in
+    §4-§5. Build = staged R0-R3, dev-db squash rides R0 (db expendable per owner). MORNING SITTING ITEM.
 - [ ] **AUTOSAVE INCONSISTENCY (owner dogfood, 08-14 overnight): "we went with autosave most everywhere
   yet there's still some spots with a manual save — it feels weird."** Untriaged; owes an INVENTORY
   first (scout, next free slot): every surface with an explicit Save affordance vs the autosave/draft
