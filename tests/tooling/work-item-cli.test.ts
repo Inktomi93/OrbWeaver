@@ -52,6 +52,7 @@ const value = (prefix) => {
   const index = args.indexOf(prefix);
   return index === -1 ? args.find((arg) => arg.startsWith(prefix))?.slice(prefix.length) : args[index + 1];
 };
+const hasTypedField = (name) => args.some((arg, index) => args[index - 1] === "-F" && arg.startsWith(name + "="));
 const issueNumber = () => Number(args.find((arg) => /^\d+$/.test(arg)));
 const issue = () => state.issues[String(issueNumber())];
 const text = (payload) => { save(); process.stdout.write(JSON.stringify(payload)); };
@@ -89,6 +90,7 @@ if (args[0] === "issue" && args[1] === "view") {
 } else if (args[0] === "api") {
   const query = value("query=");
   if (query.includes("blockedBy")) {
+    if (!hasTypedField("number")) throw new Error('Variable "$number" of type "Int!" used in position expecting type "Int".');
     const target = state.issues[value("number=")];
     text({ data: { repository: { issue: { blockedBy: { nodes: target.blockers.map((number) => ({ number })) } } } } });
     return;
@@ -250,6 +252,14 @@ defineTest("block and unblock retries reconcile without repeating relations", ()
   expect(drive(unblocked, "unblock", "11", "--by", String(FIRST_BLOCKER)).status).toBe(0);
   expect(targetIssue(unblocked).blockers).toEqual([]);
   expect(unblocked.items[0]?.fieldValues.find((value) => value.field.name === "Status")?.name).toBe("Ready");
+});
+
+defineTest("block sends the blocker-query issue number as a typed GraphQL input", () => {
+  const state = createState("Running");
+  expect(drive(state, "block", "11", "--by", String(FIRST_BLOCKER)).status).toBe(0);
+  const blockerQuery = state.calls.find((args) => args[0] === "api" && args[1] === "graphql" && args.some((arg) => arg.includes("blockedBy")));
+  expect(blockerQuery).toEqual(expect.arrayContaining(["-F", `number=${TARGET_ISSUE}`]));
+  expect(blockerQuery?.find((arg, index) => blockerQuery[index - 1] === "-F" && arg.startsWith("number="))).toBe(`number=${TARGET_ISSUE}`);
 });
 
 defineTest("done is reconcilable after a partial failure and posts evidence once", () => {
