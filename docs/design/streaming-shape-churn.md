@@ -583,7 +583,7 @@ Re-running the §7.2 repro settles it in one read: `modelCalls:4` ⇒ the cap he
 `CLAUDE_CODE_MAX_OUTPUT_TOKENS` as a per-request `max_tokens` at all.
 
 **Not touched:** `DEFAULT_MAX_OUTPUT_TOKENS = 2048` itself. Raising it is the open `"LONGER OUTPUTS" LEVER`
-row on `docs/retro-workboard.md` — an owner decision with a battery attached, not a lane's call.
+row in `docs/history/retro-workboard-2026-08-14.md` — an owner decision with a battery attached, not a lane's call.
 
 ### §7.6 Scratch state — every change and its restore
 

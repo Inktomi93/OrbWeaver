@@ -9,7 +9,7 @@
 // a `null` there means "everything fit THIS turn" (truthful), not "no data". Walk newest→oldest to the
 // first ASSISTANT row and return its stamp verbatim; skip user/system rows (a trailing user message the
 // NEXT generation hasn't fit-passed yet carries no boundary answer) and NEVER walk past that truthful
-// null into a stale older stamp — the resurrection bug (`retro-workboard.md` §6).
+// null into a stale older stamp — that would resurrect a boundary the newest generation retired.
 //
 // Every assistant canon row is a real GENERATION that ran a fit-pass (D124 retired the rpg state-anchor
 // slot, which never ran one — its ABSENT stamp read as the truthful "everything fit this turn" and

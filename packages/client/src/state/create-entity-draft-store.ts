@@ -2,7 +2,7 @@
 // createStore per factory call, read through useStore (DI pattern for dynamically-created stores);
 // a duplicate storage `name` THROWS at creation.
 //
-// The mirror is CACHE, not authority (retro-workboard #11 — the localStorage-brick fix). Each entity's
+// The mirror is CACHE, not authority. Each entity's
 // slot persists an ENVELOPE `{ values, schemaVersion, baselineHash }`, and a persisted draft is handed
 // back on read ONLY when it is verifiably fresh:
 //   1. `schemaVersion` matches the form model's current version (a stale-shape draft is unparseable),

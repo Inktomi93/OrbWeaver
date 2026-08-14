@@ -12,7 +12,7 @@
 # code problem. A worktree install costs 2.06 s / 48 MiB (measured) because pnpm hardlinks from the
 # CAS store, so there is no reason to make anyone remember it. Do NOT "solve" this with
 # enableGlobalVirtualStore — it breaks tsc and the type-aware biome/eslint rules
-# (docs/retro-workboard.md › STANDING FACTS).
+# (`.Codex/rules/orchestration.md` › Operational runtime).
 set -uo pipefail
 
 log() { printf '[worktree-setup] %s\n' "$*" >&2; }

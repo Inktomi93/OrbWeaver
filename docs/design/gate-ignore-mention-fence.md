@@ -113,7 +113,7 @@ The boundary is the workspace's pinned scope, not this gate's choice.
 4. `docs/architecture/core/Core-Enforcement-Active-Gates.md` — the gate's row said "under
    `packages/**`"; now names the true watched set.
 5. `scripts/check/GATE-AUTHORING.md` — the mention-fence law beside the §4.3 marker grammar.
-6. `docs/retro-workboard.md` — truth-repair of "RULED UN-EXTENDABLE" + the boarded-follow-up row.
+6. `docs/history/retro-workboard-2026-08-14.md:676-680` — the frozen landing receipt; the design and gate source above carry the durable grammar ruling.
 
 ## Proof matrix (the plant → verdict table the suites pin)
 

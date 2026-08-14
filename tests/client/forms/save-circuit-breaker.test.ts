@@ -1,5 +1,5 @@
 // The autosave save-driver circuit breaker (create-autosave-entity-form's oscillation backstop,
-// retro-workboard #11 item 3). Pure + clock-injected, so headless: pins the edit-free-submit count,
+// the save-driver circuit-breaker contract). Pure + clock-injected, so headless: pins the edit-free-submit count,
 // the sliding window, the edit-clears-the-run signal, and the house default. Deterministic via an
 // injected `now` (the fake-timers substitute — the breaker holds no real timers of its own).
 

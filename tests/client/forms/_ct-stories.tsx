@@ -341,7 +341,7 @@ export function BoundaryReseedStory(): ReactElement {
   );
 }
 
-// ---- CT-7 / CT-8: the localStorage-brick fix (retro-workboard #11) --------------------------------
+// ---- CT-7 / CT-8: the localStorage-brick fix -----------------------------------------------------
 // A draft store PRE-SEEDED with a POISONED draft: values that mismatch the server AND a baseline hash
 // that does NOT match the current server snapshot (it was begun on a different, now-stale server truth).
 // The fix must DISCARD it on mount — the field heals to SERVER truth, and ZERO saves fire without any

@@ -108,7 +108,7 @@ The 2026-07-01/03 "drift this map corrects" ledger (imagery PD-93-not-54, the re
 ## 6. Cross-refs
 
 - **Decisions:** `Core-Laws-and-Precedents.md` D44 (theming/content) · D45 (vision input) · D46 (scripting/automation) · D47 (7 ST gaps) · D48 (tool-calling) · D49 (closed inventory) · D50 (event bus / prompt-transform) · D51 (multimodal wire seam) · D52 (ECharts) · D53 (regex) · D61 (hub / roster-preset) · D63 (background image = appearance).
-- **Order + phase state:** `../history/Core-BUILD-PLAN.md` (superseded — the working doc is `docs/retro-workboard.md`).
+- **Order + phase state:** `../history/Core-BUILD-PLAN.md` (frozen); Project 1 owns current work state.
 - **Debt / build status:** `Core-Audits-and-Debt.md` — PD-54/55/56/57/93 (the feature-domain flags).
 - **Parked design sets** (in `../proposed/`, see `../proposed/INDEX.md`): `../proposed/{automation,databank,expressions,plugin,imagery,tool-use,hub-browse,rpg}-design/` — mapped by [`../proposed/README.md`](../proposed/README.md).
 - **Gap register (the full ST inventory + dispositions):** [`Core-ST-Feature-Gap-Register.md`](Core-ST-Feature-Gap-Register.md).

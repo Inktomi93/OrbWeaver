@@ -1769,7 +1769,7 @@ registry, prev→current on the selected lineage, closing the license-vs-input g
 ephemeral rpg injections with `resolve(view)` state-aware defs re-homed on the composer wand (M5). **The v2
 rulings** also land in D108: custom cast-fields (§2.8), the strict-schema authoring law (§10.1), the
 options-first surface (M6), M1–M5, and the macro×rpg feed (§12). All extensibility doorways (§3.8, §8.5,
-#D1, #V8/#V9/#R6/#R7) recorded as D86-style additive grafts. Plus the `docs/retro-workboard.md` row.
+#D1, #V8/#V9/#R6/#R7) recorded as D86-style additive grafts. Plus the frozen `docs/history/retro-workboard-2026-08-14.md` row.
 
 ---
 

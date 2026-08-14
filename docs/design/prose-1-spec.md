@@ -1,9 +1,9 @@
 # PROSE-1 — model-facing prose becomes host-editable data
 
-**Status:** SPEC — not built, not approved. Owner ruling (`docs/retro-workboard.md:141-145`): *"prose shouldn't live in the code."* This document is the blueprint.
+**Status:** SPEC — not built, not approved. Owner ruling (`617c40c27:docs/retro-workboard.md:384-394`): *"prose shouldn't live in the code."* This document is the blueprint.
 **Scope:** every piece of MODEL-FACING prose the server assembles into a prompt — the rpg teaches/licenses/headings, the extraction + tool-description templates, the chat nudge/voice templates, the app-tier side-generation prompts. It adds ONE registry (`packages/contracts/src/prose/`), TWO override storages (preset · user — the third, per-game, was retired by the 2026-08-08 ruling below), their edit surfaces, and ONE gate. It moves no verb, changes no wire protocol, and adds no table.
 **Evidence:** a full literal sweep of `packages/{server,contracts,kit}/src` (long-string-literal scan, comment lines excluded, then hand-classified) — the census in §2 is that sweep, not the board's four-item lean (\[\[audit-lists-are-snapshots]]). Every row carries `file:line` at `e0b9816d`.
-**Sibling work (written aware of it):** RV-13's *branch-and-save game modes* is deliberately sequenced AFTER this (`docs/retro-workboard.md:208-213`) — a mode fork is only worth forking once the slots exist. KNOB EDITORS (`:137-140`) is the numeric twin of §5 and shares the GM-console surface.
+**Sibling work (written aware of it):** RV-13's *branch-and-save game modes* is deliberately sequenced AFTER this (`docs/history/retro-workboard-2026-08-03.md:3428-3433`) — a mode fork is only worth forking once the slots exist. KNOB EDITORS (`docs/history/retro-workboard-2026-08-03.md:3163-3171`) is the numeric twin of §5 and shares the GM-console surface.
 
 > **⚑ AMENDMENT — OWNER RULING 2026-08-08: THE PER-GAME HOME IS RETIRED. THERE ARE TWO STORAGES, NOT THREE.**
 >
@@ -324,7 +324,7 @@ Three surfaces, each already exists in some form; each gets the same three affor
 | - | - | - |
 | **game** | the GM console, a new `Prose` collapsed section under the existing scalar form | `packages/client/src/features/rpg/components/rpg-game-tab.tsx` + a sibling of `rpg-gm-scalars.tsx` (autosave entity form, `createAutosaveEntityForm` — `rpg-gm-scalars.tsx:53-56`). Writes through the ONE config door `rpg.updateConfig` (`packages/contracts/src/rpg/inputs.ts:46-91`) |
 | **preset** | the Prompt tab, beside Guided actions | `packages/client/src/features/preset/components/guided-actions-section.tsx` (extend) + `preset-structure-tabs.tsx` (add the missing `responseNudge` field). Edits on the system default COW-fork exactly as today (`packages/server/src/domain/preset/verbs/update.ts:40-73`); `resetToDefault` (`verbs/reset-to-default.ts`) already clears the whole config |
-| **user** | a `Prose` settings section, sibling of the imagery templates section | `packages/client/src/features/chat/components/imagery-templates-section.tsx` is the template to clone (its card list is data — `:60-66`); the new section registers per `SET-SEAMS` (`docs/retro-workboard.md:85`) and owns its read+write test (\[\[settings-section-seam-body-only]]) |
+| **user** | a `Prose` settings section, sibling of the imagery templates section | `packages/client/src/features/chat/components/imagery-templates-section.tsx` is the template to clone (its card list is data — `:60-66`); the new section registers per `SET-SEAMS` (`docs/history/design/set-seams-spec.md:259-264`) and owns its read+write test (\[\[settings-section-seam-body-only]]) |
 
 **Host-only, all three** (owner decision 1). The GM console is host-gated already; `updateConfig` is a host verb (`contracts/rpg/inputs.ts:43`). A preset is per-user. `UserSettings` is per-user. There is no member-editable prose in v1 — see owner decision 8 for the multi-human consequence.
 
@@ -352,7 +352,7 @@ Same as the steering note: `user` = the triggering human's ACTIVE persona name, 
 
 `requiredMacros` on the slot def, rendered as a WARN in the editor footer — never a block, never a server-side rejection. Concretely:
 
-- `impersonateNudge` requires `{{user}}` and `{{char}}` (`preset/index.ts:652-658` records the measurement: the voice-lock held 6/6 on the weak 8B, and the previous bare `write as the user` let it ramble back into the character's voice). A host who drops `{{user}}` is warned that impersonation may bleed. This is the copy half of IMP-1 (`docs/retro-workboard.md:146-150`).
+- `impersonateNudge` requires `{{user}}` and `{{char}}` (`preset/index.ts:652-658` records the measurement: the voice-lock held 6/6 on the weak 8B, and the previous bare `write as the user` let it ramble back into the character's voice). A host who drops `{{user}}` is warned that impersonation may bleed. This is the copy half of IMP-1 (`docs/history/retro-workboard-2026-08-03.md:3192-3201`).
 - every `guidedActions.*` template requires `{{input}}` — the lint EXISTS already (`guided-actions-section.tsx:203-207`, `assembly-model.ts:151-156`) and is generalized, not invented.
 - `RPG_CARD_TEACH` requires the literal `:::card` opener and `RPG_CYOA_TEACH` the literal `:::choices` — these are TOKENIZER contracts, not macros, so they ride a sibling `requiredTokens` field with the same warn-never-block posture. Dropping them silently un-renders the feature.
 

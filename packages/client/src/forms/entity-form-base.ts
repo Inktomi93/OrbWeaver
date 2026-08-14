@@ -17,7 +17,7 @@ export function focusFirstInvalidField(): void {
   document.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
 }
 
-// The draft baseline hash (retro-workboard #11): a persisted draft outranks the server ONLY when it was
+// The draft baseline hash: a persisted draft outranks the server ONLY when it was
 // begun on the SAME server snapshot the form now mounts over. A stale draft (server changed since the edit
 // began, or an unverifiable pre-envelope draft) is DISCARDED — server outranks. This hash is the identity
 // of the server snapshot an edit began on; the store compares the stamped hash against the live one on read.

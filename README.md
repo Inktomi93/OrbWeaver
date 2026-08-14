@@ -6,7 +6,8 @@ The ground-up remake of **neo-tavern** — a self-hosted, agent-native AI rolepl
 **Status: active development.** The rebuild IS the live line (`main`); the pre-rollback code survives
 as the `legacy-main` branch, reference-only. Orbweaver keeps what worked from neo-tavern (the
 per-feature template) and rebuilds the rest so the **file structure is self-documenting** and the
-**boundaries are physics, not lint**. The live working doc is `docs/retro-workboard.md`.
+**boundaries are physics, not lint**. Start cold at `docs/retro-workboard.md`; mutable work lives in
+[Orbweaver Project 1](https://github.com/users/Inktomi93/projects/1).
 
 ## Read first
 

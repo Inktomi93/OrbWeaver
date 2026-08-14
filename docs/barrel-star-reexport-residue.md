@@ -1,6 +1,6 @@
 # Barrel root-fix — what landed, what is sanctioned, and the amputation worklist
 
-Lane record for the BARREL ROOT-FIX row (`docs/retro-workboard.md`). The refactor itself is a
+Lane record for the BARREL ROOT-FIX row (`docs/history/retro-workboard-2026-08-14.md`). The refactor itself is a
 **zero-behavior-change** conversion of `export * from` into explicit named re-exports. This file
 carries the two things that outlive the commit: the **sanctioned stars** (with their law cites, so a
 future lane does not "finish the job" and break a gate-enforced invariant), and the

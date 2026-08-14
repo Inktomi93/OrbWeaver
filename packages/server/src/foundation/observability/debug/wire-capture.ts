@@ -8,7 +8,7 @@
 //     the backends, so a send boundary never calls `recordWireCapture` — ZERO overhead + ZERO retained bytes.
 //   • Read HOST-ONLY at /api/_debug/wire/captures (the debug-token / admin-cookie gate), read-only, no table.
 //
-// PROVIDER-NATIVE BODIES DIFFER BY BACKEND BY DESIGN (the api axis — retro-workboard "per-provider specials"
+// PROVIDER-NATIVE BODIES DIFFER BY BACKEND BY DESIGN (the API axis: per-provider specials
 // discipline), and so does CAPTURE FIDELITY. Three levels, each the most honest "final bytes WE send" that
 // backend can offer:
 //   • LITERAL fetch body (vLLM + custom-byo) — the exact JSON object handed to `fetch`, byte-for-byte the wire.

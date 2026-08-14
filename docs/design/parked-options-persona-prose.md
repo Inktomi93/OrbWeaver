@@ -29,7 +29,7 @@ separate owner-sacred fences sit on top of it — flag both before any build:
 - **\[\[persona-is-owner-sacred]]** — the pin CONCEPT + mechanics (anchor/active/current/default precedence,
   `{{user}}` resolution) change only with Nate's sign-off. Validation-at-boundary is fine; behavior is his.
   The behavioral contract that must pass untouched: `tests/server/domain/chat/verbs/persona-resolution.suite.int.test.ts`.
-- **Workboard I-8** (`docs/retro-workboard.md:1321-1327`) parks a RELATED item ("mid-session persona-change
+- **Workboard I-8** (`docs/history/retro-workboard-2026-08-08.md:1473-1479`) parks a RELATED item ("mid-session persona-change
   linkage for rpg state") with a ruled flavor — pin semantics applied to keyed state. That is not this item, but
   it tells you the owner reasons about persona identity via the pin model, and any unify proposal collides with it.
 

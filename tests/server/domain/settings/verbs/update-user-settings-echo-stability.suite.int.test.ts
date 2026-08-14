@@ -1,4 +1,4 @@
-// verb: updateUserSettingsSection — ECHO-STABILITY (retro-workboard #16). The pre-revert oscillation
+// verb: updateUserSettingsSection — ECHO-STABILITY. The pre-revert oscillation
 // (background/theme save→revert→save, only fixable by clearing localStorage) was fed by a non-idempotent
 // server round-trip: the client autosave form (create-autosave-entity-form) re-baselines on a clean server
 // echo, so if `parse(merge(current, patch)).section` does NOT deep-equal the value the client just sent,

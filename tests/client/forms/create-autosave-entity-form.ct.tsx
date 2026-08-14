@@ -207,7 +207,7 @@ test("CT-12: a declared read-only mount reads 'blocked' when edited and mirrors 
   await expect(page.getByTestId("read-only-draft")).toHaveText("");
 });
 
-// CT-7/CT-8 — the localStorage-brick fix (retro-workboard #11). The store is PRE-SEEDED with a poisoned
+// CT-7/CT-8 — the localStorage-brick fix. The store is PRE-SEEDED with a poisoned
 // draft (values mismatch the server, baseline hash stale). The mount MUST discard it: the field heals to
 // SERVER truth (CT-7), and ZERO saves fire without any user input (CT-8, the resurrection guard). Old
 // behavior showed the stale draft as "saved" and resurrected it onto the server on first touch.

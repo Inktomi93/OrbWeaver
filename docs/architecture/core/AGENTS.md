@@ -32,9 +32,10 @@ updated: 2026-08-14
    `Core-Enforcement-Active-Gates`).
 9. **GitHub Project 1 owns MUTABLE WORK STATE.** An issue carries status, priority, dependencies,
    disposition, lane, and verification progress; durable law/design/review/evidence stays in the repo and
-   links the issue. Before starting, re-derive then claim the issue. `docs/retro-workboard.md` remains the
-   session-recovery/standing-ops surface during migration; it is not deleted. Agent flow + invariants live
-   in the [Project README](https://github.com/users/Inktomi93/projects/1); ingress forms live under
+   links the issue. Before starting, re-derive then claim the issue. `docs/retro-workboard.md` is the
+   session-recovery index; agent operations live in `.Codex/rules/orchestration.md`, and the dated board
+   is archived under `docs/history/`. Agent flow + invariants live in the
+   [Project README](https://github.com/users/Inktomi93/projects/1); ingress forms live under
    `.github/ISSUE_TEMPLATE/`.
 
 ### 0.2 The shape you're working in (agents forget this and misfile — don't)
@@ -53,7 +54,7 @@ updated: 2026-08-14
 | **providers / backends / a new model source** | `Tier-3b-Providers.md` + the `domain/connection` code + D31/D39/D67 |
 | **db schema / a migration** | `Tier-1-DB.md` + D15/D20/D23/D24/D28 |
 | **a gate / an enforcement change** | `Core-Enforcement-Active-Gates.md` + `Core-0` §7 |
-| **client / a feature surface** | `UI-Architecture-and-Layout.md` header (its reading order + §-map) → the active program `../../retro-workboard.md` (supersedes `../proposed/ui-cohesion-north-star.md`, 2026-07-25) |
+| **client / a feature surface** | `UI-Architecture-and-Layout.md` header (its reading order + §-map) → the owning Project issue and linked program doc |
 | **a `@orb/ui` primitive** | `ui-package-design.md` + `UI-Primitives-and-Reuse.md` §13.7–§13.8 |
 | **types / unions / dispatch** | `Spine-TypeScript-and-Patterns.md` |
 | **tests** | `Spine-Testing.md` |
@@ -80,9 +81,9 @@ updated: 2026-08-14
 - **Engine vs data:** the pure engines (macro, regex, speaker-label) are `kit`; the *data* they run on
   (`MacroContext` values, the regex script library) is a domain. One engine, every call site → identical
   behavior. (Full rule: `Core-0` §2.)
-- Design sets are PARKED in `../proposed/` — `../proposed/INDEX.md` carries their VERIFIED build status;
-  a parked set's own status lines rot. The active program is `docs/retro-workboard.md` (supersedes
-  `../proposed/ui-cohesion-north-star.md`, 2026-07-25).
+- Design sets are PARKED in `../proposed/` — `../proposed/INDEX.md` maps each committed program to its
+  Project sprint; a parked set's own status lines rot. Project 1 owns activation and lifecycle, while the
+  linked program document owns durable shape.
 - **Ownership is INHERITED, not stamped:** a table without an `ownerId` is not unscoped — scope derives
   from the Principal through the FK chain to the root row, gated at the producer verb. Before flagging
   "missing scope," walk the chain (`Spine-Identity-and-Auth.md` §2b, D18/D20).
@@ -283,7 +284,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | - | - |
 | package cake · server tiers · 8-slot feature template · partitioning table · the 13 legibility gates | `Core-0-Architecture-and-Structure.md` |
 | the D-ledger (canonical decisions) + enforcement catalog | `Core-Laws-and-Precedents.md` (§0–§6 + redirect index) → `Core-Path-Registry.md` · `Core-Enforcement-Active-Gates.md` · `Core-Enforcement-Deferred-Dropped.md` |
-| build phases · checkpoints · stack + version pins | `../history/Core-BUILD-PLAN.md` (superseded — the working doc is `docs/retro-workboard.md`; version pins: the pnpm catalog) |
+| build phases · checkpoints · stack + version pins | Project 1 (current work) · `../history/Core-BUILD-PLAN.md` (frozen phase archaeology) · the pnpm catalog (version pins) |
 | build cursor / status | `Core-STATUS.md` |
 | planning + checklists | `Core-Planning-and-Checklists.md` |
 | identity / auth / permission / agent principals | `Spine-Identity-and-Auth.md` (+ the agent-principal design set, parked in `../proposed/`, D60) |
@@ -294,7 +295,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | authoring a structural gate (descriptor contract · the coupled sites · the exemption grammar · scanRoot formats · harness mechanics) | `../../../scripts/check/GATE-AUTHORING.md` (scaffold: `pnpm gate:new <name>`) |
 | the domain map | §6 above |
 | server tier law | `Tier-1-DB.md` · `Tier-2-Foundation.md` · `Tier-3-Infra.md` · `Tier-3b-Providers.md` · `Tier-4-Transport.md` · `Tier-5-Entry.md` |
-| UI law | `UI-Architecture-and-Layout.md` · `UI-Gates-and-Lessons.md` · `UI-Primitives-and-Reuse.md` · `UI-Theming-and-Content.md` · `ui-package-design.md` · `motion-and-animation-guide.md` (+ the active program: `docs/retro-workboard.md`, supersedes `../proposed/ui-cohesion-north-star.md` per D66, 2026-07-25) |
+| UI law | `UI-Architecture-and-Layout.md` · `UI-Gates-and-Lessons.md` · `UI-Primitives-and-Reuse.md` · `UI-Theming-and-Content.md` · `ui-package-design.md` · `motion-and-animation-guide.md`; Project 1 + the linked proposed program own current work |
 | client composition / feature architecture (registries, five-tier ladder, the paint law, the event/sync spine) | `client-architecture-lockdown.md` (D70) |
 | UI library evidence mines (re-homed 2026-07-09) | `../history/UI-Lib-TanStack-Form.md` · `../history/UI-Lib-TanStack-Query.md` · `../history/UI-Lib-TanStack-Router.md` · `../history/UI-Lib-TanStack-Virtual.md` · `../history/UI-Lib-Zustand.md` |
 | legacy migration / ST parity | `Core-Legacy-Migration-and-Gaps.md` (split index) → `Core-Shared-Dissolution.md` + `Core-ST-Feature-Gap-Register.md`; feature map: `Core-SillyTavern-Feature-Map.md` |
@@ -305,7 +306,7 @@ the agent-principal design set (parked in `../proposed/`), or the built code. Li
 | structural search — USE THIS, NOT GREP, for code questions | `pnpm ast` (scripts/codemods/ast.ts — refs/callers/importers/exports/jsx/ident + rot lenses orphans/testonly/cycles/aliases + module-graph flow/reaches; run bare for usage). Codemods: `scripts/codemods/codemod-kit.ts`. Import-boundary law: `pnpm depcruise` (.dependency-cruiser.cjs) |
 | task → reading-set router (backend + frontend) | §0.3 above |
 | mutable work state | [GitHub Project 1](https://github.com/users/Inktomi93/projects/1) (status · priority · dependencies · disposition · lane · verification); issue ingress: `../../../.github/ISSUE_TEMPLATE/` |
-| session recovery + standing operations | `docs/retro-workboard.md` (preserved during Project migration; supersedes `../proposed/README.md`'s D66-amended pointer — `ui-cohesion-north-star.md` — as of 2026-07-25) — the verified PARKED sets still live at `../proposed/`, mapped by `../proposed/INDEX.md` |
+| session recovery + agent operations | `docs/retro-workboard.md` (cold-start index) · `.Codex/rules/orchestration.md` (machine-loaded process) · `../history/retro-workboard-2026-08-14.md` (frozen provenance); committed programs live at `../proposed/`, mapped by `../proposed/INDEX.md` and Project 1 |
 | resolved archeology (reference only, not live law) | `../history/`: `Pain-Ledger.md` · `Grounded-Intelligence-AST-Scan.md` · `Core-Debt-Cleared-Ledger.md` · `Core-Doc-Inconsistency-Audit-2026-06-26.md` · `Core-Doc-Review-Punchlist-2026-06-28.md` · `Core-Event-Bus-Parity-Audit.md` · `Shared-Drawer-Dissolution-Map.md` |
 
 ## 8. Archeology (moved to history/)

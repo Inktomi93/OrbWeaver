@@ -948,4 +948,4 @@ verbs/turn,assembly/context,engine/engine,engine/pipeline,contract/{context,resu
 db/schema/rpg.ts · client features/chat/{components/{composer,composer-wand,rewrite-dialog},
 hooks/use-guided-actions,lib/continue-on-empty} · features/rpg/{hooks/use-rpg-context-state,
 components/rpg-error-state} · reports/snaps/{freeform-game,_probe-d20-panel}.png · the D-ledger ·
-parity-plus spec §2.7/§3/§10.1/§10.1a · panel-redesign DESIGN.md §12 · docs/retro-workboard.md.*
+parity-plus spec §2.7/§3/§10.1/§10.1a · panel-redesign DESIGN.md §12 · docs/history/retro-workboard-2026-08-14.md.*

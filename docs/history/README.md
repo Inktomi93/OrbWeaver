@@ -1,14 +1,14 @@
 ---
 kind: index
 status: active
-updated: 2026-08-02
+updated: 2026-08-14
 ---
 
 # docs/history — landed program records (reference only, never live law)
 
 **The rule:** a design/spec/review doc moves here ONLY when EVERY stage, finding, and recommendation
-in it is landed or explicitly superseded/ruled-dead — verified against `docs/retro-workboard.md`,
-`git log`, and the code. Partial = it stays where it lives. Moves only; nothing is ever deleted, and
+in it is landed or explicitly superseded/ruled-dead — verified against Project 1, `git log`, and the
+code. Partial = it stays where it lives. Moves only; nothing is ever deleted, and
 a moved file keeps its filename so its cites stay greppable.
 
 **Check the paragraphs, not just the tables:** a findings table is not the whole doc — live obligations
@@ -16,12 +16,11 @@ also hide in prose tails (a "Process notes" bullet, a blueprint step, an INFO-ra
 text). A doc with a clean findings table can still carry an unlanded obligation in its prose; the
 graduation check must read both before a move.
 
-**The one exception, and its shape:** the live board FILE never moves, but its ARCHEOLOGY does. When the
-board is rewritten current-state-only after an audit, the superseded blocks land here as
-`retro-workboard-<date>.md` (the first: `retro-workboard-2026-08-03.md`) with an audit header saying what
-was proven done. Only proven-done claims may move; anything unprovable stays on the live board.
+**Workboard snapshots:** the complete pre-Project board is frozen here as
+`retro-workboard-2026-08-14.md`; earlier rewrites remain as `retro-workboard-<date>.md`. These are
+provenance, never executable backlog. Current mutable state belongs only to Project 1.
 
-**Never moves:** `docs/retro-workboard.md` (the live board) · `docs/Mission.md` ·
+**Never moves:** `docs/retro-workboard.md` (the recovery index) · `docs/Mission.md` ·
 `docs/architecture/core/**` and `docs/architecture/proposed/**` · any spec with an open ladder ·
 a live spec's mocks (mocks follow their spec).
 

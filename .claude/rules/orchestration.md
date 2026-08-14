@@ -5,11 +5,13 @@
      `.claude/CLAUDE.md`, AND project rules are part of the hierarchy subagents receive — so this reaches
      lane agents, which is why the subagent opt-out below still has to be the first line.
 
-     TWO HOMES, DELIBERATELY SPLIT — do not merge them:
-       · THIS FILE = durable delegation POLICY (which role, what tier, what a brief owes).
-       · docs/retro-workboard.md § STANDING LAWS = operational CURRENT-STATE law (lane caps, merge
-         mechanics, push posture, what is in flight). It changes per session; this does not.
-     If they ever disagree, the board wins on operational matters and this file wins on role selection. -->
+     THREE HOMES, DELIBERATELY SPLIT — do not merge them:
+       · THIS FILE = durable delegation + agent-operations POLICY (roles, tiers, briefs, lane/load,
+         merge, overnight, and push posture).
+       · docs/architecture/core/AGENTS.md §L = worktree-lane discipline.
+       · GitHub Project 1 = mutable CURRENT STATE (what is ready/running/blocked/verified).
+     docs/retro-workboard.md is a cold-start INDEX only; its dated 2026-08-14 predecessor is history.
+     If these homes disagree, the constitution/D-ledger wins on law and Project wins on lifecycle. -->
 
 # Orchestration (multi-model delegation)
 
@@ -81,6 +83,24 @@ a11y → `side-eye`; both if the change spans both.
   personally to judge.
 - **Session hygiene:** set up MCP servers / connectors BEFORE starting work — adding or removing one
   mid-session (or toggling web search) invalidates the entire prompt cache, and caches are per-model.
+
+## Operational runtime
+
+- **Fill the harness's available lanes; do not hardcode a client-specific agent count.** Claude and
+  Codex expose different concurrency ceilings. The durable constraint is the gate-heavy ceiling below,
+  not an old workboard number.
+- **Overnight / finish / keep-going means autonomous queue execution.** Re-derive, claim, dispatch, merge,
+  verify, and continue while safe work exists. Stop only for destructive or irreversible action,
+  owner-sacred product choices, a genuine scope pivot, or an origin push.
+- **Local `main` is the worktree base.** The owner pushes manually, so `origin/main` can be far behind.
+  Spawn and rebase from the latest local `main`; never "refresh" a lane onto the remote branch.
+- **Never push `origin` without fresh owner authorization for that exact push.** A prior or conditional
+  word is not reusable. Run the required pre-push verification first, then ask or use the fresh word.
+- **Project owns lifecycle; prose owns durable results.** Re-derive before claim, use
+  `pnpm work:item` for lifecycle transitions, and never mirror Ready/Running/Blocked/Done into a doc.
+- **Docs-only integration under load:** run the required per-file formatter and scoped docs/catalog
+  checks, commit with hooks bypassed when the whole-tree hook would duplicate the draining-train gate,
+  then run one consolidated barrier on the integrated tree.
 
 ## What a brief must carry (subagents start almost naked)
 

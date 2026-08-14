@@ -6,8 +6,8 @@ updated: 2026-08-14
 
 # Entity→room member-freshness bridge — design + build plan
 
-> Charge (owner-asked 2026-08-14, `docs/retro-workboard.md:313-323` + the paired R1-4a residual
-> `:333-334`): host/member ENTITY edits do not reach OTHER users' live-room projections. This doc is the
+> Charge (owner-asked 2026-08-14; result recorded at `docs/history/retro-workboard-2026-08-14.md:413-428`
+> with the paired R1-4a closure at `:444-450`): host/member ENTITY edits did not reach OTHER users' live-room projections. This doc is the
 > design of record for the bridge, the durable-append-free live fan that closes R1-4a, the quiet-mode
 > interaction, and the gate lane that makes a future entity kind unable to ship without declaring its
 > room reach. Design only — the build lanes cut from §10.

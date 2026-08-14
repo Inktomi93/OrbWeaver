@@ -12,7 +12,7 @@ credential-blocked. **No code was changed producing this.** Each item: current s
 do-it-right-once with the WHY.
 
 **Method + coverage.** Read in full: the I-11 block + standing owner items on
-`docs/retro-workboard.md`, `docs/barrel-star-reexport-residue.md`, `knip.ts`, both stack
+`docs/history/retro-workboard-2026-08-14.md`, `docs/barrel-star-reexport-residue.md`, `knip.ts`, both stack
 launchers (`scripts/dev/stack.sh`, `scripts/dev/stack-prod.ts`), the only Dockerfile in the repo
 (`.devcontainer/Dockerfile` + `init-firewall.sh` + `devcontainer.json`), the deployment topology
 (`/home/inktomi/inktomi-stack/docker-compose.yaml`, `/home/inktomi/inktomi-stack/caddy/conf/Caddyfile`),
@@ -46,7 +46,7 @@ reverse-proxies the public domain to the host process:
 - The app owns its own auth (Caddyfile:364-366: *"NO forward\_auth here … the app owns auth"*), so
   the reverse-proxy is a dumb pass-through — no identity is injected at the proxy.
 
-**The blast radius the board names is real** (`docs/retro-workboard.md:1367-1370`): a file-write or
+**The blast radius the board names is real** (`docs/history/retro-workboard-2026-08-08.md:1519-1529`): a file-write or
 path-traversal bug in the bare-host process reaches the whole home dir — repo, `.env`, backups,
 `~/.ssh`, the vLLM `.models/` weights. The live `.env` sits at repo root readable by that process
 and holds real secrets: `OIDC_CLIENT_SECRET`, `DEBUG_TOKEN=…`, `WIRE_CAPTURE=on`, plus the OIDC
@@ -127,7 +127,7 @@ is unfalsifiable, the four-instruments-lie law applied to the fence). This is a 
 deliverable; the app image (D1-D4) can land first and independently.
 
 **D6 — Burn the known debt BEFORE the pentest so findings are news.** Per the I-11 list
-(`retro-workboard.md:1381-1387`): the AUTHFIX-2 `/api/_debug/*` hole
+(`docs/history/retro-workboard-2026-08-08.md:1533-1539`): the AUTHFIX-2 `/api/_debug/*` hole
 (`docs/architecture/core/Core-Audits-and-Debt.md`; the fix is lane DEBUGGATE, already dispatched
 per the STATE block), `DEBUG_TOKEN`/`WIRE_CAPTURE` armed in live `.env`, secrets at repo root, the
 1GB body upload surface. These are pre-conditions, not pentest findings.
@@ -157,7 +157,7 @@ imports through** — Tier A **85** (reachable by nothing; dropping the barrel l
 code), Tier B **50** (alive via a direct sibling import; only the barrel line is surplus)
 (`barrel-star-reexport-residue.md:92`, full enumeration §4). That worklist is HELD as the
 "135-name barrel amputation" lane, explicitly waiting for a quiet tree
-(`retro-workboard.md:544-547`).
+(`docs/history/retro-workboard-2026-08-08.md:2452-2456`).
 
 `--include-entry-exports` is **the one lever that makes barrels knip-legible**
 (`barrel-star-reexport-residue.md:68-71`): it would surface the Tier-A worklist automatically —
@@ -206,14 +206,14 @@ already knows this; a naive post-flag sweep would not.
 
 Two related board entries, same subject:
 
-- Standing owner item #7 (`retro-workboard.md:1837-1844`): **agent-sdk first-class for rpg-lite.**
-  Plumbing is \~complete; four remaining arms in **ruled order 2→3→1→4** — (2) reasoning-visibility
+- Standing owner item #7 (`docs/history/retro-workboard-2026-08-08.md:1989-1996`): **agent-sdk first-class for rpg-lite.**
+  Plumbing is ~complete; four remaining arms in **ruled order 2→3→1→4** — (2) reasoning-visibility
   parity, (3) usage/context accounting parity, (1) knob honesty, (4) the live rpg-lite loop scored
   on the SDK wire. Closes: *"Claude Max OAuth expired — the agent-sdk backend is dead until he
   re-auths."*
-- `AGENT-1-PROGRAM` (`retro-workboard.md:1692-1693`): *"agent-sdk first-class for rpg-lite, 5 named
+- `AGENT-1-PROGRAM` (`docs/history/retro-workboard-2026-08-08.md:1844-1845`): *"agent-sdk first-class for rpg-lite, 5 named
   arms explicitly scoped-and-not-dispatched, ruled order 2→3→1→4."*
-- The overnight full-auto block (`:372`) lists it under **WILL NOT AUTO-BUILD — owner-gated**:
+- The overnight full-auto block (`docs/history/retro-workboard-2026-08-08.md:427-430`) lists it under **WILL NOT AUTO-BUILD — owner-gated**:
   "AGENT-1 (owner-scoped, Max OAuth expired)."
 
 **The plumbing is real, not aspirational** — the agent-sdk backend is a full subsystem:
@@ -238,14 +238,14 @@ from the owner re-authenticating on the host (a `claude` login / setup-token flo
 - **Buildable now (no live credential needed):** arms (1) knob honesty, (2) reasoning-visibility
   parity, (3) usage/context accounting parity. These are about how OUR code shapes and reports the
   SDK wire — the encrypted-vs-readable reasoning delta handling, per-turn usage delta semantics, and
-  honest treatment of sampling knobs the SDK wire ignores (`retro-workboard.md:1839-1843`). Their
+  honest treatment of sampling knobs the SDK wire ignores (`docs/history/retro-workboard-2026-08-08.md:1989-1996`). Their
   UNIT/CT proofs run against recorded/mocked wire shapes; they do not require a live Max turn. The
   OpenRouter arm of the reasoning-parity work is exercisable with an OpenRouter credential (a
   different, non-expired path — `roles/firewall.ts:17` lists `openrouter` for the agent role).
 - **Blocked on the credential:** arm (4), the **live rpg-lite loop scored on the SDK wire** — by
   construction a live drive against the Max sub, so it cannot be verified until the owner re-auths.
   Any end-to-end "does agent-sdk mode demonstrably work" verification is in this bucket (same class
-  as the NARRATOR-LIVE hosted-arm blockage, `retro-workboard.md:266-271`).
+  as the NARRATOR-LIVE hosted-arm blockage, `docs/history/retro-workboard-2026-08-08.md:322-352`).
 
 ### Recommendation
 

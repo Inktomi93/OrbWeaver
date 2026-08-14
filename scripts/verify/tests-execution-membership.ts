@@ -1,5 +1,5 @@
 // The execution-membership reconciliation stage — tests-type-membership's EXECUTION-lane sibling
-// (#22, docs/retro-workboard.md): every test file is EXECUTED by some runner, and every runner glob
+// (GitHub issue #22): every test file is EXECUTED by some runner, and every runner glob
 // matches ≥1 file. Two directions, both proven triple-evidenced against the reference repos this program
 // burned down (marinara's 10k-line hand-rolled regression layer + its server `pnpm test` globs matching
 // ZERO files — silent no-op; ST's 7,300-line suite unenforced by any script; neo's workspace suite outside

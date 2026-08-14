@@ -15,11 +15,12 @@ inherited list:
 
 `composeRewriteSteer` (kit) is byte-unchanged — the fork moved its CALLER, never the join. The rest of this
 file is the reconstruction the ruling was made from; it is kept as the record of the arms.
-**Why this file exists:** the board carried the fork as one parenthetical (`docs/retro-workboard.md:601-603`
+**Why this file exists:** the board carried the fork as one parenthetical (`docs/history/retro-workboard-2026-08-09.md:812-816`
 — *"REWRITE\_TOGGLES/GREETING\_TRANSFORMS fragment bytes — client-composed via kit, a design fork"*) and the
 history board as one more (`docs/history/retro-workboard-2026-08-08.md:1133`). Neither states the arms, and
-no row exists in the OWNER RULINGS LEDGER (`docs/retro-workboard.md:42-60`) or in PROSE-1 §11's owner-decision
-list. A lane sent to "take the recorded lean" found there is no recorded lean. This is the fork, reconstructed
+no row existed in the pre-reconstruction OWNER RULINGS LEDGER; the later archived ledger records ARM B at
+`docs/history/retro-workboard-2026-08-09.md:77`. PROSE-1 §11 had no earlier owner-decision row. A lane sent to
+"take the recorded lean" found there was no recorded lean. This is the fork, reconstructed
 from the tree, so the ruling is one word and the build lane needs no re-derivation.
 
 **Scope:** the 21 `fragment` strings of `REWRITE_TOGGLES` (7) + `GREETING_TRANSFORMS` (14) — PROSE-1 census

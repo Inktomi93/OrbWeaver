@@ -6,7 +6,7 @@ updated: 2026-07-13
 
 # Orbweaver — build status & handoff
 
-> **⚠ BUILD-STATE RIDER (truth audit 2026-08-03): this cursor is FROZEN at 2026-07-13 — pre-retro.** The live working doc is `docs/retro-workboard.md` (the 2026-07-25 "retro IS main" era). Known drift below, verified against the tree: the ledger cursor is **D120** (D121 pending merge), not D106; the backend set is FIVE (`BACKEND_KEYS`: agent-sdk · openrouter · vllm · local-light · custom-openai — `anth-direct` was purged in the 2026-07-22 retro sync, so "all six provider backends" is stale); `domain/hub`, `buddy`, `crew`, `expressions`, and the agent-principal machinery (D60 AP0–AP2) were purged with the burn-down, while `automation`, `plugin`, `databank`, `imagery`, `tool-use`, and `rpg` are BUILT; the D66 ui-cohesion "current lane" and the D60 seat-wave NEXT ACTION are superseded. Body below kept as the 07-13 record.
+> **⚠ BUILD-STATE RIDER (truth audit 2026-08-03): this cursor is FROZEN at 2026-07-13 — pre-retro.** Project 1 owns current work; `docs/retro-workboard.md` is only the recovery index. Known drift below, verified against the tree: the ledger cursor is **D120** (D121 pending merge), not D106; the backend set is FIVE (`BACKEND_KEYS`: agent-sdk · openrouter · vllm · local-light · custom-openai — `anth-direct` was purged in the 2026-07-22 retro sync, so "all six provider backends" is stale); `domain/hub`, `buddy`, `crew`, `expressions`, and the agent-principal machinery (D60 AP0–AP2) were purged with the burn-down, while `automation`, `plugin`, `databank`, `imagery`, `tool-use`, and `rpg` are BUILT; the D66 ui-cohesion "current lane" and the D60 seat-wave NEXT ACTION are superseded. Body below kept as the 07-13 record.
 
 > **Cursor only** — where the build is and what's next. Law + doc index: `AGENTS.md` §7 (read that
 > first). Phase state (one line each): `../history/Core-BUILD-PLAN.md` (superseded). Dated narrative history:
@@ -14,7 +14,7 @@ updated: 2026-07-13
 
 ## Where we are
 
-Build is at Phase 6+ (see `../history/Core-BUILD-PLAN.md` for the phase table — superseded; the live working doc is `docs/retro-workboard.md`). **The core-product backend is
+Build was at Phase 6+ at this snapshot (see `../history/Core-BUILD-PLAN.md` for the frozen phase table). **The core-product backend is
 BUILT** (verified corpus-wide 2026-07-13 — chat engine incl. the pending\_turns defer/drain lane,
 multiplayer, all six provider backends + the turn-shaping axis, search/discovery/stats, portability);
 what's unbuilt backend-side is the parked future programs + short tails, all mapped in
