@@ -14,12 +14,13 @@ import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
+import type { ClaimChatOp } from "../../../../../packages/server/src/domain/chat/contract/context.ts";
 import { ChatOperationError } from "../../../../../packages/server/src/domain/chat/contract/errors.ts";
 import { createInvites } from "../../../../../packages/server/src/domain/chat/verbs/invites.ts";
 import { freshDb } from "../../../../support/db.ts";
 import { principal as makePrincipal } from "../../../../support/factories/principal.ts";
 import { expect, test } from "../../../../support/fixtures.ts";
-import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
+import { FROZEN_AT, makeChatContext, makeLoadParticipantViews, noClaim, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: number;
@@ -40,6 +41,7 @@ function principal(userId: UserId): ReturnType<typeof makePrincipal> {
 function makeDeps(): {
   emit: () => Promise<void>;
   loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
+  claimChat: ClaimChatOp;
 } {
   return {
     emit: (): Promise<void> => {
@@ -47,6 +49,7 @@ function makeDeps(): {
       return Promise.resolve();
     },
     loadParticipantViews,
+    claimChat: noClaim,
   };
 }
 

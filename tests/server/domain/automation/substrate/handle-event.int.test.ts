@@ -512,6 +512,7 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     const posts: ChatBusEvent[] = [];
     const chatCtx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
     const postNarratorMessage = createPostNarratorMessage(chatCtx, {
+      claimChat: (): Promise<void> => Promise.resolve(),
       emit: (event) => {
         posts.push(event);
         return Promise.resolve();

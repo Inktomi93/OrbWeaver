@@ -55,6 +55,7 @@ import {
   backfillMemory,
   createActiveTurns,
   createChatService,
+  createClaimChat,
   createGetMembership,
   createGetPendingUserText,
   createPostNarratorMessage,
@@ -1228,7 +1229,9 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     emitBusEvent: emitChatEvent,
     rpgChatOps: {
       getMembership: createGetMembership(chatCtx),
-      postNarratorMessage: createPostNarratorMessage(chatCtx, { emit: emitChatEvent }),
+      // The narrator op is built OUTSIDE createChatService (an injected rpg op, not a routed verb), so it gets
+      // its own claim chokepoint from the same factory — one behavior, two construction sites.
+      postNarratorMessage: createPostNarratorMessage(chatCtx, { emit: emitChatEvent, claimChat: createClaimChat(chatCtx) }),
       getPendingUserText: createGetPendingUserText(chatCtx),
       setRpgPointer: createSetRpgPointer(chatCtx),
       resolveRpgRoster: createResolveRpgRoster(chatCtx),

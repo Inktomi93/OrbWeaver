@@ -34,6 +34,7 @@ import type { RegexPlacement } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
 import type { ChatContext } from "../context.ts";
+import type { ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ResolveForeignInputsOp } from "../contract/foreign.ts";
 import type {
@@ -94,6 +95,8 @@ type EmitChatEvent = (event: ChatBusEvent) => Promise<void>;
 interface EditDeps {
   readonly emit: EmitChatEvent;
   readonly resolveForeignInputs: ResolveForeignInputsOp;
+  /** The husk→real transition (R0). Applied to the WHOLE bundle by {@link claiming}, not per verb. */
+  readonly claimChat: ClaimChatOp;
 }
 
 /** The canon-edit slice of `ChatService` this grouped file owns. */
@@ -736,18 +739,46 @@ function createReattributePersona(ctx: ChatContext, emit: EmitChatEvent): ChatSe
 }
 
 /** The canon-edit verb bundle the composition root spreads into the full service. */
+/** CLAIM-BEFORE-EDIT, applied once for the whole bundle (R0 F4(a) -- a hand-edited room is a room the
+ *  user did something with, and losing it to the reaper is the worse failure).
+ *
+ *  WHY A WRAPPER and not a call inside each of the ten verbs: the ordering invariant needs the claim
+ *  AFTER an authority check (a stranger must not be able to flip a room's visibility) and BEFORE the
+ *  write (the claim replays the creation stats over the canon present at claim -- after the write, the
+ *  edited row would be counted by both the replay and the verb's own diff delta). Ten separate
+ *  insertions is ten chances to put one in the wrong place, and a verb added later gets none at all.
+ *  So the wrapper runs the MINIMUM guard every edit verb shares -- present membership -- and then
+ *  claims; each verb re-runs its own stricter author-or-host row check immediately after, unchanged.
+ *  The costs, both accepted and deliberate: one extra membership read per edit, and a MEMBER whose
+ *  edit is then refused by the stricter check still claimed the room (they are a member of it, acting
+ *  in it -- not a leak, and not a class the reaper should have taken). */
+function claiming<P extends { readonly principal: EditMessageParams["principal"]; readonly chatId: ChatId }, R>(
+  ctx: ChatContext,
+  claimChat: ClaimChatOp,
+  verb: (params: P) => Promise<R>,
+): (params: P) => Promise<R> {
+  return async (params: P): Promise<R> => {
+    await requireParticipant(ctx, params.principal, params.chatId);
+    await claimChat(params.chatId);
+    return await verb(params);
+  };
+}
+
 export function createEdit(ctx: ChatContext, deps: EditDeps): EditVerbs {
-  const { emit } = deps;
+  const { emit, claimChat } = deps;
+  const claim = <P extends { readonly principal: EditMessageParams["principal"]; readonly chatId: ChatId }, R>(
+    verb: (params: P) => Promise<R>,
+  ): ((params: P) => Promise<R>) => claiming(ctx, claimChat, verb);
   return {
-    selectVariant: createSelectVariant(ctx, emit),
-    editMessage: createEditMessage(ctx, deps),
-    setMessageHidden: createSetMessageHidden(ctx, emit),
-    deleteMessages: createDeleteMessages(ctx, emit),
-    editReasoning: createEditReasoning(ctx, emit),
-    clearReasoning: createClearReasoning(ctx, emit),
-    moveMessage: createMoveMessage(ctx, emit),
-    duplicateMessage: createDuplicateMessage(ctx, emit),
-    reattributeMessages: createReattributeMessages(ctx, emit),
-    reattributePersona: createReattributePersona(ctx, emit),
+    selectVariant: claim(createSelectVariant(ctx, emit)),
+    editMessage: claim(createEditMessage(ctx, deps)),
+    setMessageHidden: claim(createSetMessageHidden(ctx, emit)),
+    deleteMessages: claim(createDeleteMessages(ctx, emit)),
+    editReasoning: claim(createEditReasoning(ctx, emit)),
+    clearReasoning: claim(createClearReasoning(ctx, emit)),
+    moveMessage: claim(createMoveMessage(ctx, emit)),
+    duplicateMessage: claim(createDuplicateMessage(ctx, emit)),
+    reattributeMessages: claim(createReattributeMessages(ctx, emit)),
+    reattributePersona: claim(createReattributePersona(ctx, emit)),
   };
 }

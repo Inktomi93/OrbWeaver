@@ -656,6 +656,11 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
           title: title ?? source.title,
           parentChatId: chatId,
           forkedAt: now,
+          // BORN CLAIMED (R0 §4.2): a fork arrives with the parent's canon already copied into it, so
+          // there is no unstarted state for a husk to represent and the reaper must never see it.
+          // `startChat` is the ONE mint that produces a husk. The fork's OWN creation stats fire here
+          // in this batch (`pushForkStatsDeltas`), never at a claim — nothing is deferred for a fork.
+          startedAt: now,
           anchorPersonaId: forkAnchorPersonaId,
           compactSummary: keepCheckpoint ? source.compactSummary : null,
           compactedAtSeq: keepCheckpoint ? source.compactedAtSeq : null,

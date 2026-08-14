@@ -41,6 +41,10 @@ export function makeChat(overrides: Partial<ChatRow> = {}): ChatRow {
     star: false,
     archived: false,
     temporary: false,
+    // Born CLAIMED — a factory chat stands for a room that really exists (the `_support.ts::seedChat`
+    // rule): every list/stats assertion in the tree means a real chat. A HUSK is `startedAt: null`,
+    // passed explicitly.
+    startedAt: FROZEN_AT_MS,
     pendingHostUserId: null,
     pendingHandoffOffer: null,
     anchorPersonaId: null,

@@ -16,6 +16,7 @@ import { loadRoster } from "./persistence/roster.ts";
 import { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "./substrate/participant-name.ts";
 import { hostUserIdOf } from "./substrate/roster-host.ts";
 import { createChatLifecycle } from "./verbs/chat-lifecycle.ts";
+import { createClaimChat } from "./verbs/claim-chat.ts";
 import { createCompaction } from "./verbs/compaction.ts";
 import { createEdit } from "./verbs/edit.ts";
 import { createFork } from "./verbs/fork.ts";
@@ -54,6 +55,9 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
   // The quiet-generation seam: a non-canon generation through the chat's OWN resolved connection (the marker
   // build's model access — never the summarizer rail). Standalone factory, the ExtractQuiet precedent.
   const quietGenerate = createQuietGenerate({ runChatTurn: ctx.runChatTurn, resolveChatPresetParams: ctx.resolveChatPresetParams });
+  // THE ONE husk→real transition (R0). Built here and injected into every verb bundle that can be the first
+  // real activity in a room, so no verb owns the column, the stats timing or the list fan.
+  const claimChat = createClaimChat(ctx);
   // Built BEFORE the engine so the managed-compaction post-turn hook rides the SAME lock-free core the manual
   // `compact` verb exposes (one core, two entry points — the engine never imports the verb).
   const { compact, runCompaction } = createCompaction(ctx, { emit: deps.emit, quietGenerate, resolveConnection: deps.resolveConnection });
@@ -124,16 +128,18 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
     delay: deps.delay,
     resolveConnection: deps.resolveConnection,
     resolveForeignInputs: deps.resolveForeignInputs,
+    claimChat,
   };
   const turn = createTurn(ctx, turnDeps);
   const requestTurn = createRequestTurn(ctx, turnDeps);
   const edit = createEdit(ctx, {
     emit: deps.emit,
     resolveForeignInputs: deps.resolveForeignInputs,
+    claimChat,
   });
   const fork = createFork(ctx, { emit: deps.emit, loadParticipantViews });
-  const imageGen = createGenerateImage(ctx, { emit: deps.emit });
-  const invites = createInvites(ctx, { emit: deps.emit, loadParticipantViews });
+  const imageGen = createGenerateImage(ctx, { emit: deps.emit, claimChat });
+  const invites = createInvites(ctx, { emit: deps.emit, loadParticipantViews, claimChat });
   const read = createRead(ctx, {
     loadParticipantViews,
     resolveConnection: deps.resolveConnection,
@@ -147,9 +153,10 @@ export function createChatService(ctx: ChatContext, deps: ChatServiceDeps): { re
     resolveConnection: deps.resolveConnection,
     resolveForeignInputs: deps.resolveForeignInputs,
     resolveCreatorGroupDefaults: deps.resolveCreatorGroupDefaults,
+    claimChat,
   });
-  const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, activeTurns: deps.activeTurns });
-  const roster = createRoster(ctx, { emit: deps.emit });
+  const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, activeTurns: deps.activeTurns, claimChat });
+  const roster = createRoster(ctx, { emit: deps.emit, claimChat });
 
   return {
     service: {

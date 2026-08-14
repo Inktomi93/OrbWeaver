@@ -38,6 +38,10 @@ function buildBody(content: string, refs: string): string {
 
 export function createPostNarratorMessage(ctx: ChatContext, deps: PostNarratorMessageDeps): PostNarratorMessage {
   return async (chatId, content, media, origin) => {
+    // A narrator post is a committed canon row, so it CLAIMS (R0 F4(a)) -- before the write, per the
+    // ordering invariant. This op is principal-free by design (automation/plugins drive it), so there
+    // is no authority guard to sequence after: the caller was authorized at ITS own boundary.
+    await deps.claimChat(chatId);
     const mediaRefs = media ?? [];
     // The group character is owned by the room HOST (the D19 funding/authority identity) — the same
     // owner every narrator turn mints under (`turn.ts` runAiRound).
