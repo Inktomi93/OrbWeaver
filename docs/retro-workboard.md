@@ -235,10 +235,6 @@ Project 1 is the only mutable queue. Start from its **Active board**, **Ready**,
 
 Current migration residue that survived a full current-tree re-derivation:
 
-- [#40](https://github.com/Inktomi93/orbweaver/issues/40) — refinery custom-schema live E2E,
-  narrowed to the OpenRouter arm and blocked by the `provider.require_parameters` routing defect in
-  [#33](https://github.com/Inktomi93/orbweaver/issues/33). The strict-compatible hypothesis was
-  disproved by a six-cell live matrix and raw replay.
 - [#58](https://github.com/Inktomi93/orbweaver/issues/58) — delete the remaining server-side chat
   draft carry (R2). R1 and R3 are already built.
 - [#54](https://github.com/Inktomi93/orbweaver/issues/54) — real-session demo seeding; owner/live-fleet
@@ -250,6 +246,10 @@ The historical refinery #47/#49 re-derivation and G-F scroller-gate duplicates w
 already resolved in [#41](https://github.com/Inktomi93/orbweaver/issues/41) and
 [#42](https://github.com/Inktomi93/orbweaver/issues/42). Current issue numbers #47/#49 describe
 unrelated guard decisions; never interpret a historical board number as a GitHub issue number.
+The OpenRouter residue in [#33](https://github.com/Inktomi93/orbweaver/issues/33) and
+[#40](https://github.com/Inktomi93/orbweaver/issues/40) graduated on 2026-08-14: Arm A removed the
+hardcoded `provider.require_parameters`, and live Sonnet/Gemini structured calls passed. Project 1
+owns their final verification and closure.
 
 ## ═══ ARCHIVED PRE-MIGRATION LIVE SNAPSHOT (frozen 2026-08-14) ═══
 
