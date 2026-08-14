@@ -45,13 +45,16 @@ export interface WeaveStrand {
   readonly length: number;
 }
 
-/** One dew droplet on the capture spiral: position + radius + its own twinkle phase/speed. */
+/** One dew droplet on the capture spiral: position + radius + its own twinkle phase/speed, plus the
+ *  capture SAMPLE it hangs from — a drop rides whatever that sample is doing (sway, and a pluck's
+ *  ring), or it floats off the silk the moment the web moves. */
 export interface WeaveDewDrop {
   readonly x: number;
   readonly y: number;
   readonly r: number;
   readonly phase: number;
   readonly speed: number;
+  readonly index: number;
 }
 
 /** One leg of the spider's journey: walk `pts` from fraction `from` to `to` over [t0,t1]. `tip` legs
@@ -372,6 +375,7 @@ export function buildWeb({ width, height, hub: hubFrac, seed }: BuildWebInput): 
         r: DEW_R_BASE + weaveJitter(i, CH_DEW_R, seed) * DEW_R_JITTER,
         phase: weaveJitter(i, CH_DEW_PHASE, seed) * TAU,
         speed: DEW_SPEED_BASE + weaveJitter(i, CH_DEW_SPEED, seed) * DEW_SPEED_JITTER,
+        index: i,
       });
     }
   }

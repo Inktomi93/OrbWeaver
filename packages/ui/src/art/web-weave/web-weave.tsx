@@ -25,7 +25,7 @@ import { cn, usePrefersReducedMotion } from "#lib";
 import { webWeaveVariants } from "./variants.ts";
 import type { WeaveState, WovenWeb } from "./web-weave-geometry.ts";
 import { buildStrandOut, buildWeb } from "./web-weave-geometry.ts";
-import type { WeavePalette } from "./web-weave-render.ts";
+import type { WeavePalette, WeavePluckMap, WeaveWeather } from "./web-weave-render.ts";
 import { bakeStaticWeb, drawLiveLayers, renderWeaveFrame, weaveSwayOffset } from "./web-weave-render.ts";
 import type { SpiderTracker } from "./web-weave-spider.ts";
 import type { WeavePhase } from "./web-weave-timeline.ts";
@@ -139,6 +139,10 @@ export function WebWeave({
     let dpr = 1;
     let strandOut: { pts: ReturnType<typeof buildStrandOut>; t0: number } | null = null;
     const tracker: SpiderTracker = { prev: null };
+    // The physics state (weave-lab §1). Inert until a host opts in: no wind, no shiver, no plucks —
+    // which is exactly the sway the web shipped with.
+    const weather: WeaveWeather = { wind: 0, shiver: 0 };
+    const plucks: WeavePluckMap = null;
     // The offscreen cache (design §1.2): the static settled web + baked glow, drawn ONCE and blitted
     // each resting frame. A detached canvas (drawImage from it is as fast as OffscreenCanvas and needs
     // no feature-detect). `baked` invalidates on rebuild (size/web) and theme (palette) — re-baked lazily.
@@ -208,7 +212,7 @@ export function WebWeave({
       const bakeT = state === "partial" ? PARTIAL_T : WEAVE_TIMELINE.rest;
       bufferCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
       bufferCtx.clearRect(0, 0, width, height);
-      bakeStaticWeb(bufferCtx, { web, state, t: bakeT, now, palette, dim: 1, still: true, spider, strandOut });
+      bakeStaticWeb(bufferCtx, { web, state, t: bakeT, now, palette, dim: 1, still: true, spider, strandOut, weather, plucks: null });
       baked = true;
     };
 
@@ -219,7 +223,7 @@ export function WebWeave({
       if (!baked) {
         bake(now);
       }
-      const { dx, dy } = weaveSwayOffset(now);
+      const { dx, dy } = weaveSwayOffset({ kind: "offset", now, ...weather });
       // Blit the cached web (native px, sway as a whole-canvas translate, dim via globalAlpha)…
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -228,7 +232,7 @@ export function WebWeave({
       ctx.globalAlpha = 1;
       // …then paint only the live layers on top, in CSS-px space.
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      drawLiveLayers(ctx, { web, state, t, now, palette, dim, still: false, spider, strandOut }, tracker);
+      drawLiveLayers(ctx, { web, state, t, now, palette, dim, still: false, spider, strandOut, weather, plucks }, tracker);
     };
 
     const paint = (now: number): void => {
@@ -241,7 +245,7 @@ export function WebWeave({
       } else {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
         ctx.clearRect(0, 0, width, height);
-        renderWeaveFrame(ctx, { web, state, t, now, palette, dim, still: reduced, spider, strandOut }, tracker);
+        renderWeaveFrame(ctx, { web, state, t, now, palette, dim, still: reduced, spider, strandOut, weather, plucks }, tracker);
       }
       notify(t);
       frames += 1;
