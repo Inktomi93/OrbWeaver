@@ -1273,12 +1273,23 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   sites too varied, kit-internal, contract pin) · stale-row class = RITUAL-owned (6-for-6 today,
   ungateable) · documented-field-no-producer = LEAD only (the G-E semantic-discriminator trap; if
   it recurs, a typed obligations table is the cheap form).
-- [ ] **MEMBER-STRIP CARD-FENCE HOLE (found by the card lane, SECURITY LANE RUNNING
-  `strip-card-hole`):** `stripHiddenSpans` never reaches inside a closed `:::card` span — a
-  `<lie truth>` in a card body re-emits VERBATIM in the member's COMMITTED view (mid-stream
-  scrubber is clean, so it looks fine while streaming and betrays on reload). D16 member-visible
-  bytes. Fix = strip totality over card bodies (order swap or recursive strip), host view
-  byte-identical, projection-only.
+- [x] **MEMBER-STRIP CARD-FENCE HOLE — FIXED + MERGED (`79fdc30fb`; red-first on BOTH planes incl.
+  the member's literal listMessages payload carrying the truth).** ONE fence-blind hidden-scan pass
+  in kit; `stripHiddenSpans` + the host reveal (`scanHiddenSpans`) are twins off it — reveal-equals-
+  strip true by construction, host GAINS in-card rows, host bodies byte-identical (pinned). TWO
+  extra planes closed in-lane: `projectBodyForSummary` (choices/unknown-fence raw re-emit into the
+  durable digest) + the fork member→host laundering path (posture.stripHidden now reaches in-card).
+  Render/wire grammar byte-unchanged by construction (identical span receipts, 57 CT green). The
+  ```code-fence exclusion stays RATIFIED and is pinned in both directions. D16 clamp suite
+  byte-untouched. The previously-pinned "NAMED CONSEQUENCE" test assertion REVERSED with its
+  supersession receipt. **OWNER TAIL (three, none blocking):** (1) client second belt —
+  `contentSpansToBlocks` would still render an in-card hidden tag if one ever arrived (can't for
+  members now; a client-side belt must stay role-aware since hosts legitimately see their own
+  lies) — decision, not drift; (2) D-row mint for the totality invariant + the
+  strip-totality gate candidate now has its consumer table (rides LANE 2's doc work or a smalls
+  batch); (3) code-fenced lies also flatten into lastMessagePreview — pre-existing, same ruled
+  class, recorded.
+  ```
 - [ ] **SWIPE GHOST-VISIBILITY — ROOT-CAUSED (diagnosis FLAG merged at createSwipe, `e62b8c16f`);
   TWO FIX LANES RUNNING.** Cause: `swipe`/`continueTurn`/`generate` NEVER emit `turnAccepted` —
   the slot opens only at the engine's `turnStarted`, which lands AFTER resolveTurnBase (assembly +
