@@ -22,6 +22,7 @@ export {
   FOCUS_RING_OUTLINE,
   FOCUS_RING_WITHIN,
 } from "./focus-ring.ts";
+export { createLiveTokenStore, type LiveTokenStore, resolveCssVar } from "./live-token-resolver.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";
 export { OVERLAY_MOTION } from "./overlay-motion.ts";
 export { ITEM_ROW, MODAL_SURFACE, POPUP_SURFACE } from "./popup-surface.ts";
@@ -34,5 +35,6 @@ export { prefersReducedMotionNow, scrollBehavior } from "./reduced-motion-now.ts
 export { formatResultCount } from "./result-count.ts";
 export { SCRIM, SCRIM_BASE } from "./scrim.ts";
 export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO } from "./selection-control.ts";
+export { sinHash } from "./sin-hash.ts";
 export { usePrefersReducedMotion } from "./use-prefers-reduced-motion.ts";
 export { assertBoundedScrollHeight, GAP_TOKENS, type GapToken, gapPxFor } from "./virtual-gap.ts";

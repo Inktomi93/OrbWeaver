@@ -1,38 +1,13 @@
 // ECharts renders to Canvas, where `var(--token)` does not resolve — chart chrome colors (axis
-// labels, grid lines, palette) must be CONCRETE values. This hook resolves each DTCG chrome token via
-// `getComputedStyle` on the document root and re-reads on theme switch via a MutationObserver on
+// labels, grid lines, palette) must be CONCRETE values. This hook resolves each DTCG chrome token
+// through the shared live-token-resolver seam (`#lib`'s `createLiveTokenStore`/`resolveCssVar`) — a
+// getComputedStyle read on the document root, re-read on theme switch via a MutationObserver on
 // `data-theme`, so a Light/Dark flip repaints the chart instead of baking a stale literal.
 import { useSyncExternalStore } from "react";
+import { createLiveTokenStore, resolveCssVar } from "#lib";
 import { TOKENS } from "#tokens";
 
-// DOM access rides `globalThis` with self-contained structural types — the node typecheck lane
-// follows the lib barrel into this file and has no `dom` lib.
-interface RootElement {
-  readonly getPropertyValue?: unknown;
-}
-interface ComputedStyle {
-  readonly getPropertyValue: (property: string) => string;
-}
-interface ObserverOptions {
-  readonly attributes: boolean;
-  readonly attributeFilter: string[];
-}
-interface ChartObserver {
-  observe: (target: RootElement, options: ObserverOptions) => void;
-  disconnect: () => void;
-}
-interface ChartThemeGlobals {
-  readonly document?: { readonly documentElement?: RootElement };
-  readonly getComputedStyle?: (element: RootElement) => ComputedStyle;
-  // biome-ignore lint/style/useNamingConvention: platform global name — mirrors real `globalThis`.
-  readonly MutationObserver?: new (
-    callback: () => void,
-  ) => ChartObserver;
-}
-
-// Cast via `unknown`: with the `dom` lib present, ambient globalThis shapes don't structurally
-// overlap these minimal locals, so a direct assertion is rejected (TS2352).
-const chartGlobals = globalThis as unknown as ChartThemeGlobals;
+const THEME_ATTRIBUTE_FILTER = ["data-theme"];
 
 // Keyed by ROLE (not token name) so an option builder asks for what it's styling, not which token backs it.
 export interface ChartColors {
@@ -62,14 +37,8 @@ function resolveRamp(resolve: (token: { readonly cssVar: string; readonly value:
   return [resolve(RAMP_TOKENS[0]), resolve(RAMP_TOKENS[1]), resolve(RAMP_TOKENS[2]), resolve(RAMP_TOKENS[3]), resolve(RAMP_TOKENS[4])];
 }
 
-// A root present but the var unset (getPropertyValue returns "") also falls back — empty isn't paintable.
 function resolveColor(token: { readonly cssVar: string; readonly value: string }): string {
-  const root = chartGlobals.document?.documentElement;
-  if (root === undefined || chartGlobals.getComputedStyle === undefined) {
-    return token.value;
-  }
-  const resolved = chartGlobals.getComputedStyle(root).getPropertyValue(token.cssVar).trim();
-  return resolved === "" ? token.value : resolved;
+  return resolveCssVar(token.cssVar, token.value);
 }
 
 function resolveChartColors(): ChartColors {
@@ -91,38 +60,9 @@ const FALLBACK_COLORS: ChartColors = {
   palette: resolveRamp((token) => token.value),
 };
 
-// useSyncExternalStore demands a referentially-stable getSnapshot between notifications.
-let cachedColors: ChartColors | null = null;
-
-const NO_UNSUBSCRIBE = (): void => undefined;
-
-function getSnapshot(): ChartColors {
-  if (chartGlobals.document?.documentElement === undefined) {
-    return FALLBACK_COLORS;
-  }
-  cachedColors ??= resolveChartColors();
-  return cachedColors;
-}
-
-function getServerSnapshot(): ChartColors {
-  return FALLBACK_COLORS;
-}
-
-// Drop the cache and notify on any `data-theme` flip so the next getSnapshot re-resolves against the new cascade.
-function subscribe(onChange: () => void): () => void {
-  const root = chartGlobals.document?.documentElement;
-  if (root === undefined || chartGlobals.MutationObserver === undefined) {
-    return NO_UNSUBSCRIBE;
-  }
-  const observer = new chartGlobals.MutationObserver(() => {
-    cachedColors = null;
-    onChange();
-  });
-  observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
-  return (): void => observer.disconnect();
-}
+const chartThemeStore = createLiveTokenStore(resolveChartColors, FALLBACK_COLORS, THEME_ATTRIBUTE_FILTER);
 
 /** Live, theme-reactive concrete chart-chrome colors for canvas ECharts. */
 export function useChartTheme(): ChartColors {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  return useSyncExternalStore(chartThemeStore.subscribe, chartThemeStore.getSnapshot, chartThemeStore.getServerSnapshot);
 }

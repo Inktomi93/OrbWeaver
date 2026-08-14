@@ -5,6 +5,7 @@
 //
 // Every color here is a theme token or a `color-mix()` over tokens — zero raw literals, so any seed theme
 // restyles the stone for free (D71).
+import { sinHash } from "#lib";
 import type { WaystoneCloudLayer, WaystoneParticleLayer, WaystonePhase } from "./waystone-treatment.ts";
 import { waystoneBandTint } from "./waystone-treatment.ts";
 
@@ -250,15 +251,10 @@ export interface WaystoneLatticeCell {
 }
 
 /** A stable pseudo-random in [0,1) from two ints — deterministic, so the fall is identical every render (no
- *  Math.random in a component, no re-jitter on every paint). */
-// The classic one-line hash: two large coprime-ish multipliers into sin(), scaled past any float grid. The
-// constants carry no meaning beyond "big and unrelated" — that is the whole point of a hash.
-const HASH_A = 127.1;
-const HASH_B = 311.7;
-const HASH_SCALE = 43_758.545;
+ *  Math.random in a component, no re-jitter on every paint). The shared `#lib` seeded-hash engine (was a
+ *  local copy — web-weave-math.ts's `weaveJitter` is the sibling consumer). */
 function jitter(a: number, b: number): number {
-  const n = Math.sin(a * HASH_A + b * HASH_B) * HASH_SCALE;
-  return n - Math.floor(n);
+  return sinHash(a, b);
 }
 
 /** The lattice a particle layer falls on: `columns` evenly spread across the disc, each offset by a fraction of
