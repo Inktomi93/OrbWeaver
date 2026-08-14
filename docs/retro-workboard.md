@@ -457,7 +457,18 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
   classifier") — the lane could not surface its mid-run fork and proceeded on default (safe here,
   but a lane needing a real ruling would be stranded). Boarded as a tooling issue to raise; the
   \[\[subagent-bash-permission-defer]] class, new surface.
-- [ ] **SILENT-500 TURN DEATH (m4-probe find, 3/3 repro — FIX LANE `silent-500` RUNNING):** an
+- [x] **SILENT-500 TURN DEATH — FIXED + MERGED (`57bb65645`).** A failing turn now lands on FOUR
+  surfaces (was zero): a throw-path WireOutcome row (disposition/terminalReason threaded from the
+  ProviderError cause-walk, faulted fields ABSENT not zeroed) · the errors ring (its READ FILTER was
+  structurally dead — `Number("error")`=NaN made `/errors` always-empty AND `/logs?level=`
+  never-filter, opposite directions so neither looked broken; the WRITE was innocent) · a
+  `trpc.unhandled` line per 500 (gated on code, not mapped===null, so gate refusals don't drown
+  faults) · `num_turns` on the provider.turn line. **CAP BUG REFUTED:** 8192 = 4 model calls × 2048
+  (per-turn aggregate vs per-CALL ceiling), not a violation — the `modelCalls` denominator now ships
+  so the §7.2 repro settles in one read (modelCalls:4 ⇒ fine, :1 ⇒ real). One honest limit: the
+  emits-total proof needs a recorder compose seam that doesn't exist by design — documented, not
+  allowlisted. **The remaining fix lane if the owner wants it:** the M4 auto-collapse one-liner
+  (§8.6 #1) — original m4-probe find text: an
   agent-sdk terminal provider error leaves NO outcome row (`recordTurnOutcome`'s one call site runs
   only on pipeline RESOLVE, engine.ts:1055), NO errors-ring row (empty through a pino ERROR + a
   500\), and a bare tRPC 500 — plus the COST BUG: `tokensOut:8192` vs resolved cap 2048, the
