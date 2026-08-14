@@ -16,8 +16,7 @@
 import type { ObjectLiteralExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readStringValue } from "../ast-read.ts";
-import type { GateDescriptor } from "../contract.ts";
-import type { Violation } from "../harness.ts";
+import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 
 const CLIENT_SRC = "/packages/client/src/";
 /** A co-located home-tile definition file: `features/<owner>/lib/<name>-tile.{ts,tsx}`. */
@@ -63,36 +62,27 @@ type Seen = { readonly name: string; readonly file: string };
 type TileDef = {
   readonly name: string;
   readonly path: string;
-  readonly line: number;
   readonly init: ObjectLiteralExpression;
 };
 
-function checkDormantArm(def: TileDef, doorway: ObjectLiteralExpression, out: Violation[]): void {
+// Node-anchored: every arm reports a NODE directly (`ctx.report(node, {token, offset})`), never an
+// explicit `Finding` — that overload bypasses `hasGateIgnore` (GATE-AUTHORING.md §1). The per-arm prose
+// that used to ride the Finding's `message` field is folded into the gate's ONE `message` below; the
+// dynamic identity (field/name/id/prior claimant) moves into `token`.
+function checkDormantArm(def: TileDef, doorway: ObjectLiteralExpression, ctx: GateRunCtx): void {
   for (const field of ["reason", "teaser"] as const) {
     const value = doorwayField(doorway, field);
     if (value === undefined || value.length === 0) {
-      out.push({
-        file: rel(def.path),
-        line: def.line,
-        message:
-          `dormant home tile "${def.name}" has an empty \`${field}\` — a doorway earns its pixels by naming what must ` +
-          "land first (`reason`) AND what the thing will be (`teaser`); without both it is an IOU — docs/history/design/home-section-spec.md §3.5.",
-      });
+      ctx.report(doorway, { token: `dormant empty ${field} (${def.name})`, offset: 0 });
     }
   }
   if (objProp(def.init, "action") !== undefined) {
-    out.push({
-      file: rel(def.path),
-      line: def.line,
-      message:
-        `dormant home tile "${def.name}" also declares an \`action\` — a DOORWAY has no controls (no button, no ` +
-        "skeleton, no spinner); a tile with both is a fake feature wearing a Dormant badge — docs/history/design/home-section-spec.md §3.5.",
-    });
+    ctx.report(def.init, { token: `dormant with action (${def.name})`, offset: 0 });
   }
 }
 
 /** The uniqueness arm: records `id` against its first owner, reporting the SECOND claimant. */
-function checkUniqueId(def: TileDef, out: Violation[], seenIds: Map<string, Seen>): void {
+function checkUniqueId(def: TileDef, ctx: GateRunCtx, seenIds: Map<string, Seen>): void {
   const id = tileId(def.init);
   if (id === undefined) {
     return;
@@ -102,16 +92,13 @@ function checkUniqueId(def: TileDef, out: Violation[], seenIds: Map<string, Seen
     seenIds.set(id, { name: def.name, file: rel(def.path) });
     return;
   }
-  out.push({
-    file: rel(def.path),
-    line: def.line,
-    message:
-      `home tile "${def.name}" declares id "${id}", already claimed by "${firstOwner.name}" (${firstOwner.file}) — ` +
-      "two tiles for one id is a shadow contribution that rots green while edits land in the dead twin — docs/history/design/home-section-spec.md §7.",
+  ctx.report(def.init, {
+    token: `duplicate id "${id}" (${def.name}) — first claimed by "${firstOwner.name}" (${firstOwner.file})`,
+    offset: 0,
   });
 }
 
-function checkTileDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, Seen>): void {
+function checkTileDefs(sf: SourceFile, ctx: GateRunCtx, seenIds: Map<string, Seen>): void {
   const path = sf.getFilePath();
   const coLocated = TILE_FILE_RE.test(path);
   for (const decl of sf.getVariableDeclarations()) {
@@ -119,32 +106,25 @@ function checkTileDefs(sf: SourceFile, out: Violation[], seenIds: Map<string, Se
     if (typeNode === undefined || !typeNode.getText().startsWith("HomeTileContribution")) {
       continue;
     }
-    const line = decl.getStartLineNumber();
     if (!coLocated) {
-      out.push({
-        file: rel(path),
-        line,
-        message:
-          `HomeTileContribution "${decl.getName()}" is not co-located — a home tile lives only in its OWNING feature's ` +
-          "lib tile file (features/*/lib/*-tile.tsx; the gate keys on location, never on name) — docs/history/design/home-section-spec.md §7.",
-      });
+      ctx.report(decl, { token: `not co-located: ${decl.getName()}`, offset: 0 });
       continue;
     }
     const init = decl.getInitializer();
     if (init === undefined || !Node.isObjectLiteralExpression(init)) {
       continue;
     }
-    const def: TileDef = { name: decl.getName(), path, line, init };
-    checkUniqueId(def, out, seenIds);
+    const def: TileDef = { name: decl.getName(), path, init };
+    checkUniqueId(def, ctx, seenIds);
     const doorway = dormantDoorway(init);
     if (doorway !== undefined) {
-      checkDormantArm(def, doorway, out);
+      checkDormantArm(def, doorway, ctx);
     }
   }
 }
 
 /** The anti-god-map arm: a `home-tiles` assembly outside the composition root. */
-function checkAssembly(sf: SourceFile, out: Violation[]): void {
+function checkAssembly(sf: SourceFile, ctx: GateRunCtx): void {
   const path = sf.getFilePath();
   if (DOOR_RE.test(path)) {
     return;
@@ -156,13 +136,7 @@ function checkAssembly(sf: SourceFile, out: Violation[]): void {
     }
     const [nameArg] = call.getArguments();
     if (nameArg !== undefined && readStringValue(nameArg) === HOME_TILE_REGISTRY_NAME) {
-      out.push({
-        file: rel(path),
-        line: call.getStartLineNumber(),
-        message:
-          'a second "home-tiles" assembly outside the composition root — tiles are assembled ONCE at the main.tsx door ' +
-          "(G8), so home consumes them blind and a feature can never register by importing home — docs/history/design/home-section-spec.md §3.2.",
-      });
+      ctx.report(call, { token: "second home-tiles assembly", offset: 0 });
     }
   }
 }
@@ -176,43 +150,39 @@ export const gate: GateDescriptor = {
     "a home tile is dishonest: a HomeTileContribution not co-located in its feature's lib tile file, a duplicate tile id, a DORMANT doorway with an empty reason/teaser or one that also declares an action, or a second `home-tiles` assembly outside the door — docs/history/design/home-section-spec.md §7.",
   fix: "co-locate the tile in features/<owner>/lib/<name>-tile.tsx; give a dormant doorway a real reason AND teaser and no action (a doorway has no controls); assemble tiles ONCE at main.tsx.",
   run: (ctx) => {
-    const out: Violation[] = [];
     const seenIds = new Map<string, Seen>();
     for (const sf of ctx.project.getSourceFiles()) {
       if (!sf.getFilePath().includes(CLIENT_SRC)) {
         continue;
       }
-      checkTileDefs(sf, out, seenIds);
-      checkAssembly(sf, out);
-    }
-    for (const v of out) {
-      ctx.report({ file: v.file, line: v.line, column: 0, message: v.message });
+      checkTileDefs(sf, ctx, seenIds);
+      checkAssembly(sf, ctx);
     }
   },
   mustFlag: [
     {
       files: "export const strayTile: HomeTileContribution = { id: 'x', body: () => null };\n",
       at: "packages/client/src/features/x/lib/not-a-tile-file.ts",
-      expect: { messageIncludes: "not co-located" },
+      expect: { token: "not co-located: strayTile" },
       why: "a HomeTileContribution outside a `*-tile` file — the co-location arm",
     },
     {
       files: "export const xTile: HomeTileContribution = { id: 'x', body: { dormant: { reason: '', teaser: 'Soon.' } } };\n",
       at: "packages/client/src/features/x/lib/x-tile.tsx",
-      expect: { messageIncludes: "empty `reason`" },
+      expect: { token: "dormant empty reason (xTile)" },
       why: "a dormant doorway that names nothing that must land first — the tracked-citation arm",
     },
     {
       files: "export const xTile: HomeTileContribution = { id: 'x', body: { dormant: { reason: 'domain/x is absent' } } };\n",
       at: "packages/client/src/features/x/lib/x-tile.tsx",
-      expect: { messageIncludes: "empty `teaser`" },
+      expect: { token: "dormant empty teaser (xTile)" },
       why: "a dormant doorway with no user-facing promise — the teaser arm",
     },
     {
       files:
         "export const xTile: HomeTileContribution = { id: 'x', action: null, body: { dormant: { reason: 'domain/x is absent', teaser: 'Soon, and here is what.' } } };\n",
       at: "packages/client/src/features/x/lib/x-tile.tsx",
-      expect: { messageIncludes: "also declares an `action`" },
+      expect: { token: "dormant with action (xTile)" },
       why: "a doorway wearing a control — the no-fake-feature arm",
     },
     {
@@ -220,13 +190,13 @@ export const gate: GateDescriptor = {
         "packages/client/src/features/a/lib/a-tile.tsx": "export const aTile: HomeTileContribution = { id: 'dup', body: () => null };\n",
         "packages/client/src/features/b/lib/b-tile.tsx": "export const bTile: HomeTileContribution = { id: 'dup', body: () => null };\n",
       },
-      expect: { messageIncludes: "already claimed by" },
+      expect: { token: 'duplicate id "dup" (bTile) — first claimed by "aTile" (packages/client/src/features/a/lib/a-tile.tsx)' },
       why: "two co-located tiles declaring the SAME id — the shadow-contribution arm",
     },
     {
       files: "export const tiles = createContributorRegistry('home-tiles', []);\n",
       at: "packages/client/src/features/home/lib/compose-tiles.ts",
-      expect: { messageIncludes: "second" },
+      expect: { token: "second home-tiles assembly" },
       why: "a home-tiles assembly outside the composition root — the anti-god-map arm",
     },
   ],
