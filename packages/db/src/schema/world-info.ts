@@ -33,16 +33,11 @@ import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId 
 import { sql } from "drizzle-orm";
 // biome-ignore lint/suspicious/noDeprecatedImports: drizzle @deprecates the positional primaryKey(col) overload; we use the supported primaryKey({ columns }) object form below.
 import { check, index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
 import { personas } from "./persona.ts";
 import { users } from "./users.ts";
-
-// A CHECK list is a static DDL fragment derived from the canonical tuple (NOT re-spelled): e.g.
-// `role in ('primary', 'auxiliary')`. A CHECK cannot carry bound parameters (chat.ts/users.ts pattern).
-function checkList(values: readonly string[]): string {
-  return values.map((v) => `'${v}'`).join(", ");
-}
 
 // `primary` = the card-bound book (travels on export/import; at-most-one per character, enforced at the verb
 // layer); `auxiliary` = a per-installation extra. The non-special default.

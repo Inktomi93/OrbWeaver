@@ -63,6 +63,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { vector32 } from "../custom-types/index.ts";
+import { checkList } from "./_shared.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
 import { chatDigests } from "./embeddings.ts";
@@ -72,7 +73,7 @@ import { users } from "./users.ts";
 // member (`forked`, via the path-compressed lineage walk). DERIVES `RELATIONS` from
 // `@orb/contracts/discovery` (D34 one-home — the canonical tuple); the SQL CHECK list is built from the
 // same tuple (never a re-spelled union), and a `.int` test-mirror pins `relation.enumValues` to it.
-const RELATION_CHECK_LIST = RELATIONS.map((relation) => `'${relation}'`).join(", ");
+const RELATION_CHECK_LIST = checkList(RELATIONS);
 
 // The one 1024-dim space (Qwen3-VL — core/Knowledge-Cluster.md §1). A theme centroid is a MEAN of digest
 // embeddings in that space, so it matches the embeddings dim exactly.

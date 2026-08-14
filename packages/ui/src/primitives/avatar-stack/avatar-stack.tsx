@@ -1,3 +1,4 @@
+import { initialsFor } from "@orb/kit/initials";
 import type { ComponentProps, ReactElement } from "react";
 import { cn } from "#lib";
 import type { AvatarProps } from "#primitives/avatar";
@@ -15,15 +16,6 @@ const DEFAULT_MAX = 4;
 
 // Per-item overlap offset by size — rides as inline style rather than a class (geometry, not a styling axis).
 const OVERLAP_PX: Record<AvatarSize, number> = { sm: 12, md: 14, lg: 18, hero: 28 };
-
-const WORD_SPLIT_RE = /\s+/u;
-
-/** First letter of up to the first two words, uppercased — the avatar fallback's "typically initials" convention. */
-function initials(name: string): string {
-  const words = name.trim().split(WORD_SPLIT_RE).filter(Boolean);
-  const letters = words.slice(0, 2).map((word) => word.charAt(0).toUpperCase());
-  return letters.join("") || "?";
-}
 
 export interface AvatarStackProps extends Omit<ComponentProps<"div">, "children"> {
   readonly items: readonly AvatarStackItem[];
@@ -66,7 +58,7 @@ export function AvatarStack({ className, items, max = DEFAULT_MAX, size = "md", 
           size={size}
           style={index === 0 ? undefined : { marginInlineStart: -OVERLAP_PX[size] }}
         >
-          {initials(item.name)}
+          {initialsFor(item.name)}
         </Avatar>
       ))}
       {overflow > 0 ? (

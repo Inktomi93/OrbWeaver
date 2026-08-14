@@ -39,18 +39,13 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
 import { personas } from "./persona.ts";
 import { presets } from "./preset.ts";
 import { users } from "./users.ts";
 import { worldBooks } from "./world-info.ts";
-
-// A CHECK list is a static DDL fragment derived from the canonical tuple (NOT re-spelled): e.g.
-// `source in ('manual', 'auto', 'card')`. A CHECK cannot carry bound parameters (chat.ts/world-info.ts pattern).
-function checkList(values: readonly string[]): string {
-  return values.map((v) => `'${v}'`).join(", ");
-}
 
 // `NONE` = a plain tag (the non-folder default). `OPEN`/`CLOSED` are ST's tags-as-folders states.
 const DEFAULT_FOLDER_TYPE = "NONE";

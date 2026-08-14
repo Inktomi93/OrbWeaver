@@ -34,6 +34,7 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
@@ -42,7 +43,7 @@ import { users } from "./users.ts";
 // CHECK list derived from the canonical tuple (NOT re-spelled) — static DDL fragment, the assets.ts /
 // workloads.ts pattern. The `documents.origin` column carries BOTH the drizzle `{ enum }` (type-side) AND
 // this SQL CHECK so the axis is SQL-enforced too (born-compliant; every sibling enum column does this).
-const DOC_ORIGIN_CHECK_LIST = DOC_ORIGINS.map((o) => `'${o}'`).join(", ");
+const DOC_ORIGIN_CHECK_LIST = checkList(DOC_ORIGINS);
 
 export const documents = sqliteTable(
   "documents",

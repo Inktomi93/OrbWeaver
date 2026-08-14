@@ -66,6 +66,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { vector32 } from "../custom-types/index.ts";
+import { checkList } from "./_shared.ts";
 import { assets } from "./assets.ts";
 import { characters } from "./character.ts";
 import { chats } from "./chat.ts";
@@ -76,9 +77,7 @@ import { documents } from "./databank.ts";
 const VECTOR_DIM = 1024;
 
 // CHECK list derived from the canonical tuple (NOT re-spelled): `lens in ('image-raw', 'image-captioned')`.
-// A CHECK is static DDL and cannot carry bound parameters, so it is built as a raw fragment (assets.ts /
-// workloads.ts pattern).
-const IMAGE_LENS_CHECK_LIST = IMAGE_LENSES.map((lens) => `'${lens}'`).join(", ");
+const IMAGE_LENS_CHECK_LIST = checkList(IMAGE_LENSES);
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // character_embeddings — the CARD lens (one lens: `card-text`). FK `characters.id` (D28 — NOT a cv). NO

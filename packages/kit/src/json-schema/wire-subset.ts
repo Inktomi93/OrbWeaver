@@ -50,6 +50,8 @@
 // keywords, so a field literally named `maximum`/`oneOf`/`$schema` is descended into as a schema (never
 // stripped, never a false refusal); keyword matching resumes inside each field's own node.
 
+import { isPlainObject } from "#guards";
+
 /** The wire subsets we speak. One member per WIRE CLASS, never per vendor: what splits them is which
  *  keywords the endpoint can express, and two vendors with the same answer share a mode. */
 export const WIRE_SCHEMA_MODES = ["hosted-common", "anthropic-format", "guided-decoding", "strict-compatible"] as const;
@@ -237,20 +239,20 @@ function isNullable(node: Record<string, unknown>): boolean {
  *  looking at the property sees it at the property, not buried in arm 0. */
 function requireAllProperties(node: Record<string, unknown>): void {
   const properties = node["properties"];
-  if (properties === null || typeof properties !== "object" || Array.isArray(properties)) {
+  if (!isPlainObject(properties)) {
     return;
   }
-  const props = properties as Record<string, unknown>;
+  const props = properties;
   const names = Object.keys(props);
   const alreadyRequired = new Set<string>(
     Array.isArray(node["required"]) ? (node["required"] as unknown[]).filter((n): n is string => typeof n === "string") : [],
   );
   for (const name of names) {
     const child = props[name];
-    if (alreadyRequired.has(name) || child === null || typeof child !== "object" || Array.isArray(child)) {
+    if (alreadyRequired.has(name) || !isPlainObject(child)) {
       continue;
     }
-    const childNode = child as Record<string, unknown>;
+    const childNode = child;
     if (isNullable(childNode)) {
       continue;
     }
@@ -319,11 +321,11 @@ function walk(node: unknown, subset: WireSubset, refused: Set<string>): unknown 
 // Descend a `{ name → schema }` map: every KEY is an opaque field name (kept verbatim, never keyword-matched),
 // every VALUE is a schema node walked normally.
 function walkNameMap(node: unknown, subset: WireSubset, refused: Set<string>): unknown {
-  if (node === null || typeof node !== "object" || Array.isArray(node)) {
+  if (!isPlainObject(node)) {
     return walk(node, subset, refused);
   }
   const out: Record<string, unknown> = {};
-  for (const [name, schema] of Object.entries(node as Record<string, unknown>)) {
+  for (const [name, schema] of Object.entries(node)) {
     out[name] = walk(schema, subset, refused);
   }
   return out;

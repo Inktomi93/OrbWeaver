@@ -53,6 +53,7 @@ import {
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { checkList } from "./_shared.ts";
 import { users } from "./users.ts";
 
 // The default lifecycle state of a freshly-enqueued row (start() inserts a `queued` row).
@@ -65,15 +66,14 @@ const DEFAULT_KEY = DEFAULT_ADMISSION_KEY;
 // lane runs on the bulk-maintenance loop and can never squat the latency-sensitive one.
 const DEFAULT_LANE = "sweep" as const satisfies (typeof WORKLOAD_LANES)[number];
 
-// CHECK lists derived from the canonical tuples (NOT re-spelled). A CHECK is static DDL and cannot carry
-// bound parameters, so it is built as a raw fragment from the tuple members (users.ts pattern).
-const KIND_CHECK_LIST = WORKLOAD_KINDS.map((kind) => `'${kind}'`).join(", ");
-const STATUS_CHECK_LIST = WORKLOAD_STATUSES.map((status) => `'${status}'`).join(", ");
-const MODE_CHECK_LIST = WORKLOAD_MODES.map((mode) => `'${mode}'`).join(", ");
-const LANE_CHECK_LIST = WORKLOAD_LANES.map((lane) => `'${lane}'`).join(", ");
+// CHECK lists derived from the canonical tuples (NOT re-spelled).
+const KIND_CHECK_LIST = checkList(WORKLOAD_KINDS);
+const STATUS_CHECK_LIST = checkList(WORKLOAD_STATUSES);
+const MODE_CHECK_LIST = checkList(WORKLOAD_MODES);
+const LANE_CHECK_LIST = checkList(WORKLOAD_LANES);
 // The active-status set the partial unique indexes key on — derived from ACTIVE_WORKLOAD_STATUSES so the
 // index predicate and the named tuple can never drift.
-const ACTIVE_STATUS_LIST = ACTIVE_WORKLOAD_STATUSES.map((status) => `'${status}'`).join(", ");
+const ACTIVE_STATUS_LIST = checkList(ACTIVE_WORKLOAD_STATUSES);
 
 export const workloads = sqliteTable(
   "workloads",
@@ -171,7 +171,7 @@ export const workloads = sqliteTable(
 // lock + the DAG), then advances `next_run_at` (= `last_run_at + interval`) and stamps `last_run_at`. The
 // per-run ADMISSION KEY is NOT a column here — it is derived from `params` by the kind's contribution,
 // resolved at enqueue exactly like a manual start.
-const CADENCE_CHECK_LIST = SCHEDULE_CADENCES.map((cadence) => `'${cadence}'`).join(", ");
+const CADENCE_CHECK_LIST = checkList(SCHEDULE_CADENCES);
 
 export const workloadSchedules = sqliteTable(
   "workload_schedules",
