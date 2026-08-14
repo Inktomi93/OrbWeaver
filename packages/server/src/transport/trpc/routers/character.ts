@@ -11,7 +11,7 @@ import {
   updateCharacterSchema,
 } from "@orb/contracts/character";
 import { GREETING_TRANSFORM_IDS } from "@orb/contracts/preset";
-import type { CharacterId, CharacterSnapshotId } from "@orb/kit/ids";
+import type { CharacterId, CharacterSnapshotId, TagId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
@@ -42,6 +42,14 @@ export const characterRouter = t.router({
           // The CEILING, enforced at the trust boundary: an over-bound ask is a BAD_REQUEST naming the
           // bound, never a silently trimmed page (see `CHARACTER_LIST_MAX_LIMIT`'s note in contracts).
           limit: z.number().int().min(1).max(CHARACTER_LIST_MAX_LIMIT).optional(),
+          // The LENSES (owner ruling 2026-08-13 — the `chat.listChats` shape). All optional and all part of
+          // the query key, so changing one resets the pages rather than filtering a stale set. The two
+          // booleans are TRI-STATE: absent = unfiltered, never `false`.
+          search: z.string().optional(),
+          starred: z.boolean().optional(),
+          archived: z.boolean().optional(),
+          includeTagIds: z.array(brandedId<TagId>()).optional(),
+          excludeTagIds: z.array(brandedId<TagId>()).optional(),
         })
         .optional(),
     )
@@ -51,6 +59,11 @@ export const characterRouter = t.router({
         ...(input?.sort !== undefined ? { sort: input.sort } : {}),
         ...(input?.cursor !== undefined ? { cursor: input.cursor } : {}),
         ...(input?.limit !== undefined ? { limit: input.limit } : {}),
+        ...(input?.search !== undefined ? { search: input.search } : {}),
+        ...(input?.starred !== undefined ? { starred: input.starred } : {}),
+        ...(input?.archived !== undefined ? { archived: input.archived } : {}),
+        ...(input?.includeTagIds !== undefined ? { includeTagIds: input.includeTagIds } : {}),
+        ...(input?.excludeTagIds !== undefined ? { excludeTagIds: input.excludeTagIds } : {}),
       }),
     ),
 

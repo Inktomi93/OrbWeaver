@@ -13,8 +13,16 @@
 // never hidden by it (a filter you cannot see is a filter you cannot turn off), and the rest are one
 // disclosure away.
 //
+// AN ACTIVE FILTER ALWAYS GETS A CHIP (owner's live P1, 2026-08-13). The vocabulary used to be derived from
+// the LOADED ROWS, so an active tag entry that matched no loaded row rendered nothing at all: the library
+// came back empty, no chip said why, and the only cure was wiping localStorage. The vocabulary is the
+// server's tag library now, and this component closes the last hole — an active entry that is in NO
+// vocabulary at all (a deleted tag, a foreign id from a previous dev era) still renders, named "Deleted
+// tag", so it can be cleared by the same cycle as any other chip. Validating/neutralizing such an id is a
+// separate work item (design doc W5); making it VISIBLE is this one.
+//
 // Pure leaf apart from that disclosure: the states + the tag vocabulary come from the surface (the library
-// view-prefs store + the loaded rows' tags, most-used first), the chips fire store actions.
+// view-prefs store + `tag.listTagsWithUsage`, most-used first), the chips fire store actions.
 
 import type { TagId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -69,8 +77,9 @@ export interface CharacterFilterChipsProps {
   readonly showArchived: boolean;
   /** The active three-state tag entries (a tag absent from the list is `off`). */
   readonly tagFilter: readonly TagFilterEntry[];
-  /** The visible tags across the loaded rows, MOST-USED FIRST — the tag-filter vocabulary (deduped and
-   *  ranked by the surface, so the cap below keeps the chips that earn the space). */
+  /** The owner's tag library, MOST-USED FIRST — the tag-filter vocabulary (ranked by the surface, so the
+   *  cap below keeps the chips that earn the space). An ACTIVE entry missing from this list still gets a
+   *  chip; see `orphanChips`. */
   readonly availableTags: readonly FilterChipTag[];
   readonly onToggleFavorites: () => void;
   readonly onToggleArchived: () => void;
@@ -92,6 +101,7 @@ export function CharacterFilterChips({
   // Index-based, so the surface's most-used-first order survives; an ACTIVE chip is exempt from the cap.
   const visible = expanded ? availableTags : availableTags.filter((tag, at) => at < VISIBLE_TAG_CHIPS || tagFilterStateOf(tagFilter, tag.id) !== "off");
   const hiddenCount = availableTags.length - visible.length;
+  const orphans = orphanChips(tagFilter, availableTags);
   return (
     <Row aria-label="Filters" className="flex-wrap" gap="field" role="group">
       <Toggle aria-label="Show only favorites" onPressedChange={onToggleFavorites} pressed={favoritesOnly} size="sm">
@@ -100,6 +110,11 @@ export function CharacterFilterChips({
       <Toggle aria-label="Show archived characters" onPressedChange={onToggleArchived} pressed={showArchived} size="sm">
         Archived
       </Toggle>
+      {/* The orphans lead the row: they are the ones actively narrowing the library for a reason nothing
+          else on screen explains, so they are the first thing to find and clear. */}
+      {orphans.map((tag) => (
+        <TagFilterChip key={tag.id} onCycle={onCycleTag} state={tagFilterStateOf(tagFilter, tag.id)} tag={tag} />
+      ))}
       {visible.map((tag) => (
         <TagFilterChip key={tag.id} onCycle={onCycleTag} state={tagFilterStateOf(tagFilter, tag.id)} tag={tag} />
       ))}
@@ -115,6 +130,18 @@ export function CharacterFilterChips({
       ) : null}
     </Row>
   );
+}
+
+/** The name an orphaned filter's chip carries — it has no tag row left to take one from, and a bare id is
+ *  not a thing a user can recognise or act on. */
+const DELETED_TAG_LABEL = "Deleted tag";
+
+/** ACTIVE filter entries with no tag in the vocabulary — the invisible-filter class made visible. The
+ *  vocabulary is the whole tag library, so reaching this list means the tag itself is gone (deleted, merged,
+ *  or an id from a wiped dev era), and the entry is silently narrowing the list with nothing to say so. */
+function orphanChips(tagFilter: readonly TagFilterEntry[], availableTags: readonly FilterChipTag[]): readonly FilterChipTag[] {
+  const known = new Set(availableTags.map((tag) => tag.id));
+  return tagFilter.filter((entry) => !known.has(entry.id)).map((entry) => ({ id: entry.id, name: DELETED_TAG_LABEL }));
 }
 
 /** One tri-state tag chip. Its accessible name is `Filter by <tag>: <state> — <what activating does>` — a

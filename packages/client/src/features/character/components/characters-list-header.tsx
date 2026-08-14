@@ -24,15 +24,24 @@ import { clearCharacterSelection, useSelectedCharacterId } from "#state";
 import { startChatWithCharacter } from "../lib/character-chat-intents.ts";
 import { CharacterCreateActions } from "./character-create-actions.tsx";
 
+/** The band wants the CENSUS, not the rows — the smallest page the server will serve still carries it. */
+const COUNT_ONLY_PAGE = 1;
+
 export function CharactersListHeader(): ReactElement {
   const selectedId = useSelectedCharacterId();
   return selectedId === null ? <PickerBand /> : <ProjectionBand characterId={selectedId} />;
 }
 
-/** Role 1 — the library picker's band. No count: `character.list` is keyset-PAGED, so any number here would
- *  be "loaded so far", and a census that silently means something else is worse than none. */
+/** Role 1 — the library picker's band. THE COUNT IS BACK, and it is the server's census (2026-08-13). It was
+ *  deleted when the list went keyset-paged because the only number available then was "loaded so far", and a
+ *  census that silently means something else is worse than none. `character.list` serves a real `COUNT` over
+ *  the request's scope now, so the band asks for the cheapest possible page and prints `totalCount`: one
+ *  honest number, one tiny read (the `chat-list-header.tsx` shape). Unscoped on purpose — the band names the
+ *  LIBRARY, while the pane's own live region reports what the current filters match. */
 function PickerBand(): ReactElement {
-  return <ListPaneHeader action={<CharacterCreateActions />} title="Characters" />;
+  const trpc = useTRPC();
+  const { data: page } = useQuery(trpc.character.list.queryOptions({ limit: COUNT_ONLY_PAGE }));
+  return <ListPaneHeader action={<CharacterCreateActions />} count={page?.totalCount ?? 0} title="Characters" />;
 }
 
 /** Role 2 — her history's band. The name resolves off the SAME `character.get` cache the editor beside it

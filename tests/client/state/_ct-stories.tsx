@@ -22,6 +22,7 @@ import {
   chatDeletedFromList,
   clearAnalyticsSelection,
   clearCharacterFacet,
+  clearCharacterFilters,
   clearCharacterSelection,
   clearChatListCharacterFilter,
   clearCollectionSelection,
@@ -552,6 +553,9 @@ export function CharacterLibraryStoreProbe(): ReactElement {
       </button>
       <button type="button" onClick={(): void => __resetTagFilter()}>
         clear tags
+      </button>
+      <button type="button" onClick={(): void => clearCharacterFilters()}>
+        clear filters
       </button>
       <button type="button" onClick={(): void => toggleSpoilerBlur()}>
         toggle spoiler blur

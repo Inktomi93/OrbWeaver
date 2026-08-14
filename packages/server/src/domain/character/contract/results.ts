@@ -59,4 +59,8 @@ export interface ListCharactersResult {
   /** The sort-discriminated keyset cursor to pass as the next `cursor`, or `null` when a short page came
    *  back (no further row remains in this sort's order). Its `sort` matches the request's. */
   readonly nextCursor: CharacterListCursor | null;
+  /** A real server `COUNT` over the SAME scope this page windows (search + chips included), never
+   *  `items.length` — the `ChatListPage.totalCount` precedent. The band printed no count at all while the
+   *  only number available was "loaded so far"; this is the honest one, so it can print again. */
+  readonly totalCount: number;
 }

@@ -26,7 +26,13 @@ import { createCollectionSurface } from "#data";
  *  library reads cost the same per page. */
 const CHAT_LIST_PAGE_SIZE = 50;
 
-/** Pages kept mounted before the virtualizer's window drops the head — the character-library value. */
+/** Pages kept mounted before TanStack's window drops the HEAD page.
+ *
+ *  NOTE (2026-08-13): the character library dropped its identical cap, because with
+ *  `getPreviousPageParam: () => undefined` an evicted head page is unrecoverable — rows vanish off the top
+ *  of a deep scroll. The same trap is live here (250 rows deep); it is left for the chat lane to retire
+ *  rather than changed from the character-tab lane, and this note exists so the next reader does not take
+ *  the cap for a considered chats-side decision. */
 const MAX_PAGES = 5;
 
 // Derived, not exported: `no-inline-types` keeps a feature's exported shapes in its contract home, and the
