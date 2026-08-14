@@ -1,11 +1,18 @@
 // Hook-shaped, PERSISTED sibling of createGatedStore. A duplicate storage key across two stores would
 // clobber each other silently, so a duplicate `name` THROWS at creation.
+//
+// The storage KEY is per-USER, not per-origin (`durable-local.ts` — the durable-local namespace contract):
+// the mint asks the shared door for its key and enrols itself so `bindDurableLocalToUser` can re-key it once
+// the viewer resolves. The store's `name` is unchanged by that — it stays the devtools label and the
+// `persistence-boundary` registry key.
 
 import { create } from "zustand";
 import type { StateStorage } from "zustand/middleware";
 import { createJSONStorage, devtools, persist, subscribeWithSelector } from "zustand/middleware";
 import type { GatedSet, GatedStoreHook } from "./create-gated-store.ts";
 import { STORE_DEVTOOLS_ENABLED } from "./create-gated-store.ts";
+import type { DurableLocalPersistApi } from "./durable-local.ts";
+import { durableLocalKey, registerDurableLocalStore } from "./durable-local.ts";
 
 const STORAGE_KEY_PREFIX = "orb:";
 const registeredNames = new Set<string>();
@@ -29,8 +36,9 @@ export interface PersistedStoreOptions<T, TPersisted> {
 
 /**
  * Mint a gated, persisted store hook. `name` becomes both the devtools connection label AND the
- * namespaced localStorage key (`orb:<name>`) — unique across all persisted stores (a duplicate
- * THROWS at creation). The initializer's `set` requires the devtools action label at every call.
+ * per-user-namespaced localStorage key (`orb:u/<userId>/<name>`, `durable-local.ts`) — unique across all
+ * persisted stores (a duplicate THROWS at creation). The initializer's `set` requires the devtools action
+ * label at every call.
  */
 export function createPersistedStore<T, TPersisted = T>(
   name: string,
@@ -44,9 +52,9 @@ export function createPersistedStore<T, TPersisted = T>(
   }
   registeredNames.add(name);
 
-  const storageKey = `${STORAGE_KEY_PREFIX}${name}`;
+  const storageKey = durableLocalKey(STORAGE_KEY_PREFIX, name);
 
-  return create<T>()(
+  const hook = create<T>()(
     devtools(
       subscribeWithSelector(
         persist((set, get): T => initializer(set as GatedSet<T>, get), {
@@ -67,5 +75,11 @@ export function createPersistedStore<T, TPersisted = T>(
       ),
       { name: storageKey, enabled: STORE_DEVTOOLS_ENABLED },
     ),
-  ) as GatedStoreHook<T>;
+  );
+
+  // Enrolment, not a second registry: `durable-local.ts` owns the key scheme, so the rebind at identity
+  // resolution reaches every mint without any store knowing an identity exists.
+  registerDurableLocalStore({ prefix: STORAGE_KEY_PREFIX, name, api: hook as unknown as DurableLocalPersistApi });
+
+  return hook as GatedStoreHook<T>;
 }

@@ -16,6 +16,7 @@ import {
   useInvalidation,
   useOnlineStatus,
   usePromptMacroSuggestions,
+  useSessionRecovery,
   useSettingsViewerView,
   useTRPC,
   useUploadAsset,
@@ -23,6 +24,7 @@ import {
 } from "@orb/client/data";
 import type { NotifyInput } from "@orb/client/lib";
 import { bindNotify, renderMessageForDisplay, toNotice } from "@orb/client/lib";
+import { activeDurableLocalUserId } from "@orb/client/state";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { CreateTagInput, TagView } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
@@ -30,7 +32,7 @@ import { castId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CtDataProviders } from "../../support/ct/ct-data-providers.tsx";
 
 /** SettingsViewerViewStory — the ONE home of the `SettingsViewerView` projection a settings `when`
@@ -765,6 +767,31 @@ export function CarriedAppearanceListFirstStory({ draftCharacterIds }: { readonl
         <CharacterListWarmer />
         <CarriedAppearanceCastReader chatId={null} draftCharacterIds={draftCharacterIds} />
       </QueryBoundary>
+    </CtDataProviders>
+  );
+}
+
+/** `useSessionRecovery` — the ONE mount that arms the session machinery (staleness-and-session-freshness.md
+ *  §4.4). It is a wiring hook with no pixels, so the story renders the two facts a CT can see: the
+ *  durable-local namespace it BOUND (proof the per-user rebind ran off `sessions.me`, F1) and the fact that
+ *  the mount itself neither suspends nor navigates. A regression here is silent by construction — an
+ *  un-bound namespace keeps writing the legacy key and the next identity inherits it. */
+function SessionRecoveryProbe(): ReactElement {
+  useSessionRecovery();
+  // The bind happens in the hook's EFFECT, so a render-time read of the namespace is always one commit
+  // behind. This dep-less effect re-reads after every commit and settles when the value stops changing
+  // (React bails out on an identical setState) — the rendered value is therefore the SETTLED namespace.
+  const [bound, setBound] = useState<string | null>(null);
+  useEffect(() => {
+    setBound(activeDurableLocalUserId());
+  });
+  return <output data-testid="durable-local-user">{bound ?? "unbound"}</output>;
+}
+
+export function SessionRecoveryStory(): ReactElement {
+  return (
+    <CtDataProviders>
+      <SessionRecoveryProbe />
     </CtDataProviders>
   );
 }

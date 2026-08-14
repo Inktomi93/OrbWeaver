@@ -5,6 +5,7 @@
 export { useAuthConfig } from "#data";
 export { LoginShellAnchor } from "./anchors/login-shell-anchor.tsx";
 export { accountModal } from "./lib/account-modal.tsx";
+export { reauthModal } from "./lib/reauth-modal.tsx";
 export { redirectIfAuthed, requireAuthed } from "./lib/route-guards.ts";
 export { AccountSurface } from "./surfaces/account-surface.tsx";
 export { LoginSurface } from "./surfaces/login-surface.tsx";

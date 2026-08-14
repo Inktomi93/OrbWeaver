@@ -9,7 +9,7 @@
 import { AriaAnnouncer } from "@orb/ui/aria-announcer";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
-import { useAuthConfig, useInvalidation, useOrbSocket, useRpgBus, useUserBus } from "#data";
+import { useAuthConfig, useInvalidation, useOrbSocket, useRpgBus, useSessionRecovery, useUserBus } from "#data";
 import { AppShell } from "#features/app-shell";
 import { clearJoinParam, JoinInviteDialog, readJoinToken } from "#features/chat";
 import { FirstRunPersonaDialog } from "#features/persona";
@@ -41,6 +41,11 @@ export function AppRoot(): ReactElement {
     invalidateUser: invalidation.invalidateUser,
     invalidateAllUserRoots: invalidation.invalidateAllUserRoots,
   });
+  // The session-freshness machinery (staleness-and-session-freshness.md §4.4): the durable-local per-user
+  // rebind, the recovery ladder's host, and the visibility probe. Mounted HERE for the same reason the bus
+  // hooks are — a feature could unmount and take the whole belt with it — and AFTER the socket so a
+  // resume's forced re-announce has a bound transport to announce on.
+  useSessionRecovery();
 
   const handle = useActiveChatHandle();
   const activeSection = useActiveSection();
