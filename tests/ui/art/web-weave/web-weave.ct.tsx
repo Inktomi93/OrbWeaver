@@ -11,7 +11,7 @@
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator, Page } from "@playwright/test";
-import { WeaveBox } from "./web-weave.fixtures.tsx";
+import { WeaveBox, WeaveTouchBox } from "./web-weave.fixtures.tsx";
 
 /** Wait N real browser frames (rAF-driven — an event condition, not a wall-clock timeout). */
 function waitFrames(page: Page, frames: number): Promise<void> {
@@ -195,4 +195,43 @@ test("settled ANIMATED runs off the offscreen cache — the loop advances AND th
   const recolored = await frameFingerprint(canvas);
   const flip = Math.max(fingerprintDelta(noiseB, recolored), fingerprintDelta(noiseA, recolored));
   expect(flip).toBeGreaterThan(noise * 3 + 1);
+});
+
+test("decoration by default: pointer-transparent AND hidden from assistive tech", async ({ mount, page }) => {
+  await mount(<WeaveBox state="settled" />);
+  const root = page.locator('[data-slot="web-weave"]');
+  await expect(root).toHaveAttribute("aria-hidden", "true");
+  await expect(root).toHaveCSS("pointer-events", "none");
+});
+
+test("interactive takes POINTER events and still stays hidden from assistive tech", async ({ mount, page }) => {
+  // The a11y ruling (variants.ts): un-hiding a nameless canvas would promise an affordance that has no
+  // keyboard path and announces nothing. Ornament that answers a cursor is still ornament.
+  await mount(<WeaveTouchBox state="settled" />);
+  const root = page.locator('[data-slot="web-weave"]');
+  await expect(root).toHaveCSS("pointer-events", "auto");
+  await expect(root).toHaveAttribute("aria-hidden", "true");
+});
+
+test("interactive: dragging across the silk RINGS it — the painted web changes beyond its own motion", async ({ mount, page }) => {
+  await mount(<WeaveTouchBox state="settled" />);
+  const canvas = page.locator('[data-slot="web-weave-canvas"]');
+  await expect.poll(async () => paintedPixels(canvas)).toBeGreaterThan(2000);
+  // The frame-to-frame NOISE floor first (glint + dew + spider, nothing touched)…
+  const noiseA = await frameFingerprint(canvas);
+  await waitFrames(page, 2);
+  const noiseB = await frameFingerprint(canvas);
+  const noise = fingerprintDelta(noiseA, noiseB);
+  // …then drag a pointer across the middle of the web, where the capture spiral is dense.
+  const box = await canvas.boundingBox();
+  const cx = (box?.x ?? 0) + (box?.width ?? 0) / 2;
+  const cy = (box?.y ?? 0) + (box?.height ?? 0) / 2;
+  await page.mouse.move(cx - 140, cy - 60);
+  await page.mouse.move(cx - 40, cy - 20, { steps: 8 });
+  await page.mouse.down();
+  await page.mouse.up();
+  await waitFrames(page, 2);
+  const rung = await frameFingerprint(canvas);
+  // A ringing web moves far more than the ambient beats do between two frames.
+  expect(fingerprintDelta(noiseB, rung)).toBeGreaterThan(noise * 3 + 1);
 });

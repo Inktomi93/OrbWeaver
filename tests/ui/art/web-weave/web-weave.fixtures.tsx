@@ -22,6 +22,12 @@ export function WeaveBox({ width = 640, height = 420, ...weave }: WeaveBoxProps)
   );
 }
 
+/** The interactive story: the same box, with a target the test can aim a pointer at (the weave fills
+ *  it, so a click anywhere inside is a click on the web). */
+export function WeaveTouchBox(props: WeaveBoxProps): ReactElement {
+  return <WeaveBox {...props} interactive={true} />;
+}
+
 /** The veil lifecycle story: a close trigger floated ABOVE the veil + the exited flag as DOM. */
 export function VeilStory(): ReactElement {
   const [open, setOpen] = useState(true);

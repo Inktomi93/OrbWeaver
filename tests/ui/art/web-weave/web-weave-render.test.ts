@@ -11,9 +11,13 @@
 import type { WeavePoint, WovenWeb } from "@orb/ui/web-weave";
 import { buildWeb, WEAVE_TIMELINE } from "@orb/ui/web-weave";
 import { describe } from "vitest";
+import { WEAVE_CHARACTER_PRESETS } from "../../../../packages/ui/src/art/web-weave/web-weave-character.ts";
 import type { WeavePalette, WeavePluckMap } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
 import { glintSegmentLit, glintSweepAngle, renderWeaveFrame, swayPt, weaveSwayOffset } from "../../../../packages/ui/src/art/web-weave/web-weave-render.ts";
 import { expect, test } from "../../../support/fixtures.ts";
+
+/** One browser frame — the delta the prey machine would integrate over. */
+const FRAME_MS = 16;
 
 const BOX = { width: 1280, height: 800, hub: { x: 0.5, y: 0.42 }, seed: 7 } as const;
 /** A settled instant with a wall clock well off zero, so the sway field is genuinely non-zero. */
@@ -126,6 +130,9 @@ function recordSettledFrame(over?: { plucks?: WeavePluckMap; wind?: number; web?
       strandOut: null,
       weather: { ...CALM, wind: over?.wind ?? 0 },
       plucks: over?.plucks ?? null,
+      dt: FRAME_MS,
+      character: WEAVE_CHARACTER_PRESETS.calm,
+      prey: null,
     },
     { prev: null },
   );

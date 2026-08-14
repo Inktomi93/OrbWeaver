@@ -5,14 +5,26 @@ import { tv } from "#lib";
 
 // The web is DECORATION (aria-hidden, pointer-transparent) that fills whatever box hosts it — the
 // container decides the size (the §0 container model), never the art.
+//
+// `interactive` takes pointer events (the silk plucks under the cursor and the weaver comes to look —
+// weave-lab-upgrades §5). It does NOT un-hide the art from assistive tech: there is nothing to
+// announce, no state to read and no keyboard path to the effect, so exposing a nameless canvas would
+// promise an affordance that does not exist. Ornament that answers a cursor is still ornament.
 export const webWeaveVariants = tv({
   slots: {
-    root: "pointer-events-none relative size-full overflow-hidden",
+    root: "relative size-full overflow-hidden",
     // The ambient accent glow centered on the hub — the gradient itself lives in globals.css
     // (`.orb-weave-glow`) because a radial-gradient over color-mix'd tokens has no utility spelling.
     glow: "orb-weave-glow absolute inset-0",
     canvas: "absolute inset-0 size-full",
   },
+  variants: {
+    interactive: {
+      false: { root: "pointer-events-none" },
+      true: { root: "pointer-events-auto" },
+    },
+  },
+  defaultVariants: { interactive: false },
 });
 
 // The boot/blocking veil: a fixed full-viewport layer above the app (--z-modal — it outranks the
