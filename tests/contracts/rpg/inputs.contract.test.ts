@@ -71,13 +71,24 @@ test("listJournal: the paging knobs are optional and bounded (1 ≤ limit ≤ ma
   expect(rpgListJournalInputSchema.safeParse({ chatId: CHAT_ID, limit: RPG_JOURNAL_LIST_MAX_LIMIT + 1 }).success).toBe(false);
 });
 
-test("listTurnToolCalls: limit is optional and bounded (1 ≤ limit ≤ max) — no offset by design", () => {
+test("listTurnToolCalls: turnLimit is optional and bounded (1 ≤ turnLimit ≤ max) — no offset by design", () => {
   expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID }).success).toBe(true);
-  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, limit: 10 }).success).toBe(true);
-  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, limit: 0 }).success).toBe(false);
+  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, turnLimit: 10 }).success).toBe(true);
+  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, turnLimit: 0 }).success).toBe(false);
   // The CEILING (#46): an over-bound ask is refused at the wire, never an unbounded SQL `.limit()`.
-  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, limit: RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT }).success).toBe(true);
-  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, limit: RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT + 1 }).success).toBe(false);
+  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, turnLimit: RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT }).success).toBe(true);
+  expect(rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, turnLimit: RPG_TURN_TOOL_CALLS_LIST_MAX_LIMIT + 1 }).success).toBe(false);
+});
+
+// The RENAME is the point (2026-08-14): the window stopped counting rows and started counting turns, so the
+// old spelling must not keep silently parsing — a stale caller sending `limit: 50` would otherwise ask for
+// the DEFAULT window while believing it had set one. zod strips unknown keys by default, which is exactly the
+// failure mode this pins against: `limit` must not survive the parse as a usable bound.
+test("listTurnToolCalls: the OLD `limit` spelling no longer binds the window", () => {
+  const parsed = rpgListTurnToolCallsInputSchema.safeParse({ chatId: CHAT_ID, limit: 7 });
+  expect(parsed.success).toBe(true);
+  expect(parsed.success && "limit" in parsed.data).toBe(false);
+  expect(parsed.success && parsed.data.turnLimit).toBeUndefined();
 });
 
 // ── R1: the op-shaped actor door ─────────────────────────────────────────────────────────────────────────

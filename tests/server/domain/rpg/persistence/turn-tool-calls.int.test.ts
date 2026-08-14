@@ -61,7 +61,7 @@ describe("recordTurnToolCalls", () => {
     expect((await findTurnToolCallsByVariant(db, variantA))[0]?.calls[0]?.name).toBe("update_scene");
     expect((await findTurnToolCallsByVariant(db, variantB))[0]?.calls[0]?.verdict).toBe("dropped");
     // Both live in the game's window — the client indexes by variant and the ROW picks its own.
-    expect(await listTurnToolCalls(db, gameId, { limit: 50 })).toHaveLength(2);
+    expect(await listTurnToolCalls(db, gameId, { turnLimit: 50 })).toHaveLength(2);
   });
 
   test("a RE-FLUSH of the same variant REPLACES its record rather than throwing on the unique index", async () => {
@@ -103,11 +103,11 @@ describe("recordTurnToolCalls", () => {
 
     expect(await findTurnToolCallsByVariant(db, variantB)).toEqual([]);
     // The surviving variant's record is untouched — the delete was scoped to the dead swipe.
-    expect(await listTurnToolCalls(db, gameId, { limit: 50 })).toHaveLength(0);
+    expect(await listTurnToolCalls(db, gameId, { turnLimit: 50 })).toHaveLength(0);
     expect(variantId).not.toBe(variantB);
   });
 
-  test("the window is newest-first and bounded by `limit`", async () => {
+  test("the window is newest-first and bounded by `turnLimit`", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = await seedGame(db, chatId);
     // Seeded in PARALLEL on purpose: each row carries its own `createdAt`, so the ordering under test is the
@@ -127,7 +127,34 @@ describe("recordTurnToolCalls", () => {
       }),
     );
 
-    const window = await listTurnToolCalls(db, gameId, { limit: 2 });
+    const window = await listTurnToolCalls(db, gameId, { turnLimit: 2 });
     expect(window.map((r) => r.variantId)).toEqual([seeded[2], seeded[1]]);
+  });
+
+  // The window-budget law (the file header's second paragraph): `turnLimit` counts SLOTS, so a slot's own
+  // rerolls are free. Pre-fix this returned ONE row — the newest of the three — and the two swipes the
+  // client's index needs would have been evicted by a budget denominated in the wrong unit.
+  test("a slot's rerolls cost the window NOTHING — turnLimit counts slots, and every record of a slot ships", async () => {
+    const chatId = await seedChat(db, "a");
+    const gameId = await seedGame(db, chatId);
+    const { messageId, variantId: variantA } = await seedMessage(db, chatId, 1, { role: "assistant" });
+    const variantB = await addVariant(db, messageId, 1, "swipe B body");
+    const variantC = await addVariant(db, messageId, 2, "swipe C body");
+    const slotVariants = [variantA, variantB, variantC];
+    await Promise.all(
+      slotVariants.map((variantId, i) =>
+        recordTurnToolCalls(db, {
+          id: castId<RpgTurnToolCallsId>(`rpg_turn_tool_calls_slot_${i}`),
+          gameId,
+          messageId,
+          variantId,
+          calls: callsFor("update_scene", "applied"),
+          createdAt: FROZEN_AT + i,
+        }),
+      ),
+    );
+
+    const window = await listTurnToolCalls(db, gameId, { turnLimit: 1 });
+    expect(new Set(window.map((r) => r.variantId))).toEqual(new Set(slotVariants));
   });
 });
