@@ -291,11 +291,28 @@ LiveResolverRootElement unused in live-token-resolver.ts.
 
 **═══ LIVE STATE (2026-08-14 midday — TRAIN SEALED + PUSHED; supersedes every rotation block below) ═══**
 
-**Tree: zero lanes, zero worktrees. Battery 2 landed (1 red → fixed `31f9516be`; receipts in the
-delta at board top). `pnpm check` GREEN, structure single-pass clean (207 gates), types:graph green.
-PUSHED: origin/main = main = `31f9516be` (was `6155e3050`, +160; owner word). NEXT STACK BOOT WIPES
-THE DEV DB (R0+rename squashes). Design project:
-claude.ai/design/p/2ec379a2-fddd-4bc2-bc58-023b8a684575.**
+**Battery 2 landed (1 red → fixed `31f9516be`; receipts in the delta at board top). `pnpm check`
+GREEN, structure single-pass clean (207 gates), types:graph green. PUSHED: origin
+`6155e3050 → 0351b8a37` (+161; owner word). **DB WIPE CONFIRMED DONE** — live db is on the new
+schema (`chats.starred`, `characters.updated_at`), 11 characters / 6 chats = fresh reseed; the
+472MB file size is SQLite freelist (drop never shrinks). The reset fired on an earlier watch-reload
+boot; the 10:21 stack restart was a no-op boot (hashes matched, migrate.ts:62 latch quiet). Stack UP
+:8788 loopback + vite :5173, engines all adopted.**
+
+**RUNNING (4, dispatched \~10:30 — ⚠ isolation was NOT passed at dispatch; all four were redirected
+to self-made worktrees off `0351b8a37` before any writes, under `orbweaver-wt/` on `wt/*` branches;
+exact dir/branch names come from each lane's report (smalls-client confirmed at
+`orbweaver-wt/smalls-client`) — sweep these by hand at drain):** `gates-gg-exports`
+(executor — G-G testid-liveness + ui exports-map arm + density-tier ratchet-arm port) ·
+`bridge-design` (stickler — entity→room member-freshness bridge + R1-4a, design doc only) ·
+`guard-followup` (security-executor — bash -c operand + double-quoted `$()` + pipe-rewrite tail;
+the two LOOSENING items stay owner-calls) · `smalls-client` (executor — book-attachments picker
+clamp · turn-tool-calls lineage filter \[paths drifted to features/rpg] · ScopeEditorDialog remount ·
+genRepetitionPenalty row move · staleness-doc §1.1 truth-repair; rpg-takeover-header `:95` item was
+already-fixed, dropped at re-derive). **CODEX is active on the MAIN checkout** (their doc lane is
+reconciling; 60-finding docs verdict incoming — orchestrator watch armed on the audit dir).
+
+Design project: claude.ai/design/p/2ec379a2-fddd-4bc2-bc58-023b8a684575.\*\*
 
 **TODAY'S TRAIN (compressed; git log 8fd771c4c..HEAD is the authority):** Qwen cleanup 8fd771c4c ·
 audit committed 0de9e087d · smalls ce7e9dac1 · report-cards train d5dee1bd7 + cleanup 8eca945c7 +
@@ -338,10 +355,11 @@ lint drain 62e7aa6bc · draft-cast pins 595b8a5f6 · UI-RENDERING-01 a383c669d.
 - [ ] **OPS LEAD:** after a merge that MOVES exports between modules, main's vite dev server serves
   stale prebundle (nearestRayHit outage, :5173 down until cache clear + bounce) — teach
   stack.sh/dev tooling to clear packages/client/node\_modules/.vite on merge, or document the bounce.
-- [ ] **OPS LEAD (10:12 08-14):** an unattributed `vitest run tests/tooling/ast-observability.int.test.ts
-  tests/tooling/check-gates.int.test.ts` ran on the MAIN checkout post-battery (zero lanes live) and
-  raced a structure pass — the shared `__g_` fixtures read as phantom `domain/hub` violations. If it
-  recurs, find the spawner; never trust a structure red taken while check-gates.int is live.
+- [x] **OPS LEAD RESOLVED (10:12 08-14): the "unattributed" tooling-int vitest run was CODEX** —
+  their lanes share the MAIN checkout (owner word: no worktrees taught) and the board's own
+  Codex-verify line for the scan-denominators item names exactly that command. Standing consequence:
+  while Codex is active, a structure red taken mid-window can be their `__g_` fixture race (phantom
+  `domain/hub` reds) — re-run on a quiet tree before believing it.
 - [ ] Codex snapshot-only doc families = revalidate-when-touched (their own instruction) · owner
   pile: longer-outputs numbers · theme/dogfood live receipts (selector wire-capture flip, W3 revoke
   probe) · re-import (owner-run) · the push.
@@ -607,10 +625,12 @@ CHECK is the belt; re-add on the seat wave) · a stale `app.test` /api/auth/conf
   `preset[k] ?? modelDefaults[k]` rung replacing the per-sampler env-const surgery (\~6 coupled sites per
   knob; presence + repetition both paid it). Small-medium, server-only, CT-provable; queue behind the
   bus wave unless the owner promotes. Context: the preset-crunchiness smell (ledger row above).
-- [ ] **Databank lenses lane** (class-sweep P1): `databank-library-surface.tsx:65,83-84,142-143` is the
-  character-tab defect TWIN — `MAX_PAGES=5` + unrecoverable head eviction + client-side name/phase lens
-  over a server contract with NO search (`routers/databank.ts:55-64`). Build with the character lane's
-  landed shapes as precedent (\[\[paged-list-lenses-go-server-side]]).
+- [x] **Databank lenses: CLOSED — superseded on the tree (third stale row caught by the dispatch
+  re-derive ritual).** `36c137740` "every library lens server-side + a real bank census" +
+  `24f99e257` "walkable past its first page" killed exactly this: no `maxPages` on today's
+  `databank-library-surface.tsx` (its own comments record the removal), `routers/databank.ts:57`
+  carries the server `search` param. The row's cited path had also drifted (file lives in
+  `surfaces/`, not `components/`).
 - [ ] **Refinery `selection` two-writer** (class-sweep P2): `update-session.ts:50` whole-replaces from a
   client image while `apply-fields.ts:67` server-remaps indexes — a scope-dialog save straddling an
   applyFields undoes the remap. The mergeSheet class server-side; small, rides any refinery lane.
