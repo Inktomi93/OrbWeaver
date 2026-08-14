@@ -1,5 +1,6 @@
 // The sandboxed iframe is a null-origin realm that cannot resolve the app's `var(--token)` cascade
-// (same wall ECharts' canvas hits — see charts/use-chart-theme.ts): the card body must be injected with
+// (same wall ECharts' canvas hits — see charts/use-chart-theme.ts, and the shared live-token-resolver
+// seam both ride, `#lib`'s `createLiveTokenStore`/`resolveCssVar`): the card body must be injected with
 // CONCRETE token values. This hook resolves the surface/text/font tokens the base body rule needs via
 // `getComputedStyle` on the document root and re-resolves on a `data-theme` flip, so a Light/Dark switch
 // recolors the card instead of baking a stale literal. Color values ride `themeTokens` (re-clamped by
@@ -7,36 +8,10 @@
 // rides its own `fontFamily` slot behind the kit font-list shape check.
 import { clampCardFrameFontFamily } from "@orb/kit/card-frame";
 import { useSyncExternalStore } from "react";
+import { createLiveTokenStore, resolveCssVar } from "#lib";
 import { TOKENS } from "#tokens";
 
-// DOM access rides `globalThis` with self-contained structural types — the node typecheck lane follows
-// the lib barrel here and has no `dom` lib (mirrors charts/use-chart-theme.ts).
-interface RootElement {
-  readonly getPropertyValue?: unknown;
-}
-interface ComputedStyle {
-  readonly getPropertyValue: (property: string) => string;
-}
-interface ObserverOptions {
-  readonly attributes: boolean;
-  readonly attributeFilter: string[];
-}
-interface ThemeObserver {
-  observe: (target: RootElement, options: ObserverOptions) => void;
-  disconnect: () => void;
-}
-interface SandboxThemeGlobals {
-  readonly document?: { readonly documentElement?: RootElement };
-  readonly getComputedStyle?: (element: RootElement) => ComputedStyle;
-  // biome-ignore lint/style/useNamingConvention: platform global name — mirrors real `globalThis`.
-  readonly MutationObserver?: new (
-    callback: () => void,
-  ) => ThemeObserver;
-}
-
-// Cast via `unknown`: with the `dom` lib present, ambient globalThis shapes don't structurally overlap
-// these minimal locals, so a direct assertion is rejected (TS2352).
-const sandboxGlobals = globalThis as unknown as SandboxThemeGlobals;
+const THEME_ATTRIBUTE_FILTER = ["data-theme"];
 
 const COLOR_TOKENS = {
   "--sandbox-bg": TOKENS["color.card"],
@@ -53,21 +28,12 @@ export interface SandboxThemeTokens {
   readonly fontFamily: string | undefined;
 }
 
-function resolveVar(cssVar: string, fallback: string): string {
-  const root = sandboxGlobals.document?.documentElement;
-  if (root === undefined || sandboxGlobals.getComputedStyle === undefined) {
-    return fallback;
-  }
-  const resolved = sandboxGlobals.getComputedStyle(root).getPropertyValue(cssVar).trim();
-  return resolved === "" ? fallback : resolved;
-}
-
 function resolveTokens(): SandboxThemeTokens {
   const themeTokens: Record<string, string> = {};
   for (const [name, token] of Object.entries(COLOR_TOKENS)) {
-    themeTokens[name] = resolveVar(token.cssVar, token.value);
+    themeTokens[name] = resolveCssVar(token.cssVar, token.value);
   }
-  return { themeTokens, fontFamily: clampCardFrameFontFamily(resolveVar(FONT_TOKEN.cssVar, FONT_TOKEN.value)) };
+  return { themeTokens, fontFamily: clampCardFrameFontFamily(resolveCssVar(FONT_TOKEN.cssVar, FONT_TOKEN.value)) };
 }
 
 const FALLBACK_TOKENS: SandboxThemeTokens = {
@@ -75,37 +41,9 @@ const FALLBACK_TOKENS: SandboxThemeTokens = {
   fontFamily: clampCardFrameFontFamily(FONT_TOKEN.value),
 };
 
-// useSyncExternalStore demands a referentially-stable getSnapshot between notifications.
-let cachedTokens: SandboxThemeTokens | null = null;
-
-const NO_UNSUBSCRIBE = (): void => undefined;
-
-function getSnapshot(): SandboxThemeTokens {
-  if (sandboxGlobals.document?.documentElement === undefined) {
-    return FALLBACK_TOKENS;
-  }
-  cachedTokens ??= resolveTokens();
-  return cachedTokens;
-}
-
-function getServerSnapshot(): SandboxThemeTokens {
-  return FALLBACK_TOKENS;
-}
-
-function subscribe(onChange: () => void): () => void {
-  const root = sandboxGlobals.document?.documentElement;
-  if (root === undefined || sandboxGlobals.MutationObserver === undefined) {
-    return NO_UNSUBSCRIBE;
-  }
-  const observer = new sandboxGlobals.MutationObserver(() => {
-    cachedTokens = null;
-    onChange();
-  });
-  observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
-  return (): void => observer.disconnect();
-}
+const sandboxThemeStore = createLiveTokenStore(resolveTokens, FALLBACK_TOKENS, THEME_ATTRIBUTE_FILTER);
 
 /** Live, theme-reactive concrete surface/text/font tokens for the sandbox base body rule. */
 export function useSandboxTheme(): SandboxThemeTokens {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  return useSyncExternalStore(sandboxThemeStore.subscribe, sandboxThemeStore.getSnapshot, sandboxThemeStore.getServerSnapshot);
 }

@@ -2,6 +2,7 @@ import { DateTime } from "luxon";
 import type { CelValue } from "#cel";
 import { evalCel, isCelParseError, parseCel } from "#cel";
 import { BUILTIN_MACRO_METADATA } from "./builtin-metadata.ts";
+import { isIfTruthy } from "./metadata.ts";
 import type { MacroAST, MacroContext, MacroHandler, MacroMetadata, MacroMetadataInput, MacroRegisterOptions, MacroRegistry, VarOp } from "./types.ts";
 import { applyVarOp } from "./variables.ts";
 
@@ -203,8 +204,7 @@ const ifHandler: MacroHandler = (args, ctx, children) => {
     pass = op === "==" ? lhs === rhs : lhs !== rhs;
   } else {
     const value = resolvePredicateValue(rawArg, ctx);
-    const lowered = value.trim().toLowerCase();
-    pass = value.trim() !== "" && lowered !== "false" && lowered !== "off" && lowered !== "0";
+    pass = isIfTruthy(value);
   }
 
   if (!children) {

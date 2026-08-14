@@ -23,6 +23,11 @@ const START_SENTINEL = /^\s*<START>/i;
  *  tear the block in half — an odd count before a position means that position is inside a fence. */
 const CODE_FENCE = "```";
 
+/** The tolerated-emphasis alternation every label regex below wraps around a name: `**`/`*`/`__`/`_`.
+ *  Named once (was spelled 4×) so the tolerated-markdown set changes in one place. Bare alternation
+ *  bytes — callers wrap it `(?:…)` (non-capturing) or `(…)` (the one backref-capturing use). */
+const EMPHASIS_ALT = "\\*\\*|\\*|__|_";
+
 export interface SpeakerSpan {
   /** `null` = no attributed speaker for this span (narrator / plain text). */
   readonly speaker: string | null;
@@ -93,7 +98,7 @@ function plainLabelRe(castNames: readonly string[]): RegExp | null {
     return null;
   }
   // `(?:^|\n)` — a LINE start only (no `m` flag: `^` then means position 0, which is what we want).
-  return new RegExp(`(?:^|\\n)[ \\t]*(?:\\*\\*|\\*|__|_)?(${names.join("|")})(?:\\*\\*|\\*|__|_)?[ \\t]*:`, "g");
+  return new RegExp(`(?:^|\\n)[ \\t]*(?:${EMPHASIS_ALT})?(${names.join("|")})(?:${EMPHASIS_ALT})?[ \\t]*:`, "g");
 }
 
 // True when `index` sits inside a fenced code block — an ODD number of ``` fences opened before it.
@@ -168,7 +173,7 @@ function leadingLabelRe(name: string): RegExp {
   // consumed (before OR after the colon: `**X**:` / `**X:**`). The backref is the whole point — without
   // it the trailing matcher ate a content italic (`X: *waves*` → lost the leading `*`). When no opening
   // emphasis matched, \1 is the empty string (JS), so the closes collapse to plain whitespace.
-  return new RegExp(`^\\s*(?:(\\*\\*|\\*|__|_)\\s*)?${n}\\s*(?:\\1\\s*)?:\\s*(?:\\1\\s*)?`);
+  return new RegExp(`^\\s*(?:(${EMPHASIS_ALT})\\s*)?${n}\\s*(?:\\1\\s*)?:\\s*(?:\\1\\s*)?`);
 }
 
 /** Strip leading `${speakerName}:` label(s) — NAME ONLY, leaves a leading `<speaker>` tag intact (the
@@ -217,7 +222,7 @@ function inlineLabelRe(name: string): RegExp {
   // NO leading whitespace grab (that would delete a word separator, gluing `one JFC: two` → `onetwo`); the
   // TRAILING whitespace + dash run IS consumed — the model's aborted turn-opener dash (`Name: —`) — so a
   // mid-word `dumJFC: —b` collapses to `dumb`, while a space-separated `one JFC: two` becomes `one two`.
-  return new RegExp(`(?:\\*\\*|\\*|__|_)?${n}(?:\\*\\*|\\*|__|_)?\\s*:(?:\\*\\*|\\*|__|_)?\\s*[—–-]*\\s*`, "g");
+  return new RegExp(`(?:${EMPHASIS_ALT})?${n}(?:${EMPHASIS_ALT})?\\s*:(?:${EMPHASIS_ALT})?\\s*[—–-]*\\s*`, "g");
 }
 
 /** Remove a leaked SELF speaker label anywhere in a per-speaker reply — the mid-content twin of
@@ -247,7 +252,7 @@ export function truncateAtForeignLabel(content: string, otherNames: readonly str
       continue;
     }
     // Foreign label at a line start: newline + optional indent/emphasis + Name + optional emphasis + colon.
-    const re = new RegExp(`\\n[ \\t]*(?:\\*\\*|\\*|__|_)?${n}(?:\\*\\*|\\*|__|_)?[ \\t]*:`);
+    const re = new RegExp(`\\n[ \\t]*(?:${EMPHASIS_ALT})?${n}(?:${EMPHASIS_ALT})?[ \\t]*:`);
     // `search` returns the match-start index (== the old `exec(...).index`) or a negative miss; using
     // it sidesteps the false "always non-null" read the linter gives `RegExp.exec`.
     const idx = content.search(re);

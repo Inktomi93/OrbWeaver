@@ -6,7 +6,23 @@
 
 import type { MacroArgDef, MacroArgViolation, MacroCategory, MacroDiagnostic, MacroMetadata, MacroRegistry, MacroSpan } from "./types.ts";
 
-const BOOLEAN_LITERALS = new Set(["true", "false", "on", "off", "0", "1", ""]);
+// The {{if}} truthiness vocabulary (owner-ratified): a string is "off" when it is (after trim+lowercase)
+// empty or one of these literals — everything else is "on". Shared by {{if}}'s bare-predicate branch
+// (registry.ts) and the user-macro boolean-toggle default (`userMacroToggleDefaultsOn`, user-macros.ts) —
+// the ONE spelling of the vocabulary, not three.
+const FALSY_LITERALS = new Set(["false", "off", "0"]);
+const TRUTHY_LITERALS = new Set(["true", "on", "1"]);
+
+/** Does `value` read as "on" under the {{if}} truthiness vocabulary? Trimmed+lowercased; empty or a
+ *  falsy literal ⇒ false, everything else (including non-vocabulary text) ⇒ true. */
+export function isIfTruthy(value: string): boolean {
+  const v = value.trim().toLowerCase();
+  return v !== "" && !FALSY_LITERALS.has(v);
+}
+
+// The coercion superset (checkMacroArgs' bool-arg check, below) — every word the {{if}} vocabulary
+// recognizes on either side, plus the empty string (arity, not type, governs presence there).
+const BOOLEAN_LITERALS = new Set([...TRUTHY_LITERALS, ...FALSY_LITERALS, ""]);
 
 // Does `value` coerce to the declared arg type? string always passes; number = finite Number(); boolean =
 // one of the accepted literals (the {{if}} truthiness vocabulary). Empty string is tolerated for optional
