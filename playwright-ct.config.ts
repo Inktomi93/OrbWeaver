@@ -60,6 +60,21 @@ export default defineConfig({
       // CT applies its OWN @vitejs/plugin-react internally — adding a second one double-transforms.
       // Cast: @tailwindcss/vite resolves vite@8 types; CT viteConfig expects vite@6 — structurally compatible.
       plugins: [tailwindcss() as never],
+      // The esbuild pinned for the CT vite transform (vite@6 → esbuild 0.25.12) maxes at target es2024.
+      // vite:esbuild reads tsconfig.base's `target: "es2025"` and passes it as
+      // `tsconfigRaw.compilerOptions.target` to esbuild.transform PER FILE — SEPARATE from the `esbuild`
+      // output-target option — so es2025 reaches esbuild regardless of `esbuild.target` and throws
+      // `Unrecognized target environment "es2025"` (~1300/build across a spread). The override is the
+      // tsconfigRaw one: vite spreads OUR compilerOptions over the loaded ones (vite dep-*.js
+      // transformWithEsbuild), so this pins ONLY target — jsx/verbatimModuleSyntax/etc. still flow from
+      // tsconfig. es2024 transform output runs identically in the CT chromium (CT needs a WORKING
+      // transform, not es2025 semantics). `esbuild.target` + optimizeDeps.esbuildOptions.target belt the
+      // output/prebundle paths too. The client PRODUCTION build lowers es2025 via OXC/Rolldown
+      // (packages/client/vite.config.ts — a different, es2025-capable path, untouched here). (Masked by a
+      // stale-node_modules esbuild@0.28.1 until a clean install re-resolved to 0.25.12 — 67d7805d0's
+      // "green without the override" was a false green; a dep-override removal owes a CLEAN-INSTALL CT run.)
+      esbuild: { target: "es2024", tsconfigRaw: { compilerOptions: { target: "es2024" } } },
+      optimizeDeps: { esbuildOptions: { target: "es2024" } },
       resolve: { dedupe: ["react", "react-dom"] },
       build: {
         rollupOptions: {
