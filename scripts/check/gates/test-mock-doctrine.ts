@@ -3,26 +3,20 @@
 import type { CallExpression } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor } from "../contract.ts";
-import type { Violation } from "../harness.ts";
 
-function checkMockCall(call: CallExpression, filePath: string): Violation | null {
+/** Is this `vi.mock(...)` call on an internal (relative / packages/ / @orb/) target? The node overload
+ *  carries the report — this predicate only needs a boolean, never a Finding-shaped record. */
+function isInternalMockCall(call: CallExpression): boolean {
   const expr = call.getExpression();
   if (expr.getKind() !== SyntaxKind.PropertyAccessExpression || expr.getText() !== "vi.mock") {
-    return null;
+    return false;
   }
   const arg0 = call.getArguments()[0];
   if (arg0?.getKind() !== SyntaxKind.StringLiteral) {
-    return null;
+    return false;
   }
   const mockTarget = arg0.getText().replace(/['"]/gu, "");
-  if (!(mockTarget.startsWith(".") || mockTarget.startsWith("packages/") || mockTarget.startsWith("@orb/"))) {
-    return null;
-  }
-  return {
-    file: filePath,
-    line: call.getStartLineNumber(),
-    message: `vi.mock on internal module '${mockTarget}'. Fake at the edges, inject at the root (core/Spine-Testing.md §3).`,
-  };
+  return mockTarget.startsWith(".") || mockTarget.startsWith("packages/") || mockTarget.startsWith("@orb/");
 }
 
 const MOCK_MESSAGE = "vi.mock on an internal module — fake at the edges, inject at the composition root (core/Spine-Testing.md §3).";
@@ -40,8 +34,7 @@ export const gate: GateDescriptor = {
     if (!node.isKind(SyntaxKind.CallExpression)) {
       return;
     }
-    const v = checkMockCall(node, "");
-    if (v !== null) {
+    if (isInternalMockCall(node)) {
       ctx.report(node, { token: "vi.mock(internal)", offset: 0 });
     }
   },

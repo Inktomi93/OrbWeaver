@@ -9,7 +9,6 @@
 import type { JsxAttribute, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { GateDescriptor, GateRunCtx } from "../contract.ts";
-import type { Violation } from "../harness.ts";
 
 const FEATURES_SRC = "/packages/client/src/features/";
 const TSX_RE = /\.tsx$/u;
@@ -42,12 +41,6 @@ const VALUE_PROPS = new Set(["value", "checked"]);
 const CHANGE_PROPS = new Set(["onChange", "onValueChange", "onCheckedChange"]);
 
 const THRESHOLD = 3;
-
-const MESSAGE = (component: string, count: number): string =>
-  `feature component \`${component}\` hand-rolls ${count} controlled form inputs but imports no editor ` +
-  "factory — a ≥3-field form belongs in createSavedEntityForm / createAutosaveEntityForm (they bake " +
-  "seed / key-remount / post-submit reset / reseed-guard / draft-mirror / dontUpdateMeta). " +
-  "(D54 §13.4; packages/client/src/forms/, UI-Primitives-and-Reuse.md §13.4)";
 
 function featureRel(path: string): string | undefined {
   const idx = path.indexOf(FEATURES_SRC);
@@ -121,8 +114,11 @@ function componentName(fn: Node): string {
   return varDecl?.getName() ?? "<anonymous>";
 }
 
-function fileViolations(sf: SourceFile, rel: string): Violation[] {
-  const perComponent = new Map<number, { name: string; count: number; line: number }>();
+/** Reports directly (node overload) at the FIRST offending element of each component past THRESHOLD — the
+ *  component name + count travel in `token`, since the node overload carries no per-finding message
+ *  (GATE-AUTHORING.md §1). */
+function reportFileViolations(sf: SourceFile, ctx: GateRunCtx): void {
+  const perComponent = new Map<number, { name: string; count: number; firstEl: Node }>();
   const elements = [...sf.getDescendantsOfKind(SyntaxKind.JsxOpeningElement), ...sf.getDescendantsOfKind(SyntaxKind.JsxSelfClosingElement)];
   for (const el of elements) {
     if (!isControlledFormInput(el)) {
@@ -134,22 +130,20 @@ function fileViolations(sf: SourceFile, rel: string): Violation[] {
     }
     const entry = perComponent.get(comp.key);
     if (entry === undefined) {
-      perComponent.set(comp.key, { name: comp.name, count: 1, line: el.getStartLineNumber() });
+      perComponent.set(comp.key, { name: comp.name, count: 1, firstEl: el });
     } else {
       entry.count += 1;
     }
   }
-  const violations: Violation[] = [];
-  for (const { name, count, line } of perComponent.values()) {
+  for (const { name, count, firstEl } of perComponent.values()) {
     if (count >= THRESHOLD) {
-      violations.push({ file: rel, line, message: MESSAGE(name, count) });
+      ctx.report(firstEl, { token: `${name} (${count} fields)`, offset: 0 });
     }
   }
-  return violations;
 }
 
 // A feature .tsx whose enclosing component hand-rolls ≥3 controlled form inputs while importing neither
-// editor factory. The finding names the component + count.
+// editor factory. The token names the component + count.
 export const gate: GateDescriptor = {
   name: "form-factory-for-multifield",
   docRow: "D54 §13.4 (UI-Primitives-and-Reuse.md §13.4)",
@@ -164,15 +158,7 @@ export const gate: GateDescriptor = {
     if (rel === undefined || importsFactory(sf)) {
       return;
     }
-    for (const v of fileViolations(sf, rel)) {
-      ctx.report({
-        file: v.file,
-        line: v.line,
-        column: 0,
-        message: v.message,
-        token: "multi-field form",
-      });
-    }
+    reportFileViolations(sf, ctx);
   },
   mustFlag: [
     {

@@ -5,7 +5,7 @@
 // under domain/search/persistence/; IMPORT — the five table symbols importable only by the sanctioned domain set. A new importer is RED.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import type { Finding, GateDescriptor, GateRunCtx } from "../contract.ts";
+import type { GateDescriptor, GateRunCtx } from "../contract.ts";
 
 const VECTOR_TABLES = new Set([
   "characterEmbeddings",
@@ -42,29 +42,19 @@ const LITERAL_KINDS = [
   SyntaxKind.TemplateTail,
 ] as const;
 
-const IMPORT_MESSAGE =
-  "vector-table symbol imported outside the sanctioned set (embeddings owner · search/persistence reader · chat/memory/persistence bookkeeping · discovery/persistence analytics · the /_debug probes) — every other scan goes through the ONE search engine with a mandatory producer scope (D20; Knowledge-Cluster.md inv 1-2).";
-const WRITE_MESSAGE =
-  "vector-table WRITE outside domain/embeddings/persistence — every insert/update/delete on the five vector tables is embeddings' (producers are lens arms of embeddings.store, never inserters — D20; Knowledge-Cluster.md inv 1).";
-const COSINE_MESSAGE =
-  "vector_distance_cos in code outside domain/search/persistence — top-k retrieval is search's alone; discovery is in-RAM pairwiseCosine, memory delegates to the injected searchDigests op (Knowledge-Cluster.md inv 2).";
+// A single combined group message: the three arms differ only in WHICH chokepoint was bypassed, and the
+// node overload (§1, GATE-AUTHORING.md) carries no per-finding message — the `token` (table name / write
+// label / `vector_distance_cos`) is what distinguishes an occurrence; see mustFlag below.
+const GROUP_MESSAGE =
+  "a vector-substrate chokepoint was bypassed: a vector-table symbol imported outside the sanctioned set " +
+  "(embeddings owner · search/persistence reader · chat/memory/persistence bookkeeping · discovery/persistence " +
+  "analytics · the /_debug probes), a vector-table WRITE outside domain/embeddings/persistence (writes are " +
+  "embeddings.store lens arms, never inserters), or `vector_distance_cos` used outside domain/search/persistence " +
+  "(top-k retrieval is search's alone; discovery is in-RAM pairwiseCosine, memory delegates to the injected " +
+  "searchDigests op) — D20; Knowledge-Cluster.md inv 1-2.";
 
-function relPath(root: string, abs: string): string {
-  return abs.startsWith(root) ? abs.slice(root.length + 1) : abs;
-}
-
-const STRING_KINDS: readonly SyntaxKind[] = [...LITERAL_KINDS];
-
-function reportAt(ctx: GateRunCtx, node: Node, message: string, token: string): void {
-  const sf = node.getSourceFile();
-  const finding: Finding = {
-    file: relPath(ctx.root, sf.getFilePath()),
-    line: node.getStartLineNumber(),
-    column: sf.getLineAndColumnAtPos(node.getStart()).column,
-    message,
-    token,
-  };
-  ctx.report(finding);
+function reportAt(ctx: GateRunCtx, node: Node, token: string): void {
+  ctx.report(node, { token, offset: 0 });
 }
 
 /** Is this ImportSpecifier a vector-table symbol imported from @orb/db? Returns the table name, else "". */
@@ -102,46 +92,46 @@ export const gate: GateDescriptor = {
   docRow: "ledger D20 (Knowledge-Cluster.md inv 1-2)",
   status: "active",
   scopeSafety: "incremental-safe",
-  message: IMPORT_MESSAGE,
+  message: GROUP_MESSAGE,
   fix: "go through the ONE search engine with a mandatory producer scope; writes are embeddings.store lens arms, cosine is search/persistence's alone (D20).",
   scanRoot: (p) => SERVER_SRC.test(`/${p}`),
-  kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression, ...STRING_KINDS],
+  kinds: [SyntaxKind.ImportSpecifier, SyntaxKind.CallExpression, ...LITERAL_KINDS],
   visit: (node, sf, ctx) => {
     const path = sf.getFilePath();
     // Import arm.
     const importedTable = IMPORT_SANCTIONED.test(path) ? "" : vectorTableImport(node);
     if (importedTable !== "") {
-      reportAt(ctx, node, IMPORT_MESSAGE, importedTable);
+      reportAt(ctx, node, importedTable);
       return;
     }
     // Write arm.
     const write = WRITE_SANCTIONED.test(path) ? "" : vectorWrite(node);
     if (write !== "") {
-      reportAt(ctx, node, WRITE_MESSAGE, write);
+      reportAt(ctx, node, write);
       return;
     }
     // Cosine arm: a string/template literal PART carrying vector_distance_cos.
     if (!COSINE_SANCTIONED.test(path) && node.getText().includes(COSINE)) {
-      reportAt(ctx, node, COSINE_MESSAGE, COSINE);
+      reportAt(ctx, node, COSINE);
     }
   },
   mustFlag: [
     {
       files: 'import { chatDigests } from "@orb/db";\nexport const t = chatDigests;\n',
       at: "packages/server/src/domain/hub/x.ts",
-      expect: { messageIncludes: "sanctioned set" },
+      expect: { token: "chatDigests" },
       why: "a vector-table symbol imported outside the sanctioned set — a NEW importer (inv 1)",
     },
     {
       files: 'export const q = "SELECT vector_distance_cos(a, b)";\n',
       at: "packages/server/src/domain/hub/y.ts",
-      expect: { messageIncludes: "top-k retrieval is search" },
+      expect: { token: COSINE },
       why: "vector_distance_cos in code outside search/persistence — top-k retrieval is search's alone (inv 2)",
     },
     {
       files: "export const w = (db: { insert: (t: unknown) => void }) => db.insert(chatDigests);\n",
       at: "packages/server/src/domain/hub/w.ts",
-      expect: { messageIncludes: "WRITE outside domain/embeddings/persistence" },
+      expect: { token: ".insert(chatDigests)" },
       why: "a `.insert(vectorTable)` write outside embeddings/persistence — writes are embeddings.store lens arms (inv 1)",
     },
   ],

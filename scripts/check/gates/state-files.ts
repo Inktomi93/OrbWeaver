@@ -100,29 +100,27 @@ function exportedHandleLine(sf: SourceFile): number | undefined {
   return init?.getStartLineNumber();
 }
 
-function checkFieldCap(call: Node, rel: string, out: Violation[]): void {
+// Node-anchored (the literal's OWN `line` was a node-position call) — reported directly via the node
+// overload, never folded into the file-level `Violation[]` accumulator below (GATE-AUTHORING.md §1).
+function checkFieldCap(call: Node, ctx: GateRunCtx): void {
   const lit = initializerObjectLiteral(call);
   if (lit === undefined) {
     return;
   }
   const count = lit.getProperties().length;
   if (count > MAX_FIELDS) {
-    out.push({
-      file: rel,
-      line: lit.getStartLineNumber(),
-      message: `state store declares ${count} top-level fields (cap ${MAX_FIELDS}) — a store past ${MAX_FIELDS} fields is doing multiple jobs; split it (UI-Architecture-and-Layout.md §5).`,
-    });
+    ctx.report(lit, { token: "field-cap", offset: 0 });
   }
 }
 
-function scanFile(sf: SourceFile, rel: string, out: Violation[]): void {
+function scanFile(sf: SourceFile, rel: string, out: Violation[], ctx: GateRunCtx): void {
   let mintCount = 0;
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
     if (!isMintCall(call)) {
       continue;
     }
     mintCount += 1;
-    checkFieldCap(call, rel, out);
+    checkFieldCap(call, ctx);
   }
   if (mintCount > 1) {
     out.push({
@@ -142,9 +140,15 @@ function scanFile(sf: SourceFile, rel: string, out: Violation[]): void {
   }
 }
 
-// Three arms: the field-cap (per mint) + the mint-count (>1, file-level) + the exported-handle (file-level).
+// Three arms: the field-cap (per mint, node-anchored — token "field-cap") + the mint-count (>1,
+// file-level — token "one-mint-per-file") + the exported-handle (file-level — token "exported-handle").
 const HANDLE_MESSAGE =
   "the minted store handle is exported — never expose raw set/getState across a module boundary; export intent-named actions + narrow read hooks instead (UI-Architecture-and-Layout.md §5).";
+const GROUP_MESSAGE =
+  "the minted store handle is exported (never expose raw set/getState across a module boundary — export " +
+  "intent-named actions + narrow read hooks instead), more than one store-minting call sits in one file " +
+  `(one store per file), or a store initializer declares more than ${MAX_FIELDS} top-level fields (a store ` +
+  "doing multiple jobs — split it) (UI-Architecture-and-Layout.md §5).";
 
 function fileLevelFinding(rel: string, line: number, message: string, token: string): Finding {
   return { file: rel, line, column: 0, message, token };
@@ -163,7 +167,7 @@ export const gate: GateDescriptor = {
   docRow: "UI-Architecture-and-Layout.md §5 (§2.1 state/)",
   status: "active",
   scopeSafety: "incremental-safe",
-  message: HANDLE_MESSAGE,
+  message: GROUP_MESSAGE,
   fix: "one store-minting call per file, ≤10 top-level fields, and never export the raw handle — expose intent-named actions + narrow read hooks.",
   scanRoot: (p) => flatStateRel(`/${p}`) !== undefined,
   visitFile: (sf, ctx: GateRunCtx) => {
@@ -172,7 +176,7 @@ export const gate: GateDescriptor = {
       return;
     }
     const violations: Violation[] = [];
-    scanFile(sf, rel, violations);
+    scanFile(sf, rel, violations, ctx);
     // scanFile emits legacy-shaped {file,line,message} triples; re-emit them as findings. The mint-count
     // arm uses line 0 (file-level); the field-cap + handle arms carry real node lines. The token names the
     // arm so the grouped output distinguishes them.
@@ -191,7 +195,7 @@ export const gate: GateDescriptor = {
       files:
         'const useX = createGatedStore("x", () => ({ f0: 0, f1: 0, f2: 0, f3: 0, f4: 0, f5: 0, f6: 0, f7: 0, f8: 0, f9: 0, f10: 0 }));\nexport const v = () => useX();\n',
       at: "packages/client/src/state/big.ts",
-      expect: { messageIncludes: "top-level fields" },
+      expect: { token: "field-cap" },
       why: "rule 2: a store initializer with 11 top-level fields — past the ≤10 cap, split it",
     },
     {
