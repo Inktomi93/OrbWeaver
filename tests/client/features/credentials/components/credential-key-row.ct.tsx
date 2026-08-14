@@ -60,10 +60,9 @@ test("a custom_openai row's Test button fires the honest credentials.testHealth 
   await mount(<CustomCredentialKeyRowStory />);
 
   await page.getByRole("button", { name: "Test", exact: true }).click();
-  await expect
-    .poll(() => trpc.lastInput("credentials.testHealth"), { intervals: [20, 50, 100] })
-    .toEqual({ credentialId: "user_credential_ctstory0002" });
-  // The old fetchModels reachability shortcut never fires from this button any more (#SID-01/#9).
+  await expect.poll(() => trpc.lastInput("credentials.testHealth"), { intervals: [20, 50, 100] }).toEqual({ credentialId: "user_credential_ctstory0002" });
+  // ONESHOT-OK: the code path completed (testHealth's input was polled to arrival above), so this
+  // 'never fired' fetchModels count is settled (#SID-01/#9 — the reachability shortcut is retired).
   expect(trpc.count("credentials.fetchModels")).toBe(0);
   await expect(page.getByText("ok", { exact: true })).toBeVisible();
 });
