@@ -25,7 +25,6 @@ const FLOOR = {
   VLLM_GEN_GPU_UTIL_SINGLE: 0.5,
   VLLM_POOLING_MAX_PIXELS: 1_843_200,
   VLLM_GEN_MAX_PIXELS: 4_194_304,
-  VLLM_GEN_REPETITION_PENALTY: 1.05,
   VLLM_SLEEP_MODE: true,
   VLLM_DEBUG_REQUESTS: false,
   VLLM_SHUTDOWN_TIMEOUT_S: 0,
@@ -48,7 +47,6 @@ describe("resolveEngineLaunchConfig — admin override ?? env floor", () => {
     expect(c.genMaxModelLen).toBe(32_768);
     expect(c.embedGpuUtil).toBe(0.14);
     expect(c.genMaxPixels).toBe(4_194_304);
-    expect(c.genRepetitionPenalty).toBe(1.05);
     expect(c.ports).toEqual({ embed: 8701, rerank: 8702, gen: 8703 });
   });
 
@@ -181,8 +179,6 @@ describe("buildEngineArgv snapshots", () => {
         "shm",
         "--mm-processor-kwargs",
         "{"max_pixels": 4194304}",
-        "--override-generation-config",
-        "{"repetition_penalty":1.05}",
         "--disable-access-log-for-endpoints",
         "/health,/metrics,/ping",
         "--enable-request-id-headers",
@@ -193,32 +189,26 @@ describe("buildEngineArgv snapshots", () => {
   });
 });
 
-describe("buildEngineArgv — gen --override-generation-config repetition_penalty (#23)", () => {
-  test("env-default gen argv carries PENALTY-ONLY override (checkpoint ships its own samplers) — repetition_penalty 1.05 as override-generation-config JSON", () => {
-    const config = resolveEngineLaunchConfig(FLOOR, undefined);
-    expect(flagVal(buildEngineArgv("gen", config, CTX), "--override-generation-config")).toBe('{"repetition_penalty":1.05}');
+// ── #23, REVERSED 2026-08-14: the launch home for samplers is GONE. `--override-generation-config` existed
+// only for the retired sampler-less agent-sdk /v1/messages wire; while it rode the serve command it silently
+// outranked the checkpoint's own generation_config.json on EVERY request. The gen repetition-penalty default
+// now rides the request (surfaces/chat.ts, `genRepetitionPenalty` — see that suite). These tests are the
+// fence that keeps the second home from growing back. ──
+describe("buildEngineArgv — NO launch-baked samplers (--override-generation-config is gone, #23)", () => {
+  const config = resolveEngineLaunchConfig(FLOOR, undefined);
+
+  for (const engine of ["embed", "rerank", "gen"] as const) {
+    test(`${engine} emits no --override-generation-config (samplers are per-request, never baked at launch)`, () => {
+      expect(buildEngineArgv(engine, config, CTX)).not.toContain("--override-generation-config");
+    });
+  }
+
+  test("gen carries no repetition_penalty anywhere in its argv (the checkpoint's own generation_config wins)", () => {
+    expect(buildEngineArgv("gen", config, CTX).join(" ")).not.toContain("repetition_penalty");
   });
 
-  test("an admin genRepetitionPenalty override changes the emitted JSON (retune → restart)", () => {
-    const config = resolveEngineLaunchConfig(FLOOR, { genRepetitionPenalty: 1.1 });
-    expect(flagVal(buildEngineArgv("gen", config, CTX), "--override-generation-config")).toBe('{"repetition_penalty":1.1}');
-  });
-
-  test("an env-floor bump to the penalty shows up in the flag (env-layered default)", () => {
-    const config = resolveEngineLaunchConfig({ ...FLOOR, VLLM_GEN_REPETITION_PENALTY: 1.15 }, undefined);
-    expect(flagVal(buildEngineArgv("gen", config, CTX), "--override-generation-config")).toBe('{"repetition_penalty":1.15}');
-  });
-
-  test("admin ⊕ env ⊕ default precedence: an admin override wins over the env floor for the penalty", () => {
-    const config = resolveEngineLaunchConfig({ ...FLOOR, VLLM_GEN_REPETITION_PENALTY: 1.15 }, { genRepetitionPenalty: 1.2 });
-    expect(config.genRepetitionPenalty).toBe(1.2);
-    expect(flagVal(buildEngineArgv("gen", config, CTX), "--override-generation-config")).toBe('{"repetition_penalty":1.2}');
-  });
-
-  test("embed + rerank carry NO override-generation-config flag (only gen has a default today)", () => {
-    const config = resolveEngineLaunchConfig(FLOOR, undefined);
-    expect(buildEngineArgv("embed", config, CTX)).not.toContain("--override-generation-config");
-    expect(buildEngineArgv("rerank", config, CTX)).not.toContain("--override-generation-config");
+  test("the resolved launch config holds no sampler field — the launch tier is flags-only", () => {
+    expect(config).not.toHaveProperty("genRepetitionPenalty");
   });
 });
 

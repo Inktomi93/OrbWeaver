@@ -18,8 +18,10 @@ import { runVllmChatCompletion } from "../engine/index.ts";
 
 const BACKEND = "vllm";
 
-// Defensive CoT strip: a PROSE summary must never carry `<think>…</think>` scaffolding (the default gen model
-// is Instruct/no-thinking, but a future Thinking checkpoint would emit it). SKIPPED on the STRUCTURED role
+// Defensive CoT strip: a PROSE summary must never carry `<think>…</think>` scaffolding. The gen slot runs a
+// THINKING checkpoint since 2026-08-10, so this is live defense, not a hypothetical: `--reasoning-parser qwen3`
+// already routes reasoning to its own field on the chat surfaces, and this strip is the fallback for anything
+// that leaks into the content of a non-streamed batch reply. SKIPPED on the STRUCTURED role
 // (S3): schema-constrained output IS pure JSON, and a `<think>…</think>` appearing there is a LEGITIMATE
 // literal inside a JSON string VALUE (e.g. a journal-content field quoting the tag) — stripping it would
 // excise real content or corrupt the JSON. The strip is a prose-path defense; constrained output doesn't

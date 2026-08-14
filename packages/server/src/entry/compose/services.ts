@@ -313,6 +313,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // LIVE getters (per batch / per request) so an admin retune applies WITHOUT a restart (Q6 / item 7).
     agentSdkSummarizeConcurrency: () => effectiveConfig.getEffectiveConfig().agentSdkConcurrency.summarize,
     genPresencePenalty: () => effectiveConfig.getEffectiveConfig().engineLaunch.genPresencePenalty,
+    genRepetitionPenalty: () => effectiveConfig.getEffectiveConfig().engineLaunch.genRepetitionPenalty,
     imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
     ...(deps.repoRoot !== undefined ? { repoRoot: deps.repoRoot } : {}),
   });
