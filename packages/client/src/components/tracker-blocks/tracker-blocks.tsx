@@ -37,14 +37,20 @@ import { TrackerValue } from "./tracker-value.tsx";
 export interface StatCellProps {
   /** The attribute short label ("STR"). */
   readonly label: string;
-  readonly value: number;
+  /** The reading, or `null` when this actor's sheet carries NO value for the attribute. Null is not zero and
+   *  not the profile floor — it renders the em-dash arm, per the block kit's never-synthesize-a-reading law
+   *  above and the sheet contract's "a sheet read treats a MISSING key as absent". Printing the range floor
+   *  for an unset attribute is what made a clobbered `20` read as a *revert* to `1` rather than as data loss. */
+  readonly value: number | null;
   /** The profile hint — rides `title` (§3.2). */
   readonly hint?: string;
-  /** Commit a new value — present ⇒ editable; absent ⇒ read-only. */
-  readonly onEditValue?: (next: number) => void;
+  /** Commit a new value — present ⇒ editable; absent ⇒ read-only. A `null` is the CLEAR (a blanked field),
+   *  the same grammar the sheet's `Level` chip uses: the value's own editor is the only place to unset it. */
+  readonly onEditValue?: (next: number | null) => void;
 }
 
-/** One attribute tile — `16` over `STR`. Grid-tiled 2-up (lite) to 3-up (wide) by the caller. */
+/** One attribute tile — `16` over `STR`, or `—` over `STR` for an unset attribute. Grid-tiled 2-up (lite) to
+ *  3-up (wide) by the caller. */
 export function StatCell({ label, value, hint, onEditValue }: StatCellProps): ReactElement {
   return (
     <Stack
@@ -55,20 +61,26 @@ export function StatCell({ label, value, hint, onEditValue }: StatCellProps): Re
       {...(hint === undefined ? {} : { title: hint })}
     >
       {onEditValue === undefined ? (
-        <Text as="span" size="title" className="tabular-nums">
-          {value}
+        <Text as="span" size="title" tone={value === null ? "muted" : "default"} className="tabular-nums">
+          {/* `??`, never `||` — a real reading of ZERO is a reading, and must not fall through to the em-dash. */}
+          {value ?? "—"}
         </Text>
       ) : (
         <TrackerValue
           ariaLabel={`${label} value`}
-          display={String(value)}
+          display={value === null ? "" : String(value)}
+          // The rest state's em-dash for an unset-but-editable cell — TrackerValue renders `placeholder` muted
+          // when the display is empty, which is the same "intentionally blank, not unfinished" arm every other
+          // editable value uses. An editor typing over it sees an EMPTY field, not a floor value to delete.
+          placeholder="—"
           kind="numeric"
           size="title"
           onEdit={(next): void => {
-            const n = Number.parseInt(next, 10);
-            if (!Number.isNaN(n)) {
-              onEditValue(n);
-            }
+            const trimmed = next.trim();
+            const n = Number.parseInt(trimmed, 10);
+            // Blank (or unparseable) CLEARS the attribute — the `SheetLevel` grammar, and the only door that
+            // un-references an attribute key so the host can still shrink the profile's vocabulary.
+            onEditValue(trimmed === "" || Number.isNaN(n) ? null : n);
           }}
           // `text-title` keeps the revealed input at the SAME type size as the big rest value — no
           // font-size jump inside the fixed cell (the no-layout-shift bar). The REST state hugs its

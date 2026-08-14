@@ -69,11 +69,17 @@ function wireActorRefKey(ref: inferInput<Trpc["rpg"]["patchSheet"]>["actorRef"])
 /**
  * RPG-STAT-ENTRY-REVERTS — apply a sheet patch to the cached tracker view, in place, for the ONE actor it names.
  *
- * The defect: an attribute cell is a controlled input reading `actor.sheet.attributes[key] ?? range.min`. On
- * blur it fires the write AND leaves edit mode in the same tick, so it re-rendered from the still-STALE server
- * read — a typed `20` visibly snapped back to `1` (the range floor, for a key the sheet does not carry yet),
- * and a hand-authored sheet could not be filled in at all. `invalidates` repairs that a round-trip later,
- * which is exactly one round-trip too late to be believed.
+ * The defect: an attribute cell is a controlled input. On blur it fires the write AND leaves edit mode in the
+ * same tick, so it re-rendered from the still-STALE server read — a typed `20` visibly snapped back, and a
+ * hand-authored sheet could not be filled in at all. `invalidates` repairs that a round-trip later, which is
+ * exactly one round-trip too late to be believed.
+ *
+ * THIS WAS HALF THE FIX (2026-08-07), and the owner's repro survived it (live, 2026-08-13). The other half was
+ * server-side: `patchSheet` REPLACED the whole attributes record while this fold merged key-wise, so the
+ * optimistic paint was right and the settled read was wrong — the value came back for one beat and then the
+ * clobbered row won. The verb now folds key-wise too (RPG-STAT-CLOBBER, `verbs/patch-sheet.ts`), and the two
+ * folds are deliberate twins. The old wording blamed `?? range.min`; that floor fallback was real but it was
+ * the DISGUISE — it made the loss render as a plausible `1` instead of as the em-dash it is now.
  *
  * EVERY sheet field, not just `attributes`: `className`/`flavor`/`level`/the tracker exceptions are the same
  * click-to-edit gesture against the same stale read, so covering one would leave the defect alive under the
@@ -91,6 +97,24 @@ function applySheetPatch(old: TrackerView | undefined, vars: inferInput<Trpc["rp
   };
 }
 
+/** The attributes sub-patch folded key-wise — the CLIENT half of the server's `mergeAttributes`
+ *  (RPG-STAT-CLOBBER): a number sets, an omitted key keeps, an explicit `null` CLEARS. The two folds must agree
+ *  byte-for-byte or the optimistic paint and the settled read disagree, which is the exact shape of the defect
+ *  this pair exists to close — the cache merged key-wise while the verb replaced the record, so a typed value
+ *  survived one round-trip and then snapped back. `null` is patch vocabulary only: a cleared attribute is an
+ *  ABSENT key in the view, which is what the sheet contract says a read must treat as unset. */
+function mergeAttributes(current: Readonly<Record<string, number>>, patch: Readonly<Record<string, number | null>>): Record<string, number> {
+  const next: Record<string, number> = { ...current };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) {
+      delete next[key];
+    } else {
+      next[key] = value;
+    }
+  }
+  return next;
+}
+
 /** The sheet merge itself — every field OMITTED-means-unchanged (an MA-4 patch), attributes MERGED key-wise
  *  and the scalars replaced. Lifted out of the `map` callback so neither half carries the other's branches. */
 function mergeSheet(
@@ -105,7 +129,7 @@ function mergeSheet(
     ...(level === undefined ? {} : { level }),
     ...(trackerGrants === undefined ? {} : { trackerGrants }),
     ...(trackerRevokes === undefined ? {} : { trackerRevokes }),
-    ...(attributes === undefined ? {} : { attributes: { ...sheet.attributes, ...attributes } }),
+    ...(attributes === undefined ? {} : { attributes: mergeAttributes(sheet.attributes, attributes) }),
   };
 }
 

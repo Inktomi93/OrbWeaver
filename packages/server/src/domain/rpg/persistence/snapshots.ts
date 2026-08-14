@@ -20,8 +20,11 @@
 // posting an EMPTY assistant message — a non-message that every canon plane then had to filter. So the
 // LADDER ORDER is no longer "message seq" alone; it is the (seq, hand-tier, createdAt, id) key {@link isLater}
 // decides, and THIS FILE IS ITS ONE HOME. Two arms feed every walk:
-//   • the TURN arm — the last visible assistant slot's SELECTED variant's snapshot (the swipe pointer: a
-//     swipe re-resolves the head with zero writes);
+//   • the TURN arm — the NEWEST slot on the SELECTED LINEAGE that carries a snapshot (the swipe pointer: a
+//     swipe re-resolves the head with zero writes). It WALKS DOWN: a beat that changed nothing wrote no
+//     snapshot at all (`chat-ops/flush.ts`), so stopping at the tail slot made this arm go dark on most beats
+//     and handed the head to the position-blind `createdAt` fallback — which, after a rewind, answered with
+//     the abandoned sibling variant's own row (RPG-REWIND-STUCK, see `turnRung`);
 //   • the HAND arm — the newest hand row at or below the walk's bound.
 // A hand row sits AFTER the turn row of the same slot (you edited on top of that beat), and a burst of hand
 // writes at one as-of slot orders by createdAt/id. A hand row survives a swipe of any slot — the same
@@ -189,30 +192,55 @@ function boundsBefore(pos: LadderPos): { readonly turnBelow: number; readonly ha
     : { turnBelow: pos.seq, hand: { seq: pos.seq, tie: null } };
 }
 
-/** THE TURN ARM: the last VISIBLE assistant slot's selected-variant snapshot, optionally bounded to slots
- *  strictly below `seqBelow`. The `selectedVariantId` pointer already encodes "visible", so this is a
- *  variant-pointer walk — a swipe re-resolves it with zero writes. */
-async function turnRung(db: Db, chatId: ChatId, seqBelow?: number): Promise<LadderRung | undefined> {
+/**
+ * THE TURN ARM: the NEWEST slot ON THE SELECTED LINEAGE that actually carries a snapshot — the last visible
+ * assistant slot whose SELECTED variant has one, optionally bounded to slots strictly below `seqBelow`. The
+ * `selectedVariantId` pointer encodes "visible" and "chosen", so this is a variant-pointer walk: a swipe
+ * re-resolves it with zero writes.
+ *
+ * IT WALKS DOWN THE LINEAGE; IT USED TO INSPECT EXACTLY ONE SLOT (RPG-REWIND-STUCK, 2026-08-13). The old shape
+ * read the last assistant slot, looked up its selected variant's snapshot, and returned `undefined` if there
+ * wasn't one — with no descent. But a snapshot-less variant is the NORMAL case, not an edge: `chat-ops/flush.ts`
+ * states outright that "a turn that staged NOTHING writes NO snapshot", and under the born-default `folded` mode
+ * every beat that changes no tracked state is exactly that. So this arm went dark on most beats, and the head
+ * fell through to the game-wide {@link latestSnapshot} fallback — which orders by `createdAt`, is blind to story
+ * position, and applies NO slot exclusion.
+ *
+ * In linear play that fallback is right BY ACCIDENT (write order agrees with story order), which is why the
+ * defect had no single repro. After a REWIND it is wrong in the worst possible way: swiping a beat to a quiet
+ * sibling resolved the ABANDONED sibling's own snapshot — measured, with the correct row sitting committed on
+ * the selected lineage one beat below, unreachable. That directly contradicts the D26/D124 promise this file's
+ * own header makes ("each variant's snapshot is its truth"; `db/schema/rpg.ts`: "a swipe rewinds BY
+ * CONSTRUCTION"), so the walk is enforcement of recorded law, not a new policy.
+ *
+ * ONE query, not a loop: `rpg_snapshots.variantId` is UNIQUE among non-null, so joining it to the slot's
+ * `selectedVariantId` is 1:1 and `order by seq desc limit 1` IS the descent. A slot whose selected variant
+ * carries no row simply does not join, which is the "keep walking" semantic expressed as a join.
+ */
+async function turnRung(db: Db, game: SnapshotGameRef, seqBelow?: number): Promise<LadderRung | undefined> {
   const rows = await db
-    .select({ seq: messages.seq, selectedVariantId: messages.selectedVariantId })
+    .select({ seq: messages.seq, snapshot: rpgSnapshots })
     .from(messages)
+    .innerJoin(rpgSnapshots, eq(rpgSnapshots.variantId, messages.selectedVariantId))
     .where(
       and(
-        eq(messages.chatId, chatId),
+        eq(messages.chatId, game.chatId),
         eq(messages.role, "assistant"),
         eq(messages.excludedFromPrompt, false),
+        // Game-scoped as well as chat-scoped: the join key is a variant, and scoping the ROW to this game keeps
+        // the arm honest if a chat ever carries more than one game's rows.
+        eq(rpgSnapshots.gameId, game.id),
         ...(seqBelow === undefined ? [] : [lt(messages.seq, seqBelow)]),
       ),
     )
     .orderBy(desc(messages.seq))
     .limit(LIMIT_ONE);
-  const slot = rows[0];
-  const variantId = slot?.selectedVariantId ?? null;
-  if (slot === undefined || variantId === null) {
+  const hit = rows[0];
+  if (hit === undefined) {
     return;
   }
-  const row = await findSnapshotByVariant(db, variantId);
-  return row === undefined ? undefined : { row, pos: { seq: slot.seq, hand: false, createdAt: row.createdAt, id: row.id } };
+  const row = parseSnapshotRow(hit.snapshot);
+  return { row, pos: { seq: hit.seq, hand: false, createdAt: row.createdAt, id: row.id } };
 }
 
 /** THE HAND ARM: the NEWEST hand row (`variantId IS NULL`) of a game, optionally strictly before `bound`.
@@ -265,10 +293,26 @@ async function ladderPosOf(db: Db, row: RpgSnapshotRow): Promise<LadderPos | und
 /** The GAME-WIDE fallback rungs: latest COMMITTED by `createdAt`, else latest ANY. `excludeMessageId` drops
  *  every snapshot keyed to that assistant SLOT — the flushing turn's own slot, whose sibling variants are
  *  precisely the ones a new variant must not inherit (VER-1a). HAND rows carry no `messageId`, so they are
- *  never that slot's siblings and must survive the exclusion (a bare `ne` on a NULL column drops them). */
+ *  never that slot's siblings and must survive the exclusion (a bare `ne` on a NULL column drops them).
+ *
+ *  IT IS SCOPED TO THE LIVE LINEAGE (RPG-REWIND-STUCK, 2026-08-13). This walk is ordered by `createdAt` and is
+ *  blind to story position, which is tolerable for "any state at all" — but it must never answer with a row
+ *  belonging to a variant NOBODY IS LOOKING AT. Under D26 each variant's snapshot is that variant's truth, so
+ *  an unselected sibling's row is the truth of prose the user navigated away from; returning it is exactly the
+ *  stuck-state the lineage walk above was built to end, surviving one rung lower. Walking the lineage fixed the
+ *  common shape; this closes the residue where BOTH arms are dark and the only rows left are dead variants'.
+ *  HAND rows (`variantId IS NULL`) stay eligible unconditionally — a hand write has no variant to rewind with
+ *  (`db/schema/rpg.ts`), and this file's header rules that a hand row survives a swipe of any slot. */
 async function latestSnapshot(db: Db, gameId: RpgGameId, excludeMessageId?: MessageId): Promise<RpgSnapshotRow | undefined> {
+  // A variant belongs to exactly ONE message, so the existence of a slot selecting it is unambiguous without a
+  // chat scope — this asks "is this row's variant the one on screen anywhere", which is a global fact.
+  const onLiveLineage = or(
+    isNull(rpgSnapshots.variantId),
+    sql`exists (select 1 from ${messages} where ${messages.selectedVariantId} = ${rpgSnapshots.variantId})`,
+  );
   const scope = [
     eq(rpgSnapshots.gameId, gameId),
+    onLiveLineage,
     ...(excludeMessageId === undefined ? [] : [or(isNull(rpgSnapshots.messageId), ne(rpgSnapshots.messageId, excludeMessageId))]),
   ];
   const committed = await db
@@ -314,10 +358,18 @@ export async function resolveSnapshotForTurn(db: Db, game: SnapshotGameRef): Pro
  *  edit is gone. The flush asks it to find a hand row shadowing the row it just wrote, and must know the seq so
  *  it folds into a hand row at its OWN slot only. */
 export async function resolveSnapshotHead(db: Db, game: SnapshotGameRef): Promise<ResolvedSnapshotHead | undefined> {
-  const head = laterRung(await turnRung(db, game.chatId), await handRung(db, game.id));
+  const head = laterRung(await turnRung(db, game), await handRung(db, game.id));
   if (head !== undefined) {
     return { row: head.row, arm: head.pos.hand ? "hand" : "turn", seq: head.pos.seq };
   }
+  // THE LAST RESORT, and since RPG-REWIND-STUCK it is very nearly unreachable — deliberately kept, deliberately
+  // demoted. It is POSITION-BLIND (ordered by `createdAt`, not by story seq) and applies no slot exclusion, so
+  // it must never be the answer for a game that HAS a lineage: that was the stuck-state bug, where a rewind
+  // resolved the abandoned sibling variant's row because the turn arm went dark one rung above. Now that the
+  // turn arm walks the whole selected lineage, both arms come back empty only when there is genuinely nothing
+  // positioned to find — a game with zero lineage rows. It can still legitimately fire there: a snapshot whose
+  // slot was hard-deleted, or a row written against a variant that is no longer selected anywhere. Answering
+  // "some state" beats answering "no state" in that corner, which is why it stays.
   const row = await latestSnapshot(db, game.id);
   // NO_SEQ, not the row's own position: the fallback walk is game-wide and deliberately position-blind (it
   // answers "any state at all" when the ladder is empty), so claiming a rung for it would be a fiction.
@@ -341,7 +393,7 @@ export async function resolveSnapshotHead(db: Db, game: SnapshotGameRef): Promis
 export async function resolveSnapshotBeforeSlot(db: Db, game: SnapshotGameRef, messageId: MessageId): Promise<RpgSnapshotRow | undefined> {
   const seq = await findMessageSeq(db, messageId);
   if (seq !== undefined) {
-    const prev = laterRung(await turnRung(db, game.chatId, seq), await handRung(db, game.id, { seq, tie: null }));
+    const prev = laterRung(await turnRung(db, game, seq), await handRung(db, game.id, { seq, tie: null }));
     if (prev !== undefined) {
       return prev.row;
     }
@@ -377,7 +429,7 @@ export async function resolveTurnSnapshotPair(
     return { cur, prev: undefined }; // cur's own slot vanished (a racing delete) — no lineage to walk
   }
   const bounds = boundsBefore(pos);
-  const prev = laterRung(await turnRung(db, game.chatId, bounds.turnBelow), await handRung(db, game.id, bounds.hand));
+  const prev = laterRung(await turnRung(db, game, bounds.turnBelow), await handRung(db, game.id, bounds.hand));
   return { cur, prev: prev?.row };
 }
 
