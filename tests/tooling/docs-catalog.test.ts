@@ -1,11 +1,38 @@
-import type { ReceiptEntry } from "../../scripts/docs/catalog.ts";
+import type { ReceiptClaim, ReceiptEntry, ReceiptFacts } from "../../scripts/docs/catalog.ts";
 import { catalogReceipt, debtPathErrors, parseFrontmatter, validateReceiptEntry } from "../../scripts/docs/catalog.ts";
 import { expect, test } from "../support/fixtures.ts";
 
-const HASH = "a".repeat(64);
-const COMMIT = "b".repeat(40);
-const ANCESTOR = "c".repeat(40);
+const HASH_LENGTH = 64;
+const COMMIT_LENGTH = 40;
+const FIRST_LINE = 1;
+const REVIEWED_RECEIPT_REQUIREMENTS = 7;
+const HASH = "a".repeat(HASH_LENGTH);
+const COMMIT = "b".repeat(COMMIT_LENGTH);
+const ANCESTOR = "c".repeat(COMMIT_LENGTH);
 const CLAIMS = [{ claim: "Current behavior", evidence: [{ kind: "code", target: "packages/example.ts:1" }] }];
+const LAW_PATH = "docs/architecture/core/Core-Laws-and-Precedents.md";
+
+function facts(overrides: Partial<ReceiptFacts> = {}): ReceiptFacts {
+  return {
+    currentSha256: HASH,
+    verifiedBlobSha256: HASH,
+    verifiedCommitExists: true,
+    verifiedCommitIsAncestor: true,
+    localEvidence: new Map([
+      ["packages/example.ts", FIRST_LINE],
+      ["scripts/docs/catalog.ts", FIRST_LINE],
+      ["tests/example.test.ts", FIRST_LINE],
+      ["scripts/check/example.ts", FIRST_LINE],
+    ]),
+    lawSections: new Map([[LAW_PATH, new Map([["7", FIRST_LINE]])]]),
+    provenanceCommits: new Set([ANCESTOR]),
+    rulingAnchors: new Map([
+      ["86", FIRST_LINE],
+      ["139", FIRST_LINE],
+    ]),
+    ...overrides,
+  };
+}
 
 function reviewed(overrides: Partial<ReceiptEntry> = {}): ReceiptEntry {
   return {
@@ -29,6 +56,10 @@ function reviewedWithoutClaims(overrides: Partial<ReceiptEntry> = {}): ReceiptEn
   return entry;
 }
 
+function claimEvidence(kind: string, target: string): readonly ReceiptClaim[] {
+  return [{ claim: "Stable authority", evidence: [{ kind, target }] }];
+}
+
 test("frontmatter parser keeps the deliberately flat schema machine-readable", () => {
   expect(parseFrontmatter("---\nkind: law\nstatus: active\nupdated: 2026-08-14\n---\n# Law\n")).toEqual({
     present: true,
@@ -49,32 +80,24 @@ test("a reviewed receipt requires full-read, content hash, commit, date, evidenc
     validateReceiptEntry(
       reviewed({ authority: "unclassified", fullRead: false, verifiedSha256: null, verifiedCommit: null, verifiedAt: null, evidence: [], summary: "" }),
     ),
-  ).toHaveLength(7);
+  ).toHaveLength(REVIEWED_RECEIPT_REQUIREMENTS);
 });
 
 test("a current receipt rejects self-attestation and an unbound verification commit", () => {
   expect(
-    validateReceiptEntry(reviewed({ claims: [{ claim: "Self", evidence: [{ kind: "ruling", target: "docs/example.md:1" }] }] }), {
-      currentSha256: HASH,
-      verifiedBlobSha256: HASH,
-      verifiedCommitExists: true,
-      verifiedCommitIsAncestor: false,
-      localEvidence: new Map([["docs/example.md", 1]]),
-      provenanceCommits: new Set(),
-    }),
-  ).toEqual(["docs/example.md: ruling evidence target has the wrong root: docs/example.md:1", "docs/example.md: verifiedCommit is not an ancestor of HEAD"]);
+    validateReceiptEntry(
+      reviewed({ claims: [{ claim: "Self", evidence: [{ kind: "ruling", target: "docs/example.md:1" }] }] }),
+      facts({ verifiedCommitIsAncestor: false, localEvidence: new Map([["docs/example.md", FIRST_LINE]]), provenanceCommits: new Set() }),
+    ),
+  ).toEqual(["docs/example.md: ruling evidence target must be D<n>", "docs/example.md: verifiedCommit is not an ancestor of HEAD"]);
 });
 
 test("a reviewed receipt binds verified hash, commit blob, and current document bytes", () => {
   expect(
-    validateReceiptEntry(reviewed({ assignedSha256: "c".repeat(64) }), {
-      currentSha256: HASH,
-      verifiedBlobSha256: "d".repeat(64),
-      verifiedCommitExists: false,
-      verifiedCommitIsAncestor: false,
-      localEvidence: new Map([["packages/example.ts", 1]]),
-      provenanceCommits: new Set(),
-    }),
+    validateReceiptEntry(
+      reviewed({ assignedSha256: "c".repeat(HASH_LENGTH) }),
+      facts({ verifiedBlobSha256: "d".repeat(HASH_LENGTH), verifiedCommitExists: false, verifiedCommitIsAncestor: false, provenanceCommits: new Set() }),
+    ),
   ).toEqual(["docs/example.md: verifiedSha256 does not match the verified commit blob", "docs/example.md: verifiedCommit does not resolve to a commit"]);
 });
 
@@ -90,7 +113,8 @@ test("typed claim evidence resolves its role-specific local targets", () => {
               { kind: "code", target: "scripts/docs/catalog.ts:1" },
               { kind: "test", target: "tests/example.test.ts:1" },
               { kind: "gate", target: "scripts/check/example.ts:1" },
-              { kind: "ruling", target: "docs/architecture/core/Core-Path-Registry.md:1" },
+              { kind: "ruling", target: "D139" },
+              { kind: "law", target: `${LAW_PATH} §7` },
               { kind: "issue", target: "#52" },
               { kind: "upstream", target: "https://example.com/source" },
               { kind: "provenance", target: `git:${ANCESTOR}` },
@@ -98,22 +122,51 @@ test("typed claim evidence resolves its role-specific local targets", () => {
           },
         ],
       }),
-      {
-        currentSha256: HASH,
-        verifiedBlobSha256: HASH,
-        verifiedCommitExists: true,
-        verifiedCommitIsAncestor: true,
-        localEvidence: new Map([
-          ["packages/example.ts", 1],
-          ["scripts/docs/catalog.ts", 1],
-          ["tests/example.test.ts", 1],
-          ["scripts/check/example.ts", 1],
-          ["docs/architecture/core/Core-Path-Registry.md", 1],
-        ]),
-        provenanceCommits: new Set([ANCESTOR]),
-      },
+      facts(),
     ),
   ).toEqual([]);
+});
+
+test("stable law and ruling targets survive line movement", () => {
+  const claims = [
+    {
+      claim: "Stable authority",
+      evidence: [
+        { kind: "law", target: `${LAW_PATH} §7` },
+        { kind: "ruling", target: "D139" },
+      ],
+    },
+  ];
+  expect(validateReceiptEntry(reviewed({ claims }), facts())).toEqual([]);
+  expect(validateReceiptEntry(reviewed({ claims }), facts({ localEvidence: new Map([[LAW_PATH, FIRST_LINE]]) }))).toEqual([]);
+});
+
+test("stable authority targets reject missing, duplicate, malformed, and wrong-kind anchors", () => {
+  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("ruling", "D86") }), facts())).toEqual([]);
+  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("ruling", "D142") }), facts())).toEqual([
+    "docs/example.md: ruling evidence target does not resolve: D142",
+  ]);
+  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("ruling", "D139") }), facts({ rulingAnchors: new Map([["139", 2]]) }))).toEqual([
+    "docs/example.md: ruling evidence target is ambiguous: D139",
+  ]);
+  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("ruling", "D079") }), facts())).toEqual([
+    "docs/example.md: ruling evidence target must be D<n>",
+  ]);
+  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("ruling", "D80") }), facts())).toEqual([
+    "docs/example.md: ruling evidence target is reserved: D80",
+  ]);
+  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("law", `${LAW_PATH} §8`) }), facts())).toEqual([
+    `docs/example.md: law evidence target does not resolve: ${LAW_PATH} §8`,
+  ]);
+  expect(
+    validateReceiptEntry(reviewed({ claims: claimEvidence("law", `${LAW_PATH} §7`) }), facts({ lawSections: new Map([[LAW_PATH, new Map([["7", 2]])]]) })),
+  ).toEqual([`docs/example.md: law evidence target is ambiguous: ${LAW_PATH} §7`]);
+  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("law", "D139") }), facts())).toEqual([
+    "docs/example.md: law evidence target must be current-law-path §<section>",
+  ]);
+  expect(validateReceiptEntry(reviewed({ claims: claimEvidence("ruling", `${LAW_PATH} §7`) }), facts())).toEqual([
+    "docs/example.md: ruling evidence target must be D<n>",
+  ]);
 });
 
 test("archive and vendor lifecycle attestations do not impersonate current claim review", () => {

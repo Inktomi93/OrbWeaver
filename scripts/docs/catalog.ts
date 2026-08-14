@@ -11,6 +11,7 @@ const LANES_PATH = `${CATALOG_DIR}/lanes.json`;
 const STATE_PATH = `${CATALOG_DIR}/state.json`;
 const OUTPUT_PATH = `${CATALOG_DIR}/catalog.json`;
 const RECEIPTS_DIR = `${CATALOG_DIR}/receipts`;
+const CORE_PATH_REGISTRY_PATH = "docs/architecture/core/Core-Path-Registry.md";
 const FRONTMATTER_FENCE_LENGTH = 4;
 const FRONTMATTER_LINE_OFFSET = 2;
 const EXIT_MISUSE = 3;
@@ -48,9 +49,16 @@ const VALID_DISPOSITIONS = new Set([
   "vendor-snapshot",
 ]);
 const VALID_AUTHORITIES = new Set(["current-reference", "design", "generated", "historical", "normative", "operational", "review", "unclassified", "vendor"]);
-const VALID_EVIDENCE_KINDS = new Set(["code", "test", "gate", "issue", "ruling", "upstream", "provenance"]);
-const LOCAL_EVIDENCE_KINDS = new Set(["code", "test", "gate", "ruling"]);
+const VALID_EVIDENCE_KINDS = new Set(["code", "test", "gate", "issue", "law", "ruling", "upstream", "provenance"]);
+const LOCAL_EVIDENCE_KINDS = new Set(["code", "test", "gate"]);
 const LOCAL_EVIDENCE_RE = /^([^:\n]+):(\d+)$/u;
+const LAW_EVIDENCE_RE = /^([^\s\n]+) §([1-9]\d*)$/u;
+const RULING_EVIDENCE_RE = /^D([1-9]\d*)$/u;
+const FIRST_RESERVED_RULING = 79;
+const LAST_RESERVED_RULING = 105;
+const LEDGER_ENTRY_HEADING_RE = /^## D([1-9]\d*)(?:\s|\(|$)/u;
+const LEDGER_ENTRY_BOLD_RE = /^- \*\*D([1-9]\d*)\b/u;
+const NUMERIC_HEADING_RE = /^#{1,6} ([1-9]\d*)\.\s/u;
 const ISSUE_EVIDENCE_RE = /^#\d+$/u;
 const URL_EVIDENCE_RE = /^https:\/\/\S+$/u;
 const PROVENANCE_EVIDENCE_RE = /^git:([a-f0-9]{40})$/u;
@@ -58,16 +66,19 @@ const TEXT_EVIDENCE_EXTENSIONS = new Set([".cjs", ".css", ".cts", ".html", ".jso
 const REQUIRED_FRONTMATTER_KEYS = ["kind", "status", "updated"];
 const ALLOWED_FRONTMATTER_KEYS = new Set([...REQUIRED_FRONTMATTER_KEYS, "supersedes"]);
 
-type Lane = {
+interface Lane {
   readonly id: string;
   readonly issue: number;
   readonly patterns: readonly string[];
   readonly excludePatterns?: readonly string[];
-};
+}
 
-type LaneConfig = { readonly schemaVersion: number; readonly lanes: readonly Lane[] };
+interface LaneConfig {
+  readonly schemaVersion: number;
+  readonly lanes: readonly Lane[];
+}
 
-export type ReceiptEntry = {
+export interface ReceiptEntry {
   readonly path: string;
   readonly assignedSha256: string;
   readonly disposition: string;
@@ -79,7 +90,7 @@ export type ReceiptEntry = {
   readonly evidence: readonly string[];
   readonly claims?: readonly ReceiptClaim[];
   readonly summary: string;
-};
+}
 
 export interface ReceiptEvidence {
   readonly kind: string;
@@ -91,38 +102,46 @@ export interface ReceiptClaim {
   readonly evidence: readonly ReceiptEvidence[];
 }
 
-type Receipt = {
+interface Receipt {
   readonly schemaVersion: number;
   readonly lane: string;
   readonly issue: number;
   readonly entries: readonly ReceiptEntry[];
-};
+}
 
-type Floors = {
+interface Floors {
   readonly pending: number;
   readonly missingFrontmatter: number;
   readonly invalidFrontmatter: number;
   readonly malformedFrontmatter: number;
-};
+}
 
-type DebtPaths = { readonly [K in keyof Floors]: readonly string[] };
+interface DebtPaths {
+  readonly pending: readonly string[];
+  readonly missingFrontmatter: readonly string[];
+  readonly invalidFrontmatter: readonly string[];
+  readonly malformedFrontmatter: readonly string[];
+}
 
-type State = { readonly schemaVersion: number; readonly allowed?: DebtPaths };
+interface State {
+  readonly schemaVersion: number;
+  readonly allowed?: DebtPaths;
+}
 
-export type Frontmatter = {
+export interface Frontmatter {
   readonly present: boolean;
   readonly malformed: boolean;
   readonly fields: Readonly<Record<string, string>>;
   readonly errors: readonly string[];
-};
+}
 
-type Doc = {
+interface Doc {
   readonly path: string;
   readonly lines: number;
   readonly bytes: number;
   readonly sha256: string;
   readonly frontmatter: Frontmatter;
-};
+}
 
 export interface ReceiptFacts {
   readonly currentSha256: string;
@@ -130,7 +149,9 @@ export interface ReceiptFacts {
   readonly verifiedCommitExists: boolean;
   readonly verifiedCommitIsAncestor: boolean;
   readonly localEvidence: ReadonlyMap<string, number>;
+  readonly lawSections: ReadonlyMap<string, ReadonlyMap<string, number>>;
   readonly provenanceCommits: ReadonlySet<string>;
+  readonly rulingAnchors: ReadonlyMap<string, number>;
 }
 
 const root = process.cwd();
@@ -183,7 +204,14 @@ function headAncestors(): ReadonlySet<string> {
   );
 }
 
-function receiptFacts(entry: ReceiptEntry, doc: Doc, localEvidence: ReadonlyMap<string, number>, ancestors: ReadonlySet<string>): ReceiptFacts {
+interface EvidenceSources {
+  readonly localEvidence: ReadonlyMap<string, number>;
+  readonly lawSections: ReadonlyMap<string, ReadonlyMap<string, number>>;
+  readonly ancestors: ReadonlySet<string>;
+  readonly rulingAnchors: ReadonlyMap<string, number>;
+}
+
+function receiptFacts(entry: ReceiptEntry, doc: Doc, sources: EvidenceSources): ReceiptFacts {
   const commit = entry.verifiedCommit;
   const verifiedCommitExists = commit !== null && COMMIT_RE.test(commit) && gitResult(["cat-file", "-e", `${commit}^{commit}`]) !== null;
   const verifiedCommitIsAncestor = verifiedCommitExists && gitResult(["merge-base", "--is-ancestor", commit as string, "HEAD"]) !== null;
@@ -194,8 +222,10 @@ function receiptFacts(entry: ReceiptEntry, doc: Doc, localEvidence: ReadonlyMap<
     verifiedBlobSha256,
     verifiedCommitExists,
     verifiedCommitIsAncestor,
-    localEvidence,
-    provenanceCommits: ancestors,
+    localEvidence: sources.localEvidence,
+    lawSections: sources.lawSections,
+    provenanceCommits: sources.ancestors,
+    rulingAnchors: sources.rulingAnchors,
   };
 }
 
@@ -305,6 +335,53 @@ function documents(): readonly Doc[] {
   });
 }
 
+function stableLawSections(docs: readonly Doc[]): ReadonlyMap<string, ReadonlyMap<string, number>> {
+  const sections = new Map<string, ReadonlyMap<string, number>>();
+  for (const doc of docs) {
+    if (!doc.path.startsWith("docs/architecture/core/") || doc.frontmatter.fields["kind"] !== "law" || doc.frontmatter.fields["status"] !== "active") {
+      continue;
+    }
+    const counts = new Map<string, number>();
+    for (const line of readFileSync(join(root, doc.path), "utf8").split("\n")) {
+      const section = NUMERIC_HEADING_RE.exec(line)?.[1];
+      if (section !== undefined) {
+        counts.set(section, (counts.get(section) ?? 0) + 1);
+      }
+    }
+    sections.set(doc.path, counts);
+  }
+  return sections;
+}
+
+function stableRulingAnchors(): ReadonlyMap<string, number> {
+  const counts = new Map<string, number>();
+  let headedRuling: string | undefined;
+  let headedRulingPaired = false;
+  for (const line of readFileSync(join(root, CORE_PATH_REGISTRY_PATH), "utf8").split("\n")) {
+    const heading = LEDGER_ENTRY_HEADING_RE.exec(line)?.[1];
+    if (heading !== undefined) {
+      counts.set(heading, (counts.get(heading) ?? 0) + 1);
+      headedRuling = heading;
+      headedRulingPaired = false;
+      continue;
+    }
+    if (line.startsWith("## ")) {
+      headedRuling = undefined;
+      continue;
+    }
+    const bold = LEDGER_ENTRY_BOLD_RE.exec(line)?.[1];
+    if (bold === undefined) {
+      continue;
+    }
+    if (headedRuling === bold && !headedRulingPaired) {
+      headedRulingPaired = true;
+      continue;
+    }
+    counts.set(bold, (counts.get(bold) ?? 0) + 1);
+  }
+  return counts;
+}
+
 function pathsForLane(lane: Lane): ReadonlySet<string> {
   const included = new Set(lane.patterns.flatMap((pattern) => globSync(pattern, { cwd: root })));
   for (const pattern of lane.excludePatterns ?? []) {
@@ -400,22 +477,29 @@ function migrationDebt(docs: readonly Doc[], receipts: readonly Receipt[]): Debt
 
 function migrationMetrics(docs: readonly Doc[], receipts: readonly Receipt[]): Floors {
   const debt = migrationDebt(docs, receipts);
-  return Object.fromEntries((Object.keys(debt) as (keyof Floors)[]).map((key) => [key, debt[key].length])) as Floors;
+  return {
+    pending: debt.pending.length,
+    missingFrontmatter: debt.missingFrontmatter.length,
+    invalidFrontmatter: debt.invalidFrontmatter.length,
+    malformedFrontmatter: debt.malformedFrontmatter.length,
+  };
 }
 
-type ValidationInput = {
+interface ValidationInput {
   readonly config: LaneConfig;
   readonly docs: readonly Doc[];
   readonly assignments: ReadonlyMap<string, Lane>;
   readonly receipts: readonly Receipt[];
   readonly state: State;
-};
+}
 
 interface ReceiptValidationContext {
   readonly assignments: ReadonlyMap<string, Lane>;
   readonly docsByPath: ReadonlyMap<string, Doc>;
   readonly localEvidence: ReadonlyMap<string, number>;
+  readonly lawSections: ReadonlyMap<string, ReadonlyMap<string, number>>;
   readonly ancestors: ReadonlySet<string>;
+  readonly rulingAnchors: ReadonlyMap<string, number>;
 }
 
 function receiptEntryErrors(entry: ReceiptEntry, receipt: Receipt, context: ReceiptValidationContext): readonly string[] {
@@ -424,7 +508,19 @@ function receiptEntryErrors(entry: ReceiptEntry, receipt: Receipt, context: Rece
     errors.push(`${entry.path}: receipt is in ${receipt.lane}, expected ${context.assignments.get(entry.path)?.id ?? "no lane"}`);
   }
   const doc = context.docsByPath.get(entry.path);
-  errors.push(...validateReceiptEntry(entry, doc === undefined ? undefined : receiptFacts(entry, doc, context.localEvidence, context.ancestors)));
+  errors.push(
+    ...validateReceiptEntry(
+      entry,
+      doc === undefined
+        ? undefined
+        : receiptFacts(entry, doc, {
+            localEvidence: context.localEvidence,
+            lawSections: context.lawSections,
+            ancestors: context.ancestors,
+            rulingAnchors: context.rulingAnchors,
+          }),
+    ),
+  );
   return errors;
 }
 
@@ -438,7 +534,9 @@ function indexReceipts(
   const byPath = new Map<string, ReceiptEntry>();
   const docsByPath = new Map(docs.map((doc) => [doc.path, doc] as const));
   const localEvidence = localEvidenceLines();
+  const lawSections = stableLawSections(docs);
   const ancestors = headAncestors();
+  const rulingAnchors = stableRulingAnchors();
   for (const receipt of receipts) {
     const lane = config.lanes.find((candidate) => candidate.id === receipt.lane);
     if (receipt.schemaVersion !== SCHEMA_VERSION || lane === undefined || receipt.issue !== lane.issue) {
@@ -449,7 +547,7 @@ function indexReceipts(
         errors.push(`${entry.path}: duplicate receipt entry`);
       }
       byPath.set(entry.path, entry);
-      errors.push(...receiptEntryErrors(entry, receipt, { assignments, docsByPath, localEvidence, ancestors }));
+      errors.push(...receiptEntryErrors(entry, receipt, { assignments, docsByPath, localEvidence, lawSections, ancestors, rulingAnchors }));
     }
   }
   return { byPath, errors };
@@ -565,12 +663,58 @@ function localEvidenceErrors(entry: ReceiptEntry, evidence: ReceiptEvidence, fac
     : [`${entry.path}: ${evidence.kind} evidence target has the wrong root: ${evidence.target}`];
 }
 
+function lawEvidenceErrors(entry: ReceiptEntry, evidence: ReceiptEvidence, facts: ReceiptFacts): readonly string[] {
+  const match = LAW_EVIDENCE_RE.exec(evidence.target);
+  if (match === null) {
+    return [`${entry.path}: law evidence target must be current-law-path §<section>`];
+  }
+  const [, path, section] = match;
+  const occurrences = facts.lawSections.get(path ?? "")?.get(section ?? "");
+  if (occurrences === undefined) {
+    return [`${entry.path}: law evidence target does not resolve: ${evidence.target}`];
+  }
+  return occurrences === 1 ? [] : [`${entry.path}: law evidence target is ambiguous: ${evidence.target}`];
+}
+
+function rulingEvidenceErrors(entry: ReceiptEntry, evidence: ReceiptEvidence, facts: ReceiptFacts): readonly string[] {
+  const match = RULING_EVIDENCE_RE.exec(evidence.target);
+  if (match === null) {
+    return [`${entry.path}: ruling evidence target must be D<n>`];
+  }
+  const ruling = match[1] ?? "";
+  const occurrences = facts.rulingAnchors.get(ruling);
+  if (occurrences !== undefined) {
+    return occurrences === 1 ? [] : [`${entry.path}: ruling evidence target is ambiguous: ${evidence.target}`];
+  }
+  const number = Number(ruling);
+  return number >= FIRST_RESERVED_RULING && number <= LAST_RESERVED_RULING
+    ? [`${entry.path}: ruling evidence target is reserved: ${evidence.target}`]
+    : [`${entry.path}: ruling evidence target does not resolve: ${evidence.target}`];
+}
+
+function contextualEvidenceErrors(entry: ReceiptEntry, evidence: ReceiptEvidence, facts: ReceiptFacts | undefined): readonly string[] {
+  if (facts === undefined) {
+    return [];
+  }
+  if (LOCAL_EVIDENCE_KINDS.has(evidence.kind)) {
+    return localEvidenceErrors(entry, evidence, facts);
+  }
+  if (evidence.kind === "law") {
+    return lawEvidenceErrors(entry, evidence, facts);
+  }
+  if (evidence.kind === "ruling") {
+    return rulingEvidenceErrors(entry, evidence, facts);
+  }
+  return [];
+}
+
 function evidenceErrors(entry: ReceiptEntry, evidence: ReceiptEvidence, facts: ReceiptFacts | undefined): readonly string[] {
   if (!VALID_EVIDENCE_KINDS.has(evidence.kind)) {
     return [`${entry.path}: invalid evidence kind ${evidence.kind}`];
   }
-  if (LOCAL_EVIDENCE_KINDS.has(evidence.kind)) {
-    return facts === undefined ? [] : localEvidenceErrors(entry, evidence, facts);
+  const contextual = contextualEvidenceErrors(entry, evidence, facts);
+  if (contextual.length > 0 || LOCAL_EVIDENCE_KINDS.has(evidence.kind) || evidence.kind === "law" || evidence.kind === "ruling") {
+    return contextual;
   }
   if (evidence.kind === "issue") {
     return ISSUE_EVIDENCE_RE.test(evidence.target) ? [] : [`${entry.path}: issue evidence target must be #<number>`];
