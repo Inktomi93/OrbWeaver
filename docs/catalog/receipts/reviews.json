@@ -130,7 +130,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "e67c7a008e63dce630d5be05d8788db9896df2b7715c0e02cba1bc16673d88ad",
-      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/reviews/misc/2026-08-08-task-7-12-gap-rederivation.md:1-347 full read; active review metadata verified",
@@ -190,7 +190,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "6641f7351d162c33b96e570894397c0f14593b5fb2eae07c5c77bd675a61cdc8",
-      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/reviews/misc/2026-08-09-package-report-cards-worklist.md:1-203 full read; active review metadata verified",
@@ -220,7 +220,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "33b33e89fdea1efa221553493465482db64901c264d293c19a4a9a0a2e180968",
-      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/reviews/misc/2026-08-09-refinery-live-e2e.md:1-189 full read; active review metadata verified",
@@ -250,7 +250,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "d40d796598963a18a3acea8a67f945aeb93b360e830b897b92831f42e0ca1868",
-      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/reviews/misc/2026-08-14-dogfood-class-sweep.md:1-210 full read; active review metadata verified",
@@ -280,7 +280,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "1f8af45821055b8a07bb498f472454f1ae96102c44ba1fb4190c9ede43cce380",
-      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/reviews/misc/2026-08-14-global-agents-proposed.md:1-205 full read; active review metadata verified",
@@ -340,7 +340,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "ae01577ab3d9fbf674c6ad20679dd2185a52f2488e6cdc430f832e11706cd912",
-      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/reviews/misc/marinara-engine-parser-macro-audit.md:1-279 full read; active review metadata verified",
@@ -370,7 +370,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "74a9236c073f4d007a630d394b79f7672c7e2353cb3a54b5e92960579a9185a3",
-      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/reviews/misc/marinara-st-extension-lite-mode.md:1-401 full read; active review metadata verified",
@@ -471,7 +471,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "bd7620c756de2bf28747aac6421c8c9f93e51376744dd94c351622916f16aced",
-      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/reviews/security/2026-08-09-authentik-provider-config-crosscheck.md:1-264 full read; active review metadata verified",
@@ -497,7 +497,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "668f18f3cb2134adab01c9b410e93a0d515ba34bedc24553c2271c6140462948",
-      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/reviews/security/2026-08-09-macro-engine-dos-audit.md:1-188 full read; active review metadata verified",
@@ -527,7 +527,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "91e0f3766a14b85fc1bb4fc97ddd9bd9e68c7e5c2ca9f1105c6529a311d595b7",
-      "verifiedCommit": "fda7666ec46649f5a0c6ced94c61c73d26d8add3",
+      "verifiedCommit": "260e9d660d3f4b254e1d7183b4f6e3a531469c87",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/reviews/security/2026-08-09-pre-auth-attack-surface.md:1-360 full read; active review metadata verified",

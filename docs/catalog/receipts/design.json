@@ -10,7 +10,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "732028fd2a35b57d4eee627eb59f6d069a11721c647f49448160dde9ee2a52bc",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/actions-tab-information-architecture.md:1 (design; unheaded)",
@@ -41,7 +41,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "8efb0c6db36cea700bb553e241ae3ec1a090d6a645a6edb8b90ab0e3613371b9",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/boot-loader-smoothness-options.md:1 (design; unheaded)",
@@ -88,7 +88,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "ad6b4f4d21b85a86f705cde02b87668ca1cd8acbc13dbee2b8462298db627cd5",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/config-ia-the-junk-drawer-problem.md:1 (design; unheaded)",
@@ -131,7 +131,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "7859454c9c91374216e76aff22bcc0b80be9f1126f9e3e19daac421bfe4a02fd",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/containerize-build-plan.md:1 (design; active)",
@@ -162,7 +162,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "a93959e4bbacf9959157066839c58effe0041a04fc8b1f63e75f60ba59a6084a",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/containerize-prod-image-spec.md:1 (design; draft)",
@@ -225,7 +225,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "d31894370ae4199b49bcd5f7f81944eec92f22df33715eda6b23cd6d26b609d0",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/default-character-roster.md:1 (design; unheaded)",
@@ -256,7 +256,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "6d897d068e9079ed110ab033620fbe635773a066961e116d37f3e732ebf67643",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/demo-seeding-rebuild.md:1 (design; draft)",
@@ -283,7 +283,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "bf0a32846d6cc924b9251dd0b2c3e9c562df1627de1fd400795935950808d4eb",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/density-pass-spec.md:1 (spec; approved (owner-ruled 2026-08-01))",
@@ -314,7 +314,7 @@
       "authority": "historical",
       "fullRead": true,
       "verifiedSha256": "543bdf62e156d3391528c4799336a1646adc72e4f248fa003fd7fdb26c46673b",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/docker-modern-practices-research.md:1 (research; draft)",
@@ -394,7 +394,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "7d0b82f70054c2cf526f9164ee16f2868d0240acb51c4d92b6495db78366bce0",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/home-tile-promotion.md:1 (design; open — owner decision pending)",
@@ -441,7 +441,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "bb8fbf9f11016305cf06ab84c7d3cf938773e9943160a3723cb42995b1e3af09",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/lite-plus-guided-substrate-spec.md:1 (design; unheaded)",
@@ -568,7 +568,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "b862f2977be533e1a114e4c8386803ccef41b054f1cf7199a5dcdd677d5b25cb",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/note-token-intent-history.md:1 (design; unheaded)",
@@ -599,7 +599,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "62db6f243afd959b51eee37dd5b158cf471a098891fed211fef0c604969cf881",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/oidc-authentik-openwebui-study.md:1 (design; draft)",
@@ -646,7 +646,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "12cd2491a28f081c53adbcd345de22da02f828b9d49572ed4d0cd5fdffefcc9b",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/openwebui-auth-methods-study.md:1 (design; draft)",
@@ -693,7 +693,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "ba64418ec539a817dbaf286d9908465046f98a072f0cfada99bf585a08fb173c",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/parked-options-config-port.md:1 (design-options; decision-input)",
@@ -724,7 +724,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "fbab257e3d52182e102c4cec1c658220681372659f85e71606f7954daa58cbe2",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/parked-options-ops-posture.md:1 (design; unheaded)",
@@ -755,7 +755,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "90d8b987e627a836f9f2dfd5c548a7d887488d9770895e95348ea626e9a68f1a",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/parked-options-persona-prose.md:1 (design; unheaded)",
@@ -802,7 +802,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "67b178c778674fa64e48a86240a936233929f9d37540773e8203c5e4f05577df",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/persona-character-kind-substrate.md:1 (design; unheaded)",
@@ -849,7 +849,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "c86f4cd62345a0cf7c70330dba65ee0d440c2b989fea75162fa594a1b642c310",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/prod-build-cls-investigation.md:1 (design; unheaded)",
@@ -1007,7 +1007,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "e00c38e10d8a93f25600535d59a469d31bcd1e1ce73e41ff13dbc34aa88b1523",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/rpg-extraction-one-call-spike.md:1 (design; unheaded)",
@@ -1210,7 +1210,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "e0b4ca9535c50fd08f21e6a0925d2ce56bd7362c62bbbf387545f94a00eaa2ee",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/tracked-field-unification.md:1 (design; unheaded)",
@@ -1253,7 +1253,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "8f45db0703148fb49f2c03aa2261dde6ffd65ff5ba4c5e38df341fa3ef33159e",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/user-macro-delivery-spec.md:1 (design; unheaded)",
@@ -1284,7 +1284,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "0ce7e8cca547e5c277bf3cb6453d416357549eef92ecdf12701d47f08af29275",
-      "verifiedCommit": "a598ac1f17d65befa09488e276581194fd777799",
+      "verifiedCommit": "d41ad3f8e3c869255788ae8c0258f98c6ef75315",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/design/v3-demo-transcripts-heal.md:1 (design; unheaded)",

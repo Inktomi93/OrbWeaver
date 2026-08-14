@@ -10,7 +10,7 @@
       "authority": "review",
       "fullRead": true,
       "verifiedSha256": "ff12971559ff7563295cdaa3158f8e4b5e4909c76a4d62c8c42f4813121c8d4f",
-      "verifiedCommit": "6598029fcedbca7f111bc856553284b2fab8f5b6",
+      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/Agent-And-Composition-Pain-Points.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -72,7 +72,7 @@
       "authority": "current-reference",
       "fullRead": true,
       "verifiedSha256": "1bc9377962b5fb33e8a91dae64905dc0b8c1065a3ee1e4465a9af424be203f0a",
-      "verifiedCommit": "6598029fcedbca7f111bc856553284b2fab8f5b6",
+      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/proposed/INDEX.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -134,7 +134,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "36e99c8f58fbef6874744405d110d9159275d22600ca15670cfaab35af4f636b",
-      "verifiedCommit": "6598029fcedbca7f111bc856553284b2fab8f5b6",
+      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/proposed/agent-principal-design/01-identity-and-mint.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -182,7 +182,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "d27e788791d3a44f4869b0e9fbd885fd906eefd4b6c3d00708d2d486adb12aff",
-      "verifiedCommit": "6598029fcedbca7f111bc856553284b2fab8f5b6",
+      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/proposed/agent-principal-design/02-participants-and-attribution.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -230,7 +230,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "a19b7da991c6839bc1a3b1ad532a1570ee621f2c94243d8548b7c8f8b8e59efa",
-      "verifiedCommit": "6598029fcedbca7f111bc856553284b2fab8f5b6",
+      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/proposed/agent-principal-design/03-capability-ceiling.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -278,7 +278,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "96d4aee43f23fab02227628c92c82c5762529855416af642601a1d98ba7f70b4",
-      "verifiedCommit": "6598029fcedbca7f111bc856553284b2fab8f5b6",
+      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/proposed/agent-principal-design/04-buddy-transition.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -326,7 +326,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "b647e64982bb9905d4f3ca2e59e35d0816d1f245c6ddae2f38648f2a64664750",
-      "verifiedCommit": "6598029fcedbca7f111bc856553284b2fab8f5b6",
+      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/proposed/agent-principal-design/05-seats.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -374,7 +374,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "1c12716703baaf600d41d58fa03d8853defd1312f0d57a35f4eb41ea8be498a6",
-      "verifiedCommit": "6598029fcedbca7f111bc856553284b2fab8f5b6",
+      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/proposed/agent-principal-design/06-ripples.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -422,7 +422,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "dc8715e86f32767227ecfee2084c2004a10c65e08a18c6d11b1f898873a0dd43",
-      "verifiedCommit": "6598029fcedbca7f111bc856553284b2fab8f5b6",
+      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/proposed/agent-principal-design/07-build-plan.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -470,7 +470,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "4cf4092b3471cf6b3aad4943faba64f5d26b62f1a4518390aaefbca6767499f8",
-      "verifiedCommit": "6598029fcedbca7f111bc856553284b2fab8f5b6",
+      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/proposed/agent-principal-design/README.md:1 (full read; lifecycle/frontmatter evaluated)",
@@ -970,7 +970,7 @@
       "authority": "design",
       "fullRead": true,
       "verifiedSha256": "819b2060c7da889bbd61136f6c5f158397eabc08993f9512f926593722132a56",
-      "verifiedCommit": "6598029fcedbca7f111bc856553284b2fab8f5b6",
+      "verifiedCommit": "6d44c1eddf1cdc0f3c5e611fb95ff97be08f8522",
       "verifiedAt": "2026-08-14",
       "evidence": [
         "docs/architecture/proposed/bg-video-background-mini-spec.md:1 (full read; lifecycle/frontmatter evaluated)",
