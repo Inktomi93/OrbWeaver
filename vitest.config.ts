@@ -46,6 +46,10 @@ const SERIAL_INT = [
   "tests/server/entry/lifecycle.int.test.ts",
   // 2. whole-tree scanners + heavy full-composition files (flaked on 5s timeout under fork contention)
   "tests/tooling/gate-conformance.int.test.ts",
+  // The `pnpm ast` audit-epilogue proof: every row SPAWNS the real CLI, which loads the whole workspace
+  // into ts-morph (~11s each). Five of those in the parallel lane is a load bomb, and no parallel-lane
+  // timeout covers them — the rows carry explicit 120s timeouts and run one at a time here.
+  "tests/tooling/ast-observability.int.test.ts",
   "tests/support/fixtures.int.test.ts",
   "tests/server/transport/cross-tenant-sweep.suite.int.test.ts",
   "tests/server/entry/compose/chat.int.test.ts",
